@@ -23,7 +23,7 @@ import com.aionemu.gameserver.utils.audit.AuditLogger;
  */
 public class BindPointTeleportService {
 
-	private static final int COOLDOWN_IN_SECONDS = 600; // 10 mins
+	private static final int COOLDOWN_IN_SECONDS = 1;
 	/**
 	 * player id - cooldown
 	 */
@@ -60,15 +60,10 @@ public class BindPointTeleportService {
 				}
 				addCooldown(player, locId);
 				PacketSendUtility.broadcastPacket(player, new SM_BIND_POINT_TELEPORT(3, player.getObjectId(), locId, COOLDOWN_IN_SECONDS), true);
-				ThreadPoolManager.getInstance().schedule(new Runnable() {
-					@Override
-					public void run() {
-						if (!player.getLifeStats().isAboutToDie() && !player.isDead())
-							TeleportService.teleportTo(player, hotspot.getWorldId(), hotspot.getX(), hotspot.getY(), hotspot.getZ());
-					}
-				}, 1000);
+				if (!player.getLifeStats().isAboutToDie() && !player.isDead())
+					TeleportService.teleportTo(player, hotspot.getWorldId(), hotspot.getX(), hotspot.getY(), hotspot.getZ());
 			}
-		}, 10000));
+		}, 1000));
 	}
 
 	public static void cancelTeleport(Player player, int locId) {
@@ -137,11 +132,8 @@ public class BindPointTeleportService {
 		}
 
 		protected int getTimeLeft() {
-			int estimated = (int) ((cdEnd - System.currentTimeMillis()) / 1000);
-			if (estimated > 0)
-				return estimated;
-			else
-				return 0;
+			long remainingMillis = cdEnd - System.currentTimeMillis();
+			return remainingMillis > 0 ? (int) ((remainingMillis + 999) / 1000) : 0;
 		}
 	}
 

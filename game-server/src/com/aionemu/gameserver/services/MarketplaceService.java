@@ -29,6 +29,7 @@ import com.aionemu.gameserver.model.Race;
 import com.aionemu.gameserver.model.gameobjects.LetterType;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.model.templates.item.ItemTemplate;
+import com.aionemu.gameserver.model.templates.item.ItemQuality;
 import com.aionemu.gameserver.services.mail.SystemMailService;
 import com.aionemu.gameserver.utils.ThreadPoolManager;
 import com.aionemu.gameserver.world.World;
@@ -41,6 +42,7 @@ public final class MarketplaceService {
 	private static final Logger log = LoggerFactory.getLogger(MarketplaceService.class);
 	private static final Path CATALOG = Path.of("config/ingameshop/marketplace.tsv");
 	private static final Path EXTRA_CATALOG = Path.of("config/ingameshop/marketplace_extra.tsv");
+	private static final Path MEDIA = Path.of("config/ingameshop/media");
 	private static final int PAGE_SIZE = 12;
 	private static final SecureRandom random = new SecureRandom();
 	private static final Map<String, Long> purchaseForms = new ConcurrentHashMap<>();
@@ -57,6 +59,7 @@ public final class MarketplaceService {
 			offers = loadOffers();
 			server = HttpServer.create(new InetSocketAddress(GSConfig.MARKETPLACE_BIND, GSConfig.MARKETPLACE_PORT), 16);
 			server.createContext("/shop", MarketplaceService::handle);
+			server.createContext("/shop/media/", MarketplaceService::serveMedia);
 			server.setExecutor(ThreadPoolManager.getInstance());
 			server.start();
 			log.info("Private marketplace listening at http://{}:{}/shop ({} offers)", GSConfig.MARKETPLACE_BIND,
@@ -91,10 +94,39 @@ public final class MarketplaceService {
 				|| parts[5].isBlank())
 				throw new IOException("Invalid marketplace item, quantity, or price: " + line);
 			Gender gender = item.getUseLimits() == null ? null : item.getUseLimits().getGenderPermitted();
-			result.add(new Offer(itemId, count, price, section, unlockLevel, item.getName(), parts[5], item.getRace(), gender));
+			result.add(new Offer(itemId, count, price, section, unlockLevel, item.getName(), parts[5], item.getRace(), gender, item.getItemQuality()));
 		}
 		}
 		return List.copyOf(result);
+	}
+
+	private static void serveMedia(HttpExchange exchange) throws IOException {
+		try {
+			if (!exchange.getRequestMethod().equals("GET")) {
+				exchange.sendResponseHeaders(405, -1);
+				return;
+			}
+			String name = exchange.getRequestURI().getPath().substring("/shop/media/".length());
+			if (!name.matches("icons/[0-9]{9}\\.png|marketplace\\.css|hero\\.webp|banb\\.ttf")) {
+				exchange.sendResponseHeaders(404, -1);
+				return;
+			}
+			Path file = MEDIA.resolve(name);
+			if (!Files.isRegularFile(file)) {
+				exchange.sendResponseHeaders(404, -1);
+				return;
+			}
+			String type = name.endsWith(".png") ? "image/png" : name.endsWith(".webp") ? "image/webp"
+				: name.endsWith(".ttf") ? "font/ttf" : "text/css; charset=utf-8";
+			byte[] data = Files.readAllBytes(file);
+			exchange.getResponseHeaders().set("Content-Type", type);
+			exchange.getResponseHeaders().set("Cache-Control", "private, max-age=86400");
+			exchange.getResponseHeaders().set("X-Content-Type-Options", "nosniff");
+			exchange.sendResponseHeaders(200, data.length);
+			exchange.getResponseBody().write(data);
+		} finally {
+			exchange.close();
+		}
 	}
 
 	private static void handle(HttpExchange exchange) throws IOException {
@@ -117,11 +149,13 @@ public final class MarketplaceService {
 			}
 			String sessionId = args.getOrDefault("session_id", args.getOrDefault("token", ""));
 			Player player = findPlayer(sessionId);
-			// The NA browser sometimes opens the configured URL without a session query.
-			// On a local, single-player server the loopback connection identifies that player.
-			if (player == null && sessionId.isBlank() && exchange.getRemoteAddress().getAddress().isLoopbackAddress()
-				&& GSConfig.MARKETPLACE_BIND.equals("127.0.0.1") && World.getInstance().getAllPlayers().size() == 1)
+			// The NA browser may omit its session query or keep the old one after a game-server restart.
+			// For the loopback-only solo shop, the sole online character can still be identified locally.
+			if (player == null && exchange.getRemoteAddress().getAddress().isLoopbackAddress()
+				&& GSConfig.MARKETPLACE_BIND.equals("127.0.0.1") && World.getInstance().getAllPlayers().size() == 1) {
 				player = World.getInstance().getAllPlayers().iterator().next();
+				sessionId = ""; // Do not carry a stale token into links or purchase forms.
+			}
 			if (player == null) {
 				reply(exchange, 403, page("Open the Marketplace while logged in to your character."));
 				return;
@@ -240,13 +274,13 @@ public final class MarketplaceService {
 		purchaseForms.entrySet().removeIf(e -> e.getValue() < System.currentTimeMillis());
 		long balance = player.getInventory().getKinah();
 		String search = query.toLowerCase(Locale.ROOT);
-		StringBuilder body = new StringBuilder("<div class='shell'><div class='masthead'><div class='brand'>")
-			.append("<div class='eyebrow'>PRIVATE REALM / LIVE SHOP</div><h1>Black Cloud<br><span>Marketplace</span></h1>")
-			.append("<p>Supplies for the first quest and every challenge after level 65.</p></div>")
+		StringBuilder body = new StringBuilder("<div class='shell'><header class='hero'><div class='hero-inner'>")
+			.append("<div class='realm'><span class='sigil'>&#9670;</span> ATREIA / PRIVATE REALM</div><h1>Black Cloud<span>Marketplace</span></h1>")
+			.append("<p>Rare curiosities, trusted supplies, and a little Shugo magic for every journey.</p>")
 			.append("<div class='account'><div class='account-label'>SHOPPING AS</div><div class='character'>")
 			.append(escape(player.getName())).append(" <span>Lv ").append(player.getLevel())
 			.append("</span></div><div class='account-label'>YOUR BALANCE</div><div class='balance'>")
-			.append(String.format("%,d", balance)).append(" <span>Kinah</span></div></div></div>");
+			.append(String.format("%,d", balance)).append(" <span>Kinah</span></div></div></div></header>");
 		if (!notice.isBlank())
 			body.append("<div class='notice'>").append(escape(notice)).append("</div>");
 		body.append("<div class='navigation'><form method='get' action='/shop'><input type='hidden' name='session_id' value='")
@@ -287,21 +321,22 @@ public final class MarketplaceService {
 		int from = (pageNumber - 1) * PAGE_SIZE;
 		int to = Math.min(matches.size(), from + PAGE_SIZE);
 		body.append("<div class='results'>").append(matches.size()).append(" offers <span>PAGE ")
-			.append(pageNumber).append(" OF ").append(pages).append("</span></div>");
+			.append(pageNumber).append(" OF ").append(pages).append("</span></div><div class='products'>");
 		for (int pos = from; pos < to; pos++) {
 			int i = matches.get(pos);
 			Offer offer = offers.get(i);
-			body.append("<div class='product'><table><tr><td class='mark-cell'><div class='mark'>")
-				.append(offer.section().badge).append("</div></td><td class='details'><div class='item-name'>")
-				.append(escape(offer.name())).append("</div><div class='item-meta'>LV ").append(offer.unlockLevel())
+			body.append("<article class='product quality-").append(offer.quality().name().toLowerCase(Locale.ROOT))
+				.append("'><div class='product-main'><div class='icon-frame'><img src='/shop/media/icons/")
+				.append(offer.itemId()).append(".png' width='64' height='64' alt=''></div><div class='item-copy'><h3 class='item-name'>")
+				.append(escape(offer.name())).append("</h3><div class='item-meta'>LV ").append(offer.unlockLevel())
 				.append("+ <span>/</span> QUANTITY ").append(offer.count());
 			if (offer.race() != Race.PC_ALL)
 				body.append(" <span>/</span> ").append(offer.race() == Race.ELYOS ? "ELYOS" : "ASMODIAN");
 			if (offer.gender() != null)
 				body.append(" <span>/</span> ").append(offer.gender());
 			body.append("</div><div class='item-note'>")
-				.append(escape(offer.description())).append("</div></td><td class='purchase'><div class='price'>")
-				.append(String.format("%,d", offer.price())).append("</div><div class='currency'>KINAH</div>");
+				.append(escape(offer.description())).append("</div></div></div><div class='product-bottom'><div class='price-block'><div class='price'>")
+				.append(String.format("%,d", offer.price())).append("</div><div class='currency'>KINAH</div></div>");
 			if (player.getLevel() < offer.unlockLevel()) {
 				body.append("<div class='unavailable'>Unlocks at Lv ").append(offer.unlockLevel()).append("</div>");
 			} else if (offer.race() != Race.PC_ALL && offer.race() != player.getRace()) {
@@ -323,8 +358,9 @@ public final class MarketplaceService {
 					.append("'><input type='hidden' name='offer' value='").append(i)
 					.append("'><button class='buy' type='submit'>Buy now</button></form>");
 			}
-			body.append("</td></tr></table></div>");
+			body.append("</div></article>");
 		}
+		body.append("</div>");
 		if (matches.isEmpty())
 			body.append("<div class='empty'>No items match that search in this section. Try another word or choose All goods.</div>");
 		if (pages > 1) {
@@ -456,6 +492,6 @@ public final class MarketplaceService {
 		}
 	}
 
-	private record Offer(int itemId, long count, long price, Section section, int unlockLevel, String name, String description, Race race, Gender gender) {
+	private record Offer(int itemId, long count, long price, Section section, int unlockLevel, String name, String description, Race race, Gender gender, ItemQuality quality) {
 	}
 }
