@@ -16,4 +16,6 @@ login-server/target/
 **/.classpath
 **/.project
 *.log
-*.log
+*.zip
+/target-deploy/game-server/log
+/Aion 4.8 Server/

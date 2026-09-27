@@ -8,6 +8,7 @@ import com.aionemu.gameserver.model.broker.filter.BrokerMinMaxFilter;
 import com.aionemu.gameserver.model.broker.filter.BrokerPlayerClassExtraFilter;
 import com.aionemu.gameserver.model.broker.filter.BrokerRecipeFilter;
 import com.aionemu.gameserver.model.gameobjects.Item;
+import com.aionemu.gameserver.model.templates.item.ItemTemplate;
 
 /**
  * @author kosyachok, Simple, ATracer
@@ -183,7 +184,11 @@ public enum BrokerItemMask {
 	}
 
 	public boolean isMatches(Item item) {
-		return filter.accept(item.getItemTemplate());
+		return matchesTemplate(item.getItemTemplate());
+	}
+
+	public boolean matchesTemplate(ItemTemplate template) {
+		return filter.accept(template);
 	}
 
 	public boolean isChildrenMask(int maskId) {

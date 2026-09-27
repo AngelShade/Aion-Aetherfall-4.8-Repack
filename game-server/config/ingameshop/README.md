@@ -16,9 +16,13 @@ The local storefront accepts a logged-in character's session token; for a
 single-player local server, it also accepts a loopback request while exactly
 one character is online.
 
-Edit `marketplace.tsv` or `marketplace_extra.tsv` to change the offers. Each tab-separated row contains
+Edit the live files in `target-deploy/game-server/config/ingameshop/` to change the running shop. Edits to the copies in `game-server/config/ingameshop/` are source changes for the next deployment. Each tab-separated row contains
 `item_id`, `quantity`, `price_in_kinah`, `section`, `unlock_level`, and a short
 description. The displayed item name comes from the server's item template.
+The shop checks both catalogs on each page request and reloads changed offers,
+prices, categories, and descriptions without disconnecting players. Reopen the
+shop or browse to another category to see changes. If a catalog edit is invalid,
+the last valid catalog stays active and the game server logs the error.
 Sections are `starter`, `supplies`, `travel`, `weapons`, `armor`, `upgrades`,
 `style`, `food`, `potions`, `outfits`, `hats`, `weapon_skins`, `wings`,
 `dyes`, `hair`, `emotes`, `titles`, `pets`, `mounts`, `services`, and `gm`.
@@ -34,6 +38,9 @@ theme stylesheet. `media/icon_sources.tsv` records each thumbnail's client DDS
 source. `exact` means the client item record named that icon; `related` and
 `type` use an in-game icon for the same item family when the record did not
 specify one. Keep the media directory with the catalog when deploying the shop.
+Replace a live PNG, `hero.webp`, `banb.ttf`, or `marketplace.css` in the deployed
+`media/` directory to update it without restarting. Media is served without
+browser caching; reopen the shop to refresh the page.
 
 `marketplace_extra.tsv` is a reconstructed 4.8 compatible catalog made from
 the server's item templates and their supported pet, mount, title, cosmetic,
@@ -41,8 +48,9 @@ and consumable actions. It is not a verified copy of the historical NA cash
 shop inventory or its prices. All prices here are Kinah. It includes the five
 GM named items as requested. To refresh this file after changing static item
 data, run `python config/ingameshop/build_extra_catalog.py` from the
-`game-server` directory and restart the server.
-Restart the game server after editing the catalog. Purchased items arrive in
+`game-server` directory. Copy the regenerated catalog into the deployed
+`config/ingameshop/` directory to load it. Changes to the underlying static item
+templates still require a game server restart. Purchased items arrive in
 Black Cloud mail. Gear is sold piece by piece; choose the item type your class
 can equip.
 

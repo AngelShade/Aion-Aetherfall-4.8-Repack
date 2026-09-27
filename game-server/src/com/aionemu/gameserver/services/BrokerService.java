@@ -27,6 +27,7 @@ import com.aionemu.gameserver.network.aion.serverpackets.SM_DELETE_ITEM;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_SYSTEM_MESSAGE;
 import com.aionemu.gameserver.restrictions.PlayerRestrictions;
 import com.aionemu.gameserver.services.item.ItemFactory;
+import com.aionemu.gameserver.services.custom.AuctionHouseSimulator;
 import com.aionemu.gameserver.services.item.ItemPacketService;
 import com.aionemu.gameserver.services.player.PlayerService;
 import com.aionemu.gameserver.services.trade.PricesService;
@@ -224,20 +225,40 @@ public class BrokerService {
 		return false;
 	}
 
-	public void addSimulatedItem(int itemId, long count, long price, int sellerId, BrokerRace race) {
+	public Set<Integer> getActiveItemIds(Race race) {
+		Map<Integer, BrokerItem> items = getRaceBrokerItems(race);
+		if (items == null)
+			return new HashSet<>();
+		Set<Integer> ids = new HashSet<>();
+		long now = System.currentTimeMillis();
+		for (BrokerItem item : items.values()) {
+			if (item != null && !item.isSold() && !item.isCanceled() && item.getExpireTime().getTime() > now)
+				ids.add(item.getItemId());
+		}
+		return ids;
+	}
+
+	public synchronized boolean addSimulatedItem(int itemId, long count, long price, int sellerId, BrokerRace race) {
+		if (count <= 0 || price <= 0 || (race != BrokerRace.ELYOS && race != BrokerRace.ASMODIAN))
+			return false;
 		Item item = ItemFactory.newItem(itemId, count);
 		if (item == null)
-			return;
+			return false;
 		item.setItemLocation(StorageType.BROKER.getId());
 		item.setPersistentState(PersistentState.NEW);
-		BrokerItem brokerItem = new BrokerItem(item, price, sellerId, true, race);
-		InventoryDAO.store(item, sellerId);
-		BrokerDAO.store(brokerItem);
-		if (race == BrokerRace.ELYOS) {
-			elyosBrokerItems.put(brokerItem.getItemUniqueId(), brokerItem);
-		} else {
-			asmodianBrokerItems.put(brokerItem.getItemUniqueId(), brokerItem);
+		BrokerItem brokerItem = new BrokerItem(item, price, sellerId, item.getItemTemplate().isStackable(), race);
+		if (!InventoryDAO.store(item, sellerId))
+			return false;
+		if (!BrokerDAO.store(brokerItem)) {
+			item.setPersistentState(PersistentState.DELETED);
+			InventoryDAO.store(item, sellerId);
+			return false;
 		}
+		if (race == BrokerRace.ELYOS)
+			elyosBrokerItems.put(brokerItem.getItemUniqueId(), brokerItem);
+		else
+			asmodianBrokerItems.put(brokerItem.getItemUniqueId(), brokerItem);
+		return true;
 	}
 
 
@@ -331,6 +352,18 @@ public class BrokerService {
 	}
 
 	private void putToSettled(Race race, BrokerItem brokerItem, boolean isSold) {
+		if (AuctionHouseSimulator.isSimulatedSeller(brokerItem.getSellerId())) {
+			if (isSold) {
+				brokerItem.removeItem();
+				brokerItem.setPersistentState(PersistentState.DELETED);
+				saveManager.add(new BrokerOpSaveTask(brokerItem));
+			} else {
+				brokerItem.getItem().setPersistentState(PersistentState.DELETED);
+				brokerItem.setPersistentState(PersistentState.DELETED);
+				saveManager.add(new BrokerOpSaveTask(brokerItem, brokerItem.getItem(), null, brokerItem.getSellerId()));
+			}
+			return;
+		}
 		if (isSold)
 			brokerItem.removeItem();
 		else

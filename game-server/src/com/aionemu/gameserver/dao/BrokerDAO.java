@@ -6,6 +6,10 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
+
+import com.aionemu.commons.database.ParamReadStH;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +25,27 @@ import com.aionemu.gameserver.model.gameobjects.Persistable.PersistentState;
 public class BrokerDAO {
 
 	private static final Logger log = LoggerFactory.getLogger(BrokerDAO.class);
+
+	public static Set<Integer> findExistingPlayerIds(int[] ids) {
+		Set<Integer> result = new HashSet<>();
+		if (ids.length == 0)
+			return result;
+		String placeholders = String.join(",", java.util.Collections.nCopies(ids.length, "?"));
+		DB.select("SELECT id FROM players WHERE id IN (" + placeholders + ")", new ParamReadStH() {
+			@Override
+			public void setParams(PreparedStatement stmt) throws SQLException {
+				for (int i = 0; i < ids.length; i++)
+					stmt.setInt(i + 1, ids[i]);
+			}
+
+			@Override
+			public void handleRead(ResultSet rset) throws SQLException {
+				while (rset.next())
+					result.add(rset.getInt(1));
+			}
+		});
+		return result;
+	}
 
 	public static List<BrokerItem> loadBroker() {
 		List<BrokerItem> brokerItems = new ArrayList<>();

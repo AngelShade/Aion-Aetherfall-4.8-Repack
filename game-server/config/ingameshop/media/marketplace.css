@@ -1,8 +1,8 @@
-@font-face{font-family:AionTitle;src:url('/shop/media/banb.ttf') format('truetype')}
+@font-face{font-family:AionTitle;src:url('/shop/media/banb.ttf?v=3') format('truetype')}
 *{box-sizing:border-box}html{min-height:100%}
 body{margin:0;background:#080e17;color:#e9e3d5;font:13px/1.45 'Segoe UI',Tahoma,Arial,sans-serif}
 .shell{max-width:1060px;min-height:100vh;margin:0 auto;background:#101a27;box-shadow:0 0 0 1px #415371,0 18px 70px #000}
-.hero{height:167px;position:relative;overflow:hidden;background:#172b45 url('/shop/media/hero.webp') center 39%/cover no-repeat;border-bottom:2px solid #c7a66b}
+.hero{height:167px;position:relative;overflow:hidden;background:#172b45 url('/shop/media/hero.webp?v=3') center 39%/cover no-repeat;border-bottom:2px solid #c7a66b}
 .hero:before{content:'';position:absolute;top:0;right:0;bottom:0;left:0;background:linear-gradient(90deg,rgba(5,12,24,.94),rgba(7,17,31,.87) 34%,rgba(7,17,31,.32) 70%,rgba(5,12,24,.58))}
 .hero:after{content:'';position:absolute;left:0;right:0;bottom:0;height:16px;background:linear-gradient(0deg,rgba(6,13,24,.8),transparent)}
 .hero-inner{position:relative;z-index:1;height:100%;padding:20px 26px}.realm{color:#dfc995;font-size:10px;font-weight:bold;letter-spacing:2.2px;text-transform:uppercase}
