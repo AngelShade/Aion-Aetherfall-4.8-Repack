@@ -389,50 +389,9 @@ public final class MarketplaceService {
 
 	private static String page(String body) {
 		return "<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>"
-			+ "<title>Black Cloud Marketplace</title><style>" + STYLE + "</style></head><body>" + body + "</body></html>";
+			+ "<title>Black Cloud Marketplace</title><link rel='stylesheet' href='/shop/media/marketplace.css?v=2'>"
+			+ "</head><body>" + body + "</body></html>";
 	}
-
-	private static final String STYLE = """
-		body{margin:0;background:#0b1521;color:#e6e0cf;font:13px Arial,sans-serif;line-height:1.45}
-		.shell{max-width:860px;margin:0 auto;background:#111e2b;min-height:100%}
-		.masthead{padding:22px 26px 20px;background:#172839;border-bottom:3px solid #ac884e;overflow:hidden}
-		.brand{float:left;width:63%}.brand h1{font:normal 30px Georgia,serif;color:#f4d392;line-height:1.02;margin:5px 0 9px}
-		.brand h1 span{color:#f6eee0}.brand p{color:#b7c5cc;margin:0;max-width:420px}
-		.eyebrow{font-size:10px;letter-spacing:2px;font-weight:bold;color:#d2a95f}
-		.account{float:right;width:31%;background:#0e1c2b;border:1px solid #46586b;padding:12px;box-sizing:border-box}
-		.account-label{color:#9aacb7;font-size:10px;letter-spacing:1px;font-weight:bold}
-		.character{font-size:15px;font-weight:bold;color:#f6eee0;margin:3px 0 9px;overflow-wrap:break-word}
-		.character span{color:#a8d5d4;font-size:11px;font-weight:normal}
-		.balance{font:bold 20px Georgia,serif;color:#f4d392;margin-top:3px}.balance span{font:11px Arial,sans-serif;color:#c6aa79}
-		.notice{margin:14px 24px 0;padding:10px 14px;background:#1d3d3e;border-left:4px solid #72c5b3;color:#eff9ee}
-		.navigation{padding:11px 24px;background:#0d1926;border-bottom:1px solid #35485b;overflow:hidden}
-		.navigation form{float:left}.navigation label{font-size:10px;letter-spacing:1px;font-weight:bold;color:#d2a95f;margin-right:9px}
-		.navigation select{width:205px;padding:7px;background:#e8e6de;color:#172331;border:1px solid #657787}
-		.navigation button{padding:7px 15px;background:#b28b50;border:1px solid #d8b977;color:#111b26;font-weight:bold;cursor:pointer}
-		.quicklinks{float:right;padding-top:6px}.quicklinks a{color:#d3dfe1;margin-left:11px;text-decoration:none;font-size:11px}
-		.quicklinks a:hover{color:#f4d392;text-decoration:underline}
-		.content{padding:19px 24px 24px}.section-heading{overflow:hidden;margin-bottom:15px}
-		.section-heading h2{font:normal 24px Georgia,serif;color:#f6eee0;margin:2px 0 3px}
-		.section-heading p{margin:0;color:#afbec7}.delivery{float:right;text-align:right;color:#90a6b1;font-size:10px;letter-spacing:1px;margin-top:-28px}
-		.delivery strong{color:#e6bf7d;font-size:11px}.search{background:#172838;border:1px solid #3e5368;padding:8px;margin-bottom:13px;overflow:hidden}
-		.search input[type=text]{background:#e8e6de;color:#172331;border:1px solid #657787;padding:8px;width:69%;font:13px Arial,sans-serif;box-sizing:border-box}
-		.search button{float:right;width:28%;padding:8px 3px;background:#426174;border:1px solid #658698;color:white;font-weight:bold;cursor:pointer}
-		.results{font-size:11px;color:#c6b28e;margin:0 1px 9px}.results span{float:right;letter-spacing:1px}
-		.product{background:#192b3b;border:1px solid #334a5e;border-left:3px solid #9c7947;margin-bottom:8px}
-		.product table{width:100%;border-collapse:collapse}.product td{vertical-align:middle;padding:10px 7px}
-		.mark-cell{width:49px}.mark{height:39px;width:43px;line-height:39px;text-align:center;background:#273d50;border:1px solid #637a84;color:#e9c78e;font:bold 11px Arial,sans-serif;letter-spacing:1px}
-		.details{width:auto}.item-name{font:bold 15px Georgia,serif;color:#f4e9d4;line-height:1.2}
-		.item-meta{color:#d9b676;font-size:10px;letter-spacing:1px;margin-top:4px;font-weight:bold}.item-meta span{color:#798c9c;margin:0 3px}
-		.item-note{color:#acbdc6;font-size:12px;margin-top:4px}.purchase{width:142px;text-align:right;white-space:nowrap}
-		.price{font:bold 17px Georgia,serif;color:#f2cb83}.currency{color:#a8b4bd;font-size:10px;letter-spacing:1px}
-		.buy{margin-top:7px;padding:7px 15px;width:118px;background:#c39755;border:1px solid #e8c88b;color:#13202d;font-weight:bold;cursor:pointer}
-		.buy:hover{background:#efc779}.unavailable{margin-top:8px;color:#98a9b4;font-size:11px}
-		.empty{padding:27px 16px;background:#192b3b;border:1px solid #3e5368;color:#cbd6d7;text-align:center}
-		.pagination{text-align:center;padding:12px 0 3px}.pagination a,.pagination span{display:inline-block;padding:8px 13px;margin:0 3px;border:1px solid #567083;color:#e9d6ad;text-decoration:none;background:#1b3042}
-		.pagination a:hover{background:#b28b50;color:#111b26}
-		.footer{padding:15px 2px 2px;color:#9aadb6;font-size:11px}
-		@media(max-width:680px){.masthead{padding:17px}.brand,.account{float:none;width:auto}.account{margin-top:14px}.content{padding:15px}.delivery{float:none;text-align:left;margin:8px 0 0}.navigation{padding:9px}.navigation form,.quicklinks{float:none}.quicklinks{padding:8px 0 0}.quicklinks a{margin:0 11px 0 0}.purchase{width:104px}.buy{width:95px}.item-name{font-size:13px}.item-note{font-size:11px}.price{font-size:14px}.mark-cell{width:38px}.mark{width:33px}}
-		""";
 
 	private static void reply(HttpExchange exchange, int status, String html) throws IOException {
 		byte[] bytes = html.getBytes(StandardCharsets.UTF_8);

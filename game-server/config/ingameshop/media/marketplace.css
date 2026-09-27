@@ -3,7 +3,7 @@
 body{margin:0;background:#080e17;color:#e9e3d5;font:13px/1.45 'Segoe UI',Tahoma,Arial,sans-serif}
 .shell{max-width:1060px;min-height:100vh;margin:0 auto;background:#101a27;box-shadow:0 0 0 1px #415371,0 18px 70px #000}
 .hero{height:167px;position:relative;overflow:hidden;background:#172b45 url('/shop/media/hero.webp') center 39%/cover no-repeat;border-bottom:2px solid #c7a66b}
-.hero:before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,rgba(5,12,24,.94),rgba(7,17,31,.87) 34%,rgba(7,17,31,.32) 70%,rgba(5,12,24,.58))}
+.hero:before{content:'';position:absolute;top:0;right:0;bottom:0;left:0;background:linear-gradient(90deg,rgba(5,12,24,.94),rgba(7,17,31,.87) 34%,rgba(7,17,31,.32) 70%,rgba(5,12,24,.58))}
 .hero:after{content:'';position:absolute;left:0;right:0;bottom:0;height:16px;background:linear-gradient(0deg,rgba(6,13,24,.8),transparent)}
 .hero-inner{position:relative;z-index:1;height:100%;padding:20px 26px}.realm{color:#dfc995;font-size:10px;font-weight:bold;letter-spacing:2.2px;text-transform:uppercase}
 .sigil{display:inline-block;color:#e8c980;font-size:14px;margin-right:8px}
@@ -28,7 +28,7 @@ body{margin:0;background:#080e17;color:#e9e3d5;font:13px/1.45 'Segoe UI',Tahoma,
 .delivery{position:absolute;right:0;bottom:16px;color:#b5c8d0;font-size:9px;letter-spacing:1px;text-align:right}.delivery strong{font-size:10px;color:#e9c883}
 .search{height:40px;margin-bottom:11px;overflow:hidden}.search input[type=text]{height:36px;width:76%;padding:7px 11px;background:#e5e6e2;color:#1d2937;border:1px solid #8ca0a8;font:13px 'Segoe UI',Arial,sans-serif}
 .search button{float:right;width:22%;height:36px}.results{height:22px;color:#cfbf9b;font-size:11px}.results span{float:right;letter-spacing:1px}
-.products{font-size:0;margin-right:-10px}.product{display:inline-block;vertical-align:top;width:calc(50% - 10px);min-height:151px;margin:0 10px 10px 0;background:#1a2a3b;border:1px solid #53677b;box-shadow:inset 0 0 0 1px #1d3647,0 4px 10px rgba(0,0,0,.18);font-size:12px;position:relative}
+.products{font-size:0;margin-right:-10px}.product{display:inline-block;vertical-align:top;width:48.5%;width:calc(50% - 10px);min-height:151px;margin:0 10px 10px 0;background:#1a2a3b;border:1px solid #53677b;box-shadow:inset 0 0 0 1px #1d3647,0 4px 10px rgba(0,0,0,.18);font-size:12px;position:relative}
 .product:before,.product:after{content:'';position:absolute;width:8px;height:8px;border-color:#c6a872;pointer-events:none}.product:before{top:3px;left:3px;border-top:1px solid;border-left:1px solid}.product:after{right:3px;bottom:3px;border-right:1px solid;border-bottom:1px solid}
 .product-main{padding:12px 11px 8px;min-height:94px;overflow:hidden}.icon-frame{float:left;width:70px;height:70px;margin-right:11px;padding:2px;background:linear-gradient(135deg,#7c653d,#263a4f 30%,#172839 70%,#aa8850);border:1px solid #bca474;box-shadow:inset 0 0 0 2px #1c3041}
 .icon-frame img{display:block;width:64px;height:64px;background:#142333}.item-copy{overflow:hidden}.item-name{font:normal 16px/1.18 Georgia,serif;color:#f8edd4;margin:0 0 4px;min-height:20px}
@@ -39,4 +39,4 @@ body{margin:0;background:#080e17;color:#e9e3d5;font:13px/1.45 'Segoe UI',Tahoma,
 .empty{padding:25px;background:#1a2a3b;border:1px solid #53677b;color:#d2dcdf;text-align:center;font-size:12px}.footer{margin-top:9px;padding-top:12px;border-top:1px solid #354a5c;color:#a9b9bf;font-size:10px}
 .quality-rare .icon-frame{border-color:#75b6d8}.quality-legendary .icon-frame,.quality-unique .icon-frame{border-color:#cbb358}.quality-epic .icon-frame{border-color:#ed9a68}.quality-mythic .icon-frame{border-color:#bd9be7}
 @media(max-width:770px){.quicklinks{float:none;clear:both;padding-top:8px}.quicklinks a{margin-left:0;margin-right:13px}.navigation{padding:8px 17px}.hero-inner{padding:18px}.account{right:18px}}
-@media(max-width:610px){.hero{height:205px}.hero h1{font-size:26px}.hero h1 span{font-size:18px}.hero p{max-width:60%}.account{width:36%;right:10px;top:26px;padding:8px}.balance{font-size:14px}.content{padding:14px}.product{width:calc(100% - 10px)}.section-heading{min-height:80px}.delivery{position:static;text-align:left;margin-top:5px}.search input[type=text]{width:68%}.search button{width:30%}.navigation label{display:none}}
+@media(max-width:610px){.hero{height:205px}.hero h1{font-size:26px}.hero h1 span{font-size:18px}.hero p{max-width:60%}.account{width:36%;right:10px;top:26px;padding:8px}.balance{font-size:14px}.content{padding:14px}.product{width:97%;width:calc(100% - 10px)}.section-heading{min-height:80px}.delivery{position:static;text-align:left;margin-top:5px}.search input[type=text]{width:68%}.search button{width:30%}.navigation label{display:none}}

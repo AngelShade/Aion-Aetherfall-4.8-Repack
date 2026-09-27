@@ -28,6 +28,13 @@ item stack. The shop blocks purchases below the offer's unlock level and
 checks the item's faction and gender restrictions. The larger catalog is
 paged, with twelve offers per page.
 
+The storefront's Aion 4.8 art lives in `media/`: one PNG thumbnail per offer,
+a client loading-screen image for the header, the client's title font, and the
+theme stylesheet. `media/icon_sources.tsv` records each thumbnail's client DDS
+source. `exact` means the client item record named that icon; `related` and
+`type` use an in-game icon for the same item family when the record did not
+specify one. Keep the media directory with the catalog when deploying the shop.
+
 `marketplace_extra.tsv` is a reconstructed 4.8 compatible catalog made from
 the server's item templates and their supported pet, mount, title, cosmetic,
 and consumable actions. It is not a verified copy of the historical NA cash
