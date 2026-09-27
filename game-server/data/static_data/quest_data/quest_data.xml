@@ -6912,7 +6912,7 @@
 	<quest id="1791" name="Drake Raiders" nameId="1104591" quest_zone="Reshanta" minlevel_permitted="37" max_repeat_count="200" race_permitted="ELYOS" category="QUEST" restricted="true">
 		<rewards gold="9000" exp="1047731" ap="100"/>
 		<bonus level="40" type="MAGICAL"/>
-		<quest_kill step="0" var="0" count="5" npc_ids="256197" seq="0"/>
+		<quest_kill step="0" var="0" count="5" npc_ids="256197 255702" seq="0"/>
 		<quest_kill step="0" var="1" count="5" npc_ids="256200" seq="1"/>
 	</quest>
 	<quest id="1792" name="Vengeance for Baucis" nameId="1104592" quest_zone="Reshanta" minlevel_permitted="38" max_repeat_count="1" race_permitted="ELYOS" category="QUEST" restricted="true">
@@ -65364,7 +65364,7 @@
 			<selectable_reward_item item_id="114301626" count="1"/>
 			<selectable_reward_item item_id="114501660" count="1"/>
 		</extended_rewards>
-		<quest_kill step="0" var="0" count="3" npc_ids="216942" seq="0"/>
+		<quest_kill step="0" var="0" count="3" npc_ids="216942 216953" seq="0"/>
 		<quest_kill step="0" var="1" count="10" npc_ids="216958 216959 216947" seq="1"/>
 		<start_conditions>
 			<noacquired>30257</noacquired>
@@ -65389,7 +65389,7 @@
 			<selectable_reward_item item_id="111301561" count="1"/>
 			<selectable_reward_item item_id="111501631" count="1"/>
 		</extended_rewards>
-		<quest_kill step="0" var="0" count="3" npc_ids="216942" seq="0"/>
+		<quest_kill step="0" var="0" count="3" npc_ids="216942 216953" seq="0"/>
 		<quest_kill step="0" var="1" count="10" npc_ids="216958 216959 216947" seq="1"/>
 		<start_conditions>
 			<noacquired>30256</noacquired>
@@ -65414,7 +65414,7 @@
 			<selectable_reward_item item_id="112301502" count="1"/>
 			<selectable_reward_item item_id="112501571" count="1"/>
 		</extended_rewards>
-		<quest_kill step="0" var="0" count="3" npc_ids="216942" seq="0"/>
+		<quest_kill step="0" var="0" count="3" npc_ids="216942 216953" seq="0"/>
 		<quest_kill step="0" var="1" count="10" npc_ids="216958 216959 216947" seq="1"/>
 		<start_conditions>
 			<noacquired>30256</noacquired>
@@ -66337,7 +66337,7 @@
 			<selectable_reward_item item_id="114301629" count="1"/>
 			<selectable_reward_item item_id="114501662" count="1"/>
 		</extended_rewards>
-		<quest_kill step="0" var="0" count="3" npc_ids="216942" seq="0"/>
+		<quest_kill step="0" var="0" count="3" npc_ids="216942 216953" seq="0"/>
 		<quest_kill step="0" var="1" count="10" npc_ids="216958 216959 216947" seq="1"/>
 		<start_conditions>
 			<noacquired>30357</noacquired>
@@ -66362,7 +66362,7 @@
 			<selectable_reward_item item_id="111301564" count="1"/>
 			<selectable_reward_item item_id="111501634" count="1"/>
 		</extended_rewards>
-		<quest_kill step="0" var="0" count="3" npc_ids="216942" seq="0"/>
+		<quest_kill step="0" var="0" count="3" npc_ids="216942 216953" seq="0"/>
 		<quest_kill step="0" var="1" count="10" npc_ids="216958 216959 216947" seq="1"/>
 		<start_conditions>
 			<noacquired>30356</noacquired>
@@ -66387,7 +66387,7 @@
 			<selectable_reward_item item_id="112301504" count="1"/>
 			<selectable_reward_item item_id="112501573" count="1"/>
 		</extended_rewards>
-		<quest_kill step="0" var="0" count="3" npc_ids="216942" seq="0"/>
+		<quest_kill step="0" var="0" count="3" npc_ids="216942 216953" seq="0"/>
 		<quest_kill step="0" var="1" count="10" npc_ids="216958 216959 216947" seq="1"/>
 		<start_conditions>
 			<noacquired>30356</noacquired>

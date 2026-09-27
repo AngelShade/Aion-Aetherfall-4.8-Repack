@@ -10148,6 +10148,22 @@
 					<spawn npc_id="278620" respawn_time="295"> <spot 
 						x="1991.8851" y="2530.3953" z="2912.0710" h="105"/>
 					</spawn> -->
+					<!-- Kysis Asmodian quest garrison -->
+					<spawn npc_id="278122" respawn_time="295">
+						<spot x="1978.5419" y="2541.4126" z="2914.8826" h="45"/>
+					</spawn>
+					<spawn npc_id="278119" respawn_time="295">
+						<spot x="1991.0841" y="2540.5344" z="2913.6875" h="105"/>
+					</spawn>
+					<spawn npc_id="278121" respawn_time="295">
+						<spot x="2001.8307" y="2540.5266" z="2912.8381" h="105"/>
+					</spawn>
+					<spawn npc_id="278123" respawn_time="295">
+						<spot x="1991.2330" y="2553.2544" z="2915.2559" h="45"/>
+					</spawn>
+					<spawn npc_id="278120" respawn_time="295">
+						<spot x="1991.8851" y="2530.3953" z="2912.0710" h="105"/>
+					</spawn>
 				</siege_mod>
 				<siege_mod mod="SIEGE">
 					<!-- Elyos Protection Tower -->
@@ -10392,6 +10408,22 @@
 					<!-- Dux -->
 					<spawn npc_id="269002">
 						<spot x="2495.5784" y="2120.4683" z="3004.0457" h="77"/>
+					</spawn>
+					<!-- Kysis Asmodian quest garrison -->
+					<spawn npc_id="278122" respawn_time="295">
+						<spot x="1978.5419" y="2541.4126" z="2914.8826" h="45"/>
+					</spawn>
+					<spawn npc_id="278119" respawn_time="295">
+						<spot x="1991.0841" y="2540.5344" z="2913.6875" h="105"/>
+					</spawn>
+					<spawn npc_id="278121" respawn_time="295">
+						<spot x="2001.8307" y="2540.5266" z="2912.8381" h="105"/>
+					</spawn>
+					<spawn npc_id="278123" respawn_time="295">
+						<spot x="1991.2330" y="2553.2544" z="2915.2559" h="45"/>
+					</spawn>
+					<spawn npc_id="278120" respawn_time="295">
+						<spot x="1991.8851" y="2530.3953" z="2912.0710" h="105"/>
 					</spawn>
 				</siege_mod>
 			</siege_race>

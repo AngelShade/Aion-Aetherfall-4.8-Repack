@@ -552187,7 +552187,7 @@
 			<item>125040059</item>
 		</equipment>
 		<bound_radius front="0.25" side="0.35" upper="1.8" />
-		<talk_info distance="5" is_dialog="true" func_dialogs="2" can_talk_invisible="false" />
+		<talk_info distance="5" is_dialog="true" can_talk_invisible="false" />
 	</npc_template>
 	<npc_template npc_id="832010" level="1" name="bizarre pierrot" name_id="464223" height="1.8" group_drop="DARK" rank="DISCIPLINED" rating="NORMAL" race="ASMODIANS" tribe="GENERAL_DARK" type="GENERAL" ai="general" srange="20" arange="2" attack_speed="2000" hpgauge="3">
 		<stats maxHp="115">
@@ -552202,7 +552202,7 @@
 			<item>125040059</item>
 		</equipment>
 		<bound_radius front="0.25" side="0.35" upper="1.8" />
-		<talk_info distance="5" is_dialog="true" func_dialogs="2" can_talk_invisible="false" />
+		<talk_info distance="5" is_dialog="true" can_talk_invisible="false" />
 	</npc_template>
 	<npc_template npc_id="832011" level="1" name="halliwell (to test npcs for lv 39 or below)" name_id="464224" height="2" group_drop="LIGHT" rank="DISCIPLINED" rating="NORMAL" race="ELYOS" tribe="GENERAL" type="GENERAL" ai="general" srange="20" arange="2" attack_speed="2000" hpgauge="3">
 		<stats maxHp="124">

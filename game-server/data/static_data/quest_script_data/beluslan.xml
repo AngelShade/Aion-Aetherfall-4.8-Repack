@@ -400,7 +400,7 @@
 	<item_collecting id="2694" start_npc_ids="204803" end_npc_ids="204702"/>
 	<item_collecting id="2698" start_npc_ids="204814"/>
 	<item_collecting id="2699" start_npc_ids="204814" end_npc_ids="204774"/>
-	<item_collecting id="4500" start_npc_ids="204652"/>
+	<item_collecting id="4500" start_npc_ids="802051"/>
 	<item_collecting id="4503" start_npc_ids="204837"/>
 	<item_collecting id="4504" start_npc_ids="204739"/>
 	<item_collecting id="4505" start_npc_ids="204808"/>
@@ -500,7 +500,7 @@
 	<monster_hunt id="2671" start_npc_ids="802053"/>
 	<monster_hunt id="2674" start_npc_ids="802053"/>
 	<monster_hunt id="2676" start_npc_ids="802053"/>
-	<monster_hunt id="2696" start_npc_ids="204652"/>
+	<monster_hunt id="2696" start_npc_ids="802051"/>
 	<monster_hunt id="4506" start_npc_ids="204763"/>
 	<monster_hunt id="4510" start_npc_ids="204777"/>
 	<monster_hunt id="4512" start_npc_ids="204801"/>

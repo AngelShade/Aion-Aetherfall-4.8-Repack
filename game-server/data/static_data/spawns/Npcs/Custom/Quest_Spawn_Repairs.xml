@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<spawns xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../spawns.xsd">
+    <!-- Quest objects at client map locations; heights follow nearby terrain spawns. -->
+    <spawn_map map_id="210050000">
+        <!-- Chaser's Backpack: the three missing belongings. -->
+        <spawn npc_id="700621" respawn_time="295"><spot x="488.7" y="1881.8" z="280.64"/></spawn>
+        <spawn npc_id="700622" respawn_time="295"><spot x="354.7" y="1686.1" z="287.11"/></spawn>
+        <spawn npc_id="700623" respawn_time="295"><spot x="487.2" y="1608.0" z="288.14"/></spawn>
+        <!-- How Many Draks Does It Take To Map?: missing stars. -->
+        <spawn npc_id="700624" respawn_time="295"><spot x="2472.6" y="1886.5" z="235"/></spawn>
+        <spawn npc_id="700625" respawn_time="295"><spot x="2467.3" y="1807.2" z="235"/></spawn>
+        <spawn npc_id="700626" respawn_time="295"><spot x="2509.4" y="1844.4" z="235"/></spawn>
+    </spawn_map>
+    <spawn_map map_id="220080000">
+        <!-- Bounty on Sea Crystals; nearby pearl shells fix the terrain height. -->
+        <spawn npc_id="702757" respawn_time="295">
+            <spot x="1986.8" y="2288.2" z="302"/>
+            <spot x="1934" y="2304" z="300"/>
+            <spot x="2088" y="2311" z="304.4"/>
+        </spawn>
+    </spawn_map>
+    <spawn_map map_id="210010000">
+        <!-- Message to Madeline / A House Guest. -->
+        <spawn npc_id="801032" respawn_time="295"><spot x="833.86993" y="1250.3722" z="118.875" h="61"/></spawn>
+        <spawn npc_id="801033" respawn_time="295"><spot x="832.6427" y="1250.4149" z="118.875" h="119"/></spawn>
+    </spawn_map>
+    <spawn_map map_id="210040000">
+        <!-- Lepharist's Mark. -->
+        <spawn npc_id="801189" respawn_time="295"><spot x="422.6" y="927" z="123.5"/></spawn>
+    </spawn_map>
+    <spawn_map map_id="320130000">
+        <!-- Adma Stronghold: quest-specific boxes at the existing treasure locations. -->
+        <spawn npc_id="700434" respawn_time="295"><spot x="602.6" y="632.5" z="191.526"/></spawn>
+        <spawn npc_id="700436" respawn_time="295"><spot x="356" y="559.4" z="180.494"/></spawn>
+    </spawn_map>
+    <spawn_map map_id="300600000">
+        <!-- Unstable Abyssal Splinter: fragments for both faction quests. -->
+        <spawn npc_id="701587" respawn_time="295">
+            <spot x="641.0212" y="230.5852" z="460.8983"/>
+            <spot x="644.3951" y="268.7562" z="462.3300"/>
+        </spawn>
+    </spawn_map>
+    <spawn_map map_id="300220000">
+        <!-- Abyssal Splinter crystals, from the matching 4.7.5 instance layout. -->
+        <spawn npc_id="700863" respawn_time="295">
+            <spot x="639.3" y="263.331" z="463.046" h="107"/>
+            <spot x="653.494" y="229.03" z="460.657" h="31"/>
+            <spot x="635.36" y="238.071" z="461.93" h="59"/>
+            <spot x="653.162" y="256.412" z="463.414" h="94"/>
+            <spot x="635.606" y="293.172" z="464.388" h="38"/>
+            <spot x="636.525" y="231.133" z="461.207" h="53"/>
+            <spot x="649.701" y="271.215" z="463.132" h="105"/>
+        </spawn>
+    </spawn_map>
+    <spawn_map map_id="300280000">
+        <!-- Sorus in Rentus Base. -->
+        <spawn npc_id="205973" respawn_time="295"><spot x="602.421" y="138.515" z="47.131" h="106"/></spawn>
+    </spawn_map>
+    <spawn_map map_id="301220000">
+        <!-- Breakable warfront gates at their original 4.7.5 map positions. -->
+        <spawn npc_id="233565" respawn_time="295"><spot x="784.57" y="402.75" z="234.02"/></spawn>
+        <spawn npc_id="233566" respawn_time="295"><spot x="662.71" y="222.32" z="227.70"/></spawn>
+        <spawn npc_id="233567" respawn_time="295"><spot x="568.77" y="165.62" z="221.98"/></spawn>
+        <spawn npc_id="233568" respawn_time="295"><spot x="624.26" y="326.55" z="229.83"/></spawn>
+        <spawn npc_id="233569" respawn_time="295"><spot x="725.20" y="408.01" z="232.91"/></spawn>
+    </spawn_map>
+</spawns>

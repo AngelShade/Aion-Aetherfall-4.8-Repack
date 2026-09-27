@@ -17,9 +17,9 @@ login-server/target/
 **/.project
 *.log
 *.zip
-/target-deploy/game-server/log
-/Aion 4.8 Server/
-/target-deploy/chat-server/log
-/target-deploy/chat-server/log
 *.bak
-*.log
+/target-deploy/game-server/log/
+/target-deploy/chat-server/log/
+/target-deploy/login-server/log/
+/target-deploy/**/pending/
+/Aion 4.8 Server/

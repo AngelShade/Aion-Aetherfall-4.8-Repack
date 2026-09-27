@@ -1405,6 +1405,10 @@
 				<spawn npc_id="802335" handler="MERCHANT" respawn_time="295">
 					<spot x="1901.731" y="807.8081" z="237.875" h="60"/>
 				</spawn>
+				<!-- Itea: Itea's Enticing Offer -->
+				<spawn npc_id="802610" respawn_time="295">
+					<spot x="1902.4949" y="805.1602" z="237.875" h="48"/>
+				</spawn>
 				<!-- Ariantos -->
 				<spawn npc_id="802565" handler="MERCHANT" respawn_time="295">
 					<spot x="1895.251" y="802.4997" z="237.8633" h="30"/>

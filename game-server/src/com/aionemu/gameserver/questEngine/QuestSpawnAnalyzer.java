@@ -19,6 +19,7 @@ import com.aionemu.gameserver.configs.main.InstanceConfig;
 import com.aionemu.gameserver.dataholders.DataManager;
 import com.aionemu.gameserver.model.templates.QuestTemplate;
 import com.aionemu.gameserver.model.templates.factions.NpcFactionTemplate;
+import com.aionemu.gameserver.model.templates.quest.QuestCategory;
 import com.aionemu.gameserver.model.templates.quest.QuestNpc;
 import com.aionemu.gameserver.model.templates.quest.XMLStartCondition;
 import com.aionemu.gameserver.questEngine.handlers.AbstractQuestHandler;
@@ -40,6 +41,8 @@ public class QuestSpawnAnalyzer {
 		DataManager.SPAWNS_DATA.addAllNpcIdsToSet(allSpawns);
 		DataManager.TOWN_SPAWNS_DATA.addAllNpcIdsToSet(allSpawns);
 		DataManager.EVENT_DATA.addAllNpcIdsToSet(allSpawns);
+		// Housing managers are spawned for individual houses, not by the world spawn templates.
+		DataManager.HOUSE_DATA.getLands().forEach(land -> allSpawns.add(land.getManagerNpcId()));
 		for (NpcFactionTemplate nft : DataManager.NPC_FACTIONS_DATA.getNpcFactionsData()) {
 			if (nft.getNpcIds() == null || nft.getNpcIds().stream().anyMatch(allSpawns::contains))
 				factionIds.add(nft.getId());
@@ -53,7 +56,8 @@ public class QuestSpawnAnalyzer {
 		for (QuestNpc npc : questNpcs) {
 			if (allSpawns.contains(npc.getNpcId()))
 				continue;
-			Set<Integer> questIds = npc.findAllRegisteredQuestIds(id -> (!ignoreEventQuests || id < 80000) && !isUnobtainable(id, unobtainableQuests) && !existsSpawnDataForAnyAlternativeNpc(id, npc.getNpcId(), allSpawns));
+			Set<Integer> questIds = npc.findAllRegisteredQuestIds(id -> (!ignoreEventQuests || id < 80000 && DataManager.QUEST_DATA.getQuestById(id).getCategory() != QuestCategory.EVENT)
+				&& !isUnobtainable(id, unobtainableQuests) && !existsSpawnDataForAnyAlternativeNpc(id, npc.getNpcId(), allSpawns));
 			if (questIds.isEmpty())
 				continue;
 			missingSpawnsByQuests.computeIfAbsent(questIds, _ -> new ArrayList<>()).add(npc.getNpcId());
@@ -98,23 +102,68 @@ public class QuestSpawnAnalyzer {
 
 	public static Set<Integer> loadNpcIdsSpawnedByHandlers() {
 		Set<Integer> npcIds = new HashSet<>();
-		Pattern pattern = Pattern.compile("\\bsp(?:awn)?\\([^,\\d]*(\\d{6})(?: : (\\d{6}))?");
-		parseSpawnNpcIds(InstanceConfig.HANDLER_DIRECTORY, pattern, npcIds);
-		parseSpawnNpcIds(GSConfig.QUEST_HANDLER_DIRECTORY, pattern, npcIds);
-		parseSpawnNpcIds(AIConfig.HANDLER_DIRECTORY, pattern, npcIds);
+		Pattern pattern = Pattern.compile("\\bsp(?:awn)?(?:ForFiveMinutes|Temporarily)?\\([^,\\d]*(\\d{6})(?: : (\\d{6}))?");
+		Set<String> spawnIdMethods = new HashSet<>();
+		Set<String> incrementedSpawnIdMethods = new HashSet<>();
+		Map<String, Set<Integer>> returnedNpcIds = new HashMap<>();
+		parseSpawnNpcIds(InstanceConfig.HANDLER_DIRECTORY, pattern, npcIds, spawnIdMethods, incrementedSpawnIdMethods, returnedNpcIds);
+		parseSpawnNpcIds(GSConfig.QUEST_HANDLER_DIRECTORY, pattern, npcIds, spawnIdMethods, incrementedSpawnIdMethods, returnedNpcIds);
+		parseSpawnNpcIds(AIConfig.HANDLER_DIRECTORY, pattern, npcIds, spawnIdMethods, incrementedSpawnIdMethods, returnedNpcIds);
+		for (String method : spawnIdMethods)
+			npcIds.addAll(returnedNpcIds.getOrDefault(method, Set.of()));
+		for (String method : incrementedSpawnIdMethods)
+			for (int id : returnedNpcIds.getOrDefault(method, Set.of()))
+				npcIds.add(id + 1);
 		return npcIds;
 	}
 
-	private static void parseSpawnNpcIds(File sourceDir, Pattern pattern, Set<Integer> npcIds) {
+	private static void parseSpawnNpcIds(File sourceDir, Pattern pattern, Set<Integer> npcIds, Set<String> spawnIdMethods, Set<String> incrementedSpawnIdMethods, Map<String, Set<Integer>> returnedNpcIds) {
+		Pattern ternarySpawn = Pattern.compile("\\bspawn\\s*\\(\\s*\\([^;]*?\\?\\s*(\\d{6})\\s*:\\s*(\\d{6})\\s*\\)");
+		Pattern spawnMethod = Pattern.compile("\\bspawn\\s*\\(\\s*(get\\w+Id)\\(\\)(\\s*\\+\\s*1)?");
+		Pattern returnedId = Pattern.compile("\\bint\\s+(get\\w+Id)\\(\\)\\s*\\{\\s*return\\s+(\\d{6})\\s*;");
+		Pattern variableTernary = Pattern.compile("\\b(\\w+)\\s*=\\s*[^;?]+\\?\\s*(\\d{6})\\s*:\\s*(\\d{6})\\s*;");
 		try (Stream<Path> stream = Files.walk(sourceDir.toPath())) {
 			for (Path path : stream.filter(p -> p.toString().endsWith(".java")).toList()) {
-				Matcher matcher = pattern.matcher(Files.readString(path));
+				String source = Files.readString(path);
+				Matcher matcher = pattern.matcher(source);
 				while (matcher.find()) {
 					for (int i = 1; i <= matcher.groupCount(); i++) {
 						String group = matcher.group(i);
 						if (group != null)
 							npcIds.add(Integer.parseInt(group));
 					}
+				}
+				Matcher ternary = ternarySpawn.matcher(source);
+				while (ternary.find()) {
+					npcIds.add(Integer.parseInt(ternary.group(1)));
+					npcIds.add(Integer.parseInt(ternary.group(2)));
+				}
+				Matcher methodCall = spawnMethod.matcher(source);
+				while (methodCall.find()) {
+					if (methodCall.group(2) == null)
+						spawnIdMethods.add(methodCall.group(1));
+					else
+						incrementedSpawnIdMethods.add(methodCall.group(1));
+				}
+				Matcher methodReturn = returnedId.matcher(source);
+				while (methodReturn.find())
+					returnedNpcIds.computeIfAbsent(methodReturn.group(1), _ -> new HashSet<>()).add(Integer.parseInt(methodReturn.group(2)));
+				Matcher ternaryVariable = variableTernary.matcher(source);
+				while (ternaryVariable.find()) {
+					if (Pattern.compile("\\bspawn\\s*\\(\\s*" + Pattern.quote(ternaryVariable.group(1)) + "\\s*,").matcher(source).find()) {
+						npcIds.add(Integer.parseInt(ternaryVariable.group(2)));
+						npcIds.add(Integer.parseInt(ternaryVariable.group(3)));
+					}
+				}
+				// Some instance handlers select a boss ID before passing it to spawn(id, ...).
+				Matcher switchResult = Pattern.compile("\\bint\\s+(\\w+)\\s*=\\s*switch\\s*\\([\\s\\S]*?\\)\\s*\\{([\\s\\S]*?)\\};").matcher(source);
+				while (switchResult.find()) {
+					String variable = switchResult.group(1);
+					if (!Pattern.compile("\\bspawn\\s*\\(\\s*" + Pattern.quote(variable) + "\\s*,").matcher(source).find())
+						continue;
+					Matcher npcId = Pattern.compile("->\\s*(\\d{6})\\s*;").matcher(switchResult.group(2));
+					while (npcId.find())
+						npcIds.add(Integer.parseInt(npcId.group(1)));
 				}
 			}
 		} catch (IOException e) {
