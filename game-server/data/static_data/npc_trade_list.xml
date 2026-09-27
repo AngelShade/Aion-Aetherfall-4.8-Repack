@@ -1293,6 +1293,20 @@
 	<tradelist_template npc_id="205521" buy_price_rate="200">
 		<tradelist id="1279" />
 	</tradelist_template>
+	<tradelist_template npc_id="205523" npc_type="ABYSS">
+		<tradelist id="587" />
+		<tradelist id="588" />
+		<tradelist id="589" />
+		<tradelist id="590" />
+		<tradelist id="1688" />
+	</tradelist_template>
+	<tradelist_template npc_id="205524" npc_type="ABYSS">
+		<tradelist id="583" />
+		<tradelist id="584" />
+		<tradelist id="585" />
+		<tradelist id="586" />
+		<tradelist id="1689" />
+	</tradelist_template>
 	<tradelist_template npc_id="205525" npc_type="ABYSS">
 		<tradelist id="1240" />
 		<tradelist id="1241" />
@@ -1418,6 +1432,20 @@
 	</tradelist_template>
 	<tradelist_template npc_id="205603" buy_price_rate="200">
 		<tradelist id="1303" />
+	</tradelist_template>
+	<tradelist_template npc_id="205605" npc_type="ABYSS">
+		<tradelist id="595" />
+		<tradelist id="596" />
+		<tradelist id="597" />
+		<tradelist id="598" />
+		<tradelist id="1690" />
+	</tradelist_template>
+	<tradelist_template npc_id="205606" npc_type="ABYSS">
+		<tradelist id="591" />
+		<tradelist id="592" />
+		<tradelist id="593" />
+		<tradelist id="594" />
+		<tradelist id="1691" />
 	</tradelist_template>
 	<tradelist_template npc_id="205607" npc_type="ABYSS">
 		<tradelist id="1256" />
@@ -1741,6 +1769,18 @@
 		<tradelist id="2097" />
 		<tradelist id="2098" />
 		<tradelist id="2099" />
+	</tradelist_template>
+	<tradelist_template npc_id="206345" sell_price_rate="1350" npc_type="ABYSS">
+		<tradelist id="2132" />
+	</tradelist_template>
+	<tradelist_template npc_id="206346" npc_type="ABYSS">
+		<tradelist id="2132" />
+	</tradelist_template>
+	<tradelist_template npc_id="206347" sell_price_rate="1350" npc_type="ABYSS">
+		<tradelist id="2133" />
+	</tradelist_template>
+	<tradelist_template npc_id="206348" npc_type="ABYSS">
+		<tradelist id="2133" />
 	</tradelist_template>
 	<tradelist_template npc_id="207031" npc_type="REWARD">
 		<tradelist id="1281" />
@@ -4075,6 +4115,20 @@
 	<tradelist_template npc_id="800742" buy_price_rate="200">
 		<tradelist id="1757" />
 	</tradelist_template>
+	<tradelist_template npc_id="800746" npc_type="ABYSS">
+		<tradelist id="1908" />
+		<tradelist id="1909" />
+		<tradelist id="1910" />
+		<tradelist id="1911" />
+		<tradelist id="1917" />
+	</tradelist_template>
+	<tradelist_template npc_id="800749" npc_type="ABYSS">
+		<tradelist id="1918" />
+		<tradelist id="1919" />
+		<tradelist id="1920" />
+		<tradelist id="1921" />
+		<tradelist id="1927" />
+	</tradelist_template>
 	<tradelist_template npc_id="800752" buy_price_rate="200">
 		<tradelist id="1774" />
 	</tradelist_template>
@@ -4187,6 +4241,13 @@
 	<tradelist_template npc_id="800807" buy_price_rate="200">
 		<tradelist id="1757" />
 	</tradelist_template>
+	<tradelist_template npc_id="800809" npc_type="ABYSS">
+		<tradelist id="1912" />
+		<tradelist id="1913" />
+		<tradelist id="1914" />
+		<tradelist id="1915" />
+		<tradelist id="1916" />
+	</tradelist_template>
 	<tradelist_template npc_id="800810" buy_price_rate="200">
 		<tradelist id="1764" />
 		<tradelist id="1765" />
@@ -4195,6 +4256,13 @@
 	</tradelist_template>
 	<tradelist_template npc_id="800811" buy_price_rate="200">
 		<tradelist id="1757" />
+	</tradelist_template>
+	<tradelist_template npc_id="800813" npc_type="ABYSS">
+		<tradelist id="1922" />
+		<tradelist id="1923" />
+		<tradelist id="1924" />
+		<tradelist id="1925" />
+		<tradelist id="1926" />
 	</tradelist_template>
 	<tradelist_template npc_id="800814" buy_price_rate="200">
 		<tradelist id="1764" />
@@ -4638,6 +4706,20 @@
 		<tradelist id="1826" />
 		<tradelist id="1827" />
 	</tradelist_template>
+	<tradelist_template npc_id="801390" sell_price_rate="1350" npc_type="ABYSS">
+		<tradelist id="1918" />
+		<tradelist id="1919" />
+		<tradelist id="1920" />
+		<tradelist id="1921" />
+		<tradelist id="1927" />
+	</tradelist_template>
+	<tradelist_template npc_id="801391" sell_price_rate="1350" npc_type="ABYSS">
+		<tradelist id="1922" />
+		<tradelist id="1923" />
+		<tradelist id="1924" />
+		<tradelist id="1925" />
+		<tradelist id="1926" />
+	</tradelist_template>
 	<tradelist_template npc_id="801394" buy_price_rate="200">
 		<tradelist id="1776" />
 	</tradelist_template>
@@ -4862,6 +4944,20 @@
 		<tradelist id="1829" />
 		<tradelist id="1830" />
 		<tradelist id="1831" />
+	</tradelist_template>
+	<tradelist_template npc_id="801456" sell_price_rate="1350" npc_type="ABYSS">
+		<tradelist id="1908" />
+		<tradelist id="1909" />
+		<tradelist id="1910" />
+		<tradelist id="1911" />
+		<tradelist id="1917" />
+	</tradelist_template>
+	<tradelist_template npc_id="801457" sell_price_rate="1350" npc_type="ABYSS">
+		<tradelist id="1912" />
+		<tradelist id="1913" />
+		<tradelist id="1914" />
+		<tradelist id="1915" />
+		<tradelist id="1916" />
 	</tradelist_template>
 	<tradelist_template npc_id="801461" buy_price_rate="200">
 		<tradelist id="1776" />
@@ -5375,6 +5471,12 @@
 		<tradelist id="2158" />
 		<tradelist id="2159" />
 		<tradelist id="2129" />
+	</tradelist_template>
+	<tradelist_template npc_id="802207" npc_type="ABYSS">
+		<tradelist id="2138" />
+	</tradelist_template>
+	<tradelist_template npc_id="802208" npc_type="ABYSS">
+		<tradelist id="2139" />
 	</tradelist_template>
 	<tradelist_template npc_id="802209" buy_price_rate="200" sell_price_rate="25000">
 		<tradelist id="2456" />
@@ -9333,6 +9435,16 @@
 	<trade_in_list_template npc_id="804176">
 		<tradelist id="113" />
 	</trade_in_list_template>
+	<trade_in_list_template npc_id="804494">
+		<tradelist id="140" />
+		<tradelist id="141" />
+		<tradelist id="144" />
+	</trade_in_list_template>
+	<trade_in_list_template npc_id="804495">
+		<tradelist id="143" />
+		<tradelist id="142" />
+		<tradelist id="145" />
+	</trade_in_list_template>
 	<trade_in_list_template npc_id="804496">
 		<tradelist id="140" />
 		<tradelist id="141" />
@@ -9352,6 +9464,16 @@
 		<tradelist id="142" />
 		<tradelist id="143" />
 		<tradelist id="145" />
+	</trade_in_list_template>
+	<trade_in_list_template npc_id="804504">
+		<tradelist id="146" />
+		<tradelist id="147" />
+		<tradelist id="150" />
+	</trade_in_list_template>
+	<trade_in_list_template npc_id="804505">
+		<tradelist id="149" />
+		<tradelist id="148" />
+		<tradelist id="151" />
 	</trade_in_list_template>
 	<trade_in_list_template npc_id="804506">
 		<tradelist id="146" />

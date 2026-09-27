@@ -100,6 +100,7 @@ public final class QuestService {
 		}
 		for (QuestItems qi : questItems)
 			ItemService.addItem(player, qi.getItemId(), qi.getCount(), true);
+		int ancientCubeQuestExpands = id == 1127 ? player.getQuestExpands() : 0;
 		giveReward(env, rewards);
 		giveReward(env, extendedRewards);
 		if (template.getCategory() == QuestCategory.CHALLENGE_TASK)
@@ -107,6 +108,8 @@ public final class QuestService {
 		removeQuestWorkItems(player, qs); // remove all worker list item if finished
 		qs.setStatus(QuestStatus.COMPLETE);
 		qs.setQuestVar(0);
+		if (id == 1127 && player.getQuestExpands() > ancientCubeQuestExpands)
+			qs.setQuestVarById(5, 1); // records that Ancient Cube's expansion was granted
 		if (template.isTimeBased())
 			qs.setNextRepeatTime(calculateRepeatDate(player, template));
 		PacketSendUtility.sendPacket(player, new SM_QUEST_ACTION(ActionType.UPDATE, qs));

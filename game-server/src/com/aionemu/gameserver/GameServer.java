@@ -42,6 +42,7 @@ import com.aionemu.gameserver.network.chatserver.ChatServer;
 import com.aionemu.gameserver.network.loginserver.LoginServer;
 import com.aionemu.gameserver.questEngine.QuestEngine;
 import com.aionemu.gameserver.services.*;
+import com.aionemu.gameserver.services.custom.AuctionHouseSimulator;
 import com.aionemu.gameserver.services.abyss.AbyssRankUpdateService;
 import com.aionemu.gameserver.services.abyss.AbyssRankingCache;
 import com.aionemu.gameserver.services.conquerorAndProtectorSystem.ConquerorAndProtectorService;
@@ -155,6 +156,7 @@ public class GameServer {
 		DebugService.getInstance();
 		WeatherService.getInstance();
 		BrokerService.getInstance();
+		AuctionHouseSimulator.getInstance().init();
 		Influence.getInstance();
 		ExchangeService.getInstance();
 		PeriodicSaveService.getInstance();
@@ -178,6 +180,7 @@ public class GameServer {
 		PvpMapService.getInstance().init();
 		CustomInstanceService.getInstance();
 		DataManager.waitForValidationToFinishAndShutdownOnFail();
+		MarketplaceService.start();
 
 		System.gc();
 

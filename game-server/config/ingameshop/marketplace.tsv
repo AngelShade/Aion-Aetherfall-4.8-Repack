@@ -1,0 +1,117 @@
+# item_id	quantity	price_in_kinah	section	unlock_level	description
+160000001	10	1000	starter	1	Food for your first steps outside town.
+160000002	10	1000	starter	1	An affordable second food choice for new characters.
+169000003	500	5000	starter	1	Keep physical attacks supplied from the beginning.
+162000002	20	6000	starter	10	Basic health supplies for the first zones.
+162000007	20	6000	starter	10	Basic mana supplies for the first zones.
+162000041	20	7000	starter	10	Restores both HP and MP while leveling.
+162000046	20	9000	starter	10	Fast emergency HP and MP recovery.
+164000074	10	15000	starter	10	Move between quests more quickly.
+164000071	10	15000	starter	10	A physical attack speed boost for early combat.
+161001001	5	25000	starter	1	Carry a spare recovery option for difficult fights.
+162000003	20	11000	supplies	20	Stock up on recovery supplies for this level range.
+162000008	20	11000	supplies	20	Stock up on recovery supplies for this level range.
+162000042	20	11000	supplies	20	Stock up on recovery supplies for this level range.
+162000047	20	15000	supplies	20	Stock up on recovery supplies for this level range.
+162000043	20	22000	supplies	30	Stock up on recovery supplies for this level range.
+162000048	20	30000	supplies	30	Stock up on recovery supplies for this level range.
+162000004	20	22000	supplies	30	Stock up on recovery supplies for this level range.
+162000009	20	22000	supplies	30	Stock up on recovery supplies for this level range.
+162000044	20	40000	supplies	40	Stock up on recovery supplies for this level range.
+162000049	20	55000	supplies	40	Stock up on recovery supplies for this level range.
+162000045	20	60000	supplies	50	Stock up on recovery supplies for this level range.
+162000050	20	80000	supplies	50	Stock up on recovery supplies for this level range.
+162000081	20	90000	supplies	60	Stock up on recovery supplies for this level range.
+162000080	20	125000	supplies	60	Stock up on recovery supplies for this level range.
+162000075	20	95000	supplies	60	Stock up on recovery supplies for this level range.
+162000076	20	95000	supplies	60	Stock up on recovery supplies for this level range.
+162000023	20	35000	supplies	30	Stock up on recovery supplies for this level range.
+162000027	20	70000	supplies	40	Stock up on recovery supplies for this level range.
+164002238	5	15000	travel	10	Return quickly after questing or gathering.
+164000075	20	50000	travel	20	Running speed for level 20 zones.
+164000076	20	75000	travel	30	Greater running speed for long journeys.
+164000072	20	50000	travel	20	Physical attack speed during long trips.
+164000073	20	75000	travel	30	Greater physical attack speed for harder fights.
+164000132	10	15000	travel	10	Early casting speed support.
+164000133	20	50000	travel	20	Casting speed for mid-level spell users.
+164000134	20	75000	travel	30	Greater casting speed for late-game spell users.
+188053624	1	50000	travel	50	A return-scroll bundle for level 50 or higher.
+164002200	1	250000	travel	10	Call a personal warehouse manager when you need storage.
+100001578	1	8000000	weapons	65	Fabled Sauro Guard equipment for a level 65 build.
+100101214	1	8000000	weapons	65	Fabled Sauro Guard equipment for a level 65 build.
+100201386	1	8000000	weapons	65	Fabled Sauro Guard equipment for a level 65 build.
+100501206	1	8000000	weapons	65	Fabled Sauro Guard equipment for a level 65 build.
+100601298	1	8000000	weapons	65	Fabled Sauro Guard equipment for a level 65 build.
+100901228	1	8000000	weapons	65	Fabled Sauro Guard equipment for a level 65 build.
+101301154	1	8000000	weapons	65	Fabled Sauro Guard equipment for a level 65 build.
+101501240	1	8000000	weapons	65	Fabled Sauro Guard equipment for a level 65 build.
+101701257	1	8000000	weapons	65	Fabled Sauro Guard equipment for a level 65 build.
+101801063	1	8000000	weapons	65	Fabled Sauro Guard equipment for a level 65 build.
+101901013	1	8000000	weapons	65	Fabled Sauro Guard equipment for a level 65 build.
+102001087	1	8000000	weapons	65	Fabled Sauro Guard equipment for a level 65 build.
+102100840	1	8000000	weapons	65	Fabled Sauro Guard equipment for a level 65 build.
+115001622	1	6500000	weapons	65	Fabled Sauro Guard equipment for a level 65 build.
+100001580	1	35000000	weapons	65	Mythic Sauro Commander equipment for endgame goals.
+100101217	1	35000000	weapons	65	Mythic Sauro Commander equipment for endgame goals.
+100201388	1	35000000	weapons	65	Mythic Sauro Commander equipment for endgame goals.
+100501208	1	35000000	weapons	65	Mythic Sauro Commander equipment for endgame goals.
+100601300	1	35000000	weapons	65	Mythic Sauro Commander equipment for endgame goals.
+100901230	1	35000000	weapons	65	Mythic Sauro Commander equipment for endgame goals.
+101301156	1	35000000	weapons	65	Mythic Sauro Commander equipment for endgame goals.
+101501243	1	35000000	weapons	65	Mythic Sauro Commander equipment for endgame goals.
+101701259	1	35000000	weapons	65	Mythic Sauro Commander equipment for endgame goals.
+101801065	1	35000000	weapons	65	Mythic Sauro Commander equipment for endgame goals.
+101901015	1	35000000	weapons	65	Mythic Sauro Commander equipment for endgame goals.
+102001089	1	35000000	weapons	65	Mythic Sauro Commander equipment for endgame goals.
+102100842	1	35000000	weapons	65	Mythic Sauro Commander equipment for endgame goals.
+115001623	1	30000000	weapons	65	Mythic Sauro Commander equipment for endgame goals.
+110101673	1	4500000	armor	65	Cloth Sauro Guard armor for level 65.
+113101520	1	3200000	armor	65	Cloth Sauro Guard armor for level 65.
+112101458	1	2200000	armor	65	Cloth Sauro Guard armor for level 65.
+111101505	1	2200000	armor	65	Cloth Sauro Guard armor for level 65.
+114101552	1	2200000	armor	65	Cloth Sauro Guard armor for level 65.
+110301681	1	4500000	armor	65	Leather Sauro Guard armor for level 65.
+113301650	1	3200000	armor	65	Leather Sauro Guard armor for level 65.
+112301558	1	2200000	armor	65	Leather Sauro Guard armor for level 65.
+111301619	1	2200000	armor	65	Leather Sauro Guard armor for level 65.
+114301687	1	2200000	armor	65	Leather Sauro Guard armor for level 65.
+110501511	1	4500000	armor	65	Chain Sauro Guard armor for level 65.
+113501484	1	3200000	armor	65	Chain Sauro Guard armor for level 65.
+112501408	1	2200000	armor	65	Chain Sauro Guard armor for level 65.
+111501466	1	2200000	armor	65	Chain Sauro Guard armor for level 65.
+114501493	1	2200000	armor	65	Chain Sauro Guard armor for level 65.
+110550934	1	4500000	armor	65	Magic chain Sauro Guard armor for level 65.
+113501510	1	3200000	armor	65	Magic chain Sauro Guard armor for level 65.
+112501434	1	2200000	armor	65	Magic chain Sauro Guard armor for level 65.
+111501492	1	2200000	armor	65	Magic chain Sauro Guard armor for level 65.
+114501519	1	2200000	armor	65	Magic chain Sauro Guard armor for level 65.
+110601485	1	4500000	armor	65	Plate Sauro Guard armor for level 65.
+113601431	1	3200000	armor	65	Plate Sauro Guard armor for level 65.
+112601429	1	2200000	armor	65	Plate Sauro Guard armor for level 65.
+111601448	1	2200000	armor	65	Plate Sauro Guard armor for level 65.
+114601436	1	2200000	armor	65	Plate Sauro Guard armor for level 65.
+141000001	100	75000	upgrades	20	Keep stigma skills equipped and ready.
+165000001	20	30000	upgrades	1	Extract materials from spare equipment.
+169000005	500	40000	upgrades	20	Power Shards for level 20 weapons.
+169000009	500	170000	upgrades	50	Premium Power Shards for late leveling.
+169000010	500	275000	upgrades	60	Superior Power Shards for level 60 combat.
+169000011	500	375000	upgrades	65	Ancient Power Shards for endgame combat.
+166000050	5	200000	upgrades	50	A practical batch of L50 enchantment stones.
+166000070	5	500000	upgrades	60	A practical batch of L70 enchantment stones.
+166000090	5	1000000	upgrades	65	L90 stones for advanced enchanting attempts.
+166000110	5	2200000	upgrades	65	L110 stones for ambitious endgame upgrades.
+166100005	20	2000000	upgrades	50	Greater supplements for Fabled equipment.
+166100011	20	8000000	upgrades	65	Greater supplements for Mythic equipment.
+167000749	10	500000	upgrades	60	Attack and Crit Strike for physical builds.
+167000705	10	500000	upgrades	60	Magic Boost and accuracy for magic builds.
+167000845	10	400000	upgrades	60	HP and MP for a durable build.
+167000850	10	400000	upgrades	60	HP and Crit Strike for survivability.
+125040000	1	250000	style	20	A familiar Black Cloud look.
+120010001	1	350000	style	20	A matching accessory for the outfit.
+187000061	1	500000	style	20	An early pair of wings.
+187050000	1	1000000	style	30	The signature Black Cloud wings.
+187000124	1	2500000	style	40	A darker Black Cloud wing style.
+187000125	1	4000000	style	50	A level 50 Black Cloud wing option.
+187000018	1	5000000	style	55	Storm wings for the climb to level cap.
+187000111	1	8000000	style	65	Epic wings for level 65 adventures.
+187000112	1	8000000	style	65	An alternative epic wing style at level 65.

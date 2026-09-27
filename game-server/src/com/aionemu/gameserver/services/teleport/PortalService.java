@@ -85,6 +85,8 @@ public class PortalService {
 			case 6: // group
 				if (player.getPlayerGroup() != null) {
 					instance = InstanceService.getRegisteredInstance(mapId, player.getPlayerGroup().getTeamId());
+				} else if (!instanceGroupReq) {
+					instance = InstanceService.getRegisteredInstance(mapId, player.getObjectId());
 				}
 				break;
 			default: // alliance
@@ -94,6 +96,8 @@ public class PortalService {
 					} else {
 						instance = InstanceService.getRegisteredInstance(mapId, player.getPlayerAlliance().getObjectId());
 					}
+				} else if (!instanceGroupReq) {
+					instance = InstanceService.getRegisteredInstance(mapId, player.getObjectId());
 				}
 				break;
 		}

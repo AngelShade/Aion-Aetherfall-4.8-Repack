@@ -35,9 +35,8 @@ public class GatheringTask extends AbstractCraftTask {
 		this.template = gatherable.getObjectTemplate();
 		this.gathererObserver = createGathererObserver();
 		this.material = material;
-		this.delay = Rnd.get(200, 600);
-		int gatherInterval = 2500 - (skillLvlDiff * 60);
-		this.interval = gatherInterval < 1200 ? 1200 : gatherInterval;
+		this.delay = 0;
+		this.interval = 100;
 	}
 
 	@Override
@@ -90,46 +89,38 @@ public class GatheringTask extends AbstractCraftTask {
 	protected final void analyzeInteraction() {
 		if (skillLvlDiff >= 41) {
 			currentSuccessValue = fullBarValue;
-			executionSpeed = 300;
-			showBarDelay = 500;
-			return;
 		} else if (skillLvlDiff < 0) {
 			currentFailureValue = fullBarValue;
-			return;
-		}
-
-		craftType = CraftType.NORMAL;
-		float multi = Rnd.nextFloat(1f, 2f);
-		float failReduction = Math.max(1 - skillLvlDiff * 0.015f, 0.25f); // dynamic fail rate multiplier
-		boolean success = Rnd.chance() >= CraftConfig.MAX_GATHER_FAILURE_CHANCE * failReduction;
-
-		if (success) {
-			float critChance = Rnd.chance();
-			if (critChance < (1 + skillLvlDiff / 10f)) { // PURPLE CRIT = 100%
-				craftType = CraftType.CRIT_PURPLE;
-				currentSuccessValue = fullBarValue;
-				executionSpeed = 300;
-				showBarDelay = 500;
-				return;
-			} else if (critChance < (5 + skillLvlDiff / 3f)) { // LIGHT BLUE CRIT = +10%
-				craftType = CraftType.CRIT_BLUE;
-			}
-
-			int lvlBoni = skillLvlDiff > 10 ? ((skillLvlDiff - 10) * 2) : 0;
-			currentSuccessValue += Math.round(70 + ((craftType == CraftType.CRIT_BLUE ? 100 : 0) + (((skillLvlDiff + 1) / 2f) + lvlBoni) * 10) * multi);
 		} else {
-			currentFailureValue += Math.round(120 + (((skillLvlDiff + 1) / 2f * 10) * multi));
-		}
+			// Resolve the same progress rolls in one server tick instead of sending each step to the client.
+			while (currentSuccessValue < fullBarValue && currentFailureValue < fullBarValue) {
+				craftType = CraftType.NORMAL;
+				float multi = Rnd.nextFloat(1f, 2f);
+				float failReduction = Math.max(1 - skillLvlDiff * 0.015f, 0.25f); // dynamic fail rate multiplier
+				boolean success = Rnd.chance() >= CraftConfig.MAX_GATHER_FAILURE_CHANCE * failReduction;
 
-		if (currentSuccessValue > fullBarValue) {
-			currentSuccessValue = fullBarValue;
-		} else if (currentFailureValue > fullBarValue) {
-			currentFailureValue = fullBarValue;
-		}
+				if (success) {
+					float critChance = Rnd.chance();
+					if (critChance < (1 + skillLvlDiff / 10f)) { // PURPLE CRIT = 100%
+						craftType = CraftType.CRIT_PURPLE;
+						currentSuccessValue = fullBarValue;
+						break;
+					} else if (critChance < (5 + skillLvlDiff / 3f)) { // LIGHT BLUE CRIT = +10%
+						craftType = CraftType.CRIT_BLUE;
+					}
 
-		int speed = 900 - (skillLvlDiff * 30);
-		executionSpeed = speed < 300 ? 300 : speed;
-		showBarDelay = Math.max(500, 1200 - (skillLvlDiff * 30));
+					int lvlBoni = skillLvlDiff > 10 ? ((skillLvlDiff - 10) * 2) : 0;
+					currentSuccessValue += Math.round(70 + ((craftType == CraftType.CRIT_BLUE ? 100 : 0) + (((skillLvlDiff + 1) / 2f) + lvlBoni) * 10) * multi);
+				} else {
+					currentFailureValue += Math.round(120 + (((skillLvlDiff + 1) / 2f * 10) * multi));
+				}
+
+				currentSuccessValue = Math.min(currentSuccessValue, fullBarValue);
+				currentFailureValue = Math.min(currentFailureValue, fullBarValue);
+			}
+		}
+		executionSpeed = 100;
+		showBarDelay = 0;
 	}
 
 	public int getGathererId() {

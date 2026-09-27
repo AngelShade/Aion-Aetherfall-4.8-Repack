@@ -51,6 +51,8 @@ import com.aionemu.gameserver.network.aion.serverpackets.*;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_ENTER_WORLD_CHECK.Msg;
 import com.aionemu.gameserver.network.aion.skillinfo.SkillEntryWriter;
 import com.aionemu.gameserver.questEngine.QuestEngine;
+import com.aionemu.gameserver.questEngine.model.QuestState;
+import com.aionemu.gameserver.questEngine.model.QuestStatus;
 import com.aionemu.gameserver.services.*;
 import com.aionemu.gameserver.services.PunishmentService.PunishmentType;
 import com.aionemu.gameserver.services.abyss.AbyssSkillService;
@@ -450,6 +452,18 @@ public final class PlayerEnterWorldService {
 	}
 
 	private static void sendItemInfos(AionConnection client, Player player) {
+		if (player.getNpcExpands() < 5) {
+			player.getCommonData().setNpcExpands(5);
+		}
+		QuestState ancientCubeQuest = player.getQuestStateList().getQuestState(1127);
+		if (ancientCubeQuest != null && ancientCubeQuest.getStatus() == QuestStatus.COMPLETE && ancientCubeQuest.getQuestVarById(5) == 0
+			&& player.getNpcExpands() + player.getQuestExpands() + player.getItemExpands() < CustomConfig.CUBE_EXPANSION_LIMIT) {
+			player.getCommonData().setQuestExpands(player.getQuestExpands() + 1);
+			ancientCubeQuest.setQuestVarById(5, 1); // grant the missing reward once to players who already completed the quest
+		}
+		if (player.getCommonData().getWhNpcExpands() < 6) {
+			player.getCommonData().setWhNpcExpands(6);
+		}
 		player.setCubeLimit();
 		player.setWarehouseLimit();
 		// items

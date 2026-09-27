@@ -1103,7 +1103,7 @@
 		<collect_items>
 			<collect_item item_id="182200215" count="1"/>
 		</collect_items>
-		<rewards gold="2400" exp="4015"/>
+		<rewards gold="2400" exp="4015" extend_inventory="1"/>
 		<quest_work_items>
 			<quest_work_item item_id="182200215"/>
 		</quest_work_items>

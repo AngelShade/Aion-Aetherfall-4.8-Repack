@@ -62,7 +62,7 @@ public class InstanceScaler implements StatOwner {
 	}
 
 	private static boolean shouldScale(Npc npc, WorldMapInstance instance) {
-		return npc.getRating().ordinal() >= INSTANCE_SCALING_NPC_MIN_RATING.ordinal() && !npc.isDead() && instance.getPlayersInside().stream().filter(p -> !p.isStaff()).findFirst().map(npc::isEnemyFrom).orElse(false);
+		return npc.getRating().ordinal() >= INSTANCE_SCALING_NPC_MIN_RATING.ordinal() && !npc.isDead() && instance.getPlayersInside().stream().findFirst().map(npc::isEnemyFrom).orElse(false);
 	}
 
 	private static void scaleNpc(Npc npc, Scaling scaling) {
@@ -83,7 +83,7 @@ public class InstanceScaler implements StatOwner {
 		private List<InstanceScalerStatFunction> statFunctions = Collections.emptyList();
 
 		boolean update(WorldMapInstance instance) {
-			List<Player> players = instance.getPlayersInside().stream().filter(p -> !p.isStaff()).toList();
+			List<Player> players = instance.getPlayersInside().stream().toList();
 			int playerCount = players.size();
 			if (playerCount < instance.getMaxPlayers() && isLowLevelInstanceWithHighLevelPlayers(instance, players))
 				playerCount = instance.getMaxPlayers(); // disable scaling

@@ -197,6 +197,12 @@ public class PlayerService {
 
 		Player newPlayer = new Player(playerAccountData, account);
 
+		// Solo RPG Mode: Start with nearly maximum inventory & warehouse, leaving final tiers for quests
+		playerCommonData.setNpcExpands(5);
+		playerCommonData.setWhNpcExpands(6);
+		newPlayer.setCubeLimit();
+		newPlayer.setWarehouseLimit();
+
 		// Starting skills
 		newPlayer.setSkillList(new PlayerSkillList());
 		SkillLearnService.learnNewSkills(newPlayer, 1, newPlayer.getLevel());

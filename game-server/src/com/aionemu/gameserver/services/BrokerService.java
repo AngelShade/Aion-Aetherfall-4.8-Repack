@@ -208,6 +208,39 @@ public class BrokerService {
 		}
 	}
 
+	public int getRaceItemCount(Race race) {
+		Map<Integer, BrokerItem> brokerItems = getRaceBrokerItems(race);
+		return brokerItems != null ? brokerItems.size() : 0;
+	}
+
+	public boolean hasItem(Race race, int itemId) {
+		Map<Integer, BrokerItem> brokerItems = getRaceBrokerItems(race);
+		if (brokerItems == null)
+			return false;
+		for (BrokerItem item : brokerItems.values()) {
+			if (item != null && item.getItemId() == itemId)
+				return true;
+		}
+		return false;
+	}
+
+	public void addSimulatedItem(int itemId, long count, long price, int sellerId, BrokerRace race) {
+		Item item = ItemFactory.newItem(itemId, count);
+		if (item == null)
+			return;
+		item.setItemLocation(StorageType.BROKER.getId());
+		item.setPersistentState(PersistentState.NEW);
+		BrokerItem brokerItem = new BrokerItem(item, price, sellerId, true, race);
+		InventoryDAO.store(item, sellerId);
+		BrokerDAO.store(brokerItem);
+		if (race == BrokerRace.ELYOS) {
+			elyosBrokerItems.put(brokerItem.getItemUniqueId(), brokerItem);
+		} else {
+			asmodianBrokerItems.put(brokerItem.getItemUniqueId(), brokerItem);
+		}
+	}
+
+
 	private Map<Integer, BrokerItem> getRaceBrokerSettledItems(Race race) {
 		switch (race) {
 			case ELYOS:

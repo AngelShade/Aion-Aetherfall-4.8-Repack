@@ -26,6 +26,9 @@ public class ItemFactory {
 
 	public static Item newItem(int itemId, long count) {
 		Item item = newItem(itemId);
+		if (item == null) {
+			return null;
+		}
 		item.setItemCount(calculateCount(item.getItemTemplate(), count));
 		return item;
 	}
