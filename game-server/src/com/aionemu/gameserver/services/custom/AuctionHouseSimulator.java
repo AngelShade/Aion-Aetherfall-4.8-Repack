@@ -1,7 +1,7 @@
 package com.aionemu.gameserver.services.custom;
 
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
@@ -26,17 +26,16 @@ import com.aionemu.gameserver.services.BrokerService;
 import com.aionemu.gameserver.services.trade.PricesService;
 import com.aionemu.gameserver.utils.ThreadPoolManager;
 
-/** Supplies a small, varied set of real, tradeable templates in every broker leaf category. */
+/** Supplies all eligible, tradeable templates to both brokers in paced batches. */
 public class AuctionHouseSimulator {
 
 	private static final Logger log = LoggerFactory.getLogger(AuctionHouseSimulator.class);
 	private static final int[] ELYOS_SELLERS = { 999901, 999902, 999903 };
 	private static final int[] ASMODIAN_SELLERS = { 999904, 999905, 999906 };
-	private final Map<Race, List<MarketEntry>> catalog = new EnumMap<>(Race.class);
+	private final Map<Race, List<ItemTemplate>> catalog = new EnumMap<>(Race.class);
 	private final Map<Race, int[]> sellers = new EnumMap<>(Race.class);
+	private final Map<Race, Integer> nextIndex = new EnumMap<>(Race.class);
 	private boolean initialized;
-
-	private record MarketEntry(ItemTemplate template) {}
 
 	public static AuctionHouseSimulator getInstance() {
 		return SingletonHolder.INSTANCE;
@@ -56,109 +55,140 @@ public class AuctionHouseSimulator {
 		if (initialized || !BrokerMarketConfig.ENABLED)
 			return;
 		initialized = true;
-		sellers.put(Race.ELYOS, availableSellers(ELYOS_SELLERS));
-		sellers.put(Race.ASMODIANS, availableSellers(ASMODIAN_SELLERS));
+		sellers.put(Race.ELYOS, availableSellers(ELYOS_SELLERS, Race.ELYOS));
+		sellers.put(Race.ASMODIANS, availableSellers(ASMODIAN_SELLERS, Race.ASMODIANS));
 		for (Race race : List.of(Race.ELYOS, Race.ASMODIANS)) {
 			catalog.put(race, buildCatalog(race));
-			log.info("Broker market: {} templates for {}, {} seller accounts", catalog.get(race).size(), race, sellers.get(race).length);
+			nextIndex.put(race, 0);
+			log.info("Broker market: {} eligible templates for {}, {} seller characters", catalog.get(race).size(), race, sellers.get(race).length);
 		}
-		populateAll(true);
-		scheduleNext();
+		ThreadPoolManager.getInstance().schedule(this::refillSafely, 1000);
 	}
 
-	private int[] availableSellers(int[] ids) {
-		Set<Integer> found = BrokerDAO.findExistingPlayerIds(ids);
+	private int[] availableSellers(int[] ids, Race race) {
+		Set<Integer> found = BrokerDAO.findExistingPlayerIds(ids, race);
 		if (found.isEmpty())
 			log.warn("Broker market seller characters are missing. Create the reserved seller characters before enabling market seeding.");
 		return java.util.Arrays.stream(ids).filter(found::contains).toArray();
 	}
 
-	private List<MarketEntry> buildCatalog(Race race) {
+	private List<ItemTemplate> buildCatalog(Race race) {
 		List<ItemTemplate> templates = DataManager.ITEM_DATA.getItemTemplates().stream()
 			.filter(t -> eligible(t, race)).toList();
-		List<MarketEntry> result = new ArrayList<>();
-		Set<Integer> selected = new HashSet<>();
-		int missing = 0;
-		int target = Math.max(1, Math.min(10, BrokerMarketConfig.ITEMS_PER_CATEGORY));
-		for (BrokerItemMask category : BrokerItemMask.values()) {
-			if (category == BrokerItemMask.UNKNOWN || category.hasChildren())
-				continue;
-			List<ItemTemplate> choices = templates.stream().filter(category::matchesTemplate)
-				.sorted(Comparator.comparingInt(ItemTemplate::getLevel).thenComparingLong(ItemTemplate::getPrice)).toList();
-			int added = 0;
-			for (int slot = 0; slot < target && !choices.isEmpty(); slot++) {
-				int center = Math.min(choices.size() - 1, (int) ((long) (slot + 1) * choices.size() / (target + 1)));
-				for (int offset = 0; offset < choices.size(); offset++) {
-					ItemTemplate choice = choices.get((center + offset) % choices.size());
-					if (selected.add(choice.getTemplateId())) {
-						result.add(new MarketEntry(choice));
-						added++;
-						break;
-					}
+		List<List<ItemTemplate>> categories = new ArrayList<>();
+		// Leaf categories first; parent masks then catch templates that have no leaf.
+		for (boolean parent : new boolean[] { false, true }) {
+			for (BrokerItemMask category : BrokerItemMask.values()) {
+				if (category == BrokerItemMask.UNKNOWN || category.hasChildren() != parent)
+					continue;
+				List<ItemTemplate> choices = new ArrayList<>();
+				for (ItemTemplate template : templates) {
+					if (category.matchesTemplate(template))
+						choices.add(template);
 				}
-			}
-			if (added == 0) {
-				missing++;
-				log.debug("Broker market: no eligible {} item for {}", category, race);
+				Collections.shuffle(choices);
+				if (!choices.isEmpty())
+					categories.add(choices);
 			}
 		}
-		log.info("Broker market: {} empty leaf categories for {} after trade and template filtering", missing, race);
+		List<ItemTemplate> result = new ArrayList<>(templates.size());
+		Set<Integer> selected = new HashSet<>();
+		for (int offset = 0;; offset++) {
+			boolean hasMore = false;
+			for (List<ItemTemplate> choices : categories) {
+				if (offset < choices.size()) {
+					hasMore = true;
+					ItemTemplate template = choices.get(offset);
+					if (selected.add(template.getTemplateId()))
+						result.add(template);
+				}
+			}
+			if (!hasMore)
+				break;
+		}
+		log.info("Broker market catalog for {}: {} eligible, {} displayable, {} without a broker mask", race,
+			templates.size(), result.size(), templates.size() - result.size());
 		return result;
 	}
 
 	private boolean eligible(ItemTemplate t, Race race) {
-		if (!t.isTradeable() || t.getPrice() <= 0 ||
+		if (!t.isTradeable() || t.getPrice() < 0 ||
 			((t.isWeapon() || t.isArmor() || t.isStigma()) && t.getLevel() > GSConfig.PLAYER_MAX_LEVEL) ||
 			(t.getRace() != Race.PC_ALL && t.getRace() != race) || t.isKinah())
 			return false;
 		String name = t.getName().toLowerCase(java.util.Locale.ROOT);
-		if (name.isBlank() || name.startsWith("[") || name.contains("test") || name.contains("npc") ||
-			name.contains("debug") || name.contains("quest") || name.contains("prototype") || name.contains("dummy") ||
-			name.contains("event") || name.contains("placeholder"))
+		if (name.isBlank() || name.contains("test") || name.contains("npc") || name.contains("debug") ||
+			name.contains("prototype") || name.contains("dummy") || name.contains("placeholder") ||
+			name.startsWith("[temp"))
 			return false;
-		// A value of 5 is used by many internal weapon/armor templates.
-		return !(t.isWeapon() || t.isArmor()) || t.getPrice() >= 1000;
+		// A value of 5 is used by thousands of internal weapon and armor templates.
+		return !(t.isWeapon() || t.isArmor()) || t.getPrice() != 5;
 	}
 
-	public synchronized void populateAll(boolean force) {
+	private void refillSafely() {
+		boolean needsCatchup = true;
+		try {
+			needsCatchup = populateAll();
+		} catch (Exception e) {
+			log.error("Broker market refill failed", e);
+		} finally {
+			scheduleNext(needsCatchup);
+		}
+	}
+
+	private synchronized boolean populateAll() {
 		if (!BrokerMarketConfig.ENABLED || !initialized)
-			return;
-		populateRace(Race.ELYOS, BrokerRace.ELYOS, force);
-		populateRace(Race.ASMODIANS, BrokerRace.ASMODIAN, force);
+			return false;
+		boolean elyosMissing = populateRace(Race.ELYOS, BrokerRace.ELYOS);
+		boolean asmodianMissing = populateRace(Race.ASMODIANS, BrokerRace.ASMODIAN);
+		return elyosMissing || asmodianMissing;
 	}
 
-	private void populateRace(Race race, BrokerRace brokerRace, boolean force) {
+	private boolean populateRace(Race race, BrokerRace brokerRace) {
 		int[] raceSellers = sellers.get(race);
 		if (raceSellers == null || raceSellers.length == 0)
-			return;
+			return false;
+		List<ItemTemplate> entries = catalog.get(race);
+		if (entries == null || entries.isEmpty())
+			return false;
 		BrokerService broker = BrokerService.getInstance();
 		Set<Integer> listed = broker.getActiveItemIds(race);
 		int added = 0;
-		int limit = force ? Integer.MAX_VALUE : Math.max(1, BrokerMarketConfig.MAX_ITEMS_PER_REFILL);
-		List<MarketEntry> candidates = new ArrayList<>(catalog.get(race));
-		if (!force)
-			java.util.Collections.shuffle(candidates);
-		for (MarketEntry entry : candidates) {
-			ItemTemplate template = entry.template();
-			if (listed.contains(template.getTemplateId()) || added >= limit)
+		int failures = 0;
+		int limit = Math.max(1, Math.min(10000, BrokerMarketConfig.MAX_ITEMS_PER_REFILL));
+		int start = nextIndex.get(race);
+		int scanned = 0;
+		boolean missing = false;
+		for (; scanned < entries.size(); scanned++) {
+			ItemTemplate template = entries.get((start + scanned) % entries.size());
+			if (listed.contains(template.getTemplateId()))
 				continue;
+			if (added >= limit || failures >= 10) {
+				missing = true;
+				break;
+			}
 			long count = stackCount(template);
 			long price = unitPrice(template, race);
 			int seller = raceSellers[ThreadLocalRandom.current().nextInt(raceSellers.length)];
 			if (broker.addSimulatedItem(template.getTemplateId(), count, price, seller, brokerRace)) {
 				listed.add(template.getTemplateId());
 				added++;
-			}
+			} else
+				failures++;
 		}
+		nextIndex.put(race, (start + scanned) % entries.size());
 		if (added > 0)
-			log.info("Broker market restocked {} listings for {}; active listings: {}", added, race, broker.getRaceItemCount(race));
+			log.info("Broker market added {} listings for {}; active listings: {} of {} catalog items", added, race,
+				broker.getRaceItemCount(race), entries.size());
+		return missing || failures > 0;
 	}
 
 	private long stackCount(ItemTemplate template) {
 		if (!template.isStackable())
 			return 1;
 		long max = Math.min(template.getMaxStackCount(), Math.max(1, BrokerMarketConfig.MAX_STACK));
-		return 1 + ThreadLocalRandom.current().nextLong(max);
+		long min = Math.max(1, max / 4);
+		return ThreadLocalRandom.current().nextLong(min, max + 1);
 	}
 
 	private long unitPrice(ItemTemplate template, Race race) {
@@ -181,18 +211,18 @@ public class AuctionHouseSimulator {
 		return Math.max(1, Math.min(999_999_999L, Math.round(Math.max(floor, vendorPrice) * multiplier * variance)));
 	}
 
-	private void scheduleNext() {
+	private void scheduleNext(boolean needsCatchup) {
+		if (!BrokerMarketConfig.ENABLED)
+			return;
+		if (needsCatchup) {
+			long seconds = Math.max(1, BrokerMarketConfig.CATCHUP_INTERVAL_SECONDS);
+			ThreadPoolManager.getInstance().schedule(this::refillSafely, TimeUnit.SECONDS.toMillis(seconds));
+			return;
+		}
 		long min = Math.max(1, BrokerMarketConfig.REFILL_MIN_MINUTES);
 		long max = Math.max(min, BrokerMarketConfig.REFILL_MAX_MINUTES);
 		long delay = ThreadLocalRandom.current().nextLong(min, max + 1);
-		ThreadPoolManager.getInstance().schedule(() -> {
-			try {
-				populateAll(false);
-			} catch (Exception e) {
-				log.error("Broker market refill failed", e);
-			} finally {
-				scheduleNext();
-			}
-		}, TimeUnit.MINUTES.toMillis(delay));
+		log.info("Broker market is stocked; next refill check in {} minutes", delay);
+		ThreadPoolManager.getInstance().schedule(this::refillSafely, TimeUnit.MINUTES.toMillis(delay));
 	}
 }

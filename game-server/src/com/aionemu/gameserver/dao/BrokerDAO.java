@@ -5,18 +5,20 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.HashMap;
 import java.util.HashSet;
-
-import com.aionemu.commons.database.ParamReadStH;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aionemu.commons.database.DB;
 import com.aionemu.commons.database.IUStH;
+import com.aionemu.commons.database.ParamReadStH;
 import com.aionemu.commons.database.ReadStH;
+import com.aionemu.gameserver.model.Race;
 import com.aionemu.gameserver.model.broker.BrokerRace;
 import com.aionemu.gameserver.model.gameobjects.BrokerItem;
 import com.aionemu.gameserver.model.gameobjects.Item;
@@ -26,16 +28,17 @@ public class BrokerDAO {
 
 	private static final Logger log = LoggerFactory.getLogger(BrokerDAO.class);
 
-	public static Set<Integer> findExistingPlayerIds(int[] ids) {
+	public static Set<Integer> findExistingPlayerIds(int[] ids, Race race) {
 		Set<Integer> result = new HashSet<>();
 		if (ids.length == 0)
 			return result;
 		String placeholders = String.join(",", java.util.Collections.nCopies(ids.length, "?"));
-		DB.select("SELECT id FROM players WHERE id IN (" + placeholders + ")", new ParamReadStH() {
+		DB.select("SELECT id FROM players WHERE id IN (" + placeholders + ") AND race = ?", new ParamReadStH() {
 			@Override
 			public void setParams(PreparedStatement stmt) throws SQLException {
 				for (int i = 0; i < ids.length; i++)
 					stmt.setInt(i + 1, ids[i]);
+				stmt.setString(ids.length + 1, race.name());
 			}
 
 			@Override
@@ -52,6 +55,9 @@ public class BrokerDAO {
 
 		List<Item> items = InventoryDAO.loadBrokerItems();
 		ItemStoneListDAO.load(items);
+		Map<Integer, Item> itemsById = new HashMap<>(items.size());
+		for (Item item : items)
+			itemsById.put(item.getObjectId(), item);
 
 		DB.select("SELECT * FROM broker", new ReadStH() {
 
@@ -71,14 +77,7 @@ public class BrokerDAO {
 					boolean isSettled = rset.getBoolean("is_settled");
 					boolean splittingAvailable = rset.getBoolean("splitting_available");
 
-					Item item = null;
-					if (!isSold)
-						for (Item brItem : items) {
-							if (itemPointer == brItem.getObjectId()) {
-								item = brItem;
-								break;
-							}
-						}
+					Item item = isSold ? null : itemsById.get(itemPointer);
 
 					brokerItems.add(new BrokerItem(item, itemId, itemPointer, itemCount, itemCreator, price, sellerId, itemBrokerRace, isSold,
 						isSettled, expireTime, settleTime, splittingAvailable));
@@ -100,7 +99,7 @@ public class BrokerDAO {
 		switch (item.getPersistentState()) {
 			case NEW:
 				result = insertBrokerItem(item);
-				if (item.getItem() != null)
+				if (item.getItem() != null && item.getItem().getPersistentState() != PersistentState.UPDATED)
 					InventoryDAO.store(item.getItem(), item.getSellerId());
 				break;
 

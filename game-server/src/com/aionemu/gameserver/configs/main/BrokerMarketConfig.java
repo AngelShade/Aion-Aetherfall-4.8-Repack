@@ -8,13 +8,13 @@ public class BrokerMarketConfig {
 	@Property(key = "gameserver.broker.market.enabled", defaultValue = "true")
 	public static boolean ENABLED;
 
-	@Property(key = "gameserver.broker.market.items_per_category", defaultValue = "3")
-	public static int ITEMS_PER_CATEGORY;
-
-	@Property(key = "gameserver.broker.market.max_items_per_refill", defaultValue = "40")
+	@Property(key = "gameserver.broker.market.max_items_per_refill", defaultValue = "2000")
 	public static int MAX_ITEMS_PER_REFILL;
 
-	@Property(key = "gameserver.broker.market.max_stack", defaultValue = "30")
+	@Property(key = "gameserver.broker.market.catchup_interval_seconds", defaultValue = "15")
+	public static int CATCHUP_INTERVAL_SECONDS;
+
+	@Property(key = "gameserver.broker.market.max_stack", defaultValue = "100")
 	public static int MAX_STACK;
 
 	@Property(key = "gameserver.broker.market.price_multiplier", defaultValue = "1.0")

@@ -32429,7 +32429,38 @@
 			<item id="186000130" /><!-- Crucible Insignia -->
 		</items>
 	</decomposable>
-	<decomposable item_id="188053634" /><!-- Midsummer Honey Box -->
+	<decomposable item_id="188053634"><!-- Midsummer Honey Box -->
+		<items chance="10.0">
+			<item id="110900420" /><!-- Cool Summer Look -->
+		</items>
+		<items chance="10.0">
+			<item id="110900552" /><!-- Aquablue Swimsuit -->
+		</items>
+		<items chance="10.0">
+			<item id="125040076" /><!-- Summer Sunglasses -->
+		</items>
+		<items chance="10.0">
+			<item id="125040080" /><!-- Beach Hat -->
+		</items>
+		<items chance="10.0">
+			<item id="169600103" /><!-- [Emotion Card] Diving -->
+		</items>
+		<items chance="10.0">
+			<item id="169600217" /><!-- [Emotion Card] Summer Vacation -->
+		</items>
+		<items chance="10.0">
+			<item id="170415026" /><!-- Comfortable Camp Hammock -->
+		</items>
+		<items chance="10.0">
+			<item id="170425038" /><!-- Picnic Table -->
+		</items>
+		<items chance="10.0">
+			<item id="171130034" /><!-- Fresh Summer Camp Wallpaper -->
+		</items>
+		<items chance="10.0">
+			<item id="171130038" /><!-- Fresh Summer Camp Floor -->
+		</items>
+	</decomposable>
 	<decomposable item_id="188053635" /><!-- Kikorinerk's Sweet Surprise -->
 	<decomposable item_id="188053636"><!-- Blood Mark Box -->
 		<items>

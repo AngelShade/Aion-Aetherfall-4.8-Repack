@@ -309,7 +309,7 @@ public abstract class AbstractQuestHandler {
 		QuestState qs = env.getPlayer().getQuestStateList().getQuestState(questId);
 		if (qs != null && (varNum == -1 ? qs.getQuestVars().getQuestVars() == step : qs.getQuestVarById(varNum) == step)) {
 			if (nextStep != step) { // quest can be rolled back if nextStep < step
-				if (step > nextStep && qs.getStatus() == QuestStatus.START)
+				if (!reward && step > nextStep && qs.getStatus() == QuestStatus.START)
 					PacketSendUtility.sendPacket(env.getPlayer(),
 						SM_SYSTEM_MESSAGE.STR_QUEST_SYSTEMMSG_GIVEUP(DataManager.QUEST_DATA.getQuestById(questId).getL10n()));
 				if (varNum == -1)

@@ -19,3 +19,7 @@ login-server/target/
 *.zip
 /target-deploy/game-server/log
 /Aion 4.8 Server/
+/target-deploy/chat-server/log
+/target-deploy/chat-server/log
+*.bak
+*.log

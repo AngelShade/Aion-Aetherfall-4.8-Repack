@@ -71,12 +71,12 @@ public enum BrokerItemMask {
 	/**
 	 * Accessory Section + sub categories
 	 */
-	ACCESSORY(9030, new BrokerContainsFilter(1200, 1210, 1220, 1230, 1250, 1871), null, true),
+	ACCESSORY(9030, new BrokerContainsFilter(1200, 1210, 1220, 1230, 1250, 1251, 1252, 1253, 1871), null, true),
 	ACCESSORY_EARRINGS(1200, new BrokerContainsFilter(1200), BrokerItemMask.ACCESSORY, false),
 	ACCESSORY_NECKLACE(1210, new BrokerContainsFilter(1210), BrokerItemMask.ACCESSORY, false),
 	ACCESSORY_RING(1220, new BrokerContainsFilter(1220), BrokerItemMask.ACCESSORY, false),
 	ACCESSORY_BELT(1230, new BrokerContainsFilter(1230), BrokerItemMask.ACCESSORY, false),
-	ACCESSORY_HEADGEAR(7030, new BrokerContainsFilter(1250), BrokerItemMask.ACCESSORY, false),
+	ACCESSORY_HEADGEAR(7030, new BrokerContainsFilter(1250, 1251, 1252, 1253), BrokerItemMask.ACCESSORY, false),
 	ACCESSORY_PLUME(1871, new BrokerContainsFilter(1871), BrokerItemMask.ACCESSORY, false),
 	/**
 	 * Skill related Section + sub categories
@@ -145,25 +145,25 @@ public enum BrokerItemMask {
 	/**
 	 * Consumables Section + sub categories
 	 */
-	CONSUMABLES(9060, new BrokerContainsFilter(1410, 1600, 1620, 1640, 1660, 1661, 1665, 1670, 1680, 1690, 1692, 1693, 1694, 1696), null, true),
+	CONSUMABLES(9060, new BrokerContainsFilter(1410, 1600, 1610, 1620, 1630, 1640, 1650, 1660, 1661, 1662, 1665, 1670, 1671, 1680, 1681, 1683, 1690, 1691, 1692, 1693, 1694, 1696, 1698), null, true),
 	CONSUMABLES_FOOD(1600, new BrokerContainsFilter(1600), BrokerItemMask.CONSUMABLES, false),
 	CONSUMABLES_POTION(1620, new BrokerContainsFilter(1620), BrokerItemMask.CONSUMABLES, false),
 	CONSUMABLES_SCROLL(7060, new BrokerContainsFilter(1640), BrokerItemMask.CONSUMABLES, false),
-	CONSUMABLES_MODIFY(8060, new BrokerContainsFilter(1660, 1665, 1670, 1680, 1692, 1691), BrokerItemMask.CONSUMABLES, true),
+	CONSUMABLES_MODIFY(8060, new BrokerContainsFilter(1660, 1661, 1662, 1665, 1670, 1671, 1680, 1681, 1683, 1691, 1692, 1698), BrokerItemMask.CONSUMABLES, true),
 	CONSUMABLES_MODIFY_ENCHANTMENT_STONE(1660, new BrokerContainsExtraFilter(16600, 16602), BrokerItemMask.CONSUMABLES_MODIFY, false),
-	CONSUMABLES_MODIFY_MANASTONE(1670, new BrokerContainsFilter(1670), BrokerItemMask.CONSUMABLES_MODIFY, false),
+	CONSUMABLES_MODIFY_MANASTONE(1670, new BrokerContainsFilter(1670, 1671), BrokerItemMask.CONSUMABLES_MODIFY, false),
 	CONSUMABLES_MODIFY_TEMPERING_SOLUTION(7065, new BrokerContainsExtraFilter(16603), BrokerItemMask.CONSUMABLES_MODIFY, false),
 	CONSUMABLES_MODIFY_GODSTONE(1680, new BrokerContainsFilter(1680), BrokerItemMask.CONSUMABLES_MODIFY, false),
-	CONSUMABLES_MODIFY_DYE(7061, new BrokerContainsFilter(1692), BrokerItemMask.CONSUMABLES_MODIFY, false),
+	CONSUMABLES_MODIFY_DYE(7061, new BrokerContainsFilter(1692, 1698), BrokerItemMask.CONSUMABLES_MODIFY, false),
 	CONSUMABLES_MODIFY_PAIN(7064, new BrokerContainsFilter(1691), BrokerItemMask.CONSUMABLES_MODIFY, false),
 	CONSUMABLES_MODIFY_AMPLIFICATION_STONE(1665, new BrokerContainsFilter(1665), BrokerItemMask.CONSUMABLES_MODIFY, false),
-	CONSUMABLES_MODIFY_OTHER(7063, new BrokerContainsFilter(1661), BrokerItemMask.CONSUMABLES_MODIFY, false),
-	CONSUMABLES_OTHER(7062, new BrokerContainsFilter(1410, 1690, 1693, 1694, 1696), BrokerItemMask.CONSUMABLES, false),
+	CONSUMABLES_MODIFY_OTHER(7063, new BrokerContainsFilter(1661, 1662, 1681, 1683), BrokerItemMask.CONSUMABLES_MODIFY, false),
+	CONSUMABLES_OTHER(7062, new BrokerContainsFilter(1410, 1610, 1630, 1650, 1690, 1693, 1694, 1696), BrokerItemMask.CONSUMABLES, false),
 
 	/**
 	 * Other Section
 	 */
-	OTHER(7070, new BrokerContainsFilter(1850, 1860, 1870, 1880, 1881, 1887), null, false),
+	OTHER(7070, new BrokerContainsFilter(1500, 1810, 1820, 1822, 1824, 1840, 1850, 1860, 1870, 1880, 1881, 1885, 1886, 1887, 1889, 1900), null, false),
 
 	UNKNOWN(1, new BrokerContainsFilter(0), null, false);
 
