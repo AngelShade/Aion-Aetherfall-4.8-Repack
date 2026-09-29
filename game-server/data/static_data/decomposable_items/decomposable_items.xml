@@ -26592,7 +26592,20 @@
 	</decomposable>
 	<decomposable item_id="188052916" /><!-- [Event] Triniel's Shadow Wraith Weapon Chest -->
 	<decomposable item_id="188052917" /><!-- [Event] Triniel's Shadow Wraith Attire Chest -->
-	<decomposable item_id="188052918" /><!-- [Event] Angel Wings Chest -->
+	<decomposable item_id="188052918"><!-- [Event] Angel Wings Chest -->
+		<items chance="25.0">
+			<item id="187050022" /><!-- [Event] Black Angel Wings -->
+		</items>
+		<items chance="25.0">
+			<item id="187050024" /><!-- [Event] Ghostly Angel Wings -->
+		</items>
+		<items chance="25.0">
+			<item id="187050023" /><!-- [Event] Red Angel Wings -->
+		</items>
+		<items chance="25.0">
+			<item id="187050025" /><!-- [Event] White Angel Wings -->
+		</items>
+	</decomposable>
 	<decomposable item_id="188052919"><!-- Fortress Supplies -->
 		<items>
 			<item id="186000242" /><!-- Ceramium Medal -->

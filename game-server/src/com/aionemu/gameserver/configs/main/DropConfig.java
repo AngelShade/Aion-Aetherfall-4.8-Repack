@@ -23,4 +23,10 @@ public class DropConfig {
 	 */
 	@Property(key = "gameserver.drop.disable_range_check_maps")
 	public static Set<Integer> DISABLE_RANGE_CHECK_MAPS;
+
+	/**
+	 * Number of quest items generated per successful NPC quest drop.
+	 */
+	@Property(key = "gameserver.drop.quest_item_count", defaultValue = "1")
+	public static int QUEST_ITEM_COUNT;
 }

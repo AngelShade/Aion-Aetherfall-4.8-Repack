@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import com.aionemu.commons.utils.Rnd;
 import com.aionemu.gameserver.configs.main.CustomConfig;
+import com.aionemu.gameserver.configs.main.DropConfig;
 import com.aionemu.gameserver.configs.main.GroupConfig;
 import com.aionemu.gameserver.configs.main.MembershipConfig;
 import com.aionemu.gameserver.dataholders.DataManager;
@@ -750,7 +751,7 @@ public final class QuestService {
 		DropItem item = new DropItem(new Drop(drop.getItemId(), 1, 1, drop.getChance()));
 		item.setPlayerObjId(winner);
 		item.setIndex(index);
-		item.setCount(1);
+		item.setCount(Math.max(1, DropConfig.QUEST_ITEM_COUNT));
 		return item;
 	}
 
