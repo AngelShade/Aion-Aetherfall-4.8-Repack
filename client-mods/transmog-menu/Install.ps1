@@ -1,0 +1,63 @@
+param(
+    [Parameter(Mandatory = $true)][string]$ClientPath,
+    [Parameter(Mandatory = $true)][string]$PreparedPath
+)
+$ErrorActionPreference = 'Stop'
+$clientRoot = (Resolve-Path -LiteralPath $ClientPath).Path
+$prepared = (Resolve-Path -LiteralPath $PreparedPath).Path
+if (Get-Process -Name 'aion.bin' -ErrorAction SilentlyContinue) {
+    throw 'Fully close Aion before installing the signed menu files.'
+}
+$manifest = Get-Content -Raw -LiteralPath (Join-Path $prepared 'manifest.json') | ConvertFrom-Json
+if ($manifest.clientRoot -ne $clientRoot) { throw 'Prepared files belong to a different client.' }
+$expected = @('bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig', 'Plugin/RelicCalc/RelicCalc.pak', 'Plugin/RelicCalc/RelicCalc.pak.sig', 'Pub.key')
+if (@($manifest.files).Count -ne $expected.Count -or (Compare-Object ($manifest.files.path | Sort-Object) ($expected | Sort-Object))) {
+    throw 'Unexpected replacement file list.'
+}
+foreach ($entry in $manifest.files) {
+    if ((Get-FileHash -LiteralPath (Join-Path $clientRoot $entry.path)).Hash -ne $entry.original -or
+        (Get-FileHash -LiteralPath (Join-Path $prepared $entry.path)).Hash -ne $entry.staged) {
+        throw "File changed since preparation: $($entry.path)"
+    }
+}
+$legacy = [IO.Path]::GetFullPath((Join-Path $clientRoot 'Plugin\TransmogMenu'))
+$prefix = $clientRoot.TrimEnd('\') + '\'
+if (-not $legacy.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid legacy addon path.' }
+if (Test-Path -LiteralPath $legacy) {
+    $legacyFiles = @(Get-ChildItem -LiteralPath $legacy -File -Recurse)
+    if ($legacyFiles.Count -ne @($manifest.legacyAddon).Count) { throw 'Legacy addon changed since preparation.' }
+    foreach ($entry in $manifest.legacyAddon) {
+        $legacyFile = [IO.Path]::GetFullPath((Join-Path $legacy $entry.path))
+        if (-not $legacyFile.StartsWith($legacy + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid legacy file path.' }
+        if ((Get-FileHash -LiteralPath $legacyFile).Hash -ne $entry.sha256) { throw 'Legacy addon changed since preparation.' }
+    }
+}
+$backup = [IO.Path]::GetFullPath((Join-Path $clientRoot ('TransmogMenu-backups\signed-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))))
+if (-not $backup.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid backup path.' }
+New-Item -ItemType Directory -Path $backup | Out-Null
+foreach ($entry in $manifest.files) {
+    $saved = Join-Path $backup $entry.path
+    New-Item -ItemType Directory -Path (Split-Path -Parent $saved) -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path $clientRoot $entry.path) -Destination $saved
+    if ((Get-FileHash -LiteralPath $saved).Hash -ne $entry.original) { throw 'Backup verification failed.' }
+}
+Copy-Item -LiteralPath (Join-Path $prepared 'manifest.json') -Destination (Join-Path $backup 'manifest.json')
+$legacySaved = Join-Path $backup 'legacy-TransmogMenu'
+try {
+    foreach ($entry in $manifest.files | Sort-Object { $_.path -eq 'Pub.key' }) {
+        Copy-Item -LiteralPath (Join-Path $prepared $entry.path) -Destination (Join-Path $clientRoot $entry.path)
+        if ((Get-FileHash -LiteralPath (Join-Path $clientRoot $entry.path)).Hash -ne $entry.staged) { throw 'Install verification failed.' }
+    }
+    if (Test-Path -LiteralPath $legacy) { Move-Item -LiteralPath $legacy -Destination $legacySaved }
+} catch {
+    $installError = $_
+    foreach ($entry in $manifest.files) {
+        Copy-Item -LiteralPath (Join-Path $backup $entry.path) -Destination (Join-Path $clientRoot $entry.path)
+    }
+    if ((Test-Path -LiteralPath $legacySaved) -and -not (Test-Path -LiteralPath $legacy)) {
+        Move-Item -LiteralPath $legacySaved -Destination $legacy
+    }
+    throw $installError
+}
+Write-Output "Installed and hash-verified five files. Backup: $backup"
+Write-Output 'Start Aion and check Additional Functions: Transmog should precede Relic Appraiser.'
