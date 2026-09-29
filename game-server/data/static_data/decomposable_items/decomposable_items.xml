@@ -16990,7 +16990,16 @@
 		</items>
 	</decomposable>
 	<decomposable item_id="188052082" /><!-- Kahrun's Symbol Box -->
-	<decomposable item_id="188052083" /><!-- Small GM Gift Box -->
+	<decomposable item_id="188052083"><!-- Small GM Gift Box -->
+		<items>
+			<item id="164000073" min_count="20" /><!-- Greater Awakening Scroll -->
+			<item id="164000076" min_count="20" /><!-- Greater Courage Scroll -->
+			<item id="164000079" min_count="20" /><!-- Greater Running Scroll -->
+			<item id="162000023" min_count="10" /><!-- Greater Healing Potion -->
+			<item id="169000010" min_count="5000" /><!-- Superior Power Shard (+40) -->
+			<item id="162000107" min_count="5" /><!-- Saam King's Herbs -->
+		</items>
+	</decomposable>
 	<decomposable item_id="188052084"><!-- Dragon Lord Tiamat Treasure Chest -->
 		<items chance="75.0">
 			<item id="186000147" /><!-- Mithril Medal -->
@@ -17227,7 +17236,27 @@
 			<item id="182006999" max_count="10" /><!-- Shugo Coin -->
 		</items>
 	</decomposable>
-	<decomposable item_id="188052086" /><!-- Big GM Gift Box -->
+	<decomposable item_id="188052086"><!-- Big GM Gift Box -->
+		<items chance="20">
+			<item id="182400001" min_count="1000000" max_count="3000000" /><!-- Kinah -->
+			<item id="188052083" /><!-- Small GM Gift Box -->
+		</items>
+		<items chance="20">
+			<item id="162000107" min_count="10" max_count="25" /><!-- Saam King's Herbs -->
+		</items>
+		<items chance="15">
+			<item id="188052213" /><!-- [Event] PC Café Care Bundle -->
+		</items>
+		<items chance="15">
+			<item id="188052088" /><!-- [Event] Recovery Bundle -->
+		</items>
+		<items chance="15">
+			<item id="188052077" /><!-- [Event] Health Boost Bundle -->
+		</items>
+		<items chance="15">
+			<item id="162000023" min_count="10" max_count="30" /><!-- Greater Healing Potion -->
+		</items>
+	</decomposable>
 	<decomposable item_id="188052087"><!-- Abyssal Balaur Bundle -->
 		<items chance="18">
 			<item id="152014016" min_count="5" /><!-- Firm Balaur Horn -->
@@ -17245,7 +17274,13 @@
 			<item id="152014020" min_count="5" /><!-- Lustrous Balaur Meat -->
 		</items>
 	</decomposable>
-	<decomposable item_id="188052088" /><!-- [Event] Recovery Bundle -->
+	<decomposable item_id="188052088"><!-- [Event] Recovery Bundle -->
+		<items>
+			<item id="162000080" min_count="15" /><!-- Fine Recovery Serum -->
+			<item id="162000050" min_count="15" /><!-- Major Recovery Serum -->
+			<item id="162000023" min_count="15" /><!-- Greater Healing Potion -->
+		</items>
+	</decomposable>
 	<decomposable item_id="188052089" /><!-- [Event] Scroll Bundle -->
 	<decomposable item_id="188052090"><!-- [Event] Magic Food Bundle -->
 		<items>
@@ -18084,7 +18119,16 @@
 	<decomposable item_id="188052210" /><!-- [Event] Returning Daeva's Bundle -->
 	<decomposable item_id="188052211" /><!-- [Event] Returning Daeva's Manastone Box -->
 	<decomposable item_id="188052212" /><!-- [Event] Returning Daeva's Enchantment Stone Box -->
-	<decomposable item_id="188052213" /><!-- [Event] PC Café Care Bundle -->
+	<decomposable item_id="188052213"><!-- [Event] PC Café Care Bundle -->
+		<items>
+			<item id="186000253" min_count="5" /><!-- [Event] PC Cafe Coin -->
+			<item id="162000107" min_count="5" /><!-- Saam King's Herbs -->
+			<item id="164000073" min_count="10" /><!-- Greater Awakening Scroll -->
+			<item id="164000076" min_count="10" /><!-- Greater Courage Scroll -->
+			<item id="164000079" min_count="10" /><!-- Greater Running Scroll -->
+			<item id="162000080" min_count="10" /><!-- Fine Recovery Serum -->
+		</items>
+	</decomposable>
 	<decomposable item_id="188052214" /><!-- [Test] Optional Bundle Test 01 -->
 	<decomposable item_id="188052215" /><!-- [Test] Optional Bundle Test 02 -->
 	<decomposable item_id="188052216" /><!-- [Test] Optional Bundle Test 03 -->
@@ -19577,7 +19621,16 @@
 			<item id="188051582" /><!-- Powerful Transformation OK Box -->
 		</items>
 	</decomposable>
-	<decomposable item_id="188052361" /><!-- [Event] PC Café Care Bundle -->
+	<decomposable item_id="188052361"><!-- [Event] PC Café Care Bundle -->
+		<items>
+			<item id="186000253" min_count="5" /><!-- [Event] PC Cafe Coin -->
+			<item id="162000107" min_count="5" /><!-- Saam King's Herbs -->
+			<item id="164000073" min_count="10" /><!-- Greater Awakening Scroll -->
+			<item id="164000076" min_count="10" /><!-- Greater Courage Scroll -->
+			<item id="164000079" min_count="10" /><!-- Greater Running Scroll -->
+			<item id="162000080" min_count="10" /><!-- Fine Recovery Serum -->
+		</items>
+	</decomposable>
 	<decomposable item_id="188052362"><!-- Fortress Assault Stigma Reward Bundle -->
 		<items>
 			<item id="140000693" player_classes="TEMPLAR" /><!-- Punishing Thrust I -->

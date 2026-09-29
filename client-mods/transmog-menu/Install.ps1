@@ -10,7 +10,7 @@ if (Get-Process -Name 'aion.bin' -ErrorAction SilentlyContinue) {
 }
 $manifest = Get-Content -Raw -LiteralPath (Join-Path $prepared 'manifest.json') | ConvertFrom-Json
 if ($manifest.clientRoot -ne $clientRoot) { throw 'Prepared files belong to a different client.' }
-$expected = @('bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig', 'Plugin/RelicCalc/RelicCalc.pak', 'Plugin/RelicCalc/RelicCalc.pak.sig', 'Pub.key')
+$expected = @('bin64/game.dll', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig', 'Plugin/RelicCalc/RelicCalc.pak', 'Plugin/RelicCalc/RelicCalc.pak.sig', 'Pub.key')
 if (@($manifest.files).Count -ne $expected.Count -or (Compare-Object ($manifest.files.path | Sort-Object) ($expected | Sort-Object))) {
     throw 'Unexpected replacement file list.'
 }
@@ -43,12 +43,23 @@ foreach ($entry in $manifest.files) {
 }
 Copy-Item -LiteralPath (Join-Path $prepared 'manifest.json') -Destination (Join-Path $backup 'manifest.json')
 $legacySaved = Join-Path $backup 'legacy-TransmogMenu'
+foreach ($entry in $manifest.retiredFiles) {
+    if ($entry.path -ne 'bin64/game.dll.patched') { throw 'Unexpected pending file to retire.' }
+    if ((Get-FileHash -LiteralPath (Join-Path $clientRoot $entry.path)).Hash -ne $entry.sha256) { throw 'Pending DLL changed since preparation.' }
+    $saved = Join-Path $backup $entry.path
+    Copy-Item -LiteralPath (Join-Path $clientRoot $entry.path) -Destination $saved
+    if ((Get-FileHash -LiteralPath $saved).Hash -ne $entry.sha256) { throw 'Pending DLL backup failed.' }
+}
 try {
     foreach ($entry in $manifest.files | Sort-Object { $_.path -eq 'Pub.key' }) {
         Copy-Item -LiteralPath (Join-Path $prepared $entry.path) -Destination (Join-Path $clientRoot $entry.path)
         if ((Get-FileHash -LiteralPath (Join-Path $clientRoot $entry.path)).Hash -ne $entry.staged) { throw 'Install verification failed.' }
     }
     if (Test-Path -LiteralPath $legacy) { Move-Item -LiteralPath $legacy -Destination $legacySaved }
+    foreach ($entry in $manifest.retiredFiles) {
+        # Exact single file, already backed up and hash-verified above.
+        Remove-Item -LiteralPath (Join-Path $clientRoot $entry.path)
+    }
 } catch {
     $installError = $_
     foreach ($entry in $manifest.files) {
@@ -57,7 +68,10 @@ try {
     if ((Test-Path -LiteralPath $legacySaved) -and -not (Test-Path -LiteralPath $legacy)) {
         Move-Item -LiteralPath $legacySaved -Destination $legacy
     }
+    foreach ($entry in $manifest.retiredFiles) {
+        Copy-Item -LiteralPath (Join-Path $backup $entry.path) -Destination (Join-Path $clientRoot $entry.path)
+    }
     throw $installError
 }
-Write-Output "Installed and hash-verified five files. Backup: $backup"
-Write-Output 'Start Aion and check Additional Functions: Transmog should precede Relic Appraiser.'
+Write-Output "Installed and hash-verified $(@($manifest.files).Count) files. Backup: $backup"
+Write-Output 'Start Aion and check Additional Functions for the configured server menus and Cash Shop.'

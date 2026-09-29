@@ -1,0 +1,8 @@
+{
+  "serverCommands": [
+    {"label": "Transmog", "command": "transmog"},
+    {"label": "Broker", "command": "broker"},
+    {"label": "Warehouse", "command": "warehouse"}
+  ],
+  "cashShop": {"label": "Cash Shop", "url": "http://127.0.0.1:8091/shop"}
+}

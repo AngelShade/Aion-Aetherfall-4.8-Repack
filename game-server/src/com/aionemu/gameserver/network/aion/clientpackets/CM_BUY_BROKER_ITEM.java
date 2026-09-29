@@ -2,7 +2,7 @@ package com.aionemu.gameserver.network.aion.clientpackets;
 
 import java.util.Set;
 
-import com.aionemu.gameserver.model.DialogAction;
+import com.aionemu.gameserver.services.RemoteBrokerService;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.network.aion.AionClientPacket;
 import com.aionemu.gameserver.network.aion.AionConnection.State;
@@ -34,7 +34,7 @@ public class CM_BUY_BROKER_ITEM extends AionClientPacket {
 		Player player = getConnection().getActivePlayer();
 		if (itemCount < 1)
 			return;
-		if (player.isTargetingNpcWithFunction(brokerObjId, DialogAction.OPEN_VENDOR))
+		if (RemoteBrokerService.canAccess(player, brokerObjId))
 			BrokerService.getInstance().buyBrokerItem(player, itemUniqueId, itemCount);
 		else
 			AuditLogger.log(player, "tried to buy an item from broker without targeting a broker");

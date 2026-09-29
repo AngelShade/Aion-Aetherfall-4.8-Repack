@@ -2,7 +2,7 @@ package com.aionemu.gameserver.network.aion.clientpackets;
 
 import java.util.Set;
 
-import com.aionemu.gameserver.model.DialogAction;
+import com.aionemu.gameserver.services.RemoteBrokerService;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.network.aion.AionClientPacket;
 import com.aionemu.gameserver.network.aion.AionConnection.State;
@@ -28,7 +28,7 @@ public class CM_BROKER_SETTLE_ACCOUNT extends AionClientPacket {
 	@Override
 	protected void runImpl() {
 		Player player = getConnection().getActivePlayer();
-		if (player.isTargetingNpcWithFunction(brokerObjId, DialogAction.OPEN_VENDOR))
+		if (RemoteBrokerService.canAccess(player, brokerObjId))
 			BrokerService.getInstance().settleAccount(player);
 		else
 			AuditLogger.log(player, "tried to get Kinah and unsold items from the broker without targeting a broker");

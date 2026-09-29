@@ -18,9 +18,8 @@ import com.aionemu.gameserver.skillengine.SkillEngine;
  */
 public class _1354PraticalAerobatics extends AbstractQuestHandler {
 
-	// chronological order of the flight rings has been changed
-	private String[] rings = { "ERACUS_TEMPLE_210020000_1", "ERACUS_TEMPLE_210020000_4", "ERACUS_TEMPLE_210020000_3", "ERACUS_TEMPLE_210020000_6",
-		"ERACUS_TEMPLE_210020000_5", "ERACUS_TEMPLE_210020000_2", "ERACUS_TEMPLE_210020000_7" };
+	private String[] rings = { "ERACUS_TEMPLE_210020000_1", "ERACUS_TEMPLE_210020000_2", "ERACUS_TEMPLE_210020000_3", "ERACUS_TEMPLE_210020000_4",
+		"ERACUS_TEMPLE_210020000_5", "ERACUS_TEMPLE_210020000_6", "ERACUS_TEMPLE_210020000_7" };
 
 	public _1354PraticalAerobatics() {
 		super(1354);

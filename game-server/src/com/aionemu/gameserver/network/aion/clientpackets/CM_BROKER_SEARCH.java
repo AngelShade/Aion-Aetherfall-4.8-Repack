@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import com.aionemu.gameserver.model.DialogAction;
+import com.aionemu.gameserver.services.RemoteBrokerService;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.network.aion.AionClientPacket;
 import com.aionemu.gameserver.network.aion.AionConnection.State;
@@ -41,7 +41,7 @@ public class CM_BROKER_SEARCH extends AionClientPacket {
 	@Override
 	protected void runImpl() {
 		Player player = getConnection().getActivePlayer();
-		if (player.isTargetingNpcWithFunction(brokerObjId, DialogAction.OPEN_VENDOR))
+		if (RemoteBrokerService.canAccess(player, brokerObjId))
 			BrokerService.getInstance().showRequestedItems(player, mask, sortType, page, itemList);
 		else
 			AuditLogger.log(player, "tried to search for items in broker without targeting a broker");

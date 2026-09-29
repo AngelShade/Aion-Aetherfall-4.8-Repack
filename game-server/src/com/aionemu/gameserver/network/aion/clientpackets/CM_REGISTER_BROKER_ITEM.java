@@ -2,7 +2,7 @@ package com.aionemu.gameserver.network.aion.clientpackets;
 
 import java.util.Set;
 
-import com.aionemu.gameserver.model.DialogAction;
+import com.aionemu.gameserver.services.RemoteBrokerService;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.network.aion.AionClientPacket;
 import com.aionemu.gameserver.network.aion.AionConnection.State;
@@ -40,7 +40,7 @@ public class CM_REGISTER_BROKER_ITEM extends AionClientPacket {
 		if (player.isTrading() || itemCount <= 0)
 			return;
 
-		if (player.isTargetingNpcWithFunction(brokerObjId, DialogAction.OPEN_VENDOR))
+		if (RemoteBrokerService.canAccess(player, brokerObjId))
 			BrokerService.getInstance().registerItem(player, itemUniqueId, itemCount, price, splittingAvailable);
 		else
 			AuditLogger.log(player, "tried to register a broker item without targeting a broker");

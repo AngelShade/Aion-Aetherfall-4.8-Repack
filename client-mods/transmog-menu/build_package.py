@@ -7,6 +7,9 @@ from pathlib import Path
 import subprocess
 import sys
 import zipfile
+import re
+import xml.etree.ElementTree as ET
+from patch_game_dll import build_dll
 
 
 def digest(path):
@@ -31,15 +34,37 @@ def main():
     if output.exists():
         raise ValueError('Use a new output directory to avoid stale staged files')
     source = root / 'Plugin/RelicCalc/RelicCalc.pak'
+    mod_root = Path(__file__).resolve().parent
+    settings = json.loads((mod_root / 'menus.json').read_text(encoding='utf-8-sig'))
+    commands = [entry['command'] for entry in settings['serverCommands']]
+    if not commands or len(set(commands)) != len(commands) or any(not re.fullmatch('[a-z][a-z0-9]{0,31}', c) for c in commands):
+        raise ValueError('Server command aliases must be unique lowercase letters/numbers, at most 32 characters')
+    for entry in settings['serverCommands']:
+        if not re.fullmatch('[A-Za-z0-9 ]{1,40}', entry['label']):
+            raise ValueError('Use plain menu labels of at most 40 characters')
     with read_pak(source) as archive:
         content = {name: archive.read(name) for name in archive.namelist()}
     original = content['RelicCalc.lua']
     anchor = b'\tRegisterMenu(GetAionStr("STR_RELICCALC_TITLE"), lastCommand, "v5_start_menu_relic_up");'
-    insertion = b'\tRegisterMenu("Transmog", "/say .transmog", "v5_start_menu_relic_up");\r\n'
-    if original.count(anchor) != 1 or b'"Transmog"' in original:
-        raise ValueError('Expected unmodified RelicCalc menu registration exactly once')
-    content['RelicCalc.lua'] = original.replace(anchor, insertion + anchor)
-    assert content['RelicCalc.lua'].replace(insertion, b'', 1) == original
+    legacy = b'\tRegisterMenu("Transmog", "/say .transmog", "v5_start_menu_relic_up");\r\n'
+    insertion = b'\tPrivateMenus_Register();\r\n'
+    base_lua = original.replace(legacy, b'').replace(insertion, b'')
+    if base_lua.count(anchor) != 1:
+        raise ValueError('Expected RelicCalc menu registration exactly once')
+    content['RelicCalc.lua'] = base_lua.replace(anchor, insertion + anchor)
+    content['CashShop.xml'] = (mod_root / 'CashShop.xml').read_text(encoding='utf-8-sig').replace('UTF-8', 'UTF-16').replace('\n', '\r\n').encode('utf-16')
+    ET.fromstring(content['CashShop.xml'])
+    # JSON-quoted ASCII values are valid Lua string literals for these labels and URL.
+    config = 'PRIVATE_SERVER_MENUS = {\n' + ''.join(
+        '    {label = ' + json.dumps(e['label']) + ', command = ' + json.dumps(e['command']) + '},\n'
+        for e in settings['serverCommands']) + '};\n'
+    config += 'PRIVATE_CASH_SHOP_URL = ' + json.dumps(settings['cashShop']['url']) + ';\n'
+    config += 'PRIVATE_CASH_SHOP_LABEL = ' + json.dumps(settings['cashShop']['label']) + ';\n'
+    content['PrivateMenus.lua'] = (config + (mod_root / 'PrivateMenus.lua').read_text(encoding='utf-8-sig')).replace('\n', '\r\n').encode('utf-8')
+    toc = content['RelicCalc.toc'].decode('utf-8').replace('\r', '').splitlines()
+    toc = [line for line in toc if line not in ('CashShop.xml', 'PrivateMenus.lua')]
+    toc += ['CashShop.xml', 'PrivateMenus.lua']
+    content['RelicCalc.toc'] = ('\r\n'.join(toc) + '\r\n').encode('utf-8')
     data = io.BytesIO()
     with zipfile.ZipFile(data, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
         for name, payload in content.items():
@@ -56,6 +81,9 @@ def main():
             assert archive.read(name) == payload, name
     signer = Path(__file__).with_name('SignClientPackages.java')
     subprocess.run([str(args.java), str(signer), str(root), str(output)], check=True)
+    patched_dll = output / 'bin64/game.dll'
+    patched_dll.parent.mkdir(parents=True, exist_ok=True)
+    patched_dll.write_bytes(build_dll(root / 'bin64/game.dll.orig', commands, settings['cashShop']['url']))
     replacements = []
     for staged in sorted(output.rglob('*')):
         if staged.is_file():
@@ -64,10 +92,11 @@ def main():
     previous_addon = root / 'Plugin/TransmogMenu'
     legacy = [{'path': f.relative_to(previous_addon).as_posix(), 'sha256': digest(f)}
               for f in sorted(previous_addon.rglob('*')) if f.is_file()]
-    manifest = {'clientRoot': str(root), 'files': replacements, 'legacyAddon': legacy}
+    retired = [{'path': 'bin64/game.dll.patched', 'sha256': digest(root / 'bin64/game.dll.patched')}] if (root / 'bin64/game.dll.patched').exists() else []
+    manifest = {'clientRoot': str(root), 'files': replacements, 'legacyAddon': legacy, 'retiredFiles': retired}
     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
     print(f'Prepared {len(replacements)} replacements in {output}; client untouched.')
-    print('Only Lua change: register Transmog immediately before Relic Appraiser.')
+    print('Prepared configured server menu entries and an embedded Cash Shop window before Relic Appraiser.')
 
 
 if __name__ == '__main__':
