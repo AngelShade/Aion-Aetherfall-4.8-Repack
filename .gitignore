@@ -22,4 +22,6 @@ login-server/target/
 /target-deploy/chat-server/log/
 /target-deploy/login-server/log/
 /target-deploy/**/pending/
+/target-deploy/game-server/cache/static_data.xml
+/target-deploy/game-server/cache/static_data.xml.properties
 /Aion 4.8 Server/
