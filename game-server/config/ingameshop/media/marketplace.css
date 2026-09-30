@@ -82,7 +82,7 @@ a:focus,button:focus,input:focus,select:focus{outline:1px solid #e3c991;outline-
 .side-link{font-size:12px;min-height:33px;line-height:19px}.side-link.child{font-size:11px;min-height:30px}
 .products{margin-right:0}.product{width:24%;margin-right:1%;height:214px}.product-art{height:79px;padding-top:9px}.product-art img{width:60px;height:60px}
 .product-content{height:87px;padding:8px 10px}.product h3{font-size:13px;line-height:18px;height:36px}.item-chips{height:15px}.item-chips span{font-size:9px;line-height:12px}.product-bottom{height:46px}.price{font-size:14px}.product-button{font-size:11px}
-.detail-page,.compatibility-panel,.detail-information,.breadcrumb{max-width:1120px;margin-left:auto;margin-right:auto}
+.detail-page,.compatibility-panel,.detail-information,.breadcrumb,.item-actions{max-width:1120px;margin-left:auto;margin-right:auto}
 @media(min-width:1700px){.product{width:19%}}
 @media(min-width:2200px){.product{width:15.666%}}
 @media(min-width:2900px){.product{width:11.5%}}
