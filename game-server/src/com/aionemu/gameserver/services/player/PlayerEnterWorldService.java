@@ -452,7 +452,7 @@ public final class PlayerEnterWorldService {
 	}
 
 	private static void sendItemInfos(AionConnection client, Player player) {
-		if (player.getNpcExpands() < 5) {
+		if (!CustomConfig.UNIFIED_INVENTORY && player.getNpcExpands() < 5) {
 			player.getCommonData().setNpcExpands(5);
 		}
 		QuestState ancientCubeQuest = player.getQuestStateList().getQuestState(1127);

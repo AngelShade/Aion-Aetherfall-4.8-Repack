@@ -101,6 +101,14 @@ public class CustomConfig {
 	@Property(key = "gameserver.cube.expansion_limit", defaultValue = "11")
 	public static int CUBE_EXPANSION_LIMIT;
 
+	/** Requires the matching 4.8 NA native inventory client patch. */
+	@Property(key = "gameserver.inventory.unified", defaultValue = "false")
+	public static boolean UNIFIED_INVENTORY;
+
+	public static final int UNIFIED_INVENTORY_SLOTS = 180;
+	/** Native inventory patch reserves 279 cells: 180 base plus eleven nine-slot expansions. */
+	public static final int UNIFIED_INVENTORY_MAX_EXPANSIONS = 11;
+
 	/**
 	 * Npc Cube Expands limit size
 	 */

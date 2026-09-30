@@ -83,7 +83,20 @@ def main():
     subprocess.run([str(args.java), str(signer), str(root), str(output)], check=True)
     patched_dll = output / 'bin64/game.dll'
     patched_dll.parent.mkdir(parents=True, exist_ok=True)
-    patched_dll.write_bytes(build_dll(root / 'bin64/game.dll.orig', commands, settings['cashShop']['url']))
+    dll = build_dll(root / 'bin64/game.dll.orig', commands, settings['cashShop']['url'])
+    inventory = settings.get('inventory')
+    if inventory:
+        from unified_inventory import BASE_SLOTS, SLOTS, patch_inventory_dll, prepare_inventory_archive
+        if inventory != {'slots': SLOTS, 'columns': 12, 'baseSlots': BASE_SLOTS}:
+            raise ValueError('Unified inventory requires 180 base slots, 279 maximum cells, and 12 columns')
+        prepare_inventory_archive(root, output)
+        # Localized UI templates take precedence over the base UI archive.
+        if (root / 'L10N/enu/data/data.pak').exists():
+            prepare_inventory_archive(root, output, 'L10N/enu/data/data.pak', 'ui/game/')
+        dll = patch_inventory_dll(dll)
+        from inventory_search import patch_search_dll
+        dll = patch_search_dll(dll)
+    patched_dll.write_bytes(dll)
     replacements = []
     for staged in sorted(output.rglob('*')):
         if staged.is_file():
@@ -93,7 +106,8 @@ def main():
     legacy = [{'path': f.relative_to(previous_addon).as_posix(), 'sha256': digest(f)}
               for f in sorted(previous_addon.rglob('*')) if f.is_file()]
     retired = [{'path': 'bin64/game.dll.patched', 'sha256': digest(root / 'bin64/game.dll.patched')}] if (root / 'bin64/game.dll.patched').exists() else []
-    manifest = {'clientRoot': str(root), 'files': replacements, 'legacyAddon': legacy, 'retiredFiles': retired}
+    manifest = {'clientRoot': str(root), 'files': replacements, 'legacyAddon': legacy, 'retiredFiles': retired,
+                'inventorySlots': SLOTS if inventory else 0}
     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
     print(f'Prepared {len(replacements)} replacements in {output}; client untouched.')
     print('Prepared configured server menu entries and an embedded Cash Shop window before Relic Appraiser.')

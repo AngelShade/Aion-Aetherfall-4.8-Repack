@@ -11,6 +11,8 @@ if (Get-Process -Name 'aion.bin' -ErrorAction SilentlyContinue) {
 $manifest = Get-Content -Raw -LiteralPath (Join-Path $prepared 'manifest.json') | ConvertFrom-Json
 if ($manifest.clientRoot -ne $clientRoot) { throw 'Prepared files belong to a different client.' }
 $expected = @('bin64/game.dll', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig', 'Plugin/RelicCalc/RelicCalc.pak', 'Plugin/RelicCalc/RelicCalc.pak.sig', 'Pub.key')
+if ($manifest.inventorySlots -in 180,279) { $expected += 'Data/ui/game/game.pak' }
+if ($manifest.inventorySlots -in 180,279 -and $manifest.files.path -contains 'L10N/enu/data/data.pak') { $expected += 'L10N/enu/data/data.pak' }
 if (@($manifest.files).Count -ne $expected.Count -or (Compare-Object ($manifest.files.path | Sort-Object) ($expected | Sort-Object))) {
     throw 'Unexpected replacement file list.'
 }

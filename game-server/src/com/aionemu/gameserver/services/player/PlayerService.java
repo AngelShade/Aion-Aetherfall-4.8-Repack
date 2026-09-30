@@ -197,8 +197,8 @@ public class PlayerService {
 
 		Player newPlayer = new Player(playerAccountData, account);
 
-		// Solo RPG Mode: Start with nearly maximum inventory & warehouse, leaving final tiers for quests
-		playerCommonData.setNpcExpands(5);
+		// Unified inventory starts at its base capacity; legacy inventory and warehouse keep the solo starting tiers.
+		playerCommonData.setNpcExpands(CustomConfig.UNIFIED_INVENTORY ? 0 : 5);
 		playerCommonData.setWhNpcExpands(6);
 		newPlayer.setCubeLimit();
 		newPlayer.setWarehouseLimit();

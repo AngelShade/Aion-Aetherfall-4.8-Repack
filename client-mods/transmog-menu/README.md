@@ -180,3 +180,188 @@ Copy edits to `target-deploy/game-server/config/ingameshop/media/marketplace.css
 and close/reopen Cash Shop to reload them; CSS changes require no server restart
 or client package installation. The previous stylesheet is backed up under
 `game-server/target/marketplace-layout-backup` for this deployment.
+
+## Unified inventory
+
+`menus.json` enables a 12-column inventory with 180 starting slots and native
+cells for up to 279 unlocked slots. The client package
+includes `Data/ui/game/game.pak`, the English override
+`L10N/enu/data/data.pak` when present, and matching version-checked DLL changes.
+Normal inventory uses one native list with scrolling, existing item icons,
+slot borders, tooltips, item actions, and the global Sort button. Cube headers,
+navigation buttons, and gaps between cubes are removed. Extra Inventory retains
+the game's separate item rules and native capacity; its grid has the same layout.
+
+Deploy the matching configuration, player capacity, login/update packets,
+expansion service, ticket action, and character creation/login classes with
+`gameserver.inventory.unified = true` in `config/main/custom.properties`.
+Capacity is 180 plus nine slots for each saved NPC, quest, or item expansion,
+up to 11 expansions (279 slots). New characters start without expansion credits;
+existing saved credits count toward their capacity. Ticket levels and NPC prices
+retain their existing rules. Login and cube-update packets encode the actual
+capacity. Saved counters, items, and Kinah are not rewritten during installation.
+Setting the server option to false retains the original cube calculation.
+
+The installer verifies and backs up all replacement files, including both UI
+archives. Restore client and server together; reduce inventory contents and slot
+positions to fit the original capacity before returning to the old client.
+Native hook checks, binary XML/archive round trips, 12-column grid bounds,
+server/client capacity agreement, legacy fallback, and JAR content checks passed.
+In-game rendering, scrolling, dragging, item use, sorting, and relog persistence
+still require the live client check after installation.
+
+Installed with client backup
+`TransmogMenu-backups/signed-20260930-025905-131` and server backup
+`game-server/target/unified-inventory-server-backup`. The prepared files and
+verification outputs are in `game-server/target/unified-inventory-v1` and
+`game-server/target/unified-inventory-inspection`.
+
+### Inventory crash correction
+
+The first in-game attempt crashed in the native slot effect loop at RVA
+`0x788b64`. Its vector bounds check skips an iteration rather than exiting;
+removing the original 27-slot cutoff allowed an unbounded loop. Both slot effect
+loops now retain a 180-slot cutoff and exit at the actual vector length.
+
+`tests/verify_inventory_effect_loops.py` executes the patched native loop control
+in an isolated process with item effects replaced by counters. It passed with
+empty, missing, 1, 26, 27, 135, 179, 180, and 200-cell lists. Run it from the
+repository root, supplying the prepared `bin64/game.dll` path as its argument.
+The layout builder also preserves fixed footer positions across repeated builds.
+
+Correction installed from `game-server/target/unified-inventory-v3`; all seven
+client files were hash-verified. Client backup:
+`TransmogMenu-backups/signed-20260930-030829-701`. The server capacity remains
+180. In-game verification is pending a new login.
+
+### Localized layout and scrolling correction
+
+A live client read confirmed normal inventory capacity 180 and native cell IDs
+0 through 179, while the English UI override kept the original three-row list
+rectangle and all five cube groups. The builder now patches both copies of the
+normal inventory templates. Other localized UI entries remain byte-identical.
+
+The native inventory layout now limits its initial viewport to nine complete
+rows of twelve slots (108 visible slots), with scrolling for the remaining 72.
+The viewport limit follows the client's UI scale. The empty zero-height native
+header stays visible because native layout uses that state to show its grid;
+it displays no cube header or controls. Other inventory dialog types retain
+their existing native layout behavior.
+
+`tests/verify_inventory_viewport.py` executes the native height clamp and scroll
+gate with different content heights and UI scales. It passed, as did the slot
+effect loop regression. The corrected eight-file package was installed from
+`game-server/target/unified-inventory-v4`, with all eight installed file hashes
+verified. Backup: `TransmogMenu-backups/signed-20260930-032234-430`.
+Live UI confirmation after restarting Aion is pending.
+
+### Scrolling height correction
+
+The next live check confirmed all 180 cells and working item movement, but the
+viewport was 730.125 pixels tall against 731.25 pixels of content. The layout
+hook had treated native `xmm15` as UI scale; that register actually contains the
+spacing constant 2.0. The hook now calculates its viewport limit from `xmm9`,
+the actual first grid height, using the ratio `392 / 650`. This retains nine
+visible rows at the client's active UI scale and leaves the remaining rows in
+the native scrolling range. The execution fixture now supplies the actual
+scaled grid height rather than assuming a scale register.
+
+The corrected package was installed from `game-server/target/unified-inventory-v5`.
+Native viewport and effect loop checks, both UI archive checks, and package
+signature verification passed. All eight installed file hashes match staging.
+Backup: `TransmogMenu-backups/signed-20260930-040308-953`.
+Live scrolling verification after restarting Aion is pending.
+
+### Item positions and scroll refresh
+
+A live last-row move was received by GameServer as slot 179 and marked for
+the normal inventory save. The login packet still advertised the character's
+original expansion counts, while subsequent cube updates advertised 180 slots.
+`SM_INVENTORY_INFO` now uses the same 0/0/17 expansion header as
+`SM_CUBE_UPDATE` when unified inventory is enabled. The original expansion
+counters remain unchanged in the database.
+
+The native cube layout recalculated its thumb fraction from the viewport's
+layout origin. That origin stays at zero in the continuous grid. Its normal
+inventory branch now retains the existing thumb fraction during refresh;
+other inventory classes still execute their original callback. The hook uses
+the existing native thumb clamp and scrollbar geometry update.
+
+Prepared files: `game-server/target/unified-inventory-v6` and
+`game-server/target/unified-inventory-v6-server`. Login-header byte checks,
+native scroll refresh, viewport scaling, effect bounds, archive contents,
+and package signatures passed. `tests/verify_inventory_scroll.py` checks
+top, middle, and bottom positions and the other-dialog callback.
+The v6 client package was installed and all eight file hashes verified.
+Client backup: `TransmogMenu-backups/signed-20260930-043622-049`.
+The previous GameServer JAR is backed up as
+`game-server/target/unified-inventory-v6-server/game-server-before-v6.jar`.
+GameServer was stopped gracefully with zero characters online before its JAR
+was replaced. The last-row test item's database position was verified as 179
+after logout. Post-login position and scroll retention still need confirmation
+in the game.
+
+### Expansion tickets and quest rewards
+
+The v7 client has 279 native cells, with cells above the character's unlocked
+capacity retaining the game's locked-slot state. The initial viewport remains
+nine rows of twelve slots (108 visible slots); the remaining rows scroll.
+Quest rewards and valid expansion tickets add nine slots through the existing
+`CubeExpandService`. NPC expansion uses the same total limit. Ticket eligibility
+is checked again after the item-use delay, before consuming the ticket.
+
+Prepared files: `game-server/target/unified-inventory-v7` and
+`game-server/target/unified-inventory-v7-server`. The isolated
+`tests/InventoryExpansionCheck.java` verifies starting capacity, quest and ticket
+rewards, ticket levels, saved expansion credits, the 279-slot limit, login/update
+packet agreement, and legacy capacity. Native slot bounds, effect loops, viewport
+scaling, scroll retention, UI archive contents, and package signatures also
+passed. In-game ticket use, quest completion, and relog persistence of newly
+unlocked slots still require a client check after installation.
+
+Installed v7 with all eight client file hashes verified. Client backup:
+`TransmogMenu-backups/signed-20260930-045152-970`. Previous server JAR:
+`game-server/target/unified-inventory-v7-server/game-server-before-v7.jar`.
+GameServer shut down gracefully with zero characters online and restarted with
+unified inventory enabled; ports 7777 and 8091 are listening and login/chat
+connections are established. The expansion regression also passed against the
+installed server JAR. No character items or expansion counters were changed
+during deployment.
+
+### Inventory search
+
+The inventory footer contains a native Search field, Clear button, and match
+count. Typing part of an item name dims nonmatching items and scrolls to the
+first match. Clear restores the scroll position from before the search.
+Matches refresh after item movement without resetting manual scrolling.
+The native editbox and buttons retain the game's fonts, skins, focus, hover,
+and pressed states. Nine inventory rows remain visible before scrolling.
+
+`inventory_search.py` adds version-checked hooks for item drawing, search updates,
+and the Clear button. Item names come from the client's current item bindings;
+English letter case is ignored. Search never rewrites slots, changes item
+bindings, sorts items, or sends inventory packets. Other item views retain their
+native drawing and buttons. The builder includes search automatically when the
+unified inventory is enabled. Both base and English UI archives are patched.
+
+Prepared correction: `game-server/target/unified-inventory-v9-search`.
+`tests/verify_inventory_search.py` executes the emitted machine code against
+isolated widget and item lookup fixtures. It checks substring matching, inline
+and allocated names, query bounds, match counts, clearing, moved
+items, short/null cell vectors, dimming, unchanged native button callbacks,
+UI scaling, and resized viewport scrolling. Viewport, scroll retention, and
+effect-loop regressions and package signature checks also passed. Installation
+requires closing Aion; no GameServer change or restart is required. In-game
+visuals and text entry still need a client check after installation.
+
+Installed v8 search and hash-verified all eight client files. Backup:
+`TransmogMenu-backups/signed-20260930-053834-247`. GameServer was not restarted.
+The v9 correction uses existing English string keys for Search and Clear,
+the native editbox font and padding, and the standard text-field attributes.
+The Next match widget and its cycling code have been removed. Open Inventory
+after starting Aion and check Search, Clear, and the blinking caret after
+clicking the field. Live rendering remains the final acceptance check.
+
+Installed v9 and hash-verified all eight client files. Backup:
+`TransmogMenu-backups/signed-20260930-070316-174`. The installer confirmed
+Aion was closed before replacement. No GameServer restart was required.
