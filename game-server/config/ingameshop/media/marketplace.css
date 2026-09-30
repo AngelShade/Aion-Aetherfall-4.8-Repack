@@ -67,3 +67,26 @@ a:focus,button:focus,input:focus,select:focus{outline:1px solid #e3c991;outline-
 @media(max-height:540px){.hero-inner{padding-top:5px}.shop-tabs{top:5px}.shop-tab{padding-top:6px;padding-bottom:6px}}
 @media(prefers-reduced-motion:reduce){.shop-status,.submitting img{-webkit-animation:none;animation:none}.product,.side-link,.product-button,.purchase-button,.shop-tab,.item-actions button,.favorite-action button{-webkit-transition:none;transition:none}}
 .item-actions .preview-action{display:inline-block;margin:0 7px 6px 0;vertical-align:top}
+
+/* Fullscreen shop: bounded card widths and native icon hover targets. */
+.native-item-icon{display:inline-block;vertical-align:top;line-height:0;position:relative}
+.native-item-icon img{display:block;margin:0}
+.review-item .native-item-icon{float:left;margin-right:12px}.review-item .native-item-icon img{float:none;margin:0}
+.purchase-history td .native-item-icon{float:left;margin-right:10px}.purchase-history td .native-item-icon img{float:none;margin:0}
+.card-preview{position:absolute;right:8px;bottom:46px;padding:2px 6px;background:#273943;border:1px solid #667e87;color:#d5e0e1;font-size:10px;line-height:17px}
+.card-preview:hover{background:#42565d;border-color:#b8a579}.product.has-preview .item-chips{padding-right:54px}
+.shell:after{content:'';position:absolute;z-index:100;left:0;right:0;top:0;height:2px;background:#d6b46e;opacity:0}
+.shell.is-loading:after{opacity:1;-webkit-animation:shop-load 1s ease-in-out infinite;animation:shop-load 1s ease-in-out infinite}
+.shop-status.is-error{background:#422f2b;border-color:#956b57;color:#f2cfb4}
+.main-content{padding:18px 22px}.sidebar{width:220px;padding:12px 10px}.main-content{left:220px}
+.side-link{font-size:12px;min-height:33px;line-height:19px}.side-link.child{font-size:11px;min-height:30px}
+.products{margin-right:0}.product{width:24%;margin-right:1%;height:214px}.product-art{height:79px;padding-top:9px}.product-art img{width:60px;height:60px}
+.product-content{height:87px;padding:8px 10px}.product h3{font-size:13px;line-height:18px;height:36px}.item-chips{height:15px}.item-chips span{font-size:9px;line-height:12px}.product-bottom{height:46px}.price{font-size:14px}.product-button{font-size:11px}
+.detail-page,.compatibility-panel,.detail-information,.breadcrumb{max-width:1120px;margin-left:auto;margin-right:auto}
+@media(min-width:1700px){.product{width:19%}}
+@media(min-width:2200px){.product{width:15.666%}}
+@media(min-width:2900px){.product{width:11.5%}}
+@media(max-width:1150px){.sidebar{width:184px}.main-content{left:184px;padding:12px 14px}.product{width:32.333%}}
+@media(max-width:790px){.sidebar{width:158px}.main-content{left:158px;padding:10px}.product{width:49%}}
+@-webkit-keyframes shop-load{0%,100%{opacity:.45}50%{opacity:1}}@keyframes shop-load{0%,100%{opacity:.45}50%{opacity:1}}
+@media(prefers-reduced-motion:reduce){.shell.is-loading:after{-webkit-animation:none;animation:none}}

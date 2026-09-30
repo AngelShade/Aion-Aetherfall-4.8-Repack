@@ -11,14 +11,19 @@ if (Get-Process -Name 'aion.bin' -ErrorAction SilentlyContinue) {
 $manifest = Get-Content -Raw -LiteralPath (Join-Path $prepared 'manifest.json') | ConvertFrom-Json
 if ($manifest.clientRoot -ne $clientRoot) { throw 'Prepared files belong to a different client.' }
 $expected = @('bin64/game.dll', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig', 'Plugin/RelicCalc/RelicCalc.pak', 'Plugin/RelicCalc/RelicCalc.pak.sig', 'Pub.key')
+if ($manifest.signatureIsolation -in 'plugin-v1','archive-v2') { $expected += @('bin64/crysystem.dll', 'Addon.key') }
+if ($manifest.signatureRepair) { $expected = @($expected | Where-Object { $_ -notin @('bin64/game.dll', 'Plugin/RelicCalc/RelicCalc.pak') }) }
 if ($manifest.inventorySlots -in 180,279) { $expected += 'Data/ui/game/game.pak' }
 if ($manifest.inventorySlots -in 180,279 -and $manifest.files.path -contains 'L10N/enu/data/data.pak') { $expected += 'L10N/enu/data/data.pak' }
 if (@($manifest.files).Count -ne $expected.Count -or (Compare-Object ($manifest.files.path | Sort-Object) ($expected | Sort-Object))) {
     throw 'Unexpected replacement file list.'
 }
 foreach ($entry in $manifest.files) {
-    if ((Get-FileHash -LiteralPath (Join-Path $clientRoot $entry.path)).Hash -ne $entry.original -or
-        (Get-FileHash -LiteralPath (Join-Path $prepared $entry.path)).Hash -ne $entry.staged) {
+    $currentFile = Join-Path $clientRoot $entry.path
+    $sourceMatches = if ($null -eq $entry.original) { -not (Test-Path -LiteralPath $currentFile) } else {
+        (Test-Path -LiteralPath $currentFile) -and (Get-FileHash -LiteralPath $currentFile).Hash -eq $entry.original
+    }
+    if (-not $sourceMatches -or (Get-FileHash -LiteralPath (Join-Path $prepared $entry.path)).Hash -ne $entry.staged) {
         throw "File changed since preparation: $($entry.path)"
     }
 }
@@ -38,6 +43,7 @@ $backup = [IO.Path]::GetFullPath((Join-Path $clientRoot ('TransmogMenu-backups\s
 if (-not $backup.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid backup path.' }
 New-Item -ItemType Directory -Path $backup | Out-Null
 foreach ($entry in $manifest.files) {
+    if ($null -eq $entry.original) { continue }
     $saved = Join-Path $backup $entry.path
     New-Item -ItemType Directory -Path (Split-Path -Parent $saved) -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $clientRoot $entry.path) -Destination $saved
@@ -65,7 +71,12 @@ try {
 } catch {
     $installError = $_
     foreach ($entry in $manifest.files) {
-        Copy-Item -LiteralPath (Join-Path $backup $entry.path) -Destination (Join-Path $clientRoot $entry.path)
+        if ($null -eq $entry.original) {
+            $addedFile = Join-Path $clientRoot $entry.path
+            if (Test-Path -LiteralPath $addedFile) { Remove-Item -LiteralPath $addedFile }
+        } else {
+            Copy-Item -LiteralPath (Join-Path $backup $entry.path) -Destination (Join-Path $clientRoot $entry.path)
+        }
     }
     if ((Test-Path -LiteralPath $legacySaved) -and -not (Test-Path -LiteralPath $legacy)) {
         Move-Item -LiteralPath $legacySaved -Destination $legacy

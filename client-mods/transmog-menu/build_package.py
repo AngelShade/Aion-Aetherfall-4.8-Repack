@@ -54,16 +54,19 @@ def main():
     content['RelicCalc.lua'] = base_lua.replace(anchor, insertion + anchor)
     content['CashShop.xml'] = (mod_root / 'CashShop.xml').read_text(encoding='utf-8-sig').replace('UTF-8', 'UTF-16').replace('\n', '\r\n').encode('utf-16')
     ET.fromstring(content['CashShop.xml'])
+    content['Warehouse.xml'] = (mod_root / 'Warehouse.xml').read_text(encoding='utf-8-sig').replace('UTF-8', 'UTF-16').replace('\n', '\r\n').encode('utf-16')
+    ET.fromstring(content['Warehouse.xml'])
     # JSON-quoted ASCII values are valid Lua string literals for these labels and URL.
     config = 'PRIVATE_SERVER_MENUS = {\n' + ''.join(
         '    {label = ' + json.dumps(e['label']) + ', command = ' + json.dumps(e['command']) + '},\n'
         for e in settings['serverCommands']) + '};\n'
     config += 'PRIVATE_CASH_SHOP_URL = ' + json.dumps(settings['cashShop']['url']) + ';\n'
     config += 'PRIVATE_CASH_SHOP_LABEL = ' + json.dumps(settings['cashShop']['label']) + ';\n'
+    config += 'PRIVATE_CENTRAL_MARKET_URL = ' + json.dumps(settings['centralMarket']['url']) + ';\n'
     content['PrivateMenus.lua'] = (config + (mod_root / 'PrivateMenus.lua').read_text(encoding='utf-8-sig')).replace('\n', '\r\n').encode('utf-8')
     toc = content['RelicCalc.toc'].decode('utf-8').replace('\r', '').splitlines()
-    toc = [line for line in toc if line not in ('CashShop.xml', 'PrivateMenus.lua')]
-    toc += ['CashShop.xml', 'PrivateMenus.lua']
+    toc = [line for line in toc if line not in ('CashShop.xml', 'Warehouse.xml', 'PrivateMenus.lua')]
+    toc += ['CashShop.xml', 'Warehouse.xml', 'PrivateMenus.lua']
     content['RelicCalc.toc'] = ('\r\n'.join(toc) + '\r\n').encode('utf-8')
     data = io.BytesIO()
     with zipfile.ZipFile(data, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
@@ -81,9 +84,13 @@ def main():
             assert archive.read(name) == payload, name
     signer = Path(__file__).with_name('SignClientPackages.java')
     subprocess.run([str(args.java), str(signer), str(root), str(output)], check=True)
+    from patch_plugin_key import patch_plugin_key
+    cry_system = output / 'bin64/crysystem.dll'
+    cry_system.parent.mkdir(parents=True, exist_ok=True)
+    cry_system.write_bytes(patch_plugin_key((root / 'bin64/crysystem.dll').read_bytes()))
     patched_dll = output / 'bin64/game.dll'
     patched_dll.parent.mkdir(parents=True, exist_ok=True)
-    dll = build_dll(root / 'bin64/game.dll.orig', commands, settings['cashShop']['url'])
+    dll = build_dll(root / 'bin64/game.dll.orig', commands, [settings['cashShop']['url'], settings['centralMarket']['url']])
     inventory = settings.get('inventory')
     if inventory:
         from unified_inventory import BASE_SLOTS, SLOTS, patch_inventory_dll, prepare_inventory_archive
@@ -101,13 +108,13 @@ def main():
     for staged in sorted(output.rglob('*')):
         if staged.is_file():
             relative = staged.relative_to(output).as_posix()
-            replacements.append({'path': relative, 'original': digest(root / relative), 'staged': digest(staged)})
+            replacements.append({'path': relative, 'original': digest(root / relative) if (root / relative).exists() else None, 'staged': digest(staged)})
     previous_addon = root / 'Plugin/TransmogMenu'
     legacy = [{'path': f.relative_to(previous_addon).as_posix(), 'sha256': digest(f)}
               for f in sorted(previous_addon.rglob('*')) if f.is_file()]
     retired = [{'path': 'bin64/game.dll.patched', 'sha256': digest(root / 'bin64/game.dll.patched')}] if (root / 'bin64/game.dll.patched').exists() else []
     manifest = {'clientRoot': str(root), 'files': replacements, 'legacyAddon': legacy, 'retiredFiles': retired,
-                'inventorySlots': SLOTS if inventory else 0}
+                'inventorySlots': SLOTS if inventory else 0, 'signatureIsolation': 'archive-v2'}
     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
     print(f'Prepared {len(replacements)} replacements in {output}; client untouched.')
     print('Prepared configured server menu entries and an embedded Cash Shop window before Relic Appraiser.')

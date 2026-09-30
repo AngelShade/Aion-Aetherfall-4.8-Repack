@@ -11,6 +11,8 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
@@ -21,11 +23,18 @@ public final class MarketplaceProfileService {
 	private static final Path DIRECTORY = Path.of("data/marketplace");
 	private static final int HISTORY_LIMIT = 200;
 	private static final int FAVORITES_LIMIT = 500;
+	private static final Map<Integer, CachedProfile> cache = new LinkedHashMap<>(32, .75f, true);
 
 	private MarketplaceProfileService() {
 	}
 
 	public static synchronized Snapshot snapshot(int playerId) throws IOException {
+		if (playerId <= 0) throw new IllegalArgumentException("Invalid character ID");
+		Path file = DIRECTORY.resolve(playerId + ".properties");
+		long modified = Files.exists(file) ? Files.getLastModifiedTime(file).toMillis() : -1;
+		long size = modified < 0 ? 0 : Files.size(file);
+		CachedProfile cached = cache.get(playerId);
+		if (cached != null && cached.modified() == modified && cached.size() == size) return cached.snapshot();
 		Properties data = load(playerId);
 		Set<Integer> favorites = new HashSet<>();
 		for (String id : data.getProperty("favorites", "").split(",")) {
@@ -39,7 +48,10 @@ public final class MarketplaceProfileService {
 				Integer.parseInt(data.getProperty(prefix + "item")), data.getProperty(prefix + "name"),
 				Long.parseLong(data.getProperty(prefix + "quantity")), Long.parseLong(data.getProperty(prefix + "price"))));
 		}
-		return new Snapshot(Set.copyOf(favorites), List.copyOf(purchases));
+		Snapshot snapshot = new Snapshot(Set.copyOf(favorites), List.copyOf(purchases));
+		cache.put(playerId, new CachedProfile(modified, size, snapshot));
+		if (cache.size() > 256) cache.remove(cache.keySet().iterator().next());
+		return snapshot;
 	}
 
 	public static synchronized void setFavorite(int playerId, int itemId, boolean selected) throws IOException {
@@ -111,6 +123,7 @@ public final class MarketplaceProfileService {
 			try (Writer writer = Files.newBufferedWriter(temporary, StandardCharsets.UTF_8)) { data.store(writer, "Marketplace character data"); }
 			try { Files.move(temporary, DIRECTORY.resolve(playerId + ".properties"), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING); }
 			catch (AtomicMoveNotSupportedException e) { Files.move(temporary, DIRECTORY.resolve(playerId + ".properties"), StandardCopyOption.REPLACE_EXISTING); }
+			cache.remove(playerId);
 		} finally { Files.deleteIfExists(temporary); }
 	}
 
@@ -118,5 +131,7 @@ public final class MarketplaceProfileService {
 	}
 
 	public record Purchase(String id, long time, int itemId, String name, long quantity, long price) {
+	}
+	private record CachedProfile(long modified, long size, Snapshot snapshot) {
 	}
 }

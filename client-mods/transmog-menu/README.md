@@ -1,5 +1,24 @@
 # In-game service menu: Transmog, Broker, Cash Shop
 
+## Pet model signing correction
+
+The client verifies signatures embedded in pet CGF models using the stock
+`Pub.key`. Replacing that key with a local menu key makes the stock models fail
+verification, even when the pet template and archive CRCs are valid.
+
+The builder preserves the original model key and stock package contents.
+It signs all three checked archives with a separate `Addon.key`. A version-checked
+CrySystem patch changes both archive loaders' key-file references;
+the model signature verifier continues using `Pub.key`. Installation
+backs up the engine DLL and records whether the addon key previously existed.
+
+`prepare_signature_repair.py` stages the signing correction without rebuilding
+the installed game DLL, plugin UI, inventory, or login announcement. It verifies
+the stock package contents against their original signatures before staging
+new archive signatures. Both loaders need the addon key: a live process check
+showed the stock-key loader rejecting RelicCalc and the addon-key loader rejecting
+bin32 when the first correction changed only one loader.
+
 The Additional Functions submenu contains, in order:
 
 1. **Transmog** — opens the normal appearance remodeling window.
@@ -62,9 +81,10 @@ this menu version. It verifies existing signed packages, creates an ephemeral
 local signing key, and verifies the new package signatures. No private key is
 saved. The legacy RSA/SHA1 format is used only for client compatibility.
 
-The six replacements are `bin64/game.dll`, `Pub.key`,
-`Plugin/RelicCalc/RelicCalc.pak`, and signatures for RelicCalc, bin32, and
-func_pet. The latter two package contents are unchanged. Any old pending
+The menu replacements are `bin64/game.dll`, `bin64/crysystem.dll`, `Pub.key`,
+`Addon.key`, `Plugin/RelicCalc/RelicCalc.pak`, and signatures for RelicCalc, bin32,
+and func_pet. Unified inventory also stages its UI archives. The bin32 and
+func_pet package contents are unchanged. Any old pending
 `bin64/game.dll.patched` is backed up and retired so the launcher cannot
 replace the new DLL with an older patch.
 
@@ -72,9 +92,9 @@ The installer refuses to run while Aion is open, validates current and prepared
 hashes, and backs up every replaced file before writing. It rolls back on an
 installation error. A full restart is required.
 
-The first installation changed the client package trust key. Publisher updates
-must not be mixed with these local signatures. Keep the original signed-file
-backup and `game.dll.orig` for returning to the publisher files.
+The original model trust key remains in `Pub.key`; local archive signatures use
+`Addon.key`. Keep the original signed-file backup and `game.dll.orig` for
+returning to the publisher files.
 
 ## Server deployment
 
@@ -89,6 +109,12 @@ Other browser URLs keep the client's original authentication behavior. The
 builder restricts this navigation bridge to the loopback marketplace endpoint.
 
 ## Undo the latest installation
+
+The Central Market entry now has a combined character/account Warehouse and Central
+Market window. See [Central Market instructions](../../docs/CENTRAL_MARKET.md)
+for storage, orders, tables and installation. Its browser uses the client's
+native account-token request and opens `/market?session_id=...`; several online
+accounts remain separate. The native Item Preview also docks to this window.
 
 Fully close Aion, then run:
 
@@ -117,7 +143,7 @@ check inside Aion.
 
 ## Warehouse and Cash Shop additions
 
-`menus.json` now also adds **Warehouse** before Relic Appraiser. Deploy
+`menus.json` now also adds **Central Market** before Relic Appraiser. Deploy
 `data/handlers/playercommands/Warehouse.java` and `warehouse = 0` alongside the
 signed client package. The command opens the standard character/account
 warehouse using the existing storage service and item movement rules.
