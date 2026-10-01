@@ -695,7 +695,8 @@ public class Player extends Creature {
 	}
 
 	public void setWarehouseLimit() {
-		getWarehouse().setLimit(StorageType.REGULAR_WAREHOUSE.getLimit() + (getWarehouseExpansions() * getWarehouse().getRowLength()));
+		getWarehouse().setLimit(CustomConfig.EXPANDED_WAREHOUSES ? CustomConfig.EXPANDED_CHARACTER_WAREHOUSE_SLOTS
+			: StorageType.REGULAR_WAREHOUSE.getLimit() + (getWarehouseExpansions() * getWarehouse().getRowLength()));
 	}
 
 	/**

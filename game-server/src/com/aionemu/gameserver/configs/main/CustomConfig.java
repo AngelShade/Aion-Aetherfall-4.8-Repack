@@ -109,6 +109,13 @@ public class CustomConfig {
 	/** Native inventory patch reserves 279 cells: 180 base plus eleven nine-slot expansions. */
 	public static final int UNIFIED_INVENTORY_MAX_EXPANSIONS = 11;
 
+	/** Requires the matching 4.8 NA native warehouse client patch. */
+	@Property(key = "gameserver.warehouse.expanded", defaultValue = "false")
+	public static boolean EXPANDED_WAREHOUSES;
+
+	public static final int EXPANDED_CHARACTER_WAREHOUSE_SLOTS = 360;
+	public static final int EXPANDED_ACCOUNT_WAREHOUSE_SLOTS = 540;
+
 	/**
 	 * Npc Cube Expands limit size
 	 */

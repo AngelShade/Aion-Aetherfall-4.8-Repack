@@ -29,3 +29,4 @@ login-server/target/
 /.playwright-cli/
 /inventory-share/
 /target-deploy/game-server/data/marketplace/
+**/media/icons/*.png

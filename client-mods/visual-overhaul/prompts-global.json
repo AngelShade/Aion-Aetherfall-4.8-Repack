@@ -1,0 +1,21 @@
+{
+  "tool": "built-in image_gen",
+  "mode": "faithful texture remaster from local source references",
+  "terrainConstraints": "Preserve original material, palette, pattern scale and UV layout; add crisp fine detail; one square seamless diffuse/albedo tile; uniform lighting; no perspective, text, directional shadows or glossy plastic. Requested 2048 square; DDS package resizes to compatible powers of two.",
+  "smokeConstraints": "Preserve compact grayscale smoke puff with finer curls, semitransparent density and feathered fully transparent edges; clear padding; no colored lighting, scenery, fire or text.",
+  "references": {
+    "shared-grass": "research/terrain-00.png",
+    "shared-leaflitter": "research/terrain-01.png",
+    "shared-sand": "research/terrain-02.png",
+    "shared-cliff": "research/terrain-03.png",
+    "shared-basalt": "research/terrain-04.png",
+    "shared-ruins": "research/terrain-05.png",
+    "shared-mossgravel": "research/terrain-07.png",
+    "shared-earth": "research/terrain-08.png",
+    "shared-sandstone": "research/terrain-10.png",
+    "shared-blueforest": "research/terrain-11.png",
+    "shared-lava": "research/terrain-22.png",
+    "shared-snow": "research/shared-snow-original.png",
+    "shared-smoke": "research/smoke_heavy-original.png"
+  }
+}

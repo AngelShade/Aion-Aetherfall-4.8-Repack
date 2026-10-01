@@ -1,0 +1,6 @@
+downloads/
+payload/bin*/
+build/
+test-workspace/
+__pycache__/
+research/

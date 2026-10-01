@@ -1,0 +1,18 @@
+{
+  "packageId": "a783d8f05de4a689",
+  "textureCount": 13,
+  "archiveCount": 6,
+  "unchangedEntryCount": 6095,
+  "checks": [
+    "All original/staged archive CRCs and entries",
+    "Legacy DXT1/DXT5 headers, dimensions, aspect ratio and full opaque alpha",
+    "All DDS mipmaps independently decoded",
+    "Only 40 intended environment attribute changes across two missions",
+    "Synthetic running-client queue and guard",
+    "Synthetic backup, idempotent application and exact restoration",
+    "Later archive and launcher edit protection",
+    "All six live installed archive hashes and all six original backup hashes"
+  ],
+  "liveVerification": "Not run: in-game tile seams, blending, runtime atmosphere, day/night and FPS",
+  "scope": "First regional art pass; additional scenery and skill visuals remain"
+}

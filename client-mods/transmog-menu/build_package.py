@@ -103,6 +103,29 @@ def main():
         dll = patch_inventory_dll(dll)
         from inventory_search import patch_search_dll
         dll = patch_search_dll(dll)
+    warehouse = settings.get('warehouse')
+    if warehouse:
+        sys.path.insert(0, str(mod_root.parent / 'expanded-warehouse'))
+        from warehouse_patch import CHARACTER_SLOTS, ACCOUNT_SLOTS, patch_archive, patch_dll
+        if warehouse != {'characterSlots': CHARACTER_SLOTS, 'accountSlots': ACCOUNT_SLOTS}:
+            raise ValueError('Expanded warehouse requires 360 character and 540 account slots')
+        for relative, prefix in [('Data/ui/game/game.pak', ''), ('L10N/enu/data/data.pak', 'ui/game/')]:
+            source_archive = output / relative
+            if not source_archive.exists():
+                source_archive.parent.mkdir(parents=True, exist_ok=True)
+                source_archive.write_bytes((root / relative).read_bytes())
+            source_archive.write_bytes(patch_archive(source_archive.read_bytes(), prefix))
+        dll = patch_dll(dll)
+        from warehouse_search import patch_search_dll as patch_warehouse_search_dll
+        dll = patch_warehouse_search_dll(dll)
+    native_icons = settings.get('nativeIcons', False)
+    native_manifest = None
+    if native_icons:
+        sys.path.insert(0, str(mod_root.parent / 'native-icon-bridge'))
+        from build_bridge import build as build_icon_bridge
+        from patch_client import patch_dll as patch_icon_bridge_dll
+        native_manifest = build_icon_bridge(root, output)
+        dll = patch_icon_bridge_dll(dll)
     patched_dll.write_bytes(dll)
     replacements = []
     for staged in sorted(output.rglob('*')):
@@ -114,7 +137,9 @@ def main():
               for f in sorted(previous_addon.rglob('*')) if f.is_file()]
     retired = [{'path': 'bin64/game.dll.patched', 'sha256': digest(root / 'bin64/game.dll.patched')}] if (root / 'bin64/game.dll.patched').exists() else []
     manifest = {'clientRoot': str(root), 'files': replacements, 'legacyAddon': legacy, 'retiredFiles': retired,
-                'inventorySlots': SLOTS if inventory else 0, 'signatureIsolation': 'archive-v2'}
+                'inventorySlots': SLOTS if inventory else 0, 'characterWarehouseSlots': CHARACTER_SLOTS if warehouse else 0,
+                'accountWarehouseSlots': ACCOUNT_SLOTS if warehouse else 0, 'signatureIsolation': 'archive-v2',
+                'nativeIcons': native_manifest}
     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
     print(f'Prepared {len(replacements)} replacements in {output}; client untouched.')
     print('Prepared configured server menu entries and an embedded Cash Shop window before Relic Appraiser.')

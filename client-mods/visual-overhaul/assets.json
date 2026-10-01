@@ -1,0 +1,15 @@
+[
+  {"asset":"poeta-meadow","archive":"Levels/lf1/lf1.pak","entry":"Detail/lf1_grass_10.dds","size":[1024,1024]},
+  {"asset":"poeta-earth","archive":"Levels/lf1/lf1.pak","entry":"Detail/LF1_dirt_5.dds","size":[1024,1024]},
+  {"asset":"poeta-path","archive":"Levels/lf1/lf1.pak","entry":"Detail/LF1_dirt_1.dds","size":[1024,1024]},
+  {"asset":"poeta-cliff","archive":"Levels/lf1/lf1.pak","entry":"Detail/Ver_LF1_rock_1.DDS","size":[1024,2048]},
+  {"asset":"sanctum-meadow","archive":"Levels/lc1/lc1.pak","entry":"detail/lc1_grass_1.dds","size":[1024,1024]},
+  {"asset":"sanctum-road","archive":"Levels/lc1/lc1.pak","entry":"detail/lf1a_dirt_4.dds","size":[1024,1024]},
+  {"asset":"sanctum-earth","archive":"Levels/lc1/lc1.pak","entry":"detail/lf1a_dirt_5.dds","size":[1024,1024]},
+  {"asset":"sanctum-field","archive":"Levels/lc1/lc1.pak","entry":"detail/lf1a_field_1.dds","size":[1024,1024]},
+  {"asset":"sanctum-cliff","archive":"Levels/lc1/lc1.pak","entry":"detail/ver_lc1_rock_1.dds","size":[1024,2048]},
+  {"asset":"sanctum-floor","archive":"Levels/common/Mesh_Textures_026.pak","entry":"Light/structures/buildings/city/bu_l_sanctumfloor_01a_001.dds","size":[1024,1024]},
+  {"asset":"sanctum-wall","archive":"Levels/common/Mesh_Textures_026.pak","entry":"Light/structures/buildings/city/bu_l_sanctumwall_01a_002.dds","size":[1024,2048]},
+  {"asset":"environment-flame","archive":"effects/effects_Textures.pak","entry":"env/fire_flame7.DDS","size":[512,512]},
+  {"asset":"environment-ripple","archive":"effects/effects_Textures.pak","entry":"env/water_ripples.DDS","size":[512,512]}
+]

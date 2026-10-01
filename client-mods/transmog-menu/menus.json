@@ -6,5 +6,7 @@
   ],
   "cashShop": {"label": "Cash Shop", "url": "http://127.0.0.1:8091/shop"},
   "centralMarket": {"url": "http://127.0.0.1:8091/market"},
-  "inventory": {"slots": 279, "columns": 12, "baseSlots": 180}
+  "inventory": {"slots": 279, "columns": 12, "baseSlots": 180},
+  "warehouse": {"characterSlots": 360, "accountSlots": 540},
+  "nativeIcons": true
 }

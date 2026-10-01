@@ -1,0 +1,26 @@
+{
+  "packageId": "e0ec7b5cad972fe1",
+  "deployment": "Installed on normal restart; all 128 archives verified upgraded and portable Vulkan effects loaded in the actual game",
+  "textures": 74,
+  "terrainZones": 38,
+  "lightingZones": 89,
+  "archiveCount": 128,
+  "unchangedEntries": 9038,
+  "checks": [
+    "All source/staged archives decoded, CRC checked, entry order and every unchanged entry verified",
+    "All changed DDS mipmaps independently decoded; original BC1/BC3 format and aspect retained",
+    "Environment changes allow-listed and reconstructed to exactly match original XML outside intended attributes",
+    "Synthetic queue and running-client guard, backup, repeated install/application, archive-edit protection, exact restoration, previous visual startup and later cursor/launcher/preset edits",
+    "RTX 4060 portable Vulkan ReShade 6.8.0 test, both effects compiled and 600 frame presentation without errors",
+    "All 128 live source and staged archive hashes verified after client staging"
+  ],
+  "hardwareEffectsTestLog": "C:\\Git\\aion-server\\client-mods\\visual-overhaul\\build\\postfx-x64\\ReShade.log",
+  "cursor": "Player confirmed cursor works before effects installation; patch remains unchanged",
+  "liveVerification": "All 128 upgraded archive hashes verified; ReShade64.dll loaded and both AionPresentation.fx and MartysMods_SMAA.fx compiled in game session 10488 on 2026-10-01 06:36. Player visuals, tile seams, smoke borders and FPS still pending",
+  "remaining": [
+    "Character and armor asset remaster",
+    "Additional terrain, architecture and vegetation artwork",
+    "Skill-specific animation and particle choreography",
+    "Validated depth-based effects"
+  ]
+}

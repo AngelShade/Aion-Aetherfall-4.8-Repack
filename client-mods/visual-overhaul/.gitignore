@@ -1,0 +1,11 @@
+__pycache__/
+package*/
+references/
+test-workspace/
+research/
+build/
+postfx/Shaders/MartysMods*/
+postfx/Shaders/MartysMods_*.fx
+postfx/Shaders/ReShade.fxh
+postfx/Textures/
+postfx/README.md

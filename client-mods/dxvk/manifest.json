@@ -1,0 +1,38 @@
+{
+  "version": "3.1.1",
+  "source": "https://github.com/doitsujin/dxvk/releases/tag/v3.1.1",
+  "archiveSha256": "40565b4a724aadc4433fa4e010b4b23916d9b1f1baeee64e17186db94f54e608",
+  "hardware": {
+    "gpu": "NVIDIA GeForce RTX 4060",
+    "vulkan": "1.4.341",
+    "driver": "610.62"
+  },
+  "files": [
+    {
+      "path": "bin32/d3d9.dll",
+      "sha256": "265888c31ca78dffa290c39cb7e50bfb02762590e41927906e46fb32f01497fa"
+    },
+    {
+      "path": "bin64/d3d9.dll",
+      "sha256": "c126316f7478eaff1ad8087702eda5930f2400187b9c8b3592219c34f6632780"
+    },
+    {
+      "path": "dxvk.conf",
+      "sha256": "bf833824126d5cab1813b0c2313f2b002ea5c6b1208e119827c39554869a28e9"
+    }
+  ],
+  "compatibilityPatches": [
+    {
+      "path": "bin32/version.dll",
+      "sha256": "5bb611eff3f92d830a2fd7a3b0916ba05cbffacccd570e9020432adb5be7605f",
+      "version": "1.5.1.0",
+      "verifiedAgainstOfficialRelease": true
+    },
+    {
+      "path": "bin64/version.dll",
+      "sha256": "031d71541d1e2f70b301cf54b7636ddcdbe711582513d265c801b5d9cb3ece97",
+      "version": "1.5.1.0",
+      "verifiedAgainstOfficialRelease": true
+    }
+  ]
+}

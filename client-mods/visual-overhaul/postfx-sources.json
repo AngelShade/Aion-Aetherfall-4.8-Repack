@@ -1,0 +1,21 @@
+{
+  "ReShade": {
+    "version": "6.8.0",
+    "source": "https://reshade.me/downloads/ReShade_Setup_6.8.0.exe",
+    "sha256": "207aea16205fbf952bc8fe1879966672454cf04002e7ad34237c7990a5b3c0b4"
+  },
+  "payload": {
+    "ReShade64.dll": "b2945c29e7095491a901746b400e58db9b1592ab092bacf2a888ce37f02d08da",
+    "ReShade32.dll": "538998f66c0197adcdeadfe8e5ea19dd6ca3253e40399476d291f385ce518b88",
+    "ReShade64.json": "aa21713718843e531da396e2bfc80772c9cb3c369d6c30b836be6b0ae812d503",
+    "ReShade32.json": "dbfdbadb8c64b398b2f8bf30469841ab8c35e10c9da40ba69b966559d5fa15f6"
+  },
+  "iMMERSE": {
+    "commit": "f57d3afa1ebe5d1fd6152d4f6fb9a2e75bd1d1cb",
+    "source": "https://github.com/martymcmodding/iMMERSE"
+  },
+  "ReShadeIncludes": {
+    "commit": "fd0022170615ce0d8162d219bff07232fa6dd84f",
+    "source": "https://github.com/crosire/reshade-shaders"
+  }
+}

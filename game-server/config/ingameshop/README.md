@@ -70,8 +70,8 @@ items explicitly labeled event, stamp, reward, or test were excluded. Existing o
 were kept. Run `python config/ingameshop/expand_upgrade_catalog.py` from the
 `game-server` directory after changing item templates or extending these
 families. It checks selected item counts and actions and can be run repeatedly.
-New templates need a matching thumbnail in `media/icons/` and an entry in
-`media/icon_sources.tsv`.
+New templates need an icon in the matching original client and its item/texture
+index. Item PNGs are no longer stored in `media/icons/`.
 Imported offers retain their Kinah prices, stack quantities, and level
 requirements; their descriptions identify each item's name, type, and supported
 use action. The historical `marketplace.tsv` and `marketplace_extra.tsv` files
@@ -102,16 +102,16 @@ Returning from item details lands at that item's card in the current list;
 purchase confirmation lands at the transaction receipt. These positions use normal
 URL fragments so they work in the in-game browser without script storage.
 
-The storefront's Aion 4.8 art lives in `media/`: one PNG thumbnail per offer,
+The storefront's Aion 4.8 art lives in `media/`:
 a client loading-screen image for the header, three more client loading images
 for the collection panels, the client's title font, and the theme stylesheet.
 The interface uses animated hover states and reduced-motion CSS. Awesomium
 1.6.3 in the client gets a compatible float/inline layout; modern browsers get
-the grid layout. `media/icon_sources.tsv` records each thumbnail's client DDS
-source. `exact` means the client item record named that icon; `related` and
-`type` use an in-game icon for the same item family when the record did not
-specify one. Keep the media directory with the catalog when deploying the shop.
-Replace a live PNG, any storefront WebP, `banb.ttf`, or `marketplace.css` in the deployed
+the grid layout. Item icons are decoded from the player's original `Items.pak`
+by `client-mods/native-icon-bridge`; PNG responses exist only in memory. The
+historical `media/icon_sources.tsv` records earlier extraction mappings.
+Keep the browser media directory with the catalog when deploying the shop.
+Replace a storefront WebP, `banb.ttf`, or `marketplace.css` in the deployed
 `media/` directory to update it without restarting. Media is served without
 browser caching; reopen the shop to refresh the page.
 

@@ -1,0 +1,70 @@
+{
+  "tool": "built-in image_gen",
+  "prompts": [
+    {
+      "asset": "poeta-meadow",
+      "prompt": "Edit target: the supplied Poeta grass terrain diffuse texture from Aion. Create its production replacement at 2048 x 2048 pixels, square. One flat seamless repeating texture only, top down orthographic; preserve the original yellow-green meadow palette, density and scale of clover and short grass, but resolve fine individual leaves, blades, tiny earth gaps and believable surface detail. Faithful painterly fantasy realism, matching Aion environment art, richer material definition without changing the overall brightness or making it photographic. Even diffuse lighting, no baked directional shadows or highlights, no scene, no perspective, no borders, no labels, no objects, no large flowers. Opposite image edges must match seamlessly in both axes; maintain uniform visual density across edges. Fill entire canvas. Opaque."
+    },
+    {
+      "asset": "poeta-earth",
+      "prompt": "Production replacement Aion environment diffuse texture. Faithful detailed painterly fantasy realism. Flat orthographic material only. Uniform diffuse lighting without baked directional shadows, no text, border, scene or perspective. Preserve reference palette, overall brightness, layout and material scale. Opposite edges must repeat seamlessly in both axes. Opaque full canvas. Edit this warm amber brown soil texture at 2048x2048. Add finely resolved packed earth grains, weathered tiny pebbles and irregular patches of muted dry moss. Preserve low contrast earth patch placement; no large stones or plants."
+    },
+    {
+      "asset": "poeta-path",
+      "prompt": "Production replacement Aion environment diffuse texture. Faithful detailed painterly fantasy realism. Flat orthographic material only. Uniform diffuse lighting without baked directional shadows, no text, border, scene or perspective. Preserve reference palette, overall brightness, layout and material scale. Opposite edges must repeat seamlessly in both axes. Opaque full canvas. Edit this mossy pale irregular stone paving texture at 2048x2048. Preserve exact stone boundary layout and amount of moss; refine stone grain, tiny chips, weathering and crevices. Keep stones flat without raised border shadows."
+    },
+    {
+      "asset": "poeta-cliff",
+      "prompt": "Production replacement Aion environment diffuse texture. Faithful detailed painterly fantasy realism. Flat orthographic material only. Uniform diffuse lighting without baked directional shadows, no text, border, scene or perspective. Preserve reference palette, overall brightness, layout and material scale. Opposite edges must repeat seamlessly in both axes. Opaque full canvas. Edit this vertical cliff texture at 1024x2048, portrait 1:2. Preserve exact big rock boundaries and sparse moss arrangement, green grey brown hue and value. Resolve natural fissures, crystalline rock grains and moss leaf detail, avoid sharp contrast."
+    },
+    {
+      "asset": "sanctum-meadow",
+      "prompt": "Production replacement Aion environment diffuse texture. Faithful detailed painterly fantasy realism. Flat orthographic material only. Uniform diffuse lighting without baked directional shadows, no text, border, scene or perspective. Preserve reference palette, overall brightness, layout and material scale. Opposite edges must repeat seamlessly in both axes. Opaque full canvas. Edit this dense dark olive green garden grass texture at 2048x2048. Preserve grass clover density, hue and overall brightness. Refine individually resolved fine grass blades and tiny leaves in subtle clusters with small brown earth gaps, no large flowers."
+    },
+    {
+      "asset": "sanctum-road",
+      "reference": "lc1-lf1a_dirt_4.png",
+      "prompt": "Production replacement Aion environment diffuse texture, detailed painterly fantasy realism. Flat top-down orthographic material only; evenly diffuse light, no baked directional light, scene, perspective, borders, text or objects. Preserve reference hues, brightness and coarse patch arrangement. Perfectly seamless repeat at all opposing edges. Edit this grey olive tan packed earth road at 2048x2048 square. Resolve individual fine grains, worn stone dust and dry fine grass fibers, preserving subtle contrast and understated natural detail. No cobblestones."
+    },
+    {
+      "asset": "sanctum-earth",
+      "reference": "lc1-lf1a_dirt_5.png",
+      "prompt": "Production replacement Aion environment diffuse texture, detailed painterly fantasy realism. Flat top-down orthographic material only; evenly diffuse light, no baked directional light, scene, perspective, borders, text or objects. Preserve reference hues, brightness and coarse patch arrangement. Perfectly seamless repeat at all opposing edges. Edit this mottled warm ochre brown soil at 2048x2048 square. Resolve earthen grains, fine gravel and dry moss patches while preserving the brown patch layout and scale of the reference."
+    },
+    {
+      "asset": "sanctum-field",
+      "reference": "lc1-lf1a_field_1.png",
+      "prompt": "Production replacement Aion environment diffuse texture, detailed painterly fantasy realism. Flat material only; evenly diffuse light, no directional baked shadows, scene, perspective, borders, text. Preserve reference hues, average brightness and coarse patch arrangement. Seamless repeat on opposing edges. Edit this dark olive grassy soil garden texture at 2048x2048 square. Preserve its winding areas of thin straw, fine moss and earth, refining minute leaves, short fibers and granules. Same understated contrast. No large plants."
+    },
+    {
+      "asset": "sanctum-cliff",
+      "reference": "lc1-ver_lc1_rock_1.png",
+      "prompt": "Production replacement Aion environment diffuse texture, detailed painterly fantasy realism. Flat material only; evenly diffuse light, no directional baked shadows, scene, perspective, borders, text. Preserve reference hues, average brightness and coarse patch arrangement. Seamless repeat on opposing edges. Edit this dark grey rock cliff with olive moss at 1024x2048 portrait 1:2. Preserve the exact large vertical stone fissure layout and moss patch locations, bringing out believable rock mineral grain, narrow cracks and moss filigree. Same dark brightness; no large new crevices."
+    },
+    {
+      "asset": "sanctum-floor",
+      "reference": "bu_l_sanctumfloor_01a_001.png",
+      "prompt": "Edit target: supplied Aion Sanctum stone floor diffuse tile. Produce a detailed 1024x1024 square replacement. Keep the EXACT stone slab joint pattern, outer framing rectangles and all joint positions, blue grey marble palette and brightness. Refine marble crystalline grains, very faint veining, gently worn grout and tiny edge chips. Flat orthographic texture, evenly diffuse lighting without reflections or baked directional shadows, no scene, no perspective, no text. Matching fantasy painterly realism. Must tile seamlessly along opposing edges. Opaque full canvas."
+    },
+    {
+      "asset": "sanctum-wall",
+      "reference": "bu_l_sanctumwall_01a_002.png",
+      "prompt": "Edit target: supplied Aion Sanctum carved pale blue marble wall diffuse texture. Produce detailed 1024x2048 portrait 1:2 replacement. Preserve EXACT UV layout: narrow scrolling carved ornament band along the very top, broad pale wall above and below the geometric diamond band which crosses at its original height (around 56 percent). Preserve exact shapes, positions, blue white palette, brightness. Refine polished stone grain, fine carvings, weathering, marble veins, delicate crevices. Flat orthographic diffuse texture, no strong baked directional light, no scene, perspective, text, border or new ornament. Opposing left/right edges must match seamlessly. Opaque full canvas."
+    },
+    {
+      "asset": "environment-flame",
+      "reference": "fire_flame7.png",
+      "prompt": "Edit target: supplied Aion flame billboard texture. Create its improved 1024x1024 square version. Preserve original centered upright flame silhouette, occupied rectangle and black empty margin on every side. A detailed natural orange gold flame with thin curling tongues, hot ivory yellow core, vivid amber edges and fine turbulent filaments. Preserve reference overall brightness and color energy so its existing additive blend remains correct. Everything must fade smoothly into PURE BLACK with no grey mist or colored glow at borders. No scene, no torch object, no sparks outside silhouette, no text, no border. OPAQUE black background (not transparency): this is a legacy additive particle diffuse sprite."
+    },
+    {
+      "asset": "environment-ripple",
+      "reference": "water_ripples.png",
+      "prompt": "Edit target: supplied Aion water ripple particle texture. Create improved 512x512 square version preserving the centered circular ripple, approximate original diameter, subdued charcoal grey brightness, and diffuse black background. Add resolved fine wet ripple caustic flecks and soft intricate concentric wave filaments. Preserve low intensity, radial symmetry and soft falloff; no brilliant white ring. Pure black canvas borders on all sides, no scene, no water plane, no perspective, no text, no frame. OPAQUE black background: the original DDS has full opaque alpha, and the existing particle handles blending."
+    },
+    {
+      "asset": "environment-flame",
+      "revision": "framing correction",
+      "prompt": "Edit target: the generated flame sprite. Correct only its framing and brightness. Entire flame must fit safely inside central 76% of square canvas with 12% PURE BLACK empty border at TOP, BOTTOM, LEFT and RIGHT. Keep centered upright flame flowing detail, flame silhouette and orange gold palette; make the hottest core a little less white and reduce overall visual energy slightly to match the original game flame. Flame must smoothly fade into pure black within its occupied central region; no clipping at any edge, no vignette or grey background, no text, no new objects. Opaque pure black full background, not transparency. Output square 1024x1024 game additive particle diffuse texture."
+    }
+  ]
+}

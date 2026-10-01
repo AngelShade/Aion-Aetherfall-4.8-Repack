@@ -164,7 +164,8 @@ public final class MarketplaceService {
 				return;
 			}
 			String name = exchange.getRequestURI().getPath().substring("/shop/media/".length());
-			if (!name.matches("icons/[0-9]{9}\\.png|ui/(favorite|history|preview)\\.svg|marketplace\\.(css|js)|hero\\.webp|fashion\\.webp|companions\\.webp|adventure\\.webp|banb\\.ttf")) {
+			// Item images are supplied by the native client bridge, with no disk PNGs.
+			if (!name.matches("ui/(favorite|history|preview)\\.svg|marketplace\\.(css|js)|hero\\.webp|fashion\\.webp|companions\\.webp|adventure\\.webp|banb\\.ttf")) {
 				exchange.sendResponseHeaders(404, -1);
 				return;
 			}
@@ -173,7 +174,7 @@ public final class MarketplaceService {
 				exchange.sendResponseHeaders(404, -1);
 				return;
 			}
-			String type = name.endsWith(".png") ? "image/png" : name.endsWith(".webp") ? "image/webp"
+			String type = name.endsWith(".webp") ? "image/webp"
 				: name.endsWith(".ttf") ? "font/ttf" : name.endsWith(".svg") ? "image/svg+xml"
 				: name.endsWith(".js") ? "text/javascript; charset=utf-8" : "text/css; charset=utf-8";
 			FileStamp stamp = new FileStamp(Files.getLastModifiedTime(file), Files.size(file));
@@ -918,7 +919,7 @@ public final class MarketplaceService {
 	private static String nativeIcon(int itemId, long count, int size) {
 		String link = "nc://aion.ItemInfo/ItemTooltip?item=" + itemId + "&count=" + count + "&enchant_count=0&authorize_count=0";
 		return "<a class='native-item-icon' href='" + escape(link) + "' title='" + escape(link)
-			+ "' onclick='return false' tabindex='-1'><img src='/shop/media/icons/" + itemId + ".png?v=7' alt='' width='" + size + "' height='" + size + "'></a>";
+			+ "' onclick='return false' tabindex='-1'><img src='/shop/media/icons/" + itemId + ".png?v=native-3' alt='' width='" + size + "' height='" + size + "'></a>";
 	}
 
 	private static String page(String body) {

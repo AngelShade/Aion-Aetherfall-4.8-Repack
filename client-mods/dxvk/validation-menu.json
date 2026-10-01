@@ -1,0 +1,16 @@
+{
+  "deployment": "Installed on normal launch at 2026-10-01 06:39; native helper loaded in responsive process 20096",
+  "architecture": "x64 native menu; both x64 and x86 backend selection",
+  "uiPath": "Options > Graphics > Screen",
+  "label": "Use Vulkan (requires restart)",
+  "uiEntriesPreserved": 269,
+  "checks": [
+    "Compiled bridge fixture: load, checkbox, Apply, OK, Cancel, persistence, native video dirty flag and unrelated event delegation",
+    "Menu deployment fixture: queue, running guards, repeat installation, both backend switches, cursor validation under disabled Vulkan, tamper rejection, exact restore and later launcher edits preserved",
+    "Existing DXVK install/profile/restore fixture passed after helper updates",
+    "Windows system Direct3D 9 x64 and x86 GPU device, shader draw, exact pixel readback, presentation, 16x filtering support passed"
+  ],
+  "preserved": ["Native cursor patch", "Custom menu and inventory/browser patches", "Pub.key and Addon.key", "All signed plugin archives", "Global terrain/environment upgrades"],
+  "pending": ["Native checkbox appearance and behavior in live game", "Actual game restart with Vulkan disabled and enabled"],
+  "currentLiveSession": "Game.dll and AionGraphicsMenu.dll loaded in PID 20096; visible checkbox and actual backend switching still require in-game verification"
+}

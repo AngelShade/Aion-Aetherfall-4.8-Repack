@@ -1,0 +1,52 @@
+{
+  "checkedAt": "2026-10-01T04:29:29.7521085+03:00",
+  "version": "3.1.1",
+  "installedArchitectures": [
+    "x86",
+    "x64"
+  ],
+  "nativeGpuSmoke": {
+    "x86": "passed",
+    "x64": "passed",
+    "checks": [
+      "hardware device creation",
+      "shader triangle draw",
+      "exact GPU pixel readback",
+      "presentation",
+      "16x anisotropy support"
+    ]
+  },
+  "installRestoreTest": "passed",
+  "launcherModulePathRepair": "verified",
+  "actualGame": {
+    "processId": 32760,
+    "architecture": "x64",
+    "responsive": true,
+    "wrapperLoaded": "${USERPROFILE}\\Downloads\\aion-4.8-na\\Aion 4.8 NA\\bin64\\d3d9.dll",
+    "vulkanSwapchainCreated": true,
+    "gpu": "NVIDIA GeForce RTX 4060",
+    "driver": "610.62",
+    "presentation": "1920x1080 windowed",
+    "profileConfirmedInLog": true,
+    "nativeGraphicsKeysPersisted": true,
+    "compatibilityPatchesUnchanged": true,
+    "errorCount": 0,
+    "warnings": [
+      "warn:  D3D9DeviceEx::SetRenderState: Unhandled render state 26"
+    ]
+  },
+  "limitations": [
+    "No FPS comparison performed",
+    "No visual inspection of all game locations",
+    "32-bit actual game not launched; its renderer was GPU smoke tested"
+  ],
+  "cursorCorrection": {
+    "runtimeVerification": "Verified active in responsive process 20096 on 2026-10-01 after graphics menu installation and ReShade activation",
+    "nativePatch": "Installed and active",
+    "configOnlyAttempts": "Failed: depth stays -1 after client initialization",
+    "visualConfirmation": "Player confirmed cursor works before ReShade staging",
+    "installRestoreTest": "Passed",
+    "changedInstructionBytes": 4
+  },
+  "graphicsMenu": "Installed on normal launch; AionGraphicsMenu.dll loaded in process 20096; visible UI and renderer switching still pending"
+}
