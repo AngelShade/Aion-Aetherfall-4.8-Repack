@@ -10,8 +10,8 @@ SITES=[(0x6f8650,bytes.fromhex('488bc44881ec88000000'),'AionGraphicsClick'),
        (0x6fca60,bytes.fromhex('488bc44883ec68'),'AionGraphicsLoad')]
 def sha(b):return hashlib.sha256(b).hexdigest()
 def align(v,n):return (v+n-1)//n*n
-def patch(data):
-    if sha(data)!=EXPECTED:raise ValueError('Unsupported Game.dll; preserve existing patches and inspect the new build first')
+def patch(data,expected=EXPECTED):
+    if sha(data)!=expected:raise ValueError('Unsupported Game.dll; preserve existing patches and inspect the new build first')
     data=bytearray(data);pe=struct.unpack_from('<I',data,60)[0];opt=pe+24
     if data[pe:pe+6]!=b'PE\0\0\x64\x86':raise ValueError('Expected x64 PE')
     count=struct.unpack_from('<H',data,pe+6)[0];table=opt+struct.unpack_from('<H',data,pe+20)[0]

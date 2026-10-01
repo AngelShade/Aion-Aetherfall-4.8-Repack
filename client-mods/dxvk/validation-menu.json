@@ -1,16 +1,19 @@
 {
-  "deployment": "Installed on normal launch at 2026-10-01 06:39; native helper loaded in responsive process 20096",
+  "deployment": "Original checkbox absent in user screenshot. English override corrected, installed while game was closed and relaunched; unchanged native helper loaded in responsive process 28040",
   "architecture": "x64 native menu; both x64 and x86 backend selection",
   "uiPath": "Options > Graphics > Screen",
   "label": "Use Vulkan (requires restart)",
   "uiEntriesPreserved": 269,
+  "localizedEntriesPreserved": 18506,
+  "localizedArchiveInstalledSha256": "e7d2156766189cf6bde20cb3dd81cb2d2959b17ceb1278c22112f905f866c411",
   "checks": [
     "Compiled bridge fixture: load, checkbox, Apply, OK, Cancel, persistence, native video dirty flag and unrelated event delegation",
     "Menu deployment fixture: queue, running guards, repeat installation, both backend switches, cursor validation under disabled Vulkan, tamper rejection, exact restore and later launcher edits preserved",
     "Existing DXVK install/profile/restore fixture passed after helper updates",
-    "Windows system Direct3D 9 x64 and x86 GPU device, shader draw, exact pixel readback, presentation, 16x filtering support passed"
+    "Windows system Direct3D 9 x64 and x86 GPU device, shader draw, exact pixel readback, presentation, 16x filtering support passed",
+    "Incremental English layout install, running guard, idempotence, unchanged native patch and exact archive restoration passed"
   ],
   "preserved": ["Native cursor patch", "Custom menu and inventory/browser patches", "Pub.key and Addon.key", "All signed plugin archives", "Global terrain/environment upgrades"],
   "pending": ["Native checkbox appearance and behavior in live game", "Actual game restart with Vulkan disabled and enabled"],
-  "currentLiveSession": "Game.dll and AionGraphicsMenu.dll loaded in PID 20096; visible checkbox and actual backend switching still require in-game verification"
+  "currentLiveSession": "Game.dll and AionGraphicsMenu.dll loaded in PID 28040 after corrected English archive installation; visible checkbox and actual backend switching still require in-game verification"
 }

@@ -1,4 +1,25 @@
-# In-game service menu: Transmog, Broker, Cash Shop
+# In-game service menu: Wardrobe, Broker, Cash Shop, Central Market
+
+Wardrobe is the permanent account appearance collection. See
+[Wardrobe instructions](../../docs/WARDROBE.md) for unlocking skins, applying
+appearances, saved outfits, deployment and rollback.
+
+## English client menu icons
+
+`menus.json` assigns native client skins to each custom option: remodeling for
+Wardrobe, exchange hands for Broker, a gift box for Cash Shop, and a warehouse
+chest for Central Market. Relic Appraiser retains its stock relic icon. Both the
+base and English `UI_Preload.xml` definitions and texture bounds are verified
+before preparing packages. Menu labels and actions remain in English.
+
+For an already installed archive-v2 client, `prepare_menu_icons.py` accepts the
+same `--codec-directory`, `--client-path`, `--java`, and `--output` arguments as
+the complete builder. It changes only icon references in the installed
+`PrivateMenus.lua`, preserving all other plugin entries byte-for-byte. It stages
+the plugin archive, its signature, the other two archive signatures, and
+`Addon.key`; the stock pet/model key, engine DLLs, and localized inventory and
+warehouse archives remain untouched. Install and restore use the normal scripts
+with hash verification and backups. Aion must be closed during installation.
 
 ## Pet model signing correction
 
@@ -21,17 +42,19 @@ bin32 when the first correction changed only one loader.
 
 The Additional Functions submenu contains, in order:
 
-1. **Transmog** — opens the normal appearance remodeling window.
+1. **Wardrobe** — opens the permanent account appearance collection.
 2. **Broker** — opens the normal Broker window with remote access.
 3. **Cash Shop** — opens the private web shop inside an Aion window.
-4. **Relic Appraiser** — retains its original behavior.
+4. **Central Market** — opens the combined storage and market window.
+5. **Relic Appraiser** — retains its original behavior.
 
 ## How it works
 
 `RelicCalc.pak` registers the menu entries. `PrivateMenus.lua` handles Cash Shop
 through the client's existing `Browser` widget, `CreateWebView`, and
 `LoadUrlWithWebAuth` methods. It does not launch an external browser.
-`CashShop.xml` defines the window and its close button.
+`CashShop.xml`, `Warehouse.xml` and `Wardrobe.xml` define these native browser
+windows. The Wardrobe button dispatches the local `/wardrobe` action.
 
 The small `bin64/game.dll` hook recognizes only the exact server commands listed
 in `menus.json` and sends them through normal in-game chat. Other menu actions

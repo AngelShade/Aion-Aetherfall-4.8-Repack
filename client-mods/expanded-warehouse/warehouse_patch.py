@@ -23,6 +23,7 @@ SUPPORTED_DLLS = {
     "5334cf2164468678e45fe1a5decf58a0fbc4fd7f22cfdcbb87d28edce8d2c11c",  # original
     "fdd4e229190d841f96144b51c979ac6466119f6044ba452eada0b5886e0e09f6",  # inventory only
     "71cd8f70411897a61bf861318c05c16577d16e942ab4992cf7dad18fc8f94714",  # local inventory + market
+    "25febcdf45125484a24785544246f6170289479f1e523fec68741fec2aa7975d",  # verified Wardrobe + inventory/search
 }
 CAVE = 0x144E680
 HOOKS = (

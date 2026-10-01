@@ -31,7 +31,7 @@ if (Get-Process -Name 'aion.bin','aion' -ErrorAction SilentlyContinue) { throw '
 $dxvkPath = Join-Path $client 'DXVK/installed.json'
 $dxvk = Get-Content -LiteralPath $dxvkPath -Raw | ConvertFrom-Json
 $game = @($dxvk.nativeCursorPatch.files | Where-Object { $_.path -eq 'bin64/Game.dll' })
- $expectedGame = $manifest.files[0].original
+$expectedGame = $manifest.files[0].original
 if ($state) { $expectedGame = $manifest.files[0].installed }
 if ($game.Count -ne 1 -or $game[0].installed -ne $expectedGame) { throw 'Expected the working native cursor patch before graphics menu installation.' }
 $backup = Join-Path $client ('DXVK-backups/graphics-menu-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))

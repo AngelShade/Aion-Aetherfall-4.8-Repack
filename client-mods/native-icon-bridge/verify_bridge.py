@@ -75,11 +75,20 @@ def main():
     make=api('awe_string_create_from_wide',ptr,c.c_wchar_p,c.c_size_t)
     free=api('awe_string_destroy',None,ptr)
     load=api('awe_webview_load_url',None,ptr,ptr,ptr,ptr,ptr)
-    evaluate=api('awe_webview_execute_javascript_with_result',ptr,ptr,ptr,ptr)
+    evaluate_api=api('awe_webview_execute_javascript_with_result',ptr,ptr,ptr,ptr,c.c_int)
+    def evaluate(view,script,frame):return evaluate_api(view,script,frame,1000)
     text=api('awe_jsvalue_to_string',ptr,ptr)
     jsfree=api('awe_jsvalue_destroy',None,ptr)
     utf8=api('awe_string_to_utf8',c.c_size_t,ptr,ptr,c.c_size_t)
     set_resource=api('awe_webview_set_callback_resource_request',None,ptr,ptr)
+    create_object=api('awe_webview_create_object',None,ptr,ptr)
+    set_object=api('awe_webview_set_object_callback',None,ptr,ptr,ptr)
+    set_js=api('awe_webview_set_callback_js_callback',None,ptr,ptr)
+    js_type=c.CFUNCTYPE(None,ptr,ptr,ptr,ptr)
+    js_forwarded=[]
+    @js_type
+    def prior_js(view,obj,name,arguments):
+        buffer=c.create_string_buffer(128);utf8(name,buffer,len(buffer));js_forwarded.append(buffer.value.decode())
     callback_type=c.CFUNCTYPE(ptr,ptr,ptr)
     forwarded=[]
     @callback_type
@@ -132,11 +141,27 @@ def main():
                     string=text(value);buffer=c.create_string_buffer(128);utf8(string,buffer,len(buffer));result=buffer.value.decode();free(string);jsfree(value)
                 if result=='64,64,64,64,0,0':break
             assert result=='64,64,64,64,0,0',result
+            obj=make('AionObject',10);method=make('ItemPreview',11)
+            if attempt==0:set_js(view,prior_js)
+            create_object(view,obj);set_object(view,obj,method)
+            if attempt==1:set_js(view,prior_js)
+            free(obj);free(method)
+            query="typeof AionObject.WardrobePreview + ',' + typeof AionObject.WardrobeControl + ',' + typeof AionObject.WardrobePoll"
+            script=make(query,len(query))
+            value=evaluate(view,script,empty);free(script)
+            string=text(value);buffer=c.create_string_buffer(128);utf8(string,buffer,len(buffer));free(string);jsfree(value)
+            assert buffer.value==b'function,function,function',buffer.value
+            query="AionObject.ItemPreview(100000096); AionObject.WardrobePreview('100000096',0,0,500,500,1); AionObject.WardrobeControl('zoom',1); AionObject.WardrobePoll()"
+            script=make(query,len(query));value=evaluate(view,script,empty);free(script)
+            if value:jsfree(value)
+            for _ in range(4):update();time.sleep(.05)
             destroy(view);views.remove(view)
+        assert js_forwarded==['ItemPreview','ItemPreview'],js_forwarded
         assert not any(f'/{item}.png?v=native-3' in r for item in (152000408,164000074,164000075,164000076) for r in requests),requests
         assert requests.count('/market/media/icons/999999999.png')>=1 and requests.count('/other/100000001.png')>=1,requests
         assert len(forwarded)>=4,len(forwarded)
         print('PASS: automatic attachment, callback chaining, create/destroy reuse, Cash Shop + Central Market icons, zero HTTP downloads for native icons, missing-icon fallback')
+        print('PASS: native Wardrobe callbacks registered in both initialization orders; stock ItemPreview callbacks preserved; remote preview commands refused')
     finally:
         for view in views:destroy(view)
         free(empty);shutdown();server.shutdown();directory.close()

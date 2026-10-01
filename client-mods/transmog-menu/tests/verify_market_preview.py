@@ -25,9 +25,10 @@ try:
  for did in (0,0x20d,0x222,0x1000):calls.clear();assert fn(dialog,did)==2 and not calls
  calls.clear();assert fn(dialog,0x16b)==1 and not calls
  for did in (0x20e,0x21a,0x221):
-  for present in (None,b'PrivateCashShopBrowser',b'PrivateWarehouseBrowser',b'OtherBrowser'):
-   calls.clear();assert fn(dialog,did)==(1 if present in (b'PrivateCashShopBrowser',b'PrivateWarehouseBrowser') else 2)
+  for present in (None,b'PrivateCashShopBrowser',b'PrivateWarehouseBrowser',b'PrivateWardrobeBrowser',b'OtherBrowser'):
+   calls.clear();assert fn(dialog,did)==(1 if present in (b'PrivateCashShopBrowser',b'PrivateWarehouseBrowser',b'PrivateWardrobeBrowser') else 2)
    assert calls[0]==(b'PrivateCashShopBrowser',0x2027)
    if present!=b'PrivateCashShopBrowser':assert calls[1]==(b'PrivateWarehouseBrowser',0x2027)
+   if present not in (b'PrivateCashShopBrowser',b'PrivateWarehouseBrowser'):assert calls[2]==(b'PrivateWardrobeBrowser',0x2027)
  print('PASS: native preview docks for Cash Shop and Warehouse; original dialogs and addon boundaries preserve native behavior.')
 finally:k.VirtualFree(base,0,0x8000)

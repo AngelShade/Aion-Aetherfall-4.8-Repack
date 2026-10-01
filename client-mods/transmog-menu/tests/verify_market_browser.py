@@ -11,14 +11,14 @@ size=0x1450000
 base=k.VirtualAlloc(None,size,0x3000,4)
 if not base:raise ctypes.WinError(ctypes.get_last_error())
 url='http://127.0.0.1:8091/shop'
-urls=[url,'http://127.0.0.1:8091/market']
+urls=[url,'http://127.0.0.1:8091/market','http://127.0.0.1:8091/market/wardrobe']
 captured=(ctypes.c_uint64*3)()
 captured_url=ctypes.create_string_buffer(256)
 def put(offset,code):ctypes.memmove(base+offset,code,len(code))
 try:
  hook=build_browser_hook_code(urls)
  put(BROWSER_HOOK_RVA,hook)
- auth=build_market_auth_code(urls[1]);put(MARKET_AUTH_HOOK_RVA,auth)
+ auth=build_market_auth_code(urls[1:]);put(MARKET_AUTH_HOOK_RVA,auth)
  put(MARKET_AUTH_RVA,b'\xe9'+struct.pack('<i',MARKET_AUTH_HOOK_RVA-MARKET_AUTH_RVA-5))
  # Stub the native pending-token path without issuing a game packet.
  put(0xb544b0,b'\x31\xc0\xc3')
@@ -53,6 +53,11 @@ try:
   put(NATIVE_SECURITY_TOKEN_RVA,token);assert fn(wrapper,market)==17
   assert captured_url.value==urls[1].encode()+b'?session_id='+token.hex().encode()
  assert fn(wrapper,ctypes.create_string_buffer((urls[1]+'?x=1').encode()))==34
+ wardrobe=ctypes.create_string_buffer(urls[2].encode())
+ assert fn(wrapper,wardrobe)==17
+ assert captured_url.value==urls[2].encode()+b'?session_id='+b'0123456789abcdef'.hex().encode()
+ for value in (urls[2]+'x',urls[2]+'?x=1',urls[2][:-1]):
+  assert fn(wrapper,ctypes.create_string_buffer(value.encode()))==34,value
  assert fn(wrapper,None)==34
  struct.pack_into('<i',native,0x340,-1);assert fn(wrapper,exact)!=17
  struct.pack_into('<Q',wrapper,0x10,0);assert fn(wrapper,exact)!=17

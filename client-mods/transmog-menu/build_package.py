@@ -36,6 +36,8 @@ def main():
     source = root / 'Plugin/RelicCalc/RelicCalc.pak'
     mod_root = Path(__file__).resolve().parent
     settings = json.loads((mod_root / 'menus.json').read_text(encoding='utf-8-sig'))
+    from prepare_menu_icons import validate_icons
+    validate_icons(root, settings)
     commands = [entry['command'] for entry in settings['serverCommands']]
     if not commands or len(set(commands)) != len(commands) or any(not re.fullmatch('[a-z][a-z0-9]{0,31}', c) for c in commands):
         raise ValueError('Server command aliases must be unique lowercase letters/numbers, at most 32 characters')
@@ -56,17 +58,21 @@ def main():
     ET.fromstring(content['CashShop.xml'])
     content['Warehouse.xml'] = (mod_root / 'Warehouse.xml').read_text(encoding='utf-8-sig').replace('UTF-8', 'UTF-16').replace('\n', '\r\n').encode('utf-16')
     ET.fromstring(content['Warehouse.xml'])
+    content['Wardrobe.xml'] = (mod_root / 'Wardrobe.xml').read_text(encoding='utf-8-sig').replace('UTF-8', 'UTF-16').replace('\n', '\r\n').encode('utf-16')
+    ET.fromstring(content['Wardrobe.xml'])
     # JSON-quoted ASCII values are valid Lua string literals for these labels and URL.
     config = 'PRIVATE_SERVER_MENUS = {\n' + ''.join(
-        '    {label = ' + json.dumps(e['label']) + ', command = ' + json.dumps(e['command']) + '},\n'
+        '    {label = ' + json.dumps(e['label']) + ', command = ' + json.dumps(e['command']) + ', icon = ' + json.dumps(e['icon']) + '},\n'
         for e in settings['serverCommands']) + '};\n'
     config += 'PRIVATE_CASH_SHOP_URL = ' + json.dumps(settings['cashShop']['url']) + ';\n'
     config += 'PRIVATE_CASH_SHOP_LABEL = ' + json.dumps(settings['cashShop']['label']) + ';\n'
+    config += 'PRIVATE_CASH_SHOP_ICON = ' + json.dumps(settings['cashShop']['icon']) + ';\n'
     config += 'PRIVATE_CENTRAL_MARKET_URL = ' + json.dumps(settings['centralMarket']['url']) + ';\n'
+    config += 'PRIVATE_WARDROBE_URL = ' + json.dumps(settings['wardrobe']['url']) + ';\n'
     content['PrivateMenus.lua'] = (config + (mod_root / 'PrivateMenus.lua').read_text(encoding='utf-8-sig')).replace('\n', '\r\n').encode('utf-8')
     toc = content['RelicCalc.toc'].decode('utf-8').replace('\r', '').splitlines()
-    toc = [line for line in toc if line not in ('CashShop.xml', 'Warehouse.xml', 'PrivateMenus.lua')]
-    toc += ['CashShop.xml', 'Warehouse.xml', 'PrivateMenus.lua']
+    toc = [line for line in toc if line not in ('CashShop.xml', 'Warehouse.xml', 'Wardrobe.xml', 'PrivateMenus.lua')]
+    toc += ['CashShop.xml', 'Warehouse.xml', 'Wardrobe.xml', 'PrivateMenus.lua']
     content['RelicCalc.toc'] = ('\r\n'.join(toc) + '\r\n').encode('utf-8')
     data = io.BytesIO()
     with zipfile.ZipFile(data, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
@@ -90,7 +96,7 @@ def main():
     cry_system.write_bytes(patch_plugin_key((root / 'bin64/crysystem.dll').read_bytes()))
     patched_dll = output / 'bin64/game.dll'
     patched_dll.parent.mkdir(parents=True, exist_ok=True)
-    dll = build_dll(root / 'bin64/game.dll.orig', commands, [settings['cashShop']['url'], settings['centralMarket']['url']])
+    dll = build_dll(root / 'bin64/game.dll.orig', commands, [settings['cashShop']['url'], settings['centralMarket']['url'], settings['wardrobe']['url']])
     inventory = settings.get('inventory')
     if inventory:
         from unified_inventory import BASE_SLOTS, SLOTS, patch_inventory_dll, prepare_inventory_archive
@@ -119,13 +125,20 @@ def main():
         from warehouse_search import patch_search_dll as patch_warehouse_search_dll
         dll = patch_warehouse_search_dll(dll)
     native_icons = settings.get('nativeIcons', False)
+    from wardrobe_item import prepare_wardrobe_item
+    prepare_wardrobe_item(root, output)
     native_manifest = None
     if native_icons:
         sys.path.insert(0, str(mod_root.parent / 'native-icon-bridge'))
         from build_bridge import build as build_icon_bridge
         from patch_client import patch_dll as patch_icon_bridge_dll
         native_manifest = build_icon_bridge(root, output)
+        from prepare_index import prepare as prepare_icon_index
+        native_manifest['originalArchiveSha256'] = digest(root / 'Data/Items/Items.pak')
+        native_manifest.update(prepare_icon_index(output, output / 'bin64/AionIconBridge.index'))
         dll = patch_icon_bridge_dll(dll)
+    from graphics_compat import prepare as prepare_graphics_compat
+    dll, graphics_compatibility = prepare_graphics_compat(root, output, dll)
     patched_dll.write_bytes(dll)
     replacements = []
     for staged in sorted(output.rglob('*')):
@@ -140,6 +153,9 @@ def main():
                 'inventorySlots': SLOTS if inventory else 0, 'characterWarehouseSlots': CHARACTER_SLOTS if warehouse else 0,
                 'accountWarehouseSlots': ACCOUNT_SLOTS if warehouse else 0, 'signatureIsolation': 'archive-v2',
                 'nativeIcons': native_manifest}
+    manifest['wardrobe'] = {'unlockItem': 168100001, 'accountCollection': True}
+    if graphics_compatibility:
+        manifest['graphicsCompatibility'] = graphics_compatibility
     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
     print(f'Prepared {len(replacements)} replacements in {output}; client untouched.')
     print('Prepared configured server menu entries and an embedded Cash Shop window before Relic Appraiser.')

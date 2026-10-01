@@ -1,14 +1,20 @@
 $ErrorActionPreference = 'Stop'
 $source = (Join-Path $env:USERPROFILE 'Downloads\aion-4.8-na\Aion 4.8 NA')
+$sourceMenu = Get-Content -LiteralPath (Join-Path $source 'DXVK/graphics-menu/installed.json') -Raw | ConvertFrom-Json
+$sourceQueue = Get-Content -LiteralPath (Join-Path $source 'DXVK/graphics-menu/queued.json') -Raw | ConvertFrom-Json
 $fixture = Join-Path $PSScriptRoot ('test-workspace/menu-' + [guid]::NewGuid().ToString('N'))
-foreach ($path in @('bin64/Game.dll','bin64/XRenderD3D9.dll','Data/ui/game/game.pak','bin32/d3d9.dll','bin64/d3d9.dll','dxvk.conf','system.cfg','SystemOptionGraphics.cfg','Aion Start.bat','DXVK/installed.json')) {
+foreach ($path in @('bin64/Game.dll','bin64/XRenderD3D9.dll','Data/ui/game/game.pak','L10N/enu/Data/data.pak','bin32/d3d9.dll','bin64/d3d9.dll','dxvk.conf','system.cfg','SystemOptionGraphics.cfg','Aion Start.bat','DXVK/installed.json')) {
     $target = Join-Path $fixture $path
     New-Item -ItemType Directory -Path (Split-Path $target -Parent) -Force | Out-Null
-    Copy-Item -LiteralPath (Join-Path $source $path) -Destination $target
+    $from = Join-Path $source $path
+    if ($path -in @('bin64/Game.dll','Data/ui/game/game.pak','L10N/enu/Data/data.pak')) { $from = Join-Path $sourceMenu.backupRoot $path }
+    if ($path -eq 'Aion Start.bat') { $from = Join-Path $sourceQueue.launcherBackup 'Aion Start.bat' }
+    Copy-Item -LiteralPath $from -Destination $target
 }
 New-Item -ItemType Directory -Path (Join-Path $fixture 'DXVK/cursor-fix') -Force | Out-Null
 $record = Get-Content -LiteralPath (Join-Path $fixture 'DXVK/installed.json') -Raw | ConvertFrom-Json
 $record.clientRoot = $fixture
+($record.nativeCursorPatch.files | Where-Object {$_.path -eq 'bin64/Game.dll'}).installed = (Get-FileHash -LiteralPath (Join-Path $fixture 'bin64/Game.dll')).Hash
 $record | ConvertTo-Json -Depth 9 | Set-Content -LiteralPath (Join-Path $fixture 'DXVK/installed.json') -Encoding UTF8
 $global:MenuTestRunning = $true
 function Get-Process { param($Name,$ErrorAction) if ($global:MenuTestRunning) { [pscustomobject]@{Name='aion.bin'} } }

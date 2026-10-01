@@ -13,15 +13,19 @@ if ($manifest.clientRoot -ne $clientRoot) { throw 'Prepared files belong to a di
 $expected = @('bin64/game.dll', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig', 'Plugin/RelicCalc/RelicCalc.pak', 'Plugin/RelicCalc/RelicCalc.pak.sig', 'Pub.key')
 if ($manifest.signatureIsolation -in 'plugin-v1','archive-v2') { $expected += @('bin64/crysystem.dll', 'Addon.key') }
 if ($manifest.signatureRepair) { $expected = @($expected | Where-Object { $_ -notin @('bin64/game.dll', 'Plugin/RelicCalc/RelicCalc.pak') }) }
+if ($manifest.menuIconsOnly) { $expected = @('Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig', 'Plugin/RelicCalc/RelicCalc.pak', 'Plugin/RelicCalc/RelicCalc.pak.sig') }
 if ($manifest.inventorySlots -in 180,279) { $expected += 'Data/ui/game/game.pak' }
 if ($manifest.inventorySlots -in 180,279 -and $manifest.files.path -contains 'L10N/enu/data/data.pak') { $expected += 'L10N/enu/data/data.pak' }
 if ($manifest.nativeIcons) {
     $expected += @('bin64/AionIconBridge.dll', 'bin64/AionIconBridge.index')
     if ((Get-FileHash -LiteralPath (Join-Path $clientRoot 'bin64/Awesomium.dll')).Hash -ne $manifest.nativeIcons.awesomiumSha256 -or
-        (Get-FileHash -LiteralPath (Join-Path $clientRoot 'Data/Items/Items.pak')).Hash -ne $manifest.nativeIcons.archiveSha256) {
+        (Get-FileHash -LiteralPath (Join-Path $clientRoot 'Data/Items/Items.pak')).Hash -ne $(if ($manifest.nativeIcons.originalArchiveSha256) { $manifest.nativeIcons.originalArchiveSha256 } else { $manifest.nativeIcons.archiveSha256 })) {
         throw 'Original client icon inputs changed since preparation.'
     }
 }
+if ($manifest.wardrobe) { $expected += 'Data/Items/Items.pak' }
+. (Join-Path $PSScriptRoot 'GraphicsCompatibility.ps1')
+$expected += @(Get-GraphicsCompatibilityPaths $manifest)
 if (@($manifest.files).Count -ne $expected.Count -or (Compare-Object ($manifest.files.path | Sort-Object) ($expected | Sort-Object))) {
     throw 'Unexpected replacement file list.'
 }
@@ -33,6 +37,9 @@ foreach ($entry in $manifest.files) {
     if (-not $sourceMatches -or (Get-FileHash -LiteralPath (Join-Path $prepared $entry.path)).Hash -ne $entry.staged) {
         throw "File changed since preparation: $($entry.path)"
     }
+}
+foreach ($entry in $manifest.preservedFiles) {
+    if ((Get-FileHash -LiteralPath (Join-Path $clientRoot $entry.path)).Hash -ne $entry.sha256) { throw "Preserved client file changed since preparation: $($entry.path)" }
 }
 $legacy = [IO.Path]::GetFullPath((Join-Path $clientRoot 'Plugin\TransmogMenu'))
 $prefix = $clientRoot.TrimEnd('\') + '\'
@@ -67,8 +74,12 @@ foreach ($entry in $manifest.retiredFiles) {
 }
 try {
     foreach ($entry in $manifest.files | Sort-Object { $_.path -eq 'Pub.key' }) {
+        New-Item -ItemType Directory -Path (Split-Path -Parent (Join-Path $clientRoot $entry.path)) -Force | Out-Null
         Copy-Item -LiteralPath (Join-Path $prepared $entry.path) -Destination (Join-Path $clientRoot $entry.path)
         if ((Get-FileHash -LiteralPath (Join-Path $clientRoot $entry.path)).Hash -ne $entry.staged) { throw 'Install verification failed.' }
+    }
+    foreach ($entry in $manifest.preservedFiles) {
+        if ((Get-FileHash -LiteralPath (Join-Path $clientRoot $entry.path)).Hash -ne $entry.sha256) { throw "Preserved client file changed during installation: $($entry.path)" }
     }
     if (Test-Path -LiteralPath $legacy) { Move-Item -LiteralPath $legacy -Destination $legacySaved }
     foreach ($entry in $manifest.retiredFiles) {

@@ -88,6 +88,16 @@ try:
         w = widget(name)
         fn(w, requested)
         assert geometry(w) == (240, 0, 1440, 1080), name
+    wardrobe, wardrobe_browser = widget('PrivateWardrobe'), widget('PrivateWardrobeBrowser')
+    struct.pack_into('<Q', wardrobe, 0x2a8, ctypes.addressof(wardrobe_browser))
+    for width, height in ((1024,768),(1920,1080),(3440,1440),(5120,1440)):
+        for ui_percent in (75,100,125,150):
+            scale = min(width/1280,height/960)*ui_percent/100
+            put(UI_WIDTH_RVA,struct.pack('<dd',width,height));put(UI_SCALE_RVA,struct.pack('<d',scale))
+            fn(wardrobe,requested)
+            assert geometry(wardrobe)==(0,0,width,height)
+            assert geometry(wardrobe_browser)==(0,25*scale,width,height-25*scale)
+            count += 1
     for width, height in ((0, 1080), (1920, 0), (-1, 1080), (float('nan'), 1080)):
         put(UI_WIDTH_RVA, struct.pack('<dd', width, height))
         fn(dialog, requested)

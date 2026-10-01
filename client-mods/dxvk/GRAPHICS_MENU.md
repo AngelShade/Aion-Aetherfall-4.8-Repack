@@ -21,8 +21,11 @@ effect wrapper in this implementation.
   SHA256. It adds one import section and two entry hooks to its native
   graphics dialog. Existing custom menus, inventory/search/browser hooks,
   and both native cursor instruction patches are retained.
-- `Data/ui/game/game.pak` gains the checkbox and status label only.
-  Every other archive entry is verified byte-identical (269 entries).
+- Both `Data/ui/game/game.pak` and the English override
+  `L10N/enu/Data/data.pak` gain the checkbox and status label only.
+  Every other archive entry is verified byte-identical: 269 base UI entries
+  and 18,506 English entries. The English archive takes precedence in this
+  client; patching only the base archive leaves the visible menu unchanged.
 - `AionGraphicsMenu.dll` uses the verified native widget methods to load
   checkbox state, mark the video options dirty, save on Apply/OK, and reset
   on Cancel. Existing actions delegate to the original callback.
@@ -59,10 +62,12 @@ before changing other files; exact menu restore with later launcher changes
 preserved; hidden GPU shader draw, exact readback and presentation with
 Windows Direct3D 9 in x64 and x86. DXVK GPU checks passed earlier.
 
-The first normal launch installed the menu patch at 06:39 on October 1,
-2026. Both Game.dll and AionGraphicsMenu.dll loaded in responsive process
-20096; the existing native cursor instructions and actual DXVK swapchain
-were verified active.
+The first launch installed the native helper, but the user's screenshot
+confirmed the checkbox was absent. The English override was then corrected,
+installed while Aion was closed, and the normal launcher relaunched Aion.
+The unchanged native helper loaded in responsive process 28040. Both cursor
+instructions remain active. Incremental archive application and exact
+restoration passed with the corrected English package.
 
 **Pending:** visible layout, Apply/OK/Cancel in the real dialog, and an
 actual game restart using each renderer. The bridge fixture and GPU checks

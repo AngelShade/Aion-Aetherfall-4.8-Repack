@@ -848480,6 +848480,7 @@
 		<godstone nonbreakcount="0" breakprob="0" probabilityleft="25" probability="50" skilllvl="1" skillid="8541"/>
 	</item_template>
 	<item_template id="168100000" name="Pattern Reshaper" level="1" cName="skin_remover" mask="4222" quality="COMMON" price="30000" desc="743089"/>
+	<item_template id="168100001" name="Appearance Unlock" level="1" cName="wardrobe_appearance_unlock" mask="8318" max_stack_count="100" quality="RARE" price="30000" desc="9901001"/>
 	<item_template id="168200001" name="Sealing Scroll (Test)" level="1" cName="seal_scroll_test_01" mask="12414" max_stack_count="100" quality="COMMON" price="100" desc="769294" activate_count="1"/>
 	<item_template id="168200002" name="Seal Scroll" level="1" cName="seal_scroll_01" mask="12352" max_stack_count="100" quality="COMMON" price="10000" desc="775467" activate_count="1"/>
 	<item_template id="168210001" name="Common Seal Removal Scroll (Test)" level="1" cName="normal_unseal_scroll_test_01" mask="12414" max_stack_count="100" quality="COMMON" price="100" desc="769296" activate_count="1"/>

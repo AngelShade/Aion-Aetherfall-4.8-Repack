@@ -1,4 +1,4 @@
-# Original client icons for Cash Shop and Central Market
+# Original client icons and Wardrobe preview
 
 This optional bridge serves the existing HTML item-image requests directly from
 the original client's `Data/Items/Items.pak`. It is specific to the verified
@@ -18,6 +18,22 @@ There are no item PNGs on the server. An unmatched/missing item image reaches
 HTTP and returns 404; a matching native bridge is required for item images.
 The market's item-ID catalog metadata is still required.
 There are no server protocol or database changes.
+
+Wardrobe also uses this bridge to embed the existing 4.8 character preview.
+It temporarily moves the native character, zoom and Aethertech views into the
+Wardrobe dialog, retaining the publisher's model controller and camera. Dialog
+hide and destruction hooks restore their ownership and layout before the stock
+preview is reused or freed. Wardrobe callbacks are accepted only from its local
+page. Browser callbacks copy their validated arguments into a bounded queue;
+the native browser event pump at `Game.dll+0x131ef0` updates the model on the
+game thread. `WardrobePoll` returns completion on the browser thread, with a
+request number so a late result cannot overwrite a newer preview. Destroying
+a browser cancels its pending commands. Other browser callbacks are forwarded.
+The native preview receives left-drag rotation, right-drag positioning and wheel
+zoom through the client's window-message chain. Only input over the visible
+preview is consumed; lists, confirmations and other windows retain their input.
+Camera changes are applied by the game event pump and restored when Wardrobe
+closes. Reset Preview also restores the initial camera.
 
 ## Prepare and install
 
@@ -66,6 +82,20 @@ python client-mods/native-icon-bridge/verify_bridge.py `
 It requires Pillow. It decodes every indexed texture, checks both shop routes
 without server image downloads, verifies missing-image fallback, and tests
 callback replacement plus view creation/destruction.
+It also checks Wardrobe callback registration order and forwarding of the stock
+ItemPreview callback. `verify_wardrobe_patch.py` executes nine lifecycle hook
+cases, including argument preservation, destructor vtable relocation and
+rejection of an unsupported client. Actual model drawing still needs an in-game
+check after installing the complete package.
+
+`verify_wardrobe_browser.py --browser-bin <client>/bin64` checks confirmations,
+tabs, the unlock request and preview control sizing in the actual legacy WebKit.
+Wardrobe toggles the `hidden` attribute directly and uses WebKit sizing/transform
+prefixes; this browser does not implement `HTMLElement.hidden`.
+`verify_wardrobe_native.cpp` is an isolated native widget contract fixture. It
+checks the observed Browser type `0x2012`, model reparenting and restoration,
+multiple appearances, modal visibility, and thread/bounds guards. Compile with
+MSVC `/std:c++17 /EHsc` and run the resulting executable outside the client.
 
 For the installed client, restart Aion and open both Cash Shop and Central
 Market. Check icon appearance, search, paging and native hover tooltips.

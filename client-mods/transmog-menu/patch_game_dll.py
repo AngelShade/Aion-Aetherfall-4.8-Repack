@@ -25,7 +25,7 @@ PREVIEW_DOCK_SKIP_RVA = 0x806eb5
 BROWSER_TOOLTIP_MODES = (0x131948, 0x131958)
 BROWSER_TOOLTIP_MODE_ORIGINAL = bytes.fromhex('c7450403000000')
 MARKET_RECT_RVA = 0x5ac890
-MARKET_RECT_HOOK_RVA = 0x144d640
+MARKET_RECT_HOOK_RVA = 0x144d600
 MARKET_RECT_ORIGINAL = bytes.fromhex('488bc44881ecb8000000')
 UI_WIDTH_RVA, UI_HEIGHT_RVA, UI_SCALE_RVA = 0x1378ea8, 0x1378eb0, 0x1378ec8
 
@@ -51,8 +51,15 @@ def build_market_rect_code():
     a.emit(bytes.fromhex('488b7c2420'))
     a.branch(b'\x48\x8d\x35', 'cash_prefix')
     a.emit(bytes.fromhex('b90f000000f3a6'))
-    a.branch(b'\x0f\x85', 'original')
+    a.branch(b'\x0f\x85', 'wardrobe')
     a.branch(b'\x48\x8d\x05', 'cash_prefix')
+    a.branch(b'\xe9', 'matched_prefix')
+    a.label('wardrobe')
+    a.emit(bytes.fromhex('488b7c2420'))
+    a.branch(b'\x48\x8d\x35', 'wardrobe_prefix')
+    a.emit(bytes.fromhex('b90f000000f3a6'))
+    a.branch(b'\x0f\x85', 'original')
+    a.branch(b'\x48\x8d\x05', 'wardrobe_prefix')
     a.label('matched_prefix')
     a.emit(bytes.fromhex('4889442450'))  # browser lookup name for this dialog
     a.emit(bytes.fromhex('803f00'))
@@ -99,6 +106,8 @@ def build_market_rect_code():
     a.emit(b'Browser\0')
     a.label('cash_prefix')
     a.emit(b'PrivateCashShopBrowser\0')
+    a.label('wardrobe_prefix')
+    a.emit(b'PrivateWardrobeBrowser\0')
     a.label('title_height')
     a.emit(struct.pack('<d', 25))
     return a.finish()
@@ -125,6 +134,11 @@ def build_preview_dock_code():
     asm.branch(b'\x48\x8d\x15', 'warehouse_browser_name')
     asm.emit(b'\x41\xb8\x27\x20\0\0\x48\x8b\x07\xff\x90\x38\x03\0\0')
     asm.emit(b'\x48\x85\xc0')
+    asm.branch(b'\x0f\x85', 'position')
+    asm.emit(b'\x48\x89\xf9')
+    asm.branch(b'\x48\x8d\x15', 'wardrobe_browser_name')
+    asm.emit(b'\x41\xb8\x27\x20\0\0\x48\x8b\x07\xff\x90\x38\x03\0\0')
+    asm.emit(b'\x48\x85\xc0')
     asm.branch(b'\x0f\x84', 'skip')
     asm.label('position')
     asm.relative(b'\xe9', PREVIEW_DOCK_POSITION_RVA)
@@ -134,6 +148,8 @@ def build_preview_dock_code():
     asm.emit(b'PrivateCashShopBrowser\0')
     asm.label('warehouse_browser_name')
     asm.emit(b'PrivateWarehouseBrowser\0')
+    asm.label('wardrobe_browser_name')
+    asm.emit(b'PrivateWardrobeBrowser\0')
     return asm.finish()
 
 
@@ -198,10 +214,8 @@ def build_browser_hook_code(url):
         payload = route.encode('ascii') + b'\0'
         if not route.startswith('http://127.0.0.1:8091/') or len(payload) > 128 or any(c < 32 for c in payload[:-1]):
             raise ValueError('Embedded navigation supports exact loopback URLs of at most 127 ASCII characters')
-        for offset, value in enumerate(payload):
-            asm.emit(b'\x80\x7a' + bytes([offset, value]))
-            asm.branch(b'\x0f\x85', 'next_url_' + str(index))
-        asm.branch(b'\xe9', 'authenticated_load' if route.endswith('/market') else 'load')
+        emit_exact_route(asm, 'rdx', 'route_' + str(index), 'next_url_' + str(index))
+        asm.branch(b'\xe9', 'authenticated_load' if route.endswith(('/market', '/wardrobe')) else 'load')
         asm.label('next_url_' + str(index))
     asm.branch(b'\xe9', 'original')
     asm.label('authenticated_load')
@@ -224,20 +238,46 @@ def build_browser_hook_code(url):
     asm.label('original')
     asm.emit(BROWSER_PROLOGUE)  # displaced complete instructions, no relative operands
     asm.relative(b'\xe9', BROWSER_AUTH_RVA + len(BROWSER_PROLOGUE))
+    for index, route in enumerate(urls):
+        asm.label('route_' + str(index))
+        asm.emit(route.encode('ascii') + b'\0')
     return asm.finish()
+
+
+def emit_exact_route(asm, register, literal, mismatch):
+    # Compare through NUL without reading beyond a short URL. Only volatile
+    # rax/r9/r10 change; the original browser and view arguments are retained.
+    asm.branch(b'\x4c\x8d\x15', literal)
+    asm.emit(bytes.fromhex('4531c9'))
+    loop = literal + '_match'
+    asm.label(loop)
+    asm.emit(bytes.fromhex('428a040a' if register == 'rdx' else '428a0409'))
+    asm.emit(bytes.fromhex('433a040a'))
+    asm.branch(b'\x0f\x85', mismatch)
+    asm.emit(bytes.fromhex('84c0'))
+    asm.branch(b'\x0f\x84', literal + '_done')
+    asm.emit(bytes.fromhex('49ffc1'))
+    asm.branch(b'\xe9', loop)
+    asm.label(literal + '_done')
 
 
 def build_market_auth_code(url):
     """Use the native token request callback, then navigate to the authenticated market URL."""
-    route = url.encode('ascii') + b'\0'
-    if not url.startswith('http://127.0.0.1:8091/') or len(route) > 128:
-        raise ValueError('Market authentication requires the configured loopback route')
+    urls = [url] if isinstance(url,str) else url
+    if not urls or len(set(urls)) != len(urls):
+        raise ValueError('Authentication routes must be nonempty and unique')
+    for route in urls:
+        if not route.startswith('http://127.0.0.1:8091/') or len(route.encode('ascii')) > 127:
+            raise ValueError('Market authentication requires the configured loopback route')
     asm = Assembler(MARKET_AUTH_HOOK_RVA)
     asm.emit(b'\x48\x85\xc9')
     asm.branch(b'\x0f\x84', 'original')
-    for offset, value in enumerate(route):
-        asm.emit(b'\x80\x79' + bytes([offset,value]))
-        asm.branch(b'\x0f\x85', 'original')
+    for index, route in enumerate(urls):
+        emit_exact_route(asm, 'rcx', 'auth_route_' + str(index), 'auth_next_' + str(index))
+        asm.branch(b'\xe9', 'matched')
+        asm.label('auth_next_' + str(index))
+    asm.branch(b'\xe9', 'original')
+    asm.label('matched')
     asm.relative(b'\x4c\x8d\x1d', NATIVE_SECURITY_TOKEN_RVA)  # r11 = native 16-byte token
     asm.emit(b'\x49\x8b\x03\x49\x0b\x43\x08')
     asm.branch(b'\x0f\x84', 'original')  # native code requests token and queues this URL
@@ -270,6 +310,9 @@ def build_market_auth_code(url):
     asm.relative(b'\xe9', MARKET_AUTH_RVA + len(MARKET_AUTH_ORIGINAL))
     asm.label('hex_digits')
     asm.emit(b'0123456789abcdef')
+    for index, route in enumerate(urls):
+        asm.label('auth_route_' + str(index))
+        asm.emit(route.encode('ascii') + b'\0')
     return asm.finish()
 
 
@@ -293,11 +336,11 @@ def build_dll(original_path, commands, cash_shop_url):
     data[BROWSER_AUTH_RVA:BROWSER_AUTH_RVA + len(BROWSER_PROLOGUE)] = (
         b'\xe9' + struct.pack('<i', BROWSER_HOOK_RVA - BROWSER_AUTH_RVA - 5) + b'\x90' * 4)
     routes = [cash_shop_url] if isinstance(cash_shop_url,str) else cash_shop_url
-    market_routes = [route for route in routes if route.endswith('/market')]
+    market_routes = [route for route in routes if route.endswith(('/market', '/wardrobe'))]
     if market_routes:
-        if len(market_routes)!=1 or data[MARKET_AUTH_RVA:MARKET_AUTH_RVA+len(MARKET_AUTH_ORIGINAL)] != MARKET_AUTH_ORIGINAL:
+        if data[MARKET_AUTH_RVA:MARKET_AUTH_RVA+len(MARKET_AUTH_ORIGINAL)] != MARKET_AUTH_ORIGINAL:
             raise ValueError('Native account authentication entry does not match')
-        auth = build_market_auth_code(market_routes[0])
+        auth = build_market_auth_code(market_routes)
         if len(auth)>BROWSER_HOOK_RVA-MARKET_AUTH_HOOK_RVA or any(data[MARKET_AUTH_HOOK_RVA:MARKET_AUTH_HOOK_RVA+len(auth)]):
             raise ValueError('Market authentication does not fit its verified code region')
         data[MARKET_AUTH_HOOK_RVA:MARKET_AUTH_HOOK_RVA+len(auth)] = auth

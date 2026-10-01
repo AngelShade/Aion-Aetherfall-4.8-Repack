@@ -1,11 +1,12 @@
 {
   "serverCommands": [
-    {"label": "Transmog", "command": "transmog"},
-    {"label": "Broker", "command": "broker"},
-    {"label": "Central Market", "command": "warehouse"}
+    {"label": "Wardrobe", "command": "transmog", "icon": "v5_npc_func_skinchange"},
+    {"label": "Broker", "command": "broker", "icon": "v5_npc_func_vendor"},
+    {"label": "Central Market", "command": "warehouse", "icon": "v5_npc_func_warehouse"}
   ],
-  "cashShop": {"label": "Cash Shop", "url": "http://127.0.0.1:8091/shop"},
+  "cashShop": {"label": "Cash Shop", "url": "http://127.0.0.1:8091/shop", "icon": "v5_cash_mail_up"},
   "centralMarket": {"url": "http://127.0.0.1:8091/market"},
+  "wardrobe": {"url": "http://127.0.0.1:8091/market/wardrobe"},
   "inventory": {"slots": 279, "columns": 12, "baseSlots": 180},
   "warehouse": {"characterSlots": 360, "accountSlots": 540},
   "nativeIcons": true

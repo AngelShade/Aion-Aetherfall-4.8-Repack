@@ -23,17 +23,32 @@ function PrivateWarehouse_Open()
     PrivateWarehouseBrowser:LoadUrlWithWebAuth(PRIVATE_CENTRAL_MARKET_URL);
 end
 
+function PrivateWardrobe_OnLoad()
+    PrivateWardrobeBrowser:CreateWebView();
+    PrivateWardrobe:Hide();
+end
+
+function PrivateWardrobe_Open()
+    PrivateWardrobe:Show();
+    PrivateWardrobe:SetRect(0, 0, 1280, 960);
+    PrivateWardrobeBrowser:LoadUrlWithWebAuth(PRIVATE_WARDROBE_URL);
+end
+
 function PrivateMenus_Register()
     SlashCmdList["PRIVATECASHSHOP"] = PrivateCashShop_Open;
     SLASH_PRIVATECASHSHOP1 = "/privatecashshop";
     SlashCmdList["PRIVATEWAREHOUSE"] = PrivateWarehouse_Open;
     SLASH_PRIVATEWAREHOUSE1 = "/privatewarehouse";
+    SlashCmdList["PRIVATEWARDROBE"] = PrivateWardrobe_Open;
+    SLASH_PRIVATEWARDROBE1 = "/wardrobe";
     for _, entry in ipairs(PRIVATE_SERVER_MENUS) do
-        if entry.command == "warehouse" then
-            RegisterMenu(entry.label, SLASH_PRIVATEWAREHOUSE1, "v5_start_menu_relic_up");
+        if entry.command == "transmog" then
+            RegisterMenu(entry.label, SLASH_PRIVATEWARDROBE1, entry.icon);
+        elseif entry.command == "warehouse" then
+            RegisterMenu(entry.label, SLASH_PRIVATEWAREHOUSE1, entry.icon);
         else
-            RegisterMenu(entry.label, "/say ." .. entry.command, "v5_start_menu_relic_up");
+            RegisterMenu(entry.label, "/say ." .. entry.command, entry.icon);
         end
     end
-    RegisterMenu(PRIVATE_CASH_SHOP_LABEL, SLASH_PRIVATECASHSHOP1, "v5_start_menu_relic_up");
+    RegisterMenu(PRIVATE_CASH_SHOP_LABEL, SLASH_PRIVATECASHSHOP1, PRIVATE_CASH_SHOP_ICON);
 end

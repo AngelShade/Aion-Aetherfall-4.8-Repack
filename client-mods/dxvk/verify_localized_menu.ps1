@@ -6,6 +6,7 @@ New-Item -ItemType Directory -Path $root -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'build/graphics-menu') -Destination (Join-Path $root 'package') -Recurse
 $state=Get-Content -LiteralPath (Join-Path $source 'DXVK/graphics-menu/installed.json') -Raw | ConvertFrom-Json
 $sourceBackup=$state.backupRoot
+$state.files=@($state.files | Where-Object {$_.path -ne 'L10N/enu/Data/data.pak'})
 $state.clientRoot=$fixture
 $state.backupRoot=Join-Path $fixture 'DXVK-backups/menu-original'
 foreach ($entry in $state.files) {
@@ -20,7 +21,9 @@ foreach ($entry in $state.files) {
 }
 $localized=Join-Path $fixture 'L10N/enu/Data/data.pak'
 New-Item -ItemType Directory -Path (Split-Path $localized -Parent) -Force | Out-Null
-Copy-Item -LiteralPath (Join-Path $source 'L10N/enu/Data/data.pak') -Destination $localized
+$localizedSource=Join-Path $source 'L10N/enu/Data/data.pak'
+if (Test-Path -LiteralPath (Join-Path $sourceBackup 'L10N/enu/Data/data.pak')) { $localizedSource=Join-Path $sourceBackup 'L10N/enu/Data/data.pak' }
+Copy-Item -LiteralPath $localizedSource -Destination $localized
 $state | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $root 'installed.json') -Encoding UTF8
 $dxvk=Get-Content -LiteralPath (Join-Path $source 'DXVK/installed.json') -Raw | ConvertFrom-Json
 $dxvk.clientRoot=$fixture

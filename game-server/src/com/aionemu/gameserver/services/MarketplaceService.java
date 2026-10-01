@@ -82,6 +82,9 @@ public final class MarketplaceService {
 			try { CentralMarketService.start(); }
 			catch (Exception e) { log.error("Could not start Central Market", e); }
 			server.createContext("/market", CentralMarketHttpService::handle);
+			try { WardrobeService.start(); }
+			catch (Exception e) { log.error("Could not start Wardrobe", e); }
+			server.createContext("/market/wardrobe", WardrobeHttpService::handle);
 			server.setExecutor(ThreadPoolManager.getInstance());
 			server.start();
 			log.info("Private marketplace listening at http://{}:{}/shop ({} offers)", GSConfig.MARKETPLACE_BIND,
