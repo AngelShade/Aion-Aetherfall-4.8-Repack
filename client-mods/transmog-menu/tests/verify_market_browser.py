@@ -11,7 +11,7 @@ size=0x1450000
 base=k.VirtualAlloc(None,size,0x3000,4)
 if not base:raise ctypes.WinError(ctypes.get_last_error())
 url='http://127.0.0.1:8091/shop'
-urls=[url,'http://127.0.0.1:8091/market','http://127.0.0.1:8091/market/wardrobe']
+urls=[url,'http://127.0.0.1:8091/market','http://127.0.0.1:8091/market/wardrobe','http://127.0.0.1:8091/journey']
 captured=(ctypes.c_uint64*3)()
 captured_url=ctypes.create_string_buffer(256)
 def put(offset,code):ctypes.memmove(base+offset,code,len(code))
@@ -59,6 +59,11 @@ try:
  for value in (urls[2]+'x',urls[2]+'?x=1',urls[2][:-1]):
   assert fn(wrapper,ctypes.create_string_buffer(value.encode()))==34,value
  assert fn(wrapper,None)==34
+ journey=ctypes.create_string_buffer(urls[3].encode())
+ assert fn(wrapper,journey)==17
+ assert captured_url.value==urls[3].encode()+b'?session_id='+b'0123456789abcdef'.hex().encode()
+ for value in (urls[3]+'x',urls[3]+'?x=1',urls[3][:-1]):
+  assert fn(wrapper,ctypes.create_string_buffer(value.encode()))==34,value
  struct.pack_into('<i',native,0x340,-1);assert fn(wrapper,exact)!=17
  struct.pack_into('<Q',wrapper,0x10,0);assert fn(wrapper,exact)!=17
  for value in ['https://example.invalid/', 'http://127.0.0.1:8091/'+('x'*200),url+'\n']:

@@ -18,7 +18,11 @@ DWORD ui_thread=0;
 Ptr host=nullptr, paper=nullptr;
 bool changing=false;
 struct Rect { double x,y,w,h; };
-struct Moved { Ptr widget; Rect rect; std::array<float,3> camera,angle; };
+struct Moved {
+    Ptr widget; Rect rect; std::array<float,3> camera,angle;
+    std::array<float,3> base_camera{},preview_angle{};
+    Ptr entity=nullptr; bool camera_ready=false;
+};
 std::vector<Moved> moved;
 Rect paper_rect{};
 uint64_t paper_flags=0;
@@ -117,6 +121,28 @@ bool local_view(Ptr view){
     const std::string expected="http://127.0.0.1:8091/market/wardrobe";
     return s==expected || s.rfind(expected+"?",0)==0;
 }
+bool journey_view(Ptr view){
+    Ptr url=view_url(view);std::string s=string(url);if(url)destroy_string(url);
+    const std::string expected="http://127.0.0.1:8091/journey";
+    return s==expected || s.rfind(expected+"?",0)==0;
+}
+Ptr journey_dialog(){
+    auto g=game();if(!g)return nullptr;
+    for(int id=0x20e;id<=0x221;++id){
+        Ptr p=*reinterpret_cast<Ptr*>(g+0x13875c0+id*8);if(!p)continue;
+        const char* n=method<const char*(__cdecl*)(Ptr)>(p,0xa8)(p);
+        if(n && !std::strcmp(n,"PrivateJourney") && lookup(p,"PrivateJourneyBrowser",0x2012))return p;
+    }
+    return nullptr;
+}
+void journey_layout(Ptr dialog){
+    auto g=game();Ptr browser=lookup(dialog,"PrivateJourneyBrowser",0x2012);
+    const double width=*reinterpret_cast<double*>(g+0x1378ea8),height=*reinterpret_cast<double*>(g+0x1378eb0);
+    if(!browser || !std::isfinite(width) || !std::isfinite(height) || width<100 || height<100 || width>16384 || height>16384)return;
+    const Rect r{0,0,width,height};const Rect a=rect(dialog),b=rect(browser);
+    if(a.x!=r.x || a.y!=r.y || a.w!=r.w || a.h!=r.h)rect(dialog,r);
+    if(b.x!=r.x || b.y!=r.y || b.w!=r.w || b.h!=r.h)rect(browser,r);
+}
 bool parse_preview(Ptr args,Command& command){
     if(array_size(args)!=6)return false;
     command.request=value_integer(array_element(args,5));
@@ -143,6 +169,10 @@ bool preview(const Command& command){
     auto g=game();
     reinterpret_cast<void(__cdecl*)(Ptr,bool)>(g+0x8053f0)(paper,false);
     for(uint32_t item:command.items){uint32_t data[4]={item,0,0,0};reinterpret_cast<void(__cdecl*)(Ptr,const uint32_t*)>(g+0x804bd0)(paper,data);}
+    // The stock dialog's next update rebuilds the model. Complete that update
+    // before taking the camera baseline; unopened native views have zero cameras.
+    field<int>(paper,0x598)=1;
+    mouse::refresh_pending=true;
     if(keep_hidden)control("visible",0);
     // Native controls and model flags, including zoom and robot state, stay in the controller.
     return true;
@@ -165,6 +195,13 @@ void control(const std::string& command,int pressed){
     else if(command=="zoom")reinterpret_cast<void(__cdecl*)(Ptr,int)>(g+0x805bd0)(paper,!field<int>(paper,0x57c));
     else if(command=="helmet"){field<int>(paper,0x580)=!field<int>(paper,0x580);reinterpret_cast<void(__cdecl*)(Ptr)>(g+0x805cc0)(paper);}
     else if(command=="combat"){field<int>(paper,0x578)=!field<int>(paper,0x578);field<int>(paper,0x598)=1;reinterpret_cast<void(__cdecl*)(Ptr)>(g+0x805d40)(paper);}
+    else if(command=="wings"){
+        // Stock paper-doll state 2 uses nwing_001 and displays the wing model.
+        // Wings need the full-body view rather than the face zoom view.
+        if(field<int>(paper,0x57c))reinterpret_cast<void(__cdecl*)(Ptr,int)>(g+0x805bd0)(paper,0);
+        field<int>(paper,0x578)=pressed?2:0;field<int>(paper,0x598)=1;
+        reinterpret_cast<void(__cdecl*)(Ptr)>(g+0x805d40)(paper);
+    }
     else if(command=="camera-reset")mouse::reset();
 }
 // Called immediately before Game.dll's browser event pump (RVA 0x131ef0),
@@ -172,14 +209,19 @@ void control(const std::string& command,int pressed){
 void tick(){
     if(!ui_thread){ui_thread=GetCurrentThreadId();log("Wardrobe: native event thread ready");}
     if(GetCurrentThreadId()!=ui_thread || changing)return;
+    if(Ptr dialog=journey_dialog();dialog && (field<uint64_t>(dialog,0x30)&1))journey_layout(dialog);
     std::vector<Command> pending;bool stock=false;
     {std::lock_guard<std::mutex> lock(queue_mutex);pending.swap(commands);stock=stock_preview_pending;stock_preview_pending=false;}
-    if(stock){detach();return;}
+    if(stock)detach();
     for(const auto& command:pending){
         {std::lock_guard<std::mutex> lock(queue_mutex);if(!command.state->active)continue;}
         bool ready=false;
         try{
-            if(command.request){ready=preview(command);if(ready && !command.state->model_visible)control("visible",0);}
+            if(command.control=="journey-visible"){
+                if(Ptr dialog=journey_dialog()){flag(dialog,1,command.pressed!=0);if(command.pressed)journey_layout(dialog);}
+            }
+            else if(stock)continue;
+            else if(command.request){ready=preview(command);if(ready && !command.state->model_visible)control("visible",0);}
             else{if(command.control=="visible")command.state->model_visible=command.pressed!=0;control(command.control,command.pressed);}
         }
         catch(...){fail("Wardrobe: native preview update failed");}
@@ -189,6 +231,14 @@ void tick(){
 }
 void __cdecl callback(Ptr view,Ptr object,Ptr name,Ptr args){
     std::string method_name=string(name);
+    if(string(object)=="AionObject" && method_name=="JourneyVisibility"){
+        if(journey_view(view) && array_size(args)==1){
+            int visible=value_integer(array_element(args,0));if(visible!=0 && visible!=1)return;
+            std::lock_guard<std::mutex> lock(queue_mutex);
+            auto& state=states[view];if(!state)state=std::make_shared<State>();
+            if(state->active && commands.size()<128){Command command;command.state=state;command.control="journey-visible";command.pressed=visible;commands.push_back(std::move(command));}
+        }return;
+    }
     if(string(object)=="AionObject" && (method_name=="WardrobePreview" || method_name=="WardrobeControl" || method_name=="WardrobePoll")){
         if(local_view(view)){
             Command command;bool valid=true;int completed=0;bool ready=false;
@@ -196,7 +246,7 @@ void __cdecl callback(Ptr view,Ptr object,Ptr name,Ptr args){
             else if(method_name=="WardrobeControl"){
                 if(array_size(args)!=2)return;
                 Ptr value=value_string(array_element(args,0));command.control=string(value);if(value)destroy_string(value);
-                if(command.control!="visible" && command.control!="left" && command.control!="right" && command.control!="zoom" && command.control!="helmet" && command.control!="combat" && command.control!="camera-reset")return;
+                if(command.control!="visible" && command.control!="left" && command.control!="right" && command.control!="zoom" && command.control!="helmet" && command.control!="combat" && command.control!="wings" && command.control!="camera-reset")return;
                 command.pressed=value_integer(array_element(args,1))!=0;
             }
             {
@@ -223,6 +273,9 @@ void __cdecl callback(Ptr view,Ptr object,Ptr name,Ptr args){
 void register_methods(Ptr view){
     Ptr object=from_wide(L"AionObject",10), preview=from_wide(L"WardrobePreview",15), control=from_wide(L"WardrobeControl",15),poll=from_wide(L"WardrobePoll",12);
     if(object&&preview&&control&&poll){object_callback(view,object,preview);object_callback(view,object,control);object_callback(view,object,poll);}
+    Ptr journey=from_wide(L"JourneyVisibility",17);
+    if(object&&journey)object_callback(view,object,journey);
+    if(journey)destroy_string(journey);
     if(object)destroy_string(object);if(preview)destroy_string(preview);if(control)destroy_string(control);if(poll)destroy_string(poll);
 }
 void __cdecl set_js(Ptr view,JSCallback prior){

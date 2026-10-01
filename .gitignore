@@ -30,3 +30,4 @@ login-server/target/
 /inventory-share/
 /target-deploy/game-server/data/marketplace/
 **/media/icons/*.png
+/output

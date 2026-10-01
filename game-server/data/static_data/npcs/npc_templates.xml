@@ -452000,7 +452000,7 @@
 		<bound_radius front="0.25" side="0.35" upper="2" />
 		<talk_info distance="5" delay="3" can_talk_invisible="false" />
 	</npc_template>
-	<npc_template npc_id="702769" level="1" name="ominous darkness" name_id="466220" height="2" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="FIELD_OBJECT_ALL" type="GENERAL" ai="noaction" attack_speed="2000" hpgauge="3">
+	<npc_template npc_id="702769" level="1" name="ominous darkness" name_id="466220" height="2" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="FIELD_OBJECT_ALL" type="GENERAL" ai="quest_use_item" attack_speed="2000" hpgauge="3">
 		<stats maxHp="111" />
 		<bound_radius front="0.25" side="0.35" upper="2" />
 		<talk_info distance="5" delay="3" can_talk_invisible="false" />

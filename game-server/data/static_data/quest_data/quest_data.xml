@@ -47428,7 +47428,7 @@
 		<rewards exp="3618881">
 			<reward_item item_id="188053089" count="1"/>
 		</rewards>
-		<quest_kill step="0" var="0" count="1" npc_ids="234190" seq="0"/>
+		<quest_kill step="0" var="0" count="1" npc_ids="287249" seq="0"/>
 	</quest>
 	<quest id="18950" name="[Alliance] Detachment in the Depths" nameId="1801079" quest_zone="Drakenspire Depths" minlevel_permitted="65" max_repeat_count="1" race_permitted="ELYOS" category="IMPORTANT" data_driven="true">
 		<rewards gold="75330" exp="1723277"/>
@@ -62402,7 +62402,7 @@
 		<rewards exp="3618881">
 			<reward_item item_id="188053089" count="1"/>
 		</rewards>
-		<quest_kill step="0" var="0" count="1" npc_ids="234190" seq="0"/>
+		<quest_kill step="0" var="0" count="1" npc_ids="287249" seq="0"/>
 	</quest>
 	<quest id="28950" name="[Alliance] Kismeti Detachment Attachment" nameId="1801084" quest_zone="Drakenspire Depths" minlevel_permitted="65" max_repeat_count="1" race_permitted="ASMODIANS" category="IMPORTANT" data_driven="true">
 		<rewards gold="75330" exp="1723277"/>
@@ -67306,7 +67306,7 @@
 			<selectable_reward_item item_id="160001342" count="6"/>
 			<selectable_reward_item item_id="160001343" count="6"/>
 		</rewards>
-		<quest_kill step="0" var="0" count="5" npc_ids="219240 219242 219243 219244 219241" seq="0"/>
+		<quest_kill step="0" var="0" count="5" npc_ids="233347 233349 233350 233351 233348" seq="0"/>
 	</quest>
 	<quest id="30602" name="[Group] Supplant the Supplies" nameId="1136975" quest_zone="Terath Dredgion" minlevel_permitted="56" maxlevel_permitted="60" max_repeat_count="255" race_permitted="ELYOS" category="QUEST" restricted="true">
 		<collect_items>
@@ -67323,10 +67323,10 @@
 		<rewards exp="4742870">
 			<reward_item item_id="186000147" count="1"/>
 		</rewards>
-		<quest_kill step="0" var="0" count="9" npc_ids="219256 219259 219267 219261 219271" seq="0"/>
-		<quest_kill step="0" var="1" count="9" npc_ids="219257 219258 219268 219260 219262" seq="1"/>
-		<quest_kill step="0" var="2" count="1" npc_ids="219255" seq="2"/>
-		<quest_kill step="0" var="3" count="1" npc_ids="219286" seq="3"/>
+		<quest_kill step="0" var="0" count="9" npc_ids="233363 233366 233374 233368 233378" seq="0"/>
+		<quest_kill step="0" var="1" count="9" npc_ids="233364 233365 233375 233367 233369" seq="1"/>
+		<quest_kill step="0" var="2" count="1" npc_ids="233362" seq="2"/>
+		<quest_kill step="0" var="3" count="1" npc_ids="233379" seq="3"/>
 	</quest>
 	<quest id="30604" name="[Service/Group] Unending Assault" nameId="1136977" quest_zone="Terath Dredgion" minlevel_permitted="56" maxlevel_permitted="60" max_repeat_count="255" race_permitted="ELYOS" category="QUEST" restricted="true">
 		<rewards exp="4742870">
@@ -67349,7 +67349,7 @@
 			<selectable_reward_item item_id="160002340" count="6"/>
 			<selectable_reward_item item_id="160002341" count="6"/>
 		</rewards>
-		<quest_kill step="0" var="0" count="5" npc_ids="219240 219242 219243 219244 219241" seq="0"/>
+		<quest_kill step="0" var="0" count="5" npc_ids="233347 233349 233350 233351 233348" seq="0"/>
 	</quest>
 	<quest id="30612" name="[Group] Supply Seizure" nameId="1136980" quest_zone="Terath Dredgion" minlevel_permitted="56" maxlevel_permitted="60" max_repeat_count="255" race_permitted="ASMODIANS" category="QUEST" restricted="true">
 		<collect_items>
@@ -67366,10 +67366,10 @@
 		<rewards exp="4742870">
 			<reward_item item_id="186000147" count="1"/>
 		</rewards>
-		<quest_kill step="0" var="0" count="9" npc_ids="219256 219259 219267 219261 219271" seq="0"/>
-		<quest_kill step="0" var="1" count="9" npc_ids="219257 219258 219268 219260 219262" seq="1"/>
-		<quest_kill step="0" var="2" count="1" npc_ids="219255" seq="2"/>
-		<quest_kill step="0" var="3" count="1" npc_ids="219286" seq="3"/>
+		<quest_kill step="0" var="0" count="9" npc_ids="233363 233366 233374 233368 233378" seq="0"/>
+		<quest_kill step="0" var="1" count="9" npc_ids="233364 233365 233375 233367 233369" seq="1"/>
+		<quest_kill step="0" var="2" count="1" npc_ids="233362" seq="2"/>
+		<quest_kill step="0" var="3" count="1" npc_ids="233379" seq="3"/>
 	</quest>
 	<quest id="30614" name="[Service/Group] Wrath of Terath" nameId="1136982" quest_zone="Terath Dredgion" minlevel_permitted="56" maxlevel_permitted="60" max_repeat_count="255" race_permitted="ASMODIANS" category="QUEST" restricted="true">
 		<rewards exp="4742870">

@@ -6,7 +6,7 @@ inside Aion; `/wardrobe` opens the same window.
 ## Unlock and apply an appearance
 
 1. Buy **Appearance Unlock** from **Cash Shop → Character services** for
-   **30,000 Kinah**. Appearance remodeling requires level 10.
+   **30,000 Kinah**.
 2. Keep the equipment whose appearance you want in Inventory or equip it.
 3. Open Wardrobe, choose **Ready to unlock**, and select its appearance.
 4. Choose **Unlock Appearance** and confirm. This consumes **one Appearance
@@ -24,15 +24,24 @@ stay intact. Applying a skin keeps the target equipment's dye.
 **All appearances** shows eligible client-supported equipment skins; **Locked**
 shows skins not collected yet. Search and category buttons narrow the list.
 Selecting equipment also filters by compatible equipment type. Race and gender
-restrictions still apply. Temporary appearances, extraction-only appearances,
-test items, Power Shards, Stigmas, accessories without an appearance and equipment
-that cannot be remodeled are excluded.
+restrictions still apply. Permanent appearance items and equipment with stats
+can both be collected, including items excluded by normal NPC remodeling.
+Weapons accept skins of the same weapon type. Armor accepts Cloth, Leather,
+Chain, Plate and costume skins on matching body slots. Shield skins work on
+shields; headwear and wings use their respective slots. The Costumes category
+includes generic appearance armor and clothing. Changing categories clears the
+equipment filter so a selected weapon cannot hide the costume collection.
+Temporary appearances, test items, Power Shards, Stigmas and accessories without
+a visible appearance are excluded.
 
 Hover an item icon for Aion's item tooltip. The center panel contains Aion's
 existing native character preview, including its normal, zoom and Aethertech
 views. **Left**, **Right**, **Zoom**, **Helmet** and **Combat** use the native
 preview controller. Trying on appearances does not change equipment or require
 a server request. Locked skins can be tried on but must be unlocked before apply.
+**Wings** uses the client's wing-display pose. Trying on a wing appearance
+switches to that pose automatically. Wings can be previewed without equipped
+wings; applying a wing appearance still requires a wing item.
 **Reset Preview** discards staged changes. **Restore Appearance** stages the
 selected equipment's original skin; choose **Apply Changes** to save it.
 

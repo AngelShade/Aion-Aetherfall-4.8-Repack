@@ -1,5 +1,6 @@
 package com.aionemu.gameserver.questEngine.handlers.models;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -25,6 +26,18 @@ public class KillSpawnedData extends MonsterHuntData {
 	@Override
 	public void register(QuestEngine questEngine) {
 		questEngine.addQuestHandler(new KillSpawned(id, startNpcIds, endNpcIds, monster));
+	}
+
+	/** Only the first monster is summoned by KillSpawned, and only when its trigger exists. */
+	public Set<Integer> getSpawnedNpcIds(Set<Integer> availableNpcIds) {
+		Set<Integer> npcIds = new HashSet<>();
+		if (monster != null) {
+			for (Monster m : monster) {
+				if (availableNpcIds.contains(m.getSpawnerNpcId()) && m.getNpcIds() != null && !m.getNpcIds().isEmpty())
+					npcIds.add(m.getNpcIds().getFirst());
+			}
+		}
+		return npcIds;
 	}
 
 	@Override

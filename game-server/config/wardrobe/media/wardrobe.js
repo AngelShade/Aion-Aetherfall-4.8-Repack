@@ -27,7 +27,7 @@
     if (result.selected) skinIndex[result.selected.item] = result.selected;
     if (action) {
       browseCache = {}; nativeStarted = false;
-      if (action === 'applyChanges' || action === 'applyOutfit' || action === 'restore' || action === 'apply') drafts = {};
+      if (action === 'applyChanges' || action === 'applyOutfit' || action === 'restore' || action === 'apply') { drafts = {}; previewWing = null; }
       else for (var object in drafts) if (drafts.hasOwnProperty(object) && skinIndex[drafts[object].skin]) drafts[object].unlocked = skinIndex[drafts[object].skin].unlocked;
       closeDialog();
     }
@@ -75,7 +75,7 @@
     var html = '', i, skin;
     for (i = 0; i < state.categories.length; i++) html += '<button data-category="' + esc(state.categories[i]) + '" class="' + (query.category === state.categories[i] ? 'active' : '') + '">' + esc(state.categories[i]) + '</button>';
     if (id('categories')._content !== html) { id('categories').innerHTML = html; id('categories')._content = html; }
-    var cats = id('categories').querySelectorAll('button'); for (i = 0; i < cats.length; i++) cats[i].onclick = function () { query.category = this.getAttribute('data-category'); query.page = 1; fetchState(); };
+    var cats = id('categories').querySelectorAll('button'); for (i = 0; i < cats.length; i++) cats[i].onclick = function () { query.category = this.getAttribute('data-category'); query.target = 0; query.page = 1; fetchState(); };
     html = '';
     for (i = 0; i < state.skins.length; i++) { skin = state.skins[i]; var owned = skin.sources.length > 0;
       html += '<div class="skin-card ' + esc(skin.quality) + (+skin.item === +query.skin ? ' selected' : '') + '" data-skin="' + skin.item + '" tabindex="0" role="button" aria-label="' + esc(skin.name) + '">' + icon(skin.item) + '<span class="skin-name">' + esc(skin.name) + '</span><span class="skin-state ' + (skin.unlocked ? '' : owned ? 'owned' : 'locked') + '">' + (skin.unlocked ? 'Unlocked' : owned ? 'Ready to unlock' : 'Locked') + '</span></div>';
@@ -97,18 +97,29 @@
   function compatible(item, skin) {
     if (!item || !skin) return false;
     if (!item.group || !skin.group) return !!skin.compatible;
-    return item.group.indexOf('CL_') !== 0 && (item.group === skin.group || skin.group.indexOf('CL_') === 0 && (item.slots & skin.slots) !== 0 || /^(TORSO|GLOVE|SHOULDER|PANTS|SHOES)$/.test(skin.group) && +item.slots === +skin.slots);
+    var weapons = /^(SWORD|GREATSWORD|DAGGER|MACE|ORB|SPELLBOOK|POLEARM|STAFF|BOW|HARP|GUN|CANNON|KEYBLADE)$/;
+    if (weapons.test(item.group) || weapons.test(skin.group)) return weapons.test(item.group) && weapons.test(skin.group) && item.group === skin.group;
+    return (item.slots & skin.slots) !== 0;
   }
+  var previewWing = null;
   function updatePreview() {
     clearTimeout(pendingNative);
     pendingNative = setTimeout(function () {
       if (!state) return;
-      var items = [], i, item, draft, count = 0, locked = false;
-      for (i = 0; i < state.equipment.length; i++) { item = state.equipment[i]; draft = drafts[item.object]; if (item.equipped) items.push(draft ? draft.skin || item.item : item.skin); if (draft) { count++; if (!draft.unlocked) locked = true; } }
+      var items = [], i, item, draft, count = 0, lockedNames = [], wingDraft = !!previewWing;
+      for (i = 0; i < state.equipment.length; i++) { item = state.equipment[i]; draft = drafts[item.object]; if (item.equipped) items.push(draft ? draft.skin || item.item : item.skin); if (draft) { count++; if (!draft.unlocked) lockedNames.push(draft.name); if (item.group === 'WING') wingDraft = true; } }
       for (i = 0; i < state.equipment.length; i++) { item = state.equipment[i]; draft = drafts[item.object]; if (!item.equipped && draft) items.push(draft.skin || item.item); }
+      if (previewWing) items.push(+previewWing.item);
       id('draft-count').textContent = count ? count + ' appearance changes' : 'Current equipment';
-      id('apply-changes').disabled = !count || locked;
-      if (locked) id('draft-count').textContent += ' · Unlock selected skins to apply';
+      id('apply-changes').disabled = !count || lockedNames.length > 0;
+      id('apply-changes').title = lockedNames.length ? 'Unlock or remove: ' + lockedNames.join(', ') : '';
+      hide(id('remove-locked-preview'), !lockedNames.length);
+      id('remove-locked-preview').title = lockedNames.join(', ');
+      id('draft-count').title = lockedNames.length ? 'Locked appearances: ' + lockedNames.join(', ') : '';
+      if (lockedNames.length) {
+        id('draft-count').textContent += ' · ' + lockedNames.length + ' locked';
+        status('Unlock or remove these preview appearances: ' + lockedNames.join(', '), true);
+      }
       if (!window.AionObject) { id('preview-message').textContent = 'Character preview is available in Aion.'; return; }
       // The native bridge resets the existing paper-doll and adds every appearance in one UI pass.
       try {
@@ -116,6 +127,7 @@
           var r = id('native-preview').getBoundingClientRect(), token = ++nativeRequest, attempts = 0;
           clearTimeout(nativePoll); id('preview-message').textContent = 'Loading character preview…';
           window.AionObject.WardrobePreview(items.join(','), Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height), token);
+          if (wingDraft) nativeControl('wings',1);
           function poll() {
             if (nativeRequest !== token) return;
             if (++attempts > 40) { window.WardrobePreviewState(false, token); return; }
@@ -136,7 +148,11 @@
   function tryOn(skin) {
     var selected = target(), i;
     if (!compatible(selected, skin)) for (i = 0; i < state.equipment.length; i++) if (state.equipment[i].equipped && compatible(state.equipment[i], skin)) { selected = state.equipment[i]; break; }
-    if (!compatible(selected, skin)) { status('Select compatible equipment before trying on this appearance.', true); return; }
+    if (!compatible(selected, skin)) {
+      if (skin.group === 'WING') { previewWing = skin; updatePreview(); status('Wing preview ready. Equip wings to apply this appearance.', false); return; }
+      status('Select compatible equipment before trying on this appearance.', true); return;
+    }
+    if (skin.group === 'WING') previewWing = null;
     if (+skin.item === +selected.skin) delete drafts[selected.object];
     else drafts[selected.object] = { object: selected.object, skin: +skin.item, expected: +selected.skin, name: skin.name, unlocked: skin.unlocked };
     renderEquipment(); updatePreview(); status('Appearance added to preview.', false);
@@ -170,7 +186,7 @@
         if (!item || appearance && !compatible(item,skinIndex[appearance])) { status('Equip compatible items for every saved outfit slot.',true); return; }
         if ((appearance || item.item) !== +item.skin) staged[item.object] = { object:item.object,skin:appearance,expected:+item.skin,name:appearance ? skinIndex[appearance].name : item.name + ' · Original appearance',unlocked:!appearance || skinIndex[appearance].unlocked };
       }
-      drafts = staged; renderEquipment(); updatePreview(); status('Outfit added to preview.',false);
+      drafts = staged; previewWing = null; renderEquipment(); updatePreview(); status('Outfit added to preview.',false);
     };
     buttons = id('outfit-list').querySelectorAll('[data-delete]'); for (i = 0; i < buttons.length; i++) buttons[i].onclick = function () { var name = this.getAttribute('data-delete'); showDialog('Delete Outfit', '<p>Delete <strong>' + esc(name) + '</strong>?</p><p>Your unlocked appearances are kept.</p>', function () { fetchState({ action: 'deleteOutfit', name: name }, true); }); };
     bindIcons(id('outfit-list'));
@@ -185,7 +201,11 @@
   id('refresh').onclick = function () { browseCache = {}; skinIndex = {}; fetchState({ refresh: 1 }); };
   id('collection-tab').onclick = function () { setView('collection'); };
   id('outfits-tab').onclick = function () { setView('outfits'); if (state) renderOutfits(); };
-  id('reset-preview').onclick = function () { nativeControl('camera-reset',1); drafts = {}; renderEquipment(); updatePreview(); };
+  id('reset-preview').onclick = function () { nativeControl('camera-reset',1); nativeControl('wings',0); previewWing = null; drafts = {}; renderEquipment(); updatePreview(); };
+  id('remove-locked-preview').onclick = function () {
+    for (var object in drafts) if (drafts.hasOwnProperty(object) && !drafts[object].unlocked) delete drafts[object];
+    renderEquipment(); updatePreview(); status('Locked appearances removed from preview.', false);
+  };
   id('apply-changes').onclick = function () {
     var changes = [], list = '', key;
     for (key in drafts) if (drafts.hasOwnProperty(key)) { var d = drafts[key]; if (!d.unlocked) { status('Unlock selected appearances before applying changes.', true); return; } changes.push({ object: d.object, skin: d.skin, expected: d.expected }); list += '<li>' + esc(d.name) + '</li>'; }

@@ -703,26 +703,22 @@ public class EmpyreanCrucibleInstance extends CrucibleInstance {
 			case 217582:
 			case 217578:
 				setStage(StageType.START_STAGE_7_ROUND_2, 2000);
-				sp(217579, 1794.81f, 779.53925f, 469.35016f, (byte) 40, 6000);
-				// sp(217583, 1794.81f, 779.53925f, 469.35016f, (byte) 40, 6000);
+				sp(instance.getRegisteredTeam().getRace() == Race.ASMODIANS ? 217583 : 217579, 1794.81f, 779.53925f, 469.35016f, (byte) 40, 6000);
 				break;
 			case 217579:
 			case 217583:
 				setStage(StageType.START_STAGE_7_ROUND_3, 2000);
-				sp(217580, 1775.6254f, 811.43225f, 469.35022f, (byte) 100, 6000);
-				// sp(217584, 1775.6254f, 811.43225f, 469.35022f, (byte) 100, 6000);
+				sp(instance.getRegisteredTeam().getRace() == Race.ASMODIANS ? 217584 : 217580, 1775.6254f, 811.43225f, 469.35022f, (byte) 100, 6000);
 				break;
 			case 217580:
 			case 217584:
 				setStage(StageType.START_STAGE_7_ROUND_4, 2000);
-				sp(217581, 1775.716f, 779.630f, 469.564f, (byte) 20, 6000);
-				// sp(217585, 1775.716f, 779.630f, 469.564f, (byte) 20, 6000);
+				sp(instance.getRegisteredTeam().getRace() == Race.ASMODIANS ? 217585 : 217581, 1775.716f, 779.630f, 469.564f, (byte) 20, 6000);
 				break;
 			case 217581:
 			case 217585:
 				setStage(StageType.START_STAGE_7_ROUND_5, 2000);
-				sp(217586, 1773.194f, 796.537f, 469.350f, (byte) 0, 6000);
-				// sp(217587, 1773.194f, 796.537f, 469.350f, (byte) 0, 6000);
+				sp(instance.getRegisteredTeam().getRace() == Race.ASMODIANS ? 217587 : 217586, 1773.194f, 796.537f, 469.350f, (byte) 0, 6000);
 				break;
 			case 217586:
 			case 217587:
@@ -768,10 +764,56 @@ public class EmpyreanCrucibleInstance extends CrucibleInstance {
 					SkillEngine.getInstance().getSkill(counterpart, 19624, 10, counterpart).useNoAnimationSkill();
 				}
 				npc.getController().delete();
-				if (getNpcs(217596).isEmpty() && getNpcs(217597).isEmpty()) {
-					// sendEventPacket(StageType.START_STAGE_9_ROUND_4, 2000);
-					rewardGroup();// Finish for now, TODO: continue
+				if (stageType == StageType.START_STAGE_9_ROUND_3 && getNpcs(217596).isEmpty() && getNpcs(217597).isEmpty()) {
+					setStage(StageType.START_STAGE_9_ROUND_4, 2000);
+					sp(217598, 1322.311f, 1741.508f, 316.349f, (byte) 65, 6000);
 				}
+				break;
+			case 217598:
+				setStage(StageType.START_STAGE_9_ROUND_5, 2000);
+				sp(217599, 1322.311f, 1741.508f, 316.349f, (byte) 65, 6000);
+				break;
+			case 217599:
+				setStage(StageType.PASS_GROUP_STAGE_9, 0);
+				sp(205343, 1309.309f, 1732.540f, 315.782f, (byte) 7);
+				break;
+			case 217600:
+			case 217601:
+			case 217602:
+				synchronized (npcs) {
+					if (stageType == StageType.START_STAGE_10_ROUND_1 && isSpawn(List.of(217600, 217601, 217602))) {
+						setStage(StageType.START_STAGE_10_ROUND_2, 2000);
+						sp(217603, 1760.94f, 1278.03f, 394.23764f, (byte) 0, 6000);
+						sp(217604, 1766.35f, 1279.24f, 394.23764f, (byte) 0, 6000);
+						sp(217605, 1771.76f, 1278.03f, 394.23764f, (byte) 0, 6000);
+						sp(217606, 1766.35f, 1273.83f, 394.23764f, (byte) 0, 6000);
+					}
+				}
+				break;
+			case 217603:
+			case 217604:
+			case 217605:
+			case 217606:
+				synchronized (npcs) {
+					if (stageType == StageType.START_STAGE_10_ROUND_2 && isSpawn(List.of(217603, 217604, 217605, 217606))) {
+						setStage(StageType.START_STAGE_10_ROUND_3, 2000);
+						sp(217607, 1766.35f, 1279.24f, 394.23764f, (byte) 0, 6000);
+					}
+				}
+				break;
+			case 217607:
+				setStage(StageType.START_STAGE_10_ROUND_4, 2000);
+				sp(217608, 1766.35f, 1279.24f, 394.23764f, (byte) 0, 6000);
+				break;
+			case 217608:
+				setStage(StageType.START_STAGE_10_ROUND_5, 2000);
+				sp(217609, 1766.35f, 1279.24f, 394.23764f, (byte) 0, 6000);
+				break;
+			case 217609:
+				setStage(StageType.PASS_GROUP_STAGE_10, 0);
+				sp(205344, 1766.16f, 1291.98f, 394.23764f, (byte) 90);
+				rewardGroup();
+				break;
 		}
 	}
 
@@ -1055,8 +1097,7 @@ public class EmpyreanCrucibleInstance extends CrucibleInstance {
 				break;
 			case START_STAGE_7_ROUND_1:
 				setStage(type, 2000);
-				sp(217578, 1784.848f, 806.7728f, 469.82202f, (byte) 0, 6000); // elyos
-				// sp(217582, 1794.908f, 811.9936f, 469.3501f, (byte) 80, 6000); //asmo, need sniff
+				sp(instance.getRegisteredTeam().getRace() == Race.ASMODIANS ? 217582 : 217578, 1784.848f, 806.7728f, 469.82202f, (byte) 0, 6000);
 				break;
 			case START_STAGE_8_ROUND_1:
 				setStage(type, 2000);
@@ -1065,6 +1106,12 @@ public class EmpyreanCrucibleInstance extends CrucibleInstance {
 			case START_STAGE_9_ROUND_1:
 				setStage(type, 2000);
 				sp(217594, 1274.890f, 1730.676f, 318.194f, (byte) 3, 6000);
+				break;
+			case START_STAGE_10_ROUND_1:
+				setStage(type, 2000);
+				sp(217600, 1760.94f, 1278.03f, 394.23764f, (byte) 0, 6000);
+				sp(217601, 1766.35f, 1279.24f, 394.23764f, (byte) 0, 6000);
+				sp(217602, 1771.76f, 1278.03f, 394.23764f, (byte) 0, 6000);
 				break;
 			case START_STAGE_5:
 				stage = 5;
@@ -1099,6 +1146,14 @@ public class EmpyreanCrucibleInstance extends CrucibleInstance {
 				sp(205430, 1359.375f, 1758.057f, 319.625f, (byte) 90);
 				sp(205336, 1309.309f, 1732.540f, 315.782f, (byte) 7);
 				teleport(1320.4513f, 1738.4838f, 316.1746f, (byte) 66);
+				setStage(type, 1000);
+				break;
+			case START_STAGE_10:
+				stage = 10;
+				// Client record-keeper positions; arena floor from the existing arbiter teleport.
+				sp(205431, 1750.8054f, 1252.4702f, 394.23764f, (byte) 30);
+				sp(205337, 1766.16f, 1291.98f, 394.23764f, (byte) 90);
+				teleport(1760.9441f, 1278.033f, 394.23764f, (byte) 0);
 				setStage(type, 1000);
 				break;
 		}
@@ -1183,7 +1238,7 @@ public class EmpyreanCrucibleInstance extends CrucibleInstance {
 				teleport(player, 1359.5046f, 1751.7952f, 319.59406f, (byte) 30);
 				break;
 			case 10:
-				// todo
+				teleport(player, 1750.8054f, 1252.4702f, 394.23764f, (byte) 30);
 				break;
 		}
 	}

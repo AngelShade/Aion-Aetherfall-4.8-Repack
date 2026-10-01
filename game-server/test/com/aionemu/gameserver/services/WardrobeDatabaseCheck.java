@@ -93,7 +93,14 @@ public final class WardrobeDatabaseCheck {
 		ItemTemplate robe = template(ItemGroup.RB_TORSO,"Robe"), plate = template(ItemGroup.PL_TORSO,"Plate"), costume = template(ItemGroup.CL_TORSO,"Costume");
 		check(WardrobeRules.compatible(sword,sword),"same weapon type allowed");
 		check(!WardrobeRules.compatible(sword,mace),"different weapon type refused");
-		check(!WardrobeRules.compatible(plate,robe),"different armor type refused");
+		check(WardrobeRules.compatible(plate,robe) && WardrobeRules.compatible(robe,plate),"armor material does not restrict skins");
+		check(WardrobeRules.compatible(costume,plate),"appearance equipment can receive armor skins");
+		check(!WardrobeRules.compatible(plate,template(ItemGroup.PL_SHOES,"Boots")),"armor body slots remain distinct");
+		check(WardrobeRules.compatible(template(ItemGroup.HEAD,"Headwear"),template(ItemGroup.CL_HEADS,"Appearance Headwear")),"headwear types share their visual slot");
+		check(WardrobeRules.compatible(template(ItemGroup.CL_SHIELD,"Appearance Shield"),template(ItemGroup.SHIELD,"Shield")),"shield appearance types work both ways");
+		check(!WardrobeRules.compatible(template(ItemGroup.SHIELD,"Shield"),sword),"shield cannot receive a weapon skin");
+		check(WardrobeRules.compatible(plate,template(ItemGroup.CL_MULTISLOT,"Costume")),"multi-slot costume works on chest armor");
+		check(WardrobeRules.category(template(ItemGroup.TORSO,"Appearance Chest")).equals("Costumes"),"generic appearance armor is a costume");
 		check(WardrobeRules.compatible(plate,costume),"costume accepted on matching armor slot");
 		check(!WardrobeRules.compatible(sword,costume),"costume cannot become a weapon skin");
 		check(WardrobeRules.eligible(sword) && !WardrobeRules.eligible(template(ItemGroup.SWORD,"Test Sword")),"test appearances excluded");

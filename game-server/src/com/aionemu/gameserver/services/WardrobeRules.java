@@ -3,7 +3,6 @@ package com.aionemu.gameserver.services;
 import java.util.Locale;
 import com.aionemu.gameserver.model.Gender;
 import com.aionemu.gameserver.model.Race;
-import com.aionemu.gameserver.model.items.ItemMask;
 import com.aionemu.gameserver.model.templates.item.ItemTemplate;
 import com.aionemu.gameserver.model.templates.item.enums.ItemSubType;
 import com.aionemu.gameserver.model.templates.item.enums.ItemGroup;
@@ -27,12 +26,12 @@ public final class WardrobeRules {
 	private WardrobeRules() {}
 
 	public static boolean eligible(ItemTemplate t) {
-		if (t == null || !VISUAL.contains(t.getItemGroup()) || (t.getMask() & ItemMask.REMODELABLE) == 0
+		if (t == null || !VISUAL.contains(t.getItemGroup())
 			|| t.getExpireTime() != 0 || t.getName().isBlank()) return false;
 		String n = t.getName().toLowerCase(Locale.ROOT);
 		if (n.matches(".*(test|debug|dummy|prototype|placeholder|npc).*" ) || n.matches(".*\\bprop\\b.*")) return false;
 		var action = t.getActions() == null ? null : t.getActions().getRemodelAction();
-		return action == null || action.getExpireMinutes() == 0 && action.getExtractType() != 2;
+		return action == null || action.getExpireMinutes() == 0;
 	}
 
 	public static boolean permitted(ItemTemplate skin, Race race, Gender gender) {
@@ -42,13 +41,14 @@ public final class WardrobeRules {
 	}
 
 	public static boolean compatible(ItemTemplate target, ItemTemplate skin) {
-		var keep = target.getItemGroup();
-		var extract = skin.getItemGroup();
-		return keep.getItemSubType() != ItemSubType.CLOTHES && (keep == extract
-			|| extract.getItemSubType() == ItemSubType.CLOTHES
-				&& (keep.getValidEquipmentSlots() & extract.getValidEquipmentSlots()) != 0
-			|| extract.getItemSubType() == ItemSubType.ALL_ARMOR
-				&& keep.getValidEquipmentSlots() == extract.getValidEquipmentSlots());
+		if (target == null || skin == null) return false;
+		var keep = target.getItemGroup(); var extract = skin.getItemGroup();
+		if (!VISUAL.contains(keep) || !VISUAL.contains(extract)) return false;
+		if (target.isWeapon() || skin.isWeapon())
+			return target.isWeapon() && skin.isWeapon() && keep == extract;
+		// Armor material does not limit appearances. Native models still require
+		// the same body slot; shields must not use a weapon's off-hand slot.
+		return (keep.getValidEquipmentSlots() & extract.getValidEquipmentSlots()) != 0;
 	}
 
 	public static String category(ItemTemplate t) {
@@ -57,7 +57,8 @@ public final class WardrobeRules {
 		if (g.contains("HEAD")) return "Headwear";
 		if (g.equals("WING")) return "Wings";
 		if (g.contains("SHIELD")) return "Shields";
-		if (t.getItemGroup().getItemSubType() == ItemSubType.CLOTHES) return "Costumes";
+		if (t.getItemGroup().getItemSubType() == ItemSubType.CLOTHES
+			|| t.getItemGroup().getItemSubType() == ItemSubType.ALL_ARMOR) return "Costumes";
 		return "Armor";
 	}
 

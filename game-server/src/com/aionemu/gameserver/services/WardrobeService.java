@@ -72,7 +72,7 @@ public final class WardrobeService {
 	private static List<Item> equipment(Player p) {
 		List<Item> items = new ArrayList<>(p.getEquipment().getEquippedItems());
 		items.addAll(p.getInventory().getItems());
-		return items.stream().filter(i -> WardrobeRules.eligible(i.getItemTemplate()) && i.isRemodelable()
+		return items.stream().filter(i -> WardrobeRules.eligible(i.getItemTemplate())
 			&& i.getExpireTime() == 0 && i.getPendingTuneResult() == null).toList();
 	}
 
@@ -185,7 +185,6 @@ public final class WardrobeService {
 			available(p);
 			if (p.isDead() || p.isTrading() || GameServer.isShuttingDownSoon())
 				throw new IllegalArgumentException("Wardrobe is unavailable during trade, death or shutdown.");
-			if (p.getLevel() < 10) throw new IllegalArgumentException("Appearance remodeling requires level 10.");
 			if (!InventoryDAO.store(p)) throw new SQLException("Inventory save failed.");
 			List<Runnable> committed = new ArrayList<>();
 			try (Connection c = DatabaseFactory.getConnection()) {

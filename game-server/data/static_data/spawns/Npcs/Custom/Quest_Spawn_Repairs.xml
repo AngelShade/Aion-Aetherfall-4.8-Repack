@@ -57,11 +57,52 @@
         <spawn npc_id="205973" respawn_time="295"><spot x="602.421" y="138.515" z="47.131" h="106"/></spawn>
     </spawn_map>
     <spawn_map map_id="301220000">
+        <!-- Commander Pashid: source coordinates match the existing Warfront bastion. -->
+        <spawn npc_id="233544"><spot x="743.68536" y="293.56824" z="233.72028" h="31"/></spawn>
         <!-- Breakable warfront gates at their original 4.7.5 map positions. -->
         <spawn npc_id="233565" respawn_time="295"><spot x="784.57" y="402.75" z="234.02"/></spawn>
         <spawn npc_id="233566" respawn_time="295"><spot x="662.71" y="222.32" z="227.70"/></spawn>
         <spawn npc_id="233567" respawn_time="295"><spot x="568.77" y="165.62" z="221.98"/></spawn>
         <spawn npc_id="233568" respawn_time="295"><spot x="624.26" y="326.55" z="229.83"/></spawn>
         <spawn npc_id="233569" respawn_time="295"><spot x="725.20" y="408.01" z="232.91"/></spawn>
+    </spawn_map>
+    <spawn_map map_id="220070000">
+        <!-- Pinebeak: center of the existing Q46500 quest encounter zone. -->
+        <spawn npc_id="216624" respawn_time="295"><spot x="124.08" y="2402.66" z="456"/></spawn>
+        <!-- Balaur Limbcleavers for 21248, from the installed 4.8 client_world_df4.xml. -->
+        <spawn npc_id="700930" respawn_time="295">
+            <spot x="2416.155273" y="1608.620605" z="234.000000"/>
+            <spot x="2414.119141" y="1618.117065" z="234.000000"/>
+            <spot x="2527.908691" y="1609.828491" z="234.000000"/>
+            <spot x="2527.988037" y="1618.989380" z="234.000000"/>
+        </spawn>
+    </spawn_map>
+    <spawn_map map_id="210070000">
+        <!-- Approved custom relocation of legacy quest NPCs beside the current Rentus entrance. -->
+        <spawn npc_id="205842" respawn_time="295"><spot x="1141.7" y="797.1" z="562.75" h="13"/></spawn>
+        <spawn npc_id="205947" respawn_time="295"><spot x="1143.7" y="796.1" z="562.75" h="13"/></spawn>
+        <spawn npc_id="800165" respawn_time="295"><spot x="1145.7" y="796.1" z="562.75" h="13"/></spawn>
+        <spawn npc_id="801541" respawn_time="295"><spot x="1147.7" y="797.1" z="562.75" h="13"/></spawn>
+        <spawn npc_id="801543" respawn_time="295"><spot x="1149.7" y="798.1" z="562.75" h="13"/></spawn>
+        <!-- Kaldor introduction: beside the existing introduction quest giver at Aequis Headquarters. -->
+        <spawn npc_id="800958" respawn_time="295"><spot x="2943.6" y="907.0" z="574.24951" h="78"/></spawn>
+    </spawn_map>
+    <spawn_map map_id="220080000">
+        <!-- Approved custom relocation beside the current Rentus entrance. -->
+        <spawn npc_id="205864" respawn_time="295"><spot x="1974.5" y="2020.8" z="328.69846" h="68"/></spawn>
+        <spawn npc_id="800170" respawn_time="295"><spot x="1976.5" y="2021.8" z="328.69846" h="68"/></spawn>
+        <spawn npc_id="801545" respawn_time="295"><spot x="1978.5" y="2021.8" z="328.69846" h="68"/></spawn>
+        <spawn npc_id="801547" respawn_time="295"><spot x="1980.5" y="2020.8" z="328.69846" h="68"/></spawn>
+        <!-- Kaldor introduction: beside the existing introduction quest giver at Dragonrest Temple. -->
+        <spawn npc_id="800980" respawn_time="295"><spot x="431.5" y="2154.9" z="226.61765" h="25"/></spawn>
+    </spawn_map>
+    <spawn_map map_id="210060000">
+        <!-- Missing invasion-quest guard beside the existing DirectPortal guard Jahmanok. -->
+        <spawn npc_id="209474" respawn_time="295"><spot x="434.9" y="1236.9" z="130.5895" h="60"/></spawn>
+    </spawn_map>
+    <spawn_map map_id="220050000">
+        <!-- Missing invasion-quest guards beside the existing DirectPortal guard Surt. -->
+        <spawn npc_id="209477" respawn_time="295"><spot x="1390.7" y="1920.0" z="48.196" h="41"/></spawn>
+        <spawn npc_id="209478" respawn_time="295"><spot x="1394.7" y="1920.0" z="48.196" h="41"/></spawn>
     </spawn_map>
 </spawns>

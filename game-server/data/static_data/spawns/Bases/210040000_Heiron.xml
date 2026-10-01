@@ -167,6 +167,10 @@
 				<spawn npc_id="801192" handler="MERCHANT" respawn_time="295">
 					<spot x="427.2339" y="914.0154" z="122.5" h="45"/>
 				</spawn>
+				<!-- Leif appears while the Asmodians hold Lepharist Territory (client condition c3). -->
+				<spawn npc_id="801193" handler="MERCHANT" respawn_time="295">
+					<spot x="422.566071" y="926.967834" z="123.5"/>
+				</spawn>
 			</occupier_template>
 			<occupier_template occupier="BALAUR">
 				<!-- Lepharist Territory -->

@@ -11,6 +11,8 @@ int dragging=0;
 POINT anchor{};
 float rotation=0,pan_x=0,pan_y=0,wheel=0;
 float scale=1,offset_x=0,offset_z=0;
+bool refresh_pending=false;
+ULONGLONG retry_after=0;
 float clamp(float n,float lo,float hi){return (std::max)(lo,(std::min)(hi,n));}
 bool inside(POINT p){return p.x>=bounds.x && p.y>=bounds.y && p.x<bounds.x+bounds.w && p.y<bounds.y+bounds.h;}
 LRESULT CALLBACK receive(HWND hwnd,UINT message,WPARAM wparam,LPARAM lparam){
@@ -62,34 +64,104 @@ void stop(){
     HWND captured;
     {std::lock_guard<std::mutex> lock(mutex);active=false;dragging=0;rotation=pan_x=pan_y=wheel=0;captured=window;}
     if(captured && GetCapture()==captured)ReleaseCapture();
-    scale=1;offset_x=offset_z=0;
+    scale=1;offset_x=offset_z=0;refresh_pending=false;retry_after=0;
+}
+void rebuild_camera(Ptr widget){
+    // Position and frustum planes are separate native camera data. Updating
+    // position alone leaves the renderer using the previous view/frustum.
+    reinterpret_cast<void(__cdecl*)(Ptr,int,int)>(game()+0x1bf0d0)(static_cast<uint8_t*>(widget)+0x6b8,-1,-1);
+    field<int>(widget,0x610)=1;
+}
+bool valid_camera(const std::array<float,3>& camera){
+    return std::isfinite(camera[0]) && std::isfinite(camera[1]) && std::isfinite(camera[2]) && camera[1]>0.05f;
 }
 void restore(const Moved& model){
-    field<std::array<float,3>>(model.widget,0x6e8)=model.camera;
-    field<std::array<float,3>>(model.widget,0x8bc)=model.camera;
+    const auto& camera=valid_camera(model.camera)?model.camera:model.base_camera;
+    if(valid_camera(camera)){
+        field<std::array<float,3>>(model.widget,0x6e8)=camera;
+        field<std::array<float,3>>(model.widget,0x8bc)=camera;
+        rebuild_camera(model.widget);
+    }
     field<std::array<float,3>>(model.widget,0x654)=model.angle;
     field<int>(model.widget,0x610)=1;
 }
-void reset(){stop();for(const auto& model:moved)restore(model);}
+void reset(){
+    stop();
+    for(auto& model:moved){
+        restore(model);model.preview_angle=model.angle;
+        if(model.camera_ready)model.base_camera=field<std::array<float,3>>(model.widget,0x6e8);
+    }
+}
+bool prepare_models(){
+    if(!paper || modal_hidden || moved.empty())return false;
+    const auto now=GetTickCount64();
+    const bool reload=field<int>(paper,0x598)!=0 || (refresh_pending && now>=retry_after);
+    if(reload){
+        // Restore camera offsets before the publisher recomputes its framing.
+        // This preserves camera input across Try On and avoids accumulating pan.
+        for(auto& model:moved)if(model.camera_ready){
+            field<std::array<float,3>>(model.widget,0x6e8)=model.base_camera;
+            field<std::array<float,3>>(model.widget,0x8bc)=model.base_camera;
+        }
+        reinterpret_cast<void(__cdecl*)(Ptr)>(game()+0x8046f0)(paper);
+        field<int>(paper,0x598)=0;refresh_pending=false;
+    }
+    bool changed=reload,attempted=false;
+    for(auto& model:moved){
+        Ptr widget=model.widget;const auto entity=field<Ptr>(widget,0x470);
+        if(!(field<uint64_t>(widget,0x30)&1))continue;
+        const auto current=field<std::array<float,3>>(widget,0x6e8);
+        const bool invalid=!entity || !valid_camera(current);
+        if(!reload && model.camera_ready && model.entity==entity && !invalid){
+            // Stock Left/Right controls also change the model angle.
+            model.preview_angle=field<std::array<float,3>>(widget,0x654);
+            continue;
+        }
+        if(!reload && invalid && now<retry_after)continue;
+        attempted=true;
+        if(!entity){model.camera_ready=false;refresh_pending=true;continue;}
+        // The same native framing routine used when Zoom loads its new view.
+        reinterpret_cast<void(__cdecl*)(Ptr)>(game()+0x48e340)(widget);
+        const auto camera=field<std::array<float,3>>(widget,0x6e8);
+        if(!valid_camera(camera)){model.camera_ready=false;continue;}
+        model.base_camera=camera;model.entity=entity;
+        if(!model.camera_ready)model.preview_angle=field<std::array<float,3>>(widget,0x654);
+        model.camera_ready=true;
+        field<std::array<float,3>>(widget,0x654)=model.preview_angle;
+        rebuild_camera(widget);changed=true;
+    }
+    if(attempted)retry_after=now+250;
+    return changed;
+}
 void apply(float dx,float px,float py,float steps){
     if(!paper || modal_hidden || moved.empty())return;
+    static unsigned observed=0;
+    if(dx && !(observed&1)){log("Wardrobe: preview drag rotation received");observed|=1;}
+    if((px || py) && !(observed&2)){log("Wardrobe: preview drag positioning received");observed|=2;}
+    if(steps && !(observed&4)){log("Wardrobe: preview wheel zoom received");observed|=4;}
     scale=clamp(scale*std::pow(0.88f,steps),0.35f,2.5f);
     offset_x=clamp(offset_x-px*0.004f*scale,-2,2);
     offset_z=clamp(offset_z+py*0.004f*scale,-2,2);
-    for(const auto& model:moved){
+    for(auto& model:moved){
+        if(!model.camera_ready)continue;
         Ptr widget=model.widget;
         // Same angle function used by the stock Left/Right preview controls.
-        if(dx)reinterpret_cast<void(__cdecl*)(Ptr,float,float,float)>(game()+0x487480)(widget,dx*0.45f,1,1);
-        auto camera=model.camera;camera[0]+=offset_x;camera[1]*=scale;camera[2]+=offset_z;
+        if(dx){
+            field<std::array<float,3>>(widget,0x654)=model.preview_angle;
+            reinterpret_cast<void(__cdecl*)(Ptr,float,float,float)>(game()+0x487480)(widget,1,1,dx*0.45f);
+            model.preview_angle=field<std::array<float,3>>(widget,0x654);
+        }
+        auto camera=model.base_camera;camera[0]+=offset_x;camera[1]*=scale;camera[2]+=offset_z;
         if(field<std::array<float,3>>(widget,0x6e8)!=camera || dx){
             field<std::array<float,3>>(widget,0x6e8)=camera;
             field<std::array<float,3>>(widget,0x8bc)=camera;
-            field<int>(widget,0x610)=1;
+            rebuild_camera(widget);
         }
     }
 }
 void tick(){
     if(!paper || !host)return;
+    const bool refreshed=prepare_models();
     install();Rect hit{};bool enabled=false;
     if(!modal_hidden && (field<uint64_t>(host,0x30)&1))for(const auto& model:moved){
         if(field<uint64_t>(model.widget,0x30)&1){method<void(__cdecl*)(Ptr,Rect*)>(model.widget,0x58)(model.widget,&hit);enabled=true;break;}
@@ -99,6 +171,6 @@ void tick(){
         std::lock_guard<std::mutex> lock(mutex);bounds=hit;active=enabled && window;
         dx=rotation;px=pan_x;py=pan_y;steps=wheel;rotation=pan_x=pan_y=wheel=0;
     }
-    if(dx || px || py || steps || scale!=1 || offset_x || offset_z)apply(dx,px,py,steps);
+    if(refreshed || dx || px || py || steps || scale!=1 || offset_x || offset_z)apply(dx,px,py,steps);
 }
 }

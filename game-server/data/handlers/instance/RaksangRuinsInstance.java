@@ -46,7 +46,12 @@ public class RaksangRuinsInstance extends GeneralInstanceHandler {
 
 	@Override
 	public void onEnterInstance(Player player) {
-		spawn(206378 + way + (player.getRace() == Race.ASMODIANS ? 17 : 0), 818.103f, 931.0215f, 1207.4312f, (byte) 13);
+		int questNpcId = switch (way) {
+			case 0 -> player.getRace() == Race.ASMODIANS ? 206395 : 206378;
+			case 1 -> player.getRace() == Race.ASMODIANS ? 206396 : 206379;
+			default -> player.getRace() == Race.ASMODIANS ? 206397 : 206380;
+		};
+		spawn(questNpcId, 818.103f, 931.0215f, 1207.4312f, (byte) 13);
 	}
 
 	@Override

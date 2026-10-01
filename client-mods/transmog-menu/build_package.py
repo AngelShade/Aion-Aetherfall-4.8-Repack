@@ -60,6 +60,8 @@ def main():
     ET.fromstring(content['Warehouse.xml'])
     content['Wardrobe.xml'] = (mod_root / 'Wardrobe.xml').read_text(encoding='utf-8-sig').replace('UTF-8', 'UTF-16').replace('\n', '\r\n').encode('utf-16')
     ET.fromstring(content['Wardrobe.xml'])
+    content['Journey.xml'] = (mod_root / 'Journey.xml').read_text(encoding='utf-8-sig').replace('UTF-8', 'UTF-16').replace('\n', '\r\n').encode('utf-16')
+    ET.fromstring(content['Journey.xml'])
     # JSON-quoted ASCII values are valid Lua string literals for these labels and URL.
     config = 'PRIVATE_SERVER_MENUS = {\n' + ''.join(
         '    {label = ' + json.dumps(e['label']) + ', command = ' + json.dumps(e['command']) + ', icon = ' + json.dumps(e['icon']) + '},\n'
@@ -69,10 +71,11 @@ def main():
     config += 'PRIVATE_CASH_SHOP_ICON = ' + json.dumps(settings['cashShop']['icon']) + ';\n'
     config += 'PRIVATE_CENTRAL_MARKET_URL = ' + json.dumps(settings['centralMarket']['url']) + ';\n'
     config += 'PRIVATE_WARDROBE_URL = ' + json.dumps(settings['wardrobe']['url']) + ';\n'
+    config += 'PRIVATE_JOURNEY_URL = ' + json.dumps(settings['journey']['url']) + ';\n'
     content['PrivateMenus.lua'] = (config + (mod_root / 'PrivateMenus.lua').read_text(encoding='utf-8-sig')).replace('\n', '\r\n').encode('utf-8')
     toc = content['RelicCalc.toc'].decode('utf-8').replace('\r', '').splitlines()
-    toc = [line for line in toc if line not in ('CashShop.xml', 'Warehouse.xml', 'Wardrobe.xml', 'PrivateMenus.lua')]
-    toc += ['CashShop.xml', 'Warehouse.xml', 'Wardrobe.xml', 'PrivateMenus.lua']
+    toc = [line for line in toc if line not in ('CashShop.xml', 'Warehouse.xml', 'Wardrobe.xml', 'Journey.xml', 'PrivateMenus.lua')]
+    toc += ['CashShop.xml', 'Warehouse.xml', 'Wardrobe.xml', 'Journey.xml', 'PrivateMenus.lua']
     content['RelicCalc.toc'] = ('\r\n'.join(toc) + '\r\n').encode('utf-8')
     data = io.BytesIO()
     with zipfile.ZipFile(data, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
@@ -96,7 +99,7 @@ def main():
     cry_system.write_bytes(patch_plugin_key((root / 'bin64/crysystem.dll').read_bytes()))
     patched_dll = output / 'bin64/game.dll'
     patched_dll.parent.mkdir(parents=True, exist_ok=True)
-    dll = build_dll(root / 'bin64/game.dll.orig', commands, [settings['cashShop']['url'], settings['centralMarket']['url'], settings['wardrobe']['url']])
+    dll = build_dll(root / 'bin64/game.dll.orig', commands, [settings['cashShop']['url'], settings['centralMarket']['url'], settings['wardrobe']['url'], settings['journey']['url']])
     inventory = settings.get('inventory')
     if inventory:
         from unified_inventory import BASE_SLOTS, SLOTS, patch_inventory_dll, prepare_inventory_archive

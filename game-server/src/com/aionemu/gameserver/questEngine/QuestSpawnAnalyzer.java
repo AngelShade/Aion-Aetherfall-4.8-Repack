@@ -23,6 +23,7 @@ import com.aionemu.gameserver.model.templates.quest.QuestCategory;
 import com.aionemu.gameserver.model.templates.quest.QuestNpc;
 import com.aionemu.gameserver.model.templates.quest.XMLStartCondition;
 import com.aionemu.gameserver.questEngine.handlers.AbstractQuestHandler;
+import com.aionemu.gameserver.questEngine.handlers.models.KillSpawnedData;
 import com.aionemu.gameserver.questEngine.handlers.models.XMLQuest;
 
 public class QuestSpawnAnalyzer {
@@ -41,6 +42,10 @@ public class QuestSpawnAnalyzer {
 		DataManager.SPAWNS_DATA.addAllNpcIdsToSet(allSpawns);
 		DataManager.TOWN_SPAWNS_DATA.addAllNpcIdsToSet(allSpawns);
 		DataManager.EVENT_DATA.addAllNpcIdsToSet(allSpawns);
+		for (XMLQuest quest : DataManager.XML_QUESTS.getAllQuests()) {
+			if (quest instanceof KillSpawnedData killSpawned)
+				allSpawns.addAll(killSpawned.getSpawnedNpcIds(allSpawns));
+		}
 		// Housing managers are spawned for individual houses, not by the world spawn templates.
 		DataManager.HOUSE_DATA.getLands().forEach(land -> allSpawns.add(land.getManagerNpcId()));
 		for (NpcFactionTemplate nft : DataManager.NPC_FACTIONS_DATA.getNpcFactionsData()) {
@@ -102,7 +107,7 @@ public class QuestSpawnAnalyzer {
 
 	public static Set<Integer> loadNpcIdsSpawnedByHandlers() {
 		Set<Integer> npcIds = new HashSet<>();
-		Pattern pattern = Pattern.compile("\\bsp(?:awn)?(?:ForFiveMinutes|Temporarily)?\\([^,\\d]*(\\d{6})(?: : (\\d{6}))?");
+		Pattern pattern = Pattern.compile("\\bsp(?:awn)?(?:ForFiveMinutes|Temporarily|WithWalker|AndSetRespawn)?\\([^,\\d]*(\\d{6})(?:\\s*:\\s*(\\d{6}))?");
 		Set<String> spawnIdMethods = new HashSet<>();
 		Set<String> incrementedSpawnIdMethods = new HashSet<>();
 		Map<String, Set<Integer>> returnedNpcIds = new HashMap<>();
@@ -124,7 +129,7 @@ public class QuestSpawnAnalyzer {
 		Pattern variableTernary = Pattern.compile("\\b(\\w+)\\s*=\\s*[^;?]+\\?\\s*(\\d{6})\\s*:\\s*(\\d{6})\\s*;");
 		try (Stream<Path> stream = Files.walk(sourceDir.toPath())) {
 			for (Path path : stream.filter(p -> p.toString().endsWith(".java")).toList()) {
-				String source = Files.readString(path);
+				String source = Files.readString(path).replaceAll("(?s)/\\*.*?\\*/|//[^\\r\\n]*", "");
 				Matcher matcher = pattern.matcher(source);
 				while (matcher.find()) {
 					for (int i = 1; i <= matcher.groupCount(); i++) {
@@ -161,7 +166,7 @@ public class QuestSpawnAnalyzer {
 					String variable = switchResult.group(1);
 					if (!Pattern.compile("\\bspawn\\s*\\(\\s*" + Pattern.quote(variable) + "\\s*,").matcher(source).find())
 						continue;
-					Matcher npcId = Pattern.compile("->\\s*(\\d{6})\\s*;").matcher(switchResult.group(2));
+					Matcher npcId = Pattern.compile("\\b(\\d{6})\\b").matcher(switchResult.group(2));
 					while (npcId.find())
 						npcIds.add(Integer.parseInt(npcId.group(1)));
 				}

@@ -215,7 +215,7 @@ def build_browser_hook_code(url):
         if not route.startswith('http://127.0.0.1:8091/') or len(payload) > 128 or any(c < 32 for c in payload[:-1]):
             raise ValueError('Embedded navigation supports exact loopback URLs of at most 127 ASCII characters')
         emit_exact_route(asm, 'rdx', 'route_' + str(index), 'next_url_' + str(index))
-        asm.branch(b'\xe9', 'authenticated_load' if route.endswith(('/market', '/wardrobe')) else 'load')
+        asm.branch(b'\xe9', 'authenticated_load' if route.endswith(('/market', '/wardrobe', '/journey')) else 'load')
         asm.label('next_url_' + str(index))
     asm.branch(b'\xe9', 'original')
     asm.label('authenticated_load')
@@ -336,7 +336,7 @@ def build_dll(original_path, commands, cash_shop_url):
     data[BROWSER_AUTH_RVA:BROWSER_AUTH_RVA + len(BROWSER_PROLOGUE)] = (
         b'\xe9' + struct.pack('<i', BROWSER_HOOK_RVA - BROWSER_AUTH_RVA - 5) + b'\x90' * 4)
     routes = [cash_shop_url] if isinstance(cash_shop_url,str) else cash_shop_url
-    market_routes = [route for route in routes if route.endswith(('/market', '/wardrobe'))]
+    market_routes = [route for route in routes if route.endswith(('/market', '/wardrobe', '/journey'))]
     if market_routes:
         if data[MARKET_AUTH_RVA:MARKET_AUTH_RVA+len(MARKET_AUTH_ORIGINAL)] != MARKET_AUTH_ORIGINAL:
             raise ValueError('Native account authentication entry does not match')

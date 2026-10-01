@@ -7,6 +7,7 @@
   "cashShop": {"label": "Cash Shop", "url": "http://127.0.0.1:8091/shop", "icon": "v5_cash_mail_up"},
   "centralMarket": {"url": "http://127.0.0.1:8091/market"},
   "wardrobe": {"url": "http://127.0.0.1:8091/market/wardrobe"},
+  "journey": {"url": "http://127.0.0.1:8091/journey"},
   "inventory": {"slots": 279, "columns": 12, "baseSlots": 180},
   "warehouse": {"characterSlots": 360, "accountSlots": 540},
   "nativeIcons": true

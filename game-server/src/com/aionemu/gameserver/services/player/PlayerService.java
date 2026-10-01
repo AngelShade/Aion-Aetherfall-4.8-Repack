@@ -35,6 +35,8 @@ import com.aionemu.gameserver.services.HousingService;
 import com.aionemu.gameserver.services.LegionService;
 import com.aionemu.gameserver.services.PunishmentService.PunishmentType;
 import com.aionemu.gameserver.services.SkillLearnService;
+import com.aionemu.gameserver.services.PoetaJourneyService;
+import com.aionemu.gameserver.services.AccountService;
 import com.aionemu.gameserver.services.item.ItemFactory;
 import com.aionemu.gameserver.world.World;
 import com.aionemu.gameserver.world.knownlist.KnownList;
@@ -100,6 +102,8 @@ public class PlayerService {
 	}
 
 	public static Player getPlayer(int playerObjId, Account account) {
+		if (PoetaJourneyService.recoverCommittedChoice(playerObjId))
+			account.addPlayerAccountData(AccountService.loadPlayerAccountData(playerObjId));
 		// Player common data and appearance should be already loaded in account
 		PlayerAccountData playerAccountData = account.getPlayerAccountData(playerObjId);
 		PlayerCommonData pcd = playerAccountData.getPlayerCommonData();

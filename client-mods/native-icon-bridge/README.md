@@ -33,7 +33,11 @@ The native preview receives left-drag rotation, right-drag positioning and wheel
 zoom through the client's window-message chain. Only input over the visible
 preview is consumed; lists, confirmations and other windows retain their input.
 Camera changes are applied by the game event pump and restored when Wardrobe
-closes. Reset Preview also restores the initial camera.
+closes. Reset Preview also restores the initial camera. Camera baselines are
+taken after the stock equipment/model update, because an unopened native view
+has a zero camera position. Position changes rebuild the native view and
+frustum data. Try On retains the camera controls; a missing entity or invalid
+camera triggers a bounded retry through the stock model/framing routines.
 
 ## Prepare and install
 
@@ -95,7 +99,15 @@ prefixes; this browser does not implement `HTMLElement.hidden`.
 `verify_wardrobe_native.cpp` is an isolated native widget contract fixture. It
 checks the observed Browser type `0x2012`, model reparenting and restoration,
 multiple appearances, modal visibility, and thread/bounds guards. Compile with
-MSVC `/std:c++17 /EHsc` and run the resulting executable outside the client.
+MSVC `/std:c++17 /EHsc`, link `user32.lib`, and run the resulting executable
+outside the client with the matching original `bin64/game.dll.orig` path as its
+argument. It maps the original rotation and camera/frustum CPU routines into the
+fixture, without loading the game DLL or accessing a running client. Equipment
+loading and entity framing are fixture adapters; actual model rendering and
+input delivery still require an in-game check. The test covers Win32 drag and
+wheel events, yaw wrapping, camera-plane changes, Try On and invalid-camera
+recovery. The first rotation, positioning and wheel input received by the live
+game thread are recorded in `Logs/NativeIcons.<process-id>.log`.
 
 For the installed client, restart Aion and open both Cash Shop and Central
 Market. Check icon appearance, search, paging and native hover tooltips.

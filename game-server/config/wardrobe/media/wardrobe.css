@@ -12,6 +12,7 @@ main{left:0;right:65%}#equipment-panel{left:auto;right:0;width:23%;min-width:210
 #native-preview{position:absolute;left:12px;right:12px;top:63px;bottom:286px;background:#142530;border:1px solid #3b5260;overflow:hidden}
 #preview-message{position:absolute;bottom:12px;left:12px;right:12px;text-align:center;color:#a6b8c0;font-size:12px}
 #preview-actions{position:absolute;left:16px;right:16px;bottom:192px;height:40px}#apply-changes{float:right}
+#remove-locked-preview{font-size:12px;padding:8px 9px;margin-left:6px}
 #detail{top:auto;left:0;right:0;bottom:0;width:auto;height:178px;padding:16px 18px;border-left:0;border-top:1px solid #405966;background:#1b303d}
 .detail-art{float:left;border:0;padding:0;margin:0 15px 0 0;background:none}.detail-art .item-icon{width:64px;height:64px;box-shadow:none}
 .detail-name{font-size:19px;line-height:23px}.detail-category{font-size:11px;margin:5px 0 8px}.unlock-badge{font-size:11px;margin-bottom:10px}

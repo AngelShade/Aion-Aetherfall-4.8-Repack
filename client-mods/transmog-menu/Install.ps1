@@ -14,6 +14,7 @@ $expected = @('bin64/game.dll', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.p
 if ($manifest.signatureIsolation -in 'plugin-v1','archive-v2') { $expected += @('bin64/crysystem.dll', 'Addon.key') }
 if ($manifest.signatureRepair) { $expected = @($expected | Where-Object { $_ -notin @('bin64/game.dll', 'Plugin/RelicCalc/RelicCalc.pak') }) }
 if ($manifest.menuIconsOnly) { $expected = @('Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig', 'Plugin/RelicCalc/RelicCalc.pak', 'Plugin/RelicCalc/RelicCalc.pak.sig') }
+if ($manifest.poetaJourney) { $expected += 'bin64/AionIconBridge.dll' }
 if ($manifest.inventorySlots -in 180,279) { $expected += 'Data/ui/game/game.pak' }
 if ($manifest.inventorySlots -in 180,279 -and $manifest.files.path -contains 'L10N/enu/data/data.pak') { $expected += 'L10N/enu/data/data.pak' }
 if ($manifest.nativeIcons) {

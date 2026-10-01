@@ -19,7 +19,7 @@ def main():
     parser.add_argument('--browser-bin', type=Path, required=True)
     args = parser.parse_args()
     media = Path(__file__).resolve().parents[2] / 'game-server/config/wardrobe/media'
-    appearance = dict(item=114100001, name='Boots Appearance', category='Armor', type='Plate Boots', group='PL_SHOES', slots=128,
+    appearance = dict(item=114100001, name='Boots Appearance', category='Armor', type='Cloth Boots', group='RB_SHOES', slots=128,
                       quality='COMMON', unlocked=False, sources=[dict(object=101, name='Boots Appearance')])
     equipment = dict(object=102, item=114100002, skin=114100002, name='Equipped Boots', type='Plate Boots', group='PL_SHOES', slots=128,
                      equipped=True, slot=128)
@@ -126,6 +126,8 @@ def main():
             assert geometry['native-preview']['bottom'] <= geometry['model-controls']['top'], geometry
             assert geometry['model-controls']['bottom'] <= geometry['preview-actions']['top'], geometry
             assert geometry['preview-actions']['bottom'] <= geometry['detail']['top'], geometry
+            actions = json.loads(js(view, "(function(){var b=document.getElementById('remove-locked-preview');b.removeAttribute('hidden');var a=document.getElementById('preview-actions').getBoundingClientRect(),r=b.getBoundingClientRect(),p=document.getElementById('apply-changes').getBoundingClientRect();b.setAttribute('hidden','');return JSON.stringify({left:a.left,right:a.right,top:a.top,bottom:a.bottom,removeLeft:r.left,removeRight:r.right,removeBottom:r.bottom,applyLeft:p.left});}())"))
+            assert actions['left'] <= actions['removeLeft'] and actions['removeRight'] <= actions['applyLeft'] and actions['removeBottom'] <= actions['bottom'], actions
             js(view, "window.previewCalls=[];window.pollCalls=0;window.AionObject={WardrobePreview:function(){previewCalls.push([].slice.call(arguments));},WardrobePoll:function(){pollCalls++;var token=previewCalls[previewCalls.length-1][5];setTimeout(function(){WardrobePreviewState(true,token);},20);},WardrobeControl:function(){}};document.getElementById('reset-preview').onclick()")
             pump(.12)
             assert js(view, "previewCalls.length+','+previewCalls[0].length") == '1,6'
@@ -144,6 +146,11 @@ def main():
             js(view, "document.getElementById('cancel').onclick();document.getElementById('collection-tab').onclick()")
             assert js(view, "getComputedStyle(document.getElementById('shade'),null).display") == 'none'
             js(view, "document.querySelector('.skin-card').onclick()")
+            js(view, "document.getElementById('preview').onclick()")
+            pump(.4)
+            drafted = js(view, "document.querySelector('.equipment-item').className")
+            assert 'drafted' in drafted, (drafted, js(view, "document.getElementById('status').textContent"))
+            assert js(view, "previewCalls[previewCalls.length-1][0]") == str(appearance['item']), 'Draft appearance did not reach native preview'
             if not posts:
                 js(view, "document.getElementById('unlock').onclick()")
                 modal = json.loads(js(view, "(function(){var r=document.getElementById('dialog').getBoundingClientRect();return JSON.stringify({display:getComputedStyle(document.getElementById('shade'),null).display,left:r.left,top:r.top,right:r.right,bottom:r.bottom});}())"))
@@ -154,6 +161,47 @@ def main():
                 assert js(view, "getComputedStyle(document.getElementById('shade'),null).display") == 'none'
                 assert js(view, "document.getElementById('tickets').textContent") == '4'
             print(f'PASS actual Aion WebKit {width}x{height}: confirmations, tabs, preview controls, queued acknowledgement and polling stops')
+            if width == 3440:
+                headwear = dict(item=125003948, name='Unlocked Headwear', category='Headwear', type='Headwear', group='CL_HEADS', slots=4,
+                                quality='EPIC', unlocked=True, sources=[])
+                helmet = dict(object=103, item=125004152, skin=125004152, name='Equipped Helmet', type='Headwear', group='HEAD', slots=4,
+                              equipped=True, slot=4)
+                state.update(skins=[headwear], equipment=[helmet], target=103, categories=['All','Headwear'])
+                js(view, "document.getElementById('reset-preview').onclick();document.getElementById('refresh').onclick()")
+                pump(.5)
+                js(view, "document.querySelector('.skin-card').onclick();document.getElementById('preview').onclick()")
+                pump(.5)
+                assert js(view, "previewCalls[previewCalls.length-1][0]") == str(headwear['item']), 'Headwear missing from preview request'
+                assert js(view, "document.getElementById('apply-changes').disabled?'disabled':'enabled'") == 'enabled', 'Unlocked headwear must apply to a helmet'
+                print('PASS: unlocked appearance headwear can preview and apply to a stat helmet')
+                appearance['unlocked'] = False
+                state.update(skins=[appearance], equipment=[helmet,equipment], target=102)
+                js(view, "document.getElementById('refresh').onclick()")
+                pump(.5)
+                js(view, "document.querySelector('.skin-card').onclick();document.getElementById('preview').onclick()")
+                pump(.5)
+                assert js(view, "document.getElementById('apply-changes').disabled?'disabled':'enabled'") == 'disabled', 'Locked preview must not bypass account unlocks'
+                assert appearance['name'] in js(view, "document.getElementById('status').textContent"), 'Apply blocker must name the locked skin'
+                assert js(view, "getComputedStyle(document.getElementById('remove-locked-preview'),null).display") != 'none'
+                js(view, "document.getElementById('remove-locked-preview').onclick()")
+                pump(.5)
+                assert js(view, "document.getElementById('apply-changes').disabled?'disabled':'enabled'") == 'enabled', 'Unlocked helmet must apply after removing a locked preview'
+                js(view, "document.getElementById('apply-changes').onclick();document.getElementById('confirm').onclick()")
+                pump(.5)
+                changes = json.loads(posts[-1]['changes'][0])
+                assert changes == [dict(object=103,skin=headwear['item'],expected=helmet['skin'])], changes
+                print('PASS: locked preview names its blocker; removing it preserves and submits the unlocked helmet change')
+                wing = dict(item=187000001, name='Wing Appearance', category='Wings', type='Wings', group='WING', slots=32768,
+                            quality='COMMON', unlocked=True, sources=[])
+                state.update(skins=[wing], equipment=[], target=0, categories=['All','Wings'])
+                js(view, "window.wingControls=[];AionObject.WardrobeControl=function(name,pressed){wingControls.push(name+':'+pressed);};document.getElementById('reset-preview').onclick();document.getElementById('refresh').onclick()")
+                pump(.5)
+                js(view, "document.querySelector('.skin-card').onclick();document.getElementById('preview').onclick()")
+                pump(.5)
+                assert js(view, "previewCalls[previewCalls.length-1][0]") == '187000001', 'Wings missing from preview request'
+                assert 'wings:1' in js(view, "wingControls.join(',')"), 'Native wing pose not requested'
+                assert js(view, "document.getElementById('apply-changes').disabled?'disabled':'enabled'") == 'disabled', 'Preview-only wings must not apply without equipment'
+                print('PASS: wings can be tried on without equipped wings; native wing pose requested; applying still requires equipment')
             destroy(view)
             views.remove(view)
         print('PASS: Unlock Appearance submits once, consumes one fixture ticket and refreshes the collection')

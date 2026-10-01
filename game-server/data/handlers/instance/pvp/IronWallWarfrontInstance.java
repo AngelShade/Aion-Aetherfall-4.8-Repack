@@ -75,6 +75,12 @@ public class IronWallWarfrontInstance extends BasicPvpInstance {
 		if (player == null) {
 			return;
 		}
+		if (npc.getNpcId() == 233544 && instanceScore.isStartProgress()) {
+			// Bypass the score-difference finish so Pashid's kill retains the boss rewards.
+			super.updatePoints(player, player.getRace(), npc.getObjectTemplate().getL10n(), 30000);
+			onStop(true);
+			return;
+		}
 		int points = 0;
 		switch (npc.getNpcId()) {
 			case 233473:

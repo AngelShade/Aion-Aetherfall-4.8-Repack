@@ -85,6 +85,12 @@ public final class MarketplaceService {
 			try { WardrobeService.start(); }
 			catch (Exception e) { log.error("Could not start Wardrobe", e); }
 			server.createContext("/market/wardrobe", WardrobeHttpService::handle);
+			// The optional starter skip is available only on this PC's loopback listener.
+			if (java.net.InetAddress.getByName(GSConfig.MARKETPLACE_BIND).isLoopbackAddress()) {
+				try { PoetaJourneyService.start(); }
+				catch (Exception e) { log.error("Could not start Poeta journey", e); }
+				server.createContext("/journey", PoetaJourneyHttpService::handle);
+			}
 			server.setExecutor(ThreadPoolManager.getInstance());
 			server.start();
 			log.info("Private marketplace listening at http://{}:{}/shop ({} offers)", GSConfig.MARKETPLACE_BIND,
