@@ -89,6 +89,15 @@ public class AionConnection extends AConnection<AionServerPacket> {
 	private final AtomicReference<Player> activePlayer = new AtomicReference<>();
 
 	private volatile long lastClientMessageTime;
+	private volatile boolean speechBubbleClient;
+
+	public boolean isSpeechBubbleClient() {
+		return speechBubbleClient;
+	}
+
+	public void enableSpeechBubbleClient() {
+		speechBubbleClient = true;
+	}
 	private volatile long lastPingTime;
 	private volatile int pingFailCount;
 
@@ -311,6 +320,7 @@ public class AionConnection extends AConnection<AionServerPacket> {
 	 */
 	public boolean setActivePlayer(Player player) {
 		if (player == null) {
+			speechBubbleClient = false;
 			activePlayer.set(player);
 			setState(State.AUTHED);
 		} else if (activePlayer.compareAndSet(null, player)) {

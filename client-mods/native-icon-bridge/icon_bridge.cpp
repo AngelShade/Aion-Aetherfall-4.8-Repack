@@ -4,6 +4,7 @@
 #include <wincodec.h>
 #include <wrl/client.h>
 #include <bcrypt.h>
+#include <winhttp.h>
 #include "icon_codec.h"
 #include <filesystem>
 #include <fstream>
@@ -13,6 +14,9 @@
 #include <cmath>
 #include <string>
 #include <unordered_map>
+#include <future>
+#include <chrono>
+#include <sstream>
 
 namespace {
 using Microsoft::WRL::ComPtr;
@@ -127,6 +131,9 @@ void jump(uint8_t* p,void* destination){const uint8_t op[]={0xff,0x25,0,0,0,0};s
 void* trampoline(void* target,size_t length){auto memory=static_cast<uint8_t*>(VirtualAlloc(nullptr,length+14,MEM_COMMIT|MEM_RESERVE,PAGE_EXECUTE_READWRITE));if(!memory)throw std::runtime_error("Trampoline allocation");std::memcpy(memory,target,length);jump(memory+length,static_cast<uint8_t*>(target)+length);return memory;}
 void detour(void* target,void* destination,size_t length){DWORD old;if(!VirtualProtect(target,length,PAGE_EXECUTE_READWRITE,&old))throw std::runtime_error("Hook protection");jump(static_cast<uint8_t*>(target),destination);std::memset(static_cast<uint8_t*>(target)+14,0x90,length-14);DWORD ignored;VirtualProtect(target,length,old,&ignored);FlushInstructionCache(GetCurrentProcess(),target,length);}
 #include "wardrobe_preview.h"
+#include "wardrobe_native_ui.h"
+unsigned native_icon_side(unsigned item){auto found=item_assets.find(item);return found==item_assets.end()?40:assets[found->second].sprite_side;}
+struct NativeIconBinding { NativeIconBinding(){wardrobe::native_ui::icon_side=native_icon_side;} } native_icon_binding;
 bool setup(const std::filesystem::path& root){
     HMODULE module=GetModuleHandleW(L"Awesomium.dll");if(!module)return false;
     request_url=symbol<decltype(request_url)>(module,"awe_resource_request_get_url");to_utf8=symbol<decltype(to_utf8)>(module,"awe_string_to_utf8");from_wide=symbol<decltype(from_wide)>(module,"awe_string_create_from_wide");destroy_string=symbol<decltype(destroy_string)>(module,"awe_string_destroy");response_create=symbol<decltype(response_create)>(module,"awe_resource_response_create");set_callback=symbol<Set>(module,"awe_webview_set_callback_resource_request");

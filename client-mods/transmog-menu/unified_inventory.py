@@ -138,7 +138,8 @@ def patch_inventory_dll(payload):
 
 def patch_layout(root):
     root.set('frame', '680,90,560,684')
-    root.set('flag', 'close;title;vresizable;')
+    root.set('flag', 'close;title;vresizable;movable')
+    root.attrib.pop('align_type', None)
     pages = root.findall(".//Widget[@type='tabpage']") or [root]
     for page in pages:
         if page is not root:

@@ -24,14 +24,11 @@ function PrivateWarehouse_Open()
 end
 
 function PrivateWardrobe_OnLoad()
-    PrivateWardrobeBrowser:CreateWebView();
-    PrivateWardrobe:Hide();
+    WardrobeNative_OnLoad();
 end
 
 function PrivateWardrobe_Open()
-    PrivateWardrobe:Show();
-    PrivateWardrobe:SetRect(0, 0, 1280, 960);
-    PrivateWardrobeBrowser:LoadUrlWithWebAuth(PRIVATE_WARDROBE_URL);
+    WardrobeNative_Open();
 end
 
 function PrivateJourney_OnLoad()
@@ -74,5 +71,5 @@ function PrivateMenus_Register()
             RegisterMenu(entry.label, "/say ." .. entry.command, entry.icon);
         end
     end
-    RegisterMenu(PRIVATE_CASH_SHOP_LABEL, SLASH_PRIVATECASHSHOP1, PRIVATE_CASH_SHOP_ICON);
+    -- The native HUD Shop shortcut opens PRIVATECASHSHOP directly.
 end

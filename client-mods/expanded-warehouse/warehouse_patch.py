@@ -79,6 +79,8 @@ def patch_layout(root):
     if root.get("type") != "dlg_warehouse":
         raise ValueError("Expected original warehouse dialog")
     root.set("frame", "15,30,590,680")
+    root.attrib.pop('align_type', None)
+    root.set('flag', 'close;title;movable')
     personal = root.find("Widget[@name='personal_container']")
     personal.set("frame", "0,0,584,615")
     personal.find("Widget[@name='personal_title']").set("frame", "10,5,350,24")

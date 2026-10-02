@@ -7,6 +7,7 @@ HWND window=nullptr;
 WNDPROC prior=nullptr;
 Rect bounds{};
 bool active=false;
+bool input_blocked=false;
 int dragging=0;
 POINT anchor{};
 float rotation=0,pan_x=0,pan_y=0,wheel=0;
@@ -64,7 +65,14 @@ void stop(){
     HWND captured;
     {std::lock_guard<std::mutex> lock(mutex);active=false;dragging=0;rotation=pan_x=pan_y=wheel=0;captured=window;}
     if(captured && GetCapture()==captured)ReleaseCapture();
-    scale=1;offset_x=offset_z=0;refresh_pending=false;retry_after=0;
+    input_blocked=false;scale=1;offset_x=offset_z=0;refresh_pending=false;retry_after=0;
+}
+void block_input(bool blocked){
+    input_blocked=blocked;
+    if(!blocked)return;
+    HWND captured;
+    {std::lock_guard<std::mutex> lock(mutex);active=false;dragging=0;rotation=pan_x=pan_y=wheel=0;captured=window;}
+    if(captured && GetCapture()==captured)ReleaseCapture();
 }
 void rebuild_camera(Ptr widget){
     // Position and frustum planes are separate native camera data. Updating
@@ -134,7 +142,7 @@ bool prepare_models(){
     return changed;
 }
 void apply(float dx,float px,float py,float steps){
-    if(!paper || modal_hidden || moved.empty())return;
+    if(!paper || modal_hidden || input_blocked || moved.empty())return;
     static unsigned observed=0;
     if(dx && !(observed&1)){log("Wardrobe: preview drag rotation received");observed|=1;}
     if((px || py) && !(observed&2)){log("Wardrobe: preview drag positioning received");observed|=2;}
@@ -163,7 +171,7 @@ void tick(){
     if(!paper || !host)return;
     const bool refreshed=prepare_models();
     install();Rect hit{};bool enabled=false;
-    if(!modal_hidden && (field<uint64_t>(host,0x30)&1))for(const auto& model:moved){
+    if(!modal_hidden && !input_blocked && (field<uint64_t>(host,0x30)&1))for(const auto& model:moved){
         if(field<uint64_t>(model.widget,0x30)&1){method<void(__cdecl*)(Ptr,Rect*)>(model.widget,0x58)(model.widget,&hit);enabled=true;break;}
     }
     float dx,px,py,steps;

@@ -17,7 +17,14 @@ if ($manifest.menuIconsOnly) { $expected = @('Addon.key', 'bin32/bin32.pak.sig',
 if ($manifest.inventorySlots -in 180,279) { $expected += 'Data/ui/game/game.pak' }
 if ($manifest.inventorySlots -in 180,279 -and $manifest.files.path -contains 'L10N/enu/data/data.pak') { $expected += 'L10N/enu/data/data.pak' }
 if ($manifest.nativeIcons) { $expected += @('bin64/AionIconBridge.dll', 'bin64/AionIconBridge.index') }
+if (($manifest.poetaJourney -or $manifest.nativeWardrobe) -and -not $manifest.nativeIcons) { $expected += 'bin64/AionIconBridge.dll' }
 if ($manifest.wardrobe) { $expected += 'Data/Items/Items.pak' }
+if ($manifest.nativeWindowMovement) {
+    if ($manifest.nativeWindowMovement -ne 'v1') { throw 'Unknown native window movement package.' }
+    $expected = @('Data/ui/game/game.pak', 'L10N/enu/Data/data.pak')
+}
+. (Join-Path $PSScriptRoot 'WardrobeThemeCompatibility.ps1')
+$expected += @(Get-NativeWardrobeThemePaths $manifest)
 . (Join-Path $PSScriptRoot 'GraphicsCompatibility.ps1')
 $expected += @(Get-GraphicsCompatibilityPaths $manifest)
 if (-not $manifest.signatureIsolation -and @($manifest.files).Count -eq 5) { $expected = @($expected | Where-Object { $_ -ne 'bin64/game.dll' }) }

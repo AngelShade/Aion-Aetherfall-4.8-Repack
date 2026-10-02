@@ -9,7 +9,7 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 import zipfile
-from patch_game_dll import BROWSER_HOOK_RVA, MARKET_AUTH_HOOK_RVA, build_browser_hook_code, build_market_auth_code
+from patch_game_dll import BROWSER_HOOK_RVA, MARKET_AUTH_HOOK_RVA, build_browser_hook_code, build_market_auth_code, MARKET_RECT_HOOK_RVA, build_market_rect_code
 
 
 def digest(path):
@@ -21,6 +21,7 @@ def main():
     parser.add_argument('--client-path', type=Path, required=True)
     parser.add_argument('--codec-directory', type=Path, required=True)
     parser.add_argument('--java', type=Path, required=True)
+    parser.add_argument('--revise-installed', action='store_true', help='Revise a verified already-installed Poeta journey')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     root, output = args.client_path.resolve(), args.output.resolve()
@@ -33,15 +34,32 @@ def main():
     with read_pak(root / 'Plugin/RelicCalc/RelicCalc.pak') as archive:
         content = {name:archive.read(name) for name in archive.namelist()}
     installed_lua = content['PrivateMenus.lua'].decode('utf-8').replace('\r','')
-    old_lua = subprocess.check_output(['git','show','HEAD:client-mods/transmog-menu/PrivateMenus.lua'], cwd=mod.parents[1]).decode().replace('\r','')
-    if not installed_lua.endswith(old_lua):
-        raise ValueError('Installed Lua differs from the verified existing menus')
-    prefix = installed_lua[:-len(old_lua)] + 'PRIVATE_JOURNEY_URL = "http://127.0.0.1:8091/journey";\n'
-    content['PrivateMenus.lua'] = (prefix + (mod/'PrivateMenus.lua').read_text(encoding='utf-8-sig')).replace('\n','\r\n').encode()
+    source_lua = (mod/'PrivateMenus.lua').read_text(encoding='utf-8-sig')
+    begin = source_lua.index('function PrivateJourney_OnLoad()')
+    end = source_lua.index('function PrivateMenus_Register()', begin)
+    old_lua = source_lua[:begin] + source_lua[end:]
+    journey_menu = '    SlashCmdList["PRIVATEJOURNEY"] = PrivateJourney_Open;\n    SLASH_PRIVATEJOURNEY1 = "/journey";\n    RegisterMenu("Choose Your Journey", SLASH_PRIVATEJOURNEY1, "v5_start_menu_relic_up");\n'
+    if old_lua.count(journey_menu) != 1:
+        raise ValueError('Journey menu registration differs from the verified additions')
+    old_lua = old_lua.replace(journey_menu,'')
+    if args.revise_installed:
+        if not installed_lua.endswith(source_lua):
+            raise ValueError('Installed journey Lua differs from the verified source')
+        prefix = installed_lua[:-len(source_lua)]
+        if prefix.count('PRIVATE_JOURNEY_URL = "http://127.0.0.1:8091/journey";') != 1:
+            raise ValueError('Installed journey URL differs')
+    else:
+        if not installed_lua.endswith(old_lua):
+            raise ValueError('Installed Lua differs from the verified existing menus')
+        prefix = installed_lua[:-len(old_lua)] + 'PRIVATE_JOURNEY_URL = "http://127.0.0.1:8091/journey";\n'
+    content['PrivateMenus.lua'] = (prefix + source_lua).replace('\n','\r\n').encode()
     content['Journey.xml'] = (mod/'Journey.xml').read_text(encoding='utf-8-sig').replace('UTF-8','UTF-16').replace('\n','\r\n').encode('utf-16')
     ET.fromstring(content['Journey.xml'])
     toc = content['RelicCalc.toc'].decode().replace('\r','').splitlines()
-    toc.insert(toc.index('PrivateMenus.lua'), 'Journey.xml')
+    if args.revise_installed:
+        if toc.count('Journey.xml') != 1: raise ValueError('Installed journey XML registration differs')
+    else:
+        toc.insert(toc.index('PrivateMenus.lua'), 'Journey.xml')
     content['RelicCalc.toc'] = ('\r\n'.join(toc)+'\r\n').encode()
     data = io.BytesIO()
     with zipfile.ZipFile(data,'w',compression=zipfile.ZIP_DEFLATED) as archive:
@@ -61,10 +79,11 @@ def main():
     dll = bytearray(original)
     ranges = []
     for offset, before, after, limit in [
-        (BROWSER_HOOK_RVA,build_browser_hook_code(old_routes),build_browser_hook_code(routes),1024),
-        (MARKET_AUTH_HOOK_RVA,build_market_auth_code(old_routes[1:]),build_market_auth_code(routes[1:]),512)]:
+        (BROWSER_HOOK_RVA,build_browser_hook_code(routes if args.revise_installed else old_routes),build_browser_hook_code(routes),1024),
+        (MARKET_AUTH_HOOK_RVA,build_market_auth_code(routes[1:] if args.revise_installed else old_routes[1:]),build_market_auth_code(routes[1:]),512),
+        (MARKET_RECT_HOOK_RVA,build_market_rect_code(False),build_market_rect_code(),512)]:
         if dll[offset:offset+len(before)] != before or len(after)>limit:
-            raise ValueError('Installed browser hook differs from the verified current route set')
+            raise ValueError('Installed browser or layout hook differs from the verified current code')
         end = offset + max(len(before),len(after))
         if any(dll[offset+len(before):end]):
             raise ValueError('Browser code expansion would overwrite another patch')
@@ -72,6 +91,8 @@ def main():
         ranges.append((offset,end))
     assert len(dll) == len(original)
     assert all(a==b or any(start<=i<end for start,end in ranges) for i,(a,b) in enumerate(zip(original,dll)))
+    from graphics_compat import prepare_incremental
+    dll, graphics_compatibility = prepare_incremental(root,output,bytes(dll))
     (output/'bin64').mkdir(exist_ok=True)
     (output/'bin64/game.dll').write_bytes(dll)
     # The installed archive loader already isolates the stock model key. Keep it.
@@ -86,10 +107,12 @@ def main():
     script = work/'compile.cmd'
     script.write_text(f'@echo off\ncall "{vcvars}" >nul && cl /nologo /std:c++17 /EHsc /O2 /MT /LD /Fo:"{work/"bridge.obj"}" "{source/"icon_bridge.cpp"}" /link /OUT:"{output/"bin64/AionIconBridge.dll"}" /IMPLIB:"{work/"bridge.lib"}" windowscodecs.lib ole32.lib bcrypt.lib user32.lib\n')
     subprocess.run(f'cmd.exe /d /s /c ""{script}""',check=True)
-    files = [dict(path=f.relative_to(output).as_posix(),original=digest(root/f.relative_to(output)),staged=digest(f)) for f in sorted(output.rglob('*')) if f.is_file()]
+    files = [dict(path=f.relative_to(output).as_posix(),original=digest(root/f.relative_to(output)) if (root/f.relative_to(output)).is_file() else None,staged=digest(f)) for f in sorted(output.rglob('*')) if f.is_file()]
     preserved = ['bin64/AionIconBridge.index','Data/Items/Items.pak','Data/ui/game/game.pak','L10N/enu/data/data.pak','bin32/bin32.pak','Data/func_pet/func_pet.pak']
     manifest = dict(clientRoot=str(root),files=files,signatureIsolation='archive-v2',poetaJourney=True,
                     legacyAddon=[],retiredFiles=[],preservedFiles=[dict(path=p,sha256=digest(root/p)) for p in preserved])
+    if graphics_compatibility:
+        manifest['graphicsCompatibility'] = graphics_compatibility
     (output/'manifest.json').write_text(json.dumps(manifest,indent=2))
     print(f'Prepared {len(files)} hash-checked files; native UI archives, icon index, items and pet archive preserved. Client untouched: {output}')
 

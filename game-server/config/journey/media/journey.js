@@ -18,19 +18,19 @@ function load(){
  request('GET','/journey/state?session_id='+encodeURIComponent(token()),{},function(status,data){
   if(status!==200){if(++attempt<8){setTimeout(load,1500);return;}notice(data.error);return;}
   state=data;
-  if(!data.eligible){hidden('paths',true);hidden('complete',false);el('complete-title').textContent='Your journey is underway';el('receipt').textContent=data.decision==='SKIP'?'Your Poeta skip has already been applied. Collect your quest rewards from the mailbox and continue Dispatch to Verteron.':'This choice is available to Elyos starting-class characters in Poeta, before Ascension.';return;}
-  el('greeting').textContent=data.name+', how will your story begin?';el('quest-count').textContent=data.quests+' Poeta and Ascension';
+  if(!data.eligible){hidden('paths',true);hidden('complete',false);el('complete-title').textContent=data.welcome?'Welcome to Sanctum':'Your journey is underway';el('receipt').textContent=data.decision==='SKIP'?'Your Poeta skip has already been applied. Collect your skipped quest rewards from the mailbox. Speak to Leah for A Ceremony in Sanctum. '+(data.ceremonyRewardsMailed?'Its rewards were already included in your earlier mail bundle.':'Complete the ceremony to earn its rewards.')+' Then see Polyidus for Dispatch to Verteron.':'This choice is available to Elyos starting-class characters in Poeta, before Ascension.';if(data.welcome)nativeControl(true);return;}
+  el('greeting').textContent=data.name+', how will your story begin?';el('quest-count').textContent=data.quests+' Poeta';
   if(data.prompt)nativeControl(true);
  });
 }
 function choose(choice){
- if(busy||!state)return;busy=true;el('play').disabled=el('confirm').disabled=true;notice('Preparing your journey…');
+ if(busy||!state)return;busy=true;el('play').disabled=el('confirm').disabled=true;notice('Preparing your journeyâ€¦');
  request('POST','/journey/action',{session_id:token(),request:state.request,choice:choice,'class':selected},function(status,data){
   busy=false;el('play').disabled=el('confirm').disabled=false;
   if(status!==200){notice(data.error);return;}
   state=data;hidden('paths',true);hidden('classes',true);hidden('complete',false);notice('');
   el('complete-title').textContent=choice==='skip'?'Welcome to Sanctum':'Your story begins';el('receipt').textContent=data.notice;
-  if(choice==='play')nativeControl(false);
+  if(choice==='play'||choice==='ack')nativeControl(false);else if(data.welcome)nativeControl(true);
  });
 }
 el('play').onclick=function(){choose('play');};
@@ -38,6 +38,6 @@ el('skip').onclick=function(){if(!state)return;hidden('paths',true);hidden('clas
  for(var i=0;i<state.classes.length;i++)(function(c){var b=document.createElement('button');b.textContent=c.name;b.onclick=function(){selected=c.id;var buttons=list.getElementsByTagName('button');for(var j=0;j<buttons.length;j++)buttons[j].className='';b.className='selected';el('selected-name').textContent=c.name;hidden('review',false);};list.appendChild(b);})(state.classes[i]);
 };
 el('back').onclick=function(){if(busy)return;hidden('classes',true);hidden('review',true);hidden('paths',false);selected='';};
-el('confirm').onclick=function(){if(selected)choose('skip');};el('close').onclick=function(){nativeControl(false);};
+el('confirm').onclick=function(){if(selected)choose('skip');};el('close').onclick=function(){if(state&&state.welcome)choose('ack');else nativeControl(false);};
 load();
 })();

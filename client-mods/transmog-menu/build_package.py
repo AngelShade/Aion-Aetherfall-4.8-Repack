@@ -60,6 +60,10 @@ def main():
     ET.fromstring(content['Warehouse.xml'])
     content['Wardrobe.xml'] = (mod_root / 'Wardrobe.xml').read_text(encoding='utf-8-sig').replace('UTF-8', 'UTF-16').replace('\n', '\r\n').encode('utf-16')
     ET.fromstring(content['Wardrobe.xml'])
+    from native_wardrobe_icons import build as wardrobe_icons
+    content['WardrobeIcons.lua'] = wardrobe_icons(root)
+    for name in ('WardrobeJSON.lua', 'WardrobeTheme.lua', 'WardrobeNative.lua'):
+        content[name] = (mod_root / name).read_bytes()
     content['Journey.xml'] = (mod_root / 'Journey.xml').read_text(encoding='utf-8-sig').replace('UTF-8', 'UTF-16').replace('\n', '\r\n').encode('utf-16')
     ET.fromstring(content['Journey.xml'])
     # JSON-quoted ASCII values are valid Lua string literals for these labels and URL.
@@ -74,8 +78,9 @@ def main():
     config += 'PRIVATE_JOURNEY_URL = ' + json.dumps(settings['journey']['url']) + ';\n'
     content['PrivateMenus.lua'] = (config + (mod_root / 'PrivateMenus.lua').read_text(encoding='utf-8-sig')).replace('\n', '\r\n').encode('utf-8')
     toc = content['RelicCalc.toc'].decode('utf-8').replace('\r', '').splitlines()
-    toc = [line for line in toc if line not in ('CashShop.xml', 'Warehouse.xml', 'Wardrobe.xml', 'Journey.xml', 'PrivateMenus.lua')]
-    toc += ['CashShop.xml', 'Warehouse.xml', 'Wardrobe.xml', 'Journey.xml', 'PrivateMenus.lua']
+    toc = [line for line in toc if line not in ('CashShop.xml', 'Warehouse.xml', 'Wardrobe.xml', 'Journey.xml', 'PrivateMenus.lua', 'WardrobeJSON.lua', 'WardrobeIcons.lua', 'WardrobeNative.lua')]
+    toc = [line for line in toc if line != 'WardrobeTheme.lua']
+    toc += ['WardrobeJSON.lua', 'WardrobeIcons.lua', 'WardrobeTheme.lua', 'WardrobeNative.lua', 'CashShop.xml', 'Warehouse.xml', 'Wardrobe.xml', 'Journey.xml', 'PrivateMenus.lua']
     content['RelicCalc.toc'] = ('\r\n'.join(toc) + '\r\n').encode('utf-8')
     data = io.BytesIO()
     with zipfile.ZipFile(data, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
@@ -110,6 +115,8 @@ def main():
         if (root / 'L10N/enu/data/data.pak').exists():
             prepare_inventory_archive(root, output, 'L10N/enu/data/data.pak', 'ui/game/')
         dll = patch_inventory_dll(dll)
+        from detached_inventory import patch_detached_inventory
+        dll = patch_detached_inventory(dll)
         from inventory_search import patch_search_dll
         dll = patch_search_dll(dll)
     warehouse = settings.get('warehouse')
@@ -127,6 +134,11 @@ def main():
         dll = patch_dll(dll)
         from warehouse_search import patch_search_dll as patch_warehouse_search_dll
         dll = patch_warehouse_search_dll(dll)
+    if inventory:
+        from movable_windows import patch_archive as patch_movable_windows
+        for relative,prefix in [('Data/ui/game/game.pak',''),('L10N/enu/data/data.pak','ui/game/')]:
+            archive=output/relative
+            if archive.exists():archive.write_bytes(patch_movable_windows(archive,prefix))
     native_icons = settings.get('nativeIcons', False)
     from wardrobe_item import prepare_wardrobe_item
     prepare_wardrobe_item(root, output)
@@ -143,6 +155,8 @@ def main():
     from graphics_compat import prepare as prepare_graphics_compat
     dll, graphics_compatibility = prepare_graphics_compat(root, output, dll)
     patched_dll.write_bytes(dll)
+    from native_wardrobe_theme import stage as stage_wardrobe_theme
+    stage_wardrobe_theme(output)
     replacements = []
     for staged in sorted(output.rglob('*')):
         if staged.is_file():
@@ -157,6 +171,7 @@ def main():
                 'accountWarehouseSlots': ACCOUNT_SLOTS if warehouse else 0, 'signatureIsolation': 'archive-v2',
                 'nativeIcons': native_manifest}
     manifest['wardrobe'] = {'unlockItem': 168100001, 'accountCollection': True}
+    manifest['nativeWardrobeTheme'] = 'blue-v1'
     if graphics_compatibility:
         manifest['graphicsCompatibility'] = graphics_compatibility
     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')

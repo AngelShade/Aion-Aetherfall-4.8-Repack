@@ -161,7 +161,7 @@ def main():
         assert requests.count('/market/media/icons/999999999.png')>=1 and requests.count('/other/100000001.png')>=1,requests
         assert len(forwarded)>=4,len(forwarded)
         print('PASS: automatic attachment, callback chaining, create/destroy reuse, Cash Shop + Central Market icons, zero HTTP downloads for native icons, missing-icon fallback')
-        print('PASS: native Wardrobe callbacks registered in both initialization orders; stock ItemPreview callbacks preserved; remote preview commands refused')
+        print('PASS: native Wardrobe and JourneyVisibility callbacks registered in both initialization orders; stock ItemPreview callbacks preserved; remote commands refused')
     finally:
         for view in views:destroy(view)
         free(empty);shutdown();server.shutdown();directory.close()

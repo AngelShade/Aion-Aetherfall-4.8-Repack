@@ -64,7 +64,8 @@ Ptr find_host(){
         Ptr p=*reinterpret_cast<Ptr*>(g+0x13875c0+id*8);
         if(!p || !(field<uint64_t>(p,0x30)&1))continue;
         const char* n=method<const char*(__cdecl*)(Ptr)>(p,0xa8)(p);
-        if(n && !std::strcmp(n,"PrivateWardrobe") && lookup(p,"PrivateWardrobeBrowser",0x2012))return p;
+        if(n && !std::strcmp(n,"PrivateWardrobe") &&
+            (lookup(p,"PrivateWardrobeBrowser",0x2012) || lookup(p,"WardrobeNativeTx",0x200b)))return p;
     }
     return nullptr;
 }
@@ -88,8 +89,9 @@ bool attach(const Rect& css){
     if(!current || !g)return fail("Wardrobe: visible host or browser not found");
     if(GetCurrentThreadId()!=ui_thread)return fail("Wardrobe: callback is not on the native UI thread");
     Ptr browser=lookup(current,"PrivateWardrobeBrowser",0x2012);
+    Ptr native_anchor=lookup(current,"WardrobePreviewBounds",0x200b);
     Ptr model_dialog=*reinterpret_cast<Ptr*>(g+0x13875c0+0x110*8);
-    if(!browser || !model_dialog || field<uint32_t>(model_dialog,0x340)!=0x110)return fail("Wardrobe: native preview controller not found");
+    if((!browser && !native_anchor) || !model_dialog || field<uint32_t>(model_dialog,0x340)!=0x110)return fail("Wardrobe: native preview controller not found");
     if(paper && (host!=current || paper!=model_dialog))detach();
     if(!paper){
         // The native controller owns these views for the whole UI lifetime.
@@ -106,9 +108,9 @@ bool attach(const Rect& css){
         // after that handler has run. Only the reparented views remain onscreen.
         flag(paper,1,true);rect(paper,{-10000,-10000,1,1});log("Wardrobe: native character views attached");
     }
-    const Rect browser_rect=rect(browser);
+    const Rect browser_rect=browser?rect(browser):rect(current);
     if(css.x+css.w>browser_rect.w+1 || css.y+css.h>browser_rect.h+1)return fail("Wardrobe: preview bounds exceed native browser");
-    Rect r{browser_rect.x+css.x,browser_rect.y+css.y,css.w,css.h};
+    Rect r{(browser?browser_rect.x:0)+css.x,(browser?browser_rect.y:0)+css.y,css.w,css.h};
     for(const auto& m:moved)rect(m.widget,r);
     last_failure=nullptr;return true;
 }
@@ -191,6 +193,10 @@ void control(const std::string& command,int pressed){
         if(!pressed && !modal_hidden){for(size_t i=0;i<moved.size();++i){modal_flags[i]=field<uint64_t>(moved[i].widget,0x30);flag(moved[i].widget,1,false);}modal_hidden=true;}
         else if(pressed && modal_hidden){for(size_t i=0;i<moved.size();++i)flag(moved[i].widget,1,(modal_flags[i]&1)!=0);modal_hidden=false;}
     }
+    else if(command=="input"){
+        mouse::block_input(!pressed);
+        if(!pressed)field<int>(paper,0x570)=0;
+    }
     else if(command=="left" || command=="right")field<int>(paper,0x570)=pressed?(command=="left"?1:2):0;
     else if(command=="zoom")reinterpret_cast<void(__cdecl*)(Ptr,int)>(g+0x805bd0)(paper,!field<int>(paper,0x57c));
     else if(command=="helmet"){field<int>(paper,0x580)=!field<int>(paper,0x580);reinterpret_cast<void(__cdecl*)(Ptr)>(g+0x805cc0)(paper);}
@@ -204,11 +210,13 @@ void control(const std::string& command,int pressed){
     }
     else if(command=="camera-reset")mouse::reset();
 }
+void(*native_tick_hook)()=nullptr;
 // Called immediately before Game.dll's browser event pump (RVA 0x131ef0),
 // whose stock ItemPreview handler consumes browser messages on the game thread.
 void tick(){
     if(!ui_thread){ui_thread=GetCurrentThreadId();log("Wardrobe: native event thread ready");}
     if(GetCurrentThreadId()!=ui_thread || changing)return;
+    if(native_tick_hook)native_tick_hook();
     if(Ptr dialog=journey_dialog();dialog && (field<uint64_t>(dialog,0x30)&1))journey_layout(dialog);
     std::vector<Command> pending;bool stock=false;
     {std::lock_guard<std::mutex> lock(queue_mutex);pending.swap(commands);stock=stock_preview_pending;stock_preview_pending=false;}

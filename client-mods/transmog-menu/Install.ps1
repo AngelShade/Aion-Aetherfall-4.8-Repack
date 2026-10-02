@@ -14,7 +14,7 @@ $expected = @('bin64/game.dll', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.p
 if ($manifest.signatureIsolation -in 'plugin-v1','archive-v2') { $expected += @('bin64/crysystem.dll', 'Addon.key') }
 if ($manifest.signatureRepair) { $expected = @($expected | Where-Object { $_ -notin @('bin64/game.dll', 'Plugin/RelicCalc/RelicCalc.pak') }) }
 if ($manifest.menuIconsOnly) { $expected = @('Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig', 'Plugin/RelicCalc/RelicCalc.pak', 'Plugin/RelicCalc/RelicCalc.pak.sig') }
-if ($manifest.poetaJourney) { $expected += 'bin64/AionIconBridge.dll' }
+if ($manifest.poetaJourney -or $manifest.nativeWardrobe) { $expected += 'bin64/AionIconBridge.dll' }
 if ($manifest.inventorySlots -in 180,279) { $expected += 'Data/ui/game/game.pak' }
 if ($manifest.inventorySlots -in 180,279 -and $manifest.files.path -contains 'L10N/enu/data/data.pak') { $expected += 'L10N/enu/data/data.pak' }
 if ($manifest.nativeIcons) {
@@ -25,6 +25,12 @@ if ($manifest.nativeIcons) {
     }
 }
 if ($manifest.wardrobe) { $expected += 'Data/Items/Items.pak' }
+if ($manifest.nativeWindowMovement) {
+    if ($manifest.nativeWindowMovement -ne 'v1') { throw 'Unknown native window movement package.' }
+    $expected = @('Data/ui/game/game.pak', 'L10N/enu/Data/data.pak')
+}
+. (Join-Path $PSScriptRoot 'WardrobeThemeCompatibility.ps1')
+$expected += @(Get-NativeWardrobeThemePaths $manifest)
 . (Join-Path $PSScriptRoot 'GraphicsCompatibility.ps1')
 $expected += @(Get-GraphicsCompatibilityPaths $manifest)
 if (@($manifest.files).Count -ne $expected.Count -or (Compare-Object ($manifest.files.path | Sort-Object) ($expected | Sort-Object))) {

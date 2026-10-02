@@ -1,7 +1,590 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<Screen widget_cnt="2">
-  <Dialog name="PrivateWardrobe" frame="0,0,1280,960" text="Wardrobe" close_offset="4,1" close_preset="v5_close" flag="close;title;not_visible;not_movable;fittoscreenwidth;fittoscreenheight" preset="v5_dialog2" shadow_offset="0,0" title_height="25" title_offset="0,5">
-    <Scripts><OnLoad>PrivateWardrobe_OnLoad();</OnLoad></Scripts>
-    <Widget type="Browser" name="PrivateWardrobeBrowser" frame="0,25,1280,935"/>
+<?xml version='1.0' encoding='utf-8'?>
+<Screen widget_cnt="275">
+  <Dialog name="PrivateWardrobe" frame="0,0,1280,960" text="Wardrobe" close_offset="4,1" close_preset="v5_close" flag="close;title;not_visible;not_movable;fittoscreenwidth;fittoscreenheight" preset="v5_dialog2" title_height="25" title_offset="0,5">
+    <Scripts>
+      <OnLoad>WardrobeNative_OnLoad();</OnLoad>
+      <OnEvent>WardrobeNative_OnEvent(event, ...);</OnEvent>
+    </Scripts>
+    <Widget type="container" name="WardrobeLeftPanel" frame="0,0,1,1" preset="v5_staticbox" flag="not_active" />
+    <Widget type="container" name="WardrobeRightPanel" frame="0,0,1,1" preset="v5_staticbox" flag="not_active" />
+    <Widget type="static" name="WardrobeCharacter" frame="0,0,1,1" font="ui_default" />
+    <Widget type="static" name="WardrobeCounts" frame="0,0,1,1" font="ui_default" />
+    <Widget type="static" name="WardrobeTarget" frame="0,0,1,1" font="ui_default" text="Select equipment" />
+    <Widget type="static" name="WardrobeDraft" frame="0,0,1,1" font="ui_default" text="Current equipment" />
+    <Widget type="static" name="WardrobeStatus" frame="0,0,1,1" font="ui_default" text="Loading Wardrobe..." />
+    <Widget type="static" name="WardrobeMouseHint" frame="0,0,1,1" font="ui_default" text="Drag: rotate | Right-drag: move | Wheel: zoom" />
+    <Widget type="static" name="WardrobeResults" frame="0,0,1,1" font="ui_default" />
+    <Widget type="static" name="WardrobePage" frame="0,0,1,1" font="ui_default" />
+    <Widget type="static" name="WardrobeEmpty" frame="0,0,1,1" font="ui_default" text="No matching appearances" />
+    <Widget type="htmlview" name="WardrobeDetails" frame="0,0,1,1" preset="v5_staticbox" />
+    <Widget type="editbox" name="WardrobeNativeTx" frame="0,0,1,1" font="ui_default" flag="not_visible" />
+    <Widget type="editbox" name="WardrobeNativeRx" frame="0,0,1,1" font="ui_default" flag="not_visible" />
+    <Widget type="editbox" name="WardrobeNativeMeta" frame="0,0,1,1" font="ui_default" flag="not_visible" />
+    <Widget type="editbox" name="WardrobeNativePreview" frame="0,0,1,1" font="ui_default" flag="not_visible" />
+    <Widget type="editbox" name="WardrobeNativeControl" frame="0,0,1,1" font="ui_default" flag="not_visible" />
+    <Widget type="editbox" name="WardrobeNativeHover" frame="0,0,1,1" font="ui_default" flag="not_visible" />
+    <Widget type="editbox" name="WardrobeNativeIcons" frame="0,0,1,1" font="ui_default" flag="not_visible" />
+    <Widget type="editbox" name="WardrobeNativeRx1" frame="0,0,1,1" font="ui_default" flag="not_visible" />
+    <Widget type="editbox" name="WardrobeNativeRx2" frame="0,0,1,1" font="ui_default" flag="not_visible" />
+    <Widget type="editbox" name="WardrobeNativeRx3" frame="0,0,1,1" font="ui_default" flag="not_visible" />
+    <Widget type="editbox" name="WardrobeNativeRx4" frame="0,0,1,1" font="ui_default" flag="not_visible" />
+    <Widget type="editbox" name="WardrobeNativeRx5" frame="0,0,1,1" font="ui_default" flag="not_visible" />
+    <Widget type="editbox" name="WardrobeNativeRx6" frame="0,0,1,1" font="ui_default" flag="not_visible" />
+    <Widget type="editbox" name="WardrobeNativeRx7" frame="0,0,1,1" font="ui_default" flag="not_visible" />
+    <Widget type="editbox" name="WardrobePreviewBounds" frame="0,0,1,1" font="ui_default" flag="not_visible" />
+    <Widget type="button" name="WardrobeRefresh" frame="0,0,1,1" font="ui_default" text="Refresh" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeCollection" frame="0,0,1,1" font="ui_default" text="Collection" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeOutfits" frame="0,0,1,1" font="ui_default" text="Saved Outfits" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeInventory" frame="0,0,1,1" font="ui_default" text="Inventory" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeClear" frame="0,0,1,1" font="ui_default" text="Clear" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobePrevious" frame="0,0,1,1" font="ui_default" text="Previous" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeNext" frame="0,0,1,1" font="ui_default" text="Next" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeTryOn" frame="0,0,1,1" font="ui_default" text="Try On" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeUnlock" frame="0,0,1,1" font="ui_default" text="Unlock Appearance" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeRestore" frame="0,0,1,1" font="ui_default" text="Restore Appearance" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeReset" frame="0,0,1,1" font="ui_default" text="Reset Preview" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeRemoveLocked" frame="0,0,1,1" font="ui_default" text="Remove Locked Skins" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeApply" frame="0,0,1,1" font="ui_default" text="Apply Changes" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeSaveOutfit" frame="0,0,1,1" font="ui_default" text="Save Current Outfit" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeDeleteOutfit" frame="0,0,1,1" font="ui_default" text="Delete Outfit" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeClearTarget" frame="0,0,1,1" font="ui_default" text="All Equipment Types" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeLeft" frame="0,0,1,1" font="ui_default" text="Left" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeRight" frame="0,0,1,1" font="ui_default" text="Right" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeZoom" frame="0,0,1,1" font="ui_default" text="Zoom" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeHelmet" frame="0,0,1,1" font="ui_default" text="Helmet" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeCombat" frame="0,0,1,1" font="ui_default" text="Combat" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeWings" frame="0,0,1,1" font="ui_default" text="Wings" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="editbox" name="WardrobeSearch" frame="0,0,1,1" font="ui_default" preset="v5_editbox" />
+    <Widget type="combobox" name="WardrobeFilter" frame="0,0,1,1" font="ui_default" preset="v5_staticbox3" />
+    <Widget type="button" name="WardrobeCategory1" frame="0,0,1,1" font="ui_default" text="All" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeCategory2" frame="0,0,1,1" font="ui_default" text="Weapons" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeCategory3" frame="0,0,1,1" font="ui_default" text="Armor" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeCategory4" frame="0,0,1,1" font="ui_default" text="Costumes" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeCategory5" frame="0,0,1,1" font="ui_default" text="Headwear" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeCategory6" frame="0,0,1,1" font="ui_default" text="Shields" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeCategory7" frame="0,0,1,1" font="ui_default" text="Wings" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeSlot1" frame="0,0,1,1" font="ui_default" preset="v5_slot_rhand" style="pushbutton" tooltip="Main Hand">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="image" name="WardrobeSlotIcon1" frame="0,0,1,1" />
+    <Widget type="image" name="WardrobeSlotSelected1" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+    <Widget type="button" name="WardrobeSlot2" frame="0,0,1,1" font="ui_default" preset="v5_slot_lhand" style="pushbutton" tooltip="Off Hand">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="image" name="WardrobeSlotIcon2" frame="0,0,1,1" />
+    <Widget type="image" name="WardrobeSlotSelected2" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+    <Widget type="button" name="WardrobeSlot4" frame="0,0,1,1" font="ui_default" preset="v5_slot_helmet" style="pushbutton" tooltip="Headwear">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="image" name="WardrobeSlotIcon4" frame="0,0,1,1" />
+    <Widget type="image" name="WardrobeSlotSelected4" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+    <Widget type="button" name="WardrobeSlot2048" frame="0,0,1,1" font="ui_default" preset="v5_slot_shoulder" style="pushbutton" tooltip="Shoulder Armor">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="image" name="WardrobeSlotIcon2048" frame="0,0,1,1" />
+    <Widget type="image" name="WardrobeSlotSelected2048" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+    <Widget type="button" name="WardrobeSlot8" frame="0,0,1,1" font="ui_default" preset="v5_slot_armor" style="pushbutton" tooltip="Chest Armor">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="image" name="WardrobeSlotIcon8" frame="0,0,1,1" />
+    <Widget type="image" name="WardrobeSlotSelected8" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+    <Widget type="button" name="WardrobeSlot16" frame="0,0,1,1" font="ui_default" preset="v5_slot_glove" style="pushbutton" tooltip="Gloves">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="image" name="WardrobeSlotIcon16" frame="0,0,1,1" />
+    <Widget type="image" name="WardrobeSlotSelected16" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+    <Widget type="button" name="WardrobeSlot4096" frame="0,0,1,1" font="ui_default" preset="v5_slot_pants" style="pushbutton" tooltip="Leg Armor">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="image" name="WardrobeSlotIcon4096" frame="0,0,1,1" />
+    <Widget type="image" name="WardrobeSlotSelected4096" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+    <Widget type="button" name="WardrobeSlot32768" frame="0,0,1,1" font="ui_default" preset="v5_slot_wing" style="pushbutton" tooltip="Wings">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="image" name="WardrobeSlotIcon32768" frame="0,0,1,1" />
+    <Widget type="image" name="WardrobeSlotSelected32768" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+    <Widget type="button" name="WardrobeSlot32" frame="0,0,1,1" font="ui_default" preset="v5_slot_shoes" style="pushbutton" tooltip="Boots">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="image" name="WardrobeSlotIcon32" frame="0,0,1,1" />
+    <Widget type="image" name="WardrobeSlotSelected32" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+    <Widget type="scrollable" name="WardrobeScroll" frame="0,0,1,1" preset="v5_staticbox" flag="vscroll" scroll_type="auto">
+      <Widget type="container" name="WardrobeRows" frame="0,0,1,1">
+        <Widget type="button" name="WardrobeRow1" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon1" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected1" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName1" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState1" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow2" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon2" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected2" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName2" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState2" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow3" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon3" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected3" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName3" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState3" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow4" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon4" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected4" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName4" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState4" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow5" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon5" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected5" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName5" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState5" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow6" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon6" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected6" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName6" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState6" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow7" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon7" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected7" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName7" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState7" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow8" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon8" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected8" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName8" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState8" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow9" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon9" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected9" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName9" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState9" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow10" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon10" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected10" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName10" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState10" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow11" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon11" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected11" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName11" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState11" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow12" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon12" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected12" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName12" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState12" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow13" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon13" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected13" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName13" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState13" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow14" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon14" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected14" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName14" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState14" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow15" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon15" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected15" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName15" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState15" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow16" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon16" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected16" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName16" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState16" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow17" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon17" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected17" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName17" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState17" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow18" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon18" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected18" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName18" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState18" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow19" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon19" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected19" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName19" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState19" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow20" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon20" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected20" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName20" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState20" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow21" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon21" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected21" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName21" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState21" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow22" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon22" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected22" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName22" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState22" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow23" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon23" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected23" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName23" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState23" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow24" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon24" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected24" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName24" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState24" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow25" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon25" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected25" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName25" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState25" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow26" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon26" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected26" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName26" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState26" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow27" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon27" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected27" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName27" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState27" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow28" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon28" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected28" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName28" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState28" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow29" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon29" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected29" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName29" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState29" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow30" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon30" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected30" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName30" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState30" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow31" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon31" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected31" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName31" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState31" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow32" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon32" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected32" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName32" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState32" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow33" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon33" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected33" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName33" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState33" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow34" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon34" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected34" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName34" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState34" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow35" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon35" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected35" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName35" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState35" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="button" name="WardrobeRow36" frame="0,0,1,1" font="ui_default" preset="v5_staticbox" style="pushbutton">
+          <Scripts>
+            <OnClick>WardrobeNative_Click(this.name);</OnClick>
+          </Scripts>
+        </Widget>
+        <Widget type="image" name="WardrobeIcon36" frame="0,0,1,1" />
+        <Widget type="image" name="WardrobeSelected36" frame="0,0,1,1" preset="v5_slot_over" flag="not_active;not_visible" />
+        <Widget type="static" name="WardrobeName36" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+        <Widget type="static" name="WardrobeState36" frame="0,0,1,1" font="ui_default" flag="not_active;truncate;not_multiline;not_wordwrap" />
+      </Widget>
+    </Widget>
+  </Dialog>
+  <Dialog name="WardrobeConfirm" frame="420,260,440,280" text="Wardrobe" preset="v5_dialog" flag="title;not_visible" title_height="25" title_offset="0,5">
+    <Widget type="htmlview" name="WardrobeConfirmText" frame="0,0,1,1" preset="v5_staticbox" flag="vscroll" />
+    <Widget type="static" name="WardrobeConfirmError" frame="0,0,1,1" font="ui_default" />
+    <Widget type="editbox" name="WardrobeOutfitName" frame="0,0,1,1" font="ui_default" preset="v5_editbox" />
+    <Widget type="combobox" name="WardrobeUnlockSource" frame="0,0,1,1" font="ui_default" preset="v5_staticbox3" />
+    <Widget type="button" name="WardrobeConfirmCancel" frame="0,0,1,1" font="ui_default" text="Cancel" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeConfirmAccept" frame="0,0,1,1" font="ui_default" text="Confirm" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
   </Dialog>
 </Screen>

@@ -14,6 +14,18 @@ public class PlayerSettings implements Persistable {
 	private byte[] houseBuddies;
 	private int deny = 0;
 	private int display = 0;
+	private int speechBubbleStyle;
+
+	public int getSpeechBubbleStyle() {
+		return speechBubbleStyle;
+	}
+
+	public void setSpeechBubbleStyle(int style) {
+		if (style < 0 || style > 4)
+			throw new IllegalArgumentException("Unknown speech bubble style: " + style);
+		speechBubbleStyle = style;
+		persistentState = PersistentState.UPDATE_REQUIRED;
+	}
 
 	public PlayerSettings() {
 	}

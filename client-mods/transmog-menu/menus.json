@@ -1,10 +1,9 @@
 {
   "serverCommands": [
     {"label": "Wardrobe", "command": "transmog", "icon": "v5_npc_func_skinchange"},
-    {"label": "Broker", "command": "broker", "icon": "v5_npc_func_vendor"},
-    {"label": "Central Market", "command": "warehouse", "icon": "v5_npc_func_warehouse"}
+    {"label": "Broker", "command": "broker", "icon": "v5_npc_func_vendor"}
   ],
-  "cashShop": {"label": "Cash Shop", "url": "http://127.0.0.1:8091/shop", "icon": "v5_cash_mail_up"},
+  "cashShop": {"label": "Black Cloud Marketplace", "url": "http://127.0.0.1:8091/shop", "icon": "v5_cash_mail_up"},
   "centralMarket": {"url": "http://127.0.0.1:8091/market"},
   "wardrobe": {"url": "http://127.0.0.1:8091/market/wardrobe"},
   "journey": {"url": "http://127.0.0.1:8091/journey"},

@@ -40,8 +40,13 @@ public final class PoetaJourneyDatabaseCheck {
 					player(c,101);player(c,102);player(c,103);
 					var mails=List.of(new PoetaJourneyService.MailAward(1001,item(2001,101),0),new PoetaJourneyService.MailAward(1002,null,250000));
 					PoetaJourneyService.commitSkip(c,101,PlayerClass.GLADIATOR,100000,1,quests,Set.of(1,4,7),mails);
-					check(value(c,"SELECT COUNT(*) FROM player_quests WHERE player_id=101 AND status='COMPLETE'")==42,"all 42 quests committed");
+					check(value(c,"SELECT COUNT(*) FROM player_quests WHERE player_id=101 AND status='COMPLETE'")==41,"41 Poeta quests completed; Sanctum ceremony remains active");
+					check(value(c,"SELECT quest_vars FROM player_quests WHERE player_id=101 AND quest_id=1007 AND status='START'")==1,"ceremony starts with Leah after Pernos teleport");
+					check(PoetaJourneyService.welcomePending(c,101),"welcome survives map entry");
+					PoetaJourneyService.acknowledge(c,101);c.commit();
+					check(!PoetaJourneyService.welcomePending(c,101),"welcome closes only after acknowledgement");
 					check(value(c,"SELECT reward FROM player_quests WHERE player_id=101 AND quest_id=1007")==0,"warrior ceremony group");
+					check(value(c,"SELECT FIND_IN_SET('1007',completed_quests) FROM poeta_journey WHERE player_id=101")==0,"new skip receipt allows ceremony rewards at turn-in");
 					check(value(c,"SELECT COUNT(*) FROM player_quests WHERE player_id=101 AND quest_id=1913 AND status='START'")==1,"onward quest active");
 					check(value(c,"SELECT COUNT(*) FROM mail WHERE mail_recipient_id=101")==2,"item and currency mails");
 					check(value(c,"SELECT COUNT(*) FROM inventory WHERE item_owner=101 AND item_location=7")==1,"mail attachment persisted");
@@ -65,9 +70,21 @@ public final class PoetaJourneyDatabaseCheck {
 					PoetaJourneyService.update(c,"UPDATE poeta_journey SET needs_recovery=1 WHERE player_id=101");c.commit();
 					check(PoetaJourneyService.recover(c,101),"post-commit refresh failure recovered");
 					check(value(c,"SELECT exp FROM players WHERE id=101")==100000 && value(c,"SELECT world_id FROM players WHERE id=101")==110010000,"saved class progression and position restored");
-					check(value(c,"SELECT complete_count FROM player_quests WHERE player_id=101 AND quest_id=1007")==1,"completion receipt restored");
+					check(value(c,"SELECT complete_count FROM player_quests WHERE player_id=101 AND quest_id=1007")==0,"active ceremony is not in completed journal");
 					check(value(c,"SELECT COUNT(*) FROM mail WHERE mail_recipient_id=101")==2,"recovery does not remail rewards");
 					check(!PoetaJourneyService.recover(c,101),"recovery is one-shot");
+					PoetaJourneyService.update(c,"UPDATE player_quests SET status='COMPLETE',quest_vars=0,complete_count=1 WHERE player_id=101 AND quest_id=1007");
+					PoetaJourneyService.saveCeremony(c,101,PlayerClass.GLADIATOR);c.commit();
+					check(value(c,"SELECT COUNT(*) FROM player_quests WHERE player_id=101 AND quest_id=1007 AND status='COMPLETE'")==1,"completed ceremony is not reopened or rewarded twice");
+					PoetaJourneyService.update(c,"UPDATE poeta_journey SET completed_quests=CONCAT(completed_quests,',1007') WHERE player_id=101");
+					check(value(c,"SELECT FIND_IN_SET('1007',completed_quests) FROM poeta_journey WHERE player_id=101")>0,"legacy mailed ceremony receipt remains distinguishable");
+					PoetaJourneyService.update(c,"ALTER TABLE poeta_journey DROP COLUMN welcome_pending, DROP COLUMN journey_version");c.commit();
+					PoetaJourneyService.migrate(c);
+					check(value(c,"SELECT quest_vars FROM player_quests WHERE player_id=101 AND quest_id=1007 AND status='START'")==1,"earlier skip repaired to Sanctum step");
+					check(PoetaJourneyService.welcomePending(c,101)&&value(c,"SELECT COUNT(*) FROM mail WHERE mail_recipient_id=101")==2,"repair opens welcome without remailing");
+					PoetaJourneyService.update(c,"UPDATE player_quests SET status='COMPLETE',quest_vars=0,complete_count=1 WHERE player_id=101 AND quest_id=1007");c.commit();
+					PoetaJourneyService.migrate(c);
+					check(value(c,"SELECT COUNT(*) FROM player_quests WHERE player_id=101 AND quest_id=1007 AND status='COMPLETE'")==1,"later restarts preserve finished ceremony");
 				}
 			} finally { s.execute("DROP DATABASE `"+schema+"`"); }
 		}

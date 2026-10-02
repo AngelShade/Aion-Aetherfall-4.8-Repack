@@ -16,8 +16,8 @@ def main():
     parser.add_argument('--browser-bin', type=Path, required=True)
     args = parser.parse_args()
     media = Path(__file__).resolve().parents[3] / 'game-server/config/journey/media'
-    state = dict(eligible=True, prompt=True, name='New Daeva', quests=42, request='fixture-only',
-                 classes=[dict(id='GLADIATOR', name='Gladiator'), dict(id='TEMPLAR', name='Templar')])
+    state = dict(eligible=True, prompt=True, name='New Daeva', quests=41, request='fixture-only',
+                 welcome=False, ceremonyRewardsMailed=False, decision='', classes=[dict(id='GLADIATOR', name='Gladiator'), dict(id='TEMPLAR', name='Templar')])
     posts = []
 
     class Handler(http.server.BaseHTTPRequestHandler):
@@ -48,7 +48,9 @@ def main():
             form = parse_qs(self.rfile.read(int(self.headers['Content-Length'])).decode())
             assert form['request'] == ['fixture-only'] and form['session_id'] == ['fixture']
             posts.append(form)
-            self.send(json.dumps(dict(state, done=True, notice='42 quests completed; rewards mailed; Dispatch to Verteron added.')))
+            if form['choice']==['skip']: state.update(eligible=False,prompt=False,decision='SKIP',welcome=True)
+            elif form['choice']==['ack']: state.update(welcome=False)
+            self.send(json.dumps(dict(state, done=True, notice='41 quests completed; skipped rewards mailed; complete A Ceremony in Sanctum to earn its rewards.')))
 
     server = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -78,6 +80,9 @@ def main():
     rowspan = api('awe_renderbuffer_get_rowspan', c.c_int, ptr)
     buffer_width = api('awe_renderbuffer_get_width', c.c_int, ptr)
     buffer_height = api('awe_renderbuffer_get_height', c.c_int, ptr)
+    mouse_move=api('awe_webview_inject_mouse_move',None,ptr,c.c_int,c.c_int)
+    mouse_down=api('awe_webview_inject_mouse_down',None,ptr,c.c_int)
+    mouse_up=api('awe_webview_inject_mouse_up',None,ptr,c.c_int)
     initialize()
     empty = make('', 0)
     views = []
@@ -101,8 +106,13 @@ def main():
             update()
             time.sleep(.02)
 
+    def click(view, selector):
+        point=json.loads(js(view,"(function(){var r=document.querySelector("+json.dumps(selector)+").getBoundingClientRect();return JSON.stringify([Math.round((r.left+r.right)/2),Math.round((r.top+r.bottom)/2)]);}())"))
+        mouse_move(view,*point);pump(.05);mouse_down(view,0);mouse_up(view,0);pump(.1)
+
     try:
         for width, height in [(1024, 768), (1920, 1080), (3440, 1440)]:
+            state.update(eligible=True,prompt=True,decision='',welcome=False)
             view = create(width, height, False)
             views.append(view)
             url = f'http://127.0.0.1:{server.server_port}/journey?session_id=fixture'
@@ -122,31 +132,45 @@ def main():
             assert buffer and buffer_width(buffer) == width and buffer_height(buffer) == height
             Image.frombytes('RGBA', (width,height), c.string_at(pixels(buffer), rowspan(buffer)*height), 'raw', 'BGRA', rowspan(buffer)).save(filename)
             before = len(posts)
-            js(view, "document.getElementById('skip').onclick()")
+            click(view,'#skip')
             assert js(view, "getComputedStyle(document.getElementById('classes'),null).display") != 'none'
             assert js(view, "getComputedStyle(document.getElementById('paths'),null).display") == 'none'
-            js(view, "document.querySelector('#class-list button').onclick()")
+            click(view,'#class-list button')
             assert len(posts) == before, 'Selecting a class prematurely committed the skip'
             confirm = json.loads(js(view, "(function(){var r=document.getElementById('confirm').getBoundingClientRect();return JSON.stringify({top:r.top,bottom:r.bottom});}())"))
             assert confirm['top'] >= 0 and confirm['bottom'] <= height, confirm
-            js(view, "document.getElementById('confirm').onclick();document.getElementById('confirm').onclick()")
+            click(view,'#confirm')
+            click(view,'#confirm')
             pump(.5)
             assert len(posts) == before + 1 and posts[-1]['class'] == ['GLADIATOR'] and posts[-1]['choice'] == ['skip'], posts
             assert js(view, "document.getElementById('complete-title').textContent") == 'Welcome to Sanctum'
-            js(view, "document.getElementById('close').onclick()")
-            assert js(view, 'visibility.join()') == '1,0'
+            # Map entry reloads the hidden webview. The durable receipt opens it
+            # again and remains pending until a click explicitly acknowledges it.
+            s=make(url,len(url));load(view,s,empty,empty,empty);free(s);pump(.7)
+            assert js(view,'visibility.join()')=='1', 'Welcome lost on map-change reload'
+            assert js(view,"document.getElementById('complete-title').textContent")=='Welcome to Sanctum'
+            assert 'Complete the ceremony to earn its rewards.' in js(view,"document.getElementById('receipt').textContent")
+            pump(.7)
+            assert state['welcome'] and js(view,'visibility.join()')=='1'
+            click(view,'#close');pump(.3)
+            assert posts[-1]['choice']==['ack'] and not state['welcome']
+            assert js(view,'visibility.join()')=='1,0'
+            state.update(eligible=True,prompt=True,decision='',welcome=False)
             # Reopening can select the original story without taking the skip route.
             s = make(url, len(url)); load(view, s, empty, empty, empty); free(s); pump(.7)
-            js(view, "document.getElementById('play').onclick()")
+            click(view,'#play')
             pump(.5)
             assert posts[-1]['choice'] == ['play'] and js(view, 'visibility.join()') == '1,0'
-            print(f'PASS actual Aion WebKit {width}x{height}: both choices visible, class confirmation, single submission, original-story close')
+            print(f'PASS actual Aion WebKit {width}x{height}: mouse clicks hit visible buttons, class confirmation, map-reload welcome persists until acknowledgement, original-story close')
             destroy(view); views.remove(view)
-        state.update(eligible=False, prompt=False, decision='SKIP')
+        state.update(eligible=False, prompt=False, decision='SKIP',welcome=False)
         view = create(1024, 768, False); views.append(view)
         s = make(url, len(url)); load(view, s, empty, empty, empty); free(s); pump(1)
         assert js(view, 'visibility.length') == '0', 'Already processed character unexpectedly opened the menu'
         assert 'already been applied' in js(view, "document.getElementById('receipt').textContent")
+        state.update(ceremonyRewardsMailed=True)
+        s = make(url, len(url)); load(view, s, empty, empty, empty); free(s); pump(.7)
+        assert 'already included in your earlier mail bundle' in js(view, "document.getElementById('receipt').textContent")
         print('PASS: completed/ineligible characters do not auto-open')
     finally:
         for view in views:

@@ -142,3 +142,98 @@ def prepare(root, output, dll, repair_backup=None):
         stage(relative, json.dumps(value, indent=2).encode('utf-8'))
     print('Preserved native Graphics menu and cursor; staged matching package, tracking and restore baselines.')
     return combined, {'backupName': backup_name, 'localized': any(e['path'].startswith('L10N/') for e in new_files)}
+
+
+def prepare_incremental(root, output, dll, repair_backup=None):
+    """Track a bounded edit to the installed DLL without rebuilding graphics hooks.
+
+    Every changed byte must also exist unchanged in both verified restore
+    baselines. Thus edits to graphics/cursor hooks cannot silently cross domains.
+    A repair accepts only a fully hash-verified Poeta installer receipt.
+    """
+    state_path = root / 'DXVK/graphics-menu/installed.json'
+    if not state_path.exists():
+        return dll, None
+    state = read_json(state_path)
+    if state.get('restoredAt'):
+        return dll, None
+    if Path(state['clientRoot']).resolve() != root.resolve():
+        raise ValueError('Graphics state belongs to another client')
+    package = root / 'DXVK/graphics-menu/package'
+    manifest = read_json(package / 'manifest.json')
+    allowed = {'bin64/Game.dll','Data/ui/game/game.pak','L10N/enu/Data/data.pak','bin64/AionGraphicsMenu.dll'}
+    if state['files'] != manifest['files'] or len(state['files']) not in (3,4) or len({e['path'] for e in state['files']}) != len(state['files']) or {e['path'] for e in state['files']} - allowed:
+        raise ValueError('Graphics package and state disagree')
+    receipt = None
+    if repair_backup:
+        receipt = read_json(repair_backup / 'manifest.json')
+        if Path(receipt['clientRoot']).resolve() != root.resolve() or receipt.get('poetaJourney') is not True:
+            raise ValueError('Expected this client Poeta journey installer receipt')
+        for entry in receipt['files']:
+            if sha((root/entry['path']).read_bytes()) != entry['staged']:
+                raise ValueError('Client changed after the recorded Poeta installation')
+        for entry in receipt.get('preservedFiles',[]):
+            if sha((root/entry['path']).read_bytes()) != entry['sha256']:
+                raise ValueError('Preserved Poeta client file changed')
+    for entry in state['files']:
+        if sha((package/entry['path']).read_bytes()) != entry['installed']:
+            raise ValueError('Graphics payload changed')
+        current = sha((root/entry['path']).read_bytes())
+        if current != entry['installed']:
+            known = [] if receipt is None else [e for e in receipt['files'] if e['path'].lower() == entry['path'].lower()]
+            if len(known) != 1 or known[0]['original'] != entry['installed'] or known[0]['staged'] != current:
+                raise ValueError('Unknown later client change: '+entry['path'])
+    dxvk = read_json(root/'DXVK/installed.json')
+    records = [e for e in dxvk['nativeCursorPatch']['files'] if e['path']=='bin64/Game.dll']
+    old_game = next(e for e in state['files'] if e['path']=='bin64/Game.dll')
+    if len(records)!=1 or records[0]['installed'].lower()!=old_game['installed'].lower():
+        raise ValueError('Cursor and graphics tracking disagree')
+    game_record = records[0]
+    for entry in dxvk['nativeCursorPatch']['files']:
+        if entry['path']!='bin64/Game.dll' and sha((root/entry['path']).read_bytes())!=entry['installed'].lower():
+            raise ValueError('Other native cursor files changed')
+    old_backup = Path(state['backupRoot']).resolve()
+    cursor_path = Path(game_record['backupPath']).resolve()
+    if not old_backup.is_relative_to((root/'DXVK-backups').resolve()) or not cursor_path.is_relative_to((root/'DXVK-backups').resolve()):
+        raise ValueError('Restore baseline is outside client backups')
+    prior = (package/'bin64/Game.dll').read_bytes()
+    baseline = bytearray((old_backup/'bin64/Game.dll').read_bytes())
+    cursor_base = bytearray(cursor_path.read_bytes())
+    if sha(baseline)!=old_game['original'] or sha(cursor_base)!=game_record['original'].lower():
+        raise ValueError('Restore baseline checksum mismatch')
+    if len(dll)!=len(prior):
+        raise ValueError('Incremental edit must preserve installed DLL length')
+    for i,(before,after) in enumerate(zip(prior,dll)):
+        if before!=after:
+            if i>=len(baseline) or i>=len(cursor_base) or baseline[i]!=before or cursor_base[i]!=before:
+                raise ValueError('Incremental edit overlaps graphics/cursor restore ownership')
+            baseline[i]=cursor_base[i]=after
+    backup_name = 'service-menu-graphics-'+datetime.now().strftime('%Y%m%d-%H%M%S-%f')
+    backup_relative = 'DXVK-backups/'+backup_name
+
+    def stage(relative,data):
+        target=output/relative;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(data)
+
+    new_files=[]
+    for entry in state['files']:
+        relative=entry['path']
+        if relative=='bin64/AionGraphicsMenu.dll':
+            new_files.append(copy.deepcopy(entry));continue
+        if relative=='bin64/Game.dll':
+            installed,original=dll,bytes(baseline)
+        else:
+            installed=(root/relative).read_bytes();original=(old_backup/relative).read_bytes()
+            if sha(original)!=entry['original']:
+                raise ValueError('UI restore baseline checksum mismatch')
+        stage(backup_relative+'/'+relative,original)
+        stage('DXVK/graphics-menu/package/'+relative,installed)
+        new_files.append(dict(path=relative,original=sha(original),installed=sha(installed)))
+    cursor_relative=backup_relative+'/cursor-base/bin64/Game.dll'
+    stage(cursor_relative,bytes(cursor_base))
+    state.update(files=new_files,backupRoot=str(root/backup_relative),rebasedAt=datetime.now().isoformat())
+    manifest['files']=new_files
+    game_record.update(installed=sha(dll),original=sha(cursor_base),backupPath=str(root/cursor_relative))
+    for relative,value in [('DXVK/graphics-menu/package/manifest.json',manifest),('DXVK/graphics-menu/installed.json',state),('DXVK/installed.json',dxvk)]:
+        stage(relative,json.dumps(value,indent=2).encode())
+    print('Staged matching Graphics/cursor records and exact incremental restore baselines; client untouched.')
+    return dll,dict(backupName=backup_name,localized=any(e['path'].startswith('L10N/') for e in new_files))

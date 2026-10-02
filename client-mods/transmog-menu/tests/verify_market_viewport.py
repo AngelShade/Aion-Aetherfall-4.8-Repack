@@ -98,6 +98,21 @@ try:
             assert geometry(wardrobe)==(0,0,width,height)
             assert geometry(wardrobe_browser)==(0,25*scale,width,height-25*scale)
             count += 1
+    journey, journey_browser = widget('PrivateJourney'), widget('PrivateJourneyBrowser')
+    struct.pack_into('<Q',journey,0x2a8,ctypes.addressof(journey_browser))
+    for width,height in ((1024,768),(1280,1024),(1920,1080),(2560,1440),(3440,1440),(5120,1440),(1920,1200)):
+        for ui_percent in (75,100,125,150):
+            put(UI_WIDTH_RVA,struct.pack('<dd',width,height))
+            put(UI_SCALE_RVA,struct.pack('<d',min(width/1280,height/960)*ui_percent/100))
+            fn(journey,requested)
+            assert geometry(journey)==(0,0,width,height)
+            assert geometry(journey_browser)==(0,0,width,height)
+            fn(journey_browser,requested)
+            assert geometry(journey_browser)==(0,0,width,height)
+            count += 1
+    for name in ('PrivateJourneyX','PrivateJourneyBrowserX'):
+        w=widget(name);fn(w,requested)
+        assert geometry(w)==(240,0,1440,1080),name
     for width, height in ((0, 1080), (1920, 0), (-1, 1080), (float('nan'), 1080)):
         put(UI_WIDTH_RVA, struct.pack('<dd', width, height))
         fn(dialog, requested)

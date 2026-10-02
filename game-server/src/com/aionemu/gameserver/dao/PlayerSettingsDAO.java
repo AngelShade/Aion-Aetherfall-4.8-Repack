@@ -39,6 +39,11 @@ public class PlayerSettingsDAO {
 						case 2 -> playerSettings.setHouseBuddies(resultSet.getBytes("settings"));
 						case -1 -> playerSettings.setDisplay(resultSet.getInt("settings"));
 						case -2 -> playerSettings.setDeny(resultSet.getInt("settings"));
+						case -3 -> {
+							int style = resultSet.getInt("settings");
+							if (style >= 0 && style <= 4)
+								playerSettings.setSpeechBubbleStyle(style);
+						}
 					}
 				}
 			}
@@ -61,6 +66,17 @@ public class PlayerSettingsDAO {
 		byte[] houseBuddies = playerSettings.getHouseBuddies();
 		int display = playerSettings.getDisplay();
 		int deny = playerSettings.getDeny();
+		int speechBubbleStyle = playerSettings.getSpeechBubbleStyle();
+
+		DB.insertUpdate("REPLACE INTO player_settings values (?, ?, ?)", new IUStH() {
+			@Override
+			public void handleInsertUpdate(PreparedStatement stmt) throws SQLException {
+				stmt.setInt(1, playerId);
+				stmt.setInt(2, -3);
+				stmt.setInt(3, speechBubbleStyle);
+				stmt.execute();
+			}
+		});
 
 		if (uiSettings != null) {
 			DB.insertUpdate("REPLACE INTO player_settings values (?, ?, ?)", new IUStH() {

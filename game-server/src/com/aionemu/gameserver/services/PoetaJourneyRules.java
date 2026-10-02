@@ -14,7 +14,8 @@ public final class PoetaJourneyRules {
 	public static boolean skippedQuest(QuestTemplate q) {
 		return q.getRacePermitted() == Race.ELYOS && !q.isRestricted() && !q.isNoCount()
 			&& q.getMinlevelPermitted() <= 9 && q.getMaxRepeatCount() == 1
-			&& ("Poeta".equals(q.getQuestZone()) || q.getId() == 1006 || q.getId() == 1007);
+			&& q.getId() != 1007
+			&& ("Poeta".equals(q.getQuestZone()) || q.getId() == 1006);
 	}
 
 	public static List<PlayerClass> advancedClasses(PlayerClass base) {

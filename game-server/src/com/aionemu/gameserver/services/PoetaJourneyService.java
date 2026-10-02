@@ -41,6 +41,7 @@ public final class PoetaJourneyService {
 		if (!CustomConfig.ENABLE_POETA_JOURNEY) return;
 		try (Connection c = DatabaseFactory.getConnection(); Statement s = c.createStatement()) {
 			for (String sql : Files.readString(Path.of("config/journey/schema.sql")).split(";")) if (!sql.isBlank()) s.execute(sql);
+			migrate(c);
 			try (ResultSet r = s.executeQuery("SELECT TABLE_NAME,ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('players','player_quests','player_titles','inventory','mail','player_bind_point','poeta_journey')")) {
 				int count = 0;
 				while (r.next()) { count++; if (!"InnoDB".equalsIgnoreCase(r.getString(2))) throw new SQLException("Journey requires InnoDB: " + r.getString(1)); }
@@ -79,9 +80,10 @@ public final class PoetaJourneyService {
 			String choice = decision(c,p.getObjectId());
 			List<Map<String,Object>> classes = PoetaJourneyRules.advancedClasses(p.getPlayerClass()).stream()
 				.map(v -> Map.<String,Object>of("id",v.name(),"name",className(v))).toList();
-			int pending = (int) quests().stream().filter(q -> !completed(p,q.getId())).count();
+			int pending = (int) quests().stream().filter(q -> q.getId() != 1007 && !completed(p,q.getId())).count();
 			return new LinkedHashMap<>(Map.of("eligible",eligible(p),"prompt",eligible(p) && choice.isEmpty(),"decision",choice,
-				"name",p.getName(),"classes",classes,"quests",pending,"level",p.getLevel()));
+				"name",p.getName(),"classes",classes,"quests",pending,"level",p.getLevel(),"welcome",welcomePending(c,p.getObjectId()),
+				"ceremonyRewardsMailed",ceremonyRewardsMailed(p)));
 		}
 	}
 
@@ -96,6 +98,11 @@ public final class PoetaJourneyService {
 
 	static String choose(Player p,String action,String selected) throws Exception {
 		synchronized (p) {
+			if (action.equals("ack")) {
+				if (!p.isOnline() || World.getInstance().getPlayer(p.getObjectId()) != p) throw new IllegalArgumentException("Log in to continue.");
+				try (Connection c = DatabaseFactory.getConnection()) { acknowledge(c,p.getObjectId()); }
+				return "Enjoy your journey!";
+			}
 			if (!p.isOnline() || World.getInstance().getPlayer(p.getObjectId()) != p || !eligible(p) || !p.isSpawned()
 				|| !CreatureState.isStanding(p.getState()) || p.getController().isInCombat())
 				throw new IllegalArgumentException("Choose while standing safely in Poeta, before Ascension.");
@@ -158,14 +165,18 @@ public final class PoetaJourneyService {
 				commitSkip(c,p.getObjectId(),advanced,DataManager.PLAYER_EXPERIENCE_TABLE.getStartExpForLevel(10),p.getQuestExpands()+expansion,pending,titles,mails);
 				committed = true;
 			}
-			for (QuestTemplate q : pending) {
+			// The ceremony is played in Sanctum; start it without mailing its rewards.
+			List<QuestTemplate> progression = new ArrayList<>(pending);
+			if (!completed(p,1007)) progression.add(DataManager.QUEST_DATA.getQuestById(1007));
+			for (QuestTemplate q : progression) {
 				QuestState old = p.getQuestStateList().getQuestState(q.getId());
 				QuestState state = old == null ? new QuestState(q.getId(),QuestStatus.COMPLETE) : old;
-				state.setStatus(QuestStatus.COMPLETE); state.setQuestVar(0); state.setFlags(0);
+				state.setStatus(q.getId() == 1007 ? QuestStatus.START : QuestStatus.COMPLETE); state.setQuestVar(q.getId() == 1007 ? 1 : 0); state.setFlags(0);
+				if (q.getId() == 1007) state.setCompleteCount(0);
 				state.setRewardGroup(q.getId() == 1007 ? PoetaJourneyRules.ceremonyGroup(advanced) : 0);
 				state.setPersistentState(PersistentState.UPDATED);
 				if (old == null) p.getQuestStateList().addQuest(q.getId(),state);
-				PacketSendUtility.sendPacket(p,new SM_QUEST_ACTION(old == null ? ActionType.ADD : ActionType.UPDATE,state));
+				if (old != null || q.getId() == 1007) PacketSendUtility.sendPacket(p,new SM_QUEST_ACTION(old == null ? ActionType.ADD : ActionType.UPDATE,state));
 			}
 			ClassChangeService.setClass(p,advanced,true,true);
 			p.getCommonData().setLevel(10);
@@ -176,13 +187,16 @@ public final class PoetaJourneyService {
 			int dispatch = PoetaJourneyRules.dispatchQuest(advanced);
 			QuestService.addOrUpdateQuest(p,dispatch,QuestStatus.START);
 			p.getQuestStateList().getQuestState(dispatch).setPersistentState(PersistentState.UPDATED);
+			QuestEngine.getInstance().sendCompletedQuests(p);
+			PacketSendUtility.sendPacket(p,new SM_QUEST_LIST(p.getQuestStateList().getUncompletedQuests()));
+			p.getController().updateNearbyQuests();
 			PlayerBindPointDAO.loadBindPoint(p);
 			MailService.onPlayerLogin(p);
 			p.getCommonData().setMailboxLetters(p.getMailbox().size());
 			TeleportService.teleportTo(p,110010000,1313f,1512f,568f,(byte)0);
 			PlayerService.storePlayer(p);
 			log.info("Poeta journey: {} chose {}; {} quests completed and {} reward stacks mailed",p.getName(),advanced,pending.size(),attachments.size());
-			return "Welcome to Sanctum! Collect your Poeta rewards from the mailbox, then speak to Polyidus for Dispatch to Verteron.";
+			return "Welcome to Sanctum! Collect your skipped Poeta quest rewards from the mailbox. Speak to Leah for A Ceremony in Sanctum and earn its rewards when you complete it, then see Polyidus for Dispatch to Verteron.";
 		} catch (Exception e) {
 			if (!committed) for (int id : allocated) IDFactory.getInstance().releaseId(id);
 			else {
@@ -212,7 +226,10 @@ public final class PoetaJourneyService {
 				s.setInt(1,player); try (ResultSet r = s.executeQuery()) { r.next(); oldMailCount=r.getInt(1); }
 			}
 			if (oldMailCount + mails.size() > 200) throw new IllegalArgumentException("Collect existing mail first. The full reward bundle needs " + mails.size() + " free letters.");
-			for (QuestTemplate q : quests) saveQuest(c,player,q.getId(),"COMPLETE",q.getId() == 1007 ? PoetaJourneyRules.ceremonyGroup(advanced) : 0);
+			for (QuestTemplate q : quests) {
+				saveQuest(c,player,q.getId(),"COMPLETE",0);
+			}
+			saveCeremony(c,player,advanced);
 			saveQuest(c,player,PoetaJourneyRules.dispatchQuest(advanced),"START",0);
 			for (MailAward award : mails) {
 				int item = 0;
@@ -229,7 +246,7 @@ public final class PoetaJourneyService {
 				advanced.name(),exp,expansions,oldMailCount+mails.size(),player);
 			update(c,"REPLACE INTO player_bind_point(player_id,map_id,x,y,z,heading) VALUES(?,110010000,1313,1512,568,0)",player);
 			String completed = quests.stream().map(q -> Integer.toString(q.getId())).collect(java.util.stream.Collectors.joining(","));
-			update(c,"INSERT INTO poeta_journey(player_id,decision,chosen_class,start_exp,quest_expands,completed_quests) VALUES(?,'SKIP',?,?,?,?) ON DUPLICATE KEY UPDATE decision='SKIP',chosen_class=VALUES(chosen_class),start_exp=VALUES(start_exp),quest_expands=VALUES(quest_expands),completed_quests=VALUES(completed_quests)",player,advanced.name(),exp,expansions,completed);
+			update(c,"INSERT INTO poeta_journey(player_id,decision,chosen_class,start_exp,quest_expands,completed_quests,welcome_pending,journey_version) VALUES(?,'SKIP',?,?,?,?,1,2) ON DUPLICATE KEY UPDATE decision='SKIP',chosen_class=VALUES(chosen_class),start_exp=VALUES(start_exp),quest_expands=VALUES(quest_expands),completed_quests=VALUES(completed_quests),welcome_pending=1,journey_version=2",player,advanced.name(),exp,expansions,completed);
 			c.commit();
 		} catch (SQLException | RuntimeException e) { c.rollback(); throw e; }
 	}
@@ -249,8 +266,9 @@ public final class PoetaJourneyService {
 				PlayerClass advanced = PlayerClass.valueOf(r.getString(1));
 				update(c,"UPDATE players SET player_class=?,exp=GREATEST(exp,?),quest_expands=GREATEST(quest_expands,?),world_id=110010000,world_owner=0,x=1313,y=1512,z=568,heading=0 WHERE id=?",advanced.name(),r.getLong(2),r.getInt(3),player);
 				for (String quest : r.getString(4).split(",")) if (!quest.isBlank()) {
-					int id = Integer.parseInt(quest); saveQuest(c,player,id,"COMPLETE",id == 1007 ? PoetaJourneyRules.ceremonyGroup(advanced) : 0);
+					int id = Integer.parseInt(quest); if (id == 1007) saveCeremony(c,player,advanced); else saveQuest(c,player,id,"COMPLETE",0);
 				}
+				saveCeremony(c,player,advanced);
 				saveQuest(c,player,PoetaJourneyRules.dispatchQuest(advanced),"START",0);
 				update(c,"UPDATE poeta_journey SET needs_recovery=0 WHERE player_id=?",player);
 				c.commit(); return true;
@@ -258,9 +276,53 @@ public final class PoetaJourneyService {
 		} catch (SQLException | RuntimeException e) { c.rollback(); throw e; }
 	}
 
+	/** Upgrades earlier skips once, before characters are loaded. Never creates mail. */
+	static void migrate(Connection c) throws SQLException {
+		for (String column : List.of("welcome_pending","journey_version")) {
+			try (ResultSet r = c.getMetaData().getColumns(c.getCatalog(),null,"poeta_journey",column)) {
+				if (r.next()) continue;
+			}
+			update(c,"ALTER TABLE poeta_journey ADD COLUMN "+column+(column.equals("welcome_pending") ? " BOOLEAN NOT NULL DEFAULT 0" : " INT NOT NULL DEFAULT 1"));
+		}
+		boolean previousAutoCommit=c.getAutoCommit();
+		c.setAutoCommit(false);
+		try {
+			update(c,"UPDATE player_quests q JOIN poeta_journey j ON j.player_id=q.player_id SET q.status='START',q.quest_vars=1,q.flags=0,q.complete_count=0,q.complete_time=NULL WHERE q.quest_id=1007 AND j.decision='SKIP' AND j.journey_version<2 AND FIND_IN_SET('1007',j.completed_quests)>0");
+			update(c,"UPDATE poeta_journey SET welcome_pending=1,journey_version=2 WHERE decision='SKIP' AND journey_version<2");
+			c.commit();
+		} catch (SQLException e) { c.rollback(); throw e; }
+		finally { c.setAutoCommit(previousAutoCommit); }
+	}
+
+	static void saveCeremony(Connection c,int player,PlayerClass advanced) throws SQLException {
+		try (PreparedStatement s=c.prepareStatement("SELECT complete_count FROM player_quests WHERE player_id=? AND quest_id=1007")) {
+			s.setInt(1,player); try (ResultSet r=s.executeQuery()) { if (r.next() && r.getInt(1)>0) return; }
+		}
+		saveQuest(c,player,1007,"START",PoetaJourneyRules.ceremonyGroup(advanced));
+		update(c,"UPDATE player_quests SET quest_vars=1,complete_count=0,complete_time=NULL WHERE player_id=? AND quest_id=1007",player);
+	}
+
+	static boolean welcomePending(Connection c,int player) throws SQLException {
+		try (PreparedStatement s = c.prepareStatement("SELECT welcome_pending FROM poeta_journey WHERE player_id=? AND decision='SKIP'")) {
+			s.setInt(1,player); try (ResultSet r=s.executeQuery()) { return r.next() && r.getBoolean(1); }
+		}
+	}
+
+	static void acknowledge(Connection c,int player) throws SQLException {
+		update(c,"UPDATE poeta_journey SET welcome_pending=0 WHERE player_id=? AND decision='SKIP'",player);
+	}
+
+	public static boolean ceremonyRewardsMailed(Player player) {
+		// Only legacy receipts include 1007; new skips earn its rewards at turn-in.
+		if (!ready) return false;
+		try (Connection c=DatabaseFactory.getConnection(); PreparedStatement s=c.prepareStatement("SELECT 1 FROM poeta_journey WHERE player_id=? AND decision='SKIP' AND FIND_IN_SET('1007',completed_quests)>0")) {
+			s.setInt(1,player.getObjectId()); try (ResultSet r=s.executeQuery()) { return r.next(); }
+		} catch (SQLException e) { throw new IllegalStateException("Could not verify mailed ceremony rewards",e); }
+	}
+
 	private static void mail(Connection c,int player,int id,int item,long kinah) throws SQLException {
 		update(c,"INSERT INTO mail(mail_unique_id,mail_recipient_id,sender_name,mail_title,mail_message,unread,attached_item_id,attached_kinah_count,express) VALUES(?,?,'Poeta Journey','Poeta quest rewards',?,1,?,?,0)",
-			id,player,"Your rewards from the completed Poeta and Ascension quests. All alternative reward items are included once. Speak to Polyidus in Sanctum to continue Dispatch to Verteron.",item,kinah);
+			id,player,"Your rewards from the skipped Poeta quests and Ascension. All alternative reward items are included once. A Ceremony in Sanctum remains active: speak to Leah and earn its rewards when you complete it, then see Polyidus for Dispatch to Verteron.",item,kinah);
 	}
 
 	private static Object[] itemFields(int player,Item item) {

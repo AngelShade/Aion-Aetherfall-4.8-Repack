@@ -414,3 +414,192 @@ clicking the field. Live rendering remains the final acceptance check.
 Installed v9 and hash-verified all eight client files. Backup:
 `TransmogMenu-backups/signed-20260930-070316-174`. The installer confirmed
 Aion was closed before replacement. No GameServer restart was required.
+
+### Independent inventory beside Warehouse and Profile
+
+`detached_inventory.py` removes Warehouse and Profile from the native compact
+inventory docking list. Opening either dialog shows the existing normal
+inventory, with its unified grid and search. It stays independently movable
+and resizable, and closing the owner dialog leaves it open. Other native
+inventory docking owners keep their existing behavior.
+
+The patch checks the owner IDs, original calls, and executable padding before
+writing. `tests/verify_detached_inventory.py` executes its opening hook with
+native widget fixtures and checks show/hide arguments, repeated opening,
+null widgets, preserved position, and caller registers. In-game appearance
+and dragging still require a client check.
+
+### Native Wardrobe
+
+Wardrobe now uses native addon XML and Lua controls. The left panel places
+equipment around the existing paper-doll model in two Profile-style columns.
+Only Main Hand, Off Hand, Headwear, Chest Armor, Shoulder Armor, Gloves,
+Leg Armor, Boots, and Wings are shown. Each can be selected for remodeling.
+The right panel contains Collection, Saved Outfits, Inventory, categories,
+search, filters, item details, unlocks, and appearance restoration.
+
+Try On keeps multiple appearance changes together. Apply Changes confirms
+the complete set and submits the existing transactional server operation.
+Locked skins can be previewed and removed; unlocking consumes one Appearance
+Unlock and keeps the equipment. Saved outfits retain the existing account
+database storage. Native model rotation, positioning, wheel zoom, and wings
+use the installed paper-doll controller.
+
+`WardrobeNative.lua` reuses 36 item cards and debounces searches. The native
+bridge performs HTTP on a worker, handles completions on the game thread,
+discards responses for closed windows, and splits responses across eight
+acknowledged native mailboxes. Each message stays below the client's 1,023-byte
+text limit and preserves UTF-8 boundaries. Lua assembles the complete response
+before decoding. No Lua stack or text-accessor hook is installed.
+`WardrobeJSON.lua` decodes data without executing server text.
+Icons reference the client's original DDS files; no artwork is extracted.
+
+`prepare_native_wardrobe.py` stages the addon and bridge incrementally from
+the installed client. It preserves all existing Game.dll patches and checks
+native presets in the base and English archives. Use the standard signed
+installer with the prepared manifest; Aion must be fully closed. GameServer
+does not need to restart because the existing Wardrobe API and tables are used.
+
+Checks: `tests/verify_native_wardrobe.py` uses Lua 5.1 and the actual client
+Widget.lua wrappers, the real text limit, event dispatch, and native UI scaling.
+Layout converts physical pixels once, keeping the model, slots, and controls
+inside the screen. Compile `verify_wardrobe_native.cpp` with
+`VERIFY_NATIVE_WARDROBE_UI` for native mailbox, complete text response,
+preview, fullscreen, stale completion, and asynchronous request checks.
+Final rendering, tooltip placement, and native button behavior require
+verification in the running game.
+
+Installed the native Wardrobe and Profile slot arrangement, with all nine
+replacement files and preserved client files hash-verified. Backup:
+`TransmogMenu-backups/signed-20261002-052919-857`. Graphics launcher verification
+passed. No GameServer restart was required. In-game acceptance is pending.
+
+Installed the native data and layout correction on 2026-10-02. The live capture
+showed a 13 KB valid server response truncated to 1,023 bytes in Lua. The new
+eight-channel protocol passes full-response checks with that live state and
+an 18 KB Unicode fixture. The nine appearance slots do not overlap at the five
+tested resolutions, including the live 1.125 UI scale. Confirmations center in
+physical screen pixels. All nine replacement files and preserved client files
+were verified. Backup: `TransmogMenu-backups/signed-20261002-070609-534`.
+GameServer stayed running. The corrected in-game rendering still needs checking.
+
+### Native Wardrobe interaction correction
+
+Every button now registers an explicit `OnClick` script, using the same addon
+event path as Relic Appraiser. The checks trigger those registered scripts
+through the stock `Widget_TriggerScript` dispatcher instead of calling the
+click function directly. Search and filters also have timer polling so browsing
+does not depend on global edit-box event delivery.
+
+The bridge checks the native cursor against equipment slots and collection
+cards, including the scroll viewport. It sends hover data to Lua and uses the
+original item-tooltip receiver. Hidden items, confirmations, and loss of game
+focus clear the hover. All widget access runs on the game thread.
+
+Item images crop the original DDS sprite through the native image source
+rectangle and UV refresh. `SetSelectionRect` is not used for texture cropping;
+it controls the selection overlay. Sprite sizes come from the existing verified
+icon index, preserving both 40-pixel padded sprites and 64-pixel artwork.
+Selecting a card does not reload unchanged images. No image files are extracted.
+
+Checks passed for registered category/tab/action buttons, multi-item previews,
+apply/unlock requests, five screen sizes, hover clipping and focus/modal guards,
+and the original Game.dll source-rectangle setter. The signed package is prepared
+at `game-server/target/wardrobe-native-interaction-fix`.
+
+Installed on 2026-10-02 after Aion closed. All nine replacement files and ten
+preserved files were hash-verified, and graphics launcher verification passed.
+Backup: `TransmogMenu-backups/signed-20261002-073836-628`. GameServer did not
+need a restart. In-game button response, icon rendering, and tooltip behavior
+remain the final acceptance check.
+
+### Native Wardrobe icon and confirmation correction
+
+The running client uses a zero source rectangle to mean the whole DDS texture.
+The bridge now explicitly sets the sprite source to the icon index's 40 or
+64 pixels, including that default case and switching between sprite sizes.
+The original image setter refreshes the UVs; the slot destination stays full size.
+
+Native confirmations keep the character model visible and pause preview input.
+Cancel and successful completion resume input without resetting the camera or
+the staged appearances. The web preview's existing visibility command remains
+available for its callers.
+
+The filter and unlock-source dropdowns position their native `drop_btn` child
+inside the right edge after scaling. Resizing a combo no longer leaves the
+arrow at its preset's negative coordinates.
+
+Checks cover zero-source and padded textures, switching 40/64-pixel art,
+both dropdown widths, unchanged model visibility and camera during a modal,
+blocked mouse input, and Apply/Unlock/Cancel through the stock Lua dispatcher.
+The signed package is prepared at
+`game-server/target/wardrobe-native-visual-confirm-fix`.
+
+Installed on 2026-10-02 after the game window closed and its leftover process
+exited. All nine installed files and ten preserved files were hash-verified;
+graphics launcher verification passed. Backup:
+`TransmogMenu-backups/signed-20261002-080956-128`. GameServer stayed running.
+The four corrections still need visual confirmation in Aion.
+
+### Native Wardrobe DDS variant alignment
+
+The follow-up live capture showed weapon sources correctly set to 40 pixels,
+but equipped armor, headwear, and wings used 64-pixel source rectangles while
+Lua loaded their legacy base textures. `native_wardrobe_icons.py` now selects
+the same original DDS reference, item definition, and optional `_64` variant
+as the bridge index. This covers equipment slots and Collection/Inventory cards.
+The bridge's 40/64-pixel crop follows the image actually loaded by the widget.
+
+`tests/verify_native_wardrobe_icons.py` compares every generated item path with
+the installed archive/index: original DDS byte offset, compressed size, decoded
+size, CRC, and sprite size must agree. It saves only Lua path metadata when an
+output is requested; no artwork is extracted.
+
+The installed catalog check passed for all 101,845 item paths (91,759 legacy
+sprites and 10,086 full-size variants). Installed the signed catalog correction
+on 2026-10-02; nine installed files and ten preserved files were hash-verified,
+and graphics launcher verification passed. Backup:
+`TransmogMenu-backups/signed-20261002-082107-917`. No GameServer restart was
+needed. Equipment and collection icon rendering still need checking in Aion.
+
+### Native Wardrobe opaque blue theme
+
+Wardrobe uses opaque navy backgrounds for the window, panels, preview area,
+fields, and confirmations. Controls have blue normal, hover, pressed, disabled,
+and selected states. Pale blue text and cyan selection borders keep the active
+tab and chosen appearance visible. Apply and confirmation buttons use a brighter
+blue. Item artwork and the native character model keep their original colors.
+
+`WardrobeTheme.lua` applies image states and text colors through the native
+client controls. The 16 generated DDS surfaces total 337,472 bytes and are shared
+between widgets. Image assignments are cached; changing a selection does not
+reload unchanged item images. No item artwork is extracted or distributed.
+
+`tests/verify_native_wardrobe_theme.py` verifies texture headers, opaque pixels,
+selection borders, text contrast, and texture size. The native Lua fixture covers
+theme integration alongside existing interactions, tooltips, confirmations,
+preview drafts, and five resolutions.
+
+Installed on 2026-10-02 with Aion closed. All 25 installed files and ten preserved
+files were hash-verified, and graphics launcher verification passed. Backup:
+`TransmogMenu-backups/signed-20261002-084528-448`. In-game color and opacity
+rendering still need visual confirmation.
+
+### Independent native window movement
+
+Profile, Inventory, and Private Warehouse explicitly enable native title-bar
+movement and omit the stock automatic alignment group. The normal Inventory
+remains independent when Profile or Warehouse opens. Existing grids, scrolling,
+search controls, window sizes, and item handling are preserved.
+
+`prepare_movable_windows.py` stages only the three dialog roots in the base and
+English UI archives, plus matching graphics launcher and restore records.
+Future Inventory and Warehouse builds also retain these movement attributes.
+`tests/verify_movable_windows.py` checks archive preservation and executes the
+original client's title-bar hit test. The detached Inventory fixture passes;
+graphics launch verification and removal retain the movement changes.
+
+Installed on 2026-10-02 with Aion closed. All 12 installed files and 12 preserved
+files were hash-verified. Backup:
+`TransmogMenu-backups/signed-20261002-133106-372`. GameServer stayed running.
+Actual title-bar dragging still needs confirmation in Aion.

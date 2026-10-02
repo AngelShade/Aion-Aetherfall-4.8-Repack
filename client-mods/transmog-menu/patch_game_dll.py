@@ -30,7 +30,13 @@ MARKET_RECT_ORIGINAL = bytes.fromhex('488bc44881ecb8000000')
 UI_WIDTH_RVA, UI_HEIGHT_RVA, UI_SCALE_RVA = 0x1378ea8, 0x1378eb0, 0x1378ec8
 
 
-def build_market_rect_code():
+def build_market_rect_code(include_journey=True):
+    if include_journey:
+        return build_journey_rect_code()
+    return build_legacy_market_rect_code()
+
+
+def build_legacy_market_rect_code():
     """Fit only the named shop/market widgets in pixels on every layout pass.
 
     Addon Dialogs center their XML rectangle inside a scaled 1280x960 area.
@@ -111,6 +117,79 @@ def build_market_rect_code():
     a.label('title_height')
     a.emit(struct.pack('<d', 25))
     return a.finish()
+
+
+def build_journey_rect_code():
+    """Use the proven pixel layout path for all four native browser dialogs."""
+    a = Assembler(MARKET_RECT_HOOK_RVA)
+    a.emit(bytes.fromhex('5356574883ec604889cb4889542440'))
+    a.emit(bytes.fromhex('488b01ff90a80000004885c0'))
+    a.branch(b'\x0f\x84', 'original')
+    a.emit(bytes.fromhex('4889442420'))
+    shorts = []
+    def short(op,label):
+        a.emit(bytes([op,0]));shorts.append((len(a.code)-1,label))
+    for index, (name, inset) in enumerate((('PrivateWarehouse',25),('PrivateCashShop',25),('PrivateWardrobe',25),('PrivateJourney',0))):
+        a.emit(bytes.fromhex('488b7c2420'))
+        a.branch(b'\x48\x8d\x35','route_'+str(index))
+        a.emit(b'\xb9'+struct.pack('<I',len(name))+bytes.fromhex('f3a6'))
+        a.emit(b'\x75\0');shorts.append((len(a.code)-1,'next_'+str(index)))
+        a.branch(b'\x48\x8d\x05','route_'+str(index))
+        a.emit(bytes([0x6a,inset,0x41,0x58]))
+        a.branch(b'\xe9','matched_prefix') if index == 0 else short(0xeb,'matched_prefix')
+        a.label('next_'+str(index))
+    a.branch(b'\xe9','original')
+    a.label('matched_prefix')
+    a.emit(bytes.fromhex('4889442450'))  # browser lookup name for this dialog
+    a.emit(bytes.fromhex('803f00'))
+    short(0x74, 'dialog')
+    a.branch(b'\x48\x8d\x35', 'suffix')
+    a.emit(bytes.fromhex('b908000000f3a6'))  # Browser and terminating NUL
+    a.branch(b'\x0f\x85', 'original')
+    a.emit(bytes.fromhex('c744244801000000'))
+    a.emit(bytes.fromhex('f2410f2ad8'))  # xmm3 = route title inset
+    a.relative(b'\xf2\x0f\x59\x1d', UI_SCALE_RVA)
+    short(0xeb, 'rect')
+    a.label('dialog')
+    a.emit(bytes.fromhex('c744244800000000'))
+    a.emit(bytes.fromhex('660fefdb'))  # no top inset for the outer dialog
+    a.label('rect')
+    a.emit(bytes.fromhex('660fefc0'))
+    a.relative(b'\xf2\x0f\x10\x0d', UI_WIDTH_RVA)
+    a.relative(b'\xf2\x0f\x10\x15', UI_HEIGHT_RVA)
+    a.emit(bytes.fromhex('660f2fc8'))  # reject nonpositive/NaN viewport
+    short(0x76, 'original')
+    a.emit(bytes.fromhex('660f2fd3'))
+    short(0x76, 'original')
+    a.emit(bytes.fromhex('f20f5cd3f20f11442420f20f115c2428f20f114c2430f20f11542438'))
+    a.emit(bytes.fromhex('4889d9488d542420'))
+    a.branch(b'\xe8', 'native')
+    # Stretch the browser after a dialog layout pass, including a resolution
+    # change while open. Lookup is safe before the XML child has been created.
+    a.emit(bytes.fromhex('837c244800'))
+    short(0x75, 'done')
+    a.emit(bytes.fromhex('4889d9488b542450'))
+    a.emit(bytes.fromhex('41b827200000488b03ff90380300004885c0'))
+    short(0x74, 'done')
+    a.emit(bytes.fromhex('4889c1488d542420488b00ff90a8010000'))
+    a.label('done')
+    a.emit(bytes.fromhex('4883c4605f5e5bc3'))
+    a.label('original')
+    a.emit(bytes.fromhex('4889d9488b5424404883c4605f5e5b'))
+    a.label('native')
+    a.emit(MARKET_RECT_ORIGINAL)
+    a.relative(b'\xe9', MARKET_RECT_RVA + len(MARKET_RECT_ORIGINAL))
+    a.label('suffix');a.emit(b'Browser\0')
+    for index,name in enumerate(('PrivateWarehouse','PrivateCashShop','PrivateWardrobe','PrivateJourney')):
+        a.label('route_'+str(index));a.emit(name.encode()+b'Browser\0')
+    code=bytearray(a.finish())
+    for pos,label in shorts:
+        delta=a.labels[label]-(pos+1)
+        assert -128<=delta<=127
+        code[pos]=delta&255
+    if len(code)>512:raise ValueError('Full-screen sizing code exceeds its verified cave')
+    return bytes(code)
+
 
 
 def build_preview_dock_code():

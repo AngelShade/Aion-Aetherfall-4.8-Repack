@@ -65,6 +65,14 @@ public class SM_MESSAGE extends AionServerPacket {
 	private float x;
 	private float y;
 	private float z;
+	private int speechBubbleStyle = -1;
+
+	/** Private acknowledgement: only sent after the client negotiates the extension. */
+	public static SM_MESSAGE speechBubbleAcknowledgement(Player player) {
+		SM_MESSAGE packet = new SM_MESSAGE(player.getObjectId(), player.getName(true), "~ASB_ACK1~", ChatType.NORMAL);
+		packet.speechBubbleStyle = player.getPlayerSettings().getSpeechBubbleStyle();
+		return packet;
+	}
 
 	/**
 	 * Constructs new <tt>SM_MESSAGE</tt> packet.
@@ -129,6 +137,8 @@ public class SM_MESSAGE extends AionServerPacket {
 		this.senderName = senderName;
 		this.message = message;
 		this.chatType = chatType;
+		if (sender instanceof Player player && (chatType == ChatType.NORMAL || chatType == ChatType.SHOUT))
+			this.speechBubbleStyle = player.getPlayerSettings().getSpeechBubbleStyle();
 	}
 
 	@Override
@@ -139,7 +149,8 @@ public class SM_MESSAGE extends AionServerPacket {
 		writeC(chatType.getId());
 		writeC(activePlayer.isStaff() ? 0 : senderRace);
 		writeD(senderObjectId);
-		writeS(senderName);
+		writeS(speechBubbleStyle >= 0 && con.isSpeechBubbleClient()
+			? "~ASB1:" + speechBubbleStyle + ":" + senderName : senderName);
 		writeS(message);
 		if (chatType == ChatType.SHOUT) {
 			writeF(x);
