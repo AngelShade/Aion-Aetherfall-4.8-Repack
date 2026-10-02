@@ -50,12 +50,14 @@ try:
         globals_pointer,globals_type=struct.unpack('<Qi',read(state+0x78,12));print('Lua globals type:',globals_type)
         if globals_type==5:
             values=table_values(globals_pointer)
-            for name in ('g_AddonName','PrivateWarehouse','PrivateWarehouseBrowser','PrivateWarehouse_Open','PrivateWarehouse_OnLoad','PrivateMenus_Register','SlashCmdList','SLASH_PRIVATEWAREHOUSE1'):
+            for name in ('g_AddonName','PrivateWarehouse','PrivateWarehouseBrowser','PrivateWarehouse_Open','PrivateWarehouse_OnLoad','PrivateMenus_Register','SlashCmdList','SLASH_PRIVATEWAREHOUSE1','SetWidgetVisible'):
                 val,tag=values.get(name,(0,0));print(name, 'type',tag, 'value',string(val) if tag==4 else hex(val))
                 if name=='SlashCmdList' and tag==5:
                     cmds=table_values(val);print('Private slash registrations:',{n:tag for n,(ptr,tag) in cmds.items() if 'PRIVATE' in n})
                 if name in ('PrivateWarehouse','PrivateWarehouseBrowser') and tag==5:
                     print('Widget members:',{n:(string(ptr) if typ==4 else hex(ptr),typ) for n,(ptr,typ) in table_values(val).items()})
+                if name=='SetWidgetVisible' and tag==6:
+                    print('Native SetWidgetVisible RVA:',hex(q(val+32)-game),'C closure',read(val+10,1).hex())
         walk(q(node+16))
     walk(q(head+8))
     from capstone import Cs,CS_ARCH_X86,CS_MODE_64

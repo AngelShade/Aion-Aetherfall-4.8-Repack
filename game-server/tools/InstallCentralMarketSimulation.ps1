@@ -11,7 +11,7 @@ if (& netstat -ano -p tcp | Select-String ":$GamePort\s+.*LISTENING") {
 }
 $entries = Get-Content -LiteralPath (Join-Path $packageRoot 'manifest.json') -Raw | ConvertFrom-Json
 $allowed = @('libs/game-server-4.8-SNAPSHOT.jar','config/main/central-market-simulation.properties',
-    'config/central-market/schema.sql','config/central-market/media/market.html','config/central-market/media/market.js')
+    'config/central-market/schema.sql','config/central-market/media/market.html','config/central-market/media/market.js','config/central-market/media/market.css')
 if ($entries.Count -ne $allowed.Count) { throw 'Unexpected package manifest.' }
 $seen = @{}
 foreach ($entry in $entries) {

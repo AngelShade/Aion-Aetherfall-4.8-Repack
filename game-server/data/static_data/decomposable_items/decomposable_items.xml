@@ -24044,7 +24044,65 @@
 	</decomposable>
 	<decomposable item_id="188052647" /><!-- Daevic Fortune Cookie -->
 	<decomposable item_id="188052648" /><!-- Noble Fabled Godstone Box -->
-	<decomposable item_id="188052649" /><!-- Pet Egg Box -->
+	<decomposable item_id="188052649"><!-- Pet Egg Box -->
+		<items>
+			<item id="190020180" /><!-- Golden Pack Saam Egg (32 slots) -->
+		</items>
+		<items>
+			<item id="190020175" /><!-- Tahabata Egg (30 slots) -->
+		</items>
+		<items>
+			<item id="190020174" /><!-- Traveling Kitter Egg (26 slots) -->
+		</items>
+		<items>
+			<item id="190020019" /><!-- Shugo Lass Egg (24 slots) -->
+		</items>
+		<items>
+			<item id="190020020" /><!-- Shugo Lad Egg (24 slots) -->
+		</items>
+		<items>
+			<item id="190000078" /><!-- Woodkeeper Ailu Egg (18 slots) -->
+		</items>
+		<items>
+			<item id="190020135" /><!-- Evolved Speckled Ailu Egg (18 slots) -->
+		</items>
+		<items>
+			<item id="190020017" /><!-- Micro MuMu Egg (18 slots) -->
+		</items>
+		<items>
+			<item id="190020018" /><!-- Mini MuMu Egg (18 slots) -->
+		</items>
+		<items>
+			<item id="190000067" /><!-- Sunset Drakie Egg (18 slots) -->
+		</items>
+		<items>
+			<item id="190000046" /><!-- Goldmane Trico Egg (12 slots) -->
+		</items>
+		<items>
+			<item id="190000047" /><!-- Golden Drakie Egg (12 slots) -->
+		</items>
+		<items>
+			<item id="190020026" /><!-- Boxing King Kerub Egg (12 slots) -->
+		</items>
+		<items>
+			<item id="190020027" /><!-- Tin Narky Egg (12 slots) -->
+		</items>
+		<items>
+			<item id="190020028" /><!-- Pink Griffo Egg (12 slots) -->
+		</items>
+		<items>
+			<item id="190020047" /><!-- Speckled Ailu Egg (12 slots) -->
+		</items>
+		<items>
+			<item id="190020048" /><!-- Potbelly Inquin Egg (12 slots) -->
+		</items>
+		<items>
+			<item id="190000018" /><!-- Silvertail Dorion Egg (6 slots) -->
+		</items>
+		<items>
+			<item id="190000019" /><!-- Goldentail Dorion Egg (6 slots) -->
+		</items>
+	</decomposable>
 	<decomposable item_id="188052650" /><!-- Noble Medal Box -->
 	<decomposable item_id="188052651" /><!-- Title Card Box -->
 	<decomposable item_id="188052652" /><!-- Greater Enchantment Stone Bundle -->

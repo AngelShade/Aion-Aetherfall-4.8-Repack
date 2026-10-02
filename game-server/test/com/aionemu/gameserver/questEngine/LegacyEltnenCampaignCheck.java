@@ -42,7 +42,9 @@ public class LegacyEltnenCampaignCheck {
 		accountField.setAccessible(true);
 		accountField.set(player, new PlayerAccountData(common, appearance));
 		player.setQuestStateList(new QuestStateList());
-		player.setPosition(new WorldPosition(210020000));
+		var positionField = com.aionemu.gameserver.model.gameobjects.VisibleObject.class.getDeclaredField("position");
+		positionField.setAccessible(true);
+		positionField.set(player, new WorldPosition(210020000));
 		return player;
 	}
 	private static void complete(Player player, int questId) {
@@ -112,7 +114,7 @@ public class LegacyEltnenCampaignCheck {
 			}
 			Player elyos = player(Race.ELYOS, 37);
 			complete(elyos, 1300);
-			for (var handler : restored.values()) handler.onLevelChangedEvent(elyos);
+			for (var handler : restored.values()) handler.onQuestCompletedEvent(new QuestEnv(null, elyos, 1300));
 			for (int id : List.of(1031,1032,1033,1034,1035,1036,1037,1038,1043))
 				check(status(elyos, id) == QuestStatus.START, "Starter missing " + id);
 			for (int id : List.of(1039,1040,1041,1042))

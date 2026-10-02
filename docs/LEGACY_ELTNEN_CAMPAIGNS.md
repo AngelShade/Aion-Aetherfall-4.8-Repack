@@ -1,0 +1,17 @@
+# Restored Eltnen campaigns
+
+The legacy Elyos Eltnen campaigns 1031–1043 and their starter, 1300 (Orders from Telemachus), have been restored from the repository's pre-removal handlers at `b4b01f75d^` and adapted to the current quest engine. They coexist with campaigns 14020–14026. Completed quests remain completed; restoring handlers does not grant completions or rewards.
+
+On entering Eltnen at level 19 or above, eligible Elyos characters receive Orders from Telemachus. Talk to Telemachus and finish that starter normally. The other missions then appear according to their levels and prerequisites, including locked follow-ups. Availability is checked on login, level changes, and prerequisite completion. Something in the Water requires Refreshing the Springs plus either the legacy Verteron quest 1016 or the current Verteron finale 14016.
+
+Balaur Conspiracy uses a private Geranaia instance, its existing Kimeia spawn and Balaur AI, and a quest variable for each player's kill count. Failed or interrupted defenses can be retried. Item casts in A Ruler's Duty, Something in the Water, and Keeper of the Kaidan Key now cancel on movement or combat and verify the quest step and item before finishing. A Ruler's Duty retains its bucket for the later return step. A Dangerous Artifact consumes its quest orb without deleting the shared world artifact.
+
+## Client alignment
+
+`client-mods/legacy-eltnen/restore_campaigns.py` updates eight native quest entries: it removes the mutual-exclusion guards on 14020–14026 and adds the modern Verteron alternative to 1039. It preserves the other 8,362 quest entries, all six archive entries, and existing English dialogs. With `--install`, it backs up the original Quest.pak and writes a manifest under `output/legacy-eltnen-client`. Restart the game client after installing. To roll back, copy the manifest's backup file to its target path with the client closed.
+
+## Validation and activation
+
+Compile the 15 files in `data/handlers/quest/eltnen` matching `_(103[1-9]|104[0-3]|1300)` or `LegacyEltnenCampaign`, alongside `test/com/aionemu/gameserver/questEngine/LegacyEltnenCampaignCheck.java`, against the deployed server libraries. Run `com.aionemu.gameserver.questEngine.LegacyEltnenCampaignCheck` from the game-server directory. It validates XML and performs 165 checks covering handler registration, 64 registered NPCs, obtainable item-drop sources, race restrictions, prerequisite unlocks, preservation of existing states, and coexistence with modern campaigns. Its isolated offline player fixtures do not initialize a database or connect to the live server.
+
+The source handlers and quest XML were copied to target-deploy. A scoped activation agent registered the 14 previously missing handlers and refreshed only the eight changed quest templates in the running engine. All 229 existing Baby quest records were verified unchanged. Baby was offline at activation; the starter is added by the normal Eltnen login/entry event. Full mission-by-mission in-game completion remains unverified. Activation receipt, backups, and client manifest are under `output/legacy-eltnen-*`.

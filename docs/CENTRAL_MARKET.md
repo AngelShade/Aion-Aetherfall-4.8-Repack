@@ -4,16 +4,22 @@ The Central Market menu entry opens one Aion window containing Inventory, Charac
 
 ## Using the window
 
-1. Open **Central Market** from Additional Functions.
+1. Open **Central Market** using the HUD icon next to Shop. Allow the client to finish loading after login.
 2. Choose Inventory, Character or Account. Select an item and use **Transfer** or **Market Warehouse**. Double-click transfers an eligible item to Market Warehouse. Items can also be dragged onto a warehouse tab. Confirm the quantity and destination.
 3. Deposit Kinah from the selected Inventory or warehouse. Buy orders use the Market Warehouse balance.
-4. Search the market, choose an item and select its enchantment or tempering. Select a price in the order book, then **Buy / Place Order**. Available matching listings fill immediately; the remainder becomes a buy order.
+4. Search the market, choose an item and select its enchantment or tempering. **Available to buy** on the left means sale stock; **Waiting buyers** on the right means demand. The initial selection chooses the lowest stocked price in the current band. **Buy Now** fills stock at the selected price or lower; any remainder becomes a funded preorder. The confirmation updates when you choose another price.
 5. To sell, select an unreserved item in Market Warehouse, then **Register Sale**. Listed items remain reserved until sold or cancelled.
 6. **My Orders** shows active, queued, filled and cancelled orders. Cancel returns only the unfilled items or reserved Kinah.
-7. **Collect** applies market tax and credits Market Warehouse Kinah. **Withdraw** transfers Kinah to the selected Inventory or warehouse.
-8. Purchased items enter Market Warehouse. Transfer them to Inventory or a compatible warehouse.
+7. Each order has **Collect Items** or **Collect Kinah** when it has a filled quantity. Collection also works for partial orders while the remainder stays active. Sale collection applies market tax and credits Market Warehouse Kinah. **Withdraw** transfers Kinah to the selected Inventory or warehouse.
+8. Purchased items stay in account custody until **Collect Items** releases them into usable Market Warehouse stock. Transfer them to Inventory or a compatible warehouse. Previously delivered purchases remain usable; startup migration assigns only outstanding legacy proceeds to sales and cannot claim them twice.
 
-Searches can be saved, items can be added to Favorites, and lists can be filtered, sorted and paged. Trade History includes purchases, sales and collections. Notifications show queued high-value listings. Item Details includes Aion stats and modified attributes; Item Preview opens the game's native preview window.
+Searches can be saved, items can be added to Favorites, and lists can be filtered, sorted and paged. Trade History includes purchases, sales and collections. Notifications show your 50 most recent purchases and sales, with links to My Orders, plus queued high-value listings. Item Details includes Aion stats and modified attributes; Item Preview opens the game's native preview window.
+
+The flow follows Pearl Abyss's [Central Market guide](https://www.naeu.playblackdesert.com/en-US/Wiki?wikiNo=47): immediate stock purchases and sales into preorders, funded waiting buy orders, higher-bid priority, random matching among equal highest bids, and delayed high-value registration. Per-order item and Kinah collection is this server's requested behavior.
+
+Simulation defaults to 3,000 traders and is separate from Broker. Account 0 represents virtual quotes, never a character or funded wallet. Only plain item variants are generated on funded purchases; player-sold gear retains its attributes. No simulated-to-simulated trades occur. Existing stock matches before on-demand quote rotation.
+
+Maintenance refreshes at most 40 due quotes per pass, committing and releasing a fair matching lock for each variant so waiting clicks run before the worker acquires it again. Quotes are updated in place instead of producing cancelled rows on every rotation. Only variants with real open orders are matched. Full warehouse reads use a consistent database snapshot without the global matching lock; catalog and item reads are independent. Automatic polling refreshes account activity every 20 seconds without rebuilding warehouse or catalog contents, then refreshes the selected order book. Fonts grow on large viewports and buttons use raised, shaded surfaces compatible with the embedded browser.
 
 ### Transfer several items
 
@@ -40,8 +46,10 @@ The following new InnoDB tables are created in the configured GameServer databas
 | `central_market_requests` | Committed request receipts preventing duplicate retries |
 | `central_market_favorites` | Account Favorites |
 | `central_market_searches` | The account's ten most recent saved searches |
+| `central_market_simulation` | Per-variant quote refresh deadlines |
+| `central_market_settlements` | Per-order outstanding gross proceeds and collected purchase quantities |
 
-Market items retain their original `inventory` row at **location 125**, owned by account ID. Existing `item_stones` rows retain manastones, Godstones, armsfusion stones and Idian. Items are not reconstructed from template IDs. Character deletion excludes account storage and market custody.
+Player-sold market items retain their original `inventory` row at **location 125**, owned by account ID. Existing `item_stones` rows retain manastones, Godstones, armsfusion stones and Idian. Plain simulated purchases create a fresh item transactionally. A stock reservation can reference a sell order or a pending buy collection. Character deletion excludes account storage and market custody.
 
 Escrow, fills, custody changes, refunds and ledger entries commit in one database transaction. Account ownership is checked server-side; an account cannot trade with itself. Native packets and embedded warehouse actions share the character connection guard. If a committed transfer cannot refresh the client, the server restores committed storage and disconnects it. A failed recovery blocks that character's inventory saves until a fresh login load.
 

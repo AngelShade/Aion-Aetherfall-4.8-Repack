@@ -202,12 +202,12 @@ public class _1041ADangerousArtifact extends AbstractQuestHandler {
 
 	@Override
 	public void onLevelChangedEvent(Player player) {
-		defaultOnLevelChangedEvent(player, 1300);
+		defaultOnLevelChangedEvent(player, 1300, 1034);
 	}
 
 	@Override
 	public void onQuestCompletedEvent(QuestEnv env) {
-		defaultOnQuestCompletedEvent(env, 1300);
+		defaultOnQuestCompletedEvent(env, 1300, 1034);
 	}
 
 	@Override

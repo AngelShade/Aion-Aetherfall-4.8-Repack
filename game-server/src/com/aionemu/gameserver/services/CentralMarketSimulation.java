@@ -36,7 +36,6 @@ final class CentralMarketSimulation {
 		int bidIndex = random.nextInt(levels.size());
 		int askIndex = Math.min(levels.size()-1, bidIndex + 1 + random.nextInt(4));
 		long qty = quantity(t,category(t));
-		update(c,"UPDATE central_market_orders SET state='CANCELLED' WHERE account_id=0 AND variant=? AND state IN ('OPEN','QUEUED')",key);
 		quote(c,key,"B",levels.get(bidIndex),qty,now);
 		// Modified gear can be bought from players, but its skins/sockets/rolls are never invented.
 		if (key.equals(t.getTemplateId()+":0:0")) quote(c,key,"S",levels.get(askIndex),qty,now);
@@ -50,6 +49,7 @@ final class CentralMarketSimulation {
 	private static void quote(Connection c,String key,String side,long price,long qty,long now) throws SQLException {
 		// Virtual stock represents supply that has already completed registration.
 		long available = now;
+		if(update(c,"UPDATE central_market_orders SET price=?,quantity=?,remaining=?,created_at=?,available_at=? WHERE account_id=0 AND variant=? AND side=? AND state='OPEN'",price,qty,qty,now,available,key,side)>0) return;
 		update(c,"INSERT INTO central_market_orders(account_id,variant,side,price,quantity,remaining,state,created_at,available_at) VALUES(0,?,?,?,?,?,?,?,?)",
 			key,side,price,qty,qty,available>now?"QUEUED":"OPEN",now,available);
 	}

@@ -13,10 +13,11 @@ RUNTIME_FILES = [
     "config/central-market/schema.sql",
     "config/central-market/media/market.html",
     "config/central-market/media/market.js",
+    "config/central-market/media/market.css",
 ]
 SOURCES = [
     "configs/main/CentralMarketSimulationConfig.java", "configs/Config.java",
-    "dao/InventoryDAO.java", "services/CentralMarketSimulation.java", "services/CentralMarketService.java",
+    "dao/InventoryDAO.java", "services/CentralMarketSimulation.java", "services/CentralMarketSettlement.java", "services/CentralMarketService.java",
 ]
 
 
@@ -64,9 +65,9 @@ def main():
         "Stop GameServer gracefully before installing. The installer refuses a listening game port.\n"
         'Run: powershell -ExecutionPolicy Bypass -File Install.ps1 -GameServerRoot "' + str(server) + '"\n'
         "The installer verifies source and destination hashes, backs up replacements, and rolls back on failure.\n"
-        "Start GameServer normally, reopen Central Market, buy an item and sell a listing, then collect and withdraw.\n"
-        "The full catalog warms up over the first few minutes. Orders initialize their item immediately.\n"
-        "Only the five manifest files are replaced. Existing icons and client modifications are preserved.\n",
+        "Start GameServer normally, reopen Central Market, buy an item and sell a listing, then collect items and Kinah beside each order and withdraw.\n"
+        "The full catalog warms up over the first few minutes. Stock matches before on-demand quotes rotate.\n"
+        "Only the six manifest files are replaced. Existing icons and client modifications are preserved.\n",
         encoding="utf-8")
     with zipfile.ZipFile(out.parent / "central-market-simulation.zip", "w", zipfile.ZIP_DEFLATED) as archive:
         for p in out.rglob("*"):
