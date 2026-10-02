@@ -104,11 +104,13 @@ public class _1043BalaurConspiracy extends AbstractQuestHandler {
 				}
 				case 204044: { // Kimeia
 					switch (env.getDialogActionId()) {
+						case USE_OBJECT:
 						case QUEST_SELECT:
 							if (var == 2)
 								return sendQuestDialog(env, 1693);
 							else if (var == 4)
 								return sendQuestDialog(env, 2034);
+							return false;
 						case SETPRO3: {
 							if (var != 2 || player.getWorldId() != 310040000 || !kimeiaIsAlive(env))
 								return false;
@@ -120,8 +122,9 @@ public class _1043BalaurConspiracy extends AbstractQuestHandler {
 						}
 						case SETPRO4:
 							if (var == 4) {
-								defaultCloseDialog(env, 4, 4, true, false); // reward
-								TeleportService.teleportTo(player, 210020000, 271.69f, 2787.04f, 272.47f, (byte) 50, TeleportAnimation.FADE_OUT_BEAM);
+								if (!defaultCloseDialog(env, 4, 4, true, false))
+									return false;
+								returnToEltnen(player);
 								return true;
 							}
 					}
@@ -130,6 +133,28 @@ public class _1043BalaurConspiracy extends AbstractQuestHandler {
 			}
 		}
 		return false;
+	}
+
+	@Override
+	public void onMovieEndEvent(QuestEnv env, int movieId) {
+		Player player = env.getPlayer();
+		QuestState qs = player.getQuestStateList().getQuestState(questId);
+		if (movieId == 157 && player.getWorldId() == 310040000 && qs != null
+			&& qs.getStatus() == QuestStatus.START && qs.getQuestVarById(0) == 4)
+			showDefenseContinuation(player);
+	}
+
+	/** Reopen the native conversation after the movie instead of relying on a quest marker. */
+	protected void showDefenseContinuation(Player player) {
+		QuestEnv env = new QuestEnv(null, player, questId);
+		respawnKimeia(env);
+		Npc kimeia = player.getWorldMapInstance().getNpc(204044);
+		if (kimeia != null && !kimeia.isDead())
+			sendQuestDialog(new QuestEnv(kimeia, player, questId, QUEST_SELECT), 2034);
+	}
+
+	protected void returnToEltnen(Player player) {
+		TeleportService.teleportTo(player, 210020000, 271.69f, 2787.04f, 272.47f, (byte) 50, TeleportAnimation.FADE_OUT_BEAM);
 	}
 
 	@Override
