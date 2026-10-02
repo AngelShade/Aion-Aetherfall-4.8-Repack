@@ -1,0 +1,188 @@
+package quest.eltnen;
+
+import static com.aionemu.gameserver.model.DialogAction.*;
+
+import com.aionemu.gameserver.model.animations.ObjectDeleteAnimation;
+import com.aionemu.gameserver.model.animations.TeleportAnimation;
+import com.aionemu.gameserver.model.gameobjects.Npc;
+import com.aionemu.gameserver.model.gameobjects.VisibleObject;
+import com.aionemu.gameserver.model.gameobjects.player.Player;
+import com.aionemu.gameserver.network.aion.serverpackets.SM_DIALOG_WINDOW;
+import com.aionemu.gameserver.network.aion.serverpackets.SM_DELETE;
+import com.aionemu.gameserver.questEngine.handlers.AbstractQuestHandler;
+import com.aionemu.gameserver.questEngine.model.QuestEnv;
+import com.aionemu.gameserver.questEngine.model.QuestState;
+import com.aionemu.gameserver.questEngine.model.QuestStatus;
+import com.aionemu.gameserver.services.QuestService;
+import com.aionemu.gameserver.services.teleport.TeleportService;
+import com.aionemu.gameserver.utils.PacketSendUtility;
+
+/**
+ * @author Rhys2002
+ * @Fixed Ritsu
+ */
+public class _1036KaidanPrisoner extends AbstractQuestHandler {
+
+	private final static int questId = 1036;
+	private final static int[] npc_ids = { 203904, 204045, 204003, 204004, 204020, 203901 };
+
+	public _1036KaidanPrisoner() {
+		super(questId);
+	}
+
+	@Override
+	public void register() {
+		qe.registerOnLevelChanged(questId);
+		qe.registerOnQuestCompleted(questId);
+		qe.registerOnEnterWorld(questId);
+		for (int npc_id : npc_ids)
+			qe.registerQuestNpc(npc_id).addOnTalkEvent(questId);
+	}
+
+	@Override
+	public void onLevelChangedEvent(Player player) {
+		defaultOnLevelChangedEvent(player, 1300);
+	}
+
+	@Override
+	public void onQuestCompletedEvent(QuestEnv env) {
+		defaultOnQuestCompletedEvent(env, 1300);
+	}
+
+	@Override
+	public boolean onEnterWorldEvent(QuestEnv env) {
+		onLevelChangedEvent(env.getPlayer());
+		return false;
+	}
+
+	@Override
+	public boolean onDialogEvent(QuestEnv env) {
+		final Player player = env.getPlayer();
+		final QuestState qs = player.getQuestStateList().getQuestState(questId);
+		if (qs == null)
+			return false;
+
+		int var = qs.getQuestVarById(0);
+		int targetId = env.getTargetId();
+
+		if (qs.getStatus() == QuestStatus.REWARD) {
+			if (targetId == 203901) {
+				return sendQuestEndDialog(env, new int[] { 182201005 });
+			}
+		} else if (qs.getStatus() != QuestStatus.START) {
+			return false;
+		}
+		if (targetId == 203904) {
+			switch (env.getDialogActionId()) {
+				case QUEST_SELECT:
+					if (var == 0)
+						return sendQuestDialog(env, 1011);
+				case SETPRO1:
+					if (var == 0) {
+						qs.setQuestVarById(0, var + 1);
+						updateQuestStatus(env);
+						PacketSendUtility.sendPacket(player, new SM_DIALOG_WINDOW(env.getVisibleObject().getObjectId(), 10));
+						return true;
+					}
+					return false;
+			}
+		} else if (targetId == 204045) {
+			switch (env.getDialogActionId()) {
+				case QUEST_SELECT:
+					if (var == 1)
+						return sendQuestDialog(env, 1352);
+				case SELECT2_1_1:
+					if (var == 1)
+						playQuestMovie(env, 32);
+					break;
+				case SETPRO2:
+					if (var == 1) {
+						qs.setQuestVarById(0, var + 1);
+						updateQuestStatus(env);
+						TeleportService.teleportTo(player, 210020000, 1357f, 2566f, 279.6f, (byte) 89, TeleportAnimation.FADE_OUT_BEAM);
+						return true;
+					}
+					return false;
+			}
+		} else if (targetId == 204003) {
+			switch (env.getDialogActionId()) {
+				case QUEST_SELECT:
+					if (var == 2)
+						return sendQuestDialog(env, 1693);
+					else if (var == 3 && QuestService.collectItemCheck(env, false))
+						return sendQuestDialog(env, 2034);
+					else
+						return sendQuestDialog(env, 2120);
+				case SETPRO3:
+					if (var == 2) {
+						qs.setQuestVarById(0, var + 1);
+						updateQuestStatus(env);
+						PacketSendUtility.sendPacket(player, new SM_DIALOG_WINDOW(env.getVisibleObject().getObjectId(), 10));
+						return true;
+					}
+				case SETPRO4:
+					if (var == 3 && QuestService.collectItemCheck(env, true)) {
+						playQuestMovie(env, 50);
+						qs.setQuestVarById(0, var + 1);
+						updateQuestStatus(env);
+						PacketSendUtility.sendPacket(player, new SM_DIALOG_WINDOW(env.getVisibleObject().getObjectId(), 10));
+						return true;
+					}
+					return false;
+			}
+		} else if (targetId == 204004) {
+			switch (env.getDialogActionId()) {
+				case QUEST_SELECT:
+					if (var == 4)
+						return sendQuestDialog(env, 2375);
+				case SETPRO5:
+					if (var == 4) {
+						if (!giveQuestItem(env, 182201004, 1))
+							return true;
+						qs.setQuestVarById(0, var + 1);
+						updateQuestStatus(env);
+						PacketSendUtility.sendPacket(player, new SM_DIALOG_WINDOW(env.getVisibleObject().getObjectId(), 10));
+						TeleportService.teleportToNpc(player, 204020);
+						return true;
+					}
+					return false;
+			}
+		} else if (targetId == 204020) {
+			switch (env.getDialogActionId()) {
+				case QUEST_SELECT:
+					if (var == 5)
+						return sendQuestDialog(env, 2716);
+				case SELECT6_1:
+					removeQuestItem(env, 182201004, 1);
+				case SETPRO5:
+					if (var == 5) {
+						if (!giveQuestItem(env, 182201005, 1))
+							return true;
+						qs.setQuestVarById(0, var + 1);
+						qs.setStatus(QuestStatus.REWARD);
+						updateQuestStatus(env);
+						PacketSendUtility.sendPacket(player, new SM_DIALOG_WINDOW(env.getVisibleObject().getObjectId(), 10));
+						return true;
+					}
+					return false;
+			}
+		}
+		return false;
+	}
+
+	@Override
+	public void onMovieEndEvent(QuestEnv env, int movieId) {
+		if (movieId == 50) {
+			Player player = env.getPlayer();
+			QuestState qs = player.getQuestStateList().getQuestState(questId);
+			if (qs != null && qs.getStatus() == QuestStatus.START && qs.getQuestVarById(0) == 4) { // remove hierni and the cage door visually
+				player.getKnownList().stream().map(object -> object.get())
+					.filter(object -> object instanceof Npc && (object.getObjectTemplate().getTemplateId() == 204003
+						|| object.getObjectTemplate().getTemplateId() == 700180))
+					.forEach(object -> PacketSendUtility.sendPacket(player, new SM_DELETE(object, ObjectDeleteAnimation.NONE)));
+				return;
+			}
+		}
+		return;
+	}
+}

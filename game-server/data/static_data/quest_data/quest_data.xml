@@ -444,6 +444,11 @@
 			<finished quest_id="1035"/>
 			<finished quest_id="1016"/>
 		</start_conditions>
+		<!-- Either legacy or current Verteron completion unlocks this route. -->
+		<start_conditions>
+			<finished quest_id="1035"/>
+			<finished quest_id="14016"/>
+		</start_conditions>
 		<class_permitted>WARRIOR SCOUT MAGE PRIEST ENGINEER ARTIST GLADIATOR TEMPLAR ASSASSIN RANGER SORCERER SPIRIT_MASTER CHANTER CLERIC GUNNER BARD</class_permitted>
 	</quest>
 	<quest id="1040" name="Scouting the Scouts" nameId="1102059" quest_zone="Eltnen" minlevel_permitted="31" max_repeat_count="1" cannot_share="true" cannot_giveup="true" race_permitted="ELYOS" category="MISSION">
@@ -41976,10 +41981,6 @@
 			<selectable_reward_item item_id="120001530"/>
 			<selectable_reward_item item_id="120001531"/>
 		</rewards>
-		<start_conditions>
-			<unfinished>1300</unfinished>
-			<noacquired>1300</noacquired>
-		</start_conditions>
 	</quest>
 	<quest id="14021" name="To Cure a Curse" nameId="1129880" quest_zone="Eltnen" minlevel_permitted="22" max_repeat_count="1" cannot_share="true" cannot_giveup="true" race_permitted="ELYOS" category="MISSION">
 		<rewards exp="359158">
@@ -41990,10 +41991,6 @@
 			<selectable_reward_item item_id="110551148"/>
 			<selectable_reward_item item_id="110601625"/>
 		</rewards>
-		<start_conditions>
-			<unfinished>1300</unfinished>
-			<noacquired>1300</noacquired>
-		</start_conditions>
 	</quest>
 	<quest id="14022" name="The Test of the Heart" nameId="1129881" quest_zone="Eltnen" minlevel_permitted="27" max_repeat_count="1" cannot_share="true" cannot_giveup="true" race_permitted="ELYOS" category="MISSION">
 		<rewards exp="805806">
@@ -42001,10 +41998,6 @@
 			<selectable_reward_item item_id="121001405"/>
 			<reward_item item_id="188053407" count="1"/>
 		</rewards>
-		<start_conditions>
-			<unfinished>1300</unfinished>
-			<noacquired>1300</noacquired>
-		</start_conditions>
 	</quest>
 	<quest id="14023" name="Playing Around at the Temple" nameId="1129882" quest_zone="Eltnen" minlevel_permitted="29" max_repeat_count="1" cannot_share="true" cannot_giveup="true" race_permitted="ELYOS" category="MISSION">
 		<collect_items>
@@ -42042,10 +42035,6 @@
 		<quest_drop npc_id="211747" item_id="182215321" drop_each_member="1" collecting_step="2"/>
 		<quest_drop npc_id="211748" item_id="182215321" drop_each_member="1" collecting_step="2"/>
 		<quest_drop npc_id="211749" item_id="182215321" drop_each_member="1" collecting_step="2"/>
-		<start_conditions>
-			<unfinished>1300</unfinished>
-			<noacquired>1300</noacquired>
-		</start_conditions>
 	</quest>
 	<quest id="14024" name="A Krall-ing Suspicion" nameId="1129883" quest_zone="Eltnen" minlevel_permitted="28" max_repeat_count="1" cannot_share="true" cannot_giveup="true" race_permitted="ELYOS" category="MISSION">
 		<collect_items>
@@ -42071,10 +42060,6 @@
 		<quest_drop npc_id="232131" item_id="182215322" drop_each_member="1" collecting_step="2"/>
 		<quest_drop npc_id="235481" item_id="182215322" drop_each_member="1" collecting_step="2"/>
 		<quest_drop npc_id="210838" item_id="182215322" drop_each_member="1" collecting_step="2"/>
-		<start_conditions>
-			<unfinished>1300</unfinished>
-			<noacquired>1300</noacquired>
-		</start_conditions>
 	</quest>
 	<quest id="14025" name="Cooking up Disasters" nameId="1129884" quest_zone="Eltnen" minlevel_permitted="35" max_repeat_count="1" cannot_share="true" cannot_giveup="true" race_permitted="ELYOS" category="MISSION">
 		<collect_items>
@@ -42088,10 +42073,6 @@
 		</rewards>
 		<quest_drop npc_id="212010" item_id="182215323" drop_each_member="1" collecting_step="1"/>
 		<quest_drop npc_id="212011" item_id="182215323" drop_each_member="1" collecting_step="1"/>
-		<start_conditions>
-			<unfinished>1300</unfinished>
-			<noacquired>1300</noacquired>
-		</start_conditions>
 	</quest>
 	<quest id="14026" name="A Lone Defense" nameId="1129885" quest_zone="Eltnen" minlevel_permitted="35" max_repeat_count="1" cannot_share="true" cannot_giveup="true" race_permitted="ELYOS" category="MISSION">
 		<rewards exp="3504765" title="12">
@@ -42118,10 +42099,6 @@
 			<!-- Custom -->
 			<reward_item item_id="162001057" count="5"/>
 		</rewards>
-		<start_conditions>
-			<unfinished>1300</unfinished>
-			<noacquired>1300</noacquired>
-		</start_conditions>
 	</quest>
 	<quest id="14030" name="Retrieved Memory" nameId="1129931" quest_zone="Bare Truth" minlevel_permitted="50" max_repeat_count="1" cannot_share="true" cannot_giveup="true" race_permitted="ELYOS" category="MISSION">
 		<rewards exp="8755085" title="49">
