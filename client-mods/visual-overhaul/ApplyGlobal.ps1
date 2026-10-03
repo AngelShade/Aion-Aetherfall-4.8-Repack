@@ -12,7 +12,6 @@ foreach ($entry in $manifest.files) {
     else { throw "Archive changed after preparation: $($entry.path). No files changed." }
 }
 if ($VerifyOnly) { "Verified $($manifest.files.Count) graphics archives: $original previous / $installed upgraded."; return }
-Assert-ClientClosed
 $statePath = Join-Path $PSScriptRoot 'installed.json'
 if ($installed -eq $manifest.files.Count) {
     $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
@@ -20,6 +19,7 @@ if ($installed -eq $manifest.files.Count) {
     'Broad graphics package verified.'; return
 }
 if ($original -ne $manifest.files.Count) { throw 'Mixed archive states detected. No files changed.' }
+Assert-ClientClosed
 $backup = Join-Path $client ('GraphicsOverhaul-backups/' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
 foreach ($entry in $manifest.files) {
     $target = Join-Path $backup $entry.path

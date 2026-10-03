@@ -25,6 +25,9 @@ public abstract class AbstractOverTimeEffect extends EffectTemplate {
 	@XmlAttribute
 	protected boolean shared;
 
+	public int getChecktime() { return checktime; }
+	public boolean isPercent() { return percent; }
+
 	@Override
 	public int getValue() {
 		return value;

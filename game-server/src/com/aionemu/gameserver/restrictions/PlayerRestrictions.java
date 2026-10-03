@@ -8,6 +8,7 @@ import com.aionemu.gameserver.model.Race;
 import com.aionemu.gameserver.model.TaskId;
 import com.aionemu.gameserver.model.gameobjects.Creature;
 import com.aionemu.gameserver.model.gameobjects.Item;
+import com.aionemu.gameserver.model.gameobjects.Npc;
 import com.aionemu.gameserver.model.gameobjects.VisibleObject;
 import com.aionemu.gameserver.model.gameobjects.player.CustomPlayerState;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
@@ -203,6 +204,8 @@ public class PlayerRestrictions {
 	}
 
 	public static boolean canAttack(Player player, VisibleObject target) {
+		if (player.isPlayerBot() && (!(target instanceof Npc) || ((Npc) target).getMaster() != target
+			|| !com.aionemu.gameserver.services.playerbot.PlayerBotService.allowsTarget(player, (Npc) target))) return false;
 		if (player.isInPrison()) {
 			PacketSendUtility.sendPacket(player, SM_SYSTEM_MESSAGE.STR_MSG_ACCUSE_TARGET_IS_NOT_VALID());
 			return false;
@@ -274,7 +277,7 @@ public class PlayerRestrictions {
 	}
 
 	public static boolean canUseItem(Player player, Item item) {
-		if (player == null || !player.isOnline())
+		if (player == null || !player.isPlaying())
 			return false;
 
 		if (player.isInPrison()) {

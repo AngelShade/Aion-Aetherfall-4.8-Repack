@@ -154,6 +154,11 @@ public class GeoService implements GameEngine {
 		return map.findMovementCollision(startPos, startPos.getX() + x1, startPos.getY() + y1, creature.getInstanceId());
 	}
 
+	/** Read-only ground-route probe from an arbitrary position, using the same terrain and dynamic obstacles as native movement. */
+	public Vector3f findGroundMovementCollision(int worldId, int instanceId, float x, float y, float z, float targetX, float targetY) {
+		return geoMaps.get(worldId).findMovementCollision(new Vector3f(x, y, z), targetX, targetY, instanceId);
+	}
+
 	private Vector3f calculateCurrentGeoPosition(Player player) {
 		WorldPosition approximatePos = player.getPosition();
 		WorldPosition lastPos = player.getMoveController().getLastPositionFromClient();

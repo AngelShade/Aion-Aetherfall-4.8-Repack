@@ -48,7 +48,7 @@ public class AuraEffect extends EffectTemplate {
 			applyAuraTo(effector);
 		} else {
 			Player p = (Player) effector;
-			if (!p.isOnline()) { // task check
+			if (!p.isPlaying()) { // task check
 				return;
 			}
 			if (p.isInTeam()) {

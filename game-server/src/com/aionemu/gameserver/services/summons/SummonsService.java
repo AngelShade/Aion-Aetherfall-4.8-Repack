@@ -110,7 +110,7 @@ public class SummonsService {
 
 		private void scheduleAddMasterHate(Summon summon) {
 			addedMasterHate = true;
-			if (!summon.getMaster().isDead() && summon.getMaster().isOnline()) {
+			if (!summon.getMaster().isDead() && summon.getMaster().isPlaying()) {
 				List<AggroList> summonOnlyHaters = findSummonOnlyHaters(summon);
 				if (!summonOnlyHaters.isEmpty()) // add master hate to every npc which was only attacked by the summon before
 					ThreadPoolManager.getInstance().schedule(() -> {

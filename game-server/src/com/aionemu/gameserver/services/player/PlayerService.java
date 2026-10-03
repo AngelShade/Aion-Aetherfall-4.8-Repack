@@ -283,12 +283,12 @@ public class PlayerService {
 	 *          PlayerAccountData
 	 */
 	public static void deletePlayer(PlayerAccountData accData) {
-		if (accData.getDeletionDate() != null) {
-			return;
+		int id = accData.getPlayerCommonData().getPlayerObjId();
+		try (var lease = com.aionemu.gameserver.services.playerbot.PlayerBotLease.acquire(id)) {
+			if (lease == null || World.getInstance().isInWorld(id) || accData.getDeletionDate() != null) return;
+			accData.setDeletionDate(new Timestamp(System.currentTimeMillis() + CustomConfig.CHARACTER_DELETION_TIME_MINUTES * 60 * 1000));
+			storeDeletionTime(accData);
 		}
-
-		accData.setDeletionDate(new Timestamp(System.currentTimeMillis() + CustomConfig.CHARACTER_DELETION_TIME_MINUTES * 60 * 1000));
-		storeDeletionTime(accData);
 	}
 
 	/**

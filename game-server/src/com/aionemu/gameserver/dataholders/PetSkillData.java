@@ -45,6 +45,12 @@ public class PetSkillData {
 		return petSkillData.get(orderSkill).get(petNpcId);
 	}
 
+	/** Read-only planning: an order is not necessarily available to every spirit. */
+	public Integer findPetOrderSkill(int orderSkill, int petNpcId) {
+		Map<Integer, Integer> skills = petSkillData.get(orderSkill);
+		return skills == null ? null : skills.get(petNpcId);
+	}
+
 	public boolean petHasSkill(int petNpcId, int skillId) {
 		return petSkillsMap.get(petNpcId).contains(skillId);
 	}

@@ -162,6 +162,7 @@ public class GatherableController extends VisibleObjectController<Gatherable> {
 	@SuppressWarnings("lossy-conversions")
 	public void rewardPlayer(Player player) {
 		if (player != null) {
+			com.aionemu.gameserver.services.SeasonPassService.record(player, com.aionemu.gameserver.services.SeasonPassRules.Event.GATHER);
 			int skillLvl = getOwner().getObjectTemplate().getSkillLevel();
 			int xpReward = (int) ((0.0031 * (skillLvl + 5.3) * (skillLvl + 1592.8) + 60));
 

@@ -77,7 +77,7 @@ if exist "%~dp0DXVK\cursor-fix\InstallNativeCursorPatch.ps1" (
 )
 set "DXVK_CONFIG_FILE=%~dp0dxvk.conf"
 set "DXVK_LOG_PATH=%~dp0DXVK\logs"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0DXVK\QualityProfile.ps1" -ClientPath "%~dp0."
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0DXVK\QualityProfile.ps1" -ClientPath "%~dp0." -Startup
 if errorlevel 1 (
     echo Unable to apply graphics settings.
     pause

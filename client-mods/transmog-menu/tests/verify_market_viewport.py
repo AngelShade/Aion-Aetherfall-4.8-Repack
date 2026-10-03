@@ -36,11 +36,15 @@ try:
     put(0x5abbc0, original[0x5abbc0:0x5abbd1])
     put(0x1000, b'\xc3')
     put(0x1010, bytes.fromhex('488b81a8020000c3'))  # browser-child lookup
+    put(0x1020, b'\x31\xc0\xc3')  # ordinary widget flags
+    # Real publisher conversion from client coordinates to screen coordinates.
+    # It adds the parent's client-area origin (including the native title).
+    put(0x5b4580, original[0x5b4580:0x5b4660])
     old = ctypes.c_uint32()
     assert k.VirtualProtect(base, size, 0x20, ctypes.byref(old))
     assert k.VirtualProtect(base + UI_WIDTH_RVA, 0x40, 4, ctypes.byref(old))
     vt = ctypes.create_string_buffer(0x500)
-    for offset, rva in ((0xa8, 0x5abbc0), (0x1a8, MARKET_RECT_RVA), (0x338, 0x1010), (0x478, 0x1000), (0x480, 0x1000)):
+    for offset, rva in ((0xa8, 0x5abbc0), (0xb8, 0x1020), (0x1a8, MARKET_RECT_RVA), (0x338, 0x1010), (0x478, 0x1000), (0x480, 0x1000)):
         struct.pack_into('<Q', vt, offset, base + rva)
     keep = []
 
@@ -57,6 +61,7 @@ try:
         return w
 
     fn = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_void_p)(base + MARKET_RECT_RVA)
+    to_screen = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p)(base + 0x5b4580)
     dialog, browser = widget('PrivateWarehouse'), widget('PrivateWarehouseBrowser')
     struct.pack_into('<Q', dialog, 0x2a8, ctypes.addressof(browser))
     requested = ctypes.create_string_buffer(struct.pack('<dddd', 240, 0, 1440, 1080))
@@ -68,7 +73,13 @@ try:
             put(UI_SCALE_RVA, struct.pack('<d', scale))
             fn(dialog, requested)
             assert geometry(dialog) == (0, 0, width, height)
-            assert geometry(browser) == (0, 25 * scale, width, height - 25 * scale)
+            assert geometry(browser) == (0, 0, width, height - 25 * scale)
+            struct.pack_into('<d', dialog, 0x78, 25 * scale)
+            point = (ctypes.c_double * 2)(geometry(browser)[0], geometry(browser)[1])
+            to_screen(dialog, ctypes.addressof(point), ctypes.addressof(point) + 8)
+            assert tuple(point) == (0, 25 * scale), 'Native title must be reserved exactly once'
+            fn(browser, requested)
+            assert geometry(browser) == (0, 0, width, height - 25 * scale)
             assert requested.raw[:32] == struct.pack('<dddd', 240, 0, 1440, 1080)
             count += 1
     # Repeating the call at unchanged position still updates width and height.
@@ -82,7 +93,7 @@ try:
             put(UI_SCALE_RVA, struct.pack('<d', scale))
             fn(cash, requested)
             assert geometry(cash) == (0, 0, width, height)
-            assert geometry(cash_browser) == (0, 25 * scale, width, height - 25 * scale)
+            assert geometry(cash_browser) == (0, 0, width, height - 25 * scale)
             count += 1
     for name in ('', 'P', 'PrivateWarehouseX', 'PrivateWarehouseBrowserX', 'PrivateCashShopX', 'PrivateCashShopBrowserX', 'Inventory'):
         w = widget(name)
@@ -96,7 +107,7 @@ try:
             put(UI_WIDTH_RVA,struct.pack('<dd',width,height));put(UI_SCALE_RVA,struct.pack('<d',scale))
             fn(wardrobe,requested)
             assert geometry(wardrobe)==(0,0,width,height)
-            assert geometry(wardrobe_browser)==(0,25*scale,width,height-25*scale)
+            assert geometry(wardrobe_browser)==(0,0,width,height-25*scale)
             count += 1
     journey, journey_browser = widget('PrivateJourney'), widget('PrivateJourneyBrowser')
     struct.pack_into('<Q',journey,0x2a8,ctypes.addressof(journey_browser))

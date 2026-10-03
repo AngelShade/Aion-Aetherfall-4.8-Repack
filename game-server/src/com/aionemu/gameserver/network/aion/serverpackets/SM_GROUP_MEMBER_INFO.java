@@ -50,13 +50,13 @@ public class SM_GROUP_MEMBER_INFO extends AionServerPacket {
 		PlayerCommonData pcd = player.getCommonData();
 		WorldPosition wp = player.getPosition();
 
-		if (event == GroupEvent.ENTER && !player.isOnline()) {
+		if (event == GroupEvent.ENTER && !player.isPlaying()) {
 			event = GroupEvent.ENTER_OFFLINE;
 		}
 
 		writeD(groupId);
 		writeD(player.getObjectId());
-		if (player.isOnline()) {
+		if (player.isPlaying()) {
 			writeD(pls.getMaxHp());
 			writeD(pls.getCurrentHp());
 			writeD(pls.getMaxMp());

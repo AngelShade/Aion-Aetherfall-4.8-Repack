@@ -1,0 +1,69 @@
+package com.aionemu.gameserver.model.templates.item;
+
+import java.util.List;
+
+import javax.xml.bind.Unmarshaller;
+import javax.xml.bind.annotation.XmlAttribute;
+import javax.xml.bind.annotation.XmlType;
+
+import com.aionemu.commons.utils.Rnd;
+import com.aionemu.gameserver.dataholders.DataManager;
+import com.aionemu.gameserver.dataholders.ItemData;
+import com.aionemu.gameserver.dataholders.StaticData;
+import com.aionemu.gameserver.dataholders.loadingutils.StaticDataListener;
+
+/**
+ * One reward alternative of a {@link DecomposableSet}, weighted against its siblings.
+ */
+@XmlType(name = "DecomposedItem")
+public class DecomposedItem implements DecomposedReward {
+
+	@XmlAttribute(name = "id")
+	private int itemId;
+	@XmlAttribute(name = "count")
+	private int count = 1;
+	// Local bundles retain their pre-existing inclusive quantity ranges; retail entries use fixed count.
+	@XmlAttribute(name = "max_count")
+	private int maxCount;
+	@XmlAttribute(name = "chance")
+	private float chance = 100;
+
+	void afterUnmarshal(Unmarshaller u, Object parent) {
+		StaticData staticData = StaticDataListener.get(u);
+		ItemData itemData = staticData != null ? staticData.itemData : DataManager.ITEM_DATA;
+		if (itemData.getItemTemplate(itemId) == null)
+			throw new IllegalArgumentException("Decomposable reward item ID is invalid: " + itemId);
+		if (count <= 0)
+			throw new IllegalArgumentException("Decomposable reward item [" + itemId + "] count (" + count + ") must be greater than 0");
+		if (maxCount != 0 && maxCount < count)
+			throw new IllegalArgumentException("Decomposable reward item [" + itemId + "] max_count must be at least count");
+		if (chance <= 0 || chance > 100)
+			throw new IllegalArgumentException("Decomposable reward item [" + itemId + "] chance (" + chance + ") must be within (0, 100]");
+	}
+
+	public int getItemId() {
+		return itemId;
+	}
+
+	public int getCount() {
+		return maxCount == 0 ? count : Rnd.get(count, maxCount);
+	}
+
+	public int getMinimumCount() {
+		return count;
+	}
+
+	public int getMaximumCount() {
+		return maxCount == 0 ? count : maxCount;
+	}
+
+	@Override
+	public float getChance() {
+		return chance;
+	}
+
+	@Override
+	public List<DecomposedItem> getItems() {
+		return List.of(this);
+	}
+}

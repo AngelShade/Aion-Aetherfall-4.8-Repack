@@ -86,6 +86,17 @@ public class ChainCondition extends Condition {
 		return category;
 	}
 
+	/** Read-only planning check. Unlike validate(), this never consumes or resets a player's chain. */
+	public boolean isAvailable(ChainSkills chain) {
+		if (preCategory == null) return true;
+		if (chain.isChainExpired()) return false;
+		ChainSkill current = chain.getCurrentChainSkill();
+		return current.getCategory().equals(preCategory) ? current.getUseCount() >= preCount
+			: chain.getPreviousChainSkill().getCategory().equals(preCategory);
+	}
+
+	public boolean isFollowUp() { return preCategory != null; }
+
 	/**
 	 * @return the time
 	 */

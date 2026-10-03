@@ -23,6 +23,17 @@ public abstract class AbstractDispelEffect extends EffectTemplate {
 	@XmlAttribute(name = "dispel_level")
 	protected int dispelLevel;
 
+	/** Read-only companion planning; applying the skill still uses the normal dispel controller. */
+	public boolean canDispelDebuff(Effect target, int skillLevel) {
+		if (target.getTargetSlot() != SkillTargetSlot.DEBUFF || target.getReqDispelLevel() > dispelLevel
+			|| power + dpower * skillLevel <= 0 || value + delta * skillLevel <= 0) return false;
+		DispelCategoryType category = target.getDispelCategory();
+		if (this instanceof DispelDebuffMentalEffect) return category == DispelCategoryType.ALL || category == DispelCategoryType.DEBUFF_MENTAL;
+		if (this instanceof DispelDebuffPhysicalEffect) return category == DispelCategoryType.ALL || category == DispelCategoryType.DEBUFF_PHYSICAL;
+		return this instanceof DispelDebuffEffect && (category == DispelCategoryType.ALL || category == DispelCategoryType.DEBUFF_MENTAL
+			|| category == DispelCategoryType.DEBUFF_PHYSICAL);
+	}
+
 	public void applyEffect(Effect effect, DispelCategoryType type, SkillTargetSlot slot) {
 		int count = calculateBaseValue(effect);
 		int finalPower = power + dpower * effect.getSkillLevel();

@@ -1,9 +1,14 @@
 param(
     [string]$ClientPath = (Split-Path -Parent $PSScriptRoot),
-    [switch]$Restore
+    [switch]$Restore,
+    [switch]$Startup
 )
 $ErrorActionPreference = 'Stop'
 if (Get-Process -Name 'aion.bin','aion' -ErrorAction SilentlyContinue) {
+    if ($Startup -and -not $Restore) {
+        'Another Aion client is running; reusing current graphics settings.'
+        return
+    }
     throw 'Close Aion before applying or restoring its graphics settings.'
 }
 $clientRoot = (Resolve-Path -LiteralPath $ClientPath).Path

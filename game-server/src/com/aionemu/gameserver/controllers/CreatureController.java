@@ -466,6 +466,11 @@ public abstract class CreatureController<T extends Creature> extends VisibleObje
 	}
 
 	public boolean useChargeSkill(Skill startSkill, long chargeTimeMillis) {
+		return useChargeSkill(startSkill, chargeTimeMillis, null);
+	}
+
+	/** The observer receives the actual native release stage after a successful cast. */
+	public boolean useChargeSkill(Skill startSkill, long chargeTimeMillis, java.util.function.Consumer<Skill> releaseObserver) {
 		SkillChargeCondition chargeCondition = startSkill.getSkillTemplate().getSkillChargeCondition();
 		ChargeSkillEntry chargeSkill = chargeCondition == null ? null : DataManager.SKILL_CHARGE_DATA.getChargedSkillEntry(chargeCondition.getValue());
 		if (chargeSkill == null || chargeTimeMillis < chargeSkill.getMinTime() * startSkill.getCastSpeedForAnimationBoostAndChargeSkills()) {
@@ -482,8 +487,11 @@ public abstract class CreatureController<T extends Creature> extends VisibleObje
 			}
 			int skillId = chargeSkill.getSkills().get(index).getId();
 			ChargeSkill skill = SkillEngine.getInstance().getChargeSkill(getOwner(), skillId, startSkill.getSkillLevel(), index + 1, startSkill);
-			if (skill != null)
-				return skill.useSkill();
+			if (skill != null) {
+				boolean used = skill.useSkill();
+				if (used && releaseObserver != null) releaseObserver.accept(skill);
+				return used;
+			}
 		} catch (Exception ex) {
 			log.error("Could not use charge skill " + startSkill.getSkillId() + " with charge time " + chargeTimeMillis, ex);
 		} finally {
@@ -574,7 +582,9 @@ public abstract class CreatureController<T extends Creature> extends VisibleObje
 
 		@Override
 		public void run() {
-			target.getController().onAttack(creature, finalDamage, attackStatus, criticalProcEffect);
+			if (!(creature.getMaster() instanceof Player player) || !player.isPlayerBot()
+				|| com.aionemu.gameserver.services.playerbot.PlayerBotService.allowsTarget(player, target))
+				target.getController().onAttack(creature, finalDamage, attackStatus, criticalProcEffect);
 			target = null;
 			creature = null;
 			criticalProcEffect = null;

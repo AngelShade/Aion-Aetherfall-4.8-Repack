@@ -61,6 +61,9 @@ public class CM_USE_ITEM extends AionClientPacket {
 		Item item = player.getInventory().getItemByObjId(uniqueItemId);
 		if (item == null)
 			return;
+		// Check before ITEMUSE observers: an extra click must not abort and restart the current opening.
+		if (com.aionemu.gameserver.services.item.BundleUseService.rejectWhileOpening(player, item))
+			return;
 
 		Item targetItem = null;
 		HouseObject<?> targetHouseObject = null;

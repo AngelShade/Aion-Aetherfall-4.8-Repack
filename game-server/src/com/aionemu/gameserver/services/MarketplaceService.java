@@ -85,6 +85,10 @@ public final class MarketplaceService {
 			try { WardrobeService.start(); }
 			catch (Exception e) { log.error("Could not start Wardrobe", e); }
 			server.createContext("/market/wardrobe", WardrobeHttpService::handle);
+			try { SeasonPassService.start(); }
+			catch (Exception e) { log.error("Could not start Season Pass", e); }
+			server.createContext("/market/pass", SeasonPassHttpService::handle);
+			server.createContext("/market/companions", PlayerBotHttpService::handle);
 			// The optional starter skip is available only on this PC's loopback listener.
 			if (java.net.InetAddress.getByName(GSConfig.MARKETPLACE_BIND).isLoopbackAddress()) {
 				try { PoetaJourneyService.start(); }
@@ -101,6 +105,7 @@ public final class MarketplaceService {
 	}
 
 	public static void stop() {
+		SeasonPassService.stop();
 		if (server != null)
 			server.stop(0);
 	}
@@ -933,8 +938,8 @@ public final class MarketplaceService {
 
 	private static String page(String body) {
 		return "<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>"
-			+ "<title>Cash Shop</title><link rel='stylesheet' href='/shop/media/marketplace.css?v=14'>"
-			+ "<script src='/shop/media/marketplace.js?v=1' defer></script>"
+			+ "<title>Cash Shop</title><link rel='stylesheet' href='/shop/media/marketplace.css?v=15'>"
+			+ "<script src='/shop/media/marketplace.js?v=2' defer></script>"
 			+ "</head><body>" + body + "</body></html>";
 	}
 

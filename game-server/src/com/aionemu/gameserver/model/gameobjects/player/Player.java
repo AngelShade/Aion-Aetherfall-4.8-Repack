@@ -186,6 +186,19 @@ public class Player extends Creature {
 	private boolean isInFfaTeamMode;
 	private int customStates;
 	private PanesterraFaction panesterraFaction;
+	private int playerBotOwnerId;
+
+	public boolean isPlayerBot() { return playerBotOwnerId != 0; }
+	public int getPlayerBotOwnerId() { return playerBotOwnerId; }
+	public void setPlayerBotOwner(int ownerId) {
+		if (ownerId <= 0 || isOnline() || getClientConnection() != null || playerBotOwnerId != 0)
+			throw new IllegalArgumentException("Bots require a valid owner, no client connection, and a fresh character instance");
+		playerBotOwnerId = ownerId;
+		moveController = new com.aionemu.gameserver.controllers.movement.PlayerBotMoveController(this);
+	}
+
+	/** Gameplay presence is separate from a connected network client. */
+	public boolean isPlaying() { return isOnline() || isPlayerBot() && isSpawned(); }
 
 	public Player(PlayerAccountData playerAccountData, Account account) {
 		super(playerAccountData.getPlayerCommonData().getPlayerObjId(), new PlayerController(), null, playerAccountData.getPlayerCommonData(),
@@ -543,6 +556,8 @@ public class Player extends Creature {
 		List<Item> dirtyItems = new ArrayList<>();
 
 		for (StorageType st : StorageType.values()) {
+			if (isPlayerBot() && (st == StorageType.ACCOUNT_WAREHOUSE || st == StorageType.LEGION_WAREHOUSE || st == StorageType.MARKET_WAREHOUSE))
+				continue;
 			IStorage storage = getStorage(st.getId());
 			if (storage != null && storage.getPersistentState() == PersistentState.UPDATE_REQUIRED) {
 				dirtyItems.addAll(storage.getItemsWithKinah());
@@ -1001,6 +1016,8 @@ public class Player extends Creature {
 	}
 
 	public boolean hasCooldown(Item item) {
+		if (com.aionemu.gameserver.services.item.BundleUseService.isBundle(item))
+			return false;
 		ItemUseLimits limits = item.getItemTemplate().getUseLimits();
 		if (limits == null)
 			return false;
@@ -1017,6 +1034,8 @@ public class Player extends Creature {
 	}
 
 	public void startCooldown(Item item) {
+		if (com.aionemu.gameserver.services.item.BundleUseService.isBundle(item))
+			return;
 		ItemUseLimits limits = item.getItemTemplate().getUseLimits();
 		if (limits == null || limits.getDelayTime() <= 0)
 			return;

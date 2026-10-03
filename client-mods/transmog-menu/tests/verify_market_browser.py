@@ -12,17 +12,23 @@ base=k.VirtualAlloc(None,size,0x3000,4)
 if not base:raise ctypes.WinError(ctypes.get_last_error())
 url='http://127.0.0.1:8091/shop'
 urls=[url,'http://127.0.0.1:8091/market','http://127.0.0.1:8091/market/wardrobe','http://127.0.0.1:8091/journey']
+companions='--companions' in sys.argv
+season_pass='--season-pass' in sys.argv or companions
+if season_pass:urls.append('http://127.0.0.1:8091/market/pass')
+if companions:urls.append('http://127.0.0.1:8091/market/companions')
 captured=(ctypes.c_uint64*3)()
 captured_url=ctypes.create_string_buffer(256)
+token_requests=ctypes.c_uint32()
 def put(offset,code):ctypes.memmove(base+offset,code,len(code))
 try:
  hook=build_browser_hook_code(urls)
  put(BROWSER_HOOK_RVA,hook)
- auth=build_market_auth_code(urls[1:]);put(MARKET_AUTH_HOOK_RVA,auth)
+ auth=build_market_auth_code(urls[1:],compact=season_pass);put(MARKET_AUTH_HOOK_RVA,auth)
  put(MARKET_AUTH_RVA,b'\xe9'+struct.pack('<i',MARKET_AUTH_HOOK_RVA-MARKET_AUTH_RVA-5))
  # Stub the native pending-token path without issuing a game packet.
  put(0xb544b0,b'\x31\xc0\xc3')
  put(MARKET_AUTH_RVA+len(MARKET_AUTH_ORIGINAL),b'\xb8\x33\0\0\0\xc3')
+ put(NATIVE_REQUEST_TOKEN_RVA,b'\x48\xb8'+struct.pack('<Q',ctypes.addressof(token_requests))+b'\xff\x00\x31\xc0\xc3')
  # Capture direct-navigation ABI arguments; return marker 17.
  capture=Assembler(BROWSER_LOAD_RVA)
  capture.emit(b'\x48\xb8'+struct.pack('<Q',ctypes.addressof(captured))+b'\x48\x89\x08\x48\x89\x50\x08\x4c\x89\x40\x10')
@@ -60,11 +66,44 @@ try:
   assert fn(wrapper,ctypes.create_string_buffer(value.encode()))==34,value
  assert fn(wrapper,None)==34
  journey=ctypes.create_string_buffer(urls[3].encode())
+ put(NATIVE_SECURITY_TOKEN_RVA,bytes(16))
+ assert fn(wrapper,journey)==17, 'Journey must open its local shell without the publisher pending-key queue'
+ assert captured_url.value==urls[3].encode() and token_requests.value==1
+ assert tuple(captured)[:2]==(base+BROWSER_MANAGER_RVA,7)
+ put(NATIVE_SECURITY_TOKEN_RVA,b'0123456789abcdef')
  assert fn(wrapper,journey)==17
  assert captured_url.value==urls[3].encode()+b'?session_id='+b'0123456789abcdef'.hex().encode()
+ assert token_requests.value==1, 'An existing key must not request another one'
  for value in (urls[3]+'x',urls[3]+'?x=1',urls[3][:-1]):
   assert fn(wrapper,ctypes.create_string_buffer(value.encode()))==34,value
+ if season_pass:
+  season=ctypes.create_string_buffer(urls[4].encode())
+  for token in (bytes(range(16)),bytes(range(240,256)),b'0123456789abcdef'):
+   put(NATIVE_SECURITY_TOKEN_RVA,token);assert fn(wrapper,season)==17
+   assert captured_url.value==urls[4].encode()+b'?session_id='+token.hex().encode()
+  for value in (urls[4]+'x',urls[4]+'?x=1',urls[4][:-1],'http://127.0.0.1:8091/pass'):
+   assert fn(wrapper,ctypes.create_string_buffer(value.encode()))==34,value
+  put(NATIVE_SECURITY_TOKEN_RVA,bytes(16));assert fn(wrapper,season)==51
+  put(NATIVE_SECURITY_TOKEN_RVA,b'0123456789abcdef')
+  assert len(auth)<=MARKET_RECT_HOOK_RVA-MARKET_AUTH_HOOK_RVA
+  print('OK: Season Pass native auth, token encodings, pending-token fallback, exact route guards and compact cave bounds.')
  struct.pack_into('<i',native,0x340,-1);assert fn(wrapper,exact)!=17
+ if companions:
+  struct.pack_into('<i',native,0x340,7)
+  companion=ctypes.create_string_buffer(urls[5].encode())
+  for token in (bytes(range(16)),bytes(range(240,256)),b'0123456789abcdef'):
+   put(NATIVE_SECURITY_TOKEN_RVA,token);assert fn(wrapper,companion)==17
+   assert captured_url.value==urls[5].encode()+b'?session_id='+token.hex().encode()
+  for value in (urls[5]+'x',urls[5]+'?x=1',urls[5][:-1],urls[5].replace('127.0.0.1','localhost'),'http://127.0.0.1:8091/companions'):
+   assert fn(wrapper,ctypes.create_string_buffer(value.encode()))==34,value
+  # Exercise short and foreign strings directly against the shared-prefix auth routine too.
+  auth_fn=ctypes.CFUNCTYPE(ctypes.c_int,ctypes.c_void_p,ctypes.c_int)(base+MARKET_AUTH_HOOK_RVA)
+  for value in ('','h','http://127.0.0.1:8091/','http://127.0.0.2:8091/market',urls[5]+'x'):
+   assert auth_fn(ctypes.create_string_buffer(value.encode()),7)==51,value
+  put(NATIVE_SECURITY_TOKEN_RVA,bytes(16));assert fn(wrapper,companion)==51
+  assert len(auth)<=512
+  print('OK: companion native token dispatch, exact shared-origin suffixes, short-input guards and 509-byte authentication cave.')
+  struct.pack_into('<i',native,0x340,-1)
  struct.pack_into('<Q',wrapper,0x10,0);assert fn(wrapper,exact)!=17
  for value in ['https://example.invalid/', 'http://127.0.0.1:8091/'+('x'*200),url+'\n']:
   try:build_browser_hook_code(value)

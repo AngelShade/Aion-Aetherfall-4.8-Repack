@@ -81,7 +81,7 @@ def main():
     for offset, before, after, limit in [
         (BROWSER_HOOK_RVA,build_browser_hook_code(routes if args.revise_installed else old_routes),build_browser_hook_code(routes),1024),
         (MARKET_AUTH_HOOK_RVA,build_market_auth_code(routes[1:] if args.revise_installed else old_routes[1:]),build_market_auth_code(routes[1:]),512),
-        (MARKET_RECT_HOOK_RVA,build_market_rect_code(False),build_market_rect_code(),512)]:
+        (MARKET_RECT_HOOK_RVA,build_market_rect_code(False,client_origin=False),build_market_rect_code(),512)]:
         if dll[offset:offset+len(before)] != before or len(after)>limit:
             raise ValueError('Installed browser or layout hook differs from the verified current code')
         end = offset + max(len(before),len(after))

@@ -92,6 +92,8 @@ public class CraftService {
 			long reuseTimeMillis = System.currentTimeMillis() + recipetemplate.getCraftDelayTime() * 1000;
 			player.getCraftCooldowns().put(recipetemplate.getCraftDelayId(), reuseTimeMillis);
 		}
+		if (skillId != 40009)
+			com.aionemu.gameserver.services.SeasonPassService.record(player, com.aionemu.gameserver.services.SeasonPassRules.Event.CRAFT);
 	}
 
 	public static void startCrafting(Player player, int recipeId, int targetObjId, int craftType, Map<Integer, Long> sendMaterialsData) {

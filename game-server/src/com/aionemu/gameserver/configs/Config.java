@@ -37,7 +37,7 @@ public class Config {
 		AutoGroupConfig.class, BrokerMarketConfig.class, CentralMarketSimulationConfig.class, CommonsConfig.class, CleaningConfig.class, CraftConfig.class, CustomConfig.class, DropConfig.class, EventsConfig.class,
 		FallDamageConfig.class, GSConfig.class, GeoDataConfig.class, GroupConfig.class, HousingConfig.class, HTMLConfig.class,
 		InstanceConfig.class, LegionConfig.class, LoggingConfig.class, MembershipConfig.class, NameConfig.class, PeriodicSaveConfig.class,
-		PlayerTransferConfig.class, PricesConfig.class, PunishmentConfig.class, RankingConfig.class, RatesConfig.class, SecurityConfig.class,
+		PlayerBotConfig.class, PlayerTransferConfig.class, PricesConfig.class, PunishmentConfig.class, RankingConfig.class, RatesConfig.class, SecurityConfig.class,
 		ShutdownConfig.class, SiegeConfig.class, ThreadConfig.class, WorldConfig.class, DatabaseConfig.class, NetworkConfig.class, PffConfig.class);
 
 	/**
@@ -46,12 +46,13 @@ public class Config {
 	public static void load(Class<?>... allowedConfigs) {
 		Properties properties = loadProperties();
 		properties.putAll(EventService.getInstance().getActiveEventConfigProperties());
+		List<Class<?>> configs = getClasses();
 		for (Class<?> config : allowedConfigs) {
-			if (!CONFIGS.contains(config))
+			if (!configs.contains(config))
 				throw new IllegalArgumentException(config + " is not an allowed config");
 		}
 		boolean processAllConfigs = allowedConfigs.length == 0;
-		Set<String> unusedProperties = ConfigurableProcessor.process(properties, processAllConfigs ? CONFIGS.toArray() : allowedConfigs);
+		Set<String> unusedProperties = ConfigurableProcessor.process(properties, processAllConfigs ? configs.toArray() : allowedConfigs);
 		if (processAllConfigs && !unusedProperties.isEmpty()) {
 			removePropertiesUsedInLogbackXml(unusedProperties);
 			unusedProperties.forEach(p -> LoggerFactory.getLogger(Config.class).warn("Config property " + p + " is unknown and therefore ignored."));

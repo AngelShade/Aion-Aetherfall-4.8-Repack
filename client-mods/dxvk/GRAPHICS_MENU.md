@@ -32,7 +32,8 @@ effect wrapper in this implementation.
 - `DXVK/renderer.ini` stores `Vulkan=0/1` (next launch) and
   `ActiveVulkan=0/1` (selected at the most recent normal launch).
 - `SelectRenderer.ps1` validates both DXVK DLL hashes before changing either
-  file, refuses while Aion is running, and parks DLLs as
+  file, permits additional clients with the current renderer, refuses renderer
+  changes while Aion is running, and parks DLLs as
   `bin32/d3d9.dxvk-disabled.dll` and `bin64/d3d9.dxvk-disabled.dll` when off.
   It restores those exact DLLs when on. The client compatibility wrapper
   supports an optional local DXVK DLL; its documented normal installation

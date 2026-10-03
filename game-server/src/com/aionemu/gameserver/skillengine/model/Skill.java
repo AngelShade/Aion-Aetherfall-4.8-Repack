@@ -84,6 +84,9 @@ public class Skill {
 	 */
 	private int baseCastDuration;
 	private int castDuration;
+
+	/** Actual cast duration after casting-speed and skill modifiers. */
+	public int getCastDuration() { return castDuration; }
 	private int clientHitTime; // from CM_CASTSPELL
 	private int hitTime; // time when effect is applied
 	private float castSpeedForAnimationBoostAndChargeSkills; // cast speed can boost the animation time of the current skill and the hit time of the following skill
@@ -198,6 +201,10 @@ public class Skill {
 	}
 
 	private boolean validateEffectedList() {
+		if (effector.getMaster() instanceof Player bot && bot.isPlayerBot()) {
+			effectedList.removeIf(target -> !com.aionemu.gameserver.services.playerbot.PlayerBotService.allowsTarget(bot, target));
+			if (effectedList.isEmpty()) return false;
+		}
 		if (effector instanceof Player player) {
 			if (canUseSkill(player)) {
 				if (!canTargetFirstTarget()) {
@@ -787,6 +794,9 @@ public class Skill {
 	}
 
 	private void applyEffect(List<Effect> effects) {
+		// Projectile travel can outlast an order change, disengagement, or a map transfer.
+		if (effector.getMaster() instanceof Player caster && caster.isPlayerBot())
+			effects = effects.stream().filter(effect -> com.aionemu.gameserver.services.playerbot.PlayerBotService.allowsTarget(caster, effect.getEffected())).toList();
 		// Apply effects to effected objects
 		effects.forEach(Effect::applyEffect);
 

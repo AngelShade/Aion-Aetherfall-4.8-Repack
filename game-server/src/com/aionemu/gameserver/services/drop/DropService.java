@@ -102,7 +102,7 @@ public class DropService {
 		}
 
 		if (dropNpc.isBeingLooted()) {
-			if (!dropNpc.getLootingPlayer().isOnline()) {
+			if (!dropNpc.getLootingPlayer().isPlaying()) {
 				log.warn(
 					dropNpc.getLootingPlayer() + " is offline but was still set as drop looter for " + World.getInstance().findVisibleObject(npcObjectId));
 			} else {
@@ -212,7 +212,7 @@ public class DropService {
 					dropNpc.setCurrentIndex(requestedItem.getIndex());
 					for (Player member : dropNpc.getInRangePlayers()) {
 						Player finalPlayer = World.getInstance().getPlayer(member.getObjectId());
-						if (finalPlayer != null && finalPlayer.isOnline()) {
+						if (finalPlayer != null && finalPlayer.isPlaying()) {
 							dropNpc.addPlayerStatus(finalPlayer);
 							finalPlayer.setPlayerMode(PlayerMode.IN_ROLL, new InRoll(npcId, itemId, requestedItem.getIndex(), dropNpc.getDistributionId()));
 							PacketSendUtility.sendPacket(finalPlayer, new SM_GROUP_LOOT(dropNpc.getLootingTeamId(), 0, itemId, (int) requestedItem.getCount(),
@@ -260,7 +260,7 @@ public class DropService {
 			boolean anyOnline = false;
 			for (Player member : dropNpc.getInRangePlayers()) {
 				Player finalPlayer = World.getInstance().getPlayer(member.getObjectId());
-				if (finalPlayer != null && finalPlayer.isOnline()) {
+				if (finalPlayer != null && finalPlayer.isPlaying()) {
 					anyOnline = true;
 					break;
 				}
@@ -335,7 +335,7 @@ public class DropService {
 				requestedItem.setCount(ItemService.addItem(player, itemId, requestedItem.getCount()));
 			} else {
 				List<Player> entitledPlayers = team
-					.filterMembers(m -> m.isOnline() && !m.isDead() && !m.isMentor() && PositionUtil.isInRange(m, player, GroupConfig.GROUP_MAX_DISTANCE));
+					.filterMembers(m -> m.isPlaying() && !m.isDead() && !m.isMentor() && PositionUtil.isInRange(m, player, GroupConfig.GROUP_MAX_DISTANCE));
 				distributeEqually(requestedItem, entitledPlayers);
 			}
 		} else if (!player.isInTeam() && !requestedItem.isItemWonNotCollected() && dropNpc.getDistributionId() == 0) {

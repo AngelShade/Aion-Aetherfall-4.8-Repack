@@ -4,7 +4,7 @@
 #include <cstring>
 #include <cmath>
 using Ptr=void*;
-extern "C" __declspec(dllexport) volatile DWORD AionMarketDiagnostics[4]={2,0,0,0};
+extern "C" __declspec(dllexport) volatile DWORD AionMarketDiagnostics[4]={3,0,0,0};
 template<class T> T method(Ptr o,size_t n){return reinterpret_cast<T>((*reinterpret_cast<void***>(o))[n/8]);}
 #ifdef MARKET_TEST
 unsigned char* testGame;
@@ -23,6 +23,7 @@ extern "C" __declspec(dllexport) int AionMarketCommand(Ptr,Ptr event) {
     if (!name) return 0;
     const char* command=nullptr;
     if (!std::strcmp(name,"central_market_button")) command="/privatewarehouse";
+    else if (!std::strcmp(name,"season_pass_button")) command="/seasonpass";
     else if (!std::strcmp(name,"item_shop") || !std::strcmp(name,"item_shop_gf") || !std::strcmp(name,"item_ingame_web_shop")) command="/privatecashshop";
     if (!command) return 0;
     ++AionMarketDiagnostics[3];
@@ -52,5 +53,15 @@ extern "C" __declspec(dllexport) void AionMarketLayout(Ptr dialog) {
     if (std::memcmp(&desired,&current,sizeof desired)) {
         method<void(*)(Ptr,const Rect*)>(button,0x1a8)(button,&desired);
         ++AionMarketDiagnostics[2];
+    }
+    Ptr ticket=find(dialog,"season_pass_button",0x2001);
+    if (ticket) {
+        // The 32px ticket plus a 2px gap fits above Market in both HUD styles.
+        Rect above={desired.x,desired.y-34*scale,34*scale,32*scale};
+        auto previous=*reinterpret_cast<Rect*>(static_cast<unsigned char*>(ticket)+0x50);
+        if (std::memcmp(&above,&previous,sizeof above)) {
+            method<void(*)(Ptr,const Rect*)>(ticket,0x1a8)(ticket,&above);
+            ++AionMarketDiagnostics[2];
+        }
     }
 }

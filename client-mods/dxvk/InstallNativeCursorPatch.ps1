@@ -1,6 +1,5 @@
 param([Parameter(Mandatory=$true)][string]$ClientPath)
 $ErrorActionPreference = 'Stop'
-if (Get-Process -Name 'aion.bin','aion' -ErrorAction SilentlyContinue) { throw 'Exit Aion normally before patching its cursor.' }
 $clientRoot = (Resolve-Path -LiteralPath $ClientPath).Path
 $statePath = Join-Path $clientRoot 'DXVK/installed.json'
 $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
@@ -21,6 +20,7 @@ if ($state.nativeCursorPatch) {
     'Native UI cursor patch is already installed.'
     return
 }
+if (Get-Process -Name 'aion.bin','aion' -ErrorAction SilentlyContinue) { throw 'Exit Aion normally before patching its cursor.' }
 $patches = @(
     @{path='bin64/XRenderD3D9.dll';hash='c8dafe7fddc5cf364c6bf15c258b6e37fe4f7edb9d405c605285af7311205b2a';offset=0x1202D7;bytes=[byte[]](0x7C,0x0C)},
     @{path='bin64/Game.dll';hash='97deff11c2cc2827eeed24613668a39661dd86c3d646774080bcf1ce782c9b4b';offset=0x551C96;bytes=[byte[]](0x78,0x18)}

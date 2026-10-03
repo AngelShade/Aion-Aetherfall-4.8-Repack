@@ -884,6 +884,18 @@ public class QuestEngine implements GameEngine {
 		return questHandlers.get(questId);
 	}
 
+	public Set<Integer> getRequiredKillNpcIds(Player player, int questId) {
+		AbstractQuestHandler handler = questHandlers.get(questId);
+		return handler instanceof com.aionemu.gameserver.questEngine.handlers.template.MonsterHunt hunt
+			? hunt.getRequiredKillNpcIds(player.getQuestStateList().getQuestState(questId)) : Set.of();
+	}
+
+	public Set<Integer> getPlayerBotRewardNpcIds(Player player, int questId) {
+		AbstractQuestHandler handler = questHandlers.get(questId);
+		return handler instanceof com.aionemu.gameserver.questEngine.handlers.template.MonsterHunt hunt
+			? hunt.getRewardNpcIds(player.getQuestStateList().getQuestState(questId)) : Set.of();
+	}
+
 	public int getQuestHandlerCount() {
 		return questHandlers.size();
 	}

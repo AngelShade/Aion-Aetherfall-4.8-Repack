@@ -3,7 +3,13 @@ package com.aionemu.gameserver.model.gameobjects.player;
 /**
  * @author SoulKeeper, srx47, alexa026
  */
-public class PlayerAppearance {
+public class PlayerAppearance implements Cloneable {
+
+	/** All appearance fields are primitives; a shallow clone is an independent appearance. */
+	public PlayerAppearance copy() {
+		try { return (PlayerAppearance) clone(); }
+		catch (CloneNotSupportedException e) { throw new AssertionError(e); }
+	}
 
 	/**
 	 * Player's face

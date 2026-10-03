@@ -74,6 +74,7 @@ public class ShutdownHook extends Thread {
 			}
 		}
 
+		com.aionemu.gameserver.services.playerbot.PlayerBotService.getInstance().shutdown();
 		GameServer.shutdownNioServer(); // shuts down network, disconnects cs/ls/all players and schedules leaveWorld
 		MarketplaceService.stop();
 		PlayerLeaveWorldService.processPendingLeaveWorldTasks();

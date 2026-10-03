@@ -369,6 +369,7 @@ public class PlayerController extends CreatureController<Player> {
 
 	@Override
 	public void doReward() {
+		if (getOwner().isPlayerBot()) return; // PvE companions cannot be farmed for PvP rewards.
 		PvpService.getInstance().doReward(getOwner());
 	}
 
@@ -568,7 +569,7 @@ public class PlayerController extends CreatureController<Player> {
 		Player player = getOwner();
 		int minNewLevel = oldLevel < newLevel ? oldLevel + 1 : oldLevel - 1; // for skill learning and other stuff that only wants the new level(s)
 
-		if (GSConfig.ENABLE_RATIO_LIMITATION
+		if (!player.isPlayerBot() && GSConfig.ENABLE_RATIO_LIMITATION
 			&& (player.getAccount().getNumberOf(player.getRace()) == 1 || player.getAccount().getMaxPlayerLevel() == newLevel)) {
 			if (oldLevel < GSConfig.RATIO_MIN_REQUIRED_LEVEL && newLevel >= GSConfig.RATIO_MIN_REQUIRED_LEVEL)
 				GameServer.updateRatio(player.getRace(), 1);

@@ -349,6 +349,7 @@ public abstract class AbstractQuestHandler {
 		if (env.getVisibleObject() != null) {
 			objId = env.getVisibleObject().getObjectId();
 		}
+		com.aionemu.gameserver.services.playerbot.PlayerBotQuestDialog.observe(env, objId, dialogPageId, questId);
 		PacketSendUtility.sendPacket(env.getPlayer(), new SM_DIALOG_WINDOW(objId, dialogPageId, questId));
 	}
 

@@ -96,6 +96,15 @@ public class Summon extends Creature {
 		return getObjectTemplate().getTemplateId();
 	}
 
+	/** Bot summons have no client to drive their normal movement packets. */
+	public void enablePlayerBotMovement() {
+		if (!master.isPlayerBot()) throw new IllegalStateException("Only a player companion may drive its summon");
+		if (!(moveController instanceof com.aionemu.gameserver.controllers.movement.PlayerBotSummonMoveController)) {
+			moveController.abortMove();
+			moveController = new com.aionemu.gameserver.controllers.movement.PlayerBotSummonMoveController(this);
+		}
+	}
+
 	public String getL10n() {
 		return getObjectTemplate().getL10n();
 	}

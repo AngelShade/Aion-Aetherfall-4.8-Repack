@@ -1,6 +1,5 @@
 package com.aionemu.gameserver.network.aion.clientpackets;
 
-import static com.aionemu.gameserver.utils.collections.Predicates.Players.ONLINE;
 import static com.aionemu.gameserver.utils.collections.Predicates.Players.allExcept;
 
 import java.util.Collections;
@@ -59,7 +58,7 @@ public class CM_QUEST_SHARE extends AionClientPacket {
 		if (currentGroup == null) {
 			membersToShareWith = Collections.emptyList();
 		} else {
-			Predicate<Player> memberFilter = allExcept(player).and(ONLINE).and(member -> PositionUtil.isInRange(member, player, GroupConfig.GROUP_MAX_DISTANCE));
+			Predicate<Player> memberFilter = allExcept(player).and(Player::isPlaying).and(member -> PositionUtil.isInRange(member, player, GroupConfig.GROUP_MAX_DISTANCE));
 			membersToShareWith = currentGroup.filterMembers(memberFilter);
 		}
 		if (membersToShareWith.isEmpty()) {
@@ -72,6 +71,11 @@ public class CM_QUEST_SHARE extends AionClientPacket {
 		}
 
 		for (Player member : membersToShareWith) {
+			if (member.isPlayerBot()) {
+				boolean accepted = com.aionemu.gameserver.services.playerbot.PlayerBotService.getInstance().acceptSharedQuest(player, member, questId);
+				PacketSendUtility.sendPacket(player, new SM_SYSTEM_MESSAGE(accepted ? 1100002 : 1100003, member.getName()));
+				continue;
+			}
 			if (!QuestService.checkStartConditions(member, questId, false)) {
 				PacketSendUtility.sendPacket(player, new SM_SYSTEM_MESSAGE(1100003, member.getName())); // You failed to share the quest with %0.
 			} else {

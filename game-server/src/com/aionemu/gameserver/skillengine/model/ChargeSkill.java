@@ -18,6 +18,8 @@ public class ChargeSkill extends Skill {
 		setClientHitTime(startSkill.getHitTime());
 		setCastStartTime(startSkill.getCastStartTime());
 		setCastSpeedForAnimationBoostAndChargeSkills(startSkill.getCastSpeedForAnimationBoostAndChargeSkills());
+		if (effector instanceof Player player && player.isPlayerBot())
+			com.aionemu.gameserver.services.playerbot.PlayerBotSkillTiming.prepare(player, this);
 	}
 
 	public int getMotionId() {

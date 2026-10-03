@@ -76,6 +76,8 @@ def main():
     config += 'PRIVATE_CENTRAL_MARKET_URL = ' + json.dumps(settings['centralMarket']['url']) + ';\n'
     config += 'PRIVATE_WARDROBE_URL = ' + json.dumps(settings['wardrobe']['url']) + ';\n'
     config += 'PRIVATE_JOURNEY_URL = ' + json.dumps(settings['journey']['url']) + ';\n'
+    config += 'PRIVATE_SEASON_PASS_URL = ' + json.dumps(settings['seasonPass']['url']) + ';\n'
+    config += 'PRIVATE_PLAYERBOTS_URL = ' + json.dumps(settings['playerbots']['url']) + ';\n'
     content['PrivateMenus.lua'] = (config + (mod_root / 'PrivateMenus.lua').read_text(encoding='utf-8-sig')).replace('\n', '\r\n').encode('utf-8')
     toc = content['RelicCalc.toc'].decode('utf-8').replace('\r', '').splitlines()
     toc = [line for line in toc if line not in ('CashShop.xml', 'Warehouse.xml', 'Wardrobe.xml', 'Journey.xml', 'PrivateMenus.lua', 'WardrobeJSON.lua', 'WardrobeIcons.lua', 'WardrobeNative.lua')]
@@ -104,7 +106,7 @@ def main():
     cry_system.write_bytes(patch_plugin_key((root / 'bin64/crysystem.dll').read_bytes()))
     patched_dll = output / 'bin64/game.dll'
     patched_dll.parent.mkdir(parents=True, exist_ok=True)
-    dll = build_dll(root / 'bin64/game.dll.orig', commands, [settings['cashShop']['url'], settings['centralMarket']['url'], settings['wardrobe']['url'], settings['journey']['url']])
+    dll = build_dll(root / 'bin64/game.dll.orig', commands, [settings['cashShop']['url'], settings['centralMarket']['url'], settings['wardrobe']['url'], settings['journey']['url'], settings['seasonPass']['url'], settings['playerbots']['url']])
     inventory = settings.get('inventory')
     if inventory:
         from unified_inventory import BASE_SLOTS, SLOTS, patch_inventory_dll, prepare_inventory_archive

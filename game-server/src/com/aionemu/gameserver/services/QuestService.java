@@ -126,6 +126,7 @@ public final class QuestService {
 			qs.setNextRepeatTime(calculateRepeatDate(player, template));
 		PacketSendUtility.sendPacket(player, new SM_QUEST_ACTION(ActionType.UPDATE, qs));
 		QuestEngine.getInstance().onQuestCompleted(player, id);
+		SeasonPassService.record(player, SeasonPassRules.Event.QUEST);
 		if (template.getNpcFactionId() != 0)
 			player.getNpcFactions().completeQuest(template);
 		player.getController().updateNearbyQuests();

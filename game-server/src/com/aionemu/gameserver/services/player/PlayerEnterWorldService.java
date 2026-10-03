@@ -89,6 +89,17 @@ public final class PlayerEnterWorldService {
 	private static final ConcurrentLinkedQueue<Integer> enteringWorld = new ConcurrentLinkedQueue<>();
 
 	public static void enterWorld(final AionConnection client, int objectId) {
+		com.aionemu.gameserver.services.playerbot.PlayerBotLease lease = com.aionemu.gameserver.services.playerbot.PlayerBotLease.acquire(objectId);
+		if (lease == null) {
+			client.sendPacket(new SM_ENTER_WORLD_CHECK(Msg.REENTRY_TIME));
+			return;
+		}
+		try (lease) {
+			enterWorldReserved(client, objectId);
+		}
+	}
+
+	private static void enterWorldReserved(final AionConnection client, int objectId) {
 		Account account = client.getAccount();
 		PlayerAccountData playerAccData = account.getPlayerAccountData(objectId);
 		if (playerAccData == null) {
@@ -338,6 +349,7 @@ public final class PlayerEnterWorldService {
 			HTMLService.showHTML(player, HTMLCache.getInstance().getHTML("welcome.xhtml"));
 
 		AdventService.getInstance().onLogin(player);
+		com.aionemu.gameserver.services.SeasonPassService.onLogin(player);
 
 		player.getNpcFactions().sendDailyQuest();
 

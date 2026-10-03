@@ -1,4 +1,7 @@
 /* Window layout for Aion's older Awesomium: no grid, flex or CSS variables. */
+/* Preserve the artwork and colors; avoid continuous software repaints. */
+.product,.side-link,.product-button,.purchase-button,.shop-tab,.favorite-action button,.item-actions button{-webkit-transition:none!important;transition:none!important}
+.shell.is-loading:after,.shop-status,.submitting img{-webkit-animation:none!important;animation:none!important}
 *{box-sizing:border-box;-webkit-box-sizing:border-box}
 html,body{width:100%;height:100%;margin:0;overflow:hidden}
 body{background:#101921;color:#dce2df;font:12px/1.4 Tahoma,Arial,sans-serif}

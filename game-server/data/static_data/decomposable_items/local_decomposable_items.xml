@@ -1,0 +1,534 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<decomposable_items xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="decomposable_items.xsd">
+	<!-- Local gameplay/restored-box overrides; provenance differs from the imported retail tables. -->
+	<decomposable item_id="188052083" override="true">
+		<set>
+			<bundle>
+				<item id="164000073" count="20" />
+				<item id="164000076" count="20" />
+				<item id="164000079" count="20" />
+				<item id="162000023" count="10" />
+				<item id="169000010" count="5000" />
+				<item id="162000107" count="5" />
+			</bundle>
+		</set>
+	</decomposable>
+	<decomposable item_id="188052086" override="true">
+		<set>
+			<bundle chance="20">
+				<item id="182400001" count="1000000" max_count="3000000" />
+				<item id="188052083" />
+			</bundle>
+			<item id="162000107" count="10" max_count="25" chance="20" />
+			<item id="188052213" chance="15" />
+			<item id="188052088" chance="15" />
+			<item id="188052077" chance="15" />
+			<item id="162000023" count="10" max_count="30" chance="15" />
+		</set>
+	</decomposable>
+	<decomposable item_id="188052088" override="true">
+		<set>
+			<bundle>
+				<item id="162000080" count="15" />
+				<item id="162000050" count="15" />
+				<item id="162000023" count="15" />
+			</bundle>
+		</set>
+	</decomposable>
+	<decomposable item_id="188052187" override="true">
+		<set>
+			<item id="167000578" chance="3.7" />
+			<item id="167000579" chance="3.7" />
+			<item id="167000584" chance="3.5" />
+			<item id="167000587" chance="3.5" />
+			<item id="167000588" chance="3.5" />
+			<item id="167000589" chance="3.5" />
+			<item id="167000596" chance="3.5" />
+			<item id="167000597" chance="3.5" />
+			<item id="167000603" chance="3.5" />
+			<item id="167000605" chance="3.5" />
+			<item id="167000606" chance="3.5" />
+			<item id="167000607" chance="3.5" />
+			<item id="167000614" chance="2.8" />
+			<item id="167000615" chance="2.8" />
+			<item id="167000616" chance="2.8" />
+			<item id="167000619" chance="2.8" />
+			<item id="167000620" chance="2.8" />
+			<item id="167000621" chance="2.8" />
+			<item id="167000628" chance="2.8" />
+			<item id="167000629" chance="2.8" />
+			<item id="167000635" chance="2.8" />
+			<item id="167000637" chance="2.8" />
+			<item id="167000638" chance="2.8" />
+			<item id="167000639" chance="2.8" />
+			<item id="167000646" chance="2" />
+			<item id="167000647" chance="2" />
+			<item id="167000652" chance="2" />
+			<item id="167000655" chance="2" />
+			<item id="167000656" chance="2" />
+			<item id="167000657" chance="2" />
+			<item id="167000664" chance="2" />
+			<item id="167000665" chance="2" />
+			<item id="167000671" chance="2" />
+			<item id="167000673" chance="2" />
+			<item id="167000674" chance="2" />
+			<item id="167000675" chance="2" />
+		</set>
+	</decomposable>
+	<decomposable item_id="188052213" override="true">
+		<set>
+			<bundle>
+				<item id="186000253" count="5" />
+				<item id="162000107" count="5" />
+				<item id="164000073" count="10" />
+				<item id="164000076" count="10" />
+				<item id="164000079" count="10" />
+				<item id="162000080" count="10" />
+			</bundle>
+		</set>
+	</decomposable>
+	<decomposable item_id="188052361" override="true">
+		<set>
+			<bundle>
+				<item id="186000253" count="5" />
+				<item id="162000107" count="5" />
+				<item id="164000073" count="10" />
+				<item id="164000076" count="10" />
+				<item id="164000079" count="10" />
+				<item id="162000080" count="10" />
+			</bundle>
+		</set>
+	</decomposable>
+	<decomposable item_id="188052555" override="true">
+		<set>
+			<item id="167000682" chance="0.79" />
+			<item id="167000683" chance="6.54" />
+			<item id="167000684" chance="0.79" />
+			<item id="167000685" chance="0.79" />
+			<item id="167000686" chance="6.55" />
+			<item id="167000687" chance="0.79" />
+			<item id="167000688" chance="6.54" />
+			<item id="167000689" chance="6.54" />
+			<item id="167000690" chance="0.39" />
+			<item id="167000691" chance="0.79" />
+			<item id="167000692" chance="0.79" />
+			<item id="167000693" chance="0.79" />
+			<item id="167000694" chance="0.79" />
+			<item id="167000695" chance="0.79" />
+			<item id="167000696" chance="0.79" />
+			<item id="167000697" chance="0.79" />
+			<item id="167000698" chance="6.54" />
+			<item id="167000699" chance="6.54" />
+			<item id="167000700" chance="6.54" />
+			<item id="167000701" chance="6.54" />
+			<item id="167000702" chance="6.54" />
+			<item id="167000703" chance="0.79" />
+			<item id="167000704" chance="0.39" />
+			<item id="167000705" chance="0.39" />
+			<item id="167000706" chance="0.79" />
+			<item id="167000707" chance="6.54" />
+			<item id="167000708" chance="0.39" />
+			<item id="167000709" chance="0.79" />
+			<item id="167000710" chance="6.54" />
+			<item id="167000711" chance="6.54" />
+			<item id="167000712" chance="6.54" />
+			<item id="167000713" chance="0.79" />
+			<item id="167000714" chance="0.39" />
+			<item id="167000749" chance="0.39" />
+			<item id="167000750" chance="0.39" />
+			<item id="167000751" chance="0.39" />
+		</set>
+	</decomposable>
+	<decomposable item_id="188053068" override="true">
+		<set>
+			<item id="167000685" count="5" chance="15" />
+			<item id="167000750" count="5" chance="15" />
+			<item id="167000684" count="3" chance="10" />
+			<item id="167000749" chance="3" />
+			<item id="167000692" count="5" chance="11" />
+			<item id="167000695" count="3" chance="3" />
+			<item id="167000696" count="3" chance="3" />
+			<item id="167000705" chance="2" />
+			<item id="167000704" count="4" chance="10" />
+			<item id="167000714" count="4" chance="11" />
+			<item id="167000697" count="5" chance="17" />
+		</set>
+	</decomposable>
+	<decomposable item_id="188053975" override="true">
+		<set player_classes="GLADIATOR">
+			<item id="188053750" />
+		</set>
+		<set player_classes="TEMPLAR">
+			<item id="188053751" />
+		</set>
+		<set player_classes="ASSASSIN">
+			<item id="188053752" />
+		</set>
+		<set player_classes="RANGER">
+			<item id="188053753" />
+		</set>
+		<set player_classes="SORCERER">
+			<item id="188053754" />
+		</set>
+		<set player_classes="SPIRIT_MASTER">
+			<item id="188053755" />
+		</set>
+		<set player_classes="CLERIC">
+			<item id="188053756" />
+		</set>
+		<set player_classes="CHANTER">
+			<item id="188053757" />
+		</set>
+		<set player_classes="RIDER">
+			<item id="188053759" />
+		</set>
+		<set player_classes="GUNNER">
+			<item id="188053758" />
+		</set>
+		<set player_classes="BARD">
+			<item id="188053760" />
+		</set>
+	</decomposable>
+	<decomposable item_id="188053976" override="true">
+		<set player_classes="GLADIATOR">
+			<item id="188053761" />
+		</set>
+		<set player_classes="TEMPLAR">
+			<item id="188053762" />
+		</set>
+		<set player_classes="ASSASSIN">
+			<item id="188053763" />
+		</set>
+		<set player_classes="RANGER">
+			<item id="188053764" />
+		</set>
+		<set player_classes="SORCERER">
+			<item id="188053765" />
+		</set>
+		<set player_classes="SPIRIT_MASTER">
+			<item id="188053766" />
+		</set>
+		<set player_classes="CLERIC">
+			<item id="188053767" />
+		</set>
+		<set player_classes="CHANTER">
+			<item id="188053768" />
+		</set>
+		<set player_classes="RIDER">
+			<item id="188053770" />
+		</set>
+		<set player_classes="GUNNER">
+			<item id="188053769" />
+		</set>
+		<set player_classes="BARD">
+			<item id="188053771" />
+		</set>
+	</decomposable>
+	<decomposable item_id="188053979" override="true">
+		<set>
+			<item id="140001104" chance="4.5" />
+			<item id="140001108" chance="14" />
+			<item id="140001105" chance="9.5" />
+			<item id="140001106" chance="13" />
+			<item id="140001103" chance="5.5" />
+			<item id="140001107" chance="3.5" />
+			<item id="140001117" chance="1.8" />
+			<item id="140001116" chance="2.7" />
+			<item id="140001114" chance="5.4" />
+			<item id="140001112" chance="6.3" />
+			<item id="140001110" chance="5.4" />
+			<item id="140001109" chance="3" />
+			<item id="140001113" chance="2.7" />
+			<item id="140001111" chance="1.8" />
+			<item id="140001115" chance="0.9" />
+			<item id="140001118" chance="16" />
+			<item id="140001119" chance="4" />
+		</set>
+	</decomposable>
+	<decomposable item_id="188053980" override="true">
+		<set>
+			<item id="140001123" chance="4.5" />
+			<item id="140001121" chance="14" />
+			<item id="140001124" chance="9.5" />
+			<item id="140001125" chance="13" />
+			<item id="140001122" chance="5.5" />
+			<item id="140001120" chance="3.5" />
+			<item id="140001129" chance="1.8" />
+			<item id="140001127" chance="2.7" />
+			<item id="140001126" chance="5.4" />
+			<item id="140001114" chance="6.3" />
+			<item id="140001132" chance="5.4" />
+			<item id="140001131" chance="3" />
+			<item id="140001133" chance="2.7" />
+			<item id="140001128" chance="1.8" />
+			<item id="140001130" chance="0.9" />
+			<item id="140001135" chance="16" />
+			<item id="140001134" chance="4" />
+		</set>
+	</decomposable>
+	<decomposable item_id="188053981" override="true">
+		<set>
+			<item id="140001137" chance="4.5" />
+			<item id="140001141" chance="14" />
+			<item id="140001140" chance="9.5" />
+			<item id="140001136" chance="13" />
+			<item id="140001138" chance="5.5" />
+			<item id="140001139" chance="3.5" />
+			<item id="140001148" chance="1.8" />
+			<item id="140001149" chance="2.7" />
+			<item id="140001150" chance="5.4" />
+			<item id="140001147" chance="6.3" />
+			<item id="140001146" chance="5.4" />
+			<item id="140001142" chance="3" />
+			<item id="140001144" chance="2.7" />
+			<item id="140001145" chance="1.8" />
+			<item id="140001143" chance="0.9" />
+			<item id="140001151" chance="16" />
+			<item id="140001152" chance="4" />
+		</set>
+	</decomposable>
+	<decomposable item_id="188053982" override="true">
+		<set race="ELYOS">
+			<item id="140001155" chance="4.5" />
+			<item id="140001153" chance="14" />
+			<item id="140001157" chance="9.5" />
+			<item id="140001158" chance="13" />
+			<item id="140001156" chance="5.5" />
+			<item id="140001154" chance="3.5" />
+			<item id="140001165" chance="1.8" />
+			<item id="140001160" chance="2.7" />
+			<item id="140001169" chance="5.4" />
+			<item id="140001171" chance="6.3" />
+			<item id="140001163" chance="5.4" />
+			<item id="140001162" chance="3" />
+			<item id="140001168" chance="2.7" />
+			<item id="140001167" chance="1.8" />
+			<item id="140001159" chance="0.9" />
+			<item id="140001172" chance="16" />
+			<item id="140001173" chance="4" />
+		</set>
+		<set race="ASMODIANS">
+			<item id="140001155" chance="4.5" />
+			<item id="140001153" chance="14" />
+			<item id="140001157" chance="9.5" />
+			<item id="140001158" chance="13" />
+			<item id="140001156" chance="5.5" />
+			<item id="140001154" chance="3.5" />
+			<item id="140001166" chance="1.8" />
+			<item id="140001161" chance="2.7" />
+			<item id="140001170" chance="5.4" />
+			<item id="140001171" chance="6.3" />
+			<item id="140001164" chance="5.4" />
+			<item id="140001162" chance="3" />
+			<item id="140001168" chance="2.7" />
+			<item id="140001167" chance="1.8" />
+			<item id="140001159" chance="0.9" />
+			<item id="140001172" chance="16" />
+			<item id="140001173" chance="4" />
+		</set>
+	</decomposable>
+	<decomposable item_id="188053983" override="true">
+		<set race="ELYOS">
+			<item id="140001181" chance="4.5" />
+			<item id="140001184" chance="14" />
+			<item id="140001177" chance="9.5" />
+			<item id="140001176" chance="13" />
+			<item id="140001174" chance="5.5" />
+			<item id="140001178" chance="3.5" />
+			<item id="140001188" chance="1.8" />
+			<item id="140001190" chance="2.7" />
+			<item id="140001182" chance="5.4" />
+			<item id="140001187" chance="6.3" />
+			<item id="140001189" chance="5.4" />
+			<item id="140001179" chance="3" />
+			<item id="140001175" chance="2.7" />
+			<item id="140001186" chance="1.8" />
+			<item id="140001180" chance="0.9" />
+			<item id="140001191" chance="16" />
+			<item id="140001192" chance="4" />
+		</set>
+		<set race="ASMODIANS">
+			<item id="140001181" chance="4.5" />
+			<item id="140001185" chance="14" />
+			<item id="140001177" chance="9.5" />
+			<item id="140001176" chance="13" />
+			<item id="140001174" chance="5.5" />
+			<item id="140001178" chance="3.5" />
+			<item id="140001188" chance="1.8" />
+			<item id="140001190" chance="2.7" />
+			<item id="140001183" chance="5.4" />
+			<item id="140001187" chance="6.3" />
+			<item id="140001189" chance="5.4" />
+			<item id="140001179" chance="3" />
+			<item id="140001175" chance="2.7" />
+			<item id="140001186" chance="1.8" />
+			<item id="140001180" chance="0.9" />
+			<item id="140001191" chance="16" />
+			<item id="140001192" chance="4" />
+		</set>
+	</decomposable>
+	<decomposable item_id="188053984" override="true">
+		<set race="ELYOS">
+			<item id="140001196" chance="4.5" />
+			<item id="140001197" chance="14" />
+			<item id="140001193" chance="9.5" />
+			<item id="140001199" chance="13" />
+			<item id="140001195" chance="5.5" />
+			<item id="140001194" chance="3.5" />
+			<item id="140001207" chance="1.8" />
+			<item id="140001208" chance="2.7" />
+			<item id="140001205" chance="5.4" />
+			<item id="140001203" chance="6.3" />
+			<item id="140001201" chance="5.4" />
+			<item id="140001206" chance="3" />
+			<item id="140001200" chance="2.7" />
+			<item id="140001202" chance="1.8" />
+			<item id="140001204" chance="0.9" />
+			<item id="140001210" chance="16" />
+			<item id="140001209" chance="4" />
+		</set>
+		<set race="ASMODIANS">
+			<item id="140001196" chance="4.5" />
+			<item id="140001198" chance="14" />
+			<item id="140001193" chance="9.5" />
+			<item id="140001199" chance="13" />
+			<item id="140001195" chance="5.5" />
+			<item id="140001194" chance="3.5" />
+			<item id="140001207" chance="1.8" />
+			<item id="140001208" chance="2.7" />
+			<item id="140001205" chance="5.4" />
+			<item id="140001203" chance="6.3" />
+			<item id="140001201" chance="5.4" />
+			<item id="140001206" chance="3" />
+			<item id="140001200" chance="2.7" />
+			<item id="140001202" chance="1.8" />
+			<item id="140001204" chance="0.9" />
+			<item id="140001210" chance="16" />
+			<item id="140001209" chance="4" />
+		</set>
+	</decomposable>
+	<decomposable item_id="188053985" override="true">
+		<set race="ELYOS">
+			<item id="140001228" chance="4.5" />
+			<item id="140001229" chance="14" />
+			<item id="140001230" chance="9.5" />
+			<item id="140001234" chance="13" />
+			<item id="140001232" chance="5.5" />
+			<item id="140001233" chance="3.5" />
+			<item id="140001242" chance="1.8" />
+			<item id="140001243" chance="2.7" />
+			<item id="140001239" chance="5.4" />
+			<item id="140001240" chance="6.3" />
+			<item id="140001238" chance="5.4" />
+			<item id="140001237" chance="3" />
+			<item id="140001241" chance="2.7" />
+			<item id="140001236" chance="1.8" />
+			<item id="140001244" chance="0.9" />
+			<item id="140001245" chance="16" />
+			<item id="140001246" chance="4" />
+		</set>
+		<set race="ASMODIANS">
+			<item id="140001228" chance="4.5" />
+			<item id="140001229" chance="14" />
+			<item id="140001231" chance="9.5" />
+			<item id="140001235" chance="13" />
+			<item id="140001232" chance="5.5" />
+			<item id="140001233" chance="3.5" />
+			<item id="140001242" chance="1.8" />
+			<item id="140001243" chance="2.7" />
+			<item id="140001239" chance="5.4" />
+			<item id="140001240" chance="6.3" />
+			<item id="140001238" chance="5.4" />
+			<item id="140001237" chance="3" />
+			<item id="140001241" chance="2.7" />
+			<item id="140001236" chance="1.8" />
+			<item id="140001244" chance="0.9" />
+			<item id="140001245" chance="16" />
+			<item id="140001246" chance="4" />
+		</set>
+	</decomposable>
+	<decomposable item_id="188053986" override="true">
+		<set>
+			<item id="140001215" chance="4.5" />
+			<item id="140001213" chance="14" />
+			<item id="140001216" chance="9.5" />
+			<item id="140001214" chance="13" />
+			<item id="140001212" chance="5.5" />
+			<item id="140001211" chance="3.5" />
+			<item id="140001222" chance="1.8" />
+			<item id="140001221" chance="2.7" />
+			<item id="140001223" chance="5.4" />
+			<item id="140001217" chance="6.3" />
+			<item id="140001224" chance="5.4" />
+			<item id="140001220" chance="3" />
+			<item id="140001225" chance="2.7" />
+			<item id="140001219" chance="1.8" />
+			<item id="140001218" chance="0.9" />
+			<item id="140001227" chance="16" />
+			<item id="140001226" chance="4" />
+		</set>
+	</decomposable>
+	<decomposable item_id="188053987" override="true">
+		<set>
+			<item id="140001251" chance="4.5" />
+			<item id="140001248" chance="14" />
+			<item id="140001249" chance="9.5" />
+			<item id="140001247" chance="13" />
+			<item id="140001252" chance="5.5" />
+			<item id="140001250" chance="3.5" />
+			<item id="140001254" chance="1.8" />
+			<item id="140001258" chance="2.7" />
+			<item id="140001261" chance="5.4" />
+			<item id="140001256" chance="6.3" />
+			<item id="140001257" chance="5.4" />
+			<item id="140001253" chance="3" />
+			<item id="140001260" chance="2.7" />
+			<item id="140001259" chance="1.8" />
+			<item id="140001255" chance="0.9" />
+			<item id="140001263" chance="16" />
+			<item id="140001262" chance="4" />
+		</set>
+	</decomposable>
+	<decomposable item_id="188053988" override="true">
+		<set>
+			<item id="140001269" chance="4.5" />
+			<item id="140001267" chance="14" />
+			<item id="140001268" chance="9.5" />
+			<item id="140001265" chance="13" />
+			<item id="140001264" chance="5.5" />
+			<item id="140001266" chance="3.5" />
+			<item id="140001278" chance="1.8" />
+			<item id="140001273" chance="2.7" />
+			<item id="140001276" chance="5.4" />
+			<item id="140001275" chance="6.3" />
+			<item id="140001277" chance="5.4" />
+			<item id="140001270" chance="3" />
+			<item id="140001271" chance="2.7" />
+			<item id="140001274" chance="1.8" />
+			<item id="140001272" chance="0.9" />
+			<item id="140001280" chance="16" />
+			<item id="140001279" chance="4" />
+		</set>
+	</decomposable>
+	<decomposable item_id="188053989" override="true">
+		<set>
+			<item id="140001285" chance="4.5" />
+			<item id="140001281" chance="14" />
+			<item id="140001283" chance="9.5" />
+			<item id="140001286" chance="13" />
+			<item id="140001282" chance="5.5" />
+			<item id="140001284" chance="3.5" />
+			<item id="140001290" chance="1.8" />
+			<item id="140001287" chance="2.7" />
+			<item id="140001293" chance="5.4" />
+			<item id="140001295" chance="6.3" />
+			<item id="140001292" chance="5.4" />
+			<item id="140001289" chance="3" />
+			<item id="140001288" chance="2.7" />
+			<item id="140001294" chance="1.8" />
+			<item id="140001291" chance="0.9" />
+			<item id="140001297" chance="16" />
+			<item id="140001296" chance="4" />
+		</set>
+	</decomposable>
+</decomposable_items>

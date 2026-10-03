@@ -29,7 +29,7 @@ public final class TeamMoveUpdater extends AbstractFIFOPeriodicTaskManager<Playe
 
 	@Override
 	protected void callTask(Player player) {
-		if (player.isOnline()) {
+		if (player.isPlaying()) {
 			if (player.isInGroup()) {
 				PlayerGroupService.updateGroup(player, GroupEvent.MOVEMENT);
 			} else if (player.isInAlliance()) {

@@ -190,6 +190,39 @@ public class InventoryDAO {
 		}
 	}
 
+	/** Companion progress and inventory share the caller's transaction; clean state only after commit. */
+	public static List<Item> storeCompanionInventory(Connection connection, Player player) throws SQLException {
+		if (!player.isPlayerBot() || connection.getAutoCommit() || quarantinedPlayers.contains(player.getObjectId()))
+			throw new SQLException("Companion inventory requires a private, non-quarantined transaction");
+		List<Item> items = player.getDirtyItemsToUpdate();
+		try {
+			for (Item item : items)
+				if (item.getItemLocation() == StorageType.ACCOUNT_WAREHOUSE.getId()
+					|| item.getItemLocation() == StorageType.LEGION_WAREHOUSE.getId() || item.getItemLocation() == StorageType.MARKET_WAREHOUSE.getId())
+					throw new SQLException("Companion attempted to save shared inventory");
+			if (!deleteItems(connection, items.stream().filter(Persistable.DELETED).toList())
+				|| !insertItems(connection, items.stream().filter(Persistable.NEW).toList(), player.getObjectId(), null, null)
+				|| !updateItems(connection, items.stream().filter(Persistable.CHANGED).toList(), player.getObjectId(), null, null))
+				throw new SQLException("Companion inventory transaction failed");
+			return items;
+		} catch (SQLException | RuntimeException e) { markCompanionInventoryDirty(player); throw e; }
+	}
+
+	public static void companionInventoryCommitted(List<Item> items) {
+		List<Item> deleted = items.stream().filter(Persistable.DELETED).toList();
+		for (Item item : items) item.setPersistentState(PersistentState.UPDATED);
+		IDFactory.getInstance().releaseObjectIds(deleted);
+	}
+
+	public static void markCompanionInventoryDirty(Player player) {
+		for (StorageType type : StorageType.values()) {
+			if (type == StorageType.ACCOUNT_WAREHOUSE || type == StorageType.LEGION_WAREHOUSE || type == StorageType.MARKET_WAREHOUSE) continue;
+			var storage = player.getStorage(type.getId());
+			if (storage != null) storage.setPersistentState(Storage.PersistentState.UPDATE_REQUIRED);
+		}
+		player.getEquipment().setPersistentState(Storage.PersistentState.UPDATE_REQUIRED);
+	}
+
 	private static boolean storePlayerInventory(Player player) {
 		int playerId = player.getObjectId();
 		Integer accountId = player.getAccount() != null ? player.getAccount().getId() : null;

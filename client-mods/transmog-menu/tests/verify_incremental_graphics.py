@@ -41,9 +41,25 @@ def main():
     scripts=Path(__file__).resolve().parents[2]/'dxvk'
     environment=dict(os.environ)
     environment['PSModulePath']=str(Path(os.environ['SystemRoot'])/'System32/WindowsPowerShell/v1.0/Modules')
+    # The fixture is a synthetic client tree. Scope the legacy global process
+    # guard to it so a real Aion session cannot block isolated restore checks.
+    # No production script or real process is modified.
+    wrapper=fixture/'run-fixture.ps1'
+    wrapper.write_text('''param([string]$ScriptPath,[string]$ClientPath,[switch]$VerifyOnly)
+$ErrorActionPreference='Stop'
+$fixtureRoot=(Resolve-Path -LiteralPath $ClientPath).Path
+if(-not $fixtureRoot.EndsWith('-fixture')){throw 'Expected isolated fixture client.'}
+function Get-Process {
+ param([string[]]$Name,[string]$ErrorAction)
+ Microsoft.PowerShell.Management\\Get-Process -Name $Name -ErrorAction SilentlyContinue |
+  Where-Object { $_.Path -and $_.Path.StartsWith($fixtureRoot+'\\',[StringComparison]::OrdinalIgnoreCase) }
+}
+if($VerifyOnly){ & $ScriptPath -ClientPath $fixtureRoot -VerifyOnly }
+else { & $ScriptPath -ClientPath $fixtureRoot }
+''',encoding='utf-8')
 
     def run(script,*extra,success=True):
-        result=subprocess.run(['powershell.exe','-NoProfile','-ExecutionPolicy','Bypass','-File',str(scripts/script),'-ClientPath',str(fixture),*extra],capture_output=True,text=True,env=environment)
+        result=subprocess.run(['powershell.exe','-NoProfile','-ExecutionPolicy','Bypass','-File',str(wrapper),'-ScriptPath',str(scripts/script),'-ClientPath',str(fixture),*extra],capture_output=True,text=True,env=environment)
         assert (result.returncode==0)==success,(result.stdout,result.stderr)
         return result
 
@@ -60,7 +76,9 @@ def main():
     expected=(Path(state['backupRoot'])/'bin64/Game.dll').read_bytes()
     assert game.read_bytes()==expected
     routes=['http://127.0.0.1:8091/shop','http://127.0.0.1:8091/market','http://127.0.0.1:8091/market/wardrobe','http://127.0.0.1:8091/journey']
-    for offset,code in [(BROWSER_HOOK_RVA,build_browser_hook_code(routes)),(MARKET_AUTH_HOOK_RVA,build_market_auth_code(routes[1:])),(MARKET_RECT_HOOK_RVA,build_market_rect_code())]:
+    if manifest.get('compactBrowserTitles'):
+        routes.append('http://127.0.0.1:8091/market/pass')
+    for offset,code in [(BROWSER_HOOK_RVA,build_browser_hook_code(routes)),(MARKET_AUTH_HOOK_RVA,build_market_auth_code(routes[1:],compact=manifest.get('compactBrowserTitles',False))),(MARKET_RECT_HOOK_RVA,build_market_rect_code())]:
         assert expected[offset:offset+len(code)]==code,'Graphics removal lost the Poeta route'
         cursor=(Path(state['backupRoot'])/'cursor-base/bin64/Game.dll').read_bytes()
         assert cursor[offset:offset+len(code)]==code,'DXVK removal would lose the Poeta route'

@@ -44,6 +44,8 @@ public class CM_DELETE_CHARACTER extends AionClientPacket {
 
 	@Override
 	protected void runImpl() {
+		if (com.aionemu.gameserver.services.playerbot.PlayerBotLease.isReserved(chaOid)
+			|| com.aionemu.gameserver.world.World.getInstance().isInWorld(chaOid)) return;
 		Account account = getConnection().getAccount();
 		PlayerAccountData playerAccData = account.getPlayerAccountData(chaOid);
 		if (playerAccData == null)

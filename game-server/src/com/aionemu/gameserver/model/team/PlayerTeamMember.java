@@ -39,7 +39,7 @@ public class PlayerTeamMember implements TeamMember<Player> {
 	}
 
 	public boolean isOnline() {
-		return player.isOnline();
+		return player.isPlaying();
 	}
 
 	public float getX() {

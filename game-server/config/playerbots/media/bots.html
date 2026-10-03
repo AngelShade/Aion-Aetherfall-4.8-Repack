@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Player Companions</title><link rel="stylesheet" href="/market/companions/media/bots.css"></head>
+<body><main>
+<header><div><p class="eyebrow">ATREIA · YOUR PARTY</p><h1>Player Companions</h1><p>Recruit your characters, build your party and direct your companions.</p></div><button id="refresh">Refresh</button></header>
+<div id="notice" role="status" aria-live="polite">Connecting to your character…</div>
+<nav id="party-orders" aria-label="Party orders"></nav>
+<div class="columns"><section class="party"><h2>Active companions <span id="count"></span></h2><div id="active"></div></section>
+<aside><section><h2>Your roster</h2><p class="hint">Offline characters and your generated companions. Recruitment follows normal level, faction and party rules.</p><div id="roster"></div></section>
+<section><h2>Create a companion</h2><form id="create"><label for="model">Recruitment model</label><select id="model"><option value="generate">Separate roster · your level</option><option value="create">Normal character · level 1</option></select>
+<p class="hint" id="model-hint">Uses a dedicated companion slot. Progress is saved as a real character.</p><label for="new-name">Character name</label><input id="new-name" maxlength="24" autocomplete="off" required>
+<label for="new-class">Class</label><select id="new-class"></select><button type="submit">Create companion</button></form></section>
+<section><h2>Shared quests</h2><label for="owner-quest">Your active quest</label><select id="owner-quest"></select><button id="share">Share with party</button>
+<p class="hint">Acceptance, objectives and rewards follow the normal quest rules.</p></section></aside></div>
+</main><script src="/market/companions/media/bots.js"></script></body></html>

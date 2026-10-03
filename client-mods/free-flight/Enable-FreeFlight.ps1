@@ -8,10 +8,6 @@ $configPath = Join-Path $clientRoot 'system.cfg'
 if (-not (Test-Path -LiteralPath $configPath)) {
     throw 'Aion system.cfg was not found.'
 }
-if ((Test-Path -LiteralPath (Join-Path $clientRoot 'bin64/aion.bin')) -and
-    (Get-Process -Name 'aion.bin' -ErrorAction SilentlyContinue)) {
-    throw 'Close Aion before applying its startup flight setting.'
-}
 
 # Aion stores configuration lines as Latin-1 bytes XOR 255. Comments and
 # line endings are plain text. Preserve every unrelated byte and setting.
@@ -46,6 +42,9 @@ if (-not $found) {
 }
 $replacement = $latin1.GetBytes($updated)
 if ($raw -cne $updated) {
+    if (Get-Process -Name 'aion.bin','aion' -ErrorAction SilentlyContinue) {
+        throw 'Close Aion before applying its startup flight setting.'
+    }
     [System.IO.File]::WriteAllBytes($configPath, $replacement)
 }
 Write-Output 'Client free flight is enabled for this launch.'

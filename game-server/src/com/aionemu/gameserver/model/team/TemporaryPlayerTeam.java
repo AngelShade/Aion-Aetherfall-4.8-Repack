@@ -68,7 +68,7 @@ public abstract class TemporaryPlayerTeam<TM extends TeamMember<Player>> extends
 
 	@Override
 	public final List<Player> getOnlineMembers() {
-		return filterMembers(Predicates.Players.ONLINE);
+		return filterMembers(Player::isPlaying);
 	}
 
 	@Override

@@ -56,6 +56,13 @@ import com.aionemu.gameserver.world.geo.GeoService;
 public class NpcController extends CreatureController<Npc> {
 
 	private static final Logger log = LoggerFactory.getLogger(NpcController.class);
+	private Set<Integer> seasonPassCredited;
+
+	/** League teams can share the same reward pass; each character counts a death once. */
+	public synchronized boolean markSeasonPassCredit(int playerId) {
+		if (seasonPassCredited == null) seasonPassCredited = new java.util.HashSet<>();
+		return seasonPassCredited.add(playerId);
+	}
 
 	@Override
 	public void see(VisibleObject object) {
@@ -198,6 +205,7 @@ public class NpcController extends CreatureController<Npc> {
 	@SuppressWarnings("lossy-conversions")
 	@Override
 	public void doReward() {
+		synchronized (this) { if (seasonPassCredited != null) seasonPassCredited.clear(); }
 		super.doReward();
 		TeamDamageList finalList = getOwner().getAggroList().getFinalDamageList().toTeamDamages();
 		DamageInfo<AionObject> mostDamage = finalList.getMostDamage();
@@ -229,6 +237,7 @@ public class NpcController extends CreatureController<Npc> {
 					if (shouldNotifyQuestEngine)
 						QuestEngine.getInstance().onKill(new QuestEnv(getOwner(), player, 0));
 					EventService.getInstance().onPveKill(player, getOwner());
+					com.aionemu.gameserver.services.SeasonPassService.onNpcKill(player, getOwner());
 					player.getCommonData().addExp(rewardXp, Rates.XP_HUNTING, getOwner().getObjectTemplate().getL10n());
 					player.getCommonData().addDp(rewardDp);
 					if (getOwner().getAi().ask(AIQuestion.REWARD_AP)) {

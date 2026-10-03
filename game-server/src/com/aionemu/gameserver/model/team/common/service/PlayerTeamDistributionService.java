@@ -118,8 +118,9 @@ public class PlayerTeamDistributionService {
 
 		@Override
 		public void accept(Player member) {
-			if (member.isOnline() && PositionUtil.isInRange(member, owner, disableRangeChecks ? 9999 : GroupConfig.GROUP_MAX_DISTANCE)) {
+			if (member.isPlaying() && PositionUtil.isInRange(member, owner, disableRangeChecks ? 9999 : GroupConfig.GROUP_MAX_DISTANCE)) {
 				QuestEngine.getInstance().onKill(new QuestEnv(owner, member, 0));
+				com.aionemu.gameserver.services.SeasonPassService.onNpcKill(member, owner);
 
 				if (member.isMentor()) {
 					mentorCount++;

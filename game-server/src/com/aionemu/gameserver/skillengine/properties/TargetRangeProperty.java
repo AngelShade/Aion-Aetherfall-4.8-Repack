@@ -65,7 +65,7 @@ public class TargetRangeProperty {
 					if (team != null) {
 						effectedList.clear();
 						for (Player member : team.getMembers()) {
-							if (!member.isOnline())
+							if (!member.isPlaying())
 								continue;
 							if (!checkCommonRequirements(member, skillEffector, skillTemplate))
 								continue;

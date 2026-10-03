@@ -190,7 +190,7 @@ public class PlayerDAO {
 
 	public static List<Integer> getPlayerOidsOnAccount(int accountId) {
 		List<Integer> result = new ArrayList<>();
-		boolean success = DB.select("SELECT id FROM players WHERE account_id = ?", new ParamReadStH() {
+		boolean success = DB.select("SELECT id FROM players WHERE account_id = ?" + com.aionemu.gameserver.services.playerbot.PlayerBotRoster.ordinaryCharactersClause(), new ParamReadStH() {
 
 			@Override
 			public void handleRead(ResultSet resultSet) throws SQLException {
@@ -210,7 +210,7 @@ public class PlayerDAO {
 
 	public static List<Integer> getPlayerOidsOnAccount(int accountId, long exp) {
 		List<Integer> result = new ArrayList<>();
-		boolean success = DB.select("SELECT id FROM players WHERE account_id = ? AND exp <= ?", new ParamReadStH() {
+		boolean success = DB.select("SELECT id FROM players WHERE account_id = ? AND exp <= ?" + com.aionemu.gameserver.services.playerbot.PlayerBotRoster.ordinaryCharactersClause(), new ParamReadStH() {
 
 			@Override
 			public void handleRead(ResultSet resultSet) throws SQLException {
@@ -284,8 +284,11 @@ public class PlayerDAO {
 	}
 
 	public static int[] getUsedIDs() {
+		// Failed generated-character creation reserves its ID even before a player row exists.
+		String query = com.aionemu.gameserver.services.playerbot.PlayerBotRoster.available()
+			? "SELECT id FROM players UNION SELECT player_id AS id FROM playerbot_roster" : "SELECT id FROM players";
 		try (Connection con = DatabaseFactory.getConnection();
-				 PreparedStatement stmt = con.prepareStatement("SELECT id FROM players", ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY)) {
+				 PreparedStatement stmt = con.prepareStatement(query, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY)) {
 			ResultSet rs = stmt.executeQuery();
 			rs.last();
 			int count = rs.getRow();
@@ -410,9 +413,11 @@ public class PlayerDAO {
 	}
 
 	public static int getCharacterCountOnAccount(int accountId) {
+		String ordinary = com.aionemu.gameserver.services.playerbot.PlayerBotRoster.ordinaryCharactersClause();
 		try (Connection con = DatabaseFactory.getConnection();
 				 PreparedStatement stmt = con.prepareStatement(
-					 "SELECT COUNT(*) AS cnt FROM `players` WHERE `account_id` = ? AND (players.deletion_date IS NULL || players.deletion_date > CURRENT_TIMESTAMP)")) {
+					 "SELECT COUNT(*) AS cnt FROM `players` WHERE `account_id` = ? AND (players.deletion_date IS NULL || players.deletion_date > CURRENT_TIMESTAMP)"
+						+ ordinary)) {
 			stmt.setInt(1, accountId);
 			try (ResultSet rs = stmt.executeQuery()) {
 				rs.next();
@@ -424,9 +429,11 @@ public class PlayerDAO {
 	}
 
 	public static int getCharacterCountForRace(Race race) {
+		String ordinary = com.aionemu.gameserver.services.playerbot.PlayerBotRoster.ordinaryCharactersClause();
 		try (Connection con = DatabaseFactory.getConnection();
 				 PreparedStatement stmt = con
-					 .prepareStatement("SELECT COUNT(DISTINCT(`account_id`)) AS `count` FROM `players` WHERE `race` = ? AND `exp` >= ?")) {
+					 .prepareStatement("SELECT COUNT(DISTINCT(`account_id`)) AS `count` FROM `players` WHERE `race` = ? AND `exp` >= ?"
+						+ ordinary)) {
 			stmt.setString(1, race.name());
 			stmt.setLong(2, DataManager.PLAYER_EXPERIENCE_TABLE.getStartExpForLevel(GSConfig.RATIO_MIN_REQUIRED_LEVEL));
 			try (ResultSet rs = stmt.executeQuery()) {

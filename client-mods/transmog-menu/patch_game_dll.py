@@ -17,6 +17,7 @@ MARKET_AUTH_RVA = 0x4de4a0
 MARKET_AUTH_HOOK_RVA = 0x144d400
 MARKET_AUTH_ORIGINAL = bytes.fromhex('b868210000e806606700482be0')
 NATIVE_SECURITY_TOKEN_RVA = 0x130c8f0
+NATIVE_REQUEST_TOKEN_RVA = 0x3321c0
 PREVIEW_DOCK_RVA = 0x806e29
 PREVIEW_DOCK_HOOK_RVA = 0x144dc00
 PREVIEW_DOCK_ORIGINAL = bytes.fromhex('3d6b0100000f8581000000')
@@ -30,18 +31,19 @@ MARKET_RECT_ORIGINAL = bytes.fromhex('488bc44881ecb8000000')
 UI_WIDTH_RVA, UI_HEIGHT_RVA, UI_SCALE_RVA = 0x1378ea8, 0x1378eb0, 0x1378ec8
 
 
-def build_market_rect_code(include_journey=True):
+def build_market_rect_code(include_journey=True, client_origin=True):
     if include_journey:
-        return build_journey_rect_code()
-    return build_legacy_market_rect_code()
+        return build_journey_rect_code(client_origin)
+    return build_legacy_market_rect_code(client_origin)
 
 
-def build_legacy_market_rect_code():
+def build_legacy_market_rect_code(client_origin=True):
     """Fit only the named shop/market widgets in pixels on every layout pass.
 
     Addon Dialogs center their XML rectangle inside a scaled 1280x960 area.
-    SetRect receives pixels; converting the browser's title inset once here
-    avoids both the 4:3 footprint and applying UI scale to screen width twice.
+    SetRect receives pixels. The dialog adds its title height to child screen
+    positions, so the browser starts at client y=0; only its height subtracts
+    the title inset. client_origin=False reproduces the old installed bytes.
     """
     a = Assembler(MARKET_RECT_HOOK_RVA)
     a.emit(bytes.fromhex('5356574883ec604889cb4889542440'))
@@ -88,7 +90,9 @@ def build_legacy_market_rect_code():
     a.branch(b'\x0f\x86', 'original')
     a.emit(bytes.fromhex('660f2fd3'))
     a.branch(b'\x0f\x86', 'original')
-    a.emit(bytes.fromhex('f20f5cd3f20f11442420f20f115c2428f20f114c2430f20f11542438'))
+    a.emit(bytes.fromhex('f20f5cd3f20f11442420'))
+    a.emit(bytes.fromhex('f20f11442428' if client_origin else 'f20f115c2428'))
+    a.emit(bytes.fromhex('f20f114c2430f20f11542438'))
     a.emit(bytes.fromhex('4889d9488d542420'))
     a.branch(b'\xe8', 'native')
     # Stretch the browser after a dialog layout pass, including a resolution
@@ -119,7 +123,7 @@ def build_legacy_market_rect_code():
     return a.finish()
 
 
-def build_journey_rect_code():
+def build_journey_rect_code(client_origin=True):
     """Use the proven pixel layout path for all four native browser dialogs."""
     a = Assembler(MARKET_RECT_HOOK_RVA)
     a.emit(bytes.fromhex('5356574883ec604889cb4889542440'))
@@ -161,7 +165,11 @@ def build_journey_rect_code():
     short(0x76, 'original')
     a.emit(bytes.fromhex('660f2fd3'))
     short(0x76, 'original')
-    a.emit(bytes.fromhex('f20f5cd3f20f11442420f20f115c2428f20f114c2430f20f11542438'))
+    # Dialog children are relative to the native client area, already below
+    # the title. Adding xmm3 to y here used to reserve the title twice.
+    a.emit(bytes.fromhex('f20f5cd3f20f11442420'))
+    a.emit(bytes.fromhex('f20f11442428' if client_origin else 'f20f115c2428'))
+    a.emit(bytes.fromhex('f20f114c2430f20f11542438'))
     a.emit(bytes.fromhex('4889d9488d542420'))
     a.branch(b'\xe8', 'native')
     # Stretch the browser after a dialog layout pass, including a resolution
@@ -238,6 +246,7 @@ class Assembler:
         self.code = bytearray()
         self.labels = {}
         self.fixups = []
+        self.short_fixups = []
 
     def emit(self, data):
         self.code.extend(data)
@@ -254,9 +263,19 @@ class Assembler:
         self.emit(opcode)
         self.emit(struct.pack('<i', target - self.base - len(self.code) - 4))
 
+    def short_branch(self, opcode, label):
+        self.emit(opcode)
+        self.short_fixups.append((len(self.code), label))
+        self.emit(bytes(1))
+
     def finish(self):
         for pos, name in self.fixups:
             self.code[pos:pos + 4] = struct.pack('<i', self.labels[name] - pos - 4)
+        for pos, name in self.short_fixups:
+            delta = self.labels[name] - pos - 1
+            if not -128 <= delta <= 127:
+                raise ValueError('Short branch outside its verified range')
+            self.code[pos] = delta & 255
         return bytes(self.code)
 
 
@@ -294,9 +313,27 @@ def build_browser_hook_code(url):
         if not route.startswith('http://127.0.0.1:8091/') or len(payload) > 128 or any(c < 32 for c in payload[:-1]):
             raise ValueError('Embedded navigation supports exact loopback URLs of at most 127 ASCII characters')
         emit_exact_route(asm, 'rdx', 'route_' + str(index), 'next_url_' + str(index))
-        asm.branch(b'\xe9', 'authenticated_load' if route.endswith(('/market', '/wardrobe', '/journey')) else 'load')
+        asm.branch(b'\xe9', 'journey_load' if route.endswith('/journey') else 'authenticated_load' if route.endswith(('/market', '/wardrobe', '/pass', '/companions')) else 'load')
         asm.label('next_url_' + str(index))
     asm.branch(b'\xe9', 'original')
+    if any(route.endswith('/journey') for route in urls):
+        # The publisher pending-key queue schedules its navigation callback at
+        # 30 seconds. Journey can load its public shell immediately instead;
+        # the native bridge supplies the key only to that exact local page.
+        asm.label('journey_load')
+        asm.relative(b'\x4c\x8d\x1d', NATIVE_SECURITY_TOKEN_RVA)
+        asm.emit(b'\x49\x8b\x03\x49\x0b\x43\x08')
+        asm.branch(b'\x0f\x85', 'authenticated_load')
+        asm.emit(b'\x48\x8b\x41\x10\x48\x85\xc0')
+        asm.branch(b'\x0f\x84', 'return')
+        asm.emit(b'\x8b\x80\x40\x03\0\0\x85\xc0')
+        asm.branch(b'\x0f\x88', 'return')
+        asm.emit(bytes.fromhex('4883ec38488954242089442428'))
+        asm.relative(b'\xe8', NATIVE_REQUEST_TOKEN_RVA)
+        asm.emit(bytes.fromhex('4c8b4424208b542428'))
+        asm.relative(b'\x48\x8d\x0d', BROWSER_MANAGER_RVA)
+        asm.relative(b'\xe8', BROWSER_LOAD_RVA)
+        asm.emit(bytes.fromhex('4883c438c3'))
     asm.label('authenticated_load')
     asm.emit(b'\x48\x8b\x41\x10\x48\x85\xc0')
     asm.branch(b'\x0f\x84', 'return')
@@ -323,7 +360,7 @@ def build_browser_hook_code(url):
     return asm.finish()
 
 
-def emit_exact_route(asm, register, literal, mismatch):
+def emit_exact_route(asm, register, literal, mismatch, compact=False):
     # Compare through NUL without reading beyond a short URL. Only volatile
     # rax/r9/r10 change; the original browser and view arguments are retained.
     asm.branch(b'\x4c\x8d\x15', literal)
@@ -332,15 +369,15 @@ def emit_exact_route(asm, register, literal, mismatch):
     asm.label(loop)
     asm.emit(bytes.fromhex('428a040a' if register == 'rdx' else '428a0409'))
     asm.emit(bytes.fromhex('433a040a'))
-    asm.branch(b'\x0f\x85', mismatch)
+    (asm.short_branch(b'\x75', mismatch) if compact else asm.branch(b'\x0f\x85', mismatch))
     asm.emit(bytes.fromhex('84c0'))
-    asm.branch(b'\x0f\x84', literal + '_done')
+    (asm.short_branch(b'\x74', literal + '_done') if compact else asm.branch(b'\x0f\x84', literal + '_done'))
     asm.emit(bytes.fromhex('49ffc1'))
-    asm.branch(b'\xe9', loop)
+    (asm.short_branch(b'\xeb', loop) if compact else asm.branch(b'\xe9', loop))
     asm.label(literal + '_done')
 
 
-def build_market_auth_code(url):
+def build_market_auth_code(url, compact=False):
     """Use the native token request callback, then navigate to the authenticated market URL."""
     urls = [url] if isinstance(url,str) else url
     if not urls or len(set(urls)) != len(urls):
@@ -351,9 +388,36 @@ def build_market_auth_code(url):
     asm = Assembler(MARKET_AUTH_HOOK_RVA)
     asm.emit(b'\x48\x85\xc9')
     asm.branch(b'\x0f\x84', 'original')
+    shared = compact and len(urls) >= 5
+    prefix = 'http://127.0.0.1:8091/'
+    if shared:
+        # Check the common origin once. rcx stays unchanged for native URL copying.
+        asm.branch(b'\x4c\x8d\x15', 'auth_prefix')
+        asm.emit(bytes.fromhex('4531c9'))
+        asm.label('auth_prefix_loop')
+        asm.emit(bytes.fromhex('428a0409433a040a'))
+        asm.branch(b'\x0f\x85', 'original')
+        asm.emit(bytes.fromhex('49ffc14983f9') + bytes([len(prefix)]))
+        asm.short_branch(b'\x75', 'auth_prefix_loop')
     for index, route in enumerate(urls):
-        emit_exact_route(asm, 'rcx', 'auth_route_' + str(index), 'auth_next_' + str(index))
-        asm.branch(b'\xe9', 'matched')
+        if shared:
+            literal = 'auth_route_' + str(index)
+            asm.branch(b'\x4c\x8d\x15', literal)
+            asm.emit(bytes.fromhex('4531c9'))
+            asm.label(literal + '_match')
+            asm.emit(bytes.fromhex('428a4409') + bytes([len(prefix)]) + bytes.fromhex('433a040a'))
+            asm.short_branch(b'\x75', 'auth_next_' + str(index))
+            asm.emit(bytes.fromhex('84c0'))
+            asm.short_branch(b'\x74', literal + '_done')
+            asm.emit(bytes.fromhex('49ffc1'))
+            asm.short_branch(b'\xeb', literal + '_match')
+            asm.label(literal + '_done')
+        else:
+            emit_exact_route(asm, 'rcx', 'auth_route_' + str(index), 'auth_next_' + str(index), compact)
+        if shared and index >= len(urls) - 3:
+            asm.short_branch(b'\xeb', 'matched')
+        else:
+            asm.branch(b'\xe9', 'matched')
         asm.label('auth_next_' + str(index))
     asm.branch(b'\xe9', 'original')
     asm.label('matched')
@@ -364,13 +428,21 @@ def build_market_auth_code(url):
     asm.emit(b'\x89\x94\x24\x18\x01\0\0\x4c\x8d\x44\x24\x20\x45\x31\xc9')
     asm.label('copy')
     asm.emit(b'\x42\x8a\x04\x09\x84\xc0')
-    asm.branch(b'\x0f\x84', 'suffix')
+    if shared:
+        asm.short_branch(b'\x74', 'suffix')
+    else:
+        asm.branch(b'\x0f\x84', 'suffix')
     asm.emit(b'\x43\x88\x04\x08\x49\xff\xc1')
     asm.branch(b'\xe9', 'copy')
     asm.label('suffix')
     asm.emit(b'\x4d\x01\xc8')  # r8 points at end of route
-    for offset,value in enumerate(b'?session_id='):
-        asm.emit(b'\x41\xc6\x40' + bytes([offset,value]))
+    if compact:
+        # Two bounded writes replace twelve immediate-byte writes. rax is volatile.
+        asm.emit(b'\x48\xb8' + b'?session' + b'\x49\x89\x00')
+        asm.emit(b'\x41\xc7\x40\x08' + b'_id=')
+    else:
+        for offset,value in enumerate(b'?session_id='):
+            asm.emit(b'\x41\xc6\x40' + bytes([offset,value]))
     asm.emit(b'\x49\x83\xc0\x0c\x45\x31\xc9')
     asm.branch(b'\x48\x8d\x0d', 'hex_digits')
     asm.label('hex')
@@ -391,7 +463,10 @@ def build_market_auth_code(url):
     asm.emit(b'0123456789abcdef')
     for index, route in enumerate(urls):
         asm.label('auth_route_' + str(index))
-        asm.emit(route.encode('ascii') + b'\0')
+        asm.emit((route[len(prefix):] if shared else route).encode('ascii') + b'\0')
+    if shared:
+        asm.label('auth_prefix')
+        asm.emit(prefix.encode('ascii'))
     return asm.finish()
 
 
@@ -415,11 +490,11 @@ def build_dll(original_path, commands, cash_shop_url):
     data[BROWSER_AUTH_RVA:BROWSER_AUTH_RVA + len(BROWSER_PROLOGUE)] = (
         b'\xe9' + struct.pack('<i', BROWSER_HOOK_RVA - BROWSER_AUTH_RVA - 5) + b'\x90' * 4)
     routes = [cash_shop_url] if isinstance(cash_shop_url,str) else cash_shop_url
-    market_routes = [route for route in routes if route.endswith(('/market', '/wardrobe', '/journey'))]
+    market_routes = [route for route in routes if route.endswith(('/market', '/wardrobe', '/journey', '/pass', '/companions'))]
     if market_routes:
         if data[MARKET_AUTH_RVA:MARKET_AUTH_RVA+len(MARKET_AUTH_ORIGINAL)] != MARKET_AUTH_ORIGINAL:
             raise ValueError('Native account authentication entry does not match')
-        auth = build_market_auth_code(market_routes)
+        auth = build_market_auth_code(market_routes, compact=any(route.endswith('/pass') for route in market_routes))
         if len(auth)>BROWSER_HOOK_RVA-MARKET_AUTH_HOOK_RVA or any(data[MARKET_AUTH_HOOK_RVA:MARKET_AUTH_HOOK_RVA+len(auth)]):
             raise ValueError('Market authentication does not fit its verified code region')
         data[MARKET_AUTH_HOOK_RVA:MARKET_AUTH_HOOK_RVA+len(auth)] = auth

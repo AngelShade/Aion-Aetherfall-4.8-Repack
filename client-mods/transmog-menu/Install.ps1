@@ -1,11 +1,12 @@
 param(
     [Parameter(Mandatory = $true)][string]$ClientPath,
-    [Parameter(Mandatory = $true)][string]$PreparedPath
+    [Parameter(Mandatory = $true)][string]$PreparedPath,
+    [switch]$VerifyOnly
 )
 $ErrorActionPreference = 'Stop'
 $clientRoot = (Resolve-Path -LiteralPath $ClientPath).Path
 $prepared = (Resolve-Path -LiteralPath $PreparedPath).Path
-if (Get-Process -Name 'aion.bin' -ErrorAction SilentlyContinue) {
+if (-not $VerifyOnly -and (Get-Process -Name 'aion.bin','aion' -ErrorAction SilentlyContinue)) {
     throw 'Fully close Aion before installing the signed menu files.'
 }
 $manifest = Get-Content -Raw -LiteralPath (Join-Path $prepared 'manifest.json') | ConvertFrom-Json
@@ -14,6 +15,7 @@ $expected = @('bin64/game.dll', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.p
 if ($manifest.signatureIsolation -in 'plugin-v1','archive-v2') { $expected += @('bin64/crysystem.dll', 'Addon.key') }
 if ($manifest.signatureRepair) { $expected = @($expected | Where-Object { $_ -notin @('bin64/game.dll', 'Plugin/RelicCalc/RelicCalc.pak') }) }
 if ($manifest.menuIconsOnly) { $expected = @('Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig', 'Plugin/RelicCalc/RelicCalc.pak', 'Plugin/RelicCalc/RelicCalc.pak.sig') }
+if ($manifest.compactBrowserTitles) { $expected = @('bin64/Game.dll', 'Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig', 'Plugin/RelicCalc/RelicCalc.pak', 'Plugin/RelicCalc/RelicCalc.pak.sig') }
 if ($manifest.poetaJourney -or $manifest.nativeWardrobe) { $expected += 'bin64/AionIconBridge.dll' }
 if ($manifest.inventorySlots -in 180,279) { $expected += 'Data/ui/game/game.pak' }
 if ($manifest.inventorySlots -in 180,279 -and $manifest.files.path -contains 'L10N/enu/data/data.pak') { $expected += 'L10N/enu/data/data.pak' }
@@ -47,6 +49,10 @@ foreach ($entry in $manifest.files) {
 }
 foreach ($entry in $manifest.preservedFiles) {
     if ((Get-FileHash -LiteralPath (Join-Path $clientRoot $entry.path)).Hash -ne $entry.sha256) { throw "Preserved client file changed since preparation: $($entry.path)" }
+}
+if ($VerifyOnly) {
+    Write-Output "OK: verified $(@($manifest.files).Count) prepared files and preserved client hashes; no files installed."
+    return
 }
 $legacy = [IO.Path]::GetFullPath((Join-Path $clientRoot 'Plugin\TransmogMenu'))
 $prefix = $clientRoot.TrimEnd('\') + '\'

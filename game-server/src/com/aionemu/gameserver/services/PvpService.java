@@ -131,6 +131,7 @@ public class PvpService {
 			if (killers.contains(winner)) { // rewards for winner only (group members are ignored)
 				ConquerorAndProtectorService.getInstance().onKill(winner, victim);
 				EventService.getInstance().onPvpKill(winner, victim);
+				SeasonPassService.onPvpKill(winner, victim);
 			}
 		}
 

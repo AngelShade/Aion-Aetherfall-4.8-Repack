@@ -1,0 +1,7 @@
+# Web session refresh on reconnect
+
+Aion can re-enter from the server selection screen after GameServer restarts without requesting its web-session key again. Accounts newly reconstructed by GameServer then have an empty web token while the running client still holds its old key. MarketplaceService cannot authenticate the old key against the new account.
+
+The enter-world request now sends the existing NA SM_SECURITY_TOKEN response before continuing the original world-entry flow. WebSessionService creates a cryptographically random token only if the authenticated account has none, and preserves it on ordinary reentry or when the client already requested one. Initialization is synchronized per account. HTTP authentication still requires a matching token and an online player; no username, IP or stale-key fallback is added. All web services using MarketplaceService.findPlayer share the refreshed token. No keys are persisted or logged.
+
+The narrow installed JAR patch adds one helper and inserts a refresh before the original CM_ENTER_WORLD.runImpl body. All other packet methods and JAR entries remain identical. The source reflects the same ordering. Test accounts and native packet buffers cover restart key replacement, stable repeated entry, concurrent initialization and the NA token body format (0 byte, 24 ASCII token bytes, 24 zero bytes). Client reconnect acceptance requires entering from the server selection screen after a real restart and opening Market.

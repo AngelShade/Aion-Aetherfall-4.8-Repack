@@ -38,7 +38,7 @@ def main():
     assert click(11,22,33,44)==1 and records['command']==(11,22,33,44)
     handled=0;assert click(11,22,33,44)==42
     # Compile the same callback with an explicitly supplied fixture Game address.
-    work=OUT.parent/'compile';script=work/'test.cmd';dll=work/'MarketTest.dll'
+    work=OUT.parent/'compile';work.mkdir(exist_ok=True);script=work/'test.cmd';dll=work/'MarketTest.dll'
     vcvars=r'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat'
     script.write_text(f'@echo off\ncall "{vcvars}" >nul\ncl /nologo /std:c++17 /EHsc /O2 /MT /LD /DMARKET_TEST /Fo:"{work / "test.obj"}" "{HERE / "market_shortcut.cpp"}" /link /OUT:"{dll}" /IMPLIB:"{work / "test.lib"}"\n')
     subprocess.run(f'cmd.exe /d /s /c ""{script}""',check=True)
@@ -47,7 +47,7 @@ def main():
     def bind(slot,signature,fn):
         cb=signature(fn);callbacks.append(cb);vt[slot//8]=C.cast(cb,C.c_void_p).value
     widgets={}
-    for name in ['central_market_button','item_shop_container','item_ingame_web_shop','item_shop','item_shop_gf']:
+    for name in ['central_market_button','season_pass_button','item_shop_container','item_ingame_web_shop','item_shop','item_shop_gf']:
         buf=C.create_string_buffer(0x300);C.c_size_t.from_buffer(buf).value=C.addressof(vt);widgets[name]=buf
     find=C.CFUNCTYPE(C.c_void_p,C.c_void_p,C.c_char_p,C.c_int)
     bind(0x338,find,lambda o,n,t:C.addressof(widgets[n.decode()]) if n.decode() in widgets else None)
@@ -61,17 +61,25 @@ def main():
     native.AionMarketLayout.argtypes=[C.c_void_p];native.AionMarketCommand.argtypes=[C.c_void_p,C.c_void_p];native.AionMarketCommand.restype=C.c_int
     for scale in [.75,1,1.5,2]:
         C.c_double.from_address(mem+0x1378ec8).value=scale
-        for name,values in [('item_shop_container',(100,11,64,64)),('item_shop',(17,24,30,35))]:
-            r=Rect(*(v*scale for v in values));C.memmove(C.addressof(widgets[name])+0x50,C.byref(r),32)
-        native.AionMarketLayout(C.addressof(widgets['central_market_button']))
-        r=Rect.from_buffer(widgets['central_market_button'],0x50);assert (r.x,r.y,r.w,r.h)==(77*scale,35*scale,34*scale,36*scale)
+        for anchor,mx,my in [((100,11,64,64),77,35),((87,29,64,64),64,53)]:
+            for name,values in [('item_shop_container',anchor),('item_shop',(17,24,30,35))]:
+                r=Rect(*(v*scale for v in values));C.memmove(C.addressof(widgets[name])+0x50,C.byref(r),32)
+            native.AionMarketLayout(C.addressof(widgets['central_market_button']))
+            r=Rect.from_buffer(widgets['central_market_button'],0x50);assert (r.x,r.y,r.w,r.h)==(mx*scale,my*scale,34*scale,36*scale)
+            ticket=Rect.from_buffer(widgets['season_pass_button'],0x50)
+            assert (ticket.x,ticket.y,ticket.w,ticket.h)==(mx*scale,(my-34)*scale,34*scale,32*scale)
+            assert ticket.y>=0 and ticket.y+ticket.h+2*scale==r.y
     button=C.c_void_p(C.addressof(widgets['central_market_button']))
     assert native.AionMarketCommand(None,C.byref(button))==1 and events==[b'/privatewarehouse']
     for variant in ['item_shop','item_shop_gf','item_ingame_web_shop']:
         names=C.create_string_buffer(variant.encode());assert native.AionMarketCommand(None,C.byref(button))==1 and events[-1]==b'/privatecashshop'
     assert len(events)==4
-    names=C.create_string_buffer(b'fly_gauge');assert native.AionMarketCommand(None,C.byref(button))==0 and len(events)==4
+    names=C.create_string_buffer(b'season_pass_button');assert native.AionMarketCommand(None,C.byref(button))==1 and events[-1]==b'/seasonpass'
+    assert len(events)==5
+    del widgets['season_pass_button']
+    native.AionMarketLayout(C.addressof(widgets['central_market_button'])) # Prior HUD without the new shortcut remains supported.
+    names=C.create_string_buffer(b'fly_gauge');assert native.AionMarketCommand(None,C.byref(button))==0 and len(events)==5
     assert native.AionMarketCommand(None,None)==0
     k.VirtualFree(mem,0,0x8000)
-    print('PASS: both machine-code hooks, preserved registers/stack, native command passthrough, Market and all three Shop buttons use embedded addon dispatchers, and placement at four UI scales.')
+    print('PASS: both machine-code hooks, preserved registers/stack, unrelated-click passthrough, Market/all three Shop variants/Season Pass dispatch, ticket above Market at four UI scales and prior-HUD compatibility.')
 if __name__=='__main__':main()

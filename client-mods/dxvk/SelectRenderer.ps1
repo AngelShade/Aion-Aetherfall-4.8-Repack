@@ -1,6 +1,5 @@
 param([Parameter(Mandatory=$true)][string]$ClientPath)
 $ErrorActionPreference = 'Stop'
-if (Get-Process -Name 'aion.bin','aion' -ErrorAction SilentlyContinue) { throw 'Exit Aion normally before switching renderers.' }
 $client = (Resolve-Path -LiteralPath $ClientPath).Path
 . (Join-Path $PSScriptRoot 'RendererCommon.ps1')
 $state = Get-Content -LiteralPath (Join-Path $client 'DXVK/installed.json') -Raw | ConvertFrom-Json
@@ -18,6 +17,17 @@ foreach ($entry in $state.files) {
 }
 # Preflight above covers both architectures before any moves. Move within each
 # directory so an interrupted launch remains recoverable and never overwrites a DLL.
+if (Get-Process -Name 'aion.bin','aion' -ErrorAction SilentlyContinue) {
+    if ($changes.Count -gt 0) { throw 'Exit all Aion clients normally before switching renderers.' }
+    $value = [int]$enabled
+    $environment = Join-Path $client 'DXVK/renderer-env.bat'
+    if (-not (Test-Path -LiteralPath $environment) -or
+        [IO.File]::ReadAllText($environment) -cne "@set `"AION_USE_VULKAN=$value`"`r`n") {
+        throw 'Exit all Aion clients normally before repairing the renderer environment.'
+    }
+    'Renderer verified; additional client will use the current renderer.'
+    return
+}
 $done = @()
 try {
     foreach ($change in $changes) {

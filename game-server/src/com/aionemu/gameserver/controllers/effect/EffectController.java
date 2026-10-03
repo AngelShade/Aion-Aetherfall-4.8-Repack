@@ -616,6 +616,10 @@ public class EffectController {
 		return true;
 	}
 
+	public boolean canDispelDebuff(com.aionemu.gameserver.skillengine.effect.AbstractDispelEffect dispel, int level) {
+		return getAbnormalEffects().stream().anyMatch(effect -> isDispellable(effect) && dispel.canDispelDebuff(effect, level));
+	}
+
 	public void dispelBuffCounterAtkEffect(Effect effect) {
 		List<Effect> effectsToEnd = filterEffects(abnormalEffectMap, e -> effect.equals(e.getDesignatedDispelEffect()));
 		for (Effect ef : effectsToEnd) {

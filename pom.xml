@@ -97,11 +97,12 @@
 						</replacementProperty>
 						<replacementProperty>
 							<property>git.dirty</property>
-							<token>false</token>
-							<value />
+							<token>^false(.*)$</token>
+							<value>$1</value>
 						</replacementProperty>
 					</replacementProperties>
-					<failOnNoGitDirectory>false</failOnNoGitDirectory>
+					<injectAllReactorProjects>true</injectAllReactorProjects>
+					<failOnNoGitDirectory>true</failOnNoGitDirectory>
 				</configuration>
 				<executions>
 					<execution>

@@ -1,0 +1,286 @@
+{
+  "researched": "2026-10-03",
+  "upstream": {
+    "pr": "https://github.com/beyond-aion/aion-server/pull/200",
+    "commit": "404a14855bfdb9c6d45570f426361f3c72a51cd3",
+    "base": "5586775691c44c545aeec1e06f0c9539699128f3",
+    "data_sources_claimed_by_author": [
+      "4.9 client disassembly XML structure",
+      "4.6 and 5.8 retail server chances and counts matched by cName"
+    ],
+    "limitations": "Original retail server datasets and exact historical 4.8 odds were not independently acquired. US Codex tables are secondary corroboration, not NCsoft certification. Midsummer tooltip is generic and does not establish the one-shard pool."
+  },
+  "files": {
+    "decomposable_items.xml": {
+      "sha256": "cb47974c242580c0df24547fd17e641348dc6a4503733e336efb9b7cd511b6c6",
+      "url": "https://github.com/beyond-aion/aion-server/blob/404a14855bfdb9c6d45570f426361f3c72a51cd3/game-server/data/static_data/decomposable_items/decomposable_items.xml"
+    },
+    "custom_decomposable_items.xml": {
+      "sha256": "87d85726f2995646adbb692b2ef5412fda524bfc5f1d5168c136c4a336f8b557",
+      "url": "https://github.com/beyond-aion/aion-server/blob/404a14855bfdb9c6d45570f426361f3c72a51cd3/game-server/data/static_data/decomposable_items/custom_decomposable_items.xml"
+    }
+  },
+  "boxes": [
+    {
+      "id": 188052649,
+      "name": "Pet Egg Box",
+      "metadata48": "https://aioncodex.com/48/item/188052649/",
+      "contents_page": "https://aioncodex.com/us/item/188052649/",
+      "groups": [
+        {
+          "url": "https://aioncodex.com/query.php?a=contents&id=188052649&gid=4320&v=2&l=us",
+          "sha256": "81a021006134e002e1487d0d7a25a4f7f6b84720504bad4878817280d6ab4001",
+          "branch_chance": "100",
+          "items": [
+            {
+              "id": 190020174,
+              "quantity": 1,
+              "chance": "50.00"
+            },
+            {
+              "id": 190020180,
+              "quantity": 1,
+              "chance": "50.00"
+            }
+          ]
+        }
+      ],
+      "finding": "PR211 pool is unsupported and contradicted by the retrieved tables."
+    },
+    {
+      "id": 188052918,
+      "name": "[Event] Angel Wings Chest",
+      "metadata48": "https://aioncodex.com/48/item/188052918/",
+      "contents_page": "https://aioncodex.com/us/item/188052918/",
+      "groups": [
+        {
+          "url": "https://aioncodex.com/query.php?a=contents&id=188052918&gid=5122&v=2&l=us",
+          "sha256": "94f1e570e9dc0fcca4c224ef6a38f5591b408a41728ca5232f1e7e3d3b677f16",
+          "branch_chance": "100",
+          "items": [
+            {
+              "id": 187050022,
+              "quantity": 1,
+              "chance": "25.00"
+            },
+            {
+              "id": 187050023,
+              "quantity": 1,
+              "chance": "25.00"
+            },
+            {
+              "id": 187050024,
+              "quantity": 1,
+              "chance": "25.00"
+            },
+            {
+              "id": 187050025,
+              "quantity": 1,
+              "chance": "25.00"
+            }
+          ]
+        }
+      ],
+      "finding": "Angel Wings pool is corroborated; duplicate of PR200."
+    },
+    {
+      "id": 188053543,
+      "name": "Shu-Ghost's Egg and Aether Cherry Box",
+      "metadata48": "https://aioncodex.com/48/item/188053543/",
+      "contents_page": "https://aioncodex.com/us/item/188053543/",
+      "groups": [
+        {
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053543&gid=6807&v=2&l=us",
+          "sha256": "30b575cdca9274b7c76e0e558cc041ad71b04708fcc165d7d806be5de2eb765f",
+          "branch_chance": "100",
+          "items": [
+            {
+              "id": 190020221,
+              "quantity": 1,
+              "chance": "100.00"
+            }
+          ]
+        },
+        {
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053543&gid=6810&v=2&l=us",
+          "sha256": "58df49858f20eca13a28bb54b439189be129e4a147d2fb19c0f21e856419fb0e",
+          "branch_chance": "100",
+          "items": [
+            {
+              "id": 182007162,
+              "quantity": 200,
+              "chance": "100.00"
+            }
+          ]
+        }
+      ],
+      "finding": "Correct egg identity; retrieved quantity is 200, not PR211's 50."
+    },
+    {
+      "id": 188053544,
+      "name": "Pinkybell's Egg and Aether Cherry Box",
+      "metadata48": "https://aioncodex.com/48/item/188053544/",
+      "contents_page": "https://aioncodex.com/us/item/188053544/",
+      "groups": [
+        {
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053544&gid=6808&v=2&l=us",
+          "sha256": "6f79d821c4df9f82e7d1c5128a78e048c13be30b2bace4e5d82340c4f20d42c9",
+          "branch_chance": "100",
+          "items": [
+            {
+              "id": 190020223,
+              "quantity": 1,
+              "chance": "100.00"
+            }
+          ]
+        },
+        {
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053544&gid=6810&v=2&l=us",
+          "sha256": "58df49858f20eca13a28bb54b439189be129e4a147d2fb19c0f21e856419fb0e",
+          "branch_chance": "100",
+          "items": [
+            {
+              "id": 182007162,
+              "quantity": 200,
+              "chance": "100.00"
+            }
+          ]
+        }
+      ],
+      "finding": "Correct egg identity; retrieved quantity is 200, not PR211's 50."
+    },
+    {
+      "id": 188053545,
+      "name": "Royal Kitter's Egg and Aether Cherry Box",
+      "metadata48": "https://aioncodex.com/48/item/188053545/",
+      "contents_page": "https://aioncodex.com/us/item/188053545/",
+      "groups": [
+        {
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053545&gid=6809&v=2&l=us",
+          "sha256": "d47282a89869d77a16ae8e4c84c0c10d67ef01915fffa1b75d78c07fbd67b8f0",
+          "branch_chance": "100",
+          "items": [
+            {
+              "id": 190020214,
+              "quantity": 1,
+              "chance": "100.00"
+            }
+          ]
+        },
+        {
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053545&gid=6810&v=2&l=us",
+          "sha256": "58df49858f20eca13a28bb54b439189be129e4a147d2fb19c0f21e856419fb0e",
+          "branch_chance": "100",
+          "items": [
+            {
+              "id": 182007162,
+              "quantity": 200,
+              "chance": "100.00"
+            }
+          ]
+        }
+      ],
+      "finding": "Correct egg identity; retrieved quantity is 200, not PR211's 50."
+    },
+    {
+      "id": 188053634,
+      "name": "Midsummer Honey Box",
+      "metadata48": "https://aioncodex.com/48/item/188053634/",
+      "contents_page": "https://aioncodex.com/us/item/188053634/",
+      "groups": [
+        {
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053634&gid=7104&v=2&l=us",
+          "sha256": "addd34bf1a2700df478af717563dba83e9bb455ed353f4e32730056f10b67441",
+          "branch_chance": "100",
+          "items": [
+            {
+              "id": 141000001,
+              "quantity": 1,
+              "chance": "100.00"
+            }
+          ]
+        }
+      ],
+      "finding": "PR211 pool is unsupported and contradicted by the retrieved tables. Historical multi-item pool remains unresolved."
+    }
+  ],
+  "client48": {
+    "version": "installed Aion 4.8 NA",
+    "files": [
+      {
+        "archive": "${USERPROFILE}\\Downloads\\aion-4.8-na\\Aion 4.8 NA\\Data\\Items\\Items.pak",
+        "entry": "client_items_misc.xml",
+        "sha256": "6d9c72d42aaa50b3d807452abf4b18e60362125f1c127b3178fc3b05f92b195d"
+      },
+      {
+        "archive": "${USERPROFILE}\\Downloads\\aion-4.8-na\\Aion 4.8 NA\\L10N\\enu\\data\\data.pak",
+        "entry": "strings/client_strings_item.xml",
+        "sha256": "99a12de59c08060a8c68ab1de925e78c90111cf35006f60d5f802a4a8e127b85"
+      },
+      {
+        "archive": "${USERPROFILE}\\Downloads\\aion-4.8-na\\Aion 4.8 NA\\L10N\\enu\\data\\data.pak",
+        "entry": "strings/client_strings_item2.xml",
+        "sha256": "2e53e2e6e8f1ed4ddea3f2479e332f99417dad6ec941740c3df25ba87ddff20f"
+      },
+      {
+        "archive": "${USERPROFILE}\\Downloads\\aion-4.8-na\\Aion 4.8 NA\\L10N\\enu\\data\\data.pak",
+        "entry": "strings/client_strings_item3.xml",
+        "sha256": "e1be1c928e1312c3116295fb74581e9382c36ac5324285a7da1dabe3afc0ec7f"
+      }
+    ],
+    "items": {
+      "188052649": {
+        "id": "188052649",
+        "name": "wrap_event_2013_pot_egg_box_01",
+        "desc": "STR_WRAP_EVENT_2013_POT_EGG_BOX_01",
+        "desc_long": "STR_WRAP_EVENT_2013_POT_EGG_BOX_01_DESC"
+      },
+      "188052918": {
+        "id": "188052918",
+        "name": "wrap_event_angel_wing_indiana_01",
+        "desc": "STR_WRAP_EVENT_ANGEL_WING_INDIANA_01",
+        "desc_long": "STR_WRAP_EVENT_ANGEL_WING_INDIANA_01_DESC"
+      },
+      "188053543": {
+        "id": "188053543",
+        "name": "world_wrap_buff_pet_shughost_01",
+        "desc": "STR_WORLD_WRAP_BUFF_PET_SHUGHOST_01",
+        "desc_long": "STR_WORLD_WRAP_BUFF_PET_SHUGHOST_01_DESC"
+      },
+      "188053544": {
+        "id": "188053544",
+        "name": "world_wrap_buff_pet_magiccubic_01",
+        "desc": "STR_WORLD_WRAP_BUFF_PET_MAGICCUBIC_01",
+        "desc_long": "STR_WORLD_WRAP_BUFF_PET_MAGICCUBIC_01_DESC"
+      },
+      "188053545": {
+        "id": "188053545",
+        "name": "world_wrap_buff_pet_queenofcat_01",
+        "desc": "STR_WORLD_WRAP_BUFF_PET_QUEENOFCAT_01",
+        "desc_long": "STR_WORLD_WRAP_BUFF_PET_QUEENOFCAT_01_DESC"
+      },
+      "188053634": {
+        "id": "188053634",
+        "name": "wrap_august_gotcha_luckybox",
+        "desc": "STR_WRAP_AUGUST_GOTCHA_LUCKYBOX",
+        "desc_long": "STR_WRAP_AUGUST_GOTCHA_LUCKYBOX_DESC"
+      }
+    },
+    "strings": {
+      "STR_WRAP_EVENT_2013_POT_EGG_BOX_01": "Pet Egg Box",
+      "STR_WRAP_EVENT_2013_POT_EGG_BOX_01_DESC": "A box containing a variety of Pack Pet eggs.\\nDouble-click to open.",
+      "STR_WRAP_EVENT_ANGEL_WING_INDIANA_01": "[Event] Angel Wings Chest",
+      "STR_WRAP_EVENT_ANGEL_WING_INDIANA_01_DESC": "Contains a pair of Angel Wings.\\nDouble-click to open.",
+      "STR_WORLD_WRAP_BUFF_PET_SHUGHOST_01": "Shu-Ghost's Egg and Aether Cherry Box",
+      "STR_WORLD_WRAP_BUFF_PET_MAGICCUBIC_01": "Pinkybell's Egg and Aether Cherry Box",
+      "STR_WORLD_WRAP_BUFF_PET_QUEENOFCAT_01": "Royal Kitter's Egg and Aether Cherry Box",
+      "STR_WORLD_WRAP_BUFF_PET_SHUGHOST_01_DESC": "A box that contains a Shu-Ghost's Egg and Aether Cherries.",
+      "STR_WORLD_WRAP_BUFF_PET_MAGICCUBIC_01_DESC": "A box that contains a Pinkybell's Egg and Aether Cherries.",
+      "STR_WORLD_WRAP_BUFF_PET_QUEENOFCAT_01_DESC": "A box that contains a Royal Kitter's Egg and Aether Cherries.",
+      "STR_WRAP_AUGUST_GOTCHA_LUCKYBOX": "Midsummer Honey Box",
+      "STR_WRAP_AUGUST_GOTCHA_LUCKYBOX_DESC": "A Midsummer Honey Box contains a variety of items.\\nDouble-click or right-click it to open the box."
+    },
+    "disassembly_entries": []
+  },
+  "packet_review": "https://github.com/beyond-aion/aion-server/pull/200#issuecomment-5658985753"
+}

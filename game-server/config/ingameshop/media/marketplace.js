@@ -15,9 +15,9 @@
     if (shell) { shell.setAttribute('aria-busy', value ? 'true' : 'false'); shell.className = 'shell' + (value ? ' is-loading' : ''); }
   }
   window.shopPreview = function (button, itemId) {
-    var native = window.AionObject;
-    if (!native || !native.ItemPreview) { message('Item Preview is available in Aion.', true); return false; }
-    try { native.ItemPreview(+itemId); } catch (error) { message('Item Preview could not open.', true); }
+    var aion = window.AionObject;
+    if (!aion || !aion.ItemPreview) { message('Item Preview is available in Aion.', true); return false; }
+    try { aion.ItemPreview(+itemId); } catch (error) { message('Item Preview could not open.', true); }
     return false;
   };
   window.shopConfirm = function (form) {
@@ -70,7 +70,10 @@
       var selectors = ['.main-content', '.side-nav', '.sidebar-top', '.shop-tabs'], i, from, to;
       for (i = 0; i < selectors.length; i++) {
         from = markup.querySelector(selectors[i]); to = document.querySelector(selectors[i]);
-        if (from && to) to.innerHTML = from.innerHTML;
+        // Move the already parsed response subtree. Parsing it again through
+        // innerHTML duplicates layout and icon work in Aion's older WebKit.
+        // Identical sidebar/header regions keep their nodes and focus.
+        if (from && to && from.innerHTML !== to.innerHTML) to.parentNode.replaceChild(from, to);
       }
       main = document.querySelector('.main-content'); main.scrollTop = scroll;
       var fragment = url.split('#')[1], target = fragment ? document.getElementById(fragment) : null;
@@ -97,7 +100,9 @@
     event.preventDefault();
     var data = encode(form), method = form.method.toUpperCase();
     if (method === 'GET') load('/shop?' + data + '#shop-content', 'GET', null, false, true);
-    else load(form.action, 'POST', data, !form.querySelector('[name="review"]') && !form.querySelector('.purchase-button'), false);
+    // The hidden input named "action" shadows form.action in old WebKit.
+    // Read the attribute so favorite/purchase submissions use a URL.
+    else load(form.getAttribute('action') || location.href, 'POST', data, !form.querySelector('[name="review"]') && !form.querySelector('.purchase-button'), false);
   }, false);
   // Changing a filter applies it directly; Enter still submits the search.
   document.addEventListener('change', function (event) {

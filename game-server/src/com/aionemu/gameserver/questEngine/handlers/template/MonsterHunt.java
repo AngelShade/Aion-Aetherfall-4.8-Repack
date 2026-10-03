@@ -238,6 +238,29 @@ public class MonsterHunt extends AbstractTemplateQuestHandler {
 		return false;
 	}
 
+	/** Read-only objective query for companion planning; kill credit still goes through onKillEvent. */
+	public Set<Integer> getRewardNpcIds(QuestState state) {
+		return state != null && state.getQuestId() == questId && state.getStatus() == QuestStatus.REWARD ? Set.copyOf(endNpcIds) : Set.of();
+	}
+
+	public Set<Integer> getRequiredKillNpcIds(QuestState state) {
+		if (state == null || state.getQuestId() != questId || state.getStatus() != QuestStatus.START) return Set.of();
+		Set<Integer> required = new HashSet<>();
+		for (Monster monster : monsters) {
+			if (isDataDriven && monster.getStep() != state.getQuestVarById(0) || monster.getEndVar() <= 0 || monster.getNpcIds() == null) continue;
+			int remaining = monster.getEndVar(), index = monster.getVar();
+			long total = 0; int shift = 0;
+			boolean valid = true;
+			do {
+				if (index < 0 || index > 5) { valid = false; break; }
+				total += (long) state.getQuestVarById(index++) << shift;
+				shift += 6; remaining >>= 6;
+			} while (remaining > 0);
+			if (valid && total < monster.getEndVar()) required.addAll(monster.getNpcIds());
+		}
+		return Set.copyOf(required);
+	}
+
 	@Override
 	public boolean onAddAggroListEvent(QuestEnv env) {
 		return startQuest(env);

@@ -1,0 +1,2670 @@
+{
+  "researched": "2026-10-03",
+  "provenance": "4.8 archived metadata and matching installed client; contents and published weights from exact-ID Codex US tables. Historical official 4.8 odds are not independently certified.",
+  "boxes": [
+    {
+      "id": 188052187,
+      "metadata": "https://aioncodex.com/48/item/188052187/?sl=1",
+      "metadata_sha256": "12520db1bb3a132401f8595febcaf933dfd4199313cb99e4e16a8fb146c0aa0f",
+      "contents": "https://aioncodex.com/us/item/188052187/?sl=1",
+      "contents_sha256": "221e2d06d6d2515c5b9d447cefffaf55e7236e3bdda7880ce39a19c418349e2b",
+      "groups": [
+        {
+          "gid": 3493,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188052187&gid=3493&v=2&l=us",
+          "sha256": "54603b1f56ee8f82ac2c453aa80d2022aae8afa247894facd23b8263d91d592d",
+          "player_class": null,
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 167000578,
+              "quantity": 1,
+              "chance": "3.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000579,
+              "quantity": 1,
+              "chance": "3.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000584,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000587,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000588,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000589,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000596,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000597,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000603,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000605,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000606,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000607,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000614,
+              "quantity": 1,
+              "chance": "2.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000615,
+              "quantity": 1,
+              "chance": "2.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000616,
+              "quantity": 1,
+              "chance": "2.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000619,
+              "quantity": 1,
+              "chance": "2.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000620,
+              "quantity": 1,
+              "chance": "2.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000621,
+              "quantity": 1,
+              "chance": "2.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000628,
+              "quantity": 1,
+              "chance": "2.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000629,
+              "quantity": 1,
+              "chance": "2.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000635,
+              "quantity": 1,
+              "chance": "2.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000637,
+              "quantity": 1,
+              "chance": "2.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000638,
+              "quantity": 1,
+              "chance": "2.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000639,
+              "quantity": 1,
+              "chance": "2.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000646,
+              "quantity": 1,
+              "chance": "2.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000647,
+              "quantity": 1,
+              "chance": "2.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000652,
+              "quantity": 1,
+              "chance": "2.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000655,
+              "quantity": 1,
+              "chance": "2.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000656,
+              "quantity": 1,
+              "chance": "2.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000657,
+              "quantity": 1,
+              "chance": "2.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000664,
+              "quantity": 1,
+              "chance": "2.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000665,
+              "quantity": 1,
+              "chance": "2.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000671,
+              "quantity": 1,
+              "chance": "2.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000673,
+              "quantity": 1,
+              "chance": "2.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000674,
+              "quantity": 1,
+              "chance": "2.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000675,
+              "quantity": 1,
+              "chance": "2.00",
+              "race": "PC_ALL"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 188052555,
+      "metadata": "https://aioncodex.com/48/item/188052555/?sl=1",
+      "metadata_sha256": "ed543372be23607780c73c10aa67a9bb53675106a543751057507cfeba2d4221",
+      "contents": "https://aioncodex.com/us/item/188052555/?sl=1",
+      "contents_sha256": "234befd9eb9df65ddc1a8987d3999753f7307eeef8fb0f86b028303ca4818ba3",
+      "groups": [
+        {
+          "gid": 4147,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188052555&gid=4147&v=2&l=us",
+          "sha256": "b671b81003f90e3927e6ee54a45dcb3033251f18ead2b57a039ef0f148133bd4",
+          "player_class": null,
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 167000682,
+              "quantity": 1,
+              "chance": "0.79",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000683,
+              "quantity": 1,
+              "chance": "6.54",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000684,
+              "quantity": 1,
+              "chance": "0.79",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000685,
+              "quantity": 1,
+              "chance": "0.79",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000686,
+              "quantity": 1,
+              "chance": "6.55",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000687,
+              "quantity": 1,
+              "chance": "0.79",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000688,
+              "quantity": 1,
+              "chance": "6.54",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000689,
+              "quantity": 1,
+              "chance": "6.54",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000690,
+              "quantity": 1,
+              "chance": "0.39",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000691,
+              "quantity": 1,
+              "chance": "0.79",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000692,
+              "quantity": 1,
+              "chance": "0.79",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000693,
+              "quantity": 1,
+              "chance": "0.79",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000694,
+              "quantity": 1,
+              "chance": "0.79",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000695,
+              "quantity": 1,
+              "chance": "0.79",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000696,
+              "quantity": 1,
+              "chance": "0.79",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000697,
+              "quantity": 1,
+              "chance": "0.79",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000698,
+              "quantity": 1,
+              "chance": "6.54",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000699,
+              "quantity": 1,
+              "chance": "6.54",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000700,
+              "quantity": 1,
+              "chance": "6.54",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000701,
+              "quantity": 1,
+              "chance": "6.54",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000702,
+              "quantity": 1,
+              "chance": "6.54",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000703,
+              "quantity": 1,
+              "chance": "0.79",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000704,
+              "quantity": 1,
+              "chance": "0.39",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000705,
+              "quantity": 1,
+              "chance": "0.39",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000706,
+              "quantity": 1,
+              "chance": "0.79",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000707,
+              "quantity": 1,
+              "chance": "6.54",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000708,
+              "quantity": 1,
+              "chance": "0.39",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000709,
+              "quantity": 1,
+              "chance": "0.79",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000710,
+              "quantity": 1,
+              "chance": "6.54",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000711,
+              "quantity": 1,
+              "chance": "6.54",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000712,
+              "quantity": 1,
+              "chance": "6.54",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000713,
+              "quantity": 1,
+              "chance": "0.79",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000714,
+              "quantity": 1,
+              "chance": "0.39",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000749,
+              "quantity": 1,
+              "chance": "0.39",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000750,
+              "quantity": 1,
+              "chance": "0.39",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000751,
+              "quantity": 1,
+              "chance": "0.39",
+              "race": "PC_ALL"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 188053068,
+      "metadata": "https://aioncodex.com/48/item/188053068/?sl=1",
+      "metadata_sha256": "28bc1c9cbe5ea432614900562de64a6dedb44de8a9630bf9ffefbf13d50d5a68",
+      "contents": "https://aioncodex.com/us/item/188053068/?sl=1",
+      "contents_sha256": "9bfa4343e101a0677e5ff2ac49b3413722e28637ff0f02df327fd62295a4ae68",
+      "groups": [
+        {
+          "gid": 5459,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053068&gid=5459&v=2&l=us",
+          "sha256": "7f798c65179a8afe03fb9838806a65307e01eae9e9d812f19862b1a16b5aa544",
+          "player_class": null,
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 167000685,
+              "quantity": 5,
+              "chance": "15.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000750,
+              "quantity": 5,
+              "chance": "15.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000684,
+              "quantity": 3,
+              "chance": "10.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000749,
+              "quantity": 1,
+              "chance": "3.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000692,
+              "quantity": 5,
+              "chance": "11.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000695,
+              "quantity": 3,
+              "chance": "3.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000696,
+              "quantity": 3,
+              "chance": "3.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000705,
+              "quantity": 1,
+              "chance": "2.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000704,
+              "quantity": 4,
+              "chance": "10.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000714,
+              "quantity": 4,
+              "chance": "11.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 167000697,
+              "quantity": 5,
+              "chance": "17.00",
+              "race": "PC_ALL"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 188053975,
+      "metadata": "https://aioncodex.com/48/item/188053975/?sl=1",
+      "metadata_sha256": "de00a39834647a84c708134b153a698ae9bee49d709fe545ac00c75f1d0a5a53",
+      "contents": "https://aioncodex.com/us/item/188053975/?sl=1",
+      "contents_sha256": "5bfd4ad82b67afdc9810c19cba40dcc5b9ec27b769ecbd04f90c9e5680b61940",
+      "groups": [
+        {
+          "gid": 7831,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053975&gid=7831&v=2&l=us",
+          "sha256": "85b2f29c6900892c4be25653f544e72310921a35e33deca1b1608a884792b546",
+          "player_class": "GLADIATOR",
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 188053750,
+              "quantity": 1,
+              "chance": "100.00",
+              "race": "PC_ALL"
+            }
+          ]
+        },
+        {
+          "gid": 7832,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053975&gid=7832&v=2&l=us",
+          "sha256": "13169defab3729fd433db3eff670ee1f92dbb96f2580cdbded11e2e474d16727",
+          "player_class": "TEMPLAR",
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 188053751,
+              "quantity": 1,
+              "chance": "100.00",
+              "race": "PC_ALL"
+            }
+          ]
+        },
+        {
+          "gid": 7833,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053975&gid=7833&v=2&l=us",
+          "sha256": "8dc4eccedb2fe77d1915d8987f745cb9a92c1bb4c872cf1ea32d9f55015bc697",
+          "player_class": "ASSASSIN",
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 188053752,
+              "quantity": 1,
+              "chance": "100.00",
+              "race": "PC_ALL"
+            }
+          ]
+        },
+        {
+          "gid": 7834,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053975&gid=7834&v=2&l=us",
+          "sha256": "4f177d1473fafe556d63969129732b7adc5c124128e804a68f844060a78d0fa4",
+          "player_class": "RANGER",
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 188053753,
+              "quantity": 1,
+              "chance": "100.00",
+              "race": "PC_ALL"
+            }
+          ]
+        },
+        {
+          "gid": 7835,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053975&gid=7835&v=2&l=us",
+          "sha256": "b47d123b3113f9d4be9a08c794afd1cac9dd759885dc64a7365fe5aa45d0722b",
+          "player_class": "SORCERER",
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 188053754,
+              "quantity": 1,
+              "chance": "100.00",
+              "race": "PC_ALL"
+            }
+          ]
+        },
+        {
+          "gid": 7836,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053975&gid=7836&v=2&l=us",
+          "sha256": "73c3bcd31f05051a37d3c9fd1e389c1a041e46238ca86942e97a86ab7321ee25",
+          "player_class": "SPIRIT_MASTER",
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 188053755,
+              "quantity": 1,
+              "chance": "100.00",
+              "race": "PC_ALL"
+            }
+          ]
+        },
+        {
+          "gid": 7837,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053975&gid=7837&v=2&l=us",
+          "sha256": "ee8b7a25a977f3cfba7ab646e623dae6aa6cb635cc909cc52dfd75cf48170793",
+          "player_class": "CHANTER",
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 188053757,
+              "quantity": 1,
+              "chance": "100.00",
+              "race": "PC_ALL"
+            }
+          ]
+        },
+        {
+          "gid": 7838,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053975&gid=7838&v=2&l=us",
+          "sha256": "5d7b9652f57a33edff3dbcc06d12cd56f34454121dd80d97f154235396c63b71",
+          "player_class": "CLERIC",
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 188053756,
+              "quantity": 1,
+              "chance": "100.00",
+              "race": "PC_ALL"
+            }
+          ]
+        },
+        {
+          "gid": 7839,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053975&gid=7839&v=2&l=us",
+          "sha256": "67aca5e681589b05c177d4e7b3b437211513b45656c9c96b03ca3a93a5650fd5",
+          "player_class": "GUNNER",
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 188053758,
+              "quantity": 1,
+              "chance": "100.00",
+              "race": "PC_ALL"
+            }
+          ]
+        },
+        {
+          "gid": 7840,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053975&gid=7840&v=2&l=us",
+          "sha256": "3e743262518ab29beb7a0c0ab4fb5df47525e9b9a40fa85a231b23dc8a7bceb0",
+          "player_class": "RIDER",
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 188053759,
+              "quantity": 1,
+              "chance": "100.00",
+              "race": "PC_ALL"
+            }
+          ]
+        },
+        {
+          "gid": 7841,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053975&gid=7841&v=2&l=us",
+          "sha256": "db5265887288bbc55ccadd71fe02b72223911fe52510fb3a53b58fd8ab5f34a3",
+          "player_class": "BARD",
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 188053760,
+              "quantity": 1,
+              "chance": "100.00",
+              "race": "PC_ALL"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 188053976,
+      "metadata": "https://aioncodex.com/48/item/188053976/?sl=1",
+      "metadata_sha256": "b6074591b91fd4f67d62b31b98c2de730b7c908e5137e27674953ee526897ce7",
+      "contents": "https://aioncodex.com/us/item/188053976/?sl=1",
+      "contents_sha256": "ffe315b6b7156aa4476178301c3f028b262345ca954c6a97456650362edd63f3",
+      "groups": [
+        {
+          "gid": 7842,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053976&gid=7842&v=2&l=us",
+          "sha256": "d02076f70bce3609f98b7cefa4b72ff04c54a219d5e36b9295443dc6dadb3e53",
+          "player_class": "GLADIATOR",
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 188053761,
+              "quantity": 1,
+              "chance": "100.00",
+              "race": "PC_ALL"
+            }
+          ]
+        },
+        {
+          "gid": 7843,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053976&gid=7843&v=2&l=us",
+          "sha256": "9bb1265c84a9370adb4efecd11f1b6e477b93076505ffc10176742d96e8d188a",
+          "player_class": "TEMPLAR",
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 188053762,
+              "quantity": 1,
+              "chance": "100.00",
+              "race": "PC_ALL"
+            }
+          ]
+        },
+        {
+          "gid": 7844,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053976&gid=7844&v=2&l=us",
+          "sha256": "9528c7366058c053ea97ca1b40220894d15d3d0ae4ab05b68596bd6c1489ba70",
+          "player_class": "ASSASSIN",
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 188053763,
+              "quantity": 1,
+              "chance": "100.00",
+              "race": "PC_ALL"
+            }
+          ]
+        },
+        {
+          "gid": 7845,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053976&gid=7845&v=2&l=us",
+          "sha256": "2f495184154a3fd83a7c916da0892687ebe553e20976bc05007187786752d22f",
+          "player_class": "RANGER",
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 188053764,
+              "quantity": 1,
+              "chance": "100.00",
+              "race": "PC_ALL"
+            }
+          ]
+        },
+        {
+          "gid": 7846,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053976&gid=7846&v=2&l=us",
+          "sha256": "8976b88c776e937a0fffc8e7132a924877606385afecc7a94a3e5872c10a2ebc",
+          "player_class": "SORCERER",
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 188053765,
+              "quantity": 1,
+              "chance": "100.00",
+              "race": "PC_ALL"
+            }
+          ]
+        },
+        {
+          "gid": 7847,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053976&gid=7847&v=2&l=us",
+          "sha256": "ce3e3a2276185c772d9bf1113fff9bedab9c9754540bca21fa8cf28a31da58ff",
+          "player_class": "SPIRIT_MASTER",
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 188053766,
+              "quantity": 1,
+              "chance": "100.00",
+              "race": "PC_ALL"
+            }
+          ]
+        },
+        {
+          "gid": 7848,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053976&gid=7848&v=2&l=us",
+          "sha256": "f484e2e7dab4c7e5b86cae38066c3e3de23498dfc9fcb5645df315888905a2cb",
+          "player_class": "CHANTER",
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 188053768,
+              "quantity": 1,
+              "chance": "100.00",
+              "race": "PC_ALL"
+            }
+          ]
+        },
+        {
+          "gid": 7849,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053976&gid=7849&v=2&l=us",
+          "sha256": "0624c3a8530b91d731b1704e93882f2afcd140baef5b212281c4478a981708e4",
+          "player_class": "CLERIC",
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 188053767,
+              "quantity": 1,
+              "chance": "100.00",
+              "race": "PC_ALL"
+            }
+          ]
+        },
+        {
+          "gid": 7850,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053976&gid=7850&v=2&l=us",
+          "sha256": "732f56b3e407a90670d48adb8ee8a59c6a8c8f3300bf330460d4576787570eae",
+          "player_class": "GUNNER",
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 188053769,
+              "quantity": 1,
+              "chance": "100.00",
+              "race": "PC_ALL"
+            }
+          ]
+        },
+        {
+          "gid": 7851,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053976&gid=7851&v=2&l=us",
+          "sha256": "4b4c1e7131c34807a36810a6b2b0ba6b9e6b1b95f909bf73bbe79690cb9eba74",
+          "player_class": "RIDER",
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 188053770,
+              "quantity": 1,
+              "chance": "100.00",
+              "race": "PC_ALL"
+            }
+          ]
+        },
+        {
+          "gid": 7852,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053976&gid=7852&v=2&l=us",
+          "sha256": "d03c55f9afb3ee982e39c02be9e56e4fd71d5e3cd37dc721fad7a01d72c52c37",
+          "player_class": "BARD",
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 188053771,
+              "quantity": 1,
+              "chance": "100.00",
+              "race": "PC_ALL"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 188053979,
+      "metadata": "https://aioncodex.com/48/item/188053979/?sl=1",
+      "metadata_sha256": "23e6b7168773261adb08e9dc7d623f1b88f3e83028557ab9807f42e9313b2180",
+      "contents": "https://aioncodex.com/us/item/188053979/?sl=1",
+      "contents_sha256": "e0f2386a2abbcba6f9ff41a2542f0264940bbc533f811aec4d9b620955d7cf7c",
+      "groups": [
+        {
+          "gid": 7854,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053979&gid=7854&v=2&l=us",
+          "sha256": "018baea9d8a5a8275b8b4e4116287582182fb3fc11b02bca6463a73b48637252",
+          "player_class": null,
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 140001104,
+              "quantity": 1,
+              "chance": "4.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001108,
+              "quantity": 1,
+              "chance": "14.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001105,
+              "quantity": 1,
+              "chance": "9.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001106,
+              "quantity": 1,
+              "chance": "13.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001103,
+              "quantity": 1,
+              "chance": "5.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001107,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001117,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001116,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001114,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001112,
+              "quantity": 1,
+              "chance": "6.30",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001110,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001109,
+              "quantity": 1,
+              "chance": "3.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001113,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001111,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001115,
+              "quantity": 1,
+              "chance": "0.90",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001118,
+              "quantity": 1,
+              "chance": "16.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001119,
+              "quantity": 1,
+              "chance": "4.00",
+              "race": "PC_ALL"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 188053980,
+      "metadata": "https://aioncodex.com/48/item/188053980/?sl=1",
+      "metadata_sha256": "efd261ae349fd7fa54dfe31636fefa997c4777f83f27ac179ef36f4a274b930d",
+      "contents": "https://aioncodex.com/us/item/188053980/?sl=1",
+      "contents_sha256": "987013cc4d2abc10283192b9611c2833a06c3f19f0e0f77a02d93c88009c80f0",
+      "groups": [
+        {
+          "gid": 7855,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053980&gid=7855&v=2&l=us",
+          "sha256": "7996a77d9f6852f065053f9acc342859008d81f50854d7f6d72c620feb266a27",
+          "player_class": null,
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 140001123,
+              "quantity": 1,
+              "chance": "4.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001121,
+              "quantity": 1,
+              "chance": "14.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001124,
+              "quantity": 1,
+              "chance": "9.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001125,
+              "quantity": 1,
+              "chance": "13.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001122,
+              "quantity": 1,
+              "chance": "5.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001120,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001129,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001127,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001126,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001114,
+              "quantity": 1,
+              "chance": "6.30",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001132,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001131,
+              "quantity": 1,
+              "chance": "3.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001133,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001128,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001130,
+              "quantity": 1,
+              "chance": "0.90",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001135,
+              "quantity": 1,
+              "chance": "16.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001134,
+              "quantity": 1,
+              "chance": "4.00",
+              "race": "PC_ALL"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 188053981,
+      "metadata": "https://aioncodex.com/48/item/188053981/?sl=1",
+      "metadata_sha256": "97ffd44d0a6bf265e42ff7b88c3c4268a2fdf661f7da028513a8d44ac775b780",
+      "contents": "https://aioncodex.com/us/item/188053981/?sl=1",
+      "contents_sha256": "18c9bf5b06fa036e4db68a75aa646a74533d35cb2b4dcd722400e766281137a4",
+      "groups": [
+        {
+          "gid": 7856,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053981&gid=7856&v=2&l=us",
+          "sha256": "150726ffcbaf09f4e9e432de3d8102ecb2917e308a1fb9e86ba25040eb5d08f5",
+          "player_class": null,
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 140001137,
+              "quantity": 1,
+              "chance": "4.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001141,
+              "quantity": 1,
+              "chance": "14.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001140,
+              "quantity": 1,
+              "chance": "9.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001136,
+              "quantity": 1,
+              "chance": "13.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001138,
+              "quantity": 1,
+              "chance": "5.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001139,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001148,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001149,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001150,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001147,
+              "quantity": 1,
+              "chance": "6.30",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001146,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001142,
+              "quantity": 1,
+              "chance": "3.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001144,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001145,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001143,
+              "quantity": 1,
+              "chance": "0.90",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001151,
+              "quantity": 1,
+              "chance": "16.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001152,
+              "quantity": 1,
+              "chance": "4.00",
+              "race": "PC_ALL"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 188053982,
+      "metadata": "https://aioncodex.com/48/item/188053982/?sl=1",
+      "metadata_sha256": "ebddfc03f49a7233a2c9e2180a48301a63d9bd5d6915e05bf83bec62f3ec9170",
+      "contents": "https://aioncodex.com/us/item/188053982/?sl=1",
+      "contents_sha256": "b3576ec07580cc85435f3aa30f6be6ad23366b2d0ff926b800c7162d2ec27a93",
+      "groups": [
+        {
+          "gid": 7857,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053982&gid=7857&v=2&l=us",
+          "sha256": "777583fa403b44687906a7a4b69fdb6243341613dbf547f1c4a2411583926977",
+          "player_class": null,
+          "race": "ELYOS",
+          "items": [
+            {
+              "id": 140001155,
+              "quantity": 1,
+              "chance": "4.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001153,
+              "quantity": 1,
+              "chance": "14.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001157,
+              "quantity": 1,
+              "chance": "9.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001158,
+              "quantity": 1,
+              "chance": "13.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001156,
+              "quantity": 1,
+              "chance": "5.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001154,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001165,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "ELYOS"
+            },
+            {
+              "id": 140001160,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "ELYOS"
+            },
+            {
+              "id": 140001169,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "ELYOS"
+            },
+            {
+              "id": 140001171,
+              "quantity": 1,
+              "chance": "6.30",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001163,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "ELYOS"
+            },
+            {
+              "id": 140001162,
+              "quantity": 1,
+              "chance": "3.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001168,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001167,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001159,
+              "quantity": 1,
+              "chance": "0.90",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001172,
+              "quantity": 1,
+              "chance": "16.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001173,
+              "quantity": 1,
+              "chance": "4.00",
+              "race": "PC_ALL"
+            }
+          ]
+        },
+        {
+          "gid": 7858,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053982&gid=7858&v=2&l=us",
+          "sha256": "ac4bbc9012512eb1ebb59265089a656200cb701149c765b6fe8f14ec5e14eb2a",
+          "player_class": null,
+          "race": "ASMODIANS",
+          "items": [
+            {
+              "id": 140001155,
+              "quantity": 1,
+              "chance": "4.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001153,
+              "quantity": 1,
+              "chance": "14.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001157,
+              "quantity": 1,
+              "chance": "9.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001158,
+              "quantity": 1,
+              "chance": "13.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001156,
+              "quantity": 1,
+              "chance": "5.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001154,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001166,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "ASMODIANS"
+            },
+            {
+              "id": 140001161,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "ASMODIANS"
+            },
+            {
+              "id": 140001170,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "ASMODIANS"
+            },
+            {
+              "id": 140001171,
+              "quantity": 1,
+              "chance": "6.30",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001164,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "ASMODIANS"
+            },
+            {
+              "id": 140001162,
+              "quantity": 1,
+              "chance": "3.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001168,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001167,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001159,
+              "quantity": 1,
+              "chance": "0.90",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001172,
+              "quantity": 1,
+              "chance": "16.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001173,
+              "quantity": 1,
+              "chance": "4.00",
+              "race": "PC_ALL"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 188053983,
+      "metadata": "https://aioncodex.com/48/item/188053983/?sl=1",
+      "metadata_sha256": "b5b235b32611cab2e439e50f7e1f60c0a0aae117725be1129dee03f9dfd4bd18",
+      "contents": "https://aioncodex.com/us/item/188053983/?sl=1",
+      "contents_sha256": "d6125db63dd4287390d3e39d81c29fb328aff699c789b65aeac666f3afe700ab",
+      "groups": [
+        {
+          "gid": 7859,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053983&gid=7859&v=2&l=us",
+          "sha256": "5fbebaabd036616c6852a638967299375829dca0ccbfffa1fab02879ca575420",
+          "player_class": null,
+          "race": "ELYOS",
+          "items": [
+            {
+              "id": 140001181,
+              "quantity": 1,
+              "chance": "4.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001184,
+              "quantity": 1,
+              "chance": "14.00",
+              "race": "ELYOS"
+            },
+            {
+              "id": 140001177,
+              "quantity": 1,
+              "chance": "9.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001176,
+              "quantity": 1,
+              "chance": "13.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001174,
+              "quantity": 1,
+              "chance": "5.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001178,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001188,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001190,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001182,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "ELYOS"
+            },
+            {
+              "id": 140001187,
+              "quantity": 1,
+              "chance": "6.30",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001189,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001179,
+              "quantity": 1,
+              "chance": "3.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001175,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001186,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001180,
+              "quantity": 1,
+              "chance": "0.90",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001191,
+              "quantity": 1,
+              "chance": "16.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001192,
+              "quantity": 1,
+              "chance": "4.00",
+              "race": "PC_ALL"
+            }
+          ]
+        },
+        {
+          "gid": 7860,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053983&gid=7860&v=2&l=us",
+          "sha256": "da7bf3e98741e25481d0ab8d8d81884ef504e80567e60c31d0b447c437188fbb",
+          "player_class": null,
+          "race": "ASMODIANS",
+          "items": [
+            {
+              "id": 140001181,
+              "quantity": 1,
+              "chance": "4.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001185,
+              "quantity": 1,
+              "chance": "14.00",
+              "race": "ASMODIANS"
+            },
+            {
+              "id": 140001177,
+              "quantity": 1,
+              "chance": "9.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001176,
+              "quantity": 1,
+              "chance": "13.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001174,
+              "quantity": 1,
+              "chance": "5.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001178,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001188,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001190,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001183,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "ASMODIANS"
+            },
+            {
+              "id": 140001187,
+              "quantity": 1,
+              "chance": "6.30",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001189,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001179,
+              "quantity": 1,
+              "chance": "3.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001175,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001186,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001180,
+              "quantity": 1,
+              "chance": "0.90",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001191,
+              "quantity": 1,
+              "chance": "16.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001192,
+              "quantity": 1,
+              "chance": "4.00",
+              "race": "PC_ALL"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 188053984,
+      "metadata": "https://aioncodex.com/48/item/188053984/?sl=1",
+      "metadata_sha256": "47aa152edb900ff31c48627a04611d4514bc5f73178ccda8871004dca130bf04",
+      "contents": "https://aioncodex.com/us/item/188053984/?sl=1",
+      "contents_sha256": "9eb222f9e63d36fc335978f646c0860848ec59348ad4278276e2a0720723011b",
+      "groups": [
+        {
+          "gid": 7861,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053984&gid=7861&v=2&l=us",
+          "sha256": "aa0318e23628b3ba33d99266f1967b37b4d2624128cdc57710fa3a45ef8edfab",
+          "player_class": null,
+          "race": "ELYOS",
+          "items": [
+            {
+              "id": 140001196,
+              "quantity": 1,
+              "chance": "4.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001197,
+              "quantity": 1,
+              "chance": "14.00",
+              "race": "ELYOS"
+            },
+            {
+              "id": 140001193,
+              "quantity": 1,
+              "chance": "9.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001199,
+              "quantity": 1,
+              "chance": "13.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001195,
+              "quantity": 1,
+              "chance": "5.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001194,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001207,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001208,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001205,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001203,
+              "quantity": 1,
+              "chance": "6.30",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001201,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001206,
+              "quantity": 1,
+              "chance": "3.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001200,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001202,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001204,
+              "quantity": 1,
+              "chance": "0.90",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001210,
+              "quantity": 1,
+              "chance": "16.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001209,
+              "quantity": 1,
+              "chance": "4.00",
+              "race": "PC_ALL"
+            }
+          ]
+        },
+        {
+          "gid": 7862,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053984&gid=7862&v=2&l=us",
+          "sha256": "0e5de98330753bf8b68b084ebce8ee2094c1db448a3db54e45980cb7b09fa113",
+          "player_class": null,
+          "race": "ASMODIANS",
+          "items": [
+            {
+              "id": 140001196,
+              "quantity": 1,
+              "chance": "4.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001198,
+              "quantity": 1,
+              "chance": "14.00",
+              "race": "ASMODIANS"
+            },
+            {
+              "id": 140001193,
+              "quantity": 1,
+              "chance": "9.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001199,
+              "quantity": 1,
+              "chance": "13.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001195,
+              "quantity": 1,
+              "chance": "5.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001194,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001207,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001208,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001205,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001203,
+              "quantity": 1,
+              "chance": "6.30",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001201,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001206,
+              "quantity": 1,
+              "chance": "3.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001200,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001202,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001204,
+              "quantity": 1,
+              "chance": "0.90",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001210,
+              "quantity": 1,
+              "chance": "16.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001209,
+              "quantity": 1,
+              "chance": "4.00",
+              "race": "PC_ALL"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 188053985,
+      "metadata": "https://aioncodex.com/48/item/188053985/?sl=1",
+      "metadata_sha256": "654bb44fbf54597f1fc4ca1f76c9083e8bd05e8c0035ed5f6e3b4f3b734cf4f1",
+      "contents": "https://aioncodex.com/us/item/188053985/?sl=1",
+      "contents_sha256": "8d5f9fa92bc0659eb04fdfba4c8f31c3bffed1a0b08010d661b591b33b3fa63d",
+      "groups": [
+        {
+          "gid": 7863,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053985&gid=7863&v=2&l=us",
+          "sha256": "bdea4dc34dfdc1647cf9904def172112f0032088870525a65154cd72fde327a5",
+          "player_class": null,
+          "race": "ELYOS",
+          "items": [
+            {
+              "id": 140001228,
+              "quantity": 1,
+              "chance": "4.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001229,
+              "quantity": 1,
+              "chance": "14.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001230,
+              "quantity": 1,
+              "chance": "9.50",
+              "race": "ELYOS"
+            },
+            {
+              "id": 140001234,
+              "quantity": 1,
+              "chance": "13.00",
+              "race": "ELYOS"
+            },
+            {
+              "id": 140001232,
+              "quantity": 1,
+              "chance": "5.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001233,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001242,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001243,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001239,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001240,
+              "quantity": 1,
+              "chance": "6.30",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001238,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001237,
+              "quantity": 1,
+              "chance": "3.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001241,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001236,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001244,
+              "quantity": 1,
+              "chance": "0.90",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001245,
+              "quantity": 1,
+              "chance": "16.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001246,
+              "quantity": 1,
+              "chance": "4.00",
+              "race": "PC_ALL"
+            }
+          ]
+        },
+        {
+          "gid": 7864,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053985&gid=7864&v=2&l=us",
+          "sha256": "b9891d5376bc4f3f4c02c8ab00bdc09868331d6872a13a267791daab88849b2a",
+          "player_class": null,
+          "race": "ASMODIANS",
+          "items": [
+            {
+              "id": 140001228,
+              "quantity": 1,
+              "chance": "4.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001229,
+              "quantity": 1,
+              "chance": "14.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001231,
+              "quantity": 1,
+              "chance": "9.50",
+              "race": "ASMODIANS"
+            },
+            {
+              "id": 140001235,
+              "quantity": 1,
+              "chance": "13.00",
+              "race": "ASMODIANS"
+            },
+            {
+              "id": 140001232,
+              "quantity": 1,
+              "chance": "5.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001233,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001242,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001243,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001239,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001240,
+              "quantity": 1,
+              "chance": "6.30",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001238,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001237,
+              "quantity": 1,
+              "chance": "3.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001241,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001236,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001244,
+              "quantity": 1,
+              "chance": "0.90",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001245,
+              "quantity": 1,
+              "chance": "16.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001246,
+              "quantity": 1,
+              "chance": "4.00",
+              "race": "PC_ALL"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 188053986,
+      "metadata": "https://aioncodex.com/48/item/188053986/?sl=1",
+      "metadata_sha256": "66b6ae134046ec40587705e0221a174fab3428992883a310f9da74d7e4bbce0d",
+      "contents": "https://aioncodex.com/us/item/188053986/?sl=1",
+      "contents_sha256": "02bc53e375e8640471c98b02423f3a62d5dba4c9e54426fa6144a8141065dbfc",
+      "groups": [
+        {
+          "gid": 7865,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053986&gid=7865&v=2&l=us",
+          "sha256": "23fd603af3f86dca745fa756fcf2e4d1bf93a8cea1bbbe3965679dc0bee8f7b6",
+          "player_class": null,
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 140001215,
+              "quantity": 1,
+              "chance": "4.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001213,
+              "quantity": 1,
+              "chance": "14.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001216,
+              "quantity": 1,
+              "chance": "9.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001214,
+              "quantity": 1,
+              "chance": "13.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001212,
+              "quantity": 1,
+              "chance": "5.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001211,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001222,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001221,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001223,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001217,
+              "quantity": 1,
+              "chance": "6.30",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001224,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001220,
+              "quantity": 1,
+              "chance": "3.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001225,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001219,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001218,
+              "quantity": 1,
+              "chance": "0.90",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001227,
+              "quantity": 1,
+              "chance": "16.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001226,
+              "quantity": 1,
+              "chance": "4.00",
+              "race": "PC_ALL"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 188053987,
+      "metadata": "https://aioncodex.com/48/item/188053987/?sl=1",
+      "metadata_sha256": "619c418c59758b00c97f7a034ab7b68029f1a91d374076b884dbbd2a4bab7578",
+      "contents": "https://aioncodex.com/us/item/188053987/?sl=1",
+      "contents_sha256": "7d4c690813f4990a2a7934d0e6768274eca6cc5bf884ae6321dd421a1a13f080",
+      "groups": [
+        {
+          "gid": 7866,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053987&gid=7866&v=2&l=us",
+          "sha256": "4156b98bcc964bf0bc489f0662895dd91bbaa6dabfdc3099eb28c4902dfa2e8d",
+          "player_class": null,
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 140001251,
+              "quantity": 1,
+              "chance": "4.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001248,
+              "quantity": 1,
+              "chance": "14.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001249,
+              "quantity": 1,
+              "chance": "9.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001247,
+              "quantity": 1,
+              "chance": "13.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001252,
+              "quantity": 1,
+              "chance": "5.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001250,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001254,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001258,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001261,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001256,
+              "quantity": 1,
+              "chance": "6.30",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001257,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001253,
+              "quantity": 1,
+              "chance": "3.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001260,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001259,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001255,
+              "quantity": 1,
+              "chance": "0.90",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001263,
+              "quantity": 1,
+              "chance": "16.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001262,
+              "quantity": 1,
+              "chance": "4.00",
+              "race": "PC_ALL"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 188053988,
+      "metadata": "https://aioncodex.com/48/item/188053988/?sl=1",
+      "metadata_sha256": "385400cb4a694f43310c5dcaed2fcc3cc599ec90e2a6eb3f9e53fb971adfcf2c",
+      "contents": "https://aioncodex.com/us/item/188053988/?sl=1",
+      "contents_sha256": "16985cd8f903d715f8263e267220316540f93c291fe58f0e4edf19d11a0658a1",
+      "groups": [
+        {
+          "gid": 7867,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053988&gid=7867&v=2&l=us",
+          "sha256": "c90b6336471cd78afca7d04f3dc9d85e04a9c82a2f5f2b09080be5ff55df8c6f",
+          "player_class": null,
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 140001269,
+              "quantity": 1,
+              "chance": "4.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001267,
+              "quantity": 1,
+              "chance": "14.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001268,
+              "quantity": 1,
+              "chance": "9.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001265,
+              "quantity": 1,
+              "chance": "13.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001264,
+              "quantity": 1,
+              "chance": "5.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001266,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001278,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001273,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001276,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001275,
+              "quantity": 1,
+              "chance": "6.30",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001277,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001270,
+              "quantity": 1,
+              "chance": "3.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001271,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001274,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001272,
+              "quantity": 1,
+              "chance": "0.90",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001280,
+              "quantity": 1,
+              "chance": "16.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001279,
+              "quantity": 1,
+              "chance": "4.00",
+              "race": "PC_ALL"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 188053989,
+      "metadata": "https://aioncodex.com/48/item/188053989/?sl=1",
+      "metadata_sha256": "2a4ec70ac59466227b7a649d2f1e7b3fb406bbd54067f14c994d54537f5d8e4d",
+      "contents": "https://aioncodex.com/us/item/188053989/?sl=1",
+      "contents_sha256": "8c097c3a98c4b444449956febbf787149a5e56969873cfaff25c8fc84a0f251d",
+      "groups": [
+        {
+          "gid": 7868,
+          "url": "https://aioncodex.com/query.php?a=contents&id=188053989&gid=7868&v=2&l=us",
+          "sha256": "67d208481e717ca5231daf3924d0a496d526e8aa293ae8f1423bea76c3ec12df",
+          "player_class": null,
+          "race": "PC_ALL",
+          "items": [
+            {
+              "id": 140001285,
+              "quantity": 1,
+              "chance": "4.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001281,
+              "quantity": 1,
+              "chance": "14.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001283,
+              "quantity": 1,
+              "chance": "9.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001286,
+              "quantity": 1,
+              "chance": "13.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001282,
+              "quantity": 1,
+              "chance": "5.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001284,
+              "quantity": 1,
+              "chance": "3.50",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001290,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001287,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001293,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001295,
+              "quantity": 1,
+              "chance": "6.30",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001292,
+              "quantity": 1,
+              "chance": "5.40",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001289,
+              "quantity": 1,
+              "chance": "3.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001288,
+              "quantity": 1,
+              "chance": "2.70",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001294,
+              "quantity": 1,
+              "chance": "1.80",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001291,
+              "quantity": 1,
+              "chance": "0.90",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001297,
+              "quantity": 1,
+              "chance": "16.00",
+              "race": "PC_ALL"
+            },
+            {
+              "id": 140001296,
+              "quantity": 1,
+              "chance": "4.00",
+              "race": "PC_ALL"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
