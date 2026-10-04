@@ -493,3 +493,48 @@ pending. See `PLAYERBOTS_TANK_POSITION_20261004.md`. PB-VAL-005 remains open;
 PB-PORT-005 remains next broader slice and PB-PORT-007 tank/pull coordination is
 still partial. Preserve latest installed `232048-163778` and every prior mod.
 Next attach update revision >44; existing helper edits require runtime SCOPES.
+
+## PB-DIAG-PERF-001 latency incident — observed, exact root cause open
+
+At 23:44:40 Europe/Bucharest the AI update took 7072 ms and a native web HTTP
+Exchange request took 6443 ms, ending 12 ms apart. Later JFR samples identify the
+exact warning lambda as Service.tick. Source confirms companion HTTP/AI/save
+monitor sharing; original route/call stack/monitor owner were not recorded.
+The later bounded 45-second profile has no repeat warning: max GC pause 6.7565 ms,
+no long companion-lock event, max captured DB socket read 153.3198 ms. Current
+thread snapshot has no deadlock; exact earlier cause is not established.
+
+Only read-only JVM/log inspection and automatically ended diagnostic recording
+occurred; no source gameplay repair/install/lifecycle/client/character/DB write.
+Preserve current Sorcerer receipt `234841-695964`, all prior mods and next broader
+005B pointer. User activity/recurrence remains pending; see
+`PLAYERBOTS_LATENCY_20261004.md` and `target/playerbots-latency-diagnosis`.
+
+## PB-PORT-005A Sorcerer single-target strategy — installed; user testing pending
+
+Receipt `234841-695964` retains latest tank `232048-163778`, custody, spacing,
+engine and every earlier mod. Pinned Fire/Generic Mage ordering now maps to native
+Sorcerer/Mage ONLYONE chain procs, vulnerability/DoT upkeep, movement/finishing
+fillers, affordable/cooldown fallbacks, MP recovery and native caster boosts.
+Evocation's raw WoW priority is normalized below Aion encounter actions. No skill,
+build, Stigma, level, equipment or resource grants/replacement. AoE toggle/safety,
+other classes, native defense/interrupt/threat and explicit orders remain intact.
+
+Full source/command/offline suite passes; final refinements recompiled and tested
+against the effective package: 54 new production/engine/native-template checks,
+44 offense gates, 49 engine continuers, 38 position, 35 encounter and 85 custody
+regressions. Old installed routine fails the new filler ordering. Four methods
+in three classes plus one new helper; 133 previous entries byte-identical. Tick
+review confirms only two strategy-name constants/calls changed in its flow.
+Agent 45 preloaded originals and retained five companions/one human connection.
+Six observed loaded definitions/193 methods match installed; source audit passes
+51 hashes/163 effective methods. 46 settings, base/launcher/media and 31 client
+hashes survive; all 15 inventory checks pass (70 client/80 server receipts).
+
+**PB-VAL-009 native casts/MP/chain/client testing stays with the user**, as requested.
+No forced tick, movement, cast or DB/ID writes; no lifecycle/client changes.
+Complete class parity, Sorcerer AoE/CC/escape and world/invitation/trade/travel/
+dungeon work remain unfinished. Next slice **PB-PORT-005B Spiritmaster learned
+single-target/pet strategy** (native pet coordination on 008 as needed).
+See `PLAYERBOTS_SORCERER_STRATEGY_20261004.md`. Historical ID release and separate
+wipe/summon repairs remain open. Next attach update revision >45.

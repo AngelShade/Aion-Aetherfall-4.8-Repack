@@ -1,5 +1,14 @@
 # Class strategy continuation — 4 October 2026
 
+Current status supersedes the historical receipts below: **PB-PORT-005A Sorcerer
+single-target strategy is installed live/disk** in `234841-695964`, retaining tank,
+custody, engine and all prior work. Chain/upkeep/filler/fallback, MP recovery and
+native caster boost decisions are connected; 54 offline production checks and
+loaded methods match. User gameplay testing is pending. Full Sorcerer AoE/CC/
+escape and other class strategies remain incomplete. Next slice **PB-PORT-005B**
+is Spiritmaster learned single-target/pet strategy. Source/mapping/verification:
+`PLAYERBOTS_SORCERER_STRATEGY_20261004.md`.
+
 Current cumulative receipt: `backups/playerbots-recruitment-20261004-183335-252998`
 under `target-deploy/game-server`, installed on disk with GameServer stopped at the
 user's request. Defensive continuation `123520-131583` follows `115019-456681` and retains the

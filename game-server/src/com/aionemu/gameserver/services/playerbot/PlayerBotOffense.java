@@ -76,6 +76,7 @@ final class PlayerBotOffense {
  static double routine(Player bot,PlayerBotSkills.Entry entry,Creature target,List<PlayerBotSkills.Entry> skills,double fitness) {
   var actual=PlayerBotSkills.actualTemplate(bot,entry);if(actual==null)return 0;
   var effects=active(target);double health=PlayerBotDefense.health(target);
+  if(PlayerBotSorcerer.applies(bot.getPlayerClass()) && PlayerBotSorcerer.singleTarget(actual))return PlayerBotSorcerer.damage(bot,entry,target,effects,fitness);
   if(actual.hasAnyEffect(EffectType.SIGNETBURST))
    return finisher(runes(actual,effects),health,runeTime(actual,effects),actual.getDuration()+750L,builderAvailable(bot,skills,target));
   if(periodic(actual)) {

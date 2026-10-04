@@ -10,6 +10,7 @@ import com.aionemu.gameserver.skillengine.model.SkillTemplate;
 final class PlayerBotCombatBuffs {
 	static boolean useful(PlayerClass pc, Role role, SkillTemplate skill, double health, double mana) {
 		if (skill == null || skill.getEffects() == null || health < 55 || mana < 35 || skill.getDuration() > 1500 || skill.isToggle()) return false;
+		if (PlayerBotSorcerer.applies(pc) && PlayerBotSorcerer.offensiveBoost(skill)) return true;
 		Set<StatEnum> relevant = switch (pc) {
 			case WARRIOR, GLADIATOR, TEMPLAR, SCOUT, ASSASSIN, RANGER, CHANTER -> Set.of(StatEnum.PHYSICAL_ATTACK, StatEnum.PHYSICAL_CRITICAL, StatEnum.ATTACK_SPEED, StatEnum.PHYSICAL_ACCURACY);
 			case ENGINEER, GUNNER, RIDER -> Set.of(StatEnum.BOOST_MAGICAL_SKILL, StatEnum.MAGICAL_CRITICAL, StatEnum.ATTACK_SPEED, StatEnum.MAGICAL_ACCURACY);

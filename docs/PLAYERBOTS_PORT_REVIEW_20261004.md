@@ -21,7 +21,9 @@ PB-PORT-003 now has shared local execution arbitration installed in receipt
 `203902-131350`; native/client acceptance remains pending. PB-PORT-004 is now
 installed live/on disk in `213711-193912`, with loaded-engine fixtures and session
 context checks passing; real client combat acceptance remains pending.
-Next companion implementation is PB-PORT-005 (first complete native class slice).
+PB-PORT-005A Sorcerer single-target/MP/boost strategy is installed in `234841-695964`;
+user native/client testing is pending. Next companion slice is PB-PORT-005B,
+Spiritmaster learned single-target/pet strategy. Full class coverage remains open.
 
 ## Historical first-pass matrix
 
@@ -262,7 +264,7 @@ accepted or closed.
 | 2 · PB-PORT-002 | INSTALLED — offline verified; native pending | Native refresh/hybrid/stronger-effect cast acceptance. Final DAMAGE veto is corrected. | PB-VAL-001; actual cast acceptance still outstanding. |
 | 3 · PB-PORT-003 | INSTALLED — offline verified; native pending | Validate complete native tick/geodata/interactions through the committed objective; local executor gates are connected. | PB-VAL-002; preserve native handlers/witnesses/loot and no quest progress bypass. |
 | 4 · PB-PORT-004 | INSTALLED — offline/loaded-engine verified; client combat pending | State strategies/defaults, native threat policy, weighted expansion and freshly resolved continuers installed in 213711-193912. Validate actual native chain casts/transitions. | Latest position receipt 211935-035574 retained; PB-VAL-009. Next implementation 005. |
-| 5 · PB-PORT-005 | OPEN — partial | Complete class strategies in reviewed native class/build slices, with proc/resource/filler/execute decisions. | PB-PORT-004; per-slice source and native skill mapping. |
+| 5 · PB-PORT-005 | OPEN — partial; 005A installed | Sorcerer ONLYONE chain/upkeep/filler/MP/boost strategy installed `234841-695964`; native/client pending. Next 005B Spiritmaster learned single-target/pet strategy; Sorcerer AoE/CC/escape and all other classes remain open. | PB-PORT-004 installed; cached GenericWarlock/AfflictionWarlock mapping and native pet gates for 005B; necessary pet coordination PB-PORT-008. |
 | 6 · PB-PORT-006 | OPEN — partial; marker SOURCE GATE | Focus-heal/attack controls and distinct AoE target policy; verify native marker contract. | PB-PORT-004/005; import RtiTargetValue dependencies at same pin. |
 | 7 · PB-PORT-007 | OPEN — partial; pull SOURCE GATE | Main/off-tank responsibility, pull readiness and CC/assist coordination. | PB-PORT-004/006; exact upstream pull actions/triggers first. |
 | 8 · PB-PORT-008 | OPEN — partial | Role-aware buff/debuff assignments and pet utility/recovery/resource coordination. | Class slices PB-PORT-005; native pet/effect legality. |
@@ -651,6 +653,7 @@ Keep every other open tracker ID and the persisted item-ID release investigation
 | --- | --- | --- | --- |
 | PB-REPAIR-INV-001 | Exclude already-committed native deletion records from companion custody/save bookkeeping; preserve checks for actual pending writes | Installed live/disk `224922-627052`; 85 offline production checks, 31 loaded inventory methods match | User in-game periodic checkpoint/dismiss/resummon |
 | PB-REPAIR-TANK-001 | Remove continuously recentered boss-facing walking goal; active tank does not spread its own caster's targeted area attack | Installed live/disk `232048-163778`; two methods, 134 earlier entries preserved; 22 regressions, 57 loaded method matches | PB-VAL-005 actual boss fight/terrain/hazard escape/attacks |
+| PB-DIAG-PERF-001 | Diagnose paired 23:44:40 AI-update/HTTP stalls | AI tick lambda confirmed; later 45-second profile has no recurrence, long companion-lock wait or large GC pause; no gameplay change | Original root cause/activity context and recurrence capture; preserve current 005A installation |
 
 This repairs Aion transaction integration, not an upstream strategy feature.
 Native source is `InventoryDAO.storeCompanionInventory` plus storage deletion

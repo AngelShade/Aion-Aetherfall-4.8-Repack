@@ -102,7 +102,7 @@ public final class PlayerBotSession {
 	boolean generated() { return generated; }
 	PlayerBotLease lease() { return lease; }
 	boolean closing() { return closing; }
-	void markClosing() { closing = true; PlayerBotArbitration.clear(engine); PlayerBotQuestRoutes.close(bot); PlayerBotRevival.close(bot); cancelCharge(); navigation.stop(); pets.release(bot); bot.getObserveController().notifyMoveObservers(); bot.getController().cancelCurrentSkill(null); PlayerBotQuestSync.close(this); }
+	void markClosing() { PlayerBotTrade.close(this); closing = true; PlayerBotArbitration.clear(engine); PlayerBotQuestRoutes.close(bot); PlayerBotRevival.close(bot); cancelCharge(); navigation.stop(); pets.release(bot); bot.getObserveController().notifyMoveObservers(); bot.getController().cancelCurrentSkill(null); PlayerBotQuestSync.close(this); }
 	private void cancelCharge() { if (chargeRelease != null) { chargeRelease.cancel(false); chargeRelease = null; } }
 	void releasePet() { pets.release(bot); }
 	int failed() { return ++failures; }
@@ -137,6 +137,7 @@ public final class PlayerBotSession {
 	}
 
 	public synchronized void equip(int itemId, com.aionemu.gameserver.model.items.ItemSlot slot) {
+		if (bot.isTrading()) throw new IllegalArgumentException("Finish the companion trade before changing its equipment.");
 		if (closing || bot.isDead() || bot.isCasting() || bot.getAggroList().stream().findAny().isPresent()) throw new IllegalArgumentException("Equip while the companion is alive and out of combat.");
 		var item = bot.getInventory().getItemByObjId(itemId);
 		if (item == null) throw new IllegalArgumentException("That object is not in the companion's cube. Use .bot inventory <name>.");
@@ -190,6 +191,7 @@ public final class PlayerBotSession {
 			owner.isFlying(), bot.isFlying(), role, order, commandedTarget, mission == null ? 0 : mission.quest,
 			owner.getPlayerGroup() == null ? List.of() : owner.getPlayerGroup().getMembers().stream().map(Player::getObjectId).sorted().toList()));
 		if (!owner.isOnline()) return false;
+		if (PlayerBotTrade.tick(this)) { PlayerBotArbitration.clear(engine); navigation.stop(); pets.stop(bot); status="trading with owner"; return true; }
 		if (PlayerBotTransfers.follow(this)) { PlayerBotArbitration.clear(engine); navigation.stop(); pets.stop(bot); status="following the complete party map transfer"; return true; }
 		if (bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController move && move.hasFailed()) {
 			status = "movement failed: dismissing"; return false;
@@ -382,8 +384,8 @@ public final class PlayerBotSession {
 					nextDecision = System.currentTimeMillis() + 600;
 					return true;
 				}), hp(bot) < 30 ? EMERGENCY + 4 : HIGH + 4));
-		triggers = strategyPlan.triggers("class skills", State.NON_COMBAT, State.COMBAT);
-		strategyPlan.enable("class skills", order != Order.PASSIVE);
+		triggers = strategyPlan.triggers(PlayerBotSorcerer.strategy(bot.getPlayerClass()), State.NON_COMBAT, State.COMBAT);
+		strategyPlan.enable(PlayerBotSorcerer.strategy(bot.getPlayerClass()), order != Order.PASSIVE);
 		if (order != Order.PASSIVE) {
 			for (PlayerBotSkills.Entry entry : skills) {
 				if (incapacitated && entry.kind() != SkillKind.RECOVERY || bot.isSkillDisabled(entry.template()) || !PlayerBotSkills.chainAvailable(bot, entry)) continue;
@@ -523,6 +525,8 @@ public final class PlayerBotSession {
 	}
 
 	private double priority(PlayerBotSkills.Entry e, Creature recipient, boolean combat, List<Player> party) {
+		double classSupport = PlayerBotSorcerer.support(bot,role,e,recipient,combat);
+		if (!Double.isNaN(classSupport)) return classSupport;
 		if (e.kind() == SkillKind.DEFENSE) return PlayerBotDefense.priority(bot, e, recipient, combat, party);
 		if (e.kind() == SkillKind.DAMAGE && PlayerBotEnemyUtility.purge(e.template())) {
 			if (withholdDamage || role == Role.HEALER && PlayerBotEnemyUtility.injured(party)) return 0;

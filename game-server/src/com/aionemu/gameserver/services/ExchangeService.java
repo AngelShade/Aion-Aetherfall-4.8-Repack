@@ -52,6 +52,8 @@ public class ExchangeService {
 	}
 
 	private boolean validateParticipants(Player player1, Player player2) {
+		if (player1 == null || player2 == null) return false;
+		if (player1.isPlayerBot() || player2.isPlayerBot()) return com.aionemu.gameserver.services.playerbot.PlayerBotTrade.participants(player1, player2);
 		return PlayerRestrictions.canTrade(player1) && PlayerRestrictions.canTrade(player2);
 	}
 
@@ -74,6 +76,7 @@ public class ExchangeService {
 	}
 
 	public void addKinah(Player activePlayer, long itemCount) {
+		if (com.aionemu.gameserver.services.playerbot.PlayerBotTrade.guard(activePlayer,"kinah",0,itemCount)) return;
 		Exchange currentExchange = getCurrentExchange(activePlayer);
 		if (currentExchange == null || currentExchange.isLocked())
 			return;
@@ -98,6 +101,7 @@ public class ExchangeService {
 	}
 
 	public void addItem(Player activePlayer, int itemObjId, long itemCount) {
+		if (com.aionemu.gameserver.services.playerbot.PlayerBotTrade.guard(activePlayer,"item",itemObjId,itemCount)) return;
 		Item item = activePlayer.getInventory().getItemByObjId(itemObjId);
 		if (item == null)
 			return;
@@ -171,16 +175,23 @@ public class ExchangeService {
 	}
 
 	public void lockExchange(Player activePlayer) {
+		if (com.aionemu.gameserver.services.playerbot.PlayerBotTrade.guard(activePlayer,"lock",0,0)) return;
 		Exchange exchange = getCurrentExchange(activePlayer);
 		if (exchange != null) {
 			exchange.lock();
 			Player currentParter = getCurrentParter(activePlayer);
 			PacketSendUtility.sendPacket(currentParter, new SM_EXCHANGE_CONFIRMATION(3));
+			com.aionemu.gameserver.services.playerbot.PlayerBotTrade.locked(activePlayer);
 		}
 	}
 
 	public void cancelExchange(Player activePlayer) {
+		if (com.aionemu.gameserver.services.playerbot.PlayerBotTrade.guard(activePlayer,"cancel",0,0)) return;
 		Player currentPartner = getCurrentParter(activePlayer);
+		if (com.aionemu.gameserver.services.playerbot.PlayerBotTrade.finishing(activePlayer)) {
+			cleanUpExchanges(false,activePlayer,currentPartner);
+			return;
+		}
 		returnItems(activePlayer);
 
 		if (currentPartner != null) {
@@ -189,6 +200,8 @@ public class ExchangeService {
 		}
 
 		cleanUpExchanges(true, activePlayer, currentPartner);
+		com.aionemu.gameserver.services.playerbot.PlayerBotTrade.closed(activePlayer);
+		if (currentPartner != null) com.aionemu.gameserver.services.playerbot.PlayerBotTrade.closed(currentPartner);
 	}
 
 	private void returnItems(Player player) {
@@ -214,6 +227,8 @@ public class ExchangeService {
 	}
 
 	public void confirmExchange(Player activePlayer) {
+		if (com.aionemu.gameserver.services.playerbot.PlayerBotTrade.guard(activePlayer,"confirm",0,0)) return;
+		if (com.aionemu.gameserver.services.playerbot.PlayerBotTrade.confirm(activePlayer)) return;
 		if (activePlayer == null || !activePlayer.isOnline())
 			return;
 

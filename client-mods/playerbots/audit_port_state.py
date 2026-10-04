@@ -24,6 +24,8 @@ SCOPES = {
     'PlayerBotSpacing': {'validate','values','configure','snapshot','attack','nativeDistance','formation','observe','canRetreat','retreat','close'},
     'PlayerBotCoordination': {'tankFacing','spread','away'},
     'PlayerBotOffense': {'finisher', 'refresh', 'useful', 'routine'},
+    'PlayerBotSorcerer': {'applies','strategy','singleTarget','offensiveBoost','vulnerability','sameFamily','band','damage','support'},
+    'PlayerBotCombatBuffs': {'useful'},
     'PlayerBotClassCombat': {'useful', 'shouldBurst'},
     'PlayerBotQuestRoutes': {'choose', 'trigger', 'stillWanted', 'leash'},
     'PlayerBotQuests': {'choose', 'interact', 'hunt'},

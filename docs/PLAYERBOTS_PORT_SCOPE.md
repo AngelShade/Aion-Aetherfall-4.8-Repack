@@ -61,3 +61,11 @@ backlog. GameServer is now running following a separately approved position
 update; the user then requested finishing this reviewed strategy update, which
 was applied without changing the server lifecycle. The full port
 remains unfinished.
+
+Current continuation supersedes the preceding next-work pointer: **005A Sorcerer
+single-target/MP/boost strategy is installed** in `234841-695964`, with offline and
+loaded-method verification; user gameplay testing is pending. **Next 005B** is
+Spiritmaster learned single-target/pet strategy, using GenericWarlock/Affliction
+sources and native pet gates, with necessary coordination on PB-PORT-008. Full
+class coverage and independent world/invitation/trade tracks remain incomplete.
+See `PLAYERBOTS_SORCERER_STRATEGY_20261004.md`; do not repeat the full inventory.

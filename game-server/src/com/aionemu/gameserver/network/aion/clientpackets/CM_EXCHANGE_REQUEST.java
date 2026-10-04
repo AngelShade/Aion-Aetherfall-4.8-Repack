@@ -75,6 +75,8 @@ public class CM_EXCHANGE_REQUEST extends AionClientPacket {
 			return;
 		}
 
+		if (com.aionemu.gameserver.services.playerbot.PlayerBotTrade.request(activePlayer,targetPlayer)) return;
+
 		RequestResponseHandler<Player> responseHandler = new RequestResponseHandler<Player>(activePlayer) {
 
 			@Override

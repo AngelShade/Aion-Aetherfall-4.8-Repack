@@ -472,3 +472,29 @@ instructions and current state before reusing them.
   See `docs/PLAYERBOTS_TANK_POSITION_20261004.md`.
   PB-VAL-005 actual boss position/terrain/hazard/attack acceptance stays pending;
   PB-PORT-005 is still next broad slice and PB-PORT-007 full tank/pull remains partial.
+
+- PB-PORT-005A Sorcerer single-target strategy is installed live/disk in latest
+  cumulative receipt `backups/playerbots-recruitment-20261004-234841-695964`,
+  retaining tank `232048-163778`, custody, engine, spacing and every prior mod.
+  Preserve `PlayerBotSorcerer`, Offense.routine single-target delegation,
+  CombatBuffs native BOOST_SPELL_ATTACK/BOOST_CASTING_TIME_SKILL eligibility,
+  Session priority and named strategy wiring. Learned native chain/upkeep/filler/
+  affordable fallback, mana and boost decisions use pinned Fire/Generic Mage
+  sources. Mana priority is normalized below native encounter protection/escape.
+  No owned-alt or Temporary build/skill/Stigma/equipment replacement is involved.
+- Four methods/three existing classes, one helper; 133 earlier entries unchanged.
+  Agent 45 preloaded originals and retained five companions/one human/46 settings.
+  Full source/offline suite and 54 new production checks pass; 193 observed loaded
+  methods and 163 effective source methods/51 hashes match. All 31 client hashes,
+  base/launcher/media and 15 mod checks survive (70 client/80 server receipts).
+  User explicitly requested porting/installation and will do gameplay tests; no
+  restart/client change/forced native tick, cast, movement or save occurred.
+- Do not repeat 005A because actual native/client acceptance PB-VAL-009 is pending.
+  Next concrete slice is **PB-PORT-005B Spiritmaster learned single-target/pet
+  strategy**, from pinned GenericWarlock/Affliction sources and native pet gates;
+  necessary pet coordination is PB-PORT-008. Full class/Sorcerer AoE/CC/escape,
+  independent world/invitation/trade/travel/dungeon scope and separate historical
+  ID release/wipe-summon investigations remain open. See
+  `docs/PLAYERBOTS_SORCERER_STRATEGY_20261004.md`. Use `stage_sorcerer_update.py`;
+  changed existing helpers require runtime SCOPES, not HELPERS alone. Next attach
+  update agent revision must exceed 45, with preloading/hash guards/rollback.

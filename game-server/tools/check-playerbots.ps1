@@ -55,6 +55,10 @@ try {
     }
     & $botJava -Xmx512m -cp $botClasspath "com.aionemu.gameserver.services.playerbot.PlayerBotCustodyCheck"
     if ($LASTEXITCODE -ne 0) { throw "PlayerBotCustodyCheck failed" }
+    & $botJava -Xmx512m -cp $botClasspath "com.aionemu.gameserver.services.playerbot.PlayerBotTradeCheck"
+    if ($LASTEXITCODE -ne 0) { throw "PlayerBotTradeCheck failed" }
+    & $botJava -Xmx1g -cp $botClasspath "com.aionemu.gameserver.services.playerbot.PlayerBotSorcererCheck"
+    if ($LASTEXITCODE -ne 0) { throw "PlayerBotSorcererCheck failed" }
     & $botJava -Xmx512m -cp $botClasspath "com.aionemu.gameserver.services.playerbot.PlayerBotTankPositionCheck"
     if ($LASTEXITCODE -ne 0) { throw "PlayerBotTankPositionCheck failed" }
     & $botJava -Xmx1g -cp $botClasspath "com.aionemu.gameserver.services.playerbot.PlayerBotSpacingCheck"
