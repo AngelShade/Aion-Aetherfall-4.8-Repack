@@ -38,56 +38,12 @@ public final class PlayerBotEngine {
 	private State state = State.NON_COMBAT;
 	private int attempts;
 
-	/** A queue lasts one snapshot; a previous target or heal must never survive a state change. */
+	/** Re-resolve retained action keys from fresh, state-specific strategies on each tick. */
 	public boolean tick(State newState, List<Strategy> strategies, List<Multiplier> multipliers, int budget) {
 		state = newState;
-		attempts = 0;
-		PriorityQueue<Basket> queue = new PriorityQueue<>(Comparator
-			.comparingDouble(Basket::relevance).reversed().thenComparingLong(Basket::order));
-		long order = 0;
-		for (Strategy strategy : strategies)
-			for (Trigger trigger : strategy.triggers())
-				if (trigger.active().getAsBoolean()) {
-					double relevance = trigger.relevance().getAsDouble();
-					for (Multiplier multiplier : multipliers)
-						relevance *= multiplier.value(trigger.action());
-					if (Double.isFinite(relevance) && relevance > 0)
-						queue.add(new Basket(trigger.action(), relevance, order++));
-				}
-		Set<String> expanded = new HashSet<>();
-		while (!queue.isEmpty() && attempts < Math.max(0, budget)) {
-			attempts++;
-			Basket basket = queue.remove();
-			Action action = basket.action();
-			// Suppression policies apply to expanded prerequisites/alternatives as well as seeds.
-			boolean suppressed = false;
-			for (Multiplier multiplier : multipliers) {
-				double value = multiplier.value(action);
-				if (!Double.isFinite(value) || value <= 0) { suppressed = true; break; }
-			}
-			if (suppressed) continue;
-			if (!action.isUseful())
-				continue;
-			if (action.isPossible()) {
-				List<Action> prerequisites = action.prerequisites().stream().filter(Action::isUseful).toList();
-				if (!prerequisites.isEmpty()) {
-					if (expanded.add("prerequisite:" + action.name())) {
-						queue.add(new Basket(action, basket.relevance() + 0.001, order++));
-						for (Action prerequisite : prerequisites)
-							queue.add(new Basket(prerequisite, basket.relevance() + 0.002, order++));
-						continue;
-					}
-				} else if (action.execute()) {
-					lastAction = action.name();
-					return true;
-				}
-			}
-			if (expanded.add("alternative:" + action.name()))
-				for (Action alternative : action.alternatives())
-					queue.add(new Basket(alternative, basket.relevance() + 0.003, order++));
-		}
-		lastAction = "idle";
-		return false;
+		var result = PlayerBotArbitration.run(this, newState, strategies, multipliers, budget);
+		attempts = result.attempts(); lastAction = result.action();
+		return result.executed();
 	}
 
 	public String getLastAction() { return lastAction; }

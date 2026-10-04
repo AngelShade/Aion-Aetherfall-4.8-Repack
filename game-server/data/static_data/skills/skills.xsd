@@ -543,6 +543,7 @@
 				<xs:attribute name="hitvalue" type="xs:int" />
 				<xs:attribute name="radius" type="xs:int" />
 				<xs:attribute name="minradius" type="xs:int" />
+				<xs:attribute name="hitcount" type="xs:int" />
 			</xs:extension>
 		</xs:complexContent>
 	</xs:complexType>

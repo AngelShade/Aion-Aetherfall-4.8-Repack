@@ -94,7 +94,8 @@ public class FlyController {
 			PacketSendUtility.sendPacket(player, SM_SYSTEM_MESSAGE.STR_GLIDE_ONLY_DEVA_CAN());
 			return false;
 		}
-		if (!player.hasAccess(AdminConfig.FREE_FLIGHT) && !player.isInsideFlyZone()) {
+		if (!player.hasAccess(AdminConfig.FREE_FLIGHT) && !player.isInsideFlyZone()
+			&& !com.aionemu.gameserver.services.playerbot.PlayerBotFlight.followsFlyingOwner(player)) {
 			PacketSendUtility.sendPacket(player, SM_SYSTEM_MESSAGE.STR_FLYING_FORBIDDEN_HERE());
 			return false;
 		}

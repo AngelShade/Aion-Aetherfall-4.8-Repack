@@ -43,7 +43,7 @@ public final class PlayerBotRoster {
 			try (ResultSet rows = statement.executeQuery()) {
 				while (rows.next()) result.add(new Entry(rows.getInt(1), rows.getString(2), rows.getBoolean(3)));
 			}
-			return List.copyOf(result);
+			return PlayerBotRosterRemoval.visible(account,result);
 		} catch (SQLException e) { throw new IllegalStateException("Cannot read generated companion roster", e); }
 	}
 

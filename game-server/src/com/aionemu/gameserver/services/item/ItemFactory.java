@@ -21,7 +21,7 @@ public class ItemFactory {
 			log.error("Item was not populated correctly. Item template is missing for item id: " + itemId);
 			return null;
 		}
-		return new Item(IDFactory.getInstance().nextId(), itemTemplate);
+		return new Item(com.aionemu.gameserver.services.playerbot.PlayerBotItemIds.nextId(), itemTemplate);
 	}
 
 	public static Item newItem(int itemId, long count) {

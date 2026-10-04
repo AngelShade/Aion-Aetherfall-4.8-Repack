@@ -15,12 +15,14 @@ sys.path.insert(0, str(HERE.parent / 'transmog-menu'))
 sys.path.insert(0, str(HERE.parent / 'expanded-warehouse'))
 import patch_game_dll as hooks
 from codec import read_pak, encode_pak
+from graphics_compat import prepare_incremental
 
 ROUTES = ['http://127.0.0.1:8091/shop', 'http://127.0.0.1:8091/market', 'http://127.0.0.1:8091/market/wardrobe', 'http://127.0.0.1:8091/journey', 'http://127.0.0.1:8091/market/pass']
 URL = 'http://127.0.0.1:8091/market/companions'
 RANGES = [(hooks.MARKET_AUTH_HOOK_RVA, hooks.MARKET_RECT_HOOK_RVA), (hooks.BROWSER_HOOK_RVA, hooks.PREVIEW_DOCK_HOOK_RVA)]
 PRESERVED = ['Pub.key', 'bin64/crysystem.dll', 'bin64/AionIconBridge.dll', 'bin64/AionGraphicsMenu.dll', 'bin64/XRenderD3D9.dll', 'bin64/AionMarketShortcut.dll',
-             'bin32/bin32.pak', 'Data/func_pet/func_pet.pak', 'Data/ui/game/game.pak', 'L10N/enu/data/data.pak', 'Data/Items/Items.pak']
+             'bin64/AionRememberLogin.dll', 'bin64/AionSpeechBubbles.dll', 'bin64/Awesomium.dll', 'Aion Start.bat',
+             'bin32/bin32.pak', 'Data/func_pet/func_pet.pak', 'Data/ui/game/game.pak', 'Data/ui/ui.pak', 'L10N/enu/data/data.pak', 'Data/Items/Items.pak']
 
 def sha(data): return hashlib.sha256(data).hexdigest()
 
@@ -61,9 +63,10 @@ def main():
     subprocess.run(['java', str(HERE.parent/'transmog-menu/SignClientPackages.java'), str(root), str(output)], check=True)
     # Stock Pub.key is verified by the signer and deliberately omitted from installation payloads.
     (output/'Pub.key').unlink()
+    _, graphics = prepare_incremental(root, output, payloads['bin64/Game.dll'])
     files = [dict(path=f.relative_to(output).as_posix(), original=sha((root/f.relative_to(output)).read_bytes()) if (root/f.relative_to(output)).is_file() else None,
                   staged=sha(f.read_bytes())) for f in sorted(output.rglob('*')) if f.is_file()]
-    manifest = dict(feature='player-companions', clientRoot=str(root), files=files, allowedDllRanges=RANGES,
+    manifest = dict(feature='player-companions', clientRoot=str(root), files=files, allowedDllRanges=RANGES, graphicsCompatibility=graphics,
                     preservedFiles=[dict(path=rel, sha256=sha((root/rel).read_bytes())) for rel in PRESERVED if (root/rel).is_file()])
     (output/'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
     staged = read_pak(output/pak)

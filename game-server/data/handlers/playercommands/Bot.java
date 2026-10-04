@@ -19,25 +19,33 @@ public final class Bot extends PlayerCommand {
 			create <name> <starting-class> - Create a normal level-1 character and recruit if eligible.
 			generate <name> <class> - Create a companion at your level in a separate roster, without a character slot.
 			dismiss <name|all> - Save and dismiss companions.
+			summon [name|all] - Revive and summon your selected companion; clear target for the party. Use while alive and out of combat.
 			follow|stay|guard|passive [name|all] - Change companion orders (default all).
+			formation circle|box|line|spread - Arrange following companions around you; regroup after combat.
 			attack [name|all] - Attack your selected hostile PvE NPC.
 			role <name> <tank|healer|support|melee|ranged> - Set combat role.
 			aoe <on|off> [name|all] - Enable or disable area attacks (default off).
 			supplies <on|off> [name|all] - Use the companion's recovery consumables (default on).
-			gear <on|off> [name|all] - Automatically equip compatible upgrades from the bot's cube (default off).
+			gear <on|off> [name|all] - Automatically equip compatible upgrades from the bot's cube (new companions: on).
 			loot <on|off> [name|all] - Collect eligible nearby corpse loot after combat (default off; rolls/bids pass).
 			inventory <name> - List the companion's items and object IDs.
+			gearpolicy <name> <EARNED|STARTER|GENERATED> <AUTO|TANK|HEALER|DAMAGE|SUPPORT> <quality> <level|0> <ratio> <weapon|AUTO> <vendors:true|false> <PASS|UPGRADES|ALL> - Equipment acquisition and choices.
 			equip <name> <item-object-id> <slot> - Equip a cube item using normal character rules.
 			quests <name> - Show the companion's active quest progress.
 			mission <name> <quest-id|0> - Walk to supported same-map objectives and turn-in NPCs; 0 cancels.
 			share <quest-id> [name|all] - Share one of your eligible quests with companions.
-			questing <on|off> [name|all] - Accept your ordinary quests nearby and turn in completed bot quests (default off).
+			questing <on|off> [name|all] - Accept quests at NPCs near you and turn in ready quests (new companions: on).
+			answer <name> <quest-id> yes|no - Help with or decline a specific catch-up quest.
+			enchant|salvage <on|off> [name|all] - Use the bot's own stones/Kinah or extract expendable new loot (default off).
+			partysync <on|off> [name|all] - Synchronize eligible quests completed together with you (default on).
+			questcombat <on|off> [name|all] - Nearby coordinated quest combat; tanks lead isolated pulls (default on).
 			""");
 	}
 
 	@Override public void execute(Player owner, String... params) {
 		PlayerBotService service = PlayerBotService.getInstance();
 		try {
+			if (PlayerBotFormationLayout.command(owner, params)) return;
 			if (params.length == 0 || params[0].equalsIgnoreCase("help")) { sendInfo(owner); return; }
 			switch (params[0].toLowerCase(Locale.ROOT)) {
 				case "list", "status" -> {
@@ -58,6 +66,11 @@ public final class Bot extends PlayerCommand {
 					require(params, 2);
 					if (params[1].equalsIgnoreCase("all")) service.dismissAll(owner); else service.dismiss(owner, params[1]);
 				}
+				case "summon" -> { PlayerBotTravel.summonAll(PlayerBotRecovery.selected(owner, params.length > 1 ? params[1] : "all")); sendInfo(owner, "Companions revived and summoned near you."); }
+				case "answer" -> {
+					require(params, 4); if (!params[3].equalsIgnoreCase("yes") && !params[3].equalsIgnoreCase("no")) throw new IllegalArgumentException("Answer yes or no.");
+					PlayerBotQuestSync.answer(service.find(owner, params[1]), Integer.parseInt(params[2]), params[3].equalsIgnoreCase("yes"));
+				}
 				case "follow", "stay", "guard", "passive" -> {
 					Order order = Order.valueOf(params[0].toUpperCase(Locale.ROOT));
 					for (var session : selected(service, owner, params.length > 1 ? params[1] : "all")) session.order(order);
@@ -69,11 +82,17 @@ public final class Bot extends PlayerCommand {
 				}
 				case "role" -> { require(params, 3); service.find(owner, params[1]).setRole(Role.valueOf(params[2].toUpperCase(Locale.ROOT))); sendInfo(owner, "Companion role updated."); }
 				case "inventory" -> { require(params, 2); service.find(owner, params[1]).inventory().forEach(line -> sendInfo(owner, line)); }
+				case "gearpolicy" -> { require(params, 10); PlayerBotGearPolicy.configure(service.find(owner, params[1]), params[2].toUpperCase(Locale.ROOT), params[3].toUpperCase(Locale.ROOT),
+					params[4].toUpperCase(Locale.ROOT), params[5], params[6], params[7].toUpperCase(Locale.ROOT), params[8].toLowerCase(Locale.ROOT), params[9].toUpperCase(Locale.ROOT)); sendInfo(owner, "Companion equipment policy saved."); }
 				case "quests" -> {
 					require(params, 2);
-					for (var quest : service.find(owner, params[1]).bot().getQuestStateList().getAllQuestState())
-						if (quest.getStatus() != com.aionemu.gameserver.questEngine.model.QuestStatus.COMPLETE)
-							sendInfo(owner, "Quest " + quest.getQuestId() + " " + quest.getStatus() + " progress=" + quest.getQuestVars().getQuestVars());
+					var companion = service.find(owner, params[1]).bot();
+					for (var quest : companion.getQuestStateList().getUncompletedQuests()) {
+						var row = PlayerBotQuestJournal.describe(owner, companion, quest);
+						sendInfo(owner, companion.getName() + ": " + row.get("name") + " (#" + quest.getQuestId() + ") · " + (Boolean.TRUE.equals(row.get("ready")) ? "Ready to turn in" : quest.getStatus()) + ". " + row.get("guidance"));
+						for (var location : (java.util.List<java.util.Map<String,Object>>) row.get("destinations"))
+							sendInfo(owner, "NPC " + location.get("name") + " · X " + location.get("x") + ", Y " + location.get("y") + ", Z " + location.get("z") + " · " + location.get("distance") + " m away.");
+					}
 				}
 				case "share" -> {
 					if (params.length < 2 || params.length > 3) throw new IllegalArgumentException("Use .bot share <quest-id> [name|all].");
@@ -87,7 +106,7 @@ public final class Bot extends PlayerCommand {
 					service.find(owner, params[1]).equip(Integer.parseInt(params[2]), com.aionemu.gameserver.model.items.ItemSlot.valueOf(params[3].toUpperCase(Locale.ROOT)));
 					sendInfo(owner, "Companion equipment updated.");
 				}
-				case "aoe", "supplies", "gear", "loot", "questing" -> {
+				case "aoe", "supplies", "gear", "loot", "questing", "enchant", "salvage", "partysync", "questcombat" -> {
 					if (params.length < 2 || params.length > 3) throw new IllegalArgumentException("Use .bot " + params[0] + " on|off [name|all].");
 					if (!params[1].equalsIgnoreCase("on") && !params[1].equalsIgnoreCase("off")) throw new IllegalArgumentException("Use .bot " + params[0] + " on|off [name|all].");
 					for (var session : selected(service, owner, params.length > 2 ? params[2] : "all")) {
@@ -95,6 +114,9 @@ public final class Bot extends PlayerCommand {
 						else if (params[0].equalsIgnoreCase("supplies")) session.setConsumables(params[1].equalsIgnoreCase("on"));
 						else if (params[0].equalsIgnoreCase("gear")) session.setAutoGear(params[1].equalsIgnoreCase("on"));
 						else if (params[0].equalsIgnoreCase("questing")) session.setQuesting(params[1].equalsIgnoreCase("on"));
+						else if (params[0].equalsIgnoreCase("questcombat")) PlayerBotPartyBehavior.configure(session, params[1].equalsIgnoreCase("on"));
+						else if (params[0].equalsIgnoreCase("enchant") || params[0].equalsIgnoreCase("salvage") || params[0].equalsIgnoreCase("partysync"))
+							PlayerBotQuestSync.setCare(session, params[0].equalsIgnoreCase("partysync") ? "partySync" : params[0].toLowerCase(Locale.ROOT), params[1].equalsIgnoreCase("on"));
 						else session.setAutoLoot(params[1].equalsIgnoreCase("on"));
 					}
 					sendInfo(owner, "Companion " + params[0] + ": " + params[1] + ".");

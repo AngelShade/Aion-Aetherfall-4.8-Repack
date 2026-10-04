@@ -34,6 +34,7 @@ final class PlayerBotNavigation {
 	}
 
 	void record(Player owner) {
+		if (owner.isFlying() || bot.isFlying()) { trail.clear(); lastOwner = null; return; }
 		if (worldId != owner.getWorldId() || instanceId != owner.getInstanceId()) {
 			trail.clear();
 			lastOwner = null;
@@ -48,9 +49,16 @@ final class PlayerBotNavigation {
 	}
 
 	boolean follow(Player owner, int formationSlot) {
+		PlayerBotFormation.following(owner, (Player)bot, formationSlot);
+		Point formation = PlayerBotFormation.destination(owner, (Player)bot, formationSlot);
+		if (bot.isFlying()) {
+			// Airborne follow uses the leader's altitude, never a ground breadcrumb.
+			if (!PlayerBotFormation.needsFollow(owner,(Player)bot,formationSlot)) { stop(); return false; }
+			return move(formation.x(),formation.y(),formation.z());
+		}
 		while (!trail.isEmpty() && PositionUtil.getDistance(bot, trail.peekFirst().x(), trail.peekFirst().y(), trail.peekFirst().z()) < 3)
 			trail.removeFirst();
-		if (PositionUtil.isInRange(bot, owner, 4 + formationSlot % 2)) {
+		if (!PlayerBotFormation.needsFollow(owner,(Player)bot,formationSlot)) {
 			stop();
 			return false;
 		}
@@ -59,17 +67,30 @@ final class PlayerBotNavigation {
 		for (Point point : trail)
 			if (GeoService.getInstance().canSee(bot, point.x(), point.y(), point.z(),
 				com.aionemu.gameserver.geoEngine.collision.IgnoreProperties.ANY_RACE)) destination = point;
+		if (GeoService.getInstance().canSee(bot, formation.x(),formation.y(),formation.z(),com.aionemu.gameserver.geoEngine.collision.IgnoreProperties.ANY_RACE)) destination=formation;
 		if (destination == null) destination = new Point(owner.getX(), owner.getY(), owner.getZ());
 		return move(destination.x(), destination.y(), destination.z());
 	}
 
 	boolean approach(Creature target, float range) {
-		double distance = PositionUtil.getDistance(bot, target);
-		if (distance <= range && GeoService.getInstance().canSee(bot, target)) {
+		if (PositionUtil.isInRange(bot,target,range,false) && GeoService.getInstance().canSee(bot, target)) {
 			stop();
 			return false;
 		}
-		return move(target.getX(), target.getY(), target.getZ());
+		var point = PlayerBotCombatPosition.point(bot,target,range);
+		if (!GeoService.getInstance().canSee(bot,target)) {
+			if (range<8) return move(target.getX(),target.getY(),target.getZ());
+			// Recover sight laterally at spell distance, rather than walking a caster
+			// through the target. These are route hints; native cast sight still wins.
+			for (double angle : new double[]{Math.PI/4,-Math.PI/4,Math.PI/2,-Math.PI/2}) {
+				double dx=point.x()-target.getX(),dy=point.y()-target.getY();
+				float x=target.getX()+(float)(Math.cos(angle)*dx-Math.sin(angle)*dy);
+				float y=target.getY()+(float)(Math.sin(angle)*dx+Math.cos(angle)*dy);
+				if (GeoService.getInstance().canSee(bot,x,y,point.z(),com.aionemu.gameserver.geoEngine.collision.IgnoreProperties.ANY_RACE)
+					&& GeoService.getInstance().canSee(target,x,y,point.z(),com.aionemu.gameserver.geoEngine.collision.IgnoreProperties.ANY_RACE)) return move(x,y,point.z());
+			}
+		}
+		return move(point.x(),point.y(),point.z());
 	}
 
 	boolean retreat(Creature target) {
@@ -87,7 +108,13 @@ final class PlayerBotNavigation {
 		if (bot.isCasting() || !bot.canPerformMove() || bot.isDead()) return false;
 		long now = System.currentTimeMillis();
 		if (now < nextMove) return bot.getMoveController().isInMove();
-		nextMove = now + 600;
+		nextMove = now + 200;
+		if (bot.isFlying()) {
+			route.clear();
+			boolean moved = PlayerBotFlight.move(bot, targetX, targetY, targetZ, hazards);
+			status = moved ? "flying" : "air route blocked";
+			return moved;
+		}
 		Point goal = new Point(targetX, targetY, targetZ);
 		if (!Float.isFinite(targetX) || !Float.isFinite(targetY) || !Float.isFinite(targetZ)) { stop(); return false; }
 		double goalDistance = PositionUtil.getDistance(bot, targetX, targetY, targetZ);
@@ -115,7 +142,7 @@ final class PlayerBotNavigation {
 		}
 		if (!route.isEmpty()) { Point waypoint = route.peekFirst(); targetX = waypoint.x(); targetY = waypoint.y(); targetZ = waypoint.z(); }
 		double angle = Math.toDegrees(Math.atan2(targetY - bot.getY(), targetX - bot.getX()));
-		float distance = (float) Math.min(4, PositionUtil.getDistance(bot, targetX, targetY, targetZ));
+		float distance = (float) Math.min(Math.max(6,bot.getGameStats().getMovementSpeedFloat()*2), PositionUtil.getDistance(bot, targetX, targetY, targetZ));
 		Point best = null;
 		double bestScore = Double.NEGATIVE_INFINITY;
 		for (int offset : new int[] { 0, 30, -30, 60, -60, 90, -90 }) {

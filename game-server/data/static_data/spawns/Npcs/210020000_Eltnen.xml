@@ -872,7 +872,6 @@
 			<spot x="1824.27" y="1056.44" z="428.579" h="52"/>
 			<spot x="1820.16" y="1090.18" z="433.285" h="27" random_walk="8"/>
 			<spot x="1816.46" y="1045.59" z="428.304" h="81"/>
-			<spot x="1809.95" y="1107.07" z="435.5" h="91" random_walk="8"/>
 		</spawn>
 		<!-- Dirty Chindu -->
 		<spawn npc_id="213794" respawn_time="295">

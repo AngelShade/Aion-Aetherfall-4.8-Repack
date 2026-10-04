@@ -274,9 +274,12 @@ public class NpcController extends CreatureController<Npc> {
 	public void onDialogSelect(int dialogActionId, int prevDialogId, Player player, int questId, int extendedRewardIndex) {
 		if (!PositionUtil.isInTalkRange(player, getOwner()))
 			return;
+		Integer companionStep=com.aionemu.gameserver.services.playerbot.PlayerBotQuestConversations.before(player,questId);
+		try {
 		if (!getOwner().getAi().onDialogSelect(player, dialogActionId, questId, extendedRewardIndex)) {
 			DialogService.onDialogSelect(dialogActionId, player, getOwner(), questId, extendedRewardIndex);
 		}
+		} finally { com.aionemu.gameserver.services.playerbot.PlayerBotQuestConversations.observed(player,getOwner(),questId,dialogActionId,prevDialogId,companionStep); }
 	}
 
 	@Override

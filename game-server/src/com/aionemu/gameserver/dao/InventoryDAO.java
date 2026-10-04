@@ -194,12 +194,29 @@ public class InventoryDAO {
 	public static List<Item> storeCompanionInventory(Connection connection, Player player) throws SQLException {
 		if (!player.isPlayerBot() || connection.getAutoCommit() || quarantinedPlayers.contains(player.getObjectId()))
 			throw new SQLException("Companion inventory requires a private, non-quarantined transaction");
-		List<Item> items = player.getDirtyItemsToUpdate();
+		// Committed deletions remain in native storage queues as UPDATED objects.
+		// Their released IDs may now identify another item; only pending writes
+		// participate in this transaction's custody check and commit bookkeeping.
+		List<Item> items = player.getDirtyItemsToUpdate().stream()
+			.filter(Persistable.NEW.or(Persistable.CHANGED).or(Persistable.DELETED)).toList();
 		try {
 			for (Item item : items)
 				if (item.getItemLocation() == StorageType.ACCOUNT_WAREHOUSE.getId()
 					|| item.getItemLocation() == StorageType.LEGION_WAREHOUSE.getId() || item.getItemLocation() == StorageType.MARKET_WAREHOUSE.getId())
 					throw new SQLException("Companion attempted to save shared inventory");
+			// Check custody before any delete/update. A stale or reused object ID
+			// must never overwrite a different character's persisted item.
+			try (PreparedStatement custody = connection.prepareStatement("SELECT item_owner,item_id,item_location FROM inventory WHERE item_unique_id=? FOR UPDATE")) {
+				for (Item item : items) {
+					custody.setInt(1, item.getObjectId());
+					try (ResultSet row = custody.executeQuery()) {
+						if (row.next() && (row.getInt(1) != player.getObjectId() || row.getInt(2) != item.getItemId()
+							|| row.getInt(3) == StorageType.ACCOUNT_WAREHOUSE.getId() || row.getInt(3) == StorageType.LEGION_WAREHOUSE.getId()
+							|| row.getInt(3) == StorageType.MARKET_WAREHOUSE.getId()))
+							throw new SQLException("Companion item custody mismatch: " + item.getObjectId());
+					}
+				}
+			}
 			if (!deleteItems(connection, items.stream().filter(Persistable.DELETED).toList())
 				|| !insertItems(connection, items.stream().filter(Persistable.NEW).toList(), player.getObjectId(), null, null)
 				|| !updateItems(connection, items.stream().filter(Persistable.CHANGED).toList(), player.getObjectId(), null, null))

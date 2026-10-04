@@ -187,7 +187,7 @@ public final class PlayerBotEngineCheck {
 		try {
 			var preferences = new PlayerBotPreferences(directory);
 			var defaults = preferences.load(1, 2, Role.TANK);
-			check(defaults.role() == Role.TANK && !defaults.area() && defaults.supplies() && !defaults.gear(), "safe defaults");
+			check(defaults.role() == Role.TANK && !defaults.area() && defaults.supplies() && defaults.gear() && defaults.questing() && !defaults.loot(), "requested equipment/quest defaults preserve area and loot choices");
 			var values = new PlayerBotPreferences.Values(Role.HEALER, true, false, true, true, true);
 			preferences.save(1, 2, values);
 			check(preferences.load(1, 2, Role.TANK).equals(values), "settings persist across re-recruitment");

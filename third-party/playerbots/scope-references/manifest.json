@@ -1,0 +1,94 @@
+{
+  "pin": "037c01418b5d01506917a3db9b44fd56ac5f965c",
+  "references": [
+    {
+      "path": "src/Bot/Factory/AiFactory.cpp",
+      "gitBlob": "bb1fa52740f62044f7a3f200c36901eda4defeac",
+      "sha256": "6c01d294b989633d5700ec862caebc89618c809e5bd39c273435b7ec96804b88"
+    },
+    {
+      "path": "src/Bot/RandomPlayerbotMgr.h",
+      "gitBlob": "dd2d5878cc171780ef56c9c604a34c2719b12965",
+      "sha256": "9824c4878c9aa6daccea9b24dc7f7544cc86a179c76a86f4c29f53ec8c8c2f77"
+    },
+    {
+      "path": "src/Bot/PlayerbotMgr.h",
+      "gitBlob": "a7d3905497e860aed532439ecbedd7da27d93a66",
+      "sha256": "b969142c211fa5ab3d42f6ec31483e7839e147bd7c252a210d174d3c2d5ff87d"
+    },
+    {
+      "path": "src/Ai/Base/StrategyContext.h",
+      "gitBlob": "d06b157e4f4d81e64759ca9512be690f36adac22",
+      "sha256": "fe3d9a1d49dd67b11581227a7867ad06763d4bd5d3c093175320731c812d070c"
+    },
+    {
+      "path": "src/Ai/Base/Actions/AcceptInvitationAction.cpp",
+      "gitBlob": "ce7bd449df0ceb1adfd7d89f0b97c4f7ca0ff0ae",
+      "sha256": "25ad58da2150a05fe9d4f1aac469bc9bbb1c1c0db98b764b7d4db7a2d81e26d1"
+    },
+    {
+      "path": "src/Ai/Base/Actions/TradeStatusAction.cpp",
+      "gitBlob": "21ff3feddf9ab101cc4f906ca9d69a05e42621ee",
+      "sha256": "dfa6771f1f2281e4a5527a096d36b39df50ae92e23066dc2a605d42eacb2d408"
+    },
+    {
+      "path": "src/Ai/Base/Actions/TradeAction.cpp",
+      "gitBlob": "61588836ebc44a7081cde3719e104985fbe4f37d",
+      "sha256": "344d412c93b78d5b415faaa14d2552efa7fc53c555ba926ea6bdece5810a4b21"
+    },
+    {
+      "path": "src/Ai/Base/Actions/ChangeStrategyAction.cpp",
+      "gitBlob": "edeabe0bfb5b21f22b6f07fe6b74ca12c163729c",
+      "sha256": "1ac57915c74a6086c903ae509562c376eeccef77c96d56fce71611cee5a85705"
+    },
+    {
+      "path": "src/Ai/Base/Strategy/LootNonCombatStrategy.cpp",
+      "gitBlob": "78e3f3972837586f4a5718adb3868ca81b8032f8",
+      "sha256": "4371ad21cb017a811e448ad9335b3fd04d85b87263f7ee06b62baee5a0baf47e"
+    },
+    {
+      "path": "src/Ai/Base/Strategy/ThreatStrategy.cpp",
+      "gitBlob": "4f3c28c365ebd2c624e7978ba0dd8f9333a52c3a",
+      "sha256": "4f70f4fd373f50080f476a77ccbf3310f14e3a76dc9e172282cd7e3bf6bdb85e"
+    },
+    {
+      "path": "src/Ai/Base/Strategy/NonCombatStrategy.cpp",
+      "gitBlob": "ca21d8c868f6ae9c2fd0299c485a8825351e13b6",
+      "sha256": "1d3aab16f50f565fe506bea819052515e992e26ff5de6f2a9214defa9bcfa4f8"
+    },
+    {
+      "path": "src/Ai/Base/Strategy/DeadStrategy.cpp",
+      "gitBlob": "1b24e2f468b0a8774e50c7aae445a02beebbcd11",
+      "sha256": "0ea0da0403bfe49bfe81afccce4eca0f98b4980501f8fbb1bed1beb4460e9201"
+    },
+    {
+      "path": "src/Ai/World/Rpg/Action/RpgSubActions.cpp",
+      "gitBlob": "e914db1767b43d5942bbfff69d59f1042afb3878",
+      "sha256": "8f5c166579efbe3220d12244347220266ad2da6a83daf1d129c292aa8c514fb3"
+    },
+    {
+      "path": "src/Mgr/Travel/TravelMgr.h",
+      "gitBlob": "c7fa18e7516756da0be1b61bbb1ef247677979a9",
+      "sha256": "8f66b04dcf4b0400c59c332df47572d10ca6edb09c64140840a47117ac5074d1"
+    },
+    {
+      "path": "src/Mgr/Guild/PlayerbotGuildMgr.h",
+      "gitBlob": "ee11a8c0338d3a463c6fece42651470f40708c74",
+      "sha256": "be0c3a6fa5601944e6f4be9d1c4271e798b81f1b7c5b914f5e14eac36a396266"
+    },
+    {
+      "path": "src/Ai/Base/Actions/TrainerAction.cpp",
+      "gitBlob": "c32c9d992d81dea56b20baeeee97214cc5785d1f",
+      "sha256": "d9d31afb52eb3131ce0fd7199db9eb6aa1fd23274ff65d7e31df858f6ab6f366"
+    },
+    {
+      "path": "src/Bot/Engine/Engine.h",
+      "gitBlob": "4b293d9df53671b75fb9e708f52f5230d04e0a7f",
+      "sha256": "604e041d64d06a1e7fc7dc2954eb5959fd9a2db106e3c6f7acd948c340d0d0e6"
+    },
+    {
+      "path": "tree.json",
+      "sha256": "e02564635e071819bf28c95057c1e142d3b83620f2468a3fa969ae0b6ba42bc3"
+    }
+  ]
+}

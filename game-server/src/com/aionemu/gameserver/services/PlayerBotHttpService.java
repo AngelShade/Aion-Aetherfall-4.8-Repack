@@ -80,7 +80,7 @@ public final class PlayerBotHttpService {
 	}
 	private static Map<String, Object> snapshot(Player owner) {
 		Map<String, Object> state = new LinkedHashMap<>();
-		state.put("owner", owner.getName()); state.put("enabled", PlayerBotConfig.ENABLED); state.put("limit", Math.min(5, PlayerBotConfig.MAX_PER_OWNER));
+		state.put("owner", owner.getName()); state.put("ownerLevel", owner.getLevel()); state.put("levelDifference", PlayerBotConfig.LEVEL_DIFFERENCE); state.put("enabled", PlayerBotConfig.ENABLED); state.put("limit", Math.min(5, PlayerBotConfig.MAX_PER_OWNER));
 		state.put("generatedEnabled", PlayerBotConfig.GENERATED_ENABLED);
 		state.put("active", PlayerBotService.getInstance().companions(owner).stream().map(PlayerBotSession::snapshot).toList());
 		List<Map<String, Object>> roster = new ArrayList<>();
@@ -92,22 +92,38 @@ public final class PlayerBotHttpService {
 		for (var data : PlayerBotRoster.list(owner.getAccount().getId())) roster.add(Map.of("name", data.name() == null ? "Pending companion " + data.id() : data.name(), "id", data.id(),
 			"reserved", PlayerBotLease.isReserved(data.id()), "generated", true, "ready", data.ready()));
 		state.put("roster", roster);
+		state.putAll(PlayerBotPresets.snapshot(owner));
 		state.put("classes", Arrays.stream(PlayerClass.values()).filter(pc -> pc.isStartingClass() == (owner.getLevel() < 10)).map(Enum::name).toList());
 		state.put("startingClasses", Arrays.stream(PlayerClass.values()).filter(PlayerClass::isStartingClass).map(Enum::name).toList());
 		state.put("roles", Arrays.stream(Role.values()).map(Enum::name).toList());
-		state.put("quests", owner.getQuestStateList().getUncompletedQuests().stream().map(q -> Map.of("id", q.getQuestId(), "status", q.getStatus().name())).toList());
+		state.put("quests", owner.getQuestStateList().getUncompletedQuests().stream().map(q -> Map.of("id", q.getQuestId(), "name", PlayerBotQuestJournal.name(q.getQuestId()), "status", q.getStatus().name())).toList());
 		return state;
 	}
 	private static String action(Player owner, Map<String, String> values) {
 		var service = PlayerBotService.getInstance();
 		String op = values.getOrDefault("action", ""), name = values.getOrDefault("name", "");
 		switch (op) {
+			case "savebot" -> { return PlayerBotPresets.saveBot(owner,name); }
+			case "saveparty" -> { return PlayerBotPresets.saveParty(owner,values.getOrDefault("presetName","")); }
+			case "loadparty" -> { return PlayerBotPresets.activate(owner,values.getOrDefault("preset","")); }
+			case "deleteparty" -> { String preset=values.getOrDefault("preset",""); if(!preset.matches("[a-f0-9]{32}"))throw new IllegalArgumentException("Choose a party preset."); return PlayerBotPresets.remove(owner,preset); }
+			case "removebot" -> { if(!"yes".equals(values.get("confirm")))throw new IllegalArgumentException("Confirm removal of this Temporary Bot first."); return PlayerBotPresets.remove(owner,"bot:"+values.getOrDefault("id","0")); }
 			case "recruit" -> service.recruit(owner, name);
 			case "create", "generate" -> {
 				PlayerClass pc = PlayerClass.valueOf(values.getOrDefault("playerClass", "").toUpperCase(Locale.ROOT));
-				if (op.equals("create")) service.create(owner, name, pc); else service.generate(owner, name, pc);
+				if (op.equals("create")) service.create(owner, name, pc); else PlayerBotGenerationOptions.generate(owner, name, pc, values.getOrDefault("start", "matched"));
 			}
 			case "dismiss" -> { if (name.equals("all")) service.dismissAll(owner); else service.dismiss(owner, name); }
+			case "summon" -> PlayerBotTravel.summonAll(PlayerBotRecovery.selected(owner,name));
+			case "answer" -> {
+				String answer = values.getOrDefault("answer", "");
+				if (!answer.equals("yes") && !answer.equals("no")) throw new IllegalArgumentException("Answer Yes or No.");
+				PlayerBotQuestSync.answer(service.find(owner, name), Integer.parseInt(values.getOrDefault("quest", "0")), answer.equals("yes"));
+			}
+			case "carebudget" -> PlayerBotQuestSync.setBudget(service.find(owner, name), Long.parseLong(values.getOrDefault("reserve", "")), Long.parseLong(values.getOrDefault("dailyBudget", "")));
+			case "spacing" -> PlayerBotSpacing.configure(service.find(owner,name),Float.parseFloat(values.getOrDefault("ownerSpacing","")),Float.parseFloat(values.getOrDefault("attackSpacing","")));
+			case "gearpolicy" -> PlayerBotGearPolicy.configure(service.find(owner, name), values.getOrDefault("mode", ""), values.getOrDefault("profile", ""),
+				values.getOrDefault("quality", ""), values.getOrDefault("level", ""), values.getOrDefault("threshold", ""), values.getOrDefault("weapon", ""), values.getOrDefault("vendors", ""), values.getOrDefault("rolls", ""));
 			case "order", "attack", "setting", "share" -> {
 				List<PlayerBotSession> sessions = name.equals("all") ? service.companions(owner) : List.of(service.find(owner, name));
 				if (sessions.isEmpty()) throw new IllegalArgumentException("Recruit a companion first.");
@@ -120,7 +136,10 @@ public final class PlayerBotHttpService {
 						boolean enabled = Boolean.parseBoolean(raw);
 						switch (values.getOrDefault("setting", "")) {
 							case "area" -> session.setAreaSkills(enabled); case "supplies" -> session.setConsumables(enabled); case "gear" -> session.setAutoGear(enabled);
-							case "loot" -> session.setAutoLoot(enabled); case "questing" -> session.setQuesting(enabled); default -> throw new IllegalArgumentException("Unknown companion setting.");
+							case "loot" -> session.setAutoLoot(enabled); case "questing" -> session.setQuesting(enabled);
+							case "questCombat" -> PlayerBotPartyBehavior.configure(session,enabled);
+							case "enchant", "salvage", "partySync" -> PlayerBotQuestSync.setCare(session, values.get("setting"), enabled);
+							default -> throw new IllegalArgumentException("Unknown companion setting.");
 						}
 					}
 				}

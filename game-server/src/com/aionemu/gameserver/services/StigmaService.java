@@ -78,7 +78,7 @@ public class StigmaService {
 			else if (resultItem.getItemTemplate().getItemQuality().equals(ItemQuality.UNIQUE))
 				kinahcount = 100000;
 
-			if (!player.getInventory().tryDecreaseKinah(PricesService.getPriceForService(kinahcount, player.getRace()))) {
+			if (!com.aionemu.gameserver.services.playerbot.PlayerBotTemporary.building(player) && !player.getInventory().tryDecreaseKinah(PricesService.getPriceForService(kinahcount, player.getRace()))) {
 				PacketSendUtility.sendPacket(player, SM_SYSTEM_MESSAGE.STR_STIGMA_NOT_ENOUGH_MONEY());
 				return false;
 			}
@@ -88,7 +88,7 @@ public class StigmaService {
 	}
 
 	public static void onPlayerLogin(Player player) {
-		if (player.hasPermission(MembershipConfig.STIGMA_AUTOLEARN)) {
+		if (!com.aionemu.gameserver.services.playerbot.PlayerBotTemporary.managed(player) && player.hasPermission(MembershipConfig.STIGMA_AUTOLEARN)) {
 			for (int level = 20; level <= player.getLevel(); level++) {
 				for (SkillLearnTemplate template : DataManager.SKILL_TREE_DATA.getTemplatesFor(player.getPlayerClass(), level, player.getRace())) {
 					if (template.isStigma())
@@ -274,6 +274,7 @@ public class StigmaService {
 	}
 
 	private static int getPossibleStigmaCount(Player player) {
+		if(com.aionemu.gameserver.services.playerbot.PlayerBotTemporary.managed(player))return com.aionemu.gameserver.services.playerbot.PlayerBotTemporary.regularSlots(player.getLevel());
 		if (player.hasPermission(MembershipConfig.STIGMA_SLOT_QUEST))
 			return 3;
 		int playerLevel = player.getLevel();
@@ -310,6 +311,7 @@ public class StigmaService {
 	}
 
 	private static int getPossibleAdvancedStigmaCount(Player player) {
+		if(com.aionemu.gameserver.services.playerbot.PlayerBotTemporary.managed(player))return com.aionemu.gameserver.services.playerbot.PlayerBotTemporary.advancedSlots(player.getLevel());
 		if (player.hasPermission(MembershipConfig.STIGMA_SLOT_QUEST))
 			return 3;
 		int playerLevel = player.getLevel();

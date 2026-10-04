@@ -11,6 +11,7 @@ final class PlayerBotThreat {
 	private long holdUntil, retryAfter;
 	boolean hold(Player bot, Role role, Npc enemy, List<Player> party, long now) {
 		if (enemy == null) return decide(0, 0, 0, false, role == Role.TANK, now);
+		if (role!=Role.TANK && PlayerBotTank.openingPause(bot,enemy,party,now))return true;
 		int tankHate = party.stream().filter(p -> p != bot && !p.isDead() && PlayerBotService.getInstance().combatRole(p) == Role.TANK)
 			.mapToInt(p -> enemy.getAggroList().getHate(p)).max().orElse(0);
 		int ownHate = enemy.getAggroList().getHate(bot);

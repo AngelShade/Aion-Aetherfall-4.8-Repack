@@ -119,6 +119,7 @@ public final class QuestService {
 			ChallengeTaskService.getInstance().onChallengeQuestFinish(player, id);
 		removeQuestWorkItems(player, qs); // remove all worker list item if finished
 		qs.setStatus(QuestStatus.COMPLETE);
+		com.aionemu.gameserver.services.playerbot.PlayerBotPartyCompletion.ownerCompleted(env);
 		qs.setQuestVar(0);
 		if (id == 1127 && player.getQuestExpands() > ancientCubeQuestExpands)
 			qs.setQuestVarById(5, 1); // records that Ancient Cube's expansion was granted

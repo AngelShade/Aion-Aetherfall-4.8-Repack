@@ -17,14 +17,14 @@
 				</spawn>
 				<!-- Heiron Sentinel -->
 				<spawn npc_id="231583" handler="SENTINEL" respawn_time="295">
-					<spot x="2103.0276" y="1468.8651" z="136.5206" h="60"/>
-					<spot x="2107.003" y="1484.3868" z="132.54826" h="45"/>
+					<spot x="2103.0276" y="1468.8651" z="134.76706" h="60"/>
+					<spot x="2107.003" y="1484.3868" z="133.07738" h="45"/>
 					<spot x="2114.584" y="1488.7769" z="133.8219" h="30"/>
 					<spot x="2128.4412" y="1484.6045" z="136.6227" h="23"/>
 				</spawn>
 				<!-- Anaxilas General Goods Merchant -->
 				<spawn npc_id="801180" handler="MERCHANT" respawn_time="295">
-					<spot x="2125.8938" y="1475.2031" z="136.32527" h="45"/>
+					<spot x="2125.8938" y="1475.2031" z="137.09297" h="45"/>
 				</spawn>
 				<!-- Chares Warehouse Manager -->
 				<spawn npc_id="801181" handler="MERCHANT" respawn_time="295">
@@ -50,21 +50,21 @@
 				</spawn>
 				<!-- Heiron Infiltrator -->
 				<spawn npc_id="231588" handler="SENTINEL" respawn_time="295">
-					<spot x="2103.0276" y="1468.8651" z="136.5206" h="60"/>
-					<spot x="2107.003" y="1484.3868" z="132.54826" h="45"/>
+					<spot x="2103.0276" y="1468.8651" z="134.76706" h="60"/>
+					<spot x="2107.003" y="1484.3868" z="133.07738" h="45"/>
 					<spot x="2114.584" y="1488.7769" z="133.8219" h="30"/>
 					<spot x="2128.4412" y="1484.6045" z="136.6227" h="23"/>
 				</spawn>
 				<!-- Heiron Scout -->
 				<spawn npc_id="232068" handler="SENTINEL" respawn_time="295">
-					<spot x="2081.1812" y="1439.8887" z="131.34332" h="15"/>
-					<spot x="2082.3601" y="1436.9095" z="131.34332" h="23"/>
-					<spot x="2085.4514" y="1453.0295" z="131.34332" h="13"/>
-					<spot x="2087.3589" y="1449.5415" z="131.34332" h="33"/>
+					<spot x="2081.1812" y="1439.8887" z="129.64871" h="15"/>
+					<spot x="2082.3601" y="1436.9095" z="130.41821" h="23"/>
+					<spot x="2085.4514" y="1453.0295" z="129.10493" h="13"/>
+					<spot x="2087.3589" y="1449.5415" z="130.18048" h="33"/>
 				</spawn>
 				<!-- Rasiv General Goods Merchant -->
 				<spawn npc_id="801183" handler="MERCHANT" respawn_time="295">
-					<spot x="2125.8938" y="1475.2031" z="136.32527" h="45"/>
+					<spot x="2125.8938" y="1475.2031" z="137.09297" h="45"/>
 				</spawn>
 				<!-- Tullusso Warehouse Manager -->
 				<spawn npc_id="801184" handler="MERCHANT" respawn_time="295">
@@ -94,8 +94,8 @@
 				</spawn>
 				<!-- Kishar Protector -->
 				<spawn npc_id="231580" handler="SENTINEL" respawn_time="295">
-					<spot x="2103.0276" y="1468.8651" z="136.5206" h="60"/>
-					<spot x="2107.003" y="1484.3868" z="132.54826" h="45"/>
+					<spot x="2103.0276" y="1468.8651" z="134.76706" h="60"/>
+					<spot x="2107.003" y="1484.3868" z="133.07738" h="45"/>
 					<spot x="2114.584" y="1488.7769" z="133.8219" h="30"/>
 					<spot x="2128.4412" y="1484.6045" z="136.6227" h="23"/>
 				</spawn>
@@ -169,7 +169,7 @@
 				</spawn>
 				<!-- Leif appears while the Asmodians hold Lepharist Territory (client condition c3). -->
 				<spawn npc_id="801193" handler="MERCHANT" respawn_time="295">
-					<spot x="422.566071" y="926.967834" z="123.5"/>
+					<spot x="422.566071" y="926.967834" z="124.96864"/>
 				</spawn>
 			</occupier_template>
 			<occupier_template occupier="BALAUR">

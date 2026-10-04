@@ -53,6 +53,17 @@ public final class PlayerBotEncounterCheck {
 		var sphere = PlayerBotHazards.from(data.getSkillTemplate(5).getProperties(), 0, 0, 0, 0, 0);
 		check(sphere.risk(new Point(0, 0, 5)) > 0 && sphere.risk(new Point(9, 0, 9)) == 0,
 			"native POINT range uses spatial radius rather than default AREA altitude");
+		var production = (SkillData) JAXBContext.newInstance(SkillData.class).createUnmarshaller().unmarshal(
+			java.nio.file.Path.of("game-server/data/static_data/skills/skill_templates.xml").toFile());
+		var trap = PlayerBotHazards.from(production.getSkillTemplate(17050).getProperties(), 10, 10, 2, 0, 0);
+		check(trap != null && trap.radius() == 5 && trap.altitude() == 5, "Kromede warning uses the native trap's radius and floor reach");
+		check(trap.risk(new Point(10, 10, 2)) > 0 && trap.risk(new Point(18, 10, 2)) == 0,
+			"Kromede warning covers its trap origin and excludes safe distant ground");
+		check(!PlayerBotHazards.safePath(new Point(2, 10, 2), new Point(18, 10, 2), List.of(trap)),
+			"Kromede warning prevents walking through the pending explosion");
+		check(PlayerBotHazards.safePath(new Point(13, 10, 2), new Point(18, 10, 2), List.of(trap)),
+			"Bot already near a Kromede trap can retreat without crossing its origin");
+		checkVisibleTrap(production);
 		check(PlayerBotEncounters.requiredProtection(false, false) == 0, "ordinary boss state requires no special protection");
 		check(PlayerBotEncounters.requiredProtection(true, false) == 20535 && PlayerBotEncounters.requiredProtection(false, true) == 20536, "native blue and red shields choose matching protection");
 		check(PlayerBotEncounters.requiredProtection(true, true) < 0, "ambiguous shield state blocks new damage");
@@ -73,6 +84,49 @@ public final class PlayerBotEncounterCheck {
 			trigger("expensive rank", 20, false, performed), trigger("affordable rank", 19, true, performed)))), List.of(), 8);
 		check(performed.equals(List.of("affordable rank")), "unavailable stronger skill permits the cheaper candidate");
 		System.out.println("OK: " + checks + " encounter geometry, protection and recovery arbitration checks");
+	}
+	/** No constructor/world/DB/ID factory is invoked: only known-list observations are supplied. */
+	private static final class ObservedNpc extends com.aionemu.gameserver.model.gameobjects.Npc {
+		com.aionemu.gameserver.model.templates.npc.NpcTemplate template;
+		com.aionemu.gameserver.world.knownlist.KnownList known;
+		boolean dead, spawned; int instance;
+		private ObservedNpc() { super(null, null, null); }
+		@Override public com.aionemu.gameserver.model.templates.npc.NpcTemplate getObjectTemplate() { return template; }
+		@Override public com.aionemu.gameserver.world.knownlist.KnownList getKnownList() { return known; }
+		@Override public boolean isDead() { return dead; }
+		@Override public boolean isSpawned() { return spawned; }
+		@Override public int getWorldId() { return 300040000; }
+		@Override public int getInstanceId() { return instance; }
+		@Override public float getX() { return 10; }
+		@Override public float getY() { return 10; }
+		@Override public float getZ() { return 2; }
+		@Override public byte getHeading() { return 0; }
+		@Override public com.aionemu.gameserver.model.gameobjects.Creature getMaster() { return this; }
+	}
+	private static void checkVisibleTrap(SkillData production) throws Exception {
+		var field = sun.misc.Unsafe.class.getDeclaredField("theUnsafe"); field.setAccessible(true);
+		var unsafe = (sun.misc.Unsafe) field.get(null);
+		var actor = (ObservedNpc) unsafe.allocateInstance(ObservedNpc.class);
+		var trap = (ObservedNpc) unsafe.allocateInstance(ObservedNpc.class);
+		actor.template = new com.aionemu.gameserver.model.templates.npc.NpcTemplate();
+		trap.template = new com.aionemu.gameserver.model.templates.npc.NpcTemplate() {
+			@Override public String getAiName() { return "kromede_trap"; }
+		};
+		actor.instance = trap.instance = 1; trap.spawned = true;
+		actor.known = new com.aionemu.gameserver.world.knownlist.KnownList(actor) {
+			@Override public void forEachNpc(java.util.function.Consumer<com.aionemu.gameserver.model.gameobjects.Npc> consumer) { consumer.accept(trap); }
+		};
+		var previous = com.aionemu.gameserver.dataholders.DataManager.SKILL_DATA;
+		try {
+			com.aionemu.gameserver.dataholders.DataManager.SKILL_DATA = production;
+			check(trap.getCastingSkill() == null, "Trap fixture is genuinely observed before its cast");
+			var areas = PlayerBotHazards.visible(actor);
+			check(areas.size() == 1 && areas.getFirst().x() == 10 && areas.getFirst().radius() == 5,
+				"Actual visible hazard adapter recognizes TARGET-metadata self trap before casting");
+			trap.dead = true; check(PlayerBotHazards.visible(actor).isEmpty(), "Destroyed trap no longer blocks movement");
+			trap.dead = false; trap.spawned = false; check(PlayerBotHazards.visible(actor).isEmpty(), "Removed trap no longer blocks movement");
+			trap.spawned = true; trap.instance = 2; check(PlayerBotHazards.visible(actor).isEmpty(), "Trap in another instance is excluded");
+		} finally { com.aionemu.gameserver.dataholders.DataManager.SKILL_DATA = previous; }
 	}
 	private static PlayerBotEngine.Trigger trigger(String name, double relevance, boolean success, List<String> performed) {
 		return new PlayerBotEngine.Trigger(() -> true, new PlayerBotEngine.Action() {

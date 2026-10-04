@@ -14,8 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aionemu.commons.scripting.ScriptManager;
-import com.aionemu.commons.scripting.classlistener.AggregatedClassListener;
-import com.aionemu.commons.scripting.classlistener.OnClassLoadUnloadListener;
 import com.aionemu.gameserver.GameServerError;
 import com.aionemu.gameserver.configs.main.AIConfig;
 import com.aionemu.gameserver.dataholders.DataManager;
@@ -37,25 +35,17 @@ public class AIEngine implements GameEngine {
 
 	@Override
 	public void init() {
-		AggregatedClassListener acl = new AggregatedClassListener();
-		acl.addClassListener(new OnClassLoadUnloadListener());
-		acl.addClassListener(new AIHandlerClassListener());
-		scriptManager.setGlobalClassListener(acl);
-		scriptManager.load(AIConfig.HANDLER_DIRECTORY);
-		validateScripts();
-		log.info("Loaded " + aiHandlers.size() + " AI handlers.");
+		AIRegistryReload.load(scriptManager, aiHandlers, this::validateScripts);
 	}
 
 	public void reload() {
-		scriptManager.shutdown();
-		aiHandlers.clear();
 		init();
 	}
 
 	public void registerAI(Class<AbstractAI<? extends Creature>> aiClass) {
 		AIName nameAnnotation = aiClass.getAnnotation(AIName.class);
 		if (nameAnnotation != null) {
-			Class<?> presentClass = aiHandlers.putIfAbsent(nameAnnotation.value(), aiClass);
+			Class<?> presentClass = AIRegistryReload.register(nameAnnotation.value(), aiClass, aiHandlers);
 			if (presentClass != null)
 				throw new IllegalArgumentException("Duplicate AIs with name " + nameAnnotation.value() + " (" + aiClass + ", " + presentClass + ")");
 		}
@@ -66,7 +56,7 @@ public class AIEngine implements GameEngine {
 		if (name == null) {
 			aiInstance = new DummyAI<>(owner);
 		} else {
-			Class<? extends AbstractAI<? extends Creature>> aiClass = aiHandlers.get(name);
+			Class<? extends AbstractAI<? extends Creature>> aiClass = AIRegistryReload.handlers(aiHandlers).get(name);
 			if (aiClass == null)
 				throw new IllegalArgumentException("No AI found for name " + name);
 			Constructor<? extends AbstractAI<? extends Creature>> constructor = findConstructor(aiClass, owner.getClass(), false);
@@ -100,7 +90,8 @@ public class AIEngine implements GameEngine {
 	}
 
 	private void validateScripts() {
-		aiHandlers.values().forEach(aiClass -> {
+		Map<String, Class<? extends AbstractAI<? extends Creature>>> handlers = AIRegistryReload.validationHandlers(aiHandlers);
+		handlers.values().forEach(aiClass -> {
 			Class<? extends Creature> ownerType = findDefaultOwnerType(aiClass);
 			if (ownerType == null)
 				throw new GameServerError("Faulty AI handler: " + aiClass + " is missing generic owner type info");
@@ -109,7 +100,7 @@ public class AIEngine implements GameEngine {
 					"Faulty AI handler: " + aiClass + " is missing constructor taking owner of type " + ownerType + " as the only argument");
 		});
 		Set<String> npcAINames = DataManager.NPC_DATA.getNpcData().stream().map(NpcTemplate::getAiName).filter(Objects::nonNull).collect(Collectors.toSet());
-		npcAINames.removeAll(aiHandlers.keySet());
+		npcAINames.removeAll(handlers.keySet());
 		if (!npcAINames.isEmpty())
 			throw new GameServerError("No AIs could be found for the following npc_template AI names: " + String.join(", ", npcAINames));
 	}

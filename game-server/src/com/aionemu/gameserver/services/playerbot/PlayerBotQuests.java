@@ -27,28 +27,28 @@ final class PlayerBotQuests {
 		long now = System.currentTimeMillis();
 		if (pending != null) {
 			var state = bot.getQuestStateList().getQuestState(pending.quest());
-			boolean current = pending.turnIn() ? state != null && state.getStatus() == QuestStatus.REWARD
+			boolean current = pending.turnIn() ? PlayerBotQuestMetadata.ready(bot, pending.quest())
 				: QuestService.checkStartConditions(bot, pending.quest(), false);
-			if (current && nearby(owner, bot, pending.npc()) && now - pendingSince < 20000) return pending;
-			retryAfter.put(key(pending.npc(), pending.quest()), now + 30000); pending = null;
+			if (current && PlayerBotQuestObjectives.job(bot,pending) && PlayerBotQuestSync.wanted(owner, bot, pending.quest()) && nearby(owner, bot, pending.npc()) && now - pendingSince < 60000) return pending;
+			if(!current || PlayerBotQuestObjectives.job(bot,pending))retryAfter.put(key(pending.npc(), pending.quest()), now + 30000); pending = null;nextScan=0;
 		}
 		if (now < nextScan) return null;
 		nextScan = now + 2000;
 		retryAfter.entrySet().removeIf(entry -> entry.getValue() <= now);
 		List<Job> jobs = new ArrayList<>();
-		bot.getKnownList().forEachNpc(npc -> {
+		owner.getKnownList().forEachNpc(npc -> {
 			if (!nearby(owner, bot, npc)) return;
 			var registered = QuestEngine.getInstance().getQuestNpc(npc.getNpcId());
 			if (registered == null) return;
 			for (var state : bot.getQuestStateList().getUncompletedQuests())
-				if (state.getStatus() == QuestStatus.REWARD && registered.getOnTalkEvent().contains(state.getQuestId())
-					&& ordinary(DataManager.QUEST_DATA.getQuestById(state.getQuestId())) && !blocked(npc, state.getQuestId()))
-					jobs.add(new Job(npc, state.getQuestId(), true));
+				if (PlayerBotQuestMetadata.ready(bot, state.getQuestId()) && PlayerBotQuestSync.wanted(owner, bot, state.getQuestId()) && registered.getOnTalkEvent().contains(state.getQuestId())
+					&& PlayerBotQuestMetadata.rewardNpcIds(bot, state.getQuestId()).contains(npc.getNpcId()) && !blocked(npc, state.getQuestId()))
+					if(PlayerBotQuestObjectives.job(bot,new Job(npc,state.getQuestId(),true)))jobs.add(new Job(npc, state.getQuestId(), true));
 			for (int id : registered.getOnQuestStart()) {
-				var ownersQuest = owner.getQuestStateList().getQuestState(id);
-				if (ownersQuest != null && (ownersQuest.getStatus() == QuestStatus.START || ownersQuest.getStatus() == QuestStatus.REWARD)
-					&& ordinary(DataManager.QUEST_DATA.getQuestById(id)) && !blocked(npc, id) && QuestService.checkStartConditions(bot, id, false))
-					jobs.add(new Job(npc, id, false));
+				PlayerBotQuestSync.nearby(owner, bot, id);
+				if (PlayerBotQuestSync.wanted(owner, bot, id) && ordinary(DataManager.QUEST_DATA.getQuestById(id))
+					&& !blocked(npc, id) && QuestService.checkStartConditions(bot, id, false))
+					if(PlayerBotQuestObjectives.job(bot,new Job(npc,id,false)))jobs.add(new Job(npc, id, false));
 			}
 		});
 		pending = jobs.stream().sorted(Comparator.comparing(Job::turnIn).reversed()
@@ -65,25 +65,23 @@ final class PlayerBotQuests {
 			&& !owner.isDead() && !npc.isDead() && npc.isSpawned() && npc.getMaster() == npc && !bot.isEnemy(npc)
 			&& npc.getWorldId() == bot.getWorldId() && npc.getInstanceId() == bot.getInstanceId() && bot.getKnownList().sees(npc)
 			&& PositionUtil.isInRange(owner, npc, PlayerBotMission.range()) && DialogService.isInteractionAllowed(bot, npc);
-		if ((!missionReward && !nearby(owner, bot, npc)) || !PositionUtil.isInTalkRange(bot, npc) || !GeoService.getInstance().canSee(bot, npc)) return false;
+		if ((!mission && !PlayerBotQuestObjectives.job(bot,job)) || (!missionReward && !nearby(owner, bot, npc)) || !PositionUtil.isInTalkRange(bot, npc) || !GeoService.getInstance().canSee(bot, npc)) return false;
 		// A handler can open a custom page instead; do not guess subsequent story-dialog actions.
 		try (var dialog = PlayerBotQuestDialog.open(bot.getObjectId(), npc.getObjectId(), job.quest())) {
 			if (!job.turnIn()) {
-				var owned = owner.getQuestStateList().getQuestState(job.quest());
-				if (owned == null || owned.getStatus() != QuestStatus.START && owned.getStatus() != QuestStatus.REWARD) return false;
+				if (!PlayerBotQuestSync.wanted(owner, bot, job.quest())) return false;
 				if (!QuestService.checkStartConditions(bot, job.quest(), false)) return false;
-				npc.getController().onDialogSelect(DialogAction.ASK_QUEST_ACCEPT, 0, bot, job.quest(), 0);
-				if (dialog.offered(DialogPage.ASK_QUEST_ACCEPT_WINDOW.id()))
-					npc.getController().onDialogSelect(DialogAction.QUEST_ACCEPT, DialogPage.ASK_QUEST_ACCEPT_WINDOW.id(), bot, job.quest(), 0);
+				PlayerBotQuestMetadata.accept(bot, npc, job.quest(), dialog);
 				var state = bot.getQuestStateList().getQuestState(job.quest());
-				return state != null && state.getStatus() == QuestStatus.START;
+				boolean accepted = state != null && state.getStatus() == QuestStatus.START;
+				if (accepted) PlayerBotQuestSync.accepted(owner, bot, job.quest(), false);
+				return accepted;
 			}
 			var state = bot.getQuestStateList().getQuestState(job.quest());
 			var template = DataManager.QUEST_DATA.getQuestById(job.quest());
-			if (state == null || state.getStatus() != QuestStatus.REWARD || !ordinary(template)) return false;
-			// Extended/repeat choices have separate client index semantics; require a human until supported.
-			if (template.getExtendedRewards() != null) return false;
-			npc.getController().onDialogSelect(DialogAction.SELECT_QUEST_REWARD, 0, bot, job.quest(), 0);
+			if (state == null || !PlayerBotQuestMetadata.ready(bot, job.quest()) || template == null) return false;
+			npc.getController().onDialogSelect(PlayerBotQuestMetadata.rewardAction(bot, job.quest()), 0, bot, job.quest(), 0);
+			if (state.getStatus() != QuestStatus.REWARD) return false;
 			int page = DialogPage.getRewardPageByIndex(state.getRewardGroup()).id();
 			if (!dialog.offered(page)) return false; // confirms that this handler authorized this reward NPC
 			Integer group = state.getRewardGroup();
@@ -93,40 +91,32 @@ final class PlayerBotQuests {
 				choices = template.getSelectableRewardByClass(bot.getPlayerClass());
 			int choice = rewardChoice(bot, role, choices);
 			if (choice < -1 || choice > 14) return false;
-			npc.getController().onDialogSelect(choice < 0 ? DialogAction.SELECTED_QUEST_NOREWARD : DialogAction.SELECTED_QUEST_REWARD1 + choice,
-				page, bot, job.quest(), 0);
-			return state.getStatus() != QuestStatus.REWARD;
+			boolean extended=template.getExtendedRewards()!=null && state.getCompleteCount()==template.getRewardRepeatCount()-1;
+			int extra=extended ? rewardChoice(bot,role,template.getExtendedRewards().getSelectableRewardItem()) : -1;
+			// Native combined reward dialog indexes use 8+choice for extended rewards.
+			int action=extended && extra>=0 ? DialogAction.SELECTED_QUEST_NOREWARD : choice<0 ? DialogAction.SELECTED_QUEST_NOREWARD : DialogAction.SELECTED_QUEST_REWARD1+choice;
+			int extraIndex=extra>=0 ? 8+extra : 0;
+			if(action==DialogAction.SELECTED_QUEST_NOREWARD && choice>=0 && extra>=0 && choice!=extra)return false; // native shared index cannot express two different choices
+			npc.getController().onDialogSelect(action, page, bot, job.quest(), extraIndex);
+			boolean completed = state.getStatus() != QuestStatus.REWARD;
+			if (completed) PlayerBotQuestSync.accepted(owner, bot, job.quest(), true);
+			return completed;
 		} finally {
+			if(!mission && job.turnIn())PlayerBotQuestObjectives.rewardAttempted(bot,job.quest());
 			pending = null;
 			retryAfter.put(key(npc, job.quest()), System.currentTimeMillis() + 30000);
 			DialogService.onCloseDialog(bot, npc);
 		}
 	}
-	static boolean ordinary(QuestTemplate template) { return template != null && template.getCategory() == QuestCategory.QUEST; }
+	static boolean ordinary(QuestTemplate template) { return template != null && (template.getCategory() == QuestCategory.QUEST || template.getCategory() == QuestCategory.IMPORTANT); }
 	Npc hunt(Player owner, Player bot) {
 		return hunt(owner, bot, 0);
 	}
 	Npc hunt(Player owner, Player bot, int missionQuest) {
-		Set<Integer> required = new HashSet<>();
-		for (var state : bot.getQuestStateList().getUncompletedQuests())
-			if ((missionQuest == 0 || state.getQuestId() == missionQuest) && state.getStatus() == QuestStatus.START && ordinary(DataManager.QUEST_DATA.getQuestById(state.getQuestId())))
-				required.addAll(QuestEngine.getInstance().getRequiredKillNpcIds(bot, state.getQuestId()));
-		if (required.isEmpty()) return null;
-		List<Npc> candidates = new ArrayList<>();
-		bot.getKnownList().forEachNpc(npc -> {
-			var rating = npc.getObjectTemplate().getRating();
-			if (required.contains(npc.getNpcId()) && (rating == com.aionemu.gameserver.model.templates.npc.NpcRating.JUNK
-				|| rating == com.aionemu.gameserver.model.templates.npc.NpcRating.NORMAL)
-				&& npc.getLevel() <= bot.getLevel() + 2 && npc.isSpawned() && !npc.isDead() && npc.getMaster() == npc
-				&& npc.getAggroList().stream().findAny().isEmpty() && bot.isEnemy(npc)
-				&& (missionQuest == 0 ? PositionUtil.isInRange(owner, npc, 12) : PositionUtil.isInRange(bot, npc, 12) && PositionUtil.isInRange(owner, npc, PlayerBotMission.range()))
-				&& npc.getWorldId() == bot.getWorldId() && npc.getInstanceId() == bot.getInstanceId() && GeoService.getInstance().canSee(bot, npc))
-				candidates.add(npc);
-		});
-		return candidates.stream().min(Comparator.comparingDouble(npc -> PositionUtil.getDistance(bot, npc))).orElse(null);
+		return PlayerBotPartyBehavior.hunt(owner,bot,missionQuest);
 	}
 	Job missionReward(Player owner, Player bot, int quest) {
-		Set<Integer> required = QuestEngine.getInstance().getPlayerBotRewardNpcIds(bot, quest);
+		Set<Integer> required = PlayerBotQuestMetadata.rewardNpcIds(bot, quest);
 		List<Npc> candidates = new ArrayList<>();
 		bot.getKnownList().forEachNpc(npc -> {
 			if (required.contains(npc.getNpcId()) && !blocked(npc, quest) && !npc.isDead() && npc.isSpawned() && npc.getMaster() == npc && !bot.isEnemy(npc)
@@ -136,23 +126,13 @@ final class PlayerBotQuests {
 		return candidates.stream().min(Comparator.comparingDouble(n -> PositionUtil.getDistance(bot, n))).map(n -> new Job(n, quest, true)).orElse(null);
 	}
 	private static int rewardChoice(Player bot, PlayerBotRules.Role role, List<QuestItems> choices) {
-		if (choices.isEmpty()) return -1;
-		int selected = -2; double best = -Double.MAX_VALUE;
-		for (int index = 0; index < choices.size(); index++) {
-			var item = DataManager.ITEM_DATA.getItemTemplate(choices.get(index).getItemId());
-			if (item == null || !item.isClassSpecific(bot.getPlayerClass()) || item.getRequiredLevel(bot.getPlayerClass()) < 0) continue;
-			double score = item.getItemSlot() == 0 ? 0 : PlayerBotEquipment.score(item, role, bot.getPlayerClass());
-			var weapon = bot.getEquipment().getMainHandWeapon();
-			if (item.isWeapon() && weapon != null && weapon.getItemTemplate().getItemGroup() == item.getItemGroup()) score += 10000;
-			if (score > best) { best = score; selected = index; }
-		}
-		return selected;
+		return PlayerBotGearPolicy.rewardChoice(bot, role, choices);
 	}
 	private boolean blocked(Npc npc, int quest) { return retryAfter.containsKey(key(npc, quest)); }
 	private static long key(Npc npc, int quest) { return (long) npc.getObjectId() << 32 | quest & 0xffffffffL; }
 	private static boolean nearby(Player owner, Player bot, Npc npc) {
 		return !owner.isDead() && !npc.isDead() && npc.isSpawned() && npc.getMaster() == npc && !bot.isEnemy(npc)
 			&& npc.getWorldId() == bot.getWorldId() && npc.getInstanceId() == bot.getInstanceId()
-			&& PositionUtil.isInRange(owner, npc, 15) && bot.getKnownList().sees(npc) && DialogService.isInteractionAllowed(bot, npc);
+			&& PositionUtil.isInRange(owner, npc, 40) && owner.getKnownList().sees(npc) && DialogService.isInteractionAllowed(bot, npc);
 	}
 }

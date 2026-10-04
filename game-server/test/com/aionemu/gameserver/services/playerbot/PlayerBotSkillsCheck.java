@@ -106,6 +106,8 @@ public final class PlayerBotSkillsCheck {
 		check(!condition.isAvailable(chain), "expired chain cannot be planned");
 		buffChecks(context);
 		DataManager.SKILL_DATA = (SkillData) context.createUnmarshaller().unmarshal(Path.of("game-server/data/static_data/skills/skill_templates.xml").toFile());
+		for(int id=3365;id<=3369;id++)check(PlayerBotSkills.classify(DataManager.SKILL_DATA.getSkillTemplate(id))==DAMAGE,
+			"Ripclaw Strike damage/rune attack is not restricted to tank taunts: "+id);
 		encounterMetadataChecks();
 		DataManager.SKILL_CHARGE_DATA = (SkillChargeData) JAXBContext.newInstance(SkillChargeData.class).createUnmarshaller()
 			.unmarshal(Path.of("game-server/data/static_data/skills/skill_charge.xml").toFile());

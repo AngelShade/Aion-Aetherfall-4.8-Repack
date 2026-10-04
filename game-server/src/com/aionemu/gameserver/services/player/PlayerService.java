@@ -71,7 +71,7 @@ public class PlayerService {
 	public static boolean storeNewPlayer(Player player, String accountName, int accountId) {
 		return PlayerDAO.saveNewPlayer(player, accountId, accountName)
 			&& PlayerAppearanceDAO.store(player) && PlayerSkillListDAO.storeSkills(player)
-			&& InventoryDAO.store(player);
+			&& InventoryDAO.store(player) && PlayerCreationRecipes.persist(player);
 	}
 
 	/**
@@ -208,6 +208,7 @@ public class PlayerService {
 		newPlayer.setWarehouseLimit();
 
 		// Starting skills
+		newPlayer.setRecipeList(new PlayerCreationRecipes());
 		newPlayer.setSkillList(new PlayerSkillList());
 		SkillLearnService.learnNewSkills(newPlayer, 1, newPlayer.getLevel());
 

@@ -78,6 +78,8 @@ else { & $ScriptPath -ClientPath $fixtureRoot }
     routes=['http://127.0.0.1:8091/shop','http://127.0.0.1:8091/market','http://127.0.0.1:8091/market/wardrobe','http://127.0.0.1:8091/journey']
     if manifest.get('compactBrowserTitles'):
         routes.append('http://127.0.0.1:8091/market/pass')
+    if manifest.get('companionRoutes'):
+        routes.append('http://127.0.0.1:8091/market/companions')
     for offset,code in [(BROWSER_HOOK_RVA,build_browser_hook_code(routes)),(MARKET_AUTH_HOOK_RVA,build_market_auth_code(routes[1:],compact=manifest.get('compactBrowserTitles',False))),(MARKET_RECT_HOOK_RVA,build_market_rect_code())]:
         assert expected[offset:offset+len(code)]==code,'Graphics removal lost the Poeta route'
         cursor=(Path(state['backupRoot'])/'cursor-base/bin64/Game.dll').read_bytes()
@@ -98,7 +100,7 @@ else { & $ScriptPath -ClientPath $fixtureRoot }
                     root=binary_xml(archive.read(prefix+name))
                     assert not root.get('align_type') and 'movable' in root.get('flag').split(';')
         print('PASS: native window movement survives graphics removal')
-    print('PASS: repeated graphics launch verification, unexpected DLL rejection, byte-exact graphics restore, cursor tracking and Poeta routes survive both restore baselines')
+    print('PASS: repeated graphics launch verification, unexpected DLL rejection, byte-exact graphics restore, cursor tracking and all installed service routes survive both restore baselines')
 
 
 if __name__=='__main__':

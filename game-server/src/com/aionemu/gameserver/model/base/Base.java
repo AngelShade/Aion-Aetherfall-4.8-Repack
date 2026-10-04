@@ -173,6 +173,7 @@ public abstract class Base<T extends BaseLocation> {
 				switch (type) {
 					case ATTACKER:
 						assaulter.add(npc);
+						com.aionemu.gameserver.services.base.LegacyCampBattle.beginAssault(npc);
 						break;
 					case BOSS:
 						if (boss != null)
@@ -194,6 +195,8 @@ public abstract class Base<T extends BaseLocation> {
 	}
 
 	public BaseOccupier getOccupier(Creature bossKiller) {
+		if (bossKiller instanceof Npc npc && npc.getSpawn() instanceof BaseSpawnTemplate spawn && spawn.getId() == id)
+			return spawn.getOccupier();
 		return bossKiller == null ? getLocation().getTemplate().getDefaultOccupier() : BaseOccupier.findBy(bossKiller.getRace());
 	}
 

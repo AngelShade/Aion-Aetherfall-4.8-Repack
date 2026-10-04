@@ -18,7 +18,7 @@ final class PlayerBotPreferences {
 
 	Values load(int account, int character, Role defaultRole) throws IOException {
 		Path path = path(account, character);
-		if (!Files.exists(path)) return new Values(defaultRole, false, true, false, false);
+		if (!Files.exists(path)) return new Values(defaultRole, false, true, true, false, true);
 		Properties properties = new Properties();
 		try (var input = Files.newInputStream(path)) { properties.load(input); }
 		try {

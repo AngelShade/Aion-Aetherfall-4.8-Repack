@@ -65,6 +65,10 @@ public class TribeRelationService {
 	}
 
 	public static boolean isFriend(Creature creature1, Creature creature2) {
+		// Legacy camp guards explicitly oppose Krall/Lepharists/Lycans, while
+		// also inheriting a broad Monster friendship from the 4.8 client.
+		// A specific native enemy relation wins inside this camp context.
+		if (com.aionemu.gameserver.services.base.LegacyCampBattle.specificEnemy(creature1, creature2)) return false;
 		if (creature1.getTribe() == creature2.getTribe()) // OR BASE ????
 			return true;
 		if (creature1.getTribe() == TribeClass.IDF5U2_SHULACK && creature2.getTribe() == TribeClass.FIELD_OBJECT_ALL_HOSTILEMONSTER)

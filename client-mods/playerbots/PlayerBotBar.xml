@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Screen widget_cnt="20">
+  <Dialog name="PlayerBotBar" frame="220,180,400,70" text="Companions" preset="v5_dialog" flag="title;not_visible" title_height="22" title_offset="6,3">
+    <Scripts>
+      <OnLoad>PlayerBotBar_OnLoad();</OnLoad>
+      <OnEvent>PlayerBotBar_OnEvent(event);</OnEvent>
+    </Scripts>
+    <Widget type="button" style="pushbutton" name="PlayerBotBarIcon" frame="2,4,34,32" preset="v5_help_party_matching" flag="not_visible">
+      <Scripts><OnClick>PlayerBotBar_Click(this.name);</OnClick></Scripts>
+    </Widget>
+    <Widget type="button" style="pushbutton" name="PlayerBotBarAttack" frame="7,6,74,28" text="Attack" font="ui_default" preset="v5_button"><Scripts><OnClick>PlayerBotBar_Click(this.name);</OnClick></Scripts></Widget>
+    <Widget type="button" style="pushbutton" name="PlayerBotBarFollow" frame="89,6,74,28" text="Follow" font="ui_default" preset="v5_button"><Scripts><OnClick>PlayerBotBar_Click(this.name);</OnClick></Scripts></Widget>
+    <Widget type="button" style="pushbutton" name="PlayerBotBarStay" frame="171,6,74,28" text="Stay" font="ui_default" preset="v5_button"><Scripts><OnClick>PlayerBotBar_Click(this.name);</OnClick></Scripts></Widget>
+    <Widget type="button" style="pushbutton" name="PlayerBotBarSummon" frame="253,6,74,28" text="Summon" font="ui_default" preset="v5_button"><Scripts><OnClick>PlayerBotBar_Click(this.name);</OnClick></Scripts></Widget>
+    <Widget type="button" style="pushbutton" name="PlayerBotBarMore" frame="335,6,26,28" text="+" font="ui_default" preset="v5_button"><Scripts><OnClick>PlayerBotBar_Click(this.name);</OnClick></Scripts></Widget>
+    <Widget type="button" style="pushbutton" name="PlayerBotBarHide" frame="369,6,22,28" text="x" font="ui_default" preset="v5_button"><Scripts><OnClick>PlayerBotBar_Click(this.name);</OnClick></Scripts></Widget>
+    <Widget type="button" style="pushbutton" name="PlayerBotBarGuard" frame="7,46,120,28" text="Guard" font="ui_default" preset="v5_button" flag="not_visible"><Scripts><OnClick>PlayerBotBar_Click(this.name);</OnClick></Scripts></Widget>
+    <Widget type="button" style="pushbutton" name="PlayerBotBarPassive" frame="139,46,120,28" text="Passive" font="ui_default" preset="v5_button" flag="not_visible"><Scripts><OnClick>PlayerBotBar_Click(this.name);</OnClick></Scripts></Widget>
+    <Widget type="button" style="pushbutton" name="PlayerBotBarManage" frame="271,46,120,28" text="Companions" font="ui_default" preset="v5_button" flag="not_visible"><Scripts><OnClick>PlayerBotBar_Click(this.name);</OnClick></Scripts></Widget>
+    <Widget type="button" style="pushbutton" name="PlayerBotBarCircle" frame="7,86,90,28" text="Circle" font="ui_default" preset="v5_button" flag="not_visible"><Scripts><OnClick>PlayerBotBar_Click(this.name);</OnClick></Scripts></Widget>
+    <Widget type="button" style="pushbutton" name="PlayerBotBarBox" frame="105,86,90,28" text="Box" font="ui_default" preset="v5_button" flag="not_visible"><Scripts><OnClick>PlayerBotBar_Click(this.name);</OnClick></Scripts></Widget>
+    <Widget type="button" style="pushbutton" name="PlayerBotBarLine" frame="203,86,90,28" text="Line" font="ui_default" preset="v5_button" flag="not_visible"><Scripts><OnClick>PlayerBotBar_Click(this.name);</OnClick></Scripts></Widget>
+    <Widget type="button" style="pushbutton" name="PlayerBotBarSpread" frame="301,86,90,28" text="Spread" font="ui_default" preset="v5_button" flag="not_visible"><Scripts><OnClick>PlayerBotBar_Click(this.name);</OnClick></Scripts></Widget>
+    <Widget type="static" name="PlayerBotBarHint" frame="7,122,384,17" text="Centered on you; regroup after combat" font="ui_default" flag="not_active;not_visible"/>
+    <Widget type="editbox" name="PlayerBotBarTx" frame="0,0,1,1" flag="not_visible"/>
+    <Widget type="editbox" name="PlayerBotBarRx" frame="0,0,1,1" flag="not_visible"/>
+    <Widget type="editbox" name="PlayerBotBarMeta" frame="0,0,1,1" flag="not_visible"/>
+    <Widget type="editbox" name="PlayerBotBarMode" frame="0,0,1,1" flag="not_visible"/>
+  </Dialog>
+</Screen>

@@ -54,9 +54,9 @@ public class FireTempleInstance extends GeneralInstanceHandler {
 			spawn(214094, 298.7095f, 89.42245f, 128.7143f, (byte) 15);
 		}
 
-		if (Rnd.chance() < 10) {// stronger kromede
+		if (Rnd.chance() < 50) { // stronger kromede (50% chance)
 			spawn(214621, 421.9935f, 93.18915f, 117.3053f, (byte) 46);
-		} else { // normal kromede
+		} else { // normal kromede (50% chance)
 			spawn(212846, 421.9935f, 93.18915f, 117.3053f, (byte) 46);
 		}
 	}

@@ -56,17 +56,19 @@ public final class PlayerBotSkills {
 		if (t.hasEvadeEffect()) return RECOVERY;
 		boolean hostile = p.getTargetRelation() == TargetRelationAttribute.ENEMY;
 		if (hostile) {
-			if (t.hasAnyEffect(HOSTILEUP, PROVOKER)) return TAUNT;
 			if (t.hasAnyEffect(SPELLATTACK, SPELLATTACKINSTANT, SKILLATTACKINSTANT, SKILLATKDRAININSTANT,
 				SPELLATKDRAIN, SPELLATKDRAININSTANT, BLEED, POISON, SIGNET, SIGNETBURST, CARVESIGNET,
-				STATDOWN, DISPELBUFF, DISPELNPCBUFF)) return DAMAGE;
-			return canInterrupt(t) || t.hasAnyEffect(ROOT) ? CONTROL : UNSUPPORTED;
+				STATDOWN, DISPELBUFF, DISPELNPCBUFF, DISPELBUFFCOUNTERATK)) return DAMAGE;
+			// A damage/rune skill may also alter hate (e.g. Assassin Ripclaw Strike).
+			// Only pure threat actions belong to the tank-only taunt category.
+			if (t.hasAnyEffect(HOSTILEUP, PROVOKER)) return TAUNT;
+			return canInterrupt(t) || t.hasAnyEffect(ROOT, SNARE) ? CONTROL : UNSUPPORTED;
 		}
 		if (t.hasResurrectEffect()) return SkillKind.RESURRECT;
 		if (t.hasAnyEffect(DISPELDEBUFF, DISPELDEBUFFMENTAL, DISPELDEBUFFPHYSICAL)) return CLEANSE;
 		if (t.hasAnyEffect(HEALINSTANT, com.aionemu.gameserver.skillengine.effect.EffectType.HEAL, CASEHEAL)) return SkillKind.HEAL;
 		if (t.hasAnyEffect(MPHEALINSTANT, MPHEAL)) return MANA;
-		if (t.hasAnyEffect(SHIELD, MPSHIELD, LIMITEDREDUCEDAMAGE, PROTECT, ALWAYSDODGE, ALWAYSPARRY, ALWAYSBLOCK)) return DEFENSE;
+		if (t.hasAnyEffect(SHIELD, MPSHIELD, LIMITEDREDUCEDAMAGE, PROTECT, ALWAYSDODGE, ALWAYSPARRY, ALWAYSBLOCK, ALWAYSRESIST)) return DEFENSE;
 		return t.hasAnyEffect(STATUP, STATBOOST, WEAPONSTATUP, WEAPONSTATBOOST, AURA, BOOSTHEAL,
 			BOOSTSPELLATTACK, BOOSTHATE, BOOSTSKILLCASTINGTIME, REFLECTOR, REBIRTH) ? BUFF : UNSUPPORTED;
 	}

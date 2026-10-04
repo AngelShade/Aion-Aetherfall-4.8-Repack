@@ -28,6 +28,14 @@ try {
             throw "Upstream reference changed: $botReferencePath"
         }
     }
+    $botScopeReferences = Get-Content -LiteralPath "third-party/playerbots/scope-references/manifest.json" -Raw | ConvertFrom-Json
+    if ($botScopeReferences.pin -ne '037c01418b5d01506917a3db9b44fd56ac5f965c') { throw "Scope source revision changed" }
+    foreach ($botScopeReference in $botScopeReferences.references) {
+        $botScopePath = Join-Path "third-party/playerbots/scope-references" $botScopeReference.path
+        if ((Get-FileHash -LiteralPath $botScopePath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $botScopeReference.sha256) {
+            throw "Scope reference changed: $botScopePath"
+        }
+    }
     New-Item -ItemType Directory -Path $botOutput -Force | Out-Null
     $botClassDirectory = Join-Path $botOutput "classes"
     New-Item -ItemType Directory -Path $botClassDirectory | Out-Null
@@ -41,10 +49,22 @@ try {
     & $botJavac --release 25 -encoding UTF-8 -cp "$LibraryDirectory/*" -d $botClassDirectory "@$botArguments"
     if ($LASTEXITCODE -ne 0) { throw "Full server source and companion command compilation failed" }
     $botClasspath = "$botClassDirectory;$LibraryDirectory/*"
-    foreach ($botCheck in @("PlayerBotEngineCheck", "PlayerBotCombatQuestCheck", "PlayerBotEncounterCheck", "PlayerBotPlanningCheck", "PlayerBotSkillsCheck")) {
+    foreach ($botCheck in @("PlayerBotEngineCheck", "PlayerBotCombatQuestCheck", "PlayerBotEncounterCheck", "PlayerBotPlanningCheck", "PlayerBotSkillsCheck", "PlayerBotRecruitmentCheck", "PlayerBotInventoryCheck", "PlayerBotCompanionCheck", "PlayerBotQuestSyncCheck", "PlayerBotGearPolicyCheck", "PlayerBotGenerationCheck", "PlayerBotPartyBehaviorCheck", "PlayerBotFormationCheck", "PlayerBotFormationLayoutCheck", "PlayerBotPositionCheck", "PlayerBotFollowSpeedCheck", "PlayerBotConversationCheck", "PlayerBotTankCheck", "PlayerBotTemporaryCheck", "PlayerBotPresetsCheck", "PlayerBotRosterRemovalCheck", "PlayerBotTargetValuesCheck", "PlayerBotHealingCheck", "PlayerBotEnemyUtilityCheck", "PlayerBotDefenseCheck", "PlayerBotOffenseCheck", "PlayerBotTargetStrategiesCheck", "PlayerBotQuestRoutesCheck", "PlayerBotRevivalCheck")) {
         & $botJava -Xmx2g -cp $botClasspath "com.aionemu.gameserver.services.playerbot.$botCheck"
         if ($LASTEXITCODE -ne 0) { throw "$botCheck failed" }
     }
+    & $botJava -Xmx512m -cp $botClasspath "com.aionemu.gameserver.services.playerbot.PlayerBotCustodyCheck"
+    if ($LASTEXITCODE -ne 0) { throw "PlayerBotCustodyCheck failed" }
+    & $botJava -Xmx512m -cp $botClasspath "com.aionemu.gameserver.services.playerbot.PlayerBotTankPositionCheck"
+    if ($LASTEXITCODE -ne 0) { throw "PlayerBotTankPositionCheck failed" }
+    & $botJava -Xmx1g -cp $botClasspath "com.aionemu.gameserver.services.playerbot.PlayerBotSpacingCheck"
+    if ($LASTEXITCODE -ne 0) { throw "PlayerBotSpacingCheck failed" }
+    & $botJava -Xmx1g -cp $botClasspath "com.aionemu.gameserver.services.playerbot.PlayerBotOffenseIntegrationCheck"
+    if ($LASTEXITCODE -ne 0) { throw "PlayerBotOffenseIntegrationCheck failed" }
+    & $botJava -Xmx1g -cp $botClasspath "com.aionemu.gameserver.services.playerbot.PlayerBotQuestObjectivesCheck"
+    if ($LASTEXITCODE -ne 0) { throw "PlayerBotQuestObjectivesCheck failed" }
+    & $botJava -Xmx1g -cp $botClasspath "com.aionemu.gameserver.services.playerbot.PlayerBotStrategyCompositionCheck"
+    if ($LASTEXITCODE -ne 0) { throw "PlayerBotStrategyCompositionCheck failed" }
     Push-Location -LiteralPath (Join-Path $botRepository "game-server")
     try {
         & $botJava -Xmx1g -cp $botClasspath "com.aionemu.gameserver.services.playerbot.PlayerBotPanelCheck"

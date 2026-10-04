@@ -26,6 +26,8 @@ public class ShieldEffect extends EffectTemplate {
 	protected int radius = 0;
 	@XmlAttribute
 	protected int minradius = 0;
+	@XmlAttribute
+	protected int hitcount = 0;
 
 	@Override
 	public void applyEffect(Effect effect) {
@@ -37,8 +39,26 @@ public class ShieldEffect extends EffectTemplate {
 	public void startEffect(Effect effect) {
 		int valueWithDelta = calculateBaseValue(effect);
 		int hitValueWithDelta = hitvalue + hitdelta * effect.getSkillLevel();
+		int count = hitcount;
+		if (count <= 0 && effect.getSkillTemplate() != null && effect.getSkillTemplate().getStack() != null) {
+			String stack = effect.getSkillTemplate().getStack();
+			int idx = stack.indexOf("COUNT");
+			if (idx != -1) {
+				int start = idx + 5;
+				int end = start;
+				while (end < stack.length() && Character.isDigit(stack.charAt(end))) {
+					end++;
+				}
+				if (end > start) {
+					try {
+						count = Integer.parseInt(stack.substring(start, end));
+					} catch (NumberFormatException ignored) {
+					}
+				}
+			}
+		}
 
-		AttackShieldObserver asObserver = new AttackShieldObserver(hitValueWithDelta, valueWithDelta, percent, effect, hitType, getType(), hitTypeProb);
+		AttackShieldObserver asObserver = new AttackShieldObserver(hitValueWithDelta, valueWithDelta, percent, effect, hitType, getType(), hitTypeProb, 0, count);
 		effect.addObserver(effect.getEffected(), asObserver);
 	}
 

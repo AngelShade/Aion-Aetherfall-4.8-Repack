@@ -77,6 +77,9 @@ public class CronJobService {
 
 		@Override
 		public void run() {
+			Npc nextElyos = null;
+			Npc nextAsmodian = null;
+			try {
 			SpawnTemplate elyosSpawn = switch (Rnd.get(1, 4)) {
 				case 1 -> SpawnEngine.newSingleTimeSpawn(600100000, 731631, 721.39f, 268.67f, 291.636f, (byte) 60); // Levinshor
 				case 2 -> SpawnEngine.newSingleTimeSpawn(600100000, 731631, 332.40f, 1903.37f, 232.000f, (byte) 110); // Levinshor
@@ -89,13 +92,24 @@ public class CronJobService {
 				case 3 -> SpawnEngine.newSingleTimeSpawn(600090000, 731632, 415.01f, 564.42f, 142.0f, (byte) 100); // Kaldor
 				default -> SpawnEngine.newSingleTimeSpawn(220080000, 731632, 233.39f, 1137.03f, 225.875f, (byte) 105); // Enshar
 			};
+			nextElyos = (Npc) SpawnEngine.spawnObject(elyosSpawn, 1);
+			nextAsmodian = (Npc) SpawnEngine.spawnObject(asmodianSpawn, 1);
 			if (asmodianUndergroundEntrance != null)
 				asmodianUndergroundEntrance.getController().delete();
 			if (elyosUndergroundEntrance != null)
 				elyosUndergroundEntrance.getController().delete();
-			elyosUndergroundEntrance = (Npc) SpawnEngine.spawnObject(elyosSpawn, 1);
-			asmodianUndergroundEntrance = (Npc) SpawnEngine.spawnObject(asmodianSpawn, 1);
-			ThreadPoolManager.getInstance().schedule(this, Rnd.get(3600, 18000), TimeUnit.MILLISECONDS);
+			elyosUndergroundEntrance = nextElyos;
+			asmodianUndergroundEntrance = nextAsmodian;
+			} catch (RuntimeException failure) {
+				if (nextElyos != null)
+					nextElyos.getController().delete();
+				if (nextAsmodian != null)
+					nextAsmodian.getController().delete();
+				throw failure;
+			} finally {
+				// The interval is 1-5 hours. A failed rotation must not kill the recurring job.
+				ThreadPoolManager.getInstance().schedule(this, Rnd.get(3600, 18000), TimeUnit.SECONDS);
+			}
 		}
 	}
 }

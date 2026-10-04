@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import com.aionemu.gameserver.ai.AIEngine;
+import com.aionemu.gameserver.ai.AIRegistryReload;
 import com.aionemu.gameserver.configs.Config;
 import com.aionemu.gameserver.dataholders.*;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
@@ -69,8 +69,7 @@ public class Reload extends AdminCommand {
 			DataManager.ITEM_DATA.cleanup();
 			sendInfo(admin, DataManager.ITEM_DATA.size() + " item templates loaded.");
 		} else if (params[0].equalsIgnoreCase("ai")) {
-			AIEngine.getInstance().reload();
-			sendInfo(admin, "AI successfully reloaded!");
+			AIRegistryReload.request(admin);
 		} else if (params[0].equalsIgnoreCase("commands")) {
 			ChatProcessor.getInstance().reload();
 			sendInfo(admin, "Chat commands successfully reloaded!");

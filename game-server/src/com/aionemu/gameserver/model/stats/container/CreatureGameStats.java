@@ -309,7 +309,8 @@ public abstract class CreatureGameStats<T extends Creature> {
 	}
 
 	public float getMovementSpeedFloat() {
-		return getMovementSpeed().getCurrent() / 1000f;
+		float natural=getMovementSpeed().getCurrent()/1000f;
+		return owner instanceof com.aionemu.gameserver.model.gameobjects.player.Player player && player.isPlayerBot() ? com.aionemu.gameserver.services.playerbot.PlayerBotFollowSpeed.speed(player,natural) : natural;
 	}
 
 	public void updateArmorMasteryStats(List<Item> equipment) {

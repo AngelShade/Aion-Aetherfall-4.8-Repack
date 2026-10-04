@@ -5047,14 +5047,14 @@
 		<npc_skill id="16745" lv="31" prob="25" />
 		<npc_skill id="16748" lv="31" prob="25" />
 	</npc_skills>
-	<npc_skills npc_ids="211040">
-		<npc_skill id="16415" lv="31" prob="25" />
+	<npc_skills npc_ids="211040 280338">
+		<npc_skill id="16415" lv="31" prob="0" />
 		<npc_skill id="16609" lv="31" prob="25" />
 		<npc_skill id="16855" lv="31" prob="25" />
-		<npc_skill id="16860" lv="31" prob="25" />
-		<npc_skill id="16861" lv="31" prob="25" />
+		<npc_skill id="16860" lv="31" prob="0" />
+		<npc_skill id="16861" lv="31" prob="0" />
 		<npc_skill id="16873" lv="31" prob="25" />
-		<npc_skill id="16879" lv="31" prob="25" />
+		<npc_skill id="16879" lv="31" prob="0" />
 		<npc_skill id="17845" lv="31" prob="25" />
 		<npc_skill id="17855" lv="31" prob="25" />
 		<npc_skill id="17856" lv="31" prob="25" />

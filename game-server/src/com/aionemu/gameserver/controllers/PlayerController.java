@@ -589,6 +589,8 @@ public class PlayerController extends CreatureController<Player> {
 		if (HTMLConfig.ENABLE_GUIDES && player.isSpawned())
 			HTMLService.sendGuideHtml(player, minNewLevel, newLevel);
 		SkillLearnService.learnNewSkills(player, minNewLevel, newLevel);
+		// System-scaled private companions must not consume human account reward packs.
+		if(com.aionemu.gameserver.services.playerbot.PlayerBotTemporary.managed(player))return;
 		BonusPackService.getInstance().addPlayerCustomReward(player);
 		FactionPackService.getInstance().addPlayerCustomReward(player);
 		if (CustomConfig.ENABLE_STARTER_KIT)

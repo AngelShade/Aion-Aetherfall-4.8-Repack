@@ -7,9 +7,11 @@ import copy
 from datetime import datetime
 import hashlib
 import io
+import importlib.util
 import json
 from pathlib import Path
 import struct
+import re
 import sys
 import zipfile
 
@@ -144,12 +146,29 @@ def prepare(root, output, dll, repair_backup=None):
     return combined, {'backupName': backup_name, 'localized': any(e['path'].startswith('L10N/') for e in new_files)}
 
 
-def prepare_incremental(root, output, dll, repair_backup=None):
+def compatibility_paths(record):
+    """Exact payload cohort shared by native companion staging and verification."""
+    if not record:
+        return set()
+    name = record['backupName']
+    if not re.fullmatch(r'service-menu-graphics-\d{8}-\d{6}-\d{6}', name):
+        raise ValueError('Unexpected graphics compatibility backup name')
+    base = 'DXVK-backups/' + name
+    result = {'DXVK/installed.json', 'DXVK/graphics-menu/installed.json',
+              'DXVK/graphics-menu/package/manifest.json', 'DXVK/graphics-menu/package/bin64/Game.dll',
+              'DXVK/graphics-menu/package/Data/ui/game/game.pak', base+'/bin64/Game.dll',
+              base+'/Data/ui/game/game.pak', base+'/cursor-base/bin64/Game.dll'}
+    if record['localized']:
+        result.update({'DXVK/graphics-menu/package/L10N/enu/Data/data.pak', base+'/L10N/enu/Data/data.pak'})
+    return result
+
+
+def prepare_incremental(root, output, dll, repair_backup=None, *, backup_name=None, rebased_at=None):
     """Track a bounded edit to the installed DLL without rebuilding graphics hooks.
 
     Every changed byte must also exist unchanged in both verified restore
     baselines. Thus edits to graphics/cursor hooks cannot silently cross domains.
-    A repair accepts only a fully hash-verified Poeta installer receipt.
+    A repair accepts only a fully hash-verified known installer receipt.
     """
     state_path = root / 'DXVK/graphics-menu/installed.json'
     if not state_path.exists():
@@ -167,14 +186,25 @@ def prepare_incremental(root, output, dll, repair_backup=None):
     receipt = None
     if repair_backup:
         receipt = read_json(repair_backup / 'manifest.json')
-        if Path(receipt['clientRoot']).resolve() != root.resolve() or receipt.get('poetaJourney') is not True:
-            raise ValueError('Expected this client Poeta journey installer receipt')
+        companion = receipt.get('feature') == 'player-companions'
+        if Path(receipt['clientRoot']).resolve() != root.resolve() or not (receipt.get('poetaJourney') is True or companion):
+            raise ValueError('Expected this client Poeta journey or companion installer receipt')
+        if companion:
+            # A receipt alone cannot authorize arbitrary native changes. Verify
+            # the saved pre-install DLL and the exact two companion browser caves.
+            spec = importlib.util.spec_from_file_location('companion_patch_for_recovery', HERE.parent / 'playerbots/prepare.py')
+            companions = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(companions)
+            saved = (repair_backup / 'bin64/Game.dll').read_bytes()
+            entry = next(e for e in receipt['files'] if e['path'] == 'bin64/Game.dll')
+            if sha(saved) != entry['original'] or companions.patch(saved) != (root / 'bin64/Game.dll').read_bytes():
+                raise ValueError('Companion repair exceeds the verified browser edits')
         for entry in receipt['files']:
             if sha((root/entry['path']).read_bytes()) != entry['staged']:
-                raise ValueError('Client changed after the recorded Poeta installation')
+                raise ValueError('Client changed after the recorded installation')
         for entry in receipt.get('preservedFiles',[]):
             if sha((root/entry['path']).read_bytes()) != entry['sha256']:
-                raise ValueError('Preserved Poeta client file changed')
+                raise ValueError('Preserved client file changed')
     for entry in state['files']:
         if sha((package/entry['path']).read_bytes()) != entry['installed']:
             raise ValueError('Graphics payload changed')
@@ -208,7 +238,9 @@ def prepare_incremental(root, output, dll, repair_backup=None):
             if i>=len(baseline) or i>=len(cursor_base) or baseline[i]!=before or cursor_base[i]!=before:
                 raise ValueError('Incremental edit overlaps graphics/cursor restore ownership')
             baseline[i]=cursor_base[i]=after
-    backup_name = 'service-menu-graphics-'+datetime.now().strftime('%Y%m%d-%H%M%S-%f')
+    backup_name = backup_name or 'service-menu-graphics-'+datetime.now().strftime('%Y%m%d-%H%M%S-%f')
+    if not re.fullmatch(r'service-menu-graphics-\d{8}-\d{6}-\d{6}', backup_name):
+        raise ValueError('Unexpected graphics compatibility backup name')
     backup_relative = 'DXVK-backups/'+backup_name
 
     def stage(relative,data):
@@ -230,7 +262,7 @@ def prepare_incremental(root, output, dll, repair_backup=None):
         new_files.append(dict(path=relative,original=sha(original),installed=sha(installed)))
     cursor_relative=backup_relative+'/cursor-base/bin64/Game.dll'
     stage(cursor_relative,bytes(cursor_base))
-    state.update(files=new_files,backupRoot=str(root/backup_relative),rebasedAt=datetime.now().isoformat())
+    state.update(files=new_files,backupRoot=str(root/backup_relative),rebasedAt=rebased_at or datetime.now().isoformat())
     manifest['files']=new_files
     game_record.update(installed=sha(dll),original=sha(cursor_base),backupPath=str(root/cursor_relative))
     for relative,value in [('DXVK/graphics-menu/package/manifest.json',manifest),('DXVK/graphics-menu/installed.json',state),('DXVK/installed.json',dxvk)]:

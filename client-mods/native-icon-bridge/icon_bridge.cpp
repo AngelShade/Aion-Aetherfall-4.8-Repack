@@ -132,6 +132,7 @@ void* trampoline(void* target,size_t length){auto memory=static_cast<uint8_t*>(V
 void detour(void* target,void* destination,size_t length){DWORD old;if(!VirtualProtect(target,length,PAGE_EXECUTE_READWRITE,&old))throw std::runtime_error("Hook protection");jump(static_cast<uint8_t*>(target),destination);std::memset(static_cast<uint8_t*>(target)+14,0x90,length-14);DWORD ignored;VirtualProtect(target,length,old,&ignored);FlushInstructionCache(GetCurrentProcess(),target,length);}
 #include "wardrobe_preview.h"
 #include "wardrobe_native_ui.h"
+#include "../playerbots/playerbot_bar.h"
 unsigned native_icon_side(unsigned item){auto found=item_assets.find(item);return found==item_assets.end()?40:assets[found->second].sprite_side;}
 struct NativeIconBinding { NativeIconBinding(){wardrobe::native_ui::icon_side=native_icon_side;} } native_icon_binding;
 bool setup(const std::filesystem::path& root){
@@ -141,7 +142,7 @@ bool setup(const std::filesystem::path& root){
 }
 }
 extern "C" __declspec(dllexport) void __cdecl AionWardrobeVisibility(Ptr widget,int event){wardrobe::visible(widget,event);}
-extern "C" __declspec(dllexport) void __cdecl AionWardrobeTick(){wardrobe::tick();}
+extern "C" __declspec(dllexport) void __cdecl AionWardrobeTick(){wardrobe::tick();if(wardrobe::ui_thread==GetCurrentThreadId() && !wardrobe::changing)companion_bar::tick();}
 extern "C" __declspec(dllexport) int __cdecl AionIconBridgeAttach(Ptr view,const wchar_t* root){try{if(!view||!root||!setup(root))return 0;attach(view);return 1;}catch(...){return 0;}}
 extern "C" __declspec(dllexport) size_t __cdecl AionIconBridgeDecode(uint32_t item,uint8_t* output,size_t capacity){try{auto bytes=get_icon(item);if(!bytes)return 0;if(output&&capacity>=bytes->size())std::memcpy(output,bytes->data(),bytes->size());return bytes->size();}catch(...){return 0;}}
 extern "C" __declspec(dllexport) int __cdecl AionIconBridgeInitialize(){

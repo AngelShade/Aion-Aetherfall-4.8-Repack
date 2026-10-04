@@ -31,7 +31,7 @@ final class PlayerBotGenerated {
 	}
 
 	static boolean eligible(ItemTemplate template, Player bot) {
-		return eligible(template, bot.getPlayerClass(), bot.getRace(), bot.getGender(), bot.getLevel(), bot.getSkillList()::isSkillPresent);
+		return eligible(template, bot.getPlayerClass(), bot.getRace(), bot.getGender(), bot.getLevel(), bot.getSkillList()::isSkillPresent) && PlayerBotBuildRules.armorAllowed(template.getItemGroup(),bot.getPlayerClass(),bot.getSkillList()::isSkillPresent);
 	}
 
 	static boolean eligible(ItemTemplate template, PlayerClass pc, Race race, com.aionemu.gameserver.model.Gender gender,
@@ -50,8 +50,10 @@ final class PlayerBotGenerated {
 	}
 
 	static void equipStarterSet(Player bot) {
+		if(bot.getEffectController()==null)PlayerBotGenerationOptions.initialize(bot);
 		List<ItemTemplate> choices = DataManager.ITEM_DATA.getItemTemplates().stream().filter(t -> eligible(t, bot))
 			.sorted(Comparator.comparingInt(ItemTemplate::getLevel).reversed().thenComparingInt(ItemTemplate::getTemplateId)).toList();
+		choices=PlayerBotBuildRules.sortStarter(choices,bot);
 		ItemTemplate weapon = choices.stream().filter(t -> t.getItemGroup() == weapon(bot.getPlayerClass())).findFirst()
 			.orElseThrow(() -> new IllegalArgumentException("No compatible common-quality weapon template for " + bot.getPlayerClass()));
 		addEquipped(bot, weapon, weapon.isTwoHandWeapon() ? ItemSlot.MAIN_OR_SUB.getSlotIdMask() : ItemSlot.MAIN_HAND.getSlotIdMask());
@@ -68,10 +70,12 @@ final class PlayerBotGenerated {
 	}
 
 	private static void addEquipped(Player bot, ItemTemplate template, long slot) {
+		for(var previous:List.copyOf(bot.getEquipment().getEquippedItems()))if((previous.getEquipmentSlot() & slot)!=0)bot.getEquipment().unEquipItem(previous.getObjectId(),false);
 		var item = ItemFactory.newItem(template.getTemplateId(), 1);
 		if (item == null || !item.isIdentified()) throw new IllegalArgumentException("Generated equipment template is not usable: " + template.getTemplateId());
-		item.setSoulBound(true); item.setEquipped(true); item.setEquipmentSlot(slot);
+		item.setSoulBound(true);
 		bot.getInventory().onLoadHandler(item);
+		if(bot.getEquipment().equipItem(item.getObjectId(),slot)==null)throw new IllegalStateException("Native starter equip rejected "+template.getTemplateId());
 	}
 	private PlayerBotGenerated() {}
 }

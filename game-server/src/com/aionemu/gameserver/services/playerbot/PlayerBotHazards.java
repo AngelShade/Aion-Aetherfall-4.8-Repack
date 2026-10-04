@@ -69,6 +69,8 @@ final class PlayerBotHazards {
 				return;
 			}
 			Integer id = EMITTERS.get(ai);
+			// Native KromedeTrapAI detonates 17050 after 5.5s: its visible object is already a warning, before casting starts.
+			if ("kromede_trap".equals(ai)) id = 17050;
 			if ("tahabatafirestorm".equals(ai) && npc.getNpcId() == 283102) id = 20753;
 			var cast = npc.getCastingSkill();
 			SkillTemplate template = id == null ? cast == null ? null : cast.getSkillTemplate() : DataManager.SKILL_DATA.getSkillTemplate(id);
@@ -76,7 +78,8 @@ final class PlayerBotHazards {
 			var p = template.getProperties();
 			if (p.getTargetRelation() != TargetRelationAttribute.ENEMY && p.getTargetRelation() != TargetRelationAttribute.ALL) return;
 			if (p.getTargetType() != TargetRangeAttribute.AREA && p.getTargetType() != TargetRangeAttribute.POINT) return;
-			Creature center = p.getFirstTarget() == FirstTargetAttribute.ME ? npc : cast == null ? null : cast.getFirstTarget();
+			// KromedeTrapAI explicitly casts at its own actor, despite the template's TARGET first-target metadata.
+			Creature center = p.getFirstTarget() == FirstTargetAttribute.ME || "kromede_trap".equals(ai) ? npc : cast == null ? null : cast.getFirstTarget();
 			if (center == actor && p.getEffectiveDist() == 0) return; // targeted area follows this actor: spreading is a separate mechanic
 			float x, y, z;
 			if (p.getFirstTarget() == FirstTargetAttribute.POINT && cast != null) { x = cast.getX(); y = cast.getY(); z = cast.getZ(); }

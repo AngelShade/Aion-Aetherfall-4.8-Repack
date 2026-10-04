@@ -17,7 +17,8 @@ final class PlayerBotLoot {
 	void passRoll(Player bot) {
 		if (bot.isInPlayerMode(PlayerMode.IN_ROLL) && bot.inRoll != null) {
 			var roll = bot.inRoll;
-			DropDistributionService.getInstance().handleRollOrBid(bot, roll.getRollType(), 0, 0,
+			boolean useful = roll.getRollType() == 2 && PlayerBotGearPolicy.roll(bot, DataManager.ITEM_DATA.getItemTemplate(roll.getItemId()));
+			DropDistributionService.getInstance().handleRollOrBid(bot, roll.getRollType(), useful ? 1 : 0, 0,
 				roll.getItemId(), roll.getNpcId(), roll.getIndex());
 		}
 	}

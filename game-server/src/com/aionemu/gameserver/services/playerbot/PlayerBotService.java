@@ -70,7 +70,10 @@ public final class PlayerBotService {
 			|| bot.getPlayerGroup() != owner.getPlayerGroup() || bot.getWorldId() != owner.getWorldId() || bot.getInstanceId() != owner.getInstanceId()
 			|| !com.aionemu.gameserver.utils.PositionUtil.isInRange(owner, bot, GroupConfig.GROUP_MAX_DISTANCE)) return false;
 		synchronized (session) {
-			return com.aionemu.gameserver.services.QuestService.startQuest(new com.aionemu.gameserver.questEngine.model.QuestEnv(null, bot, questId));
+			PlayerBotQuestSync.state(session);
+			boolean accepted = com.aionemu.gameserver.services.QuestService.startQuest(new com.aionemu.gameserver.questEngine.model.QuestEnv(null, bot, questId));
+			if (accepted) PlayerBotQuestSync.accepted(owner, bot, questId, false);
+			return accepted;
 		}
 	}
 
@@ -91,6 +94,7 @@ public final class PlayerBotService {
 		PlayerBotLease lease = PlayerBotLease.acquire(id);
 		if (lease == null) throw new IllegalArgumentException("Character is logging in, saving, or already recruited.");
 		Player bot = null;
+		PlayerBotSession session = null;
 		boolean registered = false;
 		try {
 			if (World.getInstance().isInWorld(id) || PlayerLeaveWorldService.isLeavingWorld(id))
@@ -99,7 +103,7 @@ public final class PlayerBotService {
 			PlayerCommonData common = data.getPlayerCommonData();
 			boolean banned = data.getCharBanInfo() != null && data.getCharBanInfo().getEnd() >= System.currentTimeMillis() / 1000;
 			if (!PlayerBotRules.canRecruit(PlayerDAO.getAccountId(id) == owner.getAccount().getId(), common.getRace() == owner.getRace(),
-				common.isOnline(), banned, data.getDeletionDate() != null, false, common.getLevel() - owner.getLevel(), PlayerBotConfig.LEVEL_DIFFERENCE))
+				common.isOnline(), banned, data.getDeletionDate() != null, false, generated ? 0 : common.getLevel() - owner.getLevel(), PlayerBotConfig.LEVEL_DIFFERENCE))
 				throw new IllegalArgumentException("Companion must be offline, same faction, not banned/deleting, and within " + PlayerBotConfig.LEVEL_DIFFERENCE + " levels.");
 			// Isolated account view avoids changing the human's live warehouse owner, visible equipment or passports.
 			Account account = new Account(owner.getAccount().getId());
@@ -117,6 +121,10 @@ public final class PlayerBotService {
 			PlayerBotPersistence.Home home = PlayerBotPersistence.Home.of(bot);
 			bot.setPlayerBotOwner(owner.getObjectId());
 			bot.setCubeLimit(); bot.setWarehouseLimit();
+			session = new PlayerBotSession(owner, bot, lease, companions(owner).size(), generated);
+			// Register Temporary Bot management before native Stigma reconstruction.
+			// Owned alts return immediately from this path and retain normal login rules.
+			PlayerBotTemporary.tick(session,Boolean.TRUE.equals(session.snapshot().get("gear")));
 			// Stigma skills are temporary and are reconstructed by normal login, not player_skills.
 			com.aionemu.gameserver.services.StigmaService.onPlayerLogin(bot);
 			for (var skillEntry : bot.getSkillList().getAllSkills()) {
@@ -132,13 +140,13 @@ public final class PlayerBotService {
 			if (owner.getPlayerGroup() == null) PlayerGroupService.createGroup(owner, bot, TeamType.GROUP, 0);
 			else PlayerGroupService.addPlayer(owner.getPlayerGroup(), bot);
 			if (owner.isInInstance()) InstanceService.onEnterInstance(bot);
-			PlayerBotSession session = new PlayerBotSession(owner, bot, lease, companions(owner).size(), generated);
 			sessions.put(id, session); homes.put(id, home); registered = true;
 			startTasks();
 			PacketSendUtility.sendMessage(owner, "Companion recruited: " + bot.getName()
 				+ (bot.isDead() ? ". This character needs resurrection before it can act." : ". Use .bot help for orders."));
 		} finally {
 			if (!registered) {
+				if(session!=null)PlayerBotQuestSync.close(session);
 				if (bot != null) {
 					PlayerGroupService.removePlayer(bot);
 					World.getInstance().removeObject(bot);
@@ -152,14 +160,14 @@ public final class PlayerBotService {
 
 	private void ensureOwner(Player owner) {
 		if (!PlayerBotConfig.ENABLED || shuttingDown) throw new IllegalArgumentException("Player companions are disabled.");
-		if (!owner.isOnline() || !owner.isSpawned() || owner.isDead() || owner.isInPrison() || owner.isInAlliance()
-			|| owner.isFlying() || PlayerBotSession.inPvp(owner)) throw new IllegalArgumentException("Recruit while alive, on the ground, outside PvP and alliances.");
+		if (!owner.isOnline() || !owner.isSpawned()) throw new IllegalArgumentException("Wait until your character is in the world.");
+		if (owner.getController().isInCombat()) throw new IllegalArgumentException("You cannot recruit companions while in combat. Wait until combat ends.");
+		if (owner.isInAlliance()) throw new IllegalArgumentException("Companions currently need a normal party with a free slot; alliance membership is not implemented yet.");
 		if (companions(owner).size() >= Math.min(5, PlayerBotConfig.MAX_PER_OWNER) || sessions.size() >= PlayerBotConfig.MAX_ACTIVE)
 			throw new IllegalArgumentException("The companion limit has been reached.");
 		if (owner.getPlayerGroup() != null && (!owner.getPlayerGroup().isLeader(owner)
 			|| owner.getPlayerGroup().getMembers().size() >= 6 || owner.getPlayerGroup().getTeamType() != TeamType.GROUP))
 			throw new IllegalArgumentException("You must lead a normal party with a free slot.");
-		if (!canEnter(owner, owner.getWorldMapInstance())) throw new IllegalArgumentException("This instance has not been approved for player companions.");
 	}
 
 	/** Generated recruits are normal, persistent starting characters, not temporary NPCs or privileged max-level characters. */
@@ -188,6 +196,7 @@ public final class PlayerBotService {
 			isolated.setAccountWarehouse(new PlayerStorage(null, StorageType.ACCOUNT_WAREHOUSE));
 			generated = PlayerService.newPlayer(data, isolated);
 			generated.setPlayerBotOwner(owner.getObjectId());
+			PlayerBotGenerationOptions.initialize(generated);
 			if (!PlayerService.storeNewPlayer(generated, isolated.getName(), isolated.getId()))
 				throw new java.sql.SQLException("Generated character save failed");
 			PlayerBotPersistence.save(generated, PlayerBotPersistence.Home.of(generated));
@@ -198,7 +207,7 @@ public final class PlayerBotService {
 			log.error("Normal companion character creation failed for {} (id {})", name, id, e);
 			throw new IllegalArgumentException("Character creation failed; check server logs for id " + id + " before retrying.", e);
 		} finally {
-			if (generated != null) { generated.getEffectController().removeAllEffects(true); generated.getLifeStats().cancelAllTasks(); }
+			if (generated != null) { if (generated.getEffectController() != null) generated.getEffectController().removeAllEffects(true); generated.getLifeStats().cancelAllTasks(); }
 		}
 		owner.getAccount().addPlayerAccountData(data);
 		PacketSendUtility.sendMessage(owner, "Created " + name + " as a level-1 " + playerClass + " in your character roster. It uses a character slot and normal progression.");
@@ -209,11 +218,12 @@ public final class PlayerBotService {
 	/** Separate bot-only roster: level/class at recruitment, ordinary stats/skills, no human character slot. */
 	public synchronized void generate(Player owner, String name, PlayerClass playerClass) {
 		ensureOwner(owner);
+		int startingLevel = PlayerBotGenerationOptions.level(owner.getLevel());
 		if (!PlayerBotConfig.GENERATED_ENABLED) throw new IllegalArgumentException("Generated companions are disabled.");
 		if (!PlayerBotRoster.available()) throw new IllegalArgumentException("The separate companion roster needs game-server/sql/playerbots.sql applied and a server restart.");
 		if (PlayerBotRoster.list(owner.getAccount().getId()).size() >= PlayerBotConfig.GENERATED_MAX_PER_ACCOUNT)
 			throw new IllegalArgumentException("Your generated companion roster is full.");
-		if (owner.getLevel() < 10 && !playerClass.isStartingClass() || owner.getLevel() >= 10 && playerClass.isStartingClass())
+		if (startingLevel < 10 && !playerClass.isStartingClass() || startingLevel >= 10 && playerClass.isStartingClass())
 			throw new IllegalArgumentException("Choose a starting class below level 10, or an advanced class from level 10 onward.");
 		if (!NameRestrictionService.isValidName(name) || NameRestrictionService.isForbidden(name) || PlayerService.isNameUsedOrReserved(null, name))
 			throw new IllegalArgumentException("Choose an available valid companion name.");
@@ -225,7 +235,7 @@ public final class PlayerBotService {
 			PlayerBotRoster.reserve(owner.getAccount().getId(), id);
 			PlayerCommonData common = new PlayerCommonData(id);
 			common.setName(name); common.setRace(owner.getRace()); common.setGender(owner.getGender());
-			common.setPlayerClass(playerClass); common.setDaeva(!playerClass.isStartingClass()); common.setLevel(owner.getLevel());
+			common.setPlayerClass(playerClass); common.setDaeva(!playerClass.isStartingClass()); common.setLevel(startingLevel);
 			var data = new PlayerAccountData(common, owner.getPlayerAppearance().copy());
 			Account isolated = new Account(owner.getAccount().getId());
 			isolated.setName(owner.getAccount().getName()); isolated.setMembership(owner.getAccount().getMembership());
@@ -233,10 +243,8 @@ public final class PlayerBotService {
 			isolated.setAccountWarehouse(new PlayerStorage(null, StorageType.ACCOUNT_WAREHOUSE));
 			generated = PlayerService.newPlayer(data, isolated);
 			generated.setPlayerBotOwner(owner.getObjectId());
-			// newPlayer/SkillLearnService already learns eligible base and advanced auto-learn skills.
-			if (!playerClass.isStartingClass()) {
-				PlayerBotGenerated.equipStarterSet(generated);
-			}
+			PlayerBotGenerationOptions.initialize(generated);
+			PlayerBotTemporary.initialize(generated,PlayerBotRules.roleFor(playerClass));
 			generated.getLifeStats().synchronizeWithMaxStats();
 			if (!PlayerService.storeNewPlayer(generated, isolated.getName(), isolated.getId()))
 				throw new java.sql.SQLException("Generated character or inventory creation failed");
@@ -247,11 +255,12 @@ public final class PlayerBotService {
 			throw new IllegalArgumentException("Generated companion creation failed. Pending entries stay hidden from character selection; check server logs for id " + id + ".", e);
 		} finally {
 			if (generated != null) {
-				generated.getEffectController().removeAllEffects(true);
+				PlayerBotTemporary.release(generated);
+				if (generated.getEffectController() != null) generated.getEffectController().removeAllEffects(true);
 				generated.getLifeStats().cancelAllTasks();
 			}
 		}
-		PacketSendUtility.sendMessage(owner, "Generated " + name + " as a level-" + owner.getLevel() + " " + playerClass + " in your separate companion roster.");
+		PacketSendUtility.sendMessage(owner, "Temporary Bot " + name + " is ready as a level-" + startingLevel + " " + playerClass + ". Automatic builds and equipment apply only to Temporary Bots.");
 		recruit(owner, name);
 	}
 
@@ -296,8 +305,9 @@ public final class PlayerBotService {
 	/** Resolve current state at effect application too, so an area attack cannot hit a newly arrived player. */
 	public static boolean allowsTarget(Player bot, com.aionemu.gameserver.model.gameobjects.Creature target) {
 		if (!bot.isPlayerBot()) return true;
+		if (target instanceof com.aionemu.gameserver.model.gameobjects.Npc npc && npc.isFlag()) return false;
 		Player owner = World.getInstance().getPlayer(bot.getPlayerBotOwnerId());
-		if (owner == null || !owner.isOnline() || !owner.isSpawned() || PlayerBotSession.inPvp(owner)
+		if (owner == null || !owner.isOnline() || !owner.isSpawned()
 			|| owner.getWorldId() != bot.getWorldId() || owner.getInstanceId() != bot.getInstanceId()
 			|| bot.getPlayerGroup() == null || bot.getPlayerGroup() != owner.getPlayerGroup()) return false;
 		if (bot.isEnemy(target)) {
@@ -305,7 +315,7 @@ public final class PlayerBotService {
 			return target instanceof com.aionemu.gameserver.model.gameobjects.Npc npc && target.getMaster() == target
 				&& session != null && session.allowsEnemy(npc);
 		}
-		return !(target instanceof Player p) || p.getPlayerGroup() == bot.getPlayerGroup() && !PlayerBotSession.inPvp(p);
+		return !(target instanceof Player p) || p.getPlayerGroup() == bot.getPlayerGroup();
 	}
 
 	private PlayerBotSession session(int id) { return sessions.get(id); }
@@ -348,23 +358,13 @@ public final class PlayerBotService {
 	}
 
 	public synchronized boolean relocate(PlayerBotSession session) {
-		Player owner = session.owner(), bot = session.bot();
-		if (owner.isDead() || bot.isDead() || owner.isFlying() || PlayerBotSession.inPvp(owner)
-			|| bot.getAggroList().stream().findAny().isPresent() || !canEnter(owner, owner.getWorldMapInstance())) return false;
-		session.releasePet();
-		if (bot.isSpawned()) { InstanceService.onLeaveInstance(bot); World.getInstance().despawn(bot); }
-		World.getInstance().setPosition(bot, owner.getWorldId(), owner.getInstanceId(), owner.getX(), owner.getY(), owner.getZ(), owner.getHeading());
-		World.getInstance().spawn(bot);
-		bot.getController().updateZone();
-		if (owner.isInInstance()) InstanceService.onEnterInstance(bot);
-		return true;
+		return PlayerBotTransfers.relocate(session);
 	}
 
 	private boolean canEnter(Player owner, WorldMapInstance destination) {
-		if (!destination.getParent().isInstanceType()) return true;
-		return PlayerBotConfig.INSTANCE_FOLLOW && PlayerBotConfig.ALLOWED_INSTANCE_MAPS.contains(owner.getWorldId())
-			&& destination.getMaxPlayers() > 1 && !destination.isFull() && owner.getPlayerGroup() != null
-			&& (destination.isRegistered(owner.getPlayerGroup().getTeamId()) || destination.getRegisteredTeam() == owner.getPlayerGroup());
+		// The owner has already entered through the native admission path. Bot
+		// recruitment/following is not restricted by PvP flags or map allowlists.
+		return destination != null;
 	}
 
 	public boolean isReserved(Player caster, com.aionemu.gameserver.model.gameobjects.Creature target, SkillKind kind) {

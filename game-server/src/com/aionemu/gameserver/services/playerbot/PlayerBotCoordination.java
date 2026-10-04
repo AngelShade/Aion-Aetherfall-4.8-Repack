@@ -11,6 +11,10 @@ final class PlayerBotCoordination {
 		for (var enemy : enemies) {
 			var cast = enemy.getCastingSkill();
 			if (cast == null || cast.getFirstTarget() != bot) continue;
+			// A targeted cast travels with its victim. Running the active tank away
+			// drags the enemy and repeats on every cast; ground hazards are handled
+			// separately by PlayerBotHazards. Other roles still spread normally.
+			if (enemy.getTarget() == bot && PlayerBotService.getInstance().combatRole(bot) == PlayerBotRules.Role.TANK) continue;
 			var p = cast.getSkillTemplate().getProperties();
 			if (p == null || p.getFirstTarget() != FirstTargetAttribute.TARGET || p.getTargetRelation() != TargetRelationAttribute.ENEMY
 				|| p.getTargetType() != TargetRangeAttribute.AREA || p.getEffectiveDist() > 0 || p.getEffectiveRange() <= 0) continue;
@@ -21,12 +25,11 @@ final class PlayerBotCoordination {
 		return null;
 	}
 	static PlayerBotNavigation.Point tankFacing(Player bot, Npc target, List<Player> party) {
-		if (target == null || target.getTarget() != bot || target.isCasting()) return null;
-		var allies = party.stream().filter(a -> a != bot && !a.isDead() && PlayerBotService.getInstance().combatRole(a) != PlayerBotRules.Role.TANK
-			&& PositionUtil.isInRange(target, a, 15)).map(a -> new PlayerBotNavigation.Point(a.getX(), a.getY(), a.getZ())).toList();
-		if (allies.isEmpty()) return null;
-		return away(new PlayerBotNavigation.Point(target.getX(), target.getY(), target.getZ()), allies,
-			Math.max(2, target.getObjectTemplate().getBoundRadius().getFront() + 1.5f), target.getHeading());
+		// Do not translate facing into a destination beyond a moving enemy.
+		// The enemy follows its tank, so recomputing that point creates an
+		// unbounded pull. Native attacks face the target; reach and real hazard
+		// avoidance remain the combat movement authorities.
+		return null;
 	}
 	static PlayerBotNavigation.Point away(PlayerBotNavigation.Point center, List<PlayerBotNavigation.Point> allies, float radius, byte heading) {
 		double x = allies.stream().mapToDouble(PlayerBotNavigation.Point::x).average().orElse(center.x());

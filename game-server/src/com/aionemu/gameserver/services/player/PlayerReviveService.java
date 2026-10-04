@@ -210,6 +210,7 @@ public class PlayerReviveService {
 			PlayerAllianceService.updateAlliance(player, PlayerAllianceEvent.MOVEMENT);
 		}
 		PacketSendUtility.broadcastPacket(player, new SM_EMOTION(player, EmotionType.RESURRECT), true);
+		com.aionemu.gameserver.services.playerbot.PlayerBotRevival.beginRecovery(player);
 	}
 
 	public static void itemSelfRevive(Player player) {

@@ -14,12 +14,15 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 	@Override
 	public synchronized void startMovingToDestination() {
 		if (failed || !owner.canPerformMove() || owner.isCasting()) return;
-		updateLastMove();
 		if (started.compareAndSet(false, true)) {
+			updateLastMove();
 			owner.getController().onStartMove();
+			setInMove(true);
+			com.aionemu.gameserver.services.playerbot.PlayerBotFollowSpeed.update(owner,targetDestX,targetDestY,targetDestZ);
 			setAndSendStartMove(owner);
 			PlayerMoveTaskManager.getInstance().addPlayer(owner);
-		} else {
+		} else if (com.aionemu.gameserver.services.playerbot.PlayerBotFormation.sendUpdate(owner)) {
+			com.aionemu.gameserver.services.playerbot.PlayerBotFollowSpeed.update(owner,targetDestX,targetDestY,targetDestZ);
 			setAndSendStartMove(owner);
 		}
 	}
@@ -42,6 +45,9 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 			abortMove();
 			return;
 		}
+		long now=System.currentTimeMillis(),elapsed=Math.max(0,Math.min(1000,now-lastMoveUpdate));
+		com.aionemu.gameserver.services.playerbot.PlayerBotFollowSpeed.update(owner,targetDestX,targetDestY,targetDestZ);
+		lastMoveUpdate=now-elapsed;
 		super.moveToDestination();
 		owner.getKnownList().update();
 		owner.getController().onMove();
@@ -52,7 +58,8 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 	@Override
 	public synchronized void abortMove() {
 		boolean wasMoving = isInMove();
-		super.abortMove();
+		if (wasMoving || started.get()) super.abortMove();
+		com.aionemu.gameserver.services.playerbot.PlayerBotFollowSpeed.close(owner);
 		if (wasMoving) owner.getController().onStopMove();
 	}
 }

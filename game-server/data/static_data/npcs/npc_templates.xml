@@ -60597,7 +60597,7 @@
 		</equipment>
 		<bound_radius front="1.155" side="0.59325004" upper="3.06" />
 	</npc_template>
-	<npc_template npc_id="211040" level="40" name="grand chieftain saendukal" name_id="301359" height="5.25" group_drop="ORCSHANDURA" rank="EXPERT" rating="LEGENDARY" race="KRALL" tribe="KRALL" type="MONSTER" ai="aggressive" srange="15" sangle="240" arange="2" attack_speed="2625" hpgauge="26" cancel_level="0">
+	<npc_template npc_id="211040" level="40" name="grand chieftain saendukal" name_id="301359" height="5.25" group_drop="ORCSHANDURA" rank="EXPERT" rating="LEGENDARY" race="KRALL" tribe="KRALL" type="MONSTER" ai="saendukal" srange="15" sangle="240" arange="2" attack_speed="2625" hpgauge="26" cancel_level="0">
 		<stats maxHp="2689332">
 			<speeds walk="1.44" group_walk="1.44" run="7" run_fight="14" group_run_fight="7" />
 		</stats>
@@ -73786,7 +73786,7 @@
 		</stats>
 		<bound_radius front="1.595" side="1.875" upper="2" />
 	</npc_template>
-	<npc_template npc_id="212846" level="37" name="kromede the corrupt" name_id="306735" height="1.7" group_drop="HUMAN" rank="VETERAN" rating="ELITE" race="DEMIHUMANOID" tribe="FIRETEMPLE_MOB" ai="aggressive" srange="8" sangle="240" arange="20" attack_speed="2260" hpgauge="14" cancel_level="20">
+	<npc_template npc_id="212846" level="37" name="kromede the corrupt" name_id="306735" height="1.7" group_drop="HUMAN" rank="VETERAN" rating="ELITE" race="DEMIHUMANOID" tribe="FIRETEMPLE_MOB" ai="kromede" srange="8" sangle="240" arange="20" attack_speed="2260" hpgauge="14" cancel_level="20">
 		<stats maxHp="57041">
 			<speeds walk="1.419" group_walk="1.419" run="6" run_fight="14" group_run_fight="6" />
 		</stats>
@@ -88278,7 +88278,7 @@
 		</equipment>
 		<bound_radius front="1.287" side="0.8775" upper="6.084" />
 	</npc_template>
-	<npc_template npc_id="214621" level="37" name="vile judge kromede" name_id="318113" height="1.7" group_drop="HUMAN" rank="VETERAN" rating="ELITE" race="DEMIHUMANOID" tribe="FIRETEMPLE_MOB" ai="aggressive" srange="8" sangle="240" arange="20" attack_speed="2260" hpgauge="14" cancel_level="20">
+	<npc_template npc_id="214621" level="37" name="vile judge kromede" name_id="318113" height="1.7" group_drop="HUMAN" rank="VETERAN" rating="ELITE" race="DEMIHUMANOID" tribe="FIRETEMPLE_MOB" ai="kromede" srange="8" sangle="240" arange="20" attack_speed="2260" hpgauge="14" cancel_level="20">
 		<stats maxHp="214644">
 			<speeds walk="1.419" group_walk="1.419" run="6" run_fight="14" group_run_fight="6" />
 		</stats>
@@ -355071,7 +355071,7 @@
 		</stats>
 		<bound_radius front="1.5" side="2.175" upper="1.65" />
 	</npc_template>
-	<npc_template npc_id="280338" level="40" name="blf2_nm2_krallbosssaendukal_40_ae" name_id="305727" height="5.25" group_drop="ORCSHANDURA" rank="MASTER" rating="HERO" tribe="KRALL" type="MONSTER" ai="aggressive" srange="15" sangle="240" arange="2" attack_speed="3150" hpgauge="22" cancel_level="0">
+	<npc_template npc_id="280338" level="40" name="blf2_nm2_krallbosssaendukal_40_ae" name_id="305727" height="5.25" group_drop="ORCSHANDURA" rank="MASTER" rating="HERO" tribe="KRALL" type="MONSTER" ai="saendukal" srange="15" sangle="240" arange="2" attack_speed="3150" hpgauge="22" cancel_level="0">
 		<stats maxHp="302660">
 			<speeds walk="1.44" group_walk="1.44" run="7" run_fight="14" group_run_fight="7" />
 		</stats>
@@ -356335,7 +356335,7 @@
 		</stats>
 		<bound_radius front="1.65" side="0.12" upper="3.17" />
 	</npc_template>
-	<npc_template npc_id="280501" level="37" name="suspicious object" name_id="307694" height="0.46" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="MONSTER" ai="trap" srange="23" sangle="270" attack_speed="2645" hpgauge="3">
+	<npc_template npc_id="280501" level="37" name="suspicious object" name_id="307694" height="0.46" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="MONSTER" ai="kromede_trap" srange="23" sangle="270" attack_speed="2645" hpgauge="3">
 		<stats maxHp="56" />
 		<bound_radius front="0.075" side="0.07" upper="0.46" />
 	</npc_template>

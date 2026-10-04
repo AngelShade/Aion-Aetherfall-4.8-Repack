@@ -4079,26 +4079,26 @@
 		<quest_drop npc_id="211038" item_id="182201415"/>
 		<quest_drop npc_id="211864" item_id="182201415" chance="20"/>
 		<quest_drop npc_id="211865" item_id="182201415" chance="20"/>
-		<quest_drop npc_id="211017" item_id="182201415" chance="2"/>
-		<quest_drop npc_id="211034" item_id="182201415" chance="2"/>
-		<quest_drop npc_id="211018" item_id="182201415" chance="2"/>
-		<quest_drop npc_id="211033" item_id="182201415" chance="2"/>
-		<quest_drop npc_id="211019" item_id="182201415" chance="2"/>
-		<quest_drop npc_id="211036" item_id="182201415" chance="2"/>
-		<quest_drop npc_id="211020" item_id="182201415" chance="2"/>
-		<quest_drop npc_id="211037" item_id="182201415" chance="2"/>
-		<quest_drop npc_id="211818" item_id="182201415" chance="2"/>
-		<quest_drop npc_id="211819" item_id="182201415" chance="2"/>
-		<quest_drop npc_id="212021" item_id="182201415" chance="2"/>
-		<quest_drop npc_id="212022" item_id="182201415" chance="2"/>
-		<quest_drop npc_id="212028" item_id="182201415" chance="2"/>
-		<quest_drop npc_id="212032" item_id="182201415" chance="2"/>
-		<quest_drop npc_id="212046" item_id="182201415" chance="2"/>
-		<quest_drop npc_id="212047" item_id="182201415" chance="2"/>
-		<quest_drop npc_id="211035" item_id="182201415" chance="2"/>
-		<quest_drop npc_id="212025" item_id="182201415" chance="2"/>
-		<quest_drop npc_id="212029" item_id="182201415" chance="2"/>
-		<quest_drop npc_id="212033" item_id="182201415" chance="2"/>
+		<quest_drop npc_id="211017" item_id="182201415" chance="20"/>
+		<quest_drop npc_id="211034" item_id="182201415" chance="20"/>
+		<quest_drop npc_id="211018" item_id="182201415" chance="20"/>
+		<quest_drop npc_id="211033" item_id="182201415" chance="20"/>
+		<quest_drop npc_id="211019" item_id="182201415" chance="20"/>
+		<quest_drop npc_id="211036" item_id="182201415" chance="20"/>
+		<quest_drop npc_id="211020" item_id="182201415" chance="20"/>
+		<quest_drop npc_id="211037" item_id="182201415" chance="20"/>
+		<quest_drop npc_id="211818" item_id="182201415" chance="20"/>
+		<quest_drop npc_id="211819" item_id="182201415" chance="20"/>
+		<quest_drop npc_id="212021" item_id="182201415" chance="20"/>
+		<quest_drop npc_id="212022" item_id="182201415" chance="20"/>
+		<quest_drop npc_id="212028" item_id="182201415" chance="20"/>
+		<quest_drop npc_id="212032" item_id="182201415" chance="20"/>
+		<quest_drop npc_id="212046" item_id="182201415" chance="20"/>
+		<quest_drop npc_id="212047" item_id="182201415" chance="20"/>
+		<quest_drop npc_id="211035" item_id="182201415" chance="20"/>
+		<quest_drop npc_id="212025" item_id="182201415" chance="20"/>
+		<quest_drop npc_id="212029" item_id="182201415" chance="20"/>
+		<quest_drop npc_id="212033" item_id="182201415" chance="20"/>
 	</quest>
 	<quest id="1496" name="Enemy in the Kaidan Mine" nameId="1102596" quest_zone="Eltnen" minlevel_permitted="28" max_repeat_count="1" race_permitted="ELYOS" category="IMPORTANT" restricted="true">
 		<collect_items>

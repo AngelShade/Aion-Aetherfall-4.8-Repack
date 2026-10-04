@@ -103,6 +103,7 @@ final class PlayerBotPersistence {
 	private static void saveProgress(Connection connection, Player bot, Home home) throws SQLException {
 		// Leave the companion at its pre-recruitment home on the next human login.
 		// Never persist an unregistered private instance or a temporary companion position.
+		if(PlayerBotRoster.contains(bot.getObjectId()))try(PreparedStatement statement=connection.prepareStatement("UPDATE players SET player_class=? WHERE id=?")){statement.setString(1,bot.getPlayerClass().name());statement.setInt(2,bot.getObjectId());statement.executeUpdate();}
 		try (PreparedStatement statement = connection.prepareStatement(
 			"UPDATE players SET exp=?,recoverexp=?,dp=?,soul_sickness=?,reposte_energy=?,x=?,y=?,z=?,heading=?,world_id=?,world_owner=? WHERE id=?")) {
 			var data = bot.getCommonData();

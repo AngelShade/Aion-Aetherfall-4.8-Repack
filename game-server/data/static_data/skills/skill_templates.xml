@@ -118209,7 +118209,7 @@
 			<weapon weapon="GREATSWORD SPELLBOOK BOW DAGGER MACE ORB POLEARM STAFF SWORD GUN CANNON HARP KEYBLADE" />
 		</startconditions>
 		<effects>
-			<shield percent="true" hitvalue="90" value="10000000" duration2="500000" effectid="154" e="1" basiclvl="1" noresist="true" hittype="EVERYHIT" hoptype="DAMAGE" />
+			<shield percent="true" hitvalue="90" value="10000000" duration2="500000" hitcount="10" effectid="154" e="1" basiclvl="1" noresist="true" hittype="EVERYHIT" hoptype="DAMAGE" />
 		</effects>
 		<motion name="normalfire" />
 	</skill_template>
