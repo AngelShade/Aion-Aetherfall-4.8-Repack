@@ -14,7 +14,7 @@ from stage_companion_update import methods, method_name
 ROOT = Path(__file__).resolve().parents[2]
 PREFIX = 'com.aionemu.gameserver.services.playerbot.'
 SCOPES = {
-    'PlayerBotSession': {'tick', 'snapshot', 'priority', 'recipient', 'hasActualBuff'},
+    'PlayerBotSession': {'tick', 'snapshot', 'priority', 'recipient', 'hasActualBuff', 'equip', 'markClosing'},
     'PlayerBotSession$CastAction': {'isUseful','isPossible','prerequisites','execute'},
     'PlayerBotSession$ReachAction': {'isUseful'},
     'PlayerBotFormation': {'destination','close'},
@@ -26,6 +26,8 @@ SCOPES = {
     'PlayerBotOffense': {'finisher', 'refresh', 'useful', 'routine'},
     'PlayerBotSorcerer': {'applies','strategy','singleTarget','offensiveBoost','vulnerability','sameFamily','band','damage','support'},
     'PlayerBotCombatBuffs': {'useful'},
+    'PlayerBotTrade': {'session','ready','request','participants','trading','guard','locked','rights','confirm','hold','equip','tick','closed','finishing','close'},
+    'PlayerBotTradeStore': {'source','balance','currency','transfer','commit'},
     'PlayerBotClassCombat': {'useful', 'shouldBurst'},
     'PlayerBotQuestRoutes': {'choose', 'trigger', 'stillWanted', 'leash'},
     'PlayerBotQuests': {'choose', 'interact', 'hunt'},
