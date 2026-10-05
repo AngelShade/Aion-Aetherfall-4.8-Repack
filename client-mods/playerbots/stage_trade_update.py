@@ -7,6 +7,7 @@ base.SCOPES={
  shared.PREFIX+'services/ExchangeService':{'validateParticipants','addItem','addKinah','lockExchange','confirmExchange','cancelExchange'},
  shared.PREFIX+'network/aion/clientpackets/CM_EXCHANGE_REQUEST':{'runImpl'},
  shared.PREFIX+'services/playerbot/PlayerBotSession':{'tick','markClosing','equip'},
+ shared.PREFIX+'services/playerbot/PlayerBotTrade':{'equip','tick'},
  'playercommands/Bot':set(),
 }
 base.HELPERS={'PlayerBotTrade','PlayerBotTradeStore'}

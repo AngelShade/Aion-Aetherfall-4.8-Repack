@@ -67,8 +67,7 @@ public final class PlayerBotQuestSync {
     Files.createDirectories(path().getParent());Path temporary=Files.createTempFile(path().getParent(),"companion-care-",".tmp");
     try {
      try(var out=Files.newOutputStream(temporary)){p.store(out,"Companion quest choices and equipment care");}
-     try{Files.move(temporary,path(),StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);}
-     catch(AtomicMoveNotSupportedException error){Files.move(temporary,path(),StandardCopyOption.REPLACE_EXISTING);}
+     PlayerBotSettingsFiles.replace(temporary,path());
     }finally{Files.deleteIfExists(temporary);}
    }catch(IOException error){throw new IllegalStateException("Cannot save companion care settings",error);}
   }

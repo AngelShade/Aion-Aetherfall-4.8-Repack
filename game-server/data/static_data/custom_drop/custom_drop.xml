@@ -105,6 +105,28 @@
 			<drop item_id="125000954" chance="12" /><!-- Kaidan Helm -->
 		</drop_group>
 	</npc_drop>
+	<npc_drop npc_id="211861"><!-- Kaidan Chieftain's Treasure Box: mirrors Saendukal's named rewards -->
+		<drop_group><!-- Named Weapon (Legend), 35% -->
+			<drop item_id="100000233" chance="35" /><!-- Krall Grand Chieftain's Sword -->
+			<drop item_id="101300150" chance="35" /><!-- Krall Grand Chieftain's Spear -->
+		</drop_group>
+		<drop_group><!-- Named Weapon (Unique), 30% -->
+			<drop item_id="100900153" chance="30" /><!-- Saendukal's Anger -->
+		</drop_group>
+		<drop_group><!-- Named Armor (Unique), 30% -->
+			<drop item_id="110100435" chance="30" /><!-- Anointed Tunic -->
+			<drop item_id="110300393" chance="30" /><!-- Anointed Jerkin -->
+			<drop item_id="110500424" chance="30" /><!-- Anointed Hauberk -->
+			<drop item_id="110600421" chance="30" /><!-- Anointed Breastplate -->
+			<drop item_id="113100368" chance="30" /><!-- Anointed Leggings -->
+			<drop item_id="113300382" chance="30" /><!-- Anointed Breeches -->
+			<drop item_id="113500407" chance="30" /><!-- Anointed Chausses -->
+			<drop item_id="113600391" chance="30" /><!-- Anointed Greaves -->
+		</drop_group>
+		<drop_group><!-- Named Headgear (Unique), 30% -->
+			<drop item_id="125000955" chance="30" /><!-- Saendukal's Mask -->
+		</drop_group>
+	</npc_drop>
 	<!-- Heiron -->
 	<npc_drop npc_id="212333">
 		<drop_group><!-- Named Accessory (Rare) -->

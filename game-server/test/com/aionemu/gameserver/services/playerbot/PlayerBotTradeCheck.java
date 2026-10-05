@@ -12,13 +12,15 @@ import com.aionemu.gameserver.model.items.storage.*;
 import com.aionemu.gameserver.model.templates.item.ItemTemplate;
 import com.aionemu.gameserver.model.trade.*;
 import com.aionemu.gameserver.services.ExchangeService;
+import com.aionemu.gameserver.controllers.PlayerController;
+import com.aionemu.gameserver.model.TaskId;
 
 /** Actual ownership SQL and native lock/cancel paths on world-free actors/JDBC; no live DB or IDs. */
 public final class PlayerBotTradeCheck {
  static int checks;static Unsafe unsafe;
  static void check(boolean b,String why){checks++;if(!b)throw new AssertionError(why);}
  static class Actor extends Player {
-  int id,owner;PlayerStorage cube;boolean companion;Account account;
+  int id,owner;PlayerStorage cube;boolean companion;Account account;Tasks tasks=new Tasks();
   Actor(){super(null,null);}
   @Override public int getObjectId(){return id;}
   @Override public PlayerStorage getInventory(){return cube;}
@@ -26,8 +28,13 @@ public final class PlayerBotTradeCheck {
   @Override public int getPlayerBotOwnerId(){return owner;}
   @Override public boolean isOnline(){return false;}
   @Override public Account getAccount(){return account;}
+  @Override public PlayerController getController(){return tasks;}
+  @Override public boolean isDead(){return false;}
+  @Override public boolean isCasting(){return false;}
+  @Override public boolean isLooting(){return false;}
  }
- static Actor actor(int id,boolean bot)throws Exception {Actor a=(Actor)unsafe.allocateInstance(Actor.class);a.id=id;a.companion=bot;a.owner=1;a.cube=new PlayerStorage(null,StorageType.CUBE);a.account=(Account)unsafe.allocateInstance(Account.class);return a;}
+ static class Tasks extends PlayerController {boolean itemUse;@Override public boolean hasTask(TaskId id){return id==TaskId.ITEM_USE && itemUse;}@Override public boolean isInCombat(){return false;}}
+ static Actor actor(int id,boolean bot)throws Exception {Actor a=(Actor)unsafe.allocateInstance(Actor.class);a.id=id;a.companion=bot;a.owner=1;a.cube=new PlayerStorage(null,StorageType.CUBE);a.account=(Account)unsafe.allocateInstance(Account.class);a.tasks=new Tasks();return a;}
  static Item item(int id,int tid,long count,boolean money){Item i=new Item(id,new ItemTemplate(){@Override public int getTemplateId(){return tid;}@Override public boolean isKinah(){return money;}},count,false,0);i.setItemLocation(0);i.setPersistentState(PersistentState.UPDATED);return i;}
  static Object zero(Class<?> t){if(!t.isPrimitive() || t==void.class)return null;if(t==boolean.class)return false;if(t==long.class)return 0L;if(t==double.class)return 0d;if(t==float.class)return 0f;return 0;}
  static <T>T proxy(Class<T> t,InvocationHandler h){return t.cast(Proxy.newProxyInstance(t.getClassLoader(),new Class<?>[]{t},h));}
@@ -106,6 +113,12 @@ public final class PlayerBotTradeCheck {
     check(map.get(1).isLocked() && map.get(2).isLocked(),"Owner lock automatically locks companion's native side");
     ((ThreadLocal<Boolean>)inside.get(null)).set(true);service.cancelExchange(owner);((ThreadLocal<?>)inside.get(null)).remove();
     check(!service.isPlayerInExchange(owner) && !service.isPlayerInExchange(bot),"Native cancellation clears both sides for alt and Temporary Bot");
+    var receivedField=PlayerBotTrade.class.getDeclaredField("RECEIVED");receivedField.setAccessible(true);var received=(Map<Integer,Set<Integer>>)receivedField.get(null);
+    received.put(bot.id,new HashSet<>(List.of(502)));bot.tasks.itemUse=true;
+    check(PlayerBotTrade.tick(s),"Active native received-item binding/identification pauses follow AI");
+    check(received.get(bot.id).contains(502),"Received item remains pending during native ITEM_USE");
+    received.remove(bot.id);bot.tasks.itemUse=false;
+    check(!PlayerBotTrade.tick(s),"No pending item task resumes ordinary AI");
    }finally{sessions.remove(bot.id);map.remove(1);map.remove(2);((ThreadLocal<?>)inside.get(null)).remove();}
   }
   check(!PlayerBotTrade.confirm(owner),"Human confirmation remains native when partner is human/absent");

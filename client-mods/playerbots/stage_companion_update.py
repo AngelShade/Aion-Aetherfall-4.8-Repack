@@ -62,6 +62,18 @@ def stage(classes,out,generation_fix=False):
     # A later, separately receipted panel update is part of the effective baseline.
     # Verify the latest successful receipt for every file, never relax hash guards.
     expected={e['path']:e['installed'] for e in receipt['files']}
+    # Preserve later native shield overlays using their exact chained receipts.
+    # They update the same cumulative JAR without a Playerbots feature receipt.
+    continuations=[]
+    def stamp(path):return re.search(r'(\d{8}-\d{6})',path.parent.name).group(1)
+    for native in sorted((server/'backups').glob('saendukal-strong-protection-*/manifest.json'),key=stamp):
+        if stamp(native)<=stamp(previous):continue
+        evidence=json.loads(native.read_text());prior=expected['libs/playerbot-recruitment-fix.jar']
+        assert evidence['previousOverrideSha256']==prior and sha(native.parent/evidence['rollbackFile'])==prior,'Native overlay chain changed'
+        assert evidence['baseJarSha256']==receipt['baseJarSha256'] and sha(server/'start.bat')==evidence['launcherSha256'],'Native overlay base changed'
+        expected['libs/playerbot-recruitment-fix.jar']=evidence['installedOverrideSha256'];continuations.append(str(native.relative_to(server)))
+        with zipfile.ZipFile(override) as actual:
+            assert all(hashlib.sha256(actual.read(name)).hexdigest()==digest for name,digest in evidence['addedClassSha256'].items()),'Native overlay classes changed'
     ui_receipts=sorted((server/'backups').glob('playerbots-ui-*/installed.json'))
     for ui in ui_receipts:
         if ui.parent.name.split('playerbots-ui-')[-1]>previous.parent.name.split('playerbots-recruitment-')[-1]:
@@ -133,7 +145,7 @@ def stage(classes,out,generation_fix=False):
     shutil.copy2(server/'start.bat',out/'start.bat');files.append('start.bat')
     manifest=dict(feature='playerbot-companion-flight-quests-travel-care',generationFix=generation_fix,deployment=str(server),baseJarSha256=sha(base),previousReceipt=str(previous.relative_to(server)),
         incrementalChangedMethods=[e for e in review if e['methods']],changedMethods=receipt['changedMethods']+[e['path']+': '+method for e in review for method in e['methods']],
-        newClasses=sorted(new),rollbackSha256=sha(rollback),files=[dict(path=rel,original=sha(server/rel),installed=sha(out/rel)) for rel in files])
+        newClasses=sorted(new),rollbackSha256=sha(rollback),continuationReceipts=continuations,files=[dict(path=rel,original=sha(server/rel),installed=sha(out/rel)) for rel in files])
     (out/'manifest.json').write_text(json.dumps(manifest,indent=2))
     print('OK: effective installed methods preserved, bounded companion overrides and media staged:',out)
 if __name__=='__main__':

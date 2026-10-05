@@ -526,7 +526,12 @@ public class Skill {
 				penaltySkill1.useSkill();
 			}
 		} else {
-			SkillEngine.getInstance().applyEffectDirectly(penaltySkill, firstTarget, effector);
+			SkillTemplate penaltyTemplate = DataManager.SKILL_DATA.getSkillTemplate(penaltySkill);
+			Creature target = (penaltyTemplate != null && penaltyTemplate.getProperties() != null
+				&& penaltyTemplate.getProperties().getFirstTarget() == FirstTargetAttribute.ME) ? effector : firstTarget;
+			if (target != null) {
+				SkillEngine.getInstance().applyEffectDirectly(penaltySkill, effector, target);
+			}
 		}
 	}
 

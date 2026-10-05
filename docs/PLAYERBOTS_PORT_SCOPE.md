@@ -16,7 +16,7 @@ its twelve implementation entries are not a full upstream feature inventory.
 | --- | --- | --- | --- |
 | PB-SCOPE-001 | Independent world bots that remain active without a recruiting owner and choose roaming/grinding/quest/service activities | Not implemented. Current sessions require a connected owner and their party. | Needs independent lifecycle/population management and autonomous activity planning. Reuse existing combat/quest adapters; world travel is related to PB-PORT-011. Local quest arbitration alone does not supply this subsystem. |
 | PB-SCOPE-002 | Players invite available world bots into parties; bots assign player control and transition back to independent behavior afterward | Not implemented. Owned-companion recruitment/automatic party placement is a different capability. | Needs native invitation decisions, availability and control/lifecycle transitions. Does not require every class rotation to be finished first. World-bot use depends on PB-SCOPE-001. |
-| PB-SCOPE-003 | Native player/bot item and Kinah exchange with bot decisions and normal transaction/persistence semantics | Proper bot trade interaction not implemented. Inventory inspection, equipment controls and NPC purchases are existing separate capabilities. | Needs native exchange handling, useful-item decisions and custody/persistence checks. Related to PB-PORT-009; world navigation is not a prerequisite for trading with an existing companion. |
+| PB-SCOPE-003 | Native player/bot item and Kinah exchange with bot decisions and normal transaction/persistence semantics | PB-SCOPE-003A native owner gifts of items/Kinah to active alts and Temporary Bots are installed; donated legal upgrades use class/role scoring. Outgoing bot offers, group-member/world-bot bargaining and crafting trade remain unimplemented. | Needs native exchange handling, useful-item decisions and custody/persistence checks. Related to PB-PORT-009; world navigation is not a prerequisite for trading with an existing companion. |
 
 The **bounded full subsystem inventory is complete** in
 [PLAYERBOTS_SUBSYSTEM_INVENTORY.md](PLAYERBOTS_SUBSYSTEM_INVENTORY.md), including
@@ -69,3 +69,25 @@ Spiritmaster learned single-target/pet strategy, using GenericWarlock/Affliction
 sources and native pet gates, with necessary coordination on PB-PORT-008. Full
 class coverage and independent world/invitation/trade tracks remain incomplete.
 See `PLAYERBOTS_SORCERER_STRATEGY_20261004.md`; do not repeat the full inventory.
+
+## PB-SCOPE-003A native owner gifts — installed 5 October 2026
+
+This independent trade slice was selected at the user's request, without reopening
+installed class strategies. Pinned TradeStatusAction/TradeAction maps to native
+ExchangeService begin, lock, confirm and cancel; ItemUsageValue's equip purpose
+uses existing Aion class/role/mastery scoring. Owners can give items/Kinah to
+active owned alts or Temporary Bots through the normal trade window. Only donated
+legal upgrades are considered for alts; other equipment/build/Stigmas remain owned
+by the player. Old equipped items return to the cube through native equipment rules.
+
+Item custody and wallets commit before native success; full item IDs/attributes
+are retained, splits use fresh IDs and cancellation releases only uncommitted
+splits. Normal trade rights, range, faction, combat and cube limits remain. Native
+five-second binding/identification is serialized and pauses following until done.
+
+See [trading installation/validation](PLAYERBOTS_TRADING_20261005.md). Full source
+and 56 final production checks pass; actual user trade, equip/bind, periodic save,
+dismiss/resummon and game UI acceptance remain **PB-VAL-010**. Broader trade is
+partial: outgoing bot offers, group-member/world-bot security, bargaining,
+discounts and crafting trade are not claimed. The next companion class slice
+remains PB-PORT-005B; broader economy/trade can continue independently.

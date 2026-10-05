@@ -77,3 +77,19 @@ Saendukal is a Level 40 Legendary World Boss with 2,689,332 HP (`hpgauge 26`). H
   - Encounter cleanup confirmed resetting queued skills and tasks.
   - Human player sessions and PlayerBot companions verified intact and unaltered.
 - **Receipt**: `target/saendukal-verification-report.txt`.
+
+## 4. Strong Protection runtime correction (5 October 2026)
+
+The in-game screenshot and older live skill-list report showed that Strong
+Protection was not fixed in the deployed runtime. `16415` and penalty skill
+`16879` were still loaded at probability 25, while the deployed core JAR had no
+hit-count handling for the native `COUNT10` stack. The diagnosis, method-only
+10-hit correction, offline validation, and staged overlay are recorded in
+[`SAENDUKAL_STRONG_PROTECTION_20261005.md`](SAENDUKAL_STRONG_PROTECTION_20261005.md).
+
+Source and deployed NPC skill data disable random casts of both skills; the
+AI's one-time 25% phase remains the intended Strong Protection cast. The
+method-only hit-count correction is installed in the deployment overlay while
+GameServer is stopped. It will load at the next start. Do not describe the
+in-game behavior as verified until a fight confirms both 10-hit expiry and no
+random recasts.

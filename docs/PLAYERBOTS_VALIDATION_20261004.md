@@ -538,3 +538,35 @@ dungeon work remain unfinished. Next slice **PB-PORT-005B Spiritmaster learned
 single-target/pet strategy** (native pet coordination on 008 as needed).
 See `PLAYERBOTS_SORCERER_STRATEGY_20261004.md`. Historical ID release and separate
 wipe/summon repairs remain open. Next attach update revision >45.
+
+## Native bot owner gifts installed (5 October 2026)
+
+Care settings repair PB-REPAIR-SETTINGS-001 is subsequently installed in receipt
+`042546-945113`, retaining gifts `005644-110252` and separate Saendukal `025825`.
+One State.save method now retries temporary Windows AccessDenied during replace
+with 175 ms maximum total delay. Full source compilation/21 policy checks were
+completed before the user instructed stopping tests; no later/native/client test
+ran. Fresh agent 49 preserved five sessions/one human; gameplay acceptance stays
+with user. See `PLAYERBOTS_SETTINGS_FILES_20261005.md`. Next attach revision >49;
+broader next class slice remains PB-PORT-005B.
+
+PB-SCOPE-003A / PB-VAL-010: main receipt `004941-367262`, current cumulative
+`005644-110252`. Owners give items/Kinah to active owned alts or Temporary Bots
+through the native trade window. Bots lock/complete their side and evaluate only
+donated gear for legal class/role upgrades, serializing native binding/identification.
+Normal item rights and custody persist; outgoing bot offers/world trading remain
+partial. This explicit donation exception does not enable general alt auto-gear
+or modify level/class/build/skills/Stigmas.
+
+Full source/offline suite and 56 final production boundary/native-window tests
+pass. Fresh agents 47/48 preserve ten companions/two humans, schemas and rollback;
+no restart/client replacement/forced live trade, movement, cast, save or DB/ID tests.
+All 218 methods in eight final observed definitions match disk; source audit
+checks 51 pinned hashes/190 methods. All 15 mod checks and 31 client hashes pass;
+base/launcher/media/prior mods/preferences survive. Current inventory records
+70 client/82 server receipts. Actual native trade/persistence/client acceptance
+stays with the user, PB-VAL-010; the full port remains unfinished.
+
+See [trade behavior and validation](PLAYERBOTS_TRADING_20261005.md). Existing
+005A stays installed; next companion class slice remains 005B Spiritmaster.
+Economy, outgoing trading and world/invitation tracks retain independent scope.

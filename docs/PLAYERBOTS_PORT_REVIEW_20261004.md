@@ -2,8 +2,9 @@
 
 Read [full port scope and iteration focus](PLAYERBOTS_PORT_SCOPE.md) first.
 This tracker covers already attempted ports, not every upstream subsystem.
-Independent world populations, native invitations/control transitions and bot
-trading remain explicit unimplemented scope. The bounded full inventory/dependency
+Independent world populations and native invitations/control transitions remain
+unimplemented. PB-SCOPE-003A owner item/Kinah gifts are now installed; broader
+bot outgoing/value/crafting/world trade remains partial. The bounded full inventory/dependency
 pass is complete in `PLAYERBOTS_SUBSYSTEM_INVENTORY.md`; do not restart it.
 
 Comparison baseline: unchanged upstream sources at
@@ -653,6 +654,7 @@ Keep every other open tracker ID and the persisted item-ID release investigation
 | --- | --- | --- | --- |
 | PB-REPAIR-INV-001 | Exclude already-committed native deletion records from companion custody/save bookkeeping; preserve checks for actual pending writes | Installed live/disk `224922-627052`; 85 offline production checks, 31 loaded inventory methods match | User in-game periodic checkpoint/dismiss/resummon |
 | PB-REPAIR-TANK-001 | Remove continuously recentered boss-facing walking goal; active tank does not spread its own caster's targeted area attack | Installed live/disk `232048-163778`; two methods, 134 earlier entries preserved; 22 regressions, 57 loaded method matches | PB-VAL-005 actual boss fight/terrain/hazard escape/attacks |
+| PB-REPAIR-SETTINGS-001 | Short bounded retry of transient Windows care-file replacement denial, retaining atomic save and permanent-error reporting | Installed live/disk `042546-945113`; one method and new helper; existing trade/Sorcerer/tank/shield retained | User quest/settings acceptance; further tests stopped at user's request |
 | PB-DIAG-PERF-001 | Diagnose paired 23:44:40 AI-update/HTTP stalls | AI tick lambda confirmed; later 45-second profile has no recurrence, long companion-lock wait or large GC pause; no gameplay change | Original root cause/activity context and recurrence capture; preserve current 005A installation |
 
 This repairs Aion transaction integration, not an upstream strategy feature.
@@ -673,3 +675,25 @@ to another repair. The user then explicitly approved this tank update; fresh age
 44 installed it without a restart. All 44 settings, 31 client hashes and 15 mod
 checks pass. The 51-source/140-method audit passes; actual boss combat acceptance
 remains pending. PB-PORT-005 remains the next broad port.
+
+## PB-SCOPE-003A native owner gifts — installed 5 October 2026
+
+This independent trade slice was selected at the user's request, without reopening
+installed class strategies. Pinned TradeStatusAction/TradeAction maps to native
+ExchangeService begin, lock, confirm and cancel; ItemUsageValue's equip purpose
+uses existing Aion class/role/mastery scoring. Owners can give items/Kinah to
+active owned alts or Temporary Bots through the normal trade window. Only donated
+legal upgrades are considered for alts; other equipment/build/Stigmas remain owned
+by the player. Old equipped items return to the cube through native equipment rules.
+
+Item custody and wallets commit before native success; full item IDs/attributes
+are retained, splits use fresh IDs and cancellation releases only uncommitted
+splits. Normal trade rights, range, faction, combat and cube limits remain. Native
+five-second binding/identification is serialized and pauses following until done.
+
+See [trading installation/validation](PLAYERBOTS_TRADING_20261005.md). Full source
+and 56 final production checks pass; actual user trade, equip/bind, periodic save,
+dismiss/resummon and game UI acceptance remain **PB-VAL-010**. Broader trade is
+partial: outgoing bot offers, group-member/world-bot security, bargaining,
+discounts and crafting trade are not claimed. The next companion class slice
+remains PB-PORT-005B; broader economy/trade can continue independently.

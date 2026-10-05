@@ -65293,7 +65293,7 @@
 		</equipment>
 		<bound_radius front="1.41225" side="0.96524996" upper="2.655" />
 	</npc_template>
-	<npc_template npc_id="211701" level="40" name="grand chieftain saendukal" name_id="303975" height="2.05" group_drop="KRALLWARRIOR" rank="EXPERT" rating="HERO" race="KRALL" tribe="KRALL" type="MONSTER" ai="aggressive" srange="8" sangle="240" arange="2" attack_speed="2100" hpgauge="20" cancel_level="0">
+	<npc_template npc_id="211701" level="40" name="grand chieftain saendukal" name_id="303975" height="2.05" group_drop="KRALLWARRIOR" rank="EXPERT" rating="HERO" race="KRALL" tribe="KRALL" type="MONSTER" ai="saendukal_nodie" srange="8" sangle="240" arange="2" attack_speed="2100" hpgauge="20" cancel_level="0">
 		<stats maxHp="689332">
 			<speeds walk="2" group_walk="2" run="7.6" run_fight="5.5" group_run_fight="7.6" />
 		</stats>
@@ -66491,7 +66491,7 @@
 		<stats maxHp="65" />
 		<bound_radius front="1.4" side="1.4" upper="2.08" />
 	</npc_template>
-	<npc_template npc_id="211861" level="40" name="treasure box" name_id="392052" height="2.56" group_drop="TREASUREBOX3" rank="NOVICE" rating="NORMAL" race="CONSTRUCT" tribe="MONSTER" ai="noaction" srange="7" sangle="240" attack_speed="2415" hpgauge="2">
+	<npc_template npc_id="211861" level="40" name="treasure box" name_id="392052" height="2.56" group_drop="TREASUREBOX3" rank="NOVICE" rating="NORMAL" race="CONSTRUCT" tribe="MONSTER" ai="chest" srange="7" sangle="240" attack_speed="2415" hpgauge="2">
 		<stats maxHp="65" />
 		<bound_radius front="2.8" side="2.8" upper="3.36" />
 	</npc_template>

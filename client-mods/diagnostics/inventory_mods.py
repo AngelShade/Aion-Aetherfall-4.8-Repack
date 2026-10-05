@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
+import re
 import struct
 import sys
 import zipfile
@@ -113,7 +114,34 @@ def main():
                 assert entry['original']==effective[entry['path']], 'Companion UI receipt baseline differs'
                 assert sha(ui_path.parent/entry['path'])==entry['original'], 'Companion UI backup differs'
                 effective[entry['path']]=entry['installed']
-        checks['recruitment_override_and_launcher']=sha(jar)==latest['baseJarSha256'] and all(sha(server/path)==digest for path,digest in effective.items())
+
+        def receipt_order(path):
+            match=re.search(r'(\d{8})-(\d{6})',path.parent.name)
+            return datetime.strptime(match.group(1)+'-'+match.group(2),'%Y%m%d-%H%M%S').replace(tzinfo=timezone.utc) if match else datetime.min.replace(tzinfo=timezone.utc)
+
+        expected_override=effective.get('libs/playerbot-recruitment-fix.jar')
+        saendukal_receipts=sorted((server/'backups').glob('saendukal-strong-protection-*/manifest.json'),key=receipt_order)
+        checks['saendukal_strong_protection_classes']=True
+        for receipt_path in saendukal_receipts:
+            receipt=read(receipt_path)
+            if receipt_order(receipt_path)>receipt_order(override_receipts[-1]):
+                checks['saendukal_strong_protection_classes'] &= receipt.get('previousOverrideSha256')==expected_override
+                rollback_path=receipt_path.parent/receipt.get('rollbackFile','playerbot-recruitment-fix.jar')
+                checks['saendukal_strong_protection_classes'] &= sha(rollback_path)==expected_override
+                expected_override=receipt.get('installedOverrideSha256')
+
+        if saendukal_receipts:
+            latest_saendukal=read(saendukal_receipts[-1])
+            expected_classes=latest_saendukal.get('addedClassSha256',{})
+            try:
+                with zipfile.ZipFile(override) as archive:
+                    checks['saendukal_strong_protection_classes'] &= all(
+                        name in archive.namelist() and hashlib.sha256(archive.read(name)).hexdigest()==digest
+                        for name,digest in expected_classes.items()) and bool(expected_classes)
+            except (OSError,zipfile.BadZipFile):
+                checks['saendukal_strong_protection_classes']=False
+
+        checks['recruitment_override_and_launcher']=sha(jar)==latest['baseJarSha256'] and sha(override)==expected_override and all(sha(server/path)==digest for path,digest in effective.items() if path!='libs/playerbot-recruitment-fix.jar')
         checks['recruitment_override_and_launcher'] &= b'-cp "libs/playerbot-recruitment-fix.jar;libs/*"' in (server/'start.bat').read_bytes()
         overrides.append(dict(path='libs/playerbot-recruitment-fix.jar',sha256=sha(override),receipt=str(override_receipts[-1].relative_to(server)),changedMethods=latest['changedMethods']))
     configs={}

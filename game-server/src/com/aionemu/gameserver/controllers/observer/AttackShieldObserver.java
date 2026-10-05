@@ -35,31 +35,20 @@ public class AttackShieldObserver extends AttackCalcObserver {
 	private final int maxRadius;
 	private final HealType healType;
 	private final int mpValue;
-	private int hitCount;
 
 	private boolean totalHitPercentSet = false;
 
 	public AttackShieldObserver(int hit, int totalHit, boolean percent, Effect effect, HitType type, ShieldType shieldType, int probability) {
-		this(hit, totalHit, percent, false, effect, type, shieldType, probability, 0, 100, null, 0, 0);
+		this(hit, totalHit, percent, false, effect, type, shieldType, probability, 0, 100, null, 0);
 	}
 
 	public AttackShieldObserver(int hit, int totalHit, boolean percent, Effect effect, HitType type, ShieldType shieldType, int probability,
 		int mpValue) {
-		this(hit, totalHit, percent, false, effect, type, shieldType, probability, 0, 100, null, mpValue, 0);
-	}
-
-	public AttackShieldObserver(int hit, int totalHit, boolean percent, Effect effect, HitType type, ShieldType shieldType, int probability,
-		int mpValue, int hitCount) {
-		this(hit, totalHit, percent, false, effect, type, shieldType, probability, 0, 100, null, mpValue, hitCount);
+		this(hit, totalHit, percent, false, effect, type, shieldType, probability, 0, 100, null, mpValue);
 	}
 
 	public AttackShieldObserver(int hit, int totalHit, boolean hitPercent, boolean totalHitPercent, Effect effect, HitType type, ShieldType shieldType,
 		int probability, int minRadius, int maxRadius, HealType healType, int mpValue) {
-		this(hit, totalHit, hitPercent, totalHitPercent, effect, type, shieldType, probability, minRadius, maxRadius, healType, mpValue, 0);
-	}
-
-	public AttackShieldObserver(int hit, int totalHit, boolean hitPercent, boolean totalHitPercent, Effect effect, HitType type, ShieldType shieldType,
-		int probability, int minRadius, int maxRadius, HealType healType, int mpValue, int hitCount) {
 		this.hit = hit;
 		this.totalHit = totalHit; // total absorbed dmg for shield, percentage for reflector, received dmg percentage for protect
 		this.effect = effect;
@@ -72,11 +61,6 @@ public class AttackShieldObserver extends AttackCalcObserver {
 		this.maxRadius = maxRadius; // for reflector / protect
 		this.healType = healType; // only for ConvertHeal
 		this.mpValue = mpValue;
-		this.hitCount = hitCount;
-	}
-
-	public int getHitCount() {
-		return hitCount;
 	}
 
 	@Override
@@ -131,12 +115,8 @@ public class AttackShieldObserver extends AttackCalcObserver {
 					attackResult.setMpShieldSkillId(effect.getSkillId());
 				}
 
-				if (hitCount > 0 && absorbedDamage > 0) {
-					hitCount--;
-					if (hitCount <= 0) {
-						effect.endEffect();
-						return;
-					}
+				if (absorbedDamage > 0 && ShieldHitCountHelper.onDamageAbsorbed(this, effect)) {
+					return;
 				}
 
 				if (totalHit <= 0) {

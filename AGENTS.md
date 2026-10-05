@@ -498,3 +498,38 @@ instructions and current state before reusing them.
   `docs/PLAYERBOTS_SORCERER_STRATEGY_20261004.md`. Use `stage_sorcerer_update.py`;
   changed existing helpers require runtime SCOPES, not HELPERS alone. Next attach
   update agent revision must exceed 45, with preloading/hash guards/rollback.
+
+- PB-SCOPE-003A native owner gifts are installed live/disk through latest
+  `backups/playerbots-recruitment-20261005-005644-110252`, retaining main
+  `004941-367262` and every earlier Sorcerer/tank/custody/engine/mod entry.
+  Preserve PlayerBotTrade/TradeStore, ExchangeService begin/add/lock/confirm/cancel,
+  CM_EXCHANGE_REQUEST and Session tick/markClosing/equip hooks. Owner item/Kinah
+  gifts use durable exact custody before native success; no persisted split IDs
+  are released on successful completion. Ambiguous commits hold inventories/IDs.
+- The user's explicit gift request applies to owned alts and Temporary Bots:
+  donated legal upgrades may equip/bind/identify through native rules and class/
+  role scoring; old gear returns to cube. Other alt gear/build/class/level/skills/
+  Stigmas are untouched. No general alt automatic gear policies are enabled.
+  ITEM_USE binding/identification is serialized and pauses follow AI until done.
+- Full source/offline and 56 final production tests pass; 218 captured loaded
+  methods and 190 source audit methods match, all 51 hashes/15 mod checks/31 client
+  hashes pass. Agents 47/48 preserve ten companions/two humans and preferences.
+  User gameplay/persistence acceptance PB-VAL-010 is pending. Outgoing bot offers,
+  group/world trades/value/discount/crafting remain partial. Next companion class
+  slice stays PB-PORT-005B; trade work remains an independent track. See
+  docs/PLAYERBOTS_TRADING_20261005.md. Future existing helper edits require runtime
+  SCOPES (including Trade.equip/tick), not just HELPERS. Next attach revision >48.
+  No lifecycle/client changes or forced live trade/DB tests occurred.
+
+- Latest cumulative continuation `backups/playerbots-recruitment-20261005-042546-945113`
+  installs PB-REPAIR-SETTINGS-001, retaining gift `005644-110252` and native shield
+  `saendukal-strong-protection-20261005-025825` plus every earlier mod. Preserve
+  PlayerBotSettingsFiles and QuestSync.State.save's atomic replace with four
+  attempts/25-50-100 ms sharing-denial backoff; permanent errors stay visible.
+  Agent 49 preloaded originals and preserved five companions/one human. The user
+  explicitly requested fast implementation and no further tests; full compile/21
+  offline policy checks predated that instruction, native/client checks remain
+  with user. No restart/client/forced quest/save/DB/ID changes. Exact chained
+  native shield receipts now participate in stager hash guards; never drop that
+  overlay or relax guards. Next attach revision >49. See
+  docs/PLAYERBOTS_SETTINGS_FILES_20261005.md; next broader class slice stays 005B.

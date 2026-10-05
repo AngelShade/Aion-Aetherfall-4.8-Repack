@@ -169,8 +169,14 @@ public final class PlayerBotTrade {
     bot.getMoveController().abortMove();PlayerBotGearPolicy.equip(s,new PlayerBotEquipment.Upgrade(item,0,0));return;
    }
    var upgrade=PlayerBotEquipment.upgrades(bot,s.combatRole()).stream().filter(u->u.item()==item).findFirst().orElse(null);
-   if(upgrade!=null)PlayerBotGearPolicy.equip(s,upgrade);
-   else PacketSendUtility.sendMessage(s.owner(),bot.getName()+" kept "+item.getItemName()+" in its cube: it is not a usable equipment upgrade.");
+   if(upgrade!=null) {
+    bot.getMoveController().abortMove();
+    boolean accepted=PlayerBotGearPolicy.equip(s,upgrade);
+    // Native soul-binding is an asynchronous ITEM_USE task. Retain this ID
+    // until it leaves the cube or the next safe attempt, and do not start another.
+    if(bot.getController().hasTask(com.aionemu.gameserver.model.TaskId.ITEM_USE))return;
+    if(!accepted)PacketSendUtility.sendMessage(s.owner(),bot.getName()+" kept "+item.getItemName()+" in its cube: native equipment rules prevented equipping it.");
+   } else PacketSendUtility.sendMessage(s.owner(),bot.getName()+" kept "+item.getItemName()+" in its cube: it is not a usable equipment upgrade.");
    ids.remove(id);
   }
   if(ids.isEmpty())RECEIVED.remove(bot.getObjectId());
@@ -180,7 +186,9 @@ public final class PlayerBotTrade {
    if(!ready(s.owner(),s.bot()) || System.currentTimeMillis()-STARTED.getOrDefault(s.bot().getObjectId(),0L)>120000)ExchangeService.getInstance().cancelExchange(s.bot());
    return s.bot().isTrading();
   }
-  equip(s);return false;
+  equip(s);
+  Set<Integer> pending=RECEIVED.get(s.bot().getObjectId());
+  return pending!=null && !pending.isEmpty() && s.bot().getController().hasTask(com.aionemu.gameserver.model.TaskId.ITEM_USE);
  }
  public static void closed(Player player) {STARTED.remove(player.getObjectId());}
  public static boolean finishing(Player player) {return player!=null && FINISHING.get()==player;}

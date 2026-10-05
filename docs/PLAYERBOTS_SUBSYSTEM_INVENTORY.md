@@ -34,7 +34,7 @@ saved parties, optional spending and future PvP) remain separate from upstream p
 | PB-PORT-001/002/003 | Class final gates; individual/group quest acceptance/reports/object use/rewards/drop; `QuestAction.cpp`, `ChooseTravelTargetAction.cpp`, class strategies | Corrections and shared local execution installed/offline verified | Actual server/client acceptance is PB-VAL, not a reason to re-port these adapters. |
 | PB-SCOPE-001 | Autonomous population/account pool/login/logout/activity/level scheduling; `RandomPlayerbotMgr.h`, `RandomBotLevelMgr`, random factory/config | **Absent** independent lifecycle; current PlayerBotService requires owner and party | Build native autonomous session context/population lifecycle first; local activities can reuse combat, world roaming later uses 011. Manager implementation source gate. |
 | PB-SCOPE-002 | Native invite/leave/leader/control changes; `AcceptInvitationAction.cpp`, `InviteToGroupAction.cpp`, `LeaveGroupAction.cpp`, `PlayerbotMgr.h` | **Absent** world-bot invitations/control transfer; owned recruitment/groups/presets are installed | Invitation reads security, accepts through native handler, sets inviter as master for random bot, resets strategies/follows/summons. Needs 001 for world bots, not complete rotations. |
-| PB-SCOPE-003 | Native trade accept/cancel/offers/item-use/value/discount/crafting; `TradeAction.cpp`, `TradeStatusAction.cpp`, `TradeValues.cpp` | **Absent** bot native exchange decisions; panel inspection/NPC buying are separate | Verified upstream checks master/group/security, item usefulness and native acceptance. Adapt native ExchangeService and custody; no world graph prerequisite for existing companions. |
+| PB-SCOPE-003 | Native trade accept/cancel/offers/item-use/value/discount/crafting; `TradeAction.cpp`, `TradeStatusAction.cpp`, `TradeValues.cpp` | **003A installed** native owner gift begin/lock/confirm/cancel, guarded durable item/Kinah custody and donated upgrades for alts/Temporary Bots; outgoing/world-bot offers, value/discount/crafting remain absent | Verified upstream checks master/group/security, item usefulness and native acceptance. Adapt native ExchangeService and custody; no world graph prerequisite for existing companions. |
 | PB-SCOPE-004 | Bank, guild bank, mail and item economy; `BankAction.cpp`, `GuildBankAction.cpp`, `MailAction.cpp`, `SendMailAction.cpp`, `src/Mgr/Item` | Native warehouses/mail and item service decisions **absent** | 009 useful-item/service rules and exact service source gate; retain shared storage custody. No separate auction action was established by this tree/reference pass; do not promise an upstream auction port without source evidence. |
 | PB-SCOPE-005 | Crafting, professions, gathering/reveal/fishing/training; `SetCraftAction.cpp`, `TrainerAction.cpp`, `LootNonCombatStrategy.cpp`, `RpgSubActions.cpp` | Aion crafting/extraction/gathering/skill learning equivalents; automatic companion skill maintenance partial, professions **absent** | Native recipe/material/skill/services and source gates. WoW fishing bobber is not a proven Aion 4.8 feature; leave N/A mapping unresolved explicitly. |
 | PB-SCOPE-006 | Independent RPG NPC/service/rest/social/wander choices and grind XP; `src/Ai/World/Rpg`, `GrindingStrategy.cpp`, `RpgSubActions.cpp` | Owner quest missions/local services partial; independent activity state machine **absent** | 001 local context first, 011 destination graph for travel; no fictitious world activity completion. |
@@ -76,3 +76,25 @@ not repeatedly rebuilt as an excuse to postpone a feature. Existing item-ID
 release-path investigation remains an independent documented repair, not proof
 that all Playerbots implementation must stop. No parity or “full system done”
 claim follows from this inventory.
+
+## PB-SCOPE-003A native owner gifts — installed 5 October 2026
+
+This independent trade slice was selected at the user's request, without reopening
+installed class strategies. Pinned TradeStatusAction/TradeAction maps to native
+ExchangeService begin, lock, confirm and cancel; ItemUsageValue's equip purpose
+uses existing Aion class/role/mastery scoring. Owners can give items/Kinah to
+active owned alts or Temporary Bots through the normal trade window. Only donated
+legal upgrades are considered for alts; other equipment/build/Stigmas remain owned
+by the player. Old equipped items return to the cube through native equipment rules.
+
+Item custody and wallets commit before native success; full item IDs/attributes
+are retained, splits use fresh IDs and cancellation releases only uncommitted
+splits. Normal trade rights, range, faction, combat and cube limits remain. Native
+five-second binding/identification is serialized and pauses following until done.
+
+See [trading installation/validation](PLAYERBOTS_TRADING_20261005.md). Full source
+and 56 final production checks pass; actual user trade, equip/bind, periodic save,
+dismiss/resummon and game UI acceptance remain **PB-VAL-010**. Broader trade is
+partial: outgoing bot offers, group-member/world-bot security, bargaining,
+discounts and crafting trade are not claimed. The next companion class slice
+remains PB-PORT-005B; broader economy/trade can continue independently.
