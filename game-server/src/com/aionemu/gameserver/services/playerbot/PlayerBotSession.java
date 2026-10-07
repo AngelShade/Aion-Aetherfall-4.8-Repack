@@ -88,13 +88,13 @@ public final class PlayerBotSession {
 		state.put("build",generated ? PlayerBotTemporary.description(bot) : "Your existing build is preserved");
 		state.putAll(PlayerBotQuestSync.snapshot(this));
 		state.putAll(PlayerBotGearPolicy.snapshot(this));
-		state.put("inventory", java.util.stream.Stream.concat(bot.getEquipment().getEquippedItems().stream(), bot.getInventory().getItems().stream())
+		state.put("inventory", PlayerBotAppearance.inventory(this,java.util.stream.Stream.concat(bot.getEquipment().getEquippedItems().stream(), bot.getInventory().getItems().stream())
 			.map(item -> {
 				long mask = item.getItemTemplate().getItemSlot();
 				// Ordinary cube items have no equipment slots; retain them in the panel.
 				return Map.of("id", item.getObjectId(), "itemId", item.getItemId(), "name", item.getItemTemplate().getName(), "count", item.getItemCount(),
 					"equipped", item.isEquipped(), "slots", mask == 0 ? List.of() : java.util.Arrays.stream(com.aionemu.gameserver.model.items.ItemSlot.getSlotsFor(mask)).map(Enum::name).toList());
-			}).toList());
+			}).toList()));
 		state.put("quests", bot.getQuestStateList().getUncompletedQuests().stream().filter(q -> q.getStatus() == com.aionemu.gameserver.questEngine.model.QuestStatus.START || q.getStatus() == com.aionemu.gameserver.questEngine.model.QuestStatus.REWARD)
 			.map(q -> PlayerBotQuestJournal.describe(owner, bot, q)).toList());
 		return state;
@@ -102,7 +102,7 @@ public final class PlayerBotSession {
 	boolean generated() { return generated; }
 	PlayerBotLease lease() { return lease; }
 	boolean closing() { return closing; }
-	void markClosing() { PlayerBotTrade.close(this); closing = true; PlayerBotArbitration.clear(engine); PlayerBotQuestRoutes.close(bot); PlayerBotRevival.close(bot); cancelCharge(); navigation.stop(); pets.release(bot); bot.getObserveController().notifyMoveObservers(); bot.getController().cancelCurrentSkill(null); PlayerBotQuestSync.close(this); }
+	void markClosing() { PlayerBotTrade.close(this); PlayerBotAppearance.close(this); closing = true; PlayerBotArbitration.clear(engine); PlayerBotQuestRoutes.close(bot); PlayerBotRevival.close(bot); cancelCharge(); navigation.stop(); pets.release(bot); bot.getObserveController().notifyMoveObservers(); bot.getController().cancelCurrentSkill(null); PlayerBotQuestSync.close(this); }
 	private void cancelCharge() { if (chargeRelease != null) { chargeRelease.cancel(false); chargeRelease = null; } }
 	void releasePet() { pets.release(bot); }
 	int failed() { return ++failures; }
@@ -216,6 +216,7 @@ public final class PlayerBotSession {
 		if (PlayerBotTravel.followTeleport(this)) { PlayerBotArbitration.clear(engine); navigation.stop(); status = "following owner teleport or catching up"; return true; }
 		PlayerBotGearPolicy.state(this);
 		PlayerBotTemporary.tick(this,autoGear);
+		PlayerBotAppearance.tick(this);
 		loot.passRoll(bot);
 		List<Player> party = owner.getPlayerGroup().getMembers().stream()
 			.filter(p -> p.isPlaying() && p.getWorldId() == bot.getWorldId() && p.getInstanceId() == bot.getInstanceId()).toList();

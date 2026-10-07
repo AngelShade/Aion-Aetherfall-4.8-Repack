@@ -1,5 +1,34 @@
 # Aion project continuity and installed modifications
 
+## Current lifecycle and testing policy — 7 October 2026
+
+- The user reports GameServer and the game client are off. Keep both off: no
+  startup, restart, live attach or forced gameplay/native fixture execution.
+- Continue source review, compilation and isolated offline checks for each port.
+  The user performs actual server/client gameplay testing after each feature or
+  group of features ported from WoW Playerbots. Report that acceptance as pending.
+- Refresh process state before any authorized offline installation; never treat
+  denied inspection as proof of shutdown. Preserve all cumulative mods/alt builds.
+  These current instructions supersede historical running-server notes below.
+
+## Development artifact containment — 7 October 2026
+
+- The user selected `D:/Proiecte/Project Restructure/Aion Development Workspace`
+  for generated agents, staging output, diagnostics and archived recovery receipts.
+  Use its `tooling/java`, `staging/target`, `staging/output`, `diagnostics`, and
+  `archives/client` / `archives/server` subfolders. `AION_DEV_ROOT` may override
+  this external root; never point it inside the source repository or installations.
+- Do not create new numbered agent sources in `game-server/tools` or put agent
+  JARs, captures, temporary packages, extraction output or diagnostics into the
+  runtime server/client. Maintained source, tests and build/install scripts remain
+  in the repository; installed feature files and native bot settings remain runtime.
+- The 271,163-file / 42.28 GiB migration is prepared but **not executed**: automatic
+  approval review requires explicit approval for its exact bulk-move scope. Keep
+  existing recovery paths intact meanwhile. See the external `migration-plan.json`.
+- If approved, hash-verify copies, preserve recovery paths with junctions, verify
+  installed mod/restore guards before removing verified original migration holds,
+  and leave unrelated dirty changes alone. Do not delete backups as "clutter."
+
 ## Playerbots port focus at the start of every iteration
 
 - Read `docs/PLAYERBOTS_PORT_SCOPE.md`, the current port tracker and validation
@@ -533,3 +562,38 @@ instructions and current state before reusing them.
   native shield receipts now participate in stager hash guards; never drop that
   overlay or relax guards. Next attach revision >49. See
   docs/PLAYERBOTS_SETTINGS_FILES_20261005.md; next broader class slice stays 005B.
+
+- PB-REPAIR-SETTINGS-002 is installed offline in current cumulative receipt
+  `backups/playerbots-recruitment-20261007-081522-429924`, retaining `042546-945113`
+  and every prior mod. GearPolicy.State.save now shares SettingsFiles bounded
+  atomic/25-50-100ms retries with the already installed care writer. Latest logs
+  evidenced gear failures; the pasted Tancul care trace is the older incident.
+  No external locker identified; sustained errors remain visible. One method,
+  146 other entries byte-identical, no new classes/settings/build/item changes.
+- Offline Maven source build and 36 source/effective/private-file checks pass,
+  including real Windows deny-delete lock/unlock recovery. GameServer/client
+  remain off; no startup/restart/live attach/gameplay/native DB or ID tests.
+  User accepts actual care/gear/supplies persistence. See
+  docs/PLAYERBOTS_SETTINGS_FILES_20261007.md. Next port stays PB-PORT-005B.
+  Appearance/follow work remains source/staged only; restage older packages against
+  this new receipt before deployment. Preserve this method in subsequent updates.
+
+- PB-SCOPE-012A native care/gear metadata is now installed offline in external
+  `D:/Proiecte/Project Restructure/Aion Development Workspace/archives/server/game-server/backups/playerbots-recruitment-20261007-124827-848789`,
+  retaining `081522-429924` and every prior mod. Database schema/import committed
+  32 legacy snapshots; separate read-only DAO check verified exact values/owners/
+  revisions. Legacy files and all 93 settings/media files remain unchanged.
+  Preserve MetadataDAO/cache, care/gear State adapters, Persistence.save, trade
+  pre-checkpoint, SupplyCatalog.record cube dirty marking and clean dismissal
+  release. AI State.save queues values without file/SQL I/O. Dirty metadata commits
+  with native inventory/progress; failures retain it for checkpoint retry. No
+  silent DB fallback or owned-alt build changes. Full compile/35 effective checks,
+  141 unchanged prior entries, 16 mod checks/31 client hashes pass. Inventory:
+  70 client/86 server receipts. User gameplay PB-VAL-011 remains pending; migration/
+  install are complete. GameServer/client stayed off; leave MariaDB as user opened
+  it. Next class slice PB-PORT-005B Spiritmaster. Appearance/follow remain staged
+  only and require restaging against this receipt. Other metadata namespaces remain
+  separate partial ports. See docs/PLAYERBOTS_METADATA_20261007.md.
+- New recovery receipts belong in the external archives/server/game-server/backups;
+  shared receipt_paths and inventory/audit discovery now also read that directory.
+  Legacy recovery paths remain intact; no bulk artifact migration was executed.

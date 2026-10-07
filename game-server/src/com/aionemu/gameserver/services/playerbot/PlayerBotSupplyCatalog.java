@@ -26,7 +26,8 @@ public final class PlayerBotSupplyCatalog {
  static void record(Player bot,Item item) {
   var owner=com.aionemu.gameserver.world.World.getInstance().getPlayer(bot.getPlayerBotOwnerId());if(owner==null)return;
   for(var session:PlayerBotService.getInstance().companions(owner))if(session.bot()==bot && session.generated()) {
-   var policy=PlayerBotGearPolicy.state(session);policy.generated.add(item.getObjectId());policy.save();return;
+   var policy=PlayerBotGearPolicy.state(session);policy.generated.add(item.getObjectId());policy.save();
+   bot.getInventory().setPersistentState(com.aionemu.gameserver.model.gameobjects.Persistable.PersistentState.UPDATE_REQUIRED);return;
   }
  }
  private PlayerBotSupplyCatalog() {}

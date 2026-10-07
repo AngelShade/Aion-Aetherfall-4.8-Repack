@@ -34,3 +34,9 @@ login-server/target/
 /target/
 /client-mods/transmog-menu/artifacts/
 /target-deploy/game-server/backups/
+
+# Generated development artifacts are external; retained path aliases stay local.
+/.aion-dev/
+**/__pycache__/
+**/.pytest_cache/
+/game-server/tools/PlayerBotEquipmentUpdateAgent*.java

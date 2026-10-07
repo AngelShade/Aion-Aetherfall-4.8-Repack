@@ -55,14 +55,16 @@ public final class PlayerBotGearPolicy {
   final Set<Long> starterSlots=new HashSet<>();
   long next;
   State(PlayerBotSession session) {
-   this.session=session;Path path=path();
-   if(Files.exists(path))try(var in=Files.newInputStream(path)) {
-    Properties p=new Properties();p.load(in);
+   this.session=session;
+   try {
+    Properties p=PlayerBotMetadata.load(session.owner().getAccount().getId(),session.bot().getObjectId(),"gear",path());
+    if(!p.isEmpty()) {
     if(Integer.parseInt(p.getProperty("account"))!=session.owner().getAccount().getId() || Integer.parseInt(p.getProperty("character"))!=session.bot().getObjectId())
      throw new IOException("Companion equipment settings owner mismatch");
     settings=parse(p.getProperty("mode"),p.getProperty("profile"),p.getProperty("quality"),p.getProperty("level"),p.getProperty("threshold"),p.getProperty("weapon"),p.getProperty("vendors"),p.getProperty("rolls"));
     for(String id:p.getProperty("generated","").split(","))if(!id.isBlank())generated.add(Integer.parseInt(id));
     for(String slot:p.getProperty("starterSlots","").split(","))if(!slot.isBlank())starterSlots.add(Long.parseLong(slot));
+    }
    }catch(Exception error){throw new IllegalStateException("Cannot load companion equipment settings",error);}
   }
   Path path(){return Path.of("config","playerbots","gear-character-"+session.bot().getObjectId()+".properties");}
@@ -72,12 +74,8 @@ public final class PlayerBotGearPolicy {
    p.setProperty("threshold",Double.toString(s.threshold));p.setProperty("weapon",s.weapon);p.setProperty("vendors",Boolean.toString(s.vendors));p.setProperty("rolls",s.rolls.name());
    p.setProperty("generated",generated.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
    p.setProperty("starterSlots",starterSlots.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
-   try {
-    Files.createDirectories(path().getParent());Path tmp=Files.createTempFile(path().getParent(),"companion-gear-",".tmp");
-    try {try(var out=Files.newOutputStream(tmp)){p.store(out,"Companion equipment acquisition and preferences");}
-     try{Files.move(tmp,path(),StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);}catch(AtomicMoveNotSupportedException error){Files.move(tmp,path(),StandardCopyOption.REPLACE_EXISTING);}
-    }finally{Files.deleteIfExists(tmp);}
-   }catch(IOException error){throw new IllegalStateException("Cannot save companion equipment settings",error);}
+   try {PlayerBotMetadata.save(session.owner().getAccount().getId(),session.bot().getObjectId(),"gear",p);}
+   catch(IOException error){throw new IllegalStateException("Cannot queue companion gear metadata",error);}
   }
  }
  private static final Map<Integer,State> STATES=new ConcurrentHashMap<>();
@@ -114,7 +112,7 @@ public final class PlayerBotGearPolicy {
  }
  static boolean improvement(double score,double current,double ratio){return Double.isFinite(score) && Double.isFinite(current) && Double.isFinite(ratio) && ratio>=1 && score-current>1 && (current<=0 || score+1e-9>=current*ratio);}
  static boolean eligible(Player bot,ItemTemplate t) {
-  if(t==null || t.getItemSlot()==0 || ItemSlot.isStigma(t.getItemSlot()) || !(t.isWeapon() || t.isArmor()) || !t.isClassSpecific(bot.getPlayerClass()))return false;
+  if(t==null || PlayerBotAppearance.costume(t) || t.getItemSlot()==0 || ItemSlot.isStigma(t.getItemSlot()) || !(t.isWeapon() || t.isArmor()) || !t.isClassSpecific(bot.getPlayerClass()))return false;
   int required=t.getRequiredLevel(bot.getPlayerClass()),max=t.getMaxLevelRestrict(bot.getPlayerClass());
   if(required<0 || required>bot.getLevel() || max>0 && bot.getLevel()>max || t.getRace()!=Race.PC_ALL && t.getRace()!=bot.getRace())return false;
   var limits=t.getUseLimits();
@@ -259,7 +257,7 @@ public final class PlayerBotGearPolicy {
     navigation.stop();s.next=System.currentTimeMillis()+5000;
     List<Item> created=new ArrayList<>();
     long left=ItemService.addItem(bot,c.item.getTemplateId(),1,false,new ItemService.ItemUpdatePredicate(){@Override public boolean changeItem(Item item){
-     // Persist provenance before granting; extraction must never recycle generated gear.
+     // Queue provenance with native inventory; both commit in the same checkpoint.
      s.generated.add(item.getObjectId());s.starterSlots.add(c.slot);s.save();created.add(item);return true;
     }});
     if(left!=0 || created.isEmpty())return false;

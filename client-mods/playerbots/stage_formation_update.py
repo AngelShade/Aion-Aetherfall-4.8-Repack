@@ -12,6 +12,7 @@ SCOPES={
 }
 HELPERS={'PlayerBotFormation'}
 def stage(classes,out):
+ shared.validate_output(out)
  scratch=out.parent/(out.name+'-inputs');scratch.mkdir(exist_ok=False)
  for name in SCOPES:
   dest=scratch/(name+'.class');dest.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(classes/(name+'.class'),dest)

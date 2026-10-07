@@ -9,7 +9,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from stage_companion_update import methods, method_name
+from stage_companion_update import methods, method_name, receipt_paths, receipt_label
 
 ROOT = Path(__file__).resolve().parents[2]
 PREFIX = 'com.aionemu.gameserver.services.playerbot.'
@@ -62,7 +62,7 @@ def main():
     override = server / 'libs/playerbot-recruitment-fix.jar'
     base = server / 'libs/game-server-4.8-SNAPSHOT.jar'
     cp = str(override) + ';' + str(base)
-    receipt_path = sorted((server / 'backups').glob('playerbots-recruitment-*/manifest.json'))[-1]
+    receipt_path = receipt_paths(server,'playerbots-recruitment-*/manifest.json')[-1]
     receipt = json.loads(receipt_path.read_text())
     assert sha(base) == receipt['baseJarSha256'], 'Base JAR differs from receipt'
     for entry in receipt['files']:
@@ -128,7 +128,7 @@ public class PortGateCheck {
                                      'PortGateCheck'], text=True)
     (args.output / 'gate-output.txt').write_text(result, encoding='utf-8')
     report = {'upstreamPin': '037c01418b5d01506917a3db9b44fd56ac5f965c',
-              'referenceHashes': checked, 'receipt': str(receipt_path.relative_to(ROOT)),
+              'referenceHashes': checked, 'receipt': receipt_label(receipt_path,ROOT),
               'overrideSha256': sha(override), 'baseSha256': sha(base),
               'compiledSourceSnapshot': str(args.classes), 'methodFingerprints': evidence,
               'retainedInstalledOnlyLambdas': retained,

@@ -1,7 +1,28 @@
 """Stage bounded companion changes on the actual installed override and base JAR."""
-import argparse,copy,hashlib,json,re,shutil,subprocess,sys,zipfile
+import argparse,copy,hashlib,json,os,re,shutil,subprocess,sys,zipfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
+DEV_ROOT=Path(os.environ.get('AION_DEV_ROOT','D:/Proiecte/Project Restructure/Aion Development Workspace')).resolve()
+CLIENT_ROOT=(Path.home() / 'Downloads/aion-4.8-na/Aion 4.8 NA').resolve()
+if DEV_ROOT.is_relative_to(ROOT) or DEV_ROOT.is_relative_to(CLIENT_ROOT):raise ValueError('Aion development artifacts must live outside the source repository and installed client')
+
+def java_tool(name):
+    """External tool sources, with read-only fallback while migration is awaiting approval."""
+    external=DEV_ROOT/'tooling/java'/name
+    return external if external.is_file() else ROOT/'game-server/tools'/name
+
+def validate_output(out):
+    destination=Path(out).resolve()
+    if destination.is_relative_to(ROOT) or destination.is_relative_to(CLIENT_ROOT):
+        raise ValueError('Stage development packages outside the repository/client, under '+str(DEV_ROOT/'staging'))
+
+def receipt_paths(server,pattern):
+    """Read legacy receipts and new external recovery archives without relocating either."""
+    roots=[Path(server)/'backups',DEV_ROOT/'archives/server/game-server/backups']
+    return sorted({p.resolve() for root in roots for p in root.glob(pattern)},key=lambda p:p.parent.name)
+
+def receipt_label(path,server):
+    return str(path.relative_to(server)) if path.is_relative_to(server) else str(path)
 sys.path.insert(0,str(ROOT/'client-mods/season-pass'))
 def methods(path,name):
     # Numeric switch labels are branches, not opcodes. Counting them as
@@ -57,8 +78,9 @@ def method_name(key):
     before=key.split('(')[0];name=before.split()[-1]
     return '<init>' if '.' in name else name
 def stage(classes,out,generation_fix=False):
+    validate_output(out)
     server=ROOT/'target-deploy/game-server';override=server/'libs/playerbot-recruitment-fix.jar';base=server/'libs/game-server-4.8-SNAPSHOT.jar'
-    previous=sorted((server/'backups').glob('playerbots-recruitment-*/manifest.json'))[-1];receipt=json.loads(previous.read_text())
+    previous=receipt_paths(server,'playerbots-recruitment-*/manifest.json')[-1];receipt=json.loads(previous.read_text())
     # A later, separately receipted panel update is part of the effective baseline.
     # Verify the latest successful receipt for every file, never relax hash guards.
     expected={e['path']:e['installed'] for e in receipt['files']}
@@ -105,7 +127,7 @@ def stage(classes,out,generation_fix=False):
             if changed:plan.append(name+'\t'+','.join(sorted({method_name(key) for key in changed})))
             review.append(dict(path=rel,methods=changed,retainedInstalledOnlyMethods=sorted(before.keys()-after.keys()),retainedUnselectedMethodDifferences=retained_differences))
     (out/'methods.tsv').write_text('\n'.join(plan));(out/'method-review.json').write_text(json.dumps(review,indent=2))
-    tools=out/'tools';tools.mkdir();subprocess.run(['javac','-d',str(tools),str(ROOT/'game-server/tools/StagePlayerBotCompanionPatch.java')],check=True)
+    tools=out/'tools';tools.mkdir();subprocess.run(['javac','-d',str(tools),str(java_tool('StagePlayerBotCompanionPatch.java'))],check=True)
     staged=out/'classes'
     subprocess.run(['java','-cp',str(tools)+';'+str(classes)+';'+str(server/'libs/*'),'StagePlayerBotCompanionPatch',str(baseline),str(classes),str(staged),str(out/'methods.tsv')],check=True)
     for entry in review:
@@ -143,7 +165,7 @@ def stage(classes,out,generation_fix=False):
         rel='config/playerbots/media/'+source.name;target=out/rel;target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(source,target);files.append(rel)
     # Launcher is retained as part of the cumulative override receipt.
     shutil.copy2(server/'start.bat',out/'start.bat');files.append('start.bat')
-    manifest=dict(feature='playerbot-companion-flight-quests-travel-care',generationFix=generation_fix,deployment=str(server),baseJarSha256=sha(base),previousReceipt=str(previous.relative_to(server)),
+    manifest=dict(feature='playerbot-companion-flight-quests-travel-care',generationFix=generation_fix,deployment=str(server),baseJarSha256=sha(base),previousReceipt=receipt_label(previous,server),
         incrementalChangedMethods=[e for e in review if e['methods']],changedMethods=receipt['changedMethods']+[e['path']+': '+method for e in review for method in e['methods']],
         newClasses=sorted(new),rollbackSha256=sha(rollback),continuationReceipts=continuations,files=[dict(path=rel,original=sha(server/rel),installed=sha(out/rel)) for rel in files])
     (out/'manifest.json').write_text(json.dumps(manifest,indent=2))

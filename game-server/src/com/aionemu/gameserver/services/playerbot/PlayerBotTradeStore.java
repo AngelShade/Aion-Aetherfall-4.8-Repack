@@ -78,8 +78,9 @@ final class PlayerBotTradeStore {
   if(!InventoryDAO.store(owner.getDirtyItemsToUpdate(),owner.getObjectId(),owner.getAccount().getId(),owner.getLegion()==null?null:owner.getLegion().getLegionId()))throw new SQLException("Owner checkpoint failed");
   if(offer.getKinahCount()>0 && bot.getInventory().getKinahItem()==null)bot.getInventory().increaseKinah(0);
   try(var c=DatabaseFactory.getConnection()) {c.setAutoCommit(false);
-   try{var pending=InventoryDAO.storeCompanionInventory(c,bot);c.commit();InventoryDAO.companionInventoryCommitted(pending);}
-   catch(SQLException|RuntimeException e){c.rollback();throw e;}
+   try{var pending=InventoryDAO.storeCompanionInventory(c,bot);var metadata=PlayerBotMetadata.pending(bot.getAccount().getId(),bot.getObjectId());
+    PlayerBotMetadata.store(c,metadata);c.commit();PlayerBotMetadata.committed(metadata);InventoryDAO.companionInventoryCommitted(pending);}
+   catch(SQLException|RuntimeException e){c.rollback();InventoryDAO.markCompanionInventoryDirty(bot);throw e;}
   }
   try(var c=DatabaseFactory.getConnection()) {c.setAutoCommit(false);
    try{transfer(c,owner,bot,offer);try{c.commit();}catch(SQLException e){throw new Indeterminate(e);}}

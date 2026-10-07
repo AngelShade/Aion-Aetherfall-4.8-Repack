@@ -2,7 +2,9 @@
 
 See [SEASON_PASS.md](../../docs/SEASON_PASS.md) for gameplay, reward selection, configuration and deployment.
 
-`prepare.py` stages an incremental patch from the installed English Aion 4.8 NA x64 client. `verify_package.py` reports `OK`/`FAIL` for archive/signature/hash and exact DLL bounds. `install.ps1` requires Aion to be closed and backs up every changed file; `restore.ps1` restores that snapshot while retaining server data. `verify_browser.py` checks the real Aion browser in a separate process against an isolated HTTP fixture, using the original native item icon bridge.
+`prepare.py` stages an incremental patch from the supported English Aion 4.8 NA x64 client. `verify_package.py` reports `OK`/`FAIL` for archive/signature/hash and exact DLL bounds. `install.ps1` requires Aion to be closed and backs up every changed file; `restore.ps1` restores that snapshot while retaining server data. `verify_browser.py` checks the real Aion browser in a separate process against an isolated HTTP fixture, using the original native item icon bridge.
+
+For players connecting from other PCs, build with the server's HTTPS origin: `python client-mods/season-pass/prepare.py --client "C:\Aion 4.8 NA" --output "C:\Aion-SeasonPass-Staged" --server-url "https://play.example.com"`. Loopback remains the default for same-PC use. Remote plain HTTP is rejected. The server must publish the Season Pass route through an HTTPS reverse proxy while keeping its marketplace listener private; see [remote-player setup](../../docs/SEASON_PASS.md#remote-players-and-the-in-game-browser). Do not distribute a prepared client snapshot: it contains original Aion files and is bound to one installed client. Share the source tools and have each player stage the patch from their own supported client.
 
 The existing fullscreen Market dialog hosts the pass, including its stock native close control. The exact `/market/pass` route gets the character's native account token. Compact route comparison and suffix writes fit the existing 512-byte authentication cave; no new DLL or renderer hook is introduced. Preparing a package never writes to the installed client.
 

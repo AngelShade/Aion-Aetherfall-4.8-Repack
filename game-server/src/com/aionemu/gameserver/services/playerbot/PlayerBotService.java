@@ -337,6 +337,7 @@ public final class PlayerBotService {
 				bot.getLifeStats().cancelAllTasks();
 				bot.getEffectController().removeNonStorableEffectsForLogout();
 				PlayerBotPersistence.save(bot, homes.get(bot.getObjectId()));
+				PlayerBotMetadata.release(session.owner().getAccount().getId(),bot.getObjectId());
 				bot.getEffectController().removeAllEffects(true);
 				World.getInstance().removeObject(bot);
 				bot.getCommonData().setOnline(false);

@@ -29,7 +29,10 @@ final class PlayerBotPersistence {
 			try {
 				var inventory = InventoryDAO.storeCompanionInventory(connection, bot);
 				saveProgress(connection, bot, home);
+				var metadata = PlayerBotMetadata.pending(bot.getAccount().getId(),bot.getObjectId());
+				PlayerBotMetadata.store(connection,metadata);
 				connection.commit();
+				PlayerBotMetadata.committed(metadata);
 				InventoryDAO.companionInventoryCommitted(inventory);
 			} catch (SQLException | RuntimeException e) {
 				try { connection.rollback(); } catch (SQLException rollback) { e.addSuppressed(rollback); }

@@ -400,7 +400,7 @@
 
       renderGearPolicy(body, bot);
 
-      body.appendChild(node('h3', 'Equipment & inventory (' + bot.inventory.length + ')')); body.appendChild(node('p', 'Items belong to this companion. Choose an available slot to equip an item.', 'hint'));
+      body.appendChild(node('h3', 'Equipment & inventory (' + bot.inventory.length + ')')); body.appendChild(node('p', 'Equip combat armor for stats. Keep outfits in the cube and choose Use as transmog to apply their look. Equip is still available for normal equipment.', 'hint'));
 
       if (!bot.inventory.length) body.appendChild(node('p', 'The companion\u2019s inventory is empty.', 'empty'));
 
@@ -585,6 +585,19 @@
   function renderItem(parent, bot, item) {
 
     var row = node('div', null, 'item'); row.appendChild(node('div', item.name + ' \u00d7' + item.count + (item.equipped ? ' \u00b7 Equipped' : '')));
+
+    if (item.equipped && item.appearanceSet) {
+      row.appendChild(node('p', 'Appearance: ' + item.skinName + ' (combat stats kept)', 'hint'));
+      button(row, 'Restore original look', { action: 'resetappearance', name: bot.name, target: item.id }, bot.closing);
+    }
+    if (item.appearanceTargets && item.appearanceTargets.length) {
+      var looks = node('select'); looks.setAttribute('aria-label', 'Combat equipment to transmog with ' + item.name);
+      for (var t = 0; t < item.appearanceTargets.length; t++) { var option = node('option', item.appearanceTargets[t].name); option.value = item.appearanceTargets[t].id; looks.appendChild(option); }
+      row.appendChild(looks);
+      var transmog = button(row, 'Use as transmog', {}, bot.closing);
+      transmog.onclick = function () { act({ action: 'appearance', name: bot.name, item: item.id, target: looks.value }); };
+      row.appendChild(node('p', 'Keeps combat stats and this appearance item. The look follows this slot through gear upgrades.', 'hint'));
+    }
 
     if (!item.equipped && item.slots.length) {
 

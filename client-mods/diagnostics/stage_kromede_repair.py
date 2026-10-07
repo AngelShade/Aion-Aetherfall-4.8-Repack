@@ -10,6 +10,7 @@ SCOPES={PREFIX+'ai/AIEngine':{'init','reload','registerAI','newAI','validateScri
         'instance/FireTempleInstance':{'onInstanceCreate'}}
 
 def stage(classes,out):
+ shared.validate_output(out)
  server=ROOT/'target-deploy/game-server'
  latest=sorted((server/'backups').glob('playerbots-recruitment-*/manifest.json'))[-1]
  receipt=json.loads(latest.read_text())
@@ -36,7 +37,7 @@ def stage(classes,out):
    review.append(dict(path=rel,methods=changed))
  (out/'methods.tsv').write_text('\n'.join(plan))
  tools=out/'tools';tools.mkdir()
- subprocess.run(['javac','-d',str(tools),str(ROOT/'game-server/tools/StagePlayerBotCompanionPatch.java')],check=True)
+ subprocess.run(['javac','-d',str(tools),str(shared.java_tool('StagePlayerBotCompanionPatch.java'))],check=True)
  staged=out/'classes'
  subprocess.run(['java','-cp',str(tools)+';'+str(classes)+';'+str(server/'libs/*'),'StagePlayerBotCompanionPatch',str(baseline),str(classes),str(staged),str(out/'methods.tsv')],check=True)
  for e in review:

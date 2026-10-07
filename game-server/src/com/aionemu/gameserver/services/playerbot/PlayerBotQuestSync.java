@@ -41,9 +41,9 @@ public final class PlayerBotQuestSync {
     var owned=session.owner().getQuestStateList().getQuestState(q.getQuestId());
     if(owned!=null && (owned.getStatus()==QuestStatus.START || owned.getStatus()==QuestStatus.REWARD))managed.add(q.getQuestId());
    }
-   Path path=path();
-   if(Files.exists(path))try(var in=Files.newInputStream(path)) {
-    Properties p=new Properties();p.load(in);
+   try {
+    Properties p=PlayerBotMetadata.load(account,character,"care",path());
+    if(!p.isEmpty()) {
     if(Integer.parseInt(p.getProperty("account"))!=account || Integer.parseInt(p.getProperty("character"))!=character)throw new IOException("Companion care settings owner mismatch");
     enchant=Boolean.parseBoolean(p.getProperty("enchant","false"));salvage=Boolean.parseBoolean(p.getProperty("salvage","false"));
     partySync=Boolean.parseBoolean(p.getProperty("partySync","true"));
@@ -52,6 +52,7 @@ public final class PlayerBotQuestSync {
     for(String id:p.getProperty("skipped","").split(","))if(!id.isBlank())skipped.add(Integer.parseInt(id));
     for(String id:p.getProperty("approved","").split(","))if(!id.isBlank())approved.add(Integer.parseInt(id));
     for(String key:p.stringPropertyNames())if(key.startsWith("together.")){int id=Integer.parseInt(key.substring(9));managed.add(id);ownerCompletions.put(id,Integer.parseInt(p.getProperty(key)));}
+    }
    }catch(Exception error){throw new IllegalStateException("Cannot load companion care settings",error);}
   }
   Path path(){return Path.of("config","playerbots","care-character-"+character+".properties");}
@@ -63,13 +64,8 @@ public final class PlayerBotQuestSync {
    p.setProperty("skipped",skipped.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
    p.setProperty("approved",approved.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
    for(int id:managed)p.setProperty("together."+id,Integer.toString(ownerCompletions.getOrDefault(id,0)));
-   try {
-    Files.createDirectories(path().getParent());Path temporary=Files.createTempFile(path().getParent(),"companion-care-",".tmp");
-    try {
-     try(var out=Files.newOutputStream(temporary)){p.store(out,"Companion quest choices and equipment care");}
-     PlayerBotSettingsFiles.replace(temporary,path());
-    }finally{Files.deleteIfExists(temporary);}
-   }catch(IOException error){throw new IllegalStateException("Cannot save companion care settings",error);}
+   try {PlayerBotMetadata.save(account,character,"care",p);}
+   catch(IOException error){throw new IllegalStateException("Cannot queue companion care metadata",error);}
   }
  }
  private static final Map<Integer,State> STATES=new ConcurrentHashMap<>();

@@ -33,6 +33,20 @@ Browser mutations require an online account session and a connection-bound reque
 
 Keep published reward slots and economics stable under an existing season ID. To schedule a new season, wait until the prior claim grace period has finished, configure a **new unique ID**, update missions/rewards and restart GameServer. Historical progress, claims and receipts remain in SQL. This version serves one configured season at a time; it does not provide a multi-season archive window or an administrator editor. Do not replace the active configuration during its claim period. No automatic next season is currently configured.
 
+## Remote players and the in-game browser
+
+Pass progress, purchases and claims are stored on the GameServer for each character. The in-game window is a browser running on each player's PC, so its page URL must reach the server over the network. `127.0.0.1` works only when that player also runs GameServer on the same PC.
+
+For remote players, keep `gameserver.marketplace.bind = 127.0.0.1` and put an HTTPS reverse proxy on the server host. Publish only `/market/pass` and `/market/pass/` through the proxy to `http://127.0.0.1:8091`; keep port 8091 private. Preserve the incoming `Host` header and forward the normal `Origin` header. The Java handler accepts an HTTP or HTTPS Origin only when its authority matches `Host`. Do not expose the session-bearing HTTP endpoint directly to the Internet.
+
+Build each client's patch with the same public HTTPS origin, for example:
+
+```powershell
+python client-mods/season-pass/prepare.py --client "C:\Aion 4.8 NA" --output "C:\Aion-SeasonPass-Staged" --server-url "https://play.example.com"
+```
+
+Install the resulting client patch with `client-mods/season-pass/install.ps1`. The player keeps their own Aion archives and signing material; do not upload a complete game client or a prepared client snapshot. Each player installs the patch once. Their character progress and rewards remain server-side.
+
 ## Build, installation and rollback
 
 1. Package the server from the repository root with `mvn -pl game-server -am -DskipTests "-Dassembly.skipAssembly=true" package`.

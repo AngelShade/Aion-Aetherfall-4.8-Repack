@@ -1,5 +1,11 @@
 # Full Playerbots port scope and iteration focus
 
+Current user policy (7 October 2026): GameServer and the game are off. Keep both
+off and perform source compilation and isolated offline review/checks only.
+The user tests actual gameplay after each WoW Playerbots feature or feature group
+is ported. Pending user acceptance must not cause installed features to be re-ported.
+No live attach or server/client lifecycle action is authorized by this policy.
+
 Recorded 4 October 2026 at the user's explicit request to retain focus across
 future chats and iterations. This is planning/continuity guidance, not a new
 implementation or permission to start GameServer.
@@ -91,3 +97,55 @@ dismiss/resummon and game UI acceptance remain **PB-VAL-010**. Broader trade is
 partial: outgoing bot offers, group-member/world-bot security, bargaining,
 discounts and crafting trade are not claimed. The next companion class slice
 remains PB-PORT-005B; broader economy/trade can continue independently.
+
+## PB-REPAIR-SETTINGS-002 — installed offline 7 October 2026
+
+The current care retry is confirmed retained; the pasted Tancul traceback matches
+the older 04:15:05 incident. Current logs show the same Windows sharing denial
+from gear provenance saves for MagicDps/LeMuse. GearPolicy.State.save now uses
+the existing bounded atomic-replacement retry. One method changed; 146 other
+cumulative entries remain byte-identical. No settings/build/item/quest policy
+changes or error suppression. Persistent locks still report failure; the locking
+process is not identified.
+
+Current receipt `backups/playerbots-recruitment-20261007-081522-429924` retains
+`042546-945113`, gifts, Sorcerer, tank, custody, native shield and every earlier
+mod. Full offline source build and 36 focused source/effective/Windows private-file
+checks pass. Server/client remained off; no startup/restart/attach or forced native
+gameplay/DB/ID tests. User actual care/gear/supplies acceptance is pending.
+See [settings diagnosis and installation](PLAYERBOTS_SETTINGS_FILES_20261007.md).
+
+Next broader slice stays PB-PORT-005B Spiritmaster; independent scope tracks remain
+open. Appearance and follow recovery remain source/staged only; earlier packages
+must be restaged against the new cumulative receipt before install. Do not copy an
+older staging JAR over this repair. All earlier unfinished port/repair work survives.
+
+## PB-SCOPE-012A native metadata — installed offline 7 October 2026
+
+Care/gear state now uses native MetadataDAO/cache/checkpoints, mapped from pinned
+PlayerbotRepository.cpp and PlayerbotsDatabase.cpp. AI/settings saves queue values
+in memory; dirty metadata commits with native inventory/progress, including the
+pre-trade checkpoint. Failure retains dirty state for periodic checkpoint retry.
+Supply provenance marks the native cube dirty. Owned-alt builds and all existing
+preferences, consent, quest witnesses and protected-item values are preserved.
+
+After the user opened the database, the guarded installer verified native ownership,
+created the metadata table and committed **32 imported care/gear rows**. A separate
+read-only connection verified all 32 committed values exactly match retained legacy
+files. Eight existing methods/six definitions changed, six new classes were added,
+and 141 earlier JAR entries remain byte-identical. Full offline compile and 35
+production checks pass against the installed package; 16 mod checks/31 client hashes
+pass, with all 93 settings/media files unchanged. Inventory records 70 client/86
+server historical receipts. No GameServer/client startup, restart or attach occurred.
+
+Current recovery receipt is external:
+`D:/Proiecte/Project Restructure/Aion Development Workspace/archives/server/game-server/backups/playerbots-recruitment-20261007-124827-848789`.
+It retains `081522-429924` and every earlier installed mod. Override SHA-256:
+`f49bd48bcfd6a0a7eabae4a8fe2213791dba7dcdab1cb1945d3a900451cd1a3e`.
+
+See [native metadata port](PLAYERBOTS_METADATA_20261007.md). PB-VAL-011 migration and
+disk installation are complete; actual care/gear/supplies/trade checkpoints,
+failure/retry and dismissal/resummon/restart gameplay acceptance remain the user's
+tests. PB-PORT-005B Spiritmaster is the next separate class implementation. Other
+repository namespaces and the full port remain partial. Appearance/follow packages
+remain source/staged only and must be restaged against this receipt before install.

@@ -1,6 +1,7 @@
 package com.aionemu.gameserver.services;
 
 import java.io.IOException;
+import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
@@ -43,8 +44,8 @@ public final class SeasonPassHttpService {
 			if(p==null || !p.isOnline()) { send(x,403,"application/json","{\"error\":\"Log in and reopen Season Pass from Additional Functions.\"}"); return; }
 			String notice="";
 			if(action) {
-				String origin=x.getRequestHeaders().getFirst("Origin"), expected="http://"+x.getRequestHeaders().getFirst("Host");
-				if(origin!=null && !origin.equals(expected)) throw new IllegalArgumentException("Reopen the pass to continue.");
+				String origin=x.getRequestHeaders().getFirst("Origin"), host=x.getRequestHeaders().getFirst("Host");
+				if(origin!=null && !matchesOriginHost(origin,host)) throw new IllegalArgumentException("Reopen the pass to continue.");
 				Form form=FORMS.get(args.getOrDefault("request",""));
 				if(form==null || form.player()!=p || form.connection()!=p.getClientConnection() || form.expires()<System.currentTimeMillis()) {
 					send(x,403,"application/json","{\"error\":\"This selection expired. Refresh the pass.\"}"); return;
@@ -67,6 +68,14 @@ public final class SeasonPassHttpService {
 		Map<String,String> out=new HashMap<>();
 		for(String part:text.split("&")) { String[] kv=part.split("=",2); if(kv.length==2) out.put(URLDecoder.decode(kv[0],StandardCharsets.UTF_8),URLDecoder.decode(kv[1],StandardCharsets.UTF_8)); }
 		return out;
+	}
+	private static boolean matchesOriginHost(String origin,String host) {
+		try {
+			URI uri=URI.create(origin);
+			return host!=null && uri.getUserInfo()==null && "".equals(uri.getRawPath()) && uri.getQuery()==null && uri.getFragment()==null
+				&& ("http".equals(uri.getScheme()) || "https".equals(uri.getScheme()))
+				&& uri.getRawAuthority()!=null && uri.getRawAuthority().equalsIgnoreCase(host);
+		} catch (IllegalArgumentException e) { return false; }
 	}
 	private static void send(HttpExchange x,int status,String type,String body) throws IOException {
 		byte[] bytes=body.getBytes(StandardCharsets.UTF_8); x.getResponseHeaders().set("Content-Type",type+"; charset=utf-8");

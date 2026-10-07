@@ -5,6 +5,7 @@ ROOT=Path(__file__).resolve().parents[2];sys.path.insert(0,str(ROOT/'client-mods
 import stage_companion_update as shared
 SCOPES={shared.PREFIX+'model/base/Base':{'spawnBySpawnHandler','getOccupier'},shared.PREFIX+'services/TribeRelationService':{'isFriend'}}
 def stage(classes,out):
+    shared.validate_output(out)
     server=ROOT/'target-deploy/game-server';latest=sorted((server/'backups').glob('playerbots-recruitment-*/manifest.json'))[-1];receipt=json.loads(latest.read_text())
     assert all(shared.sha(server/e['path'])==e['installed'] for e in receipt['files'])
     assert shared.sha(server/'libs/game-server-4.8-SNAPSHOT.jar')==receipt['baseJarSha256']
@@ -18,7 +19,7 @@ def stage(classes,out):
             assert changed,name
             plan.append(name+'\t'+','.join(sorted({shared.method_name(k) for k in changed})));review.append(dict(path=rel,methods=changed))
     (out/'methods.tsv').write_text('\n'.join(plan));(out/'method-review.json').write_text(json.dumps(review,indent=2))
-    tools=out/'tools';tools.mkdir();subprocess.run(['javac','-d',str(tools),str(ROOT/'game-server/tools/StagePlayerBotCompanionPatch.java')],check=True)
+    tools=out/'tools';tools.mkdir();subprocess.run(['javac','-d',str(tools),str(shared.java_tool('StagePlayerBotCompanionPatch.java'))],check=True)
     staged=out/'classes';subprocess.run(['java','-cp',str(tools)+';'+str(classes)+';'+str(server/'libs/*'),'StagePlayerBotCompanionPatch',str(baseline),str(classes),str(staged),str(out/'methods.tsv')],check=True)
     for e in review:
         name=e['path'][:-6];before=shared.methods(baseline,name);after=shared.methods(staged,name)

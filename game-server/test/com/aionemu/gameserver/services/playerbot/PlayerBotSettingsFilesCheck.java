@@ -26,7 +26,7 @@ public final class PlayerBotSettingsFilesCheck {
   check(p.getProperty("reserve").equals("10000")&&p.getProperty("dailyBudget").equals("50000")&&p.getProperty("spent").equals("123")&&p.getProperty("spentDay").equals("2026-10-05"),"Budget/provenance metadata retained");
  }
  public static void main(String[] args)throws Exception {
-  if(args.length==2 && args[0].equals("native-lock")){nativeLock(Path.of(args[1]));return;}
+  if(args.length>0)throw new IllegalArgumentException("Care/gear runtime writes moved to DAO checkpoints; use PlayerBotMetadataCheck. This check covers the retained legacy file helper only.");
   Path directory=Files.createTempDirectory("playerbot-settings-check-");Path original=directory.resolve("committed.properties"),temporary=directory.resolve("new.tmp");
   try {
    Files.writeString(original,"old=unchanged\n");Files.writeString(temporary,"new=complete\n");List<Long> pauses=new ArrayList<>();int[] attempts={0};
@@ -54,11 +54,8 @@ public final class PlayerBotSettingsFilesCheck {
    Files.writeString(temporary,"interrupted\n");
    try{PlayerBotSettingsFiles.replace(temporary,original,(a,b,c)->{throw new AccessDeniedException(b.toString());},delay->{throw new InterruptedException("fixture");});throw new AssertionError("Interruption hidden");}
    catch(InterruptedIOException expected){check(Thread.currentThread().isInterrupted(),"Interruption flag retained");check(expected.getCause() instanceof InterruptedException && expected.getSuppressed().length==1,"Interrupted error retains denied cause");Thread.interrupted();}
-   var care=state();Path carePath=care.path();check(!Files.exists(carePath),"Private fixture settings absent");
-   try {care.save();verifyCare(carePath);care.approved.add(31);care.save();var p=new Properties();try(var in=Files.newInputStream(carePath)){p.load(in);}check(p.getProperty("approved").equals("30,31"),"Actual State.save updates existing file");}
-   finally {Files.deleteIfExists(carePath);}
   } finally {try(var paths=Files.list(directory)){for(Path p:paths.toList())Files.delete(p);}Files.delete(directory);}
-  System.out.println("OK: "+checks+" sharing-violation retries, permanent denial, atomic/fallback, interruption and production care serialization checks; no DB/world/ID writes");
+  System.out.println("OK: "+checks+" retained legacy file-helper retry/atomic/interruption checks; care/gear production serialization is verified in PlayerBotMetadataCheck");
  }
  static void nativeLock(Path signals)throws Exception {
   var care=state();Path path=care.path();check(Files.exists(path),"Windows locked private fixture present");

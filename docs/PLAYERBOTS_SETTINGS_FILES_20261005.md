@@ -36,3 +36,8 @@ acceptance/settings persistence. Permanent file permissions or long locks remain
 errors; this is a bounded transient-lock repair. Next attach update revision >49.
 Broader next class slice remains PB-PORT-005B; full parity and existing acceptance,
 latency, item-ID release and wipe/summon investigations remain open.
+
+7 October continuity: gear save retry PB-REPAIR-SETTINGS-002 is now installed
+offline in `081522-429924`; the care retry is retained. Existing uninstalled
+packages must be restaged against that baseline. See
+`PLAYERBOTS_SETTINGS_FILES_20261007.md`; no server/client startup or attach.

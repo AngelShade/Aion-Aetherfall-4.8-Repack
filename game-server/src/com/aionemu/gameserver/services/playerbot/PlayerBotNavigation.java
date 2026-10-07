@@ -59,9 +59,11 @@ final class PlayerBotNavigation {
 		while (!trail.isEmpty() && PositionUtil.getDistance(bot, trail.peekFirst().x(), trail.peekFirst().y(), trail.peekFirst().z()) < 3)
 			trail.removeFirst();
 		if (!PlayerBotFormation.needsFollow(owner,(Player)bot,formationSlot)) {
+			PlayerBotFollowRecovery.reset((Player)bot);
 			stop();
 			return false;
 		}
+		PlayerBotFollowRecovery.observe((Player)bot, owner);
 		// Use the most recent reachable breadcrumb, avoiding a straight line through an owner's corner.
 		Point destination = trail.peekFirst();
 		for (Point point : trail)

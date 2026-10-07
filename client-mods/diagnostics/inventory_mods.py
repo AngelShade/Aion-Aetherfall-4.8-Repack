@@ -8,6 +8,7 @@ import re
 import struct
 import sys
 import zipfile
+import os
 
 HERE=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(HERE/'expanded-warehouse'))
@@ -89,7 +90,9 @@ def main():
         if 'PlayerBotBar.lua' in addon.namelist():
             checks['playerbot_party_bar']=all(name in addon.namelist() for name in ('PlayerBotBar.lua','PlayerBotBar.xml')) and all(name.encode() in addon.read('RelicCalc.toc') for name in ('PlayerBotBar.lua','PlayerBotBar.xml'))
     receipts=[str(p.relative_to(client)) for folder in client.glob('*-backups') if folder.is_dir() for p in folder.glob('*/manifest.json')]
+    archive_root=Path(os.environ.get('AION_DEV_ROOT','D:/Proiecte/Project Restructure/Aion Development Workspace'))/'archives/server/game-server/backups'
     server_receipts=[str(p.relative_to(server)) for p in (server/'backups').glob('*/manifest.json')]
+    server_receipts += [str(p.resolve()) for p in archive_root.glob('*/manifest.json')]
     jar=server/'libs/game-server-4.8-SNAPSHOT.jar'
     with zipfile.ZipFile(jar) as archive:
         names=archive.namelist()
@@ -98,7 +101,7 @@ def main():
     overrides=[]
     override=server/'libs/playerbot-recruitment-fix.jar'
     if override.exists():
-        override_receipts=sorted((server/'backups').glob('playerbots-recruitment-*/manifest.json'))
+        override_receipts=sorted(list((server/'backups').glob('playerbots-recruitment-*/manifest.json'))+list(archive_root.glob('playerbots-recruitment-*/manifest.json')),key=lambda p:p.parent.name)
         assert override_receipts,'Companion override has no installation receipt'
         latest=read(override_receipts[-1])
         effective={e['path']:e['installed'] for e in latest['files']}
@@ -143,7 +146,9 @@ def main():
 
         checks['recruitment_override_and_launcher']=sha(jar)==latest['baseJarSha256'] and sha(override)==expected_override and all(sha(server/path)==digest for path,digest in effective.items() if path!='libs/playerbot-recruitment-fix.jar')
         checks['recruitment_override_and_launcher'] &= b'-cp "libs/playerbot-recruitment-fix.jar;libs/*"' in (server/'start.bat').read_bytes()
-        overrides.append(dict(path='libs/playerbot-recruitment-fix.jar',sha256=sha(override),receipt=str(override_receipts[-1].relative_to(server)),changedMethods=latest['changedMethods']))
+        receipt_path=override_receipts[-1]
+        receipt_label=str(receipt_path.relative_to(server)) if receipt_path.is_relative_to(server) else str(receipt_path)
+        overrides.append(dict(path='libs/playerbot-recruitment-fix.jar',sha256=sha(override),receipt=receipt_label,changedMethods=latest['changedMethods']))
     configs={}
     for path in (server/'config/main').glob('*.properties'):
         for line in path.read_text(encoding='utf-8-sig').splitlines():

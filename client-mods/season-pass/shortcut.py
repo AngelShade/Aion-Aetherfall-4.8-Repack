@@ -67,6 +67,11 @@ def transform(path,rel,defs,dds):
 def compile_extension(out):
     work=out.parent/(out.name+'-compile');work.mkdir(exist_ok=True)
     dll=out/'bin64/AionMarketShortcut.dll';dll.parent.mkdir(exist_ok=True)
+    prebuilt=HERE/'assets/AionMarketShortcut.dll'
+    if prebuilt.is_file():
+        import shutil
+        shutil.copy2(prebuilt,dll)
+        return dll.read_bytes()
     vcvars=Path(os.environ.get('ProgramFiles(x86)',r'C:\Program Files (x86)'))/'Microsoft Visual Studio/2022/BuildTools/VC/Auxiliary/Build/vcvars64.bat'
     source=HERE.parent/'market-shortcut/market_shortcut.cpp'
     script=work/'compile.cmd';script.write_text(f'@echo off\ncall "{vcvars}" >nul\ncl /nologo /std:c++17 /EHsc /O2 /MT /LD /Fo:"{work / "market.obj"}" "{source}" /link /OUT:"{dll}" /IMPLIB:"{work / "market.lib"}"\n')

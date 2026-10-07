@@ -21,7 +21,7 @@ public final class PlayerBotTravel {
   Position previous=POSITIONS.put(bot.getObjectId(),current);
   if(PlayerBotPartyBehavior.catchUp(session))return true;
   if(jumped(previous,current,owner.getGameStats().getMovementSpeedFloat()))WAITING.add(bot.getObjectId());
-  if(!WAITING.contains(bot.getObjectId()) || owner.getController().isInCombat() || bot.getController().isInCombat())return false;
+  if(!WAITING.contains(bot.getObjectId()) || owner.getController().isInCombat() || bot.getController().isInCombat())return PlayerBotFollowRecovery.recover(session);
   if(PlayerBotService.getInstance().relocate(session)){WAITING.remove(bot.getObjectId());return true;}
   return false;
  }
@@ -43,6 +43,6 @@ public final class PlayerBotTravel {
    for(var session:sessions)summon(session);
   }
  }
- static void close(PlayerBotSession session){POSITIONS.remove(session.bot().getObjectId());WAITING.remove(session.bot().getObjectId());}
+ static void close(PlayerBotSession session){POSITIONS.remove(session.bot().getObjectId());WAITING.remove(session.bot().getObjectId());PlayerBotFollowRecovery.close(session.bot());}
  private PlayerBotTravel() {}
 }

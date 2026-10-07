@@ -1,5 +1,10 @@
 # Focused WoW Playerbots port revision — 4 October 2026
 
+Current lifecycle policy (7 October): server/client off; no live attach or startup.
+The user performs gameplay testing after each feature or feature group port.
+The reviewed custom transmog package and separate follow-recovery source remain
+uninstalled; review results are in their feature docs. Next upstream slice: 005B.
+
 Read [full port scope and iteration focus](PLAYERBOTS_PORT_SCOPE.md) first.
 This tracker covers already attempted ports, not every upstream subsystem.
 Independent world populations and native invitations/control transitions remain
@@ -273,6 +278,7 @@ accepted or closed.
 | 10 · PB-PORT-010 | OPEN — partial | Explicit coherent Temporary class/build presets linking skills, Stigmas, weapons and gear scoring. | PB-PORT-005/009; native slot/prerequisite legality. |
 | 11 · PB-PORT-011 | OPEN — partial; graph SOURCE GATE | Native world destination graph and quest/service planning beyond local fallback. | PB-PORT-003/009; pinned TravelMgr/actions review before design. |
 | 12 · PB-PORT-012 | SOURCE GATE / partial | Review special positioning/transport/escape/corpse-travel and unsupported skill adapters. | Exact upstream files and an actual Aion mechanic per adapter. |
+| PB-SCOPE-012A | INSTALLED — offline/native import verified; gameplay pending | Care/gear metadata uses native DB checkpoint; 32 imported rows checked read-only. Next class implementation remains 005B. | PB-VAL-011 user checkpoint/retry/dismiss/resummon acceptance; other repository namespaces separate. |
 
 The following details preserve original findings and the acceptance contract.
 001/002/003 implementation and offline/disk stages are complete; acceptance remains
@@ -489,6 +495,8 @@ from these reference excerpts or a reason to mark this focused audit complete.
 | PB-VAL-007 | Learned utility/defense/heal/pet casts and delayed Kromede trap avoidance in a client party encounter | Historical isolated casts passed for named skills; full class/dungeon acceptance absent. |
 | PB-VAL-008 | Temporary maintenance, save/preset/remove/relogin, untouched owned-alt fingerprints, native pet/menu coexistence | Historical selected fixtures pass; complete actual-client regression remains pending. |
 | PB-VAL-009 | Actual native chain/proc/MP/animation execution, emergency preemption, strategy changes and death/map/party/order transitions in a client encounter | PB-PORT-004 installed, 49 loaded-engine fixtures and five actual scheduled contexts pass; actual client combat/transition acceptance pending. |
+| PB-VAL-010 | Owner-to-bot native item/Kinah exchange and equip/bind persistence | Installed; 56 final production checks pass. User gameplay acceptance pending. |
+| PB-VAL-011 | Native metadata checkpoint rollback/retry, care/gear/supply/trade saves, dismissal/resummon/restart persistence | Schema/import and offline install complete; 32 committed rows verified read-only, 35 effective production checks pass. User gameplay acceptance pending. |
 
 No validation above authorizes a restart. GameServer is now running after the
 separately approved position repair; the subsequent “Finish it” authorized the
@@ -697,3 +705,83 @@ dismiss/resummon and game UI acceptance remain **PB-VAL-010**. Broader trade is
 partial: outgoing bot offers, group-member/world-bot security, bargaining,
 discounts and crafting trade are not claimed. The next companion class slice
 remains PB-PORT-005B; broader economy/trade can continue independently.
+
+## PB-CUSTOM-APPEARANCE-001 companion transmog — staged 6 October 2026
+
+This is a requested Aion feature extension, not an upstream parity claim. It maps
+the existing `WardrobeRules` compatibility/race/gender/expiry checks and native
+`Item.setItemSkinTemplate`, `SM_INVENTORY_UPDATE_ITEM`, and
+`SM_UPDATE_PLAYER_APPEARANCE` flow to owned companion gear. An appearance item
+stays in the companion cube while its compatible combat item retains all stats.
+Per-character appearance selections persist separately and reapply to replacement
+gear in the same slot. The panel offers restore-original-look, and costume-only
+items cannot be auto-equipped as stat gear.
+
+Source/UI compile and incremental staging completed in
+`target/playerbots-appearance/package-reviewed-20261007`; this corrected package
+supersedes package-v2 and preserves the current
+cumulative override/launcher chain and deployed client baseline. This remains
+**source/staged only** under the user's no-live instruction; no live attach,
+deployed-file replacement, or restart occurred. Native appearance broadcast and
+persistence after restart need gameplay acceptance. PB-PORT-005B Spiritmaster remains the next upstream implementation;
+other Playerbots parity and validation IDs remain open.
+
+Review correction (7 October): use the native item-skin setter's NEW/UPDATE_REQUIRED
+persistence semantics; do not mark pending changes UPDATED. Retain stat-bearing
+clothing, exclude only statless costumes from auto-gear, reject expiring source
+instances, and share panel/action target eligibility. Full Commons/GameServer
+compile and 16 effective-package appearance checks pass. The package retains 144
+earlier cumulative entries byte-identically, changes five existing methods in
+three classes and adds two helper classes. No deployment occurred.
+
+## PB-REPAIR-SETTINGS-002 — installed offline 7 October 2026
+
+The current care retry is confirmed retained; the pasted Tancul traceback matches
+the older 04:15:05 incident. Current logs show the same Windows sharing denial
+from gear provenance saves for MagicDps/LeMuse. GearPolicy.State.save now uses
+the existing bounded atomic-replacement retry. One method changed; 146 other
+cumulative entries remain byte-identical. No settings/build/item/quest policy
+changes or error suppression. Persistent locks still report failure; the locking
+process is not identified.
+
+Current receipt `backups/playerbots-recruitment-20261007-081522-429924` retains
+`042546-945113`, gifts, Sorcerer, tank, custody, native shield and every earlier
+mod. Full offline source build and 36 focused source/effective/Windows private-file
+checks pass. Server/client remained off; no startup/restart/attach or forced native
+gameplay/DB/ID tests. User actual care/gear/supplies acceptance is pending.
+See [settings diagnosis and installation](PLAYERBOTS_SETTINGS_FILES_20261007.md).
+
+Next broader slice stays PB-PORT-005B Spiritmaster; independent scope tracks remain
+open. Appearance and follow recovery remain source/staged only; earlier packages
+must be restaged against the new cumulative receipt before install. Do not copy an
+older staging JAR over this repair. All earlier unfinished port/repair work survives.
+
+## PB-SCOPE-012A native metadata — installed offline 7 October 2026
+
+Care/gear state now uses native MetadataDAO/cache/checkpoints, mapped from pinned
+PlayerbotRepository.cpp and PlayerbotsDatabase.cpp. AI/settings saves queue values
+in memory; dirty metadata commits with native inventory/progress, including the
+pre-trade checkpoint. Failure retains dirty state for periodic checkpoint retry.
+Supply provenance marks the native cube dirty. Owned-alt builds and all existing
+preferences, consent, quest witnesses and protected-item values are preserved.
+
+After the user opened the database, the guarded installer verified native ownership,
+created the metadata table and committed **32 imported care/gear rows**. A separate
+read-only connection verified all 32 committed values exactly match retained legacy
+files. Eight existing methods/six definitions changed, six new classes were added,
+and 141 earlier JAR entries remain byte-identical. Full offline compile and 35
+production checks pass against the installed package; 16 mod checks/31 client hashes
+pass, with all 93 settings/media files unchanged. Inventory records 70 client/86
+server historical receipts. No GameServer/client startup, restart or attach occurred.
+
+Current recovery receipt is external:
+`D:/Proiecte/Project Restructure/Aion Development Workspace/archives/server/game-server/backups/playerbots-recruitment-20261007-124827-848789`.
+It retains `081522-429924` and every earlier installed mod. Override SHA-256:
+`f49bd48bcfd6a0a7eabae4a8fe2213791dba7dcdab1cb1945d3a900451cd1a3e`.
+
+See [native metadata port](PLAYERBOTS_METADATA_20261007.md). PB-VAL-011 migration and
+disk installation are complete; actual care/gear/supplies/trade checkpoints,
+failure/retry and dismissal/resummon/restart gameplay acceptance remain the user's
+tests. PB-PORT-005B Spiritmaster is the next separate class implementation. Other
+repository namespaces and the full port remain partial. Appearance/follow packages
+remain source/staged only and must be restaged against this receipt before install.

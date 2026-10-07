@@ -147,6 +147,7 @@ public final class PlayerBotHttpService {
 			case "role" -> service.find(owner, name).setRole(Role.valueOf(values.getOrDefault("role", "").toUpperCase(Locale.ROOT)));
 			case "mission" -> service.find(owner, name).mission(Integer.parseInt(values.getOrDefault("quest", "0")));
 			case "equip" -> service.find(owner, name).equip(Integer.parseInt(values.getOrDefault("item", "0")), com.aionemu.gameserver.model.items.ItemSlot.valueOf(values.getOrDefault("slot", "")));
+			case "appearance", "resetappearance" -> { return PlayerBotAppearance.configure(service.find(owner,name),Integer.parseInt(values.getOrDefault("item","0")),Integer.parseInt(values.getOrDefault("target","0")),op.equals("resetappearance")); }
 			default -> throw new IllegalArgumentException("Unknown companion action.");
 		}
 		return "Companion request completed.";

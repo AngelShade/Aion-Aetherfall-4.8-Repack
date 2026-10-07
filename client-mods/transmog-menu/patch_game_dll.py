@@ -310,8 +310,8 @@ def build_browser_hook_code(url):
     asm.branch(b'\x0f\x84', 'original')
     for index, route in enumerate(urls):
         payload = route.encode('ascii') + b'\0'
-        if not route.startswith('http://127.0.0.1:8091/') or len(payload) > 128 or any(c < 32 for c in payload[:-1]):
-            raise ValueError('Embedded navigation supports exact loopback URLs of at most 127 ASCII characters')
+        if not route.startswith(('http://127.0.0.1:8091/', 'https://')) or len(payload) > 128 or any(c < 32 for c in payload[:-1]):
+            raise ValueError('Embedded navigation supports exact loopback or HTTPS URLs of at most 127 ASCII characters')
         emit_exact_route(asm, 'rdx', 'route_' + str(index), 'next_url_' + str(index))
         asm.branch(b'\xe9', 'journey_load' if route.endswith('/journey') else 'authenticated_load' if route.endswith(('/market', '/wardrobe', '/pass', '/companions')) else 'load')
         asm.label('next_url_' + str(index))
@@ -382,14 +382,16 @@ def build_market_auth_code(url, compact=False):
     urls = [url] if isinstance(url,str) else url
     if not urls or len(set(urls)) != len(urls):
         raise ValueError('Authentication routes must be nonempty and unique')
+    origins = set()
     for route in urls:
-        if not route.startswith('http://127.0.0.1:8091/') or len(route.encode('ascii')) > 127:
-            raise ValueError('Market authentication requires the configured loopback route')
+        if not route.startswith(('http://127.0.0.1:8091/', 'https://')) or len(route.encode('ascii')) > 127:
+            raise ValueError('Market authentication requires an exact loopback or HTTPS route')
+        origins.add(route.split('/', 3)[0] + '//' + route.split('/', 3)[2])
     asm = Assembler(MARKET_AUTH_HOOK_RVA)
     asm.emit(b'\x48\x85\xc9')
     asm.branch(b'\x0f\x84', 'original')
-    shared = compact and len(urls) >= 5
-    prefix = 'http://127.0.0.1:8091/'
+    shared = compact and len(urls) >= 5 and len(origins) == 1
+    prefix = next(iter(origins)) + '/' if shared else ''
     if shared:
         # Check the common origin once. rcx stays unchanged for native URL copying.
         asm.branch(b'\x4c\x8d\x15', 'auth_prefix')
