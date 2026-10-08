@@ -29,7 +29,7 @@ saved parties, optional spending and future PvP) remain separate from upstream p
 | ID | Upstream subsystem and source evidence | Native Aion mapping / current state | Next dependency or deliberate difference |
 | --- | --- | --- | --- |
 | PB-PORT-004 | Engine/action/trigger/default/multiplier/continuation registries; `src/Bot/Engine`, `src/Bot/Factory/AiFactory.cpp`, `ChangeStrategyAction.cpp` | Installed composition/defaults/evaluated expansion/native threat/fresh continuers in 213711-193912; 49 loaded-engine tests pass | Enables class composition, not a prerequisite for all trade/world lifecycle work. Actual client combat PB-VAL-009; full custom chat strategy editor/persistence remains separate below. |
-| PB-PORT-005 | Class/spec rotations, procs, resources, executes and fallback nodes; `src/Ai/Class/*` | 005A Sorcerer single-target chains/upkeep/fillers/MP/boosts installed `234841-695964`; 54 offline checks, actual native/client pending; full class coverage partial | Next 005B Spiritmaster single-target/pet strategy from cached GenericWarlock/AfflictionWarlock and native pet gates; pet coordination 008 only as needed. |
+| PB-PORT-005 | Class/spec rotations, procs, resources, executes and fallback nodes; `src/Ai/Class/*` | 005A Sorcerer and 005B Spiritmaster bounded single-target strategies installed; 54/59 offline checks, actual native/client pending; full class coverage partial | 005B installed source-built single-target/resource ordering after gap review; native pet coordination retained. Next 005C Cleric review, compare current support before porting. |
 | PB-PORT-006 | Target/heal/focus/icon/AoE values; `src/Ai/Base/Value`, `SetFocusHealTargetsAction.cpp`, `RtiAction.cpp` | Native targets/hate/health/LOS, caster lifetime/runes installed; focus/icon/AoE partial | Source/native marker gate; preserve existing target admission. |
 | PB-PORT-007 | Tank/assist/threat/pull/ready/CC; `TankAssistStrategy.cpp`, `ThreatStrategy.cpp`, `PullActions.cpp`, `ReadyCheckAction.cpp` | Native group/hate/opening/pickup/DPS hold and PB-REPAIR-TANK-001 boss-drag adapter repair installed; actual fight acceptance pending; pull/assignment partial | 004/006 and exact pull source; no WoW threat thresholds substituted for Aion hate. |
 | PB-PORT-008 | Heals/buffs/debuffs/pets/summons/food coordination; class strategies, `PetsAction.cpp`, `UseFoodStrategy.cpp` | Native affected-recipient reservation/effect stacking/pet tools and supplies partial | Class slices and focus controls; no unsupported summon/totem imitation. |
@@ -59,9 +59,11 @@ saved parties, optional spending and future PvP) remain separate from upstream p
    completed; actual client combat/transitions remain PB-VAL-009.
 2. **PB-PORT-005A installed:** Sorcerer single-target chain/upkeep/filler/fallback,
    MP and native boost decisions. User in-game testing pending; do not repeat.
-   **Next 005B:** Spiritmaster learned single-target/pet strategy from pinned
+   **005B installed:** Spiritmaster confirmed missing single-target/resource ordering from pinned
    GenericWarlock/AfflictionWarlock and native pet-order eligibility. Necessary
    pet coordination is 008; focus/roles/build slices remain independent as needed.
+   **Next 005C:** Cleric; review current native healing/support first, then port
+   only a confirmed missing purpose. No duplicated pet/utility work for 005B.
 3. **Independent world track:** 001 lifecycle/context -> 006 local activities ->
    011 global destinations/travel. 002 invitation/control can follow lifecycle
    before the world planner and full class coverage are complete.

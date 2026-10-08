@@ -1,5 +1,15 @@
 # Companion outfit transmog — PB-CUSTOM-APPEARANCE-001
 
+## Full source-build release boundary — 8 October 2026
+
+PB-BUILD-001 now packages the preserved helper in the complete normal source-built
+GameServer, with `PlayerBotConfig.APPEARANCE_ENABLED` defaulting to false. Inventory
+decoration, HTTP configuration and costume filtering are gated; the UI shows the
+existing equipment guidance while disabled. This unfinished feature is not enabled
+by the Spiritmaster port or builder transition. Its original source implementation
+remains available for a separately reviewed release. No appearance selection,
+build, DB setting or actual item skin was changed.
+
 ## Integration boundary correction - 8 October 2026
 
 PB-REPAIR-PACKAGING-001 removes the uninstalled appearance tick hook from main

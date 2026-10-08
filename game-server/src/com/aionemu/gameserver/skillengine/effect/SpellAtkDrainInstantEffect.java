@@ -22,6 +22,9 @@ public class SpellAtkDrainInstantEffect extends DamageEffect {
 	@XmlAttribute(name = "mp_percent")
 	private int mpPercent;
 
+	/** Native recovery metadata for planners; reading it never applies damage/healing. */
+	public int getHpPercent() { return hpPercent; }
+	public int getMpPercent() { return mpPercent; }
 
 	@Override
 	public void applyEffect(Effect effect) {

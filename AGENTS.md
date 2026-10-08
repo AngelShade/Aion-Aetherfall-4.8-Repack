@@ -1,5 +1,31 @@
 # Aion project continuity and installed modifications
 
+## Current source-built baseline — 8 October 2026
+
+- PB-PORT-005B / PB-BUILD-001 are installed offline in external receipt
+  `playerbots-source-build-20261008-213553-086764`. Normal Maven Commons and full
+  GameServer outputs were copied byte-identically into target-deploy/game-server.
+  GameServer SHA `edb3a8a2622407f49a036457a88b50b9d6aabd91b3ed59f53fa9e220bcde6d44`;
+  Commons SHA `b7d6786f38696b9d81425cee04c4ebf16aa242d76e6c20c1754385168ec2cc6c`.
+- The cumulative recruitment override is archived/retired; start.bat now uses
+  normal `libs/*`. Historical instructions to preserve that active override
+  are superseded by this source-built baseline. Do not reinstall it or use its
+  old stagers as a new delivery mechanism.
+- Preserve the Spiritmaster-only native drain metadata/ordering and every
+  earlier cast/follow/recall/pet/utility/repository/Steel Rake feature in source.
+  All 176 prior deployed definitions were compared; 14 source-build suites and
+  full 3,281-class linkage pass. No server/client startup, attach or native cast
+  was performed. Actual user gameplay remains PB-VAL-012 pending.
+- Appearance implementation remains preserved but disabled explicitly in source
+  via APPEARANCE_ENABLED=false. Do not enable it through an unrelated build.
+- Build using tools/build-components.ps1 (normal Maven reactor); generated output
+  is external. Current inventory uses the source-build receipt and passes 20
+  mod checks/31 client hashes, preserving the latest Marketplace client repair.
+- Next class review is PB-PORT-005C Cleric. Compare existing native group/pet
+  healing, cleanse, resurrection/reservations/support before choosing an actual
+  missing upstream port. Full class/world scope and item-ID investigation remain
+  unfinished; do not repeat installed slices solely for withheld gameplay tests.
+
 ## Source build and delivery policy — 8 October 2026
 
 - The user explicitly requires this delivery flow: edit the maintained source

@@ -147,6 +147,17 @@ def main():
         checks['rejected_afk_extension_remains_removed']=not any('AfkKeepAlive' in name for name in names) and not (server/'config/main/afk.properties').exists()
         checks['playerbot_service_deployed']='com/aionemu/gameserver/services/playerbot/PlayerBotService.class' in names
     overrides=[]
+    source_receipts=sorted(archive_root.glob('playerbots-source-build-*/manifest.json'),key=lambda p:p.parent.name)
+    if source_receipts and (source_receipts[-1].parent/'installed.json').exists():
+        source_build=read(source_receipts[-1])
+        checks['component_builder_output_and_launcher']=(source_build['feature']=='playerbots-source-build-spiritmaster'
+            and all(sha(server/e['path'])==e['installed'] for e in source_build['files'])
+            and all(not (server/path).exists() for path in source_build['retiredFiles'])
+            and all(sha(server/e['path'])==e['installed'] for e in source_build['guardFiles'])
+            and b'-cp "libs/*"' in (server/'start.bat').read_bytes())
+        checks['saendukal_strong_protection_classes']=bool(source_build['classComparison']) and source_build['fullRuntimeLinkage'].startswith('OK: ')
+        with zipfile.ZipFile(jar) as archive:
+            checks['playerbot_bundled_interface']=all(hashlib.sha256(archive.read('playerbots/media/'+name)).hexdigest()==digest for name,digest in source_build['bundledMediaSha256'].items())
     override=server/'libs/playerbot-recruitment-fix.jar'
     if override.exists():
         override_receipts=sorted(list((server/'backups').glob('playerbots-recruitment-*/manifest.json'))+list(archive_root.glob('playerbots-recruitment-*/manifest.json')),key=lambda p:p.parent.name)

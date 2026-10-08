@@ -112,7 +112,7 @@ public final class PlayerBotGearPolicy {
  }
  static boolean improvement(double score,double current,double ratio){return Double.isFinite(score) && Double.isFinite(current) && Double.isFinite(ratio) && ratio>=1 && score-current>1 && (current<=0 || score+1e-9>=current*ratio);}
  static boolean eligible(Player bot,ItemTemplate t) {
-  if(t==null || PlayerBotAppearance.costume(t) || t.getItemSlot()==0 || ItemSlot.isStigma(t.getItemSlot()) || !(t.isWeapon() || t.isArmor()) || !t.isClassSpecific(bot.getPlayerClass()))return false;
+  if(t==null || PlayerBotAppearance.enabled() && PlayerBotAppearance.costume(t) || t.getItemSlot()==0 || ItemSlot.isStigma(t.getItemSlot()) || !(t.isWeapon() || t.isArmor()) || !t.isClassSpecific(bot.getPlayerClass()))return false;
   int required=t.getRequiredLevel(bot.getPlayerClass()),max=t.getMaxLevelRestrict(bot.getPlayerClass());
   if(required<0 || required>bot.getLevel() || max>0 && bot.getLevel()>max || t.getRace()!=Race.PC_ALL && t.getRace()!=bot.getRace())return false;
   var limits=t.getUseLimits();

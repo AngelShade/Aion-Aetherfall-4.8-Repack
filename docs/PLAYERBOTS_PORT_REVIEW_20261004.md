@@ -1,6 +1,22 @@
 # Focused WoW Playerbots port revision — 4 October 2026
 
-## Current stationary caster repair - installed offline 8 October 2026
+## Current source-built Spiritmaster slice - installed offline 8 October 2026
+
+**PB-PORT-005B / PB-BUILD-001**: only confirmed missing Spiritmaster single-target
+HP/MP-restoring damage/DoT/follow-up ordering was added after checking current
+source against three pinned Warlock references. Existing pet/utility/refresh/
+threat/native cost and owned-alt behavior is preserved. Complete normal Maven
+Commons/GameServer outputs are installed unchanged; the old override is archived
+and removed from libs/classpath. Unfinished outfit integration remains disabled
+in source. Receipt `playerbots-source-build-20261008-213553-086764`.
+59 new checks, all 14 builder-output suites and full 3,281-class linkage pass;
+20 installed-mod checks and 31 client hashes pass. **PB-VAL-012 gameplay pending
+user testing.** Server/client remain off. Next class review: **PB-PORT-005C Cleric**;
+compare existing healing/support first. Full port and other investigations remain open.
+See [confirmed gap, native mapping and normal build delivery](PLAYERBOTS_SPIRITMASTER_20261008.md).
+
+
+## Previous stationary caster repair - installed offline 8 October 2026
 
 **PB-REPAIR-ENGINE-002** is installed in external receipt
 `20261008-201132-984909`; override SHA-256
@@ -13,7 +29,7 @@ are installed, with 172 other entries/unselected methods and all prior mods kept
 trade checks and linkage pass; installed inventory passes 20 checks/31 client hashes.
 **PB-VAL-009 actual Songweaver/Sorcerer/Cleric combat acceptance remains pending.**
 GameServer/client stay off. Source release audit found unfinished appearance hooks;
-full-JAR replacement is not yet cleared. Next independent class slice: PB-PORT-005B.
+Full source-build transition is now installed (PB-BUILD-001); see current status above.
 See [root defect, source/build audit and preservation](PLAYERBOTS_ITEM_TASK_CASTING_20261008.md).
 
 
@@ -381,6 +397,8 @@ accepted or closed.
 
 | Order / ID | Status | Next concrete work | Dependencies |
 | --- | --- | --- | --- |
+| PB-PORT-005B | INSTALLED - normal Maven output; gameplay pending | Confirmed missing Spiritmaster restorative single-target/DoT/native chain ordering; existing pet/utility adapters kept. | PB-VAL-012; next class review 005C Cleric, check existing support first. See PLAYERBOTS_SPIRITMASTER_20261008.md. |
+| PB-BUILD-001 | INSTALLED - full source/build/runtime checked | Complete normal builder JARs replace cumulative override; unfinished outfit source gated off. | Future delivery uses source -> builder -> copy; preserve native mods/settings. |
 | PB-REPAIR-ENGINE-002 | INSTALLED - source/effective verified; gameplay pending | Completed ITEM_USE tasks no longer fabricate movement and fail stationary casts; native selective item cancellation and active-task gates. Receipt 201132-984909. | PB-VAL-009 reported ranged casters; PB-PORT-005B remains independent. See PLAYERBOTS_ITEM_TASK_CASTING_20261008.md. |
 | PB-REPAIR-ENGINE-001 | INSTALLED - source/effective verified; gameplay pending | Corrected stale mover/cast race, repeated order cancellation and unchanged-preference continuer loss in core execution. | PB-VAL-009; PB-PORT-005B independent next class slice. See PLAYERBOTS_CAST_EXECUTION_20261008.md. |
 | PB-SCOPE-007A-R1 | INSTALLED - offline verified; gameplay pending | Original Steel Rake tower/staircase/amplifier/root/pull-blast and gunner-pause behaviors implemented; original comments retained. Exact retail capture evidence unavailable. | Existing encounter/hazard/role engine; 479 isolated checks. PB-PORT-005B remains independent next class slice. See PLAYERBOTS_STEEL_RAKE_20261007.md. |
@@ -388,7 +406,7 @@ accepted or closed.
 | 2 · PB-PORT-002 | INSTALLED — offline verified; native pending | Native refresh/hybrid/stronger-effect cast acceptance. Final DAMAGE veto is corrected. | PB-VAL-001; actual cast acceptance still outstanding. |
 | 3 · PB-PORT-003 | INSTALLED — offline verified; native pending | Validate complete native tick/geodata/interactions through the committed objective; local executor gates are connected. | PB-VAL-002; preserve native handlers/witnesses/loot and no quest progress bypass. |
 | 4 · PB-PORT-004 | INSTALLED — offline/loaded-engine verified; client combat pending | State strategies/defaults, native threat policy, weighted expansion and freshly resolved continuers installed in 213711-193912. Validate actual native chain casts/transitions. | Latest position receipt 211935-035574 retained; PB-VAL-009. Next implementation 005. |
-| 5 · PB-PORT-005 | OPEN — partial; 005A installed | Sorcerer ONLYONE chain/upkeep/filler/MP/boost strategy installed `234841-695964`; native/client pending. Next 005B Spiritmaster learned single-target/pet strategy; Sorcerer AoE/CC/escape and all other classes remain open. | PB-PORT-004 installed; cached GenericWarlock/AfflictionWarlock mapping and native pet gates for 005B; necessary pet coordination PB-PORT-008. |
+| 5 · PB-PORT-005 | OPEN — partial; 005A/005B installed | Sorcerer ONLYONE chain/upkeep/filler/MP/boost strategy installed `234841-695964`; native/client pending. 005B confirmed missing Spiritmaster single-target/recovery ordering installed from normal source build; existing pets preserved. Next 005C Cleric review; broader class coverage remains open. | PB-PORT-004 installed; cached GenericWarlock/AfflictionWarlock mapping and native pet gates for 005B; necessary pet coordination PB-PORT-008. |
 | 6 · PB-PORT-006 | OPEN — partial; marker SOURCE GATE | Focus-heal/attack controls and distinct AoE target policy; verify native marker contract. | PB-PORT-004/005; import RtiTargetValue dependencies at same pin. |
 | 7 · PB-PORT-007 | OPEN — partial; pull SOURCE GATE | Main/off-tank responsibility, pull readiness and CC/assist coordination. | PB-PORT-004/006; exact upstream pull actions/triggers first. |
 | 8 · PB-PORT-008 | OPEN — partial | Role-aware buff/debuff assignments and pet utility/recovery/resource coordination. | Class slices PB-PORT-005; native pet/effect legality. |

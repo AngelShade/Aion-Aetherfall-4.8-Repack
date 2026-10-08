@@ -400,7 +400,7 @@
 
       renderGearPolicy(body, bot);
 
-      body.appendChild(node('h3', 'Equipment & inventory (' + bot.inventory.length + ')')); body.appendChild(node('p', 'Equip combat armor for stats. Keep outfits in the cube and choose Use as transmog to apply their look. Equip is still available for normal equipment.', 'hint'));
+      body.appendChild(node('h3', 'Equipment & inventory (' + bot.inventory.length + ')')); body.appendChild(node('p', bot.appearanceEnabled ? 'Equip combat armor for stats. Keep outfits in the cube and choose Use as transmog to apply their look. Equip is still available for normal equipment.' : 'Items belong to this companion. Choose an available slot to equip an item.', 'hint'));
 
       if (!bot.inventory.length) body.appendChild(node('p', 'The companion\u2019s inventory is empty.', 'empty'));
 

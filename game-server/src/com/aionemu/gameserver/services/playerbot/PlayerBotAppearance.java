@@ -16,6 +16,7 @@ import com.aionemu.gameserver.utils.PacketSendUtility;
 
 /** PB-CUSTOM-APPEARANCE-001: owned appearance sources, separate from combat gear. */
 public final class PlayerBotAppearance {
+ public static boolean enabled() { return com.aionemu.gameserver.configs.main.PlayerBotConfig.APPEARANCE_ENABLED; }
  private record Selection(int account, Map<Long,Integer> skins) {}
  private static final Map<Integer,Selection> SELECTED=new ConcurrentHashMap<>();
  public static boolean costume(ItemTemplate t) {
@@ -69,6 +70,7 @@ public final class PlayerBotAppearance {
   throw new IllegalArgumentException("Equip your combat armor first, then choose it as the transmog target.");
  }
  public static String configure(PlayerBotSession s,int sourceObject,int targetObject,boolean reset) {
+  if(!enabled())throw new IllegalArgumentException("Companion outfit customization is not enabled.");
   synchronized(s) {
    if(!ready(s))throw new IllegalArgumentException("Change appearances while your companion is alive and out of combat, after trade or item use finishes.");
    Item target=target(s,targetObject);int skinId=0;
@@ -91,6 +93,7 @@ public final class PlayerBotAppearance {
   }
  }
  static void tick(PlayerBotSession s) {
+  if(!enabled())return;
   if(!ready(s))return;
   Selection selected=selection(s);boolean changed=false;
   for(Item item:s.bot().getEquipment().getEquippedItems()) {
@@ -114,6 +117,7 @@ public final class PlayerBotAppearance {
   view.put("appearanceTargets",targets);return view;
  }
  static List<Map<String,Object>> inventory(PlayerBotSession s,List<Map<String,Object>> original) {
+  if(!enabled())return original;
   List<Map<String,Object>> result=new ArrayList<>();Map<Integer,Item> items=new HashMap<>();
   for(Item item:s.bot().getEquipment().getEquippedItems())items.put(item.getObjectId(),item);
   for(Item item:s.bot().getInventory().getItems())items.put(item.getObjectId(),item);

@@ -3,6 +3,9 @@ package com.aionemu.gameserver.configs.main;
 import com.aionemu.commons.configuration.Property;
 
 public final class PlayerBotConfig {
+	/** Unfinished companion outfit feature remains source-only until explicitly released. */
+	@Property(key = "gameserver.playerbots.appearance_enabled", defaultValue = "false")
+	public static boolean APPEARANCE_ENABLED;
 	@Property(key = "gameserver.playerbots.enable", defaultValue = "true")
 	public static boolean ENABLED;
 	@Property(key = "gameserver.playerbots.summon.enable", defaultValue = "true")

@@ -77,6 +77,7 @@ public final class PlayerBotSession {
 	public Role combatRole() { return role; }
 	public synchronized Map<String, Object> snapshot() {
 		Map<String, Object> state = new LinkedHashMap<>();
+		state.put("appearanceEnabled", PlayerBotAppearance.enabled());
 		state.put("name", bot.getName()); state.put("id", bot.getObjectId()); state.put("level", bot.getLevel());
 		state.putAll(PlayerBotSpacing.snapshot(bot,role));
 		state.put("playerClass", bot.getPlayerClass().name()); state.put("role", role.name()); state.put("order", order.name());
@@ -401,8 +402,8 @@ public final class PlayerBotSession {
 					nextDecision = System.currentTimeMillis() + 600;
 					return true;
 				}), hp(bot) < 30 ? EMERGENCY + 4 : HIGH + 4));
-		triggers = strategyPlan.triggers(PlayerBotSorcerer.strategy(bot.getPlayerClass()), State.NON_COMBAT, State.COMBAT);
-		strategyPlan.enable(PlayerBotSorcerer.strategy(bot.getPlayerClass()), order != Order.PASSIVE);
+		triggers = strategyPlan.triggers(PlayerBotSpiritmaster.strategy(bot.getPlayerClass()), State.NON_COMBAT, State.COMBAT);
+		strategyPlan.enable(PlayerBotSpiritmaster.strategy(bot.getPlayerClass()), order != Order.PASSIVE);
 		if (order != Order.PASSIVE) {
 			for (PlayerBotSkills.Entry entry : skills) {
 				if (incapacitated && entry.kind() != SkillKind.RECOVERY || bot.isSkillDisabled(entry.template()) || !PlayerBotSkills.chainAvailable(bot, entry)) continue;

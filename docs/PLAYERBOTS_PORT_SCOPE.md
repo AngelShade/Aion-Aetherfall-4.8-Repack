@@ -1,6 +1,22 @@
 # Full Playerbots port scope and iteration focus
 
-## Current stationary caster repair - installed offline 8 October 2026
+## Current source-built Spiritmaster slice - installed offline 8 October 2026
+
+**PB-PORT-005B / PB-BUILD-001**: only confirmed missing Spiritmaster single-target
+HP/MP-restoring damage/DoT/follow-up ordering was added after checking current
+source against three pinned Warlock references. Existing pet/utility/refresh/
+threat/native cost and owned-alt behavior is preserved. Complete normal Maven
+Commons/GameServer outputs are installed unchanged; the old override is archived
+and removed from libs/classpath. Unfinished outfit integration remains disabled
+in source. Receipt `playerbots-source-build-20261008-213553-086764`.
+59 new checks, all 14 builder-output suites and full 3,281-class linkage pass;
+20 installed-mod checks and 31 client hashes pass. **PB-VAL-012 gameplay pending
+user testing.** Server/client remain off. Next class review: **PB-PORT-005C Cleric**;
+compare existing healing/support first. Full port and other investigations remain open.
+See [confirmed gap, native mapping and normal build delivery](PLAYERBOTS_SPIRITMASTER_20261008.md).
+
+
+## Previous stationary caster repair - installed offline 8 October 2026
 
 **PB-REPAIR-ENGINE-002** is installed in external receipt
 `20261008-201132-984909`; override SHA-256
@@ -13,7 +29,7 @@ are installed, with 172 other entries/unselected methods and all prior mods kept
 trade checks and linkage pass; installed inventory passes 20 checks/31 client hashes.
 **PB-VAL-009 actual Songweaver/Sorcerer/Cleric combat acceptance remains pending.**
 GameServer/client stay off. Source release audit found unfinished appearance hooks;
-full-JAR replacement is not yet cleared. Next independent class slice: PB-PORT-005B.
+Full source-build transition is now installed (PB-BUILD-001); see current status above.
 See [root defect, source/build audit and preservation](PLAYERBOTS_ITEM_TASK_CASTING_20261008.md).
 
 
@@ -178,9 +194,11 @@ remains unfinished.
 
 Current continuation supersedes the preceding next-work pointer: **005A Sorcerer
 single-target/MP/boost strategy is installed** in `234841-695964`, with offline and
-loaded-method verification; user gameplay testing is pending. **Next 005B** is
-Spiritmaster learned single-target/pet strategy, using GenericWarlock/Affliction
-sources and native pet gates, with necessary coordination on PB-PORT-008. Full
+loaded-method verification; user gameplay testing is pending. **005B Spiritmaster**
+confirmed missing single-target/resource ordering is now installed from a full
+normal source build; existing native pet/utility adapters were retained after
+comparison with GenericWarlock/Affliction. **Next 005C** is Cleric gap review
+against existing native support before any new port. Full
 class coverage and independent world/invitation/trade tracks remain incomplete.
 See `PLAYERBOTS_SORCERER_STRATEGY_20261004.md`; do not repeat the full inventory.
 
