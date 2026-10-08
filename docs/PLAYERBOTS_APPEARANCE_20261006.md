@@ -1,5 +1,17 @@
 # Companion outfit transmog — PB-CUSTOM-APPEARANCE-001
 
+## Integration boundary correction - 8 October 2026
+
+PB-REPAIR-PACKAGING-001 removes the uninstalled appearance tick hook from main
+PlayerBotSession source and deployed code. An unrelated whole-method transplant
+had imported it without the appearance helper, aborting every bot tick. The
+appearance implementation and its other source-only hooks remain preserved.
+Before installing this unfinished feature, restore its tick integration as part
+of the complete reviewed feature package and pass the shared runtime linkage gate.
+Historical staged appearance packages are not the current installation baseline.
+See [root-cause record](PLAYERBOTS_LINKAGE_REPAIR_20261008.md).
+
+
 The Companion Equipment tab now has a separate **Use as transmog** action for
 permanent, compatible appearance items held in that companion's cube. The selected
 appearance is applied to equipped combat gear, so its stats, enchantments, stones,

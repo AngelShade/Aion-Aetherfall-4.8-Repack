@@ -80,7 +80,8 @@ else { & $ScriptPath -ClientPath $fixtureRoot }
         routes.append('http://127.0.0.1:8091/market/pass')
     if manifest.get('companionRoutes'):
         routes.append('http://127.0.0.1:8091/market/companions')
-    for offset,code in [(BROWSER_HOOK_RVA,build_browser_hook_code(routes)),(MARKET_AUTH_HOOK_RVA,build_market_auth_code(routes[1:],compact=manifest.get('compactBrowserTitles',False))),(MARKET_RECT_HOOK_RVA,build_market_rect_code())]:
+    shop_auth=manifest.get('marketplaceTokenRoute',False)
+    for offset,code in [(BROWSER_HOOK_RVA,build_browser_hook_code(routes,authenticate_shop=shop_auth)),(MARKET_AUTH_HOOK_RVA,build_market_auth_code(routes if shop_auth else routes[1:],compact=manifest.get('compactBrowserTitles',False),route_table=shop_auth)),(MARKET_RECT_HOOK_RVA,build_market_rect_code())]:
         assert expected[offset:offset+len(code)]==code,'Graphics removal lost the Poeta route'
         cursor=(Path(state['backupRoot'])/'cursor-base/bin64/Game.dll').read_bytes()
         assert cursor[offset:offset+len(code)]==code,'DXVK removal would lose the Poeta route'

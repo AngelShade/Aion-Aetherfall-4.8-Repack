@@ -155,7 +155,7 @@ public final class PlayerBotSession {
 		Objects.requireNonNull(value, "Companion order");
 		// An unchanged command must not abort the committed native cast. A
 		// repeated FOLLOW still clears an explicit mission/attack when present.
-		if (order == value && mission == null && commandedTarget == 0) return;
+		if (order == value && mission == null && commandedTarget == 0 && !PlayerBotRecall.recalling(this)) return;
 		PlayerBotArbitration.clear(engine);
 		stand();
 		order = value; mission = null; commandedTarget = 0; questTarget = 0; nextDecision = 0;
@@ -199,6 +199,8 @@ public final class PlayerBotSession {
 			owner.isFlying(), bot.isFlying(), role, order, commandedTarget, mission == null ? 0 : mission.quest,
 			owner.getPlayerGroup() == null ? List.of() : owner.getPlayerGroup().getMembers().stream().map(Player::getObjectId).sorted().toList()));
 		if (!owner.isOnline()) return false;
+		// Distance recovery outranks trading, casting, quests and stale movement.
+		if (PlayerBotRecall.automatic(this)) { status="recalling to owner and resuming follow"; return true; }
 		if (PlayerBotTrade.tick(this)) { PlayerBotArbitration.clear(engine); navigation.stop(); pets.stop(bot); status="trading with owner"; return true; }
 		if (PlayerBotTransfers.follow(this)) { PlayerBotArbitration.clear(engine); navigation.stop(); pets.stop(bot); status="following the complete party map transfer"; return true; }
 		if (bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController move && move.hasFailed()) {
@@ -224,7 +226,8 @@ public final class PlayerBotSession {
 		if (PlayerBotTravel.followTeleport(this)) { PlayerBotArbitration.clear(engine); navigation.stop(); status = "following owner teleport or catching up"; return true; }
 		PlayerBotGearPolicy.state(this);
 		PlayerBotTemporary.tick(this,autoGear);
-		PlayerBotAppearance.tick(this);
+		// PB-CUSTOM-APPEARANCE-001 is staged only. Add its tick hook with the
+		// complete feature installation, never through an unrelated AI update.
 		loot.passRoll(bot);
 		List<Player> party = owner.getPlayerGroup().getMembers().stream()
 			.filter(p -> p.isPlaying() && p.getWorldId() == bot.getWorldId() && p.getInstanceId() == bot.getInstanceId()).toList();
@@ -307,10 +310,8 @@ public final class PlayerBotSession {
    if(escapeHazard || !PlayerBotSteelRake.channeling(bot) && (!enemies.isEmpty() || owner.getController().isInCombat() || owner.getMoveController().isInMove()))bot.getObserveController().notifyMoveObservers();
    else {status="operating encounter device";return true;}
   }
-		if (bot.getController().hasTask(com.aionemu.gameserver.model.TaskId.ITEM_USE)) {
-			if (!enemies.isEmpty() || owner.getController().isInCombat() || owner.getMoveController().isInMove()) bot.getObserveController().notifyMoveObservers();
-			else return true;
-		}
+		if (PlayerBotItemUse.pause(bot, !enemies.isEmpty() || owner.getController().isInCombat()
+			|| owner.getMoveController().isInMove())) return true;
 		if (bot.isCasting() || now < nextDecision) return true;
 		boolean combat = !enemies.isEmpty();
 		boolean traveling=PlayerBotFollowIntent.traveling(order,combat,owner.getMoveController().isInMove(),!owner.isDead(),incapacitated);

@@ -15,6 +15,12 @@ Rows marked source gate require their actual implementation to be read before
 porting; this bounded inventory does not claim to have audited every source line.
 GPL attribution in `third-party/playerbots` applies to these additional sources.
 
+Native execution continuation 8 October: PB-REPAIR-ENGINE-002 corrects completed
+item-task state and false movement poisoning of stationary casts. It preserves
+PB-PORT-004 engine and PB-SCOPE-003A trade/care integration; this is an adapter
+repair, not new class parity. Installed offline `201132-984909`, gameplay
+PB-VAL-009 pending. See [casting repair](PLAYERBOTS_ITEM_TASK_CASTING_20261008.md).
+
 All source paths below are relative to that pinned repository. A partial installed
 adapter is distinct from an absent subsystem and from withheld native/game tests.
 User policies (Temporary scaling, protected alts, recruitment, catch-up mirroring,

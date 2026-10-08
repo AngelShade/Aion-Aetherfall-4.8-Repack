@@ -218,7 +218,7 @@ public final class PlayerBotGearPolicy {
  static boolean available(PlayerBotSession session,State s) {
   Player bot=session.bot(),owner=session.owner();
   return !session.closing() && (s.settings.mode!=Mode.EARNED || s.settings.vendors || unidentified(session)!=null) && System.currentTimeMillis()>=s.next && !bot.isDead() && !owner.isDead()
-   && !bot.isFlying() && !owner.isFlying() && !bot.isCasting() && !bot.isLooting() && !bot.getController().hasTask(TaskId.ITEM_USE)
+   && !bot.isFlying() && !owner.isFlying() && !bot.isCasting() && !bot.isLooting() && !bot.getController().hasScheduledTask(TaskId.ITEM_USE)
    && !bot.getController().isInCombat() && !owner.getController().isInCombat() && !owner.getMoveController().isInMove() && PositionUtil.isInRange(bot,owner,40)
    && upgrades(bot,session.combatRole()).isEmpty() && !bot.getInventory().isFull();
  }

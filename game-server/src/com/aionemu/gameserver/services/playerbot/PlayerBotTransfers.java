@@ -30,7 +30,7 @@ public final class PlayerBotTransfers {
  }
  public static boolean relocate(PlayerBotSession session) {
   Player owner=session.owner(),bot=session.bot();boolean transfer=different(owner,bot);
-  if(session.closing() || !owner.isOnline() || !owner.isSpawned() || owner.getWorldMapInstance()==null || (!transfer && !PlayerBotPartyBehavior.canRelocate(session)))return false;
+  if(session.closing() || !owner.isOnline() || !owner.isSpawned() || owner.getWorldMapInstance()==null || (!transfer && !PlayerBotRecall.recalling(session) && !PlayerBotPartyBehavior.canRelocate(session)))return false;
   session.releasePet();bot.getController().cancelCurrentSkill(null);bot.getMoveController().abortMove();bot.getObserveController().notifyMoveObservers();
   if(bot.isFlying() && !owner.isFlying())bot.getFlyController().endFly(false);
   if(bot.isSpawned()) {

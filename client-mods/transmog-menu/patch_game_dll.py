@@ -298,7 +298,7 @@ def build_hook_code(commands):
     return asm.finish()
 
 
-def build_browser_hook_code(url):
+def build_browser_hook_code(url, *, authenticate_shop=False):
     # The publisher authentication path redirects through its login service.
     # Our local shop authenticates on the private server; queue its exact URL
     # directly on the same browser view. All other URLs retain the original path.
@@ -313,7 +313,7 @@ def build_browser_hook_code(url):
         if not route.startswith(('http://127.0.0.1:8091/', 'https://')) or len(payload) > 128 or any(c < 32 for c in payload[:-1]):
             raise ValueError('Embedded navigation supports exact loopback or HTTPS URLs of at most 127 ASCII characters')
         emit_exact_route(asm, 'rdx', 'route_' + str(index), 'next_url_' + str(index))
-        asm.branch(b'\xe9', 'journey_load' if route.endswith('/journey') else 'authenticated_load' if route.endswith(('/market', '/wardrobe', '/pass', '/companions')) else 'load')
+        asm.branch(b'\xe9', 'journey_load' if route.endswith('/journey') else 'authenticated_load' if route.endswith(('/market', '/wardrobe', '/pass', '/companions')) or (authenticate_shop and route.endswith('/shop')) else 'load')
         asm.label('next_url_' + str(index))
     asm.branch(b'\xe9', 'original')
     if any(route.endswith('/journey') for route in urls):
@@ -377,7 +377,7 @@ def emit_exact_route(asm, register, literal, mismatch, compact=False):
     asm.label(literal + '_done')
 
 
-def build_market_auth_code(url, compact=False):
+def build_market_auth_code(url, compact=False, *, route_table=False):
     """Use the native token request callback, then navigate to the authenticated market URL."""
     urls = [url] if isinstance(url,str) else url
     if not urls or len(set(urls)) != len(urls):
@@ -391,6 +391,8 @@ def build_market_auth_code(url, compact=False):
     asm.emit(b'\x48\x85\xc9')
     asm.branch(b'\x0f\x84', 'original')
     shared = compact and len(urls) >= 5 and len(origins) == 1
+    if route_table and not shared:
+        raise ValueError('Route table requires compact routes sharing one origin')
     prefix = next(iter(origins)) + '/' if shared else ''
     if shared:
         # Check the common origin once. rcx stays unchanged for native URL copying.
@@ -401,7 +403,26 @@ def build_market_auth_code(url, compact=False):
         asm.branch(b'\x0f\x85', 'original')
         asm.emit(bytes.fromhex('49ffc14983f9') + bytes([len(prefix)]))
         asm.short_branch(b'\x75', 'auth_prefix_loop')
-    for index, route in enumerate(urls):
+    if route_table:
+        # A bounded NUL-delimited suffix table fits all six services in the
+        # existing 512-byte cave. Keep rcx/edx/r8 intact for the native callback.
+        asm.branch(b'\x4c\x8d\x15', 'auth_route_0')
+        asm.label('table_route')
+        asm.emit(bytes.fromhex('4531c9'))
+        asm.label('table_compare')
+        asm.emit(bytes.fromhex('428a4409') + bytes([len(prefix)]) + bytes.fromhex('433a040a'))
+        asm.short_branch(b'\x75', 'table_skip')
+        asm.emit(bytes.fromhex('84c0'))
+        asm.short_branch(b'\x74', 'matched')
+        asm.emit(bytes.fromhex('49ffc1'))
+        asm.short_branch(b'\xeb', 'table_compare')
+        asm.label('table_skip')
+        asm.emit(bytes.fromhex('41803a004d8d5201'))
+        asm.short_branch(b'\x75', 'table_skip')
+        asm.emit(bytes.fromhex('41803a00'))
+        asm.short_branch(b'\x75', 'table_route')
+        asm.branch(b'\xe9', 'original')
+    for index, route in enumerate([] if route_table else urls):
         if shared:
             literal = 'auth_route_' + str(index)
             asm.branch(b'\x4c\x8d\x15', literal)
@@ -466,6 +487,8 @@ def build_market_auth_code(url, compact=False):
     for index, route in enumerate(urls):
         asm.label('auth_route_' + str(index))
         asm.emit((route[len(prefix):] if shared else route).encode('ascii') + b'\0')
+    if route_table:
+        asm.emit(b'\0')  # table terminator; never compare past the last route
     if shared:
         asm.label('auth_prefix')
         asm.emit(prefix.encode('ascii'))
@@ -485,18 +508,19 @@ def build_dll(original_path, commands, cash_shop_url):
     data[CALLER_RVA:CALLER_RVA + 5] = b'\xe8' + struct.pack('<i', HOOK_RVA - CALLER_RVA - 5)
     if data[BROWSER_AUTH_RVA:BROWSER_AUTH_RVA + len(BROWSER_PROLOGUE)] != BROWSER_PROLOGUE:
         raise ValueError('Original browser authentication entry does not match')
-    browser_hook = build_browser_hook_code(cash_shop_url)
+    browser_hook = build_browser_hook_code(cash_shop_url, authenticate_shop=True)
     if len(browser_hook) > PREVIEW_DOCK_HOOK_RVA - BROWSER_HOOK_RVA or any(data[BROWSER_HOOK_RVA:BROWSER_HOOK_RVA + len(browser_hook)]):
         raise ValueError('Browser hook does not fit the verified empty code region')
     data[BROWSER_HOOK_RVA:BROWSER_HOOK_RVA + len(browser_hook)] = browser_hook
     data[BROWSER_AUTH_RVA:BROWSER_AUTH_RVA + len(BROWSER_PROLOGUE)] = (
         b'\xe9' + struct.pack('<i', BROWSER_HOOK_RVA - BROWSER_AUTH_RVA - 5) + b'\x90' * 4)
     routes = [cash_shop_url] if isinstance(cash_shop_url,str) else cash_shop_url
-    market_routes = [route for route in routes if route.endswith(('/market', '/wardrobe', '/journey', '/pass', '/companions'))]
+    market_routes = [route for route in routes if route.endswith(('/shop', '/market', '/wardrobe', '/journey', '/pass', '/companions'))]
     if market_routes:
         if data[MARKET_AUTH_RVA:MARKET_AUTH_RVA+len(MARKET_AUTH_ORIGINAL)] != MARKET_AUTH_ORIGINAL:
             raise ValueError('Native account authentication entry does not match')
-        auth = build_market_auth_code(market_routes, compact=any(route.endswith('/pass') for route in market_routes))
+        compact = len(market_routes) >= 4
+        auth = build_market_auth_code(market_routes, compact=compact, route_table=compact and len(market_routes) >= 5)
         if len(auth)>BROWSER_HOOK_RVA-MARKET_AUTH_HOOK_RVA or any(data[MARKET_AUTH_HOOK_RVA:MARKET_AUTH_HOOK_RVA+len(auth)]):
             raise ValueError('Market authentication does not fit its verified code region')
         data[MARKET_AUTH_HOOK_RVA:MARKET_AUTH_HOOK_RVA+len(auth)] = auth

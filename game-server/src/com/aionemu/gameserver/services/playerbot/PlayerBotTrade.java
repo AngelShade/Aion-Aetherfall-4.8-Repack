@@ -162,7 +162,7 @@ public final class PlayerBotTrade {
  }
  static void equip(PlayerBotSession s) {
   Set<Integer> ids=RECEIVED.get(s.bot().getObjectId());if(ids==null || ids.isEmpty())return;
-  Player bot=s.bot();if(s.closing() || bot.isTrading() || bot.isDead() || bot.isCasting() || bot.isLooting() || bot.getController().hasTask(com.aionemu.gameserver.model.TaskId.ITEM_USE) || bot.getController().isInCombat() || s.owner().getController().isInCombat())return;
+  Player bot=s.bot();if(s.closing() || bot.isTrading() || bot.isDead() || bot.isCasting() || bot.isLooting() || bot.getController().hasScheduledTask(com.aionemu.gameserver.model.TaskId.ITEM_USE) || bot.getController().isInCombat() || s.owner().getController().isInCombat())return;
   for(int id:List.copyOf(ids)) {
    Item item=bot.getInventory().getItemByObjId(id);if(item==null){ids.remove(id);continue;}
    if(!item.isIdentified() && PlayerBotGearPolicy.eligible(bot,item.getItemTemplate())) {
@@ -174,7 +174,7 @@ public final class PlayerBotTrade {
     boolean accepted=PlayerBotGearPolicy.equip(s,upgrade);
     // Native soul-binding is an asynchronous ITEM_USE task. Retain this ID
     // until it leaves the cube or the next safe attempt, and do not start another.
-    if(bot.getController().hasTask(com.aionemu.gameserver.model.TaskId.ITEM_USE))return;
+    if(bot.getController().hasScheduledTask(com.aionemu.gameserver.model.TaskId.ITEM_USE))return;
     if(!accepted)PacketSendUtility.sendMessage(s.owner(),bot.getName()+" kept "+item.getItemName()+" in its cube: native equipment rules prevented equipping it.");
    } else PacketSendUtility.sendMessage(s.owner(),bot.getName()+" kept "+item.getItemName()+" in its cube: it is not a usable equipment upgrade.");
    ids.remove(id);
@@ -188,7 +188,7 @@ public final class PlayerBotTrade {
   }
   equip(s);
   Set<Integer> pending=RECEIVED.get(s.bot().getObjectId());
-  return pending!=null && !pending.isEmpty() && s.bot().getController().hasTask(com.aionemu.gameserver.model.TaskId.ITEM_USE);
+  return pending!=null && !pending.isEmpty() && s.bot().getController().hasScheduledTask(com.aionemu.gameserver.model.TaskId.ITEM_USE);
  }
  public static void closed(Player player) {STARTED.remove(player.getObjectId());}
  public static boolean finishing(Player player) {return player!=null && FINISHING.get()==player;}

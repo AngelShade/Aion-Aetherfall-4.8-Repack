@@ -1,5 +1,28 @@
 # Aion project continuity and installed modifications
 
+## Source build and delivery policy — 8 October 2026
+
+- The user explicitly requires this delivery flow: edit the maintained source
+  files, build through the normal project builder, then copy its resulting files
+  into the directories from which the components are started. The user handles
+  actual server/client and gameplay testing.
+- This supersedes historical instructions to deliver new changes through
+  method-by-method JAR transplants, cumulative override reconstruction or attach
+  agents. New delivery must use the builder's complete output without rewriting
+  its compiled classes afterward.
+- Preserve all installed features by reconciling their behavior into maintained
+  source/build resources before replacement. Keep unfinished source features
+  deliberately separated in source/build configuration; do not silently enable
+  them or fall back to JAR patching. Existing override receipts remain recovery
+  evidence until their installed behavior is included in a verified source build.
+- Source remains `C:/Git/aion-server`. Generated build/staging/diagnostic output
+  remains in the selected external Aion Development Workspace. Runtime components
+  remain under `C:/Git/aion-server/target-deploy`; do not relocate them.
+- Copy only the component outputs affected by the work, preserving runtime
+  configuration, database contents, prior client mods and unrelated changes.
+  Keep the existing offline process inspection, backup and rollback guards.
+  Do not start/restart/attach to components or perform gameplay testing.
+
 ## Current lifecycle and testing policy — 7 October 2026
 
 - The user reports GameServer and the game client are off. Keep both off: no
@@ -698,3 +721,55 @@ service/session formation locks under the mover monitor. Three Formation methods
 plus FollowIntent refresh/cache initialization and a new Geometry record changed;
 174 other entries retained. Effective bytecode and world-free cache tests pass.
 Cold-load-only helper schema; future existing helper edits require explicit SCOPES.
+
+- PB-REPAIR-PACKAGING-001 is installed offline in external cumulative receipt
+  `playerbots-recruitment-20261008-191905-805583`, retaining read-only baseline
+  checkpoint `191458-608072` and all previous follow/summon/Steel Rake/cast mods.
+  The user reported no follow and repeated NoClassDefFoundError for the uninstalled
+  PlayerBotAppearance. Only its dangling Session.tick hook is removed; all 176
+  other entries and other Session methods survive. Appearance remains source/
+  staged only. Do not reintroduce its hook through unrelated method transplants.
+  Shared staging, final follow staging and offline installers now audit executable
+  class/member/lambda linkage using actual runtime dependencies without source
+  build output or native initialization. 174 classes / 24,383 member references,
+  five guard regressions and prior effective checks pass. Native/client follow
+  retest is still PB-VAL-005 pending the user. Keep GameServer/client off. The
+  running PID observed at 19:16 was reported by the user as another worktree;
+  never infer a relative Java launch command identifies this deployment.
+
+- PB-REPAIR-SUMMON-001 / PB-CUSTOM-RECALL-001 are installed offline in external
+  cumulative receipt `playerbots-recruitment-20261008-195139-913545`. The user
+  explicitly requested distant bots teleport regardless of activity and resume
+  following; this supersedes the old refusal to add automatic distance recovery.
+  Preserve maintained PlayerBotRecall and early Session.tick/order integration,
+  scoped native Transfers.relocate, SummonPolicy cancellation, Recovery.ready,
+  PartyBehavior.close and MoveController abort reset. Beyond 60m, living owned
+  companions recall before trade/transfer/failure/strategy actions and switch to
+  FOLLOW, regardless of bot combat/cast/loot/channels/orders and owner combat.
+  Manual Summon still requires the owner's native combat timer to be clear;
+  companion busy/combat/aggro no longer blocks it. Native exchange/loot/item-use
+  cancellation and custody-held/dismissing guards remain. Do not reinstall the
+  historical rejected FollowRecovery package. Dead bots retain native recovery.
+  Eight methods/six existing classes change; 171 other entries are retained.
+  165 recall plus prior effective checks and native dependency audit pass, while
+  actual native/client Summon and far-bot follow acceptance remain PB-VAL-005.
+  Source is C:/Git/aion-server; external workspace holds generated outputs and
+  recovery. Both processes remain off. Future helper edits need explicit runtime
+  SCOPES alongside disk HELPERS. Next class implementation remains PB-PORT-005B.
+
+- PB-REPAIR-ENGINE-002 stationary caster/item-task repair is installed offline in
+  external receipt `playerbots-recruitment-20261008-201132-984909`, retaining the
+  complete summon/60m recall/follow/cast/Steel Rake baseline. Preserve
+  `PlayerBotItemUse.pause`, Session tick and Care/GearPolicy/Supplies/SummonPolicy/
+  Trade active ITEM_USE gates. Finished task futures can stay registered: use
+  `hasScheduledTask`, never treat `hasTask` as active use. Native cancelUseItem
+  must abort item observers without fabricating MOVE on a committed spell.
+  Source/effective checks: 147 native world-free regressions, full compile,
+  prior cast/follow/recall/trade checks and runtime linkage pass. 172 other entries
+  and unselected methods survive; 20 installed mod checks/31 client hashes pass.
+  User stationary Songweaver/Sorcerer/Cleric acceptance is PB-VAL-009 pending;
+  keep GameServer/client off. See docs/PLAYERBOTS_ITEM_TASK_CASTING_20261008.md.
+  Maintained source is C:/Git/aion-server; external workspace is generated output.
+  Source parity audit identifies four unfinished appearance method hooks plus
+  retained obsolete synthetics; do not deploy an unrestricted full source JAR
+  before release/schema/base/data parity is reviewed. Next class port remains 005B.

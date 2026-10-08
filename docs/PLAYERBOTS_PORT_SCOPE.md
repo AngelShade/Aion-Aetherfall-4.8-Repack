@@ -1,6 +1,78 @@
 # Full Playerbots port scope and iteration focus
 
-## Current follow/summon repair — installed offline 8 October 2026
+## Current stationary caster repair - installed offline 8 October 2026
+
+**PB-REPAIR-ENGINE-002** is installed in external receipt
+`20261008-201132-984909`; override SHA-256
+`d03fd3180a7b9615cbf06e66c4266972a3c9519973d1590419067c450798204c`.
+Completed native item tasks no longer fabricate movement during combat and fail
+stationary spells at cast completion. Active item cancellation uses native item
+observers. Source Java is updated; eight reviewed compiled methods and one helper
+are installed, with 172 other entries/unselected methods and all prior mods kept.
+147 native task/observer/condition checks, existing effective cast/follow/recall/
+trade checks and linkage pass; installed inventory passes 20 checks/31 client hashes.
+**PB-VAL-009 actual Songweaver/Sorcerer/Cleric combat acceptance remains pending.**
+GameServer/client stay off. Source release audit found unfinished appearance hooks;
+full-JAR replacement is not yet cleared. Next independent class slice: PB-PORT-005B.
+See [root defect, source/build audit and preservation](PLAYERBOTS_ITEM_TASK_CASTING_20261008.md).
+
+
+## Previous summon and distance recall baseline - installed offline 8 October 2026
+
+**PB-REPAIR-SUMMON-001 / PB-CUSTOM-RECALL-001** are installed in external
+receipt `20261008-195139-913545`; override SHA-256
+`0524e84d93eae1aba6b0e966e47475e54b82f4f07362dc080e1f031b8b11b7ff`.
+Manual Summon retains the owner's own combat restriction and native ownership/
+party/lifecycle/configuration checks, but cancels bot casts, trade, loot and
+channels rather than requiring every companion to be idle or out of combat.
+Living owned bots beyond 60m or separated by map/instance recall before trade,
+transfer, movement failure and strategy handling, regardless of their current
+activity/order or owner combat, and resume FOLLOW. Native dead-bot recovery and
+custody-held/dismissing sessions remain protected.
+
+Actual Java source and maintained tests/staging/install scripts are updated;
+the installed delivery changes eight methods in six existing definitions and
+adds PlayerBotRecall. All 171 other JAR entries and unselected members survive,
+including prior follow/formation/cast/Steel Rake and missing-appearance correction.
+Full 2,424-source and 53-check-source compiles, 165 recall checks, prior
+679/72/99/49/44/6/17/57/314 checks, and 175-class / 24,476-reference runtime
+linkage audit pass. Current client exit-saved graphics preferences are preserved.
+**PB-VAL-005 native/client Summon, cancellation, far-bot recall and following
+acceptance remains pending user testing.** Server/client remain off; no native
+world/DB/ID fixtures or startup/attach. Next class slice remains PB-PORT-005B.
+See [recall behavior and source record](PLAYERBOTS_RECALL_20261008.md).
+
+
+## Previous follow regression repair - installed offline 8 October 2026
+
+**PB-REPAIR-PACKAGING-001** fixes the reported `NoClassDefFoundError` in
+`PlayerBotSession.tick`: the previous follow package imported a tick hook to
+source-only `PlayerBotAppearance`, which is absent from every runtime library.
+The tick aborted before AI/follow actions. The source hook is removed until that
+complete custom feature is explicitly integrated; no error swallowing or new
+movement workaround was added. Appearance remains source/staged only.
+
+Installed receipt: `20261008-191905-805583`; override SHA-256
+`6f72603b8a385f5f9f39c3bdd9b9a8783c06ab17b549e648195e915b9503c5c4`.
+Exactly one method changes; all 176 other JAR entries and all other Session
+methods are preserved. Prior follow/summon controls, Steel Rake, native cast
+safety, settings and owned-alt builds survive. A read-only baseline checkpoint
+`191458-608072` records seven equivalent startup-recompiled Steel Rake cache
+classes and the preserved legacy instance_follow=true setting.
+
+The new shared staging/final-package/preinstall gate checks actual executable
+class/member/lambda references against runtime libraries, excluding source build
+classes. It reproduces the old failure and passes the installed 174 classes /
+24,383 executable member references. Full 2,423-source compilation, 52 Playerbots
+check-source compilation, five gate regressions and prior 679/72/99/49/44/6/17/57/
+314 production checks pass. These isolated checks do not establish gameplay.
+**PB-VAL-005 actual following remains pending user retest.** Both processes remain
+off; no startup/attach or native gameplay/DB/ID execution occurred. Independent
+next class port remains **PB-PORT-005B Spiritmaster**. See
+[the root-cause and installation record](PLAYERBOTS_LINKAGE_REPAIR_20261008.md).
+
+
+## Previous follow/summon implementation — installed offline 8 October 2026
 
 PB-REPAIR-FORMATION-002 and PB-CONFIG-001 are installed in external receipt
 `20261008-062930-344543`. Continuous direct follow intent refreshes the selected
@@ -228,7 +300,7 @@ acceptance remains with user; PB-PORT-005B stays next independent class slice.
 See [native repository and packaged interface](PLAYERBOTS_REPOSITORY_20261007.md).
 
 
-## Current continuation � Steel Rake PB-SCOPE-007A installed offline
+## Current continuation � Steel Rake PB-SCOPE-007A installed offline
 
 Requested native encounter mechanics and visible companion tactics are installed
 in external cumulative receipt `20261007-223400-856173`: steam/bomb warnings,

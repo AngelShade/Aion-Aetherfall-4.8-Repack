@@ -33,7 +33,7 @@ public final class PlayerBotTradeCheck {
   @Override public boolean isCasting(){return false;}
   @Override public boolean isLooting(){return false;}
  }
- static class Tasks extends PlayerController {boolean itemUse;@Override public boolean hasTask(TaskId id){return id==TaskId.ITEM_USE && itemUse;}@Override public boolean isInCombat(){return false;}}
+ static class Tasks extends PlayerController {boolean itemUse;@Override public boolean hasScheduledTask(TaskId id){return id==TaskId.ITEM_USE && itemUse;}@Override public boolean isInCombat(){return false;}}
  static Actor actor(int id,boolean bot)throws Exception {Actor a=(Actor)unsafe.allocateInstance(Actor.class);a.id=id;a.companion=bot;a.owner=1;a.cube=new PlayerStorage(null,StorageType.CUBE);a.account=(Account)unsafe.allocateInstance(Account.class);a.tasks=new Tasks();return a;}
  static Item item(int id,int tid,long count,boolean money){Item i=new Item(id,new ItemTemplate(){@Override public int getTemplateId(){return tid;}@Override public boolean isKinah(){return money;}},count,false,0);i.setItemLocation(0);i.setPersistentState(PersistentState.UPDATED);return i;}
  static Object zero(Class<?> t){if(!t.isPrimitive() || t==void.class)return null;if(t==boolean.class)return false;if(t==long.class)return 0L;if(t==double.class)return 0d;if(t==float.class)return 0f;return 0;}

@@ -62,7 +62,7 @@ public final class PlayerBotAppearance {
  }
  private static boolean ready(PlayerBotSession s) {
   return !s.closing() && !s.bot().isDead() && !s.bot().isTrading() && !s.bot().isCasting() && !s.bot().isLooting()
-   && !s.bot().getController().hasTask(TaskId.ITEM_USE) && !s.bot().getController().isInCombat() && !s.owner().getController().isInCombat();
+   && !s.bot().getController().hasScheduledTask(TaskId.ITEM_USE) && !s.bot().getController().isInCombat() && !s.owner().getController().isInCombat();
  }
  private static Item target(PlayerBotSession s,int object) {
   for(Item item:s.bot().getEquipment().getEquippedItems())if(item.getObjectId()==object && targetEligible(item.getItemTemplate()))return item;

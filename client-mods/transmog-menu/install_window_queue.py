@@ -32,7 +32,7 @@ def main():
     a=p.parse_args();package=a.package.resolve()
     if not package.is_relative_to(DEV_ROOT/'staging/output'):raise ValueError('Expected external staged package')
     m=json.loads((package/'manifest.json').read_text());root=Path(m['clientRoot']).resolve()
-    prefixes={'custom-window-queue-v1':'window-queue','remember-login-return-v2':'remember-login-return','remember-login-reconnect-v3':'remember-login-return'}
+    prefixes={'custom-window-queue-v1':'window-queue','remember-login-return-v2':'remember-login-return','remember-login-reconnect-v3':'remember-login-return','marketplace-session-v1':'marketplace-session'}
     if m['feature'] not in prefixes or root!=CLIENT:raise ValueError('Wrong feature or installation')
     name=m['graphicsCompatibility']['backupName']
     if not re.fullmatch(r'service-menu-graphics-\d{8}-\d{6}-\d{6}',name):raise ValueError('Invalid graphics recovery path')

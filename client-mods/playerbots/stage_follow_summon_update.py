@@ -72,5 +72,7 @@ def main():
  m['refinementOf']=m['previousReceipt'] if prior['feature']=='playerbot-follow-summon-controls' else None
  m.update(feature='playerbot-follow-summon-controls',scope='PB-REPAIR-FORMATION-002 / PB-CONFIG-001: continuous direct follow intent, formation error speed, travel priority and configured safe summons',offlineOnly=True,configSchemaAddition='PlayerBotConfig.SUMMON_ENABLED',unchangedGeometrySha256=shared.sha(server/'data/geo/models.mesh'))
  shutil.copy2(shared.ROOT/'docs/INSTALLED_MODS.json',out/'inventory-before.json')
+ from verify_runtime_linkage import verify
+ m['runtimeLinkage']=verify(payload,out/'final-linkage')
  (out/'manifest.json').write_text(json.dumps(m,indent=2));print('OK: follow/summon update staged; cold-load config field; prior mods preserved')
 if __name__=='__main__':main()

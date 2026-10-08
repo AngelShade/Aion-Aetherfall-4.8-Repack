@@ -78,7 +78,7 @@ public final class PlayerBotSupplies {
    .sorted(Comparator.<Item>comparingDouble(i->priority(bot,i)).reversed().thenComparingInt(Item::getItemId)).toList();
  }
  static boolean use(Player bot,Item item) {
-  if(bot.isDead() || bot.isCasting() || bot.getController().hasTask(TaskId.ITEM_USE) || item!=bot.getInventory().getItemByObjId(item.getObjectId())
+  if(bot.isDead() || bot.isCasting() || bot.getController().hasScheduledTask(TaskId.ITEM_USE) || item!=bot.getInventory().getItemByObjId(item.getObjectId())
    || bot.hasCooldown(item) || !available(bot,item.getItemTemplate()) || !needed(bot,skill(item.getItemTemplate())) || !PlayerRestrictions.canUseItem(bot,item))return false;
   var old=bot.getTarget();bot.setTarget(bot);
   try {

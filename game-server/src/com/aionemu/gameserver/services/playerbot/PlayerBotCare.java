@@ -70,14 +70,14 @@ final class PlayerBotCare {
  private static boolean available(PlayerBotSession session) {
   var bot=session.bot();var owner=session.owner();var s=PlayerBotQuestSync.state(session);
   return (s.enchant || s.salvage) && !session.closing() && !bot.isDead() && !bot.isFlying() && !owner.isFlying()
-   && !bot.isCasting() && !bot.isLooting() && !bot.getController().hasTask(TaskId.ITEM_USE)
+   && !bot.isCasting() && !bot.isLooting() && !bot.getController().hasScheduledTask(TaskId.ITEM_USE)
    && !bot.getController().isInCombat() && !owner.getController().isInCombat() && !owner.getMoveController().isInMove()
    && !PlayerBotQuestSync.returning(session) && System.currentTimeMillis()>=NEXT.getOrDefault(bot.getObjectId(),0L)
    && PlayerBotEquipment.upgrades(bot,session.combatRole()).isEmpty();
  }
  static void observe(PlayerBotSession session) {
   Player bot=session.bot();var pending=PENDING.get(bot.getObjectId());
-  if(pending==null || bot.getController().hasTask(TaskId.ITEM_USE))return;
+  if(pending==null || bot.getController().hasScheduledTask(TaskId.ITEM_USE))return;
   PENDING.remove(bot.getObjectId());
   if(pending.extraction()) {
    boolean removed=bot.getInventory().getItemByObjId(pending.target().getObjectId())==null;

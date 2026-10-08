@@ -12,6 +12,8 @@ def main():
  assert m['feature']=='playerbot-follow-summon-controls' and m['offlineOnly'] and Path(m['deployment'])==server
  assert proof['formationSummonChecks']==679 and proof['unselectedMethodsPreserved'] and proof['movementServiceLockLookupAbsent'] and proof['payloadSha256']==sha(package/'libs/playerbot-recruitment-fix.jar') and proof['configSha256']==sha(package/'config/main/playerbots.properties')
  stopped()
+ from verify_runtime_linkage import verify
+ verify(package/'libs/playerbot-recruitment-fix.jar',package/'preinstall-linkage')
  assert sha(server/'libs/game-server-4.8-SNAPSHOT.jar')==m['baseJarSha256'] and sha(server/'data/geo/models.mesh')==m['unchangedGeometrySha256']
  assert all(sha(CLIENT_ROOT/e['path'])==e['sha256'] for e in inventory['clientFiles'])
  for e in m['files']:

@@ -43,9 +43,13 @@ def main():
     game=(client/'bin64/Game.dll').read_bytes()
     routes=['http://127.0.0.1:8091/shop','http://127.0.0.1:8091/market','http://127.0.0.1:8091/market/wardrobe',
             'http://127.0.0.1:8091/journey','http://127.0.0.1:8091/market/pass','http://127.0.0.1:8091/market/companions']
-    checks['all_six_native_browser_routes']=all(game[offset:offset+len(code)]==code for offset,code in [
+    legacy_routes=all(game[offset:offset+len(code)]==code for offset,code in [
         (hooks.BROWSER_HOOK_RVA,hooks.build_browser_hook_code(routes)),
         (hooks.MARKET_AUTH_HOOK_RVA,hooks.build_market_auth_code(routes[1:],compact=True))])
+    shop_routes=all(game[start:end]==code.ljust(end-start,b'\0') for start,end,code in [
+        (hooks.BROWSER_HOOK_RVA,hooks.PREVIEW_DOCK_HOOK_RVA,hooks.build_browser_hook_code(routes,authenticate_shop=True)),
+        (hooks.MARKET_AUTH_HOOK_RVA,hooks.MARKET_RECT_HOOK_RVA,hooks.build_market_auth_code(routes,compact=True,route_table=True))])
+    checks['all_six_native_browser_routes']=legacy_routes or shop_routes
     with read_pak(client/'Plugin/RelicCalc/RelicCalc.pak') as pak:
         menu=pak.read('PrivateMenus.lua').decode('utf-8-sig')
         checks['existing_menu_actions']=all(word in menu for word in ['PRIVATECOMPANIONS','PRIVATESEASONPASS','PRIVATEJOURNEY','PRIVATECASHSHOP','PRIVATEWAREHOUSE','PRIVATEWARDROBE'])
@@ -100,6 +104,7 @@ def main():
     # New diagnostic-driven client repairs keep recovery receipts external.
     client_archive=Path(os.environ.get('AION_DEV_ROOT','D:/Proiecte/Project Restructure/Aion Development Workspace'))/'archives/client'
     receipts += [str(p.resolve()) for p in client_archive.glob('window-queue-*/manifest.json')]
+    receipts += [str(p.resolve()) for p in client_archive.glob('marketplace-session-*/manifest.json')]
     login_receipts=sorted(client_archive.glob('remember-login-return-*/manifest.json'))
     receipts += [str(p.resolve()) for p in login_receipts]
     if login_receipts:
@@ -201,7 +206,7 @@ def main():
             if line.strip().startswith('#') or '=' not in line:continue
             key,value=map(str.strip,line.split('=',1))
             if any(word in key for word in ['inventory.unified','warehouse.expanded','poeta.journey','playerbot','central.market.simulation','broker.market']):configs[key]=value
-    report=dict(checkedAt=datetime.now(timezone.utc).isoformat(),clientRoot=str(client),serverRoot=str(server),
+    report=dict(checkedAt=datetime.now(timezone.utc).isoformat(),clientRoot=str(client),serverRoot=str(server),marketplaceTokenRouteInstalled=shop_routes,
         checks=checks,customWindowQueueBatchingInstalled=queue_installed,clientFiles=[dict(path=rel,sha256=sha(client/rel)) for rel in live_paths],
         clientReceipts=sorted(receipts),serverReceipts=sorted(server_receipts),deployedConfig=configs,
         serverJarSha256=sha(jar),serverClassOverrides=overrides,serverLauncherSha256=sha(server/'start.bat'),graphicsBackup=graphics['backupRoot'],

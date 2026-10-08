@@ -84,6 +84,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 
 	@Override
 	public synchronized void abortMove() {
+		if (com.aionemu.gameserver.services.playerbot.PlayerBotRecall.recalling(owner)) failed = false;
 		com.aionemu.gameserver.services.playerbot.PlayerBotFollowIntent.clear(owner);
 		boolean wasMoving = isInMove();
 		if (wasMoving || started.get()) super.abortMove();

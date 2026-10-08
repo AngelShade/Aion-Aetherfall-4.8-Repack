@@ -13,13 +13,14 @@ public final class PlayerBotSummonPolicy {
  }
  static boolean busy(Player player){
   return player.isCasting() || player.isTrading() || player.isLooting()
-   || player.getController().hasTask(TaskId.ITEM_USE) || player.getController().hasScheduledTask(TaskId.ACTION_ITEM_NPC);
+   || player.getController().hasScheduledTask(TaskId.ITEM_USE) || player.getController().hasScheduledTask(TaskId.ACTION_ITEM_NPC);
  }
  static void preflight(List<PlayerBotSession> sessions){
   if(sessions.isEmpty())throw new IllegalArgumentException("Recruit a companion first.");
   Player owner=sessions.getFirst().owner();
   for(var session:sessions)synchronized(session){
-   if(session.owner()!=owner || !PlayerBotRecovery.ready(session))throw new IllegalArgumentException("Summon while alive, with your own active party, out of combat and after casting, trading, looting or using an item has finished.");
+   if(session.owner()!=owner || !PlayerBotRecall.eligible(session))throw new IllegalArgumentException("Summon your own active companions while you are alive and in their party.");
+   if(owner.getController().isInCombat())throw new IllegalArgumentException("You cannot summon companions while you are in combat.");
   }
  }
  static boolean partySafe(Player owner){
@@ -29,10 +30,8 @@ public final class PlayerBotSummonPolicy {
   synchronized(PlayerBotService.getInstance()){
    preflight(sessions);
    for(var session:sessions)synchronized(session){
-    // Recheck immediately before each native transition; no force/cancel path.
-    preflight(List.of(session));PlayerBotRecovery.revive(session);
-    if(!PlayerBotService.getInstance().relocate(session))throw new IllegalArgumentException("The companion cannot be summoned yet.");
-    PlayerBotTravel.close(session);PlayerBotQuestSync.returnToOwner(session.bot());
+    preflight(List.of(session));
+    if(!PlayerBotRecall.recall(session))throw new IllegalArgumentException("The companion cannot be summoned yet.");
    }
   }
  }

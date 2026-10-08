@@ -23,8 +23,7 @@ public final class PlayerBotTravelFormationCheck {
  static class Tasks extends PlayerController {
   boolean combat,item,interaction;
   @Override public boolean isInCombat(){return combat;}
-  @Override public boolean hasTask(TaskId id){return id==TaskId.ITEM_USE && item;}
-  @Override public boolean hasScheduledTask(TaskId id){return id==TaskId.ACTION_ITEM_NPC && interaction;}
+  @Override public boolean hasScheduledTask(TaskId id){return id==TaskId.ITEM_USE && item || id==TaskId.ACTION_ITEM_NPC && interaction;}
  }
  static class Group extends PlayerGroup {
   List<Player> players;Group(){super(null,null,1);}
@@ -56,14 +55,14 @@ public final class PlayerBotTravelFormationCheck {
   for(int i=1;i<=5;i++){var bot=actor(owner.id+i);bot.owner=owner.id;bot.group=group;party.add(session(owner,bot));members.add(bot);}group.players=members;
   PlayerBotSummonPolicy.preflight(party);checks++;
   for(PlayerBotSession s:party)for(Actor a:new Actor[]{owner,(Actor)s.bot()}){
-   a.casting=true;check(!PlayerBotRecovery.ready(s),"Casting must block summon");a.casting=false;
-   a.trading=true;check(!PlayerBotRecovery.ready(s),"Trading must block summon");a.trading=false;
-   a.looting=true;check(!PlayerBotRecovery.ready(s),"Looting must block summon");a.looting=false;
-   a.tasks.item=true;check(!PlayerBotRecovery.ready(s),"Item channel must block summon");a.tasks.item=false;
-   a.tasks.interaction=true;check(!PlayerBotRecovery.ready(s),"NPC interaction must block summon");a.tasks.interaction=false;
-   a.tasks.combat=true;for(var peer:party)check(!PlayerBotRecovery.ready(peer),"Any party combat timer blocks even an individual summon");a.tasks.combat=false;
+   a.casting=true;check(PlayerBotRecovery.ready(s),"Recall cancels companion casting; owner casting does not move the owner");a.casting=false;
+   a.trading=true;check(PlayerBotRecovery.ready(s),"Recall cancels native companion exchange");a.trading=false;
+   a.looting=true;check(PlayerBotRecovery.ready(s),"Recall closes native companion loot");a.looting=false;
+   a.tasks.item=true;check(PlayerBotRecovery.ready(s),"Recall cancels native companion item channel");a.tasks.item=false;
+   a.tasks.interaction=true;check(PlayerBotRecovery.ready(s),"Recall cancels native companion interaction");a.tasks.interaction=false;
+   a.tasks.combat=true;for(var peer:party)check(PlayerBotRecovery.ready(peer)==(a!=owner),"Only owner combat blocks manual recall");a.tasks.combat=false;
   }
-  var last=(Actor)party.getLast().bot();last.casting=true;rejected(()->PlayerBotSummonPolicy.preflight(party),"Last member must block party before relocation");last.casting=false;
+  var last=(Actor)party.getLast().bot();last.casting=true;PlayerBotSummonPolicy.preflight(party);checks++;last.casting=false;
   last.owner++;check(!PlayerBotRecovery.ready(party.getLast()),"Foreign ownership blocked");last.owner--;
   last.group=null;check(!PlayerBotRecovery.ready(party.getLast()),"Different party blocked");last.group=group;
   owner.dead=true;check(!PlayerBotRecovery.ready(party.getFirst()),"Dead owner blocked");owner.dead=false;

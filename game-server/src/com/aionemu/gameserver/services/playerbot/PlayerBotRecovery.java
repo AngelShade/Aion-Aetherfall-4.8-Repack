@@ -10,12 +10,7 @@ import com.aionemu.gameserver.skillengine.SkillEngine;
 public final class PlayerBotRecovery {
  private static final Set<Integer> WAITING=ConcurrentHashMap.newKeySet();
  static boolean ready(PlayerBotSession s) {
-  Player owner=s.owner(),bot=s.bot();
-  return !s.closing() && owner.isOnline() && owner.isSpawned() && !owner.isDead() && owner.getWorldMapInstance()!=null
-   && bot.isPlayerBot() && bot.getPlayerBotOwnerId()==owner.getObjectId() && owner.getPlayerGroup()!=null && bot.getPlayerGroup()==owner.getPlayerGroup()
-   && !PlayerBotSummonPolicy.busy(owner) && !PlayerBotSummonPolicy.busy(bot)
-   && PlayerBotSummonPolicy.partySafe(owner)
-   && !owner.getController().isInCombat() && (bot.isDead() || !bot.getController().isInCombat() && bot.getAggroList().stream().findAny().isEmpty());
+  return PlayerBotRecall.eligible(s) && !s.owner().getController().isInCombat();
  }
  static void revive(PlayerBotSession s) {
   if(!ready(s))throw new IllegalArgumentException("Wait until you are alive and the party is out of combat before reviving and summoning companions.");

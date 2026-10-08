@@ -169,6 +169,10 @@ def stage(classes,out,generation_fix=False):
         incrementalChangedMethods=[e for e in review if e['methods']],changedMethods=receipt['changedMethods']+[e['path']+': '+method for e in review for method in e['methods']],
         newClasses=sorted(new),rollbackSha256=sha(rollback),continuationReceipts=continuations,files=[dict(path=rel,original=sha(server/rel),installed=sha(out/rel)) for rel in files])
     if receipt.get('bundledMediaSha256'):manifest['bundledMediaSha256']=receipt['bundledMediaSha256']
+    # Transplanting a reviewed method can still import source-only helpers or
+    # members. Validate executable references against deployed dependencies.
+    from verify_runtime_linkage import verify
+    manifest['runtimeLinkage']=verify(payload,out/'linkage')
     (out/'manifest.json').write_text(json.dumps(manifest,indent=2))
     print('OK: effective installed methods preserved, bounded companion overrides and media staged:',out)
 if __name__=='__main__':
