@@ -17,6 +17,7 @@ final class PlayerBotEncounters {
 		return allowsAttack(actor, enemy, 750);
 	}
 	static boolean allowsAttack(Creature actor, Npc enemy, long commitmentMillis) {
+		if (!PlayerBotSteelRake.attackable(enemy)) return false;
 		int required = requiredProtection(enemy);
 		var protection = required > 0 ? actor.getEffectController().getAbnormalEffects().stream().filter(e -> e.getSkillId() == required).findFirst().orElse(null) : null;
 		return protectedFor(required, protection == null ? 0 : protection.getRemainingTimeMillis(), commitmentMillis);

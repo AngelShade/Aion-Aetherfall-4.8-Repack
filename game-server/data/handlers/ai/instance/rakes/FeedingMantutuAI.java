@@ -21,16 +21,23 @@ public class FeedingMantutuAI extends ShifterAI {
 	@Override
 	protected void handleDialogStart(Player player) {
 		WorldMapInstance instance = getPosition().getWorldMapInstance();
-		if (instance.getNpc(281128) == null && instance.getNpc(281129) == null) {
+		Npc boss=instance.getNpc(219033);
+  int required=getNpcId()==701386?20489:20490;
+  if (boss!=null && !boss.isDead() && boss.getEffectController().hasAbnormalEffect(required)
+   && instance.getNpc(281128) == null && instance.getNpc(281129) == null) {
 			super.handleDialogStart(player);
 		}
 	}
 
 	@Override
 	protected void handleUseItemFinish(Player player) {
-		super.handleUseItemFinish(player);
 		Npc boss = getPosition().getWorldMapInstance().getNpc(219033);
 		if (boss != null && boss.isSpawned() && !boss.isDead()) {
+   synchronized(boss){
+   int required=getNpcId()==701386?20489:20490;
+   if(!boss.getEffectController().hasAbnormalEffect(required) || !getOwner().isSpawned()
+    || getPosition().getWorldMapInstance().getNpc(281128)!=null || getPosition().getWorldMapInstance().getNpc(281129)!=null)return;
+   super.handleUseItemFinish(player);
 			Npc npc = null;
 			switch (getNpcId()) {
 				case 701387: // water supply
@@ -42,6 +49,7 @@ public class FeedingMantutuAI extends ShifterAI {
 			}
 			boss.getAi().onCustomEvent(1, npc);
 			AIActions.deleteOwner(this);
+   }
 		}
 	}
 

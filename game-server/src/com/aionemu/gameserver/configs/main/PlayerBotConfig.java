@@ -5,6 +5,8 @@ import com.aionemu.commons.configuration.Property;
 public final class PlayerBotConfig {
 	@Property(key = "gameserver.playerbots.enable", defaultValue = "true")
 	public static boolean ENABLED;
+	@Property(key = "gameserver.playerbots.summon.enable", defaultValue = "true")
+	public static boolean SUMMON_ENABLED;
 	@Property(key = "gameserver.playerbots.max_per_owner", defaultValue = "5")
 	public static int MAX_PER_OWNER;
 	@Property(key = "gameserver.playerbots.max_active", defaultValue = "100")

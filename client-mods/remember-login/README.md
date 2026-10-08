@@ -24,7 +24,7 @@ Native fixtures and trampoline execution establish functional and preservation b
 
 ## Returning to login without restarting the client
 
-`prepare_return.py` upgrades an existing Remember Login installation. It stages two native observers: the login dialog draw entry (`79e820`) and the existing flag-change handler (`4ae000`). The latter only observes visibility transitions for the actual login dialog singleton and otherwise immediately returns. All native flag/render handlers, arguments, volatile registers, XMM registers and flags are preserved. The initial setup and each hidden-to-visible transition arm one restore before the first login draw. Repeated draws and unrelated flag changes do not reload credentials or overwrite typed edits. The same restore reloads the existing `ui/loginnotice.xml` in `htmlview_notice` through the native HTML reader. No timer, AFK service or client diagnostic is added.
+The first `prepare_return.py` upgrade added two observers: the login dialog draw entry (`79e820`) and the flag-change handler (`4ae000`). That version misses native resets that leave the visible flag unchanged. Its generic HTML-file reload also clears the special `LoginNotice` XML content, including on a fresh launch. The installed repair below supersedes that return behavior.
 
 Stage and verify the incremental upgrade before closing the client:
 
@@ -34,4 +34,34 @@ python client-mods/remember-login/verify_return.py output/reconnect-fix/client-r
 python client-mods/remember-login/verify_native.py
 ```
 
-Install the verified package with the existing guarded `install.ps1` after closing Aion. Archives and login layout remain unchanged. The native verifier uses only its separate synthetic credential and tests repeated visibility transitions, reload after scene reset, exactly one announcement load per return and retention of typed edits. The actual Game.dll observers are executed at a different mapping address to validate relative branches and original-handler delegation. A fresh installation using the original `prepare.py` should receive this incremental upgrade afterward.
+These are historical first-upgrade commands. Use the current repair for an existing cumulative client; do not install an old package over later mods.
+
+## Native reset and announcement repair, 7 October 2026
+
+The original Reset cave placement is superseded by the 8 October repair below.
+
+`prepare_reset.py` stages a bounded observer at the login dialog's Reset entry (`79e7f0`) and the rebuilt production DLL. Reset arms one restore on the next visible draw when all login widgets exist, even when the visible bit did not change. Initial setup and visibility notifications remain supported. Repeated draws and unrelated resets do not overwrite typed fields. The production DLL calls the login dialog's own localized `LoginNotice` XML loader (`79df40`), which handles `Contents` and `URL`, rather than treating the XML wrapper as an HTML file.
+
+The installation retains all five existing login hooks, the recent custom-window queue repair, archives, vault target/save/delete behavior and masked password widget. Graphics package/state, cursor tracking and both native restore baselines are updated together. Recovery receipts are external under `AION_DEV_ROOT/archives/client/remember-login-return-*`.
+
+Stage with `prepare_reset.py --client <client> --output <fresh external package> --dll <compiled production DLL> --inventory <fresh passing inventory>`. Compile the production DLL with `prepare.compile_dll` into the external staging directory. Verify launcher/restore preservation with `client-mods/transmog-menu/tests/verify_window_queue_package.py --package <package>`. Install using `install_reset.py --package <package>` after process inspection establishes all Aion clients are closed; `--verify-only` changes no files. The shared installer retains hash guards, bounded paths, verified recovery copies and rollback.
+
+The pure C++ `test_lifecycle.cpp` and Python `test_reset_patch.py` check scheduling and interpret the generated trampoline without loading game code or accessing credentials. The optional `verify_native.py` uses a separate synthetic credential and is not part of the current keep-client/server-off checks. Actual fresh-launch Announcement rendering, saved credentials after in-game Logout and continued typing/opt-out behavior require the user's in-game test. See `docs/LOGIN_RETURN_20261007.md`.
+
+## AFK reconnect crash repair, 8 October 2026
+
+The crash dump showed native runtime writes overwriting the Reset cave at
+`0x144ec00`. `prepare_reconnect.py --client <client> --output <fresh external
+package> --inventory <current inventory>` relocates the exact installed legacy
+hook into the dedicated `.rreturn` section and independently repairs graphics/
+cursor restore images using their own imports. The login extension remains
+byte-identical. `install_reset.py --package <package>` supports this guarded
+twelve-file transaction and requires every Aion client closed. Use
+`--verify-only` for hash validation without installation.
+
+The stager requires all client inventory checks and exact current client hashes;
+it records separate server checks without mutating server files. The current
+server receipt mismatch remains visible in the refreshed inventory. Offline
+interpreter, runtime-storage-write regression, rollback and disposable restore
+checks pass. Actual AFK Reconnect/Login and ordinary Logout/Login remain pending.
+See `docs/LOGIN_RECONNECT_CRASH_20261008.md`.

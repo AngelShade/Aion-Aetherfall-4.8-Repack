@@ -30,6 +30,7 @@ public class GoldenEyeMantutuAI extends AggressiveNpcAI {
 	private boolean canThink = true;
 	private final AtomicBoolean isHome = new AtomicBoolean(true);
 	private Future<?> hungerTask;
+ private final SteelRakeTasks tasks=new SteelRakeTasks(this);
 
 	public GoldenEyeMantutuAI(Npc owner) {
 		super(owner);
@@ -42,7 +43,10 @@ public class GoldenEyeMantutuAI extends AggressiveNpcAI {
 
 	@Override
 	protected void handleCustomEvent(int eventId, Object... args) {
-		if (eventId == 1 && args != null) {
+		if (eventId == 1 && args != null && args.length > 0 && args[0] instanceof Npc device
+   && device.isSpawned() && device.getWorldId()==getOwner().getWorldId() && device.getInstanceId()==getOwner().getInstanceId()
+   && (device.getNpcId()==281128 && getEffectController().hasAbnormalEffect(20489)
+   || device.getNpcId()==281129 && getEffectController().hasAbnormalEffect(20490))) {
 			canThink = false;
 			getMoveController().abortMove();
 			EmoteManager.emoteStopAttacking(getOwner());
@@ -52,6 +56,7 @@ public class GoldenEyeMantutuAI extends AggressiveNpcAI {
 			getMoveController().moveToTargetObject();
 			getOwner().setState(CreatureState.ACTIVE, true);
 			PacketSendUtility.broadcastPacket(getOwner(), new SM_EMOTION(getOwner(), EmotionType.CHANGE_SPEED, 0, getObjectId()));
+   tasks.later(()->{if(!canThink && getTarget()==device && !isHome.get()){restoreDevice(device);resumeCombat();}},20000);
 		}
 	}
 
@@ -65,13 +70,13 @@ public class GoldenEyeMantutuAI extends AggressiveNpcAI {
 				if (npc.getNpcId() == 281128 || npc.getNpcId() == 281129) {
 					startFeedTime(npc);
 				}
-			}
+			} else resumeCombat();
 		}
 	}
 
 	private void startFeedTime(final Npc npc) {
-		ThreadPoolManager.getInstance().schedule(() -> {
-			if (!isDead() && npc != null) {
+		tasks.later(() -> {
+			if (!isDead() && npc != null && npc.isSpawned() && !isHome.get()) {
 				switch (npc.getNpcId()) {
 					case 281128: // Feed Supply Device
 						getEffectController().removeEffect(20489);
@@ -83,22 +88,20 @@ public class GoldenEyeMantutuAI extends AggressiveNpcAI {
 						break;
 				}
 				npc.getController().delete();
-				canThink = true;
-				Creature creature = getAggroList().getTarget(AggroTarget.MOST_HATED);
-				if (creature == null) {
-					setStateIfNot(AIState.FIGHT);
-					think();
-				} else {
-					getOwner().setTarget(creature);
-					getOwner().getGameStats().renewLastAttackTime();
-					getOwner().getGameStats().renewLastAttackedTime();
-					getOwner().getGameStats().renewLastSkillTime();
-					setStateIfNot(AIState.FIGHT);
-					handleMoveValidate();
-				}
+				resumeCombat();
 			}
 		}, 6000);
 	}
+
+ private void restoreDevice(Npc device){
+  int id=device.getNpcId()==281128?701386:701387;
+  if(getPosition().getWorldMapInstance().getNpc(id)==null){if(id==701386)spawn(id,716.508f,508.571f,939.607f,(byte)119);else spawn(id,716.389f,494.207f,939.607f,(byte)119);}
+  if(device.isSpawned())device.getController().delete();
+ }
+ private void resumeCombat(){
+  canThink=true;Creature creature=getAggroList().getTarget(AggroTarget.MOST_HATED);getOwner().setTarget(creature);
+  setStateIfNot(AIState.FIGHT);if(creature!=null){getOwner().getGameStats().renewLastAttackTime();getOwner().getGameStats().renewLastAttackedTime();getOwner().getGameStats().renewLastSkillTime();handleMoveValidate();}else think();
+ }
 
 	@Override
 	public boolean ask(AIQuestion question) {
@@ -135,6 +138,9 @@ public class GoldenEyeMantutuAI extends AggressiveNpcAI {
 	@Override
 	protected void handleBackHome() {
 		cancelHungerTask();
+  for(int id:new int[]{281128,281129})for(Npc device:getPosition().getWorldMapInstance().getNpcs(id))device.getController().delete();
+  if(getPosition().getWorldMapInstance().getNpc(701386)==null)spawn(701386,716.508f,508.571f,939.607f,(byte)119);
+  if(getPosition().getWorldMapInstance().getNpc(701387)==null)spawn(701387,716.389f,494.207f,939.607f,(byte)119);
 		getEffectController().removeEffect(20489);
 		getEffectController().removeEffect(20490);
 		canThink = true;
@@ -143,13 +149,17 @@ public class GoldenEyeMantutuAI extends AggressiveNpcAI {
 	}
 
 	private void doSchedule() {
-		hungerTask = ThreadPoolManager.getInstance().scheduleAtFixedRate(() -> {
-			int skill = Rnd.nextBoolean() ? 20489 : 20490; // Hunger / Thirst
-			SkillEngine.getInstance().getSkill(getOwner(), skill, 20, getOwner()).useNoAnimationSkill();
-		}, 10000, 30000);
+  tasks.later(()->{
+   if(isHome.get())return;
+   int skill=Rnd.nextBoolean()?20489:20490;
+   SkillEngine.getInstance().getSkill(getOwner(),skill,20,getOwner()).useNoAnimationSkill();
+   scheduleHunger();
+  },10000);
 	}
 
+ private void scheduleHunger(){tasks.later(()->{if(!isHome.get()){int skill=Rnd.nextBoolean()?20489:20490;SkillEngine.getInstance().getSkill(getOwner(),skill,20,getOwner()).useNoAnimationSkill();scheduleHunger();}},30000);}
 	private void cancelHungerTask() {
+  tasks.reset();
 		if (hungerTask != null && !hungerTask.isDone()) {
 			hungerTask.cancel(true);
 		}

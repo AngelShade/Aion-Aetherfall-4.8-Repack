@@ -21,28 +21,16 @@ public final class PlayerBotTravel {
   Position previous=POSITIONS.put(bot.getObjectId(),current);
   if(PlayerBotPartyBehavior.catchUp(session))return true;
   if(jumped(previous,current,owner.getGameStats().getMovementSpeedFloat()))WAITING.add(bot.getObjectId());
-  if(!WAITING.contains(bot.getObjectId()) || owner.getController().isInCombat() || bot.getController().isInCombat())return PlayerBotFollowRecovery.recover(session);
+  if(!WAITING.contains(bot.getObjectId()) || owner.getController().isInCombat() || bot.getController().isInCombat())return false;
   if(PlayerBotService.getInstance().relocate(session)){WAITING.remove(bot.getObjectId());return true;}
   return false;
  }
  public static void summon(PlayerBotSession session) {
-  synchronized(PlayerBotService.getInstance()){synchronized(session){
-   if(session.closing() || !session.owner().isOnline() || !session.owner().isSpawned())throw new IllegalArgumentException("Wait until you and the companion are in the world.");
-   if(!PlayerBotRecovery.ready(session))throw new IllegalArgumentException("Wait until you are alive and the party is out of combat before reviving and summoning companions.");
-   PlayerBotRecovery.revive(session);
-   if(!PlayerBotService.getInstance().relocate(session))throw new IllegalArgumentException("The companion cannot be summoned yet.");
-   WAITING.remove(session.bot().getObjectId());PlayerBotQuestSync.returnToOwner(session.bot());
-  }}
+  PlayerBotSummonPolicy.request();PlayerBotSummonPolicy.regroup(java.util.List.of(session));
  }
  public static void summonAll(java.util.List<PlayerBotSession> sessions) {
-  synchronized(PlayerBotService.getInstance()) {
-   if(sessions.isEmpty())throw new IllegalArgumentException("Recruit a companion first.");
-   for(var session:sessions)synchronized(session) {
-    if(!PlayerBotRecovery.ready(session))throw new IllegalArgumentException("Wait until you are alive and the party is out of combat before reviving and summoning companions.");
-   }
-   for(var session:sessions)summon(session);
-  }
+  PlayerBotSummonPolicy.request();PlayerBotSummonPolicy.regroup(java.util.List.copyOf(sessions));
  }
- static void close(PlayerBotSession session){POSITIONS.remove(session.bot().getObjectId());WAITING.remove(session.bot().getObjectId());PlayerBotFollowRecovery.close(session.bot());}
+ static void close(PlayerBotSession session){POSITIONS.remove(session.bot().getObjectId());WAITING.remove(session.bot().getObjectId());}
  private PlayerBotTravel() {}
 }

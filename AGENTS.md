@@ -22,9 +22,12 @@
   JARs, captures, temporary packages, extraction output or diagnostics into the
   runtime server/client. Maintained source, tests and build/install scripts remain
   in the repository; installed feature files and native bot settings remain runtime.
-- The 271,163-file / 42.28 GiB migration is prepared but **not executed**: automatic
-  approval review requires explicit approval for its exact bulk-move scope. Keep
-  existing recovery paths intact meanwhile. See the external `migration-plan.json`.
+- The user explicitly deferred moving existing files on 7 October 2026. The
+  271,163-file / 42.28 GiB migration remains prepared but **not executed**. Do not
+  move existing tools, staging trees or client/server archives, create migration
+  junctions, or remove originals until the user explicitly resumes and approves
+  the migration. Keep existing recovery paths intact. The external
+  `migration-plan.json` is a proposal only; new-output containment remains in place.
 - If approved, hash-verify copies, preserve recovery paths with junctions, verify
   installed mod/restore guards before removing verified original migration holds,
   and leave unrelated dirty changes alone. Do not delete backups as "clutter."
@@ -597,3 +600,101 @@ instructions and current state before reusing them.
 - New recovery receipts belong in the external archives/server/game-server/backups;
   shared receipt_paths and inventory/audit discovery now also read that directory.
   Legacy recovery paths remain intact; no bulk artifact migration was executed.
+
+- User requested legacy bot-file removal. The care/gear retirement tool is implemented
+  (`retire_metadata_files_offline.py`): native DB rows/read-only ownership check,
+  external verified archive, exact bounded removal, rollback and other-file/JAR
+  preservation. User explicitly authorized this time only removing unused files
+  while services run. Completed: 32 native-DB-verified files removed with Windows
+  handles excluding readers/writers; seven DB snapshots had advanced and were
+  preserved. All 61 other settings/media files and cumulative JAR unchanged.
+  Archive `D:/Proiecte/Project Restructure/Aion Development Workspace/archives/server/game-server/backups/playerbots-legacy-settings-cleanup-20261007-182907-195194`.
+  All 16 mod checks/31 client hashes pass; inventory 70 client/90 server receipts.
+  No start/stop/restart/attach. This is not permission for future live changes;
+  keep default offline policy and recheck actual processes before changes.
+  Other active file-backed namespaces must retain state until migrated. New gap
+  PB-SCOPE-012A-R1: Temporary.persistCreation still writes gear provenance files;
+  port native creation checkpoint separately, otherwise new bots recreate them.
+  See docs/PLAYERBOTS_METADATA_20261007.md. This does not change installed session
+  migration status or the independent PB-PORT-005B class next-work pointer.
+
+
+- PB-SCOPE-012B remaining property settings are installed offline in external
+  `.../archives/server/game-server/backups/playerbots-recruitment-20261007-191742-640906`.
+  Preserve Metadata.validate, Preferences.load/save, PartyBehavior.State constructor/
+  save, Spacing values/configure, FormationLayout selected/configure, PartyCompletion
+  load/remember and new MetadataConfiguration. Eleven existing methods/six classes,
+  152 prior entries identical; generic navigation `190312-034119` remains byte-identical.
+  All 52 additional owned native DB rows imported/verified exactly; listed property
+  files archived and retired offline in `playerbots-legacy-settings-cleanup-20261007-191828-971151`.
+  Nine media/preset/removal files remain; do not restore archived files into runtime.
+  Bot-owned namespaces queue for native checkpoint; explicit human-owner formation
+  commands commit their own native DAO transaction. Full compile/35 metadata/31
+  preference checks, 16 mod checks/31 client hashes pass. User acceptance PB-VAL-011
+  and navigation PB-VAL-005 remain pending; GameServer/client stayed off with no attach
+  or lifecycle action. New updates require changed helper methods in runtime SCOPES.
+  PB-SCOPE-012A-R1 Temporary creation gear-file gap and independent PB-PORT-005B remain
+  open. See docs/PLAYERBOTS_METADATA_PREFERENCES_20261007.md for exact receipt/hash.
+
+
+- PB-SCOPE-012C is installed offline in external receipt `playerbots-recruitment-20261007-193213-430087`.
+  Preserve native RepositoryDAO/Repository saved-party and removed-roster transactions,
+  Presets.Store load/write, RosterRemoval removed/archive/remove and bundled PlayerBotMedia
+  through HttpService.handle. Two account docs/four markers imported/verified read-only;
+  nine original files hash-archived under receipt preferences-before and retired. Runtime
+  saved-parties/removed/media folders are absent, config/playerbots is empty. Three exact
+  installed UI resources live in the cumulative JAR; future patches preserve their hashes
+  and must not recreate loose media. Shared stage/formation/inventory tooling supports this.
+  PB-SCOPE-012A-R1 is repaired via CreationMetadata.queue/prepare, Temporary.persistCreation
+  and Persistence.save: pre-row generated IDs queue into first inventory checkpoint, failed
+  saves retain protection. Eight existing methods/five definitions, 154 prior entries
+  identical, four new helpers/DAO classes and three resources. Full compile/24 repository/
+  10 creation checks, native read-only loaders (2 accounts/4 removed), 17 mod checks and
+  31 client hashes pass. GameServer/client remained off; no startup/attach. Actual preset/
+  removal/UI/creation/restart acceptance remains pending; other port and item-ID release
+  investigation stay open. Next separate class slice PB-PORT-005B. See exact current hash/
+  receipt/evidence in docs/PLAYERBOTS_REPOSITORY_20261007.md.
+
+
+- PB-REPAIR-ENGINE-001 core cast execution is installed offline in external receipt
+  `D:/Proiecte/Project Restructure/Aion Development Workspace/archives/server/game-server/backups/playerbots-recruitment-20261008-054856-494763`.
+  Preserve mover started/moving/native-cast guards, atomic CastAction mover admission,
+  unchanged-order no-op and unchanged-preference continuer retention. Four methods
+  in three definitions changed; 168 earlier JAR entries retained. Intentional changed
+  orders/mission/attack cancellation and native interrupt rules remain. No new timing
+  or spacing workaround. Four baseline regressions reproduced, 72 core/99 engine/
+  31 recording-JDBC preference/49 composition/44 spell-planning/17 trail checks pass;
+  2,420 source compilation succeeds. Five native compiler-regenerated cache classes
+  were verified method/schema equivalent and recorded read-only in `054444-184495`;
+  do not replace them with older cache bytes merely to match historical hashes.
+  All 20 mod checks/31 client hashes pass; 73 client/99 server receipts. Server/client
+  stayed off, no startup/restart/attach/native casts/world/IDs/real DB writes. User
+  actual gameplay acceptance remains PB-VAL-009. Other port work remains unfinished;
+  PB-PORT-005B stays independent next class slice. See
+  docs/PLAYERBOTS_CAST_EXECUTION_20261008.md. Existing helper changes still require
+  explicit runtime SCOPES in later authorized updates; preserve all prior mods/alts.
+
+- PB-REPAIR-FORMATION-002 / PB-CONFIG-001 are installed offline in external receipt
+  `playerbots-recruitment-20261008-062930-344543`. Preserve direct FollowIntent target
+  refresh/arrival retention, formation-slot speed matching, travel priority and
+  SummonPolicy preflight. Thirteen methods/six definitions; 166 other JAR entries
+  retained, including latest Steel Rake `061243-633233` and core cast `054856-494763`.
+  Main config enable/summon.enable are both true; native interaction/combat/party
+  checks apply. Map/wipe recovery bypasses manual switch; no PvP/flight/map blocker.
+  New PlayerBotConfig.SUMMON_ENABLED field is cold-load-only; no live schema attach.
+  All 2,423 sources and Playerbots checks compile; 679 new checks plus core/engine/
+  movement/native-planning regressions pass. All 20 mod checks/31 client hashes
+  pass; inventory 73 client/102 server receipts. GameServer/client stayed off.
+  PB-VAL-005 user gameplay acceptance pending; explicit orders/combat roles/alt
+  builds/prior mods retained. PB-PORT-005B stays independent next class slice.
+  See docs/PLAYERBOTS_FOLLOW_SUMMON_20261008.md and stage/verify/install_follow_summon
+  scripts. Existing changed helpers require SCOPES; do not reinstall rejected
+  FollowRecovery teleport packages. Bot metadata remains native DB/bundled UI.
+
+
+Final pre-handoff lock-order correction is included in that receipt: AI-resolved
+local geometry is cached, so movement refresh and follow speed never acquire
+service/session formation locks under the mover monitor. Three Formation methods
+plus FollowIntent refresh/cache initialization and a new Geometry record changed;
+174 other entries retained. Effective bytecode and world-free cache tests pass.
+Cold-load-only helper schema; future existing helper edits require explicit SCOPES.

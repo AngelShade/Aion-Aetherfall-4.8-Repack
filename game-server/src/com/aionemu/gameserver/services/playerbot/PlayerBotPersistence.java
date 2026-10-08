@@ -22,6 +22,7 @@ final class PlayerBotPersistence {
 
 	static void save(Player bot, Home home) throws SQLException {
 		if (home == null) throw new SQLException("Missing companion home checkpoint");
+		try { PlayerBotCreationMetadata.prepare(bot); } catch (java.io.IOException e) { throw new SQLException("Cannot queue native creation provenance",e); }
 		// Several legacy DAOs catch their SQL errors and return success. For companions, every
 		// progress-table write must throw on failure so dismissal cannot release an unsaved character.
 		try (Connection connection = DatabaseFactory.getConnection()) {

@@ -18,9 +18,8 @@ final class PlayerBotPreferences {
 
 	Values load(int account, int character, Role defaultRole) throws IOException {
 		Path path = path(account, character);
-		if (!Files.exists(path)) return new Values(defaultRole, false, true, true, false, true);
-		Properties properties = new Properties();
-		try (var input = Files.newInputStream(path)) { properties.load(input); }
+		Properties properties = PlayerBotMetadata.load(account, character, "preferences", path);
+		if (properties.isEmpty()) return new Values(defaultRole, false, true, true, false, true);
 		try {
 			if (Integer.parseInt(properties.getProperty("account")) != account
 				|| Integer.parseInt(properties.getProperty("character")) != character) throw new IllegalArgumentException("Settings owner mismatch");
@@ -32,19 +31,13 @@ final class PlayerBotPreferences {
 
 	void save(int account, int character, Values values) throws IOException {
 		Path path = path(account, character);
-		Files.createDirectories(directory);
 		Properties properties = new Properties();
 		properties.setProperty("account", Integer.toString(account)); properties.setProperty("character", Integer.toString(character));
 		properties.setProperty("role", values.role().name()); properties.setProperty("area", Boolean.toString(values.area()));
 		properties.setProperty("supplies", Boolean.toString(values.supplies())); properties.setProperty("gear", Boolean.toString(values.gear()));
 		properties.setProperty("loot", Boolean.toString(values.loot()));
 		properties.setProperty("questing", Boolean.toString(values.questing()));
-		Path temporary = Files.createTempFile(directory, "companion-", ".tmp");
-		try {
-			try (var output = Files.newOutputStream(temporary)) { properties.store(output, "Aion player companion settings"); }
-			try { Files.move(temporary, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING); }
-			catch (AtomicMoveNotSupportedException e) { Files.move(temporary, path, StandardCopyOption.REPLACE_EXISTING); }
-		} finally { Files.deleteIfExists(temporary); }
+		PlayerBotMetadata.save(account, character, "preferences", properties);
 	}
 
 	private Path path(int account, int character) {

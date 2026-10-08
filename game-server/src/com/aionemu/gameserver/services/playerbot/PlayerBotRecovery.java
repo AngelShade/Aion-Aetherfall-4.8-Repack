@@ -13,6 +13,8 @@ public final class PlayerBotRecovery {
   Player owner=s.owner(),bot=s.bot();
   return !s.closing() && owner.isOnline() && owner.isSpawned() && !owner.isDead() && owner.getWorldMapInstance()!=null
    && bot.isPlayerBot() && bot.getPlayerBotOwnerId()==owner.getObjectId() && owner.getPlayerGroup()!=null && bot.getPlayerGroup()==owner.getPlayerGroup()
+   && !PlayerBotSummonPolicy.busy(owner) && !PlayerBotSummonPolicy.busy(bot)
+   && PlayerBotSummonPolicy.partySafe(owner)
    && !owner.getController().isInCombat() && (bot.isDead() || !bot.getController().isInCombat() && bot.getAggroList().stream().findAny().isEmpty());
  }
  static void revive(PlayerBotSession s) {
@@ -31,7 +33,7 @@ public final class PlayerBotRecovery {
   var party=PlayerBotService.getInstance().companions(s.owner());
   if(!WAITING.contains(s.owner().getObjectId()) && (party.isEmpty() || party.stream().anyMatch(member->!member.bot().isDead())))return;
   if(party.stream().anyMatch(member->!ready(member)))return;
-  PlayerBotTravel.summonAll(party);WAITING.remove(s.owner().getObjectId());
+  PlayerBotSummonPolicy.regroup(party);WAITING.remove(s.owner().getObjectId());
   com.aionemu.gameserver.utils.PacketSendUtility.sendMessage(s.owner(),"Your companions have revived and regrouped after the wipe. They are recovering and preparing their builds.");
  }
  public static List<PlayerBotSession> selected(Player owner,String name) {

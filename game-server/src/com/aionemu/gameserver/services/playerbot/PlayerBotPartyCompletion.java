@@ -39,14 +39,13 @@ public final class PlayerBotPartyCompletion {
   try {
    var p=new Properties();p.setProperty("account",Integer.toString(bot.getAccount().getId()));p.setProperty("character",Integer.toString(bot.getObjectId()));
    for(var e:ids.entrySet()){var state=bot.getQuestStateList().getQuestState(e.getKey());if(state!=null && state.getStatus()==QuestStatus.REWARD)p.setProperty("npc."+e.getKey(),Integer.toString(e.getValue()));}
-   java.nio.file.Files.createDirectories(path(bot).getParent());var tmp=java.nio.file.Files.createTempFile(path(bot).getParent(),"party-rewards-",".tmp");
-   try{try(var out=java.nio.file.Files.newOutputStream(tmp)){p.store(out,"Native owner turn-in NPC witnesses for active companion rewards");}try{java.nio.file.Files.move(tmp,path(bot),java.nio.file.StandardCopyOption.REPLACE_EXISTING,java.nio.file.StandardCopyOption.ATOMIC_MOVE);}catch(java.nio.file.AtomicMoveNotSupportedException e){java.nio.file.Files.move(tmp,path(bot),java.nio.file.StandardCopyOption.REPLACE_EXISTING);}}finally{java.nio.file.Files.deleteIfExists(tmp);}
+   PlayerBotMetadata.save(bot.getAccount().getId(),bot.getObjectId(),"party-rewards",p);
   }catch(java.io.IOException error){throw new IllegalStateException("Cannot preserve companion reward NPC",error);}
  }
  static Map<Integer,Integer> load(Player bot) {
-  Map<Integer,Integer> ids=new ConcurrentHashMap<>();if(!java.nio.file.Files.exists(path(bot)))return ids;
-  try(var in=java.nio.file.Files.newInputStream(path(bot))) {
-   var p=new Properties();p.load(in);if(!p.getProperty("account","").equals(Integer.toString(bot.getAccount().getId())) || !p.getProperty("character","").equals(Integer.toString(bot.getObjectId())))throw new IllegalStateException("Companion reward NPC owner mismatch");
+  Map<Integer,Integer> ids=new ConcurrentHashMap<>();
+  try {
+   var p=PlayerBotMetadata.load(bot.getAccount().getId(),bot.getObjectId(),"party-rewards",path(bot));
    for(String key:p.stringPropertyNames())if(key.startsWith("npc.")){int q=Integer.parseInt(key.substring(4));var state=bot.getQuestStateList().getQuestState(q);if(state!=null && state.getStatus()==QuestStatus.REWARD)ids.put(q,Integer.parseInt(p.getProperty(key)));}
    return ids;
   }catch(Exception error){throw new IllegalStateException("Cannot load companion reward NPCs",error);}

@@ -161,13 +161,14 @@ def stage(classes,out,generation_fix=False):
     elif not cached.exists():cached=baseline/'playercommands/Bot.class'
     for file,source in [(files[1],server/files[1] if generation_fix else ROOT/'game-server/data/handlers/playercommands/Bot.java'),(files[2],cached)]:
         target=out/file;target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(source,target)
-    for source in (ROOT/'game-server/config/playerbots/media').glob('bots.*'):
+    for source in (ROOT/'game-server/config/playerbots/media').glob('bots.*') if (server/'config/playerbots/media').is_dir() else []:
         rel='config/playerbots/media/'+source.name;target=out/rel;target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(source,target);files.append(rel)
     # Launcher is retained as part of the cumulative override receipt.
     shutil.copy2(server/'start.bat',out/'start.bat');files.append('start.bat')
     manifest=dict(feature='playerbot-companion-flight-quests-travel-care',generationFix=generation_fix,deployment=str(server),baseJarSha256=sha(base),previousReceipt=receipt_label(previous,server),
         incrementalChangedMethods=[e for e in review if e['methods']],changedMethods=receipt['changedMethods']+[e['path']+': '+method for e in review for method in e['methods']],
         newClasses=sorted(new),rollbackSha256=sha(rollback),continuationReceipts=continuations,files=[dict(path=rel,original=sha(server/rel),installed=sha(out/rel)) for rel in files])
+    if receipt.get('bundledMediaSha256'):manifest['bundledMediaSha256']=receipt['bundledMediaSha256']
     (out/'manifest.json').write_text(json.dumps(manifest,indent=2))
     print('OK: effective installed methods preserved, bounded companion overrides and media staged:',out)
 if __name__=='__main__':

@@ -1,5 +1,5 @@
 -- PB-SCOPE-012A. Apply offline before installing the companion metadata DAO.
--- Legacy care/gear files are imported by the guarded migration tool, never removed.
+-- Guarded migration imports versioned bot settings. Separate DAO-verified retirement archives legacy files.
 CREATE TABLE IF NOT EXISTS playerbot_metadata (
  player_id INT NOT NULL,
  account_id INT NOT NULL,

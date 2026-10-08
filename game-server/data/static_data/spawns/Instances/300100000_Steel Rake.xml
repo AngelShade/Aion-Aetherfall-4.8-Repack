@@ -734,7 +734,7 @@
 		</spawn>
 		<!-- Stigma Amplifier -->
 		<spawn npc_id="281180">
-			<spot x="403.184" y="510.165" z="1076.36" aerial_spawn="true"/>
+			<spot x="403.184" y="510.165" z="1071.736"/>
 		</spawn>
 		<!-- Sturdy Bubukin -->
 		<spawn npc_id="215401">

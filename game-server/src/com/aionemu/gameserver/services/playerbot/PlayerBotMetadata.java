@@ -23,16 +23,28 @@ public final class PlayerBotMetadata {
  static Properties properties(Map<String,String> map){var p=new Properties();p.putAll(map);return p;}
  public static void validate(int account,int character,String section,Map<String,String> map)throws IOException {
   try {
-   if(account<=0 || character<=0 || !Set.of("care","gear").contains(section))throw new IllegalArgumentException("Invalid section/owner");
+   if(account<=0 || character<=0 || !Set.of("care","gear","preferences","behavior","formation","spacing","party-rewards").contains(section))throw new IllegalArgumentException("Invalid section/owner");
    if(Integer.parseInt(map.get("account"))!=account || Integer.parseInt(map.get("character"))!=character)throw new IllegalArgumentException("Owner mismatch");
    if(section.equals("care")) {
     for(String key:List.of("enchant","salvage","partySync"))if(map.containsKey(key) && !Set.of("true","false").contains(map.get(key)))throw new IllegalArgumentException("Invalid care flag");
     for(String key:List.of("reserve","dailyBudget","spent"))if(map.containsKey(key) && Long.parseLong(map.get(key))<0)throw new IllegalArgumentException("Invalid budget");
     ids(map.getOrDefault("skipped",""));ids(map.getOrDefault("approved",""));
     for(var e:map.entrySet())if(e.getKey().startsWith("together.")){if(Integer.parseInt(e.getKey().substring(9))<=0 || Integer.parseInt(e.getValue())<0)throw new IllegalArgumentException("Invalid quest witness");}
-   } else {
+   } else if(section.equals("gear")) {
     PlayerBotGearPolicy.parse(map.get("mode"),map.get("profile"),map.get("quality"),map.get("level"),map.get("threshold"),map.get("weapon"),map.get("vendors"),map.get("rolls"));
     ids(map.getOrDefault("generated",""));for(String slot:map.getOrDefault("starterSlots","").split(","))if(!slot.isBlank() && Long.parseLong(slot)<=0)throw new IllegalArgumentException("Invalid starter slot");
+   } else if(section.equals("preferences")) {
+    PlayerBotRules.Role.valueOf(map.get("role"));
+    for(String flag:List.of("area","supplies","gear","loot","questing"))if(map.containsKey(flag) && !Set.of("true","false").contains(map.get(flag)))throw new IllegalArgumentException("Invalid preference flag");
+    for(String flag:List.of("area","supplies","gear"))if(!map.containsKey(flag))throw new IllegalArgumentException("Missing preference flag");
+   } else if(section.equals("behavior")) {
+    if(!Set.of("true","false").contains(map.getOrDefault("questCombat","true")))throw new IllegalArgumentException("Invalid quest combat flag");
+   } else if(section.equals("formation")) {
+    PlayerBotFormationLayout.parse(map.get("formation"));
+   } else if(section.equals("spacing")) {
+    PlayerBotSpacing.validate(Float.parseFloat(map.get("follow")),Float.parseFloat(map.get("attack")));
+   } else if(section.equals("party-rewards")) {
+    for(var e:map.entrySet())if(e.getKey().startsWith("npc."))if(Integer.parseInt(e.getKey().substring(4))<=0 || Integer.parseInt(e.getValue())<=0)throw new IllegalArgumentException("Invalid reward NPC witness");
    }
   }catch(RuntimeException e){throw new IOException("Invalid bot "+section+" metadata for character "+character,e);}
  }

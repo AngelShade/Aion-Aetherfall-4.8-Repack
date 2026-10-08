@@ -21,10 +21,9 @@ public final class PlayerBotFormationLayout {
     static Path path(int owner) { return Path.of("config", "playerbots", "formation-character-" + owner + ".properties"); }
     static String selected(int account, int owner) {
         Preference preference = PREFERENCES.computeIfAbsent(owner, id -> {
-            Path path = path(id);
-            if (!Files.exists(path)) return new Preference(account, "circle");
-            try (var in = Files.newInputStream(path)) {
-                Properties p = new Properties(); p.load(in);
+            try {
+                Properties p = PlayerBotMetadataConfiguration.load(account,id,"formation",path(id));
+                if (p.isEmpty()) return new Preference(account, "circle");
                 if (Integer.parseInt(p.getProperty("account")) != account || Integer.parseInt(p.getProperty("character")) != id)
                     throw new IOException("Formation settings owner mismatch");
                 return new Preference(account, parse(p.getProperty("formation")));
@@ -40,12 +39,7 @@ public final class PlayerBotFormationLayout {
         p.setProperty("character", Integer.toString(owner)); p.setProperty("formation", formation);
         Path file = path(owner);
         try {
-            Files.createDirectories(file.getParent()); Path tmp = Files.createTempFile(file.getParent(), "formation-", ".tmp");
-            try {
-                try (var out = Files.newOutputStream(tmp)) { p.store(out, "Companion formation around the owner"); }
-                try { Files.move(tmp, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING); }
-                catch (AtomicMoveNotSupportedException e) { Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING); }
-            } finally { Files.deleteIfExists(tmp); }
+            PlayerBotMetadataConfiguration.save(account,owner,"formation",p);
         } catch (IOException e) { throw new IllegalStateException("Cannot save companion formation", e); }
         PREFERENCES.put(owner, new Preference(account, formation));
         return formation;

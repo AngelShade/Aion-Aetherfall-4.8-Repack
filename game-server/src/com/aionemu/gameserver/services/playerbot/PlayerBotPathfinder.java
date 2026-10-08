@@ -32,8 +32,8 @@ final class PlayerBotPathfinder {
 			for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) {
 				if (dx == 0 && dy == 0 || expired.getAsBoolean()) continue;
 				int cx = current.cell().x() + dx, cy = current.cell().y() + dy;
-				if (Math.abs(cx) > 12 || Math.abs(cy) > 12) continue;
-				float x = start.x() + cx * 2, y = start.y() + cy * 2;
+				if (Math.abs(cx) > 24 || Math.abs(cy) > 24) continue;
+				float x = start.x() + cx, y = start.y() + cy;
 				Point point = ground.step(current.point(), x, y);
 				if (!validEdge(current.point(), point, x, y)) continue;
 				Cell cell = new Cell(cx, cy, Math.round(point.z()));

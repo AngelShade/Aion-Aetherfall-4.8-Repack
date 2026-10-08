@@ -28,28 +28,32 @@ public final class PlayerBotFormation {
  static PlayerBotNavigation.Point destination(Player owner,Player bot,int fallback) {
   State s=state(owner,bot,fallback);long now=System.currentTimeMillis();double desired=owner.getHeading()*Math.PI/60;
   synchronized(s){if(!s.initialized){s.angle=desired;s.initialized=true;}else s.angle=turn(s.angle,desired,Math.min(1,(now-s.time)/1000.0));s.time=now;
-   return PlayerBotFormationLayout.destination(owner,bot,s.angle);}
+   var point=PlayerBotFormationLayout.destination(owner,bot,s.angle);
+   PlayerBotFollowIntent.remember(owner,bot,s.angle,point);return point;}
  }
  static boolean needsFollow(Player owner,Player bot,int slot) {
   var point=destination(owner,bot,slot);
   return owner.getMoveController().isInMove() || PositionUtil.getDistance(bot,point.x(),point.y(),point.z())>(bot.getMoveController().isInMove() ? .8 : 1.6);
  }
- static void following(Player owner,Player bot,int slot){state(owner,bot,slot).following=System.currentTimeMillis()+1600;}
+ static void following(Player owner,Player bot,int slot){state(owner,bot,slot).following=System.currentTimeMillis()+PlayerBotFollowIntent.lifetime();}
  public static boolean sendUpdate(Player bot) {State s=STATES.get(bot.getObjectId());if(s==null)return true;long now=System.currentTimeMillis();if(now-s.packet<200)return false;s.packet=now;return true;}
  static double speed(double nativeSpeed,double leaderSpeed,double distance,boolean moving) {
   if(!Double.isFinite(nativeSpeed)||!Double.isFinite(leaderSpeed)||nativeSpeed<=0)return 1;
   double wanted=moving ? Math.max(nativeSpeed,leaderSpeed) : nativeSpeed;
-  if(distance>5)wanted*=Math.min(1.5,1+(distance-5)*.045);
-  return Math.max(1,Math.min(4,wanted/nativeSpeed));
+  if(Double.isFinite(distance) && distance>1)wanted*=Math.min(1.5,1+(distance-1)*.08);
+  // Match the leader before adding bounded recovery speed. A native-speed ratio
+  // cap stranded slower classes even when no slow/root effect was active.
+  return Math.max(1,wanted/nativeSpeed);
  }
  public static double speedMultiplier(Player bot,float x,float y,float z) {
-  State s=STATES.get(bot.getObjectId());if(s==null || s.following<System.currentTimeMillis())return 1;
+  State s=STATES.get(bot.getObjectId());if(s==null || s.following<System.currentTimeMillis() || !PlayerBotFollowIntent.permitsSpeed(bot))return 1;
   Player owner=com.aionemu.gameserver.world.World.getInstance().getPlayer(s.owner);
   if(owner==null || owner.getController().isInCombat() || bot.getController().isInCombat() || !bot.canPerformMove()
    || bot.getEffectController().isUnderFear() || bot.getEffectController().isConfused() || bot.getEffectController().isAbnormalSet(com.aionemu.gameserver.skillengine.effect.AbnormalState.SLOW)
    || owner.getWorldId()!=bot.getWorldId() || owner.getInstanceId()!=bot.getInstanceId() || PositionUtil.getDistance(owner,x,y,z)>20)return 1;
-  return speed(bot.getGameStats().getMovementSpeed().getCurrent()/1000f,owner.getGameStats().getMovementSpeedFloat(),PositionUtil.getDistance(owner,bot),owner.getMoveController().isInMove());
+  var goal=PlayerBotFollowIntent.goal(bot);if(goal==null)return 1;
+  return speed(bot.getGameStats().getMovementSpeed().getCurrent()/1000f,owner.getGameStats().getMovementSpeedFloat(),PositionUtil.getDistance(bot,goal.x(),goal.y(),goal.z()),owner.getMoveController().isInMove());
  }
- static void close(Player bot){STATES.remove(bot.getObjectId());PlayerBotSpacing.close(bot);}
+ static void close(Player bot){STATES.remove(bot.getObjectId());PlayerBotFollowIntent.forget(bot);PlayerBotSpacing.close(bot);}
  private PlayerBotFormation(){}
 }

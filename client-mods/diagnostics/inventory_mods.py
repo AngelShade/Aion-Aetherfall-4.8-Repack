@@ -66,6 +66,13 @@ def main():
     table=pe+24+struct.unpack_from('<H',game,pe+20)[0]
     sections=[struct.unpack_from('<8sIIII',game,table+i*40) for i in range(count)]
     def offset(rva):return next(s[4]+rva-s[2] for s in sections if s[2]<=rva<s[2]+s[3])
+    import window_queue_patch as window_queue
+    yield_bytes=game[offset(window_queue.SITE):offset(window_queue.SITE)+7]
+    queue_installed=yield_bytes!=window_queue.ORIGINAL
+    if queue_installed:
+        expected=b'\xe9'+struct.pack('<i',window_queue.HOOK_RVA-window_queue.SITE-5)+b'\x90\x90'
+        generated=window_queue.code(window_queue.HOOK_RVA,window_queue.COUNTER_RVA)
+        checks['native_window_queue_batching']=yield_bytes==expected and game[offset(window_queue.HOOK_RVA):offset(window_queue.HOOK_RVA)+len(generated)]==generated
     hook_receipts=['RememberLogin-backups/20261003-074802-916/manifest.json','RememberLogin-backups/20261003-190013-967/manifest.json',
                    'SpeechBubbles-backups/menu-revision-20261002-000305-836/manifest.json']
     checks['remember_login_and_speech_hooks']=True
@@ -90,6 +97,42 @@ def main():
         if 'PlayerBotBar.lua' in addon.namelist():
             checks['playerbot_party_bar']=all(name in addon.namelist() for name in ('PlayerBotBar.lua','PlayerBotBar.xml')) and all(name.encode() in addon.read('RelicCalc.toc') for name in ('PlayerBotBar.lua','PlayerBotBar.xml'))
     receipts=[str(p.relative_to(client)) for folder in client.glob('*-backups') if folder.is_dir() for p in folder.glob('*/manifest.json')]
+    # New diagnostic-driven client repairs keep recovery receipts external.
+    client_archive=Path(os.environ.get('AION_DEV_ROOT','D:/Proiecte/Project Restructure/Aion Development Workspace'))/'archives/client'
+    receipts += [str(p.resolve()) for p in client_archive.glob('window-queue-*/manifest.json')]
+    login_receipts=sorted(client_archive.glob('remember-login-return-*/manifest.json'))
+    receipts += [str(p.resolve()) for p in login_receipts]
+    if login_receipts:
+        sys.path.insert(0,str(HERE/'remember-login'))
+        import patch_reset
+        receipt=read(login_receipts[-1]);record=receipt['hook']
+        expected=b'\xe9'+struct.pack('<i',record['hook']-record['site']-5)+b'\x90'
+        generated=patch_reset.code(record['iat'],record['hook'])
+        login_dll=next(e for e in receipt['files'] if e['path']=='bin64/AionRememberLogin.dll')
+        checks['remember_login_reset_and_notice_repair']=(
+            receipt['feature'] in ('remember-login-return-v2','remember-login-reconnect-v3') and Path(receipt['clientRoot']).resolve()==client
+            and record['site']==patch_reset.SITE and record['hook'] in (patch_reset.HOOK,patch_reset.SAFE_HOOK)
+            and game[offset(record['site']):offset(record['site'])+len(expected)]==expected
+            and game[offset(record['hook']):offset(record['hook'])+len(generated)]==generated
+            and sha(client/login_dll['path'])==login_dll['staged'])
+        if receipt['feature']=='remember-login-reconnect-v3':
+            from patch_binary import layout as reset_layout,offset as reset_offset
+            restore=receipt['graphicsCompatibility']['resetRestoreHooks']
+            cursor_record=next(e for e in dxvk['nativeCursorPatch']['files'] if e['path']=='bin64/Game.dll')
+            images=[(game,record),((Path(graphics['backupRoot'])/'bin64/Game.dll').read_bytes(),restore['graphics']),
+                    (Path(cursor_record['backupPath']).read_bytes(),restore['cursor'])]
+            checks['remember_login_reset_storage_safe']=True
+            for data,hook in images:
+                sections=reset_layout(data)[-1];section=next(s for s in sections if s[0].rstrip(b'\0')==b'.rreturn')
+                pos=reset_offset(sections,hook['hook']);expected=patch_reset.code(hook['iat'],hook['hook'])
+                site=reset_offset(sections,hook['site']);entry=b'\xe9'+struct.pack('<i',hook['hook']-hook['site']-5)+b'\x90'
+                import_name=struct.unpack_from('<Q',data,reset_offset(sections,hook['iat']))[0]
+                name=reset_offset(sections,import_name)+2
+                checks['remember_login_reset_storage_safe'] &= (
+                    section[2]<=hook['hook'] and hook['hook']+len(expected)<=section[2]+section[1]
+                    and data[pos:pos+len(expected)]==expected and data[site:site+6]==entry
+                    and data[name:name+len(b'AionRememberVisibility\0')]==b'AionRememberVisibility\0'
+                    and data[patch_reset.HOOK:patch_reset.HOOK+hook['size']]==bytes(hook['size']))
     archive_root=Path(os.environ.get('AION_DEV_ROOT','D:/Proiecte/Project Restructure/Aion Development Workspace'))/'archives/server/game-server/backups'
     server_receipts=[str(p.relative_to(server)) for p in (server/'backups').glob('*/manifest.json')]
     server_receipts += [str(p.resolve()) for p in archive_root.glob('*/manifest.json')]
@@ -114,7 +157,7 @@ def main():
             for entry in ui['files']:
                 # Only apply UI receipts based on the current cumulative override's media.
                 if ui_path.parent.name.removeprefix('playerbots-ui-') < override_receipts[-1].parent.name.removeprefix('playerbots-recruitment-'):continue
-                assert entry['original']==effective[entry['path']], 'Companion UI receipt baseline differs'
+                assert entry['path'] in effective and entry['original']==effective[entry['path']], 'Companion UI receipt baseline differs; bundled UI needs a reviewed JAR update'
                 assert sha(ui_path.parent/entry['path'])==entry['original'], 'Companion UI backup differs'
                 effective[entry['path']]=entry['installed']
 
@@ -146,6 +189,9 @@ def main():
 
         checks['recruitment_override_and_launcher']=sha(jar)==latest['baseJarSha256'] and sha(override)==expected_override and all(sha(server/path)==digest for path,digest in effective.items() if path!='libs/playerbot-recruitment-fix.jar')
         checks['recruitment_override_and_launcher'] &= b'-cp "libs/playerbot-recruitment-fix.jar;libs/*"' in (server/'start.bat').read_bytes()
+        if latest.get('bundledMediaSha256'):
+            with zipfile.ZipFile(override) as archive:
+                checks['playerbot_bundled_interface'] = all(hashlib.sha256(archive.read('playerbots/media/'+name)).hexdigest()==digest for name,digest in latest['bundledMediaSha256'].items())
         receipt_path=override_receipts[-1]
         receipt_label=str(receipt_path.relative_to(server)) if receipt_path.is_relative_to(server) else str(receipt_path)
         overrides.append(dict(path='libs/playerbot-recruitment-fix.jar',sha256=sha(override),receipt=receipt_label,changedMethods=latest['changedMethods']))
@@ -156,7 +202,7 @@ def main():
             key,value=map(str.strip,line.split('=',1))
             if any(word in key for word in ['inventory.unified','warehouse.expanded','poeta.journey','playerbot','central.market.simulation','broker.market']):configs[key]=value
     report=dict(checkedAt=datetime.now(timezone.utc).isoformat(),clientRoot=str(client),serverRoot=str(server),
-        checks=checks,clientFiles=[dict(path=rel,sha256=sha(client/rel)) for rel in live_paths],
+        checks=checks,customWindowQueueBatchingInstalled=queue_installed,clientFiles=[dict(path=rel,sha256=sha(client/rel)) for rel in live_paths],
         clientReceipts=sorted(receipts),serverReceipts=sorted(server_receipts),deployedConfig=configs,
         serverJarSha256=sha(jar),serverClassOverrides=overrides,serverLauncherSha256=sha(server/'start.bat'),graphicsBackup=graphics['backupRoot'],
         limitations=['Hashes/layouts/hooks do not establish live gameplay acceptance.',

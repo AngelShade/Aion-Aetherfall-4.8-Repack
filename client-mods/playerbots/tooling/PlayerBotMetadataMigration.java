@@ -14,14 +14,15 @@ import com.aionemu.gameserver.services.playerbot.PlayerBotMetadata;
 public final class PlayerBotMetadataMigration {
  record Legacy(Path path,int account,int character,String section,Properties values) {}
  static List<Legacy> read(Path server)throws Exception {
-  var rows=new ArrayList<Legacy>();var pattern=Pattern.compile("(care|gear)-character-([0-9]+)\\.properties");
+  var rows=new ArrayList<Legacy>();var pattern=Pattern.compile("(?:(care|gear|behavior|formation|spacing|party-rewards)-)?character-([0-9]+)\\.properties");
   try(var paths=Files.list(server.resolve("config/playerbots"))) {
    for(var path:paths.sorted().toList()) {
     var match=pattern.matcher(path.getFileName().toString());if(!match.matches())continue;
     Properties p=new Properties();try(var in=Files.newInputStream(path)){p.load(in);}
     int account=Integer.parseInt(p.getProperty("account")),character=Integer.parseInt(match.group(2));
     var values=new HashMap<String,String>();for(String key:p.stringPropertyNames())values.put(key,p.getProperty(key));
-    PlayerBotMetadata.validate(account,character,match.group(1),values);rows.add(new Legacy(path,account,character,match.group(1),p));
+    String section=match.group(1)==null?"preferences":match.group(1);
+    PlayerBotMetadata.validate(account,character,section,values);rows.add(new Legacy(path,account,character,section,p));
    }
   }
   return rows;
@@ -34,7 +35,7 @@ public final class PlayerBotMetadataMigration {
   if(args.length!=4 || !Set.of("files","verify","apply").contains(args[0]))throw new IllegalArgumentException("mode,server,schema,report required");
   boolean apply=args[0].equals("apply");Path server=Path.of(args[1]).toAbsolutePath(),schema=Path.of(args[2]),report=Path.of(args[3]);
   var legacy=read(server);
-  if(args[0].equals("files")){Files.writeString(report,"OK: "+legacy.size()+" legacy care/gear files parsed and validated; no database connection or file replacement\n");System.out.println("OK: "+legacy.size()+" legacy files validated offline; no database connection");return;}
+  if(args[0].equals("files")){Files.writeString(report,"OK: "+legacy.size()+" legacy bot settings files parsed and validated; no database connection or file replacement\n");System.out.println("OK: "+legacy.size()+" legacy files validated offline; no database connection");return;}
   // Do not let the pool's diagnostic configuration print connection credentials.
   ((ch.qos.logback.classic.Logger)org.slf4j.LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME)).setLevel(ch.qos.logback.classic.Level.OFF);
   Properties config=PropertiesUtils.load(server.resolve("config/network/database.properties").toString());

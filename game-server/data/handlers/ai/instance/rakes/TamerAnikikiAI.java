@@ -83,7 +83,10 @@ public class TamerAnikikiAI extends GeneralNpcAI {
 
 				@Override
 				public void run() {
-					SkillEngine.getInstance().getSkill(getOwner(), 18189, 20, getOwner()).useNoAnimationSkill();
+					if(!getOwner().isSpawned() || isDead())return;
+     Npc boss=getPosition().getWorldMapInstance().getNpc(219033);
+     if(boss==null || boss.isDead())return;
+     SkillEngine.getInstance().getSkill(getOwner(), 18189, 20, getOwner()).useNoAnimationSkill();
 				}
 
 			}, 5000);

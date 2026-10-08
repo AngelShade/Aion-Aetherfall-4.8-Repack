@@ -95,7 +95,10 @@ It transplants **eight methods in six existing definitions**, adds six DAO/cache
 definitions and preserves **141 other cumulative entries byte-identically**.
 Original schemas/synthetics, client files, command/media, launcher and base JAR
 are retained. This preserves prior installed `081522-429924` and every mod; the
-appearance/follow packages remain staged/source-only, not installed incidentally.
+appearance remains staged/source-only. Follow recovery receipt
+`playerbots-recruitment-20261007-170333-991220` was rejected and restored in
+`171732-465446`; the complete metadata baseline survives. Generic navigation is
+tracked separately as [PB-REPAIR-NAV-002](PLAYERBOTS_NAVIGATION_20261007.md).
 
 External receipt discovery was added to the stager/inventory/audit tools so future
 updates can preserve externally archived installations. This is a necessary
@@ -141,3 +144,77 @@ storage/lifecycle adapters. This slice migrates the two hot care/gear namespaces
 it does not claim all bot files or upstream repository features are complete.
 PB-PORT-005B remains the separate next class slice. Further repository namespaces
 can follow independently; this native persistence slice is now installed.
+
+## Legacy file retirement completed — 7 October 2026
+
+The user requested removing the per-character files. The bounded cleanup for the
+already migrated `care-character-*` and `gear-character-*` namespaces is implemented
+in `client-mods/playerbots/retire_metadata_files_offline.py`. Its native read-only
+DAO preflight verifies each file has valid character/account-owned database state,
+archives and hash-verifies the exact files externally, then removes only those
+files with Windows handles excluding readers/writers throughout deletion. Default
+execution requires GameServer/client off. Other settings/media and the deployed JAR
+must remain unchanged. A missing DB row refuses retirement; authoritative DB
+values are never replaced from an old file.
+
+The user explicitly authorized **this time only**, removing files while services
+run if unused. All 32 files passed Windows read/write exclusion guards; all 32 had
+valid native owned DB rows. Seven DB snapshots had advanced from the stale files
+during gameplay; authoritative DB values were retained, with no DB writes.
+**32 legacy files removed**, 61 other settings/media files and the deployed JAR
+unchanged. All 16 installed-mod checks/31 client hashes pass; inventory records
+70 client/90 server historical receipts. No stop/start/restart/attach occurred.
+This narrow exception does not grant future running-server changes.
+
+Recovery archive (all 32 files hash-verified before removal):
+`D:/Proiecte/Project Restructure/Aion Development Workspace/archives/server/game-server/backups/playerbots-legacy-settings-cleanup-20261007-182907-195194`.
+Evidence is external `diagnostics/playerbots-metadata-retirement`. The previous
+32-row/zero-difference readiness report predates later gameplay saves. Default
+future cleanup remains offline and must refresh process/file/DB state.
+
+**Remaining PB-SCOPE-012A creation-path gap:** `PlayerBotTemporary.persistCreation`
+still writes generated gear provenance to a legacy gear file before recruitment.
+The migrated session care/gear serializers do not write files, but new Temporary
+Bot creation can recreate a gear file. Port that initialization/checkpoint
+dependency separately before claiming the namespace completely file-free. This
+new evidence does not undo the installed session migration or require re-porting
+its verified methods. Do not remove active preferences, behavior/formation/spacing,
+party reward witnesses, saved parties or removed-roster records until each native
+database/lifecycle adapter preserves its state.
+
+
+## Current continuation — PB-SCOPE-012B installed and 52 files retired
+
+On the user's remaining-file report, preferences (17), behavior (13), spacing (7),
+formation (2) and reward witnesses (13) moved to native MetadataDAO persistence.
+All 52 rows imported and verified exactly from a separate read-only connection;
+all 52 originals archived/hash-verified then removed offline. Nine media/preset/
+removal files remain unchanged. Current cumulative receipt is `191742-640906`,
+cleanup `191828-971151`; override SHA-256 `83a3143148a2e3a8f5b28894742399db05f8c302111990df41b2adf99b2dc978`.
+The complete navigation repair and other mods survive (152 prior entries identical).
+Eleven existing methods/six definitions changed, one helper added. Full compile,
+35 existing metadata/31 preference checks, 16 mod checks/31 client hashes pass;
+inventory 70 client/93 server receipts. GameServer/client remain off; no lifecycle
+action or live attach occurred. Actual settings/reward/restart acceptance remains
+PB-VAL-011; door/room acceptance remains PB-VAL-005. PB-PORT-005B stays next class
+slice; Temporary creation gear-file gap PB-SCOPE-012A-R1 remains separate/open.
+See [remaining preference namespaces and evidence](PLAYERBOTS_METADATA_PREFERENCES_20261007.md).
+
+
+## Current continuation — PB-SCOPE-012C repository installed, runtime folders retired
+
+Two saved-party documents and four removal markers now use native account/roster
+repository tables; three UI files are bundled unchanged in the cumulative JAR.
+Six exact native owned rows imported/verified read-only, nine originals externally
+archived/hash-verified and retired; saved-parties/removed/media folders are absent,
+runtime config/playerbots is empty. Creation gap PB-SCOPE-012A-R1 is also repaired:
+pre-row generated provenance queues into the first native inventory checkpoint.
+Current cumulative receipt `193213-430087`, SHA-256
+`4a65e21ca22fff63a2d1cbbf7d0472bbb314894994045ceba5264894581de69b`.
+Eight existing methods/five definitions changed; 154 prior entries byte-identical.
+Full compile/24 repository/10 creation checks and 17 mod checks/31 client hashes
+pass. Native read-only production loaders pass for both accounts/four removed
+roster entries. Inventory: 70 client/94 server receipts. Server/client remained
+off, no attach or lifecycle action. Actual preset/remove/UI/new-creation/restart
+acceptance remains with user; PB-PORT-005B stays next independent class slice.
+See [native repository and packaged interface](PLAYERBOTS_REPOSITORY_20261007.md).

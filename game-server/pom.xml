@@ -21,6 +21,13 @@
 	<build>
 		<sourceDirectory>src</sourceDirectory>
 		<testSourceDirectory>test</testSourceDirectory>
+		<resources>
+			<resource>
+				<directory>config/playerbots/media</directory>
+				<targetPath>playerbots/media</targetPath>
+				<includes><include>bots.html</include><include>bots.css</include><include>bots.js</include></includes>
+			</resource>
+		</resources>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

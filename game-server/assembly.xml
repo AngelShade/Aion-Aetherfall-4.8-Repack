@@ -13,6 +13,7 @@
 			</includes>
 			<excludes>
 				<exclude>config/mygs.properties</exclude>
+					<exclude>config/playerbots/media/**</exclude>
 			</excludes>
 		</fileSet>
 		<fileSet>

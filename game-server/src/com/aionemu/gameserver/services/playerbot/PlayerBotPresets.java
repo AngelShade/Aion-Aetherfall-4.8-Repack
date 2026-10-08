@@ -36,27 +36,10 @@ public final class PlayerBotPresets {
   Store(Path directory){this.directory=directory.toAbsolutePath().normalize();}
   private Path path(int account){if(account<=0)throw new IllegalArgumentException("Invalid account.");return directory.resolve("account-"+account+".json");}
   synchronized Document load(int account)throws IOException {
-   Path path=path(account);if(!Files.exists(path))return new Document(account,Set.of(),List.of());
-   try {
-    if(Files.size(path)>524288)throw new IllegalArgumentException("Saved party file is too large.");
-    var json=JSON.parseObject(Files.readString(path));if(json.getIntValue("version")!=1 || json.getIntValue("account")!=account)throw new IllegalArgumentException("Saved party ownership/version mismatch.");
-    var saved=new HashSet<Integer>();for(Object id:json.getJSONArray("saved"))saved.add(Integer.parseInt(id.toString()));
-    var presets=new ArrayList<Preset>();for(Object row:json.getJSONArray("presets")) {
-     var preset=(JSONObject)row;var members=new ArrayList<Member>();for(Object raw:preset.getJSONArray("members")) {
-      var m=(JSONObject)raw;String flag=m.getString("temporary");if(!"true".equals(flag) && !"false".equals(flag))throw new IllegalArgumentException("Invalid companion kind.");
-      members.add(new Member(m.getIntValue("id"),m.getString("name"),Boolean.parseBoolean(flag),Role.valueOf(m.getString("role")),Order.valueOf(m.getString("order"))));
-     }
-     presets.add(new Preset(preset.getString("id"),preset.getString("name"),members));
-    }
-    return PlayerBotRosterRemoval.prune(new Document(account,saved,presets));
-   }catch(RuntimeException e){throw new IOException("Saved parties could not be read; existing data was preserved.",e);}
+   return PlayerBotRepository.load(account);
   }
   synchronized void write(Document document)throws IOException {
-   Path target=path(document.account());Files.createDirectories(directory);Path temporary=Files.createTempFile(directory,"party-",".tmp");
-   try {
-    Files.writeString(temporary,JSON.toJSONString(Map.of("version",1,"account",document.account(),"saved",new TreeSet<>(document.saved()),"presets",document.presets()),JSONWriter.Feature.PrettyFormat));
-    try{Files.move(temporary,target,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);}catch(AtomicMoveNotSupportedException e){Files.move(temporary,target,StandardCopyOption.REPLACE_EXISTING);}
-   }finally{Files.deleteIfExists(temporary);}
+   PlayerBotRepository.save(document);
   }
   synchronized void saveBot(int account,int id)throws IOException {var doc=load(account);var saved=new HashSet<>(doc.saved());saved.add(id);write(new Document(account,saved,doc.presets()));}
   synchronized Preset saveParty(int account,String name,List<Member> members)throws IOException {

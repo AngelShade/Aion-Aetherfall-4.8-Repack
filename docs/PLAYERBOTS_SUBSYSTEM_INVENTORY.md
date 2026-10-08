@@ -30,7 +30,7 @@ saved parties, optional spending and future PvP) remain separate from upstream p
 | PB-PORT-009 | Item usage, loot rights/rolls, bag pressure, selling/buying/repair; `ItemUsageValue.cpp`, `Loot*`, `SellAction.cpp`, `RepairAllAction.cpp` | Players already have native cubes/equipment; decisions/services partial, protection/custody installed | Useful-item categories and native service adapter gate. Having inventory is not autonomous management or trade. |
 | PB-PORT-010 | Player/random factories, talents, skills, BiS/stat weights, level maintenance; `src/Bot/Factory`, `src/Mgr/Talent`, `src/Mgr/Item` | Temporary native skills/Stigmas/legal gear/ten-level tiers installed; optimized coherent profiles partial | 005/009; no automatic overwrite of owned-alt gear/build/Stigmas. WoW talents/glyphs have no literal equivalent. |
 | PB-PORT-011 | Shared travel/quest/service/grind destination planning; `TravelMgr`, `TravelNode`, `ChooseTravelTargetAction.cpp`, `src/Ai/World` | Shared nearby native quest arbitration installed; world graph/services/route planner absent | Native destination graph and handler gates; owner leash applies to companions, independent bots need different context. |
-| PB-PORT-012 | Local pathing/reach/flank/kite/flee/transport, travel skills, death/release/corpse; `MovementActions.cpp`, `FleeManager`, `DeadStrategy.cpp`, `TaxiAction.cpp`, `VehicleActions.cpp` | Follow/flight/formations/teleport/whole-party instance and revive adapters installed; remaining escape/transport/travel skills partial | Aion geodata/flight/teleport/resurrection services, not WoW MotionMaster/opcodes or ghost corpse rules. |
+| PB-PORT-012 | Local pathing/reach/flank/kite/flee/transport, travel skills, death/release/corpse; `MovementActions.cpp`, `FleeManager`, `DeadStrategy.cpp`, `TaxiAction.cpp`, `VehicleActions.cpp` | Follow/flight/formations/whole-party instance and revive adapters installed. PB-REPAIR-NAV-002 generic dynamic-door/floor movement and follow-prefix progress installed offline through `190312-034119`; user confirms opened-door crossing solved. PB-REPAIR-NAV-003 shared physical-see-through floor support installed offline (`224940-884362`); exact Central Engine Room mesh reproduction corrected, actual new-room gameplay pending. Rejected FollowRecovery teleport removed. PB-REPAIR-FORMATION-002 continuous direct follow intent/speed/priority and PB-CONFIG-001 summon controls installed offline (`062930-344543`), 679 checks; user movement/summon acceptance pending. Room/combat/party acceptance pending; remaining escape/transport/travel skills partial | Aion geodata/flight/teleport/resurrection services, not WoW MotionMaster/opcodes or ghost corpse rules. |
 | PB-PORT-001/002/003 | Class final gates; individual/group quest acceptance/reports/object use/rewards/drop; `QuestAction.cpp`, `ChooseTravelTargetAction.cpp`, class strategies | Corrections and shared local execution installed/offline verified | Actual server/client acceptance is PB-VAL, not a reason to re-port these adapters. |
 | PB-SCOPE-001 | Autonomous population/account pool/login/logout/activity/level scheduling; `RandomPlayerbotMgr.h`, `RandomBotLevelMgr`, random factory/config | **Absent** independent lifecycle; current PlayerBotService requires owner and party | Build native autonomous session context/population lifecycle first; local activities can reuse combat, world roaming later uses 011. Manager implementation source gate. |
 | PB-SCOPE-002 | Native invite/leave/leader/control changes; `AcceptInvitationAction.cpp`, `InviteToGroupAction.cpp`, `LeaveGroupAction.cpp`, `PlayerbotMgr.h` | **Absent** world-bot invitations/control transfer; owned recruitment/groups/presets are installed | Invitation reads security, accepts through native handler, sets inviter as master for random bot, resets strategies/follows/summons. Needs 001 for world bots, not complete rotations. |
@@ -38,12 +38,12 @@ saved parties, optional spending and future PvP) remain separate from upstream p
 | PB-SCOPE-004 | Bank, guild bank, mail and item economy; `BankAction.cpp`, `GuildBankAction.cpp`, `MailAction.cpp`, `SendMailAction.cpp`, `src/Mgr/Item` | Native warehouses/mail and item service decisions **absent** | 009 useful-item/service rules and exact service source gate; retain shared storage custody. No separate auction action was established by this tree/reference pass; do not promise an upstream auction port without source evidence. |
 | PB-SCOPE-005 | Crafting, professions, gathering/reveal/fishing/training; `SetCraftAction.cpp`, `TrainerAction.cpp`, `LootNonCombatStrategy.cpp`, `RpgSubActions.cpp` | Aion crafting/extraction/gathering/skill learning equivalents; automatic companion skill maintenance partial, professions **absent** | Native recipe/material/skill/services and source gates. WoW fishing bobber is not a proven Aion 4.8 feature; leave N/A mapping unresolved explicitly. |
 | PB-SCOPE-006 | Independent RPG NPC/service/rest/social/wander choices and grind XP; `src/Ai/World/Rpg`, `GrindingStrategy.cpp`, `RpgSubActions.cpp` | Owner quest missions/local services partial; independent activity state machine **absent** | 001 local context first, 011 destination graph for travel; no fictitious world activity completion. |
-| PB-SCOPE-007 | Dungeon and raid encounter strategies/actions/triggers/values; `src/Ai/Dungeon`, `src/Ai/Raid`, dungeon repository | Aion hazard/encounter coordination and several boss adapters installed; broad encounter library **partial** | Exact Aion encounter mechanics + class/role coordination; WoW boss scripts cannot be copied. Native alliance topology is a separate adapter. |
+| PB-SCOPE-007 | Dungeon and raid encounter strategies/actions/triggers/values; `src/Ai/Dungeon`, `src/Ai/Raid`, dungeon repository | Aion hazard/encounter coordination and several boss adapters installed; PB-SCOPE-007A-R1 original Steel Rake tower/staircase/amplifier/root/pull-blast and gunner-pause behavior installed offline (`20261008-061243-633233`), original comments retained; gameplay and exact retail capture evidence pending; broad encounter library **partial** | Native Aion encounter assets + class/role coordination; WoW boss scripts cannot be copied. Native alliance topology is a separate adapter. |
 | PB-SCOPE-008 | LFG/matchmaking/queues/ready groups; `LfgStrategy.cpp`, `LfgActions.cpp`, config and manager | Companion native group placement installed; autonomous queue/group formation **absent** | 001/002 and native matching service contract; no need to finish every dungeon strategy before queue decisions. |
 | PB-SCOPE-009 | Guild/task/petition/arena-team social lifecycle; `src/Mgr/Guild`, `Guild*Action.cpp`, `PetitionSignAction.cpp`, `ArenaTeamActions.cpp` | Native legion equivalent; autonomous decisions **absent** | Native legion authorization/persistence + source gate. WoW arena-team organization is not a direct legion equivalent. |
 | PB-SCOPE-010 | Battleground/arena/outdoor PvP/duels/enemy players; `BattlegroundStrategy.cpp`, `DuelStrategy.cpp`, `BattleGroundTactics.cpp`, `NewRpgOutdoorPvP.cpp` | Dedicated PvP AI **deferred by user policy**, native PvE targeting retained | Later native faction/arena/fortress mechanics and source review. Must not restore recruitment PvP/location/flight blockers. |
 | PB-SCOPE-011 | Commands/chat shortcuts/filters/security/tells/emotes/strategy editing; `src/Bot/Cmd`, `ChatCommandHandlerStrategy.cpp`, `ChangeStrategyAction.cpp`, `PlayerbotSecurity`, `PlayerbotTextMgr` | Native .bot/HTTP/menu/party commands and account ownership installed; full vocabulary/editor/security/social replies **partial** | Native authorized command routes; strategy editing/persistence is separate from engine composition. No literal WoW command/parser expectation. |
-| PB-SCOPE-012 | External packet/event observers, values/cache, world-thread scheduling, repositories, save/reset/debug/performance | `src/Bot/Engine/WorldPacket`, `AiObjectContext`, `src/Script/WorldThr`, `src/Db`, `src/Bot/Debug`, `src/Util` | Native headless lifecycle/tasks/handler adapters/settings/presets installed; care/gear native metadata repository PB-SCOPE-012A installed/offline verified with 32 committed imported rows; user gameplay PB-VAL-011 pending; independent context/event/value lifecycle and diagnostics **partial** | Needed incrementally per subsystem; never emulate WoW session opcodes or call a disconnected helper “ported.” |
+| PB-SCOPE-012 | External packet/event observers, values/cache, world-thread scheduling, repositories, save/reset/debug/performance | `src/Bot/Engine/WorldPacket`, `AiObjectContext`, `src/Script/WorldThr`, `src/Db`, `src/Bot/Debug`, `src/Util` | Native headless lifecycle/tasks/handler adapters/settings/presets installed; care/gear plus preferences/behavior/spacing/formation/reward-witness native repository PB-SCOPE-012A/012B installed/offline verified; 32 initial plus 52 further imports, 84 legacy property files plus six JSON documents retired; account presets/roster markers use native repositories and UI is bundled; creation provenance uses first checkpoint. User gameplay PB-VAL-011 pending; independent context/event/value lifecycle and diagnostics **partial** | Needed incrementally per subsystem; never emulate WoW session opcodes or call a disconnected helper “ported.” |
 | PB-SCOPE-013 | Mount/home/meeting-stone/vehicles/racials/reputation/world buffs/outfits/custom cheats | `CheckMountStateAction.cpp`, `SetHomeAction.cpp`, `UseMeetingStoneAction.cpp`, `VehicleActions.cpp`, `RacialsStrategy.cpp`, `WorldBuffAction.cpp`, `OutfitAction.cpp`, `CheatAction.cpp` | Native flight/teleports/supplies/appearance partial. Companion transmog PB-CUSTOM-APPEARANCE-001 has a corrected source/staged package reviewed 7 October, uninstalled; no live update. Upstream `OutfitAction.cpp` remains a source gate. | Native mount/bind point/effect/appearance where present; WoW-only racials, world-buff schedules, glyphs, meeting stones and vehicle seats not blindly ported. Cheats are explicit policy, not ordinary behavior. |
 
 ## Ordered next work and independent tracks
@@ -126,5 +126,42 @@ See [native metadata port](PLAYERBOTS_METADATA_20261007.md). PB-VAL-011 migratio
 disk installation are complete; actual care/gear/supplies/trade checkpoints,
 failure/retry and dismissal/resummon/restart gameplay acceptance remain the user's
 tests. PB-PORT-005B Spiritmaster is the next separate class implementation. Other
-repository namespaces and the full port remain partial. Appearance/follow packages
-remain source/staged only and must be restaged against this receipt before install.
+repository namespaces and the full port remain partial. Appearance remains
+source/staged only and must be restaged against the current receipt before install.
+
+
+## Current continuation — PB-SCOPE-012B installed and 52 files retired
+
+On the user's remaining-file report, preferences (17), behavior (13), spacing (7),
+formation (2) and reward witnesses (13) moved to native MetadataDAO persistence.
+All 52 rows imported and verified exactly from a separate read-only connection;
+all 52 originals archived/hash-verified then removed offline. Nine media/preset/
+removal files remain unchanged. Current cumulative receipt is `191742-640906`,
+cleanup `191828-971151`; override SHA-256 `83a3143148a2e3a8f5b28894742399db05f8c302111990df41b2adf99b2dc978`.
+The complete navigation repair and other mods survive (152 prior entries identical).
+Eleven existing methods/six definitions changed, one helper added. Full compile,
+35 existing metadata/31 preference checks, 16 mod checks/31 client hashes pass;
+inventory 70 client/93 server receipts. GameServer/client remain off; no lifecycle
+action or live attach occurred. Actual settings/reward/restart acceptance remains
+PB-VAL-011; door/room acceptance remains PB-VAL-005. PB-PORT-005B stays next class
+slice; Temporary creation gear-file gap PB-SCOPE-012A-R1 remains separate/open.
+See [remaining preference namespaces and evidence](PLAYERBOTS_METADATA_PREFERENCES_20261007.md).
+
+
+## Current continuation — PB-SCOPE-012C repository installed, runtime folders retired
+
+Two saved-party documents and four removal markers now use native account/roster
+repository tables; three UI files are bundled unchanged in the cumulative JAR.
+Six exact native owned rows imported/verified read-only, nine originals externally
+archived/hash-verified and retired; saved-parties/removed/media folders are absent,
+runtime config/playerbots is empty. Creation gap PB-SCOPE-012A-R1 is also repaired:
+pre-row generated provenance queues into the first native inventory checkpoint.
+Current cumulative receipt `193213-430087`, SHA-256
+`4a65e21ca22fff63a2d1cbbf7d0472bbb314894994045ceba5264894581de69b`.
+Eight existing methods/five definitions changed; 154 prior entries byte-identical.
+Full compile/24 repository/10 creation checks and 17 mod checks/31 client hashes
+pass. Native read-only production loaders pass for both accounts/four removed
+roster entries. Inventory: 70 client/94 server receipts. Server/client remained
+off, no attach or lifecycle action. Actual preset/remove/UI/new-creation/restart
+acceptance remains with user; PB-PORT-005B stays next independent class slice.
+See [native repository and packaged interface](PLAYERBOTS_REPOSITORY_20261007.md).

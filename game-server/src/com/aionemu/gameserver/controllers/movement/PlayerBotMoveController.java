@@ -40,23 +40,51 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 	}
 
 	private void moveStep() {
-		if (failed) return;
+		// Removal from the shared scheduler does not revoke its current snapshot.
+		// A queued step after stop/cast must not emit native movement callbacks:
+		// PlayerController.onStopMove and skill movement observers cancel casts.
+		if (failed || !started.get() || !isInMove() || owner.isCasting()) return;
 		if (!owner.isSpawned() || owner.isDead() || !owner.canPerformMove()) {
 			abortMove();
 			return;
 		}
 		long now=System.currentTimeMillis(),elapsed=Math.max(0,Math.min(1000,now-lastMoveUpdate));
+		com.aionemu.gameserver.services.playerbot.PlayerBotFollowIntent.refresh(owner);
 		com.aionemu.gameserver.services.playerbot.PlayerBotFollowSpeed.update(owner,targetDestX,targetDestY,targetDestZ);
 		lastMoveUpdate=now-elapsed;
-		super.moveToDestination();
+		if (owner.isFlying()) super.moveToDestination();
+		else {
+			// Native player interpolation is a straight XYZ line supplied by a client.
+			// Headless bots must follow the floor and recheck dynamic obstacles at every movement tick.
+			double distance = Math.hypot(targetDestX-owner.getX(), targetDestY-owner.getY());
+			if (distance < 0.01) {
+				if (!com.aionemu.gameserver.services.playerbot.PlayerBotFollowIntent.active(owner)) abortMove();
+				else updateLastMove();
+				return;
+			}
+			float speed = com.aionemu.gameserver.utils.stats.StatFunctions.adjustStatByMovementModifier(owner,
+				com.aionemu.gameserver.model.stats.container.StatEnum.SPEED, owner.getGameStats().getMovementSpeedFloat());
+			double fraction = Math.min(1, speed*elapsed/1000.0/distance);
+			if (fraction <= 0) { updateLastMove(); return; }
+			float x = owner.getX()+(float)((targetDestX-owner.getX())*fraction);
+			float y = owner.getY()+(float)((targetDestY-owner.getY())*fraction);
+			var ground = com.aionemu.gameserver.world.geo.GeoService.getInstance().findGroundMovementCollision(
+				owner.getWorldId(),owner.getInstanceId(),owner.getX(),owner.getY(),owner.getZ(),x,y);
+			if (ground == null || !Float.isFinite(ground.x) || !Float.isFinite(ground.y) || !Float.isFinite(ground.z)
+				|| Math.hypot(ground.x-owner.getX(),ground.y-owner.getY()) < 0.001) { abortMove(); return; }
+			com.aionemu.gameserver.world.World.getInstance().updatePosition(owner,ground.x,ground.y,ground.z,heading,false);
+			updateLastMove();
+		}
 		owner.getKnownList().update();
 		owner.getController().onMove();
-		if (PositionUtil.getDistance(owner, targetDestX, targetDestY, targetDestZ) < 0.3)
+		if (PositionUtil.getDistance(owner, targetDestX, targetDestY, targetDestZ) < 0.3
+			&& !com.aionemu.gameserver.services.playerbot.PlayerBotFollowIntent.active(owner))
 			abortMove();
 	}
 
 	@Override
 	public synchronized void abortMove() {
+		com.aionemu.gameserver.services.playerbot.PlayerBotFollowIntent.clear(owner);
 		boolean wasMoving = isInMove();
 		if (wasMoving || started.get()) super.abortMove();
 		com.aionemu.gameserver.services.playerbot.PlayerBotFollowSpeed.close(owner);

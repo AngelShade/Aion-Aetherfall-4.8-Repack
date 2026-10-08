@@ -39,11 +39,10 @@ public final class PlayerBotTemporary {
  private static void persistCreation(Player player,State state){
   java.nio.file.Path path=java.nio.file.Path.of("config/playerbots/gear-character-"+player.getObjectId()+".properties");var p=new Properties();
   try{
-   if(java.nio.file.Files.exists(path))try(var in=java.nio.file.Files.newInputStream(path)){p.load(in);}
    p.putIfAbsent("account",Integer.toString(player.getAccount().getId()));p.putIfAbsent("character",Integer.toString(player.getObjectId()));
    var s=PlayerBotGearPolicy.DEFAULT;String[] keys={"mode","profile","quality","level","threshold","weapon","vendors","rolls","starterSlots"};String[] values={s.mode().name(),s.profile().name(),s.quality().name(),"0",Double.toString(s.threshold()),s.weapon(),"false",s.rolls().name(),""};for(int i=0;i<keys.length;i++)p.putIfAbsent(keys[i],values[i]);
    Set<Integer> ids=new HashSet<>(state.created);for(String value:p.getProperty("generated","").split(","))if(!value.isBlank())ids.add(Integer.parseInt(value));p.setProperty("generated",ids.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
-   java.nio.file.Files.createDirectories(path.getParent());var tmp=java.nio.file.Files.createTempFile(path.getParent(),"temporary-gear-",".tmp");try{try(var out=java.nio.file.Files.newOutputStream(tmp)){p.store(out,"Temporary Bot generated gear provenance");}try{java.nio.file.Files.move(tmp,path,java.nio.file.StandardCopyOption.ATOMIC_MOVE,java.nio.file.StandardCopyOption.REPLACE_EXISTING);}catch(java.nio.file.AtomicMoveNotSupportedException e){java.nio.file.Files.move(tmp,path,java.nio.file.StandardCopyOption.REPLACE_EXISTING);}}finally{java.nio.file.Files.deleteIfExists(tmp);}
+   PlayerBotCreationMetadata.queue(player,p);
   }catch(java.io.IOException e){throw new IllegalStateException("Cannot preserve Temporary Bot equipment provenance",e);}
  }
  private static void build(Player player,Role role,boolean gear){

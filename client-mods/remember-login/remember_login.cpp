@@ -5,6 +5,7 @@
 #include <cwchar>
 #include <cstring>
 #include <cstdint>
+#include "remember_lifecycle.h"
 #pragma comment(lib,"advapi32.lib")
 #pragma comment(lib,"user32.lib")
 
@@ -12,7 +13,7 @@
 namespace {
 HMODULE module;
 using Ptr=void*;
-Ptr pendingRestore=nullptr;
+RememberLifecycle lifecycle;
 #ifdef REMEMBER_TEST
 unsigned char* testGame;
 DWORD testVaultError=0;
@@ -101,7 +102,7 @@ void restoreLogin(Ptr dialog){
     status(dialog,result<0?L"Saved login could not be read.":result==1?L"Login saved on this PC.":L"");
 }
 extern "C" __declspec(dllexport) void AionRememberLoad(Ptr dialog){
-    restoreLogin(dialog);pendingRestore=dialog;
+    restoreLogin(dialog);lifecycle.arm(dialog);
 }
 unsigned char* gameBase(){
 #ifdef REMEMBER_TEST
@@ -112,19 +113,29 @@ unsigned char* gameBase(){
 }
 extern "C" __declspec(dllexport) void AionRememberVisibility(Ptr dialog,uint64_t previous){
     auto game=gameBase();
-    if(!game||!dialog||dialog!=*reinterpret_cast<Ptr*>(game+0x13875d0))return;
-    if(!(previous&1) && (*reinterpret_cast<uint64_t*>(static_cast<unsigned char*>(dialog)+0x30)&1))pendingRestore=dialog;
+    if(!game)return;
+    auto login=*reinterpret_cast<Ptr*>(game+0x13875d0);
+    // The native login Reset observer sends a null widget and the actual
+    // dialog pointer here. Stock flag notifications always have a widget.
+    // Reset can leave the visible bit unchanged while clearing the fields.
+    if(!dialog){lifecycle.reset(login,reinterpret_cast<Ptr>(previous));return;}
+    if(dialog!=login)return;
+    if(!(previous&1) && (*reinterpret_cast<uint64_t*>(static_cast<unsigned char*>(dialog)+0x30)&1))lifecycle.arm(dialog);
 }
 extern "C" __declspec(dllexport) void AionRememberRefresh(Ptr dialog){
     auto game=gameBase();
-    if(pendingRestore!=dialog||!game||!dialog||!(*reinterpret_cast<uint64_t*>(static_cast<unsigned char*>(dialog)+0x30)&1))return;
-    pendingRestore=nullptr;restoreLogin(dialog);
+    if(lifecycle.pending!=dialog||!game||!dialog||!(*reinterpret_cast<uint64_t*>(static_cast<unsigned char*>(dialog)+0x30)&1))return;
     auto notice=find(dialog,"htmlview_notice");
+    bool ready=find(dialog,"remember_login")&&find(dialog,"account")&&find(dialog,"password")&&notice;
+    if(!lifecycle.consume(dialog,true,ready))return;
+    restoreLogin(dialog);
     if(notice){
 #ifdef REMEMBER_TEST
-        if(testNotice)testNotice(notice,"ui/loginnotice.xml");
+        if(testNotice)testNotice(dialog,"native-login-notice");
 #else
-        reinterpret_cast<void(*)(Ptr,const char*)>(game+0x4ce620)(notice,"ui/loginnotice.xml");
+        // LoginNotice is an XML wrapper around Contents/URL, not an HTML file.
+        // Reuse the login dialog's own localized XML reader and SetText path.
+        reinterpret_cast<int(*)(Ptr)>(game+0x79df40)(dialog);
 #endif
     }
 }

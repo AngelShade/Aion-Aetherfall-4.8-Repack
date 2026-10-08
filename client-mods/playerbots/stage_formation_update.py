@@ -30,7 +30,8 @@ def stage(classes,out):
     if method not in SCOPES[name] and not (name.endswith('PlayerBotSession') and method.startswith('lambda$tick$')):actual[key]=before[key]
   return actual
  shared.methods=reviewed;shared.SCOPES=SCOPES;shared.HELPERS=HELPERS;shared.stage(scratch,out)
- for name in ['bots.html','bots.css','bots.js']:shutil.copy2(server/'config/playerbots/media'/name,out/'config/playerbots/media'/name)
+ for name in ['bots.html','bots.css','bots.js']:
+  if (server/'config/playerbots/media'/name).exists():shutil.copy2(server/'config/playerbots/media'/name,out/'config/playerbots/media'/name)
  manifest=json.loads((out/'manifest.json').read_text());manifest['scope']='continuous movement clock and stable tactical follow formation'
  for entry in manifest['files']:entry['installed']=shared.sha(out/entry['path'])
  (out/'manifest.json').write_text(json.dumps(manifest,indent=2))

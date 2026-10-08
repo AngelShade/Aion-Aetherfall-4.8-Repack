@@ -54,24 +54,27 @@ final class PlayerBotNavigation {
 		if (bot.isFlying()) {
 			// Airborne follow uses the leader's altitude, never a ground breadcrumb.
 			if (!PlayerBotFormation.needsFollow(owner,(Player)bot,formationSlot)) { stop(); return false; }
-			return move(formation.x(),formation.y(),formation.z());
+			boolean moved=move(formation.x(),formation.y(),formation.z());
+			if(moved)PlayerBotFollowIntent.bind(owner,(Player)bot,formationSlot,formation,hazards);
+			return moved;
 		}
-		while (!trail.isEmpty() && PositionUtil.getDistance(bot, trail.peekFirst().x(), trail.peekFirst().y(), trail.peekFirst().z()) < 3)
-			trail.removeFirst();
+		PlayerBotNavigationTrail.consume(trail, new Point(bot.getX(),bot.getY(),bot.getZ()));
 		if (!PlayerBotFormation.needsFollow(owner,(Player)bot,formationSlot)) {
-			PlayerBotFollowRecovery.reset((Player)bot);
 			stop();
 			return false;
 		}
-		PlayerBotFollowRecovery.observe((Player)bot, owner);
-		// Use the most recent reachable breadcrumb, avoiding a straight line through an owner's corner.
+		// Reached breadcrumbs have been consumed across the whole prefix, not only
+		// at its head. An old unvisited formation point cannot pin the bot to its
+		// current position while an opened doorway occludes newer owner samples.
 		Point destination = trail.peekFirst();
 		for (Point point : trail)
-			if (GeoService.getInstance().canSee(bot, point.x(), point.y(), point.z(),
+			if (PositionUtil.getDistance(bot,point.x(),point.y(),point.z())>=3 && GeoService.getInstance().canSee(bot, point.x(), point.y(), point.z(),
 				com.aionemu.gameserver.geoEngine.collision.IgnoreProperties.ANY_RACE)) destination = point;
 		if (GeoService.getInstance().canSee(bot, formation.x(),formation.y(),formation.z(),com.aionemu.gameserver.geoEngine.collision.IgnoreProperties.ANY_RACE)) destination=formation;
 		if (destination == null) destination = new Point(owner.getX(), owner.getY(), owner.getZ());
-		return move(destination.x(), destination.y(), destination.z());
+		boolean moved=move(destination.x(), destination.y(), destination.z());
+		if(moved)PlayerBotFollowIntent.bind(owner,(Player)bot,formationSlot,formation,hazards);
+		return moved;
 	}
 
 	boolean approach(Creature target, float range) {
@@ -82,14 +85,20 @@ final class PlayerBotNavigation {
 		var point = PlayerBotCombatPosition.point(bot,target,range);
 		if (!GeoService.getInstance().canSee(bot,target)) {
 			if (range<8) return move(target.getX(),target.getY(),target.getZ());
-			// Recover sight laterally at spell distance, rather than walking a caster
-			// through the target. These are route hints; native cast sight still wins.
-			for (double angle : new double[]{Math.PI/4,-Math.PI/4,Math.PI/2,-Math.PI/2}) {
-				double dx=point.x()-target.getX(),dy=point.y()-target.getY();
+			// Find a walkable firing position, preferring the normal range shell. A stale
+			// opened-door sight mesh must not veto walking to the other side of the door.
+			// Native sight from the target at the destination remains mandatory; casting is unchanged.
+			long deadline = System.nanoTime()+6_000_000;
+			for (double factor : bot.isFlying() ? new double[]{1} : new double[]{1,.85,.7,.55}) for (double angle : new double[]{0,Math.PI/4,-Math.PI/4,Math.PI/2,-Math.PI/2}) {
+				if (System.nanoTime()>=deadline) break;
+				double dx=(point.x()-target.getX())*factor,dy=(point.y()-target.getY())*factor;
 				float x=target.getX()+(float)(Math.cos(angle)*dx-Math.sin(angle)*dy);
 				float y=target.getY()+(float)(Math.sin(angle)*dx+Math.cos(angle)*dy);
-				if (GeoService.getInstance().canSee(bot,x,y,point.z(),com.aionemu.gameserver.geoEngine.collision.IgnoreProperties.ANY_RACE)
-					&& GeoService.getInstance().canSee(target,x,y,point.z(),com.aionemu.gameserver.geoEngine.collision.IgnoreProperties.ANY_RACE)) return move(x,y,point.z());
+				Vector3f ground=bot.isFlying()
+					? (GeoService.getInstance().canSee(bot,x,y,point.z(),com.aionemu.gameserver.geoEngine.collision.IgnoreProperties.ANY_RACE) ? new Vector3f(x,y,point.z()) : null)
+					: GeoService.getInstance().findGroundMovementCollision(bot.getWorldId(),bot.getInstanceId(),bot.getX(),bot.getY(),bot.getZ(),x,y);
+				if (ground!=null && Float.isFinite(ground.z) && Math.hypot(ground.x-x,ground.y-y)<.3
+					&& GeoService.getInstance().canSee(target,ground.x,ground.y,ground.z,com.aionemu.gameserver.geoEngine.collision.IgnoreProperties.ANY_RACE)) return move(ground.x,ground.y,ground.z);
 			}
 		}
 		return move(point.x(),point.y(),point.z());
@@ -111,6 +120,7 @@ final class PlayerBotNavigation {
 		long now = System.currentTimeMillis();
 		if (now < nextMove) return bot.getMoveController().isInMove();
 		nextMove = now + 200;
+		if(bot instanceof Player player)PlayerBotFollowIntent.clear(player);
 		if (bot.isFlying()) {
 			route.clear();
 			boolean moved = PlayerBotFlight.move(bot, targetX, targetY, targetZ, hazards);
@@ -120,6 +130,7 @@ final class PlayerBotNavigation {
 		Point goal = new Point(targetX, targetY, targetZ);
 		if (!Float.isFinite(targetX) || !Float.isFinite(targetY) || !Float.isFinite(targetZ)) { stop(); return false; }
 		double goalDistance = PositionUtil.getDistance(bot, targetX, targetY, targetZ);
+		if (goalDistance < 0.15) { stop(); status="at navigation waypoint"; return false; }
 		if (routeGoal == null || routeWorld != bot.getWorldId() || routeInstance != bot.getInstanceId()
 			|| PositionUtil.getDistance(routeGoal.x(), routeGoal.y(), routeGoal.z(), targetX, targetY, targetZ) > 4) {
 			route.clear(); routeGoal = goal; routeWorld = bot.getWorldId(); routeInstance = bot.getInstanceId();
@@ -151,7 +162,7 @@ final class PlayerBotNavigation {
 			double radians = Math.toRadians(angle + offset);
 			float x = bot.getX() + (float) Math.cos(radians) * distance;
 			float y = bot.getY() + (float) Math.sin(radians) * distance;
-			Vector3f collision = GeoService.getInstance().findMovementCollision(bot, (float) (angle + offset), distance);
+			Vector3f collision = GeoService.getInstance().findGroundMovementCollision(bot.getWorldId(), bot.getInstanceId(), bot.getX(), bot.getY(), bot.getZ(), x, y);
 			float z;
 			if (collision != null) {
 				x = collision.getX(); y = collision.getY(); z = collision.getZ();
@@ -160,7 +171,7 @@ final class PlayerBotNavigation {
 				if (!Float.isFinite(z)) z = bot.getZ();
 			}
 			if (!Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z)
-				|| Math.abs(z - bot.getZ()) > distance + 0.5 || Math.hypot(x - bot.getX(), y - bot.getY()) < 0.5) continue;
+				|| Math.abs(z - bot.getZ()) > distance + 0.5 || Math.hypot(x - bot.getX(), y - bot.getY()) < 0.15) continue;
 			Point candidate = new Point(x, y, z);
 			if (!PlayerBotHazards.safePath(new Point(bot.getX(), bot.getY(), bot.getZ()), candidate, hazards)) continue;
 			double score = -PositionUtil.getDistance(x, y, z, targetX, targetY, targetZ) - Math.abs(offset) * 0.015;
@@ -169,8 +180,11 @@ final class PlayerBotNavigation {
 		if (best == null) { route.clear(); status = "blocked by geometry"; stop(); return false; }
 		status = route.isEmpty() ? "moving" : "following local route";
 		byte heading = (byte) Math.floorMod((int) Math.round(Math.toDegrees(Math.atan2(best.y() - bot.getY(), best.x() - bot.getX())) / 3), 120);
-		bot.getMoveController().setNewDirection(best.x(), best.y(), best.z(), heading);
-		bot.getMoveController().startMovingToDestination();
+		synchronized(bot.getMoveController()) {
+			if(bot instanceof Player player)PlayerBotFollowIntent.clear(player);
+			bot.getMoveController().setNewDirection(best.x(), best.y(), best.z(), heading);
+			bot.getMoveController().startMovingToDestination();
+		}
 		return true;
 	}
 

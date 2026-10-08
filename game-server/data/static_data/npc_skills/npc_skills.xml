@@ -22055,13 +22055,13 @@
 		<npc_skill id="18132" lv="36" prob="0" />
 	</npc_skills>
 	<npc_skills npc_ids="215081">
-		<npc_skill id="18190" lv="37" prob="25" />
-		<npc_skill id="18192" lv="37" prob="25" />
+		<npc_skill id="18190" lv="37" prob="0" />
+		<npc_skill id="18192" lv="37" prob="0" />
 		<npc_skill id="18193" lv="37" prob="25" />
 		<npc_skill id="18194" lv="37" prob="25" />
-		<npc_skill id="18195" lv="37" prob="25" />
+		<npc_skill id="18195" lv="37" prob="0" />
 		<npc_skill id="18196" lv="37" prob="25" />
-		<npc_skill id="18203" lv="37" prob="25" />
+		<npc_skill id="18203" lv="37" prob="0" />
 		<npc_skill id="18191" lv="37" prob="0" />
 	</npc_skills>
 	<npc_skills npc_ids="215082">

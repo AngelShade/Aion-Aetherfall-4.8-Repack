@@ -1,10 +1,10 @@
 """Real compiled UI bridge and Windows vault tests, using synthetic credentials only."""
 import ctypes as C
-import subprocess,sys
+import os,subprocess,sys
 from pathlib import Path
 from prepare import compile_dll
 ROOT=Path(__file__).resolve().parent
-fixture=ROOT/'test-workspace/native'
+fixture=Path(os.environ.get('AION_DEV_ROOT','D:/Proiecte/Project Restructure/Aion Development Workspace'))/'staging/output/remember-login-native-check'
 if '--restart' not in sys.argv:compile_dll(fixture,test=True)
 dll=C.CDLL(str(fixture/'bin64/AionRememberLogin.dll'));p=C.c_void_p
 for name,args,result in [('AionRememberLoad',[p],None),('AionRememberClick',[p,p],C.c_int),('AionRememberAction',[p,C.c_char_p],None),('AionRememberRefresh',[p],None),('AionRememberVisibility',[p,C.c_uint64],None),('AionRememberTestNotice',[p],None),('AionRememberTestDelete',[],C.c_int),('AionRememberTestBase',[p],None)]:
@@ -54,7 +54,7 @@ try:
     # The initial native scene may clear fields after its setup callback.
     set_text(account,'');set_text(password,'');states[box]=0;dll.AionRememberRefresh(dialog)
     expect(states[box]==1 and texts[account]=='fixture_account' and texts[password]=='Synthetic-only-9!')
-    expect(notice_loads==[(notice,'ui/loginnotice.xml')])
+    expect(notice_loads==[(dialog,'native-login-notice')])
     for _ in range(50):dll.AionRememberRefresh(dialog)
     expect(len(notice_loads)==1)
     set_text(account,'editing_fixture');set_text(password,'Typing-only-4!')
@@ -75,6 +75,14 @@ try:
         dll.AionRememberVisibility(dialog,0);dll.AionRememberRefresh(dialog)
         expect(states[box]==1 and texts[account]=='fixture_account')
     expect(len(notice_loads)==7)
+    # Reused native Reset can clear fields with no visibility edge.
+    set_text(account,'');set_text(password,'');states[box]=0
+    dll.AionRememberVisibility(None,dialog);dll.AionRememberRefresh(dialog)
+    expect(states[box]==1 and texts[account]=='fixture_account' and texts[password]=='Synthetic-only-9!')
+    expect(len(notice_loads)==8)
+    set_text(account,'typing_after_reset')
+    dll.AionRememberVisibility(None,widgets['unrelated']);dll.AionRememberRefresh(dialog)
+    expect(texts[account]=='typing_after_reset' and len(notice_loads)==8)
 
     set_text(account,'other_fixture');set_text(password,'Another-synthetic-7!');dll.AionRememberAction(None,b'new_account');reset();expect(texts[account]=='fixture_account')
     set_text(account,'other_fixture');set_text(password,'Another-synthetic-7!');submit();reset();expect(texts[account]=='other_fixture' and texts[password]=='Another-synthetic-7!')

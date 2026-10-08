@@ -23,18 +23,16 @@ public final class PlayerBotPartyBehavior {
   long nextTeleport; int sharedTarget;
   State(PlayerBotSession session) {
    this.session=session;account=session.owner().getAccount().getId();character=session.bot().getObjectId();
-   Path path=path();if(Files.exists(path))try(var in=Files.newInputStream(path)) {
-    var p=new Properties();p.load(in);
-    if(!p.getProperty("account", "").equals(Integer.toString(account)) || !p.getProperty("character", "").equals(Integer.toString(character)))throw new IllegalStateException("Companion behavior settings owner mismatch");
+   try {
+    var p=PlayerBotMetadata.load(account,character,"behavior",path());
     enabled=Boolean.parseBoolean(p.getProperty("questCombat","true"));
    }catch(Exception error){throw new IllegalStateException("Cannot load companion behavior settings",error);}
   }
   Path path(){return Path.of("config","playerbots","behavior-character-"+character+".properties");}
   void save() {
    try {
-    Files.createDirectories(path().getParent());var p=new Properties();p.setProperty("account",Integer.toString(account));p.setProperty("character",Integer.toString(character));p.setProperty("questCombat",Boolean.toString(enabled));
-    Path temp=Files.createTempFile(path().getParent(),"bot-behavior-",".tmp");
-    try{try(var out=Files.newOutputStream(temp)){p.store(out,"Companion nearby quest combat");}try{Files.move(temp,path(),StandardCopyOption.REPLACE_EXISTING,StandardCopyOption.ATOMIC_MOVE);}catch(AtomicMoveNotSupportedException e){Files.move(temp,path(),StandardCopyOption.REPLACE_EXISTING);}}finally{Files.deleteIfExists(temp);}
+    var p=new Properties();p.setProperty("account",Integer.toString(account));p.setProperty("character",Integer.toString(character));p.setProperty("questCombat",Boolean.toString(enabled));
+    PlayerBotMetadata.save(account,character,"behavior",p);
    }catch(Exception error){throw new IllegalStateException("Cannot save companion behavior settings",error);}
   }
  }

@@ -125,13 +125,16 @@ public final class PlayerBotEngineCheck {
 		check(PlayerBotClassCombat.shouldBurst(2, 5, 20, 8000), "burst early to finish a low-health target");
 		check(PlayerBotClassCombat.shouldBurst(2, 5, 90, 1500), "use runes before expiration");
 		pathChecks();
-		preferenceChecks();
+		// Production preferences now use native metadata checkpoints. The old
+		// file-backed fixture below cannot validate that adapter (or run without
+		// a database). Use the maintained recording-JDBC production checks.
+		PlayerBotMetadataPreferencesCheck.main(new String[0]);
 		var appearance = new PlayerAppearance(); appearance.setHair(4);
 		var copied = appearance.copy(); copied.setHair(9);
 		check(appearance.getHair() == 4 && copied.getHair() == 9, "generated appearance does not mutate owner");
 		check(PlayerBotEquipment.weight(StatEnum.HEAL_BOOST, Role.HEALER, true) > PlayerBotEquipment.weight(StatEnum.HEAL_BOOST, Role.MELEE, false), "gear scoring values healing for healers");
 		check(PlayerBotEquipment.weight(StatEnum.MAXHP, Role.TANK, false) > PlayerBotEquipment.weight(StatEnum.MAXHP, Role.RANGED, true), "gear scoring values tank survivability");
-		System.out.println("OK: " + checks + " playerbot engine, policy, lease, preference and appearance checks");
+		System.out.println("OK: " + checks + " playerbot engine, policy, lease and appearance checks; native preferences verified separately");
 	}
 
 	private static void leaseChecks() throws Exception {

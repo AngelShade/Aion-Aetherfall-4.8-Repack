@@ -5,11 +5,46 @@ The requested destination is a full Playerbots-style companion system, with owne
 Start further iterations with [full port scope and iteration focus](PLAYERBOTS_PORT_SCOPE.md).
 The focused tracker covers already attempted ports; independent world bots,
 native party invitation/control and player/bot trading remain additional gaps.
-One complete upstream inventory/dependency pass is outstanding before the next
-implementation slice. PB-PORT-004 is the next existing companion-track candidate,
-not a prerequisite for every other missing subsystem.
+The bounded upstream inventory/dependency pass is complete. PB-PORT-004 strategy
+composition is installed; the next independent class slice is PB-PORT-005B
+Spiritmaster. See the current tracker rather than older receipt next-work notes.
 
-## Current installed behavior — 4 October 2026
+## Current follow/summon repair — installed offline 8 October 2026
+
+PB-REPAIR-FORMATION-002 and PB-CONFIG-001 are installed in external receipt
+`20261008-062930-344543`. Continuous direct follow intent refreshes the selected
+formation on movement ticks; travel outranks optional idle actions; speed matches
+the owner and recovers slot error. Native casts, collision, explicit orders and
+role combat positioning remain authoritative. Both server enable/summon switches
+are true, with shared ownership/party/combat/cast/trade/loot/channel preflight.
+Automatic map/wipe recovery remains independent of the manual summon switch.
+
+679 new effective checks plus core 72/engine 99/composition 49/spell planning 44/
+speed packets 6/trail 17/ground 57/formation 314 pass. All 2,423 current server
+sources compile externally; all Playerbots check sources compile. Initially thirteen
+methods/six existing definitions changed, 166 earlier JAR entries retained. Latest
+Steel Rake `061243-633233` and core execution `054856-494763` survive. Only the
+cumulative JAR and main Playerbots config changed; base/launcher/geometry/scripts/
+bundled UI/31 client hashes/alt builds retained. Inventory: 20 checks, 73 client/
+102 server receipts. Override SHA-256:
+`f4855888ee12bea913327c8be2462835e292cb3c4f5ec5db5cd4e891221c5a27`.
+
+PB-VAL-005 actual rendered movement/formation/turns/flight/doors and summon control
+acceptance remain the user's tests. The new config field is cold-load-only.
+GameServer/client stayed off; no startup/restart/attach, native gameplay or real
+DB/world/ID writes. This repair does not close full parity or block independent
+tracks. **Next class port remains PB-PORT-005B Spiritmaster.** See
+[follow/summon behavior, sources and acceptance](PLAYERBOTS_FOLLOW_SUMMON_20261008.md).
+
+Final pre-handoff lock-order correction is included in that receipt: AI-resolved
+local geometry is cached, so movement refresh and follow speed never acquire
+service/session formation locks under the mover monitor. Three Formation methods
+plus FollowIntent refresh/cache initialization and a new Geometry record changed;
+174 other entries retained. Effective bytecode and world-free cache tests pass.
+Cold-load-only helper schema; future existing helper edits require explicit SCOPES.
+
+
+## Historical installed behavior — 4 October 2026
 
 Latest cumulative receipt: `backups/playerbots-recruitment-20261004-203902-131350`.
 This retains the upstream-based group/pet healing continuation (`...100323-698137`),

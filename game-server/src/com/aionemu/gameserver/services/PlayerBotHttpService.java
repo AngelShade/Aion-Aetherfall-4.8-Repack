@@ -30,7 +30,7 @@ public final class PlayerBotHttpService {
 			String path = exchange.getRequestURI().getPath(), method = exchange.getRequestMethod();
 			if (method.equals("GET") && (path.equals("/market/companions") || path.equals("/market/companions/media/bots.js") || path.equals("/market/companions/media/bots.css"))) {
 				String file = path.endsWith("bots.js") ? "bots.js" : path.endsWith("bots.css") ? "bots.css" : "bots.html";
-				send(exchange, 200, file.endsWith("js") ? "application/javascript" : file.endsWith("css") ? "text/css" : "text/html", Files.readString(MEDIA.resolve(file))); return;
+				send(exchange, 200, file.endsWith("js") ? "application/javascript" : file.endsWith("css") ? "text/css" : "text/html", PlayerBotMedia.read(file)); return;
 			}
 			boolean mutation = path.equals("/market/companions/action");
 			if (!mutation && !path.equals("/market/companions/state")) { send(exchange, 404, "text/plain", "Not found"); return; }

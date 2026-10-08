@@ -15,23 +15,10 @@ public final class PlayerBotRosterRemoval {
  private static final Path DIRECTORY=Path.of("config/playerbots/removed");
  private static Path path(Path directory,int id){if(id<=0)throw new IllegalArgumentException("Invalid Temporary Bot.");return directory.resolve("character-"+id+".json");}
  static boolean removed(Path directory,int account,int id)throws IOException {
-  Path file=path(directory,id);
-  long size;try{size=Files.size(file);}catch(NoSuchFileException e){return false;}
-  try {
-   if(size>4096)throw new IOException("Invalid archived companion record.");
-   var json=JSON.parseObject(Files.readString(file));
-   if(json.getIntValue("version")!=1 || json.getIntValue("account")!=account || json.getIntValue("id")!=id)throw new IOException("Archived companion ownership mismatch.");
-   return true;
-  }catch(RuntimeException e){throw new IOException("Cannot verify archived companion; its record was preserved.",e);}
+  return PlayerBotRepository.removed(account,id);
  }
  static void archive(Path directory,int account,int id,String name)throws IOException {
-  if(account<=0)throw new IllegalArgumentException("Invalid account.");
-  if(removed(directory,account,id))return;
-  Files.createDirectories(directory);Path temporary=Files.createTempFile(directory,"archive-",".tmp");
-  try {
-   Files.writeString(temporary,JSON.toJSONString(Map.of("version",1,"account",account,"id",id,"name",name,"removedAt",System.currentTimeMillis())));
-   try{Files.move(temporary,path(directory,id),StandardCopyOption.ATOMIC_MOVE);}catch(AtomicMoveNotSupportedException e){Files.move(temporary,path(directory,id));}
-  }finally{Files.deleteIfExists(temporary);}
+  PlayerBotRepository.archive(account,id,name);
  }
  static List<PlayerBotRoster.Entry> visible(Path directory,int account,List<PlayerBotRoster.Entry> entries)throws IOException {
   var visible=new ArrayList<PlayerBotRoster.Entry>();for(var entry:entries)if(!removed(directory,account,entry.id()))visible.add(entry);return List.copyOf(visible);
@@ -61,9 +48,9 @@ public final class PlayerBotRosterRemoval {
     synchronized(store) {
      var original=store.load(account);String name=entry.name()==null ? "Pending companion "+id : entry.name();
      archive(DIRECTORY,account,id,name);
-     // The marker is authoritative after a crash between file writes; load() also
+     // The marker is authoritative after a crash between native commits; load() also
      // prunes archived IDs, so an old preset cannot resurrect a removed companion.
-     try{store.write(prune(original));}catch(IOException e){org.slf4j.LoggerFactory.getLogger(PlayerBotRosterRemoval.class).warn("Archived companion {} removed; saved-party file cleanup deferred",id,e);}
+     try{store.write(prune(original));}catch(IOException e){org.slf4j.LoggerFactory.getLogger(PlayerBotRosterRemoval.class).warn("Archived companion {} removed; saved-party database cleanup deferred",id,e);}
      return name+" removed from your roster and saved parties. Archived progress is kept.";
     }
    }catch(IOException e){throw new IllegalArgumentException("Could not archive this Temporary Bot: "+e.getMessage(),e);}

@@ -102,7 +102,7 @@ public final class PlayerBotSession {
 	boolean generated() { return generated; }
 	PlayerBotLease lease() { return lease; }
 	boolean closing() { return closing; }
-	void markClosing() { PlayerBotTrade.close(this); PlayerBotAppearance.close(this); closing = true; PlayerBotArbitration.clear(engine); PlayerBotQuestRoutes.close(bot); PlayerBotRevival.close(bot); cancelCharge(); navigation.stop(); pets.release(bot); bot.getObserveController().notifyMoveObservers(); bot.getController().cancelCurrentSkill(null); PlayerBotQuestSync.close(this); }
+	void markClosing() { PlayerBotSteelRake.close(bot); PlayerBotTrade.close(this); PlayerBotAppearance.close(this); closing = true; PlayerBotArbitration.clear(engine); PlayerBotQuestRoutes.close(bot); PlayerBotRevival.close(bot); cancelCharge(); navigation.stop(); pets.release(bot); bot.getObserveController().notifyMoveObservers(); bot.getController().cancelCurrentSkill(null); PlayerBotQuestSync.close(this); }
 	private void cancelCharge() { if (chargeRelease != null) { chargeRelease.cancel(false); chargeRelease = null; } }
 	void releasePet() { pets.release(bot); }
 	int failed() { return ++failures; }
@@ -124,7 +124,11 @@ public final class PlayerBotSession {
 		applyPreferences(values);
 	}
 	private void applyPreferences(PlayerBotPreferences.Values values) {
-		PlayerBotArbitration.clear(engine);
+		// Reapplying an unchanged menu value is not a new engine context. In
+		// particular it must not discard a pending skill-chain continuation.
+		if (role != values.role() || areaSkills != values.area() || consumables != values.supplies()
+			|| autoGear != values.gear() || autoLoot != values.loot() || questing != values.questing())
+			PlayerBotArbitration.clear(engine);
 		role = values.role(); areaSkills = values.area(); consumables = values.supplies(); autoGear = values.gear(); autoLoot = values.loot();
 		questing = values.questing();
 	}
@@ -148,6 +152,10 @@ public final class PlayerBotSession {
 	}
 	public synchronized void order(Order value) {
 		if (closing) throw new IllegalArgumentException("Companion is waiting for dismissal/save.");
+		Objects.requireNonNull(value, "Companion order");
+		// An unchanged command must not abort the committed native cast. A
+		// repeated FOLLOW still clears an explicit mission/attack when present.
+		if (order == value && mission == null && commandedTarget == 0) return;
 		PlayerBotArbitration.clear(engine);
 		stand();
 		order = value; mission = null; commandedTarget = 0; questTarget = 0; nextDecision = 0;
@@ -259,6 +267,7 @@ public final class PlayerBotSession {
 			if (validEnemy(npc, party, explicitTarget(npc))) enemies.add(npc);
 		});
 		boolean questActionsAllowed = questing && order == Order.FOLLOW && !incapacitated && !owner.isDead()
+			&& !owner.getMoveController().isInMove()
 			&& !owner.isFlying() && !bot.isFlying() && !PlayerBotQuestSync.returning(this) && !bot.isCasting()
 			&& !owner.getController().isInCombat() && !bot.getController().isInCombat() && party.stream().allMatch(p -> p.getAggroList().stream().findAny().isEmpty())
 			&& !shouldRest(hp(bot), mp(bot), bot.isInState(CreatureState.RESTING), !enemies.isEmpty(), false, PositionUtil.getDistance(bot, owner));
@@ -294,12 +303,17 @@ public final class PlayerBotSession {
 				cancelCharge(); bot.getController().cancelCurrentSkill(null); nextDecision = 0;
 			}
 		}
+  if(bot.getController().hasScheduledTask(com.aionemu.gameserver.model.TaskId.ACTION_ITEM_NPC)) {
+   if(escapeHazard || !PlayerBotSteelRake.channeling(bot) && (!enemies.isEmpty() || owner.getController().isInCombat() || owner.getMoveController().isInMove()))bot.getObserveController().notifyMoveObservers();
+   else {status="operating encounter device";return true;}
+  }
 		if (bot.getController().hasTask(com.aionemu.gameserver.model.TaskId.ITEM_USE)) {
 			if (!enemies.isEmpty() || owner.getController().isInCombat() || owner.getMoveController().isInMove()) bot.getObserveController().notifyMoveObservers();
 			else return true;
 		}
 		if (bot.isCasting() || now < nextDecision) return true;
 		boolean combat = !enemies.isEmpty();
+		boolean traveling=PlayerBotFollowIntent.traveling(order,combat,owner.getMoveController().isInMove(),!owner.isDead(),incapacitated);
 		boolean rest = shouldRest(hp(bot), mp(bot), bot.isInState(CreatureState.RESTING), combat,
 			owner.getMoveController().isInMove(), PositionUtil.getDistance(bot, owner));
 		rest |= mission != null && !combat && !owner.getMoveController().isInMove() && PositionUtil.isInRange(bot, owner, 8) && (hp(bot) < 85 || mp(bot) < 60);
@@ -320,6 +334,7 @@ public final class PlayerBotSession {
 			if (navigation.escapeHazards()) { status = "avoiding encounter hazard"; return true; }
 			status = "escape route blocked"; navigation.stop(); return false;
 		}), ENCOUNTER + 20));
+  if(order==Order.FOLLOW && !incapacitated){var feeding=PlayerBotSteelRake.feeding(this,navigation,enemies);if(feeding!=null)triggers.add(feeding);}
 		Npc protection = PlayerBotEncounters.protection(owner, bot, enemies);
 		if (protection != null && order == Order.FOLLOW && !incapacitated)
 			triggers.add(trigger(new SimpleAction("acquire Vasharti flame protection", () -> true, () -> {
@@ -434,7 +449,7 @@ public final class PlayerBotSession {
 		triggers = strategyPlan.triggers("follow and guard", State.NON_COMBAT);
 		if (!incapacitated && !combat && !owner.isDead() && (order == Order.FOLLOW || order == Order.PASSIVE) && (mission == null || hp(bot) < 85 || mp(bot) < 60 || owner.getMoveController().isInMove()))
 			strategyPlan.defaults("follow and guard", new SimpleAction("follow owner", () -> PlayerBotFormation.needsFollow(owner,bot,formationSlot),
-				() -> navigation.follow(owner, formationSlot)), DEFAULT, State.NON_COMBAT);
+				() -> navigation.follow(owner, formationSlot)), PlayerBotFollowIntent.priority(traveling), State.NON_COMBAT);
 		if (!incapacitated && !combat && order == Order.GUARD && guardPosition != null)
 			strategyPlan.defaults("follow and guard", new SimpleAction("return to guard", () -> PositionUtil.getDistance(bot, guardPosition.x(), guardPosition.y(), guardPosition.z()) > 2,
 				() -> navigation.move(guardPosition.x(), guardPosition.y(), guardPosition.z())), DEFAULT, State.NON_COMBAT);
@@ -444,13 +459,14 @@ public final class PlayerBotSession {
 	}
 
 	private Npc chooseTarget(List<Npc> enemies, List<Player> party) {
-		return PlayerBotTargetValues.choose(bot, owner, role, commandedTarget, enemies, party, skills);
+  if(commandedTarget==0){Npc add=PlayerBotSteelRake.adds(enemies);if(add!=null)return add;}
+  return PlayerBotTargetValues.choose(bot,owner,role,commandedTarget,enemies.stream().filter(PlayerBotSteelRake::attackable).toList(),party,skills);
 	}
 
 	private boolean validEnemy(Npc npc, List<Player> party, boolean explicit) {
 		// Territory flags are client control objects and their native AI rejects all damage.
 		// Their opposing race/quest metadata must never turn them into a combat target.
-		if (npc.isFlag()) return false;
+		if (npc.isFlag() || PlayerBotSteelRakeCaptainTactics.scenery(npc.getNpcId())) return false;
 		boolean engaged = party.stream().anyMatch(p -> npc.getAggroList().isHating(p)
 			|| p.getSummon() != null && npc.getAggroList().isHating(p.getSummon()));
 		return bot.getKnownList().sees(npc) && PlayerBotRules.canAttack(true, bot.isEnemy(npc), !npc.isDead(), engaged,
@@ -655,25 +671,29 @@ public final class PlayerBotSession {
 				? List.of(new ReachAction(recipient, entry.range())) : List.of();
 		}
 		@Override public boolean execute() {
-			if (!isUseful() || !isPossible() || recipient.getWorldId() != bot.getWorldId() || recipient.getInstanceId() != bot.getInstanceId()) return false;
-			if (!PlayerBotSkills.canPlan(bot, entry, recipient)) return false;
-			if (recipient != bot && (!PositionUtil.isInRange(bot, recipient, entry.range(),false) || !GeoService.getInstance().canSee(bot, recipient))) return false;
-			boolean peeling = PlayerBotDefense.peelPriority(bot, role, entry, recipient) > 0;
-			navigation.stop(); stand(); bot.setTarget(recipient);
-			Skill skill = SkillEngine.getInstance().getSkillFor(bot, entry.template(), recipient);
-			if (skill == null || !PlayerRestrictions.canUseSkill(bot, skill)) return false;
-			skill.setTargetType(entry.template().getProperties().getFirstTarget() == FirstTargetAttribute.POINT ? 1 : 0,
-				recipient.getX(), recipient.getY(), recipient.getZ());
-			// Server motion data determines hit time and cast lock; keep animation checks enabled.
-			PlayerBotSkillTiming.prepare(bot, skill);
-			if (!skill.useSkill()) return false;
-			if (entry.template().isCharge()) return scheduleCharge(skill, entry, recipient);
-			nextDecision = System.currentTimeMillis() + PlayerBotSkillTiming.remainingLock(bot, skill);
-			if (PlayerBotHealing.managed(entry)) PlayerBotHealing.reserve(bot, entry, skill, nextDecision);
-			else PlayerBotService.getInstance().reserve(bot, recipient, entry.kind(), nextDecision);
-			if (peeling || recipient.isCasting() && PlayerBotSkills.canInterrupt(entry.template()))
-				PlayerBotService.getInstance().reserve(bot, recipient, SkillKind.CONTROL, nextDecision);
-			return true;
+			// Cast admission and movement shutdown share the mover's monitor. A
+			// scheduled step cannot slip between stopping and publishing the cast.
+			synchronized (bot.getMoveController()) {
+				if (!isUseful() || !isPossible() || recipient.getWorldId() != bot.getWorldId() || recipient.getInstanceId() != bot.getInstanceId()) return false;
+				if (!PlayerBotSkills.canPlan(bot, entry, recipient)) return false;
+				if (recipient != bot && (!PositionUtil.isInRange(bot, recipient, entry.range(),false) || !GeoService.getInstance().canSee(bot, recipient))) return false;
+				boolean peeling = PlayerBotDefense.peelPriority(bot, role, entry, recipient) > 0;
+				navigation.stop(); stand(); bot.setTarget(recipient);
+				Skill skill = SkillEngine.getInstance().getSkillFor(bot, entry.template(), recipient);
+				if (skill == null || !PlayerRestrictions.canUseSkill(bot, skill)) return false;
+				skill.setTargetType(entry.template().getProperties().getFirstTarget() == FirstTargetAttribute.POINT ? 1 : 0,
+					recipient.getX(), recipient.getY(), recipient.getZ());
+				// Server motion data determines hit time and cast lock; keep animation checks enabled.
+				PlayerBotSkillTiming.prepare(bot, skill);
+				if (!skill.useSkill()) return false;
+				if (entry.template().isCharge()) return scheduleCharge(skill, entry, recipient);
+				nextDecision = System.currentTimeMillis() + PlayerBotSkillTiming.remainingLock(bot, skill);
+				if (PlayerBotHealing.managed(entry)) PlayerBotHealing.reserve(bot, entry, skill, nextDecision);
+				else PlayerBotService.getInstance().reserve(bot, recipient, entry.kind(), nextDecision);
+				if (peeling || recipient.isCasting() && PlayerBotSkills.canInterrupt(entry.template()))
+					PlayerBotService.getInstance().reserve(bot, recipient, SkillKind.CONTROL, nextDecision);
+				return true;
+			}
 		}
 	}
 

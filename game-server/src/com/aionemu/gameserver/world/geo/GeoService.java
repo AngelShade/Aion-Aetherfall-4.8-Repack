@@ -156,7 +156,7 @@ public class GeoService implements GameEngine {
 
 	/** Read-only ground-route probe from an arbitrary position, using the same terrain and dynamic obstacles as native movement. */
 	public Vector3f findGroundMovementCollision(int worldId, int instanceId, float x, float y, float z, float targetX, float targetY) {
-		return geoMaps.get(worldId).findMovementCollision(new Vector3f(x, y, z), targetX, targetY, instanceId);
+		return com.aionemu.gameserver.services.playerbot.PlayerBotGroundNavigation.walk(geoMaps.get(worldId), instanceId, x, y, z, targetX, targetY);
 	}
 
 	private Vector3f calculateCurrentGeoPosition(Player player) {

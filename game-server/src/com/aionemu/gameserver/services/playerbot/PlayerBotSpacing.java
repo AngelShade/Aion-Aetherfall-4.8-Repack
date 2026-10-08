@@ -21,9 +21,9 @@ public final class PlayerBotSpacing {
  static Values values(Player bot){
   int account=bot.getAccount().getId();
   var value=SETTINGS.computeIfAbsent(bot.getObjectId(),id->{
-   Path file=path(id);if(!Files.exists(file))return new Values(account,4,10);
-   try(var in=Files.newInputStream(file)){
-    var p=new Properties();p.load(in);
+   try {
+    var p=PlayerBotMetadata.load(account,id,"spacing",path(id));
+    if(p.isEmpty())return new Values(account,4,10);
     if(Integer.parseInt(p.getProperty("account"))!=account||Integer.parseInt(p.getProperty("character"))!=id)throw new IllegalArgumentException("Spacing owner mismatch");
     float follow=Float.parseFloat(p.getProperty("follow")),attack=Float.parseFloat(p.getProperty("attack"));validate(follow,attack);
     return new Values(account,follow,attack);
@@ -38,10 +38,7 @@ public final class PlayerBotSpacing {
    var bot=session.bot();if(bot.getAccount().getId()!=session.owner().getAccount().getId())throw new IllegalArgumentException("Spacing owner mismatch");
    values(bot);var p=new Properties();p.setProperty("account",""+bot.getAccount().getId());p.setProperty("character",""+bot.getObjectId());
    p.setProperty("follow",""+follow);p.setProperty("attack",""+attack);Path file=path(bot.getObjectId());
-   try{Files.createDirectories(file.getParent());Path tmp=Files.createTempFile(file.getParent(),"spacing-",".tmp");
-    try{try(var out=Files.newOutputStream(tmp)){p.store(out,"Ranged companion spacing in metres");}
-     try{Files.move(tmp,file,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);}catch(AtomicMoveNotSupportedException e){Files.move(tmp,file,StandardCopyOption.REPLACE_EXISTING);}
-    }finally{Files.deleteIfExists(tmp);}
+   try{PlayerBotMetadata.save(bot.getAccount().getId(),bot.getObjectId(),"spacing",p);
    }catch(java.io.IOException e){throw new IllegalArgumentException("Companion spacing could not be saved",e);}
    SETTINGS.put(bot.getObjectId(),new Values(bot.getAccount().getId(),follow,attack));
   }
