@@ -9,6 +9,8 @@ import stage_companion_update as shared
 from remove_follow_recovery_offline import stopped
 
 def main():
+ if not (ROOT/'target-deploy/game-server/libs/playerbot-recruitment-fix.jar').is_file():
+  raise RuntimeError('Historical override-to-source transition is complete. Use tools/release-game-server.py --scope <ID> --install for current delivery.')
  p=argparse.ArgumentParser(description=__doc__);p.add_argument('--package',type=Path,required=True);a=p.parse_args()
  out=a.package.resolve();shared.validate_output(out)
  m=json.loads((out/'manifest.json').read_text());checks=json.loads((out/'checks.json').read_text())

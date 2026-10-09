@@ -41,3 +41,4 @@ login-server/target/
 **/.pytest_cache/
 /game-server/tools/PlayerBotEquipmentUpdateAgent*.java
 /client-mods/playerbots/__pycache__
+/target-deploy/game-server/cache/

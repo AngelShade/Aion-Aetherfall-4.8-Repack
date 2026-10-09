@@ -19,6 +19,10 @@ public class CaseHealEffect extends AbstractHealEffect {
 	@XmlAttribute
 	protected HealType type;
 
+	/** Read-only planning metadata; native activation and healing are unchanged. */
+	public int getCondValue() { return condValue; }
+	public HealType getType() { return type; }
+
 	@Override
 	public int getCurrentStatValue(Effect effect) {
 		return switch (type) {

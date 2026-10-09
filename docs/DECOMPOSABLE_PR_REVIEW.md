@@ -1,5 +1,19 @@
 # Decomposable PR backport and source verification
 
+## Runtime resource alignment - 8 October 2026
+
+The previously prepared source model had entered the complete Maven GameServer
+build while the deployment retained its old XML/schema, causing the reported
+startup failure. PB-BUILD-002 now delivers the matching maintained data/schema,
+registry, two required item additions and command sources from the normal Maven
+distribution, alongside its unchanged complete JAR. Runtime receipt:
+`playerbots-source-build-20261008-220257-711786`. Full isolated static-data loading
+passes (102,012 items / 4,091 decomposable definitions / 470 overrides).
+The rework's matching resources are **now installed**; actual server startup and
+box-opening acceptance remain user-tested. The old prepared/transplant installer
+below is historical evidence; new delivery uses the normal builder workflow.
+See [current repair and required compatibility gate](SOURCE_BUILD_STATIC_DATA_20261008.md).
+
 Verified on 3 October 2026 against PR #200 head
 `404a14855bfdb9c6d45570f426361f3c72a51cd3` and PR #211 head
 `8789b5f858add24e8df2b51d12e23099f05aeb2b`.

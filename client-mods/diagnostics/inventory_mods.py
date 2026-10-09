@@ -150,7 +150,7 @@ def main():
     source_receipts=sorted(archive_root.glob('playerbots-source-build-*/manifest.json'),key=lambda p:p.parent.name)
     if source_receipts and (source_receipts[-1].parent/'installed.json').exists():
         source_build=read(source_receipts[-1])
-        checks['component_builder_output_and_launcher']=(source_build['feature']=='playerbots-source-build-spiritmaster'
+        checks['component_builder_output_and_launcher']=(source_build['feature'] in {'playerbots-source-build-spiritmaster', 'playerbots-source-build'}
             and all(sha(server/e['path'])==e['installed'] for e in source_build['files'])
             and all(not (server/path).exists() for path in source_build['retiredFiles'])
             and all(sha(server/e['path'])==e['installed'] for e in source_build['guardFiles'])

@@ -17,16 +17,36 @@ public final class PlayerBotGroundNavigation {
 	private static final float STEP = 0.35f;
 
 	public static Vector3f walk(GeoMap map, int instance, float x, float y, float z, float targetX, float targetY) {
+		return walk(map, instance, x, y, z, targetX, targetY, z);
+	}
+
+	public static Vector3f walk(GeoMap map, int instance, float x, float y, float z, float targetX, float targetY, float targetZ) {
 		Vector3f start = new Vector3f(x, y, z);
-		if (!finite(start) || !Float.isFinite(targetX) || !Float.isFinite(targetY)) return start;
+		if (map == null || !finite(start) || !Float.isFinite(targetX) || !Float.isFinite(targetY) || !Float.isFinite(targetZ)) return start;
 		double distance = Math.hypot(targetX - x, targetY - y);
+		float floor = PlayerBotGroundSupport.floor(map, instance, x, y, z + 0.6f, z - 1.25f);
+		if (!Float.isFinite(floor) && targetZ < z - 1.25f) {
+			// A headless actor can inherit an elevated spawn/transfer position without
+			// receiving client gravity updates. Use the movement intent's altitude to
+			// find its nearest support below, instead of discarding Z and retrying XY
+			// forever. This applies only at the starting position; walking edges retain
+			// their narrow step/drop windows and cannot cross cliffs or missing floors.
+			floor = PlayerBotGroundSupport.floor(map, instance, x, y, z + 0.6f, targetZ - 1.25f);
+			if (Float.isFinite(floor)) {
+				// Do not skip a steep/closed physical surface rejected as a floor, or
+				// pull the actor through an intervening ceiling, wall or door.
+				if (!clear(map, instance, new Vector3f(x, y, z), new Vector3f(x, y, floor + 0.05f))) return start;
+				for (float height : new float[]{0.75f, 1.5f})
+					if (!clear(map, instance, new Vector3f(x, y, z + height), new Vector3f(x, y, floor + height))) return start;
+				start.z = floor;
+			}
+		}
 		if (distance < 0.001) return start;
 		// Keep native movement as the fast path; recover only its partial/failed probes.
 		Vector3f nativeEnd = map.findMovementCollision(start.clone(), targetX, targetY, instance);
 		if (!finite(nativeEnd) || ((nativeEnd.x-x)*(targetX-x)+(nativeEnd.y-y)*(targetY-y))/distance < -0.001
 			|| Math.hypot(nativeEnd.x-x,nativeEnd.y-y) > distance+0.01) nativeEnd = null;
 		if (finite(nativeEnd) && Math.hypot(nativeEnd.x - targetX, nativeEnd.y - targetY) < 0.01) return nativeEnd;
-		float floor = PlayerBotGroundSupport.floor(map, instance, x, y, z + 0.6f, z - 1.25f);
 		if (!Float.isFinite(floor)) return finite(nativeEnd) ? nativeEnd : start;
 		Vector3f current = new Vector3f(x, y, floor);
 		// Vertical correction is a walking destination, not a relocation. Reject a body obstruction during it.

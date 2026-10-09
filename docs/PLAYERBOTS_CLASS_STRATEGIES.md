@@ -1,5 +1,36 @@
 # Class strategy continuation — 4 October 2026
 
+## Cleric recovery timing — installed offline 9 October 2026
+
+**PB-PORT-005C** adds the confirmed missing Cleric distinction between immediate
+recovery, delayed HoT ticks and conditional HP healing. Native first-heal timing
+and useful amount drive critical/low-health ordering and almost-full HoT
+maintenance. Existing group/pet targets, hybrid cleanses, reservations,
+resurrection, cast/cost/cooldown gates and owned-alt builds are preserved.
+Chanter scoring remains unchanged and is the next separate review, **PB-PORT-005D**.
+This bounded recovery slice does not establish full Cleric or Playerbots parity.
+
+Complete unchanged normal Maven GameServer output is installed in external receipt
+`playerbots-source-build-20261009-045131-933181`, retaining PB-BUILD-003,
+NAV-004, Spiritmaster and all earlier mods. GameServer SHA
+`bc9de279a811fbd35c8ab1188ada2f07e41a4fa34fe6560efad32f50d9362d6c`;
+Commons, launcher, configuration, geometry and all managed runtime data are unchanged.
+Only Healing.priority and Session.tick change existing method behavior; CaseHeal
+adds read-only metadata getters with all eight execution methods preserved.
+3,544 prior JAR entries remain byte-identical.
+
+87 Cleric checks plus 14 existing world-free suites pass (1,905 checks). Complete
+assembly audit, all 1,757 handler compilations, production XML/schema/JAXB loading
+and 3,284-class / 171,909-reference linkage pass. Postinstall inventory passes
+20 mod checks and 31 current client hashes; 74 client/111 server historical receipts
+are recorded. Two changed client settings hashes were refreshed through the full
+passing inventory and preserved. Initial process/hash guards refused before any
+copy; after the user's normal shutdown, fresh checks and guarded backup/copy
+succeeded through `tools/release-game-server.py --scope PB-PORT-005C --review <review> --install`.
+No startup/stop/restart, attach, native cast, world actor or database operation was
+performed. **PB-VAL-013 actual Cleric casting/healing acceptance remains pending
+user testing.** See [gap, native mapping and evidence](PLAYERBOTS_CLERIC_20261009.md).
+
 Current status supersedes the historical receipts below: **PB-PORT-005A Sorcerer
 single-target strategy is installed live/disk** in `234841-695964`, retaining tank,
 custody, engine and all prior work. Chain/upkeep/filler/fallback, MP recovery and

@@ -17,6 +17,8 @@ ALLOWED={
 }
 
 def main():
+ if not (ROOT/'target-deploy/game-server/libs/playerbot-recruitment-fix.jar').is_file():
+  raise RuntimeError('Historical override comparison is retired. Use tools/release-game-server.py --scope <ID> for current complete release verification.')
  p=argparse.ArgumentParser(description=__doc__);p.add_argument('--build',type=Path,required=True);p.add_argument('--output',type=Path,required=True);a=p.parse_args()
  build=a.build.resolve();out=a.output.resolve();shared.validate_output(build);shared.validate_output(out);out.mkdir(parents=True,exist_ok=True)
  server=ROOT/'target-deploy/game-server';game=build/'game-server/game-server-4.8-SNAPSHOT.jar';commons=build/'commons/commons-4.8-SNAPSHOT.jar'

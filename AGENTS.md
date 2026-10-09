@@ -1,11 +1,35 @@
 # Aion project continuity and installed modifications
 
-## Current source-built baseline — 8 October 2026
+## Current Cleric/source-built baseline — 9 October 2026
 
-- PB-PORT-005B / PB-BUILD-001 are installed offline in external receipt
-  `playerbots-source-build-20261008-213553-086764`. Normal Maven Commons and full
-  GameServer outputs were copied byte-identically into target-deploy/game-server.
-  GameServer SHA `edb3a8a2622407f49a036457a88b50b9d6aabd91b3ed59f53fa9e220bcde6d44`;
+- Latest receipt is PB-PORT-005C:
+  `playerbots-source-build-20261009-045131-933181`, under external
+  `archives/server/game-server/backups`. It retains PB-BUILD-003, NAV-004,
+  Spiritmaster and all prior installed features. GameServer SHA
+  `bc9de279a811fbd35c8ab1188ada2f07e41a4fa34fe6560efad32f50d9362d6c`;
+  Commons remains `b7d6786f38696b9d81425cee04c4ebf16aa242d76e6c20c1754385168ec2cc6c`.
+- Preserve Cleric-only native first-heal timing/conditional-threshold ordering
+  and existing group/pet/cleanse/resurrection/reservation behavior. Chanter remains
+  unchanged; next separate review is PB-PORT-005D Chanter, checking current native
+  mantras/buffs/melee/support against exact upstream purposes before porting.
+- All 15 world-free suites (1,905 checks, including 87 Cleric), complete resource/
+  handler/static-data/linkage gates and 20 mod checks/31 client hashes pass.
+  Native CaseHeal execution methods and 3,544 previous JAR entries are preserved.
+  Server/client were confirmed closed before guarded delivery; keep both off.
+  No startup/attach/native casts/world actors/DB operations occurred. PB-VAL-013
+  gameplay is pending user testing. Full class/world scope and item-ID release
+  investigation remain unfinished. See `docs/PLAYERBOTS_CLERIC_20261009.md`.
+- Continue every GameServer delivery through `tools/release-game-server.py`;
+  retired override remains absent and appearance remains disabled in source.
+
+## Previous source-built baseline — 8 October 2026
+
+- Previous receipt is PB-BUILD-003:
+  `playerbots-source-build-20261008-225416-105523`, under external
+  `archives/server/game-server/backups`. It retains PB-PORT-005B / PB-BUILD-001,
+  PB-REPAIR-NAV-004 and PB-BUILD-002, and reconciles the remaining ten maintained
+  handler/static-resource differences, including undelivered 1 October fixes.
+  GameServer SHA `3a7d8d17547f08ecaabccbb44a3cb0550e4b45b07808261a16b77a7655d6b654`;
   Commons SHA `b7d6786f38696b9d81425cee04c4ebf16aa242d76e6c20c1754385168ec2cc6c`.
 - The cumulative recruitment override is archived/retired; start.bat now uses
   normal `libs/*`. Historical instructions to preserve that active override
@@ -18,8 +42,16 @@
   was performed. Actual user gameplay remains PB-VAL-012 pending.
 - Appearance implementation remains preserved but disabled explicitly in source
   via APPEARANCE_ENABLED=false. Do not enable it through an unrelated build.
-- Build using tools/build-components.ps1 (normal Maven reactor); generated output
-  is external. Current inventory uses the source-build receipt and passes 20
+- Use `python tools/release-game-server.py --scope <ID> --install` for every
+  subsequent GameServer delivery. It locks the release, builds through normal
+  Maven into fresh external output with mandatory complete resources, binds
+  source/artifact hashes, audits all managed runtime data, compiles every handler,
+  loads complete static data offline, and performs guarded backup/copy/rollback.
+  Partial resource lists, stale reviews and reused build directories are rejected.
+  Never replace this gate with a manual JAR-only copy. See
+  `docs/BUILD_DELIVERY_WORKFLOW.md` and `docs/BUILD_DELIVERY_AUDIT_20261008.md`.
+  Historical override-transition scripts are retired for the current runtime.
+  Current inventory uses the latest source-build receipt and passes 20
   mod checks/31 client hashes, preserving the latest Marketplace client repair.
 - Next class review is PB-PORT-005C Cleric. Compare existing native group/pet
   healing, cleanse, resurrection/reservations/support before choosing an actual

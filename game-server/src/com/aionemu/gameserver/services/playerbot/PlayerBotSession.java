@@ -402,8 +402,8 @@ public final class PlayerBotSession {
 					nextDecision = System.currentTimeMillis() + 600;
 					return true;
 				}), hp(bot) < 30 ? EMERGENCY + 4 : HIGH + 4));
-		triggers = strategyPlan.triggers(PlayerBotSpiritmaster.strategy(bot.getPlayerClass()), State.NON_COMBAT, State.COMBAT);
-		strategyPlan.enable(PlayerBotSpiritmaster.strategy(bot.getPlayerClass()), order != Order.PASSIVE);
+		triggers = strategyPlan.triggers(PlayerBotCleric.strategy(bot.getPlayerClass()), State.NON_COMBAT, State.COMBAT);
+		strategyPlan.enable(PlayerBotCleric.strategy(bot.getPlayerClass()), order != Order.PASSIVE);
 		if (order != Order.PASSIVE) {
 			for (PlayerBotSkills.Entry entry : skills) {
 				if (incapacitated && entry.kind() != SkillKind.RECOVERY || bot.isSkillDisabled(entry.template()) || !PlayerBotSkills.chainAvailable(bot, entry)) continue;

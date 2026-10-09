@@ -96,7 +96,7 @@ final class PlayerBotNavigation {
 				float y=target.getY()+(float)(Math.sin(angle)*dx+Math.cos(angle)*dy);
 				Vector3f ground=bot.isFlying()
 					? (GeoService.getInstance().canSee(bot,x,y,point.z(),com.aionemu.gameserver.geoEngine.collision.IgnoreProperties.ANY_RACE) ? new Vector3f(x,y,point.z()) : null)
-					: GeoService.getInstance().findGroundMovementCollision(bot.getWorldId(),bot.getInstanceId(),bot.getX(),bot.getY(),bot.getZ(),x,y);
+					: GeoService.getInstance().findGroundMovementCollision(bot.getWorldId(),bot.getInstanceId(),bot.getX(),bot.getY(),bot.getZ(),x,y,point.z());
 				if (ground!=null && Float.isFinite(ground.z) && Math.hypot(ground.x-x,ground.y-y)<.3
 					&& GeoService.getInstance().canSee(target,ground.x,ground.y,ground.z,com.aionemu.gameserver.geoEngine.collision.IgnoreProperties.ANY_RACE)) return move(ground.x,ground.y,ground.z);
 			}
@@ -145,9 +145,11 @@ final class PlayerBotNavigation {
 			if (now - previous >= 100 && LAST_SEARCH.compareAndSet(previous, now)) {
 				nextSearch = now + 3000;
 				long deadline = System.nanoTime() + 6_000_000;
-				Point start = new Point(bot.getX(), bot.getY(), bot.getZ());
+				Vector3f origin = GeoService.getInstance().findGroundMovementCollision(bot.getWorldId(), bot.getInstanceId(),
+					bot.getX(), bot.getY(), bot.getZ(), bot.getX(), bot.getY(), goal.z());
+				Point start = origin == null ? new Point(bot.getX(), bot.getY(), bot.getZ()) : new Point(origin.x, origin.y, origin.z);
 				route.addAll(PlayerBotPathfinder.find(start, goal, (from, x, y) -> {
-					Vector3f result = GeoService.getInstance().findGroundMovementCollision(bot.getWorldId(), bot.getInstanceId(), from.x(), from.y(), from.z(), x, y);
+					Vector3f result = GeoService.getInstance().findGroundMovementCollision(bot.getWorldId(), bot.getInstanceId(), from.x(), from.y(), from.z(), x, y, goal.z());
 					Point point = result == null ? null : new Point(result.getX(), result.getY(), result.getZ());
 					return point != null && PlayerBotHazards.safePath(from, point, hazards) ? point : null;
 				}, 128, () -> System.nanoTime() >= deadline));
@@ -155,14 +157,14 @@ final class PlayerBotNavigation {
 		}
 		if (!route.isEmpty()) { Point waypoint = route.peekFirst(); targetX = waypoint.x(); targetY = waypoint.y(); targetZ = waypoint.z(); }
 		double angle = Math.toDegrees(Math.atan2(targetY - bot.getY(), targetX - bot.getX()));
-		float distance = (float) Math.min(Math.max(6,bot.getGameStats().getMovementSpeedFloat()*2), PositionUtil.getDistance(bot, targetX, targetY, targetZ));
+		float distance = (float) Math.min(Math.max(6,bot.getGameStats().getMovementSpeedFloat()*2), Math.hypot(targetX - bot.getX(), targetY - bot.getY()));
 		Point best = null;
 		double bestScore = Double.NEGATIVE_INFINITY;
 		for (int offset : new int[] { 0, 30, -30, 60, -60, 90, -90 }) {
 			double radians = Math.toRadians(angle + offset);
 			float x = bot.getX() + (float) Math.cos(radians) * distance;
 			float y = bot.getY() + (float) Math.sin(radians) * distance;
-			Vector3f collision = GeoService.getInstance().findGroundMovementCollision(bot.getWorldId(), bot.getInstanceId(), bot.getX(), bot.getY(), bot.getZ(), x, y);
+			Vector3f collision = GeoService.getInstance().findGroundMovementCollision(bot.getWorldId(), bot.getInstanceId(), bot.getX(), bot.getY(), bot.getZ(), x, y, targetZ);
 			float z;
 			if (collision != null) {
 				x = collision.getX(); y = collision.getY(); z = collision.getZ();
@@ -171,7 +173,8 @@ final class PlayerBotNavigation {
 				if (!Float.isFinite(z)) z = bot.getZ();
 			}
 			if (!Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z)
-				|| Math.abs(z - bot.getZ()) > distance + 0.5 || Math.hypot(x - bot.getX(), y - bot.getY()) < 0.15) continue;
+				|| (collision == null && Math.abs(z - bot.getZ()) > distance + 0.5)
+				|| (Math.hypot(x - bot.getX(), y - bot.getY()) < 0.15 && !(collision != null && z < bot.getZ() - 1.25f))) continue;
 			Point candidate = new Point(x, y, z);
 			if (!PlayerBotHazards.safePath(new Point(bot.getX(), bot.getY(), bot.getZ()), candidate, hazards)) continue;
 			double score = -PositionUtil.getDistance(x, y, z, targetX, targetY, targetZ) - Math.abs(offset) * 0.015;
@@ -179,7 +182,8 @@ final class PlayerBotNavigation {
 		}
 		if (best == null) { route.clear(); status = "blocked by geometry"; stop(); return false; }
 		status = route.isEmpty() ? "moving" : "following local route";
-		byte heading = (byte) Math.floorMod((int) Math.round(Math.toDegrees(Math.atan2(best.y() - bot.getY(), best.x() - bot.getX())) / 3), 120);
+		byte heading = Math.hypot(best.x() - bot.getX(), best.y() - bot.getY()) < 0.001 ? bot.getHeading()
+			: (byte) Math.floorMod((int) Math.round(Math.toDegrees(Math.atan2(best.y() - bot.getY(), best.x() - bot.getX())) / 3), 120);
 		synchronized(bot.getMoveController()) {
 			if(bot instanceof Player player)PlayerBotFollowIntent.clear(player);
 			bot.getMoveController().setNewDirection(best.x(), best.y(), best.z(), heading);

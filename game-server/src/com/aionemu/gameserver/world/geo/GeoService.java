@@ -159,6 +159,11 @@ public class GeoService implements GameEngine {
 		return com.aionemu.gameserver.services.playerbot.PlayerBotGroundNavigation.walk(geoMaps.get(worldId), instanceId, x, y, z, targetX, targetY);
 	}
 
+	/** Preserve the destination altitude for bot ground recovery as well as XY collision checks. */
+	public Vector3f findGroundMovementCollision(int worldId, int instanceId, float x, float y, float z, float targetX, float targetY, float targetZ) {
+		return com.aionemu.gameserver.services.playerbot.PlayerBotGroundNavigation.walk(geoMaps.get(worldId), instanceId, x, y, z, targetX, targetY, targetZ);
+	}
+
 	private Vector3f calculateCurrentGeoPosition(Player player) {
 		WorldPosition approximatePos = player.getPosition();
 		WorldPosition lastPos = player.getMoveController().getLastPositionFromClient();

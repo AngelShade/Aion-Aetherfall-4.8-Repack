@@ -58,6 +58,13 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 			// Headless bots must follow the floor and recheck dynamic obstacles at every movement tick.
 			double distance = Math.hypot(targetDestX-owner.getX(), targetDestY-owner.getY());
 			if (distance < 0.01) {
+				var ground = com.aionemu.gameserver.world.geo.GeoService.getInstance().findGroundMovementCollision(
+					owner.getWorldId(),owner.getInstanceId(),owner.getX(),owner.getY(),owner.getZ(),owner.getX(),owner.getY(),targetDestZ);
+				if (ground != null && Float.isFinite(ground.z) && ground.z < owner.getZ() - 1.25f) {
+					com.aionemu.gameserver.world.World.getInstance().updatePosition(owner,ground.x,ground.y,ground.z,heading,false);
+					owner.getKnownList().update();
+					owner.getController().onMove();
+				}
 				if (!com.aionemu.gameserver.services.playerbot.PlayerBotFollowIntent.active(owner)) abortMove();
 				else updateLastMove();
 				return;
@@ -69,7 +76,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 			float x = owner.getX()+(float)((targetDestX-owner.getX())*fraction);
 			float y = owner.getY()+(float)((targetDestY-owner.getY())*fraction);
 			var ground = com.aionemu.gameserver.world.geo.GeoService.getInstance().findGroundMovementCollision(
-				owner.getWorldId(),owner.getInstanceId(),owner.getX(),owner.getY(),owner.getZ(),x,y);
+				owner.getWorldId(),owner.getInstanceId(),owner.getX(),owner.getY(),owner.getZ(),x,y,targetDestZ);
 			if (ground == null || !Float.isFinite(ground.x) || !Float.isFinite(ground.y) || !Float.isFinite(ground.z)
 				|| Math.hypot(ground.x-owner.getX(),ground.y-owner.getY()) < 0.001) { abortMove(); return; }
 			com.aionemu.gameserver.world.World.getInstance().updatePosition(owner,ground.x,ground.y,ground.z,heading,false);

@@ -1,6 +1,76 @@
 # Focused WoW Playerbots port revision — 4 October 2026
 
-## Current source-built Spiritmaster slice - installed offline 8 October 2026
+## Cleric recovery timing — installed offline 9 October 2026
+
+**PB-PORT-005C** adds the confirmed missing Cleric distinction between immediate
+recovery, delayed HoT ticks and conditional HP healing. Native first-heal timing
+and useful amount drive critical/low-health ordering and almost-full HoT
+maintenance. Existing group/pet targets, hybrid cleanses, reservations,
+resurrection, cast/cost/cooldown gates and owned-alt builds are preserved.
+Chanter scoring remains unchanged and is the next separate review, **PB-PORT-005D**.
+This bounded recovery slice does not establish full Cleric or Playerbots parity.
+
+Complete unchanged normal Maven GameServer output is installed in external receipt
+`playerbots-source-build-20261009-045131-933181`, retaining PB-BUILD-003,
+NAV-004, Spiritmaster and all earlier mods. GameServer SHA
+`bc9de279a811fbd35c8ab1188ada2f07e41a4fa34fe6560efad32f50d9362d6c`;
+Commons, launcher, configuration, geometry and all managed runtime data are unchanged.
+Only Healing.priority and Session.tick change existing method behavior; CaseHeal
+adds read-only metadata getters with all eight execution methods preserved.
+3,544 prior JAR entries remain byte-identical.
+
+87 Cleric checks plus 14 existing world-free suites pass (1,905 checks). Complete
+assembly audit, all 1,757 handler compilations, production XML/schema/JAXB loading
+and 3,284-class / 171,909-reference linkage pass. Postinstall inventory passes
+20 mod checks and 31 current client hashes; 74 client/111 server historical receipts
+are recorded. Two changed client settings hashes were refreshed through the full
+passing inventory and preserved. Initial process/hash guards refused before any
+copy; after the user's normal shutdown, fresh checks and guarded backup/copy
+succeeded through `tools/release-game-server.py --scope PB-PORT-005C --review <review> --install`.
+No startup/stop/restart, attach, native cast, world actor or database operation was
+performed. **PB-VAL-013 actual Cleric casting/healing acceptance remains pending
+user testing.** See [gap, native mapping and evidence](PLAYERBOTS_CLERIC_20261009.md).
+
+## Complete resource delivery and workflow audit — installed offline 8 October 2026
+
+**PB-BUILD-003** installs all ten remaining maintained handler/static-resource
+differences with unchanged normal Maven output in receipt
+`playerbots-source-build-20261008-225416-105523`. This includes zone API alignment
+and previously undelivered 1 October quest/skill fixes. All 3,549 non-manifest
+JAR entries remain byte-identical; NAV-004, Spiritmaster and earlier mods survive.
+All 1,757 handlers compile, 14 world-free suites pass (1,818 checks), full static
+merge/XSD/JAXB loading and 3,281-class linkage pass. Inventory: 20 checks/31 client
+hashes. No startup, attach, gameplay or database operation. Actual startup and
+PB-VAL-005/012 gameplay remain pending user testing; next independent class review
+remains **PB-PORT-005C Cleric**. Every future GameServer release must use the
+canonical locked workflow in `tools/release-game-server.py`. See
+[audit, resource list and receipt](BUILD_DELIVERY_AUDIT_20261008.md).
+
+## Current source/static-data compatibility - installed offline 8 October 2026
+
+PB-BUILD-002 repairs the startup failure that prevented testing NAV-004: the
+complete source-built JAR and maintained box XML/schema/handlers now agree.
+Receipt `playerbots-source-build-20261008-220257-711786`; the full actual runtime
+static-data merge/schema/JAXB load passes offline (102,012 items / 4,091 boxes /
+470 overrides). Every non-manifest JAR entry remains byte-identical, including
+the movement repair. PB-VAL-005 gameplay remains pending user testing; independent
+next class review remains PB-PORT-005C Cleric. See
+[delivery repair and mandatory complete-data gate](SOURCE_BUILD_STATIC_DATA_20261008.md).
+
+## Current shared ground recovery - installed offline 8 October 2026
+
+**PB-REPAIR-NAV-004** retains intended destination altitude throughout bot
+planning/follow/controller probes. Unsupported elevated origins recover only
+onto verified floor after clear vertical sweeps, while normal edge/door guards
+remain. Complete Maven GameServer output was copied unchanged in receipt
+`playerbots-source-build-20261008-214740-770720`. Actual mesh movement traces,
+57 existing ground/door/route checks and 3,281-class runtime linkage pass;
+3,542 unrelated JAR entries remain byte-identical. Installed inventory passes
+20 checks/31 client hashes. **PB-VAL-005 actual gameplay remains pending.**
+Next independent class review remains **PB-PORT-005C Cleric**. See
+[shared repair and delivery evidence](PLAYERBOTS_GROUND_RECOVERY_20261008.md).
+
+## Previous source-built Spiritmaster slice - installed offline 8 October 2026
 
 **PB-PORT-005B / PB-BUILD-001**: only confirmed missing Spiritmaster single-target
 HP/MP-restoring damage/DoT/follow-up ordering was added after checking current
@@ -397,7 +467,9 @@ accepted or closed.
 
 | Order / ID | Status | Next concrete work | Dependencies |
 | --- | --- | --- | --- |
-| PB-PORT-005B | INSTALLED - normal Maven output; gameplay pending | Confirmed missing Spiritmaster restorative single-target/DoT/native chain ordering; existing pet/utility adapters kept. | PB-VAL-012; next class review 005C Cleric, check existing support first. See PLAYERBOTS_SPIRITMASTER_20261008.md. |
+| PB-PORT-005D | OPEN — gap review next | Chanter native mantras, buffs, melee and supporting heals; compare existing behavior before choosing a missing upstream purpose. | Cleric-only 005C does not complete Chanter; preserve existing native support and builds. |
+| PB-PORT-005C | INSTALLED — normal builder output; gameplay pending | Cleric first-heal timing and native conditional thresholds connected to final scoring; 87 checks; group/reservations/Chanter preserved. Receipt 20261009-045131-933181. | PB-VAL-013 pending; next separate review 005D Chanter. See PLAYERBOTS_CLERIC_20261009.md. |
+| PB-PORT-005B | INSTALLED - normal Maven output; gameplay pending | Confirmed missing Spiritmaster restorative single-target/DoT/native chain ordering; existing pet/utility adapters kept. | PB-VAL-012; next separate class review 005D Chanter; 005C recovery installed. See PLAYERBOTS_SPIRITMASTER_20261008.md. |
 | PB-BUILD-001 | INSTALLED - full source/build/runtime checked | Complete normal builder JARs replace cumulative override; unfinished outfit source gated off. | Future delivery uses source -> builder -> copy; preserve native mods/settings. |
 | PB-REPAIR-ENGINE-002 | INSTALLED - source/effective verified; gameplay pending | Completed ITEM_USE tasks no longer fabricate movement and fail stationary casts; native selective item cancellation and active-task gates. Receipt 201132-984909. | PB-VAL-009 reported ranged casters; PB-PORT-005B remains independent. See PLAYERBOTS_ITEM_TASK_CASTING_20261008.md. |
 | PB-REPAIR-ENGINE-001 | INSTALLED - source/effective verified; gameplay pending | Corrected stale mover/cast race, repeated order cancellation and unchanged-preference continuer loss in core execution. | PB-VAL-009; PB-PORT-005B independent next class slice. See PLAYERBOTS_CAST_EXECUTION_20261008.md. |
@@ -406,7 +478,7 @@ accepted or closed.
 | 2 · PB-PORT-002 | INSTALLED — offline verified; native pending | Native refresh/hybrid/stronger-effect cast acceptance. Final DAMAGE veto is corrected. | PB-VAL-001; actual cast acceptance still outstanding. |
 | 3 · PB-PORT-003 | INSTALLED — offline verified; native pending | Validate complete native tick/geodata/interactions through the committed objective; local executor gates are connected. | PB-VAL-002; preserve native handlers/witnesses/loot and no quest progress bypass. |
 | 4 · PB-PORT-004 | INSTALLED — offline/loaded-engine verified; client combat pending | State strategies/defaults, native threat policy, weighted expansion and freshly resolved continuers installed in 213711-193912. Validate actual native chain casts/transitions. | Latest position receipt 211935-035574 retained; PB-VAL-009. Next implementation 005. |
-| 5 · PB-PORT-005 | OPEN — partial; 005A/005B installed | Sorcerer ONLYONE chain/upkeep/filler/MP/boost strategy installed `234841-695964`; native/client pending. 005B confirmed missing Spiritmaster single-target/recovery ordering installed from normal source build; existing pets preserved. Next 005C Cleric review; broader class coverage remains open. | PB-PORT-004 installed; cached GenericWarlock/AfflictionWarlock mapping and native pet gates for 005B; necessary pet coordination PB-PORT-008. |
+| 5 · PB-PORT-005 | OPEN — partial; 005A/005B installed | Sorcerer ONLYONE chain/upkeep/filler/MP/boost strategy installed `234841-695964`; native/client pending. 005B confirmed missing Spiritmaster single-target/recovery ordering installed from normal source build; existing pets preserved. 005C Cleric recovery installed/offline verified; next separate review 005D Chanter. Broader class coverage remains open. | PB-PORT-004 installed; cached GenericWarlock/AfflictionWarlock mapping and native pet gates for 005B; necessary pet coordination PB-PORT-008. |
 | 6 · PB-PORT-006 | OPEN — partial; marker SOURCE GATE | Focus-heal/attack controls and distinct AoE target policy; verify native marker contract. | PB-PORT-004/005; import RtiTargetValue dependencies at same pin. |
 | 7 · PB-PORT-007 | OPEN — partial; pull SOURCE GATE | Main/off-tank responsibility, pull readiness and CC/assist coordination. | PB-PORT-004/006; exact upstream pull actions/triggers first. |
 | 8 · PB-PORT-008 | OPEN — partial | Role-aware buff/debuff assignments and pet utility/recovery/resource coordination. | Class slices PB-PORT-005; native pet/effect legality. |
@@ -627,7 +699,7 @@ from these reference excerpts or a reason to mark this focused audit complete.
 | PB-VAL-002 | Native quest stages and real geodata through the committed group objective | PB-PORT-003 local gates installed/offline verified; complete tick, native object/NPC/kill/reward execution and real-client acceptance pending. |
 | PB-VAL-003 | Corrected `PlayerBotRevivalCheckAgent2` final post-revive Healing Light casting and client rebirth appearance | Corrected native/client check remains outstanding; older party-less Healing Wind fixture is not success. |
 | PB-VAL-004 | Supplies/recovery revision 3 MP/buff checks and roster save/dismiss/remove behavior | Actual native lifecycle checks remain outstanding; browser/archive/engine checks do not close them. |
-| PB-VAL-005 | Smooth ground/flight travel, all four formations, regrouping, corners, combat positioning, doors and summon controls | Latest summon/distance recall installed offline `195139-913545`; early 60m recall, bot activity cancellation and FOLLOW reset; 679 new checks, 314 formation/6 speed-packet/57 floor/17 trail regressions pass. NAV-002/003 retained. | User actual rendered movement, whole-party formation and summon/dungeon acceptance pending. |
+| PB-VAL-005 | Smooth ground/flight travel, all four formations, regrouping, corners, combat positioning, doors and summon controls | Latest NAV-004 ground recovery installed as normal source-built JAR `214740-770720`; intended Z retained; reported native mesh traces and 57 floor/door/route checks pass. NAV-002/003, formation, flight, Summon and early 60m recall preserved. | User actual rendered movement, whole-party formation and summon/dungeon acceptance pending. |
 | PB-VAL-006 | Entire five-bot party entering/returning from real dungeons with state/build preserved | Prior native transfer fixture passed; real dungeon transitions still pending. |
 | PB-VAL-007 | Learned utility/defense/heal/pet casts and delayed Kromede trap avoidance in a client party encounter | Historical isolated casts passed for named skills; full class/dungeon acceptance absent. |
 | PB-VAL-008 | Temporary maintenance, save/preset/remove/relogin, untouched owned-alt fingerprints, native pet/menu coexistence | Historical selected fixtures pass; complete actual-client regression remains pending. |
@@ -806,6 +878,9 @@ Keep every other open tracker ID and the persisted item-ID release investigation
 | PB-REPAIR-SETTINGS-001 | Short bounded retry of transient Windows care-file replacement denial, retaining atomic save and permanent-error reporting | Installed live/disk `042546-945113`; one method and new helper; existing trade/Sorcerer/tank/shield retained | User quest/settings acceptance; further tests stopped at user's request |
 | PB-REPAIR-FOLLOW-001 | Previous stalled-follower teleport fallback | Rejected and removed in `171732-465446`; complete metadata baseline and incidental UI restored | Do not reinstall historical recovery packages |
 | PB-REPAIR-NAV-002 | Generic opened-door collision recognition, finer ground routes, floor-following movement and reached-breadcrumb progress | Installed offline through `190312-034119`; initial failure reported by user. 17 progress/40 geometry checks pass; 156 prior entries preserved in continuation | PB-VAL-005 actual summoned-bot room movement/combat/party acceptance |
+| PB-REPAIR-NAV-004 | Preserve destination altitude and recover unsupported elevated bot origins with verified vertical ground sweeps | Installed offline complete normal Maven JAR `214740-770720`; actual reported mesh traces complete at four movement step sizes; 57 floor/door/route checks and full linkage pass; 3,542 unrelated entries preserved | PB-VAL-005 user follow, movement and other-location acceptance; no coordinate exceptions |
+| PB-BUILD-002 | Align normal source-built GameServer with its required static XML/schema and command resources | Installed offline `220257-711786`; full actual static-data merge/schema/JAXB loading passes; all non-manifest JAR entries including NAV-004 retained byte-identically | User server startup and gameplay acceptance; complete static-data load required for future JAR deliveries |
+| PB-BUILD-003 | Complete source/build/resource delivery and cross-chat release guards | Installed offline `225416-105523`; all ten remaining resource differences delivered; complete static load, all handler compilation, 14 suites and linkage pass | User startup/gameplay acceptance; canonical locked release required |
 | PB-DIAG-PERF-001 | Diagnose paired 23:44:40 AI-update/HTTP stalls | AI tick lambda confirmed; later 45-second profile has no recurrence, long companion-lock wait or large GC pause; no gameplay change | Original root cause/activity context and recurrence capture; preserve current 005A installation |
 
 This repairs Aion transaction integration, not an upstream strategy feature.

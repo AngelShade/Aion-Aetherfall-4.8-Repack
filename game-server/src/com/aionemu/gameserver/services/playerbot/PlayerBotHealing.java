@@ -77,8 +77,12 @@ final class PlayerBotHealing {
   for(var target:targets(bot,e,anchor,party))if(heals(e) && needs(bot,e,target,party)) {
    boolean pet=target instanceof Summon;double hp=health(target);
    double candidate=healPriority(pet && e.template().getProperties().getFirstTarget()!=FirstTargetAttribute.MYPET ? Math.min(84,hp+30) : hp,target.getAggroList().stream().findAny().isPresent());
-   if(candidate<=0)continue;urgency=Math.max(urgency,candidate);
-   fit+=PlayerBotTactics.healFit(target.getLifeStats().getMaxHp()-target.getLifeStats().getCurrentHp(),snapshot(bot,e,target),e.template().getDuration(),hp<30);
+   if(candidate<=0)continue;
+   var recovery=PlayerBotCleric.recovery(bot,e,target,candidate);
+   if(recovery!=null) {
+    candidate=recovery.urgency();if(candidate<=0)continue;fit+=recovery.fit();
+   } else fit+=PlayerBotTactics.healFit(target.getLifeStats().getMaxHp()-target.getLifeStats().getCurrentHp(),snapshot(bot,e,target),e.template().getDuration(),hp<30);
+   urgency=Math.max(urgency,candidate);
    if(pet)pets++;else players++;
   }
   double healing=urgency==0 ? 0 : urgency+fit/Math.max(1,players+pets)+groupBonus(players,pets);
