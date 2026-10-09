@@ -78,6 +78,8 @@ final class PlayerBotOffense {
   var effects=active(target);double health=PlayerBotDefense.health(target);
   if(PlayerBotSorcerer.applies(bot.getPlayerClass()) && PlayerBotSorcerer.singleTarget(actual))return PlayerBotSorcerer.damage(bot,entry,target,effects,fitness);
   if(PlayerBotSpiritmaster.applies(bot.getPlayerClass()) && PlayerBotSorcerer.singleTarget(actual))return PlayerBotSpiritmaster.damage(bot,entry,target,effects,fitness);
+  double counter=PlayerBotGladiator.counter(bot,entry,fitness);
+  if(!Double.isNaN(counter))return counter;
   if(actual.hasAnyEffect(EffectType.SIGNETBURST))
    return finisher(runes(actual,effects),health,runeTime(actual,effects),actual.getDuration()+750L,builderAvailable(bot,skills,target));
   if(periodic(actual)) {
@@ -92,7 +94,8 @@ final class PlayerBotOffense {
     return band+Math.min(1,Math.max(0,fitness)/7);
    }
   }
-  return (PlayerBotSkills.followUp(entry) ? 23 : 10)+fitness;
+  double assassinChain=PlayerBotAssassin.chain(bot,entry,actual,fitness);
+  return Double.isNaN(assassinChain) ? (PlayerBotSkills.followUp(entry) ? 23 : 10)+fitness : assassinChain;
  }
  static boolean useful(Player bot,PlayerBotSkills.Entry entry,Creature target) {
   if(entry.kind()!=PlayerBotRules.SkillKind.DAMAGE && entry.kind()!=PlayerBotRules.SkillKind.PET_ORDER)return true;

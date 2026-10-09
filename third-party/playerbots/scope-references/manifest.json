@@ -89,6 +89,21 @@
     {
       "path": "tree.json",
       "sha256": "e02564635e071819bf28c95057c1e142d3b83620f2468a3fa969ae0b6ba42bc3"
+    },
+    {
+      "path": "src/Bot/RandomPlayerbotMgr.cpp",
+      "gitBlob": "4a8229f7dac69d1deafb1f2e3271de9400261f27",
+      "sha256": "277ca9eee65940523131c21e0f97841b56ffb8c19492a172e25f39b6a1b56e72"
+    },
+    {
+      "path": "src/Bot/PlayerbotMgr.cpp",
+      "gitBlob": "848ba215676eb20f738a15bc2e2259a24a07d5c0",
+      "sha256": "39acc3e523f9dee60cda071ec3e447359360bca97ab8d5aa30189c4334238258"
+    },
+    {
+      "path": "src/Ai/Base/Actions/LeaveGroupAction.cpp",
+      "gitBlob": "ae2be51a7a86c5af6d690febe9ca3a7559b908c9",
+      "sha256": "51e377ecb9025782e4029f6f209348c907bc3d7416ea1796694bb19ab1af5733"
     }
   ]
 }

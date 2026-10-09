@@ -90,7 +90,12 @@ final class PlayerBotHealing {
   if(e.kind()==SkillKind.CLEANSE)for(var target:targets(bot,e,anchor,party))if(!PlayerBotService.getInstance().isReserved(bot,target,SkillKind.CLEANSE)) {
    double value=PlayerBotDispel.score(e,target);if(value>0){dispel=Math.max(dispel,value);cleanses++;}
   }
-  return Math.max(healing,cleanses==0 ? 0 : PlayerBotEngine.DISPEL+dispel+Math.min(4,cleanses-1));
+  double existing=Math.max(healing,cleanses==0 ? 0 : PlayerBotEngine.DISPEL+dispel+Math.min(4,cleanses-1));
+  // Iron Skin and similar native Templar skills remain CLEANSE actions, but
+  // their protective payload can also be useful with no removable debuff.
+  if(PlayerBotTemplar.managed(bot,e) && e.kind()==SkillKind.CLEANSE)
+   return Math.max(existing,PlayerBotDefense.priority(bot,e,anchor,true,party));
+  return existing;
  }
  static Creature recipient(Player bot,PlayerBotSkills.Entry e,List<Player> party) {
   var props=e.template().getProperties();List<Creature> candidates=props.getFirstTarget()==FirstTargetAttribute.ME ? List.of(bot) : members(party);

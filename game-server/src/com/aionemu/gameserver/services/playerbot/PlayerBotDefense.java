@@ -64,7 +64,8 @@ final class PlayerBotDefense {
   double result=0;
   for(var target:PlayerBotHealing.targets(bot,entry,anchor,party)) {
    if(!addable(bot,entry,target))continue;var attackers=attackers(bot,target);
-   result=Math.max(result,policy(bot.getPlayerClass(),entry.template(),entry.level(),health(target),mana(target),combat,!attackers.isEmpty(),magical(attackers,target)));
+   double existing=entry.kind()==SkillKind.DEFENSE ? policy(bot.getPlayerClass(),entry.template(),entry.level(),health(target),mana(target),combat,!attackers.isEmpty(),magical(attackers,target)) : 0;
+   result=Math.max(result,Math.max(existing,PlayerBotTemplar.priority(bot,entry,target,combat,attackers)));
   }return result;
  }
  static Creature recipient(Player bot,PlayerBotSkills.Entry entry,List<Player> party,boolean combat) {

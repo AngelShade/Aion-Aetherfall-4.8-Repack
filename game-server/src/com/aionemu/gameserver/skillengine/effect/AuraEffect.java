@@ -31,6 +31,11 @@ public class AuraEffect extends EffectTemplate {
 	@XmlAttribute(name = "skill_id")
 	protected int skillId;
 
+	/** Read-only metadata for native mantra planning; aura execution is unchanged. */
+	public int getSkillId() { return skillId; }
+	public int getDistance() { return distance; }
+	public int getDistanceZ() { return distanceZ; }
+
 	@Override
 	public void applyEffect(Effect effect) {
 		Creature effector = effect.getEffector();

@@ -9,7 +9,9 @@ import com.aionemu.gameserver.skillengine.model.SkillTemplate;
 /** Class-appropriate combat preparations from native stat changes; no spell-name or faction-ID guesses. */
 final class PlayerBotCombatBuffs {
 	static boolean useful(PlayerClass pc, Role role, SkillTemplate skill, double health, double mana) {
-		if (skill == null || skill.getEffects() == null || health < 55 || mana < 35 || skill.getDuration() > 1500 || skill.isToggle()) return false;
+		if (skill == null || skill.getEffects() == null || health < 55 || mana < 35 || skill.getDuration() > 1500) return false;
+		if (PlayerBotChanter.applies(pc) && PlayerBotChanter.mantra(skill)) return true;
+		if (skill.isToggle()) return false;
 		if (PlayerBotSorcerer.applies(pc) && PlayerBotSorcerer.offensiveBoost(skill)) return true;
 		Set<StatEnum> relevant = switch (pc) {
 			case WARRIOR, GLADIATOR, TEMPLAR, SCOUT, ASSASSIN, RANGER, CHANTER -> Set.of(StatEnum.PHYSICAL_ATTACK, StatEnum.PHYSICAL_CRITICAL, StatEnum.ATTACK_SPEED, StatEnum.PHYSICAL_ACCURACY);

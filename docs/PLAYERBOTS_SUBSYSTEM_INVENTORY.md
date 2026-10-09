@@ -15,6 +15,18 @@ Rows marked source gate require their actual implementation to be read before
 porting; this bounded inventory does not claim to have audited every source line.
 GPL attribution in `third-party/playerbots` applies to these additional sources.
 
+005D's bounded support dependency additionally imports `TotemsShamanStrategy.cpp`
+from this same pinned tree, verifying blob `8066d57b8cfb960db1b9141310f9dfcb4bcf1d91`
+and recording SHA-256 in `third-party/playerbots/SHA256SUMS`. It does not restart
+or enlarge the completed subsystem inventory. See `PLAYERBOTS_CHANTER_20261009.md`.
+005E additionally reads `WarriorTriggers.h` and `GenericWarriorStrategy.cpp` from
+this same pinned tree, with Git blobs and SHA-256 verified for the bounded
+Templar protection dependency. See `PLAYERBOTS_TEMPLAR_20261009.md`; the completed
+subsystem inventory is retained.
+005F imports the exact pinned Arms/Fury Warrior strategy files with their recorded
+Git blobs and SHA-256 verified for the bounded counter-opportunity purpose. See
+`PLAYERBOTS_GLADIATOR_20261009.md`; full class parity remains partial.
+
 Native execution continuation 8 October: PB-REPAIR-ENGINE-002 corrects completed
 item-task state and false movement poisoning of stationary casts. It preserves
 PB-PORT-004 engine and PB-SCOPE-003A trade/care integration; this is an adapter
@@ -29,7 +41,7 @@ saved parties, optional spending and future PvP) remain separate from upstream p
 | ID | Upstream subsystem and source evidence | Native Aion mapping / current state | Next dependency or deliberate difference |
 | --- | --- | --- | --- |
 | PB-PORT-004 | Engine/action/trigger/default/multiplier/continuation registries; `src/Bot/Engine`, `src/Bot/Factory/AiFactory.cpp`, `ChangeStrategyAction.cpp` | Installed composition/defaults/evaluated expansion/native threat/fresh continuers in 213711-193912; 49 loaded-engine tests pass | Enables class composition, not a prerequisite for all trade/world lifecycle work. Actual client combat PB-VAL-009; full custom chat strategy editor/persistence remains separate below. |
-| PB-PORT-005 | Class/spec rotations, procs, resources, executes and fallback nodes; `src/Ai/Class/*` | 005A Sorcerer, 005B Spiritmaster and 005C Cleric bounded strategies installed; 54/59/87 offline checks, actual native/client pending; full class coverage partial | 005B installed source-built single-target/resource ordering after gap review; native pet coordination retained. 005C Cleric recovery timing installed/offline verified; next separate review 005D Chanter. Existing general healing/reservations retained. |
+| PB-PORT-005 | Class/spec rotations, procs, resources, executes and fallback nodes; `src/Ai/Class/*` | 005A Sorcerer, 005B Spiritmaster, 005C Cleric, 005D Chanter, 005E Templar, 005F Gladiator and 005G Assassin bounded strategies installed; 54/59/87/89/71/66/123 offline checks, actual native/client pending; full class coverage partial | 005B installed source-built single-target/resource ordering after gap review; native pet coordination retained. 005C recovery, 005D mantra support, 005E pressure protection and 005F Gladiator counter-window priority installed/offline verified; 005G Assassin chain fitness/finisher ordering installed; next separate review 005H Ranger. Existing healing/reservations/mantra slots/tank threat retained. |
 | PB-PORT-006 | Target/heal/focus/icon/AoE values; `src/Ai/Base/Value`, `SetFocusHealTargetsAction.cpp`, `RtiAction.cpp` | Native targets/hate/health/LOS, caster lifetime/runes installed; focus/icon/AoE partial | Source/native marker gate; preserve existing target admission. |
 | PB-PORT-007 | Tank/assist/threat/pull/ready/CC; `TankAssistStrategy.cpp`, `ThreatStrategy.cpp`, `PullActions.cpp`, `ReadyCheckAction.cpp` | Native group/hate/opening/pickup/DPS hold and PB-REPAIR-TANK-001 boss-drag adapter repair installed; actual fight acceptance pending; pull/assignment partial | 004/006 and exact pull source; no WoW threat thresholds substituted for Aion hate. |
 | PB-PORT-008 | Heals/buffs/debuffs/pets/summons/food coordination; class strategies, `PetsAction.cpp`, `UseFoodStrategy.cpp` | Native affected-recipient reservation/effect stacking/pet tools and supplies partial | Class slices and focus controls; no unsupported summon/totem imitation. |
@@ -63,8 +75,20 @@ saved parties, optional spending and future PvP) remain separate from upstream p
    GenericWarlock/AfflictionWarlock and native pet-order eligibility. Necessary
    pet coordination is 008; focus/roles/build slices remain independent as needed.
    **005C installed/offline verified:** Cleric immediate/HoT/conditional recovery timing;
-   PB-VAL-013 actual casting/healing remains user-tested. **Next separate review 005D:**
-   Chanter native mantras/buffs/melee/support; compare exact upstream before porting.
+   PB-VAL-013 actual casting/healing remains user-tested.
+   **005D installed/offline verified:** Chanter missing-mantra combat admission and
+   native nearby-party support ranking; PB-VAL-014 remains user-tested.
+   **005E installed/offline verified:** Templar proactive physical block/low-health
+   native pressure shields, including hybrid CLEANSE/shield integration;
+   PB-VAL-015 remains user-tested.
+   **005F installed/offline verified:** Gladiator actual counter opportunity is
+   prioritized before fillers/chains without extending its native window;
+   PB-VAL-016 remains user-tested.
+   **005G installed/offline verified:** Assassin ordinary chain fitness stays below
+   mature/urgent rune finishers and existing defense; PB-VAL-017 remains user-tested.
+   **Next separate review 005H:** Ranger positioning/chains/control/buffs/recovery;
+   compare pinned Hunter first, preserving installed 001/002 gates. Full Gladiator/
+   Templar strategies and Chanter assignment/replacement remain unfinished.
    No duplicated pet/utility work for 005B.
 3. **Independent world track:** 001 lifecycle/context -> 006 local activities ->
    011 global destinations/travel. 002 invitation/control can follow lifecycle

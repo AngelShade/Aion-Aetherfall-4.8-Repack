@@ -402,8 +402,8 @@ public final class PlayerBotSession {
 					nextDecision = System.currentTimeMillis() + 600;
 					return true;
 				}), hp(bot) < 30 ? EMERGENCY + 4 : HIGH + 4));
-		triggers = strategyPlan.triggers(PlayerBotCleric.strategy(bot.getPlayerClass()), State.NON_COMBAT, State.COMBAT);
-		strategyPlan.enable(PlayerBotCleric.strategy(bot.getPlayerClass()), order != Order.PASSIVE);
+		triggers = strategyPlan.triggers(PlayerBotAssassin.strategy(bot.getPlayerClass()), State.NON_COMBAT, State.COMBAT);
+		strategyPlan.enable(PlayerBotAssassin.strategy(bot.getPlayerClass()), order != Order.PASSIVE);
 		if (order != Order.PASSIVE) {
 			for (PlayerBotSkills.Entry entry : skills) {
 				if (incapacitated && entry.kind() != SkillKind.RECOVERY || bot.isSkillDisabled(entry.template()) || !PlayerBotSkills.chainAvailable(bot, entry)) continue;
@@ -544,6 +544,8 @@ public final class PlayerBotSession {
 	}
 
 	private double priority(PlayerBotSkills.Entry e, Creature recipient, boolean combat, List<Player> party) {
+		double chanterSupport = PlayerBotChanter.support(bot,e,recipient,party,combat);
+		if (!Double.isNaN(chanterSupport)) return chanterSupport;
 		double classSupport = PlayerBotSorcerer.support(bot,role,e,recipient,combat);
 		if (!Double.isNaN(classSupport)) return classSupport;
 		if (e.kind() == SkillKind.DEFENSE) return PlayerBotDefense.priority(bot, e, recipient, combat, party);

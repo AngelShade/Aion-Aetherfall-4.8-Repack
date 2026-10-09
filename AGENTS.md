@@ -1,6 +1,114 @@
 # Aion project continuity and installed modifications
 
-## Current Cleric/source-built baseline — 9 October 2026
+## Current Assassin/source-built baseline — 9 October 2026
+
+- Latest receipt is PB-PORT-005G: `playerbots-source-build-20261009-061641-083362`, under external
+  `archives/server/game-server/backups`. GameServer SHA
+  `95955312ddaafed4eccf1ccd34ca3aa017d3c5d1b982b6d2a6913585f76fefe2`; installed Commons remains
+  `b7d6786f38696b9d81425cee04c4ebf16aa242d76e6c20c1754385168ec2cc6c`.
+  All earlier classes, PB-BUILD-003, NAV-004 and installed features remain.
+- Preserve Assassin-only ordinary single-target chain fitness within 23..23.875,
+  below existing mature/urgent rune finishers at 25/24 and health defenses.
+  Rune eligibility, poison/bleed upkeep, final chain/cost/cooldown/target/AoE/
+  threat/interrupt/healing gates and native execution are unchanged. Planning
+  grants/replaces/consumes no skills, builds, equipment or native resources.
+- All 19 world-free suites (2,254 checks, including 123 Assassin), complete
+  resource/handler/static-data/linkage gates and 20 mod checks/31 client hashes pass.
+  Installed baseline defect reproduced first; 3,554 prior JAR entries identical;
+  only Offense.routine/Session.tick differ. No managed resources changed. Fresh
+  guarded delivery copied only unchanged normal Maven GameServer output.
+  Keep server/client off: no startup/attach/native casts/effects/world/DB/IDs.
+  PB-VAL-017 actual rune/chain/poison/defense combat remains user-tested.
+- Next separate review: PB-PORT-005H Ranger. Compare existing ranged positioning,
+  chains, control, buffs and recovery with pinned Hunter before choosing a missing
+  behavior. Full Assassin/class/world and item-ID release work remain unfinished.
+  See `docs/PLAYERBOTS_ASSASSIN_20261009.md`. Every delivery uses
+  `tools/release-game-server.py`; override stays retired, appearance disabled,
+  runtime paths fixed and existing archive migration deferred.
+
+## Previous Gladiator/source-built baseline — 9 October 2026
+
+- Latest receipt is PB-PORT-005F:
+  `playerbots-source-build-20261009-055725-016513`, under external
+  `archives/server/game-server/backups`. It retains Templar/Chanter/Cleric,
+  PB-BUILD-003, NAV-004, Spiritmaster and all prior features. GameServer SHA
+  `8fd18d49937f696015098638397de80ac529802740b35da753249ac7429b30c1`;
+  installed Commons remains
+  `b7d6786f38696b9d81425cee04c4ebf16aa242d76e6c20c1754385168ec2cc6c`.
+- Preserve Gladiator-only direct single-target physical counter priority during
+  the actual native event window. No counter event is invented/extended/consumed;
+  final parry/chain/cost/cooldown/target/AoE/threat gates and existing drain fitness,
+  interrupts, healing and all earlier class strategies remain. Native execution
+  is unchanged. Full Gladiator/class/world parity remains partial.
+- All 18 world-free suites (2,131 checks, including 66 Gladiator), full resource/
+  handler/static-data/linkage gates and 20 mod checks/31 client hashes pass.
+  The installed baseline reproduced filler displacement before edits. 3,552 prior
+  JAR entries remain byte-identical; no managed resources changed. Shutdown and
+  client-setting guards initially refused before any copy, then full inventory
+  refresh/fresh guarded delivery preserved current client settings and succeeded.
+  Keep server/client off; no startup/attach/native casts/effects/world/DB/IDs.
+  PB-VAL-016 actual Gladiator counter/combat acceptance remains user-tested.
+- Next separate review: PB-PORT-005G Assassin. Compare existing rune builders/
+  finishers, chains, poison upkeep, utility and defense with pinned Rogue strategies
+  before choosing missing behavior; do not repeat installed 001/002 final gates
+  solely for pending acceptance. Full class/world and item-ID release work remain
+  unfinished. See `docs/PLAYERBOTS_GLADIATOR_20261009.md`. Every delivery continues
+  through `tools/release-game-server.py`; override remains retired, appearance
+  disabled, runtime paths fixed and existing archive migration deferred.
+
+## Previous Templar/source-built baseline — 9 October 2026
+
+- Latest receipt is PB-PORT-005E:
+  `playerbots-source-build-20261009-053655-481400`, under external
+  `archives/server/game-server/backups`. It retains Chanter/Cleric, PB-BUILD-003,
+  NAV-004, Spiritmaster and all prior features. GameServer SHA
+  `8dda6e9598f8027915613f1a93cfc610dbbdeb6ec8c2181a2b395ee9fadf650b`;
+  installed Commons remains
+  `b7d6786f38696b9d81425cee04c4ebf16aa242d76e6c20c1754385168ec2cc6c`.
+- Preserve Templar-only proactive physical block and low-health native shields,
+  including hybrid CLEANSE/shield scoring without discarding cleanse behavior.
+  Native pressure/hit coverage, recipients, stacking, equipment/DP/cost/cooldown/
+  final gates and prior hate/taunt/melee/chain/heal/reservation behavior remain.
+  ShieldEffect execution is unchanged; its new getter only reads coverage.
+- All 17 world-free suites (2,065 checks, including 71 Templar), 64 focused
+  defense/healing checks, complete resource/handler/static-data/linkage gates and
+  20 mod checks/31 client hashes pass. 3,549 prior JAR entries remain byte-identical;
+  no managed resources changed. Fresh guarded delivery confirmed server/client
+  off; keep both off. No startup/attach/native casts/effects/world/DB/IDs occurred.
+  PB-VAL-015 actual Templar shield/block/combat acceptance remains user-tested.
+- Next separate review: PB-PORT-005F Gladiator. Compare existing offense, chains,
+  drains, AoE safety and defense with pinned Warrior damage strategies before
+  selecting a missing behavior. Full Templar/class/world scope and item-ID release
+  investigation remain unfinished. See `docs/PLAYERBOTS_TEMPLAR_20261009.md`.
+  Every delivery uses `tools/release-game-server.py`; override stays retired and
+  appearance disabled. No component relocation or existing archive migration.
+
+## Previous Chanter/source-built baseline — 9 October 2026
+
+- Latest receipt is PB-PORT-005D:
+  `playerbots-source-build-20261009-051146-587613`, under external
+  `archives/server/game-server/backups`. It retains Cleric 005C, PB-BUILD-003,
+  NAV-004, Spiritmaster and all prior installed features. GameServer SHA
+  `e23b0c3d33bf54bf7f13a802f1199a1b19af7b5a9db2388790a028a579d98ba2`;
+  Commons remains `b7d6786f38696b9d81425cee04c4ebf16aa242d76e6c20c1754385168ec2cc6c`.
+- Preserve Chanter-only combat mantra admission and native payload/nearby-party
+  support ranking. Active mantras are never replaced or turned off; three-slot,
+  stacking, native range/cost/cooldown/final cast gates and prior healing/melee/
+  interrupts/reservations remain. AuraEffect execution is unchanged.
+- All 16 world-free suites (1,994 checks, including 89 Chanter), complete resource/
+  handler/static-data/linkage gates and 20 mod checks/31 client hashes pass.
+  3,543 prior JAR entries remain byte-identical; no managed resources changed.
+  Fresh guarded delivery confirmed server/client off; keep both off. No startup,
+  attach, native casts, world actors, database or ID operations occurred.
+  PB-VAL-014 mantra/combat acceptance remains pending user testing.
+- Next separate class review is PB-PORT-005E Templar. Compare current native
+  tank hate/opening/taunt coordination, defenses, positioning and chains with
+  pinned TankWarrior before porting a confirmed missing behavior. Paired Gladiator,
+  full class/world scope and item-ID release investigation remain unfinished.
+  See `docs/PLAYERBOTS_CHANTER_20261009.md`. Every delivery continues through
+  `tools/release-game-server.py`; override stays retired and appearance disabled.
+
+## Previous Cleric/source-built baseline — 9 October 2026
 
 - Latest receipt is PB-PORT-005C:
   `playerbots-source-build-20261009-045131-933181`, under external
