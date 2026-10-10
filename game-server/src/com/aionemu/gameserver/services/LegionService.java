@@ -800,6 +800,14 @@ public class LegionService {
 		}
 	}
 
+	/** Native membership presence for a headless resident; no nonexistent recipient roster is loaded. */
+	public void onPlayerBotEnter(Player player) {
+		updateMemberInfo(player);
+		PacketSendUtility.broadcastToLegion(player.getLegion(), SM_SYSTEM_MESSAGE.STR_MSG_NOTIFY_LOGIN_GUILD(player.getName()), player.getObjectId());
+		PacketSendUtility.broadcastToLegion(player.getLegion(), new SM_LEGION_ADD_MEMBER(player, true, 0, ""));
+		player.getLegion().addBonus();
+	}
+
 	public void onLogout(Player player) {
 		LegionMember legionMember = player.getLegionMember();
 		Legion legion = legionMember.getLegion();
