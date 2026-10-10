@@ -14,13 +14,14 @@ import com.aionemu.gameserver.utils.chathandlers.ConsoleCommand;
 public class Wishid extends ConsoleCommand {
 
 	public Wishid() {
-		super("wishid");
+		super("wishid", "Give an item.",
+			"<Quantity> <item Id> - Give the specified quantity of an item.");
 	}
 
 	@Override
 	public void execute(Player admin, String... params) {
 		if (params.length < 2) {
-			info(admin, null);
+			sendInfo(admin);
 			return;
 		}
 
@@ -36,7 +37,7 @@ public class Wishid extends ConsoleCommand {
 			itemCount = Long.parseLong(params[0]);
 			itemId = Integer.parseInt(params[1]);
 		} catch (NumberFormatException e) {
-			info(admin, null);
+			sendInfo(admin);
 			return;
 		}
 
@@ -60,10 +61,4 @@ public class Wishid extends ConsoleCommand {
 			PacketSendUtility.sendMessage(admin, "Item couldn't be added");
 		}
 	}
-
-	@Override
-	public void info(Player admin, String message) {
-		PacketSendUtility.sendMessage(admin, "syntax ///wishid <Quantity> <item Id>");
-	}
-
 }

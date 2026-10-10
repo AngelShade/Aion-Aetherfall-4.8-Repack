@@ -64,6 +64,21 @@ public class Node extends Spatial implements Cloneable {
 
 	protected byte collisionIntentions;
 	protected byte materialId;
+	private volatile SegmentCollisionIndex segmentCollisionIndex;
+	/** Invalidated by topology, bounds or transforms; instance door state is checked by native children. */
+	void invalidateSegmentCollisionIndex() {
+		segmentCollisionIndex=null;
+		if(parent!=null)parent.invalidateSegmentCollisionIndex();
+	}
+	private List<Spatial> segmentCandidates(CollisionResults results) {
+		if(!results.hasSegmentBounds() || children.size()<32)return children;
+		var index=segmentCollisionIndex;
+		if(index==null || index.size!=children.size())synchronized(this) {
+			index=segmentCollisionIndex;
+			if(index==null || index.size!=children.size())segmentCollisionIndex=index=new SegmentCollisionIndex(children);
+		}
+		return index.candidates(results);
+	}
 
 	/**
 	 * Do not use this constructor. Serialization purposes only.
@@ -148,6 +163,7 @@ public class Node extends Spatial implements Cloneable {
 			}
 			child.setParent(this);
 			children.add(child);
+			invalidateSegmentCollisionIndex();
 		}
 
 		return children.size();
@@ -174,6 +190,7 @@ public class Node extends Spatial implements Cloneable {
 			}
 			child.setParent(this);
 			children.add(index, child);
+			invalidateSegmentCollisionIndex();
 		}
 
 		return children.size();
@@ -232,6 +249,7 @@ public class Node extends Spatial implements Cloneable {
 	 */
 	public Spatial detachChildAt(int index) {
 		Spatial child = children.remove(index);
+		invalidateSegmentCollisionIndex();
 		if (child != null) {
 			child.setParent(null);
 		}
@@ -259,6 +277,7 @@ public class Node extends Spatial implements Cloneable {
 	 * @param index2
 	 */
 	public void swapChildren(int index1, int index2) {
+		invalidateSegmentCollisionIndex();
 		Spatial c2 = children.get(index2);
 		Spatial c1 = children.remove(index1);
 		children.add(index1, c2);
@@ -330,6 +349,7 @@ public class Node extends Spatial implements Cloneable {
 	}
 
 	public void childChange(Geometry geometry, int index1, int index2) {
+		invalidateSegmentCollisionIndex();
 		// just pass to parent
 		if (parent != null) {
 			parent.childChange(geometry, index1, index2);
@@ -349,7 +369,9 @@ public class Node extends Spatial implements Cloneable {
 		}
 
 		int total = 0;
-		for (Spatial child : children) {
+		for (Spatial child : segmentCandidates(results)) {
+			if (!results.intersectsSegmentBounds(child.getWorldBound()))
+				continue;
 			if (child instanceof Geometry) {
 				// not used materialIds do not have collision intention for materials set
 				if ((child.getCollisionIntentions() & results.getIntentions()) == 0) {
@@ -431,6 +453,7 @@ public class Node extends Spatial implements Cloneable {
 
 	@Override
 	public void updateModelBound() {
+		invalidateSegmentCollisionIndex();
 		BoundingVolume resultBound = null;
 		if (children != null) {
 			for (Spatial child : children) {
@@ -447,10 +470,12 @@ public class Node extends Spatial implements Cloneable {
 			}
 		}
 		this.worldBound = resultBound;
+		invalidateSegmentCollisionIndex();
 	}
 
 	@Override
 	public void setTransform(Matrix3f rotation, Vector3f loc, Vector3f scale) {
+		invalidateSegmentCollisionIndex();
 		if (children != null) {
 			for (Spatial child : children) {
 				child.setTransform(rotation, loc, scale);

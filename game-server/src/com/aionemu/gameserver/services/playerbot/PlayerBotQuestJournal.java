@@ -15,6 +15,9 @@ public final class PlayerBotQuestJournal {
   Map<String,Object> row=new LinkedHashMap<>();
   row.put("id",quest.getQuestId());row.put("name",template==null ? "Quest "+quest.getQuestId() : template.getName());
   row.put("status",quest.getStatus().name());row.put("progress",quest.getQuestVars().getQuestVars());
+  var capability=PlayerBotQuestMetadata.diagnostic(bot,quest.getQuestId());
+  row.put("coverage",capability.get("coverage"));
+  row.put("capability",capability.get("capability"));row.put("nextActivity",capability.get("nextActivity"));
   boolean ready=PlayerBotQuestMetadata.ready(bot,quest.getQuestId());
   row.put("ready",ready);row.put("missionEligible",PlayerBotMission.eligible(bot,quest.getQuestId()));
   List<Map<String,Object>> objectives=new ArrayList<>();
@@ -44,7 +47,7 @@ public final class PlayerBotQuestJournal {
    if(bot.isInInstance())owner.getKnownList().forEachNpc(actual->{if(actual.getNpcId()==id && actual.getInstanceId()==owner.getInstanceId())destinations.add(destination(owner,id,npc.getName(),actual.getX(),actual.getY(),actual.getZ()));});
    else if(DataManager.SPAWNS_DATA!=null)for(var group:DataManager.SPAWNS_DATA.getSpawnsForNpc(bot.getWorldId(),id)) {
     if(group.isTemporarySpawn() || group.getHandlerType()!=null)continue;
-    for(var spawn:group.getSpawnTemplates())if(destinations.size()<32)destinations.add(destination(owner,id,npc.getName(),spawn.getX(),spawn.getY(),spawn.getZ()));
+    for(var spawn:group.getSpawnTemplates())if(!spawn.isAerialSpawn())destinations.add(destination(owner,id,npc.getName(),spawn.getX(),spawn.getY(),spawn.getZ()));
    }
   }
   destinations.sort(Comparator.comparingDouble(d->((Number)d.get("distance")).doubleValue()));

@@ -16,13 +16,14 @@ import com.aionemu.gameserver.world.World;
 public class AddSet extends AdminCommand {
 
 	public AddSet() {
-		super("addset");
+		super("addset", "Give an item set.",
+			"<player> <itemset ID> - Give the set to an online player.\n<itemset ID> - Give the set to yourself.");
 	}
 
 	@Override
 	public void execute(Player player, String... params) {
 		if (params.length == 0 || params.length > 2) {
-			info(player, null);
+			sendInfo(player);
 			return;
 		}
 
@@ -75,11 +76,4 @@ public class AddSet extends AdminCommand {
 		PacketSendUtility.sendMessage(player, "Item Set added successfully");
 		PacketSendUtility.sendMessage(receiver, "admin gives you an item set");
 	}
-
-	@Override
-	public void info(Player player, String message) {
-		PacketSendUtility.sendMessage(player, "syntax //addset <player> <itemset ID>");
-		PacketSendUtility.sendMessage(player, "syntax //addset <itemset ID>");
-	}
-
 }

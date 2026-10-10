@@ -18,13 +18,17 @@ public final class PlayerBotTransfers {
   if(!owner.isOnline() || !owner.isSpawned() || !different(owner,bot))return false;
   // Snapshot before moving any member: destination combat must not strand later members.
   var party=List.copyOf(PlayerBotService.getInstance().companions(owner));boolean waiting=false;
-  for(var member:party) synchronized(member) {
+  for(var member:party) {
+   var service=PlayerBotService.getInstance();boolean claimed=member!=session;
+   if(claimed && !service.claimTransfer(member)){if(different(owner,member.bot()))waiting=true;continue;}
+   try{synchronized(member) {
    if(member.closing() || !different(owner,member.bot()))continue;waiting=true;
    long now=System.currentTimeMillis();if(now<RETRY.getOrDefault(member.bot().getObjectId(),0L))continue;
    try {
     if(!PlayerBotService.getInstance().relocate(member))RETRY.put(member.bot().getObjectId(),now+1000);
     else RETRY.remove(member.bot().getObjectId());
    }catch(RuntimeException error){RETRY.put(member.bot().getObjectId(),now+3000);org.slf4j.LoggerFactory.getLogger(PlayerBotTransfers.class).error("Companion {} transfer is retained for retry",member.bot().getName(),error);PlayerBotQuestSync.notice(member.bot(),"I am retrying the party's map transfer; my character has been retained.","transfer-retry",30000);}
+   }}finally{if(claimed)service.completeTransfer(member);}
   }
   return waiting;
  }
@@ -38,13 +42,7 @@ public final class PlayerBotTransfers {
    World.getInstance().despawn(bot);
   }
   // No health/level/items/skills/role/order changes. Native despawn clears old-map hate.
-  if(owner.getPlayerGroup()==null) {
-   if(bot.getPlayerGroup()!=null)PlayerGroupService.removePlayer(bot);
-   PlayerGroupService.createGroup(owner,bot,TeamType.GROUP,0);
-  }else if(bot.getPlayerGroup()!=owner.getPlayerGroup()) {
-   if(bot.getPlayerGroup()!=null)PlayerGroupService.removePlayer(bot);
-   PlayerGroupService.addPlayer(owner.getPlayerGroup(),bot);
-  }
+  PlayerBotTeams.restore(owner,bot);
   var point=PlayerBotFormation.destination(owner,bot,0);float x=point.x(),y=point.y(),z=owner.getZ();
   if(!owner.isFlying()) {
    z=GeoService.getInstance().getZ(owner.getWorldId(),x,y,z,owner.getInstanceId());

@@ -11,7 +11,7 @@ public final class PlayerBotRepositoryDAO {
   }
  }
  public static void roster(Connection c,int account,int character)throws SQLException {
-  if(account<=0 || character<=0)throw new SQLException("Invalid roster identity");
+  if(!com.aionemu.gameserver.services.playerbot.PlayerBotMetadata.validAccount(account) || character<=0)throw new SQLException("Invalid roster identity");
   try(var s=c.prepareStatement("SELECT account_id FROM playerbot_roster WHERE player_id=?")){
    s.setInt(1,character);try(var r=s.executeQuery()){if(!r.next() || r.getInt(1)!=account)throw new SQLException("Removed companion is not an owned Temporary Bot");}
   }

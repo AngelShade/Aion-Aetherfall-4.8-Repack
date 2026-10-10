@@ -11,13 +11,14 @@ import com.aionemu.gameserver.utils.chathandlers.ConsoleCommand;
 public class Setinventorygrowth extends ConsoleCommand {
 
 	public Setinventorygrowth() {
-		super("setinventorygrowth");
+		super("setinventorygrowth", "Expand the selected player cube.",
+			"<value> - Add one cube expansion; the argument value is unused.");
 	}
 
 	@Override
 	public void execute(Player admin, String... params) {
 		if (params.length < 1) {
-			info(admin, null);
+			sendInfo(admin);
 			return;
 		}
 
@@ -32,10 +33,5 @@ public class Setinventorygrowth extends ConsoleCommand {
 				.sendMessage(admin, "Cube expansion cannot be added to " + player.getName() + "!\nReason: player cube already fully expanded.");
 			return;
 		}
-	}
-
-	@Override
-	public void info(Player admin, String message) {
-		PacketSendUtility.sendMessage(admin, "syntax ///setinventorygrowth <?>");
 	}
 }

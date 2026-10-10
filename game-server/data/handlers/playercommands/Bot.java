@@ -2,6 +2,7 @@ package playercommands;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 import com.aionemu.gameserver.model.PlayerClass;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
@@ -14,7 +15,14 @@ import com.aionemu.gameserver.utils.chathandlers.PlayerCommand;
 public final class Bot extends PlayerCommand {
 	public Bot() {
 		super("bot", "Recruit and control your PvE player companions.", """
-			list - List your offline characters and active companion status.
+			worldpool <count> - Maintain an independent population; 0 pauses it without deleting progress.
+            world <name> - Release your active Temporary Bot into independent world life.
+            worldoff <name> - Withdraw a manually released world bot to your dedicated roster.
+            worldstats - Show actual spawned bots, target, remaining count, factions and maps.
+            worldlist [page] [here] - Show 20 spawned bots with coordinates; here limits to your map/instance.
+            shop <name> - List a nearby world bot's surplus equipment and prices.
+            buy <name> <object-id> [count] - Open a quoted native trade; add the stated Kinah and confirm.
+            list - List your offline characters and active companion status.
 			add <name> - Recruit an offline character from your account into your party.
 			create <name> <starting-class> - Create a normal level-1 character and recruit if eligible.
 			generate <name> <class> - Create a companion at your level in a separate roster, without a character slot.
@@ -29,6 +37,9 @@ public final class Bot extends PlayerCommand {
 			gear <on|off> [name|all] - Automatically equip compatible upgrades from the bot's cube (new companions: on).
 			loot <on|off> [name|all] - Collect eligible nearby corpse loot after combat (default off; rolls/bids pass).
 			inventory <name> - List the companion's items and object IDs.
+			mail <name> [list [page]|read|take|delete <mail-id>|senditem <object-id>|sendkinah <amount>] - Own companion mail at a regular mailbox; native postage applies.
+			legionbank <name> [list [page]|deposit <object-id>] - Own companion whole-stack deposits into your shared legion warehouse.
+            bank <name> [list [page]|deposit <object-id>|withdraw <object-id>] - Own companion's private warehouse; both characters must be near its keeper and idle.
 			gearpolicy <name> <EARNED|STARTER|GENERATED> <AUTO|TANK|HEALER|DAMAGE|SUPPORT> <quality> <level|0> <ratio> <weapon|AUTO> <vendors:true|false> <PASS|UPGRADES|ALL> - Equipment acquisition and choices.
 			equip <name> <item-object-id> <slot> - Equip a cube item using normal character rules.
 			quests <name> - Show the companion's active quest progress.
@@ -62,6 +73,13 @@ public final class Bot extends PlayerCommand {
 				case "add", "recruit" -> { require(params, 2); service.recruit(owner, params[1]); }
 				case "create" -> { require(params, 3); service.create(owner, params[1], PlayerClass.valueOf(params[2].toUpperCase(Locale.ROOT))); }
 				case "generate" -> { require(params, 3); service.generate(owner, params[1], PlayerClass.valueOf(params[2].toUpperCase(Locale.ROOT))); }
+				case "shop" -> { require(params,2);com.aionemu.gameserver.services.playerbot.PlayerBotWorldTrade.shop(owner,params[1]); }
+				case "buy" -> { if(params.length<3 || params.length>4)throw new IllegalArgumentException("Use .bot buy <world bot> <object ID> [count].");com.aionemu.gameserver.services.playerbot.PlayerBotWorldTrade.buy(owner,params[1],Integer.parseInt(params[2]),params.length>3?Long.parseLong(params[3]):1); }
+				case "worldpool" -> { require(params,2);service.worldPopulation(owner,Integer.parseInt(params[1])); }
+				case "world" -> { require(params,2);service.publishWorldBot(owner,params[1]); }
+				case "worldoff" -> { require(params,2);service.withdrawWorldBot(owner,params[1]); }
+				case "worldstats" -> service.worldStats(owner).forEach(line->sendInfo(owner,line));
+				case "worldlist" -> service.worldBots(owner,params.length>1 && !params[1].equalsIgnoreCase("here")?Integer.parseInt(params[1]):1,java.util.Arrays.stream(params).anyMatch(p->p.equalsIgnoreCase("here"))).forEach(line->sendInfo(owner,line));
 				case "dismiss", "remove" -> {
 					require(params, 2);
 					if (params[1].equalsIgnoreCase("all")) service.dismissAll(owner); else service.dismiss(owner, params[1]);
@@ -82,6 +100,27 @@ public final class Bot extends PlayerCommand {
 				}
 				case "role" -> { require(params, 3); service.find(owner, params[1]).setRole(Role.valueOf(params[2].toUpperCase(Locale.ROOT))); sendInfo(owner, "Companion role updated."); }
 				case "inventory" -> { require(params, 2); service.find(owner, params[1]).inventory().forEach(line -> sendInfo(owner, line)); }
+				case "mail" -> {
+                    if(params.length<2 || params.length>4)throw new IllegalArgumentException("Use .bot mail <name> [list [page]|read <mail-id>|take <mail-id>|delete <mail-id>|senditem <item-object-id>|sendkinah <amount>].");
+                    String operation=params.length>2?params[2].toLowerCase(Locale.ROOT):"list";
+                    if(!Set.of("list","read","take","delete","senditem","sendkinah").contains(operation) || !operation.equals("list") && params.length!=4)throw new IllegalArgumentException("Choose list, read, take, delete, senditem or sendkinah with its ID/amount.");
+                    sendInfo(owner,PlayerBotMail.request(owner,params[1],operation,operation.equals("sendkinah")?0:params.length>3?Integer.parseInt(params[3]):1,operation.equals("sendkinah")?Long.parseLong(params[3]):0));
+                }
+				case "legionbank", "gb" -> {
+                    if(params.length<2 || params.length>4)throw new IllegalArgumentException("Use .bot legionbank <name> [list [page]|deposit <object-id>].");
+                    String operation=params.length>2?params[2].toLowerCase(Locale.ROOT):"list";
+                    if(operation.equals("list"))PlayerBotLegionStorage.list(owner,params[1],params.length==4?Integer.parseInt(params[3]):1).forEach(line->sendInfo(owner,line));
+                    else if(operation.equals("deposit") && params.length==4)sendInfo(owner,PlayerBotLegionStorage.deposit(owner,params[1],Integer.parseInt(params[3])));
+                    else throw new IllegalArgumentException("Choose list or deposit <object-id>. Legion withdrawal is not part of this command.");
+                }
+                case "bank" -> {
+					if(params.length<2 || params.length>4)throw new IllegalArgumentException("Use .bot bank <name> [list [page]|deposit <object-id>|withdraw <object-id>].");
+					String operation=params.length>2?params[2].toLowerCase(Locale.ROOT):"list";
+					if(operation.equals("list"))PlayerBotWarehouse.list(owner,params[1],params.length==4?Integer.parseInt(params[3]):1).forEach(line->sendInfo(owner,line));
+					else if((operation.equals("deposit") || operation.equals("withdraw")) && params.length==4)
+						sendInfo(owner,PlayerBotWarehouse.move(owner,params[1],operation.equals("deposit"),Integer.parseInt(params[3])));
+					else throw new IllegalArgumentException("Use list, deposit <object-id> or withdraw <object-id>.");
+				}
 				case "gearpolicy" -> { require(params, 10); PlayerBotGearPolicy.configure(service.find(owner, params[1]), params[2].toUpperCase(Locale.ROOT), params[3].toUpperCase(Locale.ROOT),
 					params[4].toUpperCase(Locale.ROOT), params[5], params[6], params[7].toUpperCase(Locale.ROOT), params[8].toLowerCase(Locale.ROOT), params[9].toUpperCase(Locale.ROOT)); sendInfo(owner, "Companion equipment policy saved."); }
 				case "quests" -> {
@@ -89,9 +128,11 @@ public final class Bot extends PlayerCommand {
 					var companion = service.find(owner, params[1]).bot();
 					for (var quest : companion.getQuestStateList().getUncompletedQuests()) {
 						var row = PlayerBotQuestJournal.describe(owner, companion, quest);
-						sendInfo(owner, companion.getName() + ": " + row.get("name") + " (#" + quest.getQuestId() + ") · " + (Boolean.TRUE.equals(row.get("ready")) ? "Ready to turn in" : quest.getStatus()) + ". " + row.get("guidance"));
-						for (var location : (java.util.List<java.util.Map<String,Object>>) row.get("destinations"))
-							sendInfo(owner, "NPC " + location.get("name") + " · X " + location.get("x") + ", Y " + location.get("y") + ", Z " + location.get("z") + " · " + location.get("distance") + " m away.");
+						sendInfo(owner, companion.getName() + ": " + row.get("name") + " (#" + quest.getQuestId() + ") Â· " + (Boolean.TRUE.equals(row.get("ready")) ? "Ready to turn in" : quest.getStatus()) + ". " + row.get("guidance"));
+						for (Object destination : (List<?>) row.get("destinations")) {
+							var location = (java.util.Map<?, ?>) destination;
+							sendInfo(owner, "NPC " + location.get("name") + " Â· X " + location.get("x") + ", Y " + location.get("y") + ", Z " + location.get("z") + " Â· " + location.get("distance") + " m away.");
+						}
 					}
 				}
 				case "share" -> {

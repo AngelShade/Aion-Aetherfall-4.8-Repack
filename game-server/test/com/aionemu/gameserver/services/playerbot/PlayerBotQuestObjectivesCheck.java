@@ -40,6 +40,7 @@ public final class PlayerBotQuestObjectivesCheck {
   @Override public boolean isEnemy(Creature n){return false;}@Override public boolean isPlayerBot(){return true;}
   @Override public QuestStateList getQuestStateList(){return quests;}@Override public KnownList getKnownList(){return seen;}
   @Override public Account getAccount(){return account;}@Override public PlayerGroup getPlayerGroup(){return group;}@Override public Storage getInventory(){return cube;}
+  @Override public boolean isInGroup(){return group!=null;}
  }
  static class Contact extends Npc {
   int id,template,world,instance;float x;boolean spawned=true;Contact(){super(null,null,null);}
@@ -66,7 +67,7 @@ public final class PlayerBotQuestObjectivesCheck {
   var a=session(owner,leader);var b=session(owner,follower);long now=System.currentTimeMillis();var third=actor(1999999084,group);var c=session(owner,third);
   var engine=com.aionemu.gameserver.questEngine.QuestEngine.getInstance();var registryField=engine.getClass().getDeclaredField("questNpcs");registryField.setAccessible(true);
   var registry=(Map<Integer,com.aionemu.gameserver.model.templates.quest.QuestNpc>)registryField.get(engine);check(!registry.containsKey(203003),"Reward fixture cannot overwrite existing native NPC registration");
-  try {
+  try(var metadata=PlayerBotMetadataCheck.isolated(1999999081)) {
    DataManager.QUEST_DATA=(QuestsData)JAXBContext.newInstance(QuestsData.class).createUnmarshaller().unmarshal(new StringReader("<quests><quest id='900101' name='Three conversations' category='QUEST'><rewards exp='10'/></quest></quests>"));
    DataManager.XML_QUESTS=(XMLQuests)JAXBContext.newInstance(XMLQuests.class).createUnmarshaller().unmarshal(new StringReader("<quest_scripts><report_to_many id='900101' start_npc_ids='203000'><npc_infos npc_ids='203001'/><npc_infos npc_ids='203002'/><npc_infos npc_ids='203003'/></report_to_many></quest_scripts>"));
    DataManager.NPC_DATA=new NpcData(){@Override public NpcTemplate getNpcTemplate(int id){return new NpcTemplate(){@Override public int getTemplateId(){return id;}@Override public String getName(){return "Contact";}};}};DataManager.SPAWNS_DATA=null;

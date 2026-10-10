@@ -22,6 +22,8 @@ final class PlayerBotNavigation {
 	private int routeWorld, routeInstance;
 	private static final java.util.concurrent.atomic.AtomicLong LAST_SEARCH = new java.util.concurrent.atomic.AtomicLong();
 	private long nextMove;
+	private Point publishedGoal,publishedDestination;
+	private int publishedWorld,publishedInstance;
 	private int worldId, instanceId;
 	private String status = "ready";
 	private java.util.List<PlayerBotHazards.Area> hazards = java.util.List.of();
@@ -131,6 +133,14 @@ final class PlayerBotNavigation {
 		if (!Float.isFinite(targetX) || !Float.isFinite(targetY) || !Float.isFinite(targetZ)) { stop(); return false; }
 		double goalDistance = PositionUtil.getDistance(bot, targetX, targetY, targetZ);
 		if (goalDistance < 0.15) { stop(); status="at navigation waypoint"; return false; }
+		// MovementActions::IsDuplicateMove / IsWaitingForLastMove. The native headless
+		// controller keeps validating floor/body/door clearance on every movement step.
+		if (goalDistance < closestGoalDistance - 0.5) { closestGoalDistance=goalDistance;lastProgress=now; }
+		if (publishedGoal!=null && publishedDestination!=null && bot.getMoveController().isInMove() && hazards.isEmpty()
+			&& publishedWorld==bot.getWorldId() && publishedInstance==bot.getInstanceId()
+			&& PositionUtil.getDistance(publishedGoal.x(),publishedGoal.y(),publishedGoal.z(),targetX,targetY,targetZ)<0.25
+			&& PositionUtil.getDistance(bot,publishedDestination.x(),publishedDestination.y(),publishedDestination.z())>0.75
+			&& now-lastProgress<4000) return true;
 		if (routeGoal == null || routeWorld != bot.getWorldId() || routeInstance != bot.getInstanceId()
 			|| PositionUtil.getDistance(routeGoal.x(), routeGoal.y(), routeGoal.z(), targetX, targetY, targetZ) > 4) {
 			route.clear(); routeGoal = goal; routeWorld = bot.getWorldId(); routeInstance = bot.getInstanceId();
@@ -179,6 +189,9 @@ final class PlayerBotNavigation {
 			if (!PlayerBotHazards.safePath(new Point(bot.getX(), bot.getY(), bot.getZ()), candidate, hazards)) continue;
 			double score = -PositionUtil.getDistance(x, y, z, targetX, targetY, targetZ) - Math.abs(offset) * 0.015;
 			if (score > bestScore) { bestScore = score; best = new Point(x, y, z); }
+			// A fully supported direct segment needs no six speculative detours.
+			if (offset==0 && collision!=null && Math.hypot(x-(bot.getX()+(float)Math.cos(radians)*distance),
+				y-(bot.getY()+(float)Math.sin(radians)*distance))<0.1) break;
 		}
 		if (best == null) { route.clear(); status = "blocked by geometry"; stop(); return false; }
 		status = route.isEmpty() ? "moving" : "following local route";
@@ -189,9 +202,10 @@ final class PlayerBotNavigation {
 			bot.getMoveController().setNewDirection(best.x(), best.y(), best.z(), heading);
 			bot.getMoveController().startMovingToDestination();
 		}
+		publishedGoal=goal;publishedDestination=best;publishedWorld=bot.getWorldId();publishedInstance=bot.getInstanceId();
 		return true;
 	}
 
-	void stop() { if (bot.getMoveController().isInMove()) bot.getMoveController().abortMove(); }
+	void stop() { publishedGoal=null;publishedDestination=null;if (bot.getMoveController().isInMove()) bot.getMoveController().abortMove(); }
 	String status() { return status; }
 }

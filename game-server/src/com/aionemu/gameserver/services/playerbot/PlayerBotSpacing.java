@@ -32,6 +32,7 @@ public final class PlayerBotSpacing {
   if(value.account()!=account)throw new IllegalStateException("Spacing owner mismatch");return value;
  }
  public static void configure(PlayerBotSession session,float follow,float attack){
+  session.requirePrivateCompanion();
   validate(follow,attack);
   synchronized(session){
    if(session.closing())throw new IllegalArgumentException("Companion is saving.");
@@ -65,7 +66,7 @@ public final class PlayerBotSpacing {
    int count=PlayerBotCombatPosition.formationOrder(owner).size();
    // Scale the wings together: normalizing both inner and outer line slots to
    // the same radius would stack two ranged companions on each side.
-   double outer=3.4*Math.max(1,count/2);radius*=Math.min(1,length/outer);
+   double outer=count>5?PlayerBotFormationLayout.lineExtent(count):3.4*Math.max(1,count/2);radius*=Math.min(1,length/outer);
   }
   return new PlayerBotNavigation.Point(owner.getX()+(float)(dx/length*radius),owner.getY()+(float)(dy/length*radius),p.z());
  }

@@ -23,6 +23,14 @@ public class ItemMoveService {
 	private static final Logger log = LoggerFactory.getLogger(ItemMoveService.class);
 
 	public static void moveItem(Player player, int itemObjId, byte sourceStorageType, byte destinationStorageType, short slot) {
+        if (sourceStorageType == 3 || destinationStorageType == 3) {
+            synchronized (com.aionemu.gameserver.model.team.legion.LegionWarehouse.CUSTODY_LOCK) {
+                if (player.getLegion() == null || com.aionemu.gameserver.model.team.legion.LegionWarehouse.custodyHeld(player.getLegion().getLegionId())) return;
+                moveItemNative(player, itemObjId, sourceStorageType, destinationStorageType, slot);
+            }
+        } else moveItemNative(player, itemObjId, sourceStorageType, destinationStorageType, slot);
+    }
+    private static void moveItemNative(Player player, int itemObjId, byte sourceStorageType, byte destinationStorageType, short slot) {
 		IStorage sourceStorage = player.getStorage(sourceStorageType);
 		if (sourceStorage == null) {
 			log.error(player + " tried to move itemObjId " + itemObjId + " from unknown sourceStorageType: " + sourceStorageType);
@@ -84,6 +92,14 @@ public class ItemMoveService {
 	}
 
 	public static void switchItemsInStorages(Player player, byte sourceStorageType, int sourceItemObjId, byte replaceStorageType, int replaceItemObjId) {
+        if (sourceStorageType == 3 || replaceStorageType == 3) {
+            synchronized (com.aionemu.gameserver.model.team.legion.LegionWarehouse.CUSTODY_LOCK) {
+                if (player.getLegion() == null || com.aionemu.gameserver.model.team.legion.LegionWarehouse.custodyHeld(player.getLegion().getLegionId())) return;
+                switchItemsInStoragesNative(player, sourceStorageType, sourceItemObjId, replaceStorageType, replaceItemObjId);
+            }
+        } else switchItemsInStoragesNative(player, sourceStorageType, sourceItemObjId, replaceStorageType, replaceItemObjId);
+    }
+    private static void switchItemsInStoragesNative(Player player, byte sourceStorageType, int sourceItemObjId, byte replaceStorageType, int replaceItemObjId) {
 		IStorage sourceStorage = player.getStorage(sourceStorageType);
 		IStorage replaceStorage = player.getStorage(replaceStorageType);
 

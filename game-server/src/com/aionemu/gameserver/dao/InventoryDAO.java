@@ -241,6 +241,12 @@ public class InventoryDAO {
 	}
 
 	private static boolean storePlayerInventory(Player player) {
+        if (player.getLegion() != null) synchronized (com.aionemu.gameserver.model.team.legion.LegionWarehouse.CUSTODY_LOCK) {
+            return storePlayerInventoryNative(player);
+        }
+        return storePlayerInventoryNative(player);
+    }
+    private static boolean storePlayerInventoryNative(Player player) {
 		int playerId = player.getObjectId();
 		Integer accountId = player.getAccount() != null ? player.getAccount().getId() : null;
 		Integer legionId = player.getLegion() != null ? player.getLegion().getLegionId() : null;
@@ -297,6 +303,13 @@ public class InventoryDAO {
 	}
 
 	public static boolean store(List<Item> items, Integer playerId, Integer accountId, Integer legionId) {
+        if (legionId != null) synchronized (com.aionemu.gameserver.model.team.legion.LegionWarehouse.CUSTODY_LOCK) {
+            if (com.aionemu.gameserver.model.team.legion.LegionWarehouse.custodyHeld(legionId)) return false;
+            return storeNative(items, playerId, accountId, legionId);
+        }
+        return storeNative(items, playerId, accountId, legionId);
+    }
+    private static boolean storeNative(List<Item> items, Integer playerId, Integer accountId, Integer legionId) {
 		if (playerId != null && quarantinedPlayers.contains(playerId)) return false;
 		Collection<Item> itemsToUpdate = items.stream().filter(Persistable.CHANGED).collect(Collectors.toList());
 		Collection<Item> itemsToInsert = items.stream().filter(Persistable.NEW).collect(Collectors.toList());
@@ -337,7 +350,29 @@ public class InventoryDAO {
 		return insertItems(connection,List.of(item),null,account,null);
 	}
 
-	private static int getItemOwnerId(Item item, Integer playerId, Integer accountId, Integer legionId) {
+	public static List<Item> storeCompanionLegionInventory(Connection connection, com.aionemu.gameserver.model.team.legion.Legion legion) throws SQLException {
+        if (connection.getAutoCommit() || !Thread.holdsLock(com.aionemu.gameserver.model.team.legion.LegionWarehouse.CUSTODY_LOCK)
+            || com.aionemu.gameserver.model.team.legion.LegionWarehouse.custodyHeld(legion.getLegionId())) throw new SQLException("Shared custody lock required");
+        List<Item> items = new ArrayList<>(legion.getLegionWarehouse().getItemsWithKinah());
+        items.addAll(legion.getLegionWarehouse().getDeletedItems());
+        items = items.stream().filter(Persistable.NEW.or(Persistable.CHANGED).or(Persistable.DELETED)).toList();
+        try (var s = connection.prepareStatement("SELECT item_owner,item_id,item_location FROM inventory WHERE item_unique_id=? FOR UPDATE")) {
+            for (Item item : items) {
+                if (item.getItemLocation()!=3) throw new SQLException("Shared checkpoint contains private item");
+                s.setInt(1,item.getObjectId());
+                try (var row=s.executeQuery()) {
+                    if (row.next()) { if (row.getInt(1)!=legion.getLegionId() || row.getInt(2)!=item.getItemId() || row.getInt(3)!=3) throw new SQLException("Shared item custody mismatch"); }
+                    else if (item.getPersistentState()!=PersistentState.NEW) throw new SQLException("Shared checkpoint row missing");
+                }
+            }
+        }
+        if (!deleteItems(connection,items.stream().filter(Persistable.DELETED).toList())
+            || !insertItems(connection,items.stream().filter(Persistable.NEW).toList(),null,null,legion.getLegionId())
+            || !updateItems(connection,items.stream().filter(Persistable.CHANGED).toList(),null,null,legion.getLegionId())) throw new SQLException("Shared checkpoint failed");
+        return items;
+    }
+
+    private static int getItemOwnerId(Item item, Integer playerId, Integer accountId, Integer legionId) {
 		if (item.getItemLocation() == StorageType.ACCOUNT_WAREHOUSE.getId() || item.getItemLocation() == StorageType.MARKET_WAREHOUSE.getId()) {
 			return accountId;
 		}

@@ -14,7 +14,8 @@ import com.aionemu.gameserver.utils.chathandlers.AdminCommand;
 public class PasskeyReset extends AdminCommand {
 
 	public PasskeyReset() {
-		super("passkeyreset");
+		super("passkeyreset", "Reset a player passkey.",
+			"<player> <passkey> - Set the player passkey.");
 	}
 
 	@Override
@@ -47,10 +48,5 @@ public class PasskeyReset extends AdminCommand {
 
 		PlayerPasskeyDAO.updateForcePlayerPasskey(accountId, newPasskey);
 		LoginServer.getInstance().sendBanPacket((byte) 2, accountId, "", -1, player.getObjectId());
-	}
-
-	@Override
-	public void info(Player player, String message) {
-		PacketSendUtility.sendMessage(player, "syntax: //passkeyreset <player> <passkey>");
 	}
 }

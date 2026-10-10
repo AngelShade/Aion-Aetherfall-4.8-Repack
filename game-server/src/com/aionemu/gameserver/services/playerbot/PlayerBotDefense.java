@@ -58,7 +58,7 @@ final class PlayerBotDefense {
  }
  static boolean addable(Player bot,PlayerBotSkills.Entry entry,Creature target) {
   return !target.isDead() && PlayerBotBuffs.canAdd(bot.getPlayerClass(),entry.template(),
-   target.getEffectController().getAbnormalEffects().stream().map(Effect::getSkillTemplate).toList());
+   PlayerBotBuffs.active(target.getEffectController()));
  }
  static double priority(Player bot,PlayerBotSkills.Entry entry,Creature anchor,boolean combat,List<Player> party) {
   double result=0;
@@ -101,7 +101,7 @@ final class PlayerBotDefense {
  }
  static boolean useful(Player bot,Role role,PlayerBotSkills.Entry entry,Creature target,List<Npc> enemies) {
   if(entry.kind()==SkillKind.DEFENSE) {
-   var group=bot.getPlayerGroup();var party=group==null ? List.of(bot) : group.getMembers();
+   var group=bot.getCurrentTeam();var party=group==null ? List.of(bot) : group.getMembers();
    boolean combat=enemies.stream().anyMatch(n->n.isSpawned() && !n.isDead() && PlayerBotService.allowsTarget(bot,n));
    return priority(bot,entry,target,combat,party)>0;
   }

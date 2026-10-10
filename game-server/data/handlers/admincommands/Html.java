@@ -12,7 +12,8 @@ import com.aionemu.gameserver.utils.chathandlers.AdminCommand;
 public class Html extends AdminCommand {
 
 	public Html() {
-		super("html");
+		super("html", "Manage HTML pages.",
+			"reload - Reload the HTML cache.\nshow <filename> - Show a cached HTML page.");
 	}
 
 	@Override
@@ -30,10 +31,5 @@ public class Html extends AdminCommand {
 				HTMLService.showHTML(player, HTMLCache.getInstance().getHTML(params[1] + ".xhtml"));
 			else
 				PacketSendUtility.sendMessage(player, "Usage: //html show <filename>");
-	}
-
-	@Override
-	public void info(Player player, String message) {
-		PacketSendUtility.sendMessage(player, "Usage: //html <reload|show>");
 	}
 }

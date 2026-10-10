@@ -496,6 +496,9 @@ public class Skill {
 	}
 
 	private boolean isSuspiciousClientHitTime(int clientHitTime, int serverHitTime, int tolerance, Player player) {
+		// Bot hit times are generated on the server, not supplied by a client.
+		// updateHitTime still applies the authoritative native minimum above.
+		if (player.isPlayerBot()) return false;
 		if (clientHitTime >= serverHitTime - tolerance)
 			return false;
 		if (clientHitTime == 0 && (itemTemplate != null || skillTemplate.getMotion() != null && skillTemplate.getMotion().isInstantSkill()))

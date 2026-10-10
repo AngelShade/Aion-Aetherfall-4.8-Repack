@@ -187,6 +187,7 @@
   function render() {
 
     byId('count').textContent = state.active.length + ' / ' + state.limit;
+    byId('team-label').textContent = state.teamKind || 'Party';
 
     byId('roster-count').textContent = state.roster.length;
 
@@ -215,7 +216,7 @@
 
     byId('share').disabled = !state.quests.length || !state.active.length;
 
-    byId('create').querySelector('button').disabled = !state.enabled || (byId('model').value === 'generate' && !state.generatedEnabled) || state.active.length >= state.limit;
+    updateCreation();
 
   }
 
@@ -261,7 +262,7 @@
 
       var body = node('div', null, 'bot-body'); body.appendChild(node('h3', character.generated ? 'Temporary Bot' : 'Account character')); body.appendChild(node('p', !character.ready ? 'Creation is pending.' : character.reserved ? 'This character is active or saving and cannot currently be recruited.' : 'This character is offline and in your roster.', 'hint'));
 
-      body.appendChild(node('p', 'Recruit this companion to view their live equipment, quests, orders and care settings.', 'hint')); button(body, 'Recruit companion', { action: 'recruit', name: character.name }, !state.enabled || character.reserved || !character.ready || state.active.length >= state.limit, 'primary'); localButton(body, 'Back to roster', function () { showView('roster'); }, 'secondary'); card.appendChild(body); detailPanel.appendChild(card);
+      body.appendChild(node('p', 'Recruit this companion to view their live equipment, quests, orders and care settings.', 'hint')); button(body, 'Recruit companion', { action: 'recruit', name: character.name }, !state.enabled || character.reserved || !character.ready || state.recruitRemaining <= 0, 'primary'); localButton(body, 'Back to roster', function () { showView('roster'); }, 'secondary'); card.appendChild(body); detailPanel.appendChild(card);
 
     } else { var empty = node('div', null, 'empty'); empty.appendChild(node('h3', 'Your next adventure starts with a party')); empty.appendChild(node('p', 'Recruit an existing character or create a Temporary Bot. Select them here to manage orders, equipment and quests.')); localButton(empty, 'Browse your roster', function () { showView('roster'); }, 'primary'); detailPanel.appendChild(empty); }
 
@@ -341,7 +342,7 @@
       var view = localButton(action, live ? 'Manage' : 'View', function () { openBot(character.id, 'overview'); }); view.setAttribute('data-action', 'view');
 
       if (character.generated && character.ready) button(action, isSavedBot(character.id) ? 'Save progress' : 'Save bot', { action: 'savebot', name: character.name }, live && live.closing, 'secondary');
-      if (!live) button(action, character.generated && isSavedBot(character.id) ? 'Summon saved bot' : 'Recruit', { action: 'recruit', name: character.name }, !state.enabled || character.reserved || !character.ready || state.active.length >= state.limit, 'secondary');
+      if (!live) button(action, character.generated && isSavedBot(character.id) ? 'Summon saved bot' : 'Recruit', { action: 'recruit', name: character.name }, !state.enabled || character.reserved || !character.ready || state.recruitRemaining <= 0, 'secondary');
 
       removalControls(action, character, live);
 
@@ -376,7 +377,7 @@
     var health = node('div', null, 'vitals'); vitals(health, 'Health', bot.health, 'health'); vitals(health, 'Mana', bot.mana, 'mana'); header.appendChild(health); card.appendChild(header);
 
     if (bot.generated || bot.temporary) button(header, 'Save Temporary Bot', { action: 'savebot', name: bot.name }, bot.closing, 'secondary');
-    var tabs = node('nav', null, 'tabs bot-tabs'), names = [['overview','Overview'],['equipment','Equipment'],['quests','Quests'],['care','Care'],['activity','Activity']]; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', bot.name + ' details');
+    var tabs = node('nav', null, 'tabs bot-tabs'), names = [['overview','Overview'],['equipment','Equipment'],['mail','Mail'],['quests','Quests'],['care','Care'],['activity','Activity']]; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', bot.name + ' details');
 
     for (var t = 0; t < names.length; t++) (function (name, title) { var tab = localButton(tabs, title, function () { botTab = name; renderSelection(); }, botTab === name ? 'selected' : ''); tab.id = 'bot-tab-' + name; tab.setAttribute('role','tab'); tab.setAttribute('aria-controls','bot-content'); tab.setAttribute('aria-selected',botTab === name ? 'true' : 'false'); }(names[t][0], names[t][1])); card.appendChild(tabs);
 
@@ -405,6 +406,53 @@
       if (!bot.inventory.length) body.appendChild(node('p', 'The companion\u2019s inventory is empty.', 'empty'));
 
       for (var i = 0; i < bot.inventory.length; i++) renderItem(body, bot, bot.inventory[i]);
+
+      if (!bot.world) {
+        var warehouse = bot.warehouse || [];
+        body.appendChild(node('h3', 'Private warehouse (' + warehouse.length + ' / ' + (bot.warehouseLimit || 0) + ')'));
+        body.appendChild(node('p', bot.warehouseReason || 'Deposit or withdraw a whole stack while you and your companion are beside the same warehouse keeper. Items stay owned by this companion.', 'hint'));
+        if (!warehouse.length) body.appendChild(node('p', 'The companion\u2019s private warehouse is empty.', 'empty'));
+        for (var w = 0; w < warehouse.length; w++) renderWarehouseItem(body, bot, warehouse[w]);
+        var shared = bot.legionStorage || [];
+        body.appendChild(node('h3', 'Legion storage: ' + (bot.legionStorageName || 'No access') + ' (' + shared.length + ' / ' + (bot.legionStorageLimit || 0) + ')'));
+        body.appendChild(node('p', bot.legionStorageReason || 'Deposit a whole stack beside the legion keeper. Deposited items belong to the legion and can be withdrawn by members with native withdrawal rights.', 'hint'));
+        if (!shared.length) body.appendChild(node('p', 'No legion items to display.', 'empty'));
+        for (var l = 0; l < shared.length; l++) body.appendChild(node('p', shared[l].name + ' \u00d7' + shared[l].count + ' (obj=' + shared[l].id + ')', 'hint'));
+      }
+
+    } else if (botTab === 'mail') {
+      if (bot.world) { body.appendChild(node('p', 'World bots retain their private mailbox. Inviting one does not grant access to its mail or money.', 'hint')); }
+      else {
+        var mails = bot.mail || [], locked = bot.closing || !bot.mailAvailable;
+        body.appendChild(node('h3', 'Mailbox (' + (bot.mailCount || 0) + ')'));
+        body.appendChild(node('p', bot.mailReason || 'Use a regular mailbox with your companion. Collected items and Kinah go into its own cube. Requested outgoing mail goes to you and charges native postage.', 'hint'));
+        button(body, 'Refresh mailbox', { action: 'maillist', name: bot.name }, locked);
+        if (!bot.mailLoaded) body.appendChild(node('p', 'Refresh beside a mailbox to load this companion’s letters.', 'empty'));
+        else if (!mails.length) body.appendChild(node('p', 'The companion’s mailbox is empty.', 'empty'));
+        for (var m = 0; m < mails.length; m++) {
+          var letter = mails[m], mailRow = node('div', null, 'item');
+          mailRow.appendChild(node('div', letter.title + ' · From ' + letter.sender + (letter.unread ? ' · Unread' : '')));
+          mailRow.appendChild(node('p', letter.message, 'detail'));
+          if (letter.hasAttachments) mailRow.appendChild(node('p', (letter.item || '') + (letter.kinah ? ' ' + letter.kinah + ' Kinah' : ''), 'detail'));
+          button(mailRow, 'Read', { action: 'mailread', name: bot.name, object: letter.id }, locked);
+          button(mailRow, 'Collect attachments', { action: 'mailtake', name: bot.name, object: letter.id }, locked || !letter.hasAttachments);
+          button(mailRow, 'Delete empty letter', { action: 'maildelete', name: bot.name, object: letter.id }, locked || letter.hasAttachments);
+          body.appendChild(mailRow);
+        }
+        body.appendChild(node('h3', 'Request mail to ' + state.owner));
+        body.appendChild(node('p', bot.mailSendEnabled ? 'Choose one whole tradeable, unpacked stack, or a Kinah amount. Native postage is paid by this companion. Equipped items and private world-bot possessions cannot be requested.' : 'Companion sending is disabled by server configuration; mailbox collection remains available.', 'hint'));
+        var outgoing = (bot.inventory || []).filter(function (item) { return item.mailable; });
+        for (var o = 0; o < outgoing.length; o++) {
+          var outgoingRow = node('div', null, 'item'); outgoingRow.appendChild(node('div', outgoing[o].name + ' ×' + outgoing[o].count));
+          button(outgoingRow, 'Mail whole stack to me', { action: 'mailsenditem', name: bot.name, object: outgoing[o].id }, locked || !bot.mailSendEnabled);body.appendChild(outgoingRow);
+        }
+        var moneyLabel = node('label', 'Kinah to request'), money = node('input');money.type = 'text';money.inputMode = 'numeric';money.setAttribute('aria-label','Kinah to request');money.value = '';moneyLabel.appendChild(money);body.appendChild(moneyLabel);
+        var moneyButton = button(body,'Mail Kinah to me',{},locked || !bot.mailSendEnabled);
+        moneyButton.setAttribute('data-action','mailsendkinah');moneyButton.onclick = function () {
+          if (!/^[1-9][0-9]{0,18}$/.test(money.value) || money.value.length === 19 && money.value > '9223372036854775807') { notice('Enter a positive whole Kinah amount within the native currency limit.', true);return; }
+          act({ action:'mailsendkinah',name:bot.name,kinah:money.value });
+        };
+      }
 
     } else if (botTab === 'quests') {
 
@@ -607,8 +655,17 @@
 
     }
 
+    if (!bot.world && item.legionStorable) button(row, 'Deposit to legion', { action: 'legiondeposit', name: bot.name, item: item.id }, bot.closing || !bot.legionStorageAvailable);
+    if (!bot.world && item.bankable) button(row, 'Deposit', { action: 'bankdeposit', name: bot.name, item: item.id }, bot.closing || !bot.warehouseAvailable);
+
     parent.appendChild(row);
 
+  }
+
+  function renderWarehouseItem(parent, bot, item) {
+    var row = node('div', null, 'item'); row.appendChild(node('div', item.name + ' \u00d7' + item.count));
+    button(row, 'Withdraw', { action: 'bankwithdraw', name: bot.name, item: item.id }, bot.closing || !bot.warehouseAvailable);
+    parent.appendChild(row);
   }
 
   function updateClasses() {
@@ -629,6 +686,15 @@
 
   }
 
+  function updateCreation() {
+    if (!state) return;
+    var temporary = byId('model').value === 'generate';
+    byId('create').querySelector('button').disabled = !state.enabled || (temporary ?
+      !state.generatedEnabled || state.generatedCount >= state.generatedLimit : state.recruitRemaining <= 0);
+    byId('creation-capacity').textContent = temporary ? 'Temporary Bots: ' + state.generatedCount + ' / ' + state.generatedLimit +
+      ' created. Full teams keep new bots in your roster for later recruitment.' : '';
+  }
+
   var mainTabs = document.querySelectorAll('#main-tabs button');
 
   for (var nav = 0; nav < mainTabs.length; nav++) mainTabs[nav].onclick = function () { showView(this.getAttribute('data-view')); };
@@ -645,7 +711,7 @@
 
   byId('refresh').onclick = function () { request(null); };
 
-  byId('model').onchange = function () { updateClasses(); if (state) byId('create').querySelector('button').disabled = !state.enabled || (this.value === 'generate' && !state.generatedEnabled) || state.active.length >= state.limit; };
+  byId('model').onchange = function () { updateClasses(); updateCreation(); };
 
   byId('start-level').onchange = updateClasses;
 

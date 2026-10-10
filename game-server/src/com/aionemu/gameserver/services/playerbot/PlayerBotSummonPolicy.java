@@ -24,7 +24,7 @@ public final class PlayerBotSummonPolicy {
   }
  }
  static boolean partySafe(Player owner){
-  return owner.getPlayerGroup().getMembers().stream().noneMatch(member->member.getController().isInCombat() || !member.isDead() && member.getAggroList().stream().findAny().isPresent());
+  return PlayerBotTeams.members(owner).stream().noneMatch(member->member.getController().isInCombat() || !member.isDead() && member.getAggroList().stream().findAny().isPresent());
  }
  static void regroup(List<PlayerBotSession> sessions){
   synchronized(PlayerBotService.getInstance()){

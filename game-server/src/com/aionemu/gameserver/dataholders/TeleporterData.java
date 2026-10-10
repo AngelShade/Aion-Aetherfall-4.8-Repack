@@ -39,6 +39,11 @@ public class TeleporterData {
 		return teleporterTemplates.size();
 	}
 
+	/** Read-only native route catalogue for autonomous travel planning. */
+	public java.util.Collection<TeleporterTemplate> getTemplates() {
+		return java.util.List.copyOf(teleporterTemplates.values());
+	}
+
 	public TeleporterTemplate getTeleporterTemplateByNpcId(int npcId) {
 		for (TeleporterTemplate template : teleporterTemplates.values()) {
 			if (template.containNpc(npcId)) {

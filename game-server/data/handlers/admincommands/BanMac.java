@@ -3,7 +3,6 @@ package admincommands;
 import com.aionemu.gameserver.model.gameobjects.VisibleObject;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.network.BannedMacManager;
-import com.aionemu.gameserver.utils.PacketSendUtility;
 import com.aionemu.gameserver.utils.chathandlers.AdminCommand;
 
 /**
@@ -12,13 +11,14 @@ import com.aionemu.gameserver.utils.chathandlers.AdminCommand;
 public class BanMac extends AdminCommand {
 
 	public BanMac() {
-		super("banmac");
+		super("banmac", "Ban a MAC address.",
+			"<time in minutes> [mac] - Ban an address, or the selected player if mac is omitted.\nNote: 0 minutes will cause permanent ban.");
 	}
 
 	@Override
 	public void execute(Player player, String... params) {
 		if (params == null || params.length < 1) {
-			info(player, "Please add one or more parameters");
+			sendUsage(player, "Please add one or more parameters");
 			return;
 		}
 
@@ -33,7 +33,7 @@ public class BanMac extends AdminCommand {
 			if (time == 0) // 0 is 10 years since system don't allow infinte banns without rework - it's pseudo infinity
 				time = 60 * 24 * 365 * 10;
 		} catch (NumberFormatException e) {
-			info(player, "Please enter a valid integer amount of minutes");
+			sendUsage(player, "Please enter a valid integer amount of minutes");
 			return;
 		}
 
@@ -44,7 +44,7 @@ public class BanMac extends AdminCommand {
 			VisibleObject target = player.getTarget();
 			if (target instanceof Player) {
 				if (target.equals(player)) {
-					info(player, "Omg, disselect yourself please.");
+					sendUsage(player, "Omg, disselect yourself please.");
 					return;
 				}
 
@@ -53,7 +53,7 @@ public class BanMac extends AdminCommand {
 				targetName = targetpl.getName();
 				targetpl.getClientConnection().close();
 			} else {
-				info(player, "You should select a player or give me any mac address");
+				sendUsage(player, "You should select a player or give me any mac address");
 				return;
 			}
 		}
@@ -62,12 +62,9 @@ public class BanMac extends AdminCommand {
 			"author=" + player.getName() + ", " + player.getObjectId() + "; target=" + targetName);
 	}
 
-	@Override
-	public void info(Player player, String message) {
-		if (!message.equals(""))
-			PacketSendUtility.sendMessage(player, message);
-		PacketSendUtility.sendMessage(player, "Syntax: //banmac [time in minutes] <mac>");
-		PacketSendUtility.sendMessage(player, "Note: 0 minutes will cause permanent ban");
+	private void sendUsage(Player player, String message) {
+		if (message != null && !message.isEmpty())
+			sendInfo(player, message);
+		sendInfo(player);
 	}
-
 }

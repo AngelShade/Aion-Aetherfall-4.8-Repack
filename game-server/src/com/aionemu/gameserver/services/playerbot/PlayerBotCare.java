@@ -157,6 +157,7 @@ final class PlayerBotCare {
   });
   return choices.stream().min(Comparator.comparingLong(Purchase::price).thenComparingDouble(p->PositionUtil.getDistance(owner,p.npc()))).orElse(null);
  }
+ static boolean worldQuestItem(Player bot,int item){return questItem(bot,item);}
  private static boolean questItem(Player bot,int item) {
   for(var quest:bot.getQuestStateList().getUncompletedQuests()) {
    var template=DataManager.QUEST_DATA.getQuestById(quest.getQuestId());

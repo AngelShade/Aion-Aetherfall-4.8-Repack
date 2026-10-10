@@ -13,7 +13,8 @@ import com.aionemu.gameserver.world.World;
 public class MoveToObject extends AdminCommand {
 
 	public MoveToObject() {
-		super("movetoobj");
+		super("movetoobj", "Move to a world object.",
+			"<object id> - Move to the specified object.");
 	}
 
 	@Override
@@ -41,10 +42,4 @@ public class MoveToObject extends AdminCommand {
 
 		TeleportService.teleportTo(admin, spawn.getWorldId(), spawn.getSpawn().getX(), spawn.getSpawn().getY(), spawn.getSpawn().getZ());
 	}
-
-	@Override
-	public void info(Player player, String message) {
-		PacketSendUtility.sendMessage(player, "Syntax : //movetoobj <object id>");
-	}
-
 }

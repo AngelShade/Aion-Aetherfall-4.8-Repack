@@ -30,6 +30,10 @@ public class CosmeticItemsData {
 		templates = null;
 	}
 
+	public java.util.Collection<CosmeticItemTemplate> getTemplates() {
+		return java.util.List.copyOf(cosmeticItemTemplates.values());
+	}
+
 	public int size() {
 		return cosmeticItemTemplates.size();
 	}

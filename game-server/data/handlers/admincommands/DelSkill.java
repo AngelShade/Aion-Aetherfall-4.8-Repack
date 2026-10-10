@@ -15,7 +15,8 @@ import com.aionemu.gameserver.world.World;
 public class DelSkill extends AdminCommand {
 
 	public DelSkill() {
-		super("delskill");
+		super("delskill", "Remove player skills.",
+			"<Player name> <all|skillId> - Remove skills from the named player.\n<all|skillId> - Remove skills from the selected player, or yourself if no player is selected.");
 	}
 
 	@Override
@@ -100,11 +101,5 @@ public class DelSkill extends AdminCommand {
 			PacketSendUtility.sendMessage(admin, "You have success delete All skills.");
 		}
 
-	}
-
-	@Override
-	public void info(Player player, String message) {
-		PacketSendUtility.sendMessage(player, "No parameters detected.\n" + "Please use //delskill <Player name> <all | skillId>\n"
-			+ "or use //delskill [target] <all | skillId>");
 	}
 }

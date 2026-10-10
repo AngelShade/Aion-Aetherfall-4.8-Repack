@@ -135,6 +135,18 @@ public class GeoMap extends Node {
 		return closestCollision == null ? Float.NaN : closestCollision.getContactPoint().z;
 	}
 
+	/** One native floor traversal for headless walking, including physical transparent support. */
+	public float getPlayerBotGroundZ(float x,float y,float top,float bottom,int instance) {
+		CollisionResults results=new CollisionResults((byte)(CollisionIntention.PHYSICAL.getId() | CollisionIntention.PHYSICAL_SEE_THROUGH.getId()),instance,IgnoreProperties.ANY_RACE);
+		results.boundSegment(x,y,top,x,y,bottom);
+		results.setInvalidateSlopingSurface(true);
+		Ray ray=new Ray(new Vector3f(x,y,top),new Vector3f(0,0,-1));ray.setLimit(top-bottom);
+		collideWith(ray,results);
+		if(terrain!=null)terrain.collideAtOrigin(ray,results);
+		CollisionResult hit=results.getClosestCollision();
+		return hit==null?Float.NaN:hit.getContactPoint().z;
+	}
+
 	public Vector3f getClosestCollision(float x, float y, float z, float targetX, float targetY, float targetZ, boolean atNearGroundZ, int instanceId,
 		byte intentions, IgnoreProperties ignoreProperties) {
 		Vector3f origin = new Vector3f(x, y, z + COLLISION_CHECK_Z_OFFSET);
@@ -216,6 +228,17 @@ public class GeoMap extends Node {
 		}
 		collideWith(r, results);
 		return results;
+	}
+
+	/** Bot walking only: skip geometry outside the finite probe before native collision execution. */
+	public CollisionResults getPlayerBotCollisions(Vector3f origin,float targetX,float targetY,float targetZ,int instanceId,byte intentions,IgnoreProperties ignoreProperties) {
+		CollisionResults results=new CollisionResults(intentions,instanceId,ignoreProperties);
+		results.boundSegment(origin.x,origin.y,origin.z,targetX,targetY,targetZ);
+		Vector3f direction=new Vector3f(targetX,targetY,targetZ);
+		float limit=origin.distance(direction);direction.subtractLocal(origin).normalizeLocal();
+		Ray ray=new Ray(origin,direction);ray.setLimit(limit);
+		if(terrain!=null)terrain.collide(ray,targetX,targetY,results);
+		collideWith(ray,results);return results;
 	}
 
 	public boolean canSee(float x, float y, float z, float targetX, float targetY, float targetZ, int instanceId, IgnoreProperties ignoreProperties) {

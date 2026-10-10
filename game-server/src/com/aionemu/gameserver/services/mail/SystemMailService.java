@@ -115,6 +115,10 @@ public class SystemMailService {
 
 	static void updateRecipientMailbox(PlayerCommonData recipientCommonData, Letter newLetter) {
 		Player recipient = recipientCommonData.getPlayer();
+		if (recipient != null && recipient.isPlayerBot()) {
+			com.aionemu.gameserver.services.playerbot.PlayerBotMail.delivered(recipient, newLetter);
+			return;
+		}
 		if (recipient == null) {
 			recipientCommonData.setMailboxLetters(recipientCommonData.getMailboxLetters() + 1);
 			MailDAO.updateOfflineMailCounter(recipientCommonData);

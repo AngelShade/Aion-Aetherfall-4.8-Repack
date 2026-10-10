@@ -9,7 +9,18 @@ import com.aionemu.gameserver.geoEngine.scene.DespawnableNode.DespawnableType;
 
 /** Isolated native mesh checks: no actors, database, services, IDs or GameServer startup. */
 public final class PlayerBotGroundNavigationCheck {
+    private static final class ProbedMap extends GeoMap {
+        int probes;ProbedMap(){super(95);}
+        @Override public int collideWith(com.aionemu.gameserver.geoEngine.collision.Collidable other,com.aionemu.gameserver.geoEngine.collision.CollisionResults results){probes++;return super.collideWith(other,results);}
+    }
     private static int checks;
+    private static final class CountedGeometry extends Geometry {
+        int calls;
+        CountedGeometry(Mesh mesh) { super("distant geometry",mesh); }
+        @Override public int collideWith(com.aionemu.gameserver.geoEngine.collision.Collidable other,com.aionemu.gameserver.geoEngine.collision.CollisionResults results) {
+            calls++;return super.collideWith(other,results);
+        }
+    }
     private static void check(boolean condition,String message) {if(!condition)throw new AssertionError(message);checks++;}
     private static Mesh mesh(float[] vertices,short[] faces) {
         Mesh mesh=new Mesh();mesh.setVertices(FloatBuffer.wrap(vertices));mesh.setIndices(ShortBuffer.wrap(faces));mesh.setCollisionIntentions(CollisionIntention.PHYSICAL.getId());mesh.updateBound();return mesh;
@@ -29,7 +40,11 @@ public final class PlayerBotGroundNavigationCheck {
     }
     private static Vector3f walk(GeoMap map,int instance,float x,float y,float z,float tx,float ty) {return PlayerBotGroundNavigation.walk(map,instance,x,y,z,tx,ty);}
     public static void main(String[] args) {
-        GeoMap map=new GeoMap(1);add(map,floor(-10,10,0),"floor");Mesh shared=leaf();
+        GeoMap map=new GeoMap(1);add(map,floor(-10,10,0),"floor");map.updateModelBound();
+        check(map.findMovementCollision(new Vector3f(-3,0,1.4f),-1,0,1).x>-1.01f,"native movement accepts a 1.4m initial floor offset");
+        check(walk(map,1,-3,0,1.4f,-1,0).x>-1.01f,"shared bot movement must also walk from a native supported offset");
+        check(Math.abs(walk(map,1,-3,0,1.4f,-3,0).z)<.01,"stationary headless actor settles onto the same verified floor");
+        Mesh shared=leaf();
         var closed=door(map,shared,123,DespawnableType.DOOR_STATE1,new Vector3f());
         var opened=door(map,shared,123,DespawnableType.DOOR_STATE2,new Vector3f());map.updateModelBound();
         map.setDoorState(1,123,false);check(walk(map,1,-3,0,0,3,0).x<0,"closed door blocks");
@@ -120,6 +135,29 @@ public final class PlayerBotGroundNavigationCheck {
         check(walk(transition,1,-3,0,0,3,0).x<0,"closed door still blocks support transition");
         transition.setDoorState(1,555,true);check(walk(transition,1,-3,0,0,3,0).x>2.9,"opened aliased door crosses support transition");
         transition.setDoorState(2,555,false);check(walk(transition,2,-3,0,0,3,0).x<0,"separate instance remains closed");
+        GeoMap landing=new GeoMap(91);add(landing,floor(-10,10,0),"landing floor");landing.updateModelBound();
+        check(PlayerBotGroundNavigation.landing(landing,1,0,0,0),"supported open field is a usable population landing");
+        check(!PlayerBotGroundNavigation.landing(landing,1,0,0,5),"unsupported landing cannot select a lower floor");
+        check(!PlayerBotGroundNavigation.landing(new GeoMap(92),1,0,0,0),"missing geodata cannot produce a population landing");
+        add(landing,leaf(),"body obstruction");landing.updateModelBound();
+        check(!PlayerBotGroundNavigation.landing(landing,1,-.2f,0,0),"body overlaps an object even when a center ground ray succeeds");
+        GeoMap rim=new GeoMap(93);add(rim,mesh(new float[]{-.4f,-.4f,0,.4f,-.4f,0,.4f,.4f,0,-.4f,.4f,0},new short[]{0,1,2,0,2,3}),"narrow ledge");rim.updateModelBound();
+        check(!PlayerBotGroundNavigation.landing(rim,1,0,0,0),"landing has no supported two-metre exit");
+        GeoMap side=new GeoMap(94);add(side,floor(-10,10,0),"field floor");
+        add(side,mesh(new float[]{0,-.2f,0,8,-.2f,0,8,-.2f,3,0,-.2f,3},new short[]{0,1,2,0,2,3}),"thin wall beside centre ray");side.updateModelBound();
+        check(walk(side,1,-3,0,0,3,0).x<0,"walking body cannot overlap a thin wall between centre and outer sweep rays");
+        ProbedMap combined=new ProbedMap();add(combined,floor(-10,10,0),"physical floor");Mesh combinedUpper=floor(-10,10,.35f);combinedUpper.setCollisionIntentions(CollisionIntention.PHYSICAL_SEE_THROUGH.getId());add(combined,combinedUpper,"transparent floor");combined.updateModelBound();
+        check(PlayerBotGroundSupport.floor(combined,1,0,0,.6f,-1)==.35f,"combined floor probe retains highest native support");
+        check(combined.probes==1,"walking support uses one mesh traversal instead of two");
+        GeoMap dense=new GeoMap(96);add(dense,floor(-10,10,0),"local floor");
+        var distant=new java.util.ArrayList<CountedGeometry>();
+        for(int i=0;i<128;i++) {
+            var geometry=new CountedGeometry(leaf());geometry.setTransform(new Matrix3f(),new Vector3f(100+i,0,0),new Vector3f(1,1,1));geometry.updateModelBound();dense.attachChild(geometry);distant.add(geometry);
+        }
+        dense.updateModelBound();
+        check(walk(dense,1,-3,0,0,3,0).x>2.9,"dense scene retains supported local movement");
+        int distantCalls=distant.stream().mapToInt(g->g.calls).sum();
+        check(distantCalls==0,"short walking probes must not visit distant mesh collision routines: "+distantCalls);
         System.out.println("OK: "+checks+" generic door/floor/route checks; no native actors or service startup");
     }
 }

@@ -77,7 +77,8 @@ public class Legion extends AionObject {
 	}
 
 	public List<Player> getOnlinePlayers() {
-		return memberIds.stream().map(World.getInstance()::getPlayer).filter(Objects::nonNull).collect(Collectors.toList());
+		return memberIds.stream().map(World.getInstance()::getPlayer).filter(Objects::nonNull)
+			.filter(player -> !player.isPlayerBot() || player.isSpawned()).collect(Collectors.toList());
 	}
 
 	public LegionMember getBrigadeGeneral() {

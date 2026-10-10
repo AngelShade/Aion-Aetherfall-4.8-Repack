@@ -45,6 +45,29 @@ public class CollisionResults implements Iterable<CollisionResult> {
 	private final boolean onlyFirst;
 	private final IgnoreProperties ignoreProperties;
 	private boolean invalidateSlopingSurface;
+	private boolean segmentBounds;
+	private float minX,minY,minZ,maxX,maxY,maxZ;
+	public boolean hasSegmentBounds() { return segmentBounds; }
+
+	/** Opt-in conservative broad phase for short headless walking probes. */
+	public void boundSegment(float x,float y,float z,float endX,float endY,float endZ) {
+		if (!Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z)
+			|| !Float.isFinite(endX) || !Float.isFinite(endY) || !Float.isFinite(endZ))
+			throw new IllegalArgumentException("Non-finite collision segment");
+		// Pad conservatively for float rounding at mesh/chunk boundaries.
+		minX=Math.min(x,endX)-.01f;maxX=Math.max(x,endX)+.01f;
+		minY=Math.min(y,endY)-.01f;maxY=Math.max(y,endY)+.01f;
+		minZ=Math.min(z,endZ)-.01f;maxZ=Math.max(z,endZ)+.01f;
+		segmentBounds=true;
+	}
+
+	public boolean intersectsSegmentBounds(com.aionemu.gameserver.geoEngine.bounding.BoundingVolume volume) {
+		if (!segmentBounds || !(volume instanceof com.aionemu.gameserver.geoEngine.bounding.BoundingBox box)) return true;
+		var center=box.getCenter();
+		return !(center.x+box.getXExtent()<minX || center.x-box.getXExtent()>maxX
+			|| center.y+box.getYExtent()<minY || center.y-box.getYExtent()>maxY
+			|| center.z+box.getZExtent()<minZ || center.z-box.getZExtent()>maxZ);
+	}
 
 	public CollisionResults(byte intentions, int instanceId, IgnoreProperties ignoreProperties) {
 		this(intentions, instanceId, false, ignoreProperties);

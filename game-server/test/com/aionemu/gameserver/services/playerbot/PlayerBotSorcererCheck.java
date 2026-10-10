@@ -32,7 +32,8 @@ public final class PlayerBotSorcererCheck {
  }
  static class Effects extends PlayerEffectController {
   List<Effect> observed=new ArrayList<>();Effects(Creature c){super(c);}
-  @Override public List<Effect> getAbnormalEffects(){return List.copyOf(observed);}
+  @Override public List<Effect> getAbnormalEffects(){return observed.stream().filter(e->!(e.getSkillTemplate().isToggle() && e.getSkillTemplate().getTargetSlot()==SkillTargetSlot.NOSHOW)).toList();}
+  @Override public List<Effect> getAllEffects(){return List.copyOf(observed);}
   @Override public boolean hasAbnormalEffect(Predicate<Effect> p){return observed.stream().anyMatch(p);}
  }
  static class Move extends PlayerMoveController {boolean moving;Move(Player p){super(p);}@Override public boolean isInMove(){return moving;}}

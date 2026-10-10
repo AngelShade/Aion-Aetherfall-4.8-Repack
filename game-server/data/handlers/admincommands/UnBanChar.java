@@ -13,7 +13,8 @@ import com.aionemu.gameserver.utils.chathandlers.AdminCommand;
 public class UnBanChar extends AdminCommand {
 
 	public UnBanChar() {
-		super("unbanchar");
+		super("unbanchar", "Remove a character ban.",
+			"<player> - Remove the character ban.");
 	}
 
 	@Override
@@ -35,10 +36,5 @@ public class UnBanChar extends AdminCommand {
 		PacketSendUtility.sendMessage(admin, "Character " + name + " is not longer banned!");
 
 		PunishmentService.unbanChar(playerId);
-	}
-
-	@Override
-	public void info(Player player, String message) {
-		PacketSendUtility.sendMessage(player, "Syntax: //unban <player> [account|ip|full]");
 	}
 }

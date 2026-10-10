@@ -15,7 +15,7 @@ import com.aionemu.gameserver.questEngine.handlers.template.ReportToMany;
 /** Exercise actual intermediate native handler transitions, not reward shortcuts. */
 public final class PlayerBotConversationCheck {
  static int checks;static void check(boolean v,String reason){checks++;if(!v)throw new AssertionError(reason);}
- static class Bot extends Player {QuestStateList quests;Bot(){super(null,null);}@Override public QuestStateList getQuestStateList(){return quests;}@Override public boolean isPlayerBot(){return true;}}
+ static class Bot extends Player {QuestStateList quests;Bot(){super(null,null);}@Override public QuestStateList getQuestStateList(){return quests;}@Override public boolean isPlayerBot(){return true;}@Override public int getObjectId(){return 1999976112;}@Override public com.aionemu.gameserver.model.account.Account getAccount(){return new com.aionemu.gameserver.model.account.Account(7);}}
  static class Contact extends Npc {int id;Contact(){super(null,null,null);}@Override public int getNpcId(){return id;}@Override public com.aionemu.gameserver.model.templates.npc.NpcTemplate getObjectTemplate(){return new com.aionemu.gameserver.model.templates.npc.NpcTemplate(){@Override public int getTemplateId(){return id;}};}}
  static class Report extends ReportToMany {
   int page;Report(List<NpcInfos> infos){super(900101,0,List.of(203000),infos,0,false);}
@@ -25,7 +25,7 @@ public final class PlayerBotConversationCheck {
  @SuppressWarnings("unchecked") public static void main(String[] args)throws Exception {
   Field f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);var u=(Unsafe)f.get(null);Bot bot=(Bot)u.allocateInstance(Bot.class);bot.quests=new QuestStateList();Contact npc=(Contact)u.allocateInstance(Contact.class);
   var oldQuests=DataManager.QUEST_DATA;var oldXml=DataManager.XML_QUESTS;
-  try {
+  try(var metadata=PlayerBotMetadataCheck.isolated(7)) {
    DataManager.QUEST_DATA=(QuestsData)JAXBContext.newInstance(QuestsData.class).createUnmarshaller().unmarshal(new StringReader("<quests><quest id='900101' name='Three conversations' category='QUEST'><rewards exp='10'/></quest><quest id='900102' name='Talk before collecting' category='QUEST'><rewards exp='10'/></quest></quests>"));
    DataManager.XML_QUESTS=(XMLQuests)JAXBContext.newInstance(XMLQuests.class).createUnmarshaller().unmarshal(new StringReader("<quest_scripts><report_to_many id='900101' start_npc_ids='203000'><npc_infos npc_ids='203001'/><npc_infos npc_ids='203002'/><npc_infos npc_ids='203003'/></report_to_many><item_collecting id='900102' start_npc_ids='203000' next_npc_id='203010' end_npc_ids='203011'/></quest_scripts>"));
    var q=new QuestState(900101,QuestStatus.START);bot.quests.addQuest(900101,q);

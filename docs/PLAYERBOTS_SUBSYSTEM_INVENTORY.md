@@ -1,5 +1,607 @@
 # Playerbots subsystem inventory and dependency plan
 
+## Latest cumulative delivery - QUEST-027 / NAMELOOKUP-028 - 10 October 2026
+
+The current normal source-built runtime release is external receipt
+playerbots-source-build-20261010-231349-474859; review:release-20261010-224757-712697,
+retaining FIELD-026/MANTRA-025 and all preceding mods/settings/IDs/progress.
+All56 bound suites/62916 checks and independent installed verification pass.
+Shared native name resolution is centrally case-insensitive without renaming;
+index lifecycle/locale rules are repaired for all World name callers.
+QUEST-027 inventories4184 XML/1049 compiled custom/2810 unavailable handlers,
+reports actual registered capabilities/current actions and implements accepted
+ItemOrders continuation. Item-start/full custom/campaign/specialized chains remain
+required unfinished full-audit engineering. PB-VAL-049 name-resolution gameplay
+remains user acceptance. [Name mapping](PLAYER_NAME_LOOKUP_20261010.md) /
+[quest mapping and boundaries](PLAYERBOTS_QUEST_CAPABILITIES_20261010.md).
+The older cumulative delivery section below records FIELD-026 history.
+
+## Previous cumulative delivery - FIELD-026 - 10 October 2026
+
+The previous cumulative normal source-built release is FIELD-026, retaining
+AUDIT-022,CAST-023,ANTIHACK-024 and MANTRA-025. Receipt:
+playerbots-source-build-20261010-223156-617438; review:release-20261010-222634-587572.
+All54 bound suites/62823 checks pass. Independent field pulls/recovery/target
+retention and actual-recipient combat spirit-buff checks are repaired; necessary
+loot/heals/buffs/native restrictions remain. [Mapping and acceptance](PLAYERBOTS_FIELD_COMBAT_20261010.md).
+The matrix below describes installed subsystems; full native autonomous quest
+handler/chain/action coverage remains active unfinished engineering in the
+[full audit checklist](PLAYERBOTS_PORT_AUDIT_20261010.md). PB-VAL-048 live field
+acceptance is separate. Settings/IDs/progress and all earlier mods are preserved.
+
+## Current audit repair - 10 October 2026
+
+This is the authoritative current matrix; chronological records below describe
+older release boundaries. PB-REPAIR-AUDIT-022 is installed offline with coordinated
+CAST-023/ANTIHACK-024 in receipt playerbots-source-build-20261010-212205-483239.
+All 53 artifact-bound suites and independent delivery verification pass; gameplay
+acceptance remains user testing.
+
+| System | Present adaptation | Remaining scope / acceptance |
+| --- | --- | --- |
+| Engine/classes | Native state/trigger/arbitration; seven bounded class slices: Sorcerer, Spiritmaster, Cleric, Chanter, Templar, Gladiator, Assassin | Ranger, full strategies and generic context/event/value parity remain separate; combat acceptance pending |
+| Population (001/012) | SQL identities/events, finite reserve reuse, configured world limit up to 3000, player-zone focus; cumulative FIELD-015, NAME-018, FOCUS-019, PERF-020 and POP-021 | Config controls the actual count; deprecated per_map does not override it. Scale/rotation/restart acceptance pending |
+| Scheduling (022) | Bounded controlled/world/maintenance/checkpoint workers; exclusive actor admission; periodic population SQL has its own lock; safe queued retirement and shutdown draining; scoped trade/storage locks | Individual native decisions/transactions still take time. Explicit native recruitment/creation retain their serialized admission. User contention/latency acceptance pending |
+| Travel/quests (022) | Complete ground catalog, deduplicated spatial cells with complete fallback, native route/cost/faction gates; declared template acceptance pages and native objective/reward families | Exact production JAXB report lists specialized/custom Java/XML gaps. Full campaign/quest and profession coverage is not implemented |
+| Teams/social | Native party/alliance invitations, human control/release, 23-companion alliance recruitment, requested legion invitation response | Autonomous matching/group/raid formation, guild tasks/petitions and broad social choices remain absent |
+| Economy | Earned loot/XP/gear, supplies/vendors, owned gifts/public quoted trade; private warehouse list/deposit/withdraw, requested legion list/deposit, requested owned mail | Legion storage is deposit-oriented; world COD, automatic CheckMail/guild-task mail, broad economy and professions remain separate |
+| Encounters/PvP | Native hazard/role adapters and Steel Rake slice | Broad encounters partial; PvP deferred by user policy |
+| Headless diagnostics (022) | Healthy registered leased spawned actors distinguished from disconnected humans; missing registration/lease, held saves and stalled work remain visible | Bot health deliberately does not require Player.isOnline(), which means a real client connection |
+| Release (022) | Normal complete Maven output; mandatory fixture compile/run and release-tool regressions; artifact/runner/fixture/individual-result/report binding before copy; immutable inputs, handler/static/linkage/preservation/offline/recovery gates | Missing, failed or stale evidence rejects new installs. Legacy receipts are marked unbound historical evidence. Offline checks do not establish gameplay acceptance |
+
+All user config values and native IDs/progress remain authoritative. See the
+[audit repair record](PLAYERBOTS_AUDIT_REPAIR_20261010.md) for exact delivery
+and native acceptance boundaries. The full Playerbots port remains partial.
+
+## Generated world-bot names - installed and migrated offline - 10 October 2026
+
+PB-REPAIR-NAMES-017 replaces ID-encoded Wander names with code-generated,
+pronounceable native-gender names. Pinned RandomPlayerbotFactory name cache,
+CreateRandomBotName native checks and conlang fallback were read before edits.
+Native name pattern/forbidden words/reserved names and collision retries remain;
+SQL errors fail closed. Generated names persist in players, without a runtime
+name database or spawn/restart reroll. Human/player-chosen private names remain.
+
+Normal source release: playerbots-source-build-20261010-163434-147481, external
+server backups. Review: external staging/output/release-20261010-163002-781882.
+GS SHA 7ad7b791ae8216b201dd6d80dea0ab3f6cbdb4b06cea8aa01353b1b4e438ee9d;
+Commons unchanged. 85 offline sources / 45 suites / 9409 checks (46 naming,
+12000 simulated unique reserve), 16 synthetic-JDBC migration failure-boundary
+checks, 13 release-tool tests, 1757 warning-free handlers, 2533 unchanged resources
+and complete static/linkage gates pass. 3618 prior entries / 111 other service /
+eight other population methods remain identical. 56 original hashes / 63 refs
+verify. One unchanged normal JAR copied; zero caches present. Independent delivery
+passes 70 guards / 93 configs / 31 client hashes and exact recovery/source/artifact/
+static/linkage receipts. Inventory20 / 74 client / 142 server receipts passes.
+
+Name-only native SQL receipt: playerbots-names-20261010-163631-012877, external
+server backups. Exactly3147 confirmed global legacy world-bot names and native
+old_names entries committed in one transaction; a separate JVM/connection verified
+all changed names/history, every other players column, previous history and all
+six roster/population tables against the reviewed snapshot. IDs/ownership/progress/
+items/legion membership/config remain. External exact mappings, fingerprints,
+history IDs and recovery SQL are retained; no runtime file/schema was added.
+All preceding field/legion invitations/storage/mail/class/raid/population/custody/
+shutdown mods remain; appearance disabled. GameServer/Aion remain closed, Login/
+Chat untouched. No start/stop/restart/attach/dump/World/actor/character-ID fixture
+occurred. Production SQL writes only requested names/native rename history.
+PB-VAL-041 actual menu/world names, future creations/restart remain user testing;
+full parity remains partial. See [mapping and receipts](PLAYERBOTS_NAMES_20261010.md).
+
+## Native bot legion invitation responses - installed offline - 10 October 2026
+
+PB-REPAIR-LEGION-016 fixes unanswered native legion invitations. Pinned
+GuildAcceptAction, outgoing packet trigger and security(ignoreGroup=true) were
+read before editing source. Bots consume the registered native response once;
+existing LegionService membership/capacity/VOLUNTEER/DAO/history/title paths run.
+World bots accept eligible human invitations while retaining independence and
+current controller/activity. Private companions retain actual-owner enrollment.
+Native rights/faction/denial and lifecycle/custody gates remain. Human requests
+stay client-driven. Membership SQL runs outside the population service monitor.
+
+Normal source -> complete Maven output -> unchanged offline runtime copy is
+installed: playerbots-source-build-20261010-162009-822859, external server backups.
+Review: external staging/output/release-20261010-161118-759618. GS SHA:
+55cb2a35d92ac5a91e7f8433f0f8f4e0731b01e3d100761a6e01414a58466f8e.
+84 offline sources / 44 suites / 9363 checks (157 invitation), 13 release-tool
+checks, 1757 warning-free handlers, 2533 unchanged resources and complete static/
+linkage gates pass. 3611 prior entries / 111 existing bot-service / 69 other
+LegionService methods remain identical. All 56 original hashes / 63 references
+verify. Commons unchanged; one normal JAR copied; 2044 caches backed up/invalidated.
+Independent delivery verification passes 70 guards / 93 configs / 31 client hashes
+and exact source/artifact/recovery/static/linkage receipts. Inventory 20 checks /
+74 client / 141 server receipts passes. Current client system.cfg and all 40 live
+config values remain, including world2800..3000/cap3000/admission120 and companion
+23/23/city0. All preceding field/storage/mail/class/raid/population/shutdown mods
+remain; appearance stays disabled. Runtime remains target-deploy/game-server.
+GameServer/Aion are closed; Login/Chat untouched. No start/stop/restart/attach/dump
+or production World/DB/ID fixture occurred. PB-VAL-040 actual invitation/member/
+restart gameplay remains user acceptance; full parity remains partial. See
+[exact mapping and receipt](PLAYERBOTS_LEGION_INVITATIONS_20261010.md).
+
+## Native legion deposits and field repair - installed offline - 10 October 2026
+
+PB-SCOPE-004C ports pinned GuildBankAction requested whole-stack deposits through
+native Aion legion storage. Equipment has Deposit to legion and a shared inventory
+view; .bot legionbank / .bot gb use exact object IDs and paged lists. Both owned
+characters need actual membership/rights in the same legion and an accessible
+keeper, current party/alliance and idle gates. Native exclusive lease, shared
+mutation/save serialization and transactional character -> legion custody precede
+native projection. Partial/stale shared images refuse. Ambiguous outcomes retain
+items/IDs and hold companion/legion saves, mutations and disband. No runtime
+file/schema, automatic donation, legion membership/rights grant or companion
+withdrawal was added; pinned GuildBankAction contains deposit only.
+
+The same verified build installs PB-REPAIR-FIELD-015: actual monster camps instead
+of service hubs/lobbies, sparse/per-level spawn coverage, native XP/solo +4 target
+bounds, local hunting before travel and distinct saved-reserve progress logging.
+All eight field class entries match its separately verified candidate. All prior
+population/class/raid/private warehouse/mail/custody/shutdown mods remain;
+appearance stays disabled. Full parity remains partial.
+
+83 offline sources / 43 suites / 9206 checks (98 legion / 534 field), 161 real-browser
+simulated-response checks, 13 release-tool tests, all 1757 warning-free handlers,
+2533 managed-resource audit, full static XML/schema/JAXB and linkage pass. All
+130 native faction/level field selections and ten faction starts verify. 3581
+prior JAR entries / 109 other service / 109 other session methods remain identical.
+All 56 original upstream hashes / 59 scope references verify; Commons unchanged.
+
+Receipt: playerbots-source-build-20261010-154208-865301, external server backups.
+Review: external staging/output/release-20261010-153316-224774. GS SHA:
+86c5a719eb2e1bdba8bc0a4c5c9db6d15b80a99b47b67f16eb0a2eba9d2e2af4.
+Two exact unchanged normal builder files copied: GameServer JAR and Bot.java;
+zero generated caches present. Post-install verifies recovery/source/artifact/
+static/linkage hashes, 69 other guards / 93 configs / 31 client hashes. Inventory
+passes 20 mod checks / 74 client / 140 server historical receipts. All 40 latest
+values remain: world 2800..3000/cap3000/admission120, companion23/23, instance
+follow true and authorized field city_percent=0. Exact documented config recovery:
+playerbots-config-docs-20261010-130146-116003. Both components remain off; no
+start/stop/restart/attach/dump or live World/DB/ID fixture was used.
+
+PB-VAL-039 legion/native-human withdrawal/restart and PB-VAL-038 actual field
+kills/rewards/rotation remain user gameplay acceptance. World COD/guild-task mail
+(004B2), professions (005), broad selectors/autonomous economy and Ranger remain
+separate source-gated work. Do not re-port installed slices for pending gameplay.
+See [upstream mapping, controls, custody and acceptance](PLAYERBOTS_LEGION_STORAGE_20261010.md)
+and [field evidence and acceptance](PLAYERBOTS_FIELD_ACTIVITY_20261010.md).
+
+## Field placement/hunting repair - installed cumulative - 10 October 2026
+
+PB-REPAIR-FIELD-015 is installed in the cumulative PB-SCOPE-004C normal source
+release above. Its older field-only candidate is superseded and must not be
+installed. Exact class equivalence, current native catalog, 534 field checks and
+complete cumulative delivery/recovery verify. Native field kills/rewards/rotation
+remain PB-VAL-038 user gameplay acceptance. Full upstream parity remains partial.
+See [field causes, upstream mapping and acceptance](PLAYERBOTS_FIELD_ACTIVITY_20261010.md).
+
+## Native companion mail - installed offline - 10 October 2026
+
+PB-SCOPE-004B is installed from complete unchanged normal Maven output. Pinned
+MailAction/SendMailAction requested listing/read/collection/empty-delete and
+item/Kinah mail are adapted through native Aion postboxes, mail, prices and
+inventory. Owned alts/Temporary Bots have a Mail tab and .bot mail commands;
+both characters must share a regular accessible mailbox and meet native party/
+alliance/idle/ownership gates. Exact whole stacks and own wallet/postage are
+committed with native mail/inventory SQL before publication. Incoming native
+mail and lazy mailbox load share a lock; overflow/partial-load verification,
+custody quarantine and shutdown safety remain. No new runtime file/schema or
+population polling was added. Human MailService methods remain byte-identical.
+
+81 offline sources / 41 suites / 8574 checks (87 mail), 131 simulated-response
+real-browser checks, 12 release-tool tests, all 1757 warning-free handlers,
+2533 resource audit and complete static-data/linkage gates pass. 3597 prior JAR
+entries / 110 other session methods / all 12 human MailService methods remain.
+All 56 original upstream hashes and 57 scope references verify.
+
+Receipt: playerbots-source-build-20261010-124307-762421, external server backups.
+Review: external staging/output/mail-20261010-123234-3802677. GameServer SHA:
+a5713642c848fcc554f71df3a37567ca179b533bd9f2af0fb9d5b89294ba5427.
+Commons unchanged. Normal JAR and builder Bot.java copied unchanged; 2044
+handler caches backed up/invalidated. 69 other guards / 93 configs / 31 client
+hashes and recovery originals verify. All 40 explicit live config values were
+preserved by the documentation receipt playerbots-config-docs-20261010-124029-950064.
+User world settings remain 2300-2500, world cap 2500 and admission budget 120;
+active/saved personal companion capacities remain 23, instance follow true.
+Inventory passes 20 mod checks / 74 client / 136 server historical receipts.
+No component start/stop/restart/attach/dump or live World/DB/ID fixture was used.
+Both components remain off; PB-VAL-037 native mail gameplay remains user testing.
+
+Full parity remains partial. World-bot mailed sales need native COD custody
+(PB-SCOPE-004B2), and automatic CheckMailAction needs native guild-task integration.
+Normal mail/exact-ID whole stacks and explicit empty-letter deletion are the
+bounded adaptation; packed/courier mail and broad WoW selectors remain separate.
+Existing gameserver.playerbots.enable governs mail; no separate send-only toggle
+is claimed. Next independent economy port is PB-SCOPE-004C native shared legion
+storage, using pinned GuildBankAction and native access/custody first. Professions
+and Ranger remain separate. Preserve all installed population/class/raid/private
+warehouse/custody/shutdown/appearance-disabled mods. See [exact mapping, controls,
+differences and acceptance](PLAYERBOTS_MAIL_20261010.md).
+
+## Private warehouse and startup target - installed offline - 10 October 2026
+
+PB-SCOPE-004A ports pinned master-requested BankAction listing/deposit/withdraw
+through native Aion private character storage, banker restrictions and item moves.
+Owned alt/Temporary Bot menu controls show capacity and Deposit/Withdraw; .bot bank
+uses exact object IDs and paged lists. Whole stacks retain ownership/IDs/attributes;
+native SQL custody commits before native projection. Pending unequip changes and
+separate ordinary/special cube capacity are handled. Ambiguous outcomes hold the
+companion and retain its lease/items. World bots retain private ownership.
+
+PB-REPAIR-POP-014 validates the saved target against config before resident loading,
+matching pinned UpdateAIInternal bot_count -> GetBots. Valid targets/events, native
+IDs/progress, manual capacity and the single worker/continuation lifecycle remain.
+All prior 012D/3000-world/23-companion/class/shared/custody/shutdown/mods are retained.
+
+Verified complete unchanged normal Maven output: 80 offline sources / 40 suites /
+8487 checks, 117 warehouse and 21 pipeline checks, 79 real-browser checks with
+simulated responses, nine release-tool tests, all 1757 warning-free handlers,
+2533 audited resources, complete static-data/linkage and preservation gates pass.
+3594 prior JAR entries / 102 other service methods / 110 other session methods
+remain. All 56 original upstream hashes and 51 scope references verify.
+
+Review: external staging/output/release-20261010-113447-358376.
+GS SHA 25a709fa04fb6131b9cc0fba8611cc39e39cb61b671dd6a73c2abdf64c602259.
+Installed offline receipt: playerbots-source-build-20261010-120216-800919,
+external archives/server/game-server/backups. Commons unchanged. Two unchanged
+builder files copied: normal GameServer JAR and Bot.java; 2044 generated caches
+backed up/invalidated. All 69 other guard files / 93 configs / 31 client hashes,
+source/output hashes and recovery originals verify. Current system.cfg and
+SystemOptionGraphics.cfg were preserved after refreshing the complete inventory:
+20 mod checks / 74 client / 134 server historical receipts pass. Final verification
+passes 40 suites / 8487 checks. The delivery verifier now checks recorded resource
+replacements against their installed builder hash while retaining their original
+baseline/backup checks; all 12 tooling tests pass, including three new regressions.
+Both components remain off. No component start/stop/restart/attach/dump or live
+World/DB/ID test was performed. Installed 012D and all preceding features remain.
+
+PB-VAL-035 warehouse and PB-VAL-036 target/restart gameplay remain user acceptance.
+Full parity remains partial. Next economy source review is native mail 004B;
+shared storage/professions/full autonomous economy and Ranger remain separate.
+Do not re-port this installed slice solely because gameplay acceptance is pending.
+See [exact source mapping and acceptance](PLAYERBOTS_WAREHOUSE_20261010.md).
+
+## Native population SQL repository - installed offline - 10 October 2026
+
+**PB-SCOPE-012D is installed** through unchanged normal Maven output. Global
+and manual account pools, ordered native-ID intents, residency, target lifetime
+and presence/offline/relocation timers now use native SQL, a committed cache and
+changed-row transactions. Actual settings remain in config/main/playerbots.properties.
+Three state files were archived, independently verified against committed SQL and
+retired; the optional manual world-population.json was absent. All existing bot
+characters/progress/roster IDs and the 40 user settings remain preserved.
+
+Pinned RandomPlayerbotMgr::FindEvent/SetEventValue/AssignAccountTypes, database
+statements and factory/configuration dependencies were read before implementation.
+Native import preserved 98 pools / 2100 IDs and events / 1385 residents / target
+2952 exactly, retaining millisecond deadlines, pending custody and signed accounts.
+Only the new population tables were written; no character/progress/ID mutation.
+3000-world/120-budget/12000-reserve, 23/23 quotas, rotation/zone placement, checkpoint
+pacing, shared behavior, native custody and safe shutdown remain.
+
+Normal receipt: playerbots-source-build-20261010-104219-362220. SQL/file recovery:
+playerbots-population-import-20261010-104131-210660, external server backups.
+GS SHA 63d72e44740698bc5fdb0170c4802615c183d658716c47f62b295cc20a312942;
+Commons unchanged. 79 offline sources / 39 suites / 8362 checks, five migration
+failure-boundary and nine tooling tests pass. All 1757 warning-free handlers and
+complete resource/static/linkage/preservation gates pass; 3591 prior JAR entries
+and all 108 existing service methods remain identical. Only the service constructor
+binds the SQL stores. One normal JAR copied; 2044 caches backed up/invalidated.
+Post-install verifies 70 guards / 93 configs / 31 client hashes plus recovery/
+source/builder hashes; inventory 20 checks / 74 client / 133 server receipts passes.
+Both components remained closed; no startup/restart/attach or native actor/DB/ID
+fixture occurred. Production SQL writes were limited to the requested schema/import.
+
+PB-VAL-034 actual restart without legacy files, retained IDs/timers, admission/
+rotation, shared gameplay and shutdown remains user testing. Individual SQL latency
+remains possible; general event/context/class/world parity is still partial. The
+next independent world/economy slice remains warehouse PB-SCOPE-004A; Ranger stays
+separate. Do not re-port 012D solely for pending gameplay acceptance.
+See [upstream mapping, migration and recovery](PLAYERBOTS_POPULATION_DATABASE_20261010.md).
+
+## Configured population bounds — installed offline — 10 October 2026
+
+PB-REPAIR-POP-013 reconciles target/budget/persistent-reserve/account namespace
+bounds for 3000 active world bots, 120 budget and 12000 maximum reserve. Runtime
+2800..3000 profile, ratio 2, personal 23/23 and all 40 documented setting values
+are preserved. Existing event version, finite provisioning, shared/native behavior
+and roster/checkpoint/worker pacing remain. 8293 offline checks and full gates pass;
+PB-VAL-033 actual throughput/performance remains user testing. This does not
+complete 012D event/account repository integration, warehouse 004A or Ranger.
+See [linked bounds and exact upstream mapping](PLAYERBOTS_CONFIG_SCALE_20261010.md).
+
+## Native raid recruitment integration — installed offline — 10 October 2026
+
+PB-PORT-RAID-012 extends PB-SCOPE-002 to owned native-alliance recruitment and
+full-party conversion, 23-companion mixed presets/formations/menu and world-bot
+alliance quotas. Runtime active/saved limits 23/23 supersede earlier 5/20 values.
+Native 24-total capacity, leadership, eligibility/custody and prior behavior remain.
+Full upstream raid strategies and broader social parity remain partial.
+8,229 offline / 49 simulated browser / six tooling checks and full gates pass;
+PB-VAL-032 native gameplay remains pending. Next independent 012D/004A/Ranger
+work remains. See [exact implementation boundaries](PLAYERBOTS_RAID_PORT_20261010.md).
+
+## Latest installed integration repair — 10 October 2026
+
+PERF-010 uses a fresh batched native roster/archive read for an eligible cohort
+and staggered single-character complete checkpoint callbacks. UI-CREATE-011
+exposes the existing personal creation capacity and permits saved creation at
+full native party size. All 001C/001D and previous behavior remains. Individual
+SQL/save monitor latency and upstream 012D account/event parity remain distinct
+remaining work; warehouse 004A and Ranger are separate. Receipt and exact
+[mapping/tests/limitations](PLAYERBOTS_CHECKPOINT_ROSTER_20261010.md) supersede
+older current-baseline pointers without erasing their historical evidence.
+
+## Player-zone world population — installed offline — 10 October 2026
+
+**PB-SCOPE-001D** implements pinned `RandomTeleportForLevel` /
+`GetPlayerZoneTeleportLocations` through native Aion geographic SUB zones.
+The existing `population.concentrate_player_maps` setting now defaults true
+by user request. Field placements prefer occupied real-player map/zone pairs,
+retaining level/faction/map/landing guards and worldwide fallback. Existing
+city probability remains separate. Visible staff playing normally participate;
+hidden staff observers and instance players do not. Both factions are covered.
+Reused global characters apply the same decision before visibility; existing
+active bots retain safe scheduled relocation. Shared combat/quests/loot, saved
+IDs/builds, manual/owned homes, caps and shutdown remain.
+
+**001D and 001C are installed offline** through unchanged normal Maven output
+using existing user authorization and fresh successful closed-component checks.
+All 73 offline test sources / 34 suites / 6,961 checks pass, including 144 player-zone
+and 537 rotation checks. All 1,757 warning-free handlers, 2,533 unchanged resources,
+complete static-data/linkage and three method-preservation tooling checks pass.
+3,587 prior JAR entries, 91 other service methods and 18 other placement methods
+are preserved. All pinned source reference hashes verify.
+
+Receipt: `playerbots-source-build-20261010-023929-118116`, external
+`archives/server/game-server/backups`. GameServer SHA-256:
+`91366e684396ddc6a7a635a417e1ccc0a439b495742487fafdabc47107f785a1`.
+Commons remains `b7d6786f38696b9d81425cee04c4ebf16aa242d76e6c20c1754385168ec2cc6c`.
+Only the normal GameServer JAR was copied. Post-install/source/recovery hashes,
+70 guard files, 96 configuration files, 31 client hashes and 2,044 backed-up/
+invalidated generated caches verify. Inventory passes 20 mod checks; 74 client /
+125 server historical receipts remain. Both components remain closed; no start,
+restart, attach, native World/SQL/ID fixture or database mutation was used.
+The former standalone 001C review is preserved as evidence and superseded by
+cumulative installed 001D. PB-VAL-029 player-zone entry/encounter/relocation,
+028 reserve rotation/restart and 027 responsiveness remain user gameplay testing.
+
+Full upstream parity remains partial. The next population dependency is
+PB-SCOPE-012D native population event/account repository integration; private
+warehouse/item usage and Ranger remain independent tracked slices. See the exact upstream/native mapping in
+[the player-zone port record](PLAYERBOTS_PLAYER_ZONE_PORT_20261010.md).
+
+## Full upstream port: persistent rotation — verified staged — 10 October 2026
+
+The user renewed the requirement to port all applicable WoW Playerbots behavior,
+using the pinned implementation/dependencies/configuration as the authority.
+**PB-SCOPE-001C** is the next bounded population port, not a claim of full parity.
+It imports maximum-times-ratio persistent factory capacity, shuffled account
+cohorts, eligibility/native reuse and failed-login admission release. Default
+ratio 2.0 provisions 2,000 persisted characters for the maximum 1,000 active;
+existing saved IDs/builds remain and only the finite factory shortfall is created.
+Full occupancy no longer blocks reserve provisioning. Native cooldown/readiness,
+leases/custody, 1,000 world/100 companion caps and safe shutdown stay enforced.
+Failed global entry releases its residence slot while retaining identity and a
+completion-based 30-second retry; manual/owned lifecycle remains unchanged.
+
+Fully verified and staged: 72 offline test sources / 33 suites / 6,817 checks,
+including 537 rotation checks and 100 synthetic rotations. All 1,757 handlers
+compile without warnings; 2,533 resources have no changes; complete static-data,
+linkage and preservation gates pass. 3,588 prior JAR entries and 92 other service
+methods are preserved. Four new pinned configuration/database dependencies and
+all existing source references are hash verified.
+
+Normal builder output SHA-256:
+`3f358bfd1e9846edbd9532f7bb0733bdb14ac9e1396b308c19b8db2e70c3a414`.
+Review: external `staging/output/release-20261010-021741-870189`.
+Runtime remains installed PB-REPAIR-PERF-009 (`d752a8a2...`). GameServer was
+restarted by the user; delivery requires fresh closed-component confirmation.
+Only the normal GameServer JAR is planned for replacement; 2,044 generated
+handler caches will be backed up and invalidated at delivery. No runtime files
+were replaced. No component restart/attach/native World/DB/ID fixture was used.
+PB-VAL-028 live pool completion/rotation/restart remains user testing.
+
+Full parity remains partial. Native population event/account repository storage
+is a subsequent 012 dependency; private warehouse/item-usage and Ranger remain
+tracked slices, alongside unfinished travel/quest/class/economy/social/encounter
+work. Do not substitute another inventory/re-audit for these implementations.
+See [exact upstream flow, mapping and limits](PLAYERBOTS_ROTATION_PORT_20261010.md).
+
+## Collision lag repair and logging bundle — installed offline — 10 October 2026
+
+**PB-REPAIR-PERF-009 / PB-DIAG-SPAWN-007 / PB-DIAG-REPORT-008 are installed**
+from unchanged normal Maven output after the user's explicit "Install it" request.
+Bot walking probes now reject distant geometry outside their finite endpoints,
+retaining native collision/terrain/door/floor/body safety. Successful entries show
+`[spawned/target]`; automatic summaries print only changed lines, while manual
+`.bot worldstats` retains its full snapshot. Combat, quests, rewards, saved IDs,
+owned-alt builds, configuration, appearance-disabled state and shutdown remain.
+
+Receipt: `playerbots-source-build-20261010-020621-826864`, external
+`archives/server/game-server/backups`. Installed GameServer SHA:
+`d752a8a2a38c82e5971b6f13ce1b2fe3af766ad8c644c47d7c1b6bb7be01a8d4`.
+Commons unchanged. All 71 offline sources / 32 suites / 6,280 checks, 1,757
+warning-free handlers, full resource/static-data/linkage and preservation gates
+pass. 3,584 prior JAR entries remain identical. Fresh offline guards, backup,
+installed hashes and rollback originals pass: one normal JAR copied; 2,044
+generated caches backed up/invalidated; 70 guard files, all configuration and
+31 client hashes preserved. Inventory: 20 checks, 74 client / 124 server receipts.
+Both components remain closed; no restart/agent/native World/DB/ID fixture used.
+The three authorized read-only thread dumps were a bounded diagnostic exception,
+now exhausted. PB-VAL-026 console and PB-VAL-027 population-scale responsiveness
+remain user gameplay acceptance. This fixes an evidenced collision hotspot;
+other remaining lag sources are not declared resolved by offline tests.
+
+Next evidenced population gap: timed presence has a pool equal to the active
+target (806 identities, 713 residents and 93 offline cooldowns in the sampled
+files), so it cannot replace departures from an eligible persistent reserve.
+This reserve/admission repair is not included here. Full upstream world/class
+parity remains partial; warehouse PB-SCOPE-004A and Ranger remain separate.
+See [evidence, upstream mapping and limits](PLAYERBOTS_COLLISION_LAG_20261010.md).
+
+## Population continuation repair — installed offline — 10 October 2026
+
+**PB-REPAIR-POP-006 is installed** from unchanged normal Maven output. A pending
+native load no longer consumes the next five-second population-manager interval;
+successful creation/load resumes global/manual admission and saved loading at
+the next existing bounded maintenance poll. One native initialization worker,
+failure retries, saved identities, shutdown draining and all shared combat,
+quest, loot and movement repairs remain. This addresses the user's large-count
+spawn-delay evidence; actual native throughput remains user acceptance.
+
+Receipt: `playerbots-source-build-20261010-010213-634062`, external
+`archives/server/game-server/backups`. GameServer SHA-256:
+`58bf3f792d3b8a8d61a61d871244c630a1cc6e110dc73c336555e611876d4bc5`;
+Commons unchanged. All 70 offline sources / 31 suites / 5,833 checks, 1,757
+warning-free handlers and complete resource/static-data/linkage gates pass.
+3,589 prior JAR entries and 95 existing service methods remain unchanged; only
+three population lifecycle methods and two added deadline helpers differ.
+Only the normal GameServer JAR was copied; 0 generated caches invalidated.
+Fresh offline process/hash/backup/recovery/preservation checks pass; installed
+inventory passes 20 mod checks / 31 client hashes, 74 client / 123 server receipts.
+No component startup/attach/native World/DB/ID fixture was used. PB-VAL-025
+population fill timing and PB-VAL-024 shared gameplay/saved-ID reuse remain
+user-tested. Full upstream parity remains partial. Continue from evidenced
+shared-system gaps against pinned source; warehouse PB-SCOPE-004A and Ranger
+remain separately tracked work, rather than displacing a demonstrated regression.
+See [upstream flow, scheduling evidence and validation](PLAYERBOTS_POPULATION_PIPELINE_20261010.md).
+
+## Shared behavior and persistent identity repair — installed offline — 10 October 2026
+
+**PB-REPAIR-SHARED-001 is installed from unchanged normal Maven output.** Concrete
+user gameplay evidence reopens shared movement/response and world activity
+integration ahead of the independent warehouse backlog. Per-character reaction
+deadlines replace the population-dependent batch sleep; native floor tolerance
+and one-pass support retain obstacle guards. Native training dummies are excluded
+from grind/field bands; quest intent precedes unrelated grinding. An idle resident
+without any reachable activity can use the guarded field relocation, preserving
+its character. Creation fills only a genuine persistent-pool shortfall; timed
+absence/restart reuses native database characters instead of allocating
+replacement identities. Both modes retain the same combat/movement/loot/quest
+engine and all prior mods. All 69 offline check sources / 30 suites / 5,820 checks, 1,757 warning-free
+handlers, complete static-data/linkage and preservation gates pass. 3,568 prior
+JAR entries and every existing GeoMap method remain unchanged. The installed
+normal GameServer JAR SHA is 22ae677f9f39b924a65475956bef9fe216d06e1b6ee203dca4f1493af94bf7d9.
+Receipt: `playerbots-source-build-20261010-005234-053007`, external
+`archives/server/game-server/backups`. Only the normal GameServer JAR was copied;
+2,044 generated handler caches were backed up and invalidated. Fresh closed-process,
+source/artifact/hash/backup and preservation guards pass; installed inventory passes
+20 mod checks / 31 client hashes, with 74 client / 122 server historical receipts.
+Commons remains unchanged. All WORLD-004 / NAV-005 and earlier features remain.
+No startup, attach, native world, database or ID fixture was run. PB-VAL-024 is
+user gameplay acceptance; full upstream parity remains partial.
+See [exact source mapping and repair evidence](PLAYERBOTS_SHARED_REPAIR_20261010.md).
+
+
+## World population and navigation repair — installed offline 10 October 2026
+
+**PB-REPAIR-WORLD-004 / PB-REPAIR-NAV-005 are installed** from unchanged normal
+Maven output. World population has its independent 1,000-resident cap; the
+100-companion quota remains separate. Failed admissions retry after 30 seconds
+without blocking other residents. Console spawn messages and 30-second summaries
+report actual spawned bots, target/remaining count, factions, activities and maps.
+`.bot worldstats` and paged `.bot worldlist [page] [here]` expose these counts and
+coordinates. Distant local detours, supported body-clear walking, safe population
+landings, five-metre service camps, saved-position repair before visibility and
+upstream destination visitor limits/point spreading repair field activity travel.
+Native combat, loot, quests and earned progression remain responsible for rewards.
+User defaults (800–1,000 target, timed presence on, city chance 35%) are retained;
+no saved character or owned-alt build is rerolled. All prior mods/shutdown repairs
+remain; appearance stays disabled and the override remains retired.
+
+Receipt: `playerbots-source-build-20261010-000108-172472` under external
+`archives/server/game-server/backups`. GameServer SHA `e1a2cfc01bc31816c1de4056dd80f033a1cb9fd15efe74f60c80d24a4ff7e74f`;
+Commons unchanged `b7d6786f38696b9d81425cee04c4ebf16aa242d76e6c20c1754385168ec2cc6c`. All 68 offline test sources / 29 suites / 5,674
+checks, 1,757 warning-free handlers, complete static-data/resource/linkage gates
+and three method-preservation tests pass; 3,567 prior JAR entries are
+byte-identical. Only the normal GameServer JAR and builder's Bot.java were copied;
+0 generated caches were backed up/invalidated. Fresh process/hash/backup/rollback
+and inventory gates pass (20 mod checks / 31 client hashes). No startup, attach,
+world actor, database or native ID fixture was used. **PB-VAL-023** actual
+population above 100, both factions, field combat/XP/loot/quest progress, obstacle
+movement and 1,000-bot performance remain user gameplay acceptance. Full world
+and class parity remains partial. Next independent world/economy work remains
+PB-SCOPE-004A private warehouse; Ranger remains separate. See
+[exact upstream mapping and validation](PLAYERBOTS_WORLD_REPAIR_20261009.md).
+
+## Safe bot shutdown repair — installed offline 9 October 2026
+
+**PB-REPAIR-WORLD-003 is installed** through unchanged normal Maven output.
+Headless bots no longer force the existing 120-second human grace period or
+block staff-only fast shutdown. Native creation/load is drained outside the
+service monitor, then every bot is saved and logged out before NIO/pool closure.
+Failed saves retain reservations and retry; shutdown waits rather than dropping
+unsaved progress. Pinned WoW shutdown/login/logout dependencies were read and
+blob verified. All earlier population, class, gear, trade, invitation and compiler
+repairs remain; appearance stays disabled and the override remains retired.
+
+All 67 test sources / 28 world-free suites / 5,644 checks, 1,757 warning-free
+handlers, complete static-data and linkage gates pass. Service's other 73 methods
+and 3,582 prior JAR entries are unchanged. Only the normal GameServer JAR was
+copied; 2,044 generated handler caches were backed up/invalidated. Fresh process,
+backup, hash, rollback and inventory checks pass: 20 mod checks / 31 client hashes,
+74 client / 120 server receipts. User-updated system.cfg was preserved after a
+full inventory refresh; initial guard refusal copied nothing. No components were
+started/attached and no native world/DB/ID fixtures were run.
+
+Receipt: `playerbots-source-build-20261009-233127-865286`, external
+`archives/server/game-server/backups`. GameServer SHA-256:
+`433e2d250018719e37af7a1d3d184060088a985e13f3cc99cb4676f9b71c6349`.
+Commons is unchanged. PB-VAL-022 actual shutdown/save/restart acceptance remains
+user testing. The separate missing-in-game report awaits `.bot worldlist` evidence.
+See [shutdown mapping and validation](PLAYERBOTS_SHUTDOWN_20261009.md).
+Next forward port remains PB-SCOPE-004A; Ranger stays separate.
+
+## Starter placement and handler compiler repairs — installed 9 October 2026
+
+**PB-REPAIR-WORLD-002 and BUILD-REPAIR-HANDLERS-001 are installed** through the
+canonical normal Maven release. Native race starting positions remain preferred
+hubs for levels 1..5, correcting the reproduced Elyos level-3 omission. All native
+placement safety gates remain. The 38 deprecated help implementations and one
+unchecked handler cast are repaired; all 1,757 handlers compile with
+`-Xlint:deprecation,unchecked -Werror` and zero warnings.
+
+Baseline regression failed at Elyos level 3; the repaired real catalog passes all
+10 starter selections and 130 faction/level combinations. Three focused suites
+pass 3,179 checks, with 65 test sources compiled. Complete static data and linkage
+pass. Only Placement.locations changes; 18 other methods and 3,586 prior JAR
+entries are preserved. Guarded backup/copy/rollback delivery installed the normal
+GameServer JAR and 39 handlers, archiving/invalidation of 2,044 generated handler
+cache files. Inventory: 20 mod checks / 31 client hashes; 74 client / 119 server
+receipts. Components were verified closed and remain off.
+
+Receipt: `playerbots-source-build-20261009-225816-372177` under external
+`archives/server/game-server/backups`. GameServer SHA-256:
+`6701269ad1f5e711b7e089951431b55136358e54c75aa6ba6d36b683932b5abf`. Commons unchanged.
+
+PB-VAL-021 startup/low-level creation and command help remain user testing; no
+startup, attach, native world actor, database or ID fixture was run. Next forward
+port remains **PB-SCOPE-004A private warehouse decisions**; Ranger stays separate.
+See [placement repair](PLAYERBOTS_STARTER_PLACEMENT_20261009.md) and
+[handler repair](HANDLER_COMPILER_REPAIR_20261009.md).
+
+## World performance and native alliance repair - installed 9 October 2026
+
+**PB-REPAIR-WORLD-001 is implemented and installed** through unchanged normal Maven output. It repairs measured multi-second population callbacks and chat/trade lock contention, adds missing headless native alliance acceptance, and makes trade refusals specific. Creation/loading use one background native job; callbacks reschedule after completion; ticks release the service lock between bots; destination scoring uses one fresh route table per decision. Existing population/progression/appearance/gear/travel/trade and all prior class/mod behavior remain.
+
+Pinned WoW RandomPlayerbotMgr, TravelMgr, AcceptInvitationAction, TradeAction, TradeStatusAction and newly downloaded blob-verified PlayerbotSecurity.cpp were read and mapped to native Aion services before implementation. Public priced world-bot trading is the user's deliberate policy broader than upstream master/group access; discounts/crafting remain partial. Native team restrictions, ownership, recipients, range/combat and durable custody remain authoritative.
+
+All **26 world-free suites / 5,614 checks**, 65 companion test sources, complete normal build/resources/handlers/static-data/linkage and three release method-preservation tests pass. Real catalog route benchmark: 60 passes, 1,043,400 scores, 6,120 permission callbacks, 111ms. This is offline planning verification, not live server latency acceptance. **PB-VAL-020** is user startup/latency, party/alliance join/follow/release and trading acceptance; 018/019 remain pending.
+
+Receipt: `playerbots-source-build-20261009-185835-746215`, external `archives/server/game-server/backups`. GameServer SHA: `ba4b121bf182ae5bedecb55cd7e8d631ca250f7c550454a72e07340143a15787`; Commons unchanged. 3,565 prior JAR entries remain byte-identical; 3,319 effective classes / 176,708 member references link; 1,757 handlers compile; 2,533 managed resources have no changes. Fresh offline installation/backup/hash/rollback and inventory passed: 20 mod checks / 31 client hashes, 74 client / 118 server receipts. Only GameServer JAR copied. No startup/attach/native world/casts/DB/IDs; components remain off.
+
+See [root cause, exact mapping and acceptance](PLAYERBOTS_WORLD_PERFORMANCE_20261009.md). Next forward world/economy review remains **PB-SCOPE-004A private warehouse decisions**; Ranger is a separate class queue. Do not re-port installed features solely because gameplay remains user-tested.
+
+## Previous global population layer — installed offline 9 October 2026
+
+**PB-SCOPE-001B is implemented and installed** from unchanged normal Maven output. It adds a server-wide random target, dedicated headless candidate pools, faction-balanced admissions, configurable initial level distribution, persisted presence/relocation events and level-appropriate native world placement. PB-SCOPE-001A's quests/combat, earned progression, gear, public trade, invitations/control release, randomized creation looks and headless teleport completion remain installed. Full upstream parity remains partial; **PB-VAL-018/019 gameplay acceptance is pending user testing**.
+
+Defaults: 40–60 global residents, levels 1–65, approximately 50% Elyos, up to 12 admissions/creations per maintenance interval, eligible native open-world maps. Initial random levels/gear are applied only to newly created server-pool characters; saved residents and owned alts are not rerolled. Target counts change every 30–120 minutes; safe idle relocation every 1–5 hours or after earned level changes. Optional timed presence is disabled by default, matching upstream permanent-presence mode. Existing manual `.bot worldpool` pools retain level-one creation.
+
+Receipt: `playerbots-source-build-20261009-181729-863984` under external `archives/server/game-server/backups`. GameServer SHA-256: `c5967690b13a6ac90846bccbae64b2f718aa468c06f4aabc53efebafa564615f`; Commons unchanged. All 25 world-free suites / 2,620 checks, complete resource/handler/static-data/linkage gates and 20 installed-mod checks / 31 client hashes pass. Only the normal GameServer JAR was copied; no managed data or client changes. Components remain off; no startup/attach/live world/database/ID fixtures.
+
+Read [exact upstream mapping, defaults, preservation and remaining differences](PLAYERBOTS_POPULATION_GAP_20261009.md). The active direction remains the world/economy dependency plan. Next bounded source review is **PB-SCOPE-004A: native private warehouse decisions**, using pinned BankAction/item-usage/service dependencies before implementation; mail, shared legion storage and professions remain separate slices. Ranger remains a separate class queue. Gameplay acceptance does not require re-porting already installed behavior.
+
 Completed once on 4 October 2026 against **037c01418b5d01506917a3db9b44fd56ac5f965c**.
 This is the full subsystem register, replacing the outstanding inventory task.
 The focused PB-PORT tracker still owns its existing implementation and validation
@@ -7,7 +609,7 @@ IDs. Do not restart this pass each iteration; update the affected row and procee
 
 Evidence: the untruncated [pinned repository tree](../third-party/playerbots/scope-references/tree.json)
 contains 1,669 entries. The [reference manifest](../third-party/playerbots/scope-references/manifest.json)
-records 17 additional unchanged files checked against their upstream Git blob
+records the original 17 additional unchanged files plus three verified manager/leave implementations for PB-SCOPE-001A and TravelMgr.cpp for PB-SCOPE-001B plus PlayerbotSecurity.cpp for PB-REPAIR-WORLD-001, checked against their upstream Git blob
 hashes, alongside the original 51 SHA-256 references. The complete tree covers
 class, base, world, dungeon, raid, manager, factory, command, script and database
 families. File coverage establishes subsystem existence, **not algorithm parity**.
@@ -47,24 +649,30 @@ saved parties, optional spending and future PvP) remain separate from upstream p
 | PB-PORT-008 | Heals/buffs/debuffs/pets/summons/food coordination; class strategies, `PetsAction.cpp`, `UseFoodStrategy.cpp` | Native affected-recipient reservation/effect stacking/pet tools and supplies partial | Class slices and focus controls; no unsupported summon/totem imitation. |
 | PB-PORT-009 | Item usage, loot rights/rolls, bag pressure, selling/buying/repair; `ItemUsageValue.cpp`, `Loot*`, `SellAction.cpp`, `RepairAllAction.cpp` | Players already have native cubes/equipment; decisions/services partial, protection/custody installed | Useful-item categories and native service adapter gate. Having inventory is not autonomous management or trade. |
 | PB-PORT-010 | Player/random factories, talents, skills, BiS/stat weights, level maintenance; `src/Bot/Factory`, `src/Mgr/Talent`, `src/Mgr/Item` | Temporary native skills/Stigmas/legal gear/ten-level tiers installed; optimized coherent profiles partial | 005/009; no automatic overwrite of owned-alt gear/build/Stigmas. WoW talents/glyphs have no literal equivalent. |
-| PB-PORT-011 | Shared travel/quest/service/grind destination planning; `TravelMgr`, `TravelNode`, `ChooseTravelTargetAction.cpp`, `src/Ai/World` | Shared nearby native quest arbitration installed; world graph/services/route planner absent | Native destination graph and handler gates; owner leash applies to companions, independent bots need different context. |
-| PB-PORT-012 | Local pathing/reach/flank/kite/flee/transport, travel skills, death/release/corpse; `MovementActions.cpp`, `FleeManager`, `DeadStrategy.cpp`, `TaxiAction.cpp`, `VehicleActions.cpp` | Follow/flight/formations/whole-party instance and revive adapters installed. PB-REPAIR-NAV-002 generic dynamic-door/floor movement and follow-prefix progress installed offline through `190312-034119`; user confirms opened-door crossing solved. PB-REPAIR-NAV-003 shared physical-see-through floor support installed offline (`224940-884362`); exact Central Engine Room mesh reproduction corrected, actual new-room gameplay pending. Rejected FollowRecovery teleport removed. PB-REPAIR-FORMATION-002 continuous direct follow intent/speed/priority and PB-CONFIG-001 summon controls installed offline (`062930-344543`), 679 checks; user movement/summon acceptance pending. Room/combat/party acceptance pending; remaining escape/transport/travel skills partial | Aion geodata/flight/teleport/resurrection services, not WoW MotionMaster/opcodes or ghost corpse rules. |
+| PB-PORT-011 | Shared travel/quest/service/grind destination planning; `TravelMgr`, `TravelNode`, `ChooseTravelTargetAction.cpp`, `src/Ai/World` | Shared nearby native quest arbitration installed; PB-SCOPE-001A adds native world quest/service/grind destinations and directed transport graph; installed/offline verified, PB-VAL-018 user gameplay pending | Native destination graph and handler gates; owner leash applies to companions, independent bots need different context. |
+| PB-PORT-012 | Local pathing/reach/flank/kite/flee/transport, travel skills, death/release/corpse; `MovementActions.cpp`, `FleeManager`, `DeadStrategy.cpp`, `TaxiAction.cpp`, `VehicleActions.cpp` | Follow/flight/formations/whole-party instance and revive adapters installed. PB-REPAIR-NAV-002 generic dynamic-door/floor movement and follow-prefix progress installed offline through `190312-034119`; user confirms opened-door crossing solved. PB-REPAIR-NAV-003 shared physical-see-through floor support installed offline (`224940-884362`); exact Central Engine Room mesh reproduction corrected, actual new-room gameplay pending. Rejected FollowRecovery teleport removed. PB-REPAIR-FORMATION-002 continuous direct follow intent/speed/priority and PB-CONFIG-001 summon controls installed offline (`062930-344543`), 679 checks; user movement/summon acceptance pending. Room/combat/party acceptance pending; remaining escape/transport/travel skills partial PB-REPAIR-PERF-009 finite walking-probe workload repair is installed/offline verified; PB-VAL-027 live responsiveness pending. | Aion geodata/flight/teleport/resurrection services, not WoW MotionMaster/opcodes or ghost corpse rules. |
 | PB-PORT-001/002/003 | Class final gates; individual/group quest acceptance/reports/object use/rewards/drop; `QuestAction.cpp`, `ChooseTravelTargetAction.cpp`, class strategies | Corrections and shared local execution installed/offline verified | Actual server/client acceptance is PB-VAL, not a reason to re-port these adapters. |
-| PB-SCOPE-001 | Autonomous population/account pool/login/logout/activity/level scheduling; `RandomPlayerbotMgr.h`, `RandomBotLevelMgr`, random factory/config | **Absent** independent lifecycle; current PlayerBotService requires owner and party | Build native autonomous session context/population lifecycle first; local activities can reuse combat, world roaming later uses 011. Manager implementation source gate. |
-| PB-SCOPE-002 | Native invite/leave/leader/control changes; `AcceptInvitationAction.cpp`, `InviteToGroupAction.cpp`, `LeaveGroupAction.cpp`, `PlayerbotMgr.h` | **Absent** world-bot invitations/control transfer; owned recruitment/groups/presets are installed | Invitation reads security, accepts through native handler, sets inviter as master for random bot, resets strategies/follows/summons. Needs 001 for world bots, not complete rotations. |
-| PB-SCOPE-003 | Native trade accept/cancel/offers/item-use/value/discount/crafting; `TradeAction.cpp`, `TradeStatusAction.cpp`, `TradeValues.cpp` | **003A installed** native owner gift begin/lock/confirm/cancel, guarded durable item/Kinah custody and donated upgrades for alts/Temporary Bots; outgoing/world-bot offers, value/discount/crafting remain absent | Verified upstream checks master/group/security, item usefulness and native acceptance. Adapt native ExchangeService and custody; no world graph prerequisite for existing companions. |
-| PB-SCOPE-004 | Bank, guild bank, mail and item economy; `BankAction.cpp`, `GuildBankAction.cpp`, `MailAction.cpp`, `SendMailAction.cpp`, `src/Mgr/Item` | Native warehouses/mail and item service decisions **absent** | 009 useful-item/service rules and exact service source gate; retain shared storage custody. No separate auction action was established by this tree/reference pass; do not promise an upstream auction port without source evidence. |
+| PB-SCOPE-001 | Autonomous population/account pool/login/logout/activity/level scheduling; `RandomPlayerbotMgr.h`, `RandomBotLevelMgr`, random factory/config | PB-SCOPE-001A activities/residency and PB-SCOPE-001B global target/candidate/faction/level/presence/native placement events installed/offline verified; PB-REPAIR-WORLD-001 repairs measured scheduling/initialization/route cost; PB-REPAIR-WORLD-002 starter-hub omission installed; PB-REPAIR-WORLD-003 human grace/native-work drain/durable shutdown and PB-REPAIR-WORLD-004 / NAV-005 population counts/capacity/admission/local routes/landing/visitor spreading installed/offline verified; PB-VAL-018/019/020/021/022/023 user gameplay pending; PB-REPAIR-SHARED-001 installed/offline verified repair covers shared reactions/movement, quest intent/control, field recovery and persistent identity reuse; PB-VAL-024 pending; PB-REPAIR-POP-006 installed/offline verified removes consumed pending-load intervals and resumes population preparation after successful native work; PB-VAL-025 fill timing pending PB-SCOPE-001C factory/cohort/reuse/failed-admission and PB-SCOPE-001D native player-zone preference are installed/offline verified; PB-VAL-028/029 gameplay remains pending. | 001B traces manager/factory/config and TravelMgr cache; positive manual pools retain level-one creation. Existing earned progress is never periodically rerolled. Custom quest coverage and broader social/economy policies remain partial. |
+| PB-SCOPE-002 | Native invite/leave/leader/control changes; `AcceptInvitationAction.cpp`, `InviteToGroupAction.cpp`, `LeaveGroupAction.cpp`, `PlayerbotMgr.h` | PB-SCOPE-001A normal-party invitations/control transfer/release preserved; PB-REPAIR-WORLD-001 adds native alliance acceptance plus alliance follow/support/recall/release adapters; installed/offline verified, PB-VAL-018/020 user gameplay pending; owned recruitment/groups/presets preserved | Invitation reads security, accepts through native handler, sets inviter as master for random bot, resets strategies/follows/summons. Needs 001 for world bots, not complete rotations. |
+| PB-SCOPE-003 | Native trade accept/cancel/offers/item-use/value/discount/crafting; `TradeAction.cpp`, `TradeStatusAction.cpp`, `TradeValues.cpp` | **003A installed** native owner gift begin/lock/confirm/cancel, guarded durable item/Kinah custody and donated upgrades for alts/Temporary Bots; PB-SCOPE-001A adds public priced buy/sell offers with native custody; installed/offline verified, PB-VAL-018 user gameplay pending; PB-REPAIR-WORLD-001 repairs service contention and explains native trade blockers; discount/crafting remain absent | Verified upstream checks master/group/security, item usefulness and native acceptance. Adapt native ExchangeService and custody; no world graph prerequisite for existing companions. |
+| PB-SCOPE-004 | Bank, guild bank, mail and item economy; `BankAction.cpp`, `GuildBankAction.cpp`, `MailAction.cpp`, `SendMailAction.cpp`, `src/Mgr/Item` | 004A private warehouse, 004B owned requested mail and 004C requested legion deposits installed offline; exact native SQL custody and full release/recovery gates pass; native gameplay acceptance pending. World COD/guild-task mail, broad selectors and full autonomous economy remain incomplete | 009 useful-item/service rules and exact service source gate; retain shared storage custody. No separate auction action was established by this tree/reference pass; do not promise an upstream auction port without source evidence. |
 | PB-SCOPE-005 | Crafting, professions, gathering/reveal/fishing/training; `SetCraftAction.cpp`, `TrainerAction.cpp`, `LootNonCombatStrategy.cpp`, `RpgSubActions.cpp` | Aion crafting/extraction/gathering/skill learning equivalents; automatic companion skill maintenance partial, professions **absent** | Native recipe/material/skill/services and source gates. WoW fishing bobber is not a proven Aion 4.8 feature; leave N/A mapping unresolved explicitly. |
-| PB-SCOPE-006 | Independent RPG NPC/service/rest/social/wander choices and grind XP; `src/Ai/World/Rpg`, `GrindingStrategy.cpp`, `RpgSubActions.cpp` | Owner quest missions/local services partial; independent activity state machine **absent** | 001 local context first, 011 destination graph for travel; no fictitious world activity completion. |
+| PB-SCOPE-006 | Independent RPG NPC/service/rest/social/wander choices and grind XP; `src/Ai/World/Rpg`, `GrindingStrategy.cpp`, `RpgSubActions.cpp` | Owner quest missions/local services preserved; PB-SCOPE-001A adds independent quest/grind/rest/vendor activity; installed/offline verified, PB-VAL-018 user gameplay pending | 001 local context first, 011 destination graph for travel; no fictitious world activity completion. |
 | PB-SCOPE-007 | Dungeon and raid encounter strategies/actions/triggers/values; `src/Ai/Dungeon`, `src/Ai/Raid`, dungeon repository | Aion hazard/encounter coordination and several boss adapters installed; PB-SCOPE-007A-R1 original Steel Rake tower/staircase/amplifier/root/pull-blast and gunner-pause behavior installed offline (`20261008-061243-633233`), original comments retained; gameplay and exact retail capture evidence pending; broad encounter library **partial** | Native Aion encounter assets + class/role coordination; WoW boss scripts cannot be copied. Native alliance topology is a separate adapter. |
 | PB-SCOPE-008 | LFG/matchmaking/queues/ready groups; `LfgStrategy.cpp`, `LfgActions.cpp`, config and manager | Companion native group placement installed; autonomous queue/group formation **absent** | 001/002 and native matching service contract; no need to finish every dungeon strategy before queue decisions. |
 | PB-SCOPE-009 | Guild/task/petition/arena-team social lifecycle; `src/Mgr/Guild`, `Guild*Action.cpp`, `PetitionSignAction.cpp`, `ArenaTeamActions.cpp` | Native legion equivalent; autonomous decisions **absent** | Native legion authorization/persistence + source gate. WoW arena-team organization is not a direct legion equivalent. |
 | PB-SCOPE-010 | Battleground/arena/outdoor PvP/duels/enemy players; `BattlegroundStrategy.cpp`, `DuelStrategy.cpp`, `BattleGroundTactics.cpp`, `NewRpgOutdoorPvP.cpp` | Dedicated PvP AI **deferred by user policy**, native PvE targeting retained | Later native faction/arena/fortress mechanics and source review. Must not restore recruitment PvP/location/flight blockers. |
 | PB-SCOPE-011 | Commands/chat shortcuts/filters/security/tells/emotes/strategy editing; `src/Bot/Cmd`, `ChatCommandHandlerStrategy.cpp`, `ChangeStrategyAction.cpp`, `PlayerbotSecurity`, `PlayerbotTextMgr` | Native .bot/HTTP/menu/party commands and account ownership installed; full vocabulary/editor/security/social replies **partial** | Native authorized command routes; strategy editing/persistence is separate from engine composition. No literal WoW command/parser expectation. |
-| PB-SCOPE-012 | External packet/event observers, values/cache, world-thread scheduling, repositories, save/reset/debug/performance | `src/Bot/Engine/WorldPacket`, `AiObjectContext`, `src/Script/WorldThr`, `src/Db`, `src/Bot/Debug`, `src/Util` | Native headless lifecycle/tasks/handler adapters/settings/presets installed; care/gear plus preferences/behavior/spacing/formation/reward-witness native repository PB-SCOPE-012A/012B installed/offline verified; 32 initial plus 52 further imports, 84 legacy property files plus six JSON documents retired; account presets/roster markers use native repositories and UI is bundled; creation provenance uses first checkpoint. User gameplay PB-VAL-011 pending; independent context/event/value lifecycle and diagnostics **partial** | Needed incrementally per subsystem; never emulate WoW session opcodes or call a disconnected helper “ported.” |
+| PB-SCOPE-012 | External packet/event observers, values/cache, world-thread scheduling, repositories, save/reset/debug/performance | `src/Bot/Engine/WorldPacket`, `AiObjectContext`, `src/Script/WorldThr`, `src/Db`, `src/Bot/Debug`, `src/Util` | Native headless lifecycle/tasks/handler adapters/settings/presets installed; care/gear plus preferences/behavior/spacing/formation/reward-witness native repository PB-SCOPE-012A/012B installed/offline verified; 32 initial plus 52 further imports, 84 legacy property files plus six JSON documents retired; account presets/roster markers use native repositories and UI is bundled; PB-SCOPE-012D population accounts/ordered intents/residency/target/timers now use native SQL and committed caches, 3 further files retired, PB-VAL-034 pending; creation provenance uses first checkpoint. User gameplay PB-VAL-011 pending; independent context/event/value lifecycle and diagnostics **partial** PB-REPAIR-SHARED-001 installed/offline verified repair adds per-character reaction deadlines and persistent pool reuse; PB-VAL-024 pending. PB-REPAIR-POP-006 installed/offline verified native-work continuation preserves the single-worker/shutdown boundary; PB-VAL-025 timing pending. PB-REPAIR-PERF-009 finite walking-probe workload repair is installed/offline verified; PB-VAL-027 live responsiveness pending. | Needed incrementally per subsystem; never emulate WoW session opcodes or call a disconnected helper “ported.” |
 | PB-SCOPE-013 | Mount/home/meeting-stone/vehicles/racials/reputation/world buffs/outfits/custom cheats | `CheckMountStateAction.cpp`, `SetHomeAction.cpp`, `UseMeetingStoneAction.cpp`, `VehicleActions.cpp`, `RacialsStrategy.cpp`, `WorldBuffAction.cpp`, `OutfitAction.cpp`, `CheatAction.cpp` | Native flight/teleports/supplies/appearance partial. Companion transmog PB-CUSTOM-APPEARANCE-001 has a corrected source/staged package reviewed 7 October, uninstalled; no live update. Upstream `OutfitAction.cpp` remains a source gate. | Native mount/bind point/effect/appearance where present; WoW-only racials, world-buff schedules, glyphs, meeting stones and vehicle seats not blindly ported. Cheats are explicit policy, not ordinary behavior. |
 
 ## Ordered next work and independent tracks
+
+PB-SCOPE-001D player-zone placement and PB-SCOPE-001C reserve/rotation are
+installed/offline verified. PB-SCOPE-012D population event/account repositories are
+now installed with PB-VAL-034 user acceptance pending. The next independent world/
+economy slices 004A private warehouse, 004B owned requested mail and 004C requested legion deposits are installed offline. Remaining source-gated economy work includes 004B2 native world COD/guild-task mail and 005 professions. Class slices below are separate. Installed slices retain their separate live acceptance.
+
 
 1. **PB-PORT-004 installed:** upstream evaluation multipliers, named state strategies
    and bounded freshly resolved continuers. New port + engine translation repair
@@ -90,19 +698,22 @@ saved parties, optional spending and future PvP) remain separate from upstream p
    compare pinned Hunter first, preserving installed 001/002 gates. Full Gladiator/
    Templar strategies and Chanter assignment/replacement remain unfinished.
    No duplicated pet/utility work for 005B.
-3. **Independent world track:** 001 lifecycle/context -> 006 local activities ->
-   011 global destinations/travel. 002 invitation/control can follow lifecycle
-   before the world planner and full class coverage are complete.
+3. **Independent world track: PB-SCOPE-001A** delivers the user-requested 001
+   population/lifecycle, 006 quest/grind/rest/vendor activities, 011 destinations/
+   transport and 002 invitations/release together. Native map/flight arrival and
+   earned XP/Ascension callbacks are necessary integration dependencies.
+   **001B installed:** global randomized target, faction/candidate admission, initial level distribution, persisted presence/relocation and native world cache placement. PB-VAL-019 remains user-tested.
+   PB-VAL-018 gameplay acceptance stays separate; unsupported custom quest paths
+   and broader professions/banking/social/PvP remain open.
 4. **Independent economy track:** 009 useful-item classification/native services ->
    003 native trade for existing companions -> 004 warehouses/mail and
-   005 professions. Does not wait behind the whole world/class backlog.
+   005 professions. **004A private warehouse installed offline:** exact pinned BankAction/item/service flow and native custody; user gameplay acceptance pending. **004B owned requested mail installed offline:** pinned MailAction/SendMailAction through native mail and exact SQL custody. **004C requested native legion deposits installed offline:** pinned GuildBankAction deposit-only behavior, exact native custody and shared storage access. World COD/guild-task mail remains 004B2; 005 professions and broader autonomous economy remain separate. Does not wait behind the whole world/class backlog.
 5. **Encounter/group track:** 007 encounter library, 008 matching and 009 legion
    adapters when corresponding native/source contracts are reviewed. PvP 010 is
    explicitly later. Utility 013 maps only verified native mechanics.
 6. **PB-VAL tests remain separate:** server startup, native casts/transitions/
-   persistence, live geodata and actual client behavior. GameServer is now running;
-   this iteration applied only the reviewed live update after the user requested
-   finishing it, with no lifecycle change. Loaded-engine/disk success does not
+   persistence, live geodata and actual client behavior are user-tested. Keep
+   GameServer/client off during this source-built delivery. Offline checks do not
    close actual-client tests.
 
 Cross-cutting 012 is integrated when a selected subsystem actually needs it,
@@ -164,7 +775,7 @@ repository namespaces and the full port remain partial. Appearance remains
 source/staged only and must be restaged against the current receipt before install.
 
 
-## Current continuation — PB-SCOPE-012B installed and 52 files retired
+## Historical continuation — PB-SCOPE-012B installed and 52 files retired
 
 On the user's remaining-file report, preferences (17), behavior (13), spacing (7),
 formation (2) and reward witnesses (13) moved to native MetadataDAO persistence.
@@ -182,7 +793,7 @@ slice; Temporary creation gear-file gap PB-SCOPE-012A-R1 remains separate/open.
 See [remaining preference namespaces and evidence](PLAYERBOTS_METADATA_PREFERENCES_20261007.md).
 
 
-## Current continuation — PB-SCOPE-012C repository installed, runtime folders retired
+## Historical continuation — PB-SCOPE-012C repository installed, runtime folders retired
 
 Two saved-party documents and four removal markers now use native account/roster
 repository tables; three UI files are bundled unchanged in the cumulative JAR.

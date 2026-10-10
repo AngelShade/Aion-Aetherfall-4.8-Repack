@@ -1,0 +1,206 @@
+/* Autonomous quest/grind/travel purposes from pinned mod-playerbots TravelMgr,
+ * RandomPlayerbotMgr and ItemUsageValue (037c01418b5d01506917a3db9b44fd56ac5f965c).
+ * GPL-2.0-or-later; see third-party/playerbots/AUTHORS.md. */
+package com.aionemu.gameserver.services.playerbot;
+
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import com.aionemu.gameserver.dataholders.DataManager;
+import com.aionemu.gameserver.model.DialogAction;
+import com.aionemu.gameserver.model.gameobjects.*;
+import com.aionemu.gameserver.model.gameobjects.player.Player;
+import com.aionemu.gameserver.model.templates.npc.NpcRating;
+import com.aionemu.gameserver.model.trade.TradeList;
+import com.aionemu.gameserver.questEngine.QuestEngine;
+import com.aionemu.gameserver.services.*;
+import com.aionemu.gameserver.services.player.PlayerReviveService;
+import com.aionemu.gameserver.utils.PositionUtil;
+import com.aionemu.gameserver.world.geo.GeoService;
+
+/** Chooses destinations and actions only; native combat, quest handlers and loot award progress. */
+final class PlayerBotWorldActivities {
+ record Goal(int quest,PlayerBotQuestRoutes.Kind kind,PlayerBotWorldTravel.Place place,double distance) {}
+ private record Request(int quest,PlayerBotQuestRoutes.Kind kind,Collection<Integer> npcs) {}
+ private static final class State {
+  int level=-1; com.aionemu.gameserver.model.PlayerClass playerClass; long deadSince,nextScan,lastProgress,nextSell,noActivitySince; double best=Double.POSITIVE_INFINITY;
+  PlayerBotWorldTravel.Place vendor;long vendorSince;double vendorBest;
+  volatile Goal goal; final Map<String,Long> excluded=new HashMap<>();
+ }
+ private static final Map<Integer,State> STATES=new ConcurrentHashMap<>();
+ private static Map<Integer,Set<Integer>> starters;
+ private static final Map<Integer,List<Map.Entry<Integer,Set<Integer>>>> STARTERS_BY_LEVEL=new HashMap<>();
+ private static final Map<String,List<Integer>> GRIND=new HashMap<>();
+ private static List<Integer> vendors;
+ private static synchronized List<Integer> grindTemplates(Player bot){
+  return GRIND.computeIfAbsent(bot.getRace()+":"+bot.getLevel(),key->DataManager.NPC_DATA.getNpcData().stream().filter(n->levelSuitable(bot.getLevel(),n.getLevel())
+   && PlayerBotHunting.template(n)
+   && (DataManager.TRIBE_RELATIONS_DATA.isHostileRelation(n.getTribe(),bot.getTribe()) || DataManager.TRIBE_RELATIONS_DATA.isAggressiveRelation(n.getTribe(),bot.getTribe())))
+   .map(n->n.getTemplateId()).toList());
+ }
+ private static synchronized List<Integer> vendors(){if(vendors==null)vendors=DataManager.NPC_DATA.getNpcData().stream().filter(n->n.supportsAction(DialogAction.BUY)).map(n->n.getTemplateId()).toList();return vendors;}
+ private static State state(Player bot){return STATES.computeIfAbsent(bot.getObjectId(),id->new State());}
+ static boolean idle(Player bot){var s=STATES.get(bot.getObjectId());return s==null || s.goal==null && s.vendor==null;}
+ static boolean stranded(long now,long since,boolean destination){return !destination && since>0 && now-since>=60000;}
+ static boolean stranded(Player bot,long now){var s=STATES.get(bot.getObjectId());return s!=null && stranded(now,s.noActivitySince,s.goal!=null || s.vendor!=null);}
+ static void interacting(Player bot){var s=STATES.get(bot.getObjectId());if(s!=null)s.noActivitySince=0;}
+ static boolean questTravel(Player bot){var s=STATES.get(bot.getObjectId());return s!=null && s.goal!=null && (s.goal.quest()!=0 || s.goal.kind()!=PlayerBotQuestRoutes.Kind.HUNT);}
+ static boolean grindTravel(Player bot){var s=STATES.get(bot.getObjectId());return s!=null && s.goal!=null && s.goal.quest()==0 && s.goal.kind()==PlayerBotQuestRoutes.Kind.HUNT;}
+ static void close(Player bot){STATES.remove(bot.getObjectId());}
+ /** Report the selected destination, never claim an intended fallback already ran. */
+ static Map<String,Object> activity(Player bot) {
+  var s=STATES.get(bot.getObjectId());var g=s==null ? null : s.goal;
+  if(g==null)return Map.of("selected",false,"reason","No world destination currently selected; local actions may still run");
+  return Map.of("selected",true,"quest",g.quest(),"kind",g.kind().name(),"npc",g.place().npc(),"map",g.place().map());
+ }
+ // GrindTargetValue uses XP-bearing normal targets and excludes solo targets
+ // above +4. Native Aion's XPRewardEnum supplies the lower reward boundary.
+ static boolean levelSuitable(int player,int npc){return player>=1 && npc>=1 && npc<=player+4
+  && com.aionemu.gameserver.utils.stats.XPRewardEnum.xpRewardFrom(npc-player)>0;}
+ static boolean stalled(long now,long last){return now-last>=30000;}
+ static String key(Goal g){return g.quest()+":"+g.kind()+":"+g.place();}
+ static Goal select(List<Goal> goals){return goals.stream().filter(g->Double.isFinite(g.distance()) && g.distance()>=0)
+  .min(Comparator.<Goal>comparingInt(g->g.quest()==0 ? 2 : g.kind()==PlayerBotQuestRoutes.Kind.REWARD ? 0 : 1)
+   .thenComparingDouble(Goal::distance).thenComparingInt(g->g.place().npc())).orElse(null);}
+ static int visitorLimit(Goal g){return g.kind()==PlayerBotQuestRoutes.Kind.HUNT || g.kind()==PlayerBotQuestRoutes.Kind.OBJECT ? 100 : 15;}
+ static boolean pointExclusive(Goal g){return g.quest()!=0 && (g.kind()==PlayerBotQuestRoutes.Kind.HUNT || g.kind()==PlayerBotQuestRoutes.Kind.OBJECT);}
+ private static String destinationKey(Goal g){return g.quest()+":"+g.kind()+":"+g.place().npc();}
+ static Goal spread(List<Goal> goals,Collection<Goal> claimed,java.util.random.RandomGenerator random) {
+  var totals=new HashMap<String,Integer>();var points=new HashMap<String,Integer>();
+  for(var g:claimed){totals.merge(destinationKey(g),1,Integer::sum);points.merge(key(g),1,Integer::sum);}
+  var available=goals.stream().filter(g->Double.isFinite(g.distance()) && g.distance()>=0)
+   .filter(g->totals.getOrDefault(destinationKey(g),0)<visitorLimit(g) && (!pointExclusive(g) || points.getOrDefault(key(g),0)==0)).toList();
+  Goal first=select(available);if(first==null)return null;
+  int priority=first.quest()==0?2:first.kind()==PlayerBotQuestRoutes.Kind.REWARD?0:1;
+  var same=new ArrayList<>(available.stream().filter(g->(g.quest()==0?2:g.kind()==PlayerBotQuestRoutes.Kind.REWARD?0:1)==priority).toList());
+  // TravelMgr::getNextPoint actively shuffles points; its distance weights are unused.
+  Collections.shuffle(same,new Random(random.nextLong()));return same.getFirst();
+ }
+ private static Goal chooseAvailable(List<Goal> goals){return spread(goals,STATES.values().stream().map(s->s.goal).filter(Objects::nonNull).toList(),java.util.concurrent.ThreadLocalRandom.current());}
+ static void maintenance(PlayerBotSession session) {
+  if(!session.world())return;Player bot=session.bot();State s=state(bot);long now=System.currentTimeMillis();
+  if(bot.isDead()) {
+   if(s.deadSince==0)s.deadSince=now;
+   if(session.autonomous() && now-s.deadSince>=15000){s.deadSince=now;PlayerReviveService.bindRevive(bot);s.goal=null;}
+   return;
+  }
+  s.deadSince=0;
+  if(bot.isCasting() || bot.isTrading() || bot.isLooting() || bot.getController().isInCombat())return;
+  if(s.level!=bot.getLevel() || s.playerClass!=bot.getPlayerClass()) {
+   session.setRole(PlayerBotRules.roleFor(bot.getPlayerClass()));
+   SkillLearnService.learnNewSkills(bot,1,bot.getLevel());s.level=bot.getLevel();s.playerClass=bot.getPlayerClass();s.goal=null;s.nextScan=0;
+  }
+ }
+ static Npc grind(Player bot) {
+  List<Npc> choices=new ArrayList<>();
+  bot.getKnownList().forEachNpc(n->{if(!n.isDead() && n.isSpawned() && n.getMaster()==n && !n.isFlag() && bot.isEnemy(n)
+   && n.getWorldId()==bot.getWorldId() && n.getInstanceId()==bot.getInstanceId() && levelSuitable(bot.getLevel(),n.getLevel())
+   && PlayerBotHunting.template(n.getObjectTemplate()) && PlayerBotHunting.opportunistic(state(bot).goal,n.getNpcId())
+   && n.getAggroList().stream().findAny().isEmpty() && PositionUtil.isInRange(bot,n,25) && GeoService.getInstance().canSee(bot,n))choices.add(n);});
+  return choices.stream().min(Comparator.comparingDouble(n->PositionUtil.getDistance(bot,n))).orElse(null);
+ }
+ static boolean surplus(PlayerBotSession session,Item item) {
+  Player bot=session.bot();
+  boolean upgrade=PlayerBotEquipment.upgrades(bot,session.combatRole()).stream().anyMatch(u->u.item()==item);
+  return PlayerBotCare.disposable(item,PlayerBotGearPolicy.generated(bot,item),upgrade,PlayerBotCare.worldQuestItem(bot,item.getItemId()),
+   item.getItemTemplate().getRequiredLevel(bot.getPlayerClass())>bot.getLevel());
+ }
+ private static synchronized Map<Integer,Set<Integer>> starters() {
+  if(starters!=null)return starters;var index=new TreeMap<Integer,Set<Integer>>();Set<Integer> ids=new TreeSet<>();DataManager.SPAWNS_DATA.addAllNpcIdsToSet(ids);
+  for(int npc:ids){var q=QuestEngine.getInstance().getQuestNpc(npc);if(q!=null)for(int quest:q.getOnQuestStart())
+   if(PlayerBotQuests.ordinary(DataManager.QUEST_DATA.getQuestById(quest)))index.computeIfAbsent(quest,k->new TreeSet<>()).add(npc);}
+  starters=index;return starters;
+ }
+ /** TravelMgr's native destination catalog is static; character prerequisites remain dynamic. */
+ private static synchronized List<Map.Entry<Integer,Set<Integer>>> starters(int level) {
+  return STARTERS_BY_LEVEL.computeIfAbsent(level,key->starters().entrySet().stream().filter(e->{
+   var template=DataManager.QUEST_DATA.getQuestById(e.getKey());
+   return template!=null && template.getMinlevelPermitted()<=key && template.getMinlevelPermitted()>=key-5;
+  }).map(e->Map.entry(e.getKey(),Collections.unmodifiableSet(new TreeSet<>(e.getValue())))).toList());
+ }
+ // Preserve the existing helper contract; the planner supplies one shared snapshot to the overload below.
+ private static void add(Player bot,List<Goal> goals,int quest,PlayerBotQuestRoutes.Kind kind,Collection<Integer> npcs,State s,long now) {
+  add(bot,goals,quest,kind,npcs,s,now,PlayerBotWorldTravel.distances(bot));
+ }
+ private static void add(Player bot,List<Goal> goals,int quest,PlayerBotQuestRoutes.Kind kind,Collection<Integer> npcs,State s,long now,PlayerBotWorldTravel.Distances distances) {
+  add(bot,goals,quest,kind,npcs,s,now,distances,false);
+ }
+ private static void add(Player bot,List<Goal> goals,int quest,PlayerBotQuestRoutes.Kind kind,Collection<Integer> npcs,State s,long now,PlayerBotWorldTravel.Distances distances,boolean local) {
+  for(int npc:npcs)for(var place:local?PlayerBotWorldTravel.near(npc,distances,900):PlayerBotWorldTravel.places(npc)) {
+   double distance=distances.distance(place);if(!Double.isFinite(distance) || distance<0)continue;
+   Goal g=new Goal(quest,kind,place,distance);
+   if(s.excluded.getOrDefault(key(g),0L)<=now)goals.add(g);
+  }
+ }
+ private static Goal available(Player bot,List<Request> requests,State s,long now,PlayerBotWorldTravel.Distances distances) {
+  // First query immutable spatial cells. If local points are excluded, full or
+  // unreachable, the complete catalog remains the fallback for this priority.
+  // Locality must not demote an already earned reward behind another quest.
+  for(int priority=0;priority<3;priority++)for(boolean local:new boolean[]{true,false}) {
+   var goals=new ArrayList<Goal>();
+   for(var r:requests)if((r.quest()==0?2:r.kind()==PlayerBotQuestRoutes.Kind.REWARD?0:1)==priority)add(bot,goals,r.quest(),r.kind(),r.npcs(),s,now,distances,local);
+   var chosen=chooseAvailable(goals);if(chosen!=null)return chosen;
+  }
+  return null;
+ }
+ private static Goal choose(Player bot,State s,long now) {
+  var distances=PlayerBotWorldTravel.distances(bot);List<Request> requests=new ArrayList<>();
+  for(var q:bot.getQuestStateList().getUncompletedQuests())for(var kind:PlayerBotQuestRoutes.Kind.values())
+   requests.add(new Request(q.getQuestId(),kind,PlayerBotQuestRoutes.ids(bot,bot,q.getQuestId(),kind)));
+  Goal active=available(bot,requests,s,now,distances);if(active!=null)return active;
+  requests.clear();
+  if(bot.getQuestStateList().getUncompletedQuests().size()<20)for(var e:starters(bot.getLevel())) {
+   var template=DataManager.QUEST_DATA.getQuestById(e.getKey());
+   if(template.getMinlevelPermitted()>bot.getLevel() || template.getMinlevelPermitted()<bot.getLevel()-5
+    || !QuestService.checkStartConditions(bot,e.getKey(),false))continue;
+   requests.add(new Request(0,PlayerBotQuestRoutes.Kind.CONVERSATION,e.getValue()));
+  }
+  Goal quest=available(bot,requests,s,now,distances);if(quest!=null)return quest;
+  return available(bot,List.of(new Request(0,PlayerBotQuestRoutes.Kind.HUNT,grindTemplates(bot))),s,now,distances);
+ }
+ static void prepare(Player bot,PlayerBotNavigation navigation) {
+  State s=state(bot);long now=System.currentTimeMillis();s.excluded.entrySet().removeIf(e->e.getValue()<=now);
+  if(s.goal!=null && s.goal.quest()!=0 && !PlayerBotQuestRoutes.ids(bot,bot,s.goal.quest(),s.goal.kind()).contains(s.goal.place().npc())){s.goal=null;s.nextScan=0;}
+  if(s.goal!=null && PlayerBotWorldTravel.distance(bot,s.goal.place())<=6){
+   // Hand movement back to the native quest/combat/loot actions before entering
+   // the NPC's exact spawn. A dead/unavailable NPC must not trap the planner.
+   s.excluded.put(key(s.goal),now+30000);s.goal=null;s.nextScan=now+5000;navigation.stop();return;
+  }
+  if(s.goal!=null) {
+   double distance=PlayerBotWorldTravel.distance(bot,s.goal.place());
+   if(distance<s.best-2){s.best=distance;s.lastProgress=now;}
+   if(stalled(now,s.lastProgress)){s.excluded.put(key(s.goal),now+120000);s.goal=null;s.nextScan=0;navigation.stop();}
+  }
+  if(s.goal==null && now>=s.nextScan){s.nextScan=now+5000;s.goal=choose(bot,s,now);s.best=Double.POSITIVE_INFINITY;s.lastProgress=now;}
+  if(s.goal!=null)s.noActivitySince=0;else if(s.noActivitySince==0)s.noActivitySince=now;
+ }
+ static boolean travel(PlayerBotSession session,PlayerBotNavigation navigation) {
+  Player bot=session.bot();if(!session.autonomous() || bot.isDead() || bot.isTrading() || bot.isCasting() || bot.getController().isInCombat())return false;
+  prepare(bot,navigation);State s=state(bot);
+  if(s.goal==null)return false;
+  return PlayerBotWorldTravel.move(bot,s.goal.place(),navigation);
+ }
+ static boolean sell(PlayerBotSession session,PlayerBotNavigation navigation) {
+  Player bot=session.bot();State s=state(bot);long now=System.currentTimeMillis();
+  if(!session.autonomous() || bot.getInventory().getFreeSlots()>8 || now<s.nextSell)return false;
+  List<Item> items=bot.getInventory().getItems().stream().filter(i->i.isSellable() && surplus(session,i)).limit(8).toList();if(items.isEmpty())return false;
+  List<Npc> vendors=new ArrayList<>();bot.getKnownList().forEachNpc(n->{if(!n.isDead() && n.isSpawned() && !bot.isEnemy(n)
+   && n.getObjectTemplate().supportsAction(DialogAction.BUY) && DialogService.isInteractionAllowed(bot,n))vendors.add(n);});
+  var vendor=vendors.stream().min(Comparator.comparingDouble(n->PositionUtil.getDistance(bot,n))).orElse(null);
+  if(vendor==null){
+   var distances=PlayerBotWorldTravel.distances(bot);
+   var destination=vendors().stream().filter(id->{var n=DataManager.NPC_DATA.getNpcTemplate(id);return n.getRace()==bot.getRace() || n.getRace()==com.aionemu.gameserver.model.Race.PC_ALL;})
+    .flatMap(id->PlayerBotWorldTravel.places(id).stream()).filter(p->s.excluded.getOrDefault("vendor:"+p,0L)<=now)
+    .filter(p->Double.isFinite(distances.distance(p))).min(Comparator.comparingDouble(distances::distance)).orElse(null);
+   if(destination==null){s.nextSell=now+30000;return false;}
+   // A failed vendor route cannot permanently displace questing/combat.
+   if(s.vendor==null || !s.vendor.equals(destination)){s.vendor=destination;s.vendorSince=now;s.vendorBest=Double.POSITIVE_INFINITY;}
+   double distance=PlayerBotWorldTravel.distance(bot,destination);if(distance<s.vendorBest-2){s.vendorBest=distance;s.vendorSince=now;}
+   if(stalled(now,s.vendorSince)){s.excluded.put("vendor:"+destination,now+120000);s.vendor=null;s.nextSell=now+5000;return false;}
+   return PlayerBotWorldTravel.move(bot,destination,navigation);
+  }
+  if(!PositionUtil.isInTalkRange(bot,vendor) || !GeoService.getInstance().canSee(bot,vendor))return navigation.approach(vendor,2);
+  navigation.stop();s.vendor=null;s.nextSell=now+30000;var list=new TradeList(vendor.getObjectId());for(var item:items)list.addItem(item.getObjectId(),item.getItemCount());
+  return TradeService.performSellToShop(bot,list,null);
+ }
+ private PlayerBotWorldActivities(){}
+}

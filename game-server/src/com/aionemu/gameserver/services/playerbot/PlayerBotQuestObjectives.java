@@ -104,8 +104,8 @@ final class PlayerBotQuestObjectives {
  static boolean peers(Decision source,PlayerBotSession follower,long now) {
   var a=source.session;var b=follower;var q=source.goal==null ? null : b.bot().getQuestStateList().getQuestState(source.goal.quest());
   return a.bot()!=b.bot() && a.owner()==b.owner() && source.active && !source.copied && now-source.lastActive<=3000
-   && !a.closing() && !a.bot().isDead() && a.bot().getPlayerGroup()==b.bot().getPlayerGroup()
-   && b.bot().getPlayerGroup()!=null && valid(source) && q!=null
+   && !a.closing() && !a.bot().isDead() && PlayerBotTeams.same(a.bot(),b.bot())
+   && valid(source) && q!=null
    && wanted(b,source.goal) && (source.actor==0 || eligible(b,source.goal,actor(b.owner(),source.actor)));
  }
  static Goal choose(PlayerBotSession session,long now) {

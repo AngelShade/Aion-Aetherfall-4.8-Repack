@@ -28,6 +28,10 @@ import com.aionemu.gameserver.utils.audit.AuditLogger;
 public class SummonController extends CreatureController<Summon> {
 
 	private long lastAttackMillis = 0;
+	/** Native attack deadline, also used by the headless owner's pet driver. */
+	public long getNextAttackMillis() {
+		return lastAttackMillis + Math.max(0, getOwner().getGameStats().getAttackSpeed().getCurrent());
+	}
 
 	@Override
 	public void notKnow(VisibleObject object) {
@@ -95,7 +99,8 @@ public class SummonController extends CreatureController<Summon> {
 		long now = System.currentTimeMillis();
 		long msSinceLastAttack = now - lastAttackMillis;
 		if (msSinceLastAttack < attackSpeed && attackSpeed - msSinceLastAttack > 50) { // 50ms tolerance
-			AuditLogger.log(getMaster(), "possibly used hack to speed up summon auto-attack (" + msSinceLastAttack + "ms instead of " + attackSpeed + ")");
+			if (!getMaster().isPlayerBot())
+				AuditLogger.log(getMaster(), "possibly used hack to speed up summon auto-attack (" + msSinceLastAttack + "ms instead of " + attackSpeed + ")");
 			return;
 		}
 		lastAttackMillis = now;

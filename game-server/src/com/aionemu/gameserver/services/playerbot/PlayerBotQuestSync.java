@@ -33,7 +33,8 @@ public final class PlayerBotQuestSync {
   String spentDay = "";
   State(PlayerBotSession session) {
    this.session=session;
-   account=session.owner().getAccount().getId();character=session.bot().getObjectId();
+   account=session.bot().getAccount().getId();character=session.bot().getObjectId();
+   if(session.world()){partySync=false;return;}
    session.bot().getInventory().getItems().forEach(i->protectedItems.add(i.getObjectId()));
    session.bot().getEquipment().getEquippedItems().forEach(i->protectedItems.add(i.getObjectId()));
    for(var q:session.owner().getQuestStateList().getAllQuestState())ownerCompletions.put(q.getQuestId(),q.getCompleteCount());
@@ -57,6 +58,7 @@ public final class PlayerBotQuestSync {
   }
   Path path(){return Path.of("config","playerbots","care-character-"+character+".properties");}
   void save() {
+   if(session.world())return;
    Properties p=new Properties();p.setProperty("account",Integer.toString(account));p.setProperty("character",Integer.toString(character));
    p.setProperty("enchant",Boolean.toString(enchant));p.setProperty("salvage",Boolean.toString(salvage));p.setProperty("reserve",Long.toString(reserve));
    p.setProperty("partySync",Boolean.toString(partySync));
@@ -167,6 +169,7 @@ public final class PlayerBotQuestSync {
   prompt(s.session,new Prompt(quest,chain(bot,quest),"This nearby quest is behind your progress. Will you help me catch up?"));
  }
  public static void answer(PlayerBotSession session,int quest,boolean help) {
+  session.requirePrivateCompanion();
   synchronized(session) {
    if(session.closing())throw new IllegalArgumentException("Companion is saving/dismissing.");
    State s=state(session);Prompt prompt=s.prompts.get(quest);if(prompt==null)throw new IllegalArgumentException("That catch-up question is no longer pending. Refresh Companions.");
@@ -190,6 +193,7 @@ public final class PlayerBotQuestSync {
   }
  }
  public static void setCare(PlayerBotSession session,String key,boolean enabled) {
+  session.requirePrivateCompanion();
   if(!session.generated() && enabled && !key.equals("partySync"))throw new IllegalArgumentException("Automatic item care applies only to Temporary Bots; your alt's items are preserved.");
   synchronized(session){State s=state(session);if(session.closing())throw new IllegalArgumentException("Companion is saving/dismissing.");
    boolean before=switch(key){case "enchant"->s.enchant;case "salvage"->s.salvage;case "partySync"->s.partySync;default->throw new IllegalArgumentException("Unknown companion setting");};
@@ -198,6 +202,7 @@ public final class PlayerBotQuestSync {
   }
  }
  public static void setBudget(PlayerBotSession session,long reserve,long dailyBudget) {
+  session.requirePrivateCompanion();
   if(reserve<10000 || reserve>1000000000000L || dailyBudget<0 || dailyBudget>1000000000000L)throw new IllegalArgumentException("Use a reserve of at least 10,000 Kinah and a nonnegative daily budget.");
   synchronized(session){if(session.closing())throw new IllegalArgumentException("Companion is saving/dismissing.");State s=state(session);long oldReserve=s.reserve,oldBudget=s.dailyBudget;
    s.reserve=reserve;s.dailyBudget=dailyBudget;try{s.save();}catch(RuntimeException error){s.reserve=oldReserve;s.dailyBudget=oldBudget;throw error;}}

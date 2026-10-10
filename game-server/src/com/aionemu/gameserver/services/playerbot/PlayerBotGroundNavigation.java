@@ -24,7 +24,9 @@ public final class PlayerBotGroundNavigation {
 		Vector3f start = new Vector3f(x, y, z);
 		if (map == null || !finite(start) || !Float.isFinite(targetX) || !Float.isFinite(targetY) || !Float.isFinite(targetZ)) return start;
 		double distance = Math.hypot(targetX - x, targetY - y);
-		float floor = PlayerBotGroundSupport.floor(map, instance, x, y, z + 0.6f, z - 1.25f);
+		// Native GeoMap movement accepts support down to z-1.5 at the origin.
+		// Recruitment/transfer copies a client position before headless gravity runs.
+		float floor = PlayerBotGroundSupport.floor(map, instance, x, y, z + 0.6f, z - 1.5f);
 		if (!Float.isFinite(floor) && targetZ < z - 1.25f) {
 			// A headless actor can inherit an elevated spawn/transfer position without
 			// receiving client gravity updates. Use the movement intent's altitude to
@@ -41,16 +43,14 @@ public final class PlayerBotGroundNavigation {
 				start.z = floor;
 			}
 		}
-		if (distance < 0.001) return start;
-		// Keep native movement as the fast path; recover only its partial/failed probes.
-		Vector3f nativeEnd = map.findMovementCollision(start.clone(), targetX, targetY, instance);
-		if (!finite(nativeEnd) || ((nativeEnd.x-x)*(targetX-x)+(nativeEnd.y-y)*(targetY-y))/distance < -0.001
-			|| Math.hypot(nativeEnd.x-x,nativeEnd.y-y) > distance+0.01) nativeEnd = null;
-		if (finite(nativeEnd) && Math.hypot(nativeEnd.x - targetX, nativeEnd.y - targetY) < 0.01) return nativeEnd;
-		if (!Float.isFinite(floor)) return finite(nativeEnd) ? nativeEnd : start;
+		// A center ray alone can report success through a missing floor or beside
+		// an object touching the actor's body. Validate the walking strip below.
+		if (!Float.isFinite(floor)) return start;
 		Vector3f current = new Vector3f(x, y, floor);
 		// Vertical correction is a walking destination, not a relocation. Reject a body obstruction during it.
-		if (!clear(map, instance, new Vector3f(x, y, z + 1), new Vector3f(x, y, floor + 1))) return start;
+		for(float height:new float[]{0.75f,1.5f})
+			if (!clear(map, instance, new Vector3f(x, y, z + height), new Vector3f(x, y, floor + height))) return start;
+		if (distance < 0.001) return current;
 		float dx = (float)((targetX - x) / distance), dy = (float)((targetY - y) / distance);
 		int steps = Math.min(128, (int)Math.ceil(distance / STEP));
 		for (int i = 1; i <= steps; i++) {
@@ -61,18 +61,35 @@ public final class PlayerBotGroundNavigation {
 			if (!Float.isFinite(ground) || ground - current.z > horizontal + 0.15f || current.z - ground > horizontal + 0.3f) break;
 			Vector3f next = new Vector3f(nextX, nextY, ground);
 			boolean pass = true;
-			for (float height : new float[]{0.75f, 1.5f})
-				if (!clear(map, instance, new Vector3f(current.x, current.y, current.z + height), new Vector3f(next.x, next.y, next.z + height))) { pass = false; break; }
+			for (float side : new float[]{-0.3f, 0, 0.3f}) for (float height : new float[]{0.75f, 1.5f})
+				if (!clear(map, instance, new Vector3f(current.x-dy*side, current.y+dx*side, current.z + height), new Vector3f(next.x-dy*side, next.y+dx*side, next.z + height))
+					|| !clear(map, instance, new Vector3f(next.x,next.y,next.z+height),new Vector3f(next.x-dy*side,next.y+dx*side,next.z+height))) { pass = false; break; }
 			if (!pass) break;
 			current = next;
 		}
-		// Never replace a better native result with a shorter recovery step.
-		return finite(nativeEnd) && Math.hypot(nativeEnd.x - x, nativeEnd.y - y) > Math.hypot(current.x - x, current.y - y) ? nativeEnd : current;
+		return current;
+	}
+
+	/** Population landing requires supported feet, body clearance and a walkable exit. */
+	public static boolean landing(GeoMap map,int instance,float x,float y,float z) {
+		if(map==null || !Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z))return false;
+		float floor=PlayerBotGroundSupport.floor(map,instance,x,y,z+0.2f,z-0.3f);
+		if(!Float.isFinite(floor) || Math.abs(floor-z)>0.3f)return false;
+		for(int direction=0;direction<8;direction++) {
+			float dx=(float)Math.cos(direction*Math.PI/4),dy=(float)Math.sin(direction*Math.PI/4);
+			for(float height:new float[]{0.75f,1.5f})if(!clear(map,instance,new Vector3f(x,y,z+height),new Vector3f(x+dx*0.4f,y+dy*0.4f,z+height)))return false;
+		}
+		for(int direction=0;direction<8;direction++) {
+			float tx=x+2*(float)Math.cos(direction*Math.PI/4),ty=y+2*(float)Math.sin(direction*Math.PI/4);
+			var end=walk(map,instance,x,y,z,tx,ty);
+			if(Math.hypot(end.x-tx,end.y-ty)<0.3)return true;
+		}
+		return false;
 	}
 
 	private static boolean clear(GeoMap map, int instance, Vector3f from, Vector3f to) {
 		if (from.distance(to) < 0.001f) return true;
-		for (CollisionResult hit : map.getCollisions(from, to.x, to.y, to.z, instance, CollisionIntention.DEFAULT_COLLISIONS.getId(), IgnoreProperties.ANY_RACE)) {
+		for (CollisionResult hit : map.getPlayerBotCollisions(from, to.x, to.y, to.z, instance, CollisionIntention.DEFAULT_COLLISIONS.getId(), IgnoreProperties.ANY_RACE)) {
 			DoorPair pair = DOORS.computeIfAbsent(map, PlayerBotGroundNavigation::doors).get(hit.getGeometry());
 			if (pair == null || pair.closed().isActive(instance) || !pair.opened().isActive(instance)) return false;
 		}

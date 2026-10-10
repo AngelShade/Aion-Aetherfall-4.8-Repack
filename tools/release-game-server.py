@@ -1,5 +1,5 @@
 """Canonical locked source -> normal build -> full offline verification -> guarded runtime delivery."""
-import argparse, json, msvcrt, subprocess, sys
+import argparse, importlib, json, msvcrt, subprocess, sys
 from datetime import datetime
 from pathlib import Path
 
@@ -18,6 +18,8 @@ def main():
     p.add_argument('--scope', required=True)
     p.add_argument('--install', action='store_true')
     p.add_argument('--review', type=Path, help='Use an already fully prepared review; all source/build/runtime guards are rechecked')
+    p.add_argument('--config-review', type=Path, help='Explicit backed-up active/saved companion quota changes only')
+    p.add_argument('--population-import', action='store_true', help='PB-SCOPE-012D: validated offline SQL import and exact archived file retirement')
     a = p.parse_args()
     lock_path = shared.DEV_ROOT / 'tooling/locks/game-server-release.lock'
     lock_path.parent.mkdir(parents=True, exist_ok=True)
@@ -41,12 +43,24 @@ def main():
             if plan['scope'] != a.scope: raise RuntimeError('Use the scope recorded in this release review.')
             static = review / 'static-check'
             if not a.review:
+                run(sys.executable, ROOT / 'tools/check-source-build.py', '--build', build, '--output', review / 'regression')
                 run(sys.executable, ROOT / 'tools/check-source-static-data.py', '--build', build, '--output', static, '--release-plan', review / 'release-plan.json')
+            importlib.import_module('check-source-build').validate(build, review / 'regression')
             delivery = [sys.executable, ROOT / 'tools/deliver-source-component.py', '--build', build, '--output', review / 'delivery',
                 '--scope', a.scope, '--release-plan', review / 'release-plan.json', '--static-check', static / 'static-data-load.txt']
+            if a.config_review: delivery.extend(['--config-review', a.config_review])
+            population = a.population_import or (review / 'population-import/prepared.json').is_file()
+            if population:
+                assert a.scope == 'PB-SCOPE-012D', 'Population migration is an explicit bounded release'
+                # Complete all ordinary review/verification before any production SQL mutation.
+                run(*delivery)
+                migration = importlib.import_module('migrate-playerbot-population')
+                if not (review / 'population-import/prepared.json').is_file(): migration.prepare(review, build)
+                if a.install: migration.begin(review)
             if a.install: delivery.append('--install')
-            run(*delivery)
+            if not population or a.install: run(*delivery)
             if a.install:
+                if population: migration.finish(review)
                 run(sys.executable, ROOT / 'client-mods/diagnostics/inventory_mods.py', '--client', shared.CLIENT_ROOT,
                     '--server', ROOT / 'target-deploy/game-server', '--output', ROOT / 'docs/INSTALLED_MODS.json')
             print('Release review:', review)

@@ -189,6 +189,7 @@ public class GameServer {
 
 		nioServer = initNioServer();
 		Runtime.getRuntime().addShutdownHook(ShutdownHook.getInstance());
+		com.aionemu.gameserver.services.playerbot.PlayerBotService.getInstance().startWorldBots();
 		log.info("Game server started in " + (System.currentTimeMillis() / 1000 - START_TIME_SECONDS) + " seconds.");
 
 		LoginServer.getInstance().connect(nioServer);

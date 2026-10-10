@@ -25,6 +25,9 @@ public class AntiHackService {
 	private static Logger log = LoggerFactory.getLogger(AntiHackService.class);
 
 	public static boolean canMove(Player player, float x, float y, float z, byte type) {
+		// Headless actors have no client movement stream to audit. Their native
+		// bot mover still enforces movement state, speed, ground and collision.
+		if (player.isPlayerBot()) return true;
 		PlayerMoveController m = player.getMoveController();
 		WorldPosition lastPositionFromClient = m.getLastPositionFromClient();
 		if (lastPositionFromClient == null || lastPositionFromClient.getMapId() != player.getWorldId())

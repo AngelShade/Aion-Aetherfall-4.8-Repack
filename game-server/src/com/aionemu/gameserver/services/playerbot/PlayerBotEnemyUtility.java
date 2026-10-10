@@ -121,7 +121,7 @@ final class PlayerBotEnemyUtility {
   boolean purge=purge(entry.template());
   if(!purge && !PlayerBotSkills.canInterrupt(entry.template()))return primary;
   List<Npc> candidates=new ArrayList<>();if(primary!=null)candidates.add(primary);
-  var group=bot.getPlayerGroup();
+  var group=bot.getCurrentTeam();
   if(group!=null)bot.getKnownList().forEachNpc(n->{
    if(n!=primary && group.getMembers().stream().anyMatch(p->n.getAggroList().isHating(p)
     || p.getSummon()!=null && n.getAggroList().isHating(p.getSummon())))candidates.add(n);

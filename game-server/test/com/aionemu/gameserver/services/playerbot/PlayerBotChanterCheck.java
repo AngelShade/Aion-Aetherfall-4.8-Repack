@@ -97,6 +97,8 @@ public final class PlayerBotChanterCheck {
   observe(991301);check(recipient(991301,true)==null && !action(991301).isUseful(),"Active mantra never toggled off by planning/final gate");
   check(choose(991301,991303).equals("skill:991303"),"Fill a missing slot while retaining an active mantra");
   observe(991301,991302,991303);var held=List.copyOf(bot.effects.observed);
+  check(bot.effects.getAbnormalEffects().isEmpty(),"Native icon snapshot excludes active NOSHOW mantras");
+  check(PlayerBotBuffs.active(bot.effects).size()==3,"Slot snapshot retains all three hidden active mantra toggles");
   check(recipient(991304,true)==null && !action(991304).isUseful(),"Three native mantra slots cannot be evicted or exceeded");
   check(choose(991304).equals("melee") && held.equals(bot.effects.observed),"Full stable set retains melee fallback and exact observed effects");observe();
   bot.life.hp=540;check(recipient(991301,true)==null,"Existing low caster HP preparation guard retained");bot.life.hp=1000;
@@ -124,6 +126,24 @@ public final class PlayerBotChanterCheck {
    check(PlayerBotCombatBuffs.useful(PlayerClass.CHANTER,Role.SUPPORT,s,100,100),"Real missing mantra admitted in combat: "+id);
   }
   check(!PlayerBotBuffs.canAdd(PlayerClass.CHANTER,nativeData.getSkillTemplate(1809),List.of(nativeData.getSkillTemplate(1648))),"Existing native flight/walking mantra conflict remains protected");
+  // Exercise the real native controller snapshot, not a fixture that exposes
+  // hidden toggles through the icon-facing API. No effect is applied or started.
+  var nativeController=new com.aionemu.gameserver.controllers.effect.PlayerEffectController(bot);
+  var mapField=com.aionemu.gameserver.controllers.effect.EffectController.class.getDeclaredField("abnormalEffectMap");mapField.setAccessible(true);
+  @SuppressWarnings("unchecked") var nativeMap=(Map<String,Effect>)mapField.get(nativeController);
+  for(int id:new int[]{1648,1746,1714}){var s=nativeData.getSkillTemplate(id);nativeMap.put(s.getStack(),new Effect(bot,bot,s,s.getLvl()));}
+  check(nativeController.getAbnormalEffects().isEmpty(),"Actual native controller excludes the three active mantra toggles from visible abnormals");
+  check(nativeController.getAllEffects().size()==3,"Actual native controller keeps the hidden active set");
+  check(PlayerBotBuffs.active(nativeController).size()==3,"Production snapshot sees native hidden toggles");
+  var passive=nativeData.getSkillTemplates().stream().filter(SkillTemplate::isPassive).findFirst().orElseThrow();
+  var passiveField=com.aionemu.gameserver.controllers.effect.EffectController.class.getDeclaredField("passiveEffectMap");passiveField.setAccessible(true);
+  passiveField.set(nativeController,Map.of(passive.getStack(),new Effect(bot,bot,passive,passive.getLvl())));
+  check(nativeController.getAllEffects().size()==4,"Native full snapshot includes passive effects separately");
+  check(PlayerBotBuffs.active(nativeController).size()==3,"Production buff capacity excludes native passives");
+  check(!PlayerBotBuffs.canAdd(PlayerClass.CHANTER,nativeData.getSkillTemplate(1663),PlayerBotBuffs.active(nativeController)),"Healerul's native Shield Mantra 1663 cannot evict an occupied three-mantra set");
+  check(nativeMap.size()==3,"Planning preserves every actual native effect without applying or ending an aura");
+  nativeMap.remove(nativeData.getSkillTemplate(1714).getStack());
+  check(PlayerBotBuffs.canAdd(PlayerClass.CHANTER,nativeData.getSkillTemplate(1663),PlayerBotBuffs.active(nativeController)),"Healerul's native Shield Mantra remains available when a real slot is free");
   check(bot.life.hp==1000 && bot.life.mp==1000 && ally.life.hp==1000 && ally.life.mp==1000 && bot.effects.observed.isEmpty(),"Planning left HP/MP/auras unchanged");
   System.out.println("OK: "+checks+" Chanter native mantra admission, party needs, slots/range, Session/final gates and fallback checks; no casts/auras/world/DB/IDs");
  }

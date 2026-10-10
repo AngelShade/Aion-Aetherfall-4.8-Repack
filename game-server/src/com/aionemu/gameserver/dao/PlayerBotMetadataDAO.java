@@ -8,7 +8,7 @@ import com.alibaba.fastjson2.JSON;
 public final class PlayerBotMetadataDAO {
  public record Row(long revision,Map<String,String> values) {public Row{values=Map.copyOf(values);}}
  public static void owner(Connection c,int account,int character)throws SQLException {
-  if(account<=0 || character<=0)throw new SQLException("Invalid bot metadata owner");
+  if(!com.aionemu.gameserver.services.playerbot.PlayerBotMetadata.validAccount(account) || character<=0)throw new SQLException("Invalid bot metadata owner");
   try(var s=c.prepareStatement("SELECT account_id FROM players WHERE id=?")) {
    s.setInt(1,character);try(var r=s.executeQuery()){if(!r.next() || r.getInt(1)!=account)throw new SQLException("Bot metadata character/account mismatch");}
   }

@@ -39,6 +39,11 @@ public final class PlayerBotQuestConversations {
   Witness witnessed=owner==null ? null : WITNESSES.get(owner.getObjectId()+":"+quest+":"+variables);
   if(witnessed!=null && witnessed.expires>System.currentTimeMillis())return List.of(witnessed.step);
   var model=DataManager.XML_QUESTS==null ? null : DataManager.XML_QUESTS.getQuest(quest);List<Step> result=new ArrayList<>();
+  if(model instanceof ItemOrdersData) {
+   int first=number(model,"talkNpcId1"),second=number(model,"talkNpcId2");
+   int npc=stage==0 ? first : stage==1 && first>0 ? second : 0;
+   if(npc>0)result.add(new Step(quest,npc,SETPRO1,1352,variables));
+  }
   if(model instanceof ItemCollectingData && number(model,"nextNpcId")>0 && stage==0)result.add(new Step(quest,number(model,"nextNpcId"),SETPRO1,1352,variables));
   if(model instanceof ReportToManyData) {
    var infos=list(model,"npcInfos");if(stage>=0 && stage<infos.size()-1) {
@@ -55,8 +60,10 @@ public final class PlayerBotQuestConversations {
      if(!progress || unsafe)continue;
      actions.add(action);
     }
-    // Branching story choices require a successfully observed owner's choice.
-    if(actions.size()==1)result.add(new Step(quest,number(npc,"id"),actions.getFirst(),0,variables));
+    // Owned companions follow witnessed human choices. An independent actor
+    // can make its own native story choice; the handler still checks conditions
+    // and performs all variable/item changes.
+    if(actions.size()==1 || !actions.isEmpty() && owner==bot && bot.isWorldBot())result.add(new Step(quest,number(npc,"id"),actions.get(owner==bot && bot.isWorldBot()?java.util.concurrent.ThreadLocalRandom.current().nextInt(actions.size()):0),0,variables));
    }
   return List.copyOf(result);
  }
@@ -79,7 +86,7 @@ public final class PlayerBotQuestConversations {
    if(q.getQuestVars().getQuestVars()!=step.variables)return q.getStatus()==QuestStatus.START;
    Object page=field(dialog,"page");if(!(page instanceof Integer offered) || offered<=0 || step.page>0 && offered!=step.page)return false;
    npc.getController().onDialogSelect(step.action,offered,bot,step.quest,0);
-   return q.getStatus()==QuestStatus.START && q.getQuestVars().getQuestVars()!=step.variables;
+   return q.getStatus()==QuestStatus.REWARD || q.getStatus()==QuestStatus.START && q.getQuestVars().getQuestVars()!=step.variables;
   }finally{DialogService.onCloseDialog(bot,npc);}
  }
  static void close(Player bot){RETRY.remove(bot.getObjectId());}

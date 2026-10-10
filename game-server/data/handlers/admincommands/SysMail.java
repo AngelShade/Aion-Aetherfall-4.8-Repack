@@ -22,7 +22,15 @@ import com.aionemu.gameserver.world.World;
 public class SysMail extends AdminCommand {
 
 	public SysMail() {
-		super("sysmail");
+		super("sysmail", "Send system mail.",
+			"""
+			[%|$$<Sender>] <Recipient> <Regular|Blackcloud|Express> <Item> <Count> <Kinah> [|Title|] [|Message|] - Send mail.
+			Sender name must start with % or $$. It can be omitted.
+			Regular mail type is 0, Express mail type is 1, Blackcloud type is 2.
+			Use 0 for both Item and Count to send no item, or 0 Kinah to send no Kinah.
+			Recipient = Player name, @all, @elyos or @asmodians.
+			Optional Title and Message must be enclosed within pipe chars.
+			""");
 	}
 
 	enum RecipientType {
@@ -49,7 +57,7 @@ public class SysMail extends AdminCommand {
 	@Override
 	public void execute(Player admin, String... params) {
 		if (params.length < 5) {
-			info(admin, null);
+			sendInfo(admin);
 			return;
 		}
 
@@ -62,7 +70,7 @@ public class SysMail extends AdminCommand {
 
 		if (paramValues[0].startsWith("$$") || paramValues[0].startsWith("%")) {
 			if (params.length < 6) {
-				info(admin, null);
+				sendInfo(admin);
 				return;
 			}
 			sender = paramValues[0];
@@ -253,14 +261,4 @@ public class SysMail extends AdminCommand {
 		}
 		return shouldExpress;
 	}
-
-	@Override
-	public void info(Player player, String message) {
-		PacketSendUtility.sendMessage(player, "No parameters detected.\n"
-			+ "Please use //sysmail [%|$$<Sender>] <Recipient> <Regular|Blackcloud|Express> <Item> <Count> <Kinah> [|Title|] [|Message|]\n"
-			+ "Sender name must start with % or $$. Can be ommitted.\n" + "Regular mail type is 0, Express mail type is 1, Blackcloud type is 2.\n"
-			+ "If parameters (Item, Count) = 0 than the item will not be send\n" + "If parameters (Kinah) = 0 not send Kinah\n"
-			+ "Recipient = Player name, @all, @elyos or @asmodians\n" + "Optional Title and Message must be enclosed within pipe chars");
-	}
-
 }

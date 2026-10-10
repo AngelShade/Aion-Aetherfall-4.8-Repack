@@ -22,13 +22,14 @@ import com.aionemu.gameserver.utils.chathandlers.ConsoleCommand;
 public class Addquest extends ConsoleCommand {
 
 	public Addquest() {
-		super("addquest");
+		super("addquest", "Add a quest.",
+			"<id quest> - Add the specified quest.");
 	}
 
 	@Override
 	public void execute(Player admin, String... params) {
 		if (params.length < 1) {
-			info(admin, null);
+			sendInfo(admin);
 			return;
 		}
 
@@ -44,7 +45,7 @@ public class Addquest extends ConsoleCommand {
 			else
 				id = Integer.parseInt(params[0]);
 		} catch (NumberFormatException e) {
-			info(admin, null);
+			sendInfo(admin);
 			return;
 		}
 
@@ -71,10 +72,4 @@ public class Addquest extends ConsoleCommand {
 			PacketSendUtility.sendMessage(admin, "Quest not started. Some preconditions failed");
 		}
 	}
-
-	@Override
-	public void info(Player player, String message) {
-		PacketSendUtility.sendMessage(player, "syntax ///addquest <id quest>");
-	}
-
 }

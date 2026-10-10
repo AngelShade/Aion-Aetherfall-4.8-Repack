@@ -13,13 +13,14 @@ import com.aionemu.gameserver.utils.chathandlers.ConsoleCommand;
 public class Delete_items extends ConsoleCommand {
 
 	public Delete_items() {
-		super("delete_items");
+		super("delete_items", "Delete items by quality.",
+			"<item quality> - Delete items of the specified quality.");
 	}
 
 	@Override
 	public void execute(Player admin, String... params) {
 		if (params.length < 1) {
-			info(admin, null);
+			sendInfo(admin);
 			return;
 		}
 
@@ -45,10 +46,4 @@ public class Delete_items extends ConsoleCommand {
 			}
 		}
 	}
-
-	@Override
-	public void info(Player player, String message) {
-		PacketSendUtility.sendMessage(player, "syntax ///delete_items <item quality>");
-	}
-
 }

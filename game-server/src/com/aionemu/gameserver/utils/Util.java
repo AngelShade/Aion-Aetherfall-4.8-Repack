@@ -1,5 +1,7 @@
 package com.aionemu.gameserver.utils;
 
+import java.util.Locale;
+
 import com.aionemu.gameserver.configs.main.NameConfig;
 
 /**
@@ -18,7 +20,7 @@ public class Util {
 			if (NameConfig.ALLOW_CUSTOM_NAMES)
 				return name;
 			else
-				return name.substring(0, 1).toUpperCase() + name.toLowerCase().substring(1);
+				return name.substring(0, 1).toUpperCase(Locale.ROOT) + name.toLowerCase(Locale.ROOT).substring(1);
 		} else
 			return "";
 	}

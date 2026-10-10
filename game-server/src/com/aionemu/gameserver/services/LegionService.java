@@ -157,6 +157,11 @@ public class LegionService {
 				lm.setPlayerData(playerCommonData == null ? PlayerService.getOrLoadPlayerCommonData(playerObjectId) : playerCommonData);
 			return lm;
 		});
+		// Lazy member loading may receive offline common data for a headless actor.
+		// Resolve the actual actor before projecting roster fields; do not change client flags.
+		Player resident = World.getInstance().getPlayer(playerObjectId);
+		if (legionMember != null && resident != null && resident.getLegionMember() == legionMember)
+			legionMember.setPlayerData(resident);
 		return legionMember == null || checkDisband(legionMember.getLegion()) ? null : legionMember;
 	}
 
@@ -179,6 +184,12 @@ public class LegionService {
 	 * This method will disband a legion and update all members
 	 */
 	public void disbandLegion(Legion legion) {
+        synchronized (LegionWarehouse.CUSTODY_LOCK) {
+            if (LegionWarehouse.custodyHeld(legion.getLegionId())) { log.error("Legion {} custody held; disband refused",legion.getLegionId()); return; }
+            disbandLegionNative(legion);
+        }
+    }
+    private void disbandLegionNative(Legion legion) {
 		legionsById.remove(legion.getLegionId());
 		legion.getMemberIds().forEach(legionMemberById::remove);
 		SiegeService.getInstance().cleanLegionId(legion.getLegionId());
@@ -263,6 +274,9 @@ public class LegionService {
 				PacketSendUtility.sendPacket(activePlayer, SM_SYSTEM_MESSAGE.STR_GUILD_INVITE_OTHER_IS_BUSY());
 			} else {
 				PacketSendUtility.sendPacket(activePlayer, SM_SYSTEM_MESSAGE.STR_GUILD_INVITE_SENT_INVITE_MSG_TO_HIM(targetPlayer.getName()));
+				if (targetPlayer.isPlayerBot() && com.aionemu.gameserver.services.playerbot.PlayerBotService.getInstance()
+					.respondLegionInvitation(activePlayer, targetPlayer, legion))
+					return;
 
 				// Send question packet to buddy
 				PacketSendUtility.sendPacket(targetPlayer, new SM_QUESTION_WINDOW(SM_QUESTION_WINDOW.STR_GUILD_INVITE_DO_YOU_ACCEPT_INVITATION, 0, 0,
@@ -516,9 +530,12 @@ public class LegionService {
 	}
 
 	public void LegionWhUpdate(Player player) {
+        synchronized (LegionWarehouse.CUSTODY_LOCK) { LegionWhUpdateNative(player); }
+    }
+    private void LegionWhUpdateNative(Player player) {
 		Legion legion = player.getLegion();
 
-		if (legion == null)
+		if (legion == null || LegionWarehouse.custodyHeld(legion.getLegionId()))
 			return;
 
 		List<Item> allItems = legion.getLegionWarehouse().getItemsWithKinah();
@@ -694,6 +711,8 @@ public class LegionService {
 
 		// Send legion member info to the members
 		PacketSendUtility.broadcastToLegion(legion, new SM_LEGION_ADD_MEMBER(player, false, 1300260, player.getName()));
+		// ADD_MEMBER has no presence byte; explicitly project the current native presence.
+		updateMemberInfo(player);
 		// Send legion emblem information
 		LegionEmblem legionEmblem = legion.getLegionEmblem();
 		PacketSendUtility.broadcastPacket(player, new SM_LEGION_UPDATE_EMBLEM(legion.getLegionId(), legionEmblem), true);
@@ -1028,7 +1047,7 @@ public class LegionService {
 			}
 			LegionMember lm = player.getLegionMember();
 			LegionWarehouse legWh = lm.getLegion().getLegionWarehouse();
-			if (!LegionConfig.LEGION_WAREHOUSE || !npc.getObjectTemplate().supportsAction(DialogAction.OPEN_LEGION_WAREHOUSE)) {
+			if (LegionWarehouse.custodyHeld(lm.getLegion().getLegionId()) || !LegionConfig.LEGION_WAREHOUSE || !npc.getObjectTemplate().supportsAction(DialogAction.OPEN_LEGION_WAREHOUSE)) {
 				PacketSendUtility.sendPacket(player, SM_SYSTEM_MESSAGE.STR_CANT_USE_GUILD_STORAGE());
 				return false;
 			} else if (lm.getLegion().isDisbanding()) {

@@ -14,8 +14,7 @@ public final class PlayerBotFlight {
  public static boolean followsFlyingOwner(Player bot) {
   if(!bot.isPlayerBot())return false;
   var owner=com.aionemu.gameserver.world.World.getInstance().getPlayer(bot.getPlayerBotOwnerId());
-  return owner!=null && owner.isOnline() && owner.isSpawned() && owner.isInFlyingState() && owner.getPlayerGroup()!=null
-   && owner.getPlayerGroup()==bot.getPlayerGroup() && owner.getWorldId()==bot.getWorldId() && owner.getInstanceId()==bot.getInstanceId()
+  return owner!=null && owner.isOnline() && owner.isSpawned() && owner.isInFlyingState() && PlayerBotTeams.same(owner,bot) && owner.getWorldId()==bot.getWorldId() && owner.getInstanceId()==bot.getInstanceId()
    && PositionUtil.isInRange(owner,bot,60);
  }
  enum Transition { NONE, TAKE_OFF, GLIDE, LAND }

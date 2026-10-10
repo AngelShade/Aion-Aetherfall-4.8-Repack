@@ -87,5 +87,40 @@ final class PlayerBotTradeStore {
    catch(SQLException|RuntimeException e){try{c.rollback();}catch(SQLException cleanup){e.addSuppressed(cleanup);}throw e;}
   }
  }
+ /** One priced goods direction and the opposite payment in the same custody transaction. */
+ static void purchase(Player seller,Player buyer,Player bot,Exchange goods,long price)throws SQLException {
+  if(price<=0 || goods.getKinahCount()!=0)throw new SQLException("Invalid purchase quote");
+  try(var c=DatabaseFactory.getConnection()){c.setAutoCommit(false);
+   for(var e:goods.getItems().values()) {
+    Item real=seller.getInventory().getItemByObjId(e.getItemObjId());if(real==null)throw new SQLException("Purchase item missing");source(c,seller,real,true);
+   }
+   c.rollback();
+  }
+  for(Player p:List.of(seller,buyer)) {
+   if(p.getInventory().getKinahItem()==null)p.getInventory().increaseKinah(0);
+   if(p==bot) {
+    try(var c=DatabaseFactory.getConnection()){c.setAutoCommit(false);
+     try{var pending=InventoryDAO.storeCompanionInventory(c,p);var metadata=PlayerBotMetadata.pending(p.getAccount().getId(),p.getObjectId());
+      PlayerBotMetadata.store(c,metadata);try{c.commit();}catch(SQLException e){throw new Indeterminate(e);}
+      InventoryDAO.companionInventoryCommitted(pending);PlayerBotMetadata.committed(metadata);
+     }catch(SQLException|RuntimeException e){c.rollback();InventoryDAO.markCompanionInventoryDirty(p);throw e;}}
+   }else if(!InventoryDAO.store(p.getDirtyItemsToUpdate(),p.getObjectId(),p.getAccount().getId(),p.getLegion()==null?null:p.getLegion().getLegionId()))throw new SQLException("Buyer/seller checkpoint failed");
+  }
+  try(var c=DatabaseFactory.getConnection()){c.setAutoCommit(false);
+   try {
+    purchaseTransfer(c,seller,buyer,goods,price);
+    try{c.commit();}catch(SQLException e){throw new Indeterminate(e);}
+   }catch(SQLException|RuntimeException e){try{c.rollback();}catch(SQLException cleanup){e.addSuppressed(cleanup);}throw e;}
+  }
+ }
+ static void purchaseTransfer(Connection c,Player seller,Player buyer,Exchange goods,long price)throws SQLException {
+  if(c.getAutoCommit() || price<=0 || goods.getKinahCount()!=0 || goods.getItems().isEmpty())throw new SQLException("Invalid purchase transaction");
+  long funds=buyer.getInventory().getKinah(),proceeds=balance(seller.getInventory().getKinah(),price);
+  if(price>funds)throw new SQLException("Purchase funds changed");
+  source(c,buyer,buyer.getInventory().getKinahItem(),false);source(c,seller,seller.getInventory().getKinahItem(),false);
+  transfer(c,seller,buyer,goods);
+  currency(c,buyer,buyer.getInventory().getKinahItem(),funds,funds-price);
+  currency(c,seller,seller.getInventory().getKinahItem(),seller.getInventory().getKinah(),proceeds);
+ }
  private PlayerBotTradeStore() {}
 }

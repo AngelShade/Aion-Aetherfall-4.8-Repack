@@ -88,6 +88,12 @@ public class TeleportService {
 			return;
 		}
 
+		// Headless transports cannot rely on a client to reject a missing route or finish it.
+		if (player.isPlayerBot() && location.getType()==TeleportType.FLIGHT) {
+			FlyPathEntry path=DataManager.FLY_PATH.getPathTemplate(location.getLocId());
+			if(path==null || path.getTimeInMs()<=0 || path.getStartWorldId()!=player.getWorldId()
+				|| PositionUtil.getDistance(player,path.getStartX(),path.getStartY(),path.getStartZ())>7)return;
+		}
 		if (!checkKinahForTransportation(location, player))
 			return;
 
@@ -120,6 +126,7 @@ public class TeleportService {
 			player.unsetState(CreatureState.ACTIVE);
 			player.setFlightTeleportId(location.getTeleportId());
 			PacketSendUtility.broadcastPacket(player, new SM_EMOTION(player, EmotionType.START_FLYTELEPORT, location.getTeleportId(), 0), true);
+			if (player.isPlayerBot()) com.aionemu.gameserver.services.playerbot.PlayerBotHeadlessFlight.begin(player,DataManager.FLY_PATH.getPathTemplate(location.getLocId()));
 		} else {
 			int instanceId = 1;
 			int mapId = locationTemplate.getMapId();
@@ -177,12 +184,13 @@ public class TeleportService {
 	}
 
 	private static void sendLoc(Player player, int worldId, int instanceId, float x, float y, float z, byte h, TeleportAnimation animation) {
+		if(player.isPlayerBot())World.getInstance().createPosition(worldId,x,y,z,h,instanceId); // fail before despawning a headless actor
 		abortPlayerActions(player);
 		// despawn from world and send animation to others (also ends flying)
 		World.getInstance().despawn(player, animation.getDefaultObjectDeleteAnimation());
 
 		SpawnTask spawnTask = new SpawnTask(player, worldId, instanceId, x, y, z, h, animation);
-		if (animation == TeleportAnimation.NONE) // instant teleport (don't wait for player fade-out)
+		if (player.isPlayerBot() || animation == TeleportAnimation.NONE) // headless bots cannot acknowledge fade-out; instant teleport (don't wait for player fade-out)
 			spawnTask.run();
 		else {
 			// send teleport animation to player and trigger CM_TELEPORT_ANIMATION_DONE when the animation ended
@@ -521,7 +529,26 @@ public class TeleportService {
 			World.getInstance().setPosition(player.getPet(), worldId, instanceId, x, y, z, h);
 
 			player.setPortAnimation(animation.getDefaultArrivalAnimation());
-			if (currentWorldId == worldId && currentInstance == instanceId) {
+			if (player.isPlayerBot()) {
+				// Headless players have no CM_LEVEL_READY packet. Complete the native
+				// teleport after its normal route, quest, price and position checks.
+				World.getInstance().spawn(player);
+				player.getController().updateZone();
+				if (currentWorldId != worldId || currentInstance != instanceId) {
+					player.getController().startProtectionActiveTask();
+					if (player.isInSiegeWorld()) SiegeService.getInstance().onEnterSiegeWorld(player);
+					ConquerorAndProtectorService.getInstance().onEnterMap(player);
+					player.getController().updateNearbyQuests();
+					player.getController().updateRepeatableQuests();
+					com.aionemu.gameserver.questEngine.QuestEngine.getInstance().onEnterWorld(player);
+					player.getController().onEnterWorld();
+					InstanceService.onEnterInstance(player);
+					TownService.getInstance().onEnterWorld(player);
+					com.aionemu.gameserver.services.event.EventService.getInstance().onEnterMap(player);
+				}
+				if (player.getPet() != null && !player.getPet().isSpawned()) World.getInstance().spawn(player.getPet());
+				player.setPortAnimation(ArrivalAnimation.NONE);
+			} else if (currentWorldId == worldId && currentInstance == instanceId) {
 				// instant teleport when map is the same
 				spawnOnSameMap(player);
 			} else {

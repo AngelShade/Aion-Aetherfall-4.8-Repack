@@ -25,7 +25,7 @@ public final class PlayerBotPresets {
  public record Preset(String id,String name,List<Member> members) {
   public Preset {
    if(id==null || !id.matches("[a-f0-9]{32}") || name==null || name.isBlank() || name.length()>40 || name.chars().anyMatch(Character::isISOControl))throw new IllegalArgumentException("Use a party name of 1–40 characters.");
-   members=List.copyOf(members);if(members.isEmpty() || members.size()>5 || members.stream().map(Member::id).distinct().count()!=members.size())throw new IllegalArgumentException("Save between one and five different companions.");
+   members=List.copyOf(members);if(members.isEmpty() || members.size()>PlayerBotRaidPolicy.MAX_COMPANIONS || members.stream().map(Member::id).distinct().count()!=members.size())throw new IllegalArgumentException("Save between one and 23 different companions.");
   }
  }
  record Document(int account,Set<Integer> saved,List<Preset> presets) {
@@ -72,7 +72,7 @@ public final class PlayerBotPresets {
  }
  public static String saveParty(Player owner,String name) {
   synchronized(PlayerBotService.getInstance()) {
-   var sessions=PlayerBotService.getInstance().companions(owner);if(sessions.isEmpty())throw new IllegalArgumentException("Recruit a party before saving a preset.");
+   var sessions=PlayerBotService.getInstance().companions(owner);sessions.forEach(PlayerBotSession::requirePrivateCompanion);if(sessions.isEmpty())throw new IllegalArgumentException("Recruit a party before saving a preset.");
    List<Member> members=new ArrayList<>();
    try {
     for(var session:sessions)synchronized(session){if(session.generated())checkpoint(session);var state=session.snapshot();members.add(new Member(session.bot().getObjectId(),session.bot().getName(),session.generated(),session.combatRole(),Order.valueOf(state.get("order").toString())));}
@@ -82,7 +82,8 @@ public final class PlayerBotPresets {
  }
  private static IllegalArgumentException failure(String context,Exception e){return new IllegalArgumentException(context+": "+e.getMessage(),e);}
  public static String remove(Player owner,String id){if(id.startsWith("bot:"))return PlayerBotRosterRemoval.remove(owner,Integer.parseInt(id.substring(4)),STORE);try{STORE.remove(owner.getAccount().getId(),id);return "Party preset removed. Your characters and saved bots were kept.";}catch(IOException e){throw failure("Could not remove the preset",e);}}
- static void checkRoom(int active,int missing,int partySize,int limit,int global,int globalLimit){if(active+missing>limit || partySize+missing>6 || global+missing>globalLimit)throw new IllegalArgumentException("This preset needs more free companion/party slots. Dismiss companions outside the preset first; human party members are kept.");}
+ static void checkRoom(int active,int missing,int partySize,int limit,int global,int globalLimit){checkRoom(active,missing,partySize,limit,global,globalLimit,limit>5?24:6);}
+ static void checkRoom(int active,int missing,int teamSize,int limit,int global,int globalLimit,int capacity){if(active+missing>limit || teamSize+missing>capacity || global+missing>globalLimit)throw new IllegalArgumentException("This preset needs more free companion/team slots. Dismiss companions outside the preset first; human members are kept.");}
  public static String activate(Player owner,String id) {
   var service=PlayerBotService.getInstance();synchronized(service) {
    List<PlayerBotSession> created=new ArrayList<>();
@@ -90,7 +91,7 @@ public final class PlayerBotPresets {
     var preset=STORE.load(owner.getAccount().getId()).presets().stream().filter(p->p.id().equals(id)).findFirst().orElseThrow(()->new IllegalArgumentException("That party preset no longer exists."));
     if(!PlayerBotConfig.ENABLED || !owner.isOnline() || !owner.isSpawned())throw new IllegalArgumentException("Wait until your character is in the world.");
     if(owner.getController().isInCombat())throw new IllegalArgumentException("You cannot recruit a party preset while in combat.");
-    var group=owner.getPlayerGroup();if(owner.isInAlliance() || group!=null && (!group.isLeader(owner) || group.getTeamType()!=TeamType.GROUP))throw new IllegalArgumentException("Lead a normal party to summon this preset.");
+    PlayerBotRaidPolicy.authority(owner);
     Map<Integer,PlayerBotSession> active=new HashMap<>();for(var s:service.companions(owner))active.put(s.bot().getObjectId(),s);
     Map<Integer,String> names=new LinkedHashMap<>();var roster=PlayerBotRoster.list(owner.getAccount().getId());
     for(var m:preset.members()) {
@@ -105,7 +106,7 @@ public final class PlayerBotPresets {
      names.put(m.id(),common.getName());
     }
     int missing=(int)preset.members().stream().filter(m->!active.containsKey(m.id())).count();
-    checkRoom(active.size(),missing,group==null ? 1 : group.getMembers().size(),Math.min(5,PlayerBotConfig.MAX_PER_OWNER),World.getInstance().getAllPlayers().stream().filter(Player::isPlayerBot).toList().size(),PlayerBotConfig.MAX_ACTIVE);
+    checkRoom(active.size(),missing,owner.getCurrentTeam()==null ? 1 : owner.getCurrentTeam().size(),PlayerBotRaidPolicy.limit(),service.companionCount(),PlayerBotConfig.MAX_ACTIVE,PlayerBotRaidPolicy.capacity(owner));
     for(var m:preset.members())if(!active.containsKey(m.id())){service.recruit(owner,names.get(m.id()));var session=service.find(owner,names.get(m.id()));created.add(session);active.put(m.id(),session);}
     for(var m:preset.members()){var s=active.get(m.id());if(s.combatRole()!=m.role())s.setRole(m.role());s.order(m.order());if(!s.bot().isDead())PlayerBotTravel.summon(s);}
     return "Party preset "+preset.name()+" summoned. "+preset.members().size()+" companions are online; owned-alt builds were kept.";

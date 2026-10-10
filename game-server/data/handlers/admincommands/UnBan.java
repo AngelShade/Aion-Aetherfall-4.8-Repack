@@ -13,7 +13,8 @@ import com.aionemu.gameserver.utils.chathandlers.AdminCommand;
 public class UnBan extends AdminCommand {
 
 	public UnBan() {
-		super("unban");
+		super("unban", "Remove an account or IP ban.",
+			"<player> [account|ip|full] - Remove the specified ban.");
 	}
 
 	@Override
@@ -50,10 +51,5 @@ public class UnBan extends AdminCommand {
 
 		// Sends time -1 to unban
 		LoginServer.getInstance().sendBanPacket(type, accountId, "", -1, admin.getObjectId());
-	}
-
-	@Override
-	public void info(Player player, String message) {
-		PacketSendUtility.sendMessage(player, "Syntax: //unban <player> [account|ip|full]");
 	}
 }

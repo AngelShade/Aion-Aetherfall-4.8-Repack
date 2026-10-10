@@ -103,6 +103,7 @@ public class Geometry extends Spatial {
 	public void updateModelBound() {
 		mesh.updateBound();
 		worldBound = getModelBound().transform(cachedWorldMat, worldBound);
+		if(parent!=null)parent.invalidateSegmentCollisionIndex();
 	}
 
 	public Matrix4f getWorldMatrix() {

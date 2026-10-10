@@ -30,6 +30,8 @@ public final class StaticDataBuildCheck {
             StaticData data;
             try (var reader = merged.newReader()) { data = JAXBUtil.deserialize(reader, StaticData.class); }
             data.waitForAfterUnmarshalTasksToFinish();
+            com.aionemu.gameserver.services.playerbot.PopulationCatalogBuildCheck.check(data);
+            com.aionemu.gameserver.services.playerbot.PlayerBotQuestCoverageBuildCheck.check(data);
             System.out.println("OK: complete static XML merge, schema and production JAXB load; items=" + data.itemData.size()
                 + "; decomposable=" + data.decomposableItemsData.size() + "; overrides=" + data.decomposableItemsData.overrideCount()
                 + "; no GameServer startup/database/world actors");

@@ -11,13 +11,14 @@ import com.aionemu.gameserver.utils.chathandlers.ConsoleCommand;
 public class Set_vitalpoint extends ConsoleCommand {
 
 	public Set_vitalpoint() {
-		super("set_vitalpoint");
+		super("set_vitalpoint", "Set Salvation points.",
+			"<value> - Set the Salvation point value.");
 	}
 
 	@Override
 	public void execute(Player admin, String... params) {
 		if (params.length < 1) {
-			info(admin, null);
+			sendInfo(admin);
 			return;
 		}
 
@@ -28,16 +29,11 @@ public class Set_vitalpoint extends ConsoleCommand {
 		try {
 			value = Integer.parseInt(params[0]);
 		} catch (NumberFormatException e) {
-			info(admin, null);
+			sendInfo(admin);
 			return;
 		}
 
 		player.getCommonData().setCurrentSalvationPoints(value);
 		PacketSendUtility.sendPacket(player, new SM_STATS_INFO(player));
-	}
-
-	@Override
-	public void info(Player admin, String message) {
-		PacketSendUtility.sendMessage(admin, "syntax ///set_vitalpoint <value>");
 	}
 }

@@ -55,7 +55,7 @@ public final class PlayerBotSupplies {
    && (limits.getGenderPermitted()==null || limits.getGenderPermitted()==bot.getGender()) && safe(skill(t));
  }
  static boolean buffFree(Player bot,SkillTemplate skill) {
-  return PlayerBotBuffs.canAdd(bot.getPlayerClass(),skill,bot.getEffectController().getAbnormalEffects().stream().map(Effect::getSkillTemplate).toList());
+  return PlayerBotBuffs.canAdd(bot.getPlayerClass(),skill,PlayerBotBuffs.active(bot.getEffectController()));
  }
  static boolean needed(Player bot,SkillTemplate skill) {
   if(!safe(skill) || bot.isDead())return false;

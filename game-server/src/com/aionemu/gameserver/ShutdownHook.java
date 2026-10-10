@@ -52,7 +52,7 @@ public class ShutdownHook extends Thread {
 		for (int announceInterval = 1, expectedSeconds = remainingSeconds.get(); remainingSeconds.get() > 0;) {
 			try {
 				Collection<Player> allPlayers = World.getInstance().getAllPlayers();
-				if (allPlayers.isEmpty() || ShutdownConfig.INSTANT_SHUTDOWN_WITH_ONLY_STAFF_ONLINE && allPlayers.stream().allMatch(Player::isStaff))
+				if (!hasPlayersAwaitingShutdown(allPlayers))
 					break; // fast exit
 
 				if (remainingSeconds.get() % announceInterval == 0) {
@@ -97,6 +97,12 @@ public class ShutdownHook extends Thread {
 		int previousValue = remainingSeconds.getAndUpdate(seconds -> seconds == UNSET_DELAY || seconds > 1 ? delaySeconds : seconds);
 		if (previousValue == UNSET_DELAY)
 			Thread.startVirtualThread(() -> System.exit(exitCode)); // async since System.exit indefinitely blocks the calling thread
+	}
+
+	static boolean hasPlayersAwaitingShutdown(Collection<Player> players) {
+		// Headless bots are saved below, but cannot use the human shutdown grace period.
+		return players.stream().anyMatch(player -> !player.isPlayerBot()
+			&& (!ShutdownConfig.INSTANT_SHUTDOWN_WITH_ONLY_STAFF_ONLINE || !player.isStaff()));
 	}
 
 	/**

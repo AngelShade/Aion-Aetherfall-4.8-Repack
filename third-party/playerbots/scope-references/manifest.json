@@ -104,6 +104,246 @@
       "path": "src/Ai/Base/Actions/LeaveGroupAction.cpp",
       "gitBlob": "ae2be51a7a86c5af6d690febe9ca3a7559b908c9",
       "sha256": "51e377ecb9025782e4029f6f209348c907bc3d7416ea1796694bb19ab1af5733"
+    },
+    {
+      "path": "src/Mgr/Travel/TravelMgr.cpp",
+      "gitBlob": "a967f7bb1427b60d55e4e9266c0f8e091adac44a",
+      "sha256": "8d67a9523b5265f6657ba285190ce7f1eee6c18139dd60e3b833abe2c1a7d13e"
+    },
+    {
+      "path": "src/Mgr/Security/PlayerbotSecurity.cpp",
+      "gitBlob": "267127206f60586cbac92890ce8a3342f9142b58",
+      "sha256": "04ad261d0f26abf53bda323b56f3a022c70de2fbee1856fa6b28b2abd2a3369a"
+    },
+    {
+      "path": "src/Script/Playerbots.cpp",
+      "gitBlob": "669eefb1a1ea7168d72a5a4f7db8145274172d73",
+      "sha256": "dccb53fdfd1c4493e876cb182ed924a25bfec30f5f55ca92104eee28f44b2844"
+    },
+    {
+      "path": "src/Script/WorldThr/PlayerbotWorldThreadProcessor.cpp",
+      "gitBlob": "a459fb40bff4abb778ef8cb252668c0cf88ceaa5",
+      "sha256": "0bbbf4151cbbbcd02695182d944ffe5e7f59c190da8cfb2d9c9a3a364488ad8e"
+    },
+    {
+      "path": "src/Script/WorldThr/PlayerbotWorldThreadProcessor.h",
+      "gitBlob": "833e0495e6b8f0f8c8041f7d803fe41039309f0e",
+      "sha256": "931044820b03b63ca5f4782d2064cdea46c5c2d26ab12b3a76e68575d595bda4"
+    },
+    {
+      "path": "src/Script/WorldThr/PlayerbotOperations.h",
+      "gitBlob": "1452e93d1697b9710ffe2eab78324cd01fb2b0cb",
+      "sha256": "1d7d3c6af7c3b05c70f405e67bdf2685c32fd31020c02e57611e9d4f30855e4a"
+    },
+    {
+      "path": "src/Ai/Base/Value/GrindTargetValue.cpp",
+      "gitBlob": "c33ead310ca8a10046de0778699d0fa42b18e817",
+      "sha256": "2e3399fbaf2cce80d2dbf0ed1cecc490849fa4e73eae9b84e9bf4877d2bb1289"
+    },
+    {
+      "path": "src/Ai/Base/Value/GrindTargetValue.h",
+      "gitBlob": "6799aed3d878f41a6a42504646f1d74709d8fc75",
+      "sha256": "8c96d658a79657bdd98b74fc17233125d375f3d114dfcb52d1dcffdeced3223a"
+    },
+    {
+      "path": "src/Ai/Base/Value/PossibleTargetsValue.cpp",
+      "gitBlob": "ac2d3a75d7b43fae28a1c5049725ac95979f5070",
+      "sha256": "f977e8888870072218467ed81bb2f0eb45787f5d06d756bba261dd6c8007d14d"
+    },
+    {
+      "path": "src/Ai/Base/Value/PossibleTargetsValue.h",
+      "gitBlob": "4d6d51ccb53201bb6541b14afa6691c801b5b608",
+      "sha256": "53e092f15d2e125d9113eac1cd35fd28e71fd7dc36f90aeff4e8b92a9b51ca85"
+    },
+    {
+      "path": "src/Ai/Base/Actions/AttackAction.cpp",
+      "gitBlob": "5badda1ced2b86c48fbe0d79cf233d77438f7667",
+      "sha256": "8e2d1b98eec5e2ca515c0b6cf02c561a524902d5b73eae2b170b23327d0571e4"
+    },
+    {
+      "path": "src/Ai/Base/Value/AttackersValue.cpp",
+      "gitBlob": "f251f7c9bc50def3bf948e8abe7ed66af8e6f84c",
+      "sha256": "09a986909203aa1649837d3d84bc307ed2eabee25f7307d3f24d4286aa3bed60"
+    },
+    {
+      "path": "src/Ai/Base/Value/AttackersValue.h",
+      "gitBlob": "11e6a79121fc0a1d8665ef3c933e7785eaa8e67a",
+      "sha256": "377cd324182a51ebc95bd1894ddad439dffdb3383f8ea3704a46811e7473c08f"
+    },
+    {
+      "path": "src/PlayerbotAIConfig.cpp",
+      "gitBlob": "915bff53aa93a1a0f6ef2d68bc34a4d85fd91344",
+      "sha256": "0bf002dfbd2889b96fe63b9eead376cad103a4fce315a6e398695fa0ee6c12d8"
+    },
+    {
+      "path": "src/PlayerbotAIConfig.h",
+      "gitBlob": "781d4d2739c5cc167427cf16a5c56908f8c71463",
+      "sha256": "a7eb731aaf00e1172af9ec0c76c886a77726fa10adc21e2e6fb44dbe34bf0a54"
+    },
+    {
+      "path": "src/Db/PlayerbotsDatabase.cpp",
+      "gitBlob": "e574fec8fda801e101727f2717051bff667cf5b4",
+      "sha256": "8a6fddaa800927fbcb23fc1c333c5b9a6fb32e57a585ecb0b93a37b6b733d897"
+    },
+    {
+      "path": "src/Db/PlayerbotsDatabase.h",
+      "gitBlob": "868364ce233bad8b39fb5952d4e9cbece13edd76",
+      "sha256": "f2745cc0d8e2794117a4664d8601f89dd720323e7b89d5fc05a4787860e21692"
+    },
+    {
+      "path": "src/Ai/Base/Value/Formations.cpp",
+      "gitBlob": "ed34b7d1afb9db8763d483c74b067e8c159137ea",
+      "sha256": "b1373bf682d21a334cdff9453b356e099b49a088ffa30e718da36935984600fd"
+    },
+    {
+      "path": "src/Ai/Base/Value/Formations.h",
+      "gitBlob": "aa67ba14c8defefcc8ce737c4324556c1fbae8d9",
+      "sha256": "1f78cb4173d9d0c1c2bb3d5c64c6b71db29c3af3d5011decdfa60211df013e8d"
+    },
+    {
+      "path": "src/Ai/Base/Actions/BankAction.cpp",
+      "gitBlob": "bbdae0a360bfdef71733287cd68fdf3c4927dfb6",
+      "sha256": "9a5c78865d091b0e7440747fac12f198534ea9b8171601064f6f7635597ce227"
+    },
+    {
+      "path": "src/Ai/Base/Actions/BankAction.h",
+      "gitBlob": "109706f0efa1f5f6659a04447d9ab8bd32740512",
+      "sha256": "9e5e1bc240b76e4482d3ba15f461b5835ef57ea5377a2b3ad25cc84b84f7d187"
+    },
+    {
+      "path": "src/Ai/Base/Actions/InventoryAction.cpp",
+      "gitBlob": "88f52caf20c8ef6213c84712fd9f6cca5eb6aa1a",
+      "sha256": "fec31cce073be5b97648e44dd1b5e100a11e5504a5e7695d8071e84e129ecca1"
+    },
+    {
+      "path": "src/Ai/Base/Actions/InventoryAction.h",
+      "gitBlob": "5f6b60d44d595925ced093ddc07029bcdc41fc5f",
+      "sha256": "18ac75bd189635f00faf71ae4724c77b69bae8a6a8532991090ff76accd73025"
+    },
+    {
+      "path": "src/Ai/Base/Value/ItemUsageValue.h",
+      "gitBlob": "6071f7f2e8b850eeb3b5ebcca2112fcac9ec5d67",
+      "sha256": "4d66e1f9dc0db6fb01db4b2a5f0b7eb9747548fd54e8ffe4be5d6ec8667245ce"
+    },
+    {
+      "path": "src/Ai/World/Rpg/Action/RpgSubActions.h",
+      "gitBlob": "31dea19e730d88850f29b665823985d77c081f32",
+      "sha256": "dec5c62fe653d5d41a21c88fa48d8a1649f92fdf4acdc92c4df347f767d35719"
+    },
+    {
+      "path": "src/Mgr/Item/ItemVisitors.h",
+      "gitBlob": "0add9023e4637e3aed2c8774d7512ffd0cfec73d",
+      "sha256": "c2dadc5f2328d9edfd6b0978a911b7cdda86d191bb135f511ced08be0861fcc0"
+    },
+    {
+      "path": "src/Mgr/Item/ItemVisitors.cpp",
+      "gitBlob": "da400e25126906d0e62d43c57ef99560e6b47e50",
+      "sha256": "0b36724efd6f18b704b82e71d69a99db5052ecaa493946041cae198645c17396"
+    },
+    {
+      "path": "src/Ai/Base/Value/ItemCountValue.h",
+      "gitBlob": "b17031b9069ad94600ea452bb89bf125d358bff2",
+      "sha256": "2f0310d70b47ea4efc63af30897d1c2f2becd5bc51c759fcc0aca0034c5ee187"
+    },
+    {
+      "path": "src/Ai/Base/Value/ItemCountValue.cpp",
+      "gitBlob": "42b943b9daadf806bd5a4a0bf706b2628908f2c9",
+      "sha256": "c103c274be6a755e987cae52876eec871c079f0c2cf33dd9f2d90171880f7fba"
+    },
+    {
+      "path": "src/Ai/Base/ChatActionContext.h",
+      "gitBlob": "d6d0ee5689959564df5646411663f8f8a8dcb370",
+      "sha256": "0c8d49112fb6b8203f360bae359f386e3e5869eb670a41e2d56d57c8388df236"
+    },
+    {
+      "path": "src/Ai/Base/Actions/CheckMailAction.cpp",
+      "gitBlob": "800e0d6742291522212803ff3952eb247f6399f9",
+      "sha256": "6f3226d3bc653c0ec53796eca7638822db1ed4d1626cb4d0561c83f9dfeaccef"
+    },
+    {
+      "path": "src/Ai/Base/Actions/CheckMailAction.h",
+      "gitBlob": "f2bb6179eb50e427f91ef6738ec2d68868d11f49",
+      "sha256": "5e1b87dec7ed062bf0feea16b7b5ab9818e7332ec926af509191a8be793ab381"
+    },
+    {
+      "path": "src/Ai/Base/Actions/MailAction.cpp",
+      "gitBlob": "d47202e58eee1fc5555c3bc9f7b7192ca8e9d9e9",
+      "sha256": "e6547f12b2e15639e8f79f0c24c93916638c7e2763b730b940deee6ce5c3a837"
+    },
+    {
+      "path": "src/Ai/Base/Actions/MailAction.h",
+      "gitBlob": "c1f2ba04721d89b350fbdb666c5a59016a6af32e",
+      "sha256": "26d3e76d6664e150dae40c8ae63ceb1a75391032d83fda3dabc118ab6d9a2601"
+    },
+    {
+      "path": "src/Ai/Base/Actions/SendMailAction.cpp",
+      "gitBlob": "58fd57e1c7f90a89273a97702d212150b339ba70",
+      "sha256": "1a41731d7a36d75b348da8a6de9108bbe7827bafcf4b771a4e7dfa19bac9342e"
+    },
+    {
+      "path": "src/Ai/Base/Actions/SendMailAction.h",
+      "gitBlob": "82503c9d623888b0824bc2c61f34f863b7fdc05a",
+      "sha256": "80d5420c4461064e0373aa749e0b3f7129fe857a4e46cbf43db74f106d2eb4ea"
+    },
+    {
+      "path": "src/Ai/Base/Actions/GuildBankAction.cpp",
+      "gitBlob": "e97466ae27fa4317832c4568867a3ef2860db932",
+      "sha256": "c206f15a1799a5eaa61905a5a3e0bf88a96d408349880016cc97d51d858f013a"
+    },
+    {
+      "path": "src/Ai/Base/Actions/GuildBankAction.h",
+      "gitBlob": "b3bb89c352a869f5d532eaf120d7da18aca317a6",
+      "sha256": "052e4b0d0cfdd560cf7094fc78cdcc359c76fcbae888c12b1c81f4816507fdef"
+    },
+    {
+      "path": "src/Ai/Base/Actions/GuildAcceptAction.cpp",
+      "gitBlob": "72dd5ca7e97c9045b985b19191c1f9ccb67c2a09",
+      "sha256": "b71f41da15d10555e56ed7ee3432d54a0ac00e75fcc5d7dc123cffc7c8200d8d"
+    },
+    {
+      "path": "src/Ai/Base/Actions/GuildAcceptAction.h",
+      "gitBlob": "c729522893c9cd071bd85be4de1f85a356b66fd3",
+      "sha256": "c70a95af9bdf073d329d12ee73cc0242a09a79166a1f335a6766fd667fa220e0"
+    },
+    {
+      "path": "src/Ai/Base/Strategy/WorldPacketHandlerStrategy.cpp",
+      "gitBlob": "f5b60836efdd47bfe76d48ce3d6e343708eb8fab",
+      "sha256": "070f22c00f980484663c26828d7febfc0cae4ed49f99090e855d6eb6193cdc96"
+    },
+    {
+      "path": "src/Ai/Base/Strategy/WorldPacketHandlerStrategy.h",
+      "gitBlob": "9d0717f84209400edf2582f472c32b5d5dc232c1",
+      "sha256": "fe69af0ef3fecafc5ef2312d8c28f07fb2e07c8236637e4293653b4b5d12c349"
+    },
+    {
+      "path": "src/Ai/Class/Warlock/Strategy/GenericWarlockNonCombatStrategy.cpp",
+      "gitBlob": "7698e520d964c6f19130ea4af8e7498eded33d5c",
+      "sha256": "ed3a65af9391bbdf60326ec7eed701156a8cf1e53ca599d4f39ba3e2b04d7d1b"
+    },
+    {
+      "path": "src/Ai/Class/Warlock/Strategy/GenericWarlockNonCombatStrategy.h",
+      "gitBlob": "744a40944f18bf4e90b5fb3b8e391967500c76f0",
+      "sha256": "7213644fcec1bbbf7839212e4396916ee83aa484f218f409db2711dd9db14124"
+    },
+    {
+      "path": "src/Ai/Class/Warlock/WarlockActions.cpp",
+      "gitBlob": "2587c0286d804f6ff1a573c676553524dd79dc65",
+      "sha256": "8ba3f3fee1cbc579630ea4e930ea9ad5d23f859033f34f57ce6ef60658968027"
+    },
+    {
+      "path": "src/Ai/Class/Warlock/WarlockActions.h",
+      "gitBlob": "3278550020f557c554cd79aed3d867c17db54087",
+      "sha256": "50b825b4c278e3da20bd1de4dfc3de9197c28139ac260e3f5c1b6913d5d004cd"
+    },
+    {
+      "path": "src/Ai/Base/Trigger/GenericTriggers.cpp",
+      "gitBlob": "aede6f289344538833a162de0a22cdf9f267ca6c",
+      "sha256": "bfaafea856bcb0529704b6e6dbc045cf423aac13841551f909f33c318090703d"
+    },
+    {
+      "path": "src/Ai/Base/Trigger/GenericTriggers.h",
+      "gitBlob": "b7e54e2e4079efa5ff388a1641a9cc78a7341e6f",
+      "sha256": "6796cc43290665fc22491bfabc29157a1c43b9fd7a4ff06977186cbe1b3815d3"
     }
   ]
 }

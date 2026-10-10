@@ -14,7 +14,8 @@ import com.aionemu.gameserver.world.World;
 public class Ban extends AdminCommand {
 
 	public Ban() {
-		super("ban");
+		super("ban", "Ban an account or IP address.",
+			"<player> [account|ip|full] [time in minutes] - Ban the specified player.");
 	}
 
 	@Override
@@ -77,10 +78,5 @@ public class Ban extends AdminCommand {
 		}
 
 		LoginServer.getInstance().sendBanPacket(type, accountId, accountIp, time, admin.getObjectId());
-	}
-
-	@Override
-	public void info(Player player, String message) {
-		PacketSendUtility.sendMessage(player, "Syntax: //ban <player> [account|ip|full] [time in minutes]");
 	}
 }

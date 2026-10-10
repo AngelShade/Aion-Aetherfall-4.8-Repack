@@ -13,7 +13,8 @@ import com.aionemu.gameserver.world.World;
 public class SecurityToken extends AdminCommand {
 
 	public SecurityToken() {
-		super("stoken");
+		super("stoken", "Manage player security tokens.",
+			"<playername> - Generate a new player security token.\nshow <playername> - Show the player security token.");
 	}
 
 	@Override
@@ -49,10 +50,4 @@ public class SecurityToken extends AdminCommand {
 		}
 
 	}
-
-	@Override
-	public void info(Player admin, String message) {
-		PacketSendUtility.sendMessage(admin, "Syntax: //stoken <playername> || //stoken show <playername>");
-	}
-
 }

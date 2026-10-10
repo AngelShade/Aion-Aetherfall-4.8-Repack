@@ -15,7 +15,8 @@ import com.aionemu.gameserver.world.World;
 public class MovePlayerToPlayer extends AdminCommand {
 
 	public MovePlayerToPlayer() {
-		super("moveplayertoplayer");
+		super("moveplayertoplayer", "Move one player to another.",
+			"<characterNameToMove> <characterNameDestination> - Move the first player to the second.");
 	}
 
 	@Override
@@ -48,10 +49,5 @@ public class MovePlayerToPlayer extends AdminCommand {
 		PacketSendUtility.sendMessage(admin, "Teleported player " + playerToMove.getName() + " to the location of player " + playerDestination.getName()
 			+ ".");
 		PacketSendUtility.sendMessage(playerToMove, "You have been teleported by an administrator.");
-	}
-
-	@Override
-	public void info(Player player, String message) {
-		PacketSendUtility.sendMessage(player, "syntax //moveplayertoplayer <characterNameToMove> <characterNameDestination>");
 	}
 }

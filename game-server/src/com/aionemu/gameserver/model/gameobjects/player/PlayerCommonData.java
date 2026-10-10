@@ -273,7 +273,8 @@ public class PlayerCommonData extends CreatureTemplate {
 	public void setExp(long exp) {
 		if (exp != this.exp || level == 0 && exp == 0) {
 			PlayerExperienceTable pxt = DataManager.PLAYER_EXPERIENCE_TABLE;
-			int maxLevel = isDaeva || !online && (updateDaeva() || exp > pxt.getStartExpForLevel(10)) ? pxt.getMaxLevel() : 10;
+			boolean offlineLoad = !online && (getPlayer() == null || !getPlayer().isWorldBot());
+			int maxLevel = isDaeva || offlineLoad && (updateDaeva() || exp > pxt.getStartExpForLevel(10)) ? pxt.getMaxLevel() : 10;
 			int oldLevel = level;
 
 			this.exp = Math.min(exp, pxt.getStartExpForLevel(maxLevel));
@@ -449,7 +450,8 @@ public class PlayerCommonData extends CreatureTemplate {
 	 * @return Player or null
 	 */
 	public Player getPlayer() {
-		return online ? World.getInstance().getPlayer(playerObjId) : null;
+		Player player = World.getInstance().getPlayer(playerObjId);
+		return online || player != null && player.isWorldBot() && player.isSpawned() && player.getCommonData()==this ? player : null;
 	}
 
 	public void addDp(int dp) {

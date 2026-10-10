@@ -1,11 +1,17 @@
 package com.aionemu.gameserver.services.playerbot;
 
 import java.util.List;
+import com.aionemu.gameserver.controllers.effect.EffectController;
 import com.aionemu.gameserver.model.PlayerClass;
 import com.aionemu.gameserver.skillengine.model.*;
 
 /** Conservatively retains the current buff set using EffectController's native slot capacities. */
 final class PlayerBotBuffs {
+	/** Native icon-facing getAbnormalEffects excludes active NOSHOW toggles.
+	 * Slot/conflict planning needs those toggles, but must not count passives. */
+	static List<SkillTemplate> active(EffectController controller) {
+		return controller.getAllEffects().stream().filter(e -> !e.isPassive()).map(Effect::getSkillTemplate).toList();
+	}
 	static boolean canAdd(PlayerClass casterClass, SkillTemplate next, List<SkillTemplate> active) {
 		for (var current : active) {
 			if (current.getSkillId() == next.getSkillId()

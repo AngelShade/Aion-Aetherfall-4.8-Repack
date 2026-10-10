@@ -904,6 +904,12 @@ public class QuestEngine implements GameEngine {
 		return questHandlers.containsKey(questId);
 	}
 
+	/** Diagnostic only: the actual registered handler, without exposing mutable registration. */
+	public String getPlayerBotHandlerType(int questId) {
+		AbstractQuestHandler handler = questHandlers.get(questId);
+		return handler == null ? "" : handler.getClass().getName();
+	}
+
 	public void addQuestHandler(AbstractQuestHandler questHandler) {
 		int questId = questHandler.getQuestId();
 		if (questHandlers.putIfAbsent(questId, questHandler) != null)

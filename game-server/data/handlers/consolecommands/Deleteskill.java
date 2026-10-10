@@ -23,13 +23,14 @@ import com.aionemu.gameserver.utils.xml.JAXBUtil;
 public class Deleteskill extends ConsoleCommand {
 
 	public Deleteskill() {
-		super("deleteskill");
+		super("deleteskill", "Delete a named skill.",
+			"<skill name> - Delete the specified skill.");
 	}
 
 	@Override
 	public void execute(Player admin, String... params) {
 		if (params.length < 1) {
-			info(admin, null);
+			sendInfo(admin);
 			return;
 		}
 
@@ -65,11 +66,6 @@ public class Deleteskill extends ConsoleCommand {
 			SkillLearnService.removeSkill(player, skillId);
 			PacketSendUtility.sendMessage(admin, "You have successfully deleted the specified skill.");
 		}
-	}
-
-	@Override
-	public void info(Player admin, String message) {
-		PacketSendUtility.sendMessage(admin, "syntax ///deleteskill <skill name>");
 	}
 
 	@XmlAccessorType(XmlAccessType.NONE)

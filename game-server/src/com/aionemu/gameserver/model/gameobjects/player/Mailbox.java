@@ -39,6 +39,13 @@ public class Mailbox {
 		return new ArrayList<>(mails.values());
 	}
 
+	/** Includes native overflow for read-only headless load verification. */
+	public Collection<Letter> getAllLetters() {
+		List<Letter> result = new ArrayList<>(mails.values());
+		result.addAll(reserveMail.values());
+		return result;
+	}
+
 	/**
 	 * Get system letters which senders start with the string specified and were received since the last player login
 	 * 

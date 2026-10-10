@@ -22,9 +22,9 @@ public final class PlayerBotPartyCompletion {
  /** Called only after the human's native finishQuest succeeds, before vars reset. */
  public static void ownerCompleted(QuestEnv env) {
   try {
-  Player owner=env.getPlayer();if(owner.isPlayerBot() || !com.aionemu.gameserver.configs.main.PlayerBotConfig.ENABLED || owner.getPlayerGroup()==null)return;
+  Player owner=env.getPlayer();if(owner.isPlayerBot() || !com.aionemu.gameserver.configs.main.PlayerBotConfig.ENABLED || owner.getCurrentTeam()==null)return;
   var q=owner.getQuestStateList().getQuestState(env.getQuestId());if(q==null || q.getStatus()!=QuestStatus.COMPLETE || !(env.getVisibleObject() instanceof Npc npc))return;
-  Set<Integer> bots=new HashSet<>();for(Player p:owner.getPlayerGroup().getMembers())if(p.isPlayerBot() && p.getPlayerBotOwnerId()==owner.getObjectId()) {
+  Set<Integer> bots=new HashSet<>();for(Player p:owner.getCurrentTeam().getMembers())if(p.isPlayerBot() && p.getPlayerBotOwnerId()==owner.getObjectId()) {
    var owned=p.getQuestStateList().getQuestState(q.getQuestId());if(owned!=null && (owned.getStatus()==QuestStatus.START || owned.getStatus()==QuestStatus.REWARD))bots.add(p.getObjectId());
   }
   if(bots.isEmpty())return;

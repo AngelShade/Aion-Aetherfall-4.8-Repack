@@ -54,17 +54,20 @@ def main():
     assert country, 'Runtime country code unavailable'
     libs = [f for f in sorted((server / 'libs').glob('*.jar')) if f.name not in {'game-server-4.8-SNAPSHOT.jar', 'commons-4.8-SNAPSHOT.jar', 'playerbot-recruitment-fix.jar'}]
     cp = ';'.join(map(str, [out / 'checks', game, build / 'commons/commons-4.8-SNAPSHOT.jar', *libs]))
-    subprocess.run(['javac', '-cp', cp, '-d', str(out / 'checks'), str(ROOT / 'tools/java/StaticDataBuildCheck.java')], check=True)
+    subprocess.run(['javac', '-cp', cp, '-d', str(out / 'checks'), str(ROOT / 'tools/java/StaticDataBuildCheck.java'), str(ROOT / 'tools/java/PopulationCatalogBuildCheck.java'), str(ROOT / 'tools/java/PlayerBotQuestCoverageBuildCheck.java')], check=True)
     report = out / 'static-data-load.txt'
     with report.open('w') as stream:
         result = subprocess.run(['java', '-Xmx4g', '-cp', cp, 'com.aionemu.gameserver.dataholders.StaticDataBuildCheck',
             str(staged), str(out / 'static-runtime/cache/static_data.xml'), country.group(1)], cwd=out, stdout=stream, stderr=subprocess.STDOUT)
     assert result.returncode == 0, 'Offline static-data load failed; see ' + str(report)
+    assert a.release_plan, 'A complete compiled-handler review is required for native quest inventory'
+    import_module('quest-handler-inventory').enrich(a.release_plan.resolve().parent, build, out / 'quest-coverage.json')
     summary = next(line for line in report.read_text().splitlines() if line.startswith('OK: complete static XML merge'))
     assert all(digest(server / rel) == value for rel, value in inputs.items()), 'Runtime static data changed during check'
     build_meta.verify(build)
     report.with_suffix('.json').write_text(json.dumps(dict(reportSha256=digest(report), builderJarSha256=digest(game),
-        unchangedRuntimeInputs=inputs, builderResources=checked_resources, countryCode=int(country.group(1))), indent=2))
+        unchangedRuntimeInputs=inputs, builderResources=checked_resources, countryCode=int(country.group(1)),questCoverageSha256=digest(out/'quest-coverage.json'),
+        handlerInventoryToolSha256=digest(ROOT/'tools/quest-handler-inventory.py')), indent=2))
     print(summary)
     print('Report:', report)
 

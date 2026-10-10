@@ -30,7 +30,7 @@ public final class PlayerBotMetadataCheck {
   var session=(PlayerBotSession)u.allocateInstance(PlayerBotSession.class);field(session,"owner",owner);field(session,"bot",bot);
   db.stored=null;db.autoCommit=true;
   PlayerBotMetadata.load(7,2001,"care",directory.resolve("no-care-file"));PlayerBotMetadata.load(7,2001,"gear",directory.resolve("no-gear-file"));int reads=db.queries,writes=db.updates;
-  var care=(PlayerBotQuestSync.State)u.allocateInstance(PlayerBotQuestSync.State.class);
+  var care=(PlayerBotQuestSync.State)u.allocateInstance(PlayerBotQuestSync.State.class);field(care,"session",session);
   field(care,"account",7);field(care,"character",2001);field(care,"managed",new HashSet<>(Set.of(40)));field(care,"ownerCompletions",new HashMap<>(Map.of(40,2)));
   field(care,"approved",new HashSet<>(Set.of(20)));field(care,"skipped",new HashSet<>(Set.of(30)));field(care,"spentDay","2026-10-07");
   care.partySync=true;care.reserve=10000;care.dailyBudget=50000;care.spent=123;care.save();
@@ -48,6 +48,13 @@ public final class PlayerBotMetadataCheck {
  static void check(boolean b,String why){checks++;if(!b)throw new AssertionError(why);}
  static Object zero(Class<?> t){if(!t.isPrimitive() || t==void.class)return null;if(t==boolean.class)return false;if(t==long.class)return 0L;if(t==float.class)return 0f;if(t==double.class)return 0d;return 0;}
  static <T>T proxy(Class<T> t,InvocationHandler h){return t.cast(Proxy.newProxyInstance(t.getClassLoader(),new Class<?>[]{t},h));}
+ /** Recording JDBC for migrated native metadata; never connects to production. */
+ static AutoCloseable isolated(int account)throws Exception {
+  var db=new Jdbc();db.account=account;
+  var source=DatabaseFactory.class.getDeclaredField("dataSource");source.setAccessible(true);Object prior=source.get(null);
+  source.set(null,proxy(DataSource.class,(p,m,a)->m.getName().equals("getConnection")?db.connection():zero(m.getReturnType())));
+  return ()->source.set(null,prior);
+ }
  static Map<String,String> care(int owner,int bot){var m=new HashMap<>(Map.of("account",""+owner,"character",""+bot,"partySync","true","enchant","false","salvage","false","reserve","10000","dailyBudget","50000","spent","0","approved","20","skipped","30"));m.put("together.40","2");return m;}
  static class Jdbc {
   int account=7,queries,updates;boolean failLoad,failWrite,autoCommit=true;long revision=1;Map<String,String> stored;List<String> sql=new ArrayList<>();

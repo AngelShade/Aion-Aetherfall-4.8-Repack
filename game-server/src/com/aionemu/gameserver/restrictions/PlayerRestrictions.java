@@ -240,7 +240,7 @@ public class PlayerRestrictions {
 	}
 
 	public static boolean canTrade(Player player) {
-		if (player == null || player.isDead() || !player.isOnline())
+		if (player == null || player.isDead() || !player.isPlaying())
 			return false;
 		if (GameServer.isShuttingDownSoon()) {
 			PacketSendUtility.sendPacket(player, SM_SYSTEM_MESSAGE.STR_MSG_DISABLE("Shutdown Progress"));

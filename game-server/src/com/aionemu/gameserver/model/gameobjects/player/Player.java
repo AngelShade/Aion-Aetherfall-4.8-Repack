@@ -187,11 +187,20 @@ public class Player extends Creature {
 	private int customStates;
 	private PanesterraFaction panesterraFaction;
 	private int playerBotOwnerId;
+	private boolean worldBot;
 
-	public boolean isPlayerBot() { return playerBotOwnerId != 0; }
+	public boolean isPlayerBot() { return worldBot || playerBotOwnerId != 0; }
+	public boolean isWorldBot() { return worldBot; }
+	/** Residency is independent of a human controller; account ownership never changes. */
+	public void setWorldBotController(int controllerId) {
+		if (controllerId < 0 || !isPlayerBot() || getClientConnection() != null)
+			throw new IllegalArgumentException("World control requires a headless bot");
+		worldBot = true;
+		playerBotOwnerId = controllerId;
+	}
 	public int getPlayerBotOwnerId() { return playerBotOwnerId; }
 	public void setPlayerBotOwner(int ownerId) {
-		if (ownerId <= 0 || isOnline() || getClientConnection() != null || playerBotOwnerId != 0)
+		if (ownerId <= 0 || isOnline() || getClientConnection() != null || isPlayerBot())
 			throw new IllegalArgumentException("Bots require a valid owner, no client connection, and a fresh character instance");
 		playerBotOwnerId = ownerId;
 		moveController = new com.aionemu.gameserver.controllers.movement.PlayerBotMoveController(this);

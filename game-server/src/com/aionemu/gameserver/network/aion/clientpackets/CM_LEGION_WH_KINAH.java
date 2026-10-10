@@ -37,7 +37,9 @@ public class CM_LEGION_WH_KINAH extends AionClientPacket {
 		LegionMember legionMember = activePlayer.getLegionMember();
 		if (legionMember == null)
 			return;
-		switch (actionType) {
+		synchronized (com.aionemu.gameserver.model.team.legion.LegionWarehouse.CUSTODY_LOCK) {
+        if (com.aionemu.gameserver.model.team.legion.LegionWarehouse.custodyHeld(legionMember.getLegion().getLegionId())) return;
+        switch (actionType) {
 			case 0:
 				if (!legionMember.hasRights(LegionPermissionsMask.WH_WITHDRAWAL)) {
 					// You do not have the authority to use the Legion warehouse.
@@ -61,5 +63,6 @@ public class CM_LEGION_WH_KINAH extends AionClientPacket {
 				}
 				break;
 		}
+        }
 	}
 }

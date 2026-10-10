@@ -9,26 +9,24 @@ recorded in `SHA256SUMS`. `LICENSE` and `AUTHORS.md` are unchanged upstream copi
 The original source headers permit GPL version 2 or any later version; this repository
 uses GPL version 3. Preserve upstream attribution when distributing the adaptations.
 
-All 51 cached reference hashes were reverified on 2026-10-04. This subset is not
-the complete upstream repository. Current per-system findings and ordered
-continuation IDs are in
-[the port tracker](../../docs/PLAYERBOTS_PORT_REVIEW_20261004.md#reverification-tracker--4-october-2026).
-The mapping table below describes attempted adaptations, not complete parity:
-the final rune/periodic gate contradictions are now corrected and installed
-(PB-PORT-001/002, native/client acceptance pending). Shared local quest
-arbitration is now installed/offline verified (PB-PORT-003; native/client pending).
-Each follower validates native objective eligibility, rather than requiring equal
-peer variable words. PB-PORT-004 is now installed: state strategies/defaults,
-evaluation multipliers, fresh bounded continuers and native chain-successor keys.
-Next: PB-PORT-005, the first complete native class strategy slice.
+The current snapshot contains 56 original references and 69 scope references,
+verified at the pinned revision on 10 October 2026. This is a selected source
+subset plus a complete repository tree index, not a complete source checkout.
+Missing source/dependencies must be retrieved at the pin before their behavior
+is implemented. The source manifests retain independent SHA-256/Git blob IDs.
 
-`scope-references/` adds the complete untruncated pinned repository tree and 17
-unchanged source references for the one-time full subsystem inventory. Its
-`manifest.json` records SHA-256 and upstream Git blob identities separately from
-the original `SHA256SUMS`; original references/license/authors remain intact.
-See `docs/PLAYERBOTS_SUBSYSTEM_INVENTORY.md` for all scope IDs/dependency tracks
-and `docs/PLAYERBOTS_ENGINE_COMPOSITION_20261004.md` for the installed engine work.
-These additional sources retain their upstream GPL headers and attribution.
+The authoritative current feature and delivery status is
+[the subsystem matrix](../../docs/PLAYERBOTS_SUBSYSTEM_INVENTORY.md).
+The whole-project review is [the audit](../../docs/PLAYERBOTS_PORT_AUDIT_20261010.md).
+Seven bounded class slices, native independent population, SQL persistence,
+requested private/shared storage and mail are present; full class, quest,
+professions, autonomous economy/social/matching and encounter parity remain
+partial or absent as listed there. Older tables below record mapping history.
+
+`scope-references/manifest.json` records unchanged upstream source hashes and
+Git blob identities separately from original `SHA256SUMS`. Attribution and GPL
+headers remain intact. No WoW maps, spells, packets or database schema are
+substituted for native Aion behavior.
 
 The Aion game server is Java. These C++ files depend on AzerothCore's WoW player,
 spell, world/session, navigation and combat APIs, so they are reference source rather

@@ -17,13 +17,14 @@ import com.aionemu.gameserver.utils.xml.JAXBUtil;
 public class Combineskill extends ConsoleCommand {
 
 	public Combineskill() {
-		super("combineskill");
+		super("combineskill", "Add a combine skill.",
+			"<skill name> - Add the specified combine skill.");
 	}
 
 	@Override
 	public void execute(Player admin, String... params) {
 		if (params.length < 2) {
-			info(admin, null);
+			sendInfo(admin);
 			return;
 		}
 
@@ -51,11 +52,6 @@ public class Combineskill extends ConsoleCommand {
 			player.getSkillList().addSkill(player, skillId, skillLvl);
 			PacketSendUtility.sendMessage(admin, "You have success add skill");
 		}
-	}
-
-	@Override
-	public void info(Player admin, String message) {
-		PacketSendUtility.sendMessage(admin, "syntax ///addcskill <skill name>");
 	}
 
 	@XmlAccessorType(XmlAccessType.NONE)

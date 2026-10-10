@@ -20,10 +20,19 @@ public class LegionWarehouse extends Storage {
 
 	private static final int DEFAULT_ROWS = 3; // hardcoded, as the client doesn't allow to change it
 	private static final int SLOTS_PER_ROW = 8;
+	private final int legionId;
+	public int getLegionId() { return legionId; }
 	private final AtomicInteger currentUser = new AtomicInteger();
+	/** Serializes native shared-storage moves, save snapshots and companion custody. */
+	public static final Object CUSTODY_LOCK = new Object();
+	private static final java.util.Set<Integer> HELD = java.util.concurrent.ConcurrentHashMap.newKeySet();
+	public static boolean custodyHeld(int legionId) { return HELD.contains(legionId); }
+	public static void holdCustody(int legionId) { HELD.add(legionId); }
+
 
 	public LegionWarehouse(Legion legion) {
 		super(StorageType.LEGION_WAREHOUSE);
+		this.legionId = legion.getLegionId();
 		updateLimit(legion.getWarehouseExpansions());
 	}
 
@@ -32,9 +41,12 @@ public class LegionWarehouse extends Storage {
 	 */
 	@Override
 	public void increaseKinah(long amount) {
+		synchronized (CUSTODY_LOCK) {
+		if (custodyHeld(legionId)) throw new IllegalStateException("Legion custody held");
 		int currentWhUser = getCurrentUser();
 		Player player = currentWhUser == 0 ? null : World.getInstance().getPlayer(currentWhUser);
 		new LegionStorageProxy(this, player).increaseKinah(amount);
+		}
 	}
 
 	@Override
@@ -143,11 +155,11 @@ public class LegionWarehouse extends Storage {
 	}
 
 	public boolean unsetInUse(int playerObjId) {
-		return currentUser.compareAndSet(playerObjId, 0);
+		synchronized (CUSTODY_LOCK) { return !custodyHeld(legionId) && currentUser.compareAndSet(playerObjId, 0); }
 	}
 
 	public boolean setInUse(int playerObjId) {
-		return currentUser.compareAndSet(0, playerObjId);
+		synchronized (CUSTODY_LOCK) { return !custodyHeld(legionId) && currentUser.compareAndSet(0, playerObjId); }
 	}
 
 	public int getCurrentUser() {

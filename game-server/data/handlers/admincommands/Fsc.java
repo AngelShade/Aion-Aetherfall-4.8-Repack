@@ -24,7 +24,8 @@ import com.aionemu.gameserver.utils.chathandlers.AdminCommand;
 public class Fsc extends AdminCommand {
 
 	public Fsc() {
-		super("fsc");
+		super("fsc", "Send a custom packet.",
+			"<packet ID> <format> <data...> - Send the packet using the specified field format.");
 	}
 
 	@Override
@@ -45,10 +46,5 @@ public class Fsc extends AdminCommand {
 			i++;
 		}
 		PacketSendUtility.sendPacket(player, packet);
-	}
-
-	@Override
-	public void info(Player player, String message) {
-		PacketSendUtility.sendMessage(player, "Incorrent number of params in //fsc command");
 	}
 }

@@ -71,6 +71,7 @@ public final class PlayerBotAppearance {
  }
  public static String configure(PlayerBotSession s,int sourceObject,int targetObject,boolean reset) {
   if(!enabled())throw new IllegalArgumentException("Companion outfit customization is not enabled.");
+  s.requirePrivateCompanion();
   synchronized(s) {
    if(!ready(s))throw new IllegalArgumentException("Change appearances while your companion is alive and out of combat, after trade or item use finishes.");
    Item target=target(s,targetObject);int skinId=0;

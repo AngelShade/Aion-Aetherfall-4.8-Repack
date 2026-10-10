@@ -27,6 +27,8 @@ public final class PlayerBotTrade {
  private static final ThreadLocal<Player> FINISHING=new ThreadLocal<>();
  private static final Map<Integer,Set<Integer>> RECEIVED=new ConcurrentHashMap<>();
  private static final Map<Integer,Long> STARTED=new ConcurrentHashMap<>();
+ /** Decision already owns the actor monitor; native cancellation must not re-enter service -> actor guards. */
+ static void cancelFromAi(Player bot) {boolean prior=INSIDE.get();INSIDE.set(true);try{ExchangeService.getInstance().cancelExchange(bot);}finally{if(prior)INSIDE.set(true);else INSIDE.remove();}}
  static PlayerBotSession session(Player owner,Player bot) {
   if(owner==null || bot==null || !bot.isPlayerBot() || bot.getPlayerBotOwnerId()!=owner.getObjectId())return null;
   return PlayerBotService.getInstance().companions(owner).stream().filter(s->s.bot()==bot && !s.closing()).findFirst().orElse(null);
@@ -35,13 +37,14 @@ public final class PlayerBotTrade {
   return owner!=null && bot!=null && owner.isOnline() && bot.isPlaying() && owner.isSpawned() && bot.isSpawned()
    && !owner.isDead() && !bot.isDead() && !owner.isInAnyHide() && !bot.isInAnyHide()
    && owner.getWorldId()==bot.getWorldId() && owner.getInstanceId()==bot.getInstanceId() && owner.getRace()==bot.getRace()
-   && owner.getPlayerGroup()!=null && owner.getPlayerGroup()==bot.getPlayerGroup()
+   && PlayerBotTeams.same(owner,bot)
    && !owner.getController().isInCombat() && !bot.getController().isInCombat() && PositionUtil.isInRange(owner,bot,5)
    && !GameServer.isShuttingDownSoon();
  }
  public static boolean request(Player owner,Player bot) {
   if(!bot.isPlayerBot())return false;
-  synchronized(PlayerBotService.getInstance()) {
+  if(bot.isWorldBot())return PlayerBotWorldTrade.request(owner,bot);
+  {
    PlayerBotSession s=session(owner,bot);
    if(s==null){PacketSendUtility.sendMessage(owner,"You can trade only with your own active companion.");return true;}
    synchronized(s) {
@@ -56,6 +59,7 @@ public final class PlayerBotTrade {
   return true;
  }
  public static boolean participants(Player a,Player b) {
+  if(a.isWorldBot() || b.isWorldBot())return PlayerBotWorldTrade.participants(a,b);
   Player owner=a.isPlayerBot()?b:a,bot=a.isPlayerBot()?a:b;
   return session(owner,bot)!=null && ready(owner,bot) && !a.isTrading() && !b.isTrading();
  }
@@ -67,14 +71,16 @@ public final class PlayerBotTrade {
  }
  /** Native packets already hold the client monitor. AI callbacks must never acquire it under the service lock. */
  public static boolean guard(Player player,String operation,int object,long count) {
-  if(player==null || INSIDE.get())return false;
+  if(player==null || INSIDE.get() || PlayerBotWorldTrade.inside())return false;
+  if(PlayerBotWorldTrade.handles(player))return PlayerBotWorldTrade.guard(player,operation,object,count);
   Exchange other=ExchangeService.getInstance().getCurrentParnterExchange(player);
   if(!player.isPlayerBot() && (other==null || !other.getActiveplayer().isPlayerBot()))return false;
-  synchronized(PlayerBotService.getInstance()) {
+  {
    PlayerBotSession s=trading(player);if(s==null) {
     INSIDE.set(true);try{ExchangeService.getInstance().cancelExchange(player);}finally{INSIDE.remove();}return true;
    }
    synchronized(s) {
+    if(!PlayerBotService.getInstance().current(s)){cancelFromAi(s.bot());return true;}
     INSIDE.set(true);
     try {
      var service=ExchangeService.getInstance();
@@ -90,6 +96,7 @@ public final class PlayerBotTrade {
   return true;
  }
  public static void locked(Player player) {
+  if(PlayerBotWorldTrade.handles(player)){PlayerBotWorldTrade.locked(player);return;}
   PlayerBotSession s=trading(player);if(s!=null && player==s.owner())ExchangeService.getInstance().lockExchange(s.bot());
  }
  static boolean rights(Player owner,Player bot,Item item) {
@@ -98,6 +105,7 @@ public final class PlayerBotTrade {
    || item.isLegionTradeable() && owner.getLegion()!=null && owner.getLegion().equals(bot.getLegion()));
  }
  public static boolean confirm(Player owner) {
+  if(PlayerBotWorldTrade.handles(owner))return PlayerBotWorldTrade.confirm(owner);
   PlayerBotSession s=trading(owner);if(s==null)return owner!=null && owner.isPlayerBot();
   if(owner!=s.owner())return true;
   var service=ExchangeService.getInstance();Exchange botOffer=service.getCurrentParnterExchange(owner),offer=service.getCurrentParnterExchange(s.bot());
@@ -182,16 +190,17 @@ public final class PlayerBotTrade {
   if(ids.isEmpty())RECEIVED.remove(bot.getObjectId());
  }
  static boolean tick(PlayerBotSession s) {
+  if(s.world())return PlayerBotWorldTrade.tick(s);
   if(s.bot().isTrading()) {
-   if(!ready(s.owner(),s.bot()) || System.currentTimeMillis()-STARTED.getOrDefault(s.bot().getObjectId(),0L)>120000)ExchangeService.getInstance().cancelExchange(s.bot());
+   if(!ready(s.owner(),s.bot()) || System.currentTimeMillis()-STARTED.getOrDefault(s.bot().getObjectId(),0L)>120000)cancelFromAi(s.bot());
    return s.bot().isTrading();
   }
   equip(s);
   Set<Integer> pending=RECEIVED.get(s.bot().getObjectId());
   return pending!=null && !pending.isEmpty() && s.bot().getController().hasScheduledTask(com.aionemu.gameserver.model.TaskId.ITEM_USE);
  }
- public static void closed(Player player) {STARTED.remove(player.getObjectId());}
- public static boolean finishing(Player player) {return player!=null && FINISHING.get()==player;}
- static void close(PlayerBotSession s) {ExchangeService.getInstance().cancelExchange(s.bot());STARTED.remove(s.bot().getObjectId());RECEIVED.remove(s.bot().getObjectId());}
+ public static void closed(Player player) {PlayerBotWorldTrade.closed(player);STARTED.remove(player.getObjectId());}
+ public static boolean finishing(Player player) {return player!=null && (FINISHING.get()==player || PlayerBotWorldTrade.finishing(player));}
+ static void close(PlayerBotSession s) {cancelFromAi(s.bot());STARTED.remove(s.bot().getObjectId());RECEIVED.remove(s.bot().getObjectId());}
  private PlayerBotTrade() {}
 }

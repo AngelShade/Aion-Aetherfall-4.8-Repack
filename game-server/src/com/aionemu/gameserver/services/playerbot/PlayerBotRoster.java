@@ -35,16 +35,73 @@ public final class PlayerBotRoster {
 	}
 
 	public static List<Entry> list(int account) {
-		if (!available()) return List.of();
-		List<Entry> result = new ArrayList<>();
-		try (Connection connection = DatabaseFactory.getConnection(); PreparedStatement statement = connection.prepareStatement(
-			"SELECT b.player_id,p.name,b.ready FROM playerbot_roster b LEFT JOIN players p ON p.id=b.player_id WHERE b.account_id=? ORDER BY b.player_id")) {
-			statement.setInt(1, account);
-			try (ResultSet rows = statement.executeQuery()) {
-				while (rows.next()) result.add(new Entry(rows.getInt(1), rows.getString(2), rows.getBoolean(3)));
+		return lists(List.of(account)).getOrDefault(account, List.of());
+	}
+	/** Bounded native XP snapshot only for identities already verified by the joined roster query. */
+	static Map<Integer,Integer> populationLevels(Collection<Integer> characters) {
+		if(characters.isEmpty())return Map.of();
+		try(Connection connection=DatabaseFactory.getConnection()) {
+			return populationLevels(connection,characters,exp->com.aionemu.gameserver.dataholders.DataManager.PLAYER_EXPERIENCE_TABLE.getLevelForExp(exp));
+		}catch(SQLException e){throw new IllegalStateException("Cannot read saved population levels; no identities rerolled",e);}
+	}
+	static Map<Integer,Integer> populationLevels(Connection connection,Collection<Integer> characters,java.util.function.LongToIntFunction level)throws SQLException {
+		var ids=new ArrayList<>(new TreeSet<>(characters));var result=new HashMap<Integer,Integer>();
+		if(ids.stream().anyMatch(id->id<=0) || ids.size()>PlayerBotPopulationPolicy.MAX_RESERVE)throw new IllegalArgumentException("Invalid population identity snapshot");
+		for(int start=0;start<ids.size();start+=1024) {
+			var chunk=ids.subList(start,Math.min(ids.size(),start+1024));
+			try(var statement=connection.prepareStatement("SELECT id,exp FROM players WHERE id IN ("+String.join(",",Collections.nCopies(chunk.size(),"?"))+")")) {
+				for(int i=0;i<chunk.size();i++)statement.setInt(i+1,chunk.get(i));
+				try(var rows=statement.executeQuery()){while(rows.next()) {
+					int id=rows.getInt(1),value=level.applyAsInt(rows.getLong(2));
+					if(!chunk.contains(id) || value<1 || value>65 || result.putIfAbsent(id,value)!=null)throw new SQLException("Invalid population XP snapshot");
+				}}
 			}
-			return PlayerBotRosterRemoval.visible(account,result);
+		}
+		return Map.copyOf(result);
+	}
+
+	/** Fresh, account-scoped visibility snapshot. Archive checks share the same query as roster ownership. */
+	public static Map<Integer, List<Entry>> lists(Collection<Integer> accounts) {
+		if (accounts.isEmpty() || !available()) return Map.of();
+		try (Connection connection = DatabaseFactory.getConnection()) {
+			return lists(connection, accounts);
 		} catch (SQLException e) { throw new IllegalStateException("Cannot read generated companion roster", e); }
+	}
+
+	static Map<Integer, List<Entry>> lists(Connection connection, Collection<Integer> accounts) throws SQLException {
+		var requested = new TreeSet<>(accounts);
+		if (requested.isEmpty()) return Map.of();
+		if (requested.size() > 4096 || requested.stream().anyMatch(a -> !PlayerBotMetadata.validAccount(a)))
+			throw new IllegalArgumentException("Invalid companion roster accounts");
+		var result = new LinkedHashMap<Integer, List<Entry>>();
+		requested.forEach(a -> result.put(a, new ArrayList<>()));
+		var identities = new HashSet<Integer>();
+		String placeholders = String.join(",", Collections.nCopies(requested.size(), "?"));
+		try (PreparedStatement statement = connection.prepareStatement(
+			"SELECT b.account_id,b.player_id,p.name,b.ready,r.account_id,r.document FROM playerbot_roster b "
+			+ "LEFT JOIN players p ON p.id=b.player_id LEFT JOIN playerbot_removed r ON r.player_id=b.player_id "
+			+ "WHERE b.account_id IN (" + placeholders + ") ORDER BY b.account_id,b.player_id")) {
+			int index = 0;
+			for (int account : requested) statement.setInt(++index, account);
+			try (ResultSet rows = statement.executeQuery()) {
+				while (rows.next()) {
+					int account = rows.getInt(1), id = rows.getInt(2);
+					if (!requested.contains(account) || id <= 0 || !identities.add(id))
+						throw new SQLException("Invalid companion roster identity");
+					String marker = rows.getString(6);
+					if (rows.getObject(5) != null) {
+						if (rows.getInt(5) != account || marker == null) throw new SQLException("Invalid archived companion owner");
+						try { PlayerBotRepository.validateMarker(account, id, marker); }
+						catch (java.io.IOException e) { throw new SQLException("Invalid archived companion marker", e); }
+					} else {
+						if (marker != null) throw new SQLException("Archived companion lacks an owner");
+						result.get(account).add(new Entry(id, rows.getString(3), rows.getBoolean(4)));
+					}
+				}
+			}
+		}
+		result.replaceAll((account, entries) -> List.copyOf(entries));
+		return Collections.unmodifiableMap(result);
 	}
 
 	static boolean contains(int character) {

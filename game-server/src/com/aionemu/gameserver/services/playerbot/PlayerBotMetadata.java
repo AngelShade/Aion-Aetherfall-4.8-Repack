@@ -21,9 +21,10 @@ public final class PlayerBotMetadata {
  private static final Map<Key,Entry> CACHE=new HashMap<>();
  static Map<String,String> values(Properties p){var map=new TreeMap<String,String>();for(String key:p.stringPropertyNames())map.put(key,p.getProperty(key));return Map.copyOf(map);}
  static Properties properties(Map<String,String> map){var p=new Properties();p.putAll(map);return p;}
+ public static boolean validAccount(int account){return PlayerBotPopulationPolicy.account(account);}
  public static void validate(int account,int character,String section,Map<String,String> map)throws IOException {
   try {
-   if(account<=0 || character<=0 || !Set.of("care","gear","preferences","behavior","formation","spacing","party-rewards").contains(section))throw new IllegalArgumentException("Invalid section/owner");
+   if(!validAccount(account) || character<=0 || !Set.of("care","gear","preferences","behavior","formation","spacing","party-rewards").contains(section))throw new IllegalArgumentException("Invalid section/owner");
    if(Integer.parseInt(map.get("account"))!=account || Integer.parseInt(map.get("character"))!=character)throw new IllegalArgumentException("Owner mismatch");
    if(section.equals("care")) {
     for(String key:List.of("enchant","salvage","partySync"))if(map.containsKey(key) && !Set.of("true","false").contains(map.get(key)))throw new IllegalArgumentException("Invalid care flag");

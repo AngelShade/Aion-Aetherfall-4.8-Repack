@@ -37,6 +37,7 @@ public final class PlayerBotTravelFormationCheck {
   @Override public boolean isCasting(){return casting;}@Override public boolean isTrading(){return trading;}@Override public boolean isLooting(){return looting;}
   @Override public float getX(){return 0;}@Override public float getY(){return 0;}@Override public float getZ(){return 0;}@Override public byte getHeading(){return 0;}
   @Override public PlayerController getController(){return tasks;}@Override public PlayerGroup getPlayerGroup(){return group;}
+  @Override public boolean isInGroup(){return group!=null;}
   @Override public WorldMapInstance getWorldMapInstance(){return map;}@Override public PlayerBotMoveController getMoveController(){return mover;}
  }
  static Actor actor(int id)throws Exception{

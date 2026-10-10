@@ -50,7 +50,7 @@ public class PlayerLeaveWorldService {
 	 * rescheduled.
 	 */
 	public static void registerLeaveWorld(Player player) {
-		com.aionemu.gameserver.services.playerbot.PlayerBotService.getInstance().dismissAll(player);
+		com.aionemu.gameserver.services.playerbot.PlayerBotService.getInstance().controllerLogout(player);
 		long lastActionTimeMillis = Math.max(player.getMoveController().getLastMoveUpdate(), player.getController().getLastCombatTime());
 		long millisSinceLastPlayerAction = System.currentTimeMillis() - lastActionTimeMillis;
 		long waitTimeMillis = Duration.ofSeconds(10).toMillis();

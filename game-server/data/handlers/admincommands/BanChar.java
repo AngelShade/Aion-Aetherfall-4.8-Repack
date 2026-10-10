@@ -14,13 +14,14 @@ import com.aionemu.gameserver.world.World;
 public class BanChar extends AdminCommand {
 
 	public BanChar() {
-		super("banchar");
+		super("banchar", "Ban a character.",
+			"<playername> <days> <reason> - Ban the character; use 0 days for permanent.\nThe current day counts as a whole day even if only a few hours remain.");
 	}
 
 	@Override
 	public void execute(Player admin, String... params) {
 		if (params == null || params.length < 3) {
-			sendInfo(admin, true);
+			sendInfo(admin);
 			return;
 		}
 
@@ -39,7 +40,7 @@ public class BanChar extends AdminCommand {
 		// Third, fail
 		if (playerId == 0) {
 			PacketSendUtility.sendMessage(admin, "Player " + playerName + " was not found!");
-			sendInfo(admin, true);
+			sendInfo(admin);
 			return;
 		}
 
@@ -48,13 +49,13 @@ public class BanChar extends AdminCommand {
 			dayCount = Integer.parseInt(params[1]);
 		} catch (NumberFormatException e) {
 			PacketSendUtility.sendMessage(admin, "Second parameter is not an int");
-			sendInfo(admin, true);
+			sendInfo(admin);
 			return;
 		}
 
 		if (dayCount < 0) {
 			PacketSendUtility.sendMessage(admin, "Second parameter has to be a positive daycount or 0 for infinity");
-			sendInfo(admin, true);
+			sendInfo(admin);
 			return;
 		}
 
@@ -65,16 +66,5 @@ public class BanChar extends AdminCommand {
 		PacketSendUtility.sendMessage(admin, "Char " + playerName + " is now banned for the next " + dayCount + " days!");
 
 		PunishmentService.banChar(playerId, dayCount, reason);
-	}
-
-	@Override
-	public void info(Player player, String message) {
-		sendInfo(player, false);
-	}
-
-	private void sendInfo(Player player, boolean withNote) {
-		PacketSendUtility.sendMessage(player, "Syntax: //banChar <playername> <days>/0 (for permanent) <reason>");
-		if (withNote)
-			PacketSendUtility.sendMessage(player, "Note: the current day is defined as a whole day even if it has just a few hours left!");
 	}
 }

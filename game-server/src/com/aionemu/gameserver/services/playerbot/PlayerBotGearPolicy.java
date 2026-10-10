@@ -56,6 +56,13 @@ public final class PlayerBotGearPolicy {
   long next;
   State(PlayerBotSession session) {
    this.session=session;
+   if(session.world()) {
+    settings=new Settings(Mode.EARNED,Profile.AUTO,ItemQuality.LEGEND,0,1.1,"AUTO",true,Rolls.UPGRADES);
+    try {var p=PlayerBotMetadata.load(session.bot().getAccount().getId(),session.bot().getObjectId(),"gear",path());
+     for(String id:p.getProperty("generated","").split(","))if(!id.isBlank())generated.add(Integer.parseInt(id));
+    }catch(Exception e){throw new IllegalStateException("Cannot load world gear provenance",e);}
+    return;
+   }
    try {
     Properties p=PlayerBotMetadata.load(session.owner().getAccount().getId(),session.bot().getObjectId(),"gear",path());
     if(!p.isEmpty()) {
@@ -69,6 +76,7 @@ public final class PlayerBotGearPolicy {
   }
   Path path(){return Path.of("config","playerbots","gear-character-"+session.bot().getObjectId()+".properties");}
   void save() {
+   if(session.world())return;
    Properties p=new Properties();p.setProperty("account",Integer.toString(session.owner().getAccount().getId()));p.setProperty("character",Integer.toString(session.bot().getObjectId()));
    Settings s=settings;p.setProperty("mode",s.mode.name());p.setProperty("profile",s.profile.name());p.setProperty("quality",s.quality.name());p.setProperty("level",Integer.toString(s.level));
    p.setProperty("threshold",Double.toString(s.threshold));p.setProperty("weapon",s.weapon);p.setProperty("vendors",Boolean.toString(s.vendors));p.setProperty("rolls",s.rolls.name());

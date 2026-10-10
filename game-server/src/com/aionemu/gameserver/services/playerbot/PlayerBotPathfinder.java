@@ -17,10 +17,12 @@ final class PlayerBotPathfinder {
 		long sequence = 0;
 		open.add(new Node(startCell, start, null, 0, distance(start, goal), sequence++)); best.put(startCell, 0.0);
 		int visited = 0;
+		Node frontier = null;
 		while (!open.isEmpty() && visited < budget && !expired.getAsBoolean()) {
 			Node current = open.remove();
 			if (current.cost() > best.getOrDefault(current.cell(), Double.POSITIVE_INFINITY)) continue;
 			visited++;
+			if (current.parent() != null && (frontier == null || distance(current.point(), goal) < distance(frontier.point(), goal))) frontier = current;
 			if (distance(current.point(), goal) <= 3) {
 				Point end = ground.step(current.point(), goal.x(), goal.y());
 				if (validEdge(current.point(), end, goal.x(), goal.y()) && distance(end, goal) < 1) {
@@ -42,6 +44,13 @@ final class PlayerBotPathfinder {
 				best.put(cell, cost);
 				open.add(new Node(cell, point, current, cost, cost + distance(point, goal), sequence++));
 			}
+		}
+		// The world goal can lie beyond this bounded local grid. Retain only probed
+		// walking edges; navigation continues planning toward the original goal.
+		if (distance(start, goal) > 24 && frontier != null && distance(frontier.point(), goal) < distance(start, goal) - 1) {
+			var route = new ArrayList<Point>();
+			for (Node n = frontier; n.parent() != null; n = n.parent()) route.add(n.point());
+			Collections.reverse(route); return List.copyOf(route);
 		}
 		return List.of();
 	}

@@ -34,6 +34,11 @@ public class DebugService {
 			// Check connection
 			AionConnection connection = player.getClientConnection();
 			if (connection == null) {
+				if(player.isPlayerBot()) {
+					String health=com.aionemu.gameserver.services.playerbot.PlayerBotService.getInstance().headlessHealth(player);
+					if(health!=null)log.warn("[DEBUG SERVICE] Headless actor {}: {}",player,health);
+					continue;
+				}
 				log.warn("[DEBUG SERVICE] Found {} without connection: Spawned {}", player, player.isSpawned());
 				continue;
 			}

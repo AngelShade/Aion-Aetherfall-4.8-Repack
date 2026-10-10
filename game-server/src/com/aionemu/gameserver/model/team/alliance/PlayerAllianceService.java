@@ -57,6 +57,7 @@ public class PlayerAllianceService {
 			}
 
 			PlayerAllianceInvite invite = new PlayerAllianceInvite(inviter);
+			if(com.aionemu.gameserver.services.playerbot.PlayerBotService.getInstance().inviteWorldBot(inviter,invited,invite))return;
 			if (invited.getResponseRequester().putRequest(SM_QUESTION_WINDOW.STR_PARTY_ALLIANCE_DO_YOU_ACCEPT_HIS_INVITATION, invite)) {
 				PacketSendUtility.sendPacket(invited,
 					new SM_QUESTION_WINDOW(SM_QUESTION_WINDOW.STR_PARTY_ALLIANCE_DO_YOU_ACCEPT_HIS_INVITATION, 0, 0, inviter.getName()));

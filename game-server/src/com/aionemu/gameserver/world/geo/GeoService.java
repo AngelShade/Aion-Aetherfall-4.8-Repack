@@ -67,6 +67,9 @@ public class GeoService implements GameEngine {
 	public float getZ(int worldId, float x, float y, float zMax, float zMin, int instanceId) {
 		return geoMaps.get(worldId).getZ(x, y, zMax, zMin, instanceId);
 	}
+	public boolean isPlayerBotLanding(int worldId,int instanceId,float x,float y,float z) {
+		return com.aionemu.gameserver.services.playerbot.PlayerBotGroundNavigation.landing(geoMaps.get(worldId),instanceId,x,y,z);
+	}
 
 	public CollisionResults getCollisions(VisibleObject object, float x, float y, float z, byte intentions, IgnoreProperties ignoreProperties) {
 		return geoMaps.get(object.getWorldId()).getCollisions(object.getX(), object.getY(), object.getZ() + getSeeCheckOffset(object), x, y, z,

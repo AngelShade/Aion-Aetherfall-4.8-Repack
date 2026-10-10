@@ -40,7 +40,7 @@ public final class PlayerBotHttpService {
 			if (player == null || !player.isOnline() || player.isPlayerBot()) { send(exchange, 403, "application/json", JSON.toJSONString(Map.of("error", "Log in and reopen Companions from Additional Functions."))); return; }
 			String notice = "";
 			var service = PlayerBotService.getInstance();
-			synchronized (service) {
+			synchronized (player) {
 				if (mutation) {
 					String origin = exchange.getRequestHeaders().getFirst("Origin"), host = exchange.getRequestHeaders().getFirst("Host");
 					if (origin != null && !origin.equals("http://" + host)) throw new IllegalArgumentException("Reopen Companions to continue.");
@@ -80,16 +80,21 @@ public final class PlayerBotHttpService {
 	}
 	private static Map<String, Object> snapshot(Player owner) {
 		Map<String, Object> state = new LinkedHashMap<>();
-		state.put("owner", owner.getName()); state.put("ownerLevel", owner.getLevel()); state.put("levelDifference", PlayerBotConfig.LEVEL_DIFFERENCE); state.put("enabled", PlayerBotConfig.ENABLED); state.put("limit", Math.min(5, PlayerBotConfig.MAX_PER_OWNER));
+		state.put("owner", owner.getName()); state.put("ownerLevel", owner.getLevel()); state.put("levelDifference", PlayerBotConfig.LEVEL_DIFFERENCE); state.put("enabled", PlayerBotConfig.ENABLED); state.put("limit", PlayerBotRaidPolicy.limit());
 		state.put("generatedEnabled", PlayerBotConfig.GENERATED_ENABLED);
 		state.put("active", PlayerBotService.getInstance().companions(owner).stream().map(PlayerBotSession::snapshot).toList());
+		state.put("recruitRemaining", PlayerBotRaidPolicy.remaining(owner, PlayerBotService.getInstance().companions(owner).size(), PlayerBotService.getInstance().companionCount()));
+		state.put("teamKind", owner.isInAlliance() ? "Alliance" : "Party");
 		List<Map<String, Object>> roster = new ArrayList<>();
 		for (var data : owner.getAccount().getPlayerAccDataList()) {
 			var character = data.getPlayerCommonData();
 			if (character.getPlayerObjId() != owner.getObjectId()) roster.add(Map.of("name", character.getName(), "id", character.getPlayerObjId(), "level", character.getLevel(),
 				"playerClass", character.getPlayerClass().name(), "reserved", PlayerBotLease.isReserved(character.getPlayerObjId()), "generated", false, "ready", true));
 		}
-		for (var data : PlayerBotRoster.list(owner.getAccount().getId())) roster.add(Map.of("name", data.name() == null ? "Pending companion " + data.id() : data.name(), "id", data.id(),
+		var generated = PlayerBotRoster.list(owner.getAccount().getId());
+		state.put("generatedCount", generated.size());
+		state.put("generatedLimit", PlayerBotCreationPolicy.limit());
+		for (var data : generated) roster.add(Map.of("name", data.name() == null ? "Pending companion " + data.id() : data.name(), "id", data.id(),
 			"reserved", PlayerBotLease.isReserved(data.id()), "generated", true, "ready", data.ready()));
 		state.put("roster", roster);
 		state.putAll(PlayerBotPresets.snapshot(owner));
@@ -147,6 +152,9 @@ public final class PlayerBotHttpService {
 			case "role" -> service.find(owner, name).setRole(Role.valueOf(values.getOrDefault("role", "").toUpperCase(Locale.ROOT)));
 			case "mission" -> service.find(owner, name).mission(Integer.parseInt(values.getOrDefault("quest", "0")));
 			case "equip" -> service.find(owner, name).equip(Integer.parseInt(values.getOrDefault("item", "0")), com.aionemu.gameserver.model.items.ItemSlot.valueOf(values.getOrDefault("slot", "")));
+			case "legiondeposit" -> {return com.aionemu.gameserver.services.playerbot.PlayerBotLegionStorage.deposit(owner,name,Integer.parseInt(values.getOrDefault("item","0")));}
+            case "bankdeposit", "bankwithdraw" -> { return PlayerBotWarehouse.move(owner,name,op.equals("bankdeposit"),Integer.parseInt(values.getOrDefault("item","0"))); }
+			case "maillist", "mailread", "mailtake", "maildelete", "mailsenditem", "mailsendkinah" -> {return PlayerBotMail.request(owner,name,op.substring(4),Integer.parseInt(values.getOrDefault("object","0")),Long.parseLong(values.getOrDefault("kinah","0")));}
 			case "appearance", "resetappearance" -> { return PlayerBotAppearance.configure(service.find(owner,name),Integer.parseInt(values.getOrDefault("item","0")),Integer.parseInt(values.getOrDefault("target","0")),op.equals("resetappearance")); }
 			default -> throw new IllegalArgumentException("Unknown companion action.");
 		}

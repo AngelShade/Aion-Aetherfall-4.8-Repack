@@ -12,13 +12,14 @@ import com.aionemu.gameserver.utils.chathandlers.ConsoleCommand;
 public class Givetitle extends ConsoleCommand {
 
 	public Givetitle() {
-		super("givetitle");
+		super("givetitle", "Give a player title.",
+			"<title ID> - Add the specified title.");
 	}
 
 	@Override
 	public void execute(Player admin, String... params) {
 		if (params.length < 1) {
-			info(admin, null);
+			sendInfo(admin);
 			return;
 		}
 
@@ -39,11 +40,6 @@ public class Givetitle extends ConsoleCommand {
 		if (titleId <= 263)
 			setTitle(player, titleId);
 		PacketSendUtility.sendMessage(admin, "Added " + titleId + " to" + player.getCommonData().getName());
-	}
-
-	@Override
-	public void info(Player admin, String message) {
-		PacketSendUtility.sendMessage(admin, "syntax ///addskill <named name>");
 	}
 
 	private void setTitle(Player player, int value) {

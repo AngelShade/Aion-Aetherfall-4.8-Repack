@@ -78,6 +78,9 @@ public class LegionMember {
 
 	public void setPlayerData(Player player) {
 		setPlayerData(player.getCommonData());
+		// Client presence stays separate from a native headless actor's world residency.
+		if (player.isPlayerBot())
+			online = player.isSpawned();
 	}
 
 	public void setPlayerData(PlayerCommonData playerCommonData) {

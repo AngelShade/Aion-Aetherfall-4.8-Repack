@@ -54,6 +54,8 @@ public class PeriodicSaveService {
 			long startTime = System.currentTimeMillis();
 			int legionWhUpdated = 0;
 			for (Legion legion : LegionService.getInstance().getCachedLegions()) {
+                synchronized (com.aionemu.gameserver.model.team.legion.LegionWarehouse.CUSTODY_LOCK) {
+                if (com.aionemu.gameserver.model.team.legion.LegionWarehouse.custodyHeld(legion.getLegionId())) { log.error("Legion {} custody held; save refused",legion.getLegionId()); continue; }
 				List<Item> allItems = legion.getLegionWarehouse().getItemsWithKinah();
 				allItems.addAll(legion.getLegionWarehouse().getDeletedItems());
 				try {
@@ -66,6 +68,7 @@ public class PeriodicSaveService {
 				}
 
 				legionWhUpdated++;
+                }
 			}
 			long workTime = System.currentTimeMillis() - startTime;
 			log.info("Legion WH update: " + workTime + " ms, legions: " + legionWhUpdated + ".");

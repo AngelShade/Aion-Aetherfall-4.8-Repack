@@ -9,6 +9,7 @@ import struct
 import sys
 import zipfile
 import os
+import importlib
 
 HERE=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(HERE/'expanded-warehouse'))
@@ -21,6 +22,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--client',type=Path,required=True);parser.add_argument('--server',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
+    parser.add_argument('--population-config-review',type=Path,help='Exact backed-up review of existing user population-limit edits')
     args=parser.parse_args();client=args.client.resolve();server=args.server.resolve()
     hashes={}
     def sha(path):
@@ -150,10 +152,20 @@ def main():
     source_receipts=sorted(archive_root.glob('playerbots-source-build-*/manifest.json'),key=lambda p:p.parent.name)
     if source_receipts and (source_receipts[-1].parent/'installed.json').exists():
         source_build=read(source_receipts[-1])
+        protected=source_build['guardFiles']
+        config_guards=[e for e in protected if e['path']=='config/main/playerbots.properties']
+        if len(config_guards)==1 and sha(server/config_guards[0]['path'])!=config_guards[0]['installed']:
+            sys.path.insert(0,str(HERE.parent/'tools'))
+            documentation=importlib.import_module('configure-playerbot-field').verified_receipt(server,archive_root,config_guards[0]['installed'])
+            if documentation is None and args.population_config_review:
+                documentation=importlib.import_module('review-playerbot-population-config').verified(args.population_config_review.resolve(),server,config_guards[0]['installed'])
+            if documentation is None:
+                documentation=importlib.import_module('document-playerbot-config').verified_receipt(server,archive_root)
+            protected=[dict(e,installed=documentation['installed']) if e['path']==documentation['path'] else e for e in protected]
         checks['component_builder_output_and_launcher']=(source_build['feature'] in {'playerbots-source-build-spiritmaster', 'playerbots-source-build'}
             and all(sha(server/e['path'])==e['installed'] for e in source_build['files'])
             and all(not (server/path).exists() for path in source_build['retiredFiles'])
-            and all(sha(server/e['path'])==e['installed'] for e in source_build['guardFiles'])
+            and all(sha(server/e['path'])==e['installed'] for e in protected)
             and b'-cp "libs/*"' in (server/'start.bat').read_bytes())
         checks['saendukal_strong_protection_classes']=bool(source_build['classComparison']) and source_build['fullRuntimeLinkage'].startswith('OK: ')
         with zipfile.ZipFile(jar) as archive:

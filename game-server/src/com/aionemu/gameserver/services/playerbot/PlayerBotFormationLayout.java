@@ -57,13 +57,15 @@ public final class PlayerBotFormationLayout {
         return true;
     }
     static PlayerBotNavigation.Point point(float x, float y, float z, double heading, int slot, int count, String formation) {
-        if (count < 1 || count > 5 || slot < 0 || slot >= count) throw new IllegalArgumentException("Invalid party formation slot");
+        if (count < 1 || count > PlayerBotRaidPolicy.MAX_COMPANIONS || slot < 0 || slot >= count) throw new IllegalArgumentException("Invalid party/alliance formation slot");
         parse(formation);
         double front, side;
         if (formation.equals("line")) {
+            int row = count > 5 ? slot / 5 : 0;
+            int column = count > 5 ? slot % 5 : slot;
             // The first slot is the party's front; remaining members form its wings.
-            if (slot == 0) { front = 3.4; side = 0; }
-            else { front = 0; side = ((slot - 1) % 2 == 0 ? -1 : 1) * 3.4 * ((slot - 1) / 2 + 1); }
+            if (column == 0) { front = row == 0 ? 3.4 : -3.4 * row; side = 0; }
+            else { front = -3.4 * row; side = ((column - 1) % 2 == 0 ? -1 : 1) * 3.4 * ((column - 1) / 2 + 1); }
         } else {
             double angle = (formation.equals("box") ? -Math.PI / 4 : 0) + slot * Math.PI * 2 / count;
             double radius = formation.equals("spread") ? 6 : 3.8;
@@ -82,6 +84,14 @@ public final class PlayerBotFormationLayout {
         int slot = ids.indexOf(bot.getObjectId());
         if (slot < 0) { ids = List.of(bot.getObjectId()); slot = 0; }
         return PlayerBotSpacing.formation(owner,bot,point(owner.getX(), owner.getY(), owner.getZ(), heading, slot, ids.size(), selected(owner.getAccount().getId(), owner.getObjectId())));
+    }
+    static double lineExtent(int count) {
+        double radius = 0;
+        for (int slot = 0; slot < count; slot++) {
+            var p = point(0, 0, 0, 0, slot, count, "line");
+            radius = Math.max(radius, Math.hypot(p.x(), p.y()));
+        }
+        return radius;
     }
     private PlayerBotFormationLayout() {}
 }

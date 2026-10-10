@@ -11,7 +11,8 @@ import com.aionemu.gameserver.utils.chathandlers.AdminCommand;
 public class BanIp extends AdminCommand {
 
 	public BanIp() {
-		super("banip");
+		super("banip", "Ban an IP address mask.",
+			"<mask> [time in minutes] - Ban the specified address mask.");
 	}
 
 	@Override
@@ -28,7 +29,7 @@ public class BanIp extends AdminCommand {
 			try {
 				time = Integer.parseInt(params[1]);
 			} catch (NumberFormatException e) {
-				info(player, e.getMessage());
+				sendInfo(player);
 				return;
 			}
 		}
@@ -37,10 +38,5 @@ public class BanIp extends AdminCommand {
 		}
 
 		LoginServer.getInstance().sendBanPacket((byte) 2, 0, mask, time, player.getObjectId());
-	}
-
-	@Override
-	public void info(Player player, String message) {
-		PacketSendUtility.sendMessage(player, "Syntax: //banip <mask> [time in minutes]");
 	}
 }

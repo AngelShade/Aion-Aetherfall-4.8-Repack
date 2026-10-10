@@ -13,7 +13,8 @@ import com.aionemu.gameserver.world.World;
 public class AddCube extends AdminCommand {
 
 	public AddCube() {
-		super("addcube");
+		super("addcube", "Expand a player cube.",
+			"<player name> - Add one cube expansion.");
 	}
 
 	@Override
@@ -42,10 +43,5 @@ public class AddCube extends AdminCommand {
 				+ "!\nReason: player cube already fully expanded.");
 			return;
 		}
-	}
-
-	@Override
-	public void info(Player admin, String message) {
-		PacketSendUtility.sendMessage(admin, "Syntax: //addcube <player name>");
 	}
 }

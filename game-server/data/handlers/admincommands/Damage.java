@@ -17,13 +17,14 @@ import com.aionemu.gameserver.utils.chathandlers.AdminCommand;
 public class Damage extends AdminCommand {
 
 	public Damage() {
-		super("damage");
+		super("damage", "Apply damage to the selected target.",
+			"[mp|fp|dp] <dmg|dmg%> - Apply damage; omit the resource to use HP.\nDamage must be a number. FP and DP require a player target.");
 	}
 
 	@Override
 	public void execute(Player admin, String... params) {
 		if (params.length < 1 || params.length > 2) {
-			info(admin, null);
+			sendInfo(admin);
 			return;
 		}
 
@@ -45,13 +46,13 @@ public class Damage extends AdminCommand {
 
 			if (damageType.equalsIgnoreCase("fp") || damageType.equalsIgnoreCase("dp")) {
 				if (!(creature instanceof Player)) {
-					info(admin, null);
+					sendInfo(admin);
 					return;
 				}
 			}
 
 			if (!damageType.equalsIgnoreCase("hp") && params.length != 2) {
-				info(admin, null);
+				sendInfo(admin);
 				return;
 			}
 
@@ -98,15 +99,8 @@ public class Damage extends AdminCommand {
 						break;
 				}
 			} catch (Exception ex) {
-				info(admin, null);
+				sendInfo(admin);
 			}
 		}
 	}
-
-	@Override
-	public void info(Player player, String message) {
-		PacketSendUtility.sendMessage(player, "syntax //damage (mp/fp/dp) <dmg | dmg%>" + "\n<dmg> must be a number."
-			+ "\n(mp/fp/dp) is optional, leave out to use HP damage" + "\nin case of fp/dp, target must be player!");
-	}
-
 }

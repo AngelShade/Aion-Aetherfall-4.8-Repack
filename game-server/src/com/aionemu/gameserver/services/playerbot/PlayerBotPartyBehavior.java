@@ -22,7 +22,8 @@ public final class PlayerBotPartyBehavior {
   volatile Role role; volatile Order order = Order.FOLLOW; volatile boolean enabled = true;
   long nextTeleport; int sharedTarget;
   State(PlayerBotSession session) {
-   this.session=session;account=session.owner().getAccount().getId();character=session.bot().getObjectId();
+   this.session=session;account=session.bot().getAccount().getId();character=session.bot().getObjectId();
+   if(session.world())return;
    try {
     var p=PlayerBotMetadata.load(account,character,"behavior",path());
     enabled=Boolean.parseBoolean(p.getProperty("questCombat","true"));
@@ -30,6 +31,7 @@ public final class PlayerBotPartyBehavior {
   }
   Path path(){return Path.of("config","playerbots","behavior-character-"+character+".properties");}
   void save() {
+   if(session.world())return;
    try {
     var p=new Properties();p.setProperty("account",Integer.toString(account));p.setProperty("character",Integer.toString(character));p.setProperty("questCombat",Boolean.toString(enabled));
     PlayerBotMetadata.save(account,character,"behavior",p);
@@ -88,18 +90,19 @@ public final class PlayerBotPartyBehavior {
   });return safe[0];
  }
  static Npc hunt(Player owner,Player bot,int mission) {
-  State s=STATES.get(bot.getObjectId());if(s==null || !s.enabled || s.order!=Order.FOLLOW || s.role==null || owner.isDead() || owner.isFlying() || owner.getMoveController().isInMove())return null;
-  var group=owner.getPlayerGroup();if(group==null)return null;
-  boolean tank=group.getMembers().stream().anyMatch(p->{State other=STATES.get(p.getObjectId());return other!=null && other.enabled && other.role==Role.TANK && other.order==Order.FOLLOW && !p.isDead();});
+  State s=STATES.get(bot.getObjectId());if(s==null || !s.enabled || s.order!=Order.FOLLOW || s.role==null || owner.isDead() || owner.isFlying() || !s.session.autonomous() && owner.getMoveController().isInMove())return null;
+  var group=owner.getCurrentTeam();if(group==null && !s.session.autonomous())return null;
+  var members=s.session.party();
+  boolean tank=members.stream().anyMatch(p->{State other=STATES.get(p.getObjectId());return other!=null && other.enabled && other.role==Role.TANK && other.order==Order.FOLLOW && !p.isDead();});
   // One claim per party: followers assist the initiator instead of independently pulling.
   Set<Integer> required=targets(bot,mission);List<Npc> candidates=new ArrayList<>();
   owner.getKnownList().forEachNpc(npc->{
    if(npc.getWorldId()!=owner.getWorldId() || npc.getInstanceId()!=owner.getInstanceId() || !PositionUtil.isInRange(owner,npc,25) || !bot.getKnownList().sees(npc) || !GeoService.getInstance().canSee(bot,npc))return;
-   boolean claimed=group.getMembers().stream().anyMatch(p->{State other=STATES.get(p.getObjectId());return other!=null && other.sharedTarget==npc.getObjectId() && other.enabled && !p.isDead();});
+   boolean claimed=members.stream().anyMatch(p->{State other=STATES.get(p.getObjectId());return other!=null && other.sharedTarget==npc.getObjectId() && other.enabled && !p.isDead();});
    if(claimed && npc.isSpawned() && !npc.isDead() && bot.isEnemy(npc)){candidates.add(npc);return;}
-   if(PlayerBotQuestObjectives.pull(bot,npc) && canInitiate(s.role,tank) && hostileObjective(bot,npc,required) && npc.getAggroList().stream().findAny().isEmpty() && isolated(owner,bot,npc))candidates.add(npc);
+   if(PlayerBotQuestObjectives.pull(bot,npc) && (s.session.autonomous() || canInitiate(s.role,tank)) && hostileObjective(bot,npc,required) && npc.getAggroList().stream().findAny().isEmpty() && isolated(owner,bot,npc))candidates.add(npc);
   });
-  Npc chosen=candidates.stream().min(Comparator.comparingDouble(n->PositionUtil.getDistance(owner,n)-(group.getMembers().stream().anyMatch(p->{State other=STATES.get(p.getObjectId());return other!=null && other.sharedTarget==n.getObjectId() && other.enabled;}) ? 10000 : 0))).orElse(null);
+  Npc chosen=candidates.stream().min(Comparator.comparingDouble(n->PositionUtil.getDistance(owner,n)-(members.stream().anyMatch(p->{State other=STATES.get(p.getObjectId());return other!=null && other.sharedTarget==n.getObjectId() && other.enabled;}) ? 10000 : 0))).orElse(null);
   s.sharedTarget=chosen==null ? 0 : chosen.getObjectId();return chosen;
  }
  static boolean explicit(Player bot,Npc npc) {State s=STATES.get(bot.getObjectId());return s!=null && s.enabled && s.order==Order.FOLLOW && s.sharedTarget==npc.getObjectId() && PositionUtil.isInRange(s.session.owner(),npc,25) && !s.session.owner().isDead();}

@@ -11,7 +11,8 @@ import com.aionemu.gameserver.utils.chathandlers.AdminCommand;
 public class UnBanIp extends AdminCommand {
 
 	public UnBanIp() {
-		super("unbanip");
+		super("unbanip", "Remove an IP address ban.",
+			"<mask> - Unban the specified address mask.");
 	}
 
 	@Override
@@ -22,10 +23,5 @@ public class UnBanIp extends AdminCommand {
 		}
 
 		LoginServer.getInstance().sendBanPacket((byte) 2, 0, params[0], -1, player.getObjectId());
-	}
-
-	@Override
-	public void info(Player player, String message) {
-		PacketSendUtility.sendMessage(player, "Syntax: //unbanip <mask>");
 	}
 }

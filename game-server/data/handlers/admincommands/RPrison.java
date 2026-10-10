@@ -15,7 +15,8 @@ import com.aionemu.gameserver.world.World;
 public class RPrison extends AdminCommand {
 
 	public RPrison() {
-		super("rprison");
+		super("rprison", "Release a player from prison.",
+			"<player> - Release the specified player.");
 	}
 
 	@Override
@@ -37,10 +38,5 @@ public class RPrison extends AdminCommand {
 		} catch (Exception e) {
 			PacketSendUtility.sendMessage(admin, "Usage: //rprison <player>");
 		}
-	}
-
-	@Override
-	public void info(Player player, String message) {
-		PacketSendUtility.sendMessage(player, "syntax //rprison <player>");
 	}
 }

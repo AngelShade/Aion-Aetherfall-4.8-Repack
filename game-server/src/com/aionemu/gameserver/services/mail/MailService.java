@@ -169,6 +169,33 @@ public class MailService {
 		SystemMailService.updateRecipientMailbox(recipientCommonData, newLetter);
 	}
 
+	/** Shared native ordinary-mail fee quote for a headless companion request. */
+	public static long companionMailBaseCost(Item item, long kinah) {
+		if (kinah < 0 || item != null && item.getItemCount() <= 0)
+			throw new IllegalArgumentException("Invalid mail attachment.");
+		double itemFee = item == null ? 0 : item.getItemTemplate().getPrice() * getQualityPriceRate(item) * item.getItemCount();
+		double moneyFee = kinah * 0.01f;
+		if (!Double.isFinite(itemFee) || itemFee < 0 || itemFee >= Long.MAX_VALUE || moneyFee >= Long.MAX_VALUE)
+			throw new IllegalArgumentException("Mail fee exceeds the native currency limit.");
+		try { return Math.addExact(10, Math.addExact((long)itemFee, (long)moneyFee)); }
+		catch (ArithmeticException e) { throw new IllegalArgumentException("Mail currency exceeds the native limit.", e); }
+	}
+
+	public static long companionMailCost(Player sender, Item item, long kinah) {
+		long fee = PricesService.getPriceForService(companionMailBaseCost(item, kinah), sender.getRace());
+		try {
+			if (fee < 0) throw new ArithmeticException();
+			return Math.addExact(fee, kinah);
+		} catch (ArithmeticException e) { throw new IllegalArgumentException("Mail currency exceeds the native limit.", e); }
+	}
+
+	/** Custody has already committed; native online-recipient publication only. */
+	public static void publishCompanionMail(Player recipient, Letter letter) {
+		if (recipient.getObjectId() != letter.getRecipientId() || recipient.getMailbox() == null)
+			throw new IllegalArgumentException("Committed mail recipient changed.");
+		SystemMailService.updateRecipientMailbox(recipient.getCommonData(), letter);
+	}
+
 	private static MailMessage validateRecipient(Player sender, PlayerCommonData recipientCommonData) {
 		if (recipientCommonData == null)
 			return MailMessage.NO_SUCH_CHARACTER_NAME;

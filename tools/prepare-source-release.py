@@ -66,7 +66,7 @@ def main():
     args_file = out / 'handlers.args'
     args_file.write_text('\n'.join('"' + f.as_posix() + '"' for f in staged_handlers), encoding='utf-8')
     with (out / 'handler-compile.txt').open('w') as log:
-        result = subprocess.run(['javac', '-J-Xmx2g', '-encoding', 'UTF-8', '-cp', cp, '-d', str(out / 'handler-classes'), '@' + str(args_file)], cwd=out, stdout=log, stderr=subprocess.STDOUT)
+        result = subprocess.run(['javac', '-J-Xmx2g', '-encoding', 'UTF-8', '-Xlint:deprecation,unchecked', '-Werror', '-cp', cp, '-d', str(out / 'handler-classes'), '@' + str(args_file)], cwd=out, stdout=log, stderr=subprocess.STDOUT)
     assert result.returncode == 0, 'Complete source handler compilation failed; see ' + str(out / 'handler-compile.txt')
     if core_changed or dependency_changed:
         # The native cache checks handler source mtime, not its core-JAR dependencies.

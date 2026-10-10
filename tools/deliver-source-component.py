@@ -11,6 +11,38 @@ from remove_follow_recovery_offline import stopped
 build_meta = import_module('build-manifest')
 
 
+def retained_methods(before, after):
+    """ACC_SYNCHRONIZED controls locking, not a JVM method name/descriptor.
+
+    Keep every other qualifier, name, return type and parameter type exact. The
+    report still records modifier changes and compares their bytecode normally.
+    """
+    identity = lambda key: re.sub(r'\bsynchronized\s+', '', key)
+    by_identity = {identity(key): key for key in after}
+    assert len(by_identity) == len(after), 'Ambiguous method identity'
+    return {key: by_identity[identity(key)] for key in before if identity(key) in by_identity}
+
+
+def bundled_media_source(name, data):
+    """Allow only existing menu media copied byte-for-byte by the normal builder."""
+    allowed = {'playerbots/media/' + file for file in ('bots.html', 'bots.css', 'bots.js')}
+    if name not in allowed:
+        return None
+    source = ROOT / 'game-server/config' / name
+    assert source.is_file() and source.read_bytes() == data, 'Menu output differs from maintained source: ' + name
+    return str(source.relative_to(ROOT))
+
+
+def validate_companion_configuration(before, after, previous, configured, previous_roster, configured_roster):
+    """Accept only explicit backed-up quota changes; retain every other config byte."""
+    pattern = rb'(?m)^(gameserver\.playerbots\.(max_per_owner|generated\.max_per_account)\s*=\s*)([0-9]+)([ \t]*\r?$)'
+    read = lambda data: [(m.group(2), int(m.group(3))) for m in re.finditer(pattern, data)]
+    assert 0 <= configured <= 23 and configured <= configured_roster <= 2147483647, 'Invalid native companion quota'
+    assert sorted(read(before)) == sorted([(b'max_per_owner', previous), (b'generated.max_per_account', previous_roster)]), 'Previous quota differs from configuration review'
+    assert sorted(read(after)) == sorted([(b'max_per_owner', configured), (b'generated.max_per_account', configured_roster)]), 'Configured quota differs from review'
+    assert re.sub(pattern, b'<companion-quota>', before) == re.sub(pattern, b'<companion-quota>', after), 'Unrelated configuration changed'
+
+
 def main():
     if not __debug__: raise RuntimeError('Validation cannot run with Python optimization enabled')
     p = argparse.ArgumentParser(description=__doc__)
@@ -23,6 +55,7 @@ def main():
     p.add_argument('--invalidate-cache', action='append', default=[], help='Exact generated cache file to archive and invalidate')
     p.add_argument('--static-check', type=Path, required=True, help='Successful complete offline static-data load report from tools/check-source-static-data.py')
     p.add_argument('--install', action='store_true')
+    p.add_argument('--config-review', type=Path, help='Explicit backed-up companion quota configuration receipt')
     a = p.parse_args()
     build, out = a.build.resolve(), a.output.resolve()
     shared.validate_output(build); shared.validate_output(out)
@@ -30,6 +63,8 @@ def main():
     server = ROOT / 'target-deploy/game-server'
     game = build / 'game-server/game-server-4.8-SNAPSHOT.jar'
     build_meta.verify(build)
+    regression = a.release_plan.resolve().parent / 'regression'
+    import_module('check-source-build').validate(build, regression)
     plan = json.loads(a.release_plan.read_text())
     assert plan['buildManifestSha256'] == shared.sha(build / 'build-manifest.json'), 'Release plan belongs to another build'
     for attribute, key in [('resource', 'resources'), ('invalidate_cache', 'invalidateCaches'), ('changed_class', 'changedClasses')]:
@@ -45,6 +80,41 @@ def main():
     prior = sorted(shared.receipt_paths(server, 'playerbots-source-build-*/manifest.json'))[-1]
     baseline = json.loads(prior.read_text())
     assert str(prior) == plan['priorReceipt'], 'Another chat delivered a newer component; rebuild/review against it'
+    configuration_changes = []
+    if a.config_review:
+        a.config_review = a.config_review.resolve(); shared.validate_output(a.config_review)
+        evidence = json.loads(a.config_review.read_text())
+        rel = 'config/main/playerbots.properties'
+        assert evidence['feature'] in {'playerbots-active-limit','playerbots-field-placement','playerbots-user-population-limits'} and Path(evidence['path']).resolve() == (server / rel).resolve()
+        if evidence['feature']=='playerbots-user-population-limits':
+            matches = [e for e in baseline['guardFiles'] if e['path'] == rel]
+            assert len(matches)==1
+            reviewed = import_module('review-playerbot-population-config').verified(a.config_review,server,matches[0]['installed'])
+            baseline['guardFiles'] = [dict(e, installed=reviewed['installed']) if e['path']==rel else e for e in baseline['guardFiles']]
+            configuration_changes.append(reviewed)
+        else:
+            original = a.config_review.parent / 'playerbots.properties'
+            assert shared.sha(original) == evidence['original'] and shared.sha(server / rel) == evidence['installed']
+            field = evidence['feature']=='playerbots-field-placement'
+            if field:
+                assert a.scope=='PB-REPAIR-FIELD-015' and evidence['configuredValue']==0
+                import_module('configure-playerbot-field').validate(original.read_bytes(), (server / rel).read_bytes(), evidence['previousValue'])
+            else:
+                validate_companion_configuration(original.read_bytes(), (server / rel).read_bytes(), evidence['previousValue'], evidence['configuredValue'], evidence['previousRoster'], evidence['configuredRoster'])
+            matches = [e for e in baseline['guardFiles'] if e['path'] == rel]
+            assert len(matches) == 1 and matches[0]['installed'] == evidence['original'], 'Configuration review belongs to another installed baseline'
+            baseline['guardFiles'] = [dict(e, installed=evidence['installed']) if e['path'] == rel else e for e in baseline['guardFiles']]
+            configuration_changes.append(dict(path=rel, original=evidence['original'], installed=evidence['installed'],
+                review=str(a.config_review), reviewSha256=shared.sha(a.config_review), recovery=str(original),
+                previousValue=evidence['previousValue'], configuredValue=evidence['configuredValue'], fieldCombat=field,
+                **({} if field else dict(previousRoster=evidence['previousRoster'], configuredRoster=evidence['configuredRoster']))))
+    # Only exact reviewed config changes are recognized; other guards stay enabled.
+    rel = 'config/main/playerbots.properties'
+    config_guards = [e for e in baseline['guardFiles'] if e['path'] == rel]
+    if len(config_guards) == 1 and shared.sha(server / rel) != config_guards[0]['installed']:
+        documentation = import_module('document-playerbot-config').verified_receipt(server, shared.DEV_ROOT / 'archives/server/game-server/backups')
+        baseline['guardFiles'] = [dict(e, installed=documentation['installed']) if e['path'] == rel else e for e in baseline['guardFiles']]
+        configuration_changes.append(documentation)
     assert all(shared.sha(server / e['path']) == e['installed'] for e in baseline['files'])
     assert all(shared.sha(server / e['path']) == e['installed'] for e in baseline['guardFiles'])
     assert all(not (server / rel).exists() for rel in baseline['retiredFiles'])
@@ -64,14 +134,22 @@ def main():
         for name in changed:
             if name == 'META-INF/MANIFEST.MF':
                 continue
+            source = bundled_media_source(name, built.read(name))
+            if source is not None:
+                comparisons.append(dict(resourceName=name, source=source,
+                    previousSha256=hashlib.sha256(installed.read(name)).hexdigest(),
+                    installedSha256=hashlib.sha256(built.read(name)).hexdigest()))
+                continue
             assert name.endswith('.class') and name[:-6].split('$')[0] in roots, 'Unrelated source output changed: ' + name
             before, after = shared.methods(old, name[:-6]), shared.methods(game, name[:-6])
-            removed = before.keys() - after.keys()
+            matched = retained_methods(before, after)
+            removed = before.keys() - matched.keys()
             assert all(k.startswith('private ') and 'lambda$' in k for k in removed), 'Installed methods removed: ' + name
-            comparisons.append(dict(className=name[:-6], addedMethods=sorted(after.keys() - before.keys()),
+            comparisons.append(dict(className=name[:-6], addedMethods=sorted(after.keys() - set(matched.values())),
                 retiredUnusedSynthetics=sorted(removed),
-                changedMethods=sorted(k for k in before.keys() & after.keys() if before[k] != after[k]),
-                preservedMethods=sum(before[k] == after[k] for k in before.keys() & after.keys())))
+                synchronizationChanges=sorted(k+' -> '+v for k,v in matched.items() if k!=v),
+                changedMethods=sorted(k for k,v in matched.items() if k!=v or before[k] != after[v]),
+                preservedMethods=sum(k==v and before[k] == after[v] for k,v in matched.items())))
         preserved = len(names) - len(changed)
         media = {n: hashlib.sha256(built.read('playerbots/media/' + n)).hexdigest() for n in ['bots.html', 'bots.css', 'bots.js']}
     linkage = out / 'linkage'; linkage.mkdir(exist_ok=True)
@@ -100,8 +178,11 @@ def main():
     resource_hashes = {}
     assert 'OK: complete static XML merge, schema and production JAXB load;' in a.static_check.read_text(), 'Complete static-data compatibility must pass before delivery'
     static_evidence = json.loads(a.static_check.with_suffix('.json').read_text())
+    assert static_evidence['handlerInventoryToolSha256'] == shared.sha(ROOT / 'tools/quest-handler-inventory.py'), 'Native quest inventory tool changed'
     assert static_evidence['reportSha256'] == shared.sha(a.static_check), 'Static-data report changed'
     assert static_evidence['builderJarSha256'] == shared.sha(game), 'Static data was checked against a different builder JAR'
+    coverage = a.static_check.parent / 'quest-coverage.json'
+    assert shared.sha(coverage) == static_evidence['questCoverageSha256'], 'Native quest coverage evidence changed'
     country = re.search(r'^\s*gameserver\.country\.code\s*=\s*(\d+)',
         (server / 'config/main/gameserver.properties').read_text(), re.MULTILINE)
     assert country and int(country.group(1)) == static_evidence['countryCode'], 'Runtime country code changed after static-data validation'
@@ -137,6 +218,9 @@ def main():
         buildManifestSha256=shared.sha(build / 'build-manifest.json'), handlerCount=plan['handlerCount'],
         classComparison=comparisons or [dict(sourceBuiltBaselinePreserved=True, previousReceipt=str(prior))],
         preservedJarEntries=preserved, fullRuntimeLinkage=result.stdout.strip(), gameAcceptance='pending user testing')
+    manifest['requestedConfigurationChanges'] = configuration_changes
+    manifest['regressionEvidenceSha256'] = shared.sha(regression / 'evidence.json')
+    manifest['questCoverageSha256'] = shared.sha(coverage)
     (out / 'manifest.json').write_text(json.dumps(manifest, indent=2))
     if not a.install:
         print('OK: reviewed normal builder output;', preserved, 'unchanged entries;', result.stdout.strip()); return
@@ -144,6 +228,9 @@ def main():
     def guard():
         stopped()
         build_meta.verify(build)
+        import_module('check-source-build').validate(build, regression)
+        assert shared.sha(regression / 'evidence.json') == manifest['regressionEvidenceSha256']
+        assert shared.sha(coverage) == manifest['questCoverageSha256']
         assert shared.sha(a.release_plan) == manifest['releasePlanSha256']
         assert shared.receipt_paths(server, 'playerbots-source-build-*/manifest.json')[-1] == prior, 'Another release completed after review'
         for e in files:
@@ -152,6 +239,9 @@ def main():
         assert all(shared.sha(server / e['path']) == e['original'] for e in caches)
         assert all(shared.sha(server / e['path']) == e['installed'] for e in guard_files)
         assert all(shared.sha(server / rel) == digest for rel, digest in config.items())
+        for change in configuration_changes:
+            assert shared.sha(Path(change['review'])) == change['reviewSha256']
+            assert shared.sha(Path(change['recovery'])) == change['original'] and shared.sha(server / change['path']) == change['installed']
         assert all(shared.sha(ROOT / rel) == digest for rel, digest in source.items())
         assert all(shared.sha(ROOT / rel) == digest for rel, digest in resource_hashes.items())
         assert all(shared.sha(server / rel) == digest for rel, digest in static_inputs.items())
@@ -168,7 +258,13 @@ def main():
         dest = backup / e['path']; dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(server / e['path'], dest)
         assert shared.sha(dest) == e['original']
+    for change in configuration_changes:
+        dest = backup / change['path']; dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(change['recovery'], dest)
+        assert shared.sha(dest) == change['original']
     guard()
+    shutil.copytree(regression, backup / 'regression')
+    assert shared.sha(backup / 'regression/evidence.json') == manifest['regressionEvidenceSha256']
     try:
         for e in files:
             target = server / e['path']; target.parent.mkdir(parents=True, exist_ok=True)
@@ -192,6 +288,7 @@ def main():
     shutil.copy2(out / 'linkage.txt', backup / 'linkage.txt')
     shutil.copy2(a.release_plan, backup / 'release-plan.json')
     shutil.copy2(build / 'build-manifest.json', backup / 'build-manifest.json')
+    shutil.copy2(coverage, backup / 'quest-coverage.json')
     if a.static_check: shutil.copy2(a.static_check, backup / 'static-data-load.txt')
     print('OK: complete unchanged Maven GameServer output delivered; receipt:', backup)
 

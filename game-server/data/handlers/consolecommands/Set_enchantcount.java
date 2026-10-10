@@ -16,13 +16,14 @@ import com.aionemu.gameserver.utils.chathandlers.ConsoleCommand;
 public class Set_enchantcount extends ConsoleCommand {
 
 	public Set_enchantcount() {
-		super("set_enchantcount");
+		super("set_enchantcount", "Set an item enchantment count.",
+			"<item Id> <enchantcount> <unk> - Set the item enchantment count.");
 	}
 
 	@Override
 	public void execute(Player admin, String... params) {
 		if (params.length < 2) {
-			info(admin, null);
+			sendInfo(admin);
 			return;
 		}
 
@@ -74,10 +75,5 @@ public class Set_enchantcount extends ConsoleCommand {
 			PacketSendUtility.sendMessage(admin, "Invalid item.");
 			return;
 		}
-	}
-
-	@Override
-	public void info(Player admin, String message) {
-		PacketSendUtility.sendMessage(admin, "syntax ///set_enchantcount <item Id> <enchantcount> <unk>");
 	}
 }

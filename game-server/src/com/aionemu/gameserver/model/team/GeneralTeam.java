@@ -47,6 +47,14 @@ public abstract class GeneralTeam<M extends AionObject, TM extends TeamMember<M>
 		}
 	}
 
+	/** Keep a native multi-step admission decision under the same reentrant team lock as events. */
+	public final void executeLocked(Runnable action) {
+		Objects.requireNonNull(action);
+		lock();
+		try { action.run(); }
+		finally { unlock(); }
+	}
+
 	public final TM getMember(int objectId) {
 		return members.get(objectId);
 	}

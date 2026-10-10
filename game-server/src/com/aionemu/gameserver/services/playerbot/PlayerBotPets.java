@@ -53,7 +53,7 @@ final class PlayerBotPets {
 			}
 			navigation.stop();
 			pet.getController().useSkill(pet.retrieveNextSkillOrder());
-			nextAttack = System.currentTimeMillis() + Math.max(400, template.getDuration());
+			nextAttack = Math.max(nextAttack, System.currentTimeMillis() + Math.max(400, template.getDuration()));
 			return;
 		}
 		if (enemy == null || !PlayerBotService.allowsTarget(master, enemy) || !PlayerBotEncounters.allowsAttack(pet, enemy)) {
@@ -71,7 +71,7 @@ final class PlayerBotPets {
 			return;
 		}
 		navigation.stop();
-		if (System.currentTimeMillis() >= nextAttack && pet.canAttack()) {
+		if (System.currentTimeMillis() >= Math.max(nextAttack, pet.getController().getNextAttackMillis()) && pet.canAttack()) {
 			int speed = Math.max(300, pet.getGameStats().getAttackSpeed().getCurrent());
 			pet.getController().attackTarget(enemy, Math.min(500, speed / 3), false);
 			nextAttack = System.currentTimeMillis() + speed;

@@ -17,7 +17,7 @@ public final class PlayerBotRecall {
   Player owner=s.owner(),bot=s.bot();
   return !s.closing() && owner.isOnline() && owner.isSpawned() && !owner.isDead() && owner.getWorldMapInstance()!=null
    && bot.isPlayerBot() && bot.getPlayerBotOwnerId()==owner.getObjectId()
-   && owner.getPlayerGroup()!=null && bot.getPlayerGroup()==owner.getPlayerGroup();
+   && PlayerBotTeams.same(owner,bot);
  }
  static boolean needed(double distance,boolean differentMap) { return differentMap || Double.isFinite(distance) && distance>DISTANCE; }
  static boolean recalling(PlayerBotSession s) { return CURRENT.get()==s; }

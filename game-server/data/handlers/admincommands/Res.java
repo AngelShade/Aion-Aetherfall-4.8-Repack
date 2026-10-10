@@ -13,7 +13,8 @@ import com.aionemu.gameserver.utils.chathandlers.AdminCommand;
 public class Res extends AdminCommand {
 
 	public Res() {
-		super("res");
+		super("res", "Resurrect a selected player.",
+			"[instant|prompt] - Resurrect the selected player; the default sends a prompt.");
 	}
 
 	@Override
@@ -48,10 +49,5 @@ public class Res extends AdminCommand {
 		}
 
 		PacketSendUtility.sendMessage(admin, "[Resurrect] Usage: target player and use //res <instant|prompt>");
-	}
-
-	@Override
-	public void info(Player player, String message) {
-		// TODO Auto-generated method stub
 	}
 }

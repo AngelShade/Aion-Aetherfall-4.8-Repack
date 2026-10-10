@@ -28,6 +28,15 @@ public class ItemSplitService {
 	 */
 	public static void splitItem(Player player, int itemObjId, int destinationObjId, long splitAmount, short slotNum, byte sourceStorageType,
 		byte destinationStorageType) {
+        if (sourceStorageType == 3 || destinationStorageType == 3) {
+            synchronized (com.aionemu.gameserver.model.team.legion.LegionWarehouse.CUSTODY_LOCK) {
+                if (player.getLegion()==null || com.aionemu.gameserver.model.team.legion.LegionWarehouse.custodyHeld(player.getLegion().getLegionId())) return;
+                splitItemNative(player,itemObjId,destinationObjId,splitAmount,slotNum,sourceStorageType,destinationStorageType);
+            }
+        } else splitItemNative(player,itemObjId,destinationObjId,splitAmount,slotNum,sourceStorageType,destinationStorageType);
+    }
+    private static void splitItemNative(Player player, int itemObjId, int destinationObjId, long splitAmount, short slotNum, byte sourceStorageType,
+        byte destinationStorageType) {
 		if (splitAmount <= 0) {
 			return;
 		}
@@ -101,6 +110,17 @@ public class ItemSplitService {
 	 * Merge 2 stacks with simple validation
 	 */
 	public static void mergeStacks(IStorage sourceStorage, IStorage destStorage, Item sourceItem, Item targetItem, long count) {
+        if (sourceStorage.getStorageType()==StorageType.LEGION_WAREHOUSE || destStorage.getStorageType()==StorageType.LEGION_WAREHOUSE) {
+            synchronized (com.aionemu.gameserver.model.team.legion.LegionWarehouse.CUSTODY_LOCK) {
+                for (IStorage storage : java.util.List.of(sourceStorage,destStorage)) {
+                    if (storage instanceof com.aionemu.gameserver.model.items.storage.LegionStorageProxy proxy
+                        && com.aionemu.gameserver.model.team.legion.LegionWarehouse.custodyHeld(proxy.getLegionId())) return;
+                }
+                mergeStacksNative(sourceStorage,destStorage,sourceItem,targetItem,count);
+            }
+        } else mergeStacksNative(sourceStorage,destStorage,sourceItem,targetItem,count);
+    }
+    private static void mergeStacksNative(IStorage sourceStorage, IStorage destStorage, Item sourceItem, Item targetItem, long count) {
 		if (sourceItem.getItemCount() >= count) {
 			long freeCount = targetItem.getFreeCount();
 			count = count > freeCount ? freeCount : count;

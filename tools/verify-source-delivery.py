@@ -1,67 +1,141 @@
-"""Verify normal Maven outputs against the effective installed feature baseline; never rewrite JARs."""
-import argparse,concurrent.futures,hashlib,json,subprocess,sys,zipfile
+"""Read-only verification of an exact installed source-built release and its recovery."""
+import argparse
+import hashlib
+import importlib
+import json
+import sys
 from pathlib import Path
 
-ROOT=Path(__file__).resolve().parents[1]
-sys.path.insert(0,str(ROOT/'client-mods/playerbots'))
-import stage_companion_update as shared
+ROOT = Path(__file__).resolve().parents[1]
 
-ALLOWED={
- shared.PREFIX+'services/playerbot/PlayerBotSession':{'tick','snapshot','markClosing'},
- shared.PREFIX+'services/playerbot/PlayerBotOffense':{'routine'},
- shared.PREFIX+'services/playerbot/PlayerBotGearPolicy':{'eligible'},
- # Previous source-only appearance integrations are now guarded by a disabled
- # source feature flag. No native gameplay is enabled by this release.
- shared.PREFIX+'services/playerbot/PlayerBotAppearance':{'enabled','configure','tick','inventory'},
- shared.PREFIX+'services/PlayerBotHttpService':{'action'},
-}
+
+def sha(path):
+    with Path(path).open('rb') as stream:
+        return hashlib.file_digest(stream, 'sha256').hexdigest()
+
+
+def verify_runtime_resource_inputs(server, manifest):
+    replacements = {entry['path']: entry for entry in manifest['files']}
+    assert len(replacements) == len(manifest['files']), 'Duplicate delivered file'
+    for rel, original in manifest['runtimeResourceInputs'].items():
+        expected = original
+        if rel in replacements:
+            # Inputs describe the pre-install baseline. Only a recorded builder
+            # replacement may change it; main separately verifies source/backup.
+            entry = replacements[rel]
+            assert entry['original'] == original, rel
+            expected = entry['installed']
+        target = server / rel
+        assert (sha(target) if target.is_file() else None) == expected, rel
+
 
 def main():
- if not (ROOT/'target-deploy/game-server/libs/playerbot-recruitment-fix.jar').is_file():
-  raise RuntimeError('Historical override comparison is retired. Use tools/release-game-server.py --scope <ID> for current complete release verification.')
- p=argparse.ArgumentParser(description=__doc__);p.add_argument('--build',type=Path,required=True);p.add_argument('--output',type=Path,required=True);a=p.parse_args()
- build=a.build.resolve();out=a.output.resolve();shared.validate_output(build);shared.validate_output(out);out.mkdir(parents=True,exist_ok=True)
- server=ROOT/'target-deploy/game-server';game=build/'game-server/game-server-4.8-SNAPSHOT.jar';commons=build/'commons/commons-4.8-SNAPSHOT.jar'
- assert game.exists() and commons.exists()
- old=server/'libs/playerbot-recruitment-fix.jar'
- with zipfile.ZipFile(old) as archive:classes=sorted(n[:-6] for n in archive.namelist() if n.endswith('.class'))
- with zipfile.ZipFile(game) as archive:
-  assert archive.testzip() is None
-  built=set(archive.namelist())
-  assert 'com/aionemu/gameserver/services/playerbot/PlayerBotSpiritmaster.class' in built
-  for name in ['bots.html','bots.css','bots.js']:
-   assert archive.read('playerbots/media/'+name)==(ROOT/'game-server/config/playerbots/media'/name).read_bytes(),name
+    if not __debug__:
+        raise RuntimeError('Verification cannot run with Python optimization enabled')
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--receipt', type=Path, required=True)
+    parser.add_argument('--review', type=Path, required=True)
+    parser.add_argument('--documentation', type=Path, help='Exact subsequent value-preserving configuration documentation receipt')
+    args = parser.parse_args()
+    receipt, review = args.receipt.resolve(), args.review.resolve()
+    m = json.loads((receipt / 'manifest.json').read_text())
+    assert (receipt / 'installed.json').is_file(), 'Release was not installed'
+    server = Path(m['deployment'])
+    assert server.resolve() == ROOT / 'target-deploy/game-server'
+    build = Path(json.loads((review / 'release-context.json').read_text())['build'])
+    static_evidence = json.loads((review / 'static-check/static-data-load.json').read_text())
+    if 'handlerInventoryToolSha256' in static_evidence:
+        assert sha(ROOT / 'tools/quest-handler-inventory.py') == static_evidence['handlerInventoryToolSha256'], 'Native quest inventory tool changed'
+    sys.path.insert(0, str(ROOT / 'tools'))
+    importlib.import_module('build-manifest').verify(build)
+    documentation = None
+    if args.documentation:
+        docs = importlib.import_module('document-playerbot-config')
+        sys.path.insert(0, str(ROOT / 'client-mods/playerbots'))
+        shared = importlib.import_module('stage_companion_update')
+        documentation = docs.verified_receipt(server, shared.DEV_ROOT / 'archives/server/game-server/backups')
+        assert Path(documentation['review']).resolve() == (args.documentation / 'manifest.json').resolve()
+        rel = documentation['path']
+        assert next(e['installed'] for e in m['guardFiles'] if e['path']==rel) == documentation['original']
+        assert next(digest for path,digest in m['configFiles'].items() if path.replace('\\','/')==rel) == documentation['original']
+    def expected_configuration(rel, digest):
+        if documentation and rel.replace('\\','/') == documentation['path']:
+            assert digest == documentation['original']
+            return documentation['installed']
+        return digest
+    for e in m['files']:
+        assert sha(server / e['path']) == sha(e['source']) == e['installed'], e['path']
+        if e['original'] is not None:
+            assert sha(receipt / e['path']) == e['original'], e['path']
+    for e in m['guardFiles']:
+        assert sha(server / e['path']) == expected_configuration(e['path'],e['installed']), e['path']
+    for key, base in [('configFiles', server), ('sourceHashes', ROOT),
+                      ('resourceSourceHashes', ROOT), ('staticDataInputs', server)]:
+        for rel, digest in m[key].items():
+            assert sha(base / rel) == (expected_configuration(rel,digest) if key=='configFiles' else digest), rel
+    verify_runtime_resource_inputs(server, m)
+    inventory = json.loads((ROOT / 'docs/INSTALLED_MODS.json').read_text())
+    assert all(inventory['checks'].values())
+    for e in m['clientFiles']:
+        assert sha(Path(inventory['clientRoot']) / e['path']) == e['sha256'], e['path']
+    assert sha(server / 'data/geo/models.mesh') == m['geometrySha256']
+    for rel in m['retiredFiles']:
+        assert not (server / rel).exists(), rel
+    if 'populationImport' in m:
+        migration = m['populationImport']; recovery = Path(migration['recovery'])
+        assert (recovery / 'committed.json').is_file() and (recovery / 'retired.json').is_file()
+        for row in migration['files']:
+            assert sha(recovery / row['path']) == row['sha256']
+            assert not (server / 'config/playerbots' / row['path']).exists()
+        assert sha(recovery / 'playerbot_population.sql') == migration['schemaSha256']
+        assert sha(recovery / 'database-before-retirement.txt') == migration['databaseVerificationSha256']
+    for e in m['invalidatedCaches']:
+        assert not (server / e['path']).exists(), e['path']
+        assert sha(receipt / e['path']) == e['original'], e['path']
+    for name, digest in [('release-plan.json', m['releasePlanSha256']),
+                         ('build-manifest.json', m['buildManifestSha256'])]:
+        assert sha(receipt / name) == digest
+    for change in m['requestedConfigurationChanges']:
+        assert sha(change['review']) == change['reviewSha256']
+        assert sha(change['recovery']) == sha(receipt / change['path']) == change['original']
+        assert sha(server / change['path']) == expected_configuration(change['path'],change['installed'])
+        reviewed_config = Path(documentation['recovery']) if documentation and change['path']==documentation['path'] else server / change['path']
+        if change.get('userEditsOnly'):
+            assert sha(change['baseline']) == change['baselineSha256']
+            previous, current = importlib.import_module('review-playerbot-population-config').validate(Path(change['baseline']).read_bytes(), reviewed_config.read_bytes())
+            assert previous == change['previous'] and current == change['current']
+        if change.get('fieldCombat'):
+            assert m['scope']=='PB-REPAIR-FIELD-015' and change['configuredValue']==0
+            importlib.import_module('configure-playerbot-field').validate(Path(change['recovery']).read_bytes(), (server / change['path']).read_bytes(), change['previousValue'])
+        if change.get('documentationOnly'):
+            docs = importlib.import_module('document-playerbot-config')
+            values = docs.properties(reviewed_config.read_text())
+            record = json.loads(Path(change['review']).read_text())
+            assert values == record['effective'] == record['addedCompiledDefaults'] | record['preservedExplicit']
+            assert len(values) == record['settings'] and values['gameserver.playerbots.allowed_instance_maps'] == ''
+    checks = json.loads((review / 'regression/checks.json').read_text())
+    if 'regressionEvidenceSha256' in m:
+        assert sha(receipt / 'regression/evidence.json') == sha(review / 'regression/evidence.json') == m['regressionEvidenceSha256']
+        importlib.import_module('check-source-build').validate(build, receipt / 'regression')
+        assert sha(receipt / 'quest-coverage.json') == sha(review / 'static-check/quest-coverage.json') == m['questCoverageSha256']
+    else:
+        print('Legacy receipt: regression reports are not artifact-bound; no new installation is allowed with this evidence.')
+        # Historical suites predate the current registry. Check their actual
+        # archived reports without claiming current coverage or exit evidence.
+        assert checks and all(line in (review/'regression'/(name+'.txt')).read_text().splitlines() for name,line in checks.items())
+    counts = [int(line.split()[1]) for line in checks.values()]
+    if 'regressionEvidenceSha256' in m:
+        expected = importlib.import_module('check-source-build').TESTS
+        assert set(checks) == set(expected) | {'ShutdownHookCheck'}
+        assert sum(counts) == sum(expected.values()) + 14
+    else:
+        assert all(line.startswith('OK: ') and count>0 for line,count in zip(checks.values(),counts))
+    print('OK:', len(m['files']), 'unchanged builder files;', len(m['guardFiles']),
+          'guards;', len(m['configFiles']), 'configs;', len(m['clientFiles']), 'client hashes;',
+          len(m['invalidatedCaches']), 'backed-up invalidated caches; recovery/source/static/linkage receipts verified')
+    print('OK:', len(checks), 'offline suites /', sum(counts), 'checks; no startup/attach/world/DB/IDs')
+    print('GameServer SHA-256:', sha(server / 'libs/game-server-4.8-SNAPSHOT.jar'))
 
- def compare(name):
-  before=shared.methods(old,name)
-  if name+'.class' not in built:
-   assert name.endswith('PlayerBotQuestRoutes$1'),name
-   return dict(className=name,obsoleteDefinition=True)
-  after=shared.methods(game,name)
-  changed={shared.method_name(k) for k in before.keys()&after.keys() if before[k]!=after[k]}
-  missing=before.keys()-after.keys()
-  assert all(k.startswith('private ') and 'lambda$' in k for k in missing),(name,missing)
-  assert changed.issubset(ALLOWED.get(name,set())),(name,changed)
-  return dict(className=name,changedMethods=sorted(changed),retiredUnusedSynthetics=sorted(missing))
- with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:comparisons=list(pool.map(compare,classes))
- # Audit the full builder output without any old game/override JAR fallback.
- verifier=out/'linkage';verifier.mkdir(exist_ok=True)
- subprocess.run(['javac','-d',str(verifier),str(ROOT/'client-mods/playerbots/java/PlayerBotLinkageCheck.java')],check=True,capture_output=True,text=True)
- libs=[f for f in sorted((server/'libs').glob('*.jar')) if f.name not in {'game-server-4.8-SNAPSHOT.jar','commons-4.8-SNAPSHOT.jar','playerbot-recruitment-fix.jar'}]
- cp=';'.join(map(str,[verifier,game,commons,*libs,server/'cache/classes']))
- result=subprocess.run(['java','-Xverify:all','-cp',cp,'PlayerBotLinkageCheck',str(game)],check=True,cwd=out,capture_output=True,text=True)
- (out/'linkage.txt').write_text(result.stdout+result.stderr)
- inventory=json.loads((ROOT/'docs/INSTALLED_MODS.json').read_text());assert all(inventory['checks'].values())
- prior=shared.receipt_paths(server,'playerbots-recruitment-*/manifest.json')[-1]
- receipt=json.loads(prior.read_text());assert all(shared.sha(server/e['path'])==e['installed'] for e in receipt['files'])
- manifest=dict(feature='playerbots-source-build-spiritmaster',scope='PB-PORT-005B / PB-BUILD-001',deployment=str(server),previousReceipt=str(prior),
-  builder='normal Maven reactor via tools/build-components.ps1; output JARs unchanged',
-  files=[dict(path='libs/game-server-4.8-SNAPSHOT.jar',source=str(game),original=shared.sha(server/'libs/game-server-4.8-SNAPSHOT.jar'),installed=shared.sha(game)),
-         dict(path='libs/commons-4.8-SNAPSHOT.jar',source=str(commons),original=shared.sha(server/'libs/commons-4.8-SNAPSHOT.jar'),installed=shared.sha(commons))],
-  retiredOverrideSha256=shared.sha(old),launcherOriginalSha256=shared.sha(server/'start.bat'),baselineFiles=receipt['files'],
-  clientFiles=inventory['clientFiles'],geometrySha256=shared.sha(server/'data/geo/models.mesh'),
-  configFiles={str(f.relative_to(server)):shared.sha(f) for f in (server/'config').rglob('*') if f.is_file()},
-  classComparison=comparisons,fullRuntimeLinkage=result.stdout.strip(),appearanceEnabled=False,gameAcceptance='pending user testing')
- (out/'manifest.json').write_text(json.dumps(manifest,indent=2));print('OK: source build preserves '+str(len(classes))+' deployed definitions; '+result.stdout.strip())
 
-if __name__=='__main__':main()
+if __name__ == '__main__':
+    main()
