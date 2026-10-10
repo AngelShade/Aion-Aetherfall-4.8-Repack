@@ -31,6 +31,7 @@ TESTS['PlayerBotChanterCheck']=99
 TESTS['PlayerBotFieldCombatCheck']=59
 TESTS['PlayerBotNameLookupCheck']=53
 TESTS['PlayerBotQuestCapabilityCheck']=40
+TESTS['PlayerBotLegionPresenceCheck']=44
 
 def sha(path):
  with Path(path).open('rb') as stream:return hashlib.file_digest(stream,'sha256').hexdigest()

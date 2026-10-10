@@ -25,8 +25,8 @@
         <spawn npc_id="801033" respawn_time="295"><spot x="832.6427" y="1250.4149" z="118.875" h="119"/></spawn>
     </spawn_map>
     <spawn_map map_id="210040000">
-        <!-- Lepharist's Mark. -->
-        <spawn npc_id="801189" respawn_time="295"><spot x="422.6" y="927" z="123.5"/></spawn>
+        <!-- Lepharist's Mark: matching client location, feet on verified native terrain. -->
+        <spawn npc_id="801189" respawn_time="295"><spot x="422.566071" y="926.967834" z="124.968643"/></spawn>
     </spawn_map>
     <spawn_map map_id="320130000">
         <!-- Adma Stronghold: quest-specific boxes at the existing treasure locations. -->

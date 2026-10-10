@@ -1,5 +1,15 @@
 # Companion update validation — 4 October 2026
 
+## PB-VAL-050 legion presence / PB-VAL-051 Cassius - pending user gameplay
+
+LEGION-029-CASSIUS-030 is installed and independently verified in external receipt playerbots-source-build-20261010-233223-856383; review release-20261010-232624-253950. All 57 artifact-bound suites / 62,960 checks and preservation gates pass. Actual prior native roster code reproduces spawned bots appearing offline; 44 new checks cover corrected cache/lifecycle/native invitation/wire/SQL/filter behavior. Native geometry reproduces Cassius's old underground spawn and verifies corrected ground plus eight nearby approach directions. No production World/ID/gameplay/SQL writes occurred.
+
+PB-VAL-050: invite active companions and an independent bot, reopen roster, verify online status and map/level updates; dismiss/rotate/reuse and verify departure time and same-identity return. Native ranks/titles/rights, human presence, warehouse custody and bonus behavior must remain.
+
+PB-VAL-051: visit Cassius801189 in Heiron; verify supported placement, approach/talk and native quest16904 requirements/rewards, retaining stationary guard behavior. No dedicated AI or linked partner is claimed. User performs startup/gameplay; full quest-chain engineering and wider parity remain open separately.
+
+See [legion evidence](PLAYERBOTS_LEGION_PRESENCE_20261010.md) and [Cassius evidence](CASSIUS_PLACEMENT_20261010.md).
+
 ## PB-VAL-049 shared native name resolution - pending user gameplay
 
 NAMELOOKUP-028 is installed offline in the coordinated QUEST-027 cumulative

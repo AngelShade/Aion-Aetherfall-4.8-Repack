@@ -1,6 +1,18 @@
 # Playerbots subsystem inventory and dependency plan
 
-## Latest cumulative delivery - QUEST-027 / NAMELOOKUP-028 - 10 October 2026
+## Latest cumulative delivery - LEGION-029 / CASSIUS-030 - 10 October 2026
+
+Installed PB-REPAIR-LEGION-029 supplies native roster presence for active companions and independent bots, native invitation/entry/logout/transfer updates, despawned save-held actor exclusion and players.last_online persistence. Human flags, membership/rights/custody and existing behavior remain. CASSIUS-030 corrects one underground Heiron spawn to matching-client XY422.566071/926.967834 and supported native ground Z124.968643; stationary guard/talk/quest16904 role remains. No unsupported custom AI or linked partner is invented.
+
+External receipt: playerbots-source-build-20261010-233223-856383; review: release-20261010-232624-253950. GameServer SHA:
+f582272d828b20b643941f2a927020d6c4c88aab3f05480e944fd1e828d23670.
+95 fixture sources / 57 artifact-bound suites / 62,960 checks and 22 tooling tests pass. All 1,757 handlers compile warning-free; complete XML/schema/JAXB and 3,370-class / 183,234-reference linkage pass. All 56 original / 69 pinned scope hashes verify. 3,621 prior JAR entries, 150 other bot-service / 68 other LegionService methods remain identical; public APIs and existing anonymous bodies remain. Complete normal Maven JAR and spawn XML copied unchanged; Commons unchanged. Two static-data caches backed up/invalidated; zero handler caches present.
+
+Independent installed verification passes exact source/builder/recovery/static/linkage/regression evidence and 70 guards / 93 configs / 31 client hashes. Inventory passes 20 checks / 74 client / 153 historical server receipts. All 43 explicit settings retain worldcap1500, target1200..1500, budget120, controlledcap3000, personal23/23, city0 and disabled appearance. No lifecycle/attach/dump/gameplay/production SQL writes or native World/ID fixture occurred. Fresh offline guards passed; GameServer/Aion remain closed and Login/Chat untouched.
+
+PB-VAL-050 legion presence and PB-VAL-051 Cassius acceptance remain user gameplay. Full quest audit and wider Playerbots parity remain unfinished engineering; this release does not narrow either request. See docs/PLAYERBOTS_LEGION_PRESENCE_20261010.md and docs/CASSIUS_PLACEMENT_20261010.md.
+
+## Previous cumulative delivery - QUEST-027 / NAMELOOKUP-028 - 10 October 2026
 
 The current normal source-built runtime release is external receipt
 playerbots-source-build-20261010-231349-474859; review:release-20261010-224757-712697,

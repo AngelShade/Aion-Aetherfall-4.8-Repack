@@ -707,7 +707,8 @@ public class LegionService {
 		// Send the new legion member the required legion packets
 		PacketSendUtility.sendPacket(player, new SM_LEGION_INFO(legion));
 		// do not include invited player in member list since he will be added via SM_LEGION_ADD_MEMBER
-		updateLegionMemberList(player, false, player.getObjectId());
+		if (!player.isPlayerBot())
+			updateLegionMemberList(player, false, player.getObjectId());
 
 		// Send legion member info to the members
 		PacketSendUtility.broadcastToLegion(legion, new SM_LEGION_ADD_MEMBER(player, false, 1300260, player.getName()));

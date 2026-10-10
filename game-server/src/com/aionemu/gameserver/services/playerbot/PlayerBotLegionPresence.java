@@ -11,7 +11,10 @@ import com.aionemu.gameserver.services.LegionService;
 /** Actor lifecycle notifications, without fabricating a socket or account login. */
 final class PlayerBotLegionPresence {
  static void entered(Player bot) {
-  if(bot.isLegionMember())LegionService.getInstance().onPlayerBotEnter(bot);
+  if(bot.isSpawned() && bot.isLegionMember())LegionService.getInstance().onPlayerBotEnter(bot);
+ }
+ static void changed(Player bot) {
+  if(bot.isLegionMember())LegionService.getInstance().updateMemberInfo(bot);
  }
  static void left(Player bot) {
   bot.getCommonData().setLastOnline(new Timestamp(System.currentTimeMillis()));

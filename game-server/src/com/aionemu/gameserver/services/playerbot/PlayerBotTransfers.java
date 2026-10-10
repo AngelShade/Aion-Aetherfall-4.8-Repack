@@ -35,6 +35,7 @@ public final class PlayerBotTransfers {
  public static boolean relocate(PlayerBotSession session) {
   Player owner=session.owner(),bot=session.bot();boolean transfer=different(owner,bot);
   if(session.closing() || !owner.isOnline() || !owner.isSpawned() || owner.getWorldMapInstance()==null || (!transfer && !PlayerBotRecall.recalling(session) && !PlayerBotPartyBehavior.canRelocate(session)))return false;
+  try {
   session.releasePet();bot.getController().cancelCurrentSkill(null);bot.getMoveController().abortMove();bot.getObserveController().notifyMoveObservers();
   if(bot.isFlying() && !owner.isFlying())bot.getFlyController().endFly(false);
   if(bot.isSpawned()) {
@@ -55,6 +56,7 @@ public final class PlayerBotTransfers {
   if(transfer && owner.isInInstance())InstanceService.onEnterInstance(bot);
   if("GUARD".equals(session.snapshot().get("order")))session.order(PlayerBotRules.Order.GUARD);
   return true;
+  } finally {PlayerBotLegionPresence.changed(bot);}
  }
  static void close(Player bot){RETRY.remove(bot.getObjectId());}
  private PlayerBotTransfers(){}
