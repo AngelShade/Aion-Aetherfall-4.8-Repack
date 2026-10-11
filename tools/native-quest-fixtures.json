@@ -1,5 +1,6 @@
 {
   "handlers": [
+    "game-server/data/handlers/quest/ascension/_1007ACeremonyinSanctum.java",
     "game-server/data/handlers/quest/ascension/_19070ADispatchtoVerteron.java",
     "game-server/data/handlers/quest/ascension/_19071ADispatchtoVerteron.java",
     "game-server/data/handlers/quest/ascension/_1913DispatchtoVerteron.java",
@@ -141,7 +142,10 @@
     "game-server/data/handlers/quest/poeta/_1003IllegalLogging.java",
     "game-server/data/handlers/quest/poeta/_1004NeutralizingOdium.java",
     "game-server/data/handlers/quest/poeta/_1005BarringtheGate.java",
+    "game-server/data/handlers/quest/poeta/_1114TheNymphsGown.java",
     "game-server/data/handlers/quest/reshanta/_2767AFruitfulPartnership.java",
+    "game-server/data/handlers/quest/sanctum/_1917ALingeringMystery.java",
+    "game-server/data/handlers/quest/sanctum/_1918AnAxForNamus.java",
     "game-server/data/handlers/quest/theobomos/_3020AgrintAfire.java",
     "game-server/data/handlers/quest/theobomos/_3023TheSpiceMustFlow.java",
     "game-server/data/handlers/quest/theobomos/_3035EnhancingtheStone.java",

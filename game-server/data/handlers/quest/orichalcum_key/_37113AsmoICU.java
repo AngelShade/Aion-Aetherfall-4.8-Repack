@@ -25,6 +25,11 @@ public class _37113AsmoICU extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotKillObjectFamilies.mentoredDaily(player, questId, 700969, 217172, 799906);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(700969).addOnTalkEvent(questId);
 		qe.registerQuestNpc(799906).addOnTalkEvent(questId);

@@ -18,6 +18,11 @@ public class _18510MurderMyShugo extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotKillObjectFamilies.haramel(player, questId, 203166, 203166);
+	}
+
+	@Override
 	public void register() {
 		int[] npcs = { 203166, 700953 };
 		qe.registerQuestNpc(203166).addOnQuestStart(questId);

@@ -25,6 +25,11 @@ public class _47113TurningUpTheAmplifiers extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotKillObjectFamilies.mentoredDaily(player, questId, 700972, 217176, 799921);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(700972).addOnTalkEvent(questId);
 		qe.registerQuestNpc(799921).addOnTalkEvent(questId);

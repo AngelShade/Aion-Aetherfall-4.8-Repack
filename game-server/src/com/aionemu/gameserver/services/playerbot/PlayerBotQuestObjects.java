@@ -9,6 +9,7 @@ import com.aionemu.gameserver.model.gameobjects.*;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.model.templates.quest.QuestDrop;
 import com.aionemu.gameserver.questEngine.QuestEngine;
+import com.aionemu.gameserver.questEngine.handlers.models.xmlQuest.operations.ActionItemUseOperation;
 import com.aionemu.gameserver.questEngine.model.*;
 import com.aionemu.gameserver.services.*;
 import com.aionemu.gameserver.services.drop.*;
@@ -29,6 +30,7 @@ public final class PlayerBotQuestObjects {
  record Claim(int bot,long until) {}
  private static final Map<Integer,Claim> CLAIMS=new ConcurrentHashMap<>();
  static void close(Player bot){PENDING.remove(bot.getObjectId());OFFERS.remove(bot.getObjectId());RETRY.remove(bot.getObjectId());CLAIMS.values().removeIf(c->c.bot()==bot.getObjectId());}
+ static boolean pending(Player bot){return PENDING.containsKey(bot.getObjectId());}
  private static void capture(Player owner,Player bot,Npc npc) {
   var offers=new ConcurrentHashMap<Integer,Offer>();long until=System.currentTimeMillis()+Math.max(30000,npc.getObjectTemplate().getTalkDelay()*1000L+10000);
   for(var state:bot.getQuestStateList().getUncompletedQuests())if(PlayerBotQuestSync.wanted(owner,bot,state.getQuestId()))
@@ -37,13 +39,28 @@ public final class PlayerBotQuestObjects {
    }
   OFFERS.put(bot.getObjectId(),offers);
  }
+ private static boolean authorized(Player owner,Player bot,Npc npc,Offer offer) {
+  return PlayerBotQuestSync.wanted(owner,bot,offer.quest) && PlayerBotQuestActions.actions(bot,offer.quest).contains(offer.action)
+   && PlayerBotQuestActions.items(bot,offer.action) && safe(owner,bot,npc) && !bot.isDead()
+   && bot.getKnownList().sees(npc) && PositionUtil.isInTalkRange(bot,npc)
+   && GeoService.getInstance().canSee(bot,npc) && DialogService.isInteractionAllowed(bot,npc);
+ }
+ private static void continueOffer(Player owner,Player bot,Npc npc,Offer offer) {
+  if(owner==bot)continueOffer(bot,npc,offer);
+  else continueAuthorizedOffer(owner,bot,npc,offer);
+ }
+ /** Retain the native independent-actor entry point; controlled actors supply
+  * their actual owner through the overload above. Both use the same guards. */
  private static void continueOffer(Player bot,Npc npc,Offer offer) {
+  continueAuthorizedOffer(bot,bot,npc,offer);
+ }
+ private static void continueAuthorizedOffer(Player owner,Player bot,Npc npc,Offer offer) {
   var state=bot.getQuestStateList().getQuestState(offer.quest);
   if(state==null || state.getStatus()!=offer.status || state.getQuestVars().getQuestVars()!=offer.variables
    || !offer.matches(bot.getObjectId(),npc.getObjectId(),offer.quest,System.currentTimeMillis())
    || offer.world!=bot.getWorldId() || offer.instance!=bot.getInstanceId() || offer.action.dialogAction()<=0
    || offer.action.page()<=0 || !Objects.equals(offer.page,offer.action.page())
-   || !PlayerBotQuestActions.actions(bot,offer.quest).contains(offer.action) || !PlayerBotQuestActions.items(bot,offer.action)
+   || !authorized(owner,bot,npc,offer)
    || !npc.isSpawned() || npc.isDead() || !bot.getKnownList().sees(npc) || !PositionUtil.isInTalkRange(bot,npc)
    || !GeoService.getInstance().canSee(bot,npc) || !DialogService.isInteractionAllowed(bot,npc))return;
   try(var dialog=PlayerBotQuestDialog.open(bot.getObjectId(),npc.getObjectId(),offer.quest)) {
@@ -52,7 +69,7 @@ public final class PlayerBotQuestObjects {
    offer.page=null;npc.getController().onDialogSelect(offer.action.dialogAction(),offer.action.page(),bot,offer.quest,0);
    for(var next:offer.action.continuation()) {
     if(state.getStatus()!=offer.status || state.getQuestVars().getQuestVars()!=offer.variables)break;
-    if(!dialog.offered(next.page()) || npc.getWorldId()!=bot.getWorldId() || npc.getInstanceId()!=bot.getInstanceId()
+    if(!authorized(owner,bot,npc,offer) || !dialog.offered(next.page()) || npc.getWorldId()!=bot.getWorldId() || npc.getInstanceId()!=bot.getInstanceId()
      || !PositionUtil.isInTalkRange(bot,npc) || !GeoService.getInstance().canSee(bot,npc) || !DialogService.isInteractionAllowed(bot,npc))break;
     dialog.clearPage();npc.getController().onDialogSelect(next.action(),next.page(),bot,offer.quest,0);
    }
@@ -77,12 +94,16 @@ public final class PlayerBotQuestObjects {
   && npc.getWorldId()==owner.getWorldId() && npc.getInstanceId()==owner.getInstanceId() && owner.getKnownList().sees(npc) && PositionUtil.isInRange(owner,npc,25)
   && !owner.getController().isInCombat() && !bot.getController().isInCombat() && PlayerBotPartyBehavior.isolated(owner,bot,npc);}
  static boolean tick(PlayerBotSession session,PlayerBotNavigation navigation,boolean enabled) {
+  return tick(session,navigation,enabled,enabled);
+ }
+ static boolean tick(PlayerBotSession session,PlayerBotNavigation navigation,boolean enabled,boolean continuePending) {
   Player bot=session.bot(),owner=session.owner();Npc pending=PENDING.get(bot.getObjectId());
   if(pending!=null) {
-   if(!enabled || !safe(owner,bot,pending)) {bot.getObserveController().notifyMoveObservers();if(bot.isLooting())DropService.getInstance().closeDropList(bot,bot.getLootingNpcOid());close(bot);return false;}
-   if(bot.getController().hasScheduledTask(TaskId.ACTION_ITEM_NPC))return true;
-   bot.getController().cancelTask(TaskId.ACTION_ITEM_NPC);
-   var offers=OFFERS.remove(bot.getObjectId());if(offers!=null)for(var offer:offers.values())continueOffer(bot,pending,offer);
+   if(!continuePending || bot.isDead() || !bot.isSpawned() || !safe(owner,bot,pending)) {bot.getObserveController().notifyMoveObservers();if(bot.isLooting())DropService.getInstance().closeDropList(bot,bot.getLootingNpcOid());close(bot);return false;}
+   if(bot.getController().hasScheduledTask(TaskId.ACTION_ITEM_NPC) || ActionItemUseOperation.isInProgress(bot))return true;
+   // An already admitted native commitment may finish with admission disabled.
+   // New dialog choices still require the current feature and owner policy.
+   var offers=OFFERS.remove(bot.getObjectId());if(enabled && offers!=null)for(var offer:offers.values())continueOffer(owner,bot,pending,offer);
    // The native object AI registers normal per-member loot and opens its list.
    if(bot.isLooting() && bot.getLootingNpcOid()==pending.getObjectId()) {
     var set=DropRegistrationService.getInstance().getCurrentDropMap().get(pending.getObjectId());

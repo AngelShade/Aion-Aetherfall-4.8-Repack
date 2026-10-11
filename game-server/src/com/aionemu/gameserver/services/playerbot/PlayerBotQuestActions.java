@@ -19,7 +19,8 @@ final class PlayerBotQuestActions {
  private static final Map<Integer,Map<String,Long>> RETRIES=new ConcurrentHashMap<>();
  static List<QuestBotAction> actions(Player bot,int quest) {
   if(!PlayerBotQuestFeatures.enabled(quest))return List.of();
-  return custody(bot,quest);
+  int required=PlayerBotQuestSync.requiredReward(bot,quest);
+  return required==-2 ? List.of() : QuestEngine.getInstance().getPlayerBotActions(bot,quest,required);
  }
  /** Read-only custody requirements remain protected when AI admission is disabled. */
  static List<QuestBotAction> custody(Player bot,int quest) {return QuestEngine.getInstance().getPlayerBotActions(bot,quest);}

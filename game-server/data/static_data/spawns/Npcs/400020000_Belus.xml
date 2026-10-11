@@ -756,7 +756,7 @@
 			<spot x="1623.4451" y="1653.0834" z="1485.9474" random_walk="2" />
 			<spot x="1641.72" y="1704.0708" z="1487.3254" random_walk="2" />
 			<spot x="1940.6736" y="1276.5326" z="1476.4788" random_walk="2" />
-			<spot x="1618.6523" y="1659.7932" z="NaN" random_walk="2" />
+			<spot x="1618.1523" y="1659.7932" z="1485.9828" random_walk="2" />
 			<spot x="1896.7909" y="1314.6016" z="1481.1304" random_walk="2" />
 		</spawn>
 		<!-- Splitwing Flavi -->

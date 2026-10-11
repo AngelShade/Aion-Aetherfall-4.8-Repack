@@ -90,6 +90,15 @@ public abstract class AbstractQuestHandler {
 		return List.of();
 	}
 
+	/** Required native story group, selected through offered dialogs before commitment; -1 means ordinary intent. */
+	public List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player, int requiredRewardGroup) {
+		return getPlayerBotActions(player);
+	}
+
+	public com.aionemu.gameserver.questEngine.model.QuestBotRewardChoices getPlayerBotRewardChoices(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotRewardChoices.unknown();
+	}
+
 	/** Explicit native profession capability; names and source packages are not authorization. */
 	public boolean isBotCraftingQuest() {
 		return false;

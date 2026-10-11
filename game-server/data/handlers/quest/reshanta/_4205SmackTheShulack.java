@@ -18,6 +18,11 @@ public class _4205SmackTheShulack extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotKillObjectFamilies.smackShulack(player);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(279010).addOnQuestStart(questId);
 		qe.registerQuestNpc(279010).addOnTalkEvent(questId);

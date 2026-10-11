@@ -1,5 +1,47 @@
 # Aion project continuity and installed modifications
 
+## Timed quest/story routes and native catalog crash — installed offline — 11 October 2026
+
+PB-SCOPE-QUEST-044 is installed from complete normal Maven output. The confirmed
+running-log Invalid travel destination failure came from Sentio Bloodwing 880974's
+Belus NaN height. Native mesh validation supports the corrected point 0.5m west,
+1618.1523/1659.7932/1485.9828, with eight clear approaches. Shared material catalog
+admission excludes and reports malformed coordinates while retaining valid sources
+and its cache. No coordinate exception or generic warning suppression was added.
+
+Ancient Cube1127 now discovers actual nested XML object/report actions; its second
+three-second native operation retains guarded task/actor/state/location identity
+and completion visibility. Feature-off preserves valid commitments; stale/manual
+callbacks cannot steal successors or grant progress. Ranger3924/4924 learned Mau
+intents use native DP/cooldown/cast/event authority. Coordinated1114 story groups,
+1007 class-forced reachability and1917/1918 followups retain real pages/custody;
+1918 no longer consumes an owned axe merely opening/reopening its reward page.
+
+Receipt: external archives/server/game-server/backups/
+playerbots-source-build-20261011-182454-369109; review: external staging/output/
+release-20261011-181503-551719. GS SHA256:
+688c9dd0c2b137e58f8474d77607034c407ca9594b4175acfbf88edfdf3e4587.
+100 artifact-bound suites/82,761 checks/41 tooling tests,1,758 warning-free handlers,
+43 native-browser actions/33 screenshots and complete XML/schema/JAXB pass.
+Linkage3442classes/193642references and3666 byte-identical previous JAR entries
+pass; all original package entries/required methods remain. Six builder files
+delivered(GS,four native handlers,Belus XML);Commons/client/configs remain.
+Independent installed verification passes227 guards/94 configs/30 protected client
+hashes and2047 backed-up invalidated caches. Inventory20 mod checks/74 client/
+162 historical server receipts passes. All43 prior settings and seven feature
+switches remain. Rejected175240/180404 candidates were never copied; final source
+actively retains the timer helper and independent continuation entry point.
+
+No component lifecycle/attach/gameplay/production SQL/native World/ID fixture
+occurred. Full autonomous quest/audit scope remains active unfinished engineering.
+Next confirmed seams include owned resurrection-item explicit target selection,
+remaining registered custom/campaign stage families and exact world/zone PvP
+conditions/fallback under existing policy. A separate saved Stumble effect invokes
+movement before spawn during native loading; it is not the catalog exception and
+is not repaired by044. Actual latency and gameplay remain user acceptance.
+See docs/PLAYERBOTS_QUEST_TIMING_CATALOG_20261011.md,
+docs/PLAYERBOTS_STORY_REWARD_ROUTES_20261011.md and the full autonomous quest ledger.
+
 ## Interrupted autonomous quest/master release — installed offline — 11 October 2026
 
 PB-SCOPE-QUEST-043 resumed the usage-interrupted coordinated source work and is

@@ -9,6 +9,134 @@ import com.aionemu.gameserver.model.gameobjects.player.Player;
 public final class QuestBotActionFamilies {
     private QuestBotActionFamilies() { }
 
+    private static QuestBotRewardChoices committedChoices(QuestState state) {
+        return QuestBotRewardChoices.nativeGroups(state.getRewardGroup() == null ? java.util.Set.of()
+            : java.util.Set.of(state.getRewardGroup()), "Native saved story reward group is committed and cannot be rewritten");
+    }
+
+    /** 1114's native Namus/Asteros story decision, distinct from selectable reward items. */
+    public static QuestBotRewardChoices nymphRewardChoices(Player player) {
+        var state = player.getQuestStateList().getQuestState(1114);
+        if (state != null && (state.getStatus() == QuestStatus.REWARD
+            || state.getStatus() == QuestStatus.COMPLETE && !state.isStartable())) return committedChoices(state);
+        if (state != null && state.getStatus() == QuestStatus.START && state.getQuestVarById(0) > 3)
+            return QuestBotRewardChoices.nativeGroups(java.util.Set.of(), "Saved Nymph's Gown stage has no native pre-reward branch");
+        return QuestBotRewardChoices.nativeGroups(java.util.Set.of(0, 1), "Native Asteros group0 or Namus group1 dialogue before reward commitment");
+    }
+
+    public static List<QuestBotAction> nymphStory(Player player, int requiredGroup) {
+        var state = player.getQuestStateList().getQuestState(1114);
+        if (requiredGroup >= 0 && !nymphRewardChoices(player).groups().contains(requiredGroup))
+            return List.of(QuestBotAction.event("Required Nymph's Gown story group " + requiredGroup + " is unreachable without rewriting native saved progress"));
+        if (state == null || state.isStartable()) return List.of(QuestBotAction.item(182200214));
+        if (state.getStatus() == QuestStatus.REWARD) {
+            if (state.getQuestVarById(0) == 4 && java.util.Objects.equals(state.getRewardGroup(), 1))
+                return List.of(QuestBotAction.reward(203075));
+            if (state.getQuestVarById(0) == 3 && java.util.Objects.equals(state.getRewardGroup(), 0))
+                return List.of(QuestBotAction.reward(203058));
+            return List.of(QuestBotAction.event("Saved Nymph's Gown reward stage/group does not match a native recipient"));
+        }
+        if (state.getStatus() != QuestStatus.START) return List.of();
+        // Ordinary play retains both original options; a prerequisite chooses its native route explicitly.
+        boolean asteros = requiredGroup == 0;
+        return switch (state.getQuestVarById(0)) {
+            case 0 -> List.of(QuestBotAction.dialog(203075, DialogAction.SETPRO1, 1011));
+            case 1 -> List.of(QuestBotAction.object(700008));
+            case 2 -> asteros ? List.of(QuestBotAction.dialog(203075, DialogAction.SETPRO2, 1693).requiring(182200217, 1))
+                : requiredGroup == 1 ? List.of(QuestBotAction.dialog(203075, DialogAction.SELECT_QUEST_REWARD, 1693).requiring(182200217, 1))
+                : List.of(QuestBotAction.dialog(203075, DialogAction.SELECT_QUEST_REWARD, 1693).requiring(182200217, 1),
+                    QuestBotAction.dialog(203075, DialogAction.SETPRO2, 1693).requiring(182200217, 1));
+            case 3 -> asteros ? List.of(QuestBotAction.dialog(203058, DialogAction.SETPRO3, 2034).requiring(182200217, 1))
+                : requiredGroup == 1 ? List.of(QuestBotAction.dialog(203075, DialogAction.SELECT_QUEST_REWARD, 2375).requiring(182200217, 1))
+                : List.of(QuestBotAction.dialog(203075, DialogAction.SELECT_QUEST_REWARD, 2375).requiring(182200217, 1),
+                    QuestBotAction.dialog(203058, DialogAction.SETPRO3, 2034).requiring(182200217, 1));
+            default -> List.of(QuestBotAction.event("Saved Nymph's Gown stage has no declared native transition"));
+        };
+    }
+
+    /** Mirrors the original ceremony's starting-class switch; never selects a reward item or sets a group. */
+    private static int ceremonyGroup(Player player) {
+        return switch (player.getPlayerClass().getStartingClass()) {
+            case WARRIOR -> 0;
+            case SCOUT -> 1;
+            case MAGE -> 2;
+            case PRIEST -> 3;
+            case ENGINEER -> 4;
+            case ARTIST -> 5;
+            default -> -1;
+        };
+    }
+
+    public static QuestBotRewardChoices ceremonyRewardChoices(Player player) {
+        var state = player.getQuestStateList().getQuestState(1007);
+        if (state != null && (state.getStatus() == QuestStatus.REWARD
+            || state.getStatus() == QuestStatus.COMPLETE && !state.isStartable())) return committedChoices(state);
+        int group = ceremonyGroup(player);
+        return QuestBotRewardChoices.nativeGroups(group < 0 ? java.util.Set.of() : java.util.Set.of(group),
+            "Native Sanctum ceremony forces its story reward group from the actor's starting class");
+    }
+
+    public static List<QuestBotAction> ceremony(Player player, int requiredGroup) {
+        var state = player.getQuestStateList().getQuestState(1007);
+        if (requiredGroup >= 0 && !ceremonyRewardChoices(player).groups().contains(requiredGroup))
+            return List.of(QuestBotAction.event("Required ceremony story group " + requiredGroup + " is unreachable for this native class/committed choice"));
+        if (state == null || state.isStartable())
+            return List.of(QuestBotAction.event("Native ceremony enrollment requires actual completed Ascension and level propagation"));
+        if (state.getStatus() == QuestStatus.REWARD) {
+            int stage = state.getQuestVars().getQuestVars();
+            Integer group = state.getRewardGroup();
+            if (group == null || group < 0 || group > 5 || stage != (group + 1) * 10)
+                return List.of(QuestBotAction.event("Saved ceremony reward stage/group has no native trainer recipient"));
+            return List.of(QuestBotAction.reward(new int[]{203758, 203759, 203760, 203761, 801212, 801213}[group]));
+        }
+        if (state.getStatus() != QuestStatus.START) return List.of();
+        return switch (state.getQuestVars().getQuestVars()) {
+            case 0 -> List.of(QuestBotAction.dialog(790001, DialogAction.SETPRO1, 1011));
+            case 1 -> List.of(QuestBotAction.dialog(203725, DialogAction.SETPRO2, 1352));
+            case 2 -> List.of(QuestBotAction.dialog(203752, DialogAction.SETPRO3, 1693));
+            default -> List.of(QuestBotAction.event("Saved ceremony stage has no declared native transition"));
+        };
+    }
+
+    public static QuestBotRewardChoices lingeringMysteryRewardChoices(Player player) {
+        var state = player.getQuestStateList().getQuestState(1917);
+        if (state != null && (state.getStatus() == QuestStatus.REWARD
+            || state.getStatus() == QuestStatus.COMPLETE && !state.isStartable())) return committedChoices(state);
+        if (state != null && state.getStatus() == QuestStatus.START && state.getQuestVarById(0) > 1)
+            return QuestBotRewardChoices.nativeGroups(java.util.Set.of(), "Saved Lingering Mystery stage has no native story report");
+        return QuestBotRewardChoices.nativeGroups(java.util.Set.of(0, 1, 2), "Native Seirenia report offers three story replies before commitment");
+    }
+
+    /** 1917 follows the actually completed Asteros branch, then its original two reports. */
+    public static List<QuestBotAction> lingeringMystery(Player player, int requiredGroup) {
+        var state = player.getQuestStateList().getQuestState(1917);
+        if (requiredGroup >= 0 && !lingeringMysteryRewardChoices(player).groups().contains(requiredGroup))
+            return List.of(QuestBotAction.event("Required Lingering Mystery story group cannot overwrite native class/stage/committed progress"));
+        if (state == null || state.isStartable())
+            return List.of(QuestBotAction.dialog(203835, DialogAction.ASK_QUEST_ACCEPT, 1011).then(DialogAction.QUEST_ACCEPT, 4));
+        if (state.getStatus() == QuestStatus.REWARD) return List.of(QuestBotAction.reward(203835));
+        if (state.getStatus() != QuestStatus.START) return List.of();
+        if (state.getQuestVarById(0) == 0) return List.of(QuestBotAction.dialog(203075, DialogAction.SETPRO1, 1352));
+        if (state.getQuestVarById(0) == 1) {
+            int[] replies = {DialogAction.SETPRO1, DialogAction.SETPRO2, DialogAction.SETPRO3};
+            return requiredGroup >= 0 ? List.of(QuestBotAction.dialog(203835, replies[requiredGroup], 1693))
+                : java.util.Arrays.stream(replies).mapToObj(reply -> QuestBotAction.dialog(203835, reply, 1693)).toList();
+        }
+        return List.of(QuestBotAction.event("Saved Lingering Mystery stage has no declared native report transition"));
+    }
+
+    /** 1918's earned axe remains owned until the original successful finishQuest cleanup. */
+    public static List<QuestBotAction> axeForNamus(Player player) {
+        var state = player.getQuestStateList().getQuestState(1918);
+        if (state == null || state.isStartable())
+            return List.of(QuestBotAction.dialog(203835, DialogAction.ASK_QUEST_ACCEPT, 1011).then(DialogAction.QUEST_ACCEPT, 4));
+        if (state.getStatus() == QuestStatus.REWARD)
+            return List.of(QuestBotAction.reward(203835).requiring(182206002, 1));
+        if (state.getStatus() != QuestStatus.START) return List.of();
+        if (state.getQuestVarById(0) == 0) return List.of(QuestBotAction.dialog(203788, DialogAction.SETPRO1, 1352));
+        return List.of(QuestBotAction.event("Saved An Ax For Namus stage has no declared native report transition"));
+    }
+
     /** Ascension dispatch: enrollment stays with native campaign prerequisite propagation. */
     public static List<QuestBotAction> dispatch(Player player, int quest, int sender, int recipient) {
         var state = player.getQuestStateList().getQuestState(quest);

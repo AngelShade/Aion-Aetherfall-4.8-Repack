@@ -23,6 +23,21 @@ public class _1007ACeremonyinSanctum extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return getPlayerBotActions(player, -1);
+	}
+
+	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player, int requiredRewardGroup) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.ceremony(player, requiredRewardGroup);
+	}
+
+	@Override
+	public com.aionemu.gameserver.questEngine.model.QuestBotRewardChoices getPlayerBotRewardChoices(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.ceremonyRewardChoices(player);
+	}
+
+	@Override
 	public void register() {
 		if (CustomConfig.ENABLE_SIMPLE_2NDCLASS)
 			return;

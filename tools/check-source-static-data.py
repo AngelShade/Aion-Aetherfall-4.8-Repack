@@ -54,7 +54,7 @@ def main():
     assert country, 'Runtime country code unavailable'
     libs = [f for f in sorted((server / 'libs').glob('*.jar')) if f.name not in {'game-server-4.8-SNAPSHOT.jar', 'commons-4.8-SNAPSHOT.jar', 'playerbot-recruitment-fix.jar'}]
     cp = ';'.join(map(str, [out / 'checks', game, build / 'commons/commons-4.8-SNAPSHOT.jar', *libs]))
-    subprocess.run(['javac', '-cp', cp, '-d', str(out / 'checks'), str(ROOT / 'tools/java/StaticDataBuildCheck.java'), str(ROOT / 'tools/java/PopulationCatalogBuildCheck.java'), str(ROOT / 'tools/java/PlayerBotQuestCoverageBuildCheck.java')], check=True)
+    subprocess.run(['javac', '-cp', cp, '-d', str(out / 'checks'), str(ROOT / 'tools/java/StaticDataBuildCheck.java'), str(ROOT / 'tools/java/PopulationCatalogBuildCheck.java'), str(ROOT / 'tools/java/PlayerBotQuestCoverageBuildCheck.java'), str(ROOT / 'tools/java/PlayerBotMaterialCatalogBuildCheck.java')], check=True)
     report = out / 'static-data-load.txt'
     with report.open('w') as stream:
         result = subprocess.run(['java', '-Xmx4g', '-cp', cp, 'com.aionemu.gameserver.dataholders.StaticDataBuildCheck',

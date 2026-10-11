@@ -347,13 +347,17 @@ public final class PlayerBotSession {
 			if (validEnemy(npc, party, explicitTarget(npc))) enemies.add(npc);
 		});
 		boolean materialFlight=PlayerBotQuestMaterials.flightPending(this);
-		if (autonomous() && !materialFlight && enemies.isEmpty() && !supportNeeded && !incapacitated && PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot)) && PlayerBotService.getInstance().placePopulation(this)) { status="entering a level-appropriate population destination"; return true; }
-		if (autonomous() && !materialFlight && enemies.isEmpty() && !supportNeeded && !bot.isCasting() && !incapacitated && PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot)) && PlayerBotWorldAscension.tick(this,navigation)) { status="advancing native Ascension quest"; return true; }
-		boolean questActionsAllowed = !supportNeeded && questEnabled && order == Order.FOLLOW && !incapacitated && !owner.isDead()
+		boolean questCommitmentSafe = questing && !supportNeeded && order == Order.FOLLOW && !incapacitated && !owner.isDead()
 			&& !(!autonomous() && owner.getMoveController().isInMove())
 			&& !owner.isFlying() && !bot.isFlying() && !PlayerBotQuestSync.returning(this) && !bot.isCasting()
 			&& !owner.getController().isInCombat() && !bot.getController().isInCombat() && party.stream().allMatch(p -> p.getAggroList().stream().findAny().isEmpty())
 			&& !shouldRest(hp(bot), mp(bot), PlayerBotRecoveryIntent.active(bot), !enemies.isEmpty(), false, PositionUtil.getDistance(bot, owner));
+		boolean questActionsAllowed = questEnabled && questCommitmentSafe;
+		// Observe admitted native object work before travel or another action can
+		// replace its task. Feature switches stop admission, not earned completion.
+		if (PlayerBotQuestObjects.pending(bot) && PlayerBotQuestObjects.tick(this,navigation,questActionsAllowed,questCommitmentSafe)) { PlayerBotWorldActivities.interacting(bot);status="finishing native quest object";return true; }
+		if (autonomous() && !materialFlight && enemies.isEmpty() && !supportNeeded && !incapacitated && PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot)) && PlayerBotService.getInstance().placePopulation(this)) { status="entering a level-appropriate population destination"; return true; }
+		if (autonomous() && !materialFlight && enemies.isEmpty() && !supportNeeded && !bot.isCasting() && !incapacitated && PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot)) && PlayerBotWorldAscension.tick(this,navigation)) { status="advancing native Ascension quest"; return true; }
 		// NPC interaction keeps native combat restrictions. Choosing the next
 		// field fight does not wait for that ten-second post-attack timer.
 		boolean fieldPullAllowed = !supportNeeded && fieldPullAllowed();
@@ -458,7 +462,7 @@ public final class PlayerBotSession {
 				}),DEFAULT+3));
 		}
 		if(questEnabled && order==Order.FOLLOW && !incapacitated && combat && !rest && mission==null) {
-			var questItem=PlayerBotQuestItems.choose(owner,bot,now,true);
+			var questItem=PlayerBotQuestItems.choose(owner,bot,now,true,target);
 			if(questItem!=null) {
 				var questTriggers=strategyPlan.triggers("quest skill items",State.COMBAT);
 				questTriggers.add(trigger(new SimpleAction("use native quest skill item for "+questItem.quest(),
@@ -541,6 +545,7 @@ public final class PlayerBotSession {
 		var requiredQuestSkills=questing && order==Order.FOLLOW ? PlayerBotQuestActions.skills(owner,bot) : Set.<Integer>of();
 		if (order != Order.PASSIVE) {
 			for (PlayerBotSkills.Entry entry : skills) {
+				if(PlayerBotSkills.questTransformation(entry) && !requiredQuestSkills.contains(entry.template().getSkillId()))continue;
 				if (incapacitated && entry.kind() != SkillKind.RECOVERY || bot.isSkillDisabled(entry.template()) || !PlayerBotSkills.chainAvailable(bot, entry)) continue;
 				Creature recipient = recipient(entry, support, target, combat);
 				if (recipient == null) continue;
@@ -850,6 +855,7 @@ public final class PlayerBotSession {
 		@Override public boolean isUseful() {
 			var actual = PlayerBotSkills.actualTemplate(bot, entry);
 			if (actual == null) return false;
+			if(PlayerBotSkills.questTransformation(entry) && (!questing || order!=Order.FOLLOW || !PlayerBotQuestActions.skills(owner,bot).contains(entry.template().getSkillId())))return false;
 			if (PlayerBotSpiritmaster.applies(bot.getPlayerClass()) && (entry.kind() == SkillKind.BUFF || entry.kind() == SkillKind.PET_ORDER)
 				&& !PlayerBotSpiritmaster.idleUseful(bot,entry,recipient,!enemies.isEmpty() || bot.getController().isInCombat())) return false;
 			if (!PlayerBotEnemyUtility.useful(bot, entry, recipient)) return false;

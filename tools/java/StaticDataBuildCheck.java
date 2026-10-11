@@ -32,6 +32,7 @@ public final class StaticDataBuildCheck {
             data.waitForAfterUnmarshalTasksToFinish();
             com.aionemu.gameserver.services.playerbot.PopulationCatalogBuildCheck.check(data);
             com.aionemu.gameserver.services.playerbot.PlayerBotQuestCoverageBuildCheck.check(data);
+            com.aionemu.gameserver.services.playerbot.PlayerBotMaterialCatalogBuildCheck.check(data);
             System.out.println("OK: complete static XML merge, schema and production JAXB load; items=" + data.itemData.size()
                 + "; decomposable=" + data.decomposableItemsData.size() + "; overrides=" + data.decomposableItemsData.overrideCount()
                 + "; no GameServer startup/database/world actors");

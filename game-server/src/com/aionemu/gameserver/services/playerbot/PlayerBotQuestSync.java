@@ -26,6 +26,8 @@ public final class PlayerBotQuestSync {
   final Map<Integer,Prompt> prompts = new LinkedHashMap<>();
   final Map<String,Long> announcements = new HashMap<>();
   final Map<Integer,Integer> ownerCompletions = new HashMap<>();
+  // Transient native story intent for approved catch-up, never saved quest state.
+  final Map<Integer,Integer> requiredRewards = new HashMap<>();
   final Deque<String> messages = new ArrayDeque<>();
   long nextScan, returnUntil;
   boolean enchant, salvage, partySync = true;
@@ -112,9 +114,25 @@ public final class PlayerBotQuestSync {
  }
  static List<Integer> missing(Player bot,int quest) {return PlayerBotQuestPrerequisites.missing(bot,quest);}
  static List<Integer> chain(Player bot,int quest) {return PlayerBotQuestPrerequisites.chain(bot,quest);}
+ static int requiredReward(Player bot,int quest) {
+  var s=STATES.get(bot.getObjectId());
+  if(s!=null && !s.session.autonomous())return s.requiredRewards.getOrDefault(quest,-1);
+  return PlayerBotWorldActivities.requiredReward(bot,quest);
+ }
+ static void rewardIntent(State s) {
+  s.requiredRewards.clear();
+  for(int root:new TreeSet<>(s.approved)) {
+   var state=s.session.bot().getQuestStateList().getQuestState(root);
+   if(state!=null && state.getStatus()!=QuestStatus.LOCKED)continue;
+   var plan=PlayerBotQuestPrerequisites.plan(s.session.bot(),root);if(!plan.reachable())continue;
+   plan.requiredRewards().forEach((id,group)->s.requiredRewards.merge(id,group,(a,b)->a.equals(b)?a:-2));
+  }
+  for(var e:s.requiredRewards.entrySet())if(e.getValue()==-2)notice(s.session.bot(),"Approved catch-up quests require conflicting native story branches for "+ChatUtil.quest(e.getKey())+". Choose one quest chain before that story decision.","reward-conflict:"+e.getKey(),120000);
+ }
  static void tick(PlayerBotSession session,boolean enabled) {
   State s=state(session);Player owner=session.owner(),bot=session.bot();long now=System.currentTimeMillis();
   if(!enabled || now<s.nextScan || owner.isDead() || bot.isDead())return;s.nextScan=now+3000;
+  if(!session.autonomous())rewardIntent(s);
   s.prompts.entrySet().removeIf(e->{var q=bot.getQuestStateList().getQuestState(e.getKey());return q!=null && q.getStatus()==QuestStatus.COMPLETE;});
   for(var owned:owner.getQuestStateList().getUncompletedQuests()) {
    int id=owned.getQuestId();if(s.skipped.contains(id))continue;

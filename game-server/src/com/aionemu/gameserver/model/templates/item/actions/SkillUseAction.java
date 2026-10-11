@@ -10,6 +10,7 @@ import javax.xml.bind.annotation.XmlType;
 import com.aionemu.gameserver.configs.main.CustomConfig;
 import com.aionemu.gameserver.model.gameobjects.Creature;
 import com.aionemu.gameserver.model.gameobjects.Item;
+import com.aionemu.gameserver.model.gameobjects.VisibleObject;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_SYSTEM_MESSAGE;
 import com.aionemu.gameserver.skillengine.SkillEngine;
@@ -50,11 +51,17 @@ public class SkillUseAction extends AbstractItemAction {
 
 	@Override
 	public boolean canAct(Player player, Item parentItem, Item targetItem, Object... params) {
+		return canActOn(player, parentItem, targetItem, player.getTarget());
+	}
+
+	/** Explicit native unit target for headless item use; validation and costs
+	 * remain identical to the client-selected target path above. */
+	public boolean canActOn(Player player, Item parentItem, Item targetItem, VisibleObject target) {
 		if (mapid != 0 && player.getWorldId() != mapid) {
 			PacketSendUtility.sendPacket(player, SM_SYSTEM_MESSAGE.STR_SKILL_CAN_NOT_USE_ITEM_IN_CURRENT_POSITION());
 			return false;
 		}
-		Skill skill = SkillEngine.getInstance().getSkill(player, skillid, level, player.getTarget(), parentItem.getItemTemplate());
+		Skill skill = SkillEngine.getInstance().getSkill(player, skillid, level, target, parentItem.getItemTemplate());
 		if (skill == null)
 			return false;
 		List<EffectTemplate> effects = skill.getSkillTemplate().getEffects().getEffects();
@@ -98,11 +105,17 @@ public class SkillUseAction extends AbstractItemAction {
 
 	@Override
 	public void act(Player player, Item parentItem, Item targetItem, Object... params) {
-		Skill skill = SkillEngine.getInstance().getSkill(player, skillid, level, player.getTarget(), parentItem.getItemTemplate());
+		actOn(player, parentItem, targetItem, player.getTarget());
+	}
+
+	/** Returns actual native cast admission; it does not grant a skill or effect. */
+	public boolean actOn(Player player, Item parentItem, Item targetItem, VisibleObject target) {
+		Skill skill = SkillEngine.getInstance().getSkill(player, skillid, level, target, parentItem.getItemTemplate());
 		if (skill != null) {
 			skill.setItemObjectId(parentItem.getObjectId());
-			skill.useSkill();
+			return skill.useSkill();
 		}
+		return false;
 	}
 
 	public int getMapId() {

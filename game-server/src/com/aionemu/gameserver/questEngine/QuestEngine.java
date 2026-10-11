@@ -926,6 +926,17 @@ public class QuestEngine implements GameEngine {
 		return handler == null ? List.of() : List.copyOf(handler.getPlayerBotActions(player));
 	}
 
+	public List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player, int questId, int requiredRewardGroup) {
+		AbstractQuestHandler handler = questHandlers.get(questId);
+		return handler == null ? List.of() : List.copyOf(handler.getPlayerBotActions(player, requiredRewardGroup));
+	}
+
+	public com.aionemu.gameserver.questEngine.model.QuestBotRewardChoices getPlayerBotRewardChoices(Player player, int questId) {
+		AbstractQuestHandler handler = questHandlers.get(questId);
+		return handler == null ? com.aionemu.gameserver.questEngine.model.QuestBotRewardChoices.unknown()
+			: handler.getPlayerBotRewardChoices(player);
+	}
+
 	public void addQuestHandler(AbstractQuestHandler questHandler) {
 		int questId = questHandler.getQuestId();
 		if (questHandlers.putIfAbsent(questId, questHandler) != null)

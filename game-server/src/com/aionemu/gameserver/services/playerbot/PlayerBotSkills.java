@@ -28,7 +28,7 @@ public final class PlayerBotSkills {
 				range = Math.max(range, Math.max(p.getEffectiveRange(), p.getEffectiveDist()));
 			if (p.isAddWeaponRange())
 				range += bot.getGameStats().getAttackRange().getCurrent() / 1000f;
-			return new Entry(t, entry.getSkillLevel(), classify(t), Math.max(1, range));
+			return new Entry(t, entry.getSkillLevel(), classify(bot, t), Math.max(1, range));
 		}).filter(e -> e != null && e.kind() != UNSUPPORTED)
 			.sorted(java.util.Comparator.comparingInt(e -> e.template().getSkillId())).toList();
 	}
@@ -73,6 +73,38 @@ public final class PlayerBotSkills {
 			BOOSTSPELLATTACK, BOOSTHATE, BOOSTSKILLCASTINGTIME, REFLECTOR, REBIRTH) ? BUFF : UNSUPPORTED;
 	}
 
+	/** Ordinary classification stays unchanged; Mau is useful only for its live native quest counter. */
+	public static SkillKind classify(Player bot, SkillTemplate template) {
+		return questTransformationEligible(bot, template) ? BUFF : classify(template);
+	}
+
+	public static boolean questTransformation(Entry entry) {
+		return questTransformation(entry.template());
+	}
+
+	private static boolean questTransformation(SkillTemplate template) {
+		return (template.getSkillId() == 872 || template.getSkillId() == 4610)
+			&& !template.isPassive() && !template.isProvoked() && !template.isCharge()
+			&& template.getProperties() != null && template.getEffects() != null
+			&& template.getProperties().getFirstTarget() == FirstTargetAttribute.ME
+			&& template.getProperties().getTargetRelation() == TargetRelationAttribute.FRIEND
+			&& template.hasAnyEffect(SHAPECHANGE);
+	}
+
+	/** Re-query the registered handler; cached learned entries cannot authorize completed or disabled counters. */
+	public static boolean questTransformationEligible(Player bot, SkillTemplate template) {
+		if (!questTransformation(template) || !bot.isPlayerBot() || !bot.isSpawned() || bot.isDead()
+			|| bot.isTransformed() || bot.getPlayerClass() != com.aionemu.gameserver.model.PlayerClass.RANGER
+			|| !bot.getSkillList().isSkillPresent(template.getSkillId())) return false;
+		int quest = template.getSkillId() == 872 ? 4924 : 3924;
+		var state = bot.getQuestStateList().getQuestState(quest);
+		if (state == null || state.getStatus() != com.aionemu.gameserver.questEngine.model.QuestStatus.START
+			|| !PlayerBotQuestFeatures.enabled(quest)) return false;
+		return PlayerBotQuestActions.custody(bot, quest).stream().anyMatch(action ->
+			action.kind() == com.aionemu.gameserver.questEngine.model.QuestBotAction.Kind.SKILL
+			&& action.targetId() == template.getSkillId() && PlayerBotQuestActions.items(bot, action));
+	}
+
 	public static SkillTemplate chargedTemplate(SkillTemplate start) {
 		var condition = start.getSkillChargeCondition();
 		if (condition == null || DataManager.SKILL_CHARGE_DATA == null) return null;
@@ -82,6 +114,7 @@ public final class PlayerBotSkills {
 	}
 
 	public static SkillTemplate actualTemplate(Player bot, Entry entry) {
+		if (questTransformation(entry) && !questTransformationEligible(bot, entry.template())) return null;
 		if (entry.template().isCharge()) return chargedTemplate(entry.template());
 		if (entry.kind() != PET_ORDER) return entry.template();
 		if (bot.getSummon() == null || DataManager.PET_SKILL_DATA == null) return null;
@@ -115,6 +148,8 @@ public final class PlayerBotSkills {
 		return canPlan(bot, entry, target, true);
 	}
 	static boolean canPlan(Player bot, Entry entry, com.aionemu.gameserver.model.gameobjects.Creature target, boolean checkPosition) {
+		if (questTransformation(entry) && (target != bot || !questTransformationEligible(bot, entry.template())
+			|| bot.isSkillDisabled(entry.template()))) return false;
 		var skill = com.aionemu.gameserver.skillengine.SkillEngine.getInstance().getSkillFor(bot, entry.template(), target);
 		if (skill == null) return false;
 		if (entry.kind() == PET_ORDER && actualTemplate(bot, entry) == null) return false;

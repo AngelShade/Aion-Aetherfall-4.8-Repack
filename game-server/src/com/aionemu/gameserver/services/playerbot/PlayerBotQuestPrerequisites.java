@@ -28,6 +28,7 @@ final class PlayerBotQuestPrerequisites {
   QuestState state(int quest);
   List<Blocker> eligibility(int quest);
   List<Blocker> capability(int quest);
+  default QuestBotRewardChoices rewardChoices(int quest){return QuestBotRewardChoices.unknown();}
   int title();
  }
  private record Key(int quest,Goal goal,int reward) {}
@@ -85,6 +86,11 @@ final class PlayerBotQuestPrerequisites {
   var blockers=new ArrayList<Blocker>();if(template==null)return new Node(key,null,false,List.of(),List.of(new Blocker(key.quest(),"MISSING_TEMPLATE",true,"Native prerequisite quest "+key.quest()+" has no template")));
   var state=view.state(key.quest());boolean active=state!=null && (state.getStatus()==QuestStatus.START || state.getStatus()==QuestStatus.REWARD);
   if(key.reward()>=0 && (key.reward()>=template.getRewards().size()))blockers.add(new Blocker(key.quest(),"REWARD_GROUP_UNAVAILABLE",true,"Prerequisite "+key.quest()+" requires native reward group "+key.reward()+" but only "+template.getRewards().size()+" groups exist"));
+  if(key.reward()>=0) {
+   var choices=view.rewardChoices(key.quest());
+   if(choices.declared() && !choices.groups().contains(key.reward()))blockers.add(new Blocker(key.quest(),"NATIVE_REWARD_ROUTE",true,
+    "Prerequisite "+key.quest()+" requires native story group "+key.reward()+", but this actor can reach "+choices.groups()+": "+choices.reason()));
+  }
   if(state!=null && state.getStatus()==QuestStatus.COMPLETE) {
    boolean exhausted=template.getMaxRepeatCount()!=255 && state.getCompleteCount()>=template.getMaxRepeatCount();
    if(exhausted)blockers.add(new Blocker(key.quest(),key.reward()>=0 && !Objects.equals(state.getRewardGroup(),key.reward())?"SAVED_REWARD_CHOICE":"REPEAT_EXHAUSTED",true,
@@ -208,6 +214,7 @@ final class PlayerBotQuestPrerequisites {
   public QuestTemplate template(int quest){return DataManager.QUEST_DATA.getQuestById(quest);}
   public QuestState state(int quest){return bot.getQuestStateList().getQuestState(quest);}
   public int title(){return bot.getCommonData().getTitleId();}
+  public QuestBotRewardChoices rewardChoices(int quest){return QuestEngine.getInstance().getPlayerBotRewardChoices(bot,quest);}
   public List<Blocker> eligibility(int quest){return eligibility.computeIfAbsent(quest,id->{
    var t=template(id);if(t==null)return List.of();var result=new ArrayList<Blocker>();
    if(t.getRacePermitted()!=null && t.getRacePermitted()!=Race.PC_ALL && t.getRacePermitted()!=bot.getRace())result.add(new Blocker(id,"RACE",true,"Native quest "+id+" requires race "+t.getRacePermitted()+"; actor race="+bot.getRace()));

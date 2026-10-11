@@ -21,6 +21,11 @@ public class _11063QuellMastarius extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotKillObjectFamilies.spyLeague(player, questId, 182206849, 799049, 258220, 798926, 182206850);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestItem(182206849, questId);
 		qe.registerQuestNpc(799049).addOnTalkEvent(questId);

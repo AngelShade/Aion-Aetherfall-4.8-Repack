@@ -162,6 +162,7 @@ final class PlayerBotQuestMaterials {
    if(current(CATALOG))return CATALOG;
    var custom=new HashMap<Integer,List<CustomSource>>();var global=new HashMap<Integer,List<GlobalSource>>();var gathering=new HashMap<Integer,List<GatherSource>>();
    var nodes=new HashMap<Integer,GatherSource>();var sites=new HashMap<Integer,List<Site>>();var gatherPlaces=new HashMap<Integer,List<PlayerBotWorldTravel.Place>>();var zoneNames=new HashSet<Object>();var aerial=new HashSet<PlayerBotWorldTravel.Place>();
+   int invalid=0;String firstInvalid="";
    for(var npc:DataManager.NPC_DATA.getNpcData()) {
     var drops=DataManager.CUSTOM_NPC_DROP.getNpcDrop(npc.getTemplateId());if(drops==null || drops.getDropGroup()==null)continue;
     for(var group:drops.getDropGroup())if(group.getMaxItems()>0 && group.getDrop()!=null)for(var d:group.getDrop())if(d.getChance()>0 && d.getMaxAmount()>0)
@@ -180,6 +181,10 @@ final class PlayerBotQuestMaterials {
     }
     if(map.isInstance() || group.isTemporarySpawn() || group.getHandlerType()!=null || group.getEventTemplate()!=null)continue;
     for(var spot:group.getSpawnTemplates()) {
+     if(map.getMapId()<=0 || id<=0 || !Float.isFinite(spot.getX()) || !Float.isFinite(spot.getY()) || !Float.isFinite(spot.getZ())) {
+      invalid++;if(firstInvalid.isEmpty())firstInvalid="map="+map.getMapId()+", NPC="+id+", position="+spot.getX()+","+spot.getY()+","+spot.getZ();
+      continue; // One invalid native spawn must not abort every actor's material catalog.
+     }
      var place=new PlayerBotWorldTravel.Place(map.getMapId(),id,spot.getX(),spot.getY(),spot.getZ());
      if(gather!=null){gatherPlaces.computeIfAbsent(id,k->new ArrayList<>()).add(place);if(spot.isAerialSpawn())aerial.add(place);continue;}
      if(spot.isAerialSpawn())continue;
@@ -195,6 +200,7 @@ final class PlayerBotQuestMaterials {
      sites.computeIfAbsent(id,k->new ArrayList<>()).add(new Site(place,npc.getLevel(),npc.getRating(),npc.getRace(),npc.getTribe(),drop,map.getWorldDropType(),allowed,defaults,zones));
     }
    }
+   if(invalid>0)org.slf4j.LoggerFactory.getLogger(PlayerBotQuestMaterials.class).warn("Quest material catalog excluded {} invalid native spawn coordinates; first: {}. Repair the spawn data; valid item sources remain available",invalid,firstInvalid);
    return CATALOG=new Catalog(DataManager.CUSTOM_NPC_DROP,DataManager.GLOBAL_DROP_DATA,DataManager.GATHERABLE_DATA,DataManager.SPAWNS_DATA,DataManager.NPC_DATA,DataManager.ZONE_DATA,
     DataManager.WORLD_MAPS_DATA,DataManager.ITEM_DATA,DataManager.GLOBAL_EXCLUSION_DATA,freeze(custom),freeze(global),freeze(gathering),Map.copyOf(nodes),freeze(sites),freeze(gatherPlaces),aerial);
   }

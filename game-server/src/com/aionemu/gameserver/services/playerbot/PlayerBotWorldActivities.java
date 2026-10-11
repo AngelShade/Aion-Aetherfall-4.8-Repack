@@ -12,6 +12,7 @@ import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.model.templates.npc.NpcRating;
 import com.aionemu.gameserver.model.trade.TradeList;
 import com.aionemu.gameserver.questEngine.QuestEngine;
+import com.aionemu.gameserver.questEngine.model.QuestStatus;
 import com.aionemu.gameserver.services.*;
 import com.aionemu.gameserver.services.player.PlayerReviveService;
 import com.aionemu.gameserver.utils.PositionUtil;
@@ -25,6 +26,8 @@ final class PlayerBotWorldActivities {
   int level=-1; com.aionemu.gameserver.model.PlayerClass playerClass; long deadSince,nextScan,lastProgress,nextSell,noActivitySince; double best=Double.POSITIVE_INFINITY;
   PlayerBotWorldTravel.Place vendor;long vendorSince;double vendorBest;
   int prerequisiteCursor;
+  int prerequisiteRoot;
+  Map<Integer,Integer> requiredRewards=Map.of();
   volatile Goal goal; final Map<String,Long> excluded=new HashMap<>();
  }
  private static final Map<Integer,State> STATES=new ConcurrentHashMap<>();
@@ -41,6 +44,12 @@ final class PlayerBotWorldActivities {
  private static synchronized List<Integer> vendors(){if(vendors==null)vendors=DataManager.NPC_DATA.getNpcData().stream().filter(n->n.supportsAction(DialogAction.BUY)).map(n->n.getTemplateId()).toList();return vendors;}
  private static State state(Player bot){return STATES.computeIfAbsent(bot.getObjectId(),id->new State());}
  static boolean idle(Player bot){var s=STATES.get(bot.getObjectId());return s==null || s.goal==null && s.vendor==null;}
+ static int requiredReward(Player bot,int quest) {
+  var s=STATES.get(bot.getObjectId());if(s==null || s.prerequisiteRoot==0)return -1;
+  var root=bot.getQuestStateList().getQuestState(s.prerequisiteRoot);
+  if(root!=null && root.getStatus()!=QuestStatus.LOCKED){s.prerequisiteRoot=0;s.requiredRewards=Map.of();return -1;}
+  return s.requiredRewards.getOrDefault(quest,-1);
+ }
  static boolean stranded(long now,long since,boolean destination){return !destination && since>0 && now-since>=60000;}
  static boolean stranded(Player bot,long now){var s=STATES.get(bot.getObjectId());return s!=null && stranded(now,s.noActivitySince,s.goal!=null || s.vendor!=null);}
  static void interacting(Player bot){var s=STATES.get(bot.getObjectId());if(s!=null)s.noActivitySince=0;}
@@ -152,6 +161,12 @@ final class PlayerBotWorldActivities {
   return null;
  }
  private static Goal choose(Player bot,State s,long now) {
+  if(s.prerequisiteRoot!=0) {
+   var root=bot.getQuestStateList().getQuestState(s.prerequisiteRoot);
+   if(root!=null && root.getStatus()!=QuestStatus.LOCKED || !PlayerBotQuestSync.wanted(bot,bot,s.prerequisiteRoot)
+    || QuestService.checkStartConditions(bot,s.prerequisiteRoot,false)){s.prerequisiteRoot=0;s.requiredRewards=Map.of();}
+   else {var plan=PlayerBotQuestPrerequisites.plan(bot,s.prerequisiteRoot);s.requiredRewards=plan.reachable()?plan.requiredRewards():Map.of();}
+  }
   var distances=PlayerBotWorldTravel.distances(bot);List<Request> requests=new ArrayList<>();
   for(var q:bot.getQuestStateList().getUncompletedQuests())for(var kind:PlayerBotQuestRoutes.Kind.values())
    requests.add(new Request(q.getQuestId(),kind,PlayerBotQuestRoutes.ids(bot,bot,q.getQuestId(),kind)));
@@ -168,13 +183,20 @@ final class PlayerBotWorldActivities {
   }
   // Rotate graph work across decisions instead of expanding every blocked root
   // for every world bot in one tick. The complete catalogue remains eligible.
+  Goal directlyAvailable=available(bot,requests,s,now,distances);if(directlyAvailable!=null)return directlyAvailable;
   if(!blockedRoots.isEmpty()) {
    int root=blockedRoots.get(Math.floorMod(s.prerequisiteCursor++,blockedRoots.size()));
    var prerequisites=PlayerBotQuestPrerequisites.plan(bot,root);
+   var prerequisiteRequests=new ArrayList<Request>();
    if(prerequisites.reachable())for(int id:prerequisites.starters())if(PlayerBotQuestSync.wanted(bot,bot,id)
     && PlayerBotQuests.autonomous(bot,id) && PlayerBotQuestExchange.eligible(bot,id)
     && QuestService.checkStartConditions(bot,id,false))
-     requests.add(new Request(0,PlayerBotQuestRoutes.Kind.CONVERSATION,starters().getOrDefault(id,Set.of())));
+     prerequisiteRequests.add(new Request(0,PlayerBotQuestRoutes.Kind.CONVERSATION,starters().getOrDefault(id,Set.of())));
+   Goal chosen=available(bot,prerequisiteRequests,s,now,distances);
+   if(chosen!=null) {
+    if(prerequisiteRequests.stream().anyMatch(r->r.npcs().contains(chosen.place().npc()))){s.prerequisiteRoot=root;s.requiredRewards=prerequisites.requiredRewards();}
+    return chosen;
+   }
   }
   Goal quest=available(bot,requests,s,now,distances);if(quest!=null)return quest;
   return available(bot,List.of(new Request(0,PlayerBotQuestRoutes.Kind.HUNT,grindTemplates(bot))),s,now,distances);

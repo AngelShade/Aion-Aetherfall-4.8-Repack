@@ -26,6 +26,21 @@ public class _1114TheNymphsGown extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return getPlayerBotActions(player, -1);
+	}
+
+	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player, int requiredRewardGroup) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.nymphStory(player, requiredRewardGroup);
+	}
+
+	@Override
+	public com.aionemu.gameserver.questEngine.model.QuestBotRewardChoices getPlayerBotRewardChoices(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.nymphRewardChoices(player);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestItem(182200214, questId);
 		for (int npc_id : npc_ids)

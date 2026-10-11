@@ -18,6 +18,11 @@ public class _1918AnAxForNamus extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.axeForNamus(player);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(203835).addOnQuestStart(questId);
 		qe.registerQuestNpc(203835).addOnTalkEvent(questId);
@@ -53,10 +58,12 @@ public class _1918AnAxForNamus extends AbstractQuestHandler {
 			}
 		} else if (qs.getStatus() == QuestStatus.REWARD) {
 			if (targetId == 203835) {
+				if (player.getInventory().getItemCountByItemId(182206002) < 1)
+					return false;
 				if (dialogActionId == USE_OBJECT) {
 					return sendQuestDialog(env, 2375);
 				}
-				removeQuestItem(env, 182206002, 1);
+				// Successful native finishQuest removes this work item; dialog probes must preserve custody.
 				return sendQuestEndDialog(env);
 			}
 		}

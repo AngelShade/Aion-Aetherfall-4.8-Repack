@@ -51,7 +51,7 @@ TESTS['PlayerBotQuestCraftingCheck']=267
 TESTS['PlayerBotQuestMaterialsCheck']=723
 TESTS['PlayerBotNativeInteractionCheck']=24
 TESTS['PlayerBotQuestFeatureConfigCheck']=429
-TESTS['PlayerBotQuestPrerequisitesCheck']=161
+TESTS['PlayerBotQuestPrerequisitesCheck']=170
 TESTS['PlayerBotNativeQuestItemChainCheck']=168
 TESTS['PlayerBotNativeCraftingTaskCheck']=57
 TESTS['PlayerBotNativeGatheringTaskCheck']=102
@@ -61,6 +61,12 @@ QUEST_TESTS.update({'NativeSielQuestCheck':866,'NativeDispatchQuestCheck':552,'N
  'NativeCountedHuntCheck':847,'NativeRaeQuestCheck':481,'NativeReportCircuitCheck':196,
  'NativeExpertQualificationCheck':430,'NativeTappingQuestCheck':70,'NativeMasterQualificationCheck':370})
 QUEST_TESTS['NativeMasterFinalQualificationCheck']=252
+QUEST_TESTS['NativeStoryRewardChoicesCheck']=328
+QUEST_TESTS['NativeStoryFollowUpCheck']=58
+TESTS['PlayerBotStoryRewardIntentCheck']=19
+TESTS['PlayerBotNativeXmlQuestCheck']=80
+TESTS['PlayerBotQuestObjectCommitmentCheck']=71
+TESTS['PlayerBotQuestTransformationCheck']=80
 
 def reviewed_native_fixtures():
  catalogue=ROOT/'tools/native-quest-fixtures.json'
@@ -72,7 +78,7 @@ def reviewed_native_fixtures():
 def quest_fixtures():
  return [ROOT/'game-server/test/com/aionemu/gameserver/questEngine'/(name+'.java') for name in QUEST_TESTS]+[ROOT/'game-server/data/handlers'/name for name in ['quest/eltnen/_1035RefreshingtheSprings.java','quest/eltnen/_1038TheShadowsCommand.java','quest/heiron/_18602NightmareinShiningArmor.java','instance/KromedesTrialInstance.java','ai/GeneralNpcAI.java','ai/AggressiveNpcAI.java','ai/instance/kromedesTrial/KaligaAI.java',
   'quest/poeta/_1001TheKerubThreat.java','quest/poeta/_1002RequestoftheElim.java','quest/poeta/_1003IllegalLogging.java','quest/poeta/_1004NeutralizingOdium.java','quest/poeta/_1005BarringtheGate.java',
-  'quest/ishalgen/_2001ThinkingAhead.java','quest/ishalgen/_2003TreasureOfTheDeceased.java','quest/ishalgen/_2004ACharmedCube.java','quest/ishalgen/_2005TeachingaLesson.java','quest/ishalgen/_2006HitThemWhereitHurts.java','quest/ishalgen/_2007WheresRaeThisTime.java']]
+  'quest/ishalgen/_2001ThinkingAhead.java','quest/ishalgen/_2003TreasureOfTheDeceased.java','quest/ishalgen/_2004ACharmedCube.java','quest/ishalgen/_2005TeachingaLesson.java','quest/ishalgen/_2006HitThemWhereitHurts.java','quest/ishalgen/_2007WheresRaeThisTime.java','ai/ActionItemNpcAI.java','ai/quests/QuestItemNpcAI.java']]
 
 def sha(path):
  with Path(path).open('rb') as stream:return hashlib.file_digest(stream,'sha256').hexdigest()
@@ -83,7 +89,7 @@ def fixtures():
 def binding(build):
  libs=[f for f in sorted((ROOT/'target-deploy/game-server/libs').glob('*.jar')) if f.name not in {'game-server-4.8-SNAPSHOT.jar','commons-4.8-SNAPSHOT.jar','playerbot-recruitment-fix.jar'}]
  paths=[Path(__file__),*[ROOT/'tools'/name for name in ['build-manifest.py','test-source-release-methods.py','deliver-source-component.py','prepare-source-release.py','document-playerbot-config.py','release-game-server.py','verify-source-delivery.py','quest-handler-inventory.py','check-source-static-data.py','check-source-browser.py','check-playerbot-ui-behavior.py']],build/'build-manifest.json',build/'game-server/game-server-4.8-SNAPSHOT.jar',build/'commons/commons-4.8-SNAPSHOT.jar',*fixtures(),*libs]
- paths.extend([ROOT/'tools/native-quest-fixtures.json',ROOT/'tools/QuestHandlerActionInventory.java',ROOT/'tools/test-quest-action-inventory.py'])
+ paths.extend([ROOT/'tools/native-quest-fixtures.json',ROOT/'tools/QuestHandlerActionInventory.java',ROOT/'tools/test-quest-action-inventory.py',ROOT/'tools/java/PlayerBotMaterialCatalogBuildCheck.java'])
  return {str(p.resolve()):sha(p) for p in paths}
 
 def validate(build,out):
@@ -131,8 +137,8 @@ def main():
  reports={};suites={}
  for test,count in TESTS.items():
   cwd=ROOT if test in {'PlayerBotWorldProgressCheck','PlayerBotAssassinCheck','PlayerBotGladiatorCheck','PlayerBotTemplarCheck','PlayerBotChanterCheck','PlayerBotClericCheck','PlayerBotSpiritmasterCheck','PlayerBotSorcererCheck',
-   'PlayerBotQuestCraftingCheck','PlayerBotQuestPrerequisitesCheck','PlayerBotNativeCraftingTaskCheck'} else build/'checks'
-  args=[str(ROOT/'game-server')] if test in {'PlayerBotRepositoryCheck','PlayerBotPlayerZoneCheck','PlayerBotAuditCoverageCheck','PlayerBotIdleCastingCheck','PlayerBotCombatGearCheck','PlayerBotTargetVisibilityCheck'} else []
+   'PlayerBotQuestCraftingCheck','PlayerBotQuestPrerequisitesCheck','PlayerBotNativeCraftingTaskCheck','PlayerBotNativeXmlQuestCheck'} else build/'checks'
+  args=[str(ROOT/'game-server')] if test in {'PlayerBotRepositoryCheck','PlayerBotPlayerZoneCheck','PlayerBotAuditCoverageCheck','PlayerBotIdleCastingCheck','PlayerBotCombatGearCheck','PlayerBotTargetVisibilityCheck','PlayerBotStoryRewardIntentCheck','PlayerBotQuestTransformationCheck'} else []
   result=subprocess.run(['java','-Xverify:all','-cp',cp,'com.aionemu.gameserver.services.playerbot.'+test,*args],cwd=cwd,capture_output=True,text=True)
   (out/(test+'.txt')).write_text(result.stdout+result.stderr,encoding='utf-8')
   assert result.returncode==0,(test,result.stderr)

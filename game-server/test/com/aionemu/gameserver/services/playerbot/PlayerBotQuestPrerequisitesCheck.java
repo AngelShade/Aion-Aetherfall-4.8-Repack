@@ -29,10 +29,12 @@ public final class PlayerBotQuestPrerequisitesCheck {
  private static QuestState saved(int id,QuestStatus status,int count,Integer reward){return new QuestState(id,status,0,0,count,null,reward,null);}
  private static final class Graph implements View {
   final Map<Integer,QuestTemplate> templates=new HashMap<>();final Map<Integer,QuestState> states=new HashMap<>();final Map<Integer,List<Blocker>> eligibility=new HashMap<>(),capabilities=new HashMap<>();int title;
+  final Map<Integer,QuestBotRewardChoices> rewards=new HashMap<>();
   Graph add(int id,String content)throws Exception{templates.put(id,PlayerBotQuestPrerequisitesCheck.template(id,"",content));return this;}
   Graph add(int id,String attributes,String content)throws Exception{templates.put(id,PlayerBotQuestPrerequisitesCheck.template(id,attributes,content));return this;}
   public QuestTemplate template(int id){return templates.get(id);}public QuestState state(int id){return states.get(id);}
   public List<Blocker> eligibility(int id){return eligibility.getOrDefault(id,List.of());}public List<Blocker> capability(int id){return capabilities.getOrDefault(id,List.of());}public int title(){return title;}
+  public QuestBotRewardChoices rewardChoices(int id){return rewards.getOrDefault(id,QuestBotRewardChoices.unknown());}
   void unavailable(int id,String code){capabilities.put(id,List.of(new Blocker(id,code,false,"Native prerequisite "+id+" has no executable capability")));}
  }
  private static boolean blocked(Plan plan,String code){return !plan.reachable() && plan.blockers().stream().anyMatch(b->b.code().equals(code));}
@@ -53,6 +55,22 @@ public final class PlayerBotQuestPrerequisitesCheck {
   check(blocked(plan,"SAVED_REWARD_CHOICE") && plan.blockers().stream().anyMatch(b->b.permanent() && b.reason().contains("saved group=1")),"Nonrepeatable wrong saved reward reports exact permanent blocker");
   graph.states.put(2,saved(2,QuestStatus.COMPLETE,1,null));check(plan(graph,1).blockers().stream().anyMatch(b->b.code().equals("SAVED_REWARD_CHOICE") && b.reason().contains("saved group=null")),"Missing saved reward group cannot be repaired with fake choice mutation");
   graph.states.clear();plan=plan(graph,1);check(plan.reachable() && plan.requiredRewards().equals(Map.of(2,0)),"Future legitimate native reward-group requirement is returned for handler-driven selection");
+  graph.rewards.put(2,QuestBotRewardChoices.nativeGroups(Set.of(1),"Actual starting class forces group1"));
+  check(blocked(plan(graph,1),"NATIVE_REWARD_ROUTE"),"Declared actor-forced native group blocks a future incompatible branch before acceptance");
+  check(plan(graph,1).blockers().stream().anyMatch(b->b.permanent() && b.reason().contains("starting class")),"Future branch blocker reports the real native actor restriction");
+  check(graph.states.isEmpty(),"Reward route planning never commits invented native state");
+  graph.templates.put(1,template(1,"",reward(2,0)+reward(2,1)));
+  check(plan(graph,1).reachable() && plan(graph,1).requiredRewards().equals(Map.of(2,1)),"Native OR fallback selects an actor-reachable group instead of impossible preferred group0");
+  graph.rewards.put(2,QuestBotRewardChoices.nativeGroups(Set.of(0,1),"Two native story dialog routes"));
+  check(plan(graph,1).reachable(),"Multiple reviewed native story routes remain eligible");
+  graph.templates.put(1,template(1,"",reward(2,0)));graph.rewards.put(2,QuestBotRewardChoices.unknown());
+  check(plan(graph,1).reachable(),"Unreviewed native reward routes remain unknown rather than falsely impossible");
+  graph.rewards.put(2,QuestBotRewardChoices.nativeGroups(Set.of(),"Committed group absent"));
+  check(blocked(plan(graph,1),"NATIVE_REWARD_ROUTE"),"Explicit native empty route reports unavailable commitment");
+  graph.rewards.put(2,QuestBotRewardChoices.nativeGroups(Set.of(0),"Saved group0"));graph.states.put(2,saved(2,QuestStatus.COMPLETE,1,0));
+  check(plan(graph,1).reachable() && plan(graph,1).requiredRewards().isEmpty(),"Actual completed native group satisfies dependency without new story intent");
+  check(graph.states.get(2).getRewardGroup()==0,"Completed story group remains immutable through planning");
+  graph.rewards.clear();graph.states.clear();
   graph.states.put(2,saved(2,QuestStatus.REWARD,0,1));check(blocked(plan(graph,1),"COMMITTED_REWARD_CHOICE") && plan(graph,1).blockers().stream().anyMatch(Blocker::permanent),"Already committed nonrepeatable native REWARD group cannot be rewritten at turn-in");graph.states.clear();
   graph.templates.put(1,template(1,"",reward(2,2)));check(blocked(plan(graph,1),"REWARD_GROUP_UNAVAILABLE"),"Undeclared reward group is an explicit impossible native dependency");
   graph=new Graph().add(1,finished(2));graph.templates.put(2,template(2,"","<rewards/><rewards/>"));

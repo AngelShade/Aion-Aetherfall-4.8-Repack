@@ -20,6 +20,21 @@ public class _1917ALingeringMystery extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return getPlayerBotActions(player, -1);
+	}
+
+	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player, int requiredRewardGroup) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.lingeringMystery(player, requiredRewardGroup);
+	}
+
+	@Override
+	public com.aionemu.gameserver.questEngine.model.QuestBotRewardChoices getPlayerBotRewardChoices(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.lingeringMysteryRewardChoices(player);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(203835).addOnQuestStart(questId);
 		qe.registerQuestNpc(203835).addOnTalkEvent(questId);

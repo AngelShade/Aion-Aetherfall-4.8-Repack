@@ -25,6 +25,11 @@ public class _47003AGlobalProblem extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotKillObjectFamilies.mentoredDaily(player, questId, 700971, 217173, 799872);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(700971).addOnTalkEvent(questId);
 		qe.registerQuestNpc(799872).addOnTalkEvent(questId);

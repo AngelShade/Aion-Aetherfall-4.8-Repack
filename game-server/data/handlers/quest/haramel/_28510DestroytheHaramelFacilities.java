@@ -18,6 +18,11 @@ public class _28510DestroytheHaramelFacilities extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotKillObjectFamilies.haramel(player, questId, 804605, 203560);
+	}
+
+	@Override
 	public void register() {
 		int[] npcs = { 804605, 700953, 203560 };
 		qe.registerQuestNpc(804605).addOnQuestStart(questId);

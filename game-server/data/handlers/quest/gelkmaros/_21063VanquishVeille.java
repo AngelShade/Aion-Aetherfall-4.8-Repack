@@ -21,6 +21,11 @@ public class _21063VanquishVeille extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotKillObjectFamilies.spyLeague(player, questId, 182207852, 799354, 281433, 799225, 182207853);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestItem(182207852, questId);
 		qe.registerQuestNpc(799354).addOnTalkEvent(questId);

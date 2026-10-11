@@ -32,8 +32,10 @@ public class NpcDialogOperation extends QuestOperation {
 			qId = questId;
 		if (qId == 0)
 			PacketSendUtility.sendPacket(player, new SM_DIALOG_WINDOW(obj.getObjectId(), id));
-		else
+		else {
+			com.aionemu.gameserver.services.playerbot.PlayerBotQuestDialog.observe(env, obj.getObjectId(), id, qId);
 			PacketSendUtility.sendPacket(player, new SM_DIALOG_WINDOW(obj.getObjectId(), id, qId));
+		}
 	}
 
 }
