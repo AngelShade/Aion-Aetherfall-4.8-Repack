@@ -5,6 +5,7 @@ import com.aionemu.gameserver.model.animations.TeleportAnimation;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.questEngine.handlers.AbstractQuestHandler;
 import com.aionemu.gameserver.questEngine.model.QuestEnv;
+import com.aionemu.gameserver.questEngine.model.QuestActionType;
 import com.aionemu.gameserver.questEngine.model.QuestState;
 import com.aionemu.gameserver.questEngine.model.QuestStatus;
 import com.aionemu.gameserver.services.QuestService;
@@ -37,6 +38,38 @@ public class _1035RefreshingtheSprings extends AbstractQuestHandler {
 		qe.registerOnQuestTimerEnd(questId);
 		for (int npc_id : npc_ids)
 			qe.registerQuestNpc(npc_id).addOnTalkEvent(questId);
+	}
+
+	@Override
+	public boolean onCanAct(QuestEnv env, QuestActionType action, Object... objects) {
+		if (action != QuestActionType.ACTION_ITEM_USE)
+			return false;
+		QuestState qs = env.getPlayer().getQuestStateList().getQuestState(questId);
+		if (qs == null || qs.getStatus() != QuestStatus.START)
+			return false;
+		int step = qs.getQuestVarById(0);
+		return switch (env.getTargetId()) {
+			case 700158 -> step == 2 && env.getPlayer().getInventory().getItemCountByItemId(182201014) >= 1;
+			case 700160 -> step == 7 && env.getPlayer().getInventory().getItemCountByItemId(182201024) >= 1;
+			case 700159 -> step == 10 && env.getPlayer().getInventory().getItemCountByItemId(182201025) >= 1;
+			default -> false;
+		};
+	}
+
+	private boolean insertLifeBead(QuestEnv env, int step, int nextStep, int itemId) {
+		QuestState qs = env.getPlayer().getQuestStateList().getQuestState(questId);
+		if (qs == null)
+			return false;
+		synchronized (qs) {
+			if (qs.getStatus() != QuestStatus.START || qs.getQuestVarById(0) != step
+				|| env.getPlayer().getInventory().getItemCountByItemId(itemId) < 1 || !removeQuestItem(env, itemId, 1))
+				return false;
+			return changeQuestStep(env, step, nextStep, false);
+		}
+	}
+
+	protected void finishSpringTimer(QuestEnv env) {
+		QuestService.questTimerEnd(env);
 	}
 
 	@Override
@@ -99,8 +132,8 @@ public class _1035RefreshingtheSprings extends AbstractQuestHandler {
 				}
 				case 700158: { // Laquepin Life Stone
 					if (var == 2) {
-						if (dialog == USE_OBJECT && player.getInventory().getItemCountByItemId(182201014) == 1) {
-							return useQuestObject(env, 2, 3, false, 0, 0, 0, 182201014, 1); // 3
+						if (dialog == USE_OBJECT) {
+							return insertLifeBead(env, 2, 3, 182201014);
 						}
 					}
 					break;
@@ -147,8 +180,9 @@ public class _1035RefreshingtheSprings extends AbstractQuestHandler {
 							}
 						}
 						case SETPRO6: {
+							if (var != 6 || !giveQuestItem(env, 182201024, 1))
+								return false;
 							QuestService.questTimerStart(env, 180);
-							giveQuestItem(env, 182201024, 1);
 							return defaultCloseDialog(env, 6, 7); // 7
 						}
 						case FINISH_DIALOG: {
@@ -166,8 +200,11 @@ public class _1035RefreshingtheSprings extends AbstractQuestHandler {
 				}
 				case 700160: { // Desert Life Stone
 					if (var == 7) {
-						if (dialog == USE_OBJECT && player.getInventory().getItemCountByItemId(182201024) == 1) {
-							return playQuestMovie(env, 31);
+						if (dialog == USE_OBJECT && insertLifeBead(env, 7, 8, 182201024)) {
+							// Native object use commits the bead before the optional client movie.
+							finishSpringTimer(env);
+							playQuestMovie(env, 31);
+							return true;
 						}
 					}
 					break;
@@ -193,8 +230,8 @@ public class _1035RefreshingtheSprings extends AbstractQuestHandler {
 				}
 				case 700159: { // Temple Life Stone
 					if (var == 10) {
-						if (dialog == USE_OBJECT && player.getInventory().getItemCountByItemId(182201025) >= 1) {
-							return useQuestObject(env, 10, 11, false, 0, 0, 0, 182201025, 1); // 11
+						if (dialog == USE_OBJECT) {
+							return insertLifeBead(env, 10, 11, 182201025);
 						}
 					}
 				}
@@ -205,23 +242,8 @@ public class _1035RefreshingtheSprings extends AbstractQuestHandler {
 
 	@Override
 	public void onMovieEndEvent(QuestEnv env, int movieId) {
-		if (movieId == 31) {
-			QuestState qs = env.getPlayer().getQuestStateList().getQuestState(questId);
-
-			if (qs == null || qs.getStatus() != QuestStatus.START)
-				return;
-
-			int var = qs.getQuestVarById(0);
-			if (var == 7) {
-				changeQuestStep(env, 7, 8, false); // 8
-			} else if (var == 6) { // If timer stopped before movie ends
-				changeQuestStep(env, 6, 8, false); // 8
-			}
-			removeQuestItem(env, 182201024, 1);
-			QuestService.questTimerEnd(env);
-			return;
-		}
-		return;
+		// The completed native object interaction owns progression, consumption and the timer.
+		// A missing, duplicate or late movie acknowledgement must not change quest state.
 	}
 
 	@Override
@@ -244,11 +266,12 @@ public class _1035RefreshingtheSprings extends AbstractQuestHandler {
 	public boolean onQuestTimerEndEvent(QuestEnv env) {
 		Player player = env.getPlayer();
 		QuestState qs = player.getQuestStateList().getQuestState(questId);
-		if (qs != null && qs.getStatus() == QuestStatus.START) {
-			int var = qs.getQuestVarById(0);
-			if (var == 7) {
-				changeQuestStep(env, 7, 6, false); // 6
-				return true;
+		if (qs != null) {
+			synchronized (qs) {
+				if (qs.getStatus() == QuestStatus.START && qs.getQuestVarById(0) == 7) {
+					changeQuestStep(env, 7, 6, false); // 6
+					return true;
+				}
 			}
 		}
 		return false;

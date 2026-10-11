@@ -105,7 +105,7 @@ public final class PlayerBotLegionStorage {
    state.put("legionStorageAvailable",reason.isEmpty());state.put("legionStorageReason",reason);state.put("legionStorageName",legion==null?"":legion.getName());
    state.put("legionStorageLimit",legion==null?0:legion.getLegionWarehouse().getLimit());
    state.put("legionStorage",legion==null || LegionWarehouse.custodyHeld(legion.getLegionId())?List.of():sorted(legion.getLegionWarehouse()).stream()
-    .map(i->Map.of("id",i.getObjectId(),"itemId",i.getItemId(),"name",i.getItemTemplate().getName(),"count",i.getItemCount())).toList());
+    .map(PlayerBotItemView::stored).toList());
   }
  }
  private PlayerBotLegionStorage(){}

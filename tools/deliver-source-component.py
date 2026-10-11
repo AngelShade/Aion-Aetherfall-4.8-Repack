@@ -65,6 +65,8 @@ def main():
     build_meta.verify(build)
     regression = a.release_plan.resolve().parent / 'regression'
     import_module('check-source-build').validate(build, regression)
+    browser = a.release_plan.resolve().parent / 'browser'
+    import_module('check-source-browser').validate(build, browser)
     plan = json.loads(a.release_plan.read_text())
     assert plan['buildManifestSha256'] == shared.sha(build / 'build-manifest.json'), 'Release plan belongs to another build'
     for attribute, key in [('resource', 'resources'), ('invalidate_cache', 'invalidateCaches'), ('changed_class', 'changedClasses')]:
@@ -212,7 +214,7 @@ def main():
         builder='tools/build-components.ps1 normal Maven output; copied unchanged', files=files, guardFiles=guard_files,
         retiredFiles=baseline['retiredFiles'], invalidatedCaches=caches, resourceSourceHashes=resource_hashes,
         bundledMediaSha256=media, configFiles=config, sourceHashes=source,
-        clientFiles=inventory['clientFiles'], geometrySha256=shared.sha(server / 'data/geo/models.mesh'),
+        clientFiles=import_module('verify-source-delivery').protected_client_files(inventory['clientFiles']), geometrySha256=shared.sha(server / 'data/geo/models.mesh'),
         staticDataInputs=static_inputs,
         runtimeResourceInputs=runtime_inputs, releasePlanSha256=shared.sha(a.release_plan),
         buildManifestSha256=shared.sha(build / 'build-manifest.json'), handlerCount=plan['handlerCount'],
@@ -220,6 +222,7 @@ def main():
         preservedJarEntries=preserved, fullRuntimeLinkage=result.stdout.strip(), gameAcceptance='pending user testing')
     manifest['requestedConfigurationChanges'] = configuration_changes
     manifest['regressionEvidenceSha256'] = shared.sha(regression / 'evidence.json')
+    manifest['browserEvidenceSha256'] = shared.sha(browser / 'evidence.json')
     manifest['questCoverageSha256'] = shared.sha(coverage)
     (out / 'manifest.json').write_text(json.dumps(manifest, indent=2))
     if not a.install:
@@ -230,6 +233,8 @@ def main():
         build_meta.verify(build)
         import_module('check-source-build').validate(build, regression)
         assert shared.sha(regression / 'evidence.json') == manifest['regressionEvidenceSha256']
+        import_module('check-source-browser').validate(build, browser)
+        assert shared.sha(browser / 'evidence.json') == manifest['browserEvidenceSha256']
         assert shared.sha(coverage) == manifest['questCoverageSha256']
         assert shared.sha(a.release_plan) == manifest['releasePlanSha256']
         assert shared.receipt_paths(server, 'playerbots-source-build-*/manifest.json')[-1] == prior, 'Another release completed after review'
@@ -247,7 +252,7 @@ def main():
         assert all(shared.sha(server / rel) == digest for rel, digest in static_inputs.items())
         assert all((shared.sha(server / rel) if (server / rel).is_file() else None) == digest for rel, digest in runtime_inputs.items())
         assert shared.sha(server / 'data/geo/models.mesh') == manifest['geometrySha256']
-        assert all(shared.sha(shared.CLIENT_ROOT / e['path']) == e['sha256'] for e in manifest['clientFiles'])
+        import_module('verify-source-delivery').verify_client_files(shared.CLIENT_ROOT, manifest['clientFiles'])
         assert all(not (server / rel).exists() for rel in manifest['retiredFiles'])
 
     guard()
@@ -265,6 +270,8 @@ def main():
     guard()
     shutil.copytree(regression, backup / 'regression')
     assert shared.sha(backup / 'regression/evidence.json') == manifest['regressionEvidenceSha256']
+    shutil.copytree(browser, backup / 'browser')
+    assert shared.sha(backup / 'browser/evidence.json') == manifest['browserEvidenceSha256']
     try:
         for e in files:
             target = server / e['path']; target.parent.mkdir(parents=True, exist_ok=True)
@@ -273,7 +280,7 @@ def main():
         for e in caches: (server / e['path']).unlink()
         assert all(shared.sha(server / e['path']) == e['installed'] for e in guard_files)
         assert all(shared.sha(server / rel) == digest for rel, digest in config.items())
-        assert all(shared.sha(shared.CLIENT_ROOT / e['path']) == e['sha256'] for e in manifest['clientFiles'])
+        import_module('verify-source-delivery').verify_client_files(shared.CLIENT_ROOT, manifest['clientFiles'])
     except Exception:
         for e in files + caches:
             target = server / e['path']

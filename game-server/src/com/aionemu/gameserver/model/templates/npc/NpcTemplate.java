@@ -95,6 +95,10 @@ public class NpcTemplate extends CreatureTemplate {
 	@XmlAttribute(name = "ai")
 	private String ai;
 
+	/** Client render metadata for script actors whose native mesh is deliberately not shown. */
+	@XmlAttribute(name = "client_visible")
+	private boolean clientVisible = true;
+
 	@XmlAttribute
 	private Race race = Race.NONE;
 
@@ -172,6 +176,10 @@ public class NpcTemplate extends CreatureTemplate {
 	@Override
 	public String getAiName() {
 		return ai;
+	}
+
+	public boolean isClientVisible() {
+		return clientVisible;
 	}
 
 	@Override

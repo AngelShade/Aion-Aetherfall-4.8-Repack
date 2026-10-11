@@ -24,23 +24,24 @@ public class CheckAllianceReadyEvent extends AlwaysTrueTeamEvent {
 
 	@Override
 	public void handleEvent() {
-		int readyStatus = alliance.getAllianceReadyStatus();
+		if (!alliance.hasMember(player.getObjectId())) return;
 		switch (eventCode) {
-			case ALLIANCE_CHECKREADY_CANCEL:
-				readyStatus = 0;
-				break;
 			case ALLIANCE_CHECKREADY_START:
-				readyStatus = alliance.getOnlineMembers().size() - 1;
+				if (!alliance.isSomeCaptain(player)) return;
+				alliance.getReadyCheck().start(player.getObjectId(), alliance.getOnlineMembers().stream().map(Player::getObjectId).toList(), System.currentTimeMillis());
 				break;
+			case ALLIANCE_CHECKREADY_CANCEL:
 			case ALLIANCE_CHECKREADY_AUTOCANCEL:
-				readyStatus = 0;
+				if (!alliance.isSomeCaptain(player)) return;
+				alliance.getReadyCheck().cancel();
 				break;
 			case ALLIANCE_CHECKREADY_READY:
 			case ALLIANCE_CHECKREADY_NOTREADY:
-				readyStatus -= 1;
+				if (!alliance.getReadyCheck().reply(player.getObjectId(), eventCode == TeamCommand.ALLIANCE_CHECKREADY_READY)) return;
 				break;
+			default: return;
 		}
-		alliance.setAllianceReadyStatus(readyStatus);
+		alliance.setAllianceReadyStatus(alliance.getReadyCheck().waiting());
 		alliance.forEach(member -> {
 			switch (eventCode) {
 				case ALLIANCE_CHECKREADY_CANCEL:

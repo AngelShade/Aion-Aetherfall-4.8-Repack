@@ -344,6 +344,71 @@
       "path": "src/Ai/Base/Trigger/GenericTriggers.h",
       "gitBlob": "b7e54e2e4079efa5ff388a1641a9cc78a7341e6f",
       "sha256": "6796cc43290665fc22491bfabc29157a1c43b9fd7a4ff06977186cbe1b3815d3"
+    },
+    {
+      "path": "src/Ai/Base/Actions/ReadyCheckAction.cpp",
+      "gitBlob": "9ef1a1a3d7fa54973a37c901700c6f2429c36340",
+      "sha256": "def665c3bfa579704c0876be1e3152e180112d6463a7174bee37f23e48ce04b9"
+    },
+    {
+      "path": "src/Ai/Base/Actions/ReadyCheckAction.h",
+      "gitBlob": "f84f626cefff010fee1e9edc03166dfaebc800bf",
+      "sha256": "f0b2a1ae658c05cb43d020639683fb452c5f7ba1cf3b5f12a1a0460e06a8560a"
+    },
+    {
+      "path": "src/Ai/Base/Strategy/FleeStrategy.cpp",
+      "gitBlob": "d891930983a09555ff84fcfdde4bf51f6d2baa60",
+      "sha256": "dc827231b3af0e4956bef98c78c2dbcea41e292b3f183c46ddecd9068e73b2ba"
+    },
+    {
+      "path": "src/Ai/Base/Strategy/FleeStrategy.h",
+      "gitBlob": "44ee2fa2bb82e255b989392ff272cce05dedaa62",
+      "sha256": "62d3dd2d1fe46948ab97b8aa7d711fcaa7ed25c806079f5799d1a3b6460434fd"
+    },
+    {
+      "path": "src/Ai/Base/Strategy/FollowMasterStrategy.cpp",
+      "gitBlob": "cb9bc9f15a8f1fe27b08054491b8cad89fe0caa7",
+      "sha256": "b00e5fd8e3189e2c9be8da2fbda61365276ef2cbd6374ccd6b53f5e7d2ae8ee6"
+    },
+    {
+      "path": "src/Ai/Base/Strategy/FollowMasterStrategy.h",
+      "gitBlob": "5e28f898e3a6a3b63076938d596dc24f33856fae",
+      "sha256": "713e2255dc270ea36bc894548f12019bcad46780837ed87a7e410a19ee2187e8"
+    },
+    {
+      "path": "src/Ai/Base/Actions/StayActions.cpp",
+      "gitBlob": "02ed7a32473d3b61e98530f722c4c084f6890ae9",
+      "sha256": "cfee745687db40276a77f535734043de205b68180590cde8c1c22e3a329e67f4"
+    },
+    {
+      "path": "src/Ai/Base/Actions/ChatShortcutActions.cpp",
+      "gitBlob": "28fdb12cd61f9db31a7d7b3813c61a3582911aaf",
+      "sha256": "bedcd6424de4eb26f97d04e68815f9f34f52060ce7bd5991a837225ba063eab2"
+    },
+    {
+      "path": "src/Ai/Base/Actions/ChatShortcutActions.h",
+      "gitBlob": "eb3f87dd9ad54df3e03c2e171ac291fa30439e71",
+      "sha256": "a0ec5400ba0125e6cbb028beb4d6ac74fa786485eae002810a5f52cea18de5e4"
+    },
+    {
+      "path": "src/Ai/Base/Actions/MovementActions.h",
+      "gitBlob": "3932cdfb602cfd438604966f19f603e6fecbb416",
+      "sha256": "504b9cadd79336c8c0d44e3b32bf8e53ae756436c310bda8c85d822cf99b898d"
+    },
+    {
+      "path": "src/Ai/Base/Value/LastMovementValue.h",
+      "gitBlob": "bd65962529d97746048400aad224629f395fac28",
+      "sha256": "e329e55d12d391efdb677213d8f6af9b4d6c073a721bfe1f892030537cc43b69"
+    },
+    {
+      "path": "src/Ai/Base/Value/PositionValue.h",
+      "gitBlob": "990089755c54f7393808c5457e0570f082eaa227",
+      "sha256": "b5ab17f10da144bfc4eedb716c247ed325b859118dc41112a01b0414f4093b55"
+    },
+    {
+      "path": "src/Bot/Engine/WorldPacket/Event.h",
+      "gitBlob": "d5df7c2eb23b0a52f90002eed52c30051b6bdf5f",
+      "sha256": "a4bd0a420cd36bedfb0e3cafc8b523619f4e6faf827c445a7623810aeacc44f3"
     }
   ]
 }

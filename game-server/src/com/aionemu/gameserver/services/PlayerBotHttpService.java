@@ -85,6 +85,7 @@ public final class PlayerBotHttpService {
 		state.put("active", PlayerBotService.getInstance().companions(owner).stream().map(PlayerBotSession::snapshot).toList());
 		state.put("recruitRemaining", PlayerBotRaidPolicy.remaining(owner, PlayerBotService.getInstance().companions(owner).size(), PlayerBotService.getInstance().companionCount()));
 		state.put("teamKind", owner.isInAlliance() ? "Alliance" : "Party");
+		state.put("team", PlayerBotAllianceControl.snapshot(owner));
 		List<Map<String, Object>> roster = new ArrayList<>();
 		for (var data : owner.getAccount().getPlayerAccDataList()) {
 			var character = data.getPlayerCommonData();
@@ -108,6 +109,7 @@ public final class PlayerBotHttpService {
 		var service = PlayerBotService.getInstance();
 		String op = values.getOrDefault("action", ""), name = values.getOrDefault("name", "");
 		switch (op) {
+			case "team" -> {return PlayerBotAllianceControl.action(owner,values);}
 			case "savebot" -> { return PlayerBotPresets.saveBot(owner,name); }
 			case "saveparty" -> { return PlayerBotPresets.saveParty(owner,values.getOrDefault("presetName","")); }
 			case "loadparty" -> { return PlayerBotPresets.activate(owner,values.getOrDefault("preset","")); }
@@ -118,8 +120,8 @@ public final class PlayerBotHttpService {
 				PlayerClass pc = PlayerClass.valueOf(values.getOrDefault("playerClass", "").toUpperCase(Locale.ROOT));
 				if (op.equals("create")) service.create(owner, name, pc); else PlayerBotGenerationOptions.generate(owner, name, pc, values.getOrDefault("start", "matched"));
 			}
-			case "dismiss" -> { if (name.equals("all")) service.dismissAll(owner); else service.dismiss(owner, name); }
-			case "summon" -> PlayerBotTravel.summonAll(PlayerBotRecovery.selected(owner,name));
+			case "dismiss" -> { for(var s:PlayerBotAllianceControl.scoped(owner,name,values))service.dismiss(owner,s.bot().getName()); }
+			case "summon" -> PlayerBotTravel.summonAll(values.containsKey("group")?PlayerBotAllianceControl.scoped(owner,name,values):PlayerBotRecovery.selected(owner,name));
 			case "answer" -> {
 				String answer = values.getOrDefault("answer", "");
 				if (!answer.equals("yes") && !answer.equals("no")) throw new IllegalArgumentException("Answer Yes or No.");
@@ -130,10 +132,10 @@ public final class PlayerBotHttpService {
 			case "gearpolicy" -> PlayerBotGearPolicy.configure(service.find(owner, name), values.getOrDefault("mode", ""), values.getOrDefault("profile", ""),
 				values.getOrDefault("quality", ""), values.getOrDefault("level", ""), values.getOrDefault("threshold", ""), values.getOrDefault("weapon", ""), values.getOrDefault("vendors", ""), values.getOrDefault("rolls", ""));
 			case "order", "attack", "setting", "share" -> {
-				List<PlayerBotSession> sessions = name.equals("all") ? service.companions(owner) : List.of(service.find(owner, name));
+				List<PlayerBotSession> sessions = PlayerBotAllianceControl.scoped(owner, name, values);
 				if (sessions.isEmpty()) throw new IllegalArgumentException("Recruit a companion first.");
 				for (var session : sessions) switch (op) {
-					case "order" -> session.order(Order.valueOf(values.getOrDefault("order", "").toUpperCase(Locale.ROOT)));
+					case "order" -> session.command(Order.valueOf(values.getOrDefault("order", "").toUpperCase(Locale.ROOT)));
 					case "attack" -> session.attackSelectedTarget();
 					case "share" -> { if (!service.acceptSharedQuest(owner, session.bot(), Integer.parseInt(values.getOrDefault("quest", "0")))) throw new IllegalArgumentException(session.bot().getName() + " cannot accept that shared quest."); }
 					case "setting" -> {
@@ -158,7 +160,9 @@ public final class PlayerBotHttpService {
 			case "appearance", "resetappearance" -> { return PlayerBotAppearance.configure(service.find(owner,name),Integer.parseInt(values.getOrDefault("item","0")),Integer.parseInt(values.getOrDefault("target","0")),op.equals("resetappearance")); }
 			default -> throw new IllegalArgumentException("Unknown companion action.");
 		}
-		return "Companion request completed.";
+		return op.equals("order") && "FOLLOW".equalsIgnoreCase(values.get("order"))
+			? "Companions will withdraw and follow you. Normal activity resumes after regrouping out of combat; Attack resumes combat."
+			: "Companion request completed.";
 	}
 	private static void send(HttpExchange exchange, int status, String type, String body) throws IOException {
 		byte[] bytes = body.getBytes(StandardCharsets.UTF_8); exchange.getResponseHeaders().set("Content-Type", type + "; charset=utf-8");

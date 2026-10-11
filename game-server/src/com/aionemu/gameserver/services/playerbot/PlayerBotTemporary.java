@@ -111,7 +111,7 @@ public final class PlayerBotTemporary {
     if(!item.isIdentified()){item.setOptionalSockets(com.aionemu.commons.utils.Rnd.get(0,selected.getOptionSlotBonus()));item.setBonusStats(com.aionemu.gameserver.model.templates.item.actions.TuningAction.getRandomStatBonusIdFor(item),true);item.setEnchantBonus(com.aionemu.commons.utils.Rnd.get(0,selected.getMaxEnchantBonus()));item.setTuneCount(item.getTuneCount()+1);}
     item.setSoulBound(true);state.created.add(item.getObjectId());player.getInventory().onLoadHandler(item);}
    if(player.getEquipment().equipItem(item.getObjectId(),mask)==null)throw new IllegalStateException("Native Temporary Bot equip rejected: "+selected.getTemplateId()+" slot="+slot);
-   for(var old:current)if(!old.isEquipped() && state.created.contains(old.getObjectId())){player.getInventory().decreaseByObjectId(old.getObjectId(),old.getItemCount(),com.aionemu.gameserver.services.item.ItemPacketService.ItemUpdateType.DEC_ITEM_USE);state.created.remove(old.getObjectId());}
+   for(var old:current)if(!old.isEquipped() && state.created.contains(old.getObjectId()) && !PlayerBotCombatGear.skinOnly(old.getItemTemplate())){player.getInventory().decreaseByObjectId(old.getObjectId(),old.getItemCount(),com.aionemu.gameserver.services.item.ItemPacketService.ItemUpdateType.DEC_ITEM_USE);state.created.remove(old.getObjectId());}
   }
  }
  private static double stigmaScore(Player player,Role role,ItemTemplate item){

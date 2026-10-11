@@ -18,14 +18,14 @@ import static com.aionemu.gameserver.services.playerbot.PlayerBotRules.*;
 final class PlayerBotHealing {
  static boolean managed(PlayerBotSkills.Entry e){return e.kind()==SkillKind.HEAL || e.kind()==SkillKind.CLEANSE;}
  static boolean heals(PlayerBotSkills.Entry e){return e.template().hasAnyEffect(EffectType.HEALINSTANT,EffectType.HEAL,EffectType.CASEHEAL);}
- static List<Player> party(Player bot) {var group=bot.getCurrentGroup();return group==null ? List.of(bot) : List.copyOf(group.getMembers());}
+ static List<Player> party(Player bot) {return PlayerBotSupport.members(bot);}
  static List<Creature> members(List<Player> party) {
   List<Creature> result=new ArrayList<>();for(var p:party){result.add(p);var pet=p.getSummon();if(pet!=null && !pet.isBeingReleased())result.add(pet);}return result;
  }
  static boolean reachable(Player bot,PlayerBotSkills.Entry e,Creature target) {
   return target.isSpawned() && target.getWorldId()==bot.getWorldId() && target.getInstanceId()==bot.getInstanceId()
    && (target==bot || PositionUtil.isInRange(bot,target,Math.max(40,e.range()*2)) && GeoService.getInstance().canSee(bot,target))
-   && PlayerBotSkills.canPlan(bot,e,target,false);
+   && PlayerBotSupport.legalAnchor(bot,e,target) && PlayerBotSkills.canPlan(bot,e,target,false);
  }
  static double health(Creature target){return 100.0*target.getLifeStats().getCurrentHp()/Math.max(1,target.getLifeStats().getMaxHp());}
  static double probe(double hp,double distance,double range,boolean pet) {
@@ -45,7 +45,7 @@ final class PlayerBotHealing {
  }
  static boolean needs(Player bot,PlayerBotSkills.Entry e,Creature target,List<Player> party) {
   if(target.isDead() || !target.isSpawned() || target.getWorldId()!=bot.getWorldId() || target.getInstanceId()!=bot.getInstanceId())return false;
-  double hp=health(target);if(hp>=85 || hp<=0)return false;
+  double hp=health(target);if(hp>=recoveryLimit(bot,target) || hp<=0)return false;
   if(target instanceof Summon && e.template().getProperties().getFirstTarget()!=FirstTargetAttribute.MYPET && hp>=65)return false;
   // Upstream permits another heal below medium health even while a heal is in
   // progress. Keep this exception so reservations cannot starve a falling tank.
@@ -53,6 +53,7 @@ final class PlayerBotHealing {
   var skill=e.template();return skill.hasAnyEffect(EffectType.HEALINSTANT)
    || !skill.hasAnyEffect(EffectType.HEAL,EffectType.CASEHEAL) || !sameBuff(target,skill);
  }
+ static double recoveryLimit(Player bot,Creature target){return target==bot && PlayerBotRecoveryIntent.active(bot) ? 95 : 85;}
  static List<Creature> targets(Player bot,PlayerBotSkills.Entry e,Creature anchor,List<Player> party) {
   List<Creature> targets=new ArrayList<>();targets.add(anchor);var p=e.template().getProperties();
   var result=p.validateEffectedList(targets,anchor,bot,e.template(),anchor.getX(),anchor.getY(),anchor.getZ());
@@ -76,7 +77,8 @@ final class PlayerBotHealing {
   double urgency=0,fit=0;int players=0,pets=0;
   for(var target:targets(bot,e,anchor,party))if(heals(e) && needs(bot,e,target,party)) {
    boolean pet=target instanceof Summon;double hp=health(target);
-   double candidate=healPriority(pet && e.template().getProperties().getFirstTarget()!=FirstTargetAttribute.MYPET ? Math.min(84,hp+30) : hp,target.getAggroList().stream().findAny().isPresent());
+   double candidate=target==bot && hp>=85 && hp<recoveryLimit(bot,target) ? PlayerBotEngine.HIGH+(95-hp)/20
+    : healPriority(pet && e.template().getProperties().getFirstTarget()!=FirstTargetAttribute.MYPET ? Math.min(84,hp+30) : hp,target.getAggroList().stream().findAny().isPresent());
    if(candidate<=0)continue;
    var recovery=PlayerBotCleric.recovery(bot,e,target,candidate);
    if(recovery!=null) {

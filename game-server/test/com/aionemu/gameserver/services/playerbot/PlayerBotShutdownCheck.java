@@ -25,7 +25,7 @@ public final class PlayerBotShutdownCheck {
   var field=Unsafe.class.getDeclaredField("theUnsafe");field.setAccessible(true);var unsafe=(Unsafe)field.get(null);
   var service=(PlayerBotService)unsafe.allocateInstance(PlayerBotService.class);
   var worker=new PlayerBotBackgroundWork();set(service,"backgroundWork",worker);set(service,"sessions",new ConcurrentHashMap<>());
-  for(String lane:java.util.List.of("controlledWork","autonomousWork","maintenanceWork","checkpointWork"))set(service,lane,new PlayerBotBackgroundWork());
+  for(String lane:java.util.List.of("controlledWork","activeWorldWork","autonomousWork","maintenanceWork","checkpointWork","teamWork"))set(service,lane,new PlayerBotBackgroundWork());
   var entered=new CountDownLatch(1);var release=new CountDownLatch(1);var finished=new CountDownLatch(1);
   var acquiredMonitor=new AtomicBoolean();var pool=Executors.newSingleThreadExecutor();
   var shutdown=new Thread(()->{try{service.shutdown();}finally{finished.countDown();}},"offline-shutdown-check");

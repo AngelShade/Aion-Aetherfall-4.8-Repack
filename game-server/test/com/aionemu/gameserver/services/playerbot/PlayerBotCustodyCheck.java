@@ -25,7 +25,7 @@ public final class PlayerBotCustodyCheck {
  }
  static Actor actor(List<Item> items)throws Exception {
   var a=(Actor)unsafe.allocateInstance(Actor.class);a.bot=true;a.collected=items;a.cube=new PlayerStorage(null,StorageType.CUBE);
-  a.equipment=(Equipment)unsafe.allocateInstance(Equipment.class);return a;
+  a.equipment=new Equipment(null);return a;
  }
  static Item item(int id,int template,int location,PersistentState state){
   var i=new Item(id,new ItemTemplate(){@Override public int getTemplateId(){return template;}},1,false,0);
@@ -87,6 +87,23 @@ public final class PlayerBotCustodyCheck {
   check(a.collected.getFirst().getPersistentState()==PersistentState.DELETED && a.cube.getPersistentState()==PersistentState.UPDATE_REQUIRED,"Rollback retry preserves pending deletion");
   a=actor(List.of());a.bot=false;db=new Jdbc();try{InventoryDAO.storeCompanionInventory(db.connection(),a);throw new AssertionError("Human guard");}catch(SQLException expected){check(expected.getMessage().contains("private"),"Human persistence unchanged");}
   a=actor(List.of());db=new Jdbc();db.autoCommit=true;try{InventoryDAO.storeCompanionInventory(db.connection(),a);throw new AssertionError("Transaction guard");}catch(SQLException expected){check(expected.getMessage().contains("private"),"Private transaction required");}
+  // Native Item setters dirty the item, not its clean enclosing Storage.
+  var loose=item(9000010,164000073,0,PersistentState.UPDATED);a=actor(List.of());a.cube.onLoadHandler(loose);
+  a.cube.setPersistentState(PersistentState.UPDATED);loose.setItemCount(9);
+  check(a.cube.getPersistentState()==PersistentState.UPDATED && loose.getPersistentState()==PersistentState.UPDATE_REQUIRED,"Actual item mutation leaves native storage clean");
+  db=new Jdbc();db.rows.put(9000010,new int[]{0,164000073,0});pending=InventoryDAO.storeCompanionInventory(db.connection(),a);
+  check(pending.equals(List.of(loose)) && db.written.equals(List.of(9000010)),"Clean cube cannot hide changed native item from automatic checkpoint");
+  check(loose.getPersistentState()==PersistentState.UPDATE_REQUIRED,"Pending item not cleaned before commit");
+  loose.setPersistentState(PersistentState.UPDATED);db=new Jdbc();pending=InventoryDAO.storeCompanionInventory(db.connection(),a);
+  check(pending.isEmpty() && db.written.isEmpty(),"Unchanged native private items incur no writes");
+  var outfit=item(9000011,164000073,0,PersistentState.UPDATE_REQUIRED);outfit.setEquipped(true);outfit.setEquipmentSlot(1);
+  var map=Equipment.class.getDeclaredField("equipment");map.setAccessible(true);((Map<Long,Item>)map.get(a.equipment)).put(1L,outfit);
+  a.equipment.setPersistentState(PersistentState.UPDATED);db=new Jdbc();db.rows.put(9000011,new int[]{0,164000073,0});
+  pending=InventoryDAO.storeCompanionInventory(db.connection(),a);
+  check(pending.equals(List.of(outfit)) && db.written.equals(List.of(9000011)),"Clean equipment cannot hide changed native equipped item");
+  a.collected=List.of(outfit);db=new Jdbc();db.rows.put(9000011,new int[]{0,164000073,0});pending=InventoryDAO.storeCompanionInventory(db.connection(),a);
+  check(pending.size()==1 && db.written.size()==1,"Same item in dirty and native equipment snapshots writes once");
+  var conflict=item(9000011,164000073,0,PersistentState.UPDATE_REQUIRED);a.collected=List.of(conflict);db=new Jdbc();rejected(a,db,"Conflicting companion pending item identities");
   System.out.println("OK: "+checks+" production custody checks; no DB, world objects or ID allocation/release.");
  }
 }

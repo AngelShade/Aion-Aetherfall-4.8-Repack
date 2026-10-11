@@ -1,5 +1,200 @@
 # Full Playerbots port scope and iteration focus
 
+## Weapon visibility and shared height traversal - installed offline - 11 October 2026
+
+PB-REPAIR-WEAPON-039 / PB-REPAIR-HEIGHT-040 is installed through unchanged complete
+normal Maven output. All native classes use native drawn-weapon state/emotion
+before bot attack/cast. Quiet idle restores neutral only after casting/combat,
+AI action and native animation deadlines expire, including manual Follow reset.
+Equipment, active weapon sets, skins and other state flags remain.
+
+A separate supported jump/drop path supplements strict walking for companions
+and independent bots: native floor/body/door/landing checks, bounded actual speed,
+native JUMP/movement/FALL packets and fall damage. Death/despawn/transfer clean
+transient intent; interrupted motion retains gravity. Controlled Follow/PASSIVE
+height regrouping also runs between native actions in combat, above ordinary
+offense and below emergency support/encounter safety. Stay/Guard/missions and
+independent goals remain. Local limits are 1.6m rise/12m descent/8m horizontal;
+this is an Aion host adapter, not a full navmesh or exact client physics claim.
+No coordinate exceptions, teleport escape, equipment reroll, SQL migration or
+settings changes were introduced. Original ground clear method remains intact;
+a separate wrapper preserves installed compatibility and all delivery guards.
+
+Receipt: external archives/server/game-server/backups/
+playerbots-source-build-20261011-052341-513574. Review: external staging/output/
+release-20261011-051631-963923. Installed GameServer SHA:
+fa2a7ca7da8b6ff3ffc32038d691aa2650c3b0add2c0fdf1aa4040e4e40da79e.
+105 fixture sources / 68 artifact-bound suites /64,811 checks / 28 tooling tests,
+169 weapon/84 height checks, 1,757 warning-free handlers and 43 exact native-browser
+actions/33 screenshots pass. Full XML/schema/JAXB and 3,388-class/185,295-reference
+linkage pass; 3,636 prior JAR entries remain identical. All 56 original/82 scope SHA
+hashes and 81 declared Git blobs verify. Prior 045911/050516/050901/051532 candidates
+were superseded or rejected without installation; final complete evidence alone
+was delivered. The instant-animation failure reproduces on the first candidate.
+
+One complete normal GS JAR copied unchanged; Commons/static resources/configs/
+client remain. Zero generated caches present to invalidate. Independent installed
+verification passes exact builder/source/recovery/static/linkage/regression/browser
+evidence and 71 guards/93 configs/30 protected client hashes. Inventory passes 20
+checks/74 client/159 historical server receipts; root system.cfg is informational
+and untouched. All 43 settings retain worldcap1500,target1200..1500,budget120,
+controlledcap3000,personal23/23,city0,appearance disabled. SQL IDs/progress/builds
+and all preceding mods remain. Fresh closed-component guards passed; no agent
+component lifecycle/attach/dump/gameplay/production SQL or native World/ID fixture
+occurred. Login/Chat untouched. PB-VAL-060 weapon visibility and 061 height/ledge
+acceptance remain user gameplay. Full quest audit and wider parity remain unfinished
+engineering; every route, photographed stall and boss timing is not claimed solved.
+See docs/PLAYERBOTS_WEAPON_STANCE_20261011.md and
+ docs/PLAYERBOTS_HEIGHT_TRAVERSAL_20261011.md.
+
+## Coordinated allied support/recovery and manual Follow - installed offline - 11 October 2026
+
+PB-SCOPE-SUPPORT-037 / PB-CUSTOM-FOLLOW-038 is installed through unchanged complete
+normal Maven output. Both independent bots and companions can select nearby legal
+allied humans/bots for learned healing, cleansing, mana, buffs, protection and
+resurrection; native party-only spells retain real membership. Native admission
+and effect-time rechecks use the same friendly eligibility. Enemy/loot/custody,
+PvP and class/resource/cooldown restrictions remain. Recovery uses useful native
+self-heals/mana restoration through95/95, retaining transient intent while standing
+to cast; sitting/native regeneration remains fallback. Original revive/recall code
+remains identical. Resting ignores stale pull/combat classification; observed urgent
+deadlines avoid retroactive idle backlog while genuine queue/stall warnings remain.
+
+The existing Follow button and .bot follow explicitly interrupt combat/casts,
+recovery, items, loot and missions even if FOLLOW was already selected. Owned spirits
+withdraw too. Normal native formation/geometry, hazards, immobilization, exchange
+commit custody, transport, resurrection and map transfer remain. Regrouping resumes
+normal activity after safe stationary arrival out of combat; Attack/another order
+or a new mission can resume earlier. No new client button or persistent state is
+introduced. Both chats coordinated shared source and one cumulative delivery.
+
+Receipt: playerbots-source-build-20261011-043735-264032; review:
+release-20261011-042743-973271. GameServer SHA:
+b35bbbde73b602cb2d3beb4f17ac5f66d7971064ad1aa7e509e9ac0ec021f678.
+103 fixture sources /66 artifact-bound suites /64,558 checks /28 tooling tests,
+1,757 warning-free handlers,43 exact native-browser actions/33 screenshots and full
+XML/schema/JAXB pass. Linkage:3,383 classes/184,619 references;3,633 prior JAR entries
+remain identical. All56 original/82 scope SHA hashes and81 declared Git blobs verify.
+Only the complete normal GS JAR and unchanged builder Bot.java handler were copied;
+Commons/static resources/configs/client remain.2,044 generated caches backed up and
+invalidated. Independent installed checks from both chats pass exact builder/source/
+recovery/static/linkage/regression/browser evidence and70 other guards/93 configs/
+30 protected client hashes. Inventory passes20 checks/74 client/158 historical server
+receipts. Root client-generated system.cfg stays informational and untouched.
+All43 settings retain worldcap1500,target1200..1500,budget120,controlledcap3000,
+personal23/23,city0,appearance disabled. Saved SQL IDs/progress/builds remain.
+
+Closed-component guards passed. No agent lifecycle/attach/dump/gameplay/production
+SQL or native World/ID fixture occurred; Login/Chat untouched. PB-VAL-058 support/
+recovery and PB-VAL-059 Follow remain user gameplay. Genuine long native operations
+are still possible; this does not claim every photographed delay or full WoW parity
+is resolved. Full quest audit and wider port remain unfinished engineering. See
+ docs/PLAYERBOTS_SUPPORT_RECOVERY_20261011.md and
+ docs/PLAYERBOTS_FORCED_FOLLOW_20261011.md.
+
+## Compact inventory and combat gear/save repair - installed offline - 11 October 2026
+
+PB-REPAIR-GEAR-SAVE-035 / PB-CUSTOM-UI-036 is installed through unchanged normal
+Maven output. The roster is 900px; character positions, all equipped items,
+carried cube, private warehouse and Legion storage are separate compact views.
+Existing native hover uses actual count/enchant/tempering; selected details show
+saved native bonus/fusion/socket/godstone data. Combat selection excludes statless
+cosmetic skins independently of appearance settings; displaced skins remain owned.
+Automatic checkpoints/logout include pending native items even when their private
+container is clean. Human saves/shared custody, SQL IDs/progress, prior 033/034
+behavior and all 43 settings remain.
+
+Receipt: external archives/server/game-server/backups/
+playerbots-source-build-20261011-035314-522287. Review: external staging/output/
+release-20261011-034100-742995. Installed GameServer SHA:
+6b3429a6377ec8c38af34b62387623e34098d5f4542d4d977bc413f46c723be1.
+101 fixture sources / 64 exact-artifact suites / 64,482 checks / 28 tooling tests,
+43 native-browser actions / 33 screenshots and 1,757 warning-free handlers pass.
+Complete XML/schema/JAXB and 3,380-class/184,229-reference linkage pass; 3,627 prior
+JAR entries remain identical. Both old-artifact cosmetic-selection and omitted
+native-dirty-item failures reproduce; corrected XML 29, recording-JDBC 94 and
+native-item 29 checks pass.
+
+One complete normal GS JAR copied unchanged; Commons/static resources/configs/client
+unchanged. 2,044 generated caches backed up and invalidated. Independent installed
+verification passes exact builder/recovery/source/static/linkage/browser/regression
+evidence and 71 guards / 93 configs / 30 protected client hashes. Inventory passes
+20 checks / 74 client / 157 historical server receipts; current root system.cfg
+remains informational and untouched. All 43 settings retain worldcap1500,
+target1200..1500,budget120,controlledcap3000,personal23/23,city0,appearance disabled.
+Fresh closed-component guards passed; no lifecycle/attach/production SQL/gameplay
+or World/ID fixture occurred. Login/Chat untouched. PB-VAL-056 gear/logout and
+PB-VAL-057 UI remain user acceptance. Full autonomous quest-chain audit and wider
+parity remain unfinished engineering. See
+ docs/PLAYERBOTS_COMBAT_GEAR_PERSISTENCE_20261011.md and
+ docs/PLAYERBOTS_COMPACT_ITEMS_20261011.md.
+
+## Combat/loot/navigation responsiveness — installed offline — 11 October 2026
+
+PB-REPAIR-DECISION-033 isolates active world decisions from idle planning and
+uses nonblocking last-committed population snapshots for placement checks.
+PB-REPAIR-NAV-CAMP-034 addresses shared search admission and native camp landing.
+One complete normal build/delivery owns both; exact evidence and current status:
+[decision responsiveness](PLAYERBOTS_DECISION_RESPONSIVENESS_20261011.md).
+Gameplay acceptance PB-VAL-054/055, full quest audit and wider port remain open.
+All installed031/032 and preceding features/settings/SQL identities remain.
+
+Installed unchanged normal GameServer SHA:
+0d05a405672362c205c8b98a881ae810ddfc97f67b9c1c3343b5f387faa31152.
+Current receipt: playerbots-source-build-20261011-031352-404231; review:
+release-20261011-025619-405037-client-guard. 99 fixture sources /61 artifact-bound
+suites /64,330 checks,28 tooling tests,43 browser actions and full static/linkage
+gates pass. Independent installed verification passes71 guards /93 configs /
+30 protected client hashes. Root client-generated system.cfg is informational
+only and untouched; every other client file remains guarded. Inventory passes
+20 mod checks /74 client /156 historical server receipts. All43 settings retain
+worldcap1500,target1200..1500,budget120,controlledcap3000,personal23/23,city0,
+appearance disabled. No lifecycle/attach/gameplay/production SQL changes occurred.
+
+## Coordinated UI/alliance — installed offline — 11 October 2026
+
+PB-CUSTOM-UI-031 / PB-SCOPE-ALLIANCE-032 is installed offline through complete
+unchanged normal Maven output. The full-screen visual overhaul supplies seven
+companion tabs/subtabs, keyboard/focus/draft preservation and native party/alliance
+management. Duplicated Follow/Attack/Stay/Guard/Passive/recall quick commands are
+removed from this panel; the separate existing in-game command window and its
+installed client files remain untouched. The former overflowing Dismiss strip is
+gone; individual roster dismissal retains confirmation and native saving.
+
+Native alliance controls cover party conversion, four groups of six, safe move/
+swap, captain/vice rights, invitations, ready responses and confirmed remove/leave.
+Native headless roster health/presence, per-actor conversion exclusion and shutdown
+draining are included; normal shared combat/follow/support and human rights remain.
+No persistent state is introduced in files, and saved SQL identities/progress stay.
+
+External receipt: playerbots-source-build-20261011-023859-456008; review:
+release-20261011-022527-509381. GameServer SHA:
+e6516b8c82aded5e34d7804e80ccfa160c16d9bee39706840f8859e8611919ca.
+96 fixture sources / 58 artifact-bound suites / 63,042 checks, 25 release-tool tests
+and 43 exact-builder native-browser actions pass. All 1,757 handlers compile
+warning-free; 2,533 managed resources remain unchanged; complete XML/schema/JAXB
+and 3,373-class / 183,817-reference linkage pass. All 56 original / 71 pinned
+scope hashes and 70 declared Git blobs verify. 3,623 prior JAR entries remain
+identical; public APIs and previous package entries remain. Only the complete
+normal GameServer JAR was copied; Commons and client files remain unchanged.
+
+Independent verification passes exact source/builder/recovery/static/linkage/
+regression/browser-media/renderer/screenshot evidence, 71 guards / 93 configs /
+31 client hashes and 2,044 backed-up invalidated handler caches. Inventory passes
+20 mod checks / 74 client / 154 historical server receipts. Client exit system.cfg
+was preserved after full inventory refresh; all other client hashes remain.
+All 43 explicit settings retain worldcap1500, target1200..1500, budget120,
+controlledcap3000, personal23/23, city0 and disabled appearance. The initial browser
+attempt is retained in review/failed-invitation-fixture: synthetic invitation entry
+omitted the input event. The corrected fixture explicitly verifies typed-name
+retention across refresh; unchanged product/builder media passed all 43 actions.
+
+Fresh closed-component guards passed. No component lifecycle/attach/dump, gameplay,
+production SQL or native World/ID fixture occurred; Login/Chat stay untouched.
+PB-VAL-052 UI and PB-VAL-053 alliance acceptance remain user gameplay. Full
+quest-chain audit and wider Playerbots parity remain active unfinished engineering.
+See docs/PLAYERBOTS_UI_BEHAVIOR_20261011.md and docs/PLAYERBOTS_ALLIANCE_20261011.md.
+
 ## Current cumulative release - LEGION-029 / CASSIUS-030 - 10 October 2026
 
 Installed PB-REPAIR-LEGION-029 supplies native roster presence for active companions and independent bots, native invitation/entry/logout/transfer updates, despawned save-held actor exclusion and players.last_online persistence. Human flags, membership/rights/custody and existing behavior remain. CASSIUS-030 corrects one underground Heiron spawn to matching-client XY422.566071/926.967834 and supported native ground Z124.968643; stationary guard/talk/quest16904 role remains. No unsupported custom AI or linked partner is invented.
@@ -160,7 +355,7 @@ receipts and all48 suites /62516 checks. Inventory passes20 mod checks /74 clien
 148 server historical receipts.
 
 Current live config remains population1200..1500/worldcap1500/budget120 and
-companions23/23; all43 values remain. Source/runtime paths unchanged; external
+companions23/23; all 43 values remain. Source/runtime paths unchanged; external
 workspace holds evidence/output/recovery. No component start/stop/restart/attach,
 new dump, production World/DB/ID fixture or DB mutation occurred. Both tested
 components stayed closed for guarded delivery; Login/Chat untouched. Preserve
@@ -285,7 +480,7 @@ backed up/invalidated. All earlier field/names/legion/storage/mail/class/raid/
 population/custody/shutdown mods remain; appearance override stays disabled.
 
 Configuration documentation receipt playerbots-config-docs-20261010-174703-757330
-backs up and explains all43 settings, preserving all40 explicit user values,
+backs up and explains all 43 settings, preserving all40 explicit user values,
 including current population1200..1500/worldcap1500/budget120 and companions23/23.
 New defaults: player_focus.enable=true, per_map=160, radius=900m. Global requested
 native SQL target/finite reserve remain separate from this transient local quota.

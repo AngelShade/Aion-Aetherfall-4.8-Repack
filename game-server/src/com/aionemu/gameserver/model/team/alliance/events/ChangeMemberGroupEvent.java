@@ -42,6 +42,8 @@ public class ChangeMemberGroupEvent extends AlwaysTrueTeamEvent {
 	private void swapMembersInGroup(PlayerAllianceMember firstMember, PlayerAllianceMember secondMember) {
 		PlayerAllianceGroup firstAllianceGroup = firstMember.getPlayerAllianceGroup();
 		PlayerAllianceGroup secondAllianceGroup = secondMember.getPlayerAllianceGroup();
+		if (firstMember == secondMember || firstAllianceGroup == secondAllianceGroup)
+			return;
 		firstAllianceGroup.removeMember(firstMember);
 		secondAllianceGroup.removeMember(secondMember);
 		firstAllianceGroup.addMember(secondMember);
@@ -52,8 +54,13 @@ public class ChangeMemberGroupEvent extends AlwaysTrueTeamEvent {
 
 	private void moveMemberToGroup(PlayerAllianceMember firstMember, int allianceGroupId) {
 		PlayerAllianceGroup firstAllianceGroup = firstMember.getPlayerAllianceGroup();
-		firstAllianceGroup.removeMember(firstMember);
+		// Validate destination before removing membership, including native packet callers.
+		if (allianceGroupId < 1000 || allianceGroupId > 1003)
+			return;
 		PlayerAllianceGroup newAllianceGroup = alliance.getAllianceGroup(allianceGroupId);
+		if (newAllianceGroup == firstAllianceGroup || newAllianceGroup.size() >= newAllianceGroup.getMaxMemberCount())
+			return;
+		firstAllianceGroup.removeMember(firstMember);
 		newAllianceGroup.addMember(firstMember);
 		alliance.sendPackets(new SM_ALLIANCE_MEMBER_INFO(firstMember, PlayerAllianceEvent.MEMBER_GROUP_CHANGE));
 	}

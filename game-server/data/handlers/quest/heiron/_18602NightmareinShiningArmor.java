@@ -23,6 +23,7 @@ public class _18602NightmareinShiningArmor extends AbstractQuestHandler {
 	// Maga's Potions 730308
 	// Robstin's Corpse 700939
 	private final static int[] npc_ids = { 205229, 730308, 700939 };
+	private static final int[] kaligaIds = { 217005, 217006 }; // Shadow Judge Kaliga, Kaliga the Unjust
 
 	public _18602NightmareinShiningArmor() {
 		super(18602);
@@ -35,7 +36,8 @@ public class _18602NightmareinShiningArmor extends AbstractQuestHandler {
 		for (int npc_id : npc_ids)
 			qe.registerQuestNpc(npc_id).addOnTalkEvent(questId);
 		qe.registerQuestNpc(205229).addOnQuestStart(questId);
-		qe.registerQuestNpc(217005).addOnKillEvent(questId); // Shadow Judge Kaliga
+		for (int kaligaId : kaligaIds)
+			qe.registerQuestNpc(kaligaId).addOnKillEvent(questId);
 	}
 
 	@Override
@@ -73,7 +75,7 @@ public class _18602NightmareinShiningArmor extends AbstractQuestHandler {
 		Player player = env.getPlayer();
 		QuestState qs = player.getQuestStateList().getQuestState(questId);
 		if (qs != null && qs.getStatus() == QuestStatus.START) {
-			return defaultOnKillEvent(env, 217005, 3, true); // Shadow Judge Kaliga
+			return defaultOnKillEvent(env, kaligaIds, 3, true);
 		}
 		return false;
 	}

@@ -32,22 +32,39 @@ TESTS['PlayerBotFieldCombatCheck']=59
 TESTS['PlayerBotNameLookupCheck']=53
 TESTS['PlayerBotQuestCapabilityCheck']=40
 TESTS['PlayerBotLegionPresenceCheck']=44
+TESTS['PlayerBotAllianceControlCheck']=82
+TESTS['PlayerBotDecisionIsolationCheck']=32
+TESTS['PlayerBotCampLandingCheck']=27
+TESTS['PlayerBotNavigationSearchCheck']=1229
+TESTS['PlayerBotCombatGearCheck']=29
+TESTS['PlayerBotCustodyCheck']=94
+TESTS['PlayerBotItemViewCheck']=29
+TESTS['PlayerBotSupportCooperationCheck']=56
+TESTS['PlayerBotForcedFollowCheck']=20
+TESTS['PlayerBotWeaponStanceCheck']=169
+TESTS['PlayerBotHeightTraversalCheck']=84
+TESTS['PlayerBotTargetVisibilityCheck']=1845
+
+QUEST_TESTS={'EltnenLifeStoneDiaryCheck':1881,'KaligaQuestCreditCheck':424,'KaligaEncounterCheck':68}
+
+def quest_fixtures():
+ return [ROOT/'game-server/test/com/aionemu/gameserver/questEngine'/(name+'.java') for name in QUEST_TESTS]+[ROOT/'game-server/data/handlers'/name for name in ['quest/eltnen/_1035RefreshingtheSprings.java','quest/eltnen/_1038TheShadowsCommand.java','quest/heiron/_18602NightmareinShiningArmor.java','instance/KromedesTrialInstance.java','ai/GeneralNpcAI.java','ai/AggressiveNpcAI.java','ai/instance/kromedesTrial/KaligaAI.java']]
 
 def sha(path):
  with Path(path).open('rb') as stream:return hashlib.file_digest(stream,'sha256').hexdigest()
 
 def fixtures():
- return sorted((ROOT/'game-server/test/com/aionemu/gameserver/services/playerbot').glob('*.java'))+[ROOT/'game-server/test/com/aionemu/gameserver/ShutdownHookCheck.java']
+ return sorted((ROOT/'game-server/test/com/aionemu/gameserver/services/playerbot').glob('*.java'))+[ROOT/'game-server/test/com/aionemu/gameserver/ShutdownHookCheck.java']+quest_fixtures()
 
 def binding(build):
  libs=[f for f in sorted((ROOT/'target-deploy/game-server/libs').glob('*.jar')) if f.name not in {'game-server-4.8-SNAPSHOT.jar','commons-4.8-SNAPSHOT.jar','playerbot-recruitment-fix.jar'}]
- paths=[Path(__file__),*[ROOT/'tools'/name for name in ['build-manifest.py','test-source-release-methods.py','deliver-source-component.py','release-game-server.py','verify-source-delivery.py','quest-handler-inventory.py','check-source-static-data.py']],build/'build-manifest.json',build/'game-server/game-server-4.8-SNAPSHOT.jar',build/'commons/commons-4.8-SNAPSHOT.jar',*fixtures(),*libs]
+ paths=[Path(__file__),*[ROOT/'tools'/name for name in ['build-manifest.py','test-source-release-methods.py','deliver-source-component.py','release-game-server.py','verify-source-delivery.py','quest-handler-inventory.py','check-source-static-data.py','check-source-browser.py','check-playerbot-ui-behavior.py']],build/'build-manifest.json',build/'game-server/game-server-4.8-SNAPSHOT.jar',build/'commons/commons-4.8-SNAPSHOT.jar',*fixtures(),*libs]
  return {str(p.resolve()):sha(p) for p in paths}
 
 def validate(build,out):
  evidence=json.loads((out/'evidence.json').read_text())
  assert evidence['version']==1 and evidence['inputs']==binding(build),'Regression inputs/artifacts changed'
- expected=TESTS|{'ShutdownHookCheck':14}
+ expected=TESTS|QUEST_TESTS|{'ShutdownHookCheck':14}
  assert set(evidence['suites'])==set(expected),'Missing/extra regression suites'
  checks=json.loads((out/'checks.json').read_text())
  assert set(checks)==set(expected),'Missing suite result'
@@ -89,8 +106,15 @@ def main():
  reports={};suites={}
  for test,count in TESTS.items():
   cwd=ROOT if test in {'PlayerBotWorldProgressCheck','PlayerBotAssassinCheck','PlayerBotGladiatorCheck','PlayerBotTemplarCheck','PlayerBotChanterCheck','PlayerBotClericCheck','PlayerBotSpiritmasterCheck','PlayerBotSorcererCheck'} else build/'checks'
-  args=[str(ROOT/'game-server')] if test in {'PlayerBotRepositoryCheck','PlayerBotPlayerZoneCheck','PlayerBotAuditCoverageCheck','PlayerBotIdleCastingCheck'} else []
+  args=[str(ROOT/'game-server')] if test in {'PlayerBotRepositoryCheck','PlayerBotPlayerZoneCheck','PlayerBotAuditCoverageCheck','PlayerBotIdleCastingCheck','PlayerBotCombatGearCheck','PlayerBotTargetVisibilityCheck'} else []
   result=subprocess.run(['java','-Xverify:all','-cp',cp,'com.aionemu.gameserver.services.playerbot.'+test,*args],cwd=cwd,capture_output=True,text=True)
+  (out/(test+'.txt')).write_text(result.stdout+result.stderr,encoding='utf-8')
+  assert result.returncode==0,(test,result.stderr)
+  reports[test]=next(line for line in result.stdout.splitlines() if line.startswith('OK: '+str(count)+' '))
+  suites[test]=dict(exitCode=result.returncode,count=count,result=reports[test],reportSha256=sha(out/(test+'.txt')))
+ for test,count in QUEST_TESTS.items():
+  args=[str(ROOT/'game-server')] if test=='KaligaEncounterCheck' else []
+  result=subprocess.run(['java','-Xverify:all','-cp',cp,'com.aionemu.gameserver.questEngine.'+test,*args],cwd=build/'checks',capture_output=True,text=True)
   (out/(test+'.txt')).write_text(result.stdout+result.stderr,encoding='utf-8')
   assert result.returncode==0,(test,result.stderr)
   reports[test]=next(line for line in result.stdout.splitlines() if line.startswith('OK: '+str(count)+' '))

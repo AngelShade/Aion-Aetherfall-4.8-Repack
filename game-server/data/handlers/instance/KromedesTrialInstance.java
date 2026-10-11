@@ -4,6 +4,9 @@ import static com.aionemu.gameserver.network.aion.serverpackets.SM_SYSTEM_MESSAG
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.aionemu.gameserver.instance.handlers.GeneralInstanceHandler;
@@ -32,6 +35,9 @@ public class KromedesTrialInstance extends GeneralInstanceHandler {
 
 	private final AtomicBoolean isBossSpawned = new AtomicBoolean();
 	private final List<Integer> sentMovies = new ArrayList<>();
+	private final Set<Integer> defeatedSubordinates = ConcurrentHashMap.newKeySet();
+	private final List<ScheduledFuture<?>> relicRespawns = new ArrayList<>();
+	private volatile int encounterGeneration;
 	private int skillId;
 	private boolean isPlayerInManor;
 
@@ -56,20 +62,24 @@ public class KromedesTrialInstance extends GeneralInstanceHandler {
 				PacketSendUtility.sendMonologue(player, 1111370); // The door to the Kaliga Treasury should be around here somewhere....
 				break;
 			case "KALIGA_TREASURY_300230000":
-				if (isBossSpawned.compareAndSet(false, true)) {
-					Npc wyr = instance.getNpc(217002);
-					Npc angerr = instance.getNpc(217000);
-					Npc hamam = instance.getNpc(216982);
-					if (isDead(wyr) && isDead(angerr) && isDead(hamam)) {
-						spawn(217005, 669.214f, 774.387f, 216.88f, (byte) 60);
-						spawn(217001, 663.8805f, 779.1967f, 216.26213f, (byte) 60);
-						spawn(217003, 663.0468f, 774.6116f, 216.26215f, (byte) 60);
-						spawn(217004, 663.0468f, 770.03815f, 216.26212f, (byte) 60);
-					} else {
-						spawn(217006, 669.214f, 774.387f, 216.88f, (byte) 60);
-					}
-				}
+				spawnFinalEncounter();
 				break;
+		}
+	}
+
+	protected void spawnFinalEncounter() {
+		if (isBossSpawned.compareAndSet(false, true)) {
+			if (!defeatedSubordinates.isEmpty()) {
+				spawn(217005, 669.214f, 774.387f, 216.88f, (byte) 60);
+				if (defeatedSubordinates.contains(217000))
+					spawn(217001, 663.8805f, 779.1967f, 216.26213f, (byte) 60);
+				if (defeatedSubordinates.contains(217002))
+					spawn(217003, 663.0468f, 774.6116f, 216.26215f, (byte) 60);
+				if (defeatedSubordinates.contains(216982))
+					spawn(217004, 663.0468f, 770.03815f, 216.26212f, (byte) 60);
+			} else {
+				spawn(217006, 669.214f, 774.387f, 216.88f, (byte) 60);
+			}
 		}
 	}
 
@@ -88,6 +98,15 @@ public class KromedesTrialInstance extends GeneralInstanceHandler {
 	@Override
 	public void onDie(Npc npc) {
 		switch (npc.getNpcId()) {
+			case 216982:
+			case 217000:
+			case 217002:
+				defeatedSubordinates.add(npc.getNpcId());
+				break;
+			case 217005:
+			case 217006:
+				cancelRelicRespawns();
+				break;
 			case 216968: // Divine Hisen
 				isPlayerInManor = true;
 				break;
@@ -124,21 +143,36 @@ public class KromedesTrialInstance extends GeneralInstanceHandler {
 		}
 	}
 
-	private void scheduleRespawn(Npc npc) {
-		ThreadPoolManager.getInstance().schedule(() -> {
-			Npc kaliga = instance.getNpc(217006);
-			if (kaliga != null && !kaliga.isDead()) {
-				SpawnTemplate npcST = npc.getSpawn();
-				SpawnTemplate newST = SpawnEngine.newSingleTimeSpawn(npcST.getWorldId(), npc.getNpcId(), npcST.getX(), npcST.getY(), npcST.getZ(),
-					npcST.getHeading());
-				newST.setStaticId(npcST.getStaticId());
-				SpawnEngine.spawnObject(newST, instance.getInstanceId());
+	private synchronized void scheduleRespawn(Npc npc) {
+		int generation = encounterGeneration;
+		Npc boss = instance.getNpc(217006);
+		relicRespawns.removeIf(ScheduledFuture::isDone);
+		relicRespawns.add(ThreadPoolManager.getInstance().schedule(() -> {
+			synchronized (KromedesTrialInstance.this) {
+				Npc kaliga = instance.getNpc(217006);
+				if (generation == encounterGeneration && kaliga == boss && kaliga != null && !kaliga.isDead()
+					&& instance.getNpcs(npc.getNpcId()).stream().noneMatch(relic -> !relic.isDead())) {
+					SpawnTemplate npcST = npc.getSpawn();
+					SpawnTemplate newST = SpawnEngine.newSingleTimeSpawn(npcST.getWorldId(), npc.getNpcId(), npcST.getX(), npcST.getY(), npcST.getZ(),
+						npcST.getHeading());
+					newST.setStaticId(npcST.getStaticId());
+					SpawnEngine.spawnObject(newST, instance.getInstanceId());
+				}
 			}
-		}, 10000);
+		}, 10000));
 	}
 
-	private boolean isDead(Npc npc) {
-		return npc == null || npc.isDead();
+	private synchronized void cancelRelicRespawns() {
+		encounterGeneration++;
+		for (ScheduledFuture<?> respawn : relicRespawns)
+			respawn.cancel(false);
+		relicRespawns.clear();
+	}
+
+	@Override
+	public void onInstanceDestroy() {
+		cancelRelicRespawns();
+		super.onInstanceDestroy();
 	}
 
 	private void sendMovie(Player player, int movieId) {

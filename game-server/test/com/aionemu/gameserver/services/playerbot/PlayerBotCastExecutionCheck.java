@@ -44,6 +44,7 @@ public final class PlayerBotCastExecutionCheck {
  static PlayerBotSession session(Actor bot,PlayerBotPreferences.Values values)throws Exception {
   var session=(PlayerBotSession)unsafe.allocateInstance(PlayerBotSession.class);
   set(session,"bot",bot);set(session,"owner",bot);set(session,"engine",new PlayerBotEngine());set(session,"order",Order.FOLLOW);
+  set(session,"forcedFollow",new PlayerBotForcedFollow());
   set(session,"role",values.role());set(session,"areaSkills",values.area());set(session,"consumables",values.supplies());
   set(session,"autoGear",values.gear());set(session,"autoLoot",values.loot());set(session,"questing",values.questing());
   set(session,"navigation",new PlayerBotNavigation(bot));set(session,"pets",new PlayerBotPets());

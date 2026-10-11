@@ -4,6 +4,8 @@ from pathlib import Path
 import unittest
 from unittest.mock import patch
 import json
+import hashlib
+import zipfile
 from tempfile import TemporaryDirectory
 
 spec = importlib.util.spec_from_file_location('source_delivery', Path(__file__).with_name('deliver-source-component.py'))
@@ -24,6 +26,32 @@ def resource_fixture():
 
 
 class MethodPreservationCheck(unittest.TestCase):
+    def test_client_generated_configuration_does_not_block_server_release(self):
+        with resource_fixture() as folder:
+            root=Path(folder);(root/'system.cfg').write_bytes(b'client exit settings')
+            (root/'client-mod.dll').write_bytes(b'installed client mod')
+            entries=[dict(path='system.cfg',sha256=hashlib.sha256(b'old generated settings').hexdigest()),
+                     dict(path='client-mod.dll',sha256=verification.sha(root/'client-mod.dll'))]
+            verification.verify_client_files(root,entries)
+            self.assertEqual((root/'system.cfg').read_bytes(),b'client exit settings')
+            (root/'system.cfg').unlink()
+            verification.verify_client_files(root,entries)
+            self.assertEqual(len(entries),2)
+            self.assertEqual(verification.protected_client_files(entries),entries[1:])
+
+    def test_actual_client_modification_stays_guarded(self):
+        with resource_fixture() as folder:
+            root=Path(folder);(root/'client-mod.dll').write_bytes(b'changed mod')
+            entries=[dict(path='client-mod.dll',sha256=hashlib.sha256(b'installed mod').hexdigest())]
+            with self.assertRaisesRegex(AssertionError,'client-mod.dll'):
+                verification.verify_client_files(root,entries)
+
+    def test_generated_configuration_exception_is_root_only(self):
+        self.assertEqual(verification.protected_client_files([dict(path='SYSTEM.CFG',sha256='old')]),[])
+        for name in ['config/system.cfg','config\\system.cfg','SystemOptionGraphics.cfg','system.cfg.backup']:
+            entries=[dict(path=name,sha256='guarded')]
+            self.assertEqual(verification.protected_client_files(entries),entries)
+
     def regression_fixture(self, root):
         regression=delivery.import_module('check-source-build')
         build=root/'build';out=root/'reports';(build/'checks').mkdir(parents=True);out.mkdir()
@@ -41,7 +69,7 @@ class MethodPreservationCheck(unittest.TestCase):
     def test_regression_missing_failed_or_wrong_individual_suite_is_rejected(self):
         with resource_fixture() as folder:
             regression,build,out,evidence=self.regression_fixture(Path(folder))
-            with patch.object(regression,'TESTS',{'Test':3}),patch.object(regression,'binding',return_value={'builder':'bound'}):
+            with patch.object(regression,'TESTS',{'Test':3}),patch.object(regression,'QUEST_TESTS',{}),patch.object(regression,'binding',return_value={'builder':'bound'}):
                 regression.validate(build,out)
                 for key,value in [('exitCode',1),('count',4),('result','OK: 4 forged count')]:
                     wrong=json.loads(json.dumps(evidence));wrong['suites']['Test'][key]=value
@@ -241,6 +269,59 @@ class QuestConstructorInventoryTests(unittest.TestCase):
         wrong = self.info(b'\x2a\x12\x07\xb7\x00\x01')
         wrong['methods'][0] = (2, *wrong['methods'][0][1:])
         with self.assertRaises(StopIteration): quest_inventory.constructor_id(wrong)
+
+class NativeBrowserReleaseTests(unittest.TestCase):
+    def fixture(self, root):
+        gate=delivery.import_module('check-source-browser')
+        build=root/'build';out=root/'browser';source=root/'source';browser=root/'bin64'
+        (build/'game-server').mkdir(parents=True);(out/'media').mkdir(parents=True);(out/'report').mkdir();(source/'tools').mkdir(parents=True);(source/'game-server/config/playerbots/media').mkdir(parents=True);browser.mkdir()
+        (build/'build-manifest.json').write_text('normal source manifest')
+        checker=source/'tools/check-playerbot-ui-behavior.py';checker.write_text('native browser fixture')
+        with zipfile.ZipFile(gate.jar(build),'w') as archive:
+            for name in gate.NAMES:
+                data=('normal builder '+name).encode();archive.writestr('playerbots/media/'+name,data);(out/'media'/name).write_bytes(data);(source/'game-server/config/playerbots/media'/name).write_bytes(data)
+        for name in gate.RENDERER:(browser/name).write_bytes(('native renderer '+name).encode())
+        media=gate.media_hashes(build)
+        inputs={str(checker.resolve()):gate.sha(checker)}|{str(out/'media'/name):digest for name,digest in media.items()}|{str(browser/name):gate.sha(browser/name) for name in gate.RENDERER}
+        (out/'report/visual.png').write_bytes(b'native render image')
+        (out/'report/report.json').write_text(json.dumps(dict(version=1,passed=True,authenticatedActions=43,inputs=inputs,screenshots={'visual.png':gate.sha(out/'report/visual.png')})))
+        (out/'browser.txt').write_text('OK: native Aion WebKit verified')
+        evidence=dict(version=1,exitCode=0,gameSha256=gate.sha(gate.jar(build)),buildManifestSha256=gate.sha(build/'build-manifest.json'),gateSha256=gate.sha(gate.__file__),checkerSha256=gate.sha(checker),media=media,testedMedia=str(out/'media'),browserBin=str(browser),reportSha256=gate.sha(out/'report/report.json'),stdoutSha256=gate.sha(out/'browser.txt'))
+        (out/'evidence.json').write_text(json.dumps(evidence))
+        return gate,source,build,out,evidence
+
+    def test_browser_rejects_changed_source_builder_or_renderer(self):
+        with resource_fixture() as folder:
+            gate,source,build,out,e=self.fixture(Path(folder))
+            with patch.object(gate,'ROOT',source):
+                gate.validate(build,out)
+                for path in [gate.jar(build),source/'game-server/config/playerbots/media/bots.js',Path(e['browserBin'])/'Awesomium.dll',source/'tools/check-playerbot-ui-behavior.py']:
+                    original=path.read_bytes();path.write_bytes(b'changed input')
+                    with self.assertRaises(AssertionError):gate.validate(build,out)
+                    path.write_bytes(original)
+
+    def test_browser_rejects_failed_or_incomplete_run_and_changed_visuals(self):
+        with resource_fixture() as folder:
+            gate,source,build,out,e=self.fixture(Path(folder))
+            with patch.object(gate,'ROOT',source):
+                for key,value in [('exitCode',1),('reportSha256','wrong')]:
+                    (out/'evidence.json').write_text(json.dumps(e|{key:value}))
+                    with self.assertRaises(AssertionError):gate.validate(build,out)
+                (out/'evidence.json').write_text(json.dumps(e));image=out/'report/visual.png';image.write_bytes(b'changed screenshot')
+                with self.assertRaises(AssertionError):gate.validate(build,out)
+                image.write_bytes(b'native render image')
+                report=json.loads((out/'report/report.json').read_text());report['authenticatedActions']=42;(out/'report/report.json').write_text(json.dumps(report))
+                (out/'evidence.json').write_text(json.dumps(e|{'reportSha256':gate.sha(out/'report/report.json')}))
+                with self.assertRaises(AssertionError):gate.validate(build,out)
+
+    def test_browser_evidence_archive_retains_original_test_binding(self):
+        import shutil
+        with resource_fixture() as folder:
+            gate,source,build,out,e=self.fixture(Path(folder));archive=Path(folder)/'receipt/browser';shutil.copytree(out,archive)
+            with patch.object(gate,'ROOT',source):
+                gate.validate(build,archive)
+                (archive/'media/bots.css').write_bytes(b'changed archived media')
+                with self.assertRaises(AssertionError):gate.validate(build,archive)
 
 if __name__ == '__main__':
     unittest.main()

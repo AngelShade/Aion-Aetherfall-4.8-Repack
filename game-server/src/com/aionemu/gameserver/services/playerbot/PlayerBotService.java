@@ -48,7 +48,10 @@ public final class PlayerBotService {
 	private volatile boolean shuttingDown;
  private final PlayerBotBackgroundWork backgroundWork=new PlayerBotBackgroundWork();
  private final PlayerBotBackgroundWork controlledWork=new PlayerBotBackgroundWork(),autonomousWork=new PlayerBotBackgroundWork(),maintenanceWork=new PlayerBotBackgroundWork(),checkpointWork=new PlayerBotBackgroundWork();
+ private final PlayerBotBackgroundWork activeWorldWork=new PlayerBotBackgroundWork();
+ private long nextDecisionLagReport;
  private final PlayerBotExecution execution=new PlayerBotExecution();
+ private final PlayerBotBackgroundWork teamWork=new PlayerBotBackgroundWork();
  private final Object schedulerLock=new Object();
  private final Object populationLock=new Object();
  private final Map<Integer,Long> retireQueue=new java.util.concurrent.ConcurrentHashMap<>();
@@ -283,8 +286,9 @@ public final class PlayerBotService {
   if(!PlayerBotConfig.POPULATION_ENABLED || !PlayerBotPopulationPolicy.serverAccount(session.bot().getAccount().getId()) || !PlayerBotWorldPlacement.idle(session))return false;
   var bot=session.bot();long now=System.currentTimeMillis();
   try {
-   var event=populationSchedule.load().events().get(bot.getObjectId());
-   if(event==null || now<nextPlacementAttempt.getOrDefault(bot.getObjectId(),0L))return false;
+   if(now<nextPlacementAttempt.getOrDefault(bot.getObjectId(),0L))return false;
+   var committed=populationSchedule.peek();if(committed==null)return false;
+   var event=committed.events().get(bot.getObjectId());if(event==null)return false;
    boolean stranded=PlayerBotWorldActivities.stranded(bot,now);
    if(!focusMove && !stranded && event.placedLevel()==0 && now<event.teleportAt())return false;
    boolean initial=event.placedLevel()==0;
@@ -947,13 +951,16 @@ public final class PlayerBotService {
    if(saveTask==null || saveTask.isCancelled())saveTask=ThreadPoolManager.getInstance().schedule(this::runSave,1000);
   }
  }
+ private PlayerBotBackgroundWork decisionWork(PlayerBotSession session){
+  return !session.autonomous()?controlledWork:session.activeDecision()?activeWorldWork:autonomousWork;
+ }
  private void runTick() {
   try{tick();}finally{synchronized(schedulerLock){if(!shuttingDown) {
    // Queued/in-flight work already owns its lane; do not spin on its old deadline.
    long earliest=sessions.values().stream().filter(s->!s.closing() && !execution.busy(s.bot().getObjectId()))
-    .filter(s->s.autonomous()?!autonomousWork.busy():!controlledWork.busy())
-    .mapToLong(s->decisions.due(s.bot().getObjectId(),s.reactionDelay())).min().orElse(Long.MAX_VALUE);
-   task=ThreadPoolManager.getInstance().schedule(this::runTick,PlayerBotDecisionSchedule.delay(System.currentTimeMillis(),earliest,PlayerBotDecisionSchedule.maximum(PlayerBotConfig.TICK_MS,controlledWork.busy() || autonomousWork.busy())));
+    .filter(s->!decisionWork(s).busy())
+    .mapToLong(s->decisions.due(s.bot().getObjectId(),s.reactionDelay(),System.currentTimeMillis())).min().orElse(Long.MAX_VALUE);
+   task=ThreadPoolManager.getInstance().schedule(this::runTick,PlayerBotDecisionSchedule.delay(System.currentTimeMillis(),earliest,PlayerBotDecisionSchedule.maximum(PlayerBotConfig.TICK_MS,controlledWork.busy() || activeWorldWork.busy() || autonomousWork.busy())));
   }}}
  }
  private void runSave() {
@@ -972,11 +979,21 @@ public final class PlayerBotService {
   reservations.values().removeIf(r->r.until()<now);
   decisions.retain(sessions.keySet());
   var ready=PlayerBotDecisionSchedule.ready(sessions.values().stream().filter(s->!execution.busy(s.bot().getObjectId())).toList(),
-   s->s.bot().getObjectId(),s->decisions.due(s.bot().getObjectId(),s.reactionDelay()),s->!s.autonomous(),now);
-  var controlled=ready.stream().filter(PlayerBotDecisionSchedule.Ready::controlled).toList();
-  var autonomous=ready.stream().filter(r->!r.controlled()).toList();
-  if(!controlled.isEmpty())controlledWork.submit(ThreadPoolManager.getInstance()::executeLongRunning,()->decide(controlled));
-  if(!autonomous.isEmpty())autonomousWork.submit(ThreadPoolManager.getInstance()::executeLongRunning,()->decide(autonomous));
+   s->s.bot().getObjectId(),s->decisions.due(s.bot().getObjectId(),s.reactionDelay(),now),s->!s.autonomous(),now);
+  // An idle route/SQL operation must not own the lane of every fighting bot.
+  // Party decisions remain serial; actor exclusion protects state transitions.
+  var lanes=new LinkedHashMap<PlayerBotBackgroundWork,List<PlayerBotDecisionSchedule.Ready<PlayerBotSession>>>();
+  for(var candidate:ready)lanes.computeIfAbsent(decisionWork(candidate.value()),key->new ArrayList<>()).add(candidate);
+  for(var lane:lanes.entrySet()){var batch=List.copyOf(lane.getValue());lane.getKey().submit(ThreadPoolManager.getInstance()::executeLongRunning,()->decide(batch));}
+  if(now>=nextDecisionLagReport){
+   var late=ready.stream().filter(r->r.due()>0 && r.value().activeDecision() && now-r.due()>=5000).toList();
+   if(!late.isEmpty()){
+    var oldest=late.stream().min(Comparator.comparingLong(PlayerBotDecisionSchedule.Ready::due)).orElseThrow();
+    log.warn("Playerbot decision backlog: {} active actors overdue >=5s; oldest {} ({}) overdue {}ms; controlled/active-world/idle lanes busy {}/{}/{}; activity: {}",
+     late.size(),oldest.value().bot().getName(),oldest.id(),now-oldest.due(),controlledWork.busy(),activeWorldWork.busy(),autonomousWork.busy(),oldest.value().activitySummary());
+    nextDecisionLagReport=now+30000;
+   }
+  }
  }
  private void decide(List<PlayerBotDecisionSchedule.Ready<PlayerBotSession>> ready) {
   long began=System.nanoTime();
@@ -1047,12 +1064,13 @@ public final class PlayerBotService {
 	/** Resolve current state at effect application too, so an area attack cannot hit a newly arrived player. */
 	public static boolean allowsTarget(Player bot, com.aionemu.gameserver.model.gameobjects.Creature target) {
 		if (!bot.isPlayerBot()) return true;
-		if (target instanceof com.aionemu.gameserver.model.gameobjects.Npc npc && npc.isFlag()) return false;
+		if (target instanceof com.aionemu.gameserver.model.gameobjects.Npc npc
+			&& (npc.isFlag() || !PlayerBotTargetEligibility.visible(bot,npc))) return false;
 		PlayerBotSession active=getInstance().session(bot.getObjectId());
 		if(bot.isWorldBot() && active!=null && active.autonomous()) {
 			if(!bot.isSpawned() || active.closing())return false;
 			if(bot.isEnemy(target))return target instanceof com.aionemu.gameserver.model.gameobjects.Npc npc && target.getMaster()==target && active.allowsEnemy(npc);
-			return target==bot || target.getMaster()==bot;
+			return PlayerBotSupport.effectAllowed(bot,target);
 		}
 		Player owner = World.getInstance().getPlayer(bot.getPlayerBotOwnerId());
 		if (owner == null || !owner.isOnline() || !owner.isSpawned()
@@ -1063,13 +1081,34 @@ public final class PlayerBotService {
 			return target instanceof com.aionemu.gameserver.model.gameobjects.Npc npc && target.getMaster() == target
 				&& session != null && session.allowsEnemy(npc);
 		}
-		return !(target instanceof Player p) || PlayerBotTeams.same(p,bot);
+		return target.getMaster() instanceof Player ? PlayerBotSupport.effectAllowed(bot,target) : true;
 	}
 
 	private PlayerBotSession session(int id) { return sessions.get(id); }
  public boolean current(PlayerBotSession session){return !shuttingDown && sessions.get(session.bot().getObjectId())==session && !session.closing();}
  boolean claimTransfer(PlayerBotSession session){return current(session) && session.bot().getObjectId()!=focusJobId && execution.claim(session.bot().getObjectId(),"party transfer",System.currentTimeMillis());}
  void completeTransfer(PlayerBotSession session){execution.complete(session.bot().getObjectId());}
+ /** A native conversion temporarily removes group identity. Reserve registered actors
+  * before that handoff so decisions/checkpoints cannot mistake it for dismissal.
+  * No session/service monitor is acquired while the native team lock is held. */
+ public void convertTeam(List<Player> members,Runnable conversion) {
+  boolean[] finished={false};
+  boolean admitted=teamWork.submit(Runnable::run,()->{
+   var claimed=new ArrayList<Integer>();
+   try {
+    if(shuttingDown)throw new IllegalArgumentException("Playerbots are shutting down; conversion is unavailable.");
+    for(var member:members.stream().distinct().toList()) {
+     var session=sessions.get(member.getObjectId());if(session==null)continue;
+     int id=member.getObjectId();
+     if(session.bot()!=member || !current(session) || id==focusJobId || !execution.claim(id,"native alliance conversion",System.currentTimeMillis()))
+      throw new IllegalArgumentException("A companion is busy with native work. Retry conversion after it finishes.");
+     claimed.add(id);
+    }
+    conversion.run();finished[0]=true;
+   }finally{claimed.forEach(execution::complete);}
+  });
+  if(!admitted || !finished[0])throw new IllegalArgumentException("Native team conversion is already running or closing. Retry after it finishes.");
+ }
  /** Null means an intentionally headless, registered healthy actor, not a disconnected client. */
  public String headlessHealth(Player player) {
   var s=sessions.get(player.getObjectId());
@@ -1151,7 +1190,7 @@ public final class PlayerBotService {
 
 	public void shutdown() {
 		synchronized(this) {
-			shuttingDown = true; backgroundWork.close();controlledWork.close();autonomousWork.close();maintenanceWork.close();checkpointWork.close();
+			shuttingDown = true; backgroundWork.close();controlledWork.close();activeWorldWork.close();autonomousWork.close();maintenanceWork.close();checkpointWork.close();teamWork.close();
 			if (task != null) task.cancel(false);
 			if (saveTask != null) saveTask.cancel(false);
 		}
@@ -1160,7 +1199,7 @@ public final class PlayerBotService {
 		boolean interrupted = false;
 		if (backgroundWork.busy()) log.info("Waiting for pending playerbot creation/load cleanup before shutdown");
 		for (;;) {
-			try { controlledWork.awaitCompletion();autonomousWork.awaitCompletion();maintenanceWork.awaitCompletion();checkpointWork.awaitCompletion();backgroundWork.awaitCompletion(); break; }
+			try { controlledWork.awaitCompletion();activeWorldWork.awaitCompletion();autonomousWork.awaitCompletion();maintenanceWork.awaitCompletion();checkpointWork.awaitCompletion();backgroundWork.awaitCompletion();teamWork.awaitCompletion(); break; }
 			catch (InterruptedException e) { interrupted = true; }
 		}
 		int count = sessions.size();

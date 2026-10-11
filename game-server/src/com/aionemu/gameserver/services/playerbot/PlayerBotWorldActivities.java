@@ -92,7 +92,7 @@ final class PlayerBotWorldActivities {
  }
  static Npc grind(Player bot) {
   List<Npc> choices=new ArrayList<>();
-  bot.getKnownList().forEachNpc(n->{if(!n.isDead() && n.isSpawned() && n.getMaster()==n && !n.isFlag() && bot.isEnemy(n)
+  bot.getKnownList().forEachNpc(n->{if(PlayerBotTargetEligibility.visible(bot,n) && !n.isDead() && n.isSpawned() && n.getMaster()==n && !n.isFlag() && bot.isEnemy(n)
    && n.getWorldId()==bot.getWorldId() && n.getInstanceId()==bot.getInstanceId() && levelSuitable(bot.getLevel(),n.getLevel())
    && PlayerBotHunting.template(n.getObjectTemplate()) && PlayerBotHunting.opportunistic(state(bot).goal,n.getNpcId())
    && n.getAggroList().stream().findAny().isEmpty() && PositionUtil.isInRange(bot,n,25) && GeoService.getInstance().canSee(bot,n))choices.add(n);});

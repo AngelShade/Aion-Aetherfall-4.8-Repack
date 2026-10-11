@@ -14,7 +14,7 @@ final class PlayerBotGear {
   List<PlayerBotEquipment.Upgrade> choices=new ArrayList<>();
   for(Item item:bot.getInventory().getItems()) {
    var t=item.getItemTemplate();long mask=t.getItemSlot();int level=t.getRequiredLevel(bot.getPlayerClass());
-   if(mask==0 || ItemSlot.isStigma(mask) || !item.isIdentified() || item.isEquipped() || t.isSoulBound() && !item.isSoulBound()
+   if(PlayerBotCombatGear.skinOnly(t) || mask==0 || ItemSlot.isStigma(mask) || !item.isIdentified() || item.isEquipped() || t.isSoulBound() && !item.isSoulBound()
     || !t.isClassSpecific(bot.getPlayerClass()) || level<0 || level>bot.getLevel())continue;
    var mastery=DataManager.SKILL_DATA.getMasterySkills(t.getItemGroup());
    if(!mastery.isEmpty() && mastery.stream().noneMatch(bot.getSkillList()::isSkillPresent))continue;

@@ -2,8 +2,11 @@ package quest.eltnen;
 
 import static com.aionemu.gameserver.model.DialogAction.*;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
+import com.aionemu.gameserver.model.gameobjects.Item;
+import com.aionemu.gameserver.questEngine.handlers.HandlerResult;
 import com.aionemu.gameserver.questEngine.handlers.AbstractQuestHandler;
 import com.aionemu.gameserver.questEngine.model.QuestEnv;
+import com.aionemu.gameserver.questEngine.model.QuestActionType;
 import com.aionemu.gameserver.questEngine.model.QuestState;
 import com.aionemu.gameserver.questEngine.model.QuestStatus;
 import com.aionemu.gameserver.services.QuestService;
@@ -31,9 +34,32 @@ public class _1038TheShadowsCommand extends AbstractQuestHandler {
 		qe.registerQuestNpc(204005).addOnKillEvent(questId);
 		qe.addHandlerSideQuestDrop(questId, 700172, 182201007, 1, 100, 2);
 		qe.registerQuestItem(182201007, questId);
+		qe.registerOnGetItem(182201007, questId);
 		for (int npc : npcs) {
 			qe.registerQuestNpc(npc).addOnTalkEvent(questId);
 		}
+	}
+
+	@Override
+	public boolean onCanAct(QuestEnv env, QuestActionType action, Object... objects) {
+		if (action != QuestActionType.ACTION_ITEM_USE)
+			return false;
+		QuestState qs = env.getPlayer().getQuestStateList().getQuestState(questId);
+		if (qs == null || qs.getStatus() != QuestStatus.START)
+			return false;
+		return switch (env.getTargetId()) {
+			case 700162 -> qs.getQuestVarById(0) == 0;
+			case 700172 -> qs.getQuestVarById(0) == 2
+				&& env.getPlayer().getInventory().getItemCountByItemId(182201007) == 0;
+			default -> false;
+		};
+	}
+
+	@Override
+	public HandlerResult onItemUseEvent(QuestEnv env, Item item) {
+		if (item.getItemId() == 182201007 && env.getPlayer().getInventory().getItemByObjId(item.getObjectId()) == item)
+			onGetItemEvent(env); // Recover a diary already looted before the acquisition listener was restored.
+		return HandlerResult.UNKNOWN; // The native ReadAction must still open the diary.
 	}
 
 	@Override
@@ -133,7 +159,8 @@ public class _1038TheShadowsCommand extends AbstractQuestHandler {
 
 	@Override
 	public boolean onGetItemEvent(QuestEnv env) {
-		return defaultOnGetItemEvent(env, 2, 3, false); // 3
+		return env.getPlayer().getInventory().getItemCountByItemId(182201007) >= 1
+			&& defaultOnGetItemEvent(env, 2, 3, false); // 3
 	}
 
 	@Override
@@ -176,6 +203,7 @@ public class _1038TheShadowsCommand extends AbstractQuestHandler {
 	@Override
 	public boolean onEnterWorldEvent(QuestEnv env) {
 		onLevelChangedEvent(env.getPlayer());
+		onGetItemEvent(env); // Existing saved step-2 holders retain their diary and can continue.
 		return false;
 	}
 }

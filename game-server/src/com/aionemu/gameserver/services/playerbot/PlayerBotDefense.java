@@ -101,7 +101,7 @@ final class PlayerBotDefense {
  }
  static boolean useful(Player bot,Role role,PlayerBotSkills.Entry entry,Creature target,List<Npc> enemies) {
   if(entry.kind()==SkillKind.DEFENSE) {
-   var group=bot.getCurrentTeam();var party=group==null ? List.of(bot) : group.getMembers();
+   var party=PlayerBotSupport.members(bot);
    boolean combat=enemies.stream().anyMatch(n->n.isSpawned() && !n.isDead() && PlayerBotService.allowsTarget(bot,n));
    return priority(bot,entry,target,combat,party)>0;
   }

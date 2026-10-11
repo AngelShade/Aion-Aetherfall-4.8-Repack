@@ -108685,7 +108685,7 @@
 		</equipment>
 		<bound_radius front="0.525" side="0.525" upper="2.7" />
 	</npc_template>
-	<npc_template npc_id="217006" level="38" name="kaliga the unjust" name_id="322624" height="2.7" group_drop="DARK" rank="DISCIPLINED" rating="ELITE" race="DEMIHUMANOID" tribe="AGGRESSIVESUPPORTMONSTER" ai="aggressive" srange="40" arange="2" attack_speed="2040" hpgauge="11" cancel_level="40">
+	<npc_template npc_id="217006" level="38" name="kaliga the unjust" name_id="322624" height="2.7" group_drop="DARK" rank="DISCIPLINED" rating="ELITE" race="DEMIHUMANOID" tribe="AGGRESSIVESUPPORTMONSTER" ai="kaliga_unjust" srange="40" arange="2" attack_speed="2040" hpgauge="11" cancel_level="40">
 		<stats maxHp="28425">
 			<speeds walk="1.457" group_walk="1.457" run="6" run_fight="6" group_run_fight="6" />
 		</stats>
@@ -367621,39 +367621,39 @@
 		<stats maxHp="252818" />
 		<bound_radius front="0.6" side="1.728" upper="3" />
 	</npc_template>
-	<npc_template npc_id="282111" level="55" name="altar of healing" name_id="322874" height="3" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="AGGRESSIVESUPPORTMONSTER2" type="GENERAL" ai="aggressive" srange="5" attack_speed="2000" hpgauge="3">
+	<npc_template npc_id="282111" level="55" name="altar of healing" name_id="322874" height="3" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="AGGRESSIVESUPPORTMONSTER2" type="GENERAL" ai="aggressive" srange="5" attack_speed="2000" hpgauge="3" client_visible="false">
 		<stats maxHp="18756" />
 		<bound_radius front="0.6" side="1.728" upper="3" />
 	</npc_template>
-	<npc_template npc_id="282112" level="1" name="idcromede_invisible_npc12" name_id="322875" height="3" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="MONSTER" type="GENERAL" ai="general" srange="10" attack_speed="2000" hpgauge="3">
+	<npc_template npc_id="282112" level="1" name="idcromede_invisible_npc12" name_id="322875" height="3" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="MONSTER" type="GENERAL" ai="general" srange="10" attack_speed="2000" hpgauge="3" client_visible="false">
 		<stats maxHp="18756" />
 		<bound_radius front="0.6" side="1.728" upper="3" />
 	</npc_template>
-	<npc_template npc_id="282113" level="1" name="idcromede_invisible_npc13" name_id="322876" height="3" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="MONSTER" type="GENERAL" ai="general" srange="10" attack_speed="2000" hpgauge="3">
+	<npc_template npc_id="282113" level="1" name="idcromede_invisible_npc13" name_id="322876" height="3" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="MONSTER" type="GENERAL" ai="general" srange="10" attack_speed="2000" hpgauge="3" client_visible="false">
 		<stats maxHp="18756" />
 		<bound_radius front="0.6" side="1.728" upper="3" />
 	</npc_template>
-	<npc_template npc_id="282114" level="55" name="idcromede_invisible_npc14" name_id="322877" height="3" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="MONSTER" type="GENERAL" ai="general" srange="10" attack_speed="2000" hpgauge="3">
+	<npc_template npc_id="282114" level="55" name="idcromede_invisible_npc14" name_id="322877" height="3" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="MONSTER" type="GENERAL" ai="general" srange="10" attack_speed="2000" hpgauge="3" client_visible="false">
 		<stats maxHp="18756" />
 		<bound_radius front="0.6" side="1.728" upper="3" />
 	</npc_template>
-	<npc_template npc_id="282115" level="55" name="idcromede_invisible_npc15" name_id="322878" height="3" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="MONSTER" type="GENERAL" ai="general" srange="10" attack_speed="2000" hpgauge="3">
+	<npc_template npc_id="282115" level="55" name="idcromede_invisible_npc15" name_id="322878" height="3" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="MONSTER" type="GENERAL" ai="general" srange="10" attack_speed="2000" hpgauge="3" client_visible="false">
 		<stats maxHp="18756" />
 		<bound_radius front="0.6" side="1.728" upper="3" />
 	</npc_template>
-	<npc_template npc_id="282116" level="55" name="robstin" name_id="322879" height="3" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="MONSTER" type="GENERAL" ai="general" srange="17" attack_speed="2000" hpgauge="3">
+	<npc_template npc_id="282116" level="55" name="robstin" name_id="322879" height="3" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="MONSTER" type="GENERAL" ai="general" srange="17" attack_speed="2000" hpgauge="3" client_visible="false">
 		<stats maxHp="18756" />
 		<bound_radius front="0.6" side="1.728" upper="3" />
 	</npc_template>
-	<npc_template npc_id="282117" level="55" name="idcromede_invisible_npc17" name_id="322880" height="3" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="MONSTER" type="GENERAL" ai="general" srange="10" attack_speed="2000" hpgauge="3">
+	<npc_template npc_id="282117" level="55" name="idcromede_invisible_npc17" name_id="322880" height="3" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="MONSTER" type="GENERAL" ai="general" srange="10" attack_speed="2000" hpgauge="3" client_visible="false">
 		<stats maxHp="18756" />
 		<bound_radius front="0.6" side="1.728" upper="3" />
 	</npc_template>
-	<npc_template npc_id="282118" level="1" name="idcromede_invisible_npc18" name_id="322881" height="3" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="MONSTER" type="GENERAL" ai="general" srange="10" attack_speed="2000" hpgauge="3">
+	<npc_template npc_id="282118" level="1" name="idcromede_invisible_npc18" name_id="322881" height="3" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="MONSTER" type="GENERAL" ai="general" srange="10" attack_speed="2000" hpgauge="3" client_visible="false">
 		<stats maxHp="18756" />
 		<bound_radius front="0.6" side="1.728" upper="3" />
 	</npc_template>
-	<npc_template npc_id="282119" level="55" name="idcromede_invisible_npc19" name_id="322882" height="3" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="MONSTER" type="GENERAL" ai="general" srange="10" attack_speed="2000" hpgauge="3">
+	<npc_template npc_id="282119" level="55" name="idcromede_invisible_npc19" name_id="322882" height="3" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="MONSTER" type="GENERAL" ai="general" srange="10" attack_speed="2000" hpgauge="3" client_visible="false">
 		<stats maxHp="18756" />
 		<bound_radius front="0.6" side="1.728" upper="3" />
 	</npc_template>

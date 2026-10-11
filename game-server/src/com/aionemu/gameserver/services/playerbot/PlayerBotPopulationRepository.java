@@ -32,7 +32,7 @@ final class PlayerBotPopulationRepository implements PlayerBotPopulationStorage 
   }
  }
  private final Connections connections;
- private Snapshot cached;
+ private volatile Snapshot cached;
  private long revision;
  PlayerBotPopulationRepository(){this(DatabaseFactory::getConnection);}
  PlayerBotPopulationRepository(Connections connections){this.connections=Objects.requireNonNull(connections);}
@@ -95,6 +95,8 @@ final class PlayerBotPopulationRepository implements PlayerBotPopulationStorage 
  public synchronized Map<Integer,PlayerBotWorldRoster.Resident> residents() throws IOException {return load().residents();}
  public synchronized Map<Integer,PlayerBotWorldPopulation.Pool> pools(boolean server) throws IOException {return server?load().server():load().manual();}
  public synchronized PlayerBotPopulationSchedule.State schedule() throws IOException {return load().schedule();}
+ /** Decision readers never wait for SQL or observe an uncommitted replacement. */
+ public PlayerBotPopulationSchedule.State cachedSchedule() {var snapshot=cached;return snapshot==null?null:snapshot.schedule();}
  public synchronized void residents(Map<Integer,PlayerBotWorldRoster.Resident> next) throws IOException {
   var old=load();var snapshot=new Snapshot(next,old.server(),old.manual(),old.schedule());if(old.residents().equals(next))return;
   commit(snapshot,c->{

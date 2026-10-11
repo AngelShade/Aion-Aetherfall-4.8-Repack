@@ -27,7 +27,28 @@ public class PlayerAllianceInvite extends RequestResponseHandler<Player> {
 	@Override
 	public void acceptRequest(Player inviter, Player invited) {
 		if (PlayerRestrictions.canInviteToAlliance(inviter, invited)) {
+			Runnable admission = () -> acceptNative(inviter, invited);
+			if (inviter.isInGroup() || invited.isInGroup()) {
+				List<Player> transitioning = new ArrayList<>();
+				transitioning.add(inviter);
+				transitioning.add(invited);
+				if (inviter.isInGroup()) transitioning.addAll(inviter.getPlayerGroup().getMembers());
+				if (invited.isInGroup()) transitioning.addAll(invited.getPlayerGroup().getMembers());
+				try {
+					if (transitioning.stream().anyMatch(Player::isPlayerBot))
+						com.aionemu.gameserver.services.playerbot.PlayerBotService.getInstance().convertTeam(transitioning, admission);
+					else admission.run();
+				} catch (IllegalArgumentException refusal) {
+					PacketSendUtility.sendMessage(inviter, refusal.getMessage());
+					if (invited != inviter) PacketSendUtility.sendMessage(invited, refusal.getMessage());
+				}
+			} else {
+				admission.run();
+			}
+		}
+	}
 
+	private void acceptNative(Player inviter, Player invited) {
 			PlayerAlliance alliance = inviter.getPlayerAlliance();
 			List<Player> playersToAdd = new ArrayList<>();
 			collectPlayersToAdd(inviter, invited, playersToAdd, alliance);
@@ -40,7 +61,6 @@ public class PlayerAllianceInvite extends RequestResponseHandler<Player> {
 			for (Player member : playersToAdd) {
 				PlayerAllianceService.addPlayer(alliance, member);
 			}
-		}
 	}
 
 	private void collectPlayersToAdd(Player inviter, Player invited, List<Player> playersToAdd, PlayerAlliance alliance) {

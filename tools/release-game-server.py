@@ -45,7 +45,9 @@ def main():
             if not a.review:
                 run(sys.executable, ROOT / 'tools/check-source-build.py', '--build', build, '--output', review / 'regression')
                 run(sys.executable, ROOT / 'tools/check-source-static-data.py', '--build', build, '--output', static, '--release-plan', review / 'release-plan.json')
+                run(sys.executable, ROOT / 'tools/check-source-browser.py', '--build', build, '--output', review / 'browser', '--browser-bin', shared.CLIENT_ROOT / 'bin64')
             importlib.import_module('check-source-build').validate(build, review / 'regression')
+            importlib.import_module('check-source-browser').validate(build, review / 'browser')
             delivery = [sys.executable, ROOT / 'tools/deliver-source-component.py', '--build', build, '--output', review / 'delivery',
                 '--scope', a.scope, '--release-plan', review / 'release-plan.json', '--static-check', static / 'static-data-load.txt']
             if a.config_review: delivery.extend(['--config-review', a.config_review])

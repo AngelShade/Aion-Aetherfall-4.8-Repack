@@ -197,9 +197,8 @@ public class InventoryDAO {
 		// Committed deletions remain in native storage queues as UPDATED objects.
 		// Their released IDs may now identify another item; only pending writes
 		// participate in this transaction's custody check and commit bookkeeping.
-		List<Item> items = player.getDirtyItemsToUpdate().stream()
-			.filter(Persistable.NEW.or(Persistable.CHANGED).or(Persistable.DELETED)).toList();
 		try {
+			List<Item> items = companionPendingItems(player);
 			for (Item item : items)
 				if (item.getItemLocation() == StorageType.ACCOUNT_WAREHOUSE.getId()
 					|| item.getItemLocation() == StorageType.LEGION_WAREHOUSE.getId() || item.getItemLocation() == StorageType.MARKET_WAREHOUSE.getId())
@@ -223,6 +222,28 @@ public class InventoryDAO {
 				throw new SQLException("Companion inventory transaction failed");
 			return items;
 		} catch (SQLException | RuntimeException e) { markCompanionInventoryDirty(player); throw e; }
+	}
+
+	/** Native item setters can be dirty while their enclosing storage is already clean.
+	 * Include every private pending item without clearing item state before commit. */
+	private static List<Item> companionPendingItems(Player player) throws SQLException {
+		List<Item> candidates = new ArrayList<>(player.getDirtyItemsToUpdate());
+		for (StorageType type : StorageType.values()) {
+			if (type == StorageType.ACCOUNT_WAREHOUSE || type == StorageType.LEGION_WAREHOUSE || type == StorageType.MARKET_WAREHOUSE) continue;
+			var storage = player.getStorage(type.getId());
+			if (storage != null) {
+				candidates.addAll(storage.getItemsWithKinah());
+				if (storage.getDeletedItems() != null) candidates.addAll(storage.getDeletedItems());
+			}
+		}
+		candidates.addAll(player.getEquipment().getEquippedItems());
+		var pending = new java.util.LinkedHashMap<Integer, Item>();
+		for (Item item : candidates) {
+			if (!Persistable.NEW.or(Persistable.CHANGED).or(Persistable.DELETED).test(item)) continue;
+			Item previous = pending.putIfAbsent(item.getObjectId(), item);
+			if (previous != null && previous != item) throw new SQLException("Conflicting companion pending item identities: " + item.getObjectId());
+		}
+		return List.copyOf(pending.values());
 	}
 
 	public static void companionInventoryCommitted(List<Item> items) {

@@ -21,6 +21,7 @@ public class PlayerAlliance extends TemporaryPlayerTeam<PlayerAllianceMember> {
 	private final Map<Integer, PlayerAllianceGroup> groups = new HashMap<>();
 	private final Collection<Integer> viceCaptainIds = new CopyOnWriteArrayList<>();
 	private int allianceReadyStatus;
+	private final AllianceReadyCheck readyCheck = new AllianceReadyCheck();
 	private TeamType type;
 	private League league;
 
@@ -35,14 +36,20 @@ public class PlayerAlliance extends TemporaryPlayerTeam<PlayerAllianceMember> {
 
 	@Override
 	public void addMember(PlayerAllianceMember member) {
-		super.addMember(member);
-		PlayerAllianceGroup openAllianceGroup = getOpenAllianceGroup();
-		openAllianceGroup.addMember(member);
+		executeLocked(() -> {
+			if (hasMember(member.getObjectId()) || size() >= getMaxMemberCount())
+				throw new IllegalArgumentException("Alliance membership or capacity changed.");
+			PlayerAllianceGroup openAllianceGroup = getOpenAllianceGroup();
+			super.addMember(member);
+			openAllianceGroup.addMember(member);
+		});
 	}
 
 	@Override
 	public void onRemoveMember(PlayerAllianceMember member) {
 		member.getPlayerAllianceGroup().removeMember(member);
+		readyCheck.departed(member.getObjectId());
+		allianceReadyStatus = readyCheck.waiting();
 	}
 
 	@Override
@@ -77,7 +84,7 @@ public class PlayerAlliance extends TemporaryPlayerTeam<PlayerAllianceMember> {
 		try {
 			for (int groupId = 1000; groupId <= 1003; groupId++) {
 				PlayerAllianceGroup playerAllianceGroup = groups.get(groupId);
-				if (!playerAllianceGroup.isFull()) {
+				if (playerAllianceGroup.size() < playerAllianceGroup.getMaxMemberCount()) {
 					return playerAllianceGroup;
 				}
 			}
@@ -104,6 +111,8 @@ public class PlayerAlliance extends TemporaryPlayerTeam<PlayerAllianceMember> {
 	public final boolean isSomeCaptain(Player player) {
 		return isLeader(player) || isViceCaptain(player);
 	}
+
+	public AllianceReadyCheck getReadyCheck() { return readyCheck; }
 
 	public int getAllianceReadyStatus() {
 		return allianceReadyStatus;

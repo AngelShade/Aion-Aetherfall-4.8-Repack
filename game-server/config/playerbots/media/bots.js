@@ -4,7 +4,9 @@
 
   var state = null, busy = false, selectedDetails = {}, session = '', requestSerial = 0, spacingDrafts = {};
 
-  var currentView = 'party', selectedBot = null, botTab = 'overview', rosterPage = 0, pageSize = 12, inspecting = false, careDrafts = {}, removalConfirmation = null;
+  var currentView = 'party', selectedBot = null, botTab = 'overview', rosterPage = 0, pageSize = 12, inspecting = false, careDrafts = {}, removalConfirmation = null, subTabs = {}, fieldDrafts = {}, teamDraft = {}, teamConfirmation = null;
+
+  var itemSelections = {};
 
   var parts = location.search.substring(1).split('&');
 
@@ -26,12 +28,203 @@
 
   function notice(text, error) { byId('notice').textContent = text; byId('notice').className = error ? 'error' : ''; }
 
+  var sectionNames = {
+    behavior: [['combat','Combat'],['automation','Quest automation'],['spacing','Spacing']],
+    equipment: [['profile','Character'],['inventory','Inventory'],['build','Build choices'],['warehouse','Private warehouse'],['legion','Legion storage']],
+    mail: [['inbox','Inbox'],['send','Send']], quests: [['journal','Journal'],['requests','Requests']],
+    care: [['maintenance','Maintenance'],['budget','Spending budget']]
+  };
+
+  function captureDrafts() {
+    var fields = document.querySelectorAll('[data-draft-key]');
+    for (var i = 0; i < fields.length; i++) {
+      var el = fields[i], owner = el.getAttribute('data-draft-owner'), key = el.getAttribute('data-draft-key');
+      if (!fieldDrafts[owner]) fieldDrafts[owner] = {};
+      if (String(el.value) === el.getAttribute('data-draft-base')) delete fieldDrafts[owner][key];
+      else fieldDrafts[owner][key] = String(el.value);
+    }
+  }
+
+  function draftField(el, bot, key) {
+    el.setAttribute('data-draft-owner', bot.id); el.setAttribute('data-draft-key', key);
+    el.setAttribute('data-draft-base', String(el.value));
+    if (!el.id) el.id = 'draft-' + key;
+    var draft = fieldDrafts[bot.id], value = draft && draft[key];
+    if (value != null) {
+      if (value === String(el.value)) delete draft[key];
+      else if (el.tagName !== 'SELECT') el.value = value;
+      else for (var i = 0; i < el.options.length; i++) if (el.options[i].value === value) { el.value = value; break; }
+    }
+    return el;
+  }
+
+  function captureFocus() {
+    var el = document.activeElement, start = null, end = null;
+    try { start = el && el.selectionStart; end = el && el.selectionEnd; } catch (ignore) {}
+    return el ? { id: el.id, key: el.getAttribute('data-focus-key'), start: start, end: end } : null;
+  }
+
+  function restoreFocus(saved) {
+    if (!saved) return;
+    var el = saved.id && byId(saved.id), fields;
+    if (!el && saved.key) {
+      fields = document.querySelectorAll('[data-focus-key]');
+      for (var i = 0; i < fields.length; i++) if (fields[i].getAttribute('data-focus-key') === saved.key && visible(fields[i]) && !fields[i].disabled) { el = fields[i]; break; }
+    }
+    if (el && !el.disabled && visible(el)) {
+      el.focus(); if (el.setSelectionRange && saved.start != null) try { el.setSelectionRange(saved.start, saved.end); } catch (ignore) {}
+    }
+  }
+
+  function visible(el) {
+    for (var p = el; p && p.nodeType === 1; p = p.parentNode) if (p.style.display === 'none') return false;
+    return !!el.getClientRects().length;
+  }
+
+  function subPanel(parent, key, title) {
+    var el = node('section', null, 'control-panel'); el.id = 'bot-section-' + key;
+    el.setAttribute('data-section', key); el.setAttribute('role', 'tabpanel');
+    el.setAttribute('aria-labelledby', 'bot-subtab-' + key); el.appendChild(node('h3', title, 'section-toolbar'));
+    parent.appendChild(el); return el;
+  }
+
+  function renderSubTabs(body, bot) {
+    var names = sectionNames[botTab]; if (!names || !body.querySelector('[data-section]')) return;
+    var selected = subTabs[botTab] || names[0][0], tabs = node('nav', null, 'tabs subtabs');
+    tabs.id = 'bot-subtabs'; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', label(botTab) + ' sections');
+    if (!byId('bot-section-' + selected)) selected = names[0][0];
+    body.insertBefore(tabs, body.firstChild);
+    for (var i = 0; i < names.length; i++) (function (key, title) {
+      var panel = byId('bot-section-' + key); if (!panel) return;
+      var tab = localButton(tabs, title, function () { captureDrafts(); subTabs[botTab] = key; chooseSubTab(body, key); tab.focus(); });
+      tab.id = 'bot-subtab-' + key; tab.setAttribute('role','tab'); tab.setAttribute('aria-controls',panel.id);
+    }(names[i][0], names[i][1]));
+    chooseSubTab(body, selected);
+  }
+
+  function chooseSubTab(body, key) {
+    var panels = body.querySelectorAll('[data-section]'), tabs = body.querySelectorAll('#bot-subtabs button');
+    for (var i = 0; i < panels.length; i++) panels[i].style.display = panels[i].getAttribute('data-section') === key ? 'block' : 'none';
+    for (var t = 0; t < tabs.length; t++) {
+      var active = tabs[t].getAttribute('aria-controls') === 'bot-section-' + key;
+      tabs[t].className = active ? 'selected' : ''; tabs[t].setAttribute('aria-selected',active ? 'true' : 'false'); tabs[t].tabIndex = active ? 0 : -1;
+    }
+  }
+
+  function compactHelp(body) {
+    var hints = body.querySelectorAll('p.hint'), groups = {};
+    for (var i = 0; i < hints.length; i++) if (hints[i].textContent.length > 190 && hints[i].className.indexOf('availability-note') === -1) {
+      var hint = hints[i], parent = hint.parentNode;
+      while (parent !== body && parent.className.indexOf('control-panel') === -1) parent = parent.parentNode;
+      var key = 'help-' + botTab + '-' + (parent.id || 'main'), group = groups[key];
+      if (!group) {
+        group = { section: node('section',null,'section-help'), toggle: node('button','Details and rules','disclosure-toggle'), text: node('div') };
+        group.toggle.type = 'button'; group.toggle.setAttribute('data-local-control','true');
+        group.toggle.setAttribute('aria-expanded',selectedDetails[key] ? 'true' : 'false'); group.text.style.display = selectedDetails[key] ? 'block' : 'none';
+        group.section.appendChild(group.toggle); group.section.appendChild(group.text); parent.appendChild(group.section); groups[key] = group;
+        (function (button,text,id) { button.onclick = function () { selectedDetails[id] = !selectedDetails[id]; text.style.display = selectedDetails[id] ? 'block' : 'none'; button.setAttribute('aria-expanded',selectedDetails[id] ? 'true' : 'false'); }; }(group.toggle,group.text,key));
+      }
+      group.text.appendChild(hint);
+    }
+  }
+
+  function nativeItemLink(item) {
+    if (!item.itemId || !/^[0-9]+$/.test(String(item.itemId))) return '';
+    // The installed ItemInfo hover bridge consumes href/title, as Wardrobe does.
+    return item.tooltip ? 'nc://aion.ItemInfo/ItemTooltip?' + item.tooltip : '';
+  }
+
+  function itemIcon(item, className) {
+    var link = nativeItemLink(item), icon = node(link ? 'a' : 'span',null,className || 'item-icon');
+    if (link) { icon.href = link; icon.title = link; icon.onclick = function (event) { if (event) event.preventDefault(); return false; }; }
+    if (item.itemId && /^[0-9]+$/.test(String(item.itemId))) {
+      var picture = node('img'); picture.alt = ''; picture.src = '/shop/media/icons/' + encodeURIComponent(item.itemId) + '.png';
+      picture.onerror = function () { this.style.display = 'none'; }; icon.appendChild(picture);
+    } else icon.appendChild(node('span','?', 'unknown-item'));
+    return icon;
+  }
+
+  function itemHeading(parent,item) {
+    var heading = node('div',null,'item-title'); heading.appendChild(itemIcon(item));
+    heading.appendChild(node('span',item.name + ' \u00d7' + item.count)); parent.appendChild(heading);
+    if (item.equipped) parent.appendChild(node('span','Equipped','status-pill'));
+    if (item.quality) parent.appendChild(node('p',label(item.quality) + ' \u00b7 Item level ' + item.itemLevel,'item-meta'));
+    if (item.enchant || item.tempering) parent.appendChild(node('p','Enchant +' + (item.enchant || 0) + ' \u00b7 Tempering +' + (item.tempering || 0),'item-meta'));
+    if (item.fusionItemId) parent.appendChild(node('p','Fused with ' + (item.fusionName || 'an unavailable item'),'item-meta'));
+    if (item.godstoneId) parent.appendChild(node('p','Godstone: ' + (item.godstoneName || 'name unavailable'),'item-meta'));
+    var bonusSets = [['bonusModifiers','Random bonuses'],['fusionModifiers','Fused bonuses']];
+    for (var bs = 0; bs < bonusSets.length; bs++) {
+      var mods = item[bonusSets[bs][0]] || [], lines = [];
+      for (var m = 0; m < mods.length; m++) { var stat = mods[m], prefix = stat.operation === 'subtract' ? '-' : stat.operation === 'set' ? 'Set to ' : stat.operation === 'absolute' ? 'Absolute ' : '+';
+        var statNames = {MAXHP:'Maximum HP',MAXMP:'Maximum MP',BOOST_MAGICAL_SKILL:'Magic boost',BOOST_CASTING_TIME:'Casting speed',BOOST_HATE:'Enmity boost'};
+        lines.push((statNames[stat.name] || label(stat.name)) + ' ' + prefix + stat.value + (stat.operation === 'rate' ? '%' : '') + (stat.conditional ? ' (conditional)' : ''));
+      }
+      if (lines.length) parent.appendChild(node('p',bonusSets[bs][1] + ': ' + lines.join(', '),'item-meta'));
+      else if (item[bs === 0 ? 'bonusStatsId' : 'fusionBonusStatsId']) parent.appendChild(node('p',bonusSets[bs][1] + ': details unavailable','item-meta'));
+    }
+    var stoneSets = [['manastones','Manastones'],['fusionStones','Fused manastones']];
+    for (var s = 0; s < stoneSets.length; s++) { var stones = item[stoneSets[s][0]] || []; if (stones.length) { var names = []; for (var n = 0; n < stones.length; n++) names.push(stones[n].name + ' (slot ' + (Number(stones[n].slot) + 1) + ')'); parent.appendChild(node('p',stoneSets[s][1] + ': ' + names.join(', '),'item-meta')); } }
+
+  }
+
+  function itemGrid(parent,bot,items,key,title,renderer) {
+    var box = node('section',null,'cube-panel'), grid = node('div',null,'cube-grid'), details = node('div',null,'cube-details');
+    var choiceKey = bot.id + '|' + key, selected = itemSelections[choiceKey], exists = false;
+    for (var i = 0; i < items.length; i++) if (String(items[i].id) === String(selected)) exists = true;
+    if (!exists) selected = items.length ? items[0].id : null; itemSelections[choiceKey] = selected;
+    box.appendChild(node('h3',title)); grid.setAttribute('aria-label',title); grid.setAttribute('data-grid',key);
+    for (var i = 0; i < items.length; i++) (function(item) {
+      var tile = node('button',null,'cube-slot' + (String(item.id) === String(selected) ? ' selected' : ''));
+      if (nativeItemLink(item)) tile.title = nativeItemLink(item);
+      tile.type = 'button'; tile.setAttribute('data-local-control','true'); tile.setAttribute('data-item-id',item.id);
+      tile.setAttribute('data-focus-key','cube|' + bot.id + '|' + key + '|' + item.id);
+      tile.setAttribute('aria-label',item.name + ', ' + item.count); tile.setAttribute('aria-pressed',String(item.id) === String(selected) ? 'true' : 'false');
+      var icon = itemIcon(item,'cube-icon');
+      // Keep the native hover anchor and selection control separate, never nest interactive controls.
+      var cell = node('div',null,'cube-cell'); cell.appendChild(icon); tile.appendChild(node('span',item.count > 1 ? item.count : '', 'stack-count')); cell.appendChild(tile);
+      tile.onclick = function () { captureDrafts(); itemSelections[choiceKey] = item.id; renderSelection(); };
+      grid.appendChild(cell);
+      if (String(item.id) === String(selected)) renderer(details,bot,item);
+    }(items[i]));
+    if (!items.length) grid.appendChild(node('p','Empty','empty-cube'));
+    box.appendChild(grid); box.appendChild(details); parent.appendChild(box); return box;
+  }
+
+  function renderProfile(parent,bot,items) {
+    var layout = node('div',null,'character-profile'), slots = node('div',null,'profile-slots'), summary = node('div',null,'profile-identity');
+    summary.appendChild(node('h3',bot.name)); summary.appendChild(node('p','Level ' + bot.level + ' ' + label(bot.playerClass)));
+    summary.appendChild(node('p',label(bot.role) + ' \u00b7 Health ' + bot.health + '% \u00b7 Mana ' + bot.mana + '%','hint'));
+    var names = ['HELMET','NECKLACE','SHOULDER','EARRINGS_LEFT','TORSO','EARRINGS_RIGHT','GLOVES','RING_LEFT','PANTS','RING_RIGHT','BOOTS','WAIST','MAIN_HAND','SUB_HAND','WINGS','PLUME','MAIN_OFF_HAND','SUB_OFF_HAND','POWER_SHARD_RIGHT','POWER_SHARD_LEFT'];
+    for (var n = 0; n < names.length; n++) {
+      var slot = node('div',null,'profile-slot'), present = null;
+      for (var i = 0; i < items.length; i++) if ((items[i].equippedSlots || []).indexOf(names[n]) !== -1) present = items[i];
+      slot.appendChild(node('span',label(names[n]),'slot-label'));
+      if (present) { var icon = itemIcon(present); slot.appendChild(icon); slot.appendChild(node('span',present.name,'slot-name')); }
+      else slot.appendChild(node('span','Empty','slot-empty'));
+      slots.appendChild(slot);
+    }
+    layout.appendChild(summary); layout.appendChild(slots); parent.appendChild(layout);
+    itemGrid(parent,bot,items,'equipped','Equipped items (' + items.length + ')',renderItem);
+  }
+
+  function metrics() {
+    var parent = byId('party-metrics'); if (!parent || !state) return;
+    clear(parent); var ready = 0, requests = 0;
+    for (var i = 0; i < state.active.length; i++) { if (!state.active[i].dead && !state.active[i].closing) ready++; requests += (state.active[i].questions || []).length; }
+    var values = [['Active companions',state.active.length + ' / ' + state.limit],['Alive companions',ready],['Quest requests',requests],['Recruitment slots',state.recruitRemaining == null ? 'Refresh to check' : state.recruitRemaining]];
+    for (var n = 0; n < values.length; n++) { var card = node('div',null,'stat-card'); card.appendChild(node('span',values[n][0])); card.appendChild(node('strong',values[n][1])); parent.appendChild(card); }
+  }
+
   function button(parent, text, values, disabled, className) {
 
     var el = node('button', text, className); el.type = 'button'; el.disabled = disabled || busy;
 
     el.setAttribute('data-action', values.action || '');
+    el.setAttribute('data-focus-key', [values.action,values.name,values.setting,values.order,values.item,values.object,values.quest,values.answer,values.target,values.operation,values.team,values.member,values.group,values.second,values.preset].join('|'));
 
+    if (values.operation) el.setAttribute('data-operation',values.operation);
+    if (values.item != null) el.setAttribute('data-item',values.item);
+    if (values.object != null) el.setAttribute('data-object',values.object);
     if (values.name) el.setAttribute('data-name', values.name);
 
     if (values.setting) el.setAttribute('data-setting', values.setting);
@@ -58,6 +251,8 @@
 
     if (busy) return;
 
+    captureDrafts(); var focus = captureFocus(), original = values;
+    if (values) { values = {}; for (var key in original) if (Object.prototype.hasOwnProperty.call(original,key)) values[key] = original[key]; }
     busy = true; var serial = ++requestSerial; setBusy();
 
     var xhr = new XMLHttpRequest(), mutation = values !== null, finished = false, watchdog;
@@ -78,11 +273,15 @@
 
       try { result = JSON.parse(xhr.responseText); } catch (ignore) { if (state) state.request = ''; notice('Companions is unavailable. Refresh before trying again.', true); return; }
 
-      if (xhr.status !== 200 || result.error) { if (state) state.request = ''; notice(result.error || 'Refresh Companions to reconnect.', true); return; }
+      if (!result || xhr.status !== 200 || result.error) { if (state) state.request = ''; notice(result && result.error || 'Refresh Companions to reconnect.', true); return; }
 
-      if (mutation && values.action === 'carebudget') { for (var d = 0; d < result.active.length; d++) if (result.active[d].name === values.name) delete careDrafts[result.active[d].id]; }
+      if (!result || !Array.isArray(result.active) || !Array.isArray(result.roster) || !Array.isArray(result.quests) || !Array.isArray(result.classes) || !Array.isArray(result.roles) || typeof result.request !== 'string' || !result.request) { if (state) state.request = ''; notice('Companion data is incomplete. Refresh before trying again.',true); return; }
 
-      state = result; render(); notice(result.notice || 'Connected as ' + result.owner + '. Select a companion or issue a party order.', false);
+      if (mutation && values.action === 'spacing') { for (var d = 0; d < result.active.length; d++) if (result.active[d].name === values.name && Number(result.active[d].ownerSpacing) === Number(values.ownerSpacing) && Number(result.active[d].attackSpacing) === Number(values.attackSpacing)) delete spacingDrafts[result.active[d].id]; }
+
+      if (mutation && values.action === 'carebudget') { for (var d = 0; d < result.active.length; d++) if (result.active[d].name === values.name && String(result.active[d].reserve) === String(values.reserve) && String(result.active[d].dailyBudget) === String(values.dailyBudget)) delete careDrafts[result.active[d].id]; }
+
+      state = result; render(); restoreFocus(focus); notice(result.notice || 'Connected as ' + result.owner + '. Select a companion to manage its settings and equipment.', false);
 
     };
 
@@ -104,13 +303,14 @@
 
     for (var i = 0; i < controls.length; i++) {
 
-      if (busy) { controls[i].setAttribute('data-disabled', controls[i].disabled ? 'true' : 'false'); controls[i].disabled = true; }
+      if (controls[i].getAttribute('data-local-control') === 'true' || controls[i].getAttribute('role') === 'tab') continue;
+      if (busy) { if (!controls[i].hasAttribute('data-disabled')) controls[i].setAttribute('data-disabled', controls[i].disabled ? 'true' : 'false'); controls[i].disabled = true; }
 
       else if (controls[i].hasAttribute('data-disabled')) { controls[i].disabled = controls[i].getAttribute('data-disabled') === 'true'; controls[i].removeAttribute('data-disabled'); }
 
     }
 
-    byId('active').className = busy ? 'busy' : '';
+    byId('active').className = busy ? 'busy' : ''; byId('notice').setAttribute('aria-busy',busy ? 'true' : 'false');
 
   }
 
@@ -124,20 +324,6 @@
 
   }
 
-  function orders(parent, name, disabled) {
-
-    var names = ['FOLLOW', 'STAY', 'GUARD', 'PASSIVE'];
-
-    for (var i = 0; i < names.length; i++) button(parent, label(names[i]), { action: 'order', name: name, order: names[i] }, disabled);
-
-    button(parent, 'Attack selected target', { action: 'attack', name: name }, disabled);
-
-    button(parent, name === 'all' ? 'Revive / summon selected or party' : 'Revive / summon companion', { action: 'summon', name: name }, disabled);
-
-    button(parent, 'Dismiss', { action: 'dismiss', name: name }, disabled, 'danger');
-
-  }
-
   function detail(parent, title, key) {
 
     var section = node('section', null, 'disclosure'), toggle = node('button', title, 'disclosure-toggle'), body = node('div');
@@ -145,6 +331,7 @@
     toggle.type = 'button'; body.style.display = selectedDetails[key] ? 'block' : 'none';
 
     toggle.setAttribute('aria-expanded', selectedDetails[key] ? 'true' : 'false');
+    toggle.setAttribute('data-focus-key','disclosure|' + key);
 
     toggle.onclick = function () { selectedDetails[key] = !selectedDetails[key]; body.style.display = selectedDetails[key] ? 'block' : 'none'; toggle.setAttribute('aria-expanded', selectedDetails[key] ? 'true' : 'false'); };
 
@@ -154,7 +341,7 @@
 
   function localButton(parent, text, handler, className) {
 
-    var el = node('button', text, className); el.type = 'button'; el.onclick = handler; parent.appendChild(el); return el;
+    var el = node('button', text, className); el.type = 'button'; el.setAttribute('data-local-control','true'); el.setAttribute('data-focus-key','local|' + encodeURIComponent(text)); el.onclick = handler; parent.appendChild(el); return el;
 
   }
 
@@ -166,7 +353,8 @@
 
   function showView(view) {
 
-    currentView = view;
+    if (['party','roster','create','quests'].indexOf(view) === -1) return;
+    captureDrafts(); currentView = view;
 
     var names = ['party', 'roster', 'create', 'quests'];
 
@@ -174,7 +362,7 @@
 
       var selected = view === names[i], tab = byId('tab-' + names[i]);
 
-      byId('view-' + names[i]).style.display = selected ? 'block' : 'none'; tab.className = selected ? 'selected' : ''; tab.setAttribute('aria-selected', selected ? 'true' : 'false');
+      byId('view-' + names[i]).style.display = selected ? 'block' : 'none'; tab.className = selected ? 'selected' : ''; tab.setAttribute('aria-selected', selected ? 'true' : 'false'); tab.tabIndex = selected ? 0 : -1;
 
     }
 
@@ -186,6 +374,7 @@
 
   function render() {
 
+    captureDrafts(); metrics();
     byId('count').textContent = state.active.length + ' / ' + state.limit;
     byId('team-label').textContent = state.teamKind || 'Party';
 
@@ -199,7 +388,7 @@
 
     byId('question-count').textContent = pending ? pending + ' requests' : '';
 
-    var partyOrders = byId('party-orders'); clear(partyOrders); orders(partyOrders, 'all', !state.active.length);
+
 
     if (!activeBot(selectedBot) && !rosterBot(selectedBot)) selectedBot = state.active.length ? state.active[0].id : null;
 
@@ -214,20 +403,13 @@
 
     if (quest.selectedIndex < 0 && quest.options.length) quest.selectedIndex = 0;
 
-    byId('share').disabled = !state.quests.length || !state.active.length;
+    updateShare();
 
     updateCreation();
 
   }
 
-  function renderSelection() {
-
-    var parent = byId('active'), scroll = parent.scrollTop; clear(parent);
-
-    if (!state.active.length) parent.appendChild(node('p', 'No active companions yet. Recruit from your roster to build a party.', 'hint'));
-
-    for (var i = 0; i < state.active.length; i++) (function (bot) {
-
+  function botSummary(parent,bot) {
       var row = localButton(parent, null, function () { openBot(bot.id); }, 'bot-summary' + (String(selectedBot) === String(bot.id) ? ' selected' : ''));
 
       row.setAttribute('data-bot-id', bot.id); row.setAttribute('aria-pressed', String(selectedBot) === String(bot.id) ? 'true' : 'false');
@@ -242,7 +424,105 @@
 
       if ((bot.questions || []).length) row.appendChild(node('span', bot.questions.length + ' catch-up request' + (bot.questions.length === 1 ? '' : 's'), 'needs-attention'));
 
-    }(state.active[i]));
+  }
+
+  function teamMembers() {
+    var result = [], groups = state && state.team && state.team.groups || [];
+    for (var g = 0; g < groups.length; g++) for (var m = 0; m < groups[g].members.length; m++) result.push(groups[g].members[m]);
+    return result;
+  }
+
+  function renderTeamGroups(parent) {
+    var team = state.team, shown = {}, groups = team && team.groups || [];
+    for (var g = 0; g < groups.length; g++) {
+      var group = groups[g], panel = node('section',null,'team-group'), heading = node('div',null,'team-group-heading');
+      panel.setAttribute('data-group-id',group.id);
+      heading.appendChild(node('strong',team.kind === 'Alliance' ? 'Group ' + group.number : 'Party'));
+      heading.appendChild(node('span',group.members.length + ' / ' + group.capacity,'status-pill')); panel.appendChild(heading);
+      for (var m = 0; m < group.members.length; m++) {
+        var member = group.members[m], bot = activeBot(member.id); shown[member.id] = true;
+        if (bot) botSummary(panel,bot);
+        else {
+          var row = node('div',null,'human-member'); row.appendChild(node('strong',member.name + (member.self ? ' (you)' : '')));
+          row.appendChild(node('span','Lv. ' + member.level + ' ' + label(member.playerClass),'meta'));
+          var rank = member.leader ? 'Leader' : member.viceCaptain ? 'Vice-captain' : '';
+          row.appendChild(node('span',(rank ? rank + ' \u00b7 ' : '') + (member.dead ? 'Dead' : member.online ? 'Online' : 'Offline'),'summary-status'));
+          if (member.online && typeof member.health === 'number' && typeof member.mana === 'number') row.appendChild(node('span','Health ' + member.health + '% \u00b7 Mana ' + member.mana + '%','meta'));
+          panel.appendChild(row);
+        }
+      }
+      if (!group.members.length) panel.appendChild(node('p','No members in this group.','empty-state'));
+      parent.appendChild(panel);
+    }
+    for (var i = 0; i < state.active.length; i++) if (!shown[state.active[i].id]) botSummary(parent,state.active[i]);
+  }
+
+  function renderTeamControls() {
+    var parent = byId('team-controls'), team = state.team; if (!parent) return; clear(parent);
+    if (!team) { parent.appendChild(node('p','Refresh to load native team controls.','hint')); return; }
+    var members = teamMembers(), groups = team.groups || [], manager = !!team.canManage;
+    if (String(teamDraft.team) !== String(team.id)) { teamDraft = {team:team.id}; teamConfirmation = null; }
+    parent.appendChild(node('h3',team.kind + ' management','section-toolbar'));
+    parent.appendChild(node('p',team.memberCount + ' / ' + team.capacity + ' native members. ' + (manager ? 'Your native team permissions apply.' : 'Team changes need native leadership rights.'),'hint'));
+    function values(operation,extra) { var value = {action:'team',operation:operation,team:team.id}; if (extra) for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra,k)) value[k] = extra[k]; return value; }
+    function action(text,operation,extra,disabled) { return button(parent,text,values(operation,extra),disabled); }
+    action('Convert party to alliance','convert',null,!team.canConvert);
+    parent = detail(parent,'Team management','team-management');
+    action('Start ready check','ready',null,!manager || team.ready && team.ready.active);
+    action('Cancel ready check','cancelready',null,!manager || !(team.ready && team.ready.active));
+    if (team.ready && team.ready.states && team.ready.states.length) {
+      parent.appendChild(node('p',team.ready.active ? 'Ready check: waiting for ' + team.ready.waiting + ' members.' : 'Ready check results','status-pill'));
+      var readyStates = team.ready.states || [];
+      for (var r = 0; r < readyStates.length; r++) for (var m = 0; m < members.length; m++) if (String(members[m].id) === String(readyStates[r].id)) parent.appendChild(node('span',members[m].name + ': ' + label(readyStates[r].status),'ready-state'));
+    }
+    var invitation = node('div',null,'team-invite control-grid'), inviteLabel = node('label','Invite a player'), invite = node('input');
+    invite.id = 'team-invite-name'; invite.type = 'text'; invite.maxLength = 24; invite.value = teamDraft.invite || ''; inviteLabel.htmlFor = invite.id; inviteLabel.appendChild(invite); invitation.appendChild(inviteLabel);
+    invite.oninput = invite.onchange = function () { teamDraft.invite = invite.value; };
+    var inviteButton = button(invitation,'Send native invitation',values('invite'),!manager && team.kind !== 'Solo');
+    inviteButton.onclick = function () { if (!invite.value.replace(/^\s+|\s+$/g,'')) { notice('Enter a player name to invite.',true); return; } act(values('invite',{name:invite.value})); }; parent.appendChild(invitation);
+    if (members.length) {
+      var management = node('div',null,'team-members control-panel'), memberLabel = node('label','Team member'), memberChoice = node('select'); memberChoice.id = 'team-member'; memberLabel.htmlFor = memberChoice.id; memberLabel.appendChild(memberChoice); management.appendChild(memberLabel);
+      for (var m = 0; m < members.length; m++) { var option = node('option',members[m].name + (members[m].self ? ' (you)' : '')); option.value = members[m].id; memberChoice.appendChild(option); }
+      if (teamDraft.member) memberChoice.value = teamDraft.member; if (memberChoice.selectedIndex < 0) memberChoice.selectedIndex = 0;
+      teamDraft.member = memberChoice.value; memberChoice.onchange = function () { teamDraft.member = memberChoice.value; teamConfirmation = null; renderTeamControls(); byId('team-member').focus(); };
+      var member = null; for (var m = 0; m < members.length; m++) if (String(members[m].id) === memberChoice.value) member = members[m];
+      function manage(text,operation,extra,disabled) { var value = extra || {}; value.member = memberChoice.value; return button(management,text,values(operation,value),disabled); }
+      if (team.kind === 'Alliance') {
+        var groupLabel = node('label','Destination group'), groupChoice = node('select'); groupChoice.id = 'team-group'; groupLabel.htmlFor = groupChoice.id; groupLabel.appendChild(groupChoice); management.appendChild(groupLabel);
+        for (var g = 0; g < groups.length; g++) { var option = node('option','Group ' + groups[g].number + ' (' + groups[g].members.length + '/' + groups[g].capacity + ')'); option.value = groups[g].id; groupChoice.appendChild(option); }
+        if (teamDraft.group) groupChoice.value = teamDraft.group; if (groupChoice.selectedIndex < 0) groupChoice.selectedIndex = 0; groupChoice.onchange = function () { teamDraft.group = groupChoice.value; updateMove(); };
+        var move = manage('Move to group','move',null,!manager);
+        function updateMove() { var destination = null, already = false; for (var g = 0; g < groups.length; g++) if (String(groups[g].id) === groupChoice.value) { destination = groups[g]; for (var m = 0; m < groups[g].members.length; m++) if (String(groups[g].members[m].id) === memberChoice.value) already = true; } move.disabled = busy || !manager || !destination || already || destination.members.length >= destination.capacity; } updateMove();
+        move.onclick = function () { act(values('move',{member:memberChoice.value,group:groupChoice.value})); };
+        var secondLabel = node('label','Swap with'), secondChoice = node('select'); secondChoice.id = 'team-second'; secondLabel.htmlFor = secondChoice.id; secondLabel.appendChild(secondChoice); management.appendChild(secondLabel);
+        for (var m = 0; m < members.length; m++) if (String(members[m].id) !== memberChoice.value) { var option = node('option',members[m].name); option.value = members[m].id; secondChoice.appendChild(option); }
+        if (teamDraft.second) secondChoice.value = teamDraft.second; if (secondChoice.selectedIndex < 0 && secondChoice.options.length) secondChoice.selectedIndex = 0; secondChoice.onchange = function () { teamDraft.second = secondChoice.value; };
+        var swap = manage('Swap group positions','swap',null,!manager || !secondChoice.options.length); swap.onclick = function () { act(values('swap',{member:memberChoice.value,second:secondChoice.value})); };
+      }
+      manage('Make leader','leader',null,!team.canLead || !member || member.leader);
+      if (team.kind === 'Alliance') manage(member && member.viceCaptain ? 'Remove vice-captain' : 'Make vice-captain','vice',{enabled:!(member && member.viceCaptain)},!team.canLead || !member || member.leader);
+      localButton(management,'Remove member…',function () { teamConfirmation = {operation:'kick',team:team.id,member:memberChoice.value,name:member && member.name}; renderTeamControls(); },'danger').disabled = !team.canLead || !member || member.self || member.leader;
+      parent.appendChild(management);
+    }
+    if (team.kind !== 'Solo') localButton(parent,'Leave ' + team.kind.toLowerCase() + '…',function () { teamConfirmation = {operation:'leave',team:team.id}; renderTeamControls(); },'danger');
+    if (teamConfirmation && teamConfirmation.operation === 'kick') { var validMember = false; for (var cm = 0; cm < members.length; cm++) if (String(members[cm].id) === String(teamConfirmation.member) && !members[cm].self && !members[cm].leader) validMember = true; if (!validMember || !team.canLead) teamConfirmation = null; }
+    if (teamConfirmation && String(teamConfirmation.team) === String(team.id)) {
+      var confirm = node('div',null,'team-confirmation control-panel'); confirm.setAttribute('role','alert');
+      confirm.appendChild(node('strong',teamConfirmation.operation === 'kick' ? 'Remove ' + teamConfirmation.name + ' from this team?' : 'Leave this native team?'));
+      button(confirm,'Confirm',values(teamConfirmation.operation,{member:teamConfirmation.member || '',confirm:'yes'}),teamConfirmation.operation === 'kick' && !team.canLead,'danger');
+      localButton(confirm,'Cancel',function () { teamConfirmation = null; renderTeamControls(); },'secondary'); parent.appendChild(confirm);
+    }
+    setBusy();
+  }
+
+  function renderSelection() {
+
+    captureDrafts(); var savedFocus = captureFocus(), detailScroll = byId('bot-detail').scrollTop;
+    var parent = byId('active'), scroll = parent.scrollTop; clear(parent);
+
+    if (!state.active.length) parent.appendChild(node('p', 'No active companions yet. Recruit from your roster to build a party.', 'hint'));
+
+    renderTeamGroups(parent); renderTeamControls();
 
     parent.scrollTop = scroll;
 
@@ -262,9 +542,11 @@
 
       var body = node('div', null, 'bot-body'); body.appendChild(node('h3', character.generated ? 'Temporary Bot' : 'Account character')); body.appendChild(node('p', !character.ready ? 'Creation is pending.' : character.reserved ? 'This character is active or saving and cannot currently be recruited.' : 'This character is offline and in your roster.', 'hint'));
 
-      body.appendChild(node('p', 'Recruit this companion to view their live equipment, quests, orders and care settings.', 'hint')); button(body, 'Recruit companion', { action: 'recruit', name: character.name }, !state.enabled || character.reserved || !character.ready || state.recruitRemaining <= 0, 'primary'); localButton(body, 'Back to roster', function () { showView('roster'); }, 'secondary'); card.appendChild(body); detailPanel.appendChild(card);
+      body.appendChild(node('p', 'Recruit this companion to view their live equipment, quests, orders and care settings.', 'hint')); button(body, 'Recruit companion', { action: 'recruit', name: character.name }, !state.enabled || character.reserved || !character.ready || !(state.recruitRemaining > 0), 'primary'); localButton(body, 'Back to roster', function () { showView('roster'); }, 'secondary'); card.appendChild(body); detailPanel.appendChild(card);
 
     } else { var empty = node('div', null, 'empty'); empty.appendChild(node('h3', 'Your next adventure starts with a party')); empty.appendChild(node('p', 'Recruit an existing character or create a Temporary Bot. Select them here to manage orders, equipment and quests.')); localButton(empty, 'Browse your roster', function () { showView('roster'); }, 'primary'); detailPanel.appendChild(empty); }
+
+    byId('bot-detail').scrollTop = detailScroll; restoreFocus(savedFocus);
 
   }
 
@@ -342,7 +624,7 @@
       var view = localButton(action, live ? 'Manage' : 'View', function () { openBot(character.id, 'overview'); }); view.setAttribute('data-action', 'view');
 
       if (character.generated && character.ready) button(action, isSavedBot(character.id) ? 'Save progress' : 'Save bot', { action: 'savebot', name: character.name }, live && live.closing, 'secondary');
-      if (!live) button(action, character.generated && isSavedBot(character.id) ? 'Summon saved bot' : 'Recruit', { action: 'recruit', name: character.name }, !state.enabled || character.reserved || !character.ready || state.recruitRemaining <= 0, 'secondary');
+      if (!live) button(action, character.generated && isSavedBot(character.id) ? 'Summon saved bot' : 'Recruit', { action: 'recruit', name: character.name }, !state.enabled || character.reserved || !character.ready || !(state.recruitRemaining > 0), 'secondary');
 
       removalControls(action, character, live);
 
@@ -364,8 +646,9 @@
     follow.oninput = attack.oninput = function () { spacingDrafts[bot.id] = { follow: follow.value, attack: attack.value }; };
     follow.onchange = follow.oninput; attack.onchange = attack.oninput;
     var save = button(group, 'Save ranged spacing', { action: 'spacing' }, bot.closing);
-    save.onclick = function () { var f = Number(follow.value), a = Number(attack.value); if (!isFinite(f) || f < 2 || f > 12 || !isFinite(a) || a < 4 || a > 18) { notice('Choose owner spacing 2–12 m and attack spacing 4–18 m.', true); return; } delete spacingDrafts[bot.id]; act({ action: 'spacing', name: bot.name, ownerSpacing: f, attackSpacing: a }); };
+    save.onclick = function () { var f = Number(follow.value), a = Number(attack.value); if (!isFinite(f) || f < 2 || f > 12 || !isFinite(a) || a < 4 || a > 18) { notice('Choose owner spacing 2–12 m and attack spacing 4–18 m.', true); return; } act({ action: 'spacing', name: bot.name, ownerSpacing: f, attackSpacing: a }); };
     group.appendChild(node('p', 'Follow spread sets the formation radius; inner Line slots stay closer. Attack distance is capped by usable skill range. A close enemy allows one short retreat, then the companion stands and fights. Combat hazards still take priority.', 'hint')); parent.appendChild(group);
+    draftField(follow,bot,'spacing-owner'); draftField(attack,bot,'spacing-attack');
   }
 
   function renderBot(parent, bot) {
@@ -377,58 +660,74 @@
     var health = node('div', null, 'vitals'); vitals(health, 'Health', bot.health, 'health'); vitals(health, 'Mana', bot.mana, 'mana'); header.appendChild(health); card.appendChild(header);
 
     if (bot.generated || bot.temporary) button(header, 'Save Temporary Bot', { action: 'savebot', name: bot.name }, bot.closing, 'secondary');
-    var tabs = node('nav', null, 'tabs bot-tabs'), names = [['overview','Overview'],['equipment','Equipment'],['mail','Mail'],['quests','Quests'],['care','Care'],['activity','Activity']]; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', bot.name + ' details');
+    var tabs = node('nav', null, 'tabs bot-tabs'), names = [['overview','Overview'],['behavior','Behavior'],['equipment','Equipment'],['mail','Mail'],['quests','Quests'],['care','Care'],['activity','Activity']]; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', bot.name + ' details');
 
-    for (var t = 0; t < names.length; t++) (function (name, title) { var tab = localButton(tabs, title, function () { botTab = name; renderSelection(); }, botTab === name ? 'selected' : ''); tab.id = 'bot-tab-' + name; tab.setAttribute('role','tab'); tab.setAttribute('aria-controls','bot-content'); tab.setAttribute('aria-selected',botTab === name ? 'true' : 'false'); }(names[t][0], names[t][1])); card.appendChild(tabs);
+    for (var t = 0; t < names.length; t++) (function (name, title) { var tab = localButton(tabs, title, function () { captureDrafts(); botTab = name; renderSelection(); var selected = byId('bot-tab-' + name); if (selected) selected.focus(); }, botTab === name ? 'selected' : ''); tab.id = 'bot-tab-' + name; tab.setAttribute('role','tab'); tab.setAttribute('aria-controls','bot-content'); tab.setAttribute('aria-selected',botTab === name ? 'true' : 'false'); tab.tabIndex = botTab === name ? 0 : -1; }(names[t][0], names[t][1])); card.appendChild(tabs);
 
     var body = node('div', null, 'bot-body'); body.id = 'bot-content'; body.setAttribute('role','tabpanel'); body.setAttribute('aria-labelledby','bot-tab-' + botTab); card.appendChild(body);
 
     if (botTab === 'overview') {
 
-      body.appendChild(node('h3', 'Orders & behaviour')); body.appendChild(node('p', bot.closing ? 'Saving and dismissing\u2026' : bot.dead ? 'Waiting for resurrection' : label(bot.status) + ' \u00b7 ' + bot.action, 'detail'));
+      body.appendChild(node('h3', 'Current status')); body.appendChild(node('p', bot.closing ? 'Saving and dismissing\u2026' : bot.dead ? 'Waiting for resurrection' : label(bot.status) + ' \u00b7 ' + bot.action, 'detail'));
 
       if (bot.mission) { var mission = node('div', null, 'mission'); mission.appendChild(node('p', 'Quest ' + bot.mission + ' \u00b7 ' + label(bot.missionStatus), 'route')); button(mission, 'Cancel quest mission', { action: 'mission', name: bot.name, quest: 0 }, bot.closing); body.appendChild(mission); }
 
-      var controls = node('div', null, 'actions'); orders(controls, bot.name, bot.closing); body.appendChild(controls);
+
 
       var roleRow = node('div', null, 'role-row'), roleLabel = node('label', 'Combat role'); roleLabel.htmlFor = 'bot-role'; roleRow.appendChild(roleLabel); var role = select(roleRow, state.roles, bot.role); role.id = 'bot-role'; role.disabled = bot.closing; role.onchange = function () { act({ action: 'role', name: bot.name, role: role.value }); }; body.appendChild(roleRow);
 
-      var settings = node('div', null, 'settings'), flags = [['area','Area attacks'],['supplies','Recovery and build supplies'],['gear','Auto equipment'],['loot','Auto loot'],['questing','Auto quests'],['questCombat','Nearby quest combat'],['partySync','Party completion sync']];
+      renderQuestions(body, bot);
 
-      for (var f = 0; f < flags.length; f++) button(settings, flags[f][1] + ': ' + (bot[flags[f][0]] ? 'On' : 'Off'), { action: 'setting', name: bot.name, setting: flags[f][0], enabled: !bot[flags[f][0]] }, bot.closing || (flags[f][0] === 'gear' && !bot.temporary), bot[flags[f][0]] ? 'on' : ''); body.appendChild(settings); renderSpacing(body, bot); renderQuestions(body, bot);
+    } else if (botTab === 'behavior') {
+      var combat = subPanel(body,'combat','Combat behavior');
+      var settings = node('div', null, 'settings control-grid'), flags = [['area','Area attacks'],['supplies','Recovery and build supplies'],['gear','Auto equipment'],['loot','Auto loot']];
+
+      for (var f = 0; f < flags.length; f++) button(settings, flags[f][1] + ': ' + (bot[flags[f][0]] ? 'On' : 'Off'), { action: 'setting', name: bot.name, setting: flags[f][0], enabled: !bot[flags[f][0]] }, bot.closing || (flags[f][0] === 'gear' && !bot.temporary), 'setting-card' + (bot[flags[f][0]] ? ' on' : '')); combat.appendChild(settings);
+      var automation = subPanel(body,'automation','Quest automation'); automation.className += ' settings control-grid'; var flags = [['questing','Auto quests'],['questCombat','Nearby quest combat'],['partySync','Party completion sync']];
+      for (var f = 0; f < flags.length; f++) button(automation,flags[f][1] + ': ' + (bot[flags[f][0]] ? 'On' : 'Off'),{ action:'setting',name:bot.name,setting:flags[f][0],enabled:!bot[flags[f][0]] },bot.closing,'setting-card' + (bot[flags[f][0]] ? ' on' : ''));
+      var spacing = subPanel(body,'spacing','Follow and attack spacing'); renderSpacing(spacing,bot);
+      if (!bot.rangedSpacing) spacing.appendChild(node('p','Ranged spacing controls apply to ranged companions. This companion uses its native role spacing.','empty-state'));
 
     } else if (botTab === 'equipment') {
 
-      renderGearPolicy(body, bot);
+      var build = subPanel(body,'build','Equipment build'); renderGearPolicy(build, bot);
+      var equipped = [], carried = [];
+      for (var i = 0; i < bot.inventory.length; i++) (bot.inventory[i].equipped ? equipped : carried).push(bot.inventory[i]);
+      var profile = subPanel(body,'profile','Character equipment'); renderProfile(profile,bot,equipped);
+      var inventory = subPanel(body,'inventory','Inventory');
+      inventory.appendChild(node('p','Items belong to this companion. Hover for native item details; select a slot for available actions.','hint'));
+      itemGrid(inventory,bot,carried,'inventory','Inventory (' + carried.length + (bot.inventoryLimit != null ? ' / ' + bot.inventoryLimit : '') + ')',renderItem);
 
-      body.appendChild(node('h3', 'Equipment & inventory (' + bot.inventory.length + ')')); body.appendChild(node('p', bot.appearanceEnabled ? 'Equip combat armor for stats. Keep outfits in the cube and choose Use as transmog to apply their look. Equip is still available for normal equipment.' : 'Items belong to this companion. Choose an available slot to equip an item.', 'hint'));
-
-      if (!bot.inventory.length) body.appendChild(node('p', 'The companion\u2019s inventory is empty.', 'empty'));
-
-      for (var i = 0; i < bot.inventory.length; i++) renderItem(body, bot, bot.inventory[i]);
-
+      var warehousePanel = subPanel(body,'warehouse','Private warehouse'), legionPanel = subPanel(body,'legion','Legion storage');
+      if (bot.world) { warehousePanel.appendChild(node('p','Independent bots retain ownership of their private warehouse.','empty-state')); legionPanel.appendChild(node('p','Inviting an independent bot does not grant access to its stored possessions.','empty-state')); }
       if (!bot.world) {
         var warehouse = bot.warehouse || [];
-        body.appendChild(node('h3', 'Private warehouse (' + warehouse.length + ' / ' + (bot.warehouseLimit || 0) + ')'));
-        body.appendChild(node('p', bot.warehouseReason || 'Deposit or withdraw a whole stack while you and your companion are beside the same warehouse keeper. Items stay owned by this companion.', 'hint'));
-        if (!warehouse.length) body.appendChild(node('p', 'The companion\u2019s private warehouse is empty.', 'empty'));
-        for (var w = 0; w < warehouse.length; w++) renderWarehouseItem(body, bot, warehouse[w]);
+        warehousePanel.appendChild(node('h3', 'Private warehouse (' + warehouse.length + ' / ' + (bot.warehouseLimit || 0) + ')'));
+        warehousePanel.appendChild(node('p', bot.warehouseReason || 'Deposit or withdraw a whole stack while you and your companion are beside the same warehouse keeper. Items stay owned by this companion.', 'hint availability-note'));
+        if (!warehouse.length) warehousePanel.appendChild(node('p', 'The companion\u2019s private warehouse is empty.', 'empty'));
+        itemGrid(warehousePanel,bot,warehouse,'warehouse','Stored items',renderWarehouseItem);
+        var deposits = bot.inventory || [], bankable = [], legionable = [];
+        for (var d = 0; d < deposits.length; d++) { if (deposits[d].bankable) bankable.push(deposits[d]); if (deposits[d].legionStorable) legionable.push(deposits[d]); }
+        itemGrid(warehousePanel,bot,bankable,'bankdeposit','Inventory available to deposit',function(parent,bot,item) { var row = node('div',null,'item'); itemHeading(row,item); button(row,'Deposit whole stack',{action:'bankdeposit',name:bot.name,item:item.id},bot.closing || !bot.warehouseAvailable); parent.appendChild(row); });
         var shared = bot.legionStorage || [];
-        body.appendChild(node('h3', 'Legion storage: ' + (bot.legionStorageName || 'No access') + ' (' + shared.length + ' / ' + (bot.legionStorageLimit || 0) + ')'));
-        body.appendChild(node('p', bot.legionStorageReason || 'Deposit a whole stack beside the legion keeper. Deposited items belong to the legion and can be withdrawn by members with native withdrawal rights.', 'hint'));
-        if (!shared.length) body.appendChild(node('p', 'No legion items to display.', 'empty'));
-        for (var l = 0; l < shared.length; l++) body.appendChild(node('p', shared[l].name + ' \u00d7' + shared[l].count + ' (obj=' + shared[l].id + ')', 'hint'));
+        legionPanel.appendChild(node('h3', 'Legion storage: ' + (bot.legionStorageName || 'No access') + ' (' + shared.length + ' / ' + (bot.legionStorageLimit || 0) + ')'));
+        legionPanel.appendChild(node('p', bot.legionStorageReason || 'Deposit a whole stack beside the legion keeper. Deposited items belong to the legion and can be withdrawn by members with native withdrawal rights.', 'hint availability-note'));
+        if (!shared.length) legionPanel.appendChild(node('p', 'No legion items to display.', 'empty'));
+        itemGrid(legionPanel,bot,shared,'legion','Legion items',function(parent,bot,item) { var row = node('div',null,'item'); itemHeading(row,item); row.appendChild(node('p','Legion-owned item. Use the native legion warehouse for withdrawals.','hint')); parent.appendChild(row); });
+        itemGrid(legionPanel,bot,legionable,'legiondeposit','Inventory available to deposit',function(parent,bot,item) { var row = node('div',null,'item'); itemHeading(row,item); button(row,'Deposit whole stack to legion',{action:'legiondeposit',name:bot.name,item:item.id},bot.closing || !bot.legionStorageAvailable); parent.appendChild(row); });
+
       }
 
     } else if (botTab === 'mail') {
       if (bot.world) { body.appendChild(node('p', 'World bots retain their private mailbox. Inviting one does not grant access to its mail or money.', 'hint')); }
       else {
+        var inbox = subPanel(body,'inbox','Inbox'), send = subPanel(body,'send','Send to ' + state.owner);
         var mails = bot.mail || [], locked = bot.closing || !bot.mailAvailable;
-        body.appendChild(node('h3', 'Mailbox (' + (bot.mailCount || 0) + ')'));
-        body.appendChild(node('p', bot.mailReason || 'Use a regular mailbox with your companion. Collected items and Kinah go into its own cube. Requested outgoing mail goes to you and charges native postage.', 'hint'));
-        button(body, 'Refresh mailbox', { action: 'maillist', name: bot.name }, locked);
-        if (!bot.mailLoaded) body.appendChild(node('p', 'Refresh beside a mailbox to load this companion’s letters.', 'empty'));
-        else if (!mails.length) body.appendChild(node('p', 'The companion’s mailbox is empty.', 'empty'));
+        inbox.appendChild(node('h3', 'Mailbox (' + (bot.mailCount || 0) + ')'));
+        inbox.appendChild(node('p', bot.mailReason || 'Use a regular mailbox with your companion. Collected items and Kinah go into its own cube. Requested outgoing mail goes to you and charges native postage.', 'hint availability-note'));
+        button(inbox, 'Refresh mailbox', { action: 'maillist', name: bot.name }, locked);
+        if (!bot.mailLoaded) inbox.appendChild(node('p', 'Refresh beside a mailbox to load this companion’s letters.', 'empty'));
+        else if (!mails.length) inbox.appendChild(node('p', 'The companion’s mailbox is empty.', 'empty'));
         for (var m = 0; m < mails.length; m++) {
           var letter = mails[m], mailRow = node('div', null, 'item');
           mailRow.appendChild(node('div', letter.title + ' · From ' + letter.sender + (letter.unread ? ' · Unread' : '')));
@@ -437,17 +736,17 @@
           button(mailRow, 'Read', { action: 'mailread', name: bot.name, object: letter.id }, locked);
           button(mailRow, 'Collect attachments', { action: 'mailtake', name: bot.name, object: letter.id }, locked || !letter.hasAttachments);
           button(mailRow, 'Delete empty letter', { action: 'maildelete', name: bot.name, object: letter.id }, locked || letter.hasAttachments);
-          body.appendChild(mailRow);
+          inbox.appendChild(mailRow);
         }
-        body.appendChild(node('h3', 'Request mail to ' + state.owner));
-        body.appendChild(node('p', bot.mailSendEnabled ? 'Choose one whole tradeable, unpacked stack, or a Kinah amount. Native postage is paid by this companion. Equipped items and private world-bot possessions cannot be requested.' : 'Companion sending is disabled by server configuration; mailbox collection remains available.', 'hint'));
+        send.appendChild(node('h3', 'Request mail to ' + state.owner));
+        send.appendChild(node('p', bot.mailSendEnabled ? 'Choose one whole tradeable, unpacked stack, or a Kinah amount. Native postage is paid by this companion. Equipped items and private world-bot possessions cannot be requested.' : 'Companion sending is disabled by server configuration; mailbox collection remains available.', 'hint'));
         var outgoing = (bot.inventory || []).filter(function (item) { return item.mailable; });
         for (var o = 0; o < outgoing.length; o++) {
           var outgoingRow = node('div', null, 'item'); outgoingRow.appendChild(node('div', outgoing[o].name + ' ×' + outgoing[o].count));
-          button(outgoingRow, 'Mail whole stack to me', { action: 'mailsenditem', name: bot.name, object: outgoing[o].id }, locked || !bot.mailSendEnabled);body.appendChild(outgoingRow);
+          button(outgoingRow, 'Mail whole stack to me', { action: 'mailsenditem', name: bot.name, object: outgoing[o].id }, locked || !bot.mailSendEnabled);send.appendChild(outgoingRow);
         }
-        var moneyLabel = node('label', 'Kinah to request'), money = node('input');money.type = 'text';money.inputMode = 'numeric';money.setAttribute('aria-label','Kinah to request');money.value = '';moneyLabel.appendChild(money);body.appendChild(moneyLabel);
-        var moneyButton = button(body,'Mail Kinah to me',{},locked || !bot.mailSendEnabled);
+        var moneyLabel = node('label', 'Kinah to request'), money = node('input');money.type = 'text';money.inputMode = 'numeric';money.setAttribute('aria-label','Kinah to request');money.value = '';draftField(money,bot,'mail-kinah');moneyLabel.appendChild(money);send.appendChild(moneyLabel);
+        var moneyButton = button(send,'Mail Kinah to me',{},locked || !bot.mailSendEnabled);
         moneyButton.setAttribute('data-action','mailsendkinah');moneyButton.onclick = function () {
           if (!/^[1-9][0-9]{0,18}$/.test(money.value) || money.value.length === 19 && money.value > '9223372036854775807') { notice('Enter a positive whole Kinah amount within the native currency limit.', true);return; }
           act({ action:'mailsendkinah',name:bot.name,kinah:money.value });
@@ -455,24 +754,25 @@
       }
 
     } else if (botTab === 'quests') {
+      var journal = subPanel(body,'journal','Quest journal'), requests = subPanel(body,'requests','Catch-up requests'); renderQuestions(requests,bot);
 
-      button(body, 'Nearby quest combat: ' + (bot.questCombat ? 'On' : 'Off'), { action: 'setting', name: bot.name, setting: 'questCombat', enabled: !bot.questCombat }, bot.closing, bot.questCombat ? 'on' : '');
+      button(journal, 'Nearby quest combat: ' + (bot.questCombat ? 'On' : 'Off'), { action: 'setting', name: bot.name, setting: 'questCombat', enabled: !bot.questCombat }, bot.closing, bot.questCombat ? 'on' : '');
 
-      body.appendChild(node('p', 'When On, the party tackles isolated quest targets within 25 m of you. Tanks lead; healers and support keep their roles. Untouched nearby packs are left for you to pull.', 'hint'));
+      journal.appendChild(node('p', 'When On, the party tackles isolated quest targets within 25 m of you. Tanks lead; healers and support keep their roles. Untouched nearby packs are left for you to pull.', 'hint'));
 
-      body.appendChild(node('h3', 'Quest journal (' + bot.quests.length + ')')); renderQuestions(body, bot);
+      journal.appendChild(node('h3', 'Quest journal (' + bot.quests.length + ')'));
 
-      if (bot.mission) { var missionRow = node('div', null, 'mission'); missionRow.appendChild(node('p', 'Quest ' + bot.mission + ' \u00b7 ' + label(bot.missionStatus))); button(missionRow, 'Cancel quest mission', { action: 'mission', name: bot.name, quest: 0 }, bot.closing); body.appendChild(missionRow); }
+      if (bot.mission) { var missionRow = node('div', null, 'mission'); missionRow.appendChild(node('p', 'Quest ' + bot.mission + ' \u00b7 ' + label(bot.missionStatus))); button(missionRow, 'Cancel quest mission', { action: 'mission', name: bot.name, quest: 0 }, bot.closing); journal.appendChild(missionRow); }
 
-      if (!bot.quests.length) body.appendChild(node('p', 'Share an eligible quest or enable nearby quests.', 'empty'));
+      if (!bot.quests.length) journal.appendChild(node('p', 'Share an eligible quest or enable nearby quests.', 'empty'));
 
-      for (var q = 0; q < bot.quests.length; q++) { var row = node('div', null, 'quest'); body.appendChild(row); renderQuest(row, bot.quests[q]); if (bot.quests[q].missionEligible) button(row, 'Assign quest mission', { action: 'mission', name: bot.name, quest: bot.quests[q].id }, bot.closing || bot.dead); }
+      for (var q = 0; q < bot.quests.length; q++) { var row = node('div', null, 'quest'); journal.appendChild(row); renderQuest(row, bot.quests[q]); if (bot.quests[q].missionEligible) button(row, 'Assign quest mission', { action: 'mission', name: bot.name, quest: bot.quests[q].id }, bot.closing || bot.dead); }
 
     } else if (botTab === 'care') renderCare(body, bot);
 
     else { body.appendChild(node('h3', 'Recent activity')); if (!bot.announcements || !bot.announcements.length) body.appendChild(node('p', 'Companion announcements will appear here.', 'empty')); else for (var msg = bot.announcements.length - 1; msg >= 0; msg--) body.appendChild(node('p', bot.announcements[msg], 'activity-row')); }
 
-    parent.appendChild(card);
+    parent.appendChild(card); renderSubTabs(body,bot); compactHelp(body); setBusy();
 
   }
 
@@ -566,7 +866,7 @@
 
     var body = node('div', null, 'gear-policy'); parent.appendChild(body); body.appendChild(node('h3', 'Equipment acquisition & choices'));
 
-    if (!bot.temporary) { body.appendChild(node('p', 'Player-owned alt: automatic equipment, build and Stigma management are disabled. Your existing setup is preserved; you can equip items manually below.', 'hint')); return; }
+    if (!bot.temporary) { body.appendChild(node('p', bot.world ? 'Independent bot: equipment comes from its own earned loot, quests and native shops. Private ownership and progression stay with this bot.' : 'Player-owned alt: automatic equipment, build and Stigma management are disabled. Your existing setup is preserved; you can equip items manually below.', 'hint')); return; }
 
     body.appendChild(node('p', (bot.build || 'Temporary Bot') + '. Automatic native skills and Stigmas follow your role and level. Gear tiers advance every 10 levels from 20. Only replaced system-generated gear is retired; earned equipment stays in your inventory.', 'hint'));
 
@@ -574,7 +874,7 @@
 
     var fields = {};
 
-    function choice(key, title, options, value) { var row = node('label', title); fields[key] = select(row, options, value); fields[key].disabled = bot.closing; body.appendChild(row); }
+    function choice(key, title, options, value) { var row = node('label', title); fields[key] = select(row, options, value); fields[key].disabled = bot.closing; draftField(fields[key],bot,'gear-' + key); body.appendChild(row); }
 
     choice('mode', 'How equipment is gained', ['EARNED', 'STARTER', 'GENERATED'], bot.gearMode || 'EARNED');
 
@@ -590,7 +890,7 @@
 
     choice('vendors', 'Buy equipment upgrades at nearby shops', ['false', 'true'], String(!!bot.gearVendors));
 
-    function input(key, title, value) { var row = node('label', title); fields[key] = node('input'); fields[key].type = 'text'; fields[key].value = value; fields[key].disabled = bot.closing; row.appendChild(fields[key]); body.appendChild(row); }
+    function input(key, title, value) { var row = node('label', title); fields[key] = node('input'); fields[key].type = 'text'; fields[key].value = value; fields[key].disabled = bot.closing; draftField(fields[key],bot,'gear-' + key); row.appendChild(fields[key]); body.appendChild(row); }
 
     input('level', 'Generated item level limit (0 follows your level, up to the bot\u2019s level)', bot.gearLevel || 0);
 
@@ -598,15 +898,15 @@
 
     body.appendChild(node('p', 'Current generated level ceiling: ' + (bot.gearTargetLevel || bot.level) + '. Uses normal class, mastery, faction and equipment rules. Shop purchases share the Care reserve and daily budget; Kinah bids are always passed. Generated items are protected from automatic extraction.', 'hint'));
 
-    var save = button(body, 'Save equipment choices', {}, bot.closing); save.onclick = function () { var request = { action: 'gearpolicy', name: bot.name }; for (var key in fields) if (fields.hasOwnProperty(key)) request[key] = fields[key].value; act(request); };
+    var save = button(body, 'Save equipment choices', {action:'gearpolicy',name:bot.name}, bot.closing); save.onclick = function () { var request = { action: 'gearpolicy', name: bot.name }; for (var key in fields) if (fields.hasOwnProperty(key)) request[key] = fields[key].value; act(request); };
 
   }
 
   function renderCare(parent, bot) {
 
-    var body = node('div', null, 'care-fields'); parent.appendChild(body); body.appendChild(node('h3', 'Equipment care'));
+    var body = subPanel(parent,'maintenance','Equipment care'); body.className += ' care-fields'; body.appendChild(node('h3', 'Equipment care'));
 
-    if (!bot.temporary) { body.appendChild(node('p', 'Automatic enchanting and extraction apply only to Temporary Bots. Your alt retains its existing items.', 'hint')); return; }
+    if (!bot.temporary) { body.appendChild(node('p', bot.world ? 'Independent bots retain their own care settings and funds.' : 'Automatic enchanting and extraction apply only to Temporary Bots. Your alt retains its existing items.', 'hint')); return; }
 
     var draft = careDrafts[bot.id];
 
@@ -616,6 +916,7 @@
 
     body.appendChild(node('p', 'Uses this companion\u2019s own stones, tools and Kinah. Visits nearby real shops when needed. Enchants ordinary equipped armour toward +5 using native success/failure rules. Extracts expendable new loot; protects existing possessions, upgrades, quest items and valuable gear.', 'hint'));
 
+    body = subPanel(parent,'budget','Spending limits');
     var reserveLabel = node('label', 'Minimum Kinah reserve (at least 10,000)'), reserve = node('input'); reserve.id = 'care-reserve'; reserve.type = 'text'; reserve.value = draft ? draft.reserve : (bot.reserve == null ? '10000' : bot.reserve); reserve.disabled = bot.closing; reserveLabel.appendChild(reserve); body.appendChild(reserveLabel);
 
     var budgetLabel = node('label', 'Daily purchase budget (0 disables purchases)'), budget = node('input'); budget.id = 'care-budget'; budget.type = 'text'; budget.value = draft ? draft.dailyBudget : (bot.dailyBudget == null ? '50000' : bot.dailyBudget); budget.disabled = bot.closing; budgetLabel.appendChild(budget); body.appendChild(budgetLabel);
@@ -626,13 +927,14 @@
 
     var save = button(body, 'Save spending limits', { action: 'carebudget' }, bot.closing); save.onclick = function () { act({ action: 'carebudget', name: bot.name, reserve: reserve.value, dailyBudget: budget.value }); };
 
+    draftField(reserve,bot,'care-reserve'); draftField(budget,bot,'care-budget');
     body.appendChild(node('p', 'Bought today: ' + (bot.spent || 0) + ' Kinah. Also keeps at least 25% of its current balance.', 'hint'));
 
   }
 
   function renderItem(parent, bot, item) {
 
-    var row = node('div', null, 'item'); row.appendChild(node('div', item.name + ' \u00d7' + item.count + (item.equipped ? ' \u00b7 Equipped' : '')));
+    var row = node('div', null, 'item'); row.setAttribute('data-item-id',item.id); itemHeading(row,item);
 
     if (item.equipped && item.appearanceSet) {
       row.appendChild(node('p', 'Appearance: ' + item.skinName + ' (combat stats kept)', 'hint'));
@@ -641,7 +943,7 @@
     if (item.appearanceTargets && item.appearanceTargets.length) {
       var looks = node('select'); looks.setAttribute('aria-label', 'Combat equipment to transmog with ' + item.name);
       for (var t = 0; t < item.appearanceTargets.length; t++) { var option = node('option', item.appearanceTargets[t].name); option.value = item.appearanceTargets[t].id; looks.appendChild(option); }
-      row.appendChild(looks);
+      draftField(looks,bot,'look-' + item.id); row.appendChild(looks);
       var transmog = button(row, 'Use as transmog', {}, bot.closing);
       transmog.onclick = function () { act({ action: 'appearance', name: bot.name, item: item.id, target: looks.value }); };
       row.appendChild(node('p', 'Keeps combat stats and this appearance item. The look follows this slot through gear upgrades.', 'hint'));
@@ -649,7 +951,7 @@
 
     if (!item.equipped && item.slots.length) {
 
-      var slot = select(row, item.slots), equip = button(row, 'Equip', { action: 'equip', name: bot.name, item: item.id, slot: slot.value }, bot.closing);
+      var slot = draftField(select(row, item.slots),bot,'slot-' + item.id), equip = button(row, 'Equip', { action: 'equip', name: bot.name, item: item.id, slot: slot.value }, bot.closing);
 
       equip.onclick = function () { act({ action: 'equip', name: bot.name, item: item.id, slot: slot.value }); };
 
@@ -663,7 +965,7 @@
   }
 
   function renderWarehouseItem(parent, bot, item) {
-    var row = node('div', null, 'item'); row.appendChild(node('div', item.name + ' \u00d7' + item.count));
+    var row = node('div', null, 'item'); row.setAttribute('data-item-id',item.id); itemHeading(row,item);
     button(row, 'Withdraw', { action: 'bankwithdraw', name: bot.name, item: item.id }, bot.closing || !bot.warehouseAvailable);
     parent.appendChild(row);
   }
@@ -690,7 +992,7 @@
     if (!state) return;
     var temporary = byId('model').value === 'generate';
     byId('create').querySelector('button').disabled = !state.enabled || (temporary ?
-      !state.generatedEnabled || state.generatedCount >= state.generatedLimit : state.recruitRemaining <= 0);
+      !state.generatedEnabled || state.generatedCount >= state.generatedLimit : !(state.recruitRemaining > 0));
     byId('creation-capacity').textContent = temporary ? 'Temporary Bots: ' + state.generatedCount + ' / ' + state.generatedLimit +
       ' created. Full teams keep new bots in your roster for later recruitment.' : '';
   }
@@ -717,7 +1019,49 @@
 
   byId('create').onsubmit = function (event) { event.preventDefault(); act({ action: byId('model').value, name: byId('new-name').value, playerClass: byId('new-class').value, start: byId('model').value === 'create' ? 'level1' : byId('start-level').value }); };
 
-  byId('share').onclick = function () { act({ action: 'share', name: 'all', quest: byId('owner-quest').value }); };
+  byId('share').onclick = function () { act({action:'share',name:'all',quest:byId('owner-quest').value}); };
+  function updateShare() { if (!state) return; byId('share').disabled = busy || !state.quests.length || !state.active.length; byId('share').textContent = 'Share with party'; }
+
+  function rosterSection(view) {
+    var names = ['characters','presets'];
+    for (var i = 0; i < names.length; i++) {
+      var panel = byId('roster-' + names[i]), tab = byId('roster-tab-' + names[i]), active = view === names[i];
+      if (panel) panel.style.display = active ? 'block' : 'none';
+      if (tab) { tab.className = active ? 'selected' : ''; tab.setAttribute('aria-selected',active ? 'true' : 'false'); tab.tabIndex = active ? 0 : -1; }
+    }
+  }
+
+  function disclosure(toggleId,panelId) {
+    var toggle = byId(toggleId), panel = byId(panelId); if (!toggle || !panel) return;
+    toggle.setAttribute('data-local-control','true'); toggle.setAttribute('aria-controls',panelId); toggle.setAttribute('aria-expanded','false'); panel.style.display = 'none';
+    toggle.onclick = function () { var open = panel.style.display === 'none'; panel.style.display = open ? 'block' : 'none'; toggle.setAttribute('aria-expanded',open ? 'true' : 'false'); };
+  }
+  disclosure('keyboard-help','keyboard-panel'); disclosure('creation-help-toggle','creation-help');
+  if (byId('keyboard-close')) { byId('keyboard-close').setAttribute('data-local-control','true'); byId('keyboard-close').onclick = function () { byId('keyboard-panel').style.display = 'none'; byId('keyboard-help').setAttribute('aria-expanded','false'); byId('keyboard-help').focus(); }; }
+  var rosterTabs = document.querySelectorAll('[data-roster-view]');
+  for (var rt = 0; rt < rosterTabs.length; rt++) { rosterTabs[rt].setAttribute('data-local-control','true'); rosterTabs[rt].onclick = function () { rosterSection(this.getAttribute('data-roster-view')); }; }
+  rosterSection('characters');
+  for (var mt = 0; mt < mainTabs.length; mt++) mainTabs[mt].tabIndex = mt ? -1 : 0;
+
+  document.addEventListener('keydown',function (event) {
+    var target = event.target || document.activeElement, code = event.which || event.keyCode;
+    if (!target || target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+    if (event.ctrlKey || event.metaKey) return;
+    if (event.altKey && code >= 49 && code <= 52) { event.preventDefault(); var name = ['party','roster','create','quests'][code-49]; showView(name); byId('tab-' + name).focus(); return; }
+    if (event.altKey) return;
+    if (code === 191 && event.shiftKey && byId('keyboard-help')) { event.preventDefault(); byId('keyboard-help').click(); return; }
+    if (target.getAttribute('role') === 'tab' && (code === 37 || code === 39 || code === 36 || code === 35)) {
+      var list = target.parentNode.querySelectorAll('[role="tab"]'), index = 0;
+      for (var i = 0; i < list.length; i++) if (list[i] === target) index = i;
+      index = code === 36 ? 0 : code === 35 ? list.length-1 : (index + (code === 39 ? 1 : -1) + list.length) % list.length;
+      event.preventDefault(); if (!list[index].disabled) { var id = list[index].id; list[index].click(); if (byId(id)) byId(id).focus(); } return;
+    }
+    if (code === 191 && !event.shiftKey) { event.preventDefault(); showView('roster'); rosterSection('characters'); byId('roster-search').focus(); return; }
+    if (code === 27) {
+      if (byId('keyboard-panel') && byId('keyboard-panel').style.display !== 'none') { event.preventDefault(); byId('keyboard-panel').style.display = 'none'; byId('keyboard-help').setAttribute('aria-expanded','false'); byId('keyboard-help').focus(); }
+      else if (currentView === 'party' && inspecting) { event.preventDefault(); inspecting = false; renderSelection(); var rows = byId('active').querySelectorAll('[data-bot-id]'); for (var n = 0; n < rows.length; n++) if (String(rows[n].getAttribute('data-bot-id')) === String(selectedBot)) rows[n].focus(); }
+    }
+  },false);
 
   if (session) request(null); else notice('Open Companions from Additional Functions while logged in to your character.', true);
 

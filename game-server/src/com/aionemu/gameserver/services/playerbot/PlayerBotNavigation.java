@@ -19,16 +19,27 @@ final class PlayerBotNavigation {
 	private Point routeGoal;
 	private double closestGoalDistance;
 	private long lastProgress, nextSearch;
-	private int routeWorld, routeInstance;
-	private static final java.util.concurrent.atomic.AtomicLong LAST_SEARCH = new java.util.concurrent.atomic.AtomicLong();
+	private volatile int routeWorld, routeInstance;
+	private static final PlayerBotNavigationSearch SEARCHES = new PlayerBotNavigationSearch();
+	private final Object searchToken = new Object();
+	private final Object heightSearchToken = new Object();
 	private long nextMove;
+	private long nextHeightSearch;
 	private Point publishedGoal,publishedDestination;
 	private int publishedWorld,publishedInstance;
 	private int worldId, instanceId;
-	private String status = "ready";
+	private volatile String status = "ready";
 	private java.util.List<PlayerBotHazards.Area> hazards = java.util.List.of();
 
 	PlayerBotNavigation(Creature bot) { this.bot = bot; }
+	boolean waitingForSearchTurn() {
+		if (!bot.isSpawned() || bot.isDead() || bot.isCasting() || !bot.canPerformMove() || bot.isFlying()) {
+			SEARCHES.cancel(searchToken);SEARCHES.cancel(heightSearchToken);return false;
+		}
+		boolean turn=SEARCHES.isTurn(searchToken,System.currentTimeMillis()) || SEARCHES.isTurn(heightSearchToken,System.currentTimeMillis());
+		if (turn && (routeWorld!=bot.getWorldId() || routeInstance!=bot.getInstanceId())) { SEARCHES.cancel(searchToken);SEARCHES.cancel(heightSearchToken);return false; }
+		return turn;
+	}
 	void hazards(java.util.List<PlayerBotHazards.Area> areas) { hazards = java.util.List.copyOf(areas); }
 	boolean escapeHazards() {
 		Point destination = PlayerBotHazards.escape(new Point(bot.getX(), bot.getY(), bot.getZ()), hazards, bot.getHeading());
@@ -118,12 +129,14 @@ final class PlayerBotNavigation {
 	}
 
 	boolean move(float targetX, float targetY, float targetZ) {
-		if (bot.isCasting() || !bot.canPerformMove() || bot.isDead()) return false;
+		if(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover && mover.traversingHeight())return true;
+		if (bot.isCasting() || !bot.canPerformMove() || bot.isDead()) { SEARCHES.cancel(searchToken); return false; }
 		long now = System.currentTimeMillis();
 		if (now < nextMove) return bot.getMoveController().isInMove();
 		nextMove = now + 200;
 		if(bot instanceof Player player)PlayerBotFollowIntent.clear(player);
 		if (bot.isFlying()) {
+			SEARCHES.cancel(searchToken);
 			route.clear();
 			boolean moved = PlayerBotFlight.move(bot, targetX, targetY, targetZ, hazards);
 			status = moved ? "flying" : "air route blocked";
@@ -140,9 +153,10 @@ final class PlayerBotNavigation {
 			&& publishedWorld==bot.getWorldId() && publishedInstance==bot.getInstanceId()
 			&& PositionUtil.getDistance(publishedGoal.x(),publishedGoal.y(),publishedGoal.z(),targetX,targetY,targetZ)<0.25
 			&& PositionUtil.getDistance(bot,publishedDestination.x(),publishedDestination.y(),publishedDestination.z())>0.75
-			&& now-lastProgress<4000) return true;
+			&& now-lastProgress<4000) { SEARCHES.cancel(searchToken); return true; }
 		if (routeGoal == null || routeWorld != bot.getWorldId() || routeInstance != bot.getInstanceId()
 			|| PositionUtil.getDistance(routeGoal.x(), routeGoal.y(), routeGoal.z(), targetX, targetY, targetZ) > 4) {
+			SEARCHES.cancel(searchToken);
 			route.clear(); routeGoal = goal; routeWorld = bot.getWorldId(); routeInstance = bot.getInstanceId();
 			closestGoalDistance = goalDistance; lastProgress = now; nextSearch = 0;
 		}
@@ -150,9 +164,8 @@ final class PlayerBotNavigation {
 		if (!route.isEmpty() && now - lastProgress > 4000) { route.clear(); lastProgress = now; }
 		while (!route.isEmpty() && PositionUtil.getDistance(bot, route.peekFirst().x(), route.peekFirst().y(), route.peekFirst().z()) < 0.6) route.removeFirst();
 		if (route.isEmpty() && goalDistance > 2 && now - lastProgress >= 1800 && now >= nextSearch) {
-			long previous = LAST_SEARCH.get();
 			// Share a search quota across players and their summons; bound each probe pass too.
-			if (now - previous >= 100 && LAST_SEARCH.compareAndSet(previous, now)) {
+			if (SEARCHES.acquire(searchToken, now)) {
 				nextSearch = now + 3000;
 				long deadline = System.nanoTime() + 6_000_000;
 				Vector3f origin = GeoService.getInstance().findGroundMovementCollision(bot.getWorldId(), bot.getInstanceId(),
@@ -164,7 +177,7 @@ final class PlayerBotNavigation {
 					return point != null && PlayerBotHazards.safePath(from, point, hazards) ? point : null;
 				}, 128, () -> System.nanoTime() >= deadline));
 			}
-		}
+		} else SEARCHES.cancel(searchToken);
 		if (!route.isEmpty()) { Point waypoint = route.peekFirst(); targetX = waypoint.x(); targetY = waypoint.y(); targetZ = waypoint.z(); }
 		double angle = Math.toDegrees(Math.atan2(targetY - bot.getY(), targetX - bot.getX()));
 		float distance = (float) Math.min(Math.max(6,bot.getGameStats().getMovementSpeedFloat()*2), Math.hypot(targetX - bot.getX(), targetY - bot.getY()));
@@ -193,7 +206,30 @@ final class PlayerBotNavigation {
 			if (offset==0 && collision!=null && Math.hypot(x-(bot.getX()+(float)Math.cos(radians)*distance),
 				y-(bot.getY()+(float)Math.sin(radians)*distance))<0.1) break;
 		}
-		if (best == null) { route.clear(); status = "blocked by geometry"; stop(); return false; }
+		// Walking retains its strict slope/step rules. A separate supported ballistic arc
+		// handles nearby height changes/gaps without making cliffs into walkable edges.
+		if(bot instanceof Player player && player.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover
+			&& now>=nextHeightSearch && (best==null || PositionUtil.getDistance(best.x(),best.y(),best.z(),targetX,targetY,targetZ)>=goalDistance-.4)) {
+			routeWorld=bot.getWorldId();routeInstance=bot.getInstanceId();
+			if(SEARCHES.acquire(heightSearchToken,now)) {
+				nextHeightSearch=now+500;
+				long deadline=System.nanoTime()+6_000_000;
+				float speed=com.aionemu.gameserver.utils.stats.StatFunctions.adjustStatByMovementModifier(bot,
+					com.aionemu.gameserver.model.stats.container.StatEnum.SPEED,bot.getGameStats().getMovementSpeedFloat());
+				for(int offset:new int[]{0,30,-30,60,-60})for(float reach:new float[]{2,3,4,6,8}) {
+					if(System.nanoTime()>=deadline)break;
+					double radians=Math.toRadians(angle+offset);float span=(float)Math.min(reach,Math.max(.5,Math.hypot(targetX-bot.getX(),targetY-bot.getY())));
+					float x=bot.getX()+(float)Math.cos(radians)*span,y=bot.getY()+(float)Math.sin(radians)*span;
+					var plan=GeoService.getInstance().findPlayerBotHeightTraversal(bot.getWorldId(),bot.getInstanceId(),bot.getX(),bot.getY(),bot.getZ(),x,y,targetZ,speed,deadline);
+					if(plan==null || PositionUtil.getDistance(x,y,plan.endZ(),targetX,targetY,targetZ)>=goalDistance-.4)continue;
+					boolean safe=true;Point previous=new Point(plan.x(),plan.y(),plan.z());
+					for(int sample=1;sample<=32;sample++){var p=plan.at(plan.seconds()*sample/32);Point next=new Point(p.x,p.y,p.z);
+						if(!PlayerBotHazards.safePath(previous,next,hazards)){safe=false;break;}previous=next;}
+					if(safe && mover.startHeightTraversal(plan)){route.clear();publishedGoal=null;status="jumping to verified landing";return true;}
+				}
+			}
+		}else SEARCHES.cancel(heightSearchToken);
+		if (best == null) { route.clear(); status = "blocked by geometry"; stopMovement(); return false; }
 		status = route.isEmpty() ? "moving" : "following local route";
 		byte heading = Math.hypot(best.x() - bot.getX(), best.y() - bot.getY()) < 0.001 ? bot.getHeading()
 			: (byte) Math.floorMod((int) Math.round(Math.toDegrees(Math.atan2(best.y() - bot.getY(), best.x() - bot.getX())) / 3), 120);
@@ -206,6 +242,7 @@ final class PlayerBotNavigation {
 		return true;
 	}
 
-	void stop() { publishedGoal=null;publishedDestination=null;if (bot.getMoveController().isInMove()) bot.getMoveController().abortMove(); }
-	String status() { return status; }
+	void stop() { SEARCHES.cancel(searchToken);SEARCHES.cancel(heightSearchToken);stopMovement(); }
+	private void stopMovement() { publishedGoal=null;publishedDestination=null;if (bot.getMoveController().isInMove()) bot.getMoveController().abortMove(); }
+	String status() { return SEARCHES.waiting(searchToken) || SEARCHES.waiting(heightSearchToken)?"waiting for local route search":status; }
 }

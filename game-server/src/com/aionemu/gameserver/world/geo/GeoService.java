@@ -167,6 +167,20 @@ public class GeoService implements GameEngine {
 		return com.aionemu.gameserver.services.playerbot.PlayerBotGroundNavigation.walk(geoMaps.get(worldId), instanceId, x, y, z, targetX, targetY, targetZ);
 	}
 
+	public com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.Plan findPlayerBotHeightTraversal(
+		int worldId,int instance,float x,float y,float z,float tx,float ty,float targetZ,float speed,long deadline) {
+		return com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.plan(geoMaps.get(worldId),instance,x,y,z,tx,ty,targetZ,speed,deadline);
+	}
+	public boolean validatePlayerBotHeightSegment(int worldId,int instance,Vector3f from,Vector3f to) {
+		return com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.segment(geoMaps.get(worldId),instance,from,to);
+	}
+	public boolean validatePlayerBotHeightLanding(int worldId,int instance,com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.Plan plan) {
+		return com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.landing(geoMaps.get(worldId),instance,plan);
+	}
+	public com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.Plan findPlayerBotFall(int worldId,int instance,float x,float y,float z) {
+		return com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.fall(geoMaps.get(worldId),instance,x,y,z);
+	}
+
 	private Vector3f calculateCurrentGeoPosition(Player player) {
 		WorldPosition approximatePos = player.getPosition();
 		WorldPosition lastPos = player.getMoveController().getLastPositionFromClient();

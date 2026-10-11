@@ -17,6 +17,7 @@ final class PlayerBotPopulationSchedule {
  PlayerBotPopulationSchedule(PlayerBotPopulationStorage repository){this.repository=repository;}
  /** Binary compatibility; no file reads/writes. */
  PlayerBotPopulationSchedule(java.nio.file.Path path){this(new PlayerBotPopulationRepository());if(!path.getFileName().toString().equals("world-population-events.json"))throw new IllegalArgumentException("Use native population storage");}
+ State peek(){return repository.cachedSchedule();}
  synchronized State load()throws IOException {
   return repository.schedule();
  }

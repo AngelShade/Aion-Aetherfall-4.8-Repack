@@ -14,6 +14,16 @@ def sha(path):
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
+def protected_client_files(entries):
+    """The client regenerates root system.cfg; it is not an installed mod."""
+    return [entry for entry in entries if entry['path'].replace('\\', '/').casefold() != 'system.cfg']
+
+
+def verify_client_files(client, entries):
+    for entry in protected_client_files(entries):
+        assert sha(Path(client) / entry['path']) == entry['sha256'], entry['path']
+
+
 def verify_runtime_resource_inputs(server, manifest):
     replacements = {entry['path']: entry for entry in manifest['files']}
     assert len(replacements) == len(manifest['files']), 'Duplicate delivered file'
@@ -76,8 +86,7 @@ def main():
     verify_runtime_resource_inputs(server, m)
     inventory = json.loads((ROOT / 'docs/INSTALLED_MODS.json').read_text())
     assert all(inventory['checks'].values())
-    for e in m['clientFiles']:
-        assert sha(Path(inventory['clientRoot']) / e['path']) == e['sha256'], e['path']
+    verify_client_files(inventory['clientRoot'], m['clientFiles'])
     assert sha(server / 'data/geo/models.mesh') == m['geometrySha256']
     for rel in m['retiredFiles']:
         assert not (server / rel).exists(), rel
@@ -114,6 +123,10 @@ def main():
             assert values == record['effective'] == record['addedCompiledDefaults'] | record['preservedExplicit']
             assert len(values) == record['settings'] and values['gameserver.playerbots.allowed_instance_maps'] == ''
     checks = json.loads((review / 'regression/checks.json').read_text())
+    if 'browserEvidenceSha256' in m:
+        assert sha(receipt / 'browser/evidence.json') == sha(review / 'browser/evidence.json') == m['browserEvidenceSha256']
+        importlib.import_module('check-source-browser').validate(build, receipt / 'browser')
+        print('OK: 43 native-browser actions and exact builder media/renderer/visual evidence verified')
     if 'regressionEvidenceSha256' in m:
         assert sha(receipt / 'regression/evidence.json') == sha(review / 'regression/evidence.json') == m['regressionEvidenceSha256']
         importlib.import_module('check-source-build').validate(build, receipt / 'regression')

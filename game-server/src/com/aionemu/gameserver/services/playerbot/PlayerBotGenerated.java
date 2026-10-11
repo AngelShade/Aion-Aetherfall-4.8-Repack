@@ -40,7 +40,7 @@ final class PlayerBotGenerated {
 		var limits = template.getUseLimits();
 		var mastery = DataManager.SKILL_DATA.getMasterySkills(template.getItemGroup());
 		int maxLevel = template.getMaxLevelRestrict(pc);
-		return template.getItemQuality() == ItemQuality.COMMON && template.getItemSlot() != 0 && template.getMaxTuneCount() == 0
+		return !PlayerBotCombatGear.skinOnly(template) && template.getItemQuality() == ItemQuality.COMMON && template.getItemSlot() != 0 && template.getMaxTuneCount() == 0
 			&& template.isClassSpecific(pc) && required >= 0 && required <= level && template.getLevel() <= level
 			&& (maxLevel == 0 || maxLevel >= level) && !template.hasAreaRestriction()
 			&& (template.getRace() == Race.PC_ALL || template.getRace() == race)

@@ -115,14 +115,14 @@ public final class PlayerBotAppearance {
   if(sourceEligible(item) && WardrobeRules.permitted(item.getItemSkinTemplate(),s.bot().getRace(),s.bot().getGender()))
    for(Item equipped:s.bot().getEquipment().getEquippedItems())if(targetEligible(equipped.getItemTemplate()) && WardrobeRules.compatible(equipped.getItemTemplate(),item.getItemSkinTemplate()))
     targets.add(Map.of("id",equipped.getObjectId(),"name",equipped.getItemName()));
-  view.put("appearanceTargets",targets);return view;
+  view.put("appearanceTargets",targets);return PlayerBotItemView.decorate(view,item);
  }
  static List<Map<String,Object>> inventory(PlayerBotSession s,List<Map<String,Object>> original) {
   if(!enabled())return original;
   List<Map<String,Object>> result=new ArrayList<>();Map<Integer,Item> items=new HashMap<>();
   for(Item item:s.bot().getEquipment().getEquippedItems())items.put(item.getObjectId(),item);
   for(Item item:s.bot().getInventory().getItems())items.put(item.getObjectId(),item);
-  for(var row:original) {Item item=items.get(((Number)row.get("id")).intValue());if(item!=null)result.add(itemView(s,item));}
+  for(var row:original) {Item item=items.get(((Number)row.get("id")).intValue());if(item!=null){var view=new LinkedHashMap<String,Object>(row);view.putAll(itemView(s,item));result.add(view);}}
   return result;
  }
  static void close(PlayerBotSession s){SELECTED.remove(s.bot().getObjectId());}

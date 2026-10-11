@@ -243,7 +243,11 @@ public class PlayerAllianceService {
 	public static void checkReady(Player player, TeamCommand eventCode) {
 		PlayerAlliance alliance = player.getPlayerAlliance();
 		if (alliance != null) {
-			alliance.onEvent(new CheckAllianceReadyEvent(alliance, player, eventCode));
+			alliance.executeLocked(() -> {
+				alliance.onEvent(new CheckAllianceReadyEvent(alliance, player, eventCode));
+				if (eventCode == TeamCommand.ALLIANCE_CHECKREADY_START && alliance.isSomeCaptain(player))
+					com.aionemu.gameserver.services.playerbot.PlayerBotAllianceControl.respondReady(alliance, player);
+			});
 		}
 	}
 

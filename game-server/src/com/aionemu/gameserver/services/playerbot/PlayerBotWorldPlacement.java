@@ -177,6 +177,24 @@ final class PlayerBotWorldPlacement {
    if(worldMap==null || worldMap.getMainWorldMapInstance().getRegion(p.x(),p.y(),z)==null)continue;
    return new Location(p.race(),p.map(),p.x(),p.y(),z,p.minimum(),p.maximum(),p.city(),p.hub());
   }
+  // Native spawns can sit against a tree/column or in a narrow actor gap.
+  // Exhaust the original anchors first, then bound nearby probes so an
+  // unsuitable map cannot turn admission into an unbounded geometry job.
+  int[] probes={0};long deadline=System.nanoTime()+20_000_000;
+  for(var p:preferred) {
+   var map=DataManager.WORLD_MAPS_DATA.getTemplate(p.map());if(!mapEligible(map,race,enabled))continue;
+   var point=PlayerBotCampLanding.nearby(new PlayerBotNavigation.Point(p.x(),p.y(),p.z()),new PlayerBotCampLanding.Ground(){
+    public float height(float x,float y,float sourceZ){return GeoService.getInstance().getZ(p.map(),x,y,sourceZ+2,sourceZ-4,1);}
+    public boolean safe(PlayerBotNavigation.Point point){
+     var worldMap=World.getInstance().getWorldMap(p.map());
+     return ground(map,point.x(),point.y(),p.z(),point.z()) && !nearHuman(p.map(),point.x(),point.y(),point.z())
+      && worldMap!=null && worldMap.getMainWorldMapInstance().getRegion(point.x(),point.y(),point.z())!=null
+      && GeoService.getInstance().isPlayerBotLanding(p.map(),1,point.x(),point.y(),point.z());
+    }
+   },()->probes[0]++>=128 || System.nanoTime()>=deadline);
+   if(point!=null)return new Location(p.race(),p.map(),point.x(),point.y(),point.z(),p.minimum(),p.maximum(),p.city(),p.hub());
+   if(probes[0]>=128 || System.nanoTime()>=deadline)break;
+  }
   return null;
  }
  static boolean place(PlayerBotSession session,int cityPercent,RandomGenerator rng) {

@@ -28,7 +28,8 @@ public class AssignViceCaptainEvent extends AbstractTeamPlayerEvent<PlayerAllian
 
 	@Override
 	public boolean checkCondition() {
-		return eventPlayer != null && eventPlayer.isOnline();
+		return eventPlayer != null && team.hasMember(eventPlayer.getObjectId())
+			&& (eventPlayer.isPlayerBot() ? eventPlayer.isPlaying() : eventPlayer.isOnline());
 	}
 
 	@Override
@@ -38,7 +39,8 @@ public class AssignViceCaptainEvent extends AbstractTeamPlayerEvent<PlayerAllian
 				team.getViceCaptainIds().remove(eventPlayer.getObjectId());
 				break;
 			case PROMOTE:
-				if (team.getViceCaptainIds().size() == 4) {
+				if (team.isViceCaptain(eventPlayer)) return;
+				if (team.getViceCaptainIds().size() >= 4) {
 					PacketSendUtility.sendPacket(team.getLeaderObject(), SM_SYSTEM_MESSAGE.STR_FORCE_CANNOT_PROMOTE_MANAGER());
 					return;
 				}

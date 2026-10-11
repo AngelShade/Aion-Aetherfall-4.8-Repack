@@ -17,12 +17,12 @@ public abstract class ChangeLeaderEvent<T extends TemporaryPlayerTeam<?>> extend
 	 */
 	@Override
 	public boolean checkCondition() {
-		return eventPlayer == null || eventPlayer.isOnline();
+		return eventPlayer == null || (eventPlayer.isPlayerBot() ? eventPlayer.isPlaying() : eventPlayer.isOnline());
 	}
 
 	protected final void changeLeaderToNextAvailablePlayer() {
 		team.applyOnMembers(member -> {
-			if (member.isOnline() && !member.equals(team.getLeader().getObject())) {
+			if ((member.isPlayerBot() ? member.isPlaying() : member.isOnline()) && !member.equals(team.getLeader().getObject())) {
 				changeLeaderTo(member);
 				return false;
 			}

@@ -136,7 +136,7 @@ public final class PlayerBotWarehouse {
   boolean own=privateOwner(session);IStorage storage=own?session.bot().getStorage(1):null;String reason=blocker(session);
   state.put("warehouseAvailable",reason.isEmpty());state.put("warehouseReason",reason);
   state.put("warehouseLimit",storage==null?0:storage.getLimit());
-  state.put("warehouse",storage==null?List.of():sorted(storage).stream().map(i->Map.of("id",i.getObjectId(),"itemId",i.getItemId(),"name",i.getItemTemplate().getName(),"count",i.getItemCount())).toList());
+  state.put("warehouse",storage==null?List.of():sorted(storage).stream().map(PlayerBotItemView::stored).toList());
  }
  private PlayerBotWarehouse(){}
 }

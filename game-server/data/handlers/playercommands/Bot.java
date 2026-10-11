@@ -29,6 +29,7 @@ public final class Bot extends PlayerCommand {
 			dismiss <name|all> - Save and dismiss companions.
 			summon [name|all] - Revive and summon your selected companion; clear target for the party. Use while alive and out of combat.
 			follow|stay|guard|passive [name|all] - Change companion orders (default all).
+			Follow interrupts activity and pulls companions to you; regroup out of combat or use Attack to resume.
 			formation circle|box|line|spread - Arrange following companions around you; regroup after combat.
 			attack [name|all] - Attack your selected hostile PvE NPC.
 			role <name> <tank|healer|support|melee|ranged> - Set combat role.
@@ -91,8 +92,10 @@ public final class Bot extends PlayerCommand {
 				}
 				case "follow", "stay", "guard", "passive" -> {
 					Order order = Order.valueOf(params[0].toUpperCase(Locale.ROOT));
-					for (var session : selected(service, owner, params.length > 1 ? params[1] : "all")) session.order(order);
-					sendInfo(owner, "Companion order: " + order + ".");
+					for (var session : selected(service, owner, params.length > 1 ? params[1] : "all")) session.command(order);
+					sendInfo(owner, order == Order.FOLLOW
+						? "Companions will withdraw and follow you. Regroup out of combat or use Attack to resume combat."
+						: "Companion order: " + order + ".");
 				}
 				case "attack" -> {
 					for (var session : selected(service, owner, params.length > 1 ? params[1] : "all")) session.attackSelectedTarget();

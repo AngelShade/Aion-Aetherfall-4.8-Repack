@@ -61,12 +61,12 @@ public class SM_ALLIANCE_MEMBER_INFO extends AionServerPacket {
 		 * Required so that when member is disconnected, and his playerAllianceGroup slot is changed, he will continue to appear as disconnected to the
 		 * alliance.
 		 */
-		if (event == PlayerAllianceEvent.ENTER && !player.isOnline())
+		if (event == PlayerAllianceEvent.ENTER && !player.isPlaying())
 			event = PlayerAllianceEvent.ENTER_OFFLINE;
 
 		writeD(allianceId);
 		writeD(objectId);
-		if (player.isOnline()) {
+		if (player.isPlaying()) {
 			PlayerLifeStats pls = player.getLifeStats();
 			writeD(pls.getMaxHp());
 			writeD(pls.getCurrentHp());
@@ -135,7 +135,7 @@ public class SM_ALLIANCE_MEMBER_INFO extends AionServerPacket {
 				writeS(pcd.getName());
 				writeD(0x00); // unk
 				writeD(0x00); // unk
-				if (player.isOnline()) {
+				if (player.isPlaying()) {
 					writeC(SkillTargetSlot.FULLSLOTS);
 					writeH(abnormalEffects.size()); // Abnormal effects
 					for (Effect effect : abnormalEffects) {

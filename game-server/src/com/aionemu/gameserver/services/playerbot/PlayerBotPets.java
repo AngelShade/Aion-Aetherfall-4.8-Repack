@@ -13,8 +13,9 @@ import com.aionemu.gameserver.world.geo.GeoService;
 /** Drives an owned spirit through normal summon modes, learned orders and attack timing. */
 final class PlayerBotPets {
 	private Summon current;
-	private PlayerBotNavigation navigation;
+	private volatile PlayerBotNavigation navigation;
 	private long nextAttack;
+	boolean waitingForSearchTurn() { var currentNavigation=navigation;return currentNavigation!=null && currentNavigation.waitingForSearchTurn(); }
 	void tick(Player master, Npc enemy, boolean mayMove, boolean active, boolean withholdDamage) {
 		Summon pet = master.getSummon();
 		if (pet == null || pet.isDead() || !pet.isSpawned() || pet.isBeingReleased()) return;
