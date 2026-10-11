@@ -63,11 +63,13 @@ public class _11063QuellMastarius extends AbstractQuestHandler {
 			}
 		} else if (qs.getStatus() == QuestStatus.REWARD) {
 			if (targetId == 798926) {
+				if (player.getInventory().getItemCountByItemId(182206849) < 1
+					|| player.getInventory().getItemCountByItemId(182206850) < 1)
+					return false;
 				if (dialogActionId == USE_OBJECT) {
 					return sendQuestDialog(env, 10002);
 				}
-				removeQuestItem(env, 182206849, 1);
-				removeQuestItem(env, 182206850, 1);
+				// Native successful finishQuest work-item cleanup owns both debits.
 				return sendQuestEndDialog(env);
 			}
 		}

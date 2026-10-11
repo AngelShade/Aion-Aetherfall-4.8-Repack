@@ -12,15 +12,19 @@ import com.aionemu.gameserver.world.geo.GeoService;
  * Aion target, resource and effect conditions. Planning never casts or pays costs.
  */
 final class PlayerBotSupport {
+ private record Candidate(Player player,double health,double distance,int id) {}
  /** Nearby public spell assistance is an Aion extension; it never extends attack or loot rights. */
  static List<Player> members(Player bot) { return members(bot,PlayerBotTeams.members(bot)); }
  static List<Player> members(Player bot,List<Player> party) {
   var result=new LinkedHashSet<Player>();result.add(bot);
   party.stream().filter(p->p==bot || PlayerBotTeams.same(bot,p)).filter(p->eligible(bot,p)).forEach(result::add);
-  var nearby=new ArrayList<Player>();var known=bot.getKnownList();
-  if(known!=null)known.forEachPlayer(p->{if(!result.contains(p) && eligible(bot,p) && PositionUtil.isInRange(bot,p,40))nearby.add(p);});
-  nearby.sort(Comparator.<Player>comparingDouble(PlayerBotHealing::health).thenComparingDouble(p->PositionUtil.getDistance(bot,p)).thenComparingInt(Player::getObjectId));
-  nearby.stream().limit(16).forEach(result::add);
+  var nearby=new ArrayList<Candidate>();var known=bot.getKnownList();
+  if(known!=null)known.forEachPlayer(p->{if(!result.contains(p) && eligible(bot,p) && PositionUtil.isInRange(bot,p,40))
+   nearby.add(new Candidate(p,PlayerBotHealing.health(p),PositionUtil.getDistance(bot,p),p.getObjectId()));});
+  // Native HP and positions can change on other workers during selection.
+  // A comparator must compare the same immutable keys throughout the sort.
+  nearby.sort(Comparator.comparingDouble(Candidate::health).thenComparingDouble(Candidate::distance).thenComparingInt(Candidate::id));
+  nearby.stream().limit(16).map(Candidate::player).forEach(result::add);
   return List.copyOf(result);
  }
  static boolean eligible(Player bot,Player target) {

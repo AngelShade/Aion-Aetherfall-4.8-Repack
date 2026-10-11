@@ -63,11 +63,13 @@ public class _21063VanquishVeille extends AbstractQuestHandler {
 			}
 		} else if (qs.getStatus() == QuestStatus.REWARD) {
 			if (targetId == 799225) {
+				if (player.getInventory().getItemCountByItemId(182207852) < 1
+					|| player.getInventory().getItemCountByItemId(182207853) < 1)
+					return false;
 				if (dialogActionId == USE_OBJECT) {
 					return sendQuestDialog(env, 10002);
 				}
-				removeQuestItem(env, 182207852, 1);
-				removeQuestItem(env, 182207853, 1);
+				// Native successful finishQuest work-item cleanup owns both debits.
 				return sendQuestEndDialog(env);
 			}
 		}

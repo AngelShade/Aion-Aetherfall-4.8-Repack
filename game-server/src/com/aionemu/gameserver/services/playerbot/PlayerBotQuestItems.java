@@ -72,6 +72,22 @@ final class PlayerBotQuestItems {
     || a.kind()==QuestBotAction.Kind.SKILL && candidate.action() instanceof SkillUseAction skill && a.targetId()==skill.getSkillId()));
  }
  static boolean eligible(Player owner,Player bot,Candidate candidate){return candidate.starting()?startable(owner,bot,candidate.quest()):active(owner,bot,candidate);}
+ static String skillItemRequirement(Player bot,int skillId) {
+  var owned=new ArrayList<Integer>();
+  for(var item:bot.getInventory().getItems())if(item.getItemCount()>0 && item.getItemTemplate().getActions()!=null
+   && item.getItemTemplate().getActions().getItemActions().stream().anyMatch(a->a instanceof SkillUseAction skill && skill.getSkillId()==skillId))owned.add(item.getItemId());
+  if(owned.isEmpty())return "Required native skill "+skillId+" is not learned and no owned item supplies it";
+  var template=DataManager.SKILL_DATA==null?null:DataManager.SKILL_DATA.getSkillTemplate(skillId);
+  if(template==null || template.getProperties()==null)return "Owned item "+owned+" has no maintained native skill target properties for "+skillId;
+  var props=template.getProperties();
+  String target=template.hasResurrectEffect()?"a visible dead allied player without pending resurrection"
+   :switch(props.getFirstTarget()) {
+    case ME,PASSIVE->"the actor";case MYPET->"the actor's current native summon";
+    case TARGET,TARGETORME->"a legal native "+props.getTargetRelation()+" unit target";
+    default->"an explicit native "+props.getFirstTarget()+" choice; this item adapter cannot supply that choice";
+   };
+  return "Owned item "+owned+" supplies skill "+skillId+"; requires "+target+", native range "+props.getFirstTargetRange()+"m, item restrictions, resources and cooldown";
+ }
  static Candidate choose(Player owner,Player bot,long now,boolean combat) {
   return choose(owner,bot,now,combat,bot.getTarget() instanceof Creature target?target:null);
  }
@@ -99,11 +115,10 @@ final class PlayerBotQuestItems {
       if(selected==null)continue;
      } else continue;
      if(actions.stream().anyMatch(a->a instanceof QuestStartAction))continue;
-     if(!PlayerRestrictions.canUseItem(bot,item))continue;
      if(selected instanceof SkillUseAction skill) {
       Creature target=skillTarget(bot,item,skill,currentEnemy);
       if(target!=null)return new Candidate(item,selected,quest.getQuestId(),false,target);
-     }else if(selected==null || selected.canAct(bot,item,null))return new Candidate(item,selected,quest.getQuestId(),false);
+     }else if(PlayerRestrictions.canUseItem(bot,item) && (selected==null || selected.canAct(bot,item,null)))return new Candidate(item,selected,quest.getQuestId(),false);
     }
    }
   }
@@ -123,14 +138,14 @@ final class PlayerBotQuestItems {
     var allies=PlayerBotSupport.members(bot);
     targets=allies.stream().filter(p->p!=bot && p.isDead() && !p.getResStatus()
      && !PlayerBotService.getInstance().isReserved(bot,p,PlayerBotRules.SkillKind.RESURRECT)
-     && allies.stream().noneMatch(a->{var cast=a.getCastingSkill();return a!=bot && cast!=null
-      && cast.getSkillTemplate().hasResurrectEffect() && (cast.getFirstTarget()==p || cast.getEffectedList().contains(p));}))
+     && !resurrectionInFlight(bot,p))
      .sorted(Comparator.<Player>comparingDouble(p->com.aionemu.gameserver.utils.PositionUtil.getDistance(bot,p)).thenComparingInt(Player::getObjectId)).toList();
    }else if(props.getTargetRelation()==TargetRelationAttribute.ENEMY || props.getTargetRelation()==TargetRelationAttribute.ALL)
     targets=currentEnemy instanceof Npc && PlayerBotService.allowsTarget(bot,currentEnemy)?List.of(currentEnemy):List.of();
    else targets=PlayerBotSupport.members(bot);
   }else return null; // Point/remote-party item use needs an explicit native choice.
-  for(var target:targets)if(targetEligible(bot,action,target) && action.canActOn(bot,item,null,target))return target;
+  for(var target:targets)if(targetEligible(bot,action,target) && PlayerRestrictions.canUseItem(bot,item,target)
+   && action.canActOn(bot,item,null,target))return target;
   return null;
  }
  static boolean targetEligible(Player bot,SkillUseAction action,Creature target) {
@@ -139,11 +154,18 @@ final class PlayerBotQuestItems {
   if(target!=bot && (bot.getKnownList()==null || !bot.getKnownList().sees(target)))return false;
   if(template.hasResurrectEffect())return target instanceof Player player && PlayerBotSupport.eligible(bot,player)
    && player!=bot && player.isDead() && !player.getResStatus()
-   && !PlayerBotService.getInstance().isReserved(bot,player,PlayerBotRules.SkillKind.RESURRECT);
+   && !PlayerBotService.getInstance().isReserved(bot,player,PlayerBotRules.SkillKind.RESURRECT)
+   && !resurrectionInFlight(bot,player);
   if(target.isDead())return false;
   if(target==bot || target==bot.getSummon())return true;
   if(target instanceof Player player)return PlayerBotSupport.eligible(bot,player);
   return target instanceof Npc && PlayerBotService.allowsTarget(bot,target);
+ }
+ private static boolean resurrectionInFlight(Player bot,Player target) {
+  return PlayerBotSupport.members(bot).stream().anyMatch(ally->{
+   var cast=ally.getCastingSkill();return ally!=bot && cast!=null && cast.getSkillTemplate().hasResurrectEffect()
+    && (cast.getFirstTarget()==target || cast.getEffectedList().contains(target));
+  });
  }
  private static boolean canAct(Player bot,Candidate candidate,AbstractItemAction action) {
   if(action instanceof SkillUseAction skill && candidate.target()!=null)
@@ -154,7 +176,7 @@ final class PlayerBotQuestItems {
   long now=System.currentTimeMillis();State state=STATES.computeIfAbsent(bot.getObjectId(),id->new State());
   if(state.request!=null || bot.isCasting() || bot.isLooting() || bot.getController().hasScheduledTask(TaskId.ITEM_USE)
    || bot.getInventory().getItemByObjId(candidate.item().getObjectId())!=candidate.item()
-   || !eligible(owner,bot,candidate) || !PlayerRestrictions.canUseItem(bot,candidate.item())
+   || !eligible(owner,bot,candidate) || !PlayerRestrictions.canUseItem(bot,candidate.item(),candidate.target()==null?bot.getTarget():candidate.target())
    || candidate.action()!=null && !canAct(bot,candidate,candidate.action()))return false;
   Request request=new Request(bot,candidate,now);state.request=request;OFFERS.put(bot.getObjectId(),request);
   state.retry.put(candidate.quest(),candidate.starting()?request.deadline+30000:now+2000);

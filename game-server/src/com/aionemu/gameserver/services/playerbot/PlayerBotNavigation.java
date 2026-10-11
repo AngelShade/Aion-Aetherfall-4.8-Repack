@@ -17,6 +17,10 @@ final class PlayerBotNavigation {
 	private Point lastOwner;
 	private final Deque<Point> route = new ArrayDeque<>();
 	private Point routeGoal;
+	private PlayerBotRouteSearch routeSearch;
+	private Point progressWaypoint;
+	private double closestWaypointDistance;
+	private volatile long searchProgress;
 	private double closestGoalDistance;
 	private long lastProgress, nextSearch;
 	private volatile int routeWorld, routeInstance;
@@ -41,6 +45,8 @@ final class PlayerBotNavigation {
 		return turn;
 	}
 	void hazards(java.util.List<PlayerBotHazards.Area> areas) { hazards = java.util.List.copyOf(areas); }
+	boolean planningRoute(){return routeSearch!=null && routeSearch.pending();}
+	boolean routeProgressing(long now){return planningRoute() && now-searchProgress<30000;}
 	boolean escapeHazards() {
 		Point destination = PlayerBotHazards.escape(new Point(bot.getX(), bot.getY(), bot.getZ()), hazards, bot.getHeading());
 		return destination != null && move(destination.x(), destination.y(), destination.z());
@@ -137,7 +143,7 @@ final class PlayerBotNavigation {
 		if(bot instanceof Player player)PlayerBotFollowIntent.clear(player);
 		if (bot.isFlying()) {
 			SEARCHES.cancel(searchToken);
-			route.clear();
+			route.clear();routeSearch=null;
 			boolean moved = PlayerBotFlight.move(bot, targetX, targetY, targetZ, hazards);
 			status = moved ? "flying" : "air route blocked";
 			return moved;
@@ -157,26 +163,31 @@ final class PlayerBotNavigation {
 		if (routeGoal == null || routeWorld != bot.getWorldId() || routeInstance != bot.getInstanceId()
 			|| PositionUtil.getDistance(routeGoal.x(), routeGoal.y(), routeGoal.z(), targetX, targetY, targetZ) > 4) {
 			SEARCHES.cancel(searchToken);
-			route.clear(); routeGoal = goal; routeWorld = bot.getWorldId(); routeInstance = bot.getInstanceId();
+			route.clear();routeSearch=null;progressWaypoint=null; routeGoal = goal; routeWorld = bot.getWorldId(); routeInstance = bot.getInstanceId();
 			closestGoalDistance = goalDistance; lastProgress = now; nextSearch = 0;
 		}
 		if (goalDistance < closestGoalDistance - 0.5) { closestGoalDistance = goalDistance; lastProgress = now; }
-		if (!route.isEmpty() && now - lastProgress > 4000) { route.clear(); lastProgress = now; }
 		while (!route.isEmpty() && PositionUtil.getDistance(bot, route.peekFirst().x(), route.peekFirst().y(), route.peekFirst().z()) < 0.6) route.removeFirst();
-		if (route.isEmpty() && goalDistance > 2 && now - lastProgress >= 1800 && now >= nextSearch) {
-			// Share a search quota across players and their summons; bound each probe pass too.
+		if(!route.isEmpty()) {
+			Point waypoint=route.peekFirst();double distanceToWaypoint=PositionUtil.getDistance(bot,waypoint.x(),waypoint.y(),waypoint.z());
+			if(!waypoint.equals(progressWaypoint)){progressWaypoint=waypoint;closestWaypointDistance=distanceToWaypoint;lastProgress=now;}
+			if(distanceToWaypoint<closestWaypointDistance-.2){closestWaypointDistance=distanceToWaypoint;lastProgress=now;}
+			if(now-lastProgress>4000){route.clear();progressWaypoint=null;lastProgress=now-1800;}
+		}
+		if (routeSearch!=null && routeSearch.pending()) {
+			// Expiry yields the current edge cursor, rather than losing the search.
+			// Share the existing global fair quota; no actor can monopolize terrain work.
 			if (SEARCHES.acquire(searchToken, now)) {
-				nextSearch = now + 3000;
 				long deadline = System.nanoTime() + 6_000_000;
-				Vector3f origin = GeoService.getInstance().findGroundMovementCollision(bot.getWorldId(), bot.getInstanceId(),
-					bot.getX(), bot.getY(), bot.getZ(), bot.getX(), bot.getY(), goal.z());
-				Point start = origin == null ? new Point(bot.getX(), bot.getY(), bot.getZ()) : new Point(origin.x, origin.y, origin.z);
-				route.addAll(PlayerBotPathfinder.find(start, goal, (from, x, y) -> {
+				routeSearch.advance((from, x, y) -> {
 					Vector3f result = GeoService.getInstance().findGroundMovementCollision(bot.getWorldId(), bot.getInstanceId(), from.x(), from.y(), from.z(), x, y, goal.z());
 					Point point = result == null ? null : new Point(result.getX(), result.getY(), result.getZ());
 					return point != null && PlayerBotHazards.safePath(from, point, hazards) ? point : null;
-				}, 128, () -> System.nanoTime() >= deadline));
+				},128, () -> System.nanoTime() >= deadline);
+				searchProgress=now;
 			}
+			if(routeSearch.pending()){status="planning supported ground route";stopMovement();return true;}
+			route.addAll(routeSearch.route());status=routeSearch.reason();routeSearch=null;nextSearch=now+3000;lastProgress=now;
 		} else SEARCHES.cancel(searchToken);
 		if (!route.isEmpty()) { Point waypoint = route.peekFirst(); targetX = waypoint.x(); targetY = waypoint.y(); targetZ = waypoint.z(); }
 		double angle = Math.toDegrees(Math.atan2(targetY - bot.getY(), targetX - bot.getX()));
@@ -184,6 +195,7 @@ final class PlayerBotNavigation {
 		Point best = null;
 		double bestScore = Double.NEGATIVE_INFINITY;
 		for (int offset : new int[] { 0, 30, -30, 60, -60, 90, -90 }) {
+			if(!route.isEmpty() && offset!=0)break; // Follow the proved edge instead of cutting a detour back toward its world goal.
 			double radians = Math.toRadians(angle + offset);
 			float x = bot.getX() + (float) Math.cos(radians) * distance;
 			float y = bot.getY() + (float) Math.sin(radians) * distance;
@@ -191,10 +203,7 @@ final class PlayerBotNavigation {
 			float z;
 			if (collision != null) {
 				x = collision.getX(); y = collision.getY(); z = collision.getZ();
-			} else {
-				z = GeoService.getInstance().getZ(bot.getWorldId(), x, y, bot.getZ(), bot.getInstanceId());
-				if (!Float.isFinite(z)) z = bot.getZ();
-			}
+			} else continue;
 			if (!Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z)
 				|| (collision == null && Math.abs(z - bot.getZ()) > distance + 0.5)
 				|| (Math.hypot(x - bot.getX(), y - bot.getY()) < 0.15 && !(collision != null && z < bot.getZ() - 1.25f))) continue;
@@ -229,6 +238,13 @@ final class PlayerBotNavigation {
 				}
 			}
 		}else SEARCHES.cancel(heightSearchToken);
+		if(route.isEmpty() && goalDistance>2 && now-lastProgress>=1800 && now>=nextSearch) {
+			Vector3f origin=GeoService.getInstance().findGroundMovementCollision(bot.getWorldId(),bot.getInstanceId(),bot.getX(),bot.getY(),bot.getZ(),bot.getX(),bot.getY(),goal.z());
+			Point start=origin==null?new Point(bot.getX(),bot.getY(),bot.getZ()):new Point(origin.x,origin.y,origin.z);
+			routeSearch=new PlayerBotRouteSearch(start,goal,bot.getWorldMapInstance().getParent().getWorldSize(),4096);
+			if(routeSearch.pending()){searchProgress=now;SEARCHES.acquire(searchToken,now);status="planning supported ground route";stopMovement();return true;}
+			status=routeSearch.reason();routeSearch=null;nextSearch=now+3000;stopMovement();return false;
+		}
 		if (best == null) { route.clear(); status = "blocked by geometry"; stopMovement(); return false; }
 		status = route.isEmpty() ? "moving" : "following local route";
 		byte heading = Math.hypot(best.x() - bot.getX(), best.y() - bot.getY()) < 0.001 ? bot.getHeading()
@@ -242,7 +258,7 @@ final class PlayerBotNavigation {
 		return true;
 	}
 
-	void stop() { SEARCHES.cancel(searchToken);SEARCHES.cancel(heightSearchToken);stopMovement(); }
+	void stop() { SEARCHES.cancel(searchToken);SEARCHES.cancel(heightSearchToken);route.clear();routeSearch=null;routeGoal=null;progressWaypoint=null;stopMovement(); }
 	private void stopMovement() { publishedGoal=null;publishedDestination=null;if (bot.getMoveController().isInMove()) bot.getMoveController().abortMove(); }
 	String status() { return SEARCHES.waiting(searchToken) || SEARCHES.waiting(heightSearchToken)?"waiting for local route search":status; }
 }

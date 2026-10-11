@@ -34,6 +34,11 @@ TESTS['PlayerBotQuestCapabilityCheck']=40
 TESTS['PlayerBotLegionPresenceCheck']=44
 TESTS['PlayerBotAllianceControlCheck']=82
 TESTS['PlayerBotDecisionIsolationCheck']=32
+TESTS['PlayerBotDecisionWorkersCheck']=8313
+TESTS['PlayerBotSupportOrderingCheck']=1019
+TESTS['PlayerBotActiveWorkerCheck']=3166
+TESTS['PlayerBotNpcPatrolCheck']=13
+TESTS['PlayerBotRouteCadenceCheck']=72
 TESTS['PlayerBotCampLandingCheck']=27
 TESTS['PlayerBotNavigationSearchCheck']=1229
 TESTS['PlayerBotCombatGearCheck']=29
@@ -67,6 +72,8 @@ TESTS['PlayerBotStoryRewardIntentCheck']=19
 TESTS['PlayerBotNativeXmlQuestCheck']=80
 TESTS['PlayerBotQuestObjectCommitmentCheck']=71
 TESTS['PlayerBotQuestTransformationCheck']=80
+TESTS['PlayerBotQuestItemTargetCheck']=50
+QUEST_TESTS['NativeKillObjectFamilyCheck']=490
 
 def reviewed_native_fixtures():
  catalogue=ROOT/'tools/native-quest-fixtures.json'
@@ -138,7 +145,7 @@ def main():
  for test,count in TESTS.items():
   cwd=ROOT if test in {'PlayerBotWorldProgressCheck','PlayerBotAssassinCheck','PlayerBotGladiatorCheck','PlayerBotTemplarCheck','PlayerBotChanterCheck','PlayerBotClericCheck','PlayerBotSpiritmasterCheck','PlayerBotSorcererCheck',
    'PlayerBotQuestCraftingCheck','PlayerBotQuestPrerequisitesCheck','PlayerBotNativeCraftingTaskCheck','PlayerBotNativeXmlQuestCheck'} else build/'checks'
-  args=[str(ROOT/'game-server')] if test in {'PlayerBotRepositoryCheck','PlayerBotPlayerZoneCheck','PlayerBotAuditCoverageCheck','PlayerBotIdleCastingCheck','PlayerBotCombatGearCheck','PlayerBotTargetVisibilityCheck','PlayerBotStoryRewardIntentCheck','PlayerBotQuestTransformationCheck'} else []
+  args=[str(ROOT/'game-server')] if test in {'PlayerBotRepositoryCheck','PlayerBotPlayerZoneCheck','PlayerBotAuditCoverageCheck','PlayerBotIdleCastingCheck','PlayerBotCombatGearCheck','PlayerBotTargetVisibilityCheck','PlayerBotStoryRewardIntentCheck','PlayerBotQuestTransformationCheck','PlayerBotQuestItemTargetCheck'} else []
   result=subprocess.run(['java','-Xverify:all','-cp',cp,'com.aionemu.gameserver.services.playerbot.'+test,*args],cwd=cwd,capture_output=True,text=True)
   (out/(test+'.txt')).write_text(result.stdout+result.stderr,encoding='utf-8')
   assert result.returncode==0,(test,result.stderr)

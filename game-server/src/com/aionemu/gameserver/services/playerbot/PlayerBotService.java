@@ -48,7 +48,7 @@ public final class PlayerBotService {
 	private volatile boolean shuttingDown;
  private final PlayerBotBackgroundWork backgroundWork=new PlayerBotBackgroundWork();
  private final PlayerBotBackgroundWork controlledWork=new PlayerBotBackgroundWork(),autonomousWork=new PlayerBotBackgroundWork(),maintenanceWork=new PlayerBotBackgroundWork(),checkpointWork=new PlayerBotBackgroundWork();
- private final PlayerBotBackgroundWork activeWorldWork=new PlayerBotBackgroundWork();
+ private final PlayerBotBackgroundWork activeWorldWork=new PlayerBotBackgroundWork(4);
  private long nextDecisionLagReport;
  private final PlayerBotExecution execution=new PlayerBotExecution();
  private final PlayerBotBackgroundWork teamWork=new PlayerBotBackgroundWork();
@@ -984,13 +984,14 @@ public final class PlayerBotService {
   // Party decisions remain serial; actor exclusion protects state transitions.
   var lanes=new LinkedHashMap<PlayerBotBackgroundWork,List<PlayerBotDecisionSchedule.Ready<PlayerBotSession>>>();
   for(var candidate:ready)lanes.computeIfAbsent(decisionWork(candidate.value()),key->new ArrayList<>()).add(candidate);
-  for(var lane:lanes.entrySet()){var batch=List.copyOf(lane.getValue());lane.getKey().submit(ThreadPoolManager.getInstance()::executeLongRunning,()->decide(batch));}
+  for(var lane:lanes.entrySet())for(var batch:PlayerBotDecisionSchedule.batches(lane.getValue(),lane.getKey().available()))
+   lane.getKey().submit(ThreadPoolManager.getInstance()::executeLongRunning,()->decide(batch));
   if(now>=nextDecisionLagReport){
    var late=ready.stream().filter(r->r.due()>0 && r.value().activeDecision() && now-r.due()>=5000).toList();
    if(!late.isEmpty()){
     var oldest=late.stream().min(Comparator.comparingLong(PlayerBotDecisionSchedule.Ready::due)).orElseThrow();
-    log.warn("Playerbot decision backlog: {} active actors overdue >=5s; oldest {} ({}) overdue {}ms; controlled/active-world/idle lanes busy {}/{}/{}; activity: {}",
-     late.size(),oldest.value().bot().getName(),oldest.id(),now-oldest.due(),controlledWork.busy(),activeWorldWork.busy(),autonomousWork.busy(),oldest.value().activitySummary());
+    log.warn("Playerbot decision backlog: {} active actors overdue >=5s; oldest {} ({}) overdue {}ms; controlled/active-world/idle lanes at capacity {}/{}/{}; active-world workers {}/4; activity: {}",
+     late.size(),oldest.value().bot().getName(),oldest.id(),now-oldest.due(),controlledWork.busy(),activeWorldWork.busy(),autonomousWork.busy(),activeWorldWork.running(),oldest.value().activitySummary());
     nextDecisionLagReport=now+30000;
    }
   }
@@ -1001,8 +1002,14 @@ public final class PlayerBotService {
    var session=candidate.value();int id=session.bot().getObjectId();
    if(!execution.claim(id,"decision",System.currentTimeMillis()))continue;
    long actorBegan=System.nanoTime();boolean dismiss=false;
+   boolean decided=false;
    try {
     if(shuttingDown || sessions.get(id)!=session || session.closing() || id==focusJobId)continue;
+    // Other batches may have completed this actor since their immutable snapshot.
+    // A stale snapshot must not shorten native reaction/cast/cooldown intervals.
+    long admission=System.currentTimeMillis();
+    if(decisions.due(id,session.reactionDelay(),admission)>admission)continue;
+    decided=true;
     // Membership transitions acquire service -> actor; decisions never do the reverse.
     if(session.world()) {
      var controller=worldController(session,null);
@@ -1028,7 +1035,7 @@ public final class PlayerBotService {
     }
     if(dismiss)dismiss(session);
    }finally {
-    decisions.complete(id,System.currentTimeMillis());execution.complete(id);
+    if(decided)decisions.complete(id,System.currentTimeMillis());execution.complete(id);
     long elapsed=(System.nanoTime()-actorBegan)/1_000_000L;
     if(elapsed>1000)log.warn("Playerbot {} ({}) decision took {}ms; activity: {}",session.bot().getName(),id,elapsed,session.activitySummary());
    }

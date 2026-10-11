@@ -46,7 +46,7 @@ final class PlayerBotQuestCapabilities {
     }
     String reason=!missing.isEmpty() ? "Missing owned native items: "+missing : intent.reason();
     if(intent.kind()==com.aionemu.gameserver.questEngine.model.QuestBotAction.Kind.SKILL
-     && !bot.getSkillList().isSkillPresent(intent.targetId()))reason="Required native skill "+intent.targetId()+" is not learned; an owned item may supply it";
+     && !bot.getSkillList().isSkillPresent(intent.targetId()))reason=PlayerBotQuestItems.skillItemRequirement(bot,intent.targetId());
     details.add(Map.of("kind",intent.kind().name(),"target",intent.targetId(),"page",intent.page(),"dialog",intent.dialogAction(),
      "requiredItems",intent.requiredItems(),"missingItems",Map.copyOf(missing),"reason",reason));
    }

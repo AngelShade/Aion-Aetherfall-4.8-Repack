@@ -16,6 +16,7 @@ import com.aionemu.gameserver.configs.main.GeoDataConfig;
 import com.aionemu.gameserver.configs.main.GeoDataConfig.Mode;
 import com.aionemu.gameserver.dataholders.DataManager;
 import com.aionemu.gameserver.geoEngine.collision.IgnoreProperties;
+import com.aionemu.gameserver.geoEngine.math.Vector3f;
 import com.aionemu.gameserver.model.gameobjects.Creature;
 import com.aionemu.gameserver.model.gameobjects.Npc;
 import com.aionemu.gameserver.model.gameobjects.VisibleObject;
@@ -51,6 +52,7 @@ public class NpcMoveController extends CreatureMoveController<Npc> {
 	private float pointZ;
 	private boolean nextPointFromGeo;
 	private boolean isStop;
+	private boolean patrolBlocked;
 
 	private LinkedList<Point3D> lastSteps;
 
@@ -247,6 +249,9 @@ public class NpcMoveController extends CreatureMoveController<Npc> {
 
 		float currentSpeed = owner.getGameStats().getMovementSpeedFloat();
 		float futureDistPassed = currentSpeed * (System.currentTimeMillis() - lastMoveUpdate) / 1000f;
+		boolean groundPatrol = destination==Destination.POINT && owner.getAi().getSubState()==AISubState.WALK_PATH
+			&& GeoDataConfig.GEO_NPC_MOVE && GeoDataConfig.MODE==Mode.ON && !owner.isFlying();
+		if(groundPatrol)futureDistPassed=Math.min(futureDistPassed,currentSpeed);
 		float dist = (float) PositionUtil.getDistance(ownerX, ownerY, ownerZ, targetX, targetY, targetZ);
 
 		if (owner.getAi().isLogging()) {
@@ -271,7 +276,20 @@ public class NpcMoveController extends CreatureMoveController<Npc> {
 		float newX = (targetDestX - ownerX) * distFraction + ownerX;
 		float newY = (targetDestY - ownerY) * distFraction + ownerY;
 		float newZ = (targetDestZ - ownerZ) * distFraction + ownerZ;
-		if (GeoDataConfig.GEO_NPC_MOVE && GeoDataConfig.MODE == Mode.ON && owner.getAi().getSubState() != AISubState.WALK_PATH
+		if(groundPatrol) {
+			Vector3f step=GeoService.getInstance().findNpcPatrolStep(owner.getWorldId(),owner.getInstanceId(),ownerX,ownerY,ownerZ,newX,newY,owner.getObjectTemplate().getHeight());
+			if(step==null || PositionUtil.getDistance(ownerX,ownerY,ownerZ,step.x,step.y,step.z)<.001) {
+				if(!patrolBlocked)log.warn("NPC {} walker {} has no supported patrol step at {}/{}/{} in world {}; retaining native route",owner.getNpcId(),owner.getSpawn().getWalkerId(),ownerX,ownerY,ownerZ,owner.getWorldId());
+				patrolBlocked=true;
+				if(isInMove())setAndSendStopMove(owner);
+				return;
+			}
+			if(patrolBlocked || Math.abs(newZ-step.z)>.1)destinationChanged=true;
+			patrolBlocked=false;newX=step.x;newY=step.y;newZ=step.z;
+			if(PositionUtil.getDistance(newX,newY,pointX,pointY)<MOVE_OFFSET) {
+				pointZ=newZ;targetDestZ=newZ;
+			}
+		} else if (GeoDataConfig.GEO_NPC_MOVE && GeoDataConfig.MODE == Mode.ON && owner.getAi().getSubState() != AISubState.WALK_PATH
 			&& owner.getAi().getState() != AIState.RETURNING && owner.getGameStats().getNextGeoZUpdate() < System.currentTimeMillis()) {
 			// fix Z if npc doesn't move to spawn point
 			if (owner.getSpawn().getX() != targetDestX || owner.getSpawn().getY() != targetDestY || owner.getSpawn().getZ() != targetDestZ) {
@@ -365,7 +383,7 @@ public class NpcMoveController extends CreatureMoveController<Npc> {
 		if (owner.getWalkerGroup() != null) {
 			dest = WalkerGroup.getLinePoint(new Point2D(currentStep.getX(), currentStep.getY()), new Point2D(step.getX(), step.getY()),
 				owner.getWalkerGroup().getClusterData(owner));
-			this.pointZ = currentStep.getZ();
+			this.pointZ = step.getZ();
 			owner.getWalkerGroup().setStep(owner, step.getStepIndex());
 		} else {
 			this.pointZ = step.getZ();

@@ -1,5 +1,48 @@
 # Aion project continuity and installed modifications
 
+## Owned skill-item and kill/object families — installed offline — 11 October 2026
+
+PB-SCOPE-QUEST-045 is installed from a fresh complete normal Maven build.
+Owned skill items choose explicit legal native targets, including resurrection,
+and recheck target/cost/cooldown/custody before native admission. Seventeen reviewed
+custom kill/object/report families preserve actual event credit and pages. Haramel
+uses three actual cart kills then three native object interactions; no nonexistent
+Flame Orb/Staff skill is invented.47106 registers actual enemy217175.11063/21063
+preserve enrollment/proof through reward previews; two narrow work-item XML additions
+leave successful cleanup with QuestService.finishQuest. Real mentor-party/range
+authority remains; daily enrollment and further custom/campaign/world/zone coverage
+remain unfinished engineering in the full autonomous quest/audit scope.
+
+The same cumulative build retains shared support-ordering, four bounded independent
+active workers, stale decision admission, resumable native ground routing, movement
+reaction/handoff and supported NPC patrol changes. Immutable support sort keys avoid
+changing-health comparator failures. Native actor exclusion, controlled serial lane,
+shutdown drain, geometry/hazards, resting gates and prior features remain. The two
+compile errors in shared NPC patrol integration were corrected in maintained source.
+
+Receipt:external archives/server/game-server/backups/playerbots-source-build-20261011-223149-555737.
+Review:external staging/output/release-20261011-continue045-final. GameServer SHA256:
+87c16905e16fc3fc906d6d5558f88d1cf4336e2920b9b8f20a77c694b1e94914.
+107 artifact-bound suites/95,884 checks/41 tooling tests,1,758 warning-free handlers,
+full XML/schema/JAXB and43 native-browser actions/33 screenshots pass. Linkage covers
+3,450 classes/194,474 executable references;3,683 previous JAR entries remain identical
+and all previous package/public required APIs remain.19 unchanged normal builder
+files delivered:GS,seventeen native handlers,quest_data.xml. Commons/client/configs
+remain. Independent installed verification passes232 guards/94 configs/30 protected
+client hashes and2,047 backed-up invalidated caches. Inventory passes20 mod checks/
+74 client/163 historical server receipts. All43 existing settings/seven feature
+switches, saved IDs/progress/builds and preceding installed modifications remain.
+
+Old214044 output was superseded after shared edits;222025 failed compilation. Neither
+was installed. Final5629-input source manifest matches the delivered normal build;
+no method transplant or JAR editing occurred. Fresh offline guards passed after user
+closure. No lifecycle/attach/dump/gameplay/production SQL/World/ID fixture occurred.
+Native effects/new grants/final rewards and actual latency remain user acceptance.
+Only Secondary Playerbots Implementation coordinated the final verification. User
+instructed installation then stop; this release does not complete the wider full audit.
+See docs/PLAYERBOTS_OWNED_SKILL_ITEM_TARGETS_20261011.md and
+ docs/PLAYERBOTS_KILL_OBJECT_FAMILIES_20261011.md.
+
 ## Timed quest/story routes and native catalog crash — installed offline — 11 October 2026
 
 PB-SCOPE-QUEST-044 is installed from complete normal Maven output. The confirmed

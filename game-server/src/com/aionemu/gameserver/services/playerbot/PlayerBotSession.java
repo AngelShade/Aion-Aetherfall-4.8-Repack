@@ -61,6 +61,7 @@ public final class PlayerBotSession {
 	private volatile String status = "ready";
  private volatile boolean supporting;
  private final int idleReaction=java.util.concurrent.ThreadLocalRandom.current().nextInt(10,31);
+ private final PlayerBotMovementCadence movementCadence=new PlayerBotMovementCadence();
  long reactionDelay(){
   if(forcedFollow!=null && forcedFollow())return 100;
   if(navigation!=null && navigation.waitingForSearchTurn() || pets!=null && pets.waitingForSearchTurn())return 100;
@@ -68,7 +69,9 @@ public final class PlayerBotSession {
   boolean threatened=resting && bot.getAggroList().stream().anyMatch(a->a.getHate()>0 && !a.getAttacker().isDead()
    && a.getAttacker().isSpawned() && bot.getKnownList().sees(a.getAttacker()));
   boolean active=supporting || threatened || !resting && (bot.getController().isInCombat() || engine.getState()==State.COMBAT || autonomous() && questTarget!=0);
-  return PlayerBotDecisionSchedule.reaction(!autonomous(),active,resting,resting?idleReaction*5:idleReaction);}
+  long ordinary=PlayerBotDecisionSchedule.reaction(!autonomous(),active,resting,resting?idleReaction*5:idleReaction);
+  return PlayerBotMovementCadence.reaction(ordinary,movementCadence!=null && bot.getMoveController()!=null
+   && movementCadence.active(System.currentTimeMillis(),resting,bot.getMoveController().isInMove()));}
  boolean activeDecision(){return reactionDelay()<=500 || bot.isLooting();}
  public String activitySummary(){return (autonomous()?"independent: ":"party: ")+status+"; last action: "+engine.getLastAction();}
 	private volatile boolean closing;

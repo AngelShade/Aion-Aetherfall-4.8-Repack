@@ -17,6 +17,13 @@ final class PlayerBotDecisionSchedule {
   return List.copyOf(snapshot);
  }
  private final Map<Integer,Long> completed=new java.util.concurrent.ConcurrentHashMap<>();
+ /** Disjoint slices retain deadline order within each bounded independent worker. */
+ static <T> List<List<T>> batches(List<T> ready,int slots) {
+  if(slots<=0 || ready.isEmpty())return List.of();
+  var result=new ArrayList<List<T>>();for(int i=0;i<Math.min(slots,ready.size());i++)result.add(new ArrayList<>());
+  for(int i=0;i<ready.size();i++)result.get(i%result.size()).add(ready.get(i));
+  return result.stream().map(List::copyOf).toList();
+ }
  private record Deadline(long reaction,long due) {}
  private final Map<Integer,Deadline> observed=new java.util.concurrent.ConcurrentHashMap<>();
  static long reaction(boolean clientMaster,boolean combat,boolean resting,int randomIdleMultiplier) {

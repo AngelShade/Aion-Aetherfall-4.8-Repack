@@ -154,6 +154,23 @@
     "game-server/data/handlers/quest/theobomos/_3083SearchingfortheElderofWisdom.java",
     "game-server/data/handlers/quest/theobomos/_3091TheLostDrakie.java",
     "game-server/data/handlers/quest/udas_temple/_30005HealMeKillMe.java",
-    "game-server/data/handlers/quest/verteron/_1169LightningfootTuka.java"
+    "game-server/data/handlers/quest/verteron/_1169LightningfootTuka.java",
+    "game-server/data/handlers/quest/haramel/_18510MurderMyShugo.java",
+    "game-server/data/handlers/quest/haramel/_28510DestroytheHaramelFacilities.java",
+    "game-server/data/handlers/quest/inggison/_11063QuellMastarius.java",
+    "game-server/data/handlers/quest/gelkmaros/_21063VanquishVeille.java",
+    "game-server/data/handlers/quest/reshanta/_4205SmackTheShulack.java",
+    "game-server/data/handlers/quest/kaisinel_academy/_37003CamouflageKillers.java",
+    "game-server/data/handlers/quest/kaisinel_academy/_37006NowYouSeeThem.java",
+    "game-server/data/handlers/quest/marchutan_priory/_47003AGlobalProblem.java",
+    "game-server/data/handlers/quest/marchutan_priory/_47006AmplifiersWithIssues.java",
+    "game-server/data/handlers/quest/orichalcum_key/_37103CamoAndCarnage.java",
+    "game-server/data/handlers/quest/orichalcum_key/_37106AsmoHunt.java",
+    "game-server/data/handlers/quest/orichalcum_key/_37110MyYoungApprentice.java",
+    "game-server/data/handlers/quest/orichalcum_key/_37113AsmoICU.java",
+    "game-server/data/handlers/quest/the_circle/_47103AGlobeTrottingLesson.java",
+    "game-server/data/handlers/quest/the_circle/_47106TurningUpTheAmplifiers.java",
+    "game-server/data/handlers/quest/the_circle/_47110AGlobeTrottingLesson.java",
+    "game-server/data/handlers/quest/the_circle/_47113TurningUpTheAmplifiers.java"
   ]
 }

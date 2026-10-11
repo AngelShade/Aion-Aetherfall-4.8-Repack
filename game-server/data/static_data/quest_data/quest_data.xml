@@ -35167,6 +35167,7 @@
 			<finished quest_id="11062"/>
 		</start_conditions>
 		<quest_work_items>
+			<quest_work_item item_id="182206849" count="1"/>
 			<quest_work_item item_id="182206850" count="1"/>
 		</quest_work_items>
 		<fighter_selectable_reward item_id="100200843" count="1"/>
@@ -50370,6 +50371,7 @@
 			<finished quest_id="21062"/>
 		</start_conditions>
 		<quest_work_items>
+			<quest_work_item item_id="182207852" count="1"/>
 			<quest_work_item item_id="182207853"/>
 		</quest_work_items>
 		<fighter_selectable_reward item_id="100200848" count="1"/>

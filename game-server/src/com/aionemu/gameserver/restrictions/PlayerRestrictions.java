@@ -277,6 +277,11 @@ public class PlayerRestrictions {
 	}
 
 	public static boolean canUseItem(Player player, Item item) {
+		return canUseItem(player, item, player == null ? null : player.getTarget());
+	}
+
+	/** The same native restrictions with an explicit target for headless item use. */
+	public static boolean canUseItem(Player player, Item item, com.aionemu.gameserver.model.gameobjects.VisibleObject selectedTarget) {
 		if (player == null || !player.isPlaying())
 			return false;
 
@@ -352,7 +357,7 @@ public class PlayerRestrictions {
 		}
 
 		if (item.getItemTemplate().getActivationRace() != null) {
-			if (!(player.getTarget() instanceof Creature target)) {
+			if (!(selectedTarget instanceof Creature target)) {
 				PacketSendUtility.sendPacket(player, SM_SYSTEM_MESSAGE.STR_ITEM_CANT_FIND_VALID_TARGET());
 				return false;
 			}
