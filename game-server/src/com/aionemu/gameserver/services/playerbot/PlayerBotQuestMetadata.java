@@ -10,6 +10,8 @@ final class PlayerBotQuestMetadata {
  static boolean ready(Player bot,int quest) {
   var state=bot.getQuestStateList().getQuestState(quest);if(state==null)return false;
   if(state.getStatus()==com.aionemu.gameserver.questEngine.model.QuestStatus.REWARD)return true;
+  if(PlayerBotQuestExchange.ready(bot,quest))return true;
+  if(!PlayerBotQuestActions.ids(bot,quest,com.aionemu.gameserver.questEngine.model.QuestBotAction.Kind.REWARD).isEmpty())return true;
   if(state.getStatus()!=com.aionemu.gameserver.questEngine.model.QuestStatus.START || DataManager.XML_QUESTS==null)return false;
   var model=DataManager.XML_QUESTS.getQuest(quest);
   if(model instanceof com.aionemu.gameserver.questEngine.handlers.models.ItemOrdersData)
@@ -32,6 +34,7 @@ final class PlayerBotQuestMetadata {
   return false;
  }
  static Set<Integer> rewardNpcIds(Player bot,int quest) {
+  var declared=PlayerBotQuestActions.ids(bot,quest,com.aionemu.gameserver.questEngine.model.QuestBotAction.Kind.REWARD);if(!declared.isEmpty())return declared;
   var observed=PlayerBotPartyCompletion.rewardNpcIds(bot,quest);if(!observed.isEmpty())return observed;
   var nativeIds=QuestEngine.getInstance().getPlayerBotRewardNpcIds(bot,quest);if(!nativeIds.isEmpty())return nativeIds;
   if(DataManager.XML_QUESTS==null)return Set.of();
@@ -69,7 +72,7 @@ final class PlayerBotQuestMetadata {
  static String coverage(Object model) {
   if(model==null)return "no XML model: registered native handler and objective adapter required";
   if(model instanceof com.aionemu.gameserver.questEngine.handlers.models.ReportOnLevelUpData)return "native enter-world/level acceptance and reward";
-  if(model instanceof com.aionemu.gameserver.questEngine.handlers.models.ItemOrdersData)return "native item-order conversations/reward; item-start adapter required";
+  if(model instanceof com.aionemu.gameserver.questEngine.handlers.models.ItemOrdersData)return "native owned-item acceptance, item-order conversations and reward; native eligibility and ownership apply";
   if(model.getClass()==com.aionemu.gameserver.questEngine.handlers.models.MonsterHuntData.class)return "native hunt/accept/reward";
   if(model.getClass()==com.aionemu.gameserver.questEngine.handlers.models.ItemCollectingData.class)return "native collect/conversation/accept/reward";
   if(model instanceof com.aionemu.gameserver.questEngine.handlers.models.ReportToData || model instanceof com.aionemu.gameserver.questEngine.handlers.models.ReportToManyData)return "native report/conversation/accept/reward";
@@ -85,20 +88,46 @@ final class PlayerBotQuestMetadata {
  static int rewardAction(Player bot,int quest) {
   var state=bot.getQuestStateList().getQuestState(quest);
   var model=DataManager.XML_QUESTS==null ? null : DataManager.XML_QUESTS.getQuest(quest);
+  if(model instanceof com.aionemu.gameserver.questEngine.handlers.models.WorkOrdersData)return com.aionemu.gameserver.model.DialogAction.QUEST_SELECT;
+  if(PlayerBotQuestExchange.exchange(quest))return com.aionemu.gameserver.model.DialogAction.USE_OBJECT;
   return state!=null && state.getStatus()==com.aionemu.gameserver.questEngine.model.QuestStatus.START && model!=null
    && model.getClass()==com.aionemu.gameserver.questEngine.handlers.models.ItemCollectingData.class
    ? com.aionemu.gameserver.model.DialogAction.CHECK_USER_HAS_QUEST_ITEM_SIMPLE : com.aionemu.gameserver.model.DialogAction.SELECT_QUEST_REWARD;
  }
  static boolean accept(Player bot,com.aionemu.gameserver.model.gameobjects.Npc npc,int quest,PlayerBotQuestDialog dialog) {
+  if(PlayerBotQuestExchange.exchange(quest))return PlayerBotQuestExchange.accept(bot,npc,quest,dialog);
+  dialog.clearPage();
   npc.getController().onDialogSelect(com.aionemu.gameserver.model.DialogAction.ASK_QUEST_ACCEPT,0,bot,quest,0);
-  if(dialog.offered(4)){npc.getController().onDialogSelect(com.aionemu.gameserver.model.DialogAction.QUEST_ACCEPT,4,bot,quest,0);return true;}
+  if(dialog.offered(4)) {
+   dialog.clearPage();npc.getController().onDialogSelect(com.aionemu.gameserver.model.DialogAction.QUEST_ACCEPT,4,bot,quest,0);
+   if(accepted(bot,quest))return true;
+  }
+  var declarations=PlayerBotQuestActions.actions(bot,quest);
+  dialog.clearPage();
   npc.getController().onDialogSelect(com.aionemu.gameserver.model.DialogAction.QUEST_SELECT,0,bot,quest,0);
+  for(var action:declarations)if(action.kind()==com.aionemu.gameserver.questEngine.model.QuestBotAction.Kind.CONVERSATION
+   && action.targetId()==npc.getNpcId() && action.dialogAction()>0 && action.page()>0 && PlayerBotQuestActions.items(bot,action) && dialog.offered(action.page())) {
+   dialog.clearPage();npc.getController().onDialogSelect(action.dialogAction(),action.page(),bot,quest,0);
+   for(var continuation:action.continuation()) {
+    if(!dialog.offered(continuation.page()) || !npc.isSpawned() || npc.isDead() || bot.isDead()
+     || npc.getWorldId()!=bot.getWorldId() || npc.getInstanceId()!=bot.getInstanceId() || !bot.getKnownList().sees(npc)
+     || !com.aionemu.gameserver.utils.PositionUtil.isInTalkRange(bot,npc)
+     || !com.aionemu.gameserver.world.geo.GeoService.getInstance().canSee(bot,npc)
+     || !com.aionemu.gameserver.services.DialogService.isInteractionAllowed(bot,npc))break;
+    dialog.clearPage();npc.getController().onDialogSelect(continuation.action(),continuation.page(),bot,quest,0);
+   }
+   return accepted(bot,quest);
+  }
   var model=DataManager.XML_QUESTS==null?null:DataManager.XML_QUESTS.getQuest(quest);
-  for(int page:startPages(model))if(dialog.offered(page)) {
-   npc.getController().onDialogSelect(com.aionemu.gameserver.model.DialogAction.QUEST_ACCEPT_1,page,bot,quest,0);return true;
+  for(int page:startPages(model))if(model!=null && dialog.offered(page)) {
+   dialog.clearPage();npc.getController().onDialogSelect(com.aionemu.gameserver.model.DialogAction.QUEST_ACCEPT_1,page,bot,quest,0);return accepted(bot,quest);
   }
   PlayerBotQuestSync.notice(bot,"The NPC uses a custom dialog for "+com.aionemu.gameserver.utils.ChatUtil.quest(quest)+". I need your guidance.","custom:"+quest,120000);
   return false;
+ }
+ private static boolean accepted(Player bot,int quest) {
+  var state=bot.getQuestStateList().getQuestState(quest);
+  return state!=null && (state.getStatus()==com.aionemu.gameserver.questEngine.model.QuestStatus.START || state.getStatus()==com.aionemu.gameserver.questEngine.model.QuestStatus.REWARD);
  }
  private PlayerBotQuestMetadata(){}
 }

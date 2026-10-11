@@ -85,6 +85,21 @@ public abstract class AbstractQuestHandler {
 		return Collections.unmodifiableSet(actionItems);
 	}
 
+	/** Current native stage discovery. Empty means this handler has no declared adapter. */
+	public List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return List.of();
+	}
+
+	/** Explicit native profession capability; names and source packages are not authorization. */
+	public boolean isBotCraftingQuest() {
+		return false;
+	}
+
+	/** Native gathering qualification, independently controlled from crafting. */
+	public boolean isBotGatheringQuest() {
+		return false;
+	}
+
 	public final int getQuestId() {
 		return questId;
 	}
@@ -473,6 +488,24 @@ public abstract class AbstractQuestHandler {
 			}
 		}
 		return false;
+	}
+
+	/** Qualification skill is earned by successful native completion, never by opening its reward page. */
+	public boolean sendQuestEndDialogAndLearnSkill(QuestEnv env, int skillId, int skillLevel, int requiredWorkItem) {
+		Player player = env.getPlayer();
+		QuestState state = player.getQuestStateList().getQuestState(questId);
+		if (state == null || state.getStatus() != QuestStatus.REWARD)
+			return false;
+		int action = env.getDialogActionId();
+		boolean selecting = action >= DialogAction.SELECTED_QUEST_REWARD1 && action <= DialogAction.SELECTED_QUEST_NOREWARD;
+		if (selecting && player.getInventory().getItemCountByItemId(requiredWorkItem) < 1)
+			return false;
+		boolean result = sendQuestEndDialog(env);
+		if (result && selecting && state.getStatus() == QuestStatus.COMPLETE) {
+			player.getSkillList().addSkill(player, skillId, skillLevel);
+			player.getController().updateNearbyQuests();
+		}
+		return result;
 	}
 
 	private boolean isAcceptableQuest(QuestTemplate quest) {

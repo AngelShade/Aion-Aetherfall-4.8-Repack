@@ -21,6 +21,11 @@ public class _29642GoodOnGelkmaros extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.daevanionField(player, questId, 799297, 799225, 215888, 215889, 216009, 216010);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(npcIds[0]).addOnQuestStart(questId);
 		for (int npcId : npcIds) {

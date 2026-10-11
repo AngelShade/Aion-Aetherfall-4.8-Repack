@@ -23,7 +23,24 @@ public class _29002ExpertAethertappersTest extends AbstractQuestHandler {
 	}
 
 	@Override
+	public boolean isBotGatheringQuest() { return true; }
+
+	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.tappingTest(player, questId, 204257, 204099, 122001251, false);
+	}
+
+	@Override
+	public boolean onEnterWorldEvent(QuestEnv env) {
+		var state = env.getPlayer().getQuestStateList().getQuestState(questId);
+		return state != null && state.getStatus() == QuestStatus.START && state.getQuestVarById(0) == 0
+			&& env.getPlayer().getInventory().getItemCountByItemId(122001251) > 0
+			&& defaultOnGetItemEvent(env, 0, 1, false);
+	}
+
+	@Override
 	public void register() {
+		qe.registerOnEnterWorld(questId);
 		qe.registerQuestNpc(204257).addOnQuestStart(questId);
 		qe.registerQuestNpc(204257).addOnTalkEvent(questId);
 		qe.registerQuestNpc(204099).addOnTalkEvent(questId);
@@ -64,8 +81,8 @@ public class _29002ExpertAethertappersTest extends AbstractQuestHandler {
 							long itemCount1 = player.getInventory().getItemCountByItemId(itemId1);
 							long itemCount2 = player.getInventory().getItemCountByItemId(itemId2);
 							if (itemCount1 >= 1 && itemCount2 >= 1) {
-								removeQuestItem(env, itemId1, itemCount1);
-								removeQuestItem(env, itemId2, itemCount2);
+								removeQuestItem(env, itemId1, 1);
+								removeQuestItem(env, itemId2, 1);
 								qs.setStatus(QuestStatus.REWARD);
 								updateQuestStatus(env);
 								return sendQuestDialog(env, 5);

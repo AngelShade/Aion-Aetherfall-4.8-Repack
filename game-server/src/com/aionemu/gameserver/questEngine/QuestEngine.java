@@ -910,6 +910,22 @@ public class QuestEngine implements GameEngine {
 		return handler == null ? "" : handler.getClass().getName();
 	}
 
+	public boolean isPlayerBotCraftingQuest(int questId) {
+		var handler = questHandlers.get(questId);
+		return handler != null && handler.isBotCraftingQuest();
+	}
+
+	public boolean isPlayerBotGatheringQuest(int questId) {
+		var handler = questHandlers.get(questId);
+		return handler != null && handler.isBotGatheringQuest();
+	}
+
+	/** Immutable intents from the actual registered handler, never XML-presence inference. */
+	public List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player, int questId) {
+		AbstractQuestHandler handler = questHandlers.get(questId);
+		return handler == null ? List.of() : List.copyOf(handler.getPlayerBotActions(player));
+	}
+
 	public void addQuestHandler(AbstractQuestHandler questHandler) {
 		int questId = questHandler.getQuestId();
 		if (questHandlers.putIfAbsent(questId, questHandler) != null)

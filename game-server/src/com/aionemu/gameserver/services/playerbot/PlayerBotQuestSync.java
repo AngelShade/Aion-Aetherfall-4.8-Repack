@@ -72,7 +72,7 @@ public final class PlayerBotQuestSync {
  }
  private static final Map<Integer,State> STATES=new ConcurrentHashMap<>();
  static State state(PlayerBotSession session){return STATES.computeIfAbsent(session.bot().getObjectId(),id->new State(session));}
- static void close(PlayerBotSession session){STATES.remove(session.bot().getObjectId());PlayerBotCare.close(session);PlayerBotTravel.close(session);PlayerBotGearPolicy.close(session);PlayerBotPartyBehavior.close(session);}
+ static void close(PlayerBotSession session){STATES.remove(session.bot().getObjectId());PlayerBotQuestActions.close(session.bot());PlayerBotQuestItems.close(session.bot());PlayerBotQuestCraftingDriver.close(session.bot());PlayerBotQuestMaterials.close(session.bot());PlayerBotCare.close(session);PlayerBotTravel.close(session);PlayerBotGearPolicy.close(session);PlayerBotPartyBehavior.close(session);}
  static boolean skipped(Player bot,int quest){var s=STATES.get(bot.getObjectId());return s!=null && s.skipped.contains(quest);}
  static boolean returning(PlayerBotSession session) {
   var s=state(session);
@@ -99,6 +99,10 @@ public final class PlayerBotQuestSync {
  }
  static boolean wanted(Player owner,Player bot,int quest) {
   var s=STATES.get(bot.getObjectId());if(s!=null && s.skipped.contains(quest))return false;
+  if(owner==bot) {
+   var actual=bot.getQuestStateList().getQuestState(quest);
+   return actual==null || actual.getStatus()!=QuestStatus.COMPLETE || actual.canRepeat();
+  }
   var owned=owner.getQuestStateList().getQuestState(quest);
   if(owned==null || owned.getStatus()!=QuestStatus.COMPLETE)return true;
   var completed=bot.getQuestStateList().getQuestState(quest);
@@ -106,29 +110,8 @@ public final class PlayerBotQuestSync {
   return s!=null && (s.approved.contains(quest) || s.managed.contains(quest) && s.ownerCompletions.getOrDefault(quest,Integer.MAX_VALUE)<owned.getCompleteCount()
    || s.approved.stream().anyMatch(root->chain(bot,root).contains(quest)));
  }
- static List<Integer> missing(Player bot,int quest) {
-  List<Integer> missing=new ArrayList<>();QuestTemplate template=DataManager.QUEST_DATA.getQuestById(quest);
-  if(template==null)return missing;
-  // Native finished-condition groups are alternatives: choose the shortest
-  // unfinished branch, and never demand all alternative quest chains.
-  List<Integer> best=null;
-  for(var condition:template.getXMLStartConditions())if(condition.getFinishedPreconditions()!=null) {
-   List<Integer> branch=new ArrayList<>();
-   for(var prerequisite:condition.getFinishedPreconditions()) {
-    var qs=bot.getQuestStateList().getQuestState(prerequisite.getQuestId());
-    if(qs==null || qs.getStatus()!=QuestStatus.COMPLETE || prerequisite.getReward()>=0 && !Objects.equals(qs.getRewardGroup(),prerequisite.getReward()))branch.add(prerequisite.getQuestId());
-   }
-   if(branch.isEmpty())return List.of();
-   if(best==null || branch.size()<best.size())best=branch;
-  }
-  if(best!=null)missing.addAll(best);
-  return List.copyOf(missing);
- }
- static List<Integer> chain(Player bot,int quest) {
-  Set<Integer> result=new LinkedHashSet<>();Deque<Integer> pending=new ArrayDeque<>(missing(bot,quest));
-  while(!pending.isEmpty() && result.size()<32){int id=pending.removeFirst();if(id==quest || !result.add(id))continue;pending.addAll(missing(bot,id));}
-  return List.copyOf(result);
- }
+ static List<Integer> missing(Player bot,int quest) {return PlayerBotQuestPrerequisites.missing(bot,quest);}
+ static List<Integer> chain(Player bot,int quest) {return PlayerBotQuestPrerequisites.chain(bot,quest);}
  static void tick(PlayerBotSession session,boolean enabled) {
   State s=state(session);Player owner=session.owner(),bot=session.bot();long now=System.currentTimeMillis();
   if(!enabled || now<s.nextScan || owner.isDead() || bot.isDead())return;s.nextScan=now+3000;
@@ -138,9 +121,9 @@ public final class PlayerBotQuestSync {
    var current=bot.getQuestStateList().getQuestState(id);if(current!=null && current.getStatus()!=QuestStatus.LOCKED && !current.isStartable())continue;
    var template=DataManager.QUEST_DATA.getQuestById(id);if(template==null)continue;
    if(!QuestService.checkStartConditions(bot,id,false)) {
-    List<Integer> prerequisites=chain(bot,id);
-    if(!prerequisites.isEmpty())prompt(session,new Prompt(id,prerequisites,"I have not completed the prerequisite quests. Will you help me catch up?"));
-    else notice(bot,"I cannot accept "+ChatUtil.quest(id)+" yet: my level, class or another native quest requirement is not met.","blocked:"+id,120000);
+    var plan=PlayerBotQuestPrerequisites.plan(bot,id);
+    if(plan.reachable() && !plan.chain().isEmpty())prompt(session,new Prompt(id,plan.chain(),"I have not completed the prerequisite quests. Will you help me catch up?"));
+    else notice(bot,"I cannot accept "+ChatUtil.quest(id)+" yet: "+plan.blockers().stream().map(PlayerBotQuestPrerequisites.Blocker::reason).distinct().collect(java.util.stream.Collectors.joining("; ")),"blocked:"+id,120000);
     continue;
    }
    if(!bot.getController().isInCombat() && !owner.getController().isInCombat() && !template.isCannotShare())PlayerBotService.getInstance().acceptSharedQuest(owner,bot,id);

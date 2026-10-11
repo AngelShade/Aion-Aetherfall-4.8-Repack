@@ -19,6 +19,11 @@ public class _2904DispatchtoAltgard extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.dispatch(player, questId, 204191, 203559);
+	}
+
+	@Override
 	public void register() {
 		qe.registerOnQuestCompleted(questId);
 		qe.registerQuestNpc(204191).addOnTalkEvent(questId);

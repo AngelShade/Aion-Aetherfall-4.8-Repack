@@ -9,6 +9,7 @@ import com.aionemu.gameserver.questEngine.handlers.AbstractQuestHandler;
 import com.aionemu.gameserver.questEngine.model.QuestEnv;
 import com.aionemu.gameserver.questEngine.model.QuestState;
 import com.aionemu.gameserver.questEngine.model.QuestStatus;
+import com.aionemu.gameserver.questEngine.model.QuestBotAction;
 import com.aionemu.gameserver.utils.PacketSendUtility;
 
 /**
@@ -20,6 +21,22 @@ public class _1003IllegalLogging extends AbstractQuestHandler {
 
 	public _1003IllegalLogging() {
 		super(1003);
+	}
+
+	@Override
+	public java.util.List<QuestBotAction> getPlayerBotActions(Player player) {
+		var qs = player.getQuestStateList().getQuestState(questId);
+		if (qs == null) return java.util.List.of();
+		if (qs.getStatus() == QuestStatus.REWARD) return java.util.List.of(QuestBotAction.reward(203081));
+		if (qs.getStatus() != QuestStatus.START) return java.util.List.of();
+		int stage = qs.getQuestVarById(0);
+		if (stage >= 1 && stage <= 6) return QuestBotAction.hunts(210096, 210149, 210145, 210146, 210150, 210151, 210092, 210154, 210685);
+		if (stage >= 8 && stage <= 10) return QuestBotAction.hunts(210160);
+		return switch (stage) {
+			case 0 -> java.util.List.of(QuestBotAction.dialog(203081, SETPRO1, 1011));
+			case 7 -> java.util.List.of(QuestBotAction.dialog(203081, SETPRO2, 1352));
+			default -> java.util.List.of(QuestBotAction.event("Unexpected native Illegal Logging stage; no transition declared"));
+		};
 	}
 
 	@Override

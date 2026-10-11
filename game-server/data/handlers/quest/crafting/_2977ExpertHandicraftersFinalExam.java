@@ -19,6 +19,14 @@ public class _2977ExpertHandicraftersFinalExam extends AbstractQuestHandler {
 	}
 
 	@Override
+	public boolean isBotCraftingQuest() { return true; }
+
+	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.expertQualification(player, questId, 204108, 182207949);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(204108).addOnQuestStart(questId);
 		qe.registerQuestNpc(204108).addOnTalkEvent(questId);

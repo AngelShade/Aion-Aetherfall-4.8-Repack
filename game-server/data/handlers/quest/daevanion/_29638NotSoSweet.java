@@ -21,6 +21,11 @@ public class _29638NotSoSweet extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.daevanionField(player, questId, 799248, 799248, 215918, 215919, 215907);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(npcId).addOnQuestStart(questId);
 		qe.registerQuestNpc(npcId).addOnTalkEvent(questId);

@@ -8,6 +8,7 @@ import com.aionemu.gameserver.questEngine.handlers.AbstractQuestHandler;
 import com.aionemu.gameserver.questEngine.model.QuestEnv;
 import com.aionemu.gameserver.questEngine.model.QuestState;
 import com.aionemu.gameserver.questEngine.model.QuestStatus;
+import com.aionemu.gameserver.questEngine.model.QuestBotAction;
 import com.aionemu.gameserver.services.QuestService;
 import com.aionemu.gameserver.utils.PacketSendUtility;
 
@@ -18,6 +19,20 @@ public class _2003TreasureOfTheDeceased extends AbstractQuestHandler {
 
 	public _2003TreasureOfTheDeceased() {
 		super(2003);
+	}
+
+	@Override
+	public java.util.List<QuestBotAction> getPlayerBotActions(Player player) {
+		var qs = player.getQuestStateList().getQuestState(questId);
+		if (qs == null) return java.util.List.of();
+		if (qs.getStatus() == QuestStatus.REWARD) return java.util.List.of(QuestBotAction.reward(203539));
+		if (qs.getStatus() != QuestStatus.START) return java.util.List.of();
+		return switch (qs.getQuestVarById(0)) {
+			case 0 -> java.util.List.of(QuestBotAction.dialog(203539, SETPRO1, 1011));
+			case 1 -> java.util.List.of(QuestBotAction.dialog(203539, CHECK_USER_HAS_QUEST_ITEM, 1352)
+				.requiringCollection(com.aionemu.gameserver.dataholders.DataManager.QUEST_DATA.getQuestById(questId).getCollectItems()));
+			default -> java.util.List.of(QuestBotAction.event("Unexpected native Treasure of the Deceased stage; no transition declared"));
+		};
 	}
 
 	@Override

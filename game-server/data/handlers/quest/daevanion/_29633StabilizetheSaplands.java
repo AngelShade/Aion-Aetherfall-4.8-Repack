@@ -21,6 +21,11 @@ public class _29633StabilizetheSaplands extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.daevanionField(player, questId, 205150, 205164, 214408, 214429, 214430);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(npcIds[0]).addOnQuestStart(questId);
 		for (int npcId : npcIds) {

@@ -3,6 +3,21 @@ package com.aionemu.gameserver.configs.main;
 import com.aionemu.commons.configuration.Property;
 
 public final class PlayerBotConfig {
+	/** Owner-facing switches are documented together in config/playerbots/features.properties. */
+	@Property(key = "gameserver.playerbots.quests.enable", defaultValue = "true")
+	public static boolean QUESTS_ENABLED = true;
+	@Property(key = "gameserver.playerbots.quests.item_starts", defaultValue = "true")
+	public static boolean QUEST_ITEM_STARTS = true;
+	@Property(key = "gameserver.playerbots.quests.custom", defaultValue = "true")
+	public static boolean QUEST_CUSTOM = true;
+	@Property(key = "gameserver.playerbots.quests.crafting", defaultValue = "true")
+	public static boolean QUEST_CRAFTING = true;
+	@Property(key = "gameserver.playerbots.quests.materials", defaultValue = "true")
+	public static boolean QUEST_MATERIALS = true;
+	@Property(key = "gameserver.playerbots.quests.exchange", defaultValue = "true")
+	public static boolean QUEST_EXCHANGE = true;
+	@Property(key = "gameserver.playerbots.quests.flight", defaultValue = "true")
+	public static boolean QUEST_FLIGHT = true;
 	@Property(key = "gameserver.playerbots.world.enable", defaultValue = "true")
 	public static boolean WORLD_ENABLED;
 	@Property(key = "gameserver.playerbots.world.max_active", defaultValue = "3000")

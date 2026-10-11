@@ -12,6 +12,7 @@ import com.aionemu.gameserver.questEngine.model.QuestActionType;
 import com.aionemu.gameserver.questEngine.model.QuestEnv;
 import com.aionemu.gameserver.questEngine.model.QuestState;
 import com.aionemu.gameserver.questEngine.model.QuestStatus;
+import com.aionemu.gameserver.questEngine.model.QuestBotAction;
 import com.aionemu.gameserver.services.instance.InstanceService;
 import com.aionemu.gameserver.services.teleport.TeleportService;
 import com.aionemu.gameserver.utils.PacketSendUtility;
@@ -26,6 +27,27 @@ public class _1002RequestoftheElim extends AbstractQuestHandler {
 
 	public _1002RequestoftheElim() {
 		super(1002);
+	}
+
+	@Override
+	public java.util.List<QuestBotAction> getPlayerBotActions(Player player) {
+		var qs = player.getQuestStateList().getQuestState(questId);
+		if (qs == null) return java.util.List.of();
+		if (qs.getStatus() == QuestStatus.REWARD) return java.util.List.of(QuestBotAction.reward(203067));
+		if (qs.getStatus() != QuestStatus.START) return java.util.List.of();
+		return switch (qs.getQuestVarById(0)) {
+			case 0 -> java.util.List.of(QuestBotAction.dialog(203076, SETPRO1, 1011));
+			case 1 -> java.util.List.of(QuestBotAction.dialog(730007, SELECT2_1, 1352).then(SETPRO2, 1353));
+			case 2, 4 -> java.util.List.of(QuestBotAction.object(730010).requiring(182200002, 1));
+			case 5 -> java.util.List.of(QuestBotAction.dialog(730007, SETPRO3, 1693).requiring(182200002, 1));
+			case 6 -> java.util.List.of(QuestBotAction.dialog(730007, CHECK_USER_HAS_QUEST_ITEM, 2034)
+				.requiringCollection(com.aionemu.gameserver.dataholders.DataManager.QUEST_DATA.getQuestById(questId).getCollectItems()));
+			case 12 -> java.util.List.of(QuestBotAction.dialog(730007, SETPRO4, 2120));
+			case 13 -> java.util.List.of(QuestBotAction.dialog(730008, SETPRO5, 2375));
+			case 14 -> java.util.List.of(QuestBotAction.dialog(730008, SETPRO6, 2461));
+			case 20 -> java.util.List.of(QuestBotAction.flight(205000, QUEST_SELECT, "Karamatis scripted flight 1001: native 43-second completion"));
+			default -> java.util.List.of(QuestBotAction.event("Unexpected native Request of the Elim stage; no transition declared"));
+		};
 	}
 
 	@Override
@@ -136,13 +158,18 @@ public class _1002RequestoftheElim extends AbstractQuestHandler {
 								player.setState(CreatureState.FLYING);
 								player.unsetState(CreatureState.ACTIVE);
 								player.setFlightTeleportId(1001);
+								final var scriptedFlight = player.getFlightPath();
+								final int flightWorld = player.getWorldId(), flightInstance = player.getInstanceId();
 								PacketSendUtility.sendPacket(player, new SM_EMOTION(player, EmotionType.START_FLYTELEPORT, 1001, 0));
 								ThreadPoolManager.getInstance().schedule(new Runnable() {
 
 									@Override
 									public void run() {
+										if (player.isPlayerBot() && (!player.getController().isHeadlessScriptedFlightCurrent(scriptedFlight, flightWorld, flightInstance)
+											|| qs.getStatus() != QuestStatus.START || qs.getQuestVarById(0) != 20)) return;
 										changeQuestStep(env, 20, 14); // 14
 										TeleportService.teleportTo(player, 210010000, 1, 603, 1537, 116, (byte) 20);
+										player.getController().finishHeadlessScriptedFlight(scriptedFlight);
 									}
 								}, 43000);
 								return true;

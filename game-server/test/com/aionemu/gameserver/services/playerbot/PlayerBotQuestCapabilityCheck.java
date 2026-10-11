@@ -55,7 +55,7 @@ public final class PlayerBotQuestCapabilityCheck {
    check(PlayerBotQuestConversations.steps(null,bot,900105).isEmpty(),"Reward state has no repeated intermediate action");
    check(PlayerBotQuestMetadata.rewardNpcIds(bot,900105).equals(Set.of(203003)),"Singular native order reward NPC is retained");
    check(PlayerBotQuestCapabilities.describe(bot,900105,model).get("action").equals("REWARD"),"Native reward destination is exposed");
-   check(PlayerBotQuestMetadata.coverage(model).contains("item-start adapter required"),"Unimplemented item acceptance remains explicit");
+   check(PlayerBotQuestMetadata.coverage(model).contains("native owned-item acceptance"),"Item-start path is identified without claiming whole-chain acceptance");
    registered.remove(900105);
    check(Boolean.FALSE.equals(PlayerBotQuestCapabilities.describe(bot,900105,model).get("registered")),"A saved reward state cannot substitute a missing handler");
    check(PlayerBotQuestCapabilities.missing(new com.aionemu.gameserver.questEngine.handlers.models.KillSpawnedData()).contains("spawner"),"Specific missing spawned-object action is identified");

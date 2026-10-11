@@ -20,6 +20,14 @@ public class _19053ExpertExpertofConstruction extends AbstractQuestHandler {
 	}
 
 	@Override
+	public boolean isBotCraftingQuest() { return true; }
+
+	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.expertQualification(player, questId, 798450, 0);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(798450).addOnQuestStart(questId);
 		qe.registerQuestNpc(798450).addOnTalkEvent(questId);

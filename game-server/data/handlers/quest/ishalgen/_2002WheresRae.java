@@ -31,8 +31,36 @@ public class _2002WheresRae extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		var state = player.getQuestStateList().getQuestState(questId);
+		if (state == null) return java.util.List.of();
+		if (state.getStatus() == QuestStatus.REWARD)
+			return java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.reward(203516));
+		if (state.getStatus() != QuestStatus.START) return java.util.List.of();
+		return switch (state.getQuestVarById(0)) {
+			case 0 -> java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.dialog(203519, SETPRO1, 1011));
+			case 1 -> java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.dialog(203534, SETPRO2, 1352));
+			case 2 -> java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.dialog(790002, SETPRO3, 1693));
+			case 3, 4, 5, 6, 7, 8, 9 -> com.aionemu.gameserver.questEngine.model.QuestBotAction.hunts(210377, 210378);
+			case 10 -> java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.dialog(790002, SETPRO4, 2034));
+			case 11 -> player.getInventory().getItemCountByItemId(182203003) < 1
+				? java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.object(700045))
+				: java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.dialog(790002, CHECK_USER_HAS_QUEST_ITEM, 2375)
+					.requiring(182203003, 1));
+			case 12 -> java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.dialog(790002, SETPRO5, 2462));
+			case 13 -> java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.dialog(790002, SETPRO6, 2716));
+			case 14 -> java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.object(203538));
+			case 15 -> java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.dialog(203553, SETPRO7, 3057));
+			case 35 -> state.getQuestVars().getQuestVars() == 99 && player.getWorldId() == WorldMapType.ATAXIAR.getId()
+				? java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.flight(205020, QUEST_SELECT, "Original Ataxiar flight timer owns return and quest progress"))
+				: java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.event("Ataxiar return requires the original packed native instance marker 99"));
+			default -> java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.event("Saved Rae stage has no declared native transition"));
+		};
+	}
+
+	@Override
 	public void register() {
-		int[] npc_ids = { 203519, 203534, 203553, 700045, 203516, 203538 };
+		int[] npc_ids = { 203519, 203534, 203553, 700045, 203516, 203538, 790002, 205020 };
 		qe.registerOnQuestCompleted(questId);
 		qe.registerOnLevelChanged(questId);
 		qe.registerQuestNpc(210377).addOnKillEvent(questId);
@@ -178,14 +206,20 @@ public class _2002WheresRae extends AbstractQuestHandler {
 								player.setState(CreatureState.FLYING);
 								player.unsetState(CreatureState.ACTIVE);
 								player.setFlightTeleportId(3001);
+								final var scriptedFlight = player.getFlightPath();
+								final int flightWorld = player.getWorldId(), flightInstance = player.getInstanceId();
+								final int flightQuestVars = qs.getQuestVars().getQuestVars();
 								PacketSendUtility.sendPacket(player, new SM_EMOTION(player, EmotionType.START_FLYTELEPORT, 3001, 0));
 								ThreadPoolManager.getInstance().schedule(new Runnable() {
 
 									@Override
 									public void run() {
+										if (player.isPlayerBot() && (!player.getController().isHeadlessScriptedFlightCurrent(scriptedFlight, flightWorld, flightInstance)
+											|| qs.getStatus() != QuestStatus.START || qs.getQuestVars().getQuestVars() != flightQuestVars)) return;
 										TeleportService.teleportTo(player, 220010000, 940.15f, 2295.64f, 265.7f, (byte) 43);
 										qs.setQuestVar(13);
 										updateQuestStatus(qEnv);
+										player.getController().finishHeadlessScriptedFlight(scriptedFlight);
 									}
 								}, 40000);
 								return true;

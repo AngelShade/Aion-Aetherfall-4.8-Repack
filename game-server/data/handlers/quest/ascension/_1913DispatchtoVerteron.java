@@ -19,6 +19,11 @@ public class _1913DispatchtoVerteron extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.dispatch(player, questId, 203726, 203097);
+	}
+
+	@Override
 	public void register() {
 		qe.registerOnQuestCompleted(questId);
 		qe.registerQuestNpc(203726).addOnTalkEvent(questId);

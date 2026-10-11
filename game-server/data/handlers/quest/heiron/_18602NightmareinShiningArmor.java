@@ -8,6 +8,7 @@ import com.aionemu.gameserver.questEngine.handlers.AbstractQuestHandler;
 import com.aionemu.gameserver.questEngine.model.QuestEnv;
 import com.aionemu.gameserver.questEngine.model.QuestState;
 import com.aionemu.gameserver.questEngine.model.QuestStatus;
+import com.aionemu.gameserver.questEngine.model.QuestBotAction;
 import com.aionemu.gameserver.services.instance.InstanceService;
 import com.aionemu.gameserver.services.teleport.TeleportService;
 import com.aionemu.gameserver.skillengine.SkillEngine;
@@ -27,6 +28,23 @@ public class _18602NightmareinShiningArmor extends AbstractQuestHandler {
 
 	public _18602NightmareinShiningArmor() {
 		super(18602);
+	}
+
+	@Override
+	public java.util.List<QuestBotAction> getPlayerBotActions(Player player) {
+		var qs = player.getQuestStateList().getQuestState(questId);
+		if (qs == null || qs.isStartable()) return java.util.List.of(QuestBotAction.dialog(205229, ASK_QUEST_ACCEPT, 4762).then(QUEST_ACCEPT, 4));
+		if (qs.getStatus() == QuestStatus.REWARD) return java.util.List.of(QuestBotAction.reward(205229));
+		if (qs.getStatus() != QuestStatus.START) return java.util.List.of();
+		return switch (qs.getQuestVarById(0)) {
+			case 0 -> java.util.List.of(QuestBotAction.dialog(205229, SETPRO1, 1011));
+			case 1 -> java.util.List.of(new QuestBotAction(QuestBotAction.Kind.OBJECT, 730308, SELECT2_1, 1352,
+				java.util.Map.of(185000109, 1L), "Hisen's key is required for native instance continuation").then(SETPRO2, 1353));
+			case 2 -> java.util.List.of(new QuestBotAction(QuestBotAction.Kind.OBJECT, 700939, SETPRO3, 1693,
+				java.util.Map.of(), ""));
+			case 3 -> QuestBotAction.hunts(kaligaIds);
+			default -> java.util.List.of(QuestBotAction.event("Unexpected native Nightmare stage; no transition declared"));
+		};
 	}
 
 	@Override

@@ -21,6 +21,11 @@ public class _19638TroublewithTwos extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.daevanionField(player, questId, 798926, 799022, 215510, 215511, 216649, 215514, 215515, 216651);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(npcIds[0]).addOnQuestStart(questId);
 		for (int npcId : npcIds) {

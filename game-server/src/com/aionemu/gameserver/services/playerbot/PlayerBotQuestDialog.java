@@ -16,12 +16,21 @@ public final class PlayerBotQuestDialog implements AutoCloseable {
 		ACTIVE.set(dialog); return dialog;
 	}
 	public static void observe(QuestEnv env, int npc, int page, int quest) {
-		if (env.getPlayer().isPlayerBot()) record(env.getPlayer().getObjectId(), npc, page, quest);
+		if (env.getPlayer().isPlayerBot()) {
+			// Native selection windows intentionally carry quest zero in their
+			// packet. Bind them to the handler's actual dispatch quest, not to
+			// another quest which happens to share the same NPC.
+			int source = quest == 0 && page == 10 ? env.getQuestId() : quest;
+			record(env.getPlayer().getObjectId(), npc, page, source);
+		}
 	}
 	static void record(int player, int npc, int page, int quest) {
+		PlayerBotQuestItems.observe(player, npc, page, quest);
+		PlayerBotQuestObjects.observe(player, npc, page, quest);
 		var dialog = ACTIVE.get();
 		if (dialog != null && dialog.player == player && dialog.npc == npc && dialog.quest == quest) dialog.page = page;
 	}
 	boolean offered(int expectedPage) { return page != null && page == expectedPage && expectedPage > 0; }
+	void clearPage() { page = null; }
 	@Override public void close() { if (ACTIVE.get() == this) ACTIVE.remove(); }
 }

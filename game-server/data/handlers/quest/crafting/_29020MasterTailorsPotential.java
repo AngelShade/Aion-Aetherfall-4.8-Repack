@@ -21,6 +21,14 @@ public class _29020MasterTailorsPotential extends AbstractQuestHandler {
 	}
 
 	@Override
+	public boolean isBotCraftingQuest() { return true; }
+
+	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.masterPotential(player, questId, 204110, 204111, 182207900, new com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.Design(152206964, 155007002), new com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.Design(152206965, 155007003));
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(204110).addOnQuestStart(questId);
 		qe.registerQuestNpc(204110).addOnTalkEvent(questId);

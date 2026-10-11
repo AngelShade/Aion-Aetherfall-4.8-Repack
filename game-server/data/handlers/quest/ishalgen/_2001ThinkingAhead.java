@@ -7,6 +7,7 @@ import com.aionemu.gameserver.questEngine.handlers.AbstractQuestHandler;
 import com.aionemu.gameserver.questEngine.model.QuestEnv;
 import com.aionemu.gameserver.questEngine.model.QuestState;
 import com.aionemu.gameserver.questEngine.model.QuestStatus;
+import com.aionemu.gameserver.questEngine.model.QuestBotAction;
 
 /**
  * @author vlog, Majka
@@ -17,6 +18,23 @@ public class _2001ThinkingAhead extends AbstractQuestHandler {
 
 	public _2001ThinkingAhead() {
 		super(2001);
+	}
+
+	@Override
+	public java.util.List<QuestBotAction> getPlayerBotActions(Player player) {
+		var qs = player.getQuestStateList().getQuestState(questId);
+		if (qs == null) return java.util.List.of();
+		if (qs.getStatus() == QuestStatus.REWARD) return java.util.List.of(QuestBotAction.reward(203518));
+		if (qs.getStatus() != QuestStatus.START) return java.util.List.of();
+		int stage = qs.getQuestVarById(0);
+		if (stage >= 3 && stage <= 8) return QuestBotAction.hunts(mobs);
+		return switch (stage) {
+			case 0 -> java.util.List.of(QuestBotAction.dialog(203518, SETPRO1, 1011));
+			case 1 -> java.util.List.of(QuestBotAction.object(700093), QuestBotAction.dialog(203518, CHECK_USER_HAS_QUEST_ITEM, 1352)
+				.requiringCollection(com.aionemu.gameserver.dataholders.DataManager.QUEST_DATA.getQuestById(questId).getCollectItems()));
+			case 2 -> java.util.List.of(QuestBotAction.dialog(203518, SETPRO3, 1694));
+			default -> java.util.List.of(QuestBotAction.event("Unexpected native Thinking Ahead stage; no transition declared"));
+		};
 	}
 
 	@Override

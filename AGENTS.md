@@ -1,19 +1,62 @@
 # Aion project continuity and installed modifications
 
-## Quest repairs, Kaliga and hidden bot targets - reviewed, not installed - 11 October 2026
+## Interrupted autonomous quest/master release — installed offline — 11 October 2026
+
+PB-SCOPE-QUEST-043 resumed the usage-interrupted coordinated source work and is
+installed through complete unchanged normal Maven output. Native owned-item
+acceptance/report/reward chains, prerequisite planning, actual crafting/gathering,
+151 reviewed custom handler sources including both factions' master profession
+chains, material/custody separation and seven documented feature switches are
+included. Switches use exactly config/playerbots/features.properties, preserve
+owner edits on subsequent delivery, and retain owned items/progress/pending native
+completion when admission is disabled. Existing 43 explicit settings remain.
+
+Receipt: external archives/server/game-server/backups/
+playerbots-source-build-20261011-171808-276790; review: external staging/output/
+release-20261011-170133-124432. GameServer SHA256:
+446522b595efdd28dd52a318e387acf51f172eb37a7ba333bd048dbc59130798.
+94 exact-artifact suites /82,116 checks /41 tool tests,1,758 warning-free handlers,
+43 native-browser actions/33 screenshots,full XML/schema/JAXB and3,437-class/
+192,764-reference linkage pass.3,609 prior JAR entries remain identical; no prior
+package/public API removed.153 unchanged builder files delivered(GS,151 handlers,
+features);Commons/client/existing configuration remain.2,045 generated handler
+caches backed up/invalidated. Inventory20 mod checks/74 client/161 historical server
+receipts passes. All56 original/82 scope reference hashes verify. Failed recipe
+fixture cwd and restricted renderer attempts remain in the review; corrected
+checks passed without product/artifact changes. Old sealed receipts are unchanged;
+the new aggregate verifier includes the complete quest suite union.
+
+Fresh host offline guards passed; no lifecycle/attach/gameplay/production SQL or
+native World/ID fixture occurred. The full audit request remains active unfinished
+engineering. Confirmed next work:1127 nested XML/object/report actions and second
+native timed commitment guards;1114 native story branch routes and1007 class-forced
+reward-group reachability. Preserve native timing/rewards and all preceding mods/
+IDs/progress. Missing engineering is separate from user gameplay acceptance.
+See docs/PLAYERBOTS_AUTONOMOUS_QUESTS_20261011.md and the master-chain record.
+
+## Quest repairs, Kaliga and hidden bot targets - installed offline - 11 October 2026
 
 User authorized collaboration with "Diagnose missing custom quest" for1035/1038/18602,
 then official-style Kaliga the Unjust research/fight repair and invisible Playerbot
-targets in the room. Maintained changes are ready; no runtime delivery/lifecycle action
-occurred. Do not describe these as installed. GameServer/Aion closure remains required.
+targets in the room. After the user confirmed GameServer/Aion closure, fresh offline
+guards passed and complete unchanged normal Maven output was installed. No agent
+component lifecycle/attach/gameplay/production SQL action occurred.
 
 Review: external staging/output/release-20261011-084214-029639, scope QUEST-KALIGA-042.
 Normal GameServer SHA:a218aa09e76685b238540c795f5607145f2d2bd2d44bd47e629e59818955f372.
 72 artifact-bound suites/69029 checks/28 tooling tests,1758 warning-free handlers,
 full XML/schema/JAXB,43 native-browser actions/33 screenshots and3389-class/
 185309-reference linkage pass;3652 unrelated JAR entries remain identical.
-Source/build/resource/preservation review passes. Resume this exact canonical review
-with --install after fresh closed-component guards; reject stale source/artifacts.
+Source/build/resource/preservation review passes. Installed receipt: external archives/
+server/game-server/backups/playerbots-source-build-20261011-091509-037915. Nine unchanged
+builder files delivered; Commons/client/configs remain.2,046 generated caches backed
+up/invalidated. Inventory passes20 checks/74 client/160 historical server receipts.
+Independent installed audit passes9 builder hashes/69 guards/93 configs/30 protected
+client hashes, recovery/source/static/linkage and all72 suites/69029 checks/43 browser
+actions. The sealed maintained verifier's redundant final summary omits QUEST_TESTS;
+external quest-kaliga-042-installed-audit preserves all checks and includes that union.
+Carry this aggregate fix into the next newly bound tooling release; do not rewrite
+the current sealed evidence. See the encounter report for the exact audit path.
 
 1035 consumes one owned bead with successful native removal, commits Desert use before
 optional movie and preserves timers/custody.1038 restores acquisition dispatch and

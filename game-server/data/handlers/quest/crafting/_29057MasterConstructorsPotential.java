@@ -25,6 +25,14 @@ public class _29057MasterConstructorsPotential extends AbstractQuestHandler {
 	}
 
 	@Override
+	public boolean isBotCraftingQuest() { return true; }
+
+	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.masterConstruction(player, questId, 798452, 798453, new com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.Design(152208541, 155008541), new com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.Design(152208542, 155008542));
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(798452).addOnQuestStart(questId);
 		qe.registerQuestNpc(798452).addOnTalkEvent(questId);

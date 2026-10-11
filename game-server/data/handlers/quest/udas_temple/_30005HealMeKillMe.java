@@ -20,6 +20,11 @@ public class _30005HealMeKillMe extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.countedHunt(player, questId, 799029, 24, 215857, 215814, 215858, 215815);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(799029).addOnQuestStart(questId);
 		qe.registerQuestNpc(799029).addOnTalkEvent(questId);

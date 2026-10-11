@@ -37,6 +37,7 @@ public final class PlayerBotQuestJournal {
   }
   Set<Integer> ids=new TreeSet<>(ready ? PlayerBotQuestMetadata.rewardNpcIds(bot,quest.getQuestId()) : QuestEngine.getInstance().getRequiredKillNpcIds(bot,quest.getQuestId()));
   if(!ready)ids.addAll(PlayerBotQuestObjects.objectiveIds(bot,quest.getQuestId()));
+  if(!ready)for(var kind:PlayerBotQuestRoutes.Kind.values())if(kind!=PlayerBotQuestRoutes.Kind.REWARD)ids.addAll(PlayerBotQuestRoutes.ids(owner,bot,quest.getQuestId(),kind));
   var conversations=ready ? Set.<Integer>of() : PlayerBotQuestConversations.objectiveIds(owner,bot,quest.getQuestId());ids.addAll(conversations);
   row.put("conversation",!conversations.isEmpty());
   List<Map<String,Object>> destinations=new ArrayList<>();

@@ -21,6 +21,11 @@ public class _29639MonstersUnholy extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.daevanionField(player, questId, 799248, 799248, 215988, 215989);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(npcId).addOnQuestStart(questId);
 		qe.registerQuestNpc(npcId).addOnTalkEvent(questId);

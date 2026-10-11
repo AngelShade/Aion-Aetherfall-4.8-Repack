@@ -9,6 +9,7 @@ import com.aionemu.gameserver.questEngine.model.QuestEnv;
 import com.aionemu.gameserver.questEngine.model.QuestActionType;
 import com.aionemu.gameserver.questEngine.model.QuestState;
 import com.aionemu.gameserver.questEngine.model.QuestStatus;
+import com.aionemu.gameserver.questEngine.model.QuestBotAction;
 import com.aionemu.gameserver.services.QuestService;
 
 /**
@@ -22,6 +23,27 @@ public class _1038TheShadowsCommand extends AbstractQuestHandler {
 
 	public _1038TheShadowsCommand() {
 		super(questId);
+	}
+
+	@Override
+	public java.util.List<QuestBotAction> getPlayerBotActions(Player player) {
+		var qs = player.getQuestStateList().getQuestState(questId);
+		if (qs == null) return java.util.List.of();
+		if (qs.getStatus() == QuestStatus.REWARD) return java.util.List.of(QuestBotAction.reward(203991));
+		if (qs.getStatus() != QuestStatus.START) return java.util.List.of();
+		return switch (qs.getQuestVarById(0)) {
+			case 0 -> java.util.List.of(QuestBotAction.object(700162));
+			case 1 -> java.util.List.of(QuestBotAction.dialog(203933, SETPRO2, 1352));
+			case 2 -> java.util.List.of(player.getInventory().getItemCountByItemId(182201007) > 0
+				? QuestBotAction.item(182201007) : QuestBotAction.object(700172));
+			case 3 -> java.util.List.of(QuestBotAction.dialog(203933, SETPRO3, 1694).requiring(182201007, 1));
+			case 4 -> java.util.List.of(QuestBotAction.dialog(203933, CHECK_USER_HAS_QUEST_ITEM, 2034)
+				.requiringCollection(com.aionemu.gameserver.dataholders.DataManager.QUEST_DATA.getQuestById(questId).getCollectItems()));
+			case 5 -> java.util.List.of(QuestBotAction.dialog(203933, SETPRO4, 2035));
+			case 6 -> java.util.List.of(QuestBotAction.dialog(203991, SETPRO5, 2375));
+			case 7 -> java.util.List.of(QuestBotAction.hunt(204005));
+			default -> java.util.List.of(QuestBotAction.event("Unexpected native Shadows Command stage; no transition declared"));
+		};
 	}
 
 	@Override

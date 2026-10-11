@@ -19,7 +19,19 @@ public class _30348ImprovedAethercannon extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.weaponUpgrade(player, questId, 799336, 101900655, 182213289, 286904, 281419, 215795);
+	}
+
+	@Override
+	public boolean onEnterWorldEvent(QuestEnv env) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.ownsUpgradeToken(env.getPlayer(), questId, 182213289)
+			&& onGetItemEvent(env);
+	}
+
+	@Override
 	public void register() {
+		qe.registerOnEnterWorld(questId);
 		int[] debilkarims = { 286904, 281419, 215795 };
 		qe.registerQuestNpc(799336).addOnQuestStart(questId);
 		qe.registerQuestNpc(799336).addOnTalkEvent(questId);
@@ -38,7 +50,7 @@ public class _30348ImprovedAethercannon extends AbstractQuestHandler {
 
 		if (qs == null || qs.isStartable()) {
 			if (targetId == 799336) { // Tataka
-				if (player.getInventory().getItemCountByItemId(100100716) >= 1) { // Noble Siel's Supreme Mace
+				if (player.getInventory().getItemCountByItemId(101900655) >= 1) { // Noble Siel's Supreme Aethercannon
 					if (dialogActionId == QUEST_SELECT) {
 						return sendQuestDialog(env, 4762);
 					} else {
@@ -52,8 +64,8 @@ public class _30348ImprovedAethercannon extends AbstractQuestHandler {
 					if (player.getInventory().getItemCountByItemId(182213289) > 0) {
 						return sendQuestDialog(env, 10002);
 					}
-				} else {
-					removeQuestItem(env, 182213289, 1);
+				} else if (player.getInventory().getItemCountByItemId(182213289) > 0) {
+					// Successful native finishQuest removes this work token; opening a dialog must preserve it.
 					return sendQuestEndDialog(env);
 				}
 			}

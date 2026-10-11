@@ -19,6 +19,14 @@ public class _1977ExpertExpertofHandicrafting extends AbstractQuestHandler {
 	}
 
 	@Override
+	public boolean isBotCraftingQuest() { return true; }
+
+	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.expertQualification(player, questId, 203792, 182206896);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(203792).addOnQuestStart(questId);
 		qe.registerQuestNpc(203792).addOnTalkEvent(questId);

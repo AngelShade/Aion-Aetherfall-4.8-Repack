@@ -24,7 +24,7 @@ final class PlayerBotQuestObjectives {
   boolean active,copied,paused; long nextScan,lastProgress,lastActive; double best;
   final Map<String,Long> excluded=new HashMap<>();
   final Map<String,Integer> failures=new HashMap<>();
-  final Map<Integer,Long> itemsBefore=new HashMap<>();
+  final Map<Integer,Long> itemsBefore=new HashMap<>();boolean objectStarted;
   Decision(PlayerBotSession session){this.session=session;}
  }
  private static final Map<Integer,Decision> DECISIONS=new ConcurrentHashMap<>();
@@ -52,6 +52,7 @@ final class PlayerBotQuestObjectives {
   if(goal.kind()==Kind.HUNT)return !npc.isDead() && !npc.isFlag()
    && PlayerBotPartyBehavior.hostileObjective(bot,npc,Set.of(goal.npc())) && PlayerBotPartyBehavior.isolated(owner,bot,npc);
   if(goal.kind()==Kind.OBJECT) {
+   if(PlayerBotQuestActions.object(bot,goal.quest(),npc.getNpcId()))return !npc.isDead() && npc.getMaster()==npc && !bot.isEnemy(npc) && DialogService.isInteractionAllowed(bot,npc);
    if(!"quest_use_item".equals(npc.getAi().getName()) || !PlayerBotQuestObjects.safe(owner,bot,npc))return false;
    var loot=DropRegistrationService.getInstance().getDropRegistrationMap().get(npc.getObjectId());
    return npc.isDead() ? loot!=null && loot.isAllowedToLoot(bot) && (!loot.isBeingLooted() || bot.isLooting() && bot.getLootingNpcOid()==npc.getObjectId()) : DialogService.isInteractionAllowed(bot,npc);
@@ -82,20 +83,24 @@ final class PlayerBotQuestObjectives {
  static boolean pull(Player bot,Npc npc) {
   var d=DECISIONS.get(bot.getObjectId());return d==null || d.goal!=null && matches(bot,Kind.HUNT,d.goal.quest(),npc);
  }
+ static boolean materialPull(Player bot) {var d=DECISIONS.get(bot.getObjectId());return d==null || d.active && d.goal==null;}
  static boolean objectMatch(Player bot,Npc npc) {
+  for(var state:bot.getQuestStateList().getUncompletedQuests())
+   if(PlayerBotQuestActions.object(bot,state.getQuestId(),npc.getNpcId()) && matches(bot,Kind.OBJECT,state.getQuestId(),npc))return true;
   for(var q:com.aionemu.gameserver.services.QuestService.getQuestDrop(npc.getNpcId()))
    if(PlayerBotQuestObjects.needs(bot,bot.getQuestStateList().getQuestState(q.getQuestId()),q) && matches(bot,Kind.OBJECT,q.getQuestId(),npc))return true;
   return false;
  }
  static void objectStarted(Player bot,Npc npc) {
   var d=DECISIONS.get(bot.getObjectId());if(d==null || d.goal==null)return;
+  d.objectStarted=true;
   d.itemsBefore.clear();for(var drop:com.aionemu.gameserver.services.QuestService.getQuestDrop(npc.getNpcId()))
    if(drop.getQuestId()==d.goal.quest())d.itemsBefore.put(drop.getItemId(),bot.getInventory().getItemCountByItemId(drop.getItemId()));
  }
  static void objectFinished(Player bot) {
-  var d=DECISIONS.get(bot.getObjectId());if(d==null || d.itemsBefore.isEmpty())return;
-  boolean received=false;for(var before:d.itemsBefore.entrySet())if(bot.getInventory().getItemCountByItemId(before.getKey())>before.getValue())received=true;
-  d.itemsBefore.clear();attempted(bot,received);
+  var d=DECISIONS.get(bot.getObjectId());if(d==null || !d.objectStarted)return;
+  boolean received=!current(bot,d);for(var before:d.itemsBefore.entrySet())if(bot.getInventory().getItemCountByItemId(before.getKey())>before.getValue())received=true;
+  d.objectStarted=false;d.itemsBefore.clear();attempted(bot,received);
  }
  static void rewardAttempted(Player bot,int quest) {
   var state=bot.getQuestStateList().getQuestState(quest);

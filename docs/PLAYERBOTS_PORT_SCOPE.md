@@ -1,5 +1,15 @@
 # Full Playerbots port scope and iteration focus
 
+## Current quest/master continuation — installed offline — 11 October 2026
+
+PB-SCOPE-QUEST-043 is installed from complete normal Maven output; 94 artifact-bound
+suites /82,116 checks pass. It includes the interrupted coordinated native item,
+profession/master-chain, material, prerequisite and compact feature-control work,
+preserving all preceding mods/settings/progress. Receipt:
+playerbots-source-build-20261011-171808-276790. Full quest coverage and wider parity
+remain active unfinished engineering; actual gameplay remains user acceptance.
+See [current evidence and remaining cases](PLAYERBOTS_AUTONOMOUS_QUESTS_20261011.md).
+
 ## Weapon visibility and shared height traversal - installed offline - 11 October 2026
 
 PB-REPAIR-WEAPON-039 / PB-REPAIR-HEIGHT-040 is installed through unchanged complete

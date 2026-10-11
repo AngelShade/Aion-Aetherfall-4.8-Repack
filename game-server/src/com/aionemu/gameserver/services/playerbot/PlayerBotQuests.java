@@ -46,7 +46,7 @@ final class PlayerBotQuests {
 					if(PlayerBotQuestObjectives.job(bot,new Job(npc,state.getQuestId(),true)))jobs.add(new Job(npc, state.getQuestId(), true));
 			for (int id : registered.getOnQuestStart()) {
 				PlayerBotQuestSync.nearby(owner, bot, id);
-				if (PlayerBotQuestSync.wanted(owner, bot, id) && ordinary(DataManager.QUEST_DATA.getQuestById(id))
+				if (PlayerBotQuestSync.wanted(owner, bot, id) && autonomous(bot,id) && PlayerBotQuestExchange.eligible(bot,id)
 					&& !blocked(npc, id) && QuestService.checkStartConditions(bot, id, false))
 					if(PlayerBotQuestObjectives.job(bot,new Job(npc,id,false)))jobs.add(new Job(npc, id, false));
 			}
@@ -60,6 +60,7 @@ final class PlayerBotQuests {
 		return interact(owner, bot, job, role, false);
 	}
 	boolean interact(Player owner, Player bot, Job job, PlayerBotRules.Role role, boolean mission) {
+		if(!PlayerBotQuestFeatures.enabled(job.quest()))return false;
 		Npc npc = job.npc();
 		boolean missionReward = mission && job.turnIn() && QuestEngine.getInstance().getPlayerBotRewardNpcIds(bot, job.quest()).contains(npc.getNpcId())
 			&& !owner.isDead() && !npc.isDead() && npc.isSpawned() && npc.getMaster() == npc && !bot.isEnemy(npc)
@@ -73,14 +74,15 @@ final class PlayerBotQuests {
 				if (!QuestService.checkStartConditions(bot, job.quest(), false)) return false;
 				PlayerBotQuestMetadata.accept(bot, npc, job.quest(), dialog);
 				var state = bot.getQuestStateList().getQuestState(job.quest());
-				boolean accepted = state != null && state.getStatus() == QuestStatus.START;
+				boolean accepted = state != null && (state.getStatus() == QuestStatus.START || state.getStatus() == QuestStatus.REWARD);
 				if (accepted) PlayerBotQuestSync.accepted(owner, bot, job.quest(), false);
-				return accepted;
+				if(!accepted || state.getStatus()!=QuestStatus.REWARD)return accepted;
 			}
 			var state = bot.getQuestStateList().getQuestState(job.quest());
 			var template = DataManager.QUEST_DATA.getQuestById(job.quest());
 			if (state == null || !PlayerBotQuestMetadata.ready(bot, job.quest()) || template == null) return false;
-			npc.getController().onDialogSelect(PlayerBotQuestMetadata.rewardAction(bot, job.quest()), 0, bot, job.quest(), 0);
+			if(PlayerBotQuestExchange.exchange(job.quest()))PlayerBotQuestExchange.openReward(bot,npc,job.quest(),dialog);
+			else npc.getController().onDialogSelect(PlayerBotQuestMetadata.rewardAction(bot, job.quest()), 0, bot, job.quest(), 0);
 			if (state.getStatus() != QuestStatus.REWARD) return false;
 			int page = DialogPage.getRewardPageByIndex(state.getRewardGroup()).id();
 			if (!dialog.offered(page)) return false; // confirms that this handler authorized this reward NPC
@@ -95,10 +97,11 @@ final class PlayerBotQuests {
 			int extra=extended ? rewardChoice(bot,role,template.getExtendedRewards().getSelectableRewardItem()) : -1;
 			// Native combined reward dialog indexes use 8+choice for extended rewards.
 			int action=extended && extra>=0 ? DialogAction.SELECTED_QUEST_NOREWARD : choice<0 ? DialogAction.SELECTED_QUEST_NOREWARD : DialogAction.SELECTED_QUEST_REWARD1+choice;
+			if(PlayerBotQuestExchange.exchange(job.quest()))action=DialogAction.SELECTED_QUEST_NOREWARD;
 			int extraIndex=extra>=0 ? 8+extra : 0;
 			if(action==DialogAction.SELECTED_QUEST_NOREWARD && choice>=0 && extra>=0 && choice!=extra)return false; // native shared index cannot express two different choices
 			npc.getController().onDialogSelect(action, page, bot, job.quest(), extraIndex);
-			boolean completed = state.getStatus() != QuestStatus.REWARD;
+			boolean completed = state.getStatus() == QuestStatus.COMPLETE;
 			if (completed) PlayerBotQuestSync.accepted(owner, bot, job.quest(), true);
 			return completed;
 		} finally {
@@ -109,6 +112,11 @@ final class PlayerBotQuests {
 		}
 	}
 	static boolean ordinary(QuestTemplate template) { return template != null && (template.getCategory() == QuestCategory.QUEST || template.getCategory() == QuestCategory.IMPORTANT); }
+	static boolean autonomous(Player bot,int quest) {
+		if(!PlayerBotQuestFeatures.enabled(quest))return false;
+		var template=DataManager.QUEST_DATA.getQuestById(quest);
+		return ordinary(template) || template!=null && !QuestEngine.getInstance().getPlayerBotActions(bot,quest).isEmpty();
+	}
 	Npc hunt(Player owner, Player bot) {
 		return hunt(owner, bot, 0);
 	}

@@ -19,6 +19,14 @@ public class _2979ExpertCooksFinalExam extends AbstractQuestHandler {
 	}
 
 	@Override
+	public boolean isBotCraftingQuest() { return true; }
+
+	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.expertQualification(player, questId, 204100, 182207955, 182207956, 182207957, 182207958);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(204100).addOnQuestStart(questId);
 		qe.registerQuestNpc(204100).addOnTalkEvent(questId);

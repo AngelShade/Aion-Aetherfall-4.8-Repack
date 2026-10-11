@@ -12,6 +12,7 @@ from datetime import datetime
 ROOT = Path(__file__).resolve().parents[1]
 DEV = Path('D:/Proiecte/Project Restructure/Aion Development Workspace')
 SOURCE = ROOT / 'game-server/config/main/playerbots.properties'
+FEATURE_SOURCE = ROOT / 'game-server/config/playerbots/features.properties'
 JAVA = ROOT / 'game-server/src/com/aionemu/gameserver/configs/main/PlayerBotConfig.java'
 SERVER = ROOT / 'target-deploy/game-server'
 LIVE = SERVER / 'config/main/playerbots.properties'
@@ -45,6 +46,19 @@ def complete(template, values):
         if LINE.fullmatch(line):
             assert index > 0 and lines[index-1].startswith('#'), 'Missing inline setting explanation'
     return result
+
+def source_catalogue():
+    main = properties(SOURCE.read_text(encoding='utf-8'))
+    features = properties(FEATURE_SOURCE.read_text(encoding='utf-8'))
+    assert not set(main) & set(features), 'Playerbots settings must have one documented home'
+    complete(SOURCE.read_text(encoding='utf-8'), main)
+    complete(FEATURE_SOURCE.read_text(encoding='utf-8'), features)
+    return main | features
+
+def main_defaults(defaults):
+    # This legacy documentation action owns only the existing main file.
+    # The normal builder/delivery adds features.properties without replacing owner edits.
+    return {key: value for key, value in defaults.items() if key in properties(SOURCE.read_text(encoding='utf-8'))}
 
 def unchanged_effective(before, after, defaults):
     old = properties(before)
@@ -81,6 +95,7 @@ def verified_receipt(server, archives):
     original = path.parent / 'playerbots.properties'
     assert sha(original) == m['original']
     defaults, _ = compiled_defaults()
+    defaults = main_defaults(defaults)
     assert properties(LIVE.read_text()) == m['effective'] == effective_with_repair(defaults, properties(original.read_text()), m.get('formattingRepair'))
     return dict(path='config/main/playerbots.properties', original=m['original'], installed=m['installed'],
         review=str(path), reviewSha256=sha(path), recovery=str(original), documentationOnly=True)
@@ -90,7 +105,8 @@ def prepare(repair_review=None):
     source_values = properties(template)
     keys = re.findall(r'@Property\(key = "([^"]+)"', JAVA.read_text())
     defaults, output = compiled_defaults()
-    assert len(keys) == len(set(keys)) == len(defaults) and set(keys) == set(source_values) == set(defaults)
+    assert len(keys) == len(set(keys)) == len(defaults) and set(keys) == set(source_catalogue()) == set(defaults)
+    defaults = main_defaults(defaults)
     before = properties(LIVE.read_text(encoding='utf-8'))
     assert set(before) <= set(defaults)
     repair = None
@@ -121,6 +137,7 @@ def install(review):
     stage = Path(m['staged'])
     assert stage.resolve().parent == review.resolve()
     defaults, _ = compiled_defaults()
+    defaults = main_defaults(defaults)
     assert properties(stage.read_text()) == m['effective'] == effective_with_repair(defaults, m['preservedExplicit'], m.get('formattingRepair'))
     protected = {path: sha(path) for path in SERVER.joinpath('libs').glob('*.jar')}
     def guard():

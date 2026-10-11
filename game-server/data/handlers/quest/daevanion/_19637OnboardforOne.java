@@ -21,6 +21,11 @@ public class _19637OnboardforOne extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.daevanionField(player, questId, 798926, 798926, 215502, 215503, 215500, 215501);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(npcId).addOnQuestStart(questId);
 		qe.registerQuestNpc(npcId).addOnTalkEvent(questId);

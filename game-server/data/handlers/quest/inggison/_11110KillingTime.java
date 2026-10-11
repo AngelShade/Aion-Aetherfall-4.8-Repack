@@ -20,6 +20,11 @@ public class _11110KillingTime extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.countedHunt(player, questId, 799075, 9, 217039, 217040);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(217039).addOnKillEvent(questId);
 		qe.registerQuestNpc(217040).addOnKillEvent(questId);

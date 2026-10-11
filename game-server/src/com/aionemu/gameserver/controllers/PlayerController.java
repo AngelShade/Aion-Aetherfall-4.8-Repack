@@ -685,6 +685,26 @@ public class PlayerController extends CreatureController<Player> {
 		player.setFlightPath(null);
 	}
 
+	/** A native quest timer owns arrival; a headless actor cannot send its client landing packet. */
+	public boolean isHeadlessScriptedFlightCurrent(FlightPath expected, int world, int instance) {
+		Player player = getOwner();
+		return player.isPlayerBot() && player.isSpawned() && !player.isDead()
+			&& player.getWorldId() == world && player.getInstanceId() == instance
+			&& expected != null && player.getFlightPath() == expected
+			&& expected.getType() == FlightPath.Type.FLIGHT_TRANSPORTER && player.getCurrentFlyPath() == null;
+	}
+
+	public void finishHeadlessScriptedFlight(FlightPath expected) {
+		Player player = getOwner();
+		if (!player.isPlayerBot() || expected == null || player.getFlightPath() != expected
+			|| expected.getType() != FlightPath.Type.FLIGHT_TRANSPORTER || player.getCurrentFlyPath() != null)
+			return;
+		player.unsetState(CreatureState.FLYING);
+		player.setState(CreatureState.ACTIVE);
+		player.setFlightPath(null);
+		updateZone();
+	}
+
 	public void startStance(int skillId) {
 		stopStance();
 		stanceObserver = new StanceObserver(getOwner(), skillId);

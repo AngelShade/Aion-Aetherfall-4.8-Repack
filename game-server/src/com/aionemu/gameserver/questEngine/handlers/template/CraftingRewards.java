@@ -88,4 +88,25 @@ public class CraftingRewards extends AbstractTemplateQuestHandler {
 			return CraftSkillUpdateService.getInstance().canLearnMoreMasterCraftingSkill(player);
 		throw new IllegalStateException("Unhandled levelReward " + levelReward);
 	}
+
+	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		var state = player.getQuestStateList().getQuestState(questId);
+		if (state != null && state.getStatus() == QuestStatus.REWARD)
+			return java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.reward(endNpcId));
+		if (state != null && !state.isStartable() && state.getStatus() != QuestStatus.START)
+			return java.util.List.of();
+		if (!com.aionemu.gameserver.services.playerbot.PlayerBotQuestCrafting.qualificationAllowed(player, levelReward))
+			return java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.event("Native " + levelReward + " crafting qualification slot limit is reached"));
+		if (state == null || state.isStartable())
+			return startNpcId == 0 ? java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.event("Native qualification has no manual start NPC"))
+				: java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.dialog(startNpcId,
+					com.aionemu.gameserver.model.DialogAction.QUEST_ACCEPT_1, isDataDriven ? 4762 : 1011));
+		if (state.getStatus() == QuestStatus.START)
+			return java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.dialog(endNpcId, SELECT_QUEST_REWARD, isDataDriven ? 1011 : 2375));
+		return java.util.List.of();
+	}
+
+	@Override
+	public boolean isBotCraftingQuest() { return true; }
 }

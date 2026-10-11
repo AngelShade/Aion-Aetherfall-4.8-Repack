@@ -159,7 +159,10 @@ final class PlayerBotCare {
  }
  static boolean worldQuestItem(Player bot,int item){return questItem(bot,item);}
  private static boolean questItem(Player bot,int item) {
+  var active=PlayerBotService.getInstance().currentActor(bot);
+  if(active!=null && PlayerBotQuestMaterials.protectedItem(active,item))return true;
   for(var quest:bot.getQuestStateList().getUncompletedQuests()) {
+   if(PlayerBotQuestActions.custody(bot,quest.getQuestId()).stream().anyMatch(a->a.requiredItems().containsKey(item) || a.kind()==com.aionemu.gameserver.questEngine.model.QuestBotAction.Kind.ITEM && a.targetId()==item))return true;
    var template=DataManager.QUEST_DATA.getQuestById(quest.getQuestId());
    if(template!=null && template.getQuestWorkItems()!=null && template.getQuestWorkItems().getQuestWorkItem().stream().anyMatch(i->i.getItemId()==item))return true;
    if(template!=null && template.getCollectItems()!=null && template.getCollectItems().getCollectItem().stream().anyMatch(i->i.getItemId()==item))return true;

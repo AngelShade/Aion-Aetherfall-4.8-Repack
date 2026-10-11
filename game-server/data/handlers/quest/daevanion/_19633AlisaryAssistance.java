@@ -21,6 +21,11 @@ public class _19633AlisaryAssistance extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.daevanionField(player, questId, 800411, 205304, 214259, 214260, 214193);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(npcIds[0]).addOnQuestStart(questId);
 		for (int npcId : npcIds) {

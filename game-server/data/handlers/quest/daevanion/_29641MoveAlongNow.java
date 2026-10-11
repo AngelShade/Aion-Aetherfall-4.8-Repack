@@ -21,6 +21,11 @@ public class _29641MoveAlongNow extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.daevanionField(player, questId, 799248, 799297, 216045, 216046, 215942);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(npcIds[0]).addOnQuestStart(questId);
 		for (int npcId : npcIds) {

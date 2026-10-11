@@ -7,6 +7,7 @@ import com.aionemu.gameserver.questEngine.handlers.AbstractQuestHandler;
 import com.aionemu.gameserver.questEngine.model.QuestEnv;
 import com.aionemu.gameserver.questEngine.model.QuestState;
 import com.aionemu.gameserver.questEngine.model.QuestStatus;
+import com.aionemu.gameserver.questEngine.model.QuestBotAction;
 
 /**
  * @author Mr. Poke, vlog, Majka
@@ -17,6 +18,25 @@ public class _2004ACharmedCube extends AbstractQuestHandler {
 
 	public _2004ACharmedCube() {
 		super(2004);
+	}
+
+	@Override
+	public java.util.List<QuestBotAction> getPlayerBotActions(Player player) {
+		var qs = player.getQuestStateList().getQuestState(questId);
+		if (qs == null) return java.util.List.of();
+		if (qs.getStatus() == QuestStatus.REWARD) return java.util.List.of(QuestBotAction.reward(203539));
+		if (qs.getStatus() != QuestStatus.START) return java.util.List.of();
+		int stage = qs.getQuestVarById(0);
+		if (stage >= 3 && stage < 6) return QuestBotAction.hunts(mobs);
+		return switch (stage) {
+			case 0 -> java.util.List.of(QuestBotAction.dialog(203539, SETPRO1, 1011));
+			case 1 -> player.getInventory().getItemCountByItemId(182203005) > 0
+				? java.util.List.of(QuestBotAction.dialog(203539, CHECK_USER_HAS_QUEST_ITEM, 1352).requiring(182203005, 1))
+				: java.util.List.of(QuestBotAction.object(700047), QuestBotAction.hunt(211755));
+			case 2 -> java.util.List.of(QuestBotAction.dialog(203550, SETPRO3, 1693).requiring(182203005, 1));
+			case 6 -> java.util.List.of(QuestBotAction.dialog(203550, SETPRO4, 2034));
+			default -> java.util.List.of(QuestBotAction.event("Unexpected native Charmed Cube stage; no transition declared"));
+		};
 	}
 
 	@Override

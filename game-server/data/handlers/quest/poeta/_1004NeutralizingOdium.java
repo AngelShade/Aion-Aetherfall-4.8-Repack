@@ -7,6 +7,7 @@ import com.aionemu.gameserver.questEngine.handlers.AbstractQuestHandler;
 import com.aionemu.gameserver.questEngine.model.QuestEnv;
 import com.aionemu.gameserver.questEngine.model.QuestState;
 import com.aionemu.gameserver.questEngine.model.QuestStatus;
+import com.aionemu.gameserver.questEngine.model.QuestBotAction;
 import com.aionemu.gameserver.services.QuestService;
 
 /**
@@ -16,6 +17,24 @@ public class _1004NeutralizingOdium extends AbstractQuestHandler {
 
 	public _1004NeutralizingOdium() {
 		super(1004);
+	}
+
+	@Override
+	public java.util.List<QuestBotAction> getPlayerBotActions(Player player) {
+		var qs = player.getQuestStateList().getQuestState(questId);
+		if (qs == null) return java.util.List.of();
+		if (qs.getStatus() == QuestStatus.REWARD) return java.util.List.of(QuestBotAction.reward(203067));
+		if (qs.getStatus() != QuestStatus.START) return java.util.List.of();
+		return switch (qs.getQuestVarById(0)) {
+			case 0 -> java.util.List.of(QuestBotAction.dialog(203082, SETPRO1, 1011));
+			case 1, 4 -> java.util.List.of(QuestBotAction.object(700030));
+			case 2 -> java.util.List.of(QuestBotAction.dialog(790001, SETPRO2, 1352));
+			case 3 -> java.util.List.of(QuestBotAction.dialog(790001, CHECK_USER_HAS_QUEST_ITEM, 1693)
+				.requiringCollection(com.aionemu.gameserver.dataholders.DataManager.QUEST_DATA.getQuestById(questId).getCollectItems()));
+			case 11 -> java.util.List.of(QuestBotAction.dialog(790001, SETPRO3, 1694));
+			case 5 -> java.util.List.of(QuestBotAction.dialog(203082, SETPRO3, 2034));
+			default -> java.util.List.of(QuestBotAction.event("Unexpected native Neutralizing Odium stage; no transition declared"));
+		};
 	}
 
 	@Override

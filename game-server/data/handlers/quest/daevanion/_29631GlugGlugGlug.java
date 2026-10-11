@@ -21,6 +21,11 @@ public class _29631GlugGlugGlug extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.daevanionField(player, questId, 205150, 205150, 214419, 214420, 214433, 214434);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(npcId).addOnQuestStart(questId);
 		qe.registerQuestNpc(npcId).addOnTalkEvent(questId);

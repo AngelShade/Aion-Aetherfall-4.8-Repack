@@ -24,6 +24,7 @@ final class PlayerBotWorldActivities {
  private static final class State {
   int level=-1; com.aionemu.gameserver.model.PlayerClass playerClass; long deadSince,nextScan,lastProgress,nextSell,noActivitySince; double best=Double.POSITIVE_INFINITY;
   PlayerBotWorldTravel.Place vendor;long vendorSince;double vendorBest;
+  int prerequisiteCursor;
   volatile Goal goal; final Map<String,Long> excluded=new HashMap<>();
  }
  private static final Map<Integer,State> STATES=new ConcurrentHashMap<>();
@@ -98,6 +99,14 @@ final class PlayerBotWorldActivities {
    && n.getAggroList().stream().findAny().isEmpty() && PositionUtil.isInRange(bot,n,25) && GeoService.getInstance().canSee(bot,n))choices.add(n);});
   return choices.stream().min(Comparator.comparingDouble(n->PositionUtil.getDistance(bot,n))).orElse(null);
  }
+ static Npc materialHunt(PlayerBotSession session) {
+  if(!PlayerBotQuestObjectives.materialPull(session.bot()))return null;
+  var bot=session.bot();var required=PlayerBotQuestMaterials.huntNpcIds(session);var choices=new ArrayList<Npc>();
+  bot.getKnownList().forEachNpc(n->{if(PlayerBotTargetEligibility.visible(bot,n) && PlayerBotPartyBehavior.hostileObjective(bot,n,required)
+   && n.getWorldId()==bot.getWorldId() && n.getInstanceId()==bot.getInstanceId() && n.getAggroList().stream().findAny().isEmpty()
+   && PositionUtil.isInRange(bot,n,25) && GeoService.getInstance().canSee(bot,n) && PlayerBotPartyBehavior.isolated(bot,bot,n))choices.add(n);});
+  return choices.stream().min(Comparator.comparingDouble(n->PositionUtil.getDistance(bot,n))).orElse(null);
+ }
  static boolean surplus(PlayerBotSession session,Item item) {
   Player bot=session.bot();
   boolean upgrade=PlayerBotEquipment.upgrades(bot,session.combatRole()).stream().anyMatch(u->u.item()==item);
@@ -107,7 +116,7 @@ final class PlayerBotWorldActivities {
  private static synchronized Map<Integer,Set<Integer>> starters() {
   if(starters!=null)return starters;var index=new TreeMap<Integer,Set<Integer>>();Set<Integer> ids=new TreeSet<>();DataManager.SPAWNS_DATA.addAllNpcIdsToSet(ids);
   for(int npc:ids){var q=QuestEngine.getInstance().getQuestNpc(npc);if(q!=null)for(int quest:q.getOnQuestStart())
-   if(PlayerBotQuests.ordinary(DataManager.QUEST_DATA.getQuestById(quest)))index.computeIfAbsent(quest,k->new TreeSet<>()).add(npc);}
+   if(DataManager.QUEST_DATA.getQuestById(quest)!=null)index.computeIfAbsent(quest,k->new TreeSet<>()).add(npc);}
   starters=index;return starters;
  }
  /** TravelMgr's native destination catalog is static; character prerequisites remain dynamic. */
@@ -148,11 +157,24 @@ final class PlayerBotWorldActivities {
    requests.add(new Request(q.getQuestId(),kind,PlayerBotQuestRoutes.ids(bot,bot,q.getQuestId(),kind)));
   Goal active=available(bot,requests,s,now,distances);if(active!=null)return active;
   requests.clear();
-  if(bot.getQuestStateList().getUncompletedQuests().size()<20)for(var e:starters(bot.getLevel())) {
+  var blockedRoots=new ArrayList<Integer>();
+  if(bot.getQuestStateList().getUncompletedQuests().size()<20 && com.aionemu.gameserver.configs.main.PlayerBotConfig.QUESTS_ENABLED)for(var e:starters(bot.getLevel())) {
    var template=DataManager.QUEST_DATA.getQuestById(e.getKey());
    if(template.getMinlevelPermitted()>bot.getLevel() || template.getMinlevelPermitted()<bot.getLevel()-5
-    || !QuestService.checkStartConditions(bot,e.getKey(),false))continue;
-   requests.add(new Request(0,PlayerBotQuestRoutes.Kind.CONVERSATION,e.getValue()));
+    || !PlayerBotQuests.autonomous(bot,e.getKey()) || !PlayerBotQuestExchange.eligible(bot,e.getKey())
+    || !PlayerBotQuestSync.wanted(bot,bot,e.getKey()))continue;
+   if(QuestService.checkStartConditions(bot,e.getKey(),false))requests.add(new Request(0,PlayerBotQuestRoutes.Kind.CONVERSATION,e.getValue()));
+   else blockedRoots.add(e.getKey());
+  }
+  // Rotate graph work across decisions instead of expanding every blocked root
+  // for every world bot in one tick. The complete catalogue remains eligible.
+  if(!blockedRoots.isEmpty()) {
+   int root=blockedRoots.get(Math.floorMod(s.prerequisiteCursor++,blockedRoots.size()));
+   var prerequisites=PlayerBotQuestPrerequisites.plan(bot,root);
+   if(prerequisites.reachable())for(int id:prerequisites.starters())if(PlayerBotQuestSync.wanted(bot,bot,id)
+    && PlayerBotQuests.autonomous(bot,id) && PlayerBotQuestExchange.eligible(bot,id)
+    && QuestService.checkStartConditions(bot,id,false))
+     requests.add(new Request(0,PlayerBotQuestRoutes.Kind.CONVERSATION,starters().getOrDefault(id,Set.of())));
   }
   Goal quest=available(bot,requests,s,now,distances);if(quest!=null)return quest;
   return available(bot,List.of(new Request(0,PlayerBotQuestRoutes.Kind.HUNT,grindTemplates(bot))),s,now,distances);

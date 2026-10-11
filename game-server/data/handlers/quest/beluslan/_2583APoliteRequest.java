@@ -21,6 +21,11 @@ public class _2583APoliteRequest extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.reportCircuit(player, questId, 204715, SETPRO2, 204805, 204361);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(204715).addOnQuestStart(questId);
 		qe.registerQuestNpc(204715).addOnTalkEvent(questId);
@@ -44,7 +49,7 @@ public class _2583APoliteRequest extends AbstractQuestHandler {
 			} else if (qs.getStatus() == QuestStatus.START) {
 				if (env.getDialogActionId() == QUEST_SELECT)
 					return sendQuestDialog(env, 2375);
-				else if (env.getDialogActionId() == SELECT_QUEST_REWARD) {
+				else if (env.getDialogActionId() == SELECT_QUEST_REWARD && qs.getQuestVarById(0) == 2) {
 					qs.setStatus(QuestStatus.REWARD);
 					updateQuestStatus(env);
 					PacketSendUtility.sendPacket(player, new SM_DIALOG_WINDOW(env.getVisibleObject().getObjectId(), 10));

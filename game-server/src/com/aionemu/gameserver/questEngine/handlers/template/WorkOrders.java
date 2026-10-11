@@ -45,6 +45,22 @@ public class WorkOrders extends AbstractTemplateQuestHandler {
 	}
 
 	@Override
+	public List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		var plan = com.aionemu.gameserver.services.playerbot.PlayerBotQuestCrafting.plan(player, questId);
+		var state = player.getQuestStateList().getQuestState(questId);
+		if (plan.stage() == com.aionemu.gameserver.services.playerbot.PlayerBotQuestCrafting.Stage.ACCEPT)
+			return startNpcIds.stream().sorted().map(id -> com.aionemu.gameserver.questEngine.model.QuestBotAction.dialog(id, QUEST_ACCEPT_1, DialogPage.ASK_QUEST_ACCEPT_WINDOW.id())).toList();
+		if (plan.stage() == com.aionemu.gameserver.services.playerbot.PlayerBotQuestCrafting.Stage.REWARD)
+			return startNpcIds.stream().sorted().map(id -> state != null && state.getStatus() == QuestStatus.REWARD
+				? com.aionemu.gameserver.questEngine.model.QuestBotAction.reward(id)
+				: com.aionemu.gameserver.questEngine.model.QuestBotAction.reward(id)
+					.requiringCollection(DataManager.QUEST_DATA.getQuestById(questId).getCollectItems())).toList();
+		return plan.stage() == com.aionemu.gameserver.services.playerbot.PlayerBotQuestCrafting.Stage.NONE ? List.of()
+			: List.of(new com.aionemu.gameserver.questEngine.model.QuestBotAction(com.aionemu.gameserver.questEngine.model.QuestBotAction.Kind.EVENT,
+				0, 0, 0, plan.missing(), plan.reason()));
+	}
+
+	@Override
 	public boolean onDialogEvent(QuestEnv env) {
 		Player player = env.getPlayer();
 		QuestState qs = player.getQuestStateList().getQuestState(questId);

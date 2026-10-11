@@ -18,6 +18,11 @@ public class _1169LightningfootTuka extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.countedHunt(player, questId, 203126, 0, 210317);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(203126).addOnQuestStart(questId);
 		qe.registerQuestNpc(203126).addOnTalkEvent(questId);

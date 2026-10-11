@@ -18,6 +18,14 @@ public class _29001ExpertEssencetappingExpert extends AbstractQuestHandler {
 	}
 
 	@Override
+	public boolean isBotGatheringQuest() { return true; }
+
+	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.tappingQualification(player, questId, 204096, 204052, 182207141);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(204096).addOnQuestStart(questId);
 		qe.registerQuestNpc(204096).addOnTalkEvent(questId);
@@ -60,11 +68,8 @@ public class _29001ExpertEssencetappingExpert extends AbstractQuestHandler {
 			if (targetId == 204052) {
 				if (dialogActionId == CHECK_USER_HAS_QUEST_ITEM)
 					return sendQuestDialog(env, 5);
-				else {
-					player.getSkillList().addSkill(player, 30002, 400);
-					removeQuestItem(env, 182207141, 1);
-					return sendQuestEndDialog(env);
-				}
+				else
+					return sendQuestEndDialogAndLearnSkill(env, 30002, 400, 182207141);
 			}
 		}
 		return false;

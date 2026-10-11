@@ -1085,6 +1085,17 @@ public final class PlayerBotService {
 	}
 
 	private PlayerBotSession session(int id) { return sessions.get(id); }
+ /** Native timed work needs a current actor, not a client socket. This read does
+  * not acquire service/session locks or treat slow-work diagnostics as logout. */
+ public boolean allowsHeadlessInteraction(Player player) {
+  if(player==null || !player.isPlayerBot() || !player.isPlaying() || !player.isSpawned() || player.isDead())return false;
+  var active=sessions.get(player.getObjectId());
+  return active!=null && active.bot()==player && current(active) && PlayerBotLease.isReserved(player.getObjectId());
+ }
+ PlayerBotSession currentActor(Player player) {
+  var active=sessions.get(player.getObjectId());
+  return active!=null && active.bot()==player && current(active) ? active : null;
+ }
  public boolean current(PlayerBotSession session){return !shuttingDown && sessions.get(session.bot().getObjectId())==session && !session.closing();}
  boolean claimTransfer(PlayerBotSession session){return current(session) && session.bot().getObjectId()!=focusJobId && execution.claim(session.bot().getObjectId(),"party transfer",System.currentTimeMillis());}
  void completeTransfer(PlayerBotSession session){execution.complete(session.bot().getObjectId());}

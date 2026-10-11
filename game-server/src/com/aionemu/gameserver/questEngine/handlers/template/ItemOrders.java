@@ -77,18 +77,24 @@ public class ItemOrders extends AbstractTemplateQuestHandler {
 			}
 		} else if (qs.getStatus() == QuestStatus.START) {
 			int var0 = qs.getQuestVarById(0);
-			if (targetId == talkNpcId1 || targetId == talkNpcId2) {
+			// Missing contacts do not represent an objective. A second-only
+			// declaration is its first real contact; two declared contacts must
+			// be visited in order, even when a stale dialog is sent again.
+			int firstContact = talkNpcId1 != 0 ? talkNpcId1 : talkNpcId2;
+			int secondContact = talkNpcId1 != 0 ? talkNpcId2 : 0;
+			int currentContact = var0 == 0 ? firstContact : var0 == 1 ? secondContact : 0;
+			if (currentContact != 0 && targetId == currentContact) {
 				if (dialogActionId == QUEST_SELECT) {
 					return sendQuestDialog(env, 1352);
 				} else if (dialogActionId == SETPRO1) {
-					boolean reward = ((var0 == 0 && talkNpcId2 == 0) || (var0 == 1 && talkNpcId2 != 0));
+					boolean reward = var0 == 0 && secondContact == 0 || var0 == 1 && secondContact != 0;
 					qs.setQuestVarById(0, var0 + 1);
 					if (reward)
 						qs.setStatus(QuestStatus.REWARD);
 					updateQuestStatus(env);
 					return closeDialogWindow(env);
 				}
-			} else if (targetId == endNpcId) {
+			} else if (firstContact == 0 && var0 == 0 && endNpcId != 0 && targetId == endNpcId) {
 				if (dialogActionId == QUEST_SELECT) {
 					return sendQuestDialog(env, 2375);
 				} else if (dialogActionId == SELECT_QUEST_REWARD) {

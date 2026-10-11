@@ -64,7 +64,8 @@ public class SkillUse extends AbstractTemplateQuestHandler {
 					return sendQuestStartDialog(env);
 			}
 		} else if (qs.getStatus() == QuestStatus.START) {
-			// TODO: check skill use count, see MonsterHunt.java how to get total count
+			if (!requirementsMet(qs))
+				return false;
 			int var = qs.getQuestVarById(0);
 			if (endNpcIds.contains(targetId)) {
 				if (dialogActionId == QUEST_SELECT) {
@@ -87,7 +88,6 @@ public class SkillUse extends AbstractTemplateQuestHandler {
 		Player player = env.getPlayer();
 		QuestState qs = player.getQuestStateList().getQuestState(questId);
 		if (qs != null && qs.getStatus() == QuestStatus.START) {
-			byte rewardCount = 0;
 			boolean success = false;
 			for (QuestSkillData qd : qsd) {
 				if (qd.getSkillIds().contains(skillId)) {
@@ -107,14 +107,12 @@ public class SkillUse extends AbstractTemplateQuestHandler {
 							total >>= 6;
 							qs.setQuestVarById(varsUsed, value);
 						}
-						if (qs.getQuestVarById(qd.getVarNum()) == qd.getEndVar())
-							rewardCount++;
 						updateQuestStatus(env);
 						success = true;
 					}
 				}
 			}
-			if (rewardCount == qsd.size()) {
+			if (success && requirementsMet(qs)) {
 				if (qs.getQuestVarById(0) == 0)
 					qs.setQuestVarById(0, 1);
 				qs.setStatus(QuestStatus.REWARD);
@@ -123,5 +121,34 @@ public class SkillUse extends AbstractTemplateQuestHandler {
 			return success;
 		}
 		return false;
+	}
+
+	/** Native counters span successive six-bit quest variables for counts above 63. */
+	public static long currentCount(QuestState state, QuestSkillData requirement) {
+		long total = 0;
+		int remaining = requirement.getEndVar(), variable = requirement.getVarNum(), shift = 0;
+		do {
+			total |= (long) state.getQuestVarById(variable++) << shift;
+			remaining >>>= 6;
+			shift += 6;
+		} while (remaining > 0);
+		return total;
+	}
+
+	private boolean requirementsMet(QuestState state) {
+		return !qsd.isEmpty() && qsd.stream().allMatch(q -> currentCount(state, q) >= q.getEndVar());
+	}
+
+	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		var state = player.getQuestStateList().getQuestState(questId);
+		if (state == null || state.getStatus() != QuestStatus.START) return java.util.List.of();
+		if (requirementsMet(state)) return endNpcIds.stream().map(com.aionemu.gameserver.questEngine.model.QuestBotAction::reward).toList();
+		return qsd.stream().filter(q -> currentCount(state, q) < q.getEndVar())
+			.flatMap(q -> q.getSkillIds().stream()).distinct()
+			.map(id -> new com.aionemu.gameserver.questEngine.model.QuestBotAction(
+				com.aionemu.gameserver.questEngine.model.QuestBotAction.Kind.SKILL, id, 0, 0, java.util.Map.of(),
+				"Complete the remaining native skill-use counter with a legal cast or owned item"))
+			.toList();
 	}
 }

@@ -68,6 +68,10 @@ public class FountainRewards extends AbstractTemplateQuestHandler {
 			}
 		} else if (qs.getStatus() == QuestStatus.REWARD) {
 			if (startNpcIds.contains(targetId)) { // Coin Fountain
+				// Reopening an already accepted reward must not abandon its
+				// saved offering. The original selection still owns acceptance.
+				if (dialogActionId == USE_OBJECT)
+					return sendQuestEndDialog(env);
 				if (dialogActionId == SELECTED_QUEST_NOREWARD) {
 					if (QuestService.collectItemCheck(env, true))
 						return sendQuestEndDialog(env);

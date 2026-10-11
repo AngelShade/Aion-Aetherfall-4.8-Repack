@@ -9,6 +9,7 @@ import com.aionemu.gameserver.questEngine.handlers.AbstractQuestHandler;
 import com.aionemu.gameserver.questEngine.model.QuestEnv;
 import com.aionemu.gameserver.questEngine.model.QuestState;
 import com.aionemu.gameserver.questEngine.model.QuestStatus;
+import com.aionemu.gameserver.questEngine.model.QuestBotAction;
 import com.aionemu.gameserver.utils.PacketSendUtility;
 
 /**
@@ -18,6 +19,22 @@ public class _1001TheKerubThreat extends AbstractQuestHandler {
 
 	public _1001TheKerubThreat() {
 		super(1001);
+	}
+
+	@Override
+	public java.util.List<QuestBotAction> getPlayerBotActions(Player player) {
+		var qs = player.getQuestStateList().getQuestState(questId);
+		if (qs == null) return java.util.List.of();
+		if (qs.getStatus() == QuestStatus.REWARD) return java.util.List.of(QuestBotAction.reward(203067));
+		if (qs.getStatus() != QuestStatus.START) return java.util.List.of();
+		int stage = qs.getQuestVarById(0);
+		if (stage > 0 && stage < 6) return QuestBotAction.hunts(210670);
+		return switch (stage) {
+			case 0 -> java.util.List.of(QuestBotAction.dialog(203071, SETPRO1, 1011));
+			case 6 -> java.util.List.of(QuestBotAction.dialog(203071, SETPRO2, 1352));
+			case 7 -> java.util.List.of(QuestBotAction.dialog(203071, CHECK_USER_HAS_QUEST_ITEM, 1693).requiring(182200001, 3).then(SETPRO3, 1694));
+			default -> java.util.List.of(QuestBotAction.event("Unexpected native Kerub Threat stage; no transition declared"));
+		};
 	}
 
 	@Override

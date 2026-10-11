@@ -36,7 +36,10 @@ def verify_runtime_resource_inputs(server, manifest):
             assert entry['original'] == original, rel
             expected = entry['installed']
         target = server / rel
-        assert (sha(target) if target.is_file() else None) == expected, rel
+        if expected is None:
+            assert not target.exists() and not target.is_symlink(), rel
+        else:
+            assert target.is_file() and sha(target) == expected, rel
 
 
 def main():
@@ -138,7 +141,8 @@ def main():
         assert checks and all(line in (review/'regression'/(name+'.txt')).read_text().splitlines() for name,line in checks.items())
     counts = [int(line.split()[1]) for line in checks.values()]
     if 'regressionEvidenceSha256' in m:
-        expected = importlib.import_module('check-source-build').TESTS
+        runner = importlib.import_module('check-source-build')
+        expected = runner.TESTS | runner.QUEST_TESTS
         assert set(checks) == set(expected) | {'ShutdownHookCheck'}
         assert sum(counts) == sum(expected.values()) + 14
     else:

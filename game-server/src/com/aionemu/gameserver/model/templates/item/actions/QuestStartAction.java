@@ -33,6 +33,11 @@ public class QuestStartAction extends AbstractItemAction {
 	@XmlAttribute
 	protected int questid;
 
+	/** The native item declaration, also used by headless inventory planning. */
+	public int getQuestId() {
+		return questid;
+	}
+
 	@Override
 	public boolean canAct(Player player, Item parentItem, Item targetItem, Object... params) {
 		// Retail always plays the cast; eligibility is only checked afterwards, in finishUse()

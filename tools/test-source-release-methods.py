@@ -26,6 +26,52 @@ def resource_fixture():
 
 
 class MethodPreservationCheck(unittest.TestCase):
+    def test_feature_defaults_are_added_once_and_owner_edits_are_preserved(self):
+        with resource_fixture() as folder:
+            target=Path(folder)/delivery.FEATURE_CONFIGURATION
+            self.assertTrue(delivery.initial_feature_configuration(target))
+            target.parent.mkdir(parents=True)
+            target.write_bytes(b'gameserver.playerbots.quests.enable = false\n')
+            self.assertFalse(delivery.initial_feature_configuration(target))
+            self.assertEqual(target.read_bytes(),b'gameserver.playerbots.quests.enable = false\n')
+
+    def test_only_exact_feature_configuration_can_be_a_release_resource(self):
+        self.assertTrue(delivery.allowed_resource(delivery.FEATURE_CONFIGURATION))
+        self.assertTrue(delivery.allowed_resource('data/handlers/quest/example.java'))
+        for name in ['config/main/playerbots.properties','config/mygs.properties','config/playerbots/other.properties',
+                     'config/playerbots/../features.properties','config\\playerbots\\features.properties',
+                     'data/../config/main/playerbots.properties','data/geo/map.geo']:
+            self.assertFalse(delivery.allowed_resource(name),name)
+
+    def test_feature_configuration_directory_cannot_silently_disable_delivery(self):
+        with resource_fixture() as folder:
+            target=Path(folder)/delivery.FEATURE_CONFIGURATION
+            target.mkdir(parents=True)
+            with self.assertRaisesRegex(AssertionError,'not a regular file'):
+                delivery.initial_feature_configuration(target)
+
+    def test_absent_resource_changed_to_directory_is_rejected_by_fresh_guard(self):
+        with resource_fixture() as folder:
+            root=Path(folder);target=root/delivery.FEATURE_CONFIGURATION
+            manifest=dict(files=[],runtimeResourceInputs={delivery.FEATURE_CONFIGURATION:None})
+            delivery.verify_original_resource(target,None)
+            verification.verify_runtime_resource_inputs(root,manifest)
+            target.mkdir(parents=True)
+            with self.assertRaisesRegex(AssertionError,'Expected absent resource'):
+                delivery.verify_original_resource(target,None)
+            with self.assertRaises(AssertionError):
+                verification.verify_runtime_resource_inputs(root,manifest)
+
+    def test_fresh_resource_guard_preserves_exact_existing_owner_file(self):
+        with resource_fixture() as folder:
+            target=Path(folder)/delivery.FEATURE_CONFIGURATION
+            target.parent.mkdir(parents=True);target.write_bytes(b'owner choices')
+            original=delivery.shared.sha(target)
+            delivery.verify_original_resource(target,original)
+            with self.assertRaises(AssertionError): delivery.verify_original_resource(target,None)
+            target.write_bytes(b'owner changed choices')
+            with self.assertRaises(AssertionError): delivery.verify_original_resource(target,original)
+
     def test_client_generated_configuration_does_not_block_server_release(self):
         with resource_fixture() as folder:
             root=Path(folder);(root/'system.cfg').write_bytes(b'client exit settings')
@@ -187,10 +233,12 @@ class MethodPreservationCheck(unittest.TestCase):
         import re
         source = configuration.SOURCE.read_text()
         keys = re.findall(r'@Property\(key = "([^"]+)"', configuration.JAVA.read_text())
-        values = configuration.properties(source)
+        values = configuration.source_catalogue()
         self.assertEqual(set(keys), set(values))
         self.assertEqual(len(keys), len(values))
-        self.assertEqual(configuration.properties(configuration.complete(source, values)), values)
+        main = configuration.properties(source)
+        self.assertEqual(configuration.properties(configuration.complete(source, main)), main)
+        self.assertEqual(configuration.main_defaults(values), main)
 
     def test_empty_map_values_do_not_consume_following_comments(self):
         source = 'gameserver.playerbots.allowed_instance_maps =\n# mission distance\ngameserver.playerbots.mission_distance = 180\n# all maps\ngameserver.playerbots.population.maps =\n'
@@ -322,6 +370,10 @@ class NativeBrowserReleaseTests(unittest.TestCase):
                 gate.validate(build,archive)
                 (archive/'media/bots.css').write_bytes(b'changed archived media')
                 with self.assertRaises(AssertionError):gate.validate(build,archive)
+
+def load_tests(loader, tests, pattern):
+    tests.addTests(loader.loadTestsFromModule(delivery.import_module('test-quest-action-inventory')))
+    return tests
 
 if __name__ == '__main__':
     unittest.main()

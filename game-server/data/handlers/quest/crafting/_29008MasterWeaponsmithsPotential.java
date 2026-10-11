@@ -21,6 +21,14 @@ public class _29008MasterWeaponsmithsPotential extends AbstractQuestHandler {
 	}
 
 	@Override
+	public boolean isBotCraftingQuest() { return true; }
+
+	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.masterPotential(player, questId, 204104, 204105, 182207898, new com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.Design(152206708, 155006746), new com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.Design(152206709, 155006747));
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(204104).addOnQuestStart(questId);
 		qe.registerQuestNpc(204104).addOnTalkEvent(questId);

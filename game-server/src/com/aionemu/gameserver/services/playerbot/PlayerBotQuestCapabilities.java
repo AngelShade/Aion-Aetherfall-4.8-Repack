@@ -28,11 +28,33 @@ final class PlayerBotQuestCapabilities {
   };
  }
  static Map<String,Object> describe(Player bot,int quest,Object model) {
+  String disabled=PlayerBotQuestFeatures.disabled(quest);
+  if(!disabled.isEmpty())return Map.of("action","DISABLED","reason",disabled);
   var engine=QuestEngine.getInstance();String handler=engine.getPlayerBotHandlerType(quest);
   var q=bot.getQuestStateList().getQuestState(quest);
   if(handler.isEmpty())return Map.of("registered",false,"handler","","action","UNAVAILABLE","reason","No native quest handler is registered; metadata cannot execute this quest");
   if(q==null || q.getStatus()!=QuestStatus.START && q.getStatus()!=QuestStatus.REWARD)
    return Map.of("registered",true,"handler",handler,"action","NOT_ACTIVE","reason","Native acceptance and prerequisites have not produced an active quest");
+  var declared=PlayerBotQuestActions.actions(bot,quest);
+  if(!declared.isEmpty()) {
+   List<Map<String,Object>> details=new ArrayList<>();
+   for(var intent:declared) {
+    Map<Integer,Long> missing=new TreeMap<>();
+    for(var required:intent.requiredItems().entrySet()) {
+     long held=bot.getInventory().getItemCountByItemId(required.getKey());
+     if(held<required.getValue())missing.put(required.getKey(),required.getValue()-held);
+    }
+    String reason=!missing.isEmpty() ? "Missing owned native items: "+missing : intent.reason();
+    if(intent.kind()==com.aionemu.gameserver.questEngine.model.QuestBotAction.Kind.SKILL
+     && !bot.getSkillList().isSkillPresent(intent.targetId()))reason="Required native skill "+intent.targetId()+" is not learned; an owned item may supply it";
+    details.add(Map.of("kind",intent.kind().name(),"target",intent.targetId(),"page",intent.page(),"dialog",intent.dialogAction(),
+     "requiredItems",intent.requiredItems(),"missingItems",Map.copyOf(missing),"reason",reason));
+   }
+   return Map.of("registered",true,"handler",handler,"action",declared.getFirst().kind().name(),
+    "npcs",declared.stream().filter(a->a.kind()!=com.aionemu.gameserver.questEngine.model.QuestBotAction.Kind.ITEM
+     && a.kind()!=com.aionemu.gameserver.questEngine.model.QuestBotAction.Kind.SKILL && a.targetId()>0).map(com.aionemu.gameserver.questEngine.model.QuestBotAction::targetId).collect(java.util.stream.Collectors.toSet()),
+    "reason","The registered native handler declares the current stage; item custody, native conditions and reachability apply", "actions",List.copyOf(details));
+  }
   Set<Integer> npcs=new TreeSet<>();String action="UNSUPPORTED_STAGE";
   if(PlayerBotQuestMetadata.ready(bot,quest)) {action="REWARD";npcs.addAll(PlayerBotQuestMetadata.rewardNpcIds(bot,quest));}
   else {

@@ -10,6 +10,27 @@ import stage_companion_update as shared
 from remove_follow_recovery_offline import stopped
 build_meta = import_module('build-manifest')
 
+FEATURE_CONFIGURATION = 'config/playerbots/features.properties'
+
+
+def initial_feature_configuration(target):
+    """Deliver the builder default once; retain every existing owner's choice."""
+    assert not target.exists() or target.is_file(), 'Feature configuration path is not a regular file: ' + str(target)
+    return not target.exists()
+
+
+def verify_original_resource(target, original):
+    """A missing baseline means genuine absence, never a directory or link."""
+    if original is None:
+        assert not target.exists() and not target.is_symlink(), 'Expected absent resource: ' + str(target)
+    else:
+        assert target.is_file() and shared.sha(target) == original, 'Resource baseline changed: ' + str(target)
+
+
+def allowed_resource(rel):
+    return ('..' not in Path(rel).parts and '\\' not in rel
+        and (rel == FEATURE_CONFIGURATION or rel.startswith('data/') and not rel.startswith('data/geo/')))
+
 
 def retained_methods(before, after):
     """ACC_SYNCHRONIZED controls locking, not a JVM method name/descriptor.
@@ -75,7 +96,10 @@ def main():
         setattr(a, attribute, plan[key])
     assert plan['handlerCount'] > 0 and plan['handlerCompile'].startswith('passed'), 'Complete handler compilation is required'
     runtime_inputs = plan['runtimeResourceInputs']
-    assert all((shared.sha(server / rel) if (server / rel).is_file() else None) == digest for rel, digest in runtime_inputs.items()), 'Runtime resources changed after release planning'
+    for rel, digest in runtime_inputs.items():
+        if rel == FEATURE_CONFIGURATION:
+            initial_feature_configuration(server / rel)
+        verify_original_resource(server / rel, digest)
     old = server / 'libs/game-server-4.8-SNAPSHOT.jar'
     assert 'BUILD SUCCESS' in (build / 'maven.log').read_text(), 'Normal builder did not succeed'
     assert not (server / 'libs/playerbot-recruitment-fix.jar').exists(), 'Reconcile the override in source first'
@@ -193,7 +217,9 @@ def main():
     if a.resource:
         with zipfile.ZipFile(build / 'game-server/game-server.zip') as assembly:
             for rel in a.resource:
-                assert rel.startswith('data/') and '..' not in Path(rel).parts and '\\' not in rel and not rel.startswith('data/geo/'), rel
+                assert allowed_resource(rel), rel
+                if rel == FEATURE_CONFIGURATION:
+                    assert initial_feature_configuration(server / rel), 'Preserve existing owner feature configuration: ' + rel
                 built_bytes = assembly.read('game-server/' + rel)
                 source_path = ROOT / 'game-server' / rel
                 assert built_bytes == source_path.read_bytes(), 'Resource changed after build: ' + rel
@@ -240,7 +266,10 @@ def main():
         assert shared.receipt_paths(server, 'playerbots-source-build-*/manifest.json')[-1] == prior, 'Another release completed after review'
         for e in files:
             target = server / e['path']
-            assert (shared.sha(target) if target.is_file() else None) == e['original'] and shared.sha(Path(e['source'])) == e['installed']
+            if e['path'] == FEATURE_CONFIGURATION:
+                initial_feature_configuration(target)
+            verify_original_resource(target, e['original'])
+            assert shared.sha(Path(e['source'])) == e['installed']
         assert all(shared.sha(server / e['path']) == e['original'] for e in caches)
         assert all(shared.sha(server / e['path']) == e['installed'] for e in guard_files)
         assert all(shared.sha(server / rel) == digest for rel, digest in config.items())
@@ -250,7 +279,10 @@ def main():
         assert all(shared.sha(ROOT / rel) == digest for rel, digest in source.items())
         assert all(shared.sha(ROOT / rel) == digest for rel, digest in resource_hashes.items())
         assert all(shared.sha(server / rel) == digest for rel, digest in static_inputs.items())
-        assert all((shared.sha(server / rel) if (server / rel).is_file() else None) == digest for rel, digest in runtime_inputs.items())
+        for rel, digest in runtime_inputs.items():
+            if rel == FEATURE_CONFIGURATION:
+                initial_feature_configuration(server / rel)
+            verify_original_resource(server / rel, digest)
         assert shared.sha(server / 'data/geo/models.mesh') == manifest['geometrySha256']
         import_module('verify-source-delivery').verify_client_files(shared.CLIENT_ROOT, manifest['clientFiles'])
         assert all(not (server / rel).exists() for rel in manifest['retiredFiles'])

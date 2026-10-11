@@ -18,6 +18,11 @@ public class _2767AFruitfulPartnership extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.reportCircuit(player, questId, 279004, SETPRO2, 279024, 279022);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(279004).addOnQuestStart(questId);
 		qe.registerQuestNpc(279004).addOnTalkEvent(questId);
@@ -41,7 +46,7 @@ public class _2767AFruitfulPartnership extends AbstractQuestHandler {
 			} else if (qs.getStatus() == QuestStatus.START) {
 				if (env.getDialogActionId() == QUEST_SELECT)
 					return sendQuestDialog(env, 2375);
-				else if (env.getDialogActionId() == SELECT_QUEST_REWARD) {
+				else if (env.getDialogActionId() == SELECT_QUEST_REWARD && qs.getQuestVarById(0) == 2) {
 					qs.setStatus(QuestStatus.REWARD);
 					updateQuestStatus(env);
 					PacketSendUtility.sendPacket(player, new SM_DIALOG_WINDOW(env.getVisibleObject().getObjectId(), 10));

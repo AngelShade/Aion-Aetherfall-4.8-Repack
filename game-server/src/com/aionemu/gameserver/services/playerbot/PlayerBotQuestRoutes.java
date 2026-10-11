@@ -31,15 +31,17 @@ final class PlayerBotQuestRoutes {
     .thenComparingInt(Goal::quest).thenComparingInt(Goal::npc)).orElse(null);
  }
  static Set<Integer> ids(Player owner,Player bot,int quest,Kind kind) {
+  if(!PlayerBotQuestFeatures.enabled(quest))return Set.of();
   var state=bot.getQuestStateList().getQuestState(quest);if(state==null)return Set.of();
   boolean ready=PlayerBotQuestMetadata.ready(bot,quest);
   if(kind==Kind.REWARD)return ready ? PlayerBotQuestMetadata.rewardNpcIds(bot,quest) : Set.of();
   if(ready || state.getStatus()!=QuestStatus.START)return Set.of();
   return switch(kind) {
-   case CONVERSATION -> PlayerBotQuestConversations.objectiveIds(owner,bot,quest);
-   case OBJECT -> PlayerBotQuestObjects.objectiveIds(bot,quest);
+   case CONVERSATION -> {var conversations=new TreeSet<>(PlayerBotQuestConversations.objectiveIds(owner,bot,quest));conversations.addAll(PlayerBotQuestActions.scriptedNpcs(bot,quest));yield conversations;}
+   case OBJECT -> {var objects=new TreeSet<>(PlayerBotQuestObjects.objectiveIds(bot,quest));objects.addAll(PlayerBotQuestActions.ids(bot,quest,com.aionemu.gameserver.questEngine.model.QuestBotAction.Kind.OBJECT));yield objects;}
    case HUNT -> {
     Set<Integer> targets=new TreeSet<>(QuestEngine.getInstance().getRequiredKillNpcIds(bot,quest));
+    targets.addAll(PlayerBotQuestActions.ids(bot,quest,com.aionemu.gameserver.questEngine.model.QuestBotAction.Kind.HUNT));
     targets.addAll(PlayerBotQuestObjects.objectiveIds(bot,quest));yield targets;
    }
    default -> Set.of();
@@ -54,7 +56,7 @@ final class PlayerBotQuestRoutes {
  }
  static Goal choose(PlayerBotSession session,long now) {return PlayerBotQuestObjectives.choose(session,now);}
  static Trigger trigger(PlayerBotSession session,PlayerBotNavigation navigation) {return PlayerBotQuestObjectives.trigger(session,navigation);}
- static void close(Player bot){PLANS.remove(bot.getObjectId());PlayerBotQuestObjectives.close(bot);}
+ static void close(Player bot){PLANS.remove(bot.getObjectId());PlayerBotQuestObjectives.close(bot);PlayerBotQuestItems.close(bot);}
  static boolean finite(PlayerBotNavigation.Point p){return p!=null && Float.isFinite(p.x()) && Float.isFinite(p.y()) && Float.isFinite(p.z());}
  private PlayerBotQuestRoutes() {}
 }

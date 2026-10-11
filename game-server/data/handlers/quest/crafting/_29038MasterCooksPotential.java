@@ -19,6 +19,14 @@ public class _29038MasterCooksPotential extends AbstractQuestHandler {
 	}
 
 	@Override
+	public boolean isBotCraftingQuest() { return true; }
+
+	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.masterCooking(player, questId, 204100, 204101, new int[]{182207907, 182207908, 182207909, 182207910}, new com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.Design(152207202, 155007241), new com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.Design(152207203, 155007242), new com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.Design(152207204, 155007243), new com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.Design(152207205, 155007244));
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(204100).addOnQuestStart(questId);
 		qe.registerQuestNpc(204100).addOnTalkEvent(questId);
@@ -95,7 +103,8 @@ public class _29038MasterCooksPotential extends AbstractQuestHandler {
 								return sendQuestDialog(env, 4400);
 							}
 						case SETPRO10:
-							player.getInventory().decreaseKinah(6500);
+							if ((var != 0 && var != 1) || !player.getInventory().tryDecreaseKinah(6500))
+								return false;
 							if (var == 0) {
 								return defaultCloseDialog(env, 0, 2, 152207202, 1, 0, 0); // 2
 							} else if (var == 1) {
@@ -103,7 +112,8 @@ public class _29038MasterCooksPotential extends AbstractQuestHandler {
 							}
 							return false;
 						case SETPRO20:
-							player.getInventory().decreaseKinah(6500);
+							if ((var != 3 && var != 4) || !player.getInventory().tryDecreaseKinah(6500))
+								return false;
 							if (var == 3) {
 								return defaultCloseDialog(env, 3, 5, 152207203, 1, 0, 0); // 5
 							} else if (var == 4) {
@@ -111,7 +121,8 @@ public class _29038MasterCooksPotential extends AbstractQuestHandler {
 							}
 							return false;
 						case SETPRO30:
-							player.getInventory().decreaseKinah(6500);
+							if ((var != 6 && var != 7) || !player.getInventory().tryDecreaseKinah(6500))
+								return false;
 							if (var == 6) {
 								return defaultCloseDialog(env, 6, 8, 152207204, 1, 0, 0); // 8
 							} else if (var == 7) {
@@ -119,7 +130,8 @@ public class _29038MasterCooksPotential extends AbstractQuestHandler {
 							}
 							return false;
 						case SETPRO40:
-							player.getInventory().decreaseKinah(6500);
+							if ((var != 9 && var != 10) || !player.getInventory().tryDecreaseKinah(6500))
+								return false;
 							if (var == 9) {
 								return defaultCloseDialog(env, 9, 11, 152207205, 1, 0, 0); // 11
 							} else if (var == 10) {

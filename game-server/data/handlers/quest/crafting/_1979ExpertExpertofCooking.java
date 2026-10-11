@@ -19,6 +19,14 @@ public class _1979ExpertExpertofCooking extends AbstractQuestHandler {
 	}
 
 	@Override
+	public boolean isBotCraftingQuest() { return true; }
+
+	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.expertQualification(player, questId, 203784, 182206902, 182206903, 182206904, 182206905);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(203784).addOnQuestStart(questId);
 		qe.registerQuestNpc(203784).addOnTalkEvent(questId);

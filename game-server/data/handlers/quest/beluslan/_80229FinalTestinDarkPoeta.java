@@ -20,6 +20,11 @@ public class _80229FinalTestinDarkPoeta extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.countedHunt(player, questId, 831027, 5, 214904);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(831027).addOnQuestStart(questId);
 		qe.registerQuestNpc(831027).addOnTalkEvent(questId);
@@ -57,7 +62,7 @@ public class _80229FinalTestinDarkPoeta extends AbstractQuestHandler {
 		QuestState qs = player.getQuestStateList().getQuestState(questId);
 		if (qs != null && qs.getStatus() == QuestStatus.START) {
 			int var = qs.getQuestVarById(0);
-			if (var >= 0 && var < 2) {
+			if (var >= 0 && var < 5) {
 				return defaultOnKillEvent(env, mobs, 0, 5);
 			} else
 				return defaultOnKillEvent(env, mobs, 5, true);

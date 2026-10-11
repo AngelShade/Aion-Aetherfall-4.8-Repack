@@ -18,6 +18,14 @@ public class _29003ExpertAethertappingExpert extends AbstractQuestHandler {
 	}
 
 	@Override
+	public boolean isBotGatheringQuest() { return true; }
+
+	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.tappingQualification(player, questId, 204257, 204052, 182207142);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(204257).addOnQuestStart(questId);
 		qe.registerQuestNpc(204257).addOnTalkEvent(questId);
@@ -60,11 +68,8 @@ public class _29003ExpertAethertappingExpert extends AbstractQuestHandler {
 			if (targetId == 204052) {
 				if (dialogActionId == CHECK_USER_HAS_QUEST_ITEM)
 					return sendQuestDialog(env, 5);
-				else {
-					player.getSkillList().addSkill(player, 30003, 400);
-					removeQuestItem(env, 182207142, 1);
-					return sendQuestEndDialog(env);
-				}
+				else
+					return sendQuestEndDialogAndLearnSkill(env, 30003, 400, 182207142);
 			}
 		}
 		return false;

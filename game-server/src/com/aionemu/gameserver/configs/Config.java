@@ -80,16 +80,28 @@ public class Config {
 	}
 
 	private static Properties loadProperties() {
+		return loadProperties(Path.of("."));
+	}
+
+	/** Same startup loading/override order with an explicit root for offline verification. */
+	private static Properties loadProperties(Path root) {
 		Logger log = LoggerFactory.getLogger(Config.class);
 		List<String> defaultsFolders = Arrays.asList("./config/administration", "./config/main", "./config/network");
 		Properties defaults = new Properties();
 		try {
 			for (String configDir : defaultsFolders) {
 				log.info("Loading default configuration values from: " + configDir + "/*");
-				PropertiesUtils.loadFromDirectory(defaults, configDir, false);
+				PropertiesUtils.loadFromDirectory(defaults, root.resolve(configDir).toFile(), false);
+			}
+			// This folder also stores per-character metadata. Only the documented
+			// feature file is server configuration; character care files are never loaded.
+			Path features = root.resolve("./config/playerbots/features.properties");
+			if (Files.isRegularFile(features)) {
+				log.info("Loading default configuration values from: ./config/playerbots/features.properties");
+				defaults.putAll(PropertiesUtils.load(features.toFile(), null));
 			}
 			log.info("Loading: ./config/mygs.properties");
-			Properties properties = PropertiesUtils.load("./config/mygs.properties", defaults);
+			Properties properties = PropertiesUtils.load(root.resolve("./config/mygs.properties").toFile(), defaults);
 			if (properties.isEmpty())
 				log.info("No override properties found");
 			return properties;

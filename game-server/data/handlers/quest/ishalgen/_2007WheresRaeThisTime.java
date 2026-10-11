@@ -7,6 +7,7 @@ import com.aionemu.gameserver.questEngine.handlers.AbstractQuestHandler;
 import com.aionemu.gameserver.questEngine.model.QuestEnv;
 import com.aionemu.gameserver.questEngine.model.QuestState;
 import com.aionemu.gameserver.questEngine.model.QuestStatus;
+import com.aionemu.gameserver.questEngine.model.QuestBotAction;
 import com.aionemu.gameserver.services.teleport.TeleportService;
 
 /**
@@ -16,6 +17,26 @@ public class _2007WheresRaeThisTime extends AbstractQuestHandler {
 
 	public _2007WheresRaeThisTime() {
 		super(2007);
+	}
+
+	@Override
+	public java.util.List<QuestBotAction> getPlayerBotActions(Player player) {
+		var qs = player.getQuestStateList().getQuestState(questId);
+		if (qs == null) return java.util.List.of();
+		if (qs.getStatus() == QuestStatus.REWARD) return java.util.List.of(QuestBotAction.reward(203516));
+		if (qs.getStatus() != QuestStatus.START) return java.util.List.of();
+		return switch (qs.getQuestVarById(0)) {
+			case 0 -> java.util.List.of(QuestBotAction.dialog(203516, SETPRO1, 1011));
+			case 1 -> java.util.List.of(QuestBotAction.dialog(203519, SETPRO2, 1352));
+			case 2 -> java.util.List.of(QuestBotAction.dialog(203539, SETPRO3, 1693));
+			case 3 -> java.util.List.of(QuestBotAction.dialog(203552, SETPRO4, 2034));
+			case 4 -> java.util.List.of(QuestBotAction.dialog(203554, SETPRO5, 2375));
+			case 5 -> java.util.List.of(QuestBotAction.object(700085));
+			case 6 -> java.util.List.of(QuestBotAction.object(700086));
+			case 7 -> java.util.List.of(QuestBotAction.object(700087));
+			case 8 -> java.util.List.of(QuestBotAction.dialog(203554, SETPRO6, 2716));
+			default -> java.util.List.of(QuestBotAction.event("Unexpected native Where's Rae This Time stage; no transition declared"));
+		};
 	}
 
 	@Override

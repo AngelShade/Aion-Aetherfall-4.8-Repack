@@ -19,7 +19,19 @@ public class _30247NewPistol extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.weaponUpgrade(player, questId, 799032, 101800651, 182213285, 286904, 281419, 215795);
+	}
+
+	@Override
+	public boolean onEnterWorldEvent(QuestEnv env) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.ownsUpgradeToken(env.getPlayer(), questId, 182213285)
+			&& onGetItemEvent(env);
+	}
+
+	@Override
 	public void register() {
+		qe.registerOnEnterWorld(questId);
 		int[] debilkarims = { 286904, 281419, 215795 };
 		qe.registerQuestNpc(799032).addOnQuestStart(questId);
 		qe.registerQuestNpc(799032).addOnTalkEvent(questId);
@@ -52,8 +64,8 @@ public class _30247NewPistol extends AbstractQuestHandler {
 					if (player.getInventory().getItemCountByItemId(182213285) > 0) {
 						return sendQuestDialog(env, 10002);
 					}
-				} else {
-					removeQuestItem(env, 182213285, 1);
+				} else if (player.getInventory().getItemCountByItemId(182213285) > 0) {
+					// Successful native finishQuest removes this work token; opening a dialog must preserve it.
 					return sendQuestEndDialog(env);
 				}
 			}

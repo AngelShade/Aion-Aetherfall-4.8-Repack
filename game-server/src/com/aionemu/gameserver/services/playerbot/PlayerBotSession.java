@@ -194,6 +194,7 @@ public final class PlayerBotSession {
 			forcedFollow.request(System.currentTimeMillis());
 			if (bot.isTrading()) com.aionemu.gameserver.services.ExchangeService.getInstance().cancelExchange(bot);
 			bot.getController().cancelUseItem();
+			PlayerBotQuestItems.close(bot);
 			bot.getObserveController().notifyMoveObservers();
 			if (bot.isLooting()) com.aionemu.gameserver.services.drop.DropService.getInstance().closeDropList(bot, bot.getLootingNpcOid());
 			applyOrder(value, true);
@@ -255,6 +256,7 @@ public final class PlayerBotSession {
 			PlayerBotTeams.members(owner).stream().map(Player::getObjectId).sorted().toList()));
 		if (!autonomous() && !owner.isOnline()) return false;
 		if (PlayerBotHeadlessFlight.tick(bot)) { status="following native flight transport"; return true; }
+		if (bot.isUsingFlightTransporterOrWindstream()) { status="waiting for native scripted flight arrival"; return true; }
 		if(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController heightMover && heightMover.traversingHeight()) {
 			status="completing verified jump or descent";return true;
 		}
@@ -320,7 +322,8 @@ public final class PlayerBotSession {
 		// complete feature installation, never through an unrelated AI update.
 		loot.passRoll(bot);
 		if (!world()) PlayerBotPartyCompletion.tick(this);
-		PlayerBotQuestSync.tick(this, questing);
+		boolean questEnabled=questing && com.aionemu.gameserver.configs.main.PlayerBotConfig.QUESTS_ENABLED;
+		PlayerBotQuestSync.tick(this, questEnabled);
 		PlayerBotCare.observe(this);
 		if (mission != null && mission.ended(bot, now)) {
 			PacketSendUtility.sendMessage(owner, bot.getName() + ": quest mission ended. Check quest progress in Companions.");
@@ -343,9 +346,10 @@ public final class PlayerBotSession {
 		bot.getKnownList().forEachNpc(npc -> {
 			if (validEnemy(npc, party, explicitTarget(npc))) enemies.add(npc);
 		});
-		if (autonomous() && enemies.isEmpty() && !supportNeeded && !incapacitated && PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot)) && PlayerBotService.getInstance().placePopulation(this)) { status="entering a level-appropriate population destination"; return true; }
-		if (autonomous() && enemies.isEmpty() && !supportNeeded && !bot.isCasting() && !incapacitated && PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot)) && PlayerBotWorldAscension.tick(this,navigation)) { status="advancing native Ascension quest"; return true; }
-		boolean questActionsAllowed = !supportNeeded && questing && order == Order.FOLLOW && !incapacitated && !owner.isDead()
+		boolean materialFlight=PlayerBotQuestMaterials.flightPending(this);
+		if (autonomous() && !materialFlight && enemies.isEmpty() && !supportNeeded && !incapacitated && PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot)) && PlayerBotService.getInstance().placePopulation(this)) { status="entering a level-appropriate population destination"; return true; }
+		if (autonomous() && !materialFlight && enemies.isEmpty() && !supportNeeded && !bot.isCasting() && !incapacitated && PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot)) && PlayerBotWorldAscension.tick(this,navigation)) { status="advancing native Ascension quest"; return true; }
+		boolean questActionsAllowed = !supportNeeded && questEnabled && order == Order.FOLLOW && !incapacitated && !owner.isDead()
 			&& !(!autonomous() && owner.getMoveController().isInMove())
 			&& !owner.isFlying() && !bot.isFlying() && !PlayerBotQuestSync.returning(this) && !bot.isCasting()
 			&& !owner.getController().isInCombat() && !bot.getController().isInCombat() && party.stream().allMatch(p -> p.getAggroList().stream().findAny().isEmpty())
@@ -354,6 +358,8 @@ public final class PlayerBotSession {
 		// field fight does not wait for that ten-second post-attack timer.
 		boolean fieldPullAllowed = !supportNeeded && fieldPullAllowed();
 		PlayerBotQuestObjectives.prepare(this,questActionsAllowed && enemies.isEmpty() && !(!autonomous() && owner.getMoveController().isInMove()),mission!=null);
+		if (PlayerBotQuestItems.finish(owner,bot,questEnabled && order==Order.FOLLOW && !incapacitated && !bot.isCasting())) { status="advancing an owned item quest"; return true; }
+		if (enemies.isEmpty() && PlayerBotQuestActions.tickObjects(this,navigation,questActionsAllowed)) { status="using a native quest trigger"; return true; }
 		if (enemies.isEmpty() && PlayerBotQuestConversations.tick(this,navigation,questActionsAllowed)) { PlayerBotWorldActivities.interacting(bot);status="advancing an intermediate quest conversation"; return true; }
 		var questJob = enemies.isEmpty() && questActionsAllowed ? quests.choose(owner, bot) : null;
 		if (PlayerBotQuestObjects.tick(this, navigation, questActionsAllowed && questJob == null)) { PlayerBotWorldActivities.interacting(bot);status = "collecting quest object"; return true; }
@@ -364,6 +370,8 @@ public final class PlayerBotSession {
 			questTarget = 0;
 			if ((questActionsAllowed || fieldPullAllowed) && questJob == null && hp(bot) >= 85 && mp(bot) >= 60) {
 				Npc objective = questActionsAllowed ? mission == null ? quests.hunt(owner, bot) : quests.hunt(owner, bot, mission.quest) : null;
+				if (objective == null && autonomous() && com.aionemu.gameserver.configs.main.PlayerBotConfig.QUESTS_ENABLED
+				 && com.aionemu.gameserver.configs.main.PlayerBotConfig.QUEST_MATERIALS) objective = PlayerBotWorldActivities.materialHunt(this);
 				if (objective == null && autonomous()) objective = PlayerBotWorldActivities.grind(bot);
 				if(objective==null && autonomous()) {
 					PlayerBotWorldActivities.prepare(bot,navigation);
@@ -402,6 +410,12 @@ public final class PlayerBotSession {
   }
 		if (PlayerBotItemUse.pause(bot, !enemies.isEmpty() || owner.getController().isInCombat()
 			|| (!autonomous() && owner.getMoveController().isInMove()))) return true;
+		if((bot.getInteractionTask() instanceof com.aionemu.gameserver.skillengine.task.CraftingTask
+		 || bot.getInteractionTask() instanceof com.aionemu.gameserver.skillengine.task.GatheringTask) && bot.getInteractionTask().isInProgress()) {
+			if(escapeHazard || supportNeeded || !enemies.isEmpty() || owner.getController().isInCombat()
+			 || order!=Order.FOLLOW || (!autonomous() && owner.getMoveController().isInMove()))bot.getObserveController().notifyMoveObservers();
+			else {status="working through the native profession task";return true;}
+		}
 		if (bot.isCasting() || now < nextDecision) return true;
 		boolean combat = !enemies.isEmpty();
   PlayerBotRecoveryIntent.update(bot,combat,!autonomous() && owner.getMoveController().isInMove());
@@ -436,6 +450,21 @@ public final class PlayerBotSession {
 				return navigation.approach(protection, 2);
 			}), ENCOUNTER));
 		triggers = strategyPlan.triggers("quest interaction", State.NON_COMBAT);
+		if (questActionsAllowed && !combat && !rest && mission==null && questJob==null) {
+			var itemQuest=PlayerBotQuestItems.choose(owner,bot,now);
+			if(itemQuest!=null)triggers.add(trigger(new SimpleAction("use quest item for "+itemQuest.quest(),
+				() -> !bot.isCasting() && !bot.isLooting(), () -> {
+					navigation.stop();stand();return PlayerBotQuestItems.use(owner,bot,itemQuest);
+				}),DEFAULT+3));
+		}
+		if(questEnabled && order==Order.FOLLOW && !incapacitated && combat && !rest && mission==null) {
+			var questItem=PlayerBotQuestItems.choose(owner,bot,now,true);
+			if(questItem!=null) {
+				var questTriggers=strategyPlan.triggers("quest skill items",State.COMBAT);
+				questTriggers.add(trigger(new SimpleAction("use native quest skill item for "+questItem.quest(),
+				 ()->!bot.isCasting() && !bot.isLooting(),()->{navigation.stop();stand();return PlayerBotQuestItems.use(owner,bot,questItem);}),HIGH+1));
+			}
+		}
 		if (questActionsAllowed && !combat && !rest && (mission == null || !(!autonomous() && owner.getMoveController().isInMove()))) {
 			var job = questJob;
 			if (job != null) triggers.add(trigger(new Action() {
@@ -483,6 +512,20 @@ public final class PlayerBotSession {
 				}), DEFAULT - 1));
 		}
 		triggers = strategyPlan.triggers("care and services", State.NON_COMBAT);
+		if(materialFlight && !combat && !supportNeeded && !incapacitated) {
+			boolean continueMaterial=questEnabled && order==Order.FOLLOW && autonomous()
+			 && com.aionemu.gameserver.configs.main.PlayerBotConfig.QUEST_MATERIALS && com.aionemu.gameserver.configs.main.PlayerBotConfig.QUEST_FLIGHT;
+			triggers.add(trigger(new SimpleAction("complete native material flight safely",()->!bot.isCasting() && !bot.isLooting(),
+			 ()->PlayerBotQuestMaterials.tick(this,navigation,continueMaterial) || PlayerBotQuestMaterials.flightPending(this)),HIGH));
+		}
+		if(questActionsAllowed && !combat && !rest && mission==null && questJob==null) {
+			var craft=com.aionemu.gameserver.configs.main.PlayerBotConfig.QUEST_CRAFTING ? PlayerBotQuestCraftingDriver.request(this) : null;
+			if(craft!=null && craft.stage()!=PlayerBotQuestCrafting.Stage.WAIT && craft.stage()!=PlayerBotQuestCrafting.Stage.BLOCKED)
+			 triggers.add(trigger(new SimpleAction("native quest crafting: "+craft.reason(),()->!bot.isCasting() && !bot.isLooting(),
+			 ()->{stand();return PlayerBotQuestCraftingDriver.tick(this,navigation,true);}),DEFAULT+1));
+			if(com.aionemu.gameserver.configs.main.PlayerBotConfig.QUEST_MATERIALS && !PlayerBotQuestMaterials.needed(this).isEmpty())triggers.add(trigger(new SimpleAction("earn native quest materials",
+			 ()->!bot.isCasting() && !bot.isLooting(),()->{stand();return PlayerBotQuestMaterials.tick(this,navigation,true);}),DEFAULT+1));
+		}
 		if (generated && !combat && !incapacitated && !rest && order == Order.FOLLOW) triggers.add(PlayerBotCare.trigger(this, navigation));
 		if ((generated || world()) && autoGear && !combat && !incapacitated && !rest && order == Order.FOLLOW) triggers.add(PlayerBotGearPolicy.trigger(this, navigation));
 		triggers = strategyPlan.triggers("supplies", State.NON_COMBAT, State.COMBAT);
@@ -495,6 +538,7 @@ public final class PlayerBotSession {
 				}), hp(bot) < 30 ? EMERGENCY + 4 : HIGH + 4));
 		triggers = strategyPlan.triggers(PlayerBotAssassin.strategy(bot.getPlayerClass()), State.NON_COMBAT, State.COMBAT);
 		strategyPlan.enable(PlayerBotAssassin.strategy(bot.getPlayerClass()), order != Order.PASSIVE);
+		var requiredQuestSkills=questing && order==Order.FOLLOW ? PlayerBotQuestActions.skills(owner,bot) : Set.<Integer>of();
 		if (order != Order.PASSIVE) {
 			for (PlayerBotSkills.Entry entry : skills) {
 				if (incapacitated && entry.kind() != SkillKind.RECOVERY || bot.isSkillDisabled(entry.template()) || !PlayerBotSkills.chainAvailable(bot, entry)) continue;
@@ -503,6 +547,7 @@ public final class PlayerBotSession {
 				var beneficiaries = entry.kind()==SkillKind.DAMAGE || entry.kind()==SkillKind.CONTROL || entry.kind()==SkillKind.TAUNT
      || PlayerBotChanter.mantra(entry.template()) ? party : support;
 				double score = priority(entry, recipient, combat, beneficiaries);
+				if(score>0 && requiredQuestSkills.contains(entry.template().getSkillId()))score=Math.max(score,DEFAULT+4);
 				if (score > 0) triggers.add(trigger(PlayerBotStrategyComposition.skill(
 					new CastAction(entry, recipient, enemies), bot, entry, recipient, skills), score));
 			}

@@ -7,6 +7,7 @@ import com.aionemu.gameserver.questEngine.handlers.AbstractQuestHandler;
 import com.aionemu.gameserver.questEngine.model.QuestEnv;
 import com.aionemu.gameserver.questEngine.model.QuestState;
 import com.aionemu.gameserver.questEngine.model.QuestStatus;
+import com.aionemu.gameserver.questEngine.model.QuestBotAction;
 
 /**
  * @author Mr. Poke, vlog, Majka
@@ -15,6 +16,20 @@ public class _2006HitThemWhereitHurts extends AbstractQuestHandler {
 
 	public _2006HitThemWhereitHurts() {
 		super(2006);
+	}
+
+	@Override
+	public java.util.List<QuestBotAction> getPlayerBotActions(Player player) {
+		var qs = player.getQuestStateList().getQuestState(questId);
+		if (qs == null) return java.util.List.of();
+		if (qs.getStatus() == QuestStatus.REWARD) return java.util.List.of(QuestBotAction.reward(203516));
+		if (qs.getStatus() != QuestStatus.START) return java.util.List.of();
+		return switch (qs.getQuestVarById(0)) {
+			case 0 -> java.util.List.of(QuestBotAction.dialog(203540, SETPRO1, 1011));
+			case 1 -> java.util.List.of(QuestBotAction.object(700095), QuestBotAction.dialog(203540, CHECK_USER_HAS_QUEST_ITEM, 1352)
+				.requiringCollection(com.aionemu.gameserver.dataholders.DataManager.QUEST_DATA.getQuestById(questId).getCollectItems()));
+			default -> java.util.List.of(QuestBotAction.event("Unexpected native Hit Them Where It Hurts stage; no transition declared"));
+		};
 	}
 
 	@Override

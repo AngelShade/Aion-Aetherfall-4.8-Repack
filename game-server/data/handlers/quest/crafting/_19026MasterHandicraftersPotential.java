@@ -21,6 +21,14 @@ public class _19026MasterHandicraftersPotential extends AbstractQuestHandler {
 	}
 
 	@Override
+	public boolean isBotCraftingQuest() { return true; }
+
+	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.masterPotential(player, questId, 203792, 798013, 182206767, new com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.Design(152202049, 155002087), new com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.Design(152202050, 155002088));
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(203792).addOnQuestStart(questId);
 		qe.registerQuestNpc(203792).addOnTalkEvent(questId);

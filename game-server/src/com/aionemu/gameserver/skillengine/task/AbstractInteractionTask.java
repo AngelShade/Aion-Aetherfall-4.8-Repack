@@ -6,6 +6,7 @@ import com.aionemu.gameserver.model.gameobjects.VisibleObject;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.services.RecallService;
 import com.aionemu.gameserver.services.RecallService.CancelReason;
+import com.aionemu.gameserver.services.playerbot.PlayerBotService;
 import com.aionemu.gameserver.utils.ThreadPoolManager;
 
 /**
@@ -19,6 +20,7 @@ public abstract class AbstractInteractionTask {
 
 	protected final Player requester;
 	protected final VisibleObject responder;
+	private final int worldId, instanceId;
 
 	/**
 	 * @param requester
@@ -26,6 +28,8 @@ public abstract class AbstractInteractionTask {
 	 */
 	public AbstractInteractionTask(Player requester, VisibleObject responder) {
 		this.requester = requester;
+		worldId = requester.isPlayerBot() ? requester.getWorldId() : 0;
+		instanceId = requester.isPlayerBot() ? requester.getInstanceId() : 0;
 		if (responder == null)
 			this.responder = requester;
 		else
@@ -69,12 +73,25 @@ public abstract class AbstractInteractionTask {
 
 			@Override
 			public void run() {
-				boolean stopTask = !requester.isOnline() || onInteraction();
-				if (stopTask)
-					stop();
+				runInteraction();
 			}
 
 		}, delay, interval);
+	}
+
+	/** Preserve the native progression task; headless actors have no client socket. */
+	protected boolean interactionPresent() {
+		return requester.isPlayerBot() ? PlayerBotService.getInstance().allowsHeadlessInteraction(requester) : requester.isOnline();
+	}
+
+	protected final void runInteraction() {
+		if (requester.isPlayerBot() && (requester.getInteractionTask() != this
+			|| requester.getWorldId() != worldId || requester.getInstanceId() != instanceId || !interactionPresent())) {
+			abort();
+			return;
+		}
+		if (!interactionPresent() || onInteraction())
+			stop();
 	}
 
 	/**

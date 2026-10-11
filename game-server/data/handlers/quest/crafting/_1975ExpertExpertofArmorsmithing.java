@@ -19,6 +19,14 @@ public class _1975ExpertExpertofArmorsmithing extends AbstractQuestHandler {
 	}
 
 	@Override
+	public boolean isBotCraftingQuest() { return true; }
+
+	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.expertQualification(player, questId, 203790, 182206894);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(203790).addOnQuestStart(questId);
 		qe.registerQuestNpc(203790).addOnTalkEvent(questId);

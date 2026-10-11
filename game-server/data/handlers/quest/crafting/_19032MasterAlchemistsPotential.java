@@ -21,6 +21,14 @@ public class _19032MasterAlchemistsPotential extends AbstractQuestHandler {
 	}
 
 	@Override
+	public boolean isBotCraftingQuest() { return true; }
+
+	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.masterPotential(player, questId, 203786, 203787, 182206768, new com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.Design(152202147, 155002185), new com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.Design(152202148, 155002186));
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(203786).addOnQuestStart(questId);
 		qe.registerQuestNpc(203786).addOnTalkEvent(questId);

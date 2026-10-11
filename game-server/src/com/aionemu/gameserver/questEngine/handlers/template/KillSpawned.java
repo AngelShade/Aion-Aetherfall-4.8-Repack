@@ -135,4 +135,20 @@ public class KillSpawned extends AbstractTemplateQuestHandler {
 		}
 		return false;
 	}
+
+	@Override
+	public List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		QuestState state = player.getQuestStateList().getQuestState(questId);
+		if (state == null || state.getStatus() != QuestStatus.START) return List.of();
+		var actions = new java.util.ArrayList<com.aionemu.gameserver.questEngine.model.QuestBotAction>();
+		for (Monster monster : spawnedMonsters) {
+			if (state.getQuestVarById(monster.getVar()) >= monster.getEndVar()) continue;
+			if (monster.getSpawnerNpcId() > 0 && monster.getNpcIds() != null && !monster.getNpcIds().isEmpty()) {
+				actions.add(com.aionemu.gameserver.questEngine.model.QuestBotAction.object(monster.getSpawnerNpcId()));
+				// The native trigger summons only the first declared alternative.
+				actions.add(com.aionemu.gameserver.questEngine.model.QuestBotAction.hunt(monster.getNpcIds().getFirst()));
+			}
+		}
+		return List.copyOf(actions);
+	}
 }

@@ -16,7 +16,9 @@ import static com.aionemu.gameserver.model.DialogAction.*;
 
 /** Native intermediate objectives, separate from acceptance and reward actions. */
 public final class PlayerBotQuestConversations {
- record Step(int quest,int npc,int action,int page,int variables) {}
+ record Step(int quest,int npc,int action,int page,int variables,QuestBotAction declared) {
+  Step(int quest,int npc,int action,int page,int variables){this(quest,npc,action,page,variables,null);}
+ }
  record Witness(Step step,long expires) {}
  private static final Map<String,Witness> WITNESSES=new ConcurrentHashMap<>();
  private static final Map<Integer,Long> RETRY=new ConcurrentHashMap<>();
@@ -35,13 +37,18 @@ public final class PlayerBotQuestConversations {
   }catch(RuntimeException error){org.slf4j.LoggerFactory.getLogger(PlayerBotQuestConversations.class).warn("Companion conversation observation failed for quest {}",quest,error);}
  }
  static List<Step> steps(Player owner,Player bot,int quest) {
+  if(!PlayerBotQuestFeatures.enabled(quest))return List.of();
   var q=bot.getQuestStateList().getQuestState(quest);if(q==null || q.getStatus()!=QuestStatus.START)return List.of();int variables=q.getQuestVars().getQuestVars(),stage=q.getQuestVarById(0);
   Witness witnessed=owner==null ? null : WITNESSES.get(owner.getObjectId()+":"+quest+":"+variables);
   if(witnessed!=null && witnessed.expires>System.currentTimeMillis())return List.of(witnessed.step);
+  var declared=PlayerBotQuestActions.actions(bot,quest);
+  if(!declared.isEmpty())return declared.stream().filter(a->a.kind()==QuestBotAction.Kind.CONVERSATION
+   && a.targetId()>0 && a.dialogAction()>0 && a.page()>0 && PlayerBotQuestActions.items(bot,a))
+   .map(a->new Step(quest,a.targetId(),a.dialogAction(),a.page(),variables,a)).toList();
   var model=DataManager.XML_QUESTS==null ? null : DataManager.XML_QUESTS.getQuest(quest);List<Step> result=new ArrayList<>();
   if(model instanceof ItemOrdersData) {
    int first=number(model,"talkNpcId1"),second=number(model,"talkNpcId2");
-   int npc=stage==0 ? first : stage==1 && first>0 ? second : 0;
+   int npc=stage==0 ? first>0?first:second : stage==1 && first>0 ? second : 0;
    if(npc>0)result.add(new Step(quest,npc,SETPRO1,1352,variables));
   }
   if(model instanceof ItemCollectingData && number(model,"nextNpcId")>0 && stage==0)result.add(new Step(quest,number(model,"nextNpcId"),SETPRO1,1352,variables));
@@ -81,11 +88,19 @@ public final class PlayerBotQuestConversations {
  }
  static boolean interact(Player bot,Npc npc,Step step) {
   var q=bot.getQuestStateList().getQuestState(step.quest);if(q==null || q.getStatus()!=QuestStatus.START || q.getQuestVars().getQuestVars()!=step.variables)return false;
+  if(step.declared!=null && (!PlayerBotQuestActions.actions(bot,step.quest).contains(step.declared) || !PlayerBotQuestActions.items(bot,step.declared)))return false;
   try(var dialog=PlayerBotQuestDialog.open(bot.getObjectId(),npc.getObjectId(),step.quest)) {
    npc.getController().onDialogSelect(QUEST_SELECT,0,bot,step.quest,0);
    if(q.getQuestVars().getQuestVars()!=step.variables)return q.getStatus()==QuestStatus.START;
    Object page=field(dialog,"page");if(!(page instanceof Integer offered) || offered<=0 || step.page>0 && offered!=step.page)return false;
-   npc.getController().onDialogSelect(step.action,offered,bot,step.quest,0);
+   dialog.clearPage();npc.getController().onDialogSelect(step.action,offered,bot,step.quest,0);
+   if(step.declared!=null)for(var continuation:step.declared.continuation()) {
+    if(q.getStatus()!=QuestStatus.START || q.getQuestVars().getQuestVars()!=step.variables)break;
+    if(npc.getWorldId()!=bot.getWorldId() || npc.getInstanceId()!=bot.getInstanceId()
+     || !PositionUtil.isInTalkRange(bot,npc) || !GeoService.getInstance().canSee(bot,npc)
+     || !DialogService.isInteractionAllowed(bot,npc) || !dialog.offered(continuation.page()))return false;
+    dialog.clearPage();npc.getController().onDialogSelect(continuation.action(),continuation.page(),bot,step.quest,0);
+   }
    return q.getStatus()==QuestStatus.REWARD || q.getStatus()==QuestStatus.START && q.getQuestVars().getQuestVars()!=step.variables;
   }finally{DialogService.onCloseDialog(bot,npc);}
  }

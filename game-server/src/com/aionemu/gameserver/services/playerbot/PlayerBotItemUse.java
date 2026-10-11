@@ -11,6 +11,7 @@ final class PlayerBotItemUse {
   // Abort the actual item observers. A synthetic MOVE also marks an unrelated
   // committed spell's StartMovingListener and makes move_casting fail at cast end.
   bot.getController().cancelUseItem();
+  PlayerBotQuestItems.close(bot);
   return false;
  }
  private PlayerBotItemUse() {}

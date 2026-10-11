@@ -21,6 +21,11 @@ public class _80218DarkPoetaEncore extends AbstractQuestHandler {
 	}
 
 	@Override
+	public java.util.List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
+		return com.aionemu.gameserver.questEngine.model.QuestBotActionFamilies.countedHunt(player, questId, 831024, 2, 214904);
+	}
+
+	@Override
 	public void register() {
 		qe.registerQuestNpc(831024).addOnQuestStart(questId);
 		qe.registerQuestNpc(831024).addOnTalkEvent(questId);

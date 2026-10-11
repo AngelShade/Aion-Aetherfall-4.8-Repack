@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'client-mods/playerbots'))
 import stage_companion_update as shared
 build_meta = import_module('build-manifest')
+delivery = import_module('deliver-source-component')
 
 
 def main():
@@ -26,7 +27,9 @@ def main():
     resources, inputs, staged_handlers, cache = [], {}, [], set()
     with zipfile.ZipFile(build / 'game-server/game-server.zip') as assembly:
         managed = {n.removeprefix('game-server/'): n for n in assembly.namelist()
-            if n.startswith('game-server/data/') and not n.endswith('/') and not n.startswith('game-server/data/geo/')}
+            if not n.endswith('/') and (n.startswith('game-server/data/') and not n.startswith('game-server/data/geo/')
+                or n == 'game-server/' + delivery.FEATURE_CONFIGURATION)}
+        assert delivery.FEATURE_CONFIGURATION in managed, 'Normal assembly omitted Playerbots feature configuration'
         extras = [f.relative_to(server).as_posix() for folder in ['data/handlers', 'data/static_data', 'data/scripts']
             for f in (server / folder).rglob('*') if f.is_file() and f.suffix in {'.java', '.xml', '.xsd'} and f.relative_to(server).as_posix() not in managed]
         assert not extras, 'Reconcile runtime-only features into authoritative source before delivery: ' + str(extras)
@@ -36,7 +39,9 @@ def main():
             target = server / rel
             original = shared.sha(target) if target.is_file() else None
             inputs[rel] = original
-            if original != hashlib.sha256(data).hexdigest(): resources.append(rel)
+            if rel == delivery.FEATURE_CONFIGURATION:
+                if delivery.initial_feature_configuration(target): resources.append(rel)
+            elif original != hashlib.sha256(data).hexdigest(): resources.append(rel)
             if rel.startswith('data/handlers/') and rel.endswith('.java'):
                 dest = out / 'handler-source' / rel; dest.parent.mkdir(parents=True, exist_ok=True); dest.write_bytes(data)
                 staged_handlers.append(dest)
