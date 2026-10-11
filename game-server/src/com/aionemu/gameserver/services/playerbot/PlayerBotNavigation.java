@@ -17,7 +17,7 @@ final class PlayerBotNavigation {
 	private Point lastOwner;
 	private final Deque<Point> route = new ArrayDeque<>();
 	private Point routeGoal;
-	private PlayerBotRouteSearch routeSearch;
+	private volatile PlayerBotRouteSearch routeSearch;
 	private Point progressWaypoint;
 	private double closestWaypointDistance;
 	private volatile long searchProgress;
@@ -47,6 +47,7 @@ final class PlayerBotNavigation {
 	void hazards(java.util.List<PlayerBotHazards.Area> areas) { hazards = java.util.List.copyOf(areas); }
 	boolean planningRoute(){return routeSearch!=null && routeSearch.pending();}
 	boolean routeProgressing(long now){return planningRoute() && now-searchProgress<30000;}
+	boolean progressing(long now){return routeProgressing(now) || !route.isEmpty() && now-lastProgress<4000;}
 	boolean escapeHazards() {
 		Point destination = PlayerBotHazards.escape(new Point(bot.getX(), bot.getY(), bot.getZ()), hazards, bot.getHeading());
 		return destination != null && move(destination.x(), destination.y(), destination.z());
@@ -242,7 +243,7 @@ final class PlayerBotNavigation {
 			Vector3f origin=GeoService.getInstance().findGroundMovementCollision(bot.getWorldId(),bot.getInstanceId(),bot.getX(),bot.getY(),bot.getZ(),bot.getX(),bot.getY(),goal.z());
 			Point start=origin==null?new Point(bot.getX(),bot.getY(),bot.getZ()):new Point(origin.x,origin.y,origin.z);
 			routeSearch=new PlayerBotRouteSearch(start,goal,bot.getWorldMapInstance().getParent().getWorldSize(),4096);
-			if(routeSearch.pending()){searchProgress=now;SEARCHES.acquire(searchToken,now);status="planning supported ground route";stopMovement();return true;}
+			if(routeSearch.pending()){searchProgress=now;status="planning supported ground route";stopMovement();return true;}
 			status=routeSearch.reason();routeSearch=null;nextSearch=now+3000;stopMovement();return false;
 		}
 		if (best == null) { route.clear(); status = "blocked by geometry"; stopMovement(); return false; }

@@ -212,6 +212,7 @@ final class PlayerBotWorldActivities {
   if(s.goal!=null) {
    double distance=PlayerBotWorldTravel.distance(bot,s.goal.place());
    if(distance<s.best-2){s.best=distance;s.lastProgress=now;}
+   if(navigation.progressing(now))s.lastProgress=now;
    if(stalled(now,s.lastProgress)){s.excluded.put(key(s.goal),now+120000);s.goal=null;s.nextScan=0;navigation.stop();}
   }
   if(s.goal==null && now>=s.nextScan){s.nextScan=now+5000;s.goal=choose(bot,s,now);s.best=Double.POSITIVE_INFINITY;s.lastProgress=now;}
@@ -239,6 +240,7 @@ final class PlayerBotWorldActivities {
    // A failed vendor route cannot permanently displace questing/combat.
    if(s.vendor==null || !s.vendor.equals(destination)){s.vendor=destination;s.vendorSince=now;s.vendorBest=Double.POSITIVE_INFINITY;}
    double distance=PlayerBotWorldTravel.distance(bot,destination);if(distance<s.vendorBest-2){s.vendorBest=distance;s.vendorSince=now;}
+   if(navigation.progressing(now))s.vendorSince=now;
    if(stalled(now,s.vendorSince)){s.excluded.put("vendor:"+destination,now+120000);s.vendor=null;s.nextSell=now+5000;return false;}
    return PlayerBotWorldTravel.move(bot,destination,navigation);
   }
