@@ -19,7 +19,7 @@ def validate(before, after, expected):
 
 def verified_receipt(server, archives, original_hash):
     assert server.resolve() == (ROOT/'target-deploy/game-server').resolve()
-    config=server/'config/main/playerbots.properties'
+    config=importlib.import_module('playerbot-config-paths').active(server)
     receipts=sorted(archives.glob('playerbots-field-placement-*/manifest.json'))
     if not receipts: return None
     path=receipts[-1]; m=json.loads(path.read_text()); original=path.parent/'playerbots.properties'
@@ -27,13 +27,13 @@ def verified_receipt(server, archives, original_hash):
     assert m['feature']=='playerbots-field-placement' and Path(m['path']).resolve()==config.resolve()
     assert shared.sha(original)==m['original'] and m['configuredValue']==0
     validate(original.read_bytes(),config.read_bytes(),m['previousValue'])
-    return dict(path='config/main/playerbots.properties',installed=m['installed'])
+    return dict(path=importlib.import_module('playerbot-config-paths').active(server).relative_to(server).as_posix(),installed=m['installed'])
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--expected', type=int, required=True)
     a = p.parse_args()
-    config = ROOT / 'target-deploy/game-server/config/main/playerbots.properties'
+    config = importlib.import_module('playerbot-config-paths').active(ROOT / 'target-deploy/game-server')
     before = config.read_bytes(); after = field_bytes(before, a.expected)
     validate(before, after, a.expected)
     stopped()

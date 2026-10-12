@@ -93,12 +93,21 @@ public class Config {
 				log.info("Loading default configuration values from: " + configDir + "/*");
 				PropertiesUtils.loadFromDirectory(defaults, root.resolve(configDir).toFile(), false);
 			}
-			// This folder also stores per-character metadata. Only the documented
-			// feature file is server configuration; character care files are never loaded.
+			// Load only named server configuration files; character metadata is not configuration.
+			Path playerbots = root.resolve("./config/playerbots/playerbots.properties");
+			if (Files.isRegularFile(playerbots)) {
+				log.info("Loading default configuration values from: ./config/playerbots/playerbots.properties");
+				defaults.putAll(PropertiesUtils.load(playerbots.toFile(), null));
+			}
 			Path features = root.resolve("./config/playerbots/features.properties");
 			if (Files.isRegularFile(features)) {
 				log.info("Loading default configuration values from: ./config/playerbots/features.properties");
 				defaults.putAll(PropertiesUtils.load(features.toFile(), null));
+			}
+			Path navigation = root.resolve("./config/playerbots/navigation.properties");
+			if (Files.isRegularFile(navigation)) {
+				log.info("Loading default configuration values from: ./config/playerbots/navigation.properties");
+				defaults.putAll(PropertiesUtils.load(navigation.toFile(), null));
 			}
 			log.info("Loading: ./config/mygs.properties");
 			Properties properties = PropertiesUtils.load(root.resolve("./config/mygs.properties").toFile(), defaults);

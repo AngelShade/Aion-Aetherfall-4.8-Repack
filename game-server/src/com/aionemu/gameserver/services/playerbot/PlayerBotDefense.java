@@ -86,10 +86,13 @@ final class PlayerBotDefense {
  static double peelPriority(Player bot,Role role,PlayerBotSkills.Entry entry,Creature target) {
   if(!entry.template().hasAnyEffect(ROOT,SNARE) || role==Role.TANK || role==Role.MELEE
    || bot.getPlayerClass()!=PlayerClass.MAGE && bot.getPlayerClass()!=PlayerClass.SORCERER && bot.getPlayerClass()!=PlayerClass.RANGER
-   || !(target instanceof Npc npc) || entry.template().isCharge() || !PlayerBotEnemyUtility.ready(bot,entry,npc)
-   || PlayerBotService.getInstance().isReserved(bot,target,SkillKind.CONTROL))return 0;
-  return peelPolicy(bot.getPlayerClass(),role,entry.template(),PositionUtil.getDistance(bot,target),target.getTarget()==bot,
+   || !(target instanceof Npc npc) || entry.template().isCharge())return 0;
+  double priority=peelPolicy(bot.getPlayerClass(),role,entry.template(),PositionUtil.getDistance(bot,target),target.getTarget()==bot,
    target.getEffectController().isInAnyAbnormalState(AbnormalState.CANT_MOVE_STATE),target.getEffectController().isAbnormalSet(AbnormalState.SNARE));
+  // Prove an action has benefit before spending native sight/cast admission.
+  // Useful candidates still require the same fresh native authority.
+  return priority>0 && PlayerBotEnemyUtility.ready(bot,entry,npc)
+   && !PlayerBotService.getInstance().isReserved(bot,target,SkillKind.CONTROL) ? priority : 0;
  }
  static Creature peelRecipient(Player bot,Role role,PlayerBotSkills.Entry entry,Npc primary) {
   if(!entry.template().hasAnyEffect(ROOT,SNARE) || entry.template().isCharge())return null;

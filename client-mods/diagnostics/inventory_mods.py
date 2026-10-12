@@ -153,7 +153,7 @@ def main():
     if source_receipts and (source_receipts[-1].parent/'installed.json').exists():
         source_build=read(source_receipts[-1])
         protected=source_build['guardFiles']
-        config_guards=[e for e in protected if e['path']=='config/main/playerbots.properties']
+        config_guards=[e for e in protected if e['path'] in {'config/main/playerbots.properties','config/playerbots/playerbots.properties'}]
         if len(config_guards)==1 and sha(server/config_guards[0]['path'])!=config_guards[0]['installed']:
             sys.path.insert(0,str(HERE.parent/'tools'))
             documentation=importlib.import_module('configure-playerbot-field').verified_receipt(server,archive_root,config_guards[0]['installed'])

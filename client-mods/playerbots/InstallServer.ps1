@@ -9,7 +9,7 @@ $botSocket=[Net.Sockets.TcpClient]::new()
 try { $botSocket.Connect('127.0.0.1',7777); throw 'GameServer must finish graceful shutdown before installation.' }
 catch [Net.Sockets.SocketException] { } finally { $botSocket.Dispose() }
 foreach ($botEntry in $botManifest.files) {
-    if ($botEntry.path -notmatch '^(libs/game-server-4\.8-SNAPSHOT\.jar|data/handlers/playercommands/Bot\.java|config/administration/commands\.properties|config/main/playerbots\.properties|sql/playerbots\.sql|config/playerbots/media/bots\.(html|css|js))$') { throw 'Unexpected companion installation path.' }
+    if ($botEntry.path -notmatch '^(libs/game-server-4\.8-SNAPSHOT\.jar|data/handlers/playercommands/Bot\.java|config/administration/commands\.properties|config/playerbots/playerbots\.properties|sql/playerbots\.sql|config/playerbots/media/bots\.(html|css|js))$') { throw 'Unexpected companion installation path.' }
     $botTarget=[IO.Path]::GetFullPath((Join-Path $botDeployment $botEntry.path))
     if (!$botTarget.StartsWith($botDeployment+'\',[StringComparison]::OrdinalIgnoreCase)) { throw 'Target outside deployment.' }
     if ((Get-FileHash -LiteralPath (Join-Path $botPrepared $botEntry.path)).Hash -ne $botEntry.sha256) { throw 'Prepared companion payload changed.' }

@@ -43,19 +43,20 @@ public final class PlayerBotDecisionIsolationCheck {
   PlayerBotShutdownCheck.set(session,"owner",actor);PlayerBotShutdownCheck.set(session,"questTarget",0);actor.spawned=true;
   var navigation=new PlayerBotNavigation(actor);PlayerBotShutdownCheck.set(session,"navigation",navigation);
   PlayerBotShutdownCheck.set(navigation,"routeWorld",1);PlayerBotShutdownCheck.set(navigation,"routeInstance",1);
-  var searchesField=PlayerBotNavigation.class.getDeclaredField("SEARCHES");searchesField.setAccessible(true);
-  var searches=(PlayerBotNavigationSearch)searchesField.get(null);
+  var searchesField=PlayerBotNavigation.class.getDeclaredField("TERRAIN");searchesField.setAccessible(true);
+  var searches=(PlayerBotNavigationBudget)searchesField.get(null);
   var tokenField=PlayerBotNavigation.class.getDeclaredField("searchToken");tokenField.setAccessible(true);Object token=tokenField.get(navigation);
-  long now=System.currentTimeMillis();check(searches.acquire(new Object(),now),"Initial permit preserves shared quota");
-  check(!searches.acquire(token,now),"Queued actor cannot consume another permit before100ms");
+  var seedLease=searches.begin(new Object(),PlayerBotNavigationBudget.Priority.WORLD);check(seedLease!=null,"Initial lease preserves measured work admission");
+  searches.request(token,PlayerBotNavigationBudget.Priority.WORLD);
+  check(searches.waiting(token),"Queued actor remains subject to global measured budget");
   check(session.reactionDelay()==100,"Nominated idle actor receives prompt production scheduler reaction");
   check(selection.invoke(service,session)==active,"Production scheduler puts nominated actor in active world lane");
   searches.cancel(token);check(session.reactionDelay()>=1000,"Cancellation restores ordinary idle reaction");
   var petNavigation=new PlayerBotNavigation(actor);PlayerBotShutdownCheck.set(petNavigation,"routeWorld",1);PlayerBotShutdownCheck.set(petNavigation,"routeInstance",1);
   var pets=new PlayerBotPets();PlayerBotShutdownCheck.set(pets,"navigation",petNavigation);PlayerBotShutdownCheck.set(session,"pets",pets);
-  Object petToken=tokenField.get(petNavigation);check(!searches.acquire(petToken,now),"Summon navigation shares the same global quota");
+  Object petToken=tokenField.get(petNavigation);searches.request(petToken,PlayerBotNavigationBudget.Priority.WORLD);check(searches.waiting(petToken),"Summon navigation shares the same measured global work budget");
   check(session.reactionDelay()==100 && selection.invoke(service,session)==active,"Summon turn promotes its master through real scheduler lane selection");
-  searches.cancel(petToken);check(session.reactionDelay()>=1000,"Released summon turn cannot keep master promoted");
+  searches.cancel(petToken);check(session.reactionDelay()>=1000,"Released summon turn cannot keep master promoted");seedLease.close();
   var executor=Executors.newFixedThreadPool(3);var entered=new CountDownLatch(1);var release=new CountDownLatch(1);
   try {
    check(idle.submit(executor::execute,()->{entered.countDown();try{release.await();}catch(InterruptedException e){Thread.currentThread().interrupt();}}),"Idle planner admitted");

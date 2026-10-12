@@ -73,6 +73,39 @@ final class PlayerBotPopulationPolicy {
   for(var c:shuffled)if(c.race()==Race.ELYOS && result.size()<slots && !result.contains(c.character()))result.add(c.character());
   return List.copyOf(result);
  }
+ /** Select the least represented saved level within each native faction quota.
+  * Creation probabilities affect new identities only; earned XP is never rerolled.
+  * Missing level snapshots are excluded, never guessed or allowed to create slots. */
+ static List<Integer> admit(List<Candidate> candidates,int slots,int percent,RandomGenerator rng,
+                           Map<Integer,Integer> levels,Map<Race,Map<Integer,Integer>> online) {
+  if(slots<=0)return List.of();if(percent<0 || percent>100)throw new IllegalArgumentException("Faction ratio");
+  var shuffled=new ArrayList<>(candidates);Collections.shuffle(shuffled,new Random(rng.nextLong()));
+  var buckets=new EnumMap<Race,Map<Integer,ArrayDeque<Integer>>>(Race.class);
+  for(var c:shuffled){var level=levels.get(c.character());if(level==null || level<1 || level>65)continue;
+   buckets.computeIfAbsent(c.race(),k->new TreeMap<>()).computeIfAbsent(level,k->new ArrayDeque<>()).add(c.character());}
+  var counts=new EnumMap<Race,Map<Integer,Integer>>(Race.class);
+  for(var race:List.of(Race.ELYOS,Race.ASMODIANS))counts.put(race,new HashMap<>(online.getOrDefault(race,Map.of())));
+  int elyos=slots*percent/100;if(rng.nextInt(100)<slots*percent%100)elyos++;
+  var result=new ArrayList<Integer>();
+  takeLevels(buckets,counts,Race.ELYOS,elyos,result,rng);
+  takeLevels(buckets,counts,Race.ASMODIANS,slots-result.size(),result,rng);
+  takeLevels(buckets,counts,Race.ELYOS,slots-result.size(),result,rng);
+  return List.copyOf(result);
+ }
+ private static void takeLevels(Map<Race,Map<Integer,ArrayDeque<Integer>>> buckets,Map<Race,Map<Integer,Integer>> counts,
+                                Race race,int slots,List<Integer> result,RandomGenerator rng) {
+  var available=buckets.getOrDefault(race,Map.of());var used=counts.get(race);
+  for(int slot=0;slot<slots;slot++){
+   int selected=0,lowest=Integer.MAX_VALUE,ties=0;
+   for(var entry:available.entrySet())if(!entry.getValue().isEmpty()){
+    int count=used.getOrDefault(entry.getKey(),0);
+    if(count<lowest){lowest=count;selected=0;ties=0;}
+    if(count==lowest && rng.nextInt(++ties)==0)selected=entry.getKey();
+   }
+   if(selected==0)return;
+   result.add(available.get(selected).removeFirst());used.merge(selected,1,Integer::sum);
+  }
+ }
  /** Signed native account columns permit a disjoint headless namespace. LS auto-increment IDs are positive. */
  static boolean serverAccount(int id){return id<=-1000000 && id>=-1000000-2*ACCOUNT_SHARDS+1;}
  static boolean account(int id){return id>0 || serverAccount(id);}

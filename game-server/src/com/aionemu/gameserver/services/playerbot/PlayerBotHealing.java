@@ -103,8 +103,10 @@ final class PlayerBotHealing {
   var props=e.template().getProperties();List<Creature> candidates=props.getFirstTarget()==FirstTargetAttribute.ME ? List.of(bot) : members(party);
   boolean group=props.getTargetType()!=null && props.getTargetType()!=TargetRangeAttribute.ONLYONE && props.getTargetMaxCount()!=1;
   Creature best=null;double bestPriority=Double.NEGATIVE_INFINITY,bestProbe=Double.POSITIVE_INFINITY;
-  for(var target:candidates)if(!target.isDead() && reachable(bot,e,target)) {
-   double priority=priority(bot,e,target,party),probe=probe(health(target),PositionUtil.getDistance(bot,target),e.range(),target instanceof Summon);
+  for(var target:candidates)if(!target.isDead()) {
+   double priority=priority(bot,e,target,party);
+   if(priority<=0 || !reachable(bot,e,target))continue;
+   double probe=probe(health(target),PositionUtil.getDistance(bot,target),e.range(),target instanceof Summon);
    double ranking=group || e.kind()==SkillKind.CLEANSE ? priority : -probe;
    if(priority>0 && (ranking>bestPriority || ranking==bestPriority && (probe<bestProbe || probe==bestProbe && target.getObjectId()<(best==null ? Integer.MAX_VALUE : best.getObjectId())))) {
     best=target;bestPriority=ranking;bestProbe=probe;
@@ -112,6 +114,13 @@ final class PlayerBotHealing {
   }return best;
  }
  static boolean useful(Player bot,PlayerBotSkills.Entry e,Creature anchor){return priority(bot,e,anchor,party(bot))>0;}
+ /** Reuse this decision's bounded membership, never its mutable health/rights.
+  * Native admission and effect-time checks still revalidate the actual cast. */
+ static boolean useful(Player bot,PlayerBotSkills.Entry e,Creature anchor,List<Player> party){
+  if(!PlayerBotSupport.effectAllowed(bot,anchor))return false;
+  var current=party.stream().filter(p->PlayerBotSupport.eligible(bot,p)).toList();
+  return priority(bot,e,anchor,current)>0;
+ }
  static void reserve(Player bot,PlayerBotSkills.Entry e,Skill skill,long until) {
   var members=members(party(bot));for(var target:List.copyOf(skill.getEffectedList()))
    if(members.contains(target) && !target.isDead()) {
@@ -122,8 +131,8 @@ final class PlayerBotHealing {
  static Creature resurrection(Player bot,PlayerBotSkills.Entry e,List<Player> party) {
   // There is no blanket combat veto. Native CombatCheck/weapon/resource/target
   // restrictions decide whether this particular learned resurrection is legal.
-  return PlayerBotSupport.allowed(bot,e,party).stream().filter(p->p.isDead() && !p.getResStatus()
-   && !PlayerBotService.getInstance().isReserved(bot,p,SkillKind.RESURRECT))
+  return PlayerBotSupport.allowed(bot,e,party,p->p.isDead() && !p.getResStatus()
+   && !PlayerBotService.getInstance().isReserved(bot,p,SkillKind.RESURRECT)).stream()
    .min(Comparator.comparingDouble(p->PositionUtil.getDistance(bot,p))).orElse(null);
  }
  private PlayerBotHealing(){}

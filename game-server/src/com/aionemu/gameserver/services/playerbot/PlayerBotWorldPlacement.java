@@ -15,6 +15,7 @@ import com.aionemu.gameserver.services.teleport.TeleportService;
 import com.aionemu.gameserver.utils.PositionUtil;
 import com.aionemu.gameserver.world.*;
 import com.aionemu.gameserver.world.geo.GeoService;
+import com.aionemu.gameserver.model.templates.zone.ZoneInfo;
 
 /** Background population placement, separate from ordinary paid-route activity travel. */
 final class PlayerBotWorldPlacement {
@@ -152,9 +153,35 @@ final class PlayerBotWorldPlacement {
   return World.getInstance().getAllPlayers().stream().anyMatch(p->!p.isPlayerBot() && p.isSpawned() && p.getWorldId()==map
    && p.getInstanceId()==1 && PositionUtil.getDistance(p,x,y,z)<150);
  }
+ private static boolean occupiedLanding(int map,float x,float y,float z) {
+  return World.getInstance().getAllPlayers().stream().anyMatch(p->p.isPlayerBot() && p.isSpawned() && p.getWorldId()==map && p.getInstanceId()==1
+   && PlayerBotCampDistribution.overlaps(x,y,z,p.getX(),p.getY(),p.getZ()));
+ }
  static boolean ground(WorldMapTemplate map,float x,float y,float z,float ground) {
   return Float.isFinite(ground) && Math.abs(ground-z)<=4 && ground>map.getDeathLevel() && ground>=map.getWaterLevel()
    && x>0 && y>0 && x<map.getWorldSize() && y<map.getWorldSize();
+ }
+ /** Native player-zone preference includes altitude: overlapping halls are distinct areas.
+  * Preserve map demand first and keep all other safe camps as fallback candidates. */
+ static List<Location> preferPlayerAreas(List<Location> choices,PlayerBotPopulationFocus.Snapshot focus,
+   Map<Integer,Integer> counts,Map<Integer,List<ZoneInfo>> zones) {
+  var preferred=focus.prefer(choices,counts);if(!focus.active())return preferred;
+  var occupied=new HashSet<PlayerBotPlayerZones.Zone>();
+  for(var anchor:focus.anchors()) {
+   var zone=PlayerBotPlayerZones.resolve(zones.getOrDefault(anchor.map(),List.of()),anchor.map(),anchor.x(),anchor.y(),anchor.z());
+   if(!zone.name().isEmpty())occupied.add(zone);
+  }
+  if(occupied.isEmpty())return preferred;
+  var matches=new HashSet<Location>();
+  for(var p:preferred)if(occupied.contains(PlayerBotPlayerZones.resolve(zones.getOrDefault(p.map(),List.of()),p.map(),p.x(),p.y(),p.z())))matches.add(p);
+  var ordered=new ArrayList<>(preferred);
+  ordered.sort(Comparator.comparingInt((Location p)->counts.getOrDefault(p.map(),0)).thenComparingInt(p->matches.contains(p)?0:1));
+  return List.copyOf(ordered);
+ }
+ private static List<Location> preferPlayerAreas(List<Location> choices,PlayerBotPopulationFocus.Snapshot focus,Map<Integer,Integer> counts) {
+  var zones=new HashMap<Integer,List<ZoneInfo>>();
+  for(int map:focus.maps())zones.put(map,List.copyOf(DataManager.ZONE_DATA.getZones(map)));
+  return preferPlayerAreas(choices,focus,counts,zones);
  }
  static Location destination(Race race,int level,int cityPercent,RandomGenerator rng) {
   return destination(race,level,cityPercent,rng,Set.of());
@@ -168,13 +195,17 @@ final class PlayerBotWorldPlacement {
   if(focus.active())for(var player:players)if(player.isWorldBot() && player.getPlayerBotOwnerId()==0 && player.isSpawned()
    && PlayerBotPopulationPolicy.serverAccount(player.getAccount().getId()))counts.merge(player.getWorldId(),1,Integer::sum);
   var occupied=PlayerBotConfig.POPULATION_CONCENTRATE?PlayerBotPlayerZones.occupied(players):Set.<PlayerBotPlayerZones.Zone>of();
-  var preferred=focus.active()?focus.prefer(choices,counts):PlayerBotPlayerZones.prefer(choices,occupied,PlayerBotConfig.POPULATION_CONCENTRATE);
+  var preferred=focus.active()?preferPlayerAreas(choices,focus,counts):PlayerBotPlayerZones.prefer(choices,occupied,PlayerBotConfig.POPULATION_CONCENTRATE);
+  var positions=new ArrayList<PlayerBotCampDistribution.Position>();
+  for(var p:players)if(p.isPlayerBot() && p.isSpawned() && p.getInstanceId()==1)positions.add(new PlayerBotCampDistribution.Position(p.getWorldId(),p.getX(),p.getY(),p.getZ()));
+  var distribution=new PlayerBotCampDistribution(positions);preferred=distribution.prefer(preferred,counts);
   for(var p:preferred) {
    var map=DataManager.WORLD_MAPS_DATA.getTemplate(p.map());if(!mapEligible(map,race,enabled) || nearHuman(p.map(),p.x(),p.y(),p.z()))continue;
    float z=GeoService.getInstance().getZ(p.map(),p.x(),p.y(),p.z()+2,p.z()-4,1);
-   if(!ground(map,p.x(),p.y(),p.z(),z) || !GeoService.getInstance().isPlayerBotLanding(p.map(),1,p.x(),p.y(),z))continue;
+   if(!ground(map,p.x(),p.y(),p.z(),z) || !distribution.clear(p.map(),p.x(),p.y(),z) || !GeoService.getInstance().isPlayerBotLanding(p.map(),1,p.x(),p.y(),z))continue;
    var worldMap=World.getInstance().getWorldMap(p.map());
    if(worldMap==null || worldMap.getMainWorldMapInstance().getRegion(p.x(),p.y(),z)==null)continue;
+   if(occupiedLanding(p.map(),p.x(),p.y(),z))continue;
    return new Location(p.race(),p.map(),p.x(),p.y(),z,p.minimum(),p.maximum(),p.city(),p.hub());
   }
   // Native spawns can sit against a tree/column or in a narrow actor gap.
@@ -188,8 +219,9 @@ final class PlayerBotWorldPlacement {
     public boolean safe(PlayerBotNavigation.Point point){
      var worldMap=World.getInstance().getWorldMap(p.map());
      return ground(map,point.x(),point.y(),p.z(),point.z()) && !nearHuman(p.map(),point.x(),point.y(),point.z())
+      && distribution.clear(p.map(),point.x(),point.y(),point.z())
       && worldMap!=null && worldMap.getMainWorldMapInstance().getRegion(point.x(),point.y(),point.z())!=null
-      && GeoService.getInstance().isPlayerBotLanding(p.map(),1,point.x(),point.y(),point.z());
+      && GeoService.getInstance().isPlayerBotLanding(p.map(),1,point.x(),point.y(),point.z()) && !occupiedLanding(p.map(),point.x(),point.y(),point.z());
     }
    },()->probes[0]++>=128 || System.nanoTime()>=deadline);
    if(point!=null)return new Location(p.race(),p.map(),point.x(),point.y(),point.z(),p.minimum(),p.maximum(),p.city(),p.hub());
@@ -203,7 +235,7 @@ final class PlayerBotWorldPlacement {
  static boolean place(PlayerBotSession session,int cityPercent,RandomGenerator rng,Set<Integer> focusMaps) {
   Player bot=session.bot();if(!idle(session) || nearHuman(bot.getWorldId(),bot.getX(),bot.getY(),bot.getZ()))return false;
   var p=destination(bot.getRace(),bot.getLevel(),cityPercent,rng,focusMaps);if(p==null)return false;
-  if(!idle(session) || nearHuman(bot.getWorldId(),bot.getX(),bot.getY(),bot.getZ()) || nearHuman(p.map(),p.x(),p.y(),p.z()))return false;
+  if(!idle(session) || nearHuman(bot.getWorldId(),bot.getX(),bot.getY(),bot.getZ()) || nearHuman(p.map(),p.x(),p.y(),p.z()) || occupiedLanding(p.map(),p.x(),p.y(),p.z()))return false;
   session.preparePopulationPlacement();
   TeleportService.teleportTo(bot,p.map(),1,p.x(),p.y(),p.z(),bot.getHeading());
   return bot.isSpawned() && bot.getWorldId()==p.map() && PositionUtil.getDistance(bot,p.x(),p.y(),p.z())<3;

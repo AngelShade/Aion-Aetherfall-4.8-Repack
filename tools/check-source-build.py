@@ -13,6 +13,12 @@ TESTS.update({'PlayerBotRosterBatchCheck':25, 'PlayerBotCheckpointCreationCheck'
 TESTS['PlayerBotPopulationScaleCheck']=64
 TESTS['PlayerBotPopulationRepositoryCheck']=69
 TESTS['PlayerBotPopulationPipelineCheck']=21
+TESTS['PlayerBotPopulationLifecycleCheck']=176
+TESTS['PlayerBotPopulationLifecycleServiceCheck']=43
+TESTS['PlayerBotSchedulerCpuCheck']=62
+TESTS['PlayerBotCpuPlanningCheck']=43
+TESTS['PlayerBotTravelAdmissionCheck']=24
+TESTS['PlayerBotTerrainThroughputCheck']=24
 TESTS['PlayerBotWarehouseCheck']=117
 TESTS['PlayerBotMailCheck']=87
 TESTS['PlayerBotFieldActivityCheck']=534
@@ -20,6 +26,9 @@ TESTS['PlayerBotLegionStorageCheck']=98
 TESTS['PlayerBotLegionInvitationCheck']=157
 TESTS['PlayerBotNamesCheck']=46
 TESTS['PlayerBotPopulationFocusCheck']=8067
+TESTS['PlayerBotPendingFocusCheck']=20
+TESTS['PlayerBotPopulationMixCheck']=17
+TESTS['PlayerBotActivityRegionCheck']=13
 TESTS['PlayerBotResponsivenessCheck']=6013
 TESTS['PlayerBotPopulationAdmissionCheck']=39024
 TESTS['PlayerBotExecutionCheck']=39
@@ -38,7 +47,23 @@ TESTS['PlayerBotDecisionWorkersCheck']=8313
 TESTS['PlayerBotSupportOrderingCheck']=1019
 TESTS['PlayerBotActiveWorkerCheck']=3166
 TESTS['PlayerBotNpcPatrolCheck']=13
-TESTS['PlayerBotRouteCadenceCheck']=72
+TESTS['PlayerBotRouteCadenceCheck']=70
+TESTS['PlayerBotRouteContinuationCheck']=238
+TESTS['PlayerBotNavigationHandoffCheck']=19
+TESTS['PlayerBotNavigationBudgetCheck']=12800
+TESTS['PlayerBotNavigationConfigCheck']=28
+TESTS['PlayerBotConfigLocationCheck']=10
+TESTS['PlayerBotPartialRouteCheck']=187
+TESTS['PlayerBotPostKillTravelCheck']=61
+TESTS['PlayerBotHealingPlanningCheck']=126
+TESTS['PlayerBotUtilityPlanningCheck']=38
+TESTS['PlayerBotNonCombatBuffCheck']=47
+TESTS['PlayerBotDecisionNavigationCheck']=14
+TESTS['PlayerBotNativeRouteYieldCheck']=83
+TESTS['PlayerBotCapitalAreaCheck']=116
+TESTS['PlayerBotCampDistributionCheck']=3020
+TESTS['PlayerBotNavigationPendingCheck']=23
+TESTS['PlayerBotFailedTravelCheck']=13
 TESTS['PlayerBotCampLandingCheck']=27
 TESTS['PlayerBotNavigationSearchCheck']=1229
 TESTS['PlayerBotCombatGearCheck']=29
@@ -95,14 +120,18 @@ def fixtures():
 
 def binding(build):
  libs=[f for f in sorted((ROOT/'target-deploy/game-server/libs').glob('*.jar')) if f.name not in {'game-server-4.8-SNAPSHOT.jar','commons-4.8-SNAPSHOT.jar','playerbot-recruitment-fix.jar'}]
- paths=[Path(__file__),*[ROOT/'tools'/name for name in ['build-manifest.py','test-source-release-methods.py','deliver-source-component.py','prepare-source-release.py','document-playerbot-config.py','release-game-server.py','verify-source-delivery.py','quest-handler-inventory.py','check-source-static-data.py','check-source-browser.py','check-playerbot-ui-behavior.py']],build/'build-manifest.json',build/'game-server/game-server-4.8-SNAPSHOT.jar',build/'commons/commons-4.8-SNAPSHOT.jar',*fixtures(),*libs]
- paths.extend([ROOT/'tools/native-quest-fixtures.json',ROOT/'tools/QuestHandlerActionInventory.java',ROOT/'tools/test-quest-action-inventory.py',ROOT/'tools/java/PlayerBotMaterialCatalogBuildCheck.java'])
+ paths=[Path(__file__),ROOT/'tools/check-database-shutdown.py',ROOT/'tools/java/DatabaseShutdownCheck.java',ROOT/'tools/check-player-skill-cancellation.py',ROOT/'tools/java/PlayerSkillCancellationCheck.java',*[ROOT/'tools'/name for name in ['build-manifest.py','test-source-release-methods.py','deliver-source-component.py','prepare-source-release.py','document-playerbot-config.py','release-game-server.py','verify-source-delivery.py','quest-handler-inventory.py','check-source-static-data.py','check-source-browser.py','check-playerbot-ui-behavior.py']],build/'build-manifest.json',build/'game-server/game-server-4.8-SNAPSHOT.jar',build/'commons/commons-4.8-SNAPSHOT.jar',*fixtures(),*libs]
+ from importlib import import_module
+ restoration=import_module('check-npc-restoration')
+ paths.extend([ROOT/'tools/check-npc-restoration.py',Path(restoration.shared.__file__),restoration.BASELINE,ROOT/'tools/native-quest-fixtures.json',ROOT/'tools/QuestHandlerActionInventory.java',ROOT/'tools/test-quest-action-inventory.py',ROOT/'tools/java/PlayerBotMaterialCatalogBuildCheck.java',ROOT/'tools/configure-playerbot-level-spread.py',ROOT/'tools/playerbot-config-paths.py',ROOT/'tools/move-playerbot-configuration.py'])
  return {str(p.resolve()):sha(p) for p in paths}
 
 def validate(build,out):
+ from importlib import import_module
+ assert json.loads((out/'npc-restoration.json').read_text())==import_module('check-npc-restoration').verify(build),'NPC restoration evidence changed'
  evidence=json.loads((out/'evidence.json').read_text())
  assert evidence['version']==1 and evidence['inputs']==binding(build),'Regression inputs/artifacts changed'
- expected=TESTS|QUEST_TESTS|{'ShutdownHookCheck':14}
+ expected=TESTS|QUEST_TESTS|{'ShutdownHookCheck':14,'DatabaseShutdownCheck':17,'PlayerSkillCancellationCheck':41}
  assert set(evidence['suites'])==set(expected),'Missing/extra regression suites'
  checks=json.loads((out/'checks.json').read_text())
  assert set(checks)==set(expected),'Missing suite result'
@@ -118,6 +147,25 @@ def validate(build,out):
   assert sha(out/(name+'.txt'))==suite['reportSha256'],'Regression report changed: '+name
   assert checks[name]==suite['result'] and checks[name].startswith('OK: '+str(count)+' '),'Wrong suite result: '+name
   assert checks[name] in (out/(name+'.txt')).read_text().splitlines(),'Missing successful result: '+name
+ database=json.loads((out/'database-shutdown/evidence.json').read_text())
+ assert database['mode']=='normal-builder-artifact' and database['count']==17,'Database shutdown must verify actual normal artifacts'
+ for jar in [build/'game-server/game-server-4.8-SNAPSHOT.jar',build/'commons/commons-4.8-SNAPSHOT.jar']:
+  assert database['inputs'].get(str(jar))==sha(jar),'Database shutdown artifact binding changed'
+ assert all(sha(Path(path))==digest for path,digest in database['inputs'].items()),'Database shutdown inputs changed'
+ assert database['reportSha256']==sha(out/'database-shutdown/checks.txt') and database['compileSha256']==sha(out/'database-shutdown/compile.txt'),'Database shutdown reports changed'
+ assert database['abiSha256']==sha(out/'database-shutdown/abi.json'),'Database shutdown native descriptor evidence changed'
+ assert database['classes']=={str(p.relative_to(out/'database-shutdown/classes')):sha(p) for p in sorted((out/'database-shutdown/classes').rglob('*.class'))},'Database shutdown fixture changed'
+ assert database['classes'] and not any(name.replace('\\','/') in {'com/aionemu/commons/database/DatabaseFactory.class','com/aionemu/gameserver/ShutdownHook.class','com/aionemu/gameserver/utils/ThreadPoolManager.class'} for name in database['classes']),'Database shutdown fixture must not replace repaired JAR classes'
+ cancellation=json.loads((out/'player-skill-cancellation/evidence.json').read_text())
+ assert cancellation['mode']=='normal-builder-artifact' and cancellation['count']==41,'Player cancellation must verify actual normal artifacts'
+ for jar in [build/'game-server/game-server-4.8-SNAPSHOT.jar',build/'commons/commons-4.8-SNAPSHOT.jar']:
+  assert cancellation['inputs'].get(str(jar))==sha(jar),'Player cancellation artifact binding changed'
+ assert all(sha(Path(path))==digest for path,digest in cancellation['inputs'].items()),'Player cancellation inputs changed'
+ assert cancellation['result']==checks['PlayerSkillCancellationCheck'],'Player cancellation suite result changed'
+ assert cancellation['checksSha256']==sha(out/'player-skill-cancellation/checks.txt') and cancellation['compileSha256']==sha(out/'player-skill-cancellation/compile.txt'),'Player cancellation reports changed'
+ assert cancellation['abiSha256']==sha(out/'player-skill-cancellation/abi.json'),'Player cancellation native descriptor evidence changed'
+ assert cancellation['classes']=={str(p.relative_to(out/'player-skill-cancellation/classes')):sha(p) for p in sorted((out/'player-skill-cancellation/classes').rglob('*.class'))},'Player cancellation fixture changed'
+ assert cancellation['classes'] and not any(name.replace('\\','/')=='com/aionemu/gameserver/controllers/PlayerController.class' for name in cancellation['classes']),'Player cancellation fixture must not replace repaired JAR class'
  return evidence
 
 def main():
@@ -127,6 +175,8 @@ def main():
  # Never leave a previous successful report usable after a failed rerun.
  (out/'evidence.json').unlink(missing_ok=True)
  before=binding(build)
+ from importlib import import_module
+ (out/'npc-restoration.json').write_text(json.dumps(import_module('check-npc-restoration').verify(build),indent=2))
  tooling=subprocess.run([sys.executable,str(ROOT/'tools/test-source-release-methods.py')],cwd=ROOT,capture_output=True,text=True)
  (out/'tooling.txt').write_text(tooling.stdout+tooling.stderr)
  assert tooling.returncode==0,tooling.stderr
@@ -145,7 +195,7 @@ def main():
  for test,count in TESTS.items():
   cwd=ROOT if test in {'PlayerBotWorldProgressCheck','PlayerBotAssassinCheck','PlayerBotGladiatorCheck','PlayerBotTemplarCheck','PlayerBotChanterCheck','PlayerBotClericCheck','PlayerBotSpiritmasterCheck','PlayerBotSorcererCheck',
    'PlayerBotQuestCraftingCheck','PlayerBotQuestPrerequisitesCheck','PlayerBotNativeCraftingTaskCheck','PlayerBotNativeXmlQuestCheck'} else build/'checks'
-  args=[str(ROOT/'game-server')] if test in {'PlayerBotRepositoryCheck','PlayerBotPlayerZoneCheck','PlayerBotAuditCoverageCheck','PlayerBotIdleCastingCheck','PlayerBotCombatGearCheck','PlayerBotTargetVisibilityCheck','PlayerBotStoryRewardIntentCheck','PlayerBotQuestTransformationCheck','PlayerBotQuestItemTargetCheck'} else []
+  args=[str(ROOT/'game-server')] if test in {'PlayerBotRepositoryCheck','PlayerBotPlayerZoneCheck','PlayerBotAuditCoverageCheck','PlayerBotIdleCastingCheck','PlayerBotCombatGearCheck','PlayerBotTargetVisibilityCheck','PlayerBotStoryRewardIntentCheck','PlayerBotQuestTransformationCheck','PlayerBotQuestItemTargetCheck','PlayerBotNpcPatrolNativeSpawnCheck','PlayerBotNpcPatrolAdmissionCheck','PlayerBotNativeRouteYieldCheck','PlayerBotCapitalAreaCheck','PlayerBotConfigLocationCheck','PlayerBotCampDistributionCheck','PlayerBotNonCombatBuffCheck'} else []
   result=subprocess.run(['java','-Xverify:all','-cp',cp,'com.aionemu.gameserver.services.playerbot.'+test,*args],cwd=cwd,capture_output=True,text=True)
   (out/(test+'.txt')).write_text(result.stdout+result.stderr,encoding='utf-8')
   assert result.returncode==0,(test,result.stderr)
@@ -163,6 +213,16 @@ def main():
  assert result.returncode==0,result.stderr
  reports['ShutdownHookCheck']=next(line for line in result.stdout.splitlines() if line.startswith('OK: 14 '))
  suites['ShutdownHookCheck']=dict(exitCode=result.returncode,count=14,result=reports['ShutdownHookCheck'],reportSha256=sha(out/'ShutdownHookCheck.txt'))
+ database=subprocess.run([sys.executable,str(ROOT/'tools/check-database-shutdown.py'),'--build',str(build),'--output',str(out/'database-shutdown')],cwd=ROOT,capture_output=True,text=True)
+ (out/'DatabaseShutdownCheck.txt').write_text(database.stdout+database.stderr,encoding='utf-8')
+ assert database.returncode==0,database.stdout+database.stderr
+ reports['DatabaseShutdownCheck']=next(line for line in database.stdout.splitlines() if line.startswith('OK: 17 '))
+ suites['DatabaseShutdownCheck']=dict(exitCode=0,count=17,result=reports['DatabaseShutdownCheck'],reportSha256=sha(out/'DatabaseShutdownCheck.txt'))
+ cancellation=subprocess.run([sys.executable,str(ROOT/'tools/check-player-skill-cancellation.py'),'--build',str(build),'--output',str(out/'player-skill-cancellation')],cwd=ROOT,capture_output=True,text=True)
+ (out/'PlayerSkillCancellationCheck.txt').write_text(cancellation.stdout+cancellation.stderr,encoding='utf-8')
+ assert cancellation.returncode==0,cancellation.stdout+cancellation.stderr
+ reports['PlayerSkillCancellationCheck']=next(line for line in cancellation.stdout.splitlines() if line.startswith('OK: 41 '))
+ suites['PlayerSkillCancellationCheck']=dict(exitCode=0,count=41,result=reports['PlayerSkillCancellationCheck'],reportSha256=sha(out/'PlayerSkillCancellationCheck.txt'))
  assert before==binding(build),'Regression inputs changed while checks ran'
  (out/'checks.json').write_text(json.dumps(reports,indent=2))
  (out/'evidence.json').write_text(json.dumps(dict(version=1,inputs=before,suites=suites,tooling=dict(exitCode=0,count=tool_count,reportSha256=sha(out/'tooling.txt')),compileSha256=sha(out/'compile.txt'),classes={str(p.relative_to(build/'checks')):sha(p) for p in sorted((build/'checks').rglob('*.class'))}),indent=2))

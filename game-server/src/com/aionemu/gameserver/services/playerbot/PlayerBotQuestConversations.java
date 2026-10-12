@@ -22,8 +22,20 @@ public final class PlayerBotQuestConversations {
  record Witness(Step step,long expires) {}
  private static final Map<String,Witness> WITNESSES=new ConcurrentHashMap<>();
  private static final Map<Integer,Long> RETRY=new ConcurrentHashMap<>();
+ private static final ClassValue<Map<String,Optional<Field>>> FIELDS=new ClassValue<>() {
+  @Override protected Map<String,Optional<Field>> computeValue(Class<?> type){return new ConcurrentHashMap<>();}
+ };
+ private static Optional<Field> findField(Class<?> type,String name) {
+  for(Class<?> t=type;t!=null;t=t.getSuperclass())for(Field f:t.getDeclaredFields())if(f.getName().equals(name)) {
+   f.setAccessible(true);return Optional.of(f);
+  }
+  return Optional.empty();
+ }
  static Object field(Object object,String name) {
-  if(object==null)return null;for(Class<?> t=object.getClass();t!=null;t=t.getSuperclass())try{Field f=t.getDeclaredField(name);f.setAccessible(true);return f.get(object);}catch(NoSuchFieldException e){}catch(ReflectiveOperationException e){throw new IllegalStateException(e);}return null;
+  if(object==null)return null;
+  var field=FIELDS.get(object.getClass()).computeIfAbsent(name,n->findField(object.getClass(),n));
+  if(field.isEmpty())return null;
+  try{return field.get().get(object);}catch(IllegalAccessException e){throw new IllegalStateException(e);}
  }
  static List<?> list(Object object,String name){Object value=field(object,name);return value instanceof List<?> l ? l : List.of();}
  static int number(Object object,String name){Object value=field(object,name);return value instanceof Number n ? n.intValue() : 0;}

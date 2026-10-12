@@ -1,5 +1,139 @@
 # Full Playerbots port scope and iteration focus
 
+## Configuration folder — installed offline — 12 October 2026
+
+CONFIG-DIRECTORY-057 moves the maintained/live owner file to
+`config/playerbots/playerbots.properties` and adds its named native load.
+No added fallback or special old-copy handling. All45 owner values and94 other
+configurations remain; old copies are removed. Full normal GS9fd7faa742182b49063b87a8b48b4325c2f2014077be1aceef6cd564667fd926
+is installed; final receipt224626-142201/review224108-866713.134 bound suites/
+113185checks/56tools and separate installed251guards/95configs/30client hashes pass.
+All earlier behavior/progress and original106 NPC methods remain. This small move
+is complete; the full quest audit/wider parity and gameplay acceptance remain open.
+See [configuration location and delivery](PLAYERBOTS_CONFIGURATION_LOCATION_20261012.md).
+
+## Live report, regional spread and level mix — installed offline — 12 October 2026
+
+LIVE-REPORT-056 installs native cancellation, beneficial-only spell planning,
+pending navigation, goal custody/cooldown, regional camp/activity spreading and
+saved-level admission balance. New-character endpoint weights change explicitly
+10/65 to0/0; earned levels/XP are retained. Population limits and all other values,
+features, identities and the original106NPC methods remain. No new config file.
+Full normal GS695a531fa2676a6190e88dca59305545b1ecfd1be7d4c28bba776adf8a7fb2c0;
+review215230-903982/receipt220336-335851/configdocs220448-591214.133bound suites/
+113175checks/53tools/full native data/browser/linkage pass; installed251guards/
+95configs/30client hashes,3704priorJARentries identical,zero removals. Secondary
+completed owned placement; final combined peer review hit usage limit, not claimed
+complete. Separate installed/root scope verification passes. Actual gameplay/CPU
+and the full autonomous quest audit/wider parity remain pending/unfinished.
+See [repair evidence and guarded delivery](PLAYERBOTS_LIVE_REPORT_REPAIR_20261012.md).
+
+## Live CPU source repair — installed offline — 12 October 2026
+
+CPU-054 diagnoses the actual running053 server with six authorized read-only dumps,
+OS CPU accounting and a30-second JFR profile. Confirmed51.59% host CPU persists
+beyond loading. Maintained source repairs scheduler eligibility/duplicate scans,
+uncharged terrain planning, visitor reconstruction and inherited-field exceptions.
+One unchanged complete normal GS JAR is installed in receipt151119-607549;
+review150034-402611, SHA670526b6cf043a9b5cadb6ee64acaaf6412990758d4daea92d8ab6b7b821cb79.
+118suites109665checks47tools/fullnative data/browser/linkage/preservation pass;
+installed251guards95configs30clienthashes;106 original NPC method guards remain.
+No limits/features/settings/progress removed. Actual post-restart CPU/gameplay,
+full autonomous quest audit and wider parity remain pending/unfinished.
+See [live evidence, source changes and delivery](PLAYERBOTS_LIVE_CPU_20261012.md).
+
+## World population lifecycle — installed offline — 12 October 2026
+
+POPULATION-LIFECYCLE-053 aligns factory/startup, pending batches, target lowering,
+timed departure and manager deadlines with pinned WoW source. Finite pool before
+automatic login; saved identities reused; manual/native custody remain protected.
+Two documented existing-main controls added, preserving all43owner values.
+Final normalGS379bd4585edd24d2ad439dc7853d497c38416ceebf034818c84505f6831718c4;
+review130030-228917/receipt130922-687025/configdocs131028-343699.
+116suites109560checks47tools/fullnative data/browser/linkage/preservation pass;
+installed251guards95configs30clienthashes. Original106NPCguards/navigation052 remain.
+Actual gameplay and the full autonomous quest audit remain unfinished/pending.
+See [exact upstream comparison and delivery](PLAYERBOTS_POPULATION_LIFECYCLE_20261012.md).
+
+## Live terrain navigation — installed offline — 12 October 2026
+
+NAVIGATION-LIVE-052 replaces confirmed terrain queue congestion with measured work
+and native-proved partial continuation. Exact full normal GS and one documented
+absent-only navigation.properties seed installed in receipt064950-447125.
+All94 old owner config files/seven switches/population settings and original106NPC
+guards remain.114suites109341checks47tools;installed250guards95configs30client
+hashes pass. Actual post-restart gameplay/CPU and wider quest audit remain pending.
+See [live evidence and controls](PLAYERBOTS_LIVE_NAVIGATION_20261012.md).
+
+## Playerbot movement and CPU planning repair — installed offline — 12 October 2026
+
+MOVEMENT-CPU-051 installs native bot navigation/post-kill handoffs and measured
+planning/probe waste repairs. One complete normalGSJAR;111 suites/96,326 checks/
+43 tooling tests/43 native browser actions,complete static/linkage/preservation and
+original106NPC-restoration method guards pass. Receipt:playerbots-source-build-20261012-051501-610119;
+review:release-20261012-050253-737942; GSd997cbf0b171a278c90d5bbe40eb4a9058bdae9dfde280c39e20da0f72ead83d.
+All caps/settings/features/progress and restored ordinary NPC behavior remain.
+Exactly three user-authorized read-only CPU samples found bot skill/healing/terrain
+work and GC pressure; actual post-restart CPU reduction/gameplay are user acceptance.
+Full autonomous quest audit and wider port stay open. See
+[causes and evidence](PLAYERBOTS_MOVEMENT_CPU_20261012.md).
+
+## NPC expansion rolled back — installed offline — 12 October 2026
+
+PB-REPAIR-NPC-RESTORE-050 restores original active NPC patrol/spawn behavior from
+pre045214044, before the initial shared NPC expansion. User scope is Playerbot
+behavior;047/048/049 NPC feature behavior is superseded. Added dormant APIs remain
+only for package/method compatibility. All355 Playerbot service/media entries stay
+byte-identical to049. No individual NPC/map/route/client/config/SQL changes occur.
+
+Installed normalGS SHA931043d6059654a428baa35ffc00dae4892467f72e7e52b2b2f75de2ac8d66c7;
+review003211-878011/receipt004035-889592.108 artifact-bound suites/96,120 checks/
+43 tooling tests,106 original native method comparisons,full static/native-browser/
+linkage/preservation and installed verification pass. All mods/settings/IDs/progress
+remain. No agent lifecycle/attach/gameplay/production SQL/World/ID fixture occurred.
+Gameplay acceptance,full quest audit and wider parity remain unfinished; stopped
+map-wide navigation/NPC expansion must not resume as part of this rollback.
+See [restoration evidence](PLAYERBOTS_NPC_RESTORATION_20261012.md).
+
+## Shared patrol admission and continuation — installed offline — 12 October 2026
+
+PB-REPAIR-PATROL-049 is installed as unchanged full normal Maven GS
+`f37ef739cb7f971dc3d8457023e1711d00647fe98f4e090c1874f6b8fa4fbe7a`.
+Receipt002352-290315/review001546-146299;112 suites/96,260 checks/41 tooling tests,
+full static/native-browser/linkage/preservation and two installed audits pass.
+Shared native initial-flight classification, proven exact route-layer admission,
+supported compact formation, same-step/respawn orientation and retained earned
+native group arrival are repaired. No individual NPC/map/XML/client/config edits.
+All preceding features/settings/progress remain; Commons is unchanged.
+Wider map navigation stays stopped. Unsupported authoring/missing flight authority,
+safe-camp admission, gameplay and the wider quest audit/port remain explicitly open.
+See docs/PLAYERBOTS_PATROL_ADMISSION_20261012.md for evidence and limits.
+
+## Live patrol regression — installed offline — 11 October 2026
+
+PB-REPAIR-PATROL-048 is installed from unchanged normal Maven GS
+`1201bd273db4e24472a8b310b1303a339a59d660ff1053bce841257a4380aee0`.
+Receipt235228-152951 / review234443-423720;110 suites/96,168 checks, complete static,
+native-browser, linkage/preservation and installed guards pass. Actual native
+controller/real-map fixtures reproduce old failures and verify clock/arrival,
+next-waypoint formation offsets and safely supported pre-World formation heights.
+All047/quest features/settings/progress remain. Map-wide navigation work is stopped
+at the user's request; actual patrol gameplay and the wider quest audit remain open.
+See [causes, repair and verification](PLAYERBOTS_PATROL_REGRESSION_20261011.md).
+
+## Core decision/navigation continuation — installed offline — 11 October 2026
+
+DECISION-046 / NAVIGATION-047 is installed as unchanged normal Maven GS
+`a673ef9409040f8c01b3474087d8ed9300429c202d0d9399f5e01f39bf99fb2f`.
+Receipt230147-206015 / review225152-933570;108 suites/96,127 checks, full static,
+browser, preservation/linkage and installed guards pass. Immutable support keys,
+bounded active workers, retained supported routes, movement cadence and native
+grounded patrol packets repair reproduced core seams. Installed045 and preceding
+mods/settings/IDs/progress remain. Full world navigation, actual photographed
+patrol/latency acceptance and wider autonomous quest/port engineering remain open.
+See [decision evidence](PLAYERBOTS_SORT_BACKLOG_20261011.md) and
+[navigation evidence](PLAYERBOTS_ROUTE_CONTINUATION_20261011.md).
+
 ## Current quest/master continuation — installed offline — 11 October 2026
 
 PB-SCOPE-QUEST-044 is installed from complete normal Maven output;100 artifact-bound

@@ -54,7 +54,7 @@ def package(output):
             # All previously installed standalone services, including any AFK classes, remain untouched.
             preserved=len(names-replacements.keys())
     for rel,source in [('data/handlers/playercommands/Bot.java',ROOT/'game-server/data/handlers/playercommands/Bot.java'),
-                       ('config/main/playerbots.properties',ROOT/'game-server/config/main/playerbots.properties'),
+                       ('config/playerbots/playerbots.properties',ROOT/'game-server/config/playerbots/playerbots.properties'),
                        ('sql/playerbots.sql',ROOT/'game-server/sql/playerbots.sql')]:
         path=payload/rel;path.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(source,path)
     for source in (ROOT/'game-server/config/playerbots/media').iterdir():

@@ -24,7 +24,7 @@ def verify_client_files(client, entries):
         assert sha(Path(client) / entry['path']) == entry['sha256'], entry['path']
 
 
-def verify_runtime_resource_inputs(server, manifest):
+def verify_runtime_resource_inputs(server, manifest, documentation=None):
     replacements = {entry['path']: entry for entry in manifest['files']}
     assert len(replacements) == len(manifest['files']), 'Duplicate delivered file'
     for rel, original in manifest['runtimeResourceInputs'].items():
@@ -35,6 +35,9 @@ def verify_runtime_resource_inputs(server, manifest):
             entry = replacements[rel]
             assert entry['original'] == original, rel
             expected = entry['installed']
+        if documentation and rel.replace('\\', '/') == documentation['path']:
+            assert expected == documentation['original'], rel
+            expected = documentation['installed']
         target = server / rel
         if expected is None:
             assert not target.exists() and not target.is_symlink(), rel
@@ -86,7 +89,7 @@ def main():
                       ('resourceSourceHashes', ROOT), ('staticDataInputs', server)]:
         for rel, digest in m[key].items():
             assert sha(base / rel) == (expected_configuration(rel,digest) if key=='configFiles' else digest), rel
-    verify_runtime_resource_inputs(server, m)
+    verify_runtime_resource_inputs(server, m, documentation)
     inventory = json.loads((ROOT / 'docs/INSTALLED_MODS.json').read_text())
     assert all(inventory['checks'].values())
     verify_client_files(inventory['clientRoot'], m['clientFiles'])
@@ -112,6 +115,15 @@ def main():
         assert sha(change['recovery']) == sha(receipt / change['path']) == change['original']
         assert sha(server / change['path']) == expected_configuration(change['path'],change['installed'])
         reviewed_config = Path(documentation['recovery']) if documentation and change['path']==documentation['path'] else server / change['path']
+        if change.get('configurationRelocation'):
+            assert m['scope']=='PB-CONFIG-DIRECTORY-057' and not (server/change['previousPath']).exists()
+            assert reviewed_config.read_bytes()==Path(change['recovery']).read_bytes()
+        if change.get('levelSpread'):
+            assert m['scope']=='PB-REPAIR-LIVE-REPORT-056'
+            source=Path(change['builderConfiguration']);assert sha(source)==change['builderSha256']
+            level_config=importlib.import_module('configure-playerbot-level-spread');builder=level_config.builder_bytes(source)
+            assert hashlib.sha256(builder).hexdigest()==change['builderEntrySha256']
+            level_config.validate(Path(change['recovery']).read_bytes(),reviewed_config.read_bytes(),builder)
         if change.get('userEditsOnly'):
             assert sha(change['baseline']) == change['baselineSha256']
             previous, current = importlib.import_module('review-playerbot-population-config').validate(Path(change['baseline']).read_bytes(), reviewed_config.read_bytes())
@@ -143,8 +155,8 @@ def main():
     if 'regressionEvidenceSha256' in m:
         runner = importlib.import_module('check-source-build')
         expected = runner.TESTS | runner.QUEST_TESTS
-        assert set(checks) == set(expected) | {'ShutdownHookCheck'}
-        assert sum(counts) == sum(expected.values()) + 14
+        assert set(checks) == set(expected) | {'ShutdownHookCheck','DatabaseShutdownCheck','PlayerSkillCancellationCheck'}
+        assert sum(counts) == sum(expected.values()) + 14 + 17 + 41
     else:
         assert all(line.startswith('OK: ') and count>0 for line,count in zip(checks.values(),counts))
     print('OK:', len(m['files']), 'unchanged builder files;', len(m['guardFiles']),

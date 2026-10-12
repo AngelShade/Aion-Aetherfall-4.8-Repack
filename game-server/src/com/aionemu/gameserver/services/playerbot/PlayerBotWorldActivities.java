@@ -28,9 +28,50 @@ final class PlayerBotWorldActivities {
   int prerequisiteCursor;
   int prerequisiteRoot;
   Map<Integer,Integer> requiredRewards=Map.of();
-  volatile Goal goal; final Map<String,Long> excluded=new HashMap<>();
+  final PlayerBotTravelClock travelClock=new PlayerBotTravelClock(),vendorClock=new PlayerBotTravelClock();
+  volatile Goal goal; boolean closed; final Map<String,Long> excluded=new HashMap<>();
  }
  private static final Map<Integer,State> STATES=new ConcurrentHashMap<>();
+ private record Destination(int quest,PlayerBotQuestRoutes.Kind kind,int npc) {}
+ private record Location(int quest,PlayerBotQuestRoutes.Kind kind,PlayerBotWorldTravel.Place place) {}
+ private record Region(int map,int x,int y,int z) {
+  static Region of(Goal g){var p=g.place();return new Region(p.map(),(int)Math.floor(p.x()/50),(int)Math.floor(p.y()/50),(int)Math.floor(p.z()/50));}
+ }
+ /** TravelTarget::addVisitors/removeVisitors: maintain occupancy on commitment,
+  * not by rebuilding every bot's formatted destination for every candidate. */
+ static final class Visitors {
+  private final Map<Destination,Integer> totals=new ConcurrentHashMap<>();
+  private final Map<Location,Integer> points=new ConcurrentHashMap<>();
+  private final Map<Region,Integer> regions=new ConcurrentHashMap<>();
+  private static Destination destination(Goal g){return new Destination(g.quest(),g.kind(),g.place().npc());}
+  private static Location location(Goal g){return new Location(g.quest(),g.kind(),g.place());}
+  private static <T> void change(Map<T,Integer> counts,T key,int delta){
+   int count=counts.getOrDefault(key,0)+delta;if(count<=0)counts.remove(key);else counts.put(key,count);
+  }
+  synchronized void replace(Goal old,Goal next){
+   if(Objects.equals(old,next))return;
+   if(old!=null){change(totals,destination(old),-1);change(points,location(old),-1);change(regions,Region.of(old),-1);}
+   if(next!=null){change(totals,destination(next),1);change(points,location(next),1);change(regions,Region.of(next),1);}
+  }
+  Goal choose(List<Goal> goals,java.util.random.RandomGenerator random){
+   Goal chosen=null;int priority=3,crowding=Integer.MAX_VALUE,count=0;
+   for(var g:goals){
+    if(!Double.isFinite(g.distance()) || g.distance()<0 || totals.getOrDefault(destination(g),0)>=visitorLimit(g)
+     || pointExclusive(g) && points.getOrDefault(location(g),0)>0)continue;
+    int p=g.quest()==0?2:g.kind()==PlayerBotQuestRoutes.Kind.REWARD?0:1;
+    if(p>priority)continue;
+    if(p<priority){priority=p;crowding=Integer.MAX_VALUE;count=0;chosen=null;}
+    int occupied=regions.getOrDefault(Region.of(g),0);
+    if(occupied>crowding)continue;
+    if(occupied<crowding){crowding=occupied;count=0;chosen=null;}
+    // Retain native priorities and visitor caps, then shuffle equally used
+    // native 50m XYZ grind regions. Different quests/NPCs cannot hide crowding.
+    if(random.nextInt(++count)==0)chosen=g;
+   }return chosen;
+  }
+ }
+ private static final Visitors VISITORS=new Visitors();
+ private static void goal(State s,Goal next){synchronized(s){if(s.closed)return;VISITORS.replace(s.goal,next);if(!Objects.equals(s.goal,next))s.travelClock.reset();s.goal=next;}}
  private static Map<Integer,Set<Integer>> starters;
  private static final Map<Integer,List<Map.Entry<Integer,Set<Integer>>>> STARTERS_BY_LEVEL=new HashMap<>();
  private static final Map<String,List<Integer>> GRIND=new HashMap<>();
@@ -55,7 +96,7 @@ final class PlayerBotWorldActivities {
  static void interacting(Player bot){var s=STATES.get(bot.getObjectId());if(s!=null)s.noActivitySince=0;}
  static boolean questTravel(Player bot){var s=STATES.get(bot.getObjectId());return s!=null && s.goal!=null && (s.goal.quest()!=0 || s.goal.kind()!=PlayerBotQuestRoutes.Kind.HUNT);}
  static boolean grindTravel(Player bot){var s=STATES.get(bot.getObjectId());return s!=null && s.goal!=null && s.goal.quest()==0 && s.goal.kind()==PlayerBotQuestRoutes.Kind.HUNT;}
- static void close(Player bot){STATES.remove(bot.getObjectId());}
+ static void close(Player bot){var s=STATES.remove(bot.getObjectId());if(s!=null)synchronized(s){goal(s,null);s.closed=true;}}
  /** Report the selected destination, never claim an intended fallback already ran. */
  static Map<String,Object> activity(Player bot) {
   var s=STATES.get(bot.getObjectId());var g=s==null ? null : s.goal;
@@ -75,29 +116,21 @@ final class PlayerBotWorldActivities {
  static boolean pointExclusive(Goal g){return g.quest()!=0 && (g.kind()==PlayerBotQuestRoutes.Kind.HUNT || g.kind()==PlayerBotQuestRoutes.Kind.OBJECT);}
  private static String destinationKey(Goal g){return g.quest()+":"+g.kind()+":"+g.place().npc();}
  static Goal spread(List<Goal> goals,Collection<Goal> claimed,java.util.random.RandomGenerator random) {
-  var totals=new HashMap<String,Integer>();var points=new HashMap<String,Integer>();
-  for(var g:claimed){totals.merge(destinationKey(g),1,Integer::sum);points.merge(key(g),1,Integer::sum);}
-  var available=goals.stream().filter(g->Double.isFinite(g.distance()) && g.distance()>=0)
-   .filter(g->totals.getOrDefault(destinationKey(g),0)<visitorLimit(g) && (!pointExclusive(g) || points.getOrDefault(key(g),0)==0)).toList();
-  Goal first=select(available);if(first==null)return null;
-  int priority=first.quest()==0?2:first.kind()==PlayerBotQuestRoutes.Kind.REWARD?0:1;
-  var same=new ArrayList<>(available.stream().filter(g->(g.quest()==0?2:g.kind()==PlayerBotQuestRoutes.Kind.REWARD?0:1)==priority).toList());
-  // TravelMgr::getNextPoint actively shuffles points; its distance weights are unused.
-  Collections.shuffle(same,new Random(random.nextLong()));return same.getFirst();
+  var visitors=new Visitors();for(var g:claimed)visitors.replace(null,g);return visitors.choose(goals,random);
  }
- private static Goal chooseAvailable(List<Goal> goals){return spread(goals,STATES.values().stream().map(s->s.goal).filter(Objects::nonNull).toList(),java.util.concurrent.ThreadLocalRandom.current());}
+ private static Goal chooseAvailable(List<Goal> goals){return VISITORS.choose(goals,java.util.concurrent.ThreadLocalRandom.current());}
  static void maintenance(PlayerBotSession session) {
   if(!session.world())return;Player bot=session.bot();State s=state(bot);long now=System.currentTimeMillis();
   if(bot.isDead()) {
    if(s.deadSince==0)s.deadSince=now;
-   if(session.autonomous() && now-s.deadSince>=15000){s.deadSince=now;PlayerReviveService.bindRevive(bot);s.goal=null;}
+   if(session.autonomous() && now-s.deadSince>=15000){s.deadSince=now;PlayerReviveService.bindRevive(bot);goal(s,null);}
    return;
   }
   s.deadSince=0;
   if(bot.isCasting() || bot.isTrading() || bot.isLooting() || bot.getController().isInCombat())return;
   if(s.level!=bot.getLevel() || s.playerClass!=bot.getPlayerClass()) {
    session.setRole(PlayerBotRules.roleFor(bot.getPlayerClass()));
-   SkillLearnService.learnNewSkills(bot,1,bot.getLevel());s.level=bot.getLevel();s.playerClass=bot.getPlayerClass();s.goal=null;s.nextScan=0;
+   SkillLearnService.learnNewSkills(bot,1,bot.getLevel());s.level=bot.getLevel();s.playerClass=bot.getPlayerClass();goal(s,null);s.nextScan=0;
   }
  }
  static Npc grind(Player bot) {
@@ -203,26 +236,54 @@ final class PlayerBotWorldActivities {
  }
  static void prepare(Player bot,PlayerBotNavigation navigation) {
   State s=state(bot);long now=System.currentTimeMillis();s.excluded.entrySet().removeIf(e->e.getValue()<=now);
-  if(s.goal!=null && s.goal.quest()!=0 && !PlayerBotQuestRoutes.ids(bot,bot,s.goal.quest(),s.goal.kind()).contains(s.goal.place().npc())){s.goal=null;s.nextScan=0;}
+  if(s.goal!=null && s.goal.quest()!=0 && !PlayerBotQuestRoutes.ids(bot,bot,s.goal.quest(),s.goal.kind()).contains(s.goal.place().npc())){goal(s,null);s.nextScan=0;}
   if(s.goal!=null && PlayerBotWorldTravel.distance(bot,s.goal.place())<=6){
    // Hand movement back to the native quest/combat/loot actions before entering
    // the NPC's exact spawn. A dead/unavailable NPC must not trap the planner.
-   s.excluded.put(key(s.goal),now+30000);s.goal=null;s.nextScan=now+5000;navigation.stop();return;
+   // Yield this callback to local native actions. The next planner callback may
+   // choose another destination immediately if the hinted actor is unavailable.
+   s.excluded.put(key(s.goal),now+30000);goal(s,null);s.nextScan=0;navigation.stop();return;
   }
   if(s.goal!=null) {
    double distance=PlayerBotWorldTravel.distance(bot,s.goal.place());
-   if(distance<s.best-2){s.best=distance;s.lastProgress=now;}
-   if(navigation.progressing(now))s.lastProgress=now;
-   if(stalled(now,s.lastProgress)){s.excluded.put(key(s.goal),now+120000);s.goal=null;s.nextScan=0;navigation.stop();}
+   if(distance<s.best-2){s.best=distance;s.lastProgress=now;s.travelClock.reset();}
+   boolean waiting=navigation.waitingForTerrainWork();
+   if(!waiting && navigation.progressing(now)){s.lastProgress=now;s.travelClock.reset();}
+   if(s.travelClock.stalled(now,s.lastProgress,waiting)){s.excluded.put(key(s.goal),now+120000);goal(s,null);s.nextScan=0;navigation.stop();}
   }
-  if(s.goal==null && now>=s.nextScan){s.nextScan=now+5000;s.goal=choose(bot,s,now);s.best=Double.POSITIVE_INFINITY;s.lastProgress=now;}
+  if(s.goal==null && now>=s.nextScan){s.nextScan=now+5000;goal(s,choose(bot,s,now));s.best=Double.POSITIVE_INFINITY;s.lastProgress=now;}
   if(s.goal!=null)s.noActivitySince=0;else if(s.noActivitySince==0)s.noActivitySince=now;
  }
+ /** Walking after a kill is not an NPC interaction. Keep the native combat
+  * timer for dialogs/transport, but stop travel for actual current attackers. */
+ static boolean travelThreatened(Player bot) {
+  if(bot.getAggroList().stream().anyMatch(a->a.getHate()>0 && liveHostile(bot,a.getAttacker())))return true;
+  var owned=bot.getSummon();
+  var summon=owned!=null && !owned.isDead() && owned.isSpawned() ? owned : null;
+  if(summon!=null && summon.getAggroList().stream().anyMatch(a->a.getHate()>0 && liveHostile(bot,a.getAttacker())))return true;
+  boolean[] threatened={false};
+  bot.getKnownList().forEachObject(object->{
+   if(object instanceof Creature enemy && liveHostile(bot,enemy)
+    && (enemy.getAggroList().isHating(bot) || summon!=null && enemy.getAggroList().isHating(summon)))threatened[0]=true;
+  });
+  return threatened[0];
+ }
+ private static boolean liveHostile(Player bot,Creature enemy) {
+  return enemy!=null && !enemy.isDead() && enemy.isSpawned() && enemy.getWorldId()==bot.getWorldId()
+   && enemy.getInstanceId()==bot.getInstanceId() && bot.getKnownList().sees(enemy) && bot.isEnemy(enemy);
+ }
  static boolean travel(PlayerBotSession session,PlayerBotNavigation navigation) {
-  Player bot=session.bot();if(!session.autonomous() || bot.isDead() || bot.isTrading() || bot.isCasting() || bot.getController().isInCombat())return false;
+  Player bot=session.bot();if(!session.autonomous() || bot.isDead() || bot.isTrading() || bot.isCasting() || bot.isLooting() || travelThreatened(bot))return false;
   prepare(bot,navigation);State s=state(bot);
-  if(s.goal==null)return false;
-  return PlayerBotWorldTravel.move(bot,s.goal.place(),navigation);
+  Goal selected=s.goal;if(selected==null)return false;
+  boolean moved=PlayerBotWorldTravel.move(bot,selected.place(),navigation);
+  // TravelTarget cooldown purpose: a completed bounded search with no earned
+  // route is an unavailable destination, not fresh progress for another retry.
+  // Explicit queue waits, native safety pauses and earned prefixes retain custody.
+  if(!moved && navigation.routeFailed() && s.goal==selected && !s.closed) {
+   s.excluded.put(key(selected),System.currentTimeMillis()+120000);goal(s,null);s.nextScan=0;navigation.stop();
+  }
+  return moved;
  }
  static boolean sell(PlayerBotSession session,PlayerBotNavigation navigation) {
   Player bot=session.bot();State s=state(bot);long now=System.currentTimeMillis();
@@ -238,10 +299,11 @@ final class PlayerBotWorldActivities {
     .filter(p->Double.isFinite(distances.distance(p))).min(Comparator.comparingDouble(distances::distance)).orElse(null);
    if(destination==null){s.nextSell=now+30000;return false;}
    // A failed vendor route cannot permanently displace questing/combat.
-   if(s.vendor==null || !s.vendor.equals(destination)){s.vendor=destination;s.vendorSince=now;s.vendorBest=Double.POSITIVE_INFINITY;}
-   double distance=PlayerBotWorldTravel.distance(bot,destination);if(distance<s.vendorBest-2){s.vendorBest=distance;s.vendorSince=now;}
-   if(navigation.progressing(now))s.vendorSince=now;
-   if(stalled(now,s.vendorSince)){s.excluded.put("vendor:"+destination,now+120000);s.vendor=null;s.nextSell=now+5000;return false;}
+   if(s.vendor==null || !s.vendor.equals(destination)){s.vendor=destination;s.vendorSince=now;s.vendorBest=Double.POSITIVE_INFINITY;s.vendorClock.reset();}
+   double distance=PlayerBotWorldTravel.distance(bot,destination);if(distance<s.vendorBest-2){s.vendorBest=distance;s.vendorSince=now;s.vendorClock.reset();}
+   boolean waiting=navigation.waitingForTerrainWork();
+   if(!waiting && navigation.progressing(now)){s.vendorSince=now;s.vendorClock.reset();}
+   if(s.vendorClock.stalled(now,s.vendorSince,waiting)){s.excluded.put("vendor:"+destination,now+120000);s.vendor=null;s.nextSell=now+5000;return false;}
    return PlayerBotWorldTravel.move(bot,destination,navigation);
   }
   if(!PositionUtil.isInTalkRange(bot,vendor) || !GeoService.getInstance().canSee(bot,vendor))return navigation.approach(vendor,2);

@@ -11,11 +11,14 @@ from remove_follow_recovery_offline import stopped
 build_meta = import_module('build-manifest')
 
 FEATURE_CONFIGURATION = 'config/playerbots/features.properties'
+NAVIGATION_CONFIGURATION = 'config/playerbots/navigation.properties'
+PLAYERBOT_CONFIGURATION = 'config/playerbots/playerbots.properties'
+OWNER_CONFIGURATIONS = frozenset({FEATURE_CONFIGURATION, NAVIGATION_CONFIGURATION, PLAYERBOT_CONFIGURATION})
 
 
 def initial_feature_configuration(target):
     """Deliver the builder default once; retain every existing owner's choice."""
-    assert not target.exists() or target.is_file(), 'Feature configuration path is not a regular file: ' + str(target)
+    assert not target.is_symlink() and (not target.exists() or target.is_file()), 'Owner configuration path is not a regular file: ' + str(target)
     return not target.exists()
 
 
@@ -29,7 +32,17 @@ def verify_original_resource(target, original):
 
 def allowed_resource(rel):
     return ('..' not in Path(rel).parts and '\\' not in rel
-        and (rel == FEATURE_CONFIGURATION or rel.startswith('data/') and not rel.startswith('data/geo/')))
+        and (rel in OWNER_CONFIGURATIONS or rel.startswith('data/') and not rel.startswith('data/geo/')))
+
+
+def resulting_configurations(existing, files):
+    """Record both preserved owner choices and exact newly seeded builder defaults."""
+    result = dict(existing)
+    for entry in files:
+        if entry['path'] in OWNER_CONFIGURATIONS:
+            assert entry['original'] is None, 'Owner configuration must be an initial seed'
+            result[entry['path']] = entry['installed']
+    return result
 
 
 def retained_methods(before, after):
@@ -95,11 +108,7 @@ def main():
         assert not explicit or set(explicit) == set(plan[key]), 'Incomplete delivery override: ' + attribute
         setattr(a, attribute, plan[key])
     assert plan['handlerCount'] > 0 and plan['handlerCompile'].startswith('passed'), 'Complete handler compilation is required'
-    runtime_inputs = plan['runtimeResourceInputs']
-    for rel, digest in runtime_inputs.items():
-        if rel == FEATURE_CONFIGURATION:
-            initial_feature_configuration(server / rel)
-        verify_original_resource(server / rel, digest)
+    runtime_inputs = dict(plan['runtimeResourceInputs'])
     old = server / 'libs/game-server-4.8-SNAPSHOT.jar'
     assert 'BUILD SUCCESS' in (build / 'maven.log').read_text(), 'Normal builder did not succeed'
     assert not (server / 'libs/playerbot-recruitment-fix.jar').exists(), 'Reconcile the override in source first'
@@ -107,12 +116,26 @@ def main():
     baseline = json.loads(prior.read_text())
     assert str(prior) == plan['priorReceipt'], 'Another chat delivered a newer component; rebuild/review against it'
     configuration_changes = []
+    relocation = None
     if a.config_review:
         a.config_review = a.config_review.resolve(); shared.validate_output(a.config_review)
         evidence = json.loads(a.config_review.read_text())
-        rel = 'config/main/playerbots.properties'
-        assert evidence['feature'] in {'playerbots-active-limit','playerbots-field-placement','playerbots-user-population-limits'} and Path(evidence['path']).resolve() == (server / rel).resolve()
-        if evidence['feature']=='playerbots-user-population-limits':
+        rel = import_module('playerbot-config-paths').active(server).relative_to(server).as_posix()
+        assert evidence['feature'] in {'playerbots-active-limit','playerbots-field-placement','playerbots-user-population-limits','playerbots-level-spread','playerbots-configuration-location'} and Path(evidence['path']).resolve() == (server / rel).resolve()
+        if evidence['feature']=='playerbots-configuration-location':
+            migration=import_module('move-playerbot-configuration');assert a.scope==migration.SCOPE
+            matches=[e for e in baseline['guardFiles'] if e['path']==migration.paths.LEGACY];assert len(matches)==1
+            relocation=migration.verified(a.config_review,server,matches[0]['installed'],build,plan)
+            baseline['guardFiles']=[dict(path=rel,installed=relocation['installed']) if e['path']==migration.paths.LEGACY else e for e in baseline['guardFiles']]
+            baseline['retiredFiles']=[*baseline['retiredFiles'],migration.paths.LEGACY]
+            runtime_inputs[rel]=relocation['installed'];configuration_changes.append(relocation)
+        elif evidence['feature']=='playerbots-level-spread':
+            assert a.scope=='PB-REPAIR-LIVE-REPORT-056'
+            matches=[e for e in baseline['guardFiles'] if e['path']==rel];assert len(matches)==1
+            reviewed=import_module('configure-playerbot-level-spread').verified(a.config_review,server,matches[0]['installed'],build)
+            baseline['guardFiles']=[dict(e,installed=reviewed['installed']) if e['path']==rel else e for e in baseline['guardFiles']]
+            configuration_changes.append(reviewed)
+        elif evidence['feature']=='playerbots-user-population-limits':
             matches = [e for e in baseline['guardFiles'] if e['path'] == rel]
             assert len(matches)==1
             reviewed = import_module('review-playerbot-population-config').verified(a.config_review,server,matches[0]['installed'])
@@ -135,12 +158,22 @@ def main():
                 previousValue=evidence['previousValue'], configuredValue=evidence['configuredValue'], fieldCombat=field,
                 **({} if field else dict(previousRoster=evidence['previousRoster'], configuredRoster=evidence['configuredRoster']))))
     # Only exact reviewed config changes are recognized; other guards stay enabled.
-    rel = 'config/main/playerbots.properties'
+    rel = import_module('playerbot-config-paths').active(server).relative_to(server).as_posix()
+    if not (server / rel).exists() and (server / 'config/main/playerbots.properties').exists():
+        # During a relocation-only review, validate the recorded pre-move baseline.
+        rel = 'config/main/playerbots.properties'
     config_guards = [e for e in baseline['guardFiles'] if e['path'] == rel]
     if len(config_guards) == 1 and shared.sha(server / rel) != config_guards[0]['installed']:
-        documentation = import_module('document-playerbot-config').verified_receipt(server, shared.DEV_ROOT / 'archives/server/game-server/backups')
+        docs=import_module('document-playerbot-config');original_live=docs.LIVE
+        try:
+            docs.LIVE=server / rel
+            documentation = docs.verified_receipt(server, shared.DEV_ROOT / 'archives/server/game-server/backups')
+        finally: docs.LIVE=original_live
         baseline['guardFiles'] = [dict(e, installed=documentation['installed']) if e['path'] == rel else e for e in baseline['guardFiles']]
         configuration_changes.append(documentation)
+    for rel, digest in runtime_inputs.items():
+        if rel in OWNER_CONFIGURATIONS: initial_feature_configuration(server / rel)
+        verify_original_resource(server / rel, digest)
     assert all(shared.sha(server / e['path']) == e['installed'] for e in baseline['files'])
     assert all(shared.sha(server / e['path']) == e['installed'] for e in baseline['guardFiles'])
     assert all(not (server / rel).exists() for rel in baseline['retiredFiles'])
@@ -218,8 +251,8 @@ def main():
         with zipfile.ZipFile(build / 'game-server/game-server.zip') as assembly:
             for rel in a.resource:
                 assert allowed_resource(rel), rel
-                if rel == FEATURE_CONFIGURATION:
-                    assert initial_feature_configuration(server / rel), 'Preserve existing owner feature configuration: ' + rel
+                if rel in OWNER_CONFIGURATIONS:
+                    assert initial_feature_configuration(server / rel), 'Preserve existing owner configuration: ' + rel
                 built_bytes = assembly.read('game-server/' + rel)
                 source_path = ROOT / 'game-server' / rel
                 assert built_bytes == source_path.read_bytes(), 'Resource changed after build: ' + rel
@@ -239,7 +272,7 @@ def main():
     manifest = dict(feature='playerbots-source-build', scope=a.scope, deployment=str(server), previousReceipt=str(prior),
         builder='tools/build-components.ps1 normal Maven output; copied unchanged', files=files, guardFiles=guard_files,
         retiredFiles=baseline['retiredFiles'], invalidatedCaches=caches, resourceSourceHashes=resource_hashes,
-        bundledMediaSha256=media, configFiles=config, sourceHashes=source,
+        bundledMediaSha256=media, configFiles=resulting_configurations(config,files), sourceHashes=source,
         clientFiles=import_module('verify-source-delivery').protected_client_files(inventory['clientFiles']), geometrySha256=shared.sha(server / 'data/geo/models.mesh'),
         staticDataInputs=static_inputs,
         runtimeResourceInputs=runtime_inputs, releasePlanSha256=shared.sha(a.release_plan),
@@ -266,7 +299,7 @@ def main():
         assert shared.receipt_paths(server, 'playerbots-source-build-*/manifest.json')[-1] == prior, 'Another release completed after review'
         for e in files:
             target = server / e['path']
-            if e['path'] == FEATURE_CONFIGURATION:
+            if e['path'] in OWNER_CONFIGURATIONS:
                 initial_feature_configuration(target)
             verify_original_resource(target, e['original'])
             assert shared.sha(Path(e['source'])) == e['installed']
@@ -280,7 +313,7 @@ def main():
         assert all(shared.sha(ROOT / rel) == digest for rel, digest in resource_hashes.items())
         assert all(shared.sha(server / rel) == digest for rel, digest in static_inputs.items())
         for rel, digest in runtime_inputs.items():
-            if rel == FEATURE_CONFIGURATION:
+            if rel in OWNER_CONFIGURATIONS:
                 initial_feature_configuration(server / rel)
             verify_original_resource(server / rel, digest)
         assert shared.sha(server / 'data/geo/models.mesh') == manifest['geometrySha256']
@@ -311,7 +344,7 @@ def main():
             assert shared.sha(target) == e['installed']
         for e in caches: (server / e['path']).unlink()
         assert all(shared.sha(server / e['path']) == e['installed'] for e in guard_files)
-        assert all(shared.sha(server / rel) == digest for rel, digest in config.items())
+        assert all(shared.sha(server / rel) == digest for rel, digest in manifest['configFiles'].items())
         import_module('verify-source-delivery').verify_client_files(shared.CLIENT_ROOT, manifest['clientFiles'])
     except Exception:
         for e in files + caches:

@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.aionemu.commons.database.DatabaseFactory;
 import com.aionemu.commons.utils.ExitCode;
 import com.aionemu.commons.utils.concurrent.RunnableStatsManager;
 import com.aionemu.commons.utils.concurrent.RunnableStatsManager.SortBy;
@@ -85,6 +86,10 @@ public class ShutdownHook extends Thread {
 		GameTimeService.getInstance().saveGameTime();
 		CronService.getInstance().shutdown();
 		ThreadPoolManager.getInstance().shutdown();
+		if (ThreadPoolManager.getInstance().isTerminated())
+			DatabaseFactory.shutdown();
+		else
+			log.error("Database pool remains open: shutdown workers did not finish draining; closing it could interrupt pending saves.");
 
 		// shut down logger factory to flush all pending log messages
 		((LoggerContext) LoggerFactory.getILoggerFactory()).stop();

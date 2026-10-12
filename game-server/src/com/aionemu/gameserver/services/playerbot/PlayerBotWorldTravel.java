@@ -110,6 +110,9 @@ final class PlayerBotWorldTravel {
   var path=route(bot,place.map());return path==null?Double.POSITIVE_INFINITY:2000*path.size()+PositionUtil.getDistance(bot,path.getFirst().source().x(),path.getFirst().source().y(),path.getFirst().source().z());
  }
  static boolean move(Player bot,Place destination,PlayerBotNavigation navigation) {
+  // This transport attempt may return before invoking the ground navigator.
+  // It must not inherit another action's terminal search result.
+  navigation.clearRouteFailure();
   if(bot.getWorldId()==destination.map())return navigation.move(destination.x(),destination.y(),destination.z());
   var path=route(bot,destination.map());if(path==null || path.isEmpty())return false;
   var edge=path.getFirst();Npc[] nearby={null};

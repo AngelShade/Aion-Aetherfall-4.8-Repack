@@ -57,10 +57,14 @@ final class PlayerBotSupport {
    && !(target==bot && first==FirstTargetAttribute.TARGET && p.getTargetType()==TargetRangeAttribute.PARTY);
  }
  static List<Player> allowed(Player bot, PlayerBotSkills.Entry entry, List<Player> party) {
+  return allowed(bot,entry,party,p->true);
+ }
+ /** Reject recipients with no current benefit before native range/sight work. No result survives this decision. */
+ static List<Player> allowed(Player bot, PlayerBotSkills.Entry entry, List<Player> party, java.util.function.Predicate<Player> useful) {
   var candidates=entry.template().getProperties().getFirstTarget()==FirstTargetAttribute.ME ? List.of(bot) : party;
   return candidates.stream().filter(p -> p.isSpawned() && p.getWorldId()==bot.getWorldId() && p.getInstanceId()==bot.getInstanceId()
-   && (p==bot || PositionUtil.isInRange(bot,p,Math.max(40,entry.range()*2)) && GeoService.getInstance().canSee(bot,p))
-   && legalAnchor(bot,entry,p) && PlayerBotSkills.canPlan(bot,entry,p,false)).toList();
+   && useful.test(p) && legalAnchor(bot,entry,p) && PlayerBotSkills.canPlan(bot,entry,p,false)
+   && (p==bot || PositionUtil.isInRange(bot,p,Math.max(40,entry.range()*2)) && GeoService.getInstance().canSee(bot,p))).toList();
  }
  private PlayerBotSupport(){}
 }

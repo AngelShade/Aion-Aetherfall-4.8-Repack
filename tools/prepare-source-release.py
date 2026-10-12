@@ -28,8 +28,8 @@ def main():
     with zipfile.ZipFile(build / 'game-server/game-server.zip') as assembly:
         managed = {n.removeprefix('game-server/'): n for n in assembly.namelist()
             if not n.endswith('/') and (n.startswith('game-server/data/') and not n.startswith('game-server/data/geo/')
-                or n == 'game-server/' + delivery.FEATURE_CONFIGURATION)}
-        assert delivery.FEATURE_CONFIGURATION in managed, 'Normal assembly omitted Playerbots feature configuration'
+                or n.removeprefix('game-server/') in delivery.OWNER_CONFIGURATIONS)}
+        assert delivery.OWNER_CONFIGURATIONS <= set(managed), 'Normal assembly omitted documented Playerbots owner configuration'
         extras = [f.relative_to(server).as_posix() for folder in ['data/handlers', 'data/static_data', 'data/scripts']
             for f in (server / folder).rglob('*') if f.is_file() and f.suffix in {'.java', '.xml', '.xsd'} and f.relative_to(server).as_posix() not in managed]
         assert not extras, 'Reconcile runtime-only features into authoritative source before delivery: ' + str(extras)
@@ -39,8 +39,9 @@ def main():
             target = server / rel
             original = shared.sha(target) if target.is_file() else None
             inputs[rel] = original
-            if rel == delivery.FEATURE_CONFIGURATION:
-                if delivery.initial_feature_configuration(target): resources.append(rel)
+            if rel in delivery.OWNER_CONFIGURATIONS:
+                relocating = rel == delivery.PLAYERBOT_CONFIGURATION and (server / 'config/main/playerbots.properties').is_file() and not target.exists()
+                if delivery.initial_feature_configuration(target) and not relocating: resources.append(rel)
             elif original != hashlib.sha256(data).hexdigest(): resources.append(rel)
             if rel.startswith('data/handlers/') and rel.endswith('.java'):
                 dest = out / 'handler-source' / rel; dest.parent.mkdir(parents=True, exist_ok=True); dest.write_bytes(data)

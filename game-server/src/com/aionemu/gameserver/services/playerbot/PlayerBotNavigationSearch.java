@@ -25,10 +25,15 @@ final class PlayerBotNavigationSearch {
   }
   return null;
  }
- synchronized boolean acquire(Object token,long now){
+ /** Queue a new commitment without consuming a terrain-work permit. */
+ synchronized void request(Object token,long now){
   if(token==null)throw new IllegalArgumentException("Missing navigation search token");
   head(now);var request=waiting.get(token);
   if(request==null){request=new Request(token);waiting.put(token,request);queue.addLast(request);}
+  head(now);
+ }
+ synchronized boolean acquire(Object token,long now){
+  request(token,now);var request=waiting.get(token);
   if(head(now)!=request || now<nextPermit)return false;
   queue.removeFirst();waiting.remove(token);nextPermit=now+100;return true;
  }

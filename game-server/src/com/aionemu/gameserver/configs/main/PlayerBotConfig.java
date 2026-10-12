@@ -3,6 +3,15 @@ package com.aionemu.gameserver.configs.main;
 import com.aionemu.commons.configuration.Property;
 
 public final class PlayerBotConfig {
+ /** Native terrain work is bounded by measured elapsed cost, not population-wide fixed turns. */
+ @Property(key = "gameserver.playerbots.navigation.budget_ms_per_second", defaultValue = "500")
+ public static int TERRAIN_BUDGET_MS = 500;
+ @Property(key = "gameserver.playerbots.navigation.slice_ms", defaultValue = "3")
+ public static int TERRAIN_SLICE_MS = 3;
+ @Property(key = "gameserver.playerbots.navigation.max_workers", defaultValue = "2")
+ public static int TERRAIN_WORKERS = 2;
+ @Property(key = "gameserver.playerbots.navigation.segment_metres", defaultValue = "24")
+ public static float TERRAIN_SEGMENT_METRES = 24;
 	/** Owner-facing switches are documented together in config/playerbots/features.properties. */
 	@Property(key = "gameserver.playerbots.quests.enable", defaultValue = "true")
 	public static boolean QUESTS_ENABLED = true;
@@ -30,6 +39,12 @@ public final class PlayerBotConfig {
 	public static int POPULATION_MAX;
 	@Property(key = "gameserver.playerbots.population.per_interval", defaultValue = "120")
 	public static int POPULATION_PER_INTERVAL;
+	/** Pinned RandomBotUpdateInterval; startup and shortage use the faster manager cadence. */
+	@Property(key = "gameserver.playerbots.population.update_interval_seconds", defaultValue = "20")
+	public static int POPULATION_UPDATE_INTERVAL_SECONDS = 20;
+	/** Optional Aion extension; the pinned early expiry return does not assign an offline timer. */
+	@Property(key = "gameserver.playerbots.population.offline_cooldown.enable", defaultValue = "false")
+	public static boolean POPULATION_OFFLINE_COOLDOWN = false;
 	/** Elyos share of the global population (0..100%). Asmodians receive the remainder: 100 - this value.
 	 * 50 = 50% Elyos / 50% Asmodians; 30 = 30% Elyos / 70% Asmodians; 0 = all Asmodians; 100 = all Elyos.
 	 * This is the desired balance; admissions can use the other faction when eligible candidates are unavailable. */
@@ -39,9 +54,9 @@ public final class PlayerBotConfig {
 	public static int POPULATION_MIN_LEVEL;
 	@Property(key = "gameserver.playerbots.population.max_level", defaultValue = "65")
 	public static int POPULATION_MAX_LEVEL;
-	@Property(key = "gameserver.playerbots.population.min_level_percent", defaultValue = "10")
+	@Property(key = "gameserver.playerbots.population.min_level_percent", defaultValue = "0")
 	public static int POPULATION_MIN_LEVEL_PERCENT;
-	@Property(key = "gameserver.playerbots.population.max_level_percent", defaultValue = "65")
+	@Property(key = "gameserver.playerbots.population.max_level_percent", defaultValue = "0")
 	public static int POPULATION_MAX_LEVEL_PERCENT;
 	@Property(key = "gameserver.playerbots.population.random_levels", defaultValue = "true")
 	public static boolean POPULATION_RANDOM_LEVELS;

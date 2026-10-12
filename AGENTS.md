@@ -1,4 +1,560 @@
+# Playerbots configuration location — installed offline — 12 October 2026
+
+PB-CONFIG-DIRECTORY-057 is the user's simple owner-file move: maintained and
+runtime config/main/playerbots.properties -> config/playerbots/playerbots.properties.
+Native Config adds only the named new file to its existing load order. User rejected
+fallbacks and extra old-copy handling; neither is added. Features/navigation/mygs
+retain their native order. Old runtime file was backed up/copied byte-for-byte
+and removed offline, preserving all45 owner values; no new configuration file count.
+Future release/documentation/configuration tools use the new home and preserve it.
+
+Focused10location/28navigation/429feature checks and56 tooling tests pass. First
+fixture's cleanup path normalization failure retained then corrected/owned fixture
+removed safely. Normal build release-20261012-222251-078710 delivered unchanged;
+GS SHA9fd7faa742182b49063b87a8b48b4325c2f2014077be1aceef6cd564667fd926.
+3733 prior056 JAR entries identical; only Config.class/MANIFEST differ, zero removals.
+134 bound suites/113185 checks/56 tooling tests,1758 handlers/full native data,
+43 browser actions/33 screenshots and3466 classes/196515 references pass. An
+unchanged-media browser scroll failure was archived; identical retry passes.
+Move receipt223601-441301 and first delivery223704-919501 remain. Subsequent
+comment-only documentation223805-030577 preserves all45 values; runtime resource
+verification was corrected to honor only its exact validated documentation proof,
+with wrong-baseline/changed-after-proof cases rejected. Rebound full checks on the
+same normal artifact pass in external review config-location057-final-20261012-
+224108-866713; final source-build receipt224626-142201. Installed verification
+passes1 unchanged builder file/251guards/95configs/30 protected client hashes,
+zero additional caches; first delivery invalidation remains in its own receipt.
+All94 other configs unchanged; inventory20checks/74client/180server receipts passes.
+Current host GameServer/client are closed, Login/Chat untouched. No gameplay/attach/
+lifecycle/productionSQL occurs. No subagents; this small task is root-owned.
+Preserve all previous repairs/settings/progress and original106 NPC methods.
+Full autonomous quest audit/wider parity remain unfinished; restart/testing is user
+acceptance. This configuration move is complete; stop engineering after delivery. See
+ docs/PLAYERBOTS_CONFIGURATION_LOCATION_20261012.md.
+
+# Live report, regional spread and level mix — installed offline — 12 October 2026
+
+PB-REPAIR-LIVE-REPORT-056 resumes the user's resolve-report/photographed-city
+stalls request. Installed056 is now runtime authority through normal guarded
+delivery. GS6108 fresh CPU authorization covered exactly one30s JFR and three
+thread dumps; later explicit user authorization covered exactly three Sanctum
+passive snapshots. All completed read-only, no transforms/class replacements,
+game/config/lifecycle/SQL mutations; these exceptions are now exhausted. Captures
+and full64-frame JFR analysis are external diagnostics/live-repair056-20261012,
+live-verification055-20261012-1925 and live-sanctum056-20261012. Fresh city span
+41.154s/read274/131/123ms/zeroerrors:145 common nearby actors,only4move;498city
+actors remain,queue13/21/12,charged265.315ms/s. Do not treat every idle/recovering
+actor as one defect.805ProtectorsHall is native supported floor,notbadZtoflatten.
+
+User explicitly says no subagents; collaborate directly with Secondary Playerbots
+Implementation. Earlier native cancellation task/tools integration completed;
+no further child work. Secondary completed successive bounded pending-focus,
+native-route, capital-area, early-callback tasks and read-only reviews, each
+confirmed/stopped. Root owns final cumulative build/delivery. No simultaneous
+product editing remains authorized after source freeze. Preserve all prior mods,
+NPC restoration106methods, caps/config/features/client/progress; none reduced.
+
+Confirmed repairs: capture native cast skill once against double-read race;
+durable release of only off-focus automatic inactive unleased pending intents;
+benefit-first support/enemy utility admission without persistent state caching;
+native attack-only bursts retained for fresh combat,notidlemaintenance;
+same registered pending navigation accepted inside unchanged200ms gate;
+freshgoal/queryidentity and shorter earned partial prefix after128realprobes;
+native3D SUBzone priority after map demand with all safe camp fallbacks retained;
+idle decisions release unowned paths; actual completedemptygroundsearch returns
+terminal failure to world travel for existing120s cooldown/fresh reselection.
+Queued waits/native safety/earned prefixes never become terminal failures.
+No guessed floors,teleports,questcredit or individualcoordinates; no NPC edits.
+
+Installed055 independently reproduces cancellation, pending-focus, idle burst,
+unowned navigation, failedtravel, earlycallback and stalequery/prefix seams.
+Root focused evidence utility056-focused-v7 passes714checks; Secondary
+owned native-route578/capital8354/earlypending601 checks and bound source hashes
+are external staging/output/*056-focused. Native Haronel3080->128probes,
+currentVelerinia60 versusoldquerypending16000. Eromira9392->9344 remains a longer
+legitimate detour; boundedVinaina corridorfailure is notwholemapproof. Native
+Lorothia/Saleridon routes41/145 remain. Root terminal addition has13native no-floor
+checks and prior24travel/61postkill checks; final full-build verification remains
+required. Canonical registry expects130suites/110125checks/51tooltests. Final peer
+review caught stale terminal state on cross-map no-route return: fixed by clearing
+only result at WorldTravel entry and retaining search/queue/selected-goal custody.
+Rejected pre-release adapter reproduction retained; final normal artifact checks
+bind this correction, rather than earlier focused source hashes.
+
+The user expanded the scope to regional crowding, varied levels and the Exalted
+Path wall screenshot. Earlier verified release-20261012-211710-753472 (130 suites,
+110125 checks/51 tooling tests) is superseded UNINSTALLED, not a delivery authority.
+Secondary completed and froze WorldPlacement, pure CampDistribution and its native
+area fixture: 3020 new checks plus prior suites total11374 pass; prior ordering
+fails dense-region regression. Fresh ephemeral 50m XYZ neighborhood occupancy
+ranks camps within map demand, preserves ties/native regions/150m visibility,
+and avoids <1m landing overlap with fresh final poses. No config file/cap reduction.
+Root adds committed activity-region occupancy at the same native camp scale,
+retaining quest/reward priorities and visitor limits; saved level admissions choose
+least represented eligible current native XP inside faction quotas. Fixed-level
+switch retains original shuffled admissions; no saved characters are rerolled.
+New-character endpoint weights change explicitly from10/65 to0/0 in the existing
+main properties/compiled defaults, giving uniform random creation over configured
+range. Narrow offline builder-bound configuration receipt preserves all other
+owner bytes. Root17 mix/13 region checks and prior suites pass;53 tooling tests.
+The final requested read-only peer review hit usage limit before completion;
+do not claim it passed. No subagents or new attachments. Root reviewed integration.
+All broader quest/parity findings and actual movement/CPU acceptance stay open.
+Replacement normal build release-20261012-215230-903982 succeeds:133 bound suites/
+113175 checks/53 tooling tests,1758 handlers/full XML/schema/JAXB pass. Separate
+entry review preserves3704 old entries,adds5 and removes0;15 declared roots only.
+Normal GS695a531fa2676a6190e88dca59305545b1ecfd1be7d4c28bba776adf8a7fb2c0.
+Final43browser actions/33screenshots and3466classes/196509executable references pass.
+
+Fresh actual host offline guards passed. One complete normalGSJAR copied unchanged
+to target-deploy/game-server;Commons/static/client remain. Receipt external
+archives/server/game-server/backups/playerbots-source-build-20261012-220336-335851;
+normal review release-20261012-215230-903982. Two requested level weights10/65->0/0
+have independent backup playerbots-level-spread-20261012-220216-950507. Subsequent
+main explanations preserve all45 current effective values in configuration docs
+receipt playerbots-config-docs-20261012-220448-591214. No new config file. All other
+43 main values and feature/navigation settings remain;caps1500,target1200..1500,
+budget120,ratio2,manager20s,cooldownoff,controlled3000,personal23/23,city0,appearanceoff.
+Native XP/levels/IDs/progress/builds remain. Original106NPC methods still pass.
+
+Separate installed verification passes1exact builder file/251guards/95configs/
+30protected client hashes/2045backed-up invalidated native caches and133bound
+suites/113175checks. Separate root entry/value inspection confirms3704prior
+JARentries identical,5declared additions,zero removals,only15declared roots plus
+MANIFEST change,94otherconfig files byte-identical and only the2requested values
+changed. Review reports installed-verification.txt and
+installed-scope-and-values-independent.json. Inventory20mod checks/74client/
+176historical server receipts passes. Final peer review remains incomplete due
+usage limit,not claimed passed; Secondary received completion/freeze notice.
+
+Both components remain closed. User owns restart/gameplay; no agent lifecycle/
+newattach/game-state/productionSQL/nativeWorld/IDfixture occurred in delivery.
+Earlier failed compiler/classpath fixtures/candidates are retained uninstalled.
+Actual CPU/crowding/every-map movement and wider quest/parity remain unproven/
+unfinished. Stop engineering for this bound delivered repair. See
+docs/PLAYERBOTS_LIVE_REPORT_REPAIR_20261012.md. Preserve earlier receipts/progress.
+
+# Shared terrain admission and database shutdown — installed offline — 12 October 2026
+
+PB-REPAIR-NAVIGATION-055 repairs confirmed054 world-bot stalls through shared
+terrain admission/custody. Secondary completed only Budget+24throughputfixture,
+then one read-only integration review. Ready callbacks use genuinely free/funded
+native leases, independent of advisory wakeups covering the existing100ms reaction
+horizon using configured allowance/measured cost. Native2workers/3ms slices/
+500ms/s, full overrun debt, cancellation settlement and aged/priority wakeups stay.
+Actual DecisionSchedule600actor fixture reproduces05423.416ms/s/min0turns; new
+490.185world/492.199mixed/min8. These are offline model results, not live CPU claims.
+Native proved useful walking publishes before latency-triggered fullroute fallback;
+walking/height improvement measures current waypoint. Explicit terrain waits pause
+active30s travel/vendor clocks without timestamp/arrival/quest credit. Peer queued
+groundroute timestamp-reset finding is repaired and covered by zero-probe checks.
+
+Fresh user "use the live check for this" covered a read-only MariaDB1772 console
+read after user's normal GSshutdown504saves. Five16:22:45 aborted aion_gs localhost
+connections follow saves; no database crash or SQL input. Separate delegated owner
+added idempotent native Hikari close only after all normal saves and successful
+termination of the three existing native executors, before log flush. Incomplete
+drain logs explicit failure and retains pool; native shutdown timing remains.
+Commons dependency included; Login/Chat untouched. Exact native descriptor/static
+fixture audit repairs first void-vs-boolean setup error; failed evidence remains.
+
+Final normal review:external staging/output/release-20261012-164527-729069;
+receipt:external archives/server/game-server/backups/
+playerbots-source-build-20261012-165515-221165. GS SHA256:
+7d0d23fd54fb19586e698c36b394a10eedcb7c5265007647381b730304b4774d.
+Commons SHA256:340bf04ec8f9977654e4e6e9a4e5d03ac55044a1b85a05d9b662eea9123e0e95.
+121 bound suites/109730checks/48tools,1758handlers,completeXML/schema/JAXB,
+43browseractions/33screenshots and3461classes/195835refs pass. Two exact complete
+normal JARs copied; seven declared source classes/nested+MANIFEST differ,
+3716GS/117Commonspriorentries identical,zero removals,newTravelClockonly.
+Uninstalled163638candidate superseded after review; failed restricted browser and
+discarded final-mover fixture compilation remain archived, not counted as passes.
+Root installed verification passes250guards/95configs/30protectedclienthashes/
+2045backed-upinvalidatedcaches; inventory20/74client/173serverreceipts passes.
+All original106NPCmethods, ownercaps/settings/features, IDs/progress and client
+remain. No newconfig or feature/population reduction. Fresh actualhost/offline
+guards passed; no agent lifecycle/gameplay/productionSQL/nativeWorld/IDfixture.
+Secondary independent installed verification passes the same exact artifacts,
+121suites/109730checks/48tools. DirectJAR comparison confirms3716GS/117Commons
+unchangedentries/zero removals/soleTravelClockaddition,all95config/30clienthashes
+match054,and boundsource contains bothwaitguards/currentwaypointheightpredicate.
+Evidence:external staging/output/terrain055-independent-installed/{installed-verification.txt,
+scope-preservation.json,bound-repair-evidence.json}. Collaboration complete;
+stop engineering after this bounded installed confirmation.
+Actual post-restart movement/CPU and nextshutdown remain user acceptance; separate
+camp admission/focus failures and fullquestaudit/widerparity remain unfinished.
+See docs/PLAYERBOTS_FALINADON_LIVE_20261012.md; all earlier releases retained.
+
+# Falinadon live navigation diagnosis — 054 failure superseded by 055 — 12 October 2026
+
+User authorizes live diagnosis for this report: "You can use live i dont mind".
+GS24240 retains installed054 SHA670526b6cf043a9b5cadb6ee64acaaf6412990758d4daea92d8ab6b7b821cb79.
+Three successful passive bot snapshots span69.225s; Falinadon148732 remains
+exactly stationary, fullHP/MP, alive/movable, not casting/recovering, with advancing
+decision completions but route-origin/local-step queue waits and changing quests.
+517/591 common actors are similarly stationary under the documented criteria;
+queue527/517/481 has nearly full burst credit and about29.33ms/s charged work
+against configured500ms/s. Shared queue service/timeout contention remains unresolved;
+054 offline checks did not establish live navigation acceptance. First diagnostic
+initialization used wrong legacy queue field; corrected separately named reader
+performed no class transform/game-state changes. All failed/successful evidence
+remains external diagnostics/live-bot-observation055-20261012. Separate camp
+admission failures/declining population remain distinct. No product edits/build/
+installation/lifecycle/gameplay/productionSQL occurred in this diagnosis. Preserve
+original NPC restoration and all settings/IDs/progress. See
+docs/PLAYERBOTS_FALINADON_LIVE_20261012.md for measured facts and repair seam.
+
+# Live CPU source repair — installed offline — 12 October 2026
+
+PB-REPAIR-CPU-054 diagnoses actual running053 GS2012: fresh user authorization
+“do more or live doesnt matter” covered six read-only dumps, selected JVM metadata/
+heap/flags, OS accounting and one30-second built-in JFR profile.51.59% host CPU
+persists15min after loading;52.09% Java execution samples contain geometry frames.
+7839 inherited hopType/hopB/hopA field exceptions/30s corroborate tank reflection
+work. Runtime dir is target-deploy/game-server. Profile filename splitting was
+corrected by verifying/moving only the owned recording into external diagnostics;
+no hidden failure or whole-JVM-pause/absolute-allocation-rate claim. No game-state/
+class/config/SQL/lifecycle modification occurred in live diagnosis.
+
+Secondary completed one owned scheduler task, then one read-only root review.
+Scheduler snapshots reaction/lane/due once; excludes closing/focus/executing actors;
+full lanes avoid Ready/sorting; earliest reuses the same pass. Fresh admission,
+controlled-first fairness/reactions/genuine backlog warnings and checkpoints remain.
+Absent terrain token queries avoid nomination allocation. Root retains firing
+movement before repeated shell walking, charges firing/local steering/origin work
+to existing terrain quota and retains candidates across slices. Explicit safety/
+order successors cancel dead firing tickets; denied height turns retain queue age/
+cursor; fresh hazards revoke unsafe paths before quota wait. Native mover200ms,
+floors/body/doors/sight/gravity and all original106NPC method guards remain.
+Typed visitor counts follow goal commitment/release rather than rescanning every
+bot, retaining native priorities/caps/point exclusivity and uniform spread. Cached
+inherited field locations include absence but always read fresh native values;
+defensive peel benefit precedes costly native admission. No feature/cap/config
+reduction, new config file, fake geometry, timer workaround or persistent shadow
+state. Full quest audit and wider parity remain unfinished.
+
+Review: external staging/output/release-20261012-150034-402611; receipt:
+archives/server/game-server/backups/playerbots-source-build-20261012-151119-607549.
+Normal GS670526b6cf043a9b5cadb6ee64acaaf6412990758d4daea92d8ab6b7b821cb79.
+118artifact-bound suites/109665checks/47tools,1758warning-free handlers,fullnative
+XML/schema/JAXB,43browser actions/33screenshots,3460classes/195714refs and3713
+byte-identical previous JAR entries pass. Installed053 reproduces uncharged local
+steering in the same native world-free fixture. Two review queue findings were
+repaired; failed first compiler candidate/fixture setups remain archived uninstalled.
+One complete normal GSJAR copied unchanged; Commons/resources/config/client remain;
+2045native caches backed up/invalidated. Root installed checks pass251guards/
+95configs/30protectedclient hashes; inventory20checks/74client/172serverreceipts.
+Secondary independent installed verification also passes the exact artifact and
+118suites/109665checks. Direct scope review confirms only seven declared Playerbot
+classes/their nested classes plus MANIFEST changed,3713priorentries identical,
+five new nested entries and zero removals. External reports:
+staging/output/cpu054-independent-installed/installed-verification.txt and
+scope-preservation.json.94config hashes match053; the prior053documentation receipt
+owns the remaining main-config difference. All43owner values and two documented
+compiled defaults, and30protectedclient hashes remain. Collaboration is complete.
+All45main settings/seven switches/four navigation values remain, including
+worldcap1500,target1200..1500,budget120,ratio2,20smanager,cooldown-off,controlled3000,
+personal23/23,city0,appearance-off. Prior053 config-documentation receipt remains.
+
+User closed components; fresh host offline guards passed, shutdown saved/logged
+out1392bots and drained native tasks. No agent lifecycle/gameplay/productionSQL/
+nativeWorld/IDfixture occurred; Login/Chat untouched. Current diagnostic exception
+was used for this CPU request only; do not infer future gameplay/control permission.
+Actual CPU/movement after user restart remains acceptance, not a claimed measured
+improvement. Stop engineering after this bound delivery/independent verification.
+See docs/PLAYERBOTS_LIVE_CPU_20261012.md. Preserve all earlier releases/IDs/progress.
+
 # Aion project continuity and installed modifications
+
+## WoW population lifecycle alignment — installed offline — 12 October 2026
+
+PB-SCOPE-POPULATION-LIFECYCLE-053 follows pinned037c014 factory-before-manager,
+finite saved reserve, startup automatic intent reconstruction, bounded pending-login
+batch draining, natural timed departure and no forced online cull on target decrease.
+Read-only preparations completed before implementation; Secondary owned only the
+pure helper/fixture, then reviewed root integration. Four review defects were fixed:
+idempotent saved cooldown recovery, manual actor worker access during provisioning,
+ordinary login completion retaining manager cadence, and empty manual-priority probes
+not delaying automatic drain. Old124710 candidate superseded,125712 source-guard rejected;
+neither installed. Only final130030 complete normal Maven output delivered unchanged.
+
+Grouped/borrowed/custody-held actors and native save/lease failure reservations remain;
+expiry no longer inherits ordinary idle/visibility/combat/dead/cast deferrals. Native
+focus relocation retains idle/native camps/faction/level/visibility/150m guards as the
+previous explicit Aion extension; its max(target,admitted) distribution does not authorize
+extra admissions or silently cull actors when the random target falls. Manual/active/
+retiring/save-held startup entries and all native character IDs/progress/builds remain.
+
+Two explained main settings: population.update_interval_seconds=20 (startup0.5/1s,
+normal half interval below90%minimum), population.offline_cooldown.enable=false. The
+pinned expired-add early return does not assign a new offline break; optional true uses
+existing min/max durations, preserving already committed deadlines even on retry/disable.
+All43owner values remain; main now45explained settings,56unique across existing main/
+features/navigation homes. No new file. Existing cap1500,target1200..1500,budget120,
+ratio2,23accountcapacity,controlled3000,personal23/23,city0,appearance-disabled remain.
+
+Review:external staging/output/release-20261012-130030-228917; receipt:external
+archives/server/game-server/backups/playerbots-source-build-20261012-130922-687025.
+GS SHA379bd4585edd24d2ad439dc7853d497c38416ceebf034818c84505f6831718c4.
+116artifact-bound suites/109560checks/47tooltests,1758warning-free native handlers,
+fullXML/schema/JAXB,43native-browser actions/33screenshots and3455classes/195268refs pass.
+3720priorJARentries identical; original APIs/packages and106NPC-restoration guards remain.
+Only fullnormalGSJAR copied;Commons/static/client unchanged. Main configuration exact
+value-preserving documentation has independent backup receipt131028-343699. Root installed
+verification passes251guards/95configs/30clienthashes/2045backed-upinvalidatedcaches and
+all116suite bindings. Secondary independently passes the same installed verification;
+external report population-lifecycle053-independent-installed/installed-verification.txt.
+Final inventory20modchecks74client171historicalserverreceipts passes.
+Fresh host closure guards passed; no lifecycle/attach/gameplay/productionSQL/nativeWorld/
+IDfixture occurred. All prior dump/snapshot exceptions remain exhausted. Full autonomous
+quest audit and wider parity remain unfinished; post-restart acceptance is user testing.
+See docs/PLAYERBOTS_POPULATION_LIFECYCLE_20261012.md.
+
+## Live terrain queue and partial navigation — installed offline — 12 October 2026
+
+PB-REPAIR-NAVIGATION-LIVE-052 is installed from maintained source -> complete
+normal Maven -> guarded exact builder copy. Three freshly user-authorized read-only
+bot-state snapshots of GS17928 found733/738/770 queued requests over41.711s;
+748 of1250 common actors stationary within0.2m,502 planning throughout,149 same
+route goals with zero probes. The qualification includes possible resting flags:
+stationary alone does not diagnose every actor. Haliraron131074 waited for a2.3m
+combat approach with0/0/3 probes. Queue/decisions advanced; congestion, not proven
+scheduler deadlock. Diagnostic reader has no transforms/setters; exactly three
+attachments occurred and that exception is now exhausted. No further attach is
+authorized. Evidence:external diagnostics/live-bot-observation052-20261012-055056.
+
+Pinned037c014 MovementActions MoveTo/SearchForBestPath normal/incomplete path
+purpose was reviewed; MaxMovementSearchTime=3 is a COUNT, not milliseconds.
+Production navigation replaces the100ms global turn limit with measured work,
+controlled/near priority and fair aged world access. Native overrun debt and leases
+are charged; cancellation cannot release active work early. Proved partial routes
+retain final goals and prefetch while walking; hazard/stall/map/order/height changes
+cancel unearned prefixes. No local endpoint grants arrival/quest credit/teleport.
+Floors/body/doors/hazards/native200ms mover, cast/roles/loot/recovery remain.
+This is an Aion host adapter, not literal WoW Detour/navmesh parity.
+
+Only exact absent-only normal assembly config/playerbots/navigation.properties
+seed is added: four documented restart-only defaults500ms/s,3ms,2workers,24m;
+bounds1..1000ms/s,1..50ms,1..6workers,finite4..128m. Legacy full-route constructor
+remains. Budget covers these searches, not whole-server CPU or a hard native-probe
+interrupt. Optional exact file loading/absence defaults/finalmygs precedence and
+future owner preservation pass. All94 old configuration files/43 explicit settings/
+seven feature switches stay byte-identical;new total95. No cap/features/SQL progress
+removed. Original NPC-RESTORE-050 and all106 executable method guards remain;
+do not resume superseded NPC expansion. Wider quest audit remains unfinished.
+
+Review:external staging/output/release-20261012-063727-648383; receipt:external
+archives/server/game-server/backups/playerbots-source-build-20261012-064950-447125.
+GS SHA256:67e1353b9111a9f2ff22611c5b704d48958d1046d5b04ac1f757ae18dfda6019.
+114bound suites/109341checks/47tooltests,1758warning-free handlers,fullXML/schema/
+JAXB,43native-browser actions/33screenshots and3454classes/195084references pass.
+3713prior JAR entries identical; no original package/required methods removed.
+Independent final normal-artifact13304checks and installed2builderfiles/250guards/
+95configs/30protectedclienthashes/2045backed-upinvalidatedcaches pass. Inventory
+20modchecks/74client/169historicalserverreceipts passes. Only GS JAR and navigation
+seed copied;Commons/static/client and owned IDs/progress remain.
+
+Superseded062939 was never copied; legacy fixture nomination and positive-Infinity
+bounds corrections retained in failed evidence. Restricted renderer initialization
+failed; identical host renderer passed with no source/media change. First copy
+guard refused BEFORE copying on client-exit SystemOptionGraphics.cfg; current bytes
+and failed manifest/hash diff archived, full inventory refreshed, current user
+choices preserved without guard weakening. Fresh actual host/offline guards passed.
+No lifecycle/gameplay/production SQL/native World/ID fixture occurred; only exactly
+three authorized read-only snapshots attached. Actual post-restart movement/CPU
+and every stationary actor remain user acceptance. Independent evidence:external
+staging/output/terrain-budget052-final-independent. See
+ docs/PLAYERBOTS_LIVE_NAVIGATION_20261012.md.
+
+## Playerbot movement/post-kill and CPU planning — installed offline — 12 October 2026
+
+PB-REPAIR-MOVEMENT-CPU-051 is installed from complete normal Maven output. Actual
+installed050 fixtures reproduce stale own-height search tickets blocking ground
+planning until5s expiry, residual native10s combat veto on safe world walking,
+an extra5s delay after reaching unavailable static destinations, unrelated visible
+hazards forcing repeated terrain probes, and redundant healing roster/reach work.
+Ground commitments revoke obsolete height tickets and nominate immediately without
+spending a permit. World walking checks fresh living hostile bot/spirit threats;
+arrival returns to native local work first and allows the next planner callback.
+Native dialogs/transport/combat timestamps, terrain/door/mover checks, hazards,
+recovery, loot, target/cost/cooldown and genuine idle/catalog retry rules remain.
+
+Cast planning reuses only current-decision support membership; mutable health,
+reservations/friendly/native party rights and final native admission remain fresh.
+Healing avoids costly reach checks when no positive native benefit exists. Safe
+unchanged movement commitments ignore unrelated hazards while fresh on-path hazards
+force avoidance; native200ms physical mover checks remain unchanged. No bot cap,
+feature, configuration, database/progress or NPC behavior change occurs. Original
+NPC-restoration050 source and all106 original executable method guards remain.
+
+Live CPU diagnosis used OS counters plus exactly three newly user-authorized
+read-only Thread.print samples from GS26272; that permission is now exhausted.
+Measured49.9% of12logicalCPUs over10.0446743s; pool2 planning/healing/terrain stacks
+and G1 concurrent work are observed. Avoidable native planning/probe work is
+repaired, but whole-server CPU reduction and gameplay require user restart/testing.
+Do not infer precise per-method CPU percentages from three stack snapshots.
+
+Review:external staging/output/release-20261012-050253-737942; receipt:external archives/server/game-server/
+backups/playerbots-source-build-20261012-051501-610119. InstalledGS SHA256:
+d997cbf0b171a278c90d5bbe40eb4a9058bdae9dfde280c39e20da0f72ead83d.
+111 artifact-bound suites/96,326 checks/43 tooling tests,1,758 warning-free handlers,
+full XML/schema/JAXB,43 native-browser actions/33 screenshots and3,450-class/
+194,744-reference linkage pass.3,709 prior entries stay identical; all original
+package/required public APIs remain.206 new exact-normal-JAR checks independently
+pass. One complete normal GS JAR delivered;Commons/client/config/data remain.
+Installed audit passes250 guards/94 configs/30 protected client hashes and2,045
+backed-up invalidated caches. Inventory20modchecks/74client/168server receipts passes.
+
+The first copy guard refused before copying because client exit changed only
+SystemOptionGraphics.cfg. Failed manifest/hash/current-setting evidence is archived
+in review/failed-client-exit-guard. Full20-check inventory was refreshed and the
+current user graphics settings were preserved unchanged; no guard was weakened.
+Final fresh source/offline guards passed after explicit user closure. No lifecycle/
+gameplay/production SQL/native World/ID fixture occurred; only the three expressly
+authorized read-only attachments occurred. Full quest audit and wider parity remain
+unfinished; do not resume superseded ordinary NPC expansion. See
+ docs/PLAYERBOTS_MOVEMENT_CPU_20261012.md.
+
+## Original NPC behavior restored — installed offline — 12 October 2026
+
+User clarifies NPCs were working before the shared Playerbot patrol expansion;
+the intended scope is Playerbot behavior. PB-REPAIR-NPC-RESTORE-050 supersedes the
+active NPC patrol/spawn changes introduced in047/048/049. Do not resume that NPC
+expansion or apply individual NPC records as a substitute. Wider map navigation
+was previously stopped. Preserve the Playerbot fixes and all other installed mods.
+
+Original active NpcMoveController/ClusteredNpc methods are restored from8d395f1bf;
+WalkManager/WalkerGroup source exactly matches the pre045214044 normal baseline.
+All106 original executable methods across those four classes and GeoService match
+baselineGS2db067b4bd12ec3f7fd4ff79db1713e3dd0eb3b4c3fe894a3e53060fa0478849.
+Later045/HEAD already includes the first NPC expansion and is not this baseline.
+Added APIs/classes stay dormant for package/method compatibility; original native
+entry points do not call them. No NPC XML/map/route/client/config/SQL changes occur.
+All355 Playerbot service/media entries remain byte-identical to installed049.
+
+Normal build/review:external staging/{target,output}/release-20261012-003211-878011.
+Receipt:external archives/server/game-server/backups/
+playerbots-source-build-20261012-004035-889592. InstalledGS SHA256:
+931043d6059654a428baa35ffc00dae4892467f72e7e52b2b2f75de2ac8d66c7.
+108 artifact-bound suites/96,120 checks/43 tooling tests;1,758 warning-free handlers,
+full XML/schema/JAXB,43 native-browser actions/33 screenshots and3450-class/
+194668-reference linkage pass.3,712 prior JAR entries remain identical;zero package
+entries/APIs removed. Four superseded NPC feature suites archived externally;
+restoration evidence pins the original normal JAR and comparison normalizer.
+The old049 JAR fails restoration; new050 passes. Restricted browser failure is
+retained; the identical media passed host renderer verification.
+
+One complete unchanged normalGSJAR copied;Commons/client/config/data remain.
+Independent installed verification passes250 guards/94 configs/30 protected client
+hashes and zero generated caches requiring invalidation. Inventory20modchecks/
+74client/167historicalserverreceipts passes. Fresh actual host/offline copy guards
+passed; no agent lifecycle/attach/gameplay/production SQL/World/ID fixture occurred.
+User gameplay still confirms NPC patrols and Playerbot responsiveness. Full quest
+audit and wider parity remain unfinished. See docs/PLAYERBOTS_NPC_RESTORATION_20261012.md.
+
+## Shared patrol admission and continuation — installed offline — 12 October 2026
+
+PB-REPAIR-PATROL-049 repairs shared code with no individual NPC/map/XML patches.
+Pre-World admission honors effective native initial flying/gliding state; live
+actors retain current-state authority and explicit aerial spawns remain aerial.
+Unsupported spawn origins may use a declared route point at identical XY only
+after strict native support/body proof. Formation compaction accepts full supported
+nonzero offsets and persists actual XY/shift/respawn orientation. Same-step resume
+retains the authored frame. Group continuation uses earned native 3D arrival with
+step identity and fresh actor position across reset, retaining native pause timing.
+No broadened floor lookup, flight inference from names/foot material, live relocation,
+configuration/SQL change or new navmesh is introduced. This is an Aion host repair.
+
+Installed unchanged normal GS SHA256:
+f37ef739cb7f971dc3d8457023e1711d00647fe98f4e090c1874f6b8fa4fbe7a.
+Receipt: playerbots-source-build-20261012-002352-290315; review:
+release-20261012-001546-146299. 112 artifact-bound suites/96,260 checks/41 tooling
+tests, 1,758 handlers, complete XML/schema/JAXB, 43 native-browser actions/33 images
+and 3,450-class/194,824-reference linkage pass. 3,710 prior entries stay identical;
+zero added/removed. One full normal GS JAR delivered; Commons/client/config/data stay.
+Root and peer installed verification pass 250 guards/94 configs/30 protected client
+hashes and 2,045 backed-up invalidated caches. Inventory20/74/166 passes. All prior
+mods/settings/identities/progress remain. Fresh closed-component guards passed;
+no lifecycle/attach/gameplay/production SQL/native World or ID fixture occurred.
+
+Actual geometry and matching 4.8 client archives supplied diagnostic data, with
+21 input hashes recorded. Ground disagreement alone does not prove malformed
+flying routes; no automatic waypoint flattening was performed. Unsupported authored
+routes, missing flight authority, safe-camp admission and gameplay remain unresolved
+as documented. Map-wide navigation remains stopped by the user; the wider quest
+audit/port remain unfinished. See docs/PLAYERBOTS_PATROL_ADMISSION_20261012.md.
+
+## Native patrol regression — installed offline — 11 October 2026
+
+PB-REPAIR-PATROL-048 repairs the live047 unsupported-patrol warning regression.
+Native no-earned/quantized travel retains clock credit without inventing a geometry
+failure; actual3D final arrival owns advancement and genuine obstructions remain
+diagnosed. Group offsets translate onto the next waypoint. Initial formation and
+respawn admission prove exact shiftedXY support from the authored route layer before
+World entry; flying/aerial/live actors and disabled geodata bypass this correction.
+No widened floor lookup, coordinate exception, navmesh or live relocation is added.
+
+Old047 fails the actual controller no-earned-travel regression. Real native terrain/
+mesh cases211835/210020000 and203595/220030000 reproduce formation under-floor poses;
+the actual pre-World admission endpoint now supplies safely walked support. Native
+progress15 and actual-source formation26 checks are part of110 exact-artifact suites/
+96,168 checks/41 tooling tests.1,758 handlers compile; full XML/schema/JAXB,43 native
+browser actions/33 screenshots and3,450-class/194,671-reference linkage pass.
+Zero package entries removed/added;3,711 previous entries remain identical.
+
+Receipt: external archives/server/game-server/backups/
+playerbots-source-build-20261011-235228-152951; review: external staging/output/
+release-20261011-234443-423720. Installed normal GS SHA256:
+1201bd273db4e24472a8b310b1303a339a59d660ff1053bce841257a4380aee0.
+One complete unchanged normal Maven GS JAR delivered; Commons/client/configs/static
+resources remain. Installed verification passes250 guards/94 configs/30 protected
+client hashes and2,045 backed-up invalidated caches. Inventory20 checks/74 client/
+165 historical server receipts passes. All preceding mods/settings/SQL progress stay.
+
+Candidate233219 was rejected before any copy after the required GeoService spawn
+entry point unexpectedly disappeared; its source was restored byte-for-byte, but
+the independent timestamp guard required a fresh normal build. No guards/hashes/
+timestamps were bypassed. Source disappearance cause remains unidentified. Earlier
+restricted renderer blank-page failure is retained; final host renderer passed.
+Fresh offline process guards passed; no lifecycle/attach/gameplay/production SQL
+or World/ID fixture occurred. Full map-wide navigation project is stopped by the
+user; actual post-install patrol behavior remains user acceptance. Full autonomous
+quest audit/wider parity remain unfinished. See docs/PLAYERBOTS_PATROL_REGRESSION_20261011.md.
+
+## Support-sort/backlog and retained navigation/patrol — installed offline — 11 October 2026
+
+PB-REPAIR-DECISION-046 / PB-REPAIR-NAVIGATION-047 is installed through complete
+unchanged normal Maven output, coordinated only with “Diagnose missing custom quest”.
+Immutable support selection repairs the reproduced live-comparator TimSort failure.
+Four bounded active-world worker slots retain serial party/idle/SQL/team lanes,
+actor exclusion, fresh reaction admission and complete shutdown draining.
+Retained coarse4m/fine1m ground searches, waypoint progress,200ms movement cadence
+and600ms arrival handoff repair local restart/stop-go seams. Patrols validate native
+support/body/instance-door steps and advertise a supported <=1s/5m client horizon;
+actual SM_MOVE bytes cover the former airborne destination. Grouped/endpoint heights
+are corrected. Flight/forced paths, native casts/cooldowns, all settings and progress remain.
+
+Receipt: external archives/server/game-server/backups/
+playerbots-source-build-20261011-230147-206015; review: external staging/output/
+release-20261011-225152-933570. GS SHA256:
+a673ef9409040f8c01b3474087d8ed9300429c202d0d9399f5e01f39bf99fb2f.
+108 exact-artifact suites/96,127 checks/41 tooling tests,1,758 warning-free handlers,
+full XML/schema/JAXB,43 browser actions/33 screenshots and3,450-class/194,578-reference
+linkage pass.3,714 prior JAR entries remain identical; only four intended classes
+and MANIFEST differ from installed045. One complete GS JAR delivered; Commons,
+client/configs/resources remain. Installed verification passes250 guards/94 configs/
+30 protected client hashes; zero caches invalidated. Inventory20 checks/74 client/
+164 historical server receipts passes. All56 original/82 scope hashes/81 blobs verify.
+
+Candidate224613 was stopped before delivery for a material patrol-packet defect.
+The corrected candidate's restricted blank-page renderer failure is retained;
+unchanged builder media passed host verification. Fresh closed-component guards passed;
+no component lifecycle/attach/gameplay/production SQL or World/ID fixture occurred.
+Search remains bounded4096 cells per phase/10 turns per second; unsupported patrol
+layers remain visible. Every world/mountain route, photographed NPC and actual
+combat/loot latency are not proven. Full navigation coverage, autonomous quest audit
+and wider parity remain unfinished engineering/user acceptance. See
+docs/PLAYERBOTS_SORT_BACKLOG_20261011.md and docs/PLAYERBOTS_ROUTE_CONTINUATION_20261011.md.
 
 ## Owned skill-item and kill/object families — installed offline — 11 October 2026
 

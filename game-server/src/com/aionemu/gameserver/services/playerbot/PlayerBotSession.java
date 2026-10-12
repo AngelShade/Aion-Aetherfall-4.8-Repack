@@ -557,7 +557,7 @@ public final class PlayerBotSession {
 				double score = priority(entry, recipient, combat, beneficiaries);
 				if(score>0 && requiredQuestSkills.contains(entry.template().getSkillId()))score=Math.max(score,DEFAULT+4);
 				if (score > 0) triggers.add(trigger(PlayerBotStrategyComposition.skill(
-					new CastAction(entry, recipient, enemies), bot, entry, recipient, skills), score));
+					new CastAction(entry, recipient, enemies).withSupport(support), bot, entry, recipient, skills), score));
 			}
 			triggers = strategyPlan.triggers("combat positioning and attack", State.COMBAT);
 			if (target != null && !incapacitated) {
@@ -615,8 +615,16 @@ public final class PlayerBotSession {
 			strategyPlan.defaults("world travel", new SimpleAction("travel to quest destination", () -> true, () -> PlayerBotWorldActivities.travel(this,navigation)), DEFAULT - 2, State.NON_COMBAT);
 		}
 		status = incapacitated ? "crowd controlled" : withholdDamage ? "waiting for tank threat" : combat ? "engaged" : rest ? "resting" : "ready";
-		strategyPlan.tick(engine, 64);
+		runDecision(strategyPlan);
 		return true;
+	}
+	/** Only fresh admitted actions own navigation. An idle decision cannot keep
+	 * a former quest/cast path nominated after that action disappeared. Accepted
+	 * asynchronous movement returns true and retains its existing search. */
+	private boolean runDecision(PlayerBotStrategyComposition.Plan plan) {
+		boolean executed=plan.tick(engine,64);
+		if(!executed)navigation.stop();
+		return executed;
 	}
 
 	private boolean withdrawToOwner(long now) {
@@ -698,12 +706,14 @@ public final class PlayerBotSession {
 	}
 
 	private Creature recipient(PlayerBotSkills.Entry e, List<Player> party, Npc enemy, boolean combat) {
+		if(e.kind()==SkillKind.BUFF && !combat && !PlayerBotCombatBuffs.nonCombatUseful(e.template()))return null;
 		if (e.kind() == SkillKind.PET_ORDER) {
 			var pet = bot.getSummon();
 			if (pet == null || pet.isDead() || pet.isBeingReleased() || pet.isCasting() || pet.getNextSkillOrder() != null) return null;
 			var actual = PlayerBotSkills.actualTemplate(bot, e);
 			if (actual == null) return null;
 			SkillKind kind = PlayerBotSkills.classify(actual);
+			if(kind==SkillKind.BUFF && !combat && !PlayerBotCombatBuffs.nonCombatUseful(actual))return null;
 			if (kind == SkillKind.DAMAGE || kind == SkillKind.TAUNT || kind == SkillKind.CONTROL) return enemy;
 			Creature friendly = actual.getProperties().getFirstTarget() == FirstTargetAttribute.MYMASTER ? bot : pet;
 			return switch (kind) {
@@ -734,7 +744,18 @@ public final class PlayerBotSession {
 		if (e.kind() == SkillKind.TAUNT) return enemy;
 		if (PlayerBotHealing.managed(e)) return PlayerBotHealing.recipient(bot, e, party);
 		if (e.kind() == SkillKind.RESURRECT) return PlayerBotHealing.resurrection(bot, e, party);
-		List<Player> allowed = PlayerBotSupport.allowed(bot, e, party);
+		// WoW action usefulness precedes expensive admission. Re-read benefit here
+		// and again in CastAction; never retain health, auras or visibility across decisions.
+		List<Player> allowed = switch(e.kind()) {
+			case HEAL -> PlayerBotSupport.allowed(bot,e,party,p->!p.isDead() && hp(p)<85 && !PlayerBotService.getInstance().isReserved(bot,p,SkillKind.HEAL));
+			case MANA -> PlayerBotSupport.allowed(bot,e,party,p->!p.isDead() && mp(p)<(p==bot && !combat && PlayerBotRecoveryIntent.active(bot) ? 95 : 40) && !hasBuff(p,e));
+			case CLEANSE -> PlayerBotSupport.allowed(bot,e,party,p->!p.isDead() && !PlayerBotService.getInstance().isReserved(bot,p,SkillKind.CLEANSE) && PlayerBotDispel.score(e,p)>0);
+			case DEFENSE -> PlayerBotSupport.allowed(bot,e,party,p->!p.isDead() && hp(p)<35 && !hasBuff(p,e));
+			case BUFF -> combat && !PlayerBotCombatBuffs.useful(bot.getPlayerClass(),role,e.template(),hp(bot),mp(bot)) ? List.of()
+				: PlayerBotSupport.allowed(bot,e,party,p->!p.isDead() && !hasBuff(p,e) && canAddBuff(p,e));
+			case RESURRECT -> combat ? List.of() : PlayerBotSupport.allowed(bot,e,party,p->p.isDead() && !p.getResStatus());
+			default -> List.of();
+		};
 		return switch (e.kind()) {
 			case SUMMON -> !combat && bot.getSummon() == null ? bot : null;
 			case MODE -> !bot.isInRobotMode() && bot.getEquipment().getMainHandWeapon() != null
@@ -854,10 +875,15 @@ public final class PlayerBotSession {
 		private final Creature recipient;
 		private final List<Npc> enemies;
 		CastAction(PlayerBotSkills.Entry entry, Creature recipient, List<Npc> enemies) { this.entry = entry; this.recipient = recipient; this.enemies = enemies; }
+		private List<Player> supportSnapshot;
+		private CastAction withSupport(List<Player> support) { supportSnapshot=List.copyOf(support);return this; }
 		@Override public String name() { return "cast " + entry.template().getName() + " (" + entry.template().getSkillId() + ") -> " + recipient.getName(); }
 		@Override public boolean isUseful() {
 			var actual = PlayerBotSkills.actualTemplate(bot, entry);
 			if (actual == null) return false;
+			if((entry.kind()==SkillKind.BUFF || entry.kind()==SkillKind.PET_ORDER && PlayerBotSkills.classify(actual)==SkillKind.BUFF)
+				&& !PlayerBotCombatBuffs.nonCombatUseful(actual) && enemies.stream().noneMatch(n->n.isSpawned() && !n.isDead()
+					&& n.getWorldId()==bot.getWorldId() && n.getInstanceId()==bot.getInstanceId() && bot.isEnemy(n) && bot.getKnownList().sees(n)))return false;
 			if(PlayerBotSkills.questTransformation(entry) && (!questing || order!=Order.FOLLOW || !PlayerBotQuestActions.skills(owner,bot).contains(entry.template().getSkillId())))return false;
 			if (PlayerBotSpiritmaster.applies(bot.getPlayerClass()) && (entry.kind() == SkillKind.BUFF || entry.kind() == SkillKind.PET_ORDER)
 				&& !PlayerBotSpiritmaster.idleUseful(bot,entry,recipient,!enemies.isEmpty() || bot.getController().isInCombat())) return false;
@@ -876,7 +902,8 @@ public final class PlayerBotSession {
 				&& (entry.kind() != SkillKind.DAMAGE || PlayerBotOffense.periodic(actual) || !hasActualBuff(recipient, actual))
 				&& (!recipient.isCasting() || !PlayerBotSkills.canInterrupt(entry.template())
 					|| !PlayerBotService.getInstance().isReserved(bot, recipient, SkillKind.CONTROL))
-				&& (!PlayerBotHealing.managed(entry) || PlayerBotHealing.useful(bot, entry, recipient))
+				&& (!PlayerBotHealing.managed(entry) || (supportSnapshot==null
+					? PlayerBotHealing.useful(bot, entry, recipient) : PlayerBotHealing.useful(bot, entry, recipient, supportSnapshot)))
 				&& (entry.kind() != SkillKind.BUFF && entry.kind() != SkillKind.PET_ORDER || !hasBuff(recipient, entry))
 				&& (PlayerBotHealing.managed(entry) || !PlayerBotService.getInstance().isReserved(bot, recipient, entry.kind()));
 		}

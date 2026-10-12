@@ -53,11 +53,15 @@ public class NpcMoveController extends CreatureMoveController<Npc> {
 	private boolean nextPointFromGeo;
 	private boolean isStop;
 	private boolean patrolBlocked;
+	private boolean patrolAwaitingTravel;
 
 	private LinkedList<Point3D> lastSteps;
 
 	private WalkerTemplate walkerTemplate;
 	private RouteStep currentStep;
+	private boolean routeGoalValid;
+	private RouteStep arrivedRouteStep;
+	private Vector3f arrivedRoutePoint;
 
 	public NpcMoveController(Npc owner) {
 		super(owner);
@@ -249,9 +253,6 @@ public class NpcMoveController extends CreatureMoveController<Npc> {
 
 		float currentSpeed = owner.getGameStats().getMovementSpeedFloat();
 		float futureDistPassed = currentSpeed * (System.currentTimeMillis() - lastMoveUpdate) / 1000f;
-		boolean groundPatrol = destination==Destination.POINT && owner.getAi().getSubState()==AISubState.WALK_PATH
-			&& GeoDataConfig.GEO_NPC_MOVE && GeoDataConfig.MODE==Mode.ON && !owner.isFlying();
-		if(groundPatrol)futureDistPassed=Math.min(futureDistPassed,currentSpeed);
 		float dist = (float) PositionUtil.getDistance(ownerX, ownerY, ownerZ, targetX, targetY, targetZ);
 
 		if (owner.getAi().isLogging()) {
@@ -276,20 +277,7 @@ public class NpcMoveController extends CreatureMoveController<Npc> {
 		float newX = (targetDestX - ownerX) * distFraction + ownerX;
 		float newY = (targetDestY - ownerY) * distFraction + ownerY;
 		float newZ = (targetDestZ - ownerZ) * distFraction + ownerZ;
-		if(groundPatrol) {
-			Vector3f step=GeoService.getInstance().findNpcPatrolStep(owner.getWorldId(),owner.getInstanceId(),ownerX,ownerY,ownerZ,newX,newY,owner.getObjectTemplate().getHeight());
-			if(step==null || PositionUtil.getDistance(ownerX,ownerY,ownerZ,step.x,step.y,step.z)<.001) {
-				if(!patrolBlocked)log.warn("NPC {} walker {} has no supported patrol step at {}/{}/{} in world {}; retaining native route",owner.getNpcId(),owner.getSpawn().getWalkerId(),ownerX,ownerY,ownerZ,owner.getWorldId());
-				patrolBlocked=true;
-				if(isInMove())setAndSendStopMove(owner);
-				return;
-			}
-			if(patrolBlocked || Math.abs(newZ-step.z)>.1)destinationChanged=true;
-			patrolBlocked=false;newX=step.x;newY=step.y;newZ=step.z;
-			if(PositionUtil.getDistance(newX,newY,pointX,pointY)<MOVE_OFFSET) {
-				pointZ=newZ;targetDestZ=newZ;
-			}
-		} else if (GeoDataConfig.GEO_NPC_MOVE && GeoDataConfig.MODE == Mode.ON && owner.getAi().getSubState() != AISubState.WALK_PATH
+		if (GeoDataConfig.GEO_NPC_MOVE && GeoDataConfig.MODE == Mode.ON && owner.getAi().getSubState() != AISubState.WALK_PATH
 			&& owner.getAi().getState() != AIState.RETURNING && owner.getGameStats().getNextGeoZUpdate() < System.currentTimeMillis()) {
 			// fix Z if npc doesn't move to spawn point
 			if (owner.getSpawn().getX() != targetDestX || owner.getSpawn().getY() != targetDestY || owner.getSpawn().getZ() != targetDestZ) {
@@ -321,6 +309,24 @@ public class NpcMoveController extends CreatureMoveController<Npc> {
 			}
 			PacketSendUtility.broadcastPacket(owner, new SM_MOVE(owner));
 		}
+	}
+
+	private float resolvePatrolDistance(float x,float y) {
+		Vector3f supported=GeoService.getInstance().findNpcPatrolStep(owner.getWorldId(),owner.getInstanceId(),owner.getX(),owner.getY(),owner.getZ(),owner.getX(),owner.getY(),owner.getObjectTemplate().getHeight());
+		if(supported!=null){pointZ=supported.z;targetDestZ=supported.z;}
+		// Reuse the native 3D final-arrival authority; separate XY/Z tolerances
+		// can otherwise accept a diagonal position which is still out of range.
+		return isReachedPoint()?0:(float)PositionUtil.getDistance(owner,x,y,targetDestZ);
+	}
+
+	private void publishPatrolTarget(Vector3f from,float x,float y,float speed) {
+		double remaining=Math.hypot(x-from.x,y-from.y);
+		float reach=(float)Math.min(remaining,Math.min(5,Math.max(0,speed)));
+		float fraction=remaining<.001?0:(float)(reach/remaining);
+		Vector3f ahead=GeoService.getInstance().findNpcPatrolStep(owner.getWorldId(),owner.getInstanceId(),from.x,from.y,from.z,
+			from.x+(x-from.x)*fraction,from.y+(y-from.y)*fraction,owner.getObjectTemplate().getHeight());
+		if(ahead==null)ahead=from;
+		targetDestX=ahead.x;targetDestY=ahead.y;targetDestZ=ahead.z;
 	}
 
 	private byte getMoveMask(boolean directionChanged) {
@@ -383,7 +389,7 @@ public class NpcMoveController extends CreatureMoveController<Npc> {
 		if (owner.getWalkerGroup() != null) {
 			dest = WalkerGroup.getLinePoint(new Point2D(currentStep.getX(), currentStep.getY()), new Point2D(step.getX(), step.getY()),
 				owner.getWalkerGroup().getClusterData(owner));
-			this.pointZ = step.getZ();
+			this.pointZ = currentStep.getZ();
 			owner.getWalkerGroup().setStep(owner, step.getStepIndex());
 		} else {
 			this.pointZ = step.getZ();
@@ -401,6 +407,18 @@ public class NpcMoveController extends CreatureMoveController<Npc> {
 
 	public boolean isReachedPoint() {
 		return PositionUtil.isInRange(owner, pointX, pointY, pointZ, MOVE_OFFSET);
+	}
+
+	/** Native group arrival survives a pause only while this actor remains at that goal. */
+	public boolean hasReachedRouteStep(RouteStep step) {
+		if(step==null || currentStep!=step)return false;
+		if(routeGoalValid && destination==Destination.POINT && isReachedPoint())return true;
+		return arrivedRouteStep==step && arrivedRoutePoint!=null
+			&& PositionUtil.isInRange(owner,arrivedRoutePoint.x,arrivedRoutePoint.y,arrivedRoutePoint.z,MOVE_OFFSET);
+	}
+
+	private void clearRouteArrival() {
+		routeGoalValid=false;arrivedRouteStep=null;arrivedRoutePoint=null;
 	}
 
 	public boolean isNextRouteStepChosen() {

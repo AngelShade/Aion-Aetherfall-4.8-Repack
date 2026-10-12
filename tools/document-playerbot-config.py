@@ -1,5 +1,6 @@
 """Expose/document every compiled PlayerBot setting without changing effective live values."""
 import argparse
+import importlib
 import hashlib
 import json
 from pathlib import Path
@@ -11,11 +12,13 @@ from datetime import datetime
 
 ROOT = Path(__file__).resolve().parents[1]
 DEV = Path('D:/Proiecte/Project Restructure/Aion Development Workspace')
-SOURCE = ROOT / 'game-server/config/main/playerbots.properties'
+CONFIG_PATHS = importlib.import_module('playerbot-config-paths')
+SOURCE = ROOT / 'game-server' / CONFIG_PATHS.CURRENT
 FEATURE_SOURCE = ROOT / 'game-server/config/playerbots/features.properties'
+NAVIGATION_SOURCE = ROOT / 'game-server/config/playerbots/navigation.properties'
 JAVA = ROOT / 'game-server/src/com/aionemu/gameserver/configs/main/PlayerBotConfig.java'
 SERVER = ROOT / 'target-deploy/game-server'
-LIVE = SERVER / 'config/main/playerbots.properties'
+LIVE = CONFIG_PATHS.active(SERVER)
 JAR = SERVER / 'libs/game-server-4.8-SNAPSHOT.jar'
 LINE = re.compile(r'^(gameserver\.playerbots\.[\w.]+)[ \t]*=[ \t]*([^\r\n]*)$', re.MULTILINE)
 
@@ -48,12 +51,14 @@ def complete(template, values):
     return result
 
 def source_catalogue():
-    main = properties(SOURCE.read_text(encoding='utf-8'))
-    features = properties(FEATURE_SOURCE.read_text(encoding='utf-8'))
-    assert not set(main) & set(features), 'Playerbots settings must have one documented home'
-    complete(SOURCE.read_text(encoding='utf-8'), main)
-    complete(FEATURE_SOURCE.read_text(encoding='utf-8'), features)
-    return main | features
+    catalogue = {}
+    for source in (SOURCE, FEATURE_SOURCE, NAVIGATION_SOURCE):
+        text = source.read_text(encoding='utf-8')
+        values = properties(text)
+        assert not set(catalogue) & set(values), 'Playerbots settings must have one documented home'
+        complete(text, values)
+        catalogue.update(values)
+    return catalogue
 
 def main_defaults(defaults):
     # This legacy documentation action owns only the existing main file.
@@ -97,7 +102,7 @@ def verified_receipt(server, archives):
     defaults, _ = compiled_defaults()
     defaults = main_defaults(defaults)
     assert properties(LIVE.read_text()) == m['effective'] == effective_with_repair(defaults, properties(original.read_text()), m.get('formattingRepair'))
-    return dict(path='config/main/playerbots.properties', original=m['original'], installed=m['installed'],
+    return dict(path=LIVE.relative_to(SERVER).as_posix(), original=m['original'], installed=m['installed'],
         review=str(path), reviewSha256=sha(path), recovery=str(original), documentationOnly=True)
 
 def prepare(repair_review=None):

@@ -33,7 +33,7 @@ public final class PlayerBotQuestFeatureConfigCheck {
   return (java.util.Properties)method.invoke(null,root);
  }
  private static Path directory(Path root,boolean features)throws Exception {
-  for(var name:List.of("administration","main","network"))Files.createDirectories(root.resolve("config/"+name));
+  for(var name:List.of("administration","main","network","playerbots"))Files.createDirectories(root.resolve("config/"+name));
   if(features)Files.createDirectories(root.resolve("config/playerbots/media"));return root;
  }
  private static String switches(boolean value) {
@@ -72,30 +72,30 @@ public final class PlayerBotQuestFeatureConfigCheck {
     check(annotation.defaultValue().equals("true"),"Feature preserves default enabled behavior "+FIELDS.get(i));
    }
    var root=directory(temporary.resolve("complete"),true);
-   Files.writeString(root.resolve("config/main/playerbots.properties"),switches(true)+"gameserver.playerbots.population.max=123\n");
+   Files.writeString(root.resolve("config/playerbots/playerbots.properties"),switches(true)+"gameserver.playerbots.population.max=123\n");
    Files.writeString(root.resolve("config/playerbots/features.properties"),switches(false));
    Files.writeString(root.resolve("config/playerbots/media/ignored.properties"),switches(true)+"nested.media.marker=unexpected\n");
    Files.writeString(root.resolve("config/playerbots/care-character-1.properties"),switches(true)+"account=123\ncharacter=456\nenchant=true\n");
    Files.writeString(root.resolve("config/playerbots/readme.txt"),"non.properties.marker=unexpected\n");
    Files.writeString(root.resolve("config/network/test.properties"),"fixture.unknown.network=retained\n");
    var properties=load(root);var unused=ConfigurableProcessor.process(properties,PlayerBotConfig.class);
-   check(PlayerBotConfig.POPULATION_MAX==123,"Existing main population configuration remains loaded");
+   check(PlayerBotConfig.POPULATION_MAX==123,"Relocated population configuration remains loaded");
    check(unused.equals(Set.of("fixture.unknown.network")),"Actual parser recognizes every feature key and retains unknown keys");
    check(properties.getProperty("nested.media.marker")==null,"Native loader ignores nested media properties");
    check(properties.getProperty("account")==null && properties.getProperty("character")==null && properties.getProperty("enchant")==null,"Native loader ignores sibling per-character care metadata");
    check(properties.getProperty("non.properties.marker")==null,"Native loader ignores non-properties files");
-   for(int i=0;i<FIELDS.size();i++)check(!field(i),"Feature directory overrides main value "+FIELDS.get(i));
+   for(int i=0;i<FIELDS.size();i++)check(!field(i),"Feature file overrides general bot value "+FIELDS.get(i));
    for(int override=0;override<FIELDS.size();override++) {
     Files.writeString(root.resolve("config/mygs.properties"),PREFIX+KEYS.get(override)+"=true\n");
     properties=load(root);unused=ConfigurableProcessor.process(properties,PlayerBotConfig.class);
     for(int i=0;i<FIELDS.size();i++)check(field(i)==(i==override),"mygs is the final native override "+override+"/"+i);
     check(unused.equals(Set.of("fixture.unknown.network")),"Override keys remain known to native parser "+override);
-    check(PlayerBotConfig.POPULATION_MAX==123,"Feature override preserves main population "+override);
+    check(PlayerBotConfig.POPULATION_MAX==123,"Feature override preserves bot population "+override);
    }
    var legacy=directory(temporary.resolve("optional-missing"),false);
-   Files.writeString(legacy.resolve("config/main/playerbots.properties"),"gameserver.playerbots.population.max=321\n");
+   Files.writeString(legacy.resolve("config/playerbots/playerbots.properties"),"gameserver.playerbots.population.max=321\n");
    properties=load(legacy);unused=ConfigurableProcessor.process(properties,PlayerBotConfig.class);
-   check(unused.isEmpty() && PlayerBotConfig.POPULATION_MAX==321,"Native loader accepts absent optional playerbots directory and mygs file");
+   check(unused.isEmpty() && PlayerBotConfig.POPULATION_MAX==321,"Native loader accepts absent optional feature file and mygs file");
    for(int i=0;i<FIELDS.size();i++)check(field(i),"Absent optional feature file restores annotation default "+FIELDS.get(i));
    for(int toggle=0;toggle<FIELDS.size();toggle++)for(boolean value:List.of(false,true)) {
     properties=allEnabled();properties.setProperty(PREFIX+KEYS.get(toggle),Boolean.toString(value));

@@ -514,12 +514,12 @@ public class PlayerController extends CreatureController<Player> {
 
 	@Override
 	public void cancelCurrentSkill(Creature lastAttacker, SM_SYSTEM_MESSAGE message) {
-		if (getOwner().getCastingSkill() == null) {
+		Player player = getOwner();
+		Skill castingSkill = player.getCastingSkill();
+		if (castingSkill == null) {
 			return;
 		}
 
-		Player player = getOwner();
-		Skill castingSkill = player.getCastingSkill();
 		castingSkill.cancelCast();
 		player.setCasting(null);
 		if (castingSkill.allowAnimationBoostByCastSpeed())

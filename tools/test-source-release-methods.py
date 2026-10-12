@@ -26,6 +26,46 @@ def resource_fixture():
 
 
 class MethodPreservationCheck(unittest.TestCase):
+    def test_configuration_move_preserves_owner_destination(self):
+        migration=delivery.import_module('move-playerbot-configuration')
+        with resource_fixture() as folder:
+            server=Path(folder);old=server/migration.paths.LEGACY;old.parent.mkdir(parents=True)
+            old.write_bytes(b'# owner\r\ngameserver.playerbots.population.max=1500\r\n')
+            before=old.read_bytes();_,new=migration.validate_locations(server)
+            new.parent.mkdir(parents=True);new.write_bytes(b'# newer owner choices\n')
+            with self.assertRaisesRegex(AssertionError,'already exists'):migration.validate_locations(server)
+            self.assertEqual(old.read_bytes(),before)
+            self.assertEqual(new.read_bytes(),b'# newer owner choices\n')
+
+    def test_configuration_move_refuses_missing_source_or_directory(self):
+        migration=delivery.import_module('move-playerbot-configuration')
+        with resource_fixture() as folder:
+            server=Path(folder)
+            with self.assertRaisesRegex(AssertionError,'legacy'):migration.validate_locations(server)
+            old=server/migration.paths.LEGACY;old.mkdir(parents=True)
+            with self.assertRaisesRegex(AssertionError,'legacy'):migration.validate_locations(server)
+
+    def test_configuration_tools_use_new_location_without_fallback(self):
+        paths=delivery.import_module('playerbot-config-paths')
+        with resource_fixture() as folder:
+            server=Path(folder);old=server/paths.LEGACY;old.parent.mkdir(parents=True);old.write_bytes(b'# old\n')
+            self.assertEqual(paths.active(server),server/paths.CURRENT)
+            self.assertFalse(paths.active(server).exists())
+
+    def test_level_spread_preserves_every_unrelated_owner_byte(self):
+        module=delivery.import_module('configure-playerbot-level-spread')
+        before=b'# owner\r\ngameserver.playerbots.population.min_level_percent = 10\r\ngameserver.playerbots.population.max_level_percent = 65\r\ngameserver.playerbots.population.max = 1500\r\n'
+        builder=before.replace(b'= 10',b'= 0').replace(b'= 65',b'= 0')
+        self.assertEqual(module.replacement(before,builder),builder)
+        module.validate(before,builder,builder)
+        with self.assertRaises(AssertionError):module.validate(before,builder.replace(b'1500',b'160'),builder)
+
+    def test_level_spread_rejects_missing_duplicate_or_nonuniform_builder(self):
+        module=delivery.import_module('configure-playerbot-level-spread')
+        data=b'gameserver.playerbots.population.min_level_percent = 0\ngameserver.playerbots.population.max_level_percent = 0\n'
+        for bad in (data+data,data.splitlines(keepends=True)[0],data.replace(b'= 0',b'= 65',1)):
+            with self.assertRaises(AssertionError):module.replacement(data,bad)
+
     def test_feature_defaults_are_added_once_and_owner_edits_are_preserved(self):
         with resource_fixture() as folder:
             target=Path(folder)/delivery.FEATURE_CONFIGURATION
@@ -35,8 +75,46 @@ class MethodPreservationCheck(unittest.TestCase):
             self.assertFalse(delivery.initial_feature_configuration(target))
             self.assertEqual(target.read_bytes(),b'gameserver.playerbots.quests.enable = false\n')
 
+    def test_navigation_defaults_seed_once_and_preserve_owner_edits(self):
+        with resource_fixture() as folder:
+            target = Path(folder) / delivery.NAVIGATION_CONFIGURATION
+            self.assertTrue(delivery.initial_feature_configuration(target))
+            target.parent.mkdir(parents=True)
+            choices = b'gameserver.playerbots.navigation.budget_ms_per_second = 200\n'
+            target.write_bytes(choices)
+            self.assertFalse(delivery.initial_feature_configuration(target))
+            self.assertEqual(target.read_bytes(), choices)
+            delivery.verify_original_resource(target, delivery.shared.sha(target))
+            with self.assertRaises(AssertionError): delivery.verify_original_resource(target, None)
+
+    def test_navigation_path_directory_is_rejected(self):
+        with resource_fixture() as folder:
+            target = Path(folder) / delivery.NAVIGATION_CONFIGURATION
+            target.mkdir(parents=True)
+            with self.assertRaisesRegex(AssertionError, 'not a regular file'):
+                delivery.initial_feature_configuration(target)
+
+    def test_navigation_and_feature_settings_have_documented_unique_homes(self):
+        catalogue = configuration.source_catalogue()
+        navigation = configuration.properties(configuration.NAVIGATION_SOURCE.read_text())
+        self.assertEqual(len(navigation), 4)
+        self.assertTrue(all(key.startswith('gameserver.playerbots.navigation.') for key in navigation))
+        self.assertTrue(set(navigation) <= set(catalogue))
+        self.assertEqual(delivery.OWNER_CONFIGURATIONS, {delivery.FEATURE_CONFIGURATION, delivery.NAVIGATION_CONFIGURATION, delivery.PLAYERBOT_CONFIGURATION})
+
+    def test_seeded_navigation_is_guarded_in_final_configuration_receipt(self):
+        existing = {'config/main/playerbots.properties': 'owner choices', delivery.FEATURE_CONFIGURATION: 'owner switches'}
+        seeded = dict(path=delivery.NAVIGATION_CONFIGURATION, original=None, installed='normal builder defaults')
+        final = delivery.resulting_configurations(existing, [seeded])
+        self.assertEqual(final, existing | {delivery.NAVIGATION_CONFIGURATION: 'normal builder defaults'})
+        self.assertNotIn(delivery.NAVIGATION_CONFIGURATION, existing)
+        with self.assertRaises(AssertionError):
+            delivery.resulting_configurations(existing, [dict(seeded, original='owner file')])
+
     def test_only_exact_feature_configuration_can_be_a_release_resource(self):
         self.assertTrue(delivery.allowed_resource(delivery.FEATURE_CONFIGURATION))
+        self.assertTrue(delivery.allowed_resource(delivery.NAVIGATION_CONFIGURATION))
+        self.assertTrue(delivery.allowed_resource(delivery.PLAYERBOT_CONFIGURATION))
         self.assertTrue(delivery.allowed_resource('data/handlers/quest/example.java'))
         for name in ['config/main/playerbots.properties','config/mygs.properties','config/playerbots/other.properties',
                      'config/playerbots/../features.properties','config\\playerbots\\features.properties',
@@ -100,17 +178,50 @@ class MethodPreservationCheck(unittest.TestCase):
 
     def regression_fixture(self, root):
         regression=delivery.import_module('check-source-build')
+        restoration=delivery.import_module('check-npc-restoration')
+        restored=patch.object(restoration,'verify',return_value={'fixture':'original native behavior'})
+        restored.start();self.addCleanup(restored.stop)
         build=root/'build';out=root/'reports';(build/'checks').mkdir(parents=True);out.mkdir()
+        (out/'npc-restoration.json').write_text(json.dumps({'fixture':'original native behavior'}))
         (build/'checks/Test.class').write_bytes(b'compiled fixture')
         result='OK: 3 actual checks'
         (out/'Test.txt').write_text(result)
-        (out/'checks.json').write_text(json.dumps({'Test':result,'ShutdownHookCheck':'OK: 14 shutdown checks'}))
+        (out/'checks.json').write_text(json.dumps({'Test':result,'ShutdownHookCheck':'OK: 14 shutdown checks','DatabaseShutdownCheck':'OK: 17 database shutdown checks','PlayerSkillCancellationCheck':'OK: 41 player cancellation checks'}))
         (out/'ShutdownHookCheck.txt').write_text('OK: 14 shutdown checks')
+        (out/'DatabaseShutdownCheck.txt').write_text('OK: 17 database shutdown checks')
+        db=out/'database-shutdown';(db/'classes').mkdir(parents=True)
+        (db/'checks.txt').write_text('OK: 17 database shutdown checks');(db/'compile.txt').write_text('compiled isolated shutdown fixture')
+        jars=[build/'game-server/game-server-4.8-SNAPSHOT.jar',build/'commons/commons-4.8-SNAPSHOT.jar']
+        for jar in jars:jar.parent.mkdir(parents=True);jar.write_bytes(b'bound native artifact')
+        (db/'classes/Stub.class').write_bytes(b'inert dependency fixture')
+        (db/'abi.json').write_text('{"fixture":"native descriptors"}')
+        (db/'evidence.json').write_text(json.dumps(dict(mode='normal-builder-artifact',count=17,inputs={str(jar):regression.sha(jar) for jar in jars},classes={'Stub.class':regression.sha(db/'classes/Stub.class')},reportSha256=regression.sha(db/'checks.txt'),compileSha256=regression.sha(db/'compile.txt'),abiSha256=regression.sha(db/'abi.json'))))
+        cancellation=out/'player-skill-cancellation';(cancellation/'classes').mkdir(parents=True)
+        text='OK: 41 player cancellation checks'
+        (out/'PlayerSkillCancellationCheck.txt').write_text(text)
+        (cancellation/'checks.txt').write_text(text);(cancellation/'compile.txt').write_text('compiled cancellation fixture');(cancellation/'abi.json').write_text('{"fixture":"native packet descriptors"}')
+        (cancellation/'classes/Stub.class').write_bytes(b'inert packet fixture')
+        (cancellation/'evidence.json').write_text(json.dumps(dict(mode='normal-builder-artifact',count=41,result=text,inputs={str(jar):regression.sha(jar) for jar in jars},classes={'Stub.class':regression.sha(cancellation/'classes/Stub.class')},checksSha256=regression.sha(cancellation/'checks.txt'),compileSha256=regression.sha(cancellation/'compile.txt'),abiSha256=regression.sha(cancellation/'abi.json'))))
         (out/'tooling.txt').write_text('Ran 3 tests\nOK\n');(out/'compile.txt').write_text('successful fixture compilation')
-        evidence=dict(version=1,inputs={'builder':'bound'},classes={'Test.class':regression.sha(build/'checks/Test.class')},suites={name:dict(exitCode=0,count=count,result=text,reportSha256=regression.sha(out/(name+'.txt'))) for name,count,text in [('Test',3,result),('ShutdownHookCheck',14,'OK: 14 shutdown checks')]})
+        evidence=dict(version=1,inputs={'builder':'bound'},classes={'Test.class':regression.sha(build/'checks/Test.class')},suites={name:dict(exitCode=0,count=count,result=text,reportSha256=regression.sha(out/(name+'.txt'))) for name,count,text in [('Test',3,result),('ShutdownHookCheck',14,'OK: 14 shutdown checks'),('DatabaseShutdownCheck',17,'OK: 17 database shutdown checks'),('PlayerSkillCancellationCheck',41,'OK: 41 player cancellation checks')]})
         evidence.update(tooling=dict(exitCode=0,count=3,reportSha256=regression.sha(out/'tooling.txt')),compileSha256=regression.sha(out/'compile.txt'))
         (out/'evidence.json').write_text(json.dumps(evidence))
         return regression,build,out,evidence
+
+    def test_npc_restoration_rejects_changed_or_removed_original_behavior(self):
+        restoration=delivery.import_module('check-npc-restoration')
+        original={'public void spawn(float);':['original native spawn']}
+        for changed in ({},{'public void spawn(float);':['geometry override']}):
+            with patch.object(restoration.shared,'sha',return_value=restoration.BASELINE_SHA),patch.object(restoration.shared,'methods',side_effect=[original,changed]):
+                with self.assertRaisesRegex(AssertionError,'Original NPC method changed'):restoration.verify(Path('fixture'))
+
+    def test_npc_restoration_rejects_stale_or_missing_evidence(self):
+        with resource_fixture() as folder:
+            regression,build,out,evidence=self.regression_fixture(Path(folder))
+            (out/'npc-restoration.json').write_text('{}')
+            with self.assertRaisesRegex(AssertionError,'NPC restoration evidence changed'):regression.validate(build,out)
+            (out/'npc-restoration.json').unlink()
+            with self.assertRaises(FileNotFoundError):regression.validate(build,out)
 
     def test_regression_missing_failed_or_wrong_individual_suite_is_rejected(self):
         with resource_fixture() as folder:
@@ -140,6 +251,57 @@ class MethodPreservationCheck(unittest.TestCase):
             regression,build,out,evidence=self.regression_fixture(Path(folder))
             with patch.object(regression,'TESTS',{'Test':3,'Required':1}),patch.object(regression,'binding',return_value={'builder':'bound'}):
                 with self.assertRaises(AssertionError):regression.validate(build,out)
+    def test_database_shutdown_cannot_use_an_unbound_artifact_or_product_shadow(self):
+        with resource_fixture() as folder:
+            regression,build,out,evidence=self.regression_fixture(Path(folder))
+            path=out/'database-shutdown/evidence.json';original=json.loads(path.read_text())
+            with patch.object(regression,'TESTS',{'Test':3}),patch.object(regression,'QUEST_TESTS',{}),patch.object(regression,'binding',return_value={'builder':'bound'}):
+                for kind in ['unbound','source-mode','shadow']:
+                    wrong=json.loads(json.dumps(original))
+                    if kind=='unbound':wrong['inputs']={}
+                    elif kind=='source-mode':wrong['mode']='three-source-classes'
+                    else:
+                        shadow=out/'database-shutdown/classes/com/aionemu/commons/database/DatabaseFactory.class';shadow.parent.mkdir(parents=True);shadow.write_bytes(b'product replacement')
+                        wrong['classes'][str(shadow.relative_to(out/'database-shutdown/classes'))]=regression.sha(shadow)
+                    path.write_text(json.dumps(wrong))
+                    with self.assertRaises(AssertionError):regression.validate(build,out)
+    def test_player_cancellation_cannot_use_unbound_artifact_or_product_shadow(self):
+        with resource_fixture() as folder:
+            regression,build,out,evidence=self.regression_fixture(Path(folder))
+            path=out/'player-skill-cancellation/evidence.json';original=json.loads(path.read_text())
+            with patch.object(regression,'TESTS',{'Test':3}),patch.object(regression,'QUEST_TESTS',{}),patch.object(regression,'binding',return_value={'builder':'bound'}):
+                regression.validate(build,out)
+                for kind in ['unbound','source-mode','wrong-count','wrong-result','shadow']:
+                    wrong=json.loads(json.dumps(original))
+                    if kind=='unbound':wrong['inputs']={}
+                    elif kind=='source-mode':wrong['mode']='native-controller-source'
+                    elif kind=='wrong-count':wrong['count']=40
+                    elif kind=='wrong-result':wrong['result']='OK: 41 substituted result'
+                    else:
+                        shadow=out/'player-skill-cancellation/classes/com/aionemu/gameserver/controllers/PlayerController.class';shadow.parent.mkdir(parents=True);shadow.write_bytes(b'product replacement')
+                        wrong['classes'][str(shadow.relative_to(out/'player-skill-cancellation/classes'))]=regression.sha(shadow)
+                    path.write_text(json.dumps(wrong))
+                    with self.assertRaises(AssertionError):regression.validate(build,out)
+
+    def test_player_cancellation_rejects_changed_reports_descriptors_fixtures_and_inputs(self):
+        with resource_fixture() as folder:
+            regression,build,out,evidence=self.regression_fixture(Path(folder))
+            cancellation=out/'player-skill-cancellation';path=cancellation/'evidence.json';original=json.loads(path.read_text())
+            with patch.object(regression,'TESTS',{'Test':3}),patch.object(regression,'QUEST_TESTS',{}),patch.object(regression,'binding',return_value={'builder':'bound'}):
+                for relative in ['checks.txt','compile.txt','abi.json','classes/Stub.class']:
+                    changed=cancellation/relative;before=changed.read_bytes();changed.write_bytes(b'changed bound evidence')
+                    with self.assertRaises(AssertionError):regression.validate(build,out)
+                    changed.write_bytes(before)
+                source=cancellation/'bound-fixture.java';source.write_text('original inert fixture')
+                wrong=json.loads(json.dumps(original));wrong['inputs'][str(source)]=regression.sha(source);path.write_text(json.dumps(wrong))
+                regression.validate(build,out);source.write_text('changed inert fixture')
+                with self.assertRaises(AssertionError):regression.validate(build,out)
+
+    def test_pending_focus_is_in_required_suite_and_fixture_inputs(self):
+        regression=delivery.import_module('check-source-build')
+        self.assertEqual(regression.TESTS['PlayerBotPendingFocusCheck'],20)
+        self.assertIn(regression.ROOT/'game-server/test/com/aionemu/gameserver/services/playerbot/PlayerBotPendingFocusCheck.java',regression.fixtures())
+
     def test_added_documented_defaults_preserve_existing_live_values(self):
         before='gameserver.playerbots.population.min = 1200\ngameserver.playerbots.population.max = 1500\n'
         defaults={'gameserver.playerbots.population.min':'2800','gameserver.playerbots.population.max':'3000','gameserver.playerbots.population.player_focus.enable':'true'}
@@ -217,6 +379,14 @@ class MethodPreservationCheck(unittest.TestCase):
             target.write_bytes(b'changed unreviewed resource')
             with self.assertRaises(AssertionError):
                 verification.verify_runtime_resource_inputs(server, manifest)
+            documentation = dict(path='untouched.xml', original=manifest['runtimeResourceInputs']['untouched.xml'],
+                                 installed=verification.sha(target))
+            verification.verify_runtime_resource_inputs(server, manifest, documentation)
+            with self.assertRaises(AssertionError):
+                verification.verify_runtime_resource_inputs(server, manifest, documentation | dict(original='wrong baseline'))
+            target.write_bytes(b'changed after documentation')
+            with self.assertRaises(AssertionError):
+                verification.verify_runtime_resource_inputs(server, manifest, documentation)
 
     def test_documented_configuration_preserves_explicit_values_and_missing_defaults(self):
         defaults = {'gameserver.playerbots.max_active': '100', 'gameserver.playerbots.world.max_active': '1000'}

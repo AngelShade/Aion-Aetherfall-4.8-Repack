@@ -55,6 +55,15 @@ public class DatabaseFactory {
 		return con;
 	}
 
+	/**
+	 * Closes this process's connection pool after all database work has drained.
+	 * Retains the closed datasource so a late init cannot reopen it during shutdown.
+	 */
+	public synchronized static void shutdown() {
+		if (dataSource instanceof HikariDataSource pool && !pool.isClosed())
+			pool.close();
+	}
+
 	private DatabaseFactory() {
 	}
 }

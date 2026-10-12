@@ -103,19 +103,19 @@ final class PlayerBotEnemyUtility {
  }
  static boolean ready(Player bot,PlayerBotSkills.Entry entry,Npc target) {
   if(target==null || target.isDead() || !target.isSpawned() || !PlayerBotService.allowsTarget(bot,target)
-   || !PositionUtil.isInAttackRange(bot,target,entry.range()) || !GeoService.getInstance().canSee(bot,target)
+   || !PositionUtil.isInAttackRange(bot,target,entry.range())
    || bot.isSkillDisabled(entry.template()) || !PlayerBotSkills.chainAvailable(bot,entry) || !PlayerBotSkills.canPlan(bot,entry,target))return false;
   List<Creature> targets=new ArrayList<>();targets.add(target);
   var result=entry.template().getProperties().validateEffectedList(targets,target,bot,entry.template(),target.getX(),target.getY(),target.getZ());
-  return result.isValid() && targets.contains(target);
+  return result.isValid() && targets.contains(target) && GeoService.getInstance().canSee(bot,target);
  }
  static double utility(Player bot,PlayerBotSkills.Entry entry,Npc target) {
-  if(!ready(bot,entry,target))return 0;
+  if(target==null || target.isDead() || !target.isSpawned())return 0;
   double score=purge(entry.template()) ? purgePriority(bot.getPlayerClass(),purgeScore(bot,entry,target)) : 0;
   if(PlayerBotSkills.canInterrupt(entry.template()) && target.isCasting()
    && !PlayerBotService.getInstance().isReserved(bot,target,PlayerBotRules.SkillKind.CONTROL))
    score=Math.max(score,interruptPriority(bot.getPlayerClass(),target));
-  return score;
+  return score>0 && ready(bot,entry,target) ? score : 0;
  }
  static Creature recipient(Player bot,PlayerBotSkills.Entry entry,Npc primary) {
   boolean purge=purge(entry.template());

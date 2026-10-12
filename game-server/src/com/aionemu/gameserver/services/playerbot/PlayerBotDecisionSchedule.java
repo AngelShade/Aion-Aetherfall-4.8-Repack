@@ -8,6 +8,56 @@ import java.util.*;
 /** Per-character reaction deadlines. A batch yield must not delay every remaining bot. */
 final class PlayerBotDecisionSchedule {
  record Ready<T>(T value,int id,long due,boolean controlled) {}
+ /** One scheduler observation; a full lane owns no readiness objects or sort work. */
+ static final class Pass<T,L> {
+  private final Map<L,List<Ready<T>>> ready=new LinkedHashMap<>();
+  private final Map<L,Long> earliest=new LinkedHashMap<>();
+  private final boolean saturated;
+  private int lateCount;
+  private T oldestActor;
+  private int oldestId;
+  private long oldestDue=Long.MAX_VALUE;
+  private boolean oldestControlled;
+  private boolean finished;
+  Pass(boolean saturated){this.saturated=saturated;}
+  void observe(T actor,int id,long due,boolean controlled,boolean active,L lane,int available,long now,boolean reportLag) {
+   if(finished)throw new IllegalStateException("Scheduler pass already finished");
+   if(available>0) {
+    earliest.merge(lane,due,Math::min);
+    if(due<=now)ready.computeIfAbsent(lane,key->new ArrayList<>()).add(new Ready<>(actor,id,due,controlled));
+   }
+   if(reportLag && active && due>0 && now-due>=5000) {
+    lateCount++;
+    if(oldestActor==null || due<oldestDue || due==oldestDue && (controlled && !oldestControlled || controlled==oldestControlled && id<oldestId)){
+     oldestActor=actor;oldestId=id;oldestDue=due;oldestControlled=controlled;
+    }
+   }
+  }
+  void finish() {
+   if(finished)return;
+   ready.replaceAll((lane,actors)->{
+    actors.sort(Comparator.comparing((Ready<T> r)->!r.controlled()).thenComparingLong(Ready::due).thenComparingInt(Ready::id));
+    return List.copyOf(actors);
+   });
+   if(ready.size()>1) {
+    // Preserve the original global Ready ordering between at most three lanes,
+    // including controlled-party admission ahead of independent work.
+    Comparator<Ready<T>> order=Comparator.comparing((Ready<T> r)->!r.controlled()).thenComparingLong(Ready::due).thenComparingInt(Ready::id);
+    var lanes=new ArrayList<>(ready.entrySet());lanes.sort(Comparator.comparing(e->e.getValue().getFirst(),order));
+    ready.clear();for(var lane:lanes)ready.put(lane.getKey(),lane.getValue());
+   }
+   finished=true;
+  }
+  Map<L,List<Ready<T>>> ready(){if(!finished)throw new IllegalStateException("Scheduler pass not finished");return Collections.unmodifiableMap(ready);}
+  long earliest(java.util.function.Predicate<L> available) {
+   long result=Long.MAX_VALUE;
+   for(var entry:earliest.entrySet())if(available.test(entry.getKey()))result=Math.min(result,entry.getValue());
+   return result;
+  }
+  boolean saturated(){return saturated;}
+  int lateCount(){return lateCount;}
+  Ready<T> oldest(){return lateCount==0?null:new Ready<>(oldestActor,oldestId,oldestDue,oldestControlled);}
+ }
  /** Capture mutable actor state once. TimSort comparisons must never read combat timers. */
  static <T> List<Ready<T>> ready(Collection<T> actors,java.util.function.ToIntFunction<T> id,
    java.util.function.ToLongFunction<T> due,java.util.function.Predicate<T> controlled,long now) {

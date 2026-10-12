@@ -110,6 +110,11 @@ public final class ThreadPoolManager implements Executor {
 		return tp.getQueue().size() + tp.getActiveCount();
 	}
 
+	/** Returns true only after all owned pools have finished their shutdown work. */
+	public boolean isTerminated() {
+		return scheduledPool.isTerminated() && instantPool.isTerminated() && longRunningPool.isTerminated();
+	}
+
 	public List<String> getStats() {
 		List<String> list = new ArrayList<>();
 

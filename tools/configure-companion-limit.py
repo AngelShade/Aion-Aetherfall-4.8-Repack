@@ -1,5 +1,5 @@
 """Change only the requested active companion quota with offline/hash/recovery guards."""
-import argparse, json, re, sys
+import argparse, importlib, json, re, sys
 from pathlib import Path
 from datetime import datetime
 
@@ -20,7 +20,7 @@ def main():
         raise ValueError('Native alliance permits at most 23 controlled companions')
     if not a.value <= a.roster <= 2147483647:
         raise ValueError('Saved roster must accommodate the selected active limit')
-    config = ROOT / 'target-deploy/game-server/config/main/playerbots.properties'
+    config = importlib.import_module('playerbot-config-paths').active(ROOT / 'target-deploy/game-server')
     pattern = rb'(?m)^(gameserver\.playerbots\.(max_per_owner|generated\.max_per_account)\s*=\s*)([0-9]+)([ \t]*\r?$)'
     before = config.read_bytes()
     matches = list(re.finditer(pattern, before))

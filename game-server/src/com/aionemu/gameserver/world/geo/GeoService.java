@@ -73,6 +73,9 @@ public class GeoService implements GameEngine {
 	public Vector3f findNpcPatrolStep(int worldId,int instanceId,float x,float y,float z,float targetX,float targetY,float height) {
 		return com.aionemu.gameserver.controllers.movement.NpcGroundNavigation.step(geoMaps.get(worldId),instanceId,new Vector3f(x,y,z),targetX,targetY,height);
 	}
+	public Vector3f findNpcPatrolSpawn(int worldId,int instanceId,float x,float y,float z,float targetX,float targetY,float height) {
+		return com.aionemu.gameserver.controllers.movement.NpcGroundNavigation.spawnPoint(geoMaps.get(worldId),instanceId,new Vector3f(x,y,z),targetX,targetY,height);
+	}
 
 	public CollisionResults getCollisions(VisibleObject object, float x, float y, float z, byte intentions, IgnoreProperties ignoreProperties) {
 		return geoMaps.get(object.getWorldId()).getCollisions(object.getX(), object.getY(), object.getZ() + getSeeCheckOffset(object), x, y, z,
