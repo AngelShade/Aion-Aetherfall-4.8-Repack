@@ -78,6 +78,24 @@ final class PlayerBotNavigation {
 		if(routeSearch.pending())TERRAIN.request(searchToken,terrainPriority(PositionUtil.getDistance(bot,goal.x(),goal.y(),goal.z())));
 	}
 	boolean progressing(long now){return routeProgressing(now) || !route.isEmpty() && now-lastProgress<4000;}
+	private boolean retainingPublishedMove(Point goal,long now) {
+		return publishedGoal!=null && publishedDestination!=null && bot.getMoveController().isInMove()
+			&& publishedWorld==bot.getWorldId() && publishedInstance==bot.getInstanceId()
+			&& PositionUtil.getDistance(publishedGoal.x(),publishedGoal.y(),publishedGoal.z(),goal.x(),goal.y(),goal.z())<.25
+			&& PositionUtil.getDistance(bot,publishedDestination.x(),publishedDestination.y(),publishedDestination.z())>.75
+			&& now-lastProgress<4000
+			&& PlayerBotHazards.safePath(new Point(bot.getX(),bot.getY(),bot.getZ()),publishedDestination,hazards);
+	}
+	private void prefetchAhead(Point goal,long now) {
+		if(!partialRoute || route.isEmpty() || routeSearch!=null)return;
+		// Begin future work while a complete walking horizon remains, not only
+		// at the last two points. Keep at most the configured horizon plus the
+		// mover's normal two-second lookahead; do not resolve an entire world trip.
+		double distance=0;Point previous=new Point(bot.getX(),bot.getY(),bot.getZ());
+		for(Point point:route){distance+=PositionUtil.getDistance(previous.x(),previous.y(),previous.z(),point.x(),point.y(),point.z());previous=point;}
+		if(distance<=PlayerBotConfig.TERRAIN_SEGMENT_METRES+Math.max(6,bot.getGameStats().getMovementSpeedFloat()*2))
+			planRoute(route.peekLast(),goal,true,now);
+	}
 	private boolean ownsPendingMove(Point goal) {
 		if(!bot.isSpawned() || bot.isFlying() || routeGoal==null
 			|| PositionUtil.getDistance(routeGoal.x(),routeGoal.y(),routeGoal.z(),goal.x(),goal.y(),goal.z())>.25)return false;
@@ -232,13 +250,9 @@ final class PlayerBotNavigation {
 		// controller keeps validating floor/body/door clearance on every movement step.
 		if(publishedDestination!=null && !PlayerBotHazards.safePath(new Point(bot.getX(),bot.getY(),bot.getZ()),publishedDestination,hazards))stopMovement();
 		if (goalDistance < closestGoalDistance - 0.5) { closestGoalDistance=goalDistance;lastProgress=now; }
-		if (publishedGoal!=null && publishedDestination!=null && bot.getMoveController().isInMove()
-			&& publishedWorld==bot.getWorldId() && publishedInstance==bot.getInstanceId()
-			&& PositionUtil.getDistance(publishedGoal.x(),publishedGoal.y(),publishedGoal.z(),targetX,targetY,targetZ)<0.25
-			&& PositionUtil.getDistance(bot,publishedDestination.x(),publishedDestination.y(),publishedDestination.z())>0.75
-			&& now-lastProgress<4000
-			&& PlayerBotHazards.safePath(new Point(bot.getX(),bot.getY(),bot.getZ()),publishedDestination,hazards)
-			&& !lookahead && !(partialRoute && route.size()<=2)) { cancelTicket(searchToken);cancelTicket(localSearchToken);cancelTicket(heightSearchToken);localOrigin=null; return true; }
+		if (retainingPublishedMove(goal,now) && !lookahead && !partialRoute) {
+			cancelTicket(searchToken);cancelTicket(localSearchToken);cancelTicket(heightSearchToken);localOrigin=null;return true;
+		}
 		// A retained terrain query belongs to its actual destination, including Z.
 		// A nearby successor must not keep searching the predecessor's floor.
 		if (routeGoal == null || routeWorld != bot.getWorldId() || routeInstance != bot.getInstanceId()
@@ -262,8 +276,7 @@ final class PlayerBotNavigation {
 		}
 		// Plan from a proved endpoint while the mover earns the remaining edges.
 		// Retain the final goal; this does not report NPC arrival or quest progress.
-		if(partialRoute && !route.isEmpty() && route.size()<=2 && routeSearch==null)
-			planRoute(route.peekLast(),goal,true,now);
+		prefetchAhead(goal,now);
 		if (routeSearch!=null && routeSearch.pending()) {
 			// Ground planning supersedes the speculative height search. Its old
 			// ticket must not sit ahead of a branch that can no longer consume it.
@@ -293,6 +306,14 @@ final class PlayerBotNavigation {
 				nextSearch=partialRoute?0:now+3000;lastProgress=now;
 			}
 		} else cancelTicket(searchToken);
+		prefetchAhead(goal,now);
+		// The native mover still checks floor/body/doors every200ms. A pending
+		// future query cannot stop that earned edge or repeatedly re-prove it in
+		// the shared planning quota while other actors are waiting for a route.
+		if(!route.isEmpty() && route.peekFirst().equals(publishedDestination) && retainingPublishedMove(goal,now)) {
+			cancelTicket(localSearchToken);cancelTicket(heightSearchToken);localOrigin=null;
+			status="following local route";return true;
+		}
 		if (!route.isEmpty()) { Point waypoint = route.peekFirst(); targetX = waypoint.x(); targetY = waypoint.y(); targetZ = waypoint.z(); }
 		double angle = Math.toDegrees(Math.atan2(targetY - bot.getY(), targetX - bot.getX()));
 		float distance = (float) Math.min(Math.max(6,bot.getGameStats().getMovementSpeedFloat()*2), Math.hypot(targetX - bot.getX(), targetY - bot.getY()));

@@ -94,6 +94,9 @@ final class PlayerBotWorldActivities {
  static boolean stranded(long now,long since,boolean destination){return !destination && since>0 && now-since>=60000;}
  static boolean stranded(Player bot,long now){var s=STATES.get(bot.getObjectId());return s!=null && stranded(now,s.noActivitySince,s.goal!=null || s.vendor!=null);}
  static void interacting(Player bot){var s=STATES.get(bot.getObjectId());if(s!=null)s.noActivitySince=0;}
+ /** A selected native journey owns optional preparation until arrival. Vendor
+  * work is separate; native quest dependencies remain the caller's authority. */
+ static boolean committedTravel(Player bot){var s=STATES.get(bot.getObjectId());return s!=null && s.goal!=null && PlayerBotWorldTravel.distance(bot,s.goal.place())>6;}
  static boolean questTravel(Player bot){var s=STATES.get(bot.getObjectId());return s!=null && s.goal!=null && (s.goal.quest()!=0 || s.goal.kind()!=PlayerBotQuestRoutes.Kind.HUNT);}
  static boolean grindTravel(Player bot){var s=STATES.get(bot.getObjectId());return s!=null && s.goal!=null && s.goal.quest()==0 && s.goal.kind()==PlayerBotQuestRoutes.Kind.HUNT;}
  static void close(Player bot){var s=STATES.remove(bot.getObjectId());if(s!=null)synchronized(s){goal(s,null);s.closed=true;}}
@@ -246,13 +249,16 @@ final class PlayerBotWorldActivities {
   }
   if(s.goal!=null) {
    double distance=PlayerBotWorldTravel.distance(bot,s.goal.place());
-   if(distance<s.best-2){s.best=distance;s.lastProgress=now;s.travelClock.reset();}
+   if(distance<s.best-2){if(Double.isFinite(s.best))s.noActivitySince=0;s.best=distance;s.lastProgress=now;s.travelClock.reset();}
    boolean waiting=navigation.waitingForTerrainWork();
    if(!waiting && navigation.progressing(now)){s.lastProgress=now;s.travelClock.reset();}
    if(s.travelClock.stalled(now,s.lastProgress,waiting)){s.excluded.put(key(s.goal),now+120000);goal(s,null);s.nextScan=0;navigation.stop();}
   }
   if(s.goal==null && now>=s.nextScan){s.nextScan=now+5000;goal(s,choose(bot,s,now));s.best=Double.POSITIVE_INFINITY;s.lastProgress=now;}
-  if(s.goal!=null)s.noActivitySince=0;else if(s.noActivitySince==0)s.noActivitySince=now;
+  // Selecting a replacement goal is intent, not earned movement. Preserve a
+  // failed-origin episode across retries; genuine movement or native local
+  // interaction clears it. Queued live goals still protect against relocation.
+  if(s.goal==null && s.noActivitySince==0)s.noActivitySince=now;
  }
  /** Walking after a kill is not an NPC interaction. Keep the native combat
   * timer for dialogs/transport, but stop travel for actual current attackers. */
@@ -281,6 +287,7 @@ final class PlayerBotWorldActivities {
   // route is an unavailable destination, not fresh progress for another retry.
   // Explicit queue waits, native safety pauses and earned prefixes retain custody.
   if(!moved && navigation.routeFailed() && s.goal==selected && !s.closed) {
+   if(s.noActivitySince==0)s.noActivitySince=System.currentTimeMillis();
    s.excluded.put(key(selected),System.currentTimeMillis()+120000);goal(s,null);s.nextScan=0;navigation.stop();
   }
   return moved;

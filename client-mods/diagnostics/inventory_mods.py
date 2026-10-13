@@ -107,6 +107,7 @@ def main():
     client_archive=Path(os.environ.get('AION_DEV_ROOT','D:/Proiecte/Project Restructure/Aion Development Workspace'))/'archives/client'
     receipts += [str(p.resolve()) for p in client_archive.glob('window-queue-*/manifest.json')]
     receipts += [str(p.resolve()) for p in client_archive.glob('marketplace-session-*/manifest.json')]
+    receipts += [str(p.resolve()) for p in client_archive.glob('service-shortcuts-*/manifest.json')]
     login_receipts=sorted(client_archive.glob('remember-login-return-*/manifest.json'))
     receipts += [str(p.resolve()) for p in login_receipts]
     if login_receipts:

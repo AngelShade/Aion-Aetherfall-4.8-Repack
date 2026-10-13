@@ -54,6 +54,9 @@ TESTS['PlayerBotNavigationBudgetCheck']=12800
 TESTS['PlayerBotNavigationConfigCheck']=28
 TESTS['PlayerBotConfigLocationCheck']=10
 TESTS['PlayerBotPartialRouteCheck']=187
+TESTS['PlayerBotEarlyRoutePrefetchCheck']=11
+TESTS['PlayerBotTownPolicyCheck']=134
+TESTS['PlayerBotTownServiceIntegrationCheck']=8
 TESTS['PlayerBotPostKillTravelCheck']=61
 TESTS['PlayerBotHealingPlanningCheck']=126
 TESTS['PlayerBotUtilityPlanningCheck']=38
@@ -63,7 +66,7 @@ TESTS['PlayerBotNativeRouteYieldCheck']=83
 TESTS['PlayerBotCapitalAreaCheck']=116
 TESTS['PlayerBotCampDistributionCheck']=3020
 TESTS['PlayerBotNavigationPendingCheck']=23
-TESTS['PlayerBotFailedTravelCheck']=13
+TESTS['PlayerBotFailedTravelCheck']=21
 TESTS['PlayerBotCampLandingCheck']=27
 TESTS['PlayerBotNavigationSearchCheck']=1229
 TESTS['PlayerBotCombatGearCheck']=29
@@ -195,7 +198,7 @@ def main():
  for test,count in TESTS.items():
   cwd=ROOT if test in {'PlayerBotWorldProgressCheck','PlayerBotAssassinCheck','PlayerBotGladiatorCheck','PlayerBotTemplarCheck','PlayerBotChanterCheck','PlayerBotClericCheck','PlayerBotSpiritmasterCheck','PlayerBotSorcererCheck',
    'PlayerBotQuestCraftingCheck','PlayerBotQuestPrerequisitesCheck','PlayerBotNativeCraftingTaskCheck','PlayerBotNativeXmlQuestCheck'} else build/'checks'
-  args=[str(ROOT/'game-server')] if test in {'PlayerBotRepositoryCheck','PlayerBotPlayerZoneCheck','PlayerBotAuditCoverageCheck','PlayerBotIdleCastingCheck','PlayerBotCombatGearCheck','PlayerBotTargetVisibilityCheck','PlayerBotStoryRewardIntentCheck','PlayerBotQuestTransformationCheck','PlayerBotQuestItemTargetCheck','PlayerBotNpcPatrolNativeSpawnCheck','PlayerBotNpcPatrolAdmissionCheck','PlayerBotNativeRouteYieldCheck','PlayerBotCapitalAreaCheck','PlayerBotConfigLocationCheck','PlayerBotCampDistributionCheck','PlayerBotNonCombatBuffCheck'} else []
+  args=[str(ROOT/'game-server')] if test in {'PlayerBotRepositoryCheck','PlayerBotPlayerZoneCheck','PlayerBotAuditCoverageCheck','PlayerBotIdleCastingCheck','PlayerBotCombatGearCheck','PlayerBotTargetVisibilityCheck','PlayerBotStoryRewardIntentCheck','PlayerBotQuestTransformationCheck','PlayerBotQuestItemTargetCheck','PlayerBotNpcPatrolNativeSpawnCheck','PlayerBotNpcPatrolAdmissionCheck','PlayerBotNativeRouteYieldCheck','PlayerBotCapitalAreaCheck','PlayerBotConfigLocationCheck','PlayerBotCampDistributionCheck','PlayerBotNonCombatBuffCheck','PlayerBotTownPolicyCheck'} else []
   result=subprocess.run(['java','-Xverify:all','-cp',cp,'com.aionemu.gameserver.services.playerbot.'+test,*args],cwd=cwd,capture_output=True,text=True)
   (out/(test+'.txt')).write_text(result.stdout+result.stderr,encoding='utf-8')
   assert result.returncode==0,(test,result.stderr)

@@ -1,3 +1,129 @@
+# Darirador live diagnosis — movement acceptance unresolved — 13 October 2026
+
+Fresh user request “check the live gameserver Darirador has been standing there
+doing nothing for minutes” authorized this bounded read-only diagnosis. GS3052
+runs0580820239b... Three passive reads311/214/205ms,zero rowerrors,span242.094s.
+Third reader adds only target/job/held-quest getters/fields. Exactly3attachments,
+no transforms/setters/game-state/config/SQL/lifecycle mutations. This exception
+is used;do not infer another attachment. External diagnostics/live-darirador058-
+20261013 retains source/hash/captures/comparison and failed/corrected static helper.
+
+Darirador404 alive,movable,fullHP/MP,no cast/recovery/combat. Only5.412m movement
+over4.035min,with advancing decisions. First goal13832REWARD Miriya203711 at
+805.518,origin1370.1096/1509.9706/569.06744;pending48probes/6expanded,no prefix.
+Second sample samepose,acceptquest1988 clearsquery whileworldgoal remains;third
+idle/nogoal,1988START and13832REWARD. Acceptance has real native progress;do not
+call it a no-op. Null tickets do not exclude a sampled running lease/race.
+Queue733/681/748,charged420.249ms/s of owner500. Actual native static geometry
+proves useful detours104probes/8points and80/6fromcapturedposes,notfull805access.
+Installed058 live movement acceptance is unresolved,not complete.
+
+Secondary completed ONE bounded read-only native/pinned-source analysis and waits.
+Confirmed same-map REGULAR transport omitted by WorldTravel catalog/map-only BFS/
+distance/immediate walking/map-change success. Actual Sanctum statues serve native
+Square/DivineRoad/Dock,costs required;none lands805Hall,so not sole cause proven.
+805..812Hall NPC/zonedata are valid;no flattening/quest-specific teleport bypass.
+Active pinnedTravelNode spatial transport/taxi links were reviewed;older transport/
+elevator blocks are commented and cannot be called active parity. No source edit,
+build/install or actor manipulation in this diagnosis. Preserve settings/caps/
+106NPCmethods/progress/prior058/clienticons. Pending repair:continuous route custody,
+throughput/local transports;wider quest/parity remain unfinished. See
+docs/PLAYERBOTS_DARIRADOR_LIVE_20261013.md.
+
+# Companion/Journey native HUD icons — installed client-only — 13 October 2026
+
+User requested Player Companions/Choose Your Journey icons matching the prior
+Aetherpass/Market work and searching those conversations. Retrieved “Add special
+speech bubbles”01a0f85f-28f2-73b3-ad72-40f565ff6830 and Season Pass records:
+black contour,transparent art,three states,native English tooltip keys/embedded
+window dispatch. New34x32buttons flank the existing ticket:leftCompanions/right
+Journey,using existing native Shop anchor/four scales/bothHUDstyles. Commands
+/companions and/journey use existing native/authenticated windows. Menu entries
+remain with matching artwork; native journey eligibility/partybar remain.
+
+Secondary completed/froze ONE C++/native-fixture task,then ONE read-only package
+review. Root owns assets/packaging/verification/install. Review's archived-original,
+native-host/hook and graphics-recovery semantic proof gaps corrected;3negative
+cases reject bad evidence. No subagents. Secondary notified complete and waiting
+for next explicit assignment; do not replace this task with wider unfinished work.
+
+Maintained source client-mods/service-shortcuts; built-in imagegen originals/prompts
+in assets and ARTWORK.md. Current C++ builds existing AionMarketShortcut.dll normally;
+deliver exactly the product built/bound by actual native fixture,not prebuilt Season
+Pass DLL.286native checks and37353archive/EnglishUI/state/signature/preservation
+checks pass before/after installation. First negative-fixture hardlink denial is
+retained; ordinary owned copies pass.01/02staging superseded uninstalled;03canonical.
+Base+active English resources patched; all3addon signatures verify; stockPub.key
+and13preserved client files remain. Active graphics locale baseline/metadata/package
+are composed. Game.dll/Items/nativeiconindex/pet/bin32 archives/other plugin entries
+and all other native hooks remain. No server JAR/config/SQL/botprogress change.
+
+Actual host Aion closure guard passed; GS3052 stayed running/untouched. No start/stop/
+attach/gameplay occurred.15guarded files installed with external recovery receipt
+archives/client/service-shortcuts-20261013-061006-239765. Independent installed
+current/builder/recovery hashes pass;inventory20checks/75client/181server receipts.
+Current GS058 SHA0820239bde09463a705fd5b0a48bf147ae15154d708d805aa3f1e2fd45e39d52
+unchanged. Current client inventory incorporates this later authorized update;
+prior server receipt's client hashes remain historical pre-icon evidence.
+Future staging preserves these icons/handlers/resources and recovery records.
+Engineering complete; reopen Aion/appearance/hover/click/pet acceptance is user's.
+Full quest/parity remain unfinished. See docs/COMPANION_JOURNEY_HUD_20261013.md.
+
+# Town movement and useful preparation — installed offline — 13 October 2026
+
+PB-REPAIR-TOWNS-058 remains root-owned through full normal-build verification and
+guarded offline installation. User requires bounded assignments, completion
+confirmation, then waiting for the next explicit assignment. Do not replace an
+unfinished task with a different feature. Secondary Playerbots Implementation
+completed/froze its CombatBuffs/TownPolicy/fixture task and read-only integration
+review with no findings; it acknowledged waiting. No subagents or task batches.
+
+Fresh live diagnosis of GS25836 used three passive snapshots and one read-only
+active native terrain query; this exception is used. User explicitly authorized
+sharing paths/findings/diagnostics/build hashes with Secondary. No transforms,
+setters/game-state/config/SQL/lifecycle mutations. External evidence:
+diagnostics/live-town057-20261012-234929. Span44.159s;342 common Sanctum actors,
+61moving/281stationary; overlapping categories are not all one defect. Active
+query50ms confirms supported detours for Nalevemar/Alinadon, unsupported trapped
+origin/no fall for Belaric and clear exits for idle Calaison. ProtectorsHall805
+is valid native geometry. Queue561/632/614,charged407.323ms/s of500ms/s.
+
+Root integrates earlier earned-prefix prefetch/current mover custody; useful
+noncombat maintenance versus combat-only short bursts/stances; optional profession/
+gear preparation yielding to committed travel while active quest training/materials,
+necessary bag/vendor work and owner-directed companions remain. Terminal failures
+start the existing no-activity episode; unearned replacement intent cannot erase
+it. Actual distance/native local work clears it. Live queued goals still prevent
+relocation; original same-character camp/idle/native geometry/150m guards remain.
+No coordinates/floors/quest credit/direct visible escape/NPC/owner-setting changes.
+Pinned037c014 movement/travel/class-buff/service dependencies were reviewed.
+
+Normal build release-20261013-003121-955738 succeeds;137bound suites/113346checks/
+56tools and1758handlers/full XML/schema/JAXB pass. Restricted browser initialization
+failed and is retained; identical host retry passes43actions/33screenshots.
+Final3467class/196663reference linkage and canonical3722unchanged-entry review pass.
+User closed both components; fresh actual host offline guards pass. Installed058
+normal GS SHA:
+0820239bde09463a705fd5b0a48bf147ae15154d708d805aa3f1e2fd45e39d52.
+Independent scope:3459prior entries identical,1TownPolicy addition,zero removals,
+only6declared roots/nested+MANIFEST change. Preserve106NPC methods,allsettings/
+caps/progress/config home/count/client. Wider quest/parity and actual post-restart
+movement/CPU acceptance remain unfinished. See docs/PLAYERBOTS_TOWN_MOVEMENT_20261013.md.
+
+Receipt external archives/server/game-server/backups/playerbots-source-build-
+20261013-045013-915377. Exactly1complete unchanged normal builder JAR copied;
+Commons/static/config/client remain. Installed verification passes251guards/
+95configs/30protected client hashes/2045backed-up invalidated native caches and
+137bound suites/113346checks. Independent scope confirms exact builder bytes,
+all95configs byte-identical,zero package removals/no new retirements. Inventory
+20mod checks/74client/181server historical receipts passes. First restricted CIM
+guard failed before copying; unchanged host guard succeeds. Additional independent
+script's historical-retired-list-empty assumption failed and remains recorded;
+correct comparison confirms prior retired paths unchanged/absent. No lifecycle,
+new attach/gameplay/productionSQL/nativeWorld/ID fixture occurred in delivery.
+Secondary receives completion notice and waits. Stop engineering for this bound
+delivered repair; user owns restart/gameplay and wider quest/parity remain unfinished.
+
 # Playerbots configuration location — installed offline — 12 October 2026
 
 PB-CONFIG-DIRECTORY-057 is the user's simple owner-file move: maintained and

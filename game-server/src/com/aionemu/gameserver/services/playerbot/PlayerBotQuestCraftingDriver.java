@@ -127,14 +127,19 @@ final class PlayerBotQuestCraftingDriver {
   return true;
  }
  static Need request(PlayerBotSession session) {
-  var requests=requests(session);return requests.stream().filter(n->admitted(n) && n.stage()!=Stage.BLOCKED && n.stage()!=Stage.WAIT && !excluded(session.bot(),n)).findFirst().orElse(null);
+  var requests=requests(session);return requests.stream().filter(n->admitted(n) && preparationUseful(session,n) && n.stage()!=Stage.BLOCKED && n.stage()!=Stage.WAIT && !excluded(session.bot(),n)).findFirst().orElse(null);
+ }
+ static boolean preparationUseful(PlayerBotSession session,Need need) {
+  var state=session.bot().getQuestStateList().getQuestState(need.quest());
+  return PlayerBotTownPolicy.serviceUseful(session.autonomous(),PlayerBotWorldActivities.committedTravel(session.bot()),
+   state!=null && state.getStatus()==QuestStatus.START,false);
  }
  static boolean admitted(Need need) {
   return PlayerBotQuestFeatures.enabled(need.quest()) && (need.stage()!=Stage.MATERIALS || com.aionemu.gameserver.configs.main.PlayerBotConfig.QUEST_MATERIALS);
  }
  /** Root gathering/drop routing can earn these exact terminal dependencies normally. */
  static Map<Integer,Long> neededMaterials(PlayerBotSession session) {
-  var result=new TreeMap<Integer,Long>();for(var need:requests(session))if(PlayerBotQuestFeatures.enabled(need.quest()) && (need.stage()==Stage.MATERIALS || need.stage()==Stage.LEARN_RECIPE) && need.item()>0 && need.npcs().isEmpty())result.merge(need.item(),need.count(),Math::max);return Map.copyOf(result);
+  var result=new TreeMap<Integer,Long>();for(var need:requests(session))if(PlayerBotQuestFeatures.enabled(need.quest()) && preparationUseful(session,need) && (need.stage()==Stage.MATERIALS || need.stage()==Stage.LEARN_RECIPE) && need.item()>0 && need.npcs().isEmpty())result.merge(need.item(),need.count(),Math::max);return Map.copyOf(result);
  }
  static Need training(Player bot,int quest,int skill,int points){return resolve(bot,new Plan(Stage.TRAIN,quest,0,skill,0,Map.of(),Map.of(),"Native profession "+skill+" requires "+points+" points"),new HashSet<>());}
  /** Includes owned parent ingredients and designs, not just the currently missing terminal component. */

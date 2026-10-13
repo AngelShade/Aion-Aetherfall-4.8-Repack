@@ -24,6 +24,8 @@ extern "C" __declspec(dllexport) int AionMarketCommand(Ptr,Ptr event) {
     const char* command=nullptr;
     if (!std::strcmp(name,"central_market_button")) command="/privatewarehouse";
     else if (!std::strcmp(name,"season_pass_button")) command="/seasonpass";
+    else if (!std::strcmp(name,"companion_menu_button")) command="/companions";
+    else if (!std::strcmp(name,"journey_menu_button")) command="/journey";
     else if (!std::strcmp(name,"item_shop") || !std::strcmp(name,"item_shop_gf") || !std::strcmp(name,"item_ingame_web_shop")) command="/privatecashshop";
     if (!command) return 0;
     ++AionMarketDiagnostics[3];
@@ -54,13 +56,16 @@ extern "C" __declspec(dllexport) void AionMarketLayout(Ptr dialog) {
         method<void(*)(Ptr,const Rect*)>(button,0x1a8)(button,&desired);
         ++AionMarketDiagnostics[2];
     }
-    Ptr ticket=find(dialog,"season_pass_button",0x2001);
-    if (ticket) {
-        // The 32px ticket plus a 2px gap fits above Market in both HUD styles.
-        Rect above={desired.x,desired.y-34*scale,34*scale,32*scale};
-        auto previous=*reinterpret_cast<Rect*>(static_cast<unsigned char*>(ticket)+0x50);
+    // All three 32px shortcuts share the ticket row above Market.
+    const char* shortcuts[]={"season_pass_button","companion_menu_button","journey_menu_button"};
+    const double offsets[]={0,-40,40};
+    for (size_t i=0;i<3;++i) {
+        Ptr shortcut=find(dialog,shortcuts[i],0x2001);
+        if (!shortcut) continue;
+        Rect above={desired.x+offsets[i]*scale,desired.y-34*scale,34*scale,32*scale};
+        auto previous=*reinterpret_cast<Rect*>(static_cast<unsigned char*>(shortcut)+0x50);
         if (std::memcmp(&above,&previous,sizeof above)) {
-            method<void(*)(Ptr,const Rect*)>(ticket,0x1a8)(ticket,&above);
+            method<void(*)(Ptr,const Rect*)>(shortcut,0x1a8)(shortcut,&above);
             ++AionMarketDiagnostics[2];
         }
     }

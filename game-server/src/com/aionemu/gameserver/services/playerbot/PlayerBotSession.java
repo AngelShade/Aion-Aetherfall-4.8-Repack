@@ -508,7 +508,9 @@ public final class PlayerBotSession {
 				return true;
 			}), HIGH - 1));
 		triggers = strategyPlan.triggers("equipment", State.NON_COMBAT);
-		if ((generated || world()) && autoGear && !combat && !incapacitated && now >= nextGearCheck) {
+		boolean committedTravel=autonomous() && PlayerBotWorldActivities.committedTravel(bot);
+		boolean optionalPreparation=PlayerBotTownPolicy.serviceUseful(autonomous(),committedTravel,false,false);
+		if ((generated || world()) && autoGear && optionalPreparation && !combat && !incapacitated && now >= nextGearCheck) {
 			nextGearCheck = now + 5000;
 			for (var upgrade : PlayerBotEquipment.upgrades(bot, role))
 				triggers.add(trigger(new SimpleAction("equip upgrade " + upgrade.item().getItemId(), () -> !bot.isCasting(), () -> {
@@ -534,7 +536,7 @@ public final class PlayerBotSession {
 			 ()->!bot.isCasting() && !bot.isLooting(),()->{stand();return PlayerBotQuestMaterials.tick(this,navigation,true);}),DEFAULT+1));
 		}
 		if (generated && !combat && !incapacitated && !rest && order == Order.FOLLOW) triggers.add(PlayerBotCare.trigger(this, navigation));
-		if ((generated || world()) && autoGear && !combat && !incapacitated && !rest && order == Order.FOLLOW) triggers.add(PlayerBotGearPolicy.trigger(this, navigation));
+		if ((generated || world()) && autoGear && optionalPreparation && !combat && !incapacitated && !rest && order == Order.FOLLOW) triggers.add(PlayerBotGearPolicy.trigger(this, navigation));
 		triggers = strategyPlan.triggers("supplies", State.NON_COMBAT, State.COMBAT);
 		if (consumables && !incapacitated)
 			for (var item : PlayerBotConsumables.candidates(bot))
@@ -550,7 +552,7 @@ public final class PlayerBotSession {
 			for (PlayerBotSkills.Entry entry : skills) {
 				if(PlayerBotSkills.questTransformation(entry) && !requiredQuestSkills.contains(entry.template().getSkillId()))continue;
 				if (incapacitated && entry.kind() != SkillKind.RECOVERY || bot.isSkillDisabled(entry.template()) || !PlayerBotSkills.chainAvailable(bot, entry)) continue;
-				Creature recipient = recipient(entry, support, target, combat);
+				Creature recipient = recipient(entry, support, target, combat,requiredQuestSkills.contains(entry.template().getSkillId()));
 				if (recipient == null) continue;
 				var beneficiaries = entry.kind()==SkillKind.DAMAGE || entry.kind()==SkillKind.CONTROL || entry.kind()==SkillKind.TAUNT
      || PlayerBotChanter.mantra(entry.template()) ? party : support;
@@ -706,14 +708,17 @@ public final class PlayerBotSession {
 	}
 
 	private Creature recipient(PlayerBotSkills.Entry e, List<Player> party, Npc enemy, boolean combat) {
-		if(e.kind()==SkillKind.BUFF && !combat && !PlayerBotCombatBuffs.nonCombatUseful(e.template()))return null;
+		return recipient(e,party,enemy,combat,false);
+	}
+	private Creature recipient(PlayerBotSkills.Entry e, List<Player> party, Npc enemy, boolean combat,boolean requiredByQuest) {
+		if(e.kind()==SkillKind.BUFF && !PlayerBotTownPolicy.buffUseful(e.template(),combat,requiredByQuest))return null;
 		if (e.kind() == SkillKind.PET_ORDER) {
 			var pet = bot.getSummon();
 			if (pet == null || pet.isDead() || pet.isBeingReleased() || pet.isCasting() || pet.getNextSkillOrder() != null) return null;
 			var actual = PlayerBotSkills.actualTemplate(bot, e);
 			if (actual == null) return null;
 			SkillKind kind = PlayerBotSkills.classify(actual);
-			if(kind==SkillKind.BUFF && !combat && !PlayerBotCombatBuffs.nonCombatUseful(actual))return null;
+			if(kind==SkillKind.BUFF && !PlayerBotTownPolicy.buffUseful(actual,combat,requiredByQuest))return null;
 			if (kind == SkillKind.DAMAGE || kind == SkillKind.TAUNT || kind == SkillKind.CONTROL) return enemy;
 			Creature friendly = actual.getProperties().getFirstTarget() == FirstTargetAttribute.MYMASTER ? bot : pet;
 			return switch (kind) {
@@ -882,8 +887,10 @@ public final class PlayerBotSession {
 			var actual = PlayerBotSkills.actualTemplate(bot, entry);
 			if (actual == null) return false;
 			if((entry.kind()==SkillKind.BUFF || entry.kind()==SkillKind.PET_ORDER && PlayerBotSkills.classify(actual)==SkillKind.BUFF)
-				&& !PlayerBotCombatBuffs.nonCombatUseful(actual) && enemies.stream().noneMatch(n->n.isSpawned() && !n.isDead()
-					&& n.getWorldId()==bot.getWorldId() && n.getInstanceId()==bot.getInstanceId() && bot.isEnemy(n) && bot.getKnownList().sees(n)))return false;
+				&& !PlayerBotCombatBuffs.nonCombatUseful(actual) && !PlayerBotTownPolicy.buffUseful(actual,
+					enemies.stream().anyMatch(n->n.isSpawned() && !n.isDead() && n.getWorldId()==bot.getWorldId()
+					 && n.getInstanceId()==bot.getInstanceId() && bot.isEnemy(n) && bot.getKnownList().sees(n)),
+					questing && order==Order.FOLLOW && PlayerBotQuestActions.skills(owner,bot).contains(entry.template().getSkillId())))return false;
 			if(PlayerBotSkills.questTransformation(entry) && (!questing || order!=Order.FOLLOW || !PlayerBotQuestActions.skills(owner,bot).contains(entry.template().getSkillId())))return false;
 			if (PlayerBotSpiritmaster.applies(bot.getPlayerClass()) && (entry.kind() == SkillKind.BUFF || entry.kind() == SkillKind.PET_ORDER)
 				&& !PlayerBotSpiritmaster.idleUseful(bot,entry,recipient,!enemies.isEmpty() || bot.getController().isInCombat())) return false;
