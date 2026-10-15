@@ -33,8 +33,12 @@ public final class PlayerBotFailedTravelCheck {
   f=GeoService.class.getDeclaredField("geoMaps");f.setAccessible(true);@SuppressWarnings("unchecked") var maps=(Map<Integer,GeoMap>)f.get(GeoService.getInstance());var oldMap=maps.put(197,new GeoMap(197));
   f=PlayerBotNavigation.class.getDeclaredField("TERRAIN");f.setAccessible(true);var quota=(PlayerBotNavigationBudget)f.get(null);f=quota.getClass().getDeclaredField("credit");f.setAccessible(true);var credit=f;double oldCredit=credit.getDouble(quota);
   var ef=PlayerBotWorldTravel.class.getDeclaredField("edges");ef.setAccessible(true);Object oldEdges=ef.get(null);
+  boolean prepared=com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED;
   set(navigation,"routeWorld",197);set(navigation,"routeInstance",1);set(navigation,"routeGoal",new Point(50,10,0));set(navigation,"routeSearch",new PlayerBotRouteSearch(new Point(10,10,0),new Point(50,10,0),160,4096,24));
   try {
+   // This native no-floor fixture has no transport catalog or async resource loader.
+   // Their admission/execution contracts are covered separately against native data.
+   ef.set(null,List.of());com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED=false;
    credit.setDouble(quota,-1e12);
    check(PlayerBotWorldActivities.travel(session,navigation),"Denied native terrain work remains accepted pending travel");
    check(field(state,"goal")==goal && ((Map<?,?>)field(state,"excluded")).isEmpty(),"Queue wait retains destination and awards no failure");
@@ -69,7 +73,7 @@ public final class PlayerBotFailedTravelCheck {
    set(state,"best",Double.POSITIVE_INFINITY);set(state,"lastProgress",System.currentTimeMillis());set(navigation,"routeFailure",true);
    check(!PlayerBotWorldActivities.travel(session,navigation) && field(state,"goal")==successor,"Unrelated transport failure is not another goal's terrain failure");
    check(((Map<?,?>)field(state,"excluded")).size()==1,"No inherited failure can blacklist an unrelated successor");
-  } finally {ef.set(null,oldEdges);navigation.stop();PlayerBotWorldActivities.close(actor);credit.setDouble(quota,oldCredit);if(oldMap==null)maps.remove(197);else maps.put(197,oldMap);}
+  } finally {com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED=prepared;ef.set(null,oldEdges);navigation.stop();PlayerBotWorldActivities.close(actor);credit.setDouble(quota,oldCredit);if(oldMap==null)maps.remove(197);else maps.put(197,oldMap);}
   System.out.println("OK: "+checks+" native failed travel cooldown, fresh reselection, queue custody and no-invented-progress checks");
  }
  private PlayerBotFailedTravelCheck(){}

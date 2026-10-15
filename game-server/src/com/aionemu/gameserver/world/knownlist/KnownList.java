@@ -172,8 +172,8 @@ public class KnownList {
 
 		WorldPosition position = owner.getPosition();
 		if (owner instanceof Player) {
-			position.getWorldMapInstance().forEachNpc(npc -> {
-				if (npc.isFlag() && npc.getKnownList().add(owner)) {
+			position.getWorldMapInstance().forEachFlag(npc -> {
+				if (npc.getKnownList().add(owner)) {
 					add(npc);
 				}
 			});

@@ -16,6 +16,10 @@ def main():
     if not __debug__: raise RuntimeError('Validation cannot run with Python optimization enabled')
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--scope', required=True)
+    p.add_argument('--navmesh', type=Path)
+    p.add_argument('--navmesh-tool', type=Path)
+    p.add_argument('--navmesh-topology', type=Path)
+    p.add_argument('--navmesh-animated', type=Path)
     p.add_argument('--install', action='store_true')
     p.add_argument('--review', type=Path, help='Use an already fully prepared review; all source/build/runtime guards are rechecked')
     p.add_argument('--config-review', type=Path, help='Explicit backed-up active/saved companion quota changes only')
@@ -37,7 +41,12 @@ def main():
                 build = shared.DEV_ROOT / 'staging/target' / ('release-' + stamp)
                 review = shared.DEV_ROOT / 'staging/output' / ('release-' + stamp)
                 run('pwsh', '-NoProfile', '-File', ROOT / 'tools/build-components.ps1', '-Modules', 'game-server', '-OutputRoot', build)
-                run(sys.executable, ROOT / 'tools/prepare-source-release.py', '--build', build, '--output', review, '--scope', a.scope)
+                prepare = [sys.executable, ROOT / 'tools/prepare-source-release.py', '--build', build, '--output', review, '--scope', a.scope]
+                assert bool(a.navmesh) == bool(a.navmesh_tool), 'Supply navigation batch and generator together'
+                if a.navmesh: prepare += ['--navmesh', a.navmesh, '--navmesh-tool', a.navmesh_tool]
+                if a.navmesh_topology: prepare += ['--navmesh-topology', a.navmesh_topology]
+                if a.navmesh_animated: prepare += ['--navmesh-animated', a.navmesh_animated]
+                run(*prepare)
                 (review / 'release-context.json').write_text(json.dumps(dict(build=str(build)), indent=2))
             plan = json.loads((review / 'release-plan.json').read_text())
             if plan['scope'] != a.scope: raise RuntimeError('Use the scope recorded in this release review.')

@@ -46,7 +46,13 @@ final class SegmentCollisionIndex {
  List<Spatial> candidates(CollisionResults query) {
   var entries=new ArrayList<>(fallback);collect(root,query,entries);
   // Preserve native child ordering, including onlyFirst behavior and equal-distance contacts.
-  entries.sort(Comparator.comparingInt(Entry::order));return entries.stream().map(Entry::child).toList();
+  entries.sort(Comparator.comparingInt(Entry::order));
+  // This hot native broad phase runs for every short floor/body ray. Preserve
+  // precisely the same candidate/order set without a stream pipeline and
+  // its second result-array materialization on each ray.
+  var children=new ArrayList<Spatial>(entries.size());
+  for(var entry:entries)children.add(entry.child());
+  return children;
  }
  private static void collect(Branch branch,CollisionResults query,List<Entry> out) {
   if(branch==null || !query.intersectsSegmentBounds(branch.box()))return;

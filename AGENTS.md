@@ -1,3 +1,374 @@
+# Release064 live idle/route handoff — installed and independently verified — 15 October2026
+
+Offline delivery completed after user closed both components: external receipt archives/server/game-server/backups/playerbots-source-build-20261015-215929-458482. Exact normal GS SHA0575e0698369e75483d4ec55a4d35bd862d3053704a97c0981e6af9959acfaac. Independent verification passes1 complete builder JAR/189800 guards/95 configs/30 client hashes/2049 backed-up invalidated caches/137 suites113346checks;43 browser actions and20 installed-mod checks pass. No resource/config/map/client changes, lifecycle/attach/SQL/gameplay in delivery. Installed064 is authority. User owns restart and actual movement/recovery acceptance. The preparation paragraphs below are historical; pending-build/install statements are superseded. Broader generic jump/glide route integration remains pending.
+
+Final normal release-20261015-213036-148289 succeeds and complete review passes137 suites/113346 checks/56 tooling,1762 handlers/full nativeXML/schema,43 browser actions,3521classes/203115 executable references and3780unchanged package entries. GS SHA0575e0698369e75483d4ec55a4d35bd862d3053704a97c0981e6af9959acfaac. Independent JAR comparison3517identical bodies/zeroadded/removed; only3declared source roots/nested+manifest differ. No resource/config/map/client changes. Review external staging/output/release-20261015-213036-148289; canonical-release064.log and jar-preservation064.json in diagnosis folder. Asked user closeGS25532/Aion18212 normally; pending reply. No install yet;063 remains authority. Next guarded --review --install then independent installed verify; do not rebuild or edit frozen inputs without cause.
+
+User approved current live checks without asking again. GS25532 runs exact063; three passive snapshots355/270/259ms, zero row errors,141884ms span. Celaedina174408 initially standing/recovery MP288→428, later4469; robot rest exclusion is source-confirmed, not a live robotId capture. Hareanar146706/Hariolina180938/Kaelirarin107824 remain fixed positions first2 captures while decisions advance. Third capture after human left map shows intended dormancy. External diagnostics/live-celaedina063-20261015 binds evidence: native static geometry proves exits all3, Hariolina ship detour97probes and Kaelirarin partial48; Hareanar shell Z109.9948 has native floor103.50783. Root source repair limited3files Navigation/MeshRoute/Session: immediate retained detour handoff instead of reset-before1800ms, grounded combat shell from target side, pending firing custody, height planning yields to existing route, preserve proved prefix before later blocked corner, native robot effect cancellation before rest/no remount during recovery. No new repository tests/maps/config/client/SQL/lifecycle. Existing focused registered checks pass; obsolete unregistered PositionCheck hits inert metadata DB fixture limitation, no SQL executed. Normal064 release build/review active; installed063 unchanged. Secondary messaging failed thread-not-found twice, no subagents; root owns work. Finish existing release checks then guarded offline delivery; gameplay user's. Broader generic jump/glide routing remains pending.
+
+# Release063 shared bot descent — installed and independently verified — 15 October2026
+
+Offline delivery completed after user closed both components: receipt external archives/server/game-server/backups/playerbots-source-build-20261015-201620-783540. Exact normal GS SHA b3d54c610963b12191c51aa579b672708fadd859f04108f7149d027b8303b550. Independent verification passes6 builder files/189795 guards/95 configs/30 client hashes/2047 backed-up invalidated caches/137 suites113346 checks;20 installed-mod checks pass. Includes completed Theobomos four handlers and cleanup XML; all maps/settings/client mods preserved. No lifecycle/attach/SQL/gameplay. Installed063 is authority; user owns restart and visual acceptance. Broader obstacle/jump/glide planning remains pending. The following preparation paragraph is historical; its pending-install statements are superseded.
+
+Normal build release-20261015-171416-764501 and cumulative release review pass:137 existing suites/113346 checks/56 tooling,1762 handlers/full native XML/schema,43 browser actions and package/linkage preservation. GS SHA b3d54c610963b12191c51aa579b672708fadd859f04108f7149d027b8303b550. Source repairs immutable bot movement payloads, actual airborne position samples instead of untimed client walking endpoints, retained pure-fall gravity including zero-time stops, native fall-death callback custody and supported descent instead of instant lower-floor correction. Optional jump safety remains; no new tests/maps/config/client changes. Secondary completed/froze review and waits. Native client tracing supports packet semantics; actual visual acceptance remains user's. First build rejected concurrent Theobomos quest XML edit; retained externally, fresh build includes that chat's completed four handlers plus two cleanup declarations (five resource files). Do not overwrite that work. Review external staging/output/release-20261015-171416-764501; diagnostics/height063. GS3700/Aion11172 running at final OS check; user asked to close normally. No install/attach/lifecycle/SQL/gameplay. Installed062 remains authority. Broader obstacle/jump/glide route planning remains pending separately.
+
+# Release062 activity/navigation admission — installed — 15 October2026
+
+PB-REPAIR-ACTIVITY-NAVIGATION-062 is complete: normal build release-20261015-151218-167539, guarded offline copy and independent installed verification pass. GS SHA c962d78326f94d9ae0aacee1b096995e331982a159657fadd8f0ef017e167ccd. Receipt external archives/server/game-server/backups/playerbots-source-build-20261015-161811-819657. Two delivered files (full builder JAR and append-only explained feature defaults), 189795 guards, 95 configs, 30 client hashes, 2045 backed-up invalidated caches;137 suites/113346 checks/56 tooling,1758 handlers/nativeXML/43 browser actions and20 mod checks pass. Current graphics preserved after inventory refresh; initial client-hash guard failure retained externally. Final host GS/Aion closure guard passes; no component lifecycle/attachment/SQL/gameplay.
+
+Autonomous world bots sleep on human-empty map+instance; shared1s presence wakes them. Native combat/pet/transport/paid action settlement retained; known dormant time preserves paid-craft outcome custody. Companions unaffected. Separate fair bounded loading demand, retained search memory and running calculations preserve sliced route work. Existing seven scheduler/cadence fixtures explicitly select active-world policy; no new test files. User owns restart/live movement/CPU acceptance. Secondary implementation/reviews complete/frozen/waiting.
+
+NEXT pending user request: obstacle/mountain/edge routes and jump/glide integration. Read-only source findings only: Navigation starts mesh search only after greedy local step stops helping; HeightTraversal requires nearby landing within2m of finalgoalZ; graph has ground/authoredrides but no generic jump/glide arcs; unavailableJourney remains latched for samegoal/origin changes; blockedcorridor lacks feedback. Native safe floor/body/door/transport rules must remain. No063 source edits/build/install. Finish this separately; do not claim062 repairs every route. User wants concise coordination and no conversational documentation expansion.
+
+# Requested GameServer heap setting — 15 October2026
+
+User explicitly requested the recommended4GiB maximum heap. Maintained
+game-server/dist/start.bat and live target-deploy/game-server/start.bat now use
+-Xms1024m -Xmx4g; only the original -Xmx2560m token changed. All other bytes/options
+are retained. This is a startup-script setting for the next user restart, not a
+running-JVM change. No JAR/build/game/config/SQL/attach/lifecycle changes or tests.
+Java artifacts remain the verified release061 SHA2d8e7512284f2a247ae425446c360d434d3ab7d866b71d907416a693a1d733b9.
+Original source/live launchers and immutable prior manifest are backed up in external
+archives/server/game-server/backups/playerbots-source-build-20261015-061928-198101.
+That cumulative configuration-only receipt carries every prior protected hash;
+only the authorized launcher hash advances. It explicitly inherits061's normal
+Java build proof and does not claim a new Java build. Inventory refresh runs
+against that baseline. Future source builds must retain4GiB; old061 build-input
+verification predates this intentional dist/start.bat edit. Actual heap-pressure/
+CPU improvement remains unmeasured; user owns restart and gameplay acceptance.
+
+# Release061 navigation/CPU engineering delivery complete — 15 October2026
+
+
+## Release061 guarded delivery completed — 15 October2026
+
+Normal final06 build and both complete155-map verifications pass. Existing137suites/113346checks/56tooling checks,43native browser actions, 1758compiled handlers and fullXML/schema/JAXB/native quest inventory pass. Canonical offline installation and independent installed verification pass.
+
+Exact normal GameServer SHA256: `2d8e7512284f2a247ae425446c360d434d3ab7d866b71d907416a693a1d733b9`.
+
+Receipt: `D:\Proiecte\Project Restructure\Aion Development Workspace\archives\server\game-server\backups\playerbots-source-build-20261015-053614-651008`.
+
+Installed314 exact builder/generated files; 189483 preservation guards; 95 owner configurations; 30 client hashes; 2045 backed-up invalidated caches; 20 inventory checks. All base155maps/settings/caps/IDs/progress/106native NPC methods/client mods remain. No component start/stop/attach, gameplay or SQL mutations. Final host closure guard passes. Engineering delivery is complete; user restart/gameplay and live CPU/movement acceptance remain pending. Wider quest/parity work remains outside this delivered navigation/CPU scope.
+
+Historical records follow. Their pending-install statements are superseded by the verified receipt above.
+
+# Combined navigation and CPU repair061 — active source work — 14 October2026
+
+Delivery continuation active15October: do not start a duplicate build/review/install
+or edit frozen product/tooling inputs. Host read-only canonical review runs from
+external diagnostics/navigation061/complete-delivery-review-final06-host.log.
+Owned external complete-delivery061.py waits for that successful review, then runs
+canonical --review final06 --install, independent verify-source-delivery, inventory
+and final host closure guard. It records docs/AGENTS completion only after all pass.
+Current phase/result: external diagnostics/navigation061/delivery061-status.json;
+controller log delivery061-controller-utf8.log, install canonical-install061.log,
+independent installed061.log named independent-installed061.log. Any STOPPED/error
+requires diagnosis; do not infer delivery. This is current release work, not a
+scheduled automation. GS/Aion must remain closed; no component control/newattach/
+SQL/gameplay. Exact normal final06GS2d8e7512284f2a247ae425446c360d434d3ab7d866b71d907416a693a1d733b9.
+
+Latest15October: final06 normalbuildcomplete; bothnative topology/dockverification
+PASS155distinct mapIDs/catalogexact/no missingor extra. Nativeclient scenePASS,
+1758handlerscompile/zerochangedresources. Staticchecker initiallyomittedFLY_PATH;
+existingfixture bindsproductiondata.flyPath; fullXML/schema/JAXB/questinventoryPASS.
+Preservationguard seesunchanged clearTraversal package→public; exactbodyretained.
+Gate narrowlyrecognizes unchangedpackageimplementationsmadepublic, stillrejects
+narrowing/deletions/changedbodyexception. Existing56toolsPASS;137suitesreboundnow.
+Fullcumulative review/guardedinstallstillpending. No runtimecopy/newattach/lifecycle/
+SQL/gameplay. ActualOScheck findsGS/Aionclosed; canonicalhostguardmustrecheck.
+
+15October continuation: final05 passes complete155 topology reconstruction;
+authored-scene verifier fails because numeric native dictionarykeys serialize
+as JSONstrings. Complete freshnative extraction is identical afterserialization;
+462keyrepresentationdifferences, no data differences. Narrow maintained verifier
+compares exactserializeddocument; failure/diagnosisretained externally. Final06
+normalbuild active, correctedexporter/hashnative scene andwhole155dock package
+mustregenerate/verify. Final04superseded by exactshoreapproach boarding fix;
+final05supersededonlybyexporterverification correction. Existingchecks/usergameplay;
+no newtests/subagents/attach/lifecycle/SQL/runtimecopy. Installed060unchanged.
+
+Latest continuation: Secondary curve/phase/entityID/physicaltuple tasks all
+completed/frozen/accepted, waits. Root integrated AnimatedScene/AnimatedLinks/
+PlatformRide, mover/navigation/journey/store and guarded derivative-release tools.
+Native material membership independentlyclosed for current50models: Dyn_Bounce1
+convertsMIF_PHYSIC; actualCry3DPhysicalize1a1be testsflag4. No currentproxy special/
+WALKphysicalfaces/emptymembers. Packetwire usescompactphysicalslot, metricrotated
+offset (not scaledlocalmeshXYZ); phase preserves nativefloat/fmod/uptimewrap.
+Sanctumderived arcs1546@590.8378↔1518@805.6378 are proposals, notactorarrivalproof.
+SharednativeBIHsupport +freshstatic/body/door/hazard guards remain. Shortdisconnected
+localcorridors also requestglobaljourney; combatsteering stayslocaluntilneeded.
+All-map finalpackage/normal-artifact verification pending. Sourcefreeze currently
+normalbuilder external navigation061-final04-20261014. Prior01/02compiledbutguard
+rejected sourcechanges;03also superseded aftershortgapdiscovery fix. All retained,
+noneinstalled. Draftdock04helper stoppedonlyverifiedownedPID13116; partialfiles
+andlogsretained. Newnormalartifact mustregenerate/verifyall155packages. No newtests,
+subagents/attach/lifecycle/gameplay/SQL. Existingchecks thenofflineguardedcopy only.
+Installed060 remainsauthority. Do not claim engineering/delivery/liveacceptance done.
+
+User requests LIVE_CPU060 and NAVMESH_SCOPE_REVIEW as ONE full implementation;
+original all-game navigation direction drives it. Latest clarification: keep
+existing release checks; user tests in-game. No additional tests/subagents. Do
+not install or claim complete while native ride integration remains unresolved.
+Root prematurely asked closure, corrected it: GS15944 may remain open until
+complete source/final checks are ready. No new attachment/lifecycle/gameplay/SQL.
+Installed060 b60ceed55e... remains authority; no061 normal build/install yet.
+
+Secondary scoring+native flag index tasks completed/frozen/integrated. Bounded
+clock diagnosis and exact phase-caller follow-ups completed/frozen: packet27
+server-relative clock offset feeds SyncAnimation load/runtime phase assignments.
+Protected local clock API remains unknown, not the proved phase epoch. Secondary
+now owns ONE AnimatedCurve product file; no tests/other edits. Root owns scene/
+support/ride graph/mover integration and all cumulative delivery. Root owns product
+edits and VEHICLE/native client tracing. Shared chat messaging works again.
+Source: map-wide directed tile-local SCC topology, sliced adjacent-tile A*,
+immutable shared graph/window custody, copied waypoints and separate proved
+planning frontier versus physical cursor. Native fallback now records frontier;
+exception pauses unfinished graph custody. Topology read authenticates bounded
+snapshot before allocations; producer --verify reconstructs all native arrays.
+All155 external derivatives prepared, final normal-artifact verification pending.
+Native FLIGHT planner uses actual paths/time/costs/eligibility/execution; no false
+arrival. Camp scan retains bounded128probe/20ms soft probing cursor; preselection
+not a hard total20ms bound. Deferred admission happens before full character load,
+retaining saved identity and native safety. No caps/config values/base meshes cut.
+Native flag index preserves exact two-way awareness and lifecycle; broad-phase
+candidate order unchanged while removing per-ray stream materialization.
+
+Matching native client proves S_MOVE_NEW vehicle tuple has twoDWORDs+separateXYZ:
+parser370810, consumer2cc8e0/actorvirtual420→259180 native entity/part transform.
+Source SM_MOVE now relays vehicleXYZ instead of vectorXYZ. Sender1c373 supplies
+ushort native entityID and living groundColliderPart, not guessed mission IDs.
+Full mission loader1ce660..1d3fd8 SyncAnimation true→entityflag0x2000000 at1d10aa;
+sender checks sameflag1c0eb. Participation flag != animation epoch. Exact hall
+CGA elevator authored in lc1: BasicEntity54 EntityId9 at1866.1/1511.08/590.72998,
+Default loop speed0.4; controller126keys0..83200/4800ticks. Conditional43.333s
+period alone is NOT proof of clock/phase. Later Game11eb0/12388/1d4902 trace proves
+unsigned server-uptime synchronized phase via CAnimObject3c0→16f1c0. External
+secondary-syncanimation-phase-assignment.json retains exact evidence. Authored
+scene exporter completed117entities/50models/156tracks across native missions;
+new Scene source authenticates bounded data and shares native BIH support. Ride
+boarding/dismount graph/mover/release integration still pending. No fabricated
+links/floors/timerteleport.
+Root14draftsources compiled in external compile-20261014-continuation before
+later boundedqueue/packet edits. Not a normal deliverable. Docs combined061 and
+external diagnostics/navigation061 retain evidence. All prior mods/settings/
+155maps/106NPCmethods/progress/client remain. Complete source then one normal
+build/existing release checks, ask closure only for actual guarded delivery.
+
+# Release060 live CPU diagnosis — unresolved repair — 14 October2026
+
+User renewed livecheck then explicitly authorized three passive snapshots/one30s
+CPUprofile with “everything you are allowed”; reports highCPU. Exactly those
+captures completed onGS15944, installed060b60ceed55e...; actualruntimeSource is
+target-deploy/game-server JAR. No transforms/setters/config/SQL/lifecycle/gameplay.
+Capture scope consumed; don't infer more captures from this bounded request.
+JFR18:13:20local30s:6000Javaexec/951native samples; meanJVM36.23%user+8.31%system;
+overlapping materials22.2%,transport19.9%,nativegeometry21.55%,movementnotify8.6%.
+Categories overlap, not absolute CPU shares. GC31/0.6817223spause doesn't measure
+concurrentGC CPU; allocationweights not absolute rates. OSnumeric samples confirm
+~42..51%host CPU. Initial lazynegative Process.CPU result discarded/corrected.
+Three passive reads503/345/283ms/zeroerrors/span182.668s:1424common,453move/changemap,
+971stationary,894otherwisehealthy under capturedcriteria, not all establishedbugs.
+0freequeries all3; terrainqueue1045/998/1081,charged396.97ms/s of500. Resident
+windows173/142/176/pins49/50/50 within768MiB; no catalog/windowfailures/blockedwindow.
+Only5actors hold slots all3 with advancingwork; not proven leak/oldwholemapstarvation.
+Meshreason may retain priorwait while workadvances; don't diagnose bystring alone.
+Online1496within1500; offlineidentitypool3352 distinct; zero newchars thisrun.
+SecondaryONEreadonly material/transport source review complete/frozen and waits.
+Confirms Materials500..509full destination rerank everycontinuation +ephemeral
+HashMap repeatedincumbenthash/resize. Nextexactrepair onepass scoreeachonce using
+freshnativegraph, retainwinner/firstties/Double.compare/finite/exclusions/shortcuts/
+nativecosts/eligibility/XYZprogress. Older distance/move targetedgraph rebuilds remain.
+Staticcachechurn/lock blockage not proven; do not disableNPCs/collision/features/caps.
+No productrepair/build/newinstall in thisdiagnosis. Rootreportcomplete; actualCPU/
+movementacceptance andwiderparity remainunfinished. Evidence externaldiagnostics/
+live-navigation060-20261014; docs/PLAYERBOTS_LIVE_CPU_060_20261014.md. OversizedJSON
+export/viewer stopped only ownedhelpers; partialfailure retained; directJDK384MiB
+recordinganalyzer succeeds, no extra capture. Preserve current060 and allpriorwork.
+
+# PB-REPAIR-NAVIGATION-060 — installed and verified — 14 October2026
+
+User asks resolve live059 findings with minimal tests; user owns gameplay.
+No subagents/new repo test files. Root Store/Mesh immutable spatial window demand,
+fair cancellable admission/handoff and native-proved cross-window continuation.
+Secondary completed/froze ONE3file decision-reuse task/67externalchecks, then ONE
+material/party/committed-travel CPU task/360checks, then readonlyStore/Mesh review
+with no blockers. All complete; Secondary waits. Root completed normal delivery060.
+Focused root24capturedmapwindows102094628bytes/353tiles and71fairness/cancellation
+checks pass. External730m obstacle corridor31segments/30partial/203edges reaches
+actualendpoint; nativeSanctum6segments/43edges passes. Firstpressurefixture assumed
+neighbor equalbytes; corrected independentlymeasured both, failure retained in
+report. No map regen/settings/caps/progress/NPC/client changes. No attach/lifecycle.
+See docs/PLAYERBOTS_TILE_ADMISSION_20261014.md and externaldiagnostics/navmesh060-repair.
+Normalbuild release-20261014-161117-983213 and focusedfinalartifact checks pass;
+137suites/113346checks/56tools,1758handlers/fullXML/JAXB/schema,43browseractions/
+33screenshots pass. Independent3729unchanged/31changed/4added/zeroremoved JARentries,
+95configs unchanged. Canonical offline delivery completed; exact normalGS SHA:
+b60ceed55eb7c28921a342630c65c87b7c22aa95b2c5dbbf27e1b9d306d058ed.
+External receipt archives/server/game-server/backups/playerbots-source-build-
+20261014-170812-208626; review staging/output/release-20261014-161117-983213.
+Independent installed verification passes1exactbuilderfile/189483guards/95configs/
+30clienthashes/2045backed-upinvalidatedcaches/137suites113346checks; inventory20checks.
+All155mapdata/Commons/settings/caps/106NPCmethods/IDs/progress/clienticons retained.
+Actualhostofflineguards passed; Login/Chat untouched; no lifecycle/newattach/gameplay/
+SQL mutations. Stopengineering for this delivered repair. User owns restart/gameplay;
+live CPU/movement acceptance and fullquest/widerparity remain unfinished.
+FinalOSonlycheck seesGS15944 started17:14:05 aftercopy; noattach/gameplay followed.
+# Release059 approved live diagnosis — mesh admission starvation and CPU sources — 14 October2026
+
+User approved exactly3passive snapshots +one30sCPUprofile fromGS15972; all used.
+No transforms/setters/terrainqueries/game/config/SQL/lifecycle changes. Reader
+only existing fields/getters addsStore/pins/query fields. Snapshot span171.271s,
+reads380/270/246ms,zeroerrors. Same3resident maps210010000/210020000/210040000,
+725649240residentbytes of805306368allowance,pins33/36/40,18pending othermaps;
+719/725/722actors waitingmemory despite31/28/24free queryslots.1268common actors:
+215move/changemap,1053stationary;971alive/movable/noncast/nonrecovery/etc advancing
+decisions,528ofthese capacitywaiting all3samples. Do not call allstationary actors
+broken. Queue933/935/943; charged344.197ms/s. Source confirms freshresidentpin
+admission +evict-onlypins0 +wholemap querylease can indefinitely exclude coldmaps.
+Not provenindividualpinleak/deadlock. Partialrequired≈80MB are NOTfullmap costs.
+SecondaryONEreadonlysource/pinned037c014task complete/accepted/frozen and waits.
+ActiveupstreamloadMapAndVMap uses requestedmmap tiles; commentedFactory notparity.
+
+CPUprofile12:35:24..54:6739Java executionsamples;970native samples separate.
+InclusiveJava categoriesgeometry22.64%,transportplanning19.57%,materials18.19%,
+crafting14.32%,meshquery0.16%,store0.31%; overlap,don'tadd/claimabsoluteCPUshare.
+JFRhost-normalizedJVM45.89%user+8.75%system,machine76.6%.39GC/47pausephases
+0.5286112s doesnot measureconcurrentGC CPU. Weightedallocationsnotabsoluterate.
+8253exceptionsmostlyexpectedFiles.exists EMPTYpayload checks,notmissingmaperrors.
+Rootcause seams nowlocalized; no source repair/build/install performed inthis
+read-only task. Proper nextrepair: spatialtileworking set +fair immutableleased
+graph custody/cross-windowcontinuation and observed repeatedtransport/material/
+craftplanning efficiency, preservingnativechecks/settings/caps/progress/NPCs.
+Fullquest/widerparity and liveacceptance remainopen. No furtherattach inferred.
+Evidence diagnostics/live-navmesh059-20261014-103351; updatedlive059report.
+
+# Release059 initial live log/OS check — historical before approved captures
+
+User "check live gameserver for issues" authorizes read-only log/OS diagnosis.
+GS15972 started10:33:51, exact installed0592aebf2bc...; no attachment/lifecycle/
+game/config/SQL changes. Population reaches1206/1206 at10:45:15,603/603, no observed
+online-cap overshoot. Nine25s OS CPU samples44.61..50.96%, including post-loading
+44.96/48.13/50.96%; working set2894.7MiB is not a Java heap measurement. At10:47,
+materials/crafting activity decisions1179/1516/1551ms; Relolon5032ms overdue,
+active-world4/4 and world/idle lanes saturated. Last-action context is not proof
+of CPU root cause. Existing5trade-in/fourmotion warnings remain; no observed new
+class/OOM/mesh exception. Actual movement unproven by log travel intentions.
+Requested exactly3passive bot snapshots20s apart and separately one30s CPU profile.
+Both fresh attachment approvals are pending; neither performed, do not infer them.
+Source diagnosis and live CPU/movement acceptance remain open. Evidence external
+diagnostics/live-navmesh059-20261014-103351; docs/PLAYERBOTS_LIVE_059_20261014.md.
+
+# All-map navigation implementation — installed and verified — 14 October 2026
+
+PB-NAVMESH-059 engineering/delivery is complete. Final canonical installed
+verification passes189234exact normal-builder/generated files,250guards,95configs,
+30clienthashes,2045backed-up invalidated caches,137bound suites/113346checks and
+43native-browser actions. Final closure guard passes after verification. NormalGS
+SHA2aebf2bc5026b5f174c446819c8d0e534328615e22d2bc7ed3478d57b09438b0.
+Independent scope and20modchecks also pass; inventory75client/182server historical
+receipts. Runtime target-deploy/game-server is authoritative; source remains Git,
+external Development Workspace holds generator/reviews/recovery050931-405508.
+All155 maps verified and installed, no package removals/settings/caps/IDs/progress
+changes. Only3mesh controls append to existing navigation.properties; no new config.
+Stop engineering for this delivered scope. User owns restart/gameplay; actual
+every-destination reachability, movement/CPU gains and wider quest/parity stay open.
+The following paragraphs retain the interrupted/failed attempts and their recovery;
+their pending-install statements are historical and superseded by this final status.
+
+Final user "both closed" followed normal GS2896 shutdown; native saves succeed,
+executor logs one scheduled task remaining and database pool retained at5s. Process
+then exits naturally; no agent lifecycle/attach. All2045 regenerated cache bytes
+match preserved originals, archived recovery remains; removed offline per reviewed
+invalidation. CompleteReceiptAndVerify.py final closure guards pass and writes
+receipt050931-405508. Independent inventory20checks and scope verification pass:
+exact normalGS2aebf2bc...,3712unchanged/24changed/24added/zero removed,94otherconfig
+files unchanged,all original navigation bytes retained plus3mesh settings,30client
+hashes preserved,zero new retirements. Full canonical installed-file verification
+passes under the canonical lock. Hidden helper30700 completed and released it.
+No gameplay/CPU acceptance is claimed.
+
+PB-NAVMESH-059 remains active through complete155-map verification and guarded
+normal-build delivery. User requires whole-game scope, minimal tokens, no new
+repository test files. New fixtures are external; permanent tools/navmesh and
+navmesh-release.py are product utilities. No subagents. Secondary completes ONE
+bounded task, confirms/freeze then waits. Root owns cumulative build/delivery.
+Installed058 and later client HUD icons remain untouched until actual delivery.
+
+Canonical generator9bf184a3a19eb0c38052dd0acf3e604c568c437b133601e7ea4ce8ff0933b94d
+rebuilds byte-identically. External staging/output/navmesh059-release:155geometry
+maps+6zero-size native maps,100910 tile positions. Interrupted earlier run retained;
+unchanged tool resumes authenticated receipts. All155 maps finished naturally,
+failures=0;189229 map files/88009 ground tiles/1.841GiB generated. Full VerifyBatch
+passes155maps/zero failures/88009ground tiles/1955442742encoded bytes. Package
+integrity/path checks pass. Authentic normal-artifact all-map preflight passes155,
+zero unsupported-empty maps; max210070000 reserves590850384bytes within768MiB.
+No guessed floors/coordinates/teleports, map-specific exceptions or NPC AI changes.
+
+Final normal build external staging/target/navmesh059-final-20261014 succeeds:
+GS2aebf2bc5026b5f174c446819c8d0e534328615e22d2bc7ed3478d57b09438b0,
+manifest92e381f1283a261543f38e8bf4b6acbf3541809e2003d982bad29e174f818197.
+137bound suites/113346checks/56tools,1758handlers/fullXML/schema/JAXB,
+43nativebrowser actions/33screenshots pass. Linkage3491classes/198856refs passes.
+Root preservation3712prior entries identical,24changed/24added/zero removed,
+106originalNPCmethods and existingdependencies retained. Commons executable/media/
+client unchanged; exact normal Detour1.5.8 dependency addition required.
+Older normal builds/failed fixtures are retained superseded/uninstalled.
+
+Shared immutable async Store uses768MiB default,64retained query slots, actual
+JVM layout/directed internal links/conservative portal accounting, authenticated
+full payload before counting/decode. Actual large-map reservation557613088 and
+547464008bytes fits768MiB with unpinned eviction; whole-map verification pending.
+Three explained mesh settings append only if absent in existing navigation file;
+all four existing terrain settings/all other owner values/caps/IDs/progress remain.
+Strict8192 new-node admission at native Detour predicate was added after peer found
+post-eight-expansion threshold was not a hard limit. Final artifact peer fixture
+35634checks passes:10000polygon chain exact8192nodes, oldrefs/flags retained,
+partial endpoint never arrival, blocked native proof never success. Secondary
+confirmed completion/frozen and waits; no simultaneous product edits authorized.
+
+Final actual artifact10payload/131routecustody/154293native transport checks pass.
+Sanctum native walking6segments/43edges,52069032reserved bytes, reaches actualstatue.
+805Hall remains disconnected/partial; no invented traversal/quest credit added.
+Same-map REGULAR transport uses native costs/race/quest/liveNPC/physicalarrival;
+active pinned037c014/recast/native geometry dependencies reviewed. Legitimate
+pauses retain route custody; actual motion/native quest progress counts, notintent.
+Loading/capacity waits retain terrain tickets; fallback waits next funded callback.
+
+Complete normal code/dependency review currently passes without generated package;
+external final-review FinalizeBatch verifies/prepares fullpackage and authentic
+all-map admission. Same200file integrity pass measured restricted0.969s/host0.220s;
+only exact owned Python verification helpers17748/11196 were stopped/restarted on
+host; interrupted evidence retained. Generator was already naturally complete;
+user-requested visible output viewer8516 remains. No generator/component restart.
+Complete package is prepared; canonical guarded release --install is running.
+Rebound preservation review passes against the complete release plan. Installation
+and independent installed verification are not yet complete.
+First install failed BEFORE copying in the client preservation guard: the current
+SystemOptionGraphics.cfg differed from the old inventory. Full client comparison
+finds only system.cfg and SystemOptionGraphics.cfg changed;20 installed-mod checks
+pass. Preserved old inventory/failure log externally; refreshed read-only inventory
+retains all current user graphics values, no client changes. Host confirms GS/Aion
+closed. Canonical install retry runs with the same verified build/package.
+Retry passed both guards and copied normalGS plus part of the maps, then the
+foreground process ended without a completion receipt. Runtime is PARTIAL; keep
+GS/Aion closed. Recovery050931-405508 holds original files and bound regression/
+browser evidence. External ResumeInstallation.py resumes only this reviewed
+manifest, under canonical lock, closure/source/client/native/backup/hash guards.
+Hidden persistent helper4980 checks all sources and each destination against
+recorded original-or-installed hashes before remaining copies. No new build or
+feature change. Logs final-review/install-resume.log and install-resume-errors.log;
+installed.json plus independent installed verification remain required.
+Resume copied all123997 remaining files; all189234 installed file hashes, owner
+configs and client preservation passed. Final stopped() guard then found GS2896
+running and withheld completion receipt (ResumeInstallation.py line89). User was
+asked to stop it normally; do not stop/attach it. Complete maps and normalGS are
+present but release remains uncommitted until fresh offline completion. External
+finish helper halted on this explicit failure; errors retained. No failure hidden.
+Fresh host read found GS/Aion closed, Login24416/Chat5528 untouched. Recheck actual
+host guard at installation. No liveattach/lifecycle/SQL/game-state mutations.
+Full questaudit/widerparity and user post-restart CPU/movement acceptance remain
+unfinished. Do not mark full coverage/delivery/gameplay complete prematurely.
+See docs/PLAYERBOTS_NAVMESH_20261013.md; external navmesh059-final-review evidence.
 # Darirador live diagnosis — movement acceptance unresolved — 13 October 2026
 
 Fresh user request “check the live gameserver Darirador has been standing there

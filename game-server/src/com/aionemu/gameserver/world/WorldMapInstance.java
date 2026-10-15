@@ -40,6 +40,7 @@ public abstract class WorldMapInstance implements Iterable<VisibleObject> {
 	protected final Map<Integer, MapRegion> regions = new HashMap<>();
 	private final Map<Integer, VisibleObject> worldMapObjects = new ConcurrentHashMap<>(); // All objects spawned in this world map instance
 	private final Map<Integer, Npc> worldMapNpcs = new ConcurrentHashMap<>(); // All npcs spawned in this world map instance
+	private final Map<Integer, Npc> worldMapFlags = new ConcurrentHashMap<>(); // Immutable native FLAG template subset
 	private final Map<Integer, Player> worldMapPlayers = new ConcurrentHashMap<>(); // All players spawned in this world map instance
 	private final Set<Integer> registeredObjects = ConcurrentHashMap.newKeySet();
 	private final Set<Integer> questIds = ConcurrentHashMap.newKeySet();
@@ -102,8 +103,10 @@ public abstract class WorldMapInstance implements Iterable<VisibleObject> {
 		if (worldMapObjects.putIfAbsent(object.getObjectId(), object) != null) {
 			throw new DuplicateAionObjectException(object, worldMapObjects.get(object.getObjectId()));
 		}
-		if (object instanceof Npc) {
-			worldMapNpcs.put(object.getObjectId(), (Npc) object);
+		if (object instanceof Npc npc) {
+			worldMapNpcs.put(object.getObjectId(), npc);
+			if (npc.isFlag())
+				worldMapFlags.put(object.getObjectId(), npc);
 			QuestNpc qNpc = QuestEngine.getInstance().getQuestNpc(object.getObjectTemplate().getTemplateId());
 			if (qNpc != null) {
 				boolean updateNearbyQuests = false;
@@ -136,6 +139,7 @@ public abstract class WorldMapInstance implements Iterable<VisibleObject> {
 			}
 			worldMapPlayers.remove(object.getObjectId());
 		} else if (object instanceof Npc) {
+			worldMapFlags.remove(object.getObjectId());
 			worldMapNpcs.remove(object.getObjectId());
 		}
 	}
@@ -293,6 +297,15 @@ public abstract class WorldMapInstance implements Iterable<VisibleObject> {
 
 	public void forEachNpc(Consumer<Npc> consumer) {
 		CollectionUtil.forEach(worldMapNpcs.values(), consumer);
+	}
+
+	/** Entire-instance flags, with fresh native membership after concurrent despawn/transfer. */
+	public void forEachFlag(Consumer<Npc> consumer) {
+		CollectionUtil.forEach(worldMapFlags.values(), npc -> {
+			if (worldMapNpcs.get(npc.getObjectId()) == npc && worldMapObjects.get(npc.getObjectId()) == npc
+				&& npc.isSpawned() && npc.getWorldMapInstance() == this)
+				consumer.accept(npc);
+		});
 	}
 
 	public void forEachPlayer(Consumer<Player> consumer) {

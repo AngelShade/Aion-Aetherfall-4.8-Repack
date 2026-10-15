@@ -68,11 +68,20 @@ final class PlayerBotQuestMaterials {
              Selector npcs,Selector groups,Set<Integer> excluded,Selector zones,int maximumDrops) {
   Rule {excluded=Set.copyOf(excluded);}
   boolean matches(Race actor,int itemLevel,int npcLevel,int npc,int map,Object world,Object rating,Object race,Object tribe,Object group,Set<String> currentZones) {
+   return matchesWithoutZones(actor,itemLevel,npcLevel,npc,map,world,rating,race,tribe,group)
+    && (!zones.present() || currentZones.stream().anyMatch(zones.values()::contains));
+  }
+  boolean matchesWithoutZones(Race actor,int itemLevel,int npcLevel,int npc,int map,Object world,Object rating,Object race,Object tribe,Object group) {
    int diff=npcLevel-itemLevel;
    return chance>0 && maximumDrops>0 && (restriction==null || restriction==actor) && diff>=minimum && diff<=maximum
     && maps.accepts(map) && worlds.accepts(world) && ratings.accepts(rating) && races.accepts(race) && tribes.accepts(tribe)
-    && npcs.accepts(npc) && groups.accepts(group) && !excluded.contains(npc)
-    && (!zones.present() || currentZones.stream().anyMatch(zones.values()::contains));
+    && npcs.accepts(npc) && groups.accepts(group) && !excluded.contains(npc);
+  }
+  /** Membership belongs to this one live NPC evaluation, never a persistent cache. */
+  boolean matchesZones(java.util.function.Predicate<String> inside,Map<String,Boolean> memberships) {
+   if(!zones.present())return true;
+   for(var zone:zones.values())if(memberships.computeIfAbsent((String)zone,inside::test))return true;
+   return false;
   }
  }
  record GlobalSource(int item,int level,Race itemRace,Rule rule) {}
@@ -295,7 +304,10 @@ final class PlayerBotQuestMaterials {
  static boolean race(Race source,Race actor){return source==Race.PC_ALL || source==actor;}
  static boolean reduction(boolean reduced,int npcLevel,int actorLevel) {return !reduced || DropRewardEnum.dropRewardFrom(npcLevel-actorLevel)>0;}
  private static void plan(PlayerBotSession session) {
-  var bot=session.bot();var state=actor(session,false);var needed=needed(session);long now=System.currentTimeMillis();
+  plan(session,needed(session));
+ }
+ private static void plan(PlayerBotSession session,Map<Integer,Long> needed) {
+  var bot=session.bot();var state=actor(session,false);long now=System.currentTimeMillis();
   if(needed.isEmpty()){state.planned=Map.of();state.hunts=Set.of();state.places=List.of();state.destination=null;state.nextSearch=now+10000;return;}
   if(now<state.nextSearch && state.planned.equals(needed))return;
   var data=catalog();var hunts=new TreeSet<Integer>();var places=new LinkedHashSet<PlayerBotWorldTravel.Place>();
@@ -318,15 +330,19 @@ final class PlayerBotQuestMaterials {
  }
  /** Local live global-source matching also includes instance/temporary spawns unavailable for autonomous travel. */
  static Set<Integer> huntNpcIds(PlayerBotSession session) {
-  var needs=needed(session);if(needs.isEmpty())return Set.of();plan(session);var bot=session.bot();var result=new TreeSet<>(actor(session,false).hunts);var data=catalog();var service=DropRegistrationService.getInstance();
-  if(needs.keySet().stream().noneMatch(id->!data.global().getOrDefault(id,List.of()).isEmpty()))return Set.copyOf(result);
+  var needs=needed(session);if(needs.isEmpty())return Set.of();plan(session,needs);var bot=session.bot();var result=new TreeSet<>(actor(session,false).hunts);var data=catalog();
+  var sources=new ArrayList<GlobalSource>();for(int item:needs.keySet())for(var source:data.global().getOrDefault(item,List.of()))if(race(source.itemRace(),bot.getRace()))sources.add(source);
+  if(sources.isEmpty())return Set.copyOf(result);
+  var service=DropRegistrationService.getInstance();
   bot.getKnownList().forEachNpc(n->{if(!n.isSpawned() || n.isDead() || !n.getObjectTemplate().isClientVisible() || n.getWorldId()!=bot.getWorldId() || n.getInstanceId()!=bot.getInstanceId() || !bot.getKnownList().sees(n))return;
-   var modifiers=service.createDropModifiers(n,bot,bot.getLevel());
-   for(int item:needs.keySet())for(var s:data.global().getOrDefault(item,List.of())) {
-    var r=s.rule();var zones=new HashSet<String>();for(var z:r.zones().values())if(n.isInsideZone((String)z))zones.add((String)z);
-    if(race(s.itemRace(),bot.getRace()) && !service.hasGlobalNpcExclusions(n) && n.getWorldDropType()!=WorldDropType.NONE && !"quest_use_item".equals(n.getAi().getName())
-     && (service.isAllowedDefaultGlobalDropNpc(n,modifiers.isDropNpcChest()) || r.npcs().present()) && modifiers.calculateDropChance(r.chance(),r.reduction())>0
-     && r.matches(bot.getRace(),s.level(),n.getLevel(),n.getNpcId(),n.getWorldId(),n.getWorldDropType(),n.getRating(),n.getRace(),n.getTribe(),n.getGroupDrop(),zones))result.add(n.getNpcId());
+   var world=n.getWorldDropType();if(service.hasGlobalNpcExclusions(n) || world==WorldDropType.NONE || "quest_use_item".equals(n.getAi().getName()))return;
+   int id=n.getNpcId(),level=n.getLevel(),map=n.getWorldId();var rating=n.getRating();var npcRace=n.getRace();var tribe=n.getTribe();var group=n.getGroupDrop();
+   com.aionemu.gameserver.model.drop.DropModifiers modifiers=null;boolean defaultAllowed=false;
+   var zones=new HashMap<String,Boolean>();
+   for(var s:sources) {
+    var r=s.rule();if(!r.matchesWithoutZones(bot.getRace(),s.level(),level,id,map,world,rating,npcRace,tribe,group))continue;
+    if(modifiers==null){modifiers=service.createDropModifiers(n,bot,bot.getLevel());defaultAllowed=service.isAllowedDefaultGlobalDropNpc(n,modifiers.isDropNpcChest());}
+    if((defaultAllowed || r.npcs().present()) && modifiers.calculateDropChance(r.chance(),r.reduction())>0 && r.matchesZones(n::isInsideZone,zones)){result.add(id);return;}
    }
   });return Set.copyOf(result);
  }
@@ -367,9 +383,12 @@ final class PlayerBotQuestMaterials {
  }
  /** Native point-to-point flight only; the existing navigator rechecks obstacles/hazards and actual movement speed. */
  private static boolean aerialMove(PlayerBotSession session,PlayerBotWorldTravel.Place target,PlayerBotNavigation navigation) {
+  return aerialMove(session,target,navigation,null);
+ }
+ private static boolean aerialMove(PlayerBotSession session,PlayerBotWorldTravel.Place target,PlayerBotNavigation navigation,PlayerBotWorldTravel.Decision decision) {
   var bot=session.bot();var state=actor(session,false);var geo=GeoService.getInstance();
   if(!PlayerBotConfig.QUEST_FLIGHT){state.flightReason="Autonomous aerial acquisition is disabled by gameserver.playerbots.quests.flight";return false;}
-  if(target.map()!=bot.getWorldId())return PlayerBotWorldTravel.move(bot,target,navigation);
+  if(target.map()!=bot.getWorldId())return decision==null?PlayerBotWorldTravel.move(bot,target,navigation):decision.move(target,navigation);
   if(bot.isFlying())return navigation.move(target.x(),target.y(),target.z());
   if(!session.world()){state.flightReason="Companion aerial acquisition follows the owner's existing flight/order scope";return false;}
   if(!bot.getCommonData().isDaeva()){state.flightReason=flightRestriction(bot);return false;}
@@ -416,6 +435,7 @@ final class PlayerBotQuestMaterials {
   if(!moved){state.failedLaunches.put(launch,now+60000);state.launchScan=0;}return moved;
  }
  /** Owns only flights started for autonomous materials; never force landing while above unsupported floor. */
+ static boolean settleFlight(PlayerBotSession session,PlayerBotNavigation navigation) {return land(session,navigation);}
  private static boolean land(PlayerBotSession session,PlayerBotNavigation navigation) {
   var bot=session.bot();var state=ACTORS.get(bot.getObjectId());if(state==null || state.flight==null)return false;var flight=state.flight;
   if(bot.isDead() || !bot.isSpawned() || bot.getWorldId()!=flight.map() || bot.getInstanceId()!=flight.instance() || !bot.isFlying()) {state.flight=null;return false;}
@@ -480,14 +500,14 @@ final class PlayerBotQuestMaterials {
   }
   if(!session.world() || bot.isInInstance())return false;plan(session);
   state.excluded.entrySet().removeIf(e->e.getValue()<=now);
-  var distances=PlayerBotWorldTravel.distances(bot);
-  var destination=state.places.stream().filter(p->!state.excluded.containsKey(p)).min(Comparator.comparingDouble(distances::distance)).orElse(null);
-  if(destination==null || !Double.isFinite(distances.distance(destination)))return false;
-  double distance=distances.distance(destination);
+  var decision=new PlayerBotWorldTravel.Decision(bot);
+  var selection=decision.nearest(state.places,p->!state.excluded.containsKey(p));
+  if(selection==null || !Double.isFinite(selection.score()))return false;
+  var destination=selection.place();double distance=decision.distance(selection);
   if(!destination.equals(state.destination)){state.destination=destination;state.progress=now;state.best=distance;}
   if(distance+1<state.best){state.best=distance;state.progress=now;}
   if(distance<=4 || now-state.progress>30000){state.excluded.put(destination,now+60000);state.destination=null;return false;}
-  return data.aerial().contains(destination)?aerialMove(session,destination,navigation):PlayerBotWorldTravel.move(bot,destination,navigation);
+  return data.aerial().contains(destination)?aerialMove(session,destination,navigation,decision):decision.move(destination,navigation);
  }
  static void close(Player bot){ACTORS.remove(bot.getObjectId());}
  private PlayerBotQuestMaterials() {}

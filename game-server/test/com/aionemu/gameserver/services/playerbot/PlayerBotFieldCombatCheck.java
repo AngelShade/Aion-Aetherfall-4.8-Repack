@@ -56,6 +56,8 @@ public final class PlayerBotFieldCombatCheck {
   check(plan.tick(engine,64),"Native strategy arbitration chooses a useful next action");return engine.getLastAction();
  }
  public static void main(String[] args)throws Exception {
+  // These inert active-bot fixtures have no native human-presence World.
+  com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS=false;
   var f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);unsafe=(Unsafe)f.get(null);
   // Previously these live resource bands permitted neither a fresh pull nor rest.
   for(double[] resources:new double[][]{{80,100},{100,50},{80,50},{70,60},{85,40}}) {

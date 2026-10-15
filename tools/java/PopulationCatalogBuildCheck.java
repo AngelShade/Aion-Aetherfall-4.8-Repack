@@ -10,6 +10,7 @@ public final class PopulationCatalogBuildCheck {
   DataManager.WORLD_MAPS_DATA=data.worldMapsData;DataManager.NPC_DATA=data.npcData;
   DataManager.SPAWNS_DATA=data.spawnsData;DataManager.TRIBE_RELATIONS_DATA=data.tribeRelationsData;
   DataManager.TELEPORTER_DATA=data.teleporterData;DataManager.TELELOCATION_DATA=data.teleLocationData;DataManager.PLAYER_INITIAL_DATA=data.playerInitialData;
+  DataManager.FLY_PATH=data.flyPath;
   var locations=PlayerBotWorldPlacement.locations();
   if(locations.isEmpty())throw new AssertionError("No native population locations");
   var report=new TreeMap<String,SortedSet<Integer>>();

@@ -16,6 +16,10 @@ def main():
     p.add_argument('--build', type=Path, required=True)
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--scope', required=True)
+    p.add_argument('--navmesh', type=Path, help='Complete external generated navigation batch')
+    p.add_argument('--navmesh-tool', type=Path, help='Exact normal generator JAR for that batch')
+    p.add_argument('--navmesh-topology', type=Path, help='Complete external directed topology for the installed mesh catalog')
+    p.add_argument('--navmesh-animated', type=Path, help='Complete authored moving physics and native dock package')
     a = p.parse_args(); build, out = a.build.resolve(), a.output.resolve()
     shared.validate_output(build); shared.validate_output(out)
     manifest = build_meta.verify(build)
@@ -67,7 +71,14 @@ def main():
             differs = old_names != new_names or any(x.read(n) != y.read(n) for n in old_names & new_names if n != 'META-INF/MANIFEST.MF')
             if component == 'game-server': core_changed = differs
             else: dependency_changed = differs
-    libs = [f for f in sorted((server / 'libs').glob('*.jar')) if f.name not in {'game-server-4.8-SNAPSHOT.jar', 'commons-4.8-SNAPSHOT.jar', 'playerbot-recruitment-fix.jar'}]
+    libs = build_meta.libraries(build)
+    additions = []
+    for library in libs:
+        target = server / 'libs' / library.name
+        if target.exists():
+            assert target.is_file() and shared.sha(target) == shared.sha(library), 'Existing dependency upgrade needs separate source review: ' + library.name
+        else:
+            additions.append(dict(path='libs/' + library.name, source=str(library), original=None, installed=shared.sha(library)))
     cp = ';'.join(map(str, [build / 'game-server/game-server-4.8-SNAPSHOT.jar', build / 'commons/commons-4.8-SNAPSHOT.jar', *libs]))
     args_file = out / 'handlers.args'
     args_file.write_text('\n'.join('"' + f.as_posix() + '"' for f in staged_handlers), encoding='utf-8')
@@ -83,8 +94,28 @@ def main():
         cache.update(rel for rel in ['cache/static_data.xml', 'cache/static_data.xml.properties'] if (server / rel).exists())
     plan = dict(scope=a.scope, resources=resources, changedClasses=sorted(changed_classes), invalidateCaches=sorted(cache),
         runtimeResourceInputs=inputs, priorReceipt=str(prior), dependencyChanged=dependency_changed,
-        buildManifestSha256=shared.sha(build / 'build-manifest.json'), handlerCount=len(staged_handlers),
+        buildManifestSha256=shared.sha(build / 'build-manifest.json'), libraryAdditions=additions, handlerCount=len(staged_handlers),
         handlerClasses=sum(1 for _ in (out / 'handler-classes').rglob('*.class')), handlerCompile='passed; no handlers executed')
+    target = server / delivery.FEATURE_CONFIGURATION
+    if target.is_file():
+        with zipfile.ZipFile(build / 'game-server/game-server.zip') as assembly:
+            maintained = assembly.read('game-server/' + delivery.FEATURE_CONFIGURATION)
+        original = target.read_bytes()
+        updated = delivery.world_activity_defaults(original, maintained)
+        if updated != original:
+            staged = out / 'owner-defaults/features.properties'; staged.parent.mkdir(exist_ok=True)
+            staged.write_bytes(updated)
+            plan['worldActivityDefaults'] = [dict(path=delivery.FEATURE_CONFIGURATION, source=str(staged),
+                original=hashlib.sha256(original).hexdigest(), installed=shared.sha(staged), worldActivityDefaults=True)]
+    assert bool(a.navmesh) == bool(a.navmesh_tool), 'Supply both navigation batch and its generator'
+    if a.navmesh:
+        plan['navigationPackage'] = import_module('navmesh-release').prepare(build, a.navmesh, a.navmesh_tool, out, server)
+    if a.navmesh_topology:
+        assert not a.navmesh, 'Install verified base meshes before deriving topology'
+        plan['navigationTopology'] = import_module('navmesh-topology-release').prepare(build, a.navmesh_topology, out, server)
+    if a.navmesh_animated:
+        assert a.navmesh_topology, 'Bind authored rides to the same verified directed topology'
+        plan['navigationAnimated'] = import_module('navmesh-animated-release').prepare(build, a.navmesh_animated, a.navmesh_topology, out, server)
     build_meta.verify(build)
     (out / 'release-plan.json').write_text(json.dumps(plan, indent=2))
     print('OK: complete distribution audited;', len(managed), 'managed files;', len(resources), 'changed resources;', len(staged_handlers), 'handlers compile')

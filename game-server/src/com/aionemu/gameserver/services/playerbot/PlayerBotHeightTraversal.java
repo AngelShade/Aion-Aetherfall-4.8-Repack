@@ -21,6 +21,7 @@ public final class PlayerBotHeightTraversal {
   }
   public float fallDistance(){return Math.max(0,z+launch*launch/(2*GRAVITY)-endZ);}
   public boolean descending(double time){return launch-GRAVITY*time<=0;}
+  public boolean falling(){return launch==0 && endX==x && endY==y && endZ<z;}
   public boolean valid(){return finite(x,y,z,endX,endY,endZ,seconds,launch,delay) && seconds>0 && delay>=0 && delay<seconds && launch>=0;}
  }
  public static Plan plan(GeoMap map,int instance,float x,float y,float z,float tx,float ty,float goalZ,float speed) {
@@ -63,6 +64,9 @@ public final class PlayerBotHeightTraversal {
   if(!Float.isFinite(ground) || Math.abs(ground-plan.endZ)>.2)return false;
   if(!PlayerBotGroundNavigation.clearTraversal(map,instance,new Vector3f(plan.endX,plan.endY,plan.endZ+.05f),
    new Vector3f(plan.endX,plan.endY,plan.endZ+1.6f)))return false;
+  // A planned jump may choose a wide landing. Already airborne gravity must
+  // settle on its actual first supporting floor, including a narrow ledge.
+  if(plan.falling())return true;
   // A supported body-sized landing, rather than a single ray on an edge.
   for(int d=0;d<8;d++) {
    float dx=.3f*(float)Math.cos(d*Math.PI/4),dy=.3f*(float)Math.sin(d*Math.PI/4);

@@ -93,17 +93,25 @@ public final class PlayerBotPartyBehavior {
  static Npc hunt(Player owner,Player bot,int mission) {
   State s=STATES.get(bot.getObjectId());if(s==null || !s.enabled || s.order!=Order.FOLLOW || s.role==null || owner.isDead() || owner.isFlying() || !s.session.autonomous() && owner.getMoveController().isInMove())return null;
   var group=owner.getCurrentTeam();if(group==null && !s.session.autonomous())return null;
-  var members=s.session.party();
-  boolean tank=members.stream().anyMatch(p->{State other=STATES.get(p.getObjectId());return other!=null && other.enabled && other.role==Role.TANK && other.order==Order.FOLLOW && !p.isDead();});
+  var local=new ArrayList<Npc>();owner.getKnownList().forEachNpc(npc->{if(npc.getWorldId()==owner.getWorldId() && npc.getInstanceId()==owner.getInstanceId()
+   && PositionUtil.isInRange(owner,npc,25) && bot.getKnownList().sees(npc))local.add(npc);});
+  if(local.isEmpty()){s.sharedTarget=0;return null;}
+  var members=s.session.party();var claimed=new HashSet<Integer>();var assisted=new HashSet<Integer>();boolean tank=false;
+  for(var member:members){var other=STATES.get(member.getObjectId());if(other==null || !other.enabled)continue;
+   if(other.sharedTarget!=0){assisted.add(other.sharedTarget);if(!member.isDead())claimed.add(other.sharedTarget);}
+   if(other.role==Role.TANK && other.order==Order.FOLLOW && !member.isDead())tank=true;
+  }
   // One claim per party: followers assist the initiator instead of independently pulling.
   Set<Integer> required=targets(bot,mission);Set<Integer> materials=mission==0?PlayerBotQuestMaterials.huntNpcIds(s.session):Set.of();required.addAll(materials);List<Npc> candidates=new ArrayList<>();
-  owner.getKnownList().forEachNpc(npc->{
-   if(npc.getWorldId()!=owner.getWorldId() || npc.getInstanceId()!=owner.getInstanceId() || !PositionUtil.isInRange(owner,npc,25) || !bot.getKnownList().sees(npc) || !GeoService.getInstance().canSee(bot,npc))return;
-   boolean claimed=members.stream().anyMatch(p->{State other=STATES.get(p.getObjectId());return other!=null && other.sharedTarget==npc.getObjectId() && other.enabled && !p.isDead();});
-   if(claimed && npc.isSpawned() && !npc.isDead() && bot.isEnemy(npc)){candidates.add(npc);return;}
-   if((PlayerBotQuestObjectives.pull(bot,npc) || materials.contains(npc.getNpcId()) && PlayerBotQuestObjectives.materialPull(bot)) && (s.session.autonomous() || canInitiate(s.role,tank)) && hostileObjective(bot,npc,required) && npc.getAggroList().stream().findAny().isEmpty() && isolated(owner,bot,npc))candidates.add(npc);
-  });
-  Npc chosen=candidates.stream().min(Comparator.comparingDouble(n->PositionUtil.getDistance(owner,n)-(members.stream().anyMatch(p->{State other=STATES.get(p.getObjectId());return other!=null && other.sharedTarget==n.getObjectId() && other.enabled;}) ? 10000 : 0))).orElse(null);
+  for(var npc:local){
+   if(claimed.contains(npc.getObjectId()) && npc.isSpawned() && !npc.isDead() && bot.isEnemy(npc)){
+    if(GeoService.getInstance().canSee(bot,npc))candidates.add(npc);continue;
+   }
+   if(hostileObjective(bot,npc,required) && (s.session.autonomous() || canInitiate(s.role,tank))
+    && (PlayerBotQuestObjectives.pull(bot,npc) || materials.contains(npc.getNpcId()) && PlayerBotQuestObjectives.materialPull(bot))
+    && npc.getAggroList().stream().findAny().isEmpty() && GeoService.getInstance().canSee(bot,npc) && isolated(owner,bot,npc))candidates.add(npc);
+  }
+  Npc chosen=candidates.stream().min(Comparator.comparingDouble(n->PositionUtil.getDistance(owner,n)-(assisted.contains(n.getObjectId()) ? 10000 : 0))).orElse(null);
   s.sharedTarget=chosen==null ? 0 : chosen.getObjectId();return chosen;
  }
  static boolean explicit(Player bot,Npc npc) {State s=STATES.get(bot.getObjectId());return s!=null && s.enabled && s.order==Order.FOLLOW && s.sharedTarget==npc.getObjectId() && PositionUtil.isInRange(s.session.owner(),npc,25) && !s.session.owner().isDead();}

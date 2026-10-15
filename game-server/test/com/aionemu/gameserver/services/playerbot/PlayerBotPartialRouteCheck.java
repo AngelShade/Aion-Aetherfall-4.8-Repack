@@ -97,7 +97,12 @@ public final class PlayerBotPartialRouteCheck {
   for(float invalid:new float[]{Float.NaN,0,3,129,Float.NEGATIVE_INFINITY,Float.POSITIVE_INFINITY})try{
    new PlayerBotRouteSearch(origin,new Point(100,10,0),2000,4096,invalid);throw new AssertionError("invalid segment admitted");
   }catch(IllegalArgumentException expected){check(true,"documented segment bounds reject malformed owner values");}
-  production(unsafe);
+  // This fixture proves the native collision provider with inert actors. The
+  // prepared provider has its own external store/query checks; do not launch
+  // a real asynchronous loader while simulating hundreds of callbacks here.
+  boolean prepared=com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED;
+  try {com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED=false;production(unsafe);}
+  finally {com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED=prepared;}
   System.out.println("OK: "+checks+" native partial route, streaming, final-arrival and hazard-cancellation checks");
  }
  private PlayerBotPartialRouteCheck(){}

@@ -180,6 +180,15 @@ public class GeoService implements GameEngine {
 	public boolean validatePlayerBotHeightSegment(int worldId,int instance,Vector3f from,Vector3f to) {
 		return com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.segment(geoMaps.get(worldId),instance,from,to);
 	}
+	/** Narrow physical support probe used when a native moving floor meets static ground. */
+	public float playerBotStaticFloor(int worldId,int instance,float x,float y,float z) {
+		GeoMap map=geoMaps.get(worldId);
+		return map==null?Float.NaN:map.getPlayerBotGroundZ(x,y,z+.2f,z-.2f,instance);
+	}
+	public boolean playerBotClearBodyRay(int worldId,int instance,Vector3f from,Vector3f to){
+		GeoMap map=geoMaps.get(worldId);
+		return map!=null && com.aionemu.gameserver.services.playerbot.PlayerBotGroundNavigation.clearTraversal(map,instance,from,to);
+	}
 	public boolean validatePlayerBotHeightLanding(int worldId,int instance,com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.Plan plan) {
 		return com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.landing(geoMaps.get(worldId),instance,plan);
 	}

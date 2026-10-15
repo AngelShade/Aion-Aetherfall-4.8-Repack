@@ -15,6 +15,8 @@ public final class PlayerBotDecisionIsolationCheck {
  private static int checks;
  private static void check(boolean value,String why){checks++;if(!value)throw new AssertionError(why);}
  public static void main(String[] args)throws Exception {
+  // These inert active-bot fixtures have no native human-presence World.
+  com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS=false;
   var field=sun.misc.Unsafe.class.getDeclaredField("theUnsafe");field.setAccessible(true);
   var unsafe=(sun.misc.Unsafe)field.get(null);
   var service=(PlayerBotService)unsafe.allocateInstance(PlayerBotService.class);

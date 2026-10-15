@@ -3,6 +3,12 @@ package com.aionemu.gameserver.configs.main;
 import com.aionemu.commons.configuration.Property;
 
 public final class PlayerBotConfig {
+ @Property(key = "gameserver.playerbots.navigation.mesh.enable", defaultValue = "true")
+ public static boolean NAVMESH_ENABLED = true;
+ @Property(key = "gameserver.playerbots.navigation.mesh.memory_mb", defaultValue = "768")
+ public static int NAVMESH_MEMORY_MB = 768;
+ @Property(key = "gameserver.playerbots.navigation.mesh.max_queries", defaultValue = "64")
+ public static int NAVMESH_MAX_QUERIES = 64;
  /** Native terrain work is bounded by measured elapsed cost, not population-wide fixed turns. */
  @Property(key = "gameserver.playerbots.navigation.budget_ms_per_second", defaultValue = "500")
  public static int TERRAIN_BUDGET_MS = 500;
@@ -29,6 +35,10 @@ public final class PlayerBotConfig {
 	public static boolean QUEST_FLIGHT = true;
 	@Property(key = "gameserver.playerbots.world.enable", defaultValue = "true")
 	public static boolean WORLD_ENABLED;
+	@Property(key = "gameserver.playerbots.world.only_occupied_maps", defaultValue = "true")
+	public static boolean WORLD_ONLY_OCCUPIED_MAPS = true;
+	@Property(key = "gameserver.playerbots.world.presence_refresh_ms", defaultValue = "1000")
+	public static int WORLD_PRESENCE_REFRESH_MS = 1000;
 	@Property(key = "gameserver.playerbots.world.max_active", defaultValue = "3000")
 	public static int WORLD_MAX_ACTIVE;
 	@Property(key = "gameserver.playerbots.population.enable", defaultValue = "true")

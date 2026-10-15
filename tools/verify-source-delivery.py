@@ -64,6 +64,12 @@ def main():
         assert sha(ROOT / 'tools/quest-handler-inventory.py') == static_evidence['handlerInventoryToolSha256'], 'Native quest inventory tool changed'
     sys.path.insert(0, str(ROOT / 'tools'))
     importlib.import_module('build-manifest').verify(build)
+    if m.get('navigationPackage'):
+        importlib.import_module('navmesh-release').validate(m['navigationPackage'], build, server, installed=True)
+    if m.get('navigationTopology'):
+        importlib.import_module('navmesh-topology-release').validate(m['navigationTopology'], build, server, installed=True)
+    if m.get('navigationAnimated'):
+        importlib.import_module('navmesh-animated-release').validate(m['navigationAnimated'], build, server, installed=True)
     documentation = None
     if args.documentation:
         docs = importlib.import_module('document-playerbot-config')

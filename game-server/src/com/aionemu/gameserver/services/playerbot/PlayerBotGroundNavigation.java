@@ -87,7 +87,7 @@ public final class PlayerBotGroundNavigation {
 		return false;
 	}
 
-	static boolean clearTraversal(GeoMap map,int instance,Vector3f from,Vector3f to) { return clear(map,instance,from,to); }
+	public static boolean clearTraversal(GeoMap map,int instance,Vector3f from,Vector3f to) { return clear(map,instance,from,to); }
 	private static boolean clear(GeoMap map, int instance, Vector3f from, Vector3f to) {
 		if (from.distance(to) < 0.001f) return true;
 		for (CollisionResult hit : map.getPlayerBotCollisions(from, to.x, to.y, to.z, instance, CollisionIntention.DEFAULT_COLLISIONS.getId(), IgnoreProperties.ANY_RACE)) {

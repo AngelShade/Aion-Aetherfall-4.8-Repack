@@ -60,9 +60,15 @@ public final class PlayerBotSession {
 	private PlayerBotNavigation.Point guardPosition;
 	private volatile String status = "ready";
  private volatile boolean supporting;
+ private volatile boolean worldDormant;
+ private boolean worldSleepRequested;
+ boolean dormant(){return worldDormant;}
+ boolean activityTransition(){return worldDormant && PlayerBotWorldActivity.allowed(this) || !worldDormant && !PlayerBotWorldActivity.allowed(this);}
+ boolean needsDecision(){return !worldDormant || PlayerBotWorldActivity.allowed(this) || settlingCombat();}
  private final int idleReaction=java.util.concurrent.ThreadLocalRandom.current().nextInt(10,31);
  private final PlayerBotMovementCadence movementCadence=new PlayerBotMovementCadence();
  long reactionDelay(){
+  if(activityTransition())return worldSleepRequested && !worldDormant?500:100;
   if(forcedFollow!=null && forcedFollow())return 100;
   if(navigation!=null && navigation.waitingForSearchTurn() || pets!=null && pets.waitingForSearchTurn())return 100;
   boolean resting=bot.isInState(CreatureState.RESTING);
@@ -108,6 +114,7 @@ public final class PlayerBotSession {
 		state.put("playerClass", bot.getPlayerClass().name()); state.put("role", role.name()); state.put("order", order.name());
 		state.put("health", Math.round(hp(bot))); state.put("mana", Math.round(mp(bot))); state.put("dead", bot.isDead());
 		state.put("closing", closing); state.put("status", status); state.put("action", engine.getLastAction());
+		state.put("dormant",worldDormant);
 		state.put("forcedFollow", forcedFollow());
 		state.put("mission", mission == null ? 0 : mission.quest); state.put("missionStatus", mission == null ? "" : mission.status());
 		state.put("area", areaSkills); state.put("supplies", consumables); state.put("gear", (generated || world()) && autoGear); state.put("loot", autoLoot); state.put("questing", questing);
@@ -239,8 +246,12 @@ public final class PlayerBotSession {
 	}
 
 	synchronized boolean allowsEnemy(Npc npc) {
-		return !closing && !forcedFollow() && (autonomous() || bot.getCurrentTeam() != null) && validEnemy(npc, party(), explicitTarget(npc));
+		return !closing && !forcedFollow() && (autonomous() || bot.getCurrentTeam() != null)
+			&& (!worldSleepRequested || settlingEnemy(npc)) && validEnemy(npc, party(), explicitTarget(npc));
 	}
+	private boolean settlingEnemy(Npc npc){var pet=bot.getSummon();return bot.getTarget()==npc
+		|| bot.getAggroList().stream().anyMatch(a->a.getAttacker()==npc && a.getHate()>0)
+		|| pet!=null && (pet.getTarget()==npc || pet.getAggroList().stream().anyMatch(a->a.getAttacker()==npc && a.getHate()>0));}
 
 	public synchronized String describe() {
 		return bot.getName() + " Lv" + bot.getLevel() + " " + bot.getPlayerClass() + " / " + role + " / " + order
@@ -251,8 +262,50 @@ public final class PlayerBotSession {
 	}
 
 	void preparePopulationPlacement() { navigation.stop(); pets.stop(bot); PlayerBotArbitration.clear(engine); PlayerBotQuestRoutes.close(bot); PlayerBotWorldActivities.close(bot); bot.setTarget(null); }
+	private boolean settlingCombat(){
+		if(bot.isDead())return false;
+		var pet=bot.getSummon();
+		return bot.getController().isInCombat()
+			|| bot.getAggroList().stream().anyMatch(a->a.getHate()>0 && !a.getAttacker().isDead() && a.getAttacker().isSpawned()
+			 && a.getAttacker().getWorldId()==bot.getWorldId() && a.getAttacker().getInstanceId()==bot.getInstanceId())
+			|| pet!=null && pet.isSpawned() && !pet.isDead() && (pet.getTarget() instanceof Npc enemy && enemy.isSpawned() && !enemy.isDead()
+			 && pet.getMode()==com.aionemu.gameserver.model.summons.SummonMode.ATTACK
+			 || pet.getAggroList().stream().anyMatch(a->a.getHate()>0 && !a.getAttacker().isDead() && a.getAttacker().isSpawned()));
+	}
+
+	/** Stop autonomous admission immediately; native combat, transport and paid work retain completion custody. */
+	private boolean worldActivity() {
+		if(PlayerBotWorldActivity.allowed(this)) {
+			if(worldDormant || worldSleepRequested){PlayerBotQuestCraftingDriver.resume(bot);worldDormant=worldSleepRequested=false;nextDecision=0;status="resuming activity on occupied map";}
+			return true;
+		}
+		if(!worldSleepRequested) {
+			worldSleepRequested=true;navigation.stop();PlayerBotWorldActivities.close(bot);
+		}
+		var pet=bot.getSummon();
+		if(settlingCombat()){if(worldDormant)PlayerBotQuestCraftingDriver.resume(bot);worldDormant=false;return true;}
+		status="settling native action before map dormancy";
+		if(pet!=null && pet.isSpawned() && !pet.isDead() && pet.isCasting())return false;
+		if(PlayerBotHeadlessFlight.tick(bot) || bot.isUsingFlightTransporterOrWindstream())return false;
+		if(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController move
+			&& (move.traversingHeight() || move.ridingPlatform()))return false;
+		if(PlayerBotTrade.tick(this) || bot.isTrading() || bot.isCasting()
+			|| bot.getController().hasScheduledTask(com.aionemu.gameserver.model.TaskId.ITEM_USE)
+			|| bot.getController().hasScheduledTask(com.aionemu.gameserver.model.TaskId.ACTION_ITEM_NPC)
+			|| bot.getInteractionTask()!=null && bot.getInteractionTask().isInProgress())return false;
+		if(PlayerBotQuestMaterials.flightPending(this)){PlayerBotQuestMaterials.settleFlight(this,navigation);return false;}
+		if(PlayerBotQuestObjects.pending(bot)){PlayerBotQuestObjects.tick(this,navigation,false,true);return false;}
+		if(bot.isLooting())com.aionemu.gameserver.services.drop.DropService.getInstance().closeDropList(bot,bot.getLootingNpcOid());
+		navigation.stop();pets.stop(bot);cancelCharge();PlayerBotArbitration.clear(engine);
+		PlayerBotRecoveryIntent.clear(bot);PlayerBotWorldActivities.close(bot);PlayerBotQuestRoutes.close(bot);
+		PlayerBotQuestObjects.close(bot);PlayerBotQuestCraftingDriver.suspend(bot);PlayerBotQuestMaterials.close(bot);
+		PlayerBotSteelRake.close(bot);bot.setTarget(null);questTarget=0;supporting=false;
+		worldDormant=true;status="dormant: no human player on this map/instance";
+		return false;
+	}
 	synchronized boolean tick() {
 		if (closing) return true;
+		if(!worldActivity())return true;
 		PlayerBotArbitration.context(engine, List.of(owner.getWorldId(), owner.getInstanceId(),
 			bot.getWorldId(), bot.getInstanceId(), owner.isSpawned(), bot.isSpawned(), owner.isDead(), bot.isDead(),
 			owner.isFlying(), bot.isFlying(), role, order, commandedTarget, mission == null ? 0 : mission.quest,
@@ -279,7 +332,7 @@ public final class PlayerBotSession {
 		}
 		ownerTransferStarted = 0;
 		PlayerBotWeaponStance.idle(bot,nextDecision);
-		if (world()) PlayerBotWorldActivities.maintenance(this);
+		if (world() && !worldSleepRequested) PlayerBotWorldActivities.maintenance(this);
 		if (!autonomous()) PlayerBotRecovery.tick(this);
 		if (!PlayerBotRevival.ready(bot)) {
 			if (bot.isDead()) PlayerBotRecoveryIntent.clear(bot);
@@ -320,12 +373,12 @@ public final class PlayerBotSession {
 		if (!autonomous()) PlayerBotFlight.synchronize(owner, bot, order);
 		if (forcedFollow() && withdrawToOwner(now)) return true;
 		PlayerBotGearPolicy.state(this);
-		PlayerBotTemporary.tick(this,autoGear);
+		if(!worldSleepRequested)PlayerBotTemporary.tick(this,autoGear);
 		// PB-CUSTOM-APPEARANCE-001 is staged only. Add its tick hook with the
 		// complete feature installation, never through an unrelated AI update.
 		loot.passRoll(bot);
 		if (!world()) PlayerBotPartyCompletion.tick(this);
-		boolean questEnabled=questing && com.aionemu.gameserver.configs.main.PlayerBotConfig.QUESTS_ENABLED;
+		boolean questEnabled=!worldSleepRequested && questing && com.aionemu.gameserver.configs.main.PlayerBotConfig.QUESTS_ENABLED;
 		PlayerBotQuestSync.tick(this, questEnabled);
 		PlayerBotCare.observe(this);
 		if (mission != null && mission.ended(bot, now)) {
@@ -347,7 +400,7 @@ public final class PlayerBotSession {
   if(!bot.isCasting())supporting=supportNeeded;
 		List<Npc> enemies = new ArrayList<>();
 		bot.getKnownList().forEachNpc(npc -> {
-			if (validEnemy(npc, party, explicitTarget(npc))) enemies.add(npc);
+			if ((!worldSleepRequested || settlingEnemy(npc)) && validEnemy(npc, party, explicitTarget(npc))) enemies.add(npc);
 		});
 		boolean materialFlight=PlayerBotQuestMaterials.flightPending(this);
 		boolean questCommitmentSafe = questing && !supportNeeded && order == Order.FOLLOW && !incapacitated && !owner.isDead()
@@ -359,19 +412,19 @@ public final class PlayerBotSession {
 		// Observe admitted native object work before travel or another action can
 		// replace its task. Feature switches stop admission, not earned completion.
 		if (PlayerBotQuestObjects.pending(bot) && PlayerBotQuestObjects.tick(this,navigation,questActionsAllowed,questCommitmentSafe)) { PlayerBotWorldActivities.interacting(bot);status="finishing native quest object";return true; }
-		if (autonomous() && !materialFlight && enemies.isEmpty() && !supportNeeded && !incapacitated && PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot)) && PlayerBotService.getInstance().placePopulation(this)) { status="entering a level-appropriate population destination"; return true; }
-		if (autonomous() && !materialFlight && enemies.isEmpty() && !supportNeeded && !bot.isCasting() && !incapacitated && PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot)) && PlayerBotWorldAscension.tick(this,navigation)) { status="advancing native Ascension quest"; return true; }
+		if (autonomous() && !worldSleepRequested && !materialFlight && enemies.isEmpty() && !supportNeeded && !incapacitated && PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot)) && PlayerBotService.getInstance().placePopulation(this)) { status="entering a level-appropriate population destination"; return true; }
+		if (autonomous() && !worldSleepRequested && !materialFlight && enemies.isEmpty() && !supportNeeded && !bot.isCasting() && !incapacitated && PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot)) && PlayerBotWorldAscension.tick(this,navigation)) { status="advancing native Ascension quest"; return true; }
 		// NPC interaction keeps native combat restrictions. Choosing the next
 		// field fight does not wait for that ten-second post-attack timer.
 		boolean fieldPullAllowed = !supportNeeded && fieldPullAllowed();
 		PlayerBotQuestObjectives.prepare(this,questActionsAllowed && enemies.isEmpty() && !(!autonomous() && owner.getMoveController().isInMove()),mission!=null);
 		if (PlayerBotQuestItems.finish(owner,bot,questEnabled && order==Order.FOLLOW && !incapacitated && !bot.isCasting())) { status="advancing an owned item quest"; return true; }
 		if (enemies.isEmpty() && PlayerBotQuestActions.tickObjects(this,navigation,questActionsAllowed)) { status="using a native quest trigger"; return true; }
-		if (enemies.isEmpty() && PlayerBotQuestConversations.tick(this,navigation,questActionsAllowed)) { PlayerBotWorldActivities.interacting(bot);status="advancing an intermediate quest conversation"; return true; }
+		if (enemies.isEmpty() && PlayerBotQuestConversations.tick(this,navigation,questActionsAllowed)) { status="advancing an intermediate quest conversation"; return true; }
 		var questJob = enemies.isEmpty() && questActionsAllowed ? quests.choose(owner, bot) : null;
 		if (PlayerBotQuestObjects.tick(this, navigation, questActionsAllowed && questJob == null)) { PlayerBotWorldActivities.interacting(bot);status = "collecting quest object"; return true; }
 		if (enemies.isEmpty() && questActionsAllowed && mission != null) questJob = quests.missionReward(owner, bot, mission.quest);
-		if(!enemies.isEmpty() || questJob!=null || bot.isLooting())PlayerBotWorldActivities.interacting(bot);
+		if(!enemies.isEmpty() || bot.isLooting())PlayerBotWorldActivities.interacting(bot);
 		Npc fieldPull = null;
 		if (enemies.isEmpty()) {
 			questTarget = 0;
@@ -480,7 +533,12 @@ public final class PlayerBotSession {
 				@Override public boolean isPossible() { return order == Order.FOLLOW && !bot.isCasting() && !bot.isLooting(); }
 				@Override public List<Action> prerequisites() { return !PositionUtil.isInTalkRange(bot, job.npc()) || !GeoService.getInstance().canSee(bot, job.npc())
 					? List.of(new ReachAction(job.npc(), 2)) : List.of(); }
-				@Override public boolean execute() { navigation.stop(); stand(); return quests.interact(owner, bot, job, role, mission != null && job.quest() == mission.quest); }
+				@Override public boolean execute() {
+					navigation.pause(); stand();
+					boolean changed=quests.interact(owner, bot, job, role, mission != null && job.quest() == mission.quest);
+					if(changed)PlayerBotWorldActivities.interacting(bot);
+					return changed;
+				}
 			}, DEFAULT + 3));
 		}
 		triggers = strategyPlan.triggers("loot", State.NON_COMBAT);
@@ -496,9 +554,15 @@ public final class PlayerBotSession {
 			}, DEFAULT + 2));
 		}
 		triggers = strategyPlan.triggers("rest", State.NON_COMBAT);
-		if (rest && !incapacitated && !bot.isInRobotMode() && !bot.isFlying())
+		if (rest && !incapacitated && !bot.isFlying())
 			triggers.add(trigger(new SimpleAction("rest and recover", () -> !bot.isCasting() && !bot.getController().isUnderStance(), () -> {
-				navigation.stop();
+				navigation.pause();
+				// Native buff cancellation owns the robot's dismount and dependent
+				// effects. Recovery cannot wait standing until the mode expires.
+				if(bot.isInRobotMode())for(var effect:bot.getEffectController().getAbnormalEffects())
+					if(effect.getSkillSubType()!=com.aionemu.gameserver.skillengine.model.SkillSubType.DEBUFF
+						&& effect.getSkillTemplate().hasAnyEffect(com.aionemu.gameserver.skillengine.effect.EffectType.RIDEROBOT))effect.endEffect();
+				if(bot.isInRobotMode())return false;
 				if (!bot.isInState(CreatureState.RESTING)) {
 					bot.getObserveController().notifySitObservers();
 					bot.setState(CreatureState.RESTING);
@@ -514,7 +578,7 @@ public final class PlayerBotSession {
 			nextGearCheck = now + 5000;
 			for (var upgrade : PlayerBotEquipment.upgrades(bot, role))
 				triggers.add(trigger(new SimpleAction("equip upgrade " + upgrade.item().getItemId(), () -> !bot.isCasting(), () -> {
-					navigation.stop();
+					navigation.pause();
 					if (!PlayerBotGearPolicy.equip(this, upgrade)) return false;
 					nextSkillRefresh = 0; nextGearCheck = 0;
 					return true;
@@ -612,7 +676,7 @@ public final class PlayerBotSession {
 		if (!incapacitated && !combat && order == Order.GUARD && guardPosition != null)
 			strategyPlan.defaults("follow and guard", new SimpleAction("return to guard", () -> PositionUtil.getDistance(bot, guardPosition.x(), guardPosition.y(), guardPosition.z()) > 2,
 				() -> navigation.move(guardPosition.x(), guardPosition.y(), guardPosition.z())), DEFAULT, State.NON_COMBAT);
-		if (autonomous() && !combat && !rest && !incapacitated && order == Order.FOLLOW) {
+		if (autonomous() && !worldSleepRequested && !combat && !rest && !incapacitated && order == Order.FOLLOW) {
 			strategyPlan.defaults("world economy", new SimpleAction("sell surplus gear", () -> true, () -> PlayerBotWorldActivities.sell(this,navigation)), DEFAULT, State.NON_COMBAT);
 			strategyPlan.defaults("world travel", new SimpleAction("travel to quest destination", () -> true, () -> PlayerBotWorldActivities.travel(this,navigation)), DEFAULT - 2, State.NON_COMBAT);
 		}
@@ -658,7 +722,7 @@ public final class PlayerBotSession {
 	}
 
 	private boolean fieldPullAllowed() {
-		return !closing && autonomous() && order==Order.FOLLOW && bot.isSpawned() && !bot.isDead() && !bot.isFlying()
+		return !closing && !worldSleepRequested && autonomous() && order==Order.FOLLOW && bot.isSpawned() && !bot.isDead() && !bot.isFlying()
 			&& (bot.canAttack() || bot.isInState(CreatureState.RESTING)) && !bot.isCasting() && !bot.isLooting() && !bot.isTrading()
 			&& PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot));
 	}
@@ -763,7 +827,7 @@ public final class PlayerBotSession {
 		};
 		return switch (e.kind()) {
 			case SUMMON -> !combat && bot.getSummon() == null ? bot : null;
-			case MODE -> !bot.isInRobotMode() && bot.getEquipment().getMainHandWeapon() != null
+			case MODE -> !PlayerBotRecoveryIntent.active(bot) && !bot.isInRobotMode() && bot.getEquipment().getMainHandWeapon() != null
 				&& bot.getEquipment().getMainHandWeapon().getItemSkinTemplate().getRobotId() > 0 ? bot : null;
 			case RECOVERY -> bot.getEffectController().isInAnyAbnormalState(AbnormalState.CANT_ATTACK_STATE)
 				|| bot.getEffectController().isInAnyAbnormalState(AbnormalState.CANT_MOVE_STATE) ? bot : null;
@@ -931,7 +995,8 @@ public final class PlayerBotSession {
 				if (!PlayerBotSkills.canPlan(bot, entry, recipient)) return false;
 				if (recipient != bot && (!PositionUtil.isInRange(bot, recipient, entry.range(),false) || !GeoService.getInstance().canSee(bot, recipient))) return false;
 				boolean peeling = PlayerBotDefense.peelPriority(bot, role, entry, recipient) > 0;
-				navigation.stop(); stand(); bot.setTarget(recipient);
+				if(recipient==bot && !bot.getController().isInCombat())navigation.pause();else navigation.stop();
+				stand(); bot.setTarget(recipient);
 				Skill skill = SkillEngine.getInstance().getSkillFor(bot, entry.template(), recipient);
 				if (skill == null || !PlayerRestrictions.canUseSkill(bot, skill)) return false;
 				skill.setTargetType(entry.template().getProperties().getFirstTarget() == FirstTargetAttribute.POINT ? 1 : 0,

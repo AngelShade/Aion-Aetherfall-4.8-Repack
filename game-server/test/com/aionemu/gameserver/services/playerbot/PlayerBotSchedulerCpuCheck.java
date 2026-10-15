@@ -55,6 +55,8 @@ public final class PlayerBotSchedulerCpuCheck {
   check(mixed.oldest().id()==50,"backlog oldest tie retains original controlled-first ordering");
  }
  @SuppressWarnings("unchecked") private static void actualPass(Unsafe unsafe,int count)throws Exception {
+  // Presence is already observed for this isolated scheduler pass; do not initialize the native World.
+  var presence=field(PlayerBotWorldActivity.class,"nextObservation");long previousObservation=presence.getLong(null);presence.setLong(null,Long.MAX_VALUE);
   var constructor=PlayerBotService.class.getDeclaredConstructor();constructor.setAccessible(true);var service=constructor.newInstance();
   field(PlayerBotService.class,"nextAiMaintenance").setLong(service,Long.MAX_VALUE);
   field(PlayerBotService.class,"nextDecisionLagReport").setLong(service,Long.MAX_VALUE);
@@ -96,7 +98,7 @@ public final class PlayerBotSchedulerCpuCheck {
    check(pass.ready().isEmpty() && pass.earliest(lane->!lane.busy())==21000,"actual free idle lane retains the original1000ms native reaction");
    int reads=actors.stream().mapToInt(a->a.stateReads).sum();pass.earliest(lane->!lane.busy());pass.ready();
    check(actors.stream().mapToInt(a->a.stateReads).sum()==reads,"dispatch and earliest inspection reuse captured state instead of rescanning actors");
-  }finally{execution.complete(3);lanes.forEach(PlayerBotBackgroundWork::close);held.forEach(Runnable::run);for(var lane:lanes)lane.awaitCompletion();}
+  }finally{presence.setLong(null,previousObservation);execution.complete(3);lanes.forEach(PlayerBotBackgroundWork::close);held.forEach(Runnable::run);for(var lane:lanes)lane.awaitCompletion();}
  }
  private static void nomination() {
   var clock=new BudgetClock();var budget=new PlayerBotNavigationBudget(clock,500,3,2);int initial=clock.reads;
@@ -110,6 +112,8 @@ public final class PlayerBotSchedulerCpuCheck {
   check(!budget.nominated(second)&&clock.reads==before,"cancelled intent takes the same allocation-free absent path");
  }
  public static void main(String[] args)throws Exception {
+  // These inert active-bot fixtures have no native human-presence World.
+  com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS=false;
   purePass();var f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);var unsafe=(Unsafe)f.get(null);
   for(int population:new int[]{250,1000,3000})actualPass(unsafe,population);
   nomination();System.out.println("OK: "+checks+" actual scheduler eligibility, single-pass reaction, lane saturation, deadlines and empty terrain checks; no World/IDs/SQL/native tasks");

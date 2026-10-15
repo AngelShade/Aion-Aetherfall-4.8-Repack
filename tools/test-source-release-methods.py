@@ -97,7 +97,7 @@ class MethodPreservationCheck(unittest.TestCase):
     def test_navigation_and_feature_settings_have_documented_unique_homes(self):
         catalogue = configuration.source_catalogue()
         navigation = configuration.properties(configuration.NAVIGATION_SOURCE.read_text())
-        self.assertEqual(len(navigation), 4)
+        self.assertEqual(len(navigation), 7)
         self.assertTrue(all(key.startswith('gameserver.playerbots.navigation.') for key in navigation))
         self.assertTrue(set(navigation) <= set(catalogue))
         self.assertEqual(delivery.OWNER_CONFIGURATIONS, {delivery.FEATURE_CONFIGURATION, delivery.NAVIGATION_CONFIGURATION, delivery.PLAYERBOT_CONFIGURATION})

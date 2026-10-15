@@ -25,6 +25,7 @@ final class PlayerBotQuestCraftingDriver {
  private record Retry(long since,int count,long next) {}
  private static final Map<Integer,Observed> OBSERVED=new ConcurrentHashMap<>();
  private static final Map<Integer,Failed> FAILED=new ConcurrentHashMap<>();
+ private static final Map<Integer,Long> SUSPENDED=new ConcurrentHashMap<>();
  private static final Map<Integer,Retry> RETRIES=new ConcurrentHashMap<>();
  private record Snapshot(long next,long fingerprint,List<Need> needs,Set<Integer> protectedItems) {}
  private static final Map<Integer,Snapshot> SNAPSHOTS=new ConcurrentHashMap<>();
@@ -238,15 +239,25 @@ final class PlayerBotQuestCraftingDriver {
   }
   // Companions respect the owner scope; only autonomous actors travel across maps.
   if(!session.world())return false;
-  var destination=places(wanted).stream().filter(p->Double.isFinite(PlayerBotWorldTravel.distance(bot,p))).min(Comparator.comparingDouble(p->PlayerBotWorldTravel.distance(bot,p))).orElse(null);
-  if(destination!=null){long now=System.currentTimeMillis();double distance=PlayerBotWorldTravel.distance(bot,destination);var route=ROUTES.get(bot.getObjectId());
+  var decision=new PlayerBotWorldTravel.Decision(bot);
+  var destination=places(wanted).stream().filter(p->Double.isFinite(decision.distance(p))).min(Comparator.comparingDouble(decision::distance)).orElse(null);
+  if(destination!=null){long now=System.currentTimeMillis();double distance=decision.distance(destination);var route=ROUTES.get(bot.getObjectId());
    if(route==null || !route.need().equals(key(wanted)) || !route.destination().equals(destination))route=new Route(key(wanted),destination,now,distance);
    if(distance+1<route.best())route=new Route(route.need(),route.destination(),now,distance);ROUTES.put(bot.getObjectId(),route);
    if(distance<=4 || now-route.progress()>30000){exclude(bot,wanted);ROUTES.remove(bot.getObjectId());return false;}
   }
-  boolean moved=destination!=null && PlayerBotWorldTravel.move(bot,destination,navigation);if(!moved)exclude(bot,wanted);return moved;
+  boolean moved=destination!=null && decision.move(destination,navigation);if(!moved)exclude(bot,wanted);return moved;
  }
  private static boolean current(PlayerBotSession session,Need need){invalidate(session.bot());return admitted(need) && requests(session).contains(need);}
- static void close(Player bot){OBSERVED.remove(bot.getObjectId());FAILED.remove(bot.getObjectId());RETRIES.remove(bot.getObjectId());SNAPSHOTS.remove(bot.getObjectId());EXCLUDED.remove(bot.getObjectId());ROUTES.remove(bot.getObjectId());}
+ /** A map sleep releases travel intent without losing observation of an already paid craft. */
+ static void suspend(Player bot){observe(bot);SUSPENDED.putIfAbsent(bot.getObjectId(),System.currentTimeMillis());SNAPSHOTS.remove(bot.getObjectId());ROUTES.remove(bot.getObjectId());}
+ /** Known map-sleep time does not make an earned outcome stale; ordinary active-age guards remain. */
+ static void resume(Player bot){
+  int id=bot.getObjectId();Long since=SUSPENDED.remove(id);if(since==null)return;
+  long elapsed=Math.max(0,System.currentTimeMillis()-since);
+  FAILED.computeIfPresent(id,(key,value)->new Failed(value.quest(),value.ended()+elapsed));
+  OBSERVED.computeIfPresent(id,(key,value)->new Observed(value.quest(),value.task(),value.products(),value.started()+elapsed,value.consumed()));
+ }
+ static void close(Player bot){SUSPENDED.remove(bot.getObjectId());OBSERVED.remove(bot.getObjectId());FAILED.remove(bot.getObjectId());RETRIES.remove(bot.getObjectId());SNAPSHOTS.remove(bot.getObjectId());EXCLUDED.remove(bot.getObjectId());ROUTES.remove(bot.getObjectId());}
  private PlayerBotQuestCraftingDriver() {}
 }

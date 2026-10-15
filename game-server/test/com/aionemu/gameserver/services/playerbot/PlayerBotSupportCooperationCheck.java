@@ -67,6 +67,8 @@ public final class PlayerBotSupportCooperationCheck {
   return (Action)c.newInstance(s,entry(id),target,List.of());
  }
  public static void main(String[] args)throws Exception {
+  // These inert active-bot fixtures have no native human-presence World.
+  com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS=false;
   var field=Unsafe.class.getDeclaredField("theUnsafe");field.setAccessible(true);unsafe=(Unsafe)field.get(null);
   data=(SkillData)JAXBContext.newInstance(SkillData.class).createUnmarshaller().unmarshal(new StringReader("""
    <skill_data>

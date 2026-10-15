@@ -810,6 +810,9 @@
 			<finished quest_id="1092"/>
 		</start_conditions>
 		<class_permitted>WARRIOR SCOUT MAGE PRIEST ENGINEER ARTIST GLADIATOR TEMPLAR ASSASSIN RANGER SORCERER SPIRIT_MASTER CHANTER CLERIC GUNNER BARD</class_permitted>
+		<quest_work_items>
+			<quest_work_item item_id="182208013"/>
+		</quest_work_items>
 	</quest>
 	<quest id="1094" name="Project Drakanhammer" nameId="1102133" quest_zone="Theobomos" minlevel_permitted="46" max_repeat_count="1" cannot_share="true" cannot_giveup="true" race_permitted="ELYOS" category="MISSION">
 		<collect_items>
@@ -829,6 +832,9 @@
 			<finished quest_id="1093"/>
 		</start_conditions>
 		<class_permitted>WARRIOR SCOUT MAGE PRIEST ENGINEER ARTIST GLADIATOR TEMPLAR ASSASSIN RANGER SORCERER SPIRIT_MASTER CHANTER CLERIC GUNNER BARD</class_permitted>
+		<quest_work_items>
+			<quest_work_item item_id="182208017"/>
+		</quest_work_items>
 	</quest>
 	<quest id="1096" name="A Past Mission" nameId="1102134" quest_zone="The Hidden Truth Mission" minlevel_permitted="50" max_repeat_count="1" cannot_share="true" cannot_giveup="true" race_permitted="ELYOS" category="MISSION">
 		<rewards exp="795917"/>

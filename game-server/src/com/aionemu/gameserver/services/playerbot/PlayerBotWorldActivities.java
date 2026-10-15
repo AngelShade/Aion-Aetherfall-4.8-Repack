@@ -96,7 +96,7 @@ final class PlayerBotWorldActivities {
  static void interacting(Player bot){var s=STATES.get(bot.getObjectId());if(s!=null)s.noActivitySince=0;}
  /** A selected native journey owns optional preparation until arrival. Vendor
   * work is separate; native quest dependencies remain the caller's authority. */
- static boolean committedTravel(Player bot){var s=STATES.get(bot.getObjectId());return s!=null && s.goal!=null && PlayerBotWorldTravel.distance(bot,s.goal.place())>6;}
+ static boolean committedTravel(Player bot){var s=STATES.get(bot.getObjectId());if(s==null || s.goal==null)return false;var p=s.goal.place();return bot.getWorldId()!=p.map() || PositionUtil.getDistance(bot,p.x(),p.y(),p.z())>6;}
  static boolean questTravel(Player bot){var s=STATES.get(bot.getObjectId());return s!=null && s.goal!=null && (s.goal.quest()!=0 || s.goal.kind()!=PlayerBotQuestRoutes.Kind.HUNT);}
  static boolean grindTravel(Player bot){var s=STATES.get(bot.getObjectId());return s!=null && s.goal!=null && s.goal.quest()==0 && s.goal.kind()==PlayerBotQuestRoutes.Kind.HUNT;}
  static void close(Player bot){var s=STATES.remove(bot.getObjectId());if(s!=null)synchronized(s){goal(s,null);s.closed=true;}}

@@ -25,6 +25,14 @@ final class PlayerBotWorldPlacement {
  }
  record Spawn(int npc,float x,float y,float z,int level,boolean hub,boolean city) {}
  private static List<Location> cache;
+ record Selection(Location location,String reason,int checked,boolean exhausted){}
+ // Bounded native faction/level keys retain scan position across deferred admissions.
+ private static final class Scan {
+  Set<Location> candidates=Set.of();final Set<Location> tested=new HashSet<>();
+  List<Location> nearby=List.of();int anchor;final int[] step={0};
+  void reset(){tested.clear();nearby=List.of();anchor=step[0]=0;}
+ }
+ private static final Map<String,Scan> admissionCursor=new HashMap<>();
  private static final Map<String,Map<Integer,List<Location>>> FOCUS_CHOICES=new java.util.concurrent.ConcurrentHashMap<>();
  private static Map<Integer,List<Location>> focusCandidates(Race race,int level) {
   return FOCUS_CHOICES.computeIfAbsent(race+":"+level,k->{
@@ -187,6 +195,12 @@ final class PlayerBotWorldPlacement {
   return destination(race,level,cityPercent,rng,Set.of());
  }
  private static Location destination(Race race,int level,int cityPercent,RandomGenerator rng,Set<Integer> focusMaps) {
+  return chooseDestination(race,level,cityPercent,rng,focusMaps).location();
+ }
+ static Selection chooseDestination(Race race,int level,int cityPercent,RandomGenerator rng){
+  return chooseDestination(race,level,cityPercent,rng,Set.of());
+ }
+ private static Selection chooseDestination(Race race,int level,int cityPercent,RandomGenerator rng,Set<Integer> focusMaps) {
   var enabled=PlayerBotConfig.POPULATION_MAPS;
   var players=World.getInstance().getAllPlayers();var focus=PlayerBotPopulationFocus.capture(players);
   var choices=focus.active()?focusChoices(race,level,focus,rng):select(locations(),race,level,enabled,Set.of(),false,cityPercent,rng);
@@ -199,21 +213,36 @@ final class PlayerBotWorldPlacement {
   var positions=new ArrayList<PlayerBotCampDistribution.Position>();
   for(var p:players)if(p.isPlayerBot() && p.isSpawned() && p.getInstanceId()==1)positions.add(new PlayerBotCampDistribution.Position(p.getWorldId(),p.getX(),p.getY(),p.getZ()));
   var distribution=new PlayerBotCampDistribution(positions);preferred=distribution.prefer(preferred,counts);
+  if(preferred.isEmpty())return new Selection(null,"no native faction/level camps on the current enabled focus maps",0,true);
+  Scan scan;String scanKey=race+":"+level;
+  synchronized(admissionCursor){scan=admissionCursor.computeIfAbsent(scanKey,key->new Scan());}
+  // The old primary anchor loop was unbounded; the 20ms limit applied only afterwards.
+  // Retain only a bounded sweep cursor, never native floor/occupancy/visibility results.
+  synchronized(scan){
+  var membership=Set.copyOf(preferred);
+  if(!scan.candidates.equals(membership)){scan.reset();scan.candidates=membership;}
+  int checked=0;long deadline=System.nanoTime()+20_000_000;
   for(var p:preferred) {
+   if(scan.tested.contains(p))continue;
+   if(checked>=128 || System.nanoTime()>=deadline)break;
+   scan.tested.add(p);checked++;
    var map=DataManager.WORLD_MAPS_DATA.getTemplate(p.map());if(!mapEligible(map,race,enabled) || nearHuman(p.map(),p.x(),p.y(),p.z()))continue;
    float z=GeoService.getInstance().getZ(p.map(),p.x(),p.y(),p.z()+2,p.z()-4,1);
    if(!ground(map,p.x(),p.y(),p.z(),z) || !distribution.clear(p.map(),p.x(),p.y(),z) || !GeoService.getInstance().isPlayerBotLanding(p.map(),1,p.x(),p.y(),z))continue;
    var worldMap=World.getInstance().getWorldMap(p.map());
    if(worldMap==null || worldMap.getMainWorldMapInstance().getRegion(p.x(),p.y(),z)==null)continue;
    if(occupiedLanding(p.map(),p.x(),p.y(),z))continue;
-   return new Location(p.race(),p.map(),p.x(),p.y(),z,p.minimum(),p.maximum(),p.city(),p.hub());
+   scan.reset();return new Selection(new Location(p.race(),p.map(),p.x(),p.y(),z,p.minimum(),p.maximum(),p.city(),p.hub()),"validated native camp",checked,false);
   }
+  if(scan.tested.size()<membership.size())return new Selection(null,"native camp scan deferred at its work budget; next admission continues",checked,false);
   // Native spawns can sit against a tree/column or in a narrow actor gap.
   // Exhaust the original anchors first, then bound nearby probes so an
   // unsuitable map cannot turn admission into an unbounded geometry job.
-  int[] probes={0};long deadline=System.nanoTime()+20_000_000;
-  for(var p:preferred) {
-   var map=DataManager.WORLD_MAPS_DATA.getTemplate(p.map());if(!mapEligible(map,race,enabled))continue;
+  int[] probes={checked};
+  if(scan.nearby.isEmpty())scan.nearby=List.copyOf(preferred);
+  while(scan.anchor<scan.nearby.size()) {
+   var p=scan.nearby.get(scan.anchor);
+   var map=DataManager.WORLD_MAPS_DATA.getTemplate(p.map());if(!mapEligible(map,race,enabled)){scan.anchor++;scan.step[0]=0;continue;}
    var point=PlayerBotCampLanding.nearby(new PlayerBotNavigation.Point(p.x(),p.y(),p.z()),new PlayerBotCampLanding.Ground(){
     public float height(float x,float y,float sourceZ){return GeoService.getInstance().getZ(p.map(),x,y,sourceZ+2,sourceZ-4,1);}
     public boolean safe(PlayerBotNavigation.Point point){
@@ -223,11 +252,20 @@ final class PlayerBotWorldPlacement {
       && worldMap!=null && worldMap.getMainWorldMapInstance().getRegion(point.x(),point.y(),point.z())!=null
       && GeoService.getInstance().isPlayerBotLanding(p.map(),1,point.x(),point.y(),point.z()) && !occupiedLanding(p.map(),point.x(),point.y(),point.z());
     }
-   },()->probes[0]++>=128 || System.nanoTime()>=deadline);
-   if(point!=null)return new Location(p.race(),p.map(),point.x(),point.y(),point.z(),p.minimum(),p.maximum(),p.city(),p.hub());
+   },scan.step,()->{if(probes[0]>=128 || System.nanoTime()>=deadline)return true;probes[0]++;return false;});
+   if(point!=null){scan.reset();return new Selection(new Location(p.race(),p.map(),point.x(),point.y(),point.z(),p.minimum(),p.maximum(),p.city(),p.hub()),"validated nearby native camp",probes[0],false);}
+   if(scan.step[0]>=16){scan.anchor++;scan.step[0]=0;}
    if(probes[0]>=128 || System.nanoTime()>=deadline)break;
   }
-  return null;
+  boolean exhausted=scan.anchor>=scan.nearby.size();if(exhausted)scan.reset();
+  return new Selection(null,exhausted?"current native camps rejected by ground, visibility or occupancy guards":"nearby native camp scan deferred at its work budget; next admission continues",probes[0],exhausted);
+  }
+ }
+ static boolean current(Location p){
+  var map=DataManager.WORLD_MAPS_DATA.getTemplate(p.map());var world=World.getInstance().getWorldMap(p.map());
+  return mapEligible(map,p.race(),PlayerBotConfig.POPULATION_MAPS) && !nearHuman(p.map(),p.x(),p.y(),p.z())
+   && !occupiedLanding(p.map(),p.x(),p.y(),p.z()) && world!=null && world.getMainWorldMapInstance().getRegion(p.x(),p.y(),p.z())!=null
+   && GeoService.getInstance().isPlayerBotLanding(p.map(),1,p.x(),p.y(),p.z());
  }
  static boolean place(PlayerBotSession session,int cityPercent,RandomGenerator rng) {
   return place(session,cityPercent,rng,Set.of());

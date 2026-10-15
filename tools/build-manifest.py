@@ -1,8 +1,22 @@
 """Bind normal Maven output to unchanged maintained inputs; detect edits from other chats."""
-import argparse, hashlib, json
+import argparse, hashlib, json, zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+def libraries(build):
+    """Dependency bytes come from this exact normal assembly, never a stale runtime."""
+    directory = build / 'assembly-libs'
+    with zipfile.ZipFile(build / 'game-server/game-server.zip') as assembly:
+        members = {Path(name).name: name for name in assembly.namelist()
+            if name.startswith('game-server/libs/') and name.endswith('.jar')}
+        assert members, 'Normal assembly has no dependencies'
+        paths = []
+        for name, member in sorted(members.items()):
+            path = directory / name
+            assert path.is_file() and digest(path) == hashlib.sha256(assembly.read(member)).hexdigest(), 'Assembly dependency changed: ' + name
+            if name not in {'game-server-4.8-SNAPSHOT.jar', 'commons-4.8-SNAPSHOT.jar'}: paths.append(path)
+        return paths
 
 
 def digest(path):
@@ -12,6 +26,7 @@ def digest(path):
 
 def inputs():
     paths = [ROOT / 'pom.xml']
+    paths.extend(p for p in (ROOT / 'tools/navmesh').rglob('*') if p.is_file())
     for name in ['commons', 'game-server', 'login-server', 'chat-server']:
         folder = ROOT / name
         paths.extend(p for p in folder.glob('*.xml') if p.is_file())
@@ -40,6 +55,14 @@ def main():
         before = json.loads((build / 'source-inputs-before.json').read_text())
         if before != inputs():
             raise RuntimeError('Source/resources changed while Maven was building. Rejecting mixed build.')
+        if (build / 'game-server/game-server.zip').is_file():
+            with zipfile.ZipFile(build / 'game-server/game-server.zip') as assembly:
+                directory = build / 'assembly-libs'; directory.mkdir()
+                for name in assembly.namelist():
+                    if name.startswith('game-server/libs/') and name.endswith('.jar'):
+                        assert len(Path(name).parts) == 3, 'Unexpected dependency path'
+                        (directory / Path(name).name).write_bytes(assembly.read(name))
+            libraries(build)
         artifacts = {p.relative_to(build).as_posix(): digest(p) for p in build.rglob('*') if p.is_file() and p.suffix in {'.jar', '.zip'}}
         if not artifacts: raise RuntimeError('No normal builder artifacts')
         (build / 'build-manifest.json').write_text(json.dumps(dict(inputs=before, artifacts=artifacts), indent=2))

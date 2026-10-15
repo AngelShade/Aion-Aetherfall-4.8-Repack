@@ -93,7 +93,7 @@ public final class PlayerBotQuestConversations {
   List<Npc> npcs=new ArrayList<>();owner.getKnownList().forEachNpc(npc->{if(npc.isSpawned() && !npc.isDead() && !bot.isEnemy(npc) && npc.getWorldId()==owner.getWorldId() && npc.getInstanceId()==owner.getInstanceId() && PositionUtil.isInRange(owner,npc,25) && DialogService.isInteractionAllowed(bot,npc))npcs.add(npc);});
   for(Npc npc:npcs.stream().sorted(Comparator.comparingDouble(n->PositionUtil.getDistance(bot,n))).toList())for(Step step:candidates)if(step.npc==npc.getNpcId() && owner.getKnownList().sees(npc) && bot.getKnownList().sees(npc) && PlayerBotQuestObjectives.matches(bot,PlayerBotQuestRoutes.Kind.CONVERSATION,step.quest,npc)) {
    if(!PositionUtil.isInTalkRange(bot,npc) || !GeoService.getInstance().canSee(bot,npc))return navigation.approach(npc,2);
-   navigation.stop();boolean success=interact(bot,npc,step);PlayerBotQuestObjectives.attempted(bot,success);RETRY.put(bot.getObjectId(),now+(success ? 800 : 5000));
+   navigation.pause();boolean success=interact(bot,npc,step);PlayerBotQuestObjectives.attempted(bot,success);if(success)PlayerBotWorldActivities.interacting(bot);RETRY.put(bot.getObjectId(),now+(success ? 800 : 5000));
    if(success){PlayerBotQuestSync.notice(bot,"I spoke to "+npc.getName()+" and advanced "+com.aionemu.gameserver.utils.ChatUtil.quest(step.quest)+". My next objective is in the party quest journal.","quest-step:"+step.quest+":"+step.variables,0);PlayerBotQuestSync.returnToOwner(bot);}return success;
   }
   return false;

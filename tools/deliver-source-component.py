@@ -22,6 +22,26 @@ def initial_feature_configuration(target):
     return not target.exists()
 
 
+def world_activity_defaults(before, maintained):
+    """Append only missing, explained map-activity keys; preserve existing owner bytes and values."""
+    keys = import_module('navmesh-release').owner_keys(before)
+    wanted = {'gameserver.playerbots.world.only_occupied_maps', 'gameserver.playerbots.world.presence_refresh_ms'}
+    blocks = []
+    found = set()
+    for block in re.split(rb'\r?\n\r?\n', maintained):
+        entries = set(re.findall(rb'^\s*(gameserver\.playerbots\.world\.[\w.]+)\s*=', block, re.MULTILINE))
+        selected = {key.decode('ascii') for key in entries} & wanted
+        if selected:
+            assert len(entries) == len(selected) == 1, 'Activity defaults must have independent documented blocks'
+            found.update(selected)
+            if not selected & keys: blocks.append(block.rstrip(b'\r\n'))
+    assert found == wanted, 'Normal builder omitted documented world-activity controls'
+    if not blocks: return before
+    newline = b'\r\n' if b'\r\n' in before else b'\n'
+    addition = newline + newline.join(block.replace(b'\r\n', b'\n').replace(b'\n', newline) + newline for block in blocks)
+    return before + (b'' if not before or before.endswith((b'\n', b'\r')) else newline) + addition
+
+
 def verify_original_resource(target, original):
     """A missing baseline means genuine absence, never a directory or link."""
     if original is None:
@@ -40,7 +60,9 @@ def resulting_configurations(existing, files):
     result = dict(existing)
     for entry in files:
         if entry['path'] in OWNER_CONFIGURATIONS:
-            assert entry['original'] is None, 'Owner configuration must be an initial seed'
+            assert entry['original'] is None or entry['path']==NAVIGATION_CONFIGURATION and entry.get('navigationDefaults') or entry['path']==FEATURE_CONFIGURATION and entry.get('worldActivityDefaults'), 'Owner configuration must be an initial seed or validated missing defaults'
+            for key in list(result):
+                if key.replace('\\', '/') == entry['path']: del result[key]
             result[entry['path']] = entry['installed']
     return result
 
@@ -48,13 +70,21 @@ def resulting_configurations(existing, files):
 def retained_methods(before, after):
     """ACC_SYNCHRONIZED controls locking, not a JVM method name/descriptor.
 
-    Keep every other qualifier, name, return type and parameter type exact. The
-    report still records modifier changes and compares their bytecode normally.
+    Keep other qualifiers, name, return type and parameter type exact. An unchanged
+    package-visible implementation may also become public for cross-package reuse.
+    Access narrowing or a changed implementation cannot use that exception.
     """
     identity = lambda key: re.sub(r'\bsynchronized\s+', '', key)
     by_identity = {identity(key): key for key in after}
     assert len(by_identity) == len(after), 'Ambiguous method identity'
-    return {key: by_identity[identity(key)] for key in before if identity(key) in by_identity}
+    matched = {key: by_identity[identity(key)] for key in before if identity(key) in by_identity}
+    for key in before.keys() - matched.keys():
+        if re.match(r'^(public|protected|private)\s', key):
+            continue
+        candidate = by_identity.get('public ' + identity(key))
+        if candidate is not None and before[key] == after[candidate]:
+            matched[key] = candidate
+    return matched
 
 
 def bundled_media_source(name, data):
@@ -193,6 +223,13 @@ def main():
         for name in changed:
             if name == 'META-INF/MANIFEST.MF':
                 continue
+            if name == 'META-INF/maven/com.aionemu/game-server/pom.xml':
+                maintained=ROOT/'game-server/pom.xml'
+                assert built.read(name)==maintained.read_bytes(), 'Normal embedded POM differs from maintained source'
+                comparisons.append(dict(resourceName=name,source='game-server/pom.xml',
+                    previousSha256=hashlib.sha256(installed.read(name)).hexdigest(),
+                    installedSha256=shared.sha(maintained)))
+                continue
             source = bundled_media_source(name, built.read(name))
             if source is not None:
                 comparisons.append(dict(resourceName=name, source=source,
@@ -206,7 +243,9 @@ def main():
             assert all(k.startswith('private ') and 'lambda$' in k for k in removed), 'Installed methods removed: ' + name
             comparisons.append(dict(className=name[:-6], addedMethods=sorted(after.keys() - set(matched.values())),
                 retiredUnusedSynthetics=sorted(removed),
-                synchronizationChanges=sorted(k+' -> '+v for k,v in matched.items() if k!=v),
+                synchronizationChanges=sorted(k+' -> '+v for k,v in matched.items() if k!=v and
+                    re.sub(r'\bsynchronized\s+', '', k)==re.sub(r'\bsynchronized\s+', '', v)),
+                accessWidenings=sorted(k+' -> '+v for k,v in matched.items() if k!=v and v=='public '+k),
                 changedMethods=sorted(k for k,v in matched.items() if k!=v or before[k] != after[v]),
                 preservedMethods=sum(k==v and before[k] == after[v] for k,v in matched.items())))
         preserved = len(names) - len(changed)
@@ -214,7 +253,7 @@ def main():
     linkage = out / 'linkage'; linkage.mkdir(exist_ok=True)
     subprocess.run(['javac', '-d', str(linkage), str(ROOT / 'client-mods/playerbots/java/PlayerBotLinkageCheck.java')], check=True, capture_output=True, text=True)
     commons = build / 'commons/commons-4.8-SNAPSHOT.jar'
-    libs = [f for f in sorted((server / 'libs').glob('*.jar')) if f.name not in {'game-server-4.8-SNAPSHOT.jar', 'commons-4.8-SNAPSHOT.jar', 'playerbot-recruitment-fix.jar'}]
+    libs = build_meta.libraries(build)
     result = subprocess.run(['java', '-Xverify:all', '-cp', ';'.join(map(str, [linkage, game, commons, *libs, server / 'cache/classes'])),
         'PlayerBotLinkageCheck', str(game)], cwd=out, check=True, capture_output=True, text=True)
     (out / 'linkage.txt').write_text(result.stdout + result.stderr)
@@ -225,6 +264,45 @@ def main():
         for f in (ROOT / component / 'src').rglob('*') if f.is_file()}
     assert all((ROOT / rel).stat().st_mtime_ns <= game.stat().st_mtime_ns for rel in source), 'Source changed after the build; rebuild before delivery'
     files = [dict(path='libs/game-server-4.8-SNAPSHOT.jar', source=str(game), original=shared.sha(old), installed=shared.sha(game))]
+    for entry in plan.get('worldActivityDefaults', []):
+        assert entry['path'] == FEATURE_CONFIGURATION and entry.get('worldActivityDefaults') is True
+        target = server / FEATURE_CONFIGURATION
+        verify_original_resource(target, entry['original'])
+        with zipfile.ZipFile(build / 'game-server/game-server.zip') as assembly:
+            maintained = assembly.read('game-server/' + FEATURE_CONFIGURATION)
+        source_path = ROOT / 'game-server' / FEATURE_CONFIGURATION
+        assert maintained == source_path.read_bytes(), 'World activity defaults changed after build'
+        assert Path(entry['source']).read_bytes() == world_activity_defaults(target.read_bytes(), maintained), 'Unrelated owner feature configuration change'
+        assert shared.sha(Path(entry['source'])) == entry['installed']
+        files.append(entry)
+    available = {library.name: library for library in build_meta.libraries(build)}
+    for addition in plan.get('libraryAdditions', []):
+        name = Path(addition['path']).name
+        assert addition['path'] == 'libs/' + name and name in available and addition['original'] is None
+        assert addition['source'] == str(available[name]) and addition['installed'] == shared.sha(available[name]), 'Unbound assembly dependency'
+        verify_original_resource(server / addition['path'], None)
+        files.append(addition)
+    navigation = plan.get('navigationPackage')
+    if navigation:
+        import_module('navmesh-release').validate(navigation, build, server)
+        for entry in navigation['files']:
+            verify_original_resource(server / entry['path'], entry['original'])
+        files.extend(navigation['files'])
+        assert len({e['path'] for e in files}) == len(files), 'Duplicate navigation delivery target'
+    topology = plan.get('navigationTopology')
+    if topology:
+        import_module('navmesh-topology-release').validate(topology, build, server)
+        for entry in topology['files']:
+            verify_original_resource(server / entry['path'], entry['original'])
+        files.extend(topology['files'])
+        assert len({e['path'] for e in files}) == len(files), 'Duplicate topology delivery target'
+    animated = plan.get('navigationAnimated')
+    if animated:
+        assert topology, 'Animated navigation requires its exact directed topology'
+        import_module('navmesh-animated-release').validate(animated, build, server)
+        for entry in animated['files']: verify_original_resource(server / entry['path'], entry['original'])
+        files.extend(animated['files'])
+        assert len({e['path'] for e in files}) == len(files), 'Duplicate animated navigation delivery target'
     if plan['dependencyChanged']:
         current = server / 'libs/commons-4.8-SNAPSHOT.jar'
         with zipfile.ZipFile(current) as x, zipfile.ZipFile(commons) as y:
@@ -280,6 +358,9 @@ def main():
         classComparison=comparisons or [dict(sourceBuiltBaselinePreserved=True, previousReceipt=str(prior))],
         preservedJarEntries=preserved, fullRuntimeLinkage=result.stdout.strip(), gameAcceptance='pending user testing')
     manifest['requestedConfigurationChanges'] = configuration_changes
+    if navigation: manifest['navigationPackage'] = navigation
+    if topology: manifest['navigationTopology'] = topology
+    if animated: manifest['navigationAnimated'] = animated
     manifest['regressionEvidenceSha256'] = shared.sha(regression / 'evidence.json')
     manifest['browserEvidenceSha256'] = shared.sha(browser / 'evidence.json')
     manifest['questCoverageSha256'] = shared.sha(coverage)
@@ -288,6 +369,9 @@ def main():
         print('OK: reviewed normal builder output;', preserved, 'unchanged entries;', result.stdout.strip()); return
 
     def guard():
+        if navigation: import_module('navmesh-release').validate(navigation, build, server)
+        if topology: import_module('navmesh-topology-release').validate(topology, build, server)
+        if animated: import_module('navmesh-animated-release').validate(animated, build, server)
         stopped()
         build_meta.verify(build)
         import_module('check-source-build').validate(build, regression)
@@ -301,6 +385,11 @@ def main():
             target = server / e['path']
             if e['path'] in OWNER_CONFIGURATIONS:
                 initial_feature_configuration(target)
+            if e.get('worldActivityDefaults'):
+                with zipfile.ZipFile(build / 'game-server/game-server.zip') as assembly:
+                    maintained = assembly.read('game-server/' + FEATURE_CONFIGURATION)
+                assert maintained == (ROOT / 'game-server' / FEATURE_CONFIGURATION).read_bytes()
+                assert Path(e['source']).read_bytes() == world_activity_defaults(target.read_bytes(), maintained)
             verify_original_resource(target, e['original'])
             assert shared.sha(Path(e['source'])) == e['installed']
         assert all(shared.sha(server / e['path']) == e['original'] for e in caches)

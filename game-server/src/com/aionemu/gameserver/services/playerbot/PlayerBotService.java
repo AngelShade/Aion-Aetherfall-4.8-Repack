@@ -458,6 +458,8 @@ public final class PlayerBotService {
    +", combat="+active.stream().filter(s->s.bot().getController().isInCombat()).count()+", dead="+active.stream().filter(s->s.bot().isDead()).count()
    +", looting="+active.stream().filter(s->s.bot().isLooting()).count()+", traveling to quest="+active.stream().filter(s->PlayerBotWorldActivities.questTravel(s.bot())).count()
    +", traveling to grind="+active.stream().filter(s->PlayerBotWorldActivities.grindTravel(s.bot())).count());
+  lines.add("World activity: dormant="+active.stream().filter(PlayerBotSession::dormant).count()
+   +"; unoccupied-map dormancy="+PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS+"; companions remain active with their owners.");
   var maps=new TreeMap<String,Integer>();for(var s:active){var b=s.bot();maps.merge("map "+b.getWorldId()+" instance "+b.getInstanceId(),1,Integer::sum);}
   maps.forEach((map,count)->lines.add(map+": "+count+" spawned"));
   if(viewer!=null)lines.add("On your map/instance: "+active.stream().filter(s->s.bot().getWorldId()==viewer.getWorldId() && s.bot().getInstanceId()==viewer.getInstanceId()).count()+". Use .bot worldlist 1 here for coordinates.");
@@ -629,6 +631,17 @@ public final class PlayerBotService {
 			var data=AccountService.loadPlayerAccountData(r.character());
 			if(data==null || data.getDeletionDate()!=null || data.getPlayerCommonData().isOnline()
 				|| data.getCharBanInfo()!=null && data.getCharBanInfo().getEnd()>=System.currentTimeMillis()/1000)throw new IllegalArgumentException("World bot is banned, deleting or online");
+   boolean focused=PlayerBotPopulationPolicy.serverAccount(r.account()) && PlayerBotPopulationFocus.capture(World.getInstance().getAllPlayers()).active();
+   PlayerBotWorldPlacement.Location entryCamp=null;
+   if(focused){
+    var common=data.getPlayerCommonData();
+    var selection=PlayerBotWorldPlacement.chooseDestination(common.getRace(),common.getLevel(),PlayerBotPopulationPolicy.settings().cityChance(),populationRandom);
+    entryCamp=selection.location();
+    if(entryCamp==null){
+     log.info("World bot {} admission deferred: {}; checked {} native camps/probes; saved character remains offline",r.character(),selection.reason(),selection.checked());
+     return; // Normal completion-based retry custody; avoid loading all skills/effects for a rejected camp.
+    }
+   }
 			Account account=new Account(r.account());var pool=PlayerBotPopulationPolicy.serverAccount(r.account())?serverPopulation.load().get(r.account()):population.load().get(r.account());
 			account.setName(pool==null?"world-bot-"+r.account():pool.name());if(pool!=null){account.setMembership(pool.membership());account.setCreationDate(pool.created());}account.addPlayerAccountData(data);
 			account.setAccountWarehouse(new PlayerStorage(null,StorageType.ACCOUNT_WAREHOUSE));
@@ -650,17 +663,17 @@ public final class PlayerBotService {
    boolean safeLanding=com.aionemu.gameserver.world.geo.GeoService.getInstance().isPlayerBotLanding(saved.map(),1,saved.x(),saved.y(),saved.z());
    // Reused global identities use the same zone preference as new characters,
    // before visibility. Manual residents and owned companions retain their homes.
-   boolean focused=PlayerBotPopulationPolicy.serverAccount(r.account()) && PlayerBotPopulationFocus.capture(World.getInstance().getAllPlayers()).active();
    boolean concentrate=PlayerBotPopulationPolicy.serverAccount(r.account()) && (PlayerBotConfig.POPULATION_CONCENTRATE || focused);
    if(!safeLanding || concentrate) {
-    var camp=PlayerBotWorldPlacement.destination(bot.getRace(),bot.getLevel(),PlayerBotPopulationPolicy.settings().cityChance(),populationRandom);
-    if(camp==null && focused)throw new IllegalStateException("No compatible safe player-area camp; native character retained offline");
+    var camp=entryCamp!=null?entryCamp:PlayerBotWorldPlacement.destination(bot.getRace(),bot.getLevel(),PlayerBotPopulationPolicy.settings().cityChance(),populationRandom);
+    if(camp==null && focused){log.info("World bot {} admission deferred after focus changed; saved character remains offline",r.character());return;}
     if(camp==null && !safeLanding)throw new IllegalStateException("Saved world position has no safe walking exit and no validated replacement camp exists; character retained");
     if(camp!=null) {
      saved=new PlayerBotPersistence.Home(camp.map(),camp.x(),camp.y(),camp.z(),saved.heading(),0);repairedLanding=true;
      if(!safeLanding)log.info("World bot {} saved position needs repair; entering validated level {} camp on map {}",bot.getName(),bot.getLevel(),camp.map());
     }
    }
+   if(entryCamp!=null && !PlayerBotWorldPlacement.current(entryCamp))return;
    synchronized(this) {synchronized(session) {
     var latestFocus=PlayerBotPopulationFocus.capture(World.getInstance().getAllPlayers());
     if(PlayerBotPopulationPolicy.serverAccount(r.account()) && latestFocus.active() && !latestFocus.contains(saved.map()))return;
@@ -1033,6 +1046,7 @@ public final class PlayerBotService {
  }
  private void tick() {tickPass(System.currentTimeMillis());}
  private PlayerBotDecisionSchedule.Pass<PlayerBotSession,PlayerBotBackgroundWork> tickPass(long now) {
+  PlayerBotWorldActivity.refresh(now);
   if(now>=nextAiMaintenance) {
    nextAiMaintenance=now+500;
    maintenanceWork.submit(ThreadPoolManager.getInstance()::executeLongRunning,()->{synchronized(populationLock) {
@@ -1053,6 +1067,9 @@ public final class PlayerBotService {
   for(var session:sessions.values()) {
    int id=session.bot().getObjectId();
    if(session.closing() || id==focusJobId || execution.busy(id) || sessions.get(id)!=session)continue;
+   // Sleeping actors own no decision lane or terrain ticket. Observe only map
+   // presence until a human arrives or a player takes control of the actor.
+   if(!session.needsDecision())continue;
    boolean controlled=!session.autonomous();long reaction=session.reactionDelay();
    boolean active=reaction<=500 || session.bot().isLooting();
    var lane=controlled?controlledWork:active?activeWorldWork:autonomousWork;
@@ -1318,6 +1335,7 @@ public final class PlayerBotService {
 			try { Thread.sleep(5000); } catch (InterruptedException e) { interrupted = true; }
 		}
 		log.info("Playerbot shutdown complete: {} saved and logged out", count);
+		PlayerBotMeshRoute.shutdown();
 		if (interrupted) Thread.currentThread().interrupt();
 	}
 }

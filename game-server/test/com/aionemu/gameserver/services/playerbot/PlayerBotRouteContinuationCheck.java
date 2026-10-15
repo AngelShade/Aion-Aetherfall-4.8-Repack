@@ -122,7 +122,7 @@ public final class PlayerBotRouteContinuationCheck {
   var search=new PlayerBotRouteSearch(new Point(10,10,0),new Point(15,10,0),160,4096);
   PlayerBotQuestObjectivesCheck.field(nav,"routeSearch",search);PlayerBotQuestObjectivesCheck.field(nav,"routeWorld",197);PlayerBotQuestObjectivesCheck.field(nav,"routeInstance",1);
   PlayerBotQuestObjectivesCheck.field(nav,"searchProgress",now-60000);
-  check(nav.progressing(now),"queued valid route retains world goal beyond distance-only30s timeout");
+  check(nav.waitingForTerrainWork() && !nav.progressing(now),"queued valid route preserves its wait without claiming physical progress beyond30s");
   bot.casting=true;check(!nav.waitingForSearchTurn() && !quota.waiting(token),"native cast cancels only its nominated terrain ticket");bot.casting=false;
   quota.request(token,PlayerBotNavigationBudget.Priority.WORLD);nav.stop();check(!nav.planningRoute() && !quota.waiting(token),"explicit stop revokes retained route and search ticket");
   var successor=new PlayerBotRouteSearch(new Point(10,10,0),new Point(20,10,0),160,4096);PlayerBotQuestObjectivesCheck.field(nav,"routeSearch",successor);
@@ -174,6 +174,8 @@ public final class PlayerBotRouteContinuationCheck {
   bot.control.combat=false;bot.resting=true;check(session.reactionDelay()==10000,"actual rest cadence preserved");
  }
  public static void main(String[] args)throws Exception {
+  // These inert active-bot fixtures have no native human-presence World.
+  com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS=false;
   cadence();navigation();groupPatrol();
   Point start=new Point(20,80,0),goal=new Point(100,80,0);
   var wall=level();add(wall,wall(60,35,60,125));var ground=nativeGround(wall,goal);

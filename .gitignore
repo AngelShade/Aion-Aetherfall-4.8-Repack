@@ -42,6 +42,8 @@ login-server/target/
 /game-server/tools/PlayerBotEquipmentUpdateAgent*.java
 /client-mods/playerbots/__pycache__
 /target-deploy/game-server/cache/
+# Generated, receipt-verified navigation data is retained in external release archives.
+/target-deploy/game-server/data/navmesh/
 /docs
 AGENTS.md
 /docs

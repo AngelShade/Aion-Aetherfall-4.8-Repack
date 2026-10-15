@@ -52,7 +52,7 @@ def main():
     config = (server / 'config/main/gameserver.properties').read_text()
     country = re.search(r'^\s*gameserver\.country\.code\s*=\s*(\d+)', config, re.MULTILINE)
     assert country, 'Runtime country code unavailable'
-    libs = [f for f in sorted((server / 'libs').glob('*.jar')) if f.name not in {'game-server-4.8-SNAPSHOT.jar', 'commons-4.8-SNAPSHOT.jar', 'playerbot-recruitment-fix.jar'}]
+    libs = build_meta.libraries(build)
     cp = ';'.join(map(str, [out / 'checks', game, build / 'commons/commons-4.8-SNAPSHOT.jar', *libs]))
     subprocess.run(['javac', '-cp', cp, '-d', str(out / 'checks'), str(ROOT / 'tools/java/StaticDataBuildCheck.java'), str(ROOT / 'tools/java/PopulationCatalogBuildCheck.java'), str(ROOT / 'tools/java/PlayerBotQuestCoverageBuildCheck.java'), str(ROOT / 'tools/java/PlayerBotMaterialCatalogBuildCheck.java')], check=True)
     report = out / 'static-data-load.txt'

@@ -52,6 +52,11 @@
 	</build>
 	<dependencies>
 		<dependency>
+			<groupId>org.recast4j</groupId>
+			<artifactId>detour</artifactId>
+			<version>1.5.8</version>
+		</dependency>
+		<dependency>
 			<groupId>com.aionemu</groupId>
 			<artifactId>commons</artifactId>
 		</dependency>

@@ -13,6 +13,7 @@ import com.aionemu.gameserver.utils.PacketSendUtility;
 public final class PlayerBotHeadlessFlight {
  private record Journey(FlyPathEntry path,int map,int instance,Object flight,long until){}
  private static final Map<Integer,Journey> JOURNEYS=new ConcurrentHashMap<>();
+ static boolean active(Player bot){return JOURNEYS.containsKey(bot.getObjectId());}
  public static void begin(Player bot,FlyPathEntry path){
   if(!bot.isPlayerBot() || path==null || path.getTimeInMs()<=0 || bot.getWorldId()!=path.getStartWorldId())return;
   bot.setCurrentFlypath(path);

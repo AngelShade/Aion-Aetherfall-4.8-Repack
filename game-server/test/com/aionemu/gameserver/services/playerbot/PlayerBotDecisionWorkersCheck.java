@@ -11,6 +11,8 @@ public final class PlayerBotDecisionWorkersCheck {
  private static void check(boolean value,String why){checks++;if(!value)throw new AssertionError(why);}
  private static void await(CountDownLatch latch){try{if(!latch.await(3,TimeUnit.SECONDS))throw new AssertionError("Fixture latch timeout");}catch(InterruptedException e){Thread.currentThread().interrupt();throw new AssertionError(e);}}
  public static void main(String[] args)throws Exception {
+  // These inert active-bot fixtures have no native human-presence World.
+  com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS=false;
   var work=new PlayerBotBackgroundWork(4);var executor=Executors.newFixedThreadPool(5);
   var entered=new CountDownLatch(1);var release=new CountDownLatch(1);
   var remainingEntered=new CountDownLatch(3);var remainingRelease=new CountDownLatch(1);

@@ -1,7 +1,7 @@
 /* MovementActions::SearchForBestPath purpose, mod-playerbots
  * 037c01418b5d01506917a3db9b44fd56ac5f965c. GPL-2.0-or-later; AUTHORS.md.
- * Aion has physical geometry rather than WoW Detour polygons. Every edge here
- * is supplied by native supported-ground probes; this is an Aion adapter. */
+ * Aion prepared polygons and live geometry cooperate: every published movement
+ * edge still earns native supported-ground proof. */
 package com.aionemu.gameserver.services.playerbot;
 
 import java.util.*;
@@ -10,10 +10,13 @@ import com.aionemu.gameserver.services.playerbot.PlayerBotNavigation.Point;
 
 /** Resumable ground search: deadline expiry retains even a partly expanded node. */
 final class PlayerBotRouteSearch {
+ private PlayerBotMeshRoute mesh;
+ private PlayerBotMeshJourney journey;
  private record Cell(int x,int y,int height) {}
  private record Node(Cell cell,Point point,Node parent,double cost,double remaining,long sequence) {}
  private static final int[][] DIRECTIONS={{1,0},{0,1},{-1,0},{0,-1},{1,1},{-1,1},{-1,-1},{1,-1}};
- private final Point start,goal;
+ private final Point start,finalGoal;
+ private Point goal;
  private final float mapSize;
  private final int capacity;
  private final float segmentDistance;
@@ -36,8 +39,17 @@ final class PlayerBotRouteSearch {
  PlayerBotRouteSearch(Point start,Point goal,float mapSize,int capacity,float segmentDistance) {
   this(start,goal,mapSize,capacity,segmentDistance,false);
  }
+ PlayerBotRouteSearch(int world,Point start,Point goal,float mapSize,int capacity,float segmentDistance) {
+  this(world,start,goal,mapSize,capacity,segmentDistance,null);
+ }
+ PlayerBotRouteSearch(int world,Point start,Point goal,float mapSize,int capacity,float segmentDistance,PlayerBotMeshJourney journey) {
+  this(start,goal,mapSize,capacity,segmentDistance,false);
+  this.journey=journey;
+  if(finite(start) && finite(goal) && com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED)
+   mesh=new PlayerBotMeshRoute(world,start,goal,segmentDistance,journey);
+ }
  private PlayerBotRouteSearch(Point start,Point goal,float mapSize,int capacity,float segmentDistance,boolean fullRoute) {
-  this.start=start;this.goal=goal;this.mapSize=mapSize;this.capacity=Math.max(1,capacity);
+  this.start=start;this.goal=goal;this.finalGoal=goal;this.mapSize=mapSize;this.capacity=Math.max(1,capacity);
   if(!fullRoute && (!Float.isFinite(segmentDistance) || segmentDistance<4 || segmentDistance>128))
    throw new IllegalArgumentException("Terrain segment requires4..128 metres");
   this.segmentDistance=segmentDistance;
@@ -46,16 +58,28 @@ final class PlayerBotRouteSearch {
   }
   seed();
  }
- boolean pending(){return !complete;}
- boolean partial(){return partial;}
- List<Point> route(){return route;}
- String reason(){return reason;}
- int retained(){return best.size();}
- int expanded(){return expanded;}
- int probed(){return probed;}
- boolean targets(Point point){return finite(point) && distance(goal,point)<=.25;}
+ boolean pending(){return mesh!=null?mesh.pending():!complete;}
+ boolean partial(){return mesh!=null?mesh.partial():partial || !goal.equals(finalGoal);}
+ List<Point> route(){return mesh!=null?mesh.route():route;}
+ String reason(){return mesh!=null?mesh.reason():reason;}
+ int retained(){return mesh!=null?mesh.retained():best.size();}
+ int expanded(){return mesh!=null?mesh.expanded():expanded;}
+ int probed(){return mesh!=null?mesh.work():probed;}
+ boolean prepared(){return mesh!=null;}
+ void close(){if(mesh!=null)mesh.close();}
+ boolean targets(Point point){return finite(point) && distance(finalGoal,point)<=.25;}
 
  void advance(PlayerBotPathfinder.Ground ground,int probes,BooleanSupplier expired) {
+  if(mesh!=null){
+   try {mesh.advance(ground,probes,expired);}
+   catch(RuntimeException | Error failure){mesh.close();mesh=null;if(journey!=null)journey.pause();throw failure;}
+   if(!mesh.fallback())return;
+   Point next=mesh.nativeTarget();mesh.close();mesh=null;
+   if(!next.equals(goal)){goal=next;open.clear();best.clear();current=progress=null;stride=4;phaseExpanded=0;seed();}
+   // A blocked prepared corridor may already have consumed this turn's work.
+   // Start the live-geometry alternative on the next funded callback.
+   return;
+  }
   int used=0;
   while(!complete && used<probes && !expired.getAsBoolean()) {
    if(current==null) {
@@ -119,6 +143,7 @@ final class PlayerBotRouteSearch {
   var points=new ArrayList<Point>();if(!end.equals(node.point()) || node.parent()==null)points.add(end);
   for(Node n=node;n.parent()!=null;n=n.parent())points.add(n.point());
   Collections.reverse(points);route=List.copyOf(points);complete=true;reason="supported route found";
+  if(journey!=null)journey.provedSegment(start,end,goal);
   open.clear();best.clear();current=null;progress=null;
  }
  private boolean inside(float x,float y){return Float.isFinite(mapSize) && mapSize>0 && x>=0 && y>=0 && x<mapSize && y<mapSize;}

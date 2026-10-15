@@ -122,11 +122,12 @@ def fixtures():
  return sorted(set(sorted((ROOT/'game-server/test/com/aionemu/gameserver/services/playerbot').glob('*.java'))+[ROOT/'game-server/test/com/aionemu/gameserver/ShutdownHookCheck.java']+quest_fixtures()+reviewed_native_fixtures()))
 
 def binding(build):
- libs=[f for f in sorted((ROOT/'target-deploy/game-server/libs').glob('*.jar')) if f.name not in {'game-server-4.8-SNAPSHOT.jar','commons-4.8-SNAPSHOT.jar','playerbot-recruitment-fix.jar'}]
- paths=[Path(__file__),ROOT/'tools/check-database-shutdown.py',ROOT/'tools/java/DatabaseShutdownCheck.java',ROOT/'tools/check-player-skill-cancellation.py',ROOT/'tools/java/PlayerSkillCancellationCheck.java',*[ROOT/'tools'/name for name in ['build-manifest.py','test-source-release-methods.py','deliver-source-component.py','prepare-source-release.py','document-playerbot-config.py','release-game-server.py','verify-source-delivery.py','quest-handler-inventory.py','check-source-static-data.py','check-source-browser.py','check-playerbot-ui-behavior.py']],build/'build-manifest.json',build/'game-server/game-server-4.8-SNAPSHOT.jar',build/'commons/commons-4.8-SNAPSHOT.jar',*fixtures(),*libs]
+ libs=__import__('importlib').import_module('build-manifest').libraries(build)
+ paths=[Path(__file__),ROOT/'tools/check-database-shutdown.py',ROOT/'tools/java/DatabaseShutdownCheck.java',ROOT/'tools/check-player-skill-cancellation.py',ROOT/'tools/java/PlayerSkillCancellationCheck.java',*[ROOT/'tools'/name for name in ['build-manifest.py','test-source-release-methods.py','deliver-source-component.py','prepare-source-release.py','document-playerbot-config.py','release-game-server.py','verify-source-delivery.py','navmesh-release.py','quest-handler-inventory.py','check-source-static-data.py','check-source-browser.py','check-playerbot-ui-behavior.py']],build/'build-manifest.json',build/'game-server/game-server-4.8-SNAPSHOT.jar',build/'commons/commons-4.8-SNAPSHOT.jar',*fixtures(),*libs]
  from importlib import import_module
  restoration=import_module('check-npc-restoration')
- paths.extend([ROOT/'tools/check-npc-restoration.py',Path(restoration.shared.__file__),restoration.BASELINE,ROOT/'tools/native-quest-fixtures.json',ROOT/'tools/QuestHandlerActionInventory.java',ROOT/'tools/test-quest-action-inventory.py',ROOT/'tools/java/PlayerBotMaterialCatalogBuildCheck.java',ROOT/'tools/configure-playerbot-level-spread.py',ROOT/'tools/playerbot-config-paths.py',ROOT/'tools/move-playerbot-configuration.py'])
+ paths.extend([ROOT/'tools/check-npc-restoration.py',Path(restoration.shared.__file__),restoration.BASELINE,ROOT/'tools/native-quest-fixtures.json',ROOT/'tools/QuestHandlerActionInventory.java',ROOT/'tools/test-quest-action-inventory.py',ROOT/'tools/java/PlayerBotMaterialCatalogBuildCheck.java',ROOT/'tools/configure-playerbot-level-spread.py',ROOT/'tools/playerbot-config-paths.py',ROOT/'tools/move-playerbot-configuration.py',ROOT/'tools/navmesh-topology-release.py'])
+ paths.append(ROOT/'tools/navmesh-animated-release.py')
  return {str(p.resolve()):sha(p) for p in paths}
 
 def validate(build,out):
@@ -184,7 +185,7 @@ def main():
  (out/'tooling.txt').write_text(tooling.stdout+tooling.stderr)
  assert tooling.returncode==0,tooling.stderr
  tool_count=int(re.search(r'Ran (\d+) tests',tooling.stderr).group(1))
- libs=[f for f in sorted((ROOT/'target-deploy/game-server/libs').glob('*.jar')) if f.name not in {'game-server-4.8-SNAPSHOT.jar','commons-4.8-SNAPSHOT.jar','playerbot-recruitment-fix.jar'}]
+ libs=__import__('importlib').import_module('build-manifest').libraries(build)
  cp=';'.join(map(str,[build/'checks',build/'game-server/game-server-4.8-SNAPSHOT.jar',build/'commons/commons-4.8-SNAPSHOT.jar',*libs]))
  (build/'checks').mkdir(exist_ok=True)
  # Recompilation cannot run a stale class whose fixture source was removed.
