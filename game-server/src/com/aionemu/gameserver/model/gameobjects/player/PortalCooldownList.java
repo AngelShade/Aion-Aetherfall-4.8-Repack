@@ -21,6 +21,8 @@ public class PortalCooldownList {
 	}
 
 	public boolean isPortalUseDisabled(int worldId) {
+		if (!DataManager.INSTANCE_COOLTIME_DATA.hasEntryLimit(worldId))
+			return false;
 		if (portalCooldowns == null || !portalCooldowns.containsKey(worldId))
 			return false;
 
@@ -37,6 +39,8 @@ public class PortalCooldownList {
 	}
 
 	public long getPortalCooldownTime(int worldId) {
+		if (!DataManager.INSTANCE_COOLTIME_DATA.hasEntryLimit(worldId))
+			return 0;
 		if (portalCooldowns == null || !portalCooldowns.containsKey(worldId))
 			return 0;
 		long coolDown = portalCooldowns.get(worldId).getReuseTime();
@@ -50,7 +54,7 @@ public class PortalCooldownList {
 	}
 
 	public PortalCooldown getPortalCooldown(int worldId) {
-		return portalCooldowns == null ? null : portalCooldowns.get(worldId);
+		return !DataManager.INSTANCE_COOLTIME_DATA.hasEntryLimit(worldId) || portalCooldowns == null ? null : portalCooldowns.get(worldId);
 	}
 
 	/**
@@ -77,6 +81,8 @@ public class PortalCooldownList {
 	}
 
 	public void addPortalCooldown(int worldId, long useDelay) {
+		if (!DataManager.INSTANCE_COOLTIME_DATA.hasEntryLimit(worldId) || useDelay == 0)
+			return;
 		getOrCreatePortalCooldown(worldId, useDelay).increaseEnterCount();
 
 		PortalCooldownsDAO.storePortalCooldowns(owner);
@@ -97,11 +103,12 @@ public class PortalCooldownList {
 	}
 
 	public boolean hasCooldowns() {
-		return portalCooldowns != null && portalCooldowns.size() > 0;
+		return size() > 0;
 	}
 
 	public int size() {
-		return portalCooldowns != null ? portalCooldowns.size() : 0;
+		return portalCooldowns == null ? 0 : (int) portalCooldowns.keySet().stream()
+			.filter(DataManager.INSTANCE_COOLTIME_DATA::hasEntryLimit).count();
 	}
 
 }

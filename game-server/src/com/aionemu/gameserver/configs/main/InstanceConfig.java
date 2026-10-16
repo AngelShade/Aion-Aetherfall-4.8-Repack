@@ -8,6 +8,9 @@ import com.aionemu.gameserver.model.templates.npc.NpcRating;
 
 public class InstanceConfig {
 
+	@Property(key = "gameserver.instance.entry_limits.enable", defaultValue = "false")
+	public static boolean INSTANCE_ENTRY_LIMITS_ENABLED;
+
 	@Property(key = "gameserver.instance.cooldown_rate", defaultValue = "1")
 	public static int INSTANCE_COOLDOWN_RATE;
 

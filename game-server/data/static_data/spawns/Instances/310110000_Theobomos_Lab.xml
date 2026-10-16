@@ -101,9 +101,7 @@
 			<spot x="495.227" y="512.461" z="187.795" h="98"/>
 		</spawn>
 		<!-- Antique Treasure Chest -->
-		<spawn npc_id="700826">
-			<spot x="455.78845" y="774.0474" z="157.89963"/>
-		</spawn>
+		<!-- The instance selects one native Antique Treasure Chest variant at this position. -->
 		<!-- Assistant's Journal -->
 		<spawn npc_id="730153">
 			<spot x="525.77069" y="740.42542" z="203.87508" static_id="92"/>

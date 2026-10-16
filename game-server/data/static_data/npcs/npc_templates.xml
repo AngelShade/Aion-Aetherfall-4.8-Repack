@@ -88717,7 +88717,7 @@
 		</equipment>
 		<bound_radius front="0.3" side="0.3" upper="2.4" />
 	</npc_template>
-	<npc_template npc_id="214696" level="50" name="lord lannok" name_id="318195" height="2.86" group_drop="DEATHKNIGHT" rank="VETERAN" rating="ELITE" race="UNDEAD" tribe="RANMARK" type="MONSTER" ai="aggressive" srange="8" sangle="240" arange="2" attack_speed="2310" hpgauge="14" cancel_level="20">
+	<npc_template npc_id="214696" level="50" name="lord lannok" name_id="318195" height="2.86" group_drop="DEATHKNIGHT" rank="VETERAN" rating="ELITE" race="UNDEAD" tribe="RANMARK" type="MONSTER" ai="lord_lannok" srange="8" sangle="240" arange="2" attack_speed="2310" hpgauge="14" cancel_level="20">
 		<stats maxHp="292976">
 			<speeds walk="1.491" group_walk="1.491" run="6" run_fight="12" group_run_fight="6" />
 		</stats>
@@ -88741,7 +88741,7 @@
 		</stats>
 		<bound_radius front="2.0625" side="0.7125" upper="3.97" />
 	</npc_template>
-	<npc_template npc_id="214700" level="50" name="suspicious boy" name_id="318199" height="1.5810001" group_drop="DARK" rank="DISCIPLINED" rating="ELITE" race="UNDEAD" tribe="AGGRESSIVESUPPORTMONSTER" type="MONSTER" ai="aggressive" srange="8" sangle="240" arange="20" attack_speed="2486" hpgauge="11" cancel_level="40">
+	<npc_template npc_id="214700" level="50" name="suspicious boy" name_id="318199" height="1.5810001" group_drop="DARK" rank="DISCIPLINED" rating="ELITE" race="UNDEAD" tribe="AGGRESSIVESUPPORTMONSTER" type="MONSTER" ai="adma_betrayer" srange="8" sangle="240" arange="20" attack_speed="2486" hpgauge="11" cancel_level="40">
 		<stats maxHp="49297">
 			<speeds walk="1.457" group_walk="1.457" run="6" run_fight="6" group_run_fight="6" />
 		</stats>
@@ -88755,7 +88755,7 @@
 		</equipment>
 		<bound_radius front="0.2975" side="0.2975" upper="1.581" />
 	</npc_template>
-	<npc_template npc_id="214701" level="50" name="betrayer villaire" name_id="318200" height="2.79" group_drop="UNDEADLIGHT_RA" rank="DISCIPLINED" rating="ELITE" race="UNDEAD" tribe="AGGRESSIVESUPPORTMONSTER" type="MONSTER" ai="aggressive" srange="8" sangle="240" arange="20" attack_speed="2486" hpgauge="11" cancel_level="40">
+	<npc_template npc_id="214701" level="50" name="betrayer villaire" name_id="318200" height="2.79" group_drop="UNDEADLIGHT_RA" rank="DISCIPLINED" rating="ELITE" race="UNDEAD" tribe="AGGRESSIVESUPPORTMONSTER" type="MONSTER" ai="adma_betrayer" srange="8" sangle="240" arange="20" attack_speed="2486" hpgauge="11" cancel_level="40">
 		<stats maxHp="51530">
 			<speeds walk="1.457" group_walk="1.457" run="6" run_fight="6" group_run_fight="6" />
 		</stats>
@@ -359395,7 +359395,7 @@
 		</stats>
 		<bound_radius front="0.7225" side="0.4" upper="1.9" />
 	</npc_template>
-	<npc_template npc_id="280933" level="50" name="faithful page" name_id="318004" height="1.9" group_drop="SKELETON" rank="NOVICE" rating="NORMAL" tribe="RANMARK" ai="aggressive" srange="50" arange="2" attack_speed="2310" hpgauge="2">
+	<npc_template npc_id="280933" level="50" name="faithful page" name_id="318004" height="1.9" group_drop="SKELETON" rank="NOVICE" rating="NORMAL" tribe="RANMARK" ai="adma_faithful_page" srange="50" arange="2" attack_speed="2310" hpgauge="2">
 		<stats maxHp="5247">
 			<speeds walk="1.828" group_walk="1.828" run="7" run_fight="6" group_run_fight="7" />
 		</stats>
@@ -359452,7 +359452,7 @@
 		</stats>
 		<bound_radius front="0.6" side="1.1154" upper="0.66" />
 	</npc_template>
-	<npc_template npc_id="280942" level="50" name="suspicious coffin" name_id="318082" height="1.4" group_drop="COFFIN" rank="EXPERT" rating="NORMAL" tribe="MONSTER" ai="aggressive" srange="10" sangle="240" attack_speed="2300" hpgauge="5" cancel_level="80">
+	<npc_template npc_id="280942" level="50" name="suspicious coffin" name_id="318082" height="1.4" group_drop="COFFIN" rank="EXPERT" rating="NORMAL" tribe="MONSTER" ai="adma_coffin" srange="10" sangle="240" attack_speed="2300" hpgauge="5" cancel_level="80">
 		<stats maxHp="15706" />
 		<bound_radius front="0.95" side="2.35" upper="1.4" />
 	</npc_template>
@@ -359491,13 +359491,13 @@
 		</equipment>
 		<bound_radius front="2.1" side="2.6" upper="6.28" />
 	</npc_template>
-	<npc_template npc_id="280949" level="50" name="diligent page" name_id="318092" height="2.1" group_drop="SKELETON" rank="NOVICE" rating="NORMAL" tribe="RANMARK" ai="aggressive" srange="50" arange="16" attack_speed="2200" hpgauge="2">
+	<npc_template npc_id="280949" level="50" name="diligent page" name_id="318092" height="2.1" group_drop="SKELETON" rank="NOVICE" rating="NORMAL" tribe="RANMARK" ai="aggressive_boss_summon" srange="50" arange="16" attack_speed="2200" hpgauge="2">
 		<stats maxHp="3959">
 			<speeds walk="1.13" group_walk="1.13" run="6" run_fight="5" group_run_fight="6" />
 		</stats>
 		<bound_radius front="0.85" side="0.65" upper="2.1" />
 	</npc_template>
-	<npc_template npc_id="280950" level="50" name="suspicious coffin" name_id="318093" height="1.4" group_drop="COFFIN" rank="EXPERT" rating="NORMAL" tribe="MONSTER" ai="aggressive" srange="10" sangle="240" attack_speed="2300" hpgauge="5" cancel_level="80">
+	<npc_template npc_id="280950" level="50" name="suspicious coffin" name_id="318093" height="1.4" group_drop="COFFIN" rank="EXPERT" rating="NORMAL" tribe="MONSTER" ai="adma_coffin" srange="10" sangle="240" attack_speed="2300" hpgauge="5" cancel_level="80">
 		<stats maxHp="15706" />
 		<bound_radius front="0.95" side="2.35" upper="1.4" />
 	</npc_template>
@@ -359953,11 +359953,11 @@
 		<stats maxHp="13537" />
 		<bound_radius front="0.6" side="1.728" upper="3" />
 	</npc_template>
-	<npc_template npc_id="281026" level="50" name="poison trap" name_id="318307" height="3" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="AGGRESSIVESINGLEMONSTER" type="MONSTER" ai="aggressive" srange="6" attack_speed="2000" hpgauge="3">
+	<npc_template npc_id="281026" level="50" name="poison trap" name_id="318307" height="3" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="AGGRESSIVESINGLEMONSTER" type="MONSTER" ai="adma_gas_trap" srange="6" attack_speed="2000" hpgauge="3">
 		<stats maxHp="12113" />
 		<bound_radius front="0.6" side="1.728" upper="3" />
 	</npc_template>
-	<npc_template npc_id="281027" level="50" name="zombietrap" name_id="318308" height="3" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="AGGRESSIVESINGLEMONSTER" type="MONSTER" ai="aggressive" srange="15" attack_speed="2000" hpgauge="3">
+	<npc_template npc_id="281027" level="50" name="zombietrap" name_id="318308" height="3" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="AGGRESSIVESINGLEMONSTER" type="MONSTER" ai="adma_zombie_trap" srange="15" attack_speed="2000" hpgauge="3">
 		<stats maxHp="13668" />
 		<bound_radius front="0.6" side="1.728" upper="3" />
 	</npc_template>
@@ -360091,19 +360091,19 @@
 		</stats>
 		<bound_radius front="0.675" side="0.84" upper="3.33" />
 	</npc_template>
-	<npc_template npc_id="281055" level="50" name="suspicious coffin" name_id="318082" height="1.4" group_drop="COFFIN" rank="EXPERT" rating="NORMAL" tribe="MONSTER" ai="aggressive" srange="10" sangle="240" attack_speed="2300" hpgauge="5" cancel_level="80">
+	<npc_template npc_id="281055" level="50" name="suspicious coffin" name_id="318082" height="1.4" group_drop="COFFIN" rank="EXPERT" rating="NORMAL" tribe="MONSTER" ai="adma_coffin" srange="10" sangle="240" attack_speed="2300" hpgauge="5" cancel_level="80">
 		<stats maxHp="15706" />
 		<bound_radius front="0.95" side="2.35" upper="1.4" />
 	</npc_template>
-	<npc_template npc_id="281056" level="50" name="suspicious coffin" name_id="318082" height="1.4" group_drop="COFFIN" rank="EXPERT" rating="NORMAL" tribe="MONSTER" ai="aggressive" srange="10" sangle="240" attack_speed="2300" hpgauge="5" cancel_level="80">
+	<npc_template npc_id="281056" level="50" name="suspicious coffin" name_id="318082" height="1.4" group_drop="COFFIN" rank="EXPERT" rating="NORMAL" tribe="MONSTER" ai="adma_coffin" srange="10" sangle="240" attack_speed="2300" hpgauge="5" cancel_level="80">
 		<stats maxHp="15706" />
 		<bound_radius front="0.95" side="2.35" upper="1.4" />
 	</npc_template>
-	<npc_template npc_id="281057" level="50" name="suspicious coffin" name_id="318082" height="1.4" group_drop="COFFIN" rank="EXPERT" rating="NORMAL" tribe="MONSTER" ai="aggressive" srange="10" sangle="240" attack_speed="2300" hpgauge="5" cancel_level="80">
+	<npc_template npc_id="281057" level="50" name="suspicious coffin" name_id="318082" height="1.4" group_drop="COFFIN" rank="EXPERT" rating="NORMAL" tribe="MONSTER" ai="adma_coffin" srange="10" sangle="240" attack_speed="2300" hpgauge="5" cancel_level="80">
 		<stats maxHp="15706" />
 		<bound_radius front="0.95" side="2.35" upper="1.4" />
 	</npc_template>
-	<npc_template npc_id="281058" level="50" name="suspicious coffin" name_id="318082" height="1.4" group_drop="COFFIN" rank="EXPERT" rating="NORMAL" tribe="MONSTER" ai="aggressive" srange="10" sangle="240" attack_speed="2300" hpgauge="5" cancel_level="80">
+	<npc_template npc_id="281058" level="50" name="suspicious coffin" name_id="318082" height="1.4" group_drop="COFFIN" rank="EXPERT" rating="NORMAL" tribe="MONSTER" ai="adma_coffin" srange="10" sangle="240" attack_speed="2300" hpgauge="5" cancel_level="80">
 		<stats maxHp="15706" />
 		<bound_radius front="0.95" side="2.35" upper="1.4" />
 	</npc_template>
@@ -360191,7 +360191,7 @@
 		<stats maxHp="13405" />
 		<bound_radius front="0.6" side="1.728" upper="3" />
 	</npc_template>
-	<npc_template npc_id="281073" level="50" name="ghost trap" name_id="318466" height="3" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="AGGRESSIVESINGLEMONSTER" type="MONSTER" ai="aggressive" srange="6" attack_speed="2000" hpgauge="3">
+	<npc_template npc_id="281073" level="50" name="ghost trap" name_id="318466" height="3" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="AGGRESSIVESINGLEMONSTER" type="MONSTER" ai="adma_gas_trap" srange="6" attack_speed="2000" hpgauge="3">
 		<stats maxHp="13011" />
 		<bound_radius front="0.6" side="1.728" upper="3" />
 	</npc_template>

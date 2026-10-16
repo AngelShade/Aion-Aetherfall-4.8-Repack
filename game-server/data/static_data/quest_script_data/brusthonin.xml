@@ -223,6 +223,9 @@
 	<monster_hunt id="49007" end_npc_ids="800502" invasion_world="220050000"/>
 	<monster_hunt id="49009" end_npc_ids="800502" invasion_world="220050000"/>
 	
+	<!-- Matching 4.8 introduction: Nerita sends the player to Surt. -->
+	<report_to id="24200" start_npc_ids="204702" end_npc_ids="205150"/>
+
 	<!-- KILL IN WORLD -->
 	<kill_in_world id="39006" end_npc_ids="800500" worlds="220050000" amount="5" invasion_world="220050000"/>
 	<kill_in_world id="49008" end_npc_ids="800502" worlds="220050000" amount="5" invasion_world="220050000"/>

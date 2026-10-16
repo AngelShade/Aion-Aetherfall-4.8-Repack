@@ -35,7 +35,7 @@ public class InstanceTimeClear extends AbstractItemAction {
 	@Override
 	public boolean canAct(Player player, Item parentItem, Item targetItem, Object... params) {
 		int syncId = (int) params[0];
-		if (!syncIds.contains(syncId)) {
+		if (!syncIds.contains(syncId) || !DataManager.INSTANCE_COOLTIME_DATA.hasEntryLimit(DataManager.INSTANCE_COOLTIME_DATA.getWorldId(syncId))) {
 			PacketSendUtility.sendPacket(player, SM_SYSTEM_MESSAGE.STR_MSG_CANT_INSTANCE_COOL_TIME_INIT());
 			return false;
 		}
@@ -74,6 +74,12 @@ public class InstanceTimeClear extends AbstractItemAction {
 
 	private void finishUse(Player player, Item parentItem, int syncId) {
 		int worldId = DataManager.INSTANCE_COOLTIME_DATA.getWorldId(syncId);
+		if (!DataManager.INSTANCE_COOLTIME_DATA.hasEntryLimit(worldId)) {
+			PacketSendUtility.sendPacket(player, SM_SYSTEM_MESSAGE.STR_MSG_CANT_INSTANCE_COOL_TIME_INIT());
+			PacketSendUtility.broadcastPacketAndReceive(player,
+				new SM_ITEM_USAGE_ANIMATION(player.getObjectId(), parentItem.getObjectId(), parentItem.getItemId(), 0, USE_CANCEL));
+			return;
+		}
 
 		if (parentItem.getActivationCount() > 1) {
 			if (player.getInventory().getItemByObjId(parentItem.getObjectId()) == null)

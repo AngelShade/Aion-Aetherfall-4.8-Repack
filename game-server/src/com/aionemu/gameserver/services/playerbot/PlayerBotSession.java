@@ -452,10 +452,26 @@ public final class PlayerBotSession {
 		withholdDamage = threat.hold(bot, role, target, party, now);
 		var hazards = PlayerBotHazards.visible(bot);
 		navigation.hazards(hazards);
+		if(bot.getWorldId()==310110000 && bot.getSummon()!=null) {
+			var pet=bot.getSummon();var cast=pet.getCastingSkill();
+			if(cast!=null && cast.getFirstTarget() instanceof Npc enemy && pet.isEnemy(enemy)
+				&& (!PlayerBotEncounters.allowsSkill(pet,enemy,cast.getSkillTemplate(),0)
+					|| !safeAreaTemplate(cast.getSkillTemplate(),enemy,enemies,pet))) {
+				pet.clearSkillOrders();pet.getController().cancelCurrentSkill(null);
+			}
+		}
 		pets.tick(bot, target, order != Order.STAY, order != Order.PASSIVE, withholdDamage);
 		boolean escapeHazard = PlayerBotHazards.risk(new PlayerBotNavigation.Point(bot.getX(), bot.getY(), bot.getZ()), hazards) > 0
 			&& order == Order.FOLLOW && bot.canPerformMove();
 		var spread = order == Order.FOLLOW && !incapacitated ? PlayerBotCoordination.spread(bot, party, enemies) : null;
+		if(bot.getWorldId()==310110000 && bot.isCasting()) {
+			var cast=bot.getCastingSkill();
+			if(cast!=null && cast.getFirstTarget() instanceof Npc enemy && bot.isEnemy(enemy)
+				&& (!PlayerBotEncounters.allowsSkill(bot,enemy,cast.getSkillTemplate(),0)
+					|| !safeAreaTemplate(cast.getSkillTemplate(),enemy,enemies,bot))) {
+				cancelCharge();bot.getController().cancelCurrentSkill(null);nextDecision=0;
+			}
+		}
 		if ((escapeHazard || spread != null) && bot.isCasting()) {
 			// Let recovery/support casts finish; interrupt offensive casts to react to a newly visible hazard.
 			var casting = bot.getCastingSkill();
@@ -465,7 +481,7 @@ public final class PlayerBotSession {
 			}
 		}
   if(bot.getController().hasScheduledTask(com.aionemu.gameserver.model.TaskId.ACTION_ITEM_NPC)) {
-   if(escapeHazard || !PlayerBotSteelRake.channeling(bot) && (!enemies.isEmpty() || owner.getController().isInCombat() || (!autonomous() && owner.getMoveController().isInMove())))bot.getObserveController().notifyMoveObservers();
+   if(escapeHazard || !(PlayerBotSteelRake.channeling(bot) || PlayerBotAdmaStronghold.channeling(this)) && (!enemies.isEmpty() || owner.getController().isInCombat() || (!autonomous() && owner.getMoveController().isInMove())))bot.getObserveController().notifyMoveObservers();
    else {status="operating encounter device";return true;}
   }
 		if (PlayerBotItemUse.pause(bot, !enemies.isEmpty() || owner.getController().isInCombat()
@@ -475,6 +491,16 @@ public final class PlayerBotSession {
 			if(escapeHazard || supportNeeded || !enemies.isEmpty() || owner.getController().isInCombat()
 			 || order!=Order.FOLLOW || (!autonomous() && owner.getMoveController().isInMove()))bot.getObserveController().notifyMoveObservers();
 			else {status="working through the native profession task";return true;}
+		}
+		if(bot.isCasting() && order!=Order.PASSIVE && !incapacitated) {
+			var cast=bot.getCastingSkill();
+			var kind=cast==null?null:PlayerBotSkills.classify(cast.getSkillTemplate());
+			// Preserve useful heals, protection and an ongoing native cleanse. Only
+			// interrupt incompatible offense for a ready, in-range rescue.
+			if(kind==SkillKind.DAMAGE || kind==SkillKind.CONTROL || kind==SkillKind.TAUNT) {
+				var rescue=PlayerBotHealing.urgentCleanse(bot,skills,support);
+				if(rescue!=null && bot.getCastingSkill()==cast){cancelCharge();bot.getController().cancelCurrentSkill(null);nextDecision=0;}
+			}
 		}
 		if (bot.isCasting() || now < nextDecision) return true;
 		boolean combat = !enemies.isEmpty();
@@ -502,6 +528,8 @@ public final class PlayerBotSession {
 			status = "escape route blocked"; navigation.stop(); return false;
 		}), ENCOUNTER + 20));
   if(order==Order.FOLLOW && !incapacitated){var feeding=PlayerBotSteelRake.feeding(this,navigation,enemies);if(feeding!=null)triggers.add(feeding);}
+		if(order==Order.FOLLOW && !incapacitated){var lab=PlayerBotTheobomosLab.positioning(this,navigation,enemies);if(lab!=null)triggers.add(lab);}
+        if(order==Order.FOLLOW && !incapacitated){var adma=PlayerBotAdmaStronghold.recovery(this,navigation,enemies);if(adma!=null)triggers.add(adma);}
 		Npc protection = PlayerBotEncounters.protection(owner, bot, enemies);
 		if (protection != null && order == Order.FOLLOW && !incapacitated)
 			triggers.add(trigger(new SimpleAction("acquire Vasharti flame protection", () -> true, () -> {
@@ -747,15 +775,19 @@ public final class PlayerBotSession {
 
 	private Npc chooseTarget(List<Npc> enemies, List<Player> party) {
   if(commandedTarget==0){Npc add=PlayerBotSteelRake.adds(enemies);if(add!=null)return add;}
-  return PlayerBotTargetValues.choose(bot,owner,role,commandedTarget,enemies.stream().filter(PlayerBotSteelRake::attackable).toList(),party,skills);
+		Npc lab=PlayerBotTheobomosLab.target(bot,role,commandedTarget,enemies);if(lab!=null)return lab;
+        Npc adma=PlayerBotAdmaStronghold.target(bot,role,commandedTarget,enemies);if(adma!=null)return adma;
+  return PlayerBotTargetValues.choose(bot,owner,role,commandedTarget,enemies.stream().filter(PlayerBotSteelRake::attackable).filter(PlayerBotTheobomosLab::attackable).filter(PlayerBotAdmaStronghold::attackable).toList(),party,skills);
 	}
 
 	private boolean validEnemy(Npc npc, List<Player> party, boolean explicit) {
 		// Territory flags are client control objects and their native AI rejects all damage.
 		// Their opposing race/quest metadata must never turn them into a combat target.
-		if (!PlayerBotTargetEligibility.visible(bot,npc) || npc.isFlag() || PlayerBotSteelRakeCaptainTactics.scenery(npc.getNpcId())) return false;
+		if (!PlayerBotTargetEligibility.visible(bot,npc) || npc.isFlag() || PlayerBotSteelRakeCaptainTactics.scenery(npc.getNpcId())
+			|| npc.getWorldId()==310110000 && npc.getNpcId()==280973 || PlayerBotAdmaStronghold.scenery(npc)) return false;
 		boolean engaged = party.stream().anyMatch(p -> npc.getAggroList().isHating(p)
 			|| p.getSummon() != null && npc.getAggroList().isHating(p.getSummon()));
+		engaged |= PlayerBotTheobomosLab.mechanicEnemy(bot,npc,party) || PlayerBotAdmaStronghold.mechanicEnemy(bot,npc,party);
 		return bot.getKnownList().sees(npc) && PlayerBotRules.canAttack(true, bot.isEnemy(npc), !npc.isDead(), engaged,
 			explicit, controlled(npc), order == Order.PASSIVE, PositionUtil.getDistance(owner, npc), mission == null ? 45 : PlayerBotMission.range())
 			&& npc.getWorldId() == bot.getWorldId() && npc.getInstanceId() == bot.getInstanceId()
@@ -934,7 +966,7 @@ public final class PlayerBotSession {
 		bot.getKnownList().forEachObject(object -> {
 			if (object instanceof Creature other && !other.isDead() && bot.isEnemy(other)
 				&& (PositionUtil.isInRange(target, other, radius) || PositionUtil.isInRange(effector, other, radius)))
-				if (!(other instanceof Npc npc) || !engaged.contains(npc) || controlled(npc) || !PlayerBotEncounters.allowsAttack(effector, npc)) safe[0] = false;
+				if (!(other instanceof Npc npc) || !engaged.contains(npc) || controlled(npc) || !PlayerBotEncounters.allowsSkill(effector, npc, template, 0)) safe[0] = false;
 		});
 		return safe[0];
 	}
@@ -961,7 +993,7 @@ public final class PlayerBotSession {
 			if (!PlayerBotEnemyUtility.useful(bot, entry, recipient)) return false;
 			if (!PlayerBotDefense.useful(bot, role, entry, recipient, enemies)) return false;
 			if (!PlayerBotOffense.useful(bot, entry, recipient)) return false;
-			if (recipient instanceof Npc npc && bot.isEnemy(npc) && (!PlayerBotEncounters.allowsAttack(bot, npc, Math.max(0, entry.template().getDuration()) + 750L)
+			if (recipient instanceof Npc npc && bot.isEnemy(npc) && (!PlayerBotEncounters.allowsSkill(bot, npc, actual, Math.max(0, entry.template().getDuration()) + 750L)
 				|| entry.kind() == SkillKind.PET_ORDER && (bot.getSummon() == null || !PlayerBotEncounters.allowsAttack(bot.getSummon(), npc)))) return false;
 			if (entry.kind() == SkillKind.PET_ORDER && !actual.isPassive() && hasActualBuff(recipient, actual)) return false;
 			return recipient.isSpawned() && (recipient.isDead() == (entry.kind() == SkillKind.RESURRECT)) && !bot.isCasting()
@@ -1029,7 +1061,7 @@ public final class PlayerBotSession {
 					List<Npc> engaged = new ArrayList<>();
 					if (group != null) bot.getKnownList().forEachNpc(n -> { if (validEnemy(n, group.getMembers(), explicitTarget(n))) engaged.add(n); });
 					if (order == Order.PASSIVE || bot.isDead() || !target.isSpawned() || !PlayerBotService.allowsTarget(bot, target)
-						|| target.isDead() || target instanceof Npc npc && !PlayerBotEncounters.allowsAttack(bot, npc) || !safeArea(entry, target, engaged)) {
+						|| target.isDead() || target instanceof Npc npc && !PlayerBotEncounters.allowsSkill(bot, npc, entry.template(),0) || !safeArea(entry, target, engaged)) {
 						bot.getController().cancelCurrentSkill(null); nextDecision = 0; return;
 					}
 					long elapsed = System.currentTimeMillis() - skill.getCastStartTime();
@@ -1068,7 +1100,8 @@ public final class PlayerBotSession {
 		private final float range;
 		ReachAction(Creature target, float range) { this.target = target; this.range = range; }
 		@Override public String name() { return "reach " + target.getName(); }
-		@Override public boolean isUseful() { return !PositionUtil.isInRange(bot, target, range,false) || !GeoService.getInstance().canSee(bot, target); }
+		@Override public boolean isUseful() { return (!(target instanceof Npc npc) || PlayerBotTheobomosLab.mayApproach(bot,npc))
+			&& (!PositionUtil.isInRange(bot, target, range,false) || !GeoService.getInstance().canSee(bot, target)); }
 		@Override public boolean isPossible() { return order != Order.STAY && order != Order.PASSIVE && target.isSpawned() && bot.canPerformMove(); }
 		@Override public boolean execute() { return navigation.approach(target, Math.max(1, range - 0.5f)); }
 	}

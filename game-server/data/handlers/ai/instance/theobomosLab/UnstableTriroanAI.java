@@ -93,7 +93,25 @@ public class UnstableTriroanAI extends AggressiveNpcAI implements HpPhases.Phase
 
 	@Override
 	protected void handleBackHome() {
+		clearSummons();
 		super.handleBackHome();
 		hpPhases.reset();
+	}
+
+	@Override
+	protected void handleDied() {
+		clearSummons();
+		super.handleDied();
+	}
+
+	@Override
+	protected void handleDespawned() {
+		clearSummons();
+		super.handleDespawned();
+	}
+
+	private void clearSummons() {
+		getPosition().getWorldMapInstance().getNpcs(280975, 280976, 280977, 280978)
+			.forEach(npc -> npc.getController().deleteIfAliveOrCancelRespawn());
 	}
 }

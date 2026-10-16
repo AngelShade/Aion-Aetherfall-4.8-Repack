@@ -26,7 +26,8 @@ public class SM_INSTANCE_INFO extends AionServerPacket {
 	public SM_INSTANCE_INFO(byte updateType, Collection<Player> players, Integer... instanceId) {
 		this.updateType = updateType;
 		this.players = players;
-		this.instanceIds =  instanceId.length > 0 ? instanceId : DataManager.INSTANCE_COOLTIME_DATA.getInstanceCooltimes().keySet().toArray(new Integer[0]);
+		Integer[] candidates = instanceId.length > 0 ? instanceId : DataManager.INSTANCE_COOLTIME_DATA.getInstanceCooltimes().keySet().toArray(new Integer[0]);
+		this.instanceIds = Arrays.stream(candidates).filter(DataManager.INSTANCE_COOLTIME_DATA::hasEntryLimit).toArray(Integer[]::new);
 	}
 
 	@Override

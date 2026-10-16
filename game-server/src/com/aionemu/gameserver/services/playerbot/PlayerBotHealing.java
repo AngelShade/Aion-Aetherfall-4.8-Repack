@@ -73,6 +73,39 @@ final class PlayerBotHealing {
   }return Math.max(0,amount);
  }
  static double groupBonus(int injuredPlayers,int injuredPets){return Math.min(8,Math.max(0,injuredPlayers-1)*2+Math.max(0,injuredPets-1)*.5);}
+	/** A partial native cleanse does not reserve all remaining power of an urgent debuff. */
+	private static boolean cleanseAvailable(Player bot,PlayerBotSkills.Entry entry,Creature target,List<Player> party) {
+		if(!PlayerBotService.getInstance().isReserved(bot,target,SkillKind.CLEANSE))return true;
+		var urgent=PlayerBotDispel.urgent(entry,target);if(urgent==null)return false;
+		long pending=0,now=System.currentTimeMillis();
+		for(var member:party) {
+			var cast=member.getCastingSkill();if(cast==null || cast.getFirstTarget()==null || PlayerBotSkills.classify(cast.getSkillTemplate())!=SkillKind.CLEANSE)continue;
+			long remaining=Math.max(0,cast.getCastDuration()+cast.getHitTime()-(now-cast.getCastStartTime()));
+			if(remaining+500>=urgent.deadline())continue;
+			var current=new PlayerBotSkills.Entry(cast.getSkillTemplate(),cast.getSkillLevel(),SkillKind.CLEANSE,
+				cast.getSkillTemplate().getProperties().getFirstTargetRange());
+			if(targets(member,current,cast.getFirstTarget(),party).contains(target))pending+=PlayerBotDispel.contribution(current,urgent.effect());
+		}
+		return pending<urgent.effect().getPower();
+	}
+	record UrgentCleanse(PlayerBotSkills.Entry entry,Creature anchor,long deadline) {}
+	static UrgentCleanse urgentCleanse(Player bot,List<PlayerBotSkills.Entry> learned,List<Player> party) {
+		if(members(party).stream().noneMatch(c->!c.isDead() && PlayerBotDispel.fatal(c)))return null;
+		UrgentCleanse best=null;double bestScore=0;
+		for(var entry:learned)if(entry.kind()==SkillKind.CLEANSE && !bot.isSkillDisabled(entry.template()) && PlayerBotSkills.chainAvailable(bot,entry)) {
+			var properties=entry.template().getProperties();
+			List<Creature> anchors=properties.getFirstTarget()==FirstTargetAttribute.ME?List.of(bot):members(party);
+			for(var anchor:anchors)if(!anchor.isDead() && PositionUtil.isInRange(bot,anchor,entry.range(),false) && reachable(bot,entry,anchor)) {
+				for(var target:targets(bot,entry,anchor,party)) {
+					var need=PlayerBotDispel.urgent(entry,target);
+					if(need==null || !cleanseAvailable(bot,entry,target,party))continue;
+					double score=PlayerBotDispel.urgency(need);
+					if(score>bestScore){bestScore=score;best=new UrgentCleanse(entry,anchor,need.deadline());}
+				}
+			}
+		}
+		return best;
+	}
  static double priority(Player bot,PlayerBotSkills.Entry e,Creature anchor,List<Player> party) {
   double urgency=0,fit=0;int players=0,pets=0;
   for(var target:targets(bot,e,anchor,party))if(heals(e) && needs(bot,e,target,party)) {
@@ -89,7 +122,7 @@ final class PlayerBotHealing {
   }
   double healing=urgency==0 ? 0 : urgency+fit/Math.max(1,players+pets)+groupBonus(players,pets);
   double dispel=0;int cleanses=0;
-  if(e.kind()==SkillKind.CLEANSE)for(var target:targets(bot,e,anchor,party))if(!PlayerBotService.getInstance().isReserved(bot,target,SkillKind.CLEANSE)) {
+  if(e.kind()==SkillKind.CLEANSE)for(var target:targets(bot,e,anchor,party))if(cleanseAvailable(bot,e,target,party)) {
    double value=PlayerBotDispel.score(e,target);if(value>0){dispel=Math.max(dispel,value);cleanses++;}
   }
   double existing=Math.max(healing,cleanses==0 ? 0 : PlayerBotEngine.DISPEL+dispel+Math.min(4,cleanses-1));

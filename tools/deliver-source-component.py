@@ -13,7 +13,8 @@ build_meta = import_module('build-manifest')
 FEATURE_CONFIGURATION = 'config/playerbots/features.properties'
 NAVIGATION_CONFIGURATION = 'config/playerbots/navigation.properties'
 PLAYERBOT_CONFIGURATION = 'config/playerbots/playerbots.properties'
-OWNER_CONFIGURATIONS = frozenset({FEATURE_CONFIGURATION, NAVIGATION_CONFIGURATION, PLAYERBOT_CONFIGURATION})
+INSTANCE_CONFIGURATION = 'config/main/instance.properties'
+OWNER_CONFIGURATIONS = frozenset({FEATURE_CONFIGURATION, NAVIGATION_CONFIGURATION, PLAYERBOT_CONFIGURATION, INSTANCE_CONFIGURATION})
 
 
 def initial_feature_configuration(target):
@@ -22,14 +23,14 @@ def initial_feature_configuration(target):
     return not target.exists()
 
 
-def world_activity_defaults(before, maintained):
-    """Append only missing, explained map-activity keys; preserve existing owner bytes and values."""
+def world_activity_defaults(before, maintained, wanted=None):
+    """Append only missing, explained keys; preserve existing owner bytes and values."""
     keys = import_module('navmesh-release').owner_keys(before)
-    wanted = {'gameserver.playerbots.world.only_occupied_maps', 'gameserver.playerbots.world.presence_refresh_ms'}
+    if wanted is None: wanted = {'gameserver.playerbots.world.only_occupied_maps', 'gameserver.playerbots.world.presence_refresh_ms'}
     blocks = []
     found = set()
     for block in re.split(rb'\r?\n\r?\n', maintained):
-        entries = set(re.findall(rb'^\s*(gameserver\.playerbots\.world\.[\w.]+)\s*=', block, re.MULTILINE))
+        entries = set(re.findall(rb'^\s*(gameserver\.[\w.]+)\s*=', block, re.MULTILINE))
         selected = {key.decode('ascii') for key in entries} & wanted
         if selected:
             assert len(entries) == len(selected) == 1, 'Activity defaults must have independent documented blocks'
@@ -40,6 +41,10 @@ def world_activity_defaults(before, maintained):
     newline = b'\r\n' if b'\r\n' in before else b'\n'
     addition = newline + newline.join(block.replace(b'\r\n', b'\n').replace(b'\n', newline) + newline for block in blocks)
     return before + (b'' if not before or before.endswith((b'\n', b'\r')) else newline) + addition
+
+
+def instance_entry_defaults(before, maintained):
+    return world_activity_defaults(before, maintained, {'gameserver.instance.entry_limits.enable'})
 
 
 def verify_original_resource(target, original):
@@ -60,7 +65,7 @@ def resulting_configurations(existing, files):
     result = dict(existing)
     for entry in files:
         if entry['path'] in OWNER_CONFIGURATIONS:
-            assert entry['original'] is None or entry['path']==NAVIGATION_CONFIGURATION and entry.get('navigationDefaults') or entry['path']==FEATURE_CONFIGURATION and entry.get('worldActivityDefaults'), 'Owner configuration must be an initial seed or validated missing defaults'
+            assert entry['original'] is None or entry['path']==NAVIGATION_CONFIGURATION and entry.get('navigationDefaults') or entry['path']==FEATURE_CONFIGURATION and entry.get('worldActivityDefaults') or entry['path']==INSTANCE_CONFIGURATION and entry.get('instanceEntryDefaults'), 'Owner configuration must be an initial seed or validated missing defaults'
             for key in list(result):
                 if key.replace('\\', '/') == entry['path']: del result[key]
             result[entry['path']] = entry['installed']
@@ -275,6 +280,16 @@ def main():
         assert Path(entry['source']).read_bytes() == world_activity_defaults(target.read_bytes(), maintained), 'Unrelated owner feature configuration change'
         assert shared.sha(Path(entry['source'])) == entry['installed']
         files.append(entry)
+    for entry in plan.get('instanceEntryDefaults', []):
+        assert entry['path'] == INSTANCE_CONFIGURATION and entry.get('instanceEntryDefaults') is True
+        target = server / INSTANCE_CONFIGURATION
+        verify_original_resource(target, entry['original'])
+        with zipfile.ZipFile(build / 'game-server/game-server.zip') as assembly:
+            maintained = assembly.read('game-server/' + INSTANCE_CONFIGURATION)
+        assert maintained == (ROOT / 'game-server' / INSTANCE_CONFIGURATION).read_bytes(), 'Instance entry defaults changed after build'
+        assert Path(entry['source']).read_bytes() == instance_entry_defaults(target.read_bytes(), maintained), 'Unrelated owner instance configuration change'
+        assert shared.sha(Path(entry['source'])) == entry['installed']
+        files.append(entry)
     available = {library.name: library for library in build_meta.libraries(build)}
     for addition in plan.get('libraryAdditions', []):
         name = Path(addition['path']).name
@@ -390,6 +405,12 @@ def main():
                     maintained = assembly.read('game-server/' + FEATURE_CONFIGURATION)
                 assert maintained == (ROOT / 'game-server' / FEATURE_CONFIGURATION).read_bytes()
                 assert Path(e['source']).read_bytes() == world_activity_defaults(target.read_bytes(), maintained)
+            if e.get('instanceEntryDefaults'):
+                assert e['path'] == INSTANCE_CONFIGURATION
+                with zipfile.ZipFile(build / 'game-server/game-server.zip') as assembly:
+                    maintained = assembly.read('game-server/' + INSTANCE_CONFIGURATION)
+                assert maintained == (ROOT / 'game-server' / INSTANCE_CONFIGURATION).read_bytes()
+                assert Path(e['source']).read_bytes() == instance_entry_defaults(target.read_bytes(), maintained)
             verify_original_resource(target, e['original'])
             assert shared.sha(Path(e['source'])) == e['installed']
         assert all(shared.sha(server / e['path']) == e['original'] for e in caches)

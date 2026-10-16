@@ -19890,7 +19890,7 @@
 		<npc_skill id="17182" lv="41" prob="25" />
 		<npc_skill id="18107" lv="41" prob="20" max_hp="25" />
 		<npc_skill id="18458" lv="41" prob="25" />
-		<npc_skill id="18461" lv="41" prob="25" />
+		<npc_skill id="18461" lv="41" prob="25" max_hp="75" target="RANDOM" />
 		<npc_skill id="18467" lv="41" prob="25" />
 		<npc_skill id="18494" lv="41" prob="25" />
 	</npc_skills>
@@ -57887,7 +57887,7 @@
 		<npc_skill id="18425" lv="10" prob="25" />
 	</npc_skills>
 	<npc_skills npc_ids="280933">
-		<npc_skill id="16991" lv="41" prob="25" />
+		<npc_skill id="16991" lv="41" prob="100" max_hp="25" />
 	</npc_skills>
 	<npc_skills npc_ids="280937">
 		<npc_skill id="16525" lv="41" prob="25" />

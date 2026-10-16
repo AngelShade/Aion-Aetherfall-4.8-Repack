@@ -47,7 +47,9 @@ It performs this sequence:
    Java/XML/schema files until their behavior is reconciled into maintained source.
    Preserve runtime geometry, configuration and databases.
 4. Compile all maintained handler sources against the new GameServer and Commons
-   outputs with `-Xlint:deprecation,unchecked -Werror`. Deprecated API usage and
+   outputs in the native separate AI, instance, quest, zone and combined command
+   contexts. Context outputs never enter another context's classpath; shared
+   script contracts belong in the core JAR. Use `-Xlint:deprecation,unchecked -Werror`. Deprecated API usage and
    unchecked operations must be repaired in source before release. No handlers
    are executed or generated handler classes installed.
 5. Compile the focused Playerbot/ShutdownHook fixtures and run every registered

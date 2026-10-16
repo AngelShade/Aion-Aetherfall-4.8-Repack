@@ -10,6 +10,33 @@ build_meta = import_module('build-manifest')
 delivery = import_module('deliver-source-component')
 
 
+def compile_handlers(handlers, cp, out):
+    # Match the independent ScriptManager loads in AI/Instance/Quest/Zone engines
+    # and ChatProcessor. Never expose another context's output on the classpath.
+    contexts = {'ai': ('ai',), 'instance': ('instance',), 'quest': ('quest',),
+        'zone': ('zone',), 'commands': ('admincommands', 'playercommands', 'consolecommands')}
+    roots = out / 'handler-source/data/handlers'
+    assigned = set()
+    results = []
+    empty_sources = out / 'empty-sourcepath'
+    empty_sources.mkdir(exist_ok=True)
+    with (out / 'handler-compile.txt').open('w', encoding='utf-8') as log:
+        for name, directories in contexts.items():
+            sources = [f for f in handlers if f.relative_to(roots).parts[0] in directories]
+            assert sources, 'Missing native script context: ' + name
+            assigned.update(sources)
+            args_file = out / ('handlers-' + name + '.args')
+            args_file.write_text('\n'.join('"' + f.as_posix() + '"' for f in sources), encoding='utf-8')
+            log.write('Compiling isolated native script context: ' + name + '\n'); log.flush()
+            result = subprocess.run(['javac', '-J-Xmx2g', '-encoding', 'UTF-8', '-Xlint:deprecation,unchecked', '-Werror',
+                '-cp', cp, '-sourcepath', str(empty_sources), '-d', str(out / 'handler-classes'), '@' + str(args_file)],
+                cwd=out, stdout=log, stderr=subprocess.STDOUT)
+            assert result.returncode == 0, 'Isolated ' + name + ' handler compilation failed; see ' + str(out / 'handler-compile.txt')
+            results.append(dict(context=name, sources=len(sources), compilation='passed'))
+    assert assigned == set(handlers), 'Handlers exist outside the reviewed native script contexts'
+    return results
+
+
 def main():
     if not __debug__: raise RuntimeError('Validation cannot run with Python optimization enabled')
     p = argparse.ArgumentParser(description=__doc__)
@@ -80,11 +107,7 @@ def main():
         else:
             additions.append(dict(path='libs/' + library.name, source=str(library), original=None, installed=shared.sha(library)))
     cp = ';'.join(map(str, [build / 'game-server/game-server-4.8-SNAPSHOT.jar', build / 'commons/commons-4.8-SNAPSHOT.jar', *libs]))
-    args_file = out / 'handlers.args'
-    args_file.write_text('\n'.join('"' + f.as_posix() + '"' for f in staged_handlers), encoding='utf-8')
-    with (out / 'handler-compile.txt').open('w') as log:
-        result = subprocess.run(['javac', '-J-Xmx2g', '-encoding', 'UTF-8', '-Xlint:deprecation,unchecked', '-Werror', '-cp', cp, '-d', str(out / 'handler-classes'), '@' + str(args_file)], cwd=out, stdout=log, stderr=subprocess.STDOUT)
-    assert result.returncode == 0, 'Complete source handler compilation failed; see ' + str(out / 'handler-compile.txt')
+    handler_contexts = compile_handlers(staged_handlers, cp, out)
     if core_changed or dependency_changed:
         # The native cache checks handler source mtime, not its core-JAR dependencies.
         # Only invalidate classes rebuilt successfully from maintained handler source.
@@ -95,7 +118,8 @@ def main():
     plan = dict(scope=a.scope, resources=resources, changedClasses=sorted(changed_classes), invalidateCaches=sorted(cache),
         runtimeResourceInputs=inputs, priorReceipt=str(prior), dependencyChanged=dependency_changed,
         buildManifestSha256=shared.sha(build / 'build-manifest.json'), libraryAdditions=additions, handlerCount=len(staged_handlers),
-        handlerClasses=sum(1 for _ in (out / 'handler-classes').rglob('*.class')), handlerCompile='passed; no handlers executed')
+        handlerClasses=sum(1 for _ in (out / 'handler-classes').rglob('*.class')),
+        handlerContexts=handler_contexts, handlerCompile='passed; isolated native script contexts; no handlers executed')
     target = server / delivery.FEATURE_CONFIGURATION
     if target.is_file():
         with zipfile.ZipFile(build / 'game-server/game-server.zip') as assembly:
@@ -107,6 +131,17 @@ def main():
             staged.write_bytes(updated)
             plan['worldActivityDefaults'] = [dict(path=delivery.FEATURE_CONFIGURATION, source=str(staged),
                 original=hashlib.sha256(original).hexdigest(), installed=shared.sha(staged), worldActivityDefaults=True)]
+    target = server / delivery.INSTANCE_CONFIGURATION
+    if target.is_file():
+        with zipfile.ZipFile(build / 'game-server/game-server.zip') as assembly:
+            maintained = assembly.read('game-server/' + delivery.INSTANCE_CONFIGURATION)
+        original = target.read_bytes()
+        updated = delivery.instance_entry_defaults(original, maintained)
+        if updated != original:
+            staged = out / 'owner-defaults/instance.properties'; staged.parent.mkdir(exist_ok=True)
+            staged.write_bytes(updated)
+            plan['instanceEntryDefaults'] = [dict(path=delivery.INSTANCE_CONFIGURATION, source=str(staged),
+                original=hashlib.sha256(original).hexdigest(), installed=shared.sha(staged), instanceEntryDefaults=True)]
     assert bool(a.navmesh) == bool(a.navmesh_tool), 'Supply both navigation batch and its generator'
     if a.navmesh:
         plan['navigationPackage'] = import_module('navmesh-release').prepare(build, a.navmesh, a.navmesh_tool, out, server)

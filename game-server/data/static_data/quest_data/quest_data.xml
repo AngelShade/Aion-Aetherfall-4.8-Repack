@@ -9770,6 +9770,10 @@
 		</rewards>
 		<quest_drop npc_id="213739" item_id="182204308" drop_each_member="1" collecting_step="2"/>
 		<class_permitted>WARRIOR SCOUT MAGE PRIEST ENGINEER ARTIST GLADIATOR TEMPLAR ASSASSIN RANGER SORCERER SPIRIT_MASTER CHANTER CLERIC GUNNER BARD</class_permitted>
+		<quest_work_items>
+			<quest_work_item item_id="182204308"/>
+			<quest_work_item item_id="182204309"/>
+		</quest_work_items>
 	</quest>
 	<quest id="2055" name="The Seiren's Treasure" nameId="1103155" quest_zone="Beluslan" minlevel_permitted="38" max_repeat_count="1" cannot_share="true" cannot_giveup="true" race_permitted="ASMODIANS" category="MISSION">
 		<collect_items>
@@ -9947,6 +9951,9 @@
 		<quest_drop npc_id="214380" item_id="182209008" chance="80" drop_each_member="1" collecting_step="4"/>
 		<quest_drop npc_id="214381" item_id="182209008" chance="80" drop_each_member="1" collecting_step="4"/>
 		<class_permitted>WARRIOR SCOUT MAGE PRIEST ENGINEER ARTIST GLADIATOR TEMPLAR ASSASSIN RANGER SORCERER SPIRIT_MASTER CHANTER CLERIC GUNNER BARD</class_permitted>
+		<quest_work_items>
+			<quest_work_item item_id="182209009"/>
+		</quest_work_items>
 	</quest>
 	<quest id="2093" name="The Secret Passage" nameId="1103193" quest_zone="Brusthonin" minlevel_permitted="46" max_repeat_count="1" cannot_share="true" cannot_giveup="true" race_permitted="ASMODIANS" category="MISSION">
 		<collect_items>
@@ -9967,6 +9974,10 @@
 			<finished quest_id="2092"/>
 		</start_conditions>
 		<class_permitted>WARRIOR SCOUT MAGE PRIEST ENGINEER ARTIST GLADIATOR TEMPLAR ASSASSIN RANGER SORCERER SPIRIT_MASTER CHANTER CLERIC GUNNER BARD</class_permitted>
+		<quest_work_items>
+			<quest_work_item item_id="182209011"/>
+			<quest_work_item item_id="182209012"/>
+		</quest_work_items>
 	</quest>
 	<quest id="2094" name="The Secret of Adma Stronghold" nameId="1103194" quest_zone="Brusthonin" minlevel_permitted="46" max_repeat_count="1" cannot_share="true" cannot_giveup="true" race_permitted="ASMODIANS" category="MISSION">
 		<collect_items>

@@ -161,4 +161,32 @@
 		<routestep z="188.14383" y="734.25366" x="372.08008"/>
 		<routestep z="188.14398" y="731.989" x="402.58774"/>
 	</walker_template>
+	<!-- fire: native mesh corridor to the existing generator anchor; approach offset 2.691124399739947m. -->
+	<walker_template route_id="3101100002" loop_type="NONE">
+		<routestep x="601.966" y="488.853" z="196.26857" />
+		<routestep x="620.25" y="473.5" z="196.22041" />
+		<routestep x="621.0" y="473.25" z="196.22041" />
+		<routestep x="621.5" y="473.25" z="196.22041" />
+	</walker_template>
+	<!-- water: native mesh corridor to the existing generator anchor; approach offset 2.64302033930925m. -->
+	<walker_template route_id="3101100003" loop_type="NONE">
+		<routestep x="601.966" y="488.853" z="196.26857" />
+		<routestep x="622.048" y="500.351" z="196.12042" />
+	</walker_template>
+	<!-- earth: native mesh corridor to the existing generator anchor; approach offset 2.704665734603206m. -->
+	<walker_template route_id="3101100004" loop_type="NONE">
+		<routestep x="601.966" y="488.853" z="196.26857" />
+		<routestep x="586.0" y="504.5" z="196.12042" />
+		<routestep x="584.5" y="505.0" z="196.42041" />
+		<routestep x="578.5" y="504.75" z="196.62042" />
+		<routestep x="578.0" y="504.25" z="196.62042" />
+		<routestep x="577.25" y="502.25" z="196.62042" />
+		<routestep x="577.25" y="501.25" z="196.62042" />
+	</walker_template>
+	<!-- wind: native mesh corridor to the existing generator anchor; approach offset 2.5829601845920296m. -->
+	<walker_template route_id="3101100005" loop_type="NONE">
+		<routestep x="601.966" y="488.853" z="196.26857" />
+		<routestep x="581.25" y="480.5" z="196.42041" />
+		<routestep x="580.8833" y="476.12537" z="196.54376" />
+	</walker_template>
 </npc_walker>

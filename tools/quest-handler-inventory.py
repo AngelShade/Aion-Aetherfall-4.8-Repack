@@ -48,27 +48,64 @@ def class_info(data):
                 parent=pool[pool[parent][1]] if parent else None, methods=methods)
 
 
-def constructor_id(info):
-    """Verify the exact literal ID passed to the native superclass, without execution."""
+def constructor_id(info, resolve=None):
+    """Trace literal integer constructor delegation to the native quest base, without execution.
+
+    Only the straight-line this/int argument prefix and invokespecial constructor calls
+    are accepted. Fields, branches, arithmetic and computed quest IDs remain rejected.
+    """
     constructor = next(m for m in info['methods'] if m[1:3] == ('<init>', '()V') and m[0] & 1)
-    raw = dict(constructor[3])['Code']
-    code = raw[8:8 + struct.unpack('>I', raw[4:8])[0]]
-    assert code[0] == 0x2a, 'Constructor must begin with this'
-    opcode = code[1]
-    if 0x02 <= opcode <= 0x08: value, offset = opcode - 3, 2
-    elif opcode == 0x10: value, offset = struct.unpack('>b', code[2:3])[0], 3
-    elif opcode == 0x11: value, offset = struct.unpack('>h', code[2:4])[0], 4
-    elif opcode == 0x12: value, offset = info['pool'][code[2]], 3
-    elif opcode == 0x13: value, offset = info['pool'][struct.unpack('>H', code[2:4])[0]], 4
-    else: raise AssertionError('Review non-literal native quest constructor')
-    assert code[offset] == 0xb7
-    call = info['pool'][struct.unpack('>H', code[offset + 1:offset + 3])[0]]
-    assert call[0] == 10
-    owner = info['pool'][info['pool'][call[1]][1]]
-    signature = info['pool'][call[2]]
-    assert owner == info['parent'] and tuple(info['pool'][n] for n in signature[1:]) == ('<init>', '(I)V')
-    assert isinstance(value, int) and value > 0
-    return value
+    base = 'com/aionemu/gameserver/questEngine/handlers/AbstractQuestHandler'
+    seen = set()
+
+    def trace(current, method, arguments):
+        key = (current.get('name'), method[2])
+        assert key not in seen, 'Cyclic quest constructor delegation'
+        seen.add(key)
+        raw = dict(method[3])['Code']
+        code = raw[8:8 + struct.unpack('>I', raw[4:8])[0]]
+        assert code[0] == 0x2a, 'Constructor must begin with this'
+        offset, values = 1, []
+        while offset < len(code) and code[offset] != 0xb7:
+            opcode = code[offset]; offset += 1
+            if 0x02 <= opcode <= 0x08: value = opcode - 3
+            elif opcode == 0x10:
+                value = struct.unpack('>b', code[offset:offset + 1])[0]; offset += 1
+            elif opcode == 0x11:
+                value = struct.unpack('>h', code[offset:offset + 2])[0]; offset += 2
+            elif opcode in (0x12, 0x13):
+                width = 1 if opcode == 0x12 else 2
+                index = int.from_bytes(code[offset:offset + width], 'big'); offset += width
+                value = current['pool'][index]
+            elif 0x1b <= opcode <= 0x1d:
+                local = opcode - 0x1a
+                assert local <= len(arguments), 'Unbound quest constructor argument'
+                value = arguments[local - 1]
+            elif opcode == 0x15:
+                local = code[offset]; offset += 1
+                assert 1 <= local <= len(arguments), 'Unbound quest constructor argument'
+                value = arguments[local - 1]
+            else: raise AssertionError('Review non-literal native quest constructor')
+            assert type(value) is int, 'Constructor argument must be a literal integer'
+            values.append(value)
+        assert offset < len(code) and code[offset] == 0xb7
+        call = current['pool'][int.from_bytes(code[offset + 1:offset + 3], 'big')]
+        assert call[0] == 10
+        owner = current['pool'][current['pool'][call[1]][1]]
+        signature = current['pool'][call[2]]
+        name, descriptor = (current['pool'][n] for n in signature[1:])
+        assert name == '<init>' and re.fullmatch(r'\(I+\)V', descriptor)
+        assert len(values) == len(descriptor) - 3
+        assert owner == current['parent'] or owner == current.get('name'), 'Unrelated quest constructor'
+        if owner == base or resolve is None:
+            assert owner == current['parent'] and descriptor == '(I)V'
+            assert values[0] > 0
+            return values[0]
+        target = current if owner == current.get('name') else resolve(owner)
+        delegated = next(m for m in target['methods'] if m[1:3] == ('<init>', descriptor))
+        return trace(target, delegated, values)
+
+    return trace(info, constructor, ())
 
 
 def enrich(review, build, coverage_path):
@@ -98,8 +135,13 @@ def enrich(review, build, coverage_path):
         if info['flags'] & 0x400: continue
         assert info['flags'] & 1 and not info['flags'] & 0x200
         native_base(info)
-        quest = constructor_id(info)
-        declared = re.search(r'int\s+_?questId\s*=\s*(\d+)', text) or re.search(r'super\(\s*(\d+)\s*\)', text)
+        def resolve_constructor(owner):
+            path = review / 'handler-classes' / (owner + '.class')
+            assert path.is_file(), 'Review external quest constructor: ' + owner
+            compiled_inputs[owner + '.class'] = sha(path)
+            return class_info(path.read_bytes())
+        quest = constructor_id(info, resolve_constructor)
+        declared = re.search(r'int\s+_?questId\s*=\s*(\d+)', text) or re.search(r'(?:super|this)\(\s*(\d+)\s*[,)]', text)
         assert declared and quest == int(declared[1]), 'Compiled quest ID differs from maintained constructor'
         assert quest not in custom, 'Duplicate custom native handler'
         rel = source.relative_to(review / 'handler-source').as_posix()

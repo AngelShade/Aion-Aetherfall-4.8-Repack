@@ -191,6 +191,12 @@
 	<chest npc_id="700826">
 		<key_item item_ids="185000015" count="1" />
 	</chest>
+	<chest npc_id="700827">
+		<key_item item_ids="185000015" count="1" />
+	</chest>
+	<chest npc_id="700828">
+		<key_item item_ids="185000015" count="1" />
+	</chest>
 	<!-- Abyssal Splinter -->
 	<chest npc_id="700934">
 		<key_item item_ids="0" count="1" />

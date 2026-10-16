@@ -14,6 +14,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 
 import org.slf4j.LoggerFactory;
 
+import com.aionemu.gameserver.configs.main.InstanceConfig;
 import com.aionemu.gameserver.model.Race;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.model.instance.InstanceCoolTimeType;
@@ -55,7 +56,12 @@ public class InstanceCooltimeData {
 	}
 
 	public int getInstanceMaxCountByWorldId(int worldId) {
-		return instanceCooltimes.get(worldId).getMaxCount();
+		return hasEntryLimit(worldId) ? instanceCooltimes.get(worldId).getMaxCount() : 0;
+	}
+
+	public boolean hasEntryLimit(int worldId) {
+		InstanceCooltime template = instanceCooltimes.get(worldId);
+		return InstanceConfig.INSTANCE_ENTRY_LIMITS_ENABLED && template != null && template.getMaxCount() > 0;
 	}
 
 	public int getMaxMemberCount(int worldId, Race race) {
@@ -68,6 +74,8 @@ public class InstanceCooltimeData {
 	}
 
 	public long calculateInstanceEntranceCooltime(Player player, int worldId) {
+		if (!hasEntryLimit(worldId))
+			return 0;
 		int instanceCooldownRate = InstanceService.getInstanceRate(player, worldId);
 		long instanceCoolTime = 0;
 		InstanceCooltime clt = getInstanceCooltimeByWorldId(worldId);

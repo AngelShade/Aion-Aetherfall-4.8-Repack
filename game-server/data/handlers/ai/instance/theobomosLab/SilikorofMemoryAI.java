@@ -9,6 +9,7 @@ import com.aionemu.gameserver.skillengine.SkillEngine;
 import com.aionemu.gameserver.world.WorldPosition;
 
 import ai.AggressiveNpcAI;
+import com.aionemu.gameserver.instance.handlers.TheobomosLabHandler;
 
 /**
  * @author Ritsu
@@ -46,20 +47,40 @@ public class SilikorofMemoryAI extends AggressiveNpcAI implements HpPhases.Phase
 	@Override
 	protected void handleSpawned() {
 		super.handleSpawned();
-		if (getNpcId() == 214668)
-			SkillEngine.getInstance().getSkill(getOwner(), 18481, 1, getOwner()).useSkill();
+		restoreBarrier();
 	}
 
 	@Override
 	protected void handleBackHome() {
+		clearSummons();
 		super.handleBackHome();
 		hpPhases.reset();
+		// Native return-home removes BUFF-slot effects; retreat must not bypass the seal puzzle.
+		restoreBarrier();
 	}
 
 	@Override
 	protected void handleDied() {
-		getPosition().getWorldMapInstance().getNpcs(281054, 281053).forEach(npc -> npc.getController().delete());
+		clearSummons();
 		super.handleDied();
+	}
+
+	@Override
+	protected void handleDespawned() {
+		clearSummons();
+		super.handleDespawned();
+	}
+
+	private void clearSummons() {
+		getPosition().getWorldMapInstance().getNpcs(281054, 281053).forEach(npc -> npc.getController().deleteIfAliveOrCancelRespawn());
+	}
+
+	private void restoreBarrier() {
+		if (getNpcId() != 214668)
+			return;
+		if (getPosition().getWorldMapInstance().getInstanceHandler() instanceof TheobomosLabHandler lab && !lab.isSilikorSealed())
+			return;
+		SkillEngine.getInstance().getSkill(getOwner(), 18481, 1, getOwner()).useSkill();
 	}
 
 }

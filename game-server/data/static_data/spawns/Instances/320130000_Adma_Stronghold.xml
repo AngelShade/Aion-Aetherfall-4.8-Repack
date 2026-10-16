@@ -193,7 +193,7 @@
 			<spot x="531.496" y="678.69" z="162.037" h="90" random_walk="2"/>
 		</spawn>
 		<!-- Genie's Incense Burner -->
-		<spawn npc_id="700557">
+		<spawn npc_id="700397">
 			<spot x="595.72" y="609.561" z="191.087" h="89" static_id="161"/>
 		</spawn>
 		<!-- Ghost Trap -->

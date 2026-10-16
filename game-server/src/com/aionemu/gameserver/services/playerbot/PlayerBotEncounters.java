@@ -17,7 +17,14 @@ final class PlayerBotEncounters {
 		return allowsAttack(actor, enemy, 750);
 	}
 	static boolean allowsAttack(Creature actor, Npc enemy, long commitmentMillis) {
-		if (!PlayerBotSteelRake.attackable(enemy)) return false;
+		if (!PlayerBotSteelRake.attackable(enemy) || !PlayerBotAdmaStronghold.attackable(enemy)) return false;
+		return protectedAttack(actor,enemy,commitmentMillis) && PlayerBotTheobomosLab.allowsAttack(actor,enemy);
+	}
+	static boolean allowsSkill(Creature actor,Npc enemy,com.aionemu.gameserver.skillengine.model.SkillTemplate skill,long commitmentMillis) {
+		return PlayerBotSteelRake.attackable(enemy) && PlayerBotAdmaStronghold.attackable(enemy) && protectedAttack(actor,enemy,commitmentMillis)
+			&& PlayerBotTheobomosLab.allowsSkill(actor,enemy,skill);
+	}
+	private static boolean protectedAttack(Creature actor,Npc enemy,long commitmentMillis) {
 		int required = requiredProtection(enemy);
 		var protection = required > 0 ? actor.getEffectController().getAbnormalEffects().stream().filter(e -> e.getSkillId() == required).findFirst().orElse(null) : null;
 		return protectedFor(required, protection == null ? 0 : protection.getRemainingTimeMillis(), commitmentMillis);

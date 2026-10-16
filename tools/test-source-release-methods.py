@@ -100,7 +100,7 @@ class MethodPreservationCheck(unittest.TestCase):
         self.assertEqual(len(navigation), 7)
         self.assertTrue(all(key.startswith('gameserver.playerbots.navigation.') for key in navigation))
         self.assertTrue(set(navigation) <= set(catalogue))
-        self.assertEqual(delivery.OWNER_CONFIGURATIONS, {delivery.FEATURE_CONFIGURATION, delivery.NAVIGATION_CONFIGURATION, delivery.PLAYERBOT_CONFIGURATION})
+        self.assertEqual(delivery.OWNER_CONFIGURATIONS, {delivery.FEATURE_CONFIGURATION, delivery.NAVIGATION_CONFIGURATION, delivery.PLAYERBOT_CONFIGURATION, delivery.INSTANCE_CONFIGURATION})
 
     def test_seeded_navigation_is_guarded_in_final_configuration_receipt(self):
         existing = {'config/main/playerbots.properties': 'owner choices', delivery.FEATURE_CONFIGURATION: 'owner switches'}

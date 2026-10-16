@@ -4583,6 +4583,23 @@
 			<drop item_id="125002031" chance="30" /><!-- Gentlewoman's Tiara -->
 		</drop_group>
 	</npc_drop>
+	<!-- Retain the installed reward pool for all three native chest variants. -->
+	<npc_drop npc_id="700827">
+		<drop_group>
+			<drop item_id="110900040" chance="10" /><!-- Gentlewoman's Dress -->
+		</drop_group>
+		<drop_group>
+			<drop item_id="125002031" chance="30" /><!-- Gentlewoman's Tiara -->
+		</drop_group>
+	</npc_drop>
+	<npc_drop npc_id="700828">
+		<drop_group>
+			<drop item_id="110900040" chance="10" /><!-- Gentlewoman's Dress -->
+		</drop_group>
+		<drop_group>
+			<drop item_id="125002031" chance="30" /><!-- Gentlewoman's Tiara -->
+		</drop_group>
+	</npc_drop>
 	<!-- PvPvE Map -->
 	<!-- Rare Chest -->
 	<npc_drop npc_id="701388">
