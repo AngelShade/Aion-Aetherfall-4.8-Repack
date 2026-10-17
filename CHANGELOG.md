@@ -1,17 +1,16 @@
 # Aion Aetherfall 4.8 Repack — Changelog
 
 This history includes the full initial-release changelog for 0.86, followed by
-the 0.87 and 0.88 updates. Earlier development work is recorded under 0.86,
+the 0.87 through 0.90 updates. Earlier development work is recorded under 0.86,
 because that is the first public repack in which those changes were bundled.
-Releases 0.86 through 0.88 were published on 17 October 2026. Version 0.89 is
-prepared locally; publication remains a separate step.
 
 | Version | Release | Download |
 | --- | --- | --- |
 | [0.86](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.86) | Initial complete repack | Full base archive: 36.35 GiB / 39.03 GB |
 | [0.87](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.87) | Multiclient, installer detection and server repairs | Cumulative patch: 18 files, about 15 MB |
 | [0.88](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.88) | Fresh-install world-bot startup repair | Cumulative patch: 23 files, about 15 MB |
-| 0.89 — prepared locally | Saved world-bot reserve placement | Cumulative patch: 23 files, about 15 MB |
+| [0.89](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.89) | Saved world-bot reserve placement | Cumulative patch: 23 files, about 15 MB |
+| [0.90](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.90) | Quest reward upgrades, Setup server controls and start-stage repair | Cumulative patch: 25 files, about 20.1 MB |
 
 ## 0.86 — Initial release: full changelog
 
@@ -176,6 +175,18 @@ prepared locally; publication remains a separate step.
 - Preserved existing bot identities, levels, equipment, quest progress and owner population settings.
 - Includes the 0.87 and 0.88 fixes in the cumulative update.
 
+## 0.90 — Quest rewards and Setup server controls
+
+- Updated Quest `29048` (*Seriphim's Teachings*) to reward the permanent full Ninja motion card (`188508001` — idle, run, jump and rest motions) instead of the 1-day temporary version (`188508000`).
+- Updated Quest `29045` (*A Passion for Pets*) to reward the permanent level 1 Tiamat Whelp egg (`190020208`, pet `900192` with auto-loot and doping food/drink/three scrolls) instead of the Purple Ribbit (`190000055`).
+- Added separate graceful Stop GameServer, Stop LoginServer and Stop ChatServer controls, with automatic console confirmations after the selected server exits.
+- Organized Start and Stop actions into aligned sections with consistent button sizes.
+- Made Start database & servers the primary startup action, with Database only and Servers only beneath it.
+- Placed Stop database last and gave it a distinct style to make the shutdown order clear.
+- Added a dedicated status area for operation progress and errors, with full long messages available on hover.
+- Fixed Start database & servers and Database only leaving Setup stuck after the database started. The servers now start right after the database is ready, and Setup can be closed again.
+- A failed startup stage now stops the sequence and shows that stage's actual error instead of continuing.
+
 ## Release-tool changes made alongside these updates
 
 These are maintainer workflow changes, separate from the player patch contents.
@@ -196,8 +207,8 @@ open Aetherfall Setup and choose **Update Repack**. Start the servers again afte
 the update finishes. For the 0.88 population repair, the missing initial state is
 created before GameServer starts.
 
-The 0.88 patch is cumulative. Existing 0.86 and 0.87 users do not need to download
-the full repack again. The original 0.86 archive remains the base download.
+The 0.90 patch is cumulative. Existing 0.86, 0.87, 0.88 and 0.89 users do not need
+to download the full repack again. The original 0.86 archive remains the base download.
 
 Development continues on terrain routes, quests and encounters; the included
 repairs do not mean every route or dungeon is finished.

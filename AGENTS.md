@@ -1,3 +1,41 @@
+# Installer start-stage hang repair090 - installed/local bundles verified - 17 October2026
+
+User reported Setup froze when starting database/servers and never opened the
+server windows. Empirical repro proved Start-Database.ps1's redirected
+Start-Process causes mysqld to inherit Setup's stdout/stderr pipes; .NET
+Framework's parameterless Process.WaitForExit() waited for pipe EOF (i.e. for
+mysqld to exit), leaving serverControlBusy=true forever and blocking Start-Servers
+and window closure. RunPowerShell now awaits process handle completion via timed
+WaitForExit(250), drains output for at most 1.5s, cancels async reads and
+disposes off the UI thread. RunServerControl also checks each stage's exit code
+and surfaces the first stderr message on failure instead of advancing blindly.
+Eight files copied/hash verified across releases root, full/test Hubs, inventories
+and small public downloader. Setup SHA
+38b3b680b7b1587ea54def22ff9fdbec088cbb51b570be4d35d8543ed482cfd4.
+Same-version090 patch25files/21075725bytes/SHA
+3af39bb3757b8f265ff5b2b1336b95d4b3e6cb9baca12d18bbf302b6bf052577;
+all archived and installed payload hashes match; no public upload/channel change.
+External receipt archives/repack/setup-start-hang090-20261017/receipt.json.
+
+# Installer server-control layout090 - installed/local bundles verified - 17 October2026
+
+User requested panel organization after the separate shutdown buttons were added.
+SetupWindow now uses aligned Start/Stop cards, a full-width primary combined start,
+two individual startup stages and a two-by-two shutdown grid with database last
+and visually distinct. Dedicated bounded feedback strip has full-message hover.
+Existing seven button names, handlers, native shutdown helper and lifecycle guards
+retained. Only XAML layout changed. Normal Setup build and actual WPF render inspected;
+no suites/browser/game lifecycle. User closed Setup/Hub; actual closure verified.
+Eight files copied/hash verified across releases root, full/test Hubs, inventories
+and small public downloader. Setup SHA
+a0f5cba34e9b23849c5621c9b11aa7975e27e8fd113b6d0135570af6613dc316.
+Same-version090 patch25files/21075009bytes/SHA
+20900e7b1115c46502d98f9ada36b66b5b0a23c203ca8541d6a6fcc19f0f4d4f;
+all archived and installed payload hashes match; no public upload/channel change.
+External receipt archives/repack/setup-server-layout090-20261017/receipt.json;
+render staging/client/setup-server-layout090-20261017/servers-preview.png.
+Server/database gameplay files/settings untouched, no components stopped/started.
+
 # Installer server controls090 - installed/local bundles verified - 17 October2026
 
 User clarified buttons belong in090 now. Maintained SetupApp/SetupWindow plus reusable ServerControl helper build normally; Server Control has separate Stop GameServer/LoginServer/ChatServer buttons. Exact bundled-Java path and main-class selection, process handles, isolated-console/launcher-parent admission, native CTRL+C shutdown and180s graceful wait; only after target exit are Y/PAUSE console input events sent to its own cmd console. No forced termination, foreground typing or database stop. Busy/close guards retain cleanup; refused/shared/timed-out cases report unfinished state. One external inert .NET dummy console (not real Java/game) proved normal callback, automatic prompts and server/launcher exit; rendered panel inspected. Installer SHA6c7e8c69c61c39df6e9be902241da77d8c076f5c4f3528bbce26389ae6059951 installed in releases root and full/test repack Hubs; small public downloader rebuilt without Games/local settings. Eight copied hashes verified; receipt external archives/repack/setup-server-controls090-20261017/receipt.json. Same-version090 cumulative patch now25files/21074442bytes/SHA758dd9cdf7931b74fed8d8869a749f2ac9b26075f687a2b2bc011556367fcfbd; all archived and installed test-copy payload hashes verified. Supersedes earlier090 patch hash/count. No real component lifecycle, SQL, gameplay, upload or public channel change. Actual real-server button acceptance remains user's.

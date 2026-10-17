@@ -1207,21 +1207,23 @@ namespace AetherfallSetup {
      await PollPorts();return;
     }
     Text("ServerControlFeedback").Text = "Running " + action + "…";
-    if (action == "StartAll" || action == "StartDb") {
-     await RunPowerShell(System.IO.Path.Combine(pkg, "Control", "Start-Database.ps1"), "", line => {
+    // Each stage must succeed before the next starts. A thrown script error is
+    // reported by its first stderr line (the message itself, not the trailer).
+    Func<string, Task<bool>> stage = async script => {
+     string firstError = null;
+     int code = await RunPowerShell(System.IO.Path.Combine(pkg, "Control", script), "", line => {
       if (!String.IsNullOrWhiteSpace(line)) Text("ServerControlFeedback").Text = line;
+     }, line => {
+      if (firstError == null && !String.IsNullOrWhiteSpace(line)) firstError = line.Trim();
      });
-    }
-    if (action == "StartAll" || action == "StartGs") {
-     await RunPowerShell(System.IO.Path.Combine(pkg, "Control", "Start-Servers.ps1"), "", line => {
-      if (!String.IsNullOrWhiteSpace(line)) Text("ServerControlFeedback").Text = line;
-     });
-    }
-    if (action == "StopDb") {
-     await RunPowerShell(System.IO.Path.Combine(pkg, "Control", "Stop-Database.ps1"), "", line => {
-      if (!String.IsNullOrWhiteSpace(line)) Text("ServerControlFeedback").Text = line;
-     });
-    }
+     if (code == 0) return true;
+     Text("ServerControlFeedback").Text = firstError ?? (script + " stopped with exit code " + code + ".");
+     return false;
+    };
+    bool ok = true;
+    if (action == "StartAll" || action == "StartDb") ok = await stage("Start-Database.ps1");
+    if (ok && (action == "StartAll" || action == "StartGs")) ok = await stage("Start-Servers.ps1");
+    if (action == "StopDb") ok = await stage("Stop-Database.ps1");
     await PollPorts();
    } catch (Exception ex) {
     Text("ServerControlFeedback").Text = ex.Message;
@@ -1231,7 +1233,14 @@ namespace AetherfallSetup {
    }
   }
 
-  async Task<int> RunPowerShell(string scriptPath, string extraArgs, Action<string> onLine) {
+  // Completion is the PowerShell process exit, never pipe end-of-file. Control
+  // scripts launch long-running programs: Start-Database.ps1 starts mysqld via
+  // a redirected Start-Process, which inherits every inheritable handle,
+  // including these output pipes. Parameterless WaitForExit() also waits for
+  // pipe EOF, i.e. until the database itself stops, so Setup stayed busy and
+  // the next stage (Start-Servers) never ran. Output written before exit is
+  // drained for a bounded period; then reading stops.
+  async Task<int> RunPowerShell(string scriptPath, string extraArgs, Action<string> onLine, Action<string> onErrorLine = null) {
    string ps = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
    string fullArgs = "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File " + Quote(scriptPath) + " " + extraArgs;
    var psi = new ProcessStartInfo(ps, fullArgs) {
@@ -1242,14 +1251,30 @@ namespace AetherfallSetup {
     RedirectStandardOutput = true,
     RedirectStandardError = true
    };
-   using (var proc = new Process { StartInfo = psi }) {
-    proc.OutputDataReceived += (s, e) => { if (e.Data != null) window.Dispatcher.BeginInvoke(new Action(() => onLine(e.Data))); };
-    proc.ErrorDataReceived += (s, e) => { if (e.Data != null) window.Dispatcher.BeginInvoke(new Action(() => onLine(e.Data))); };
+   var outEof = new TaskCompletionSource<bool>();
+   var errEof = new TaskCompletionSource<bool>();
+   var proc = new Process { StartInfo = psi };
+   proc.OutputDataReceived += (s, e) => {
+    if (e.Data == null) { outEof.TrySetResult(true); return; }
+    window.Dispatcher.BeginInvoke(new Action(() => onLine(e.Data)));
+   };
+   proc.ErrorDataReceived += (s, e) => {
+    if (e.Data == null) { errEof.TrySetResult(true); return; }
+    window.Dispatcher.BeginInvoke(new Action(() => { if (onErrorLine != null) onErrorLine(e.Data); onLine(e.Data); }));
+   };
+   try {
     proc.Start();
     proc.BeginOutputReadLine();
     proc.BeginErrorReadLine();
-    await Task.Run(() => proc.WaitForExit());
+    // Timed waits observe only the process handle (no stream EOF wait).
+    await Task.Run(() => { while (!proc.WaitForExit(250)) { } });
+    await Task.WhenAny(Task.WhenAll(outEof.Task, errEof.Task), Task.Delay(1500));
     return proc.ExitCode;
+   } finally {
+    try { proc.CancelOutputRead(); } catch {}
+    try { proc.CancelErrorRead(); } catch {}
+    // A daemon may still hold the pipe's write end; release off the UI thread.
+    Task release = Task.Run(() => { try { proc.Dispose(); } catch {} });
    }
   }
 

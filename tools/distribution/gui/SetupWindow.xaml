@@ -119,23 +119,54 @@
    </Border>
 
    <Border x:Name="ServersPanel" Visibility="Collapsed" Background="#EB0C1022" BorderBrush="#788E836B" BorderThickness="1" Padding="28,22" CornerRadius="6">
-    <StackPanel>
-     <TextBlock Text="LOCAL PORTABLE SERVER CONTROL" Foreground="#E8CB91" FontSize="10"/>
-     <TextBlock Text="Manage Database &amp; World Servers" FontFamily="Palatino Linotype" FontSize="28" Margin="0,6,0,10"/>
-     <TextBlock Text="Stop each server normally and wait for saving to finish. Its console confirmations are completed automatically; the database stays running." FontSize="13" Foreground="#D4DCE8" Margin="0,0,0,18" TextWrapping="Wrap"/>
-     <WrapPanel Margin="0,0,0,16">
-      <Button x:Name="StartAllServerBtn" Content="▶  1. Start Database &amp; Servers" Padding="18,12" Margin="0,0,12,12" Background="#1F473E" BorderBrush="#88A6E5C3" FontSize="13"/>
-      <Button x:Name="StartDbOnlyBtn" Content="Start Database Only" Padding="15,12" Margin="0,0,12,12"/>
-      <Button x:Name="StartGsOnlyBtn" Content="Start Servers Only" Padding="15,12" Margin="0,0,12,12"/>
-      <Button x:Name="StopAllServerBtn" Content="■  Stop Database" Padding="16,12" Margin="0,0,12,12" Background="#4A2028" BorderBrush="#99E59A9A"/>
-     </WrapPanel>
-     <WrapPanel Margin="0,0,0,12">
-      <Button x:Name="StopGsBtn" Content="■  Stop GameServer" Padding="16,12" Margin="0,0,12,12" Background="#4A2028" BorderBrush="#99E59A9A"/>
-      <Button x:Name="StopLsBtn" Content="■  Stop LoginServer" Padding="16,12" Margin="0,0,12,12" Background="#4A2028" BorderBrush="#99E59A9A"/>
-      <Button x:Name="StopChatBtn" Content="■  Stop ChatServer" Padding="16,12" Margin="0,0,12,12" Background="#4A2028" BorderBrush="#99E59A9A"/>
-     </WrapPanel>
-     <TextBlock x:Name="ServerControlFeedback" Text="Database uses portable port 33306. LoginServer listens on port 2106." FontSize="12" Foreground="#EAD29E" TextWrapping="Wrap"/>
-    </StackPanel>
+    <Grid>
+     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+     <StackPanel Margin="0,0,0,14">
+      <TextBlock Text="YOUR LOCAL REPACK" Foreground="#E8CB91" FontSize="10"/>
+      <TextBlock Text="Server control" FontFamily="Palatino Linotype" FontSize="28" Margin="0,3,0,3"/>
+      <TextBlock Text="Start your repack and shut down each service safely." FontSize="12" Foreground="#D4DCE8"/>
+     </StackPanel>
+     <Grid Grid.Row="1">
+      <Grid.Resources>
+       <Style x:Key="ServiceButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+        <Setter Property="Height" Value="35"/><Setter Property="Padding" Value="8,0"/><Setter Property="FontSize" Value="12"/>
+       </Style>
+       <Style x:Key="StopServiceButton" TargetType="Button" BasedOn="{StaticResource ServiceButton}">
+        <Setter Property="Background" Value="#3B202A"/><Setter Property="BorderBrush" Value="#98775D65"/>
+       </Style>
+      </Grid.Resources>
+      <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="14"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+      <Border Background="#AA15252B" BorderBrush="#526C9B8B" BorderThickness="1" CornerRadius="4" Padding="12">
+       <StackPanel>
+        <TextBlock Text="START" Foreground="#A7DFC9" FontSize="11" FontWeight="SemiBold"/>
+        <TextBlock Text="Everything together, or one stage at a time." Foreground="#CAD8DC" FontSize="11" Margin="0,3,0,10"/>
+        <Button x:Name="StartAllServerBtn" Content="▶  Start database &amp; servers" Style="{StaticResource ServiceButton}" Background="#245345" BorderBrush="#8AB6A192"/>
+        <Grid Margin="0,8,0,0">
+         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+         <Button x:Name="StartDbOnlyBtn" Content="Database only" Style="{StaticResource ServiceButton}" ToolTip="Start the database before starting the servers."/>
+         <Button x:Name="StartGsOnlyBtn" Grid.Column="2" Content="Servers only" Style="{StaticResource ServiceButton}" ToolTip="Start LoginServer, ChatServer and GameServer. The database must be running."/>
+        </Grid>
+       </StackPanel>
+      </Border>
+      <Border Grid.Column="2" Background="#AA231B2A" BorderBrush="#527A626B" BorderThickness="1" CornerRadius="4" Padding="12">
+       <StackPanel>
+        <TextBlock Text="STOP" Foreground="#ECC1B7" FontSize="11" FontWeight="SemiBold"/>
+        <TextBlock Text="Stop the servers first. Database last." Foreground="#D7CCD4" FontSize="11" Margin="0,3,0,10"/>
+        <Grid>
+         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+         <Grid.RowDefinitions><RowDefinition Height="35"/><RowDefinition Height="8"/><RowDefinition Height="35"/></Grid.RowDefinitions>
+         <Button x:Name="StopGsBtn" Content="Stop GameServer" Style="{StaticResource StopServiceButton}"/>
+         <Button x:Name="StopLsBtn" Grid.Column="2" Content="Stop LoginServer" Style="{StaticResource StopServiceButton}"/>
+         <Button x:Name="StopChatBtn" Grid.Row="2" Content="Stop ChatServer" Style="{StaticResource StopServiceButton}"/>
+         <Button x:Name="StopAllServerBtn" Grid.Row="2" Grid.Column="2" Content="Stop database" Style="{StaticResource ServiceButton}" Background="#332B23" BorderBrush="#947E7057" ToolTip="Stop the database after all three servers have finished saving and closed."/>
+        </Grid>
+       </StackPanel>
+      </Border>
+     </Grid>
+     <Border Grid.Row="2" Background="#7A101729" CornerRadius="3" Padding="10,7" Margin="0,12,0,0" VerticalAlignment="Bottom">
+      <TextBlock x:Name="ServerControlFeedback" Text="Ready. Server shutdown waits for saving to finish; the database stays running." FontSize="11" Foreground="#EAD29E" TextWrapping="Wrap" MaxHeight="31" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+     </Border>
+    </Grid>
    </Border>
 
    <Border x:Name="PathsPanel" Visibility="Collapsed" Background="#EB0C1022" BorderBrush="#788E836B" BorderThickness="1" Padding="28,22" CornerRadius="6">

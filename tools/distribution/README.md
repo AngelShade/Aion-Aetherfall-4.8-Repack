@@ -124,6 +124,21 @@ processes is refused. Timeouts report unfinished shutdown without killing Java;
 the database and other components stay running. No component is stopped during
 the installer build or delivery.
 
+The panel groups Start and Stop actions in aligned columns. Starting everything
+is the primary action; individual startup stages are underneath. Stop Database
+is last and visually separate from the three server stops. A dedicated status
+strip displays progress/errors; hover it to read any message that exceeds two
+lines. Button names and existing server-control actions are retained.
+
+Start stages run the installed `Control/*.ps1` scripts in order and each stage
+must exit successfully before the next one starts; a failure shows the script's
+own error message. Setup treats a stage as finished when its PowerShell process
+exits, not when its output pipe closes. `Start-Database.ps1` launches `mysqld`
+with a redirected `Start-Process`, which inherits Setup's output pipe, so the
+pipe stays open for as long as the database runs. Waiting for that pipe kept
+Setup busy forever and never started the servers (fixed after 0.90's layout
+build). Remaining output is read for at most 1.5 seconds after the script exits.
+
 The 0.86/0.87 fresh schema omitted the required `playerbot_population_state`
 singleton. `repack_population.py` adds the native empty-import state to the fresh
 GS schema/bootstrap. Its digest matches the native migration's four absent legacy

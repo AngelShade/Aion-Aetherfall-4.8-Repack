@@ -1,23 +1,24 @@
-# Aion Aetherfall 4.8 Repack
+# Aion Aetherfall 4.8 Repack Source
 
 <p align="center">
   <img src="client-mods/login-branding/assets/aetherfall-subtitle.png" alt="Aetherfall" width="760">
 </p>
 
 <p align="center">
-  <a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.86/Aetherfall-Downloader.zip"><img src="https://img.shields.io/badge/Download-Aetherfall_Downloader_v0.86_(7.7_MB)-2563eb?style=for-the-badge&logo=windows" alt="Download Aetherfall Downloader"></a>
-  <a href="https://mega.nz/file/hJt0hYTC#fr0RDjsLl4CriZ5dw8MljBhrlP6nD4oYkaErD2iW-vQ"><img src="https://img.shields.io/badge/MEGA_Mirror-Full_Repack_0.86_(36.35_GB)-d9272e?style=for-the-badge" alt="MEGA Mirror"></a>
-  <a href="https://drive.google.com/file/d/1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2/view?usp=sharing"><img src="https://img.shields.io/badge/Google_Drive-Full_Repack_0.86_(36.35_GB)-16a34a?style=for-the-badge&logo=googledrive" alt="Google Drive Mirror"></a>
+  <a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.86/Aetherfall-Downloader.zip"><img src="https://img.shields.io/badge/Download-Aetherfall_Setup_Hub_(7.7_MB)-2563eb?style=for-the-badge&logo=windows" alt="Download Aetherfall Setup Hub"></a>
+  <a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases"><img src="https://img.shields.io/badge/Latest_Release-v0.90-eab308?style=for-the-badge" alt="Latest Release v0.90"></a>
+  <a href="https://mega.nz/file/hJt0hYTC#fr0RDjsLl4CriZ5dw8MljBhrlP6nD4oYkaErD2iW-vQ"><img src="https://img.shields.io/badge/MEGA_Mirror-Base_Repack_0.86_(36.35_GB)-d9272e?style=for-the-badge" alt="MEGA Mirror"></a>
+  <a href="https://drive.google.com/file/d/1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2/view?usp=sharing"><img src="https://img.shields.io/badge/Google_Drive-Base_Repack_0.86_(36.35_GB)-16a34a?style=for-the-badge&logo=googledrive" alt="Google Drive Mirror"></a>
   <a href="https://discord.com/invite/cpRYCRsSnR"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
-**Aion 4.8 NA with party companions, shared quest progress, dungeon repairs and custom client features.**
+**Aion 4.8 NA server source, client modifications, and portable repack tools — featuring party companions, shared quest progress, world playerbots, dungeon repairs and custom client systems.**
 
 Aetherfall lets you build a party from your own alternate characters or temporary companions. Take them through quests and dungeons, manage their equipment and combat behavior, and keep your alts caught up with your main. Independent playerbots also quest, fight and visit towns around the world.
 
-See the [full changelog](CHANGELOG.md) for the initial 0.86 release and subsequent updates.
+See the [full changelog](CHANGELOG.md) for the initial `0.86` release and cumulative updates through `0.90`.
 
-The Windows repack brings the client, GameServer, LoginServer, ChatServer, Java and MariaDB together in one portable folder. The source and client modifications are maintained here.
+The Windows repack brings the client, GameServer, LoginServer, ChatServer, Java 25 and MariaDB together in one portable folder. The server source, client modifications and distribution tools are maintained here on branch `4.8`.
 
 ## What's included
 
@@ -25,14 +26,16 @@ The Windows repack brings the client, GameServer, LoginServer, ChatServer, Java 
 | --- | --- |
 | Party companions | Bring your own alts or recruit temporary companions. Manage their combat behavior, skills and equipment through the companion interface. |
 | Shared quest completion | With **Party completion sync** enabled, your owned alts in the party catch up on quests your main has completed and receive future completions too, with the quest rewards. |
-| World playerbots | Independent characters that quest, fight, gather, craft and use town services. By default, their autonomous activity pauses on maps and instances without human players. |
+| World playerbots | Independent characters that quest, fight, gather, craft and use town services, with cross-faction reserve creation and player-zone population focus. By default, autonomous activity pauses on maps and instances without human players. |
 | Dungeon and campaign repairs | Work on Theobomos Lab and Adma Stronghold includes quest chains, scripted encounters, boss behavior, loot and dungeon exits. |
 | Repeat dungeon entry | Entry limits are disabled by default. Level, quest, party and instance requirements still apply. |
-| Central Market | Buy and sell items through the in-game player marketplace. |
+| Central Market & Cash Shop | Buy and sell items through the in-game player marketplace with 3,000 simulated traders, plus the integrated in-game Cash Shop. |
 | Wardrobe | Customize your character's appearance through the in-game Wardrobe. |
 | Season Pass | An in-game progression and reward interface. |
-| Starting-area Journey | Poeta and Ishalgen journey options for starting characters. |
-| Inventory and warehouse | Expanded storage with search controls for finding your items. |
+| Starting-area Journey | Poeta and Ishalgen journey options (Level 1 story or Level 10 Daeva Ascension skip) for both main characters and companions. |
+| Inventory and warehouse | Expanded 288-slot storage with search controls for finding your items. |
+| Multiclient & custom launcher | Graphical launcher with DXVK (Vulkan) / D3D9 switcher, seamless startup curtain, and concurrent multi-client support across separate accounts. |
+| Setup & Server Control Hub | Native `Aetherfall Setup.exe` / `Aetherfall Hub.exe` with resumable MEGA + Google Drive + BitTorrent downloads, 1-click delta updates, combined or staged server startup, and graceful per-service (`GameServer`, `LoginServer`, `ChatServer`, `Database`) shutdown. |
 | Client improvements | Speech bubbles, remembered login, extra graphics controls, native menu shortcuts and Aetherfall login artwork and news. |
 
 The extra services are available through **Additional Functions** in the client. Companion controls are also available through the playerbot interface.
@@ -45,25 +48,28 @@ Rewards use the quest's normal reward system: XP, Kinah, items and other rewards
 
 ## Download
 
-The full playable repack (**Release 0.86** — `36.35 GB` packed / `197,739` files) is a separate download from this repository's source code. A complete package contains `Client`, `Server`, `Control` and the launchers described below.
+The full playable base repack (**Release 0.86** — `36.35 GiB` packed / `197,739` files) is a separate download from this repository's source code, and updates (`0.87` → `0.90`) are delivered as small cumulative delta patches (`~15–21 MB`) directly through `Aetherfall Setup.exe`. A complete package contains `Client`, `Server`, `Control` and the launchers described below.
 
 | Download Option | Link | Details |
 | --- | --- | --- |
-| **1. Aetherfall Setup & Auto-Updater (Recommended)** | [**Download `Aetherfall-Downloader.zip`**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.86/Aetherfall-Downloader.zip) | `7.7 MB` — Native GUI setup hub (`Aetherfall Setup.exe`) with multi-stream MEGA + Google Drive resume, SHA-256 verification, auto-extraction, 1-click server/client control, and delta update patching. |
-| **2. MEGA Direct Mirror** | [**Download `Aetherfall-0.86.7z` (MEGA)**](https://mega.nz/file/hJt0hYTC#fr0RDjsLl4CriZ5dw8MljBhrlP6nD4oYkaErD2iW-vQ) | `36.35 GB` single archive (`SHA-256: 7b5599837887a49d2b2bebb2ef73f4a9435b42b9686da62aec6354f9954af885`). |
-| **3. Google Drive Direct Mirror** | [**Download `Aetherfall-0.86.7z` (Google Drive)**](https://drive.google.com/file/d/1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2/view?usp=sharing) | `36.35 GB` single archive (`SHA-256: 7b5599837887a49d2b2bebb2ef73f4a9435b42b9686da62aec6354f9954af885`). |
+| **1. Aetherfall Setup & Auto-Updater (Recommended)** | [**Download `Aetherfall-Downloader.zip`**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.86/Aetherfall-Downloader.zip) | `7.7 MB` — Native GUI setup hub (`Aetherfall Setup.exe`) with multi-stream MEGA + Google Drive resume, SHA-256 verification, auto-extraction, 1-click server/client control, and cumulative delta patching to `v0.90`. |
+| **2. MEGA Direct Mirror** | [**Download `Aetherfall-0.86.7z` (MEGA)**](https://mega.nz/file/hJt0hYTC#fr0RDjsLl4CriZ5dw8MljBhrlP6nD4oYkaErD2iW-vQ) | `36.35 GiB` single base archive (`SHA-256: 7b5599837887a49d2b2bebb2ef73f4a9435b42b9686da62aec6354f9954af885`). |
+| **3. Google Drive Direct Mirror** | [**Download `Aetherfall-0.86.7z` (Google Drive)**](https://drive.google.com/file/d/1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2/view?usp=sharing) | `36.35 GiB` single base archive (`SHA-256: 7b5599837887a49d2b2bebb2ef73f4a9435b42b9686da62aec6354f9954af885`). |
 | **4. BitTorrent P2P** | [**Download `Aetherfall-0.86.torrent`**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.86/Aetherfall-0.86.torrent) | BitTorrent Swarm (`infoHash: ac60eed8cc0438ebd3e8f237fa3cf27700ce740f`). |
-| **5. GitHub Releases Page** | [**View Release `v0.86`**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.86) | Release notes, checksums and downloader assets. |
+| **5. GitHub Releases & Cumulative Patches** | [**View Releases (`v0.86` – `v0.90`)**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases) | Base release assets, cumulative delta patches (`Aetherfall-Patch-0.90.zip`), and checksums. |
 | **Community Discord** | [**Join the Aetherfall Discord**](https://discord.com/invite/cpRYCRsSnR) | Updates, support, playerbot tips and bug reports. |
 
 ## Start the repack
 
 You need 64-bit Windows, a suitable graphics driver and the complete repack folder. Java and MariaDB are bundled; no database Windows service is required. The GameServer allows up to 4 GiB of heap, so leave additional memory available for the client, database and Windows.
 
-### Option A: Using `Aetherfall Setup.exe` (All-in-One Control Hub)
+### Option A: Using `Aetherfall Setup.exe` / `Aetherfall Hub.exe` (All-in-One Control Hub)
 1. Extract **`Aetherfall-Downloader.zip`** to a folder of your choice and run **`Aetherfall Setup.exe`**.
-2. Click **Download & Install** (if you pause or close the window midway, reopening `Aetherfall Setup.exe` and clicking **Resume** continues from the exact chunk where it stopped).
-3. Once installed, use the **Repack Control Hub** buttons inside `Aetherfall Setup.exe` to **Start Database**, **Start Servers**, **Launch Aion**, and **Check for Updates**.
+2. Click **Download & Install** (if you pause or close the window midway, reopening `Aetherfall Setup.exe` and clicking **Resume** continues from the exact chunk where it stopped). Use **Update Repack** on the **Install & Update** tab anytime to apply the latest cumulative patch (`v0.90`).
+3. Open the **Server Control** tab to start and stop services safely:
+   - **Start**: Click **Start database & servers** to launch MariaDB and all three server consoles in order (or use **Database only** / **Servers only** individually).
+   - **Play**: Once GameServer finishes loading, click **PLAY** to open the **Aetherfall Launcher**.
+   - **Stop**: Use **Stop GameServer**, **Stop LoginServer** and **Stop ChatServer** for graceful `CTRL+C` shutdowns with automatic console confirmation, then click **Stop database** last.
 
 ### Option B: Using the numbered `.cmd` scripts inside the repack folder
 1. Extract the whole package. Keep `Client`, `Server` and `Control` together.
