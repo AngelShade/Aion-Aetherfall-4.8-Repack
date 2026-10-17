@@ -12,7 +12,7 @@ def sha256_file(path: Path) -> str:
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
-def build_patch(package: Path, baseline_index_path: Path, output_dir: Path, patch_url_base: str = ''):
+def build_patch(package: Path, baseline_index_path: Path, output_dir: Path, patch_url_base: str = '', setup_path=None):
     release = json.loads((package / 'release.json').read_text(encoding='utf-8-sig'))
     version = release['Version']
     baseline = json.loads(baseline_index_path.read_text(encoding='utf-8-sig'))
@@ -53,6 +53,7 @@ def build_patch(package: Path, baseline_index_path: Path, output_dir: Path, patc
         'schema': 1,
         'product': 'Aion Aetherfall Repack',
         'version': version,
+        'baseVersion': '0.86',
         'createdAt': datetime.now().astimezone().isoformat(),
         'files': changed,
         'removed': removed,
@@ -76,6 +77,10 @@ def build_patch(package: Path, baseline_index_path: Path, output_dir: Path, patc
         'filesChanged': len(changed),
         'filesRemoved': len(removed),
     }
+    setup = setup_path or output_dir / 'Aetherfall-Downloader' / 'Aetherfall Setup.exe'
+    if setup.is_file():
+        latest.update(setupExeUrl=(patch_url_base.rstrip('/')+'/Aetherfall-Setup.exe') if patch_url_base else '',
+                      setupExeBytes=setup.stat().st_size, setupExeSha256=sha256_file(setup))
     (output_dir / 'latest-update.json').write_text(json.dumps(latest, indent=2), encoding='utf-8')
     print(f'Built delta patch {patch_path} ({len(changed)} changed files, {patch_path.stat().st_size} bytes, sha256={patch_sha})')
 

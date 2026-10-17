@@ -54,7 +54,10 @@ def https(url):
 
 
 def publish(root, mirrors_url=None, trackers=None):
-    downloader = root/'Aetherfall-Downloader'
+    layout_path = root/'Maintenance/release-layout.json'
+    layout = json.loads(layout_path.read_text()) if layout_path.is_file() else None
+    downloader = root/(layout['setupSupport'] if layout else 'Aetherfall-Downloader')
+    release = root/layout['baseRelease'] if layout else root
     manifest = json.loads((downloader/'release-manifest.json').read_text())
     mirrors = json.loads((downloader/'mirrors.json').read_text())
     if mirrors['schema'] != 1 or mirrors['release'] != manifest['version']:
@@ -70,7 +73,7 @@ def publish(root, mirrors_url=None, trackers=None):
             raise ValueError('Each archive maps to an array of direct URLs')
         for url in urls:
             https(url)
-    torrent = root/manifest['torrentFile']
+    torrent = release/manifest['torrentFile']
     meta = decode(torrent.read_bytes())
     if hashlib.sha1(encode(meta[b'info'])).hexdigest() != manifest['infoHash']:
         raise ValueError('Torrent content changed')
@@ -94,9 +97,10 @@ def publish(root, mirrors_url=None, trackers=None):
     for tier in meta.get(b'announce-list', [[meta[b'announce']]]):
         for tracker in tier:
             magnet += '&tr='+urllib.parse.quote(tracker.decode(), safe='')
-    (root/'magnet.txt').write_text(magnet+'\n')
-    for path in [root/'release-manifest.json', downloader/'release-manifest.json']:
+    (release/'magnet.txt').write_text(magnet+'\n')
+    for path in [release/'release-manifest.json', downloader/'release-manifest.json']:
         path.write_text(json.dumps(manifest, indent=2))
+    (release/'mirrors.json').write_text(json.dumps(mirrors, indent=2))
     if mirrors_url:
         path = downloader/'settings.json'
         settings = json.loads(path.read_text())
@@ -117,15 +121,28 @@ def publish(root, mirrors_url=None, trackers=None):
             complete = False
         for priority, url in enumerate(urls, 1):
             ET.SubElement(element, '{'+namespace+'}url', priority=str(priority)).text = url
-    metalink = root/'repack.meta4'
+    metalink = release/'repack.meta4'
     if complete:
         ET.ElementTree(document).write(metalink, encoding='utf-8', xml_declaration=True)
     elif metalink.exists():
         metalink.unlink()
-    with zipfile.ZipFile(root/'Aetherfall-Downloader.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
-        for file in sorted(downloader.rglob('*')):
-            if file.is_file() and file.suffix not in {'.lock', '.log'} and file.name not in {'mirrors-live.json', 'http-downloads.txt', 'dht.dat'} and not any(v in {'Downloads','Games'} for v in file.relative_to(downloader).parts):
-                archive.write(file, 'Aetherfall-Downloader/'+file.relative_to(downloader).as_posix())
+    import os
+    with zipfile.ZipFile(release/'Aetherfall-Downloader.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
+        if layout:
+            archive.write(root/'Aetherfall Setup.exe', 'Aetherfall Setup.exe')
+        for directory, folders, files in os.walk(downloader):
+            folders[:] = [name for name in folders if name.casefold() not in {'downloads', 'games', 'logs'}]
+            for name in files:
+                file = Path(directory)/name
+                relative = file.relative_to(downloader).as_posix()
+                if file.suffix in {'.lock', '.log', '.old', '.new'} or name in {'mirrors-live.json', 'http-downloads.txt', 'dht.dat'}:
+                    continue
+                if layout and relative == 'settings.json':
+                    settings = json.loads(file.read_text(encoding='utf-8-sig'))
+                    settings.update(DownloadDirectory='Downloads', InstallDirectory='Games', InstalledPath='', DeleteArchiveAfter=True)
+                    archive.writestr('Setup/settings.json', json.dumps(settings, indent=2))
+                else:
+                    archive.write(file, ('Setup/' if layout else 'Aetherfall-Downloader/')+relative)
     print('Downloader ZIP refreshed; torrent swarm unchanged:', manifest['infoHash'])
     print('HTTP Metalink ready:', complete)
 

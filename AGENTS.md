@@ -1,3 +1,182 @@
+# Installer server controls090 - installed/local bundles verified - 17 October2026
+
+User clarified buttons belong in090 now. Maintained SetupApp/SetupWindow plus reusable ServerControl helper build normally; Server Control has separate Stop GameServer/LoginServer/ChatServer buttons. Exact bundled-Java path and main-class selection, process handles, isolated-console/launcher-parent admission, native CTRL+C shutdown and180s graceful wait; only after target exit are Y/PAUSE console input events sent to its own cmd console. No forced termination, foreground typing or database stop. Busy/close guards retain cleanup; refused/shared/timed-out cases report unfinished state. One external inert .NET dummy console (not real Java/game) proved normal callback, automatic prompts and server/launcher exit; rendered panel inspected. Installer SHA6c7e8c69c61c39df6e9be902241da77d8c076f5c4f3528bbce26389ae6059951 installed in releases root and full/test repack Hubs; small public downloader rebuilt without Games/local settings. Eight copied hashes verified; receipt external archives/repack/setup-server-controls090-20261017/receipt.json. Same-version090 cumulative patch now25files/21074442bytes/SHA758dd9cdf7931b74fed8d8869a749f2ac9b26075f687a2b2bc011556367fcfbd; all archived and installed test-copy payload hashes verified. Supersedes earlier090 patch hash/count. No real component lifecycle, SQL, gameplay, upload or public channel change. Actual real-server button acceptance remains user's.
+
+# Quest rewards090 - installed test copy complete - 17 October2026
+
+After user closed components, existing native updater installed090 into releases/Aetherfall-Downloader/Games/Aetherfall-0.86. Original24 patch payload hashes independently verified; receipt external archives/repack/quest-rewards090-20261017/installed-test-copy.json. No database changes/component startup. Installer refinement above subsequently updates this same090 copy and patch to25 files.
+
+# Quest rewards090 - full repack updated, local patch prepared - 17 October2026
+
+User requested repack delivery after original090. Full uninitialized repack on D: updated with exact quest-rewards090 assembly XML and release0.90 metadata/index; six copied hashes verified. Existing089 JARs/settings/database/client payloads retained. Receipt external `archives/repack/quest-rewards090-20261017/receipt.json`. Local cumulative24-file patch16106362bytes/SHA2ed0799692ef555c32d801f56e5efcdfc8f05ce0f10568b4a77f4dd9ed1cc2e3 prepared at releases/Patches/0.90, all payload hashes verified; no upload/channel change/rebuild/tests/SQL. Installed downloaded test copy under releases/Aetherfall-Downloader/Games/Aetherfall-0.86 remains0.89 while its Aion/GameServer run; user asked to close normally before native updater application. Do not claim installed test-copy090 delivery until that succeeds.
+
+# Quest rewards090 - original development data installed/hash verified - 17 October2026
+
+Quest29048 Seriphim's Teachings rewards permanent full Ninja188508001 (idle/run/jump/rest, no duration) instead of one-day188508000. Quest29045 A Passion for Pets rewards permanent level1 Tiamat Whelp egg190020208/pet900192 instead of Purple Ribbit190000055; native auto-loot and doping28 (food/drink/three scrolls), no test/debug pet or new functions. Other reward/quest bytes preserved. Normal build `quest-rewards090-20261017` passed, tests skipped; exact assembly XML copied with release0.90 metadata/inventory, four hashes verified. Receipt external `archives/server/backups/quest-rewards090-20261017-213556/manifest.json`. Original089 JAR retained; no Java/runtime-library changes, SQL, cache deletion, lifecycle or gameplay. User explicitly excluded repack delivery; running repack/client untouched. Native XML cache refresh occurs on original restart. Existing completed rewards are not retroactively replaced; user owns next turn-in/adoption/motion acceptance.
+
+# Original development installation089 - installed/hash verified - 17 October2026
+
+User clarified relevant fixes must reach the original development installation
+as well as the repack. Source already matches population-reserve089 normal build.
+Original six JARs matched the recorded087 delivery; every other normal assembly
+dependency already matched089. Original components/Aion verified closed; newly
+running processes belonged only to separate releases/... repack and were left
+untouched. Six exact normal builder own/Commons JARs copied to target-deploy;
+original-client Mods/release.json and installed inventory updated (8 copied hashes).
+GS SHA71cc5457c2245580ea8bf1167e699be10e9b2b31924387e72628bd4381ebc07b.
+Original development and repack now share089 server build. Repack-only088
+bootstrap scripts were not installed into original; no SQL/settings/schema/client
+native changes, restart, tests, rebuild or full scans. Recovery/receipt external
+archives/server/backups/population-reserve089-original-20261017/manifest.json.
+User owns original restart and gameplay acceptance. Source remains uncommitted.
+
+# Repack reserve placement089 - installed/hash verified - 17 October2026
+
+User live repack logs show repeated ELYOS creation failures with the human on
+Asmodian map220030000. Creation reused the visible population's hard player-map
+focus, eliminating all valid opposite-faction camps before ground admission.
+Pinned RandomPlayerbotMgr RandomTeleportForLevel/GetPlayerZoneTeleportLocations
+and RandomizeFirst reviewed: native worldwide eligible locations remain when
+player-zone choices are absent. Added RESERVE_CREATION purpose for saved-only
+initial placement, retaining map/faction/level/ground/human/occupancy guards and
+unchanged visible residency/focus behavior. Budget-deferred scans return before
+identity allocation or schedule event; actual exhaustion still throws with reason.
+No population settings, character rows, maps, client-native files or NPC behavior
+changed. Existing identities/progress retained.
+
+Normal all-component build population-reserve089-20261017 PASS, tests skipped;
+5696 source inputs/25 artifacts bound. GS SHA
+71cc5457c2245580ea8bf1167e699be10e9b2b31924387e72628bd4381ebc07b.
+Full uninitialized repack0.89:11 copied hashes verified from exact normal builder
+assemblies, matching component/Commons JARs retained. Cumulative23-file patch
+15692861bytes/SHA4eca06243233f21f70c3efd1664cd8ae88c61a826be64af9f929de1f8887ee66
+prepared at releases/Patches/0.89; all payload hashes match. External receipt
+archives/repack/population-reserve089-20261017/receipt.json. No public upload,
+SQL or server/client start. User confirmed all closed; actual process closure
+verified, native updater installed23 files into the existing test repack088->089,
+verifying every copied hash. Installed GS independently matches exact normal
+builder SHA above. Native Control/UpdateBackups recovery retained; external
+archives/repack/population-reserve089-20261017/installed-update.json records it.
+Full repack and installed test repack are089; original development installation
+remains087. No new tests/suites or full preservation scans. User owns next
+restart and actual reserve creation/admission acceptance; no gameplay claimed.
+
+# Repack population bootstrap088 - installed/verified - 17 October2026
+
+User reported world-bot startup failure from the downloaded repack. Fresh GS
+schema created all native population tables but omitted the required imported
+singleton. Running installed database confirmed state/accounts/members/residents/
+events/roster all empty. Fixed fresh bootstrap/schema and added native guarded
+Control/Initialize-PlayerbotPopulation.ps1 before Start-Servers. The singleton
+uses version1/target0/deadline0/revision0 and the exact native migration digest
+for four absent legacy files. Existing imports, legacy files, partial pools,
+roster/native world-bot identities and connected game servers prevent overwrites.
+The GameServer's no-empty-fallback validation is unchanged. Future normal repack
+updates retain the correction through tools/distribution/repack_population.py.
+
+Source release/full repack0.88;10 copied hashes verified. Cumulative23-file patch
+15692466bytes/SHA07786ecc5842ff22f63c9e88d8bcf3ba01dffc66eac05553cf75f96c1f201ac3
+at repo releases/Patches/0.88. All patch payload hashes verified; original full
+0.86 archive unchanged, no public upload. User closed servers and authorized
+repair; native updater copied23 files into the existing installed test repack.
+Database had also closed, so its existing initialized data was started normally
+and the missing state committed/independently read. Second repair invocation
+retains the exact state. Database remains running; game servers remain closed.
+User owns next startup/world-bot acceptance. No Java/JAR rebuild, test suite,
+full scan, account/character mutation, original development install change or
+GameServer start. Recovery/receipts external
+archives/repack/population-bootstrap088-20261017/{receipt,installed-repair}.json
+and native installed Control/UpdateBackups. Installed development JAR stays087.
+
+# Release workspace moved into existing repo - applied/verified - 17 October2026
+
+Authoritative local release workspace is now C:/Git/aion-server/releases.
+Old Downloads/Aetherfall-Distribution-0.86 folder is gone. Prepare Patch.cmd and
+Publish Update.cmd call the maintained tools/distribution/publish_update.py
+directly; old script copies are historical under Maintenance/History.
+Default publisher path resolves repo/releases and organized workspaces always
+use prepared/current-version flow, without a rescan or automatic version bump.
+Source/release tools belong to the existing AngelShade repository; /releases/
+is Git-ignored so no archive, installed game, database or credentials get added.
+No public release is made by moving, committing or pushing; owner runs Publish
+Update when desired. Existing repack source on D: remains authoritative.
+
+Initial whole-folder move was locked by installed test-repack mysqld PID9488.
+Windows native move partially moved unlocked files; after user confirmed normal
+database stop, PID was still active. Native tools verified original @@datadir
+and zero aetherfall connections, then shut it down normally. Remaining files
+were moved and saved paths reconnected; no force kill or database reset.
+Base archive retains its original file identity, size and modification time;
+Setup hash and unchanged cumulative patch match. Local --no-upload preparation
+passes from repo scripts, and Git ignores generated output. Receipt external
+archives/repack/release-workspace-repo-20261017/receipt.json. No game/server
+restart, public upload, seeding, full scan or test suite.
+
+# Organized release workspace - applied/verified - 17 October2026
+
+Downloads/Aetherfall-Distribution-0.86 now exposes Aetherfall Setup.exe,
+Prepare Patch.cmd, Publish Update.cmd and Start Seeding.cmd at its root.
+Base archive/torrent/downloader live under Release/0.86; current cumulative
+18-file patch and latest-update.json under Patches/0.87. Scripts, baseline,
+history, logs and local Git checkout moved into Maintenance. The existing
+Aetherfall-Downloader support/Games directory retains its exact original path
+after Windows refused its directory rename; no installed game or full archive
+was duplicated. Setup discovers both that support name and Setup in new ZIPs.
+Owner settings point Downloads to ../Release/0.86 and retain the base archive.
+Maintenance/release-layout.json selects the maintained full repack/baseline.
+Prepare Patch builds/reuses the current indexed repack version; Publish Update
+uses that version's Patches folder and the existing assets-then-channel flow.
+Mirror publisher also understands this layout and sanitizes public ZIP settings.
+Normal Setup build, local --prepared --no-upload, copied small-file/ZIP hashes
+and passive existing-install detection passed. Setup SHA
+c15bd0c23f168117ea37c75e7db426460ac40069ca189a1565e1dae134737349.
+Patch SHA77a99f029a2d0cf98311892b2d8e73e9b9601e824a5e1284f6892e8c6adb433d
+unchanged. Receipt external archives/repack/release-layout-20261017/receipt.json.
+No public upload, seeding, game/server start, extraction, tests or full scans.
+
+# Repack087, prepared patch and Setup detection repair - copied/verified - 17 October2026
+
+Authoritative full repack folder updated087 with18 copied hashes and multiclient;
+receipt external archives/repack/repack087-multiclient-20261017/receipt.json.
+Owner clarified: retain full folder and base0.86 archive; release folder holds
+cumulative incremental patches. Aetherfall-Patch-0.87.zip in existing Downloads
+Aetherfall-Distribution-0.86 is18 files/15673327bytes/SHA
+77a99f029a2d0cf98311892b2d8e73e9b9601e824a5e1284f6892e8c6adb433d.
+All ZIP payload hashes match. Existing publisher --prepared reuses exact patch,
+checks current FILES.json and Setup hashes, retains installed version, and uses
+its existing asset-upload then latest-update channel sequence; no scan/bump.
+Publish-Update.cmd selects that path. No public upload/channel change performed.
+
+Setup previously required nonexistent Server/gameserver/AL-Game.jar instead of
+native Server/game-server/libs/game-server-4.8-SNAPSHOT.jar. Corrected admission,
+blocked repeated installation before any download, retained saved/discovered
+installed folder across newer manifest versions, and checks completion before
+archive deletion. Normal Setup build source; bounded reflection against actual
+extracted user0.86 installation returns installed, retains it with offered0.87,
+and excludes archive-only folder. No game/download/extraction run. Owner closed
+Setup; fixed Setup and existing installed Hub copied/hash verified, small ZIP
+bundles fixed EXE. SHA4f70ade2bdd00521c8c9f263d6a63ce286be7b2dfb505ac67e6d5737a0174cf5.
+Receipt external archives/repack/setup-installed-detection-20261017/receipt.json.
+Prepared latest-update includes fixed Setup URL/hash; existing users can receive
+self-update after owner publishes. Original game/server untouched in this work.
+
+# Launcher multiclient restoration - installed/hash verified - 17 October2026
+
+Original client only. Graphical launcher had regressed the prior multi-client
+startup by globally rejecting any existing Aion process. Removed that Play block;
+existing helper read-only reuse and renderer/profile/cursor/flight guards retained.
+Reopening signals the existing launcher to restore its window; each child retains
+independent startup/login-ready events. Added Mods/MultiClient entry and usage.
+Native files/startup bridge/artwork unchanged. Normal launcher build and copied
+hashes verified; receipt external archives/client/launcher-multiclient-20261017/receipt.json.
+Also includes corrected mod presence checks independent of optional checksum.
+No tests/client launch/gameplay/server/repack update. User owns actual second
+client/account acceptance; separate accounts required by existing session rules.
+
+# Live errors087 - installed/hash verified - 17 October2026
+
+Normal all-component build `live-errors087-20261017`; installed GS SHA `9806e1d382ed7fda7ab5f43ba4d1cc878b3eb0ac48bbab03857d1c0e13157ff7`. Nine files backed up/copied/hash verified; receipt external `archives/server/backups/live-errors087-20261017-193830/manifest.json`. Shared Commons serializes ZoneId/Instant through public string APIs, retaining native season JSON without private-JDK reflection, Unsafe or JVM access flags. Patrol respawn publishes membership only after claiming the native spawn/pool slot, detaches replaced actors and checks actual actor identity; queued stale returns cannot dereference a missing formation shift. All three components receive matching normal builder JARs/Commons. Normal build and14 bounded external checks passed; no full suites/new repository test files/SQL/lifecycle/gameplay. Original development installation release0.87; repack/distribution0.86 unchanged. User owns restart/Season Pass/patrol acceptance. Separately approved live profile captured a1.674-second G1 pause; its cause and performance repair remain open, not solved by087.
+
 # Repack086 refresh and local distribution build - verified - 17 October2026
 
 Updated portable repack `Aion Aetherfall Repack Client + Server/Aetherfall-4.8-067-20261016` in place to release086/product0.86:24 changed files copied/hash verified,3 superseded Fastjson2.0.65 JARs archived/removed, and2 nonexistent legacy inventory entries (`Client/sc_renew_local.err`, `READ ME.txt`) pruned from `FILES.json` (`dc105a2d27aecdb68708c5611a22566e537455bdba483e270f4b0d00cf9e3401`). Receipts external `archives/repack/repack086-distribution-20261017/receipt.json` and `archives/repack/repack086-distribution-index-20261017/receipt.json`. Packed197739 indexed files (`39030688343` archive bytes) into a single store-mode archive `<DISTRIBUTION_ROOT>\Aetherfall-0.86.7z` (SHA256 `7b5599837887a49d2b2bebb2ef73f4a9435b42b9686da62aec6354f9954af885`; split `Aetherfall-0.86-parts` removed) so `D:` space and the source repack remain untouched. Generated single-file `Aetherfall-0.86.torrent` (infoHash `ac60eed8cc0438ebd3e8f237fa3cf27700ce740f`), `magnet.txt`, `SHA256SUMS.txt`, `release-manifest.json`, `Start-Seeding.cmd`, `publish.py` and `Aetherfall-Downloader.zip` (bundling verified `aria2c.exe`1.37.0 and `7za.exe`26.04 with local `dht.dat` initialization, resume, free-space checks, SHA-256 verification and extraction). No uploads, public mirrors, seeding daemon, tests or game components started; user owns uploading, seeding and mirror publication.

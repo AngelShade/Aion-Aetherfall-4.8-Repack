@@ -45,7 +45,7 @@ public class Npc extends Creature {
 
 	private final NpcSkillList skillList;
 	private Queue<NpcSkillEntry> queuedSkills;
-	private WalkerGroup walkerGroup;
+	private volatile WalkerGroup walkerGroup;
 	private String masterName;
 	private int creatorId = 0;
 	private CreatureType overriddenType = null;

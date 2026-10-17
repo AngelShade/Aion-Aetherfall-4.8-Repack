@@ -121,6 +121,7 @@ public final class PlayerBotService {
     if(shuttingDown || !PlayerBotConfig.ENABLED || !PlayerBotConfig.WORLD_ENABLED)return;
     var latest=store.load().get(pool.account());if(latest==null || latest.characters().size()>=latest.desired())return;
     int id=createWorldCharacter(latest,store,level);
+    if(id==0)return; // Bounded placement is pending; no native identity or event exists yet.
     synchronized(populationLock) {
      if(store==serverPopulation){var settings=PlayerBotPopulationPolicy.settings();populationSchedule.event(id,new PlayerBotPopulationSchedule.Events(0,0,PlayerBotPopulationPolicy.deadline(System.currentTimeMillis(),populationRandom,settings.teleportMin(),settings.teleportMax()),level));}
      worldWorkCompleted();
@@ -130,8 +131,12 @@ public final class PlayerBotService {
  }
  private int createWorldCharacter(PlayerBotWorldPopulation.Pool pool,PlayerBotWorldPopulation store,int level)throws Exception {
   boolean global=PlayerBotPopulationPolicy.serverAccount(pool.account());
-  var destination=global?PlayerBotWorldPlacement.destination(pool.race(),level,PlayerBotPopulationPolicy.settings().cityChance(),populationRandom):null;
-  if(global && destination==null)throw new IllegalStateException("No validated native population destination for "+pool.race()+" level "+level+"; no identity allocated");
+  var placement=global?PlayerBotWorldPlacement.chooseReserveDestination(pool.race(),level,PlayerBotPopulationPolicy.settings().cityChance(),populationRandom):null;
+  var destination=placement==null?null:placement.location();
+  if(global && destination==null) {
+   if(!placement.exhausted())return 0; // Continue the retained faction/level scan on a later attempt.
+   throw new IllegalStateException("No validated native population destination for "+pool.race()+" level "+level+": "+placement.reason()+"; no identity allocated");
+  }
 		int id=IDFactory.getInstance().nextId();Player generated=null;
 		// Persist intent before native rows. A crash cannot cause repeated invisible allocations.
 		synchronized(store){var latest=store.load().get(pool.account());if(latest==null)throw new IllegalStateException("Population pool removed");store.put(latest.append(id));pool=store.load().get(pool.account());}

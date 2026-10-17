@@ -25,11 +25,13 @@ $arguments = @(
     ('/reference:' + (Join-Path $framework 'WPF/WindowsBase.dll')),
     ('/reference:' + (Join-Path $framework 'System.Xaml.dll')),
     ('/reference:' + (Join-Path $framework 'System.Web.Extensions.dll'))
+    ('/reference:' + (Join-Path $framework 'System.Management.dll'))
 )
 if ($IconPath -and (Test-Path -LiteralPath $IconPath)) {
     $arguments += ('/win32icon:' + ([IO.Path]::GetFullPath($IconPath)))
 }
 $arguments += (Join-Path $PSScriptRoot 'SetupApp.cs')
+$arguments += (Join-Path $PSScriptRoot 'ServerControl.cs')
 & $compiler @arguments
 if ($LASTEXITCODE -ne 0) {
     throw 'Aetherfall Setup.exe compilation failed.'

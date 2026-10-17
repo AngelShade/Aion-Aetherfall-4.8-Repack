@@ -289,12 +289,12 @@ for table, after, column, definition in [
             raise ValueError('Missing schema column anchor: '+table+'.'+after)
         schema = schema[:match.start(2)]+body+schema[match.end(2):]
 schema = schema.replace('`jaw_height`', '`chin_height`').replace('`chin_jut`', '`cheek_bones`')
-put('Server/database/schema/aetherfall_gs.sql', 'Fresh schema matches current PvP EXP, crafting and appearance fields', data=schema.encode())
 bootstrap = (pack/'Server/database/bootstrap.sql').read_text(encoding='utf-8-sig')
 if bootstrap.count(original_schema) != 1:
     raise ValueError('Fresh schema bootstrap differs from its packaged schema')
-put('Server/database/bootstrap.sql', 'Current fresh schema; no account or character rows copied',
-    data=bootstrap.replace(original_schema, schema, 1).encode())
+from distribution.repack_population import payloads as population_payloads
+for relative, data in population_payloads(pack, schema, bootstrap.replace(original_schema, schema, 1)).items():
+    put(relative, 'Fresh schema and native empty-population bootstrap; existing installations repaired before server startup', data=data)
 put('Server/game-server/sql/update.sql', 'Upstream schema migration reference; not executed', source=repo/'game-server/sql/update.sql')
 put('release.json', 'Current product release metadata', data=encoded(version))
 
@@ -313,6 +313,8 @@ START
 
 IN THIS UPDATE
 - Graphical launcher with Aetherfall artwork, installed Mods list and settings.
+- Multi-client launch restored; reopen the launcher and press Play again.
+- Mods presence reporting recognizes installed files without optional checksums.
 - Startup change to skip the native splash and hold loading behind the launcher.
 - Account alts share completed quests and rewards, including past completions.
 - Current companion appearance, movement, descent and glide changes.
@@ -323,6 +325,7 @@ IN THIS UPDATE
 - Cash Shop quantity/Max controls shared with Central Market.
 - Current combat regroup, corridor movement and Aethertech companion fixes.
 - Supported Gson JSON dependency across GameServer, LoginServer and ChatServer.
+- Season Pass date/time JSON compatibility and patrol respawn ownership repairs.
 
 These are copied development updates. Startup and gameplay acceptance remain
 the player's next run; file-copy verification does not certify those behaviors.

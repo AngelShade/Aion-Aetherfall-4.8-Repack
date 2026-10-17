@@ -33,7 +33,7 @@ namespace Aetherfall {
  public sealed class Step { public string Title, Script; public string[] Arguments; public Step(string title, string script, params string[] args) { Title=title; Script=script; Arguments=args; } }
  public sealed class Launcher {
   Window window; Grid scene; string root, support, logPath, gameArgs, host; int port=2106;
-  bool busy, closeRequested, closed, polling, preview; Mutex mutex;
+  bool busy, closeRequested, closed, polling, preview; Mutex mutex; EventWaitHandle activation;
   Preferences preferences=new Preferences(); DispatcherTimer timer;
   readonly List<Ellipse> particles=new List<Ellipse>(); readonly Random random=new Random(48);
   int ticks;
@@ -50,6 +50,7 @@ namespace Aetherfall {
    try {
     Application app=new Application(); app.ShutdownMode=ShutdownMode.OnMainWindowClose;
     Launcher launcher=new Launcher(); launcher.Initialize(args);
+    if(launcher.window==null)return 0;
     if (launcher.preview) { launcher.RenderPreview(args); return 0; }
     app.Run(launcher.window); return 0;
    } catch(Exception error) {
@@ -66,7 +67,8 @@ namespace Aetherfall {
    if(!Directory.Exists(support)) throw new DirectoryNotFoundException("Launcher files are missing from Mods\\Launcher.");
    string key; using(SHA256 hash=SHA256.Create()) key=BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(root.ToUpperInvariant()))).Replace("-","").Substring(0,20);
    bool created; mutex=new Mutex(true,"Local\\AetherfallLauncher-"+key,out created);
-   if(!created && !preview) throw new InvalidOperationException("The launcher is already open for this client.");
+   activation=new EventWaitHandle(false,EventResetMode.AutoReset,"Local\\AetherfallLauncherActivate-"+key);
+   if(!created && !preview) { activation.Set(); activation.Dispose(); mutex.Dispose(); return; }
    using(Stream stream=Assembly.GetExecutingAssembly().GetManifestResourceStream("Aetherfall.MainWindow.xaml")) window=(Window)XamlReader.Load(stream);
    scene=Find<Grid>("Scene");
    string iconPath=System.IO.Path.Combine(root,"AionClient.ico"); if(File.Exists(iconPath)) window.Icon=BitmapFrame.Create(new Uri(iconPath));
@@ -95,9 +97,12 @@ namespace Aetherfall {
    window.Closing+=delegate(object sender,System.ComponentModel.CancelEventArgs e) {
     if(busy) { e.Cancel=true; closeRequested=true; }
    };
-   window.Closed+=delegate { closed=true; if(timer!=null) timer.Stop(); try { mutex.ReleaseMutex(); } catch(ApplicationException) {} mutex.Dispose(); };
+   window.Closed+=delegate { closed=true; if(timer!=null) timer.Stop(); activation.Dispose(); try { mutex.ReleaseMutex(); } catch(ApplicationException) {} mutex.Dispose(); };
    ReadRelease(); AddMods(); AddParticles(); SetMotion();
-   timer=new DispatcherTimer { Interval=TimeSpan.FromMilliseconds(50) }; timer.Tick+=async delegate { Animate(); if(++ticks%100==1) await PollServer(); };
+   timer=new DispatcherTimer { Interval=TimeSpan.FromMilliseconds(50) }; timer.Tick+=async delegate {
+    if(activation.WaitOne(0)) { if(window.WindowState==WindowState.Minimized)window.WindowState=WindowState.Normal; window.Show(); window.Activate(); }
+    Animate(); if(++ticks%100==1) await PollServer();
+   };
    if(!preview) timer.Start();
    window.Loaded+=async delegate { if(!preview) await PollServer(); };
   }
@@ -194,7 +199,7 @@ namespace Aetherfall {
     HashSet<string> required=new HashSet<string>(info.Files??new string[0],StringComparer.OrdinalIgnoreCase);
     List<InstalledFile> files;
     if(installed.features!=null && installed.features.TryGetValue(name,out files))
-     foreach(InstalledFile file in files)if(file!=null && !String.IsNullOrEmpty(file.installedSha256))required.Add(file.path);
+     foreach(InstalledFile file in files)if(file!=null && !String.IsNullOrWhiteSpace(file.path))required.Add(file.path);
     List<string> missing=new List<string>();
     foreach(string relative in required) {
      try { if(!File.Exists(ClientPath(relative)))missing.Add(relative); }
@@ -306,7 +311,7 @@ namespace Aetherfall {
     ReadGameArguments(); string logs=ClientPath("Mods/Launcher/Logs"); Directory.CreateDirectory(logs);
     logPath=System.IO.Path.Combine(logs,"launch-"+DateTime.Now.ToString("yyyyMMdd-HHmmss-fff")+".log");
     File.WriteAllText(logPath,"Aion Aetherfall launcher\r\nClient: "+root+"\r\n");
-    if(GameRunning()) throw new InvalidOperationException("Aion is already running.");
+    if(GameRunning()) File.AppendAllText(logPath,"Additional client requested; startup helpers must reuse the current renderer and installed files.\r\n");
     if(File.Exists(ClientPath("bin64/game.dll.patched"))) throw new InvalidOperationException("A pending Game.dll update needs to be installed before launch. Open the client folder and finish that update.");
     if(!File.Exists(ClientPath("bin64/aion.bin"))) throw new FileNotFoundException("The 64-bit Aion client was not found.");
     List<Step> steps=Steps(); double width=Find<Grid>("ProgressTrack").ActualWidth;
@@ -370,7 +375,7 @@ namespace Aetherfall {
     }
     Find<Border>("ProgressFill").BeginAnimation(FrameworkElement.WidthProperty,new DoubleAnimation(width,TimeSpan.FromMilliseconds(300)));
     Text("StatusTitle").Text="Ready to log in."; Text("StatusDetail").Text="The login screen is ready."; Text("StageCount").Text="";
-    Text("LaunchCaption").Text="AION IS RUNNING";
+    Text("LaunchCaption").Text="PLAY AGAIN";
     busy=false; if(preferences.CloseAfter) window.Close(); else window.WindowState=WindowState.Minimized;
    } catch(Exception error) {
     Text("StatusTitle").Text="Launch paused"; Text("StatusDetail").Text=error.Message; Text("StageCount").Text="ACTION NEEDED";
@@ -398,7 +403,7 @@ namespace Aetherfall {
    RenderTargetBitmap bitmap=new RenderTargetBitmap(1180,744,96,96,PixelFormats.Pbgra32); bitmap.Render(scene);
    PngBitmapEncoder encoder=new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap));
    using(FileStream file=File.Create(destination)) encoder.Save(file);
-   mutex.ReleaseMutex(); mutex.Dispose();
+   activation.Dispose(); mutex.ReleaseMutex(); mutex.Dispose();
   }
  }
 }

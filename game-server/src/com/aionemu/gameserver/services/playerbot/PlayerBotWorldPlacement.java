@@ -19,7 +19,7 @@ import com.aionemu.gameserver.model.templates.zone.ZoneInfo;
 
 /** Background population placement, separate from ordinary paid-route activity travel. */
 final class PlayerBotWorldPlacement {
- enum Purpose { POPULATION, FIELD_RESCUE }
+ enum Purpose { POPULATION, FIELD_RESCUE, RESERVE_CREATION }
  record Location(Race race,int map,float x,float y,float z,int minimum,int maximum,boolean city,boolean hub) {
   Location {if(race!=Race.ELYOS && race!=Race.ASMODIANS || map<=0 || !Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z)
     || minimum<1 || maximum<minimum || maximum>65)throw new IllegalArgumentException("Invalid population location");}
@@ -211,12 +211,19 @@ final class PlayerBotWorldPlacement {
  static Selection chooseDestination(Race race,int level,int cityPercent,RandomGenerator rng){
   return chooseDestination(race,level,cityPercent,rng,Set.of());
  }
+ static Selection chooseReserveDestination(Race race,int level,int cityPercent,RandomGenerator rng) {
+  return chooseDestination(race,level,cityPercent,Purpose.RESERVE_CREATION,rng,Set.of());
+ }
  private static Selection chooseDestination(Race race,int level,int cityPercent,RandomGenerator rng,Set<Integer> focusMaps) {
   return chooseDestination(race,level,cityPercent,Purpose.POPULATION,rng,focusMaps);
  }
  private static Selection chooseDestination(Race race,int level,int cityPercent,Purpose purpose,RandomGenerator rng,Set<Integer> focusMaps) {
   var enabled=PlayerBotConfig.POPULATION_MAPS;
-  var players=World.getInstance().getAllPlayers();var focus=PlayerBotPopulationFocus.capture(players);
+  var players=World.getInstance().getAllPlayers();
+  // Saved reserves are not visible admissions. They need native faction/level
+  // camps even when the only human occupies the other faction's homeland.
+  // Player focus still governs actual residency; all landing guards below stay live.
+  var focus=PlayerBotPopulationFocus.capture(purpose==Purpose.RESERVE_CREATION?List.<Player>of():players);
   // A rescue needs an actual grind camp. Human focus must not convert it into a capital service visit.
   var choices=focus.active()?focusChoices(race,level,focus,purpose,rng):select(locations(),race,level,enabled,Set.of(),false,cityPercent,purpose,rng);
   if(!focusMaps.isEmpty())choices=choices.stream().filter(p->focusMaps.contains(p.map())).toList();

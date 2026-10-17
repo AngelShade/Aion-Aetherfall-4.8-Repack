@@ -1,9 +1,13 @@
 package com.aionemu.commons.utils;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeSet;
+import java.util.function.Function;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -11,11 +15,18 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.Strictness;
+import com.google.gson.TypeAdapter;
 import com.google.gson.reflect.TypeToken;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 
 /** Shared JSON boundary. Constructors/record adapters are used; Unsafe is forbidden. */
 public final class Json {
     private static final Gson CODEC = new GsonBuilder().disableJdkUnsafe()
+        // ZoneId's runtime implementation is a private JDK class. Use its public
+        // representation, including when a season is nested in an Object/map.
+        .registerTypeHierarchyAdapter(ZoneId.class, text(ZoneId::of, ZoneId::getId))
+        .registerTypeAdapter(Instant.class, text(Instant::parse, Instant::toString))
         .disableHtmlEscaping().setStrictness(Strictness.STRICT).create();
     private static final Gson PRETTY = CODEC.newBuilder().setPrettyPrinting().create();
     // Old Fastjson file snapshots can contain unquoted numeric map keys.
@@ -77,6 +88,12 @@ public final class Json {
         return !absent(element) && element.getAsBoolean();
     }
     private static boolean absent(JsonElement value) { return value == null || value.isJsonNull(); }
+    private static <T> TypeAdapter<T> text(Function<String,T> parse, Function<T,String> format) {
+        return new TypeAdapter<T>() {
+            @Override public T read(JsonReader in) throws IOException { return parse.apply(in.nextString()); }
+            @Override public void write(JsonWriter out, T value) throws IOException { out.value(format.apply(value)); }
+        }.nullSafe();
+    }
     private static int integer(JsonElement value) { return absent(value) ? 0 : value.getAsInt(); }
     private static double decimal(JsonElement value) { return absent(value) ? 0 : value.getAsDouble(); }
     private static JsonElement sorted(JsonElement value) {

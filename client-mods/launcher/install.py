@@ -12,6 +12,7 @@ parser.add_argument('--stage', type=Path, required=True)
 parser.add_argument('--client', type=Path, required=True)
 parser.add_argument('--backup', type=Path, required=True)
 parser.add_argument('--art-only', action='store_true', help='Replace background artwork and its prompt record without rewriting the executable')
+parser.add_argument('--launcher-only', action='store_true', help='Replace only the graphical launcher and its documentation, retaining native modules and artwork')
 parser.add_argument('--login-module', action='store_true', help='Include the rebuilt existing native login module for the ready handshake')
 parser.add_argument('--startup-bridge', action='store_true', help='Include the matched native splash entry bridge')
 args = parser.parse_args()
@@ -45,6 +46,14 @@ payloads = {
     'Mods/Launcher/README.md': Path(__file__).with_name('README.md'),
     'Mods/Launcher/Assets/prompts.md': Path(__file__).with_name('assets') / 'prompts.md',
 }
+if args.launcher_only:
+    if args.art_only or args.login_module or args.startup_bridge:
+        raise ValueError('Launcher-only delivery cannot include artwork or native binary changes')
+    payloads = {relative: source for relative, source in payloads.items()
+                if relative in {'Aetherfall Launcher.exe', 'Mods/Launcher/README.md'}}
+if not args.art_only:
+    payloads['Mods/MultiClient/mod.json'] = Path(__file__).with_name('multiclient') / 'mod.json'
+    payloads['Mods/MultiClient/README.txt'] = Path(__file__).with_name('multiclient') / 'README.txt'
 if args.art_only:
     payloads = {relative: source for relative, source in payloads.items()
                 if relative in {'Mods/Launcher/Assets/atreia.png', 'Mods/Launcher/Assets/prompts.md'}}
@@ -62,7 +71,7 @@ if args.startup_bridge:
         raise ValueError('The staged startup binary does not match its bridge record')
     payloads['bin64/aion.bin'] = stage / 'bin64/aion.bin'
     payloads['Mods/Launcher/startup-bridge.json'] = stage / 'startup-bridge.json'
-if not args.art_only:
+if not args.art_only and not args.launcher_only:
     payloads['Mods/release.json'] = stage / 'Mods/release.json'
 writes = {client / relative: source.read_bytes() for relative, source in payloads.items()}
 if not args.art_only:

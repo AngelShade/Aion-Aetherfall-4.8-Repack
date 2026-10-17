@@ -32,6 +32,7 @@ login-server/target/
 **/media/icons/*.png
 /output
 /target/
+/releases/
 /client-mods/transmog-menu/artifacts/
 /target-deploy/game-server/backups/
 

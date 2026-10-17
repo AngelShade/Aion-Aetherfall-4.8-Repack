@@ -62826,7 +62826,7 @@
 	<quest id="29045" name="A Passion for Pets" nameId="1124842" quest_zone="Pandaemonium" minlevel_permitted="10" max_repeat_count="1" cannot_share="true" race_permitted="ASMODIANS" category="SIGNIFICANT">
 		<rewards exp="11237">
 			<reward_item item_id="169600085" count="1"/>
-			<reward_item item_id="190000055" count="1"/>
+			<reward_item item_id="190020208" count="1"/>
 		</rewards>
 		<start_conditions>
 			<finished quest_id="29044"/>
@@ -62846,7 +62846,7 @@
 	</quest>
 	<quest id="29048" name="Seriphim's Teachings" nameId="1104417" quest_zone="Pandaemonium" minlevel_permitted="10" max_repeat_count="1" cannot_share="true" race_permitted="ASMODIANS" category="SIGNIFICANT">
 		<rewards exp="11237">
-			<reward_item item_id="188508000"/>
+			<reward_item item_id="188508001"/>
 		</rewards>
 		<quest_work_items>
 			<quest_work_item item_id="182212217" count="1"/>

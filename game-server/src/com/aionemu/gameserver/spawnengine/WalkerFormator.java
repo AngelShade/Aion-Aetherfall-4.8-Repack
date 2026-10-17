@@ -41,9 +41,9 @@ public class WalkerFormator {
 			WalkerGroup wg = formations.getSpawnWalkerGroup(walkerId);
 
 			if (wg != null) {
-				npc.setWalkerGroup(wg);
-				wg.respawn(npc);
-				return true;
+				// A route can also have independent spawns outside its formation.
+				// Publish membership only after the group has actually claimed a slot.
+				return wg.respawn(npc);
 			}
 
 			return formations.cacheWalkerCandidate(new ClusteredNpc(npc, instanceId, template));

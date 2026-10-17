@@ -2,6 +2,7 @@ package com.aionemu.gameserver.spawnengine;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -233,21 +234,28 @@ public class WalkerGroup {
 		isSpawned = true;
 	}
 
-	public void respawn(Npc npc) {
-		for (int index = 0; index < members.size(); index++) {
-			ClusteredNpc snpc = members.get(index);
-			if (snpc.getNpc().getNpcId() == npc.getNpcId() && (npc.getSpawn().getWalkerIndex() == null && snpc.getNpc().isDead()
-				|| npc.getSpawn().getWalkerIndex() != null && npc.getSpawn().getWalkerIndex() == snpc.getWalkerIndex())) {
-				synchronized (members) {
-					memberSteps[index] = Math.max(0, groupStep - 1);
-					RouteStep step = snpc.getWalkTemplate().getRouteStep(memberSteps[index]);
-					npc.getMoveController().setWalkerTemplate(snpc.getWalkTemplate(), memberSteps[index]);
-					snpc.setNpc(npc, step);
-					snpc.spawn(step.getZ());
-				}
-				break;
+	public boolean respawn(Npc npc) {
+		synchronized (members) {
+			for (int index = 0; index < members.size(); index++) {
+				ClusteredNpc snpc = members.get(index);
+				Npc previous = snpc.getNpc();
+				if (previous != npc && previous.isSpawned() && !previous.isDead())
+					continue;
+				if (previous.getSpawn() != npc.getSpawn() && !(npc.getSpawn().hasPool()
+					&& previous.getSpawn().getGroup() == npc.getSpawn().getGroup()
+					&& Objects.equals(npc.getSpawn().getWalkerIndex(), snpc.getWalkerIndex())))
+					continue;
+				memberSteps[index] = Math.max(0, groupStep - 1);
+				RouteStep step = snpc.getWalkTemplate().getRouteStep(memberSteps[index]);
+				npc.getMoveController().setWalkerTemplate(snpc.getWalkTemplate(), memberSteps[index]);
+				previous.setWalkerGroup(null);
+				snpc.setNpc(npc, step);
+				npc.setWalkerGroup(this);
+				snpc.spawn(step.getZ());
+				return true;
 			}
 		}
+		return false;
 	}
 
 	public void despawn() {
@@ -263,9 +271,11 @@ public class WalkerGroup {
 	}
 
 	public ClusteredNpc getClusterData(Npc npc) {
-		for (ClusteredNpc snpc : members) {
-			if (snpc.getNpc().equals(npc))
-				return snpc;
+		synchronized (members) {
+			for (ClusteredNpc snpc : members) {
+				if (snpc.getNpc() == npc)
+					return snpc;
+			}
 		}
 		return null;
 	}

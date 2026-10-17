@@ -51,7 +51,10 @@
     "Title": "Player companions",
     "Description": "In-game companion controls, party support and alternate characters.",
     "Listed": true,
-    "Files": []
+    "Files": [
+      "bin64/version.dll",
+      "PlayerBotBar.ini"
+    ]
   },
   "RememberLogin": {
     "Title": "Remember login",
@@ -100,5 +103,13 @@
     "Description": "Local reports and support information.",
     "Listed": false,
     "Files": []
+  },
+  "MultiClient": {
+    "Title": "Multi-client",
+    "Description": "Open additional Aion clients with the current renderer and installed mods. Reopen the launcher and press Play again; use a separate game account for each client.",
+    "Listed": true,
+    "Files": [
+      "Aetherfall Launcher.exe"
+    ]
   }
 }

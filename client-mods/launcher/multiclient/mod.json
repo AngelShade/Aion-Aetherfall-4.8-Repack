@@ -1,0 +1,6 @@
+{
+  "Title": "Multi-client",
+  "Description": "Open additional Aion clients with the current renderer and installed mods. Reopen the launcher and press Play again; use a separate game account for each client.",
+  "Listed": true,
+  "Files": ["Aetherfall Launcher.exe"]
+}

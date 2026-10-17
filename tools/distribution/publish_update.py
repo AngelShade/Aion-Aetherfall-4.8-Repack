@@ -50,7 +50,10 @@ def get_github_token() -> str:
     return creds['password']
 
 
-def scan_and_build_patch(package: Path, baseline_path: Path, dist_dir: Path, target_version: str = '', publish_github: bool = True):
+def scan_and_build_patch(package: Path, baseline_path: Path, dist_dir: Path, target_version: str = '', publish_github: bool = True, prepared: bool = False):
+    if prepared:
+        publish_prepared(package, baseline_path, dist_dir, target_version, publish_github)
+        return
     release_file = package / 'release.json'
     repack_file = package / 'REPACK.json'
     files_file = package / 'FILES.json'
@@ -197,86 +200,146 @@ def scan_and_build_patch(package: Path, baseline_path: Path, dist_dir: Path, tar
     print(f'      Created {patch_path} ({patch_bytes / 1024 / 1024:.2f} MB, SHA256={patch_sha})')
 
     if publish_github:
-        print(f'[3/4] Uploading {patch_name} and Aetherfall-Setup.exe to GitHub Release {tag_name}...')
-        token = get_github_token()
-        headers = {
+        publish_assets(dist_dir, latest)
+
+
+def publish_prepared(package, baseline_path, dist_dir, target_version, upload):
+    from build_patch import build_patch
+    current = json.loads((package / 'release.json').read_text(encoding='utf-8-sig'))['Version']
+    if target_version and target_version != current:
+        raise ValueError('Prepared publication must retain the already installed repack version')
+    tag = 'v' + current
+    base = 'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/' + tag
+    organized = (dist_dir / 'Maintenance/release-layout.json').is_file()
+    patch_dir = dist_dir / 'Patches' / current if organized else dist_dir
+    setup = dist_dir / 'Aetherfall Setup.exe' if organized else dist_dir / 'Aetherfall-Downloader' / 'Aetherfall Setup.exe'
+    latest_path = patch_dir / 'latest-update.json'
+    latest = json.loads(latest_path.read_text()) if latest_path.is_file() else {}
+    patch_path = patch_dir / ('Aetherfall-Patch-' + current + '.zip')
+    rebuild = latest.get('version') != current or not patch_path.is_file() or not latest.get('setupExeSha256') or not latest.get('patchUrl')
+    if not rebuild:
+        with zipfile.ZipFile(patch_path) as archive:
+            patch = json.loads(archive.read('patch-manifest.json'))
+            entry = next((record for record in patch['files'] if record['path'].casefold() == 'files.json'), None)
+            rebuild = not entry or entry['sha256'] != sha256_file(package / 'FILES.json')
+    if rebuild:
+        build_patch(package, baseline_path, patch_dir, base, setup)
+        latest = json.loads(latest_path.read_text())
+    with zipfile.ZipFile(patch_path) as archive:
+        patch = json.loads(archive.read('patch-manifest.json'))
+        entry = next((record for record in patch['files'] if record['path'].casefold() == 'files.json'), None)
+        if not entry or entry['sha256'] != sha256_file(package / 'FILES.json'):
+            raise ValueError('The repack changed after its patch was prepared; rebuild the local patch first')
+    if latest.get('patchSha256') != sha256_file(patch_path):
+        raise ValueError('The prepared patch checksum changed')
+    if setup.is_file():
+        latest.update(setupExeUrl=base+'/Aetherfall-Setup.exe', setupExeBytes=setup.stat().st_size,
+                      setupExeSha256=sha256_file(setup))
+        latest_path.write_text(json.dumps(latest, indent=2)+'\n', encoding='utf-8')
+    if upload:
+        publish_assets(patch_dir, latest, setup)
+    else:
+        print('Prepared update metadata for ' + tag + '; no upload or channel change performed.')
+
+
+def publish_assets(dist_dir, latest, setup_path=None):
+    target_version = latest['version']
+    patch_name = latest['patchFile']
+    patch_path = dist_dir / patch_name
+    if sha256_file(patch_path) != latest['patchSha256'] or patch_path.stat().st_size != latest['patchBytes']:
+        raise ValueError('Prepared patch differs from its update metadata')
+    tag_name = 'v' + target_version
+    setup_exe = setup_path or dist_dir / 'Aetherfall-Downloader' / 'Aetherfall Setup.exe'
+    if setup_exe.is_file() and (sha256_file(setup_exe) != latest.get('setupExeSha256') or setup_exe.stat().st_size != latest.get('setupExeBytes')):
+        raise ValueError('Prepared Setup differs from its update metadata')
+    print(f'[3/4] Uploading {patch_name} and Aetherfall-Setup.exe to GitHub Release {tag_name}...')
+    token = get_github_token()
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'Aetherfall-Publisher',
+        'Content-Type': 'application/json',
+    }
+    rel_api = 'https://api.github.com/repos/AngelShade/Aion-Aetherfall-4.8-Repack/releases'
+    payload = json.dumps({
+        'tag_name': tag_name,
+        'target_commitish': 'main',
+        'name': f'Aion Aetherfall Repack v{target_version} (Delta Update Patch)',
+        'body': f"Delta update patch to **v{target_version}** ({latest['filesChanged']} updated files).\n\nPlayers: Open **`Aetherfall Setup.exe`** and click **`Update Repack`** to update automatically in 1 click!",
+        'draft': False,
+        'prerelease': False,
+    }).encode('utf-8')
+    try:
+        req = urllib.request.Request(rel_api, data=payload, headers=headers, method='POST')
+        with urllib.request.urlopen(req) as resp:
+            rel_info = json.loads(resp.read().decode())
+    except urllib.error.HTTPError:
+        req = urllib.request.Request(f'{rel_api}/tags/{tag_name}', headers=headers)
+        with urllib.request.urlopen(req) as resp:
+            rel_info = json.loads(resp.read().decode())
+
+    upload_base = rel_info['upload_url'].split('{')[0]
+    existing_assets = {a['name']: a['id'] for a in rel_info.get('assets', [])}
+
+    def upload_asset(file_path: Path, asset_name: str, content_type: str):
+        if asset_name in existing_assets:
+            del_req = urllib.request.Request(f"{rel_api}/assets/{existing_assets[asset_name]}", headers=headers, method='DELETE')
+            with urllib.request.urlopen(del_req):
+                pass
+        raw_data = file_path.read_bytes()
+        up_headers = {
             'Authorization': f'Bearer {token}',
             'Accept': 'application/vnd.github+json',
             'User-Agent': 'Aetherfall-Publisher',
-            'Content-Type': 'application/json',
+            'Content-Type': content_type,
+            'Content-Length': str(len(raw_data)),
         }
-        rel_api = 'https://api.github.com/repos/AngelShade/Aion-Aetherfall-4.8-Repack/releases'
-        payload = json.dumps({
-            'tag_name': tag_name,
-            'target_commitish': 'main',
-            'name': f'Aion Aetherfall Repack v{target_version} (Delta Update Patch)',
-            'body': f'Delta update patch to **v{target_version}** ({len(changed_entries)} updated files).\n\nPlayers: Open **`Aetherfall Setup.exe`** and click **`Update Repack`** to update automatically in 1 click!',
-            'draft': False,
-            'prerelease': False,
-        }).encode('utf-8')
-        try:
-            req = urllib.request.Request(rel_api, data=payload, headers=headers, method='POST')
-            with urllib.request.urlopen(req) as resp:
-                rel_info = json.loads(resp.read().decode())
-        except urllib.error.HTTPError:
-            req = urllib.request.Request(f'{rel_api}/tags/{tag_name}', headers=headers)
-            with urllib.request.urlopen(req) as resp:
-                rel_info = json.loads(resp.read().decode())
+        u_req = urllib.request.Request(f'{upload_base}?name={asset_name}', data=raw_data, headers=up_headers, method='POST')
+        with urllib.request.urlopen(u_req) as u_resp:
+            u_info = json.loads(u_resp.read().decode())
+            print('      Uploaded:', u_info['browser_download_url'])
 
-        upload_base = rel_info['upload_url'].split('{')[0]
-        existing_assets = {a['name']: a['id'] for a in rel_info.get('assets', [])}
+    upload_asset(patch_path, patch_name, 'application/zip')
+    if setup_exe.is_file():
+        upload_asset(setup_exe, 'Aetherfall-Setup.exe', 'application/octet-stream')
 
-        def upload_asset(file_path: Path, asset_name: str, content_type: str):
-            if asset_name in existing_assets:
-                del_req = urllib.request.Request(f"{rel_api}/assets/{existing_assets[asset_name]}", headers=headers, method='DELETE')
-                with urllib.request.urlopen(del_req):
-                    pass
-            raw_data = file_path.read_bytes()
-            up_headers = {
-                'Authorization': f'Bearer {token}',
-                'Accept': 'application/vnd.github+json',
-                'User-Agent': 'Aetherfall-Publisher',
-                'Content-Type': content_type,
-                'Content-Length': str(len(raw_data)),
-            }
-            u_req = urllib.request.Request(f'{upload_base}?name={asset_name}', data=raw_data, headers=up_headers, method='POST')
-            with urllib.request.urlopen(u_req) as u_resp:
-                u_info = json.loads(u_resp.read().decode())
-                print('      Uploaded:', u_info['browser_download_url'])
+    print('[4/4] Publishing latest-update.json to GitHub main branch via API...')
+    import base64
+    contents_api = 'https://api.github.com/repos/AngelShade/Aion-Aetherfall-4.8-Repack/contents/latest-update.json'
+    old_sha = None
+    try:
+        get_req = urllib.request.Request(f'{contents_api}?ref=main', headers=headers)
+        with urllib.request.urlopen(get_req) as g_resp:
+            old_sha = json.loads(g_resp.read().decode()).get('sha')
+    except urllib.error.HTTPError:
+        pass
 
-        upload_asset(patch_path, patch_name, 'application/zip')
-        if setup_exe.is_file():
-            upload_asset(setup_exe, 'Aetherfall-Setup.exe', 'application/octet-stream')
-
-        print('[4/4] Publishing latest-update.json to GitHub main branch via API...')
-        import base64
-        contents_api = 'https://api.github.com/repos/AngelShade/Aion-Aetherfall-4.8-Repack/contents/latest-update.json'
-        old_sha = None
-        try:
-            get_req = urllib.request.Request(f'{contents_api}?ref=main', headers=headers)
-            with urllib.request.urlopen(get_req) as g_resp:
-                old_sha = json.loads(g_resp.read().decode()).get('sha')
-        except urllib.error.HTTPError:
-            pass
-
-        put_body = {
-            'message': f'Publish live update manifest for v{target_version}',
-            'content': base64.b64encode((json.dumps(latest, indent=2) + '\n').encode('utf-8')).decode('ascii'),
-            'branch': 'main',
-        }
-        if old_sha:
-            put_body['sha'] = old_sha
-        put_req = urllib.request.Request(contents_api, data=json.dumps(put_body).encode('utf-8'), headers=headers, method='PUT')
-        with urllib.request.urlopen(put_req):
-            print(f'SUCCESS! Update v{target_version} is now live for all players via "Update Repack"!')
+    put_body = {
+        'message': f'Publish live update manifest for v{target_version}',
+        'content': base64.b64encode((json.dumps(latest, indent=2) + '\n').encode('utf-8')).decode('ascii'),
+        'branch': 'main',
+    }
+    if old_sha:
+        put_body['sha'] = old_sha
+    put_req = urllib.request.Request(contents_api, data=json.dumps(put_body).encode('utf-8'), headers=headers, method='PUT')
+    with urllib.request.urlopen(put_req):
+        print(f'SUCCESS! Update v{target_version} is now live for all players via "Update Repack"!')
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--package', type=Path, default=Path(r'D:\Proiecte\Project Restructure\Aion Development Workspace\Aion Aetherfall Repack Client + Server\Aetherfall-4.8-067-20261016'))
-    parser.add_argument('--baseline', type=Path, default=(Path.home() / 'Downloads/Aetherfall-Distribution-0.86/baseline-files-0.86.json'))
-    parser.add_argument('--dist', type=Path, default=(Path.home() / 'Downloads/Aetherfall-Distribution-0.86'))
+    workspace = Path(__file__).resolve().parents[2] / 'releases'
+    parser.add_argument('--baseline', type=Path, default=workspace / 'Maintenance/Baseline/baseline-files-0.86.json')
+    parser.add_argument('--dist', type=Path, default=workspace)
     parser.add_argument('--version', default='', help='Target version (e.g. 0.87). Auto-increments if omitted.')
+    parser.add_argument('--prepared', action='store_true', help='Use the current installed repack index and version; no rescan, version bump or repack metadata writes')
     parser.add_argument('--no-upload', action='store_true', help='Build patch ZIP locally without uploading to GitHub')
     args = parser.parse_args()
-    scan_and_build_patch(args.package.resolve(), args.baseline.resolve(), args.dist.resolve(), args.version, not args.no_upload)
+    layout_path = args.dist / 'Maintenance/release-layout.json'
+    if layout_path.is_file():
+        layout = json.loads(layout_path.read_text(encoding='utf-8-sig'))
+        args.package = Path(layout['repackFolder'])
+        args.baseline = args.dist / layout['baselineIndex']
+        args.prepared = True
+    scan_and_build_patch(args.package.resolve(), args.baseline.resolve(), args.dist.resolve(), args.version, not args.no_upload, args.prepared)

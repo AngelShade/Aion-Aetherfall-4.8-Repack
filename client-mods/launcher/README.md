@@ -119,3 +119,13 @@ installed server/client updates with portable metadata, active recovery baseline
 fresh-schema compatibility and changed-file hashes, without copying player rows
 or starting any component. Original-client startup remains independent of this
 conditional repack preflight.
+
+Multi-client is built into this launcher. An existing game process no longer
+blocks Play. The existing helpers reuse the current renderer/profile and retain
+all no-live-mutation guards; renderer changes and pending patches require every
+client closed. Reopening a running launcher signals its per-install activation
+event and restores its window, rather than reporting an already-open error.
+After each login handoff it can launch another child with an independent ready
+and reveal event. Use separate game accounts. Mods/MultiClient documents the
+feature and requires the launcher EXE. --launcher-only installs this correction
+without replacing native game modules, startup bridge or generated artwork.

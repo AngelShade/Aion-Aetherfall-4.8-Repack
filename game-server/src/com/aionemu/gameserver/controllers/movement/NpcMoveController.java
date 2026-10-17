@@ -387,11 +387,15 @@ public class NpcMoveController extends CreatureMoveController<Npc> {
 
 	public void setRouteStep(RouteStep step) {
 		Point2D dest = null;
-		if (owner.getWalkerGroup() != null) {
+		WalkerGroup group = owner.getWalkerGroup();
+		// A dead actor's queued return can overlap replacement of its group slot.
+		// Snapshot the association once; only current members use formation offsets.
+		var member = group == null ? null : group.getClusterData(owner);
+		if (member != null) {
 			dest = WalkerGroup.getLinePoint(new Point2D(currentStep.getX(), currentStep.getY()), new Point2D(step.getX(), step.getY()),
-				owner.getWalkerGroup().getClusterData(owner));
+				member);
 			this.pointZ = currentStep.getZ();
-			owner.getWalkerGroup().setStep(owner, step.getStepIndex());
+			group.setStep(owner, step.getStepIndex());
 		} else {
 			this.pointZ = step.getZ();
 			this.isStop = walkerTemplate.getLoopType() == LoopType.NONE && step.isLastStep();

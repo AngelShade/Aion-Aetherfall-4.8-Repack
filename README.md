@@ -15,6 +15,8 @@
 
 Aetherfall lets you build a party from your own alternate characters or temporary companions. Take them through quests and dungeons, manage their equipment and combat behavior, and keep your alts caught up with your main. Independent playerbots also quest, fight and visit towns around the world.
 
+See the [full changelog](CHANGELOG.md) for the initial 0.86 release and subsequent updates.
+
 The Windows repack brings the client, GameServer, LoginServer, ChatServer, Java and MariaDB together in one portable folder. The source and client modifications are maintained here.
 
 ## What's included

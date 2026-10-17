@@ -31,6 +31,7 @@ namespace AetherfallSetup {
   public string Mode = "Auto";
   public string DownloadDirectory = "Downloads";
   public string InstallDirectory = "Games";
+  public string InstalledPath = "";
   public bool DeleteArchiveAfter = false;
  }
  public sealed class ReleaseFile { public string name, sha256; public long bytes; }
@@ -57,7 +58,7 @@ namespace AetherfallSetup {
  public sealed class SetupApp {
   Window window; Grid scene;
   string root, customArchivePath;
-  bool busy, closed, preview;
+  bool busy, closed, preview, serverControlBusy;
   CancellationTokenSource downloadCts;
   SetupSettings settings = new SetupSettings();
   ReleaseManifest manifest = new ReleaseManifest();
@@ -91,6 +92,15 @@ namespace AetherfallSetup {
 
   void Initialize(string[] args) {
    root = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(System.IO.Path.DirectorySeparatorChar);
+   // Organized owner/player bundles keep the clickable EXE above its support
+   // folder. Legacy bundles and installed Hub copies keep their original root.
+   foreach (string support in new [] { "Setup", "Aetherfall-Downloader" }) {
+    if (File.Exists(System.IO.Path.Combine(root,support,"settings.json")) &&
+        File.Exists(System.IO.Path.Combine(root,support,"release-manifest.json"))) {
+     root = System.IO.Path.Combine(root,support);
+     break;
+    }
+   }
    try {
     string oldSelf = Process.GetCurrentProcess().MainModule.FileName + ".old";
     if (File.Exists(oldSelf)) File.Delete(oldSelf);
@@ -132,8 +142,17 @@ namespace AetherfallSetup {
    Btn("StartDbOnlyBtn").Click += async delegate { await RunServerControl("StartDb"); };
    Btn("StartGsOnlyBtn").Click += async delegate { await RunServerControl("StartGs"); };
    Btn("StopAllServerBtn").Click += async delegate { await RunServerControl("StopDb"); };
+   Btn("StopGsBtn").Click += async delegate { await RunServerControl("GameServer"); };
+   Btn("StopLsBtn").Click += async delegate { await RunServerControl("LoginServer"); };
+   Btn("StopChatBtn").Click += async delegate { await RunServerControl("ChatServer"); };
 
    window.Loaded += delegate { RefreshState(); };
+   window.Closing += delegate(object sender, System.ComponentModel.CancelEventArgs e) {
+    if(serverControlBusy) {
+     e.Cancel=true;
+     Text("ServerControlFeedback").Text="Wait for the server operation to finish before closing Setup.";
+    }
+   };
    window.Closed += delegate {
     closed = true;
     if (downloadCts != null) { try { downloadCts.Cancel(); } catch {} }
@@ -206,18 +225,32 @@ namespace AetherfallSetup {
    if (File.Exists(System.IO.Path.Combine(root, "REPACK.json"))) return root;
    string parent = Directory.GetParent(root) != null ? Directory.GetParent(root).FullName : root;
    if (File.Exists(System.IO.Path.Combine(parent, "REPACK.json"))) return parent;
+   if (!String.IsNullOrWhiteSpace(settings.InstalledPath) && HasInstalledPayload(settings.InstalledPath)) return settings.InstalledPath;
    string installBase = System.IO.Path.IsPathRooted(settings.InstallDirectory)
     ? System.IO.Path.GetFullPath(settings.InstallDirectory)
     : System.IO.Path.GetFullPath(System.IO.Path.Combine(root, settings.InstallDirectory));
-   return System.IO.Path.Combine(installBase, manifest.installFolder ?? "Aetherfall-0.86");
+   if (HasInstalledPayload(installBase)) return installBase;
+   string expected = System.IO.Path.Combine(installBase, manifest.installFolder ?? "Aetherfall-0.86");
+   if (File.Exists(System.IO.Path.Combine(expected, "REPACK.json"))) return expected;
+   if (Directory.Exists(installBase)) {
+    string[] existing = Directory.GetDirectories(installBase, "Aetherfall-*").Where(HasInstalledPayload).ToArray();
+    if (existing.Length == 1) return existing[0];
+   }
+   return expected;
+  }
+
+  static bool HasInstalledPayload(string pkg) {
+   return !String.IsNullOrWhiteSpace(pkg) &&
+          File.Exists(System.IO.Path.Combine(pkg, "REPACK.json")) &&
+          File.Exists(System.IO.Path.Combine(pkg, "release.json")) &&
+          File.Exists(System.IO.Path.Combine(pkg, "Client", "Aetherfall Launcher.exe")) &&
+          File.Exists(System.IO.Path.Combine(pkg, "Server", "game-server", "libs", "game-server-4.8-SNAPSHOT.jar"));
   }
 
   bool IsInstalled() {
    string pkg = ResolveInstallPath();
    return !File.Exists(System.IO.Path.Combine(pkg, ".aetherfall-extracting")) &&
-          File.Exists(System.IO.Path.Combine(pkg, "REPACK.json")) &&
-          File.Exists(System.IO.Path.Combine(pkg, "Client", "Aetherfall Launcher.exe")) &&
-          File.Exists(System.IO.Path.Combine(pkg, "Server", "gameserver", "AL-Game.jar"));
+          HasInstalledPayload(pkg);
   }
 
   string InstalledVersion() {
@@ -368,6 +401,7 @@ namespace AetherfallSetup {
     string parent = System.IO.Path.GetDirectoryName(dlg.FileName);
     if (!String.IsNullOrEmpty(parent)) {
      settings.InstallDirectory = parent;
+     settings.InstalledPath = "";
      SaveSettingsFromUi();
     }
    }
@@ -945,6 +979,7 @@ namespace AetherfallSetup {
   }
 
   async Task RunInstall() {
+   if (IsInstalled()) { RefreshState(); return; }
    SaveSettingsFromUi();
    string pkg = ResolveInstallPath();
    string dlDir = ResolveDownloadDir();
@@ -995,6 +1030,9 @@ namespace AetherfallSetup {
      await VerifyArchiveSha256Async(archivePath, rf.sha256, downloadCts.Token);
      await ExtractArchiveWithProgressAsync(archivePath, pkg, downloadCts.Token);
     }
+    if (!IsInstalled()) throw new InvalidDataException("Extraction ended but the repack's launcher or GameServer files are missing. The archive has been kept; choose Resume to finish extraction.");
+    settings.InstalledPath = pkg;
+    File.WriteAllText(System.IO.Path.Combine(root, "settings.json"),new JavaScriptSerializer().Serialize(settings));
 
     try {
      string selfExe = Process.GetCurrentProcess().MainModule.FileName;
@@ -1152,12 +1190,22 @@ namespace AetherfallSetup {
   }
 
   async Task RunServerControl(string action) {
+   if(serverControlBusy || busy)return;
    string pkg = ResolveInstallPath();
    if (!File.Exists(System.IO.Path.Combine(pkg, "REPACK.json"))) {
     Text("ServerControlFeedback").Text = "Install the repack first.";
     return;
    }
+   serverControlBusy=true;
+   string[] controls={"StartAllServerBtn","StartDbOnlyBtn","StartGsOnlyBtn","StopAllServerBtn","StopGsBtn","StopLsBtn","StopChatBtn","PrimaryBtn","UpdateNowBtn","ApplyPatchFileBtn","BrowseInstall"};
+   foreach(string name in controls)Btn(name).IsEnabled=false;
    try {
+    if(action=="GameServer" || action=="LoginServer" || action=="ChatServer") {
+     Text("ServerControlFeedback").Text="Stopping "+action+"…";
+     string result=await Task.Run(()=>ServerControl.Stop(pkg,action,line=>window.Dispatcher.BeginInvoke(new Action(()=>Text("ServerControlFeedback").Text=line))));
+     Text("ServerControlFeedback").Text=result;
+     await PollPorts();return;
+    }
     Text("ServerControlFeedback").Text = "Running " + action + "…";
     if (action == "StartAll" || action == "StartDb") {
      await RunPowerShell(System.IO.Path.Combine(pkg, "Control", "Start-Database.ps1"), "", line => {
@@ -1177,6 +1225,9 @@ namespace AetherfallSetup {
     await PollPorts();
    } catch (Exception ex) {
     Text("ServerControlFeedback").Text = ex.Message;
+   } finally {
+    serverControlBusy=false;
+    foreach(string name in controls)Btn(name).IsEnabled=true;
    }
   }
 
@@ -1264,6 +1315,7 @@ namespace AetherfallSetup {
   void RenderPreview(string[] args) {
    int at = Array.IndexOf(args, "--preview");
    string dest = (at >= 0 && at + 1 < args.Length) ? args[at + 1] : "setup-preview.png";
+   if(args.Contains("--servers"))SwitchTab("Servers");
    Text("InstallPathLabel").Text = @"D:\Games\Aetherfall-0.86";
    Text("HeroHeadline").Text = "Install & Manage Aetherfall.";
    Find<Ellipse>("InstallDot").Fill = Brush("#E0B580");

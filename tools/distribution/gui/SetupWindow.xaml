@@ -122,12 +122,17 @@
     <StackPanel>
      <TextBlock Text="LOCAL PORTABLE SERVER CONTROL" Foreground="#E8CB91" FontSize="10"/>
      <TextBlock Text="Manage Database &amp; World Servers" FontFamily="Palatino Linotype" FontSize="28" Margin="0,6,0,10"/>
-     <TextBlock Text="Start and stop the bundled MariaDB database and Aion 4.8 servers directly from here — no batch scripts needed." FontSize="13" Foreground="#D4DCE8" Margin="0,0,0,18" TextWrapping="Wrap"/>
+     <TextBlock Text="Stop each server normally and wait for saving to finish. Its console confirmations are completed automatically; the database stays running." FontSize="13" Foreground="#D4DCE8" Margin="0,0,0,18" TextWrapping="Wrap"/>
      <WrapPanel Margin="0,0,0,16">
       <Button x:Name="StartAllServerBtn" Content="▶  1. Start Database &amp; Servers" Padding="18,12" Margin="0,0,12,12" Background="#1F473E" BorderBrush="#88A6E5C3" FontSize="13"/>
       <Button x:Name="StartDbOnlyBtn" Content="Start Database Only" Padding="15,12" Margin="0,0,12,12"/>
       <Button x:Name="StartGsOnlyBtn" Content="Start Servers Only" Padding="15,12" Margin="0,0,12,12"/>
       <Button x:Name="StopAllServerBtn" Content="■  Stop Database" Padding="16,12" Margin="0,0,12,12" Background="#4A2028" BorderBrush="#99E59A9A"/>
+     </WrapPanel>
+     <WrapPanel Margin="0,0,0,12">
+      <Button x:Name="StopGsBtn" Content="■  Stop GameServer" Padding="16,12" Margin="0,0,12,12" Background="#4A2028" BorderBrush="#99E59A9A"/>
+      <Button x:Name="StopLsBtn" Content="■  Stop LoginServer" Padding="16,12" Margin="0,0,12,12" Background="#4A2028" BorderBrush="#99E59A9A"/>
+      <Button x:Name="StopChatBtn" Content="■  Stop ChatServer" Padding="16,12" Margin="0,0,12,12" Background="#4A2028" BorderBrush="#99E59A9A"/>
      </WrapPanel>
      <TextBlock x:Name="ServerControlFeedback" Text="Database uses portable port 33306. LoginServer listens on port 2106." FontSize="12" Foreground="#EAD29E" TextWrapping="Wrap"/>
     </StackPanel>
