@@ -48,6 +48,11 @@ namespace AetherfallSetup {
   public List<string> SharePages = new List<string>();
  }
  public sealed class ReleaseJson { public string Product, Version; }
+ public sealed class LatestUpdateManifest {
+  public int schema = 1;
+  public string version, patchFile, patchSha256, patchUrl, setupExeUrl, setupExeSha256;
+  public long patchBytes, setupExeBytes;
+ }
 
  public sealed class SetupApp {
   Window window; Grid scene;
@@ -86,6 +91,10 @@ namespace AetherfallSetup {
 
   void Initialize(string[] args) {
    root = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(System.IO.Path.DirectorySeparatorChar);
+   try {
+    string oldSelf = Process.GetCurrentProcess().MainModule.FileName + ".old";
+    if (File.Exists(oldSelf)) File.Delete(oldSelf);
+   } catch {}
    preview = args.Contains("--preview");
    using (Stream s = Assembly.GetExecutingAssembly().GetManifestResourceStream("Aetherfall.SetupWindow.xaml"))
     window = (Window)XamlReader.Load(s);
@@ -1012,17 +1021,90 @@ namespace AetherfallSetup {
    }
   }
 
+  static string ComputeFileSha256(string path) {
+   using (var sha = SHA256.Create())
+   using (var fs = File.OpenRead(path)) {
+    return BitConverter.ToString(sha.ComputeHash(fs)).Replace("-", "").ToLowerInvariant();
+   }
+  }
+
+  async Task<bool> CheckAndApplyLauncherSelfUpdateAsync() {
+   if (String.IsNullOrWhiteSpace(settings.UpdateUrl)) return false;
+   return await Task.Run(() => {
+    try {
+     JavaScriptSerializer js = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
+     using (var wc = new WebClient { Encoding = Encoding.UTF8 }) {
+      wc.Headers.Add("User-Agent", "Mozilla/5.0");
+      if (!String.IsNullOrWhiteSpace(settings.MirrorsUrl)) {
+       try {
+        string mRaw = wc.DownloadString(settings.MirrorsUrl + "?t=" + Environment.TickCount);
+        var remoteM = js.Deserialize<MirrorConfig>(mRaw);
+        if (remoteM != null && remoteM.schema == 1) {
+         File.WriteAllText(System.IO.Path.Combine(root, "mirrors.json"), mRaw, new UTF8Encoding(false));
+        }
+       } catch {}
+      }
+      string raw = wc.DownloadString(settings.UpdateUrl + "?t=" + Environment.TickCount);
+      var latest = js.Deserialize<LatestUpdateManifest>(raw);
+      if (latest == null || String.IsNullOrWhiteSpace(latest.setupExeUrl) || String.IsNullOrWhiteSpace(latest.setupExeSha256))
+       return false;
+      string selfExe = Process.GetCurrentProcess().MainModule.FileName;
+      string currentSha = ComputeFileSha256(selfExe);
+      if (String.Equals(currentSha, latest.setupExeSha256.Trim(), StringComparison.OrdinalIgnoreCase))
+       return false;
+
+      string tempNew = selfExe + ".new";
+      string tempOld = selfExe + ".old";
+      if (File.Exists(tempNew)) File.Delete(tempNew);
+      wc.DownloadFile(latest.setupExeUrl, tempNew);
+      string downloadedSha = ComputeFileSha256(tempNew);
+      if (!String.Equals(downloadedSha, latest.setupExeSha256.Trim(), StringComparison.OrdinalIgnoreCase)) {
+       File.Delete(tempNew);
+       throw new InvalidDataException("Downloaded launcher update checksum mismatch.");
+      }
+      if (File.Exists(tempOld)) File.Delete(tempOld);
+      File.Move(selfExe, tempOld);
+      File.Move(tempNew, selfExe);
+      try {
+       string pkg = ResolveInstallPath();
+       if (Directory.Exists(pkg)) File.Copy(selfExe, System.IO.Path.Combine(pkg, "Aetherfall Hub.exe"), true);
+      } catch {}
+      return true;
+     }
+    } catch {
+     return false;
+    }
+   });
+  }
+
   async Task RunUpdate(string chosenZip) {
+   SetBusy(true, "CHECKING FOR UPDATES", "Checking launcher & repack updates…", "Contacting GitHub update channel…");
+   SetProgress(0.25, "Checking…", "↻ Update Channel");
+
+   if (String.IsNullOrEmpty(chosenZip)) {
+    bool selfUpdated = await CheckAndApplyLauncherSelfUpdateAsync();
+    if (selfUpdated) {
+     SetProgress(1.0, "100%", "✨ Restarting Launcher");
+     SetBusy(false, "LAUNCHER UPDATED", "Restarting updated Aetherfall Setup…", "Launching new version now…");
+     string selfExe = Process.GetCurrentProcess().MainModule.FileName;
+     Process.Start(new ProcessStartInfo(selfExe) { WorkingDirectory = root, UseShellExecute = true });
+     window.Close();
+     return;
+    }
+   }
+
    string pkg = ResolveInstallPath();
    if (!File.Exists(System.IO.Path.Combine(pkg, "REPACK.json"))) {
-    MessageBox.Show("Install the repack first before applying an update patch.", "Aion Aetherfall", MessageBoxButton.OK, MessageBoxImage.Information);
+    SetProgress(1.0, "Up to date", "✅ Launcher Ready");
+    SetBusy(false, "LAUNCHER UP TO DATE", "Launcher & mirrors are up to date.", "Click INSTALL or RESUME whenever you are ready to finish installing the repack.");
+    RefreshState(true);
     return;
    }
    string updScript = System.IO.Path.Combine(pkg, "Control", "Update-Repack.ps1");
    if (!File.Exists(updScript)) updScript = System.IO.Path.Combine(root, "bin", "Update-Repack.ps1");
    if (!File.Exists(updScript)) updScript = System.IO.Path.Combine(root, "Update-Repack.ps1");
    if (!File.Exists(updScript)) {
-    MessageBox.Show("Update-Repack.ps1 was not found.", "Aion Aetherfall", MessageBoxButton.OK, MessageBoxImage.Error);
+    SetBusy(false, "UPDATE PAUSED", "Update-Repack.ps1 was not found.", "Restore Update-Repack.ps1 in the bin folder.");
     return;
    }
 
@@ -1040,7 +1122,11 @@ namespace AetherfallSetup {
       Title = "Select Aetherfall-Patch-<version>.zip to update your repack",
       Filter = "Aetherfall Patch ZIP (Aetherfall-Patch-*.zip;*.zip)|Aetherfall-Patch-*.zip;*.zip"
      };
-     if (dlg.ShowDialog() != true) return;
+     if (dlg.ShowDialog() != true) {
+      SetBusy(false, "AETHERFALL REPACK MANAGER", "Update cancelled", "");
+      RefreshState();
+      return;
+     }
      chosenZip = dlg.FileName;
     }
    }
@@ -1061,6 +1147,7 @@ namespace AetherfallSetup {
     RefreshState();
    } catch (Exception ex) {
     SetBusy(false, "UPDATE PAUSED", "Could not complete update", ex.Message);
+    RefreshState(true);
    }
   }
 

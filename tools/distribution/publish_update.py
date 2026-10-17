@@ -173,6 +173,11 @@ def scan_and_build_patch(package: Path, baseline_path: Path, dist_dir: Path, tar
     tag_name = f'v{target_version}'
     patch_url = f'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/{tag_name}/{patch_name}'
 
+    setup_exe = dist_dir / 'Aetherfall-Downloader' / 'Aetherfall Setup.exe'
+    setup_sha = sha256_file(setup_exe) if setup_exe.is_file() else ''
+    setup_bytes = setup_exe.stat().st_size if setup_exe.is_file() else 0
+    setup_url = f'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/{tag_name}/Aetherfall-Setup.exe' if setup_exe.is_file() else ''
+
     latest = {
         'schema': 1,
         'product': 'Aion Aetherfall Repack',
@@ -181,6 +186,9 @@ def scan_and_build_patch(package: Path, baseline_path: Path, dist_dir: Path, tar
         'patchBytes': patch_bytes,
         'patchSha256': patch_sha,
         'patchUrl': patch_url,
+        'setupExeUrl': setup_url,
+        'setupExeBytes': setup_bytes,
+        'setupExeSha256': setup_sha,
         'filesChanged': len(changed_entries),
         'filesRemoved': len(removed_entries),
     }
@@ -189,7 +197,7 @@ def scan_and_build_patch(package: Path, baseline_path: Path, dist_dir: Path, tar
     print(f'      Created {patch_path} ({patch_bytes / 1024 / 1024:.2f} MB, SHA256={patch_sha})')
 
     if publish_github:
-        print(f'[3/4] Uploading {patch_name} to GitHub Release {tag_name}...')
+        print(f'[3/4] Uploading {patch_name} and Aetherfall-Setup.exe to GitHub Release {tag_name}...')
         token = get_github_token()
         headers = {
             'Authorization': f'Bearer {token}',
@@ -202,7 +210,7 @@ def scan_and_build_patch(package: Path, baseline_path: Path, dist_dir: Path, tar
             'tag_name': tag_name,
             'target_commitish': 'main',
             'name': f'Aion Aetherfall Repack v{target_version} (Delta Update Patch)',
-            'body': f'Delta update patch to **v{target_version}** ({len(changed_entries)} updated files).\n\nPlayers: Open **`Aetherfall Setup.exe`** and click **`CHECK & INSTALL UPDATES`** to update automatically in 1 click!',
+            'body': f'Delta update patch to **v{target_version}** ({len(changed_entries)} updated files).\n\nPlayers: Open **`Aetherfall Setup.exe`** and click **`Update Repack`** to update automatically in 1 click!',
             'draft': False,
             'prerelease': False,
         }).encode('utf-8')
@@ -216,27 +224,51 @@ def scan_and_build_patch(package: Path, baseline_path: Path, dist_dir: Path, tar
                 rel_info = json.loads(resp.read().decode())
 
         upload_base = rel_info['upload_url'].split('{')[0]
-        data = patch_path.read_bytes()
-        up_headers = {
-            'Authorization': f'Bearer {token}',
-            'Accept': 'application/vnd.github+json',
-            'User-Agent': 'Aetherfall-Publisher',
-            'Content-Type': 'application/zip',
-            'Content-Length': str(len(data)),
-        }
-        u_req = urllib.request.Request(f'{upload_base}?name={patch_name}', data=data, headers=up_headers, method='POST')
-        with urllib.request.urlopen(u_req) as u_resp:
-            u_info = json.loads(u_resp.read().decode())
-            print('      Uploaded:', u_info['browser_download_url'])
+        existing_assets = {a['name']: a['id'] for a in rel_info.get('assets', [])}
 
-        print('[4/4] Publishing latest-update.json to GitHub main branch...')
-        repo_dir = dist_dir / 'github-release-repo'
-        if repo_dir.is_dir():
-            (repo_dir / 'latest-update.json').write_text(json.dumps(latest, indent=2) + '\n', encoding='utf-8')
-            subprocess.run(['git', 'add', 'latest-update.json'], cwd=repo_dir, check=True)
-            subprocess.run(['git', 'commit', '-m', f'Publish live update manifest for v{target_version}'], cwd=repo_dir, check=False)
-            subprocess.run(['git', 'push', 'origin', 'main'], cwd=repo_dir, check=True)
-            print(f'SUCCESS! Update v{target_version} is now live for all players via "CHECK & INSTALL UPDATES"!')
+        def upload_asset(file_path: Path, asset_name: str, content_type: str):
+            if asset_name in existing_assets:
+                del_req = urllib.request.Request(f"{rel_api}/assets/{existing_assets[asset_name]}", headers=headers, method='DELETE')
+                with urllib.request.urlopen(del_req):
+                    pass
+            raw_data = file_path.read_bytes()
+            up_headers = {
+                'Authorization': f'Bearer {token}',
+                'Accept': 'application/vnd.github+json',
+                'User-Agent': 'Aetherfall-Publisher',
+                'Content-Type': content_type,
+                'Content-Length': str(len(raw_data)),
+            }
+            u_req = urllib.request.Request(f'{upload_base}?name={asset_name}', data=raw_data, headers=up_headers, method='POST')
+            with urllib.request.urlopen(u_req) as u_resp:
+                u_info = json.loads(u_resp.read().decode())
+                print('      Uploaded:', u_info['browser_download_url'])
+
+        upload_asset(patch_path, patch_name, 'application/zip')
+        if setup_exe.is_file():
+            upload_asset(setup_exe, 'Aetherfall-Setup.exe', 'application/octet-stream')
+
+        print('[4/4] Publishing latest-update.json to GitHub main branch via API...')
+        import base64
+        contents_api = 'https://api.github.com/repos/AngelShade/Aion-Aetherfall-4.8-Repack/contents/latest-update.json'
+        old_sha = None
+        try:
+            get_req = urllib.request.Request(f'{contents_api}?ref=main', headers=headers)
+            with urllib.request.urlopen(get_req) as g_resp:
+                old_sha = json.loads(g_resp.read().decode()).get('sha')
+        except urllib.error.HTTPError:
+            pass
+
+        put_body = {
+            'message': f'Publish live update manifest for v{target_version}',
+            'content': base64.b64encode((json.dumps(latest, indent=2) + '\n').encode('utf-8')).decode('ascii'),
+            'branch': 'main',
+        }
+        if old_sha:
+            put_body['sha'] = old_sha
+        put_req = urllib.request.Request(contents_api, data=json.dumps(put_body).encode('utf-8'), headers=headers, method='PUT')
+        with urllib.request.urlopen(put_req):
+            print(f'SUCCESS! Update v{target_version} is now live for all players via "Update Repack"!')
 
 
 if __name__ == '__main__':
