@@ -27,8 +27,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 	public synchronized boolean startHeightTraversal(com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.Plan plan) {
 		if(heightPlan!=null)return true;
 		if(plan==null || !plan.valid() || failed || !owner.isSpawned() || owner.isDead() || owner.isFlying())return false;
-		if(!plan.falling() && (owner.isCasting() || !owner.canPerformMove() || owner.isTrading() || owner.isLooting()
-			|| com.aionemu.gameserver.utils.stats.StatFunctions.calculateFallDamage(owner,plan.fallDistance())>=owner.getLifeStats().getCurrentHp()))return false;
+		if(!plan.falling() && (owner.isCasting() || !owner.canPerformMove() || owner.isTrading() || owner.isLooting()))return false;
 		if(PositionUtil.getDistance(owner,plan.x(),plan.y(),plan.z())>.3)return false;
 		if(!com.aionemu.gameserver.world.geo.GeoService.getInstance().validatePlayerBotHeightLanding(owner.getWorldId(),owner.getInstanceId(),plan))return false;
 		abortMove();
@@ -175,7 +174,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 			// Failed boarding stays on its supported origin; failed carry must run
 			// the existing supported gravity path rather than inventing a landing.
 			var fall=com.aionemu.gameserver.world.geo.GeoService.getInstance().findPlayerBotFall(owner.getWorldId(),owner.getInstanceId(),owner.getX(),owner.getY(),owner.getZ());
-			if(fall!=null){if(fall.fallDistance()>=200 || !startHeightTraversal(fall))failed=true;}
+			if(fall!=null){if(!startHeightTraversal(fall))failed=true;}
 			else if(!Float.isFinite(com.aionemu.gameserver.world.geo.GeoService.getInstance().playerBotStaticFloor(owner.getWorldId(),owner.getInstanceId(),owner.getX(),owner.getY(),owner.getZ())))failed=true;
 			return;
 		}

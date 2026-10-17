@@ -76,6 +76,7 @@ final class PlayerBotDecisionSchedule {
  }
  private record Deadline(long reaction,long due) {}
  private final Map<Integer,Deadline> observed=new java.util.concurrent.ConcurrentHashMap<>();
+ private final Set<Integer> suspended=java.util.concurrent.ConcurrentHashMap.newKeySet();
  static long reaction(boolean clientMaster,boolean combat,boolean resting,int randomIdleMultiplier) {
   if(clientMaster)return 100;
   if(combat)return 500;
@@ -85,13 +86,17 @@ final class PlayerBotDecisionSchedule {
  /** A newly urgent actor starts its shorter wait when observed, not retroactively at its last idle tick. */
  long due(int id,long reaction,long now){
   return observed.compute(id,(key,previous)->{
+   if(suspended.remove(id))return new Deadline(reaction,now+reaction);
    if(previous==null)return new Deadline(reaction,due(id,reaction));
    if(previous.reaction()==reaction)return previous;
    return new Deadline(reaction,reaction<previous.reaction() ? Math.min(previous.due(),now+reaction) : due(id,reaction));
   }).due();
  }
- void complete(int id,long now){completed.put(id,now);observed.remove(id);}
- void retain(Set<Integer> ids){completed.keySet().retainAll(ids);observed.keySet().retainAll(ids);}
+ /** Explicit world dormancy is not unserved work. Arm exactly one fresh reaction
+  * on wake; subsequent observations retain its deadline and expose real stalls. */
+ void suspend(int id){suspended.add(id);observed.remove(id);}
+ void complete(int id,long now){completed.put(id,now);observed.remove(id);suspended.remove(id);}
+ void retain(Set<Integer> ids){completed.keySet().retainAll(ids);observed.keySet().retainAll(ids);suspended.retainAll(ids);}
  static long delay(long now,long earliest,long maximum){return Math.max(1,Math.min(Math.max(1,maximum),earliest-now));}
  static long maximum(int configured,boolean running){return running?25:Math.min(400,Math.max(25,configured));}
 }

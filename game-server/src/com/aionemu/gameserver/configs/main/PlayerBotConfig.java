@@ -39,6 +39,10 @@ public final class PlayerBotConfig {
 	public static boolean WORLD_ONLY_OCCUPIED_MAPS = true;
 	@Property(key = "gameserver.playerbots.world.presence_refresh_ms", defaultValue = "1000")
 	public static int WORLD_PRESENCE_REFRESH_MS = 1000;
+	@Property(key = "gameserver.playerbots.world.rpg.enable", defaultValue = "true")
+	public static boolean WORLD_RPG_ENABLED = true;
+	@Property(key = "gameserver.playerbots.world.rpg_pause_ms", defaultValue = "10000")
+	public static int WORLD_RPG_PAUSE_MS = 10000;
 	@Property(key = "gameserver.playerbots.world.max_active", defaultValue = "3000")
 	public static int WORLD_MAX_ACTIVE;
 	@Property(key = "gameserver.playerbots.population.enable", defaultValue = "true")

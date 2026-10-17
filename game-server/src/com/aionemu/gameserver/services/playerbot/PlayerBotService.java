@@ -362,7 +362,7 @@ public final class PlayerBotService {
    // Write the retry time first. Native teleport errors cannot produce a rapid relocation loop.
    nextPlacementAttempt.put(bot.getObjectId(),now+30000);
    populationSchedule.event(bot.getObjectId(),new PlayerBotPopulationSchedule.Events(event.presentUntil(),event.offlineUntil(),now+30000,event.placedLevel()));
-   if(!PlayerBotWorldPlacement.place(session,stranded?0:settings.cityChance(),populationRandom,focusMaps))return false;
+   if(!PlayerBotWorldPlacement.place(session,stranded?PlayerBotWorldPlacement.Purpose.FIELD_RESCUE:PlayerBotWorldPlacement.Purpose.POPULATION,settings.cityChance(),populationRandom,focusMaps))return false;
    if(stranded)log.info("World bot {} has no reachable eligible activity; moved to a validated field camp with the same saved character/progress",bot.getName());
    populationSchedule.event(bot.getObjectId(),new PlayerBotPopulationSchedule.Events(event.presentUntil(),event.offlineUntil(),PlayerBotPopulationPolicy.deadline(now,populationRandom,settings.teleportMin(),settings.teleportMax()),bot.getLevel()));
    return true;
@@ -1069,7 +1069,7 @@ public final class PlayerBotService {
    if(session.closing() || id==focusJobId || execution.busy(id) || sessions.get(id)!=session)continue;
    // Sleeping actors own no decision lane or terrain ticket. Observe only map
    // presence until a human arrives or a player takes control of the actor.
-   if(!session.needsDecision())continue;
+   if(!session.needsDecision()){decisions.suspend(id);continue;}
    boolean controlled=!session.autonomous();long reaction=session.reactionDelay();
    boolean active=reaction<=500 || session.bot().isLooting();
    var lane=controlled?controlledWork:active?activeWorldWork:autonomousWork;
@@ -1191,6 +1191,13 @@ public final class PlayerBotService {
   * not acquire service/session locks or treat slow-work diagnostics as logout. */
  public boolean allowsHeadlessInteraction(Player player) {
   if(player==null || !player.isPlayerBot() || !player.isPlaying() || !player.isSpawned() || player.isDead())return false;
+  var active=sessions.get(player.getObjectId());
+  return active!=null && active.bot()==player && current(active) && PlayerBotLease.isReserved(player.getObjectId());
+ }
+ /** Social presence follows native actor custody, including living and dead bots;
+  * it never fabricates a client login or changes human privacy status. */
+ public boolean isSociallyPresent(Player player) {
+  if(player==null || !player.isPlayerBot() || !player.isSpawned())return false;
   var active=sessions.get(player.getObjectId());
   return active!=null && active.bot()==player && current(active) && PlayerBotLease.isReserved(player.getObjectId());
  }

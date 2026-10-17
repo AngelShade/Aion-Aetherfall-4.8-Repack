@@ -40,7 +40,11 @@ public class TheobomosLabInstance extends GeneralInstanceHandler implements Theo
 
 		switch (npc.getNpcId()) {
 			case 214669: // Triroan
-				spawn(730178, 571.15f, 490.6607f, 196.7324f, (byte) 60);
+				if (getNpc(730178) == null) {
+					// Native boss-room exit marker, grounded on its actual floor.
+					// The old position overlapped the entrance's LibraryDoor model.
+					spawn(730178, 637.06305f, 476.0982f, 195.49866f, (byte) 30);
+				}
 				break;
 			case 280971:
 			case 280972:

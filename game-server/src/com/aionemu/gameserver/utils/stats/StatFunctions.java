@@ -626,6 +626,8 @@ public class StatFunctions {
 	}
 
 	public static int calculateFallDamage(Player player, float distance) {
+		if (player.isPlayerBot())
+			return 0;
 		int fallDamage = 0;
 		if (distance >= FallDamageConfig.MAXIMUM_DISTANCE_DAMAGE) {
 			fallDamage = player.getLifeStats().getCurrentHp();

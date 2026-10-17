@@ -23,6 +23,7 @@ public final class PlayerBotPartyCompletion {
  public static void ownerCompleted(QuestEnv env) {
   try {
   Player owner=env.getPlayer();if(owner.isPlayerBot() || !com.aionemu.gameserver.configs.main.PlayerBotConfig.ENABLED || owner.getCurrentTeam()==null)return;
+  PlayerBotQuestCompletionSharing.ownerCompleted(owner,env.getQuestId());
   var q=owner.getQuestStateList().getQuestState(env.getQuestId());if(q==null || q.getStatus()!=QuestStatus.COMPLETE || !(env.getVisibleObject() instanceof Npc npc))return;
   Set<Integer> bots=new HashSet<>();for(Player p:owner.getCurrentTeam().getMembers())if(p.isPlayerBot() && p.getPlayerBotOwnerId()==owner.getObjectId()) {
    var owned=p.getQuestStateList().getQuestState(q.getQuestId());if(owned!=null && (owned.getStatus()==QuestStatus.START || owned.getStatus()==QuestStatus.REWARD))bots.add(p.getObjectId());
@@ -32,7 +33,7 @@ public final class PlayerBotPartyCompletion {
   EVENTS.put(key(owner.getObjectId(),q.getQuestId()),new Completion(owner.getObjectId(),q.getQuestId(),q.getCompleteCount(),npc.getNpcId(),owner.getWorldId(),owner.getInstanceId(),q.getQuestVars().getQuestVars(),Set.copyOf(bots),now));
   }catch(RuntimeException error){org.slf4j.LoggerFactory.getLogger(PlayerBotPartyCompletion.class).error("Companion completion observation failed; the player's native quest rewards were retained",error);}
  }
- static void close(Player bot){APPLIED.remove(bot.getObjectId());REWARD_NPCS.remove(bot.getObjectId());}
+ static void close(Player bot){APPLIED.remove(bot.getObjectId());REWARD_NPCS.remove(bot.getObjectId());PlayerBotQuestCompletionSharing.close(bot);}
  static java.nio.file.Path path(Player bot){return java.nio.file.Path.of("config/playerbots/party-rewards-character-"+bot.getObjectId()+".properties");}
  static void remember(Player bot,int quest,int npc) {
   var ids=REWARD_NPCS.computeIfAbsent(bot.getObjectId(),id->load(bot));ids.put(quest,npc);
@@ -73,6 +74,7 @@ public final class PlayerBotPartyCompletion {
   remember(bot,quest.getQuestId(),completion.npc());return true;
  }
  static void tick(PlayerBotSession session) {
+  if(PlayerBotQuestCompletionSharing.applies(session)){PlayerBotQuestCompletionSharing.tick(session);return;}
   Player owner=session.owner(),bot=session.bot();var settings=PlayerBotQuestSync.state(session);long now=System.currentTimeMillis();
   if(bot.isDead() || owner.isDead() || bot.getController().isInCombat() || owner.getController().isInCombat())return;
   for(var quest:bot.getQuestStateList().getUncompletedQuests()) {

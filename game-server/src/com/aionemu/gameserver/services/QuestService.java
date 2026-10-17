@@ -76,6 +76,17 @@ public final class QuestService {
 	 * Finishes the quest and rewards the player.
 	 */
 	public static boolean finishQuest(QuestEnv env) {
+		return finishQuest(env, null, null);
+	}
+
+	/** Party completion sharing: normal rewards, with independent bot-selected item choices. */
+	public static boolean finishPlayerBotQuest(QuestEnv env, int choice, int extendedChoice) {
+		if (!env.getPlayer().isPlayerBot() || choice < -1 || extendedChoice < -1)
+			throw new IllegalArgumentException("Automatic quest rewards require a headless companion");
+		return finishQuest(env, choice, extendedChoice);
+	}
+
+	private static boolean finishQuest(QuestEnv env, Integer choice, Integer extendedChoice) {
 		Player player = env.getPlayer();
 		int id = env.getQuestId();
 		QuestState qs = player.getQuestStateList().getQuestState(id);
@@ -102,11 +113,11 @@ public final class QuestService {
 		validateAndFixRewardGroup(qs, id);
 		List<QuestItems> questItems = new ArrayList<>();
 		if (template.getExtendedRewards() != null && qs.getCompleteCount() == template.getRewardRepeatCount() - 1) { // additional reward for the Xth time
-			questItems.addAll(getRewardItems(env, template, true, null));
+			questItems.addAll(getRewardItems(env, template, true, null, extendedChoice));
 			extendedRewards = template.getExtendedRewards();
 		}
 		if (!template.getRewards().isEmpty() || template.getBonus() != null) {
-			questItems.addAll(getRewardItems(env, template, false, qs.getRewardGroup()));
+			questItems.addAll(getRewardItems(env, template, false, qs.getRewardGroup(), choice));
 			if (qs.getRewardGroup() != null)
 				rewards = template.getRewards().get(qs.getRewardGroup());
 		}
@@ -117,7 +128,9 @@ public final class QuestService {
 		giveReward(env, extendedRewards);
 		if (template.getCategory() == QuestCategory.CHALLENGE_TASK)
 			ChallengeTaskService.getInstance().onChallengeQuestFinish(player, id);
-		removeQuestWorkItems(player, qs); // remove all worker list item if finished
+		// Sharing waives objectives; it must not consume the alt's existing items.
+		if (choice == null)
+			removeQuestWorkItems(player, qs);
 		qs.setStatus(QuestStatus.COMPLETE);
 		com.aionemu.gameserver.services.playerbot.PlayerBotPartyCompletion.ownerCompleted(env);
 		qs.setQuestVar(0);
@@ -128,8 +141,12 @@ public final class QuestService {
 		PacketSendUtility.sendPacket(player, new SM_QUEST_ACTION(ActionType.UPDATE, qs));
 		QuestEngine.getInstance().onQuestCompleted(player, id);
 		SeasonPassService.record(player, SeasonPassRules.Event.QUEST);
-		if (template.getNpcFactionId() != 0)
-			player.getNpcFactions().completeQuest(template);
+		if (template.getNpcFactionId() != 0) {
+			var faction = player.getNpcFactions().getFactionById(template.getNpcFactionId());
+			// A shared historical quest must not complete a different active faction assignment.
+			if (choice == null || faction != null && faction.isActive() && faction.getQuestId() == id)
+				player.getNpcFactions().completeQuest(template);
+		}
 		player.getController().updateNearbyQuests();
 		return true;
 	}
@@ -159,6 +176,10 @@ public final class QuestService {
 	}
 
 	private static List<QuestItems> getRewardItems(QuestEnv env, QuestTemplate template, boolean extended, Integer rewardGroup) {
+		return getRewardItems(env, template, extended, rewardGroup, null);
+	}
+
+	private static List<QuestItems> getRewardItems(QuestEnv env, QuestTemplate template, boolean extended, Integer rewardGroup, Integer choice) {
 		Player player = env.getPlayer();
 		int id = env.getQuestId();
 		int dialogActionId = env.getDialogActionId();
@@ -166,7 +187,10 @@ public final class QuestService {
 		if (extended) {
 			Rewards rewards = template.getExtendedRewards();
 			questItems.addAll(rewards.getRewardItem());
-			if (dialogActionId == SELECTED_QUEST_NOREWARD && !rewards.getSelectableRewardItem().isEmpty()) {
+			if (choice != null) {
+				if (choice >= 0)
+					questItems.add(rewards.getSelectableRewardItem().get(choice));
+			} else if (dialogActionId == SELECTED_QUEST_NOREWARD && !rewards.getSelectableRewardItem().isEmpty()) {
 				int index = env.getExtendedRewardIndex();
 				if (index - 8 >= 0 && index - 8 < rewards.getSelectableRewardItem().size()) {
 					questItems.add(rewards.getSelectableRewardItem().get(index - 8));
@@ -183,7 +207,7 @@ public final class QuestService {
 				questItems.addAll(rewards.getRewardItem());
 				QuestState qs = player.getQuestStateList().getQuestState(id);
 				PlayerClass playerClass = player.getCommonData().getPlayerClass();
-				int rewardIndex = getRewardIndex(env.getDialogActionId());
+				int rewardIndex = choice == null ? getRewardIndex(env.getDialogActionId()) : choice;
 				if (rewardIndex >= 0) {
 					boolean isLastRepeat = qs.getCompleteCount() == template.getRewardRepeatCount() - 1;
 					if (isLastRepeat && template.isSingleTimeClassReward() || template.isClassRewardOnEveryRepeat()) {
@@ -198,7 +222,7 @@ public final class QuestService {
 					} else {
 						log.warn("The SelectableRewardItem list has no element on index " + rewardIndex + ". See quest id " + env.getQuestId());
 					}
-				} else if (dialogActionId == SELECTED_QUEST_NOREWARD) {
+				} else if (choice == null && dialogActionId == SELECTED_QUEST_NOREWARD) {
 					rewardIndex = env.getExtendedRewardIndex() - 8;
 					boolean isLastRepeat = qs.getCompleteCount() == template.getRewardRepeatCount() - 1;
 					if (isLastRepeat && template.isSingleTimeClassReward() || template.isClassRewardOnEveryRepeat()) {

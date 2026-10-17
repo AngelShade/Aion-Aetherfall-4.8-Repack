@@ -95,9 +95,43 @@ public final class PlayerBotHeightTraversalCheck {
   check(plan(drop,-.5f,3,-4)==null,"wall is never traversed by jump");
   var up=level(1.2f);add(up,wall(0,1.2f));var climb=plan(up,-.5f,2,1.2f);
   check(climb!=null && Math.abs(climb.endZ()-1.2f)<.001,"boulder step can be jumped up");
+  check(plan(up,-.5f,2,10)!=null,"supported local uphill terrace can advance toward a distant higher floor");
+  check(plan(level(2.5f),-.5f,2,10)==null,"intermediate uphill terrace retains native maximum rise");
+  check(plan(level(-4),-.5f,3,10)==null,"higher goal cannot select an unrelated lower landing");
   check(plan(level(2.5f),-.5f,2,2.5f)==null,"unsupported tall climb rejected");
   check(plan(level(-20),-.5f,3,-20)==null,"unbounded cliff drop rejected");
   check(plan(level(-4),-.5f,3,0)==null,"another lower floor does not silently replace goal layer");
+  check(plan(level(-4),-.5f,3,-10)!=null,"a supported intermediate terrace can advance toward a lower goal");
+  check(plan(level(-10),-.5f,3,-4)==null,"descent cannot overshoot a higher requested floor");
+  var nativeDrop=PlayerBotHeightTraversal.plan(level(-40),1,-.5f,0,0,3,0,-40,6,Long.MAX_VALUE,50);
+  check(nativeDrop!=null && nativeDrop.seconds()>3,"native survivable descent is not restricted by the old twelve metre or three second limits");
+  check(nativeDrop.endZ()==-40 && !nativeDrop.falling(),"planned descent retains intentional movement and fatal-damage admission");
+  check(nativeDrop.fallDistance()>40 && nativeDrop.fallDistance()<50,"native fall envelope includes the launch apex");
+  check(PlayerBotHeightTraversal.plan(level(-20),1,-.5f,0,0,3,0,-20,6,Long.MAX_VALUE,15)==null,"native shorter fall bound remains authoritative");
+  check(PlayerBotHeightTraversal.plan(level(-20),1,-.5f,0,0,3,0,-20,6,Long.MAX_VALUE,0)==null,"uninitialized native fall bounds reject planned descent");
+  check(PlayerBotHeightTraversal.plan(level(-20),1,-.5f,0,0,3,0,-20,6,Long.MAX_VALUE,Float.NaN)==null,"nonfinite native fall envelope rejected");
+  check(PlayerBotHeightTraversal.plan(level(-49.8f),1,-.5f,0,0,3,0,-49.8f,6,Long.MAX_VALUE,50)==null,"launch apex cannot exceed native lethal or midair threshold");
+  check(PlayerBotHeightTraversal.plan(level(-40),1,-.5f,0,0,3,0,-40,6,0,50)==null,"larger fall bounds do not bypass shared search deadline");
+  var blockedDrop=level(-40);add(blockedDrop,wall(1,8));
+  check(PlayerBotHeightTraversal.plan(blockedDrop,1,-.5f,0,0,3,0,-40,6,Long.MAX_VALUE,50)==null,"larger fall envelope cannot cross a wall");
+  check(PlayerBotHeightTraversal.plan(level(-40),1,-.5f,0,0,3,0,0,6,Long.MAX_VALUE,50)==null,"native envelope cannot select a lower layer for a same-height request");
+  int oldFatal=com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_DAMAGE;
+  int oldMidair=com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_MIDAIR;
+  try {
+   com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_DAMAGE=50;
+   com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_MIDAIR=200;
+   check(PlayerBotHeightTraversal.plan(level(-40),1,-.5f,0,0,3,0,-40,6,Long.MAX_VALUE)!=null,"production bot descent uses physical floor depth");
+   com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_MIDAIR=30;
+   check(PlayerBotHeightTraversal.plan(level(-40),1,-.5f,0,0,3,0,-40,6,Long.MAX_VALUE)!=null,"human midair lethal threshold does not constrain immune bots");
+   com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_DAMAGE=20;
+   com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_MIDAIR=200;
+   check(PlayerBotHeightTraversal.plan(level(-40),1,-.5f,0,0,3,0,-40,6,Long.MAX_VALUE)!=null,"human landing lethal threshold does not constrain immune bots");
+   com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_DAMAGE=0;
+   check(PlayerBotHeightTraversal.plan(level(-40),1,-.5f,0,0,3,0,-40,6,Long.MAX_VALUE)!=null,"bot descent does not depend on human fall-damage configuration");
+  } finally {
+   com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_DAMAGE=oldFatal;
+   com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_MIDAIR=oldMidair;
+  }
   check(plan(level(0),-3,3,0)==null,"supported flat movement stays walking");
   var gap=new GeoMap(919);add(gap,floor(-10,-.5f,0));add(gap,floor(.5f,10,0));
   check(plan(gap,-1,2,0)!=null,"small gap has valid arc and landing");

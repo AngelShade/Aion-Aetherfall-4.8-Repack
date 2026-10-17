@@ -38,6 +38,12 @@ public class GlobalNpcExclusionData {
 	@XmlElement(name = "npc_tribes")
 	private Set<TribeClass> excludedTribes;
 
+	/** Native encounter NPCs can share a normally excluded summon tribe. This
+	 * exception affects the tribe predicate only, never ID/type/name/abyss bans. */
+	@XmlList
+	@XmlElement(name = "npc_tribe_exceptions")
+	private Set<Integer> tribeExceptionNpcIds;
+
 	@XmlList
 	@XmlElement(name = "npc_abyss_types")
 	private Set<AbyssNpcType> excludedAbyssTypes;
@@ -63,6 +69,10 @@ public class GlobalNpcExclusionData {
 
 	public Set<TribeClass> getNpcTribes() {
 		return excludedTribes == null ? Collections.emptySet() : excludedTribes;
+	}
+
+	public boolean isTribeExcluded(int npcId, TribeClass tribe) {
+		return getNpcTribes().contains(tribe) && (tribeExceptionNpcIds == null || !tribeExceptionNpcIds.contains(npcId));
 	}
 
 	public Set<AbyssNpcType> getNpcAbyssTypes() {

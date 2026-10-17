@@ -299,7 +299,7 @@ class MethodPreservationCheck(unittest.TestCase):
 
     def test_pending_focus_is_in_required_suite_and_fixture_inputs(self):
         regression=delivery.import_module('check-source-build')
-        self.assertEqual(regression.TESTS['PlayerBotPendingFocusCheck'],20)
+        self.assertEqual(regression.TESTS['PlayerBotPendingFocusCheck'],36)
         self.assertIn(regression.ROOT/'game-server/test/com/aionemu/gameserver/services/playerbot/PlayerBotPendingFocusCheck.java',regression.fixtures())
 
     def test_added_documented_defaults_preserve_existing_live_values(self):

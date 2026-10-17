@@ -16,11 +16,14 @@ public final class PlayerBotSchedulerCpuCheck {
  private static Field field(Class<?> type,String name)throws Exception{var f=type.getDeclaredField(name);f.setAccessible(true);return f;}
  private static final class Clock extends PlayerController {@Override public long getLastCombatTime(){return 0;}}
  private static final class Actor extends Player {
-  int id,stateReads;Clock control;
+  int id,stateReads;Clock control;boolean dead;
   Actor(){super(null,null);}
   @Override public int getObjectId(){return id;}
   @Override public boolean isWorldBot(){return true;}
+  @Override public int getWorldId(){return 197;}
+  @Override public int getInstanceId(){return 1;}
   @Override public boolean isLooting(){return false;}
+  @Override public boolean isDead(){return dead;}
   @Override public boolean isInState(CreatureState state){if(state==CreatureState.RESTING)stateReads++;return false;}
   @Override public PlayerController getController(){return control;}
   @Override public PlayerMoveController getMoveController(){return null;}
@@ -98,6 +101,20 @@ public final class PlayerBotSchedulerCpuCheck {
    check(pass.ready().isEmpty() && pass.earliest(lane->!lane.busy())==21000,"actual free idle lane retains the original1000ms native reaction");
    int reads=actors.stream().mapToInt(a->a.stateReads).sum();pass.earliest(lane->!lane.busy());pass.ready();
    check(actors.stream().mapToInt(a->a.stateReads).sum()==reads,"dispatch and earliest inspection reuse captured state instead of rescanning actors");
+   // Explicit dormancy must reach the real service->schedule boundary. Hold
+   // worker lanes so this remains a world-free scheduling observation only.
+   for(var lane:lanes)while(lane.available()>0)lane.submit(held::add,()->{});
+   boolean occupiedOnly=com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS;
+   try {
+    com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS=true;
+    var sleeper=sessions.get(4);actors.get(3).dead=true;
+    field(PlayerBotSession.class,"worldDormant").setBoolean(sleeper,true);schedule.complete(4,1000);
+    tick.invoke(service,301000L);
+    check(((Set<Integer>)field(PlayerBotDecisionSchedule.class,"suspended").get(schedule)).contains(4),"Actual scheduler suspends deadline when native world dormancy skips actor");
+    field(PlayerBotSession.class,"worldDormant").setBoolean(sleeper,false);actors.get(3).dead=false;
+    tick.invoke(service,302000L);
+    check(schedule.due(4,100,302000)==302100,"Actual resumed service observation starts one fresh reaction without retroactive dormant backlog");
+   }finally{com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS=occupiedOnly;}
   }finally{presence.setLong(null,previousObservation);execution.complete(3);lanes.forEach(PlayerBotBackgroundWork::close);held.forEach(Runnable::run);for(var lane:lanes)lane.awaitCompletion();}
  }
  private static void nomination() {

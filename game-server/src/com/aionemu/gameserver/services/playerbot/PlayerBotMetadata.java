@@ -24,7 +24,7 @@ public final class PlayerBotMetadata {
  public static boolean validAccount(int account){return PlayerBotPopulationPolicy.account(account);}
  public static void validate(int account,int character,String section,Map<String,String> map)throws IOException {
   try {
-   if(!validAccount(account) || character<=0 || !Set.of("care","gear","preferences","behavior","formation","spacing","party-rewards").contains(section))throw new IllegalArgumentException("Invalid section/owner");
+   if(!validAccount(account) || character<=0 || !Set.of("care","gear","preferences","behavior","formation","spacing","party-rewards","quest-completion").contains(section))throw new IllegalArgumentException("Invalid section/owner");
    if(Integer.parseInt(map.get("account"))!=account || Integer.parseInt(map.get("character"))!=character)throw new IllegalArgumentException("Owner mismatch");
    if(section.equals("care")) {
     for(String key:List.of("enchant","salvage","partySync"))if(map.containsKey(key) && !Set.of("true","false").contains(map.get(key)))throw new IllegalArgumentException("Invalid care flag");
@@ -44,6 +44,13 @@ public final class PlayerBotMetadata {
     PlayerBotFormationLayout.parse(map.get("formation"));
    } else if(section.equals("spacing")) {
     PlayerBotSpacing.validate(Float.parseFloat(map.get("follow")),Float.parseFloat(map.get("attack")));
+   } else if(section.equals("quest-completion")) {
+    ids(map.getOrDefault("blocked",""));
+    for(var e:map.entrySet())if(e.getKey().startsWith("quest.")) {
+     String[] key=e.getKey().split("\\."),counts=e.getValue().split(":");
+     if(key.length!=3 || counts.length!=2 || Integer.parseInt(key[1])<=0 || Integer.parseInt(key[2])<=0
+      || Integer.parseInt(counts[0])<0 || Integer.parseInt(counts[1])<0)throw new IllegalArgumentException("Invalid shared quest progress");
+    }
    } else if(section.equals("party-rewards")) {
     for(var e:map.entrySet())if(e.getKey().startsWith("npc."))if(Integer.parseInt(e.getKey().substring(4))<=0 || Integer.parseInt(e.getValue())<=0)throw new IllegalArgumentException("Invalid reward NPC witness");
    }

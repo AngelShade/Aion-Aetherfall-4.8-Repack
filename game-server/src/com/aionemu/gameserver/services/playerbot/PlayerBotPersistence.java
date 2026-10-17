@@ -109,14 +109,16 @@ final class PlayerBotPersistence {
 		// Never persist an unregistered private instance or a temporary companion position.
 		if(PlayerBotRoster.contains(bot.getObjectId()))try(PreparedStatement statement=connection.prepareStatement("UPDATE players SET player_class=? WHERE id=?")){statement.setString(1,bot.getPlayerClass().name());statement.setInt(2,bot.getObjectId());statement.executeUpdate();}
 		try (PreparedStatement statement = connection.prepareStatement(
-			"UPDATE players SET exp=?,recoverexp=?,dp=?,soul_sickness=?,reposte_energy=?,x=?,y=?,z=?,heading=?,world_id=?,world_owner=?,last_online=COALESCE(?,last_online) WHERE id=?")) {
+			"UPDATE players SET exp=?,recoverexp=?,dp=?,soul_sickness=?,reposte_energy=?,x=?,y=?,z=?,heading=?,world_id=?,world_owner=?,last_online=COALESCE(?,last_online),quest_expands=?,wh_bonus_expands=? WHERE id=?")) {
 			var data = bot.getCommonData();
 			statement.setLong(1, data.getExp()); statement.setLong(2, data.getExpRecoverable());
 			statement.setInt(3, data.getDp()); statement.setInt(4, data.getDeathCount());
 			statement.setLong(5, data.getCurrentReposeEnergy());
 			statement.setFloat(6, home.x()); statement.setFloat(7, home.y()); statement.setFloat(8, home.z());
 			statement.setByte(9, home.heading()); statement.setInt(10, home.map()); statement.setInt(11, home.worldOwner());
-			statement.setTimestamp(12, data.getLastOnline()); statement.setInt(13, bot.getObjectId());
+			statement.setTimestamp(12, data.getLastOnline());
+			statement.setInt(13, data.getQuestExpands()); statement.setInt(14, data.getWhBonusExpands());
+			statement.setInt(15, bot.getObjectId());
 			if (statement.executeUpdate() == 0) {
 				// Drivers configured to count changed rows return zero for an unchanged checkpoint.
 				try (PreparedStatement exists = connection.prepareStatement("SELECT id FROM players WHERE id=?")) {

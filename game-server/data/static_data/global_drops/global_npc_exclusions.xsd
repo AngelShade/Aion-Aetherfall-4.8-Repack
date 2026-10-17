@@ -9,6 +9,7 @@
 				<xs:element minOccurs="0" name="npc_names" type="StringListType" />
 				<xs:element minOccurs="0" name="npc_types" type="ListNpcTemplateType" />
 				<xs:element minOccurs="0" name="npc_tribes" type="ListTribeClass" />
+				<xs:element minOccurs="0" name="npc_tribe_exceptions" type="IntListType" />
 				<xs:element minOccurs="0" name="npc_abyss_types" type="ListAbyssType" />
 			</xs:sequence>
 		</xs:complexType>

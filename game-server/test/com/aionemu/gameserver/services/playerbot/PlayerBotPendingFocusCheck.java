@@ -79,6 +79,36 @@ public final class PlayerBotPendingFocusCheck {
    check(PlayerBotWorldPlacement.focusChoices(Race.ASMODIANS,43,focus(210060000),new Random(1)).isEmpty(),"Focused placement cannot secretly fall back to another map");
    check(!PlayerBotWorldPlacement.focusCompatible(Race.ELYOS,5,focus(210060000)),"Cleanup never relaxes native level suitability");
    config.set(null,Set.of(220030000));check(!PlayerBotWorldPlacement.focusCompatible(Race.ELYOS,43,focus(210060000)),"Owner map exclusions remain authoritative");
+   config.set(null,Set.of());
+   for(var race:List.of(Race.ELYOS,Race.ASMODIANS)) {
+    int capital=race==Race.ELYOS?110010000:120010000,fieldMap=race==Race.ELYOS?210060000:220030000;
+    var city=new PlayerBotWorldPlacement.Location(race,capital,500,500,100,10,65,true,true);
+    var serviceHub=new PlayerBotWorldPlacement.Location(race,fieldMap,700,500,100,35,50,false,true);
+    var field=race==Race.ELYOS?elyos:asmo;
+    var catalog=List.of(elyos,asmo,city,serviceHub);cache.set(null,catalog);memo.clear();
+    var rescue=PlayerBotWorldPlacement.Purpose.FIELD_RESCUE;
+    check(PlayerBotWorldPlacement.focusChoices(race,43,focus(capital),new Random(1)).equals(List.of(city)),
+     "Capital-only human focus preserves ordinary resident placement for "+race);
+    check(PlayerBotWorldPlacement.focusChoices(race,43,focus(capital),rescue,new Random(1)).isEmpty(),
+     "Field rescue cannot claim a capital hub or fall back to an unseen field map for "+race);
+    var mixed=new PlayerBotPopulationFocus.Snapshot(List.of(new PlayerBotPopulationFocus.Anchor(capital,500,500,100),
+     new PlayerBotPopulationFocus.Anchor(fieldMap,500,500,100)),900);
+    check(PlayerBotWorldPlacement.focusChoices(race,43,mixed,rescue,new Random(1)).equals(List.of(field)),
+     "Field rescue retains actual camps on occupied maps while excluding service hubs for "+race);
+    check(PlayerBotWorldPlacement.select(catalog,race,43,Set.of(),Set.of(),false,100,new Random(1)).equals(List.of(city)),
+     "Ordinary city probability remains available for "+race);
+    check(PlayerBotWorldPlacement.select(catalog,race,43,Set.of(),Set.of(),false,100,rescue,new Random(1)).equals(List.of(field)),
+     "Explicit field rescue uses the field catalog regardless of city probability for "+race);
+    config.set(null,Set.of(capital));
+    check(PlayerBotWorldPlacement.focusChoices(race,43,mixed,rescue,new Random(1)).isEmpty(),
+     "Field rescue cannot bypass owner map restrictions for "+race);
+    config.set(null,Set.of());
+    var starter=new PlayerBotWorldPlacement.Location(race,fieldMap,500,500,100,1,5,false,true);
+    check(PlayerBotWorldPlacement.select(List.of(starter),race,3,Set.of(),Set.of(),false,0,new Random(1)).equals(List.of(starter)),
+     "Ordinary native starter hub fallback remains for "+race);
+    check(PlayerBotWorldPlacement.select(List.of(starter),race,3,Set.of(),Set.of(),false,0,rescue,new Random(1)).isEmpty(),
+     "Native starter hub cannot masquerade as an explicit field rescue for "+race);
+   }
   }finally{cache.set(null,oldCache);memo.clear();memo.putAll(oldMemo);config.set(null,oldMaps);}
  }
  public static void main(String[] args)throws Exception{batches();custody();eligibility();System.out.println("OK: "+checks+" actual stale focus admission, durable custody and faction/level eligibility checks; no World/production SQL/native ID allocation");}

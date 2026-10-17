@@ -72,6 +72,14 @@ public class _1094ProjectDrakanhammer extends AbstractQuestHandler {
     }
 
     @Override
+    public void onMovieEndEvent(QuestEnv env, int movieId) {
+        QuestState qs = env.getPlayer().getQuestStateList().getQuestState(questId);
+        if (movieId == 367 && env.getTargetId() == 798155 && qs != null
+            && qs.getStatus() == QuestStatus.START && qs.getQuestVarById(0) == 1)
+            sendQuestDialog(env, 1353); // Native select2_1; the player still confirms SETPRO2.
+    }
+
+    @Override
     public boolean onDialogEvent(QuestEnv env) {
         Player player = env.getPlayer();
         QuestState qs = player.getQuestStateList().getQuestState(questId);

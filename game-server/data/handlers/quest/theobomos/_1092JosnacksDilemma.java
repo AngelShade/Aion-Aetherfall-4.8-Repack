@@ -38,6 +38,7 @@ import com.aionemu.gameserver.questEngine.handlers.AbstractQuestHandler;
 import com.aionemu.gameserver.questEngine.model.QuestEnv;
 import com.aionemu.gameserver.questEngine.model.QuestState;
 import com.aionemu.gameserver.questEngine.model.QuestStatus;
+import com.aionemu.gameserver.services.teleport.TeleportService;
 
 /** Restored from TypeZero 4.8 (Dune11/vlog), using the existing native drops. */
 public class _1092JosnacksDilemma extends AbstractQuestHandler {
@@ -99,7 +100,15 @@ public class _1092JosnacksDilemma extends AbstractQuestHandler {
                 playQuestMovie(env, 364);
                 return true;
             }
-            if (action == SETPRO2 && step == 1) return defaultCloseDialog(env, 1, 2);
+            if (action == SETPRO2) {
+                if (step == 1) {
+                    if (!defaultCloseDialog(env, 1, 2)) return false;
+                } else {
+                    closeDialogWindow(env); // Retry from select3 without resetting either stone.
+                }
+                TeleportService.teleportTo(env.getPlayer(), 210060000, 926f, 3035f, 186f, (byte) 30);
+                return true;
+            }
         } else if ((target == 700389 || target == 700388) && action == USE_OBJECT && step == 2) {
             int index = target == 700389 ? 1 : 2;
             if (qs.getQuestVarById(index) != 0) return false;
@@ -110,6 +119,14 @@ public class _1092JosnacksDilemma extends AbstractQuestHandler {
             return true;
         }
         return false;
+    }
+
+    @Override
+    public void onMovieEndEvent(QuestEnv env, int movieId) {
+        if (movieId != 364 || env.getTargetId() != 798206) return;
+        QuestState qs = env.getPlayer().getQuestStateList().getQuestState(questId);
+        if (qs != null && qs.getStatus() == QuestStatus.START && qs.getQuestVarById(0) == 1)
+            sendQuestDialog(env, 1353); // Native select2_1 contains the SETPRO2 teleport confirmation.
     }
 
     @Override

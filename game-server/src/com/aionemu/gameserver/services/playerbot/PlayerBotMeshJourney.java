@@ -16,6 +16,7 @@ final class PlayerBotMeshJourney implements AutoCloseable {
     private List<Point> waypoints;
     private final Map<Integer,PlayerBotAnimatedLinks.Ride> rides=new HashMap<>();
     private Point finalGoal;
+    private Point failurePosition;
     private Point frontier;
     private int frontierCursor;
     private ArrayList<Point> extracting;
@@ -100,6 +101,13 @@ final class PlayerBotMeshJourney implements AutoCloseable {
         if(points.isEmpty() || !points.getLast().equals(point))points.add(point);
     }
     void observe(Point physical){
+        // A missing/disconnected origin describes one physical floor/pose, not
+        // this destination forever. A proved native prefix or descent may have
+        // moved the actor into a component from which the journey now exists.
+        if(unavailable!=null){
+            if(failurePosition==null)failurePosition=physical;
+            else if(distance(physical,failurePosition)>4){int map=world;Point goal=finalGoal;close();bind(map,goal);}
+        }
         if(waypoints!=null)while(cursor<waypoints.size()-1 && !rides.containsKey(cursor) && distance(physical,waypoints.get(cursor))<.75)cursor++;
     }
     Point target(Point plannedOrigin){
@@ -107,6 +115,12 @@ final class PlayerBotMeshJourney implements AutoCloseable {
         int at=frontier!=null && distance(plannedOrigin,frontier)<.25?Math.max(cursor,frontierCursor):cursor;
         while(at<waypoints.size()-1 && !rides.containsKey(at) && distance(plannedOrigin,waypoints.get(at))<.75)at++;
         return waypoints.get(at);
+    }
+    boolean walkingTarget(Point plannedOrigin,Point target){
+        if(waypoints==null)return false;
+        int at=frontier!=null && distance(plannedOrigin,frontier)<.25?Math.max(cursor,frontierCursor):cursor;
+        while(at<waypoints.size()-1 && !rides.containsKey(at) && distance(plannedOrigin,waypoints.get(at))<.75)at++;
+        return at<waypoints.size()-1 && !rides.containsKey(at) && waypoints.get(at).equals(target);
     }
     void provedSegment(Point origin,Point endpoint,Point target){
         if(waypoints==null)return;
@@ -133,5 +147,5 @@ final class PlayerBotMeshJourney implements AutoCloseable {
         if(topologyLease!=null){topologyLease.close();topologyLease=null;}
         if(admission!=null)admission.cancel(this);
     }
-    @Override public void close(){graph=null;search=null;extracting=null;releaseRequests();waypoints=null;rides.clear();finalGoal=frontier=null;phase=cursor=frontierCursor=extractionCursor=0;unavailable=null;startComponent=endComponent=-1;}
+    @Override public void close(){graph=null;search=null;extracting=null;releaseRequests();waypoints=null;rides.clear();finalGoal=frontier=failurePosition=null;phase=cursor=frontierCursor=extractionCursor=0;unavailable=null;startComponent=endComponent=-1;}
 }

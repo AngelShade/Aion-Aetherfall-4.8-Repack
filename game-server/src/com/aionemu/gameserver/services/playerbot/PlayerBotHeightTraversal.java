@@ -25,17 +25,29 @@ public final class PlayerBotHeightTraversal {
   public boolean valid(){return finite(x,y,z,endX,endY,endZ,seconds,launch,delay) && seconds>0 && delay>=0 && delay<seconds && launch>=0;}
  }
  public static Plan plan(GeoMap map,int instance,float x,float y,float z,float tx,float ty,float goalZ,float speed) {
-  return plan(map,instance,x,y,z,tx,ty,goalZ,speed,Long.MAX_VALUE);
+  return plan(map,instance,x,y,z,tx,ty,goalZ,speed,Long.MAX_VALUE,MAX_DROP);
  }
  public static Plan plan(GeoMap map,int instance,float x,float y,float z,float tx,float ty,float goalZ,float speed,long deadline) {
+  // Immune bots use the same bounded physical floor-query depth as interrupted gravity.
+  return plan(map,instance,x,y,z,tx,ty,goalZ,speed,deadline,200);
+ }
+ /** Production is independent of human fall damage. Explicit/untimed helper
+  * envelopes remain available for offline compatibility. */
+ public static Plan plan(GeoMap map,int instance,float x,float y,float z,float tx,float ty,float goalZ,float speed,long deadline,float maximumDrop) {
   if(System.nanoTime()>=deadline)return null;
-  if(map==null || !finite(x,y,z,tx,ty,goalZ,speed) || speed<=0)return null;
+  if(map==null || !finite(x,y,z,tx,ty,goalZ,speed,maximumDrop) || speed<=0 || maximumDrop<=0)return null;
+  float drop=goalZ<z-.3f?Math.min(200,maximumDrop):MAX_DROP;
   double distance=Math.hypot(tx-x,ty-y);
   if(distance<.3 || distance>MAX_RANGE)return null;
   float floor=PlayerBotGroundSupport.floor(map,instance,x,y,z+.3f,z-.3f);
   if(!Float.isFinite(floor) || Math.abs(floor-z)>.3)return null;
-  float end=PlayerBotGroundSupport.floor(map,instance,tx,ty,z+MAX_RISE+.1f,z-MAX_DROP);
-  if(!Float.isFinite(end) || Math.abs(end-goalZ)>2 || end-z>MAX_RISE || z-end>MAX_DROP)return null;
+  float end=PlayerBotGroundSupport.floor(map,instance,tx,ty,z+MAX_RISE+.1f,z-drop);
+  // Distant goals may require successive supported terraces in either direction.
+  // Each arc still earns its local rise/drop, body and landing proof; it may not
+  // overshoot the requested floor or substitute an unrelated layer.
+  boolean intermediateDescent=goalZ<z-.3f && end<z-.3f && end>=goalZ;
+  boolean intermediateAscent=goalZ>z+.3f && end>z+.3f && end<=goalZ;
+  if(!Float.isFinite(end) || (Math.abs(end-goalZ)>2 && !intermediateDescent && !intermediateAscent) || end-z>MAX_RISE || z-end>drop)return null;
   // Never jump instead of a supported direct walk. For equal-height gaps the walk ends short.
   var walk=PlayerBotGroundNavigation.walk(map,instance,x,y,z,tx,ty,end);
   if(System.nanoTime()>=deadline)return null;
@@ -45,8 +57,10 @@ public final class PlayerBotHeightTraversal {
   if(discriminant<=0)return null;
   float seconds=(float)((launch+Math.sqrt(discriminant))/GRAVITY);
   float delay=end>z+.3f?(float)((launch-Math.sqrt(Math.max(0,launch*launch-2*GRAVITY*(end-z+.1f))))/GRAVITY):0;
-  if(seconds<=delay || seconds>3 || distance/(seconds-delay)>speed)return null;
+  double durationLimit=end<z-.3f?(launch+Math.sqrt(launch*launch+2*GRAVITY*drop))/GRAVITY:3;
+  if(!Float.isFinite(seconds) || seconds<=delay || seconds>durationLimit+.001 || distance/(seconds-delay)>speed)return null;
   Plan plan=new Plan(x,y,z,tx,ty,end,seconds,launch,delay);
+  if(maximumDrop<200 && goalZ<z-.3f && plan.fallDistance()>=drop)return null;
   if(!landing(map,instance,plan))return null;
   Vector3f previous=plan.at(0);
   int samples=Math.max(8,(int)Math.ceil(Math.max(distance/.2,seconds/.05)));

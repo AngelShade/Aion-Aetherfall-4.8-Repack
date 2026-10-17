@@ -88508,8 +88508,8 @@
 		<stats maxHp="121843" />
 		<bound_radius front="0.96" side="0.96" upper="6.6" />
 	</npc_template>
-	<npc_template npc_id="214662" level="43" name="naughty pocaching" name_id="318161" height="5.325" group_drop="BEHOLDER" rank="DISCIPLINED" rating="ELITE" race="MAGICALMONSTER" tribe="AGGRESSIVESUPPORTMONSTER" ai="aggressive" srange="12" sangle="240" arange="2" attack_speed="2415" hpgauge="11" cancel_level="40">
-		<stats maxHp="4327">
+	<npc_template npc_id="214662" level="50" name="naughty pocaching" name_id="318161" height="5.325" group_drop="BEHOLDER" rank="DISCIPLINED" rating="ELITE" race="MAGICALMONSTER" tribe="AGGRESSIVESUPPORTMONSTER" ai="aggressive" srange="12" sangle="240" arange="2" attack_speed="2415" hpgauge="11" cancel_level="40">
+		<stats maxHp="121843">
 			<speeds walk="2.709" group_walk="2.709" run="6" run_fight="14" group_run_fight="6" />
 		</stats>
 		<bound_radius front="3.66" side="2.6279998" upper="6.325" />
@@ -88550,7 +88550,7 @@
 		</stats>
 		<bound_radius front="0.9" side="1.12" upper="3.84" />
 	</npc_template>
-	<npc_template npc_id="214669" level="50" name="unstable triroan" name_id="318168" height="13" group_drop="ELEMENTALKING" rank="VETERAN" rating="ELITE" race="ELEMENTAL" tribe="AGGRESSIVESUPPORTMONSTER" type="MONSTER" ai="triroan" srange="14" arange="2" attack_speed="2100" hpgauge="14" floatcorpse="true" cancel_level="20">
+	<npc_template npc_id="214669" level="50" name="unstable triroan" name_id="318168" height="13" group_drop="ELEMENTALKING" rank="VETERAN" rating="HERO" race="ELEMENTAL" tribe="AGGRESSIVESUPPORTMONSTER" type="MONSTER" ai="triroan" srange="14" arange="2" attack_speed="2100" hpgauge="21" floatcorpse="true" cancel_level="20">
 		<stats maxHp="837110">
 			<speeds walk="6" group_walk="8" run="8" run_fight="10" group_run_fight="8" />
 		</stats>
@@ -88717,7 +88717,7 @@
 		</equipment>
 		<bound_radius front="0.3" side="0.3" upper="2.4" />
 	</npc_template>
-	<npc_template npc_id="214696" level="50" name="lord lannok" name_id="318195" height="2.86" group_drop="DEATHKNIGHT" rank="VETERAN" rating="ELITE" race="UNDEAD" tribe="RANMARK" type="MONSTER" ai="lord_lannok" srange="8" sangle="240" arange="2" attack_speed="2310" hpgauge="14" cancel_level="20">
+	<npc_template npc_id="214696" level="50" name="lord lannok" name_id="318195" height="2.86" group_drop="DEATHKNIGHT" rank="VETERAN" rating="HERO" race="UNDEAD" tribe="RANMARK" type="MONSTER" ai="lord_lannok" srange="8" sangle="240" arange="2" attack_speed="2310" hpgauge="21" cancel_level="20">
 		<stats maxHp="292976">
 			<speeds walk="1.491" group_walk="1.491" run="6" run_fight="12" group_run_fight="6" />
 		</stats>

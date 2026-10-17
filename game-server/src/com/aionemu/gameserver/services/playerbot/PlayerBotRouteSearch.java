@@ -29,6 +29,8 @@ final class PlayerBotRouteSearch {
  private long sequence;
  private boolean complete;
  private boolean partial;
+ private boolean portalApproach;
+ private int portalCursor;
  private List<Point> route=List.of();
  private String reason="searching supported ground";
 
@@ -76,11 +78,29 @@ final class PlayerBotRouteSearch {
    if(!mesh.fallback())return;
    Point next=mesh.nativeTarget();mesh.close();mesh=null;
    if(!next.equals(goal)){goal=next;open.clear();best.clear();current=progress=null;stride=4;phaseExpanded=0;seed();}
+   portalApproach=journey!=null && !goal.equals(finalGoal) && journey.walkingTarget(start,goal) && distance(start,goal)<=6;
+   portalCursor=0;
    // A blocked prepared corridor may already have consumed this turn's work.
    // Start the live-geometry alternative on the next funded callback.
    return;
   }
   int used=0;
+  // Coarse portal coordinates guide the journey; they need not themselves be a
+  // native standing floor. Before expanding thousands of grid cells around an
+  // unstandable portal, earn a complete connection inside the same .75m physical
+  // arrival tolerance already used by MeshJourney. Final goals and authored ride
+  // boarding points keep their exact paths and normal admission.
+  while(portalApproach && portalCursor<16 && used<probes && !expired.getAsBoolean()) {
+   int candidate=portalCursor++;float radius=candidate<8?.5f:.7f;double angle=(candidate%8)*Math.PI/4;
+   float x=goal.x()+radius*(float)Math.cos(angle),y=goal.y()+radius*(float)Math.sin(angle);
+   used++;probed++;Point end=ground.step(start,x,y);
+   if(valid(start,end,x,y) && distance(end,goal)<.75 && distance(start,end)>.05) {
+    finish(new Node(new Cell(0,0,Math.round(start.z()*4)),start,null,0,distance(start,goal),sequence++),end);
+    partial=true;reason="native-supported approach to journey portal";return;
+   }
+  }
+  if(portalApproach && portalCursor<16)return;
+  portalApproach=false;
   while(!complete && used<probes && !expired.getAsBoolean()) {
    if(current==null) {
     if(open.isEmpty()){exhausted("no supported ground route");continue;}

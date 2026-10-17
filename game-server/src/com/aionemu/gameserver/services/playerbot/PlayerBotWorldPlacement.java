@@ -19,6 +19,7 @@ import com.aionemu.gameserver.model.templates.zone.ZoneInfo;
 
 /** Background population placement, separate from ordinary paid-route activity travel. */
 final class PlayerBotWorldPlacement {
+ enum Purpose { POPULATION, FIELD_RESCUE }
  record Location(Race race,int map,float x,float y,float z,int minimum,int maximum,boolean city,boolean hub) {
   Location {if(race!=Race.ELYOS && race!=Race.ASMODIANS || map<=0 || !Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z)
     || minimum<1 || maximum<minimum || maximum>65)throw new IllegalArgumentException("Invalid population location");}
@@ -47,6 +48,9 @@ final class PlayerBotWorldPlacement {
   });
  }
  static List<Location> focusChoices(Race race,int level,PlayerBotPopulationFocus.Snapshot focus,RandomGenerator rng) {
+  return focusChoices(race,level,focus,Purpose.POPULATION,rng);
+ }
+ static List<Location> focusChoices(Race race,int level,PlayerBotPopulationFocus.Snapshot focus,Purpose purpose,RandomGenerator rng) {
   // Cache only immutable native faction/level bands. Live maps/players/occupancy are never cached here.
   var all=focusCandidates(race,level);
   var choices=new ArrayList<Location>();
@@ -55,7 +59,7 @@ final class PlayerBotWorldPlacement {
    var local=all.getOrDefault(map,List.of());
    var fields=local.stream().filter(p->!p.hub() && !p.city()).toList();
    // A player in a native capital needs service/RPG residents rather than an empty field tier.
-   choices.addAll(fields.isEmpty()?local:fields);
+   choices.addAll(purpose==Purpose.FIELD_RESCUE?fields:fields.isEmpty()?local:fields);
   }
   Collections.shuffle(choices,new Random(rng.nextLong()));return List.copyOf(choices);
  }
@@ -82,6 +86,10 @@ final class PlayerBotWorldPlacement {
  }
  static List<Location> select(List<Location> locations,Race race,int level,Set<Integer> enabled,
                              Set<Integer> playerMaps,boolean concentrate,int cityPercent,RandomGenerator random) {
+  return select(locations,race,level,enabled,playerMaps,concentrate,cityPercent,Purpose.POPULATION,random);
+ }
+ static List<Location> select(List<Location> locations,Race race,int level,Set<Integer> enabled,
+                             Set<Integer> playerMaps,boolean concentrate,int cityPercent,Purpose purpose,RandomGenerator random) {
   var all=locations.stream().filter(p->suitable(p,race,level,enabled)).toList();
   var cities=all.stream().filter(Location::city).toList();
   var hubs=all.stream().filter(p->p.hub() && !p.city()).toList();
@@ -89,7 +97,7 @@ final class PlayerBotWorldPlacement {
   // Preserve native starter alternatives before low-level ground validation.
   var fields=all.stream().filter(p->!p.city() && !p.hub()).toList();
   var ordinary=fields.isEmpty()?hubs:level<=5?java.util.stream.Stream.concat(fields.stream(),hubs.stream()).toList():fields;
-  var choices=level>=10 && random.nextInt(100)<cityPercent && !cities.isEmpty()?cities:ordinary;
+  var choices=purpose==Purpose.FIELD_RESCUE?fields:level>=10 && random.nextInt(100)<cityPercent && !cities.isEmpty()?cities:ordinary;
   if(concentrate && !playerMaps.isEmpty()) {
    var local=choices.stream().filter(p->playerMaps.contains(p.map())).toList();if(!local.isEmpty())choices=local;
   }
@@ -197,13 +205,20 @@ final class PlayerBotWorldPlacement {
  private static Location destination(Race race,int level,int cityPercent,RandomGenerator rng,Set<Integer> focusMaps) {
   return chooseDestination(race,level,cityPercent,rng,focusMaps).location();
  }
+ private static Location destination(Race race,int level,int cityPercent,Purpose purpose,RandomGenerator rng,Set<Integer> focusMaps) {
+  return chooseDestination(race,level,cityPercent,purpose,rng,focusMaps).location();
+ }
  static Selection chooseDestination(Race race,int level,int cityPercent,RandomGenerator rng){
   return chooseDestination(race,level,cityPercent,rng,Set.of());
  }
  private static Selection chooseDestination(Race race,int level,int cityPercent,RandomGenerator rng,Set<Integer> focusMaps) {
+  return chooseDestination(race,level,cityPercent,Purpose.POPULATION,rng,focusMaps);
+ }
+ private static Selection chooseDestination(Race race,int level,int cityPercent,Purpose purpose,RandomGenerator rng,Set<Integer> focusMaps) {
   var enabled=PlayerBotConfig.POPULATION_MAPS;
   var players=World.getInstance().getAllPlayers();var focus=PlayerBotPopulationFocus.capture(players);
-  var choices=focus.active()?focusChoices(race,level,focus,rng):select(locations(),race,level,enabled,Set.of(),false,cityPercent,rng);
+  // A rescue needs an actual grind camp. Human focus must not convert it into a capital service visit.
+  var choices=focus.active()?focusChoices(race,level,focus,purpose,rng):select(locations(),race,level,enabled,Set.of(),false,cityPercent,purpose,rng);
   if(!focusMaps.isEmpty())choices=choices.stream().filter(p->focusMaps.contains(p.map())).toList();
   var counts=new HashMap<Integer,Integer>();
   if(focus.active())for(var player:players)if(player.isWorldBot() && player.getPlayerBotOwnerId()==0 && player.isSpawned()
@@ -214,7 +229,7 @@ final class PlayerBotWorldPlacement {
   for(var p:players)if(p.isPlayerBot() && p.isSpawned() && p.getInstanceId()==1)positions.add(new PlayerBotCampDistribution.Position(p.getWorldId(),p.getX(),p.getY(),p.getZ()));
   var distribution=new PlayerBotCampDistribution(positions);preferred=distribution.prefer(preferred,counts);
   if(preferred.isEmpty())return new Selection(null,"no native faction/level camps on the current enabled focus maps",0,true);
-  Scan scan;String scanKey=race+":"+level;
+  Scan scan;String scanKey=race+":"+level+":"+purpose;
   synchronized(admissionCursor){scan=admissionCursor.computeIfAbsent(scanKey,key->new Scan());}
   // The old primary anchor loop was unbounded; the 20ms limit applied only afterwards.
   // Retain only a bounded sweep cursor, never native floor/occupancy/visibility results.
@@ -271,8 +286,11 @@ final class PlayerBotWorldPlacement {
   return place(session,cityPercent,rng,Set.of());
  }
  static boolean place(PlayerBotSession session,int cityPercent,RandomGenerator rng,Set<Integer> focusMaps) {
+  return place(session,Purpose.POPULATION,cityPercent,rng,focusMaps);
+ }
+ static boolean place(PlayerBotSession session,Purpose purpose,int cityPercent,RandomGenerator rng,Set<Integer> focusMaps) {
   Player bot=session.bot();if(!idle(session) || nearHuman(bot.getWorldId(),bot.getX(),bot.getY(),bot.getZ()))return false;
-  var p=destination(bot.getRace(),bot.getLevel(),cityPercent,rng,focusMaps);if(p==null)return false;
+  var p=destination(bot.getRace(),bot.getLevel(),cityPercent,purpose,rng,focusMaps);if(p==null)return false;
   if(!idle(session) || nearHuman(bot.getWorldId(),bot.getX(),bot.getY(),bot.getZ()) || nearHuman(p.map(),p.x(),p.y(),p.z()) || occupiedLanding(p.map(),p.x(),p.y(),p.z()))return false;
   session.preparePopulationPlacement();
   TeleportService.teleportTo(bot,p.map(),1,p.x(),p.y(),p.z(),bot.getHeading());

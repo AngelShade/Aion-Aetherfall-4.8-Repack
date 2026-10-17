@@ -30,6 +30,30 @@ public final class StaticDataBuildCheck {
             StaticData data;
             try (var reader = merged.newReader()) { data = JAXBUtil.deserialize(reader, StaticData.class); }
             data.waitForAfterUnmarshalTasksToFinish();
+            var exclusions = data.globalExclusionData;
+            var silikor = data.npcData.getNpcTemplate(214668);
+            if (silikor.getTribe() != com.aionemu.gameserver.model.TribeClass.HOLYSERVANT
+                || exclusions.isTribeExcluded(214668, silikor.getTribe()))
+                throw new AssertionError("Silikor's native tribe must retain encounter relations without suppressing loot");
+            for (var npc : data.npcData.getNpcData()) {
+                boolean expected = exclusions.getNpcTribes().contains(npc.getTribe()) && npc.getTemplateId() != 214668;
+                if (exclusions.isTribeExcluded(npc.getTemplateId(), npc.getTribe()) != expected)
+                    throw new AssertionError("Unrelated tribe loot exclusion changed: " + npc.getTemplateId());
+            }
+            boolean key = data.globalDropData.getAllRules().stream().anyMatch(rule ->
+                rule.getGlobalRuleNpcs() != null
+                && rule.getGlobalRuleNpcs().getGlobalDropNpcs().stream().anyMatch(npc -> npc.getNpcId() == 214668)
+                && rule.getGlobalRuleMaps() != null
+                && rule.getGlobalRuleMaps().getGlobalDropMaps().stream().anyMatch(map -> map.getMapId() == 310110000)
+                && rule.getChance() == 100 && !rule.isUseLevelBasedChanceReduction()
+                && rule.getDropItems().stream().anyMatch(item -> item.getId() == 185000024));
+            if (!key) throw new AssertionError("Silikor's original guaranteed key rule is missing");
+            for (int id : new int[]{214669, 214696}) {
+                var boss = data.npcData.getNpcTemplate(id);
+                if (boss.getRating() != com.aionemu.gameserver.model.templates.npc.NpcRating.HERO || boss.getHpGauge() != 21)
+                    throw new AssertionError("Boss classification and target frame disagree: " + id);
+            }
+            System.out.println("OK: native Silikor loot exception, all other tribe exclusions, guaranteed key and paired boss classifications");
             com.aionemu.gameserver.services.playerbot.PopulationCatalogBuildCheck.check(data);
             com.aionemu.gameserver.services.playerbot.PlayerBotQuestCoverageBuildCheck.check(data);
             com.aionemu.gameserver.services.playerbot.PlayerBotMaterialCatalogBuildCheck.check(data);

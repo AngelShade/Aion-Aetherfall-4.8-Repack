@@ -106,6 +106,7 @@ public final class PlayerBotQuestSync {
    return actual==null || actual.getStatus()!=QuestStatus.COMPLETE || actual.canRepeat();
   }
   var owned=owner.getQuestStateList().getQuestState(quest);
+  if(s!=null && s.partySync && PlayerBotQuestCompletionSharing.applies(s.session) && owned!=null && owned.getCompleteCount()>0)return false;
   if(owned==null || owned.getStatus()!=QuestStatus.COMPLETE)return true;
   var completed=bot.getQuestStateList().getQuestState(quest);
   if(completed!=null && completed.getStatus()==QuestStatus.COMPLETE)return false;
@@ -132,13 +133,15 @@ public final class PlayerBotQuestSync {
  static void tick(PlayerBotSession session,boolean enabled) {
   State s=state(session);Player owner=session.owner(),bot=session.bot();long now=System.currentTimeMillis();
   if(!enabled || now<s.nextScan || owner.isDead() || bot.isDead())return;s.nextScan=now+3000;
+  boolean automatic=s.partySync && PlayerBotQuestCompletionSharing.applies(session);
   if(!session.autonomous())rewardIntent(s);
-  s.prompts.entrySet().removeIf(e->{var q=bot.getQuestStateList().getQuestState(e.getKey());return q!=null && q.getStatus()==QuestStatus.COMPLETE;});
+  s.prompts.entrySet().removeIf(e->{var q=bot.getQuestStateList().getQuestState(e.getKey());return automatic || q!=null && q.getStatus()==QuestStatus.COMPLETE;});
   for(var owned:owner.getQuestStateList().getUncompletedQuests()) {
    int id=owned.getQuestId();if(s.skipped.contains(id))continue;
    var current=bot.getQuestStateList().getQuestState(id);if(current!=null && current.getStatus()!=QuestStatus.LOCKED && !current.isStartable())continue;
    var template=DataManager.QUEST_DATA.getQuestById(id);if(template==null)continue;
    if(!QuestService.checkStartConditions(bot,id,false)) {
+    if(automatic)continue; // Completed prerequisites are already being shared, without consent prompts.
     var plan=PlayerBotQuestPrerequisites.plan(bot,id);
     if(plan.reachable() && !plan.chain().isEmpty())prompt(session,new Prompt(id,plan.chain(),"I have not completed the prerequisite quests. Will you help me catch up?"));
     else notice(bot,"I cannot accept "+ChatUtil.quest(id)+" yet: "+plan.blockers().stream().map(PlayerBotQuestPrerequisites.Blocker::reason).distinct().collect(java.util.stream.Collectors.joining("; ")),"blocked:"+id,120000);
@@ -146,6 +149,7 @@ public final class PlayerBotQuestSync {
    }
    if(!bot.getController().isInCombat() && !owner.getController().isInCombat() && !template.isCannotShare())PlayerBotService.getInstance().acceptSharedQuest(owner,bot,id);
   }
+  if(automatic)return;
   for(var current:bot.getQuestStateList().getUncompletedQuests()) {
    var owned=owner.getQuestStateList().getQuestState(current.getQuestId());
    if(owned!=null && PlayerBotQuestMirror.shouldComplete(s.partySync,s.managed.contains(current.getQuestId()),s.skipped.contains(current.getQuestId()),
@@ -164,6 +168,7 @@ public final class PlayerBotQuestSync {
  }
  static void nearby(Player owner,Player bot,int quest) {
   var s=STATES.get(bot.getObjectId());if(s==null || s.skipped.contains(quest) || s.approved.contains(quest))return;
+  if(s.partySync && PlayerBotQuestCompletionSharing.applies(s.session))return;
   var owned=owner.getQuestStateList().getQuestState(quest);var current=bot.getQuestStateList().getQuestState(quest);
   if(owned==null || owned.getStatus()!=QuestStatus.COMPLETE || current!=null && current.getStatus()!=QuestStatus.LOCKED)return;
   if(!QuestService.checkStartConditions(bot,quest,false) && chain(bot,quest).isEmpty())return;

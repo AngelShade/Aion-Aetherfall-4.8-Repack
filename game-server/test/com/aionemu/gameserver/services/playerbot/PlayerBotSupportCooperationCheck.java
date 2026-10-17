@@ -169,6 +169,13 @@ public final class PlayerBotSupportCooperationCheck {
   deadlines.complete(1,18000);check(deadlines.due(1,500,18000)==18500,"Completion resets actual reaction interval");
   deadlines.complete(2,1000);deadlines.due(2,1000,1000);
   check(deadlines.due(2,100,5000)==2000,"Already overdue idle work is not granted a fresh grace period");
+  deadlines.complete(3,1000);deadlines.due(3,100,1000);deadlines.suspend(3);deadlines.suspend(3);
+  check(deadlines.due(3,100,301000)==301100,"Five minutes of explicit dormancy cannot become retroactive active backlog");
+  check(deadlines.due(3,100,302000)==301100,"Repeated wake observations cannot postpone actual overdue work");
+  check(307000-deadlines.due(3,100,307000)==5900,"Genuine wake contention remains visible after five seconds");
+  deadlines.complete(3,307000);check(deadlines.due(3,100,307000)==307100,"Wake completion restores normal reaction scheduling");
+  deadlines.suspend(3);deadlines.retain(Set.of(1,2));
+  check(deadlines.due(3,100,400000)==0,"Retired dormant actor cannot transfer suspended state to a reused identity");
   deadlines.retain(Set.of());check(deadlines.due(1,500,20000)==0,"Removed actor deadlines do not survive retirement");
   bot.nearby.clear();
   for(int i=0;i<50;i++){var p=actor(801000+i);p.life.hp=900-i*10;p.x=1+i%20;bot.nearby.add(p);}

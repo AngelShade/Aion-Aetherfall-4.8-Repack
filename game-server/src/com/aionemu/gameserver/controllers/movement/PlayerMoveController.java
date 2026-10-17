@@ -70,7 +70,7 @@ public class PlayerMoveController extends PlayableMoveController<Player> {
 	public void updateFalling(float newZ) {
 		if (lastFallZ != 0) {
 			fallDistance += lastFallZ - newZ;
-			if (fallDistance >= FallDamageConfig.MAXIMUM_DISTANCE_MIDAIR && owner.getController().die(TYPE.FALL_DAMAGE, LOG.REGULAR, owner)) {
+			if (!owner.isPlayerBot() && fallDistance >= FallDamageConfig.MAXIMUM_DISTANCE_MIDAIR && owner.getController().die(TYPE.FALL_DAMAGE, LOG.REGULAR, owner)) {
 				PlayerReviveService.scheduleReviveAtBase(owner, 1000, 0);
 				return;
 			}

@@ -287,7 +287,7 @@ public class DropRegistrationService {
 		GlobalNpcExclusionData gde = DataManager.GLOBAL_EXCLUSION_DATA;
 		if (!gde.isEmpty()) {
 			if (gde.getNpcIds().contains(npc.getNpcId()) || gde.getNpcNames().contains(npc.getName())
-				|| gde.getNpcTemplateTypes().contains(npc.getNpcTemplateType()) || npc.getTribe() != null && gde.getNpcTribes().contains(npc.getTribe())
+				|| gde.getNpcTemplateTypes().contains(npc.getNpcTemplateType()) || npc.getTribe() != null && gde.isTribeExcluded(npc.getNpcId(), npc.getTribe())
 				|| gde.getNpcAbyssTypes().contains(npc.getAbyssNpcType()))
 				return true;
 		}

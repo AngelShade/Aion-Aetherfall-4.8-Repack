@@ -706,7 +706,7 @@ public final class PlayerBotSession {
 				() -> navigation.move(guardPosition.x(), guardPosition.y(), guardPosition.z())), DEFAULT, State.NON_COMBAT);
 		if (autonomous() && !worldSleepRequested && !combat && !rest && !incapacitated && order == Order.FOLLOW) {
 			strategyPlan.defaults("world economy", new SimpleAction("sell surplus gear", () -> true, () -> PlayerBotWorldActivities.sell(this,navigation)), DEFAULT, State.NON_COMBAT);
-			strategyPlan.defaults("world travel", new SimpleAction("travel to quest destination", () -> true, () -> PlayerBotWorldActivities.travel(this,navigation)), DEFAULT - 2, State.NON_COMBAT);
+			strategyPlan.defaults("world travel", new SimpleAction(PlayerBotWorldActivities.rpgTravel(bot)?"visit nearby service NPC":"travel to quest destination", () -> true, () -> PlayerBotWorldActivities.travel(this,navigation)), DEFAULT - 2, State.NON_COMBAT);
 		}
 		status = incapacitated ? "crowd controlled" : withholdDamage ? "waiting for tank threat" : combat ? "engaged" : rest ? "resting" : "ready";
 		runDecision(strategyPlan);

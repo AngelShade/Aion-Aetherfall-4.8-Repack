@@ -11,6 +11,7 @@ import com.aionemu.gameserver.network.aion.AionClientPacket;
 import com.aionemu.gameserver.network.aion.AionConnection.State;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_PLAYER_SEARCH;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_SYSTEM_MESSAGE;
+import com.aionemu.gameserver.services.playerbot.PlayerBotService;
 import com.aionemu.gameserver.utils.Util;
 import com.aionemu.gameserver.world.World;
 
@@ -58,11 +59,18 @@ public class CM_PLAYER_SEARCH extends AionClientPacket {
 		}
 
 		List<Player> matches = new ArrayList<>();
-		for (Player player : World.getInstance().getAllPlayers()) {
+		List<Player> candidates = new ArrayList<>(World.getInstance().getAllPlayers());
+		candidates.remove(activePlayer);
+		candidates.addFirst(activePlayer); // Keep a matching self result inside the native result cap.
+		for (Player player : candidates) {
+			// A headless actor has no client social login. Only its current native
+			// session/lease/spawn can publish it; saved or closing actors stay absent.
+			if (player.isPlayerBot() && !PlayerBotService.getInstance().isSociallyPresent(player))
+				continue;
 			if (!activePlayer.isStaff()) { // staff can find all players
 				if (player.getRace() != activePlayer.getRace() && !CustomConfig.FACTIONS_SEARCH_MODE)
 					continue;
-				if (player.getFriendList().getStatus() == Status.OFFLINE)
+				if (!player.isPlayerBot() && player.getFriendList().getStatus() == Status.OFFLINE)
 					continue;
 				if (player.isStaff() && !CustomConfig.SEARCH_GM_LIST)
 					continue;
@@ -79,9 +87,6 @@ public class CM_PLAYER_SEARCH extends AionClientPacket {
 				continue;
 			if (region > 0 && player.getWorldId() != region)
 				continue;
-			if (player.equals(activePlayer))
-				continue;
-
 			matches.add(player);
 
 			if (matches.size() == MAX_RESULTS)

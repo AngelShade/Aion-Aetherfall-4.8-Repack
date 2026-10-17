@@ -35,7 +35,7 @@ def main():
     live_paths=['bin64/Game.dll','bin64/crysystem.dll','bin64/Awesomium.dll','bin64/XRenderD3D9.dll',
                 'bin64/AionGraphicsMenu.dll','bin64/AionIconBridge.dll','bin64/AionIconBridge.index',
                 'bin64/AionMarketShortcut.dll','bin64/AionRememberLogin.dll','bin64/AionSpeechBubbles.dll',
-                'Data/ui/ui.pak','Data/ui/game/game.pak','L10N/enu/Data/data.pak','Data/Items/Items.pak',
+                'Data/ui/ui.pak','Data/ui/game/game.pak','L10N/enu/Data/data.pak','Data/Items/Items.pak','Data/Npcs/Npcs.pak',
                 'Textures/ui/ui.pak','bin32/bin32.pak','Data/func_pet/func_pet.pak','Addon.key','Pub.key',
                 'Plugin/RelicCalc/RelicCalc.pak','Plugin/RelicCalc/RelicCalc.pak.sig',
                 'bin32/bin32.pak.sig','Data/func_pet/func_pet.pak.sig','Aion Start.bat',

@@ -57,6 +57,8 @@ public final class PlayerBotCpuPlanningCheck {
   for(String name:List.of("totals","points")){var f=v.getClass().getDeclaredField(name);f.setAccessible(true);check(((Map<?,?>)f.get(v)).isEmpty(),"Completed/cancelled claims leave no occupancy residue");}
  }
  static class Actor extends PlayerBotRouteContinuationCheck.RouteActor {
+  PlayerBotTravelAdmissionCheck.SceneShell scene;
+  @Override public com.aionemu.gameserver.world.WorldMapInstance getWorldMapInstance(){return scene;}
   com.aionemu.gameserver.controllers.movement.PlayerMoveController actualMove;
   @Override public com.aionemu.gameserver.controllers.movement.PlayerMoveController getMoveController(){return actualMove==null?super.getMoveController():actualMove;}
   @Override public byte getHeading(){return 0;}
@@ -72,6 +74,8 @@ public final class PlayerBotCpuPlanningCheck {
  }
  static Actor actor(Unsafe u,float x)throws Exception {
   var a=(Actor)u.allocateInstance(Actor.class);a.spawned=true;a.movable=true;a.world=197;a.instance=1;a.x=x;a.y=10;
+  a.scene=(PlayerBotTravelAdmissionCheck.SceneShell)u.allocateInstance(PlayerBotTravelAdmissionCheck.SceneShell.class);
+  a.scene.map=(PlayerBotTravelAdmissionCheck.MapShell)u.allocateInstance(PlayerBotTravelAdmissionCheck.MapShell.class);
   a.move=new PlayerBotRouteContinuationCheck.RouteMove(a);a.stats=(PlayerBotRouteContinuationCheck.RouteStats)u.allocateInstance(PlayerBotRouteContinuationCheck.RouteStats.class);return a;
  }
  static void navigation()throws Exception {
@@ -83,7 +87,16 @@ public final class PlayerBotCpuPlanningCheck {
   f=PlayerBotNavigation.class.getDeclaredField("TERRAIN");f.setAccessible(true);var quota=(PlayerBotNavigationBudget)f.get(null);
   var credit=quota.getClass().getDeclaredField("credit");credit.setAccessible(true);double oldCredit=credit.getDouble(quota);
   boolean oldSight=com.aionemu.gameserver.configs.main.GeoDataConfig.CANSEE_ENABLE;
+  boolean oldPrepared=com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED;
+  int oldFatal=com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_DAMAGE;
+  int oldMidair=com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_MIDAIR;
   try {
+   // Production loads native fall settings before navigation; this cold actor
+   // fixture must do the same before exercising timed height-planning work.
+   com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_DAMAGE=50;
+   com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_MIDAIR=200;
+   // This inert197 scene supplies native geometry, not a prepared map catalog.
+   com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED=false;
    credit.setDouble(quota,-1e12);check(nav.move(20,10,0) && mesh.ground==0,"Ordinary local steering cannot bypass exhausted terrain quota");
    check(nav.status().contains("budget"),"Pending local movement stays visible as terrain work");
    credit.setDouble(quota,6e6);PlayerBotQuestObjectivesCheck.field(nav,"nextMove",0L);
@@ -100,7 +113,8 @@ public final class PlayerBotCpuPlanningCheck {
    // force the selected firing point to be discarded before movement admission.
    for(int i=0;selected.get(nav)==null && i<20;i++){credit.setDouble(quota,6e6);nav.approach(target,10);}
    check(selected.get(nav)!=null,"Measured firing slices eventually retain a native-supported destination");
-   credit.setDouble(quota,6e6);PlayerBotQuestObjectivesCheck.field(nav,"nextMove",0L);nav.approach(target,10);probes=mesh.ground;int sights=mesh.sight;
+   for(int turn=0;!a.move.moving && turn<200;turn++){credit.setDouble(quota,6e6);PlayerBotQuestObjectivesCheck.field(nav,"nextMove",0L);nav.approach(target,10);}
+   probes=mesh.ground;int sights=mesh.sight;
    credit.setDouble(quota,6e6);PlayerBotQuestObjectivesCheck.field(nav,"nextMove",0L);nav.approach(target,10);
    check(mesh.ground==probes && mesh.sight>sights,"Committed firing movement avoids repeated shell walks but retains fresh native sight");
    nav.stop();credit.setDouble(quota,-1e12);nav.approach(target,10);probes=mesh.ground;
@@ -113,7 +127,7 @@ public final class PlayerBotCpuPlanningCheck {
    a.casting=true;check(!nav.approach(target,10) && mesh.ground==probes,"Native committed cast never spends speculative terrain work");a.casting=false;
    nav.stop();check(!nav.waitingForSearchTurn(),"Explicit stop releases all new planning nominations");
    a.actualMove=new com.aionemu.gameserver.controllers.movement.PlayerBotMoveController(a);
-   for(var entry:Map.of("routeWorld",197,"routeInstance",1,"localLimit",7,"localCursor",7).entrySet())PlayerBotQuestObjectivesCheck.field(nav,entry.getKey(),entry.getValue());
+   for(var entry:Map.of("routeWorld",197,"routeInstance",1,"localLimit",1,"localCursor",1).entrySet())PlayerBotQuestObjectivesCheck.field(nav,entry.getKey(),entry.getValue());
    PlayerBotQuestObjectivesCheck.field(nav,"routeGoal",new Point(20,10,0));PlayerBotQuestObjectivesCheck.field(nav,"localOrigin",new Point(10,10,0));
    PlayerBotQuestObjectivesCheck.field(nav,"localGoal",new Point(20,10,0));PlayerBotQuestObjectivesCheck.field(nav,"localHazards",List.of());
    PlayerBotQuestObjectivesCheck.field(nav,"localBest",null);PlayerBotQuestObjectivesCheck.field(nav,"lastProgress",System.currentTimeMillis()-5000);PlayerBotQuestObjectivesCheck.field(nav,"nextMove",0L);
@@ -142,7 +156,11 @@ public final class PlayerBotCpuPlanningCheck {
    PlayerBotWorldActivities.close(a);check(totals.isEmpty() && !states.containsKey(a.id),"Production despawn releases destination claim and actor state");
    goalWriter.invoke(null,state,goal(0,PlayerBotQuestRoutes.Kind.HUNT,102,10,1));
    check(totals.isEmpty(),"Late callback cannot reclaim destination after production close");
-  }finally{nav.stop();credit.setDouble(quota,oldCredit);com.aionemu.gameserver.configs.main.GeoDataConfig.CANSEE_ENABLE=oldSight;if(old==null)maps.remove(197);else maps.put(197,old);}
+  }finally{nav.stop();credit.setDouble(quota,oldCredit);com.aionemu.gameserver.configs.main.GeoDataConfig.CANSEE_ENABLE=oldSight;
+   com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED=oldPrepared;
+   com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_DAMAGE=oldFatal;
+   com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_MIDAIR=oldMidair;
+   if(old==null)maps.remove(197);else maps.put(197,old);}
  }
  public static void main(String[]args)throws Exception{if(args.length>0){navigation();return;}fields();visitors();navigation();System.out.println("OK: "+checks+" CPU planning, inherited fresh-field, visitor custody and native terrain checks; no World/IDs/SQL/tasks");}
  private PlayerBotCpuPlanningCheck(){}

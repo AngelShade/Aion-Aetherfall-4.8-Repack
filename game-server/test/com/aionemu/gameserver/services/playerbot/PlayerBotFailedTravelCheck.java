@@ -73,6 +73,15 @@ public final class PlayerBotFailedTravelCheck {
    set(state,"best",Double.POSITIVE_INFINITY);set(state,"lastProgress",System.currentTimeMillis());set(navigation,"routeFailure",true);
    check(!PlayerBotWorldActivities.travel(session,navigation) && field(state,"goal")==successor,"Unrelated transport failure is not another goal's terrain failure");
    check(((Map<?,?>)field(state,"excluded")).size()==1,"No inherited failure can blacklist an unrelated successor");
+   var visit=new PlayerBotWorldActivities.Goal(0,PlayerBotQuestRoutes.Kind.CONVERSATION,new PlayerBotWorldTravel.Place(197,103,10,10,0),0);
+   set(state,"rpg",visit);writer.invoke(null,state,visit);long visitEnd=System.currentTimeMillis()+10000;
+   set(state,"rpgUntil",visitEnd);set(state,"noActivitySince",0L);navigation.stop();
+   PlayerBotWorldActivities.prepare(actor,navigation);
+   check(field(state,"goal")==visit && (long)field(state,"rpgUntil")==visitEnd,"Admitted NPC stay retains its destination without extending the deadline");
+   check(!navigation.planningRoute() && !navigation.waitingForTerrainWork(),"NPC pause does not construct geometry work or transport planning");
+   set(state,"rpgUntil",System.currentTimeMillis()-1);PlayerBotWorldActivities.prepare(actor,navigation);
+   check(field(state,"goal")==null && field(state,"rpg")==null,"Expired native NPC stay releases visitor custody for the next activity");
+   check(((Map<?,?>)field(state,"excluded")).containsKey(PlayerBotWorldActivities.key(visit)) && (long)field(state,"noActivitySince")==0,"Visited NPC gets bounded ignore custody without manufacturing a failed-origin episode");
   } finally {com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED=prepared;ef.set(null,oldEdges);navigation.stop();PlayerBotWorldActivities.close(actor);credit.setDouble(quota,oldCredit);if(oldMap==null)maps.remove(197);else maps.put(197,oldMap);}
   System.out.println("OK: "+checks+" native failed travel cooldown, fresh reselection, queue custody and no-invented-progress checks");
  }

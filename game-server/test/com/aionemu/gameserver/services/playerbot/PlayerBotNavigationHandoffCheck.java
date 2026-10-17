@@ -17,15 +17,38 @@ public final class PlayerBotNavigationHandoffCheck {
   ProbedMap(){super(197);}
   @Override public int collideWith(com.aionemu.gameserver.geoEngine.collision.Collidable shape,com.aionemu.gameserver.geoEngine.collision.CollisionResults results){probes++;return super.collideWith(shape,results);}
  }
+ static void exhaustedGround(Unsafe unsafe)throws Exception {
+  var bot=PlayerBotCpuPlanningCheck.actor(unsafe,10);
+  var nav=new PlayerBotNavigation(bot);var geo=com.aionemu.gameserver.world.geo.GeoService.getInstance();
+  var f=geo.getClass().getDeclaredField("geoMaps");f.setAccessible(true);
+  @SuppressWarnings("unchecked") var maps=(Map<Integer,GeoMap>)f.get(geo);var mesh=new ProbedMap();
+  PlayerBotRouteContinuationCheck.add(mesh,PlayerBotRouteContinuationCheck.floor(9.7f,9.7f,10.3f,10.3f,0));var previous=maps.put(197,mesh);
+  boolean prepared=com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED;
+  var quotaField=PlayerBotNavigation.class.getDeclaredField("TERRAIN");quotaField.setAccessible(true);
+  var quota=quotaField.get(null);var credit=quota.getClass().getDeclaredField("credit");credit.setAccessible(true);double saved=credit.getDouble(quota);
+  try {
+   com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED=false;
+   for(int turn=0;turn<30 && !Boolean.TRUE.equals(field(nav,"groundRouteUnavailable"));turn++) {
+    credit.setDouble(quota,6e6);PlayerBotQuestObjectivesCheck.field(nav,"nextMove",0L);nav.move(30,10,0);
+   }
+   check(Boolean.TRUE.equals(field(nav,"groundRouteUnavailable")),"Actual exhausted native ground search opens supported fallback");
+   check(!nav.planningRoute() && !((PlayerBotNavigationBudget)quota).waiting(field(nav,"searchToken")),"Exhausted route releases its ground search and terrain ticket");
+   credit.setDouble(quota,6e6);PlayerBotQuestObjectivesCheck.field(nav,"nextMove",0L);nav.move(30,10,0);
+   check(!nav.planningRoute(),"Retry cooldown cannot preempt fallback with another long-distance ground search");
+   nav.stop();check(Boolean.FALSE.equals(field(nav,"groundRouteUnavailable")),"New orders clear exhausted-ground fallback custody");
+  }finally{nav.stop();credit.setDouble(quota,saved);com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED=prepared;if(previous==null)maps.remove(197);else maps.put(197,previous);}
+ }
  static void committedPath(Unsafe unsafe)throws Exception {
-  var bot=(PlayerBotRouteContinuationCheck.RouteActor)unsafe.allocateInstance(PlayerBotRouteContinuationCheck.RouteActor.class);
+  var bot=PlayerBotCpuPlanningCheck.actor(unsafe,10);
   bot.spawned=true;bot.movable=true;bot.world=197;bot.instance=1;bot.x=10;bot.y=10;
   bot.move=new PlayerBotRouteContinuationCheck.RouteMove(bot);bot.stats=(PlayerBotRouteContinuationCheck.RouteStats)unsafe.allocateInstance(PlayerBotRouteContinuationCheck.RouteStats.class);
   var nav=new PlayerBotNavigation(bot);var geo=com.aionemu.gameserver.world.geo.GeoService.getInstance();
   var f=geo.getClass().getDeclaredField("geoMaps");f.setAccessible(true);
   @SuppressWarnings("unchecked") var maps=(Map<Integer,GeoMap>)f.get(geo);var mesh=new ProbedMap();
   PlayerBotRouteContinuationCheck.add(mesh,PlayerBotRouteContinuationCheck.floor(0,0,160,160,0));var previous=maps.put(197,mesh);
+  boolean prepared=com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED;
   try {
+   com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED=false;
    check(nav.move(20,10,0),"Initial native ground commitment is valid");int probes=mesh.probes;check(probes>0,"First commitment proves actual native physical path");
    nav.hazards(List.of(new PlayerBotHazards.Area(60,60,0,1,0,0,0,0,3,PlayerBotHazards.Shape.CIRCLE)));
    PlayerBotQuestObjectivesCheck.field(nav,"nextMove",0L);
@@ -41,7 +64,7 @@ public final class PlayerBotNavigationHandoffCheck {
     credit.setDouble(quota,6e6);PlayerBotQuestObjectivesCheck.field(nav,"nextMove",0L);nav.move(20,10,0);
    }
    check(PlayerBotHazards.safePath(new Point(bot.x,bot.y,bot.z),(Point)field(nav,"publishedDestination"),List.of(new PlayerBotHazards.Area(15,10,0,1,0,0,0,0,3,PlayerBotHazards.Shape.CIRCLE))),"Replacement published path remains safe against fresh hazard");
-  }finally{nav.stop();if(previous==null)maps.remove(197);else maps.put(197,previous);}
+  }finally{nav.stop();com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED=prepared;if(previous==null)maps.remove(197);else maps.put(197,previous);}
  }
  public static void main(String[] args)throws Exception {
   var uf=Unsafe.class.getDeclaredField("theUnsafe");uf.setAccessible(true);var unsafe=(Unsafe)uf.get(null);
@@ -86,6 +109,7 @@ public final class PlayerBotNavigationHandoffCheck {
    isolated.request(first,103);isolated.cancel(first);check(!isolated.waiting(first),"Cancelled plan cannot retain queue ownership");
   }finally{nav.stop();quota.cancel(seed);permit.setDouble(quota,oldPermit);}
   committedPath(unsafe);
+  exhaustedGround(unsafe);
   System.out.println("OK: "+checks+" actual navigation handoff, committed-path terrain work, hazard and quota checks; no World/IDs/SQL/tasks");
  }
  private PlayerBotNavigationHandoffCheck(){}

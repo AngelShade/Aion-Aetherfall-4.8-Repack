@@ -13,19 +13,7 @@ NOTICE_ENTRY = "ui/loginnotice.xml"
 SERVER_LIST_ENTRY = "ui/serverlist.xml"
 SERVER_ID = "1"
 SERVER_NAME = "Aetherfall"
-NOTICE_HTML = (
-    '<html><body><font color="ffffff">'
-    '<font color="66FFFF">Aetherfall - New in Atreia</font><BR><BR>'
-    '<font color="66FFFF">Black Cloud Marketplace</font><BR>'
-    'Spend Kinah on items. Purchases arrive by mail.<BR><BR>'
-    '<font color="66FFFF">Central Market</font><BR>'
-    'Search, list, and buy tradeable items from other players.<BR><BR>'
-    '<font color="66FFFF">Inventory Update</font><BR>'
-    'A wider 12-column cube with item search and more room.<BR><BR>'
-    '<font color="66FFFF">Quick Access</font><BR>'
-    'Open Transmog, Broker, and Central Market from the in-game menu.'
-    '</font></body></html>'
-)
+NOTICE_HTML = Path(__file__).with_name("notice.html").read_text(encoding="utf-8").strip()
 
 
 def main():

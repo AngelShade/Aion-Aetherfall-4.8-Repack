@@ -28,6 +28,15 @@ public final class PlayerBotFieldActivityCheck {
   check(PlayerBotHunting.opportunistic(grind,201002),"Traveling grinder can attack another eligible nearby monster");
   check(!PlayerBotHunting.opportunistic(quest,201002),"Unrelated target does not displace an active quest objective");
   check(PlayerBotHunting.opportunistic(quest,201001),"Required quest monster remains eligible");
+  check(!PlayerBotWorldActivities.stranded(61001,1,false,true,false),"Legitimate service-area waiting is not a failed field route");
+  check(PlayerBotWorldActivities.stranded(61001,1,false,true,true),"A genuinely failed route in town remains recoverable");
+  check(PlayerBotWorldActivities.stranded(61001,1,false,false,false),"No eligible field activity retains guarded relocation");
+  check(!PlayerBotWorldActivities.stranded(61001,1,true,true,true),"Live destination keeps route custody during town recovery");
+  check(!PlayerBotWorldActivities.stranded(60000,1,false,true,true),"Native failure does not bypass one-minute recovery threshold");
+  check(!PlayerBotWorldActivities.stranded(61001,0,false,true,true),"An absent failure episode cannot manufacture stranding");
+  check(PlayerBotWorldActivities.rpgPause(1000,11000),"An admitted NPC arrival owns a finite ten-second visit");
+  check(!PlayerBotWorldActivities.rpgPause(11000,11000),"Visit expires exactly at its deadline");
+  check(!PlayerBotWorldActivities.rpgPause(1000,0),"No arrival deadline awards a stay before native arrival");
   int capacity=PlayerBotPopulationRotation.poolCapacity(2500,2500,true,2,23);
   check(capacity==5014,"5000 reserve rounds once to 23-character account capacity");
   for(int registered:List.of(0,2358,2500,capacity-1,capacity,capacity+1,capacity+23)) {

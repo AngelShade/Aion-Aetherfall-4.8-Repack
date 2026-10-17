@@ -120,6 +120,14 @@ public class _1093TheCalydonRuins extends AbstractQuestHandler {
     }
 
     @Override
+    public void onMovieEndEvent(QuestEnv env, int movieId) {
+        QuestState qs = env.getPlayer().getQuestStateList().getQuestState(questId);
+        if (movieId == 365 && env.getTargetId() == 798176 && qs != null
+            && qs.getStatus() == QuestStatus.START && qs.getQuestVarById(0) == 2)
+            sendQuestDialog(env, 1694); // Native select3_1; the player still confirms SETPRO3.
+    }
+
+    @Override
     public boolean onUseSkillEvent(QuestEnv env, int skillId) {
         Player player = env.getPlayer();
         QuestState qs = player.getQuestStateList().getQuestState(questId);

@@ -94,9 +94,34 @@ public final class PlayerBotNativeRouteYieldCheck {
    nav.move(VELERINIA.goal.x(),VELERINIA.goal.y(),VELERINIA.goal.z());check(value(nav,"routeGoal").equals(VELERINIA.goal) && value(nav,"routeSearch")==null,"Sub-four-metre movement replaces obsolete route commitment instead of retaining stale target");
   }finally{nav.stop();credit.setDouble(budget,saved);}
  }
+ private static void moslanPortal(Path folder,Map<String,Node> models)throws Exception {
+  Point portal=new Point(1599.4166f,1262.1667f,268.24976f),destination=new Point(1754.08f,1805.14f,255.917f);
+  Point[] starts={new Point(1600.8796f,1262.147f,268.61902f),new Point(1600.3125f,1262.4375f,268.42188f),new Point(1600.7515f,1262.2126f,268.57446f)};
+  var terrain=map(folder,models,new Case("captured Moslan portal",220030000,starts[0],portal));
+  check(!Float.isFinite(terrain.getPlayerBotGroundZ(portal.x(),portal.y(),portal.z()+2,portal.z()-4,1)),"Captured exact coarse portal has no native standing floor");
+  var nativeGround=ground(terrain,portal);
+  for(Point start:starts){
+   var journey=new PlayerBotMeshJourney();journey.bind(220030000,destination);
+   field(journey,"waypoints",List.of(portal,destination));
+   var prepared=new PlayerBotMeshRoute(220030000,start,destination,24,journey);
+   field(prepared,"target",portal);field(prepared,"done",true);field(prepared,"fallback",true);
+   var local=new PlayerBotRouteSearch(start,destination,4096,4096,24);
+   field(local,"journey",journey);field(local,"mesh",prepared);
+   local.advance(nativeGround,16,()->false);
+   check(local.pending() && local.route().isEmpty(),"Prepared rejection yields native approach on a separate funded turn");
+   local.advance(nativeGround,16,()->false);
+   check(!local.pending() && local.partial(),"Captured inaccessible portal yields a native-supported nearby approach");
+   check(local.probed()<=16,"Portal approach is bounded instead of expanding thousands of unrelated cells");
+   proof(local,start,nativeGround);Point end=local.route().getLast();
+   check(distance(end,portal)<.75 && local.targets(destination),"Supported approach stays inside existing portal tolerance and retains final destination");
+   journey.observe(end);
+   check(((Number)value(journey,"cursor")).intValue()==1,"Only physical arrival consumes the coarse portal");
+  }
+ }
  public static void main(String[] args)throws Exception {
   if(args.length>1 && args[1].equals("retarget")){retarget();System.out.println("OK: "+checks+" actual Navigation successor checks; no World/IDs/SQL/tasks");return;}
   Path folder=Path.of(args[0]).resolve("data/geo");var models=models(folder);
+  if(args.length>1 && args[1].equals("portal")){moslanPortal(folder,models);System.out.println("OK: "+checks+" captured native portal approach checks; no World/IDs/SQL/tasks");return;}
   var mesh=map(folder,models,HARONEL);var ground=ground(mesh,HARONEL.goal);
   var shortPrefix=new PlayerBotRouteSearch(HARONEL.start,HARONEL.goal,4096,4096,24);shortPrefix.advance(ground,128,()->false);
   check(!shortPrefix.pending() && shortPrefix.partial(),"Captured narrow native detour yields useful proved prefix within one bounded128-probe turn");
@@ -121,6 +146,7 @@ public final class PlayerBotNativeRouteYieldCheck {
   var legacy=new PlayerBotRouteSearch(VELERINIA.start,OLD_TARGET,4096,4096);var oldGround=ground(vMap,OLD_TARGET);legacy.advance(oldGround,256,()->false);
   check(legacy.pending() && legacy.route().isEmpty(),"Old mismatching height layer cannot falsely satisfy the final destination");
   retarget();
+  moslanPortal(folder,models);
   System.out.println("OK: "+checks+" native recorded-route prefix, full-arrival, terrain-safety and actual Navigation successor checks; no World/IDs/SQL/tasks");
  }
  private PlayerBotNativeRouteYieldCheck(){}

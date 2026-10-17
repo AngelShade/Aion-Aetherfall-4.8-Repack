@@ -30,6 +30,7 @@ final class PlayerBotWorldActivities {
   Map<Integer,Integer> requiredRewards=Map.of();
   final PlayerBotTravelClock travelClock=new PlayerBotTravelClock(),vendorClock=new PlayerBotTravelClock();
   volatile Goal goal; boolean closed; final Map<String,Long> excluded=new HashMap<>();
+  Goal rpg;long rpgUntil;boolean rpgArea,failedTravel;
  }
  private static final Map<Integer,State> STATES=new ConcurrentHashMap<>();
  private record Destination(int quest,PlayerBotQuestRoutes.Kind kind,int npc) {}
@@ -71,7 +72,7 @@ final class PlayerBotWorldActivities {
   }
  }
  private static final Visitors VISITORS=new Visitors();
- private static void goal(State s,Goal next){synchronized(s){if(s.closed)return;VISITORS.replace(s.goal,next);if(!Objects.equals(s.goal,next))s.travelClock.reset();s.goal=next;}}
+ private static void goal(State s,Goal next){synchronized(s){if(s.closed)return;VISITORS.replace(s.goal,next);if(!Objects.equals(s.goal,next))s.travelClock.reset();if(next!=s.rpg){s.rpg=null;s.rpgUntil=0;}s.goal=next;}}
  private static Map<Integer,Set<Integer>> starters;
  private static final Map<Integer,List<Map.Entry<Integer,Set<Integer>>>> STARTERS_BY_LEVEL=new HashMap<>();
  private static final Map<String,List<Integer>> GRIND=new HashMap<>();
@@ -92,8 +93,11 @@ final class PlayerBotWorldActivities {
   return s.requiredRewards.getOrDefault(quest,-1);
  }
  static boolean stranded(long now,long since,boolean destination){return !destination && since>0 && now-since>=60000;}
- static boolean stranded(Player bot,long now){var s=STATES.get(bot.getObjectId());return s!=null && stranded(now,s.noActivitySince,s.goal!=null || s.vendor!=null);}
- static void interacting(Player bot){var s=STATES.get(bot.getObjectId());if(s!=null)s.noActivitySince=0;}
+ static boolean stranded(long now,long since,boolean destination,boolean serviceArea,boolean failedTravel){return stranded(now,since,destination) && (!serviceArea || failedTravel);}
+ static boolean stranded(Player bot,long now){var s=STATES.get(bot.getObjectId());return s!=null && stranded(now,s.noActivitySince,s.goal!=null || s.vendor!=null,s.rpgArea,s.failedTravel);}
+ static void interacting(Player bot){var s=STATES.get(bot.getObjectId());if(s!=null){s.noActivitySince=0;s.failedTravel=false;}}
+ static boolean rpgTravel(Player bot){var s=STATES.get(bot.getObjectId());return s!=null && s.rpg!=null && s.goal==s.rpg;}
+ static boolean rpgPause(long now,long until){return until>now;}
  /** A selected native journey owns optional preparation until arrival. Vendor
   * work is separate; native quest dependencies remain the caller's authority. */
  static boolean committedTravel(Player bot){var s=STATES.get(bot.getObjectId());if(s==null || s.goal==null)return false;var p=s.goal.place();return bot.getWorldId()!=p.map() || PositionUtil.getDistance(bot,p.x(),p.y(),p.z())>6;}
@@ -104,7 +108,7 @@ final class PlayerBotWorldActivities {
  static Map<String,Object> activity(Player bot) {
   var s=STATES.get(bot.getObjectId());var g=s==null ? null : s.goal;
   if(g==null)return Map.of("selected",false,"reason","No world destination currently selected; local actions may still run");
-  return Map.of("selected",true,"quest",g.quest(),"kind",g.kind().name(),"npc",g.place().npc(),"map",g.place().map());
+  return Map.of("selected",true,"quest",g.quest(),"kind",s.rpg==g?"RPG":g.kind().name(),"npc",g.place().npc(),"map",g.place().map());
  }
  // GrindTargetValue uses XP-bearing normal targets and excludes solo targets
  // above +4. Native Aion's XPRewardEnum supplies the lower reward boundary.
@@ -235,12 +239,58 @@ final class PlayerBotWorldActivities {
    }
   }
   Goal quest=available(bot,requests,s,now,distances);if(quest!=null)return quest;
-  return available(bot,List.of(new Request(0,PlayerBotQuestRoutes.Kind.HUNT,grindTemplates(bot))),s,now,distances);
+  Goal hunt=available(bot,List.of(new Request(0,PlayerBotQuestRoutes.Kind.HUNT,grindTemplates(bot))),s,now,distances);
+  return hunt!=null?hunt:rpg(bot,s,now);
+ }
+ /** Pinned RpgStayAction/RpgSubAction: actual nearby NPCs, real ground travel,
+  * finite arrival pauses and visitor/ignore custody. No purchases or quest
+  * progress are fabricated. Existing useful services and quests run first. */
+ private static boolean serviceNpc(Player bot,Npc npc) {
+  if(npc==null || npc.isDead() || !PlayerBotTargetEligibility.visible(bot,npc) || bot.isEnemy(npc)
+   || npc.getWorldId()!=bot.getWorldId() || npc.getInstanceId()!=bot.getInstanceId())return false;
+  var template=npc.getObjectTemplate();
+  return template.supportsAction(DialogAction.BUY) || template.supportsAction(DialogAction.OPEN_PERSONAL_WAREHOUSE)
+   || template.supportsAction(DialogAction.RETRIEVE_CHAR_WAREHOUSE)
+   || DataManager.TELEPORTER_DATA.getTeleporterTemplateByNpcId(npc.getNpcId())!=null;
+ }
+ private static Goal rpg(Player bot,State s,long now) {
+  var choices=new ArrayList<Goal>();s.rpgArea=false;
+  bot.getKnownList().forEachNpc(n->{
+   if(!serviceNpc(bot,n))return;
+   double distance=PositionUtil.getDistance(bot,n);if(distance>100)return;
+   s.rpgArea=true;
+   if(!com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_RPG_ENABLED)return;
+   var p=new PlayerBotWorldTravel.Place(n.getWorldId(),n.getNpcId(),n.getX(),n.getY(),n.getZ());
+   var candidate=new Goal(0,PlayerBotQuestRoutes.Kind.CONVERSATION,p,distance);
+   if(s.excluded.getOrDefault(key(candidate),0L)<=now)choices.add(candidate);
+  });
+  Goal next=chooseAvailable(choices);s.rpg=next;s.rpgUntil=0;return next;
+ }
+ private static boolean rpgArrived(Player bot,Goal target) {
+  boolean[] arrived={false};bot.getKnownList().forEachNpc(n->{
+   if(n.getNpcId()==target.place().npc() && serviceNpc(bot,n)
+    && PositionUtil.getDistance(n,target.place().x(),target.place().y(),target.place().z())<6
+    && PositionUtil.isInTalkRange(bot,n) && DialogService.isInteractionAllowed(bot,n)
+    && GeoService.getInstance().canSee(bot,n))arrived[0]=true;
+  });return arrived[0];
  }
  static void prepare(Player bot,PlayerBotNavigation navigation) {
   State s=state(bot);long now=System.currentTimeMillis();s.excluded.entrySet().removeIf(e->e.getValue()<=now);
+  if(s.rpg!=null && !com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_RPG_ENABLED){goal(s,null);s.nextScan=0;navigation.stop();}
+  // Arrival was already admitted by native range/visibility guards. Waiting
+  // needs no repeated geometry ray or transport-graph construction each tick.
+  if(s.rpg!=null && s.goal==s.rpg && s.rpgUntil>0) {
+   if(rpgPause(now,s.rpgUntil) && bot.getWorldId()==s.goal.place().map()
+    && PositionUtil.getDistance(bot,s.goal.place().x(),s.goal.place().y(),s.goal.place().z())<=6)return;
+   s.excluded.put(key(s.goal),now+30000);goal(s,null);s.nextScan=0;navigation.stop();return;
+  }
   if(s.goal!=null && s.goal.quest()!=0 && !PlayerBotQuestRoutes.ids(bot,bot,s.goal.quest(),s.goal.kind()).contains(s.goal.place().npc())){goal(s,null);s.nextScan=0;}
-  if(s.goal!=null && PlayerBotWorldTravel.distance(bot,s.goal.place())<=6){
+  if(s.goal!=null && PlayerBotWorldTravel.distance(bot,s.goal.place())<=6 && (s.goal!=s.rpg || rpgArrived(bot,s.goal))){
+   if(s.goal==s.rpg) {
+    int delay=com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_RPG_PAUSE_MS;
+    if(delay<1000 || delay>60000)throw new IllegalArgumentException("World RPG pause must be 1000..60000 milliseconds");
+    s.rpgUntil=now+delay;s.noActivitySince=0;s.failedTravel=false;navigation.stop();return;
+   }
    // Hand movement back to the native quest/combat/loot actions before entering
    // the NPC's exact spawn. A dead/unavailable NPC must not trap the planner.
    // Yield this callback to local native actions. The next planner callback may
@@ -249,10 +299,10 @@ final class PlayerBotWorldActivities {
   }
   if(s.goal!=null) {
    double distance=PlayerBotWorldTravel.distance(bot,s.goal.place());
-   if(distance<s.best-2){if(Double.isFinite(s.best))s.noActivitySince=0;s.best=distance;s.lastProgress=now;s.travelClock.reset();}
+   if(distance<s.best-2){if(Double.isFinite(s.best)){s.noActivitySince=0;s.failedTravel=false;}s.best=distance;s.lastProgress=now;s.travelClock.reset();}
    boolean waiting=navigation.waitingForTerrainWork();
-   if(!waiting && navigation.progressing(now)){s.lastProgress=now;s.travelClock.reset();}
-   if(s.travelClock.stalled(now,s.lastProgress,waiting)){s.excluded.put(key(s.goal),now+120000);goal(s,null);s.nextScan=0;navigation.stop();}
+   if(!waiting && navigation.progressing(now)){s.lastProgress=now;s.noActivitySince=0;s.failedTravel=false;s.travelClock.reset();}
+   if(s.travelClock.stalled(now,s.lastProgress,waiting)){s.failedTravel=true;s.excluded.put(key(s.goal),now+120000);goal(s,null);s.nextScan=0;navigation.stop();}
   }
   if(s.goal==null && now>=s.nextScan){s.nextScan=now+5000;goal(s,choose(bot,s,now));s.best=Double.POSITIVE_INFINITY;s.lastProgress=now;}
   // Selecting a replacement goal is intent, not earned movement. Preserve a
@@ -282,12 +332,13 @@ final class PlayerBotWorldActivities {
   Player bot=session.bot();if(!session.autonomous() || bot.isDead() || bot.isTrading() || bot.isCasting() || bot.isLooting() || travelThreatened(bot))return false;
   prepare(bot,navigation);State s=state(bot);
   Goal selected=s.goal;if(selected==null)return false;
+  if(selected==s.rpg && rpgPause(System.currentTimeMillis(),s.rpgUntil))return true;
   boolean moved=PlayerBotWorldTravel.move(bot,selected.place(),navigation);
   // TravelTarget cooldown purpose: a completed bounded search with no earned
   // route is an unavailable destination, not fresh progress for another retry.
   // Explicit queue waits, native safety pauses and earned prefixes retain custody.
   if(!moved && navigation.routeFailed() && s.goal==selected && !s.closed) {
-   if(s.noActivitySince==0)s.noActivitySince=System.currentTimeMillis();
+   s.failedTravel=true;if(s.noActivitySince==0)s.noActivitySince=System.currentTimeMillis();
    s.excluded.put(key(selected),System.currentTimeMillis()+120000);goal(s,null);s.nextScan=0;navigation.stop();
   }
   return moved;
