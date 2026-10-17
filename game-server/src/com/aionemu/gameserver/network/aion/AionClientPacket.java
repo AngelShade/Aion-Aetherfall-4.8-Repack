@@ -41,7 +41,7 @@ public abstract class AionClientPacket extends BaseClientPacket<AionConnection> 
 					runImpl();
 			}
 		} catch (Throwable e) {
-			log.error("Error handling client packet from " + getConnection() + ": " + this, e);
+			log.error("Error handling client packet from {}: {}", getConnection(), this, e);
 		}
 	}
 

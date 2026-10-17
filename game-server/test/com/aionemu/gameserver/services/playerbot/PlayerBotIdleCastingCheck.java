@@ -3,7 +3,7 @@ package com.aionemu.gameserver.services.playerbot;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.util.*;
-import javax.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBContext;
 import sun.misc.Unsafe;
 import com.aionemu.gameserver.controllers.SummonController;
 import com.aionemu.gameserver.controllers.movement.PlayerMoveController;

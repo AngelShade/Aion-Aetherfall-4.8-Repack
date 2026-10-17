@@ -5,7 +5,7 @@ import java.util.*;
 import java.io.IOException;
 import com.aionemu.gameserver.model.*;
 import com.aionemu.gameserver.model.templates.world.WorldMapTemplate;
-import javax.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBContext;
 import java.io.StringReader;
 
 /** Seeded population policy, actual event/pool persistence and native map guards; no world/DB/IDs. */
@@ -58,7 +58,7 @@ public final class PlayerBotPopulationCheck {
   try{com.aionemu.gameserver.dao.PlayerBotMetadataDAO.owner(db.connection(),-1000000,91);throw new AssertionError("Foreign player admitted");}catch(java.sql.SQLException e){check(e.getMessage().contains("mismatch"),"Headless identity never bypasses player custody");}
   try{com.aionemu.gameserver.dao.PlayerBotRepositoryDAO.roster(db.connection(),-1000000,91);throw new AssertionError("Foreign roster admitted");}catch(java.sql.SQLException e){check(e.getMessage().contains("owned"),"Headless identity never bypasses roster custody");}
   int before=db.queries;try{com.aionemu.gameserver.dao.PlayerBotMetadataDAO.owner(db.connection(),-1,91);throw new AssertionError("Arbitrary identity admitted");}catch(java.sql.SQLException e){check(db.queries==before,"Unreserved negative IDs rejected before SQL");}
-  var neutral=PlayerBotWorldLooks.neutral();check(neutral.getHeight()==1.0f && neutral.getShoulders()==128 && neutral.getVoice()==0,"Native normal-height/neutral-body base, not zero-sized characters");
+  var neutral=PlayerBotWorldLooks.neutral();check(neutral.getHeightScale()==1.0f && neutral.getShoulders()==128 && neutral.getVoice()==0,"Native normal-height/neutral-body base, not zero-sized characters");
   var dir=Files.createTempDirectory(Path.of("."),"population-check-");
   try {
    var file=dir.resolve("events.json");var schedule=PlayerBotPopulationTestStorage.schedule(file);check(schedule.load().events().isEmpty(),"First schedule empty without allocating characters");

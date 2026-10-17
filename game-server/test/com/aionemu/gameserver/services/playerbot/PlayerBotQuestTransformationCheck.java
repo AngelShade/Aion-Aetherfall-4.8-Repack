@@ -4,7 +4,7 @@ import java.io.StringReader;
 import java.lang.reflect.*;
 import java.nio.file.*;
 import java.util.*;
-import javax.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBContext;
 import com.aionemu.gameserver.configs.main.PlayerBotConfig;
 import com.aionemu.gameserver.dataholders.*;
 import com.aionemu.gameserver.model.*;

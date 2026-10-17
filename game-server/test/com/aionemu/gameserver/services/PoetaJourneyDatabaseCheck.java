@@ -3,7 +3,7 @@ package com.aionemu.gameserver.services;
 import java.nio.file.*;
 import java.sql.*;
 import java.util.*;
-import javax.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBContext;
 import com.aionemu.gameserver.dataholders.QuestsData;
 import com.aionemu.gameserver.model.PlayerClass;
 import com.aionemu.gameserver.model.Race;

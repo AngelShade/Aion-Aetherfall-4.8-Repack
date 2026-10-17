@@ -10,7 +10,7 @@ import com.aionemu.gameserver.model.templates.cosmeticitems.CosmeticItemTemplate
 /** Creation-only variation from race/gender native model IDs and natural palettes; persisted by native character creation. */
 final class PlayerBotWorldLooks {
  static PlayerAppearance neutral(){
-  var p=new PlayerAppearance();p.setFace(1);p.setHair(1);p.setHeight(1.0f);p.setEyeRGB(0x504030);p.setLipRGB(0xB87870);
+  var p=new PlayerAppearance();p.setFace(1);p.setHair(1);p.setHeightScale(1.0f);p.setEyeRGB(0x504030);p.setLipRGB(0xB87870);
   p.setFaceContour(128);
   p.setExpression(128);
   p.setJawLine(128);
@@ -35,8 +35,8 @@ final class PlayerBotWorldLooks {
   p.setLipSize(128);
   p.setSmile(128);
   p.setLipShape(128);
-  p.setJawHeigh(128);
-  p.setChinJut(128);
+  p.setChinHeight(128);
+  p.setCheekBones(128);
   p.setEarShape(128);
   p.setHeadSize(128);
   p.setNeck(128);

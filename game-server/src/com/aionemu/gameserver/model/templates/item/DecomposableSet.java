@@ -3,7 +3,7 @@ package com.aionemu.gameserver.model.templates.item;
 import java.util.Collections;
 import java.util.List;
 
-import javax.xml.bind.annotation.*;
+import jakarta.xml.bind.annotation.*;
 
 import com.aionemu.commons.utils.Rnd;
 import com.aionemu.gameserver.model.PlayerClass;

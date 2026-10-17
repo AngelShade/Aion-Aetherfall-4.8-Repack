@@ -5,7 +5,7 @@ import java.nio.file.*;
 import java.io.StringReader;
 import java.util.*;
 import java.util.concurrent.*;
-import javax.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBContext;
 import com.aionemu.gameserver.configs.main.*;
 import com.aionemu.gameserver.dataholders.*;
 import com.aionemu.gameserver.model.*;

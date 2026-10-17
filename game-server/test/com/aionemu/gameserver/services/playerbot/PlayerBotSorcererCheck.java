@@ -5,7 +5,7 @@ import java.lang.reflect.*;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Predicate;
-import javax.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBContext;
 import sun.misc.Unsafe;
 import com.aionemu.gameserver.controllers.effect.PlayerEffectController;
 import com.aionemu.gameserver.controllers.movement.PlayerMoveController;

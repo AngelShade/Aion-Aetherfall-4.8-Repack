@@ -12,7 +12,7 @@ final class PlayerBotClassCombat {
 			for (var template : skill.getEffects().getEffects())
 				if (template instanceof SignetBurstEffect burst) {
 					var signet = target.getEffectController().getAbnormalEffect(burst.getSignet());
-					if (!shouldBurst(signet == null ? 0 : signet.getSkillLevel(), burst.getSignetlvl(),
+					if (!shouldBurst(signet == null ? 0 : signet.getSkillLevel(), burst.getSignetLevel(),
 						target.getLifeStats().getHpPercentage(), signet == null ? 0 : signet.getRemainingTimeMillis())) return false;
 				}
 		return true;

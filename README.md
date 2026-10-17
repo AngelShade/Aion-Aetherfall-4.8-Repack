@@ -69,6 +69,22 @@ Restart GameServer after changing these settings. Disabling bot automation does 
 
 The bundled connection settings are for local play. Hosting for other computers also requires configuring the server addresses, client connection and in-game service URLs.
 
+### Updating an existing server
+
+The October 17 upstream merge changes server dependencies and the GameServer database schema. Keep the GameServer, LoginServer, ChatServer and their packaged libraries from the same build together. A JAR-only replacement over the older release is not sufficient.
+
+For an existing Aetherfall 076 database, back it up and stop the servers normally before applying the following schema changes to the GameServer database. Fresh databases created from the updated `game-server/sql/aion_gs.sql` already contain them:
+
+```sql
+ALTER TABLE players ADD COLUMN pvp_exp bigint NOT NULL DEFAULT '0' AFTER reposte_energy;
+ALTER TABLE player_recipes ADD COLUMN production_limit tinyint NOT NULL DEFAULT '0' AFTER recipe_id;
+ALTER TABLE player_appearance
+  RENAME COLUMN jaw_height TO chin_height,
+  RENAME COLUMN chin_jut TO cheek_bones;
+```
+
+These changes retain existing rows. Apply them once, only if the database still has the older schema. The general upstream `update.sql` also contains older changes that may already be installed; do not rerun it indiscriminately. Merging this repository does not update an installed repack or run database commands.
+
 ## Source and development
 
 | Directory | Contents |

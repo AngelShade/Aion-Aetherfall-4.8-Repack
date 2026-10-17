@@ -3,7 +3,7 @@ package com.aionemu.gameserver.services.playerbot;
 import java.util.*;
 import java.nio.file.*;
 import java.io.StringReader;
-import javax.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBContext;
 import com.aionemu.gameserver.dataholders.*;
 import com.aionemu.gameserver.model.Race;
 import com.aionemu.gameserver.model.gameobjects.player.*;

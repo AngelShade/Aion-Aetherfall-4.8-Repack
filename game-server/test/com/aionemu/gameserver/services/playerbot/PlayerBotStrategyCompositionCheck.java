@@ -142,7 +142,7 @@ public final class PlayerBotStrategyCompositionCheck {
 		var bot=(Actor)unsafe.allocateInstance(Actor.class);bot.id=1;bot.chains=new com.aionemu.gameserver.skillengine.model.ChainSkills();
 		var target=(Actor)unsafe.allocateInstance(Actor.class);target.id=2;
 		var other=(Actor)unsafe.allocateInstance(Actor.class);other.id=3;
-		var context=javax.xml.bind.JAXBContext.newInstance(com.aionemu.gameserver.dataholders.SkillData.class);
+		var context=jakarta.xml.bind.JAXBContext.newInstance(com.aionemu.gameserver.dataholders.SkillData.class);
 		var skills=(com.aionemu.gameserver.dataholders.SkillData)context.createUnmarshaller().unmarshal(new java.io.StringReader("""
 		 <skill_data>
 		 <skill_template skill_id="990001" name="opener" activation="ACTIVE" skilltype="PHYSICAL" skillsubtype="ATTACK">

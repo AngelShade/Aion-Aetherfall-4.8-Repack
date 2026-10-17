@@ -2,7 +2,7 @@ package com.aionemu.gameserver.questEngine;
 
 import java.nio.file.Path;
 import java.util.*;
-import javax.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBContext;
 import com.aionemu.gameserver.dataholders.*;
 import com.aionemu.gameserver.model.*;
 import com.aionemu.gameserver.model.gameobjects.player.*;

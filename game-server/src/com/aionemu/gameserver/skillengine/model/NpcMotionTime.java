@@ -2,7 +2,7 @@ package com.aionemu.gameserver.skillengine.model;
 
 import java.util.List;
 
-import javax.xml.bind.annotation.*;
+import jakarta.xml.bind.annotation.*;
 
 /** Client animation timings for the NPC IDs using a particular actor mesh. */
 @XmlAccessorType(XmlAccessType.FIELD)

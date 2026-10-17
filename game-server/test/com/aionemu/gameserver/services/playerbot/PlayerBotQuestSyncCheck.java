@@ -3,7 +3,7 @@ package com.aionemu.gameserver.services.playerbot;
 import java.io.StringReader;
 import java.lang.reflect.Field;
 import java.util.*;
-import javax.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBContext;
 import sun.misc.Unsafe;
 import com.aionemu.gameserver.dataholders.*;
 import com.aionemu.gameserver.model.DialogAction;

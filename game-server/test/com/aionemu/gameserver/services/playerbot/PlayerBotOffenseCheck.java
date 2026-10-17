@@ -2,7 +2,7 @@ package com.aionemu.gameserver.services.playerbot;
 import java.io.StringReader;
 import java.nio.file.Path;
 import java.util.List;
-import javax.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBContext;
 import com.aionemu.gameserver.dataholders.SkillData;
 import com.aionemu.gameserver.skillengine.effect.SignetBurstEffect;
 
@@ -51,7 +51,7 @@ public final class PlayerBotOffenseCheck {
    }
   }
   check(periodic>100 && finishers>10,"Checks cover real production families, not just fixtures");
-  var signets=(com.aionemu.gameserver.dataholders.SignetDataTemplates)javax.xml.bind.JAXBContext.newInstance(
+  var signets=(com.aionemu.gameserver.dataholders.SignetDataTemplates)jakarta.xml.bind.JAXBContext.newInstance(
    com.aionemu.gameserver.dataholders.SignetDataTemplates.class).createUnmarshaller().unmarshal(
     Path.of("game-server/data/static_data/skills/signet_data_templates.xml").toFile());
   for(var family:com.aionemu.gameserver.skillengine.model.SignetEnum.values()) {

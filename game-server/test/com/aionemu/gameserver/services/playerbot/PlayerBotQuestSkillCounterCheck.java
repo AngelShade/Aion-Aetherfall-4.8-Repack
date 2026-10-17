@@ -2,7 +2,7 @@ package com.aionemu.gameserver.services.playerbot;
 
 import java.io.StringReader;
 import java.util.*;
-import javax.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBContext;
 import com.aionemu.gameserver.dataholders.XMLQuests;
 import com.aionemu.gameserver.model.DialogAction;
 import com.aionemu.gameserver.questEngine.handlers.models.QuestSkillData;

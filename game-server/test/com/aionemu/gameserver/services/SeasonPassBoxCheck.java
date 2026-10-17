@@ -2,7 +2,7 @@ package com.aionemu.gameserver.services;
 
 import java.nio.file.Path;
 import java.util.List;
-import javax.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBContext;
 import javax.xml.validation.SchemaFactory;
 import javax.xml.transform.stream.StreamSource;
 import com.aionemu.gameserver.dataholders.*;

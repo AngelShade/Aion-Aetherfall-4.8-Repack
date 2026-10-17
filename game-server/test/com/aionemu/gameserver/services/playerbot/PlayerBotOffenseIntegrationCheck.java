@@ -4,7 +4,7 @@ import java.io.StringReader;
 import java.lang.reflect.*;
 import java.util.*;
 import java.util.function.Predicate;
-import javax.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBContext;
 import sun.misc.Unsafe;
 import com.aionemu.gameserver.controllers.effect.PlayerEffectController;
 import com.aionemu.gameserver.dataholders.*;

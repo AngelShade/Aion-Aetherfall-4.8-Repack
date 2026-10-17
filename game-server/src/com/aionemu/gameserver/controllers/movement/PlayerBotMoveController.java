@@ -44,6 +44,22 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 	public boolean hasFailed() { return failed; }
 
 	@Override
+	public synchronized void setNewDirection(float x, float y, float z) {
+		super.setNewDirection(x, y, z);
+		// Headless intent replaces the client's move request, not its position sample.
+		// Forced fear/confusion travel must not start voluntary combat modifiers.
+		var effects = owner.getEffectController();
+		if (effects != null && (effects.isUnderFear() || effects.isConfused())) onMovementStopped();
+		else updateMovementModifierDirection();
+	}
+
+	private float requestedMovementSpeed() {
+		MovementModifierDirection direction = PositionUtil.getDistance(owner.getX(), owner.getY(), targetDestX, targetDestY) < MOVE_CHECK_OFFSET
+			? MovementModifierDirection.NONE : calculateDirection(PositionUtil.getHeadingTowards(owner.getX(), owner.getY(), targetDestX, targetDestY), heading);
+		return com.aionemu.gameserver.utils.stats.StatFunctions.adjustSpeedByMovementModifier(direction, owner.getGameStats().getMovementSpeedFloat());
+	}
+
+	@Override
 	public synchronized void startMovingToDestination() {
 		if (failed || !owner.canPerformMove() || owner.isCasting()) return;
 		if (started.compareAndSet(false, true)) {
@@ -104,8 +120,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 				else updateLastMove();
 				return;
 			}
-			float speed = com.aionemu.gameserver.utils.stats.StatFunctions.adjustStatByMovementModifier(owner,
-				com.aionemu.gameserver.model.stats.container.StatEnum.SPEED, owner.getGameStats().getMovementSpeedFloat());
+			float speed = requestedMovementSpeed();
 			double fraction = Math.min(1, speed*elapsed/1000.0/distance);
 			if (fraction <= 0) { updateLastMove(); return; }
 			float x = owner.getX()+(float)((targetDestX-owner.getX())*fraction);
@@ -202,8 +217,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 			heightPlan=null;abortMove();return;
 		}
 		var geo=com.aionemu.gameserver.world.geo.GeoService.getInstance();
-		float currentSpeed=com.aionemu.gameserver.utils.stats.StatFunctions.adjustStatByMovementModifier(owner,
-			com.aionemu.gameserver.model.stats.container.StatEnum.SPEED,owner.getGameStats().getMovementSpeedFloat());
+		float currentSpeed=requestedMovementSpeed();
 		if(Math.hypot(heightPlan.endX()-heightPlan.x(),heightPlan.endY()-heightPlan.y())/(heightPlan.seconds()-heightPlan.delay())>currentSpeed+.05)interruptedHeight=true;
 		if(interruptedHeight || (!owner.canPerformMove() || owner.isCasting())
 			&& (heightPlan.launch()>0 || heightPlan.endX()!=heightPlan.x() || heightPlan.endY()!=heightPlan.y())) {

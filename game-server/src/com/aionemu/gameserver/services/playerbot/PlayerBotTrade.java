@@ -144,7 +144,7 @@ public final class PlayerBotTrade {
   // Never release split IDs already persisted in the recipient cube.
   FINISHING.set(owner);try{service.cancelExchange(owner);}finally{FINISHING.remove();}STARTED.remove(s.bot().getObjectId());
   RECEIVED.computeIfAbsent(s.bot().getObjectId(),id->ConcurrentHashMap.newKeySet()).addAll(gifts.stream().map(Item::getObjectId).toList());
-  PacketSendUtility.sendPacket(owner,new SM_EXCHANGE_CONFIRMATION(0));
+  PacketSendUtility.sendPacket(owner,new SM_EXCHANGE_CONFIRMATION(SM_EXCHANGE_CONFIRMATION.Action.COMPLETED));
   // Each notification may execute native quest scripts; failure must not undo a committed gift.
   try {
    for(Item item:gifts) {

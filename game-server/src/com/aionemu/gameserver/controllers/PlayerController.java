@@ -8,9 +8,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.aionemu.gameserver.GameServer;
 import com.aionemu.gameserver.ai.NpcAI;
 import com.aionemu.gameserver.ai.handler.ShoutEventHandler;
@@ -82,7 +79,6 @@ import com.aionemu.gameserver.world.zone.ZoneInstance;
  */
 public class PlayerController extends CreatureController<Player> {
 
-	private static final Logger log = LoggerFactory.getLogger(PlayerController.class);
 	private static final int PROTECTION_TIME = 60000;
 	private long lastAttackMillis = 0;
 	private long lastAttackedMillis = 0;
@@ -124,7 +120,7 @@ public class PlayerController extends CreatureController<Player> {
 
 	private void sendPlayerInfoPackets(Player player) {
 		PacketSendUtility.sendPacket(getOwner(), new SM_PLAYER_INFO(player, !player.equals(getOwner()) && getOwner().isAggroIconTo(player)));
-		PacketSendUtility.sendPacket(getOwner(), new SM_MOTION(player.getObjectId(), player.getMotions().getActiveMotions()));
+		PacketSendUtility.sendPacket(getOwner(), SM_MOTION.playerMotions(player));
 		if (player.isInPlayerMode(PlayerMode.RIDE))
 			PacketSendUtility.sendPacket(getOwner(), new SM_EMOTION(player, EmotionType.RIDE, 0, player.ride.getNpcId()));
 		if (player.getController().isUnderStance())
@@ -434,9 +430,6 @@ public class PlayerController extends CreatureController<Player> {
 		if (getOwner().isDead())
 			return;
 
-		if (getOwner().isProtectionActive())
-			return;
-
 		// avoid killing players after duel
 		if (!getOwner().equals(attacker) && attacker.getMaster() instanceof Player && !getOwner().isEnemy(attacker))
 			return;
@@ -509,7 +502,8 @@ public class PlayerController extends CreatureController<Player> {
 
 	@Override
 	public void cancelCurrentSkill(Creature lastAttacker) {
-		cancelCurrentSkill(lastAttacker, SM_SYSTEM_MESSAGE.STR_SKILL_CANCELED());
+		if (getOwner().isCasting())
+			cancelCurrentSkill(lastAttacker, SM_SYSTEM_MESSAGE.STR_SKILL_CANCELED());
 	}
 
 	@Override

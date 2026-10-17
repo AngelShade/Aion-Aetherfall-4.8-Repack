@@ -3,8 +3,8 @@ package consolecommands;
 import java.io.File;
 import java.util.List;
 
-import javax.xml.bind.Unmarshaller;
-import javax.xml.bind.annotation.*;
+import jakarta.xml.bind.Unmarshaller;
+import jakarta.xml.bind.annotation.*;
 
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.services.SkillLearnService;
@@ -66,6 +66,11 @@ public class Deleteskill extends ConsoleCommand {
 			SkillLearnService.removeSkill(player, skillId);
 			PacketSendUtility.sendMessage(admin, "You have successfully deleted the specified skill.");
 		}
+	}
+
+	@Override
+	public void info(Player admin, String message) {
+		PacketSendUtility.sendMessage(admin, "syntax ///deleteskill <skill name>");
 	}
 
 	@XmlAccessorType(XmlAccessType.NONE)

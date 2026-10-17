@@ -3,7 +3,7 @@ import java.lang.reflect.*;
 import java.io.StringReader;
 import java.util.*;
 import java.util.function.Consumer;
-import javax.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBContext;
 import sun.misc.Unsafe;
 import com.aionemu.gameserver.dataholders.*;
 import com.aionemu.gameserver.model.account.Account;

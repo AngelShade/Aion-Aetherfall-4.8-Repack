@@ -2,7 +2,7 @@ package com.aionemu.gameserver.services.playerbot;
 
 import java.io.StringReader;
 import java.util.List;
-import javax.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBContext;
 import com.aionemu.gameserver.dataholders.*;
 import com.aionemu.gameserver.model.PlayerClass;
 import com.aionemu.gameserver.questEngine.handlers.models.Monster;

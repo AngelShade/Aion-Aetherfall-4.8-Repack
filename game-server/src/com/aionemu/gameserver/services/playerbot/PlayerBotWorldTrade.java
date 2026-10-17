@@ -133,7 +133,7 @@ public final class PlayerBotWorldTrade {
    from.setPersistentState(PersistentState.UPDATED);to.setPersistentState(PersistentState.UPDATED);
   }catch(RuntimeException e){hold(d,e);return true;}
   FINISHING.set(p);try{service.cancelExchange(p);}finally{FINISHING.remove();DEALS.remove(d.bot.getObjectId());}
-  PacketSendUtility.sendPacket(p,new SM_EXCHANGE_CONFIRMATION(0));
+  PacketSendUtility.sendPacket(p,new SM_EXCHANGE_CONFIRMATION(SM_EXCHANGE_CONFIRMATION.Action.COMPLETED));
   try {
    if(buyer==p)PacketSendUtility.sendPacket(p,new SM_INVENTORY_ADD_ITEM(received,p,ItemPacketService.ItemAddType.PLAYER_EXCHANGE_GET_BACK));
    else for(var e:goods.getItems().values()){Item remaining=p.getInventory().getItemByObjId(e.getItemObjId());if(remaining!=null)PacketSendUtility.sendPacket(p,new SM_INVENTORY_UPDATE_ITEM(p,remaining,ItemPacketService.ItemUpdateType.INC_PLAYER_EXCHANGE_GET_BACK));}

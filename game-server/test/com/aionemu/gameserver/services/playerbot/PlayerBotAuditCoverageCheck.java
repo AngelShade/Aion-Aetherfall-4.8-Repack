@@ -10,7 +10,7 @@ import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.model.gameobjects.player.QuestStateList;
 import com.aionemu.gameserver.questEngine.model.*;
 import java.io.StringReader;
-import javax.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBContext;
 
 /** Native sparse destination and declared dialog regressions; no World/DB/actors. */
 public final class PlayerBotAuditCoverageCheck {

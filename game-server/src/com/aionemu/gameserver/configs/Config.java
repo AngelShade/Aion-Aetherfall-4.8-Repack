@@ -55,7 +55,7 @@ public class Config {
 		Set<String> unusedProperties = ConfigurableProcessor.process(properties, processAllConfigs ? configs.toArray() : allowedConfigs);
 		if (processAllConfigs && !unusedProperties.isEmpty()) {
 			removePropertiesUsedInLogbackXml(unusedProperties);
-			unusedProperties.forEach(p -> LoggerFactory.getLogger(Config.class).warn("Config property " + p + " is unknown and therefore ignored."));
+			unusedProperties.forEach(p -> LoggerFactory.getLogger(Config.class).warn("Config property {} is unknown and therefore ignored.", p));
 		}
 
 		if (NetworkConfig.CLIENT_CONNECT_ADDRESS.getAddress().isAnyLocalAddress()) {
@@ -63,7 +63,7 @@ public class Config {
 			if (localIPv4 == null)
 				throw new GameServerError("No IP for Aion client advertisement configured and local IP discovery failed. Please configure gameserver.network.client.connect_address");
 			NetworkConfig.CLIENT_CONNECT_ADDRESS = new InetSocketAddress(localIPv4, NetworkConfig.CLIENT_CONNECT_ADDRESS.getPort());
-			LoggerFactory.getLogger(Config.class).info("No IP for Aion client advertisement configured, using " + localIPv4.getHostAddress());
+			LoggerFactory.getLogger(Config.class).info("No IP for Aion client advertisement configured, using {}", localIPv4.getHostAddress());
 		}
 	}
 
@@ -90,7 +90,7 @@ public class Config {
 		Properties defaults = new Properties();
 		try {
 			for (String configDir : defaultsFolders) {
-				log.info("Loading default configuration values from: " + configDir + "/*");
+				log.info("Loading default configuration values from: {}/*", configDir);
 				PropertiesUtils.loadFromDirectory(defaults, root.resolve(configDir).toFile(), false);
 			}
 			// Load only named server configuration files; character metadata is not configuration.

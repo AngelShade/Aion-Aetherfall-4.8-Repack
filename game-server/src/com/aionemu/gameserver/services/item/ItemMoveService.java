@@ -33,7 +33,7 @@ public class ItemMoveService {
     private static void moveItemNative(Player player, int itemObjId, byte sourceStorageType, byte destinationStorageType, short slot) {
 		IStorage sourceStorage = player.getStorage(sourceStorageType);
 		if (sourceStorage == null) {
-			log.error(player + " tried to move itemObjId " + itemObjId + " from unknown sourceStorageType: " + sourceStorageType);
+			log.error("{} tried to move itemObjId {} from unknown sourceStorageType: {}", player, itemObjId, sourceStorageType);
 			return;
 		}
 		Item item = sourceStorage.getItemByObjId(itemObjId);
@@ -42,7 +42,7 @@ public class ItemMoveService {
 
 		IStorage targetStorage = player.getStorage(destinationStorageType);
 		if (targetStorage == null) {
-			log.error(player + " tried to move itemObjId " + itemObjId + " to unknown destinationStorageType: " + destinationStorageType);
+			log.error("{} tried to move itemObjId {} to unknown destinationStorageType: {}", player, itemObjId, destinationStorageType);
 			return;
 		}
 

@@ -1,7 +1,7 @@
 package com.aionemu.gameserver.services.playerbot;
 import java.io.File;
 import java.util.*;
-import javax.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBContext;
 import sun.misc.Unsafe;
 import com.aionemu.gameserver.dataholders.*;
 import com.aionemu.gameserver.model.*;
@@ -115,7 +115,7 @@ public final class PlayerBotWorldProgressCheck {
    }
   }finally{DataManager.PLAYER_EXPERIENCE_TABLE=old;}
   var cosmetics=(CosmeticItemsData)JAXBContext.newInstance(CosmeticItemsData.class).createUnmarshaller().unmarshal(new File("game-server/data/static_data/cosmetic_items/cosmetic_items.xml"));
-  var base=new PlayerAppearance();base.setFace(0);base.setHair(0);base.setHeight(1.01f);base.setShoulders(123);base.setVoice(3);base.setEyeRGB(567);
+  var base=new PlayerAppearance();base.setFace(0);base.setHair(0);base.setHeightScale(1.01f);base.setShoulders(123);base.setVoice(3);base.setEyeRGB(567);
   for(Race race:List.of(Race.ELYOS,Race.ASMODIANS))for(Gender gender:Gender.values()){
    var allowed=cosmetics.getTemplates().stream().filter(t->t.getRace()==race && ("ALL".equals(t.getGenderPermitted()) || gender.name().equals(t.getGenderPermitted()))).toList();
    Set<String> appearances=new HashSet<>();boolean valid=true,stable=true,preserved=true;
@@ -125,15 +125,15 @@ public final class PlayerBotWorldProgressCheck {
     for(var entry:Map.of("face_type",a.getFace(),"hair_type",a.getHair(),"hair_color",a.getHairRGB(),"face_color",a.getSkinRGB()).entrySet())
      valid &= allowed.stream().anyMatch(t->t.getType().equals(entry.getKey()) && t.getId()==entry.getValue() && (entry.getKey().equals("face_type") || !t.getCosmeticName().startsWith("test_")));
     stable &= a.getFace()==repeat.getFace() && a.getHair()==repeat.getHair() && a.getHairRGB()==repeat.getHairRGB() && a.getSkinRGB()==repeat.getSkinRGB();
-    preserved &= a!=base && a.getHeight()==base.getHeight() && a.getShoulders()==123 && a.getVoice()==3 && a.getEyeRGB()==567;
+    preserved &= a!=base && a.getHeightScale()==base.getHeightScale() && a.getShoulders()==123 && a.getVoice()==3 && a.getEyeRGB()==567;
    }
    check(valid,"All sampled model IDs/colors exist for exact race/gender, excluding artificial test colors");
    check(stable,"Creation retries choose the same appearance for an existing native identity");
    check(preserved,"Template shape/height/voice retained in independent copies");
    check(appearances.size()>48,"Population has varied face/hair/skin combinations");
   }
-  check(base.getFace()==0 && base.getHair()==0 && base.getHeight()==1.01f,"Population generation never changes the owner's appearance template");
-  var fallback=PlayerBotWorldLooks.create(base,Race.ELYOS,Gender.MALE,1,List.of());check(fallback!=base && fallback.getHeight()==base.getHeight() && fallback.getFace()==base.getFace(),"Missing cosmetic catalog preserves valid template rather than inventing model IDs");
+  check(base.getFace()==0 && base.getHair()==0 && base.getHeightScale()==1.01f,"Population generation never changes the owner's appearance template");
+  var fallback=PlayerBotWorldLooks.create(base,Race.ELYOS,Gender.MALE,1,List.of());check(fallback!=base && fallback.getHeightScale()==base.getHeightScale() && fallback.getFace()==base.getFace(),"Missing cosmetic catalog preserves valid template rather than inventing model IDs");
   sharedRewards(unsafe);
   System.out.println("OK: "+checks+" native world XP/Ascension, appearance and shared quest reward checks; no world/DB/IDs");
  }

@@ -1,6 +1,6 @@
 package com.aionemu.gameserver.services.playerbot;
 import java.nio.file.*;
-import javax.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBContext;
 import com.aionemu.gameserver.dataholders.SkillData;
 import com.aionemu.gameserver.skillengine.properties.*;
 

@@ -58,7 +58,7 @@ public final class PlayerBotItemViewCheck {
   var previous=com.aionemu.gameserver.dataholders.DataManager.ITEM_RANDOM_BONUSES;
   try {
    var xml="<random_bonuses><random_bonus id=\"72\" type=\"INVENTORY\"><modifiers><add name=\"MAXHP\" value=\"321\"/></modifiers><modifiers><add name=\"MAXMP\" value=\"456\"/></modifiers></random_bonus></random_bonuses>";
-   var data=(com.aionemu.gameserver.dataholders.ItemRandomBonusData)javax.xml.bind.JAXBContext.newInstance(com.aionemu.gameserver.dataholders.ItemRandomBonusData.class).createUnmarshaller().unmarshal(new java.io.StringReader(xml));
+   var data=(com.aionemu.gameserver.dataholders.ItemRandomBonusData)jakarta.xml.bind.JAXBContext.newInstance(com.aionemu.gameserver.dataholders.ItemRandomBonusData.class).createUnmarshaller().unmarshal(new java.io.StringReader(xml));
    com.aionemu.gameserver.dataholders.DataManager.ITEM_RANDOM_BONUSES=data;
    var bonusTemplate=new ItemTemplate(){@Override public int getStatBonusSetId(){return 72;} @Override public String getName(){return "Native fused sword";}};
    var bonusItem=new Item(813,bonusTemplate,1,false,0);bonusItem.setBonusStats(2,false);

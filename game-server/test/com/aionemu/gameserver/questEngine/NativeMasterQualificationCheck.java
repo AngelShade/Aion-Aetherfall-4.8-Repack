@@ -2,7 +2,7 @@ package com.aionemu.gameserver.questEngine;
 
 import java.nio.file.*;
 import java.util.*;
-import javax.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBContext;
 import javax.xml.stream.*;
 import com.aionemu.gameserver.configs.main.CraftConfig;
 import com.aionemu.gameserver.dataholders.*;

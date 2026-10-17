@@ -34,20 +34,19 @@ public class QuestSpawnAnalyzer {
 	}
 
 	static void run(Collection<AbstractQuestHandler> questHandlers, Collection<QuestNpc> questNpcs, boolean ignoreEventQuests) {
-		log.info("Analyzing quest handlers (ignoreEventQuests=" + ignoreEventQuests + ")...");
+		log.info("Analyzing quest handlers (ignoreEventQuests={})...", ignoreEventQuests);
 		long timeMillis = System.currentTimeMillis();
 		Set<Integer> unobtainableQuests = new HashSet<>();
 		Set<Integer> factionIds = new HashSet<>();
 		Set<Integer> allSpawns = loadNpcIdsSpawnedByHandlers();
 		DataManager.SPAWNS_DATA.addAllNpcIdsToSet(allSpawns);
 		DataManager.TOWN_SPAWNS_DATA.addAllNpcIdsToSet(allSpawns);
+		DataManager.HOUSE_DATA.addAllManagerNpcIdsToSet(allSpawns);
 		DataManager.EVENT_DATA.addAllNpcIdsToSet(allSpawns);
 		for (XMLQuest quest : DataManager.XML_QUESTS.getAllQuests()) {
 			if (quest instanceof KillSpawnedData killSpawned)
 				allSpawns.addAll(killSpawned.getSpawnedNpcIds(allSpawns));
 		}
-		// Housing managers are spawned for individual houses, not by the world spawn templates.
-		DataManager.HOUSE_DATA.getLands().forEach(land -> allSpawns.add(land.getManagerNpcId()));
 		for (NpcFactionTemplate nft : DataManager.NPC_FACTIONS_DATA.getNpcFactionsData()) {
 			if (nft.getNpcIds() == null || nft.getNpcIds().stream().anyMatch(allSpawns::contains))
 				factionIds.add(nft.getId());
@@ -107,7 +106,7 @@ public class QuestSpawnAnalyzer {
 
 	public static Set<Integer> loadNpcIdsSpawnedByHandlers() {
 		Set<Integer> npcIds = new HashSet<>();
-		Pattern pattern = Pattern.compile("\\bsp(?:awn)?(?:ForFiveMinutes|Temporarily|WithWalker|AndSetRespawn)?\\([^,\\d]*(\\d{6})(?:\\s*:\\s*(\\d{6}))?");
+		Pattern pattern = Pattern.compile("\\bsp(?:awn)?(?:[A-Z][a-z]+)*\\([^,\\d]*(\\d{6})(?:\\s*:\\s*(\\d{6}))?");
 		Set<String> spawnIdMethods = new HashSet<>();
 		Set<String> incrementedSpawnIdMethods = new HashSet<>();
 		Map<String, Set<Integer>> returnedNpcIds = new HashMap<>();

@@ -34,6 +34,7 @@ import com.aionemu.gameserver.services.trade.PricesService;
 import com.aionemu.gameserver.taskmanager.AbstractFIFOPeriodicTaskManager;
 import com.aionemu.gameserver.utils.PacketSendUtility;
 import com.aionemu.gameserver.utils.ThreadPoolManager;
+import com.aionemu.gameserver.utils.audit.AuditLogger;
 import com.aionemu.gameserver.utils.collections.DynamicServerPacketBodySplitList;
 import com.aionemu.gameserver.utils.collections.ListPart;
 import com.aionemu.gameserver.utils.collections.SplitList;
@@ -66,7 +67,7 @@ public class BrokerService {
 	}
 
 	private void initBrokerService() {
-		log.info("Loading broker...");
+		long startTime = System.currentTimeMillis();
 		int loadedBrokerItemsCount = 0;
 		int loadedSettledItemsCount = 0;
 
@@ -92,7 +93,8 @@ public class BrokerService {
 			}
 		}
 
-		log.info("Broker loaded with " + loadedBrokerItemsCount + " broker items, " + loadedSettledItemsCount + " settled items.");
+		log.info("BrokerService initialized with {} active items and {} settled items in {} ms", loadedBrokerItemsCount, loadedSettledItemsCount,
+			System.currentTimeMillis() - startTime);
 	}
 
 	public void showRequestedItems(Player player, int clientMask, byte sortType, int startPage, List<Integer> itemList) {
@@ -339,8 +341,8 @@ public class BrokerService {
 			Item boughtItem = player.getInventory().add(item, ItemPacketService.ItemAddType.BROKER_BUY);
 
 			if (LoggingConfig.LOG_BROKER_EXCHANGE)
-				log.info("Player: " + player.getName() + " bought item " + boughtItem.getItemId() + " [" + boughtItem.getItemName() + "] (count: " + itemCount
-					+ ") from player: " + PlayerService.getPlayerName(buyingItem.getSellerId()) + " (total price: " + price + ")");
+				log.info("Player: {} bought item {} [{}] (count: {}) from player: {} (total price: {})", player.getName(), boughtItem.getItemId(),
+					boughtItem.getItemName(), itemCount, PlayerService.getPlayerName(buyingItem.getSellerId()), price);
 
 			// create save task
 			BrokerOpSaveTask bost = new BrokerOpSaveTask(buyingItem, boughtItem, player.getInventory().getKinahItem(), player.getObjectId());
@@ -531,7 +533,7 @@ public class BrokerService {
 		}
 		if (brokerItem != null) {
 			if (brokerItem.getSellerId() != player.getObjectId()) {
-				log.info("[AUDIT] Player: {} tried to get item from broker that he doesn't own", player.getName());
+				AuditLogger.log(player, "tried to get item " + brokerItem.getItemId() + " from broker that he doesn't own. Seller ID: " + brokerItem.getSellerId());
 				return;
 			}
 			if (player.getInventory().isFull(brokerItem.getItem().getItemTemplate().getExtraInventoryId())) {
@@ -634,7 +636,7 @@ public class BrokerService {
 						itemsLeft = true;
 
 				} else
-					log.warn("Broker settled item missed. ObjID: " + item.getItemUniqueId());
+					log.warn("Broker settled item missed. ObjID: {}", item.getItemUniqueId());
 			}
 		}
 

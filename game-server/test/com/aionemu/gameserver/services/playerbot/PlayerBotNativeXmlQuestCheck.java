@@ -5,7 +5,7 @@ import java.lang.reflect.*;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.*;
-import javax.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBContext;
 import javax.xml.transform.stream.StreamSource;
 import com.aionemu.gameserver.configs.main.*;
 import com.aionemu.gameserver.controllers.*;

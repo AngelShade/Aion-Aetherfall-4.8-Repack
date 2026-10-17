@@ -6,7 +6,7 @@ import java.io.StringReader;
 import java.nio.file.Path;
 import java.util.*;
 
-import javax.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBContext;
 
 import com.aionemu.gameserver.dataholders.*;
 import com.aionemu.gameserver.model.PlayerClass;

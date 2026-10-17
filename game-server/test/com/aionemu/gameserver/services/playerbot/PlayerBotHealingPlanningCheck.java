@@ -2,7 +2,7 @@ package com.aionemu.gameserver.services.playerbot;
 
 import java.io.StringReader;
 import java.util.*;
-import javax.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBContext;
 import sun.misc.Unsafe;
 import com.aionemu.gameserver.configs.main.GeoDataConfig;
 import com.aionemu.gameserver.dataholders.*;

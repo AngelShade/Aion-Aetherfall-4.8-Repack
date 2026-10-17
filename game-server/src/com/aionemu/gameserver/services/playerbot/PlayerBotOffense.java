@@ -52,7 +52,7 @@ final class PlayerBotOffense {
  static int runes(SkillTemplate skill,List<Active> effects) {
   for(var e:skill.getEffects().getEffects())if(e instanceof SignetBurstEffect burst)
    return effects.stream().filter(a->Objects.equals(a.skill().getStack(),burst.getSignet()))
-    .mapToInt(a->Math.min(burst.getSignetlvl(),a.level())).max().orElse(0);
+    .mapToInt(a->Math.min(burst.getSignetLevel(),a.level())).max().orElse(0);
   return 0;
  }
  static long runeTime(SkillTemplate skill,List<Active> effects) {

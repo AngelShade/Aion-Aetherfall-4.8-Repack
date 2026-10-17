@@ -2,7 +2,7 @@ package com.aionemu.gameserver.services.playerbot;
 
 import java.nio.file.Path;
 import java.util.*;
-import javax.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBContext;
 import com.aionemu.gameserver.dataholders.ZoneData;
 import com.aionemu.gameserver.model.Race;
 import com.aionemu.gameserver.model.templates.zone.ZoneInfo;

@@ -4,7 +4,7 @@ import java.io.StringReader;
 import java.lang.reflect.*;
 import java.nio.file.Path;
 import java.util.*;
-import javax.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBContext;
 import sun.misc.Unsafe;
 import com.aionemu.gameserver.controllers.attack.*;
 import com.aionemu.gameserver.dataholders.*;

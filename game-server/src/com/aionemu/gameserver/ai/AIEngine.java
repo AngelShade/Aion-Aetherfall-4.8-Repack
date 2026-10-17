@@ -36,6 +36,7 @@ public class AIEngine implements GameEngine {
 	@Override
 	public void init() {
 		AIRegistryReload.load(scriptManager, aiHandlers, this::validateScripts);
+		log.info("Loaded {} AI handlers", aiHandlers.size());
 	}
 
 	public void reload() {

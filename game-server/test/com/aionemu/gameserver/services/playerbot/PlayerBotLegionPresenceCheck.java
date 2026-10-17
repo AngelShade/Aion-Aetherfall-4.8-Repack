@@ -69,7 +69,7 @@ public final class PlayerBotLegionPresenceCheck {
   db.stopAtLife=true;var method=PlayerBotPersistence.class.getDeclaredMethod("saveProgress",Connection.class,Player.class,PlayerBotPersistence.Home.class);method.setAccessible(true);
   try{method.invoke(null,db.connection(),actor,new PlayerBotPersistence.Home(210040000,1,2,3,(byte)4,0));throw new AssertionError("Missing fixture stop");}
   catch(InvocationTargetException e){check(e.getCause() instanceof SQLException && e.getCause().getMessage().contains("intentional fixture stop"),"Native players progress executed before deliberate fixture stop");}
-  check(Objects.equals(db.progress.get(12),actor.data.getLastOnline()) && db.progress.get(15).equals(actor.getObjectId()),"Native SQL persists exact actor logout timestamp and character ID");
+  check(Objects.equals(db.progress.get(12),actor.data.getLastOnline()) && db.progress.get(16).equals(actor.getObjectId()),"Native SQL persists exact actor logout timestamp and character ID");
   check(db.progress.get(13).equals(2)&&db.progress.get(14).equals(1)&&db.writes.stream().anyMatch(s->s.contains("quest_expands=?,wh_bonus_expands=?")),"Quest cube and warehouse rewards persist with native companion progress");
   check(db.writes.stream().anyMatch(s->s.contains("last_online=COALESCE(?,last_online)")),"Null native timestamp preserves existing SQL value");
   check(db.progress.get(6).equals(1f) && db.progress.get(7).equals(2f) && db.progress.get(8).equals(3f),"Pre-recruitment home coordinates still persist unchanged");
