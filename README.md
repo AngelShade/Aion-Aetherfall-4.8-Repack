@@ -1,105 +1,105 @@
-![Aion 4.8 Banner](https://github.com/beyond-aion/aion-server/assets/1169307/494205be-399a-4e2e-8435-1f0774d92262)
-<div align="center">
+# Aion Aetherfall 4.8 Repack
 
-  ![](https://img.shields.io/badge/dynamic/xml?url=https%3A%2F%2Fgithub.com%2Fbeyond-aion%2Faion-server%2Fraw%2F4.8%2Fpom.xml&query=%2F%2A%5Blocal-name%28%29%3D%22project%22%5D%2F%2A%5Blocal-name%28%29%3D%22properties%22%5D%2F%2A%5Blocal-name%28%29%3D%22maven.compiler.release%22%5D%2Ftext%28%29&label=Java%20version)
-  [![](https://img.shields.io/github/contributors-anon/beyond-aion/aion-server)](https://gisthost.github.io/?ce9729bcacaac31f78771b8521512d0a&repo=beyond-aion%2Faion-server&title=Beyond%20Aion%20Server%20Contributors)
-  ![](https://img.shields.io/github/repo-size/beyond-aion/aion-server)
+<p align="center">
+  <img src="client-mods/login-branding/assets/aetherfall-subtitle.png" alt="Aetherfall" width="760">
+</p>
 
-</div>
+**Aion 4.8 NA with party companions, shared quest progress, dungeon repairs and custom client features.**
 
-# Aion 4.8 Server Emulator
+Aetherfall lets you build a party from your own alternate characters or temporary companions. Take them through quests and dungeons, manage their equipment and combat behavior, and keep your alts caught up with your main. Independent playerbots also quest, fight and visit towns around the world.
 
-This is the server for the MMORPG *Aion: The Tower of Eternity* that we host for our players.  
-Our server emulator is intended to be faithful to the original experience of the official servers of the time, but a few custom features have also been implemented to meet the needs of our community.  
-You can read more about it here:
-<details>
-<summary><b>Motivation and features of this server emulator (click to show)</b></summary>
+The Windows repack brings the client, GameServer, LoginServer, ChatServer, Java and MariaDB together in one portable folder. The source and client modifications are maintained here.
 
-### Motivation
-In the early years of the game, from 2009 onwards, there were larger and more organized development teams. When we started, in 2015, those days were long gone.  
-The few people with extensive knowledge about the different Aion-Emu[^1] forks know this already. Aion server emulators are barely functional: Many systems have been left unfinished, some have design problems, and incomplete or incorrect template data is the rule, not the exception. What seems to work at first breaks down when you introduce trivial variables such as players playing the game or running the server for more than a few
-hours.  
+## What's included
 
-We wanted to change this and create an emulator this wonderful game deserves.  
-The base for our project was Aion-Lightning's server for Aion version 4.7.5, which was considered the best emulator at the time. Unfortunately, while it was less buggy than emulators from other groups, it turned out to be in a similarly terrible state.  
-Once we opened the server to our community, many more core issues came to light, all of which led to our decision to prioritize bug fixes and optimizations over features or version updates. So we just updated once, to version 4.8 (again with the help of Aion-Lightning's work), and stuck to our plan.  
+| Feature | What you get |
+| --- | --- |
+| Party companions | Bring your own alts or recruit temporary companions. Manage their combat behavior, skills and equipment through the companion interface. |
+| Shared quest completion | With **Party completion sync** enabled, your owned alts in the party catch up on quests your main has completed and receive future completions too, with the quest rewards. |
+| World playerbots | Independent characters that quest, fight, gather, craft and use town services. By default, their autonomous activity pauses on maps and instances without human players. |
+| Dungeon and campaign repairs | Work on Theobomos Lab and Adma Stronghold includes quest chains, scripted encounters, boss behavior, loot and dungeon exits. |
+| Repeat dungeon entry | Entry limits are disabled by default. Level, quest, party and instance requirements still apply. |
+| Central Market | Buy and sell items through the in-game player marketplace. |
+| Wardrobe | Customize your character's appearance through the in-game Wardrobe. |
+| Season Pass | An in-game progression and reward interface. |
+| Starting-area Journey | Poeta and Ishalgen journey options for starting characters. |
+| Inventory and warehouse | Expanded storage with search controls for finding your items. |
+| Client improvements | Speech bubbles, remembered login, extra graphics controls, native menu shortcuts and Aetherfall login artwork and news. |
 
-### Highlights
-The following is a very incomplete list of some notable things we have worked on:
+The extra services are available through **Additional Functions** in the client. Companion controls are also available through the playerbot interface.
 
-#### Custom features
-- PvPvE map with increased AP rates and boss spawns
-- Solo instance "Eternal Challenge" with a boss using the same skills and tactics like you, based on a deep learning AI
-- Customizations to drop lists, QoL improvements, player commands and various PvP and PvE rewards you can read more about [here](https://beyond-aion.com/page/features)
+### How quest sharing works
 
-#### Fixes and enhancements
-- Fixed geo[^2] related issues like wrong or missing obstacles, incorrect bound calculations, terrain checks, doors, shields, environmental effects, etc.
-- Fixed map kicks and other unintended positioning from various skills, some even client-induced (now worked around by the server)
-- Implemented missing instances and reworked some
-- Fixed hundreds of quests
-- Added thousands of missing drops and spawns
-- Fixed drop rate calculations and improved the global drop system (removed npc_drop.dat support)
-- Fixed duplicate or unintentionally invisible spawns, temporary spawns and added support for temporary spawns in instances and events
-- Fixed the event engine and added new features like automatic buffs or config overrides
-- Removed, merged or reworked many chat commands, implemented descriptions, common error handling and a permission aware `.help` command
-- Implemented true invisibility against anti hide hacks
-- Fixed motion validation to combat no-animation hacks
-- Fixed many stat and skill related issues with players and NPCs
-- Implemented more AI handler events and controls like queueing of skills
-- Fixed countless core bugs of various severities, like wrong chance calculations, login problems or even client crashes
-- Fixed memory leaks, concurrency related issues and more, so the server no longer needs to be restarted every few hours (runs nicely for months now)
-- Development related:
-  - Simplified configuration and added support for more data types, including lists and maps
-  - Logging improvements: Added support for Discord webhooks and revised all error logging (no missing stack traces anymore or meaningless messages)
-  - Optimized startup time and implemented class file caching for even faster startup if handlers haven't been modified since the last start
-  - Continuous optimizations for a more light-weight and more efficient server (removal of unnecessary code or dependencies, refactoring, etc.)
-  - Regular Java and dependency updates for the latest improvements and new language features
+Put your owned alts in your party and enable **Party completion sync**. They catch up on your main's completed quests, then share new completions while they remain in the party. Catch-up is processed gradually rather than paying every past quest at once.
 
-### Outlook
+Rewards use the quest's normal reward system: XP, Kinah, items and other rewards where the quest provides them. Item choices account for the companion's class. Rejoining the party does not pay the same completion again, and repeatable quests retain their completion limits. Unrelated players and independent world bots do not inherit your quest history.
 
-Fast-forward to today and there are still many unfinished tasks, bugs and ideas for improvements. Too many to even try listing them. A project of this size will never be finished by a few people developing it in their spare time.  
-Which is fine, because we enjoy working on it.
+## Download
 
-</details>
+The full playable repack is a separate download from this repository's source ZIP. A complete package contains `Client`, `Server`, `Control` and the numbered launchers described below.
 
-**TL;DR**: A lot of work has been put into improving this emulator. Not only for our players, but also for a better experience when developing.
+Packaged downloads belong on the [Releases page](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases). A full repack has not been uploaded there yet.
 
-> [!TIP]  
-> If you have questions about [contributing](https://github.com/beyond-aion/aion-server/blob/HEAD/.github/CONTRIBUTING.md) or if you are interested in technical discussions about Aion and its server development, you can join our **development-focused Discord**: [![Discord Join Link](https://img.shields.io/badge/Discord-5865f2?logo=discord&logoColor=white)](https://beyond-aion.com/dev-talk)  
-> 
-> **Please note that we do not provide any support related to hosting your own server, but you can ask the community for help in [Discussions > Q&A](https://github.com/beyond-aion/aion-server/discussions/categories/q-a)**
+## Start the repack
 
-## Building
-This project uses [Maven](https://maven.apache.org/what-is-maven.html) to manage dependencies. The game server, login server and chat server can be
-built using `mvn package` from the root directory.  
-The resulting zip files in each server's target folder can be deployed on any system with a suitable JDK and access to a MySQL (or MariaDB) server.  
+You need 64-bit Windows, a suitable graphics driver and the complete repack folder. Java and MariaDB are bundled; no database Windows service is required. The GameServer allows up to 4 GiB of heap, so leave additional memory available for the client, database and Windows.
 
-## Configuration
-### Server setup
-The servers can be run with the default config after initializing the databases with the *.sql file in each server's sql folder (default DB names
-and users can be found in `config/network/database.properties`).  
-To whitelist the game server connection to the login server, enter its ID, IP mask and password in the `gameserver` table of the login server
-database.  
-If you want to change some configs, it's recommended to create the files `config/mycs.properties` (chat server), `config/mygs.properties` (game 
-server) and `config/myls.properties` (login server) and put all your custom properties in there. These take precedence over the standard 
-*.properties files and will not be modified when updating the server.  
+1. Extract the whole package. Keep `Client`, `Server` and `Control` together.
+2. Run **`1 - Start Database.cmd`**. On first launch it creates the database and imports the schemas. Wait for **Database ready**.
+3. Run **`2 - Start Servers.cmd`**. Wait for GameServer startup to finish.
+4. Run **`3 - Start Client.cmd`**. Enter a new account name and password; LoginServer creates a normal player account on first login.
+5. When finished, close the game and all three server components normally, then run **`4 - Stop Database.cmd`**.
 
-### Game client setup
-You can download the game client for this version from [here](https://archive.org/download/aion-4.8-na/Aion%204.8%20NA.7z), or via [torrent](https://archive.org/download/aion-4.8-na/aion-4.8-na_archive.torrent).  
-As the game blocks connections to unofficial servers and does not run properly on Windows 10 or later, it needs to be patched. This can be done by copying
-this [version.dll](https://github.com/beyond-aion/aion-version-dll/releases/latest) into the bin32 and bin64 folders of the game client.  
-To run the game, create a file called `start.bat` in the game's root directory with the following content:
-```batch
-start "" "bin64\aion.bin" -ip:127.0.0.1 -port:2106 -loginex
+The package uses its own database directory at `Server/database/data`, with loopback port `33306`. It starts with no accounts, characters or gameplay history from the development server. Package database credentials are in `Server/database/credentials.json`.
+
+Move the entire repack folder only while its components are closed. Use its own client launcher so the graphics and recovery paths follow the folder.
+
+## Settings
+
+Inside the repack, server settings are under `Server/game-server/config`:
+
+| File | Purpose |
+| --- | --- |
+| `playerbots/playerbots.properties` | Population, companion and bot budget settings. |
+| `playerbots/features.properties` | Quest automation, crafting, gathering, flight and world activity switches. |
+| `main/instance.properties` | Instance entry limits and other dungeon settings. |
+| `mygs.properties` | Owner overrides, which take precedence over the other GameServer property files. |
+
+Restart GameServer after changing these settings. Disabling bot automation does not erase saved characters, items or quest progress.
+
+The bundled connection settings are for local play. Hosting for other computers also requires configuring the server addresses, client connection and in-game service URLs.
+
+## Source and development
+
+| Directory | Contents |
+| --- | --- |
+| `game-server` | Gameplay code, configuration, quests, encounters and static data. |
+| `login-server` | Accounts and login connections. |
+| `chat-server` | Chat service. |
+| `commons` | Shared server code. |
+| `client-mods` | Client modification sources, assets and packaging tools. |
+| `tools` | Build and delivery tools. |
+| `docs` | Feature notes and installed-mod records. |
+
+To build the server components on Windows, install **JDK 25**, **Maven**, **Python 3** and **Git**, with their commands available on your PATH. From PowerShell:
+
+```powershell
+git clone https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack.git
+cd Aion-Aetherfall-4.8-Repack
+$env:AION_DEV_ROOT = Join-Path $env:USERPROFILE 'Aetherfall-build'
+powershell -NoProfile -File .\tools\build-components.ps1 -Modules 'game-server,login-server,chat-server' -Online
 ```
 
-## Developing
-Import the root directory as a Maven project. If your IDE does not support [EditorConfig](https://editorconfig.org/#pre-installed) natively, install a
-plugin for it to ensure a consistent coding style.  
-To start a server, create a run/debug configuration with the `*Server` class as the main class. The chat server for example starts from
-`ChatServer.java`. The working directory needs to be set to the module directory (`$MODULE_WORKING_DIR$` in IntelliJ).   
-If your IDE compiles very slowly, the compiler likely needs more memory. The option is called "Build process heap size" in IntelliJ.
+This runs Maven and writes the component packages under the external build folder. It does not start the servers or replace an installed repack. Client modifications have their own instructions under `client-mods`.
 
+## Reporting a problem
 
-[^1]: [Aion-Emu](https://web.archive.org/web/20100128222712/http://aion-emu.com/) was the first server development project for the game and laid the foundation for all the popular server emulators known today.  
-[^2]: Geo or geo data is the common term for collision data parsed from the game client. Collision data for this server is created with our [GeoBuilder](https://github.com/beyond-aion/aion-geobuilder).  
+Include the repack release, what you were doing, where it happened and what you expected. For quest or dungeon problems, include the quest name, NPC or boss, and the step that failed. Attach the relevant server log lines and a screenshot when useful.
+
+Development is ongoing. Some movement routes, quests and encounters still need work; the included repairs do not mean every dungeon or route is finished.
+
+## Credits and license
+
+Aetherfall builds on the [Beyond Aion server](https://github.com/beyond-aion/aion-server) and the earlier Aion emulator projects in its history. The repository retains that history and the original contributors' work. Playerbot development also uses the references maintained under `third-party/playerbots`.
+
+The server code is licensed under [GNU GPL v3](LICENSE). Client modifications and third-party components retain their applicable licenses and notices.

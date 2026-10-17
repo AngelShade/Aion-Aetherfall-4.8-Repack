@@ -4,10 +4,10 @@
   "skin": "aetherfall_login_logo",
   "width": 2048,
   "height": 768,
-  "src_image": "49,206,1952,343",
-  "frame": "440,330,400,70",
+  "src_image": "0,146,2048,460",
+  "frame": "430,318,420,94",
   "aion_frame": "460,228,360,94",
-  "sha256": "c07d2e4701b8834227c8e3a156c921a58f14f153a0662e536803234e10221b12",
-  "generatedWith": "Built-in image_gen",
-  "prompt": "AETHERFALL only, transparent alpha, silver and icy cyan beveled fantasy serif subtitle matching the original AION logo; no AION redraw."
+  "sha256": "2eb786222b30333b833a4f9d75cc437f1afd7de1f2f78b4226952b85ce4562c9",
+  "generatedWith": "Built-in image_gen edit",
+  "prompt": "Match the original AION dark charcoal contour and diffuse black shadow; retain AETHERFALL lettering, icy silver/cyan bevels, placement and transparency."
 }
