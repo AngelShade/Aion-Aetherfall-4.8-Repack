@@ -6,7 +6,7 @@ $ErrorActionPreference = 'Stop'
 if (Get-Process -Name 'aion.bin' -ErrorAction SilentlyContinue) { throw 'Fully close Aion before restoring.' }
 $clientRoot = (Resolve-Path -LiteralPath $ClientPath).Path
 $backup = (Resolve-Path -LiteralPath $BackupPath).Path
-$backupRoot = Join-Path $clientRoot 'TransmogMenu-backups'
+$backupRoot = Join-Path $clientRoot 'Mods/Backups/TransmogMenu'
 if (-not $backup.StartsWith($backupRoot + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Backup must be inside this client backup directory.' }
 $manifest = Get-Content -Raw -LiteralPath (Join-Path $backup 'manifest.json') | ConvertFrom-Json
 if ($manifest.clientRoot -ne $clientRoot) { throw 'Backup belongs to a different client.' }

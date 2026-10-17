@@ -1219,7 +1219,7 @@
 			<spot x="1630.107" y="284.169" z="287.760" static_id="303"/>
 		</spawn>
 		<!-- Fierce Mosbear -->
-		<spawn npc_id="210584" respawn_time="295">
+		<spawn npc_id="210584" respawn_time="30">
 			<spot x="1323.13" y="641.402" z="290.322" h="108" random_walk="8"/>
 			<spot x="1414.47" y="752.062" z="264.617" h="55" random_walk="8"/>
 			<spot x="1436.59" y="767.723" z="258.957" h="18"/>
@@ -1930,7 +1930,7 @@
 			<spot x="1757.94" y="1841.25" z="257.588" h="65"/>
 		</spawn>
 		<!-- Komu Silverclaw -->
-		<spawn npc_id="210442" respawn_time="3600">
+		<spawn npc_id="210442" respawn_time="30">
 			<spot x="1286.58" y="986.53" z="247.408" h="105"/>
 		</spawn>
 		<!-- Kueve -->
@@ -2185,8 +2185,7 @@
 			<spot x="1660.88" y="1813.21" z="253.722" h="15"/>
 		</spawn>
 		<!-- MuMu Ang -->
-		<spawn npc_id="210623" respawn_time="295">
-			<temporary_spawn spawn_time="5.*.*" despawn_time="22.*.*"/>
+		<spawn npc_id="210623" respawn_time="30">
 			<spot x="1363.68" y="153.05" z="314.165" h="8"/>
 		</spawn>
 		<!-- MuMu Bon -->
@@ -2203,8 +2202,7 @@
 			<spot x="1939.961" y="1105.221" z="269.999" static_id="478"/>
 		</spawn>
 		<!-- MuMu Di -->
-		<spawn npc_id="210624" respawn_time="295">
-			<temporary_spawn spawn_time="22.*.*" despawn_time="5.*.*"/>
+		<spawn npc_id="210624" respawn_time="30">
 			<spot x="1467.499" y="203.5875" z="293.4128"/>
 		</spawn>
 		<!-- MuMu Farmer -->
@@ -2388,7 +2386,7 @@
 		<!-- MuMu Lookout -->
 		<spawn npc_id="210453" respawn_time="295">
 			<spot x="1493.86" y="202.81" z="291.60687" h="41" walker_id="160ED219D99EC29FB2571D0202AED1E05A34BAFD"/>
-			<spot x="1545.59" y="158.01" z="300.1" h="59" walker_id="73892D743CE5537295F312C99ACAA740603BBF5E"/>
+			<spot x="1545.59" y="158.01" z="286.99875" h="59" walker_id="73892D743CE5537295F312C99ACAA740603BBF5E"/>
 			<spot x="1586.87" y="284.82" z="285.112" h="118"/>
 			<spot x="1607.77" y="268.12" z="287.4046" h="114" walker_id="12F0FD09A60C0A70975A10132FF037D64FC4B1AD"/>
 		</spawn>
@@ -2400,9 +2398,8 @@
 			<spot x="1571.85" y="217.71" z="284.375" h="75" walker_id="C739DA2655CB27A976EB6BE7D79462BC203997FB"/>
 		</spawn>
 		<!-- MuMu Lu -->
-		<spawn npc_id="210599" respawn_time="295">
-			<temporary_spawn spawn_time="5.*.*" despawn_time="22.*.*"/>
-			<spot x="1646.75" y="182.25" z="291.359" h="102"/>
+		<spawn npc_id="210599" respawn_time="30">
+			<spot x="1495.9227" y="271.99658" z="288.88004" h="83"/>
 		</spawn>
 		<!-- MuMu Patrol -->
 		<spawn npc_id="210470" respawn_time="295">
@@ -2440,8 +2437,7 @@
 			<spot x="1838.7" y="1123.8" z="265.213" h="34"/>
 		</spawn>
 		<!-- MuMu Ring -->
-		<spawn npc_id="210620" respawn_time="295">
-			<temporary_spawn spawn_time="22.*.*" despawn_time="5.*.*"/>
+		<spawn npc_id="210620" respawn_time="30">
 			<spot x="1533.89" y="233.51" z="285.625" h="9"/>
 		</spawn>
 		<!-- MuMu Worker -->
@@ -2483,13 +2479,11 @@
 			<spot x="2523.95" y="2168.73" z="279.789" h="89"/>
 		</spawn>
 		<!-- MuMu Zen -->
-		<spawn npc_id="210622" respawn_time="295">
-			<temporary_spawn spawn_time="4.*.*" despawn_time="21.*.*"/>
+		<spawn npc_id="210622" respawn_time="30">
 			<spot x="1369.55" y="378.796" z="306.462" h="107"/>
 		</spawn>
 		<!-- MuMu Zoo -->
-		<spawn npc_id="210621" respawn_time="295">
-			<temporary_spawn spawn_time="22.*.*" despawn_time="5.*.*"/>
+		<spawn npc_id="210621" respawn_time="30">
 			<spot x="1642.57" y="269.93" z="294.428" h="75"/>
 		</spawn>
 		<!-- Muspelin -->
@@ -3110,7 +3104,7 @@
 			<spot x="2554.9" y="713.6" z="325.431" h="63"/>
 		</spawn>
 		<!-- Starved Mosbear -->
-		<spawn npc_id="210564" respawn_time="295">
+		<spawn npc_id="210564" respawn_time="30">
 			<spot x="1610.05" y="539.363" z="267.695" h="107"/>
 			<spot x="1615.41" y="713.438" z="252.383" h="19"/>
 			<spot x="1617.29" y="487.909" z="261.938" h="32" random_walk="10"/>

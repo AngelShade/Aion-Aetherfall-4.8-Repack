@@ -3,7 +3,8 @@ package com.aionemu.gameserver.services.playerbot;
 import java.io.IOException;
 import java.sql.*;
 import java.util.*;
-import com.alibaba.fastjson2.*;
+import com.aionemu.commons.utils.Json;
+import com.google.gson.JsonObject;
 import com.aionemu.commons.database.DatabaseFactory;
 import com.aionemu.gameserver.dao.*;
 import com.aionemu.gameserver.services.playerbot.PlayerBotRules.*;
@@ -13,18 +14,18 @@ public final class PlayerBotRepository {
  static PlayerBotPresets.Document decode(int account,String text)throws IOException {
   try {
    if(text.length()>524288)throw new IllegalArgumentException("Saved party document too large");
-   var json=JSON.parseObject(text);if(json.getIntValue("version")!=1 || json.getIntValue("account")!=account)throw new IllegalArgumentException("Saved party ownership/version mismatch");
-   var saved=new HashSet<Integer>();for(Object id:json.getJSONArray("saved"))saved.add(Integer.parseInt(id.toString()));
-   var presets=new ArrayList<PlayerBotPresets.Preset>();for(Object raw:json.getJSONArray("presets")){
-    var p=(JSONObject)raw;var members=new ArrayList<PlayerBotPresets.Member>();
-    for(Object item:p.getJSONArray("members")){
-     var m=(JSONObject)item;String temporary=m.getString("temporary");if(!Set.of("true","false").contains(temporary))throw new IllegalArgumentException("Invalid companion kind");
-     members.add(new PlayerBotPresets.Member(m.getIntValue("id"),m.getString("name"),Boolean.parseBoolean(temporary),Role.valueOf(m.getString("role")),Order.valueOf(m.getString("order"))));
-    }presets.add(new PlayerBotPresets.Preset(p.getString("id"),p.getString("name"),members));
+   var json=Json.read(text);if(Json.integer(json,"version")!=1 || Json.integer(json,"account")!=account)throw new IllegalArgumentException("Saved party ownership/version mismatch");
+   var saved=new HashSet<Integer>();for(Object id:Json.array(json,"saved"))saved.add(Integer.parseInt(id.toString()));
+   var presets=new ArrayList<PlayerBotPresets.Preset>();for(Object raw:Json.array(json,"presets")){
+    var p=(JsonObject)raw;var members=new ArrayList<PlayerBotPresets.Member>();
+    for(Object item:Json.array(p,"members")){
+     var m=(JsonObject)item;String temporary=Json.string(m,"temporary");if(!Set.of("true","false").contains(temporary))throw new IllegalArgumentException("Invalid companion kind");
+     members.add(new PlayerBotPresets.Member(Json.integer(m,"id"),Json.string(m,"name"),Boolean.parseBoolean(temporary),Role.valueOf(Json.string(m,"role")),Order.valueOf(Json.string(m,"order"))));
+    }presets.add(new PlayerBotPresets.Preset(Json.string(p,"id"),Json.string(p,"name"),members));
    }return new PlayerBotPresets.Document(account,saved,presets);
   }catch(RuntimeException e){throw new IOException("Invalid saved-party document; data preserved",e);}
  }
- static String encode(PlayerBotPresets.Document d){return JSON.toJSONString(Map.of("version",1,"account",d.account(),"saved",new TreeSet<>(d.saved()),"presets",d.presets()),JSONWriter.Feature.PrettyFormat);}
+ static String encode(PlayerBotPresets.Document d){return Json.pretty(Map.of("version",1,"account",d.account(),"saved",new TreeSet<>(d.saved()),"presets",d.presets()));}
  public static void validateParties(Connection c,int account,String text)throws IOException,SQLException {
   var d=decode(account,text);PlayerBotRepositoryDAO.account(c,account);
   for(int id:d.saved())PlayerBotRepositoryDAO.roster(c,account,id);
@@ -40,7 +41,7 @@ public final class PlayerBotRepository {
   validateMarker(account,character,text);PlayerBotRepositoryDAO.roster(c,account,character);
  }
  static void validateMarker(int account,int character,String text)throws IOException {
-  try{var j=JSON.parseObject(text);if(text.length()>4096 || j.getIntValue("version")!=1 || j.getIntValue("account")!=account || j.getIntValue("id")!=character || j.getString("name")==null || j.getLongValue("removedAt")<=0)throw new IllegalArgumentException("Invalid archive marker");}
+  try{var j=Json.read(text);if(text.length()>4096 || Json.integer(j,"version")!=1 || Json.integer(j,"account")!=account || Json.integer(j,"id")!=character || Json.string(j,"name")==null || Json.longValue(j,"removedAt")<=0)throw new IllegalArgumentException("Invalid archive marker");}
   catch(RuntimeException e){throw new IOException("Archived companion ownership/version mismatch",e);}
  }
  static PlayerBotPresets.Document load(int account)throws IOException {
@@ -64,7 +65,7 @@ public final class PlayerBotRepository {
   }catch(SQLException e){throw new IOException("Cannot verify native removed-roster marker",e);}
  }
  static void archive(int account,int character,String name)throws IOException {
-  String text=JSON.toJSONString(Map.of("version",1,"account",account,"id",character,"name",name,"removedAt",System.currentTimeMillis()));
+  String text=Json.write(Map.of("version",1,"account",account,"id",character,"name",name,"removedAt",System.currentTimeMillis()));
   try(var c=DatabaseFactory.getConnection()){
    c.setAutoCommit(false);try{validateRemoved(c,account,character,text);String old=PlayerBotRepositoryDAO.removed(c,account,character);if(old==null)PlayerBotRepositoryDAO.removed(c,account,character,text);else validateRemoved(c,account,character,old);c.commit();}
    catch(SQLException|IOException|RuntimeException e){try{c.rollback();}catch(SQLException rollback){e.addSuppressed(rollback);}throw e;}

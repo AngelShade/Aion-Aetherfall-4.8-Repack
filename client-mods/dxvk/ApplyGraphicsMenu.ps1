@@ -1,7 +1,7 @@
 param([Parameter(Mandatory=$true)][string]$ClientPath,[switch]$VerifyOnly)
 $ErrorActionPreference = 'Stop'
 $client = (Resolve-Path -LiteralPath $ClientPath).Path
-$root = Join-Path $client 'DXVK/graphics-menu'
+$root = Join-Path $client 'Mods/GraphicsMenu'
 $manifest = Get-Content -LiteralPath (Join-Path $root 'package/manifest.json') -Raw | ConvertFrom-Json
 $statePath = Join-Path $root 'installed.json'
 $state = $null
@@ -28,16 +28,16 @@ foreach ($entry in $manifest.files) {
 if ($pending.Count -eq 0) { 'Graphics menu is already installed and verified.'; return }
 if ($VerifyOnly) { 'Graphics menu queued; current client and payload hashes verified.'; return }
 if (Get-Process -Name 'aion.bin','aion' -ErrorAction SilentlyContinue) { throw 'Exit Aion normally before applying its Graphics menu.' }
-$dxvkPath = Join-Path $client 'DXVK/installed.json'
+$dxvkPath = Join-Path $client 'Mods/Renderer/installed.json'
 $dxvk = Get-Content -LiteralPath $dxvkPath -Raw | ConvertFrom-Json
 $game = @($dxvk.nativeCursorPatch.files | Where-Object { $_.path -eq 'bin64/Game.dll' })
 $expectedGame = $manifest.files[0].original
 if ($state) { $expectedGame = $manifest.files[0].installed }
 if ($game.Count -ne 1 -or $game[0].installed -ne $expectedGame) { throw 'Expected the working native cursor patch before graphics menu installation.' }
-$backup = Join-Path $client ('DXVK-backups/graphics-menu-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
+$backup = Join-Path $client ('Mods/Backups/Renderer/graphics-menu-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
 if ($state) {
     $backup = (Resolve-Path -LiteralPath $state.backupRoot).Path
-    $expectedRoot = (Join-Path $client 'DXVK-backups').TrimEnd('\') + '\'
+    $expectedRoot = (Join-Path $client 'Mods/Backups/Renderer').TrimEnd('\') + '\'
     if (-not $backup.StartsWith($expectedRoot,[StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid menu backup path.' }
 }
 New-Item -ItemType Directory -Path $backup -Force | Out-Null

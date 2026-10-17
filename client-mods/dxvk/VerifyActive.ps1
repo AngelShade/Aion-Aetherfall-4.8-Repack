@@ -1,4 +1,4 @@
-param([string]$ClientPath = (Split-Path -Parent $PSScriptRoot))
+param([string]$ClientPath = ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))))
 $ErrorActionPreference = 'Stop'
 $clientRoot = (Resolve-Path -LiteralPath $ClientPath).Path
 $state = Get-Content -LiteralPath (Join-Path $clientRoot 'DXVK/installed.json') -Raw | ConvertFrom-Json

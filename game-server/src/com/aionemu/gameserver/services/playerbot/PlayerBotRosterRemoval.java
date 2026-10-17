@@ -3,7 +3,6 @@ package com.aionemu.gameserver.services.playerbot;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.*;
-import com.alibaba.fastjson2.JSON;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.services.player.PlayerLeaveWorldService;
 import com.aionemu.gameserver.world.World;

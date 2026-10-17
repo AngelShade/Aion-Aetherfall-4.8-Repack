@@ -7,7 +7,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.alibaba.fastjson2.JSON;
+import com.aionemu.commons.utils.Json;
 import com.aionemu.commons.database.DatabaseFactory;
 import com.aionemu.gameserver.GameServer;
 import com.aionemu.gameserver.dao.InventoryDAO;
@@ -139,7 +139,7 @@ public final class WardrobeService {
 				state.put("outfits",collection.outfits());
 				Set<Integer> outfitIds = new HashSet<>();
 				for (var outfit : collection.outfits()) {
-					Map<String,Integer> saved = JSON.parseObject(outfit.get("skins_json").toString(),new com.alibaba.fastjson2.TypeReference<Map<String,Integer>>() {});
+					Map<String,Integer> saved = Json.read(outfit.get("skins_json").toString(),new com.google.gson.reflect.TypeToken<Map<String,Integer>>() {});
 					if (saved != null) outfitIds.addAll(saved.values());
 				}
 				state.put("outfitAppearances",outfitIds.stream().map(byId::get).filter(Objects::nonNull)
@@ -292,7 +292,7 @@ public final class WardrobeService {
 
 	private static String applyChanges(Connection c,Player p,Map<String,String> args,List<Runnable> committed) throws SQLException {
 		List<Map<String,Integer>> changes;
-		try { changes = JSON.parseObject(args.getOrDefault("changes",""), new com.alibaba.fastjson2.TypeReference<List<Map<String,Integer>>>() {}); }
+		try { changes = Json.read(args.getOrDefault("changes",""), new com.google.gson.reflect.TypeToken<List<Map<String,Integer>>>() {}); }
 		catch (Exception e) { throw new IllegalArgumentException("Invalid appearance changes."); }
 		if (changes == null || changes.isEmpty() || changes.size() > 16) throw new IllegalArgumentException("Select up to 16 equipment appearances.");
 		Set<Integer> owned = unlocked(c,p.getAccount().getId()), seen = new HashSet<>();
@@ -361,7 +361,7 @@ public final class WardrobeService {
 			skins.put(Long.toString(i.getEquipmentSlot()),skin);
 		}
 		if (skins.isEmpty()) throw new IllegalArgumentException("Equip appearance-compatible equipment first.");
-		update(c,"INSERT INTO wardrobe_outfits VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE skins_json=VALUES(skins_json),updated_at=VALUES(updated_at)",account,name,JSON.toJSONString(skins),System.currentTimeMillis());
+		update(c,"INSERT INTO wardrobe_outfits VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE skins_json=VALUES(skins_json),updated_at=VALUES(updated_at)",account,name,Json.write(skins),System.currentTimeMillis());
 		return "Saved outfit " + name + ".";
 	}
 
@@ -369,7 +369,7 @@ public final class WardrobeService {
 		String name = name(args);
 		Map<String,Object> saved = row(c,"SELECT skins_json FROM wardrobe_outfits WHERE account_id=? AND name=?",p.getAccount().getId(),name);
 		if (saved == null) throw new IllegalArgumentException("This outfit was deleted. Refresh Wardrobe.");
-		Map<String,Integer> skins = JSON.parseObject(saved.get("skins_json").toString(),new com.alibaba.fastjson2.TypeReference<Map<String,Integer>>() {});
+		Map<String,Integer> skins = Json.read(saved.get("skins_json").toString(),new com.google.gson.reflect.TypeToken<Map<String,Integer>>() {});
 		Set<Integer> owned = unlocked(c,p.getAccount().getId());
 		for (var entry : skins.entrySet()) {
 			long slot = Long.parseLong(entry.getKey());

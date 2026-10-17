@@ -130,7 +130,7 @@ final class PlayerBotHealing {
   // their protective payload can also be useful with no removable debuff.
   if(PlayerBotTemplar.managed(bot,e) && e.kind()==SkillKind.CLEANSE)
    return Math.max(existing,PlayerBotDefense.priority(bot,e,anchor,true,party));
-  return existing;
+  return Math.max(existing,PlayerBotAethertech.recoveryPriority(bot,e,anchor));
  }
  static Creature recipient(Player bot,PlayerBotSkills.Entry e,List<Player> party) {
   var props=e.template().getProperties();List<Creature> candidates=props.getFirstTarget()==FirstTargetAttribute.ME ? List.of(bot) : members(party);

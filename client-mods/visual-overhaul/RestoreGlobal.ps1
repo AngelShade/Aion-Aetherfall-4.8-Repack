@@ -1,8 +1,8 @@
-param([string]$ClientPath=(Split-Path -Parent $PSScriptRoot))
+param([string]$ClientPath=([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))))
 . (Join-Path $PSScriptRoot 'GlobalCommon.ps1')
 Assert-ClientClosed
 $client = (Resolve-Path -LiteralPath $ClientPath).Path
-$root = Join-Path $client 'GraphicsOverhaul'
+$root = Join-Path $client 'Mods/GraphicsOverhaul'
 $queue = Get-Content -LiteralPath (Join-Path $root 'queued.json') -Raw | ConvertFrom-Json
 if ($queue.clientRoot -ne $client) { throw 'Restore record belongs to another client.' }
 $manifest = Read-GlobalManifest (Join-Path $root ('packages/' + $queue.packageId))
@@ -11,7 +11,7 @@ if (Test-Path -LiteralPath $statePath) {
     $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
     if ($state.packageId -ne $queue.packageId -or $state.clientRoot -ne $client) { throw 'Restore state mismatch.' }
     $backup = (Resolve-Path -LiteralPath $state.backupRoot).Path
-    $prefix = (Join-Path $client 'GraphicsOverhaul-backups').TrimEnd('\') + '\'
+    $prefix = (Join-Path $client 'Mods/Backups/GraphicsOverhaul').TrimEnd('\') + '\'
     if (-not $backup.StartsWith($prefix,[StringComparison]::OrdinalIgnoreCase)) { throw 'Unexpected backup directory.' }
     foreach ($entry in $manifest.files) {
         $hash = (Get-FileHash -LiteralPath (Join-Path $client $entry.path)).Hash

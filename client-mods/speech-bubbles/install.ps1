@@ -20,7 +20,7 @@ foreach($entry in $manifest.files) {
   if (Test-Path -LiteralPath $target) { throw 'Added DLL already exists; preserve it first.' }
  } elseif ((Get-FileHash -LiteralPath $target).Hash -ne $entry.original) { throw "Client changed since preparation: $($entry.path)" }
 }
-$backup=Join-Path $clientRoot ('SpeechBubbles-backups\'+(Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
+$backup=Join-Path $clientRoot ('Mods\Backups\SpeechBubbles\'+(Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
 New-Item -ItemType Directory -Path $backup | Out-Null
 foreach($entry in $manifest.files) {
  if ($null -eq $entry.original) { continue }

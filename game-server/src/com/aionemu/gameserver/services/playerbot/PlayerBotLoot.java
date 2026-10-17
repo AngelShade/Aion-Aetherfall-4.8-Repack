@@ -3,7 +3,9 @@ package com.aionemu.gameserver.services.playerbot;
 import java.util.*;
 
 import com.aionemu.gameserver.dataholders.DataManager;
-import com.aionemu.gameserver.model.actions.PlayerMode;
+import com.aionemu.gameserver.model.items.ItemMask;
+import com.aionemu.gameserver.model.items.storage.StorageType;
+import com.aionemu.gameserver.model.templates.item.ItemTemplate;
 import com.aionemu.gameserver.model.drop.DropItem;
 import com.aionemu.gameserver.model.gameobjects.Npc;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
@@ -12,15 +14,42 @@ import com.aionemu.gameserver.utils.PositionUtil;
 import com.aionemu.gameserver.world.geo.GeoService;
 
 /** Normal loot rights and inventory rules; never spends a character's money on bids. */
-final class PlayerBotLoot {
+public final class PlayerBotLoot {
 	private final Map<Integer, Long> attempted = new HashMap<>();
+	/** Read-only native current-stage objective requirements, also used to permit
+	 * human Need votes for quest items despite ordinary class/equipment limits. */
+	public static boolean needsObjective(Player player, int itemId) {
+		long owned = player.getInventory().getItemCountByItemId(itemId);
+		for (var quest : player.getQuestStateList().getUncompletedQuests())
+			if (PlayerBotQuestCraftingDriver.requirements(player, quest.getQuestId()).getOrDefault(itemId, 0L) > owned) return true;
+		return false;
+	}
 	void passRoll(Player bot) {
-		if (bot.isInPlayerMode(PlayerMode.IN_ROLL) && bot.inRoll != null) {
-			var roll = bot.inRoll;
-			boolean useful = roll.getRollType() == 2 && PlayerBotGearPolicy.roll(bot, DataManager.ITEM_DATA.getItemTemplate(roll.getItemId()));
-			DropDistributionService.getInstance().handleRollOrBid(bot, roll.getRollType(), useful ? 1 : 0, 0,
+		var distribution = DropDistributionService.getInstance();
+		for (var roll : distribution.getPendingRolls(bot)) {
+			int vote = roll.getRollType() == 2 ? vote(bot, DataManager.ITEM_DATA.getItemTemplate(roll.getItemId())) : DropDistributionService.PASS;
+			distribution.handleRollOrBid(bot, roll.getRollType(), vote, 0,
 				roll.getItemId(), roll.getNpcId(), roll.getIndex());
 		}
+	}
+	/** LootRollAction/ItemUsageValue at pinned 037c014: usable upgrades Need,
+	 * useful supplies/vendor items Greed, unusable/unique/full-bag items Pass.
+	 * User-requested differences: required native quest objectives also Need;
+	 * Greed is enabled here rather than copying WoW's default disabled option. */
+	private int vote(Player bot, ItemTemplate template) {
+		if (template == null || PlayerBotGearPolicy.settings(bot).rolls() == PlayerBotGearPolicy.Rolls.PASS
+			|| bot.getInventory().isFull(template.getExtraInventoryId())) return DropDistributionService.PASS;
+		int id = template.getTemplateId();
+		if (template.hasLimitOne() && (bot.getInventory().getItemCountByItemId(id) > 0
+			|| bot.getEquipment().getEquippedItems().stream().anyMatch(i -> i.getItemId() == id)
+			|| bot.getStorage(StorageType.REGULAR_WAREHOUSE.getId()).getFirstItemByItemId(id) != null)) return DropDistributionService.PASS;
+		long owned = bot.getInventory().getItemCountByItemId(id);
+		if (needsObjective(bot, id)) return DropDistributionService.NEED;
+		if (PlayerBotGearPolicy.roll(bot, template)) return DropDistributionService.NEED;
+		boolean supplies = PlayerBotSupplies.available(bot, template) && owned < Math.max(1, template.getMaxStackCount());
+		boolean vendor = (template.getMask() & ItemMask.SELLABLE) != 0 && template.getPrice() > 0;
+		return supplies || vendor || PlayerBotGearPolicy.settings(bot).rolls() == PlayerBotGearPolicy.Rolls.ALL
+			? DropDistributionService.GREED : DropDistributionService.PASS;
 	}
 	Npc choose(Player owner, Player bot) {
 		long now = System.currentTimeMillis(); attempted.values().removeIf(time -> time < now);

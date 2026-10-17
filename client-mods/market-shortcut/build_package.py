@@ -64,11 +64,11 @@ def main():
     # Apply the feature to graphics/cursor removal baselines as well.
     def metadata(source_prefix):
         prefix=(source_prefix+'/') if source_prefix else ''
-        srel=prefix+'DXVK/graphics-menu/installed.json';mrel=prefix+'DXVK/graphics-menu/package/manifest.json';drel=prefix+'DXVK/installed.json'
+        srel=prefix+'Mods/GraphicsMenu/installed.json';mrel=prefix+'Mods/GraphicsMenu/package/manifest.json';drel=prefix+'Mods/Renderer/installed.json'
         state=read(ROOT/srel);manifest=read(ROOT/mrel);dxvk=read(ROOT/drel)
         if state['files']!=manifest['files']:raise ValueError('Graphics tracking differs')
         baseline=Path(state['backupRoot']).resolve()
-        if not baseline.is_relative_to(ROOT/'DXVK-backups'):raise ValueError('Unsafe graphics baseline')
+        if not baseline.is_relative_to(ROOT/'Mods/Backups/Renderer'):raise ValueError('Unsafe graphics baseline')
         for e in state['files']:
             rel=e['path'];p=ROOT/prefix/rel
             if rel not in core:continue
@@ -79,16 +79,16 @@ def main():
                 b_rel=original.relative_to(ROOT).as_posix()
                 if b_rel not in staged:stage(b_rel,transformed(original,rel))
                 e['original']=sha(staged[b_rel]);e['installed']=sha(staged[p.relative_to(ROOT).as_posix()])
-                package=prefix+'DXVK/graphics-menu/package/'+rel;stage(package,staged[p.relative_to(ROOT).as_posix()])
+                package=prefix+'Mods/GraphicsMenu/package/'+rel;stage(package,staged[p.relative_to(ROOT).as_posix()])
         cursor=next(e for e in dxvk['nativeCursorPatch']['files'] if e['path']=='bin64/Game.dll');p=Path(cursor['backupPath']).resolve()
-        if not p.is_relative_to(ROOT/'DXVK-backups') or sha(p.read_bytes())!=cursor['original'].lower():raise ValueError('Cursor baseline changed')
+        if not p.is_relative_to(ROOT/'Mods/Backups/Renderer') or sha(p.read_bytes())!=cursor['original'].lower():raise ValueError('Cursor baseline changed')
         rel=p.relative_to(ROOT).as_posix()
         if rel not in staged:stage(rel,transformed(p,'bin64/Game.dll'))
         cursor.update(original=sha(staged[rel]),installed=sha(staged[prefix+'bin64/Game.dll']))
         manifest['files']=copy.deepcopy(state['files'])
         for rel,obj in [(srel,state),(mrel,manifest),(drel,dxvk)]:stage(rel,json.dumps(obj,indent=2).encode())
     metadata('')
-    receipt_rel='SpeechBubbles-backups/20261001-203148-743/manifest.json';receipt=read(ROOT/receipt_rel);base=str(Path(receipt_rel).parent).replace('\\','/')
+    receipt_rel='Mods/Backups/SpeechBubbles/20261001-203148-743/manifest.json';receipt=read(ROOT/receipt_rel);base=str(Path(receipt_rel).parent).replace('\\','/')
     for e in receipt['files']:
         if sha((ROOT/e['path']).read_bytes())!=e['installed']:raise ValueError('Speech receipt changed: '+e['path'])
         if e['original'] is not None and sha((ROOT/base/e['path']).read_bytes())!=e['original']:raise ValueError('Speech backup changed')

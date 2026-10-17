@@ -42,7 +42,7 @@ public class InRoll {
 	}
 
 	public void setIndexd(int index) {
-		this.index = itemId;
+		this.index = index;
 	}
 
 	public void setRollType(int rollType) {

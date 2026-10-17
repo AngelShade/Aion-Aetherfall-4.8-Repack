@@ -39,8 +39,8 @@ def main():
                 'Textures/ui/ui.pak','bin32/bin32.pak','Data/func_pet/func_pet.pak','Addon.key','Pub.key',
                 'Plugin/RelicCalc/RelicCalc.pak','Plugin/RelicCalc/RelicCalc.pak.sig',
                 'bin32/bin32.pak.sig','Data/func_pet/func_pet.pak.sig','Aion Start.bat',
-                'DXVK/installed.json','DXVK/graphics-menu/installed.json','DXVK/graphics-menu/package/manifest.json',
-                'DXVK/renderer.ini','DXVK/renderer-env.bat','system.cfg','SystemOptionGraphics.cfg']
+                'Mods/Renderer/installed.json','Mods/GraphicsMenu/installed.json','Mods/GraphicsMenu/package/manifest.json',
+                'DXVK/renderer.ini','Mods/Renderer/renderer-env.bat','system.cfg','SystemOptionGraphics.cfg']
     checks={}
     game=(client/'bin64/Game.dll').read_bytes()
     routes=['http://127.0.0.1:8091/shop','http://127.0.0.1:8091/market','http://127.0.0.1:8091/market/wardrobe',
@@ -79,8 +79,8 @@ def main():
         expected=b'\xe9'+struct.pack('<i',window_queue.HOOK_RVA-window_queue.SITE-5)+b'\x90\x90'
         generated=window_queue.code(window_queue.HOOK_RVA,window_queue.COUNTER_RVA)
         checks['native_window_queue_batching']=yield_bytes==expected and game[offset(window_queue.HOOK_RVA):offset(window_queue.HOOK_RVA)+len(generated)]==generated
-    hook_receipts=['RememberLogin-backups/20261003-074802-916/manifest.json','RememberLogin-backups/20261003-190013-967/manifest.json',
-                   'SpeechBubbles-backups/menu-revision-20261002-000305-836/manifest.json']
+    hook_receipts=['Mods/Backups/RememberLogin/20261003-074802-916/manifest.json','Mods/Backups/RememberLogin/20261003-190013-967/manifest.json',
+                   'Mods/Backups/SpeechBubbles/menu-revision-20261002-000305-836/manifest.json']
     checks['remember_login_and_speech_hooks']=True
     for rel in hook_receipts:
         for record in read(client/rel)['hooks']:
@@ -90,10 +90,10 @@ def main():
             checks['remember_login_and_speech_hooks'] &= game[offset(site):offset(site)+5]==expected
     index=(client/'bin64/AionIconBridge.index').read_bytes()
     checks['native_icon_index_matches_items']=index[24:56].hex()==sha(client/'Data/Items/Items.pak') and struct.unpack_from('<Q',index,16)[0]==(client/'Data/Items/Items.pak').stat().st_size
-    graphics=read(client/'DXVK/graphics-menu/installed.json');dxvk=read(client/'DXVK/installed.json')
-    checks['graphics_package_and_recovery']=graphics['files']==read(client/'DXVK/graphics-menu/package/manifest.json')['files']
+    graphics=read(client/'Mods/GraphicsMenu/installed.json');dxvk=read(client/'Mods/Renderer/installed.json')
+    checks['graphics_package_and_recovery']=graphics['files']==read(client/'Mods/GraphicsMenu/package/manifest.json')['files']
     for entry in graphics['files']:
-        checks['graphics_package_and_recovery'] &= sha(client/entry['path'])==entry['installed'] and sha(client/'DXVK/graphics-menu/package'/entry['path'])==entry['installed']
+        checks['graphics_package_and_recovery'] &= sha(client/entry['path'])==entry['installed'] and sha(client/'Mods/GraphicsMenu/package'/entry['path'])==entry['installed']
         if entry['original'] is not None:checks['graphics_package_and_recovery'] &= sha(Path(graphics['backupRoot'])/entry['path'])==entry['original']
     checks['cursor_tracking_and_recovery']=True
     for entry in dxvk['nativeCursorPatch']['files']:
@@ -103,6 +103,7 @@ def main():
         if 'PlayerBotBar.lua' in addon.namelist():
             checks['playerbot_party_bar']=all(name in addon.namelist() for name in ('PlayerBotBar.lua','PlayerBotBar.xml')) and all(name.encode() in addon.read('RelicCalc.toc') for name in ('PlayerBotBar.lua','PlayerBotBar.xml'))
     receipts=[str(p.relative_to(client)) for folder in client.glob('*-backups') if folder.is_dir() for p in folder.glob('*/manifest.json')]
+    receipts += [str(p.relative_to(client)) for p in (client/'Mods/Backups').glob('*/*/manifest.json')]
     # New diagnostic-driven client repairs keep recovery receipts external.
     client_archive=Path(os.environ.get('AION_DEV_ROOT','D:/Proiecte/Project Restructure/Aion Development Workspace'))/'archives/client'
     receipts += [str(p.resolve()) for p in client_archive.glob('window-queue-*/manifest.json')]

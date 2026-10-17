@@ -2,7 +2,7 @@ param([Parameter(Mandatory = $true)][string]$ClientPath)
 $ErrorActionPreference = 'Stop'
 $clientRoot = (Resolve-Path -LiteralPath $ClientPath).Path
 $manifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'manifest.json') -Raw | ConvertFrom-Json
-$modRoot = Join-Path $clientRoot 'DXVK'
+$modRoot = Join-Path $clientRoot 'Mods/Renderer'
 $statePath = Join-Path $modRoot 'installed.json'
 foreach ($patch in $manifest.compatibilityPatches) {
     if ((Get-FileHash -LiteralPath (Join-Path $clientRoot $patch.path)).Hash -ne $patch.sha256) {
@@ -35,7 +35,7 @@ if ([regex]::Matches($launcher,$pattern).Count -ne 1 -or $launcher.Contains('BEG
 }
 $header = [regex]::Match($launcher,'(?im)^@echo off\r?\n')
 if (-not $header.Success) { throw 'Expected launcher header is missing.' }
-$backup = Join-Path $clientRoot ('DXVK-backups/' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
+$backup = Join-Path $clientRoot ('Mods/Backups/Renderer/' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
 New-Item -ItemType Directory -Path $backup -Force | Out-Null
 Copy-Item -LiteralPath $launcherPath -Destination (Join-Path $backup 'Aion Start.bat')
 $files = @()
@@ -67,8 +67,8 @@ try {
     $block = @'
 rem BEGIN DXVK QUALITY
 set "PSModulePath=%SystemRoot%\System32\WindowsPowerShell\v1.0\Modules;%PSModulePath%"
-if exist "%~dp0DXVK\cursor-fix\InstallNativeCursorPatch.ps1" (
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0DXVK\cursor-fix\InstallNativeCursorPatch.ps1" -ClientPath "%~dp0."
+if exist "%~dp0Mods\CursorFix\Install-CursorFix.ps1" (
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Mods\CursorFix\Install-CursorFix.ps1" -ClientPath "%~dp0."
     if errorlevel 1 (
         echo Unable to apply the cursor compatibility patch.
         pause
@@ -76,8 +76,8 @@ if exist "%~dp0DXVK\cursor-fix\InstallNativeCursorPatch.ps1" (
     )
 )
 set "DXVK_CONFIG_FILE=%~dp0dxvk.conf"
-set "DXVK_LOG_PATH=%~dp0DXVK\logs"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0DXVK\QualityProfile.ps1" -ClientPath "%~dp0." -Startup
+set "DXVK_LOG_PATH=%~dp0Mods\Renderer\logs"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Mods\Renderer\QualityProfile.ps1" -ClientPath "%~dp0." -Startup
 if errorlevel 1 (
     echo Unable to apply graphics settings.
     pause

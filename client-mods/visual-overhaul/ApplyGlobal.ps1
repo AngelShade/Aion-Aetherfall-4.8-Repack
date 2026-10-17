@@ -20,7 +20,7 @@ if ($installed -eq $manifest.files.Count) {
 }
 if ($original -ne $manifest.files.Count) { throw 'Mixed archive states detected. No files changed.' }
 Assert-ClientClosed
-$backup = Join-Path $client ('GraphicsOverhaul-backups/' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
+$backup = Join-Path $client ('Mods/Backups/GraphicsOverhaul/' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
 foreach ($entry in $manifest.files) {
     $target = Join-Path $backup $entry.path
     New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null

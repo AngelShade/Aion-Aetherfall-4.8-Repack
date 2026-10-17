@@ -20,8 +20,9 @@ BUTTON_SITE = 0x7867f0
 DRAW_SITE = 0x4f2079
 
 # State: list pointer, reserved bytes, query length, saved thumb,
-# match count, 279 match flags, bounded UTF-16 query, and status text.
-FLAGS, QUERY, STATUS = 0x28, 0x140, 0x1c0
+# Match count ends at 0x1c; 288 flags at 0x20 end exactly before the query.
+# Keep the existing bounded UTF-16 query and status regions separate.
+FLAGS, QUERY, STATUS = 0x20, 0x140, 0x1c0
 TEXTS = {}
 _strings = bytearray()
 for _name, _text, _wide in [
@@ -158,7 +159,7 @@ def poll_code():
     hexcode(a, '8b8034040000894314')
     a.label('scan_setup')
     # Clear flags even when the native vector is shorter or an item was removed.
-    hexcode(a, '488d7b2831c0b9')
+    a.emit(bytes.fromhex('488d7b') + bytes([FLAGS]) + bytes.fromhex('31c0b9'))
     a.emit(struct.pack('<I', SLOTS))
     hexcode(a, 'f3aa4531ff4531edbdffffffff')
     a.label('scan')
@@ -190,7 +191,7 @@ def poll_code():
     a.relative(b'\xe8', MATCH)
     hexcode(a, '85c0')
     a.branch(b'\x0f\x84', 'step')
-    hexcode(a, '42c6443b280141ffc583fdff')
+    a.emit(bytes.fromhex('42c6443b') + bytes([FLAGS]) + bytes.fromhex('0141ffc583fdff'))
     a.branch(b'\x0f\x85', 'step')
     hexcode(a, '4489fd')
     a.label('step')
@@ -299,7 +300,7 @@ def draw_code():
     hexcode(a, '8b939000000081fa')
     a.emit(struct.pack('<I', SLOTS))
     a.branch(b'\x0f\x83', 'done')
-    hexcode(a, '807c102800')
+    a.emit(bytes.fromhex('807c10') + bytes([FLAGS]) + b'\0')
     a.branch(b'\x0f\x85', 'done')
     for reg in (10, 11, 12):
         a.branch(b'\xf3\x44\x0f\x59' + bytes([0x05 | ((reg & 7) << 3)]), 'dim')

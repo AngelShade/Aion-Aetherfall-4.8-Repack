@@ -11,6 +11,13 @@ import com.aionemu.gameserver.utils.PositionUtil;
 import com.aionemu.gameserver.world.geo.GeoService;
 
 public final class PlayerBotFlight {
+ public static boolean followsGlidingOwner(Player bot,Player owner) {
+  return com.aionemu.gameserver.configs.main.PlayerBotConfig.COMPANION_GLIDE_FOLLOW
+   && bot.isPlayerBot() && owner!=null && bot.getPlayerBotOwnerId()==owner.getObjectId()
+   && owner.isOnline() && owner.isSpawned() && !owner.isDead() && owner.isInGlidingState()
+   && PlayerBotTeams.same(owner,bot) && owner.getWorldId()==bot.getWorldId() && owner.getInstanceId()==bot.getInstanceId()
+   && PositionUtil.isInRange(owner,bot,60);
+ }
  public static boolean followsFlyingOwner(Player bot) {
   if(!bot.isPlayerBot())return false;
   var owner=com.aionemu.gameserver.world.World.getInstance().getPlayer(bot.getPlayerBotOwnerId());
@@ -26,10 +33,17 @@ public final class PlayerBotFlight {
   return Transition.NONE;
  }
  static void synchronize(Player owner, Player bot, Order order) {
-  if (bot.isDead() || !bot.canPerformMove() || bot.isCasting() || owner.isUsingFlightTransporterOrWindstream()) return;
+  if (bot.isDead() || !bot.canPerformMove() || bot.isTrading() || bot.isLooting() || owner.isUsingFlightTransporterOrWindstream()
+   || owner.getWorldId()!=bot.getWorldId() || owner.getInstanceId()!=bot.getInstanceId()
+   || bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover && mover.ridingPlatform()) return;
+  boolean follow=order==Order.FOLLOW || order==Order.PASSIVE;
+  if(bot.isCasting()) {
+   if(!follow || !followsGlidingOwner(bot,owner))return;
+   bot.getController().cancelCurrentSkill(null);
+  }
   float ground = GeoService.getInstance().getZ(bot.getWorldId(), bot.getX(), bot.getY(), bot.getZ(), bot.getInstanceId());
   boolean grounded = Float.isFinite(ground) && Math.abs(bot.getZ() - ground) <= 1.5;
-  switch (transition(order == Order.FOLLOW || order == Order.PASSIVE, owner.isFlying(), owner.isInGlidingState(), bot.isInFlyingState(), bot.isInGlidingState(), grounded)) {
+  switch (transition(follow, owner.isFlying(), owner.isInGlidingState(), bot.isInFlyingState(), bot.isInGlidingState(), grounded)) {
    case TAKE_OFF -> {
     if(bot.isInFlyingState() && bot.isInGlidingState()) { bot.getFlyController().onStopGliding(); break; }
     if (bot.getLifeStats().getCurrentFp() > 0 && bot.getFlyReuseTime() <= System.currentTimeMillis()) {
@@ -41,9 +55,11 @@ public final class PlayerBotFlight {
    case GLIDE -> {
     if (bot.getLifeStats().getCurrentFp() > 0) {
      bot.getMoveController().abortMove();
-     if (bot.getFlyController().switchToGliding())
+     if (bot.getFlyController().switchToGlidingFollowing(owner)) {
+      if(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover)mover.onGlideStarted();
       com.aionemu.gameserver.utils.PacketSendUtility.broadcastToSightedPlayers(bot,
        new com.aionemu.gameserver.network.aion.serverpackets.SM_EMOTION(bot, com.aionemu.gameserver.model.EmotionType.START_GLIDE), true);
+     }
     }
    }
    case LAND -> { bot.getMoveController().abortMove(); bot.getFlyController().endFly(true); }
@@ -60,6 +76,9 @@ public final class PlayerBotFlight {
   var from = new PlayerBotNavigation.Point(bot.getX(), bot.getY(), bot.getZ());
 	var next = step(from, new PlayerBotNavigation.Point(x,y,z), Math.max(6,bot.getGameStats().getMovementSpeedFloat()*2f));
   if (next == null || !GeoService.getInstance().canSee(bot, next.x(), next.y(), next.z(), IgnoreProperties.ANY_RACE)
+   || !GeoService.getInstance().validatePlayerBotHeightSegment(bot.getWorldId(),bot.getInstanceId(),
+    new com.aionemu.gameserver.geoEngine.math.Vector3f(from.x(),from.y(),from.z()),
+    new com.aionemu.gameserver.geoEngine.math.Vector3f(next.x(),next.y(),next.z()))
    || !PlayerBotHazards.safePath(from, next, hazards)) { bot.getMoveController().abortMove(); return false; }
   byte heading = (byte) Math.floorMod((int) Math.round(Math.toDegrees(Math.atan2(next.y()-bot.getY(),next.x()-bot.getX()))/3),120);
   bot.getMoveController().setNewDirection(next.x(),next.y(),next.z(),heading);

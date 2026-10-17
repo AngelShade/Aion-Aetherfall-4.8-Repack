@@ -28,7 +28,7 @@ def sha(data): return hashlib.sha256(data).hexdigest()
 def read(path): return json.loads(path.read_text(encoding='utf-8-sig'))
 
 def market_hooks(root):
-    backups=root/'MarketShortcut-backups'
+    backups=root/'Mods/Backups/MarketShortcut'
     if not backups.is_dir(): raise ValueError('Install the supported Central Market HUD patch before Season Pass')
     for manifest in sorted(backups.glob('*/manifest.json'),reverse=True):
         try:
@@ -100,31 +100,31 @@ def main():
     (out/'Pub.key').unlink()
     for rel in ['Addon.key','bin32/bin32.pak.sig','Data/func_pet/func_pet.pak.sig',pak+'.sig']:stage(rel,(out/rel).read_bytes())
     # Compose the current graphics/cursor recovery guards and their exact baselines.
-    graphics=read(root/'DXVK/graphics-menu/installed.json')
-    manifest=read(root/'DXVK/graphics-menu/package/manifest.json')
+    graphics=read(root/'Mods/GraphicsMenu/installed.json')
+    manifest=read(root/'Mods/GraphicsMenu/package/manifest.json')
     if graphics['files']!=manifest['files']: raise ValueError('Graphics recovery metadata differs')
     entry=next(e for e in graphics['files'] if e['path']=='bin64/Game.dll')
     if sha((root/entry['path']).read_bytes())!=entry['installed']: raise ValueError('Live Game.dll no longer matches graphics guards')
     baseline=Path(graphics['backupRoot'])/entry['path']
-    if not baseline.resolve().is_relative_to(root/'DXVK-backups') or sha(baseline.read_bytes())!=entry['original']: raise ValueError('Graphics baseline differs')
+    if not baseline.resolve().is_relative_to(root/'Mods/Backups/Renderer') or sha(baseline.read_bytes())!=entry['original']: raise ValueError('Graphics baseline differs')
     stage(baseline.relative_to(root),patch(baseline.read_bytes(),new_auth,new_browser))
     entry['original']=sha(staged[baseline.relative_to(root).as_posix()]); entry['installed']=sha(staged['bin64/Game.dll'])
     locale=next(e for e in graphics['files'] if e['path']=='L10N/enu/Data/data.pak')
     locale_baseline=Path(graphics['backupRoot'])/locale['path']
-    if not locale_baseline.resolve().is_relative_to(root/'DXVK-backups') or sha(locale_baseline.read_bytes())!=locale['original'] or sha((root/locale['path']).read_bytes())!=locale['installed']:raise ValueError('Graphics locale recovery guards differ')
+    if not locale_baseline.resolve().is_relative_to(root/'Mods/Backups/Renderer') or sha(locale_baseline.read_bytes())!=locale['original'] or sha((root/locale['path']).read_bytes())!=locale['installed']:raise ValueError('Graphics locale recovery guards differ')
     stage(locale_baseline.relative_to(root),shortcut.transform(locale_baseline,locale['path'],definitions,texture))
     locale.update(original=sha(staged[locale_baseline.relative_to(root).as_posix()]),installed=sha(staged[locale['path']]))
-    stage('DXVK/graphics-menu/package/'+locale['path'],staged[locale['path']])
+    stage('Mods/GraphicsMenu/package/'+locale['path'],staged[locale['path']])
     manifest['files']=graphics['files']
-    stage('DXVK/graphics-menu/installed.json',json.dumps(graphics,indent=2).encode())
-    stage('DXVK/graphics-menu/package/manifest.json',json.dumps(manifest,indent=2).encode())
-    stage('DXVK/graphics-menu/package/bin64/Game.dll',staged['bin64/Game.dll'])
-    cursor=read(root/'DXVK/installed.json'); entry=next(e for e in cursor['nativeCursorPatch']['files'] if e['path']=='bin64/Game.dll')
+    stage('Mods/GraphicsMenu/installed.json',json.dumps(graphics,indent=2).encode())
+    stage('Mods/GraphicsMenu/package/manifest.json',json.dumps(manifest,indent=2).encode())
+    stage('Mods/GraphicsMenu/package/bin64/Game.dll',staged['bin64/Game.dll'])
+    cursor=read(root/'Mods/Renderer/installed.json'); entry=next(e for e in cursor['nativeCursorPatch']['files'] if e['path']=='bin64/Game.dll')
     baseline=Path(entry['backupPath'])
-    if not baseline.resolve().is_relative_to(root/'DXVK-backups') or sha(baseline.read_bytes())!=entry['original']: raise ValueError('Cursor recovery baseline differs')
+    if not baseline.resolve().is_relative_to(root/'Mods/Backups/Renderer') or sha(baseline.read_bytes())!=entry['original']: raise ValueError('Cursor recovery baseline differs')
     stage(baseline.relative_to(root),patch(baseline.read_bytes(),new_auth,new_browser))
     entry['original']=sha(staged[baseline.relative_to(root).as_posix()]); entry['installed']=sha(staged['bin64/Game.dll'])
-    stage('DXVK/installed.json',json.dumps(cursor,indent=2).encode())
+    stage('Mods/Renderer/installed.json',json.dumps(cursor,indent=2).encode())
     # Earlier Market/Speech rollback receipts remain intact. Their source-hash
     # guards correctly require removing this later pass patch first.
     files=[dict(path=rel,original=sha((root/rel).read_bytes()) if (root/rel).is_file() else None,installed=sha(data)) for rel,data in staged.items()]

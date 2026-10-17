@@ -10,7 +10,9 @@ final class PlayerBotForcedFollow {
  boolean regrouped(long now, boolean leaderMoving, boolean needsFollow, boolean combat, boolean safe) {
   if (!active) return false;
   if (leaderMoving || needsFollow || !safe) lastMoving=now;
-  if (!safe || leaderMoving || needsFollow || combat || now-requested<2000 || now-lastMoving<1000) return false;
+  // Follow is an explicit withdrawal until regrouped, not a prohibition on
+  // fighting for the entire native combat timer after the owner has stopped.
+  if (!safe || leaderMoving || needsFollow || now-requested<2000 || now-lastMoving<1000) return false;
   active=false;
   return true;
  }

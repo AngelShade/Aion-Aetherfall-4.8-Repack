@@ -11,7 +11,7 @@ if (!$VerifyOnly -and (Get-Process -Name 'aion.bin','aion' -ErrorAction Silently
 if ($LASTEXITCODE -ne 0) { throw 'Companion package verification failed.' }
 $botManifest = Get-Content -Raw -LiteralPath (Join-Path $botPrepared 'manifest.json') | ConvertFrom-Json
 if ($VerifyOnly) { Write-Output 'OK: companion package verified; no installation.'; return }
-$botBackup = Join-Path $botClient ('TransmogMenu-backups/playerbots-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
+$botBackup = Join-Path $botClient ('Mods/Backups/TransmogMenu/playerbots-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
 New-Item -ItemType Directory -Path $botBackup | Out-Null
 foreach ($botEntry in $botManifest.files) {
     if ($null -eq $botEntry.original) { continue }
@@ -33,8 +33,8 @@ try {
     & java (Join-Path $PSScriptRoot '../season-pass/VerifySignatures.java') $botClient $botClient
     if ($LASTEXITCODE -ne 0) { throw 'Installed addon signatures failed.' }
     if ($botManifest.graphicsCompatibility) {
-        & (Join-Path $botClient 'DXVK/graphics-menu/ApplyGraphicsMenu.ps1') -ClientPath $botClient -VerifyOnly
-        & (Join-Path $botClient 'DXVK/cursor-fix/InstallNativeCursorPatch.ps1') -ClientPath $botClient
+        & (Join-Path $botClient 'Mods/GraphicsMenu/Install-GraphicsMenu.ps1') -ClientPath $botClient -VerifyOnly
+        & (Join-Path $botClient 'Mods/CursorFix/Install-CursorFix.ps1') -ClientPath $botClient
     }
 } catch {
     $botInstallError = $_

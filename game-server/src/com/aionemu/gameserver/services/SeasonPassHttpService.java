@@ -8,7 +8,7 @@ import java.nio.file.*;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import com.alibaba.fastjson2.JSON;
+import com.aionemu.commons.utils.Json;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.sun.net.httpserver.HttpExchange;
 import org.slf4j.Logger;
@@ -57,8 +57,8 @@ public final class SeasonPassHttpService {
 			if(FORMS.size()>=5000) throw new IllegalStateException("Season Pass is busy.");
 			byte[] bytes=new byte[24]; RANDOM.nextBytes(bytes); String id=Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
 			FORMS.put(id,new Form(p,p.getClientConnection(),now+600000)); state.put("request",id); state.put("notice",notice);
-			send(x,200,"application/json",JSON.toJSONString(state));
-		} catch(IllegalArgumentException e) { send(x,400,"application/json",JSON.toJSONString(Map.of("error",e.getMessage()))); }
+			send(x,200,"application/json",Json.write(state));
+		} catch(IllegalArgumentException e) { send(x,400,"application/json",Json.write(Map.of("error",e.getMessage()))); }
 		catch(Exception e) { log.error("Season Pass request failed",e); send(x,503,"application/json","{\"error\":\"Season Pass is unavailable. Refresh before trying again.\"}"); }
 		finally { x.close(); }
 	}

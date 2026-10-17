@@ -16,7 +16,7 @@ foreach($e in $manifest.files){
  $paths[$e.path]=$true
  $target=[IO.Path]::GetFullPath((Join-Path $client $e.path))
  if(-not $target.StartsWith($client+'\',[StringComparison]::OrdinalIgnoreCase)){throw 'Replacement outside client.'}
- if($e.path -notmatch '^(bin64/AionMarketShortcut\.dll|Addon\.key|bin32/bin32\.pak\.sig|Data/func_pet/func_pet\.pak\.sig|Plugin/RelicCalc/RelicCalc\.pak(\.sig)?|Data/ui/ui\.pak|Textures/ui/ui\.pak|L10N/enu/Data/data\.pak|Data/ui/game_hud_s[12]/game_hud_s[12]\.pak|DXVK/graphics-menu/(installed\.json|package/(manifest\.json|L10N/enu/Data/data\.pak))|DXVK-backups/service-menu-graphics-\d{8}-\d{6}-\d{6}/L10N/enu/Data/data\.pak)$'){throw "Unexpected replacement: $($e.path)"}
+ if($e.path -notmatch '^(bin64/AionMarketShortcut\.dll|Addon\.key|bin32/bin32\.pak\.sig|Data/func_pet/func_pet\.pak\.sig|Plugin/RelicCalc/RelicCalc\.pak(\.sig)?|Data/ui/ui\.pak|Textures/ui/ui\.pak|L10N/enu/Data/data\.pak|Data/ui/game_hud_s[12]/game_hud_s[12]\.pak|Mods/GraphicsMenu/(installed\.json|package/(manifest\.json|L10N/enu/Data/data\.pak))|Mods/Backups/Renderer/service-menu-graphics-\d{8}-\d{6}-\d{6}/L10N/enu/Data/data\.pak)$'){throw "Unexpected replacement: $($e.path)"}
  if((Get-FileHash -LiteralPath (Join-Path $prepared $e.path)).Hash -ne $e.installed){throw 'Prepared file changed.'}
  if($null -eq $e.original){if(Test-Path -LiteralPath $target){throw 'Added file already exists.'}}
  elseif((Get-FileHash -LiteralPath $target).Hash -ne $e.original){throw "Client changed: $($e.path)"}

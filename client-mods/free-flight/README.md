@@ -4,7 +4,8 @@ The server's `gameserver.administration.flight.free_fly` option permits a
 flight request, but the client checks its own flight zones before sending it.
 This client also needs `g_freefly = "1"` in its XOR-encoded `system.cfg`.
 
-`Enable-FreeFlight.ps1` updates only that option, preserving the other settings,
+The maintained `Enable-FreeFlight.ps1` is installed as
+`Mods/FreeFlight/Install-FreeFlight.ps1`. It updates only that option, preserving the other settings,
 comments, and line endings. `Install.ps1` backs up the client configuration and
 launcher, installs the helper, and makes `Aion Start.bat` run it before launch.
 Applying it at each launch preserves the setting if Aion rewrites `system.cfg`.

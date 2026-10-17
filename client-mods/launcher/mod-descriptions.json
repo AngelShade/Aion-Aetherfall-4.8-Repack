@@ -1,0 +1,104 @@
+{
+  "CursorFix": {
+    "Title": "Native cursor correction",
+    "Description": "Keeps cursor position and interaction aligned with the game window.",
+    "Listed": true,
+    "Files": []
+  },
+  "FreeFlight": {
+    "Title": "Free flight",
+    "Description": "Applies the installed client flight setting on startup.",
+    "Listed": true,
+    "Files": []
+  },
+  "GraphicsMenu": {
+    "Title": "In-game graphics menu",
+    "Description": "Native graphics controls and renderer options inside Aion.",
+    "Listed": true,
+    "Files": []
+  },
+  "GraphicsOverhaul": {
+    "Title": "World artwork",
+    "Description": "Installed world textures, environment artwork and optional visual effects.",
+    "Listed": true,
+    "Files": []
+  },
+  "Inventory": {
+    "Title": "Expanded inventory",
+    "Description": "Additional usable inventory space, retaining saved expansion credits.",
+    "Listed": true,
+    "Files": []
+  },
+  "LoginBranding": {
+    "Title": "Aetherfall login",
+    "Description": "Aetherfall branding, release news and character-selection artwork.",
+    "Listed": true,
+    "Files": []
+  },
+  "MarketShortcut": {
+    "Title": "Market, Aetherpass and Journey",
+    "Description": "HUD shortcuts for Central Market, Aetherpass and Choose Your Journey.",
+    "Listed": true,
+    "Files": []
+  },
+  "NativeIcons": {
+    "Title": "Native item icons",
+    "Description": "Original Aion item artwork in the custom menus.",
+    "Listed": true,
+    "Files": []
+  },
+  "PlayerBotBar": {
+    "Title": "Player companions",
+    "Description": "In-game companion controls, party support and alternate characters.",
+    "Listed": true,
+    "Files": []
+  },
+  "RememberLogin": {
+    "Title": "Remember login",
+    "Description": "Optional account remembrance on this PC and restored login news.",
+    "Listed": true,
+    "Files": []
+  },
+  "Renderer": {
+    "Title": "Graphics renderer",
+    "Description": "Select Direct3D 9 or Vulkan through DXVK.",
+    "Listed": true,
+    "Files": []
+  },
+  "SpeechBubbles": {
+    "Title": "Speech bubbles",
+    "Description": "Shows supported character speech above characters in the world.",
+    "Listed": true,
+    "Files": []
+  },
+  "VisualOverhaul": {
+    "Title": "Environment textures",
+    "Description": "The installed environment texture package and its recovery support.",
+    "Listed": true,
+    "Files": []
+  },
+  "WardrobeHUD": {
+    "Title": "Wardrobe shortcut",
+    "Description": "Opens Wardrobe from its native HUD button beside Journey.",
+    "Listed": true,
+    "Files": []
+  },
+  "Launcher": {
+    "Title": "Aetherfall launcher",
+    "Description": "Client startup, loading progress and launch settings.",
+    "Listed": false,
+    "Files": []
+  },
+  "NativeClientAssets": {
+    "Title": "Native client support",
+    "Description": "Shared native libraries, archives and addon signatures.",
+    "Listed": false,
+    "Files": []
+  },
+  "Security": {
+    "Title": "Security reports",
+    "Description": "Local reports and support information.",
+    "Listed": false,
+    "Files": []
+  }
+}

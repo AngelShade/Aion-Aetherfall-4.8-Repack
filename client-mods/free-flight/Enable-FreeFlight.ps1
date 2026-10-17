@@ -1,5 +1,5 @@
 param(
-    [string]$ClientPath = $PSScriptRoot
+    [string]$ClientPath = ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..')))
 )
 
 $ErrorActionPreference = 'Stop'

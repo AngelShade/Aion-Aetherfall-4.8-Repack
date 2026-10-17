@@ -313,6 +313,9 @@ public final class PlayerBotSession {
 		if (!autonomous() && !owner.isOnline()) return false;
 		if (PlayerBotHeadlessFlight.tick(bot)) { status="following native flight transport"; return true; }
 		if (bot.isUsingFlightTransporterOrWindstream()) { status="waiting for native scripted flight arrival"; return true; }
+		if (!autonomous() && bot.isSpawned() && owner.isSpawned()
+			&& (forcedFollow() || order==Order.PASSIVE || !bot.getController().isInCombat() && !owner.getController().isInCombat()))
+			PlayerBotFlight.synchronize(owner, bot, order);
 		if(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController heightMover && heightMover.traversingHeight()) {
 			status="completing verified jump or descent";return true;
 		}
@@ -370,13 +373,24 @@ public final class PlayerBotSession {
 		}
 		boolean incapacitated = !bot.canAttack() && !bot.isInState(CreatureState.RESTING);
 		long now = System.currentTimeMillis();
-		if (!autonomous()) PlayerBotFlight.synchronize(owner, bot, order);
+		PlayerBotCompanionLooks.tick(this);
 		if (forcedFollow() && withdrawToOwner(now)) return true;
 		PlayerBotGearPolicy.state(this);
 		if(!worldSleepRequested)PlayerBotTemporary.tick(this,autoGear);
 		// PB-CUSTOM-APPEARANCE-001 is staged only. Add its tick hook with the
 		// complete feature installation, never through an unrelated AI update.
 		loot.passRoll(bot);
+		if(!autonomous() && (order==Order.FOLLOW || order==Order.PASSIVE)
+			&& (order==Order.PASSIVE || !bot.getController().isInCombat() && !owner.getController().isInCombat())
+			&& owner.isInGlidingState() && bot.isInGlidingState()) {
+			// Actual leader glide owns movement even when it began over a road.
+			// Buffs, gathering and a stale combat/quest action cannot replace it.
+			cancelCharge();PlayerBotArbitration.clear(engine);stand();
+			navigation.hazards(PlayerBotHazards.visible(bot));
+			boolean moving=navigation.follow(owner,formationSlot);
+			status=moving?"gliding with owner":"gliding: awaiting clear route to owner";
+			return true;
+		}
 		if (!world()) PlayerBotPartyCompletion.tick(this);
 		boolean questEnabled=!worldSleepRequested && questing && com.aionemu.gameserver.configs.main.PlayerBotConfig.QUESTS_ENABLED;
 		PlayerBotQuestSync.tick(this, questEnabled);
@@ -514,6 +528,12 @@ public final class PlayerBotSession {
 		if (commandedTarget != 0 && enemies.stream().noneMatch(n -> n.getObjectId() == commandedTarget)) commandedTarget = 0;
 		var strategyPlan = new PlayerBotStrategyComposition.Plan(combat ? State.COMBAT : State.NON_COMBAT);
 		strategyPlan.multiplier(PlayerBotStrategyComposition.threat(withholdDamage));
+		var modes=strategyPlan.triggers("class travel and combat modes",State.NON_COMBAT,State.COMBAT);
+		if(PlayerBotAethertech.unwantedToggle(bot,role,combat,classTravelling(combat))!=null)
+			modes.add(trigger(new SimpleAction("end obsolete mech mode",()->!bot.isCasting(),()->{
+				var effect=PlayerBotAethertech.unwantedToggle(bot,role,combat,classTravelling(combat));
+				if(effect==null)return false;effect.endEffect();return true;
+			}),DISPEL+1));
 		List<Trigger> triggers = strategyPlan.triggers("encounter", State.COMBAT, State.NON_COMBAT);
 		if (order == Order.FOLLOW && !incapacitated) {
 			if (spread != null) triggers.add(trigger(new SimpleAction("spread targeted area cast", () -> true,
@@ -692,8 +712,8 @@ public final class PlayerBotSession {
 		if (mission==null && questActionsAllowed && !combat && !rest && questJob==null && hp(bot)>=85 && mp(bot)>=60 && !(!autonomous() && owner.getMoveController().isInMove())) {
 			var route=PlayerBotQuestRoutes.trigger(this,navigation);if(route!=null)triggers.add(route);
 		}
-		triggers = strategyPlan.triggers("follow across height", State.COMBAT, State.NON_COMBAT);
-		if(PlayerBotHeightTraversal.followRequired(autonomous(),order,!owner.isDead(),!incapacitated && bot.canPerformMove(),mission!=null,
+		triggers = strategyPlan.triggers("follow across height", State.NON_COMBAT);
+		if(!combat && PlayerBotHeightTraversal.followRequired(autonomous(),order,!owner.isDead(),!incapacitated && bot.canPerformMove(),mission!=null,
 			owner.getX()-bot.getX(),owner.getY()-bot.getY(),owner.getZ()-bot.getZ()))
 			triggers.add(trigger(new SimpleAction("follow owner across height", () -> !bot.isCasting() && !bot.isLooting() && !bot.isTrading(),
 				() -> {stand();return navigation.follow(owner,formationSlot);}), PlayerBotHeightTraversal.FOLLOW_PRIORITY));
@@ -749,6 +769,11 @@ public final class PlayerBotSession {
 		return true;
 	}
 
+	private boolean classTravelling(boolean combat) {
+		return PlayerBotAethertech.applies(bot.getPlayerClass()) && !combat && !worldSleepRequested
+			&& (navigation.travelling() || !autonomous() && (order==Order.FOLLOW || order==Order.PASSIVE)
+				&& !owner.isDead() && owner.getMoveController().isInMove());
+	}
 	private boolean fieldPullAllowed() {
 		return !closing && !worldSleepRequested && autonomous() && order==Order.FOLLOW && bot.isSpawned() && !bot.isDead() && !bot.isFlying()
 			&& (bot.canAttack() || bot.isInState(CreatureState.RESTING)) && !bot.isCasting() && !bot.isLooting() && !bot.isTrading()
@@ -807,6 +832,7 @@ public final class PlayerBotSession {
 		return recipient(e,party,enemy,combat,false);
 	}
 	private Creature recipient(PlayerBotSkills.Entry e, List<Player> party, Npc enemy, boolean combat,boolean requiredByQuest) {
+		if(e.kind()==SkillKind.BUFF && !PlayerBotAethertech.buffAllowed(bot,role,e.template(),combat,classTravelling(combat)))return null;
 		if(e.kind()==SkillKind.BUFF && !PlayerBotTownPolicy.buffUseful(e.template(),combat,requiredByQuest))return null;
 		if (e.kind() == SkillKind.PET_ORDER) {
 			var pet = bot.getSummon();
@@ -1011,6 +1037,7 @@ public final class PlayerBotSession {
 				&& (PlayerBotHealing.managed(entry) || !PlayerBotService.getInstance().isReserved(bot, recipient, entry.kind()));
 		}
 		@Override public boolean isPossible() { return !bot.isSkillDisabled(entry.template()) && PlayerBotSkills.chainAvailable(bot, entry)
+			&& (entry.kind()!=SkillKind.BUFF || PlayerBotAethertech.buffAllowed(bot,role,entry.template(),!enemies.isEmpty(),classTravelling(!enemies.isEmpty())))
 			&& (bot.canAttack() || entry.kind() == SkillKind.RECOVERY || bot.isInState(CreatureState.RESTING))
 			&& PlayerBotCombatPosition.allowSpellApproach(bot,role,entry,recipient,skills)
 			&& PlayerBotSkills.canPlan(bot, entry, recipient, !canFlank(recipient, entry)) && safeArea(entry, recipient, enemies); }

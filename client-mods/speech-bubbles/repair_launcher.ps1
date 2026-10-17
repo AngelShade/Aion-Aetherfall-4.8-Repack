@@ -5,7 +5,7 @@ $backup=(Resolve-Path -LiteralPath $BackupPath).Path
 $manifest=Get-Content -Raw -LiteralPath (Join-Path $prepared 'manifest.json') | ConvertFrom-Json
 $original=Get-Content -Raw -LiteralPath (Join-Path $backup 'manifest.json') | ConvertFrom-Json
 $client=(Resolve-Path -LiteralPath $manifest.clientRoot).Path
-if($client -ne $original.clientRoot -or $original.graphicsCompatibility -or -not $backup.StartsWith((Join-Path $client 'SpeechBubbles-backups\'),[StringComparison]::OrdinalIgnoreCase)){throw 'Unexpected speech backup.'}
+if($client -ne $original.clientRoot -or $original.graphicsCompatibility -or -not $backup.StartsWith((Join-Path $client 'Mods\Backups\SpeechBubbles\'),[StringComparison]::OrdinalIgnoreCase)){throw 'Unexpected speech backup.'}
 if(Get-Process -Name 'aion.bin','aion' -ErrorAction SilentlyContinue){throw 'Fully close Aion before launcher repair.'}
 . (Join-Path $PSScriptRoot 'GraphicsCompatibility.ps1')
 $extra=@(Get-SpeechGraphicsPaths $manifest)

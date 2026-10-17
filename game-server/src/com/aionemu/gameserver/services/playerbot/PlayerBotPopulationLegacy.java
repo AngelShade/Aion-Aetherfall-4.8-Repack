@@ -3,7 +3,7 @@ package com.aionemu.gameserver.services.playerbot;
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.*;
-import com.alibaba.fastjson2.JSON;
+import com.aionemu.commons.utils.Json;
 
 /** Read-only, offline migration decoder. Runtime repositories never consult these files. */
 final class PlayerBotPopulationLegacy {
@@ -28,12 +28,12 @@ final class PlayerBotPopulationLegacy {
  }
  static Map<Integer,PlayerBotWorldPopulation.Pool> pools(Path path) throws IOException {
   var result=new TreeMap<Integer,PlayerBotWorldPopulation.Pool>();if(!Files.exists(path))return result;
-  try{var rows=JSON.parseArray(read(path),PlayerBotWorldPopulation.Pool.class);if(rows==null)throw new IllegalArgumentException("Null pools");for(var p:rows)if(result.put(p.account(),p)!=null)throw new IllegalArgumentException("Duplicate population account");}
+  try{var rows=Json.readList(read(path),PlayerBotWorldPopulation.Pool.class);if(rows==null)throw new IllegalArgumentException("Null pools");for(var p:rows)if(result.put(p.account(),p)!=null)throw new IllegalArgumentException("Duplicate population account");}
   catch(RuntimeException e){throw new IOException("Invalid legacy population pools; retain original",e);}return result;
  }
  static PlayerBotPopulationSchedule.State schedule(Path path) throws IOException {
   if(!Files.exists(path))return new PlayerBotPopulationSchedule.State(1,0,0,Map.of());
-  try{var state=JSON.parseObject(read(path),PlayerBotPopulationSchedule.State.class);if(state==null)throw new IllegalArgumentException("Null schedule");return state;}
+  try{var state=Json.readLegacyFile(read(path),PlayerBotPopulationSchedule.State.class);if(state==null)throw new IllegalArgumentException("Null schedule");return state;}
   catch(RuntimeException e){throw new IOException("Invalid legacy population schedule; retain original",e);}
  }
  static PlayerBotPopulationRepository.Snapshot snapshot(Path directory) throws IOException {

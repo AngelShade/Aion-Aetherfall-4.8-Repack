@@ -115,6 +115,17 @@ public class FlyController {
 	 * - start fp reduce + emotions/stats if from fly to glide - only emotions/stats
 	 */
 	public boolean switchToGliding() {
+		return switchToGliding(false);
+	}
+
+	/** A recruited companion follows the owner's actual glide, including ground
+	 * launch. Its previous flight cooldown must not delay that handoff. */
+	public boolean switchToGlidingFollowing(Player owner) {
+		if(!com.aionemu.gameserver.services.playerbot.PlayerBotFlight.followsGlidingOwner(player,owner))return false;
+		return switchToGliding(true);
+	}
+
+	private boolean switchToGliding(boolean followingOwner) {
 		if (player.isInGlidingState() || !player.canPerformMove())
 			return false;
 		if (player.isUsingFlightTransporterOrWindstream())
@@ -123,7 +134,7 @@ public class FlyController {
 			return false;
 		if (player.getFlyState() == 0) {
 			// fly reuse time only if gliding from walking
-			if (player.getFlyReuseTime() > System.currentTimeMillis()) {
+			if (!followingOwner && player.getFlyReuseTime() > System.currentTimeMillis()) {
 				return false;
 			}
 			player.setFlyReuseTime(System.currentTimeMillis() + FLY_REUSE_TIME);

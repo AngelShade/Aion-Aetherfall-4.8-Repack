@@ -3,6 +3,8 @@ package com.aionemu.gameserver.configs.main;
 import com.aionemu.commons.configuration.Property;
 
 public final class PlayerBotConfig {
+	@Property(key = "gameserver.playerbots.companion.glide_follow", defaultValue = "true")
+	public static boolean COMPANION_GLIDE_FOLLOW = true;
  @Property(key = "gameserver.playerbots.navigation.mesh.enable", defaultValue = "true")
  public static boolean NAVMESH_ENABLED = true;
  @Property(key = "gameserver.playerbots.navigation.mesh.memory_mb", defaultValue = "768")
@@ -133,6 +135,8 @@ public final class PlayerBotConfig {
 	public static int TICK_MS;
 	@Property(key = "gameserver.playerbots.generated.enable", defaultValue = "true")
 	public static boolean GENERATED_ENABLED;
+	@Property(key = "gameserver.playerbots.generated.random_looks", defaultValue = "true")
+	public static boolean GENERATED_RANDOM_LOOKS;
 	/** Saved Temporary Bot capacity, independent of the active native party quota. */
 	@Property(key = "gameserver.playerbots.generated.max_per_account", defaultValue = "20")
 	public static int GENERATED_MAX_PER_ACCOUNT;

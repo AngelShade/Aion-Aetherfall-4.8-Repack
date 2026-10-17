@@ -11,7 +11,7 @@ from install import closed,replace
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--backup',type=Path,required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--apply',action='store_true');a=p.parse_args()
     out=a.output.resolve();backup=a.backup.resolve();receipt=read(backup/'receipt.json');root=Path(receipt['client']).resolve()
-    if not backup.is_relative_to(root/'BrowserFrame-backups') or out.is_relative_to(root):raise ValueError('Unexpected repair paths')
+    if not backup.is_relative_to(root/'Mods/Backups/BrowserFrame') or out.is_relative_to(root):raise ValueError('Unexpected repair paths')
     for name,digest in receipt['files'].items():
         if name not in ['Game.dll','AionBrowserProbe.dll'] or sha((root/'bin64'/name).read_bytes())!=digest:raise ValueError('Diagnostic changed after installation')
     prior=(backup/'Game.dll').read_bytes()
@@ -27,7 +27,7 @@ def main():
         print('OK: staged Graphics tracking and diagnostic-preserving restore baselines; client unchanged');return
     manifest=read(out/'manifest.json')
     if manifest['clientRoot']!=str(root) or manifest['diagnosticBackup']!=str(backup):raise ValueError('Unexpected staged repair')
-    closed();saved=root/'BrowserFrame-backups'/('graphics-tracking-'+datetime.now().strftime('%Y%m%d-%H%M%S-%f'));saved.mkdir(parents=True,exist_ok=False)
+    closed();saved=root/'Mods/Backups/BrowserFrame'/('graphics-tracking-'+datetime.now().strftime('%Y%m%d-%H%M%S-%f'));saved.mkdir(parents=True,exist_ok=False)
     entries=manifest['repairFiles'];preserved={name:sha((root/'bin64'/name).read_bytes()) for name in receipt['files']}
     for e in entries:
         rel=Path(e['path']);live=root/rel

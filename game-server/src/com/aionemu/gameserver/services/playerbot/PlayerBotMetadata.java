@@ -24,9 +24,11 @@ public final class PlayerBotMetadata {
  public static boolean validAccount(int account){return PlayerBotPopulationPolicy.account(account);}
  public static void validate(int account,int character,String section,Map<String,String> map)throws IOException {
   try {
-   if(!validAccount(account) || character<=0 || !Set.of("care","gear","preferences","behavior","formation","spacing","party-rewards","quest-completion").contains(section))throw new IllegalArgumentException("Invalid section/owner");
+   if(!validAccount(account) || character<=0 || !Set.of("care","gear","preferences","behavior","formation","spacing","party-rewards","quest-completion","looks").contains(section))throw new IllegalArgumentException("Invalid section/owner");
    if(Integer.parseInt(map.get("account"))!=account || Integer.parseInt(map.get("character"))!=character)throw new IllegalArgumentException("Owner mismatch");
-   if(section.equals("care")) {
+   if(section.equals("looks")) {
+    if(!Set.of("2","3","4").contains(map.get("version")))throw new IllegalArgumentException("Invalid companion appearance version");
+   } else if(section.equals("care")) {
     for(String key:List.of("enchant","salvage","partySync"))if(map.containsKey(key) && !Set.of("true","false").contains(map.get(key)))throw new IllegalArgumentException("Invalid care flag");
     for(String key:List.of("reserve","dailyBudget","spent"))if(map.containsKey(key) && Long.parseLong(map.get(key))<0)throw new IllegalArgumentException("Invalid budget");
     ids(map.getOrDefault("skipped",""));ids(map.getOrDefault("approved",""));

@@ -1,5 +1,5 @@
 param(
-    [string]$ClientPath = (Split-Path -Parent $PSScriptRoot),
+    [string]$ClientPath = ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))),
     [switch]$Restore,
     [switch]$Startup
 )
@@ -12,7 +12,7 @@ if (Get-Process -Name 'aion.bin','aion' -ErrorAction SilentlyContinue) {
     throw 'Close Aion before applying or restoring its graphics settings.'
 }
 $clientRoot = (Resolve-Path -LiteralPath $ClientPath).Path
-$stateRoot = Join-Path $clientRoot 'DXVK'
+$stateRoot = Join-Path $clientRoot 'Mods/Renderer'
 $baselineRoot = Join-Path $stateRoot 'profile-original'
 $latin1 = [Text.Encoding]::GetEncoding(28591)
 $profiles = [ordered]@{
@@ -29,6 +29,23 @@ $profiles = [ordered]@{
         'USE_MG' = '"1"'
         'MG_GENERAL' = '"-2"'
         'MG_SHADOW' = '"4"'
+    }
+}
+
+# A prepared visual-quality package supplies only its reviewed native controls.
+# Keep one startup settings writer so the usual HQ profile cannot undo it.
+$qualityPath = Join-Path $clientRoot 'Mods/GraphicsOverhaul/quality-profile.json'
+if (Test-Path -LiteralPath $qualityPath) {
+    $quality = Get-Content -LiteralPath $qualityPath -Raw | ConvertFrom-Json
+    $allowed = @('e_obj_lod_ratio','r_DetailDistance','r_WaterReflections_MaxViewDist',
+        'r_WaterReflections','r_WaterRefractions','r_mrt_ssao','r_mrt_ssaoresolution','r_mrt_sunshaft')
+    foreach ($entry in $quality.native.PSObject.Properties) {
+        $value = [double]::Parse([string]$entry.Value,[Globalization.CultureInfo]::InvariantCulture)
+        if ($entry.Name -notin $allowed -or [double]::IsNaN($value) -or [double]::IsInfinity($value) -or $value -lt 0 -or
+            ($value -eq 0 -and $entry.Name -ne 'r_mrt_ssaoresolution')) {
+            throw 'Unsupported native quality control.'
+        }
+        $profiles['system.cfg'][$entry.Name] = '"' + $entry.Value + '"'
     }
 }
 

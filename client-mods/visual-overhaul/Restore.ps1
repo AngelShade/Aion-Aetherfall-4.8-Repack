@@ -1,14 +1,14 @@
-param([string]$ClientPath = (Split-Path -Parent $PSScriptRoot))
+param([string]$ClientPath = ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))))
 . (Join-Path $PSScriptRoot 'Common.ps1')
 Assert-AionClosed
 $clientRoot = (Resolve-Path -LiteralPath $ClientPath).Path
-$modRoot = Join-Path $clientRoot 'VisualOverhaul'
+$modRoot = Join-Path $clientRoot 'Mods/VisualOverhaul'
 $statePath = Join-Path $modRoot 'installed.json'
 if (Test-Path -LiteralPath $statePath) {
     $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
     if ($state.clientRoot -ne $clientRoot) { throw 'Restore record belongs to another client.' }
     $backupRoot = (Resolve-Path -LiteralPath $state.backupRoot).Path
-    $expectedBackupRoot = (Join-Path $clientRoot 'VisualOverhaul-backups').TrimEnd('\') + '\'
+    $expectedBackupRoot = (Join-Path $clientRoot 'Mods/Backups/VisualOverhaul').TrimEnd('\') + '\'
     if (-not $backupRoot.StartsWith($expectedBackupRoot, [StringComparison]::OrdinalIgnoreCase)) {
         throw 'Unexpected archive backup directory.'
     }

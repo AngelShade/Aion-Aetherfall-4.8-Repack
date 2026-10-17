@@ -3,7 +3,7 @@ $ErrorActionPreference='Stop'
 $prepared=(Resolve-Path -LiteralPath $PreparedPath).Path
 $manifest=Get-Content -Raw -LiteralPath (Join-Path $prepared 'manifest.json') | ConvertFrom-Json
 $client=(Resolve-Path -LiteralPath $manifest.clientRoot).Path
-if($manifest.speechReceipt -notmatch '^SpeechBubbles-backups/\d{8}-\d{6}-\d{3}/manifest\.json$'){throw 'Invalid speech receipt path.'}
+if($manifest.speechReceipt -notmatch '^Mods/Backups/SpeechBubbles/\d{8}-\d{6}-\d{3}/manifest\.json$'){throw 'Invalid speech receipt path.'}
 $receipt=Get-Content -Raw -LiteralPath (Join-Path $client $manifest.speechReceipt) | ConvertFrom-Json
 . (Join-Path $PSScriptRoot 'GraphicsCompatibility.ps1')
 if(Test-SpeechClientRunning $client){throw 'Close Aion normally before installing the native chat-menu revision.'}
@@ -21,7 +21,7 @@ foreach($e in $manifest.files){
  $target=Join-Path $client $e.path
  if(($null -eq $e.original -and (Test-Path -LiteralPath $target)) -or ($null -ne $e.original -and (Get-FileHash -LiteralPath $target).Hash -ne $e.original) -or (Get-FileHash -LiteralPath (Join-Path $prepared $e.path)).Hash -ne $e.installed){throw "Client or prepared patch changed: $($e.path)"}
 }
-$backup=Join-Path $client ('SpeechBubbles-backups/menu-revision-'+(Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
+$backup=Join-Path $client ('Mods/Backups/SpeechBubbles/menu-revision-'+(Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
 foreach($e in $manifest.files){
  if($null -eq $e.original){continue}
  $saved=Join-Path $backup $e.path

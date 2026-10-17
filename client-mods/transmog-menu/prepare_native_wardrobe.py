@@ -61,8 +61,8 @@ def main():
     shutil.copyfile(args.bridge,out/'bin64/AionIconBridge.dll')
     theme(out)
     preserved=['bin32/bin32.pak','Data/func_pet/func_pet.pak','Data/Items/Items.pak','bin64/AionIconBridge.index',
-        'Data/ui/game/game.pak','L10N/enu/data/data.pak','DXVK/graphics-menu/package/manifest.json',
-        'DXVK/graphics-menu/installed.json','DXVK/installed.json','Aion Start.bat']
+        'Data/ui/game/game.pak','L10N/enu/data/data.pak','Mods/GraphicsMenu/package/manifest.json',
+        'Mods/GraphicsMenu/installed.json','Mods/Renderer/installed.json','Aion Start.bat']
     manifest=dict(clientRoot=str(client),signatureIsolation='archive-v2',nativeWardrobe=True,nativeWardrobeTheme='blue-v1',legacyAddon=[],retiredFiles=[],
         files=[dict(path=path.relative_to(out).as_posix(),original=digest(client/path.relative_to(out)) if (client/path.relative_to(out)).exists() else None,staged=digest(path)) for path in sorted(out.rglob('*')) if path.is_file()],
         preservedFiles=[dict(path=name,sha256=digest(client/name)) for name in preserved if (client/name).exists()],

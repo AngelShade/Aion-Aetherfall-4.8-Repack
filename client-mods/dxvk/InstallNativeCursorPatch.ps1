@@ -1,7 +1,7 @@
 param([Parameter(Mandatory=$true)][string]$ClientPath)
 $ErrorActionPreference = 'Stop'
 $clientRoot = (Resolve-Path -LiteralPath $ClientPath).Path
-$statePath = Join-Path $clientRoot 'DXVK/installed.json'
+$statePath = Join-Path $clientRoot 'Mods/Renderer/installed.json'
 $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
 . (Join-Path $PSScriptRoot 'RendererCommon.ps1')
 if ($state.clientRoot -ne $clientRoot -or $state.restoredAt) { throw 'Expected an active DXVK installation.' }
@@ -37,9 +37,9 @@ foreach ($patch in $patches) {
     $bytes[$patch.offset+1] = 0x90
     $pending += @{path=$patch.path;original=$patch.hash;after=$bytes;offset=$patch.offset}
 }
-$backup = Join-Path $clientRoot ('DXVK-backups/native-cursor-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
+$backup = Join-Path $clientRoot ('Mods/Backups/Renderer/native-cursor-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
 New-Item -ItemType Directory -Path $backup -Force | Out-Null
-$savedFiles = @('bin64/XRenderD3D9.dll','bin64/Game.dll','DXVK/QualityProfile.ps1','DXVK/Restore.ps1','DXVK/installed.json','system.cfg','SystemOptionGraphics.cfg')
+$savedFiles = @('bin64/XRenderD3D9.dll','bin64/Game.dll','Mods/Renderer/QualityProfile.ps1','Mods/Renderer/Restore.ps1','Mods/Renderer/installed.json','system.cfg','SystemOptionGraphics.cfg')
 foreach ($path in $savedFiles) {
     $saved = Join-Path $backup $path
     New-Item -ItemType Directory -Path (Split-Path $saved -Parent) -Force | Out-Null
@@ -48,7 +48,7 @@ foreach ($path in $savedFiles) {
 }
 try {
     # The installed earlier helper also removes the unsuccessful depth override.
-    & (Join-Path $clientRoot 'DXVK/QualityProfile.ps1') -ClientPath $clientRoot -Restore
+    & (Join-Path $clientRoot 'Mods/Renderer/QualityProfile.ps1') -ClientPath $clientRoot -Restore
     $installedPatches = @()
     foreach ($patch in $pending) {
         $target = Join-Path $clientRoot $patch.path
@@ -56,9 +56,9 @@ try {
         $installedPatches += @{path=$patch.path;original=$patch.original;installed=(Get-FileHash -LiteralPath $target).Hash;backupPath=(Join-Path $backup $patch.path);offset=$patch.offset;replacement='9090'}
     }
     foreach ($helper in @('QualityProfile.ps1','Restore.ps1')) {
-        Copy-Item -LiteralPath (Join-Path $PSScriptRoot $helper) -Destination (Join-Path $clientRoot ('DXVK/' + $helper)) -Force
+        Copy-Item -LiteralPath (Join-Path $PSScriptRoot $helper) -Destination (Join-Path $clientRoot ('Mods/Renderer/' + $helper)) -Force
     }
-    & (Join-Path $clientRoot 'DXVK/QualityProfile.ps1') -ClientPath $clientRoot
+    & (Join-Path $clientRoot 'Mods/Renderer/QualityProfile.ps1') -ClientPath $clientRoot
     $state | Add-Member -NotePropertyName nativeCursorPatch -NotePropertyValue @{
         appliedAt=(Get-Date -Format 'o');architecture='x64';files=$installedPatches;visualConfirmation='Pending player check'
     } -Force

@@ -1,5 +1,13 @@
 # Player Companions and Choose Your Journey HUD shortcuts
 
+`wardrobe.py --client <client> --output <new-external-folder>` stages the Wardrobe
+button immediately to Journey's right. It uses the existing native skin-change
+icon and `/wardrobe` command, extends the first HUD's hit area to fit, and updates
+both HUD styles and the English locale. It builds AionMarketShortcut.dll and
+composes the graphics locale package/restore hashes. Game.dll, addon packages,
+signatures, the Journey action and the existing Wardrobe menu entry are retained.
+The original client and repack must be staged and installed separately.
+
 Two native34x32 buttons flank the existing Aetherfall Season Pass ticket above
 Central Market/Shop. Player Companions is on the left; Choose Your Journey on the
 right. They dispatch the existing `/companions` and `/journey` commands into

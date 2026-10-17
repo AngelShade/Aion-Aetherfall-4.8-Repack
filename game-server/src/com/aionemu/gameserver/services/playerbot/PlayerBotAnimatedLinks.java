@@ -4,7 +4,9 @@ import java.io.*;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.*;
-import com.alibaba.fastjson2.*;
+import com.aionemu.commons.utils.Json;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import org.recast4j.detour.*;
 import com.aionemu.gameserver.services.playerbot.PlayerBotNavigation.Point;
 
@@ -25,13 +27,13 @@ final class PlayerBotAnimatedLinks {
     static PlayerBotAnimatedLinks read(Path file,String hash,PlayerBotAnimatedScene scene,int map,int components)throws IOException{
         long size=Files.size(file);require(size>0 && size<=16*1024*1024,"animated link size");byte[] bytes=Files.readAllBytes(file);
         require(bytes.length==size && PlayerBotNavmeshTopology.hash(bytes).equals(hash),"animated links authentication");
-        var encoded=JSON.parseObject(bytes);require("aion-animated-links-1".equals(encoded.getString("format")) && map==encoded.getIntValue("map"),"animated link map/format");
+        var encoded=Json.read(bytes);require("aion-animated-links-1".equals(Json.string(encoded,"format")) && map==Json.integer(encoded,"map"),"animated link map/format");
         var entities=new HashMap<Integer,PlayerBotAnimatedScene.Entity>();for(var entity:scene.entities(map))entities.put(entity.id,entity);
-        var array=encoded.getJSONArray("rides");require(array!=null && array.size()<=32768,"animated ride count");var rides=new ArrayList<Ride>();
+        var array=Json.array(encoded,"rides");require(array!=null && array.size()<=32768,"animated ride count");var rides=new ArrayList<Ride>();
         for(int i=0;i<array.size();i++){
-            var value=array.getJSONObject(i);var entity=entities.get(value.getIntValue("entity"));int part=value.getIntValue("part");
+            var value=Json.object(array,i);var entity=entities.get(Json.integer(value,"entity"));int part=Json.integer(value,"part");
             require(entity!=null && part>=0 && part<entity.model.nodes.length && entity.model.nodes[part].physics!=null,"animated physical part");
-            double[] local=vector(value.getJSONArray("local"));var from=stop(value.getJSONObject("from"),components,entity.model);var to=stop(value.getJSONObject("to"),components,entity.model);
+            double[] local=vector(Json.array(value,"local"));var from=stop(Json.object(value,"from"),components,entity.model);var to=stop(Json.object(value,"to"),components,entity.model);
             require(from.component!=to.component,"animated ride endpoints identical");
             require(entity.at(from.time,0).supports(part,entity.at(from.time,0).point(part,local))
                 && entity.at(to.time,0).supports(part,entity.at(to.time,0).point(part,local)),"animated ride slot support");
@@ -39,12 +41,12 @@ final class PlayerBotAnimatedLinks {
         }
         return new PlayerBotAnimatedLinks(scene,rides);
     }
-    private static Stop stop(JSONObject value,int components,PlayerBotAnimatedScene.Model model)throws IOException{
-        int component=value.getIntValue("component");double time=value.getDoubleValue("time");double[] point=vector(value.getJSONArray("ground"));
+    private static Stop stop(JsonObject value,int components,PlayerBotAnimatedScene.Model model)throws IOException{
+        int component=Json.integer(value,"component");double time=Json.decimal(value,"time");double[] point=vector(Json.array(value,"ground"));
         require(component>=0 && component<components && Double.isFinite(time) && time>=model.start && time<model.start+model.duration,"animated dock component/phase");
         return new Stop(component,new Point((float)point[0],(float)point[1],(float)point[2]),time);
     }
-    private static double[] vector(JSONArray value)throws IOException{require(value!=null && value.size()==3,"animated dock vector");double[] point=new double[3];for(int i=0;i<3;i++){point[i]=value.getDoubleValue(i);require(Double.isFinite(point[i]) && Math.abs(point[i])<Float.MAX_VALUE,"animated dock finite");}return point;}
+    private static double[] vector(JsonArray value)throws IOException{require(value!=null && value.size()==3,"animated dock vector");double[] point=new double[3];for(int i=0;i<3;i++){point[i]=Json.decimal(value,i);require(Double.isFinite(point[i]) && Math.abs(point[i])<Float.MAX_VALUE,"animated dock finite");}return point;}
     static PlayerBotAnimatedLinks derive(PlayerBotAnimatedScene scene,int map,NavMesh mesh,PlayerBotNavmeshTopology graph)throws IOException {
         var selected=new LinkedHashMap<String,Ride>();var query=new NavMeshQuery(mesh);var filter=new DefaultQueryFilter();
         for(var entity:scene.entities(map)){
@@ -109,7 +111,7 @@ final class PlayerBotAnimatedLinks {
     private static double distance(double[] a,double[] b){double total=0;for(int i=0;i<3;i++)total+=(a[i]-b[i])*(a[i]-b[i]);return Math.sqrt(total);}
     byte[] encode(int map){
         var encoded=new ArrayList<Map<String,Object>>();for(Ride ride:rides)encoded.add(Map.of("entity",ride.entity.id,"part",ride.part,"local",ride.local,"from",encode(ride.from),"to",encode(ride.to)));
-        return JSON.toJSONBytes(Map.of("format","aion-animated-links-1","map",map,"rides",encoded),JSONWriter.Feature.SortMapEntriesByKeys);
+        return Json.sortedBytes(Map.of("format","aion-animated-links-1","map",map,"rides",encoded));
     }
     void write(Path file,int map)throws IOException{
         Path temporary=file.resolveSibling(file.getFileName()+".tmp");Files.write(temporary,encode(map));

@@ -179,11 +179,11 @@ public final class MarketplaceService {
 			}
 			String name = exchange.getRequestURI().getPath().substring("/shop/media/".length());
 			// Item images are supplied by the native client bridge, with no disk PNGs.
-			if (!name.matches("ui/(favorite|history|preview)\\.svg|marketplace\\.(css|js)|hero\\.webp|fashion\\.webp|companions\\.webp|adventure\\.webp|banb\\.ttf")) {
+			if (!name.matches("ui/(favorite|history|preview)\\.svg|marketplace\\.(css|js)|quantity\\.js|hero\\.webp|fashion\\.webp|companions\\.webp|adventure\\.webp|banb\\.ttf")) {
 				exchange.sendResponseHeaders(404, -1);
 				return;
 			}
-			Path file = MEDIA.resolve(name);
+			Path file = name.equals("quantity.js") ? Path.of("config/central-market/media/quantity.js") : MEDIA.resolve(name);
 			if (!Files.isRegularFile(file)) {
 				exchange.sendResponseHeaders(404, -1);
 				return;
@@ -294,7 +294,11 @@ public final class MarketplaceService {
 					CompletableFuture<PurchaseResult> result = new CompletableFuture<>();
 					ThreadPoolManager.getInstance().execute(() -> {
 						try {
-							result.complete(purchase(buyer, offer));
+							String raw=args.getOrDefault("quantity","1");
+							if(!raw.matches("[0-9]{1,12}"))throw new IllegalArgumentException("Enter a whole purchase quantity.");
+							result.complete(purchase(buyer, offer,Long.parseLong(raw),purchaseForm.maximum()));
+						} catch (IllegalArgumentException | ArithmeticException e) {
+							result.complete(new PurchaseResult(PurchaseStatus.FAILED,offer,e.getMessage()));
 						} catch (Exception e) {
 							result.completeExceptionally(e);
 						}
@@ -320,8 +324,21 @@ public final class MarketplaceService {
 		}
 	}
 
-	private static PurchaseResult purchase(Player player, Offer offer) {
+	private static long purchaseMaximum(Offer offer,long balance) {
+		ItemTemplate template=DataManager.ITEM_DATA.getItemTemplate(offer.itemId());
+		if(template==null || offer.count()<=0 || offer.price()<=0)return 0;
+		long packs=template.getMaxStackCount()/offer.count();
+		if(packs<1)return 0;
+		long packLimit=CentralMarketRules.maxQuantity(template.isStackable(),packs);
+		return Math.max(0,Math.min(packLimit,Math.min(balance/offer.price(),CentralMarketRules.MAX_KINAH/offer.price())));
+	}
+	private static PurchaseResult purchase(Player player, Offer base,long quantity,long quotedMaximum) {
 		synchronized (player.getInventory()) {
+			long maximum=Math.min(quotedMaximum,purchaseMaximum(base,player.getInventory().getKinah()));
+			if(quantity<1 || quantity>maximum)
+				return new PurchaseResult(PurchaseStatus.FAILED,base,"Quantity is no longer available. Reopen this item to check your balance and maximum.");
+			long count=Math.multiplyExact(base.count(),quantity),price=CentralMarketRules.total(base.price(),quantity);
+			Offer offer=new Offer(base.itemId(),count,price,base.section(),base.unlockLevel(),base.name(),base.description(),base.race(),base.gender(),base.quality());
 			if (World.getInstance().getPlayer(player.getObjectId()) != player)
 				return new PurchaseResult(PurchaseStatus.FAILED, offer, "You are no longer logged in.");
 			if (player.getLevel() < offer.unlockLevel())
@@ -641,10 +658,10 @@ public final class MarketplaceService {
 				.append(nativeIcon(offer.itemId(), offer.count(), 64))
 				.append("<div><strong>").append(escape(offer.name())).append("</strong><span>Quantity ")
 				.append(offer.count()).append(" · ").append(escape(offer.section().title)).append("</span></div></div>")
-				.append("<div class='review-line'><span>Price</span><strong>").append(String.format("%,d", offer.price()))
+				.append("<div class='review-line'><span>Total price</span><strong id='review-price'>").append(String.format("%,d", offer.price()))
 				.append(" Kinah</strong></div><div class='review-line'><span>Your balance</span><strong>")
 				.append(String.format("%,d", balance)).append(" Kinah</strong></div>")
-				.append("<div class='review-line total'><span>Balance after purchase</span><strong>")
+				.append("<div class='review-line total'><span>Balance after purchase</span><strong id='review-balance-after'>")
 				.append(String.format("%,d", Math.max(0, balance - offer.price()))).append(" Kinah</strong></div>")
 				.append("<div class='delivery-note'>✉ &nbsp; Delivered to <strong>").append(escape(player.getName()))
 				.append("</strong> through Black Cloud mail after payment.</div>");
@@ -652,8 +669,9 @@ public final class MarketplaceService {
 				byte[] bytes = new byte[18];
 				random.nextBytes(bytes);
 				String form = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+				long maximum=purchaseMaximum(offer,balance);
 				purchaseForms.put(form, new PurchaseForm(offer, player.getObjectId(), catalog.version(),
-					System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(10)));
+					System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(10),maximum));
 				body.append("<form method='post' action='/shop#shop-receipt' onsubmit='return shopConfirm(this)'><input type='hidden' name='session_id' value='")
 					.append(escape(sessionId)).append("'><input type='hidden' name='category' value='").append(section.id)
 					.append("'><input type='hidden' name='q' value='").append(escape(query))
@@ -663,7 +681,11 @@ public final class MarketplaceService {
 					.append("'><input type='hidden' name='view' value='").append(view)
 					.append("'><input type='hidden' name='item' value='").append(offer.itemId())
 					.append("'><input type='hidden' name='form' value='").append(form)
-					.append("'><button class='purchase-button' type='submit'>Confirm & pay ")
+					.append("'><div class='shop-quantity' data-max='").append(maximum).append("' data-price='").append(offer.price())
+					.append("' data-count='").append(offer.count()).append("' data-balance='").append(balance)
+					.append("'><label for='quantity'>Quantity · maximum ").append(maximum)
+					.append("</label><input id='quantity' name='quantity' type='text' value='1' maxlength='12'><div class='quantity-tools'><button id='max-quantity' type='button'>Max</button></div>")
+					.append("<p class='quantity-summary' role='status'></p></div><button class='purchase-button' type='submit'>Confirm & pay ")
 					.append(String.format("%,d", offer.price())).append(" Kinah <span>→</span></button></form>");
 			} else body.append("<div class='detail-unavailable'>").append(escape(availability)).append("</div>");
 			body.append("<a class='quiet-link' href='").append(escape(detailUrl + "#shop-content")).append("'>← Back to item details</a></div>");
@@ -938,8 +960,8 @@ public final class MarketplaceService {
 
 	private static String page(String body) {
 		return "<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>"
-			+ "<title>Cash Shop</title><link rel='stylesheet' href='/shop/media/marketplace.css?v=15'>"
-			+ "<script src='/shop/media/marketplace.js?v=2' defer></script>"
+			+ "<title>Cash Shop</title><link rel='stylesheet' href='/shop/media/marketplace.css?v=16'>"
+			+ "<script src='/shop/media/quantity.js?v=1' defer></script><script src='/shop/media/marketplace.js?v=3' defer></script>"
 			+ "</head><body>" + body + "</body></html>";
 	}
 
@@ -1101,7 +1123,7 @@ public final class MarketplaceService {
 	private record CachedMedia(FileStamp stamp, byte[] bytes) {
 	}
 
-	private record PurchaseForm(Offer offer, int playerId, long catalogVersion, long expires) {
+	private record PurchaseForm(Offer offer, int playerId, long catalogVersion, long expires,long maximum) {
 	}
 
 	private enum PurchaseStatus {

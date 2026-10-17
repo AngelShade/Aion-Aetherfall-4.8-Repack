@@ -73,8 +73,9 @@ public final class PlayerBotSkills {
 			BOOSTSPELLATTACK, BOOSTHATE, BOOSTSKILLCASTINGTIME, REFLECTOR, REBIRTH) ? BUFF : UNSUPPORTED;
 	}
 
-	/** Ordinary classification stays unchanged; Mau is useful only for its live native quest counter. */
+	/** Native class preparations and quest-authorized Mau extend ordinary effect classification. */
 	public static SkillKind classify(Player bot, SkillTemplate template) {
+		if (PlayerBotAethertech.applies(bot.getPlayerClass()) && PlayerBotAethertech.chargingActivation(template)) return BUFF;
 		return questTransformationEligible(bot, template) ? BUFF : classify(template);
 	}
 

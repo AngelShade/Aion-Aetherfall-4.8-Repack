@@ -177,6 +177,10 @@ public class GeoService implements GameEngine {
 		int worldId,int instance,float x,float y,float z,float tx,float ty,float targetZ,float speed,long deadline) {
 		return com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.plan(geoMaps.get(worldId),instance,x,y,z,tx,ty,targetZ,speed,deadline);
 	}
+	public com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.Search searchPlayerBotHeightTraversal(
+		int worldId,int instance,float x,float y,float z,float tx,float ty,float targetZ,float speed) {
+		return com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.search(geoMaps.get(worldId),instance,x,y,z,tx,ty,targetZ,speed,200);
+	}
 	public boolean validatePlayerBotHeightSegment(int worldId,int instance,Vector3f from,Vector3f to) {
 		return com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.segment(geoMaps.get(worldId),instance,from,to);
 	}

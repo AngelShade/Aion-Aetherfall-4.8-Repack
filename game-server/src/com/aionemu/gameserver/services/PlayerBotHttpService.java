@@ -7,7 +7,7 @@ import java.nio.file.*;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import com.alibaba.fastjson2.JSON;
+import com.aionemu.commons.utils.Json;
 import com.aionemu.gameserver.configs.main.PlayerBotConfig;
 import com.aionemu.gameserver.model.PlayerClass;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
@@ -37,7 +37,7 @@ public final class PlayerBotHttpService {
 			if (!(mutation ? method.equals("POST") : method.equals("GET"))) { send(exchange, 405, "text/plain", "Method not allowed"); return; }
 			var values = parse(mutation ? new String(exchange.getRequestBody().readNBytes(8193), StandardCharsets.UTF_8) : exchange.getRequestURI().getRawQuery());
 			Player player = MarketplaceService.findPlayer(values.getOrDefault("session_id", ""));
-			if (player == null || !player.isOnline() || player.isPlayerBot()) { send(exchange, 403, "application/json", JSON.toJSONString(Map.of("error", "Log in and reopen Companions from Additional Functions."))); return; }
+			if (player == null || !player.isOnline() || player.isPlayerBot()) { send(exchange, 403, "application/json", Json.write(Map.of("error", "Log in and reopen Companions from Additional Functions."))); return; }
 			String notice = "";
 			var service = PlayerBotService.getInstance();
 			synchronized (player) {
@@ -55,12 +55,12 @@ public final class PlayerBotHttpService {
 				if (TICKETS.size() >= 4096) throw new IllegalStateException("Companion panel is busy");
 				byte[] bytes = new byte[24]; RANDOM.nextBytes(bytes); String id = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
 				TICKETS.put(id, new Ticket(player, player.getClientConnection(), now + 120000)); state.put("request", id);
-				send(exchange, 200, "application/json", JSON.toJSONString(state));
+				send(exchange, 200, "application/json", Json.write(state));
 			}
-		} catch (IllegalArgumentException error) { send(exchange, 400, "application/json", JSON.toJSONString(Map.of("error", error.getMessage()))); }
+		} catch (IllegalArgumentException error) { send(exchange, 400, "application/json", Json.write(Map.of("error", error.getMessage()))); }
 		catch (Exception error) {
 			org.slf4j.LoggerFactory.getLogger(PlayerBotHttpService.class).error("Companion panel request failed", error);
-			send(exchange, 503, "application/json", JSON.toJSONString(Map.of("error", "The request could not be completed. Refresh before retrying.")));
+			send(exchange, 503, "application/json", Json.write(Map.of("error", "The request could not be completed. Refresh before retrying.")));
 		} finally { exchange.close(); }
 	}
 	public static boolean validTicket(Object expectedPlayer, Object player, Object expectedConnection, Object connection, long expires, long now) {
@@ -101,6 +101,8 @@ public final class PlayerBotHttpService {
 		state.putAll(PlayerBotPresets.snapshot(owner));
 		state.put("classes", Arrays.stream(PlayerClass.values()).filter(pc -> pc.isStartingClass() == (owner.getLevel() < 10)).map(Enum::name).toList());
 		state.put("startingClasses", Arrays.stream(PlayerClass.values()).filter(PlayerClass::isStartingClass).map(Enum::name).toList());
+		state.put("creationJourney", PoetaJourneyService.creationOptions(owner.getRace()));
+		state.put("generatedRandomLooks", PlayerBotConfig.GENERATED_RANDOM_LOOKS);
 		state.put("roles", Arrays.stream(Role.values()).map(Enum::name).toList());
 		state.put("quests", owner.getQuestStateList().getUncompletedQuests().stream().map(q -> Map.of("id", q.getQuestId(), "name", PlayerBotQuestJournal.name(q.getQuestId()), "status", q.getStatus().name())).toList());
 		return state;
@@ -118,7 +120,7 @@ public final class PlayerBotHttpService {
 			case "recruit" -> service.recruit(owner, name);
 			case "create", "generate" -> {
 				PlayerClass pc = PlayerClass.valueOf(values.getOrDefault("playerClass", "").toUpperCase(Locale.ROOT));
-				if (op.equals("create")) service.create(owner, name, pc); else PlayerBotGenerationOptions.generate(owner, name, pc, values.getOrDefault("start", "matched"));
+				if (op.equals("create")) service.create(owner, name, pc, values.getOrDefault("start", "level1")); else PlayerBotGenerationOptions.generate(owner, name, pc, values.getOrDefault("start", "matched"));
 			}
 			case "dismiss" -> { for(var s:PlayerBotAllianceControl.scoped(owner,name,values))service.dismiss(owner,s.bot().getName()); }
 			case "summon" -> PlayerBotTravel.summonAll(values.containsKey("group")?PlayerBotAllianceControl.scoped(owner,name,values):PlayerBotRecovery.selected(owner,name));

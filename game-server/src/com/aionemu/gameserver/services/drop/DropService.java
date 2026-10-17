@@ -15,10 +15,8 @@ import com.aionemu.gameserver.configs.main.GroupConfig;
 import com.aionemu.gameserver.dataholders.DataManager;
 import com.aionemu.gameserver.model.EmotionType;
 import com.aionemu.gameserver.model.TaskId;
-import com.aionemu.gameserver.model.actions.PlayerMode;
 import com.aionemu.gameserver.model.drop.DropItem;
 import com.aionemu.gameserver.model.gameobjects.*;
-import com.aionemu.gameserver.model.gameobjects.player.InRoll;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.model.gameobjects.state.CreatureState;
 import com.aionemu.gameserver.model.items.ItemId;
@@ -77,6 +75,7 @@ public class DropService {
 	 */
 	public void unregisterDrop(Npc npc) {
 		int npcObjId = npc.getObjectId();
+		DropDistributionService.getInstance().unregister(npcObjId);
 		DropRegistrationService.getInstance().getCurrentDropMap().remove(npcObjId);
 		DropRegistrationService.getInstance().getDropRegistrationMap().remove(npcObjId);
 	}
@@ -134,6 +133,18 @@ public class DropService {
 		player.setState(CreatureState.LOOTING);
 		player.setLootingNpcOid(npcObjectId);
 		PacketSendUtility.broadcastPacket(player, new SM_EMOTION(player, EmotionType.START_LOOT, 0, npcObjectId), true);
+		// Opening a team corpse starts its applicable rolls, rather than requiring
+		// repeated item clicks. The distribution registry admits at most five and
+		// retains the rest in the native team queue with per-item custody.
+		if (dropNpc.getLootGroupRules() != null) {
+			List<DropItem> candidates;
+			synchronized (dropItems) { candidates = List.copyOf(dropItems); }
+			for (DropItem item : candidates) {
+				if (item.getCount() <= 0 || item.isFreeForAll() || item.isDistributeItem() || !item.canViewDropItem(player.getObjectId())) continue;
+				item.setNpcObj(npcObjectId);
+				canDistribute(player, item);
+			}
+		}
 	}
 
 	/**
@@ -187,49 +198,16 @@ public class DropService {
 	}
 
 	public boolean canDistribute(Player player, DropItem requestedItem) {
-		int npcId = requestedItem.getNpcObj();
-		final DropNpc dropNpc = DropRegistrationService.getInstance().getDropRegistrationMap().get(npcId);
-		if (dropNpc == null) {
-			return false;
-		}
-
-		LootGroupRules lootGroupRules = dropNpc.getLootGroupRules();
-		if (lootGroupRules == null) {
-			return true;
-		}
-
+		DropNpc dropNpc = DropRegistrationService.getInstance().getDropRegistrationMap().get(requestedItem.getNpcObj());
+		if (dropNpc == null) return false;
+		LootGroupRules rules = dropNpc.getLootGroupRules();
 		int itemId = requestedItem.getDropTemplate().getItemId();
-		if (itemId != ItemId.KINAH) {
-			if (dropNpc.getInRangePlayers().size() > 1) {
-				ItemQuality quality = DataManager.ITEM_DATA.getItemTemplate(itemId).getItemQuality();
-				dropNpc.setDistributionId(lootGroupRules.getAutodistributionId());
-				dropNpc.setDistributionType(lootGroupRules.getQualityRule(quality));
-			} else
-				dropNpc.setDistributionId(0);
-			if (dropNpc.getDistributionId() > 1 && dropNpc.getDistributionType()) {
-				boolean containDropItem = lootGroupRules.containDropItem(requestedItem);
-				if (lootGroupRules.getItemsToBeDistributed().isEmpty() || containDropItem) {
-					dropNpc.setCurrentIndex(requestedItem.getIndex());
-					for (Player member : dropNpc.getInRangePlayers()) {
-						Player finalPlayer = World.getInstance().getPlayer(member.getObjectId());
-						if (finalPlayer != null && finalPlayer.isPlaying()) {
-							dropNpc.addPlayerStatus(finalPlayer);
-							finalPlayer.setPlayerMode(PlayerMode.IN_ROLL, new InRoll(npcId, itemId, requestedItem.getIndex(), dropNpc.getDistributionId()));
-							PacketSendUtility.sendPacket(finalPlayer, new SM_GROUP_LOOT(dropNpc.getLootingTeamId(), 0, itemId, (int) requestedItem.getCount(),
-								npcId, dropNpc.getDistributionId(), 1, requestedItem.getIndex()));
-						}
-					}
-					lootGroupRules.setPlayersInRoll(dropNpc.getInRangePlayers(), dropNpc.getDistributionId() == 2 ? 17000 : 32000, requestedItem.getIndex(),
-						npcId);
-				} else {
-					PacketSendUtility.sendPacket(player,
-						SM_SYSTEM_MESSAGE.STR_MSG_LOOT_ALREADY_DISTRIBUTING_ITEM(DataManager.ITEM_DATA.getItemTemplate(itemId).getL10n()));
-				}
-				if (!containDropItem) {
-					lootGroupRules.addItemToBeDistributed(requestedItem);
-				}
-				return false;
-			}
+		if (rules == null || itemId == ItemId.KINAH || dropNpc.getInRangePlayers().size() <= 1) return true;
+		int mode = rules.getAutodistributionId();
+		ItemTemplate template = DataManager.ITEM_DATA.getItemTemplate(itemId);
+		if (template != null && mode > 1 && rules.getQualityRule(template.getItemQuality())) {
+			DropDistributionService.getInstance().queue(requestedItem, dropNpc, rules, mode);
+			return false;
 		}
 		return true;
 	}
@@ -327,87 +305,91 @@ public class DropService {
 			}
 		}
 
-		long initialCount = requestedItem.getCount();
-		// Kinah is distributed to all group/alliance members nearby.
-		if (itemId == ItemId.KINAH) {
-			var team = player.getCurrentTeam();
-			if (team == null) {
-				requestedItem.setCount(ItemService.addItem(player, itemId, requestedItem.getCount()));
-			} else {
-				List<Player> entitledPlayers = team
-					.filterMembers(m -> m.isPlaying() && !m.isDead() && !m.isMentor() && PositionUtil.isInRange(m, player, GroupConfig.GROUP_MAX_DISTANCE));
-				distributeEqually(requestedItem, entitledPlayers);
-			}
-		} else if (!player.isInTeam() && !requestedItem.isItemWonNotCollected() && dropNpc.getDistributionId() == 0) {
-			requestedItem.setCount(ItemService.addItem(player, itemId, requestedItem.getCount()));
-		} else if (!requestedItem.isDistributeItem()) {
-			if (lootGroupRules != null) {
-				ItemQuality quality = DataManager.ITEM_DATA.getItemTemplate(itemId).getItemQuality();
-				if (lootGroupRules.isMisc(quality)) {
-					Collection<Player> members = dropNpc.getInRangePlayers();
-
-					if (members.size() > lootGroupRules.getNrMisc()) {
-						lootGroupRules.setNrMisc(lootGroupRules.getNrMisc() + 1);
-					} else {
-						lootGroupRules.setNrMisc(1);
-					}
-
-					int i = 0;
-					for (Player p : members) {
-						i++;
-						if (i == lootGroupRules.getNrMisc()) {
-							requestedItem.setWinningPlayer(p);
-							break;
-						}
-					}
+		if (!requestedItem.tryBeginCollection()) return;
+		try {
+			if (requestedItem.getCount() <= 0) return;
+			long initialCount = requestedItem.getCount();
+			// Kinah is distributed to all group/alliance members nearby.
+			if (itemId == ItemId.KINAH) {
+				var team = player.getCurrentTeam();
+				if (team == null) {
+					requestedItem.setCount(ItemService.addItem(player, itemId, requestedItem.getCount()));
 				} else {
+					List<Player> entitledPlayers = team
+						.filterMembers(m -> m.isPlaying() && !m.isDead() && !m.isMentor() && PositionUtil.isInRange(m, player, GroupConfig.GROUP_MAX_DISTANCE));
+					distributeEqually(requestedItem, entitledPlayers);
+				}
+			} else if (!player.isInTeam() && !requestedItem.isDistributeItem() && !requestedItem.isItemWonNotCollected() && dropNpc.getDistributionId() == 0) {
+				requestedItem.setCount(ItemService.addItem(player, itemId, requestedItem.getCount()));
+			} else if (!requestedItem.isDistributeItem()) {
+				if (lootGroupRules != null) {
+					ItemQuality quality = DataManager.ITEM_DATA.getItemTemplate(itemId).getItemQuality();
+					if (lootGroupRules.isMisc(quality)) {
+						Collection<Player> members = dropNpc.getInRangePlayers();
+
+						if (members.size() > lootGroupRules.getNrMisc()) {
+							lootGroupRules.setNrMisc(lootGroupRules.getNrMisc() + 1);
+						} else {
+							lootGroupRules.setNrMisc(1);
+						}
+
+						int i = 0;
+						for (Player p : members) {
+							i++;
+							if (i == lootGroupRules.getNrMisc()) {
+								requestedItem.setWinningPlayer(p);
+								break;
+							}
+						}
+					} else {
+						requestedItem.setWinningPlayer(player);
+					}
+				} else if (requestedItem.getWinningPlayer() == null) {
 					requestedItem.setWinningPlayer(player);
 				}
-			} else if (requestedItem.getWinningPlayer() == null) {
-				requestedItem.setWinningPlayer(player);
-			}
 
-			if (requestedItem.getWinningPlayer() != null) {
+				if (requestedItem.getWinningPlayer() != null) {
+					requestedItem.setCount(ItemService.addItem(requestedItem.getWinningPlayer(), itemId, requestedItem.getCount(), false, new TempTradeDropPredicate(dropNpc)));
+
+					winningNormalActions(player, dropNpc, requestedItem);
+				}
+			} else if (!autoLoot && requestedItem.isDistributeItem()) { // handles distribution of item to correct player and messages accordingly
+				if (!player.equals(requestedItem.getWinningPlayer())) {
+					PacketSendUtility.sendPacket(player, SM_SYSTEM_MESSAGE.STR_MSG_LOOT_ANOTHER_OWNER_ITEM());
+					return;
+				} else if (requestedItem.getWinningPlayer().getInventory().isFull(template.getExtraInventoryId())) {
+					PacketSendUtility.sendPacket(requestedItem.getWinningPlayer(), SM_SYSTEM_MESSAGE.STR_MSG_DICE_INVEN_ERROR());
+					requestedItem.isItemWonNotCollected(true);
+					return;
+				}
+
 				requestedItem.setCount(ItemService.addItem(requestedItem.getWinningPlayer(), itemId, requestedItem.getCount(), false, new TempTradeDropPredicate(dropNpc)));
 
-				winningNormalActions(player, dropNpc, requestedItem);
-			}
-		} else if (!autoLoot && requestedItem.isDistributeItem()) { // handles distribution of item to correct player and messages accordingly
-			if (!player.equals(requestedItem.getWinningPlayer()) && requestedItem.isItemWonNotCollected()) {
-				PacketSendUtility.sendPacket(player, SM_SYSTEM_MESSAGE.STR_MSG_LOOT_ANOTHER_OWNER_ITEM());
-				return;
-			} else if (requestedItem.getWinningPlayer().getInventory().isFull(template.getExtraInventoryId())) {
-				PacketSendUtility.sendPacket(requestedItem.getWinningPlayer(), SM_SYSTEM_MESSAGE.STR_MSG_DICE_INVEN_ERROR());
-				requestedItem.isItemWonNotCollected(true);
-				return;
-			}
-
-			requestedItem.setCount(ItemService.addItem(requestedItem.getWinningPlayer(), itemId, requestedItem.getCount(), false, new TempTradeDropPredicate(dropNpc)));
-
-			switch (dropNpc.getDistributionId()) {
-				case 2 -> winningRollActions(requestedItem.getWinningPlayer(), itemId, npcObjectId);
-				case 3 -> winningBidActions(requestedItem.getWinningPlayer(), npcObjectId, requestedItem.getHighestValue());
-			}
-		}
-
-		if (requestedItem.getCount() <= 0) {
-			synchronized (dropItems) {
-				dropItems.remove(requestedItem);
-			}
-		}
-		if (requestedItem.getCount() < initialCount) {
-			announceDrop(requestedItem.getWinningPlayer() != null ? requestedItem.getWinningPlayer() : player, template);
-			Pet pet = player.getPet();
-			if (pet != null && pet.getCommonData().isSelling()) {
-				List<Item> stacks = player.getInventory().getItemsByItemId(requestedItem.getDropTemplate().getItemId());
-				if (stacks.stream().anyMatch(item -> item.isSellable() && item.getItemTemplate().getItemQuality() == ItemQuality.JUNK)) {
-					PetService.getInstance().sell(pet, stacks);
+				switch (requestedItem.getDistributionMode() != 0 ? requestedItem.getDistributionMode() : dropNpc.getDistributionId()) {
+					case 2 -> winningRollActions(requestedItem.getWinningPlayer(), itemId, npcObjectId);
+					case 3 -> winningBidActions(requestedItem.getWinningPlayer(), npcObjectId, requestedItem.getHighestValue());
 				}
 			}
-		}
 
-		if (!autoLoot)
-			resendDropList(dropNpc.getLootingPlayer(), npcObjectId, dropNpc, dropItems);
+			if (requestedItem.getCount() <= 0) {
+				synchronized (dropItems) {
+					dropItems.remove(requestedItem);
+				}
+			}
+			if (requestedItem.getCount() < initialCount) {
+				announceDrop(requestedItem.getWinningPlayer() != null ? requestedItem.getWinningPlayer() : player, template);
+				Pet pet = player.getPet();
+				if (pet != null && pet.getCommonData().isSelling()) {
+					List<Item> stacks = player.getInventory().getItemsByItemId(requestedItem.getDropTemplate().getItemId());
+					if (stacks.stream().anyMatch(item -> item.isSellable() && item.getItemTemplate().getItemQuality() == ItemQuality.JUNK)) {
+						PetService.getInstance().sell(pet, stacks);
+					}
+				}
+			}
+
+			if (!autoLoot)
+				resendDropList(dropNpc.getLootingPlayer(), npcObjectId, dropNpc, dropItems);
+		} finally { requestedItem.endCollection(); }
 	}
 
 	private static void distributeEqually(DropItem item, List<Player> players) {

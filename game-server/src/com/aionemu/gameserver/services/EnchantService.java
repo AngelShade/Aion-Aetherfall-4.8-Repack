@@ -2,9 +2,11 @@ package com.aionemu.gameserver.services;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import com.aionemu.commons.utils.Rnd;
+import com.aionemu.gameserver.configs.administration.AdminConfig;
 import com.aionemu.gameserver.configs.main.RatesConfig;
 import com.aionemu.gameserver.dataholders.DataManager;
 import com.aionemu.gameserver.model.enchants.EnchantEffect;
@@ -157,7 +159,16 @@ public class EnchantService {
 			}
 		}
 
-		return Rnd.chance() < successChance;
+		return rollWithAdminInfo(player, successChance, "Enchanting");
+	}
+
+	/** Report only the actual completion-time roll, after native supplement consumption. */
+	private static boolean rollWithAdminInfo(Player player, float successChance, String action) {
+		boolean success = Rnd.chance() < successChance;
+		if (player.isStaff() && player.hasAccess(AdminConfig.ENCHANT_INFO))
+			PacketSendUtility.sendMessage(player, String.format(Locale.ROOT, "%s: %s (success chance: %.2f%%).",
+				action, success ? "Success" : "Failed", Math.clamp(successChance, 0, 100)));
+		return success;
 	}
 
 	/**
@@ -384,7 +395,7 @@ public class EnchantService {
 				successChance += supplementChance;
 		}
 
-		return Rnd.chance() < successChance;
+		return rollWithAdminInfo(player, successChance, "Manastone socketing");
 	}
 
 	public static boolean socketManastoneAct(Player player, Item parentItem, Item targetItem, Item supplementItem, int targetWeapon, boolean result) {

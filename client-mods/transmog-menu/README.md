@@ -232,8 +232,8 @@ or client package installation. The previous stylesheet is backed up under
 
 ## Unified inventory
 
-`menus.json` enables a 12-column inventory with 180 starting slots and native
-cells for up to 279 unlocked slots. The client package
+`menus.json` enables a 12-column inventory with 189 starting slots and native
+cells for up to 288 unlocked slots (24 complete rows). The client package
 includes `Data/ui/game/game.pak`, the English override
 `L10N/enu/data/data.pak` when present, and matching version-checked DLL changes.
 Normal inventory uses one native list with scrolling, existing item icons,
@@ -244,8 +244,8 @@ the game's separate item rules and native capacity; its grid has the same layout
 Deploy the matching configuration, player capacity, login/update packets,
 expansion service, ticket action, and character creation/login classes with
 `gameserver.inventory.unified = true` in `config/main/custom.properties`.
-Capacity is 180 plus nine slots for each saved NPC, quest, or item expansion,
-up to 11 expansions (279 slots). New characters start without expansion credits;
+Capacity is 189 plus nine slots for each saved NPC, quest, or item expansion,
+up to 11 expansions (288 slots). New characters start without expansion credits;
 existing saved credits count toward their capacity. Ticket levels and NPC prices
 retain their existing rules. Login and cube-update packets encode the actual
 capacity. Saved counters, items, and Kinah are not rewritten during installation.

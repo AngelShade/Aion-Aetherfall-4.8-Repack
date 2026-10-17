@@ -22,7 +22,7 @@ def main():
         raise ValueError('Every current client inventory check must pass')
     for e in inventory['clientFiles']:
         if sha(root/e['path'])!=e['sha256']:raise ValueError('Client changed since inventory: '+e['path'])
-    receipt=json.loads((root/'RememberLogin-backups/20261003-190013-967/manifest.json').read_text())
+    receipt=json.loads((root/'Mods/Backups/RememberLogin/20261003-190013-967/manifest.json').read_text())
     source=(root/'bin64/Game.dll').read_bytes();updated,hook=relocate(source,receipt)
     out.mkdir(parents=True);updated,graphics=prepare_graphics(root,out,updated,hook['iat'])
     # Keep the production extension byte-identical; this crash was in Game.dll.

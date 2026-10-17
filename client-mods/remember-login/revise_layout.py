@@ -39,12 +39,12 @@ def main():
         rel=Path(rel).as_posix();dest=out/rel;dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes(data);staged[rel]=data
     for rel in ['Data/ui/ui.pak','L10N/enu/Data/data.pak']:
         data,n=revise(root/rel,rel);checks+=n;stage(rel,data)
-    g=read(root/'DXVK/graphics-menu/installed.json');m=read(root/'DXVK/graphics-menu/package/manifest.json')
+    g=read(root/'Mods/GraphicsMenu/installed.json');m=read(root/'Mods/GraphicsMenu/package/manifest.json')
     if g['files']!=m['files']:raise ValueError('Graphics recovery metadata differs')
     e=next(e for e in g['files'] if e['path']=='L10N/enu/Data/data.pak');baseline=Path(g['backupRoot'])/e['path']
-    if not baseline.resolve().is_relative_to(root/'DXVK-backups') or sha(baseline.read_bytes())!=e['original'] or sha((root/e['path']).read_bytes())!=e['installed']:raise ValueError('Graphics locale guards differ')
+    if not baseline.resolve().is_relative_to(root/'Mods/Backups/Renderer') or sha(baseline.read_bytes())!=e['original'] or sha((root/e['path']).read_bytes())!=e['installed']:raise ValueError('Graphics locale guards differ')
     data,n=revise(baseline,e['path']);checks+=n;stage(baseline.relative_to(root),data);e.update(original=sha(data),installed=sha(staged[e['path']]))
-    stage('DXVK/graphics-menu/package/'+e['path'],staged[e['path']]);m['files']=g['files'];stage('DXVK/graphics-menu/installed.json',json.dumps(g,indent=2).encode());stage('DXVK/graphics-menu/package/manifest.json',json.dumps(m,indent=2).encode())
+    stage('Mods/GraphicsMenu/package/'+e['path'],staged[e['path']]);m['files']=g['files'];stage('Mods/GraphicsMenu/installed.json',json.dumps(g,indent=2).encode());stage('Mods/GraphicsMenu/package/manifest.json',json.dumps(m,indent=2).encode())
     preserved=PRESERVED+['bin64/Game.dll','bin64/AionRememberLogin.dll']
     receipt=dict(feature='remember-login',revision='layout-2',clientRoot=str(root),sourceKey=sha((root/'Pub.key').read_bytes()),files=[dict(path=rel,original=sha((root/rel).read_bytes()),installed=sha(data)) for rel,data in staged.items()],preservedFiles=[dict(path=rel,sha256=sha((root/rel).read_bytes())) for rel in preserved])
     (out/'manifest.json').write_text(json.dumps(receipt,indent=2));print('OK staged',len(staged),'layout files;',checks,'archive entries checked. Only two button layouts and one label change.')

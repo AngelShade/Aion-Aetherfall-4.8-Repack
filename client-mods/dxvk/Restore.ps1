@@ -1,14 +1,14 @@
-param([string]$ClientPath = (Split-Path -Parent $PSScriptRoot))
+param([string]$ClientPath = ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))))
 $ErrorActionPreference = 'Stop'
 if (Get-Process -Name 'aion.bin','aion' -ErrorAction SilentlyContinue) { throw 'Close Aion before restoring its renderer.' }
 $clientRoot = (Resolve-Path -LiteralPath $ClientPath).Path
-$modRoot = Join-Path $clientRoot 'DXVK'
+$modRoot = Join-Path $clientRoot 'Mods/Renderer'
 $statePath = Join-Path $modRoot 'installed.json'
 $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
 . (Join-Path $PSScriptRoot 'RendererCommon.ps1')
 if ($state.clientRoot -ne $clientRoot -or $state.files.Count -ne 3) { throw 'Unexpected DXVK restore record.' }
 $backup = (Resolve-Path -LiteralPath $state.backupRoot).Path
-$expectedRoot = (Join-Path $clientRoot 'DXVK-backups').TrimEnd('\') + '\'
+$expectedRoot = (Join-Path $clientRoot 'Mods/Backups/Renderer').TrimEnd('\') + '\'
 if (-not $backup.StartsWith($expectedRoot,[StringComparison]::OrdinalIgnoreCase)) { throw 'Unexpected DXVK backup path.' }
 foreach ($entry in $state.files) {
     if (@('bin32/d3d9.dll','bin64/d3d9.dll','dxvk.conf') -cnotcontains $entry.path) { throw 'Unexpected restore target.' }
@@ -20,7 +20,7 @@ foreach ($entry in $state.files) {
 }
 # Remove the menu first so its backup returns Game.dll to the cursor-patched
 # build before the full renderer uninstall restores the earlier native build.
-$menuState = Join-Path $modRoot 'graphics-menu/installed.json'
+$menuState = Join-Path $clientRoot 'Mods/GraphicsMenu/installed.json'
 $nativePatches = @($state.nativeCursorPatch.files | Where-Object { $null -ne $_ })
 foreach ($entry in $nativePatches) {
     if (@('bin64/XRenderD3D9.dll','bin64/Game.dll') -cnotcontains $entry.path) { throw 'Unexpected native cursor restore target.' }
@@ -30,7 +30,7 @@ foreach ($entry in $nativePatches) {
     if ((Get-FileHash -LiteralPath $saved).Hash -ne $entry.original) { throw 'Native cursor backup checksum failed.' }
 }
 if (Test-Path -LiteralPath $menuState) {
-    & (Join-Path $modRoot 'graphics-menu/RestoreGraphicsMenu.ps1') -ClientPath $clientRoot
+    & (Join-Path $clientRoot 'Mods/GraphicsMenu/RestoreGraphicsMenu.ps1') -ClientPath $clientRoot
     $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
 }
 & (Join-Path $modRoot 'QualityProfile.ps1') -ClientPath $clientRoot -Restore

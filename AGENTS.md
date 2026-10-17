@@ -1,3 +1,154 @@
+# Repack086 refresh and local distribution build - verified - 17 October2026
+
+Updated portable repack `Aion Aetherfall Repack Client + Server/Aetherfall-4.8-067-20261016` in place to release086/product0.86:24 changed files copied/hash verified,3 superseded Fastjson2.0.65 JARs archived/removed, and2 nonexistent legacy inventory entries (`Client/sc_renew_local.err`, `READ ME.txt`) pruned from `FILES.json` (`dc105a2d27aecdb68708c5611a22566e537455bdba483e270f4b0d00cf9e3401`). Receipts external `archives/repack/repack086-distribution-20261017/receipt.json` and `archives/repack/repack086-distribution-index-20261017/receipt.json`. Packed197739 indexed files (`39030688343` archive bytes) into20 store-mode1900 MiB volumes under `<DISTRIBUTION_ROOT>\Aetherfall-0.86-parts` so `D:` space and the source repack remain untouched. Generated `Aetherfall-0.86.torrent` (infoHash `04e30ed842df66d6645de1e93eb7996d9998ce7e`, SHA256 `97c5fc5d1b7eafa86437fdc30d872fcb826752080ac3eb97bc071ea97a10005a`), `magnet.txt`, `SHA256SUMS.txt`, `release-manifest.json`, `Start-Seeding.cmd`, `publish.py` and `Aetherfall-Downloader.zip` (bundling verified `aria2c.exe`1.37.0 and `7za.exe`26.04 with resume, free-space checks, SHA-256 verification and extraction). No uploads, public mirrors, seeding daemon, tests or game components started; user owns uploading, seeding and mirror publication.
+
+# Combat, corridor movement and Cash Shop086 - installed/hash verified - 17 October2026
+
+Normal build `combat-movement-shop086-20261017-final`; GS SHA `e2f6e82e8c9d96c1d659b968f6ee3911df6c997e71617b8f529ff2daa9b6b9aa`. Nine files backed up/copied/hash verified; receipt external `archives/server/backups/combat-shop086-20261017-153606/manifest.json`. Height-follow no longer competes in COMBAT; explicit manual withdrawal ends after stationary safe regroup even during native combat timer, while continuing owner motion/unsafe separation retains withdrawal. Automatic glide following also yields to combat unless passive/manual withdrawal. Shared mover streams a bounded proved corridor with fresh ground/hazard admission, endpoint acknowledgments, expiry and command/cast revocation; no path search on movement task. Cash Shop uses extracted Central Market ES5 quantity validation/Max control and shared integer arithmetic/max policy; bundle totals, stack/mail capacity, balance/quoted maximum rechecked before native payment/mail, existing receipt custody retained. Aethertech Charging Activation classified as native BUFF, Recharge handles low MP at healthy HP, Mobility/Stability/hate toggles obey travel/combat/role and MP admission/sustain rules. Native attack proc semantics unchanged; rejected normal-attack-only assumption removed after Secondary review. Secondary implementation/review complete/frozen/waiting; Cash Shop chat hit usage limit and root completed that scope. Normal build, script syntax and bounded external regroup/quantity checks only; no full suites/new repository test files/SQL/lifecycle/gameplay. Original development server/client release0.86; no native-client/repack/static-map/owner-setting changes. User owns restart and actual movement/combat/Cash Shop/Aethertech acceptance; no all-terrain certification claimed.
+
+# Supported JSON085 - installed/hash verified - 17 October2026
+
+Normal all-component build `json-supported085-20261017-final04`; GS SHA `486f1474cd3b8ce93fa1e72ca4e799667174cac487b68e5096d78fb98b7e7081`. Replaced Fastjson2.0.65 with Gson2.14.0 through shared Commons Json boundary with Unsafe explicitly disabled. Updated actual JSON call sites, including login authentication and Discord formatting; native data/HTTP schemas retained. Explicit legacy schedule importer accepts old unquoted numeric keys; normal reads remain strict. Legacy-generated fixtures,20 focused checks against final packaged JARs with deprecated Unsafe memory calls denied, and zero remaining Fastjson references in four application JARs pass. No full test suites/new repository test files/gameplay/SQL/lifecycle. All three development components received exact matching own/Commons/Gson/annotation JARs;15 copied hashes verified,3 old Fastjson JARs backed up outside runtime classpaths. Receipt external `archives/server/backups/json-supported085-20261017-150845/manifest.json`; root/original-client release0.85. No warning filters/JVM suppression flags, client-native/repack copying, data/config/map changes. Existing084 spawns and083 body correction retained. User owns restart and gameplay acceptance. Earlier failed build/compatibility evidence retained externally under diagnostics/json085 and staging/target; only final04 installed.
+
+# Complete repack084 refresh - copied/hash verified - 17 October2026
+
+User explicitly requested the entire repack updated. Existing
+`Aion Aetherfall Repack Client + Server/Aetherfall-4.8-067-20261016` is now release
+084/product0.84 in place:173 changed files copied/hash verified and26 obsolete
+classpath/resources/client BAT files archived externally before removal. Receipt
+`archives/repack/repack084-complete-20261017/receipt.json`. Current installed
+GameServer083 JAR SHA58bb99c747473a57214661530ffb33e1a4f1648a1b451e5ea6461e72446c2aca
+plus084 spawn data, current Login/Chat libraries, upstream resources/configs,
+all installed native client features, Mods support and active renderer recovery
+included. Launcher normal portable build performs the package path preflight
+before helpers; native splash bridge/login DLL match the original client.
+Local connections, renderer choice, bundled runtimes and155 existing maps retained.
+Fresh92-table schema/bootstrap gains PvP EXP, production_limit and the native
+appearance column renames; no database launch, rows copied or SQL executed.
+FILES.json updates only changed hashes and inherits untouched payload entries;
+no full preservation scan/test/gameplay. Original runtime untouched by this refresh.
+The folder retains its original067 name; REPACK.json/release.json and launcher
+metadata identify0.84. User owns first startup and visual/gameplay acceptance.
+
+# Launcher native visibility gate - installed/hash verified - 17 October2026
+
+Supersedes failed DWM/asynchronous-hide startup presentation. User confirms the
+splash and loading HWND still appeared despite own-process DWM success in launch
+142026. Guarded aion.bin splash entry1650 now calls the existing native login
+module before creating/loading any splash; validated launcher sessions skip the
+routine, ordinary starts retain the exact native prologue/caller. Native CBT and
+window-procedure visibility admission plus named game-module window API references
+hold the renderer hidden while its update/render loop continues; no Windows DLL
+code patch or process attachment. Real native login draws release the private
+handoff; launcher waits for actual HWND visibility before minimizing and respects
+other foreground apps. Parent/deadline/error recovery retained. Normal launcher
+and native builds plus staged PE/copy hashes only; no tests/gameplay/server/repack
+changes. Original client received15 files including inventories, with exact backup
+and matching receipt at external
+`archives/client/aetherfall-launcher-native-window-gate-20261017/receipt.json`.
+Build/copy success does not establish the next-launch visual result; user owns it.
+
+# Rampaging Mosbears084 - data installed/hash verified - 17 October2026
+
+Quest2289 targets retain native Altgard placements: Komu Silverclaw210442 one spot, Starved210564 and Fierce210584 twenty-one spots each. Only their three respawn attributes changed:3600/295/295 seconds to30 seconds. Normal build `mosbear-spawns084-20261017`; exact assembly XML copied, all other XML bytes preserved. Four files backed up/copied/hash verified including release0.84 metadata/inventory; receipt external `archives/server/backups/mosbear-spawns084-20261017-142958/manifest.json`. Existing083 JAR/client native payloads retained. Native XmlMerger detects the changed imported XML on next startup; no cache deletion, tests, lifecycle, SQL or gameplay. User owns restart and actual availability acceptance. One-hour named respawn explains possible post-kill absence; no live proof of the specific reported disappearance is claimed.
+
+# Launcher native splash/focus correction - installed/hash verified - 17 October2026
+
+Actual presentation log from launch140924 proves cross-process DWM cloak fails
+0x80070005 on SplashWindowClass/AIONClientWndClass1.0. Normal launcher and existing
+login DLL rebuilt/copied together; receipt external
+`archives/client/aetherfall-launcher-native-splash-focus-20261017/receipt.json`.
+Launcher now hides only the early splash asynchronously from a background worker;
+the native DLL owns renderer cloaking inside Aion with create/show observation.
+Taskbar/visibility restoration and parent/error/timeout custody retained; normal
+handoff does not reshow obsolete splash. Topmost is removed; focus handoff occurs
+only if launcher was foreground. Synchronous cross-client window work no longer
+runs on launcher UI thread. Latest ReShade timings0.068/0.097s and unchanged cached
+bytecode do not prove a full shader recompile: official6.8runtime logs compiled on
+cache hits too. Existing effects/preset/cache retained, no GPU-stall cure claimed.
+Build and13 copied hashes verified; no tests, game launch, server/repack changes.
+Actual next-launch splash/focus/loading responsiveness remains user acceptance.
+
+# Companion body083 - installed/hash verified - 17 October2026
+
+Normal build `companion-body083-20261017`; GS SHA `58bb99c747473a57214661530ffb33e1a4f1648a1b451e5ea6461e72446c2aca`. Six files backed up/copied/hash verified; receipt external `archives/server/backups/companion-body083-20261017-141847/manifest.json`. User screenshots reject082 deformation-slider generation. Removed arbitrary sliders entirely: companion creation copies owner appearance/proportions and changes only catalogued native face/hair/colours. Version4 migrates existing Temporary Bots and account alts on next recruitment, saving repaired appearance through native DAO; no bulk SQL rewrite. Existing world looks unchanged. Owner setting values retained; source/runtime random-looks comments corrected as a documented comments-only overlay after the build. Root/runtime release0.83. Original development installation only;082 loot/glide/descent/client features retained. Normal build and copied hashes only; no tests/full scans/lifecycle/gameplay. User owns restart/recruitment and visual acceptance.
+
+# Loot, companion proportions and glide082 - installed/hash verified - 17 October2026
+
+Normal combined build `loot-descent-glide082-20261017`; GS SHA `5a62181bb88d9e461ef395de13ad11722993c43ca71e26ec59d7a633a47c521a`. Original development server/client only;22 files backed up/copied/hash verified. Receipt external `archives/server/backups/loot-descent-glide082-20261017-140706/manifest.json`. Native five-slot compact stacked item panels include artwork/tooltips/countdown/Need-Greed-Pass/selected choice; matching server owns usability, priorities, independent rounds/timeouts, realistic bot choices and native grants. Native bidding retained. Existing Group/features properties receive only missing explained defaults. Companion proportions use actual native signed slider offsets, neutral head size and appearance version3 migration on next recruitment; only owner height retained. Companions mirror actual owner glide from ground/flight through native controller, without old glide cooldown/ballistic plan or new maintenance actions interrupting it. Shared world/companion descent retains moving goals and tries proved run/low-hop/step-off launches. Geometry/FP/character eligibility retained. Recovery packages/baselines and current mod inventories updated; launcher automatically reads root/runtime release0.82. Build and targeted source/package/copy checks only; no tests/full scans/new test files/SQL/lifecycle/attachment/gameplay. User owns restart and visual/loot/appearance/glide/descent acceptance; no claim every terrain route is live-certified. Existing launcher081/inventory/admin/MuMu/maps retained; repack unchanged. Coordinating chat completed/frozen/waiting.
+
+# Launcher release/mod metadata - installed/hash verified - 17 October2026
+
+Original client label reads `Mods/release.json`, distributed from root `release.json` (Aion Aetherfall Repack 0.81). Future releases update that single source, not launcher text. Installed Mods discovers folders and editable mod.json Title/Description/Listed/Files; absent metadata is generated, existing metadata retained, missing tracked payloads reported without creating game files. Normal launcher build and copied hashes; no tests/gameplay/server/repack changes. Receipt external `archives/client/aetherfall-launcher-live-catalog-20261017/receipt.json`. Prior startup curtain/native login module retained.
+
+# Early launcher presentation gate - installed/hash verified - 17 October2026
+
+User reports startup art still appears. Latest live launch log reaches native
+login-ready after 57363ms; the prior presentation trace was first created about
+19s after process start, confirming the in-client module cannot own the earliest
+splash. Maintained launcher now requests a hidden initial window and immediately
+owns the exact child's window presentation in StartupPresentation.cs. It cloaks
+startup windows and uses the Shell hide/style/show transition for taskbar tabs;
+actionable error prompts remain visible. Per-launch HWND properties preserve
+restoration custody; the existing native login module is only a release/parent
+death/timeout watchdog, with no COM initialization. Existing native login-ready
+signal retained. Normal launcher/native builds pass at external
+`staging/client/launcher-early-gate-20261017`. User closed both programs, exact OS
+closure check passed, matching pair installed with all13 copied-file hashes
+verified. Receipt external `archives/client/aetherfall-launcher-early-gate-20261017/receipt.json`.
+No tests, client start/gameplay, server or repack changes. User owns next-launch
+visual acceptance. This supersedes the late taskbar-curtain delivery below.
+
+# Launcher startup taskbar previews - installed/hash verified - 17 October2026
+
+Original-client launcher and existing native login module rebuilt/copied together;
+receipt external `archives/client/aetherfall-launcher-taskbar-curtain-20261017/receipt.json`.
+User screenshot showed boot screens in taskbar thumbnails while the DWM curtain
+was active. Native worker now temporarily suppresses its own windows' taskbar
+eligibility and calls ITaskbarList::DeleteTab, restoring saved taskbar style bits
+and visible eligible tabs on release. Existing DWM/login-ready/error/cancel/parent
+death/timeout behavior retained. Per-launch `.presentation.log` records native
+curtain activity. Build and 30 copied-file hashes pass (installer also included
+the current Mods description/release metadata); no tests, live startup,
+server, repack, artwork or gameplay changes. Next-launch taskbar/login handoff
+acceptance remains user's; do not claim the screenshot regression was live-verified.
+
+# Launcher startup presentation - installed/hash verified - 17 October2026
+
+Original client only: normal launcher/native login module builds installed together; receipt external `archives/client/aetherfall-launcher-startup-curtain-20261017/receipt.json`. Existing native module cloaks its own startup windows until per-launch login-ready handoff, retaining native rendering; cancellation/error, launcher death and bounded timeout release the curtain. Direct launch unchanged. Existing login/news/remember behavior retained. Copied hashes verified; no tests/client startup/gameplay/server changes. User owns next-launch visual acceptance.
+
+# Companion looks, shared descent, MuMu quest and HUD081 - installed/copied/hash verified - 17 October2026
+
+Normal build `companion-descent081-20261017-final`; full GS SHA `9bbf4ca206c7c4c6e1d9a9d0a1d3f5b8f549e8474c8014ac40e3e413ba68160f`. Receipt external `archives/server/backups/companion-descent081-20261017-121513`. Ten server/client files copied/hash verified, original development installation only. Six MuMu wives remain persistently available; MuMuLu uses native location/proved floor. Temporary/account companions independently generate native face/body/hair/colours, preserving only owner height; existing companions migrate once on next recruitment. Shared world/companion descent retains earned arc probes across CPU slices, searches real landing radii around ledges, and clears lips at native horizontal speed before falling. Native HUD canvas width restored without removing Wardrobe; graphics recovery tracking preserved. Normal Maven build and copied hashes only; no tests/full scans/new test files/installation SQL/lifecycle/gameplay. User owns restart and visual/quest/descent acceptance.
+
+# Original client Mods organization —17 October2026
+
+Original client support/recovery moved to `Mods/<feature>`, matching repack layout.
+1190 files moved;41 support files updated. Receipt external `archives/client/original-mods-layout-20261017/receipt.json`.
+Launcher, current graphics/cursor restore metadata and source delivery inventory use new paths;
+maintained mod tools use Mods paths. Native loaded DLL/archive/settings locations stay fixed,
+including `DXVK/renderer.ini`. Nine native DLL hashes and archive/settings timestamps retained;
+Wardrobe HUD and inventory079 preserved. No rebuild/tests/startup/SQL/repack update.
+See docs/CLIENT_MOD_LAYOUT.md before future client delivery; old root support paths are historical.
+
+# Companion Journey and native looks080 — installed/copied/hash verified —17 October2026
+
+Normal build `companion-journey080-20261017`; full GS JAR SHA `f479a4cef47a380f25cea87ab943c90a5f5102187fc4401d1933b92aa767f414`. Two files copied/hash verified; receipt external `archives/server/backups/companion080-20261017-094635`. Bundled companion interface now offers account-character level1/story or existing Choose Your Journey level10 skip, with faction-native class/reward/capital rules. Shared Journey commit reused; new offline characters reload committed state and learn native level10 skills without connected-client teleport/callbacks. Ceremony rewards remain normal turn-in. Temporary Bots use existing race/gender-native face/hair/colour generator and owner height; existing private Temporary Bots update and persist on recruitment, then height changes synchronize without repeated randomization/SQL when unchanged. Account-character/world-bot appearance untouched. Explained generated.random_looks=true appended to existing playerbots/playerbots.properties; all other owner values retained. Normal build and JavaScript syntax only, no tests/full protected scans/install SQL/lifecycle/attachment/gameplay; actual creation/recruitment acceptance belongs to user. Original development server only, client/repack unchanged;079 inventory/admin changes retained.
+
+# Admin and inventory079 — installed/copied/hash verified —17 October2026
+
+Normal Maven build `admin-inventory079-20261017`; full GS JAR SHA `c9f7e64b297fb14f2f55754754a17d6f7bd092a3b9142e142aa4c482aa80a24b`. Four server and thirteen client files copied/hash verified; backup/receipt external `archives/server/backups/admin-inventory079-20261017-092628` and native client installer backup. Restores staff enchanting/manastone actual completion-roll chance/result, retaining upstream item-consumption and roll timing. Deleteskill accepts IDs/internal/displayed names, native removal, stigma protection and explicit bulk confirmation; source compiled normally, command compiled separately without running it. Unified inventory base189/max288 adds nine usable slots per character while keeping all saved expansion credits. Client list/effect/search bounds and base/English layouts agree; search flags moved within existing reserved state to avoid query overlap. Existing graphics restore baselines and concurrent Wardrobe HUD addition preserved. Source is maintained; full builder JAR copied directly. No tests/full protected scans/SQL/lifecycle/attachment/gameplay; user owns restart and acceptance. Original development installation/client only; repack unchanged. Superseded candidate and rolled-back legacy-PowerShell installer failure retained externally.
+
+# Upstream078 — development installation migrated/copied/hash verified —17 October2026
+
+User explicitly selected usual development server/existing characters. Installed all three components and their exact matching packaged libraries from normal build `upstream078-20261017` at merged52df54851 plus077 MuMu edits. GS SHA `023967f67aac9b8ec54fe04e0e9c33527ce6e3527b7d046facea80e76b4dd3d2`. Receipt/recovery external `archives/server/backups/upstream078-20261017-084848`;89 copied files/hash verified,25 obsolete dependency/config files archived; previous scripts/JAXB caches archived for native regeneration. Only changed runtime resources/logback and missing explained property defaults updated; existing property values/overrides preserved. All155 maps/client/repack untouched; MuMu source+runtime data retained. No tests or full protected-file scans.
+
+Full consistent development aion_gs/aion_ls SQL backup retained with hash before migration. Added players.pvp_exp, player_recipes.production_limit and renamed appearance jaw_height→chin_height/chin_jut→cheek_bones; old inventory rank_limit_expire_time already existed and was not reapplied. Native players/inventory/appearance/recipes/quests row counts unchanged. No general historical update.sql execution. All server/client processes closed for delivery; no lifecycle/attachment/gameplay. User owns restart and compatibility acceptance. This supersedes prior merged-not-deployed statements for usual development installation ONLY; standalone repack stays unchanged. Current receipt is the external all-component upstream078 manifest, not old076/077 JAR authority. Do not invoke the old prolonged source-delivery guard against076 for this new baseline or duplicate install/tests.
+
+# MuMu spawn/patrol height and quest respawns077 — data copied/hash verified —17 October2026
+
+Native Altgard geometry proves level15 MuMuLookout210453 spawn1545.59/158.01 Z300.1 is13.10125m above actual floor286.99875; first waypoint73892D743CE5537295F312C99ACAA740603BBF5E repeats invalidZ. Corrected both source entries to286.99875. Secondary completed six quest2292 timers210599/210620/210621/210622/210623/210624 from295s to30s; all other XML bytes retained. One normal build `mumu077-20261017` succeeded, no tests. It contains merged upstream52df54851, so its new JAR was deliberately NOT deployed over076. Only two backward-compatible assembly XML resources copied and exact hashes verified; originals backed up in external `archives/server/game-server/backups/playerbots-source-build-20261017-083837-163311`. Installed076 JAR SHA3d60207... retained; no libraries/config/client/cache/SQL/lifecycle/attachment changes or full protected-file scans. User restart/gameplay acceptance pending. Full upstream coordinated component/library/schema upgrade remains uninstalled. Secondary task complete/frozen/waiting; no duplicate build.
+
 # Upstream 4.8 integration - source merged, not deployed - 17 October2026
 
 Integrated all40 upstream commits through `cabd580f3`, starting from latest Aetherfall `7fcff5a34`; isolated `codex/upstream-4.8-20261017` worktree retains every later Aetherfall feature. Normal all-component Maven build `upstream-20261017-final03` PASS (Commons/GS/LS/Chat;5689inputs/24artifacts). Tests disabled as user requested; no handlers executed, server/client lifecycle, SQL or runtime/repack copying. Installed076 and existing client/repack remain delivery authority. Existing primary-checkout remember-login edits and inventory changes remain uncommitted and preserved.

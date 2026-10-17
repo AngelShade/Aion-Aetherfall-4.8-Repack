@@ -6,7 +6,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.util.*;
-import com.alibaba.fastjson2.*;
+import com.aionemu.commons.utils.Json;
+import com.google.gson.JsonObject;
 import com.aionemu.gameserver.geoEngine.scene.Mesh;
 import com.aionemu.gameserver.geoEngine.math.*;
 import com.aionemu.gameserver.geoEngine.collision.*;
@@ -28,21 +29,21 @@ final class PlayerBotAnimatedScene {
             long size=Files.size(file);require(size>0 && size<=16*1024*1024,"animated scene size");
             byte[] snapshot=Files.readAllBytes(file);require(snapshot.length==size,"animated scene changed while reading");
             require(HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(snapshot)).equals(expectedHash),"animated scene authentication");
-            var document=JSON.parseObject(snapshot);require("aion-animated-scene-1".equals(document.getString("format")),"animated scene format");
-            var encodedModels=document.getJSONObject("models");require(encodedModels!=null && encodedModels.size()<=512,"animated model count");
+            var document=Json.read(snapshot);require("aion-animated-scene-1".equals(Json.string(document,"format")),"animated scene format");
+            var encodedModels=Json.object(document,"models");require(encodedModels!=null && encodedModels.size()<=512,"animated model count");
             var models=new HashMap<String,Model>();
-            for(String name:encodedModels.keySet())models.put(name,new Model(encodedModels.getJSONObject(name)));
-            var encodedEntities=document.getJSONArray("entities");require(encodedEntities!=null && encodedEntities.size()<=4096,"animated entity count");
+            for(String name:encodedModels.keySet())models.put(name,new Model(Json.object(encodedModels,name)));
+            var encodedEntities=Json.array(document,"entities");require(encodedEntities!=null && encodedEntities.size()<=4096,"animated entity count");
             var maps=new HashMap<Integer,List<Entity>>();var identities=new HashSet<String>();
             for(int i=0;i<encodedEntities.size();i++){
-                var value=encodedEntities.getJSONObject(i);int map=value.getIntValue("map");
-                var attributes=value.getJSONObject("entity");int id=Integer.parseInt(attributes.getString("EntityId"));
+                var value=Json.object(encodedEntities,i);int map=Json.integer(value,"map");
+                var attributes=Json.object(value,"entity");int id=Integer.parseInt(Json.string(attributes,"EntityId"));
                 require(map>0 && id>0 && id<=65535 && identities.add(map+":"+id),"animated native entity identity");
-                require("1".equals(attributes.getString("SyncAnimation")) && "0".equals(attributes.getString("HiddenInGame")),"animated participation");
-                var animation=value.getJSONObject("animation");require("Default".equals(animation.getString("Animation"))
-                    && "1".equals(animation.getString("bLoop")) && "1".equals(animation.getString("bPlaying")),"unsupported native animation state");
-                Model model=models.get(value.getString("model"));require(model!=null,"animated model reference");
-                double speed=Float.parseFloat(animation.getString("Speed"));require(Double.isFinite(speed) && speed>0,"animated speed");
+                require("1".equals(Json.string(attributes,"SyncAnimation")) && "0".equals(Json.string(attributes,"HiddenInGame")),"animated participation");
+                var animation=Json.object(value,"animation");require("Default".equals(Json.string(animation,"Animation"))
+                    && "1".equals(Json.string(animation,"bLoop")) && "1".equals(Json.string(animation,"bPlaying")),"unsupported native animation state");
+                Model model=models.get(Json.string(value,"model"));require(model!=null,"animated model reference");
+                double speed=Float.parseFloat(Json.string(animation,"Speed"));require(Double.isFinite(speed) && speed>0,"animated speed");
                 Entity entity=new Entity(map,id,model,speed,Affine.entity(vector(value,"position",3),vector(value,"angles",3),vector(value,"scale",3)));
                 maps.computeIfAbsent(map,k->new ArrayList<>()).add(entity);
             }
@@ -51,9 +52,9 @@ final class PlayerBotAnimatedScene {
             return new PlayerBotAnimatedScene(maps,Math.addExact(1_048_576,Math.multiplyExact(size,8)));
         }catch(IOException e){throw e;}catch(Exception e){throw new IOException("Invalid authored animated scene",e);}
     }
-    private static double[] vector(JSONObject object,String name,int length)throws IOException {
-        var array=object.getJSONArray(name);require(array!=null && array.size()==length,"animated "+name+" width");
-        double[] values=new double[length];for(int i=0;i<length;i++){values[i]=array.getDoubleValue(i);require(Double.isFinite(values[i]),"animated nonfinite "+name);}
+    private static double[] vector(JsonObject object,String name,int length)throws IOException {
+        var array=Json.array(object,name);require(array!=null && array.size()==length,"animated "+name+" width");
+        double[] values=new double[length];for(int i=0;i<length;i++){values[i]=Json.decimal(array,i);require(Double.isFinite(values[i]),"animated nonfinite "+name);}
         return values;
     }
     private static void require(boolean valid,String message)throws IOException{if(!valid)throw new IOException(message);}
@@ -62,19 +63,19 @@ final class PlayerBotAnimatedScene {
         final Node[] nodes;
         final double start,duration;
         final double[] samples;
-        Model(JSONObject object)throws IOException {
-            require("aion-animated-model-1".equals(object.getString("format")) && "centimetres".equals(object.getString("units")),"native model units");
-            var timing=object.getJSONObject("timing");double tick=timing.getDoubleValue("secondsPerTick");int frame=timing.getIntValue("ticksPerFrame");
-            start=(float)tick*frame*timing.getIntValue("startFrame");
-            float end=(float)tick*frame*timing.getIntValue("endFrame");duration=end-(float)start;
+        Model(JsonObject object)throws IOException {
+            require("aion-animated-model-1".equals(Json.string(object,"format")) && "centimetres".equals(Json.string(object,"units")),"native model units");
+            var timing=Json.object(object,"timing");double tick=Json.decimal(timing,"secondsPerTick");int frame=Json.integer(timing,"ticksPerFrame");
+            start=(float)tick*frame*Json.integer(timing,"startFrame");
+            float end=(float)tick*frame*Json.integer(timing,"endFrame");duration=end-(float)start;
             require(Double.isFinite(tick) && tick>0 && frame>0 && Double.isFinite(start) && Double.isFinite(duration) && duration>0,"native animation duration");
-            var tracks=new HashMap<Integer,PlayerBotAnimatedCurve>();var encodedTracks=object.getJSONObject("tracks");var times=new TreeSet<Double>();times.add(start);
+            var tracks=new HashMap<Integer,PlayerBotAnimatedCurve>();var encodedTracks=Json.object(object,"tracks");var times=new TreeSet<Double>();times.add(start);
             require(encodedTracks!=null && encodedTracks.size()<=4096,"native track count");
             for(String id:encodedTracks.keySet()){
-                var track=encodedTracks.getJSONObject(id);var rows=track.getJSONArray("keys");require(rows!=null && rows.size()>0 && rows.size()<=100000,"native track keys");
+                var track=Json.object(encodedTracks,id);var rows=Json.array(track,"keys");require(rows!=null && rows.size()>0 && rows.size()<=100000,"native track keys");
                 double[][] keys=new double[rows.size()][];
-                for(int i=0;i<keys.length;i++){var row=rows.getJSONArray(i);require(row.size()<=10,"native track width");keys[i]=new double[row.size()];for(int j=0;j<keys[i].length;j++){keys[i][j]=row.getDoubleValue(j);require(Double.isFinite(keys[i][j]),"native track finite");}}
-                tracks.put(Integer.parseInt(id),new PlayerBotAnimatedCurve(track.getIntValue("type"),track.getIntValue("flags"),tick,keys));
+                for(int i=0;i<keys.length;i++){var row=Json.array(rows,i);require(row.size()<=10,"native track width");keys[i]=new double[row.size()];for(int j=0;j<keys[i].length;j++){keys[i][j]=Json.decimal(row,j);require(Double.isFinite(keys[i][j]),"native track finite");}}
+                tracks.put(Integer.parseInt(id),new PlayerBotAnimatedCurve(Json.integer(track,"type"),Json.integer(track,"flags"),tick,keys));
                 for(double[] key:keys)if(key[0]*tick>=start && key[0]*tick<start+duration)times.add(key[0]*tick);
             }
             // Docks may lie between authored keys. Sample interpolation as well as every key;
@@ -82,21 +83,21 @@ final class PlayerBotAnimatedScene {
             require(duration<=3600,"native animation sampling duration");
             for(double t=start;t<start+duration;t+=.1)times.add(t);
             samples=times.stream().mapToDouble(Double::doubleValue).toArray();
-            var encodedNodes=object.getJSONArray("nodes");require(encodedNodes!=null && encodedNodes.size()>0 && encodedNodes.size()<=4096,"native node count");
+            var encodedNodes=Json.array(object,"nodes");require(encodedNodes!=null && encodedNodes.size()>0 && encodedNodes.size()<=4096,"native node count");
             nodes=new Node[encodedNodes.size()];var ordinals=new HashMap<Integer,Integer>();
-            for(int i=0;i<nodes.length;i++)require(ordinals.put(encodedNodes.getJSONObject(i).getIntValue("id"),i)==null,"native duplicate node");
+            for(int i=0;i<nodes.length;i++)require(ordinals.put(Json.integer(Json.object(encodedNodes,i),"id"),i)==null,"native duplicate node");
             int physicalSlots=0;
             for(int i=0;i<nodes.length;i++){
-                var value=encodedNodes.getJSONObject(i);int parent=value.getIntValue("parent");require(parent==-1 || ordinals.containsKey(parent),"native parent reference");
-                var controllers=value.getJSONArray("controllers");require(controllers.size()==3,"native controller slots");
-                var curves=new PlayerBotAnimatedCurve[3];for(int j=0;j<3;j++){int id=controllers.getIntValue(j);curves[j]=id<0?null:tracks.get(id);require(id<0 || curves[j]!=null,"native controller reference");}
+                var value=Json.object(encodedNodes,i);int parent=Json.integer(value,"parent");require(parent==-1 || ordinals.containsKey(parent),"native parent reference");
+                var controllers=Json.array(value,"controllers");require(controllers.size()==3,"native controller slots");
+                var curves=new PlayerBotAnimatedCurve[3];for(int j=0;j<3;j++){int id=Json.integer(controllers,j);curves[j]=id<0?null:tracks.get(id);require(id<0 || curves[j]!=null,"native controller reference");}
                 double[] position=vector(value,"position",3);for(int j=0;j<3;j++)position[j]/=100;
-                double[] vertices=new double[0];int[] faces=new int[0];var mesh=value.getJSONObject("mesh");
-                if(mesh!=null){var points=mesh.getJSONArray("vertices");var triangles=mesh.getJSONArray("physicalFaces");require(points.size()<=65536 && triangles.size()<=2_000_000,"native physical mesh count/index width");
-                    vertices=new double[points.size()*3];for(int j=0;j<points.size();j++){var point=points.getJSONArray(j);require(point.size()==3,"native physical vertex");for(int k=0;k<3;k++){double v=point.getDoubleValue(k)/100;require(Double.isFinite(v),"native physical vertex finite");vertices[j*3+k]=v;}}
-                    faces=new int[triangles.size()*3];for(int j=0;j<triangles.size();j++){var face=triangles.getJSONArray(j);require(face.size()==4,"native physical triangle");for(int k=0;k<3;k++){int v=face.getIntValue(k);require(v>=0 && v<points.size(),"native physical vertex reference");faces[j*3+k]=v;}}
+                double[] vertices=new double[0];int[] faces=new int[0];var mesh=Json.object(value,"mesh");
+                if(mesh!=null){var points=Json.array(mesh,"vertices");var triangles=Json.array(mesh,"physicalFaces");require(points.size()<=65536 && triangles.size()<=2_000_000,"native physical mesh count/index width");
+                    vertices=new double[points.size()*3];for(int j=0;j<points.size();j++){var point=Json.array(points,j);require(point.size()==3,"native physical vertex");for(int k=0;k<3;k++){double v=Json.decimal(point,k)/100;require(Double.isFinite(v),"native physical vertex finite");vertices[j*3+k]=v;}}
+                    faces=new int[triangles.size()*3];for(int j=0;j<triangles.size();j++){var face=Json.array(triangles,j);require(face.size()==4,"native physical triangle");for(int k=0;k<3;k++){int v=Json.integer(face,k);require(v>=0 && v<points.size(),"native physical vertex reference");faces[j*3+k]=v;}}
                 }
-                int wirePart=mesh!=null && mesh.getBooleanValue("physicalMember")?physicalSlots++:-1;
+                int wirePart=mesh!=null && Json.bool(mesh,"physicalMember")?physicalSlots++:-1;
                 require(faces.length==0 || wirePart>=0,"floor without native physics membership");
                 nodes[i]=new Node(i,wirePart,parent==-1?-1:ordinals.get(parent),position,vector(value,"rotation",4),vector(value,"scale",3),curves,vertices,faces);
             }

@@ -19,7 +19,7 @@ def main():
     if Path(inventory['clientRoot']).resolve()!=root or not all(inventory['checks'].values()):raise ValueError('Current inventory must pass')
     for e in inventory['clientFiles']:
         if sha(root/e['path'])!=e['sha256']:raise ValueError('Client changed since inventory: '+e['path'])
-    receipt=json.loads((root/'RememberLogin-backups/20261003-190013-967/manifest.json').read_text())
+    receipt=json.loads((root/'Mods/Backups/RememberLogin/20261003-190013-967/manifest.json').read_text())
     old=next(e for e in receipt['files'] if e['path']=='bin64/AionRememberLogin.dll')
     if sha(root/old['path'])!=old['installed']:raise ValueError('Installed login DLL changed; cumulative source review required')
     exports=set(PE(dll).exports())

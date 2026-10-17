@@ -24,7 +24,7 @@ class SignClientPackages {
     private static Path stockSignatures(Path client) throws Exception {
         List<Path> candidates = new ArrayList<>();
         candidates.add(client);
-        Path backups = client.resolve("TransmogMenu-backups");
+        Path backups = client.resolve("Mods/Backups/TransmogMenu");
         if (Files.isDirectory(backups)) try (var directories = Files.list(backups)) {
             directories.filter(Files::isDirectory).sorted().forEach(candidates::add);
         }
@@ -56,9 +56,7 @@ class SignClientPackages {
         try (var paths = Files.walk(client)) {
             paths.filter(Files::isRegularFile)
                 .filter(p -> p.getFileName().toString().endsWith(".pak.sig"))
-                .filter(p -> !p.toString().contains("TransmogMenu-backups"))
-                .filter(p -> !p.toString().contains("MarketShortcut-backups"))
-                .filter(p -> !p.toString().contains("SeasonPass-backups"))
+                .filter(p -> !p.toString().replace('\\', '/').contains("/Mods/Backups/"))
                 .forEach(p -> actual.add(client.relativize(p).toString().replace('\\', '/')));
         }
         Set<String> expected = new HashSet<>();

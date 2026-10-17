@@ -13,6 +13,10 @@ public final class CentralMarketRules {
 
 	private CentralMarketRules() {}
 
+	public static long maxQuantity(boolean stackable,long stackLimit) {
+		return stackable ? Math.max(1,Math.min(1000,stackLimit)) : 1;
+	}
+
 	public static long total(long price, long count) {
 		if (price <= 0 || count <= 0 || count > MAX_KINAH / price)
 			throw new IllegalArgumentException("Invalid price or quantity.");

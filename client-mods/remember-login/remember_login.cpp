@@ -5,7 +5,12 @@
 #include <cwchar>
 #include <cstring>
 #include <cstdint>
+#include <cstdio>
 #include "remember_lifecycle.h"
+#ifndef REMEMBER_TEST
+#include <tlhelp32.h>
+#include <cstdlib>
+#endif
 #pragma comment(lib,"advapi32.lib")
 #pragma comment(lib,"user32.lib")
 
@@ -14,6 +19,34 @@ namespace {
 HMODULE module;
 using Ptr=void*;
 RememberLifecycle lifecycle;
+#ifndef REMEMBER_TEST
+#include "startup_gate.h"
+#endif
+// The launcher supplies a fresh, per-launch event. Signal only from native
+// login draws after widget/notice restoration, never from DLL load or HWND creation.
+void notifyLauncherLoginReady(){
+#ifndef REMEMBER_TEST
+    static HANDLE event=nullptr;static bool attempted=false,finished=false;static ULONGLONG firstDraw=0;
+    if(finished)return;
+    if(!attempted){
+        attempted=true;wchar_t name[96]{};
+        DWORD count=GetEnvironmentVariableW(L"AETHERFALL_LOGIN_READY_EVENT",name,96);
+        const wchar_t prefix[]=L"Local\\AetherfallLoginReady-";
+        constexpr size_t prefixSize=(sizeof(prefix)/sizeof(wchar_t))-1;
+        if(count!=prefixSize+32||count>=96||wcsncmp(name,prefix,prefixSize)){finished=true;return;}
+        for(size_t i=prefixSize;i<count;++i)if(!((name[i]>=L'0'&&name[i]<=L'9')||(name[i]>=L'a'&&name[i]<=L'f'))){finished=true;return;}
+        event=OpenEventW(EVENT_MODIFY_STATE,FALSE,name);
+        if(!event){finished=true;return;}
+    }
+    ULONGLONG now=GetTickCount64();
+    if(!firstDraw){firstDraw=now;return;}
+    // A subsequent visible draw confirms the restored login survived the
+    // preceding native render passes, rather than merely being constructed.
+    if(now-firstDraw<250)return;
+    startup::log("Account/password widgets have survived native login draws; reporting ready.");
+    SetEvent(event);CloseHandle(event);event=nullptr;finished=true;
+#endif
+}
 #ifdef REMEMBER_TEST
 unsigned char* testGame;
 DWORD testVaultError=0;
@@ -124,7 +157,9 @@ extern "C" __declspec(dllexport) void AionRememberVisibility(Ptr dialog,uint64_t
 }
 extern "C" __declspec(dllexport) void AionRememberRefresh(Ptr dialog){
     auto game=gameBase();
-    if(lifecycle.pending!=dialog||!game||!dialog||!(*reinterpret_cast<uint64_t*>(static_cast<unsigned char*>(dialog)+0x30)&1))return;
+    if(!game||!dialog||dialog!=*reinterpret_cast<Ptr*>(game+0x13875d0)||!(*reinterpret_cast<uint64_t*>(static_cast<unsigned char*>(dialog)+0x30)&1))return;
+    static Ptr restored=nullptr;
+    if(lifecycle.pending!=dialog){if(restored==dialog)notifyLauncherLoginReady();return;}
     auto notice=find(dialog,"htmlview_notice");
     bool ready=find(dialog,"remember_login")&&find(dialog,"account")&&find(dialog,"password")&&notice;
     if(!lifecycle.consume(dialog,true,ready))return;
@@ -138,6 +173,7 @@ extern "C" __declspec(dllexport) void AionRememberRefresh(Ptr dialog){
         reinterpret_cast<int(*)(Ptr)>(game+0x79df40)(dialog);
 #endif
     }
+    restored=dialog;notifyLauncherLoginReady();
 }
 extern "C" __declspec(dllexport) int AionRememberClick(Ptr dialog,Ptr event){
     if(!dialog||!event)return 0;
@@ -166,4 +202,17 @@ extern "C" __declspec(dllexport) int AionRememberTestDelete(){return erase()?1:0
 extern "C" __declspec(dllexport) DWORD AionRememberTestError(){return testVaultError;}
 extern "C" __declspec(dllexport) int AionRememberTestTarget(wchar_t* out){wchar_t name[96];if(!target(name))return 0;wcscpy_s(out,96,name);return 1;}
 #endif
-BOOL WINAPI DllMain(HINSTANCE instance,DWORD reason,LPVOID){if(reason==DLL_PROCESS_ATTACH){module=instance;DisableThreadLibraryCalls(instance);}return TRUE;}
+extern "C" __declspec(dllexport) int AionStartupSuppressSplash(){
+#ifndef REMEMBER_TEST
+    return startup::begin()?1:0;
+#else
+    return 0;
+#endif
+}
+BOOL WINAPI DllMain(HINSTANCE instance,DWORD reason,LPVOID){
+    if(reason==DLL_PROCESS_ATTACH){
+        module=instance;DisableThreadLibraryCalls(instance);
+
+    }
+    return TRUE;
+}

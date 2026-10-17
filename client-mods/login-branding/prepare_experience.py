@@ -267,20 +267,20 @@ def main():
         update(relative, localized)
 
     # Compose with the existing graphics package and its real restore baseline.
-    state_path = "DXVK/graphics-menu/installed.json"
-    manifest_path = "DXVK/graphics-menu/package/manifest.json"
+    state_path = "Mods/GraphicsMenu/installed.json"
+    manifest_path = "Mods/GraphicsMenu/package/manifest.json"
     state = json.loads((root / state_path).read_text(encoding="utf-8-sig"))
     manifest = json.loads((root / manifest_path).read_text(encoding="utf-8-sig"))
     assert state["files"] == manifest["files"]
     entry = next(e for e in state["files"] if e["path"].lower() == "l10n/enu/data/data.pak")
     assert sha((root / entry["path"]).read_bytes()) == entry["installed"]
     baseline = (Path(state["backupRoot"]) / entry["path"]).resolve()
-    assert baseline.is_relative_to(root / "DXVK-backups")
+    assert baseline.is_relative_to(root / "Mods/Backups/Renderer")
     assert sha(baseline.read_bytes()) == entry["original"]
     baseline_relative = baseline.relative_to(root).as_posix()
     update(baseline_relative, True)
     entry.update(original=sha(staged[baseline_relative]), installed=sha(staged[entry["path"]]))
-    stage("DXVK/graphics-menu/package/" + entry["path"], staged[entry["path"]])
+    stage("Mods/GraphicsMenu/package/" + entry["path"], staged[entry["path"]])
     manifest["files"] = copy.deepcopy(state["files"])
     stage(state_path, (json.dumps(state, indent=2) + "\n").encode())
     stage(manifest_path, (json.dumps(manifest, indent=2) + "\n").encode())

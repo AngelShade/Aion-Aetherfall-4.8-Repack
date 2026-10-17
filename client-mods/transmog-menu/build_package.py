@@ -111,7 +111,7 @@ def main():
     if inventory:
         from unified_inventory import BASE_SLOTS, SLOTS, patch_inventory_dll, prepare_inventory_archive
         if inventory != {'slots': SLOTS, 'columns': 12, 'baseSlots': BASE_SLOTS}:
-            raise ValueError('Unified inventory requires 180 base slots, 279 maximum cells, and 12 columns')
+            raise ValueError('Unified inventory requires 189 base slots, 288 maximum cells, and 12 columns')
         prepare_inventory_archive(root, output)
         # Localized UI templates take precedence over the base UI archive.
         if (root / 'L10N/enu/data/data.pak').exists():

@@ -4,7 +4,7 @@ $backup=(Resolve-Path -LiteralPath $BackupPath).Path
 $m=Get-Content -Raw -LiteralPath (Join-Path $backup 'manifest.json') | ConvertFrom-Json
 if($m.feature -ne 'daeva-season-pass'){throw 'Wrong backup type.'}
 $client=(Resolve-Path -LiteralPath $m.clientRoot).Path
-if(-not $backup.StartsWith($client+'\SeasonPass-backups\',[StringComparison]::OrdinalIgnoreCase)){throw 'Backup must be inside this client.'}
+if(-not $backup.StartsWith($client+'\Mods\Backups\SeasonPass\',[StringComparison]::OrdinalIgnoreCase)){throw 'Backup must be inside this client.'}
 foreach($process in @(Get-Process -Name 'aion.bin','aion' -ErrorAction SilentlyContinue)){
  if(-not $process.Path){throw 'Cannot verify running Aion path.'}
  if($process.Path.StartsWith($client+'\',[StringComparison]::OrdinalIgnoreCase)){throw 'Close Aion normally before restoring.'}

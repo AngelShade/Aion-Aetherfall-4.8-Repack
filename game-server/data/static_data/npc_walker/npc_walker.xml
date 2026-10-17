@@ -34594,7 +34594,7 @@
 		<routestep x="2438.34" y="2559.49" z="143.3453"/>
 	</walker_template>
 	<walker_template route_id="73892D743CE5537295F312C99ACAA740603BBF5E">
-		<routestep x="1545.59" y="158.01" z="300.1"/>
+		<routestep x="1545.59" y="158.01" z="286.99875"/>
 		<routestep x="1551.63" y="158.40" z="286.95187"/>
 		<routestep x="1560.00" y="157.58" z="287.0"/>
 		<routestep x="1569.23" y="156.86" z="287.79623"/>

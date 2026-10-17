@@ -10,7 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aionemu.loginserver.configs.Config;
-import com.alibaba.fastjson2.JSON;
+import com.aionemu.commons.utils.Json;
 
 /**
  * @author Neon
@@ -27,11 +27,11 @@ public class ExternalAuth {
 			HttpRequest httpRequest = HttpRequest.newBuilder(uri)
 					.headers("User-Agent", "AionLS")
 					.headers("Content-Type", "application/json")
-					.POST(HttpRequest.BodyPublishers.ofString(JSON.toJSONString(Map.of("user", user, "password", password))))
+					.POST(HttpRequest.BodyPublishers.ofString(Json.write(Map.of("user", user, "password", password))))
 					.build();
 			HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
 			if (response.statusCode() == 200) {
-				info = JSON.parseObject(response.body(), Response.class);
+				info = Json.read(response.body(), Response.class);
 			} else {
 				log.warn("Server returned status code {}{}", response.statusCode(), response.body().isEmpty() ? "" : ": " + response.body());
 			}

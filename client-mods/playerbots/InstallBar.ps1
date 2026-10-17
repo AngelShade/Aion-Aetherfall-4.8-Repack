@@ -11,7 +11,7 @@ if (!$VerifyOnly -and (Get-Process -Name 'aion.bin','aion' -ErrorAction Silently
 if ($LASTEXITCODE -ne 0) { throw 'Command bar verification failed.' }
 $barManifest=Get-Content -Raw -LiteralPath (Join-Path $barPackage 'manifest.json') | ConvertFrom-Json
 if ($VerifyOnly) { Write-Output 'OK: command bar verified; no installation.';return }
-$barBackup=Join-Path $barClient ('TransmogMenu-backups/playerbot-bar-'+(Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
+$barBackup=Join-Path $barClient ('Mods/Backups/TransmogMenu/playerbot-bar-'+(Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
 New-Item -ItemType Directory -Path $barBackup | Out-Null
 foreach ($barEntry in $barManifest.files) {
     $barSaved=Join-Path $barBackup $barEntry.path
@@ -27,8 +27,8 @@ try {
     }
     & java (Join-Path $PSScriptRoot '../season-pass/VerifySignatures.java') $barClient $barClient
     if ($LASTEXITCODE -ne 0) { throw 'Installed addon signatures failed.' }
-    & (Join-Path $barClient 'DXVK/graphics-menu/ApplyGraphicsMenu.ps1') -ClientPath $barClient -VerifyOnly
-    & (Join-Path $barClient 'DXVK/cursor-fix/InstallNativeCursorPatch.ps1') -ClientPath $barClient
+    & (Join-Path $barClient 'Mods/GraphicsMenu/Install-GraphicsMenu.ps1') -ClientPath $barClient -VerifyOnly
+    & (Join-Path $barClient 'Mods/CursorFix/Install-CursorFix.ps1') -ClientPath $barClient
     foreach ($barEntry in $barManifest.preservedFiles) {
         if ((Get-FileHash -LiteralPath (Join-Path $barClient $barEntry.path)).Hash -ne $barEntry.sha256) { throw ('Preserved client changed: '+$barEntry.path) }
     }

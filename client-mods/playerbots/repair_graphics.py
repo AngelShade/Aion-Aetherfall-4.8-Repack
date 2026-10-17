@@ -43,7 +43,7 @@ def apply(client, output):
         "$ErrorActionPreference='Stop'; if (Get-Process -Name 'aion.bin','aion' -ErrorAction SilentlyContinue) { exit 1 }"], capture_output=True,env=environment)
     if process.returncode:
         raise ValueError('Close Aion normally before repairing recovery records')
-    backup = client/'DXVK-backups'/('companions-tracking-'+datetime.now().strftime('%Y%m%d-%H%M%S-%f'))
+    backup = client/'Mods/Backups/Renderer'/('companions-tracking-'+datetime.now().strftime('%Y%m%d-%H%M%S-%f'))
     backup.mkdir()
     untouched = ['bin64/Game.dll', 'Aion Start.bat', 'Addon.key'] + prepare.PRESERVED + [
         'Plugin/RelicCalc/RelicCalc.pak', 'Plugin/RelicCalc/RelicCalc.pak.sig',
@@ -51,7 +51,7 @@ def apply(client, output):
     preserved = {rel:prepare.sha((client/rel).read_bytes()) for rel in untouched if (client/rel).is_file()}
     for entry in manifest['files']:
         rel = entry['path']; destination = (client/rel).resolve()
-        allowed = rel.startswith('DXVK/graphics-menu/') or rel == 'DXVK/installed.json' or rel.startswith('DXVK-backups/'+manifest['graphicsCompatibility']['backupName']+'/')
+        allowed = rel.startswith('Mods/GraphicsMenu/') or rel == 'Mods/Renderer/installed.json' or rel.startswith('Mods/Backups/Renderer/'+manifest['graphicsCompatibility']['backupName']+'/')
         if not destination.is_relative_to(client) or not allowed:
             raise ValueError('Unexpected recovery target: '+rel)
         actual = prepare.sha(destination.read_bytes()) if destination.is_file() else None
@@ -70,7 +70,7 @@ def apply(client, output):
             temporary=target.with_name(target.name+'.companions-recovery.tmp')
             shutil.copy2(output/entry['path'],temporary);os.replace(temporary,target)
             if prepare.sha(target.read_bytes()) != entry['staged']:raise ValueError('Installed recovery checksum failed')
-        for script,extra in [('DXVK/graphics-menu/ApplyGraphicsMenu.ps1',['-VerifyOnly']),('DXVK/cursor-fix/InstallNativeCursorPatch.ps1',[])]:
+        for script,extra in [('Mods/GraphicsMenu/Install-GraphicsMenu.ps1',['-VerifyOnly']),('Mods/CursorFix/Install-CursorFix.ps1',[])]:
             subprocess.run(['powershell.exe','-NoProfile','-ExecutionPolicy','Bypass','-File',str(client/script),'-ClientPath',str(client),*extra],check=True,env=environment)
         for rel,expected in preserved.items():
             if prepare.sha((client/rel).read_bytes()) != expected:raise ValueError('Live mod changed: '+rel)

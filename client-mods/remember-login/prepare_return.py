@@ -12,16 +12,16 @@ def main():
         rel=Path(rel).as_posix();target=out/rel;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(data);staged[rel]=data
     game,hooks=patch((root/'bin64/Game.dll').read_bytes());stage('bin64/Game.dll',game)
     stage('bin64/AionRememberLogin.dll',compile_dll(out))
-    g=read(root/'DXVK/graphics-menu/installed.json');m=read(root/'DXVK/graphics-menu/package/manifest.json')
+    g=read(root/'Mods/GraphicsMenu/installed.json');m=read(root/'Mods/GraphicsMenu/package/manifest.json')
     if g['files']!=m['files']:raise ValueError('Graphics recovery metadata differs')
     e=next(e for e in g['files'] if e['path']=='bin64/Game.dll');baseline=Path(g['backupRoot'])/e['path']
-    if not baseline.resolve().is_relative_to(root/'DXVK-backups') or sha(baseline.read_bytes())!=e['original'] or sha((root/e['path']).read_bytes())!=e['installed']:raise ValueError('Graphics DLL guards differ')
+    if not baseline.resolve().is_relative_to(root/'Mods/Backups/Renderer') or sha(baseline.read_bytes())!=e['original'] or sha((root/e['path']).read_bytes())!=e['installed']:raise ValueError('Graphics DLL guards differ')
     changed,_=patch(baseline.read_bytes());stage(baseline.relative_to(root),changed);e.update(original=sha(changed),installed=sha(game))
-    stage('DXVK/graphics-menu/package/'+e['path'],game);m['files']=g['files']
-    stage('DXVK/graphics-menu/installed.json',json.dumps(g,indent=2).encode());stage('DXVK/graphics-menu/package/manifest.json',json.dumps(m,indent=2).encode())
-    cursor=read(root/'DXVK/installed.json');e=next(e for e in cursor['nativeCursorPatch']['files'] if e['path']=='bin64/Game.dll');baseline=Path(e['backupPath'])
-    if not baseline.resolve().is_relative_to(root/'DXVK-backups') or sha(baseline.read_bytes())!=e['original'] or sha((root/e['path']).read_bytes())!=e['installed']:raise ValueError('Cursor DLL guards differ')
-    changed,_=patch(baseline.read_bytes());stage(baseline.relative_to(root),changed);e.update(original=sha(changed),installed=sha(game));stage('DXVK/installed.json',json.dumps(cursor,indent=2).encode())
+    stage('Mods/GraphicsMenu/package/'+e['path'],game);m['files']=g['files']
+    stage('Mods/GraphicsMenu/installed.json',json.dumps(g,indent=2).encode());stage('Mods/GraphicsMenu/package/manifest.json',json.dumps(m,indent=2).encode())
+    cursor=read(root/'Mods/Renderer/installed.json');e=next(e for e in cursor['nativeCursorPatch']['files'] if e['path']=='bin64/Game.dll');baseline=Path(e['backupPath'])
+    if not baseline.resolve().is_relative_to(root/'Mods/Backups/Renderer') or sha(baseline.read_bytes())!=e['original'] or sha((root/e['path']).read_bytes())!=e['installed']:raise ValueError('Cursor DLL guards differ')
+    changed,_=patch(baseline.read_bytes());stage(baseline.relative_to(root),changed);e.update(original=sha(changed),installed=sha(game));stage('Mods/Renderer/installed.json',json.dumps(cursor,indent=2).encode())
     preserved=PRESERVED+['Data/ui/ui.pak','L10N/enu/Data/data.pak']
     receipt=dict(feature='remember-login',revision='return-1',clientRoot=str(root),sourceKey=sha((root/'Pub.key').read_bytes()),hooks=hooks,
         files=[dict(path=rel,original=sha((root/rel).read_bytes()),installed=sha(data)) for rel,data in staged.items()],

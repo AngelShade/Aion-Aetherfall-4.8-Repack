@@ -4,17 +4,17 @@ $prepared=(Resolve-Path -LiteralPath $PreparedPath).Path
 $manifest=Get-Content -Raw -LiteralPath (Join-Path $prepared 'manifest.json') | ConvertFrom-Json
 $client=(Resolve-Path -LiteralPath $manifest.clientRoot).Path
 if(Get-Process -Name 'aion.bin','aion' -ErrorAction SilentlyContinue){throw 'Close the crashed Aion client before repair.'}
-if($manifest.speechReceipt -notmatch '^SpeechBubbles-backups/\d{8}-\d{6}-\d{3}/manifest\.json$'){throw 'Invalid speech receipt path.'}
+if($manifest.speechReceipt -notmatch '^Mods/Backups/SpeechBubbles/\d{8}-\d{6}-\d{3}/manifest\.json$'){throw 'Invalid speech receipt path.'}
 $receipt=Get-Content -Raw -LiteralPath (Join-Path $client $manifest.speechReceipt) | ConvertFrom-Json
 . (Join-Path $PSScriptRoot 'GraphicsCompatibility.ps1')
 $compat=@(Get-SpeechGraphicsPaths $receipt)
 $games=@($compat|Where-Object {$_ -like '*bin64/Game.dll'})
-$expected=@('bin64/Game.dll','DXVK/graphics-menu/package/manifest.json','DXVK/graphics-menu/installed.json','DXVK/installed.json',$manifest.speechReceipt)+$games
+$expected=@('bin64/Game.dll','Mods/GraphicsMenu/package/manifest.json','Mods/GraphicsMenu/installed.json','Mods/Renderer/installed.json',$manifest.speechReceipt)+$games
 if($manifest.files.Count -ne 8 -or (Compare-Object ($manifest.files.path|Sort-Object) ($expected|Sort-Object))){throw 'Unexpected loader repair targets.'}
 foreach($e in $manifest.files){
  if((Get-FileHash -LiteralPath (Join-Path $client $e.path)).Hash -ne $e.original -or (Get-FileHash -LiteralPath (Join-Path $prepared $e.path)).Hash -ne $e.installed){throw 'Client or prepared repair changed.'}
 }
-$backup=Join-Path $client ('SpeechBubbles-backups/loader-fix-'+(Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
+$backup=Join-Path $client ('Mods/Backups/SpeechBubbles/loader-fix-'+(Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
 foreach($e in $manifest.files){
  $saved=Join-Path $backup $e.path
  New-Item -ItemType Directory -Path (Split-Path -Parent $saved) -Force | Out-Null

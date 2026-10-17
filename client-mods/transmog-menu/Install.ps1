@@ -17,8 +17,12 @@ if ($manifest.signatureRepair) { $expected = @($expected | Where-Object { $_ -no
 if ($manifest.menuIconsOnly) { $expected = @('Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig', 'Plugin/RelicCalc/RelicCalc.pak', 'Plugin/RelicCalc/RelicCalc.pak.sig') }
 if ($manifest.compactBrowserTitles) { $expected = @('bin64/Game.dll', 'Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig', 'Plugin/RelicCalc/RelicCalc.pak', 'Plugin/RelicCalc/RelicCalc.pak.sig') }
 if ($manifest.poetaJourney -or $manifest.nativeWardrobe) { $expected += 'bin64/AionIconBridge.dll' }
-if ($manifest.inventorySlots -in 180,279) { $expected += 'Data/ui/game/game.pak' }
-if ($manifest.inventorySlots -in 180,279 -and $manifest.files.path -contains 'L10N/enu/data/data.pak') { $expected += 'L10N/enu/data/data.pak' }
+if ($manifest.inventorySlots -in 180,279,288) { $expected += 'Data/ui/game/game.pak' }
+if ($manifest.inventorySlots -in 180,279,288 -and $manifest.files.path -contains 'L10N/enu/data/data.pak') { $expected += 'L10N/enu/data/data.pak' }
+if ($manifest.feature -eq 'inventory-capacity-288') {
+    $expected = @('bin64/Game.dll', 'Data/ui/game/game.pak')
+    if ($manifest.files.path -contains 'L10N/enu/Data/data.pak') { $expected += 'L10N/enu/Data/data.pak' }
+}
 if ($manifest.nativeIcons) {
     $expected += @('bin64/AionIconBridge.dll', 'bin64/AionIconBridge.index')
     if ((Get-FileHash -LiteralPath (Join-Path $clientRoot 'bin64/Awesomium.dll')).Hash -ne $manifest.nativeIcons.awesomiumSha256 -or
@@ -66,7 +70,7 @@ if (Test-Path -LiteralPath $legacy) {
         if ((Get-FileHash -LiteralPath $legacyFile).Hash -ne $entry.sha256) { throw 'Legacy addon changed since preparation.' }
     }
 }
-$backup = [IO.Path]::GetFullPath((Join-Path $clientRoot ('TransmogMenu-backups\signed-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))))
+$backup = [IO.Path]::GetFullPath((Join-Path $clientRoot ('Mods\Backups\TransmogMenu\signed-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))))
 if (-not $backup.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid backup path.' }
 New-Item -ItemType Directory -Path $backup | Out-Null
 foreach ($entry in $manifest.files) {

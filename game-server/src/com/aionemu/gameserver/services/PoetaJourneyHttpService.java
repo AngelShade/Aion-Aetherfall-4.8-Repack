@@ -7,7 +7,7 @@ import java.nio.file.*;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import com.alibaba.fastjson2.JSON;
+import com.aionemu.commons.utils.Json;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.sun.net.httpserver.HttpExchange;
 import org.slf4j.Logger;
@@ -79,7 +79,7 @@ public final class PoetaJourneyHttpService {
 			if (kv.length == 2) args.put(URLDecoder.decode(kv[0],StandardCharsets.UTF_8),URLDecoder.decode(kv[1],StandardCharsets.UTF_8)); }
 		return args;
 	}
-	private static void json(HttpExchange x,int status,Map<String,Object> state) throws IOException { send(x,status,"application/json",JSON.toJSONBytes(state)); }
+	private static void json(HttpExchange x,int status,Map<String,Object> state) throws IOException { send(x,status,"application/json",Json.bytes(state)); }
 	private static void send(HttpExchange x,int status,String type,byte[] bytes) throws IOException {
 		x.getResponseHeaders().set("Content-Type",type+(type.startsWith("image/") ? "" : "; charset=utf-8"));
 		x.sendResponseHeaders(status,bytes.length); x.getResponseBody().write(bytes);

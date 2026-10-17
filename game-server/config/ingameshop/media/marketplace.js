@@ -22,11 +22,37 @@
   };
   window.shopConfirm = function (form) {
     if (writing) return false;
-    var button = form.querySelector('button');
+    if (!validQuantity(form)) return false;
+    var button = form.querySelector('button[type="submit"]');
     if (!button || button.disabled) return false;
     button.disabled = true; button.textContent = 'Purchasing...';
     return true;
   };
+  function money(value) { return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  function validQuantity(form) {
+    var box = form.querySelector('.shop-quantity');
+    if (!box) return true;
+    var max = +box.getAttribute('data-max'), input = box.querySelector('[name="quantity"]');
+    if (window.AionQuantity.value(input, max)) return true;
+    message('Quantity must be between 1 and ' + money(max) + '.', true); input.focus(); return false;
+  }
+  function initQuantity() {
+    var box = document.querySelector('.shop-quantity'); if (!box) return;
+    var input = box.querySelector('[name="quantity"]'), max = +box.getAttribute('data-max');
+    if (+box.getAttribute('data-count') > 1) box.querySelector('label').textContent = 'Packs · maximum ' + money(max);
+    window.AionQuantity.bindMax(input, box.querySelector('#max-quantity'), max);
+    input.oninput = function () {
+      var value = window.AionQuantity.value(input, max), price = +box.getAttribute('data-price'), count = +box.getAttribute('data-count');
+      box.querySelector('.quantity-summary').textContent = value ? money(value * count) + ' items total' + (count > 1 ? ' (' + money(value) + ' packs of ' + money(count) + ')' : '') : 'Enter 1–' + money(max) + '.';
+      var total = document.getElementById('review-price'), after = document.getElementById('review-balance-after');
+      if (total) total.textContent = value ? money(value * price) + ' Kinah' : '—';
+      if (after) after.textContent = value ? money(+box.getAttribute('data-balance') - value * price) + ' Kinah' : '—';
+      var confirm = box.parentNode.querySelector('button[type="submit"]');
+      confirm.textContent = value ? 'Confirm & pay ' + money(value * price) + ' Kinah →' : 'Enter a valid quantity';
+      confirm.disabled = !value;
+    };
+    input.oninput();
+  }
   window.shopAction = function (form) {
     if (writing) return false;
     var button = form.querySelector('button');
@@ -76,6 +102,7 @@
         if (from && to && from.innerHTML !== to.innerHTML) to.parentNode.replaceChild(from, to);
       }
       main = document.querySelector('.main-content'); main.scrollTop = scroll;
+      initQuantity();
       var fragment = url.split('#')[1], target = fragment ? document.getElementById(fragment) : null;
       if (target && fragment !== 'shop-content' && !keepScroll) main.scrollTop = target.offsetTop;
       finish();
@@ -98,6 +125,7 @@
     var form = event.target;
     if (!form || form.tagName !== 'FORM' || event.defaultPrevented) return;
     event.preventDefault();
+    if (!validQuantity(form)) return;
     var data = encode(form), method = form.method.toUpperCase();
     if (method === 'GET') load('/shop?' + data + '#shop-content', 'GET', null, false, true);
     // The hidden input named "action" shadows form.action in old WebKit.
@@ -111,4 +139,5 @@
       load('/shop?' + encode(field.form) + '#shop-content', 'GET', null, false, true);
   }, false);
   window.addEventListener('popstate', function () { load(location.href, 'GET', null, false, false); }, false);
+  initQuantity();
 }());

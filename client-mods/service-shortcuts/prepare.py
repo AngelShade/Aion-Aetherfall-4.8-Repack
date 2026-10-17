@@ -100,16 +100,16 @@ def main():
  (out/'Pub.key').unlink()
  for rel in ['Addon.key','bin32/bin32.pak.sig','Data/func_pet/func_pet.pak.sig',pak+'.sig']:stage(rel,(out/rel).read_bytes())
  # Compose only the active locale graphics recovery. Native Game.dll/cursor hooks stay unchanged.
- graphics=read(root/'DXVK/graphics-menu/installed.json');package=read(root/'DXVK/graphics-menu/package/manifest.json')
+ graphics=read(root/'Mods/GraphicsMenu/installed.json');package=read(root/'Mods/GraphicsMenu/package/manifest.json')
  if graphics['files']!=package['files']:raise ValueError('Graphics recovery metadata differs')
  locale=next(e for e in graphics['files'] if e['path']=='L10N/enu/Data/data.pak');baseline=Path(graphics['backupRoot'])/locale['path']
- if not baseline.resolve().is_relative_to(root/'DXVK-backups') or sha(baseline.read_bytes())!=locale['original'] or sha((root/locale['path']).read_bytes())!=locale['installed']:raise ValueError('Graphics locale guards differ')
- for rel in ['DXVK/graphics-menu/installed.json','DXVK/graphics-menu/package/manifest.json',baseline.relative_to(root).as_posix()]:
+ if not baseline.resolve().is_relative_to(root/'Mods/Backups/Renderer') or sha(baseline.read_bytes())!=locale['original'] or sha((root/locale['path']).read_bytes())!=locale['installed']:raise ValueError('Graphics locale guards differ')
+ for rel in ['Mods/GraphicsMenu/installed.json','Mods/GraphicsMenu/package/manifest.json',baseline.relative_to(root).as_posix()]:
   original=out/'originals'/rel;original.parent.mkdir(parents=True,exist_ok=True);original.write_bytes((root/rel).read_bytes())
  stage(baseline.relative_to(root),transform(baseline,locale['path'],defs,dds))
  locale.update(original=sha(staged[baseline.relative_to(root).as_posix()]),installed=sha(staged[locale['path']]))
  package['files']=copy.deepcopy(graphics['files'])
- stage('DXVK/graphics-menu/installed.json',json.dumps(graphics,indent=2).encode());stage('DXVK/graphics-menu/package/manifest.json',json.dumps(package,indent=2).encode());stage('DXVK/graphics-menu/package/'+locale['path'],staged[locale['path']])
+ stage('Mods/GraphicsMenu/installed.json',json.dumps(graphics,indent=2).encode());stage('Mods/GraphicsMenu/package/manifest.json',json.dumps(package,indent=2).encode());stage('Mods/GraphicsMenu/package/'+locale['path'],staged[locale['path']])
  sys.path.insert(0,str(HERE.parent/'season-pass'));from prepare import market_hooks
  preserved=['Pub.key','bin64/Game.dll','bin64/AionIconBridge.dll','bin64/AionGraphicsMenu.dll','bin64/AionRememberLogin.dll','bin64/AionSpeechBubbles.dll','bin64/crysystem.dll','bin64/XRenderD3D9.dll','bin32/bin32.pak','Data/func_pet/func_pet.pak','Data/ui/game/game.pak','Data/Items/Items.pak','bin64/AionIconBridge.index']
  files=[dict(path=rel,original=sha((root/rel).read_bytes()) if (root/rel).exists() else None,installed=sha(data)) for rel,data in staged.items()]

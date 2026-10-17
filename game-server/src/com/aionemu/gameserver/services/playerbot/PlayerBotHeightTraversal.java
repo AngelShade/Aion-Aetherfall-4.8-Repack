@@ -12,17 +12,19 @@ public final class PlayerBotHeightTraversal {
   return !autonomous && leaderAlive && movable && !mission && (order==PlayerBotRules.Order.FOLLOW || order==PlayerBotRules.Order.PASSIVE)
    && finite(dx,dy,dz) && Math.abs(dz)>1.75f && Math.hypot(dx,dy)<=40;
  }
- public record Plan(float x,float y,float z,float endX,float endY,float endZ,float seconds,float launch,float delay) {
-  public Plan(float x,float y,float z,float endX,float endY,float endZ,float seconds,float launch){this(x,y,z,endX,endY,endZ,seconds,launch,0);}
+ public record Plan(float x,float y,float z,float endX,float endY,float endZ,float seconds,float launch,float delay,float travelSeconds) {
+  public Plan(float x,float y,float z,float endX,float endY,float endZ,float seconds,float launch){this(x,y,z,endX,endY,endZ,seconds,launch,0,seconds);}
+  public Plan(float x,float y,float z,float endX,float endY,float endZ,float seconds,float launch,float delay){this(x,y,z,endX,endY,endZ,seconds,launch,delay,seconds-delay);}
   public Vector3f at(double time) {
-   double t=Math.max(0,Math.min(seconds,time)),ratio=Math.max(0,(t-delay)/(seconds-delay));
+   double t=Math.max(0,Math.min(seconds,time)),ratio=Math.min(1,Math.max(0,(t-delay)/travelSeconds));
    return new Vector3f(x+(float)((endX-x)*ratio),y+(float)((endY-y)*ratio),
     t>=seconds?endZ:z+(float)(launch*t-GRAVITY*t*t/2));
   }
+  public double horizontalSpeed(){return Math.hypot(endX-x,endY-y)/travelSeconds;}
   public float fallDistance(){return Math.max(0,z+launch*launch/(2*GRAVITY)-endZ);}
   public boolean descending(double time){return launch-GRAVITY*time<=0;}
   public boolean falling(){return launch==0 && endX==x && endY==y && endZ<z;}
-  public boolean valid(){return finite(x,y,z,endX,endY,endZ,seconds,launch,delay) && seconds>0 && delay>=0 && delay<seconds && launch>=0;}
+  public boolean valid(){return finite(x,y,z,endX,endY,endZ,seconds,launch,delay,travelSeconds) && seconds>0 && delay>=0 && delay<seconds && travelSeconds>0 && travelSeconds<=seconds-delay+.001f && launch>=0;}
  }
  public static Plan plan(GeoMap map,int instance,float x,float y,float z,float tx,float ty,float goalZ,float speed) {
   return plan(map,instance,x,y,z,tx,ty,goalZ,speed,Long.MAX_VALUE,MAX_DROP);
@@ -34,7 +36,48 @@ public final class PlayerBotHeightTraversal {
  /** Production is independent of human fall damage. Explicit/untimed helper
   * envelopes remain available for offline compatibility. */
  public static Plan plan(GeoMap map,int instance,float x,float y,float z,float tx,float ty,float goalZ,float speed,long deadline,float maximumDrop) {
-  if(System.nanoTime()>=deadline)return null;
+  return search(map,instance,x,y,z,tx,ty,goalZ,speed,maximumDrop).advance(deadline);
+ }
+ /** Retains earned arc segments across terrain slices; a deadline is not a blocked route. */
+ public static Search search(GeoMap map,int instance,float x,float y,float z,float tx,float ty,float goalZ,float speed,float maximumDrop) {
+  return new Search(map,instance,x,y,z,tx,ty,goalZ,speed,maximumDrop);
+ }
+ public static final class Search {
+  private final GeoMap map;
+  private final int instance;
+  private final float x,y,z,tx,ty,goalZ,speed,maximumDrop;
+  private Plan candidate,result;
+  private boolean prepared,done;
+  private int sample=1,samples,variant;
+  private Vector3f previous;
+  private Search(GeoMap map,int instance,float x,float y,float z,float tx,float ty,float goalZ,float speed,float maximumDrop) {
+   this.map=map;this.instance=instance;this.x=x;this.y=y;this.z=z;this.tx=tx;this.ty=ty;this.goalZ=goalZ;this.speed=speed;this.maximumDrop=maximumDrop;
+  }
+  public boolean done(){return done;}
+  public Plan advance(long deadline) {
+   if(done)return result;
+   if(System.nanoTime()>=deadline)return null;
+   while(!done && System.nanoTime()<deadline) {
+   if(!prepared) {
+    // One native floor/walk/landing probe is indivisible and charged to this lease.
+    // Its result survives an exhausted lease instead of losing the whole candidate.
+    candidate=prepare(map,instance,x,y,z,tx,ty,goalZ,speed,maximumDrop,variant);prepared=true;
+    if(candidate==null){nextVariant();continue;}
+    previous=candidate.at(0);
+    samples=Math.max(8,(int)Math.ceil(Math.max(Math.hypot(tx-x,ty-y)/.2,candidate.seconds/.05)));
+   }
+   while(sample<=samples && System.nanoTime()<deadline) {
+    Vector3f next=candidate.at(candidate.seconds*sample/samples);
+    if(!segment(map,instance,previous,next)){nextVariant();break;}
+    previous=next;sample++;
+   }
+   if(prepared && sample>samples){done=true;result=candidate;}
+   }
+   return result;
+  }
+  private void nextVariant(){variant++;prepared=false;candidate=null;sample=1;done=variant>=3;}
+ }
+ private static Plan prepare(GeoMap map,int instance,float x,float y,float z,float tx,float ty,float goalZ,float speed,float maximumDrop,int variant) {
   if(map==null || !finite(x,y,z,tx,ty,goalZ,speed,maximumDrop) || speed<=0 || maximumDrop<=0)return null;
   float drop=goalZ<z-.3f?Math.min(200,maximumDrop):MAX_DROP;
   double distance=Math.hypot(tx-x,ty-y);
@@ -50,27 +93,25 @@ public final class PlayerBotHeightTraversal {
   if(!Float.isFinite(end) || (Math.abs(end-goalZ)>2 && !intermediateDescent && !intermediateAscent) || end-z>MAX_RISE || z-end>drop)return null;
   // Never jump instead of a supported direct walk. For equal-height gaps the walk ends short.
   var walk=PlayerBotGroundNavigation.walk(map,instance,x,y,z,tx,ty,end);
-  if(System.nanoTime()>=deadline)return null;
   if(Math.hypot(walk.x-tx,walk.y-ty)<.3 && Math.abs(walk.z-end)<.3)return null;
-  float launch=end>z+.3f?Math.min(6,speed):Math.min(3,speed);
+  // Upstream JumpTo uses the native run speed for horizontal and vertical
+  // launch. Try that clearance first, then a low hop and a supported step-off
+  // for ceilings. A failed arc is not proof that every launch is obstructed.
+  float launch=variant==0?Math.min(6,speed):variant==1?Math.min(3,speed):0;
+  if(launch==0 && end>=z-.3f)return null;
   double discriminant=launch*launch-2*GRAVITY*(end-z);
   if(discriminant<=0)return null;
   float seconds=(float)((launch+Math.sqrt(discriminant))/GRAVITY);
   float delay=end>z+.3f?(float)((launch-Math.sqrt(Math.max(0,launch*launch-2*GRAVITY*(end-z+.1f))))/GRAVITY):0;
   double durationLimit=end<z-.3f?(launch+Math.sqrt(launch*launch+2*GRAVITY*drop))/GRAVITY:3;
   if(!Float.isFinite(seconds) || seconds<=delay || seconds>durationLimit+.001 || distance/(seconds-delay)>speed)return null;
-  Plan plan=new Plan(x,y,z,tx,ty,end,seconds,launch,delay);
+  // Clear the lip at native horizontal speed, then fall at the earned landing XY.
+  // Spreading two metres of horizontal motion across a long fall drove the arc
+  // back into its own supporting ledge before it had cleared that ledge.
+  float travel=end<z-.3f?(float)(distance/speed):seconds-delay;
+  Plan plan=new Plan(x,y,z,tx,ty,end,seconds,launch,delay,travel);
   if(maximumDrop<200 && goalZ<z-.3f && plan.fallDistance()>=drop)return null;
-  if(!landing(map,instance,plan))return null;
-  Vector3f previous=plan.at(0);
-  int samples=Math.max(8,(int)Math.ceil(Math.max(distance/.2,seconds/.05)));
-  for(int i=1;i<=samples;i++) {
-   if(System.nanoTime()>=deadline)return null;
-   Vector3f next=plan.at(seconds*i/samples);
-   if(!segment(map,instance,previous,next))return null;
-   previous=next;
-  }
-  return plan;
+  return landing(map,instance,plan)?plan:null;
  }
  public static boolean landing(GeoMap map,int instance,Plan plan) {
   if(map==null || plan==null || !plan.valid())return false;

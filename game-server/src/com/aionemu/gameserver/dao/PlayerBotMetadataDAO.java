@@ -2,7 +2,7 @@ package com.aionemu.gameserver.dao;
 
 import java.sql.*;
 import java.util.*;
-import com.alibaba.fastjson2.JSON;
+import com.aionemu.commons.utils.Json;
 
 /** Native prepared SQL, supplied transaction, and optimistic checkpoint ownership. */
 public final class PlayerBotMetadataDAO {
@@ -21,9 +21,9 @@ public final class PlayerBotMetadataDAO {
     if(!r.next())return null;
     if(r.getInt(1)!=account)throw new SQLException("Stored bot metadata owner mismatch");
     try {
-     var json=JSON.parseObject(r.getString(3));var map=new TreeMap<String,String>();
+     var json=Json.read(r.getString(3));var map=new TreeMap<String,String>();
      if(json==null)throw new IllegalArgumentException("Null metadata");
-     for(var e:json.entrySet()){if(!(e.getValue() instanceof String value))throw new IllegalArgumentException("Non-string metadata");map.put(e.getKey(),value);}
+     for(var e:json.entrySet()){var value=e.getValue();if(!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString())throw new IllegalArgumentException("Non-string metadata");map.put(e.getKey(),value.getAsString());}
      long revision=r.getLong(2);if(revision<=0)throw new IllegalArgumentException("Invalid metadata revision");
      return new Row(revision,map);
     }catch(RuntimeException e){throw new SQLException("Invalid stored bot metadata",e);}
@@ -32,7 +32,7 @@ public final class PlayerBotMetadataDAO {
  }
  public static void write(Connection c,int account,int character,String section,long revision,Map<String,String> values)throws SQLException {
   if(c.getAutoCommit())throw new SQLException("Bot metadata requires checkpoint transaction");
-  owner(c,account,character);String payload=JSON.toJSONString(new TreeMap<>(values));
+  owner(c,account,character);String payload=Json.write(new TreeMap<>(values));
   if(revision==0) {
    try(var s=c.prepareStatement("INSERT INTO playerbot_metadata (player_id,account_id,section,revision,settings) VALUES (?,?,?,1,?)")) {
     s.setInt(1,character);s.setInt(2,account);s.setString(3,section);s.setString(4,payload);s.executeUpdate();

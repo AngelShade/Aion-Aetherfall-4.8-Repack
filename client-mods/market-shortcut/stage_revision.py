@@ -11,8 +11,8 @@ from artwork import read_pak,rewrite,binary_xml,encode_binary_xml
 def read(p):return json.loads(p.read_text(encoding='utf-8-sig'))
 def sha(b):return sha256(b).hexdigest()
 OUT=Path('output/market-shortcut/revision-2').resolve()
-MARKET_RECEIPT='MarketShortcut-backups/20261002-010612-233/manifest.json'
-SPEECH_RECEIPT='SpeechBubbles-backups/20261001-203148-743/manifest.json'
+MARKET_RECEIPT='Mods/Backups/MarketShortcut/20261002-010612-233/manifest.json'
+SPEECH_RECEIPT='Mods/Backups/SpeechBubbles/20261001-203148-743/manifest.json'
 TOOLTIP='STR_PRIVATE_CENTRAL_MARKET_HUD'
 def icons():
     atlas=Image.new('RGBA',(256,64));defs=[]
@@ -87,15 +87,15 @@ def main():
     subprocess.run(f'cmd.exe /d /s /c ""{script}""',check=True);stage('bin64/AionMarketShortcut.dll',dll.read_bytes())
     # Update only localized resource hashes; the existing native hooks and Game.dll stay byte-identical.
     def metadata(prefix):
-        prefix=prefix+'/' if prefix else '';srel=prefix+'DXVK/graphics-menu/installed.json';mrel=prefix+'DXVK/graphics-menu/package/manifest.json'
+        prefix=prefix+'/' if prefix else '';srel=prefix+'Mods/GraphicsMenu/installed.json';mrel=prefix+'Mods/GraphicsMenu/package/manifest.json'
         state=read(ROOT/srel);manifest=read(ROOT/mrel)
         if state['files']!=manifest['files']:raise ValueError('Graphics state differs')
         entry=next(e for e in state['files'] if e['path']=='L10N/enu/Data/data.pak');rel=entry['path'];baseline=Path(state['backupRoot'])/rel
-        if not baseline.resolve().is_relative_to(ROOT/'DXVK-backups') or sha(baseline.read_bytes())!=entry['original']:raise ValueError('Graphics locale backup changed')
+        if not baseline.resolve().is_relative_to(ROOT/'Mods/Backups/Renderer') or sha(baseline.read_bytes())!=entry['original']:raise ValueError('Graphics locale backup changed')
         if sha((ROOT/prefix/rel).read_bytes())!=entry['installed']:raise ValueError('Graphics locale changed')
         baseline_rel=baseline.relative_to(ROOT).as_posix()
         if baseline_rel not in staged:stage(baseline_rel,transform(baseline,rel))
-        entry.update(original=sha(staged[baseline_rel]),installed=sha(staged[prefix+rel]));stage(prefix+'DXVK/graphics-menu/package/'+rel,staged[prefix+rel])
+        entry.update(original=sha(staged[baseline_rel]),installed=sha(staged[prefix+rel]));stage(prefix+'Mods/GraphicsMenu/package/'+rel,staged[prefix+rel])
         manifest['files']=copy.deepcopy(state['files'])
         stage(srel,json.dumps(state,indent=2).encode());stage(mrel,json.dumps(manifest,indent=2).encode())
     metadata('');speech=read(ROOT/SPEECH_RECEIPT);base=Path(SPEECH_RECEIPT).parent.as_posix()

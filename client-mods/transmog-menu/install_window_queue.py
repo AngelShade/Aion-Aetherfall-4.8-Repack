@@ -36,11 +36,11 @@ def main():
     if m['feature'] not in prefixes or root!=CLIENT:raise ValueError('Wrong feature or installation')
     name=m['graphicsCompatibility']['backupName']
     if not re.fullmatch(r'service-menu-graphics-\d{8}-\d{6}-\d{6}',name):raise ValueError('Invalid graphics recovery path')
-    backup='DXVK-backups/'+name
-    allowed={'bin64/Game.dll','DXVK/installed.json','DXVK/graphics-menu/installed.json','DXVK/graphics-menu/package/manifest.json',
-             'DXVK/graphics-menu/package/bin64/Game.dll','DXVK/graphics-menu/package/Data/ui/game/game.pak',
+    backup='Mods/Backups/Renderer/'+name
+    allowed={'bin64/Game.dll','Mods/Renderer/installed.json','Mods/GraphicsMenu/installed.json','Mods/GraphicsMenu/package/manifest.json',
+             'Mods/GraphicsMenu/package/bin64/Game.dll','Mods/GraphicsMenu/package/Data/ui/game/game.pak',
              backup+'/bin64/Game.dll',backup+'/Data/ui/game/game.pak',backup+'/cursor-base/bin64/Game.dll'}
-    if m['graphicsCompatibility']['localized']:allowed.update({'DXVK/graphics-menu/package/L10N/enu/Data/data.pak',backup+'/L10N/enu/Data/data.pak'})
+    if m['graphicsCompatibility']['localized']:allowed.update({'Mods/GraphicsMenu/package/L10N/enu/Data/data.pak',backup+'/L10N/enu/Data/data.pak'})
     if m['feature'] in ('remember-login-return-v2','remember-login-reconnect-v3'):allowed.add('bin64/AionRememberLogin.dll')
     if len(m['files'])!=len(allowed) or {e['path'] for e in m['files']}!=allowed:raise ValueError('Unexpected transaction scope')
     def preserve():

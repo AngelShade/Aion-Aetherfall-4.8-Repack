@@ -213,9 +213,14 @@ public final class PlayerBotGearPolicy {
  }
  static boolean roll(Player bot,ItemTemplate t) {
   Settings s=settings(bot);if(t==null || s.rolls==Rolls.PASS || bot.getInventory().isFull(t.getExtraInventoryId()))return false;
-  if(s.rolls==Rolls.ALL)return true;State st=STATES.get(bot.getObjectId());Role role=role(bot,st==null ? PlayerBotRules.roleFor(bot.getPlayerClass()) : st.session.combatRole());
+  State st=STATES.get(bot.getObjectId());Role role=role(bot,st==null ? PlayerBotRules.roleFor(bot.getPlayerClass()) : st.session.combatRole());
   if(!eligible(bot,t) || !allowedWeapon(t,s,role))return false;
-  for(long slot:slots(bot,t))if(gain(bot,t,score(bot,t,role),slot,role)>1)return true;
+  double value=score(bot,t,role);
+  for(long slot:slots(bot,t))if(gain(bot,t,value,slot,role)>1) {
+   boolean alreadyOwned=bot.getInventory().getItems().stream().anyMatch(i->!i.isEquipped() && i.isIdentified() && eligible(bot,i.getItemTemplate())
+    && allowedWeapon(i.getItemTemplate(),s,role) && slots(bot,i.getItemTemplate()).contains(slot) && score(bot,i,role)>=value);
+   if(!alreadyOwned)return true;
+  }
   return false;
  }
  static Trigger trigger(PlayerBotSession session,PlayerBotNavigation navigation) {

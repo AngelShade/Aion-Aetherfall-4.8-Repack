@@ -8,6 +8,52 @@ import com.aionemu.gameserver.utils.PositionUtil;
 public final class PlayerBotMoveController extends PlayerMoveController {
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PlayerBotMoveController.class);
 	private volatile boolean failed;
+	private final java.util.ArrayDeque<WalkPoint> walkAhead = new java.util.ArrayDeque<>();
+	private final java.util.ArrayDeque<WalkPoint> walked = new java.util.ArrayDeque<>();
+	public record WalkPoint(float x,float y,float z) {}
+	private java.util.function.BiPredicate<WalkPoint,WalkPoint> walkSafe;
+	private WalkPoint walkCurrent;
+	private long walkUntil;
+	private int walkWorld,walkInstance;
+	/** Only the navigation owner publishes already proved corridor edges. No path search runs on the mover. */
+	public synchronized void continueWalk(java.util.List<WalkPoint> points,
+		java.util.function.BiPredicate<WalkPoint,WalkPoint> safe) {
+		walkAhead.clear();walkCurrent=null;
+		if(points.isEmpty() || !isInMove() || owner.isFlying() || heightPlan!=null || platformPlan!=null)return;
+		var first=points.getFirst();
+		if(PositionUtil.getDistance(targetDestX,targetDestY,targetDestZ,first.x(),first.y(),first.z())>.15)return;
+		walkCurrent=first;
+		double distance=0;var previous=first;
+		for(int i=1;i<points.size() && i<16;i++) {
+			var point=points.get(i);distance+=PositionUtil.getDistance(previous.x(),previous.y(),previous.z(),point.x(),point.y(),point.z());
+			if(distance>Math.max(6,owner.getGameStats().getMovementSpeedFloat()*2))break;
+			walkAhead.addLast(point);previous=point;
+		}
+		walkSafe=java.util.Objects.requireNonNull(safe);walkWorld=owner.getWorldId();walkInstance=owner.getInstanceId();walkUntil=System.currentTimeMillis()+3000;
+	}
+	public synchronized java.util.List<WalkPoint> completedWalk() {
+		var result=java.util.List.copyOf(walked);walked.clear();return result;
+	}
+	private boolean nextWalkPoint(long now) {
+		if(walkAhead.isEmpty() || now>walkUntil || owner.getWorldId()!=walkWorld || owner.getInstanceId()!=walkInstance
+			|| owner.isCasting() || owner.isTrading() || owner.isLooting() || !owner.canPerformMove())return false;
+		var next=walkAhead.peekFirst();
+		var from=new WalkPoint(owner.getX(),owner.getY(),owner.getZ());
+		if(walkSafe==null || !walkSafe.test(from,next))return false;
+		// Recheck the whole handoff edge for fresh walls/doors. The ordinary
+		// ground loop still checks the actual floor step on every movement tick.
+		var ground=com.aionemu.gameserver.world.geo.GeoService.getInstance().findGroundMovementCollision(owner.getWorldId(),owner.getInstanceId(),
+			owner.getX(),owner.getY(),owner.getZ(),next.x(),next.y(),next.z());
+		if(ground==null || !Float.isFinite(ground.x) || !Float.isFinite(ground.y) || !Float.isFinite(ground.z)
+			|| Math.hypot(ground.x-next.x(),ground.y-next.y())>.15 || Math.abs(ground.z-next.z())>.75)return false;
+		walked.addLast(walkCurrent!=null?walkCurrent:new WalkPoint(targetDestX,targetDestY,targetDestZ));
+		while(walked.size()>16)walked.removeFirst();
+		walkAhead.removeFirst();
+		byte direction=(byte)Math.floorMod((int)Math.round(Math.toDegrees(Math.atan2(next.y()-owner.getY(),next.x()-owner.getX()))/3),120);
+		var remaining=java.util.List.copyOf(walkAhead);
+		setNewDirection(next.x(),next.y(),next.z(),direction);walkCurrent=next;walkAhead.addAll(remaining);setAndSendStartMove(owner);
+		return true;
+	}
 	private com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.Plan heightPlan;
 	private int heightWorld,heightInstance;
 	private double heightTime;
@@ -24,6 +70,11 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		owner.getController().onStartMove();PlayerMoveTaskManager.getInstance().addPlayer(owner);sendPlatformMove();return true;
 	}
 	public synchronized boolean traversingHeight(){return heightPlan!=null;}
+	/** Native glide takes over from a jump/drop, revoking the old gravity plan. */
+	public synchronized void onGlideStarted(){
+		if(!owner.isInGlidingState() || platformPlan!=null)return;
+		heightPlan=null;interruptedHeight=false;setIsJumping(false);abortMove();
+	}
 	public synchronized boolean startHeightTraversal(com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.Plan plan) {
 		if(heightPlan!=null)return true;
 		if(plan==null || !plan.valid() || failed || !owner.isSpawned() || owner.isDead() || owner.isFlying())return false;
@@ -45,6 +96,9 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 
 	@Override
 	public synchronized void setNewDirection(float x, float y, float z) {
+		// Any different command revokes the previous corridor continuation.
+		// nextWalkPoint replaces this queue explicitly after changing direction.
+		if(x!=targetDestX || y!=targetDestY || z!=targetDestZ){walkAhead.clear();walkCurrent=null;}
 		super.setNewDirection(x, y, z);
 		// Headless intent replaces the client's move request, not its position sample.
 		// Forced fear/confusion travel must not start voluntary combat modifiers.
@@ -104,7 +158,17 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		com.aionemu.gameserver.services.playerbot.PlayerBotFollowIntent.refresh(owner);
 		com.aionemu.gameserver.services.playerbot.PlayerBotFollowSpeed.update(owner,targetDestX,targetDestY,targetDestZ);
 		lastMoveUpdate=now-elapsed;
-		if (owner.isFlying()) super.moveToDestination();
+		if (owner.isFlying()) {
+			// A moving leader may refresh the destination after the AI's original
+			// proof. Validate this actual airborne body step against fresh geometry.
+			double distance=PositionUtil.getDistance(owner,targetDestX,targetDestY,targetDestZ);
+			double fraction=distance<.001?0:Math.min(1,requestedMovementSpeed()*elapsed/1000.0/distance);
+			var from=new com.aionemu.gameserver.geoEngine.math.Vector3f(owner.getX(),owner.getY(),owner.getZ());
+			var to=new com.aionemu.gameserver.geoEngine.math.Vector3f(owner.getX()+(float)((targetDestX-owner.getX())*fraction),
+				owner.getY()+(float)((targetDestY-owner.getY())*fraction),owner.getZ()+(float)((targetDestZ-owner.getZ())*fraction));
+			if(!com.aionemu.gameserver.world.geo.GeoService.getInstance().validatePlayerBotHeightSegment(owner.getWorldId(),owner.getInstanceId(),from,to)){abortMove();return;}
+			super.moveToDestination();
+		}
 		else {
 			// Native player interpolation is a straight XYZ line supplied by a client.
 			// Headless bots must follow the floor and recheck dynamic obstacles at every movement tick.
@@ -136,12 +200,13 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		owner.getKnownList().update();
 		owner.getController().onMove();
 		if (PositionUtil.getDistance(owner, targetDestX, targetDestY, targetDestZ) < 0.3
-			&& !com.aionemu.gameserver.services.playerbot.PlayerBotFollowIntent.active(owner))
-			abortMove();
+			&& !com.aionemu.gameserver.services.playerbot.PlayerBotFollowIntent.active(owner)
+			&& !nextWalkPoint(now))abortMove();
 	}
 
 	@Override
 	public synchronized void abortMove() {
+		walkAhead.clear();walkCurrent=null;walkSafe=null;walkUntil=0;
 		if(platformPlan!=null && platformPlan.onboard() && owner.isSpawned() && !owner.isDead()){
 			// A command or cast cannot leave the actor suspended off its moving floor.
 			platformPlan.interrupt();return;
@@ -218,7 +283,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		}
 		var geo=com.aionemu.gameserver.world.geo.GeoService.getInstance();
 		float currentSpeed=requestedMovementSpeed();
-		if(Math.hypot(heightPlan.endX()-heightPlan.x(),heightPlan.endY()-heightPlan.y())/(heightPlan.seconds()-heightPlan.delay())>currentSpeed+.05)interruptedHeight=true;
+		if(heightPlan.horizontalSpeed()>currentSpeed+.05)interruptedHeight=true;
 		if(interruptedHeight || (!owner.canPerformMove() || owner.isCasting())
 			&& (heightPlan.launch()>0 || heightPlan.endX()!=heightPlan.x() || heightPlan.endY()!=heightPlan.y())) {
 			var fall=geo.findPlayerBotFall(heightWorld,heightInstance,owner.getX(),owner.getY(),owner.getZ());

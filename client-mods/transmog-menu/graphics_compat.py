@@ -57,7 +57,7 @@ def strip_graphics(path, name):
 
 
 def prepare(root, output, dll, repair_backup=None):
-    state_path = root / 'DXVK/graphics-menu/installed.json'
+    state_path = root / 'Mods/GraphicsMenu/installed.json'
     if not state_path.exists():
         return dll, None
     state = read_json(state_path)
@@ -65,7 +65,7 @@ def prepare(root, output, dll, repair_backup=None):
         return dll, None
     if Path(state['clientRoot']).resolve() != root.resolve():
         raise ValueError('Graphics menu belongs to another client')
-    package = root / 'DXVK/graphics-menu/package'
+    package = root / 'Mods/GraphicsMenu/package'
     manifest = read_json(package / 'manifest.json')
     if state['files'] != manifest['files']:
         raise ValueError('Graphics state and package disagree')
@@ -88,7 +88,7 @@ def prepare(root, output, dll, repair_backup=None):
             known = [] if repair is None else [e for e in repair['files'] if e['path'].lower() == entry['path'].lower()]
             if len(known) != 1 or known[0]['original'] != entry['installed'] or known[0]['staged'] != current:
                 raise ValueError('Unknown client change conflicts with Graphics menu: ' + entry['path'])
-    dxvk = read_json(root / 'DXVK/installed.json')
+    dxvk = read_json(root / 'Mods/Renderer/installed.json')
     game_record = [e for e in dxvk['nativeCursorPatch']['files'] if e['path'] == 'bin64/Game.dll']
     old_game = next(e for e in state['files'] if e['path'] == 'bin64/Game.dll')
     if len(game_record) != 1 or game_record[0]['installed'].lower() != old_game['installed'].lower():
@@ -100,7 +100,7 @@ def prepare(root, output, dll, repair_backup=None):
     baseline = cursor(dll)
     combined = patch(baseline, expected=sha(baseline))
     backup_name = 'service-menu-graphics-' + datetime.now().strftime('%Y%m%d-%H%M%S-%f')
-    backup_relative = 'DXVK-backups/' + backup_name
+    backup_relative = 'Mods/Backups/Renderer/' + backup_name
     backup = root / backup_relative
     extras = []
 
@@ -130,7 +130,7 @@ def prepare(root, output, dll, repair_backup=None):
             installed = source.read_bytes()
             original = strip_graphics(source, 'global_option_dialog.xml' if relative.startswith('Data/') else 'ui/game/global_option_dialog.xml')
         stage(backup_relative + '/' + relative, original)
-        stage('DXVK/graphics-menu/package/' + relative, installed)
+        stage('Mods/GraphicsMenu/package/' + relative, installed)
         new_files.append({'path': relative, 'original': sha(original), 'installed': sha(installed)})
     manifest['files'] = new_files
     state['files'] = new_files
@@ -139,8 +139,8 @@ def prepare(root, output, dll, repair_backup=None):
     game_record[0]['installed'] = sha(combined)
     game_record[0]['original'] = sha(bytes(cursor_base))
     game_record[0]['backupPath'] = str(root / cursor_relative)
-    for relative, value in [('DXVK/graphics-menu/package/manifest.json', manifest),
-                            ('DXVK/graphics-menu/installed.json', state), ('DXVK/installed.json', dxvk)]:
+    for relative, value in [('Mods/GraphicsMenu/package/manifest.json', manifest),
+                            ('Mods/GraphicsMenu/installed.json', state), ('Mods/Renderer/installed.json', dxvk)]:
         stage(relative, json.dumps(value, indent=2).encode('utf-8'))
     print('Preserved native Graphics menu and cursor; staged matching package, tracking and restore baselines.')
     return combined, {'backupName': backup_name, 'localized': any(e['path'].startswith('L10N/') for e in new_files)}
@@ -153,13 +153,13 @@ def compatibility_paths(record):
     name = record['backupName']
     if not re.fullmatch(r'service-menu-graphics-\d{8}-\d{6}-\d{6}', name):
         raise ValueError('Unexpected graphics compatibility backup name')
-    base = 'DXVK-backups/' + name
-    result = {'DXVK/installed.json', 'DXVK/graphics-menu/installed.json',
-              'DXVK/graphics-menu/package/manifest.json', 'DXVK/graphics-menu/package/bin64/Game.dll',
-              'DXVK/graphics-menu/package/Data/ui/game/game.pak', base+'/bin64/Game.dll',
+    base = 'Mods/Backups/Renderer/' + name
+    result = {'Mods/Renderer/installed.json', 'Mods/GraphicsMenu/installed.json',
+              'Mods/GraphicsMenu/package/manifest.json', 'Mods/GraphicsMenu/package/bin64/Game.dll',
+              'Mods/GraphicsMenu/package/Data/ui/game/game.pak', base+'/bin64/Game.dll',
               base+'/Data/ui/game/game.pak', base+'/cursor-base/bin64/Game.dll'}
     if record['localized']:
-        result.update({'DXVK/graphics-menu/package/L10N/enu/Data/data.pak', base+'/L10N/enu/Data/data.pak'})
+        result.update({'Mods/GraphicsMenu/package/L10N/enu/Data/data.pak', base+'/L10N/enu/Data/data.pak'})
     return result
 
 
@@ -170,7 +170,7 @@ def prepare_incremental(root, output, dll, repair_backup=None, *, backup_name=No
     baselines. Thus edits to graphics/cursor hooks cannot silently cross domains.
     A repair accepts only a fully hash-verified known installer receipt.
     """
-    state_path = root / 'DXVK/graphics-menu/installed.json'
+    state_path = root / 'Mods/GraphicsMenu/installed.json'
     if not state_path.exists():
         return dll, None
     state = read_json(state_path)
@@ -178,7 +178,7 @@ def prepare_incremental(root, output, dll, repair_backup=None, *, backup_name=No
         return dll, None
     if Path(state['clientRoot']).resolve() != root.resolve():
         raise ValueError('Graphics state belongs to another client')
-    package = root / 'DXVK/graphics-menu/package'
+    package = root / 'Mods/GraphicsMenu/package'
     manifest = read_json(package / 'manifest.json')
     allowed = {'bin64/Game.dll','Data/ui/game/game.pak','L10N/enu/Data/data.pak','bin64/AionGraphicsMenu.dll'}
     if state['files'] != manifest['files'] or len(state['files']) not in (3,4) or len({e['path'] for e in state['files']}) != len(state['files']) or {e['path'] for e in state['files']} - allowed:
@@ -213,7 +213,7 @@ def prepare_incremental(root, output, dll, repair_backup=None, *, backup_name=No
             known = [] if receipt is None else [e for e in receipt['files'] if e['path'].lower() == entry['path'].lower()]
             if len(known) != 1 or known[0]['original'] != entry['installed'] or known[0]['staged'] != current:
                 raise ValueError('Unknown later client change: '+entry['path'])
-    dxvk = read_json(root/'DXVK/installed.json')
+    dxvk = read_json(root/'Mods/Renderer/installed.json')
     records = [e for e in dxvk['nativeCursorPatch']['files'] if e['path']=='bin64/Game.dll']
     old_game = next(e for e in state['files'] if e['path']=='bin64/Game.dll')
     if len(records)!=1 or records[0]['installed'].lower()!=old_game['installed'].lower():
@@ -224,7 +224,7 @@ def prepare_incremental(root, output, dll, repair_backup=None, *, backup_name=No
             raise ValueError('Other native cursor files changed')
     old_backup = Path(state['backupRoot']).resolve()
     cursor_path = Path(game_record['backupPath']).resolve()
-    if not old_backup.is_relative_to((root/'DXVK-backups').resolve()) or not cursor_path.is_relative_to((root/'DXVK-backups').resolve()):
+    if not old_backup.is_relative_to((root/'Mods/Backups/Renderer').resolve()) or not cursor_path.is_relative_to((root/'Mods/Backups/Renderer').resolve()):
         raise ValueError('Restore baseline is outside client backups')
     prior = (package/'bin64/Game.dll').read_bytes()
     baseline = bytearray((old_backup/'bin64/Game.dll').read_bytes())
@@ -241,7 +241,7 @@ def prepare_incremental(root, output, dll, repair_backup=None, *, backup_name=No
     backup_name = backup_name or 'service-menu-graphics-'+datetime.now().strftime('%Y%m%d-%H%M%S-%f')
     if not re.fullmatch(r'service-menu-graphics-\d{8}-\d{6}-\d{6}', backup_name):
         raise ValueError('Unexpected graphics compatibility backup name')
-    backup_relative = 'DXVK-backups/'+backup_name
+    backup_relative = 'Mods/Backups/Renderer/'+backup_name
 
     def stage(relative,data):
         target=output/relative;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(data)
@@ -258,14 +258,14 @@ def prepare_incremental(root, output, dll, repair_backup=None, *, backup_name=No
             if sha(original)!=entry['original']:
                 raise ValueError('UI restore baseline checksum mismatch')
         stage(backup_relative+'/'+relative,original)
-        stage('DXVK/graphics-menu/package/'+relative,installed)
+        stage('Mods/GraphicsMenu/package/'+relative,installed)
         new_files.append(dict(path=relative,original=sha(original),installed=sha(installed)))
     cursor_relative=backup_relative+'/cursor-base/bin64/Game.dll'
     stage(cursor_relative,bytes(cursor_base))
     state.update(files=new_files,backupRoot=str(root/backup_relative),rebasedAt=rebased_at or datetime.now().isoformat())
     manifest['files']=new_files
     game_record.update(installed=sha(dll),original=sha(cursor_base),backupPath=str(root/cursor_relative))
-    for relative,value in [('DXVK/graphics-menu/package/manifest.json',manifest),('DXVK/graphics-menu/installed.json',state),('DXVK/installed.json',dxvk)]:
+    for relative,value in [('Mods/GraphicsMenu/package/manifest.json',manifest),('Mods/GraphicsMenu/installed.json',state),('Mods/Renderer/installed.json',dxvk)]:
         stage(relative,json.dumps(value,indent=2).encode())
     print('Staged matching Graphics/cursor records and exact incremental restore baselines; client untouched.')
     return dll,dict(backupName=backup_name,localized=any(e['path'].startswith('L10N/') for e in new_files))

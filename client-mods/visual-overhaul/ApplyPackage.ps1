@@ -37,7 +37,7 @@ if ($stagedCount -eq $manifest.files.Count) {
 if ($originalCount -ne $manifest.files.Count) {
     throw 'Mixed original/installed files detected. Restore the previous pack before proceeding.'
 }
-$backupRoot = Join-Path $clientRoot ('VisualOverhaul-backups/' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
+$backupRoot = Join-Path $clientRoot ('Mods/Backups/VisualOverhaul/' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
 New-Item -ItemType Directory -Path $backupRoot | Out-Null
 foreach ($entry in $manifest.files) {
     $backupPath = Join-Path $backupRoot $entry.path

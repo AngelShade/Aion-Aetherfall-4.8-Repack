@@ -226,7 +226,7 @@ public final class CentralMarketService {
 		if (target == MARKET) {
 			String key = variant(item);
 			catalog(c,item.getItemTemplate(),key,item.getEnchantLevel(),item.getTempering());
-			update(c,"UPDATE central_market_catalog SET attributes_json=? WHERE variant=?",com.alibaba.fastjson2.JSON.toJSONString(itemView(item,MARKET).get("attributes")),key);
+			update(c,"UPDATE central_market_catalog SET attributes_json=? WHERE variant=?",com.aionemu.commons.utils.Json.write(itemView(item,MARKET).get("attributes")),key);
 			update(c,"INSERT INTO central_market_stock(item_unique_id,account_id,variant) VALUES(?,?,?)",movedId,account,key);
 		}
 		long remaining = item.getItemCount() - qty;
@@ -374,7 +374,7 @@ public final class CentralMarketService {
 				update(c,"UPDATE inventory SET item_owner=?,item_location=?,slot=65535 WHERE item_unique_id=?",owner,target,item.getObjectId());
 				if (target == MARKET) {
 					String key = variant(item); catalog(c,item.getItemTemplate(),key,item.getEnchantLevel(),item.getTempering());
-					update(c,"UPDATE central_market_catalog SET attributes_json=? WHERE variant=?",com.alibaba.fastjson2.JSON.toJSONString(itemView(item,MARKET).get("attributes")),key);
+					update(c,"UPDATE central_market_catalog SET attributes_json=? WHERE variant=?",com.aionemu.commons.utils.Json.write(itemView(item,MARKET).get("attributes")),key);
 					update(c,"INSERT INTO central_market_stock(item_unique_id,account_id,variant) VALUES(?,?,?)",item.getObjectId(),account,key);
 				}
 			}
@@ -775,7 +775,7 @@ public final class CentralMarketService {
 			Map<String,Object> entry=row(c,"SELECT * FROM central_market_catalog WHERE variant=?",key);
 			if(entry!=null){
 				ItemTemplate selectedTemplate=DataManager.ITEM_DATA.getItemTemplate((int)lng(entry,"item_id"));
-				if(entry.get("attributes_json")!=null) entry.put("attributes",com.alibaba.fastjson2.JSON.parseObject(str(entry,"attributes_json")));
+				if(entry.get("attributes_json")!=null) entry.put("attributes",com.aionemu.commons.utils.Json.read(str(entry,"attributes_json")));
 				entry.remove("attributes_json");
 				entry.put("levels",CentralMarketRules.ladder(lng(entry,"base_price"),lng(entry,"floor_price"),lng(entry,"ceiling_price")));
 				entry.put("book",rows(c,"SELECT side,price,SUM(remaining) quantity,SUM(IF(account_id<>?,remaining,0)) available_quantity FROM central_market_orders WHERE variant=? AND state='OPEN' GROUP BY side,price ORDER BY price DESC",account,key));
@@ -813,7 +813,7 @@ public final class CentralMarketService {
 		v.put("item_id",t.getTemplateId()); v.put("name",t.getName()); v.put("category",category(t));
 		v.put("group",t.getItemGroup().name()); v.put("level",t.getLevel()); v.put("race",t.getRace().name());
 		v.put("quality",t.getItemQuality()==null?"COMMON":t.getItemQuality().name());
-		v.put("volume",CentralMarketRules.volume(category(t))); v.put("maxQuantity",t.isStackable()?Math.min(1000,t.getMaxStackCount()):1);
+		v.put("volume",CentralMarketRules.volume(category(t))); v.put("maxQuantity",CentralMarketRules.maxQuantity(t.isStackable(),t.getMaxStackCount()));
 		List<Map<String,Object>> stats=new ArrayList<>();
 		if(t.getModifiers()!=null) t.getModifiers().stream().filter(s->s.getName()!=null).forEach(s->stats.add(Map.of("name",MarketplaceService.statName(s.getName().name()),"value",s.getValue())));
 		if(t.isWeapon() && t.getWeaponStats()!=null) { v.put("damage",t.getWeaponStats().getMinDamage()+"–"+t.getWeaponStats().getMaxDamage()); }

@@ -1,0 +1,31 @@
+{
+  "name": "Aetherfall maximum visual quality",
+  "native": {
+    "e_obj_lod_ratio": "6",
+    "r_DetailDistance": "32",
+    "r_WaterReflections_MaxViewDist": "1024",
+    "r_WaterReflections": "1",
+    "r_WaterRefractions": "1",
+    "r_mrt_ssao": "2",
+    "r_mrt_ssaoresolution": "0",
+    "r_mrt_sunshaft": "1"
+  },
+  "level": {
+    "GeometryLodRatio": 0.6,
+    "TextureLodRatio": 0.6,
+    "AmbientAmplify": 0.88,
+    "SunAmplify": 1.08,
+    "ReflectAmount": 1.1,
+    "RefractAmount": 1.05
+  },
+  "assets": [
+    {"asset": "withered-bark", "archive": "Levels/Common/Mesh_Textures_005.pak", "entry": "Dark/natural/trees/dryness/na_d_witheredtree_01a_001.dds", "size": [2048, 2048]},
+    {"asset": "coastal-stone", "archive": "Levels/Common/Mesh_Textures_023.pak", "entry": "Light/natural/rocks/base/na_l_seastone_01a_001.dds", "size": [2048, 2048]}
+  ],
+  "limits": [
+    "Native model LOD retention uses existing authored meshes; this does not create higher-polygon models.",
+    "No unsupported character LOD, sprite-distance, shader-decryption or PBR switches.",
+    "Full character/armor/architecture reauthoring and a new lighting renderer are not provided by this profile.",
+    "No measured FPS or in-game visual acceptance is implied by a successful package build."
+  ]
+}

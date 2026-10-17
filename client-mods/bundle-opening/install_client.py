@@ -28,7 +28,7 @@ def main():
  if a.verify_installed:installed(a.client,a.prepared);return
  if running():raise RuntimeError('Close every Aion client normally before replacing Items.pak; the client holds the archive open')
  m=verify(a.client,a.prepared);assert {f['path'] for f in m['files']}==EXPECTED
- backup=a.client/'BundleOpening-backups'/datetime.now().strftime('%Y%m%d-%H%M%S-%f');backup.mkdir(parents=True,exist_ok=False)
+ backup=a.client/'Mods/Backups/BundleOpening'/datetime.now().strftime('%Y%m%d-%H%M%S-%f');backup.mkdir(parents=True,exist_ok=False)
  for f in m['files']:
   dest=backup/f['path'];dest.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(a.client/f['path'],dest);assert sha(dest.read_bytes())==f['original']
  (backup/'manifest.json').write_text(json.dumps(m,indent=2),encoding='utf-8');applied=[]

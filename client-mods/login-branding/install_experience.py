@@ -34,13 +34,13 @@ def main():
     client = Path(revision["clientRoot"]).resolve()
     assert not stage.is_relative_to(client) and not backup.is_relative_to(client)
     assert not backup.exists()
-    state = read(client / "DXVK/graphics-menu/installed.json")
+    state = read(client / "Mods/GraphicsMenu/installed.json")
     baseline = (Path(state["backupRoot"]) / "L10N/enu/Data/data.pak").resolve()
-    assert baseline.is_relative_to(client / "DXVK-backups")
+    assert baseline.is_relative_to(client / "Mods/Backups/Renderer")
     expected = {"Data/ui/ui.pak", "L10N/enu/Data/data.pak",
         "Textures/ui/Aetherfall/aetherfall_logo.dds",
-        "DXVK/graphics-menu/package/L10N/enu/Data/data.pak",
-        "DXVK/graphics-menu/installed.json", "DXVK/graphics-menu/package/manifest.json",
+        "Mods/GraphicsMenu/package/L10N/enu/Data/data.pak",
+        "Mods/GraphicsMenu/installed.json", "Mods/GraphicsMenu/package/manifest.json",
         baseline.relative_to(client).as_posix()}
     assert {e["path"] for e in revision["files"]} == expected
     for entry in revision["files"]:

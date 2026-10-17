@@ -57,7 +57,7 @@ def main():
     source_snapshot = {'bin64/Game.dll':sha(original_dll), pak:sha((root/pak).read_bytes())}
     remembered_login = None
     if (root/'bin64/AionRememberLogin.dll').exists():
-        receipts = sorted((root/'RememberLogin-backups').glob('*/manifest.json'))
+        receipts = sorted((root/'Mods/Backups/RememberLogin').glob('*/manifest.json'))
         if not receipts:
             raise ValueError('Installed Remember Login has no verification receipt')
         receipt = receipts[-1]

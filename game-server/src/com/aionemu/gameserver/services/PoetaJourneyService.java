@@ -73,6 +73,37 @@ public final class PoetaJourneyService {
 		catch (SQLException e) { log.error("Could not read journey choice",e); return false; }
 	}
 
+	/** The companion creation screen uses the same paths and class rules as Journey. */
+	public static Map<String,Object> creationOptions(Race race) {
+		var path = PoetaJourneyRules.journey(race);
+		return Map.of("enabled",ready,"starter",path.starter(),"capital",path.capital(),"skipLevel",10,
+			"classes",Arrays.stream(PlayerClass.values()).filter(PlayerClass::isStartingClass)
+				.flatMap(base -> PoetaJourneyRules.advancedClasses(base).stream()).map(Enum::name).toList());
+	}
+
+	/** Only a newly saved, offline level-one character may take this creation path. */
+	public static void chooseForNewCharacter(Player p, String choice, PlayerClass advanced) throws Exception {
+		if (p.isOnline() || p.isSpawned() || p.getLevel() != 1 || !p.getPlayerClass().isStartingClass())
+			throw new IllegalArgumentException("Choose the journey while creating a new character.");
+		if (!choice.equals("level1") && !choice.equals("skip")) throw new IllegalArgumentException("Choose a starting journey.");
+		if (!ready) {
+			if (choice.equals("skip")) throw new IllegalArgumentException("Choose Your Journey is unavailable.");
+			return;
+		}
+		if (choice.equals("level1")) {
+			try (Connection c = DatabaseFactory.getConnection()) { recordPlay(c,p.getObjectId()); }
+			return;
+		}
+		if (!PoetaJourneyRules.advancedClasses(p.getPlayerClass()).contains(advanced))
+			throw new IllegalArgumentException("Choose an advanced class belonging to this character.");
+		skip(p,advanced,true);
+	}
+
+	private static void recordPlay(Connection c, int player) throws SQLException {
+		if (decision(c,player).equals("SKIP")) throw new IllegalArgumentException("Your journey has already begun.");
+		update(c,"INSERT INTO poeta_journey(player_id,decision) VALUES(?,'PLAY') ON DUPLICATE KEY UPDATE decision='PLAY'",player);
+	}
+
 	private static String decision(Connection c,int id) throws SQLException {
 		try (PreparedStatement s = c.prepareStatement("SELECT decision FROM poeta_journey WHERE player_id=?")) {
 			s.setInt(1,id); try (ResultSet r = s.executeQuery()) { return r.next() ? r.getString(1) : ""; }
@@ -112,8 +143,7 @@ public final class PoetaJourneyService {
 				throw new IllegalArgumentException("Choose while standing safely in your starting region, before Ascension.");
 			if (action.equals("play")) {
 				try (Connection c = DatabaseFactory.getConnection()) {
-					if (decision(c,p.getObjectId()).equals("SKIP")) throw new IllegalArgumentException("Your journey has already begun.");
-					update(c,"INSERT INTO poeta_journey(player_id,decision) VALUES(?,'PLAY') ON DUPLICATE KEY UPDATE decision='PLAY'",p.getObjectId());
+					recordPlay(c,p.getObjectId());
 				}
 				QuestEngine.getInstance().onEnterWorld(p);
 				return "Your story begins in "+PoetaJourneyRules.journey(p.getRace()).starter()+". Enjoy the journey!";
@@ -127,6 +157,10 @@ public final class PoetaJourneyService {
 	}
 
 	private static String skip(Player p,PlayerClass advanced) throws Exception {
+		return skip(p,advanced,false);
+	}
+
+	private static String skip(Player p,PlayerClass advanced,boolean creation) throws Exception {
 		var path = PoetaJourneyRules.journey(p.getRace());
 		int ceremony = path.ceremony();
 		List<QuestTemplate> pending = quests(p.getRace()).stream().filter(q -> !completed(p,q.getId())).toList();
@@ -171,6 +205,9 @@ public final class PoetaJourneyService {
 				commitSkip(c,p.getObjectId(),advanced,DataManager.PLAYER_EXPERIENCE_TABLE.getStartExpForLevel(10),p.getQuestExpands()+expansion,pending,titles,mails);
 				committed = true;
 			}
+			// A new offline character is reloaded from the committed native state by
+			// its creator. Do not spawn, teleport or run connected-client callbacks.
+			if (creation) return path.welcome();
 			// The capital ceremony stays playable and grants rewards at normal turn-in.
 			List<QuestTemplate> progression = new ArrayList<>(pending);
 			if (!completed(p,ceremony)) progression.add(DataManager.QUEST_DATA.getQuestById(ceremony));

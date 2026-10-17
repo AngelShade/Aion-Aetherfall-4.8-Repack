@@ -17,13 +17,13 @@ foreach ($entry in $manifest.files) {
     $hash = (Get-FileHash -LiteralPath (Join-Path $client $entry.path)).Hash
     if ($hash -ne $entry.original -and $hash -ne $entry.staged) { throw "Changed client archive: $($entry.path). No files changed." }
 }
-$root = Join-Path $client 'GraphicsOverhaul'
+$root = Join-Path $client 'Mods/GraphicsOverhaul'
 $queuePath = Join-Path $root 'queued.json'
 if (Test-Path -LiteralPath $queuePath) {
     $previousQueue = Get-Content -LiteralPath $queuePath -Raw | ConvertFrom-Json
     if ($previousQueue.packageId -ne $manifest.packageId) { throw 'Restore the previous broad package before installing another.' }
     # Preserve a player's edited ReShade settings on a repeat install.
-    & (Join-Path $root 'ApplyGlobal.ps1') -ClientPath $client -PackagePath (Join-Path $root ('packages/' + $manifest.packageId)) -VerifyOnly
+    & (Join-Path $root 'Install-GraphicsOverhaul.ps1') -ClientPath $client -PackagePath (Join-Path $root ('packages/' + $manifest.packageId)) -VerifyOnly
     'This graphics package is already prepared.'; return
 }
 $staged = Join-Path $root ('packages/' + $manifest.packageId)
@@ -36,7 +36,8 @@ foreach ($entry in $manifest.files) {
 Copy-Item -LiteralPath (Join-Path $package 'manifest.json') -Destination (Join-Path $staged 'manifest.json')
 $null = Read-GlobalManifest $staged
 foreach ($name in @('GlobalCommon.ps1','ApplyGlobal.ps1','RestoreGlobal.ps1','VerifyGlobal.ps1')) {
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $root $name) -Force
+    $installedName = if ($name -eq 'ApplyGlobal.ps1') { 'Install-GraphicsOverhaul.ps1' } else { $name }
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $root $installedName) -Force
 }
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'postfx-sources.json') -Destination (Join-Path $root 'postfx-sources.json')
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'postfx') -Destination (Join-Path $root 'PostFX') -Recurse
@@ -80,24 +81,24 @@ $launcher = [regex]::Replace($launcher,'(?ms)^rem BEGIN VISUAL OVERHAUL\r?\n.*?^
 $block = @'
 rem BEGIN GLOBAL GRAPHICS
 setlocal
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0GraphicsOverhaul\ApplyGlobal.ps1" -ClientPath "%~dp0." -PackagePath "%~dp0GraphicsOverhaul\packages\PACKAGE_ID"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Mods\GraphicsOverhaul\Install-GraphicsOverhaul.ps1" -ClientPath "%~dp0." -PackagePath "%~dp0Mods\GraphicsOverhaul\packages\PACKAGE_ID"
 if errorlevel 1 (
-    echo Graphics package verification failed. See GraphicsOverhaul\RestoreGlobal.ps1.
+    echo Graphics package verification failed. See Mods\GraphicsOverhaul\RestoreGlobal.ps1.
     pause
     exit /b 1
 )
 if not "%AION_USE_VULKAN%"=="0" (
 if defined VK_LAYER_PATH (
-    set "VK_LAYER_PATH=%~dp0GraphicsOverhaul\vulkan64;%VK_LAYER_PATH%"
+    set "VK_LAYER_PATH=%~dp0Mods\GraphicsOverhaul\vulkan64;%VK_LAYER_PATH%"
 ) else (
-    set "VK_LAYER_PATH=%~dp0GraphicsOverhaul\vulkan64"
+    set "VK_LAYER_PATH=%~dp0Mods\GraphicsOverhaul\vulkan64"
 )
 if defined VK_INSTANCE_LAYERS (
     set "VK_INSTANCE_LAYERS=VK_LAYER_reshade;%VK_INSTANCE_LAYERS%"
 ) else (
     set "VK_INSTANCE_LAYERS=VK_LAYER_reshade"
 )
-set "RESHADE_BASE_PATH_OVERRIDE=%~dp0GraphicsOverhaul\PostFX"
+set "RESHADE_BASE_PATH_OVERRIDE=%~dp0Mods\GraphicsOverhaul\PostFX"
 )
 rem END GLOBAL GRAPHICS
 '@
@@ -108,6 +109,6 @@ Copy-Item -LiteralPath $launcherPath -Destination (Join-Path $root 'launcher-bef
 @{packageId=$manifest.packageId; clientRoot=$client; previousVisualBlock=$oldBlock; status='Prepared for next normal launch'} |
     ConvertTo-Json | Set-Content -LiteralPath $queuePath -Encoding UTF8
 [IO.File]::WriteAllText($launcherPath,$launcher,[Text.Encoding]::ASCII)
-& (Join-Path $root 'ApplyGlobal.ps1') -ClientPath $client -PackagePath $staged -VerifyOnly
+& (Join-Path $root 'Install-GraphicsOverhaul.ps1') -ClientPath $client -PackagePath $staged -VerifyOnly
 if (Get-Process -Name 'aion.bin','aion' -ErrorAction SilentlyContinue) { 'Queued for the next normal launch. Exit Aion normally and use Aion Start.bat.' }
-else { & (Join-Path $root 'ApplyGlobal.ps1') -ClientPath $client -PackagePath $staged }
+else { & (Join-Path $root 'Install-GraphicsOverhaul.ps1') -ClientPath $client -PackagePath $staged }

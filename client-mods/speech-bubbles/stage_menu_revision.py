@@ -11,18 +11,18 @@ from xml.etree import ElementTree as ET
 def main():
     p=argparse.ArgumentParser();p.add_argument('--backup',type=Path,required=True);p.add_argument('--output',type=Path,required=True);a=p.parse_args()
     backup=a.backup.resolve();receipt=read(backup/'manifest.json');root=Path(receipt['clientRoot']).resolve();out=a.output.resolve()
-    if not backup.is_relative_to(root/'SpeechBubbles-backups') or out.is_relative_to(root):raise ValueError('Invalid source/staging paths')
+    if not backup.is_relative_to(root/'Mods/Backups/SpeechBubbles') or out.is_relative_to(root):raise ValueError('Invalid source/staging paths')
     for e in receipt['files']:
         if sha((root/e['path']).read_bytes())!=e['installed']:raise ValueError('Later client change: '+e['path'])
         if e['original'] is not None and sha((backup/e['path']).read_bytes())!=e['original']:raise ValueError('Original backup changed: '+e['path'])
-    state=read(root/'DXVK/graphics-menu/installed.json');graphics=read(root/'DXVK/graphics-menu/package/manifest.json');dxvk=read(root/'DXVK/installed.json')
+    state=read(root/'Mods/GraphicsMenu/installed.json');graphics=read(root/'Mods/GraphicsMenu/package/manifest.json');dxvk=read(root/'Mods/Renderer/installed.json')
     if state['files']!=graphics['files']:raise ValueError('Graphics tracking differs')
-    original_state=read(backup/'DXVK/graphics-menu/installed.json');original_dxvk=read(backup/'DXVK/installed.json')
+    original_state=read(backup/'Mods/GraphicsMenu/installed.json');original_dxvk=read(backup/'Mods/Renderer/installed.json')
     baseline=Path(state['backupRoot']).resolve();original_baseline=Path(original_state['backupRoot']).resolve()
     cursor=next(e for e in dxvk['nativeCursorPatch']['files'] if e['path']=='bin64/Game.dll')
     original_cursor=next(e for e in original_dxvk['nativeCursorPatch']['files'] if e['path']=='bin64/Game.dll')
     for path in (baseline,original_baseline,Path(cursor['backupPath']),Path(original_cursor['backupPath'])):
-        if not path.resolve().is_relative_to(root/'DXVK-backups'):raise ValueError('Baseline outside client backups')
+        if not path.resolve().is_relative_to(root/'Mods/Backups/Renderer'):raise ValueError('Baseline outside client backups')
     staged={};baseline_hooks={}
     core=next(e for e in receipt['files'] if e['path']=='bin64/Game.dll')
     staged['bin64/Game.dll'],hooks=patch((backup/'bin64/Game.dll').read_bytes(),core['original'])
@@ -69,7 +69,7 @@ def main():
             staged[dest],_=ui(source,name,out/dest)
             if rel=='L10N/enu/Data/data.pak':
                 staged[dest]=rewrite(out/dest,{'ui/ui_preload.xml':skins_xml(read_pak(out/dest).read('ui/ui_preload.xml'),definitions)})
-        staged['DXVK/graphics-menu/package/'+rel]=staged[rel]
+        staged['Mods/GraphicsMenu/package/'+rel]=staged[rel]
         e['original']=sha(staged[dest]);e['installed']=sha(staged[rel])
     prior_cursor=Path(original_cursor['backupPath'])
     if sha(prior_cursor.read_bytes())!=original_cursor['original'].lower():raise ValueError('Pre-speech cursor baseline changed')
@@ -77,7 +77,7 @@ def main():
     staged[dest],baseline_hooks['cursor']=patch(prior_cursor.read_bytes(),original_cursor['original'].lower())
     cursor.update(original=sha(staged[dest]),installed=sha(staged['bin64/Game.dll']))
     state.update(files=copy.deepcopy(graphics['files']),speechMenuRevisedAt=datetime.now().isoformat())
-    for rel,value in [('DXVK/graphics-menu/installed.json',state),('DXVK/graphics-menu/package/manifest.json',graphics),('DXVK/installed.json',dxvk)]:
+    for rel,value in [('Mods/GraphicsMenu/installed.json',state),('Mods/GraphicsMenu/package/manifest.json',graphics),('Mods/Renderer/installed.json',dxvk)]:
         staged[rel]=json.dumps(value,indent=2).encode()
     work=out.parent/(out.name+'-compile');work.mkdir(parents=True,exist_ok=True)
     dll=out/'bin64/AionSpeechBubbles.dll';dll.parent.mkdir(parents=True,exist_ok=True)

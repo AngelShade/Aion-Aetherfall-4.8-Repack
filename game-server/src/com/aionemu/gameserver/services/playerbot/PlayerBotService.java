@@ -868,6 +868,7 @@ public final class PlayerBotService {
 			catch (java.sql.SQLException e) { throw new IllegalArgumentException("Companion data could not be loaded completely. Check server logs before recruiting it.", e); }
 			if (generated && !bot.getPlayerClass().isStartingClass()) bot.getCommonData().setDaeva(true);
 			if (bot.isInPrison()) throw new IllegalArgumentException("Leave prison before recruiting this character.");
+			PlayerBotCompanionLooks.recruited(owner,bot);
 			PlayerBotPersistence.Home home = PlayerBotPersistence.Home.of(bot);
 			bot.setPlayerBotOwner(owner.getObjectId());
 			bot.setCubeLimit(); bot.setWarehouseLimit();
@@ -924,9 +925,17 @@ public final class PlayerBotService {
 
 	/** Generated recruits are normal, persistent starting characters, not temporary NPCs or privileged max-level characters. */
 	public synchronized void create(Player owner, String name, PlayerClass playerClass) {
+		create(owner,name,playerClass,"level1");
+	}
+
+	public synchronized void create(Player owner, String name, PlayerClass playerClass, String journey) {
 		ensureOwner(owner);
 		if (!PlayerBotConfig.GENERATED_ENABLED) throw new IllegalArgumentException("Generated companions are disabled.");
-		if (!playerClass.isStartingClass()) throw new IllegalArgumentException("Choose a starting class: warrior, scout, mage, priest, engineer, artist.");
+		boolean skip = journey.equals("skip");
+		if (!skip && !journey.equals("level1")) throw new IllegalArgumentException("Choose a starting journey.");
+		if (skip && (!Boolean.TRUE.equals(com.aionemu.gameserver.services.PoetaJourneyService.creationOptions(owner.getRace()).get("enabled")) || playerClass.isStartingClass()))
+			throw new IllegalArgumentException("Enable Choose Your Journey and choose an advanced class to bypass the starting region.");
+		if (!skip && !playerClass.isStartingClass()) throw new IllegalArgumentException("Choose a starting class: warrior, scout, mage, priest, engineer, artist.");
 		if (!NameRestrictionService.isValidName(name) || NameRestrictionService.isForbidden(name) || PlayerService.isNameUsedOrReserved(null, name))
 			throw new IllegalArgumentException("Choose an available valid character name.");
 		int maxCharacters = owner.getAccount().getMembership() >= MembershipConfig.CHARACTER_ADDITIONAL_ENABLE
@@ -936,9 +945,9 @@ public final class PlayerBotService {
 		int id = IDFactory.getInstance().nextId();
 		PlayerCommonData common = new PlayerCommonData(id);
 		common.setName(name); common.setRace(owner.getRace()); common.setGender(owner.getGender());
-		common.setPlayerClass(playerClass); common.setLevel(1);
+		common.setPlayerClass(skip ? playerClass.getStartingClass() : playerClass); common.setLevel(1);
 		// The native client already knows this appearance's race/gender combination.
-		var data = new PlayerAccountData(common, owner.getPlayerAppearance().copy());
+		var data = new PlayerAccountData(common, PlayerBotCompanionLooks.create(owner,common.getGender(),id));
 		Player generated = null;
 		try (PlayerBotLease lease = PlayerBotLease.acquire(id)) {
 			if (lease == null) throw new IllegalStateException("New character ID is already reserved");
@@ -952,6 +961,19 @@ public final class PlayerBotService {
 			if (!PlayerService.storeNewPlayer(generated, isolated.getName(), isolated.getId()))
 				throw new java.sql.SQLException("Generated character save failed");
 			PlayerBotPersistence.save(generated, PlayerBotPersistence.Home.of(generated));
+			com.aionemu.gameserver.services.PoetaJourneyService.chooseForNewCharacter(generated,journey,playerClass);
+			if (skip) {
+				generated.getEffectController().removeAllEffects(true);
+				generated.getLifeStats().cancelAllTasks();
+				data = AccountService.loadPlayerAccountData(id);
+				isolated.addPlayerAccountData(data);
+				generated = PlayerService.getPlayer(id,isolated);
+				generated.setPlayerBotOwner(owner.getObjectId());
+				generated.getCommonData().setDaeva(true);
+				com.aionemu.gameserver.services.SkillLearnService.learnNewSkills(generated,1,10);
+				generated.getLifeStats().synchronizeWithMaxStats();
+				PlayerBotPersistence.save(generated,PlayerBotPersistence.Home.of(generated));
+			}
 			data.setCreationDate(new Timestamp(System.currentTimeMillis()));
 			PlayerService.storeCreationTime(id, data.getCreationDate());
 			data.setVisibleItems(generated.getEquipment().getEquippedForAppearance());
@@ -962,8 +984,10 @@ public final class PlayerBotService {
 			if (generated != null) { if (generated.getEffectController() != null) generated.getEffectController().removeAllEffects(true); generated.getLifeStats().cancelAllTasks(); }
 		}
 		owner.getAccount().addPlayerAccountData(data);
-		PacketSendUtility.sendMessage(owner, "Created " + name + " as a level-1 " + playerClass + " in your character roster. It uses a character slot and normal progression.");
-		if (owner.getLevel() - 1 <= PlayerBotConfig.LEVEL_DIFFERENCE) recruit(owner, name);
+		int createdLevel = data.getPlayerCommonData().getLevel();
+		PacketSendUtility.sendMessage(owner, "Created " + name + " as a level-" + createdLevel + " " + playerClass + " in your character roster. It uses a character slot and normal progression."
+			+ (skip ? " Choose Your Journey rewards are in its mailbox; the capital ceremony still grants its rewards at turn-in." : ""));
+		if (Math.abs(owner.getLevel() - createdLevel) <= PlayerBotConfig.LEVEL_DIFFERENCE) recruit(owner, name);
 		else PacketSendUtility.sendMessage(owner, "Recruit it with a character within " + PlayerBotConfig.LEVEL_DIFFERENCE + " levels, or play it to level normally.");
 	}
 
@@ -988,7 +1012,7 @@ public final class PlayerBotService {
 			PlayerCommonData common = new PlayerCommonData(id);
 			common.setName(name); common.setRace(owner.getRace()); common.setGender(owner.getGender());
 			common.setPlayerClass(playerClass); common.setDaeva(!playerClass.isStartingClass()); common.setLevel(startingLevel);
-			var data = new PlayerAccountData(common, owner.getPlayerAppearance().copy());
+			var data = new PlayerAccountData(common, PlayerBotCompanionLooks.create(owner,common.getGender(),id));
 			Account isolated = new Account(owner.getAccount().getId());
 			isolated.setName(owner.getAccount().getName()); isolated.setMembership(owner.getAccount().getMembership());
 			isolated.setCreationDate(owner.getAccount().getCreationDate()); isolated.addPlayerAccountData(data);

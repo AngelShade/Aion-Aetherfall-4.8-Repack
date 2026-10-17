@@ -17,7 +17,7 @@ foreach ($entry in $manifest.files) {
         throw "Client changed after preparation: $($entry.path). No files changed."
     }
 }
-$modRoot = Join-Path $clientRoot 'VisualOverhaul'
+$modRoot = Join-Path $clientRoot 'Mods/VisualOverhaul'
 $stagedRoot = Join-Path $modRoot ('packages/' + $manifest.packageId)
 New-Item -ItemType Directory -Path $stagedRoot -Force | Out-Null
 foreach ($entry in $manifest.files) {
@@ -28,7 +28,8 @@ foreach ($entry in $manifest.files) {
 Copy-Item -LiteralPath (Join-Path $packageRoot 'manifest.json') -Destination (Join-Path $stagedRoot 'manifest.json') -Force
 $verified = Get-VisualManifest $stagedRoot
 foreach ($name in @('Common.ps1','ApplyPackage.ps1','Restore.ps1')) {
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $modRoot $name) -Force
+    $installedName = if ($name -eq 'ApplyPackage.ps1') { 'Install-VisualOverhaul.ps1' } else { $name }
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $modRoot $installedName) -Force
 }
 $backupLauncher = Join-Path $modRoot 'launcher-before-visual-pass.bat'
 if (-not (Test-Path -LiteralPath $backupLauncher)) {
@@ -38,9 +39,9 @@ $launcher = [regex]::Replace($launcher,
     '(?ms)^rem BEGIN VISUAL OVERHAUL\r?\n.*?^rem END VISUAL OVERHAUL\r?\n?', '')
 $startup = @'
 rem BEGIN VISUAL OVERHAUL
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0VisualOverhaul\ApplyPackage.ps1" -ClientPath "%~dp0." -PackagePath "%~dp0VisualOverhaul\packages\PACKAGE_ID"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0Mods\VisualOverhaul\Install-VisualOverhaul.ps1" -ClientPath "%~dp0." -PackagePath "%~dp0Mods\VisualOverhaul\packages\PACKAGE_ID"
 if errorlevel 1 (
-    echo Unable to apply the visual pack. See VisualOverhaul\Restore.ps1 to restore.
+    echo Unable to apply the visual pack. See Mods\VisualOverhaul\Restore.ps1 to restore.
     pause
     exit /b 1
 )
@@ -50,10 +51,10 @@ $startup = ($startup.Replace('PACKAGE_ID', $manifest.packageId) -replace '\r?\n'
 $match = [regex]::Match($launcher, $startPattern)
 $launcher = $launcher.Insert($match.Index, $startup)
 [System.IO.File]::WriteAllText($launcherPath, $launcher, [System.Text.Encoding]::ASCII)
-& (Join-Path $modRoot 'ApplyPackage.ps1') -ClientPath $clientRoot -PackagePath $stagedRoot -VerifyOnly
+& (Join-Path $modRoot 'Install-VisualOverhaul.ps1') -ClientPath $clientRoot -PackagePath $stagedRoot -VerifyOnly
 if (Get-Process -Name 'aion.bin','aion' -ErrorAction SilentlyContinue) {
     Write-Output 'Queued the visual pack for the next launch through Aion Start.bat. Current session remains open.'
 } else {
-    & (Join-Path $modRoot 'ApplyPackage.ps1') -ClientPath $clientRoot -PackagePath $stagedRoot
+    & (Join-Path $modRoot 'Install-VisualOverhaul.ps1') -ClientPath $clientRoot -PackagePath $stagedRoot
 }
 Write-Output "Launcher backup: $backupLauncher"

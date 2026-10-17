@@ -23,10 +23,10 @@ def main():
     _,graphics=prepare_incremental(root,out,dll)
     ui=[('Data/ui/game/game.pak',''),('L10N/enu/Data/data.pak','ui/game/')]
     if graphics:
-        state_path=out/'DXVK/graphics-menu/installed.json'
-        manifest_path=out/'DXVK/graphics-menu/package/manifest.json'
+        state_path=out/'Mods/GraphicsMenu/installed.json'
+        manifest_path=out/'Mods/GraphicsMenu/package/manifest.json'
         state=json.loads(state_path.read_text());graphics_manifest=json.loads(manifest_path.read_text())
-        baseline=out/'DXVK-backups'/graphics['backupName']
+        baseline=out/'Mods/Backups/Renderer'/graphics['backupName']
     for relative,prefix in ui:
         source=root/relative
         if not source.exists():raise ValueError('Expected English client UI')
@@ -36,7 +36,7 @@ def main():
             record=next(e for e in state['files'] if e['path'].lower()==relative.lower())
             backup=baseline/record['path']
             original=patch_archive(backup,prefix);backup.write_bytes(original)
-            (out/'DXVK/graphics-menu/package'/record['path']).write_bytes(installed)
+            (out/'Mods/GraphicsMenu/package'/record['path']).write_bytes(installed)
             record.update(original=hashlib.sha256(original).hexdigest(),installed=hashlib.sha256(installed).hexdigest())
     if graphics:
         graphics_manifest['files']=state['files']

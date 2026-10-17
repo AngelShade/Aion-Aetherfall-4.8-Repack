@@ -974,17 +974,29 @@
 
     if (!state) return;
 
-    var levelOne = byId('model').value === 'create';
+    var accountCharacter = byId('model').value === 'create';
+    var journey = state.creationJourney, journeySelect = byId('new-journey'), previousJourney = journeySelect.value;
+    clear(journeySelect);
+    var play = node('option', 'Play through ' + journey.starter + ' · level 1'); play.value = 'level1'; journeySelect.appendChild(play);
+    if (journey.enabled) {
+      var skip = node('option', 'Skip ' + journey.starter + ' · level ' + journey.skipLevel); skip.value = 'skip'; journeySelect.appendChild(skip);
+    }
+    if (previousJourney === 'skip' && journey.enabled) journeySelect.value = 'skip';
+    var skipJourney = accountCharacter && journeySelect.value === 'skip';
 
-    var classes = levelOne ? state.startingClasses : state.classes, el = byId('new-class'), previous = el.value; clear(el);
+    var classes = accountCharacter ? (skipJourney ? journey.classes : state.startingClasses) : state.classes, el = byId('new-class'), previous = el.value; clear(el);
 
     for (var i = 0; i < classes.length; i++) { var opt = node('option', label(classes[i])); opt.value = classes[i]; el.appendChild(opt); }
 
     if (classes.indexOf(previous) !== -1) el.value = previous;
 
-    byId('starting-level').style.display = byId('model').value === 'create' ? 'none' : 'block';
+    byId('starting-level').style.display = accountCharacter ? 'none' : 'block';
+    byId('creation-journey').style.display = accountCharacter ? 'block' : 'none';
 
-    byId('model-hint').textContent = byId('model').value === 'create' ? 'Creates a player-owned alt in a normal character slot. Automatic bot builds will not overwrite it.' : 'Temporary Bot: matches your level, receives class and role gear, native skills and Stigmas. Automatically follows map and dungeon transitions. Dismissal removes it from the world; its private roster entry remains available.';
+    byId('model-hint').textContent = accountCharacter ? (skipJourney ?
+      'Choose Your Journey: starts at level ' + journey.skipLevel + ' in ' + journey.capital + ' with your selected advanced class. Skipped quest rewards arrive in its mailbox. Complete the capital ceremony normally. Uses a normal character slot.' :
+      'Begins at level 1 in ' + journey.starter + '. Uses a normal character slot; quests, class advancement and rewards follow normal progression.') :
+      'Temporary Bot: matches your level, receives class and role gear, native skills and Stigmas. ' + (state.generatedRandomLooks ? 'Randomized looks keep your height. ' : '') + 'Automatically follows map and dungeon transitions. Dismissal keeps its private roster entry for later.';
 
   }
 
@@ -1016,8 +1028,9 @@
   byId('model').onchange = function () { updateClasses(); updateCreation(); };
 
   byId('start-level').onchange = updateClasses;
+  byId('new-journey').onchange = updateClasses;
 
-  byId('create').onsubmit = function (event) { event.preventDefault(); act({ action: byId('model').value, name: byId('new-name').value, playerClass: byId('new-class').value, start: byId('model').value === 'create' ? 'level1' : byId('start-level').value }); };
+  byId('create').onsubmit = function (event) { event.preventDefault(); act({ action: byId('model').value, name: byId('new-name').value, playerClass: byId('new-class').value, start: byId('model').value === 'create' ? byId('new-journey').value : byId('start-level').value }); };
 
   byId('share').onclick = function () { act({action:'share',name:'all',quest:byId('owner-quest').value}); };
   function updateShare() { if (!state) return; byId('share').disabled = busy || !state.quests.length || !state.active.length; byId('share').textContent = 'Share with party'; }

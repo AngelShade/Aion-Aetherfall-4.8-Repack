@@ -1,0 +1,13 @@
+{
+  "aion": {
+    "archive": "${USERPROFILE}\\Downloads\\aion-4.8-na\\Aion 4.8 NA\\Textures\\ui\\ui.pak",
+    "entry": "v5_L10N.dds",
+    "sha256": "6bee4227c22121f12c39319a3d5c0dfd77642a256a46482770467bab9e436b07",
+    "src_image": "0,272,624,162"
+  },
+  "aetherfall": {
+    "liveFile": "${USERPROFILE}\\Downloads\\aion-4.8-na\\Aion 4.8 NA\\Textures\\ui\\Aetherfall\\aetherfall_logo.dds",
+    "sha256": "2eb786222b30333b833a4f9d75cc437f1afd7de1f2f78b4226952b85ce4562c9",
+    "src_image": "0,146,2048,460"
+  }
+}

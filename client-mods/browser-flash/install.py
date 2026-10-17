@@ -39,14 +39,14 @@ def main():
     closed()
     if args.restore:
         backup=args.restore.resolve()
-        if not backup.is_relative_to(client/'BrowserFrame-backups'):raise ValueError('Backup outside diagnostic backup directory')
+        if not backup.is_relative_to(client/'Mods/Backups/BrowserFrame'):raise ValueError('Backup outside diagnostic backup directory')
         receipt=json.loads((backup/'receipt.json').read_text(encoding='utf-8'))
         if receipt['originalGameSha256']!=manifest['originalGameSha256'] or sha(backup/'Game.dll')!=manifest['originalGameSha256']:raise ValueError('Unexpected backup')
         for name,digest in manifest['files'].items():
             if sha(binpath/name)!=digest:raise ValueError('Client changed after diagnostic installation: '+name)
         entries=receipt.get('graphicsTrackingFiles',[])
         tracking_backup=Path(receipt.get('graphicsTrackingBackup',str(backup))).resolve()
-        if not tracking_backup.is_relative_to(client/'BrowserFrame-backups'):raise ValueError('Tracking backup outside diagnostic backups')
+        if not tracking_backup.is_relative_to(client/'Mods/Backups/BrowserFrame'):raise ValueError('Tracking backup outside diagnostic backups')
         for e in entries:
             live=client/e['path']
             if not live.resolve().is_relative_to(client):raise ValueError('Tracking target outside client')
@@ -70,7 +70,7 @@ def main():
         current=sha(live) if live.exists() else None
         if current!=e['original'] or sha(staged/e['path'])!=e['installed']:raise ValueError('Graphics tracking input changed')
     preserved={f.name:sha(f) for f in binpath.glob('*.dll') if f.name.lower()!='game.dll'}
-    backup=client/'BrowserFrame-backups'/datetime.now().strftime('%Y%m%d-%H%M%S-%f');backup.mkdir(parents=True,exist_ok=False)
+    backup=client/'Mods/Backups/BrowserFrame'/datetime.now().strftime('%Y%m%d-%H%M%S-%f');backup.mkdir(parents=True,exist_ok=False)
     shutil.copy2(binpath/'Game.dll',backup/'Game.dll');assert sha(backup/'Game.dll')==manifest['originalGameSha256']
     for e in entries:
         if e['original'] is not None:

@@ -27,6 +27,7 @@ final class PlayerBotCombatBuffs {
 	 * cancel-on-cast stances for actual combat; keep genuine idle maintenance. */
 	static boolean nonCombatUseful(SkillTemplate skill) {
 		if(skill==null)return false;
+		if(!PlayerBotAethertech.nonCombatAllowed(skill))return false;
 		// Aion stances are cancelled by the next ordinary native cast. Repeatedly
 		// rebuilding one while idle serves neither a threat nor a lasting aura.
 		if(skill.isStance())return false;
@@ -55,6 +56,8 @@ final class PlayerBotCombatBuffs {
 			|| effect instanceof BoostSpellAttackEffect || effect instanceof BoostHateEffect || effect instanceof BoostSkillCostEffect;
 	}
 	static boolean useful(PlayerClass pc, Role role, SkillTemplate skill, double health, double mana) {
+		Boolean aethertech=PlayerBotAethertech.combatBuffUseful(pc,role,skill,health,mana);
+		if(aethertech!=null)return aethertech;
 		if (skill == null || skill.getEffects() == null || health < 55 || mana < 35 || skill.getDuration() > 1500) return false;
 		if (PlayerBotChanter.applies(pc) && PlayerBotChanter.mantra(skill)) return true;
 		if (skill.isToggle()) return false;

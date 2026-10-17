@@ -9,7 +9,7 @@
   "journey": {"url": "http://127.0.0.1:8091/journey"},
   "seasonPass": {"url": "http://127.0.0.1:8091/market/pass"},
   "playerbots": {"url": "http://127.0.0.1:8091/market/companions"},
-  "inventory": {"slots": 279, "columns": 12, "baseSlots": 180},
+  "inventory": {"slots": 288, "columns": 12, "baseSlots": 189},
   "warehouse": {"characterSlots": 360, "accountSlots": 540},
   "nativeIcons": true
 }

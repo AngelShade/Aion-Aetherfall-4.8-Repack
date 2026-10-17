@@ -2,7 +2,7 @@ param([Parameter(Mandatory=$true)][string]$ClientPath)
 $ErrorActionPreference = 'Stop'
 $client = (Resolve-Path -LiteralPath $ClientPath).Path
 . (Join-Path $PSScriptRoot 'RendererCommon.ps1')
-$state = Get-Content -LiteralPath (Join-Path $client 'DXVK/installed.json') -Raw | ConvertFrom-Json
+$state = Get-Content -LiteralPath (Join-Path $client 'Mods/Renderer/installed.json') -Raw | ConvertFrom-Json
 if ($state.clientRoot -ne $client -or $state.restoredAt) { throw 'Expected an active DXVK installation.' }
 $enabled = Get-RendererChoice $client
 $changes = @()
@@ -20,7 +20,7 @@ foreach ($entry in $state.files) {
 if (Get-Process -Name 'aion.bin','aion' -ErrorAction SilentlyContinue) {
     if ($changes.Count -gt 0) { throw 'Exit all Aion clients normally before switching renderers.' }
     $value = [int]$enabled
-    $environment = Join-Path $client 'DXVK/renderer-env.bat'
+    $environment = Join-Path $client 'Mods/Renderer/renderer-env.bat'
     if (-not (Test-Path -LiteralPath $environment) -or
         [IO.File]::ReadAllText($environment) -cne "@set `"AION_USE_VULKAN=$value`"`r`n") {
         throw 'Exit all Aion clients normally before repairing the renderer environment.'
@@ -36,7 +36,7 @@ try {
     }
     $value = [int]$enabled
     [IO.File]::WriteAllText((Join-Path $client 'DXVK/renderer.ini'),"[Renderer]`r`nVulkan=$value`r`nActiveVulkan=$value`r`n",[Text.Encoding]::ASCII)
-    [IO.File]::WriteAllText((Join-Path $client 'DXVK/renderer-env.bat'),"@set `"AION_USE_VULKAN=$value`"`r`n",[Text.Encoding]::ASCII)
+    [IO.File]::WriteAllText((Join-Path $client 'Mods/Renderer/renderer-env.bat'),"@set `"AION_USE_VULKAN=$value`"`r`n",[Text.Encoding]::ASCII)
 } catch {
     foreach ($change in $done) { Move-Item -LiteralPath $change.target -Destination $change.source }
     throw

@@ -4,9 +4,7 @@ import java.util.Collection;
 import java.util.Deque;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
-import com.aionemu.gameserver.model.actions.PlayerMode;
 import com.aionemu.gameserver.model.drop.DropItem;
-import com.aionemu.gameserver.model.gameobjects.player.InRoll;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.model.templates.item.ItemQuality;
 import com.aionemu.gameserver.services.drop.DropDistributionService;
@@ -111,15 +109,10 @@ public class LootGroupRules {
 	}
 
 	public void setPlayersInRoll(final Collection<Player> players, int time, final int index, final int npcId) {
+		var recipients = java.util.List.copyOf(players);
 		ThreadPoolManager.getInstance().schedule(() -> {
-			for (Player player : players) {
-				if (player.isInPlayerMode(PlayerMode.IN_ROLL)) {
-					InRoll inRoll = player.inRoll;
-					if (inRoll.getIndex() == index && inRoll.getNpcId() == npcId)
-						DropDistributionService.getInstance().handleRollOrBid(player, inRoll.getRollType(), 0, 0, inRoll.getItemId(), inRoll.getNpcId(),
-							inRoll.getIndex());
-				}
-			}
+			for (Player player : recipients)
+				DropDistributionService.getInstance().timeout(player, npcId, index);
 		}, time);
 	}
 

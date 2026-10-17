@@ -7,7 +7,7 @@ import java.nio.file.*;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import com.alibaba.fastjson2.JSON;
+import com.aionemu.commons.utils.Json;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.sun.net.httpserver.HttpExchange;
 import org.slf4j.Logger;
@@ -42,7 +42,7 @@ public final class CentralMarketHttpService {
 			if (method.equals("GET") && path.startsWith("/market/media/")) {
 				String file=path.substring("/market/media/".length());
 				// Item image URLs are fulfilled inside the patched client from Items.pak.
-				if(!file.matches("market\\.(css|js)")){send(x,404,"text/plain","Native client icon bridge required");return;}
+				if(!file.matches("market\\.(css|js)|quantity\\.js")){send(x,404,"text/plain","Native client icon bridge required");return;}
 				Path asset=MEDIA.resolve(file); if(!Files.isRegularFile(asset)){send(x,404,"text/plain","Not found");return;}
 				byte[] data=Files.readAllBytes(asset);x.getResponseHeaders().set("Content-Type",file.endsWith(".js")?"application/javascript; charset=utf-8":"text/css; charset=utf-8");
 				x.sendResponseHeaders(200,data.length);x.getResponseBody().write(data);return;
@@ -69,8 +69,8 @@ public final class CentralMarketHttpService {
 			if(FORMS.size()>5000)throw new IllegalStateException("Market is busy. Try again.");
 			byte[] random=new byte[24];RANDOM.nextBytes(random);String id=Base64.getUrlEncoder().withoutPadding().encodeToString(random);
 			FORMS.put(id,new Form(p,p.getClientConnection(),now+600000));state.put("request",id);state.put("notice",notice);
-			send(x,200,"application/json",JSON.toJSONString(state));
-		} catch(IllegalArgumentException e){send(x,400,"application/json",JSON.toJSONString(Map.of("error",e.getMessage())));}
+			send(x,200,"application/json",Json.write(state));
+		} catch(IllegalArgumentException e){send(x,400,"application/json",Json.write(Map.of("error",e.getMessage())));}
 		catch(Exception e){log.error("Central Market request failed",e);send(x,503,"application/json","{\"error\":\"Central Market is unavailable. Refresh before trying again.\"}");}
 		finally{x.close();}
 	}

@@ -303,10 +303,13 @@
     function next(){if(byId('dialog-shade').style.display!=='block'||!list.parentNode)return;var end=Math.min(cursor+6,pending.length),n;while(cursor<end){n=pending[cursor++];n.src=n.getAttribute('data-src');n.removeAttribute('data-src');}if(cursor<pending.length)batchIconTimer=setTimeout(next,16);}
     batchIconTimer=setTimeout(next,16);
   }
-  function quantity(max, preference) { return '<label for="quantity">Quantity · maximum ' + money(max) + '</label><input id="quantity" type="text" value="' + (preference && state.alwaysMax ? max : 1) + '" maxlength="12"><div class="quantity-tools"><button id="max-quantity" type="button">Max</button>' + (preference ? '<label class="always-max-frame" title="Default to maximum quantity when opening a transfer or sale. Saved for this account."><input id="always-max" type="checkbox"' + (state.alwaysMax ? ' checked' : '') + '><span class="check-mark" aria-hidden="true"></span><span>Always Max</span></label>' : '') + '</div>'; }
-  function quantityValue(max) { var s = byId('quantity').value; if (!/^\d+$/.test(s) || +s < 1 || +s > max) { byId('dialog-error').innerHTML = 'Quantity must be between 1 and ' + money(max) + '.'; return 0; } return +s; }
+  function quantity(max, preference) {
+    var extra = preference ? '<label class="always-max-frame" title="Default to maximum quantity when opening a transfer or sale. Saved for this account."><input id="always-max" type="checkbox"' + (state.alwaysMax ? ' checked' : '') + '><span class="check-mark" aria-hidden="true"></span><span>Always Max</span></label>' : '';
+    return window.AionQuantity.markup(max, preference && state.alwaysMax ? max : 1, extra, money);
+  }
+  function quantityValue(max) { var value = window.AionQuantity.value(byId('quantity'), max); if (!value) byId('dialog-error').innerHTML = 'Quantity must be between 1 and ' + money(max) + '.'; return value; }
   function bindMax(max) {
-    byId('max-quantity').onclick = function () { byId('quantity').value = max; var event = document.createEvent('Event'); event.initEvent('input', true, true); byId('quantity').dispatchEvent(event); };
+    window.AionQuantity.bindMax(byId('quantity'), byId('max-quantity'), max);
     if(byId('always-max'))byId('always-max').onchange=function(){if(busy){this.checked=!!state.alwaysMax;return;}if(this.checked)byId('max-quantity').onclick();this.disabled=true;act({action:'preference',alwaysMax:this.checked?'1':'0'},true);};
   }
   function transfer(i, target) {

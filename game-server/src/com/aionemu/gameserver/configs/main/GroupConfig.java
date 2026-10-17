@@ -4,6 +4,10 @@ import com.aionemu.commons.configuration.Property;
 
 public class GroupConfig {
 
+	/** Mode 2 uses Need before Greed; false retains one shared native dice tier. */
+	@Property(key = "gameserver.group.loot.need_greed", defaultValue = "true")
+	public static boolean LOOT_NEED_GREED;
+
 	/**
 	 * Group remove time
 	 */

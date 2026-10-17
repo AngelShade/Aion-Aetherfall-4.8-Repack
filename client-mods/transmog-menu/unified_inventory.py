@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 
 from patch_game_dll import Assembler
 
-BASE_SLOTS = 180
+BASE_SLOTS = 189
 MAX_EXPANSIONS = 11
 SLOTS = BASE_SLOTS + MAX_EXPANSIONS * 9
 GRID_HEIGHT = ((SLOTS + 11) // 12) * 43 + 5

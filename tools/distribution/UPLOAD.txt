@@ -1,0 +1,26 @@
+AETHERFALL RELEASE - UPLOAD AND SEED
+
+1. Upload EVERY .7z.NNN file from the Aetherfall-<version>-parts folder, preserving
+   names. Do not change, recompress or rename the individual parts.
+2. Share Aetherfall-Downloader.zip, the .torrent file, SHA256SUMS.txt and magnet.txt.
+3. Keep Start-Seeding.cmd running on a machine holding the complete parts folder.
+   Default owner upload limit is 2 MiB/s; edit it if desired. Seeding verifies
+   existing data first and then stays online until you close it. Ports and NAT
+   affect inbound peers; this package does not alter firewall/router settings.
+4. Google Drive and MEGA require PUBLIC share links after upload. Account home
+   and /fm/ links do not identify public downloads. Their browser pages are
+   manual backup mirrors; do not paste them as direct HTTP/webseed URLs.
+5. For a true torrent + HTTP hybrid, host this exact directory structure:
+      https://host/base/Aetherfall-<version>-parts/Aetherfall-<version>.7z.001
+   Then put https://host/base/ in mirrors.json WebSeeds. Range requests must work.
+6. For unrelated direct per-part URLs, fill mirrors.json Files with each exact
+   archive name mapped to an array of URLs. HTTP mode uses all supplied mirrors.
+7. Publish mirrors.json at a stable public HTTPS URL. Set MirrorsUrl in the
+   downloader's settings.json and rezip the small downloader once. Future URL
+   edits then need no new downloader ZIP, provided content is unchanged.
+8. Use publish.py after editing mirrors.json to emit a Metalink, add webseeds
+   outside the torrent's info dictionary, update its checksum and rebuild the
+   downloader ZIP. It preserves the torrent swarm info hash and archive hashes.
+
+No hosting accounts are configured, no files are uploaded, and no seeding daemon
+is started by the packer. Creating a torrent does not create an online seed.

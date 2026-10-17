@@ -114,8 +114,8 @@ public class CustomConfig {
 	@Property(key = "gameserver.inventory.unified", defaultValue = "false")
 	public static boolean UNIFIED_INVENTORY;
 
-	public static final int UNIFIED_INVENTORY_SLOTS = 180;
-	/** Native inventory patch reserves 279 cells: 180 base plus eleven nine-slot expansions. */
+	public static final int UNIFIED_INVENTORY_SLOTS = 189;
+	/** Native inventory patch reserves 288 cells: 189 base plus eleven nine-slot expansions. */
 	public static final int UNIFIED_INVENTORY_MAX_EXPANSIONS = 11;
 
 	/** Requires the matching 4.8 NA native warehouse client patch. */

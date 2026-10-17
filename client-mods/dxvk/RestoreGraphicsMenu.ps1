@@ -2,18 +2,18 @@ param([Parameter(Mandatory=$true)][string]$ClientPath)
 $ErrorActionPreference = 'Stop'
 if (Get-Process -Name 'aion.bin','aion' -ErrorAction SilentlyContinue) { throw 'Exit Aion normally before restoring its Graphics menu.' }
 $client = (Resolve-Path -LiteralPath $ClientPath).Path
-$statePath = Join-Path $client 'DXVK/graphics-menu/installed.json'
+$statePath = Join-Path $client 'Mods/GraphicsMenu/installed.json'
 $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
 if ($state.restoredAt) { 'Graphics menu already restored.'; return }
 $backup = (Resolve-Path -LiteralPath $state.backupRoot).Path
-$expectedRoot = (Join-Path $client 'DXVK-backups').TrimEnd('\') + '\'
+$expectedRoot = (Join-Path $client 'Mods/Backups/Renderer').TrimEnd('\') + '\'
 if ($state.clientRoot -ne $client -or -not $backup.StartsWith($expectedRoot,[StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid menu restore record.' }
 foreach ($entry in $state.files) {
     if (@('bin64/Game.dll','Data/ui/game/game.pak','bin64/AionGraphicsMenu.dll','L10N/enu/Data/data.pak') -cnotcontains $entry.path) { throw 'Invalid menu restore target.' }
     if ((Get-FileHash -LiteralPath (Join-Path $client $entry.path)).Hash -ne $entry.installed) { throw 'Later client changes detected; menu restore stopped.' }
     if ($null -ne $entry.original -and (Get-FileHash -LiteralPath (Join-Path $backup $entry.path)).Hash -ne $entry.original) { throw 'Menu backup checksum failed.' }
 }
-$dxvkPath = Join-Path $client 'DXVK/installed.json'
+$dxvkPath = Join-Path $client 'Mods/Renderer/installed.json'
 $dxvk = Get-Content -LiteralPath $dxvkPath -Raw | ConvertFrom-Json
 $game = @($dxvk.nativeCursorPatch.files | Where-Object { $_.path -eq 'bin64/Game.dll' })
 if ($game.Count -ne 1 -or $game[0].installed -ne $state.files[0].installed) { throw 'Cursor tracking changed; menu restore stopped.' }

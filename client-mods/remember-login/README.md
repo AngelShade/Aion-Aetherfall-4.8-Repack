@@ -1,5 +1,10 @@
 # Remember account and password
 
+The checkbox aligns with the account/password input fields. Its status line aligns
+with the checkbox text, uses a larger warm-gold font and has a native dark text
+shadow. The checkbox and account buttons use bright shaded labels, with additional
+space above the button row. The maintained layout is in `prepare.py`.
+
 Native Aion 4.8 NA x64 login checkbox, labeled **Remember Account & Password**, below the password field, using the existing `v5_check` skin. The New Account and password buttons sit beneath the checkbox and status line; all share the login form's middle vertical anchor. Default is unchecked. Checking it saves both fields when Login or Enter dispatches `login_auth_server`; the next client launch restores both fields and the checked state. The original password widget remains masked. Unchecking immediately deletes the saved login. Storage failures are shown beneath the checkbox.
 
 Credentials use the current Windows user's Credential Manager, with local-computer persistence and a separate target per client installation. There are no plaintext settings files, launcher password arguments, credential diagnostics, automatic login or server changes. Temporary credential buffers are wiped. Windows API reference: [CredWriteW](https://learn.microsoft.com/en-us/windows/win32/api/wincred/nf-wincred-credwritew).
@@ -65,3 +70,14 @@ server receipt mismatch remains visible in the refreshed inventory. Offline
 interpreter, runtime-storage-write regression, rollback and disposable restore
 checks pass. Actual AFK Reconnect/Login and ordinary Logout/Login remain pending.
 See `docs/LOGIN_RECONNECT_CRASH_20261008.md`.
+
+## Launcher startup presentation, 17 October 2026
+
+The launcher startup bridge imports this existing DLL before the native splash
+routine. `AionStartupSuppressSplash` validates the private launch events and
+starts `startup_gate.h` outside the loader lock. The splash routine is skipped;
+the renderer stays hidden until the existing native account/password draw signal.
+Presentation and Credential Manager behavior remain separate. Normal launches
+without that session retain their original presentation. Source and installation
+records are maintained with `client-mods/launcher`; visual acceptance remains the
+player's next launch, not a successful build.

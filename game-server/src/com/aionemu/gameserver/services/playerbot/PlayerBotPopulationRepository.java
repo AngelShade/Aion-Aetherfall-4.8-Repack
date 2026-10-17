@@ -6,7 +6,7 @@ package com.aionemu.gameserver.services.playerbot;
 import java.io.IOException;
 import java.sql.*;
 import java.util.*;
-import com.alibaba.fastjson2.JSON;
+import com.aionemu.commons.utils.Json;
 import com.aionemu.commons.database.DatabaseFactory;
 import com.aionemu.gameserver.model.*;
 import com.aionemu.gameserver.model.gameobjects.player.PlayerAppearance;
@@ -64,7 +64,7 @@ final class PlayerBotPopulationRepository implements PlayerBotPopulationStorage 
   try(var s=c.prepareStatement("SELECT account_id,scope,name,membership,created,race,gender,appearance,desired FROM playerbot_population_accounts");var r=s.executeQuery()) {
    while(r.next()) {
     int account=r.getInt(1);String scope=r.getString(2);if(!Set.of("server","manual").contains(scope))throw new SQLException("Unknown population scope");
-    var pool=new PlayerBotWorldPopulation.Pool(account,r.getString(3),r.getByte(4),r.getLong(5),Race.valueOf(r.getString(6)),Gender.valueOf(r.getString(7)),JSON.parseObject(r.getString(8),PlayerAppearance.class),r.getInt(9),members.getOrDefault(account,List.of()));
+    var pool=new PlayerBotWorldPopulation.Pool(account,r.getString(3),r.getByte(4),r.getLong(5),Race.valueOf(r.getString(6)),Gender.valueOf(r.getString(7)),Json.read(r.getString(8),PlayerAppearance.class),r.getInt(9),members.getOrDefault(account,List.of()));
     (scope.equals("server")?server:manual).put(account,pool);members.remove(account);
    }
   }
@@ -125,7 +125,7 @@ final class PlayerBotPopulationRepository implements PlayerBotPopulationStorage 
   if(next.equals(old.schedule().events().get(id)))return;
   commit(new Snapshot(old.residents(),old.server(),old.manual(),state),c->{validateEvent(c,old,id);writeEvent(c,id,next);});
  }
- static boolean samePool(PlayerBotWorldPopulation.Pool a,PlayerBotWorldPopulation.Pool b){return JSON.toJSONString(a).equals(JSON.toJSONString(b));}
+ static boolean samePool(PlayerBotWorldPopulation.Pool a,PlayerBotWorldPopulation.Pool b){return Json.write(a).equals(Json.write(b));}
  static void validateIdentity(Connection c,int account,int id,boolean ready) throws SQLException {
   // A member is persisted BEFORE reserve/new-player insertion. Preserve that pending intent.
   if(!PlayerBotPopulationPolicy.account(account) || id<=0)throw new SQLException("Invalid population identity");
@@ -182,7 +182,7 @@ final class PlayerBotPopulationRepository implements PlayerBotPopulationStorage 
  }
  static void writePool(Connection c,boolean server,PlayerBotWorldPopulation.Pool p) throws SQLException {
   try(var s=c.prepareStatement("INSERT INTO playerbot_population_accounts (account_id,scope,name,membership,created,race,gender,appearance,desired) VALUES (?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE name=VALUES(name),membership=VALUES(membership),created=VALUES(created),race=VALUES(race),gender=VALUES(gender),appearance=VALUES(appearance),desired=VALUES(desired)")) {
-   s.setInt(1,p.account());s.setString(2,server?"server":"manual");s.setString(3,p.name());s.setByte(4,p.membership());s.setLong(5,p.created());s.setString(6,p.race().name());s.setString(7,p.gender().name());s.setString(8,JSON.toJSONString(p.appearance()));s.setInt(9,p.desired());s.executeUpdate();
+   s.setInt(1,p.account());s.setString(2,server?"server":"manual");s.setString(3,p.name());s.setByte(4,p.membership());s.setLong(5,p.created());s.setString(6,p.race().name());s.setString(7,p.gender().name());s.setString(8,Json.write(p.appearance()));s.setInt(9,p.desired());s.executeUpdate();
   }
  }
  static void writeMember(Connection c,int account,int id,int ordinal) throws SQLException {

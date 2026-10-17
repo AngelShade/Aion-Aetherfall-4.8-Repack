@@ -14,16 +14,24 @@ import com.aionemu.gameserver.world.World;
 public class DropItem {
 
 	private int index = 0;
-	private long count = 0;
+	private volatile long count = 0;
 	private final Drop dropTemplate;
 	private List<Integer> playerObjIds;
 	private boolean isFreeForAll = false;
 	private long highestValue = 0;
-	private Player winningPlayer = null;
+	private volatile Player winningPlayer = null;
 	private boolean isItemWonNotCollected = false;
-	private boolean isDistributeItem = false;
+	private volatile boolean isDistributeItem = false;
 	private int npcObj;
 	private int optionalSocket = 0;
+	private int distributionMode;
+	private final java.util.concurrent.atomic.AtomicBoolean collecting = new java.util.concurrent.atomic.AtomicBoolean();
+
+	public boolean tryBeginCollection() { return collecting.compareAndSet(false, true); }
+	public void endCollection() { collecting.set(false); }
+
+	public int getDistributionMode() { return distributionMode; }
+	public void setDistributionMode(int mode) { distributionMode = mode; }
 
 	public DropItem(Drop dropTemplate) {
 		this.dropTemplate = dropTemplate;

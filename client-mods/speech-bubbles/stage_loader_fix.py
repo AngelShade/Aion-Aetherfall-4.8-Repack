@@ -9,16 +9,16 @@ def sha(b):return hashlib.sha256(b).hexdigest()
 def main():
     p=argparse.ArgumentParser();p.add_argument('--backup',type=Path,required=True);p.add_argument('--output',type=Path,required=True);a=p.parse_args()
     backup=a.backup.resolve();receipt=read(backup/'manifest.json');root=Path(receipt['clientRoot']).resolve();out=a.output.resolve()
-    if not backup.is_relative_to(root/'SpeechBubbles-backups') or out.is_relative_to(root):raise ValueError('Invalid staging/receipt path')
+    if not backup.is_relative_to(root/'Mods/Backups/SpeechBubbles') or out.is_relative_to(root):raise ValueError('Invalid staging/receipt path')
     if not receipt.get('graphicsCompatibility'):raise ValueError('Expected composed speech/graphics receipt')
     for e in receipt['files']:
         if sha((root/e['path']).read_bytes())!=e['installed']:raise ValueError('Client changed: '+e['path'])
-    state=read(root/'DXVK/graphics-menu/installed.json');graphics=read(root/'DXVK/graphics-menu/package/manifest.json');dxvk=read(root/'DXVK/installed.json')
+    state=read(root/'Mods/GraphicsMenu/installed.json');graphics=read(root/'Mods/GraphicsMenu/package/manifest.json');dxvk=read(root/'Mods/Renderer/installed.json')
     if state['files']!=graphics['files'] or Path(state['clientRoot']).resolve()!=root:raise ValueError('Graphics tracking changed')
     baseline=Path(state['backupRoot']).resolve();game=next(e for e in dxvk['nativeCursorPatch']['files'] if e['path']=='bin64/Game.dll')
     cursor=Path(game['backupPath']).resolve()
-    if not baseline.is_relative_to(root/'DXVK-backups') or not cursor.is_relative_to(root/'DXVK-backups'):raise ValueError('Baseline outside client backups')
-    paths=['bin64/Game.dll','DXVK/graphics-menu/package/bin64/Game.dll',(baseline/'bin64/Game.dll').relative_to(root).as_posix(),cursor.relative_to(root).as_posix()]
+    if not baseline.is_relative_to(root/'Mods/Backups/Renderer') or not cursor.is_relative_to(root/'Mods/Backups/Renderer'):raise ValueError('Baseline outside client backups')
+    paths=['bin64/Game.dll','Mods/GraphicsMenu/package/bin64/Game.dll',(baseline/'bin64/Game.dll').relative_to(root).as_posix(),cursor.relative_to(root).as_posix()]
     staged={};permission_changes={}
     for rel in paths:
         original=(root/rel).read_bytes();fixed,changes=writable_iats(original)
@@ -29,7 +29,7 @@ def main():
             e['installed']=sha(staged['bin64/Game.dll']);e['original']=sha(staged[paths[2]])
     state['files']=copy.deepcopy(graphics['files']);state['iatPermissionsRepairedAt']=datetime.now().isoformat()
     game['installed']=sha(staged['bin64/Game.dll']);game['original']=sha(staged[paths[3]])
-    for rel,value in [('DXVK/graphics-menu/package/manifest.json',graphics),('DXVK/graphics-menu/installed.json',state),('DXVK/installed.json',dxvk)]:
+    for rel,value in [('Mods/GraphicsMenu/package/manifest.json',graphics),('Mods/GraphicsMenu/installed.json',state),('Mods/Renderer/installed.json',dxvk)]:
         staged[rel]=json.dumps(value,indent=2).encode()
     # Speech removal restores the pre-speech binaries/tracking from the same
     # original backup; only its expected *installed* hashes change.

@@ -13,12 +13,12 @@ def digest(p):return sha(p.read_bytes())
 def read(p):return json.loads(p.read_text(encoding='utf-8-sig'))
 
 def prepare(root,out,files,patch_dll,patch_ui,receipt=None):
-    state_path=root/'DXVK/graphics-menu/installed.json'
+    state_path=root/'Mods/GraphicsMenu/installed.json'
     if not state_path.exists():return None
     state=read(state_path)
     if state.get('restoredAt'):raise ValueError('Graphics menu was restored; review this client before composition')
     if Path(state['clientRoot']).resolve()!=root.resolve():raise ValueError('Graphics state belongs to another client')
-    package=root/'DXVK/graphics-menu/package';manifest=read(package/'manifest.json')
+    package=root/'Mods/GraphicsMenu/package';manifest=read(package/'manifest.json')
     allowed={'bin64/Game.dll','Data/ui/game/game.pak','L10N/enu/Data/data.pak','bin64/AionGraphicsMenu.dll'}
     if state['files']!=manifest['files'] or len(state['files']) not in (3,4) or len({e['path'] for e in state['files']})!=len(state['files']) or {e['path'] for e in state['files']} - allowed:
         raise ValueError('Unexpected graphics package/state')
@@ -32,7 +32,7 @@ def prepare(root,out,files,patch_dll,patch_ui,receipt=None):
         if digest(package/e['path'])!=e['installed']:raise ValueError('Graphics payload changed')
         prior=receipt/e['path'] if receipt and e['path'] in changes else root/e['path']
         if digest(prior)!=e['installed']:raise ValueError('Speech input and graphics tracking disagree: '+e['path'])
-    dxvk=read(root/'DXVK/installed.json')
+    dxvk=read(root/'Mods/Renderer/installed.json')
     if Path(dxvk['clientRoot']).resolve()!=root.resolve() or dxvk.get('restoredAt'):raise ValueError('Inactive renderer installation')
     records=[e for e in dxvk['nativeCursorPatch']['files'] if e['path']=='bin64/Game.dll']
     old_game=next(e for e in state['files'] if e['path']=='bin64/Game.dll')
@@ -41,11 +41,11 @@ def prepare(root,out,files,patch_dll,patch_ui,receipt=None):
         if e['path'] not in {'bin64/Game.dll','bin64/XRenderD3D9.dll'}:raise ValueError('Unexpected cursor target')
         if e['path']!='bin64/Game.dll' and digest(root/e['path'])!=e['installed'].lower():raise ValueError('Cursor renderer changed')
     game=records[0];old_backup=Path(state['backupRoot']).resolve();cursor=Path(game['backupPath']).resolve()
-    if not old_backup.is_relative_to((root/'DXVK-backups').resolve()) or not cursor.is_relative_to((root/'DXVK-backups').resolve()):raise ValueError('Restore baseline outside client backups')
+    if not old_backup.is_relative_to((root/'Mods/Backups/Renderer').resolve()) or not cursor.is_relative_to((root/'Mods/Backups/Renderer').resolve()):raise ValueError('Restore baseline outside client backups')
     for e in state['files']:
         if e['original'] is not None and digest(old_backup/e['path'])!=e['original']:raise ValueError('Graphics restore baseline changed')
     if digest(cursor)!=game['original'].lower():raise ValueError('Cursor restore baseline changed')
-    backup_name='service-menu-graphics-'+datetime.now().strftime('%Y%m%d-%H%M%S-%f');base='DXVK-backups/'+backup_name
+    backup_name='service-menu-graphics-'+datetime.now().strftime('%Y%m%d-%H%M%S-%f');base='Mods/Backups/Renderer/'+backup_name
     extras=[];baseline_hooks={}
     def stage(relative,data):
         target=out/relative;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(data)
@@ -64,14 +64,14 @@ def prepare(root,out,files,patch_dll,patch_ui,receipt=None):
             baseline,_=patch_ui(old_backup/rel,name,out/base/rel)
             if read_pak(out/base/rel).read(name)!=read_pak(out/rel).read(name):raise ValueError('Chat Options differs between installed and restore baseline')
         installed=(out/rel).read_bytes()
-        stage(base+'/'+rel,baseline);stage('DXVK/graphics-menu/package/'+rel,installed)
+        stage(base+'/'+rel,baseline);stage('Mods/GraphicsMenu/package/'+rel,installed)
         new_files.append({'path':rel,'original':sha(baseline),'installed':sha(installed)})
     cursor_base,hooks=patch_dll(cursor.read_bytes(),expected=game['original'].lower());baseline_hooks['cursor']=hooks
     cursor_relative=base+'/cursor-base/bin64/Game.dll';stage(cursor_relative,cursor_base)
     state.update(files=new_files,backupRoot=str(root/base),rebasedAt=datetime.now().isoformat())
     manifest['files']=new_files
     game.update(installed=changes['bin64/Game.dll']['installed'],original=sha(cursor_base),backupPath=str(root/cursor_relative))
-    for rel,value in [('DXVK/graphics-menu/package/manifest.json',manifest),('DXVK/graphics-menu/installed.json',state),('DXVK/installed.json',dxvk)]:
+    for rel,value in [('Mods/GraphicsMenu/package/manifest.json',manifest),('Mods/GraphicsMenu/installed.json',state),('Mods/Renderer/installed.json',dxvk)]:
         stage(rel,json.dumps(value,indent=2).encode())
     files.extend(extras)
     (out/'graphics-baseline-hooks.json').write_text(json.dumps(baseline_hooks,indent=2))
@@ -80,7 +80,7 @@ def prepare(root,out,files,patch_dll,patch_ui,receipt=None):
 def main():
     p=argparse.ArgumentParser();p.add_argument('--backup',type=Path,required=True);p.add_argument('--output',type=Path,required=True);a=p.parse_args()
     backup=a.backup.resolve();manifest=read(backup/'manifest.json');root=Path(manifest['clientRoot']).resolve();out=a.output.resolve()
-    if not backup.is_relative_to(root/'SpeechBubbles-backups') or out.is_relative_to(root):raise ValueError('Invalid backup/output paths')
+    if not backup.is_relative_to(root/'Mods/Backups/SpeechBubbles') or out.is_relative_to(root):raise ValueError('Invalid backup/output paths')
     if manifest.get('graphicsCompatibility'):raise ValueError('Launcher compatibility was already recorded')
     expected={'bin64/Game.dll','bin64/AionSpeechBubbles.dll','Data/ui/game/game.pak','L10N/enu/Data/data.pak'}
     if len(manifest['files'])!=4 or {e['path'] for e in manifest['files']}!=expected:raise ValueError('Expected the original speech bubble receipt')

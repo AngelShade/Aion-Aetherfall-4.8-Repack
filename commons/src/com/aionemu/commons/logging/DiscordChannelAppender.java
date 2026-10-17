@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.alibaba.fastjson2.JSON;
+import com.aionemu.commons.utils.Json;
 
 import ch.qos.logback.core.AppenderBase;
 import ch.qos.logback.core.CoreConstants;
@@ -186,7 +186,7 @@ public class DiscordChannelAppender<E> extends AppenderBase<E> {
 		if (isRateLimited())
 			return;
 		try {
-			byte[] json = JSON.toJSONBytes(Map.of("content", msg, "username", username, "avatar_url", avatarUrl));
+			byte[] json = Json.bytes(Map.of("content", msg, "username", username, "avatar_url", avatarUrl));
 			HttpRequest httpRequest = HttpRequest.newBuilder(webhookUri)
 					.headers("User-Agent", "DiscordChannelAppender/1.0")
 					.headers("Content-Type", "application/json")

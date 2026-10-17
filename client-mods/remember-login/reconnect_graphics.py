@@ -10,24 +10,24 @@ def digest(data):return hashlib.sha256(data).hexdigest()
 def read(path):return json.loads(path.read_text(encoding='utf-8-sig'))
 
 def prepare(root,out,updated,legacy_iat):
-    state=read(root/'DXVK/graphics-menu/installed.json')
-    manifest=read(root/'DXVK/graphics-menu/package/manifest.json')
-    dx=read(root/'DXVK/installed.json')
+    state=read(root/'Mods/GraphicsMenu/installed.json')
+    manifest=read(root/'Mods/GraphicsMenu/package/manifest.json')
+    dx=read(root/'Mods/Renderer/installed.json')
     if state.get('restoredAt') or Path(state['clientRoot']).resolve()!=root or state['files']!=manifest['files']:
         raise ValueError('Graphics state and package disagree')
     allowed={'bin64/Game.dll','Data/ui/game/game.pak','L10N/enu/Data/data.pak','bin64/AionGraphicsMenu.dll'}
     if len(state['files']) not in (3,4) or len({e['path'] for e in state['files']})!=len(state['files']) or {e['path'] for e in state['files']}-allowed:
         raise ValueError('Unexpected graphics scope')
     backup=Path(state['backupRoot']).resolve()
-    if not backup.is_relative_to(root/'DXVK-backups'):raise ValueError('Graphics backup escapes installation')
+    if not backup.is_relative_to(root/'Mods/Backups/Renderer'):raise ValueError('Graphics backup escapes installation')
     for entry in state['files']:
-        if sha(root/entry['path'])!=entry['installed'] or sha(root/'DXVK/graphics-menu/package'/entry['path'])!=entry['installed'] or sha(backup/entry['path'])!=entry['original']:
+        if sha(root/entry['path'])!=entry['installed'] or sha(root/'Mods/GraphicsMenu/package'/entry['path'])!=entry['installed'] or sha(backup/entry['path'])!=entry['original']:
             raise ValueError('Graphics payload/recovery checksum mismatch: '+entry['path'])
     records=[e for e in dx['nativeCursorPatch']['files'] if e['path']=='bin64/Game.dll']
     if len(records)!=1:raise ValueError('Expected one cursor Game.dll record')
     for entry in dx['nativeCursorPatch']['files']:
         recovery=Path(entry['backupPath']).resolve()
-        if not recovery.is_relative_to(root/'DXVK-backups') or sha(root/entry['path'])!=entry['installed'].lower() or sha(recovery)!=entry['original'].lower():
+        if not recovery.is_relative_to(root/'Mods/Backups/Renderer') or sha(root/entry['path'])!=entry['installed'].lower() or sha(recovery)!=entry['original'].lower():
             raise ValueError('Cursor payload/recovery checksum mismatch')
     cursor=records[0];game=next(e for e in state['files'] if e['path']=='bin64/Game.dll')
     if cursor['installed'].lower()!=game['installed']:raise ValueError('Cursor and graphics Game.dll disagree')
@@ -36,7 +36,7 @@ def prepare(root,out,updated,legacy_iat):
     baseline,graphics_hook=relocate_baseline((backup/'bin64/Game.dll').read_bytes(),legacy_iat)
     cursor_base,cursor_hook=relocate_baseline(Path(cursor['backupPath']).read_bytes(),legacy_iat)
     name='service-menu-graphics-'+datetime.now().strftime('%Y%m%d-%H%M%S-%f')
-    relative='DXVK-backups/'+name
+    relative='Mods/Backups/Renderer/'+name
     def stage(path,data):
         f=out/path;f.parent.mkdir(parents=True,exist_ok=True);f.write_bytes(data)
     files=[]
@@ -45,12 +45,12 @@ def prepare(root,out,updated,legacy_iat):
         if path=='bin64/AionGraphicsMenu.dll':files.append(copy.deepcopy(entry));continue
         installed=updated if path=='bin64/Game.dll' else (root/path).read_bytes()
         original=baseline if path=='bin64/Game.dll' else (backup/path).read_bytes()
-        stage(relative+'/'+path,original);stage('DXVK/graphics-menu/package/'+path,installed)
+        stage(relative+'/'+path,original);stage('Mods/GraphicsMenu/package/'+path,installed)
         files.append(dict(path=path,original=digest(original),installed=digest(installed)))
     cursor_relative=relative+'/cursor-base/bin64/Game.dll';stage(cursor_relative,cursor_base)
     manifest['files']=files;state.update(files=files,backupRoot=str(root/relative),rebasedAt=datetime.now().isoformat())
     cursor.update(installed=digest(updated),original=digest(cursor_base),backupPath=str(root/cursor_relative))
-    for path,value in [('DXVK/graphics-menu/package/manifest.json',manifest),('DXVK/graphics-menu/installed.json',state),('DXVK/installed.json',dx)]:
+    for path,value in [('Mods/GraphicsMenu/package/manifest.json',manifest),('Mods/GraphicsMenu/installed.json',state),('Mods/Renderer/installed.json',dx)]:
         stage(path,json.dumps(value,indent=2).encode())
     print('OK: independently relocated verified graphics/cursor images with their own Visibility imports')
     return updated,dict(backupName=name,localized=any(e['path'].startswith('L10N/') for e in files),
