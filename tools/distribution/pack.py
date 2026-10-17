@@ -134,9 +134,10 @@ def build(package, output, tools, sevenzip):
     shutil.copy2(HERE/'publish.py', output/'publish.py')
     shutil.copy2(HERE/'UPLOAD.txt', output/'UPLOAD.txt')
     seed = (
-        '@echo off\r\npushd "%~dp0"\r\n'
+        '@echo off\r\ntitle Aion Aetherfall '+version+' - BitTorrent Seeder\r\npushd "%~dp0"\r\n'
+        'echo Starting Aion Aetherfall '+version+' BitTorrent Seeder (Instant Unverified Seed Mode)...\r\n'
         'if not exist "dht.dat" powershell -NoLogo -NoProfile -Command "$b=New-Object byte[] 56;$b[0]=0xA1;$b[1]=0xA2;$b[2]=2;$b[7]=3;$r=[Security.Cryptography.RandomNumberGenerator]::Create();$n=New-Object byte[] 20;$r.GetBytes($n);[Array]::Copy($n,0,$b,24,20);[IO.File]::WriteAllBytes(\'dht.dat\',$b)"\r\n'
-        '"Aetherfall-Downloader\\bin\\aria2c.exe" --no-conf=true --check-integrity=true --seed-ratio=0 --enable-dht=true --dht-file-path=dht.dat --dht-entry-point=router.bittorrent.com:6881 --enable-peer-exchange=true --bt-enable-lpd=true --max-overall-upload-limit=2M --dir=. "'+label+'.torrent"\r\npopd\r\npause\r\n'
+        '"Aetherfall-Downloader\\bin\\aria2c.exe" --no-conf=true --bt-seed-unverified=true --seed-ratio=0.0 --enable-dht=true --dht-file-path=dht.dat --dht-entry-point=router.bittorrent.com:6881 --enable-peer-exchange=true --bt-enable-lpd=true --listen-port=6889 --dht-listen-port=6889 --bt-tracker="udp://tracker.opentrackr.org:1337/announce,udp://open.stealth.si:80/announce,udp://tracker.torrent.eu.org:451/announce,udp://exodus.desync.com:6969/announce" --summary-interval=5 --dir=. "'+label+'.torrent"\r\npopd\r\npause\r\n'
     )
     (output/'Start-Seeding.cmd').write_text(seed)
     with zipfile.ZipFile(output/'Aetherfall-Downloader.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
