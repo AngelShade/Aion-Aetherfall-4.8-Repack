@@ -115,6 +115,9 @@ namespace AetherfallSetup {
    Btn("UpdateNowBtn").Click += async delegate { await RunUpdate(null); };
    Btn("ApplyPatchFileBtn").Click += async delegate { await PickAndApplyPatch(); };
    Btn("SavePathsBtn").Click += delegate { SaveSettingsFromUi(); };
+   Find<RadioButton>("ModeAuto").Click += delegate { SaveSettingsFromUi(); };
+   Find<RadioButton>("ModeTorrent").Click += delegate { SaveSettingsFromUi(); };
+   Find<RadioButton>("ModeHttp").Click += delegate { SaveSettingsFromUi(); };
    Btn("PrimaryBtn").Click += async delegate { await OnPrimaryAction(); };
    Btn("StartAllServerBtn").Click += async delegate { await RunServerControl("StartAll"); };
    Btn("StartDbOnlyBtn").Click += async delegate { await RunServerControl("StartDb"); };
@@ -125,6 +128,7 @@ namespace AetherfallSetup {
    window.Closed += delegate {
     closed = true;
     if (downloadCts != null) { try { downloadCts.Cancel(); } catch {} }
+    CleanStaleLocksAndProcesses(null, false);
     if (timer != null) timer.Stop();
    };
    AddParticles();
@@ -176,7 +180,7 @@ namespace AetherfallSetup {
     string launcherUpdate = System.IO.Path.Combine(pkg, "Client", "Mods", "Launcher", "update.json");
     if (Directory.Exists(System.IO.Path.GetDirectoryName(launcherUpdate)))
      File.WriteAllText(launcherUpdate, new JavaScriptSerializer().Serialize(new { UpdateUrl = settings.UpdateUrl }));
-    Text("PathsFeedback").Text = "Settings saved.";
+    Text("PathsFeedback").Text = "Settings saved (" + settings.Mode + " mode active).";
    } catch (Exception ex) {
     Text("PathsFeedback").Text = ex.Message;
    }
@@ -228,7 +232,8 @@ namespace AetherfallSetup {
    foreach (string dir in new[] { dlRoot, root }) {
     string candidate = System.IO.Path.Combine(dir, archiveName);
     string partmap = candidate + ".partmap";
-    if (File.Exists(candidate) && !File.Exists(partmap) && new FileInfo(candidate).Length == expectedBytes)
+    string ariaCtrl = candidate + ".aria2";
+    if (File.Exists(candidate) && !File.Exists(partmap) && !File.Exists(ariaCtrl) && new FileInfo(candidate).Length == expectedBytes)
      return candidate;
    }
    return null;
@@ -266,7 +271,7 @@ namespace AetherfallSetup {
    return false;
   }
 
-  void RefreshState() {
+  void RefreshState(bool preserveStatus = false) {
    string pkg = ResolveInstallPath();
    string ver = InstalledVersion();
    bool installed = IsInstalled();
@@ -284,7 +289,7 @@ namespace AetherfallSetup {
     Text("LaunchCaption").Text = "OPEN AETHERFALL GAME LAUNCHER";
     Text("HeroHeadline").Text = "Aetherfall " + ver + " is Installed.";
     Text("ArchiveSourceLabel").Text = "Click 'Update Repack' anytime to apply a new patch ZIP without losing characters.";
-    if (!busy) {
+    if (!busy && !preserveStatus) {
      Text("StatusTitle").Text = "Ready for Atreia.";
      Text("StatusDetail").Text = "Use Server Control to start MariaDB & GameServer, or click PLAY to open the game launcher.";
     }
@@ -296,31 +301,39 @@ namespace AetherfallSetup {
       Text("PrimaryLabel").Text = "RESUME";
       Text("LaunchCaption").Text = "RESUME UNPACKING REPACK (" + ver + ")";
       Text("ArchiveSourceLabel").Text = "Complete archive verified: " + localArc;
-      Text("StatusTitle").Text = "Extraction paused — Ready to resume.";
-      Text("StatusDetail").Text = "Click RESUME to finish unpacking " + System.IO.Path.GetFileName(localArc) + " (no re-download needed).";
+      if (!preserveStatus) {
+       Text("StatusTitle").Text = "Extraction paused — Ready to resume.";
+       Text("StatusDetail").Text = "Click RESUME to finish unpacking " + System.IO.Path.GetFileName(localArc) + " (no re-download needed).";
+      }
      } else if (hasPartial) {
       string pctStr = partPct.ToString("0.0") + "%  (" + FormatGb(partDone) + " / " + FormatGb(partTotal) + ")";
       Text("InstallBadge").Text = "Paused (" + partPct.ToString("0.0") + "%)";
       Text("PrimaryLabel").Text = "RESUME";
       Text("LaunchCaption").Text = "RESUME DOWNLOAD WHERE YOU LEFT OFF";
-      Text("ArchiveSourceLabel").Text = "Saved progress: " + FormatGb(partDone) + " of " + FormatGb(partTotal) + " on disk";
-      Text("StatusTitle").Text = "Download paused at " + partPct.ToString("0.0") + "%";
-      Text("StatusDetail").Text = "Click RESUME to continue downloading from " + FormatGb(partDone) + " / " + FormatGb(partTotal) + ".";
-      SetProgress(partDone / (double)partTotal, pctStr, "⏸ Paused · Progress saved");
+      Text("ArchiveSourceLabel").Text = "Saved progress: " + FormatGb(partDone) + " of " + FormatGb(partTotal) + " on disk  ·  Mirrors: MEGA + Google Drive + Torrent";
+      if (!preserveStatus) {
+       Text("StatusTitle").Text = "Download paused at " + partPct.ToString("0.0") + "%";
+       Text("StatusDetail").Text = "Click RESUME to continue downloading from " + FormatGb(partDone) + " / " + FormatGb(partTotal) + ".";
+       SetProgress(partDone / (double)partTotal, pctStr, "⏸ Paused · Progress saved");
+      }
      } else if (localArc != null) {
       Text("InstallBadge").Text = "Archive ready";
       Text("PrimaryLabel").Text = "INSTALL";
       Text("LaunchCaption").Text = "VERIFY & EXTRACT REPACK (" + ver + ")";
       Text("ArchiveSourceLabel").Text = "Complete archive ready: " + localArc;
-      Text("StatusTitle").Text = "Archive found — Ready to extract.";
-      Text("StatusDetail").Text = "Click INSTALL to verify and extract " + System.IO.Path.GetFileName(localArc) + " into " + pkg;
+      if (!preserveStatus) {
+       Text("StatusTitle").Text = "Archive found — Ready to extract.";
+       Text("StatusDetail").Text = "Click INSTALL to verify and extract " + System.IO.Path.GetFileName(localArc) + " into " + pkg;
+      }
      } else {
       Text("InstallBadge").Text = "Not installed yet";
       Text("PrimaryLabel").Text = "INSTALL";
       Text("LaunchCaption").Text = "DOWNLOAD & EXTRACT REPACK (" + ver + ")";
-      Text("ArchiveSourceLabel").Text = "Auto: Multi-Stream Google Drive CDN + BitTorrent P2P Fallback";
-      Text("StatusTitle").Text = "Ready to download & install.";
-      Text("StatusDetail").Text = "Click INSTALL to download Aetherfall " + ver + " (36.35 GB) with live speed & auto-resume.";
+      Text("ArchiveSourceLabel").Text = "Auto: Multi-Stream MEGA + Google Drive CDN + BitTorrent P2P";
+      if (!preserveStatus) {
+       Text("StatusTitle").Text = "Ready to download & install.";
+       Text("StatusDetail").Text = "Click INSTALL to download Aetherfall " + ver + " (36.35 GB) with live speed & auto-resume.";
+      }
      }
     }
    }
@@ -432,6 +445,33 @@ namespace AetherfallSetup {
    return string.Format("{0:00}m {1:00}s", ts.Minutes, ts.Seconds);
   }
 
+  void CleanStaleLocksAndProcesses(string archivePath, bool removeAria2Control) {
+   try {
+    string ariaPath = System.IO.Path.Combine(root, "bin", "aria2c.exe");
+    foreach (var p in Process.GetProcessesByName("aria2c")) {
+     try {
+      string pFile = p.MainModule != null ? p.MainModule.FileName : "";
+      if (String.IsNullOrEmpty(pFile) || pFile.Equals(ariaPath, StringComparison.OrdinalIgnoreCase)) {
+       p.Kill();
+       p.WaitForExit(1500);
+      }
+     } catch {
+      try { p.Kill(); } catch {}
+     }
+    }
+   } catch {}
+   try {
+    string lockFile = System.IO.Path.Combine(root, ".download.lock");
+    if (File.Exists(lockFile)) File.Delete(lockFile);
+   } catch {}
+   if (removeAria2Control && !String.IsNullOrEmpty(archivePath)) {
+    try {
+     string ariaCtrl = archivePath + ".aria2";
+     if (File.Exists(ariaCtrl)) File.Delete(ariaCtrl);
+    } catch {}
+   }
+  }
+
   MirrorConfig LoadMirrors() {
    JavaScriptSerializer js = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
    MirrorConfig cfg = new MirrorConfig();
@@ -452,12 +492,99 @@ namespace AetherfallSetup {
    return cfg;
   }
 
-  async Task<string> DownloadArchiveBoundedRangesAsync(ReleaseFile fileInfo, string url, string destDir, CancellationToken ct) {
+  sealed class MegaMirrorSpec {
+   public string Handle;
+   public byte[] AesKey;
+   public byte[] Nonce;
+   public string DirectUrl;
+   public DateTime ResolvedAtUtc;
+   public readonly object Sync = new object();
+  }
+
+  static MegaMirrorSpec ParseMegaUrl(string url) {
+   if (String.IsNullOrWhiteSpace(url)) return null;
+   Match m = Regex.Match(url, @"mega\.nz/(?:file/|#!)([A-Za-z0-9_-]+)[#!]([A-Za-z0-9_-]+)");
+   if (!m.Success) return null;
+   string handle = m.Groups[1].Value;
+   string keyB64 = m.Groups[2].Value.Replace('-', '+').Replace('_', '/');
+   switch (keyB64.Length % 4) {
+    case 2: keyB64 += "=="; break;
+    case 3: keyB64 += "="; break;
+   }
+   byte[] raw = Convert.FromBase64String(keyB64);
+   if (raw.Length < 32) return null;
+   byte[] aesKey = new byte[16];
+   for (int i = 0; i < 16; i++) aesKey[i] = (byte)(raw[i] ^ raw[i + 16]);
+   byte[] nonce = new byte[8];
+   Buffer.BlockCopy(raw, 16, nonce, 0, 8);
+   return new MegaMirrorSpec { Handle = handle, AesKey = aesKey, Nonce = nonce };
+  }
+
+  static string ResolveMegaDirectUrl(MegaMirrorSpec spec, bool forceRefresh) {
+   lock (spec.Sync) {
+    if (!forceRefresh && !String.IsNullOrEmpty(spec.DirectUrl) && (DateTime.UtcNow - spec.ResolvedAtUtc).TotalMinutes < 25)
+     return spec.DirectUrl;
+    using (var wc = new WebClient { Encoding = Encoding.UTF8 }) {
+     wc.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+     string body = "[{\"a\":\"g\",\"g\":1,\"p\":\"" + spec.Handle + "\"}]";
+     string resp = wc.UploadString("https://g.api.mega.co.nz/cs?id=" + Environment.TickCount, body);
+     Match gm = Regex.Match(resp, "\"g\"\\s*:\\s*\"([^\"]+)\"");
+     if (!gm.Success) {
+      if (resp.Contains("-18") || resp.Contains("-17") || resp.Contains("-4"))
+       throw new IOException("MEGA mirror temporarily rate-limited.");
+      throw new IOException("MEGA API did not return a download URL.");
+     }
+     spec.DirectUrl = gm.Groups[1].Value.Replace("\\/", "/");
+     spec.ResolvedAtUtc = DateTime.UtcNow;
+     return spec.DirectUrl;
+    }
+   }
+  }
+
+  static void DecryptMegaChunkInPlace(byte[] buf, int len, byte[] aesKey, byte[] nonce, long byteOffset) {
+   ulong blockCounter = (ulong)(byteOffset / 16);
+   using (Aes aes = Aes.Create()) {
+    aes.Mode = CipherMode.ECB;
+    aes.Padding = PaddingMode.None;
+    aes.Key = aesKey;
+    using (ICryptoTransform enc = aes.CreateEncryptor()) {
+     byte[] ctrBuf = new byte[65536];
+     int offset = 0;
+     while (offset < len) {
+      int batch = Math.Min(65536, ((len - offset + 15) / 16) * 16);
+      int blocks = batch / 16;
+      for (int b = 0; b < blocks; b++) {
+       int pos = b * 16;
+       Buffer.BlockCopy(nonce, 0, ctrBuf, pos, 8);
+       ulong c = blockCounter++;
+       ctrBuf[pos + 8]  = (byte)(c >> 56);
+       ctrBuf[pos + 9]  = (byte)(c >> 48);
+       ctrBuf[pos + 10] = (byte)(c >> 40);
+       ctrBuf[pos + 11] = (byte)(c >> 32);
+       ctrBuf[pos + 12] = (byte)(c >> 24);
+       ctrBuf[pos + 13] = (byte)(c >> 16);
+       ctrBuf[pos + 14] = (byte)(c >> 8);
+       ctrBuf[pos + 15] = (byte)c;
+      }
+      enc.TransformBlock(ctrBuf, 0, batch, ctrBuf, 0);
+      int xorLen = Math.Min(batch, len - offset);
+      for (int i = 0; i < xorLen; i++) {
+       buf[offset + i] ^= ctrBuf[i];
+      }
+      offset += xorLen;
+     }
+    }
+   }
+  }
+
+  async Task<string> DownloadArchiveBoundedRangesAsync(ReleaseFile fileInfo, List<string> rawMirrors, string destDir, CancellationToken ct) {
    Directory.CreateDirectory(destDir);
    string archivePath = System.IO.Path.Combine(destDir, fileInfo.name);
    string mapPath = archivePath + ".partmap";
+   CleanStaleLocksAndProcesses(archivePath, true);
+
    long totalBytes = fileInfo.bytes;
-   const int chunkSize = 8 * 1024 * 1024; // 8 MB per bounded HTTP range request
+   const int chunkSize = 8 * 1024 * 1024; // 8 MB per verified block
    int totalChunks = (int)((totalBytes + chunkSize - 1) / chunkSize);
 
    byte[] completed = new byte[totalChunks];
@@ -466,7 +593,6 @@ namespace AetherfallSetup {
     if (saved.Length == totalChunks) {
      Array.Copy(saved, completed, totalChunks);
     } else {
-     // Repair map length without losing existing flags
      Array.Copy(saved, completed, Math.Min(saved.Length, totalChunks));
      File.WriteAllBytes(mapPath, completed);
     }
@@ -495,12 +621,27 @@ namespace AetherfallSetup {
     return archivePath;
    }
 
+   // Prepare mirror list (prioritizing MEGA first so Google Drive quota locks never stall resuming)
+   var mirrors = new List<string>();
+   foreach (string m in rawMirrors) {
+    if (!String.IsNullOrWhiteSpace(m) && m.IndexOf("mega.nz", StringComparison.OrdinalIgnoreCase) >= 0) mirrors.Add(m.Trim());
+   }
+   foreach (string m in rawMirrors) {
+    if (!String.IsNullOrWhiteSpace(m) && m.IndexOf("mega.nz", StringComparison.OrdinalIgnoreCase) < 0) mirrors.Add(m.Trim());
+   }
+   var megaSpecs = new Dictionary<string, MegaMirrorSpec>(StringComparer.OrdinalIgnoreCase);
+   foreach (string m in mirrors) {
+    MegaMirrorSpec spec = ParseMegaUrl(m);
+    if (spec != null) megaSpecs[m] = spec;
+   }
+
    object diskLock = new object();
    long sessionBytes = 0;
    Stopwatch sw = Stopwatch.StartNew();
    long lastSampleBytes = 0;
    double lastSampleSec = 0;
    double smoothedMbps = 0;
+   string activeMirrorName = megaSpecs.Count > 0 ? "MEGA CDN" : "Direct CDN";
 
    using (var uiTimer = new Timer(_ => {
     double nowSec = sw.Elapsed.TotalSeconds;
@@ -523,14 +664,15 @@ namespace AetherfallSetup {
      string spdStr = "⚡ " + smoothedMbps.ToString("0.0") + " MB/s   ·   ETA " + FormatEta(etaSec);
      Text("InstallBadge").Text = "Downloading (" + pct.ToString("0.0") + "%)";
      Text("StatusTitle").Text = "Downloading Aetherfall " + manifest.version + " — " + pct.ToString("0.0") + "%";
-     Text("StatusDetail").Text = "Downloaded " + FormatGb(curTotal) + " of " + FormatGb(totalBytes) + "  ·  Safe auto-resume active (you can close or pause anytime)";
+     Text("StatusDetail").Text = "Downloaded " + FormatGb(curTotal) + " of " + FormatGb(totalBytes) + " via " + activeMirrorName + "  ·  Safe auto-resume active";
      SetProgress(curTotal / (double)totalBytes, pctStr, spdStr);
     }));
    }, null, 100, 250)) {
 
-    int workers = 8;
+    int workers = 6;
     var tasks = new List<Task>();
     for (int w = 0; w < workers; w++) {
+     int workerId = w;
      tasks.Add(Task.Run(async () => {
       byte[] chunkBuf = new byte[chunkSize];
       int chunkIdx;
@@ -539,23 +681,33 @@ namespace AetherfallSetup {
        long end = Math.Min(totalBytes - 1, start + chunkSize - 1);
        int expectedLen = (int)(end - start + 1);
        bool ok = false;
+       string lastError = "Mirror connection interrupted.";
 
-       for (int attempt = 0; attempt < 6 && !ct.IsCancellationRequested && !ok; attempt++) {
+       for (int attempt = 0; attempt < mirrors.Count * 4 && !ct.IsCancellationRequested && !ok; attempt++) {
+        string mirrorUrl = mirrors[attempt % mirrors.Count];
+        MegaMirrorSpec mega = megaSpecs.ContainsKey(mirrorUrl) ? megaSpecs[mirrorUrl] : null;
         int readInAttempt = 0;
         try {
-         HttpWebRequest req = (HttpWebRequest)WebRequest.Create(url);
+         HttpWebRequest req;
+         if (mega != null) {
+          string dlBase = ResolveMegaDirectUrl(mega, attempt >= mirrors.Count);
+          req = (HttpWebRequest)WebRequest.Create(dlBase + "/" + start + "-" + end);
+         } else {
+          req = (HttpWebRequest)WebRequest.Create(mirrorUrl);
+          req.AddRange(start, end);
+         }
          req.UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
-         req.AddRange(start, end);
          req.Timeout = 30000;
          req.ReadWriteTimeout = 30000;
 
          using (ct.Register(() => { try { req.Abort(); } catch {} }))
          using (HttpWebResponse resp = (HttpWebResponse)await req.GetResponseAsync()) {
           if (resp.StatusCode != HttpStatusCode.PartialContent && resp.StatusCode != HttpStatusCode.OK)
-           throw new IOException("Unexpected HTTP status: " + resp.StatusCode);
+           throw new IOException("HTTP " + (int)resp.StatusCode);
           if (resp.ContentType != null && resp.ContentType.IndexOf("text/html", StringComparison.OrdinalIgnoreCase) >= 0)
-           throw new IOException("Mirror returned HTML instead of binary range.");
+           throw new IOException("Mirror quota busy (switching to alternate mirror).");
 
+          activeMirrorName = mega != null ? "MEGA High-Speed CDN" : "Google Drive CDN";
           using (Stream netStream = resp.GetResponseStream()) {
            while (readInAttempt < expectedLen) {
             int r = await netStream.ReadAsync(chunkBuf, readInAttempt, expectedLen - readInAttempt, ct);
@@ -567,9 +719,12 @@ namespace AetherfallSetup {
           }
          }
          if (readInAttempt != expectedLen)
-          throw new IOException("Incomplete chunk read.");
+          throw new IOException("Incomplete chunk stream.");
 
-         // Atomic commit: write the verified 8MB block to archive and mark single byte 1 at offset chunkIdx in .partmap
+         if (mega != null) {
+          DecryptMegaChunkInPlace(chunkBuf, expectedLen, mega.AesKey, mega.Nonce, start);
+         }
+
          lock (diskLock) {
           using (FileStream afs = new FileStream(archivePath, FileMode.Open, FileAccess.Write, FileShare.ReadWrite)) {
            afs.Position = start;
@@ -584,7 +739,8 @@ namespace AetherfallSetup {
           completed[chunkIdx] = 1;
          }
          ok = true;
-        } catch (Exception) {
+        } catch (Exception ex) {
+         lastError = ex.Message;
          if (readInAttempt > 0) {
           Interlocked.Add(ref completedBytes, -readInAttempt);
           Interlocked.Add(ref sessionBytes, -readInAttempt);
@@ -592,12 +748,12 @@ namespace AetherfallSetup {
          if (ct.IsCancellationRequested) throw new OperationCanceledException(ct);
         }
         if (!ok) {
-         await Task.Delay(1200 * (attempt + 1), ct);
+         await Task.Delay(600 * ((attempt / Math.Max(1, mirrors.Count)) + 1), ct);
         }
        }
        if (!ok) {
         pending.Enqueue(chunkIdx);
-        throw new IOException("Connection interrupted while downloading chunk " + chunkIdx + ". Click RESUME to continue.");
+        throw new IOException(lastError + " — Click RESUME to continue.");
        }
       }
      }, ct));
@@ -606,6 +762,87 @@ namespace AetherfallSetup {
    }
 
    if (File.Exists(mapPath)) File.Delete(mapPath);
+   return archivePath;
+  }
+
+  async Task<string> DownloadArchiveTorrentAsync(ReleaseFile fileInfo, MirrorConfig mirrors, string destDir, CancellationToken ct) {
+   Directory.CreateDirectory(destDir);
+   string archivePath = System.IO.Path.Combine(destDir, fileInfo.name);
+   CleanStaleLocksAndProcesses(archivePath, false);
+
+   string aria = System.IO.Path.Combine(root, "bin", "aria2c.exe");
+   string torrent = System.IO.Path.Combine(root, manifest.torrentFile ?? "Aetherfall-0.86.torrent");
+   if (!File.Exists(aria)) throw new FileNotFoundException("bin\\aria2c.exe is missing.");
+   if (!File.Exists(torrent)) throw new FileNotFoundException("Torrent file is missing: " + torrent);
+
+   string dhtFile = System.IO.Path.Combine(root, "dht.dat");
+   if (!File.Exists(dhtFile)) {
+    byte[] dhtBytes = new byte[56];
+    dhtBytes[0] = 0xA1; dhtBytes[1] = 0xA2; dhtBytes[2] = 0x02; dhtBytes[7] = 0x03;
+    using (var rng = RandomNumberGenerator.Create()) {
+     byte[] nodeId = new byte[20];
+     rng.GetBytes(nodeId);
+     Array.Copy(nodeId, 0, dhtBytes, 24, 20);
+    }
+    File.WriteAllBytes(dhtFile, dhtBytes);
+   }
+
+   var args = new List<string> {
+    "--no-conf=true",
+    "--continue=true",
+    "--allow-overwrite=true",
+    "--auto-file-renaming=false",
+    "--file-allocation=none",
+    "--enable-dht=true",
+    Quote("--dht-file-path=" + dhtFile),
+    "--dht-entry-point=router.bittorrent.com:6881",
+    "--enable-peer-exchange=true",
+    "--bt-enable-lpd=true",
+    "--seed-time=0",
+    "--summary-interval=1",
+    Quote("--dir=" + destDir),
+    Quote("--torrent-file=" + torrent)
+   };
+
+   var psi = new ProcessStartInfo(aria, String.Join(" ", args)) {
+    WorkingDirectory = root,
+    UseShellExecute = false,
+    CreateNoWindow = true,
+    WindowStyle = ProcessWindowStyle.Hidden,
+    RedirectStandardOutput = true,
+    RedirectStandardError = true
+   };
+
+   using (var proc = new Process { StartInfo = psi }) {
+    using (ct.Register(() => { try { if (!proc.HasExited) proc.Kill(); } catch {} })) {
+     Action<string> parseLine = line => {
+      if (String.IsNullOrWhiteSpace(line)) return;
+      Match m = Regex.Match(line, @"\((\d{1,3})%\).*?CN:(\d+).*?(?:DL:([0-9.]+[KMG]i?B))?");
+      if (m.Success) {
+       int pct = 0; int.TryParse(m.Groups[1].Value, out pct);
+       string cn = m.Groups[2].Value;
+       string dl = m.Groups[3].Success && !String.IsNullOrEmpty(m.Groups[3].Value) ? (m.Groups[3].Value + "/s") : "0.0 MB/s";
+       long approxBytes = (long)((pct / 100.0) * fileInfo.bytes);
+       window.Dispatcher.BeginInvoke(new Action(() => {
+        if (closed || !busy) return;
+        string pctStr = pct + "%  (" + FormatGb(approxBytes) + " / " + FormatGb(fileInfo.bytes) + ")";
+        Text("InstallBadge").Text = "Torrent (" + pct + "%)";
+        Text("StatusTitle").Text = "Downloading via BitTorrent Swarm — " + pct + "%";
+        Text("StatusDetail").Text = "Connected peers: " + cn + "  ·  Tip: Auto / Direct HTTPS mode uses MEGA + Google Drive CDN";
+        SetProgress(Math.Max(0.01, pct / 100.0), pctStr, "⚡ " + dl + "  ·  Peers: " + cn);
+       }));
+      }
+     };
+     proc.OutputDataReceived += (s, e) => parseLine(e.Data);
+     proc.ErrorDataReceived += (s, e) => parseLine(e.Data);
+     proc.Start();
+     proc.BeginOutputReadLine();
+     proc.BeginErrorReadLine();
+     await Task.Run(() => proc.WaitForExit());
+     if (ct.IsCancellationRequested) throw new OperationCanceledException(ct);
+     if (proc.ExitCode != 0) throw new IOException("BitTorrent download paused or no active seeders found. Switch to Auto / Direct HTTPS to download from MEGA.");
+    }
+   }
    return archivePath;
   }
 
@@ -711,8 +948,8 @@ namespace AetherfallSetup {
    downloadCts = new CancellationTokenSource();
    long partDone, partTotal; double partPct;
    if (GetPartialDownloadProgress(out partDone, out partTotal, out partPct)) {
-    SetBusy(true, "RESUMING AETHERFALL", "Resuming from " + partPct.ToString("0.0") + "%…", "Reconnecting to mirror at " + FormatGb(partDone) + " / " + FormatGb(partTotal) + "…", true);
-    SetProgress(partDone / (double)partTotal, partPct.ToString("0.0") + "%  (" + FormatGb(partDone) + " / " + FormatGb(partTotal) + ")", "Reconnecting…");
+    SetBusy(true, "RESUMING AETHERFALL", "Resuming from " + partPct.ToString("0.0") + "%…", "Connecting to high-speed mirror at " + FormatGb(partDone) + " / " + FormatGb(partTotal) + "…", true);
+    SetProgress(partDone / (double)partTotal, partPct.ToString("0.0") + "%  (" + FormatGb(partDone) + " / " + FormatGb(partTotal) + ")", "Connecting…");
    } else {
     SetBusy(true, "INSTALLING AETHERFALL", "Preparing download…", "Connecting to mirror…", true);
     SetProgress(0.01, "0.0%  (0.00 GB / " + FormatGb(rf.bytes) + ")", "Connecting…");
@@ -722,19 +959,26 @@ namespace AetherfallSetup {
     string archivePath = FindCompleteLocalArchive();
     if (archivePath == null) {
      MirrorConfig mirrors = await Task.Run(() => LoadMirrors());
-     string httpUrl = null;
-     if (mirrors.Files != null && mirrors.Files.ContainsKey(rf.name) && mirrors.Files[rf.name] != null && mirrors.Files[rf.name].Count > 0)
-      httpUrl = mirrors.Files[rf.name][0];
+     var mirrorList = new List<string>();
+     if (mirrors.Files != null && mirrors.Files.ContainsKey(rf.name) && mirrors.Files[rf.name] != null) {
+      foreach (string u in mirrors.Files[rf.name]) {
+       if (!String.IsNullOrWhiteSpace(u)) mirrorList.Add(u);
+      }
+     }
+     if (mirrors.SharePages != null) {
+      foreach (string s in mirrors.SharePages) {
+       if (!String.IsNullOrWhiteSpace(s) && s.IndexOf("mega.nz", StringComparison.OrdinalIgnoreCase) >= 0 && !mirrorList.Contains(s))
+        mirrorList.Add(s);
+      }
+     }
+     if (mirrorList.Count == 0) {
+      mirrorList.Add("https://mega.nz/file/hJt0hYTC#fr0RDjsLl4CriZ5dw8MljBhrlP6nD4oYkaErD2iW-vQ");
+     }
 
-     if (settings.Mode != "Torrent" && !String.IsNullOrWhiteSpace(httpUrl)) {
-      archivePath = await DownloadArchiveBoundedRangesAsync(rf, httpUrl, dlDir, downloadCts.Token);
+     if (settings.Mode != "Torrent" && mirrorList.Count > 0) {
+      archivePath = await DownloadArchiveBoundedRangesAsync(rf, mirrorList, dlDir, downloadCts.Token);
      } else {
-      string script = System.IO.Path.Combine(root, "bin", "Download.ps1");
-      int code = await RunPowerShell(script, "-Mode Torrent -Destination " + Quote(System.IO.Path.GetDirectoryName(pkg)), line => {
-       if (!String.IsNullOrWhiteSpace(line)) Text("StatusDetail").Text = line;
-      });
-      if (code != 0) throw new InvalidOperationException(Text("StatusDetail").Text);
-      archivePath = System.IO.Path.Combine(dlDir, rf.name);
+      archivePath = await DownloadArchiveTorrentAsync(rf, mirrors, dlDir, downloadCts.Token);
      }
     }
 
@@ -761,8 +1005,8 @@ namespace AetherfallSetup {
     SetBusy(false, "DOWNLOAD PAUSED", "Download paused — Progress saved.", "Click RESUME anytime to continue from the exact chunk where you left off.");
     RefreshState();
    } catch (Exception ex) {
-    SetBusy(false, "ACTION NEEDED", "Installation paused", ex.Message);
-    RefreshState();
+    SetBusy(false, "ACTION NEEDED", "Download paused", ex.Message);
+    RefreshState(true);
    } finally {
     downloadCts = null;
    }

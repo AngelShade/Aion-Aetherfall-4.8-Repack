@@ -6,6 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.86/Aetherfall-Downloader.zip"><img src="https://img.shields.io/badge/Download-Aetherfall_Downloader_v0.86_(7.7_MB)-2563eb?style=for-the-badge&logo=windows" alt="Download Aetherfall Downloader"></a>
+  <a href="https://mega.nz/file/hJt0hYTC#fr0RDjsLl4CriZ5dw8MljBhrlP6nD4oYkaErD2iW-vQ"><img src="https://img.shields.io/badge/MEGA_Mirror-Full_Repack_0.86_(36.35_GB)-d9272e?style=for-the-badge" alt="MEGA Mirror"></a>
   <a href="https://drive.google.com/file/d/1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2/view?usp=sharing"><img src="https://img.shields.io/badge/Google_Drive-Full_Repack_0.86_(36.35_GB)-16a34a?style=for-the-badge&logo=googledrive" alt="Google Drive Mirror"></a>
   <a href="https://discord.com/invite/cpRYCRsSnR"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
 </p>
@@ -46,10 +47,11 @@ The full playable repack (**Release 0.86** — `36.35 GB` packed / `197,739` fil
 
 | Download Option | Link | Details |
 | --- | --- | --- |
-| **1. Aetherfall Setup & Auto-Updater (Recommended)** | [**Download `Aetherfall-Downloader.zip`**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.86/Aetherfall-Downloader.zip) | `7.71 MB` — Native GUI setup hub (`Aetherfall Setup.exe`) with multi-stream crash-proof resume, SHA-256 verification, auto-extraction, 1-click server/client control, and delta update patching. |
-| **2. Google Drive Direct Mirror** | [**Download `Aetherfall-0.86.7z` (Google Drive)**](https://drive.google.com/file/d/1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2/view?usp=sharing) | `36.35 GB` single archive (`SHA-256: 7b5599837887a49d2b2bebb2ef73f4a9435b42b9686da62aec6354f9954af885`). You can also place this file inside `Aetherfall-Downloader` and click **Install** to verify & extract. |
-| **3. BitTorrent P2P** | [**Download `Aetherfall-0.86.torrent`**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.86/Aetherfall-0.86.torrent) | BitTorrent Swarm (`infoHash: ac60eed8cc0438ebd3e8f237fa3cf27700ce740f`). |
-| **4. GitHub Releases Page** | [**View Release `v0.86`**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.86) | Release notes, checksums and downloader assets. |
+| **1. Aetherfall Setup & Auto-Updater (Recommended)** | [**Download `Aetherfall-Downloader.zip`**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.86/Aetherfall-Downloader.zip) | `7.7 MB` — Native GUI setup hub (`Aetherfall Setup.exe`) with multi-stream MEGA + Google Drive resume, SHA-256 verification, auto-extraction, 1-click server/client control, and delta update patching. |
+| **2. MEGA Direct Mirror** | [**Download `Aetherfall-0.86.7z` (MEGA)**](https://mega.nz/file/hJt0hYTC#fr0RDjsLl4CriZ5dw8MljBhrlP6nD4oYkaErD2iW-vQ) | `36.35 GB` single archive (`SHA-256: 7b5599837887a49d2b2bebb2ef73f4a9435b42b9686da62aec6354f9954af885`). |
+| **3. Google Drive Direct Mirror** | [**Download `Aetherfall-0.86.7z` (Google Drive)**](https://drive.google.com/file/d/1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2/view?usp=sharing) | `36.35 GB` single archive (`SHA-256: 7b5599837887a49d2b2bebb2ef73f4a9435b42b9686da62aec6354f9954af885`). |
+| **4. BitTorrent P2P** | [**Download `Aetherfall-0.86.torrent`**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.86/Aetherfall-0.86.torrent) | BitTorrent Swarm (`infoHash: ac60eed8cc0438ebd3e8f237fa3cf27700ce740f`). |
+| **5. GitHub Releases Page** | [**View Release `v0.86`**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.86) | Release notes, checksums and downloader assets. |
 | **Community Discord** | [**Join the Aetherfall Discord**](https://discord.com/invite/cpRYCRsSnR) | Updates, support, playerbot tips and bug reports. |
 
 ## Start the repack
