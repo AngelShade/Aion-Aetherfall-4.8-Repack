@@ -33,6 +33,7 @@ final class PlayerBotPersistence {
 				var metadata = PlayerBotMetadata.pending(bot.getAccount().getId(),bot.getObjectId());
 				PlayerBotMetadata.store(connection,metadata);
 				connection.commit();
+				if (bot.getAbyssRank() != null) bot.getAbyssRank().markInsertCommitted();
 				PlayerBotMetadata.committed(metadata);
 				InventoryDAO.companionInventoryCommitted(inventory);
 			} catch (SQLException | RuntimeException e) {

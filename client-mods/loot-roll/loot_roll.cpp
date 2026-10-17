@@ -54,7 +54,9 @@ extern "C" __declspec(dllexport) void AionLootLayout(Ptr dialog){
         Ptr peer=*reinterpret_cast<Ptr*>(g+0x13875c0+(0x123+i)*8);
         if(peer && (method<int(*)(Ptr)>(peer,0xb8)(peer)&1)) {if(i<slot)++row;++count;}
     }
-    double h=108*scale,gap=5*scale,total=std::max(1,count)*(h+gap),top=std::max(8*scale,std::min(height*.24,height-total-12*scale));
+    // XML child coordinates are client-relative: reserve the 18px title and
+    // lower native frame beyond the gauge's y=99 endpoint.
+    double h=128*scale,gap=5*scale,total=std::max(1,count)*(h+gap),top=std::max(8*scale,std::min(height*.24,height-total-12*scale));
     bounds(dialog,{std::max(0.0,width-350*scale),top+row*(h+gap),334*scale,h});
 }
 

@@ -99,6 +99,7 @@ public class CM_CHAT_MESSAGE_PUBLIC extends AionClientPacket {
 				broadcastToPlayers(player);
 				break;
 		}
+		com.aionemu.gameserver.services.playerbot.PlayerBotSocialChat.heard(player,type,message,null);
 	}
 
 	private void broadcastFromCommander(final Player player) {

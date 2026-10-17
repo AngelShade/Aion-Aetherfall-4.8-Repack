@@ -30,7 +30,8 @@ public class AbyssRankDAO {
 	private static final Logger log = LoggerFactory.getLogger(AbyssRankDAO.class);
 
 	private static final String SELECT_QUERY = "SELECT daily_ap, weekly_ap, ap, daily_gp, weekly_gp, gp, `rank`, daily_kill, weekly_kill, all_kill, max_rank, last_kill, last_ap, last_gp, last_update FROM abyss_rank WHERE player_id = ?";
-	private static final String INSERT_QUERY = "INSERT INTO abyss_rank (player_id, daily_ap, weekly_ap, ap, `rank`, daily_kill, weekly_kill, all_kill, max_rank, last_kill, last_ap, last_update, daily_gp, weekly_gp, gp, last_gp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+	// Native ranking saves and bot checkpoints may meet at the first insert.
+	private static final String INSERT_QUERY = "INSERT INTO abyss_rank (player_id, daily_ap, weekly_ap, ap, `rank`, daily_kill, weekly_kill, all_kill, max_rank, last_kill, last_ap, last_update, daily_gp, weekly_gp, gp, last_gp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE daily_ap=VALUES(daily_ap), weekly_ap=VALUES(weekly_ap), ap=VALUES(ap), `rank`=VALUES(`rank`), daily_kill=VALUES(daily_kill), weekly_kill=VALUES(weekly_kill), all_kill=VALUES(all_kill), max_rank=VALUES(max_rank), last_kill=VALUES(last_kill), last_ap=VALUES(last_ap), last_update=VALUES(last_update), daily_gp=VALUES(daily_gp), weekly_gp=VALUES(weekly_gp), gp=VALUES(gp), last_gp=VALUES(last_gp)";
 	private static final String UPDATE_QUERY = "UPDATE abyss_rank SET  daily_ap = ?, weekly_ap = ?, ap = ?, `rank` = ?, daily_kill = ?, weekly_kill = ?, all_kill = ?, max_rank = ?, last_kill = ?, last_ap = ?, last_update = ?, daily_gp = ?, weekly_gp = ?, gp = ?, last_gp = ? WHERE player_id = ?";
 	private static final String DECREASE_GP_DAILY = "UPDATE abyss_rank SET gp = GREATEST(gp - ?, 0) WHERE `rank` = ?";
 	private static final String INCREASE_GP_QUERY = "UPDATE abyss_rank SET gp = GREATEST(gp + ?, 0) WHERE player_id = ?";
@@ -97,7 +98,7 @@ public class AbyssRankDAO {
 				result = updateRank(player.getObjectId(), rank);
 				break;
 		}
-		rank.setPersistentState(PersistentState.UPDATED);
+		if (result) rank.setPersistentState(PersistentState.UPDATED);
 		return result;
 	}
 

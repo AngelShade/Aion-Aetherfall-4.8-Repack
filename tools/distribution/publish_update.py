@@ -11,6 +11,7 @@ import urllib.request
 import zipfile
 from datetime import datetime
 from pathlib import Path
+from setup_version import setup_version
 
 EXCLUDED_PREFIXES = (
     'server/database/data/',
@@ -233,8 +234,12 @@ def publish_prepared(package, baseline_path, dist_dir, target_version, upload):
     if latest.get('patchSha256') != sha256_file(patch_path):
         raise ValueError('The prepared patch checksum changed')
     if setup.is_file():
+        with zipfile.ZipFile(patch_path) as archive:
+            hub = next((record for record in patch['files'] if record['path'].casefold() == 'aetherfall hub.exe'), None)
+            if not hub or hub['sha256'] != sha256_file(setup) or sha256_file(package / 'Aetherfall Hub.exe') != hub['sha256']:
+                raise ValueError('Setup and the prepared patch Hub differ; install the same build before publishing')
         latest.update(setupExeUrl=base+'/Aetherfall-Setup.exe', setupExeBytes=setup.stat().st_size,
-                      setupExeSha256=sha256_file(setup))
+                      setupExeSha256=sha256_file(setup), setupVersion=setup_version(setup))
         latest_path.write_text(json.dumps(latest, indent=2)+'\n', encoding='utf-8')
     if upload:
         publish_assets(patch_dir, latest, setup)

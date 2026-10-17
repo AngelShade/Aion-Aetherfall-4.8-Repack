@@ -5,6 +5,7 @@ import json
 import zipfile
 from datetime import datetime
 from pathlib import Path
+from setup_version import setup_version
 
 
 def sha256_file(path: Path) -> str:
@@ -13,6 +14,13 @@ def sha256_file(path: Path) -> str:
 
 
 def build_patch(package: Path, baseline_index_path: Path, output_dir: Path, patch_url_base: str = '', setup_path=None):
+    setup = setup_path or output_dir / 'Aetherfall-Downloader' / 'Aetherfall Setup.exe'
+    setup_build = None
+    if setup.is_file():
+        hub = package / 'Aetherfall Hub.exe'
+        if not hub.is_file() or sha256_file(hub) != sha256_file(setup):
+            raise ValueError('Setup and the repack Hub differ; install the same build before preparing a patch')
+        setup_build = setup_version(setup)
     release = json.loads((package / 'release.json').read_text(encoding='utf-8-sig'))
     version = release['Version']
     baseline = json.loads(baseline_index_path.read_text(encoding='utf-8-sig'))
@@ -77,10 +85,10 @@ def build_patch(package: Path, baseline_index_path: Path, output_dir: Path, patc
         'filesChanged': len(changed),
         'filesRemoved': len(removed),
     }
-    setup = setup_path or output_dir / 'Aetherfall-Downloader' / 'Aetherfall Setup.exe'
     if setup.is_file():
         latest.update(setupExeUrl=(patch_url_base.rstrip('/')+'/Aetherfall-Setup.exe') if patch_url_base else '',
-                      setupExeBytes=setup.stat().st_size, setupExeSha256=sha256_file(setup))
+                      setupExeBytes=setup.stat().st_size, setupExeSha256=sha256_file(setup),
+                      setupVersion=setup_build)
     (output_dir / 'latest-update.json').write_text(json.dumps(latest, indent=2), encoding='utf-8')
     print(f'Built delta patch {patch_path} ({len(changed)} changed files, {patch_path.stat().st_size} bytes, sha256={patch_sha})')
 

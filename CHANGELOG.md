@@ -12,6 +12,19 @@ because that is the first public repack in which those changes were bundled.
 | [0.89](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.89) | Saved world-bot reserve placement | Cumulative patch: 23 files, about 15 MB |
 | [0.90](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.90) | Quest reward upgrades, Setup server controls and start-stage repair | Cumulative patch: 25 files, about 20.1 MB |
 
+## 0.91–0.92 — Source and local installation updates
+
+- Restored native pet mood reaction variants and valid zero-index interactions.
+- Fixed bot rank insert/checkpoint persistence without resetting saved ranks or points.
+- Aligned native quest reward previews with the permanent Ninja motion and Tiamat Whelp rewards.
+- Fixed Saved Parties empty-state text and the native loot-roll footer frame clearance.
+- Added name-addressed chat requests for native legion invitations, retaining rank permissions and player acceptance.
+- Added bounded per-dock lift queues, supported passenger spacing, uninterrupted ride custody and standing carry packets for world bots and companions.
+- Prevented Setup self-downgrades and selection of stale cached patches; retained the existing server controls and bounded startup wait.
+- Shortened project instructions while preserving their full history and added a bounded server-log summary tool.
+
+These updates are separate from public release publication. Normal builds and focused offline checks passed; in-game acceptance remains user-owned. A broader navigation upgrade is subsequent work, not included in this checkpoint.
+
 ## 0.86 — Initial release: full changelog
 
 ### Complete portable repack

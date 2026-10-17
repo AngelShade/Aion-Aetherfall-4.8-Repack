@@ -55,6 +55,16 @@ final class PlayerBotNavigation {
 	private int publishedWorld,publishedInstance;
 	private int worldId, instanceId;
 	private volatile String status = "ready";
+	private PlayerBotAnimatedLinks.Ride queuedPlatform;
+	private Point platformQueuePoint;
+	private int platformQueueRank=-2;
+	private long nextPlatformQueueProbe,nextPlatformBoardProbe,platformQueueProgressAt;
+	private double platformQueueDistance=Double.POSITIVE_INFINITY;
+	private int platformQueueFailures;
+	private PlayerBotAnimatedLinks.Ride blockedPlatform;
+	private int blockedPlatformWorld,blockedPlatformInstance;
+	private long blockedPlatformUntil;
+	private boolean transportCongested;
 	private boolean routeFailure;
 	private boolean groundRouteUnavailable;
 	/** Result of the immediately preceding move call, not a cached geometry verdict. */
@@ -77,6 +87,8 @@ final class PlayerBotNavigation {
 		&& (bot.getMoveController().isInMove() || planningRoute() || !route.isEmpty() || localOrigin!=null || pausedAt!=0);}
 	boolean waitingForTerrainWork(){return TERRAIN.waiting(searchToken) || TERRAIN.waiting(heightSearchToken)
 		|| TERRAIN.waiting(localSearchToken) || TERRAIN.waiting(approachSearchToken);}
+	boolean waitingForTransport(){return queuedPlatform!=null || bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover && mover.ridingPlatform();}
+	boolean transportCongested(){return transportCongested;}
 	boolean routeProgressing(long now){return planningRoute() && (TERRAIN.waiting(searchToken) || now-searchProgress<30000);}
 	private void cancelTicket(Object token){SEARCHES.cancel(token);TERRAIN.cancel(token);if(token==heightSearchToken)heightSearch=null;}
 	private PlayerBotNavigationBudget.Priority terrainPriority(double distance) {
@@ -326,15 +338,18 @@ final class PlayerBotNavigation {
 				else {meshJourney.close();meshJourney.bind(bot.getWorldId(),goal);nextSearch=now+3000;}
 				cancelTicket(searchToken);clearSearch();route.clear();lookahead=partialRoute=false;publishedGoal=publishedDestination=null;lastProgress=now;
 			}
-			var boarding=meshJourney.boarding(actualPosition);
-			if(boarding!=null){
-				cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(approachSearchToken);clearSearch();route.clear();lookahead=partialRoute=false;publishedGoal=publishedDestination=null;
-				if(!PlayerBotPlatformRide.docking(boarding)){cancelTicket(localSearchToken);stopMovement();status="waiting for authored moving platform";return true;}
-				try(var lease=TERRAIN.begin(localSearchToken,terrainPriority(goalDistance))){
-					if(lease==null){status="waiting to prove moving-platform boarding";return true;}
-					if(mover.startPlatform(PlayerBotPlatformRide.plan(player,boarding,hazards))){cancelTicket(localSearchToken);status="riding authored moving platform";return true;}
+			var boarding=meshJourney.pendingRide();
+			if(queuedPlatform!=null && queuedPlatform!=boarding)leavePlatformQueue(player);
+			if(boarding!=null && (queuedPlatform==boarding || PositionUtil.getDistance(player,boarding.from().ground().x(),boarding.from().ground().y(),boarding.from().ground().z())<8)){
+				if(blockedPlatform!=null && now<blockedPlatformUntil && blockedPlatformWorld==player.getWorldId() && blockedPlatformInstance==player.getInstanceId()
+					&& blockedPlatform.entity().id==boarding.entity().id && blockedPlatform.part()==boarding.part() && blockedPlatform.from().component()==boarding.from().component()){
+					transportCongested=true;routeFailure=true;stopMovement();status="lift dock temporarily unavailable";return false;
 				}
-				cancelTicket(localSearchToken);stopMovement();status="moving-platform docking obstructed; retained journey";return true;
+				if(queuedPlatform==null){
+					cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);clearSearch();route.clear();localOrigin=null;lookahead=partialRoute=false;stopMovement();
+					queuedPlatform=boarding;platformQueueFailures=0;nextPlatformBoardProbe=0;
+				}
+				return platformQueue(player,mover,boarding,now,goalDistance);
 			}
 		}
 		// MovementActions::IsDuplicateMove / IsWaitingForLastMove. The native headless
@@ -523,7 +538,7 @@ final class PlayerBotNavigation {
 		return true;
 	}
 
-	void stop() { cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);localOrigin=null;approachTarget=null;approachDestination=null;route.clear();clearSearch();meshJourney.close();partialRoute=lookahead=routeFailure=groundRouteUnavailable=false;routeGoal=null;progressWaypoint=null;pausedAt=0;stopMovement();status="ready"; }
+	void stop() { if(bot instanceof Player player)leavePlatformQueue(player);transportCongested=false;cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);localOrigin=null;approachTarget=null;approachDestination=null;route.clear();clearSearch();meshJourney.close();partialRoute=lookahead=routeFailure=groundRouteUnavailable=false;routeGoal=null;progressWaypoint=null;pausedAt=0;stopMovement();status="ready"; }
 	/** A short rest/equipment/self-cast pause retains the same journey, not a new destination. */
 	void pause() {
 		if(pausedAt==0)pausedAt=System.currentTimeMillis();
@@ -535,6 +550,73 @@ final class PlayerBotNavigation {
 		stopMovement();status="movement paused for native action";
 	}
 	private void discardLookahead() { if(lookahead){cancelTicket(searchToken);clearSearch();lookahead=false;} }
+	private void leavePlatformQueue(Player player){
+		PlayerBotPlatformQueue.leave(player);queuedPlatform=null;platformQueuePoint=null;platformQueueRank=-2;
+		platformQueueDistance=Double.POSITIVE_INFINITY;platformQueueProgressAt=0;platformQueueFailures=0;cancelTicket(localSearchToken);
+	}
+	private boolean blockedPlatformQueue(Player player,PlayerBotAnimatedLinks.Ride ride,long now){
+		blockedPlatform=ride;blockedPlatformWorld=player.getWorldId();blockedPlatformInstance=player.getInstanceId();blockedPlatformUntil=now+45000;
+		leavePlatformQueue(player);transportCongested=true;routeFailure=true;stopMovement();status="lift approach obstructed; released queue position";return false;
+	}
+	private boolean platformQueue(Player player,com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover,PlayerBotAnimatedLinks.Ride ride,long now,double goalDistance){
+		int rank=PlayerBotPlatformQueue.enter(player,ride,now);transportCongested=rank<0;
+		if(rank<0)return blockedPlatformQueue(player,ride,now);
+		boolean embark=rank==0 && PlayerBotPlatformRide.docking(ride) && PlayerBotPlatformRide.available(player,ride);
+		// The front passenger waits at the static shore, even while the cabin is
+		// away. A short docking window must not reverse that approach every cycle.
+		int place=rank;var shore=ride.from().ground();
+		if(place!=platformQueueRank){platformQueueRank=place;platformQueuePoint=null;nextPlatformQueueProbe=0;platformQueueProgressAt=0;platformQueueDistance=Double.POSITIVE_INFINITY;}
+		if(!embark)cancelTicket(localSearchToken);
+		if(platformQueuePoint==null){
+			if(now<nextPlatformQueueProbe)return true;
+			var lease=TERRAIN.begin(localSearchToken,terrainPriority(goalDistance));
+			if(lease==null)return true;
+			try(lease){
+				nextPlatformQueueProbe=now+1000;
+				var frame=ride.entity().at(ride.from().time(),0);double[] deck=frame.point(ride.part(),ride.local());
+				double dx=shore.x()-deck[0],dy=shore.y()-deck[1],length=Math.hypot(dx,dy);
+				if(length<.01){dx=1;dy=0;length=1;}dx/=length;dy/=length;
+				for(int attempt=0;attempt<(rank==0?1:6);attempt++){
+					double back=rank==0?0:1.2+(rank/3)*1.2+attempt*.35,side=rank==0?0:(rank%3-1)*1.2;
+					float x=(float)(shore.x()+dx*back-dy*side),y=(float)(shore.y()+dy*back+dx*side);
+					var point=GeoService.getInstance().findGroundMovementCollision(player.getWorldId(),player.getInstanceId(),player.getX(),player.getY(),player.getZ(),x,y,shore.z());
+					if(point!=null && Math.hypot(point.x-x,point.y-y)<.3 && Math.abs(point.z-shore.z())<.5
+						&& PlayerBotHazards.safePath(new Point(player.getX(),player.getY(),player.getZ()),new Point(point.x,point.y,point.z),hazards)){
+						platformQueuePoint=new Point(point.x,point.y,point.z);break;
+					}
+				}
+				// Only a funded geometry failure counts; waiting for compute or an
+				// authored lift cycle cannot evict a healthy passenger from the queue.
+				if(platformQueuePoint==null && ++platformQueueFailures>=3)return blockedPlatformQueue(player,ride,now);
+			}finally{cancelTicket(localSearchToken);}
+		}
+		if(platformQueuePoint==null){stopMovement();status="waiting for safe lift queue space";return true;}
+		double distance=PositionUtil.getDistance(player,platformQueuePoint.x(),platformQueuePoint.y(),platformQueuePoint.z());
+		if(distance>.25){
+			if(distance<platformQueueDistance-.2 || platformQueueProgressAt==0){platformQueueDistance=distance;platformQueueProgressAt=now;}
+			else if(now-platformQueueProgressAt>10000){
+				platformQueuePoint=null;platformQueueProgressAt=0;stopMovement();
+				if(++platformQueueFailures>=3)return blockedPlatformQueue(player,ride,now);
+				status="rechecking obstructed lift approach";return true;
+			}
+			if(!mover.isInMove() || PositionUtil.getDistance(mover.getTargetX2(),mover.getTargetY2(),mover.getTargetZ2(),platformQueuePoint.x(),platformQueuePoint.y(),platformQueuePoint.z())>.1){
+				mover.setNewDirection(platformQueuePoint.x(),platformQueuePoint.y(),platformQueuePoint.z(),player.getHeading());mover.startMovingToDestination();
+			}
+			status="walking to lift queue position";return true;
+		}
+		stopMovement();status="waiting for moving platform in spaced queue";
+		platformQueueProgressAt=0;
+		if(embark && now>=nextPlatformBoardProbe){
+			var lease=TERRAIN.begin(localSearchToken,terrainPriority(goalDistance));
+			if(lease==null)return true;
+			try(lease){
+				nextPlatformBoardProbe=now+1000;
+				if(mover.startPlatform(PlayerBotPlatformRide.plan(player,ride,hazards))){leavePlatformQueue(player);status="riding authored moving platform";}
+				else if(++platformQueueFailures>=3)return blockedPlatformQueue(player,ride,now);
+			}finally{cancelTicket(localSearchToken);}
+		}
+		return true;
+	}
 	private void stopMovement() { publishedGoal=null;publishedDestination=null;if (bot.getMoveController().isInMove()) bot.getMoveController().abortMove(); }
 	String status() { return TERRAIN.waiting(searchToken) || TERRAIN.waiting(heightSearchToken) || TERRAIN.waiting(localSearchToken) || TERRAIN.waiting(approachSearchToken)?"waiting for terrain work budget":status; }
 }

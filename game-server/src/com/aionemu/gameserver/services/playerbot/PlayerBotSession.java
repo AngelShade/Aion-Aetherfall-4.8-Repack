@@ -313,6 +313,9 @@ public final class PlayerBotSession {
 		if (!autonomous() && !owner.isOnline()) return false;
 		if (PlayerBotHeadlessFlight.tick(bot)) { status="following native flight transport"; return true; }
 		if (bot.isUsingFlightTransporterOrWindstream()) { status="waiting for native scripted flight arrival"; return true; }
+		if(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController platformMover && platformMover.ridingPlatform()) {
+			status="travelling on moving platform";return true;
+		}
 		if (!autonomous() && bot.isSpawned() && owner.isSpawned()
 			&& (forcedFollow() || order==Order.PASSIVE || !bot.getController().isInCombat() && !owner.getController().isInCombat()))
 			PlayerBotFlight.synchronize(owner, bot, order);

@@ -312,7 +312,8 @@ public final class PlayerBotService {
   return (initializing?1L:seconds)*(online<PlayerBotConfig.POPULATION_MIN*0.9?500L:1000L);
  }
  private boolean populationRetirementAllowed(PlayerBotSession s) {
-  var b=s.bot();return PlayerBotPopulationLifecycle.retirementAllowed(s.autonomous(),s.closing(),b.getPlayerGroup()!=null,b.isInAlliance(),s.closing());
+  var b=s.bot();if(!shuttingDown && !s.closing() && b.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController move && move.ridingPlatform())return false;
+  return PlayerBotPopulationLifecycle.retirementAllowed(s.autonomous(),s.closing(),b.getPlayerGroup()!=null,b.isInAlliance(),s.closing());
  }
  private void commitPopulationDeparture(int id,long now)throws java.io.IOException {
   var event=populationSchedule.load().events().get(id);if(event==null)return;
@@ -746,6 +747,11 @@ public final class PlayerBotService {
 		}
 	}
 	/** GuildAcceptAction: answer the native legion request without changing party control. */
+ public synchronized boolean socialAvailable(Player bot) {
+  var session=sessions.get(bot.getObjectId());
+  return !shuttingDown && session!=null && session.bot()==bot && !session.closing() && bot.isSpawned() && !bot.isDead()
+   && !retiringWorldBots.contains(bot.getObjectId()) && (!session.world() || PlayerBotConfig.WORLD_ENABLED);
+ }
  public boolean respondLegionInvitation(Player inviter,Player bot,com.aionemu.gameserver.model.team.legion.Legion legion) {
   if(!bot.isPlayerBot())return false;
   PlayerBotSession session;boolean enabled,worldEnabled,available;

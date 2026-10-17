@@ -60,13 +60,15 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 	private boolean interruptedHeight;
 	private com.aionemu.gameserver.services.playerbot.PlayerBotPlatformRide.Plan platformPlan;
 	private com.aionemu.gameserver.services.playerbot.PlayerBotPlatformRide.Plan completedPlatform;
+	private long lastPlatformPacket;
+	private com.aionemu.gameserver.services.playerbot.PlayerBotPlatformRide.State lastPlatformState;
 	public synchronized boolean ridingPlatform(){return platformPlan!=null;}
 	public synchronized com.aionemu.gameserver.services.playerbot.PlayerBotPlatformRide.Plan completedPlatform(){var plan=completedPlatform;completedPlatform=null;return plan;}
 	public synchronized com.aionemu.gameserver.services.playerbot.PlayerBotPlatformRide.Plan platformPlan(){return platformPlan;}
 	public synchronized boolean startPlatform(com.aionemu.gameserver.services.playerbot.PlayerBotPlatformRide.Plan plan){
 		if(platformPlan!=null)return true;
 		if(heightPlan!=null || failed || owner.isDead() || owner.isCasting() || !owner.canPerformMove() || plan==null || !plan.begin(owner))return false;
-		abortMove();platformPlan=plan;completedPlatform=null;updateLastMove();started.set(true);setInMove(true);
+		abortMove();platformPlan=plan;completedPlatform=null;lastPlatformState=null;lastPlatformPacket=0;updateLastMove();started.set(true);setInMove(true);
 		owner.getController().onStartMove();PlayerMoveTaskManager.getInstance().addPlayer(owner);sendPlatformMove();return true;
 	}
 	public synchronized boolean traversingHeight(){return heightPlan!=null;}
@@ -133,7 +135,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 	public synchronized void moveToDestination() {
 		try { moveStep(); }
 		catch (RuntimeException e) {
-			platformPlan=null;
+			if(platformPlan!=null)platformPlan.close();platformPlan=null;
 			heightPlan=null;setIsJumping(false);
 			// A headless player's failure must not abort the shared human movement task.
 			failed = true; started.set(false);
@@ -211,7 +213,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 			// A command or cast cannot leave the actor suspended off its moving floor.
 			platformPlan.interrupt();return;
 		}
-		platformPlan=null;
+		if(platformPlan!=null)platformPlan.close();platformPlan=null;
 		if(heightPlan!=null && (heightTime>0 || heightPlan.falling()) && owner.isSpawned() && !owner.isDead() && owner.getWorldId()==heightWorld && owner.getInstanceId()==heightInstance) {
 			// A command/cast cannot freeze a headless actor above a floor. Stop horizontal intent and finish gravity.
 			// Once horizontal intent has been shed, repeated stop requests must not
@@ -237,17 +239,21 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 	}
 	private void sendPlatformMove(){
 		if(platformPlan==null)return;
+		long now=System.currentTimeMillis();var state=platformPlan.state();
+		if(state==com.aionemu.gameserver.services.playerbot.PlayerBotPlatformRide.State.RIDING && lastPlatformState==state && now-lastPlatformPacket<1000)return;
+		lastPlatformState=state;lastPlatformPacket=now;
 		setNewDirection(owner.getX(),owner.getY(),owner.getZ(),heading);
 		movementMask=(byte)(MovementMask.POSITION|MovementMask.MANUAL|MovementMask.ABSOLUTE);
 		if(platformPlan.onboard()){
 			movementMask|=MovementMask.VEHICLE;unk1=platformPlan.entityId();unk2=platformPlan.wirePart();
+			if(state==com.aionemu.gameserver.services.playerbot.PlayerBotPlatformRide.State.RIDING)movementMask=MovementMask.VEHICLE;
 			double[] local=platformPlan.local();vehicleX=(float)local[0];vehicleY=(float)local[1];vehicleZ=(float)local[2];
 		}
 		com.aionemu.gameserver.utils.PacketSendUtility.broadcastToSightedPlayers(owner,new com.aionemu.gameserver.network.aion.serverpackets.SM_MOVE(owner));
 	}
 	private void platformStep(){
 		var plan=platformPlan;
-		if(!plan.valid(owner)){platformPlan=null;completedPlatform=plan;abortMove();return;}
+		if(!plan.valid(owner)){plan.close();platformPlan=null;completedPlatform=plan;abortMove();return;}
 		var step=plan.advance(owner);
 		if(step.state()==com.aionemu.gameserver.services.playerbot.PlayerBotPlatformRide.State.FAILED){
 			platformPlan=null;completedPlatform=plan;abortMove();

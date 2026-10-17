@@ -300,7 +300,8 @@ final class PlayerBotWorldActivities {
   if(s.goal!=null) {
    double distance=PlayerBotWorldTravel.distance(bot,s.goal.place());
    if(distance<s.best-2){if(Double.isFinite(s.best)){s.noActivitySince=0;s.failedTravel=false;}s.best=distance;s.lastProgress=now;s.travelClock.reset();}
-   boolean waiting=navigation.waitingForTerrainWork();
+   if(navigation.transportCongested()){s.excluded.put(key(s.goal),now+45000);goal(s,null);s.nextScan=0;navigation.stop();return;}
+   boolean waiting=navigation.waitingForTerrainWork() || navigation.waitingForTransport();
    if(!waiting && navigation.progressing(now)){s.lastProgress=now;s.noActivitySince=0;s.failedTravel=false;s.travelClock.reset();}
    if(s.travelClock.stalled(now,s.lastProgress,waiting)){s.failedTravel=true;s.excluded.put(key(s.goal),now+120000);goal(s,null);s.nextScan=0;navigation.stop();}
   }

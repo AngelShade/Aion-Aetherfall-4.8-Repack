@@ -3,6 +3,12 @@ package com.aionemu.gameserver.configs.main;
 import com.aionemu.commons.configuration.Property;
 
 public final class PlayerBotConfig {
+ @Property(key = "gameserver.playerbots.social.legion_invites", defaultValue = "true")
+ public static boolean CHAT_LEGION_INVITES = true;
+ @Property(key = "gameserver.playerbots.navigation.platform.queue_limit", defaultValue = "8")
+ public static int PLATFORM_QUEUE_LIMIT = 8;
+ @Property(key = "gameserver.playerbots.navigation.platform.passengers", defaultValue = "4")
+ public static int PLATFORM_PASSENGERS = 4;
 	@Property(key = "gameserver.playerbots.companion.glide_follow", defaultValue = "true")
 	public static boolean COMPANION_GLIDE_FOLLOW = true;
  @Property(key = "gameserver.playerbots.navigation.mesh.enable", defaultValue = "true")

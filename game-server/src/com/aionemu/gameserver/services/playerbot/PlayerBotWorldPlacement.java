@@ -160,6 +160,7 @@ final class PlayerBotWorldPlacement {
  private static double distance(Spawn a,Spawn b){return Math.pow(a.x()-b.x(),2)+Math.pow(a.y()-b.y(),2);}
  static boolean idle(PlayerBotSession session) {
   Player bot=session.bot();return session.autonomous() && !session.closing() && bot.isSpawned() && !bot.isDead()
+   && !(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController move && (move.ridingPlatform() || move.traversingHeight()))
    && !bot.isInInstance() && bot.getPlayerGroup()==null && !bot.isInAlliance() && !bot.isFlying() && bot.getFlightPath()==null
    && !bot.isCasting() && !bot.isTrading() && !bot.isLooting() && !bot.getController().isInCombat()
    && bot.canPerformMove() && bot.getAggroList().stream().findAny().isEmpty()

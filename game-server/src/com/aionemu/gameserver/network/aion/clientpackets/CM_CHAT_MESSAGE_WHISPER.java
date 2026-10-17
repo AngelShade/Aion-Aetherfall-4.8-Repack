@@ -73,6 +73,7 @@ public class CM_CHAT_MESSAGE_WHISPER extends AionClientPacket {
 				return;
 			PlayerChatService.logWhisper(sender, receiver, message);
 			PacketSendUtility.sendPacket(receiver, new SM_MESSAGE(sender, NameRestrictionService.filterMessage(message), ChatType.WHISPER));
+			com.aionemu.gameserver.services.playerbot.PlayerBotSocialChat.heard(sender,ChatType.WHISPER,NameRestrictionService.filterMessage(message),receiver);
 		}
 	}
 }

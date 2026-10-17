@@ -22,7 +22,7 @@ public class AbyssRank implements Persistable {
 	private int currentGp;
 	private int lastGP;
 	private AbyssRankEnum rank;
-	private PersistentState persistentState;
+	private PersistentState persistentState = PersistentState.NEW;
 	private int dailyKill;
 	private int weeklyKill;
 	private int allKill;
@@ -209,6 +209,12 @@ public class AbyssRank implements Persistable {
 	@Override
 	public PersistentState getPersistentState() {
 		return persistentState;
+	}
+
+	/** A committed bot checkpoint owns the row. Keep it dirty to retain changes made during the write. */
+	public void markInsertCommitted() {
+		if (persistentState == PersistentState.NEW)
+			persistentState = PersistentState.UPDATE_REQUIRED;
 	}
 
 	/**

@@ -5,6 +5,7 @@ param(
     [string]$UpdateUrl
 )
 $ErrorActionPreference = 'Stop'
+trap { Write-Output ('UPDATE ERROR: ' + $_.Exception.Message); exit 1 }
 
 function Read-Json([string]$Path) {
     return (Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json)
@@ -47,15 +48,19 @@ if (-not $UpdateUrl -and $updateConfig.UpdateUrl) {
     $UpdateUrl = [string]$updateConfig.UpdateUrl
 }
 
-# Check for a local Aetherfall-Patch-*.zip in the repack root or Updates folder first.
+# Cached ZIPs are an offline option only; an online channel is authoritative.
 $localPatches = @(Get-ChildItem -LiteralPath $package -Filter 'Aetherfall-Patch-*.zip' -File -ErrorAction SilentlyContinue)
 $updatesDir = Join-Path $package 'Updates'
 if (Test-Path -LiteralPath $updatesDir) {
     $localPatches += @(Get-ChildItem -LiteralPath $updatesDir -Filter 'Aetherfall-Patch-*.zip' -File -ErrorAction SilentlyContinue)
 }
-if (-not $PatchFile -and $localPatches.Count -gt 0) {
-    $latestLocal = $localPatches | Sort-Object Name | Select-Object -Last 1
-    if ($latestLocal.Name -notmatch ('^Aetherfall-Patch-' + [Regex]::Escape($currentVersion) + '\.zip$')) {
+if (-not $PatchFile -and -not $UpdateUrl -and $localPatches.Count -gt 0) {
+    $latestLocal = $localPatches | Where-Object {
+        $candidate = $null
+        $_.BaseName -match '^Aetherfall-Patch-(.+)$' -and
+            [Version]::TryParse($Matches[1], [ref]$candidate) -and $candidate -gt [Version]$currentVersion
+    } | Sort-Object { [Version]($_.BaseName -replace '^Aetherfall-Patch-', '') } | Select-Object -Last 1
+    if ($latestLocal) {
         $PatchFile = $latestLocal.FullName
     }
 }
@@ -79,7 +84,7 @@ if (-not $PatchFile) {
     if (-not $remoteManifest -or $remoteManifest.schema -ne 1 -or -not $remoteManifest.version) {
         throw 'Invalid remote update manifest.'
     }
-    if ([string]$remoteManifest.version -eq $currentVersion) {
+    if ([Version]([string]$remoteManifest.version) -le [Version]$currentVersion) {
         Write-Output ('Aion Aetherfall ' + $currentVersion + ' is already up to date.')
         exit 0
     }
@@ -132,6 +137,9 @@ try {
         throw 'Unsupported patch manifest schema.'
     }
     $targetVersion = [string]$patch.version
+    if ([Version]$targetVersion -lt [Version]$currentVersion) {
+        throw ('Refusing to downgrade Aion Aetherfall from ' + $currentVersion + ' to ' + $targetVersion + '.')
+    }
     if ($targetVersion -eq $currentVersion) {
         Write-Output ('Aion Aetherfall ' + $currentVersion + ' is already installed.')
         exit 0
@@ -163,7 +171,7 @@ try {
                 Copy-Item -LiteralPath $dest -Destination $bk -Force
             }
             New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($dest)) -Force | Out-Null
-            if ($rel -ieq 'Client/Aetherfall Launcher.exe' -and (Test-Path -LiteralPath $dest)) {
+            if (($rel -ieq 'Client/Aetherfall Launcher.exe' -or $rel -ieq 'Aetherfall Hub.exe') -and (Test-Path -LiteralPath $dest)) {
                 $oldExe = $dest + '.old'
                 if (Test-Path -LiteralPath $oldExe) { Remove-Item -LiteralPath $oldExe -Force -ErrorAction SilentlyContinue }
                 Move-Item -LiteralPath $dest -Destination $oldExe -Force

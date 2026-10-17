@@ -16,6 +16,7 @@ $arguments = @(
     ('/out:' + $outExe),
     ('/win32manifest:' + (Join-Path $launcherDir 'app.manifest')),
     ('/resource:' + (Join-Path $PSScriptRoot 'SetupWindow.xaml') + ',Aetherfall.SetupWindow.xaml'),
+    ('/resource:' + (Join-Path $PSScriptRoot '../Update-Repack.ps1') + ',Aetherfall.Update-Repack.ps1'),
     ('/resource:' + (Join-Path $assetsDir 'atreia.png') + ',Aetherfall.atreia.png'),
     ('/resource:' + (Join-Path $assetsDir 'frame.png') + ',Aetherfall.frame.png'),
     ('/resource:' + (Join-Path $assetsDir 'aetherfall-logo.png') + ',Aetherfall.aetherfall-logo.png'),

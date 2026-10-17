@@ -24,6 +24,9 @@ using System.Windows.Shapes;
 using System.Windows.Threading;
 using Microsoft.Win32;
 
+[assembly: AssemblyVersion("0.90.0.0")]
+[assembly: AssemblyFileVersion("0.90.1018.1")]
+
 namespace AetherfallSetup {
  public sealed class SetupSettings {
   public string MirrorsUrl = "";
@@ -51,7 +54,7 @@ namespace AetherfallSetup {
  public sealed class ReleaseJson { public string Product, Version; }
  public sealed class LatestUpdateManifest {
   public int schema = 1;
-  public string version, patchFile, patchSha256, patchUrl, setupExeUrl, setupExeSha256;
+  public string version, patchFile, patchSha256, patchUrl, setupExeUrl, setupExeSha256, setupVersion;
   public long patchBytes, setupExeBytes;
  }
 
@@ -1090,6 +1093,11 @@ namespace AetherfallSetup {
       string currentSha = ComputeFileSha256(selfExe);
       if (String.Equals(currentSha, latest.setupExeSha256.Trim(), StringComparison.OrdinalIgnoreCase))
        return false;
+      Version currentVersion = new Version(FileVersionInfo.GetVersionInfo(selfExe).FileVersion);
+      Version offeredVersion;
+      // Legacy channels have no build version. Inspect their verified EXE below.
+      if (Version.TryParse(latest.setupVersion, out offeredVersion) && offeredVersion <= currentVersion)
+       return false;
 
       string tempNew = selfExe + ".new";
       string tempOld = selfExe + ".old";
@@ -1100,9 +1108,16 @@ namespace AetherfallSetup {
        File.Delete(tempNew);
        throw new InvalidDataException("Downloaded launcher update checksum mismatch.");
       }
+      Version downloadedVersion;
+      if (!Version.TryParse(FileVersionInfo.GetVersionInfo(tempNew).FileVersion, out downloadedVersion)
+          || downloadedVersion <= currentVersion) {
+       File.Delete(tempNew);
+       return false;
+      }
       if (File.Exists(tempOld)) File.Delete(tempOld);
       File.Move(selfExe, tempOld);
-      File.Move(tempNew, selfExe);
+      try { File.Move(tempNew, selfExe); }
+      catch { File.Move(tempOld, selfExe); throw; }
       try {
        string pkg = ResolveInstallPath();
        if (Directory.Exists(pkg)) File.Copy(selfExe, System.IO.Path.Combine(pkg, "Aetherfall Hub.exe"), true);
@@ -1138,11 +1153,13 @@ namespace AetherfallSetup {
     RefreshState(true);
     return;
    }
+   // Carry the maintained updater with Setup, including for users on an older repack.
    string updScript = System.IO.Path.Combine(pkg, "Control", "Update-Repack.ps1");
-   if (!File.Exists(updScript)) updScript = System.IO.Path.Combine(root, "bin", "Update-Repack.ps1");
-   if (!File.Exists(updScript)) updScript = System.IO.Path.Combine(root, "Update-Repack.ps1");
-   if (!File.Exists(updScript)) {
-    SetBusy(false, "UPDATE PAUSED", "Update-Repack.ps1 was not found.", "Restore Update-Repack.ps1 in the bin folder.");
+   try {
+    using (var source = Assembly.GetExecutingAssembly().GetManifestResourceStream("Aetherfall.Update-Repack.ps1"))
+    using (var destination = File.Create(updScript)) source.CopyTo(destination);
+   } catch (Exception ex) {
+    SetBusy(false, "UPDATE PAUSED", "Could not prepare the updater", ex.Message);
     return;
    }
 
@@ -1151,8 +1168,12 @@ namespace AetherfallSetup {
     string userDl = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
     foreach (string folder in new[] { pkg, System.IO.Path.Combine(pkg, "Updates"), root, userDl }) {
      if (!Directory.Exists(folder)) continue;
-     var candidates = Directory.GetFiles(folder, "Aetherfall-Patch-*.zip").OrderBy(x => x).ToList();
-     var newer = candidates.LastOrDefault(x => !System.IO.Path.GetFileName(x).Equals("Aetherfall-Patch-" + ver + ".zip", StringComparison.OrdinalIgnoreCase));
+     var candidates = Directory.GetFiles(folder, "Aetherfall-Patch-*.zip");
+     var newer = candidates.Where(x => {
+      Version candidate;
+      string name = System.IO.Path.GetFileNameWithoutExtension(x).Substring("Aetherfall-Patch-".Length);
+      return Version.TryParse(name, out candidate) && candidate > new Version(ver);
+     }).OrderBy(x => new Version(System.IO.Path.GetFileNameWithoutExtension(x).Substring("Aetherfall-Patch-".Length))).LastOrDefault();
      if (newer != null) { chosenZip = newer; break; }
     }
     if (String.IsNullOrEmpty(chosenZip)) {
@@ -1175,11 +1196,18 @@ namespace AetherfallSetup {
     string args = "-PackagePath " + Quote(pkg);
     if (!String.IsNullOrEmpty(chosenZip)) args += " -PatchFile " + Quote(chosenZip);
     if (!String.IsNullOrWhiteSpace(settings.UpdateUrl)) args += " -UpdateUrl " + Quote(settings.UpdateUrl);
-    string lastLine = "";
+    string lastLine = "", firstError = "";
+    string logPath = System.IO.Path.Combine(pkg, "Control", "Logs", "update-latest.log");
+    Directory.CreateDirectory(System.IO.Path.GetDirectoryName(logPath));
+    File.WriteAllText(logPath, DateTime.Now.ToString("s") + " Update started" + Environment.NewLine);
     int code = await RunPowerShell(updScript, args, line => {
-     if (!String.IsNullOrWhiteSpace(line)) { lastLine = line; Text("StatusDetail").Text = line; }
-    });
-    if (code != 0) throw new InvalidOperationException(lastLine.Length > 0 ? lastLine : "Update stopped.");
+     if (!String.IsNullOrWhiteSpace(line)) {
+      lastLine = line; Text("StatusDetail").Text = line;
+      File.AppendAllText(logPath, line + Environment.NewLine);
+      if (line.StartsWith("UPDATE ERROR: ")) firstError = line;
+     }
+    }, line => { if (String.IsNullOrWhiteSpace(firstError)) firstError = line; });
+    if (code != 0) throw new InvalidOperationException(firstError.Length > 0 ? firstError : (lastLine.Length > 0 ? lastLine : "Update stopped."));
     SetProgress(1.0, "100%", "✅ Up to date");
     SetBusy(false, "UPDATE COMPLETE", "Repack is up to date", lastLine);
     RefreshState();

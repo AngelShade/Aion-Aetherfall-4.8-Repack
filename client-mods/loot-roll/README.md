@@ -14,6 +14,14 @@ native item descriptor and packet writer; decision 0 is Pass, 1 Need, 2 Greed.
 The matching server and client must be installed together with Aion/GameServer
 closed. Inspect the staged manifest for copied-file hashes and recovery paths.
 
+For an already-installed bridge, add `--layout-only`. This stages the larger
+128px outer frame in both native layouts and the matching bridge; content,
+buttons, strings and every other compressed archive member stay unchanged.
+Affected graphics package/recovery archives and their hashes are staged too;
+known moved-client `Mods/Backups` paths are rebased only after hash validation.
+Game.dll, cursor recovery, release metadata and shared inventory are not staged.
+The 18px title and lower frame now fit outside the countdown/gauge content.
+
 The appearance follows the supplied compact loot-roll reference using Aion's
 own item artwork, quality colours, controls and frame. It does not add the WoW
 bonus-loot currency mechanism. Build and static package inspection do not prove

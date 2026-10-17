@@ -10,16 +10,55 @@ import com.aionemu.gameserver.services.playerbot.PlayerBotNavigation.Point;
 /** Physical walking/boarding/carry/dismount adapter. Time advances the authored floor,
  * not quest progress or a teleport. Native body/door/support checks remain mandatory. */
 public final class PlayerBotPlatformRide {
+    private record Cabin(int world,int instance,int entity,int part){}
+    private static final java.util.Map<Cabin,java.util.List<Plan>> PASSENGERS=new java.util.HashMap<>();
+    private static void prune(){
+        long now=PlayerBotAnimatedScene.uptime();
+        PASSENGERS.values().forEach(list->list.removeIf(p->p.state==State.COMPLETE || p.state==State.FAILED || unsignedElapsed(p.previousTime,now)>15000));
+        PASSENGERS.entrySet().removeIf(e->e.getValue().isEmpty());
+    }
+    static synchronized boolean available(Player player,PlayerBotAnimatedLinks.Ride ride){
+        prune();
+        var list=PASSENGERS.get(new Cabin(player.getWorldId(),player.getInstanceId(),ride.entity().id,ride.part()));
+        return list==null || list.size()<Math.max(1,Math.min(16,com.aionemu.gameserver.configs.main.PlayerBotConfig.PLATFORM_PASSENGERS))
+            && list.stream().noneMatch(p->p.state==State.BOARDING);
+    }
+    private static synchronized boolean reserve(Plan plan,Player player){
+        long now=PlayerBotAnimatedScene.uptime();
+        prune();
+        var key=new Cabin(plan.world,plan.instance,plan.entityId(),plan.part());
+        var cabin=PASSENGERS.computeIfAbsent(key,k->new java.util.ArrayList<>());
+        // Only one actor uses the doorway at a time; supported cabin slots remain distinct.
+        if(cabin.size()>=Math.max(1,Math.min(16,com.aionemu.gameserver.configs.main.PlayerBotConfig.PLATFORM_PASSENGERS))
+            || cabin.stream().anyMatch(p->p.state==State.BOARDING))return false;
+        var frame=plan.ride.entity().frame(now);double[] origin=frame.point(plan.part(),plan.ride.local());
+        for(int i=0;i<17;i++){
+            double angle=(i-1)*Math.PI/4,radius=i==0?0:i<=8?.7:1.05;
+            double[] target={origin[0]+radius*Math.cos(angle),origin[1]+radius*Math.sin(angle),origin[2]};
+            var floor=frame.floor(plan.part(),(float)target[0],(float)target[1],(float)target[2]+.2f,(float)target[2]-.2f);
+            if(floor==null)continue;target[2]=floor.z;
+            if(!frame.supports(plan.part(),target) || cabin.stream().anyMatch(p->distance(frame.point(p.part(),p.relative),target)<.65))continue;
+            double[] local=frame.local(plan.part(),target);
+            var landingFrame=plan.ride.entity().at(plan.ride.to().time(),0);
+            if(!landingFrame.supports(plan.part(),landingFrame.point(plan.part(),local)))continue;
+            if(!plan.walkable(frame,origin,target))continue;
+            plan.relative=local;plan.boardedLocal=plan.ride.local().clone();cabin.add(plan);return true;
+        }
+        return false;
+    }
+    private static synchronized void release(Plan plan){PASSENGERS.values().forEach(list->list.remove(plan));PASSENGERS.entrySet().removeIf(e->e.getValue().isEmpty());}
     public enum State { BOARDING, RIDING, DISEMBARKING, COMPLETE, FAILED }
     public record Step(float x,float y,float z,State state){}
     public static final class Plan {
         private final PlayerBotAnimatedLinks.Ride ride;
         private final int world,instance;
         private volatile List<PlayerBotHazards.Area> hazards;
-        private State state=State.BOARDING;
-        private long previousTime;
+        private volatile State state=State.BOARDING;
+        private volatile long previousTime;
         private double[] previous;
-        private double[] relative;
+        private volatile double[] relative;
+        private double[] boardedLocal;
+        private boolean shoreReached,enteredDeck,exitReached;
         private boolean interrupted;
         Plan(Player player,PlayerBotAnimatedLinks.Ride ride,List<PlayerBotHazards.Area> hazards){
             this.ride=ride;world=player.getWorldId();instance=player.getInstanceId();this.hazards=List.copyOf(hazards);
@@ -33,6 +72,7 @@ public final class PlayerBotPlatformRide {
         public State state(){return state;}
         public boolean onboard(){return state==State.RIDING || state==State.DISEMBARKING;}
         public void interrupt(){interrupted=true;}
+        public void close(){state=State.FAILED;release(this);}
         public void hazards(List<PlayerBotHazards.Area> areas){hazards=List.copyOf(areas);}
         public double[] local(){return ride.entity().frame(previousTime).vehicle(part(),previous);}
         public boolean begin(Player player){
@@ -44,23 +84,36 @@ public final class PlayerBotPlatformRide {
             // reached, or expand the physical boarding span by that radius.
             if(distance(shore,destination)>1.3 || !frame.supports(part(),destination)
                 || !walkable(frame,previous,shore) || !walkable(frame,shore,destination))return false;
+            if(!reserve(this,player))return false;
             previousTime=time;return true;
         }
         public boolean valid(Player player){return player.isSpawned() && !player.isDead() && !player.isFlying() && player.getWorldId()==world && player.getInstanceId()==instance;}
         public Step advance(Player player){
             if(!valid(player) || state==State.FAILED || state==State.COMPLETE){state=valid(player)?state:State.FAILED;return step();}
-            long time=PlayerBotAnimatedScene.uptime();var frame=ride.entity().frame(time);double[] destination=frame.point(part(),state==State.BOARDING?ride.local():relative);
+            long time=PlayerBotAnimatedScene.uptime();var frame=ride.entity().frame(time);double[] destination=frame.point(part(),relative);
             if(state==State.BOARDING){
                 if(interrupted || !player.canPerformMove() || player.isCasting() || player.isTrading() || player.isLooting()){state=State.FAILED;return step();}
                 double speed=com.aionemu.gameserver.utils.stats.StatFunctions.adjustStatByMovementModifier(player,
                     com.aionemu.gameserver.model.stats.container.StatEnum.SPEED,player.getGameStats().getMovementSpeedFloat());
                 var dock=ride.from().ground();double[] shore={dock.x(),dock.y(),dock.z()};
-                boolean finishingApproach=distance(previous,shore)>.01;
+                if(!shoreReached && distance(previous,shore)<=.01)shoreReached=true;
+                boolean finishingApproach=!shoreReached;
                 if(finishingApproach)destination=shore;
+                else if(!enteredDeck)destination=frame.point(part(),boardedLocal);
                 double elapsed=Math.min(200,unsignedElapsed(previousTime,time))/1000.;double separation=distance(previous,destination);
                 double fraction=separation<.001?1:Math.min(1,speed*elapsed/separation);double[] next=interpolate(previous,destination,fraction);
                 if(separation>1.5 || !walkable(frame,previous,next)){state=State.FAILED;return step();}
-                previous=next;if(fraction==1 && !finishingApproach){state=State.RIDING;}
+                previous=next;
+                if(fraction==1){if(finishingApproach)shoreReached=true;else if(!enteredDeck)enteredDeck=true;else state=State.RIDING;}
+            }else if(state==State.DISEMBARKING && exitReached){
+                long elapsed=unsignedElapsed(previousTime,time);var goal=ride.to().ground();double[] landing={goal.x(),goal.y(),goal.z()};
+                double speed=com.aionemu.gameserver.utils.stats.StatFunctions.adjustStatByMovementModifier(player,
+                    com.aionemu.gameserver.model.stats.container.StatEnum.SPEED,player.getGameStats().getMovementSpeedFloat());
+                double fraction=Math.min(1,speed*Math.min(200,elapsed)/1000./Math.max(.001,distance(previous,landing)));
+                double[] next=interpolate(previous,landing,fraction);
+                if(!player.canPerformMove() || player.isCasting())return step();
+                if(!walkable(frame,previous,next)){state=State.FAILED;return step();}
+                previous=next;relative=frame.local(part(),previous);if(fraction==1)state=State.COMPLETE;
             }else {
                 long elapsed=unsignedElapsed(previousTime,time);int steps=Math.max(1,(int)Math.max(Math.ceil(elapsed/50.),Math.ceil(distance(previous,destination)/.2)));
                 // A scheduler outage cannot authorize an unchecked long carry segment.
@@ -74,19 +127,26 @@ public final class PlayerBotPlatformRide {
                 previous=destination;
                 Point goal=ride.to().ground();double[] landing={goal.x(),goal.y(),goal.z()};
                 if(interrupted && staticSupport(previous))landing=previous;
-                if(distance(previous,landing)<=1.3 && staticSupport(landing) && walkable(frame,previous,landing)){
+                // At the destination, walk across the deck to its proved exit slot
+                // before stepping ashore. A spaced passenger may be farther than 1.3m.
+                var exit=frame.point(part(),ride.local());
+                if(distance(exit,landing)<=1.3 && staticSupport(landing)){
+                    if(distance(previous,exit)<=.05)exitReached=true;
+                    double[] walkingTo=exitReached?landing:exit;
+                    if(!walkable(frame,previous,walkingTo)){previousTime=time;return step();}
                     if(player.canPerformMove() && !player.isCasting()){
                         double speed=com.aionemu.gameserver.utils.stats.StatFunctions.adjustStatByMovementModifier(player,
                             com.aionemu.gameserver.model.stats.container.StatEnum.SPEED,player.getGameStats().getMovementSpeedFloat());
-                        double fraction=Math.min(1,speed*Math.min(200,elapsed)/1000./Math.max(.001,distance(previous,landing)));
-                        previous=interpolate(previous,landing,fraction);state=fraction==1?State.COMPLETE:State.DISEMBARKING;
-                        if(fraction<1)relative=frame.local(part(),previous);
+                        double fraction=Math.min(1,speed*Math.min(200,elapsed)/1000./Math.max(.001,distance(previous,walkingTo)));
+                        previous=interpolate(previous,walkingTo,fraction);state=fraction==1 && walkingTo==landing?State.COMPLETE:State.DISEMBARKING;
+                        if(fraction==1 && walkingTo==exit)exitReached=true;
+                        relative=frame.local(part(),previous);
                     }
                 }
             }
             previousTime=time;return step();
         }
-        private Step step(){return new Step((float)previous[0],(float)previous[1],(float)previous[2],state);}
+        private Step step(){if(state==State.COMPLETE || state==State.FAILED)release(this);return new Step((float)previous[0],(float)previous[1],(float)previous[2],state);}
         private boolean walkable(PlayerBotAnimatedScene.Frame frame,double[] from,double[] to){
             int count=Math.max(1,(int)Math.ceil(distance(from,to)/.1));if(count>16)return false;
             for(int i=0;i<=count;i++){

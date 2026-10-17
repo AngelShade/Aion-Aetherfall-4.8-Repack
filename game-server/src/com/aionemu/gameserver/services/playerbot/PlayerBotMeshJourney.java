@@ -131,6 +131,7 @@ final class PlayerBotMeshJourney implements AutoCloseable {
         frontier=endpoint;frontierCursor=at; // Earned prefetch only; does not advance physical cursor.
     }
     boolean guided(){return waypoints!=null;}
+    PlayerBotAnimatedLinks.Ride pendingRide(){return waypoints==null?null:rides.get(cursor);}
     PlayerBotAnimatedLinks.Ride boarding(Point physical){return waypoints!=null && distance(physical,waypoints.get(cursor))<.75?rides.get(cursor):null;}
     boolean completeRide(PlayerBotAnimatedLinks.Ride ride,Point physical){
         if(waypoints==null || rides.get(cursor)!=ride || distance(physical,ride.to().ground())>.4)return false;

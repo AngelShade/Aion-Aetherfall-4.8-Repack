@@ -258,6 +258,11 @@ public class LegionService {
 
 				@Override
 				public void acceptRequest(Player requester, Player responder) {
+					// A chat-requested bot invitation is still a native pending invitation.
+					// Recheck its membership and rank when the human actually accepts.
+					if(requester.isPlayerBot() && (requester.getLegion()!=legion || legion.isDisbanding() || LegionWarehouse.custodyHeld(legion.getLegionId())
+						|| !com.aionemu.gameserver.services.playerbot.PlayerBotService.getInstance().socialAvailable(requester)
+						|| !legionRestrictions.canInvitePlayer(requester,responder)))return;
 					addToLegion(legion, responder, requester);
 				}
 
