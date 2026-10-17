@@ -4,6 +4,12 @@
   <img src="client-mods/login-branding/assets/aetherfall-subtitle.png" alt="Aetherfall" width="760">
 </p>
 
+<p align="center">
+  <a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.86/Aetherfall-Downloader.zip"><img src="https://img.shields.io/badge/Download-Aetherfall_Downloader_v0.86_(7.7_MB)-2563eb?style=for-the-badge&logo=windows" alt="Download Aetherfall Downloader"></a>
+  <a href="https://drive.google.com/file/d/1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2/view?usp=sharing"><img src="https://img.shields.io/badge/Google_Drive-Full_Repack_0.86_(36.35_GB)-16a34a?style=for-the-badge&logo=googledrive" alt="Google Drive Mirror"></a>
+  <a href="https://discord.com/invite/cpRYCRsSnR"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
+</p>
+
 **Aion 4.8 NA with party companions, shared quest progress, dungeon repairs and custom client features.**
 
 Aetherfall lets you build a party from your own alternate characters or temporary companions. Take them through quests and dungeons, manage their equipment and combat behavior, and keep your alts caught up with your main. Independent playerbots also quest, fight and visit towns around the world.
@@ -36,14 +42,26 @@ Rewards use the quest's normal reward system: XP, Kinah, items and other rewards
 
 ## Download
 
-The full playable repack is a separate download from this repository's source ZIP. A complete package contains `Client`, `Server`, `Control` and the numbered launchers described below.
+The full playable repack (**Release 0.86** — `36.35 GB` packed / `197,739` files) is a separate download from this repository's source code. A complete package contains `Client`, `Server`, `Control` and the launchers described below.
 
-Packaged downloads belong on the [Releases page](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases). A full repack has not been uploaded there yet.
+| Download Option | Link | Details |
+| --- | --- | --- |
+| **1. Aetherfall Setup & Auto-Updater (Recommended)** | [**Download `Aetherfall-Downloader.zip`**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.86/Aetherfall-Downloader.zip) | `7.71 MB` — Native GUI setup hub (`Aetherfall Setup.exe`) with multi-stream crash-proof resume, SHA-256 verification, auto-extraction, 1-click server/client control, and delta update patching. |
+| **2. Google Drive Direct Mirror** | [**Download `Aetherfall-0.86.7z` (Google Drive)**](https://drive.google.com/file/d/1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2/view?usp=sharing) | `36.35 GB` single archive (`SHA-256: 7b5599837887a49d2b2bebb2ef73f4a9435b42b9686da62aec6354f9954af885`). You can also place this file inside `Aetherfall-Downloader` and click **Install** to verify & extract. |
+| **3. BitTorrent P2P** | [**Download `Aetherfall-0.86.torrent`**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.86/Aetherfall-0.86.torrent) | BitTorrent Swarm (`infoHash: ac60eed8cc0438ebd3e8f237fa3cf27700ce740f`). |
+| **4. GitHub Releases Page** | [**View Release `v0.86`**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.86) | Release notes, checksums and downloader assets. |
+| **Community Discord** | [**Join the Aetherfall Discord**](https://discord.com/invite/cpRYCRsSnR) | Updates, support, playerbot tips and bug reports. |
 
 ## Start the repack
 
 You need 64-bit Windows, a suitable graphics driver and the complete repack folder. Java and MariaDB are bundled; no database Windows service is required. The GameServer allows up to 4 GiB of heap, so leave additional memory available for the client, database and Windows.
 
+### Option A: Using `Aetherfall Setup.exe` (All-in-One Control Hub)
+1. Extract **`Aetherfall-Downloader.zip`** to a folder of your choice and run **`Aetherfall Setup.exe`**.
+2. Click **Download & Install** (if you pause or close the window midway, reopening `Aetherfall Setup.exe` and clicking **Resume** continues from the exact chunk where it stopped).
+3. Once installed, use the **Repack Control Hub** buttons inside `Aetherfall Setup.exe` to **Start Database**, **Start Servers**, **Launch Aion**, and **Check for Updates**.
+
+### Option B: Using the numbered `.cmd` scripts inside the repack folder
 1. Extract the whole package. Keep `Client`, `Server` and `Control` together.
 2. Run **`1 - Start Database.cmd`**. On first launch it creates the database and imports the schemas. Wait for **Database ready**.
 3. Run **`2 - Start Servers.cmd`**. Wait for GameServer startup to finish.

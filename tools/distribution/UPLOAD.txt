@@ -1,26 +1,21 @@
-AETHERFALL RELEASE - UPLOAD AND SEED
+AETHERFALL RELEASE — UPLOAD, SEED & UPDATE GUIDE
 
-1. Upload EVERY .7z.NNN file from the Aetherfall-<version>-parts folder, preserving
-   names. Do not change, recompress or rename the individual parts.
-2. Share Aetherfall-Downloader.zip, the .torrent file, SHA256SUMS.txt and magnet.txt.
-3. Keep Start-Seeding.cmd running on a machine holding the complete parts folder.
-   Default owner upload limit is 2 MiB/s; edit it if desired. Seeding verifies
-   existing data first and then stays online until you close it. Ports and NAT
-   affect inbound peers; this package does not alter firewall/router settings.
-4. Google Drive and MEGA require PUBLIC share links after upload. Account home
-   and /fm/ links do not identify public downloads. Their browser pages are
-   manual backup mirrors; do not paste them as direct HTTP/webseed URLs.
-5. For a true torrent + HTTP hybrid, host this exact directory structure:
-      https://host/base/Aetherfall-<version>-parts/Aetherfall-<version>.7z.001
-   Then put https://host/base/ in mirrors.json WebSeeds. Range requests must work.
-6. For unrelated direct per-part URLs, fill mirrors.json Files with each exact
-   archive name mapped to an array of URLs. HTTP mode uses all supplied mirrors.
-7. Publish mirrors.json at a stable public HTTPS URL. Set MirrorsUrl in the
-   downloader's settings.json and rezip the small downloader once. Future URL
-   edits then need no new downloader ZIP, provided content is unchanged.
-8. Use publish.py after editing mirrors.json to emit a Metalink, add webseeds
-   outside the torrent's info dictionary, update its checksum and rebuild the
-   downloader ZIP. It preserves the torrent swarm info hash and archive hashes.
-
-No hosting accounts are configured, no files are uploaded, and no seeding daemon
-is started by the packer. Creating a torrent does not create an online seed.
+1. Upload "Aetherfall-0.86.7z" and "Aetherfall-Downloader.zip" to your Google Drive
+   and MEGA folders.
+2. Share "Aetherfall-Downloader.zip" (plus your public Google Drive / MEGA links,
+   "Aetherfall-0.86.torrent", and "magnet.txt") with players.
+   Players only need to open "Aetherfall Setup.exe" inside Aetherfall-Downloader.zip.
+3. To seed "Aetherfall-0.86.7z" over BitTorrent from your PC, run "Start-Seeding.cmd"
+   (or add Aetherfall-0.86.torrent to your torrent client pointed at this folder).
+4. Optional Mirror Links:
+   - Edit "Aetherfall-Downloader\mirrors.json":
+     * Put Google Drive / MEGA public share links in "SharePages".
+     * Put direct raw HTTPS download URLs (if any) under "Files" -> "Aetherfall-0.86.7z".
+   - Then run:
+     python publish.py "<DISTRIBUTION_ROOT>"
+     to refresh Aetherfall-Downloader.zip.
+5. Creating Future Small Updates (0.87+):
+   - After updating your repack folder, run:
+     python build_patch.py --package "<RepackPath>" --baseline "baseline-files-0.86.json" --output "updates"
+   - Share the small "Aetherfall-Patch-<version>.zip" (or host "latest-update.json").
+   - Players just click "Update Repack" inside Aetherfall Setup.exe / Aetherfall Hub.exe.

@@ -124,7 +124,7 @@ def build(package, output, tools, sevenzip):
         source = tools/'7zip'/name
         if source.exists():
             shutil.copy2(source, downloader/'licenses/7zip'/name)
-    for name in ['Download.ps1', 'Start-Download.cmd', 'README.txt']:
+    for name in ['Download.ps1', 'Start-Download.cmd', 'Update-Repack.ps1', 'Start-Update.cmd', 'README.txt']:
         shutil.copy2(HERE/name, downloader/name)
     shutil.copy2(output/'release-manifest.json', downloader/'release-manifest.json')
     shutil.copy2(output/(label+'.torrent'), downloader/(label+'.torrent'))

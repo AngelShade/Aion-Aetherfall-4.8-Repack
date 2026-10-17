@@ -1,6 +1,6 @@
 param([ValidateSet('Auto','Torrent','Http')][string]$Mode, [string]$Destination)
 $ErrorActionPreference = 'Stop'
-$root = $PSScriptRoot
+$root = if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'release-manifest.json')) { $PSScriptRoot } else { (Get-Item -LiteralPath $PSScriptRoot).Parent.FullName }
 $lock = $null
 function Read-Json([string]$Path) { return (Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json) }
 function Assert-Https([string]$Value) {
@@ -65,9 +65,9 @@ try {
         foreach ($url in $urls) { if ($url) { $null = Assert-Https ([string]$url) } }
     }
     if (-not $Mode) { $Mode = [string]$settings.Mode }
+    $requestedMode = $Mode
     if ($Mode -eq 'Auto') {
-        if ($webseeds.Count -gt 0) { $Mode = 'Torrent' }
-        elseif ($httpComplete) { $Mode = 'Http' }
+        if ($httpComplete) { $Mode = 'Http' }
         else { $Mode = 'Torrent' }
     }
     if ($Mode -notin @('Torrent','Http')) { throw 'Choose Auto, Torrent or Http in settings.json.' }
@@ -95,6 +95,23 @@ try {
         Write-Host ('Backup browser mirrors: ' + (@($mirrors.SharePages) -join ' | ')) -ForegroundColor Yellow
     }
     Write-Host ('Download method: '+$Mode)
+    if ($Mode -eq 'Http') {
+        New-Item -ItemType Directory -Path $parts -Force | Out-Null
+        $lines = New-Object 'Collections.Generic.List[string]'
+        foreach ($file in $manifest.files) {
+            $lines.Add((@($mirrors.Files.($file.name)) -join "`t"))
+            $lines.Add('  out='+$file.name)
+            $lines.Add('  checksum=sha-256='+$file.sha256)
+        }
+        $inputFile = Join-Path $root 'http-downloads.txt'
+        [IO.File]::WriteAllLines($inputFile,$lines,(New-Object Text.UTF8Encoding($false)))
+        $arguments = $common + @('--follow-torrent=false','--follow-metalink=false',('--dir='+$parts),('--input-file='+$inputFile))
+        & $aria @arguments
+        if ($LASTEXITCODE -ne 0 -and $requestedMode -eq 'Auto') {
+            Write-Host 'HTTP mirror busy or interrupted; switching automatically to BitTorrent P2P...' -ForegroundColor Yellow
+            $Mode = 'Torrent'
+        }
+    }
     if ($Mode -eq 'Torrent') {
         Write-Host 'Torrent peers upload and download with each other. Keep an initial seed online.'
         $dhtFile = Join-Path $root 'dht.dat'
@@ -109,19 +126,8 @@ try {
         $arguments = $common + @('--enable-dht=true',('--dht-file-path='+$dhtFile),'--dht-entry-point=router.bittorrent.com:6881',
             '--enable-peer-exchange=true','--bt-enable-lpd=true','--seed-time=0','--max-overall-upload-limit=1M',
             ('--dir='+$downloadRoot),('--torrent-file='+$torrent)) + $webseeds
-    } else {
-        New-Item -ItemType Directory -Path $parts -Force | Out-Null
-        $lines = New-Object 'Collections.Generic.List[string]'
-        foreach ($file in $manifest.files) {
-            $lines.Add((@($mirrors.Files.($file.name)) -join "`t"))
-            $lines.Add('  out='+$file.name)
-            $lines.Add('  checksum=sha-256='+$file.sha256)
-        }
-        $inputFile = Join-Path $root 'http-downloads.txt'
-        [IO.File]::WriteAllLines($inputFile,$lines,(New-Object Text.UTF8Encoding($false)))
-        $arguments = $common + @(('--dir='+$parts),('--input-file='+$inputFile))
+        & $aria @arguments
     }
-    & $aria @arguments
     if ($LASTEXITCODE -ne 0) { throw 'Download paused or failed. Start this downloader again to resume.' }
     $count = 0
     foreach ($file in $manifest.files) {
@@ -143,6 +149,10 @@ try {
     & $sevenzip 'x' (Join-Path $parts $manifest.files[0].name) ('-o'+$install) '-y' '-aoa'
     if ($LASTEXITCODE -ne 0) { throw 'Extraction stopped. Keep the parts and start this downloader again.' }
     if ((Get-FileHash -LiteralPath (Join-Path $install 'FILES.json') -Algorithm SHA256).Hash -ne $manifest.packageFilesIndexSha256) { throw 'Extracted release inventory differs from the packed release.' }
+    $updHelper = if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'Update-Repack.ps1')) { Join-Path $PSScriptRoot 'Update-Repack.ps1' } else { Join-Path $root 'bin/Update-Repack.ps1' }
+    if (Test-Path -LiteralPath $updHelper) {
+        Copy-Item -LiteralPath $updHelper -Destination (Join-Path $install 'Control/Update-Repack.ps1') -Force
+    }
     Remove-Item -LiteralPath $marker
     Write-Host ('Ready: '+$install) -ForegroundColor Green
     Write-Host 'Open README.txt there for database, server and graphical launcher instructions.'
