@@ -1,14 +1,14 @@
 {
   "schema": 1,
   "product": "Aion Aetherfall Repack",
-  "version": "0.88",
-  "patchFile": "Aetherfall-Patch-0.88.zip",
-  "patchBytes": 15692466,
-  "patchSha256": "07786ecc5842ff22f63c9e88d8bcf3ba01dffc66eac05553cf75f96c1f201ac3",
-  "patchUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.88/Aetherfall-Patch-0.88.zip",
+  "version": "0.89",
+  "patchFile": "Aetherfall-Patch-0.89.zip",
+  "patchBytes": 15692861,
+  "patchSha256": "4eca06243233f21f70c3efd1664cd8ae88c61a826be64af9f929de1f8887ee66",
+  "patchUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.89/Aetherfall-Patch-0.89.zip",
   "filesChanged": 23,
   "filesRemoved": 0,
-  "setupExeUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.88/Aetherfall-Setup.exe",
+  "setupExeUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.89/Aetherfall-Setup.exe",
   "setupExeBytes": 5179904,
   "setupExeSha256": "c15bd0c23f168117ea37c75e7db426460ac40069ca189a1565e1dae134737349"
 }
