@@ -1,0 +1,1 @@
+magnet:?xt=urn:btih:ac60eed8cc0438ebd3e8f237fa3cf27700ce740f&dn=Aetherfall-0.86.7z&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce

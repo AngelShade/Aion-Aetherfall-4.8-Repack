@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "product": "Aion Aetherfall Repack",
+  "version": "0.86",
+  "installFolder": "Aetherfall-0.86",
+  "torrentFolder": "",
+  "torrentFile": "Aetherfall-0.86.torrent",
+  "torrentSha256": "87b5abad9ee86212e8f2f2f718c8cce402e07e04bce931b0313e324877980867",
+  "infoHash": "ac60eed8cc0438ebd3e8f237fa3cf27700ce740f",
+  "archiveBytes": 39030688343,
+  "installedBytes": 39028973223,
+  "packageFilesIndexSha256": "dc105a2d27aecdb68708c5611a22566e537455bdba483e270f4b0d00cf9e3401",
+  "files": [
+    {
+      "name": "Aetherfall-0.86.7z",
+      "bytes": 39030688343,
+      "sha256": "7b5599837887a49d2b2bebb2ef73f4a9435b42b9686da62aec6354f9954af885"
+    }
+  ]
+}
