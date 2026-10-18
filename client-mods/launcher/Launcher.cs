@@ -48,12 +48,22 @@ namespace Aetherfall {
 
   [STAThread] public static int Main(string[] args) {
    try {
+    if(args.Contains("--custom-quests-sync")) {
+     int at=Array.IndexOf(args,"--client"), report=Array.IndexOf(args,"--report");
+     if(at<0||at+1>=args.Length)throw new ArgumentException("Custom quest loading requires a client folder.");
+     string result=CustomQuests.Sync(args[at+1],args.Contains("--adopt-installed"));
+     if(report>=0&&report+1<args.Length)File.WriteAllText(args[report+1],result);
+     return 0;
+    }
     Application app=new Application(); app.ShutdownMode=ShutdownMode.OnMainWindowClose;
     Launcher launcher=new Launcher(); launcher.Initialize(args);
     if(launcher.window==null)return 0;
     if (launcher.preview) { launcher.RenderPreview(args); return 0; }
     app.Run(launcher.window); return 0;
    } catch(Exception error) {
+    if(args.Contains("--custom-quests-sync")) {
+     int report=Array.IndexOf(args,"--report");if(report>=0&&report+1<args.Length)File.WriteAllText(args[report+1],error.ToString());return 1;
+    }
     int at=Array.IndexOf(args,"--preview");
     if(at>=0 && at+1<args.Length) File.WriteAllText(args[at+1]+".error.txt",error.ToString());
     else MessageBox.Show("The Aetherfall launcher could not open.\n\n"+error.Message,"Aion Aetherfall",MessageBoxButton.OK,MessageBoxImage.Error);
@@ -261,6 +271,9 @@ namespace Aetherfall {
    return path;
   }
   async Task RunScript(Step step) {
+   if(step.Script=="@CustomQuests") {
+    string output=await Task.Run(()=>CustomQuests.Sync(root,false));File.AppendAllText(logPath,"\r\n"+output+"\r\n");return;
+   }
    string path=step.Script=="@PortablePreparation"?PortablePreparation():ClientPath(step.Script);
    if(path==null || !File.Exists(path)) throw new FileNotFoundException("A mod startup helper is missing: "+step.Script);
    string args="-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "+Quote(path)+" -ClientPath "+Quote(root);
@@ -290,6 +303,7 @@ namespace Aetherfall {
   List<Step> Steps() {
    List<Step> steps=new List<Step>();
    if(PortablePreparation()!=null)steps.Add(new Step("Preparing portable client paths","@PortablePreparation"));
+   if(Directory.Exists(ClientPath("Mods/CustomQuests/Quests")))steps.Add(new Step("Preparing custom quests","@CustomQuests"));
    steps.Add(new Step("Preparing the Graphics menu","Mods/GraphicsMenu/Install-GraphicsMenu.ps1"));
    steps.Add(new Step("Selecting your renderer","Mods/Renderer/SelectRenderer.ps1"));
    steps.Add(new Step("Preparing the native cursor","Mods/CursorFix/Install-CursorFix.ps1"));

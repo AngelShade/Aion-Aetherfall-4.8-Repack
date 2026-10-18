@@ -31,9 +31,12 @@ final class PlayerBotNavigation {
 	private int observedWorld,observedInstance;
 	private long physicalProgressAt;
 	private volatile int routeWorld, routeInstance;
-	private static final PlayerBotNavigationSearch SEARCHES = new PlayerBotNavigationSearch();
 	private static final PlayerBotNavigationBudget TERRAIN = new PlayerBotNavigationBudget(
 		PlayerBotConfig.TERRAIN_BUDGET_MS,PlayerBotConfig.TERRAIN_SLICE_MS,PlayerBotConfig.TERRAIN_WORKERS);
+	private static final PlayerBotNavigationBudget COMPANION_TERRAIN = new PlayerBotNavigationBudget(
+		PlayerBotConfig.COMPANION_TERRAIN_BUDGET_MS,PlayerBotConfig.TERRAIN_SLICE_MS,PlayerBotConfig.COMPANION_TERRAIN_WORKERS);
+	private final PlayerBotNavigationBudget terrain;
+	private final PlayerBotMeshRoute.Admission meshAdmission;
 	private boolean partialRoute,lookahead;
 	private final Object searchToken = new Object();
 	private final Object heightSearchToken = new Object();
@@ -78,17 +81,23 @@ final class PlayerBotNavigation {
 	private boolean groundRouteUnavailable;
 	private Point blockedFollowOrigin,blockedFollowGoal;
 	private long nextDirectFollowProbe;
+	private boolean followArrived;
+	boolean atFollowPosition(){return followArrived;}
 	/** Result of the immediately preceding move call, not a cached geometry verdict. */
 	boolean routeFailed(){return routeFailure;}
 	void clearRouteFailure(){routeFailure=false;}
 	private java.util.List<PlayerBotHazards.Area> hazards = java.util.List.of();
 
-	PlayerBotNavigation(Creature bot) { this.bot = bot; }
+	PlayerBotNavigation(Creature bot) { this(bot,bot.getMaster() instanceof Player player && (!player.isWorldBot() || player.getPlayerBotOwnerId()!=0)); }
+	PlayerBotNavigation(Creature bot,boolean companion) {
+		this.bot=bot;terrain=companion?COMPANION_TERRAIN:TERRAIN;
+		meshAdmission=companion?PlayerBotMeshRoute.companionAdmission():PlayerBotMeshRoute.admission();
+	}
 	boolean waitingForSearchTurn() {
 		if (!bot.isSpawned() || bot.isDead() || bot.isCasting() || !bot.canPerformMove() || bot.isFlying()) {
 			cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);return false;
 		}
-		boolean turn=TERRAIN.nominated(searchToken) || TERRAIN.nominated(heightSearchToken) || TERRAIN.nominated(localSearchToken) || TERRAIN.nominated(approachSearchToken);
+		boolean turn=terrain.nominated(searchToken) || terrain.nominated(heightSearchToken) || terrain.nominated(localSearchToken) || terrain.nominated(approachSearchToken);
 		if (turn && (routeWorld!=bot.getWorldId() || routeInstance!=bot.getInstanceId())) { cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);return false; }
 		return turn;
 	}
@@ -144,31 +153,31 @@ final class PlayerBotNavigation {
 			&& PositionUtil.getDistance(bot,routeGoal.x(),routeGoal.y(),routeGoal.z())>1.6
 			&& (retainCurrent() || routeProgressing(now) || waitingForTransport() || localOrigin!=null || pausedAt!=0 && now-pausedAt<3000);
 	}
-	boolean waitingForTerrainWork(){return TERRAIN.waiting(searchToken) || TERRAIN.waiting(heightSearchToken)
-		|| TERRAIN.waiting(localSearchToken) || TERRAIN.waiting(approachSearchToken);}
+	boolean waitingForTerrainWork(){return terrain.waiting(searchToken) || terrain.waiting(heightSearchToken)
+		|| terrain.waiting(localSearchToken) || terrain.waiting(approachSearchToken);}
 	boolean waitingForTransport(){return queuedPlatform!=null || bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover && mover.ridingPlatform();}
 	boolean transportCongested(){return transportCongested;}
-	boolean routeProgressing(long now){return planningRoute() && (TERRAIN.waiting(searchToken) || now-searchProgress<30000);}
+	boolean routeProgressing(long now){return planningRoute() && (terrain.waiting(searchToken) || now-searchProgress<30000);}
 	private void cancelTicket(Object token){
-		SEARCHES.cancel(token);TERRAIN.cancel(token);
+		terrain.cancel(token);
 		if(token==heightSearchToken){heightSearch=null;preparedJumpSearch=null;preparedJump=null;preparedJumpOrigin=null;}
 	}
 	private PlayerBotNavigationBudget.Priority terrainPriority(double distance) {
-		if(bot instanceof Player player && (!player.isWorldBot() || player.getPlayerBotOwnerId()!=0))return PlayerBotNavigationBudget.Priority.CONTROLLED;
+		if(terrain==COMPANION_TERRAIN)return PlayerBotNavigationBudget.Priority.CONTROLLED;
 		return distance<=30 ? PlayerBotNavigationBudget.Priority.NEAR : PlayerBotNavigationBudget.Priority.WORLD;
 	}
 	private void planRoute(Point start,Point goal,boolean ahead,long now) {
 		cancelTicket(heightSearchToken);
 		clearSearch();
-		routeSearch=new PlayerBotRouteSearch(bot.getWorldId(),start,goal,bot.getWorldMapInstance().getParent().getWorldSize(),4096,PlayerBotConfig.TERRAIN_SEGMENT_METRES,meshJourney);
+		routeSearch=new PlayerBotRouteSearch(bot.getWorldId(),start,goal,bot.getWorldMapInstance().getParent().getWorldSize(),4096,PlayerBotConfig.TERRAIN_SEGMENT_METRES,meshJourney,meshAdmission);
 		lookahead=ahead;searchProgress=now;
-		if(routeSearch.pending())TERRAIN.request(searchToken,terrainPriority(PositionUtil.getDistance(bot,goal.x(),goal.y(),goal.z())));
+		if(routeSearch.pending())terrain.request(searchToken,terrainPriority(PositionUtil.getDistance(bot,goal.x(),goal.y(),goal.z())));
 	}
 	private boolean beginGroundRoute(Point origin,Point goal,double distance,long now) {
 		if(now<nextSearch){routeFailure=true;status="ground route unavailable; awaiting retry";stopMovement();return false;}
 		cancelTicket(heightSearchToken);
 		Point start;
-		try(var lease=TERRAIN.begin(localSearchToken,terrainPriority(distance))) {
+		try(var lease=terrain.begin(localSearchToken,terrainPriority(distance))) {
 			if(lease==null){localOrigin=origin;localGoal=goal;localHazards=hazards;localCursor=0;localLimit=1;status="waiting to prove route origin";return true;}
 			Vector3f supported=GeoService.getInstance().findGroundMovementCollision(bot.getWorldId(),bot.getInstanceId(),origin.x(),origin.y(),origin.z(),origin.x(),origin.y(),goal.z());
 			start=supported==null?origin:new Point(supported.x,supported.y,supported.z);
@@ -189,7 +198,7 @@ final class PlayerBotNavigation {
 		// A moving leader must not cancel the queued short ground proof every
 		// 100 ms. Retain that request's age/turn, then track the fresh slot after
 		// the native mover starts. Combat TRACK requests retain their old rules.
-		if(planningRoute() || TERRAIN.waiting(heightSearchToken) || intent==Intent.FOLLOW && TERRAIN.waiting(localSearchToken) || retainCurrent()
+		if(planningRoute() || terrain.waiting(heightSearchToken) || intent==Intent.FOLLOW && terrain.waiting(localSearchToken) || retainCurrent()
 			|| !walkRouteOwned && !route.isEmpty() && publishedDestination==null)return routeGoal;
 		return requested;
 	}
@@ -217,10 +226,10 @@ final class PlayerBotNavigation {
 		if(!bot.isSpawned() || bot.isFlying() || routeGoal==null
 			|| PositionUtil.getDistance(routeGoal.x(),routeGoal.y(),routeGoal.z(),goal.x(),goal.y(),goal.z())>.25)return false;
 		if(meshJourney.boarding(new Point(bot.getX(),bot.getY(),bot.getZ()))!=null)return true;
-		if(routeSearch!=null && routeSearch.pending() && routeSearch.targets(goal) && TERRAIN.waiting(searchToken))return true;
+		if(routeSearch!=null && routeSearch.pending() && routeSearch.targets(goal) && terrain.waiting(searchToken))return true;
 		if(localOrigin==null || localGoal==null || !localOrigin.equals(new Point(bot.getX(),bot.getY(),bot.getZ()))
 			|| !hazards.equals(localHazards))return false;
-		return localCursor<localLimit && TERRAIN.waiting(localSearchToken) || heightCursor<HEIGHT_DIRECTIONS.length*HEIGHT_REACHES.length && TERRAIN.waiting(heightSearchToken);
+		return localCursor<localLimit && terrain.waiting(localSearchToken) || heightCursor<HEIGHT_DIRECTIONS.length*HEIGHT_REACHES.length && terrain.waiting(heightSearchToken);
 	}
 	boolean escapeHazards() {
 		Point destination = PlayerBotHazards.escape(new Point(bot.getX(), bot.getY(), bot.getZ()), hazards, bot.getHeading());
@@ -243,6 +252,7 @@ final class PlayerBotNavigation {
 	}
 
 	boolean follow(Player owner, int formationSlot) {
+		followArrived=false;
 		syncWalk();
 		PlayerBotFormation.following(owner, (Player)bot, formationSlot);
 		Point formation = PlayerBotFormation.destination(owner, (Player)bot, formationSlot);
@@ -262,7 +272,7 @@ final class PlayerBotNavigation {
 		}
 		if (bot.isFlying()) {
 			// Airborne follow uses the leader's altitude, never a ground breadcrumb.
-			if (!PlayerBotFormation.needsFollow(owner,(Player)bot,formation)) { stop(); return false; }
+			if (!PlayerBotFormation.needsFollow(owner,(Player)bot,formation)) { stop(); followArrived=true; return false; }
 			boolean moved=move(formation.x(),formation.y(),formation.z(),false,Intent.FOLLOW);
 			if(moved)PlayerBotFollowIntent.bind(owner,(Player)bot,formationSlot,formation,hazards,!walkRouteOwned);
 			return moved;
@@ -270,6 +280,7 @@ final class PlayerBotNavigation {
 		PlayerBotNavigationTrail.consume(trail, new Point(bot.getX(),bot.getY(),bot.getZ()));
 		if (!PlayerBotFormation.needsFollow(owner,(Player)bot,formation)) {
 			stop();
+			followArrived=true;
 			return false;
 		}
 		Point destination=PlayerBotNavigationTrail.target(trail,new Point(bot.getX(),bot.getY(),bot.getZ()),formation,
@@ -367,7 +378,7 @@ final class PlayerBotNavigation {
 		clearSearch();meshJourney.close();partialRoute=lookahead=groundRouteUnavailable=routeFailure=false;
 		clearRoute();routeIntent=Intent.FOLLOW;routeGoal=goal;routeWorld=player.getWorldId();routeInstance=player.getInstanceId();
 		publishedGoal=goal;lastProgress=now;intentUntil=now+3000;nextSearch=0;nextMove=0;
-		if(!PlayerBotFormation.needsFollow(owner,player,goal)){stop();status="at companion position";return false;}
+		if(!PlayerBotFormation.needsFollow(owner,player,goal)){stop();followArrived=true;status="at companion position";return false;}
 		var safety=hazards;
 		if(!mover.publishWalk(walkGeneration,java.util.List.of(new com.aionemu.gameserver.controllers.movement.PlayerBotMoveController.WalkPoint(0,goal.x(),goal.y(),goal.z())),
 			(from,to)->PlayerBotHazards.safePath(new Point(from.x(),from.y(),from.z()),new Point(to.x(),to.y(),to.z()),safety)))return null;
@@ -404,7 +415,7 @@ final class PlayerBotNavigation {
 			// opened-door sight mesh must not veto walking to the other side of the door.
 			// Native sight from the target at the destination remains mandatory; casting is unchanged.
 			cancelTicket(localSearchToken);cancelTicket(heightSearchToken);cancelTicket(searchToken);localOrigin=null;
-			try(var lease=TERRAIN.begin(approachSearchToken,terrainPriority(PositionUtil.getDistance(bot,target)))) {
+			try(var lease=terrain.begin(approachSearchToken,terrainPriority(PositionUtil.getDistance(bot,target)))) {
 			 if(lease==null){status="waiting to plan firing position";return true;}
 			 double[] factors=bot.isFlying()?new double[]{1}:new double[]{1,.85,.7,.55};
 			 double[] angles={0,Math.PI/4,-Math.PI/4,Math.PI/2,-Math.PI/2};
@@ -426,7 +437,7 @@ final class PlayerBotNavigation {
 			 }
 
 			}
-			if(approachDestination==null && approachCursor<(bot.isFlying()?5:20)){TERRAIN.request(approachSearchToken,terrainPriority(PositionUtil.getDistance(bot,target)));status="planning firing position";return true;}
+			if(approachDestination==null && approachCursor<(bot.isFlying()?5:20)){terrain.request(approachSearchToken,terrainPriority(PositionUtil.getDistance(bot,target)));status="planning firing position";return true;}
 			cancelTicket(approachSearchToken);if(approachDestination==null)approachDestination=bot.isFlying()?point:new Point(target.getX(),target.getY(),target.getZ());approachSelected=now;
 			return move(approachDestination.x(),approachDestination.y(),approachDestination.z(),true);
 		}
@@ -562,8 +573,8 @@ final class PlayerBotNavigation {
 			// ticket must not sit ahead of a branch that can no longer consume it.
 			cancelTicket(heightSearchToken);if(route.isEmpty()){cancelTicket(localSearchToken);localOrigin=null;}
 			// Expiry yields the current edge cursor, rather than losing the search.
-			// Charge measured work to the shared budget, preserving fair background access.
-			try(var lease=TERRAIN.begin(searchToken,terrainPriority(goalDistance))) {
+			// Charge measured work to this control domain, preserving its queued turns.
+			try(var lease=terrain.begin(searchToken,terrainPriority(goalDistance))) {
 			 if(lease!=null) {
 				long deadline = lease.deadlineNanos();
 				int previousProbes=routeSearch.probed();
@@ -576,7 +587,7 @@ final class PlayerBotNavigation {
 			 }
 			}
 			if(routeSearch.pending()) {
-				TERRAIN.request(searchToken,terrainPriority(goalDistance));
+				terrain.request(searchToken,terrainPriority(goalDistance));
 				if(route.isEmpty()){status="planning supported ground route";stopMovement();return true;}
 			} else {
 				if(routeSearch.route().isEmpty() && route.isEmpty()) {
@@ -619,7 +630,7 @@ final class PlayerBotNavigation {
 			// Local steering is terrain planning too. Retain the candidate cursor
 			// across measured slices instead of bypassing the route work quota.
 			cancelTicket(heightSearchToken);
-			try(var lease=TERRAIN.begin(localSearchToken,terrainPriority(goalDistance))) {
+			try(var lease=terrain.begin(localSearchToken,terrainPriority(goalDistance))) {
 			 if(lease==null){status="waiting to plan supported step";return true;}
 			 while(localCursor<offsets.length && System.nanoTime()<lease.deadlineNanos()) {
 				int offset=offsets[localCursor++];
@@ -640,7 +651,7 @@ final class PlayerBotNavigation {
 				if(offset==0 && Math.hypot(x-wantedX,y-wantedY)<.1){localCursor=offsets.length;break;}
 			 }
 			}
-			if(localCursor<offsets.length){TERRAIN.request(localSearchToken,terrainPriority(goalDistance));status="planning supported step";return true;}
+			if(localCursor<offsets.length){terrain.request(localSearchToken,terrainPriority(goalDistance));status="planning supported step";return true;}
 			cancelTicket(localSearchToken);
 		}
 		Point best=localBest;
@@ -662,7 +673,7 @@ final class PlayerBotNavigation {
 		if(bot instanceof Player player && player.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover
 			&& route.isEmpty() && now>=nextHeightSearch && !improvingStep) {
 			routeWorld=bot.getWorldId();routeInstance=bot.getInstanceId();
-			try(var lease=TERRAIN.begin(heightSearchToken,terrainPriority(goalDistance))) {
+			try(var lease=terrain.begin(heightSearchToken,terrainPriority(goalDistance))) {
 			 if(lease==null){status="waiting to plan supported height traversal";return true;}
 			 {
 				long deadline=lease.deadlineNanos();
@@ -691,7 +702,7 @@ final class PlayerBotNavigation {
 				}
 			 }
 			}
-			if(heightCursor<(targetZ<bot.getZ()-.3f?HEIGHT_DIRECTIONS.length:5)*HEIGHT_REACHES.length){TERRAIN.request(heightSearchToken,terrainPriority(goalDistance));status="planning supported height traversal";return true;}
+			if(heightCursor<(targetZ<bot.getZ()-.3f?HEIGHT_DIRECTIONS.length:5)*HEIGHT_REACHES.length){terrain.request(heightSearchToken,terrainPriority(goalDistance));status="planning supported height traversal";return true;}
 			nextHeightSearch=now+500;
 		}else cancelTicket(heightSearchToken);
 		// Short direct movement/descent failed: retain a real route search instead
@@ -699,7 +710,7 @@ final class PlayerBotNavigation {
 		if(route.isEmpty() && !improvingStep && goalDistance>.6 && now>=nextSearch) {
 			return beginGroundRoute(origin,goal,goalDistance,now);
 		}
-		if (best == null) { if(TERRAIN.waiting(heightSearchToken))return true;routeFailure=groundRouteUnavailable;localOrigin=null;discardLookahead();clearRoute();partialRoute=false; status = "blocked by geometry"; stopMovement(); return false; }
+		if (best == null) { if(terrain.waiting(heightSearchToken))return true;routeFailure=groundRouteUnavailable;localOrigin=null;discardLookahead();clearRoute();partialRoute=false; status = "blocked by geometry"; stopMovement(); return false; }
 		status = route.isEmpty() ? "moving" : "following local route";
 		byte heading = Math.hypot(best.x() - bot.getX(), best.y() - bot.getY()) < 0.001 ? bot.getHeading()
 			: (byte) Math.floorMod((int) Math.round(Math.toDegrees(Math.atan2(best.y() - bot.getY(), best.x() - bot.getX())) / 3), 120);
@@ -761,7 +772,7 @@ final class PlayerBotNavigation {
 				origin.x(),origin.y(),origin.z(),jump.end().x(),jump.end().y(),jump.end().z(),speed);
 		}
 		boolean pending=false;
-		try(var lease=TERRAIN.begin(heightSearchToken,terrainPriority(goalDistance))) {
+		try(var lease=terrain.begin(heightSearchToken,terrainPriority(goalDistance))) {
 			if(lease==null){status="waiting to prove prepared jump or drop";return true;}
 			var plan=preparedJumpSearch.advance(lease.deadlineNanos());
 			if(!preparedJumpSearch.done()) {
@@ -787,7 +798,7 @@ final class PlayerBotNavigation {
 			}
 			meshJourney.rejectJump(origin);cancelTicket(heightSearchToken);routeFailure=false;groundRouteUnavailable=false;nextSearch=0;
 			status="prepared jump obstructed; replanning directed route";return true;
-		}finally{if(pending)TERRAIN.request(heightSearchToken,terrainPriority(goalDistance));}
+		}finally{if(pending)terrain.request(heightSearchToken,terrainPriority(goalDistance));}
 	}
 	private void leavePlatformQueue(Player player){
 		PlayerBotPlatformQueue.leave(player);queuedPlatform=null;platformQueuePoint=null;platformQueueRank=-2;
@@ -811,7 +822,7 @@ final class PlayerBotNavigation {
 		if(platformQueuePoint!=null && !embark)cancelTicket(localSearchToken);
 		if(platformQueuePoint==null){
 			if(now<nextPlatformQueueProbe)return true;
-			var lease=TERRAIN.begin(localSearchToken,terrainPriority(goalDistance));
+			var lease=terrain.begin(localSearchToken,terrainPriority(goalDistance));
 			if(lease==null)return true;
 			try(lease){
 				nextPlatformQueueProbe=now+1000;
@@ -852,7 +863,7 @@ final class PlayerBotNavigation {
 		stopMovement();status="waiting for moving platform in spaced queue";
 		platformQueueProgressAt=0;
 		if(embark && now>=nextPlatformBoardProbe){
-			var lease=TERRAIN.begin(localSearchToken,terrainPriority(goalDistance));
+			var lease=terrain.begin(localSearchToken,terrainPriority(goalDistance));
 			if(lease==null)return true;
 			try(lease){
 				nextPlatformBoardProbe=now+1000;
@@ -863,5 +874,5 @@ final class PlayerBotNavigation {
 		return true;
 	}
 	private void stopMovement() { publishedGoal=null;publishedDestination=null;if (bot.getMoveController().isInMove()) bot.getMoveController().abortMove(); }
-	String status() { return TERRAIN.waiting(searchToken) || TERRAIN.waiting(heightSearchToken) || TERRAIN.waiting(localSearchToken) || TERRAIN.waiting(approachSearchToken)?"waiting for terrain work budget":status; }
+	String status() { return terrain.waiting(searchToken) || terrain.waiting(heightSearchToken) || terrain.waiting(localSearchToken) || terrain.waiting(approachSearchToken)?"waiting for terrain work budget":status; }
 }

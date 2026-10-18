@@ -6,6 +6,9 @@ public final class PlayerBotConfig {
  /** Custom catch-up while a companion owns an admitted follow movement. */
  @Property(key = "gameserver.playerbots.companion.catchup_multiplier", defaultValue = "4")
  public static float COMPANION_CATCHUP_MULTIPLIER = 4;
+ /** Nearby follow recovery measures physical progress, not published path requests. */
+ @Property(key = "gameserver.playerbots.companion.stuck_recall_ms", defaultValue = "5000")
+ public static long COMPANION_STUCK_RECALL_MS = 5000;
  @Property(key = "gameserver.playerbots.social.legion_invites", defaultValue = "true")
  public static boolean CHAT_LEGION_INVITES = true;
  @Property(key = "gameserver.playerbots.navigation.platform.queue_limit", defaultValue = "8")
@@ -32,6 +35,15 @@ public final class PlayerBotConfig {
  public static int TERRAIN_SLICE_MS = 3;
  @Property(key = "gameserver.playerbots.navigation.max_workers", defaultValue = "2")
  public static int TERRAIN_WORKERS = 2;
+ /** Reserved companion planning allowance, independent of world-bot debt and queues. */
+ @Property(key = "gameserver.playerbots.companions.navigation.budget_ms_per_second", defaultValue = "250")
+ public static int COMPANION_TERRAIN_BUDGET_MS = 250;
+ @Property(key = "gameserver.playerbots.companions.navigation.max_workers", defaultValue = "1")
+ public static int COMPANION_TERRAIN_WORKERS = 1;
+ @Property(key = "gameserver.playerbots.companions.navigation.mesh.max_queries", defaultValue = "8")
+ public static int COMPANION_NAVMESH_MAX_QUERIES = 8;
+ @Property(key = "gameserver.playerbots.companions.navigation.mesh.memory_mb", defaultValue = "128")
+ public static long COMPANION_NAVMESH_MEMORY_MB = 128;
  @Property(key = "gameserver.playerbots.navigation.segment_metres", defaultValue = "24")
  public static float TERRAIN_SEGMENT_METRES = 24;
 	/** Owner-facing switches are documented together in config/playerbots/features.properties. */

@@ -44,15 +44,24 @@ public final class PlayerBotService {
 	}
 	private static final PlayerBotService INSTANCE = new PlayerBotService();
 	private final Map<Integer, PlayerBotSession> sessions = new java.util.concurrent.ConcurrentHashMap<>();
+	// Published with sessions; the companion clock never scans the world population.
+	private final Map<Integer, PlayerBotSession> controlledSessions = new java.util.concurrent.ConcurrentHashMap<>();
 	private final Map<Integer, PlayerBotPersistence.Home> homes = new java.util.concurrent.ConcurrentHashMap<>();
 	private record ReservationKey(int ownerId, int targetId, SkillKind kind) {}
 	private record Reservation(int caster, long until) {}
 	private final Map<ReservationKey, Reservation> reservations = new java.util.concurrent.ConcurrentHashMap<>();
-	private Future<?> task, saveTask;
+	private Future<?> task, saveTask, companionTask, companionSaveTask;
+	private final java.util.concurrent.ScheduledExecutorService companionClock = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(
+		new com.aionemu.commons.utils.concurrent.PriorityThreadFactory("CompanionClock", Thread.NORM_PRIORITY));
+	private final java.util.concurrent.ExecutorService companionWorker = java.util.concurrent.Executors.newSingleThreadExecutor(
+		new com.aionemu.commons.utils.concurrent.PriorityThreadFactory("CompanionDecision", Thread.NORM_PRIORITY));
 	private volatile boolean shuttingDown;
  private final PlayerBotBackgroundWork backgroundWork=new PlayerBotBackgroundWork();
  private final PlayerBotBackgroundWork controlledWork=new PlayerBotBackgroundWork(),autonomousWork=new PlayerBotBackgroundWork(),maintenanceWork=new PlayerBotBackgroundWork(),checkpointWork=new PlayerBotBackgroundWork();
  private final PlayerBotBackgroundWork activeWorldWork=new PlayerBotBackgroundWork(4);
+ private final PlayerBotBackgroundWork companionCheckpointWork=new PlayerBotBackgroundWork();
+ private final PlayerBotCheckpointSchedule companionCheckpoints=new PlayerBotCheckpointSchedule();
+ private long nextCompanionLagReport;
  private long nextDecisionLagReport;
  private final PlayerBotExecution execution=new PlayerBotExecution();
  private final PlayerBotBackgroundWork teamWork=new PlayerBotBackgroundWork();
@@ -86,6 +95,11 @@ public final class PlayerBotService {
  private final PlayerBotPopulationSchedule populationSchedule = new PlayerBotPopulationSchedule(populationRepository);
  private final java.util.random.RandomGenerator populationRandom = new Random();
 	private final PlayerBotWorldPopulation population = new PlayerBotWorldPopulation(populationRepository,false);
+ private void publishSession(PlayerBotSession session) {
+  int id=session.bot().getObjectId();
+  sessions.put(id,session);
+  if(session.autonomous())controlledSessions.remove(id);else controlledSessions.put(id,session);
+ }
 	public void worldPopulation(Player owner,int count) {synchronized(populationLock) {
 		if(!PlayerBotConfig.ENABLED || !PlayerBotConfig.WORLD_ENABLED || shuttingDown || !owner.isOnline())throw new IllegalArgumentException("World population is unavailable.");
 		if(!PlayerBotRoster.available())throw new IllegalArgumentException("The native playerbot roster schema is required.");
@@ -710,7 +724,7 @@ public final class PlayerBotService {
     if(global && (!automaticPopulationReady || !automaticAdmissionsInitialized) || !PlayerBotPopulationPolicy.mayEnter(global,PlayerBotConfig.POPULATION_ENABLED,target,activeGlobal,activeWorld,PlayerBotConfig.WORLD_MAX_ACTIVE))return;
     if(!World.getInstance().setPosition(bot,saved.map(),1,saved.x(),saved.y(),saved.z(),saved.heading()))throw new IllegalStateException("Invalid residence position");
     World.getInstance().storeObject(bot);World.getInstance().spawn(bot);bot.getController().updateZone();bot.getLifeStats().updateCurrentStats();
-    sessions.put(bot.getObjectId(),session);homes.put(bot.getObjectId(),repairedLanding?saved:r.home());registered=true;
+    publishSession(session);homes.put(bot.getObjectId(),repairedLanding?saved:r.home());registered=true;
     if(PlayerBotPopulationPolicy.serverAccount(r.account()))loadedWorldCharacters++;
     nextWorldAdmission.remove(bot.getObjectId());
     nativeLoginCompleted();
@@ -740,7 +754,7 @@ public final class PlayerBotService {
 			previous.markClosing();bot.setTarget(null);
 			bot.setWorldBotController(controller==bot?0:controller.getObjectId());
 			var next=new PlayerBotSession(controller,bot,previous.lease(),controller==bot?0:companions(controller).size(),false);
-			sessions.put(bot.getObjectId(),next);
+			publishSession(next);
 		}
 	}
 	private void releaseWorldControl(PlayerBotSession previous) {
@@ -749,7 +763,7 @@ public final class PlayerBotService {
 			PlayerBotTeams.remove(bot);previous.markClosing();bot.setTarget(null);bot.setWorldBotController(0);
 			var next=new PlayerBotSession(bot,bot,previous.lease(),0,false);
 			synchronized(next) {
-				sessions.put(bot.getObjectId(),next);
+				publishSession(next);
 				// A new decision cannot run between control publication and native arrival.
 				// Never leave a controller-less resident stranded in a private instance.
 				if(bot.isInInstance() || !bot.isSpawned()) {
@@ -916,7 +930,7 @@ public final class PlayerBotService {
 			bot.getLifeStats().updateCurrentStats();
 			PlayerBotRaidPolicy.join(owner, bot);
 			if (owner.isInInstance()) InstanceService.onEnterInstance(bot);
-			sessions.put(id, session); homes.put(id, home); registered = true;
+			publishSession(session); homes.put(id, home); registered = true;
 			PlayerBotLegionPresence.entered(bot);
 			startTasks();
 			PacketSendUtility.sendMessage(owner, "Companion recruited: " + bot.getName()
@@ -1076,23 +1090,56 @@ public final class PlayerBotService {
    if(shuttingDown)return;
    if(task==null || task.isCancelled())task=ThreadPoolManager.getInstance().schedule(this::runTick,400);
    if(saveTask==null || saveTask.isCancelled())saveTask=ThreadPoolManager.getInstance().schedule(this::runSave,1000);
+   if(companionTask==null || companionTask.isCancelled())companionTask=companionClock.schedule(this::runCompanionTick,100,java.util.concurrent.TimeUnit.MILLISECONDS);
+   if(companionSaveTask==null || companionSaveTask.isCancelled())companionSaveTask=companionClock.schedule(this::runCompanionSave,1000,java.util.concurrent.TimeUnit.MILLISECONDS);
   }
+ }
+ private void runCompanionTick() {
+  PlayerBotDecisionSchedule.Pass<PlayerBotSession,PlayerBotBackgroundWork> pass=null;
+  try{pass=companionTickPass(System.currentTimeMillis());}finally{synchronized(schedulerLock){if(!shuttingDown) {
+   long earliest=pass==null?Long.MAX_VALUE:pass.earliest(lane->!lane.busy());
+   companionTask=companionClock.schedule(this::runCompanionTick,PlayerBotDecisionSchedule.delay(System.currentTimeMillis(),earliest,
+    PlayerBotDecisionSchedule.maximum(PlayerBotConfig.TICK_MS,controlledWork.busy())),java.util.concurrent.TimeUnit.MILLISECONDS);
+  }}}
  }
  private PlayerBotBackgroundWork decisionWork(PlayerBotSession session){
   return !session.autonomous()?controlledWork:session.activeDecision()?activeWorldWork:autonomousWork;
  }
+ private PlayerBotDecisionSchedule.Pass<PlayerBotSession,PlayerBotBackgroundWork> companionTickPass(long now) {
+  int slots=controlledWork.available();
+  var pass=new PlayerBotDecisionSchedule.Pass<PlayerBotSession,PlayerBotBackgroundWork>(slots==0);
+  boolean reportLag=now>=nextCompanionLagReport;
+  for(var session:controlledSessions.values()) {
+   int id=session.bot().getObjectId();
+   if(session.autonomous() || session.closing() || execution.busy(id) || sessions.get(id)!=session)continue;
+   pass.observe(session,id,decisions.due(id,session.reactionDelay(),now),true,true,decisionWork(session),slots,now,reportLag);
+  }
+  pass.finish();
+  for(var ready:pass.ready().values())controlledWork.submit(companionWorker,()->decide(ready));
+  if(reportLag && pass.lateCount()>0) {
+   var oldest=pass.oldest();
+   log.warn("Companion decision backlog: {} actors overdue >=5s; oldest {} ({}) overdue {}ms; companion worker busy {}; activity: {}",
+    pass.lateCount(),oldest.value().bot().getName(),oldest.id(),now-oldest.due(),controlledWork.busy(),oldest.value().activitySummary());
+   nextCompanionLagReport=now+30000;
+  }
+  return pass;
+ }
  private void runTick() {
   PlayerBotDecisionSchedule.Pass<PlayerBotSession,PlayerBotBackgroundWork> pass=null;
   try{pass=tickPass(System.currentTimeMillis());}finally{synchronized(schedulerLock){if(!shuttingDown) {
-   // Reuse immutable deadlines; only three lane states need a fresh check.
+   // Reuse immutable deadlines; only the world lane states need a fresh check.
    long earliest=pass==null?Long.MAX_VALUE:pass.earliest(lane->!lane.busy());
-   boolean running=pass!=null && pass.saturated() || controlledWork.busy() || activeWorldWork.busy() || autonomousWork.busy();
+   boolean running=pass!=null && pass.saturated() || activeWorldWork.busy() || autonomousWork.busy();
    task=ThreadPoolManager.getInstance().schedule(this::runTick,PlayerBotDecisionSchedule.delay(System.currentTimeMillis(),earliest,PlayerBotDecisionSchedule.maximum(PlayerBotConfig.TICK_MS,running)));
   }}}
  }
  private void runSave() {
   try{checkpointWork.submit(ThreadPoolManager.getInstance()::executeLongRunning,this::saveAll);}
   finally{synchronized(schedulerLock){if(!shuttingDown)saveTask=ThreadPoolManager.getInstance().schedule(this::runSave,100);}}
+ }
+ private void runCompanionSave() {
+  try{companionCheckpointWork.submit(ThreadPoolManager.getInstance()::executeLongRunning,()->saveAll(true));}
+  finally{synchronized(schedulerLock){if(!shuttingDown)companionSaveTask=companionClock.schedule(this::runCompanionSave,100,java.util.concurrent.TimeUnit.MILLISECONDS);}}
  }
  private void tick() {tickPass(System.currentTimeMillis());}
  private PlayerBotDecisionSchedule.Pass<PlayerBotSession,PlayerBotBackgroundWork> tickPass(long now) {
@@ -1111,31 +1158,31 @@ public final class PlayerBotService {
   }
   reservations.values().removeIf(r->r.until()<now);
   if(now>=nextScheduleCleanup){nextScheduleCleanup=now+1000;decisions.retain(sessions.keySet());}
-  int controlledSlots=controlledWork.available(),activeSlots=activeWorldWork.available(),idleSlots=autonomousWork.available();
-  var pass=new PlayerBotDecisionSchedule.Pass<PlayerBotSession,PlayerBotBackgroundWork>(controlledSlots==0 || activeSlots==0 || idleSlots==0);
+  int activeSlots=activeWorldWork.available(),idleSlots=autonomousWork.available();
+  var pass=new PlayerBotDecisionSchedule.Pass<PlayerBotSession,PlayerBotBackgroundWork>(activeSlots==0 || idleSlots==0);
   boolean reportLag=now>=nextDecisionLagReport;
   for(var session:sessions.values()) {
    int id=session.bot().getObjectId();
-   if(session.closing() || id==focusJobId || execution.busy(id) || sessions.get(id)!=session)continue;
+   if(!session.autonomous() || session.closing() || id==focusJobId || execution.busy(id) || sessions.get(id)!=session)continue;
    // Sleeping actors own no decision lane or terrain ticket. Observe only map
    // presence until a human arrives or a player takes control of the actor.
    if(!session.needsDecision()){decisions.suspend(id);continue;}
-   boolean controlled=!session.autonomous();long reaction=session.reactionDelay();
+   long reaction=session.reactionDelay();
    boolean active=reaction<=500 || session.bot().isLooting();
-   var lane=controlled?controlledWork:active?activeWorldWork:autonomousWork;
-   int slots=controlled?controlledSlots:active?activeSlots:idleSlots;
-   pass.observe(session,id,decisions.due(id,reaction,now),controlled,active,lane,slots,now,reportLag);
+   var lane=active?activeWorldWork:autonomousWork;
+   int slots=active?activeSlots:idleSlots;
+   pass.observe(session,id,decisions.due(id,reaction,now),false,active,lane,slots,now,reportLag);
   }
   pass.finish();
   // An idle route/SQL operation must not own the lane of every fighting bot.
-  // Party decisions remain serial; actor exclusion protects state transitions.
+  // World decisions cannot use the companion worker; actor exclusion protects transitions.
   for(var lane:pass.ready().entrySet())for(var batch:PlayerBotDecisionSchedule.batches(lane.getValue(),lane.getKey().available()))
    lane.getKey().submit(ThreadPoolManager.getInstance()::executeLongRunning,()->decide(batch));
   if(reportLag){
    if(pass.lateCount()>0){
     var oldest=pass.oldest();
-    log.warn("Playerbot decision backlog: {} active actors overdue >=5s; oldest {} ({}) overdue {}ms; controlled/active-world/idle lanes at capacity {}/{}/{}; active-world workers {}/4; activity: {}",
-     pass.lateCount(),oldest.value().bot().getName(),oldest.id(),now-oldest.due(),controlledWork.busy(),activeWorldWork.busy(),autonomousWork.busy(),activeWorldWork.running(),oldest.value().activitySummary());
+    log.warn("World playerbot decision backlog: {} active actors overdue >=5s; oldest {} ({}) overdue {}ms; active-world/idle lanes at capacity {}/{}; active-world workers {}/4; activity: {}",
+     pass.lateCount(),oldest.value().bot().getName(),oldest.id(),now-oldest.due(),activeWorldWork.busy(),autonomousWork.busy(),activeWorldWork.running(),oldest.value().activitySummary());
     nextDecisionLagReport=now+30000;
    }
   }
@@ -1149,7 +1196,7 @@ public final class PlayerBotService {
    long actorBegan=System.nanoTime(),actorCpuBegan=decisionCpuTime(),sessionWait=0;boolean dismiss=false;
    boolean decided=false;
    try {
-    if(shuttingDown || sessions.get(id)!=session || session.closing() || id==focusJobId)continue;
+    if(shuttingDown || sessions.get(id)!=session || session.closing() || id==focusJobId || candidate.controlled()==session.autonomous())continue;
     // Other batches may have completed this actor since their immutable snapshot.
     // A stale snapshot must not shorten native reaction/cast/cooldown intervals.
     long admission=System.currentTimeMillis();
@@ -1192,11 +1239,14 @@ public final class PlayerBotService {
    if(System.nanoTime()-began>=50_000_000L)break;
   }
  }
- private void saveAll() {
+ private void saveAll() {saveAll(false);}
+ private void saveAll(boolean controlled) {
   if(shuttingDown)return;
   long interval=PlayerBotCheckpointSchedule.interval(PlayerBotConfig.SAVE_SECONDS);
-  Integer id=checkpoints.next(sessions.keySet(),System.currentTimeMillis(),interval,key->{var s=sessions.get(key);return s!=null && !s.autonomous() && !execution.busy(key) && key!=focusJobId;});
-  if(id==null)for(var entry:retireQueue.entrySet())if(entry.getValue()<=System.currentTimeMillis()) {
+  var schedule=controlled?companionCheckpoints:checkpoints;
+  var actors=controlled?controlledSessions:sessions;
+  Integer id=schedule.next(actors.keySet(),System.currentTimeMillis(),interval,key->{var s=actors.get(key);return s!=null && controlled!=s.autonomous() && !execution.busy(key) && key!=focusJobId;});
+  if(!controlled && id==null)for(var entry:retireQueue.entrySet())if(entry.getValue()<=System.currentTimeMillis()) {
    int retiring=entry.getKey();var s=sessions.get(retiring);
    if(s==null){retireQueue.remove(retiring);continue;}
    if(retiring==focusJobId || !execution.claim(retiring,"retirement",System.currentTimeMillis()))continue;
@@ -1204,14 +1254,14 @@ public final class PlayerBotService {
    return;
   }
   // A busy actor cannot monopolize the checkpoint schedule either.
-  if(id==null)id=checkpoints.next(sessions.keySet(),System.currentTimeMillis(),interval,key->!execution.busy(key) && key!=focusJobId);
   if(id==null)return;
   var session=sessions.get(id);if(session==null || !execution.claim(id,"checkpoint",System.currentTimeMillis()))return;
   try {
+   if(controlled==session.autonomous())return;
    if(session.closing()) {if(sessions.get(id)==session)dismiss(session);}
    else synchronized(session){if(!shuttingDown && sessions.get(id)==session && !session.closing())PlayerBotPersistence.save(session.bot(),checkpoint(session));}
   }catch(Exception e){log.error("Companion periodic save failed for {}",session.bot().getName(),e);}
-  finally{checkpoints.complete(id,System.currentTimeMillis(),interval);execution.complete(id);}
+  finally{schedule.complete(id,System.currentTimeMillis(),interval);execution.complete(id);}
  }
 
 	public void dismissAll(Player owner) { companions(owner).forEach(this::dismiss); }
@@ -1330,7 +1380,7 @@ public final class PlayerBotService {
 				bot.getEffectController().removeAllEffects(true);
 				World.getInstance().removeObject(bot);
 				bot.getCommonData().setOnline(false);
-				sessions.remove(bot.getObjectId()); homes.remove(bot.getObjectId()); nextPlacementAttempt.remove(bot.getObjectId());
+				sessions.remove(bot.getObjectId()); controlledSessions.remove(bot.getObjectId(),session); homes.remove(bot.getObjectId()); nextPlacementAttempt.remove(bot.getObjectId());
 				decisions.forget(bot.getObjectId());
 				session.lease().close();
 				if (session.owner().isOnline()) {
@@ -1370,16 +1420,19 @@ public final class PlayerBotService {
 
 	public void shutdown() {
 		synchronized(this) {
-			shuttingDown = true; backgroundWork.close();controlledWork.close();activeWorldWork.close();autonomousWork.close();maintenanceWork.close();checkpointWork.close();teamWork.close();
+			shuttingDown = true; backgroundWork.close();controlledWork.close();activeWorldWork.close();autonomousWork.close();maintenanceWork.close();checkpointWork.close();companionCheckpointWork.close();teamWork.close();
 			if (task != null) task.cancel(false);
 			if (saveTask != null) saveTask.cancel(false);
+			if (companionTask != null) companionTask.cancel(false);
+			if (companionSaveTask != null) companionSaveTask.cancel(false);
+			companionClock.shutdown();companionWorker.shutdown();
 		}
 		// Pinned Playerbots OnShutdown clears pending logins outside their callbacks.
 		// Native Aion creation/load must finish its own persistence/lease cleanup first.
 		boolean interrupted = false;
 		if (backgroundWork.busy()) log.info("Waiting for pending playerbot creation/load cleanup before shutdown");
 		for (;;) {
-			try { controlledWork.awaitCompletion();activeWorldWork.awaitCompletion();autonomousWork.awaitCompletion();maintenanceWork.awaitCompletion();checkpointWork.awaitCompletion();backgroundWork.awaitCompletion();teamWork.awaitCompletion(); break; }
+			try { controlledWork.awaitCompletion();activeWorldWork.awaitCompletion();autonomousWork.awaitCompletion();maintenanceWork.awaitCompletion();checkpointWork.awaitCompletion();companionCheckpointWork.awaitCompletion();backgroundWork.awaitCompletion();teamWork.awaitCompletion(); break; }
 			catch (InterruptedException e) { interrupted = true; }
 		}
 		int count = sessions.size();

@@ -19357,6 +19357,12 @@
 			<quest_work_item item_id="182208043"/>
 		</quest_work_items>
 	</quest>
+	<quest id="3999" name="The Unfinished Entry" nameId="1801364" quest_zone="Theobomos" minlevel_permitted="48" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST" restricted="true">
+		<rewards gold="47430" exp="5390338"/>
+		<start_conditions>
+			<finished quest_id="3060"/>
+		</start_conditions>
+	</quest>
 	<quest id="3061" name="[Coin] Obstacle to Cultivation" nameId="1113060" quest_zone="Theobomos" minlevel_permitted="45" max_repeat_count="255" race_permitted="ELYOS" category="QUEST" restricted="true">
 		<collect_items>
 			<collect_item item_id="182208044" count="15"/>

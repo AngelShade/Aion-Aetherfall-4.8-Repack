@@ -97,10 +97,10 @@ public final class PlayerBotTravelFormationCheck {
    PlayerBotFollowIntent.remember(owner,bot,0,goal);
    var cached=PlayerBotFollowIntent.goal(bot);
    check(cached.x()==10 && cached.y()==20,"Movement resolves cached geometry without native account/party/world state");
-   PlayerBotFollowIntent.bind(owner,bot,0,goal,List.of());check(PlayerBotFollowIntent.active(bot),"Admitted direct intent retains movement between decisions");
+   PlayerBotFollowIntent.bind(owner,bot,0,goal,List.of(),true);check(PlayerBotFollowIntent.active(bot),"Admitted direct intent retains movement between decisions");
    bot.mover.setNewDirection(11,20,0,(byte)0);check(!PlayerBotFollowIntent.active(bot),"Another action's target is never refreshed");
-   PlayerBotFollowIntent.bind(owner,bot,0,goal,List.of());check(!PlayerBotFollowIntent.active(bot),"Detour waypoint cannot bind direct following");
-   bot.mover.setNewDirection(10,20,0,(byte)0);PlayerBotFollowIntent.bind(owner,bot,0,goal,List.of());owner.mover.setInMove(false);check(!PlayerBotFollowIntent.active(bot),"Owner stop restores normal arrival/stop");owner.mover.setInMove(true);
+   PlayerBotFollowIntent.bind(owner,bot,0,goal,List.of(),true);check(!PlayerBotFollowIntent.active(bot),"Detour waypoint cannot bind direct following");
+   bot.mover.setNewDirection(10,20,0,(byte)0);PlayerBotFollowIntent.bind(owner,bot,0,goal,List.of(),true);owner.mover.setInMove(false);check(PlayerBotFollowIntent.active(bot),"Stopped owner retains admitted follow until physical regroup");owner.mover.setInMove(true);
    PlayerBotFollowIntent.clear(bot);check(!PlayerBotFollowIntent.active(bot),"Stop/cast/navigation clears intent");
   }finally{PlayerBotFollowIntent.forget(bot);}
   check(PlayerBotFollowIntent.goal(bot)==null,"Dismissal releases cached owner geometry");

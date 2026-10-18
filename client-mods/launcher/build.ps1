@@ -12,10 +12,14 @@ $arguments=@('/nologo','/target:winexe','/platform:x64','/optimize+','/debug-',
     ('/reference:'+(Join-Path $framework 'WPF/PresentationCore.dll')),
     ('/reference:'+(Join-Path $framework 'WPF/WindowsBase.dll')),
     ('/reference:'+(Join-Path $framework 'System.Xaml.dll')),
-    ('/reference:'+(Join-Path $framework 'System.Web.Extensions.dll')))
+    ('/reference:'+(Join-Path $framework 'System.Web.Extensions.dll')),
+    ('/reference:'+(Join-Path $framework 'System.Xml.Linq.dll')),
+    ('/reference:'+(Join-Path $framework 'System.IO.Compression.dll')))
 if($IconPath){$arguments+=('/win32icon:'+([IO.Path]::GetFullPath($IconPath)))}
 $arguments+=(Join-Path $PSScriptRoot 'Launcher.cs')
 $arguments+=(Join-Path $PSScriptRoot 'StartupPresentation.cs')
+$arguments+=(Join-Path $PSScriptRoot 'CustomQuests.cs')
+$arguments+=(Join-Path $PSScriptRoot 'QuestPakKeys.cs')
 $arguments+=(Join-Path $PSScriptRoot 'AssemblyInfo.cs')
 & $compiler @arguments
 if($LASTEXITCODE -ne 0){throw 'Launcher compilation failed.'}

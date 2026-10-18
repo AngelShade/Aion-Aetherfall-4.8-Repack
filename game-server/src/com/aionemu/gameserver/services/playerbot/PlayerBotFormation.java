@@ -76,7 +76,9 @@ public final class PlayerBotFormation {
   return wanted/nativeSpeed;
  }
  public static double speedMultiplier(Player bot,float x,float y,float z) {
-  State s=STATES.get(bot.getObjectId());if(s==null || s.following<System.currentTimeMillis() || !PlayerBotFollowIntent.permitsSpeed(bot))return 1;
+  State s=STATES.get(bot.getObjectId());
+  boolean motion=bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover && mover.followMotionActive();
+  if(s==null || !motion && (s.following<System.currentTimeMillis() || !PlayerBotFollowIntent.permitsSpeed(bot)))return 1;
   Player owner=com.aionemu.gameserver.world.World.getInstance().getPlayer(s.owner);
   if(owner==null || !owner.isOnline() || !owner.isSpawned() || owner.isDead() || !bot.canPerformMove()
    || bot.getEffectController().isUnderFear() || bot.getEffectController().isConfused() || bot.getEffectController().isAbnormalSet(com.aionemu.gameserver.skillengine.effect.AbnormalState.SLOW)

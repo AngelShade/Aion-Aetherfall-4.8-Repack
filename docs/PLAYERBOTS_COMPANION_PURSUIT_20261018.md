@@ -66,3 +66,40 @@ Build: external `staging/target/companion-direct-pursuit-20261018`.
 Receipt: external `archives/server/backups/companion-direct-pursuit-20261018-retry1/manifest.json`.
 No client, repack, config or SQL change. User acceptance remains direct approach,
 obstacles/doorways, stopped regroup, travel handoff and independent world movement.
+
+## Nearby stuck recovery - 19 October 2026
+
+The owner reported companions remaining blocked among rocks until manually
+summoned or distant enough for recall, and explicitly chose walking/jumping first,
+then teleport if still stuck. This adds a fallback; it does not establish the
+specific failed geometry/path from the screenshot or universal obstacle routing.
+
+Ordinary companion Follow/Passive observes actual position. After five seconds
+without at least .75 m cumulative displacement from the retained anchor, native
+nearby arrival placement regroups the companion and normal following resumes.
+Walking away around an obstacle still counts as progress. New path publications
+and a moving owner do not reset the timer. Arrival, changed orders, map/instance
+changes, native activity and observation gaps over two seconds reset it.
+Combat/aggro, rooted movement, casting, trading, looting, item/object interaction,
+assigned missions, flight/glide and active jump/lift/transport custody are excluded.
+The normal 60 m recall stays unchanged. No forced recall scope bypasses combat.
+Failed placement waits through another complete follow grace period before retry.
+
+Owner control: `gameserver.playerbots.companion.stuck_recall_ms = 5000` in
+`config/playerbots/features.properties`; 0 disables only this nearby fallback.
+Only a missing setting is appended to the original owner's existing configuration.
+Native team/placement/character custody and current Follow/Passive orders remain.
+
+Normal Maven build and 334 focused recall/progress checks passed, including
+stationary retries, walking detours, activity/arrival reset, observation gaps,
+instance changes, clock rollback, disable and invalid positions. These checks
+use inert actors/position playback without World, IDs, gameplay tasks or SQL.
+The existing formation helper's bind calls were updated to the current API;
+its stopped-owner assertion now reflects the already-installed regroup contract.
+Only Config/Navigation/Recall/Session JAR families and build metadata differ from the latest
+original; dependencies and other JAR resources match. Original JAR/config copied
+after successful process enumeration, with backups and copied hashes verified.
+Receipt: external `archives/server/backups/companion-stuck-regroup-20261019/manifest.json`.
+Build: external `staging/target/companion-stuck-regroup-20261019-final`.
+No components started, client/repack changes, new test files or full suites.
+User acceptance remains the actual obstacle, fallback timing and follow resumption.

@@ -19,7 +19,14 @@ steps advance it to 60%, the game window to 85%, and native login readiness to
 Play runs the existing Mods startup helpers in their established order, with
 hidden child PowerShell windows and captured output: Graphics menu, renderer,
 cursor, graphics settings, flight, then the queued world-art package. Failed
-helpers stop the launch and expose a local log. These are the existing helpers'
+helpers stop the launch and expose a local log. When `Mods/CustomQuests/Quests`
+exists, Play first loads its quest packages through the native archive merger.
+The Mods page shows only the parent **Custom Quests** entry; individual quests
+remain nested inside it. Unchanged packages cause no native archive writes.
+New/changed packages preserve existing records and untouched compressed members,
+reject ID/ownership conflicts, require the game closed before resource changes,
+and keep backups at the external `BackupRoot` in the folder's settings.json.
+No Python or additional runtime is required on the client. These are the existing helpers'
 checks, not additional full-client scans. Renderer selection still uses native
 `DXVK/renderer.ini`; Vulkan effects use the existing per-process environment.
 The connection arguments are read directly from `Mods/Launcher/connection.json`.

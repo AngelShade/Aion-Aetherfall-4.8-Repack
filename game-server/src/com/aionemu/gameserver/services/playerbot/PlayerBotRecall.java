@@ -13,6 +13,35 @@ public final class PlayerBotRecall {
  static final double DISTANCE=60;
  private static final ThreadLocal<PlayerBotSession> CURRENT=new ThreadLocal<>();
  private static final Map<Integer,Long> RETRY=new ConcurrentHashMap<>();
+ /** Per-session transient follow observation. New routes/owner motion cannot
+  * renew it; only physical displacement or leaving ordinary follow can do so. */
+ static final class FollowProgress {
+  private PlayerBotNavigation.Point anchor;
+  private long lastObserved,progressAt;
+  private int world,instance;
+  void clear(){anchor=null;lastObserved=progressAt=0;}
+  boolean stalled(long now,int world,int instance,PlayerBotNavigation.Point physical,boolean following,long delay) {
+   if(!following || delay<=0 || physical==null || !Float.isFinite(physical.x()) || !Float.isFinite(physical.y()) || !Float.isFinite(physical.z())){clear();return false;}
+   if(anchor==null || this.world!=world || this.instance!=instance || now<lastObserved || now-lastObserved>2000
+    || PositionUtil.getDistance(anchor.x(),anchor.y(),anchor.z(),physical.x(),physical.y(),physical.z())>=.75) {
+    anchor=physical;this.world=world;this.instance=instance;progressAt=now;
+   }
+   lastObserved=now;
+   return now-progressAt>=delay;
+  }
+ }
+ static boolean recoverFollow(PlayerBotSession s) {
+  // Unlike distance/manual recall this fallback must not withdraw from combat
+  // or cancel native activity. The caller has already proved stalled following.
+  if(!eligible(s) || !PlayerBotPartyBehavior.canRelocate(s))return false;
+  try {
+   if(!PlayerBotService.getInstance().relocate(s))return false;
+   PlayerBotTravel.close(s);PlayerBotQuestSync.returnToOwner(s.bot());return true;
+  } catch(RuntimeException error) {
+   org.slf4j.LoggerFactory.getLogger(PlayerBotRecall.class).error("Companion {} stuck-follow regroup failed; normal following retained",s.bot().getName(),error);
+   return false;
+  }
+ }
  static boolean eligible(PlayerBotSession s) {
   Player owner=s.owner(),bot=s.bot();
   return !s.closing() && owner.isOnline() && owner.isSpawned() && !owner.isDead() && owner.getWorldMapInstance()!=null

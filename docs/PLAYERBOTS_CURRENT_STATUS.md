@@ -35,6 +35,36 @@ artifact/offline evidence; **C** user report not reproduced on the latest build;
 
 ## Immediate repair and acceptance queue
 
+**19 October architecture rework (latest, supersedes the follow notes below):**
+after repeated point fixes, the companion design was reviewed against WoW
+Playerbots. Following is now a persistent follow motion owned by the native
+mover (WoW MoveFollow), not AI-renewed planner leases; companion combat gates use
+actual party attackers instead of the 10-second combat timer; one follow rule
+serves every follow site; companions travel behind a moving owner. Full
+navigation and the 5 s stuck regroup remain as fallbacks. Installed in the
+original GameServer only; gameplay acceptance pending (PB-NOW-01/02). Source is
+on branch `claude/project-thread-8pso48`, not yet merged into the main checkout.
+Details and next slices: [architecture review](PLAYERBOTS_ARCHITECTURE_REVIEW_20261019.md).
+Receipt: external `archives/server/backups/companion-follow-motion-20261019/manifest.json`.
+
+19 October blocked-follow report: nearby companions could remain stuck until
+the 60 m recall or manual summon. Owner authorized ordinary walking/jumping first,
+then teleport if still stuck. Added five-second physical-progress recovery through
+native nearby placement, preserving distance recall and combat/action/transport
+custody. Normal build, 334 focused checks and original-only copied hashes passed.
+Actual obstacle recovery remains PB-NOW-01 acceptance. Receipt: external
+`archives/server/backups/companion-stuck-regroup-20261019/manifest.json`.
+
+19 October follow-up: companion scheduling is now independent of the world
+population's scan, worker saturation, terrain debt, prepared-query slots and map
+loading queue. Separate companion saves retain native per-character exclusion.
+Invited world bots and summons follow the current control domain. Installed in
+the original GameServer after normal build, focused isolation/budget/shutdown
+checks and copied hash verification. See [scheduling evidence](PLAYERBOTS_COMPANION_SCHEDULING_20261019.md).
+Actual following/combat and responsiveness under population load remain open.
+The 18 October baseline/log paragraph above is historical; latest binary/receipt
+are in `project-notes/current-state.md` and `docs/INSTALLED_MODS.json`.
+
 Latest owner direction: very fast companion catch-up is authorized; a small live
 CPU reduction is reported but remaining CPU is high near 500 bots / 3.8 GB RAM.
 The follow-up was built and installed on the original; evidence is tracked in

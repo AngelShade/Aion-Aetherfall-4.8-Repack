@@ -16,6 +16,30 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 	private long walkUntil,walkGeneration,walkReached=-1;
 	private boolean walkActive,walkBlocked,internalWalkDirection;
 	private int walkWorld,walkInstance;
+	/** One steering sample for a persistent follow source. */
+	public record FollowStep(float x,float y,float z) {}
+	/** Moving-target generator, the counterpart of WoW's MoveFollow. It is
+	 * evaluated on every native movement step, so following needs no AI renewal.
+	 * A null step holds position while remaining attached. */
+	public interface FollowSource {
+		FollowStep steer(long now);
+		void blocked(long now);
+	}
+	private FollowSource follow;
+	private long followPacket;
+	/** Attach persistent following. Any external command, corridor, jump, lift
+	 * or abort detaches it; the session re-attaches when following is wanted. */
+	public synchronized boolean startFollow(FollowSource source) {
+		if(source==null || failed || heightPlan!=null || platformPlan!=null || !owner.isSpawned() || owner.isDead() || owner.isFlying())return false;
+		if(follow==source)return true;
+		if(walkActive)revokeWalk(false);
+		com.aionemu.gameserver.services.playerbot.PlayerBotFollowIntent.clear(owner);
+		follow=source;followPacket=0;updateLastMove();
+		PlayerMoveTaskManager.getInstance().addPlayer(owner);
+		return true;
+	}
+	public synchronized boolean following(FollowSource source) { return source!=null && follow==source; }
+	public synchronized boolean followMotionActive() { return follow!=null; }
 	/** A generation owns one immutable prefix. Refreshes append/trim its bounded
 	 * tail without replacing the active edge or acknowledging physical progress. */
 	public synchronized boolean publishWalk(long generation,java.util.List<WalkPoint> points,
@@ -29,6 +53,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 				|| i>0 && point.index()!=points.get(i-1).index()+1)return false;
 		}
 		boolean fresh=generation>walkGeneration;
+		if(fresh)follow=null; // a planned corridor replaces persistent following
 		int cursor=0;
 		if(!fresh) {
 			if(!walkActive || walkBlocked || System.currentTimeMillis()>walkUntil
@@ -150,6 +175,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		// External commands revoke the corridor; internal edge advancement keeps
 		// its generation and monotonic acknowledgment cursor.
 		if(!internalWalkDirection && walkActive)revokeWalk(false);
+		if(!internalWalkDirection)follow=null;
 		super.setNewDirection(x, y, z);
 		// Headless intent replaces the client's move request, not its position sample.
 		// Forced fear/confusion travel must not start voluntary combat modifiers.
@@ -197,6 +223,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 	private void moveStep() {
 		if(platformPlan!=null){platformStep();return;}
 		if(heightPlan!=null){heightStep();return;}
+		if(follow!=null){followStep();return;}
 		// Removal from the shared scheduler does not revoke its current snapshot.
 		// A queued step after stop/cast must not emit native movement callbacks:
 		// PlayerController.onStopMove and skill movement observers cancel casts.
@@ -282,8 +309,59 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		updateLastMove(); // fixed edge cap discards excess time, never a future catch-up burst
 	}
 
+	/** Persistent following: steer toward the source's live sample, stop at the
+	 * slot without detaching, and resume when the leader moves again. The ground
+	 * probe of every step keeps the native floor/slope/wall rules. */
+	private void followStep() {
+		long now=System.currentTimeMillis(),elapsed=Math.max(0,Math.min(1000,now-lastMoveUpdate));
+		if(failed || !owner.isSpawned() || owner.isDead() || owner.isFlying()){follow=null;abortMove();return;}
+		// Native actions keep custody; the session decides when to interrupt them.
+		if(owner.isCasting() || owner.isTrading() || owner.isLooting() || !owner.canPerformMove()
+			|| owner.isInState(com.aionemu.gameserver.model.gameobjects.state.CreatureState.RESTING)
+			|| owner.getController().hasScheduledTask(com.aionemu.gameserver.model.TaskId.ITEM_USE)
+			|| owner.getController().hasScheduledTask(com.aionemu.gameserver.model.TaskId.ACTION_ITEM_NPC)
+			|| owner.getInteractionTask()!=null && owner.getInteractionTask().isInProgress()){holdFollow();return;}
+		var step=follow.steer(now);
+		if(step==null || !Float.isFinite(step.x()) || !Float.isFinite(step.y()) || !Float.isFinite(step.z())
+			|| Math.hypot(step.x()-owner.getX(),step.y()-owner.getY())<.05){holdFollow();return;}
+		boolean changed=Math.hypot(step.x()-targetDestX,step.y()-targetDestY)>.5 || Math.abs(step.z()-targetDestZ)>1;
+		byte direction=(byte)Math.floorMod((int)Math.round(Math.toDegrees(Math.atan2(step.y()-owner.getY(),step.x()-owner.getX()))/3),120);
+		internalWalkDirection=true;
+		try{setNewDirection(step.x(),step.y(),step.z(),direction);}finally{internalWalkDirection=false;}
+		com.aionemu.gameserver.services.playerbot.PlayerBotFollowSpeed.update(owner,step.x(),step.y(),step.z());
+		if(!started.get() || !isInMove()) {
+			started.set(true);owner.getController().onStartMove();setAndSendStartMove(owner);followPacket=now;
+		} else if((changed || now-followPacket>=1000) && com.aionemu.gameserver.services.playerbot.PlayerBotFormation.sendUpdate(owner)) {
+			setAndSendStartMove(owner);followPacket=now;
+		}
+		float speed=requestedMovementSpeed();
+		double distance=Math.hypot(step.x()-owner.getX(),step.y()-owner.getY());
+		if(elapsed<=0 || !Float.isFinite(speed) || speed<=0){updateLastMove();return;}
+		double fraction=Math.min(1,speed*elapsed/1000.0/distance);
+		float x=owner.getX()+(float)((step.x()-owner.getX())*fraction),y=owner.getY()+(float)((step.y()-owner.getY())*fraction);
+		var ground=com.aionemu.gameserver.world.geo.GeoService.getInstance().findGroundMovementCollision(
+			owner.getWorldId(),owner.getInstanceId(),owner.getX(),owner.getY(),owner.getZ(),x,y,step.z());
+		if(ground==null || !Float.isFinite(ground.x) || !Float.isFinite(ground.y) || !Float.isFinite(ground.z)){follow.blocked(now);holdFollow();return;}
+		if(ground.z<owner.getZ()-1.25f){startSupportedFall();return;}
+		if(Math.hypot(ground.x-owner.getX(),ground.y-owner.getY())<.001){follow.blocked(now);holdFollow();return;}
+		com.aionemu.gameserver.world.World.getInstance().updatePosition(owner,ground.x,ground.y,ground.z,heading,false);
+		updateLastMove();owner.getKnownList().update();owner.getController().onMove();
+	}
+	/** Stop walking but keep the follow source and its movement-task slot. */
+	private void holdFollow() {
+		if(started.get() || isInMove()) {
+			started.set(false);setAndSendStopMove(owner);onMovementStopped();
+			com.aionemu.gameserver.services.playerbot.PlayerBotFollowSpeed.close(owner);
+			// The native stop hook cancels casts; a cast that took over keeps custody.
+			if(!owner.isCasting())owner.getController().onStopMove();
+			if(follow!=null)PlayerMoveTaskManager.getInstance().addPlayer(owner);
+		}
+		updateLastMove();
+	}
+
 	@Override
 	public synchronized void abortMove() {
+		follow=null;
 		revokeWalk(walkBlocked);
 		if(platformPlan!=null && platformPlan.onboard() && owner.isSpawned() && !owner.isDead()){
 			// A command or cast cannot leave the actor suspended off its moving floor.

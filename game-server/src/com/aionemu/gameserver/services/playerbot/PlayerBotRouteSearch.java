@@ -45,10 +45,13 @@ final class PlayerBotRouteSearch {
   this(world,start,goal,mapSize,capacity,segmentDistance,null);
  }
  PlayerBotRouteSearch(int world,Point start,Point goal,float mapSize,int capacity,float segmentDistance,PlayerBotMeshJourney journey) {
+  this(world,start,goal,mapSize,capacity,segmentDistance,journey,PlayerBotMeshRoute.admission());
+ }
+ PlayerBotRouteSearch(int world,Point start,Point goal,float mapSize,int capacity,float segmentDistance,PlayerBotMeshJourney journey,PlayerBotMeshRoute.Admission admission) {
   this(start,goal,mapSize,capacity,segmentDistance,false);
   this.journey=journey;
   if(finite(start) && finite(goal) && com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED)
-   mesh=new PlayerBotMeshRoute(world,start,goal,segmentDistance,journey);
+   mesh=new PlayerBotMeshRoute(world,start,goal,segmentDistance,journey,admission);
  }
  private PlayerBotRouteSearch(Point start,Point goal,float mapSize,int capacity,float segmentDistance,boolean fullRoute) {
   this.start=start;this.goal=goal;this.finalGoal=goal;this.mapSize=mapSize;this.capacity=Math.max(1,capacity);

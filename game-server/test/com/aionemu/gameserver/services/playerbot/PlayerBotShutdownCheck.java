@@ -25,7 +25,9 @@ public final class PlayerBotShutdownCheck {
   var field=Unsafe.class.getDeclaredField("theUnsafe");field.setAccessible(true);var unsafe=(Unsafe)field.get(null);
   var service=(PlayerBotService)unsafe.allocateInstance(PlayerBotService.class);
   var worker=new PlayerBotBackgroundWork();set(service,"backgroundWork",worker);set(service,"sessions",new ConcurrentHashMap<>());
-  for(String lane:java.util.List.of("controlledWork","activeWorldWork","autonomousWork","maintenanceWork","checkpointWork","teamWork"))set(service,lane,new PlayerBotBackgroundWork());
+  for(String lane:java.util.List.of("controlledWork","activeWorldWork","autonomousWork","maintenanceWork","checkpointWork","companionCheckpointWork","teamWork"))set(service,lane,new PlayerBotBackgroundWork());
+  var companionClock=Executors.newSingleThreadScheduledExecutor();var companionWorker=Executors.newSingleThreadExecutor();
+  set(service,"companionClock",companionClock);set(service,"companionWorker",companionWorker);
   var entered=new CountDownLatch(1);var release=new CountDownLatch(1);var finished=new CountDownLatch(1);
   var acquiredMonitor=new AtomicBoolean();var pool=Executors.newSingleThreadExecutor();
   var shutdown=new Thread(()->{try{service.shutdown();}finally{finished.countDown();}},"offline-shutdown-check");
@@ -42,6 +44,7 @@ public final class PlayerBotShutdownCheck {
    check(acquiredMonitor.get(),"Drain does not hold service monitor needed by native completion");
    check(!worker.busy(),"No native worker remains at shutdown completion");
    check(shutdown.isInterrupted(),"Shutdown preserves interruption after safe cleanup");
+   check(companionClock.isShutdown() && companionWorker.isShutdown(),"Shutdown closes the independent companion clock and decision executor");
   } finally {release.countDown();shutdown.join(3000);pool.shutdown();check(pool.awaitTermination(3,TimeUnit.SECONDS),"Offline executor terminates");}
   System.out.println("OK: "+checks+" shutdown coordination checks; no World/DB/native IDs/casts");
  }

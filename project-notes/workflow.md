@@ -64,6 +64,13 @@ check that the runtime did not change while the package was being prepared.
 
 ## Context and handoffs
 
+For Playerbots, begin with `docs/PLAYERBOTS_CURRENT_STATUS.md`. Record the affected
+movement/interaction owner and preserved transitions before editing a shared
+handoff. Keep party-follow policy distinct from independent world activity while
+reusing native movement. Retain queued request age and physical arrival authority;
+do not turn a formation preference into a recruitment refusal. Select only the
+focused check appropriate to the changed path; this adds no full-suite requirement.
+
 - AGENTS.md holds standing rules and pointers; keep it short.
 - `current-state.md` holds current original/repack versions and receipt pointers.
 - Feature documents hold behavior contracts and unresolved details.

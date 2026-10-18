@@ -1,4 +1,10 @@
 {
+  "CustomQuests": {
+    "Title": "Custom Quests",
+    "Description": "Custom stories, quest chains and their native quest markers.",
+    "Listed": true,
+    "Files": ["Mods/CustomQuests/installed.json"]
+  },
   "CursorFix": {
     "Title": "Native cursor correction",
     "Description": "Keeps cursor position and interaction aligned with the game window.",

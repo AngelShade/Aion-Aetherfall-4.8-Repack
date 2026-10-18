@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<HtmlPages>
+  <HtmlPage name="select1">
+    <Contents cdata="true"><html><body>
+      <p>Still here? Nagrunerk paid Daeva already. A generous reward for returning a lost book, nyerk!</p><p> </p>
+      <p>(His eyes flick towards the journal. He is waiting for you to leave.)</p>
+    </body></html></Contents>
+    <Selects><Act href="HACTION_SELECT1_1">"Titirunerk took it along with all your... what?"</Act></Selects>
+  </HtmlPage>
+  <HtmlPage name="select1_1">
+    <Contents cdata="true"><html><body>
+      <p>Safe! Kinah! Everyone knows this story. Titirunerk was trusted aide, then thief. Nothing more to tell.</p><p> </p>
+      <p>(That explains the theft. It does not explain the descriptions of lethal traps, or why he paid for your silence.)</p>
+    </body></html></Contents>
+    <Selects><Act href="HACTION_ASK_QUEST_ACCEPT">"Then you won't mind if I speak to Rosina."</Act></Selects>
+  </HtmlPage>
+  <HtmlPage name="ask_quest_accept">
+    <Contents cdata="true"><html><body>
+      <p>Rosina? Why bother Rosina? Bounty hunting is dangerous work. Sometimes a hunter must use... efficient methods.</p><p> </p>
+      <p>(Rosina was worried an innocent traveller might stumble into those traps. You should tell her what happened before the journal disappears again.)</p>
+    </body></html></Contents>
+    <Selects><Act href="HACTION_QUEST_ACCEPT_1">Investigate the unfinished entry.</Act><Act href="HACTION_QUEST_REFUSE_1">Leave for now.</Act></Selects>
+  </HtmlPage>
+  <HtmlPage name="quest_accept_1">
+    <Contents cdata="true"><html><body><p>Daeva is making something out of nothing, nyerk.</p><p> </p><p>(Speak to Rosina at Jamanok Inn. Do not let Nagrunerk's payment be the last word.)</p></body></html></Contents>
+    <Selects><Act href="HACTION_FINISH_DIALOG">"I'll find out for myself."</Act></Selects>
+  </HtmlPage>
+  <HtmlPage name="quest_refuse_1">
+    <Contents cdata="true"><html><body><p>Good. Lost book returned, honest Shugo grateful. A perfectly ordinary story, nyerk.</p></body></html></Contents>
+    <Selects><Act href="HACTION_FINISH_DIALOG">Leave.</Act></Selects>
+  </HtmlPage>
+  <HtmlPage name="select2">
+    <Contents cdata="true"><html><body>
+      <p>He paid you to forget it? That's an expensive way to say there is nothing to hide.</p><p> </p>
+      <p>I remember the entry you showed me. Poisoned bait beside a path, with no warning and no way to tell who would reach it first. A bounty does not make that acceptable.</p><p> </p>
+      <p>His bodyguard carried that book. Ask what else he carried for Nagrunerk. Speak plainly. He understands more than people think.</p>
+    </body></html></Contents>
+    <Selects><Act href="HACTION_SETPRO1">"I'll ask him about the bait."</Act></Selects>
+  </HtmlPage>
+  <HtmlPage name="select3">
+    <Contents cdata="true"><html><body>
+      <p>Grr... carried bottles. Bait. Master's little papers.</p><p> </p>
+      <p>Titirunerk took safe. Took bottles too. Papers. Went to cave. Master angry. Said... no telling.</p><p> </p>
+      <p>Grr... little papers show where bait goes. Don't put on road. People walk road.</p><p> </p>
+      <p>(The stolen wealth was only part of it. Titirunerk also has the poison and the trapping notes. Find him in Marla Cave and recover those notes.)</p>
+    </body></html></Contents>
+    <Selects><Act href="HACTION_SETPRO2">"You were right about the road. I'll find those papers."</Act></Selects>
+  </HtmlPage>
+  <HtmlPage name="select4">
+    <Contents cdata="true"><html><body>
+      <p>(You lay the notes recovered from Titirunerk before Nagrunerk. The bait mixtures and routes match the entries in the red journal.)</p><p> </p>
+      <p>You found these too? Then... Titirunerk cannot use them now. Good. That is good, nyerk.</p><p> </p>
+      <p>Yes. All my poisons and trapping notes. That was what Nagrunerk did not say. The safe was shame enough. If people saw how the bounties were caught, they might stop paying.</p><p> </p>
+      <p>Nagrunerk knew others could take the bait. Told himself they would be careful. Easier than being careful himself.</p><p> </p>
+      <p>No more Kinah for silence. Take the notes to Rosina. Nagrunerk will answer for what is written there, nyerk.</p>
+    </body></html></Contents>
+    <Selects><Act href="HACTION_SETPRO3">"And this time, she gets the whole story."</Act></Selects>
+  </HtmlPage>
+  <HtmlPage name="select5">
+    <Contents cdata="true"><html><body>
+      <p>(Rosina reads your account, then compares the recovered notes with what you remember of the red journal.)</p><p> </p>
+      <p>So it was his work. Titirunerk stole the means to copy it, and Nagrunerk wanted his reputation back without admitting what he had done.</p><p> </p>
+      <p>Titirunerk is defeated, and the notes are here. I will keep them as evidence and put Nagrunerk's admission in writing. If he wants another bounty from us, he can explain his methods first.</p><p> </p>
+      <p>You found a book and were offered money to close it. Thank you for reading to the end.</p>
+    </body></html></Contents>
+    <Selects><Act href="HACTION_SELECT_QUEST_REWARD">"Make sure the bodyguard's warning goes in the record too."</Act></Selects>
+  </HtmlPage>
+  <HtmlPage name="select_quest_reward1">
+    <Contents cdata="true"><html><body>
+      <p>I have. He was the one person who said what should have been obvious: people walk those roads.</p><p> </p>
+      <p>The stolen poisons are out of Titirunerk's hands. The trapping notes are secured, and Nagrunerk's confession is recorded with your testimony. He cannot buy this account back.</p><p> </p>
+      <p>This payment is for bringing the truth to light. You owe nobody your silence.</p>
+    </body></html></Contents>
+  </HtmlPage>
+  <HtmlPage name="quest_summary">
+    <Contents cdata="true"><html><body><steps>
+      <step><p visible="[%0]"><font color="[%1]">Tell [%dic:STR_DIC_N_Rosina] about Nagrunerk's payment.</font></p></step>
+      <step><p visible="[%3]"><font color="[%4]">Ask [%dic:STR_DIC_N_LF2a_Tavern_TrollBodyguard] what Titirunerk stole.</font></p></step>
+      <step><p visible="[%6]"><font color="[%7]">Defeat [%dic:STR_DIC_M_LF2A_ShugoMaleNMQ_50_An] in Marla Cave and recover his trapping notes.</font></p></step>
+      <step><p visible="[%9]"><font color="[%10]">Confront [%dic:STR_DIC_N_Shugo_LF2a_14] with the recovered notes.</font></p></step>
+      <step><p visible="[%12]"><font color="[%13]">Give your evidence to [%dic:STR_DIC_N_Rosina].</font></p></step>
+    </steps><p><font font_xml="quest_summary">Nagrunerk paid you to forget the Red Journal. Investigate what he left unsaid and put an end to the silence surrounding his lethal traps.</font></p></body></html></Contents>
+  </HtmlPage>
+  <HtmlPage name="quest_complete">
+    <Contents cdata="true"><html><body>
+      <p>Nagrunerk's unfinished sentence concealed the theft of his poisons and trapping notes as well as his safe. His bodyguard confirmed what Titirunerk had taken and warned that ordinary travellers used the baited roads.</p><p> </p>
+      <p>You defeated Titirunerk in Marla Cave and recovered the notes. Confronted with them, Nagrunerk admitted that he knew his methods endangered innocent people and had paid you to protect his reputation.</p><p> </p>
+      <p>Rosina secured the evidence and recorded his confession, your testimony and the bodyguard's warning. The stolen poison was recovered, and Nagrunerk's secret became a record he could no longer buy back.</p>
+    </body></html></Contents>
+  </HtmlPage>
+  <HtmlPage name="select_acqusitive_quest_desc"><Selects><Act>New quest: [%questname]</Act></Selects></HtmlPage>
+  <HtmlPage name="select_progressive_quest_desc"><Selects><Act>In progress: [%questname]</Act></Selects></HtmlPage>
+</HtmlPages>

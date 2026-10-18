@@ -1,0 +1,6 @@
+{
+  "Title": "Custom Quests",
+  "Description": "Custom stories, quest chains and their native quest markers.",
+  "Listed": true,
+  "Files": ["Mods/CustomQuests/installed.json"]
+}

@@ -97,7 +97,20 @@ public final class PlayerBotFormationLayout {
         if (slot < 0) { ids = List.of(bot.getObjectId()); slot = 0; }
         String formation = selected(owner.getAccount().getId(), owner.getObjectId());
         var point = rolePoint(heading, slot, ids.size(), formation);
-        return PlayerBotSpacing.formation(owner,bot,new PlayerBotNavigation.Point(owner.getX()+point.x(), owner.getY()+point.y(), owner.getZ()));
+        var rest = PlayerBotSpacing.formation(owner,bot,new PlayerBotNavigation.Point(owner.getX()+point.x(), owner.getY()+point.y(), owner.getZ()));
+        if (!owner.getMoveController().isInMove() || owner.isFlying()) return rest;
+        // Like WoW followers, travel behind the leader instead of racing to the
+        // formation's front slots; the chosen formation is restored on stopping.
+        double spacing = Math.hypot(rest.x()-owner.getX(), rest.y()-owner.getY());
+        return travel(owner, heading, slot, ids.size(), spacing);
+    }
+    /** Two-file column behind the leader, ordered tank-first like the rest slots. */
+    static PlayerBotNavigation.Point travel(Player owner, double heading, int slot, int count, double spacing) {
+        int row = slot / 2;
+        double side = count == 1 || count % 2 == 1 && slot == count - 1 ? 0 : (slot % 2 == 0 ? -1 : 1) * Math.min(1.6, Math.max(.9, spacing * .45));
+        double front = -(Math.max(1.5, spacing * .75) + row * 2.2);
+        return new PlayerBotNavigation.Point(owner.getX() + (float)(Math.cos(heading)*front - Math.sin(heading)*side),
+            owner.getY() + (float)(Math.sin(heading)*front + Math.cos(heading)*side), owner.getZ());
     }
     static int roleRank(PlayerBotRules.Role role) {
         return switch (role) { case TANK -> 0; case MELEE -> 1; case RANGED -> 2; case SUPPORT -> 3; case HEALER -> 4; };

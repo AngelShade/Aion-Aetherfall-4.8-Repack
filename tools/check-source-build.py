@@ -4,10 +4,10 @@ from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
 TESTS={'PlayerBotMetadataCheck':35,'PlayerBotRepositoryCheck':24,'PlayerBotPopulationCheck':83,'PlayerBotWorldCheck':102,'PlayerBotWorldTradeCheck':90,'PlayerBotWorldProgressCheck':32,'PlayerBotAssassinCheck':123,'PlayerBotGladiatorCheck':66,'PlayerBotTemplarCheck':71,'PlayerBotChanterCheck':89,'PlayerBotClericCheck':87,'PlayerBotSpiritmasterCheck':59,'PlayerBotSorcererCheck':54,'PlayerBotItemUseCheck':147,
- 'PlayerBotRecallCheck':165,'PlayerBotTravelFormationCheck':679,'PlayerBotCastExecutionCheck':72,
+ 'PlayerBotRecallCheck':334,'PlayerBotTravelFormationCheck':679,'PlayerBotCastExecutionCheck':72,
  'PlayerBotTradeCheck':56,'PlayerBotEngineCheck':99,'PlayerBotStrategyCompositionCheck':49,
  'PlayerBotOffenseIntegrationCheck':44,'PlayerBotFollowSpeedCheck':6,'PlayerBotNavigationTrailCheck':17,
- 'PlayerBotGroundNavigationCheck':70,'PlayerBotCollisionPerformanceCheck':448,'PlayerBotFormationCheck':314,'PlayerBotWorldPerformanceCheck':2994,'PlayerBotShutdownCheck':16,'PlayerBotWorldRepairCheck':24,'PlayerBotSharedRepairCheck':141,'PlayerBotPopulationPipelineCheck':13,'PlayerBotPopulationRotationCheck':537,'PlayerBotPlayerZoneCheck':144}
+ 'PlayerBotGroundNavigationCheck':70,'PlayerBotCollisionPerformanceCheck':448,'PlayerBotFormationCheck':314,'PlayerBotWorldPerformanceCheck':2994,'PlayerBotShutdownCheck':17,'PlayerBotWorldRepairCheck':24,'PlayerBotSharedRepairCheck':141,'PlayerBotPopulationPipelineCheck':13,'PlayerBotPopulationRotationCheck':537,'PlayerBotPlayerZoneCheck':144}
 
 TESTS.update({'PlayerBotRosterBatchCheck':25, 'PlayerBotCheckpointCreationCheck':22, 'PlayerBotRaidCheck':1221})
 TESTS['PlayerBotPopulationScaleCheck']=64
@@ -43,7 +43,7 @@ TESTS['PlayerBotNameLookupCheck']=53
 TESTS['PlayerBotQuestCapabilityCheck']=40
 TESTS['PlayerBotLegionPresenceCheck']=47
 TESTS['PlayerBotAllianceControlCheck']=82
-TESTS['PlayerBotDecisionIsolationCheck']=32
+TESTS['PlayerBotDecisionIsolationCheck']=108
 TESTS['PlayerBotDecisionWorkersCheck']=8313
 TESTS['PlayerBotSupportOrderingCheck']=1019
 TESTS['PlayerBotActiveWorkerCheck']=3166

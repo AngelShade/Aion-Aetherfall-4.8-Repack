@@ -15,10 +15,16 @@ final class PlayerBotMeshRoute implements AutoCloseable {
     private static final org.slf4j.Logger LOG=org.slf4j.LoggerFactory.getLogger(PlayerBotMeshRoute.class);
     private static final int MAX_EXPANSIONS=4096, MAX_NODES=8192;
     private static Runtime runtime;
+    private static Runtime companionRuntime;
     private static Admission sharedAdmission;
+    private static Admission companionAdmission;
     static synchronized Admission admission(){
         if(sharedAdmission==null)sharedAdmission=new Admission(PlayerBotConfig.NAVMESH_MAX_QUERIES);
         return sharedAdmission;
+    }
+    static synchronized Admission companionAdmission(){
+        if(companionAdmission==null)companionAdmission=new Admission(PlayerBotConfig.COMPANION_NAVMESH_MAX_QUERIES);
+        return companionAdmission;
     }
     /** Loading demand, retained search state and runnable callbacks have separate custody.
      * Pinned Playerbots 037c014 TravelMgr::getPathStepFrom keeps PathGenerator local to an attempt;
@@ -81,16 +87,13 @@ final class PlayerBotMeshRoute implements AutoCloseable {
         }
     }
     private static final class Runtime {
-        final Semaphore slots;
-        final Admission admission;
         final PlayerBotNavmeshStore store;
         final Set<Integer> reported=java.util.concurrent.ConcurrentHashMap.newKeySet();
-        Runtime() {
-            long memory=memoryAllowance(PlayerBotConfig.NAVMESH_MEMORY_MB,java.lang.Runtime.getRuntime().maxMemory());
-            int queries=PlayerBotConfig.NAVMESH_MAX_QUERIES;
+        Runtime(boolean companion) {
+            long memory=memoryAllowance(companion?PlayerBotConfig.COMPANION_NAVMESH_MEMORY_MB:PlayerBotConfig.NAVMESH_MEMORY_MB,java.lang.Runtime.getRuntime().maxMemory());
+            int queries=companion?PlayerBotConfig.COMPANION_NAVMESH_MAX_QUERIES:PlayerBotConfig.NAVMESH_MAX_QUERIES;
             if(queries<1 || queries>256)throw new IllegalArgumentException("Invalid playerbot mesh query limit");
-            LOG.info("Playerbot navigation: shared lazy cache allowance={} MiB, road route cache={} KiB per loaded map, concurrent queries={}",memory,PlayerBotConfig.NAVMESH_ROUTE_CACHE_KB,queries);
-            admission=admission();slots=admission.slots;
+            LOG.info("Playerbot {} navigation: lazy cache allowance={} MiB, road route cache={} KiB per loaded map, concurrent queries={}",companion?"companion":"world",memory,PlayerBotConfig.NAVMESH_ROUTE_CACHE_KB,queries);
             store=new PlayerBotNavmeshStore(Path.of("data/navmesh"),memory*1024L*1024L,
                 task->ThreadPoolManager.getInstance().executeLongRunning(task));
         }
@@ -103,13 +106,17 @@ final class PlayerBotMeshRoute implements AutoCloseable {
         if(memory<64 || memory>=heapMiB)throw new IllegalArgumentException("Navmesh allowance must fit inside the configured JVM heap with room for server state (minimum 64 MiB)");
         return memory;
     }
-    private static synchronized Runtime runtime(){if(runtime==null)runtime=new Runtime();return runtime;}
-    static synchronized void shutdown(){if(runtime!=null)runtime.store.close();}
+    private static synchronized Runtime runtime(Admission admission){
+        if(admission==companionAdmission){if(companionRuntime==null)companionRuntime=new Runtime(true);return companionRuntime;}
+        if(runtime==null)runtime=new Runtime(false);return runtime;
+    }
+    static synchronized void shutdown(){if(runtime!=null)runtime.store.close();if(companionRuntime!=null)companionRuntime.store.close();}
     private final int world;
     private final Point start,goal;
     private Point target;
     private final PlayerBotMeshJourney journey;
     private final boolean ownsJourney;
+    private final Admission admission;
     private final float horizon;
     private Runtime host;
     private PlayerBotNavmeshStore.Lease lease;
@@ -128,7 +135,11 @@ final class PlayerBotMeshRoute implements AutoCloseable {
     private String reason="waiting for prepared map";
     PlayerBotMeshRoute(int world,Point start,Point goal,float horizon){this(world,start,goal,horizon,null);}
     PlayerBotMeshRoute(int world,Point start,Point goal,float horizon,PlayerBotMeshJourney journey){
+        this(world,start,goal,horizon,journey,admission());
+    }
+    PlayerBotMeshRoute(int world,Point start,Point goal,float horizon,PlayerBotMeshJourney journey,Admission admission){
         this.world=world;this.start=start;this.goal=goal;this.target=goal;this.horizon=horizon;proofOrigin=start;
+        this.admission=Objects.requireNonNull(admission);
         ownsJourney=journey==null;this.journey=ownsJourney?new PlayerBotMeshJourney():journey;this.journey.bind(world,goal);
     }
     boolean pending(){return !done;}
@@ -143,7 +154,7 @@ final class PlayerBotMeshRoute implements AutoCloseable {
     void advance(PlayerBotPathfinder.Ground ground,int allowance,BooleanSupplier expired) {
         if(done || allowance<4 || expired.getAsBoolean())return;
         int used=0;
-        if(host==null)host=runtime();
+        if(host==null)host=runtime(admission);
         // Short local movement has no cross-window journey to resolve. Long
         // travel owns the component itinerary; combat/local steering stays local.
         boolean journeyNeeded=coarseRequired || distance(start,goal)>horizon;
@@ -153,7 +164,7 @@ final class PlayerBotMeshRoute implements AutoCloseable {
             // small itineraries to wait for many shared terrain grants. Keep
             // the same funded deadline/admission; only this pure graph batch
             // has a larger operation cap. Native edge proof below is unchanged.
-            used=journey.advance(host.store,start,Math.max(allowance,8192),expired,host.admission);work+=used;reason=journey.reason();
+            used=journey.advance(host.store,start,Math.max(allowance,8192),expired,admission);work+=used;reason=journey.reason();
             if(!journey.ready() || used>0)return;
         }
         target=journeyNeeded?journey.target(start):goal;
@@ -162,7 +173,7 @@ final class PlayerBotMeshRoute implements AutoCloseable {
             if(baked!=null && !baked.points().isEmpty()){candidates=baked.points();bakedStart=baked.start();target=candidates.getLast();graphComplete=true;bakedCorridor=true;reason="proving prepared main corridor";}
         }
         if(query==null && candidates.isEmpty()) {
-            if(!host.admission.demand(this)){reason="waiting for prepared window admission";return;}
+            if(!admission.demand(this)){reason="waiting for prepared window admission";return;}
             if(request==null)request=host.store.request(world,start.x(),start.y(),windowRadius);
             var access=request.poll();
             if(access.status()!=PlayerBotNavmeshStore.Status.READY){
@@ -175,13 +186,13 @@ final class PlayerBotMeshRoute implements AutoCloseable {
                 return;
             }
             lease=access.lease();
-            if(!host.admission.retain(this)){reason="waiting for prepared search memory";return;}
+            if(!admission.retain(this)){reason="waiting for prepared search memory";return;}
         }
         if(candidates.isEmpty()){
             if(expired.getAsBoolean())return;
-            if(!host.admission.begin(this)){reason="waiting for prepared calculation turn";return;}
+            if(!admission.begin(this)){reason="waiting for prepared calculation turn";return;}
             try {used=advanceGraph(allowance,expired,used,journeyNeeded);}
-            finally {host.admission.end(this);}
+            finally {admission.end(this);}
         }
         while(!candidates.isEmpty() && !done && used<allowance && !expired.getAsBoolean()){
             if(cursor>=candidates.size()){finish();break;}
@@ -204,7 +215,7 @@ final class PlayerBotMeshRoute implements AutoCloseable {
     }
     private int advanceGraph(int allowance,BooleanSupplier expired,int used,boolean journeyNeeded){
         if(query==null){
-            query=new NavMeshQuery(lease.mesh());host.admission.releaseDemand(this);
+            query=new NavMeshQuery(lease.mesh());admission.releaseDemand(this);
             final NavMeshQuery boundedQuery=query;
             var filter=new DefaultQueryFilter(){
                 @Override public boolean passFilter(long ref,MeshTile tile,Poly poly){
@@ -296,7 +307,7 @@ final class PlayerBotMeshRoute implements AutoCloseable {
         }
         fallback=true;done=true;reason=why;proved.clear();candidates=List.of();releaseGraph();
     }
-    private void releaseSlot(){if(host!=null)host.admission.cancel(this);}
+    private void releaseSlot(){if(host!=null)admission.cancel(this);}
     private void releaseGraph(){query=null;if(request!=null){request.close();request=null;}if(lease!=null){lease.close();lease=null;}releaseSlot();}
     @Override public void close(){releaseGraph();if(ownsJourney)journey.close();done=true;}
     private static float[] position(Point p){return new float[]{p.x(),p.z(),p.y()};}

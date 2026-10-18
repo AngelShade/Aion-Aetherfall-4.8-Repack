@@ -32,6 +32,22 @@
   is editing the same source, preserve its changes and use an isolated build or wait for
   a stable handoff. Never overwrite a newer runtime with an older prepared package.
 
+## Efficient chat workflow
+
+- Apply these defaults without requiring the user to repeat them. Infer routine scope
+  from the current request and the original-only rule; ask only for material ambiguity.
+- Select only the relevant installed Aion skill(s) automatically. Load references as
+  needed; do not inspect unrelated plugins, old chats or whole inventories for context.
+- Reuse relevant evidence and passing checks already obtained for unchanged files.
+  Search narrowly, bound command output, and expand investigation only when findings
+  require it. Concise replies must not replace completing authorized work.
+- After meaningful work, update only the affected current-state entry with the result,
+  exact receipt/output pointer and remaining work. If interrupted, leave a brief handoff
+  there so a new chat can resume without reconstructing this conversation.
+- Keep updates and final replies brief and concrete. Respect the user's selected model
+  and reasoning effort; do not claim instructions change model settings, erase context
+  or automatically create fresh chats. Do not create background tasks to save tokens.
+
 ## Build and delivery
 
 - Maintained source -> normal Maven/native builder -> exact builder outputs -> backup,
@@ -78,7 +94,8 @@
   Search that index, then read only the matching snapshot lines. Do not load the snapshot
   automatically or append new installation journals to this file.
 - Installed client/server feature evidence: `docs/INSTALLED_MODS.md` and `.json`.
-- Playerbots port work: relevant sections of `docs/PLAYERBOTS_PORT_SCOPE.md`,
+- Playerbots current priorities/regression contracts: `docs/PLAYERBOTS_CURRENT_STATUS.md`;
+  port details: relevant sections of `docs/PLAYERBOTS_PORT_SCOPE.md`,
   `docs/PLAYERBOTS_SUBSYSTEM_INVENTORY.md` and `docs/PLAYERBOTS_VALIDATION_20261004.md`.
 - Missing native motions: `docs/MOTION_TIMES.md`; source/deployment resources must agree.
 - Repack/setup/release work: maintained `tools/distribution` scripts and

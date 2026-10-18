@@ -67,7 +67,9 @@ public class SM_QUEST_ACTION extends AionServerPacket {
 	@Override
 	protected void writeImpl(AionConnection con) {
 		QuestTemplate questTemplate = DataManager.QUEST_DATA.getQuestById(questId);
-		if (questTemplate != null && questTemplate.getExtraCategory() != QuestExtraCategory.NONE)
+		// Exchange quests omit ordinary progress notifications, but abandonment
+		// must remove an entry already received through the login quest list.
+		if (questTemplate != null && questTemplate.getExtraCategory() != QuestExtraCategory.NONE && actionType != ActionType.ABANDON)
 			return;
 		writeC(actionType.getId());
 		writeD(questId);

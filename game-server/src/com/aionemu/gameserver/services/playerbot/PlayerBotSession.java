@@ -48,6 +48,12 @@ public final class PlayerBotSession {
 	private volatile Role role;
 	private Order order = Order.FOLLOW;
 	private final PlayerBotForcedFollow forcedFollow = new PlayerBotForcedFollow();
+	private final PlayerBotRecall.FollowProgress followProgress = new PlayerBotRecall.FollowProgress();
+	private final PlayerBotFollowMotion followMotion;
+	/** Full navigation owns following while every direct steering candidate is blocked. */
+	private boolean followFallback;
+	private long nextDirectFollowCheck, engagedAt;
+	private boolean engagedValue;
 	boolean forcedFollow() { return forcedFollow != null && forcedFollow.active(); }
 	private boolean areaSkills;
 	private boolean consumables = true;
@@ -92,7 +98,8 @@ public final class PlayerBotSession {
 		this.generated = generated;
 		restorePassives = bot.isDead();
 		role = roleFor(bot.getPlayerClass());
-		navigation = new PlayerBotNavigation(bot);
+		navigation = new PlayerBotNavigation(bot,!autonomous());
+		followMotion = new PlayerBotFollowMotion(owner, bot);
 		if (world()) {
 			consumables = true; autoLoot = true; autoGear = true; questing = true;
 			return;
@@ -220,6 +227,7 @@ public final class PlayerBotSession {
 		// An unchanged command must not abort the committed native cast. A
 		// repeated FOLLOW still clears an explicit mission/attack when present.
 		if (!interrupt && order == value && mission == null && commandedTarget == 0 && !PlayerBotRecall.recalling(this)) return;
+		if(followProgress!=null)followProgress.clear();
 		PlayerBotArbitration.clear(engine);
 		stand();
 		order = value; mission = null; commandedTarget = 0; questTarget = 0; nextDecision = 0;
@@ -322,6 +330,7 @@ public final class PlayerBotSession {
 	}
 	synchronized boolean tick() {
 		if (closing) return true;
+		if(followProgress!=null && !canRecoverFollow())followProgress.clear();
 		if(!worldActivity())return true;
 		PlayerBotArbitration.context(engine, List.of(owner.getWorldId(), owner.getInstanceId(),
 			bot.getWorldId(), bot.getInstanceId(), owner.isSpawned(), bot.isSpawned(), owner.isDead(), bot.isDead(),
@@ -332,14 +341,14 @@ public final class PlayerBotSession {
 		if (bot.isUsingFlightTransporterOrWindstream()) { status="waiting for native scripted flight arrival"; return true; }
 		if(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController platformMover && platformMover.ridingPlatform()) {
 			if(!autonomous() && mission==null && (order==Order.FOLLOW || order==Order.PASSIVE)
-				&& (forcedFollow() || order==Order.PASSIVE || !bot.getController().isInCombat() && !owner.getController().isInCombat())
+				&& (forcedFollow() || order==Order.PASSIVE || !partyEngaged())
 				&& navigation.resumeCompanionFollow(owner,formationSlot)) {
 				status="returning directly to owner";return true;
 			}
 			status="travelling on moving platform";return true;
 		}
 		if (!autonomous() && bot.isSpawned() && owner.isSpawned()
-			&& (forcedFollow() || order==Order.PASSIVE || !bot.getController().isInCombat() && !owner.getController().isInCombat()))
+			&& (forcedFollow() || order==Order.PASSIVE || !partyEngaged()))
 			PlayerBotFlight.synchronize(owner, bot, order);
 		if(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController heightMover && heightMover.traversingHeight()) {
 			status="completing verified jump or descent";return true;
@@ -396,12 +405,19 @@ public final class PlayerBotSession {
 			}
 			restorePassives = false; nextSkillRefresh = 0;
 		}
+		if (!autonomous() && followMotion != null) followMotion.record();
+		// One enemy snapshot drives both combat and following. Like WoW's combat
+		// state, following yields only to actual attackers of the party (or an
+		// explicit attack), never to Aion's ten-second post-hit combat timer, which
+		// left companions standing after every fight while the owner walked away.
+		List<Npc> enemies = new ArrayList<>();
+		bot.getKnownList().forEachNpc(npc -> {
+			if ((!worldSleepRequested || settlingEnemy(npc)) && validEnemy(npc, party, explicitTarget(npc))) enemies.add(npc);
+		});
+		boolean companionFollow = companionFollowWanted();
 		// canAttack() is false during a cast too. Shed an optional travel buff
 		// before deriving crowd control, otherwise it blocks following as if rooted.
-		if (!autonomous() && mission==null && (order==Order.FOLLOW || order==Order.PASSIVE)
-			&& (owner.getMoveController().isInMove() || PlayerBotFormation.needsFollow(owner,bot,formationSlot))
-			&& !owner.isDead() && !bot.getController().isInCombat() && !owner.getController().isInCombat()
-			&& bot.isCasting() && bot.canPerformMove()) {
+		if (companionFollow && enemies.isEmpty() && bot.isCasting() && bot.canPerformMove()) {
 			var cast=bot.getCastingSkill();
 			if (cast!=null && !PlayerBotSkills.questTransformation(cast.getSkillTemplate())) {
 				var kind=PlayerBotSkills.classify(cast.getSkillTemplate());
@@ -418,7 +434,7 @@ public final class PlayerBotSession {
 		// complete feature installation, never through an unrelated AI update.
 		loot.passRoll(bot);
 		if(!autonomous() && (order==Order.FOLLOW || order==Order.PASSIVE)
-			&& (order==Order.PASSIVE || !bot.getController().isInCombat() && !owner.getController().isInCombat())
+			&& (order==Order.PASSIVE || enemies.isEmpty())
 			&& owner.isInGlidingState() && bot.isInGlidingState()) {
 			// Actual leader glide owns movement even when it began over a road.
 			// Buffs, gathering and a stale combat/quest action cannot replace it.
@@ -449,10 +465,6 @@ public final class PlayerBotSession {
    if(recipient!=null){double urgency=priority(entry,recipient,false,support);if(urgency>0)supportNeeded=true;if(urgency>=MOVE){urgentSupport=true;break;}}
   }
   if(!bot.isCasting())supporting=supportNeeded;
-		List<Npc> enemies = new ArrayList<>();
-		bot.getKnownList().forEachNpc(npc -> {
-			if ((!worldSleepRequested || settlingEnemy(npc)) && validEnemy(npc, party, explicitTarget(npc))) enemies.add(npc);
-		});
 		boolean materialFlight=PlayerBotQuestMaterials.flightPending(this);
 		boolean questCommitmentSafe = questing && !supportNeeded && order == Order.FOLLOW && !incapacitated && !owner.isDead()
 			&& !(!autonomous() && owner.getMoveController().isInMove())
@@ -465,14 +477,9 @@ public final class PlayerBotSession {
 		if (PlayerBotQuestObjects.pending(bot) && PlayerBotQuestObjects.tick(this,navigation,questActionsAllowed,questCommitmentSafe)) { PlayerBotWorldActivities.interacting(bot);status="finishing native quest object";return true; }
 		var travelHazards = PlayerBotHazards.visible(bot);
 		navigation.hazards(travelHazards);
-		boolean companionRegroup = !autonomous() && mission==null && !owner.isDead()
-			&& (order==Order.FOLLOW || order==Order.PASSIVE)
-			&& PlayerBotFormation.needsFollow(owner,bot,formationSlot);
 		// Party control takes precedence over optional independent planning.
 		// Native interactions already in progress, combat and urgent aid retain custody.
-		if (!autonomous() && (order==Order.FOLLOW || order==Order.PASSIVE) && !incapacitated
-			&& !owner.isDead() && (owner.getMoveController().isInMove() || companionRegroup) && enemies.isEmpty()
-			&& !owner.getController().isInCombat() && !bot.getController().isInCombat()
+		if (companionFollow && !incapacitated && enemies.isEmpty()
 			&& !urgentSupport && !materialFlight && !bot.isCasting() && !bot.isTrading() && !bot.isLooting()
 			&& !bot.getController().hasScheduledTask(com.aionemu.gameserver.model.TaskId.ITEM_USE)
 			&& !bot.getController().hasScheduledTask(com.aionemu.gameserver.model.TaskId.ACTION_ITEM_NPC)
@@ -576,8 +583,7 @@ public final class PlayerBotSession {
 		}
 		// Follow is a moving-target controller, not a spell action. Native action
 		// cooldowns must not park a healthy companion while its owner walks away.
-		if (!autonomous() && (order==Order.FOLLOW || order==Order.PASSIVE) && !incapacitated
-			&& !owner.isDead() && (owner.getMoveController().isInMove() || companionRegroup) && enemies.isEmpty()
+		if (companionFollow && !incapacitated && enemies.isEmpty()
 			&& !urgentSupport && !escapeHazard && !bot.isTrading() && !bot.isLooting()) {
 			if (bot.isCasting()) {
 				var cast=bot.getCastingSkill();
@@ -791,11 +797,11 @@ public final class PlayerBotSession {
 		if(!combat && PlayerBotHeightTraversal.followRequired(autonomous(),order,!owner.isDead(),!incapacitated && bot.canPerformMove(),mission!=null,
 			owner.getX()-bot.getX(),owner.getY()-bot.getY(),owner.getZ()-bot.getZ()))
 			triggers.add(trigger(new SimpleAction("follow owner across height", () -> !bot.isCasting() && !bot.isLooting() && !bot.isTrading(),
-				() -> {stand();return navigation.follow(owner,formationSlot);}), PlayerBotHeightTraversal.FOLLOW_PRIORITY));
+				() -> {stand();return followOwner();}), PlayerBotHeightTraversal.FOLLOW_PRIORITY));
 		triggers = strategyPlan.triggers("follow and guard", State.NON_COMBAT);
 		if (!autonomous() && !incapacitated && !combat && !owner.isDead() && (order == Order.FOLLOW || order == Order.PASSIVE) && (mission == null || hp(bot) < 85 || mp(bot) < 60 || (!autonomous() && owner.getMoveController().isInMove())))
-			strategyPlan.defaults("follow and guard", new SimpleAction("follow owner", () -> PlayerBotFormation.needsFollow(owner,bot,formationSlot),
-				() -> navigation.follow(owner, formationSlot)), PlayerBotFollowIntent.priority(traveling), State.NON_COMBAT);
+			strategyPlan.defaults("follow and guard", new SimpleAction("follow owner", this::followNeeded,
+				this::followOwner), PlayerBotFollowIntent.priority(traveling), State.NON_COMBAT);
 		if (!incapacitated && !combat && order == Order.GUARD && guardPosition != null)
 			strategyPlan.defaults("follow and guard", new SimpleAction("return to guard", () -> PositionUtil.getDistance(bot, guardPosition.x(), guardPosition.y(), guardPosition.z()) > 2,
 				() -> navigation.move(guardPosition.x(), guardPosition.y(), guardPosition.z())), DEFAULT, State.NON_COMBAT);
@@ -818,11 +824,85 @@ public final class PlayerBotSession {
 		if(!executed && !(retain && navigation.retainCurrent()))navigation.stop();
 		return executed;
 	}
-	/** Early travel already hands movement to FOLLOW. The later ordinary decision
-	 * must not revoke that new corridor using a combat snapshot from before it. */
+	/** The single follow rule shared by the session and the mover's steering. */
+	private boolean followNeeded() {
+		var slot=PlayerBotFormation.destination(owner,bot,formationSlot);
+		return followMotion==null ? PlayerBotFormation.needsFollow(owner,bot,slot) : followMotion.needed(slot);
+	}
+	/** Companion following is wanted while the owner moves or the bot is off its
+	 * slot. A quest mission keeps its own travel unless the owner walks away. */
+	private boolean companionFollowWanted() {
+		boolean wanted=!autonomous() && !owner.isDead() && (order==Order.FOLLOW || order==Order.PASSIVE)
+			&& (mission==null ? followNeeded() : owner.getMoveController().isInMove());
+		if(!wanted)followFallback=false;
+		return wanted;
+	}
+	/** WoW combat state for the early custody checks: a live NPC actually hating
+	 * the party (or an explicit attack order), not the native post-hit timer. */
+	private boolean partyEngaged() {
+		if(autonomous())return bot.getController().isInCombat();
+		long now=System.currentTimeMillis();
+		if(now-engagedAt<100)return engagedValue;
+		List<Player> members=PlayerBotTeams.members(owner);
+		boolean[] found={commandedTarget!=0};
+		if(!found[0])bot.getKnownList().forEachNpc(npc->{
+			if(found[0] || npc.isDead() || !npc.isSpawned() || npc.getWorldId()!=bot.getWorldId() || npc.getInstanceId()!=bot.getInstanceId()
+				|| !PositionUtil.isInRange(owner,npc,45))return;
+			for(Player member:members)
+				if(npc.getAggroList().isHating(member) || member.getSummon()!=null && npc.getAggroList().isHating(member.getSummon())){found[0]=true;return;}
+		});
+		engagedAt=now;engagedValue=found[0];
+		return engagedValue;
+	}
+	/** WoW FollowAction: attach one persistent follow and let the mover chase
+	 * the moving slot. Full navigation (routes, jumps, lifts) takes over only
+	 * while direct steering is blocked, and native regroup after the stuck delay. */
 	private boolean followOwner() {
 		decisionCombat=false;decisionTarget=0;
-		return navigation.follow(owner,formationSlot);
+		long now=System.currentTimeMillis();
+		boolean wanted=followNeeded();
+		PlayerBotFormation.following(owner,bot,formationSlot);
+		boolean moved;
+		boolean direct=followMotion!=null && !autonomous() && !bot.isFlying() && !owner.isFlying()
+			&& !owner.isInGlidingState() && !bot.isInGlidingState() && !navigation.waitingForTransport()
+			&& !(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover
+				&& (mover.traversingHeight() || mover.ridingPlatform()));
+		if(direct && followFallback && now>=nextDirectFollowCheck) {
+			nextDirectFollowCheck=now+1000;
+			if(followMotion.directlyReachable(PlayerBotFormation.destination(owner,bot,formationSlot)))followFallback=false;
+		}
+		if(direct && !followFallback) {
+			if(!followMotion.attached()){navigation.stop();followMotion.attach();}
+			if(wanted && followMotion.blockedFor(now)>=700) {
+				// Every direct candidate is blocked: hand over to full navigation.
+				followFallback=true;nextDirectFollowCheck=now+1000;
+				moved=navigation.follow(owner,formationSlot);
+			} else moved=wanted && followMotion.attached();
+		} else moved=navigation.follow(owner,formationSlot);
+		// Physical progress, not a new route or owner motion, renews the stuck timer.
+		boolean recoverable=wanted && canRecoverFollow() && (direct && !followFallback || !navigation.atFollowPosition());
+		if(followProgress.stalled(now,bot.getWorldId(),bot.getInstanceId(),
+			new PlayerBotNavigation.Point(bot.getX(),bot.getY(),bot.getZ()),recoverable,
+			com.aionemu.gameserver.configs.main.PlayerBotConfig.COMPANION_STUCK_RECALL_MS)) {
+			followProgress.clear(); // A refused placement gets another complete walking attempt.
+			if(PlayerBotRecall.recoverFollow(this)){PlayerBotArbitration.clear(engine);navigation.stop();return true;}
+		}
+		return moved;
+	}
+	private boolean canRecoverFollow() {
+		return !autonomous() && mission==null && (order==Order.FOLLOW || order==Order.PASSIVE)
+			&& !closing && owner.isOnline() && owner.isSpawned() && bot.isSpawned() && !owner.isDead() && !bot.isDead()
+			&& owner.getWorldId()==bot.getWorldId() && owner.getInstanceId()==bot.getInstanceId()
+			&& !owner.isFlying() && !bot.isFlying() && !owner.isInGlidingState() && !bot.isInGlidingState()
+			&& !partyEngaged()
+			&& bot.canPerformMove() && !bot.isCasting() && !bot.isTrading() && !bot.isLooting()
+			&& !bot.isUsingFlightTransporterOrWindstream() && !owner.isUsingFlightTransporterOrWindstream()
+			&& !bot.getController().hasScheduledTask(com.aionemu.gameserver.model.TaskId.ITEM_USE)
+			&& !bot.getController().hasScheduledTask(com.aionemu.gameserver.model.TaskId.ACTION_ITEM_NPC)
+			&& (bot.getInteractionTask()==null || !bot.getInteractionTask().isInProgress())
+			&& !(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover
+				&& (mover.traversingHeight() || mover.ridingPlatform()))
+			&& !navigation.waitingForTransport() && PlayerBotPartyBehavior.canRelocate(this);
 	}
 
 	private boolean withdrawToOwner(long now) {
@@ -832,7 +912,7 @@ public final class PlayerBotSession {
 		boolean hazard = PlayerBotHazards.risk(new PlayerBotNavigation.Point(bot.getX(), bot.getY(), bot.getZ()), hazards) > 0;
 		boolean movable = bot.canPerformMove() && !owner.isDead();
 		if (forcedFollow.regrouped(now, owner.getMoveController().isInMove(),
-			PlayerBotFormation.needsFollow(owner, bot, formationSlot),
+			followNeeded(),
 			owner.getController().isInCombat() || bot.getController().isInCombat(), movable && !hazard)) {
 			PlayerBotArbitration.clear(engine); status = "regrouped with owner"; return false;
 		}
