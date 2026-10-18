@@ -31,14 +31,23 @@ public final class PlayerBotFormation {
    var point=PlayerBotFormationLayout.destination(owner,bot,s.angle);
    PlayerBotFollowIntent.remember(owner,bot,s.angle,point);return point;}
  }
- /** Arrivals require support connected to the leader's floor. Failure retries;
-  * never replace an unsafe slot with the leader's exact position. */
+ /** Formation is a placement preference, not permission to recruit/summon.
+  * Try nearby connected space, then use the already occupied owner position. */
  static PlayerBotNavigation.Point arrival(Player owner,Player bot) {
   var point=destination(owner,bot,0);
   if(owner.isFlying())return point;
-  var reached=com.aionemu.gameserver.world.geo.GeoService.getInstance().findGroundMovementCollision(owner.getWorldId(),owner.getInstanceId(),owner.getX(),owner.getY(),owner.getZ(),point.x(),point.y(),point.z());
-  if(reached==null || Math.hypot(reached.x-owner.getX(),reached.y-owner.getY())<1.5)return null;
-  return new PlayerBotNavigation.Point(reached.x,reached.y,reached.z);
+  var geo=com.aionemu.gameserver.world.geo.GeoService.getInstance();
+  double angle=Math.atan2(point.y()-owner.getY(),point.x()-owner.getX());
+  for(int attempt=0;attempt<9;attempt++) {
+   float x=attempt==0?point.x():owner.getX()+(float)(Math.cos(angle+(attempt-1)*Math.PI/4)*1.2);
+   float y=attempt==0?point.y():owner.getY()+(float)(Math.sin(angle+(attempt-1)*Math.PI/4)*1.2);
+   var reached=geo.findGroundMovementCollision(owner.getWorldId(),owner.getInstanceId(),owner.getX(),owner.getY(),owner.getZ(),x,y,owner.getZ());
+   if(reached!=null && Float.isFinite(reached.x) && Float.isFinite(reached.y) && Float.isFinite(reached.z)
+    && Math.hypot(reached.x-owner.getX(),reached.y-owner.getY())>=.6
+    && owner.getWorldMapInstance().getRegion(reached.x,reached.y,reached.z)!=null)
+    return new PlayerBotNavigation.Point(reached.x,reached.y,reached.z);
+  }
+  return new PlayerBotNavigation.Point(owner.getX(),owner.getY(),owner.getZ());
  }
  static boolean needsFollow(Player owner,Player bot,int slot) {
   return needsFollow(owner,bot,destination(owner,bot,slot));
@@ -56,19 +65,22 @@ public final class PlayerBotFormation {
  public static boolean sendUpdate(Player bot) {State s=STATES.get(bot.getObjectId());if(s==null)return true;long now=System.currentTimeMillis();if(now-s.packet<200)return false;s.packet=now;return true;}
  static double speed(double nativeSpeed,double leaderSpeed,double distance,boolean moving) {
   if(!Double.isFinite(nativeSpeed)||!Double.isFinite(leaderSpeed)||nativeSpeed<=0)return 1;
-  if(!moving || leaderSpeed<=0)return 1;
-  double wanted=leaderSpeed;
-  if(Double.isFinite(distance) && distance>1)wanted*=Math.min(1.5,1+(distance-1)*.08);
-  // MoveFollow also matches a slower leader. Forcing a minimum native speed
-  // makes a faster companion repeatedly arrive, stop and restart.
+  double wanted=moving && leaderSpeed>0?leaderSpeed:nativeSpeed;
+  double maximum=com.aionemu.gameserver.configs.main.PlayerBotConfig.COMPANION_CATCHUP_MULTIPLIER;
+  if(Double.isFinite(maximum) && maximum>1 && Double.isFinite(distance) && distance>1) {
+   double catchup=Math.max(nativeSpeed,wanted)*maximum;
+   wanted+=(catchup-wanted)*Math.min(1,(distance-1)/8);
+  }
+  // At the role slot, match a slower moving leader instead of overshooting.
+  // A stopped leader still needs rapid regrouping, rather than losing the bonus.
   return wanted/nativeSpeed;
  }
  public static double speedMultiplier(Player bot,float x,float y,float z) {
   State s=STATES.get(bot.getObjectId());if(s==null || s.following<System.currentTimeMillis() || !PlayerBotFollowIntent.permitsSpeed(bot))return 1;
   Player owner=com.aionemu.gameserver.world.World.getInstance().getPlayer(s.owner);
-  if(owner==null || !bot.canPerformMove()
+  if(owner==null || !owner.isOnline() || !owner.isSpawned() || owner.isDead() || !bot.canPerformMove()
    || bot.getEffectController().isUnderFear() || bot.getEffectController().isConfused() || bot.getEffectController().isAbnormalSet(com.aionemu.gameserver.skillengine.effect.AbnormalState.SLOW)
-   || owner.getWorldId()!=bot.getWorldId() || owner.getInstanceId()!=bot.getInstanceId() || PositionUtil.getDistance(owner,x,y,z)>20)return 1;
+   || owner.getWorldId()!=bot.getWorldId() || owner.getInstanceId()!=bot.getInstanceId())return 1;
   var goal=PlayerBotFollowIntent.goal(bot);if(goal==null)return 1;
   return speed(bot.getGameStats().getMovementSpeed().getCurrent()/1000f,owner.getGameStats().getMovementSpeedFloat(),PositionUtil.getDistance(bot,goal.x(),goal.y(),goal.z()),owner.getMoveController().isInMove());
  }

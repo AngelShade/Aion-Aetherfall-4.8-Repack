@@ -1,0 +1,26 @@
+{
+  "name": "Protectors Hall Teleport Statue",
+  "destinationName": "Protectors Hall",
+  "npcId": 990180,
+  "modelNpcId": 730016,
+  "npcNameId": 990180001,
+  "destinationNameId": 990180002,
+  "npcString": "STR_AETHERFALL_PROTECTORS_HALL_STATUE",
+  "destinationString": "STR_AETHERFALL_PROTECTORS_HALL",
+  "mapId": 110010000,
+  "world": "LC1",
+  "spawn": {"x": 1876.0426, "y": 1526.5166, "z": 811.08057, "heading": 71},
+  "hotspotId": 86,
+  "airportId": 9001,
+  "airlineId": 9001,
+  "airport": "LC1_Airport_Aetherfall_ProtectorsHall",
+  "airline": "LC1_Aetherfall_ProtectorsHall",
+  "hotspot": "HOTSPOT_LC1_AETHERFALL_PROTECTORS_HALL",
+  "hotspotBasePrice": 1934,
+  "connections": [
+    {"airlineId": 101, "npcId": 730015, "airportId": 24, "airport": "LC1_Airport_SPOT_Bank", "fee": 200},
+    {"airlineId": 102, "npcId": 730016, "airportId": 25, "airport": "LC1_Airport_SPOT_Library", "fee": 200},
+    {"airlineId": 115, "npcId": 730264, "airportId": 105, "airport": "LC1_Airport_SPOT_Dock", "fee": 800}
+  ],
+  "notes": "Custom additional statue requested at the supplied upper-floor coordinates. Native existing model, guide, interaction, city fares and teleport paths are reused. Landing is two metres in front of the statue, at the supplied floor height."
+}

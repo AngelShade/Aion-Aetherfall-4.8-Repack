@@ -50,3 +50,10 @@ AGENTS.md
 /docs
 /Aetherfall Hub.exe
 /OriginalHub.json
+
+# Keep the current Playerbots work map with the maintained source.
+!/docs/
+/docs/*
+!/docs/PLAYERBOTS_CURRENT_STATUS.md
+!/docs/PLAYERBOTS_FAST_CATCHUP_20261018.md
+!/docs/PLAYERBOTS_COMPANION_PURSUIT_20261018.md

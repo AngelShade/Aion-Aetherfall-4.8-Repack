@@ -3,6 +3,9 @@ package com.aionemu.gameserver.configs.main;
 import com.aionemu.commons.configuration.Property;
 
 public final class PlayerBotConfig {
+ /** Custom catch-up while a companion owns an admitted follow movement. */
+ @Property(key = "gameserver.playerbots.companion.catchup_multiplier", defaultValue = "4")
+ public static float COMPANION_CATCHUP_MULTIPLIER = 4;
  @Property(key = "gameserver.playerbots.social.legion_invites", defaultValue = "true")
  public static boolean CHAT_LEGION_INVITES = true;
  @Property(key = "gameserver.playerbots.navigation.platform.queue_limit", defaultValue = "8")

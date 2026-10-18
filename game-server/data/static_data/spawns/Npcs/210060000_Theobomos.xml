@@ -1803,7 +1803,7 @@
 		</spawn>
 		<!-- Cursed Zirius -->
 		<spawn npc_id="214576" respawn_time="295">
-			<temporary_spawn spawn_time="21.*.*" despawn_time="4.*.*"/>
+			<temporary_spawn spawn_time="22.*.*" despawn_time="9.*.*"/>
 			<spot x="1531.68" y="279.733" z="102.517" h="102"/>
 		</spawn>
 		<!-- Danais -->
@@ -7327,7 +7327,7 @@
 		</spawn>
 		<!-- Zirius -->
 		<spawn npc_id="798213" respawn_time="295">
-			<temporary_spawn spawn_time="4.*.*" despawn_time="21.*.*"/>
+			<temporary_spawn spawn_time="9.*.*" despawn_time="22.*.*"/>
 			<spot x="1531.68" y="279.733" z="102.517" h="102"/>
 		</spawn>
 		<!-- Tersilla -->

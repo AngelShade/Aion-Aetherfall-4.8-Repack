@@ -1364,5 +1364,9 @@
 		<!-- <spawn npc_id="209676" respawn_time="295">
 			<spot x="1366.524" y="1480.733" z="569.0385" static_id="1" />
 		</spawn> -->
+		<!-- Aetherfall: Protectors Hall Teleport Statue (upper floor) -->
+		<spawn npc_id="990180" respawn_time="295">
+			<spot x="1876.0426" y="1526.5166" z="811.08057" h="71"/>
+		</spawn>
 	</spawn_map>
 </spawns>

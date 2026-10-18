@@ -87957,7 +87957,7 @@
 		</equipment>
 		<bound_radius front="0.35" side="0.35" upper="1.8" />
 	</npc_template>
-	<npc_template npc_id="214576" level="50" name="cursed zirius" name_id="318055" height="1.07" group_drop="ZAIF" rank="EXPERT" rating="NORMAL" race="BEAST" tribe="AGGRESSIVESINGLEMONSTER" ai="aggressive" srange="7" sangle="240" arange="2" attack_speed="1938" hpgauge="5" cancel_level="80">
+	<npc_template npc_id="214576" level="50" name="cursed zirius" name_id="318055" height="1.07" group_drop="ZAIF" rank="EXPERT" rating="NORMAL" race="BEAST" tribe="AGGRESSIVESINGLEMONSTER" ai="cursed_zirius" srange="7" sangle="240" arange="2" attack_speed="1938" hpgauge="5" cancel_level="80">
 		<stats maxHp="13036">
 			<speeds walk="1.084" group_walk="1.084" run="7.23" run_fight="5.5" group_run_fight="7.23" />
 		</stats>
@@ -596419,5 +596419,11 @@
 		<stats maxHp="168000000" msup="1335" />
 		<bound_radius front="2.3" side="2.3" upper="12" />
 		<talk_info distance="5" can_talk_invisible="false" />
+	</npc_template>
+	<!-- Aetherfall: Protectors Hall upper-floor teleport statue -->
+	<npc_template npc_id="990180" level="1" name="protectors hall teleport statue" name_id="990180001" height="2" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" tribe="GENERAL" type="GENERAL" ai="general" srange="20" sangle="0" attack_speed="2000" hpgauge="3">
+		<stats maxHp="172" />
+		<bound_radius front="0.25" side="0.35" upper="2" />
+		<talk_info distance="6" is_dialog="true" func_dialogs="44" can_talk_invisible="false" />
 	</npc_template>
 </npc_templates>

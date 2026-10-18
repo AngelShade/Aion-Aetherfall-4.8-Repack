@@ -331,6 +331,11 @@ public final class PlayerBotSession {
 		if (PlayerBotHeadlessFlight.tick(bot)) { status="following native flight transport"; return true; }
 		if (bot.isUsingFlightTransporterOrWindstream()) { status="waiting for native scripted flight arrival"; return true; }
 		if(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController platformMover && platformMover.ridingPlatform()) {
+			if(!autonomous() && mission==null && (order==Order.FOLLOW || order==Order.PASSIVE)
+				&& (forcedFollow() || order==Order.PASSIVE || !bot.getController().isInCombat() && !owner.getController().isInCombat())
+				&& navigation.resumeCompanionFollow(owner,formationSlot)) {
+				status="returning directly to owner";return true;
+			}
 			status="travelling on moving platform";return true;
 		}
 		if (!autonomous() && bot.isSpawned() && owner.isSpawned()
@@ -393,7 +398,8 @@ public final class PlayerBotSession {
 		}
 		// canAttack() is false during a cast too. Shed an optional travel buff
 		// before deriving crowd control, otherwise it blocks following as if rooted.
-		if (!autonomous() && (order==Order.FOLLOW || order==Order.PASSIVE) && owner.getMoveController().isInMove()
+		if (!autonomous() && mission==null && (order==Order.FOLLOW || order==Order.PASSIVE)
+			&& (owner.getMoveController().isInMove() || PlayerBotFormation.needsFollow(owner,bot,formationSlot))
 			&& !owner.isDead() && !bot.getController().isInCombat() && !owner.getController().isInCombat()
 			&& bot.isCasting() && bot.canPerformMove()) {
 			var cast=bot.getCastingSkill();

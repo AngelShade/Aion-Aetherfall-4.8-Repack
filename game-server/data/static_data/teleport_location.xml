@@ -286,4 +286,6 @@
 	<teleloc_template loc_id="435" mapid="210070000" name="Perkin Chase" name_id="404640" posX="2780.006" posY="2993.177" posZ="274.875" heading="18" />
 	<teleloc_template loc_id="436" mapid="210070000" name="Danuar Sanctuary Inspector Camp" name_id="404641" posX="2103.18" posY="2294.388" posZ="294.528" heading="72" />
 	<teleloc_template loc_id="437" mapid="210070000" name="Howling Cauldron" name_id="404642" posX="132.85" posY="2736.049" posZ="212.254" heading="52" />
+	<!-- Aetherfall: two metres in front of the Protectors Hall statue -->
+	<teleloc_template loc_id="9001" mapid="110010000" name="Protectors Hall" name_id="990180002" posX="1874.365259" posY="1525.427322" posZ="811.08057" heading="71"/>
 </teleport_location>

@@ -1,5 +1,10 @@
 # Playerbots subsystem inventory and dependency plan
 
+**Current priorities and status:** [Playerbots work map](PLAYERBOTS_CURRENT_STATUS.md),
+reviewed 18 October 2026. The dated delivery records and matrices below are
+historical evidence, not a current unfinished-work queue. Later source/receipts
+supersede their “next”, “absent” and “current cumulative runtime” statements.
+
 Latest shared-memory follow-up (18 October): bounded map-owned road result cache,
 native party/alliance role snapshots and actual final-edge follow retention.
 Heap and mesh shares are owner configurable; live CPU/RAM acceptance pending.
@@ -255,8 +260,8 @@ acceptance is separate. Settings/IDs/progress and all earlier mods are preserved
 
 ## Current audit repair - 10 October 2026
 
-This is the authoritative current matrix; chronological records below describe
-older release boundaries. PB-REPAIR-AUDIT-022 is installed offline with coordinated
+This matrix describes the 10 October release boundary; the linked current work
+map supersedes its current-status claims. PB-REPAIR-AUDIT-022 was installed with coordinated
 CAST-023/ANTIHACK-024 in receipt playerbots-source-build-20261010-212205-483239.
 All 53 artifact-bound suites and independent delivery verification pass; gameplay
 acceptance remains user testing.
@@ -271,7 +276,7 @@ acceptance remains user testing.
 | Economy | Earned loot/XP/gear, supplies/vendors, owned gifts/public quoted trade; private warehouse list/deposit/withdraw, requested legion list/deposit, requested owned mail | Legion storage is deposit-oriented; world COD, automatic CheckMail/guild-task mail, broad economy and professions remain separate |
 | Encounters/PvP | Native hazard/role adapters and Steel Rake slice | Broad encounters partial; PvP deferred by user policy |
 | Headless diagnostics (022) | Healthy registered leased spawned actors distinguished from disconnected humans; missing registration/lease, held saves and stalled work remain visible | Bot health deliberately does not require Player.isOnline(), which means a real client connection |
-| Release (022) | Normal complete Maven output; mandatory fixture compile/run and release-tool regressions; artifact/runner/fixture/individual-result/report binding before copy; immutable inputs, handler/static/linkage/preservation/offline/recovery gates | Missing, failed or stale evidence rejects new installs. Legacy receipts are marked unbound historical evidence. Offline checks do not establish gameplay acceptance |
+| Release (022), historical | The recorded release used artifact-bound fixtures, tooling and preservation checks | Current AGENTS.md/workflow governs new work: normal builder, necessary focused checks, backup/affected-file copy/hash; no full suites/browser/new tests by default. Historical test counts do not establish current gameplay acceptance. |
 
 All user config values and native IDs/progress remain authoritative. See the
 [audit repair record](PLAYERBOTS_AUDIT_REPAIR_20261010.md) for exact delivery

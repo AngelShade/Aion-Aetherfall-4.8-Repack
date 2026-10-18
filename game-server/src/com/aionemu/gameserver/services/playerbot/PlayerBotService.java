@@ -908,8 +908,8 @@ public final class PlayerBotService {
 					SkillEngine.getInstance().applyEffectDirectly(template, skillEntry.getSkillLevel(), bot, bot);
 			}
 			var arrival=PlayerBotFormation.arrival(owner,bot);
-			if(arrival==null)throw new IllegalArgumentException("There is no safe companion space here. Move away from the obstruction and recruit again.");
-			World.getInstance().setPosition(bot, owner.getWorldId(), owner.getInstanceId(), arrival.x(), arrival.y(), arrival.z(), owner.getHeading());
+			if(!World.getInstance().setPosition(bot, owner.getWorldId(), owner.getInstanceId(), arrival.x(), arrival.y(), arrival.z(), owner.getHeading()))
+				throw new IllegalStateException("Companion could not enter your current map instance.");
 			World.getInstance().storeObject(bot);
 			World.getInstance().spawn(bot);
 			bot.getController().updateZone();

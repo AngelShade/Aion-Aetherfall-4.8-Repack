@@ -134,12 +134,14 @@
 		<locations>
 			<telelocation loc_id="25" price="200" pricePvp="200" type="REGULAR"/>
 			<telelocation loc_id="105" price="1000" pricePvp="1000" type="REGULAR"/>
+			<telelocation loc_id="9001" price="200" pricePvp="200" type="REGULAR"/>
 		</locations>
 	</teleporter_template>
 	<teleporter_template npc_ids="730016" teleportId="102">
 		<locations>
 			<telelocation loc_id="24" price="200" pricePvp="200" type="REGULAR"/>
 			<telelocation loc_id="105" price="800" pricePvp="800" type="REGULAR"/>
+			<telelocation loc_id="9001" price="200" pricePvp="200" type="REGULAR"/>
 		</locations>
 	</teleporter_template>
 	<teleporter_template npc_ids="830030 203070 203233" teleportId="103">
@@ -226,6 +228,7 @@
 		<locations>
 			<telelocation loc_id="25" price="800" pricePvp="800" type="REGULAR"/>
 			<telelocation loc_id="24" price="1000" pricePvp="1000" type="REGULAR"/>
+			<telelocation loc_id="9001" price="800" pricePvp="800" type="REGULAR"/>
 		</locations>
 	</teleporter_template>
 	<teleporter_template npc_ids="798901" teleportId="116">
@@ -1538,6 +1541,14 @@
 			<telelocation loc_id="435" price="4896" pricePvp="4896" type="REGULAR"/>
 			<telelocation loc_id="436" price="2518" pricePvp="2518" type="REGULAR"/>
 			<telelocation loc_id="437" price="7414" pricePvp="7414" type="REGULAR"/>
+		</locations>
+	</teleporter_template>
+	<!-- Aetherfall: Protectors Hall statue, native bidirectional Sanctum routes -->
+	<teleporter_template npc_ids="990180" teleportId="9001">
+		<locations>
+			<telelocation loc_id="24" price="200" pricePvp="200" type="REGULAR"/>
+			<telelocation loc_id="25" price="200" pricePvp="200" type="REGULAR"/>
+			<telelocation loc_id="105" price="800" pricePvp="800" type="REGULAR"/>
 		</locations>
 	</teleporter_template>
 </npc_teleporter>

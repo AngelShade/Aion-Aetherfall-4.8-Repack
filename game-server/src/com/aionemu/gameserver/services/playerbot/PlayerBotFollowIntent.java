@@ -12,7 +12,7 @@ import com.aionemu.gameserver.world.geo.GeoService;
 import static com.aionemu.gameserver.services.playerbot.PlayerBotRules.*;
 
 public final class PlayerBotFollowIntent {
- private record Intent(Player owner,int slot,PlayerBotNavigation.Point target,List<PlayerBotHazards.Area> hazards,long expires,boolean direct) {}
+ private record Intent(Player owner,int slot,PlayerBotNavigation.Point target,List<PlayerBotHazards.Area> hazards,long expires,boolean direct,long corridor) {}
  private record Geometry(Player owner,double front,double side,double up,double angle,long time) {}
  private static final ConcurrentHashMap<Integer,Intent> INTENTS=new ConcurrentHashMap<>();
  private static final ConcurrentHashMap<Integer,Geometry> GEOMETRY=new ConcurrentHashMap<>();
@@ -43,7 +43,9 @@ public final class PlayerBotFollowIntent {
    // still the final follow edge, unlike a detour waypoint or another floor.
    boolean direct=trackDirect && Math.hypot(goal.x()-mover.getTargetX2(),goal.y()-mover.getTargetY2())<=.4
     && Math.abs(goal.z()-mover.getTargetZ2())<=2;
-   INTENTS.put(bot.getObjectId(),new Intent(owner,slot,new PlayerBotNavigation.Point(mover.getTargetX2(),mover.getTargetY2(),mover.getTargetZ2()),List.copyOf(hazards),System.currentTimeMillis()+lifetime(),direct));
+   long corridor=mover instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController follow
+    && follow.walkStatus().active()?follow.walkStatus().generation():-1;
+   INTENTS.put(bot.getObjectId(),new Intent(owner,slot,new PlayerBotNavigation.Point(mover.getTargetX2(),mover.getTargetY2(),mover.getTargetZ2()),List.copyOf(hazards),System.currentTimeMillis()+lifetime(),direct,corridor));
   }
  }
  static boolean matches(Player bot,PlayerBotNavigation.Point target){
@@ -52,19 +54,27 @@ public final class PlayerBotFollowIntent {
  }
  public static boolean active(Player bot){
   var intent=INTENTS.get(bot.getObjectId());
-  return intent!=null && intent.direct() && intent.expires()>=System.currentTimeMillis() && matches(bot,intent.target()) && intent.owner().getMoveController().isInMove();
+  return intent!=null && intent.direct() && intent.expires()>=System.currentTimeMillis() && matches(bot,intent.target());
  }
- static boolean permitsSpeed(Player bot){var intent=INTENTS.get(bot.getObjectId());return intent!=null && intent.expires()>=System.currentTimeMillis() && matches(bot,intent.target());}
+ private static boolean ownsCorridor(Player bot,Intent intent){
+  if(intent.corridor()<0 || !(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover))return false;
+  var status=mover.walkStatus();return status.active() && status.generation()==intent.corridor();
+ }
+ static boolean permitsSpeed(Player bot){var intent=INTENTS.get(bot.getObjectId());return intent!=null && intent.expires()>=System.currentTimeMillis() && (matches(bot,intent.target()) || ownsCorridor(bot,intent));}
  /** Called under the native mover monitor after the stale-task/cast guards. */
  public static boolean refresh(Player bot){
   Intent intent=INTENTS.get(bot.getObjectId());if(intent==null)return false;
   Player owner=intent.owner();
-  if(intent.expires()<System.currentTimeMillis() || !matches(bot,intent.target()) || !owner.isOnline() || !owner.isSpawned() || owner.isDead()
+  if(intent.expires()<System.currentTimeMillis() || !owner.isOnline() || !owner.isSpawned() || owner.isDead()
    || owner.getWorldId()!=bot.getWorldId() || owner.getInstanceId()!=bot.getInstanceId()
    || bot.isCasting() || bot.isTrading() || bot.isLooting() || !bot.canPerformMove()) {clear(bot);return false;}
+  // Physical corner handoff changes the target, not the admitted follow intent.
+  // Keep its speed lease only while that exact corridor generation still owns
+  // movement; never redirect its corners or extend its AI-owned lifetime here.
+  if(!matches(bot,intent.target())){if(!ownsCorridor(bot,intent))clear(bot);return false;}
   // The session revokes follow ownership when actual combat takes over. Native
   // post-combat timers alone must not disable a still-admitted follow movement.
-  if(!owner.getMoveController().isInMove() || !intent.direct())return false;
+  if(!intent.direct())return false;
   var goal=goal(bot);if(goal==null){clear(bot);return false;}
   var start=new PlayerBotNavigation.Point(bot.getX(),bot.getY(),bot.getZ());
   if(!PlayerBotHazards.safePath(start,goal,intent.hazards())){clear(bot);return false;}
@@ -79,7 +89,7 @@ public final class PlayerBotFollowIntent {
   byte heading=(byte)Math.floorMod((int)Math.round(Math.toDegrees(Math.atan2(goal.y()-bot.getY(),goal.x()-bot.getX()))/3),120);
   if(!(mover instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController follow)
    || !follow.refreshFollowDestination(goal.x(),goal.y(),goal.z(),heading)){clear(bot);return false;}
-  INTENTS.replace(bot.getObjectId(),intent,new Intent(owner,intent.slot(),goal,intent.hazards(),intent.expires(),true));
+  INTENTS.replace(bot.getObjectId(),intent,new Intent(owner,intent.slot(),goal,intent.hazards(),intent.expires(),true,intent.corridor()));
   mover.startMovingToDestination();
   return true;
  }

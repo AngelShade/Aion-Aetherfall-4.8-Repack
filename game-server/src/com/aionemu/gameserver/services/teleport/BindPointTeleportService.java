@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.slf4j.LoggerFactory;
 
+import com.aionemu.gameserver.configs.main.CustomConfig;
 import com.aionemu.gameserver.dataholders.DataManager;
 import com.aionemu.gameserver.model.Race;
 import com.aionemu.gameserver.model.TaskId;
@@ -48,7 +49,10 @@ public class BindPointTeleportService {
 		if (!checkRequirements(player, hotspot, price))
 			return;
 
-		PacketSendUtility.broadcastPacket(player, new SM_BIND_POINT_TELEPORT(1, player.getObjectId(), locId, 0), true);
+		// Snapshot once: this exact duration drives both the bar and completion,
+		// even if configuration is reloaded while the cast is in progress.
+		int castTimeMillis = Math.max(1, CustomConfig.HOTSPOT_TELEPORT_CAST_MILLIS);
+		PacketSendUtility.broadcastPacket(player, new SM_BIND_POINT_TELEPORT(1, player.getObjectId(), locId, 0, castTimeMillis), true);
 
 		player.getController().addTask(TaskId.SKILL_USE, ThreadPoolManager.getInstance().schedule(new Runnable() {
 
@@ -63,7 +67,7 @@ public class BindPointTeleportService {
 				if (!player.getLifeStats().isAboutToDie() && !player.isDead())
 					TeleportService.teleportTo(player, hotspot.getWorldId(), hotspot.getX(), hotspot.getY(), hotspot.getZ());
 			}
-		}, 1000));
+		}, castTimeMillis));
 	}
 
 	public static void cancelTeleport(Player player, int locId) {

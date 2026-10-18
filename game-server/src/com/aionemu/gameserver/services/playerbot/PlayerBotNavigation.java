@@ -76,6 +76,8 @@ final class PlayerBotNavigation {
 	private boolean transportCongested;
 	private boolean routeFailure;
 	private boolean groundRouteUnavailable;
+	private Point blockedFollowOrigin,blockedFollowGoal;
+	private long nextDirectFollowProbe;
 	/** Result of the immediately preceding move call, not a cached geometry verdict. */
 	boolean routeFailed(){return routeFailure;}
 	void clearRouteFailure(){routeFailure=false;}
@@ -244,6 +246,10 @@ final class PlayerBotNavigation {
 		syncWalk();
 		PlayerBotFormation.following(owner, (Player)bot, formationSlot);
 		Point formation = PlayerBotFormation.destination(owner, (Player)bot, formationSlot);
+		// Companion pursuit is not a world journey. A complete native connection
+		// to the owner/slot supersedes old trail, road and boarding proposals.
+		Boolean pursuit=directCompanionFollow(owner,formationSlot,formation);
+		if(pursuit!=null)return pursuit;
 		// Equivalent to keeping WoW's existing MoveFollow generator: renew the
 		// admitted direct edge, not a new journey for every moving-leader sample.
 		synchronized(bot.getMoveController()) {
@@ -291,6 +297,83 @@ final class PlayerBotNavigation {
 		// still fail the final-edge check and remain immutable.
 		if(moved)PlayerBotFollowIntent.bind(owner,(Player)bot,formationSlot,publishedGoal==null?formation:publishedGoal,hazards,!trailTarget && !walkRouteOwned);
 		return moved;
+	}
+
+	private boolean controlledFollow() {
+		return bot instanceof Player player && player.isPlayerBot() && player.getPlayerBotOwnerId()!=0;
+	}
+	/** Session may hand an obsolete trip back to Follow only from real static
+	 * support and a proved walking connection. No moving-floor implementation changes. */
+	boolean resumeCompanionFollow(Player owner,int slot) {
+		synchronized(bot.getMoveController()) {
+			Point formation=PlayerBotFormation.destination(owner,(Player)bot,slot);
+			Boolean result=directCompanionFollow(owner,slot,formation);
+			return result!=null;
+		}
+	}
+	private Boolean directCompanionFollow(Player owner,int slot,Point formation) {
+		if(!(bot instanceof Player player) || player==owner || !controlledFollow()
+			|| player.getPlayerBotOwnerId()!=owner.getObjectId() || !PlayerBotTeams.same(owner,player)
+			|| !owner.isOnline() || !owner.isSpawned() || owner.isDead() || !player.isSpawned() || player.isDead()
+			|| owner.getWorldId()!=player.getWorldId() || owner.getInstanceId()!=player.getInstanceId()
+			|| owner.isFlying() || player.isFlying() || player.isCasting() || !player.canPerformMove()
+			|| player.isTrading() || player.isLooting()
+			|| !(player.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover)
+			|| mover.traversingHeight())return null;
+		var geo=GeoService.getInstance();
+		var ride=mover.platformPlan();
+		if(ride!=null && !Float.isFinite(geo.playerBotStaticFloor(player.getWorldId(),player.getInstanceId(),player.getX(),player.getY(),player.getZ())))return null;
+		if(ride==null && PlayerBotFormation.needsFollow(owner,player,formation)
+			&& PlayerBotFollowIntent.active(player) && PlayerBotFollowIntent.refresh(player) && refreshWalk()) {
+			intentUntil=System.currentTimeMillis()+3000;
+			PlayerBotFollowIntent.bind(owner,player,slot,formation,hazards,true);
+			status="pursuing owner directly";return true;
+		}
+		long now=System.currentTimeMillis();Point origin=new Point(player.getX(),player.getY(),player.getZ());
+		if(now<nextDirectFollowProbe && origin.equals(blockedFollowOrigin) && formation.equals(blockedFollowGoal))return null;
+		Point goal;
+		{
+			// Ordinary companion steering must not queue behind world path searches.
+			// These two bounded native walking probes are not graph/path expansion;
+			// the physical mover still proves every actual step. Obstructed fallback
+			// retains the existing measured planning budget and its queued turn.
+			// A role slot behind furniture is a preference. Clip it from the
+			// leader's actual floor rather than climbing toward a guessed slot Z.
+			Vector3f slotGround=geo.findGroundMovementCollision(player.getWorldId(),player.getInstanceId(),owner.getX(),owner.getY(),owner.getZ(),formation.x(),formation.y(),formation.z());
+			goal=slotGround!=null && Float.isFinite(slotGround.x) && Float.isFinite(slotGround.y) && Float.isFinite(slotGround.z)
+				?new Point(slotGround.x,slotGround.y,slotGround.z):new Point(owner.getX(),owner.getY(),owner.getZ());
+			Vector3f reached=geo.findGroundMovementCollision(player.getWorldId(),player.getInstanceId(),origin.x(),origin.y(),origin.z(),goal.x(),goal.y(),goal.z());
+			if(reached==null || !Float.isFinite(reached.z) || Math.hypot(reached.x-goal.x(),reached.y-goal.y())>.15
+				|| Math.abs(reached.z-goal.z())>.75 || !PlayerBotHazards.safePath(origin,goal,hazards)) {
+				blockedFollowOrigin=origin;blockedFollowGoal=formation;nextDirectFollowProbe=now+1000;return null;
+			}
+		}
+		cancelTicket(localSearchToken);
+		localOrigin=null;
+		// Re-proving a clipped slot must not stop/start the mover every AI turn.
+		// Refresh only a single direct edge, never bend an existing detour corner.
+		if(ride==null && queuedPlatform==null && routeIntent==Intent.FOLLOW && !walkRouteOwned
+			&& PlayerBotFormation.needsFollow(owner,player,goal)
+			&& mover.refreshFollowDestination(goal.x(),goal.y(),goal.z(),player.getHeading()) && refreshWalk()) {
+			publishedGoal=publishedDestination=routeGoal=goal;lastProgress=now;intentUntil=now+3000;
+			PlayerBotFormation.following(owner,player,slot);PlayerBotFollowIntent.bind(owner,player,slot,goal,hazards,true);
+			status="pursuing owner directly";return true;
+		}
+		// A native ground connection, not visual proximity, admits this handoff.
+		// An airborne passenger retains physical carry until a ground exit exists.
+		if(ride!=null){ride.close();mover.abortMove();mover.completedPlatform();}
+		if(queuedPlatform!=null)leavePlatformQueue(player);
+		cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(approachSearchToken);
+		clearSearch();meshJourney.close();partialRoute=lookahead=groundRouteUnavailable=routeFailure=false;
+		clearRoute();routeIntent=Intent.FOLLOW;routeGoal=goal;routeWorld=player.getWorldId();routeInstance=player.getInstanceId();
+		publishedGoal=goal;lastProgress=now;intentUntil=now+3000;nextSearch=0;nextMove=0;
+		if(!PlayerBotFormation.needsFollow(owner,player,goal)){stop();status="at companion position";return false;}
+		var safety=hazards;
+		if(!mover.publishWalk(walkGeneration,java.util.List.of(new com.aionemu.gameserver.controllers.movement.PlayerBotMoveController.WalkPoint(0,goal.x(),goal.y(),goal.z())),
+			(from,to)->PlayerBotHazards.safePath(new Point(from.x(),from.y(),from.z()),new Point(to.x(),to.y(),to.z()),safety)))return null;
+		publishedDestination=goal;publishedWorld=player.getWorldId();publishedInstance=player.getInstanceId();
+		PlayerBotFormation.following(owner,player,slot);PlayerBotFollowIntent.bind(owner,player,slot,goal,hazards,true);
+		status="pursuing owner directly";return true;
 	}
 
 	boolean approach(Creature target, float range) {
@@ -564,7 +647,7 @@ final class PlayerBotNavigation {
 		// A blocked approach on the same/higher floor needs a route around the
 		// structure first. Exhaustive jump candidates cannot climb a whole storey
 		// and previously delayed the only useful walking search for minutes.
-		if(best==null && intent==Intent.FOLLOW_TRAIL && !groundRouteUnavailable && targetZ>=bot.getZ()-.75f)
+		if(best==null && (intent==Intent.FOLLOW_TRAIL || intent==Intent.FOLLOW && controlledFollow()) && !groundRouteUnavailable && targetZ>=bot.getZ()-.75f)
 			return beginGroundRoute(origin,goal,goalDistance,now);
 		if(best==null && !route.isEmpty()) {
 			// Replan a freshly obstructed corridor instead of pressing against its

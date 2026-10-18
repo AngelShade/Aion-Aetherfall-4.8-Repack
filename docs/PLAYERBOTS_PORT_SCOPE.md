@@ -1,5 +1,16 @@
 # Full Playerbots port scope and iteration focus
 
+Start with the [current work map](PLAYERBOTS_CURRENT_STATUS.md) for priorities,
+installed versus missing work and the movement preservation contract. Dated scope
+entries below preserve earlier evidence; their “next” pointers are not the current
+queue. Full port parity remains unfinished; delivered slices must not be re-ported
+solely because gameplay acceptance is pending.
+
+Owner direction, 18 October: quest coverage and broader class/encounter/social/
+economy expansion are deferred to the far future. Current work is companion
+catch-up, movement reliability and CPU cost; preserve existing quest and combat
+features while optimizing shared paths. See the current work map for exact rows.
+
 ## Companion following and attack handoff — 18 October 2026
 
 Shared-memory follow-up: map-owned bounded route-result reuse, native-group role

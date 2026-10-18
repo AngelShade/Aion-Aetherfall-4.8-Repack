@@ -8,6 +8,10 @@ import com.aionemu.commons.configuration.Property;
 
 public class CustomConfig {
 
+	/** Statue cast and the native client progress bar share this duration. */
+	@Property(key = "gameserver.hotspot.teleport.cast_time_millis", defaultValue = "1000")
+	public static int HOTSPOT_TELEPORT_CAST_MILLIS;
+
 	/**
 	 * Enables challenge tasks
 	 */

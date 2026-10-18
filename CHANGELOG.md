@@ -17,7 +17,7 @@
   This does not publish a new game release or change gameplay.
 
 This history includes the full initial-release changelog for 0.86, followed by
-the 0.87 through 0.92.3 repack updates and original-only 0.93 navigation, in version order. Earlier development work is recorded under 0.86,
+the updates through 0.93.2, in version order. Earlier development work is recorded under 0.86,
 because that is the first public repack in which those changes were bundled.
 
 | Version | Release | Download |
@@ -33,6 +33,8 @@ because that is the first public repack in which those changes were bundled.
 | [0.92.2](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.92.2) | Revert the pet interaction changes introduced in 0.91 | Published cumulative patch |
 | 0.92.3 | Setup server shutdown and leftover console repair | Local cumulative patch prepared; not yet published |
 | 0.93 | Bot navigation, companion spacing and Profile Stigma controls | Local cumulative patch prepared; not yet published |
+| 0.93.1 | Companion follow, lifts, quest turn-in and memory controls | Local cumulative patch prepared; not yet published |
+| 0.93.2 | Companion pursuit, teleport statue timing, Protectors Hall and Zirius | Local cumulative patch prepared; not yet published |
 
 ## 0.86 — Initial release: full changelog
 
@@ -272,6 +274,33 @@ Prepared locally; publication through Setup remains separate. Stopping all three
 - Retained Setup's server shutdown repair and the earlier broker and population startup repairs.
 
 Applied from the current original development installation to the repack. The cumulative 0.93 patch is prepared locally; publication remains separate. Existing accounts, characters, database contents and local connection settings are retained. Normal builder outputs and copied files are verified; in-game movement, Stigma controls, quest choices and CPU acceptance remain the player's checks.
+
+## 0.93.1 — Companion movement and quest repairs
+
+- Fixed party preset recruitment failing when a full formation could not fit nearby. Companions prefer nearby placement and can fall back to the owner's position.
+- Improved companion following on slopes, structures and changing floors. Short movement requests retain their turn while the player moves, and followers keep a bounded trail of the player's footsteps.
+- Fixed explicit Attack orders being blocked by Passive mode or a selected controlled target; rejected orders now explain why.
+- Improved stationary regrouping and the transition from combat back to following. Walking is preferred before optional route searches.
+- Shared prepared route results between bots and reduced repeated route work and temporary allocations.
+- Fixed pending lift queue and riding state handling, retained crowd-control state during forced movement, and repaired the reward/payment hook for quest 3074, Dangerous Probability.
+- Prebuilt recipe/material lookup indexes to avoid repeated scans during decisions.
+- Removed the unused companion dashboard header decoration that could appear as a dark rectangle.
+- Added configurable GameServer heap settings based on available RAM, plus navigation memory and per-map route-cache controls. Existing explicit owner limits remain available.
+- Retained the current Hub automatic-update action and generated icon, Stigma controls, pet rollback and earlier cumulative repairs.
+
+Copied from the current original's normal build into the full and installed test repacks. Database contents, characters, credentials and local connection settings are retained. The cumulative patch is prepared locally; publication remains separate. Actual movement, lifts, quest rewards and CPU/RAM behavior still need in-game confirmation.
+
+## 0.93.2 — Companion pursuit, teleport statues and Cursed Zirius
+
+- Improved direct companion pursuit toward the owner and role position, keeping route fallback for real obstructions and retaining lift travel.
+- Added configurable faster catch-up, including regrouping while the owner is stopped, and reduced contention during destination lookups.
+- Made the native teleport progress bar follow the server's configured teleport cast duration.
+- Added the Protectors Hall teleport statue in Sanctum, with native map markings, English labels and connected city routes.
+- Repaired Cursed Zirius's day/night forms, low-health spring cure and human reward NPC while retaining ordinary aggro and reset behavior.
+- Fixed the Cursed Zirius quest handler failing to load during server startup.
+- Retained the earlier companion, Stigma, pet rollback, broker, graphics recovery and Setup fixes.
+
+Applied from recorded original normal builder outputs and the matching native client cohort. Existing database contents, accounts, characters and local settings are retained. Prepared locally; publication remains separate. Companion movement, teleport timing/routes and Zirius quest acceptance remain in-game checks.
 
 ## Release-tool changes made alongside these updates
 

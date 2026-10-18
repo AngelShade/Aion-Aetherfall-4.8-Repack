@@ -4,7 +4,10 @@
 package com.aionemu.gameserver.services.playerbot;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import com.aionemu.gameserver.dataholders.DataManager;
+import com.aionemu.gameserver.dataholders.SpawnsData;
+import com.aionemu.gameserver.dataholders.WorldMapsData;
 import com.aionemu.gameserver.model.Race;
 import com.aionemu.gameserver.model.TribeClass;
 import com.aionemu.gameserver.model.gameobjects.Npc;
@@ -32,7 +35,38 @@ final class PlayerBotWorldTravel {
  private record NativeRoute(Edge edge,Stop arrival,TeleportLocation location,Race race,TribeClass tribe) {}
  private static Map<Edge,NativeRoute> nativeRoutes=Map.of();
  private static SpatialGraph nativeGraph;
- private static final Map<Integer,List<Place>> PLACES=new HashMap<>();
+ private static final Object SPAWN_CATALOG_LOCK=new Object();
+ private static volatile SpawnCatalogs spawnCatalogs;
+ /** Each source generation owns its publications. A scan started before a
+  * native data replacement can never populate the replacement's cache. */
+ private static final class SpawnCatalogs {
+  private final WorldMapsData maps;
+  private final SpawnsData spawns;
+  private final Map<Integer,List<Place>> places=new ConcurrentHashMap<>();
+  private final Map<Integer,Catalog> catalogs=new ConcurrentHashMap<>();
+  SpawnCatalogs(WorldMapsData maps,SpawnsData spawns){this.maps=maps;this.spawns=spawns;}
+  boolean current(){return maps==DataManager.WORLD_MAPS_DATA && spawns==DataManager.SPAWNS_DATA;}
+  List<Place> places(int npc){var cached=places.get(npc);return cached!=null?cached:places.computeIfAbsent(npc,this::discover);}
+  Catalog catalog(int npc){var cached=catalogs.get(npc);return cached!=null?cached:catalogs.computeIfAbsent(npc,id->new Catalog(places(id)));}
+  private List<Place> discover(int npc){
+   var result=new ArrayList<Place>();
+   for(var map:maps)if(!map.isInstance()) {
+    for(var group:spawns.getSpawnsForNpc(map.getMapId(),npc)) {
+     if(group.isTemporarySpawn() || group.getHandlerType()!=null)continue;
+     for(var spawn:group.getSpawnTemplates())if(!spawn.isAerialSpawn())result.add(new Place(map.getMapId(),npc,spawn.getX(),spawn.getY(),spawn.getZ()));
+    }
+   }
+   return PlayerBotWorldTravel.catalog(result);
+  }
+ }
+ private static SpawnCatalogs spawnCatalogs(){
+  var current=spawnCatalogs;if(current!=null && current.current())return current;
+  synchronized(SPAWN_CATALOG_LOCK){
+   current=spawnCatalogs;
+   if(current==null || !current.current())spawnCatalogs=current=new SpawnCatalogs(DataManager.WORLD_MAPS_DATA,DataManager.SPAWNS_DATA);
+   return current;
+  }
+ }
  private record Cell(int map,int x,int y) {}
  static final class Catalog {
   private final List<Place> all;
@@ -52,23 +86,20 @@ final class PlayerBotWorldTravel {
   }
   private static int cell(float v){return (int)Math.floor(v/256);}
  }
- private static final Map<Integer,Catalog> CATALOGS=new HashMap<>();
  private static List<Edge> edges;
- static synchronized List<Place> places(int npc) {
-  return PLACES.computeIfAbsent(npc,id->{
-   var result=new ArrayList<Place>();
-   for(var map:DataManager.WORLD_MAPS_DATA)if(!map.isInstance()) {
-    for(var group:DataManager.SPAWNS_DATA.getSpawnsForNpc(map.getMapId(),id)) {
-     if(group.isTemporarySpawn() || group.getHandlerType()!=null)continue;
-     for(var spawn:group.getSpawnTemplates())if(!spawn.isAerialSpawn())result.add(new Place(map.getMapId(),id,spawn.getX(),spawn.getY(),spawn.getZ()));
-    }
-   }
-   return catalog(result);
-  });
+ static List<Place> places(int npc) {
+  for(;;){var source=spawnCatalogs();var result=source.places(npc);if(source.current())return result;}
  }
  /** All permanent ground points remain reachable; duplicates do not multiply destination weights. */
  static List<Place> catalog(Collection<Place> places){return List.copyOf(new LinkedHashSet<>(places));}
- static synchronized List<Place> near(int npc,Distances from,float radius){return CATALOGS.computeIfAbsent(npc,id->new Catalog(places(id))).near(from.map(),from.x(),from.y(),from.z(),radius);}
+ static List<Place> near(int npc,Distances from,float radius){
+  for(;;){
+   var source=spawnCatalogs();var catalog=source.catalog(npc);if(!source.current())continue;
+   // Immutable spatial filtering is independent for every caller. Neither a
+   // warm query nor a cold NPC scan owns the global transport/catalog monitor.
+   return catalog.near(from.map(),from.x(),from.y(),from.z(),radius);
+  }
+ }
  private static synchronized List<Edge> edges() {
   if(edges!=null)return edges;
   var result=new ArrayList<Edge>();

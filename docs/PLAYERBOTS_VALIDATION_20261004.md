@@ -1,5 +1,11 @@
 # Companion update validation — 4 October 2026
 
+Current acceptance queue and evidence boundaries:
+[Playerbots work map](PLAYERBOTS_CURRENT_STATUS.md), reviewed 18 October 2026.
+The dated records below describe checks actually performed on earlier artifacts,
+not mandatory suites for every change or proof of current live behaviour.
+Use current AGENTS.md/workflow for necessary focused verification and delivery.
+
 18 October shared-memory follow-up: normal build; actual 47-arc itinerary replay
 (1374 cold graph operations, zero cached), isolated results, rejected-arc bypass,
 byte bounds and configurable large-heap calculation passed. No full suites or new

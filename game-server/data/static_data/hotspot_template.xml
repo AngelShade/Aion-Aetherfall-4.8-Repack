@@ -146,4 +146,6 @@
 	<hotspot_location id="84" worldId="120010000" x="1178.0" y="1170.0" z="208.0" race="ASMODIANS" price="1934"/>
 	<!-- Convent of Marchutan Teleport Statue -->
 	<hotspot_location id="85" worldId="120010000" x="1602.0" y="1389.0" z="193.0" race="ASMODIANS" price="1934"/>
+	<!-- Aetherfall: Protectors Hall statue, shown on the native teleport map -->
+	<hotspot_location id="86" worldId="110010000" x="1874.365259" y="1525.427322" z="811.08057" race="ELYOS" price="1934"/>
 </hotspot_template>
