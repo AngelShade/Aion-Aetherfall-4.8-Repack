@@ -11,11 +11,28 @@ import static com.aionemu.gameserver.services.playerbot.PlayerBotRules.*;
 
 /** One range policy for combat movement and hostile spell prerequisites. */
 public final class PlayerBotCombatPosition {
+ private record Roster(java.util.Map<Integer,Role> roles,List<Integer> slots) {}
+ private static final java.util.concurrent.ConcurrentHashMap<Integer,Roster> ROSTERS=new java.util.concurrent.ConcurrentHashMap<>();
  static List<Integer> formationOrder(Player owner) {
-  return PlayerBotService.getInstance().companions(owner).stream()
-   .sorted(Comparator.comparingInt((PlayerBotSession s) -> s.combatRole()==Role.TANK ? 0 : s.combatRole()==Role.MELEE ? 1 : 2)
-    .thenComparingInt(s -> s.bot().getObjectId())).map(s -> s.bot().getObjectId()).toList();
+  return formationOrder(owner,null);
  }
+ static List<Integer> formationOrder(Player owner,Player joining) {
+  var roles=new java.util.HashMap<Integer,Role>();
+  var service=PlayerBotService.getInstance();
+  // Like Formations.cpp, examine the actual party/alliance, not every resident
+  // in the world. Roles and native membership invalidate the derived snapshot.
+  for(var actor:PlayerBotTeams.members(owner)){
+   var member=service.currentActor(actor);
+   if(member!=null && member.owner()==owner && !member.autonomous())roles.put(actor.getObjectId(),member.combatRole());
+  }
+  if(joining!=null)roles.putIfAbsent(joining.getObjectId(),roleFor(joining.getPlayerClass()));
+  return ROSTERS.compute(owner.getObjectId(),(id,previous)->{
+   if(previous!=null && previous.roles().equals(roles))return previous;
+   var slots=roles.keySet().stream().sorted(Comparator.comparingInt((Integer actor)->PlayerBotFormationLayout.roleRank(roles.get(actor))).thenComparingInt(Integer::intValue)).toList();
+   return new Roster(java.util.Map.copyOf(roles),slots);
+  }).slots();
+ }
+ static void closeFormation(int owner){ROSTERS.remove(owner);}
  static boolean ranged(PlayerClass pc, Role role) {
   return role == Role.RANGED || role == Role.HEALER || role == Role.SUPPORT && pc != PlayerClass.CHANTER;
  }

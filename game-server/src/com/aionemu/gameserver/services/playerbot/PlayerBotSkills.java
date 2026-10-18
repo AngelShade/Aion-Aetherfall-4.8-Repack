@@ -83,7 +83,7 @@ public final class PlayerBotSkills {
 		return questTransformation(entry.template());
 	}
 
-	private static boolean questTransformation(SkillTemplate template) {
+	static boolean questTransformation(SkillTemplate template) {
 		return (template.getSkillId() == 872 || template.getSkillId() == 4610)
 			&& !template.isPassive() && !template.isProvoked() && !template.isCharge()
 			&& template.getProperties() != null && template.getEffects() != null

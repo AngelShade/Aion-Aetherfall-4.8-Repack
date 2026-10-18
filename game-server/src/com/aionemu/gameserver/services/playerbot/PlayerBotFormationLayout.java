@@ -11,6 +11,7 @@ import com.aionemu.gameserver.utils.PacketSendUtility;
 public final class PlayerBotFormationLayout {
     private record Preference(int account, String formation) {}
     private static final Map<Integer, Preference> PREFERENCES = new ConcurrentHashMap<>();
+    private static final Map<String, List<PlayerBotNavigation.Point>> SLOTS = new ConcurrentHashMap<>();
     static final Set<String> NAMES = Set.of("circle", "box", "line", "spread");
 
     static String parse(String value) {
@@ -46,6 +47,17 @@ public final class PlayerBotFormationLayout {
     }
     /** Returns false for every existing command, so its installed handler stays intact. */
     public static boolean command(Player owner, String[] args) {
+        if (args.length > 0 && args[0].equalsIgnoreCase("distance")) {
+            try {
+                if (args.length != 2) throw new IllegalArgumentException("Use .bot distance <2-12 meters>.");
+                float follow = Float.parseFloat(args[1]);
+                int count = PlayerBotSpacing.configureParty(owner, follow);
+                PacketSendUtility.sendMessage(owner, "Follow distance: " + follow + " m for " + count + " companions. Individual attack spacing is retained.");
+            } catch (RuntimeException e) {
+                PacketSendUtility.sendMessage(owner, e instanceof IllegalArgumentException ? e.getMessage() : "Companion distance could not be saved.");
+            }
+            return true;
+        }
         if (args.length == 0 || !args[0].equalsIgnoreCase("formation")) return false;
         try {
             if (args.length != 2) throw new IllegalArgumentException("Use .bot formation circle|box|line|spread.");
@@ -80,15 +92,44 @@ public final class PlayerBotFormationLayout {
     }
     static PlayerBotNavigation.Point destination(Player owner, Player bot, double heading) {
         // Assign the forward slot to a tank, then melee; IDs break ties stably.
-        List<Integer> ids = PlayerBotCombatPosition.formationOrder(owner);
+        List<Integer> ids = PlayerBotCombatPosition.formationOrder(owner,bot);
         int slot = ids.indexOf(bot.getObjectId());
         if (slot < 0) { ids = List.of(bot.getObjectId()); slot = 0; }
-        return PlayerBotSpacing.formation(owner,bot,point(owner.getX(), owner.getY(), owner.getZ(), heading, slot, ids.size(), selected(owner.getAccount().getId(), owner.getObjectId())));
+        String formation = selected(owner.getAccount().getId(), owner.getObjectId());
+        var point = rolePoint(heading, slot, ids.size(), formation);
+        return PlayerBotSpacing.formation(owner,bot,new PlayerBotNavigation.Point(owner.getX()+point.x(), owner.getY()+point.y(), owner.getZ()));
+    }
+    static int roleRank(PlayerBotRules.Role role) {
+        return switch (role) { case TANK -> 0; case MELEE -> 1; case RANGED -> 2; case SUPPORT -> 3; case HEALER -> 4; };
+    }
+    /** Rank roles front to back, then use fixed character IDs within each role.
+     * Geometry ordering is independent of movement, target and health. */
+    static PlayerBotNavigation.Point rolePoint(double heading, int rank, int count, String formation) {
+        if(count<1 || count>PlayerBotRaidPolicy.MAX_COMPANIONS || rank<0 || rank>=count)
+            throw new IllegalArgumentException("Invalid formation rank");
+        parse(formation);
+        var slots=SLOTS.computeIfAbsent(formation+":"+count, key -> orderedSlots(count,formation));
+        var p=slots.get(rank);
+        return new PlayerBotNavigation.Point((float)(Math.cos(heading)*p.x()-Math.sin(heading)*p.y()),
+            (float)(Math.sin(heading)*p.x()+Math.cos(heading)*p.y()),0);
+    }
+    private static List<PlayerBotNavigation.Point> orderedSlots(int count, String formation) {
+        List<PlayerBotNavigation.Point> slots = new ArrayList<>(count);
+        for (int index=0; index<count; index++) {
+            var p=point(0,0,0,0,index,count,formation);
+            // A travelling line has successive rows instead of parking every
+            // healer/ranged companion alongside the tank's wings.
+            if (formation.equals("line") && index>0)
+                p=new PlayerBotNavigation.Point(p.x()-1.2f*((index+1)/2),p.y(),0);
+            slots.add(p);
+        }
+        slots.sort(Comparator.comparingDouble((PlayerBotNavigation.Point p)->-Math.round(p.x()*1000)).thenComparingDouble(PlayerBotNavigation.Point::y));
+        return List.copyOf(slots);
     }
     static double lineExtent(int count) {
         double radius = 0;
         for (int slot = 0; slot < count; slot++) {
-            var p = point(0, 0, 0, 0, slot, count, "line");
+            var p = rolePoint(0, slot, count, "line");
             radius = Math.max(radius, Math.hypot(p.x(), p.y()));
         }
         return radius;

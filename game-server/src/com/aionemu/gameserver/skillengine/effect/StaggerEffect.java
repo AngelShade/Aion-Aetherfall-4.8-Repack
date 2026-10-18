@@ -34,14 +34,16 @@ public class StaggerEffect extends EffectTemplate {
 		final Creature effected = effect.getEffected();
 		effected.getController().cancelCurrentSkill(effect.getEffector());
 		effected.getEffectController().removeParalyzeEffects();
-		if (effected instanceof Player player) {
-			player.getFlyController().onStopGliding();
-			player.getController().onStopMove();
+		if (!effect.isRestoredFromSave()) {
+			if (effected instanceof Player player) {
+				player.getFlyController().onStopGliding();
+				player.getController().onStopMove();
+			}
+			World.getInstance().updatePosition(effected, effect.getTargetX(), effect.getTargetY(), effect.getTargetZ(), effected.getHeading());
+			if (effected instanceof Player)
+				PacketSendUtility.broadcastPacketAndReceive(effected, new SM_FORCED_MOVE(effect.getEffector(), effected.getObjectId(),
+						effect.getTargetX(), effect.getTargetY(), effect.getTargetZ()));
 		}
-		World.getInstance().updatePosition(effected, effect.getTargetX(), effect.getTargetY(), effect.getTargetZ(), effected.getHeading());
-		if (effected instanceof Player)
-			PacketSendUtility.broadcastPacketAndReceive(effected, new SM_FORCED_MOVE(effect.getEffector(), effected.getObjectId(),
-					effect.getTargetX(), effect.getTargetY(), effect.getTargetZ()));
 		effect.getEffected().getEffectController().setAbnormal(AbnormalState.STAGGER);
 		effect.setAbnormal(AbnormalState.STAGGER);
 	}

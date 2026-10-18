@@ -13,7 +13,7 @@ import com.aionemu.gameserver.configs.main.PlayerBotConfig;
 /** Prepared ground corridors and owner breadcrumbs; native geometry proves every movement edge. */
 final class PlayerBotNavigation {
 	record Point(float x, float y, float z) {}
-	private enum Intent { TRAVEL, TRACK, EVADE }
+	private enum Intent { TRAVEL, TRACK, FOLLOW, FOLLOW_TRAIL, EVADE }
 	private final Creature bot;
 	private final Deque<Point> trail = new ArrayDeque<>();
 	private Point lastOwner;
@@ -44,6 +44,10 @@ final class PlayerBotNavigation {
 	private double localScore;
 	private int localCursor,localLimit,approachCursor,heightCursor;
 	private PlayerBotHeightTraversal.Search heightSearch;
+	private PlayerBotHeightTraversal.Search preparedJumpSearch;
+	private PlayerBotRoadNetwork.Jump preparedJump;
+	private Point preparedJumpOrigin;
+	private float preparedJumpSpeed;
 	private static final int[] HEIGHT_DIRECTIONS={0,30,-30,60,-60,90,-90,135,-135,180};
 	private static final float[] HEIGHT_REACHES={2,3,4,6,8};
 	private Creature approachTarget;
@@ -52,6 +56,11 @@ final class PlayerBotNavigation {
 	private long nextMove;
 	private long nextHeightSearch;
 	private Point publishedGoal,publishedDestination;
+	private long walkGeneration=1,routeHeadIndex;
+	private boolean walkRouteOwned;
+	private Point followTrailTail;
+	private Intent routeIntent;
+	private long intentUntil;
 	private int publishedWorld,publishedInstance;
 	private int worldId, instanceId;
 	private volatile String status = "ready";
@@ -81,16 +90,67 @@ final class PlayerBotNavigation {
 		if (turn && (routeWorld!=bot.getWorldId() || routeInstance!=bot.getInstanceId())) { cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);return false; }
 		return turn;
 	}
-	void hazards(java.util.List<PlayerBotHazards.Area> areas) { hazards = java.util.List.copyOf(areas);if(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover){var plan=mover.platformPlan();if(plan!=null)plan.hazards(hazards);} }
+	void hazards(java.util.List<PlayerBotHazards.Area> areas) {
+		hazards=java.util.List.copyOf(areas);
+		if(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover){
+			var plan=mover.platformPlan();if(plan!=null)plan.hazards(hazards);
+			var safety=hazards;
+			mover.walkSafety(walkGeneration,(from,to)->PlayerBotHazards.safePath(new Point(from.x(),from.y(),from.z()),new Point(to.x(),to.y(),to.z()),safety));
+		}
+	}
+	private void clearRoute() {
+		if(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover)mover.cancelWalk(walkGeneration);
+		walkGeneration++;routeHeadIndex=0;walkRouteOwned=false;followTrailTail=null;route.clear();publishedDestination=null;
+	}
+	/** Only mover acknowledgments consume a published corridor. Repeated spatial
+	 * coordinates cannot acknowledge another generation or a later visit. */
+	private void syncWalk() {
+		if(!(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover))return;
+		var state=mover.walkStatus();if(state.generation()!=walkGeneration)return;
+		if(walkRouteOwned)while(!route.isEmpty() && routeHeadIndex<=state.reachedIndex()){route.removeFirst();routeHeadIndex++;}
+		publishedDestination=state.active() && state.current()!=null?new Point(state.current().x(),state.current().y(),state.current().z()):null;
+		if(state.blocked()) {
+			cancelTicket(searchToken);clearSearch();lookahead=partialRoute=false;localOrigin=null;clearRoute();nextSearch=0;
+		}
+	}
+	private java.util.List<com.aionemu.gameserver.controllers.movement.PlayerBotMoveController.WalkPoint> walkPoints() {
+		var points=new java.util.ArrayList<com.aionemu.gameserver.controllers.movement.PlayerBotMoveController.WalkPoint>();
+		long index=routeHeadIndex;
+		for(Point point:route){points.add(new com.aionemu.gameserver.controllers.movement.PlayerBotMoveController.WalkPoint(index++,point.x(),point.y(),point.z()));if(points.size()==16)break;}
+		return points;
+	}
+	private boolean refreshWalk() {
+		if(!(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover))return false;
+		synchronized(mover) {
+			var state=mover.walkStatus();if(state.generation()!=walkGeneration || !state.active() || state.current()==null)return false;
+			var points=walkRouteOwned?walkPoints():java.util.List.of(state.current());
+			var safety=hazards;
+			return mover.publishWalk(walkGeneration,points,(from,to)->PlayerBotHazards.safePath(new Point(from.x(),from.y(),from.z()),new Point(to.x(),to.y(),to.z()),safety));
+		}
+	}
+	/** An idle arbitration may retain already admitted motion, but cannot renew
+	 * its three-second lease, revive a failed corridor or keep a search nominated. */
+	boolean retainCurrent(){
+		if(bot.isCasting() || bot instanceof Player player && (player.isTrading() || player.isLooting()) || bot.isDead() || !bot.canPerformMove())return false;
+		if(!(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover))return false;
+		var state=mover.walkStatus();return state.generation()==walkGeneration && state.active() && !state.blocked();
+	}
 	boolean planningRoute(){return routeSearch!=null && routeSearch.pending();}
-	boolean travelling(){return routeGoal!=null && PositionUtil.getDistance(bot,routeGoal.x(),routeGoal.y(),routeGoal.z())>1.6
-		&& (bot.getMoveController().isInMove() || planningRoute() || !route.isEmpty() || localOrigin!=null || pausedAt!=0);}
+	boolean travelling(){
+		long now=System.currentTimeMillis();
+		return routeGoal!=null && bot.isSpawned() && !bot.isDead() && now<=intentUntil
+			&& PositionUtil.getDistance(bot,routeGoal.x(),routeGoal.y(),routeGoal.z())>1.6
+			&& (retainCurrent() || routeProgressing(now) || waitingForTransport() || localOrigin!=null || pausedAt!=0 && now-pausedAt<3000);
+	}
 	boolean waitingForTerrainWork(){return TERRAIN.waiting(searchToken) || TERRAIN.waiting(heightSearchToken)
 		|| TERRAIN.waiting(localSearchToken) || TERRAIN.waiting(approachSearchToken);}
 	boolean waitingForTransport(){return queuedPlatform!=null || bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover && mover.ridingPlatform();}
 	boolean transportCongested(){return transportCongested;}
 	boolean routeProgressing(long now){return planningRoute() && (TERRAIN.waiting(searchToken) || now-searchProgress<30000);}
-	private void cancelTicket(Object token){SEARCHES.cancel(token);TERRAIN.cancel(token);if(token==heightSearchToken)heightSearch=null;}
+	private void cancelTicket(Object token){
+		SEARCHES.cancel(token);TERRAIN.cancel(token);
+		if(token==heightSearchToken){heightSearch=null;preparedJumpSearch=null;preparedJump=null;preparedJumpOrigin=null;}
+	}
 	private PlayerBotNavigationBudget.Priority terrainPriority(double distance) {
 		if(bot instanceof Player player && (!player.isWorldBot() || player.getPlayerBotOwnerId()!=0))return PlayerBotNavigationBudget.Priority.CONTROLLED;
 		return distance<=30 ? PlayerBotNavigationBudget.Priority.NEAR : PlayerBotNavigationBudget.Priority.WORLD;
@@ -117,14 +177,18 @@ final class PlayerBotNavigation {
 		status=routeSearch.reason();clearSearch();groundRouteUnavailable=true;nextSearch=now+3000;routeFailure=true;stopMovement();return false;
 	}
 	private Point trackingGoal(Point requested,Intent intent,long now) {
-		if(intent!=Intent.TRACK || routeGoal==null || routeWorld!=bot.getWorldId() || routeInstance!=bot.getInstanceId()
-			|| Math.abs(requested.z()-routeGoal.z())>.75
+		if((intent!=Intent.TRACK && intent!=Intent.FOLLOW) || routeIntent!=intent || routeGoal==null || routeWorld!=bot.getWorldId() || routeInstance!=bot.getInstanceId()
+			|| Math.abs(requested.z()-routeGoal.z())>(intent==Intent.FOLLOW?2:.75)
 			|| Math.hypot(requested.x()-routeGoal.x(),requested.y()-routeGoal.y())>PlayerBotConfig.TERRAIN_SEGMENT_METRES)return requested;
 		// Finish one funded calculation/current proved edge while a moving target
 		// shifts within the walking horizon. Rebind at the next edge, never discard
 		// the search every quarter metre or claim arrival at the target's new pose.
-		if(planningRoute() || TERRAIN.waiting(heightSearchToken)
-			|| !route.isEmpty() && (publishedDestination==null || retainingPublishedMove(routeGoal,now)))return routeGoal;
+		if(walkRouteOwned && routeHeadIndex>0)return requested;
+		// A moving leader must not cancel the queued short ground proof every
+		// 100 ms. Retain that request's age/turn, then track the fresh slot after
+		// the native mover starts. Combat TRACK requests retain their old rules.
+		if(planningRoute() || TERRAIN.waiting(heightSearchToken) || intent==Intent.FOLLOW && TERRAIN.waiting(localSearchToken) || retainCurrent()
+			|| !walkRouteOwned && !route.isEmpty() && publishedDestination==null)return routeGoal;
 		return requested;
 	}
 	boolean progressing(long now){return physicalProgressAt!=0 && now-physicalProgressAt<4000;}
@@ -133,7 +197,7 @@ final class PlayerBotNavigation {
 		return publishedGoal!=null && publishedDestination!=null && bot.getMoveController().isInMove()
 			&& publishedWorld==bot.getWorldId() && publishedInstance==bot.getInstanceId()
 			&& PositionUtil.getDistance(publishedGoal.x(),publishedGoal.y(),publishedGoal.z(),goal.x(),goal.y(),goal.z())<.25
-			&& PositionUtil.getDistance(bot,publishedDestination.x(),publishedDestination.y(),publishedDestination.z())>.75
+			&& (retainCurrent() || PositionUtil.getDistance(bot,publishedDestination.x(),publishedDestination.y(),publishedDestination.z())>.75)
 			&& now-lastProgress<4000
 			&& PlayerBotHazards.safePath(new Point(bot.getX(),bot.getY(),bot.getZ()),publishedDestination,hazards);
 	}
@@ -169,44 +233,63 @@ final class PlayerBotNavigation {
 			worldId = owner.getWorldId();
 			instanceId = owner.getInstanceId();
 		}
-		if (lastOwner == null || PositionUtil.getDistance(owner, lastOwner.x(), lastOwner.y(), lastOwner.z()) > 2) {
+		if (lastOwner == null || PositionUtil.getDistance(owner, lastOwner.x(), lastOwner.y(), lastOwner.z()) > .75) {
 			lastOwner = new Point(owner.getX(), owner.getY(), owner.getZ());
 			trail.addLast(lastOwner);
-			while (trail.size() > 128) trail.removeFirst();
+			while (trail.size() > 512) trail.removeFirst();
 		}
 	}
 
 	boolean follow(Player owner, int formationSlot) {
+		syncWalk();
 		PlayerBotFormation.following(owner, (Player)bot, formationSlot);
 		Point formation = PlayerBotFormation.destination(owner, (Player)bot, formationSlot);
+		// Equivalent to keeping WoW's existing MoveFollow generator: renew the
+		// admitted direct edge, not a new journey for every moving-leader sample.
+		synchronized(bot.getMoveController()) {
+			if(PlayerBotFollowIntent.active((Player)bot) && PlayerBotFollowIntent.refresh((Player)bot)
+				&& (bot.isFlying() || refreshWalk())) {
+				intentUntil=System.currentTimeMillis()+3000;
+				PlayerBotFollowIntent.bind(owner,(Player)bot,formationSlot,formation,hazards,!walkRouteOwned);
+				return true;
+			}
+		}
 		if (bot.isFlying()) {
 			// Airborne follow uses the leader's altitude, never a ground breadcrumb.
-			if (!PlayerBotFormation.needsFollow(owner,(Player)bot,formationSlot)) { stop(); return false; }
-			boolean moved=move(formation.x(),formation.y(),formation.z(),false,Intent.TRACK);
-			if(moved)PlayerBotFollowIntent.bind(owner,(Player)bot,formationSlot,formation,hazards);
+			if (!PlayerBotFormation.needsFollow(owner,(Player)bot,formation)) { stop(); return false; }
+			boolean moved=move(formation.x(),formation.y(),formation.z(),false,Intent.FOLLOW);
+			if(moved)PlayerBotFollowIntent.bind(owner,(Player)bot,formationSlot,formation,hazards,!walkRouteOwned);
 			return moved;
 		}
 		PlayerBotNavigationTrail.consume(trail, new Point(bot.getX(),bot.getY(),bot.getZ()));
-		if (!PlayerBotFormation.needsFollow(owner,(Player)bot,formationSlot)) {
+		if (!PlayerBotFormation.needsFollow(owner,(Player)bot,formation)) {
 			stop();
 			return false;
 		}
-		// Reached breadcrumbs have been consumed across the whole prefix, not only
-		// at its head. An old unvisited formation point cannot pin the bot to its
-		// current position while an opened doorway occludes newer owner samples.
-		Point destination = trail.peekFirst();
-		for (Point point : trail)
-			if (PositionUtil.getDistance(bot,point.x(),point.y(),point.z())>=3 && GeoService.getInstance().canSee(bot, point.x(), point.y(), point.z(),
-				com.aionemu.gameserver.geoEngine.collision.IgnoreProperties.ANY_RACE)) destination = point;
-		if (GeoService.getInstance().canSee(bot, formation.x(),formation.y(),formation.z(),com.aionemu.gameserver.geoEngine.collision.IgnoreProperties.ANY_RACE)) destination=formation;
-		if (destination == null) destination = new Point(owner.getX(), owner.getY(), owner.getZ());
+		Point destination=PlayerBotNavigationTrail.target(trail,new Point(bot.getX(),bot.getY(),bot.getZ()),formation,
+			GeoService.getInstance().canSee(bot,formation.x(),formation.y(),formation.z(),com.aionemu.gameserver.geoEngine.collision.IgnoreProperties.ANY_RACE));
 		// A ground breadcrumb above a drop is no longer the leader's destination.
 		// Sight to the lower floor can be occluded by the very lip we must leave;
 		// navigation, rather than LOS to an old upper breadcrumb, earns that route.
-		if(owner.getZ()<bot.getZ()-1.75f && Math.hypot(owner.getX()-bot.getX(),owner.getY()-bot.getY())<=40)
+		if(owner.getZ()<bot.getZ()-1.75f && PositionUtil.getDistance(bot,owner)>20 && Math.hypot(owner.getX()-bot.getX(),owner.getY()-bot.getY())<=40)
 			destination=new Point(owner.getX(),owner.getY(),owner.getZ());
-		boolean moved=move(destination.x(), destination.y(), destination.z(),false,Intent.TRACK);
-		if(moved)PlayerBotFollowIntent.bind(owner,(Player)bot,formationSlot,formation,hazards);
+		boolean trailTarget=destination!=formation;
+		if (trailTarget && followTrailTail != null && routeIntent == Intent.FOLLOW_TRAIL && walkRouteOwned) {
+			followTrailTail = PlayerBotNavigationTrail.append(route, trail, followTrailTail,
+				Math.max(6,bot.getGameStats().getMovementSpeedFloat()*2));
+			if (refreshWalk()) {
+				intentUntil=System.currentTimeMillis()+3000;
+				PlayerBotFollowIntent.bind(owner,(Player)bot,formationSlot,destination,hazards,false);
+				status="following continuous owner footsteps";
+				return true;
+			}
+		}
+		boolean moved=move(destination.x(), destination.y(), destination.z(),false,trailTarget?Intent.FOLLOW_TRAIL:Intent.FOLLOW);
+		// A funded turn may have proved the earlier leader sample. Classify the
+		// final edge against that actual published goal, then let the persistent
+		// follow controller refresh it toward the current formation. Detour corners
+		// still fail the final-edge check and remain immutable.
+		if(moved)PlayerBotFollowIntent.bind(owner,(Player)bot,formationSlot,publishedGoal==null?formation:publishedGoal,hazards,!trailTarget && !walkRouteOwned);
 		return moved;
 	}
 
@@ -287,14 +370,7 @@ final class PlayerBotNavigation {
 	}
 	private boolean move(float targetX,float targetY,float targetZ,boolean firingIntent,Intent intent) {
 		routeFailure=false;
-		if(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover) {
-			for(var reached:mover.completedWalk()) {
-				Point point=new Point(reached.x(),reached.y(),reached.z());
-				// This acknowledgment belongs to the currently published corridor.
-				// A new command cannot consume points from an unrelated old route.
-				if(route.contains(point))while(!route.isEmpty() && !route.removeFirst().equals(point)) { }
-			}
-		}
+		syncWalk();
 		if(!Float.isFinite(targetX) || !Float.isFinite(targetY) || !Float.isFinite(targetZ)){stop();return false;}
 		// Safety/follow/new orders replace a pending firing branch. Its ticket
 		// must not own a queue turn that this successor can never consume.
@@ -302,6 +378,7 @@ final class PlayerBotNavigation {
 		if(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover && (mover.traversingHeight() || mover.ridingPlatform()))return true;
 		if (bot.isCasting() || !bot.canPerformMove() || bot.isDead()) { cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken); return false; }
 		long now = System.currentTimeMillis();
+		intentUntil=now+3000;
 		if(pausedAt!=0){lastProgress+=Math.max(0,now-pausedAt);pausedAt=0;}
 		Point actualPosition=new Point(bot.getX(),bot.getY(),bot.getZ());
 		if(observedPosition==null || observedWorld!=bot.getWorldId() || observedInstance!=bot.getInstanceId()) {
@@ -311,18 +388,20 @@ final class PlayerBotNavigation {
 		}
 		if(routeWorld!=bot.getWorldId() || routeInstance!=bot.getInstanceId()) {
 			meshJourney.close();
-			cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);localOrigin=null;approachTarget=null;approachDestination=null;clearSearch();route.clear();partialRoute=lookahead=false;routeGoal=null;publishedGoal=null;publishedDestination=null;
+			cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);localOrigin=null;approachTarget=null;approachDestination=null;clearSearch();clearRoute();partialRoute=lookahead=false;routeGoal=null;publishedGoal=null;publishedDestination=null;
 		}
 		Point goal = trackingGoal(new Point(targetX,targetY,targetZ),intent,now);
 		targetX=goal.x();targetY=goal.y();targetZ=goal.z();
 		// An early advisory callback owns no new movement turn. Preserve only the
 		// same fresh, registered planning intent; an orphan search is not an action.
-		if (now < nextMove) return bot.getMoveController().isInMove() || ownsPendingMove(goal);
+		if (now < nextMove && routeIntent==intent && routeGoal!=null
+			&& PositionUtil.getDistance(routeGoal.x(),routeGoal.y(),routeGoal.z(),goal.x(),goal.y(),goal.z())<=.25)
+			return bot.getMoveController().isInMove() || ownsPendingMove(goal);
 		nextMove = now + 200;
 		if(bot instanceof Player player)PlayerBotFollowIntent.clear(player);
 		if (bot.isFlying()) {
 			cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);
-			route.clear();clearSearch();partialRoute=lookahead=false;
+			clearRoute();clearSearch();partialRoute=lookahead=false;
 			boolean moved = PlayerBotFlight.move(bot, targetX, targetY, targetZ, hazards);
 			status = moved ? "flying" : "air route blocked";
 			return moved;
@@ -336,8 +415,20 @@ final class PlayerBotNavigation {
 			if(completed!=null){
 				if(completed.state()==PlayerBotPlatformRide.State.COMPLETE)meshJourney.completeRide(completed.route(),actualPosition);
 				else {meshJourney.close();meshJourney.bind(bot.getWorldId(),goal);nextSearch=now+3000;}
-				cancelTicket(searchToken);clearSearch();route.clear();lookahead=partialRoute=false;publishedGoal=publishedDestination=null;lastProgress=now;
+				cancelTicket(searchToken);clearSearch();clearRoute();lookahead=partialRoute=false;publishedGoal=publishedDestination=null;lastProgress=now;
 			}
+			var jump=meshJourney.pendingJump();
+			if(jump!=null && meshJourney.jumpLaunched()) {
+				// The mover/Session height guard returns until gravity has actually
+				// settled. A launched proposal never awards arrival at takeoff time.
+				if(!meshJourney.completeJump(actualPosition))meshJourney.rejectJump(actualPosition);
+				cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);clearSearch();clearRoute();
+				lookahead=partialRoute=false;localOrigin=null;publishedGoal=null;lastProgress=now;nextSearch=0;
+				jump=meshJourney.pendingJump();
+			}
+			if(preparedJump!=null && preparedJump!=jump)cancelTicket(heightSearchToken);
+			if(jump!=null && PositionUtil.getDistance(player,jump.start().x(),jump.start().y(),jump.start().z())<=.75)
+				return prepareJump(player,mover,jump,actualPosition,goalDistance,now);
 			var boarding=meshJourney.pendingRide();
 			if(queuedPlatform!=null && queuedPlatform!=boarding)leavePlatformQueue(player);
 			if(boarding!=null && (queuedPlatform==boarding || PositionUtil.getDistance(player,boarding.from().ground().x(),boarding.from().ground().y(),boarding.from().ground().z())<8)){
@@ -346,7 +437,7 @@ final class PlayerBotNavigation {
 					transportCongested=true;routeFailure=true;stopMovement();status="lift dock temporarily unavailable";return false;
 				}
 				if(queuedPlatform==null){
-					cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);clearSearch();route.clear();localOrigin=null;lookahead=partialRoute=false;stopMovement();
+					cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);clearSearch();clearRoute();localOrigin=null;lookahead=partialRoute=false;stopMovement();
 					queuedPlatform=boarding;platformQueueFailures=0;nextPlatformBoardProbe=0;
 				}
 				return platformQueue(player,mover,boarding,now,goalDistance);
@@ -356,29 +447,29 @@ final class PlayerBotNavigation {
 		// controller keeps validating floor/body/door clearance on every movement step.
 		if(publishedDestination!=null && !PlayerBotHazards.safePath(new Point(bot.getX(),bot.getY(),bot.getZ()),publishedDestination,hazards))stopMovement();
 		if (goalDistance < closestGoalDistance - 0.5) { closestGoalDistance=goalDistance;lastProgress=now; }
-		if (retainingPublishedMove(goal,now) && !lookahead && !partialRoute) {
+		if (routeIntent==intent && refreshWalk() && retainingPublishedMove(goal,now) && !lookahead && !partialRoute) {
 			cancelTicket(searchToken);cancelTicket(localSearchToken);cancelTicket(heightSearchToken);localOrigin=null;return true;
 		}
 		// A retained terrain query belongs to its actual destination, including Z.
 		// A nearby successor must not keep searching the predecessor's floor.
-		if (routeGoal == null || routeWorld != bot.getWorldId() || routeInstance != bot.getInstanceId()
+		if (routeGoal == null || routeIntent!=intent || routeWorld != bot.getWorldId() || routeInstance != bot.getInstanceId()
 			|| PositionUtil.getDistance(routeGoal.x(), routeGoal.y(), routeGoal.z(), targetX, targetY, targetZ) > .25
 			|| routeSearch!=null && !routeSearch.targets(goal)) {
 			cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);localOrigin=null;
-			route.clear();clearSearch();partialRoute=lookahead=groundRouteUnavailable=false;progressWaypoint=null; routeGoal = goal; routeWorld = bot.getWorldId(); routeInstance = bot.getInstanceId();
+			clearRoute();clearSearch();partialRoute=lookahead=groundRouteUnavailable=false;progressWaypoint=null; routeIntent=intent; routeGoal = goal; routeWorld = bot.getWorldId(); routeInstance = bot.getInstanceId();
 			closestGoalDistance = goalDistance; lastProgress = now; nextSearch = 0;
 		}
 		if (goalDistance < closestGoalDistance - 0.5) { closestGoalDistance = goalDistance; lastProgress = now; }
-		while (!route.isEmpty() && PositionUtil.getDistance(bot, route.peekFirst().x(), route.peekFirst().y(), route.peekFirst().z()) < 0.6) route.removeFirst();
+		while (!walkRouteOwned && !route.isEmpty() && PositionUtil.getDistance(bot,route.peekFirst().x(),route.peekFirst().y(),route.peekFirst().z())<.01){route.removeFirst();routeHeadIndex++;}
 		if(!route.isEmpty() && !PlayerBotHazards.safePath(new Point(bot.getX(),bot.getY(),bot.getZ()),route.peekFirst(),hazards)) {
-			cancelTicket(localSearchToken);localOrigin=null;discardLookahead();route.clear();partialRoute=false;
+			cancelTicket(localSearchToken);localOrigin=null;discardLookahead();clearRoute();partialRoute=false;
 			status="route interrupted by fresh hazard";stopMovement();return false;
 		}
 		if(!route.isEmpty()) {
 			Point waypoint=route.peekFirst();double distanceToWaypoint=PositionUtil.getDistance(bot,waypoint.x(),waypoint.y(),waypoint.z());
 			if(!waypoint.equals(progressWaypoint)){progressWaypoint=waypoint;closestWaypointDistance=distanceToWaypoint;lastProgress=now;}
 			if(distanceToWaypoint<closestWaypointDistance-.2){closestWaypointDistance=distanceToWaypoint;lastProgress=now;}
-			if(now-lastProgress>4000){route.clear();progressWaypoint=null;partialRoute=false;if(lookahead){cancelTicket(searchToken);clearSearch();lookahead=false;}lastProgress=now-1800;}
+			if(now-lastProgress>4000){clearRoute();progressWaypoint=null;partialRoute=false;if(lookahead){cancelTicket(searchToken);clearSearch();lookahead=false;}lastProgress=now-1800;}
 		}
 		// Plan from a proved endpoint while the mover earns the remaining edges.
 		// Retain the final goal; this does not report NPC arrival or quest progress.
@@ -422,7 +513,7 @@ final class PlayerBotNavigation {
 		// The native mover still checks floor/body/doors every200ms. A pending
 		// future query cannot stop that earned edge or repeatedly re-prove it in
 		// the shared planning quota while other actors are waiting for a route.
-		if(!route.isEmpty() && route.peekFirst().equals(publishedDestination) && retainingPublishedMove(goal,now)) {
+		if(refreshWalk() && retainingPublishedMove(goal,now)) {
 			cancelTicket(localSearchToken);cancelTicket(heightSearchToken);localOrigin=null;
 			status="following local route";return true;
 		}
@@ -458,7 +549,7 @@ final class PlayerBotNavigation {
 				if(!Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z)
 					|| Math.hypot(x-bot.getX(),y-bot.getY())<.15 && z>=bot.getZ()-1.25f)continue;
 				if(intent!=Intent.EVADE && (Math.hypot(x-wantedX,y-wantedY)>.15
-					|| Math.hypot(wantedX-targetX,wantedY-targetY)<.15 && Math.abs(z-targetZ)>.75))continue;
+					|| intent!=Intent.FOLLOW && Math.hypot(wantedX-targetX,wantedY-targetY)<.15 && Math.abs(z-targetZ)>.75))continue;
 				Point candidate=new Point(x,y,z);
 				if(!PlayerBotHazards.safePath(origin,candidate,hazards))continue;
 				double score=-PositionUtil.getDistance(x,y,z,targetX,targetY,targetZ)-Math.abs(offset)*.015;
@@ -470,10 +561,15 @@ final class PlayerBotNavigation {
 			cancelTicket(localSearchToken);
 		}
 		Point best=localBest;
+		// A blocked approach on the same/higher floor needs a route around the
+		// structure first. Exhaustive jump candidates cannot climb a whole storey
+		// and previously delayed the only useful walking search for minutes.
+		if(best==null && intent==Intent.FOLLOW_TRAIL && !groundRouteUnavailable && targetZ>=bot.getZ()-.75f)
+			return beginGroundRoute(origin,goal,goalDistance,now);
 		if(best==null && !route.isEmpty()) {
 			// Replan a freshly obstructed corridor instead of pressing against its
 			// corner until the generic four-second movement timeout expires.
-			discardLookahead();route.clear();partialRoute=false;progressWaypoint=null;nextSearch=0;
+			discardLookahead();clearRoute();partialRoute=false;progressWaypoint=null;nextSearch=0;
 		}
 		double localGoalDistance=PositionUtil.getDistance(origin.x(),origin.y(),origin.z(),targetX,targetY,targetZ);
 		boolean improvingStep=best!=null && PositionUtil.getDistance(best.x(),best.y(),best.z(),targetX,targetY,targetZ)
@@ -508,7 +604,7 @@ final class PlayerBotNavigation {
 					boolean safe=true;Point previous=new Point(plan.x(),plan.y(),plan.z());
 					for(int sample=1;sample<=32;sample++){var p=plan.at(plan.seconds()*sample/32);Point next=new Point(p.x,p.y,p.z);
 						if(!PlayerBotHazards.safePath(previous,next,hazards)){safe=false;break;}previous=next;}
-					if(safe && mover.startHeightTraversal(plan)){cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);localOrigin=null;nextHeightSearch=now+500;groundRouteUnavailable=false;routeFailure=false;discardLookahead();route.clear();partialRoute=false;publishedGoal=null;status="jumping to verified landing";return true;}
+					if(safe && mover.startHeightTraversal(plan)){cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);localOrigin=null;nextHeightSearch=now+500;groundRouteUnavailable=false;routeFailure=false;discardLookahead();clearRoute();partialRoute=false;publishedGoal=null;status="jumping to verified landing";return true;}
 				}
 			 }
 			}
@@ -520,25 +616,38 @@ final class PlayerBotNavigation {
 		if(route.isEmpty() && !improvingStep && goalDistance>.6 && now>=nextSearch) {
 			return beginGroundRoute(origin,goal,goalDistance,now);
 		}
-		if (best == null) { if(TERRAIN.waiting(heightSearchToken))return true;routeFailure=groundRouteUnavailable;localOrigin=null;discardLookahead();route.clear();partialRoute=false; status = "blocked by geometry"; stopMovement(); return false; }
+		if (best == null) { if(TERRAIN.waiting(heightSearchToken))return true;routeFailure=groundRouteUnavailable;localOrigin=null;discardLookahead();clearRoute();partialRoute=false; status = "blocked by geometry"; stopMovement(); return false; }
 		status = route.isEmpty() ? "moving" : "following local route";
 		byte heading = Math.hypot(best.x() - bot.getX(), best.y() - bot.getY()) < 0.001 ? bot.getHeading()
 			: (byte) Math.floorMod((int) Math.round(Math.toDegrees(Math.atan2(best.y() - bot.getY(), best.x() - bot.getX())) / 3), 120);
 		synchronized(bot.getMoveController()) {
 			if(bot instanceof Player player)PlayerBotFollowIntent.clear(player);
-			bot.getMoveController().setNewDirection(best.x(), best.y(), best.z(), heading);
-			bot.getMoveController().startMovingToDestination();
 			if(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover) {
-				var safety=java.util.List.copyOf(hazards);
-				mover.continueWalk(route.stream().map(p->new com.aionemu.gameserver.controllers.movement.PlayerBotMoveController.WalkPoint(p.x(),p.y(),p.z())).toList(),
-					(from,to)->PlayerBotHazards.safePath(new Point(from.x(),from.y(),from.z()),new Point(to.x(),to.y(),to.z()),safety));
+				// New publication follows current native proof. Same-generation tail
+				// refresh above never resets this target or spends another local probe.
+				walkGeneration++;routeHeadIndex=0;
+				followTrailTail=null;
+				if (intent==Intent.FOLLOW_TRAIL && route.isEmpty() && !trail.isEmpty() && trail.peekFirst().equals(goal)
+					&& Math.hypot(best.x()-goal.x(),best.y()-goal.y())<.15 && Math.abs(best.z()-goal.z())<=.75) {
+					route.addLast(best);
+					followTrailTail=PlayerBotNavigationTrail.append(route,trail,goal,Math.max(6,bot.getGameStats().getMovementSpeedFloat()*2));
+				}
+				walkRouteOwned=!route.isEmpty() && Math.hypot(best.x()-route.peekFirst().x(),best.y()-route.peekFirst().y())<.15
+					&& Math.abs(best.z()-route.peekFirst().z())<=.75;
+				if(walkRouteOwned){route.removeFirst();route.addFirst(best);}
+				var points=walkRouteOwned?walkPoints():java.util.List.of(new com.aionemu.gameserver.controllers.movement.PlayerBotMoveController.WalkPoint(0,best.x(),best.y(),best.z()));
+				var safety=hazards;
+				if(!mover.publishWalk(walkGeneration,points,(from,to)->PlayerBotHazards.safePath(new Point(from.x(),from.y(),from.z()),new Point(to.x(),to.y(),to.z()),safety)))return false;
+			}else {
+				bot.getMoveController().setNewDirection(best.x(),best.y(),best.z(),heading);
+				bot.getMoveController().startMovingToDestination();
 			}
 		}
 		cancelTicket(heightSearchToken);localOrigin=null;publishedGoal=goal;publishedDestination=best;publishedWorld=bot.getWorldId();publishedInstance=bot.getInstanceId();
 		return true;
 	}
 
-	void stop() { if(bot instanceof Player player)leavePlatformQueue(player);transportCongested=false;cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);localOrigin=null;approachTarget=null;approachDestination=null;route.clear();clearSearch();meshJourney.close();partialRoute=lookahead=routeFailure=groundRouteUnavailable=false;routeGoal=null;progressWaypoint=null;pausedAt=0;stopMovement();status="ready"; }
+	void stop() { if(bot instanceof Player player)leavePlatformQueue(player);transportCongested=false;cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);localOrigin=null;approachTarget=null;approachDestination=null;clearRoute();clearSearch();meshJourney.close();partialRoute=lookahead=routeFailure=groundRouteUnavailable=false;routeGoal=null;progressWaypoint=null;pausedAt=0;stopMovement();status="ready"; }
 	/** A short rest/equipment/self-cast pause retains the same journey, not a new destination. */
 	void pause() {
 		if(pausedAt==0)pausedAt=System.currentTimeMillis();
@@ -550,6 +659,53 @@ final class PlayerBotNavigation {
 		stopMovement();status="movement paused for native action";
 	}
 	private void discardLookahead() { if(lookahead){cancelTicket(searchToken);clearSearch();lookahead=false;} }
+	private boolean prepareJump(Player player,com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover,
+		PlayerBotRoadNetwork.Jump jump,Point origin,double goalDistance,long now) {
+		// A funded ballistic search owns a stable takeoff; do not leave a previous
+		// corridor walking while its body/landing proof is sliced across callbacks.
+		stopMovement();cancelTicket(searchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);
+		clearSearch();clearRoute();lookahead=partialRoute=false;localOrigin=null;
+		if(!player.canPerformMove() || player.isCasting() || player.isTrading() || player.isLooting()) {
+			cancelTicket(heightSearchToken);status="waiting for native jump admission";return true;
+		}
+		float speed=com.aionemu.gameserver.utils.stats.StatFunctions.adjustStatByMovementModifier(player,
+			com.aionemu.gameserver.model.stats.container.StatEnum.SPEED,player.getGameStats().getMovementSpeedFloat());
+		if(preparedJump!=jump || preparedJumpOrigin==null
+			|| PositionUtil.getDistance(origin.x(),origin.y(),origin.z(),preparedJumpOrigin.x(),preparedJumpOrigin.y(),preparedJumpOrigin.z())>.05
+			|| Math.abs(speed-preparedJumpSpeed)>.01) {
+			cancelTicket(heightSearchToken);preparedJump=jump;preparedJumpOrigin=origin;preparedJumpSpeed=speed;
+			preparedJumpSearch=GeoService.getInstance().searchPlayerBotHeightTraversal(player.getWorldId(),player.getInstanceId(),
+				origin.x(),origin.y(),origin.z(),jump.end().x(),jump.end().y(),jump.end().z(),speed);
+		}
+		boolean pending=false;
+		try(var lease=TERRAIN.begin(heightSearchToken,terrainPriority(goalDistance))) {
+			if(lease==null){status="waiting to prove prepared jump or drop";return true;}
+			var plan=preparedJumpSearch.advance(lease.deadlineNanos());
+			if(!preparedJumpSearch.done()) {
+				pending=true;status="proving prepared jump or drop";return true;
+			}
+			boolean safe=plan!=null && plan.valid()
+				&& PositionUtil.getDistance(plan.endX(),plan.endY(),plan.endZ(),jump.end().x(),jump.end().y(),jump.end().z())<=.4;
+			if(safe) {
+				Point previous=new Point(plan.x(),plan.y(),plan.z());
+				for(int sample=1;sample<=32;sample++) {
+					var at=plan.at(plan.seconds()*sample/32);Point next=new Point(at.x,at.y,at.z);
+					if(!PlayerBotHazards.safePath(previous,next,hazards)){safe=false;break;}previous=next;
+				}
+			}
+			if(safe) {
+				// Transient admission loss is not evidence that this geometric arc
+				// is obstructed. The native mover repeats landing and speed checks.
+				if(!player.canPerformMove() || player.isCasting() || player.isTrading() || player.isLooting())return true;
+				if(mover.startHeightTraversal(plan)) {
+					meshJourney.markJumpLaunched();cancelTicket(heightSearchToken);nextHeightSearch=now+500;
+					status="traversing native-proved prepared jump or drop";return true;
+				}
+			}
+			meshJourney.rejectJump(origin);cancelTicket(heightSearchToken);routeFailure=false;groundRouteUnavailable=false;nextSearch=0;
+			status="prepared jump obstructed; replanning directed route";return true;
+		}finally{if(pending)TERRAIN.request(heightSearchToken,terrainPriority(goalDistance));}
+	}
 	private void leavePlatformQueue(Player player){
 		PlayerBotPlatformQueue.leave(player);queuedPlatform=null;platformQueuePoint=null;platformQueueRank=-2;
 		platformQueueDistance=Double.POSITIVE_INFINITY;platformQueueProgressAt=0;platformQueueFailures=0;cancelTicket(localSearchToken);
@@ -565,14 +721,18 @@ final class PlayerBotNavigation {
 		// The front passenger waits at the static shore, even while the cabin is
 		// away. A short docking window must not reverse that approach every cycle.
 		int place=rank;var shore=ride.from().ground();
-		if(place!=platformQueueRank){platformQueueRank=place;platformQueuePoint=null;nextPlatformQueueProbe=0;platformQueueProgressAt=0;platformQueueDistance=Double.POSITIVE_INFINITY;}
-		if(!embark)cancelTicket(localSearchToken);
+		if(place!=platformQueueRank){PlayerBotPlatformQueue.releaseSlot(player,ride);platformQueueRank=place;platformQueuePoint=null;nextPlatformQueueProbe=0;platformQueueProgressAt=0;platformQueueDistance=Double.POSITIVE_INFINITY;}
+		// Waiting for a docking phase must not repeatedly discard an unfunded
+		// shore proof. Its queued turn belongs to this unchanged lift approach.
+		// A boarding-only request, however, is no longer useful once it departs.
+		if(platformQueuePoint!=null && !embark)cancelTicket(localSearchToken);
 		if(platformQueuePoint==null){
 			if(now<nextPlatformQueueProbe)return true;
 			var lease=TERRAIN.begin(localSearchToken,terrainPriority(goalDistance));
 			if(lease==null)return true;
 			try(lease){
 				nextPlatformQueueProbe=now+1000;
+				boolean occupied=false;
 				var frame=ride.entity().at(ride.from().time(),0);double[] deck=frame.point(ride.part(),ride.local());
 				double dx=shore.x()-deck[0],dy=shore.y()-deck[1],length=Math.hypot(dx,dy);
 				if(length<.01){dx=1;dy=0;length=1;}dx/=length;dy/=length;
@@ -582,12 +742,14 @@ final class PlayerBotNavigation {
 					var point=GeoService.getInstance().findGroundMovementCollision(player.getWorldId(),player.getInstanceId(),player.getX(),player.getY(),player.getZ(),x,y,shore.z());
 					if(point!=null && Math.hypot(point.x-x,point.y-y)<.3 && Math.abs(point.z-shore.z())<.5
 						&& PlayerBotHazards.safePath(new Point(player.getX(),player.getY(),player.getZ()),new Point(point.x,point.y,point.z),hazards)){
-						platformQueuePoint=new Point(point.x,point.y,point.z);break;
+						var candidate=new Point(point.x,point.y,point.z);
+						if(PlayerBotPlatformQueue.reserve(player,ride,candidate)){platformQueuePoint=candidate;break;}
+						occupied=true;
 					}
 				}
 				// Only a funded geometry failure counts; waiting for compute or an
 				// authored lift cycle cannot evict a healthy passenger from the queue.
-				if(platformQueuePoint==null && ++platformQueueFailures>=3)return blockedPlatformQueue(player,ride,now);
+				if(platformQueuePoint==null && !occupied && ++platformQueueFailures>=3)return blockedPlatformQueue(player,ride,now);
 			}finally{cancelTicket(localSearchToken);}
 		}
 		if(platformQueuePoint==null){stopMovement();status="waiting for safe lift queue space";return true;}
@@ -595,7 +757,7 @@ final class PlayerBotNavigation {
 		if(distance>.25){
 			if(distance<platformQueueDistance-.2 || platformQueueProgressAt==0){platformQueueDistance=distance;platformQueueProgressAt=now;}
 			else if(now-platformQueueProgressAt>10000){
-				platformQueuePoint=null;platformQueueProgressAt=0;stopMovement();
+				PlayerBotPlatformQueue.releaseSlot(player,ride);platformQueuePoint=null;platformQueueProgressAt=0;stopMovement();
 				if(++platformQueueFailures>=3)return blockedPlatformQueue(player,ride,now);
 				status="rechecking obstructed lift approach";return true;
 			}

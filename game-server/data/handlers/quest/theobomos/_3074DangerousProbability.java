@@ -2,9 +2,14 @@ package quest.theobomos;
 
 import static com.aionemu.gameserver.model.DialogAction.*;
 
+import java.util.List;
+
 import com.aionemu.commons.utils.Rnd;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.questEngine.handlers.AbstractQuestHandler;
+import com.aionemu.gameserver.questEngine.handlers.HandlerResult;
+import com.aionemu.gameserver.model.templates.quest.QuestItems;
+import com.aionemu.gameserver.model.templates.rewards.BonusType;
 import com.aionemu.gameserver.questEngine.model.QuestEnv;
 import com.aionemu.gameserver.questEngine.model.QuestState;
 import com.aionemu.gameserver.questEngine.model.QuestStatus;
@@ -24,6 +29,7 @@ public class _3074DangerousProbability extends AbstractQuestHandler {
 	public void register() {
 		qe.registerQuestNpc(798193).addOnQuestStart(questId);
 		qe.registerQuestNpc(798193).addOnTalkEvent(questId);
+		qe.registerOnBonusApply(questId, BonusType.REDEEM);
 	}
 
 	@Override
@@ -81,25 +87,17 @@ public class _3074DangerousProbability extends AbstractQuestHandler {
 		} else if (qs.getStatus() == QuestStatus.REWARD) {
 			if (targetId == 798193) { // Nagrunerk
 				if (dialogActionId == SELECTED_QUEST_NOREWARD) {
-					switch (qs.getRewardGroup()) {
-						case 0:
-							if (player.getInventory().tryDecreaseKinah(1000) && QuestService.finishQuest(env)) {
-								removeQuestItem(env, 186000037, 1);
-								ItemService.addItem(player, 186000005, 1);
-							}
-							break;
-						case 1:
-							if (player.getInventory().tryDecreaseKinah(5000) && QuestService.finishQuest(env)) {
-								removeQuestItem(env, 186000037, 1);
-								ItemService.addItem(player, 186000005, Rnd.get(1, 3));
-							}
-							break;
-						case 2:
-							if (player.getInventory().tryDecreaseKinah(25000) && QuestService.finishQuest(env)) {
-								removeQuestItem(env, 186000037, 1);
-								ItemService.addItem(player, 186000005, Rnd.get(1, 6));
-							}
-							break;
+					Integer group = qs.getRewardGroup();
+					long cost = group == null ? 0 : switch (group) { case 0 -> 1000; case 1 -> 5000; case 2 -> 25000; default -> 0; };
+					if (cost == 0 || player.getInventory().getItemCountByItemId(186000037) < 1
+						|| !player.getInventory().tryDecreaseKinah(cost)) return sendQuestDialog(env, 1009);
+					if (!player.getInventory().decreaseByItemId(186000037, 1)) {
+						player.getInventory().increaseKinah(cost);
+						return sendQuestDialog(env, 1009);
+					}
+					if (!QuestService.finishQuest(env)) {
+						player.getInventory().increaseKinah(cost);
+						ItemService.addItem(player, 186000037, 1);
 					}
 					return closeDialogWindow(env);
 				} else {
@@ -108,5 +106,20 @@ public class _3074DangerousProbability extends AbstractQuestHandler {
 			}
 		}
 		return false;
+	}
+
+	@Override
+	public HandlerResult onBonusApplyEvent(QuestEnv env, BonusType type, List<QuestItems> rewards) {
+		if (type != BonusType.REDEEM || env.getQuestId() != questId) return HandlerResult.UNKNOWN;
+		QuestState state = env.getPlayer().getQuestStateList().getQuestState(questId);
+		if (state != null && state.getStatus() == QuestStatus.REWARD && state.getRewardGroup() != null) {
+			// The client's 50a/50b/50c exchange groups are scripted rewards, not
+			// the general random-item pool. Retain the existing exchange amounts.
+			int count = switch (state.getRewardGroup()) { case 0 -> 1; case 1 -> Rnd.get(1, 3); case 2 -> Rnd.get(1, 6); default -> 0; };
+			if (count > 0) rewards.add(new QuestItems(186000005, count));
+		}
+		// QuestService's bonus hook uses FAILED to skip the generic item pool;
+		// this handler has already supplied the exchange reward in its item list.
+		return HandlerResult.FAILED;
 	}
 }

@@ -1,8 +1,10 @@
 package com.aionemu.gameserver.taskmanager;
 
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import com.aionemu.commons.configs.CommonsConfig;
@@ -15,16 +17,28 @@ public abstract class AbstractFIFOPeriodicTaskManager<T> extends AbstractPeriodi
 
 	private static final int WARNING_PERIOD_SECONDS = 10;
 	private final Queue<T> tasks = new ConcurrentLinkedQueue<>();
+	private final Map<T, Long> pending = new ConcurrentHashMap<>();
+	private final boolean coalesce;
+	private long lastBacklogWarning;
 	private final Set<T> processedTasks = new LinkedHashSet<>();
 	private final int counterLimit;
 	private int counter = 0;
 
 	public AbstractFIFOPeriodicTaskManager(int periodMillis) {
+		this(periodMillis, false);
+	}
+
+	protected AbstractFIFOPeriodicTaskManager(int periodMillis, boolean coalesce) {
 		super(periodMillis);
+		this.coalesce = coalesce;
 		counterLimit = Math.max(5, WARNING_PERIOD_SECONDS * 1000 / periodMillis);
 	}
 
 	public final void add(T t) {
+		// Movement/zone callbacks read the actor's current position. Preserve one
+		// pending notification instead of allocating every intermediate move.
+		if (coalesce && (pending.containsKey(t) || pending.putIfAbsent(t, System.nanoTime()) != null))
+			return;
 		tasks.add(t);
 	}
 
@@ -32,13 +46,16 @@ public abstract class AbstractFIFOPeriodicTaskManager<T> extends AbstractPeriodi
 	public synchronized final void run() {
 		int previouslyProcessedTasksSize = processedTasks.size();
 		processedTasks.clear();
-		for (int i = tasks.size(); i > 0; --i) {
+		for (int i = coalesce ? pending.size() : tasks.size(); i > 0; --i) {
 			T task = tasks.poll();
 			if (task == null) // no tasks left
 				break;
 			processedTasks.add(task);
 		}
 		for (T task : processedTasks) {
+			// A move during the callback must enqueue the next notification.
+			if (coalesce)
+				pending.remove(task);
 			try {
 				long begin = System.nanoTime();
 				callTask(task);
@@ -50,7 +67,16 @@ public abstract class AbstractFIFOPeriodicTaskManager<T> extends AbstractPeriodi
 				log.error("Exception in {} processing {}", getClass().getSimpleName(), task, e);
 			}
 		}
-		if (processedTasks.size() <= previouslyProcessedTasksSize)
+		if (coalesce) {
+			long now = System.nanoTime();
+			T oldest = tasks.peek();
+			Long enqueued = oldest == null ? null : pending.get(oldest);
+			if (enqueued != null && now - enqueued >= WARNING_PERIOD_SECONDS * 1_000_000_000L
+				&& now - lastBacklogWarning >= WARNING_PERIOD_SECONDS * 1_000_000_000L) {
+				lastBacklogWarning = now;
+				log.warn("Tasks for {} are waiting to be executed (currently {} pending tasks).", getClass().getSimpleName(), pending.size());
+			}
+		} else if (processedTasks.size() <= previouslyProcessedTasksSize)
 			counter = 0;
 		else if (++counter % counterLimit == 0) // log warning if the task queue size continually increased over the last WARNING_PERIOD_SECONDS
 			log.warn("Tasks for {} are added faster than they can be executed (currently {} tasks).", getClass().getSimpleName(), processedTasks.size());

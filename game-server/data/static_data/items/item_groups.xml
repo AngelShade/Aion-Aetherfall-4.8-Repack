@@ -4505,6 +4505,32 @@
 		<item id="167000883"/>
 		<item id="167000884"/>
 	</manastones_rare>
+	<!-- MAGICAL is its own magic-stat pool, not the general 95/5 MANASTONE roll.
+	     Historical Aion parsers select inventory items named magical_; see
+	     docs/MAGICAL_QUEST_REWARDS.md for pinned sources and native 4.8 checks. -->
+	<magical bonusType="MAGICAL">
+		<!-- Level 20: Magic Boost, Magical Accuracy, Magic Resist (common/rare). -->
+		<item id="167000263"/>
+		<item id="167000423"/>
+		<item id="167000527"/>
+		<item id="167000528"/>
+		<item id="167000535"/>
+		<item id="167000536"/>
+		<!-- Level 30. -->
+		<item id="167000295"/>
+		<item id="167000455"/>
+		<item id="167000529"/>
+		<item id="167000530"/>
+		<item id="167000537"/>
+		<item id="167000538"/>
+		<!-- Level 40. -->
+		<item id="167000327"/>
+		<item id="167000487"/>
+		<item id="167000531"/>
+		<item id="167000532"/>
+		<item id="167000539"/>
+		<item id="167000540"/>
+	</magical>
 	<medals bonusType="MEDAL" chance="100">
 		<item id="186000031" level="1" count="2" chance="22"/>
 		<item id="186000030" level="1" count="1" chance="19"/>

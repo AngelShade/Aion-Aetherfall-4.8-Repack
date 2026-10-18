@@ -1,7 +1,23 @@
 # Aion Aetherfall 4.8 Repack — Changelog
 
+## Local preparation — Hub automatic updates (18 October 2026)
+
+- Update now uses the saved online channel, including the client's update
+  settings, or the standard Aetherfall channel when none is configured.
+- Download and apply updates automatically; the file picker is reserved for
+  the separate manual patch action. Connection errors remain visible.
+- Installed locally and included in the prepared patch; not published.
+
+## Local preparation — Aetherfall Hub icon (18 October 2026)
+
+- Added an original generated Aetherfall emblem to the Hub/Setup executable,
+  including Explorer and taskbar icon sizes. The aether crystal, contrasting
+  wings and fractured-world base represent the repack's world and factions.
+- Applied locally to the original Hub and repack copies; matching patch prepared.
+  This does not publish a new game release or change gameplay.
+
 This history includes the full initial-release changelog for 0.86, followed by
-the 0.87 through 0.90 updates. Earlier development work is recorded under 0.86,
+the 0.87 through 0.92.3 repack updates and original-only 0.93 navigation, in version order. Earlier development work is recorded under 0.86,
 because that is the first public repack in which those changes were bundled.
 
 | Version | Release | Download |
@@ -11,19 +27,12 @@ because that is the first public repack in which those changes were bundled.
 | [0.88](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.88) | Fresh-install world-bot startup repair | Cumulative patch: 23 files, about 15 MB |
 | [0.89](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.89) | Saved world-bot reserve placement | Cumulative patch: 23 files, about 15 MB |
 | [0.90](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.90) | Quest reward upgrades, Setup server controls and start-stage repair | Cumulative patch: 25 files, about 20.1 MB |
-
-## 0.91–0.92 — Source and local installation updates
-
-- Restored native pet mood reaction variants and valid zero-index interactions.
-- Fixed bot rank insert/checkpoint persistence without resetting saved ranks or points.
-- Aligned native quest reward previews with the permanent Ninja motion and Tiamat Whelp rewards.
-- Fixed Saved Parties empty-state text and the native loot-roll footer frame clearance.
-- Added name-addressed chat requests for native legion invitations, retaining rank permissions and player acceptance.
-- Added bounded per-dock lift queues, supported passenger spacing, uninterrupted ride custody and standing carry packets for world bots and companions.
-- Prevented Setup self-downgrades and selection of stale cached patches; retained the existing server controls and bounded startup wait.
-- Shortened project instructions while preserving their full history and added a bounded server-log summary tool.
-
-These updates are separate from public release publication. Normal builds and focused offline checks passed; in-game acceptance remains user-owned. A broader navigation upgrade is subsequent work, not included in this checkpoint.
+| 0.91 | Pet mood reactions and saved bot ranks | Included in the cumulative 0.92 patch; no separate repack download |
+| [0.92](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.92) | Party UI, legion invitations, bot lifts and Setup update fixes | Published cumulative patch; includes 0.91 |
+| [0.92.1](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.92.1) | Missing broker sellers in fresh and existing repacks | Published cumulative patch |
+| [0.92.2](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.92.2) | Revert the pet interaction changes introduced in 0.91 | Published cumulative patch |
+| 0.92.3 | Setup server shutdown and leftover console repair | Local cumulative patch prepared; not yet published |
+| 0.93 | Bot navigation, companion spacing and Profile Stigma controls | Local cumulative patch prepared; not yet published |
 
 ## 0.86 — Initial release: full changelog
 
@@ -200,6 +209,70 @@ These updates are separate from public release publication. Normal builds and fo
 - Fixed Start database & servers and Database only leaving Setup stuck after the database started. The servers now start right after the database is ready, and Setup can be closed again.
 - A failed startup stage now stops the sequence and shows that stage's actual error instead of continuing.
 
+## 0.91 — Pet reactions and saved bot ranks
+
+- Restored the different pet mood reactions and fixed interactions that were incorrectly rejected.
+- Fixed saving newly created bot ranks and later rank updates without resetting earned points or saved ranks.
+- Included these repairs in the cumulative 0.92 repack update; there is no separate 0.91 repack download.
+
+## 0.92 — Party UI, legion invitations, lifts and Setup updates
+
+- Aligned quest reward previews with the permanent Ninja motion card and Tiamat Whelp egg awarded by the server.
+- Fixed unreadable empty-state text in Saved Parties and made room for the native loot-roll footer.
+- Added requests addressed to a bot by name for legion invitations, while retaining legion permissions and player acceptance.
+- Added spaced lift queues and distinct passenger positions for world bots and companions. Bots retain their ride while the lift moves and step off at the destination.
+- Prevented Setup from replacing itself with an older build or choosing an outdated cached patch when checking online for updates.
+- Kept update failures visible so players can see why a patch could not be installed.
+- Included the earlier pet mood and bot rank repairs. This cumulative update is published through Setup's Update Repack button.
+
+## 0.92.1 — Missing broker sellers
+
+- Fixed fresh repacks starting with no reserved broker sellers, which prevented the market from filling and produced a warning for each faction.
+- Added the six offline market sellers to fresh database setup: three for Elyos and three for Asmodians.
+- Added a repair before server startup for existing installations with missing sellers. Existing working sellers are retained; conflicting character identities stop the repair rather than being overwritten.
+- Preserved player accounts, characters, items and existing market listings. Repeating the repair does not create duplicate sellers.
+- Corrected the repair's database text comparisons to use the existing player table's settings.
+- Updated the full repack and local installed copy. The cumulative patch is published on GitHub and included in Setup updates.
+
+Broker stock fills through the normal market service after the servers start. The seller repair was verified in the installed repack; the next in-game market check remains pending.
+
+## 0.92.2 — Restore previous pet interactions
+
+- Reverted the pet interaction changes introduced in 0.91 after they were reported to break pet interactions.
+- Restored the previous handling of interaction requests and the previous pet reaction response. Removed the newly randomized reaction result.
+- Kept the other fixes from 0.91, 0.92 and 0.92.1, including saved bot ranks, quest rewards, party UI, lift handling, Setup updates and broker sellers.
+- Existing pets, mood progress, gift cooldowns, items and character data are retained. No database reset or client DLL replacement is part of this rollback.
+
+Published on GitHub and available through Setup’s Update Repack button. Pet interactions still need in-game confirmation after restarting GameServer.
+
+## 0.92.3 — Setup server shutdown
+
+- Fixed Setup's Stop buttons leaving GameServer, LoginServer and ChatServer windows repeating “Terminate batch job (Y/N)?” after Java had stopped.
+- Setup now supplies the confirmation when the prompt repeats, instead of sending blank answers. Console input goes directly to the selected server's console.
+- Pressing Stop again also closes that server's finished batch window when Java has already exited. Interactive terminals and consoles containing another running program are left alone.
+- Kept normal Java shutdown and saving, the existing shutdown wait and the running database. No force termination was added.
+- Updated Setup and the repack Hub to build 0.90.1018.2. The cumulative repack update retains the pet rollback and earlier repairs.
+
+Prepared locally; publication through Setup remains separate. Stopping all three running servers still needs user confirmation with the updated Setup.
+
+## 0.93 — Navigation, companions and Stigma controls
+
+- Added prepared main routes and local connections for all 155 maps in the navigation catalogue.
+- Added continuous route handoff so bots can prepare the next section while following their current path.
+- Preferred ground routes and lifts before considering jump or drop connections.
+- Added prepared jump/drop connections with collision checks before launch and completion only after landing.
+- Retained bounded planning work and improved admission fairness for waiting bots.
+- Preserved the requested 0.92.2 pet-interaction rollback.
+- Added Stigma equip/remove controls in Profile and an Upgrade button opening the native Stigma charging window. Costs, materials and slot restrictions remain. Fixed the button and tooltip showing ??? by adding their English text entries.
+- Improved companion following across slower and faster leader movement, with stable role spacing and party-wide 2/4/8 m distance buttons.
+- Let companion travel continue during post-action waits, and refreshed hostile approach and casting admission.
+- Restored the magical reward choices for 34 affected quests.
+- Coalesced repeated movement/zone notifications and reduced scheduler scanning overhead.
+- Carried the original's matching client signing, native companion controls and graphics restore resources into the repack, with portable ownership paths.
+- Retained Setup's server shutdown repair and the earlier broker and population startup repairs.
+
+Applied from the current original development installation to the repack. The cumulative 0.93 patch is prepared locally; publication remains separate. Existing accounts, characters, database contents and local connection settings are retained. Normal builder outputs and copied files are verified; in-game movement, Stigma controls, quest choices and CPU acceptance remain the player's checks.
+
 ## Release-tool changes made alongside these updates
 
 These are maintainer workflow changes, separate from the player patch contents.
@@ -217,11 +290,14 @@ These are maintainer workflow changes, separate from the player patch contents.
 
 Close Aion and all three game servers normally. Keep the repack database running,
 open Aetherfall Setup and choose **Update Repack**. Start the servers again after
-the update finishes. For the 0.88 population repair, the missing initial state is
-created before GameServer starts.
+the update finishes. The 0.88 population repair creates the missing initial state
+before GameServer starts. The published 0.92.1 broker repair also adds missing
+reserved sellers before startup.
 
-The 0.90 patch is cumulative. Existing 0.86, 0.87, 0.88 and 0.89 users do not need
-to download the full repack again. The original 0.86 archive remains the base download.
+Patches are cumulative from 0.86, so existing users do not need to download the
+full repack again. Setup offers the latest published patch; preparing a patch
+locally does not make it available to other users. The original 0.86 archive
+remains the base download.
 
 Development continues on terrain routes, quests and encounters; the included
 repairs do not mean every route or dungeon is finished.

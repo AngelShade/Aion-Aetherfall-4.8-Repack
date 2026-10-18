@@ -86,12 +86,22 @@ final class PlayerBotMeshRoute implements AutoCloseable {
         final PlayerBotNavmeshStore store;
         final Set<Integer> reported=java.util.concurrent.ConcurrentHashMap.newKeySet();
         Runtime() {
-            int memory=PlayerBotConfig.NAVMESH_MEMORY_MB,queries=PlayerBotConfig.NAVMESH_MAX_QUERIES;
-            if(memory<64 || memory>4096 || queries<1 || queries>256)throw new IllegalArgumentException("Invalid playerbot mesh memory/query limits");
+            long memory=memoryAllowance(PlayerBotConfig.NAVMESH_MEMORY_MB,java.lang.Runtime.getRuntime().maxMemory());
+            int queries=PlayerBotConfig.NAVMESH_MAX_QUERIES;
+            if(queries<1 || queries>256)throw new IllegalArgumentException("Invalid playerbot mesh query limit");
+            LOG.info("Playerbot navigation: shared lazy cache allowance={} MiB, road route cache={} KiB per loaded map, concurrent queries={}",memory,PlayerBotConfig.NAVMESH_ROUTE_CACHE_KB,queries);
             admission=admission();slots=admission.slots;
             store=new PlayerBotNavmeshStore(Path.of("data/navmesh"),memory*1024L*1024L,
                 task->ThreadPoolManager.getInstance().executeLongRunning(task));
         }
+    }
+    static long memoryAllowance(long configured,long heapBytes){
+        int percent=PlayerBotConfig.NAVMESH_HEAP_PERCENT;
+        if(percent<1 || percent>99)throw new IllegalArgumentException("Automatic navmesh heap share must be 1..99 percent");
+        long heapMiB=heapBytes/(1024L*1024L);
+        long memory=configured==0?heapMiB*percent/100:configured;
+        if(memory<64 || memory>=heapMiB)throw new IllegalArgumentException("Navmesh allowance must fit inside the configured JVM heap with room for server state (minimum 64 MiB)");
+        return memory;
     }
     private static synchronized Runtime runtime(){if(runtime==null)runtime=new Runtime();return runtime;}
     static synchronized void shutdown(){if(runtime!=null)runtime.store.close();}
@@ -113,6 +123,8 @@ final class PlayerBotMeshRoute implements AutoCloseable {
     private final List<Point> proved=new ArrayList<>();
     private Point proofOrigin;
     private double provedDistance;
+    private boolean bakedCorridor;
+    private int bakedStart;
     private String reason="waiting for prepared map";
     PlayerBotMeshRoute(int world,Point start,Point goal,float horizon){this(world,start,goal,horizon,null);}
     PlayerBotMeshRoute(int world,Point start,Point goal,float horizon,PlayerBotMeshJourney journey){
@@ -136,10 +148,19 @@ final class PlayerBotMeshRoute implements AutoCloseable {
         // travel owns the component itinerary; combat/local steering stays local.
         boolean journeyNeeded=coarseRequired || distance(start,goal)>horizon;
         if(journeyNeeded && !journey.ready()){
-            used=journey.advance(host.store,start,allowance,expired,host.admission);work+=used;reason=journey.reason();
+            // Component arcs and cached road points are cheap memory work, not
+            // native collision probes. Reusing the 128-probe cap forced even
+            // small itineraries to wait for many shared terrain grants. Keep
+            // the same funded deadline/admission; only this pure graph batch
+            // has a larger operation cap. Native edge proof below is unchanged.
+            used=journey.advance(host.store,start,Math.max(allowance,8192),expired,host.admission);work+=used;reason=journey.reason();
             if(!journey.ready() || used>0)return;
         }
         target=journeyNeeded?journey.target(start):goal;
+        if(candidates.isEmpty() && query==null && request==null && journeyNeeded){
+            var baked=journey.preparedCorridor(start,horizon);
+            if(baked!=null && !baked.points().isEmpty()){candidates=baked.points();bakedStart=baked.start();target=candidates.getLast();graphComplete=true;bakedCorridor=true;reason="proving prepared main corridor";}
+        }
         if(query==null && candidates.isEmpty()) {
             if(!host.admission.demand(this)){reason="waiting for prepared window admission";return;}
             if(request==null)request=host.store.request(world,start.x(),start.y(),windowRadius);
@@ -252,7 +273,7 @@ final class PlayerBotMeshRoute implements AutoCloseable {
             useNative("prepared partial corridor does not advance the destination");return;
         }
         route=List.copyOf(proved);partial=!graphComplete || cursor<candidates.size() || distance(proofOrigin,goal)>.6;
-        journey.provedSegment(start,proofOrigin,target);
+        if(bakedCorridor)journey.provedCorridor(start,proofOrigin,bakedStart,cursor);else journey.provedSegment(start,proofOrigin,target);
         done=true;reason=partial?"native-proved prepared route segment":"native-proved prepared route";releaseGraph();
     }
     private boolean requestJourney(){
@@ -269,7 +290,7 @@ final class PlayerBotMeshRoute implements AutoCloseable {
         // the new physical pose, rather than repeating the same full corridor.
         if(!proved.isEmpty() && provedDistance>=.6){
             route=List.copyOf(proved);partial=true;done=true;
-            journey.provedSegment(start,proofOrigin,target);
+            if(bakedCorridor)journey.provedCorridor(start,proofOrigin,bakedStart,cursor);else journey.provedSegment(start,proofOrigin,target);
             reason="native-proved prepared prefix before obstruction";
             candidates=List.of();releaseGraph();return;
         }

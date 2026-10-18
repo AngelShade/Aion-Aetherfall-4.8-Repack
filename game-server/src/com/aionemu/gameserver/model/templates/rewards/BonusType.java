@@ -15,7 +15,7 @@ public enum BonusType {
 	GOODS, // %Quest_D_Goods
 	ISLAND,
 	LUNAR, // %Quest_A_BranchLunarEvent, exchange charms
-	MAGICAL, // %Quest_L_magical -- unknown
+	MAGICAL, // %Quest_L_magical; magic boost, magical accuracy and magic resist manastones
 	MANASTONE, // %Quest_L_matter_option
 	MASTER_RECIPE, // %Quest_ws_master_recipe -- not used, 99 lvl quests, heart exchange now
 	MATERIAL, // %Quest_D_material (Only Asmodian)

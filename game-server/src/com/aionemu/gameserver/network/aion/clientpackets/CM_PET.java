@@ -164,9 +164,8 @@ public class CM_PET extends AionClientPacket {
 					PetService.getInstance().renamePet(player, petName);
 				break;
 			case MOOD:
-				if (pet != null && pet.isSpawned() && (subType == 0 && pet.getCommonData().getMoodRemainingTime() == 0
-					|| subType == 1 && emotionId >= 0 && emotionId <= 3
-					|| subType == 3 && pet.getCommonData().getGiftRemainingTime() == 0)) {
+				if (pet != null && (subType == 0 && pet.getCommonData().getMoodRemainingTime() == 0
+					|| (subType == 3 && pet.getCommonData().getGiftRemainingTime() == 0) || emotionId != 0)) {
 					PetMoodService.checkMood(pet, subType, emotionId);
 				}
 				break;

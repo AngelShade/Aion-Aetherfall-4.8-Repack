@@ -18,8 +18,39 @@ final class PlayerBotNavmeshTopology {
     private final int[] nodeTiles;
     final float[] portals; // source XYZ then destination XYZ, in Recast coordinates
     private PlayerBotAnimatedLinks animated;
+    private PlayerBotRoadNetwork roads;
+    private record RouteKey(int start,int goal) {}
+    private final LinkedHashMap<RouteKey,int[]> routeCache=new LinkedHashMap<>(16,.75f,true);
+    private final long routeCacheLimit=routeCacheAllowance();
+    private long routeCacheBytes,routeCacheHits,routeCacheMisses;
+    static long routeCacheAllowance(){
+        long kb=com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ROUTE_CACHE_KB;
+        if(kb<0)throw new IllegalArgumentException("Road route cache must be nonnegative KiB per loaded map");
+        return Math.multiplyExact(kb,1024L);
+    }
+    private synchronized int[] cached(int start,int goal){
+        var route=routeCache.get(new RouteKey(start,goal));
+        if(route==null)routeCacheMisses++;else routeCacheHits++;
+        // Search owns its return value; callers cannot corrupt another bot's route.
+        return route==null?null:route.clone();
+    }
+    private synchronized void remember(int start,int goal,int[] route){
+        long bytes=128L+4L*route.length;
+        if(bytes>routeCacheLimit || routeCacheLimit==0)return;
+        var key=new RouteKey(start,goal);if(routeCache.containsKey(key))return;
+        var oldest=routeCache.entrySet().iterator();
+        while(routeCacheBytes+bytes>routeCacheLimit && oldest.hasNext()){
+            var entry=oldest.next();routeCacheBytes-=128L+4L*entry.getValue().length;oldest.remove();
+        }
+        routeCache.put(key,route.clone());routeCacheBytes+=bytes;
+    }
+    void roads(PlayerBotRoadNetwork roads){if(this.roads!=null)throw new IllegalStateException("Roads already published");this.roads=roads;}
+    PlayerBotRoadNetwork roads(){return roads;}
     void animated(PlayerBotAnimatedLinks links){if(animated!=null)throw new IllegalStateException("Topology already published");animated=links;}
-    PlayerBotAnimatedLinks.Ride ride(int arc){return animated!=null && arc>=to.length?animated.rides.get(arc-to.length):null;}
+    private int rideOffset(){return to.length+(roads==null?0:roads.jumps.size());}
+    PlayerBotAnimatedLinks.Ride ride(int arc){return animated!=null && arc>=rideOffset()?animated.rides.get(arc-rideOffset()):null;}
+    PlayerBotRoadNetwork.Jump jump(int arc){return roads!=null && arc>=to.length && arc<rideOffset()?roads.jumps.get(arc-to.length):null;}
+    int jumpArc(PlayerBotRoadNetwork.Jump jump){return to.length+roads.jumps.indexOf(jump);}
     PlayerBotNavmeshTopology(int nx,int ny,int nodes,int[] tiles,int[] components,int[] offsets,int[] to,float[] portals)throws IOException{
         this.nx=nx;this.ny=ny;this.nodes=nodes;this.tiles=tiles;this.components=components;
         this.offsets=offsets;this.to=to;this.portals=portals;
@@ -36,42 +67,51 @@ final class PlayerBotNavmeshTopology {
             }
         }
     }
-    long bytes(){return 256L+4L*(tiles.length+components.length+offsets.length+to.length+portals.length+nodeTiles.length);}
+    long bytes(){return 256L+routeCacheLimit+4L*(tiles.length+components.length+offsets.length+to.length+portals.length+nodeTiles.length)+(roads==null?0:roads.bytes());}
     int component(NavMesh mesh,long ref){
         var result=mesh.getTileAndPolyByRef(ref);if(result.failed())return -1;
         var tile=result.result.first.data;int x=tile.header.x,y=tile.header.y,p=result.result.second.index;
         if(x<0 || x>=nx || y<0 || y>=ny || p<0 || p>=tiles[y*nx+x+1]-tiles[y*nx+x])return -1;
         return components[tiles[y*nx+x]+p];
     }
-    float[] source(int arc){var ride=ride(arc);return ride==null?Arrays.copyOfRange(portals,arc*6,arc*6+3):new float[]{ride.from().ground().x(),ride.from().ground().z(),ride.from().ground().y()};}
-    float[] destination(int arc){var ride=ride(arc);return ride==null?Arrays.copyOfRange(portals,arc*6+3,arc*6+6):new float[]{ride.to().ground().x(),ride.to().ground().z(),ride.to().ground().y()};}
+    float[] source(int arc){var jump=jump(arc);if(jump!=null)return new float[]{jump.start().x(),jump.start().z(),jump.start().y()};var ride=ride(arc);return ride==null?Arrays.copyOfRange(portals,arc*6,arc*6+3):new float[]{ride.from().ground().x(),ride.from().ground().z(),ride.from().ground().y()};}
+    float[] destination(int arc){var jump=jump(arc);if(jump!=null)return new float[]{jump.end().x(),jump.end().z(),jump.end().y()};var ride=ride(arc);return ride==null?Arrays.copyOfRange(portals,arc*6+3,arc*6+6):new float[]{ride.to().ground().x(),ride.to().ground().z(),ride.to().ground().y()};}
 
     /** Sliced A*: actual adjacent-tile arcs admit a tile-hop lower bound, including detours. */
     final class Search {
-        private record Visit(int node,double cost,int parent,int arc){}
+        // The destination and topology are immutable for this search. Compute
+        // f=g+h once per admitted candidate, not on every heap comparison.
+        private record Visit(int node,double cost,double priority,int parent,int arc){}
         private final PriorityQueue<Visit> open=new PriorityQueue<>(Comparator
-            .comparingDouble((Visit v)->v.cost+lowerBound(v.node)).thenComparingInt(Visit::node));
+            .comparingDouble(Visit::priority).thenComparingInt(Visit::node));
         private final Map<Integer,Visit> best=new HashMap<>();
-        private final int goal;
+        private final int start,goal;
         private Visit current;
         private int edge;
         private boolean done;
+        private boolean allowJumps;
         private String failure;
         private int[] route;
         private Visit tracing;
         private final ArrayList<Integer> reversePath=new ArrayList<>();
         private int copying=-1;
-        Search(int start,int goal){
-            this.goal=goal;
+        private final Set<Integer> excluded;
+        Search(int start,int goal){this(start,goal,Set.of());}
+        Search(int start,int goal,Set<Integer> excluded){
+            this.excluded=Set.copyOf(excluded);
+            this.start=start;this.goal=goal;
             if(start<0 || start>=nodes || goal<0 || goal>=nodes){done=true;failure="no topology endpoint";return;}
-            var initial=new Visit(start,0,-1,-1);best.put(start,initial);open.add(initial);
+            // Only immutable proposals are shared. Rejected door/lift/jump arcs
+            // are actor-specific and must use the normal filtered search.
+            if(this.excluded.isEmpty() && routeCacheLimit>0){route=cached(start,goal);if(route!=null){done=true;return;}}
+            var initial=new Visit(start,0,lowerBound(start),-1,-1);best.put(start,initial);open.add(initial);
         }
         int advance(int allowance,BooleanSupplier expired){
             int work=0;
             while(!done && work<allowance && !expired.getAsBoolean()){
                 if(copying>=0){
                     work++;
-                    if(copying==route.length){done=true;break;}
+                    if(copying==route.length){done=true;if(excluded.isEmpty())remember(start,goal,route);break;}
                     route[copying]=reversePath.get(reversePath.size()-1-copying);copying++;continue;
                 }
                 if(tracing!=null){
@@ -81,7 +121,7 @@ final class PlayerBotNavmeshTopology {
                 }
                 if(current==null){
                     work++;
-                    if(open.isEmpty()){done=true;failure="disconnected directed ground components";break;}
+                    if(open.isEmpty()){if(retryWithJumps())continue;done=true;failure="disconnected directed navigation components";break;}
                     current=open.remove();if(best.get(current.node)!=current){current=null;continue;}
                     if(current.node==goal){
                         tracing=current;continue;
@@ -90,25 +130,75 @@ final class PlayerBotNavmeshTopology {
                     if(work>=allowance || expired.getAsBoolean())break;
                 }
                 int limit=offsets[current.node+1];int[] rides=animated==null?null:animated.outgoing.get(current.node);
-                if(edge>=limit+(rides==null?0:rides.length)){current=null;continue;}
-                int arc=edge<limit?edge:to.length+rides[edge-limit];edge++;
-                var ride=ride(arc);int target=ride==null?to[arc]:ride.to().component();work++;
+                int[] jumps=!allowJumps || roads==null?null:roads.outgoingJumps.get(current.node);int jumpLimit=limit+(jumps==null?0:jumps.length);
+                if(edge>=jumpLimit+(rides==null?0:rides.length)){current=null;continue;}
+                int arc=edge<limit?edge:edge<jumpLimit?to.length+jumps[edge-limit]:rideOffset()+rides[edge-jumpLimit];edge++;
+                if(excluded.contains(arc)){work++;continue;}
+                var ride=ride(arc);var jump=jump(arc);int target=jump!=null?jump.to():ride==null?to[arc]:ride.to().component();work++;
                 // Every arc is a native directed link; SCC membership supplies intra-tile reachability.
-                double cost=current.cost+1;var previous=best.get(target);
+                double weight=roads==null?1:jump!=null?jumpCost(jump,current.node,target):ride==null?roads.costs[arc]:rideCost(ride,current.node,target);
+                double cost=current.cost+weight;var previous=best.get(target);
                 if(previous!=null && previous.cost<=cost)continue;
-                if(previous==null && best.size()>=8192 || open.size()>=16384){done=true;failure="directed journey search capacity reached";break;}
-                var next=new Visit(target,cost,current.node,arc);best.put(target,next);open.add(next);
+                if(previous==null && best.size()>=8192 || open.size()>=16384){if(retryWithJumps())continue;done=true;failure="directed journey search capacity reached";break;}
+                var next=new Visit(target,cost,cost+lowerBound(target),current.node,arc);best.put(target,next);open.add(next);
             }
             return work;
         }
-        private int lowerBound(int node){
+        private boolean retryWithJumps(){
+            if(allowJumps || roads==null || roads.jumps.isEmpty())return false;
+            // Reliable walking/lift corridors get the first bounded attempt.
+            // Unproved cliff shortcuts cannot displace an available road just
+            // because their geometric length is shorter. This phase transition
+            // remains inside the retained, charged search; it grants no motion.
+            allowJumps=true;open.clear();best.clear();current=tracing=null;edge=0;
+            reversePath.clear();copying=-1;route=null;failure=null;done=false;
+            var initial=new Visit(start,0,lowerBound(start),-1,-1);best.put(start,initial);open.add(initial);return true;
+        }
+        private double lowerBound(int node){
+            if(roads!=null){
+                // Evaluate each candidate's estimate from shared coordinates;
+                // the heap subsequently compares its retained priority only.
+                int a=node*3,b=goal*3;double squared=0;
+                for(int axis=0;axis<3;axis++){double d=roads.hubs[a+axis]-roads.hubs[b+axis];squared+=d*d;}
+                return Math.sqrt(squared);
+            }
             // Native rides may cross many tiles in one arc; tile hops are no longer admissible.
             if(animated!=null && !animated.rides.isEmpty())return 0;
             int a=nodeTiles[node],b=nodeTiles[goal];return Math.max(Math.abs(a%nx-b%nx),Math.abs(a/nx-b/nx));
         }
+        private double jumpCost(PlayerBotRoadNetwork.Jump jump,int from,int to){
+            return Math.max(hubDistance(from,to),hubPointDistance(from,jump.start())
+                +pointDistance(jump.start(),jump.end())+hubPointDistance(to,jump.end())+12);
+        }
+        private double rideCost(PlayerBotAnimatedLinks.Ride ride,int from,int to){
+            double phase=ride.to().time()-ride.from().time();if(phase<0)phase+=ride.entity().model.duration;
+            // Approximate expected waiting plus authored travel in walking metres.
+            // Never make the heuristic larger than a real edge's lower bound.
+            return Math.max(hubDistance(from,to),hubPointDistance(from,ride.from().ground())
+                +hubPointDistance(to,ride.to().ground())+(phase+ride.entity().model.duration*.5)/ride.entity().speed*6);
+        }
+        private double hubDistance(int from,int to){
+            int a=from*3,b=to*3;double squared=0;
+            for(int axis=0;axis<3;axis++){float delta=roads.hubs[a+axis]-roads.hubs[b+axis];squared+=delta*delta;}
+            return Math.sqrt(squared);
+        }
+        private double hubPointDistance(int node,PlayerBotNavigation.Point point){
+            int at=node*3;
+            return coordinateDistance(roads.hubs[at],roads.hubs[at+1],roads.hubs[at+2],point.x(),point.z(),point.y());
+        }
         boolean pending(){return !done;}
         String failure(){return failure;}
         int[] route(){return route;}
+    }
+
+    private static double pointDistance(PlayerBotNavigation.Point a,PlayerBotNavigation.Point b){
+        return coordinateDistance(a.x(),a.z(),a.y(),b.x(),b.z(),b.y());
+    }
+    private static double coordinateDistance(float ax,float ay,float az,float bx,float by,float bz){
+        // Retain the former float subtraction/products and Recast axis order so
+        // heap costs/ties are identical; only temporary arrays disappear.
+        float dx=ax-bx,dy=ay-by,dz=az-bz;double squared=0;
+        squared+=dx*dx;squared+=dy*dy;squared+=dz*dz;return Math.sqrt(squared);
     }
 
     static PlayerBotNavmeshTopology build(NavMesh mesh)throws IOException{

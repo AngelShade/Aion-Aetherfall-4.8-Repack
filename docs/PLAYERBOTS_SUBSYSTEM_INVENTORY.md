@@ -1,5 +1,16 @@
 # Playerbots subsystem inventory and dependency plan
 
+Latest shared-memory follow-up (18 October): bounded map-owned road result cache,
+native party/alliance role snapshots and actual final-edge follow retention.
+Heap and mesh shares are owner configurable; live CPU/RAM acceptance pending.
+See `PLAYERBOTS_COMPANION_FOLLOW_20261018.md` for checks and original-only receipt.
+
+Latest companion follow slice (18 October): direct moving-target refresh retains
+its admitted walking edge; speed can match a slower leader, spacing applies to
+all companion roles, and hostile approach/cast admission stays current. Native
+combat positioning retains priority during a valid fight. Build/delivery and
+user acceptance: [focused comparison](PLAYERBOTS_COMPANION_FOLLOW_20261018.md).
+
 Current cumulative runtime: PB-SCOPE-QUEST-044, receipt
 playerbots-source-build-20261011-182454-369109. Native timed objects/Ranger/story
 routes and the confirmed material-catalog crash are repaired, with100 artifact-bound

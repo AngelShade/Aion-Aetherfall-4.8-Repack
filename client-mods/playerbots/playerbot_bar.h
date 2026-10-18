@@ -12,6 +12,9 @@ const wchar_t* order(const std::string& name) {
     if(name=="formation_box")return L".bot formation box";
     if(name=="formation_line")return L".bot formation line";
     if(name=="formation_spread")return L".bot formation spread";
+    if(name=="distance_close")return L".bot distance 2";
+    if(name=="distance_normal")return L".bot distance 4";
+    if(name=="distance_far")return L".bot distance 8";
     return nullptr;
 }
 struct Saved { int x=220,y=180,mode=0; } saved,observed;

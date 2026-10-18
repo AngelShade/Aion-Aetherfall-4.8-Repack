@@ -48,25 +48,25 @@ def main():
         trigger=lambda name,event='OnClick':g.Widget_TriggerScript(name,event,'')
         g.Widget_TriggerScript('PlayerBotBar','OnLoad','')
         assert widgets['PlayerBotBar']['visible']==0
-        assert all(not widgets['PlayerBotBar'+n]['enabled'] for n in ('Attack','Follow','Stay','Summon','Guard','Passive','Circle','Box','Line','Spread'))
+        assert all(not widgets['PlayerBotBar'+n]['enabled'] for n in ('Attack','Follow','Stay','Summon','Guard','Passive','Circle','Box','Line','Spread','Close','Normal','Far'))
         widgets['PlayerBotBarMeta']['text']='1280|960|0|1';g.PlayerBotBar_OnEvent('ADDON_TIMER');g.PlayerBotBar_OnEvent('PLAYER_ENTERING_WORLD')
         assert widgets['PlayerBotBar']['visible']==1 and widgets['PlayerBotBarGuard']['visible']==0
         # Actual native dragging changes physical coordinates; every size change
         # must preserve them exactly at each supported UI scale.
         widgets['PlayerBotBar']['rect']=(425,375,400*scale,70*scale)
         trigger('PlayerBotBarMore');assert widgets['PlayerBotBarGuard']['visible']==1
-        assert all(widgets['PlayerBotBar'+n]['visible']==1 for n in ('Circle','Box','Line','Spread'))
-        assert widgets['PlayerBotBar']['rect']==(425,375,400*scale,168*scale)
+        assert all(widgets['PlayerBotBar'+n]['visible']==1 for n in ('Circle','Box','Line','Spread','Close','Normal','Far'))
+        assert widgets['PlayerBotBar']['rect']==(425,375,400*scale,204*scale)
         trigger('PlayerBotBarHide');assert widgets['PlayerBotBarIcon']['visible']==1 and widgets['PlayerBotBarAttack']['visible']==0
-        assert all(widgets['PlayerBotBar'+n]['visible']==0 for n in ('Circle','Box','Line','Spread'))
+        assert all(widgets['PlayerBotBar'+n]['visible']==0 for n in ('Circle','Box','Line','Spread','Close','Normal','Far'))
         assert widgets['PlayerBotBar']['rect']==(425,375,44*scale,52*scale)
         widgets['PlayerBotBar']['rect']=(525,475,44*scale,52*scale)
-        trigger('PlayerBotBarIcon');assert widgets['PlayerBotBar']['rect']==(525,475,400*scale,168*scale)
+        trigger('PlayerBotBarIcon');assert widgets['PlayerBotBar']['rect']==(525,475,400*scale,204*scale)
         trigger('PlayerBotBarMore');assert widgets['PlayerBotBarGuard']['visible']==0
-        assert all(widgets['PlayerBotBar'+n]['visible']==0 for n in ('Circle','Box','Line','Spread'))
-        for n in ('Attack','Follow','Stay','Summon','Guard','Passive','Circle','Box','Line','Spread'):
-            widgets['PlayerBotBarTx']['text']='';trigger('PlayerBotBar'+n);assert widgets['PlayerBotBarTx']['text']==(('formation_'+n.lower()) if n in ('Circle','Box','Line','Spread') else n.lower())
-            trigger('PlayerBotBarAttack');assert widgets['PlayerBotBarTx']['text']==(('formation_'+n.lower()) if n in ('Circle','Box','Line','Spread') else n.lower()),'Do not overwrite an unsent command'
+        assert all(widgets['PlayerBotBar'+n]['visible']==0 for n in ('Circle','Box','Line','Spread','Close','Normal','Far'))
+        for n in ('Attack','Follow','Stay','Summon','Guard','Passive','Circle','Box','Line','Spread','Close','Normal','Far'):
+            widgets['PlayerBotBarTx']['text']='';trigger('PlayerBotBar'+n);assert widgets['PlayerBotBarTx']['text']==(('distance_'+{'Close':'close','Normal':'normal','Far':'far'}[n]) if n in ('Close','Normal','Far') else ('formation_'+n.lower()) if n in ('Circle','Box','Line','Spread') else n.lower())
+            trigger('PlayerBotBarAttack');assert widgets['PlayerBotBarTx']['text']==(('distance_'+{'Close':'close','Normal':'normal','Far':'far'}[n]) if n in ('Close','Normal','Far') else ('formation_'+n.lower()) if n in ('Circle','Box','Line','Spread') else n.lower()),'Do not overwrite an unsent command'
         widgets['PlayerBotBarTx']['text']='';widgets['PlayerBotBarMeta']['text']='1280|960|0|0';g.PlayerBotBar_OnEvent('ADDON_TIMER')
         trigger('PlayerBotBarAttack');assert widgets['PlayerBotBarTx']['text']==''
         trigger('PlayerBotBarManage');assert ('manage',()) in calls
@@ -75,6 +75,6 @@ def main():
         # Persisted icon mode survives addon load and can be restored.
         g.Widget_TriggerScript('PlayerBotBar','OnLoad','');widgets['PlayerBotBarMeta']['text']='1280|960|2|1';g.PlayerBotBar_OnEvent('ADDON_TIMER')
         assert widgets['PlayerBotBarIcon']['visible']==1
-    print('OK: real Lua 5.1 widgets; four UI scales; title position, draggable icon, expand/hide/restore, six party orders and four formations, disconnect and shared timer preservation.')
+    print('OK: real Lua 5.1 widgets; four UI scales; title position, draggable icon, expand/hide/restore, six party orders, four formations and three party distances, disconnect and shared timer preservation.')
 
 if __name__=='__main__':main()

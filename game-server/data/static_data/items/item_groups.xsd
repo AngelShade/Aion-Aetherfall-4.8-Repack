@@ -9,6 +9,7 @@
         <xs:element minOccurs="0" name="craft_recipes" type="CraftRecipeGroup"/>
         <xs:element minOccurs="0" name="manastones_common" type="ManastoneGroup"/>
         <xs:element minOccurs="0" name="manastones_rare" type="ManastoneGroup"/>
+        <xs:element minOccurs="0" name="magical" type="ManastoneGroup"/>
         <xs:element minOccurs="0" name="medals" type="MedalGroup"/>
         <xs:element minOccurs="0" name="food" type="FoodGroup"/>
         <xs:element minOccurs="0" name="medicine_common" type="MedicineGroup"/>

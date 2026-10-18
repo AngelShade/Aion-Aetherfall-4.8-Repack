@@ -10,7 +10,7 @@ import com.aionemu.gameserver.taskmanager.AbstractFIFOPeriodicTaskManager;
 public class ZoneUpdateService extends AbstractFIFOPeriodicTaskManager<Creature> {
 
 	private ZoneUpdateService() {
-		super(500);
+		super(500, true);
 	}
 
 	@Override

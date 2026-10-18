@@ -30,7 +30,7 @@ def main():
     hit=C.CFUNCTYPE(C.c_int,C.c_void_p,C.c_double,C.c_double)(mem+0x200)
     widgets={n.get('name'):tuple(map(float,n.get('frame').split(','))) for n in E.parse(HERE/'PlayerBotBar.xml').iter('Widget')}
     modes=[(400,70,22,['Attack','Follow','Stay','Summon','More','Hide']),
-           (400,168,22,['Attack','Follow','Stay','Summon','More','Hide','Guard','Passive','Manage','Circle','Box','Line','Spread','Hint']),
+           (400,204,22,['Attack','Follow','Stay','Summon','More','Hide','Guard','Passive','Manage','Circle','Box','Line','Spread','Close','Normal','Far','Hint']),
            (44,52,10,['Icon'])]
     try:
         # Reproduce the user's current clipping using captured native margins,

@@ -58,7 +58,9 @@ public final class PlayerBotPlatformRide {
         private double[] previous;
         private volatile double[] relative;
         private double[] boardedLocal;
-        private boolean shoreReached,enteredDeck,exitReached;
+        private double[] boardingLocal;
+        private boolean shoreReached,exitReached;
+        private volatile boolean enteredDeck;
         private boolean interrupted;
         Plan(Player player,PlayerBotAnimatedLinks.Ride ride,List<PlayerBotHazards.Area> hazards){
             this.ride=ride;world=player.getWorldId();instance=player.getInstanceId();this.hazards=List.copyOf(hazards);
@@ -70,7 +72,7 @@ public final class PlayerBotPlatformRide {
         public int part(){return ride.part();}
         public int wirePart(){return ride.entity().model.nodes[part()].wirePart;}
         public State state(){return state;}
-        public boolean onboard(){return state==State.RIDING || state==State.DISEMBARKING;}
+        public boolean onboard(){return state==State.RIDING || state==State.DISEMBARKING || state==State.BOARDING && enteredDeck;}
         public void interrupt(){interrupted=true;}
         public void close(){state=State.FAILED;release(this);}
         public void hazards(List<PlayerBotHazards.Area> areas){hazards=List.copyOf(areas);}
@@ -92,7 +94,14 @@ public final class PlayerBotPlatformRide {
             if(!valid(player) || state==State.FAILED || state==State.COMPLETE){state=valid(player)?state:State.FAILED;return step();}
             long time=PlayerBotAnimatedScene.uptime();var frame=ride.entity().frame(time);double[] destination=frame.point(part(),relative);
             if(state==State.BOARDING){
-                if(interrupted || !player.canPerformMove() || player.isCasting() || player.isTrading() || player.isLooting()){state=State.FAILED;return step();}
+                if(enteredDeck){
+                    // The doorway has been physically reached, but walking to
+                    // the reserved cabin slot may take more callbacks. Retain
+                    // the moving floor under that intermediate pose as well.
+                    if(!carry(frame,boardingLocal))return step();
+                    if(interrupted){relative=boardingLocal;state=State.RIDING;previousTime=time;return step();}
+                    if(!player.canPerformMove() || player.isCasting() || player.isTrading() || player.isLooting()){previousTime=time;return step();}
+                }else if(interrupted || !player.canPerformMove() || player.isCasting() || player.isTrading() || player.isLooting()){state=State.FAILED;return step();}
                 double speed=com.aionemu.gameserver.utils.stats.StatFunctions.adjustStatByMovementModifier(player,
                     com.aionemu.gameserver.model.stats.container.StatEnum.SPEED,player.getGameStats().getMovementSpeedFloat());
                 var dock=ride.from().ground();double[] shore={dock.x(),dock.y(),dock.z()};
@@ -104,27 +113,29 @@ public final class PlayerBotPlatformRide {
                 double fraction=separation<.001?1:Math.min(1,speed*elapsed/separation);double[] next=interpolate(previous,destination,fraction);
                 if(separation>1.5 || !walkable(frame,previous,next)){state=State.FAILED;return step();}
                 previous=next;
-                if(fraction==1){if(finishingApproach)shoreReached=true;else if(!enteredDeck)enteredDeck=true;else state=State.RIDING;}
+                if(enteredDeck)boardingLocal=frame.local(part(),previous);
+                if(fraction==1){if(finishingApproach)shoreReached=true;else if(!enteredDeck){enteredDeck=true;boardingLocal=frame.local(part(),previous);}else state=State.RIDING;}
             }else if(state==State.DISEMBARKING && exitReached){
                 long elapsed=unsignedElapsed(previousTime,time);var goal=ride.to().ground();double[] landing={goal.x(),goal.y(),goal.z()};
+                // Crossing the doorway can span callbacks. While the previous
+                // pose is still fully on deck, keep its physical carry instead
+                // of leaving it suspended at yesterday's world coordinates.
+                if(!staticSupport(previous) && ride.entity().frame(previousTime).supports(part(),previous)){
+                    if(!carry(frame,relative))return step();
+                    if(distance(frame.point(part(),ride.local()),landing)>1.3 || !staticSupport(landing)){
+                        exitReached=false;state=State.RIDING;previousTime=time;return step();
+                    }
+                }
                 double speed=com.aionemu.gameserver.utils.stats.StatFunctions.adjustStatByMovementModifier(player,
                     com.aionemu.gameserver.model.stats.container.StatEnum.SPEED,player.getGameStats().getMovementSpeedFloat());
                 double fraction=Math.min(1,speed*Math.min(200,elapsed)/1000./Math.max(.001,distance(previous,landing)));
                 double[] next=interpolate(previous,landing,fraction);
-                if(!player.canPerformMove() || player.isCasting())return step();
+                if(!player.canPerformMove() || player.isCasting()){previousTime=time;return step();}
                 if(!walkable(frame,previous,next)){state=State.FAILED;return step();}
                 previous=next;relative=frame.local(part(),previous);if(fraction==1)state=State.COMPLETE;
             }else {
-                long elapsed=unsignedElapsed(previousTime,time);int steps=Math.max(1,(int)Math.max(Math.ceil(elapsed/50.),Math.ceil(distance(previous,destination)/.2)));
-                // A scheduler outage cannot authorize an unchecked long carry segment.
-                if(steps>256){state=State.FAILED;return step();}
-                double[] from=previous;
-                for(int i=1;i<=steps;i++){
-                    long sample=(previousTime+elapsed*i/steps)&0xffffffffL;var moving=ride.entity().frame(sample);double[] next=moving.point(part(),relative);
-                    if(!moving.supports(part(),next) || !bodyClear(moving,from,next)){state=State.FAILED;return step();}
-                    from=next;
-                }
-                previous=destination;
+                long elapsed=unsignedElapsed(previousTime,time);
+                if(!carry(frame,relative))return step();
                 Point goal=ride.to().ground();double[] landing={goal.x(),goal.y(),goal.z()};
                 if(interrupted && staticSupport(previous))landing=previous;
                 // At the destination, walk across the deck to its proved exit slot
@@ -145,6 +156,20 @@ public final class PlayerBotPlatformRide {
                 }
             }
             previousTime=time;return step();
+        }
+        private boolean carry(PlayerBotAnimatedScene.Frame frame,double[] local){
+            long elapsed=unsignedElapsed(previousTime,frame.millis);double[] destination=frame.point(part(),local);
+            int steps=Math.max(1,(int)Math.max(Math.ceil(elapsed/50.),Math.ceil(distance(previous,destination)/.2)));
+            // Keep the same bounded swept support/body proof in every onboard
+            // stage. Neither boarding nor a missed exit grants a teleport.
+            if(steps>256){state=State.FAILED;return false;}
+            double[] from=previous;
+            for(int i=1;i<=steps;i++){
+                long sample=(previousTime+elapsed*i/steps)&0xffffffffL;var moving=ride.entity().frame(sample);double[] next=moving.point(part(),local);
+                if(!moving.supports(part(),next) || !bodyClear(moving,from,next)){state=State.FAILED;return false;}
+                from=next;
+            }
+            previous=destination;return true;
         }
         private Step step(){if(state==State.COMPLETE || state==State.FAILED)release(this);return new Step((float)previous[0],(float)previous[1],(float)previous[2],state);}
         private boolean walkable(PlayerBotAnimatedScene.Frame frame,double[] from,double[] to){

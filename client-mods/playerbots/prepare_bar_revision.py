@@ -10,7 +10,8 @@ from prepare_bar import HERE,sha,read_pak,encode_pak,normalized_pe
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('--client',type=Path,required=True);p.add_argument('--output',type=Path,required=True)
-    p.add_argument('--bridge',type=Path);p.add_argument('--baseline',type=Path);a=p.parse_args()
+    p.add_argument('--bridge',type=Path);p.add_argument('--baseline',type=Path)
+    p.add_argument('--revision',choices=('formations-1','radius-1'));a=p.parse_args()
     root=a.client.resolve();out=a.output.resolve()
     if out==root or root in out.parents or out.exists():raise ValueError('Use a new directory outside installed client')
     bridge='bin64/AionIconBridge.dll'
@@ -34,7 +35,7 @@ def main():
     inventory=json.loads((HERE.parents[1]/'docs/INSTALLED_MODS.json').read_text());changed={e['path'].lower() for e in files}
     preserved=[dict(path=e['path'],sha256=sha((root/e['path']).read_bytes())) for e in inventory['clientFiles'] if e['path'].lower() not in changed]
     if (root/'PlayerBotBar.ini').exists():preserved.append(dict(path='PlayerBotBar.ini',sha256=sha((root/'PlayerBotBar.ini').read_bytes())))
-    manifest=dict(feature='playerbot-party-bar',revision='formations-1' if a.bridge else 'layout-4',clientRoot=str(root),files=files,preservedFiles=preserved,archiveChanges=names,
+    manifest=dict(feature='playerbot-party-bar',revision=a.revision or ('formations-1' if a.bridge else 'layout-4'),clientRoot=str(root),files=files,preservedFiles=preserved,archiveChanges=names,
         serverBaseline=dict(root=inventory['serverRoot'],jar=inventory['serverJarSha256'],launcher=inventory['serverLauncherSha256'],overrides=inventory['serverClassOverrides']))
     if a.bridge:manifest.update(bridgeSourceBaseline=sha(live),baselineRebuild=sha(baseline),baselineRebuildNormalized=sha(normalized_pe(baseline)))
     (out/'manifest.json').write_text(json.dumps(manifest,indent=2))

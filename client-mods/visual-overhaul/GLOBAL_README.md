@@ -1,5 +1,12 @@
 # Broad Aion 4.8 visual upgrade
 
+For a renamed original client folder, use `relocate_paths.py --client <current>
+--previous-root <previous> --backup <new-external-folder> --apply` while Aion is
+closed. It requires matching installed and packaged archive hashes, then updates
+only package ownership metadata and existing ReShade paths. Native binaries,
+artwork and player settings remain intact; unknown archive changes stop repair.
+Recovery paths are rebound only when their backup exists at the new location.
+
 This extends the existing regional artwork with renderer effects for the whole
 game, additional shared materials, and authored environment changes. It targets
 the current modified Aion 4.8 NA client and its normal 64-bit launcher. The player

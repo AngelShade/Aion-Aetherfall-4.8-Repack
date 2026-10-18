@@ -124,3 +124,61 @@ same normal artifact for all-map verification and guarded delivery. Dock proposa
 never authorize a teleport: fresh body/support/door/hazard checks govern walking
 onto a physical platform, following its actual pose and walking onto static ground.
 Runtime keeps separate metric vehicle offsets and compact physics-part indices.
+
+## Prepared main corridors and local connections
+
+The shared Playerbot planner also accepts an offline road-network derivative.
+"Road" here means a connected, traversable main corridor, rather than a guessed
+texture/material tag. Each directed tile component has a hub on a real polygon.
+Prepared hub-to-seam-to-hub corridors retain the native link direction and full
+Detour path; their local spokes favour clearance and gentler slopes. Global
+search uses corridor distance and authored lift travel/wait costs instead of
+counting every seam and lift as one equal hop. Arbitrary origins, destinations
+and boarding points connect through the normal local mesh/native queries.
+The retained runtime search first tries ground corridors and authored lifts.
+Only when that bounded pass cannot resolve the route does it admit jump/drop
+proposals under the same work budget and memory bounds. A shorter unproved
+height shortcut cannot displace a ground road resolved by the first pass.
+
+From a complete normal GameServer build:
+
+```powershell
+java -Xmx2g -cp "$normalBuild/game-server/game-server-4.8-SNAPSHOT.jar;$normalBuild/assembly-libs/*" com.aionemu.gameserver.services.playerbot.PlayerBotRoadNetwork "$runtime/data/navmesh" "$externalRoadOutput"
+```
+
+This processes every map in the authenticated topology catalog, without rebaking
+terrain triangles or starting the game/database. Output contains one `.pbroads`
+per map and `roads.properties`; each record binds the original map fingerprint
+and topology hash, and generation reloads every output. Deliver the complete
+directory as `data/navmesh/roads` together with the matching GameServer build.
+Keep existing mesh, topology and animated data unchanged. Partial output without
+the final catalog is not an installable network.
+
+Runtime copies a bounded main-corridor horizon and earns fresh native floor,
+body, door and hazard proof before publishing motion. Native local detours remain
+available for dynamic obstacles; an exhausted local alternative can temporarily
+exclude its proposed main arc. Jump/drop/glide and authored lift execution remain
+separate physical adapters. No road corridor grants a teleport or substitutes
+standing on the wrong floor for arrival. Generation/verification does not certify
+live smoothness, CPU cost or every gameplay destination.
+
+The same derivative catalogs short directed jump/drop proposals between nearby
+boundary floors in disconnected ground regions. These retain actual mesh takeoff
+and landing points, maximum rise/range and bounded descent; they are deliberately
+proposals, since a static navmesh cannot certify an airborne body through a wall
+or a live door. The runtime funds the existing native ballistic/body/landing proof
+before launch, retains incomplete calculation work, and temporarily excludes a
+failed proposal. It acknowledges the link only after physical landing. Optional
+third argument `PREVIOUS_GROUND_CACHE` reuses authenticated main-corridor outputs
+from a previous offline run while preparing the added height derivative.
+
+Height proposals use directed ground regions rather than duplicating every
+nearby tile pair. A sparse backbone retains directed in/out trees inside each
+candidate strongly connected region and real bridges between those regions;
+short directional entrances/exits and separated physical alternatives supplement
+it. Generation compares the retained and original directed connectivity before
+writing. This controls runtime branching without dropping a required candidate
+bridge just because another nearby exit is shorter. Candidate connectivity is
+not proof of an unobstructed airborne arc; native execution can still reject it.
+Per-map `ground-cache` checkpoints are external generation recovery data, not an
+additional runtime input. Install only the final catalog and map `.pbroads` files.

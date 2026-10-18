@@ -12,6 +12,9 @@ public final class PlayerBotSpacing {
  record Values(int account,float follow,float attack) {}
  static final class Engagement { long quiet; boolean retreated; }
  private static final Map<Integer,Values> SETTINGS=new ConcurrentHashMap<>();
+ private record ControlledFollow(int owner,float distance) {}
+ // Invitation changes control, not ownership. Guest spacing is session-only.
+ private static final Map<Integer,ControlledFollow> CONTROLLED=new ConcurrentHashMap<>();
  private static final Map<Integer,Engagement> ENGAGEMENTS=new ConcurrentHashMap<>();
  static Path path(int character){return Path.of("config","playerbots","spacing-character-"+character+".properties");}
  static void validate(float follow,float attack){
@@ -45,7 +48,23 @@ public final class PlayerBotSpacing {
   }
  }
  public static Map<String,Object> snapshot(Player bot,PlayerBotRules.Role role){
-  var v=values(bot);return Map.of("rangedSpacing",PlayerBotCombatPosition.ranged(bot.getPlayerClass(),role),"ownerSpacing",v.follow(),"attackSpacing",v.attack());
+  var v=values(bot);var controlled=CONTROLLED.get(bot.getObjectId());
+  float follow=controlled!=null && controlled.owner()==bot.getPlayerBotOwnerId()?controlled.distance():v.follow();
+  return Map.of("rangedSpacing",PlayerBotCombatPosition.ranged(bot.getPlayerClass(),role),"ownerSpacing",follow,"attackSpacing",v.attack());
+ }
+ public static int configureParty(Player owner,float follow){
+  validate(follow,10);
+  var companions=PlayerBotService.getInstance().companions(owner).stream()
+   .filter(s->!s.closing()).toList();
+  if(companions.isEmpty())throw new IllegalArgumentException("Recruit or invite a companion first.");
+  int changed=0;
+  for(var session:companions)synchronized(session){
+   if(session.closing())continue;
+   if(session.world())CONTROLLED.put(session.bot().getObjectId(),new ControlledFollow(owner.getObjectId(),follow));
+   else configure(session,follow,values(session.bot()).attack());
+   changed++;
+  }
+  return changed;
  }
  static float attack(Player bot,float nativeDistance){return Math.min(values(bot).attack(),nativeDistance);}
  static float nativeDistance(com.aionemu.gameserver.model.PlayerClass pc,PlayerBotRules.Role role,float weapon,List<PlayerBotSkills.Entry> skills){
@@ -59,14 +78,18 @@ public final class PlayerBotSpacing {
   return reach>=8?Math.max(6,reach-1.5f):weapon;
  }
  static PlayerBotNavigation.Point formation(Player owner,Player bot,PlayerBotNavigation.Point p){
-  if(!PlayerBotCombatPosition.ranged(bot.getPlayerClass(),PlayerBotService.getInstance().combatRole(bot)))return p;
   double dx=p.x()-owner.getX(),dy=p.y()-owner.getY(),length=Math.hypot(dx,dy);
-  if(length<.01)return p;float radius=values(bot).follow();
-  if(PlayerBotFormationLayout.selected(owner.getAccount().getId(),owner.getObjectId()).equals("line")) {
+  if(length<.01)return p;var controlled=CONTROLLED.get(bot.getObjectId());
+  float radius=controlled!=null && controlled.owner()==owner.getObjectId()?controlled.distance():values(bot).follow();
+  String formation=PlayerBotFormationLayout.selected(owner.getAccount().getId(),owner.getObjectId());
+  if(formation.equals("box")) {
+   // Keep the square shape instead of normalizing every slot onto a circle.
+   radius*=(float)(length/(3.8*Math.sqrt(2)));
+  } else if(formation.equals("line")) {
    int count=PlayerBotCombatPosition.formationOrder(owner).size();
    // Scale the wings together: normalizing both inner and outer line slots to
    // the same radius would stack two ranged companions on each side.
-   double outer=count>5?PlayerBotFormationLayout.lineExtent(count):3.4*Math.max(1,count/2);radius*=Math.min(1,length/outer);
+   double outer=PlayerBotFormationLayout.lineExtent(count);radius*=Math.min(1,length/outer);
   }
   return new PlayerBotNavigation.Point(owner.getX()+(float)(dx/length*radius),owner.getY()+(float)(dy/length*radius),p.z());
  }
@@ -90,6 +113,6 @@ public final class PlayerBotSpacing {
    return navigation.move(x,y,bot.getZ());
   }
  }
- static void close(Player bot){SETTINGS.remove(bot.getObjectId());ENGAGEMENTS.remove(bot.getObjectId());}
+ static void close(Player bot){SETTINGS.remove(bot.getObjectId());CONTROLLED.remove(bot.getObjectId());ENGAGEMENTS.remove(bot.getObjectId());}
  private PlayerBotSpacing(){}
 }

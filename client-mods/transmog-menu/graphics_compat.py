@@ -29,6 +29,22 @@ def read_json(path):
     return json.loads(path.read_text(encoding='utf-8-sig'))
 
 
+def owned_renderer_backup(root, value):
+    """Resolve a moved client's existing backup without accepting an outside path."""
+    path = Path(value).resolve()
+    owned = (root / 'Mods/Backups/Renderer').resolve()
+    if not path.is_relative_to(owned):
+        parts = Path(value).parts
+        starts = [i for i in range(len(parts) - 2)
+                  if tuple(p.casefold() for p in parts[i:i + 3]) == ('mods', 'backups', 'renderer')]
+        if len(starts) != 1:
+            raise ValueError('Restore baseline is outside client renderer backups')
+        path = owned.joinpath(*parts[starts[0] + 3:]).resolve()
+    if not path.is_relative_to(owned) or not path.exists():
+        raise ValueError('Expected existing owned renderer backup')
+    return path
+
+
 def cursor(data):
     result = bytearray(data)
     if result[0x551c96:0x551c98] not in (b'\x78\x18', b'\x90\x90'):
@@ -222,8 +238,8 @@ def prepare_incremental(root, output, dll, repair_backup=None, *, backup_name=No
     for entry in dxvk['nativeCursorPatch']['files']:
         if entry['path']!='bin64/Game.dll' and sha((root/entry['path']).read_bytes())!=entry['installed'].lower():
             raise ValueError('Other native cursor files changed')
-    old_backup = Path(state['backupRoot']).resolve()
-    cursor_path = Path(game_record['backupPath']).resolve()
+    old_backup = owned_renderer_backup(root, state['backupRoot'])
+    cursor_path = owned_renderer_backup(root, game_record['backupPath'])
     if not old_backup.is_relative_to((root/'Mods/Backups/Renderer').resolve()) or not cursor_path.is_relative_to((root/'Mods/Backups/Renderer').resolve()):
         raise ValueError('Restore baseline is outside client backups')
     prior = (package/'bin64/Game.dll').read_bytes()
@@ -231,6 +247,16 @@ def prepare_incremental(root, output, dll, repair_backup=None, *, backup_name=No
     cursor_base = bytearray(cursor_path.read_bytes())
     if sha(baseline)!=old_game['original'] or sha(cursor_base)!=game_record['original'].lower():
         raise ValueError('Restore baseline checksum mismatch')
+    # Only known owned paths are rebased, after the saved images pass their hashes.
+    dxvk['clientRoot'] = str(root)
+    if dxvk.get('backupRoot'):
+        dxvk['backupRoot'] = str(owned_renderer_backup(root, dxvk['backupRoot']))
+    for record in dxvk['nativeCursorPatch']['files']:
+        if record.get('backupPath'):
+            record['backupPath'] = str(owned_renderer_backup(root, record['backupPath']))
+    correction = dxvk.get('cursorCorrection', {})
+    if correction.get('backupRoot'):
+        correction['backupRoot'] = str(owned_renderer_backup(root, correction['backupRoot']))
     if len(dll)!=len(prior):
         raise ValueError('Incremental edit must preserve installed DLL length')
     for i,(before,after) in enumerate(zip(prior,dll)):

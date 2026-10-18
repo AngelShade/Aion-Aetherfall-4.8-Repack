@@ -98,6 +98,7 @@ public class Effect implements StatOwner {
 	private int abnormals;
 
 	private float targetX, targetY, targetZ;
+	private boolean restoredFromSave;
 	private float x, y, z;
 	private int worldId, instanceId;
 
@@ -683,6 +684,18 @@ public class Effect implements StatOwner {
 			}, duration);
 		}
 		effected.getPosition().getWorldMapInstance().getInstanceHandler().onStartEffect(this);
+	}
+
+	/** Resume persisted state and duration, rather than replay an earlier hit's
+	 * one-shot displacement. Impact coordinates are not part of saved effects. */
+	public void startSavedEffect() {
+		restoredFromSave = true;
+		setTargetLoc(effected.getX(), effected.getY(), effected.getZ());
+		startEffect();
+	}
+
+	public boolean isRestoredFromSave() {
+		return restoredFromSave;
 	}
 
 	/**

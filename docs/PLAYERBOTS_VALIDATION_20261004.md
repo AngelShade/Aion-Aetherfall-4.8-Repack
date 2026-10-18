@@ -1,5 +1,15 @@
 # Companion update validation — 4 October 2026
 
+18 October shared-memory follow-up: normal build; actual 47-arc itinerary replay
+(1374 cold graph operations, zero cached), isolated results, rejected-arc bypass,
+byte bounds and configurable large-heap calculation passed. No full suites or new
+test files. Original-only delivery/live acceptance in the focused comparison below.
+
+18 October companion follow slice: normal build passed with tests skipped;
+copied-file delivery and actual walking/running, range, combat handoff and
+manual withdrawal acceptance are tracked in
+[the focused comparison](PLAYERBOTS_COMPANION_FOLLOW_20261018.md).
+
 ## Weapon visibility and shared height traversal - installed offline - 11 October 2026
 
 PB-REPAIR-WEAPON-039 / PB-REPAIR-HEIGHT-040 is installed through unchanged complete

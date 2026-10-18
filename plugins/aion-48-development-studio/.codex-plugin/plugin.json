@@ -1,0 +1,25 @@
+{
+  "name": "aion-48-development-studio",
+  "version": "0.1.0",
+  "description": "Focused Aion Aetherfall 4.8 diagnosis, server and native client development, and explicitly requested repack delivery.",
+  "author": { "name": "AngelShade" },
+  "repository": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Aion 4.8 Development Studio",
+    "shortDescription": "Develop and repair Aion Aetherfall 4.8",
+    "longDescription": "Project workflows for log diagnosis, normal server builds, Playerbots, native English client changes and cumulative repack updates. Uses current project notes and receipts, defaults to the original installation, preserves existing mods and player data, and keeps publishing separate.",
+    "developerName": "AngelShade",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack",
+    "brandColor": "#58C4DF",
+    "logo": "./assets/studio.svg",
+    "composerIcon": "./assets/studio.svg",
+    "defaultPrompt": [
+      "Diagnose and fix the latest original GameServer error, build and install the affected files.",
+      "Fix this native client UI issue in the original English client while preserving installed mods.",
+      "Apply the current original fixes to the repack, update its changelog and prepare the cumulative patch."
+    ]
+  }
+}

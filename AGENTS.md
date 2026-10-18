@@ -3,6 +3,11 @@
 ## Working rules
 
 - Make focused changes; preserve unrelated dirty work and every installed feature.
+- Default to the original development client and server: maintained source, normal
+  build, then affected-file installation in the original. Do not update full/test
+  repacks, prepare patches or publish releases unless the user explicitly requests
+  that destination. When asked to apply the original to a repack, transfer the
+  current original's relevant maintained changes while preserving repack-specific settings.
 - Carry authorized work through source repair, normal build and affected-file delivery.
   The user performs actual server/client/gameplay acceptance. Report what is still unverified.
 - Use the current request and fresh evidence over historical notes. Do not reopen completed
@@ -20,6 +25,9 @@
 - Keep source, original development installation, full repack, installed test repack and
   published release distinct. Deliver only to the destinations requested. Publishing is
   a separate action; the owner uses Publish Update when desired.
+- Every requested repack update includes updating `CHANGELOG.md` and delivering the
+  matching changelog with the repack and prepared patch. Describe actual player-facing
+  changes, preserve earlier entries and distinguish local preparation from publication.
 - Do not message other chats or delegate work without user authorization. If another chat
   is editing the same source, preserve its changes and use an isolated build or wait for
   a stable handoff. Never overwrite a newer runtime with an older prepared package.

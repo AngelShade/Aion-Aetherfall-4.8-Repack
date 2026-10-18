@@ -1,5 +1,11 @@
 #!/bin/bash
 #=====================================================================================
+
+# Environment settings allow each host to choose its own memory budget.
+: "${AETHERFALL_GS_MIN_HEAP:=1024m}"
+: "${AETHERFALL_GS_MAX_RAM_PERCENT:=25}"
+heap_arg="-XX:MaxRAMPercentage=${AETHERFALL_GS_MAX_RAM_PERCENT}"
+if [ -n "${AETHERFALL_GS_MAX_HEAP:-}" ]; then heap_arg="-Xmx${AETHERFALL_GS_MAX_HEAP}"; fi
 # Usage:        ./start.sh [jvmArgs]
 # Parameters:   jvmArgs
 #                   additional arguments to the JVM process starting the server
@@ -8,7 +14,7 @@
 
 loop() {
   while true; do
-    java -Xms1024m -Xmx2560m -XX:+UseNUMA -XX:+UseCompactObjectHeaders $@ -cp "libs/*" com.aionemu.gameserver.GameServer
+    java "-Xms${AETHERFALL_GS_MIN_HEAP}" "$heap_arg" -XX:+UseNUMA -XX:+UseCompactObjectHeaders $@ -cp "libs/*" com.aionemu.gameserver.GameServer
     err=$?
     case $err in
       0) # regular shutdown

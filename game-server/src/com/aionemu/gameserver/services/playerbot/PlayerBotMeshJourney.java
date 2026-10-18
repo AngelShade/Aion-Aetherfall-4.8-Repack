@@ -15,12 +15,18 @@ final class PlayerBotMeshJourney implements AutoCloseable {
     private PlayerBotNavmeshTopology.Search search;
     private List<Point> waypoints;
     private final Map<Integer,PlayerBotAnimatedLinks.Ride> rides=new HashMap<>();
+    private final Map<Integer,PlayerBotRoadNetwork.Jump> jumps=new HashMap<>();
+    private boolean jumpLaunched;
     private Point finalGoal;
     private Point failurePosition;
     private Point frontier;
     private int frontierCursor;
     private ArrayList<Point> extracting;
     private int extractionCursor;
+    private int extractionPoint;
+    private final BitSet preparedEdges=new BitSet();
+    private final Map<Integer,Integer> roadArcs=new HashMap<>();
+    private final Map<Integer,Long> blockedArcs=new HashMap<>();
     private int world,phase,startComponent=-1,endComponent=-1,cursor;
     private String unavailable,reason="waiting for directed journey topology";
     void bind(int world,Point goal){
@@ -75,7 +81,7 @@ final class PlayerBotMeshJourney implements AutoCloseable {
         if(!admission.begin(this)){reason="waiting for directed journey calculation turn";return work;}
         try {
             if(phase==3){
-                if(search==null)search=graph.new Search(startComponent,endComponent);
+                if(search==null){blockedArcs.values().removeIf(until->until<=System.currentTimeMillis());search=graph.new Search(startComponent,endComponent,blockedArcs.keySet());}
                 work+=search.advance(allowance-work,expired);reason="planning directed journey across tile components";
                 if(search.pending())return work;
                 if(search.failure()!=null){fail(search.failure());return work;}
@@ -84,10 +90,24 @@ final class PlayerBotMeshJourney implements AutoCloseable {
             if(phase==4){
                 int[] route=search.route();
                 while(extractionCursor<route.length && work<allowance && !expired.getAsBoolean()){
-                    int arc=route[extractionCursor++];work++;
-                    add(extracting,graph.source(arc));
-                    var ride=graph.ride(arc);if(ride!=null)rides.put(extracting.size()-1,ride);
-                    add(extracting,graph.destination(arc));
+                    int arc=route[extractionCursor];work++;
+                    var ride=graph.ride(arc);var jump=graph.jump(arc);var roads=graph.roads();
+                    if(jump!=null){
+                        add(extracting,roads.hub(jump.from()));add(extracting,graph.source(arc));
+                        jumps.put(extracting.size()-1,jump);roadArcs.put(extracting.size()-1,arc);
+                        add(extracting,graph.destination(arc));add(extracting,roads.hub(jump.to()));extractionCursor++;extractionPoint=0;
+                    }else if(ride!=null){
+                        if(roads!=null)add(extracting,roads.hub(ride.from().component()));
+                        add(extracting,graph.source(arc));rides.put(extracting.size()-1,ride);
+                        add(extracting,graph.destination(arc));
+                        if(roads!=null)add(extracting,roads.hub(ride.to().component()));
+                        extractionCursor++;extractionPoint=0;
+                    }else if(roads!=null){
+                        int before=extracting.size();add(extracting,roads.point(arc,extractionPoint));
+                        if(extracting.size()>before && extractionPoint>0){preparedEdges.set(extracting.size()-1);roadArcs.put(extracting.size()-1,arc);}
+                        if(++extractionPoint==roads.count(arc)){extractionPoint=0;extractionCursor++;}
+                    }else{add(extracting,graph.source(arc));add(extracting,graph.destination(arc));extractionCursor++;}
+                    if(extracting.size()>32768){fail("directed road itinerary capacity reached");extracting=null;return work;}
                 }
                 if(extractionCursor<route.length)return work;
                 extracting.add(finalGoal);waypoints=Collections.unmodifiableList(extracting);extracting=null;reason="retained directed ground journey";
@@ -101,6 +121,10 @@ final class PlayerBotMeshJourney implements AutoCloseable {
         if(points.isEmpty() || !points.getLast().equals(point))points.add(point);
     }
     void observe(Point physical){
+        if(unavailable!=null && blockedArcs.values().stream().anyMatch(until->until<=System.currentTimeMillis())){
+            var remaining=new HashMap<>(blockedArcs);remaining.values().removeIf(until->until<=System.currentTimeMillis());
+            int map=world;Point goal=finalGoal;close();bind(map,goal);blockedArcs.putAll(remaining);
+        }
         // A missing/disconnected origin describes one physical floor/pose, not
         // this destination forever. A proved native prefix or descent may have
         // moved the actor into a component from which the journey now exists.
@@ -108,37 +132,91 @@ final class PlayerBotMeshJourney implements AutoCloseable {
             if(failurePosition==null)failurePosition=physical;
             else if(distance(physical,failurePosition)>4){int map=world;Point goal=finalGoal;close();bind(map,goal);}
         }
-        if(waypoints!=null)while(cursor<waypoints.size()-1 && !rides.containsKey(cursor) && distance(physical,waypoints.get(cursor))<.75)cursor++;
+        if(waypoints!=null)while(cursor<waypoints.size()-1 && !rides.containsKey(cursor) && !jumps.containsKey(cursor) && distance(physical,waypoints.get(cursor))<.75)cursor++;
     }
     Point target(Point plannedOrigin){
         if(waypoints==null)return finalGoal;
         int at=frontier!=null && distance(plannedOrigin,frontier)<.25?Math.max(cursor,frontierCursor):cursor;
-        while(at<waypoints.size()-1 && !rides.containsKey(at) && distance(plannedOrigin,waypoints.get(at))<.75)at++;
+        while(at<waypoints.size()-1 && !rides.containsKey(at) && !jumps.containsKey(at) && distance(plannedOrigin,waypoints.get(at))<.75)at++;
         return waypoints.get(at);
     }
     boolean walkingTarget(Point plannedOrigin,Point target){
         if(waypoints==null)return false;
         int at=frontier!=null && distance(plannedOrigin,frontier)<.25?Math.max(cursor,frontierCursor):cursor;
-        while(at<waypoints.size()-1 && !rides.containsKey(at) && distance(plannedOrigin,waypoints.get(at))<.75)at++;
-        return at<waypoints.size()-1 && !rides.containsKey(at) && waypoints.get(at).equals(target);
+        while(at<waypoints.size()-1 && !rides.containsKey(at) && !jumps.containsKey(at) && distance(plannedOrigin,waypoints.get(at))<.75)at++;
+        return at<waypoints.size()-1 && !rides.containsKey(at) && !jumps.containsKey(at) && waypoints.get(at).equals(target);
     }
     void provedSegment(Point origin,Point endpoint,Point target){
         if(waypoints==null)return;
         int at=frontier!=null && distance(origin,frontier)<.25?Math.max(cursor,frontierCursor):cursor;
-        while(at<waypoints.size()-1 && !rides.containsKey(at) && distance(origin,waypoints.get(at))<.75)at++;
+        while(at<waypoints.size()-1 && !rides.containsKey(at) && !jumps.containsKey(at) && distance(origin,waypoints.get(at))<.75)at++;
         if(!waypoints.get(at).equals(target))return;
-        if(at<waypoints.size()-1 && !rides.containsKey(at) && distance(endpoint,target)<.75)at++;
+        if(at<waypoints.size()-1 && !rides.containsKey(at) && !jumps.containsKey(at) && distance(endpoint,target)<.75)at++;
         frontier=endpoint;frontierCursor=at; // Earned prefetch only; does not advance physical cursor.
     }
     boolean guided(){return waypoints!=null;}
+    /** Reuse baked main corridors. Their local entry/exit connections and
+     * authored boarding points still use the ordinary tiled path query. */
+    record PreparedCorridor(int start,List<Point> points){}
+    PreparedCorridor preparedCorridor(Point origin,float horizon){
+        if(waypoints==null)return null;
+        int at=frontier!=null && distance(origin,frontier)<.25?Math.max(cursor,frontierCursor):cursor;
+        while(at<waypoints.size()-1 && !rides.containsKey(at) && !jumps.containsKey(at) && distance(origin,waypoints.get(at))<.15)at++;
+        if(at==0 || !preparedEdges.get(at) || !onSegment(origin,waypoints.get(at-1),waypoints.get(at)))return null;
+        int start=at;
+        var result=new ArrayList<Point>();double length=0;Point previous=origin;
+        while(at<waypoints.size() && preparedEdges.get(at) && result.size()<512){
+            int index=at;Point p=waypoints.get(at++);result.add(p);length+=distance(previous,p);previous=p;
+            if(rides.containsKey(index) || jumps.containsKey(index) || length>=horizon)break;
+        }
+        return new PreparedCorridor(start,List.copyOf(result));
+    }
+    void provedCorridor(Point origin,Point endpoint,int start,int completed){
+        // Completion comes from the actual native-proof cursor, not proximity
+        // to a later hairpin or another nearby floor in the baked itinerary.
+        int earned=Math.min(waypoints.size()-1,start+completed);
+        for(int at=start;at<earned;at++)if(rides.containsKey(at) || jumps.containsKey(at)){earned=at;break;}
+        frontier=endpoint;frontierCursor=earned;
+    }
+    void obstructed(Point origin){
+        if(waypoints==null)return;
+        int at=frontier!=null && distance(origin,frontier)<.25?Math.max(cursor,frontierCursor):cursor;
+        Integer arc=roadArcs.get(at);if(arc==null || at==0 || !onSegment(origin,waypoints.get(at-1),waypoints.get(at)))return;
+        // Only an exhausted native local alternative blocks a static proposal.
+        // A compute wait or an incomplete query never changes connectivity.
+        var rejected=new HashMap<>(blockedArcs);rejected.put(arc,System.currentTimeMillis()+45000);
+        int map=world;Point goal=finalGoal;close();bind(map,goal);blockedArcs.putAll(rejected);
+        reason="replanning around obstructed main corridor";
+    }
+    private static boolean onSegment(Point p,Point a,Point b){
+        double dx=b.x()-a.x(),dy=b.y()-a.y(),dz=b.z()-a.z(),squared=dx*dx+dy*dy+dz*dz;
+        double t=squared<.001?0:Math.max(0,Math.min(1,((p.x()-a.x())*dx+(p.y()-a.y())*dy+(p.z()-a.z())*dz)/squared));
+        return distance(p,new Point((float)(a.x()+dx*t),(float)(a.y()+dy*t),(float)(a.z()+dz*t)))<=1;
+    }
     PlayerBotAnimatedLinks.Ride pendingRide(){return waypoints==null?null:rides.get(cursor);}
+    PlayerBotRoadNetwork.Jump pendingJump(){return waypoints==null?null:jumps.get(cursor);}
+    boolean jumpLaunched(){return jumpLaunched;}
+    void markJumpLaunched(){if(pendingJump()==null)throw new IllegalStateException("No height proposal");jumpLaunched=true;}
+    boolean completeJump(Point physical){
+        var jump=pendingJump();if(!jumpLaunched || jump==null || distance(physical,jump.end())>.4)return false;
+        jumpLaunched=false;cursor=Math.min(cursor+1,waypoints.size()-1);frontier=physical;frontierCursor=cursor;observe(physical);return true;
+    }
+    void rejectJump(Point physical){
+        if(pendingJump()==null)return;Integer arc=roadArcs.get(cursor);var rejected=new HashMap<>(blockedArcs);
+        if(arc!=null)rejected.put(arc,System.currentTimeMillis()+45000);
+        int map=world;Point goal=finalGoal;close();bind(map,goal);blockedArcs.putAll(rejected);reason="replanning obstructed jump/drop proposal";
+    }
     PlayerBotAnimatedLinks.Ride boarding(Point physical){return waypoints!=null && distance(physical,waypoints.get(cursor))<.75?rides.get(cursor):null;}
     boolean completeRide(PlayerBotAnimatedLinks.Ride ride,Point physical){
         if(waypoints==null || rides.get(cursor)!=ride || distance(physical,ride.to().ground())>.4)return false;
         cursor=Math.min(cursor+1,waypoints.size()-1);frontier=physical;frontierCursor=cursor;observe(physical);return true;
     }
     void pause(){
-        if(!ready()){graph=null;search=null;extracting=null;releaseRequests();extractionCursor=phase=0;startComponent=endComponent=-1;}
+        if(!ready()){
+            graph=null;search=null;extracting=null;releaseRequests();
+            extractionCursor=extractionPoint=phase=cursor=frontierCursor=0;frontier=null;
+            preparedEdges.clear();rides.clear();jumps.clear();jumpLaunched=false;roadArcs.clear();startComponent=endComponent=-1;
+        }
     }
     private void fail(String why){unavailable=reason=why;graph=null;search=null;extracting=null;releaseRequests();}
     private static double distance(Point a,Point b){return Math.sqrt(Math.pow(a.x()-b.x(),2)+Math.pow(a.y()-b.y(),2)+Math.pow(a.z()-b.z(),2));}
@@ -148,5 +226,5 @@ final class PlayerBotMeshJourney implements AutoCloseable {
         if(topologyLease!=null){topologyLease.close();topologyLease=null;}
         if(admission!=null)admission.cancel(this);
     }
-    @Override public void close(){graph=null;search=null;extracting=null;releaseRequests();waypoints=null;rides.clear();finalGoal=frontier=failurePosition=null;phase=cursor=frontierCursor=extractionCursor=0;unavailable=null;startComponent=endComponent=-1;}
+    @Override public void close(){graph=null;search=null;extracting=null;releaseRequests();waypoints=null;rides.clear();jumps.clear();jumpLaunched=false;preparedEdges.clear();roadArcs.clear();blockedArcs.clear();finalGoal=frontier=failurePosition=null;phase=cursor=frontierCursor=extractionCursor=extractionPoint=0;unavailable=null;startComponent=endComponent=-1;}
 }

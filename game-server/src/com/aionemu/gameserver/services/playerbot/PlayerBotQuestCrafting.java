@@ -31,6 +31,8 @@ public final class PlayerBotQuestCrafting {
  private record Catalog(Object recipes,Object items,Object shops,Object goods,Map<Integer,List<RecipeTemplate>> products,
                         Map<Integer,List<RecipeTemplate>> professions,Map<Integer,Set<Integer>> sellers,Map<Integer,Set<Integer>> designs) {}
  private static volatile Catalog CATALOG;
+ /** Prepare immutable recipe/design/shop indexes before decisions are admitted. */
+ static void prepare() { catalog();CraftSkillUpdateService.getInstance(); }
  private static Catalog catalog() {
   var current=CATALOG;if(current!=null && current.recipes()==DataManager.RECIPE_DATA && current.items()==DataManager.ITEM_DATA && current.shops()==DataManager.TRADE_LIST_DATA && current.goods()==DataManager.GOODSLIST_DATA)return current;
   synchronized(PlayerBotQuestCrafting.class) {

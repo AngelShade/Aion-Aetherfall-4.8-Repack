@@ -2,13 +2,18 @@
 setlocal
 title Aetherfall - GameServer
 cd /d "%~dp0"
+if exist "%~dp0config\jvm-options.cmd" call "%~dp0config\jvm-options.cmd"
+if not defined AETHERFALL_GS_MIN_HEAP set "AETHERFALL_GS_MIN_HEAP=1024m"
+if not defined AETHERFALL_GS_MAX_RAM_PERCENT set "AETHERFALL_GS_MAX_RAM_PERCENT=25"
+set "AETHERFALL_GS_HEAP_ARGS=-XX:MaxRAMPercentage=%AETHERFALL_GS_MAX_RAM_PERCENT%"
+if defined AETHERFALL_GS_MAX_HEAP set "AETHERFALL_GS_HEAP_ARGS=-Xmx%AETHERFALL_GS_MAX_HEAP%"
 
 netstat -ano -p tcp | findstr /C:":7777 " | findstr /C:"LISTENING" >nul
 if not errorlevel 1 goto LOG
 
 :START
 echo Starting Aetherfall GameServer in this console...
-java -Xms1024m -Xmx2560m -XX:+UseNUMA -XX:+UseCompactObjectHeaders -DconsoleEncoding=CP850 -cp "libs/*" com.aionemu.gameserver.GameServer
+java -Xms%AETHERFALL_GS_MIN_HEAP% %AETHERFALL_GS_HEAP_ARGS% -XX:+UseNUMA -XX:+UseCompactObjectHeaders -DconsoleEncoding=CP850 -cp "libs/*" com.aionemu.gameserver.GameServer
 if errorlevel 3 goto FAILED
 if errorlevel 2 goto START
 if errorlevel 1 goto FAILED

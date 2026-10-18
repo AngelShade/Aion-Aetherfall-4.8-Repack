@@ -82,10 +82,20 @@ final class PlayerBotNavigationBudget {
   // Nomination asks the actor scheduler to wake an aged/important intent; it
   // must not reserve a native worker for an actor whose callback is still100ms
   // away. This callback is ready now. Charge it only when an actual worker and
-  // an entire slice are available, regardless of another actor's wakeup rank.
+  // an entire slice are available. Aged nominees below get a bounded fair turn.
   if(running.size()>=workers || credit<sliceNanos)return null;
   Request selected=waiting.get(token);
   if(selected==null)return null;
+  // Busy actors must not repeatedly take replenished credit ahead of an
+  // aged, nominated query. Fresh work stays work-conserving; the existing
+  // wakeup/expiry machinery gives an aged owner its bounded callback turn.
+  var turns=nominees(now);
+  // A serial party callback must not let its first companions repeatedly take
+  // fresh short-step grants ahead of the later companions' retained requests.
+  // Use the existing nominated FIFO/fair-background turns immediately for
+  // controlled work, without increasing CPU credit or changing world admission.
+  if(selected.priority==Priority.CONTROLLED.ordinal() && !turns.contains(selected))return null;
+  if(!turns.contains(selected) && turns.stream().anyMatch(r->now-r.queued>=AGE))return null;
   Request highest=null;for(var q:queues){
    while(!q.isEmpty()){
     Request head=q.peekFirst();Object queuedToken=head.token.get();

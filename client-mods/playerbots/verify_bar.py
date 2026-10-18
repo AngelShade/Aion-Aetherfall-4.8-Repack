@@ -11,7 +11,7 @@ def verify(root,out):
     manifest=json.loads((out/'manifest.json').read_text())
     assert manifest['feature']=='playerbot-party-bar' and Path(manifest['clientRoot']).resolve()==root.resolve()
     expected={'bin64/AionIconBridge.dll','Plugin/RelicCalc/RelicCalc.pak','Addon.key','Plugin/RelicCalc/RelicCalc.pak.sig','bin32/bin32.pak.sig','Data/func_pet/func_pet.pak.sig'}
-    revision=manifest.get('revision') in ('layout-2','layout-3','layout-4','formations-1')
+    revision=manifest.get('revision') in ('layout-2','layout-3','layout-4','formations-1','radius-1')
     if manifest.get('revision') in ('layout-2','layout-4'):expected.remove('bin64/AionIconBridge.dll')
     if manifest.get('revision') in ('layout-3','formations-1'):
         live=(root/'bin64/AionIconBridge.dll').read_bytes()
@@ -39,9 +39,11 @@ def verify(root,out):
     assert len(set(names))==len(names)==int(tree.get('widget_cnt'))
     assert 'not_movable' not in tree.find('Dialog').get('flag')
     assert 'PlayerBotBarSummon' in names
-    if manifest.get('revision') in ('layout-4','formations-1'):assert tree.find('Dialog').get('preset')=='v5_dialog','Keep footer divider away from the command rows'
+    if manifest.get('revision') in ('layout-4','formations-1','radius-1'):assert tree.find('Dialog').get('preset')=='v5_dialog','Keep footer divider away from the command rows'
     if manifest.get('revision')=='formations-1':
         assert all('PlayerBotBar'+n in names for n in ('Circle','Box','Line','Spread'))
+    if manifest.get('revision')=='radius-1':
+        assert all('PlayerBotBar'+n in names for n in ('Close','Normal','Far'))
     subprocess.run(['java',str(HERE.parent/'season-pass/VerifySignatures.java'),str(out),str(root)],check=True)
     print('OK: party bar payload, all three signatures, every previous addon entry, client hashes and effective server override preserved.')
 

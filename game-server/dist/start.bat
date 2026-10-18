@@ -2,10 +2,15 @@
 :: Run in Windows Terminal if available
 IF "%WT_SESSION%" == "" wt %0 2>nul && EXIT
 TITLE Aion Emu - Game Server
+IF EXIST "%~dp0config\jvm-options.cmd" CALL "%~dp0config\jvm-options.cmd"
+IF NOT DEFINED AETHERFALL_GS_MIN_HEAP SET "AETHERFALL_GS_MIN_HEAP=1024m"
+IF NOT DEFINED AETHERFALL_GS_MAX_RAM_PERCENT SET "AETHERFALL_GS_MAX_RAM_PERCENT=25"
+SET "AETHERFALL_GS_HEAP_ARGS=-XX:MaxRAMPercentage=%AETHERFALL_GS_MAX_RAM_PERCENT%"
+IF DEFINED AETHERFALL_GS_MAX_HEAP SET "AETHERFALL_GS_HEAP_ARGS=-Xmx%AETHERFALL_GS_MAX_HEAP%"
 
 :START
 CLS
-JAVA -Xms1024m -Xmx4g -XX:+UseNUMA -XX:+UseCompactObjectHeaders -DconsoleEncoding=CP850 -cp "libs/*" com.aionemu.gameserver.GameServer
+JAVA -Xms%AETHERFALL_GS_MIN_HEAP% %AETHERFALL_GS_HEAP_ARGS% -XX:+UseNUMA -XX:+UseCompactObjectHeaders -DconsoleEncoding=CP850 -cp "libs/*" com.aionemu.gameserver.GameServer
 IF %ERRORLEVEL% EQU 0 GOTO END
 IF %ERRORLEVEL% EQU 2 GOTO START
 ECHO.

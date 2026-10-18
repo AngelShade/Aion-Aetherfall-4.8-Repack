@@ -113,7 +113,7 @@ public class PlayerEffectController extends EffectController {
 		Effect effect = new Effect(getOwner(), getOwner(), template, skillLvl, remainingTime, forceType, false, magicalCriticalPositions);
 		put(effect);
 		effect.addAllEffectToSucess();
-		effect.startEffect();
+		effect.startSavedEffect();
 
 		if (effect.getSkillTemplate().getTargetSlot() != SkillTargetSlot.NOSHOW)
 			PacketSendUtility.sendPacket(getOwner(), new SM_ABNORMAL_STATE(Collections.singletonList(effect), getAbnormals(), SkillTargetSlot.FULLSLOTS));

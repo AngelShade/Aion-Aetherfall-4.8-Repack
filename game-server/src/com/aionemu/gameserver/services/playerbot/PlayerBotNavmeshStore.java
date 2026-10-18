@@ -437,13 +437,21 @@ final class PlayerBotNavmeshStore implements AutoCloseable {
         }
         require(sceneHash.equals(animatedSceneHash),"animated scene changed after publication");
         Path ridesFile=inside(current.root,animatedFolder.resolve(entry.map+".pbrides"));long rideSize=Files.size(ridesFile);require(rideSize>0 && rideSize<=16L*1024*1024,"animated dock size");
-        long needed=Math.addExact(131072,Math.addExact(Math.multiplyExact(size,3),Math.multiplyExact(rideSize,8)));
+        Path roadFolder=inside(current.root,current.root.resolve("roads"));
+        Properties roadIndex=properties(boundedBytes(inside(current.root,roadFolder.resolve("roads.properties")),MAX_PROPERTIES));
+        require("aion-roads-1".equals(roadIndex.getProperty("format")) && current.hash.equals(roadIndex.getProperty("report.sha256"))
+            && PlayerBotNavmeshTopology.hash(folder.resolve("topology.properties")).equals(roadIndex.getProperty("topology.sha256"))
+            && spec.fingerprint.equals(roadIndex.getProperty(key+".fingerprint")),"road/topology/catalog mismatch");
+        Path roadFile=inside(current.root,roadFolder.resolve(entry.map+".pbroads"));long roadSize=Files.size(roadFile);
+        require(roadSize>0 && roadSize<=256L*1024*1024,"road file size");
+        long needed=Math.addExact(PlayerBotNavmeshTopology.routeCacheAllowance(),Math.addExact(131072,Math.addExact(Math.addExact(Math.multiplyExact(size,3),Math.multiplyExact(rideSize,8)),Math.multiplyExact(roadSize,8))));
         synchronized(this){
             if(closed || entry.retired || entry.epoch!=epoch)return;
             checkMapAllowance(needed);if(!reserve(needed,entry)){defer(entry,needed);return;}reservation[0]=needed;
         }
         var graph=PlayerBotNavmeshTopology.read(file,spec.fingerprint,digest);
-        require(graph.bytes()<=needed,"topology allocation reservation");
+        graph.roads(PlayerBotRoadNetwork.read(roadFile,spec.fingerprint,digest,hashValue(roadIndex,key+".sha256"),graph));
+        require(graph.bytes()<=needed,"topology/road allocation reservation");
         graph.animated(PlayerBotAnimatedLinks.read(ridesFile,hashValue(animatedIndex,key+".sha256"),animatedScene,entry.map,graph.nodes));
         synchronized(this){
             if(closed || entry.retired || entry.epoch!=epoch)return;

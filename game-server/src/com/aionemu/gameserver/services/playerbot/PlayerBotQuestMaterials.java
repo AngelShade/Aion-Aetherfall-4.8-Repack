@@ -104,13 +104,20 @@ final class PlayerBotQuestMaterials {
   synchronized(GLOBAL_SITES) {
    if(GLOBAL_CATALOG!=catalog){GLOBAL_SITES.clear();GLOBAL_CATALOG=catalog;}
    var cached=GLOBAL_SITES.get(item);if(cached!=null)return cached;
-   var result=new ArrayList<GlobalSite>();
+  }
+  // A miss scans immutable source data. It must not hold the shared cache
+  // monitor and park actors requesting unrelated material IDs behind that scan.
+  var result=new ArrayList<GlobalSite>();
    for(var source:catalog.global().getOrDefault(item,List.of()))for(var list:catalog.sites().values())for(var site:list) {
     var r=source.rule();Race actor=r.restriction()==null?Race.PC_ALL:r.restriction();
     if(site.globalAllowed() && (site.defaultAllowed() || r.npcs().present())
      && r.matches(actor,source.level(),site.level(),site.place().npc(),site.place().map(),site.world(),site.rating(),site.race(),site.tribe(),site.group(),site.zones()))result.add(new GlobalSite(source,site));
    }
-   var frozen=List.copyOf(result);GLOBAL_SITES.put(item,frozen);if(GLOBAL_SITES.size()>64)GLOBAL_SITES.remove(GLOBAL_SITES.keySet().iterator().next());return frozen;
+  var frozen=List.copyOf(result);
+  synchronized(GLOBAL_SITES) {
+   if(GLOBAL_CATALOG!=catalog)return frozen; // never publish into a newer catalog
+   var cached=GLOBAL_SITES.get(item);if(cached!=null)return cached;
+   GLOBAL_SITES.put(item,frozen);if(GLOBAL_SITES.size()>64)GLOBAL_SITES.remove(GLOBAL_SITES.keySet().iterator().next());return frozen;
   }
  }
  private static final class Actor {
@@ -214,6 +221,7 @@ final class PlayerBotQuestMaterials {
     DataManager.WORLD_MAPS_DATA,DataManager.ITEM_DATA,DataManager.GLOBAL_EXCLUSION_DATA,freeze(custom),freeze(global),freeze(gathering),Map.copyOf(nodes),freeze(sites),freeze(gatherPlaces),aerial);
   }
  }
+ static void prepare() { catalog(); }
  private static Actor actor(PlayerBotSession session,boolean refresh) {
   var bot=session.bot();var state=ACTORS.computeIfAbsent(bot.getObjectId(),k->new Actor());long now=System.currentTimeMillis();
   int features=(PlayerBotConfig.QUESTS_ENABLED?1:0)|(PlayerBotConfig.QUEST_CUSTOM?2:0)|(PlayerBotConfig.QUEST_CRAFTING?4:0)|(PlayerBotConfig.QUEST_MATERIALS?8:0)|(PlayerBotConfig.QUEST_EXCHANGE?16:0);

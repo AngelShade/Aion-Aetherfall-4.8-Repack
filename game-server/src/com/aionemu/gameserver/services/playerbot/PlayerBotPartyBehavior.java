@@ -114,6 +114,7 @@ public final class PlayerBotPartyBehavior {
   Npc chosen=candidates.stream().min(Comparator.comparingDouble(n->PositionUtil.getDistance(owner,n)-(assisted.contains(n.getObjectId()) ? 10000 : 0))).orElse(null);
   s.sharedTarget=chosen==null ? 0 : chosen.getObjectId();return chosen;
  }
- static boolean explicit(Player bot,Npc npc) {State s=STATES.get(bot.getObjectId());return s!=null && s.enabled && s.order==Order.FOLLOW && s.sharedTarget==npc.getObjectId() && PositionUtil.isInRange(s.session.owner(),npc,25) && !s.session.owner().isDead();}
+ static boolean explicit(Player bot,Npc npc) {State s=STATES.get(bot.getObjectId());return s!=null && s.enabled && s.order==Order.FOLLOW && s.sharedTarget==npc.getObjectId() && PositionUtil.isInRange(s.session.owner(),npc,25) && !s.session.owner().isDead()
+  && (s.session.autonomous() || !s.session.owner().getMoveController().isInMove());}
  private PlayerBotPartyBehavior(){}
 }

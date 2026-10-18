@@ -25,7 +25,7 @@ using System.Windows.Threading;
 using Microsoft.Win32;
 
 [assembly: AssemblyVersion("0.90.0.0")]
-[assembly: AssemblyFileVersion("0.90.1018.1")]
+[assembly: AssemblyFileVersion("0.90.1018.5")]
 
 namespace AetherfallSetup {
  public sealed class SetupSettings {
@@ -59,11 +59,13 @@ namespace AetherfallSetup {
  }
 
  public sealed class SetupApp {
+  const string DefaultUpdateUrl="https://raw.githubusercontent.com/AngelShade/Aion-Aetherfall-4.8-Repack/main/latest-update.json";
   Window window; Grid scene;
   string root, customArchivePath;
   bool busy, closed, preview, serverControlBusy;
   CancellationTokenSource downloadCts;
   SetupSettings settings = new SetupSettings();
+  OriginalInstallation original;
   ReleaseManifest manifest = new ReleaseManifest();
   DispatcherTimer timer;
   readonly List<Ellipse> particles = new List<Ellipse>();
@@ -95,9 +97,10 @@ namespace AetherfallSetup {
 
   void Initialize(string[] args) {
    root = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(System.IO.Path.DirectorySeparatorChar);
+   original = OriginalInstallation.Load(root);
    // Organized owner/player bundles keep the clickable EXE above its support
    // folder. Legacy bundles and installed Hub copies keep their original root.
-   foreach (string support in new [] { "Setup", "Aetherfall-Downloader" }) {
+   foreach (string support in original==null ? new [] { "Setup", "Aetherfall-Downloader" } : new string[0]) {
     if (File.Exists(System.IO.Path.Combine(root,support,"settings.json")) &&
         File.Exists(System.IO.Path.Combine(root,support,"release-manifest.json"))) {
      root = System.IO.Path.Combine(root,support);
@@ -112,6 +115,8 @@ namespace AetherfallSetup {
    using (Stream s = Assembly.GetExecutingAssembly().GetManifestResourceStream("Aetherfall.SetupWindow.xaml"))
     window = (Window)XamlReader.Load(s);
    scene = Find<Grid>("Scene");
+   using (Stream icon = Assembly.GetExecutingAssembly().GetManifestResourceStream("Aetherfall.HubIcon.ico"))
+    window.Icon = new IconBitmapDecoder(icon, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames.OrderBy(frame=>frame.PixelWidth).Last();
    Find<Image>("Hero").Source = LoadResourceImage("Aetherfall.atreia.png");
    Find<Image>("Frame").Source = LoadResourceImage("Aetherfall.frame.png");
    Find<Image>("AionLogo").Source = new CroppedBitmap(LoadResourceImage("Aetherfall.aion-native-atlas.png"), new Int32Rect(0, 272, 624, 162));
@@ -183,6 +188,7 @@ namespace AetherfallSetup {
   }
 
   void LoadConfig() {
+   if(original!=null)return;
    JavaScriptSerializer js = new JavaScriptSerializer();
    string settingsPath = System.IO.Path.Combine(root, "settings.json");
    if (File.Exists(settingsPath)) {
@@ -192,6 +198,7 @@ namespace AetherfallSetup {
    if (File.Exists(manifestPath)) {
     try { manifest = js.Deserialize<ReleaseManifest>(File.ReadAllText(manifestPath)) ?? manifest; } catch {}
    }
+   settings.UpdateUrl=ResolveUpdateChannel(settings.UpdateUrl,System.IO.Path.Combine(ResolveInstallPath(),"Client","Mods","Launcher","update.json"));
    Find<CheckBox>("DeleteArchiveAfter").IsChecked = settings.DeleteArchiveAfter;
    Find<RadioButton>("ModeAuto").IsChecked = settings.Mode == "Auto";
    Find<RadioButton>("ModeTorrent").IsChecked = settings.Mode == "Torrent";
@@ -199,13 +206,27 @@ namespace AetherfallSetup {
    Find<TextBox>("UpdateUrlBox").Text = settings.UpdateUrl ?? "";
   }
 
+  static string ResolveUpdateChannel(string configured,string clientConfig) {
+   string channel=configured;
+   if(String.IsNullOrWhiteSpace(channel) && File.Exists(clientConfig)) {
+    var values=new JavaScriptSerializer().Deserialize<Dictionary<string,object>>(File.ReadAllText(clientConfig));
+    object saved;
+    if(values!=null && values.TryGetValue("UpdateUrl",out saved))channel=Convert.ToString(saved);
+   }
+   if(String.IsNullOrWhiteSpace(channel))channel=DefaultUpdateUrl;
+   Uri uri;
+   if(!Uri.TryCreate(channel.Trim(),UriKind.Absolute,out uri) || uri.Scheme!=Uri.UriSchemeHttps)
+    throw new InvalidOperationException("The update channel must be an absolute HTTPS URL.");
+   return uri.AbsoluteUri;
+  }
+
   void SaveSettingsFromUi() {
    if (Find<RadioButton>("ModeTorrent").IsChecked == true) settings.Mode = "Torrent";
    else if (Find<RadioButton>("ModeHttp").IsChecked == true) settings.Mode = "Http";
    else settings.Mode = "Auto";
    settings.DeleteArchiveAfter = Find<CheckBox>("DeleteArchiveAfter").IsChecked == true;
-   settings.UpdateUrl = (Find<TextBox>("UpdateUrlBox").Text ?? "").Trim();
    try {
+    settings.UpdateUrl = ResolveUpdateChannel(Find<TextBox>("UpdateUrlBox").Text,System.IO.Path.Combine(ResolveInstallPath(),"Client","Mods","Launcher","update.json"));
     File.WriteAllText(System.IO.Path.Combine(root, "settings.json"), new JavaScriptSerializer().Serialize(settings));
     string pkg = ResolveInstallPath();
     string launcherUpdate = System.IO.Path.Combine(pkg, "Client", "Mods", "Launcher", "update.json");
@@ -225,6 +246,7 @@ namespace AetherfallSetup {
   }
 
   string ResolveInstallPath() {
+   if(original!=null)return original.ServerRoot;
    if (File.Exists(System.IO.Path.Combine(root, "REPACK.json"))) return root;
    string parent = Directory.GetParent(root) != null ? Directory.GetParent(root).FullName : root;
    if (File.Exists(System.IO.Path.Combine(parent, "REPACK.json"))) return parent;
@@ -251,6 +273,7 @@ namespace AetherfallSetup {
   }
 
   bool IsInstalled() {
+   if(original!=null)return true; // Explicit profile was validated at startup.
    string pkg = ResolveInstallPath();
    return !File.Exists(System.IO.Path.Combine(pkg, ".aetherfall-extracting")) &&
           HasInstalledPayload(pkg);
@@ -258,7 +281,7 @@ namespace AetherfallSetup {
 
   string InstalledVersion() {
    string pkg = ResolveInstallPath();
-   string rel = System.IO.Path.Combine(pkg, "release.json");
+   string rel = original!=null?original.ReleaseFile:System.IO.Path.Combine(pkg, "release.json");
    if (File.Exists(rel)) {
     try {
      ReleaseJson r = new JavaScriptSerializer().Deserialize<ReleaseJson>(File.ReadAllText(rel));
@@ -321,6 +344,23 @@ namespace AetherfallSetup {
    string ver = InstalledVersion();
    bool installed = IsInstalled();
    Text("InstallPathLabel").Text = pkg;
+   if(original!=null) {
+    Text("ReleaseLabel").Text="  ORIGINAL INSTALLATION  ·  "+ver;
+    Text("InstallBadge").Text="Original server and client";
+    Find<Ellipse>("InstallDot").Fill=Brush("#9CDEC3");
+    Text("PrimaryLabel").Text="PLAY";
+    Text("LaunchCaption").Text="OPEN ORIGINAL AETHERFALL LAUNCHER";
+    Text("HeroHeadline").Text="Your original Aetherfall installation.";
+    Text("ArchiveSourceLabel").Text=original.ClientRoot;
+    ((TextBlock)Btn("HubTab").Content).Text="❖    ORIGINAL INSTALLATION";
+    foreach(string name in new[]{"PathsTab","UpdateNowBtn","SelectArchiveBtn","BrowseInstall","StopAllServerBtn"})Btn(name).Visibility=Visibility.Collapsed;
+    if(!busy && !preserveStatus) {
+     Text("StatusBanner").Text="AETHERFALL DEVELOPMENT HUB";
+     Text("StatusTitle").Text="Ready for Atreia.";
+     Text("StatusDetail").Text="Use Server Control to start the original database and servers, then PLAY to open your original client. Database shutdown remains in its own console.";
+    }
+    return;
+   }
    Text("ReleaseLabel").Text = "  REPACK HUB & AUTO-UPDATER  ·  " + ver;
    string localArc = FindCompleteLocalArchive();
    long partDone, partTotal; double partPct;
@@ -434,6 +474,12 @@ namespace AetherfallSetup {
   }
 
   async Task OnPrimaryAction() {
+   if(original!=null) {
+    if(serverControlBusy)return;
+    string launcher=System.IO.Path.Combine(original.ClientRoot,"Aetherfall Launcher.exe");
+    Process.Start(new ProcessStartInfo(launcher){WorkingDirectory=original.ClientRoot,UseShellExecute=true});
+    return;
+   }
    if (busy) {
     if (downloadCts != null) {
      Text("StatusDetail").Text = "Pausing and saving exact resume position…";
@@ -1163,33 +1209,6 @@ namespace AetherfallSetup {
     return;
    }
 
-   if (String.IsNullOrEmpty(chosenZip) && String.IsNullOrWhiteSpace(settings.UpdateUrl)) {
-    string ver = InstalledVersion();
-    string userDl = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
-    foreach (string folder in new[] { pkg, System.IO.Path.Combine(pkg, "Updates"), root, userDl }) {
-     if (!Directory.Exists(folder)) continue;
-     var candidates = Directory.GetFiles(folder, "Aetherfall-Patch-*.zip");
-     var newer = candidates.Where(x => {
-      Version candidate;
-      string name = System.IO.Path.GetFileNameWithoutExtension(x).Substring("Aetherfall-Patch-".Length);
-      return Version.TryParse(name, out candidate) && candidate > new Version(ver);
-     }).OrderBy(x => new Version(System.IO.Path.GetFileNameWithoutExtension(x).Substring("Aetherfall-Patch-".Length))).LastOrDefault();
-     if (newer != null) { chosenZip = newer; break; }
-    }
-    if (String.IsNullOrEmpty(chosenZip)) {
-     var dlg = new OpenFileDialog {
-      Title = "Select Aetherfall-Patch-<version>.zip to update your repack",
-      Filter = "Aetherfall Patch ZIP (Aetherfall-Patch-*.zip;*.zip)|Aetherfall-Patch-*.zip;*.zip"
-     };
-     if (dlg.ShowDialog() != true) {
-      SetBusy(false, "AETHERFALL REPACK MANAGER", "Update cancelled", "");
-      RefreshState();
-      return;
-     }
-     chosenZip = dlg.FileName;
-    }
-   }
-
    SetBusy(true, "UPDATING REPACK", "Applying delta update…", "Verifying patch checksums and backing up replaced files…");
    SetProgress(0.45, "Updating…", "⚡ Delta Patch");
    try {
@@ -1219,6 +1238,7 @@ namespace AetherfallSetup {
 
   async Task RunServerControl(string action) {
    if(serverControlBusy || busy)return;
+   if(original!=null) { await RunOriginalControl(action);return; }
    string pkg = ResolveInstallPath();
    if (!File.Exists(System.IO.Path.Combine(pkg, "REPACK.json"))) {
     Text("ServerControlFeedback").Text = "Install the repack first.";
@@ -1256,6 +1276,28 @@ namespace AetherfallSetup {
    } catch (Exception ex) {
     Text("ServerControlFeedback").Text = ex.Message;
    } finally {
+    serverControlBusy=false;
+    foreach(string name in controls)Btn(name).IsEnabled=true;
+   }
+  }
+
+  async Task RunOriginalControl(string action) {
+   serverControlBusy=true;
+   string[] controls={"StartAllServerBtn","StartDbOnlyBtn","StartGsOnlyBtn","StopGsBtn","StopLsBtn","StopChatBtn","PrimaryBtn"};
+   foreach(string name in controls)Btn(name).IsEnabled=false;
+   try {
+    Text("ServerControlFeedback").Text="Running "+action+" for the original installation…";
+    if(action=="GameServer" || action=="LoginServer" || action=="ChatServer") {
+     Text("ServerControlFeedback").Text=await Task.Run(()=>ServerControl.StopOriginal(original.ServerRoot,original.JavaHome,action,
+      line=>window.Dispatcher.BeginInvoke(new Action(()=>Text("ServerControlFeedback").Text=line))));
+    } else {
+     if(action=="StartAll" || action=="StartDb")await original.StartDatabase();
+     if(action=="StartAll" || action=="StartGs")await original.StartServers();
+     Text("ServerControlFeedback").Text=action=="StartDb"?"Original database is ready.":"Original servers are starting; follow startup in their consoles.";
+    }
+    await PollPorts();
+   } catch(Exception ex) { Text("ServerControlFeedback").Text=ex.Message; }
+   finally {
     serverControlBusy=false;
     foreach(string name in controls)Btn(name).IsEnabled=true;
    }
@@ -1312,15 +1354,15 @@ namespace AetherfallSetup {
    await Task.Run(() => {
     try {
      var listeners = IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpListeners();
-     dbUp = listeners.Any(p => p.Port == 33306);
-     gsUp = listeners.Any(p => p.Port == 2106);
+     dbUp = listeners.Any(p => p.Port == (original!=null?original.DatabasePort:33306));
+     gsUp = listeners.Any(p => p.Port == (original!=null?original.LoginPort:2106));
     } catch {}
    });
    if (closed) return;
    Find<Ellipse>("DbDot").Fill = Brush(dbUp ? "#9CDEC3" : "#7E8B9B");
-   Text("DbBadge").Text = dbUp ? "Database ready (33306)" : "Database stopped";
+   Text("DbBadge").Text = dbUp ? "Database ready ("+(original!=null?original.DatabasePort:33306)+")" : "Database stopped";
    Find<Ellipse>("GsDot").Fill = Brush(gsUp ? "#9CDEC3" : "#7E8B9B");
-   Text("GsBadge").Text = gsUp ? "LoginServer online (2106)" : "Servers stopped";
+   Text("GsBadge").Text = gsUp ? "LoginServer online ("+(original!=null?original.LoginPort:2106)+")" : "Servers stopped";
   }
 
   void AddParticles() {

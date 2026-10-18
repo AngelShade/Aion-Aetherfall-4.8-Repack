@@ -65,6 +65,8 @@ public class BonusService {
 				return DataManager.ITEM_GROUPS_DATA.getFoodGroups();
 			case MANASTONE:
 				return DataManager.ITEM_GROUPS_DATA.getManastoneGroups();
+			case MAGICAL:
+				return DataManager.ITEM_GROUPS_DATA.getMagicalGroups();
 			case MEDICINE:
 				return DataManager.ITEM_GROUPS_DATA.getMedicineGroups();
 			case MEDAL:

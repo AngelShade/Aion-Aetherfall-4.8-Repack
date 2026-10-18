@@ -157,7 +157,7 @@ final class PlayerBotRouteSearch {
  private void exhausted(String why) {
   if(progress!=null){partial=true;finish(progress,progress.point());reason="supported partial route";}
   else if(stride==4){stride=1;phaseExpanded=0;current=null;open.clear();best.clear();seed();}
-  else {complete=true;reason=why;open.clear();best.clear();current=null;}
+  else {complete=true;reason=why;open.clear();best.clear();current=null;if(journey!=null)journey.obstructed(start);}
  }
  private void finish(Node node,Point end) {
   var points=new ArrayList<Point>();if(!end.equals(node.point()) || node.parent()==null)points.add(end);

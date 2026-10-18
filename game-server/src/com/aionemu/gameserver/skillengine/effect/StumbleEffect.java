@@ -35,15 +35,17 @@ public class StumbleEffect extends EffectTemplate {
 		effected.getController().cancelCurrentSkill(effect.getEffector());
 		effected.getEffectController().removeParalyzeEffects();
 		effected.getEffectController().removeStunEffects();
-		if (effected instanceof Player player) {
-			player.getFlyController().onStopGliding();
-			player.getController().onStopMove();
+		if (!effect.isRestoredFromSave()) {
+			if (effected instanceof Player player) {
+				player.getFlyController().onStopGliding();
+				player.getController().onStopMove();
+			}
+			World.getInstance().updatePosition(effected, effect.getTargetX(), effect.getTargetY(), effect.getTargetZ(), effected.getHeading());
+			// TODO: FI_RobustCrash_G1 or FI_Whirlwind_G1 don't send anything, find pattern
+			if (effected instanceof Player)
+				PacketSendUtility.broadcastPacketAndReceive(effected, new SM_FORCED_MOVE(effect.getEffector(), effected.getObjectId(),
+						effect.getTargetX(), effect.getTargetY(), effect.getTargetZ()));
 		}
-		World.getInstance().updatePosition(effected, effect.getTargetX(), effect.getTargetY(), effect.getTargetZ(), effected.getHeading());
-		// TODO: FI_RobustCrash_G1 or FI_Whirlwind_G1 don't send anything, find pattern
-		if (effected instanceof Player)
-			PacketSendUtility.broadcastPacketAndReceive(effected, new SM_FORCED_MOVE(effect.getEffector(), effected.getObjectId(),
-					effect.getTargetX(), effect.getTargetY(), effect.getTargetZ()));
 		effect.getEffected().getEffectController().setAbnormal(AbnormalState.STUMBLE);
 		effect.setAbnormal(AbnormalState.STUMBLE);
 	}

@@ -96,7 +96,10 @@ final class PlayerBotDecisionSchedule {
   * on wake; subsequent observations retain its deadline and expose real stalls. */
  void suspend(int id){suspended.add(id);observed.remove(id);}
  void complete(int id,long now){completed.put(id,now);observed.remove(id);suspended.remove(id);}
+ void forget(int id){completed.remove(id);observed.remove(id);suspended.remove(id);}
  void retain(Set<Integer> ids){completed.keySet().retainAll(ids);observed.keySet().retainAll(ids);suspended.retainAll(ids);}
- static long delay(long now,long earliest,long maximum){return Math.max(1,Math.min(Math.max(1,maximum),earliest-now));}
+ // Native reactions are at least 100 ms. An overdue immutable snapshot must
+ // not drive a whole-population scheduling scan every millisecond.
+ static long delay(long now,long earliest,long maximum){return Math.max(25,Math.min(Math.max(25,maximum),earliest-now));}
  static long maximum(int configured,boolean running){return running?25:Math.min(400,Math.max(25,configured));}
 }

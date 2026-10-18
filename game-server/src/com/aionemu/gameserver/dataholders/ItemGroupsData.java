@@ -40,6 +40,9 @@ public class ItemGroupsData {
 	@XmlElement(name = "manastones_rare")
 	private ManastoneGroup manastonesRare;
 
+	@XmlElement(name = "magical")
+	private ManastoneGroup magical;
+
 	@XmlElement(name = "medals")
 	private MedalGroup medals;
 
@@ -138,6 +141,7 @@ public class ItemGroupsData {
 
 	private List<BonusItemGroup> craftGroups;
 	private List<BonusItemGroup> manastoneGroups;
+	private List<BonusItemGroup> magicalGroups;
 	private List<BonusItemGroup> medalGroups;
 	private List<BonusItemGroup> foodGroups;
 	private List<BonusItemGroup> medicineGroups;
@@ -153,6 +157,9 @@ public class ItemGroupsData {
 	void afterUnmarshal(Unmarshaller u, Object parent) {
 		craftGroups = Arrays.asList(craftMaterials, craftShop, craftBundles, craftRecipes);
 		manastoneGroups = Arrays.asList(manastonesCommon, manastonesRare);
+		if (magical == null || magical.getItems().isEmpty())
+			throw new IllegalArgumentException("MAGICAL quest reward pool is missing or empty");
+		magicalGroups = Collections.singletonList(magical);
 		medalGroups = Collections.singletonList(medals);
 		foodGroups = Collections.singletonList(food);
 		medicineGroups = Arrays.asList(medicineCommon, medicineRare, medicineLegendary);
@@ -179,6 +186,10 @@ public class ItemGroupsData {
 
 	public List<BonusItemGroup> getManastoneGroups() {
 		return manastoneGroups;
+	}
+
+	public List<BonusItemGroup> getMagicalGroups() {
+		return magicalGroups;
 	}
 
 	public List<BonusItemGroup> getMedalGroups() {
@@ -304,7 +315,8 @@ public class ItemGroupsData {
 			+ manastonesCommon.getItems().size() + manastonesRare.getItems().size() + food.getItems().size() + medicineCommon.getItems().size()
 			+ medicineRare.getItems().size() + medicineLegendary.getItems().size() + oresRare.getItems().size() + oresLegendary.getItems().size()
 			+ oresUnique.getItems().size() + oresEpic.getItems().size() + gatherRare.getItems().size() + enchants.getItems().size()
-			+ events.getItems().size() + bossRare.getItems().size() + bossLegendary.getItems().size();
+			+ events.getItems().size() + bossRare.getItems().size() + bossLegendary.getItems().size()
+			+ magical.getItems().size();
 	}
 
 	public int petFoodSize() {

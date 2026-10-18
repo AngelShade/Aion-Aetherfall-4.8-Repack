@@ -29,7 +29,6 @@ public class SM_PET extends AionServerPacket {
 	private int count;
 	private int subType;
 	private int shuggleEmotion;
-	private int moodReaction;
 	private boolean isActing;
 	private int lootNpcObjId;
 	private int dopeAction;
@@ -104,15 +103,8 @@ public class SM_PET extends AionServerPacket {
 	 * @param shuggleEmotion
 	 */
 	public SM_PET(Pet pet, int subType, int shuggleEmotion) {
-		this(pet, subType, shuggleEmotion, 0);
-	}
-
-	public SM_PET(Pet pet, int subType, int shuggleEmotion, int moodReaction) {
-		if (moodReaction < 0 || moodReaction > 8)
-			throw new IllegalArgumentException("Invalid pet mood reaction: " + moodReaction);
 		this.action = PetAction.MOOD;
 		this.shuggleEmotion = shuggleEmotion;
-		this.moodReaction = moodReaction;
 		this.subType = subType;
 		this.commonData = pet.getCommonData();
 	}
@@ -229,7 +221,7 @@ public class SM_PET extends AionServerPacket {
 						break;
 					case 2: // emotion sent
 						writeC(subType);
-						writeD(moodReaction);
+						writeD(0);
 						writeD(commonData.getMoodPoints(true));
 						writeD(shuggleEmotion);
 						commonData.setLastSentPoints(commonData.getMoodPoints(true));

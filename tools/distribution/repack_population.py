@@ -1,5 +1,6 @@
 """Fresh repack population initialization; never import personal bot data."""
 from pathlib import Path
+from repack_market import payloads as market_payloads
 
 SOURCE = Path(__file__).resolve().parent/'repack'
 
@@ -23,10 +24,12 @@ def payloads(package, schema=None, bootstrap=None):
         if start.count('Assert-OwnDatabase\n') != 1:
             raise ValueError('Expected the native repack server-start ownership check')
         start = start.replace('Assert-OwnDatabase\n', "Assert-OwnDatabase\n& (Join-Path $PSScriptRoot 'Initialize-PlayerbotPopulation.ps1')\n", 1)
-    return {
+    result = {
         'Server/database/schema/aetherfall_gs.sql': schema.encode(),
         'Server/database/bootstrap.sql': bootstrap.encode(),
         'Server/database/schema/playerbot_population_initial.sql': seed.encode(),
         'Control/Initialize-PlayerbotPopulation.ps1': (SOURCE/'Initialize-PlayerbotPopulation.ps1').read_bytes(),
         'Control/Start-Servers.ps1': start.encode(),
     }
+    result.update(market_payloads(package, schema=schema, bootstrap=bootstrap, start=start))
+    return result

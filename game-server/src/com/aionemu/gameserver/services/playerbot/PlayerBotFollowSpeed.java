@@ -11,7 +11,7 @@ public final class PlayerBotFollowSpeed {
  private static final ConcurrentHashMap<Integer,Value> VALUES=new ConcurrentHashMap<>();
  public static float speed(Player player,float nativeSpeed){
   var value=VALUES.get(player.getObjectId());
-  if(!player.isPlayerBot() || value==null || value.expires()<System.currentTimeMillis() || !player.getMoveController().isInMove() || player.getController().isInCombat())return nativeSpeed;
+  if(!player.isPlayerBot() || value==null || value.expires()<System.currentTimeMillis() || !player.getMoveController().isInMove())return nativeSpeed;
   return (float)(nativeSpeed*value.ratio());
  }
  public static void update(Player player,float x,float y,float z){

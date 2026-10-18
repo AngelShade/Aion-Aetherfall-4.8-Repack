@@ -7,7 +7,6 @@ import com.aionemu.gameserver.model.team.TeamType;
 import com.aionemu.gameserver.model.team.group.PlayerGroupService;
 import com.aionemu.gameserver.services.instance.InstanceService;
 import com.aionemu.gameserver.world.World;
-import com.aionemu.gameserver.world.geo.GeoService;
 
 /** Transfer the complete existing native party; never reload partial character data. */
 public final class PlayerBotTransfers {
@@ -35,6 +34,8 @@ public final class PlayerBotTransfers {
  public static boolean relocate(PlayerBotSession session) {
   Player owner=session.owner(),bot=session.bot();boolean transfer=different(owner,bot);
   if(session.closing() || !owner.isOnline() || !owner.isSpawned() || owner.getWorldMapInstance()==null || (!transfer && !PlayerBotRecall.recalling(session) && !PlayerBotPartyBehavior.canRelocate(session)))return false;
+  var point=PlayerBotFormation.arrival(owner,bot);
+  if(point==null || owner.getWorldMapInstance().getRegion(point.x(),point.y(),point.z())==null)return false;
   try {
   session.releasePet();bot.getController().cancelCurrentSkill(null);bot.getMoveController().abortMove();bot.getObserveController().notifyMoveObservers();
   if(bot.isFlying() && !owner.isFlying())bot.getFlyController().endFly(false);
@@ -44,12 +45,7 @@ public final class PlayerBotTransfers {
   }
   // No health/level/items/skills/role/order changes. Native despawn clears old-map hate.
   PlayerBotTeams.restore(owner,bot);
-  var point=PlayerBotFormation.destination(owner,bot,0);float x=point.x(),y=point.y(),z=owner.getZ();
-  if(!owner.isFlying()) {
-   z=GeoService.getInstance().getZ(owner.getWorldId(),x,y,z,owner.getInstanceId());
-   if(!Float.isFinite(z) || Math.abs(z-owner.getZ())>2 || !GeoService.getInstance().canSee(owner,x,y,z,com.aionemu.gameserver.geoEngine.collision.IgnoreProperties.ANY_RACE)){x=owner.getX();y=owner.getY();z=owner.getZ();}
-  }
-  if(owner.getWorldMapInstance().getRegion(x,y,z)==null){x=owner.getX();y=owner.getY();z=owner.getZ();}
+  float x=point.x(),y=point.y(),z=point.z();
   if(!World.getInstance().setPosition(bot,owner.getWorldId(),owner.getInstanceId(),x,y,z,owner.getHeading()))return false;
   if(owner.isInInstance())owner.getWorldMapInstance().register(bot.getObjectId());
   World.getInstance().spawn(bot);bot.getController().updateZone();

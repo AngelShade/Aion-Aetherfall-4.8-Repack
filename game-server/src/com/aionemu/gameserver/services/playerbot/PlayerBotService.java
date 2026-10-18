@@ -38,6 +38,10 @@ import com.aionemu.gameserver.world.WorldMapInstance;
 /** Owner-controlled, real Player companions. No fake client connection and no account privileges. */
 public final class PlayerBotService {
 	private static final Logger log = LoggerFactory.getLogger(PlayerBotService.class);
+	private static final java.lang.management.ThreadMXBean DECISION_CPU = java.lang.management.ManagementFactory.getThreadMXBean();
+	private static long decisionCpuTime() {
+		return DECISION_CPU.isCurrentThreadCpuTimeSupported() && DECISION_CPU.isThreadCpuTimeEnabled() ? DECISION_CPU.getCurrentThreadCpuTime() : -1;
+	}
 	private static final PlayerBotService INSTANCE = new PlayerBotService();
 	private final Map<Integer, PlayerBotSession> sessions = new java.util.concurrent.ConcurrentHashMap<>();
 	private final Map<Integer, PlayerBotPersistence.Home> homes = new java.util.concurrent.ConcurrentHashMap<>();
@@ -58,6 +62,7 @@ public final class PlayerBotService {
  private final PlayerBotDecisionSchedule decisions=new PlayerBotDecisionSchedule();
  private final PlayerBotCheckpointSchedule checkpoints=new PlayerBotCheckpointSchedule();
  private long nextAiMaintenance;
+ private long nextScheduleCleanup;
  private long nextWorldReport;
  private List<String> lastWorldReport=List.of();
  private final Map<Integer,Long> nextWorldAdmission=new java.util.concurrent.ConcurrentHashMap<>();
@@ -376,7 +381,15 @@ public final class PlayerBotService {
  }
 
 	/** Population residency survives controller logout; adapted from pinned RandomPlayerbotMgr. */
-	public void startWorldBots() {synchronized(populationLock) {
+	public void startWorldBots() {
+		// Static recipe/material discovery used to run in the first actor's
+		// decision while other actors waited for its catalog monitor. Build once
+		// after native data validation and before starting any bot decision tasks.
+		if(PlayerBotConfig.ENABLED && PlayerBotConfig.QUESTS_ENABLED) {
+			if(PlayerBotConfig.QUEST_CRAFTING || PlayerBotConfig.QUEST_MATERIALS)PlayerBotQuestCrafting.prepare();
+			if(PlayerBotConfig.QUEST_MATERIALS)PlayerBotQuestMaterials.prepare();
+		}
+		synchronized(populationLock) {
 		try {
 			loadWorldRoster();
 			if(PlayerBotConfig.ENABLED && PlayerBotConfig.WORLD_ENABLED)reconcilePopulationTarget(System.currentTimeMillis(),PlayerBotPopulationPolicy.settings());
@@ -894,7 +907,9 @@ public final class PlayerBotService {
 				if (template != null && template.isPassive())
 					SkillEngine.getInstance().applyEffectDirectly(template, skillEntry.getSkillLevel(), bot, bot);
 			}
-			World.getInstance().setPosition(bot, owner.getWorldId(), owner.getInstanceId(), owner.getX(), owner.getY(), owner.getZ(), owner.getHeading());
+			var arrival=PlayerBotFormation.arrival(owner,bot);
+			if(arrival==null)throw new IllegalArgumentException("There is no safe companion space here. Move away from the obstruction and recruit again.");
+			World.getInstance().setPosition(bot, owner.getWorldId(), owner.getInstanceId(), arrival.x(), arrival.y(), arrival.z(), owner.getHeading());
 			World.getInstance().storeObject(bot);
 			World.getInstance().spawn(bot);
 			bot.getController().updateZone();
@@ -1095,7 +1110,7 @@ public final class PlayerBotService {
    }});
   }
   reservations.values().removeIf(r->r.until()<now);
-  decisions.retain(sessions.keySet());
+  if(now>=nextScheduleCleanup){nextScheduleCleanup=now+1000;decisions.retain(sessions.keySet());}
   int controlledSlots=controlledWork.available(),activeSlots=activeWorldWork.available(),idleSlots=autonomousWork.available();
   var pass=new PlayerBotDecisionSchedule.Pass<PlayerBotSession,PlayerBotBackgroundWork>(controlledSlots==0 || activeSlots==0 || idleSlots==0);
   boolean reportLag=now>=nextDecisionLagReport;
@@ -1131,7 +1146,7 @@ public final class PlayerBotService {
   for(var candidate:ready) {
    var session=candidate.value();int id=session.bot().getObjectId();
    if(!execution.claim(id,"decision",System.currentTimeMillis()))continue;
-   long actorBegan=System.nanoTime();boolean dismiss=false;
+   long actorBegan=System.nanoTime(),actorCpuBegan=decisionCpuTime(),sessionWait=0;boolean dismiss=false;
    boolean decided=false;
    try {
     if(shuttingDown || sessions.get(id)!=session || session.closing() || id==focusJobId)continue;
@@ -1148,7 +1163,9 @@ public final class PlayerBotService {
       continue;
      }
     }
+    long sessionLockBegan=System.nanoTime();
     synchronized(session) {
+     sessionWait=(System.nanoTime()-sessionLockBegan)/1_000_000L;
      if(shuttingDown || sessions.get(id)!=session || session.closing() || id==focusJobId)continue;
      try {
       if(!PlayerBotConfig.ENABLED || session.world() && !PlayerBotConfig.WORLD_ENABLED) {
@@ -1167,7 +1184,10 @@ public final class PlayerBotService {
    }finally {
     if(decided)decisions.complete(id,System.currentTimeMillis());execution.complete(id);
     long elapsed=(System.nanoTime()-actorBegan)/1_000_000L;
-    if(elapsed>1000)log.warn("Playerbot {} ({}) decision took {}ms; activity: {}",session.bot().getName(),id,elapsed,session.activitySummary());
+    if(elapsed>1000){
+     long cpuEnd=decisionCpuTime(),cpu=actorCpuBegan<0 || cpuEnd<0?-1:(cpuEnd-actorCpuBegan)/1_000_000L;
+     log.warn("Playerbot {} ({}) decision took {}ms; CPU {}ms; session-lock wait {}ms; activity: {}",session.bot().getName(),id,elapsed,cpu,sessionWait,session.activitySummary());
+    }
    }
    if(System.nanoTime()-began>=50_000_000L)break;
   }
@@ -1311,6 +1331,7 @@ public final class PlayerBotService {
 				World.getInstance().removeObject(bot);
 				bot.getCommonData().setOnline(false);
 				sessions.remove(bot.getObjectId()); homes.remove(bot.getObjectId()); nextPlacementAttempt.remove(bot.getObjectId());
+				decisions.forget(bot.getObjectId());
 				session.lease().close();
 				if (session.owner().isOnline()) {
 					if (!session.generated() && !session.world()) {

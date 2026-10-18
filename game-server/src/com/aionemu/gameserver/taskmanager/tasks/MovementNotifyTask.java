@@ -22,7 +22,7 @@ public class MovementNotifyTask extends AbstractFIFOPeriodicTaskManager<Creature
 	}
 
 	public MovementNotifyTask() {
-		super(500);
+		super(500, true);
 	}
 
 	@Override

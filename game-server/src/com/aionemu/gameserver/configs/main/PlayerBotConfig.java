@@ -13,10 +13,15 @@ public final class PlayerBotConfig {
 	public static boolean COMPANION_GLIDE_FOLLOW = true;
  @Property(key = "gameserver.playerbots.navigation.mesh.enable", defaultValue = "true")
  public static boolean NAVMESH_ENABLED = true;
- @Property(key = "gameserver.playerbots.navigation.mesh.memory_mb", defaultValue = "768")
- public static int NAVMESH_MEMORY_MB = 768;
+ @Property(key = "gameserver.playerbots.navigation.mesh.memory_mb", defaultValue = "0")
+ public static long NAVMESH_MEMORY_MB = 0;
+ @Property(key = "gameserver.playerbots.navigation.mesh.heap_percent", defaultValue = "25")
+ public static int NAVMESH_HEAP_PERCENT = 25;
  @Property(key = "gameserver.playerbots.navigation.mesh.max_queries", defaultValue = "64")
  public static int NAVMESH_MAX_QUERIES = 64;
+ /** Reusable directed road itineraries, charged inside each loaded map's allowance. */
+ @Property(key = "gameserver.playerbots.navigation.mesh.route_cache_kb", defaultValue = "512")
+ public static long NAVMESH_ROUTE_CACHE_KB = 512;
  /** Native terrain work is bounded by measured elapsed cost, not population-wide fixed turns. */
  @Property(key = "gameserver.playerbots.navigation.budget_ms_per_second", defaultValue = "500")
  public static int TERRAIN_BUDGET_MS = 500;

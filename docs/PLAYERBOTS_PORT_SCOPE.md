@@ -1,5 +1,20 @@
 # Full Playerbots port scope and iteration focus
 
+## Companion following and attack handoff — 18 October 2026
+
+Shared-memory follow-up: map-owned bounded route-result reuse, native-group role
+snapshots and persistent final follow edges; configurable heap/cache allowances.
+Cache design is an Aion optimization; no claim of complete WoW behavior parity.
+Focused real-map reuse/isolation/exclusion checks passed; live CPU/RAM and movement
+acceptance remains with the user. Details/receipt in the focused comparison below.
+
+Focused adaptation from seven hash-verified files at the existing WoW pin:
+persistent direct following, formation distance admission, bidirectional speed
+matching, all-role owner spacing and fresh hostile approach/cast checks. Existing
+native combat, manual Follow withdrawal and terrain budgets remain authoritative.
+See [comparison, limits and acceptance](PLAYERBOTS_COMPANION_FOLLOW_20261018.md).
+Full Playerbots parity is not claimed.
+
 ## Configuration folder — installed offline — 12 October 2026
 
 CONFIG-DIRECTORY-057 moves the maintained/live owner file to

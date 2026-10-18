@@ -3,7 +3,6 @@ package com.aionemu.gameserver.services.toypet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.aionemu.commons.utils.Rnd;
 import com.aionemu.gameserver.model.gameobjects.Pet;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_PET;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_SYSTEM_MESSAGE;
@@ -65,11 +64,9 @@ public class PetMoodService {
 	 * @param shuggleEmotion
 	 */
 	private static void interactWithPet(Pet pet, int shuggleEmotion) {
-		if (shuggleEmotion >= 0 && shuggleEmotion <= 3 && pet.getCommonData() != null) {
+		if (pet.getCommonData() != null) {
 			if (pet.getCommonData().increaseShuggleCounter()) {
-				// Native reactions 0..7 select paired responses; 8 selects the special reaction.
-				// Always sending zero prevents the richer reactions and their effects from playing.
-				PacketSendUtility.sendPacket(pet.getMaster(), new SM_PET(pet, 2, shuggleEmotion, Rnd.get(0, 8)));
+				PacketSendUtility.sendPacket(pet.getMaster(), new SM_PET(pet, 2, shuggleEmotion));
 				PacketSendUtility.sendPacket(pet.getMaster(), new SM_PET(pet, 4, 0)); // Update progress immediately
 			}
 		}
