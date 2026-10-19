@@ -19,6 +19,7 @@ if($IconPath){$arguments+=('/win32icon:'+([IO.Path]::GetFullPath($IconPath)))}
 $arguments+=(Join-Path $PSScriptRoot 'Launcher.cs')
 $arguments+=(Join-Path $PSScriptRoot 'StartupPresentation.cs')
 $arguments+=(Join-Path $PSScriptRoot 'CustomQuests.cs')
+$arguments+=(Join-Path $PSScriptRoot 'AetherfallInterface.cs')
 $arguments+=(Join-Path $PSScriptRoot 'QuestPakKeys.cs')
 $arguments+=(Join-Path $PSScriptRoot 'AssemblyInfo.cs')
 & $compiler @arguments

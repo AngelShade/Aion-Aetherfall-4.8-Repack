@@ -18,8 +18,14 @@ final class PlayerBotHunting {
  }
  static boolean template(NpcTemplate npc){return npc!=null && !training(npc.getTribe()) && npc.getNpcTemplateType()!=com.aionemu.gameserver.model.templates.npc.NpcTemplateType.FLAG
   && npc.getLevel()>0 && npc.getLevel()<=69 && (npc.getRating()==NpcRating.NORMAL || npc.getRating()==NpcRating.JUNK);}
+ /** Like WoW grind/travel bots, kill suitable mobs met on the way. Only a bot
+  * carrying finished quests to their reward NPC or hunting one quest's specific
+  * monster keeps walking past other mobs. Previously any quest or conversation
+  * trip forbade all fighting, so world bots travelled for hours without combat. */
  static boolean opportunistic(PlayerBotWorldActivities.Goal goal,int npc) {
-  return goal==null || goal.kind()==PlayerBotQuestRoutes.Kind.HUNT && (goal.quest()==0 || goal.place().npc()==npc);
+  if(goal==null)return true;
+  if(goal.kind()==PlayerBotQuestRoutes.Kind.REWARD)return false;
+  return goal.kind()!=PlayerBotQuestRoutes.Kind.HUNT || goal.quest()==0 || goal.place().npc()==npc;
  }
  private PlayerBotHunting(){}
 }

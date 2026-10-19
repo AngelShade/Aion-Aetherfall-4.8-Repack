@@ -87,6 +87,8 @@ public final class PlayerBotSession {
   return PlayerBotMovementCadence.reaction(ordinary,movementCadence!=null && bot.getMoveController()!=null
    && movementCadence.active(System.currentTimeMillis(),resting,bot.getMoveController().isInMove()));}
  boolean activeDecision(){return reactionDelay()<=500 || bot.isLooting();}
+ /** Grouping key for the periodic population report: decision status and movement state, ids removed. */
+ String diagnosticState(){return (status+" | move: "+(navigation==null?"-":navigation.status())).replaceAll("\\d+","#");}
  public String activitySummary(){return (autonomous()?"independent: ":"party: ")+status+"; last action: "+engine.getLastAction();}
 	private volatile boolean closing;
 	private int failures;
@@ -110,7 +112,7 @@ public final class PlayerBotSession {
 
 	public boolean world() { return bot.isWorldBot(); }
 	boolean autonomous() { return world() && owner == bot; }
-	List<Player> party() { return autonomous() ? List.of(bot) : PlayerBotTeams.members(owner); }
+	List<Player> party() { return autonomous() && !PlayerBotFindGroup.cooperative(bot) ? List.of(bot) : PlayerBotTeams.members(owner); }
 	public void requirePrivateCompanion() { if(world())throw new IllegalArgumentException("World bots keep their own progress and equipment; party orders do not transfer ownership."); }
 	public Player bot() { return bot; }
 	public Player owner() { return owner; }
@@ -325,6 +327,11 @@ public final class PlayerBotSession {
 		PlayerBotRecoveryIntent.clear(bot);PlayerBotWorldActivities.close(bot);PlayerBotQuestRoutes.close(bot);
 		PlayerBotQuestObjects.close(bot);PlayerBotQuestCraftingDriver.suspend(bot);PlayerBotQuestMaterials.close(bot);
 		PlayerBotSteelRake.close(bot);bot.setTarget(null);questTarget=0;supporting=false;
+		// A sleeping bot never reaches the 15 s release in maintenance, so dead
+		// world bots stayed dead for hours (about a third of the population).
+		// Like WoW bots releasing to a graveyard, revive at the bind point first.
+		if(bot.isDead() && autonomous()){try{com.aionemu.gameserver.services.player.PlayerReviveService.bindRevive(bot);}
+			catch(RuntimeException error){org.slf4j.LoggerFactory.getLogger(PlayerBotSession.class).warn("World bot {} could not revive before sleeping",bot.getObjectId(),error);}}
 		worldDormant=true;status="dormant: no human player on this map/instance";
 		return false;
 	}
@@ -477,6 +484,18 @@ public final class PlayerBotSession {
 		if (PlayerBotQuestObjects.pending(bot) && PlayerBotQuestObjects.tick(this,navigation,questActionsAllowed,questCommitmentSafe)) { PlayerBotWorldActivities.interacting(bot);status="finishing native quest object";return true; }
 		var travelHazards = PlayerBotHazards.visible(bot);
 		navigation.hazards(travelHazards);
+		// Social grouping owns only safe, optional travel. Native combat, support,
+		// hazards and in-progress item/quest work retain their existing custody.
+		if(autonomous() && !worldSleepRequested && enemies.isEmpty() && !supportNeeded && !materialFlight && !incapacitated
+		 && !bot.isCasting() && !bot.isTrading() && !bot.isLooting() && bot.canPerformMove()
+		 && !bot.getController().hasScheduledTask(com.aionemu.gameserver.model.TaskId.ITEM_USE)
+		 && !bot.getController().hasScheduledTask(com.aionemu.gameserver.model.TaskId.ACTION_ITEM_NPC)
+		 && (bot.getInteractionTask()==null || !bot.getInteractionTask().isInProgress())
+		 && PlayerBotHazards.risk(new PlayerBotNavigation.Point(bot.getX(),bot.getY(),bot.getZ()),travelHazards)==0
+		 && PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot))
+		 && PlayerBotFindGroup.travel(this,navigation)) {
+		 PlayerBotArbitration.clear(engine);status="gathering with Find Group party";return true;
+		}
 		// Party control takes precedence over optional independent planning.
 		// Native interactions already in progress, combat and urgent aid retain custody.
 		if (companionFollow && !incapacitated && enemies.isEmpty()

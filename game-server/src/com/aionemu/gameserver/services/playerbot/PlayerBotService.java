@@ -367,6 +367,7 @@ public final class PlayerBotService {
   return placePopulation(session,false);
  }
  private boolean placePopulation(PlayerBotSession session,boolean focusMove) {
+  if(PlayerBotFindGroup.committed(session.bot()))return false;
   if(!PlayerBotConfig.POPULATION_ENABLED || !PlayerBotPopulationPolicy.serverAccount(session.bot().getAccount().getId()) || !PlayerBotWorldPlacement.idle(session))return false;
   var bot=session.bot();long now=System.currentTimeMillis();
   try {
@@ -493,6 +494,11 @@ public final class PlayerBotService {
    +", traveling to grind="+active.stream().filter(s->PlayerBotWorldActivities.grindTravel(s.bot())).count());
   lines.add("World activity: dormant="+active.stream().filter(PlayerBotSession::dormant).count()
    +"; unoccupied-map dormancy="+PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS+"; companions remain active with their owners.");
+  // What awake world bots are actually doing, so stalls show up in the log.
+  var states=new TreeMap<String,Integer>();
+  for(var s:active)if(s.autonomous() && !s.dormant() && !s.bot().isDead())states.merge(s.diagnosticState(),1,Integer::sum);
+  if(!states.isEmpty())lines.add("Awake world bot states: "+states.entrySet().stream().sorted(Map.Entry.<String,Integer>comparingByValue().reversed())
+   .limit(10).map(e->e.getValue()+" x "+e.getKey()).collect(java.util.stream.Collectors.joining("; ")));
   var maps=new TreeMap<String,Integer>();for(var s:active){var b=s.bot();maps.merge("map "+b.getWorldId()+" instance "+b.getInstanceId(),1,Integer::sum);}
   maps.forEach((map,count)->lines.add(map+": "+count+" spawned"));
   if(viewer!=null)lines.add("On your map/instance: "+active.stream().filter(s->s.bot().getWorldId()==viewer.getWorldId() && s.bot().getInstanceId()==viewer.getInstanceId()).count()+". Use .bot worldlist 1 here for coordinates.");
@@ -756,6 +762,7 @@ public final class PlayerBotService {
 			var next=new PlayerBotSession(controller,bot,previous.lease(),controller==bot?0:companions(controller).size(),false);
 			publishSession(next);
 		}
+		PlayerBotFindGroup.controlled(bot,controller);
 	}
 	private void releaseWorldControl(PlayerBotSession previous) {
 		var bot=previous.bot();
@@ -793,6 +800,43 @@ public final class PlayerBotService {
  public synchronized boolean inviteWorldBot(Player inviter,Player bot,com.aionemu.gameserver.model.team.group.events.PlayerGroupInvite invitation) {
   return inviteWorldBot(inviter,bot,invitation,false);
  }
+ /** Adopt a listed world bot only after the human accepted its native party invitation. */
+ public synchronized boolean controlFindGroupBot(Player player,Player bot) {
+  var current=sessions.get(bot.getObjectId());
+  // The decision worker may observe native membership before the invitation
+  // callback reaches this handoff. An already completed handoff is success.
+  if(current!=null && this.current(current) && !player.isPlayerBot() && current.owner()==player && PlayerBotTeams.same(player,bot))return true;
+  if(!PlayerBotFindGroup.recruiting(bot) || current==null || !current.autonomous() || !PlayerBotTeams.same(player,bot)
+   || shuttingDown || retiringWorldBots.contains(bot.getObjectId()) || player.isPlayerBot() || !player.isOnline() || player.isDead()
+   || player.getRace()!=bot.getRace() || companions(player).size()>=Math.min(5,PlayerBotRaidPolicy.limit()))return false;
+  synchronized(current) {
+   if(!this.current(current) || !current.autonomous() || !PlayerBotTeams.same(player,bot))return false;
+   changeWorldController(current,player);
+  }
+  return true;
+ }
+ /** Admit two current autonomous actors without changing their owners or AI lanes. */
+ synchronized boolean joinFindGroupBots(Player leader,Player member) {
+  var a=currentActor(leader);var b=currentActor(member);
+  if(a==null || b==null || !a.autonomous() || !b.autonomous() || retiringWorldBots.contains(leader.getObjectId())
+   || retiringWorldBots.contains(member.getObjectId()) || !PlayerBotFindGroup.canJoin(leader,member))return false;
+  long now=System.currentTimeMillis();int first=Math.min(leader.getObjectId(),member.getObjectId()),second=Math.max(leader.getObjectId(),member.getObjectId());
+  if(first==focusJobId || second==focusJobId || !execution.claim(first,"Find Group invitation",now))return false;
+  try {
+   if(!execution.claim(second,"Find Group invitation",now))return false;
+   try {synchronized(a){synchronized(b){
+    if(!current(a) || !current(b) || !PlayerBotFindGroup.canJoin(leader,member))return false;
+    new com.aionemu.gameserver.model.team.group.events.PlayerGroupInvite(leader).acceptRequest(leader,member);
+    return PlayerBotTeams.same(leader,member);
+   }}}finally{execution.complete(second);}
+  }finally{execution.complete(first);}
+ }
+ boolean leaveFindGroup(Player bot) {
+  if(bot.getController().isInCombat() || bot.isCasting() || bot.isLooting() || bot.isTrading())return false;
+  var actor=currentActor(bot);if(actor==null || !actor.autonomous() || !claimTransfer(actor))return false;
+  try{synchronized(actor){if(!current(actor) || !actor.autonomous())return false;PlayerBotTeams.remove(bot);return true;}}
+  finally{completeTransfer(actor);}
+ }
  public synchronized boolean inviteWorldBot(Player inviter,Player bot,com.aionemu.gameserver.model.team.alliance.events.PlayerAllianceInvite invitation) {
   return inviteWorldBot(inviter,bot,invitation,true);
  }
@@ -804,12 +848,12 @@ public final class PlayerBotService {
   if(current==null || sessions.get(bot.getObjectId())!=current || current.closing() || !current.autonomous() && !ownTeam || retiringWorldBots.contains(bot.getObjectId()) || shuttingDown
    || !PlayerBotConfig.ENABLED || !PlayerBotConfig.WORLD_ENABLED || inviter.isPlayerBot() || !inviter.isOnline() || !inviter.isSpawned()
    || bot.isDead() || !bot.isSpawned() || bot.isTrading() || bot.getFlightPath()!=null || bot.isInTeam() && !ownTeam
-   || inviter.getController().isInCombat() || bot.getController().isInCombat() || inviter.getRace()!=bot.getRace()
+   || inviter.getRace()!=bot.getRace()
    || !ownTeam && companions(inviter).size()>=(alliance?PlayerBotRaidPolicy.limit():Math.min(5,PlayerBotRaidPolicy.limit()))
    || team!=null && (!PlayerBotTeams.allowed(team) || !team.isLeader(inviter) && !(alliance && inviter.isInAlliance() && inviter.getPlayerAlliance().isSomeCaptain(inviter)))
    || !alliance && inviter.isInAlliance()) {
    invitation.denyRequest(inviter,bot);
-   PacketSendUtility.sendMessage(inviter,"Invite an available living bot of your faction while both are outside combat; lead the party/alliance and keep a free companion slot.");return true;
+   PacketSendUtility.sendMessage(inviter,"Invite an available living bot of your faction; lead the party/alliance and keep a free companion slot.");return true;
   }
   invitation.acceptRequest(inviter,bot);
   if(PlayerBotTeams.same(inviter,bot)) {
@@ -1088,6 +1132,7 @@ public final class PlayerBotService {
  private void startTasks() {
   synchronized(schedulerLock) {
    if(shuttingDown)return;
+   PlayerBotFindGroup.start(sessions.values());
    if(task==null || task.isCancelled())task=ThreadPoolManager.getInstance().schedule(this::runTick,400);
    if(saveTask==null || saveTask.isCancelled())saveTask=ThreadPoolManager.getInstance().schedule(this::runSave,1000);
    if(companionTask==null || companionTask.isCancelled())companionTask=companionClock.schedule(this::runCompanionTick,100,java.util.concurrent.TimeUnit.MILLISECONDS);
@@ -1427,6 +1472,7 @@ public final class PlayerBotService {
 			if (companionSaveTask != null) companionSaveTask.cancel(false);
 			companionClock.shutdown();companionWorker.shutdown();
 		}
+		PlayerBotFindGroup.shutdown();
 		// Pinned Playerbots OnShutdown clears pending logins outside their callbacks.
 		// Native Aion creation/load must finish its own persistence/lease cleanup first.
 		boolean interrupted = false;

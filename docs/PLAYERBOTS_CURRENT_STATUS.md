@@ -35,6 +35,45 @@ artifact/offline evidence; **C** user report not reproduced on the latest build;
 
 ## Immediate repair and acceptance queue
 
+**19 October Find Group extension:** all three native tabs now have a separate
+core social service for real quest/XP needs, native party invitations and chat
+about starting, waiting, helping, leadership and departure. Normal final build and
+130 inert checks passed; installed on the original after normal shutdown saved all
+469 bots. Source/build/baseline guards, backups and two copied hashes passed.
+Current movement/combat
+classes are unchanged. Entrance eligibility and the existing local-party instance
+flow remain authoritative; cross-server ready-check/teleport is not included.
+See [Find Group behavior and acceptance](PLAYERBOTS_FIND_GROUP_20261019.md) and
+`project-notes/current-state.md` for exact package/validation pointers.
+Owner reported an empty Find Group window on this installed version. A follow-up
+removes the unintended dependency on a selected movement goal: real local quest
+or below-cap leveling needs can be advertised while in town/dormant. Installed
+build fails the added no-goal regression; repaired normal build passes 138 inert
+checks. Bounded startup/posting counts added. Original-only repair installed after
+normal shutdown saved all 474 bots; backup and copied hash verified. Actual
+visible-post acceptance remains open; exact receipt is in current-state.
+Latest follow-up: owner saw field posts but solo organizers/empty instance tab.
+Native bot-to-bot grouping now gathers compatible quest/XP parties, reserves human
+space and publishes actual native team IDs/counts. Autonomous party members share
+existing combat/support and gather behind their organizer through normal navigation.
+Instance organizers choose a verified same-map portal and walk there before posting.
+Human control and chat retain their existing flow. Normal delivery build and 170
+focused inert/native-model checks passed; original JAR installed with closure,
+backup and copied hash after all 488 bots saved normally. Actual gathering,
+populated native listings and cooperative gameplay remain owner acceptance.
+Receipt: external `archives/server/backups/playerbots-cooperative-findgroup-20261019/receipt.json`.
+Latest publication/invitation repair is installed on original GameServer and
+ChatServer: actual subscribed faction LFG channel announcements now carry native
+bot identities and current offer/member counts, staggered at one per faction per
+20 seconds. Removed bot-only combat-timer rejection and shared invitation cooldown;
+native admissions apply in both directions. Normal two-component build and 27
+focused inert channel/bridge/invitation checks passed, including independent
+applicants and retained native dead-player rejection. Both processes closed;
+external backups and both copied hashes verified. Existing cooperative grouping,
+entrance planning and all three list paths retained. Live LFG chat display,
+invitation acceptance and cooperative gameplay remain owner acceptance.
+Receipt: external `archives/server/backups/playerbots-lfg-publication-invites-20261019/receipt.json`.
+
 **19 October architecture rework (latest, supersedes the follow notes below):**
 after repeated point fixes, the companion design was reviewed against WoW
 Playerbots. Following is now a persistent follow motion owned by the native
@@ -42,8 +81,10 @@ mover (WoW MoveFollow), not AI-renewed planner leases; companion combat gates us
 actual party attackers instead of the 10-second combat timer; one follow rule
 serves every follow site; companions travel behind a moving owner. Full
 navigation and the 5 s stuck regroup remain as fallbacks. Installed in the
-original GameServer only; gameplay acceptance pending (PB-NOW-01/02). Source is
-on branch `claude/project-thread-8pso48`, not yet merged into the main checkout.
+original GameServer and committed to 4.8 (`75d9dd1`). **Owner accepted companion
+following in game on 19 October ("works perfectly")**; keep this design as the
+baseline for PB-NOW-01/02. Next: world-bot travel continuity (built, awaiting
+install) and the companion/world decision-loop split.
 Details and next slices: [architecture review](PLAYERBOTS_ARCHITECTURE_REVIEW_20261019.md).
 Receipt: external `archives/server/backups/companion-follow-motion-20261019/manifest.json`.
 

@@ -1,0 +1,25 @@
+{
+  "_comment": "First matching rule wins. 'path' is a regex on the joined category path, 'name' on the skin name, 'kinds' any preset type. Roles: keep (untouched), frame (navy glass, ice metal), window (frame with gold trim), control (buttons/tabs: navy, ice, blue accents to aether), slot (frame plus aether hover), gauge (neutral pixels only; coloured fills untouched).",
+  "sheets": {
+    "include": ["v5_common", "v5_common_1", "v5_common_2", "v5_common_3", "v5_common_4", "v5_common_5", "v5_hud_s1", "v5_hud_s2", "v5_housing", "v5_indun", "v5_map", "v5_sign", "v5_key", "v5_bubble", "popup_say", "v3_skin_login", "v3_skin_create", "v5_loginstage", "v5_loginstage_01"],
+    "never": ["v5_l10n", "graphicchar", "grade", "itemmarker", "chainfx", "mkt_scales", "season_ticket", "companion_journey_shortcuts", "cursor_camera", "radarsensory_01", "radarsensory_02", "v3_radar_mask", "v3_ui3dviewmask_1", "test_popup"]
+  },
+  "rules": [
+    {"name": "(?i)(icon|emblem|class|race|grade|vip|marker|number|num_|_num|digit|portrait|face|flag|rank|medal|stamp|logo|symbol|arrow_effect|effect|buff|debuff|skill_|stigma_|item_|_item|reward|coin|gold$|kinah|abyss_point|ap_|seal|key_|_key$|keycap)", "role": "keep"},
+    {"path": "(?i)(^|/)(radar|number|npc|emblem|startmenu|skill|stigma|toypet|force|union|influence|L10N|loginevent|quest|exceed|upgrade|voicechat|paperdoll|indun|housing|map|key|free_version|Test)(/|$)", "role": "keep", "except_kinds": ["window", "dialog", "container", "tabframe", "scrollbar", "listview", "listviewex", "listbox", "treeview", "button"]},
+    {"path": "(?i)(^|/)(login|v5_lobby)(/|$)", "kinds": ["window", "dialog", "container", "static", "listview", "listbox", "scrollbar", "tabframe"], "role": "frame"},
+    {"path": "(?i)(^|/)(login|v5_lobby)(/|$)", "kinds": ["button"], "role": "control"},
+    {"path": "(?i)(^|/)(login|v5_lobby)(/|$)", "role": "keep"},
+    {"path": "(?i)(^|/)gauge(/|$)", "role": "gauge"},
+    {"kinds": ["gauge", "flygauge", "slide"], "role": "gauge"},
+    {"path": "(?i)(^|/)(dialog|popup|tooltip)(/|$)", "kinds": ["window"], "role": "window"},
+    {"kinds": ["window", "dialog"], "role": "window"},
+    {"path": "(?i)(^|/)slot(/|$)", "role": "slot"},
+    {"kinds": ["itemview", "itemgrouplist"], "role": "slot"},
+    {"kinds": ["button", "pagecontrol", "tabframe"], "role": "control"},
+    {"path": "(?i)(^|/)(button|pagebutton|tab|scroll|combo|chat|inventory|shortcut)(/|$)", "role": "control"},
+    {"kinds": ["static", "container", "listview", "listviewex", "listbox", "treeview", "checklistview", "scrollbar", "keybox", "grid"], "role": "frame"},
+    {"path": "(?i)(^|/)(container|static|listview|editbox|dialog|popup|tooltip|hud|hud_s1|hud_s2|equipment|exchange|mailbox|ingameshop|party|version5)(/|$)", "role": "frame"}
+  ],
+  "default": "keep"
+}

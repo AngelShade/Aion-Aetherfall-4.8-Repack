@@ -189,11 +189,15 @@ final class PlayerBotWorldActivities {
    if(s.excluded.getOrDefault(key(g),0L)<=now)goals.add(g);
   }
  }
+ private static final boolean[] LOCAL_THEN_ALL={true,false},LOCAL={true},ALL={false};
  private static Goal available(Player bot,List<Request> requests,State s,long now,PlayerBotWorldTravel.Distances distances) {
+  return available(bot,requests,s,now,distances,LOCAL_THEN_ALL);
+ }
+ private static Goal available(Player bot,List<Request> requests,State s,long now,PlayerBotWorldTravel.Distances distances,boolean[] passes) {
   // First query immutable spatial cells. If local points are excluded, full or
   // unreachable, the complete catalog remains the fallback for this priority.
   // Locality must not demote an already earned reward behind another quest.
-  for(int priority=0;priority<3;priority++)for(boolean local:new boolean[]{true,false}) {
+  for(int priority=0;priority<3;priority++)for(boolean local:passes) {
    var goals=new ArrayList<Goal>();
    for(var r:requests)if((r.quest()==0?2:r.kind()==PlayerBotQuestRoutes.Kind.REWARD?0:1)==priority)add(bot,goals,r.quest(),r.kind(),r.npcs(),s,now,distances,local);
    var chosen=chooseAvailable(goals);if(chosen!=null)return chosen;
@@ -223,7 +227,13 @@ final class PlayerBotWorldActivities {
   }
   // Rotate graph work across decisions instead of expanding every blocked root
   // for every world bot in one tick. The complete catalogue remains eligible.
-  Goal directlyAvailable=available(bot,requests,s,now,distances);if(directlyAvailable!=null)return directlyAvailable;
+  // WoW random bots quest and grind where they stand (TravelMgr prefers near
+  // targets). A new quest giver or grind spot in this area beats a long trip to
+  // another region; distant starters are only chosen when nothing is local.
+  var hunting=List.of(new Request(0,PlayerBotQuestRoutes.Kind.HUNT,grindTemplates(bot)));
+  Goal localStart=available(bot,requests,s,now,distances,LOCAL);if(localStart!=null)return localStart;
+  Goal localHunt=available(bot,hunting,s,now,distances,LOCAL);if(localHunt!=null)return localHunt;
+  Goal directlyAvailable=available(bot,requests,s,now,distances,ALL);if(directlyAvailable!=null)return directlyAvailable;
   if(!blockedRoots.isEmpty()) {
    int root=blockedRoots.get(Math.floorMod(s.prerequisiteCursor++,blockedRoots.size()));
    var prerequisites=PlayerBotQuestPrerequisites.plan(bot,root);
@@ -239,7 +249,7 @@ final class PlayerBotWorldActivities {
    }
   }
   Goal quest=available(bot,requests,s,now,distances);if(quest!=null)return quest;
-  Goal hunt=available(bot,List.of(new Request(0,PlayerBotQuestRoutes.Kind.HUNT,grindTemplates(bot))),s,now,distances);
+  Goal hunt=available(bot,hunting,s,now,distances,ALL);
   return hunt!=null?hunt:rpg(bot,s,now);
  }
  /** Pinned RpgStayAction/RpgSubAction: actual nearby NPCs, real ground travel,

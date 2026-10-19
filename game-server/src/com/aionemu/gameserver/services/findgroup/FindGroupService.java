@@ -11,6 +11,7 @@ import com.aionemu.gameserver.model.ChatType;
 import com.aionemu.gameserver.model.gameobjects.AionObject;
 import com.aionemu.gameserver.model.gameobjects.Npc;
 import com.aionemu.gameserver.model.gameobjects.findGroup.GroupApplication;
+import com.aionemu.gameserver.model.gameobjects.findGroup.FindGroupEntry;
 import com.aionemu.gameserver.model.gameobjects.findGroup.GroupRecruitment;
 import com.aionemu.gameserver.model.gameobjects.findGroup.ServerWideGroup;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
@@ -21,6 +22,7 @@ import com.aionemu.gameserver.network.aion.serverpackets.SM_FIND_GROUP;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_MESSAGE;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_SYSTEM_MESSAGE;
 import com.aionemu.gameserver.utils.ChatUtil;
+import com.aionemu.gameserver.services.playerbot.PlayerBotFindGroup;
 import com.aionemu.gameserver.utils.PacketSendUtility;
 import com.aionemu.gameserver.world.World;
 
@@ -37,12 +39,12 @@ public class FindGroupService {
 	}
 
 	public void showRecruitments(Player player) {
-		List<GroupRecruitment> recruitments = this.recruitments.values().stream().filter(r -> r.getRace() == player.getRace()).toList();
+		List<GroupRecruitment> recruitments = this.recruitments.values().stream().filter(r -> r.getRace() == player.getRace() && PlayerBotFindGroup.visible(r)).toList();
 		PacketSendUtility.sendPacket(player, new SM_FIND_GROUP(0, recruitments));
 	}
 
 	public void showApplications(Player player) {
-		List<GroupApplication> applications = this.applications.values().stream().filter(r -> r.getPlayer().getRace() == player.getRace()).toList();
+		List<GroupApplication> applications = this.applications.values().stream().filter(r -> r.getPlayer().getRace() == player.getRace() && PlayerBotFindGroup.visible(r)).toList();
 		PacketSendUtility.sendPacket(player, new SM_FIND_GROUP(4, applications));
 	}
 
@@ -107,7 +109,7 @@ public class FindGroupService {
 	}
 
 	public void showInstanceGroups(Player player, boolean isUpdate) {
-		List<ServerWideGroup> instanceGroups = this.instanceGroups.values().stream().filter(group -> group.getRace() == player.getRace()).toList();
+		List<ServerWideGroup> instanceGroups = this.instanceGroups.values().stream().filter(group -> group.getRace() == player.getRace() && PlayerBotFindGroup.visible(group)).toList();
 
 		if (!isUpdate && GroupConfig.FORM_INSTANCE_GROUP_ANYWHERE) {
 			List<Integer> instanceMaskIds = null;
@@ -149,12 +151,14 @@ public class FindGroupService {
 
 	public void showInstanceGroupMembersInfo(Player player, int playerObjectId) {
 		ServerWideGroup instanceGroup = instanceGroups.get(playerObjectId);
-		if (instanceGroup != null)
+		if (instanceGroup != null && instanceGroup.getRace() == player.getRace() && PlayerBotFindGroup.visible(instanceGroup))
 			PacketSendUtility.sendPacket(player, new SM_FIND_GROUP(16, List.of(instanceGroup)));
 	}
 
 	public void sendInstanceApplication(Player applicant, int playerOrTeamId) {
 		Player player = World.getInstance().getPlayer(playerOrTeamId);
+		if (player != null && PlayerBotFindGroup.apply(applicant, player))
+			return;
 		if (player != null)
 			PacketSendUtility.sendPacket(player, new SM_FIND_GROUP(applicant));
 	}
@@ -180,6 +184,7 @@ public class FindGroupService {
 	}
 
 	public void onJoinedTeam(Player player) {
+		PlayerBotFindGroup.teamJoined(player);
 		ServerWideGroup instanceGroup = instanceGroups.get(player.getObjectId());
 		// custom: team is used as a proxy for a server-wide instance group (forming a team removes instance group registrations on official servers)
 		if (instanceGroup != null && instanceGroup.getMembers().size() >= instanceGroup.getMinMembers())
@@ -197,6 +202,28 @@ public class FindGroupService {
 		recruitments.remove(player.getObjectId());
 		applications.remove(player.getObjectId());
 		instanceGroups.remove(player.getObjectId());
+	}
+
+	/** Headless registrations share the human maps and packets; never replace another post. */
+	public boolean registerBotEntry(FindGroupEntry entry) {
+		if (entry instanceof GroupRecruitment r && (r.getObject() instanceof Player p && p.isWorldBot()
+			|| r.getObject() instanceof TemporaryPlayerTeam<?> t && t.getLeaderObject().isWorldBot()))
+			return recruitments.putIfAbsent(r.getObjectId(), r) == null;
+		if (entry instanceof GroupApplication a && a.getPlayer().isWorldBot())
+			return applications.putIfAbsent(a.getPlayer().getObjectId(), a) == null;
+		if (entry instanceof ServerWideGroup g && g.getRecruiter().isWorldBot())
+			return instanceGroups.putIfAbsent(g.getId(), g) == null;
+		return false;
+	}
+
+	/** Identity comparison preserves a newer registration and unrelated human teams. */
+	public void removeBotEntry(FindGroupEntry entry) {
+		if (entry instanceof GroupRecruitment r && recruitments.remove(r.getObjectId(), r))
+			PacketSendUtility.broadcastToWorld(new SM_FIND_GROUP(r.getObjectId(), (byte) NetworkConfig.GAMESERVER_ID, (byte) 0, (byte) 0, (byte) (r.getObject() instanceof Player ? 16 : 0)), p -> p.getRace() == r.getRace());
+		else if (entry instanceof GroupApplication a && applications.remove(a.getPlayer().getObjectId(), a))
+			PacketSendUtility.broadcastToWorld(new SM_FIND_GROUP(a.getPlayer().getObjectId()), p -> p.getRace() == a.getPlayer().getRace());
+		else if (entry instanceof ServerWideGroup g)
+			instanceGroups.remove(g.getId(), g);
 	}
 
 	public static FindGroupService getInstance() {

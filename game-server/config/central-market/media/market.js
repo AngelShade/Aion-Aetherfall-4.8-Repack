@@ -226,7 +226,7 @@
   function renderDetail() {
     var d = state.selected, text, i, level, sellCount, buyCount, book, variants = '';
     byId('detail').style.display = d && view === 'market' ? '' : 'none';
-    document.querySelector('.market-body').style.bottom = d && view === 'market' ? byId('detail').offsetHeight + 'px' : '0';
+    document.querySelector('main').className = d && view === 'market' ? 'has-detail' : '';
     if (view !== 'market') return;
     if (!d) { setMarkup('detail', '<div class="empty-detail"><span class="market-emblem">◇</span><h2>Select an item</h2><p>Check prices, buy orders and sale listings.</p></div>'); return; }
     if (!selectedPrice || d.levels.indexOf(selectedPrice) < 0) {
@@ -277,12 +277,12 @@
     canvas.width = canvas.clientWidth || 320; canvas.height = canvas.clientHeight || 65;
     var c = canvas.getContext('2d'), w = canvas.width, h = canvas.height, i, min, max;
     c.clearRect(0, 0, w, h); c.font = '10px Tahoma';
-    if (!points.length) { c.fillStyle = '#8298a4'; c.textAlign = 'center'; c.fillText('No completed trades yet', w / 2, h / 2); return; }
+    if (!points.length) { c.fillStyle = '#93abbc'; c.textAlign = 'center'; c.fillText('No completed trades yet', w / 2, h / 2); return; }
     min = max = points[0].price; for (i = 1; i < points.length; i++) { min = Math.min(min, points[i].price); max = Math.max(max, points[i].price); }
-    for (i = 0; i < 3; i++) { c.strokeStyle = '#344955'; c.beginPath(); c.moveTo(0, 8 + i * (h - 25) / 2); c.lineTo(w, 8 + i * (h - 25) / 2); c.stroke(); }
-    c.strokeStyle = '#c5aa72'; c.lineWidth = 1.5; c.beginPath();
+    for (i = 0; i < 3; i++) { c.strokeStyle = '#1f3447'; c.beginPath(); c.moveTo(0, 8 + i * (h - 25) / 2); c.lineTo(w, 8 + i * (h - 25) / 2); c.stroke(); }
+    c.strokeStyle = '#8fe3ec'; c.lineWidth = 1.5; c.beginPath();
     for (i = 0; i < points.length; i++) { var x = 5 + i * (w - 10) / Math.max(1, points.length - 1), y = max === min ? (h - 17) / 2 : 8 + (max - points[i].price) * (h - 25) / (max - min); if (!i) c.moveTo(x, y); else c.lineTo(x, y); }
-    c.stroke(); c.fillStyle = '#adbfca'; c.textAlign = 'left'; c.fillText(money(min) + ' – ' + money(max), 5, h - 2);
+    c.stroke(); c.fillStyle = '#93abbc'; c.textAlign = 'left'; c.fillText(money(min) + ' – ' + money(max), 5, h - 2);
     canvas.onmousemove = function (e) { var r = canvas.getBoundingClientRect(), index = Math.min(points.length - 1, Math.max(0, Math.round((e.clientX - r.left) * (points.length - 1) / r.width))), p = points[index]; canvas.title = new Date(p.day * 86400000).toLocaleDateString() + ' · ' + money(p.price) + ' Kinah · ' + money(p.volume) + ' traded'; };
   }
   function itemHeader(i) { return '<div class="confirm-item">' + image(i) + html(name(i)) + '<small>' + html(gameTerm(i.group || '')) + '</small></div>'; }

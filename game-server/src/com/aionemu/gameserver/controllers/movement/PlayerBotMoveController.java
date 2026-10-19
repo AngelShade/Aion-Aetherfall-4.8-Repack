@@ -14,6 +14,12 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 	private java.util.function.BiPredicate<WalkPoint,WalkPoint> walkSafe;
 	private WalkPoint walkCurrent;
 	private long walkUntil,walkGeneration,walkReached=-1;
+	/** Like a WoW spline path, the mover owns a long published corridor. Its
+	 * lease is renewed by physical progress, so travel no longer pauses whenever
+	 * a busy AI scheduler is late to refresh a two-second horizon. */
+	public static final int WALK_POINTS=64;
+	private static final float WALK_METRES=48;
+	private static final long WALK_LEASE_MS=3000;
 	private boolean walkActive,walkBlocked,internalWalkDirection;
 	private int walkWorld,walkInstance;
 	/** One steering sample for a persistent follow source. */
@@ -68,9 +74,9 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		}
 		walkAhead.clear();
 		double distance=0;var previous=first;
-		for(int i=cursor+1;i<points.size() && i<cursor+16;i++) {
+		for(int i=cursor+1;i<points.size() && i<cursor+WALK_POINTS;i++) {
 			var point=points.get(i);distance+=PositionUtil.getDistance(previous.x(),previous.y(),previous.z(),point.x(),point.y(),point.z());
-			if(distance>Math.max(6,owner.getGameStats().getMovementSpeedFloat()*2))break;
+			if(distance>Math.max(WALK_METRES,owner.getGameStats().getMovementSpeedFloat()*8))break;
 			walkAhead.addLast(point);previous=point;
 		}
 		walkSafe=java.util.Objects.requireNonNull(safe);walkWorld=owner.getWorldId();walkInstance=owner.getInstanceId();walkUntil=System.currentTimeMillis()+3000;
@@ -110,7 +116,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		if(ground==null || !Float.isFinite(ground.x) || !Float.isFinite(ground.y) || !Float.isFinite(ground.z)
 			|| Math.hypot(ground.x-next.x(),ground.y-next.y())>.15 || Math.abs(ground.z-next.z())>.75){walkBlocked=true;return false;}
 		walkAhead.removeFirst();
-		walkCurrent=next;walkDirection(next);setAndSendStartMove(owner);
+		walkCurrent=next;walkUntil=now+WALK_LEASE_MS;walkDirection(next);setAndSendStartMove(owner);
 		return true;
 	}
 	private com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.Plan heightPlan;
@@ -298,6 +304,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 			long generation=walkGeneration;boolean owned=walkActive;
 			com.aionemu.gameserver.world.World.getInstance().updatePosition(owner,ground.x,ground.y,ground.z,heading,false);
 			remaining=Math.max(0,remaining-covered/speed);updateLastMove();
+			if(walkActive)walkUntil=now+WALK_LEASE_MS; // physical progress renews corridor custody
 			owner.getKnownList().update();owner.getController().onMove();
 			// A native observer may change casting, movement or the command itself.
 			if(owner.isCasting() || !isInMove() || !started.get() || generation!=walkGeneration || owned && !walkActive)return;

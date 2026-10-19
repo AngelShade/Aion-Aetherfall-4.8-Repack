@@ -1,4 +1,10 @@
 {
+  "AetherfallUI": {
+    "Title": "Aetherfall Interface",
+    "Description": "Aetherfall skin for the whole Aion interface with an optional target frame above the action bars. Switch it in Launch settings.",
+    "Listed": true,
+    "Files": []
+  },
   "CustomQuests": {
     "Title": "Custom Quests",
     "Description": "Custom stories, quest chains and their native quest markers.",

@@ -25,6 +25,7 @@ public final class PlayerBotSocialChat {
   return whisper || Pattern.compile("(?<![\\p{L}\\p{N}_])"+Pattern.quote(name.toLowerCase(Locale.ROOT))+"(?![\\p{L}\\p{N}_])").matcher(text).find();
  }
  public static void heard(Player sender,ChatType type,String message,Player receiver){
+  PlayerBotFindGroup.heard(sender,type,message,receiver);
   if(!PlayerBotConfig.ENABLED || !PlayerBotConfig.CHAT_LEGION_INVITES || sender==null || sender.isPlayerBot())return;
   if(type==ChatType.WHISPER){if(receiver!=null && request(message,receiver.getName(),true))invite(sender,receiver);return;}
   if(type!=ChatType.NORMAL && type!=ChatType.SHOUT && type!=ChatType.GROUP && type!=ChatType.ALLIANCE)return;

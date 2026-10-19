@@ -74,6 +74,12 @@
      <TextBlock Text="GRAPHICS RENDERER" Foreground="#B8CCD5" FontSize="10" Margin="0,0,0,12"/>
      <StackPanel Orientation="Horizontal"><RadioButton x:Name="Vulkan" Content="Vulkan / DXVK" GroupName="Renderer"/><RadioButton x:Name="Direct3D" Content="Direct3D 9" GroupName="Renderer"/></StackPanel>
      <TextBlock Text="Applies on the next game launch. Keep Aion closed to change it." Foreground="#BCD0DA" FontSize="12" Margin="0,10,0,19"/>
+     <StackPanel x:Name="InterfaceSection" Visibility="Collapsed">
+      <TextBlock Text="AETHERFALL INTERFACE" Foreground="#B8CCD5" FontSize="10" Margin="0,0,0,12"/>
+      <CheckBox x:Name="InterfaceSkin" Content="Aetherfall skin for the Aion interface" Margin="0,0,0,10"/>
+      <CheckBox x:Name="InterfaceLayout" Content="Target frame above the action bars" Margin="24,0,0,10"/>
+      <TextBlock Text="Switches on the next launch while Aion is closed." Foreground="#BCD0DA" FontSize="12" Margin="0,0,0,19"/>
+     </StackPanel>
      <CheckBox x:Name="Animations" Content="Animated aether and ambient particles" IsChecked="True"/>
      <CheckBox x:Name="CloseAfter" Content="Close launcher when the login screen is ready" IsChecked="False"/>
      <Button x:Name="SaveSettings" Content="Save settings" HorizontalAlignment="Left" Padding="22,9"/>

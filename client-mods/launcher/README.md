@@ -136,3 +136,9 @@ After each login handoff it can launch another child with an independent ready
 and reveal event. Use separate game accounts. Mods/MultiClient documents the
 feature and requires the launcher EXE. --launcher-only installs this correction
 without replacing native game modules, startup bridge or generated artwork.
+
+Aetherfall Interface (`AetherfallInterface.cs`): when `Mods/AetherfallUI` exists,
+Launch settings shows the skin and layout switches and Play applies the chosen
+state before Custom Quests, only while Aion is closed. Failures are logged and do
+not block Play. `--aetherfall-interface --client <root> [--state off|on|layout]
+[--report <file>]` applies a state from the command line (used by the installer).

@@ -127,7 +127,7 @@ final class PlayerBotNavigation {
 	private java.util.List<com.aionemu.gameserver.controllers.movement.PlayerBotMoveController.WalkPoint> walkPoints() {
 		var points=new java.util.ArrayList<com.aionemu.gameserver.controllers.movement.PlayerBotMoveController.WalkPoint>();
 		long index=routeHeadIndex;
-		for(Point point:route){points.add(new com.aionemu.gameserver.controllers.movement.PlayerBotMoveController.WalkPoint(index++,point.x(),point.y(),point.z()));if(points.size()==16)break;}
+		for(Point point:route){points.add(new com.aionemu.gameserver.controllers.movement.PlayerBotMoveController.WalkPoint(index++,point.x(),point.y(),point.z()));if(points.size()==com.aionemu.gameserver.controllers.movement.PlayerBotMoveController.WALK_POINTS)break;}
 		return points;
 	}
 	private boolean refreshWalk() {
@@ -176,12 +176,9 @@ final class PlayerBotNavigation {
 	private boolean beginGroundRoute(Point origin,Point goal,double distance,long now) {
 		if(now<nextSearch){routeFailure=true;status="ground route unavailable; awaiting retry";stopMovement();return false;}
 		cancelTicket(heightSearchToken);
-		Point start;
-		try(var lease=terrain.begin(localSearchToken,terrainPriority(distance))) {
-			if(lease==null){localOrigin=origin;localGoal=goal;localHazards=hazards;localCursor=0;localLimit=1;status="waiting to prove route origin";return true;}
-			Vector3f supported=GeoService.getInstance().findGroundMovementCollision(bot.getWorldId(),bot.getInstanceId(),origin.x(),origin.y(),origin.z(),origin.x(),origin.y(),goal.z());
-			start=supported==null?origin:new Point(supported.x,supported.y,supported.z);
-		}
+		// A single vertical support probe; it does not wait for the shared quota.
+		Vector3f supported=GeoService.getInstance().findGroundMovementCollision(bot.getWorldId(),bot.getInstanceId(),origin.x(),origin.y(),origin.z(),origin.x(),origin.y(),goal.z());
+		Point start=supported==null?origin:new Point(supported.x,supported.y,supported.z);
 		cancelTicket(localSearchToken);localOrigin=null;
 		planRoute(start,goal,false,now);
 		if(routeSearch.pending()){status="planning supported ground route";stopMovement();return true;}
@@ -415,6 +412,16 @@ final class PlayerBotNavigation {
 			// opened-door sight mesh must not veto walking to the other side of the door.
 			// Native sight from the target at the destination remains mandatory; casting is unchanged.
 			cancelTicket(localSearchToken);cancelTicket(heightSearchToken);cancelTicket(searchToken);localOrigin=null;
+			// WoW MoveChase: try the straight firing spot first, outside the shared
+			// quota. Only an obstructed spot falls back to the queued candidate fan.
+			if(approachCursor==0 && !bot.isFlying()) {
+				Vector3f direct=GeoService.getInstance().findGroundMovementCollision(bot.getWorldId(),bot.getInstanceId(),bot.getX(),bot.getY(),bot.getZ(),point.x(),point.y(),point.z());
+				if(direct!=null && Float.isFinite(direct.z) && Math.hypot(direct.x-point.x(),direct.y-point.y())<.3
+					&& GeoService.getInstance().canSee(target,direct.x,direct.y,direct.z,com.aionemu.gameserver.geoEngine.collision.IgnoreProperties.ANY_RACE)) {
+					cancelTicket(approachSearchToken);approachDestination=new Point(direct.x,direct.y,direct.z);approachSelected=now;
+					return move(approachDestination.x(),approachDestination.y(),approachDestination.z(),true);
+				}
+			}
 			try(var lease=terrain.begin(approachSearchToken,terrainPriority(PositionUtil.getDistance(bot,target)))) {
 			 if(lease==null){status="waiting to plan firing position";return true;}
 			 double[] factors=bot.isFlying()?new double[]{1}:new double[]{1,.85,.7,.55};
@@ -616,8 +623,18 @@ final class PlayerBotNavigation {
 		// MovementActions::SearchForBestPath: normal travel obtains a corridor
 		// before walking. Only an entire short direct connection may avoid it;
 		// clipped goalward steps are not a substitute for going around obstacles.
-		if(route.isEmpty() && intent!=Intent.EVADE && goalDistance>walkingHorizon && !nearbyDescent && !groundRouteUnavailable)
-			return beginGroundRoute(actualPosition,goal,goalDistance,now);
+		if(route.isEmpty() && intent!=Intent.EVADE && goalDistance>walkingHorizon && !nearbyDescent && !groundRouteUnavailable) {
+			// WoW MovePoint/MoveChase: when a straight walk reaches the goal, walk
+			// it. One native probe replaces a queued grid/mesh search; the mover
+			// still checks every step and hands a blocked walk back for planning.
+			Vector3f straight=goalDistance<=60?GeoService.getInstance().findGroundMovementCollision(bot.getWorldId(),bot.getInstanceId(),
+				bot.getX(),bot.getY(),bot.getZ(),targetX,targetY,targetZ):null;
+			if(straight!=null && Float.isFinite(straight.x) && Float.isFinite(straight.y) && Float.isFinite(straight.z)
+				&& Math.hypot(straight.x-targetX,straight.y-targetY)<=.3 && Math.abs(straight.z-targetZ)<=1.5
+				&& PlayerBotHazards.safePath(actualPosition,new Point(straight.x,straight.y,straight.z),hazards)) {
+				route.addLast(new Point(straight.x,straight.y,straight.z));partialRoute=false;lastProgress=now;
+			} else return beginGroundRoute(actualPosition,goal,goalDistance,now);
+		}
 		if (!route.isEmpty()) { Point waypoint = route.peekFirst(); targetX = waypoint.x(); targetY = waypoint.y(); targetZ = waypoint.z(); }
 		double angle = Math.toDegrees(Math.atan2(targetY - bot.getY(), targetX - bot.getX()));
 		float distance = (float) Math.min(Math.max(6,bot.getGameStats().getMovementSpeedFloat()*2), Math.hypot(targetX - bot.getX(), targetY - bot.getY()));
@@ -630,9 +647,14 @@ final class PlayerBotNavigation {
 			// Local steering is terrain planning too. Retain the candidate cursor
 			// across measured slices instead of bypassing the route work quota.
 			cancelTicket(heightSearchToken);
-			try(var lease=terrain.begin(localSearchToken,terrainPriority(goalDistance))) {
-			 if(lease==null){status="waiting to plan supported step";return true;}
-			 while(localCursor<offsets.length && System.nanoTime()<lease.deadlineNanos()) {
+			// One goalward probe costs the same as a single native mover step. Like
+			// WoW's MovePoint it never queues behind other bots' planning; only the
+			// multi-candidate evasion fan keeps the shared terrain quota.
+			boolean single=offsets.length==1;
+			try(var lease=single?null:terrain.begin(localSearchToken,terrainPriority(goalDistance))) {
+			 if(!single && lease==null){status="waiting to plan supported step";return true;}
+			 long deadline=single?Long.MAX_VALUE:lease.deadlineNanos();
+			 while(localCursor<offsets.length && System.nanoTime()<deadline) {
 				int offset=offsets[localCursor++];
 				double radians = Math.toRadians(angle + offset);
 				float x = bot.getX() + (float) Math.cos(radians) * distance;

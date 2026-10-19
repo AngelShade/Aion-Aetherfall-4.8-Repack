@@ -1,7 +1,6 @@
 package com.aionemu.gameserver.model.gameobjects.findGroup;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 import com.aionemu.gameserver.model.Race;
@@ -67,10 +66,10 @@ public final class ServerWideGroup implements FindGroupEntry {
 	}
 
 	public int getMinLevel() {
-		return members.stream().max(Comparator.comparing(Player::getLevel)).map(Player::getLevel).get();
+		return getMembers().stream().mapToInt(Player::getLevel).min().orElse(1);
 	}
 
 	public int getMaxLevel() {
-		return members.stream().max(Comparator.comparing(Player::getLevel).reversed()).map(Player::getLevel).get();
+		return getMembers().stream().mapToInt(Player::getLevel).max().orElse(1);
 	}
 }

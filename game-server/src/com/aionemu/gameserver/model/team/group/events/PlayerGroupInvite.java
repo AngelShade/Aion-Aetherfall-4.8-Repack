@@ -27,6 +27,7 @@ public class PlayerGroupInvite extends RequestResponseHandler<Player> {
 			} else {
 				PlayerGroupService.createGroup(inviter, invited, TeamType.GROUP, 0);
 			}
+			com.aionemu.gameserver.services.playerbot.PlayerBotFindGroup.accepted(inviter, invited);
 		}
 	}
 

@@ -43,6 +43,11 @@ public class ChatChannels {
 		return channel;
 	}
 
+	/** Headless posts must reach existing subscriptions, without creating bot clients/channels. */
+	public static Channel findLfg(int gameServerId, Race race) {
+		return channels.values().stream().filter(ch -> ch.matches(ChannelType.LFG, gameServerId, race, "")).findFirst().orElse(null);
+	}
+
 	/**
 	 * @param identifier
 	 *          - the identifier of the requested channel, e.g. @trade_Housing_barrack1.0.AION.KOR

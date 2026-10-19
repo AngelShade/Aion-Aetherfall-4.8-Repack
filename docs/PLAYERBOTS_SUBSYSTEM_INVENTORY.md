@@ -1,5 +1,26 @@
 # Playerbots subsystem inventory and dependency plan
 
+19 October addition: [native Find Group social service](PLAYERBOTS_FIND_GROUP_20261019.md)
+implements separate recruiting/applying/instance registrations, native invitation
+handoffs and bounded party/whisper conversation. Normal final build and 130 inert
+checks pass; original-only delivery completed with normal closure, backup and
+two copied hashes; gameplay acceptance pending. No replacement
+of the world/companion activity engines. Local native instance parties are retained;
+cross-server ready-check/teleport and alliance/league recruitment are outside this slice.
+19 October cooperation follow-up is installed on the original: native bot-to-bot
+parties with useful-work/level/role matching, real team-ID/count listings, existing
+party combat/support membership and safe formation gathering. Instance organizers
+walk to a verified native same-map entrance before registering. World worker lanes
+and ownership remain autonomous until a human joins through the existing flow.
+Normal delivery build, 170 focused offline checks and backup/copied hash passed;
+owner populated-listing and actual cooperative gameplay acceptance remain pending.
+The original GameServer/ChatServer now also have the authenticated native LFG
+announcement bridge: existing faction subscriptions, real sender IDs and current
+offer/member counts, bounded social cadence and no bot chat accounts. Human/bot
+invitations use native admission without the extra combat-timer rejection or a
+shared applicant cooldown. Normal build, 27 focused inert checks, closure,
+backups and both copied hashes passed; live chat/invitation acceptance pending.
+
 **Current priorities and status:** [Playerbots work map](PLAYERBOTS_CURRENT_STATUS.md),
 reviewed 18 October 2026. The dated delivery records and matrices below are
 historical evidence, not a current unfinished-work queue. Later source/receipts

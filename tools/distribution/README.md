@@ -97,6 +97,17 @@ and publishes the files from that version's patch folder. Neither advances the
 version or recreates the full archive. Record repack changes in `FILES.json`
 through the normal repack updater before preparing a patch.
 
+Original-to-repack syncs preserve the repack's network configuration and client
+connection file. Original-only firewall restrictions and listener/port changes
+must stay on the development installation; do not transfer them through default
+merging. Changing a repack's connections requires a separate explicit request.
+
+Hub updates replace patch files and do not run arbitrary SQL migrations. A new
+database imports its bundled bootstrap on first database start. Existing databases
+retain their contents; server startup runs only the included guarded population
+and broker-seller initializers. Other schema/data changes need an explicit upgrade
+step for existing users; replacing bootstrap.sql alone does not apply them.
+
 Setup supports both a `Setup` support folder in new bundles and the existing
 `Aetherfall-Downloader` folder in the owner's workspace. The owner's installed
 game stays at its existing path. Public downloader ZIPs exclude installed games,

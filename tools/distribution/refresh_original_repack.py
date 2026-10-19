@@ -22,6 +22,13 @@ def encoded(value, compact=False):
     return (json.dumps(value, **({'separators': (',', ':')} if compact else {'indent': 2}))+'\n').encode()
 
 
+def preserve_repack_network(path):
+    """Keep original-only binds/ports and client connections out of repack syncs."""
+    relative = str(path).replace('\\', '/').casefold().removeprefix('server/')
+    return relative.startswith(tuple(component+'/config/network/' for component in
+                                     ('game-server', 'login-server', 'chat-server'))) or relative == 'client/mods/launcher/connection.json'
+
+
 def properties(data):
     return dict((m[1],m[2]) for line in data.decode('utf-8-sig').splitlines()
                 if (m:=re.match(r'^\s*([^#!\s][^=]*?)\s*=\s*(.*?)\s*$',line)))
@@ -109,6 +116,7 @@ def main():
     with zipfile.ZipFile(build/'game-server/game-server.zip') as assembly,zipfile.ZipFile(previous/'game-server/game-server.zip') as previous_assembly,zipfile.ZipFile(jar) as jar_resources:
         for key,digest in current['inputs'].items():
             if prior['inputs'].get(key)==digest or not key.startswith(('game-server/data/','game-server/config/','game-server/dist/')):continue
+            if preserve_repack_network(key):continue
             name=key.replace('game-server/dist/','game-server/',1)
             if name not in assembly.namelist() and key.startswith('game-server/config/'):
                 resource=key[len('game-server/config/'):]

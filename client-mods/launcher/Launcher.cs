@@ -48,6 +48,13 @@ namespace Aetherfall {
 
   [STAThread] public static int Main(string[] args) {
    try {
+    if(args.Contains("--aetherfall-interface")) {
+     int at=Array.IndexOf(args,"--client"), state=Array.IndexOf(args,"--state"), report=Array.IndexOf(args,"--report");
+     if(at<0||at+1>=args.Length)throw new ArgumentException("Aetherfall Interface requires a client folder.");
+     string result=AetherfallInterface.Apply(args[at+1],state>=0&&state+1<args.Length?args[state+1]:null);
+     if(report>=0&&report+1<args.Length)File.WriteAllText(args[report+1],result);
+     return 0;
+    }
     if(args.Contains("--custom-quests-sync")) {
      int at=Array.IndexOf(args,"--client"), report=Array.IndexOf(args,"--report");
      if(at<0||at+1>=args.Length)throw new ArgumentException("Custom quest loading requires a client folder.");
@@ -61,7 +68,7 @@ namespace Aetherfall {
     if (launcher.preview) { launcher.RenderPreview(args); return 0; }
     app.Run(launcher.window); return 0;
    } catch(Exception error) {
-    if(args.Contains("--custom-quests-sync")) {
+    if(args.Contains("--custom-quests-sync")||args.Contains("--aetherfall-interface")) {
      int report=Array.IndexOf(args,"--report");if(report>=0&&report+1<args.Length)File.WriteAllText(args[report+1],error.ToString());return 1;
     }
     int at=Array.IndexOf(args,"--preview");
@@ -92,6 +99,7 @@ namespace Aetherfall {
    try { if(File.Exists(preferencePath)) preferences=new JavaScriptSerializer().Deserialize<Preferences>(File.ReadAllText(preferencePath))??new Preferences(); } catch { preferences=new Preferences(); }
    Find<CheckBox>("Animations").IsChecked=preferences.Animations; Find<CheckBox>("CloseAfter").IsChecked=preferences.CloseAfter;
    bool vulkan=ReadVulkan(); Find<RadioButton>("Vulkan").IsChecked=vulkan; Find<RadioButton>("Direct3D").IsChecked=!vulkan;
+   ReadInterface();
    ReadGameArguments(); Text("ServerAddress").Text=host+" : "+port;
    Find<Border>("DragArea").MouseLeftButtonDown+=delegate { if(Mouse.LeftButton==MouseButtonState.Pressed) window.DragMove(); };
    Button("Minimize").Click+=delegate { window.WindowState=WindowState.Minimized; };
@@ -155,11 +163,25 @@ namespace Aetherfall {
      string text=File.ReadAllText(path); text=Regex.Replace(text,@"(?im)^(\s*Vulkan\s*=\s*)[01](\s*)$","${1}"+(selected?"1":"0")+"${2}");
      File.WriteAllText(path,text,Encoding.ASCII);
     }
+    if(AetherfallInterface.Installed(root)) {
+     bool skin=Find<CheckBox>("InterfaceSkin").IsChecked==true, layout=Find<CheckBox>("InterfaceLayout").IsChecked==true;
+     AetherfallInterface.SetDesired(root,!skin?"off":layout?"layout":"on");
+    }
     preferences.Animations=Find<CheckBox>("Animations").IsChecked==true; preferences.CloseAfter=Find<CheckBox>("CloseAfter").IsChecked==true;
     File.WriteAllText(System.IO.Path.Combine(support,"preferences.json"),new JavaScriptSerializer().Serialize(preferences));
     SetMotion();
     Text("SettingsFeedback").Text="Saved. Your next launch will use "+(selected?"Vulkan / DXVK.":"Direct3D 9.");
    } catch(Exception error) { Text("SettingsFeedback").Text=error.Message; }
+  }
+  void ReadInterface() {
+   bool installed=AetherfallInterface.Installed(root);
+   Find<FrameworkElement>("InterfaceSection").Visibility=installed?Visibility.Visible:Visibility.Collapsed;
+   if(!installed)return;
+   string desired="on";
+   try { desired=AetherfallInterface.ReadState(root).Desired; } catch(Exception error) { if(!(error is IOException||error is ArgumentException||error is InvalidOperationException))throw; }
+   CheckBox skin=Find<CheckBox>("InterfaceSkin"), layout=Find<CheckBox>("InterfaceLayout");
+   skin.IsChecked=desired!="off"; layout.IsChecked=desired=="layout"; layout.IsEnabled=desired!="off";
+   skin.Checked+=delegate { layout.IsEnabled=true; }; skin.Unchecked+=delegate { layout.IsEnabled=false; layout.IsChecked=false; };
   }
   void ReadRelease() {
    try {
@@ -271,6 +293,12 @@ namespace Aetherfall {
    return path;
   }
   async Task RunScript(Step step) {
+   if(step.Script=="@AetherfallInterface") {
+    string result;
+    try { result=await Task.Run(()=>AetherfallInterface.Apply(root)); }
+    catch(Exception error) { result="Aetherfall Interface was not switched: "+error.Message; }
+    File.AppendAllText(logPath,"\r\n"+result+"\r\n");return;
+   }
    if(step.Script=="@CustomQuests") {
     string output=await Task.Run(()=>CustomQuests.Sync(root,false));File.AppendAllText(logPath,"\r\n"+output+"\r\n");return;
    }
@@ -303,6 +331,7 @@ namespace Aetherfall {
   List<Step> Steps() {
    List<Step> steps=new List<Step>();
    if(PortablePreparation()!=null)steps.Add(new Step("Preparing portable client paths","@PortablePreparation"));
+   if(AetherfallInterface.Installed(root))steps.Add(new Step("Preparing the Aetherfall interface","@AetherfallInterface"));
    if(Directory.Exists(ClientPath("Mods/CustomQuests/Quests")))steps.Add(new Step("Preparing custom quests","@CustomQuests"));
    steps.Add(new Step("Preparing the Graphics menu","Mods/GraphicsMenu/Install-GraphicsMenu.ps1"));
    steps.Add(new Step("Selecting your renderer","Mods/Renderer/SelectRenderer.ps1"));

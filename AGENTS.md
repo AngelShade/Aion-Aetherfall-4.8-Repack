@@ -98,6 +98,8 @@
   port details: relevant sections of `docs/PLAYERBOTS_PORT_SCOPE.md`,
   `docs/PLAYERBOTS_SUBSYSTEM_INVENTORY.md` and `docs/PLAYERBOTS_VALIDATION_20261004.md`.
 - Missing native motions: `docs/MOTION_TIMES.md`; source/deployment resources must agree.
+- Branded web/UI windows (market, pass, shop): follow `docs/AETHERFALL_UI_STYLE.md`
+  palette, typography and low-cost rendering rules.
 - Repack/setup/release work: maintained `tools/distribution` scripts and
   `releases/Maintenance/release-layout.json`; generated releases remain Git-ignored.
 

@@ -6,6 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
+from refresh_original_repack import preserve_repack_network
 
 
 def read(path):
@@ -55,6 +56,8 @@ def main():
             elif source.is_relative_to(repo/'target-deploy'):
                 rel='Server/'+source.relative_to(repo/'target-deploy').as_posix()
             else:
+                continue
+            if preserve_repack_network(rel):
                 continue
             if rel in ['Client/Mods/InstalledMods.json','Client/Mods/release.json']:
                 continue

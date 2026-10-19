@@ -3,6 +3,10 @@ package com.aionemu.gameserver.configs.main;
 import com.aionemu.commons.configuration.Property;
 
 public final class PlayerBotConfig {
+ @Property(key = "gameserver.playerbots.social.findgroup", defaultValue = "true")
+ public static boolean FIND_GROUP_ENABLED = true;
+ @Property(key = "gameserver.playerbots.social.findgroup.posts_per_tab", defaultValue = "12")
+ public static int FIND_GROUP_POSTS_PER_TAB = 12;
  /** Custom catch-up while a companion owns an admitted follow movement. */
  @Property(key = "gameserver.playerbots.companion.catchup_multiplier", defaultValue = "4")
  public static float COMPANION_CATCHUP_MULTIPLIER = 4;

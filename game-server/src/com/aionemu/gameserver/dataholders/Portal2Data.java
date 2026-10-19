@@ -108,6 +108,16 @@ public class Portal2Data {
 		return portalUses.get(npcId) != null || portalDialogs.get(npcId) != null;
 	}
 
+	/** Read-only native entrance catalogue, shared by eligibility consumers. */
+	public List<PortalPath> getPortalPaths(int npcId) {
+		var paths = new java.util.ArrayList<PortalPath>();
+		PortalUse use = portalUses.get(npcId);
+		PortalDialog dialog = portalDialogs.get(npcId);
+		if (use != null && use.getPortalPaths() != null) paths.addAll(use.getPortalPaths());
+		if (dialog != null && dialog.getPortalPaths() != null) paths.addAll(dialog.getPortalPaths());
+		return List.copyOf(paths);
+	}
+
 	public PortalScroll getPortalScroll(String name) {
 		return portalScrolls.get(name);
 	}

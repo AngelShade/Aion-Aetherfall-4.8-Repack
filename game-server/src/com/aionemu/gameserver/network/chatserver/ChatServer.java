@@ -16,6 +16,7 @@ import com.aionemu.gameserver.network.chatserver.ChatServerConnection.State;
 import com.aionemu.gameserver.network.chatserver.serverpackets.SM_CS_PLAYER_AUTH;
 import com.aionemu.gameserver.network.chatserver.serverpackets.SM_CS_PLAYER_GAG;
 import com.aionemu.gameserver.network.chatserver.serverpackets.SM_CS_PLAYER_LOGOUT;
+import com.aionemu.gameserver.network.chatserver.serverpackets.SM_CS_BOT_FIND_GROUP;
 import com.aionemu.gameserver.utils.ThreadPoolManager;
 
 /**
@@ -112,6 +113,14 @@ public class ChatServer {
 	public void sendPlayerGagPacket(int playerObjId, long gagTime) {
 		if (isUp())
 			csCon.sendPacket(new SM_CS_PLAYER_GAG(playerObjId, gagTime));
+	}
+
+	/** Trusted headless senders still use ChatServer's real race-specific LFG channel. */
+	public boolean sendBotFindGroup(Player bot, String message) {
+		if (!isUp() || !bot.isWorldBot() || !bot.isSpawned() || bot.isDead() || message == null || message.length() > 256)
+			return false;
+		csCon.sendPacket(new SM_CS_BOT_FIND_GROUP(bot, message));
+		return true;
 	}
 
 	private static class SingletonHolder {

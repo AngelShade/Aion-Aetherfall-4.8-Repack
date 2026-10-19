@@ -1,7 +1,7 @@
 """Synchronize the recorded original 0.93.2 cohort, without game lifecycle actions."""
 from pathlib import Path
 import zipfile
-from refresh_original_repack import read, sha, encoded, merge_defaults, deliver, assert_closed
+from refresh_original_repack import read, sha, encoded, merge_defaults, deliver, assert_closed, preserve_repack_network
 
 
 def complete_existing():
@@ -97,6 +97,8 @@ def main():
         for key, value in current['inputs'].items():
             if prior['inputs'].get(key) == value or not key.startswith(('game-server/data/', 'game-server/config/')):
                 continue
+            if preserve_repack_network(key):
+                continue
             if key not in new.namelist():
                 with zipfile.ZipFile(jar) as resources:
                     assert sha(resources.read(key[len('game-server/config/'):])) == value
@@ -116,6 +118,8 @@ def main():
     for rel in ['Pub.key', 'Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig', 'Plugin/RelicCalc/RelicCalc.pak', 'Plugin/RelicCalc/RelicCalc.pak.sig']:
         assert all(sha((root/'Client'/rel).read_bytes()) == sha((client/rel).read_bytes()) for root in (full, installed)), 'Signing cohort differs: '+rel
     for entry in receipt['clientFiles']:
+        if preserve_repack_network('Client/'+entry['path']):
+            continue
         data = (client/entry['path']).read_bytes()
         assert sha(data) == entry['installed'], entry['path']
         client_data['Client/'+entry['path']] = data
