@@ -20,7 +20,7 @@
 ## 💬 Join Our Official Discord
 
 Have questions, want to share your party screenshots, report bugs, or get notified the moment new updates drop?
-👉 **[Click Here to Join the Aetherfall Discord (`https://discord.com/invite/cpRYCRsSnR`)](https://discord.com/invite/cpRYCRsSnR)**
+👉 **[Click Here to Join the Beyond Emulator Discord (`https://discord.com/invite/cpRYCRsSnR`)](https://discord.com/invite/cpRYCRsSnR)**
 
 ---
 
