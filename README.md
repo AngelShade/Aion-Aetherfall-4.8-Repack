@@ -17,7 +17,7 @@
 
 ---
 
-## 💬 Join Our Official Discord
+## 💬 Join Beyond emulator Discord thats where my residence is ;)
 
 Have questions, want to share your party screenshots, report bugs, or get notified the moment new updates drop?
 👉 **[Click Here to Join the Beyond Emulator Discord (`https://discord.com/invite/cpRYCRsSnR`)](https://discord.com/invite/cpRYCRsSnR)**
