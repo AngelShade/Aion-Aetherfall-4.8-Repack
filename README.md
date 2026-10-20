@@ -26,7 +26,7 @@ Have questions, want to share your party screenshots, report bugs, or get notifi
 
 ## 🚀 How to Install & Play (3 Easy Steps — No Technical Setup Required!)
 
-Everything—the **Aion 4.8 NA Client**, **MariaDB Database**, **Java 25 Runtime**, **Game/Login/Chat Servers**, and **64-Bit Vulkan Renderer**—is 100% portable and pre-configured inside this repack. You do **not** need to install Java, MySQL, or edit any config files.
+Everything—the **Aion 4.8 NA Aethefall**, **MariaDB Database**, **Java 25 Runtime**, **Game/Login/Chat Servers**, and **64-Bit Vulkan Renderer**—is 100% portable and pre-configured inside this repack. You do **not** need to install Java, MySQL, or edit any config files.
 
 ### **Step 1 — Download `Aetherfall-Downloader.zip`**
 1. Click **[Download `Aetherfall-Downloader.zip` (7.7 MB)](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.86/Aetherfall-Downloader.zip)** (or download it directly from the file list above).
@@ -54,7 +54,7 @@ Using the **Server Control & Play** panel right inside **`Aetherfall Setup.exe`*
 
 When a new version (e.g., `v0.87`) is released:
 1. Open **`Aetherfall Setup.exe`** and click **`CHECK & INSTALL UPDATES`**.
-2. It automatically downloads only the tiny delta patch (`~10–25 MB`), backs up replaced files, and updates your server and client in seconds.
+2. It automatically downloads only the tiny delta patch (`~10–25 MB`), backs up replaced files, and updates your server and Aethefall in seconds.
 3. **100% Safe:** Your database (`Server\database\data`), accounts, characters, gear, and companions are **never** overwritten!
 
 ---
@@ -81,7 +81,7 @@ When a new version (e.g., `v0.87`) is released:
   <img src="screenshots/central-market.png" alt="Central Market" width="92%" />
 </p>
 
-### ⚡ 3. Modernized 64-Bit Client & Custom Launcher
+### ⚡ 3. Modernized 64-Bit Aethefall & Custom Launcher
 - **DXVK (Vulkan) + Direct3D 9 Renderer Switcher:** Smooth high-FPS performance on modern Windows 10/11 GPUs.
 - **Seamless Startup Curtain:** Suppresses legacy splash/freeze windows until the 3D login screen is ready.
 - **Choose Your Journey (Level 10 Ascension Skip):** Start fresh at Level 1 for the story or skip straight to Level 10 Daeva Ascension in Sanctum/Pandaemonium—available for both your main characters and your companions!
