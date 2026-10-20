@@ -37,7 +37,7 @@ $profiles = [ordered]@{
 $qualityPath = Join-Path $clientRoot 'Mods/GraphicsOverhaul/quality-profile.json'
 if (Test-Path -LiteralPath $qualityPath) {
     $quality = Get-Content -LiteralPath $qualityPath -Raw | ConvertFrom-Json
-    $allowed = @('e_obj_lod_ratio','r_DetailDistance','r_WaterReflections_MaxViewDist',
+    $allowed = @('e_obj_lod_ratio','e_obj_view_dist_ratio','e_shadow_maps_view_dist_ratio','r_DetailDistance','r_WaterReflections_MaxViewDist',
         'r_WaterReflections','r_WaterRefractions','r_mrt_ssao','r_mrt_ssaoresolution','r_mrt_sunshaft')
     foreach ($entry in $quality.native.PSObject.Properties) {
         $value = [double]::Parse([string]$entry.Value,[Globalization.CultureInfo]::InvariantCulture)

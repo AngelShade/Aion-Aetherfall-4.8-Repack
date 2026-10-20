@@ -2,12 +2,12 @@
   "name": "Aetherfall maximum visual quality",
   "native": {
     "e_obj_lod_ratio": "6",
+    "e_obj_view_dist_ratio": "75",
+    "e_shadow_maps_view_dist_ratio": "15",
     "r_DetailDistance": "32",
-    "r_WaterReflections_MaxViewDist": "1024",
+    "r_WaterReflections_MaxViewDist": "768",
     "r_WaterReflections": "1",
     "r_WaterRefractions": "1",
-    "r_mrt_ssao": "2",
-    "r_mrt_ssaoresolution": "0",
     "r_mrt_sunshaft": "1"
   },
   "level": {
