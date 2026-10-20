@@ -110,7 +110,9 @@ for width,height,scale in [(1024,768,1),(1920,1080,1.125),(2560,1440,1.5),(3440,
     assert preview[0]+preview[2]<scroll[0],(width,height,preview,scroll)
     for name,data in widgets.items():
         if 'rect' not in data or not data['visible'] or name.startswith(('WardrobeRow','WardrobeIcon','WardrobeName','WardrobeState','WardrobeConfirm','WardrobeOutfitName','WardrobeUnlockSource')):continue
-        x,y,w,h=data['rect'];assert min(x,y,w,h)>=0,(name,data['rect']);assert x+w<=width+1 and y+h<=height+1,(name,data['rect'])
+        # Dialog children start below the 28-unit title band (in-game screenshot, 20 October).
+        band=0 if name=='PrivateWardrobe' else round(28*scale)
+        x,y,w,h=data['rect'];assert min(x,y,w,h)>=0,(name,data['rect']);assert x+w<=width+1 and band+y+h<=height+1,(name,data['rect'])
     slots=[data['rect'] for name,data in widgets.items() if re.fullmatch('WardrobeSlot[0-9]+',name)]
     assert len(slots)==9
     for i,(x,y,w,h) in enumerate(slots):

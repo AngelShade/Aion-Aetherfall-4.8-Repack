@@ -66,29 +66,32 @@ function WardrobeNative_Layout(width,height)
     if type(W.scale)~='number' or W.scale<=0 then W.scale=1 end
     setrect(PrivateWardrobe,0,0,width,height)
     W.width,W.height=width,height;W.left=math.max(300,math.min(620,math.floor(width*.38)))
+    -- Children are placed below the dialog's title band, so lay out in the
+    -- client area (h) and keep the header row directly under the title.
+    local h=height-math.floor(28*W.scale+.5);W.bottom=h
     local left,right,rx=W.left,width-W.left-30,W.left+18
-    rect('LeftPanel',12,78,left-12,height-112);rect('RightPanel',rx,78,right,height-112)
-    rect('Character',24,35,left-36,28);rect('Counts',rx,35,right-92,28);rect('Refresh',width-104,35,88,28)
-    rect('Target',24,81,left-40,25);rect('Draft',24,height-155,left-40,23)
-    local top,bottom=112,height-175
+    rect('LeftPanel',12,47,left-12,h-81);rect('RightPanel',rx,47,right,h-81)
+    rect('Character',24,6,left-36,28);rect('Counts',rx,6,right-92,28);rect('Refresh',width-104,6,88,28)
+    rect('Target',24,50,left-40,25);rect('Draft',24,h-155,left-40,23)
+    local top,bottom=81,h-175
     rect('PreviewBounds',84,top,left-160,math.max(100,bottom-top))
-    local step=math.min(88,math.max(50,(height-315)/5))
+    local step=math.min(88,math.max(50,(h-284)/5))
     for _,s in ipairs(slots) do
         local mask,side,row=s[1],s[2],s[3];local x,y
-        x=side==0 and 22 or left-66;y=112+row*step
+        x=side==0 and 22 or left-66;y=81+row*step
         rect('Slot'..mask,x,y,44,44);rect('SlotIcon'..mask,x+2,y+2,40,40)
         rect('SlotSelected'..mask,x,y,44,44)
     end
     local controls={'Left','Right','Zoom','Helmet','Combat','Wings'}
-    for i,n in ipairs(controls) do rect(n,22+(i-1)*(left-38)/6,height-127,(left-50)/6,25) end
-    rect('Reset',24,height-94,110,26);rect('Apply',left-150,height-94,130,26)
-    rect('RemoveLocked',24,height-62,left-44,25);rect('MouseHint',24,height-34,left-44,20)
+    for i,n in ipairs(controls) do rect(n,22+(i-1)*(left-38)/6,h-127,(left-50)/6,25) end
+    rect('Reset',24,h-94,110,26);rect('Apply',left-150,h-94,130,26)
+    rect('RemoveLocked',24,h-62,left-44,25);rect('MouseHint',24,h-34,left-44,20)
     local tabWidth=math.min(145,(right-18)/3)
-    for i,n in ipairs({'Collection','Outfits','Inventory'}) do rect(n,rx+10+(i-1)*tabWidth,87,tabWidth-3,28) end
-    rect('Search',rx+10,123,right-250,28);rect('Clear',rx+right-233,123,68,28);rect('Filter',rx+right-158,123,148,28)
-    for i in ipairs(categories) do rect('Category'..i,rx+10+(i-1)*(right-20)/7,159,(right-30)/7,27) end
-    rect('Results',rx+10,193,right-150,22);rect('ClearTarget',rx+right-152,191,142,25)
-    rect('Scroll',rx+10,222,right-20,math.max(65,height-451))
+    for i,n in ipairs({'Collection','Outfits','Inventory'}) do rect(n,rx+10+(i-1)*tabWidth,56,tabWidth-3,28) end
+    rect('Search',rx+10,92,right-250,28);rect('Clear',rx+right-233,92,68,28);rect('Filter',rx+right-158,92,148,28)
+    for i in ipairs(categories) do rect('Category'..i,rx+10+(i-1)*(right-20)/7,128,(right-30)/7,27) end
+    rect('Results',rx+10,162,right-150,22);rect('ClearTarget',rx+right-152,160,142,25)
+    rect('Scroll',rx+10,191,right-20,math.max(65,h-420))
     W.columns=math.max(1,math.min(4,math.floor((right-38)/260)));W.cardWidth=math.floor((right-38)/W.columns)
     rect('Rows',0,0,right-40,math.ceil(36/W.columns)*66)
     for i=1,36 do
@@ -97,12 +100,12 @@ function WardrobeNative_Layout(width,height)
         rect('Selected'..i,x+6,y+8,44,44)
         rect('Name'..i,x+58,y+8,W.cardWidth-70,27);rect('State'..i,x+58,y+36,W.cardWidth-70,20)
     end
-    rect('Empty',rx+24,245,right-48,40)
-    rect('Previous',rx+10,height-222,90,26);rect('Next',rx+right-100,height-222,90,26);rect('Page',rx+110,height-222,right-220,25)
-    rect('Details',rx+10,height-186,right-20,95)
-    for i,n in ipairs({'TryOn','Unlock','Restore'}) do rect(n,rx+10+(i-1)*(right-20)/3,height-81,(right-26)/3,29) end
-    rect('SaveOutfit',rx+10,height-81,170,29);rect('DeleteOutfit',rx+190,height-81,130,29)
-    rect('Status',rx+10,height-41,right-20,27)
+    rect('Empty',rx+24,214,right-48,40)
+    rect('Previous',rx+10,h-222,90,26);rect('Next',rx+right-100,h-222,90,26);rect('Page',rx+110,h-222,right-220,25)
+    rect('Details',rx+10,h-186,right-20,95)
+    for i,n in ipairs({'TryOn','Unlock','Restore'}) do rect(n,rx+10+(i-1)*(right-20)/3,h-81,(right-26)/3,29) end
+    rect('SaveOutfit',rx+10,h-81,170,29);rect('DeleteOutfit',rx+190,h-81,130,29)
+    rect('Status',rx+10,h-41,right-20,27)
     setrect(WardrobeConfirm,(width-460)/2,(height-300)/2,460,300)
     rect('ConfirmText',14,30,432,142);rect('ConfirmError',14,178,432,32)
     rect('OutfitName',18,139,422,28);rect('UnlockSource',18,140,422,28)
@@ -204,12 +207,12 @@ function WardrobeNative_Render()
     show('SaveOutfit',W.view=='outfits');show('DeleteOutfit',W.view=='outfits')
     if W.view=='outfits' then
         local rx,right=W.left+18,W.width-W.left-30
-        rect('SaveOutfit',rx+10,W.height-81,(right-26)/3,29)
-        rect('DeleteOutfit',rx+10+(right-20)/3,W.height-81,(right-26)/3,29)
-        rect('TryOn',rx+10+2*(right-20)/3,W.height-81,(right-26)/3,29)
+        rect('SaveOutfit',rx+10,W.bottom-81,(right-26)/3,29)
+        rect('DeleteOutfit',rx+10+(right-20)/3,W.bottom-81,(right-26)/3,29)
+        rect('TryOn',rx+10+2*(right-20)/3,W.bottom-81,(right-26)/3,29)
     else
         local rx,right=W.left+18,W.width-W.left-30
-        rect('TryOn',rx+10,W.height-81,(right-26)/3,29)
+        rect('TryOn',rx+10,W.bottom-81,(right-26)/3,29)
     end
     enable('TryOn',W.view=='outfits' and outfit~=nil or W.view=='collection' and skin~=nil)
     enable('Unlock',skin~=nil and not skin.unlocked and #skin.sources>0 and state.tickets>0)

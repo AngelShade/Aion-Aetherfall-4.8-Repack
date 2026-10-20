@@ -454,6 +454,13 @@ before decoding. No Lua stack or text-accessor hook is installed.
 `WardrobeJSON.lua` decodes data without executing server text.
 Icons reference the client's original DDS files; no artwork is extracted.
 
+The client draws dialog children below the 28-unit title band, so
+`WardrobeNative_Layout` places everything in the client area (screen height
+minus that band); the verifier checks the same bound. To deliver only a
+`WardrobeNative.lua` change, run `prepare_wardrobe_layout.py` into a new
+directory, then `InstallWardrobeLayout.ps1` with a backup path while Aion is
+closed. It replaces that one archive entry plus the addon signatures.
+
 `prepare_native_wardrobe.py` stages the addon and bridge incrementally from
 the installed client. It preserves all existing Game.dll patches and checks
 native presets in the base and English archives. Use the standard signed
