@@ -84,3 +84,19 @@ footer{height:38px;padding-top:9px;font-size:14px}footer>small{font-size:13px}ma
 .reward-cell .art-frame{opacity:1}.reward-cell.claimed{opacity:1}.reward-cell.claimed .reward-state{background:#18353c;color:#a7cfdb}
 @media (max-width:1100px){.hero-copy>.hero-content{left:34px;right:34px}.hero-copy #subtitle{font-size:16px;line-height:22px}}
 @media (max-width:800px){.hero-copy>.hero-content{left:30px;right:30px}.hero-copy #subtitle{line-height:21px}}
+/* Level card: keep the crest inside the card and the whole card inside the
+   artwork band at every size, including level 30 with Advanced Premium. */
+.level-panel{top:10px;width:410px;min-height:0;padding:10px 16px 10px 100px;right:22px}
+.level-crest{left:10px;top:50%;width:80px;height:80px;margin-top:-40px}
+.level-number{height:50px}
+.level-number small{top:4px;max-width:150px;line-height:18px}
+.level-number strong{top:-6px;font-size:44px}
+.level-number>span{top:18px}
+.xp-label{margin-top:6px}
+.meter{margin-top:5px}
+.level-panel>p{margin-top:6px;line-height:18px}
+.ownership{margin-top:7px;padding-top:6px;height:auto;overflow:hidden}
+.ownership>span{line-height:26px}
+.ownership button{line-height:18px;max-width:200px}
+@media (max-width:1100px){.level-panel{top:6px;width:330px;padding:6px 12px 6px 80px;right:16px}.level-number{height:44px}.level-number strong{top:-8px;font-size:40px}.level-number>span{top:14px}.level-crest{left:8px;width:64px;height:64px;margin-top:-32px}}
+@media (max-width:800px){.level-panel{width:290px;padding-left:66px;right:12px}.level-crest{left:6px;width:54px;height:54px;margin-top:-27px}}
