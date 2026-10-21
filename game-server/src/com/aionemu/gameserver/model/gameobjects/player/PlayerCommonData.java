@@ -181,7 +181,8 @@ public class PlayerCommonData extends CreatureTemplate {
 			if (getCurrentReposeEnergy() > 0) {
 				long allowedExp = Math.min(getCurrentReposeEnergy(), reward);
 				addReposeEnergy(-allowedExp);
-				repose = (long) ((allowedExp / 100f) * 40); // 40% bonus for the amount of used repose energy
+				// 40% bonus for the amount of used repose energy; Legend Fame raises it up to Strong Energy of Repose (Aetherfall Boons)
+				repose = (long) ((allowedExp / 100f) * com.aionemu.gameserver.services.AetherfallBoonService.reposeBonus(player));
 			}
 
 			if (isReadyForSalvationPoints() && getCurrentSalvationPercent() > 0) {

@@ -45,7 +45,7 @@ public final class AetherfallBoonService {
 	}
 
 	/** Instant.MAX marks a permanent boon. */
-	public record State(Map<Boon,Instant> boons, int renown, int chapters, int combat) {
+	public record State(Map<Boon,Instant> boons, int renown, int chapters, int combat, int life, int legend) {
 		public boolean has(Boon boon) {
 			Instant until = boons.get(boon);
 			return until != null && Instant.now().isBefore(until);
@@ -55,10 +55,22 @@ public final class AetherfallBoonService {
 	public static final int RENOWN_MARKET = 1000, RENOWN_FORTUNE = 2500;
 	// Account Fame (BDO family fame): Combat from levels, Life from skills, Legend from quests and titles.
 	static final int FAME_MIN_LEVEL = 10, LIFE_MIN_SKILL = 100, QUESTS_PER_LEGEND = 10, LEGEND_PER_TITLE = 5;
-	// Characters below level 55 gain 1% hunting/group/quest XP per 100 Combat Fame, up to 20%.
-	static final int YOUTH_LEVEL = 55, YOUTH_XP_PER = 100, YOUTH_XP_MAX = 20;
+	// Each fame climbs five steps; each step follows an existing Aion ladder.
+	// Combat: Abyss Point gain like AP Boost Charm I-V (+10..50%).
+	static final int[] COMBAT_STEPS = { 200, 500, 1000, 2000, 3000 }, COMBAT_AP = { 10, 20, 30, 40, 50 };
+	// Life: crafting skill XP like Crafting Boost Charms (+50..500%), gathering like Gathering Boost Charms (+100/+200%).
+	static final int[] LIFE_STEPS = { 50, 100, 200, 400, 800 }, LIFE_CRAFT = { 50, 100, 200, 300, 500 }, LIFE_GATHER = { 0, 100, 100, 200, 200 };
+	// Legend: Energy of Repose XP bonus from Aion's normal 40% up to Strong Energy of Repose's 100%.
+	static final int[] LEGEND_STEPS = { 50, 100, 200, 300, 400 }, LEGEND_REPOSE = { 50, 60, 70, 80, 100 };
+	static final int BASE_REPOSE = 40;
+	// One daily stipend per fame, like BDO's per-fame payouts: 100 Kinah per point, capped per fame.
+	static final long COMBAT_STIPEND_CAP = 500_000, LIFE_STIPEND_CAP = 250_000, LEGEND_STIPEND_CAP = 250_000;
+	private static final StatEnum[] CRAFT_SKILLS = { StatEnum.BOOST_COOKING_XP_RATE, StatEnum.BOOST_WEAPONSMITHING_XP_RATE,
+		StatEnum.BOOST_ARMORSMITHING_XP_RATE, StatEnum.BOOST_TAILORING_XP_RATE, StatEnum.BOOST_ALCHEMY_XP_RATE, StatEnum.BOOST_HANDICRAFTING_XP_RATE,
+		StatEnum.BOOST_MENUISIER_XP_RATE };
+	private static final StatEnum[] GATHER_SKILLS = { StatEnum.BOOST_ESSENCETAPPING_XP_RATE, StatEnum.BOOST_AETHERTAPPING_XP_RATE };
 	static final int CHARTER_XP = 30, GRACE_DROP = 20, RENOWN_DROP = 10, MARKET_BONUS_BP = 500, GRACE_VOLUME = 20_000;
-	static final long STIPEND_PER_POINT = 100, STIPEND_CAP = 1_000_000;
+	static final long STIPEND_PER_POINT = 100;
 	static final int[] LIFE_SKILLS = { 30001, 30002, 30003, 40001, 40002, 40003, 40004, 40007, 40008, 40010 };
 	// Story chapters (Elyos or Asmodian): Ascension ceremony, Abyss entry, then Aetherfall's Red Journal continuation.
 	static final int[][] STORY_CHAPTERS = { { 1007, 2009 }, { 1922, 2947 }, { 3999 } };
@@ -134,7 +146,7 @@ public final class AetherfallBoonService {
 			boons.put(Boon.CHRONICLE_OF_ATREIA, Instant.MAX);
 		if (fame.maxLevel() >= 65)
 			boons.put(Boon.DAEVA_VETERANS_COFFER, nextVeteranMonth(accountCreated, now));
-		return new State(boons, renown, chapters, fame.combat());
+		return new State(boons, renown, chapters, fame.combat(), fame.life(), fame.legend());
 	}
 
 	/** Everything the Account window shows: every boon (earned or not), its progress and the account's characters. */
@@ -186,7 +198,7 @@ public final class AetherfallBoonService {
 						b.put("goal", next);
 						b.put("progressLabel", state.renown() >= RENOWN_FORTUNE ? String.format("%,d Account Fame · every tier reached", state.renown())
 							: String.format("%,d / %,d Account Fame to the next tier", state.renown(), next));
-						b.put("stipend", Math.min(STIPEND_CAP, state.renown() * STIPEND_PER_POINT));
+						b.put("stipend", stipend(state));
 					}
 					case CHRONICLE_OF_ATREIA -> {
 						b.put("progress", state.chapters());
@@ -209,7 +221,7 @@ public final class AetherfallBoonService {
 			out.put("season", seasonActive ? season.name() : "");
 			out.put("seasonEnds", seasonActive ? season.ends().toEpochMilli() : 0);
 			out.put("renown", state.renown());
-			out.put("stipend", Math.min(STIPEND_CAP, state.renown() * STIPEND_PER_POINT));
+			out.put("stipend", stipend(state));
 			out.put("chapters", state.chapters());
 			out.put("chapterGoal", chapterGoal);
 			out.put("marketReturn", marketReturn(p) / 100.0);
@@ -220,10 +232,14 @@ public final class AetherfallBoonService {
 			f.put("total", fame.total());
 			f.put("quests", completed.size());
 			f.put("titles", fame.titles());
-			f.put("youthXp", youthXp(fame.combat()));
-			f.put("youthXpMax", YOUTH_XP_MAX);
+			f.put("parts", List.of(
+				part("Combat Fame", fame.combat(), COMBAT_STEPS, COMBAT_STIPEND_CAP, i -> "Abyss Points +" + COMBAT_AP[i] + "%"),
+				part("Life Fame", fame.life(), LIFE_STEPS, LIFE_STIPEND_CAP,
+					i -> "Crafting XP +" + LIFE_CRAFT[i] + "%" + (LIFE_GATHER[i] > 0 ? ", gathering XP +" + LIFE_GATHER[i] + "%" : "")),
+				part("Legend Fame", fame.legend(), LEGEND_STEPS, LEGEND_STIPEND_CAP, i -> "Repose XP bonus " + LEGEND_REPOSE[i] + "%")));
 			f.put("tiers", List.of(
-				Map.of("at", 1, "name", "Known", "benefit", String.format("Daily Kinah stipend: %,d per fame, up to %,d", STIPEND_PER_POINT, STIPEND_CAP)),
+				Map.of("at", 1, "name", "Known", "benefit", String.format("Daily Kinah from each fame: %,d per point, up to %,d a day in total", STIPEND_PER_POINT,
+					COMBAT_STIPEND_CAP + LIFE_STIPEND_CAP + LEGEND_STIPEND_CAP)),
 				Map.of("at", RENOWN_MARKET, "name", "Renowned", "benefit", "Central Market sales return 5% more"),
 				Map.of("at", RENOWN_FORTUNE, "name", "Illustrious", "benefit", "+10% item drops on every character")));
 			out.put("fame", f);
@@ -267,8 +283,48 @@ public final class AetherfallBoonService {
 		return new Fame(combat, life, quests.size() / QUESTS_PER_LEGEND + titles * LEGEND_PER_TITLE, titles, maxLevel, quests, characterFame);
 	}
 
-	static int youthXp(int combat) {
-		return Math.min(YOUTH_XP_MAX, combat / YOUTH_XP_PER);
+	/** Number of steps reached (0-5). */
+	static int step(int fame, int[] steps) {
+		int step = 0;
+		while (step < steps.length && fame >= steps[step])
+			step++;
+		return step;
+	}
+
+	static int ladder(int fame, int[] steps, int[] values) {
+		int step = step(fame, steps);
+		return step == 0 ? 0 : values[step - 1];
+	}
+
+	static long stipend(int fame, long cap) {
+		return Math.min(cap, fame * STIPEND_PER_POINT);
+	}
+
+	static long stipend(State state) {
+		return stipend(state.combat(), COMBAT_STIPEND_CAP) + stipend(state.life(), LIFE_STIPEND_CAP) + stipend(state.legend(), LEGEND_STIPEND_CAP);
+	}
+
+	/** Energy of Repose XP bonus in percent (Legend Fame), used by PlayerCommonData. */
+	public static int reposeBonus(Player p) {
+		State state = p == null || p.isPlayerBot() ? null : state(p);
+		return state == null ? BASE_REPOSE : Math.max(BASE_REPOSE, ladder(state.legend(), LEGEND_STEPS, LEGEND_REPOSE));
+	}
+
+	static Map<String,Object> part(String name, int points, int[] steps, long cap, java.util.function.IntFunction<String> bonus) {
+		int step = step(points, steps);
+		List<Map<String,Object>> list = new ArrayList<>();
+		for (int i = 0; i < steps.length; i++)
+			list.add(Map.of("at", steps[i], "bonus", bonus.apply(i), "reached", points >= steps[i]));
+		Map<String,Object> m = new LinkedHashMap<>();
+		m.put("name", name);
+		m.put("points", points);
+		m.put("step", step);
+		m.put("next", step < steps.length ? steps[step] : 0);
+		m.put("stipend", stipend(points, cap));
+		m.put("stipendCap", cap);
+		m.put("bonus", step == 0 ? "No bonus yet" : bonus.apply(step - 1));
+		m.put("steps", list);
+		return m;
 	}
 
 	/** Level 55+ counts double and level 65 five times, like BDO's family fame. */
@@ -304,10 +360,16 @@ public final class AetherfallBoonService {
 		int drop = (state.has(Boon.GRACE_OF_THE_TOWER) ? GRACE_DROP : 0) + (state.renown() >= RENOWN_FORTUNE ? RENOWN_DROP : 0);
 		if (drop > 0)
 			functions.add(new StatAddFunction(StatEnum.BOOST_DROP_RATE, drop, true));
-		int youth = p.getLevel() < YOUTH_LEVEL ? youthXp(state.combat()) : 0;
-		if (youth > 0)
-			for (StatEnum stat : new StatEnum[] { StatEnum.BOOST_HUNTING_XP_RATE, StatEnum.BOOST_GROUP_HUNTING_XP_RATE, StatEnum.BOOST_QUEST_XP_RATE })
-				functions.add(new StatAddFunction(stat, youth, true));
+		int ap = ladder(state.combat(), COMBAT_STEPS, COMBAT_AP);
+		if (ap > 0)
+			functions.add(new StatAddFunction(StatEnum.AP_BOOST, ap, true));
+		int craft = ladder(state.life(), LIFE_STEPS, LIFE_CRAFT), gather = ladder(state.life(), LIFE_STEPS, LIFE_GATHER);
+		for (StatEnum stat : CRAFT_SKILLS)
+			if (craft > 0)
+				functions.add(new StatAddFunction(stat, craft, true));
+		for (StatEnum stat : GATHER_SKILLS)
+			if (gather > 0)
+				functions.add(new StatAddFunction(stat, gather, true));
 		int n = state.chapters();
 		if (n > 0) {
 			functions.add(new StatRateFunction(StatEnum.MAXHP, 3 * n, true));
@@ -378,9 +440,13 @@ public final class AetherfallBoonService {
 		if (update(c, "UPDATE aetherfall_renown SET last_stipend=? WHERE account_id=? AND (last_stipend IS NULL OR last_stipend<?)", today, account,
 			today) != 1)
 			return;
-		long kinah = Math.min(STIPEND_CAP, state.renown() * STIPEND_PER_POINT);
-		if (!SystemMailService.sendMail("Aetherfall", p.getName(), "Aetherfall Renown", "Your Account Fame stands at " + state.renown()
-			+ " points. Here is today's stipend.\n\nFame grows with every character's level, gathering and crafting skill, completed quest and title on your account.",
+		long combat = stipend(state.combat(), COMBAT_STIPEND_CAP), life = stipend(state.life(), LIFE_STIPEND_CAP),
+			legend = stipend(state.legend(), LEGEND_STIPEND_CAP), kinah = combat + life + legend;
+		if (kinah <= 0)
+			return;
+		if (!SystemMailService.sendMail("Aetherfall", p.getName(), "Account Fame", String.format("Today's Account Fame stipend:\n\n"
+			+ "Combat Fame %,d: %,d Kinah\nLife Fame %,d: %,d Kinah\nLegend Fame %,d: %,d Kinah\n\nTotal: %,d Kinah",
+			state.combat(), combat, state.life(), life, state.legend(), legend, kinah),
 			0, 0, kinah, LetterType.NORMAL)) {
 			update(c, "UPDATE aetherfall_renown SET last_stipend=NULL WHERE account_id=?", account);
 			log.warn("Aetherfall Renown stipend mail failed for {}", p);
