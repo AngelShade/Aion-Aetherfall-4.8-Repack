@@ -5,6 +5,9 @@
 and meshes, plus the zone's own terrain detail layers. First pass: Poeta (`lf1`) and
 Ishalgen (`df1`).
 
+Keep zone batches paired across races: Poeta/Ishalgen, Verteron/Altgard,
+Eltnen/Morheim, Heiron/Beluslan, and the corresponding later zones.
+
 Colour is upscaled 4x with Real-ESRGAN (`realesrgan-x4plus`, ncnn/Vulkan build, external
 tool under the development workspace `tools/realesrgan`), with 16-pixel wrap padding so
 tiling textures stay seamless, then reduced to 2x. A tenth of the original is mixed back,
@@ -34,6 +37,20 @@ byte-identical and every changed entry. The installer checks package and client 
 before changing anything, backs archives up to `Mods/Backups/TextureUpscale/<time>`,
 rolls back on failure and records `Mods/TextureUpscale/installed-<packageId>.json`.
 Later batches are built from the archives as installed, so they stack; each keeps its own
-backup and state, and restore refuses an archive a later batch changed. These archives are
-not tracked by the GraphicsOverhaul package. A later rebuild must start from the archives
+backup and state, and restore refuses an archive a later batch changed. To leave archives
+tracked by GraphicsOverhaul unchanged, pass
+`--skip-tracked Mods/GraphicsOverhaul/packages/<id>/manifest.json`
+(Sanctum `lc1.pak` and Pandaemonium `dc1.pak` terrain layers are tracked).
+When intentionally upscaling shared terrain, such as Eltnen, the installer verifies
+the active graphics package baseline, backs up its package copy and manifest, and
+updates both along with the live archive. Restore checks and restores that complete
+cohort; the launcher's graphics verification remains active. A later rebuild must start from the archives
 as installed (the work cache is keyed by source hash).
+
+For later zones, pass every installed earlier package with repeated
+`--previous-package '<package>'` arguments. Their changed entries are preserved
+instead of being upscaled again. Use `--prepare-only` to extract the pending tiles,
+run the GPU upscaler on that new source folder, then build without `--prepare-only`.
+For delivery, pass `-BackupRoot '<new external backup folder>'` to keep recovery
+archives in the external workspace. Verification follows the complete installed
+batch chain; restore still proceeds newest first.

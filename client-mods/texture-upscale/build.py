@@ -131,6 +131,10 @@ def main():
     p.add_argument('--upscaled', type=Path, help='folder of 4x outputs from another model, e.g. pbrify_upscale.py')
     p.add_argument('--model-name', default='Real-ESRGAN ncnn realesrgan-x4plus')
     p.add_argument('--finish', choices=['plain', 'boost'], default='boost')
+    p.add_argument('--skip-tracked', type=Path, help='a GraphicsOverhaul manifest; archives it tracks are left alone')
+    p.add_argument('--previous-package', type=Path, action='append', default=[],
+                   help='installed package folder; preserve its already-upscaled entries')
+    p.add_argument('--prepare-only', action='store_true', help='extract pending source tiles without packing')
     p.add_argument('--work', type=Path, required=True, help='reusable cache folder outside the client')
     p.add_argument('--output', type=Path, required=True, help='new package folder')
     args = p.parse_args()
@@ -140,6 +144,19 @@ def main():
     if out.exists(): raise ValueError('Use a new output folder')
     zones = [z for z in args.zones.split(',') if z]
     targets = zone_targets(client, zones)
+    if args.skip_tracked:
+        tracked = {f['path'].lower() for f in json.loads(args.skip_tracked.read_text())['files']}
+        for archive in [a for a in targets if a.lower() in tracked]:
+            print('Skipping archive tracked by the graphics package:', archive, flush=True); del targets[archive]
+    preserved = collections.defaultdict(set)
+    previous_ids = []
+    for previous in args.previous_package:
+        prior = json.loads((previous / 'manifest.json').read_text(encoding='utf-8-sig'))
+        if prior['schema'] != 1 or Path(prior['clientRoot']).resolve() != client:
+            raise ValueError('Previous package belongs to another client or schema')
+        previous_ids.append(prior['packageId'])
+        for archive in prior['files']:
+            preserved[archive['path']].update(archive['changedEntries'])
     src_dir, up_dir = work / 'source', (args.upscaled.resolve() if args.upscaled else work / 'upscaled')
     src_dir.mkdir(parents=True, exist_ok=True); up_dir.mkdir(parents=True, exist_ok=True)
 
@@ -147,6 +164,7 @@ def main():
     for archive, entries in sorted(targets.items()):
         with read_pak(client / archive) as z:
             for entry in sorted(entries):
+                if entry in preserved[archive]: continue
                 data = z.read(entry); info = eligible(data)
                 if not info: continue
                 tile = sha((archive + '|' + entry + '|' + sha(data)).encode())[:24] + '.png'
@@ -155,6 +173,7 @@ def main():
                     wrap_pad(Image.open(io.BytesIO(data)).convert('RGBA').convert('RGB')).save(src_dir / tile)
     pending = [t for _, t in plan.values() if not (up_dir / t).exists()]
     print(f'{len(plan)} textures in {len(targets)} archives; {len(pending)} need the GPU upscaler', flush=True)
+    if args.prepare_only: return
     if pending and not args.esrgan:
         raise RuntimeError(f'{len(pending)} textures have no 4x output in {up_dir}')
     if pending:
@@ -167,7 +186,8 @@ def main():
     if missing: raise RuntimeError(f'Upscaler produced no output for {len(missing)} textures')
 
     out.mkdir(parents=True)
-    manifest = dict(schema=1, name='Starting zone texture upscale', zones=zones, clientRoot=str(client),
+    manifest = dict(schema=1, name='World texture upscale', zones=zones, clientRoot=str(client),
+                    preservedPackages=previous_ids,
                     method=dict(upscaler=args.model_name, finish=args.finish, scale=2, originalMix=ORIGINAL_MIX, contrast=CONTRAST, saturation=SATURATION,
                                 wrapPadding=PAD, sourceRange=[MIN_SIDE, MAX_SOURCE]), files=[])
     by_archive = collections.defaultdict(dict)
