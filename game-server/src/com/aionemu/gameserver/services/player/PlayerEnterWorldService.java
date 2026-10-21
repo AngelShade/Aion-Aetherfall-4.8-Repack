@@ -215,6 +215,9 @@ public final class PlayerEnterWorldService {
 		// if player skipped some levels offline, learn missing skills and stuff
 		player.getController().onLevelChange(PlayerDAO.getOldCharacterLevel(player.getObjectId()), player.getLevel());
 
+		// Aetherfall Boons change stats and the repose refill, so they load first
+		AetherfallBoonService.onEnterWorld(player);
+
 		// Energy of Repose must be calculated before sending SM_STATS_INFO
 		if (pcd.getLastOnline() != null) {
 			long secondsOffline = (System.currentTimeMillis() - pcd.getLastOnline().getTime()) / 1000;
@@ -404,7 +407,8 @@ public final class PlayerEnterWorldService {
 																																												// addition
 			double hours = secondsOffline / 3600d;
 			// 48 hours offline = 100% Repose Energy (~1% each 30mins source: http://forums.na.aiononline.com/na/showthread.php?t=105940)
-			long addReposeEnergy = Math.round((hours / 48) * player.getCommonData().getMaxReposeEnergy());
+			// Grace of the Tower (Aetherfall Boons) refills it in 24 hours
+			long addReposeEnergy = Math.round(Math.min(1, hours / AetherfallBoonService.reposeRefillHours(player)) * player.getCommonData().getMaxReposeEnergy());
 			// Additional Energy of Repose bonus if inside house
 			House house = player.getActiveHouse();
 			if (house != null) {

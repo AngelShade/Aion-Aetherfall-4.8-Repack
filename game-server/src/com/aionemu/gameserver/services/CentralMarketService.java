@@ -155,7 +155,7 @@ public final class CentralMarketService {
 							case "kinah" -> kinah(c,p,a,committed,allocated);
 							case "buy", "sell" -> order(c,p,a,allocated,committed);
 							case "cancel" -> cancel(c, account, number(a,"order"));
-							case "collect" -> CentralMarketSettlement.collect(c,account,number(a,"order"),p.getAccount().getMembership()>0);
+							case "collect" -> CentralMarketSettlement.collect(c,account,number(a,"order"),AetherfallBoonService.marketReturn(p));
 							case "favorite" -> favorite(c,account,(int)number(a,"item"));
 							case "saveSearch" -> saveSearch(c,account,a);
 							default -> throw new IllegalArgumentException("Unknown market action.");
@@ -211,7 +211,7 @@ public final class CentralMarketService {
 			throw new IllegalArgumentException("Warehouse is full or this item cannot be stored there.");
 		if (origin != null && ItemRestrictionService.isItemRestrictedFrom(p,item,origin.getStorageType()))
 			throw new IllegalArgumentException("This item cannot leave its warehouse.");
-		if (target == MARKET && volume(c,account) + CentralMarketRules.volume(category(item.getItemTemplate())) * qty > CentralMarketRules.BASE_VOLUME)
+		if (target == MARKET && volume(c,account) + CentralMarketRules.volume(category(item.getItemTemplate())) * qty > AetherfallBoonService.marketVolume(p))
 			throw new IllegalArgumentException("Market Warehouse volume limit reached.");
 		if (!item.getItemTemplate().isStackable() && qty != item.getItemCount()) throw new IllegalArgumentException("This item cannot be split.");
 		boolean split = qty < item.getItemCount();
@@ -332,7 +332,7 @@ public final class CentralMarketService {
 				if (!eligible(item.getItemTemplate()) || !item.isTradeable() || item.getExpireTime() != 0 || item.getPendingTuneResult() != null)
 					throw new IllegalArgumentException(item.getItemName() + " cannot enter Market Warehouse. No items were transferred.");
 				long unitVolume = CentralMarketRules.volume(category(item.getItemTemplate()));
-				if (item.getItemCount() > (CentralMarketRules.BASE_VOLUME - marketVolume) / unitVolume)
+				if (item.getItemCount() > (AetherfallBoonService.marketVolume(p) - marketVolume) / unitVolume)
 					throw new IllegalArgumentException("Market Warehouse volume limit reached. No items were transferred.");
 				marketVolume += unitVolume * item.getItemCount();
 			}
@@ -695,9 +695,10 @@ public final class CentralMarketService {
 				Map<String,Object> wallet = row(c,"SELECT * FROM central_market_wallet WHERE account_id=?",account);
 				long balance = wallet == null ? 0 : lng(wallet,"kinah"), proceeds = wallet == null ? 0 : lng(wallet,"proceeds");
 				result.put("balance",balance); result.put("proceeds",proceeds);
-				result.put("netProceeds",CentralMarketRules.collect(proceeds,p.getAccount().getMembership()>0));
-				result.put("returnPercent",p.getAccount().getMembership()>0?84.5:65);
-				result.put("volume",volume(c,account)); result.put("volumeLimit",CentralMarketRules.BASE_VOLUME);
+				int marketReturn = AetherfallBoonService.marketReturn(p);
+				result.put("netProceeds",CentralMarketRules.collect(proceeds,marketReturn));
+				result.put("returnPercent",marketReturn/100.0);
+				result.put("volume",volume(c,account)); result.put("volumeLimit",AetherfallBoonService.marketVolume(p));
 				result.put("reservedKinah",lng(row(c,"SELECT COALESCE(SUM(price*remaining),0) n FROM central_market_orders WHERE account_id=? AND side='B' AND state='OPEN'",account),"n"));
 				List<Integer> favorites = rows(c,"SELECT item_id FROM central_market_favorites WHERE account_id=?",account).stream().map(r -> (int)lng(r,"item_id")).toList();
 				result.put("favorites",favorites);

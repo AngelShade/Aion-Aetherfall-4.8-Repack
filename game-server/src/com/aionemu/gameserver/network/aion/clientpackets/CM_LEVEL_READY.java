@@ -15,6 +15,7 @@ import com.aionemu.gameserver.network.aion.AionClientPacket;
 import com.aionemu.gameserver.network.aion.AionConnection.State;
 import com.aionemu.gameserver.network.aion.serverpackets.*;
 import com.aionemu.gameserver.questEngine.QuestEngine;
+import com.aionemu.gameserver.services.AetherfallBoonService;
 import com.aionemu.gameserver.services.SiegeService;
 import com.aionemu.gameserver.services.TownService;
 import com.aionemu.gameserver.services.WeatherService;
@@ -52,6 +53,7 @@ public class CM_LEVEL_READY extends AionClientPacket {
 		sendPacket(new SM_PLAYER_INFO(activePlayer));
 		activePlayer.getController().startProtectionActiveTask();
 		sendPacket(new SM_ACCOUNT_PROPERTIES());
+		AetherfallBoonService.sendPackList(activePlayer);
 		sendPacket(SM_MOTION.playerMotions(activePlayer));
 
 		WindstreamTemplate template = DataManager.WINDSTREAM_DATA.getStreamTemplate(activePlayer.getPosition().getMapId());

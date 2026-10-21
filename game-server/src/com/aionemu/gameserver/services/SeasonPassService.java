@@ -301,7 +301,9 @@ public final class SeasonPassService {
 						log.error("Committed season pass action needs reconnect for {}",p,refresh); p.getClientConnection().close();
 						return result+" Reconnect to refresh your Inventory and mail.";
 					}
-					log.info("Season pass {} for {}: {}",action,p,result); return result;
+					log.info("Season pass {} for {}: {}",action,p,result);
+					if(action.equals("purchase")) AetherfallBoonService.refresh(p);
+					return result;
 				} catch(Exception e) { if(!committed) { c.rollback(); for(int id:allocated) IDFactory.getInstance().releaseId(id); } throw e; }
 			}
 		}

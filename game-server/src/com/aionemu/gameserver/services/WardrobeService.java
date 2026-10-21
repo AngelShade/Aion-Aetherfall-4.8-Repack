@@ -132,6 +132,7 @@ public final class WardrobeService {
 					.filter(t -> WardrobeRules.permitted(t,p.getRace(),p.getGender())).count());
 				state.put("total",allowed.size());
 				state.put("tickets",p.getInventory().getItemCountByItemId(WardrobeRules.UNLOCK_ITEM));
+				state.put("freeUnlock",AetherfallBoonService.has(p,AetherfallBoonService.Boon.SHUGO_TRADE_CHARTER));
 				state.put("ticketItem",WardrobeRules.UNLOCK_ITEM); state.put("categories",List.of("All","Weapons","Armor","Costumes","Headwear","Shields","Wings"));
 				state.put("equipment",equipment.stream().map(WardrobeService::itemView).toList());
 				state.put("skins",skins); state.put("results",matches.size()); state.put("page",page); state.put("pages",pages);
@@ -249,6 +250,11 @@ public final class WardrobeService {
 			&& i.getItemSkinTemplate().getTemplateId() == skin.getTemplateId()).findFirst()
 			.orElseThrow(() -> new IllegalArgumentException("Keep the appearance item in Inventory or equipped slots to unlock it."));
 		lockItem(c,p,source);
+		if (AetherfallBoonService.has(p,AetherfallBoonService.Boon.SHUGO_TRADE_CHARTER)) { // Shugo Trade Charter: unlocks cost no ticket
+			if (update(c,"INSERT IGNORE INTO wardrobe_skins VALUES(?,?,?,?)",account,skin.getTemplateId(),System.currentTimeMillis(),p.getObjectId()) != 1)
+				throw new IllegalArgumentException("Appearance already unlocked.");
+			return "Unlocked " + skin.getName() + " with your Shugo Trade Charter. Equipment kept.";
+		}
 		Item ticket = p.getInventory().getItemsByItemId(WardrobeRules.UNLOCK_ITEM).stream().filter(i -> i.getItemCount() > 0).findFirst()
 			.orElseThrow(() -> new IllegalArgumentException("You need one Appearance Unlock item."));
 		lockItem(c,p,ticket);

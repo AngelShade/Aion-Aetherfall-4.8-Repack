@@ -99,6 +99,7 @@ public class PlayerLeaveWorldService {
 		ConquerorAndProtectorService.getInstance().onLeaveMap(player);
 		MultiClientingService.onLeaveWorld(player);
 		InstanceService.onLogout(player);
+		com.aionemu.gameserver.services.AetherfallBoonService.onLogout(player);
 		GMService.getInstance().onPlayerLogout(player);
 		KiskService.getInstance().onLogout(player);
 		PvpExpLimitService.getInstance().onLeaveWorld(player);

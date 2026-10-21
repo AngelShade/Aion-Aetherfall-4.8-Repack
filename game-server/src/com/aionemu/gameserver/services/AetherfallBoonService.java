@@ -1,0 +1,270 @@
+package com.aionemu.gameserver.services;
+
+import static com.aionemu.gameserver.services.CentralMarketService.*;
+
+import java.sql.*;
+import java.time.*;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import com.aionemu.commons.database.DatabaseFactory;
+import com.aionemu.gameserver.dataholders.DataManager;
+import com.aionemu.gameserver.model.gameobjects.LetterType;
+import com.aionemu.gameserver.model.gameobjects.player.Player;
+import com.aionemu.gameserver.model.stats.calc.StatOwner;
+import com.aionemu.gameserver.model.stats.calc.functions.IStatFunction;
+import com.aionemu.gameserver.model.stats.calc.functions.StatAddFunction;
+import com.aionemu.gameserver.model.stats.calc.functions.StatRateFunction;
+import com.aionemu.gameserver.model.stats.container.StatEnum;
+import com.aionemu.gameserver.network.aion.serverpackets.SM_PACKAGE_INFO_NOTIFY;
+import com.aionemu.gameserver.services.mail.SystemMailService;
+import com.aionemu.gameserver.utils.PacketSendUtility;
+import com.aionemu.gameserver.utils.ThreadPoolManager;
+
+/**
+ * Aetherfall Boons: account bonuses shown on the Profile window's Account tab. Every boon is earned
+ * in game (Season Pass tiers bought with Kinah, character levels, life skills, story quests, account
+ * age); none is sold. The client's first five F2P pack slots carry the Aetherfall names and texts.
+ */
+public final class AetherfallBoonService {
+
+	private static final Logger log = LoggerFactory.getLogger(AetherfallBoonService.class);
+
+	/** Pack ids in the client's Data/USA/BM client_bm_pack.xml. */
+	public enum Boon {
+		SHUGO_TRADE_CHARTER(1), GRACE_OF_THE_TOWER(2), AETHERFALL_RENOWN(3), CHRONICLE_OF_ATREIA(4), DAEVA_VETERANS_COFFER(5);
+
+		public final int pack;
+
+		Boon(int pack) {
+			this.pack = pack;
+		}
+	}
+
+	/** Instant.MAX marks a permanent boon. */
+	public record State(Map<Boon,Instant> boons, int renown, int chapters) {
+		public boolean has(Boon boon) {
+			Instant until = boons.get(boon);
+			return until != null && Instant.now().isBefore(until);
+		}
+	}
+
+	public static final int RENOWN_MARKET = 1000, RENOWN_FORTUNE = 2500;
+	static final int CHARTER_XP = 30, GRACE_DROP = 20, RENOWN_DROP = 10, MARKET_BONUS_BP = 500, GRACE_VOLUME = 20_000;
+	static final long STIPEND_PER_POINT = 100, STIPEND_CAP = 1_000_000;
+	static final int[] LIFE_SKILLS = { 30001, 30002, 30003, 40001, 40002, 40003, 40004, 40007, 40008, 40010 };
+	// Story chapters (Elyos or Asmodian): Ascension ceremony, Abyss entry, then Aetherfall's Red Journal continuation.
+	static final int[][] STORY_CHAPTERS = { { 1007, 2009 }, { 1922, 2947 }, { 3999 } };
+	static final int[] QUEST_CHAPTERS = { 300, 800 };
+	private static final StatEnum[] CHARTER_STATS = { StatEnum.BOOST_HUNTING_XP_RATE, StatEnum.BOOST_GROUP_HUNTING_XP_RATE,
+		StatEnum.BOOST_QUEST_XP_RATE, StatEnum.BOOST_GATHERING_XP_RATE, StatEnum.BOOST_CRAFTING_XP_RATE, StatEnum.BOOST_ESSENCETAPPING_XP_RATE,
+		StatEnum.BOOST_AETHERTAPPING_XP_RATE, StatEnum.BOOST_COOKING_XP_RATE, StatEnum.BOOST_WEAPONSMITHING_XP_RATE,
+		StatEnum.BOOST_ARMORSMITHING_XP_RATE, StatEnum.BOOST_TAILORING_XP_RATE, StatEnum.BOOST_ALCHEMY_XP_RATE,
+		StatEnum.BOOST_HANDICRAFTING_XP_RATE, StatEnum.BOOST_MENUISIER_XP_RATE };
+	private static final String SCHEMA = "CREATE TABLE IF NOT EXISTS aetherfall_renown (account_id INT NOT NULL PRIMARY KEY,"
+		+ " last_stipend DATE NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+
+	private static final Map<Integer,State> accounts = new ConcurrentHashMap<>();
+	private static final Map<Integer,StatOwner> owners = new ConcurrentHashMap<>();
+	private static volatile boolean schemaReady;
+
+	private AetherfallBoonService() {}
+
+	/**
+	 * Applies the account's boons while the character enters the world, before Energy of Repose and the
+	 * first stat packets. The Account tab list follows CM_LEVEL_READY; the daily stipend is mailed after.
+	 */
+	public static void onEnterWorld(Player p) {
+		if (p.isPlayerBot())
+			return;
+		try (Connection c = DatabaseFactory.getConnection()) {
+			State state = compute(c, p.getAccount().getId(), p.getAccount().getCreationDate(), Instant.now());
+			accounts.put(p.getAccount().getId(), state);
+			apply(p, state, false);
+			ThreadPoolManager.getInstance().execute(() -> stipend(p, state));
+		} catch (Exception e) {
+			log.error("Could not load Aetherfall boons for {}", p, e);
+		}
+	}
+
+	public static void onLogout(Player p) {
+		owners.remove(p.getObjectId());
+	}
+
+	/** Recomputes the account's boons, reapplies their stats and updates the Account tab. */
+	public static void refresh(Player p) {
+		if (p.isPlayerBot())
+			return;
+		ThreadPoolManager.getInstance().execute(() -> {
+			try (Connection c = DatabaseFactory.getConnection()) {
+				State state = compute(c, p.getAccount().getId(), p.getAccount().getCreationDate(), Instant.now());
+				accounts.put(p.getAccount().getId(), state);
+				apply(p, state, true);
+			} catch (Exception e) {
+				log.error("Could not refresh Aetherfall boons for {}", p, e);
+			}
+		});
+	}
+
+	static State compute(Connection c, int account, long accountCreated, Instant now) throws SQLException {
+		Map<Boon,Instant> boons = new EnumMap<>(Boon.class);
+		SeasonPassRules.Season season = SeasonPassService.season;
+		if (season != null && season.active(now)) {
+			long tier = lng(row(c, "SELECT COALESCE(MAX(s.tier),0) tier FROM season_pass_progress s JOIN players p ON p.id=s.player_id"
+				+ " WHERE s.season_id=? AND p.account_id=?", season.id(), account), "tier");
+			if (tier >= 1)
+				boons.put(Boon.SHUGO_TRADE_CHARTER, season.ends());
+			if (tier >= 2)
+				boons.put(Boon.GRACE_OF_THE_TOWER, season.ends());
+		}
+		int renown = 0, maxLevel = 0;
+		for (var r : rows(c, "SELECT exp FROM players WHERE account_id=?", account)) {
+			int level = DataManager.PLAYER_EXPERIENCE_TABLE.getLevelForExp(lng(r, "exp"));
+			maxLevel = Math.max(maxLevel, level);
+			renown += levelRenown(level);
+		}
+		StringJoiner skills = new StringJoiner(",");
+		for (int id : LIFE_SKILLS)
+			skills.add(Integer.toString(id));
+		for (var r : rows(c, "SELECT s.skill_level FROM player_skills s JOIN players p ON p.id=s.player_id WHERE p.account_id=? AND s.skill_id IN ("
+			+ skills + ")", account))
+			renown += (int) lng(r, "skill_level") / 5;
+		if (renown > 0)
+			boons.put(Boon.AETHERFALL_RENOWN, Instant.MAX);
+		Set<Integer> completed = new HashSet<>();
+		for (var r : rows(c, "SELECT DISTINCT q.quest_id FROM player_quests q JOIN players p ON p.id=q.player_id WHERE p.account_id=?"
+			+ " AND (q.status='COMPLETE' OR q.complete_count>0)", account))
+			completed.add((int) lng(r, "quest_id"));
+		int chapters = chapters(completed);
+		if (chapters > 0)
+			boons.put(Boon.CHRONICLE_OF_ATREIA, Instant.MAX);
+		if (maxLevel >= 65)
+			boons.put(Boon.DAEVA_VETERANS_COFFER, nextVeteranMonth(accountCreated, now));
+		return new State(boons, renown, chapters);
+	}
+
+	/** Level 55+ counts double and level 65 five times, like BDO's family fame. */
+	static int levelRenown(int level) {
+		return level >= 65 ? level * 5 : level >= 55 ? level * 2 : level;
+	}
+
+	static int chapters(Set<Integer> completed) {
+		int chapters = 0;
+		for (int[] chapter : STORY_CHAPTERS)
+			if (Arrays.stream(chapter).anyMatch(completed::contains))
+				chapters++;
+		for (int count : QUEST_CHAPTERS)
+			if (completed.size() >= count)
+				chapters++;
+		return chapters;
+	}
+
+	/** VeteranRewardService mails a coffer for every full month of account age. */
+	static Instant nextVeteranMonth(long accountCreated, Instant now) {
+		ZonedDateTime created = Instant.ofEpochMilli(accountCreated).atZone(ZoneId.systemDefault());
+		long months = ChronoUnit.MONTHS.between(created, now.atZone(ZoneId.systemDefault()));
+		return created.plusMonths(months + 1).toInstant();
+	}
+
+	private static void apply(Player p, State state, boolean notify) {
+		StatOwner owner = owners.computeIfAbsent(p.getObjectId(), id -> new StatOwner() {});
+		p.getGameStats().endEffect(owner);
+		List<IStatFunction> functions = new ArrayList<>();
+		if (state.has(Boon.SHUGO_TRADE_CHARTER))
+			for (StatEnum stat : CHARTER_STATS)
+				functions.add(new StatAddFunction(stat, CHARTER_XP, true));
+		int drop = (state.has(Boon.GRACE_OF_THE_TOWER) ? GRACE_DROP : 0) + (state.renown() >= RENOWN_FORTUNE ? RENOWN_DROP : 0);
+		if (drop > 0)
+			functions.add(new StatAddFunction(StatEnum.BOOST_DROP_RATE, drop, true));
+		int n = state.chapters();
+		if (n > 0) {
+			functions.add(new StatRateFunction(StatEnum.MAXHP, 3 * n, true));
+			functions.add(new StatRateFunction(StatEnum.MAXMP, 3 * n, true));
+			functions.add(new StatRateFunction(StatEnum.PHYSICAL_ATTACK, 2 * n, true));
+			functions.add(new StatAddFunction(StatEnum.BOOST_MAGICAL_SKILL, 20 * n, true));
+			functions.add(new StatRateFunction(StatEnum.PHYSICAL_DEFENSE, 3 * n, true));
+			functions.add(new StatAddFunction(StatEnum.MAGICAL_RESIST, 10 * n, true));
+		}
+		if (!functions.isEmpty())
+			p.getGameStats().addEffect(owner, functions);
+		if (notify)
+			sendPackList(p);
+	}
+
+	/** Fills the Account tab list. Sent after login and whenever the boons change. */
+	public static void sendPackList(Player p) {
+		State state = accounts.get(p.getAccount().getId());
+		if (state == null || p.getClientConnection() == null)
+			return;
+		Instant now = Instant.now();
+		Map<Integer,Integer> packs = new LinkedHashMap<>();
+		for (Boon boon : Boon.values()) {
+			if (!state.has(boon))
+				continue;
+			Instant until = state.boons().get(boon);
+			// 0 shows "No time limit".
+			packs.put(boon.pack, until == Instant.MAX ? 0 : (int) Math.max(1, Math.min(Integer.MAX_VALUE, Duration.between(now, until).toSeconds())));
+		}
+		PacketSendUtility.sendPacket(p, new SM_PACKAGE_INFO_NOTIFY(packs));
+	}
+
+	private static void stipend(Player p, State state) {
+		if (state.renown() <= 0)
+			return;
+		try (Connection c = DatabaseFactory.getConnection()) {
+			stipend(c, p, state);
+		} catch (Exception e) {
+			log.error("Could not pay the Aetherfall Renown stipend to {}", p, e);
+		}
+	}
+
+	private static void stipend(Connection c, Player p, State state) throws SQLException {
+		if (!schemaReady) {
+			try (Statement s = c.createStatement()) {
+				s.execute(SCHEMA);
+			}
+			schemaReady = true;
+		}
+		int account = p.getAccount().getId();
+		java.sql.Date today = java.sql.Date.valueOf(LocalDate.now());
+		update(c, "INSERT IGNORE INTO aetherfall_renown VALUES(?,NULL)", account);
+		if (update(c, "UPDATE aetherfall_renown SET last_stipend=? WHERE account_id=? AND (last_stipend IS NULL OR last_stipend<?)", today, account,
+			today) != 1)
+			return;
+		long kinah = Math.min(STIPEND_CAP, state.renown() * STIPEND_PER_POINT);
+		if (!SystemMailService.sendMail("Aetherfall", p.getName(), "Aetherfall Renown", "Your account renown stands at " + state.renown()
+			+ " points. Here is today's stipend.\n\nRenown grows with every character's level and every gathering and crafting skill on your account.",
+			0, 0, kinah, LetterType.NORMAL)) {
+			update(c, "UPDATE aetherfall_renown SET last_stipend=NULL WHERE account_id=?", account);
+			log.warn("Aetherfall Renown stipend mail failed for {}", p);
+		}
+	}
+
+	public static State state(Player p) {
+		return accounts.get(p.getAccount().getId());
+	}
+
+	public static boolean has(Player p, Boon boon) {
+		State state = state(p);
+		return state != null && state.has(boon);
+	}
+
+	/** Share of a Central Market sale returned to the seller, in basis points. */
+	public static int marketReturn(Player p) {
+		int bp = p.getAccount().getMembership() > 0 || has(p, Boon.SHUGO_TRADE_CHARTER) ? 8450 : 6500;
+		State state = state(p);
+		return state != null && state.renown() >= RENOWN_MARKET ? bp + MARKET_BONUS_BP : bp;
+	}
+
+	/** Central Market warehouse capacity in tenths of VT. */
+	public static long marketVolume(Player p) {
+		return CentralMarketRules.BASE_VOLUME + (has(p, Boon.GRACE_OF_THE_TOWER) ? GRACE_VOLUME : 0);
+	}
+
+	/** Hours offline for a full Energy of Repose refill. */
+	public static double reposeRefillHours(Player p) {
+		return has(p, Boon.GRACE_OF_THE_TOWER) ? 24 : 48;
+	}
+}

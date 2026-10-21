@@ -22,7 +22,7 @@ final class CentralMarketSettlement {
 		}
 	}
 
-	static String collect(Connection c,int account,long id,boolean premium) throws SQLException {
+	static String collect(Connection c,int account,long id,int returnBasisPoints) throws SQLException {
 		var order=row(c,"SELECT * FROM central_market_orders WHERE id=? AND account_id=? FOR UPDATE",id,account);
 		if(order==null) throw new IllegalArgumentException("Select one of your orders.");
 		var claim=row(c,"SELECT * FROM central_market_settlements WHERE order_id=? FOR UPDATE",id);
@@ -39,7 +39,7 @@ final class CentralMarketSettlement {
 		if(gross<=0) throw new IllegalArgumentException("No proceeds to collect from this order.");
 		var wallet=row(c,"SELECT kinah,proceeds FROM central_market_wallet WHERE account_id=? FOR UPDATE",account);
 		if(wallet==null || lng(wallet,"proceeds")<gross) throw new SQLException("Sale collection wallet mismatch");
-		long net=CentralMarketRules.collect(gross,premium);
+		long net=CentralMarketRules.collect(gross,returnBasisPoints);
 		update(c,"UPDATE central_market_wallet SET kinah=?,proceeds=proceeds-?,version=version+1 WHERE account_id=?",CentralMarketRules.add(lng(wallet,"kinah"),net),gross,account);
 		update(c,"UPDATE central_market_settlements SET gross=0 WHERE order_id=?",id);
 		update(c,"INSERT INTO central_market_collections(account_id,gross,net,collected_at) VALUES(?,?,?,?)",account,gross,net,System.currentTimeMillis());

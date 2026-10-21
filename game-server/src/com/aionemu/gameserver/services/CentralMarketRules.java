@@ -30,8 +30,14 @@ public final class CentralMarketRules {
 	}
 
 	public static long collect(long gross, boolean premium) {
+		return collect(gross, premium ? 8450 : 6500);
+	}
+
+	/** @param returnBasisPoints share of the sale returned to the seller (10,000 = 100%) */
+	public static long collect(long gross, int returnBasisPoints) {
 		if (gross < 0 || gross > MAX_KINAH) throw new IllegalArgumentException("Invalid proceeds.");
-		return BigInteger.valueOf(gross).multiply(BigInteger.valueOf(premium ? 8450 : 6500))
+		if (returnBasisPoints < 0 || returnBasisPoints > 10_000) throw new IllegalArgumentException("Invalid market return.");
+		return BigInteger.valueOf(gross).multiply(BigInteger.valueOf(returnBasisPoints))
 			.divide(BigInteger.valueOf(10_000)).longValueExact();
 	}
 
