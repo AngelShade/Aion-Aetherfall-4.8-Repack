@@ -45,7 +45,7 @@ public final class AetherfallBoonService {
 	}
 
 	/** Instant.MAX marks a permanent boon. */
-	public record State(Map<Boon,Instant> boons, int renown, int chapters) {
+	public record State(Map<Boon,Instant> boons, int renown, int chapters, int combat) {
 		public boolean has(Boon boon) {
 			Instant until = boons.get(boon);
 			return until != null && Instant.now().isBefore(until);
@@ -53,6 +53,10 @@ public final class AetherfallBoonService {
 	}
 
 	public static final int RENOWN_MARKET = 1000, RENOWN_FORTUNE = 2500;
+	// Account Fame (BDO family fame): Combat from levels, Life from skills, Legend from quests and titles.
+	static final int FAME_MIN_LEVEL = 10, LIFE_MIN_SKILL = 100, QUESTS_PER_LEGEND = 10, LEGEND_PER_TITLE = 5;
+	// Characters below level 55 gain 1% hunting/group/quest XP per 100 Combat Fame, up to 20%.
+	static final int YOUTH_LEVEL = 55, YOUTH_XP_PER = 100, YOUTH_XP_MAX = 20;
 	static final int CHARTER_XP = 30, GRACE_DROP = 20, RENOWN_DROP = 10, MARKET_BONUS_BP = 500, GRACE_VOLUME = 20_000;
 	static final long STIPEND_PER_POINT = 100, STIPEND_CAP = 1_000_000;
 	static final int[] LIFE_SKILLS = { 30001, 30002, 30003, 40001, 40002, 40003, 40004, 40007, 40008, 40010 };
@@ -120,30 +124,17 @@ public final class AetherfallBoonService {
 			if (tier >= 2)
 				boons.put(Boon.GRACE_OF_THE_TOWER, season.ends());
 		}
-		int renown = 0, maxLevel = 0;
-		for (var r : rows(c, "SELECT exp FROM players WHERE account_id=?", account)) {
-			int level = DataManager.PLAYER_EXPERIENCE_TABLE.getLevelForExp(lng(r, "exp"));
-			maxLevel = Math.max(maxLevel, level);
-			renown += levelRenown(level);
-		}
-		StringJoiner skills = new StringJoiner(",");
-		for (int id : LIFE_SKILLS)
-			skills.add(Integer.toString(id));
-		for (var r : rows(c, "SELECT s.skill_level FROM player_skills s JOIN players p ON p.id=s.player_id WHERE p.account_id=? AND s.skill_id IN ("
-			+ skills + ")", account))
-			renown += (int) lng(r, "skill_level") / 5;
+		Fame fame = fame(c, account);
+		int renown = fame.total();
 		if (renown > 0)
 			boons.put(Boon.AETHERFALL_RENOWN, Instant.MAX);
-		Set<Integer> completed = new HashSet<>();
-		for (var r : rows(c, "SELECT DISTINCT q.quest_id FROM player_quests q JOIN players p ON p.id=q.player_id WHERE p.account_id=?"
-			+ " AND (q.status='COMPLETE' OR q.complete_count>0)", account))
-			completed.add((int) lng(r, "quest_id"));
+		Set<Integer> completed = fame.quests();
 		int chapters = chapters(completed);
 		if (chapters > 0)
 			boons.put(Boon.CHRONICLE_OF_ATREIA, Instant.MAX);
-		if (maxLevel >= 65)
+		if (fame.maxLevel() >= 65)
 			boons.put(Boon.DAEVA_VETERANS_COFFER, nextVeteranMonth(accountCreated, now));
-		return new State(boons, renown, chapters);
+		return new State(boons, renown, chapters, fame.combat());
 	}
 
 	/** Everything the Account window shows: every boon (earned or not), its progress and the account's characters. */
@@ -156,26 +147,16 @@ public final class AetherfallBoonService {
 			boolean seasonActive = season != null && season.active(now);
 			long tier = !seasonActive ? 0 : lng(row(c, "SELECT COALESCE(MAX(s.tier),0) tier FROM season_pass_progress s JOIN players p ON p.id=s.player_id"
 				+ " WHERE s.season_id=? AND p.account_id=?", season.id(), account), "tier");
-			Map<Integer,Integer> lifeSkills = new HashMap<>();
-			StringJoiner skills = new StringJoiner(",");
-			for (int id : LIFE_SKILLS)
-				skills.add(Integer.toString(id));
-			for (var r : rows(c, "SELECT s.player_id,s.skill_level FROM player_skills s JOIN players p ON p.id=s.player_id WHERE p.account_id=? AND s.skill_id IN ("
-				+ skills + ")", account))
-				lifeSkills.merge((int) lng(r, "player_id"), (int) lng(r, "skill_level") / 5, Integer::sum);
+			Fame fame = fame(c, account);
+			Set<Integer> completed = fame.quests();
+			int maxLevel = fame.maxLevel();
 			List<Map<String,Object>> characters = new ArrayList<>();
-			int maxLevel = 0;
 			for (var r : rows(c, "SELECT id,name,player_class,race,exp FROM players WHERE account_id=? ORDER BY exp DESC,name", account)) {
-				int level = DataManager.PLAYER_EXPERIENCE_TABLE.getLevelForExp(lng(r, "exp"));
-				maxLevel = Math.max(maxLevel, level);
 				int id = (int) lng(r, "id");
-				characters.add(Map.of("name", str(r, "name"), "playerClass", str(r, "player_class"), "race", str(r, "race"), "level", level,
-					"renown", levelRenown(level) + lifeSkills.getOrDefault(id, 0), "online", id == p.getObjectId()));
+				characters.add(Map.of("name", str(r, "name"), "playerClass", str(r, "player_class"), "race", str(r, "race"),
+					"level", DataManager.PLAYER_EXPERIENCE_TABLE.getLevelForExp(lng(r, "exp")), "renown", fame.characterFame().getOrDefault(id, 0),
+					"online", id == p.getObjectId()));
 			}
-			Set<Integer> completed = new HashSet<>();
-			for (var r : rows(c, "SELECT DISTINCT q.quest_id FROM player_quests q JOIN players p ON p.id=q.player_id WHERE p.account_id=?"
-				+ " AND (q.status='COMPLETE' OR q.complete_count>0)", account))
-				completed.add((int) lng(r, "quest_id"));
 			List<Map<String,Object>> chapterList = new ArrayList<>();
 			String[] storyNames = { "The Ascension ceremony", "Into the Abyss", "The Unfinished Entry" };
 			for (int i = 0; i < STORY_CHAPTERS.length; i++)
@@ -203,8 +184,8 @@ public final class AetherfallBoonService {
 						int next = state.renown() < RENOWN_MARKET ? RENOWN_MARKET : RENOWN_FORTUNE;
 						b.put("progress", Math.min(state.renown(), next));
 						b.put("goal", next);
-						b.put("progressLabel", state.renown() >= RENOWN_FORTUNE ? String.format("%,d renown · every tier reached", state.renown())
-							: String.format("%,d / %,d renown to the next tier", state.renown(), next));
+						b.put("progressLabel", state.renown() >= RENOWN_FORTUNE ? String.format("%,d Account Fame · every tier reached", state.renown())
+							: String.format("%,d / %,d Account Fame to the next tier", state.renown(), next));
 						b.put("stipend", Math.min(STIPEND_CAP, state.renown() * STIPEND_PER_POINT));
 					}
 					case CHRONICLE_OF_ATREIA -> {
@@ -232,10 +213,62 @@ public final class AetherfallBoonService {
 			out.put("chapters", state.chapters());
 			out.put("chapterGoal", chapterGoal);
 			out.put("marketReturn", marketReturn(p) / 100.0);
+			Map<String,Object> f = new LinkedHashMap<>();
+			f.put("combat", fame.combat());
+			f.put("life", fame.life());
+			f.put("legend", fame.legend());
+			f.put("total", fame.total());
+			f.put("quests", completed.size());
+			f.put("titles", fame.titles());
+			f.put("youthXp", youthXp(fame.combat()));
+			f.put("youthXpMax", YOUTH_XP_MAX);
+			f.put("tiers", List.of(
+				Map.of("at", 1, "name", "Known", "benefit", String.format("Daily Kinah stipend: %,d per fame, up to %,d", STIPEND_PER_POINT, STIPEND_CAP)),
+				Map.of("at", RENOWN_MARKET, "name", "Renowned", "benefit", "Central Market sales return 5% more"),
+				Map.of("at", RENOWN_FORTUNE, "name", "Illustrious", "benefit", "+10% item drops on every character")));
+			out.put("fame", f);
 			out.put("boons", boons);
 			out.put("characters", characters);
 			return out;
 		}
+	}
+
+	/** One account's fame, with each character's Combat and Life share. */
+	record Fame(int combat, int life, int legend, int titles, int maxLevel, Set<Integer> quests, Map<Integer,Integer> characterFame) {
+		int total() {
+			return combat + life + legend;
+		}
+	}
+
+	static Fame fame(Connection c, int account) throws SQLException {
+		Map<Integer,Integer> characterFame = new HashMap<>();
+		int combat = 0, life = 0, maxLevel = 0;
+		for (var r : rows(c, "SELECT id,exp FROM players WHERE account_id=?", account)) {
+			int level = DataManager.PLAYER_EXPERIENCE_TABLE.getLevelForExp(lng(r, "exp"));
+			maxLevel = Math.max(maxLevel, level);
+			int points = level >= FAME_MIN_LEVEL ? levelRenown(level) : 0;
+			combat += points;
+			characterFame.merge((int) lng(r, "id"), points, Integer::sum);
+		}
+		StringJoiner skills = new StringJoiner(",");
+		for (int id : LIFE_SKILLS)
+			skills.add(Integer.toString(id));
+		for (var r : rows(c, "SELECT s.player_id,s.skill_level FROM player_skills s JOIN players p ON p.id=s.player_id WHERE p.account_id=? AND s.skill_id IN ("
+			+ skills + ") AND s.skill_level>=?", account, LIFE_MIN_SKILL)) {
+			int points = (int) lng(r, "skill_level") / 5;
+			life += points;
+			characterFame.merge((int) lng(r, "player_id"), points, Integer::sum);
+		}
+		Set<Integer> quests = new HashSet<>();
+		for (var r : rows(c, "SELECT DISTINCT q.quest_id FROM player_quests q JOIN players p ON p.id=q.player_id WHERE p.account_id=?"
+			+ " AND (q.status='COMPLETE' OR q.complete_count>0)", account))
+			quests.add((int) lng(r, "quest_id"));
+		int titles = (int) lng(row(c, "SELECT COUNT(DISTINCT t.title_id) n FROM player_titles t JOIN players p ON p.id=t.player_id WHERE p.account_id=?", account), "n");
+		return new Fame(combat, life, quests.size() / QUESTS_PER_LEGEND + titles * LEGEND_PER_TITLE, titles, maxLevel, quests, characterFame);
+	}
+
+	static int youthXp(int combat) {
+		return Math.min(YOUTH_XP_MAX, combat / YOUTH_XP_PER);
 	}
 
 	/** Level 55+ counts double and level 65 five times, like BDO's family fame. */
@@ -271,6 +304,10 @@ public final class AetherfallBoonService {
 		int drop = (state.has(Boon.GRACE_OF_THE_TOWER) ? GRACE_DROP : 0) + (state.renown() >= RENOWN_FORTUNE ? RENOWN_DROP : 0);
 		if (drop > 0)
 			functions.add(new StatAddFunction(StatEnum.BOOST_DROP_RATE, drop, true));
+		int youth = p.getLevel() < YOUTH_LEVEL ? youthXp(state.combat()) : 0;
+		if (youth > 0)
+			for (StatEnum stat : new StatEnum[] { StatEnum.BOOST_HUNTING_XP_RATE, StatEnum.BOOST_GROUP_HUNTING_XP_RATE, StatEnum.BOOST_QUEST_XP_RATE })
+				functions.add(new StatAddFunction(stat, youth, true));
 		int n = state.chapters();
 		if (n > 0) {
 			functions.add(new StatRateFunction(StatEnum.MAXHP, 3 * n, true));
@@ -342,8 +379,8 @@ public final class AetherfallBoonService {
 			today) != 1)
 			return;
 		long kinah = Math.min(STIPEND_CAP, state.renown() * STIPEND_PER_POINT);
-		if (!SystemMailService.sendMail("Aetherfall", p.getName(), "Aetherfall Renown", "Your account renown stands at " + state.renown()
-			+ " points. Here is today's stipend.\n\nRenown grows with every character's level and every gathering and crafting skill on your account.",
+		if (!SystemMailService.sendMail("Aetherfall", p.getName(), "Aetherfall Renown", "Your Account Fame stands at " + state.renown()
+			+ " points. Here is today's stipend.\n\nFame grows with every character's level, gathering and crafting skill, completed quest and title on your account.",
 			0, 0, kinah, LetterType.NORMAL)) {
 			update(c, "UPDATE aetherfall_renown SET last_stipend=NULL WHERE account_id=?", account);
 			log.warn("Aetherfall Renown stipend mail failed for {}", p);

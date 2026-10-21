@@ -7,7 +7,7 @@
     grace_of_the_tower: { name: 'Grace of the Tower', icon: 182206059, earn: 'SEASON PASS ADVANCED PREMIUM',
       effects: ['+20% item drops', 'Energy of Repose refills in 24 hours offline (normally 48)', '+2,000 VT Central Market warehouse capacity'] },
     aetherfall_renown: { name: 'Aetherfall Renown', icon: 186000242, earn: 'ACCOUNT FAME',
-      effects: ['Daily Kinah stipend by mail on your first login', '1,000 renown: Central Market sales return 5% more', '2,500 renown: +10% item drops'] },
+      effects: ['Daily Kinah stipend by mail on your first login', '1,000 fame: Central Market sales return 5% more', '2,500 fame: +10% item drops', 'Characters below 55: up to +20% XP'] },
     chronicle_of_atreia: { name: 'Chronicle of Atreia', icon: 182208043, earn: 'STORY AND QUESTS',
       effects: ['Each chapter: +3% max HP and MP', 'Each chapter: +2% physical attack and +20 magic boost', 'Each chapter: +3% physical defence and +10 magic resist'] },
     daeva_veterans_coffer: { name: "Daeva Veteran's Coffer", icon: 182215746, earn: 'LEVEL 65 DAEVA',
@@ -36,7 +36,7 @@
     id('character').innerHTML = esc(s.character); id('account-name').innerHTML = esc(String(s.account).toUpperCase());
     id('renown').innerHTML = num(s.renown);
     id('renown-fill').style.width = pct(Math.min(s.renown, next), next) + '%';
-    id('renown-label').innerHTML = s.renown >= 2500 ? 'Every renown tier reached' : esc(num(s.renown) + ' / ' + num(next) + ' to the next tier');
+    id('renown-label').innerHTML = s.renown >= 2500 ? 'Every fame tier reached' : esc(num(s.renown) + ' / ' + num(next) + ' fame to the next tier');
     id('stipend').innerHTML = s.stipend > 0 ? esc(num(s.stipend)) + ' <small style="display:inline;font-size:11px;color:#93abbc">Kinah</small>' : '&mdash;';
     id('chapters').innerHTML = s.chapters + ' / ' + s.chapterGoal;
     id('market').innerHTML = s.marketReturn + '%';
@@ -68,6 +68,26 @@
     id('boon-count').innerHTML = active + ' / ' + s.boons.length;
   }
 
+  function renderFame(s) {
+    var f = s.fame, html = '', i, t, parts, reachedNext = null;
+    if (!f) return;
+    parts = [['COMBAT FAME', f.combat, 'Character levels from 10. Level 55+ counts double and level 65 five times, so every alt adds.'],
+      ['LIFE FAME', f.life, 'Gathering and crafting skills from skill 100: one fame for every five skill points.'],
+      ['LEGEND FAME', f.legend, num(f.quests) + ' quests completed (one fame per ten) and ' + f.titles + ' titles earned (five fame each).']];
+    html += '<div class="fame-parts">';
+    for (i = 0; i < parts.length; i++) html += '<div class="fame-part"><div class="fame-card"><small>' + parts[i][0] + '</small><strong>' + num(parts[i][1]) + '</strong><p>' + esc(parts[i][2]) + '</p></div></div>';
+    html += '<div class="clear"></div></div><div class="tiers"><h4>Fame tiers &middot; ' + num(f.total) + ' fame</h4>';
+    for (i = 0; i < f.tiers.length; i++) {
+      t = f.tiers[i];
+      if (f.total < t.at && reachedNext === null) reachedNext = t;
+      html += '<div class="tier' + (f.total >= t.at ? ' reached' : '') + '"><b>' + (f.total >= t.at ? '&#10003;' : (i + 1)) + '</b><em>' + (t.at > 1 ? num(t.at) + ' fame' : 'Any fame') + '</em><strong>' + esc(t.name) + '</strong><span>' + esc(t.benefit) + '</span></div>';
+    }
+    html += '</div><div class="youth"><h4>Seasoned family &middot; +' + f.youthXp + '% XP</h4><div class="meter"><i style="width:' + pct(f.youthXp, f.youthXpMax) + '%"></i></div>' +
+      '<p>Characters below level 55 gain 1% hunting, group and quest XP for every 100 Combat Fame, up to +' + f.youthXpMax + '%. Your alts level faster as your account grows.</p></div>';
+    id('fame').innerHTML = html;
+    id('fame-count').innerHTML = num(f.total);
+  }
+
   function renderCharacters(s) {
     var html = '', i, c;
     for (i = 0; i < s.characters.length; i++) {
@@ -90,7 +110,7 @@
       var data = null;
       try { data = JSON.parse(x.responseText); } catch (e) { }
       if (x.status !== 200 || !data) { status(data && data.error ? data.error : 'Account is unavailable. Refresh to try again.', 'bad'); return; }
-      state = data; renderBanner(data); renderBoons(data); renderCharacters(data);
+      state = data; renderBanner(data); renderBoons(data); renderFame(data); renderCharacters(data);
       status('Up to date · boons apply to every character on this account', 'ok');
     };
     x.send(null);

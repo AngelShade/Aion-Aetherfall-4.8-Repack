@@ -34,7 +34,7 @@ def main():
                'Mods/AccountWindow/mod.json', 'Mods/AccountWindow/README.md', 'Mods/InstalledMods.json'}
     allowed.update(compatibility_paths(manifest['graphicsCompatibility']))
     staged = {e['path'] for e in manifest['files']}
-    if not staged <= allowed or len(staged) != len(manifest['files']) or 'bin64/Game.dll' not in staged:
+    if not staged <= allowed or len(staged) != len(manifest['files']):
         raise ValueError('Unexpected Account window package file list')
     query = "$ErrorActionPreference='Stop'; @(Get-CimInstance Win32_Process -Filter \"Name='aion.bin' OR Name='aion.exe'\" | Select-Object ProcessId,ExecutablePath) | ConvertTo-Json -Compress"
     raw = subprocess.check_output(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', query], text=True).strip()
