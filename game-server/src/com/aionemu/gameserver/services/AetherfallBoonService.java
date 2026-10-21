@@ -18,6 +18,7 @@ import com.aionemu.gameserver.model.stats.calc.functions.IStatFunction;
 import com.aionemu.gameserver.model.stats.calc.functions.StatAddFunction;
 import com.aionemu.gameserver.model.stats.calc.functions.StatRateFunction;
 import com.aionemu.gameserver.model.stats.container.StatEnum;
+import com.aionemu.gameserver.network.aion.serverpackets.SM_ACCOUNT_PROPERTIES;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_PACKAGE_INFO_NOTIFY;
 import com.aionemu.gameserver.services.mail.SystemMailService;
 import com.aionemu.gameserver.utils.PacketSendUtility;
@@ -193,11 +194,26 @@ public final class AetherfallBoonService {
 			sendPackList(p);
 	}
 
+	/**
+	 * Active packs as the client's bitmask (bit = pack id), sent in SM_ACCOUNT_PROPERTIES. The Account tab lists
+	 * only packs whose bit is set; SM_PACKAGE_INFO_NOTIFY supplies their remaining time.
+	 */
+	public static int packMask(int account) {
+		State state = accounts.get(account);
+		int mask = 0;
+		if (state != null)
+			for (Boon boon : Boon.values())
+				if (state.has(boon))
+					mask |= 1 << boon.pack;
+		return mask;
+	}
+
 	/** Fills the Account tab list. Sent after login and whenever the boons change. */
 	public static void sendPackList(Player p) {
 		State state = accounts.get(p.getAccount().getId());
 		if (state == null || p.getClientConnection() == null)
 			return;
+		PacketSendUtility.sendPacket(p, new SM_ACCOUNT_PROPERTIES());
 		Instant now = Instant.now();
 		Map<Integer,Integer> packs = new LinkedHashMap<>();
 		for (Boon boon : Boon.values()) {
