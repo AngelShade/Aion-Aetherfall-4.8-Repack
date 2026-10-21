@@ -40,7 +40,8 @@ public final class AccountHttpService {
 			if (path.matches("/market/account/media/[a-z-]+\\.png")) {
 				String file = path.substring(path.lastIndexOf('/') + 1);
 				// Season Pass frames are shared; their optimized render copies paint faster in the client browser.
-				Path image = PASS_ART.contains(file) ? PASS_MEDIA.resolve("optimized").resolve(file)
+				Path image = PASS_ART.contains(file) && Files.isRegularFile(PASS_MEDIA.resolve("optimized").resolve(file)) ? PASS_MEDIA.resolve("optimized").resolve(file)
+					: PASS_ART.contains(file) ? PASS_MEDIA.resolve(file)
 					: file.equals("ascendant-dawn.png") ? PASS_MEDIA.resolve(file) : MEDIA.resolve(file);
 				if (!Files.isRegularFile(image)) {
 					send(x, 404, "text/plain", "Not found");
