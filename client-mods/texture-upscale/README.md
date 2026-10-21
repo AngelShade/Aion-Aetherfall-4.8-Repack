@@ -26,12 +26,14 @@ python -I build.py --client '<client>' --zones lf1,df1 --upscaled '<cache>/pbrif
 python -I build.py --client '<client>' --zones lf1,df1 --esrgan '<tools>/realesrgan-ncnn-vulkan.exe' --work '<cache>' --output '<new folder>'
 ./Install.ps1 -ClientPath '<client>' -PackagePath '<package>'            # Aion closed
 ./Install.ps1 -ClientPath '<client>' -PackagePath '<package>' -VerifyOnly
-./Install.ps1 -ClientPath '<client>' -Restore                             # Aion closed
+./Install.ps1 -ClientPath '<client>' -Restore -PackageId <id>            # Aion closed, newest batch first
 ```
 
 The builder never touches the client; it verifies entry order, every untouched entry
 byte-identical and every changed entry. The installer checks package and client hashes
 before changing anything, backs archives up to `Mods/Backups/TextureUpscale/<time>`,
-rolls back on failure and records `Mods/TextureUpscale/installed.json`. These archives are
+rolls back on failure and records `Mods/TextureUpscale/installed-<packageId>.json`.
+Later batches are built from the archives as installed, so they stack; each keeps its own
+backup and state, and restore refuses an archive a later batch changed. These archives are
 not tracked by the GraphicsOverhaul package. A later rebuild must start from the archives
 as installed (the work cache is keyed by source hash).
