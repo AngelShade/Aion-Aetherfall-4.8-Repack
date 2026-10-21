@@ -146,6 +146,98 @@ public final class AetherfallBoonService {
 		return new State(boons, renown, chapters);
 	}
 
+	/** Everything the Account window shows: every boon (earned or not), its progress and the account's characters. */
+	public static Map<String,Object> view(Player p) throws SQLException {
+		int account = p.getAccount().getId();
+		Instant now = Instant.now();
+		try (Connection c = DatabaseFactory.getConnection()) {
+			State state = compute(c, account, p.getAccount().getCreationDate(), now);
+			SeasonPassRules.Season season = SeasonPassService.season;
+			boolean seasonActive = season != null && season.active(now);
+			long tier = !seasonActive ? 0 : lng(row(c, "SELECT COALESCE(MAX(s.tier),0) tier FROM season_pass_progress s JOIN players p ON p.id=s.player_id"
+				+ " WHERE s.season_id=? AND p.account_id=?", season.id(), account), "tier");
+			Map<Integer,Integer> lifeSkills = new HashMap<>();
+			StringJoiner skills = new StringJoiner(",");
+			for (int id : LIFE_SKILLS)
+				skills.add(Integer.toString(id));
+			for (var r : rows(c, "SELECT s.player_id,s.skill_level FROM player_skills s JOIN players p ON p.id=s.player_id WHERE p.account_id=? AND s.skill_id IN ("
+				+ skills + ")", account))
+				lifeSkills.merge((int) lng(r, "player_id"), (int) lng(r, "skill_level") / 5, Integer::sum);
+			List<Map<String,Object>> characters = new ArrayList<>();
+			int maxLevel = 0;
+			for (var r : rows(c, "SELECT id,name,player_class,race,exp FROM players WHERE account_id=? ORDER BY exp DESC,name", account)) {
+				int level = DataManager.PLAYER_EXPERIENCE_TABLE.getLevelForExp(lng(r, "exp"));
+				maxLevel = Math.max(maxLevel, level);
+				int id = (int) lng(r, "id");
+				characters.add(Map.of("name", str(r, "name"), "playerClass", str(r, "player_class"), "race", str(r, "race"), "level", level,
+					"renown", levelRenown(level) + lifeSkills.getOrDefault(id, 0), "online", id == p.getObjectId()));
+			}
+			Set<Integer> completed = new HashSet<>();
+			for (var r : rows(c, "SELECT DISTINCT q.quest_id FROM player_quests q JOIN players p ON p.id=q.player_id WHERE p.account_id=?"
+				+ " AND (q.status='COMPLETE' OR q.complete_count>0)", account))
+				completed.add((int) lng(r, "quest_id"));
+			List<Map<String,Object>> chapterList = new ArrayList<>();
+			String[] storyNames = { "The Ascension ceremony", "Into the Abyss", "The Unfinished Entry" };
+			for (int i = 0; i < STORY_CHAPTERS.length; i++)
+				chapterList.add(Map.of("name", storyNames[i], "done", Arrays.stream(STORY_CHAPTERS[i]).anyMatch(completed::contains)));
+			for (int count : QUEST_CHAPTERS)
+				chapterList.add(Map.of("name", String.format("%,d completed quests", count), "done", completed.size() >= count));
+			int chapterGoal = STORY_CHAPTERS.length + QUEST_CHAPTERS.length;
+
+			List<Map<String,Object>> boons = new ArrayList<>();
+			for (Boon boon : Boon.values()) {
+				Map<String,Object> b = new LinkedHashMap<>();
+				b.put("id", boon.name().toLowerCase(Locale.ROOT));
+				b.put("active", state.has(boon));
+				Instant until = state.boons().get(boon);
+				b.put("until", until == null || until == Instant.MAX ? 0 : until.toEpochMilli());
+				switch (boon) {
+					case SHUGO_TRADE_CHARTER, GRACE_OF_THE_TOWER -> {
+						int need = boon == Boon.SHUGO_TRADE_CHARTER ? 1 : 2;
+						b.put("progress", Math.min(tier, need));
+						b.put("goal", need);
+						b.put("progressLabel", !seasonActive ? "No season is running" : tier >= need ? "Unlocked for " + season.name()
+							: need == 1 ? "Unlock Premium in the Season Pass" : tier == 1 ? "Upgrade to Advanced Premium" : "Unlock Advanced Premium in the Season Pass");
+					}
+					case AETHERFALL_RENOWN -> {
+						int next = state.renown() < RENOWN_MARKET ? RENOWN_MARKET : RENOWN_FORTUNE;
+						b.put("progress", Math.min(state.renown(), next));
+						b.put("goal", next);
+						b.put("progressLabel", state.renown() >= RENOWN_FORTUNE ? String.format("%,d renown · every tier reached", state.renown())
+							: String.format("%,d / %,d renown to the next tier", state.renown(), next));
+						b.put("stipend", Math.min(STIPEND_CAP, state.renown() * STIPEND_PER_POINT));
+					}
+					case CHRONICLE_OF_ATREIA -> {
+						b.put("progress", state.chapters());
+						b.put("goal", chapterGoal);
+						b.put("progressLabel", state.chapters() + " of " + chapterGoal + " chapters written · " + String.format("%,d", completed.size()) + " quests completed");
+						b.put("chapters", chapterList);
+					}
+					case DAEVA_VETERANS_COFFER -> {
+						b.put("progress", Math.min(maxLevel, 65));
+						b.put("goal", 65);
+						b.put("progressLabel", maxLevel >= 65 ? "A level 65 Daeva is on your account" : "Highest level " + maxLevel + " of 65");
+					}
+				}
+				boons.add(b);
+			}
+			Map<String,Object> out = new LinkedHashMap<>();
+			out.put("account", p.getAccount().getName());
+			out.put("character", p.getName());
+			out.put("now", now.toEpochMilli());
+			out.put("season", seasonActive ? season.name() : "");
+			out.put("seasonEnds", seasonActive ? season.ends().toEpochMilli() : 0);
+			out.put("renown", state.renown());
+			out.put("stipend", Math.min(STIPEND_CAP, state.renown() * STIPEND_PER_POINT));
+			out.put("chapters", state.chapters());
+			out.put("chapterGoal", chapterGoal);
+			out.put("marketReturn", marketReturn(p) / 100.0);
+			out.put("boons", boons);
+			out.put("characters", characters);
+			return out;
+		}
+	}
+
 	/** Level 55+ counts double and level 65 five times, like BDO's family fame. */
 	static int levelRenown(int level) {
 		return level >= 65 ? level * 5 : level >= 55 ? level * 2 : level;

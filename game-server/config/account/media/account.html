@@ -1,0 +1,12 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Aetherfall Account</title><link rel="stylesheet" href="/market/account/media/account.css?v=1"></head>
+<body>
+<header><div class="brand"><span class="mark">&#10022;</span>AETHERFALL</div><span class="title">ACCOUNT</span><button id="refresh" class="quiet">&#8635; Refresh</button><div class="who"><span id="character">Connecting&hellip;</span><b id="account-name"></b></div></header>
+<section class="banner"><img class="banner-art" src="/market/account/media/ascendant-dawn.png" alt=""><div class="banner-shade"></div>
+<div class="renown"><img class="renown-crest" src="/market/account/media/aether-crest.png" alt=""><div class="renown-copy"><small>AETHERFALL RENOWN</small><strong id="renown">0</strong><div class="meter"><i id="renown-fill"></i></div><span id="renown-label">&nbsp;</span></div></div>
+<div class="banner-stats"><div class="stat"><small>DAILY STIPEND</small><strong id="stipend">&mdash;</strong></div><div class="stat"><small>CHRONICLE</small><strong id="chapters">&mdash;</strong></div><div class="stat"><small>MARKET RETURN</small><strong id="market">&mdash;</strong></div><div class="stat"><small>SEASON ENDS</small><strong id="season">&mdash;</strong></div></div></section>
+<nav class="sections"><button data-view="boons" class="active"><span class="glyph">&#10023;</span>Boons<em id="boon-count"></em></button><button data-view="characters"><span class="glyph">&#9671;</span>Characters<em id="character-count"></em></button></nav>
+<main id="main"><div id="boons-view" class="view"><div class="heading"><span class="ornament">&#10022;</span><h2>Aetherfall Boons</h2><p>Account bonuses earned in Atreia. Nothing here is sold; every boon is unlocked by playing.</p></div><div id="boons"></div></div>
+<div id="characters-view" class="view hidden"><div class="heading"><span class="ornament">&#9671;</span><h2>Characters</h2><p>Every character on this account adds to Aetherfall Renown: level 55+ counts double, level 65 five times, plus gathering and crafting skill.</p></div><table class="roster"><thead><tr><th>Character</th><th>Class</th><th>Race</th><th>Level</th><th>Renown</th></tr></thead><tbody id="roster"></tbody></table></div></main>
+<footer><span id="dot" class="dot"></span><span id="status">Connecting to your account&hellip;</span></footer>
+<script src="/market/account/media/account.js?v=1"></script></body></html>

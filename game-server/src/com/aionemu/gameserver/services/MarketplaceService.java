@@ -89,6 +89,7 @@ public final class MarketplaceService {
 			catch (Exception e) { log.error("Could not start Season Pass", e); }
 			server.createContext("/market/pass", SeasonPassHttpService::handle);
 			server.createContext("/market/companions", PlayerBotHttpService::handle);
+			server.createContext("/market/account", AccountHttpService::handle);
 			// The optional starter skip is available only on this PC's loopback listener.
 			if (java.net.InetAddress.getByName(GSConfig.MARKETPLACE_BIND).isLoopbackAddress()) {
 				try { PoetaJourneyService.start(); }

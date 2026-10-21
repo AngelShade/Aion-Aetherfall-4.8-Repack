@@ -1,0 +1,44 @@
+/* Aion's original WebKit: absolute panes, floats and tables, ES5. Palette: docs/AETHERFALL_UI_STYLE.md */
+*{-webkit-box-sizing:border-box;box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden}
+body{background:#070d16;color:#dfe9f0;font:12px/1.5 Tahoma,Arial,sans-serif}button{cursor:pointer;font:inherit}
+header{position:absolute;left:0;top:0;right:0;height:46px;background:#0b131e;border-bottom:1px solid #8a6d3c;padding:0 24px;z-index:3}
+.brand{float:left;margin-top:11px;font:bold 17px Georgia,serif;letter-spacing:4px;color:#d6b878}.brand .mark{color:#8fe3ec;margin-right:8px}
+.title{float:left;margin:16px 0 0 16px;padding-left:16px;border-left:1px solid #2e4a61;font-size:10px;letter-spacing:3px;color:#f4e8c8}
+.who{float:right;margin:7px 16px 0 0;text-align:right;line-height:15px}.who span{display:block;color:#f4e8c8;font:15px Georgia,serif}.who b{font-weight:normal;color:#6f889a;font-size:10px;letter-spacing:1px}
+button.quiet{float:right;margin-top:10px;height:26px;padding:0 12px;color:#93abbc;background:#0e1b29;border:1px solid #2e4a61;border-top-color:#3d5c75}button.quiet:hover{color:#dfe9f0;border-color:#3a9fbe}
+.banner{position:absolute;left:0;right:0;top:46px;height:150px;overflow:hidden;background:#0c1927;border-bottom:1px solid #8a6d3c}
+.banner-art{position:absolute;left:0;top:-170px;width:100%;min-width:1100px}.banner-shade{position:absolute;left:0;top:0;right:0;bottom:0;background:rgba(5,12,21,.58)}
+.renown{position:absolute;left:28px;top:14px;width:440px;height:122px}.renown-crest{position:absolute;left:0;top:0;width:122px;height:122px}
+.renown-copy{position:absolute;left:134px;top:10px;right:0}.renown-copy small,.stat small{display:block;font-size:9px;letter-spacing:2px;color:#d6b878}
+.renown-copy strong{display:block;font:normal 40px/44px Georgia,serif;color:#f4e8c8}.renown-copy span{display:block;margin-top:4px;font-size:11px;color:#93abbc}
+.meter{height:8px;border:1px solid #3a9fbe;background:#0a1521;margin-top:4px}.meter i{display:block;height:100%;width:0;background:#3a9fbe;background:-webkit-gradient(linear,left top,left bottom,from(#8fe3ec),to(#3a9fbe))}
+.banner-stats{position:absolute;right:28px;top:38px}.stat{float:left;width:150px;height:70px;margin-left:12px;padding:12px 14px;background:rgba(10,21,33,.84);border:1px solid #2e4a61;border-top:1px solid #8a6d3c}
+.stat strong{display:block;margin-top:5px;font:normal 19px Georgia,serif;color:#f1dca8;white-space:nowrap;overflow:hidden}
+nav.sections{position:absolute;left:0;top:196px;bottom:28px;width:190px;background:#0a1521;border-right:1px solid #1f3447;padding-top:14px}
+nav.sections button{display:block;width:100%;height:42px;text-align:left;padding:0 18px;border:0;border-left:3px solid transparent;background:transparent;color:#93abbc;font-size:13px}
+nav.sections button:hover{color:#dfe9f0;background:#0e1b29}nav.sections button.active{color:#f4e8c8;background:#142538;border-left-color:#8fe3ec}
+nav.sections .glyph{color:#8fe3ec;margin-right:10px}nav.sections em{float:right;font-style:normal;color:#d6b878;font-size:11px}
+main{position:absolute;left:190px;right:0;top:196px;bottom:28px;overflow-y:auto;padding:0 28px 24px}.view.hidden{display:none}
+.heading{position:relative;padding:18px 0 12px 34px;border-bottom:1px solid #8a6d3c;margin-bottom:18px}.heading .ornament{position:absolute;left:4px;top:22px;color:#8fe3ec;font-size:18px}
+.heading h2{margin:0;font:normal 22px Georgia,serif;color:#f4e8c8}.heading p{margin:2px 0 0;color:#6f889a}
+.boon{position:relative;float:left;width:50%;padding:0 9px 18px}
+.boon-frame{position:relative;height:262px;padding:4px 6px;background:#0e1b29;background-clip:padding-box;border:solid transparent;border-width:26px 34px 22px;-webkit-border-image:url('/market/account/media/aether-frame.png') 83 61 54 61 stretch;border-image:url('/market/account/media/aether-frame.png') 83 61 54 61 stretch}
+.boon.locked .boon-frame{background:#0b1622}.boon-head{height:62px}
+.boon-icon{float:left;width:58px;height:58px;margin-right:14px;border:1px solid #8a6d3c;background:#070d16;padding:4px}.boon-icon img{width:48px;height:48px;display:block}
+.boon.locked .boon-icon{border-color:#2e4a61}.boon.locked .boon-icon img{opacity:.45}
+.boon-head h3{margin:3px 0 0;font:normal 19px Georgia,serif;color:#f1dca8}.boon.locked h3{color:#93abbc}
+.badge{display:inline-block;margin-top:4px;padding:0 8px;height:18px;line-height:17px;font-size:10px;letter-spacing:1px;border:1px solid #2e4a61;color:#6f889a}
+.boon.active .badge{border-color:#3a9fbe;color:#8fe3ec;background:#0a2230}.boon-time{float:right;margin-top:6px;font-size:11px;color:#d6b878}
+.effects{margin:8px 0 0;padding:0;list-style:none;height:80px;overflow:hidden}.effects li{padding-left:14px;position:relative;color:#dfe9f0;line-height:19px}
+.effects li:before{content:'\2726';position:absolute;left:0;top:0;color:#8fe3ec;font-size:9px}.boon.locked .effects li{color:#93abbc}
+.earn{position:absolute;left:6px;right:6px;bottom:4px}.earn small{display:block;font-size:10px;color:#6f889a;letter-spacing:1px}.earn .meter{margin:3px 0 2px}.earn span{font-size:11px;color:#93abbc}
+.boon.active .earn span{color:#8fd8b4}
+.chapters{clear:both;margin:0 9px 18px;padding:14px 18px 10px;background:#0e1b29;border:1px solid #1f3447;border-top:1px solid #8a6d3c}.chapters h4{margin:0 0 8px;font:normal 15px Georgia,serif;color:#f4e8c8}
+.chapter{float:left;width:20%;padding-right:8px;color:#6f889a;line-height:16px}.chapter b{display:block;font-weight:normal;font-size:16px;color:#2e4a61}.chapter.done{color:#dfe9f0}.chapter.done b{color:#8fd8b4}.clear{clear:both}
+table.roster{width:100%;border-collapse:collapse}.roster th{height:28px;text-align:left;font-weight:normal;font-size:10px;letter-spacing:2px;color:#6f889a;border-bottom:1px solid #8a6d3c}
+.roster td{height:32px;border-bottom:1px solid #1f3447;color:#93abbc}.roster td.name{color:#f4e8c8;font:14px Georgia,serif}.roster tr.online td.name{color:#8fe3ec}.roster td.num{color:#f1dca8}
+footer{position:absolute;left:0;right:0;bottom:0;height:28px;background:#0a1420;border-top:1px solid #344957;padding:6px 24px;font-size:10px;color:#7c9cb0}
+.dot{display:inline-block;width:6px;height:6px;margin-right:8px;background:#6f889a}.dot.ok{background:#8fd8b4}.dot.bad{background:#e8a08e}
+::-webkit-scrollbar{width:7px}::-webkit-scrollbar-track{background:#0c1927}::-webkit-scrollbar-thumb{background:#415b69;border:2px solid #0c1927}
+@media (max-width:1250px){.boon{width:100%}.stat{width:122px}}
+@media (max-width:950px){.banner-stats{display:none}}
