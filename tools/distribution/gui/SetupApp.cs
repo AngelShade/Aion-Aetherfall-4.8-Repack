@@ -68,6 +68,7 @@ namespace AetherfallSetup {
   OriginalInstallation original;
   ReleaseManifest manifest = new ReleaseManifest();
   DispatcherTimer timer;
+  Storyboard aether;
   readonly List<Ellipse> particles = new List<Ellipse>();
   readonly Random random = new Random(86);
   int ticks;
@@ -153,6 +154,13 @@ namespace AetherfallSetup {
    Btn("StopGsBtn").Click += async delegate { await RunServerControl("GameServer"); };
    Btn("StopLsBtn").Click += async delegate { await RunServerControl("LoginServer"); };
    Btn("StopChatBtn").Click += async delegate { await RunServerControl("ChatServer"); };
+   if(original!=null) {
+    Btn("OpenLogsBtn").Click += delegate { OpenFolder(System.IO.Path.Combine(original.ServerRoot,"game-server","log")); };
+    Btn("OpenConfigBtn").Click += delegate { OpenFolder(System.IO.Path.Combine(original.ServerRoot,"game-server","config")); };
+    Btn("OpenBackupsBtn").Click += delegate { OpenFolder(original.BackupsRoot); };
+    Btn("OpenClientBtn").Click += delegate { OpenFolder(original.ClientRoot); };
+    SwitchTab("Servers");
+   }
 
    window.Loaded += delegate { RefreshState(); };
    window.Closing += delegate(object sender, System.ComponentModel.CancelEventArgs e) {
@@ -167,11 +175,20 @@ namespace AetherfallSetup {
     CleanStaleLocksAndProcesses(null, false);
     if (timer != null) timer.Stop();
    };
-   AddParticles();
-   StartGlow();
+   // The original Hub stays on the owner's PC: its ambience is a few cached
+   // lights animated on the compositor, and the timer only polls ports.
+   string effects = original != null ? original.Effects : "classic";
+   if (effects == "classic") { AddParticles(); StartGlow(); }
+   else if (effects == "aether") StartAether();
    RefreshState();
-   timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
-   timer.Tick += async delegate { Animate(); if (++ticks % 60 == 1) await PollPorts(); };
+   if (effects == "classic") {
+    timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
+    timer.Tick += async delegate { Animate(); if (++ticks % 60 == 1) await PollPorts(); };
+   } else {
+    timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+    timer.Tick += async delegate { if (window.WindowState != WindowState.Minimized) await PollPorts(); };
+    window.Loaded += async delegate { await PollPorts(); };
+   }
    if (!preview) timer.Start();
   }
 
@@ -345,20 +362,17 @@ namespace AetherfallSetup {
    bool installed = IsInstalled();
    Text("InstallPathLabel").Text = pkg;
    if(original!=null) {
-    Text("ReleaseLabel").Text="  ORIGINAL INSTALLATION  ·  "+ver;
-    Text("InstallBadge").Text="Original server and client";
-    Find<Ellipse>("InstallDot").Fill=Brush("#9CDEC3");
+    // Single dashboard: status, server control, quick links and PLAY.
+    Text("ReleaseLabel").Text="  DEVELOPMENT HUB  ·  "+ver;
+    Text("StatusListLabel").Text="SERVER STATUS";
     Text("PrimaryLabel").Text="PLAY";
-    Text("LaunchCaption").Text="OPEN ORIGINAL AETHERFALL LAUNCHER";
-    Text("HeroHeadline").Text="Your original Aetherfall installation.";
-    Text("ArchiveSourceLabel").Text=original.ClientRoot;
-    ((TextBlock)Btn("HubTab").Content).Text="❖    ORIGINAL INSTALLATION";
-    foreach(string name in new[]{"PathsTab","UpdateNowBtn","SelectArchiveBtn","BrowseInstall","StopAllServerBtn"})Btn(name).Visibility=Visibility.Collapsed;
-    if(!busy && !preserveStatus) {
-     Text("StatusBanner").Text="AETHERFALL DEVELOPMENT HUB";
-     Text("StatusTitle").Text="Ready for Atreia.";
-     Text("StatusDetail").Text="Use Server Control to start the original database and servers, then PLAY to open your original client. Database shutdown remains in its own console.";
-    }
+    Text("LaunchCaption").Text="ORIGINAL CLIENT";
+    Text("ServersEyebrow").Text="ORIGINAL INSTALLATION";
+    Text("ServersTitle").Text="Dashboard";
+    foreach(string name in new[]{"HubTab","ServersTab","PathsTab","OpenInstallFolder","UpdateNowBtn","SelectArchiveBtn","BrowseInstall","StopAllServerBtn"})Btn(name).Visibility=Visibility.Collapsed;
+    foreach(string name in new[]{"HubPanel","ServersSubtitle","StatusBlock"})Find<FrameworkElement>(name).Visibility=Visibility.Collapsed;
+    ((FrameworkElement)Find<Ellipse>("InstallDot").Parent).Visibility=Visibility.Collapsed;
+    foreach(string name in new[]{"GameDotRow","ChatDotRow","QuickLinks"})Find<FrameworkElement>(name).Visibility=Visibility.Visible;
     return;
    }
    Text("ReleaseLabel").Text = "  REPACK HUB & AUTO-UPDATER  ·  " + ver;
@@ -1350,12 +1364,16 @@ namespace AetherfallSetup {
 
   async Task PollPorts() {
    if (closed) return;
-   bool dbUp = false, gsUp = false;
+   bool dbUp = false, gsUp = false, gameUp = false, chatUp = false;
    await Task.Run(() => {
     try {
      var listeners = IPGlobalProperties.GetIPGlobalProperties().GetActiveTcpListeners();
      dbUp = listeners.Any(p => p.Port == (original!=null?original.DatabasePort:33306));
      gsUp = listeners.Any(p => p.Port == (original!=null?original.LoginPort:2106));
+     if (original != null) {
+      gameUp = listeners.Any(p => p.Port == original.GamePort);
+      chatUp = listeners.Any(p => p.Port == original.ChatPort);
+     }
     } catch {}
    });
    if (closed) return;
@@ -1363,6 +1381,52 @@ namespace AetherfallSetup {
    Text("DbBadge").Text = dbUp ? "Database ready ("+(original!=null?original.DatabasePort:33306)+")" : "Database stopped";
    Find<Ellipse>("GsDot").Fill = Brush(gsUp ? "#9CDEC3" : "#7E8B9B");
    Text("GsBadge").Text = gsUp ? "LoginServer online ("+(original!=null?original.LoginPort:2106)+")" : "Servers stopped";
+   if (original != null) {
+    Text("GsBadge").Text = gsUp ? "LoginServer online (" + original.LoginPort + ")" : "LoginServer stopped";
+    Find<Ellipse>("GameDot").Fill = Brush(gameUp ? "#9CDEC3" : "#7E8B9B");
+    Text("GameBadge").Text = gameUp ? "GameServer online (" + original.GamePort + ")" : "GameServer stopped";
+    Find<Ellipse>("ChatDot").Fill = Brush(chatUp ? "#9CDEC3" : "#7E8B9B");
+    Text("ChatBadge").Text = chatUp ? "ChatServer online (" + original.ChatPort + ")" : "ChatServer stopped";
+   }
+  }
+
+  // Slow drifting blue/gold aether light, a periodic light beam and a soft PLAY
+  // halo. Targets are half-scale bitmap caches, so frames only move/fade
+  // textures; 12 fps keeps the layered window near 5% of one core (classic
+  // motes/pulse measured 16%) and the timeline pauses while minimized.
+  void StartAether() {
+   Find<Canvas>("Aether").Visibility = Visibility.Visible;
+   Find<Border>("PrimaryHalo").Visibility = Visibility.Visible;
+   Btn("PrimaryBtn").Effect = null;
+   aether = new Storyboard { RepeatBehavior = RepeatBehavior.Forever };
+   Timeline.SetDesiredFrameRate(aether, 12);
+   var ease = new SineEase { EasingMode = EasingMode.EaseInOut };
+   Action<string, string, double, double, double> drift = (target, property, from, to, seconds) => {
+    var a = new DoubleAnimation(from, to, TimeSpan.FromSeconds(seconds)) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever, EasingFunction = ease };
+    Storyboard.SetTargetName(a, target); Storyboard.SetTargetProperty(a, new PropertyPath(property));
+    aether.Children.Add(a);
+   };
+   const string X = "(UIElement.RenderTransform).(TranslateTransform.X)", Y = "(UIElement.RenderTransform).(TranslateTransform.Y)";
+   drift("AetherBlue", X, 0, -170, 23); drift("AetherBlue", Y, 0, 80, 17); drift("AetherBlue", "Opacity", .40, .75, 9);
+   drift("AetherGold", X, 0, -210, 21); drift("AetherGold", Y, 0, -100, 26); drift("AetherGold", "Opacity", .25, .60, 11);
+   drift("PrimaryHalo", "Opacity", .30, .90, 2.6);
+   var beamX = new DoubleAnimationUsingKeyFrames { Duration = TimeSpan.FromSeconds(16), RepeatBehavior = RepeatBehavior.Forever };
+   beamX.KeyFrames.Add(new LinearDoubleKeyFrame(-420, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+   beamX.KeyFrames.Add(new LinearDoubleKeyFrame(1380, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(10))));
+   beamX.KeyFrames.Add(new DiscreteDoubleKeyFrame(1380, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(16))));
+   Storyboard.SetTargetName(beamX, "AetherBeam");
+   Storyboard.SetTargetProperty(beamX, new PropertyPath("(UIElement.RenderTransform).(TransformGroup.Children)[1].(TranslateTransform.X)"));
+   aether.Children.Add(beamX);
+   var beamFade = new DoubleAnimationUsingKeyFrames { Duration = TimeSpan.FromSeconds(16), RepeatBehavior = RepeatBehavior.Forever };
+   foreach (double[] k in new[] { new[] { 0d, 0 }, new[] { 1.5, 1 }, new[] { 8.5, 1 }, new[] { 10d, 0 }, new[] { 16d, 0 } })
+    beamFade.KeyFrames.Add(new LinearDoubleKeyFrame(k[1], KeyTime.FromTimeSpan(TimeSpan.FromSeconds(k[0]))));
+   Storyboard.SetTargetName(beamFade, "AetherBeam"); Storyboard.SetTargetProperty(beamFade, new PropertyPath("Opacity"));
+   aether.Children.Add(beamFade);
+   if (preview) return;
+   aether.Begin(window, true);
+   window.StateChanged += delegate {
+    if (window.WindowState == WindowState.Minimized) aether.Pause(window); else aether.Resume(window);
+   };
   }
 
   void AddParticles() {

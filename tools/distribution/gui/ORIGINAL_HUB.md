@@ -11,6 +11,18 @@ The local profile names `ServerRoot` (containing the three component folders),
 `DatabasePort` and `LoginPort`. Paths can be absolute or relative to the Hub.
 It contains no database password. Keep this machine-specific profile outside Git.
 
+Optional profile fields: `GamePort` (7777), `ChatPort` (10241), `BackupsRoot`
+(Backups quick link; defaults to `game-server/backups`) and `Effects`:
+`aether` (default; cached drifting lights, beam and PLAY halo at 12 fps),
+`classic` (the repack's motes and pulsing glow) or `off` (static, 0% CPU).
+
+Original mode shows a single Dashboard: Database/Login/Game/Chat status,
+server start/stop, quick links (Logs, Config, Backups, Client) and PLAY. The
+repack install/update/archive controls, tabs and explanatory text are hidden.
+Ports are polled every 3 s, not while minimized. 21 October measurement (16 s
+idle window, % of one core): previous Hub 16.1% CPU / 13% GPU, aether 4.7% /
+6.5%, off 0%; private memory unchanged (~161 MB).
+
 PLAY opens the original client's existing launcher. Server Control starts the
 original database with its existing configuration, or starts the three existing
 `start.bat` scripts with the configured JDK. Existing matching server processes

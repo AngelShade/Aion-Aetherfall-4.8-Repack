@@ -10,7 +10,10 @@ namespace AetherfallSetup {
  // Explicit local profile: never reinterpret the source installation as a repack.
  public sealed class OriginalInstallation {
   public string ServerRoot, ClientRoot, JavaHome, ReleaseFile, DatabaseExecutable, DatabaseConfig;
-  public int DatabasePort=3306, LoginPort=2106;
+  public int DatabasePort=3306, LoginPort=2106, GamePort=7777, ChatPort=10241;
+  // Optional: BackupsRoot (quick link, defaults to game-server/backups) and
+  // Effects ("aether" light ambience, "classic" motes/pulse, "off").
+  public string BackupsRoot, Effects="aether";
   static string Resolve(string root,string value) {
    if(String.IsNullOrWhiteSpace(value))throw new InvalidOperationException("Original Hub profile has an empty path.");
    return Path.GetFullPath(Path.IsPathRooted(value)?value:Path.Combine(root,value));
@@ -23,7 +26,11 @@ namespace AetherfallSetup {
    profile.ServerRoot=Resolve(root,profile.ServerRoot);profile.ClientRoot=Resolve(root,profile.ClientRoot);
    profile.JavaHome=Resolve(root,profile.JavaHome);profile.ReleaseFile=Resolve(root,profile.ReleaseFile);
    profile.DatabaseExecutable=Resolve(root,profile.DatabaseExecutable);profile.DatabaseConfig=Resolve(root,profile.DatabaseConfig);
-   if(profile.DatabasePort<1 || profile.DatabasePort>65535 || profile.LoginPort<1 || profile.LoginPort>65535)
+   profile.BackupsRoot=String.IsNullOrWhiteSpace(profile.BackupsRoot)?Path.Combine(profile.ServerRoot,"game-server","backups"):Resolve(root,profile.BackupsRoot);
+   profile.Effects=String.IsNullOrWhiteSpace(profile.Effects)?"aether":profile.Effects.Trim().ToLowerInvariant();
+   if(profile.Effects!="aether" && profile.Effects!="classic" && profile.Effects!="off")
+    throw new InvalidOperationException("Original Hub profile Effects must be aether, classic or off.");
+   if(new[]{profile.DatabasePort,profile.LoginPort,profile.GamePort,profile.ChatPort}.Any(port=>port<1 || port>65535))
     throw new InvalidOperationException("Original Hub profile has an invalid port.");
    foreach(string component in new[]{"game-server","login-server","chat-server"}) {
     if(!File.Exists(Path.Combine(profile.ServerRoot,component,"start.bat")) || !Directory.Exists(Path.Combine(profile.ServerRoot,component,"libs")))

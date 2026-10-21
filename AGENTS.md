@@ -28,6 +28,10 @@
 - Every requested repack update includes updating `CHANGELOG.md` and delivering the
   matching changelog with the repack and prepared patch. Describe actual player-facing
   changes, preserve earlier entries and distinguish local preparation from publication.
+- Commit only what the project needs to build and work. Never commit sensitive or
+  personal data: credentials, passwords, tokens, account/character data, personal
+  machine paths, local profiles (e.g. `OriginalHub.json`), receipts, logs or notes
+  such as `project-notes/current-state.md`. Review the diff before every commit.
 - Do not message other chats or delegate work without user authorization. If another chat
   is editing the same source, preserve its changes and use an isolated build or wait for
   a stable handoff. Never overwrite a newer runtime with an older prepared package.

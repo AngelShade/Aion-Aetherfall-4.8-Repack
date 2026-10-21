@@ -52,6 +52,24 @@
    <Rectangle><Rectangle.Fill><LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#F60A0D1D" Offset="0"/><GradientStop Color="#EA0E1328" Offset="0.24"/><GradientStop Color="#B8121933" Offset="0.52"/><GradientStop Color="#220D1326" Offset="0.82"/></LinearGradientBrush></Rectangle.Fill></Rectangle>
    <Rectangle><Rectangle.Fill><LinearGradientBrush StartPoint="0,1" EndPoint="0,0"><GradientStop Color="#FF080B18" Offset="0"/><GradientStop Color="#F20B1022" Offset="0.22"/><GradientStop Color="#100B1022" Offset="0.68"/></LinearGradientBrush></Rectangle.Fill></Rectangle>
    <Canvas x:Name="Motes" IsHitTestVisible="False" ClipToBounds="True"/>
+   <!-- Original-installation ambience: cached soft lights animated only by transform/opacity. -->
+   <Canvas x:Name="Aether" Visibility="Collapsed" IsHitTestVisible="False" ClipToBounds="True">
+    <Ellipse x:Name="AetherBlue" Width="620" Height="460" Canvas.Left="430" Canvas.Top="40" Opacity="0.55">
+     <Ellipse.CacheMode><BitmapCache RenderAtScale="0.5"/></Ellipse.CacheMode>
+     <Ellipse.Fill><RadialGradientBrush><GradientStop Color="#995C8CF0" Offset="0"/><GradientStop Color="#335C8CF0" Offset="0.55"/><GradientStop Color="#005C8CF0" Offset="1"/></RadialGradientBrush></Ellipse.Fill>
+     <Ellipse.RenderTransform><TranslateTransform/></Ellipse.RenderTransform>
+    </Ellipse>
+    <Ellipse x:Name="AetherGold" Width="520" Height="380" Canvas.Left="640" Canvas.Top="300" Opacity="0.40">
+     <Ellipse.CacheMode><BitmapCache RenderAtScale="0.5"/></Ellipse.CacheMode>
+     <Ellipse.Fill><RadialGradientBrush><GradientStop Color="#88F0C878" Offset="0"/><GradientStop Color="#2AF0C878" Offset="0.55"/><GradientStop Color="#00F0C878" Offset="1"/></RadialGradientBrush></Ellipse.Fill>
+     <Ellipse.RenderTransform><TranslateTransform/></Ellipse.RenderTransform>
+    </Ellipse>
+    <Rectangle x:Name="AetherBeam" Width="240" Height="1100" Canvas.Left="0" Canvas.Top="-180" Opacity="0">
+     <Rectangle.CacheMode><BitmapCache RenderAtScale="0.5"/></Rectangle.CacheMode>
+     <Rectangle.Fill><LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#00BCD4FF" Offset="0"/><GradientStop Color="#50D8E6FF" Offset="0.5"/><GradientStop Color="#00BCD4FF" Offset="1"/></LinearGradientBrush></Rectangle.Fill>
+     <Rectangle.RenderTransform><TransformGroup><RotateTransform Angle="18"/><TranslateTransform/></TransformGroup></Rectangle.RenderTransform>
+    </Rectangle>
+   </Canvas>
   </Grid></Border>
   <Border x:Name="DragArea" Margin="60,32,146,0" Height="116" VerticalAlignment="Top" Background="Transparent"/>
   <StackPanel Margin="148,52,0,0" Width="355" HorizontalAlignment="Left" VerticalAlignment="Top" IsHitTestVisible="False">
@@ -73,10 +91,12 @@
    <Button x:Name="ServersTab" Style="{StaticResource Nav}"><TextBlock Text="⚡    SERVER CONTROL" FontSize="12"/></Button>
    <Button x:Name="PathsTab" Style="{StaticResource Nav}"><TextBlock Text="⚙    PATHS &amp; MIRRORS" FontSize="12"/></Button>
    <Border Height="1" Background="#497F829E" Margin="14,15,18,18"/>
-   <TextBlock Text="REPACK STATUS" Foreground="#C4C8DE" FontSize="10" Margin="14,0,0,10"/>
+   <TextBlock x:Name="StatusListLabel" Text="REPACK STATUS" Foreground="#C4C8DE" FontSize="10" Margin="14,0,0,10"/>
    <StackPanel Orientation="Horizontal" Margin="14,0,0,6"><Ellipse x:Name="InstallDot" Width="7" Height="7" Fill="#E0B580" Margin="0,0,8,0"/><TextBlock x:Name="InstallBadge" Text="Not installed yet" FontSize="12" Foreground="#F0E4CC"/></StackPanel>
    <StackPanel Orientation="Horizontal" Margin="14,0,0,6"><Ellipse x:Name="DbDot" Width="7" Height="7" Fill="#7E8B9B" Margin="0,0,8,0"/><TextBlock x:Name="DbBadge" Text="Database stopped" FontSize="11" Foreground="#B8C4D4"/></StackPanel>
    <StackPanel Orientation="Horizontal" Margin="14,0,0,0"><Ellipse x:Name="GsDot" Width="7" Height="7" Fill="#7E8B9B" Margin="0,0,8,0"/><TextBlock x:Name="GsBadge" Text="Servers stopped" FontSize="11" Foreground="#B8C4D4"/></StackPanel>
+   <StackPanel x:Name="GameDotRow" Orientation="Horizontal" Margin="14,6,0,0" Visibility="Collapsed"><Ellipse x:Name="GameDot" Width="7" Height="7" Fill="#7E8B9B" Margin="0,0,8,0"/><TextBlock x:Name="GameBadge" Text="GameServer stopped" FontSize="11" Foreground="#B8C4D4"/></StackPanel>
+   <StackPanel x:Name="ChatDotRow" Orientation="Horizontal" Margin="14,6,0,0" Visibility="Collapsed"><Ellipse x:Name="ChatDot" Width="7" Height="7" Fill="#7E8B9B" Margin="0,0,8,0"/><TextBlock x:Name="ChatBadge" Text="ChatServer stopped" FontSize="11" Foreground="#B8C4D4"/></StackPanel>
    <Button x:Name="OpenInstallFolder" Content="Open repack folder  ↗" Background="Transparent" BorderBrush="Transparent" FontSize="11" Foreground="#C5D2EC" Margin="0,14,0,0" Padding="8"/>
   </StackPanel>
 
@@ -122,9 +142,9 @@
     <Grid>
      <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
      <StackPanel Margin="0,0,0,14">
-      <TextBlock Text="YOUR LOCAL REPACK" Foreground="#E8CB91" FontSize="10"/>
-      <TextBlock Text="Server control" FontFamily="Palatino Linotype" FontSize="28" Margin="0,3,0,3"/>
-      <TextBlock Text="Start your repack and shut down each service safely." FontSize="12" Foreground="#D4DCE8"/>
+      <TextBlock x:Name="ServersEyebrow" Text="YOUR LOCAL REPACK" Foreground="#E8CB91" FontSize="10"/>
+      <TextBlock x:Name="ServersTitle" Text="Server control" FontFamily="Palatino Linotype" FontSize="28" Margin="0,3,0,3"/>
+      <TextBlock x:Name="ServersSubtitle" Text="Start your repack and shut down each service safely." FontSize="12" Foreground="#D4DCE8"/>
      </StackPanel>
      <Grid Grid.Row="1">
       <Grid.Resources>
@@ -192,7 +212,16 @@
 
   <Grid Margin="110,0,110,70" Height="126" VerticalAlignment="Bottom">
    <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="290"/></Grid.ColumnDefinitions>
-   <StackPanel Margin="0,6,35,0" VerticalAlignment="Top">
+   <StackPanel x:Name="QuickLinks" Margin="0,22,35,0" VerticalAlignment="Top" Visibility="Collapsed">
+    <TextBlock Text="QUICK LINKS" Foreground="#E4CA94" FontSize="11" FontWeight="SemiBold" Margin="0,0,0,10"/>
+    <StackPanel Orientation="Horizontal">
+     <Button x:Name="OpenLogsBtn" Content="Logs  ↗" Padding="16,8" Margin="0,0,10,0"/>
+     <Button x:Name="OpenConfigBtn" Content="Config  ↗" Padding="16,8" Margin="0,0,10,0"/>
+     <Button x:Name="OpenBackupsBtn" Content="Backups  ↗" Padding="16,8" Margin="0,0,10,0"/>
+     <Button x:Name="OpenClientBtn" Content="Client  ↗" Padding="16,8"/>
+    </StackPanel>
+   </StackPanel>
+   <StackPanel x:Name="StatusBlock" Margin="0,6,35,0" VerticalAlignment="Top">
     <Grid Margin="0,0,0,6">
      <StackPanel x:Name="StatusHeading" Orientation="Horizontal" HorizontalAlignment="Left"><TextBlock x:Name="StatusBanner" Text="AETHERFALL REPACK MANAGER" Foreground="#E4CA94" FontSize="11" FontWeight="SemiBold"/><TextBlock x:Name="StageCount" Text="" Foreground="#9CDEC3" FontSize="12" FontWeight="Bold" Margin="18,0,0,0"/></StackPanel>
      <TextBlock x:Name="ProgressPercentLabel" Text="" Foreground="#F6DFB0" FontSize="12" FontWeight="Bold" HorizontalAlignment="Right"/>
@@ -204,10 +233,16 @@
     </Border>
    </StackPanel>
    <StackPanel Grid.Column="1" Margin="0,4,0,0">
+    <Grid>
+    <Border x:Name="PrimaryHalo" Margin="-14" CornerRadius="14" Opacity="0" Visibility="Collapsed" IsHitTestVisible="False">
+     <Border.CacheMode><BitmapCache RenderAtScale="0.5"/></Border.CacheMode>
+     <Border.Background><RadialGradientBrush><GradientStop Color="#707BA7F7" Offset="0.35"/><GradientStop Color="#007BA7F7" Offset="1"/></RadialGradientBrush></Border.Background>
+    </Border>
     <Button x:Name="PrimaryBtn" Height="72" Padding="0" BorderBrush="#E6C98D" Background="#D522325A">
      <Button.Effect><DropShadowEffect x:Name="PrimaryGlow" Color="#7BA7F7" BlurRadius="24" ShadowDepth="0" Opacity="0.28"/></Button.Effect>
      <StackPanel Orientation="Horizontal"><TextBlock Text="◆" FontSize="15" VerticalAlignment="Center" Foreground="#E5C788" Margin="0,0,15,0"/><TextBlock x:Name="PrimaryLabel" Text="INSTALL" FontFamily="Palatino Linotype" FontSize="25"/><TextBlock Text="›" FontSize="27" VerticalAlignment="Center" Foreground="#E5C788" Margin="15,0,0,0"/></StackPanel>
     </Button>
+    </Grid>
     <TextBlock x:Name="LaunchCaption" Text="ONE-CLICK INSTALLER  ·  DELTA UPDATER" Foreground="#C4D3D9" FontSize="10" HorizontalAlignment="Center" Margin="0,13,0,0"/>
    </StackPanel>
   </Grid>
