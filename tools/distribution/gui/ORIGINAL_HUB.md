@@ -28,7 +28,10 @@ original database with its existing configuration, or starts the three existing
 `start.bat` scripts with the configured JDK. Existing matching server processes
 are retained. Consoles remain available for normal administration. Server stop
 buttons reuse the maintained graceful shutdown and finished-console cleanup;
-database shutdown stays in its own console. Installer/update controls are hidden
+Stop database refuses while GameServer, LoginServer or ChatServer still listen,
+then runs the maintained `Stop_Database.bat` (clean `mysqladmin shutdown`, using
+its Git-ignored local option file or an interactive prompt) in its own console;
+override with `DatabaseStopScript`. Installer/update controls are hidden
 in this mode, and the version is read from `ReleaseFile`.
 
 18 October 2026 delivery: executable and profile at `C:/Git/aion-server`.

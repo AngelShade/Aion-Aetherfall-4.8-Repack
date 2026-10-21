@@ -369,7 +369,7 @@ namespace AetherfallSetup {
     Text("LaunchCaption").Text="ORIGINAL CLIENT";
     Text("ServersEyebrow").Text="ORIGINAL INSTALLATION";
     Text("ServersTitle").Text="Dashboard";
-    foreach(string name in new[]{"HubTab","ServersTab","PathsTab","OpenInstallFolder","UpdateNowBtn","SelectArchiveBtn","BrowseInstall","StopAllServerBtn"})Btn(name).Visibility=Visibility.Collapsed;
+    foreach(string name in new[]{"HubTab","ServersTab","PathsTab","OpenInstallFolder","UpdateNowBtn","SelectArchiveBtn","BrowseInstall"})Btn(name).Visibility=Visibility.Collapsed;
     foreach(string name in new[]{"HubPanel","ServersSubtitle","StatusBlock"})Find<FrameworkElement>(name).Visibility=Visibility.Collapsed;
     ((FrameworkElement)Find<Ellipse>("InstallDot").Parent).Visibility=Visibility.Collapsed;
     foreach(string name in new[]{"GameDotRow","ChatDotRow","QuickLinks"})Find<FrameworkElement>(name).Visibility=Visibility.Visible;
@@ -1297,13 +1297,15 @@ namespace AetherfallSetup {
 
   async Task RunOriginalControl(string action) {
    serverControlBusy=true;
-   string[] controls={"StartAllServerBtn","StartDbOnlyBtn","StartGsOnlyBtn","StopGsBtn","StopLsBtn","StopChatBtn","PrimaryBtn"};
+   string[] controls={"StartAllServerBtn","StartDbOnlyBtn","StartGsOnlyBtn","StopGsBtn","StopLsBtn","StopChatBtn","StopAllServerBtn","PrimaryBtn"};
    foreach(string name in controls)Btn(name).IsEnabled=false;
    try {
     Text("ServerControlFeedback").Text="Running "+action+" for the original installation…";
     if(action=="GameServer" || action=="LoginServer" || action=="ChatServer") {
      Text("ServerControlFeedback").Text=await Task.Run(()=>ServerControl.StopOriginal(original.ServerRoot,original.JavaHome,action,
       line=>window.Dispatcher.BeginInvoke(new Action(()=>Text("ServerControlFeedback").Text=line))));
+    } else if(action=="StopDb") {
+     Text("ServerControlFeedback").Text=await original.StopDatabase();
     } else {
      if(action=="StartAll" || action=="StartDb")await original.StartDatabase();
      if(action=="StartAll" || action=="StartGs")await original.StartServers();

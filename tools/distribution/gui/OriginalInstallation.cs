@@ -14,6 +14,8 @@ namespace AetherfallSetup {
   // Optional: BackupsRoot (quick link, defaults to game-server/backups) and
   // Effects ("aether" light ambience, "classic" motes/pulse, "off").
   public string BackupsRoot, Effects="aether";
+  // Maintained clean shutdown (mysqladmin with its local, Git-ignored options).
+  public string DatabaseStopScript="Stop_Database.bat";
   static string Resolve(string root,string value) {
    if(String.IsNullOrWhiteSpace(value))throw new InvalidOperationException("Original Hub profile has an empty path.");
    return Path.GetFullPath(Path.IsPathRooted(value)?value:Path.Combine(root,value));
@@ -27,6 +29,7 @@ namespace AetherfallSetup {
    profile.JavaHome=Resolve(root,profile.JavaHome);profile.ReleaseFile=Resolve(root,profile.ReleaseFile);
    profile.DatabaseExecutable=Resolve(root,profile.DatabaseExecutable);profile.DatabaseConfig=Resolve(root,profile.DatabaseConfig);
    profile.BackupsRoot=String.IsNullOrWhiteSpace(profile.BackupsRoot)?Path.Combine(profile.ServerRoot,"game-server","backups"):Resolve(root,profile.BackupsRoot);
+   profile.DatabaseStopScript=Resolve(root,String.IsNullOrWhiteSpace(profile.DatabaseStopScript)?"Stop_Database.bat":profile.DatabaseStopScript);
    profile.Effects=String.IsNullOrWhiteSpace(profile.Effects)?"aether":profile.Effects.Trim().ToLowerInvariant();
    if(profile.Effects!="aether" && profile.Effects!="classic" && profile.Effects!="off")
     throw new InvalidOperationException("Original Hub profile Effects must be aether, classic or off.");
@@ -58,6 +61,19 @@ namespace AetherfallSetup {
     WorkingDirectory=Path.GetDirectoryName(DatabaseExecutable),UseShellExecute=true,WindowStyle=ProcessWindowStyle.Normal
    });
    await WaitForPort(DatabasePort,"MariaDB");
+  }
+  public async Task<string> StopDatabase() {
+   if(!Listening(DatabasePort))return "Original database is not running.";
+   foreach(var server in new[]{Tuple.Create("GameServer",GamePort),Tuple.Create("LoginServer",LoginPort),Tuple.Create("ChatServer",ChatPort)})
+    if(Listening(server.Item2))throw new InvalidOperationException("Stop "+server.Item1+" first; the database stops last.");
+   if(!File.Exists(DatabaseStopScript))throw new InvalidOperationException("Database stop script is missing: "+DatabaseStopScript);
+   // Own console: it may ask for the password when no local option file exists.
+   Process.Start(new ProcessStartInfo(DatabaseStopScript){WorkingDirectory=Path.GetDirectoryName(DatabaseStopScript),UseShellExecute=true});
+   for(int attempt=0;attempt<240;attempt++) {
+    await Task.Delay(500);
+    if(!Listening(DatabasePort))return "Original database stopped cleanly.";
+   }
+   return "Database shutdown is still in progress; check its console.";
   }
   public async Task StartServers() {
    if(!Listening(DatabasePort))throw new InvalidOperationException("Start the original database first.");
