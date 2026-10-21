@@ -20,6 +20,13 @@ See the [full changelog](CHANGELOG.md) for the initial `0.86` release and cumula
 
 The Windows repack brings the client, GameServer, LoginServer, ChatServer, Java 25 and MariaDB together in one portable folder. The server source, client modifications and distribution tools are maintained here on branch `4.8`.
 
+Local server installations (`target-deploy`), installation inventories, recovery receipts,
+and private property overrides are excluded from Git. Keep database passwords in the
+ignored `config/mygs.properties`, `config/myls.properties`, and `config/mycs.properties`
+files of each installation. The development database stop helper reads an optional
+ignored `.aion-dev/mariadb-admin.ini` with a MariaDB `[client]` section; otherwise it
+prompts for a password. Never commit that file, environment files, or private keys.
+
 ## What's included
 
 | Feature | What you get |

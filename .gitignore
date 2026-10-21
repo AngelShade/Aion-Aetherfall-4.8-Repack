@@ -59,3 +59,22 @@ AGENTS.md
 !/docs/PLAYERBOTS_FAST_CATCHUP_20261018.md
 !/docs/PLAYERBOTS_COMPANION_PURSUIT_20261018.md
 .claude/settings.json
+
+# Installed servers and machine-specific records stay local, including overrides.
+/target-deploy/
+/project-notes/current-state.md
+/project-notes/agent-history/
+/docs/INSTALLED_MODS.json
+/docs/INSTALLED_MODS.md
+
+# Local credentials, environment settings and private key containers.
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.pfx
+*.p12
+*.jks
+*.keystore
