@@ -1,11 +1,13 @@
 diff --git a/src/AionVersionDll/camera_fix.cpp b/src/AionVersionDll/camera_fix.cpp
-index 7253f61..4991860 100644
+index 7253f61..f44988a 100644
 --- a/src/AionVersionDll/camera_fix.cpp
 +++ b/src/AionVersionDll/camera_fix.cpp
-@@ -12,6 +12,29 @@ static DWORD fixCoordsExpirationTime = 0;
+@@ -11,6 +11,30 @@ static MSG hiddenMouseMoveMsg = { nullptr, WM_MOUSEMOVE };
+ static DWORD fixCoordsExpirationTime = 0;
  static POINT lastVisibleCursorPos = {};
  static POINT hiddenCursorPos = {};
- 
++static bool dragArmed = false;
++
 +// Aetherfall: [CameraFix] Mode in mods.ini next to version.dll.
 +// corrected (default) keeps first-move direction, upstream is the original
 +// behavior, off leaves the camera input untouched.
@@ -28,11 +30,39 @@ index 7253f61..4991860 100644
 +    if (_wcsicmp(mode, L"upstream") == 0) cameraFixMode = CameraFixMode::Upstream;
 +    else if (_wcsicmp(mode, L"off") == 0) cameraFixMode = CameraFixMode::Off;
 +}
-+
+ 
  
  static bool IsRightLeftOrMiddleMouseButtonDown();
- static decltype(SetCursor)* real_SetCursor = SetCursor;
-@@ -114,9 +137,12 @@ static void FixCoords(LPMSG lpMsg) {
+@@ -42,6 +66,11 @@ static decltype(SetCursorPos)* real_SetCursorPos = SetCursorPos;
+ static BOOL WINAPI zzSetCursorPos(_In_ int X, _In_ int Y) {
+     BOOL result = real_SetCursorPos(X, Y);
+     if (cursorHidden) {
++        if (dragArmed) {
++            // First re-centre of this drag: start the correction window here.
++            dragArmed = false;
++            fixCoordsExpirationTime = GetTickCount() + 200;
++        }
+         hiddenCursorPos.x = X;
+         hiddenCursorPos.y = Y;
+         if (hiddenMouseMoveMsg.pt.x != X || hiddenMouseMoveMsg.pt.y != Y) {
+@@ -72,6 +101,16 @@ static BOOL WINAPI zzPeekMessageA(_Out_ LPMSG lpMsg, _In_opt_ HWND hWnd, _In_ UI
+         return TRUE;
+     }
+     BOOL result = real_PeekMessageA(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg);
++    if (result && cursorHidden && cameraFixMode == CameraFixMode::Corrected && (wRemoveMsg & PM_REMOVE) &&
++        (lpMsg->message == WM_LBUTTONDOWN || lpMsg->message == WM_RBUTTONDOWN || lpMsg->message == WM_MBUTTONDOWN)) {
++        // Aetherfall: with the native UI cursor the system cursor stays hidden, so
++        // SetCursor never reports a new drag. Re-arm from the button press so the
++        // first re-centre drops queued moves and corrects the stale ones after it.
++        lastVisibleCursorPos = lpMsg->pt;
++        insertMessageCount = 0;
++        fixCoordsExpirationTime = 0;
++        dragArmed = true;
++    }
+     if (result && cursorHidden && lpMsg->message == WM_MOUSEMOVE) {
+         if (lpMsg->time < fixCoordsExpirationTime) {
+             FixCoords(lpMsg);
+@@ -114,9 +153,12 @@ static void FixCoords(LPMSG lpMsg) {
      }
      long cursorPosLParamX = GET_X_LPARAM(hiddenMouseMoveMsg.lParam);
      long cursorPosLParamY = GET_Y_LPARAM(hiddenMouseMoveMsg.lParam);
@@ -48,7 +78,7 @@ index 7253f61..4991860 100644
  }
  
  static bool IsWindowsVersionOrLater(int major, int minor, int build) {
-@@ -143,7 +169,12 @@ static bool IsWindows10FallCreatorsUpdateOrLater() {
+@@ -143,7 +185,12 @@ static bool IsWindows10FallCreatorsUpdateOrLater() {
  /// Fixes stuttering camera movement on Windows 10 and later
  void InstallOrUpdateCameraFix(HWND hWnd) {
      hiddenMouseMoveMsg.hwnd = hWnd;

@@ -13,9 +13,14 @@ and adds `[CameraFix] Mode` in `bin64/mods.ini`, read once at startup:
 
 | Mode | Behaviour |
 | --- | --- |
-| `corrected` (default) | first-drag moves keep their direction |
+| `corrected` (default) | first-drag moves keep their direction; re-arms on every mouse-button press |
 | `upstream` | original 1.5.1 behaviour |
 | `off` | camera fix hooks not installed (stock Windows input) |
+
+With the native UI cursor (DXVK cursor mode 1) Windows never shows the system
+cursor again, so upstream never re-arms after the first drag and a stale move
+from the click point leaks in after the game re-centres the cursor (a 600+ px
+snap). `corrected` re-arms from each button-down message instead.
 
 Only `camera_fix.cpp` changes; exports and all other fixes are unchanged.
 
