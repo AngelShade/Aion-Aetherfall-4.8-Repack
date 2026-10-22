@@ -2,12 +2,9 @@
 
 The requested destination is a full Playerbots-style companion system, with owned offline characters first, both generated recruitment models, and PvE first. This document distinguishes implemented server behavior from the substantial work still required for full parity. The current implementation is **not yet a complete replacement for AzerothCore Playerbots**.
 
-Start further iterations with [full port scope and iteration focus](PLAYERBOTS_PORT_SCOPE.md).
-The focused tracker covers already attempted ports; independent world bots,
-native party invitation/control and player/bot trading remain additional gaps.
-The bounded upstream inventory/dependency pass is complete. PB-PORT-004 strategy
-composition is installed; the next independent class slice is PB-PORT-005B
-Spiritmaster. See the current tracker rather than older receipt next-work notes.
+The sections below describe native behavior, configuration and dated repairs.
+Each repair records its own verification boundary; full Playerbots parity and
+current gameplay acceptance remain separate from those historical checks.
 
 ## Current follow/summon repair — installed offline 8 October 2026
 

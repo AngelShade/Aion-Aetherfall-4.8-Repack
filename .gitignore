@@ -145,6 +145,8 @@ AGENTS.md
 /client-mods/playerbots/audit_*.py
 /docs/*_20??????.md
 /docs/PLAYERBOTS_CURRENT_STATUS.md
+/docs/PLAYERBOTS_PORT_SCOPE.md
+/docs/PLAYERBOTS_SUBSYSTEM_INVENTORY.md
 /client-mods/diagnostics/install_kromede_repair.py
 /client-mods/diagnostics/stage_base_camps.py
 /client-mods/diagnostics/stage_kromede_repair.py

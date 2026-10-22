@@ -15,13 +15,10 @@ subset plus a complete repository tree index, not a complete source checkout.
 Missing source/dependencies must be retrieved at the pin before their behavior
 is implemented. The source manifests retain independent SHA-256/Git blob IDs.
 
-The authoritative current feature and delivery status is
-[the subsystem matrix](../../docs/PLAYERBOTS_SUBSYSTEM_INVENTORY.md).
-The whole-project review is [the audit](../../docs/PLAYERBOTS_PORT_AUDIT_20261010.md).
-Seven bounded class slices, native independent population, SQL persistence,
-requested private/shared storage and mail are present; full class, quest,
+Implementation and configuration are described in
+[Aion player companions](../../docs/PLAYERBOTS.md). Full class, quest,
 professions, autonomous economy/social/matching and encounter parity remain
-partial or absent as listed there. Older tables below record mapping history.
+incomplete. The tables below record the adaptation scope.
 
 `scope-references/manifest.json` records unchanged upstream source hashes and
 Git blob identities separately from original `SHA256SUMS`. Attribution and GPL
