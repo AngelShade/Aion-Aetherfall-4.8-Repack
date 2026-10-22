@@ -12,103 +12,107 @@
   <a href="https://discord.com/invite/cpRYCRsSnR"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
-**Aion 4.8 NA server source, client modifications, and portable repack tools — featuring party companions, shared quest progress, world playerbots, dungeon repairs and custom client systems.**
+**Play Aion 4.8 NA with party companions, shared quests and a world of independent playerbots.**
 
 Aetherfall lets you build a party from your own alternate characters or temporary companions. Take them through quests and dungeons, manage their equipment and combat behavior, and keep your alts caught up with your main. Independent playerbots also quest, fight and visit towns around the world.
 
-**Published repack: [0.94](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.94), released 22 October 2026.** It includes Account Fame, native Account and Player Companions windows, the Aetherfall Interface, launcher Mods controls and the current downloader.
+**Latest release: [0.94](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.94), released 22 October 2026.** It adds Account Fame, new Account and Player Companions windows, more interface options and launcher controls for mods.
 
-The `4.8` branch also contains newer companion combat, faction PvP, rift travel and client repairs. See the [full changelog](CHANGELOG.md) for published releases through `0.94` and the separate development updates. A source commit does not update a repack installation or publish a new release.
+The repack includes the game client, servers, Java and MariaDB in one Windows folder. Use the [downloader](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/latest/download/Aetherfall-Downloader.zip) to install it, then follow the steps below.
 
-The Windows repack brings the client, GameServer, LoginServer, ChatServer, Java 25 and MariaDB together in one portable folder. The server source, client modifications and distribution tools are maintained here on branch `4.8`.
-
-Local server installations (`target-deploy`), installation inventories, recovery receipts,
-and private property overrides are excluded from Git. Keep database passwords in the
-ignored `config/mygs.properties`, `config/myls.properties`, and `config/mycs.properties`
-files of each installation. The development database stop helper reads an optional
-ignored `.aion-dev/mariadb-admin.ini` with a MariaDB `[client]` section; otherwise it
-prompts for a password. Never commit that file, environment files, or private keys.
+This repository also contains the `4.8` source code. Some newer changes are still in development; the [changelog](CHANGELOG.md) separates them from released updates.
 
 ## What's included
 
-This overview covers the current `4.8` source. For the exact contents of a downloaded repack, check its [release notes](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases).
+Features available in the published repack:
 
 | Feature | What you get |
 | --- | --- |
-| Party companions | Bring your own alts or recruit temporary companions. Use the movable, resizable Player Companions window to manage equipment, combat roles, Stigma builds and party orders. |
-| Shared quest completion | With **Party completion sync** enabled, your owned alts in the party catch up on quests your main has completed and receive future completions too, with the quest rewards. |
-| World playerbots | Independent characters that quest, fight, gather, craft and use town services, with saved identities and progress, configurable faction balance and player-area population. Empty-map activity is configurable; rift activity can keep the opposing homeland awake. |
-| Faction PvP & rifts | Configurable fights with enemy players, bots and pets under native combat rules. Independent bots can travel through real open rifts; companions defend their party and assist attacks while respecting Passive orders. |
-| Account Fame | Combat, Life and Legend progress, tiered Boons, Chronicle goals and daily Kinah stipends, with account characters shown in the Account window. |
-| Dungeon and campaign repairs | Work on Theobomos Lab and Adma Stronghold includes quest chains, scripted encounters, boss behavior, loot and dungeon exits. |
+| Party companions | Recruit your own alts or temporary companions. Manage their gear, roles, skills, Stigma builds and party orders in the Player Companions window. |
+| Shared quests | Let your owned alts catch up on completed quests and share new completions, including rewards. |
+| World playerbots | Independent characters quest, fight, gather, craft and visit towns. Their characters and progress are saved. |
+| Account Fame | Build Combat, Life and Legend progress across your account. Earn bonuses, complete Chronicle goals and collect daily Kinah. |
+| Dungeon and campaign repairs | Quest, boss, loot and exit fixes, including work on Theobomos Lab and Adma Stronghold. |
 | Repeat dungeon entry | Entry limits are disabled by default. Level, quest, party and instance requirements still apply. |
-| Central Market & Cash Shop | Buy and sell items through the in-game player marketplace with 3,000 simulated traders, plus the integrated in-game Cash Shop. |
+| Central Market & Cash Shop | Buy and sell through the player market, with simulated traders, or browse the in-game Cash Shop. |
 | Wardrobe | Customize your character's appearance through the in-game Wardrobe. |
 | Season Pass | An in-game progression and reward interface. |
-| Starting-area Journey | Poeta and Ishalgen journey options (Level 1 story or Level 10 Daeva Ascension skip) for both main characters and companions. |
+| Starting-area Journey | Begin the story at level 1 or skip to level 10 Daeva Ascension in Poeta or Ishalgen. Available for your main character and companions. |
 | Inventory and warehouse | Expanded 288-slot storage with search controls for finding your items. |
-| Aetherfall Interface | Switchable HUD profiles, action-bar layouts and a MoveUI editor with movable windows, snapping, screen guides, Save/Lock and Cancel. |
-| Multiclient & custom launcher | Graphical launcher with Mods and theme controls, DXVK (Vulkan) / D3D9 switcher, seamless startup curtain, and concurrent multi-client support across separate accounts. |
-| Setup & Server Control Hub | Native `Aetherfall Setup.exe` / `Aetherfall Hub.exe` with resumable MEGA + Google Drive + BitTorrent downloads, 1-click delta updates, combined or staged server startup, and graceful per-service (`GameServer`, `LoginServer`, `ChatServer`, `Database`) shutdown. |
-| Optional HD world textures | Standard textures remain the default. Hub's **Mods & tools** provides optional 2x HD world textures and an HD/standard switch. |
-| Client improvements | Speech bubbles, remembered login, extra graphics controls, native menu shortcuts and Aetherfall login artwork and news. |
+| Aetherfall Interface | Move and resize windows, change action-bar layouts and save different HUD profiles. |
+| Custom launcher | Choose graphics modes, themes and mods. Run multiple clients using separate accounts. |
+| Setup & Server Control Hub | Download, install and update the repack. Start and stop the servers from one window. |
+| Optional HD world textures | Use **Mods & tools** in the Hub to download the optional 2x HD pack or switch back to standard textures. |
+| Client improvements | Speech bubbles, remembered login, extra graphics options, menu shortcuts and Aetherfall artwork. |
 
-The extra services are available through **Additional Functions** in the client. Companion controls are also available through the playerbot interface.
-
-### Recent development on `4.8`
-
-- Companion Pull, Kill and crowd-control orders, safer tank threat skills, and class-specific priorities for Ranger, Gunner, Songweaver and Aethertech.
-- Configurable faction PvP, faction-correct world-bot placement and physical rift travel with saved rest periods.
-- Better companion spacing on stairs and slopes, separate world-bot party formations, blocked-route learning and bot-owned spirit following.
-- Camera-drag and interface-timer repairs, correct quest-limit dialog handling, and reduced Central Market and web-window contention.
-
-These are development updates recorded after the published `0.94` package. Builds and focused offline checks have passed; gameplay acceptance remains ongoing. See the [development changelog](CHANGELOG.md#development-updates--companions-pvp-and-client-repairs-22-october-2026) for details and validation limits.
+Open **Additional Functions** in the game to find the extra services and companion controls.
 
 ### How quest sharing works
 
-Put your owned alts in your party and enable **Party completion sync**. They catch up on your main's completed quests, then share new completions while they remain in the party. Catch-up is processed gradually rather than paying every past quest at once.
+Put your owned alts in your party and enable **Party completion sync**. They gradually catch up on quests your main has finished, then share new completions while grouped.
 
-Rewards use the quest's normal reward system: XP, Kinah, items and other rewards where the quest provides them. Item choices account for the companion's class. Rejoining the party does not pay the same completion again, and repeatable quests retain their completion limits. Unrelated players and independent world bots do not inherit your quest history.
+Alts receive the quest's usual rewards, with item choices suited to their class. Rejoining does not award the same completion twice, and repeatable quests keep their normal limits. Quest sharing applies to your owned alts, not other players or independent world bots.
 
 ## Download
 
-The full playable base repack (**Release 0.86** — `36.35 GiB` packed / `197,739` files) is a separate download from this repository's source code. Install it with the current downloader, then use **Update Repack** to apply the latest cumulative patch. Existing installations can update directly from `0.86` or any later release; intermediate patches are not required. A complete package contains `Client`, `Server`, `Control` and the launchers described below.
+**Recommended:** download the current Setup below. It installs the full game and lets you apply the latest update. You can pause the download and resume later. If MEGA is unavailable, Setup can try Google Drive.
 
-The published `0.94` patch is about **639 MB** and the current downloader ZIP is about **8.65 MB**. Patch sizes vary as client assets and features change. Downloading this repository's source ZIP does not provide the playable client or an installed server.
+The full game archive is **36.35 GiB** (about 39 GB). The downloader is about **8.65 MB**, and the `0.94` update is about **639 MB**. The base download is still named `0.86`; use **Update Repack** after installing it to get the latest version. You do not need to install each earlier update.
+
+GitHub's **Code → Download ZIP** downloads source code only. Use one of these options to get the playable repack:
 
 | Download Option | Link | Details |
 | --- | --- | --- |
-| **1. Aetherfall Setup & Auto-Updater (Recommended)** | [**Download the current `Aetherfall-Downloader.zip`**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/latest/download/Aetherfall-Downloader.zip) | Current Setup with MEGA + Google Drive fallback and resume, SHA-256 verification, extraction/download tools and cumulative updates. The compatible base archive remains `0.86`. |
-| **2. MEGA Direct Mirror** | [**Download `Aetherfall-0.86.7z` (MEGA)**](https://mega.nz/file/hJt0hYTC#fr0RDjsLl4CriZ5dw8MljBhrlP6nD4oYkaErD2iW-vQ) | `36.35 GiB` single base archive (`SHA-256: 7b5599837887a49d2b2bebb2ef73f4a9435b42b9686da62aec6354f9954af885`). |
-| **3. Google Drive Direct Mirror** | [**Download `Aetherfall-0.86.7z` (Google Drive)**](https://drive.google.com/file/d/1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2/view?usp=sharing) | `36.35 GiB` single base archive (`SHA-256: 7b5599837887a49d2b2bebb2ef73f4a9435b42b9686da62aec6354f9954af885`). |
-| **4. BitTorrent P2P** | [**Download `Aetherfall-0.86.torrent`**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.86/Aetherfall-0.86.torrent) | BitTorrent Swarm (`infoHash: ac60eed8cc0438ebd3e8f237fa3cf27700ce740f`). |
-| **5. GitHub Releases & Cumulative Patches** | [**View Releases (`v0.86` – `v0.94`)**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases) | Base release assets, cumulative patches (`Aetherfall-Patch-0.94.zip`), current Setup/downloader and checksums. |
+| **Setup (recommended)** | [**Download `Aetherfall-Downloader.zip`**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/latest/download/Aetherfall-Downloader.zip) | Download, install and update from one app. |
+| **MEGA** | [**Download `Aetherfall-0.86.7z`**](https://mega.nz/file/hJt0hYTC#fr0RDjsLl4CriZ5dw8MljBhrlP6nD4oYkaErD2iW-vQ) | Full game archive for manual download. |
+| **Google Drive** | [**Download `Aetherfall-0.86.7z`**](https://drive.google.com/file/d/1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2/view?usp=sharing) | Another download location for the same archive. |
+| **BitTorrent** | [**Download `Aetherfall-0.86.torrent`**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.86/Aetherfall-0.86.torrent) | Download through a torrent client; requires available seeders. |
+| **Releases & updates** | [**View releases**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases) | Update files, Setup downloads and release notes. |
 | **Community Discord** | [**Join the Aetherfall Discord**](https://discord.com/invite/cpRYCRsSnR) | Updates, support, playerbot tips and bug reports. |
 
-## Start the repack
+<details>
+<summary>Archive checksums for manual downloads</summary>
 
-You need 64-bit Windows, a suitable graphics driver and the complete repack folder. Java and MariaDB are bundled; no database Windows service is required. GameServer memory is configurable; leave additional memory available for the client, database and Windows.
+Both mirrors provide the same `Aetherfall-0.86.7z` archive.
 
-### Option A: Using `Aetherfall Setup.exe` / `Aetherfall Hub.exe` (All-in-One Control Hub)
+- SHA-256: `7b5599837887a49d2b2bebb2ef73f4a9435b42b9686da62aec6354f9954af885`
+- Torrent info hash: `ac60eed8cc0438ebd3e8f237fa3cf27700ce740f`
+
+</details>
+
+## Install and play
+
+You need 64-bit Windows, a suitable graphics driver and enough disk space for both the downloaded archive and the extracted game. Java and MariaDB are included. Leave enough memory for the game, servers and Windows to run together.
 
 1. Extract **`Aetherfall-Downloader.zip`** to a folder of your choice and run **`Aetherfall Setup.exe`**.
-2. Click **Download & Install** (if you pause or close the window midway, reopening `Aetherfall Setup.exe` and clicking **Resume** continues from the exact chunk where it stopped). Use **Update Repack** on the **Install & Update** tab to apply the latest cumulative patch. For an older downloader, click **Update Repack** before starting or resuming the base download to update Setup first. Keep its existing settings and Downloads folder to retain saved progress.
-3. Open the **Server Control** tab to start and stop services safely:
-   - **Start**: Click **Start database & servers** to launch MariaDB and all three server consoles in order (or use **Database only** / **Servers only** individually).
-   - **Play**: Once GameServer finishes loading, click **PLAY** to open the **Aetherfall Launcher**.
-   - **Stop**: Use **Stop GameServer**, **Stop LoginServer** and **Stop ChatServer** for graceful `CTRL+C` shutdowns with automatic console confirmation, then click **Stop database** last.
+2. Choose an installation folder and click **Download & Install**. Reopen Setup and choose **Resume** if the download is interrupted. If you already downloaded the archive, choose **Use Local .7z…** instead.
+3. On **Install & Update**, click **Update Repack** to install the latest update.
+4. Open **Server Control** and click **Start database & servers**. Wait for GameServer to finish loading.
+5. Click **PLAY** to open the launcher. Enter a new account name and password in the game to create your first account.
+6. When finished, close the game. Use **Stop GameServer**, **Stop LoginServer** and **Stop ChatServer**, then **Stop database** last.
 
-### Option B: Using the numbered `.cmd` scripts inside the repack folder
+Keep `Client`, `Server` and `Control` together. Close the game and servers before moving the repack folder.
+
+<details>
+<summary>Alternative: use the numbered start and stop scripts</summary>
 
 1. Extract the whole package. Keep `Client`, `Server` and `Control` together.
-2. Run **`1 - Start Database.cmd`**. On first launch it creates the database and imports the schemas. Wait for **Database ready**.
+2. Run **`1 - Start Database.cmd`**. The first run sets up the database. Wait for **Database ready**.
 3. Run **`2 - Start Servers.cmd`**. Wait for GameServer startup to finish.
 4. Run **`3 - Start Client.cmd`**. Enter a new account name and password; LoginServer creates a normal player account on first login.
 5. When finished, close the game and all three server components normally, then run **`4 - Stop Database.cmd`**.
 
-The package uses its own database directory at `Server/database/data`, with loopback port `33306`. It starts with no accounts, characters or gameplay history from the development server. Package database credentials are in `Server/database/credentials.json`.
+</details>
 
-Move the entire repack folder only while its components are closed. Use its own client launcher so the graphics and recovery paths follow the folder.
+## Update your repack
+
+1. Close the game and stop GameServer, LoginServer and ChatServer. Leave the database running.
+2. Open Setup's **Install & Update** tab and click **Update Repack**.
+3. Wait for the update to finish, then start the servers again.
+
+Updates keep your accounts, characters, progress and local connection settings. You can update directly from `0.86` or any later version.
+
+If an old Setup cannot update itself, download the current downloader ZIP. Keep your existing settings and Downloads folder to retain saved download progress.
 
 ## Settings
 
@@ -116,40 +120,34 @@ Inside the repack, server settings are under `Server/game-server/config`:
 
 | File | Purpose |
 | --- | --- |
-| `playerbots/playerbots.properties` | Population, companion and bot budget settings. |
+| `playerbots/playerbots.properties` | Bot numbers and companion settings. |
 | `playerbots/features.properties` | Quest automation, crafting, gathering, flight and world activity switches. |
-| `playerbots/pvp.properties` | Faction fights, pursuit limits, rift trips and world-bot faction placement in current source builds. |
-| `playerbots/navigation.properties` | Navigation work budgets, mesh memory, route caches and blocked-route learning. |
+| `playerbots/navigation.properties` | Bot pathfinding and its memory and processing limits. |
 | `main/instance.properties` | Instance entry limits and other dungeon settings. |
-| `mygs.properties` | Owner overrides, which take precedence over the other GameServer property files. |
+| `mygs.properties` | Your own settings, which override the other GameServer settings. |
 
 Restart GameServer after changing these settings. Disabling bot automation does not erase saved characters, items or quest progress.
 
-The bundled connection settings are for local play. Hosting for other computers also requires configuring the server addresses, client connection and in-game service URLs.
+The repack is set up to play on the same computer as the server. Playing from other computers requires changes to the server and client connection settings.
 
-### Updating an existing repack
+## In development
 
-Close the client and all three game servers normally. Keep the repack database running, open Setup's **Install & Update** tab and choose **Update Repack**. Start the servers again after the update finishes. Use the current downloader ZIP if an old Setup cannot update itself, keeping the existing settings and Downloads folder for saved progress.
+The `4.8` source has newer work on faction PvP, rift trips, class combat skills, companion movement and spirit following. It also includes camera, quest-dialog and performance fixes.
 
-Patches are cumulative and preserve the repack's database contents and local connection settings. They do not run arbitrary SQL migrations; the source-build schema notes below apply when bringing an older database to the newer server source yourself.
+These changes are not all included in the published `0.94` download. Some still need testing in the game. See the [development changelog](CHANGELOG.md#development-updates--companions-pvp-and-client-repairs-22-october-2026) for details.
 
-### Building for an older database
+## Help and bug reports
 
-The October 17 upstream merge changes server dependencies and the GameServer database schema. Keep the GameServer, LoginServer, ChatServer and their packaged libraries from the same build together. A JAR-only replacement over the older release is not sufficient.
+Join the [Aetherfall Discord](https://discord.com/invite/cpRYCRsSnR) for support. When reporting a problem, include your repack version, where it happened, what you did and what you expected. Quest names, NPC names, screenshots and relevant log lines help.
 
-For an existing Aetherfall 076 database, back it up and stop the servers normally before applying the following schema changes to the GameServer database. Fresh databases created from the updated `game-server/sql/aion_gs.sql` already contain them:
+Development is ongoing. Some routes, quests and encounters still need work.
 
-```sql
-ALTER TABLE players ADD COLUMN pvp_exp bigint NOT NULL DEFAULT '0' AFTER reposte_energy;
-ALTER TABLE player_recipes ADD COLUMN production_limit tinyint NOT NULL DEFAULT '0' AFTER recipe_id;
-ALTER TABLE player_appearance
-  RENAME COLUMN jaw_height TO chin_height,
-  RENAME COLUMN chin_jut TO cheek_bones;
-```
+## For developers
 
-These changes retain existing rows. Apply them once, only if the database still has the older schema. The general upstream `update.sql` also contains older changes that may already be installed; do not rerun it indiscriminately. Merging this repository does not update an installed repack or run database commands.
+You only need this section if you want to build or change the server yourself. The ready-to-play download is linked above.
 
-## Build the `4.8` source
+<details>
+<summary>Build the 4.8 source on Windows</summary>
 
 | Directory | Contents |
 | --- | --- |
@@ -162,7 +160,7 @@ These changes retain existing rows. Apply them once, only if the database still 
 | `docs` | Public feature notes and configuration guidance. |
 | `third-party/playerbots` | Pinned Playerbots references and license notices. |
 
-To build the server components on Windows, install **JDK 25**, **Maven**, **Python 3** and **Git**, with their commands available on your PATH. From PowerShell:
+Install **JDK 25**, **Maven**, **Python 3** and **Git**, with their commands available on your PATH. From PowerShell:
 
 ```powershell
 git clone --branch 4.8 --single-branch https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack.git
@@ -171,19 +169,47 @@ $env:AION_DEV_ROOT = Join-Path $env:USERPROFILE 'Aetherfall-build'
 powershell -NoProfile -File .\tools\build-components.ps1 -Modules 'game-server,login-server,chat-server' -Online
 ```
 
-This builds all three server components and their required shared module, then writes complete packages and dependencies under the external build folder. It does not start the servers or replace an installation. Maven tests are skipped by default. Client modifications have their own instructions under `client-mods`.
+This builds all three servers and the shared code. Packages, resources and libraries go into the separate `Aetherfall-build` folder. It does not start servers or change an installation. Maven tests are skipped by default. Client modifications have their own instructions under `client-mods`.
 
 The builder uses `AION_DEV_ROOT` when set, then the local, Git-ignored
 `.aion-dev/workspace-root.txt` setting, and otherwise `Aetherfall-build` under your
 user folder. An explicit `-OutputRoot` must be inside that external workspace.
 
-The source checkout does not include an installed client, a populated database or local server installations. Keep generated builds, logs, backups, database contents, private configuration and owner workflow records outside version control. See [Playerbots](docs/PLAYERBOTS.md), [saved bot parties](docs/PLAYERBOTS_SAVED_PARTIES.md) and [class strategies](docs/PLAYERBOTS_CLASS_STRATEGIES.md) for public gameplay and configuration details.
+Current source builds also provide `playerbots/pvp.properties` for faction fights, pursuit limits and rift trips.
 
-## Reporting a problem
+See [Playerbots](docs/PLAYERBOTS.md), [saved bot parties](docs/PLAYERBOTS_SAVED_PARTIES.md) and [class strategies](docs/PLAYERBOTS_CLASS_STRATEGIES.md) for gameplay and configuration details.
 
-Include the repack release, what you were doing, where it happened and what you expected. For quest or dungeon problems, include the quest name, NPC or boss, and the step that failed. Attach the relevant server log lines and a screenshot when useful.
+</details>
 
-Development is ongoing. Some movement routes, quests and encounters still need work; the included repairs do not mean every dungeon or route is finished.
+<details>
+<summary>Using an older database with a source build</summary>
+
+The 17 October upstream merge changed the server libraries and GameServer schema. Use GameServer, LoginServer, ChatServer and their libraries from the same build. Replacing only the GameServer JAR is not enough.
+
+For an older Aetherfall 076 database, back it up and stop the servers before applying these changes to the GameServer database. Apply each change only if it is missing. Fresh databases created from the updated `game-server/sql/aion_gs.sql` already have them.
+
+```sql
+ALTER TABLE players ADD COLUMN pvp_exp bigint NOT NULL DEFAULT '0' AFTER reposte_energy;
+ALTER TABLE player_recipes ADD COLUMN production_limit tinyint NOT NULL DEFAULT '0' AFTER recipe_id;
+ALTER TABLE player_appearance
+  RENAME COLUMN jaw_height TO chin_height,
+  RENAME COLUMN chin_jut TO cheek_bones;
+```
+
+These changes keep existing rows. The general upstream `update.sql` also contains older changes that may already be installed, so do not run the whole file without checking. Setup patches do not run arbitrary SQL migrations.
+
+</details>
+
+<details>
+<summary>Local files and private settings</summary>
+
+The source checkout does not include an installed client, saved player data or local server installations. Keep builds, logs, backups, database contents and private settings out of Git.
+
+Local installations (`target-deploy`), inventories and recovery records are ignored. Store database passwords in each installation's ignored `config/mygs.properties`, `config/myls.properties` or `config/mycs.properties` file. The development database stop helper reads an optional ignored `.aion-dev/mariadb-admin.ini` with a MariaDB `[client]` section, or prompts for a password. Never commit credentials, environment files or private keys.
+
+The repack stores its own database in `Server/database/data` and uses local port `33306`. Its database connection details are in `Server/database/credentials.json`. New repacks start without development accounts, characters or gameplay history.
+
+</details>
 
 ## Credits and license
 
