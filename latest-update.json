@@ -1,15 +1,15 @@
 {
   "schema": 1,
   "product": "Aion Aetherfall Repack",
-  "version": "0.93.2",
-  "patchFile": "Aetherfall-Patch-0.93.2.zip",
-  "patchBytes": 704066954,
-  "patchSha256": "53867d435c0260318e8111b531f97cbaedc6219e510bf32adb501d7b6b07e182",
-  "patchUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.93.2/Aetherfall-Patch-0.93.2.zip",
-  "filesChanged": 240,
-  "filesRemoved": 0,
-  "setupExeUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.93.2/Aetherfall-Setup.exe",
-  "setupExeBytes": 5580800,
-  "setupExeSha256": "4e247f86b8c06578a9be77033323aec96aa0606c87ef141c8935ff652486f664",
-  "setupVersion": "0.90.1021.1"
+  "version": "0.94",
+  "patchFile": "Aetherfall-Patch-0.94.zip",
+  "patchBytes": 639344793,
+  "patchSha256": "f787f540c4a94276bcd9853fd549fa00d64078448d04cc9676433789affd3713",
+  "patchUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.94/Aetherfall-Patch-0.94.zip",
+  "filesChanged": 566,
+  "filesRemoved": 286,
+  "setupExeUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.94/Aetherfall-Setup.exe",
+  "setupExeBytes": 5605888,
+  "setupExeSha256": "e6eea116adc5f990859bbc904973cfdbade299f5048b7242941e210817786949",
+  "setupVersion": "0.90.1022.1"
 }
