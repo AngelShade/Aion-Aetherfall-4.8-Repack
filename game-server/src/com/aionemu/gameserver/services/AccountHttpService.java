@@ -33,6 +33,8 @@ public final class AccountHttpService {
 			}
 			if (path.equals("/market/account") || path.matches("/market/account/media/account\\.(css|js)")) {
 				String file = path.equals("/market/account") ? "account.html" : path.substring(path.lastIndexOf('/') + 1);
+				if (!file.endsWith(".html")) // versioned by ?v= in account.html
+					x.getResponseHeaders().set("Cache-Control", "public, max-age=86400");
 				send(x, 200, file.endsWith(".html") ? "text/html" : file.endsWith(".css") ? "text/css" : "application/javascript",
 					Files.readString(MEDIA.resolve(file)));
 				return;
@@ -48,6 +50,8 @@ public final class AccountHttpService {
 					return;
 				}
 				byte[] bytes = Files.readAllBytes(image);
+				// Art changes only with a server update; let the browser keep it instead of re-downloading on every open.
+				x.getResponseHeaders().set("Cache-Control", "public, max-age=86400");
 				x.getResponseHeaders().set("Content-Type", "image/png");
 				x.sendResponseHeaders(200, bytes.length);
 				x.getResponseBody().write(bytes);
@@ -64,6 +68,12 @@ public final class AccountHttpService {
 				return;
 			}
 			send(x, 200, "application/json", Json.write(AetherfallBoonService.view(p)));
+		} catch (FileSystemException e) {
+			log.error("Account window media is missing", e);
+			send(x, 503, "application/json", "{\"error\":\"Account is unavailable. Refresh to try again.\"}");
+		} catch (IOException e) {
+			// The window was closed or refreshed while a response was still being sent: the browser dropped the connection.
+			log.debug("Account window client disconnected: {}", e.getMessage());
 		} catch (Exception e) {
 			log.error("Account window request failed", e);
 			send(x, 503, "application/json", "{\"error\":\"Account is unavailable. Refresh to try again.\"}");
