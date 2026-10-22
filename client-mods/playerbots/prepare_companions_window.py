@@ -88,7 +88,7 @@ function PrivateCompanions_Open()
 end
 '''
 # Second revision: the page follows the window's pixel size (UI scale included) and the window keeps a minimum size.
-NEW_OPEN = f'''-- false: open Companions in the old fullscreen Market dialog instead of its own window.
+REVISION2 = f'''-- false: open Companions in the old fullscreen Market dialog instead of its own window.
 PRIVATE_COMPANIONS_WINDOWED = true;
 -- Smallest window the page lays out in (UI units).
 PRIVATE_COMPANIONS_MIN_W, PRIVATE_COMPANIONS_MIN_H = 760, 520;
@@ -161,6 +161,88 @@ function PrivateCompanions_Open()
     PrivateCompanions_Fit(true);
 end
 '''
+# Third revision: as the second, with every widget call made as RelicCalc (the shared timer runs other addons' handlers
+# too, and widget lookups use g_AddonName) and the fitted size read back from the window so a resize cannot repeat.
+NEW_OPEN = f'''-- false: open Companions in the old fullscreen Market dialog instead of its own window.
+PRIVATE_COMPANIONS_WINDOWED = true;
+-- Smallest window the page lays out in (UI units).
+PRIVATE_COMPANIONS_MIN_W, PRIVATE_COMPANIONS_MIN_H = 760, 520;
+PrivateCompanionsSize = {{}};
+
+function PrivateCompanions_OnLoad()
+    PrivateCompanionsBrowser:CreateWebView();
+    PrivateCompanions:Hide();
+    PrivateCompanions:RegisterEvent("ADDON_TIMER");
+end
+
+-- A web page is drawn at the pixel size its view was created with, which ignores the UI scale and later resizes.
+-- Size the browser to the window's client area (never below the minimum) and create its view again whenever
+-- that pixel size differs from the view's, then load the page.
+function PrivateCompanions_Fit(load)
+    g_AddonName = "RelicCalc";
+    local S = PrivateCompanionsSize;
+    local x, y, w, h = PrivateCompanions:GetRect();
+    local s = (GetUIScale and GetUIScale()) or 1;
+    if not w or not h or s <= 0 then
+        -- Not measurable yet: show the page now; the timer fits it once the window has a size.
+        S.view = "?";
+        if load then PrivateCompanionsBrowser:LoadUrlWithWebAuth(PRIVATE_PLAYERBOTS_URL); end
+        return;
+    end
+    local uw, uh = math.max(w / s, PRIVATE_COMPANIONS_MIN_W), math.max(h / s, PRIVATE_COMPANIONS_MIN_H);
+    if uw > w / s + 0.5 or uh > h / s + 0.5 then
+        PrivateCompanions:SetRect(x / s, y / s, uw, uh);
+        local _, _, fw, fh = PrivateCompanions:GetRect();
+        if fw and fh then w, h = fw, fh; end
+    end
+    local size = string.format("%.0fx%.0f", w, h);
+    S.pending = nil;
+    if size ~= S.view then
+        S.view = size;
+        PrivateCompanionsBrowser:SetRect(0, 0, uw, uh - {TITLE});
+        PrivateCompanionsBrowser:DestroyWebView();
+        PrivateCompanionsBrowser:CreateWebView();
+        load = true;
+    end
+    if load then PrivateCompanionsBrowser:LoadUrlWithWebAuth(PRIVATE_PLAYERBOTS_URL); end
+end
+
+function PrivateCompanions_OnEvent(event)
+    -- After the player resizes the window and stops for half a second, fit the page to it again.
+    local S = PrivateCompanionsSize;
+    if event ~= "ADDON_TIMER" or not S.view then return; end
+    g_AddonName = "RelicCalc";
+    if PrivateCompanions:IsVisible() ~= 1 then return; end
+    local _, _, w, h = PrivateCompanions:GetRect();
+    local size = string.format("%.0fx%.0f", w, h);
+    if size == S.view then S.pending = nil; return; end
+    if S.pending ~= size then S.pending = size; S.ticks = 0; return; end
+    S.ticks = S.ticks + 1;
+    if S.ticks >= 10 then PrivateCompanions_Fit(false); end
+end
+
+function PrivateCompanions_Open()
+    if not PRIVATE_COMPANIONS_WINDOWED then
+        PrivateWarehouse:Show();
+        PrivateWarehouse:SetText("Player Companions");
+        PrivateWarehouse:SetRect(0, 0, 1280, 960);
+        PrivateWarehouseBrowser:LoadUrlWithWebAuth(PRIVATE_PLAYERBOTS_URL);
+        return;
+    end
+    -- A normal movable, resizable window. Centre it once per session; later opens keep the player's spot and size.
+    g_AddonName = "RelicCalc";
+    PrivateCompanions:Show();
+    if not PrivateCompanionsSize.placed then
+        PrivateCompanionsSize.placed = true;
+        local ok, _, sw, sh = pcall(function() if AFCore and AFCore.Scale then return AFCore.Scale() end end);
+        local s = (GetUIScale and GetUIScale()) or 1;
+        if ok and sw and sh and sw > 0 and sh > 0 and s > 0 then
+            PrivateCompanions:SetRect(math.max(0, math.floor((sw / s - {WIDTH}) / 2)), math.max(0, math.floor((sh / s - {HEIGHT}) / 2)), {WIDTH}, {HEIGHT});
+        end
+    end
+    PrivateCompanions_Fit(true);
+end
+'''
 
 
 def sha(data):
@@ -175,7 +257,7 @@ def menus(data):
     if NEW_OPEN in text:
         return data
     # Fresh client: the fullscreen opener; installed first revision: the window that did not follow the UI scale.
-    old = REVISION1 if REVISION1 in text else OLD_OPEN
+    old = REVISION2 if REVISION2 in text else REVISION1 if REVISION1 in text else OLD_OPEN
     if text.count(old) != 1:
         raise ValueError('Unexpected installed PrivateCompanions_Open')
     out = text.replace(old, NEW_OPEN).replace('\n', newline).encode('utf-8')
@@ -248,7 +330,7 @@ def main():
             records.append(dict(path=rel, original=sha(old.read_bytes()) if old.exists() else None, staged=sha(path.read_bytes())))
     sources = [Path(__file__).resolve(), Path(account_window.__file__).resolve(), HERE / 'PlayerBotBar.lua', HERE / 'PlayerBotBar.xml',
                HERE / 'playerbot_bar.h', HERE.parent / 'native-icon-bridge/icon_bridge.cpp', HERE.parent / 'native-icon-bridge/prepare_ui_art.py']
-    manifest = dict(feature='companions-window', revision='fitted-window', clientRoot=str(client), files=records, graphicsCompatibility=None,
+    manifest = dict(feature='companions-window', revision='fitted-window-3', clientRoot=str(client), files=records, graphicsCompatibility=None,
                     serverChanged=False, repackChanged=False, pluginDialogs='+1 (PrivateCompanions)',
                     sourceHashes={str(p): sha(p.read_bytes()) for p in sources},
                     preservedFiles=[dict(path=rel, sha256=sha((client / rel).read_bytes())) for rel in
