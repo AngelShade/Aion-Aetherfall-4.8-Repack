@@ -75,20 +75,43 @@ public class NpcMoveController extends CreatureMoveController<Npc> {
 	}
 
 	/**
+	 * Despawned NPCs can't move. Scheduled callers (AI, events, custom tasks) may still hold a reference after the NPC left the world, so every move
+	 * entry point refuses to start for them instead of leaving the controller flagged as moving.
+	 */
+	private boolean beginMove() {
+		return owner.isSpawned() && started.compareAndSet(false, true);
+	}
+
+	/**
+	 * Registers the started move, unless the NPC despawned concurrently. In that case its despawn already aborted movement, so the started flag is
+	 * cleared here to keep a reused (respawned) NPC able to move again.
+	 */
+	private boolean notifyStartMove() {
+		if (owner.isSpawned())
+			owner.getController().onStartMove();
+		if (owner.isSpawned())
+			return true;
+		resetMove();
+		return false;
+	}
+
+	/**
 	 * Move to current target
 	 */
 	public void moveToTargetObject() {
-		if (started.compareAndSet(false, true)) {
+		if (beginMove()) {
 			if (owner.getAi().isLogging()) {
 				AILogger.moveinfo(owner, "MC: moveToTarget started");
 			}
 			destination = Destination.TARGET_OBJECT;
 			updateLastMove();
-			owner.getController().onStartMove();
+			notifyStartMove();
 		}
 	}
 
 	public boolean moveToPoint(float x, float y, float z) {
+		if (!owner.isSpawned())
+			return false;
 		boolean startedMoving = started.compareAndSet(false, true);
 		if (!startedMoving && destination != Destination.POINT)
 			return false;
@@ -101,12 +124,12 @@ public class NpcMoveController extends CreatureMoveController<Npc> {
 		pointZ = z;
 		updateLastMove();
 		if (startedMoving)
-			owner.getController().onStartMove();
+			return notifyStartMove();
 		return true;
 	}
 
 	public void forcedMoveToPoint(float x, float y, float z) {
-		if (started.compareAndSet(false, true)) {
+		if (beginMove()) {
 			if (owner.getAi().isLogging()) {
 				AILogger.moveinfo(owner, "MC: forcedMoveToPoint started");
 			}
@@ -115,18 +138,18 @@ public class NpcMoveController extends CreatureMoveController<Npc> {
 			pointY = y;
 			pointZ = z;
 			updateLastMove();
-			owner.getController().onStartMove();
+			notifyStartMove();
 		}
 	}
 
 	public void moveToNextPoint() {
-		if (started.compareAndSet(false, true)) {
+		if (beginMove()) {
 			if (owner.getAi().isLogging()) {
 				AILogger.moveinfo(owner, "MC: moveToNextPoint started");
 			}
 			destination = Destination.POINT;
 			updateLastMove();
-			owner.getController().onStartMove();
+			notifyStartMove();
 		}
 	}
 

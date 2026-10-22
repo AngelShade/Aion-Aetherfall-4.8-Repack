@@ -84,8 +84,11 @@ public abstract class Base<T extends BaseLocation> {
 
 	private void despawnNpcs(SpawnHandlerType type) {
 		World.getInstance().getWorldMap(getLocation().getTemplate().getWorldId()).forEachObject(o -> {
-			if (isSpawnForCurrentBase(o.getSpawn(), type))
+			if (isSpawnForCurrentBase(o.getSpawn(), type)) {
+				if (o instanceof Npc npc)
+					com.aionemu.gameserver.services.base.LegacyCampBattle.endAssault(npc);
 				o.getController().deleteIfAliveOrCancelRespawn();
+			}
 		});
 		RespawnService.cancelRespawns(spawnTemplate -> isSpawnForCurrentBase(spawnTemplate, type));
 	}
@@ -154,8 +157,10 @@ public abstract class Base<T extends BaseLocation> {
 	}
 
 	private void despawnAssaulter() {
-		for (Npc npc : assaulter)
+		for (Npc npc : assaulter) {
+			com.aionemu.gameserver.services.base.LegacyCampBattle.endAssault(npc);
 			npc.getController().deleteIfAliveOrCancelRespawn();
+		}
 		assaulter.clear();
 	}
 

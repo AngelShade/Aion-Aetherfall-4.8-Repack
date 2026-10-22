@@ -50,6 +50,8 @@ public class SiegeWeaponMoveController extends SummonMoveController {
 
 	@Override
 	public void moveToTargetObject() {
+		if (!owner.isSpawned())
+			return;
 		updateLastMove();
 		MoveTaskManager.getInstance().addCreature(owner);
 	}

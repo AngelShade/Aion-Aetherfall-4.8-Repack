@@ -102,6 +102,22 @@ do not establish acceptance of every camp or the unfinished full Playerbots scop
 Future incremental agents must use a fresh revision above **32** and preserve
 the loaded helper methods if subsequently modified.
 
+## Follow-up repair (22 October 2026)
+
+- Raid steps now chain. Native walking only finishes route or random steps, so an
+  arrived raid step stayed flagged as moving and each raider stalled after its first
+  four-metre step until combat reset it. `LegacyCampBattle.advance` now closes an
+  arrived step and submits the next one without a stop broadcast.
+- Assault ticks are tracked per attacker. `Base` stops them before deleting assault
+  NPCs (assault despawn, capture or base stop), and each tick rechecks spawn/death
+  right before moving. This removes the `MoveTaskManager` "despawned objects cannot
+  move" warning for camp raiders.
+- `NpcMoveController` (and siege weapon target movement) refuse to start moving a
+  despawned NPC and clear the started flag if a despawn races the start, so any
+  scheduled caller holding a stale NPC can't leave it flagged as moving.
+
+Live raid progression to the captain still needs in-game acceptance.
+
 ## Reusable tools
 
 - `tools/base-camps/research.py`: read matching client NPC/tribe data and world overlaps.
