@@ -6,6 +6,8 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 from setup_version import setup_version
+from repack_recovery import validate_recovery_payload
+from optional_textures import validate_core, OBSOLETE_TOOLS
 
 
 def sha256_file(path: Path) -> str:
@@ -25,11 +27,15 @@ def build_patch(package: Path, baseline_index_path: Path, output_dir: Path, patc
     version = release['Version']
     baseline = json.loads(baseline_index_path.read_text(encoding='utf-8-sig'))
     current = json.loads((package / 'FILES.json').read_text(encoding='utf-8-sig'))
+    validate_core(package, current['files'])
 
     base_map = {e['path'].casefold(): e for e in baseline['files']}
     curr_map = {e['path'].casefold(): e for e in current['files']}
 
     changed = []
+    validate_recovery_payload(package, [entry for key, entry in curr_map.items()
+                                     if key not in base_map or any(base_map[key][field] != entry[field]
+                                                                 for field in ('sha256', 'bytes'))])
     for key, entry in sorted(curr_map.items()):
         rel = entry['path']
         old = base_map.get(key)
@@ -52,6 +58,19 @@ def build_patch(package: Path, baseline_index_path: Path, output_dir: Path, patc
     for key, old in sorted(base_map.items()):
         if key not in curr_map:
             removed.append({'path': old['path'], 'sha256': old['sha256']})
+    # Older cumulative patches may have added development backups after 0.86.
+    # Retire those explicitly too, so updating any earlier release removes them.
+    retired = json.loads((package / 'REPACK.json').read_text(encoding='utf-8-sig')).get('retiredFiles', [])
+    removed_map = {entry['path'].casefold(): entry for entry in removed}
+    for entry in retired:
+        relative = entry['path'].replace('\\', '/')
+        if ('..' in Path(relative).parts or
+                (not relative.casefold().startswith('client/mods/backups/') and relative not in OBSOLETE_TOOLS)):
+            raise ValueError('Invalid retired package file: ' + relative)
+        if relative.casefold() in curr_map:
+            raise ValueError('Retired backup is still packaged: ' + relative)
+        removed_map[relative.casefold()] = {'path': relative, 'sha256': entry['sha256']}
+    removed = [removed_map[key] for key in sorted(removed_map)]
 
     output_dir.mkdir(parents=True, exist_ok=True)
     patch_name = f'Aetherfall-Patch-{version}.zip'

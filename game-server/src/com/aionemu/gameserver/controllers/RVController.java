@@ -172,6 +172,27 @@ public class RVController extends NpcController {
 		return true;
 	}
 
+	/** AI uses the same ordinary-rift admission and entry accounting as a client acceptance. */
+	public synchronized boolean canPlayerBotEnter(Player player) {
+		return player.isWorldBot() && isMaster && !isVortex && slave!=null && slave.isSpawned()
+			&& player.getOppositeRace()==riftTemplate.getDestination() && usedEntries<maxEntries
+			&& player.getWorldId()==getOwner().getWorldId() && player.getInstanceId()==getOwner().getInstanceId()
+			&& player.getLevel()>=minLevel && player.getLevel()<=maxLevel && isAccepting && getOwner().isSpawned();
+	}
+
+	public synchronized boolean enterPlayerBot(Player player) {
+		if (!canPlayerBotEnter(player) || player.isDead() || player.getController().isInCombat()
+			|| !player.canPerformMove() || player.isCasting() || player.isTrading()
+			|| !player.getKnownList().sees(getOwner()) || !player.canSee(getOwner())
+			|| !com.aionemu.gameserver.utils.PositionUtil.isInRange(player,getOwner(),5)
+			|| !com.aionemu.gameserver.world.geo.GeoService.getInstance().canSee(player,getOwner()) || !onAccept(player)) return false;
+		TeleportService.teleportTo(player,slaveSpawnTemplate.getWorldId(),slaveSpawnTemplate.getX(),slaveSpawnTemplate.getY(),slaveSpawnTemplate.getZ());
+		if (!player.isSpawned() || player.getWorldId()!=slaveSpawnTemplate.getWorldId()
+			|| com.aionemu.gameserver.utils.PositionUtil.getDistance(player,slaveSpawnTemplate.getX(),slaveSpawnTemplate.getY(),slaveSpawnTemplate.getZ())>5) return false;
+		syncPassed(false);
+		return true;
+	}
+
 	@Override
 	public void onDespawn() {
 		RiftInformer.sendRiftDespawn(getOwner().getWorldId(), getOwner().getObjectId());

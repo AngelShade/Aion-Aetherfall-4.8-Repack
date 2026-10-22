@@ -20,8 +20,8 @@
   </Style>
   <Style x:Key="Nav" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
    <Setter Property="Background" Value="Transparent"/><Setter Property="BorderBrush" Value="Transparent"/>
-   <Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="Margin" Value="0,0,0,9"/>
-   <Setter Property="Padding" Value="14,13"/>
+   <Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="Margin" Value="0,0,0,5"/>
+   <Setter Property="Padding" Value="14,10"/>
   </Style>
   <Style TargetType="RadioButton">
    <Setter Property="Foreground" Value="#F2EBDD"/><Setter Property="FontSize" Value="13"/><Setter Property="Margin" Value="0,0,22,0"/><Setter Property="Cursor" Value="Hand"/>
@@ -89,6 +89,7 @@
   <StackPanel Margin="60,214,0,0" Width="186" HorizontalAlignment="Left" VerticalAlignment="Top">
    <Button x:Name="HubTab" Style="{StaticResource Nav}" Background="#B8252C4E" BorderBrush="#749B8E6E"><TextBlock Text="❖    INSTALL &amp; UPDATE" FontSize="12"/></Button>
    <Button x:Name="ServersTab" Style="{StaticResource Nav}"><TextBlock Text="⚡    SERVER CONTROL" FontSize="12"/></Button>
+   <Button x:Name="ModsTab" Style="{StaticResource Nav}"><TextBlock Text="✦    MODS &amp; TOOLS" FontSize="12"/></Button>
    <Button x:Name="PathsTab" Style="{StaticResource Nav}"><TextBlock Text="⚙    PATHS &amp; MIRRORS" FontSize="12"/></Button>
    <Border Height="1" Background="#497F829E" Margin="14,15,18,18"/>
    <TextBlock x:Name="StatusListLabel" Text="REPACK STATUS" Foreground="#C4C8DE" FontSize="10" Margin="14,0,0,10"/>
@@ -186,6 +187,40 @@
      <Border Grid.Row="2" Background="#7A101729" CornerRadius="3" Padding="10,7" Margin="0,12,0,0" VerticalAlignment="Bottom">
       <TextBlock x:Name="ServerControlFeedback" Text="Ready. Server shutdown waits for saving to finish; the database stays running." FontSize="11" Foreground="#EAD29E" TextWrapping="Wrap" MaxHeight="31" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
      </Border>
+    </Grid>
+   </Border>
+
+   <Border x:Name="ModsPanel" Visibility="Collapsed" Background="#EB0C1022" BorderBrush="#788E836B" BorderThickness="1" Padding="22,18" CornerRadius="6">
+    <Grid>
+     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+     <TextBlock Text="Mods &amp; account tools" FontFamily="Palatino Linotype" FontSize="25" Foreground="#F4E8C8" Margin="0,0,0,12"/>
+     <Grid Grid.Row="1">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="1.18*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+      <Border Background="#AA0E1B29" BorderBrush="#2E4A61" BorderThickness="1" Padding="12" CornerRadius="4">
+       <StackPanel>
+        <TextBlock Text="World textures" FontFamily="Palatino Linotype" FontSize="19" Foreground="#F4E8C8"/>
+        <TextBlock x:Name="HdStatus" Text="Install the repack to manage textures." Foreground="#8FE3EC" FontSize="12" Margin="0,3,0,0" TextTrimming="CharacterEllipsis"/>
+        <TextBlock Text="Download the optional HD pack, then select its ZIP here." Foreground="#B8C4D4" FontSize="12" TextWrapping="Wrap" Margin="0,7,0,0"/>
+        <CheckBox x:Name="HdToggle" Content="Use HD world textures" Foreground="#DFE9F0" FontSize="13" Margin="0,9,0,0" ToolTip="Turn off to restore standard textures. Close Aion before switching."/>
+        <TextBlock x:Name="HdPackInfo" Foreground="#93ABBC" FontSize="11" Margin="0,7,0,0" TextTrimming="CharacterEllipsis"/>
+        <Grid Margin="0,10,0,0">
+         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+         <Button x:Name="HdDownloadBtn" Content="Download HD pack" Padding="8,7" FontSize="12" ToolTip="Open the public HD texture download page."/>
+         <Button x:Name="HdInstallBtn" Grid.Column="2" Content="Install ZIP…" Padding="8,7" FontSize="12"/>
+        </Grid>
+       </StackPanel>
+      </Border>
+      <Border Grid.Column="2" Background="#AA0E1B29" BorderBrush="#2E4A61" BorderThickness="1" Padding="12" CornerRadius="4">
+       <StackPanel>
+        <TextBlock Text="Make Admin" FontFamily="Palatino Linotype" FontSize="19" Foreground="#F4E8C8"/>
+        <TextBlock Text="Grant Admin access to an existing account. Start the database and log the account out first." Foreground="#B8C4D4" FontSize="12" TextWrapping="Wrap" Margin="0,7,0,0"/>
+        <TextBlock Text="ACCOUNT LOGIN NAME" Foreground="#93ABBC" FontSize="10" Margin="0,10,0,5"/>
+        <TextBox x:Name="AdminAccountBox" Height="29" MaxLength="64" Background="#070D16" Foreground="#DFE9F0" BorderBrush="#2E4A61" Padding="7,4" FontSize="12" ToolTip="Enter the account login name, not a character name."/>
+        <Button x:Name="MakeAdminBtn" Content="Make Admin" Padding="8,7" FontSize="12" Margin="0,10,0,0" Background="#263B5E" BorderBrush="#D6B878"/>
+       </StackPanel>
+      </Border>
+     </Grid>
+     <TextBlock x:Name="ModsFeedback" Grid.Row="2" Text="Changes apply only to the selected repack." Foreground="#EAD29E" FontSize="11" Margin="0,10,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
     </Grid>
    </Border>
 

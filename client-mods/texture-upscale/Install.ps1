@@ -32,6 +32,9 @@ if ($Restore) {
     if ($PackageId -notmatch '^[a-f0-9]{16}$') { throw 'Pass -PackageId of the batch to restore (newest first).' }
     $statePath = State-Path $PackageId
     $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+    if ($state.rollbackAvailable -eq $false) {
+        throw 'These textures are included in the repack baseline. Per-batch rollback is unavailable. Use the backup created when an update is applied to recover that update.'
+    }
     if ($state.restored) { 'Texture upscale already restored.'; return }
     Assert-ClientClosed
     foreach ($entry in $state.files) {

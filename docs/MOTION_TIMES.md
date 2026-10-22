@@ -1,5 +1,5 @@
 The repair replaces the previous `untimed_motion` exclusions with real records
-from the installed Aion 4.8 NA client. The original missing-data WARN remains.
+from the installed Aion 4.8 NA client.
 
 54 of the 59 reported motion names now have 2,153 recovered timing rows. Every
 row includes its exact animation-marker document and animation name in `source`.
@@ -31,18 +31,17 @@ The validator now respects the existing `instant_skill` flag. Zadra's
 requiring hit-marker timings for it was a validator error. No skill templates
 were changed or removed.
 
-Four genuine gaps remain visible as WARN:
+Four former gaps were resolved on 21 October 2026 by removing their unused test skill
+templates (16959, 16960, 16975, 16978 and 20766) from `skill_templates.xml`:
 
-- `normalfiremo` (16959), `pointfirerh` (16960), and `areafireod` (16975): old giant
-  test skills in `client_skills.xml`; no matching marker, CAF file, or CAL binding
-  exists in the installed 4.8 client. The giant CAL files were checked in
-  `Objects/monster/Mesh_Meshes_004.pak`. No substitute animation was guessed.
-- `open` (20766): an old test skill. The only matching marker is the unrelated
-  `Test_Under_03_Energy.xml/nopen_001`, with no corresponding client NPC mesh
-  mapping. It cannot supply a trustworthy duration for this skill's actor.
+- `normalfiremo`, `pointfirerh` and `areafireod`: old giant test skills (`Test_GB_*`); no
+  matching marker, CAF file or CAL binding exists in the installed 4.8 client, including
+  `Objects/monster/Mesh_Meshes_004.pak`. 16978 shares `areafireod`.
+- `open` (20766): old test skill `TestSkill_PowerATK_Poison_Snare`; the only matching marker
+  is the unrelated `Test_Under_03_Energy.xml/nopen_001`.
 
-These four require the original test-actor asset definitions or a separately
-agreed change to those test skills. They are not resolved by this repair.
+No NPC skill list, AI, quest handler, item or other skill referenced them, so the motion
+validator no longer reports a gap. No animation timing was guessed.
 
 The archive also contains four malformed marker documents, listed in the
 manifest. None supplies the recovered rows; each recovered row was read from a

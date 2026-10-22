@@ -483059,19 +483059,19 @@
 		<bound_radius front="0.35" side="0.49" upper="2.52" />
 		<talk_info distance="5" is_dialog="true" func_dialogs="2" can_talk_invisible="false" />
 	</npc_template>
-	<npc_template npc_id="800371" level="1" name="kyrshaka" name_id="356089" height="2.52" title_id="370493" group_drop="DRAKANFIGHTER" rank="DISCIPLINED" rating="NORMAL" race="BROWNIE" tribe="XDRAKAN_UNATTACK" type="GENERAL" ai="general" srange="20" sangle="300" arange="2" attack_speed="2000" hpgauge="3">
+	<npc_template npc_id="800371" level="60" name="kyrshaka" name_id="356089" height="2.52" title_id="370493" group_drop="DRAKANFIGHTER" rank="DISCIPLINED" rating="NORMAL" race="BROWNIE" tribe="XDRAKAN_UNATTACK" type="GENERAL" ai="general" srange="20" sangle="300" arange="2" attack_speed="2000" hpgauge="3">
 		<stats maxHp="23691">
 			<speeds walk="1.5" group_walk="1.5" run="6" run_fight="7" group_run_fight="6" />
 		</stats>
 		<bound_radius front="0.35" side="0.49" upper="2.52" />
-		<talk_info distance="5" is_dialog="true" func_dialogs="78" can_talk_invisible="false" />
+		<talk_info distance="5" is_dialog="true" func_dialogs="2" can_talk_invisible="false" />
 	</npc_template>
-	<npc_template npc_id="800372" level="1" name="yurshaka" name_id="356090" height="2.16" title_id="370494" group_drop="DRAKANMAGE" rank="DISCIPLINED" rating="NORMAL" race="BROWNIE" tribe="XDRAKAN_UNATTACK" type="GENERAL" ai="general" srange="20" sangle="300" arange="2" attack_speed="2000" hpgauge="3">
+	<npc_template npc_id="800372" level="60" name="yurshaka" name_id="356090" height="2.16" title_id="370494" group_drop="DRAKANMAGE" rank="DISCIPLINED" rating="NORMAL" race="BROWNIE" tribe="XDRAKAN_UNATTACK" type="GENERAL" ai="general" srange="20" sangle="300" arange="2" attack_speed="2000" hpgauge="3">
 		<stats maxHp="23691">
 			<speeds walk="1.5" group_walk="1.5" run="6" run_fight="7" group_run_fight="6" />
 		</stats>
 		<bound_radius front="0.3" side="0.42" upper="2.16" />
-		<talk_info distance="5" is_dialog="true" func_dialogs="78" can_talk_invisible="false" />
+		<talk_info distance="5" is_dialog="true" func_dialogs="2" can_talk_invisible="false" />
 	</npc_template>
 	<npc_template npc_id="800373" level="60" name="elite reian assaulter" name_id="356121" height="1.98" title_id="370531" group_drop="LIGHT" rank="EXPERT" rating="HERO" race="BROWNIE" tribe="IDTIAMAT_ANCIENT" type="GENERAL" ai="aggressive" srange="50" sangle="300" arange="3" attack_speed="2100" hpgauge="20" cancel_level="0">
 		<stats maxHp="3871652">
@@ -483568,12 +483568,12 @@
 		<bound_radius front="0.25" side="0.35" upper="1.8" />
 		<talk_info distance="5" is_dialog="true" can_talk_invisible="false" />
 	</npc_template>
-	<npc_template npc_id="800417" level="1" name="norshaka" name_id="356171" height="2.16" title_id="370540" group_drop="DRAKANMAGE" rank="DISCIPLINED" rating="NORMAL" race="BROWNIE" tribe="XDRAKAN_UNATTACK" type="GENERAL" ai="general" srange="20" sangle="300" arange="2" attack_speed="2000" hpgauge="3">
+	<npc_template npc_id="800417" level="60" name="norshaka" name_id="356171" height="2.16" title_id="370540" group_drop="DRAKANMAGE" rank="DISCIPLINED" rating="NORMAL" race="BROWNIE" tribe="XDRAKAN_UNATTACK" type="GENERAL" ai="general" srange="20" sangle="300" arange="2" attack_speed="2000" hpgauge="3">
 		<stats maxHp="23691">
 			<speeds walk="1.5" group_walk="1.5" run="6" run_fight="7" group_run_fight="6" />
 		</stats>
 		<bound_radius front="0.3" side="0.42" upper="2.16" />
-		<talk_info distance="5" is_dialog="true" func_dialogs="78" can_talk_invisible="false" />
+		<talk_info distance="5" is_dialog="true" func_dialogs="2" can_talk_invisible="false" />
 	</npc_template>
 	<npc_template npc_id="800418" level="1" name="kyrshaka" name_id="356089" height="1.8" title_id="370493" group_drop="DRAKANFIGHTER" rank="DISCIPLINED" rating="NORMAL" race="BROWNIE" tribe="XDRAKAN_UNATTACK" type="GENERAL" ai="general" srange="20" sangle="300" arange="2" attack_speed="2000" hpgauge="3">
 		<stats maxHp="23691">
@@ -497472,7 +497472,7 @@
 		<bound_radius front="0.275" side="0.385" upper="2.2" />
 		<talk_info distance="5" is_dialog="true" func_dialogs="94 95" can_talk_invisible="false" />
 	</npc_template>
-	<npc_template npc_id="801494" level="1" name="inharet (unused)" name_id="373113" height="2" title_id="463221" group_drop="DARK" rank="DISCIPLINED" rating="NORMAL" race="ASMODIANS" tribe="GENERAL_DARK" type="GENERAL" ai="general" srange="20" sangle="240" arange="2" attack_speed="2000" hpgauge="3">
+	<npc_template npc_id="801494" level="60" name="inharet" name_id="373113" height="2" title_id="463221" group_drop="DARK" rank="DISCIPLINED" rating="NORMAL" race="ASMODIANS" tribe="GENERAL_DARK" type="GENERAL" ai="general" srange="20" sangle="240" arange="2" attack_speed="2000" hpgauge="3">
 		<stats maxHp="26116">
 			<speeds walk="1.5" group_walk="1.5" run="6" run_fight="4.2" group_run_fight="4.2" />
 		</stats>
@@ -497484,9 +497484,9 @@
 			<item>114501423</item>
 		</equipment>
 		<bound_radius front="0.25" side="0.35" upper="2" />
-		<talk_info distance="5" is_dialog="true" func_dialogs="78" can_talk_invisible="false" />
+		<talk_info distance="5" is_dialog="true"  can_talk_invisible="false" />
 	</npc_template>
-	<npc_template npc_id="801495" level="1" name="bekasis (unused)" name_id="373114" height="2.5" title_id="463221" group_drop="LIGHT" rank="DISCIPLINED" rating="NORMAL" race="ELYOS" tribe="GENERAL" type="GENERAL" ai="general" srange="20" arange="2" attack_speed="2000" hpgauge="3">
+	<npc_template npc_id="801495" level="60" name="bekasis" name_id="373114" height="2.5" title_id="463221" group_drop="LIGHT" rank="DISCIPLINED" rating="NORMAL" race="ELYOS" tribe="GENERAL" type="GENERAL" ai="general" srange="20" arange="2" attack_speed="2000" hpgauge="3">
 		<stats maxHp="26116">
 			<speeds walk="1.457" group_walk="1.457" run="6" run_fight="8" group_run_fight="6" />
 		</stats>
@@ -497498,7 +497498,7 @@
 			<item>114501420</item>
 		</equipment>
 		<bound_radius front="0.3125" side="0.4375" upper="2.5" />
-		<talk_info distance="5" is_dialog="true" func_dialogs="78" can_talk_invisible="false" />
+		<talk_info distance="5" is_dialog="true"  can_talk_invisible="false" />
 	</npc_template>
 	<npc_template npc_id="801496" level="65" name="shagirunerk" name_id="373115" height="1.16875" title_id="463226" group_drop="NONE" rank="DISCIPLINED" rating="NORMAL" race="BROWNIE" tribe="USEALL" type="GENERAL" ai="general" srange="20" sangle="240" attack_speed="2000" hpgauge="3">
 		<stats maxHp="26116">

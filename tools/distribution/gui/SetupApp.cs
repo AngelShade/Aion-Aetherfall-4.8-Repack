@@ -25,11 +25,11 @@ using System.Windows.Threading;
 using Microsoft.Win32;
 
 [assembly: AssemblyVersion("0.90.0.0")]
-[assembly: AssemblyFileVersion("0.90.1018.5")]
+[assembly: AssemblyFileVersion("0.90.1022.1")]
 
 namespace AetherfallSetup {
  public sealed class SetupSettings {
-  public string MirrorsUrl = "";
+  public string MirrorsUrl = SetupApp.DefaultMirrorsUrl;
   public string UpdateUrl = "";
   public string Mode = "Auto";
   public string DownloadDirectory = "Downloads";
@@ -58,8 +58,12 @@ namespace AetherfallSetup {
   public long patchBytes, setupExeBytes;
  }
 
- public sealed class SetupApp {
+ public sealed partial class SetupApp {
   const string DefaultUpdateUrl="https://raw.githubusercontent.com/AngelShade/Aion-Aetherfall-4.8-Repack/main/latest-update.json";
+  internal const string DefaultMirrorsUrl="https://raw.githubusercontent.com/AngelShade/Aion-Aetherfall-4.8-Repack/main/mirrors.json";
+  const string BaseArchiveName="Aetherfall-0.86.7z";
+  const long BaseArchiveBytes=39030688343L;
+  const string BaseArchiveSha256="7b5599837887a49d2b2bebb2ef73f4a9435b42b9686da62aec6354f9954af885";
   Window window; Grid scene;
   string root, customArchivePath;
   bool busy, closed, preview, serverControlBusy;
@@ -137,6 +141,7 @@ namespace AetherfallSetup {
    Btn("HubTab").Click += delegate { SwitchTab("Hub"); };
    Btn("ServersTab").Click += delegate { SwitchTab("Servers"); };
    Btn("PathsTab").Click += delegate { SwitchTab("Paths"); };
+   InitializeMods();
    Btn("OpenInstallFolder").Click += delegate { OpenFolder(ResolveInstallPath()); };
    Btn("BrowseInstall").Click += delegate { PickInstallFolder(); };
    Btn("SelectArchiveBtn").Click += delegate { PickLocalArchive(); };
@@ -164,9 +169,10 @@ namespace AetherfallSetup {
 
    window.Loaded += delegate { RefreshState(); };
    window.Closing += delegate(object sender, System.ComponentModel.CancelEventArgs e) {
-    if(serverControlBusy) {
+    if(serverControlBusy || modControlBusy) {
      e.Cancel=true;
-     Text("ServerControlFeedback").Text="Wait for the server operation to finish before closing Setup.";
+     if(modControlBusy)Text("ModsFeedback").Text="Wait for this operation to finish before closing the Hub.";
+     else Text("ServerControlFeedback").Text="Wait for the server operation to finish before closing Setup.";
     }
    };
    window.Closed += delegate {
@@ -215,6 +221,7 @@ namespace AetherfallSetup {
    if (File.Exists(manifestPath)) {
     try { manifest = js.Deserialize<ReleaseManifest>(File.ReadAllText(manifestPath)) ?? manifest; } catch {}
    }
+   settings.MirrorsUrl=ResolveMirrorsUrl(settings.MirrorsUrl);
    settings.UpdateUrl=ResolveUpdateChannel(settings.UpdateUrl,System.IO.Path.Combine(ResolveInstallPath(),"Client","Mods","Launcher","update.json"));
    Find<CheckBox>("DeleteArchiveAfter").IsChecked = settings.DeleteArchiveAfter;
    Find<RadioButton>("ModeAuto").IsChecked = settings.Mode == "Auto";
@@ -357,6 +364,7 @@ namespace AetherfallSetup {
   }
 
   void RefreshState(bool preserveStatus = false) {
+   RefreshMods();
    string pkg = ResolveInstallPath();
    string ver = InstalledVersion();
    bool installed = IsInstalled();
@@ -439,11 +447,12 @@ namespace AetherfallSetup {
   }
 
   void SwitchTab(string tab) {
-   foreach (string name in new[] { "Hub", "Servers", "Paths" }) {
+   foreach (string name in new[] { "Hub", "Servers", "Mods", "Paths" }) {
     Find<FrameworkElement>(name + "Panel").Visibility = name == tab ? Visibility.Visible : Visibility.Collapsed;
     Btn(name + "Tab").Background = Brush(name == tab ? "#B8252C4E" : "#00000000");
     Btn(name + "Tab").BorderBrush = Brush(name == tab ? "#749B8E6E" : "#00000000");
    }
+   if(tab=="Mods")RefreshMods();
   }
 
   void PickInstallFolder() {
@@ -477,7 +486,7 @@ namespace AetherfallSetup {
   }
 
   async Task PickAndApplyPatch() {
-   if (busy) return;
+   if (busy || serverControlBusy || modControlBusy) return;
    var dlg = new OpenFileDialog {
     Title = "Select Aetherfall-Patch-<version>.zip file",
     Filter = "Aetherfall Patch ZIP (Aetherfall-Patch-*.zip;*.zip)|Aetherfall-Patch-*.zip;*.zip"
@@ -488,6 +497,7 @@ namespace AetherfallSetup {
   }
 
   async Task OnPrimaryAction() {
+   if(serverControlBusy || modControlBusy)return;
    if(original!=null) {
     if(serverControlBusy)return;
     string launcher=System.IO.Path.Combine(original.ClientRoot,"Aetherfall Launcher.exe");
@@ -513,6 +523,7 @@ namespace AetherfallSetup {
 
   void SetBusy(bool value, string banner, string title, string detail, bool allowPause = false) {
    busy = value;
+   RefreshMods();
    Btn("PrimaryBtn").IsEnabled = !value || allowPause;
    if (value && allowPause) {
     Text("PrimaryLabel").Text = "PAUSE";
@@ -578,6 +589,32 @@ namespace AetherfallSetup {
    }
   }
 
+  static string ResolveMirrorsUrl(string configured) {
+   return String.IsNullOrWhiteSpace(configured) ? DefaultMirrorsUrl : configured.Trim();
+  }
+
+  static List<string> GetArchiveMirrors(ReleaseFile fileInfo, MirrorConfig mirrors) {
+   var urls = new List<string>();
+   if (mirrors.Files != null && mirrors.Files.ContainsKey(fileInfo.name) && mirrors.Files[fileInfo.name] != null) {
+    foreach (string url in mirrors.Files[fileInfo.name]) {
+     if (!String.IsNullOrWhiteSpace(url) && !urls.Contains(url.Trim())) urls.Add(url.Trim());
+    }
+   }
+   if (mirrors.SharePages != null) {
+    foreach (string url in mirrors.SharePages) {
+     if (!String.IsNullOrWhiteSpace(url) && url.IndexOf("mega.nz", StringComparison.OrdinalIgnoreCase) >= 0 && !urls.Contains(url.Trim()))
+      urls.Add(url.Trim());
+    }
+   }
+   // These mirrors contain this exact pinned base archive, not arbitrary releases.
+   if (urls.Count == 0 && fileInfo.name == BaseArchiveName && fileInfo.bytes == BaseArchiveBytes &&
+       String.Equals(fileInfo.sha256, BaseArchiveSha256, StringComparison.OrdinalIgnoreCase)) {
+    urls.Add("https://mega.nz/file/hJt0hYTC#fr0RDjsLl4CriZ5dw8MljBhrlP6nD4oYkaErD2iW-vQ");
+    urls.Add("https://drive.usercontent.google.com/download?id=1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2&export=download&confirm=t");
+   }
+   return urls;
+  }
+
   MirrorConfig LoadMirrors() {
    JavaScriptSerializer js = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
    MirrorConfig cfg = new MirrorConfig();
@@ -585,16 +622,14 @@ namespace AetherfallSetup {
    if (File.Exists(localPath)) {
     try { cfg = js.Deserialize<MirrorConfig>(File.ReadAllText(localPath)) ?? cfg; } catch {}
    }
-   if (!String.IsNullOrWhiteSpace(settings.MirrorsUrl)) {
-    try {
-     using (var wc = new WebClient { Encoding = Encoding.UTF8 }) {
-      wc.Headers.Add("User-Agent", "Mozilla/5.0");
-      string raw = wc.DownloadString(settings.MirrorsUrl);
-      var remote = js.Deserialize<MirrorConfig>(raw);
-      if (remote != null && remote.schema == 1 && remote.release == manifest.version) cfg = remote;
-     }
-    } catch {}
-   }
+   try {
+    using (var wc = new WebClient { Encoding = Encoding.UTF8 }) {
+     wc.Headers.Add("User-Agent", "Mozilla/5.0");
+     string raw = wc.DownloadString(ResolveMirrorsUrl(settings.MirrorsUrl));
+     var remote = js.Deserialize<MirrorConfig>(raw);
+     if (remote != null && remote.schema == 1 && remote.release == manifest.version) cfg = remote;
+    }
+   } catch {}
    return cfg;
   }
 
@@ -1047,9 +1082,9 @@ namespace AetherfallSetup {
    string pkg = ResolveInstallPath();
    string dlDir = ResolveDownloadDir();
    ReleaseFile rf = (manifest.files != null && manifest.files.Count > 0) ? manifest.files[0] : new ReleaseFile {
-    name = "Aetherfall-0.86.7z",
-    bytes = 39030688343L,
-    sha256 = "7b5599837887a49d2b2bebb2ef73f4a9435b42b9686da62aec6354f9954af885"
+    name = BaseArchiveName,
+    bytes = BaseArchiveBytes,
+    sha256 = BaseArchiveSha256
    };
 
    downloadCts = new CancellationTokenSource();
@@ -1066,21 +1101,7 @@ namespace AetherfallSetup {
     string archivePath = FindCompleteLocalArchive();
     if (archivePath == null) {
      MirrorConfig mirrors = await Task.Run(() => LoadMirrors());
-     var mirrorList = new List<string>();
-     if (mirrors.Files != null && mirrors.Files.ContainsKey(rf.name) && mirrors.Files[rf.name] != null) {
-      foreach (string u in mirrors.Files[rf.name]) {
-       if (!String.IsNullOrWhiteSpace(u)) mirrorList.Add(u);
-      }
-     }
-     if (mirrors.SharePages != null) {
-      foreach (string s in mirrors.SharePages) {
-       if (!String.IsNullOrWhiteSpace(s) && s.IndexOf("mega.nz", StringComparison.OrdinalIgnoreCase) >= 0 && !mirrorList.Contains(s))
-        mirrorList.Add(s);
-      }
-     }
-     if (mirrorList.Count == 0) {
-      mirrorList.Add("https://mega.nz/file/hJt0hYTC#fr0RDjsLl4CriZ5dw8MljBhrlP6nD4oYkaErD2iW-vQ");
-     }
+     var mirrorList = GetArchiveMirrors(rf, mirrors);
 
      if (settings.Mode != "Torrent" && mirrorList.Count > 0) {
       archivePath = await DownloadArchiveBoundedRangesAsync(rf, mirrorList, dlDir, downloadCts.Token);
@@ -1191,6 +1212,7 @@ namespace AetherfallSetup {
   }
 
   async Task RunUpdate(string chosenZip) {
+   if(serverControlBusy || modControlBusy)return;
    SetBusy(true, "CHECKING FOR UPDATES", "Checking launcher & repack updates…", "Contacting GitHub update channel…");
    SetProgress(0.25, "Checking…", "↻ Update Channel");
 
@@ -1251,7 +1273,7 @@ namespace AetherfallSetup {
   }
 
   async Task RunServerControl(string action) {
-   if(serverControlBusy || busy)return;
+   if(serverControlBusy || busy || modControlBusy)return;
    if(original!=null) { await RunOriginalControl(action);return; }
    string pkg = ResolveInstallPath();
    if (!File.Exists(System.IO.Path.Combine(pkg, "REPACK.json"))) {
@@ -1259,6 +1281,7 @@ namespace AetherfallSetup {
     return;
    }
    serverControlBusy=true;
+   RefreshMods();
    string[] controls={"StartAllServerBtn","StartDbOnlyBtn","StartGsOnlyBtn","StopAllServerBtn","StopGsBtn","StopLsBtn","StopChatBtn","PrimaryBtn","UpdateNowBtn","ApplyPatchFileBtn","BrowseInstall"};
    foreach(string name in controls)Btn(name).IsEnabled=false;
    try {
@@ -1291,6 +1314,7 @@ namespace AetherfallSetup {
     Text("ServerControlFeedback").Text = ex.Message;
    } finally {
     serverControlBusy=false;
+    RefreshMods();
     foreach(string name in controls)Btn(name).IsEnabled=true;
    }
   }
@@ -1477,6 +1501,15 @@ namespace AetherfallSetup {
    int at = Array.IndexOf(args, "--preview");
    string dest = (at >= 0 && at + 1 < args.Length) ? args[at + 1] : "setup-preview.png";
    if(args.Contains("--servers"))SwitchTab("Servers");
+   if(args.Contains("--mods")) {
+    SwitchTab("Mods");
+    Text("HdStatus").Text="Standard textures active";
+    Text("HdPackInfo").Text="Optional HD pack · 3.57 GiB";
+    Text("ModsFeedback").Text="Choose a texture option or manage a local account.";
+    foreach(string name in new[]{"HdDownloadBtn","HdInstallBtn","MakeAdminBtn"})Btn(name).IsEnabled=true;
+    Find<CheckBox>("HdToggle").IsEnabled=true;
+    Find<TextBox>("AdminAccountBox").IsEnabled=true;
+   }
    Text("InstallPathLabel").Text = @"D:\Games\Aetherfall-0.86";
    Text("HeroHeadline").Text = "Install & Manage Aetherfall.";
    Find<Ellipse>("InstallDot").Fill = Brush("#E0B580");
@@ -1489,6 +1522,15 @@ namespace AetherfallSetup {
    SetProgress(0.384, "38.4%  (13.96 GB / 36.35 GB)", "⚡ 42.8 MB/s   ·   ETA 08m 45s");
    Text("StatusTitle").Text = "Downloading Aetherfall 0.86 — 38.4%";
    Text("StatusDetail").Text = "Downloaded 13.96 GB of 36.35 GB  ·  8 parallel range streams (Resume enabled)";
+   if(args.Contains("--mods")) {
+    Text("ReleaseLabel").Text="  REPACK HUB & AUTO-UPDATER  ·  0.94";
+    Text("InstallBadge").Text="Installed (v0.94)";
+    Text("PrimaryLabel").Text="PLAY";Text("LaunchCaption").Text="OPEN AETHERFALL GAME LAUNCHER";
+    Text("StatusBanner").Text="AETHERFALL REPACK MANAGER";
+    Text("StatusTitle").Text="Ready for Atreia.";
+    Text("StatusDetail").Text="Manage textures and account access in the Hub.";
+    SetProgress(0,"","");
+   }
    scene.UpdateLayout();
    var bmp = new RenderTargetBitmap(1180, 744, 96, 96, PixelFormats.Pbgra32);
    bmp.Render(scene);

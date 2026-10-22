@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<spawns xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../spawns.xsd">
+	<!-- Custom Aetherfall relocation beside the existing 4.8 fragment exchangers. -->
+	<spawn_map map_id="210070000">
+		<spawn npc_id="801538" respawn_time="295">
+			<spot x="2056.35791" y="2910.01050" z="322.74359" h="60"/>
+		</spawn>
+	</spawn_map>
+	<spawn_map map_id="220080000">
+		<spawn npc_id="801537" respawn_time="295">
+			<spot x="1654.34998" y="163.45000" z="188.62500" h="75"/>
+		</spawn>
+	</spawn_map>
+</spawns>

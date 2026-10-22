@@ -1,5 +1,14 @@
 # Aion Aetherfall 4.8 Repack — Changelog
 
+## Local preparation — Setup download mirror fallback (21 October 2026)
+
+- Standalone Setup now loads the standard mirror list when no mirror URL was
+  saved, allowing Google Drive to take over when MEGA refuses a download.
+- The original base archive has both mirrors built in if mirror metadata cannot
+  be loaded. Existing custom mirror settings remain supported.
+- Setup build 0.90.1021.1 is installed locally and included in the prepared
+  cumulative patch. Not published.
+
 ## Local preparation — Hub automatic updates (18 October 2026)
 
 - Update now uses the saved online channel, including the client's update
@@ -17,7 +26,7 @@
   This does not publish a new game release or change gameplay.
 
 This history includes the full initial-release changelog for 0.86, followed by
-the updates through 0.93.2, in version order. Earlier development work is recorded under 0.86,
+the updates through 0.94, in version order. Earlier development work is recorded under 0.86,
 because that is the first public repack in which those changes were bundled.
 
 | Version | Release | Download |
@@ -35,6 +44,7 @@ because that is the first public repack in which those changes were bundled.
 | 0.93 | Bot navigation, companion spacing and Profile Stigma controls | Local cumulative patch prepared; not yet published |
 | 0.93.1 | Companion follow, lifts, quest turn-in and memory controls | Local cumulative patch prepared; not yet published |
 | 0.93.2 | Companion pursuit, teleport statue timing, Protectors Hall and Zirius | Local cumulative patch prepared; not yet published |
+| 0.94 | Account Fame, native companion/account windows, Interface and world textures | Local preparation; not published |
 
 ## 0.86 — Initial release: full changelog
 
@@ -309,11 +319,24 @@ These are maintainer workflow changes, separate from the player patch contents.
 - Grouped original downloads under Release/0.86 and cumulative updates under Patches/<version>.
 - Kept Setup and the preparation/publication commands at the top level, with baseline data, history and logs under Maintenance.
 - Added support for the organized Setup folder layout while retaining compatibility with older downloader bundles. Distributable bundles exclude the maintainer's installed game and local installation paths.
-- Moved the local release workspace to C:/Git/aion-server/releases.
+- Moved generated release files into the repository's Git-ignored `releases/` folder.
 - Connected Prepare Patch and Publish Update directly to the repository's maintained distribution tools, replacing dependence on copied standalone scripts.
 - Made patch preparation use the current repack version and inventory without rebuilding the full archive or automatically increasing the version.
 - Kept generated archives, installed games, database data and credentials out of Git.
 - Retained manual publication: committing or pushing source does not itself publish a repack release.
+
+## 0.94 — Account, companions, interface and world textures (22 October 2026)
+
+- Added Account Fame with Combat, Life and Legend progress, tiered bonuses and daily Kinah stipends. The Account window shows Fame, Boons, Chronicle progress and account characters.
+- Added separate movable and resizable Account and Player Companions windows. Companions have a redesigned equipment panel, party Pull/Kill/CC/Clear orders and configurable Stigma builds. Automatic gear selection skips test and prop items.
+- Added the switchable Aetherfall Interface, HUD profiles, action-bar layout controls and the MoveUI editor with Save/Lock, Cancel, snapping and screen guides. Includes item comparison placement, map-tooltip overlap and target/aura mover repairs.
+- Updated the launcher with its Mods window and theme choices, retaining each repack's connection settings.
+- Restored Noble Garden shops, Protectorate/Recruit/Commando equipment exchanges and faction Ceramium fragment exchanges. Corrected native dialog and purchase eligibility checks.
+- Improved companion navigation, combat and quest handling from the current original server installation. Retained previous companion, broker, pet and Stigma repairs.
+- Prepared a separate optional 2x HD world-texture pack for Poeta/Ishalgen, Verteron/Altgard, Eltnen/Morheim, Sanctum/Pandaemonium, Heiron/Beluslan, Theobomos/Brusthonin and Inggison/Gelkmaros. The core update uses standard textures and retains the other graphics improvements and engine quality defaults.
+- Added **Mods & tools** inside Aetherfall Hub, with the optional HD pack download, ZIP installation and an HD/standard texture switch. Shared graphics files and the selected profile are checked before launch. Added a Make Admin account control using the native Admin rank 9, replacing the old standalone scripts. Development rollback history is excluded from both downloads; active native graphics recovery remains included.
+- Repaired fresh database verification to recognize the six reserved broker sellers while still requiring no player accounts or personal characters. Existing databases are preserved.
+- Includes the locally prepared Setup mirror fallback repair. This update is prepared locally; publication and in-game acceptance remain separate.
 
 ## Updating an existing repack
 

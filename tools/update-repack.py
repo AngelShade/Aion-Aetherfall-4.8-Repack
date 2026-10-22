@@ -27,6 +27,10 @@ for name in ['package', 'client', 'baseline-build', 'current-build', 'launcher',
     parser.add_argument('--'+name, required=True, type=Path)
 args = parser.parse_args()
 repo = Path(__file__).resolve().parents[1]
+import sys
+sys.path.insert(0, str(repo / 'tools/distribution'))
+from repack_recovery import texture_release_state, active_recovery_files
+from optional_textures import load as load_hd, standard_assets, standard_manifest, OBSOLETE_TOOLS
 pack, client = args.package.resolve(strict=True), args.client.resolve(strict=True)
 stage, backup = args.stage.resolve(), args.backup.resolve()
 for folder in [stage, backup]:
@@ -39,6 +43,16 @@ if (pack/'Server/database/data').exists():
 stage.mkdir(parents=True)
 index, release = read(pack/'FILES.json'), read(pack/'REPACK.json')
 entries = {e['path'].casefold(): e for e in index['files']}
+hd_component = load_hd(pack)
+hd_owned = {p.casefold(): e for p, e in standard_assets(hd_component).items()}
+if hd_component:
+    queued_graphics = read(client/'Mods/GraphicsOverhaul/queued.json')
+    if queued_graphics.get('packageId') != hd_component['graphicsPackageId']:
+        raise ValueError('The graphics package changed; rebase the optional HD component before updating')
+    for state_path in (client/'Mods/TextureUpscale').glob('installed-*.json'):
+        for texture in read(state_path).get('files', []):
+            if ('Client/'+texture['path']).casefold() not in hd_owned:
+                raise ValueError('New world textures require rebasing the optional HD component: '+texture['path'])
 old_inputs = read(args.baseline_build/'build-manifest.json')['inputs']
 current_inputs = read(args.current_build/'build-manifest.json')['inputs']
 inventory = read(repo/'docs/INSTALLED_MODS.json')
@@ -73,6 +87,18 @@ def target(relative):
 
 def put(relative, reason, source=None, data=None, expected=None, mutable=None):
     relative, destination = target(relative)
+    if relative.casefold() in hd_owned:
+        owned = hd_owned[relative.casefold()]
+        if not destination.is_file() or digest(destination) != owned['standardSha256']:
+            raise ValueError('Restore the full repack standard texture baseline before updating: '+relative)
+        incoming = digest(source) if source is not None else hashlib.sha256(data).hexdigest()
+        if incoming not in {owned['standardSha256'], owned['hdSha256']}:
+            raise ValueError('Texture changes require an HD component rebase: '+relative)
+        return
+    if hd_component and relative == 'Client/'+hd_component['graphicsManifest']:
+        document = read(source) if source is not None else json.loads(data)
+        data = encoded(standard_manifest(document, hd_component))
+        source, expected = None, None
     if source is not None:
         sha, size = digest(source), source.stat().st_size
     else:
@@ -180,8 +206,11 @@ for relative in sorted(native_paths):
         continue
     put('Client/'+relative, 'Current installed native client feature', source=client/relative)
 support_files = []
+excluded_mod_folders = {'backups', 'logs', 'cache', '__pycache__'}
+if hd_component:
+    excluded_mod_folders.update({'textureupscale', 'hdtextures'})
 for directory, folders, files in os.walk(client/'Mods'):
-    folders[:] = [name for name in folders if name.casefold() not in {'backups', 'logs', 'cache', '__pycache__'}]
+    folders[:] = [name for name in folders if name.casefold() not in excluded_mod_folders]
     support_files.extend(Path(directory)/name for name in files)
 for source in sorted(support_files):
     relative = source.relative_to(client).as_posix()
@@ -196,6 +225,8 @@ for source in sorted(support_files):
         continue
     if source.suffix.lower() == '.json':
         obj = read(source)
+        if relative.startswith('Mods/TextureUpscale/installed'):
+            obj = texture_release_state(obj)
         updated = portable(obj)
         if updated != obj:
             metadata_files.add(relative)
@@ -263,12 +294,14 @@ put('Client/Mods/InstalledMods.json', 'Current native feature inventory with pac
 portable_state = dict(version=1, preparedRoot=str(pack/'Client'), gameDllSha256=final_sha('Client/bin64/Game.dll'),
                       aionBinSha256=final_sha('Client/bin64/aion.bin'), metadataFiles=sorted(metadata_files))
 put('Client/Mods/portable-client.json', 'Current portable ownership baseline', data=encoded(portable_state))
-prepare = (pack/'Control/Prepare-Client.ps1').read_text(encoding='utf-8-sig')
-anchor="$old = [string]$state.preparedRoot"
-if '$state.aionBinSha256' not in prepare:
-    prepare = prepare.replace(anchor,
-        "if ((Get-FileHash -LiteralPath (Join-Path $client 'bin64/aion.bin')).Hash -ne $state.aionBinSha256) { throw 'Client startup binary changed after packaging.' }\n"+anchor)
-put('Control/Prepare-Client.ps1', 'Portable preflight includes the native startup bridge', data=prepare.encode())
+prepare = (repo/'tools/distribution/repack/Prepare-Client.ps1').read_bytes()
+put('Control/Prepare-Client.ps1', 'Portable native startup and restore-metadata preflight', data=prepare)
+if hd_component:
+    put('Control/HDTextures.ps1', 'Hub HD installation and standard texture recovery', source=repo/'tools/distribution/repack/Manage-HDTextures.ps1')
+    put('Control/Verify-Repack.ps1', 'Verify the selected standard or HD texture profile', source=repo/'tools/distribution/repack/Verify-Repack.ps1')
+put('Control/Make-Admin.ps1', 'Hub account Admin action using native rank 9', source=repo/'tools/distribution/repack/Make-Admin.ps1')
+for relative in OBSOLETE_TOOLS:
+    remove(relative, 'Standalone account and HD tools replaced by Hub Mods & tools')
 
 print('Preparing fresh schema compatibility and release notes.', flush=True)
 schema_path = pack/'Server/database/schema/aetherfall_gs.sql'
@@ -360,6 +393,17 @@ release['update'+release_number] = dict(sourceBuild=str(args.current_build), sou
     freshSchemaUpdated=True, sourceRowsCopied=0, testsRun=False, startup=False,
     verification='Hashes of copied files; unchanged package inventory inherited')
 release['transforms'].extend(list(writes.values()))
+required_recovery = active_recovery_files(pack, stage)
+retired = {entry['path'].casefold(): entry for entry in release.get('retiredFiles', [])}
+for relative in OBSOLETE_TOOLS:
+    if relative in removals:
+        retired[relative.casefold()] = dict(path=relative, sha256=removals[relative]['sha256'])
+for entry in index['files']:
+    relative = entry['path']
+    if relative.casefold().startswith('client/mods/backups/') and relative.casefold() not in required_recovery:
+        remove(relative, 'Archive development rollback history outside the release')
+        retired[relative.casefold()] = dict(path=relative, sha256=entry['sha256'])
+release['retiredFiles'] = list(retired.values())
 put('REPACK.json', 'Current release package metadata and update record', data=encoded(release))
 for relative, record in writes.items():
     entry = entries.get(relative.casefold())

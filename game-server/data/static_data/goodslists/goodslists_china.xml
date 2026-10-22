@@ -71664,6 +71664,88 @@
         <item buy_limit="1" sell_limit="0" id="188054099"/>
         <item buy_limit="10" sell_limit="0" id="188054109"/>
     </list>
+    <!-- Aetherfall custom Tiamat merchant inventories; client definitions are maintained in npc-restoration. -->
+    <list id="60010">
+        <item id="100001400"/>
+        <item id="100101077"/>
+        <item id="100201239"/>
+        <item id="100501088"/>
+        <item id="100601144"/>
+        <item id="100901095"/>
+        <item id="101301032"/>
+        <item id="101501113"/>
+        <item id="101701125"/>
+        <item id="101800812"/>
+        <item id="101900816"/>
+        <item id="102000850"/>
+        <item id="102100711"/>
+    </list>
+    <list id="60011">
+        <item id="110101386"/>
+        <item id="110301313"/>
+        <item id="110501293"/>
+        <item id="110601264"/>
+        <item id="111101262"/>
+        <item id="111301257"/>
+        <item id="111501253"/>
+        <item id="111601230"/>
+        <item id="112101219"/>
+        <item id="112301202"/>
+        <item id="112501197"/>
+        <item id="112601207"/>
+        <item id="113101280"/>
+        <item id="113301282"/>
+        <item id="113501269"/>
+        <item id="113601220"/>
+        <item id="114101308"/>
+        <item id="114301314"/>
+        <item id="114501274"/>
+        <item id="114601214"/>
+    </list>
+    <list id="60012">
+        <item id="110101344"/>
+        <item id="110301271"/>
+        <item id="110501249"/>
+        <item id="110601218"/>
+        <item id="111101219"/>
+        <item id="111301214"/>
+        <item id="111501208"/>
+        <item id="111601187"/>
+        <item id="112101177"/>
+        <item id="112301160"/>
+        <item id="112501153"/>
+        <item id="112601165"/>
+        <item id="113101238"/>
+        <item id="113301240"/>
+        <item id="113501225"/>
+        <item id="113601178"/>
+        <item id="114101265"/>
+        <item id="114301271"/>
+        <item id="114501229"/>
+        <item id="114601171"/>
+    </list>
+    <list id="60013">
+        <item id="110101348"/>
+        <item id="110301275"/>
+        <item id="110501253"/>
+        <item id="110601222"/>
+        <item id="111101223"/>
+        <item id="111301218"/>
+        <item id="111501212"/>
+        <item id="111601191"/>
+        <item id="112101181"/>
+        <item id="112301164"/>
+        <item id="112501157"/>
+        <item id="112601169"/>
+        <item id="113101242"/>
+        <item id="113301244"/>
+        <item id="113501229"/>
+        <item id="113601182"/>
+        <item id="114101269"/>
+        <item id="114301275"/>
+        <item id="114501233"/>
+        <item id="114601175"/>
+    </list>
     <in_list id="1">
         <item id="100001174"/>
         <item id="100201139"/>

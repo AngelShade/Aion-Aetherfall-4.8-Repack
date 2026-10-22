@@ -89,6 +89,8 @@ public class TradeService {
 		if (!PlayerRestrictions.canTrade(player)) {
 			return false;
 		}
+		if (!RestoredNpcService.isInteractionAllowed(player, npc))
+			return false;
 
 		if (!validateBuyItems(npc, tradeList, player)) {
 			PacketSendUtility.sendPacket(player, SM_SYSTEM_MESSAGE.STR_BUY_SELL_USER_BUY_FAILED());
@@ -184,6 +186,8 @@ public class TradeService {
 
 		Set<Integer> allowedItems = new HashSet<>();
 		for (TradeTab tradeTab : tradeListTemplate.getTradeTablist()) {
+			if (!RestoredNpcService.isTradeTabAllowed(player, npc, tradeTab.getId()))
+				continue;
 			GoodsList goodsList = goodsListData.getGoodsListById(tradeTab.getId());
 			if (goodsList != null && goodsList.getItemIdList() != null)
 				allowedItems.addAll(goodsList.getItemIdList());

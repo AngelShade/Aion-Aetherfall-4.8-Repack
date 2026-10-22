@@ -25,7 +25,7 @@ using System.Windows.Threading;
 
 namespace Aetherfall {
  public sealed class ReleaseInfo { public string Product, Version; }
- public sealed class ModInfo { public string Title, Description; public bool Listed=true; public string[] Files=new string[0]; }
+ public sealed class ModInfo { public string Title, Description, Switch; public bool Listed=true; public string[] Files=new string[0]; }
  public sealed class InstalledFile { public string path, installedSha256; }
  public sealed class ModInventory { public Dictionary<string,List<InstalledFile>> features=new Dictionary<string,List<InstalledFile>>(); }
  public sealed class Preferences { public bool Animations = true; public bool CloseAfter = false; }
@@ -34,7 +34,7 @@ namespace Aetherfall {
  public sealed class Launcher {
   Window window; Grid scene; string root, support, logPath, gameArgs, host; int port=2106;
   bool busy, closeRequested, closed, polling, preview; Mutex mutex; EventWaitHandle activation;
-  Preferences preferences=new Preferences(); DispatcherTimer timer;
+  Preferences preferences=new Preferences(); DispatcherTimer timer; ModsPage modsPage;
   readonly List<Ellipse> particles=new List<Ellipse>(); readonly Random random=new Random(48);
   int ticks;
   [DllImport("user32.dll")] static extern bool AllowSetForegroundWindow(uint processId);
@@ -49,9 +49,16 @@ namespace Aetherfall {
   [STAThread] public static int Main(string[] args) {
    try {
     if(args.Contains("--aetherfall-interface")) {
-     int at=Array.IndexOf(args,"--client"), state=Array.IndexOf(args,"--state"), report=Array.IndexOf(args,"--report");
+     int at=Array.IndexOf(args,"--client"), state=Array.IndexOf(args,"--state"), theme=Array.IndexOf(args,"--theme"), report=Array.IndexOf(args,"--report");
      if(at<0||at+1>=args.Length)throw new ArgumentException("Aetherfall Interface requires a client folder.");
-     string result=AetherfallInterface.Apply(args[at+1],state>=0&&state+1<args.Length?args[state+1]:null);
+     string result=AetherfallInterface.Apply(args[at+1],state>=0&&state+1<args.Length?args[state+1]:null,theme>=0&&theme+1<args.Length?args[theme+1]:null);
+     if(report>=0&&report+1<args.Length)File.WriteAllText(args[report+1],result);
+     return 0;
+    }
+    if(args.Contains("--mods-apply")) {
+     int at=Array.IndexOf(args,"--client"), report=Array.IndexOf(args,"--report");
+     if(at<0||at+1>=args.Length)throw new ArgumentException("Applying mod switches requires a client folder.");
+     string result=ModCatalog.Apply(args[at+1]);
      if(report>=0&&report+1<args.Length)File.WriteAllText(args[report+1],result);
      return 0;
     }
@@ -68,7 +75,7 @@ namespace Aetherfall {
     if (launcher.preview) { launcher.RenderPreview(args); return 0; }
     app.Run(launcher.window); return 0;
    } catch(Exception error) {
-    if(args.Contains("--custom-quests-sync")||args.Contains("--aetherfall-interface")) {
+    if(args.Contains("--custom-quests-sync")||args.Contains("--aetherfall-interface")||args.Contains("--mods-apply")) {
      int report=Array.IndexOf(args,"--report");if(report>=0&&report+1<args.Length)File.WriteAllText(args[report+1],error.ToString());return 1;
     }
     int at=Array.IndexOf(args,"--preview");
@@ -99,16 +106,15 @@ namespace Aetherfall {
    try { if(File.Exists(preferencePath)) preferences=new JavaScriptSerializer().Deserialize<Preferences>(File.ReadAllText(preferencePath))??new Preferences(); } catch { preferences=new Preferences(); }
    Find<CheckBox>("Animations").IsChecked=preferences.Animations; Find<CheckBox>("CloseAfter").IsChecked=preferences.CloseAfter;
    bool vulkan=ReadVulkan(); Find<RadioButton>("Vulkan").IsChecked=vulkan; Find<RadioButton>("Direct3D").IsChecked=!vulkan;
-   ReadInterface();
    ReadGameArguments(); Text("ServerAddress").Text=host+" : "+port;
    Find<Border>("DragArea").MouseLeftButtonDown+=delegate { if(Mouse.LeftButton==MouseButtonState.Pressed) window.DragMove(); };
    Button("Minimize").Click+=delegate { window.WindowState=WindowState.Minimized; };
    Button("Exit").Click+=delegate { window.Close(); };
    Button("OverviewTab").Click+=delegate { Page("Overview"); };
-   Button("ModsTab").Click+=delegate { AddMods(); Page("Mods"); };
+   modsPage=new ModsPage(window,root,()=>busy,GameRunning);
+   Button("ModsTab").Click+=delegate { modsPage.Open(); };
    Button("SettingsTab").Click+=delegate { Page("Settings"); };
    Button("Folder").Click+=delegate { Open(root); };
-   Button("OpenMods").Click+=delegate { Open(System.IO.Path.Combine(root,"Mods")); };
    Button("OpenLog").Click+=delegate { if(logPath!=null) Open(logPath); };
    Button("SaveSettings").Click+=delegate { SaveSettings(); };
    Button("Play").Click+=async delegate { await Launch(); };
@@ -116,7 +122,7 @@ namespace Aetherfall {
     if(busy) { e.Cancel=true; closeRequested=true; }
    };
    window.Closed+=delegate { closed=true; if(timer!=null) timer.Stop(); activation.Dispose(); try { mutex.ReleaseMutex(); } catch(ApplicationException) {} mutex.Dispose(); };
-   ReadRelease(); AddMods(); AddParticles(); SetMotion();
+   ReadRelease(); AddParticles(); SetMotion();
    timer=new DispatcherTimer { Interval=TimeSpan.FromMilliseconds(50) }; timer.Tick+=async delegate {
     if(activation.WaitOne(0)) { if(window.WindowState==WindowState.Minimized)window.WindowState=WindowState.Normal; window.Show(); window.Activate(); }
     Animate(); if(++ticks%100==1) await PollServer();
@@ -147,7 +153,7 @@ namespace Aetherfall {
   }
   static bool GameRunning() { return Process.GetProcessesByName("aion.bin").Any() || Process.GetProcessesByName("aion").Any(); }
   void Page(string page) {
-   foreach(string name in new string[]{"Overview","Mods","Settings"}) {
+   foreach(string name in new string[]{"Overview","Settings"}) {
     Find<FrameworkElement>(name+"Panel").Visibility=name==page?Visibility.Visible:Visibility.Collapsed;
     Button(name+"Tab").Background=Brush(name==page?"#B8203A48":"#00000000");
     Button(name+"Tab").BorderBrush=Brush(name==page?"#7477998E":"#00000000");
@@ -163,25 +169,11 @@ namespace Aetherfall {
      string text=File.ReadAllText(path); text=Regex.Replace(text,@"(?im)^(\s*Vulkan\s*=\s*)[01](\s*)$","${1}"+(selected?"1":"0")+"${2}");
      File.WriteAllText(path,text,Encoding.ASCII);
     }
-    if(AetherfallInterface.Installed(root)) {
-     bool skin=Find<CheckBox>("InterfaceSkin").IsChecked==true, layout=Find<CheckBox>("InterfaceLayout").IsChecked==true;
-     AetherfallInterface.SetDesired(root,!skin?"off":layout?"layout":"on");
-    }
     preferences.Animations=Find<CheckBox>("Animations").IsChecked==true; preferences.CloseAfter=Find<CheckBox>("CloseAfter").IsChecked==true;
     File.WriteAllText(System.IO.Path.Combine(support,"preferences.json"),new JavaScriptSerializer().Serialize(preferences));
     SetMotion();
     Text("SettingsFeedback").Text="Saved. Your next launch will use "+(selected?"Vulkan / DXVK.":"Direct3D 9.");
    } catch(Exception error) { Text("SettingsFeedback").Text=error.Message; }
-  }
-  void ReadInterface() {
-   bool installed=AetherfallInterface.Installed(root);
-   Find<FrameworkElement>("InterfaceSection").Visibility=installed?Visibility.Visible:Visibility.Collapsed;
-   if(!installed)return;
-   string desired="on";
-   try { desired=AetherfallInterface.ReadState(root).Desired; } catch(Exception error) { if(!(error is IOException||error is ArgumentException||error is InvalidOperationException))throw; }
-   CheckBox skin=Find<CheckBox>("InterfaceSkin"), layout=Find<CheckBox>("InterfaceLayout");
-   skin.IsChecked=desired!="off"; layout.IsChecked=desired=="layout"; layout.IsEnabled=desired!="off";
-   skin.Checked+=delegate { layout.IsEnabled=true; }; skin.Unchecked+=delegate { layout.IsEnabled=false; layout.IsChecked=false; };
   }
   void ReadRelease() {
    try {
@@ -191,60 +183,6 @@ namespace Aetherfall {
    } catch(Exception error) {
     if(!(error is IOException || error is UnauthorizedAccessException || error is ArgumentException || error is InvalidOperationException))throw;
     Text("ReleaseLabel").Text="  Release information unavailable";
-   }
-  }
-  static string FolderTitle(string name) { return Regex.Replace(name,@"(?<=[a-z0-9])(?=[A-Z])"," "); }
-  ModInfo ReadModInfo(string folder) {
-   string path=System.IO.Path.Combine(folder,"mod.json"), title=FolderTitle(System.IO.Path.GetFileName(folder));
-   ModInfo info=null;bool changed=false, writable=true;
-   try { if(File.Exists(path)) info=new JavaScriptSerializer().Deserialize<ModInfo>(File.ReadAllText(path)); }
-   catch(Exception error) {
-    if(!(error is IOException || error is UnauthorizedAccessException || error is ArgumentException || error is InvalidOperationException))throw;writable=false;}
-   if(info==null) { info=new ModInfo(); changed=!File.Exists(path); }
-   if(String.IsNullOrWhiteSpace(info.Title)) { info.Title=title; changed=true; }
-   if(String.IsNullOrWhiteSpace(info.Description)) {
-    info.Description="Client features provided by "+title+".";
-    foreach(string readme in new string[]{"README.txt","README.md"}) {
-     string candidate=System.IO.Path.Combine(folder,readme);
-     if(!File.Exists(candidate))continue;
-     try {
-      string line=File.ReadLines(candidate).Select(x=>x.Trim()).FirstOrDefault(x=>x.Length>25 && !x.StartsWith("#") && !x.StartsWith("`") && !x.StartsWith("  "));
-      if(line!=null)info.Description=line.Length>240?line.Substring(0,237)+"...":line;
-     } catch(IOException) {} catch(UnauthorizedAccessException) {}
-     break;
-    }
-    changed=true;
-   }
-   if(changed && writable) try { File.WriteAllText(path,new JavaScriptSerializer().Serialize(info)); } catch(IOException) {} catch(UnauthorizedAccessException) {}
-   return info;
-  }
-  void AddMods() {
-   ModInventory installed=new ModInventory();
-   try { installed=new JavaScriptSerializer().Deserialize<ModInventory>(File.ReadAllText(ClientPath("Mods/InstalledMods.json")))??installed; }
-   catch(Exception error) {
-    if(!(error is IOException || error is UnauthorizedAccessException || error is ArgumentException || error is InvalidOperationException))throw;}
-   StackPanel list=Find<StackPanel>("ModList");list.Children.Clear();
-   foreach(string folder in Directory.GetDirectories(ClientPath("Mods")).OrderBy(x=>x,StringComparer.OrdinalIgnoreCase)) {
-    string name=System.IO.Path.GetFileName(folder);
-    if(name.Equals("Backups",StringComparison.OrdinalIgnoreCase) || (File.GetAttributes(folder)&FileAttributes.ReparsePoint)!=0)continue;
-    ModInfo info=ReadModInfo(folder);if(!info.Listed)continue;
-    HashSet<string> required=new HashSet<string>(info.Files??new string[0],StringComparer.OrdinalIgnoreCase);
-    List<InstalledFile> files;
-    if(installed.features!=null && installed.features.TryGetValue(name,out files))
-     foreach(InstalledFile file in files)if(file!=null && !String.IsNullOrWhiteSpace(file.path))required.Add(file.path);
-    List<string> missing=new List<string>();
-    foreach(string relative in required) {
-     try { if(!File.Exists(ClientPath(relative)))missing.Add(relative); }
-     catch(ArgumentException) { missing.Add("Invalid mod file path"); } catch(InvalidDataException) { missing.Add("Invalid mod file path"); }
-    }
-    if(required.Count==0 && !Directory.GetFiles(folder).Any(x=>!System.IO.Path.GetFileName(x).Equals("mod.json",StringComparison.OrdinalIgnoreCase)
-      && !System.IO.Path.GetFileName(x).StartsWith("README",StringComparison.OrdinalIgnoreCase)) && Directory.GetDirectories(folder).Length==0)
-     missing.Add("No mod files found");
-    StackPanel row=new StackPanel { Margin=new Thickness(0,0,10,14) };
-    row.Children.Add(new TextBlock { Text="✧  "+info.Title,FontSize=14,Foreground=Brush("#EDD6A6") });
-    row.Children.Add(new TextBlock { Text=info.Description,FontSize=12,Foreground=Brush("#C4D7E1"),Margin=new Thickness(20,4,0,0),TextWrapping=TextWrapping.Wrap });
-    if(missing.Count>0)row.Children.Add(new TextBlock { Text="Missing mod files: "+String.Join(", ",missing),FontSize=11,Foreground=Brush("#E5AD87"),Margin=new Thickness(20,4,0,0),TextWrapping=TextWrapping.Wrap });
-    list.Children.Add(row);
    }
   }
   void AddParticles() {
@@ -299,6 +237,12 @@ namespace Aetherfall {
     catch(Exception error) { result="Aetherfall Interface was not switched: "+error.Message; }
     File.AppendAllText(logPath,"\r\n"+result+"\r\n");return;
    }
+   if(step.Script=="@ModSwitches") {
+    string result;
+    try { result=await Task.Run(()=>ModCatalog.Apply(root)); }
+    catch(Exception error) { result="Mod switches were not applied: "+error.Message; }
+    File.AppendAllText(logPath,"\r\n"+result+"\r\n");return;
+   }
    if(step.Script=="@CustomQuests") {
     string output=await Task.Run(()=>CustomQuests.Sync(root,false));File.AppendAllText(logPath,"\r\n"+output+"\r\n");return;
    }
@@ -332,6 +276,8 @@ namespace Aetherfall {
    List<Step> steps=new List<Step>();
    if(PortablePreparation()!=null)steps.Add(new Step("Preparing portable client paths","@PortablePreparation"));
    if(AetherfallInterface.Installed(root))steps.Add(new Step("Preparing the Aetherfall interface","@AetherfallInterface"));
+   if(Directory.GetDirectories(ClientPath("Mods")).Select(x=>System.IO.Path.Combine(x,"mod.json")).Any(x=>File.Exists(x)&&File.ReadAllText(x).Contains("\"Switch\""))&&ModCatalog.Read(root).Any(x=>x.Kind==ModKind.Switchable))
+    steps.Add(new Step("Preparing switchable mods","@ModSwitches"));
    if(Directory.Exists(ClientPath("Mods/CustomQuests/Quests")))steps.Add(new Step("Preparing custom quests","@CustomQuests"));
    steps.Add(new Step("Preparing the Graphics menu","Mods/GraphicsMenu/Install-GraphicsMenu.ps1"));
    steps.Add(new Step("Selecting your renderer","Mods/Renderer/SelectRenderer.ps1"));
@@ -435,12 +381,13 @@ namespace Aetherfall {
    Text("StatusDetail").Visibility=value; Text("LaunchCaption").Visibility=value;
    if(loading) { Find<Border>("ProgressFill").BeginAnimation(FrameworkElement.WidthProperty,null); Find<Border>("ProgressFill").Width=0; }
   }
-  static void Open(string path) { try { Process.Start(new ProcessStartInfo(path) { UseShellExecute=true }); } catch(Exception error) { MessageBox.Show(error.Message,"Aion Aetherfall"); } }
+  public static void Open(string path) { try { Process.Start(new ProcessStartInfo(path) { UseShellExecute=true }); } catch(Exception error) { MessageBox.Show(error.Message,"Aion Aetherfall"); } }
   void RenderPreview(string[] args) {
    string destination=null, page="Overview";
    for(int i=0;i+1<args.Length;i++) { if(args[i]=="--preview") destination=args[i+1]; if(args[i]=="--page") page=args[i+1]; }
    if(destination==null) throw new ArgumentException("Provide a preview output file.");
-   Page(page); Text("ServerStatus").Text="Login server offline";
+   if(page=="Mods") { Page("Overview"); modsPage.Open(); } else Page(page);
+   Text("ServerStatus").Text="Login server offline";
    if(args.Contains("--loading")) { LoadingDisplay(true); Find<Border>("ProgressFill").Width=260; }
    scene.Measure(new Size(1180,744)); scene.Arrange(new Rect(0,0,1180,744)); scene.UpdateLayout();
    RenderTargetBitmap bitmap=new RenderTargetBitmap(1180,744,96,96,PixelFormats.Pbgra32); bitmap.Render(scene);

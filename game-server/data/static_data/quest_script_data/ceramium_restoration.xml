@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<quest_scripts xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="quest_script_data.xsd">
+	<!-- Native standalone exchanges restored in Cygnea/Enshar. The unused IDs are compatible aliases. -->
+	<item_collecting id="13360" start_npc_ids="801538 801495"/>
+	<item_collecting id="23360" start_npc_ids="801537 801494"/>
+</quest_scripts>

@@ -595,6 +595,16 @@
 		<spawn npc_id="800370">
 			<spot x="1122.9684" y="1068.0406" z="792.0177" h="61"/>
 		</spawn>
+		<!-- Aetherfall custom restored Protectorate merchants -->
+		<spawn npc_id="800371">
+			<spot x="1119.9684" y="1068.0406" z="792.0177" h="61"/>
+		</spawn>
+		<spawn npc_id="800372">
+			<spot x="1122.9684" y="1065.0406" z="792.0177" h="61"/>
+		</spawn>
+		<spawn npc_id="800417">
+			<spot x="1125.9684" y="1068.0406" z="792.0177" h="61"/>
+		</spawn>
 		<!-- Vershaka Statue -->
 		<spawn npc_id="730668">
 			<spot x="1090.5620" y="1069.0687" z="787.0775" h="60" static_id="12"/>

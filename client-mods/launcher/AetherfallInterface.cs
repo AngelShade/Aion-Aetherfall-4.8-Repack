@@ -10,14 +10,19 @@ using System.Web.Script.Serialization;
 namespace Aetherfall {
  public sealed class InterfaceEntry { public string off, on, layout; }
  public sealed class InterfaceArchive { public Dictionary<string,InterfaceEntry> entries=new Dictionary<string,InterfaceEntry>(); }
+ public sealed class InterfaceTheme { public string id, name; }
+ public sealed class InterfaceThemes {
+  public string @default; public List<InterfaceTheme> list=new List<InterfaceTheme>();
+  public Dictionary<string,Dictionary<string,Dictionary<string,string>>> layout=new Dictionary<string,Dictionary<string,Dictionary<string,string>>>();
+ }
  public sealed class InterfaceManifest {
-  public string name, version;
+  public string name, version; public InterfaceThemes themes;
   public Dictionary<string,InterfaceArchive> archives=new Dictionary<string,InterfaceArchive>();
   public Dictionary<string,InterfaceEntry> files=new Dictionary<string,InterfaceEntry>();
  }
  public sealed class InterfaceStamp { public long Length, Ticks; }
  public sealed class InterfaceState {
-  public string Desired="on", Applied;
+  public string Desired="on", Applied, Theme, AppliedTheme;
   public Dictionary<string,InterfaceStamp> Stamps=new Dictionary<string,InterfaceStamp>();
   public InterfaceStamp Graphics;
  }
@@ -32,6 +37,32 @@ namespace Aetherfall {
   static readonly string[] States={"off","on","layout"};
 
   public static bool Installed(string root) { return File.Exists(Path.Combine(root,Folder,"manifest.json")); }
+  public static InterfaceManifest ReadManifest(string root) { return Json.Deserialize<InterfaceManifest>(File.ReadAllText(Path.Combine(root,Folder,"manifest.json"),Utf8)); }
+
+  // Colour themes (interface 1.3.6+) vary only the Full HUD (layout) state. A manifest
+  // without "themes" behaves as before; the default theme uses entries[*].layout.
+  public static List<InterfaceTheme> Themes(InterfaceManifest manifest) {
+   return manifest.themes==null||manifest.themes.list==null?new List<InterfaceTheme>():manifest.themes.list.Where(x=>x!=null&&!String.IsNullOrEmpty(x.id)).ToList();
+  }
+  static string DefaultTheme(InterfaceManifest manifest) {
+   List<InterfaceTheme> themes=Themes(manifest);
+   if(themes.Count==0)return null;
+   string preferred=manifest.themes.@default??"aether";
+   return themes.Any(x=>x.id==preferred)?preferred:themes[0].id;
+  }
+  public static string Theme(InterfaceManifest manifest,string theme) {
+   return Themes(manifest).Any(x=>x.id==theme)?theme:DefaultTheme(manifest);
+  }
+  // The theme Full HUD currently shows: a state written before themes means the default.
+  public static string AppliedTheme(InterfaceManifest manifest,InterfaceState state) {
+   return state.Applied!="layout"?null:Theme(manifest,state.AppliedTheme);
+  }
+  static string ThemePayload(InterfaceManifest manifest,string theme,string archive,string entry) {
+   Dictionary<string,Dictionary<string,string>> archives;string hash;
+   if(theme==null||manifest.themes==null||manifest.themes.layout==null||!manifest.themes.layout.TryGetValue(theme,out archives)||archives==null)return null;
+   string key=archives.Keys.FirstOrDefault(k=>String.Equals(k,archive,StringComparison.OrdinalIgnoreCase));
+   return key!=null&&archives[key]!=null&&archives[key].TryGetValue(entry,out hash)?hash:null;
+  }
   static string StatePath(string root) { return Path.Combine(root,Folder,"state.json"); }
   public static InterfaceState ReadState(string root) {
    string path=StatePath(root);
@@ -49,8 +80,19 @@ namespace Aetherfall {
    if(!States.Contains(desired))throw new ArgumentException("Unknown interface state: "+desired);
    InterfaceState state=ReadState(root);state.Desired=desired;SaveState(root,state);
   }
+  public static void SetTheme(string root,string theme) {
+   if(!Themes(ReadManifest(root)).Any(x=>x.id==theme))throw new ArgumentException("Unknown interface theme: "+theme);
+   InterfaceState state=ReadState(root);state.Theme=theme;SaveState(root,state);
+  }
   static string Want(InterfaceEntry entry,string state) { return state=="off"?entry.off:state=="on"?entry.on:entry.layout; }
+  static string Want(InterfaceManifest manifest,string archive,string name,InterfaceEntry entry,string state,string theme) {
+   return state=="layout"?ThemePayload(manifest,theme,archive,name)??entry.layout:Want(entry,state);
+  }
   static bool Known(InterfaceEntry entry,string hash) { return hash==entry.off||hash==entry.on||hash==entry.layout; }
+  // A theme payload is a recorded state of its entry too, so switching away from it is allowed.
+  static bool Known(InterfaceManifest manifest,string archive,string name,InterfaceEntry entry,string hash) {
+   return Known(entry,hash)||Themes(manifest).Any(x=>ThemePayload(manifest,x.id,archive,name)==hash);
+  }
   static byte[] Payload(string root,string hash) {
    string path=Path.Combine(root,Folder,"payloads",hash+".gz");
    if(!File.Exists(path))throw new FileNotFoundException("Aetherfall Interface payload is missing.",path);
@@ -108,7 +150,7 @@ namespace Aetherfall {
     if(!a.Names.SequenceEqual(b.Names))return "Graphics menu copy of "+relative+" has other entries; not synchronized.";
     foreach(string name in a.Names) {
      InterfaceEntry owned;byte[] x=a.Read(name),y=b.Read(name);
-     if(entries.TryGetValue(name,out owned)) { if(!Known(owned,CustomQuests.Hash(x))||!Known(owned,CustomQuests.Hash(y)))return "Graphics menu copy of "+relative+" differs in "+name+"; not synchronized."; }
+     if(entries.TryGetValue(name,out owned)) { if(!Known(manifest,managed,name,owned,CustomQuests.Hash(x))||!Known(manifest,managed,name,owned,CustomQuests.Hash(y)))return "Graphics menu copy of "+relative+" differs in "+name+"; not synchronized."; }
      else if(!x.SequenceEqual(y))return "Graphics menu copy of "+relative+" differs outside the interface ("+name+"); not synchronized.";
     }
     Replace(copyPath,live);
@@ -121,16 +163,18 @@ namespace Aetherfall {
   }
 
   // Applies the desired state. Returns a log line; throws only for damaged or foreign data.
-  public static string Apply(string root) { return Apply(root,null); }
-  public static string Apply(string root,string requested) {
+  public static string Apply(string root) { return Apply(root,null,null); }
+  public static string Apply(string root,string requested) { return Apply(root,requested,null); }
+  public static string Apply(string root,string requested,string theme) {
    root=Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar);
    if(!Installed(root))return "Aetherfall Interface is not installed.";
-   InterfaceManifest manifest=Json.Deserialize<InterfaceManifest>(File.ReadAllText(Path.Combine(root,Folder,"manifest.json"),Utf8));
+   InterfaceManifest manifest=ReadManifest(root);
    InterfaceState state=ReadState(root);
    if(requested!=null){if(!States.Contains(requested))throw new ArgumentException("Unknown interface state: "+requested);state.Desired=requested;}
-   string desired=state.Desired;
+   if(theme!=null){if(!Themes(manifest).Any(x=>x.id==theme))throw new ArgumentException("Unknown interface theme: "+theme);state.Theme=theme;}
+   string desired=state.Desired, wantedTheme=desired=="layout"?Theme(manifest,state.Theme):null, label=desired+(wantedTheme==null?"":" "+wantedTheme);
    List<string> paths=manifest.archives.Keys.Concat(manifest.files.Keys).ToList();
-   if(state.Applied==desired&&Stamped(root,state,paths)&&SameStamp(state.Graphics,GraphicsStamp(root))){if(requested!=null)SaveState(root,state);return "Aetherfall Interface unchanged ("+desired+").";}
+   if(state.Applied==desired&&AppliedTheme(manifest,state)==wantedTheme&&Stamped(root,state,paths)&&SameStamp(state.Graphics,GraphicsStamp(root))){if(requested!=null||theme!=null)SaveState(root,state);return "Aetherfall Interface unchanged ("+label+").";}
    if(Running()){SaveState(root,state);return "Aion is running; Aetherfall Interface stays as installed until every client is closed.";}
 
    Dictionary<string,byte[]> writes=new Dictionary<string,byte[]>();int entries=0;
@@ -139,9 +183,9 @@ namespace Aetherfall {
     QuestPak pak=new QuestPak(File.ReadAllBytes(target));Dictionary<string,byte[]> changes=new Dictionary<string,byte[]>();
     foreach(var item in archive.Value.entries) {
      if(!pak.Contains(item.Key))throw new InvalidDataException("Aetherfall Interface entry is missing from "+archive.Key+": "+item.Key+". Rebuild the addon.");
-     string current=CustomQuests.Hash(pak.Read(item.Key)),wanted=Want(item.Value,desired);
+     string current=CustomQuests.Hash(pak.Read(item.Key)),wanted=Want(manifest,archive.Key,item.Key,item.Value,desired,wantedTheme);
      if(current==wanted)continue;
-     if(!Known(item.Value,current))throw new InvalidDataException("Another mod changed "+item.Key+" in "+archive.Key+". Rebuild Aetherfall Interface before switching it.");
+     if(!Known(manifest,archive.Key,item.Key,item.Value,current))throw new InvalidDataException("Another mod changed "+item.Key+" in "+archive.Key+". Rebuild Aetherfall Interface before switching it.");
      changes.Add(item.Key,Payload(root,wanted));
     }
     if(changes.Count>0){writes.Add(archive.Key,pak.Build(changes));entries+=changes.Count;}
@@ -163,11 +207,11 @@ namespace Aetherfall {
     }
    } catch { foreach(string relative in done)Replace(Path.Combine(root,relative),before[relative]);throw; }
    string graphics=SyncGraphicsMenu(root,manifest);
-   state.Applied=desired;state.Stamps=new Dictionary<string,InterfaceStamp>();
+   state.Applied=desired;state.AppliedTheme=wantedTheme;state.Stamps=new Dictionary<string,InterfaceStamp>();
    foreach(string relative in paths)state.Stamps[relative]=Stamp(Path.Combine(root,relative));
    state.Graphics=GraphicsStamp(root);
    SaveState(root,state);
-   return "Aetherfall Interface "+desired+": "+entries+" item(s) switched in "+writes.Count+" file(s)."+(graphics==null?"":" "+graphics);
+   return "Aetherfall Interface "+label+": "+entries+" item(s) switched in "+writes.Count+" file(s)."+(graphics==null?"":" "+graphics);
   }
  }
 }

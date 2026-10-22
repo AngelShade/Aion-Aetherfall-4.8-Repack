@@ -1,8 +1,17 @@
 (function () {
   'use strict';
   var state = null, storage = 125, view = 'market', selectedObject = 0, selectedPrice = 0, busy = false, loading = false, modalAction = null, searchTimer, warehouseQuery = '';
-  var activeRead = null, readVersion = 0, refreshPending = false, storagePanes = {}, activePane = null, rendered = {}, storageIconTimer = null, batchIconTimer = null;
+  var activeRead = null, readVersion = 0, refreshPending = false, storagePanes = {}, activePane = null, rendered = {}, storageIcons = null, batchIcons = null;
   var selectMode = false, selectedObjects = {}, expandedCategory = '';
+  // Icons already requested this session come straight from the browser's memory cache, so
+  // rebuilt grids (after a transfer or refresh) show them at once instead of re-queuing them.
+  var loadedIcons = {};
+  // Troubleshooting readout (click the status bar): page stalls, icon loading and request times as
+  // seen inside the game, where the client's own browser pump can behave differently from tests.
+  var diag = { on: false, last: Date.now(), gap: 0, req: 0, ok: 0, err: 0, tab: '', tabStart: 0, tabLast: 0, tabIcons: 0, xhr: [] };
+  function diagIcon(failed) { if (failed) { diag.err++; this.style.visibility = 'hidden'; } else diag.ok++; if (diag.tabStart) { diag.tabIcons++; diag.tabLast = Date.now() - diag.tabStart; } }
+  function diagShow() { var hint = document.querySelector('.keyboard-hint'); if (hint) hint.innerHTML = diag.on ? html('Diag · longest stall ' + diag.gap + ' ms · ' + (diag.tab ? diag.tab + ': ' + diag.tabIcons + ' icons, last at ' + diag.tabLast + ' ms · ' : '') + 'icons ' + diag.ok + '/' + diag.req + ' loaded, ' + diag.err + ' failed · ' + diag.xhr.join(' · ')) : 'Enter to search · Esc to close item details'; }
+  setInterval(function () { var now = Date.now(); diag.gap = Math.max(diag.gap, now - diag.last - 50); diag.last = now; if (diag.on) diagShow(); }, 50);
   var query = { q: '', category: 'All Items', sub: 'All', filter: 'changed', page: 1, variant: '', sort: 'change', minLevel: '', maxLevel: '', minPrice: '', maxPrice: '', quality: 'all', slot: 'All', orderPage: 1, historyPage: 1, orderFilter: 'all', historyFilter: 'all' };
   var session = (location.search.match(/[?&](?:session_id|token)=([^&]*)/) || [null, ''])[1];
   function byId(id) { return document.getElementById(id); }
@@ -24,23 +33,33 @@
   // Native browser tooltip type 28 parses named fields separated by '&'.
   function tooltipLink(i) { return 'nc://aion.ItemInfo/ItemTooltip?' + (i.tooltip || 'item=' + (+i.item_id) + '&count=' + (i.quantity || 1) + '&enchant_count=' + (i.enchant || 0) + '&authorize_count=' + (i.tempering || 0)); }
   // Icons are cropped during asset preparation, avoiding synchronous canvas/GPU readback.
-  function image(i, lazy) { var link = html(tooltipLink(i)); return '<a class="item-icon" href="' + link + '" title="' + link + '" onclick="return false" tabindex="-1" aria-hidden="true"><img ' + (lazy ? 'data-src' : 'src') + '="/market/media/icons/' + i.item_id + '.png?v=native-3" alt="" onerror="this.style.visibility=\'hidden\'"></a>'; }
+  function image(i, lazy) { var link = html(tooltipLink(i)), url = '/market/media/icons/' + i.item_id + '.png?v=native-3'; return '<a class="item-icon" href="' + link + '" title="' + link + '" onclick="return false" tabindex="-1" aria-hidden="true"><img ' + (lazy && !loadedIcons[url] ? 'data-src' : 'src') + '="' + url + '" alt="" onerror="this.style.visibility=\'hidden\'"></a>'; }
+  // The game's browser serves about one icon per game frame and queues everything else (clicks,
+  // warehouse updates) behind pending icon requests. Keep two icons in flight and ask for the next
+  // one only when one arrives, so input is never stuck behind a whole tab of icons.
+  function feedIcons(nodes, wanted) {
+    var job = { off: false }, cursor = 0, inflight = 0;
+    function next() { if (job.off || !wanted()) return; while (inflight < 2 && cursor < nodes.length) start(nodes[cursor++]); }
+    function start(node) {
+      var src = node.getAttribute('data-src'), settled = false; if (!src) return;
+      function finish(state) { if (settled) return; settled = true; inflight--; if (state) diagIcon.call(node, state === 'error'); setTimeout(next, 0); }
+      inflight++; diag.req++; loadedIcons[src] = true;
+      node.onload = function () { finish('load'); }; node.onerror = function () { finish('error'); };
+      setTimeout(function () { finish(''); }, 4000);
+      node.src = src; node.removeAttribute('data-src');
+    }
+    // Let the tab/frame paint before the first icon request.
+    setTimeout(next, 16);
+    return job;
+  }
   function loadStorageIcons(cached) {
-    clearTimeout(storageIconTimer);
+    if (storageIcons) storageIcons.off = true;
     var grid = byId('storage-grid'), top = grid.scrollTop - 56, bottom = grid.scrollTop + grid.clientHeight + 56, images = cached.images, pending = [], i, node, slot;
     for (i = 0; i < images.length; i++) {
       node = images[i]; if (!node.getAttribute('data-src')) continue; slot = node.parentNode.parentNode;
       if (slot.offsetTop >= top && slot.offsetTop <= bottom) pending.push(node);
     }
-    var cursor = 0;
-    function next() {
-      if (activePane !== cached.pane) return;
-      var end = Math.min(cursor + 6, pending.length), node;
-      while (cursor < end) { node = pending[cursor++]; node.src = node.getAttribute('data-src'); node.removeAttribute('data-src'); }
-      if (cursor < pending.length) storageIconTimer = setTimeout(next, 16);
-    }
-    // Let the tab/frame paint before the native DDS decoder loads more icons.
-    storageIconTimer = setTimeout(next, 16);
+    storageIcons = feedIcons(pending, function () { return activePane === cached.pane; });
   }
   function name(i) { return (i.enchant ? '+' + i.enchant + ' ' : '') + i.name + (i.tempering ? ' · Tempering +' + i.tempering : ''); }
   function stackLabel(n) { return n + ' item stack' + (n === 1 ? '' : 's'); }
@@ -53,7 +72,7 @@
     x.onreadystatechange = function () { if (x.readyState !== 4 || delivered) return; delivered = true; var r; try { r = JSON.parse(x.responseText); } catch (e) { r = { error: 'Central Market could not confirm this request. Refresh Warehouse.' }; } done(x.status === 200, r); };
     x.onerror = function () { if (delivered) return; delivered = true; done(false, { error: 'Connection lost. Refresh Warehouse before another transfer.' }); };
     var timer = setTimeout(function () { if (delivered) return; delivered = true; x.abort(); done(false, {error: 'Request timed out. Refresh Warehouse to check the result.'}); }, 30000);
-    var originalDone = done; done = function (ok, r) { clearTimeout(timer); originalDone(ok, r); };
+    var started = Date.now(), originalDone = done; done = function (ok, r) { clearTimeout(timer); diag.xhr.unshift((url.indexOf('action') >= 0 ? 'action ' : url.indexOf('section=detail') >= 0 ? 'detail ' : url.indexOf('section=') >= 0 ? 'poll ' : 'state ') + (Date.now() - started) + ' ms ' + Math.round((x.responseText || '').length / 1024) + ' KB' + (ok ? '' : ' failed')); diag.xhr.length = Math.min(diag.xhr.length, 3); originalDone(ok, r); };
     x.send(method === 'POST' ? encode(data) : null);
     return { cancel: function () { delivered = true; clearTimeout(timer); x.abort(); } };
   }
@@ -66,7 +85,8 @@
     if (!state) { detail = false; catalogOnly = false; }
     cancelRead(); var version = readVersion, requestedVariant = query.variant;
     loading = true; byId('refresh').disabled = true;
-    status(detail ? 'Loading item prices…' : 'Updating Warehouse…');
+    // The 20-second background poll stays quiet; only reads the player started show progress.
+    if (catalogOnly !== 'activity') status(detail ? 'Loading item prices…' : 'Updating Warehouse…');
     activeRead = request('GET', '/market/state?' + encode(fields(detail ? {section:'detail'} : catalogOnly ? {section:catalogOnly === 'activity' ? 'activity' : 'catalog'} : {})), null, function (ok, r) {
       if (version !== readVersion) return;
       activeRead = null; loading = false; byId('refresh').disabled = false;
@@ -123,8 +143,8 @@
   function renderStorage() {
     var s = currentStorage(), text = '', i, item, visible = 0, grid = byId('storage-grid');
     byId('capacity').innerHTML = s.id === 125 ? s.items.length + ' stacks' : s.items.length + ' / ' + s.limit;
-    byId('source-kinah').innerHTML = s.id === 125 ? 'Market Warehouse' : s.name + ' ' + money(s.kinah);
-    byId('deposit-kinah').disabled = s.id === 125; byId('withdraw-kinah').disabled = s.id === 125;
+    var wallet = kinahStorage(); byId('source-kinah').innerHTML = wallet.name + ' <b>' + money(wallet.kinah) + '</b>';
+    byId('deposit-kinah').disabled = wallet.id === 125; byId('withdraw-kinah').disabled = wallet.id === 125;
     var cached = storagePanes[s.id], key, markup = cached && cached.source === s && cached.query === warehouseQuery ? cached.markup : JSON.stringify(s) + warehouseQuery;
     if (!cached) { cached = storagePanes[s.id] = {pane: document.createElement('div'), markup: '', scroll: 0}; cached.pane.className = 'storage-pane'; grid.appendChild(cached.pane); }
     activePane = cached.pane;
@@ -135,14 +155,16 @@
       item = s.items[i]; if (item.reserved || name(item).toLowerCase().indexOf(warehouseQuery.toLowerCase()) < 0) continue; visible++;
       text += '<div tabindex="0" role="button" aria-label="' + html(name(item) + ', quantity ' + item.quantity) + '" draggable="true" class="slot' + (item.object === selectedObject ? ' selected' : '') + '" data-object="' + item.object + '">' + image(item, true) + '<span class="selection-check"></span>' + (item.enchant ? '<span class="enchant">+' + item.enchant + '</span>' : '') + '<span class="quantity">' + (item.quantity > 1 ? money(item.quantity) : '') + '</span></div>';
     }
-    if (!warehouseQuery) for (i = visible; i < Math.max(30, s.limit || visible + 6); i++) text += '<div class="slot empty"></div>';
+    // Expanded warehouses have up to 540 slots; capacity shows the limit, so only pad a few
+    // rows of empty slots instead of building hundreds of placeholder nodes per tab.
+    if (!warehouseQuery) for (i = visible; i < Math.max(30, Math.min(s.limit || visible + 6, visible + 36)); i++) text += '<div class="slot empty"></div>';
     if (!visible && warehouseQuery) text = '<p class="empty-list">No items found.</p>';
     activePane.innerHTML = text; cached.images = activePane.querySelectorAll('img[data-src]'); cached.nextIcon = 0; grid.scrollTop = cached.scroll;
     loadStorageIcons(cached);
     renderStorageSelection();
     var slots = activePane.querySelectorAll('[data-object]');
     for (i = 0; i < slots.length; i++) (function (el) {
-      el.onclick = function (e) { if (busy) return; var id = +el.getAttribute('data-object'); if (selectMode || e && e.ctrlKey) { selectMode = true; toggleSelection(id); } else { selectedObject = id; renderStorageSelection(); } };
+      el.onclick = function (e) { var id = +el.getAttribute('data-object'); if (selectMode || e && e.ctrlKey) { selectMode = true; toggleSelection(id); } else { selectedObject = id; renderStorageSelection(); } };
       el.onkeydown = function (e) { if (e.keyCode === 13 || e.keyCode === 32) { e.preventDefault(); el.onclick(e); } };
       el.ondblclick = function () { if (selectMode || busy) return; selectedObject = +el.getAttribute('data-object'); var item = selectedItem(); if (!item.reserved) transfer(item, storage === 125 ? 0 : 125); };
       el.ondragstart = function (e) { var item = findObject(+el.getAttribute('data-object')); if (busy || item.reserved) { e.preventDefault(); return; } if (selectMode && !selectedObjects[item.object]) { selectedObjects = {}; selectedObjects[item.object] = true; renderStorageSelection(); } e.dataTransfer.setData('text/plain', item.object); };
@@ -154,7 +176,7 @@
     byId('storage-grid').className = 'storage-grid' + (selectMode ? ' selection-mode' : '') + (batchActions ? ' batch-actions' : '');
     byId('storage-item').className = 'storage-item' + (batchActions ? ' batch-actions' : '');
     byId('select-items').className = selectMode ? 'active' : ''; byId('select-items').innerHTML = selectMode ? 'Done' : 'Select Items'; byId('select-items').setAttribute('aria-pressed', String(selectMode));
-    byId('select-all').disabled = !selectMode || busy; byId('clear-selection').disabled = !batch.length || busy;
+    byId('select-all').disabled = !selectMode; byId('clear-selection').disabled = !batch.length;
     byId('selection-count').innerHTML = selectMode ? batch.length + ' selected' : '';
     for (j = 0; j < slots.length; j++) {
       var selected = +slots[j].getAttribute('data-object') === selectedObject;
@@ -295,13 +317,12 @@
     dialog.style.top = Math.max(16, Math.round((height - dialog.offsetHeight) / 2)) + 'px';
   }
   function openDialog(title, body, action, button) { byId('dialog-cancel').innerHTML = action ? 'Cancel' : 'Close'; byId('dialog-title').innerHTML = html(title); byId('dialog-body').innerHTML = body; byId('dialog-error').innerHTML = ''; byId('dialog-confirm').innerHTML = button || 'Confirm'; byId('dialog-confirm').disabled = false; byId('dialog-confirm').style.display = action ? '' : 'none'; modalAction = action; byId('dialog-shade').style.display = 'block'; positionDialog(); var input = byId('dialog-body').querySelector('input'); if (input) { input.focus(); input.select(); } }
-  function closeDialog() { if (busy) return; clearTimeout(batchIconTimer); byId('dialog-shade').style.display = 'none'; modalAction = null; }
+  function closeDialog() { if (busy) return; if (batchIcons) batchIcons.off = true; byId('dialog-shade').style.display = 'none'; modalAction = null; }
   function loadBatchIcons() {
-    clearTimeout(batchIconTimer);var list=byId('dialog-body').querySelector('.batch-items');if(!list)return;
-    var bounds=list.getBoundingClientRect(),images=list.querySelectorAll('img[data-src]'),pending=[],j,rect,cursor=0;
+    if(batchIcons)batchIcons.off=true;var list=byId('dialog-body').querySelector('.batch-items');if(!list)return;
+    var bounds=list.getBoundingClientRect(),images=list.querySelectorAll('img[data-src]'),pending=[],j,rect;
     for(j=0;j<images.length;j++){rect=images[j].parentNode.parentNode.getBoundingClientRect();if(rect.bottom>=bounds.top-43&&rect.top<=bounds.bottom+43)pending.push(images[j]);}
-    function next(){if(byId('dialog-shade').style.display!=='block'||!list.parentNode)return;var end=Math.min(cursor+6,pending.length),n;while(cursor<end){n=pending[cursor++];n.src=n.getAttribute('data-src');n.removeAttribute('data-src');}if(cursor<pending.length)batchIconTimer=setTimeout(next,16);}
-    batchIconTimer=setTimeout(next,16);
+    batchIcons=feedIcons(pending,function(){return byId('dialog-shade').style.display==='block'&&!!list.parentNode;});
   }
   function quantity(max, preference) {
     var extra = preference ? '<label class="always-max-frame" title="Default to maximum quantity when opening a transfer or sale. Saved for this account."><input id="always-max" type="checkbox"' + (state.alwaysMax ? ' checked' : '') + '><span class="check-mark" aria-hidden="true"></span><span>Always Max</span></label>' : '';
@@ -332,7 +353,7 @@
   function demandAt(price) { var d=state.selected,count=0,i; if(d) for(i=0;i<d.book.length;i++) if(d.book[i].side==='B' && d.book[i].price>=price) count+=bookQuantity(d.book[i]); return count; }
   function priceOptions(d,sale) { var out = '', i, count; for (i = 0; i < d.levels.length; i++) { count=sale ? demandAt(d.levels[i]) : stockAt(d.levels[i]); out += '<option value="' + d.levels[i] + '">' + money(d.levels[i]) + ' Kinah' + (count ? ' · ' + money(count) + (sale ? ' waiting buyers' : ' available to buy') : sale ? ' · List for sale' : ' · Preorder') + '</option>'; } return out; }
   function buy() {
-    var d = state.selected; if (loading || !d || d.variant !== query.variant) return; var max = d.maxQuantity;
+    var d = state.selected; if (!d || d.variant !== query.variant) return; var max = d.maxQuantity;
     openDialog('Buy / Place Order', itemHeader(d) + '<label for="unit-price">Unit price</label><select id="unit-price">' + priceOptions(d) + '</select>' + quantity(max) + '<div class="cost">Reserved Kinah<strong id="total-cost"></strong></div><p style="font-size:14px;color:#b9cbd5;margin-top:9px">Stock fills immediately at this price or lower. Collect purchased items beside the order in My Orders. Any remainder waits as a preorder.</p>', function () { var q = quantityValue(max), price = +byId('unit-price').value; if (!q) return; if (q * price > state.balance) { byId('dialog-error').innerHTML = 'Not enough Kinah in Market Warehouse.'; return; } act({ action: 'buy', variant: query.variant, quantity: q, price: price }); }, 'Buy / Place Order');
     byId('unit-price').value = selectedPrice; bindMax(max); bindCost(false);
   }
@@ -395,16 +416,17 @@
   function gameTerm(s) { var terms = { PC_ALL: 'All factions', GUN: 'Pistol', CANNON: 'Aethercannon', KEYBLADE: 'Aether Key', TAMPERING: 'Tempering Solution', ENCHANTMENT: 'Enchantment Stone', RB: 'Cloth', LT: 'Leather', CH: 'Chain', PL: 'Plate', CL: 'Costume', HEAD: 'Headwear', TORSO: 'Chest Armor', PANTS: 'Leg Armor', SHOES: 'Foot Armor', GLOVE: 'Gloves', SHOULDER: 'Shoulders', MULTISLOT: 'Costume' }; if(terms[s]) return terms[s]; var parts = String(s).split('_'), i; for (i = 0; i < parts.length; i++) parts[i] = terms[parts[i]] || parts[i].charAt(0) + parts[i].substring(1).toLowerCase(); return parts.join(' '); }
   var tabs = document.querySelectorAll('[data-storage]'), i;
   for (i = 0; i < tabs.length; i++) (function (button) {
-    button.onclick = function () { if (busy || storage === +button.getAttribute('data-storage')) return; var j; if (storagePanes[storage]) storagePanes[storage].scroll = byId('storage-grid').scrollTop; storage = +button.getAttribute('data-storage'); selectedObject = 0; selectedObjects = {}; for (j = 0; j < tabs.length; j++) tabs[j].className = tabs[j] === button ? 'active' : ''; if (state) renderStorage(); };
+    // Tabs, selection and search only change the view, so they stay usable while an action is processing.
+    button.onclick = function () { if (storage === +button.getAttribute('data-storage')) return; diag.tab = button.textContent; diag.tabStart = Date.now(); diag.tabLast = 0; diag.tabIcons = 0; diag.gap = 0; var j; if (storagePanes[storage]) storagePanes[storage].scroll = byId('storage-grid').scrollTop; storage = +button.getAttribute('data-storage'); selectedObject = 0; selectedObjects = {}; for (j = 0; j < tabs.length; j++) tabs[j].className = tabs[j] === button ? 'active' : ''; if (state) renderStorage(); };
     button.ondragover = function (e) { e.preventDefault(); };
     button.ondrop = function (e) { e.preventDefault(); var target = +button.getAttribute('data-storage'), item = findObject(+e.dataTransfer.getData('text/plain')); if (target === storage || !item || busy) return; if (selectMode && selectedObjects[item.object]) transferSelected(target); else transfer(item, target); };
   }(tabs[i]));
   var views = document.querySelectorAll('[data-view]');
   for (i = 0; i < views.length; i++) views[i].onclick = function () { view = this.getAttribute('data-view'); var j; for (j = 0; j < views.length; j++) views[j].className = views[j] === this ? 'active' : ''; byId('market-view').style.display = view === 'market' ? '' : 'none'; byId('orders-view').style.display = view === 'orders' ? 'block' : 'none'; byId('history-view').style.display = view === 'history' ? 'block' : 'none'; byId('notifications-view').style.display = view === 'notifications' ? 'block' : 'none'; if(state) { renderDetail(); renderActivity(); } };
   byId('warehouse-search').oninput = function () { warehouseQuery = this.value; if (state) renderStorage(); };
-  byId('select-items').onclick = function () { if (busy || !state) return; selectMode = !selectMode; selectedObjects = {}; renderStorageSelection(); };
-  byId('select-all').onclick = function () { if (busy || !state) return; var s = currentStorage(), i, count = selectedItems().length; for (i = 0; i < s.items.length && count < 300; i++) if (!s.items[i].reserved && !selectedObjects[s.items[i].object] && name(s.items[i]).toLowerCase().indexOf(warehouseQuery.toLowerCase()) >= 0) { selectedObjects[s.items[i].object] = true; count++; } renderStorageSelection(); if (count === 300) status('Selected 300 item stacks. Transfer these before selecting more.'); };
-  byId('clear-selection').onclick = function () { if (busy) return; selectedObjects = {}; renderStorageSelection(); };
+  byId('select-items').onclick = function () { if (!state) return; selectMode = !selectMode; selectedObjects = {}; renderStorageSelection(); };
+  byId('select-all').onclick = function () { if (!state) return; var s = currentStorage(), i, count = selectedItems().length; for (i = 0; i < s.items.length && count < 300; i++) if (!s.items[i].reserved && !selectedObjects[s.items[i].object] && name(s.items[i]).toLowerCase().indexOf(warehouseQuery.toLowerCase()) >= 0) { selectedObjects[s.items[i].object] = true; count++; } renderStorageSelection(); if (count === 300) status('Selected 300 item stacks. Transfer these before selecting more.'); };
+  byId('clear-selection').onclick = function () { selectedObjects = {}; renderStorageSelection(); };
   byId('clear-warehouse').onclick = function () { warehouseQuery = ''; byId('warehouse-search').value = ''; renderStorage(); byId('warehouse-search').focus(); };
   byId('search').oninput = function () { clearTimeout(searchTimer); searchTimer = setTimeout(function () { query.q = byId('search').value; browseAll(); query.page = 1; refreshCatalog(); }, 300); };
   byId('search').onkeydown = function (e) { if (e.keyCode === 13) { clearTimeout(searchTimer); query.q = this.value; browseAll(); query.page = 1; refreshCatalog(); } };
@@ -425,7 +447,10 @@
   byId('order-filter').onchange = function () { query.orderFilter = this.value; query.orderPage = 1; fetchState(false,null,'activity'); }; byId('history-filter').onchange = function () { query.historyFilter = this.value; query.historyPage = 1; fetchState(false,null,'activity'); }; byId('sort').onchange = function () { query.sort = this.value; query.page = 1; refreshCatalog(); };
   byId('refresh').onclick = refresh; byId('dialog-close').onclick = closeDialog; byId('dialog-cancel').onclick = function () { closeDialog(); this.innerHTML = 'Cancel'; };
   byId('dialog-confirm').onclick = function () { if (modalAction && !busy) modalAction(); };
-  function transferKinah(direction) { var s = currentStorage(), value = byId('kinah-amount').value; if (!/^\d+$/.test(value) || +value < 1) { status('Enter a Kinah amount.', true); return; } openDialog(direction === 'deposit' ? 'Deposit Kinah' : 'Withdraw Kinah', '<div class="cost">Kinah<strong>' + money(+value) + '</strong></div><p style="margin-top:12px">' + html(s.name) + (direction === 'deposit' ? ' → Market Warehouse' : ' ← Market Warehouse') + '</p>', function () { act({ action: 'kinah', direction: direction, source: s.id, quantity: value }); }, direction === 'deposit' ? 'Deposit' : 'Withdraw'); }
+  // Kinah moves between a character storage and the Market Warehouse wallet; on the Market tab that is the Inventory.
+  function kinahStorage() { var s = currentStorage(), i; if (s.id !== 125) return s; for (i = 0; i < state.storages.length; i++) if (state.storages[i].id === 0) return state.storages[i]; return s; }
+  function transferKinah(direction) { var s = kinahStorage(), value = byId('kinah-amount').value; if (!/^\d+$/.test(value) || +value < 1) { status('Enter a Kinah amount.', true); return; } openDialog(direction === 'deposit' ? 'Deposit Kinah' : 'Withdraw Kinah', '<div class="cost">Kinah<strong>' + money(+value) + '</strong></div><p style="margin-top:12px">' + html(s.name) + (direction === 'deposit' ? ' → Market Warehouse' : ' ← Market Warehouse') + '</p>', function () { act({ action: 'kinah', direction: direction, source: s.id, quantity: value }); }, direction === 'deposit' ? 'Deposit' : 'Withdraw'); }
+  document.getElementsByTagName('footer')[0].onclick = function () { diag.on = !diag.on; diag.gap = 0; diagShow(); };
   byId('deposit-kinah').onclick = function () { transferKinah('deposit'); }; byId('withdraw-kinah').onclick = function () { transferKinah('withdraw'); };
   document.onkeydown = function (e) { if (e.keyCode === 27) { if (byId('dialog-shade').style.display === 'block') closeDialog(); else if (query.variant) { cancelRead(); query.variant = ''; state.selected = null; renderDetail(); markCatalogSelection(); } } };
   window.onresize = function () { if (state) { renderDetail(); if (storagePanes[storage]) loadStorageIcons(storagePanes[storage]); } positionDialog(); };

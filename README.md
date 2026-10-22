@@ -143,6 +143,10 @@ powershell -NoProfile -File .\tools\build-components.ps1 -Modules 'game-server,l
 
 This runs Maven and writes the component packages under the external build folder. It does not start the servers or replace an installed repack. Client modifications have their own instructions under `client-mods`.
 
+The builder uses `AION_DEV_ROOT` when set, then the local, Git-ignored
+`.aion-dev/workspace-root.txt` setting, and otherwise `Aetherfall-build` under your
+user folder. An explicit `-OutputRoot` must be inside that external workspace.
+
 ## Reporting a problem
 
 Include the repack release, what you were doing, where it happened and what you expected. For quest or dungeon problems, include the quest name, NPC or boss, and the step that failed. Attach the relevant server log lines and a screenshot when useful.

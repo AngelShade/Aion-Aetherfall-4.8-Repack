@@ -87,7 +87,7 @@ def main():
                    client=str(client), state=args.state, apply=message, version=manifest['version'],
                    launcher_sha256=sha(args.launcher), before=before, after=after,
                    mod_files={str(p.relative_to(client / MOD)).replace('\\', '/'): sha(p) for p in sorted((client / MOD).rglob('*')) if p.is_file()},
-                   restore='Copy files/ back over the client with Aion closed, or switch the interface off in Launch settings.')
+                   restore="Copy files/ back over the client with Aion closed, or switch the interface off in the launcher's Mods window.")
     (backup / 'receipt.json').write_text(json.dumps(receipt, indent=2), encoding='utf-8')
     print(message)
     print(f'receipt: {backup / "receipt.json"}')

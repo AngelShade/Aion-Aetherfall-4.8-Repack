@@ -4,6 +4,18 @@ from pathlib import Path
 SOURCE = Path(__file__).resolve().parent / 'repack'
 
 
+def fresh_database_verification(start_database):
+    """Accept only the six bundled system sellers, with no personal characters."""
+    old = "(Invoke-DatabaseQuery 'SELECT COUNT(*) FROM aetherfall_gs.players') -ne '0'"
+    sellers = "((id BETWEEN 999901 AND 999903 AND race='ELYOS' AND account_id=-900001 AND account_name='aetherfall_market_elyos') OR (id BETWEEN 999904 AND 999906 AND race='ASMODIANS' AND account_id=-900002 AND account_name='aetherfall_market_asmodians')) AND deletion_date IS NULL"
+    new = '(Invoke-DatabaseQuery "SELECT COUNT(*) FROM aetherfall_gs.players WHERE ' + sellers + '") -ne \'6\' -or\n        (Invoke-DatabaseQuery \'SELECT COUNT(*) FROM aetherfall_gs.players\') -ne \'6\''
+    if new in start_database:
+        return start_database
+    if start_database.count(old) != 1:
+        raise ValueError('Unexpected fresh database verification; preserve it for review')
+    return start_database.replace(old, new).replace('freshCharacters=0', 'freshCharacters=0; systemBrokerSellers=6')
+
+
 def payloads(package, schema=None, bootstrap=None, start=None):
     incoming = (package / 'Server/database/schema/aetherfall_gs.sql').read_text(encoding='utf-8-sig') if schema is None else schema
     schema = incoming
@@ -32,4 +44,5 @@ def payloads(package, schema=None, bootstrap=None, start=None):
         'Server/database/schema/broker_sellers_initial.sql': seed.encode('utf-8'),
         'Control/Initialize-BrokerSellers.ps1': (SOURCE / 'Initialize-BrokerSellers.ps1').read_bytes(),
         'Control/Start-Servers.ps1': start.encode('utf-8'),
+        'Control/Start-Database.ps1': fresh_database_verification((package / 'Control/Start-Database.ps1').read_text(encoding='utf-8-sig')).encode('utf-8'),
     }

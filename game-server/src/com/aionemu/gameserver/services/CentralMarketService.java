@@ -41,6 +41,11 @@ public final class CentralMarketService {
 	private static Map<Integer,String> catalogCategories = Map.of();
 	private static volatile boolean ready;
 	private static boolean simulationInitialized;
+	/** The catalogue/simulation anti-join scans every catalogue row. If a few
+	 * entries can never be simulated it never reaches empty, and the scan ran on
+	 * every maintenance pass (the main MySQL load). Retry it at most once a minute. */
+	private static long nextFreshScan;
+	private static Set<String> lastFresh=Set.of();
 	private static long housekeepingAt;
 	private static final String COPY_COLUMNS = "item_id,item_count,item_color,color_expires,item_creator,expire_time,activation_count,item_owner,is_equipped,is_soul_bound,slot,item_location,enchant,enchant_bonus,item_skin,fusioned_item,optional_socket,optional_fusion_socket,charge,tune_count,rnd_bonus,fusion_rnd_bonus,tempering,pack_count,is_amplified,buff_skill,rnd_plume_bonus,rank_limit_expire_time";
 
@@ -584,16 +589,27 @@ public final class CentralMarketService {
 
 	private static void maintain() {
 		if(!ready || GameServer.isShuttingDownSoon()) return;
-		try(Connection lookup=DatabaseFactory.getConnection()) {
+		try {
 			long now=System.currentTimeMillis();
 			Set<String> keys=new LinkedHashSet<>();
-			for(var r:rows(lookup,"SELECT DISTINCT variant FROM central_market_orders WHERE account_id>0 AND (state='OPEN' OR (state='QUEUED' AND available_at<=?))",now)) keys.add(str(r,"variant"));
-			if(CentralMarketSimulationConfig.ENABLED && CentralMarketSimulationConfig.POPULATION>0) {
-				for(var r:rows(lookup,"SELECT variant FROM central_market_simulation WHERE next_refresh<=? ORDER BY next_refresh LIMIT 40",now)) keys.add(str(r,"variant"));
-				if(!simulationInitialized) {
-					var fresh=rows(lookup,"SELECT c.variant FROM central_market_catalog c LEFT JOIN central_market_simulation s ON s.variant=c.variant WHERE s.variant IS NULL LIMIT 40");
-					for(var r:fresh) keys.add(str(r,"variant"));
-					simulationInitialized=fresh.isEmpty();
+			// Read the work list, then return the connection. Holding it across the per-variant
+			// transactions below kept 2 of the pool's connections busy on almost every pass, and
+			// the in-game web windows (Market, Cash Shop, Wardrobe...) queued behind it.
+			try(Connection lookup=DatabaseFactory.getConnection()) {
+				for(var r:rows(lookup,"SELECT DISTINCT variant FROM central_market_orders WHERE account_id>0 AND (state='OPEN' OR (state='QUEUED' AND available_at<=?))",now)) keys.add(str(r,"variant"));
+				if(CentralMarketSimulationConfig.ENABLED && CentralMarketSimulationConfig.POPULATION>0) {
+					for(var r:rows(lookup,"SELECT variant FROM central_market_simulation WHERE next_refresh<=? ORDER BY next_refresh LIMIT 40",now)) keys.add(str(r,"variant"));
+					if(!simulationInitialized && now>=nextFreshScan) {
+						var fresh=rows(lookup,"SELECT c.variant FROM central_market_catalog c LEFT JOIN central_market_simulation s ON s.variant=c.variant WHERE s.variant IS NULL LIMIT 40");
+						var variants=new LinkedHashSet<String>();
+						for(var r:fresh) variants.add(str(r,"variant"));
+						keys.addAll(variants);
+						// Seeding continues every pass while it makes progress; the same
+						// unsimulatable leftovers only trigger a rescan once a minute.
+						if(variants.equals(lastFresh))nextFreshScan=now+60000;
+						lastFresh=Set.copyOf(variants);
+						simulationInitialized=fresh.isEmpty();
+					}
 				}
 			}
 			for(String key:keys) {
@@ -621,8 +637,10 @@ public final class CentralMarketService {
 			}
 			if(now>=housekeepingAt) {
 				housekeepingAt=now+60_000;
-				update(lookup,"DELETE FROM central_market_requests WHERE created_at<?",now-7*86400000L);
-				update(lookup,"DELETE FROM central_market_orders WHERE account_id=0 AND state='CANCELLED' AND id NOT IN (SELECT buy_order FROM central_market_trades) AND id NOT IN (SELECT sell_order FROM central_market_trades) LIMIT 1000");
+				try(Connection lookup=DatabaseFactory.getConnection()) {
+					update(lookup,"DELETE FROM central_market_requests WHERE created_at<?",now-7*86400000L);
+					update(lookup,"DELETE FROM central_market_orders WHERE account_id=0 AND state='CANCELLED' AND id NOT IN (SELECT buy_order FROM central_market_trades) AND id NOT IN (SELECT sell_order FROM central_market_trades) LIMIT 1000");
+				}
 			}
 		} catch(Exception e) { log.error("Central Market maintenance failed",e); }
 	}

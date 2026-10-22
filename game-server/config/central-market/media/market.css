@@ -107,7 +107,8 @@ header:after { content: ''; position: absolute; left: 0; right: 0; bottom: -2px;
 .meter i { display: block; height: 4px; max-width: 100%; background: #3a9fbe; background: -webkit-linear-gradient(left, #2a7fa0, #8fe3ec); background: linear-gradient(to right, #2a7fa0, #8fe3ec); }
 .wallet-transfer { position: absolute; left: 12px; right: 12px; bottom: 48px; height: 72px; padding-top: 7px; border-top: 1px solid #1f3447; }
 .wallet-transfer label { display: block; font-size: 12px; color: #c9b483; }
-.wallet-transfer small { position: absolute; right: 0; top: 8px; font-size: 11px; }
+.wallet-transfer small { position: absolute; right: 0; top: 5px; font-size: 12px; color: #c9b483; }
+.wallet-transfer small b { margin-left: 4px; font: bold 15px Tahoma, Arial, sans-serif; color: #f1dca8; }
 .wallet-transfer input { position: absolute; left: 0; bottom: 6px; width: 146px; }
 .wallet-transfer button { position: absolute; bottom: 6px; width: 80px; height: 33px; padding: 0; font-size: 12px; }
 #deposit-kinah { right: 85px; }

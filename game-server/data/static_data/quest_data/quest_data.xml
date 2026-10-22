@@ -40268,11 +40268,12 @@
 			<reward_item item_id="186000236" count="4"/>
 		</rewards>
 	</quest>
-	<quest id="13360" name="Mighty Morphin' Ceramium Medals" nameId="1141384" quest_zone="Danaria" minlevel_permitted="99" max_repeat_count="255" cannot_share="true" race_permitted="ELYOS" category="QUEST">
+	<quest id="13360" name="Mighty Morphin' Ceramium Medals" nameId="1141384" quest_zone="Cygnea" minlevel_permitted="60" max_repeat_count="255" cannot_share="true" race_permitted="ELYOS" category="QUEST">
 		<collect_items>
 			<collect_item item_id="186000243" count="10"/>
 		</collect_items>
 		<rewards/>
+		<bonus level="6" type="MEDAL"/>
 	</quest>
 	<quest id="13361" name="But It Would Be Quality Sludge" nameId="1141385" quest_zone="Danaria" minlevel_permitted="99" max_repeat_count="255" cannot_share="true" race_permitted="ELYOS" category="QUEST">
 		<collect_items>
@@ -55416,11 +55417,12 @@
 			<reward_item item_id="186000236" count="4"/>
 		</rewards>
 	</quest>
-	<quest id="23360" name="A Learning Experience" nameId="1141386" quest_zone="Danaria" minlevel_permitted="99" max_repeat_count="255" cannot_share="true" race_permitted="ASMODIANS" category="QUEST">
+	<quest id="23360" name="A Learning Experience" nameId="1141386" quest_zone="Enshar" minlevel_permitted="60" max_repeat_count="255" cannot_share="true" race_permitted="ASMODIANS" category="QUEST">
 		<collect_items>
 			<collect_item item_id="186000243" count="10"/>
 		</collect_items>
 		<rewards/>
+		<bonus level="6" type="MEDAL"/>
 	</quest>
 	<quest id="23361" name="Dentirunerk's Enticing Proposal" nameId="1141387" quest_zone="Danaria" minlevel_permitted="99" max_repeat_count="255" cannot_share="true" race_permitted="ASMODIANS" category="QUEST">
 		<collect_items>

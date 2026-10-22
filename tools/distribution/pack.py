@@ -9,6 +9,8 @@ import time
 import urllib.parse
 import zipfile
 from pathlib import Path
+from repack_recovery import validate_recovery_payload
+from optional_textures import validate_core
 
 HERE = Path(__file__).resolve().parent
 TRACKERS = ['udp://tracker.opentrackr.org:1337/announce']
@@ -42,6 +44,8 @@ def build(package, output, tools, sevenzip):
         raise ValueError('Distribution output must be separate from the repack')
     raw_index = (package/'FILES.json').read_bytes()
     index = json.loads(raw_index)
+    validate_core(package, index['files'])
+    validate_recovery_payload(package, index['files'])
     names = [entry['path'] for entry in index['files']]+['FILES.json']
     names = sorted(set(names), key=str.casefold)
     if len({name.casefold() for name in names}) != len(names):

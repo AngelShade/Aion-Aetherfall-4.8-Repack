@@ -20,6 +20,8 @@ $arguments+=(Join-Path $PSScriptRoot 'Launcher.cs')
 $arguments+=(Join-Path $PSScriptRoot 'StartupPresentation.cs')
 $arguments+=(Join-Path $PSScriptRoot 'CustomQuests.cs')
 $arguments+=(Join-Path $PSScriptRoot 'AetherfallInterface.cs')
+$arguments+=(Join-Path $PSScriptRoot 'Mods.cs')
+$arguments+=(Join-Path $PSScriptRoot 'ModsWindow.cs')
 $arguments+=(Join-Path $PSScriptRoot 'QuestPakKeys.cs')
 $arguments+=(Join-Path $PSScriptRoot 'AssemblyInfo.cs')
 & $compiler @arguments

@@ -321,7 +321,7 @@ local function hoverItem(name)
         (item.tooltip or 'item='..tostring(item.item or item.skin)..'&count=1&enchant_count=0&authorize_count=0') or 'clear'
     if query~=W.hoverQuery then widget('NativeHover'):SetText(query);W.hoverQuery=query end
 end
-function WardrobeNative_OnEvent(event,...)
+local function wardrobeEvent(event,...)
     g_AddonName='RelicCalc';local name=select(1,...)
     if event=='GAME_UI_COMBOBOX_SEL' and name=='WardrobeFilter' then W.lastFilter=widget('Filter'):GetValue();W.query.filter=filters[math.floor(W.lastFilter)+1] or 'unlocked';W.query.page=1;WardrobeNative_Fetch()
     elseif event=='GAME_UI_EDITBOX_CHANGED' and name=='WardrobeSearch' then W.searchAt=now()+.25
@@ -348,17 +348,43 @@ function WardrobeNative_OnEvent(event,...)
         else
             if W.opened then W.opened=false;W.started=false;W.pending=nil;W.busy=false;WardrobeNative_CloseConfirm() end
         end
-        PrivateWardrobe:SetTimer(.05)
     end
+end
+-- RelicCalc's timer is one-shot and shared by Wardrobe, the bot bar and the
+-- Aetherfall controls. Re-establish exactly one chain after a world transition,
+-- including when the native world load discarded the outstanding timer.
+function WardrobeNative_ResumeTimer()
+    g_AddonName='RelicCalc'
+    PrivateWardrobe:ResetTimer()
+    PrivateWardrobe:SetTimer(.05)
+    W.timerResumes=(W.timerResumes or 0)+1
+end
+function WardrobeNative_TimerStatus()
+    return W.timerTicks or 0,W.timerResumes or 0,W.timerError
+end
+function WardrobeNative_OnEvent(event,...)
+    g_AddonName='RelicCalc'
+    if event=='PLAYER_ENTERING_WORLD' then WardrobeNative_ResumeTimer();return end
+    if event~='ADDON_TIMER' then return wardrobeEvent(event,...) end
+    -- Arm before processing: a transient widget/response failure must not kill
+    -- the shared timer or prevent other registered dialogs receiving this tick.
+    PrivateWardrobe:SetTimer(.05)
+    W.timerTicks=(W.timerTicks or 0)+1
+    local ok,why=pcall(wardrobeEvent,event,...)
+    if not ok then
+        local message=tostring(why)
+        if message~=W.timerError then DisplayChatMessage(0,'Wardrobe update: '..message,.91,.63,.56) end
+        W.timerError=message
+    else W.timerError=nil end
 end
 function WardrobeNative_OnLoad()
     g_AddonName='RelicCalc'
-    for _,e in ipairs({'GAME_UI_COMBOBOX_SEL','GAME_UI_EDITBOX_CHANGED','GAME_UI_CANCEL_KEY_PRESSED','ADDON_TIMER'}) do PrivateWardrobe:RegisterEvent(e) end
+    for _,e in ipairs({'GAME_UI_COMBOBOX_SEL','GAME_UI_EDITBOX_CHANGED','GAME_UI_CANCEL_KEY_PRESSED','ADDON_TIMER','PLAYER_ENTERING_WORLD'}) do PrivateWardrobe:RegisterEvent(e) end
     for _,name in ipairs({'NativeTx','NativeRx','NativeMeta','NativePreview','NativeControl','NativeHover','NativeIcons'}) do widget(name):SetMaxLength(1048576) end
     for index=1,7 do widget('NativeRx'..index):SetMaxLength(1023) end
     widget('Search'):SetMaxLength(60);widget('OutfitName'):SetMaxLength(32)
     for _,label in ipairs({'Unlocked','Ready to Unlock','All Appearances','Locked'}) do widget('Filter'):AddItem(label) end
-    widget('Filter'):SetValue(0);W.lastFilter=0;W.lastSearch='';PrivateWardrobe:RegisterHandleCancelKey();PrivateWardrobe:Hide();WardrobeConfirm:Hide();PrivateWardrobe:SetTimer(.05)
+    widget('Filter'):SetValue(0);W.lastFilter=0;W.lastSearch='';PrivateWardrobe:RegisterHandleCancelKey();PrivateWardrobe:Hide();WardrobeConfirm:Hide();WardrobeNative_ResumeTimer()
     WardrobeNative_Layout(1280,960)
     WardrobeTheme_Apply()
     for i=1,36 do for _,name in ipairs({'Row','Icon','Selected','Name','State'}) do show(name..i,false) end end

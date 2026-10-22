@@ -19,6 +19,7 @@ import com.aionemu.gameserver.questEngine.QuestEngine;
 import com.aionemu.gameserver.questEngine.model.QuestEnv;
 import com.aionemu.gameserver.services.ClassChangeService;
 import com.aionemu.gameserver.services.DialogService;
+import com.aionemu.gameserver.services.RestoredNpcService;
 import com.aionemu.gameserver.services.QuestService;
 import com.aionemu.gameserver.utils.PacketSendUtility;
 import com.aionemu.gameserver.utils.audit.AuditLogger;
@@ -71,6 +72,9 @@ public class CM_DIALOG_SELECT extends AionClientPacket {
 				.warn("Received unknown dialog action id {} (quest {}) from {}", dialogActionId, questId, player);
 			return;
 		}
+		// These collection exchanges reach REWARD only after the native ten-fragment check.
+		if ((questId == 13360 || questId == 23360) && dialogActionId == SET_SUCCEED)
+			return;
 
 		if (targetObjectId == 0 || targetObjectId == player.getObjectId()) {
 			QuestTemplate questTemplate = DataManager.QUEST_DATA.getQuestById(questId);
@@ -109,6 +113,13 @@ public class CM_DIALOG_SELECT extends AionClientPacket {
 
 		if (player.getKnownList().getObject(targetObjectId) instanceof Creature target) {
 			if (target instanceof Npc npc) {
+				if (!RestoredNpcService.isInteractionAllowed(player, npc))
+					return;
+				if ((questId == 13360 || questId == 23360) && dialogActionId == QUEST_REFUSE_SIMPLE) {
+					PacketSendUtility.sendPacket(player, new com.aionemu.gameserver.network.aion.serverpackets.SM_DIALOG_WINDOW(targetObjectId, 0));
+					DialogService.onCloseDialog(player, npc);
+					return;
+				}
 				boolean isFunctionDialog = DataManager.NPC_DATA.isFunctionDialog(dialogActionId);
 				if (isFunctionDialog && !npc.getObjectTemplate().supportsAction(dialogActionId)) {
 					AuditLogger.log(player, "tried to use unsupported dialog action " + dialogActionName + " on " + npc);

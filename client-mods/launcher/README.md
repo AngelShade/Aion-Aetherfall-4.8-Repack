@@ -137,8 +137,32 @@ and reveal event. Use separate game accounts. Mods/MultiClient documents the
 feature and requires the launcher EXE. --launcher-only installs this correction
 without replacing native game modules, startup bridge or generated artwork.
 
-Aetherfall Interface (`AetherfallInterface.cs`): when `Mods/AetherfallUI` exists,
-Launch settings shows the skin and layout switches and Play applies the chosen
-state before Custom Quests, only while Aion is closed. Failures are logged and do
+Mods window (`ModsWindow.cs`, `Mods.cs`): **Mods** in the side menu opens one
+browsable window listing every `Mods/<name>/mod.json` (title, description,
+`Listed`, `Files` plus `InstalledMods.json` records, missing-file status), with
+search and a "Show support components" filter for unlisted mods. Choices are
+saved at once and applied by Play while every Aion client is closed:
+
+- **Aetherfall Interface** maps onto its own states: Off / Skin / Full HUD
+  (`off`/`on`/`layout` in `Mods/AetherfallUI/state.json`). When its manifest has a
+  `themes` block (interface 1.3.6+), a Full HUD theme picker sets `Theme`; Play
+  uses `themes.layout[theme][archive][entry]` payloads for the layout state (else
+  `entries[*].layout`) and records `AppliedTheme`. A theme change rewrites only the
+  archives that theme varies. Theme payloads count as recorded entry states, so
+  switching away from a theme is never mistaken for another mod's change.
+- A mod whose DLL is imported by `bin64/Game.dll` or `bin64/aion.bin` (read from
+  their PE import tables when the window opens) is locked as "Required by
+  Game.dll/aion.bin"; a mod that records Game.dll or aion.bin itself is "Part of".
+  If the import tables cannot be read, every mod DLL is treated as required.
+- Other mods are "Always on" unless their mod.json opts in with
+  `"Switch": "files"`. Off then parks the listed loose files outside `Mods/` in
+  `Mods/<name>/disabled/` (hash-checked against InstalledMods.json, all-or-nothing,
+  recorded in `Mods/<name>/state.json`); On moves them back after verifying the
+  parked hashes. Archives, signatures, keys, executables and files recorded by
+  another mod are never switchable.
+
+`--mods-apply --client <root> [--report <file>]` applies the file switches
+headlessly. Aetherfall Interface (`AetherfallInterface.cs`): Play applies the
+chosen state before Custom Quests, only while Aion is closed. Failures are logged and do
 not block Play. `--aetherfall-interface --client <root> [--state off|on|layout]
-[--report <file>]` applies a state from the command line (used by the installer).
+[--theme <id>] [--report <file>]` applies a state from the command line (used by the installer).

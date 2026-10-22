@@ -15,6 +15,7 @@ import com.aionemu.gameserver.model.templates.tradelist.TradeNpcType;
 import com.aionemu.gameserver.network.aion.AionConnection;
 import com.aionemu.gameserver.network.aion.AionServerPacket;
 import com.aionemu.gameserver.services.LimitedItemTradeService;
+import com.aionemu.gameserver.services.RestoredNpcService;
 
 /**
  * @author alexa026, ATracer, Sarynth, xTz, Neon
@@ -43,6 +44,8 @@ public class SM_TRADELIST extends AionServerPacket {
 		this.limitedItems = new ArrayList<>();
 
 		for (TradeTab tab : tlist.getTradeTablist()) {
+			if (!RestoredNpcService.isTradeTabAllowed(player, npc, tab.getId()))
+				continue;
 			GoodsList goodsList = DataManager.GOODSLIST_DATA.getGoodsListById(tab.getId());
 			if (goodsList == null || goodsList.getLegionLevel() > legionLevel)
 				continue;

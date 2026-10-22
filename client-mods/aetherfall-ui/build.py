@@ -369,7 +369,7 @@ def main():
     (mod / 'state.json').write_text(json.dumps(dict(Desired='on', Applied='off', Stamps={})), encoding='utf-8')
     (mod / 'mod.json').write_text(json.dumps(dict(
         Title='Aetherfall Interface',
-        Description='Aetherfall skin for the whole Aion interface with an optional target frame above the action bars. Switch it in Launch settings.',
+        Description="Aetherfall skin for the whole Aion interface with an optional target frame above the action bars. Switch it in the launcher's Mods window.",
         Listed=True, Files=[]), indent=2), encoding='utf-8')
     shutil.copy2(HERE / 'README.md', mod / 'README.md')
     print(json.dumps(report, indent=2))

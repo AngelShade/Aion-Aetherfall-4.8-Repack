@@ -6,7 +6,6 @@ import com.aionemu.gameserver.model.EmotionType;
 import com.aionemu.gameserver.model.gameobjects.Npc;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.model.gameobjects.state.CreatureState;
-import com.aionemu.gameserver.network.aion.serverpackets.SM_DIALOG_WINDOW;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_EMOTION;
 import com.aionemu.gameserver.questEngine.handlers.AbstractQuestHandler;
 import com.aionemu.gameserver.questEngine.model.QuestEnv;
@@ -67,13 +66,13 @@ public class _2002WheresRae extends AbstractQuestHandler {
 		qe.registerQuestNpc(210378).addOnKillEvent(questId);
 		for (int npc_id : npc_ids)
 			qe.registerQuestNpc(npc_id).addOnTalkEvent(questId);
+		qe.registerOnEnterWorld(questId);
 	}
 
 	@Override
 	public boolean onDialogEvent(QuestEnv env) {
 		final Player player = env.getPlayer();
 		final QuestState qs = player.getQuestStateList().getQuestState(questId);
-		final QuestEnv qEnv = env;
 		if (qs == null)
 			return false;
 
@@ -89,12 +88,7 @@ public class _2002WheresRae extends AbstractQuestHandler {
 								return sendQuestDialog(env, 1011);
 							return false;
 						case SETPRO1:
-							if (var == 0) {
-								qs.setQuestVarById(0, var + 1);
-								updateQuestStatus(env);
-								PacketSendUtility.sendPacket(player, new SM_DIALOG_WINDOW(env.getVisibleObject().getObjectId(), 10));
-								return true;
-							}
+							return defaultCloseDialog(env, 0, 1);
 					}
 					return false;
 				case 203534:
@@ -107,12 +101,7 @@ public class _2002WheresRae extends AbstractQuestHandler {
 							playQuestMovie(env, 52);
 							break;
 						case SETPRO2:
-							if (var == 1) {
-								qs.setQuestVarById(0, var + 1);
-								updateQuestStatus(env);
-								PacketSendUtility.sendPacket(player, new SM_DIALOG_WINDOW(env.getVisibleObject().getObjectId(), 10));
-								return true;
-							}
+							return defaultCloseDialog(env, 1, 2);
 					}
 					return false;
 				case 790002:
@@ -130,26 +119,14 @@ public class _2002WheresRae extends AbstractQuestHandler {
 								return sendQuestDialog(env, 2716);
 							return false;
 						case SETPRO3:
+							return defaultCloseDialog(env, 2, 3);
 						case SETPRO4:
+							return defaultCloseDialog(env, 10, 11);
 						case SETPRO6:
-							if (var == 2 || var == 10) {
-								qs.setQuestVarById(0, var + 1);
-								updateQuestStatus(env);
-								PacketSendUtility.sendPacket(player, new SM_DIALOG_WINDOW(env.getVisibleObject().getObjectId(), 10));
-								return true;
-							} else if (var == 13) {
-								qs.setQuestVarById(0, 14);
-								updateQuestStatus(env);
-								PacketSendUtility.sendPacket(player, new SM_DIALOG_WINDOW(env.getVisibleObject().getObjectId(), 10));
-								return true;
-							}
-							break;
+							return defaultCloseDialog(env, 13, 14);
 						case SETPRO5:
-							if (var == 12 || var == 99) {
-								qs.setQuestVar(99);
-								updateQuestStatus(env);
-								PacketSendUtility.sendPacket(player, new SM_DIALOG_WINDOW(env.getVisibleObject().getObjectId(), 0));
-								// Create instance
+							if (var == 12) {
+								closeDialogWindow(env);
 								WorldMapInstance newInstance = InstanceService.getNextAvailableInstance(WorldMapType.ATAXIAR.getId(), player);
 								TeleportService.teleportTo(player, newInstance, 457.65f, 426.8f, 230.4f);
 								return true;
@@ -158,8 +135,7 @@ public class _2002WheresRae extends AbstractQuestHandler {
 						case CHECK_USER_HAS_QUEST_ITEM:
 							if (var == 11) {
 								if (QuestService.collectItemCheck(env, true)) {
-									qs.setQuestVarById(0, 12);
-									updateQuestStatus(env);
+									changeQuestStep(env, 11, 12);
 									return sendQuestDialog(env, 2461);
 								} else
 									return sendQuestDialog(env, 2376);
@@ -173,14 +149,15 @@ public class _2002WheresRae extends AbstractQuestHandler {
 					}
 					return false;
 				case 203538:
-					if (var == 14 && env.getDialogActionId() == USE_OBJECT) {
-						qs.setQuestVarById(0, var + 1);
-						updateQuestStatus(env);
+					if (env.getDialogActionId() == USE_OBJECT && changeQuestStep(env, 14, 15)) {
 						Npc npc = (Npc) env.getVisibleObject();
-						PacketSendUtility.sendPacket(player, new SM_DIALOG_WINDOW(npc.getObjectId(), 10));
 						spawnForFiveMinutes(203553, npc.getPosition());
+						ThreadPoolManager.getInstance().schedule(() -> {
+							if (qs.getStatus() == QuestStatus.START) // reset the quest step if Rae despawned without having been talked to
+								changeQuestStep(env, 15, 14);
+						}, 60000 * 5 + 1000);
 						npc.getController().deleteAndScheduleRespawn();
-						return true;
+						return closeDialogWindow(env);
 					}
 					break;
 				case 203553:
@@ -190,37 +167,28 @@ public class _2002WheresRae extends AbstractQuestHandler {
 								return sendQuestDialog(env, 3057);
 							return false;
 						case SETPRO7:
-							if (var == 15) {
+							if (changeQuestStep(env, 15, 15, true)) {
 								env.getVisibleObject().getController().delete();
-								qs.setStatus(QuestStatus.REWARD);
-								updateQuestStatus(env);
-								PacketSendUtility.sendPacket(player, new SM_DIALOG_WINDOW(env.getVisibleObject().getObjectId(), 10));
-								return true;
+								return closeDialogWindow(env);
 							}
 					}
 					return false;
 				case 205020:
 					switch (dialogActionId) {
 						case QUEST_SELECT:
-							if (var >= 12) {
+							if (qs.getQuestVars().getQuestVars() == 99) {
 								player.setState(CreatureState.FLYING);
 								player.unsetState(CreatureState.ACTIVE);
 								player.setFlightTeleportId(3001);
 								final var scriptedFlight = player.getFlightPath();
 								final int flightWorld = player.getWorldId(), flightInstance = player.getInstanceId();
-								final int flightQuestVars = qs.getQuestVars().getQuestVars();
 								PacketSendUtility.sendPacket(player, new SM_EMOTION(player, EmotionType.START_FLYTELEPORT, 3001, 0));
-								ThreadPoolManager.getInstance().schedule(new Runnable() {
-
-									@Override
-									public void run() {
-										if (player.isPlayerBot() && (!player.getController().isHeadlessScriptedFlightCurrent(scriptedFlight, flightWorld, flightInstance)
-											|| qs.getStatus() != QuestStatus.START || qs.getQuestVars().getQuestVars() != flightQuestVars)) return;
-										TeleportService.teleportTo(player, 220010000, 940.15f, 2295.64f, 265.7f, (byte) 43);
-										qs.setQuestVar(13);
-										updateQuestStatus(qEnv);
-										player.getController().finishHeadlessScriptedFlight(scriptedFlight);
-									}
+								ThreadPoolManager.getInstance().schedule(() -> {
+									if (player.isPlayerBot() && (!player.getController().isHeadlessScriptedFlightCurrent(scriptedFlight, flightWorld, flightInstance)
+										|| qs.getStatus() != QuestStatus.START || qs.getQuestVars().getQuestVars() != 99)) return;
+									changeQuestStep(env, 99, 13);
+									TeleportService.teleportTo(player, 220010000, 940.15f, 2295.64f, 265.7f, (byte) 43);
+									player.getController().finishHeadlessScriptedFlight(scriptedFlight);
 								}, 40000);
 								return true;
 							}
@@ -243,6 +211,17 @@ public class _2002WheresRae extends AbstractQuestHandler {
 	}
 
 	@Override
+	public boolean onEnterWorldEvent(QuestEnv env) {
+		Player player = env.getPlayer();
+		QuestState qs = player.getQuestStateList().getQuestState(questId);
+		if (qs == null || qs.getStatus() != QuestStatus.START)
+			return false;
+		if (player.getWorldId() == WorldMapType.ATAXIAR.getId())
+			return changeQuestStep(env, 12, 99);
+		return changeQuestStep(env, 99, 12);
+	}
+
+	@Override
 	public boolean onKillEvent(QuestEnv env) {
 		Player player = env.getPlayer();
 		QuestState qs = player.getQuestStateList().getQuestState(questId);
@@ -260,8 +239,7 @@ public class _2002WheresRae extends AbstractQuestHandler {
 			case 210377:
 			case 210378:
 				if (var >= 3 && var < 10) {
-					qs.setQuestVarById(0, qs.getQuestVarById(0) + 1);
-					updateQuestStatus(env);
+					changeQuestStep(env, var, Math.min(10, var + 1));
 					return true;
 				}
 		}

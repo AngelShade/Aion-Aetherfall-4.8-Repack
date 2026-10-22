@@ -1,7 +1,7 @@
 {
   "AetherfallUI": {
     "Title": "Aetherfall Interface",
-    "Description": "Aetherfall skin for the whole Aion interface with an optional target frame above the action bars. Switch it in Launch settings.",
+    "Description": "Aetherfall skin for the whole Aion interface with an optional target frame above the action bars. Switch it in the launcher's Mods window.",
     "Listed": true,
     "Files": []
   },
@@ -83,12 +83,6 @@
   "SpeechBubbles": {
     "Title": "Speech bubbles",
     "Description": "Shows supported character speech above characters in the world.",
-    "Listed": true,
-    "Files": []
-  },
-  "VisualOverhaul": {
-    "Title": "Environment textures",
-    "Description": "The installed environment texture package and its recovery support.",
     "Listed": true,
     "Files": []
   },

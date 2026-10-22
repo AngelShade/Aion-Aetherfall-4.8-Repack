@@ -6,7 +6,10 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$devRoot = if ($env:AION_DEV_ROOT) { $env:AION_DEV_ROOT } else { 'D:/Proiecte/Project Restructure/Aion Development Workspace' }
+$workspacePointer = Join-Path $repoRoot '.aion-dev/workspace-root.txt'
+$devRoot = if ($env:AION_DEV_ROOT) { $env:AION_DEV_ROOT }
+    elseif (Test-Path -LiteralPath $workspacePointer -PathType Leaf) { (Get-Content -LiteralPath $workspacePointer -Raw).Trim() }
+    else { Join-Path $env:USERPROFILE 'Aetherfall-build' }
 $devRoot = [IO.Path]::GetFullPath($devRoot)
 if (!$OutputRoot) { $OutputRoot = Join-Path $devRoot ('staging/target/components-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fffffff')) }
 $OutputRoot = [IO.Path]::GetFullPath($OutputRoot)
@@ -20,8 +23,14 @@ $mavenArgs = @('-pl',$Modules,'-am','-Dmaven.test.skip=true','-Dassembly.skipAss
 if (!$Online) { $mavenArgs = @('-o') + $mavenArgs }
 Push-Location $repoRoot
 try {
-    & mvn @mavenArgs *> (Join-Path $OutputRoot 'maven.log')
-    $buildExit = $LASTEXITCODE
+    # Windows PowerShell turns native stderr into ErrorRecords. Java warnings
+    # must reach the log without aborting before Maven's exit code is checked.
+    $buildErrorPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        & mvn @mavenArgs *> (Join-Path $OutputRoot 'maven.log')
+        $buildExit = $LASTEXITCODE
+    } finally { $ErrorActionPreference = $buildErrorPreference }
     Get-Content -LiteralPath (Join-Path $OutputRoot 'maven.log') -Tail 24
     if ($buildExit -ne 0) { throw "Maven failed ($buildExit); see $OutputRoot/maven.log" }
     & python (Join-Path $PSScriptRoot 'build-manifest.py') finalize --build $OutputRoot

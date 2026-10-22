@@ -18,6 +18,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 
@@ -96,7 +97,13 @@ public final class MarketplaceService {
 				catch (Exception e) { log.error("Could not start Poeta journey", e); }
 				server.createContext("/journey", PoetaJourneyHttpService::handle);
 			}
-			server.setExecutor(ThreadPoolManager.getInstance());
+			// Browser windows wait on the database. Serve them on their own threads so a slow page
+			// cannot occupy the game's shared instant pool (packet and gameplay tasks).
+			server.setExecutor(Executors.newFixedThreadPool(8, task -> {
+				Thread thread = new Thread(task, "WebUI-HTTP");
+				thread.setDaemon(true);
+				return thread;
+			}));
 			server.start();
 			log.info("Private marketplace listening at http://{}:{}/shop ({} offers)", GSConfig.MARKETPLACE_BIND,
 				GSConfig.MARKETPLACE_PORT, catalogState.offers().size());

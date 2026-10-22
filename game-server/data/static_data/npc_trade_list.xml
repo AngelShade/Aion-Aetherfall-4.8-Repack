@@ -3896,6 +3896,17 @@
 		<tradelist id="1584" />
 		<tradelist id="1585" />
 	</tradelist_template>
+	<!-- Aetherfall custom Tiamat shops -->
+	<tradelist_template npc_id="800371" npc_type="REWARD">
+		<tradelist id="60010"/>
+	</tradelist_template>
+	<tradelist_template npc_id="800372" npc_type="REWARD">
+		<tradelist id="60011"/>
+	</tradelist_template>
+	<tradelist_template npc_id="800417" npc_type="ABYSS">
+		<tradelist id="60012"/>
+		<tradelist id="60013"/>
+	</tradelist_template>
 	<tradelist_template npc_id="800401" sell_price_rate="100">
 		<tradelist id="185" />
 		<tradelist id="155" />

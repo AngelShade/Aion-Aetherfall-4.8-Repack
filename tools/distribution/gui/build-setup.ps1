@@ -35,6 +35,7 @@ $arguments += ('/win32icon:' + ([IO.Path]::GetFullPath($IconPath)))
 $arguments += (Join-Path $PSScriptRoot 'SetupApp.cs')
 $arguments += (Join-Path $PSScriptRoot 'ServerControl.cs')
 $arguments += (Join-Path $PSScriptRoot 'OriginalInstallation.cs')
+$arguments += (Join-Path $PSScriptRoot 'HubMods.cs')
 & $compiler @arguments
 if ($LASTEXITCODE -ne 0) {
     throw 'Aetherfall Setup.exe compilation failed.'

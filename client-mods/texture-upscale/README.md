@@ -6,7 +6,8 @@ and meshes, plus the zone's own terrain detail layers. First pass: Poeta (`lf1`)
 Ishalgen (`df1`).
 
 Keep zone batches paired across races: Poeta/Ishalgen, Verteron/Altgard,
-Eltnen/Morheim, Heiron/Beluslan, and the corresponding later zones.
+Eltnen/Morheim, Heiron/Beluslan, Theobomos/Brusthonin, Inggison/Gelkmaros,
+and the corresponding later zones.
 
 Colour is upscaled 4x with Real-ESRGAN (`realesrgan-x4plus`, ncnn/Vulkan build, external
 tool under the development workspace `tools/realesrgan`), with 16-pixel wrap padding so
@@ -54,3 +55,11 @@ run the GPU upscaler on that new source folder, then build without `--prepare-on
 For delivery, pass `-BackupRoot '<new external backup folder>'` to keep recovery
 archives in the external workspace. Verification follows the complete installed
 batch chain; restore still proceeds newest first.
+
+## Repack baseline
+
+Bundled texture batches are the repack's baseline. Their installed records retain
+the archive hashes needed by later upgrades, but omit development backup paths
+and per-batch rollback. `-Restore` explains this before changing any files.
+Applying a repack update creates local backups of the files it replaces.
+The original development installation retains its separate rollback history.

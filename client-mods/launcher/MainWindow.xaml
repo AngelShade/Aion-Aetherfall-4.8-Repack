@@ -45,9 +45,9 @@
    <Button x:Name="Exit" Content="×" Width="32" Height="29" Padding="0" Background="#A6081621" ToolTip="Close launcher"/>
   </StackPanel>
   <StackPanel Margin="60,220,0,0" Width="178" HorizontalAlignment="Left" VerticalAlignment="Top">
-   <Button x:Name="OverviewTab" Style="{StaticResource Nav}" Background="#B8203A48" BorderBrush="#7477998E"><TextBlock Text="◇    YOUR ADVENTURE" FontSize="12"/></Button>
-   <Button x:Name="ModsTab" Style="{StaticResource Nav}"><TextBlock Text="✧    INSTALLED MODS" FontSize="12"/></Button>
-   <Button x:Name="SettingsTab" Style="{StaticResource Nav}"><TextBlock Text="⚙    LAUNCH SETTINGS" FontSize="12"/></Button>
+   <Button x:Name="OverviewTab" Style="{StaticResource Nav}" Background="#B8203A48" BorderBrush="#7477998E"><TextBlock Text="◇    YOUR ADVENTURE" FontSize="12" Width="140"/></Button>
+   <Button x:Name="ModsTab" Style="{StaticResource Nav}"><TextBlock Text="✧    MODS" FontSize="12" Width="140"/></Button>
+   <Button x:Name="SettingsTab" Style="{StaticResource Nav}"><TextBlock Text="⚙    LAUNCH SETTINGS" FontSize="12" Width="140"/></Button>
    <Border Height="1" Background="#497F9297" Margin="14,19,18,22"/>
    <TextBlock Text="CONNECTION" Foreground="#B8C8D0" FontSize="10" Margin="14,0,0,12"/>
    <StackPanel Orientation="Horizontal" Margin="14,0,0,0"><Ellipse x:Name="ServerDot" Width="6" Height="6" Fill="#CFAD72" Margin="0,0,8,0"/><TextBlock x:Name="ServerStatus" Text="Checking server…" FontSize="12" Foreground="#ECDFCA"/></StackPanel>
@@ -62,24 +62,11 @@
     </TextBlock>
     <TextBlock Text="Bring your companions. Choose your journey.&#10;Atreia is waiting." FontSize="16" LineHeight="25" Foreground="#E0E9ED" Margin="3,19,0,0"/>
    </StackPanel>
-   <Border x:Name="ModsPanel" Visibility="Collapsed" Background="#EF091722" BorderBrush="#786A8D96" BorderThickness="1" Padding="25,19" CornerRadius="5">
-    <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-     <StackPanel><TextBlock Text="YOUR AETHERFALL" Foreground="#E8CB91" FontSize="10"/><TextBlock Text="A familiar world. More possibilities." FontFamily="Palatino Linotype" FontSize="25" Margin="0,7,0,12"/></StackPanel>
-     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"><StackPanel x:Name="ModList"/></ScrollViewer>
-     <Button x:Name="OpenMods" Grid.Row="2" Content="Open Mods folder  ↗" HorizontalAlignment="Left" Margin="0,12,0,0" Padding="12,7"/>
-    </Grid>
-   </Border>
    <Border x:Name="SettingsPanel" Visibility="Collapsed" Background="#EF091722" BorderBrush="#786A8D96" BorderThickness="1" Padding="25,21" CornerRadius="5">
     <StackPanel><TextBlock Text="MAKE IT YOURS" Foreground="#E8CB91" FontSize="10"/><TextBlock Text="Launch settings" FontFamily="Palatino Linotype" FontSize="27" Margin="0,7,0,18"/>
      <TextBlock Text="GRAPHICS RENDERER" Foreground="#B8CCD5" FontSize="10" Margin="0,0,0,12"/>
      <StackPanel Orientation="Horizontal"><RadioButton x:Name="Vulkan" Content="Vulkan / DXVK" GroupName="Renderer"/><RadioButton x:Name="Direct3D" Content="Direct3D 9" GroupName="Renderer"/></StackPanel>
-     <TextBlock Text="Applies on the next game launch. Keep Aion closed to change it." Foreground="#BCD0DA" FontSize="12" Margin="0,10,0,19"/>
-     <StackPanel x:Name="InterfaceSection" Visibility="Collapsed">
-      <TextBlock Text="AETHERFALL INTERFACE" Foreground="#B8CCD5" FontSize="10" Margin="0,0,0,12"/>
-      <CheckBox x:Name="InterfaceSkin" Content="Aetherfall skin for the Aion interface" Margin="0,0,0,10"/>
-      <CheckBox x:Name="InterfaceLayout" Content="Target frame above the action bars" Margin="24,0,0,10"/>
-      <TextBlock Text="Switches on the next launch while Aion is closed." Foreground="#BCD0DA" FontSize="12" Margin="0,0,0,19"/>
-     </StackPanel>
+     <TextBlock Text="Applies on the next game launch. Keep Aion closed to change it. The Aetherfall Interface and other mods are in Mods." Foreground="#BCD0DA" FontSize="12" Margin="0,10,0,19" TextWrapping="Wrap"/>
      <CheckBox x:Name="Animations" Content="Animated aether and ambient particles" IsChecked="True"/>
      <CheckBox x:Name="CloseAfter" Content="Close launcher when the login screen is ready" IsChecked="False"/>
      <Button x:Name="SaveSettings" Content="Save settings" HorizontalAlignment="Left" Padding="22,9"/>
@@ -104,5 +91,128 @@
    </StackPanel>
   </Grid>
   <Image x:Name="Frame" Stretch="Fill" IsHitTestVisible="False"/>
+  <Grid x:Name="ModsOverlay" Visibility="Collapsed" TextElement.FontFamily="Tahoma">
+   <Grid.Resources>
+    <Style TargetType="ScrollBar">
+     <Setter Property="Width" Value="8"/><Setter Property="MinWidth" Value="8"/>
+     <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ScrollBar">
+      <Border Background="#0a1521" CornerRadius="4"><Track x:Name="PART_Track" IsDirectionReversed="True"><Track.Thumb><Thumb><Thumb.Template><ControlTemplate TargetType="Thumb">
+       <Border x:Name="Grip" Background="#2e4a61" CornerRadius="4" Margin="1"/>
+       <ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Grip" Property="Background" Value="#3a9fbe"/></Trigger></ControlTemplate.Triggers>
+      </ControlTemplate></Thumb.Template></Thumb></Track.Thumb></Track></Border>
+     </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="ModFlat" TargetType="Button">
+     <Setter Property="Cursor" Value="Hand"/><Setter Property="Foreground" Value="#dfe9f0"/><Setter Property="FontSize" Value="12"/><Setter Property="Padding" Value="16,8"/>
+     <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+      <Border x:Name="Plate" Background="#142538" BorderBrush="#2e4a61" BorderThickness="1" CornerRadius="2" Padding="{TemplateBinding Padding}"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+      <ControlTemplate.Triggers>
+       <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Plate" Property="BorderBrush" Value="#3a9fbe"/></Trigger>
+       <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Plate" Property="BorderBrush" Value="#8fe3ec"/></Trigger>
+       <Trigger Property="IsPressed" Value="True"><Setter TargetName="Plate" Property="Background" Value="#0e1b29"/></Trigger>
+      </ControlTemplate.Triggers>
+     </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="ModGold" TargetType="Button" BasedOn="{StaticResource ModFlat}">
+     <Setter Property="Foreground" Value="#1a1206"/><Setter Property="FontWeight" Value="Bold"/>
+     <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+      <Border x:Name="Plate" BorderBrush="#8a6d3c" BorderThickness="1" CornerRadius="2" Padding="{TemplateBinding Padding}">
+       <Border.Background><LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#f1dca8" Offset="0"/><GradientStop Color="#d6b878" Offset="0.55"/><GradientStop Color="#b08e52" Offset="1"/></LinearGradientBrush></Border.Background>
+       <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+      <ControlTemplate.Triggers>
+       <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Plate" Property="BorderBrush" Value="#f4e8c8"/></Trigger>
+       <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Plate" Property="BorderBrush" Value="#8fe3ec"/></Trigger>
+       <Trigger Property="IsPressed" Value="True"><Setter TargetName="Plate" Property="Opacity" Value="0.8"/></Trigger>
+      </ControlTemplate.Triggers>
+     </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="ModSegment" TargetType="RadioButton">
+     <Setter Property="Cursor" Value="Hand"/><Setter Property="Foreground" Value="#93abbc"/><Setter Property="FontSize" Value="12"/><Setter Property="Margin" Value="0"/>
+     <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RadioButton">
+      <Border x:Name="Plate" Background="#0a1521" BorderBrush="#2e4a61" BorderThickness="1" Padding="12,6" MinWidth="68"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+      <ControlTemplate.Triggers>
+       <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Plate" Property="BorderBrush" Value="#3a9fbe"/></Trigger>
+       <Trigger Property="IsChecked" Value="True"><Setter TargetName="Plate" Property="Background" Value="#142538"/><Setter TargetName="Plate" Property="BorderBrush" Value="#8fe3ec"/><Setter Property="Foreground" Value="#dfe9f0"/></Trigger>
+       <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Plate" Property="Opacity" Value="0.5"/></Trigger>
+      </ControlTemplate.Triggers>
+     </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="ModTheme" TargetType="RadioButton">
+     <Setter Property="Cursor" Value="Hand"/><Setter Property="Foreground" Value="#93abbc"/><Setter Property="FontSize" Value="11"/><Setter Property="Margin" Value="0"/>
+     <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RadioButton">
+      <Border x:Name="Plate" Background="#0a1521" BorderBrush="#1f3447" BorderThickness="1" Padding="6,4" Margin="2,0,0,0"><ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
+      <ControlTemplate.Triggers>
+       <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Plate" Property="BorderBrush" Value="#3a9fbe"/></Trigger>
+       <Trigger Property="IsChecked" Value="True"><Setter TargetName="Plate" Property="Background" Value="#142538"/><Setter TargetName="Plate" Property="BorderBrush" Value="#d6b878"/><Setter Property="Foreground" Value="#dfe9f0"/></Trigger>
+       <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Plate" Property="Opacity" Value="0.4"/></Trigger>
+      </ControlTemplate.Triggers>
+     </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="ModSwitch" TargetType="CheckBox">
+     <Setter Property="Cursor" Value="Hand"/><Setter Property="Foreground" Value="#93abbc"/><Setter Property="FontSize" Value="12"/><Setter Property="Margin" Value="0"/>
+     <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="CheckBox">
+      <StackPanel Orientation="Horizontal" Background="Transparent">
+       <ContentPresenter VerticalAlignment="Center" Margin="0,0,10,0"/>
+       <Border x:Name="Track" Width="40" Height="20" CornerRadius="10" Background="#1f3447" BorderBrush="#2e4a61" BorderThickness="1">
+        <Border x:Name="Knob" Width="14" Height="14" CornerRadius="7" Background="#93abbc" HorizontalAlignment="Left" Margin="2,0"/></Border>
+      </StackPanel>
+      <ControlTemplate.Triggers>
+       <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Track" Property="BorderBrush" Value="#3a9fbe"/></Trigger>
+       <Trigger Property="IsChecked" Value="True"><Setter TargetName="Track" Property="Background" Value="#3a9fbe"/><Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right"/><Setter TargetName="Knob" Property="Background" Value="#dfe9f0"/><Setter Property="Foreground" Value="#dfe9f0"/></Trigger>
+       <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Track" Property="Opacity" Value="0.5"/></Trigger>
+      </ControlTemplate.Triggers>
+     </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="ModCheck" TargetType="CheckBox">
+     <Setter Property="Cursor" Value="Hand"/><Setter Property="Foreground" Value="#93abbc"/><Setter Property="FontSize" Value="12"/><Setter Property="Margin" Value="0"/>
+     <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="CheckBox">
+      <StackPanel Orientation="Horizontal" Background="Transparent">
+       <Border x:Name="Box" Width="14" Height="14" Background="#0a1521" BorderBrush="#2e4a61" BorderThickness="1" Margin="0,0,8,0"><TextBlock x:Name="Mark" Text="✓" FontSize="11" Foreground="#8fe3ec" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Hidden"/></Border>
+       <ContentPresenter VerticalAlignment="Center"/>
+      </StackPanel>
+      <ControlTemplate.Triggers>
+       <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Box" Property="BorderBrush" Value="#3a9fbe"/></Trigger>
+       <Trigger Property="IsChecked" Value="True"><Setter TargetName="Mark" Property="Visibility" Value="Visible"/><Setter Property="Foreground" Value="#dfe9f0"/></Trigger>
+      </ControlTemplate.Triggers>
+     </ControlTemplate></Setter.Value></Setter>
+    </Style>
+   </Grid.Resources>
+   <Border Margin="13" CornerRadius="19" Background="#C4050A12"/>
+   <Border x:Name="ModsWindow" Width="880" Height="604" Background="#070d16" BorderBrush="#2e4a61" BorderThickness="1" CornerRadius="3">
+    <Grid><Grid.RowDefinitions><RowDefinition Height="56"/><RowDefinition Height="52"/><RowDefinition/><RowDefinition Height="64"/></Grid.RowDefinitions>
+     <Border Background="#0e1b29" BorderBrush="#8a6d3c" BorderThickness="0,0,0,1" CornerRadius="3,3,0,0">
+      <Grid Margin="22,0,14,0">
+       <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <TextBlock Text="✦" Foreground="#8fe3ec" FontSize="16" VerticalAlignment="Center" Margin="0,0,10,0"/>
+        <TextBlock Text="Mods" FontFamily="Georgia" FontSize="22" Foreground="#f4e8c8" VerticalAlignment="Center"/>
+        <TextBlock Text="A E T H E R F A L L" Foreground="#d6b878" FontSize="10" VerticalAlignment="Center" Margin="16,3,0,0"/>
+       </StackPanel>
+       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+        <TextBlock x:Name="ModsCount" Foreground="#93abbc" FontSize="11" VerticalAlignment="Center" Margin="0,0,16,0"/>
+        <Button x:Name="ModsClose" Style="{StaticResource ModFlat}" Content="×" FontSize="16" Padding="0" Width="30" Height="28" ToolTip="Close (Esc)"/>
+       </StackPanel>
+      </Grid>
+     </Border>
+     <Grid Grid.Row="1" Margin="22,12,22,6">
+      <Border Width="300" HorizontalAlignment="Left" Background="#0a1521" BorderBrush="#2e4a61" BorderThickness="1" CornerRadius="2">
+       <Grid><TextBlock x:Name="ModsSearchHint" Text="Search mods…" Foreground="#6f889a" FontSize="12" Margin="10,0" VerticalAlignment="Center" IsHitTestVisible="False"/>
+        <TextBox x:Name="ModsSearch" Background="Transparent" BorderThickness="0" Foreground="#dfe9f0" CaretBrush="#8fe3ec" FontSize="12" Padding="7,0" VerticalContentAlignment="Center"/></Grid>
+      </Border>
+      <CheckBox x:Name="ModsShowHidden" Style="{StaticResource ModCheck}" Content="Show support components" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+     </Grid>
+     <ScrollViewer Grid.Row="2" x:Name="ModsScroll" VerticalScrollBarVisibility="Auto" Margin="22,4,10,4" Padding="0,0,12,0"><StackPanel x:Name="ModRows"/></ScrollViewer>
+     <Border Grid.Row="3" BorderBrush="#1f3447" BorderThickness="0,1,0,0" Background="#0a1521" CornerRadius="0,0,3,3">
+      <Grid Margin="22,0,22,0">
+       <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+       <TextBlock x:Name="ModsNote" Foreground="#93abbc" FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,18,0"/>
+       <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+        <Button x:Name="ModsFolder" Style="{StaticResource ModFlat}" Content="Open Mods folder  ↗" Margin="0,0,10,0"/>
+        <Button x:Name="ModsDone" Style="{StaticResource ModGold}" Content="Done" Padding="28,8"/>
+       </StackPanel>
+      </Grid>
+     </Border>
+    </Grid>
+   </Border>
+  </Grid>
  </Grid></Viewbox>
 </Window>

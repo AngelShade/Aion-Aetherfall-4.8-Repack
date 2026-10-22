@@ -296,6 +296,8 @@ public class DialogService {
 	}
 
 	public static boolean isInteractionAllowed(Player player, Npc npc) {
+		if (!RestoredNpcService.isInteractionAllowed(player, npc))
+			return false;
 		if (npc.getSummonOwner() != null && !isSummonOwner(player, npc))
 			return false;
 		return !isSubDialogRestricted(player, npc);

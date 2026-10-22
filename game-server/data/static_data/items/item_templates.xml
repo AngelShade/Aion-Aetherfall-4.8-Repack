@@ -200900,6 +200900,7 @@
 			<add name="MAXMP" value="787" bonus="true"/>
 			<add name="CONCENTRATION" value="17" bonus="true"/>
 		</modifiers>
+		<acquisition type="REWARD" item="186000201" count="8"/>
 	</item_template>
 	<item_template id="110101387" name="Farside Tunic" level="60" cName="rb_torso_n_c1_60a" mask="36990" item_group="RB_TORSO" quality="COMMON" price="3909750" restrict="60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60" desc="790176" max_enchant="10" m_slots="1">
 		<modifiers>
@@ -221021,6 +221022,7 @@
 			<add name="FLY_TIME" value="23" bonus="true"/>
 			<rate name="BOOST_HATE" value="-27" bonus="true"/>
 		</modifiers>
+		<acquisition type="REWARD" item="186000201" count="8"/>
 	</item_template>
 	<item_template id="110301314" name="Farside Jerkin" level="60" cName="lt_torso_n_c1_60a" mask="36990" item_group="LT_TORSO" quality="COMMON" price="3909750" restrict="60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60" desc="790178" max_enchant="10" m_slots="1">
 		<modifiers>
@@ -243786,6 +243788,7 @@
 			<rate name="BOOST_HATE" value="-27" bonus="true"/>
 			<add name="CONCENTRATION" value="17" bonus="true"/>
 		</modifiers>
+		<acquisition type="REWARD" item="186000201" count="8"/>
 	</item_template>
 	<item_template id="110501294" name="Farside Hauberk" level="60" cName="ch_torso_n_c1_60a" mask="36990" item_group="CH_TORSO" quality="COMMON" price="3909750" restrict="60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60" desc="790180" max_enchant="10" m_slots="1">
 		<modifiers>
@@ -264616,6 +264619,7 @@
 			<add name="FLY_TIME" value="23" bonus="true"/>
 			<rate name="BOOST_HATE" value="54" bonus="true"/>
 		</modifiers>
+		<acquisition type="REWARD" item="186000201" count="8"/>
 	</item_template>
 	<item_template id="110601265" name="Farside Breastplate" level="60" cName="pl_torso_n_c1_60a" mask="36990" item_group="PL_TORSO" quality="COMMON" price="3909750" restrict="60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60" desc="790182" max_enchant="10" m_slots="1">
 		<modifiers>
@@ -289767,6 +289771,7 @@
 			<add name="MAXMP" value="472" bonus="true"/>
 			<add name="CONCENTRATION" value="10" bonus="true"/>
 		</modifiers>
+		<acquisition type="REWARD" item="186000201" count="4"/>
 	</item_template>
 	<item_template id="111101263" name="Farside Gloves" level="60" cName="rb_glove_n_c1_60a" mask="36990" item_group="RB_GLOVE" quality="COMMON" price="1954900" restrict="60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60" desc="790184" max_enchant="10" m_slots="1">
 		<modifiers>
@@ -308828,6 +308833,7 @@
 			<rate name="ATTACK_SPEED" value="-8" bonus="true"/>
 			<rate name="BOOST_HATE" value="-13" bonus="true"/>
 		</modifiers>
+		<acquisition type="REWARD" item="186000201" count="4"/>
 	</item_template>
 	<item_template id="111301258" name="Farside Vambrace" level="60" cName="lt_glove_n_c1_60a" mask="36990" item_group="LT_GLOVE" quality="COMMON" price="1954900" restrict="60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60" desc="790186" max_enchant="10" m_slots="1">
 		<modifiers>
@@ -331134,6 +331140,7 @@
 			<rate name="BOOST_HATE" value="-13" bonus="true"/>
 			<add name="CONCENTRATION" value="10" bonus="true"/>
 		</modifiers>
+		<acquisition type="REWARD" item="186000201" count="4"/>
 	</item_template>
 	<item_template id="111501254" name="Farside Handguards" level="60" cName="ch_glove_n_c1_60a" mask="36990" item_group="CH_GLOVE" quality="COMMON" price="1954900" restrict="60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60" desc="790188" max_enchant="10" m_slots="1">
 		<modifiers>
@@ -351645,6 +351652,7 @@
 			<rate name="ATTACK_SPEED" value="-8" bonus="true"/>
 			<rate name="BOOST_HATE" value="27" bonus="true"/>
 		</modifiers>
+		<acquisition type="REWARD" item="186000201" count="4"/>
 	</item_template>
 	<item_template id="111601231" name="Farside Gauntlets" level="60" cName="pl_glove_n_c1_60a" mask="36990" item_group="PL_GLOVE" quality="COMMON" price="1954900" restrict="60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60" desc="790190" max_enchant="10" m_slots="1">
 		<modifiers>
@@ -371685,6 +371693,7 @@
 			<add name="MAXMP" value="472" bonus="true"/>
 			<add name="CONCENTRATION" value="10" bonus="true"/>
 		</modifiers>
+		<acquisition type="REWARD" item="186000201" count="4"/>
 	</item_template>
 	<item_template id="112101220" name="Farside Pauldrons" level="60" cName="rb_shoulder_n_c1_60a" mask="36990" item_group="RB_SHOULDER" quality="COMMON" price="1954900" restrict="60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60" desc="790192" max_enchant="10" m_slots="1">
 		<modifiers>
@@ -390203,6 +390212,7 @@
 			<add name="PHYSICAL_ATTACK" value="11" bonus="true"/>
 			<rate name="BOOST_HATE" value="-13" bonus="true"/>
 		</modifiers>
+		<acquisition type="REWARD" item="186000201" count="4"/>
 	</item_template>
 	<item_template id="112301203" name="Farside Shoulderguards" level="60" cName="lt_shoulder_n_c1_60a" mask="36990" item_group="LT_SHOULDER" quality="COMMON" price="1954900" restrict="60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60" desc="790194" max_enchant="10" m_slots="1">
 		<modifiers>
@@ -412070,6 +412080,7 @@
 			<rate name="BOOST_HATE" value="-13" bonus="true"/>
 			<add name="CONCENTRATION" value="10" bonus="true"/>
 		</modifiers>
+		<acquisition type="REWARD" item="186000201" count="4"/>
 	</item_template>
 	<item_template id="112501198" name="Farside Spaulders" level="60" cName="ch_shoulder_n_c1_60a" mask="36990" item_group="CH_SHOULDER" quality="COMMON" price="1954900" restrict="60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60" desc="790196" max_enchant="10" m_slots="1">
 		<modifiers>
@@ -432362,6 +432373,7 @@
 			<add name="PHYSICAL_ATTACK" value="11" bonus="true"/>
 			<rate name="BOOST_HATE" value="27" bonus="true"/>
 		</modifiers>
+		<acquisition type="REWARD" item="186000201" count="4"/>
 	</item_template>
 	<item_template id="112601208" name="Farside Shoulderplates" level="60" cName="pl_shoulder_n_c1_60a" mask="36990" item_group="PL_SHOULDER" quality="COMMON" price="1954900" restrict="60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60" desc="790198" max_enchant="10" m_slots="1">
 		<modifiers>
@@ -452893,6 +452905,7 @@
 			<add name="MAXMP" value="629" bonus="true"/>
 			<add name="CONCENTRATION" value="14" bonus="true"/>
 		</modifiers>
+		<acquisition type="REWARD" item="186000201" count="6"/>
 	</item_template>
 	<item_template id="113101281" name="Farside Leggings" level="60" cName="rb_pants_n_c1_60a" mask="36990" item_group="RB_PANTS" quality="COMMON" price="2932300" restrict="60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60" desc="790200" max_enchant="10" m_slots="1">
 		<modifiers>
@@ -471933,6 +471946,7 @@
 			<rate name="FLY_SPEED" value="7" bonus="true"/>
 			<rate name="BOOST_HATE" value="-20" bonus="true"/>
 		</modifiers>
+		<acquisition type="REWARD" item="186000201" count="6"/>
 	</item_template>
 	<item_template id="113301283" name="Farside Breeches" level="60" cName="lt_pants_n_c1_60a" mask="36990" item_group="LT_PANTS" quality="COMMON" price="2932300" restrict="60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60" desc="790202" max_enchant="10" m_slots="1">
 		<modifiers>
@@ -494559,6 +494573,7 @@
 			<rate name="BOOST_HATE" value="-20" bonus="true"/>
 			<add name="CONCENTRATION" value="14" bonus="true"/>
 		</modifiers>
+		<acquisition type="REWARD" item="186000201" count="6"/>
 	</item_template>
 	<item_template id="113501270" name="Farside Chausses" level="60" cName="ch_pants_n_c1_60a" mask="36990" item_group="CH_PANTS" quality="COMMON" price="2932300" restrict="60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60" desc="790204" max_enchant="10" m_slots="1">
 		<modifiers>
@@ -515170,6 +515185,7 @@
 			<rate name="FLY_SPEED" value="7" bonus="true"/>
 			<rate name="BOOST_HATE" value="41" bonus="true"/>
 		</modifiers>
+		<acquisition type="REWARD" item="186000201" count="6"/>
 	</item_template>
 	<item_template id="113601221" name="Farside Greaves" level="60" cName="pl_pants_n_c1_60a" mask="36990" item_group="PL_PANTS" quality="COMMON" price="2932300" restrict="60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60" desc="790206" max_enchant="10" m_slots="1">
 		<modifiers>
@@ -536050,6 +536066,7 @@
 			<add name="MAXMP" value="472" bonus="true"/>
 			<add name="CONCENTRATION" value="10" bonus="true"/>
 		</modifiers>
+		<acquisition type="REWARD" item="186000201" count="4"/>
 	</item_template>
 	<item_template id="114101309" name="Farside Shoes" level="60" cName="rb_shoes_n_c1_60a" mask="36990" item_group="RB_SHOES" quality="COMMON" price="1954900" restrict="60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60" desc="790208" max_enchant="10" m_slots="1">
 		<modifiers>
@@ -555185,6 +555202,7 @@
 			<rate name="SPEED" value="22" bonus="true"/>
 			<rate name="BOOST_HATE" value="-13" bonus="true"/>
 		</modifiers>
+		<acquisition type="REWARD" item="186000201" count="4"/>
 	</item_template>
 	<item_template id="114301315" name="Farside Boots" level="60" cName="lt_shoes_n_c1_60a" mask="36990" item_group="LT_SHOES" quality="COMMON" price="1954900" restrict="60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60" desc="790210" max_enchant="10" m_slots="1">
 		<modifiers>
@@ -577779,6 +577797,7 @@
 			<rate name="BOOST_HATE" value="-13" bonus="true"/>
 			<add name="CONCENTRATION" value="10" bonus="true"/>
 		</modifiers>
+		<acquisition type="REWARD" item="186000201" count="4"/>
 	</item_template>
 	<item_template id="114501275" name="Farside Brogans" level="60" cName="ch_shoes_n_c1_60a" mask="36990" item_group="CH_SHOES" quality="COMMON" price="1954900" restrict="60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60" desc="790212" max_enchant="10" m_slots="1">
 		<modifiers>
@@ -598321,6 +598340,7 @@
 			<rate name="SPEED" value="22" bonus="true"/>
 			<rate name="BOOST_HATE" value="27" bonus="true"/>
 		</modifiers>
+		<acquisition type="REWARD" item="186000201" count="4"/>
 	</item_template>
 	<item_template id="114601215" name="Farside Sabatons" level="60" cName="pl_shoes_n_c1_60a" mask="36990" item_group="PL_SHOES" quality="COMMON" price="1954900" restrict="60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60" desc="790214" max_enchant="10" m_slots="1">
 		<modifiers>
