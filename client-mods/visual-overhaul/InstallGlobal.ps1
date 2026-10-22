@@ -64,7 +64,7 @@ SkipLoadingDisabledEffects=1
 [INPUT]
 KeyOverlay=36,0,0,0
 KeyEffects=145,0,0,0
-KeyScreenshot=44,0,0,0
+KeyScreenshot=0,0,0,0
 InputProcessing=2
 [OVERLAY]
 TutorialProgress=4

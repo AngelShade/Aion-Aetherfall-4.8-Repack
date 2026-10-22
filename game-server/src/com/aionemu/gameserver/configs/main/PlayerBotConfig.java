@@ -3,6 +3,60 @@ package com.aionemu.gameserver.configs.main;
 import com.aionemu.commons.configuration.Property;
 
 public final class PlayerBotConfig {
+ public static void validatePvp() {
+  if(PVP_AGGRESSION<0 || PVP_AGGRESSION>100 || PVP_RIFT_PARTICIPANTS<0 || PVP_RIFT_PARTICIPANTS>100)
+   throw new IllegalArgumentException("Playerbots pvp.properties: percentages must be between 0 and 100.");
+  if(!Float.isFinite(PVP_NOTICE_DISTANCE) || PVP_NOTICE_DISTANCE<1 || PVP_NOTICE_DISTANCE>60
+   || !Float.isFinite(PVP_CHASE_DISTANCE) || PVP_CHASE_DISTANCE<PVP_NOTICE_DISTANCE || PVP_CHASE_DISTANCE>150
+   || PVP_CHASE_SECONDS<1 || PVP_CHASE_SECONDS>120 || PVP_LEVEL_DIFFERENCE<0 || PVP_LEVEL_DIFFERENCE>64
+   || !Float.isFinite(PVP_STRENGTH_LIMIT) || PVP_STRENGTH_LIMIT<.1f || PVP_STRENGTH_LIMIT>10
+   || PVP_ATTACKERS_PER_TARGET<1 || PVP_ATTACKERS_PER_TARGET>24 || PVP_RETREAT_HEALTH<1 || PVP_RETREAT_HEALTH>90)
+   throw new IllegalArgumentException("Playerbots pvp.properties: use notice_distance 1..60, chase_distance notice..150, chase_seconds 1..120, level_difference 0..64, enemy_strength_limit 0.1..10, attackers_per_target 1..24, retreat_health_percent 1..90.");
+  if(PVP_RIFT_REST_MINUTES<1 || PVP_RIFT_REST_MINUTES>1440 || PVP_RIFT_VISIT_MINUTES<1 || PVP_RIFT_VISIT_MINUTES>120
+   || !Float.isFinite(PVP_RIFT_SEARCH_DISTANCE) || PVP_RIFT_SEARCH_DISTANCE<5 || PVP_RIFT_SEARCH_DISTANCE>3000
+   || PVP_RIFT_TRAVEL_SECONDS<10 || PVP_RIFT_TRAVEL_SECONDS>900 || !Float.isFinite(POPULATION_UNSEEN_DISTANCE)
+   || POPULATION_UNSEEN_DISTANCE<150 || POPULATION_UNSEEN_DISTANCE>1000 || !Float.isFinite(POPULATION_ENEMY_CAMP_DISTANCE)
+   || POPULATION_ENEMY_CAMP_DISTANCE<0 || POPULATION_ENEMY_CAMP_DISTANCE>1000)
+   throw new IllegalArgumentException("Playerbots pvp.properties: use rest_minutes 1..1440, visit_minutes 1..120, search_distance 5..3000, travel_seconds 10..900, unseen_spawn_distance 150..1000, enemy_camp_distance 0..1000.");
+ }
+ @Property(key = "gameserver.playerbots.pvp.enable", defaultValue = "true")
+ public static boolean PVP_ENABLED = true;
+ @Property(key = "gameserver.playerbots.pvp.start_fights_percent", defaultValue = "35")
+ public static int PVP_AGGRESSION = 35;
+ @Property(key = "gameserver.playerbots.pvp.notice_distance", defaultValue = "24")
+ public static float PVP_NOTICE_DISTANCE = 24;
+ @Property(key = "gameserver.playerbots.pvp.chase_distance", defaultValue = "60")
+ public static float PVP_CHASE_DISTANCE = 60;
+ @Property(key = "gameserver.playerbots.pvp.chase_seconds", defaultValue = "25")
+ public static int PVP_CHASE_SECONDS = 25;
+ @Property(key = "gameserver.playerbots.pvp.level_difference", defaultValue = "8")
+ public static int PVP_LEVEL_DIFFERENCE = 8;
+ @Property(key = "gameserver.playerbots.pvp.enemy_strength_limit", defaultValue = "1.5")
+ public static float PVP_STRENGTH_LIMIT = 1.5f;
+ @Property(key = "gameserver.playerbots.pvp.attackers_per_target", defaultValue = "3")
+ public static int PVP_ATTACKERS_PER_TARGET = 3;
+ @Property(key = "gameserver.playerbots.pvp.retreat_health_percent", defaultValue = "25")
+ public static int PVP_RETREAT_HEALTH = 25;
+ @Property(key = "gameserver.playerbots.pvp.rifts.enable", defaultValue = "true")
+ public static boolean PVP_RIFTS = true;
+ @Property(key = "gameserver.playerbots.pvp.rifts.participants_percent", defaultValue = "15")
+ public static int PVP_RIFT_PARTICIPANTS = 15;
+ @Property(key = "gameserver.playerbots.pvp.rifts.rest_minutes", defaultValue = "20")
+ public static int PVP_RIFT_REST_MINUTES = 20;
+ @Property(key = "gameserver.playerbots.pvp.rifts.visit_minutes", defaultValue = "10")
+ public static int PVP_RIFT_VISIT_MINUTES = 10;
+ @Property(key = "gameserver.playerbots.pvp.rifts.search_distance", defaultValue = "1200")
+ public static float PVP_RIFT_SEARCH_DISTANCE = 1200;
+ @Property(key = "gameserver.playerbots.pvp.rifts.travel_seconds", defaultValue = "180")
+ public static int PVP_RIFT_TRAVEL_SECONDS = 180;
+ @Property(key = "gameserver.playerbots.pvp.rifts.keep_home_map_awake", defaultValue = "true")
+ public static boolean PVP_RIFT_HOME_ACTIVITY = true;
+ @Property(key = "gameserver.playerbots.population.faction_home_spawns", defaultValue = "true")
+ public static boolean POPULATION_FACTION_HOME = true;
+ @Property(key = "gameserver.playerbots.population.unseen_spawn_distance", defaultValue = "200")
+ public static float POPULATION_UNSEEN_DISTANCE = 200;
+ @Property(key = "gameserver.playerbots.population.enemy_camp_distance", defaultValue = "150")
+ public static float POPULATION_ENEMY_CAMP_DISTANCE = 150;
  @Property(key = "gameserver.playerbots.social.findgroup", defaultValue = "true")
  public static boolean FIND_GROUP_ENABLED = true;
  @Property(key = "gameserver.playerbots.social.findgroup.posts_per_tab", defaultValue = "12")
@@ -32,6 +86,40 @@ public final class PlayerBotConfig {
  /** Reusable directed road itineraries, charged inside each loaded map's allowance. */
  @Property(key = "gameserver.playerbots.navigation.mesh.route_cache_kb", defaultValue = "512")
  public static long NAVMESH_ROUTE_CACHE_KB = 512;
+ /** Navmesh accuracy diagnostics: per-check counts in the population log and the
+  * per-area log/navmesh_areas.csv report. Off stops both recording and writing. */
+ @Property(key = "gameserver.playerbots.navigation.mesh.diagnostics", defaultValue = "true")
+ public static boolean NAVMESH_DIAGNOSTICS = true;
+ /** Quick Detour line check on loaded meshes before the native straight-walk probe. */
+ @Property(key = "gameserver.playerbots.navigation.mesh.line_check", defaultValue = "true")
+ public static boolean NAVMESH_LINE_CHECK = true;
+ /** Learn spots where prepared corridors fail the native ground check and route around them. */
+ @Property(key = "gameserver.playerbots.navigation.mesh.learn_blocks", defaultValue = "true")
+ public static boolean NAVMESH_LEARN_BLOCKS = true;
+ /** Tank pull command: the tank tags the selected monster and brings it back to the owner. */
+ @Property(key = "gameserver.playerbots.tank.pull.enable", defaultValue = "true")
+ public static boolean TANK_PULL = true;
+ /** Skills at least this long (metres) count as ranged pulls; shorter ones wait while one is ready. */
+ @Property(key = "gameserver.playerbots.tank.pull.ranged_range", defaultValue = "10")
+ public static float TANK_PULL_RANGE = 10;
+ /** Give up a pull that was not tagged within this time. */
+ @Property(key = "gameserver.playerbots.tank.pull.reach_ms", defaultValue = "25000")
+ public static long TANK_PULL_REACH_MS = 25000;
+ /** Longest walk back to the group after tagging. */
+ @Property(key = "gameserver.playerbots.tank.pull.return_ms", defaultValue = "8000")
+ public static long TANK_PULL_RETURN_MS = 8000;
+ /** Tanks use area threat on loose enemies even when area attacks are off. */
+ @Property(key = "gameserver.playerbots.tank.area_threat.enable", defaultValue = "true")
+ public static boolean TANK_AREA_THREAT = true;
+ /** Loose enemies (in the fight, not on the tank) needed before area threat is preferred. */
+ @Property(key = "gameserver.playerbots.tank.area_threat.min_loose", defaultValue = "2")
+ public static int TANK_AREA_THREAT_MIN = 2;
+ /** Owner kill/crowd-control marks for companions. */
+ @Property(key = "gameserver.playerbots.marks.enable", defaultValue = "true")
+ public static boolean MARKS = true;
+ /** A crowd-control mark left uncontrolled this long while hostile is released. */
+ @Property(key = "gameserver.playerbots.marks.cc_release_ms", defaultValue = "8000")
+ public static long MARKS_CC_RELEASE_MS = 8000;
  /** Native terrain work is bounded by measured elapsed cost, not population-wide fixed turns. */
  @Property(key = "gameserver.playerbots.navigation.budget_ms_per_second", defaultValue = "500")
  public static int TERRAIN_BUDGET_MS = 500;

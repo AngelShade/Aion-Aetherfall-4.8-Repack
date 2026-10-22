@@ -207,7 +207,8 @@ public class PvpService {
 				log.info("[KILL] {} killed {}", winner, victim);
 		}
 
-		if (LoggingConfig.LOG_PL) {
+		// Native headless participants have no client IP/MAC to compare.
+		if (LoggingConfig.LOG_PL && winner.getClientConnection()!=null && victim.getClientConnection()!=null) {
 			String ip1 = winner.getClientConnection().getIP();
 			String mac1 = winner.getClientConnection().getMacAddress();
 			String ip2 = victim.getClientConnection().getIP();

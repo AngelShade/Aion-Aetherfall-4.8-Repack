@@ -114,9 +114,11 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		var ground=com.aionemu.gameserver.world.geo.GeoService.getInstance().findGroundMovementCollision(owner.getWorldId(),owner.getInstanceId(),
 			owner.getX(),owner.getY(),owner.getZ(),next.x(),next.y(),next.z());
 		if(ground==null || !Float.isFinite(ground.x) || !Float.isFinite(ground.y) || !Float.isFinite(ground.z)
-			|| Math.hypot(ground.x-next.x(),ground.y-next.y())>.15 || Math.abs(ground.z-next.z())>.75){walkBlocked=true;return false;}
+			|| Math.hypot(ground.x-next.x(),ground.y-next.y())>.15 || Math.abs(ground.z-next.z())>2){walkBlocked=true;return false;}
 		walkAhead.removeFirst();
-		walkCurrent=next;walkUntil=now+WALK_LEASE_MS;walkDirection(next);setAndSendStartMove(owner);
+		// Prepared corner heights are approximate: walk to the native floor at that
+		// XY, while the published point keeps its identity for corridor refreshes.
+		walkCurrent=next;walkUntil=now+WALK_LEASE_MS;walkDirection(new WalkPoint(next.index(),next.x(),next.y(),ground.z));setAndSendStartMove(owner);
 		return true;
 	}
 	private com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.Plan heightPlan;
@@ -298,7 +300,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 			var ground=com.aionemu.gameserver.world.geo.GeoService.getInstance().findGroundMovementCollision(
 				owner.getWorldId(),owner.getInstanceId(),owner.getX(),owner.getY(),owner.getZ(),x,y,targetDestZ);
 			if(ground==null || !Float.isFinite(ground.x) || !Float.isFinite(ground.y) || !Float.isFinite(ground.z)){walkBlocked=true;abortMove();return;}
-			if(ground.z<owner.getZ()-1.25f){startSupportedFall();return;}
+			if(steepDrop(ground)){startSupportedFall();return;}
 			double covered=Math.hypot(ground.x-owner.getX(),ground.y-owner.getY());
 			if(covered<.001){walkBlocked=true;abortMove();return;}
 			long generation=walkGeneration;boolean owned=walkActive;
@@ -309,7 +311,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 			// A native observer may change casting, movement or the command itself.
 			if(owner.isCasting() || !isInMove() || !started.get() || generation!=walkGeneration || owned && !walkActive)return;
 			if(fraction<1 || Math.hypot(targetDestX-owner.getX(),targetDestY-owner.getY())>=.01)return;
-			if(Math.abs(targetDestZ-owner.getZ())>.75){walkBlocked=true;abortMove();return;}
+			if(Math.abs(targetDestZ-owner.getZ())>2){walkBlocked=true;abortMove();return;}
 			if(com.aionemu.gameserver.services.playerbot.PlayerBotFollowIntent.active(owner))return;
 			if(!nextWalkPoint(now)){abortMove();return;}
 		}
@@ -349,7 +351,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		var ground=com.aionemu.gameserver.world.geo.GeoService.getInstance().findGroundMovementCollision(
 			owner.getWorldId(),owner.getInstanceId(),owner.getX(),owner.getY(),owner.getZ(),x,y,step.z());
 		if(ground==null || !Float.isFinite(ground.x) || !Float.isFinite(ground.y) || !Float.isFinite(ground.z)){follow.blocked(now);holdFollow();return;}
-		if(ground.z<owner.getZ()-1.25f){startSupportedFall();return;}
+		if(steepDrop(ground)){startSupportedFall();return;}
 		if(Math.hypot(ground.x-owner.getX(),ground.y-owner.getY())<.001){follow.blocked(now);holdFollow();return;}
 		com.aionemu.gameserver.world.World.getInstance().updatePosition(owner,ground.x,ground.y,ground.z,heading,false);
 		updateLastMove();owner.getKnownList().update();owner.getController().onMove();
@@ -389,6 +391,11 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		if (wasMoving || started.get()) super.abortMove();
 		com.aionemu.gameserver.services.playerbot.PlayerBotFollowSpeed.close(owner);
 		if (wasMoving) owner.getController().onStopMove();
+	}
+	/** A walked step that descends more than its own slope allows is a fall. Stairs walked
+	 * in one long step (lag, catch-up speed) drop with their horizontal distance and are not. */
+	private boolean steepDrop(com.aionemu.gameserver.geoEngine.math.Vector3f ground) {
+		return owner.getZ()-ground.z>1.25f+1.75f*(float)Math.hypot(ground.x-owner.getX(),ground.y-owner.getY());
 	}
 	private void startSupportedFall() {
 		// Ground probes may recover an inherited airborne origin, but that lower

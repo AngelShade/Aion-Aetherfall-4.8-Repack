@@ -12,6 +12,36 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 from setup_version import setup_version
+from build_downloader import build_downloader
+
+DOWNLOAD_URL = 'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/latest/download/Aetherfall-Downloader.zip'
+LEGACY_DOWNLOAD_URL = 'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.86/Aetherfall-Downloader.zip'
+
+
+def prepare_downloader(dist_dir, output_dir, setup, latest):
+    archive = build_downloader(setup, dist_dir / 'Aetherfall-Downloader',
+        output_dir / 'Aetherfall-Downloader.zip', Path(__file__).resolve().parents[2] / 'CHANGELOG.md')
+    base = 'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v' + latest['version']
+    latest.update(downloaderUrl=base+'/Aetherfall-Downloader.zip',
+                  downloaderBytes=archive.stat().st_size, downloaderSha256=sha256_file(archive))
+    return archive
+
+
+def refresh_public_download_links(contents_api, headers):
+    import base64
+    request = urllib.request.Request(contents_api + '/README.md?ref=main', headers=headers)
+    with urllib.request.urlopen(request) as response:
+        record = json.loads(response.read().decode())
+    before = base64.b64decode(record['content']).decode('utf-8')
+    after = before.replace(LEGACY_DOWNLOAD_URL, DOWNLOAD_URL)
+    if after == before:
+        return
+    body = dict(message='Point new installations to the current downloader', branch='main',
+                sha=record['sha'], content=base64.b64encode(after.encode('utf-8')).decode('ascii'))
+    request = urllib.request.Request(contents_api + '/README.md',
+        data=json.dumps(body).encode('utf-8'), headers=headers, method='PUT')
+    with urllib.request.urlopen(request):
+        print('      Public download links now follow the latest downloader ZIP.')
 
 EXCLUDED_PREFIXES = (
     'server/database/data/',
@@ -196,6 +226,7 @@ def scan_and_build_patch(package: Path, baseline_path: Path, dist_dir: Path, tar
         'filesChanged': len(changed_entries),
         'filesRemoved': len(removed_entries),
     }
+    prepare_downloader(dist_dir, dist_dir, setup_exe, latest)
     latest_path = dist_dir / 'latest-update.json'
     latest_path.write_text(json.dumps(latest, indent=2) + '\n', encoding='utf-8')
     print(f'      Created {patch_path} ({patch_bytes / 1024 / 1024:.2f} MB, SHA256={patch_sha})')
@@ -240,6 +271,7 @@ def publish_prepared(package, baseline_path, dist_dir, target_version, upload):
                 raise ValueError('Setup and the prepared patch Hub differ; install the same build before publishing')
         latest.update(setupExeUrl=base+'/Aetherfall-Setup.exe', setupExeBytes=setup.stat().st_size,
                       setupExeSha256=sha256_file(setup), setupVersion=setup_version(setup))
+        prepare_downloader(dist_dir, patch_dir, setup, latest)
         latest_path.write_text(json.dumps(latest, indent=2)+'\n', encoding='utf-8')
     if upload:
         publish_assets(patch_dir, latest, setup)
@@ -257,6 +289,12 @@ def publish_assets(dist_dir, latest, setup_path=None):
     setup_exe = setup_path or dist_dir / 'Aetherfall-Downloader' / 'Aetherfall Setup.exe'
     if setup_exe.is_file() and (sha256_file(setup_exe) != latest.get('setupExeSha256') or setup_exe.stat().st_size != latest.get('setupExeBytes')):
         raise ValueError('Prepared Setup differs from its update metadata')
+    downloader = dist_dir / 'Aetherfall-Downloader.zip'
+    if not downloader.is_file() or sha256_file(downloader) != latest.get('downloaderSha256') or downloader.stat().st_size != latest.get('downloaderBytes'):
+        raise ValueError('Prepared downloader ZIP differs from its update metadata')
+    with zipfile.ZipFile(downloader) as archive:
+        if hashlib.sha256(archive.read('Aetherfall Setup.exe')).hexdigest() != latest.get('setupExeSha256'):
+            raise ValueError('Downloader ZIP and published Setup differ')
     print(f'[3/4] Uploading {patch_name} and Aetherfall-Setup.exe to GitHub Release {tag_name}...')
     token = get_github_token()
     headers = {
@@ -307,6 +345,10 @@ def publish_assets(dist_dir, latest, setup_path=None):
     upload_asset(patch_path, patch_name, 'application/zip')
     if setup_exe.is_file():
         upload_asset(setup_exe, 'Aetherfall-Setup.exe', 'application/octet-stream')
+    upload_asset(downloader, 'Aetherfall-Downloader.zip', 'application/zip')
+    # Change public entry points only after the matching complete kit is available.
+    refresh_public_download_links(
+        'https://api.github.com/repos/AngelShade/Aion-Aetherfall-4.8-Repack/contents', headers)
 
     print('[4/4] Publishing latest-update.json to GitHub main branch via API...')
     import base64

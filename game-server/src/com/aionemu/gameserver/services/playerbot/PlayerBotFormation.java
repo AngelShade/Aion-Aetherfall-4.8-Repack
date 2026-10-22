@@ -80,7 +80,8 @@ public final class PlayerBotFormation {
   boolean motion=bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover && mover.followMotionActive();
   if(s==null || !motion && (s.following<System.currentTimeMillis() || !PlayerBotFollowIntent.permitsSpeed(bot)))return 1;
   Player owner=com.aionemu.gameserver.world.World.getInstance().getPlayer(s.owner);
-  if(owner==null || !owner.isOnline() || !owner.isSpawned() || owner.isDead() || !bot.canPerformMove()
+  // Catch-up speed is a companion privilege toward a human owner only.
+  if(owner==null || owner.isPlayerBot() || !owner.isOnline() || !owner.isSpawned() || owner.isDead() || !bot.canPerformMove()
    || bot.getEffectController().isUnderFear() || bot.getEffectController().isConfused() || bot.getEffectController().isAbnormalSet(com.aionemu.gameserver.skillengine.effect.AbnormalState.SLOW)
    || owner.getWorldId()!=bot.getWorldId() || owner.getInstanceId()!=bot.getInstanceId())return 1;
   var goal=PlayerBotFollowIntent.goal(bot);if(goal==null)return 1;

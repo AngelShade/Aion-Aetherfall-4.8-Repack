@@ -2,12 +2,19 @@ AION AETHERFALL — INSTALLER & AUTO-UPDATER HUB
 
 HOW TO INSTALL (1 CLICK)
 1. Double-click "Aetherfall Setup.exe".
+   Always get the current complete downloader ZIP from:
+   https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/latest/download/Aetherfall-Downloader.zip
+   If you already have an older downloader, click "Update Repack" before
+   INSTALL or RESUME to update Setup first. Keep your existing settings and
+   Downloads folder to retain progress; replace only the old Setup executable
+   with the current one if updating it manually while Setup is closed.
 2. Choose your install folder (or keep the default) and click "INSTALL".
    - If you already downloaded "Aetherfall-0.86.7z" from Google Drive or MEGA,
      Aetherfall Setup.exe detects it automatically in your Downloads folder (or
      you can click "Use Local .7z..." to select it).
-   - Otherwise, it downloads "Aetherfall-0.86.7z" automatically via BitTorrent
-     or direct mirror (and resumes where it left off if you close and reopen it).
+   - Otherwise, Auto / Direct HTTPS downloads "Aetherfall-0.86.7z" from MEGA
+     with Google Drive fallback. BitTorrent is a separate selectable mode.
+     Closing and reopening Setup preserves completed download chunks.
 3. After verifying the SHA-256 checksum and extracting the repack, the Hub copies
    itself into your installed repack folder as "Aetherfall Hub.exe" and switches
    the main button to "PLAY".

@@ -26,6 +26,9 @@ final class PlayerBotWorldPlacement {
  }
  record Spawn(int npc,float x,float y,float z,int level,boolean hub,boolean city) {}
  private static List<Location> cache;
+ private static Map<Integer,Location> mapAnchors=Map.of();
+ private static final Map<String,List<Spawn>> FACTION_ANCHORS=new HashMap<>();
+ private static final Map<String,List<Spawn>> FACTION_ENEMIES=new HashMap<>();
  record Selection(Location location,String reason,int checked,boolean exhausted){}
  // Bounded native faction/level keys retain scan position across deferred admissions.
  private static final class Scan {
@@ -79,6 +82,7 @@ final class PlayerBotWorldPlacement {
    && map.getWorldType()!=WorldType.PRISON && map.getWorldType()!=WorldType.PANESTERRA
    && (map.getWorldType()!=WorldType.ELYSEA || race==Race.ELYOS)
    && (map.getWorldType()!=WorldType.ASMODAE || race==Race.ASMODIANS)
+   && (!PlayerBotConfig.POPULATION_FACTION_HOME || PlayerBotTerritory.homeland(map.getMapId())==Race.NONE || PlayerBotTerritory.homeland(map.getMapId())==race)
    && (enabled.isEmpty() || enabled.contains(map.getMapId()));
  }
  static boolean suitable(Location p,Race race,int level,Set<Integer> enabled) {
@@ -111,6 +115,8 @@ final class PlayerBotWorldPlacement {
    for(var map:DataManager.WORLD_MAPS_DATA) {
     if(!mapEligible(map,race,Set.of()))continue;
     var mobs=new ArrayList<Spawn>();var hubs=new ArrayList<Spawn>();
+    var ownSide=new ArrayList<Spawn>();var enemySide=new ArrayList<Spawn>();
+    TribeClass opposite=race==Race.ELYOS?TribeClass.PC_DARK:TribeClass.PC;
     for(int id:ids) {
      var n=DataManager.NPC_DATA.getNpcTemplate(id);if(n==null)continue;
      boolean hostile=DataManager.TRIBE_RELATIONS_DATA.isHostileRelation(n.getTribe(),tribe) || DataManager.TRIBE_RELATIONS_DATA.isAggressiveRelation(n.getTribe(),tribe);
@@ -118,7 +124,11 @@ final class PlayerBotWorldPlacement {
      boolean friendly=!hostile && (n.getRace()==race || n.getRace()==Race.PC_ALL || DataManager.TRIBE_RELATIONS_DATA.isFriendlyRelation(n.getTribe(),tribe));
      boolean bank=friendly && (n.supportsAction(DialogAction.OPEN_PERSONAL_WAREHOUSE) || n.supportsAction(DialogAction.RETRIEVE_CHAR_WAREHOUSE));
      boolean hub=friendly && (bank || n.supportsAction(DialogAction.BUY) || DataManager.TELEPORTER_DATA.getTeleporterTemplateByNpcId(id)!=null);
-     if(!mob && !hub)continue;
+     boolean own=n.getRace()==race || !hostile && DataManager.TRIBE_RELATIONS_DATA.isFriendlyRelation(n.getTribe(),tribe)
+      && (DataManager.TRIBE_RELATIONS_DATA.isHostileRelation(n.getTribe(),opposite) || DataManager.TRIBE_RELATIONS_DATA.isAggressiveRelation(n.getTribe(),opposite));
+     boolean enemy=hostile && (n.getRace()==(race==Race.ELYOS?Race.ASMODIANS:Race.ELYOS)
+      || DataManager.TRIBE_RELATIONS_DATA.isFriendlyRelation(n.getTribe(),opposite));
+     if(!mob && !hub && !own && !enemy)continue;
      for(var group:DataManager.SPAWNS_DATA.getSpawnsForNpc(map.getMapId(),id)) {
       if(group.isTemporarySpawn() || group.getHandlerType()!=null)continue;
       for(var s:group.getSpawnTemplates())if(!s.isAerialSpawn()) {
@@ -126,8 +136,15 @@ final class PlayerBotWorldPlacement {
        double facing=Math.toRadians(Byte.toUnsignedInt(s.getHeading())*3.0);
        var spawn=new Spawn(id,s.getX()+(hub?(float)Math.cos(facing)*5:0),s.getY()+(hub?(float)Math.sin(facing)*5:0),s.getZ(),n.getLevel(),hub,bank);
        if(mob)mobs.add(spawn);if(hub)hubs.add(spawn);
+       if(own)ownSide.add(spawn);if(enemy)enemySide.add(spawn);
       }
      }
+    }
+    if(PlayerBotConfig.POPULATION_FACTION_HOME) {
+     FACTION_ANCHORS.put(race+":"+map.getMapId(),List.copyOf(ownSide));
+     FACTION_ENEMIES.put(race+":"+map.getMapId(),List.copyOf(enemySide));
+     mobs.removeIf(p->!factionSide(p,ownSide,enemySide));
+     hubs.removeIf(p->!factionSide(p,ownSide,enemySide));
     }
     // Native Aion has no WoW area_level table. Nearby ordinary mob bands replace its zone brackets.
     for(var hub:hubs) {
@@ -155,9 +172,25 @@ final class PlayerBotWorldPlacement {
    result.add(new Location(race,start.getMapId(),start.getX(),start.getY(),start.getZ(),1,5,false,true));
   }
   cache=result.stream().map(p->{int start=DataManager.PLAYER_INITIAL_DATA.getSpawnLocation(p.race()).getMapId();
-   return p.map()==start?p:new Location(p.race(),p.map(),p.x(),p.y(),p.z(),Math.max(10,p.minimum()),Math.max(10,p.maximum()),p.city(),p.hub());}).distinct().toList();return cache;
+   return p.map()==start?p:new Location(p.race(),p.map(),p.x(),p.y(),p.z(),Math.max(10,p.minimum()),Math.max(10,p.maximum()),p.city(),p.hub());}).distinct().toList();
+  var anchors=new HashMap<Integer,Location>();
+  for(var p:cache)if(!anchors.containsKey(p.map()) || p.hub() && !anchors.get(p.map()).hub())anchors.put(p.map(),p);
+  mapAnchors=Map.copyOf(anchors);return cache;
  }
+ static Location mapAnchor(int map){locations();return mapAnchors.get(map);}
  private static double distance(Spawn a,Spawn b){return Math.pow(a.x()-b.x(),2)+Math.pow(a.y()-b.y(),2);}
+ private static boolean factionSide(Spawn point,List<Spawn> own,List<Spawn> enemy) {
+  if(enemy.isEmpty())return true;
+  double hostile=enemy.stream().mapToDouble(p->distance(point,p)).min().orElse(Double.POSITIVE_INFINITY);
+  double friendly=own.stream().mapToDouble(p->distance(point,p)).min().orElse(Double.POSITIVE_INFINITY);
+  return hostile>=Math.pow(Math.max(0,PlayerBotConfig.POPULATION_ENEMY_CAMP_DISTANCE),2) && friendly<hostile;
+ }
+ private static boolean factionSide(Race race,int map,float x,float y,float z) {
+  if(!PlayerBotConfig.POPULATION_FACTION_HOME)return true;
+  locations();
+  return factionSide(new Spawn(0,x,y,z,1,false,false),FACTION_ANCHORS.getOrDefault(race+":"+map,List.of()),
+   FACTION_ENEMIES.getOrDefault(race+":"+map,List.of()));
+ }
  static boolean idle(PlayerBotSession session) {
   Player bot=session.bot();return session.autonomous() && !session.closing() && bot.isSpawned() && !bot.isDead()
    && !(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController move && (move.ridingPlatform() || move.traversingHeight()))
@@ -168,7 +201,7 @@ final class PlayerBotWorldPlacement {
  }
  static boolean nearHuman(int map,float x,float y,float z) {
   return World.getInstance().getAllPlayers().stream().anyMatch(p->!p.isPlayerBot() && p.isSpawned() && p.getWorldId()==map
-   && p.getInstanceId()==1 && PositionUtil.getDistance(p,x,y,z)<150);
+   && p.getInstanceId()==1 && PositionUtil.getDistance(p,x,y,z)<Math.max(150,PlayerBotConfig.POPULATION_UNSEEN_DISTANCE));
  }
  private static boolean occupiedLanding(int map,float x,float y,float z) {
   return World.getInstance().getAllPlayers().stream().anyMatch(p->p.isPlayerBot() && p.isSpawned() && p.getWorldId()==map && p.getInstanceId()==1
@@ -270,7 +303,7 @@ final class PlayerBotWorldPlacement {
     public float height(float x,float y,float sourceZ){return GeoService.getInstance().getZ(p.map(),x,y,sourceZ+2,sourceZ-4,1);}
     public boolean safe(PlayerBotNavigation.Point point){
      var worldMap=World.getInstance().getWorldMap(p.map());
-     return ground(map,point.x(),point.y(),p.z(),point.z()) && !nearHuman(p.map(),point.x(),point.y(),point.z())
+     return ground(map,point.x(),point.y(),p.z(),point.z()) && factionSide(race,p.map(),point.x(),point.y(),point.z()) && !nearHuman(p.map(),point.x(),point.y(),point.z())
       && distribution.clear(p.map(),point.x(),point.y(),point.z())
       && worldMap!=null && worldMap.getMainWorldMapInstance().getRegion(point.x(),point.y(),point.z())!=null
       && GeoService.getInstance().isPlayerBotLanding(p.map(),1,point.x(),point.y(),point.z()) && !occupiedLanding(p.map(),point.x(),point.y(),point.z());
@@ -286,7 +319,7 @@ final class PlayerBotWorldPlacement {
  }
  static boolean current(Location p){
   var map=DataManager.WORLD_MAPS_DATA.getTemplate(p.map());var world=World.getInstance().getWorldMap(p.map());
-  return mapEligible(map,p.race(),PlayerBotConfig.POPULATION_MAPS) && !nearHuman(p.map(),p.x(),p.y(),p.z())
+  return mapEligible(map,p.race(),PlayerBotConfig.POPULATION_MAPS) && factionSide(p.race(),p.map(),p.x(),p.y(),p.z()) && !nearHuman(p.map(),p.x(),p.y(),p.z())
    && !occupiedLanding(p.map(),p.x(),p.y(),p.z()) && world!=null && world.getMainWorldMapInstance().getRegion(p.x(),p.y(),p.z())!=null
    && GeoService.getInstance().isPlayerBotLanding(p.map(),1,p.x(),p.y(),p.z());
  }

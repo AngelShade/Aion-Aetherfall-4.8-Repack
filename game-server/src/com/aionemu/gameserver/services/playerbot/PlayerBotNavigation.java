@@ -170,6 +170,7 @@ final class PlayerBotNavigation {
 		cancelTicket(heightSearchToken);
 		clearSearch();
 		routeSearch=new PlayerBotRouteSearch(bot.getWorldId(),start,goal,bot.getWorldMapInstance().getParent().getWorldSize(),4096,PlayerBotConfig.TERRAIN_SEGMENT_METRES,meshJourney,meshAdmission);
+		if(PlayerBotRouteSearch.recentlyUnreachable(bot.getWorldId(),start,goal))routeSearch.refuse("route recently unreachable from here; choosing another");
 		lookahead=ahead;searchProgress=now;
 		if(routeSearch.pending())terrain.request(searchToken,terrainPriority(PositionUtil.getDistance(bot,goal.x(),goal.y(),goal.z())));
 	}
@@ -598,6 +599,7 @@ final class PlayerBotNavigation {
 				if(route.isEmpty()){status="planning supported ground route";stopMovement();return true;}
 			} else {
 				if(routeSearch.route().isEmpty() && route.isEmpty()) {
+					if(!routeSearch.reason().startsWith("route recently unreachable"))PlayerBotRouteSearch.failed(bot.getWorldId(),routeSearch.start(),routeSearch.finalGoal());
 					status=routeSearch.reason();clearSearch();lookahead=partialRoute=false;
 					// Exhausted walking must yield to the existing bounded native jump
 					// adapter instead of returning before that branch on every retry.
@@ -605,6 +607,7 @@ final class PlayerBotNavigation {
 					cancelTicket(localSearchToken);localOrigin=null;nextHeightSearch=0;
 				} else {
 					groundRouteUnavailable=false;
+					if(!routeSearch.route().isEmpty())PlayerBotRouteSearch.succeeded(bot.getWorldId(),routeSearch.start(),routeSearch.finalGoal());
 					partialRoute=routeSearch.partial();route.addAll(routeSearch.route());status=routeSearch.reason();clearSearch();lookahead=false;
 					nextSearch=partialRoute?0:now+3000;lastProgress=now;
 				}
@@ -627,10 +630,20 @@ final class PlayerBotNavigation {
 			// WoW MovePoint/MoveChase: when a straight walk reaches the goal, walk
 			// it. One native probe replaces a queued grid/mesh search; the mover
 			// still checks every step and hands a blocked walk back for planning.
-			Vector3f straight=goalDistance<=60?GeoService.getInstance().findGroundMovementCollision(bot.getWorldId(),bot.getInstanceId(),
-				bot.getX(),bot.getY(),bot.getZ(),targetX,targetY,targetZ):null;
+			// Long trips first try a straight 40 m leg toward the goal: in open
+			// terrain bots keep walking without queueing, and only a blocked leg
+			// (wall, cliff, building) is sent to the shared route planner.
+			boolean whole=goalDistance<=60;
+			double leg=whole?1:40/goalDistance;
+			float legX=bot.getX()+(float)((targetX-bot.getX())*leg),legY=bot.getY()+(float)((targetY-bot.getY())*leg),legZ=bot.getZ()+(float)((targetZ-bot.getZ())*leg);
+			// A wall on the loaded navmesh means the straight leg is blocked: plan a
+			// route without spending the long native collision probe on it.
+			if(Boolean.TRUE.equals(PlayerBotMeshRoute.lineBlocked(bot.getWorldId(),actualPosition,new Point(legX,legY,legZ))))
+				return beginGroundRoute(actualPosition,goal,goalDistance,now);
+			Vector3f straight=GeoService.getInstance().findGroundMovementCollision(bot.getWorldId(),bot.getInstanceId(),
+				bot.getX(),bot.getY(),bot.getZ(),legX,legY,legZ);
 			if(straight!=null && Float.isFinite(straight.x) && Float.isFinite(straight.y) && Float.isFinite(straight.z)
-				&& Math.hypot(straight.x-targetX,straight.y-targetY)<=.3 && Math.abs(straight.z-targetZ)<=1.5
+				&& Math.hypot(straight.x-legX,straight.y-legY)<=.3 && (!whole || Math.abs(straight.z-targetZ)<=1.5)
 				&& PlayerBotHazards.safePath(actualPosition,new Point(straight.x,straight.y,straight.z),hazards)) {
 				route.addLast(new Point(straight.x,straight.y,straight.z));partialRoute=false;lastProgress=now;
 			} else return beginGroundRoute(actualPosition,goal,goalDistance,now);

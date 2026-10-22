@@ -411,7 +411,8 @@ public abstract class AbstractQuestHandler {
 					else
 						return closeDialogWindow(env);
 				}
-				break;
+				// startQuest already sent the refusal reason; do not treat the acceptance action as an HTML page.
+				return closeDialogWindow(env);
 			case QUEST_REFUSE_1:
 			case QUEST_REFUSE_2:
 				return sendQuestDialog(env, 1004);

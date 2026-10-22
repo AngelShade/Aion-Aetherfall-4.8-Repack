@@ -101,7 +101,7 @@ final class PlayerBotEnemyUtility {
  static boolean injured(List<Player> party) {
   return party.stream().anyMatch(p->!p.isDead() && 100.0*p.getLifeStats().getCurrentHp()/Math.max(1,p.getLifeStats().getMaxHp())<85);
  }
- static boolean ready(Player bot,PlayerBotSkills.Entry entry,Npc target) {
+ static boolean ready(Player bot,PlayerBotSkills.Entry entry,Creature target) {
   if(target==null || target.isDead() || !target.isSpawned() || !PlayerBotService.allowsTarget(bot,target)
    || !PositionUtil.isInAttackRange(bot,target,entry.range())
    || bot.isSkillDisabled(entry.template()) || !PlayerBotSkills.chainAvailable(bot,entry) || !PlayerBotSkills.canPlan(bot,entry,target))return false;

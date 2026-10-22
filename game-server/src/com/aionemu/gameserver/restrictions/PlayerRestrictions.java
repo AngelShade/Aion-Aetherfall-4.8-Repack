@@ -204,8 +204,8 @@ public class PlayerRestrictions {
 	}
 
 	public static boolean canAttack(Player player, VisibleObject target) {
-		if (player.isPlayerBot() && (!(target instanceof Npc) || ((Npc) target).getMaster() != target
-			|| !com.aionemu.gameserver.services.playerbot.PlayerBotService.allowsTarget(player, (Npc) target))) return false;
+		if (player.isPlayerBot() && (!(target instanceof Creature creature)
+			|| !com.aionemu.gameserver.services.playerbot.PlayerBotService.allowsTarget(player, creature))) return false;
 		if (player.isInPrison()) {
 			PacketSendUtility.sendPacket(player, SM_SYSTEM_MESSAGE.STR_MSG_ACCUSE_TARGET_IS_NOT_VALID());
 			return false;

@@ -66,6 +66,8 @@ public final class PlayerBotService {
  private final PlayerBotExecution execution=new PlayerBotExecution();
  private final PlayerBotBackgroundWork teamWork=new PlayerBotBackgroundWork();
  private final Object schedulerLock=new Object();
+ /** One navmesh area report per server run, so a restart cannot overwrite the last session. */
+ private static final String NAVMESH_REPORT_RUN=java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
  private final Object populationLock=new Object();
  private final Map<Integer,Long> retireQueue=new java.util.concurrent.ConcurrentHashMap<>();
  private final PlayerBotDecisionSchedule decisions=new PlayerBotDecisionSchedule();
@@ -367,7 +369,7 @@ public final class PlayerBotService {
   return placePopulation(session,false);
  }
  private boolean placePopulation(PlayerBotSession session,boolean focusMove) {
-  if(PlayerBotFindGroup.committed(session.bot()))return false;
+  if(PlayerBotFindGroup.committed(session.bot()) || session.worldExcursion())return false;
   if(!PlayerBotConfig.POPULATION_ENABLED || !PlayerBotPopulationPolicy.serverAccount(session.bot().getAccount().getId()) || !PlayerBotWorldPlacement.idle(session))return false;
   var bot=session.bot();long now=System.currentTimeMillis();
   try {
@@ -397,6 +399,7 @@ public final class PlayerBotService {
 
 	/** Population residency survives controller logout; adapted from pinned RandomPlayerbotMgr. */
 	public void startWorldBots() {
+		PlayerBotConfig.validatePvp();
 		// Static recipe/material discovery used to run in the first actor's
 		// decision while other actors waited for its catalog monitor. Build once
 		// after native data validation and before starting any bot decision tasks.
@@ -494,6 +497,9 @@ public final class PlayerBotService {
    +", traveling to grind="+active.stream().filter(s->PlayerBotWorldActivities.grindTravel(s.bot())).count());
   lines.add("World activity: dormant="+active.stream().filter(PlayerBotSession::dormant).count()
    +"; unoccupied-map dormancy="+PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS+"; companions remain active with their owners.");
+  var mesh=PlayerBotMeshRoute.outcomes();
+  if(!mesh.isEmpty())lines.add("Navmesh corridor checks since last report: "+mesh);
+  PlayerBotMeshRoute.flushAreas(java.nio.file.Path.of("log","navmesh_areas-"+NAVMESH_REPORT_RUN+".csv"));
   // What awake world bots are actually doing, so stalls show up in the log.
   var states=new TreeMap<String,Integer>();
   for(var s:active)if(s.autonomous() && !s.dormant() && !s.bot().isDead())states.merge(s.diagnosticState(),1,Integer::sum);
@@ -523,7 +529,7 @@ public final class PlayerBotService {
   return counts;
  }
  private boolean focusProtected(PlayerBotSession session) {
-  var bot=session.bot();return PlayerBotPopulationFocus.protectedActor(session.autonomous(),session.closing(),PlayerBotWorldPlacement.idle(session),
+  var bot=session.bot();return session.worldExcursion() || PlayerBotPopulationFocus.protectedActor(session.autonomous(),session.closing(),PlayerBotWorldPlacement.idle(session),
    focusHumans.stream().anyMatch(p->p.isSpawned() && p.getInstanceId()==1 && p.getWorldId()==bot.getWorldId()
     && com.aionemu.gameserver.utils.PositionUtil.getDistance(p,bot)<150),
    bot.getKnownList().streamPlayers().anyMatch(p->!p.isPlayerBot() && p.getKnownList().sees(bot)));
@@ -703,11 +709,14 @@ public final class PlayerBotService {
    // Reused global identities use the same zone preference as new characters,
    // before visibility. Manual residents and owned companions retain their homes.
    boolean concentrate=PlayerBotPopulationPolicy.serverAccount(r.account()) && (PlayerBotConfig.POPULATION_CONCENTRATE || focused);
-   if(!safeLanding || concentrate) {
+   boolean guardedLanding=PlayerBotPopulationPolicy.serverAccount(r.account()) && (PlayerBotWorldPlacement.nearHuman(saved.map(),saved.x(),saved.y(),saved.z())
+    || !PlayerBotWorldPlacement.mapEligible(DataManager.WORLD_MAPS_DATA.getTemplate(saved.map()),bot.getRace(),PlayerBotConfig.POPULATION_MAPS));
+   if(!safeLanding || concentrate || guardedLanding) {
     var camp=entryCamp!=null?entryCamp:PlayerBotWorldPlacement.destination(bot.getRace(),bot.getLevel(),PlayerBotPopulationPolicy.settings().cityChance(),populationRandom);
-    if(camp==null && focused){log.info("World bot {} admission deferred after focus changed; saved character remains offline",r.character());return;}
+    if(camp==null && (focused || guardedLanding)){log.info("World bot {} admission deferred: no currently safe faction camp; saved character remains offline",r.character());return;}
     if(camp==null && !safeLanding)throw new IllegalStateException("Saved world position has no safe walking exit and no validated replacement camp exists; character retained");
     if(camp!=null) {
+     if(PlayerBotPopulationPolicy.serverAccount(r.account()))entryCamp=camp;
      saved=new PlayerBotPersistence.Home(camp.map(),camp.x(),camp.y(),camp.z(),saved.heading(),0);repairedLanding=true;
      if(!safeLanding)log.info("World bot {} saved position needs repair; entering validated level {} camp on map {}",bot.getName(),bot.getLevel(),camp.map());
     }
@@ -1321,7 +1330,7 @@ public final class PlayerBotService {
 		PlayerBotSession active=getInstance().session(bot.getObjectId());
 		if(bot.isWorldBot() && active!=null && active.autonomous()) {
 			if(!bot.isSpawned() || active.closing())return false;
-			if(bot.isEnemy(target))return target instanceof com.aionemu.gameserver.model.gameobjects.Npc npc && target.getMaster()==target && active.allowsEnemy(npc);
+			if(bot.isEnemy(target))return active.allowsEnemy(target);
 			return PlayerBotSupport.effectAllowed(bot,target);
 		}
 		Player owner = World.getInstance().getPlayer(bot.getPlayerBotOwnerId());
@@ -1330,8 +1339,7 @@ public final class PlayerBotService {
 			|| !PlayerBotTeams.same(owner,bot)) return false;
 		if (bot.isEnemy(target)) {
 			PlayerBotSession session = getInstance().session(bot.getObjectId());
-			return target instanceof com.aionemu.gameserver.model.gameobjects.Npc npc && target.getMaster() == target
-				&& session != null && session.allowsEnemy(npc);
+			return session != null && session.allowsEnemy(target);
 		}
 		return target.getMaster() instanceof Player ? PlayerBotSupport.effectAllowed(bot,target) : true;
 	}

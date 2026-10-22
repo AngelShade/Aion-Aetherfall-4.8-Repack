@@ -2,6 +2,7 @@ package com.aionemu.gameserver.controllers;
 
 import com.aionemu.gameserver.controllers.attack.AttackStatus;
 import com.aionemu.gameserver.dataholders.DataManager;
+import com.aionemu.gameserver.model.TaskId;
 import com.aionemu.gameserver.model.gameobjects.Creature;
 import com.aionemu.gameserver.model.gameobjects.Summon;
 import com.aionemu.gameserver.model.gameobjects.VisibleObject;
@@ -20,6 +21,8 @@ import com.aionemu.gameserver.skillengine.model.HopType;
 import com.aionemu.gameserver.skillengine.model.Skill;
 import com.aionemu.gameserver.taskmanager.tasks.PlayerMoveTaskManager;
 import com.aionemu.gameserver.utils.PacketSendUtility;
+import com.aionemu.gameserver.utils.PositionUtil;
+import com.aionemu.gameserver.utils.ThreadPoolManager;
 import com.aionemu.gameserver.utils.audit.AuditLogger;
 
 /**
@@ -31,6 +34,24 @@ public class SummonController extends CreatureController<Summon> {
 	/** Native attack deadline, also used by the headless owner's pet driver. */
 	public long getNextAttackMillis() {
 		return lastAttackMillis + Math.max(0, getOwner().getGameStats().getAttackSpeed().getCurrent());
+	}
+
+	@Override
+	public void onAfterSpawn() {
+		super.onAfterSpawn();
+		// Headless bot spirits need a range check even while standing still.
+		// Human spirits retain their existing client/native follow behavior.
+		if (getOwner().isPet() && getMaster().isPlayerBot())
+			addTask(TaskId.SUMMON_FOLLOW, ThreadPoolManager.getInstance().scheduleAtFixedRate(this::checkMasterRange, 1000, 1000));
+	}
+
+	/** Apply the core follow task's 50m ceiling to headless bot spirits only. */
+	public boolean checkMasterRange() {
+		Summon summon = getOwner();
+		if (!summon.isSpawned() || summon.isDead() || summon.isBeingReleased()) return false;
+		if (!summon.isPet() || !getMaster().isPlayerBot() || PositionUtil.isInRange(getMaster(), summon, 50)) return true;
+		SummonsService.release(summon, UnsummonType.DISTANCE);
+		return false;
 	}
 
 	@Override
@@ -128,6 +149,7 @@ public class SummonController extends CreatureController<Summon> {
 
 	@Override
 	public void onDespawn() {
+		cancelTask(TaskId.SUMMON_FOLLOW);
 		if (getOwner().getMode() == SummonMode.RELEASE)
 			getOwner().getEffectController().removeAllEffects();
 		super.onDespawn();

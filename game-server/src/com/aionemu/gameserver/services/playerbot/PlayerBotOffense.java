@@ -78,6 +78,8 @@ final class PlayerBotOffense {
   var effects=active(target);double health=PlayerBotDefense.health(target);
   if(PlayerBotSorcerer.applies(bot.getPlayerClass()) && PlayerBotSorcerer.singleTarget(actual))return PlayerBotSorcerer.damage(bot,entry,target,effects,fitness);
   if(PlayerBotSpiritmaster.applies(bot.getPlayerClass()) && PlayerBotSorcerer.singleTarget(actual))return PlayerBotSpiritmaster.damage(bot,entry,target,effects,fitness);
+  double classRotation=PlayerBotClassRotations.damage(bot,entry,target,effects,fitness);
+  if(!Double.isNaN(classRotation))return classRotation;
   double counter=PlayerBotGladiator.counter(bot,entry,fitness);
   if(!Double.isNaN(counter))return counter;
   if(actual.hasAnyEffect(EffectType.SIGNETBURST))

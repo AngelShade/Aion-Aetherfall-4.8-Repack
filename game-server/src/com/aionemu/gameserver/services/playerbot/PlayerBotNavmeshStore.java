@@ -261,6 +261,20 @@ final class PlayerBotNavmeshStore implements AutoCloseable {
         // A running loader retains its reservation until its finally block.
     }
 
+    /** Non-blocking: pin an already loaded mesh window covering both points, or null. Never loads. */
+    synchronized Lease resident(int map,float ax,float ay,float bx,float by){
+        if(closed)return null;
+        for(Entry entry:entries.values()){
+            if(entry.map!=map || entry.mesh==null || entry.retired || entry.window.radius<0)continue;
+            if(entry.window.radius>0){
+                float margin=64*entry.window.radius,x0=entry.window.x*128-margin,y0=entry.window.y*128-margin,x1=(entry.window.x+1)*128+margin,y1=(entry.window.y+1)*128+margin;
+                if(Math.min(ax,bx)<x0 || Math.max(ax,bx)>x1 || Math.min(ay,by)<y0 || Math.max(ay,by)>y1)continue;
+            }
+            entry.pins++;return new Lease(entry);
+        }
+        return null;
+    }
+
     synchronized long accountedBytes() { return residentBytes + reservedBytes; }
     synchronized int pendingCount() { return pending.size(); }
 

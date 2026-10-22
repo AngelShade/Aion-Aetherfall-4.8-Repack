@@ -31,6 +31,12 @@ public final class PlayerBotTank {
   if(!(target instanceof Npc npc))return 0;int other=party.stream().filter(p->p!=bot).mapToInt(p->npc.getAggroList().getHate(p)+(p.getSummon()==null ? 0 : npc.getAggroList().getHate(p.getSummon()))).max().orElse(0);
   return priority(enmity(PlayerBotSkills.actualTemplate(bot,entry),entry.level()),entry.kind()==SkillKind.TAUNT,npc.getTarget()==bot,npc.getAggroList().getHate(bot),other);
  }
+ /** Area threat (Thunder Clap purpose) scales with the loose enemies it can gather. */
+ static double areaBonus(SkillTemplate skill,int level,int loose) {
+  if(skill==null || loose<Math.max(2,com.aionemu.gameserver.configs.main.PlayerBotConfig.TANK_AREA_THREAT_MIN))return 0;
+  boolean threat=skill.hasAnyEffect(EffectType.HOSTILEUP,EffectType.PROVOKER) || enmity(skill,level)>0;
+  return threat ? 15+3*Math.min(5,loose) : 0;
+ }
  static boolean openingPause(Player bot,Npc enemy,List<Player> party,long now) {
   if(enemy==null || enemy.getLifeStats().getHpPercentage()<=10)return false;
   Player tank=party.stream().filter(p->p!=bot && !p.isDead() && p.canAttack() && PlayerBotService.getInstance().combatRole(p)==Role.TANK && PositionUtil.isInRange(p,enemy,30)).findFirst().orElse(null);

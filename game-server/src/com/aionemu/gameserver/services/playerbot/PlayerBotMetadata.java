@@ -24,9 +24,11 @@ public final class PlayerBotMetadata {
  public static boolean validAccount(int account){return PlayerBotPopulationPolicy.account(account);}
  public static void validate(int account,int character,String section,Map<String,String> map)throws IOException {
   try {
-   if(!validAccount(account) || character<=0 || !Set.of("care","gear","preferences","behavior","formation","spacing","party-rewards","quest-completion","looks").contains(section))throw new IllegalArgumentException("Invalid section/owner");
+   if(!validAccount(account) || character<=0 || !Set.of("care","gear","preferences","behavior","formation","spacing","party-rewards","quest-completion","looks","pvp").contains(section))throw new IllegalArgumentException("Invalid section/owner");
    if(Integer.parseInt(map.get("account"))!=account || Integer.parseInt(map.get("character"))!=character)throw new IllegalArgumentException("Owner mismatch");
-   if(section.equals("looks")) {
+   if(section.equals("pvp")) {
+    for(String key:List.of("nextRift","visitUntil"))if(Long.parseLong(map.getOrDefault(key,"0"))<0)throw new IllegalArgumentException("Invalid PvP timer");
+   } else if(section.equals("looks")) {
     if(!Set.of("2","3","4").contains(map.get("version")))throw new IllegalArgumentException("Invalid companion appearance version");
    } else if(section.equals("care")) {
     for(String key:List.of("enchant","salvage","partySync"))if(map.containsKey(key) && !Set.of("true","false").contains(map.get(key)))throw new IllegalArgumentException("Invalid care flag");
@@ -67,7 +69,7 @@ public final class PlayerBotMetadata {
     var row=PlayerBotMetadataDAO.load(c,account,character,section);
     Map<String,String> initial;long revision;
     if(row!=null){initial=row.values();revision=row.revision();validate(account,character,section,initial);}
-    else if(Files.exists(legacy)) {
+    else if(legacy!=null && Files.exists(legacy)) {
      var p=new Properties();try(var in=Files.newInputStream(legacy)){p.load(in);}initial=values(p);validate(account,character,section,initial);revision=0;
     } else {initial=Map.of();revision=0;}
     e=new Entry(account,revision,initial,revision==0?Map.of():initial);CACHE.put(key,e);

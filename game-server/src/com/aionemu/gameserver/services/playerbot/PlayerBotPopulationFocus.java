@@ -54,6 +54,14 @@ final class PlayerBotPopulationFocus {
     p.isStaff() && p.isInVisualState(CreatureVisualState.HIDE20),p.getInstanceId(),DataManager.WORLD_MAPS_DATA.getTemplate(p.getWorldId())))
     anchors.add(new Anchor(p.getWorldId(),p.getX(),p.getY(),p.getZ()));
   }
+  // A human's map must not drag the opposing faction out of its homeland.
+  // Use actual native camps on the paired map, never the human's coordinates.
+  if(PlayerBotConfig.POPULATION_FACTION_HOME)for(var anchor:List.copyOf(anchors)) {
+   int partner=PlayerBotTerritory.counterpart(anchor.map());
+   if(partner==0 || anchors.stream().anyMatch(a->a.map()==partner))continue;
+   var camp=PlayerBotWorldPlacement.mapAnchor(partner);
+   if(camp!=null)anchors.add(new Anchor(partner,camp.x(),camp.y(),camp.z()));
+  }
   return new Snapshot(anchors,PlayerBotConfig.POPULATION_FOCUS_RADIUS);
  }
  static boolean protectedActor(boolean autonomous,boolean closing,boolean idle,boolean nearHuman,boolean seen) {

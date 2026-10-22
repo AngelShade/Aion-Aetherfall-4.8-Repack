@@ -14,6 +14,134 @@ import com.aionemu.gameserver.utils.ThreadPoolManager;
 final class PlayerBotMeshRoute implements AutoCloseable {
     private static final org.slf4j.Logger LOG=org.slf4j.LoggerFactory.getLogger(PlayerBotMeshRoute.class);
     private static final int MAX_EXPANSIONS=4096, MAX_NODES=8192;
+    /** How often prepared corridors pass or fail the native ground check, so the
+     * log shows whether the navmesh can be trusted like WoW mmaps. Reset on read. */
+    private static final java.util.concurrent.ConcurrentHashMap<String,java.util.concurrent.atomic.LongAdder> OUTCOMES=new java.util.concurrent.ConcurrentHashMap<>();
+    private static void count(String outcome){
+        if(!PlayerBotConfig.NAVMESH_DIAGNOSTICS)return;OUTCOMES.computeIfAbsent(outcome,k->new java.util.concurrent.atomic.LongAdder()).increment();}
+    /** Where prepared corridors pass or fail, in 50 m cells per map, so a session
+     * shows whether native-terrain disagreement is local (towns, buildings) or
+     * map-wide. Cumulative since start; written to log/navmesh_areas.csv every
+     * five minutes. Bounded to 200k cells. */
+    private record AreaKey(int world,int cx,int cy) {}
+    private static final class Area {
+        final java.util.concurrent.atomic.LongAdder passed=new java.util.concurrent.atomic.LongAdder(),partly=new java.util.concurrent.atomic.LongAdder(),failed=new java.util.concurrent.atomic.LongAdder();
+        volatile String example="";
+    }
+    private static final java.util.concurrent.ConcurrentHashMap<AreaKey,Area> AREAS=new java.util.concurrent.ConcurrentHashMap<>();
+    private static volatile long nextAreaFlush=System.currentTimeMillis()+300_000;
+    private static Area area(int world,float x,float y){
+        if(AREAS.size()>200_000)return null;
+        return AREAS.computeIfAbsent(new AreaKey(world,(int)Math.floor(x/50),(int)Math.floor(y/50)),k->new Area());
+    }
+    private static String fmt(Point p){return p==null?"":String.format(Locale.ROOT,"%.1f %.1f %.1f",p.x(),p.y(),p.z());}
+    private void recordArea(String outcome,String why){
+        if(!PlayerBotConfig.NAVMESH_DIAGNOSTICS)return;
+        Point at=blockedAt!=null?blockedAt:start;
+        var a=area(world,at.x(),at.y());if(a==null)return;
+        switch(outcome){case "passed"->a.passed.increment();case "partly"->a.partly.increment();default->a.failed.increment();}
+        if(!outcome.equals("passed") && a.example.isEmpty())
+            a.example=why+" | from "+fmt(blockedFrom)+" toward "+fmt(blockedAt)+" reached "+fmt(blockedReached)+" | route "+fmt(start)+" -> "+fmt(goal);
+    }
+    static void flushAreas(java.nio.file.Path file){
+        if(!PlayerBotConfig.NAVMESH_DIAGNOSTICS)return;
+        long now=System.currentTimeMillis();if(now<nextAreaFlush)return;nextAreaFlush=now+300_000;
+        var rows=new ArrayList<Map.Entry<AreaKey,Area>>();
+        for(var e:AREAS.entrySet()){var a=e.getValue();if(a.failed.sum()+a.partly.sum()>0 || a.passed.sum()>=20)rows.add(e);}
+        rows.sort(Comparator.comparingLong((Map.Entry<AreaKey,Area> e)->-(e.getValue().failed.sum()+e.getValue().partly.sum())));
+        var lines=new ArrayList<String>();
+        lines.add("map,cell_x,cell_y,center_x,center_y,passed,partly,failed,fail_percent,example");
+        var maps=new TreeMap<Integer,long[]>();
+        for(var e:AREAS.entrySet()){var a=e.getValue();var m=maps.computeIfAbsent(e.getKey().world(),k->new long[3]);m[0]+=a.passed.sum();m[1]+=a.partly.sum();m[2]+=a.failed.sum();}
+        for(var e:rows.subList(0,Math.min(5000,rows.size()))){
+            var k=e.getKey();var a=e.getValue();long p=a.passed.sum(),pt=a.partly.sum(),f=a.failed.sum();long n=p+pt+f;
+            lines.add(k.world()+","+k.cx()+","+k.cy()+","+(k.cx()*50+25)+","+(k.cy()*50+25)+","+p+","+pt+","+f+","
+                +(n==0?0:Math.round(100.0*(f+pt)/n))+",\""+a.example.replace("\"","'")+"\"");
+        }
+        try{java.nio.file.Files.write(file,lines,java.nio.charset.StandardCharsets.UTF_8);}
+        catch(java.io.IOException e){LOG.warn("Could not write navmesh area report {}: {}",file,e.getMessage());}
+        var worst=maps.entrySet().stream().filter(e->e.getValue()[1]+e.getValue()[2]>0)
+            .sorted(Comparator.comparingLong((Map.Entry<Integer,long[]> e)->-(e.getValue()[1]+e.getValue()[2]))).limit(8)
+            .map(e->{long[] v=e.getValue();long n=v[0]+v[1]+v[2];return "map "+e.getKey()+" "+(v[1]+v[2])+"/"+n+" ("+Math.round(100.0*(v[1]+v[2])/n)+"%)";})
+            .collect(java.util.stream.Collectors.joining("; "));
+        if(!worst.isEmpty())LOG.info("Navmesh blocked or partial routes by map since start (details in {}): {}",file.getFileName(),worst);
+    }
+    /* Learned blocked spots: where a prepared corridor failed the native ground check,
+     * routes through that spot cost 25x more, so later searches go around it (WoW bots
+     * likewise avoid known-bad path spots). Learned at runtime from every failure and
+     * kept in data/navmesh/learned-blocks.csv (map,x,y,z), loaded at start and appended
+     * as new spots are found. A cost, not a wall: if no other way exists the spot is
+     * still usable, and the native step check stays authoritative. Bounded to 200k. */
+    private static final java.nio.file.Path LEARNED_FILE=java.nio.file.Path.of("data","navmesh","learned-blocks.csv");
+    private static final java.util.concurrent.ConcurrentHashMap<Long,java.util.concurrent.CopyOnWriteArrayList<float[]>> LEARNED=new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.concurrent.ConcurrentLinkedQueue<String> LEARNED_PENDING=new java.util.concurrent.ConcurrentLinkedQueue<>();
+    private static final java.util.concurrent.atomic.AtomicInteger LEARNED_COUNT=new java.util.concurrent.atomic.AtomicInteger();
+    private static volatile boolean learnedLoaded;
+    private static long learnedCell(int world,float x,float y){return ((long)world<<40)^(((long)Math.floor(x/4)&0xFFFFF)<<20)^((long)Math.floor(y/4)&0xFFFFF);}
+    private static synchronized void loadLearned(){
+        if(learnedLoaded)return;learnedLoaded=true;
+        if(!java.nio.file.Files.exists(LEARNED_FILE))return;
+        try{for(String line:java.nio.file.Files.readAllLines(LEARNED_FILE)){
+            String[] v=line.split(",");if(v.length!=4)continue;
+            try{remember(Integer.parseInt(v[0].trim()),Float.parseFloat(v[1]),Float.parseFloat(v[2]),Float.parseFloat(v[3]),false);}catch(NumberFormatException ignored){}
+        }}catch(java.io.IOException e){LOG.warn("Could not read learned navmesh blocks {}: {}",LEARNED_FILE,e.getMessage());}
+        LOG.info("Playerbot navigation: {} learned blocked spots loaded",LEARNED_COUNT.get());
+    }
+    private static boolean nearLearned(int world,float x,float y,float z){
+        for(int dx=-1;dx<=1;dx++)for(int dy=-1;dy<=1;dy++){
+            var list=LEARNED.get(learnedCell(world,x+dx*4,y+dy*4));if(list==null)continue;
+            for(float[] p:list)if(Math.hypot(p[0]-x,p[1]-y)<2.5 && Math.abs(p[2]-z)<3)return true;
+        }
+        return false;
+    }
+    private static void remember(int world,float x,float y,float z,boolean persist){
+        if(!PlayerBotConfig.NAVMESH_LEARN_BLOCKS || LEARNED_COUNT.get()>=200_000 || dedupe(world,x,y,z))return;
+        var spot=new float[]{x,y,z};
+        LEARNED.computeIfAbsent(learnedCell(world,x,y),k->new java.util.concurrent.CopyOnWriteArrayList<>()).add(spot);
+        var order=LEARNED_ORDER.computeIfAbsent(world,k->new ArrayList<>());synchronized(order){order.add(spot);}
+        LEARNED_COUNT.incrementAndGet();
+        if(persist)LEARNED_PENDING.add(world+","+String.format(Locale.ROOT,"%.1f,%.1f,%.1f",x,y,z));
+    }
+    /** Polygon area for mesh polygons within a learned spot's 2.5 m/3 m radius. Default area costs stay 1. */
+    static final int LEARNED_AREA=1;
+    // Spots per map in learning order; each loaded mesh remembers how many it has tagged.
+    private static final java.util.concurrent.ConcurrentHashMap<Integer,List<float[]>> LEARNED_ORDER=new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<NavMesh,int[]> TAGGED=java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
+    /**
+     * Detour area marking (WoW/Recast dtPoly area): polygons touching a learned
+     * spot carry LEARNED_AREA, so route cost only does the exact spot lookup on
+     * those polygons instead of on every expanded edge. New spots are tagged on
+     * the next search of a loaded mesh; a reloaded mesh is tagged from the start.
+     */
+    private static void tagLearned(int world,NavMesh mesh,NavMeshQuery query){
+        if(!PlayerBotConfig.NAVMESH_LEARN_BLOCKS)return;
+        var order=LEARNED_ORDER.get(world);if(order==null)return;
+        int[] done=TAGGED.computeIfAbsent(mesh,k->new int[1]);
+        List<float[]> fresh;
+        synchronized(done){
+            synchronized(order){if(done[0]>=order.size())return;fresh=new ArrayList<>(order.subList(done[0],order.size()));done[0]=order.size();}
+            var all=new DefaultQueryFilter();float[] extents={2.5f,3,2.5f};
+            for(float[] p:fresh)query.queryPolygons(new float[]{p[0],p[2],p[1]},extents,all,(tile,poly,ref)->poly.setArea(LEARNED_AREA));
+        }
+    }
+    private static boolean dedupe(int world,float x,float y,float z){
+        var list=LEARNED.get(learnedCell(world,x,y));if(list==null)return false;
+        for(float[] p:list)if(Math.hypot(p[0]-x,p[1]-y)<1.5 && Math.abs(p[2]-z)<2)return true;
+        return false;
+    }
+    static void flushLearned(){
+        if(LEARNED_PENDING.isEmpty())return;
+        var lines=new ArrayList<String>();for(String l;(l=LEARNED_PENDING.poll())!=null;)lines.add(l);
+        try{java.nio.file.Files.write(LEARNED_FILE,lines,java.nio.charset.StandardCharsets.UTF_8,java.nio.file.StandardOpenOption.CREATE,java.nio.file.StandardOpenOption.APPEND);}
+        catch(java.io.IOException e){LOG.warn("Could not save learned navmesh blocks {}: {}",LEARNED_FILE,e.getMessage());}
+    }
+    static String outcomes(){
+        flushLearned();
+        var parts=new java.util.TreeMap<String,Long>();
+        for(var e:OUTCOMES.entrySet()){long n=e.getValue().sumThenReset();if(n>0)parts.put(e.getKey(),n);}
+        return parts.isEmpty()?"":parts.entrySet().stream().sorted(Map.Entry.<String,Long>comparingByValue().reversed())
+            .map(e->e.getValue()+" x "+e.getKey()).collect(java.util.stream.Collectors.joining("; "));
+    }
     private static Runtime runtime;
     private static Runtime companionRuntime;
     private static Admission sharedAdmission;
@@ -129,6 +257,8 @@ final class PlayerBotMeshRoute implements AutoCloseable {
     private List<Point> candidates=List.of(),route=List.of();
     private final List<Point> proved=new ArrayList<>();
     private Point proofOrigin;
+    /** Last native proof step, kept for the area report. */
+    private Point blockedFrom,blockedAt,blockedReached;
     private double provedDistance;
     private boolean bakedCorridor;
     private int bakedStart;
@@ -198,16 +328,31 @@ final class PlayerBotMeshRoute implements AutoCloseable {
             if(cursor>=candidates.size()){finish();break;}
             Point target=candidates.get(cursor);double xy=Math.hypot(target.x()-proofOrigin.x(),target.y()-proofOrigin.y());
             if(xy<.05 && Math.abs(target.z()-proofOrigin.z())<.75){cursor++;continue;}
-            float fraction=(float)Math.min(1,Math.min(4,Math.max(.05,horizon-provedDistance))/Math.max(.001,xy));
+            // Same XY but a different mesh height (the projected start polygon): a
+            // native step there cannot move, which was counted as "made no native
+            // progress". Within one step height it is the same spot; skip it and count it.
+            if(xy<.05 && Math.abs(target.z()-proofOrigin.z())<2){count("note: skipped corner at same spot, mesh height off "+(Math.abs(target.z()-proofOrigin.z())<1.25?"0.75-1.25 m":"1.25-2 m"));cursor++;continue;}
+            // WoW trusts its in-RAM navmesh. Check the prepared corridor in long
+            // native strides (the mover still checks every real step) instead of
+            // a 4 m proof walk that made route planning the server's CPU hot spot.
+            float fraction=(float)Math.min(1,Math.min(12,Math.max(.05,horizon-provedDistance))/Math.max(.001,xy));
             float x=proofOrigin.x()+(target.x()-proofOrigin.x())*fraction,y=proofOrigin.y()+(target.y()-proofOrigin.y())*fraction;
             Point actual=ground.step(proofOrigin,x,y);work++;used++;
+            blockedFrom=proofOrigin;blockedAt=new Point(x,y,target.z());blockedReached=actual;
+            if(actual!=null && finite(actual) && Math.hypot(actual.x()-x,actual.y()-y)>.15){
+                // The obstacle lies just beyond the furthest native point reached.
+                double d=Math.max(.001,Math.hypot(x-actual.x(),y-actual.y()));double t=Math.min(1,.75/d);
+                remember(world,(float)(actual.x()+(x-actual.x())*t),(float)(actual.y()+(y-actual.y())*t),actual.z(),true);
+            }
             if(actual==null || !finite(actual) || Math.hypot(actual.x()-x,actual.y()-y)>.15
-                    || fraction==1 && Math.abs(actual.z()-target.z())>.75){
+                    || fraction==1 && Math.abs(actual.z()-target.z())>2){
+                // Mesh corner heights are approximate; the native floor reached at
+                // the same XY within one step height is the same corridor.
                 // Dynamic obstacles remain native authority. Replan using live collision geometry.
                 useNative("prepared corridor blocked by current native terrain");return;
             }
             double travelled=distance(proofOrigin,actual);
-            if(travelled<.01){useNative("prepared corridor made no native progress");return;}
+            if(travelled<.01){useNative(xy<.05?"prepared corridor made no native progress (same spot, mesh height off over 2 m)":"prepared corridor made no native progress (native step blocked at start)");return;}
             provedDistance+=travelled;proved.add(actual);proofOrigin=actual;
             if(fraction==1)cursor++;
             if(provedDistance>=horizon || cursor>=candidates.size())finish();
@@ -215,7 +360,9 @@ final class PlayerBotMeshRoute implements AutoCloseable {
     }
     private int advanceGraph(int allowance,BooleanSupplier expired,int used,boolean journeyNeeded){
         if(query==null){
+            if(!learnedLoaded)loadLearned();
             query=new NavMeshQuery(lease.mesh());admission.releaseDemand(this);
+            tagLearned(world,lease.mesh(),query);
             final NavMeshQuery boundedQuery=query;
             var filter=new DefaultQueryFilter(){
                 @Override public boolean passFilter(long ref,MeshTile tile,Poly poly){
@@ -223,6 +370,12 @@ final class PlayerBotMeshRoute implements AutoCloseable {
                     // Keep existing nodes traversable, but reject new allocations at the actor limit.
                     var nodes=boundedQuery.getNodePool().getNodeMap();
                     return super.passFilter(ref,tile,poly) && (nodes.containsKey(ref) || nodes.size()<MAX_NODES);
+                }
+                @Override public float getCost(float[] pa,float[] pb,long prevRef,MeshTile prevTile,Poly prevPoly,long curRef,MeshTile curTile,Poly curPoly,long nextRef,MeshTile nextTile,Poly nextPoly){
+                    float cost=super.getCost(pa,pb,prevRef,prevTile,prevPoly,curRef,curTile,curPoly,nextRef,nextTile,nextPoly);
+                    // Exact spot lookup only on polygons tagged as touching a learned spot.
+                    if(curPoly.getArea()!=LEARNED_AREA && (nextPoly==null || nextPoly.getArea()!=LEARNED_AREA))return cost;
+                    return nearLearned(world,pb[0],pb[2],pb[1]) || nearLearned(world,(pa[0]+pb[0])/2,(pa[2]+pb[2])/2,(pa[1]+pb[1])/2)?cost*25:cost;
                 }
             };float[] extents={1,.75f,1};
             var a=query.findNearestPoly(position(start),extents,filter);
@@ -286,6 +439,7 @@ final class PlayerBotMeshRoute implements AutoCloseable {
         route=List.copyOf(proved);partial=!graphComplete || cursor<candidates.size() || distance(proofOrigin,goal)>.6;
         if(bakedCorridor)journey.provedCorridor(start,proofOrigin,bakedStart,cursor);else journey.provedSegment(start,proofOrigin,target);
         done=true;reason=partial?"native-proved prepared route segment":"native-proved prepared route";releaseGraph();
+        count("passed");blockedAt=null;recordArea("passed","");
     }
     private boolean requestJourney(){
         if(coarseRequired || journey.ready())return false;
@@ -302,15 +456,39 @@ final class PlayerBotMeshRoute implements AutoCloseable {
         if(!proved.isEmpty() && provedDistance>=.6){
             route=List.copyOf(proved);partial=true;done=true;
             if(bakedCorridor)journey.provedCorridor(start,proofOrigin,bakedStart,cursor);else journey.provedSegment(start,proofOrigin,target);
-            reason="native-proved prepared prefix before obstruction";
+            reason="native-proved prepared prefix before obstruction";count("partly passed: "+why);recordArea("partly",why);
             candidates=List.of();releaseGraph();return;
         }
-        fallback=true;done=true;reason=why;proved.clear();candidates=List.of();releaseGraph();
+        fallback=true;done=true;reason=why;proved.clear();candidates=List.of();releaseGraph();count("failed: "+why);recordArea("failed",why);
     }
     private void releaseSlot(){if(host!=null)admission.cancel(this);}
     private void releaseGraph(){query=null;if(request!=null){request.close();request=null;}if(lease!=null){lease.close();lease=null;}releaseSlot();}
     @Override public void close(){releaseGraph();if(ownsJourney)journey.close();done=true;}
     private static float[] position(Point p){return new float[]{p.x(),p.z(),p.y()};}
+    /**
+     * Detour raycast (dtNavMeshQuery::raycast) on an already loaded mesh: TRUE when
+     * the mesh shows a wall/edge between the points, FALSE when the line is open,
+     * null when no loaded mesh covers it. Costs no native collision work and never
+     * loads a mesh; an open line still needs the native ground check.
+     */
+    static Boolean lineBlocked(int world,Point from,Point to){
+        if(!PlayerBotConfig.NAVMESH_LINE_CHECK)return null;
+        for(var r:new Runtime[]{runtime,companionRuntime}){
+            if(r==null)continue;
+            try(var lease=r.store.resident(world,from.x(),from.y(),to.x(),to.y())){
+                if(lease==null)continue;
+                var query=new NavMeshQuery(lease.mesh());var filter=new DefaultQueryFilter();
+                var start=query.findNearestPoly(position(from),new float[]{1,.75f,1},filter);
+                if(start.failed() || start.result.getNearestRef()==0)return null;
+                var hit=query.raycast(start.result.getNearestRef(),start.result.getNearestPos(),position(to),filter,0,0);
+                if(hit.failed())return null;
+                boolean blocked=hit.result.t<1;
+                count(blocked?"line check: mesh wall, ground probe skipped":"line check: mesh open, ground probe used");
+                return blocked;
+            }
+        }
+        return null;
+    }
     private static Point point(float[] p){return new Point(p[0],p[2],p[1]);}
     private static boolean finite(Point p){return Float.isFinite(p.x())&&Float.isFinite(p.y())&&Float.isFinite(p.z());}
     private static double distance(Point a,Point b){return Math.sqrt(Math.pow(a.x()-b.x(),2)+Math.pow(a.y()-b.y(),2)+Math.pow(a.z()-b.z(),2));}

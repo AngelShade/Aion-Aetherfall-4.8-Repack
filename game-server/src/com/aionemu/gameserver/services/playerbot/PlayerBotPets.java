@@ -2,6 +2,7 @@ package com.aionemu.gameserver.services.playerbot;
 
 import com.aionemu.gameserver.dataholders.DataManager;
 import com.aionemu.gameserver.model.gameobjects.Npc;
+import com.aionemu.gameserver.model.gameobjects.Creature;
 import com.aionemu.gameserver.model.gameobjects.Summon;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.model.summons.SummonMode;
@@ -15,17 +16,54 @@ final class PlayerBotPets {
 	private Summon current;
 	private volatile PlayerBotNavigation navigation;
 	private long nextAttack;
+	private boolean returning;
 	boolean waitingForSearchTurn() { var currentNavigation=navigation;return currentNavigation!=null && currentNavigation.waitingForSearchTurn(); }
-	void tick(Player master, Npc enemy, boolean mayMove, boolean active, boolean withholdDamage) {
+	boolean needsFollow(Player master) {
+		Summon pet=master.getSummon();
+		return !master.isDead() && pet!=null && pet.isSpawned() && !pet.isDead() && !pet.isBeingReleased()
+			&& pet.canPerformMove() && !pet.isCasting() && pet.getWorldId()==master.getWorldId() && pet.getInstanceId()==master.getInstanceId()
+			&& (returning || PositionUtil.getDistance(pet,master)>35
+				|| pet.getMode()==SummonMode.GUARD && pet.getNextSkillOrder()==null && PositionUtil.getDistance(pet,master)>4);
+	}
+	private Summon prepare(Player master) {
 		Summon pet = master.getSummon();
-		if (pet == null || pet.isDead() || !pet.isSpawned() || pet.isBeingReleased()) return;
+		if (pet == null || pet.isDead() || !pet.isSpawned() || pet.isBeingReleased()) return null;
 		if (current != pet) {
-			current = pet; pet.enablePlayerBotMovement(); navigation = new PlayerBotNavigation(pet); nextAttack = 0;
+			if(navigation!=null)navigation.stop();
+			current = pet; pet.enablePlayerBotMovement(); navigation = new PlayerBotNavigation(pet); nextAttack = 0; returning=false;
 		}
 		if (pet.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotSummonMoveController move && move.hasFailed()) {
-			release(master); return;
+			release(master); return null;
 		}
-		if (pet.getWorldId() != master.getWorldId() || pet.getInstanceId() != master.getInstanceId()) { release(master); return; }
+		if (!pet.getController().checkMasterRange()) { if(navigation!=null)navigation.stop(); return null; }
+		if (pet.getWorldId() != master.getWorldId() || pet.getInstanceId() != master.getInstanceId()) { release(master); return null; }
+		return pet;
+	}
+	/** Guard following stays alive even while the master's combat/activity loop returns early. */
+	boolean follow(Player master,boolean mayMove) {
+		Summon pet=prepare(master);if(pet==null)return false;
+		if(master.isDead() || master.isUsingFlightTransporterOrWindstream())return false;
+		double distance=PositionUtil.getDistance(pet,master);
+		if(distance>35)returning=true;
+		else if(distance<=5)returning=false;
+		if(returning) {
+			pet.clearSkillOrders();
+			if(pet.isCasting())pet.getController().cancelCurrentSkill(null);
+			if(pet.getMode()!=SummonMode.GUARD)SummonsService.guardMode(pet);
+			if(pet.getTarget()!=null)pet.setTarget(null);
+		}
+		if(mayMove && pet.canPerformMove() && !pet.isCasting() && pet.getMode()==SummonMode.GUARD && pet.getNextSkillOrder()==null) {
+			var hazards=PlayerBotHazards.visible(pet);navigation.hazards(hazards);
+			if(PlayerBotHazards.risk(new PlayerBotNavigation.Point(pet.getX(),pet.getY(),pet.getZ()),hazards)>0)navigation.escapeHazards();
+			else if(distance>4)navigation.approach(master,3);
+			else navigation.stop();
+		}
+		return returning;
+	}
+	void tick(Player master, Creature enemy, boolean mayMove, boolean active, boolean withholdDamage) {
+		if(follow(master,mayMove))return;
+		Summon pet=master.getSummon();
+		if(pet==null || pet.isDead() || !pet.isSpawned() || pet.isBeingReleased())return;
 		if (!active) {
 			pet.clearSkillOrders();
 			if (pet.isCasting()) pet.getController().cancelCurrentSkill(null);
@@ -57,7 +95,7 @@ final class PlayerBotPets {
 			nextAttack = Math.max(nextAttack, System.currentTimeMillis() + Math.max(400, template.getDuration()));
 			return;
 		}
-		if (enemy == null || !PlayerBotService.allowsTarget(master, enemy) || !PlayerBotEncounters.allowsAttack(pet, enemy)) {
+		if (enemy == null || !PlayerBotService.allowsTarget(master, enemy) || enemy instanceof Npc npc && !PlayerBotEncounters.allowsAttack(pet, npc)) {
 			if (pet.getMode() != SummonMode.GUARD) SummonsService.guardMode(pet);
 			if (pet.getTarget() != null) pet.setTarget(null);
 			if (mayMove && PositionUtil.getDistance(pet, master) > 4) navigation.approach(master, 3);
@@ -90,6 +128,6 @@ final class PlayerBotPets {
 	void release(Player master) {
 		stop(master);
 		if (master.getSummon() != null) SummonsService.release(master.getSummon(), UnsummonType.LOGOUT);
-		current = null; navigation = null;
+		current = null; navigation = null; returning=false;
 	}
 }

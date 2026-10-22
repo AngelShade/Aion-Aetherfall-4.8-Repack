@@ -33,6 +33,9 @@ final class PlayerBotFollowMotion implements PlayerBotMoveController.FollowSourc
 	// Mover-thread steering cache.
 	private Point steering;
 	private long nextProbe;
+	// The slot projected onto the owner's floor (stairs, slopes); shared with needed().
+	private volatile Point slotRaw, slotGround;
+	private long nextGround;
 
 	PlayerBotFollowMotion(Player owner, Player bot) {
 		this.owner = owner;
@@ -65,6 +68,7 @@ final class PlayerBotFollowMotion implements PlayerBotMoveController.FollowSourc
 	boolean needed(Point goal) {
 		if (owner.getMoveController().isInMove())
 			return true;
+		goal = known(goal);
 		double planar = Math.hypot(bot.getX() - goal.x(), bot.getY() - goal.y());
 		return Math.abs(bot.getZ() - goal.z()) > 2.5 || planar > (bot.getMoveController().isInMove() ? ARRIVE : REST);
 	}
@@ -90,7 +94,7 @@ final class PlayerBotFollowMotion implements PlayerBotMoveController.FollowSourc
 
 	/** AI thread: cheap check used to leave the navigation fallback again. */
 	boolean directlyReachable(Point goal) {
-		return reach(goal, true) != null || reach(ownerPoint(), false) != null;
+		return reach(known(goal), true) != null || reach(ownerPoint(), false) != null;
 	}
 
 	@Override
@@ -99,8 +103,7 @@ final class PlayerBotFollowMotion implements PlayerBotMoveController.FollowSourc
 			|| owner.getInstanceId() != bot.getInstanceId())
 			return null;
 		Point goal = PlayerBotFollowIntent.goal(bot);
-		if (goal == null)
-			goal = ownerPoint();
+		goal = goal == null ? ownerPoint() : grounded(goal, now);
 		boolean leaderMoving = owner.getMoveController().isInMove();
 		double planar = Math.hypot(bot.getX() - goal.x(), bot.getY() - goal.y());
 		boolean walking = bot.getMoveController().isInMove();
@@ -156,9 +159,41 @@ final class PlayerBotFollowMotion implements PlayerBotMoveController.FollowSourc
 			return null;
 		if (Math.hypot(reached.x - goal.x(), reached.y - goal.y()) > .35 || Math.abs(reached.z - goal.z()) > 2)
 			return null;
-		if (slot && Math.abs(reached.z - owner.getZ()) > 3)
-			return null; // a slot over a ledge is not the owner's floor
 		return new Point(reached.x, reached.y, reached.z);
+	}
+
+	/**
+	 * Formation slots are offsets at the owner's height. On stairs or a slope that
+	 * point hangs in the air or lies inside the steps, so every companion rejected
+	 * its slot and crowded the owner. Walk the owner's own floor out to the slot:
+	 * its native ground height is the slot; a slot beyond a ledge or wall is cut
+	 * back to the last point reachable on the owner's floor.
+	 */
+	private Point grounded(Point slot, long now) {
+		Point raw = slotRaw, ground = slotGround;
+		if (raw != null && ground != null && now < nextGround && distance(raw, slot) < .3)
+			return ground;
+		Vector3f reached = GeoService.getInstance().findGroundMovementCollision(owner.getWorldId(), owner.getInstanceId(), owner.getX(), owner.getY(),
+			owner.getZ(), slot.x(), slot.y(), slot.z());
+		if (reached == null || !Float.isFinite(reached.x) || !Float.isFinite(reached.y) || !Float.isFinite(reached.z))
+			ground = ownerPoint();
+		else if (Math.hypot(reached.x - slot.x(), reached.y - slot.y()) <= .35 || Math.hypot(reached.x - owner.getX(), reached.y - owner.getY()) >= 1)
+			ground = new Point(reached.x, reached.y, reached.z);
+		else
+			ground = ownerPoint();
+		slotRaw = slot;
+		slotGround = ground;
+		nextGround = now + 200;
+		return ground;
+	}
+
+	/** needed() runs on the AI thread: reuse the mover's grounded slot, else allow the slope. */
+	private Point known(Point slot) {
+		Point raw = slotRaw, ground = slotGround;
+		if (raw != null && ground != null && Math.hypot(raw.x() - slot.x(), raw.y() - slot.y()) < .5)
+			return ground;
+		double reach = Math.hypot(slot.x() - owner.getX(), slot.y() - owner.getY());
+		return Math.abs(bot.getZ() - slot.z()) <= 2.5 + reach ? new Point(slot.x(), slot.y(), bot.getZ()) : slot;
 	}
 
 	/** Newest walked owner position that is directly reachable from here. */

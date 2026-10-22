@@ -192,8 +192,20 @@ final class PlayerBotWorldTravel {
    return PlayerBotWorldTravel.move(bot,place,navigation,current?snapshot:null);
   }
  }
+ private record CachedDistances(int map,int instance,int cellX,int cellY,long kinah,long until,Distances value) {}
+ private static final java.util.concurrent.ConcurrentHashMap<Integer,CachedDistances> DISTANCE_CACHE=new java.util.concurrent.ConcurrentHashMap<>();
+ /** Destination choice reuses one stop-graph snapshot per bot for a few seconds
+  * while it stays in the same 25 m cell, instead of rebuilding the whole graph on
+  * every decision (about 13% of live server CPU). Execution still uses fresh data. */
  static Distances distances(Player bot) {
-  return distances(bot,null,0);
+  long now=System.currentTimeMillis();int cx=(int)Math.floor(bot.getX()/25),cy=(int)Math.floor(bot.getY()/25);long kinah=bot.getInventory().getKinah();
+  var cached=DISTANCE_CACHE.get(bot.getObjectId());
+  if(cached!=null && cached.until()>now && cached.map()==bot.getWorldId() && cached.instance()==bot.getInstanceId()
+   && cached.cellX()==cx && cached.cellY()==cy && cached.kinah()==kinah)return cached.value();
+  var value=distances(bot,null,0);
+  if(DISTANCE_CACHE.size()>20000)DISTANCE_CACHE.clear();
+  DISTANCE_CACHE.put(bot.getObjectId(),new CachedDistances(bot.getWorldId(),bot.getInstanceId(),cx,cy,kinah,now+8000,value));
+  return value;
  }
  private static Distances distances(Player bot,Place destination,int destinationMap) {
   var candidates=edges();

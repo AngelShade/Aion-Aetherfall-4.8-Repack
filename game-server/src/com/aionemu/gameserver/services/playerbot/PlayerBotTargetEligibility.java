@@ -4,13 +4,14 @@
 package com.aionemu.gameserver.services.playerbot;
 
 import com.aionemu.gameserver.model.gameobjects.Npc;
+import com.aionemu.gameserver.model.gameobjects.Creature;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 
 /** Shared fresh visibility admission; script controllers are not hostile combat actors. */
 final class PlayerBotTargetEligibility {
- static boolean visible(Player observer,Npc target) {
+ static boolean visible(Player observer,Creature target) {
   return observer!=null && target!=null && target.getObjectTemplate()!=null
-   && target.getObjectTemplate().isClientVisible() && target.isSpawned()
+   && (!(target instanceof Npc npc) || npc.getObjectTemplate().isClientVisible()) && target.isSpawned()
    && observer.canSee(target) && observer.getKnownList().sees(target);
  }
  private PlayerBotTargetEligibility(){}

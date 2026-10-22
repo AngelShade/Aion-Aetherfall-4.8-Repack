@@ -31,6 +31,7 @@ final class PlayerBotWorldActivities {
   final PlayerBotTravelClock travelClock=new PlayerBotTravelClock(),vendorClock=new PlayerBotTravelClock();
   volatile Goal goal; boolean closed; final Map<String,Long> excluded=new HashMap<>();
   Goal rpg;long rpgUntil;boolean rpgArea,failedTravel;
+  volatile String why="not evaluated";
  }
  private static final Map<Integer,State> STATES=new ConcurrentHashMap<>();
  private record Destination(int quest,PlayerBotQuestRoutes.Kind kind,int npc) {}
@@ -85,6 +86,8 @@ final class PlayerBotWorldActivities {
  }
  private static synchronized List<Integer> vendors(){if(vendors==null)vendors=DataManager.NPC_DATA.getNpcData().stream().filter(n->n.supportsAction(DialogAction.BUY)).map(n->n.getTemplateId()).toList();return vendors;}
  private static State state(Player bot){return STATES.computeIfAbsent(bot.getObjectId(),id->new State());}
+ /** Diagnostic: the last world-travel outcome, for the population report. */
+ static String why(Player bot){var s=STATES.get(bot.getObjectId());return s==null?"no world state":s.why;}
  static boolean idle(Player bot){var s=STATES.get(bot.getObjectId());return s==null || s.goal==null && s.vendor==null;}
  static int requiredReward(Player bot,int quest) {
   var s=STATES.get(bot.getObjectId());if(s==null || s.prerequisiteRoot==0)return -1;
@@ -340,11 +343,13 @@ final class PlayerBotWorldActivities {
    && enemy.getInstanceId()==bot.getInstanceId() && bot.getKnownList().sees(enemy) && bot.isEnemy(enemy);
  }
  static boolean travel(PlayerBotSession session,PlayerBotNavigation navigation) {
-  Player bot=session.bot();if(!session.autonomous() || bot.isDead() || bot.isTrading() || bot.isCasting() || bot.isLooting() || travelThreatened(bot))return false;
+  Player bot=session.bot();if(!session.autonomous() || bot.isDead() || bot.isTrading() || bot.isCasting() || bot.isLooting())return false;
+  if(travelThreatened(bot)){state(bot).why="travel paused: threatened";return false;}
   prepare(bot,navigation);State s=state(bot);
-  Goal selected=s.goal;if(selected==null)return false;
-  if(selected==s.rpg && rpgPause(System.currentTimeMillis(),s.rpgUntil))return true;
+  Goal selected=s.goal;if(selected==null){s.why="no destination chosen";return false;}
+  if(selected==s.rpg && rpgPause(System.currentTimeMillis(),s.rpgUntil)){s.why="rpg pause";return true;}
   boolean moved=PlayerBotWorldTravel.move(bot,selected.place(),navigation);
+  s.why=(moved?"travelling to ":"travel refused to ")+selected.kind()+(selected.quest()==0?"":" quest")+(bot.getWorldId()==selected.place().map()?"":" other map");
   // TravelTarget cooldown purpose: a completed bounded search with no earned
   // route is an unavailable destination, not fresh progress for another retry.
   // Explicit queue waits, native safety pauses and earned prefixes retain custody.

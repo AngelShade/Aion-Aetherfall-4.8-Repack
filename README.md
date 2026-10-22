@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.86/Aetherfall-Downloader.zip"><img src="https://img.shields.io/badge/Download-Aetherfall_Setup_Hub_(7.7_MB)-2563eb?style=for-the-badge&logo=windows" alt="Download Aetherfall Setup Hub"></a>
+  <a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/latest/download/Aetherfall-Downloader.zip"><img src="https://img.shields.io/badge/Download-Current_Aetherfall_Setup_Hub-2563eb?style=for-the-badge&logo=windows" alt="Download Aetherfall Setup Hub"></a>
   <a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases"><img src="https://img.shields.io/badge/Latest_Release-v0.90-eab308?style=for-the-badge" alt="Latest Release v0.90"></a>
   <a href="https://mega.nz/file/hJt0hYTC#fr0RDjsLl4CriZ5dw8MljBhrlP6nD4oYkaErD2iW-vQ"><img src="https://img.shields.io/badge/MEGA_Mirror-Base_Repack_0.86_(36.35_GB)-d9272e?style=for-the-badge" alt="MEGA Mirror"></a>
   <a href="https://drive.google.com/file/d/1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2/view?usp=sharing"><img src="https://img.shields.io/badge/Google_Drive-Base_Repack_0.86_(36.35_GB)-16a34a?style=for-the-badge&logo=googledrive" alt="Google Drive Mirror"></a>
@@ -59,7 +59,7 @@ The full playable base repack (**Release 0.86** — `36.35 GiB` packed / `197,73
 
 | Download Option | Link | Details |
 | --- | --- | --- |
-| **1. Aetherfall Setup & Auto-Updater (Recommended)** | [**Download `Aetherfall-Downloader.zip`**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.86/Aetherfall-Downloader.zip) | `7.7 MB` — Native GUI setup hub (`Aetherfall Setup.exe`) with multi-stream MEGA + Google Drive resume, SHA-256 verification, auto-extraction, 1-click server/client control, and cumulative delta patching to `v0.90`. |
+| **1. Aetherfall Setup & Auto-Updater (Recommended)** | [**Download the current `Aetherfall-Downloader.zip`**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/latest/download/Aetherfall-Downloader.zip) | Current Setup with MEGA + Google Drive resume, SHA-256 verification, extraction/download tools and cumulative updates. |
 | **2. MEGA Direct Mirror** | [**Download `Aetherfall-0.86.7z` (MEGA)**](https://mega.nz/file/hJt0hYTC#fr0RDjsLl4CriZ5dw8MljBhrlP6nD4oYkaErD2iW-vQ) | `36.35 GiB` single base archive (`SHA-256: 7b5599837887a49d2b2bebb2ef73f4a9435b42b9686da62aec6354f9954af885`). |
 | **3. Google Drive Direct Mirror** | [**Download `Aetherfall-0.86.7z` (Google Drive)**](https://drive.google.com/file/d/1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2/view?usp=sharing) | `36.35 GiB` single base archive (`SHA-256: 7b5599837887a49d2b2bebb2ef73f4a9435b42b9686da62aec6354f9954af885`). |
 | **4. BitTorrent P2P** | [**Download `Aetherfall-0.86.torrent`**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.86/Aetherfall-0.86.torrent) | BitTorrent Swarm (`infoHash: ac60eed8cc0438ebd3e8f237fa3cf27700ce740f`). |
@@ -72,7 +72,7 @@ You need 64-bit Windows, a suitable graphics driver and the complete repack fold
 
 ### Option A: Using `Aetherfall Setup.exe` / `Aetherfall Hub.exe` (All-in-One Control Hub)
 1. Extract **`Aetherfall-Downloader.zip`** to a folder of your choice and run **`Aetherfall Setup.exe`**.
-2. Click **Download & Install** (if you pause or close the window midway, reopening `Aetherfall Setup.exe` and clicking **Resume** continues from the exact chunk where it stopped). Use **Update Repack** on the **Install & Update** tab anytime to apply the latest cumulative patch (`v0.90`).
+2. Click **Download & Install** (if you pause or close the window midway, reopening `Aetherfall Setup.exe` and clicking **Resume** continues from the exact chunk where it stopped). Use **Update Repack** on the **Install & Update** tab to apply the latest cumulative patch. For an older downloader, click **Update Repack** before starting or resuming the base download to update Setup first. Keep its existing settings and Downloads folder to retain saved progress.
 3. Open the **Server Control** tab to start and stop services safely:
    - **Start**: Click **Start database & servers** to launch MariaDB and all three server consoles in order (or use **Database only** / **Servers only** individually).
    - **Play**: Once GameServer finishes loading, click **PLAY** to open the **Aetherfall Launcher**.

@@ -75,6 +75,15 @@ References: [aria2 manual](https://aria2.github.io/manual/en/html/aria2c.html),
 
 ## Prepared incremental releases
 
+Every prepared update also builds `Aetherfall-Downloader.zip` with the exact
+current Setup EXE, pinned base manifest/torrent, verified tools/licenses, shared
+changelog and newly generated portable settings. Owner settings, Games, Downloads,
+logs and profiles are never copied. Publish Update checks the ZIP/Setup hashes,
+uploads the complete kit and replaces the public README's old 0.86 downloader
+links with `releases/latest/download/Aetherfall-Downloader.zip`. Share this stable
+link for new installations; the original 0.86 archive and historical ZIP stay
+unchanged. `--prepared --no-upload` does not change public files or links.
+
 Maintain the full portable repack folder separately from the original0.86 archive.
 After an installed release is copied into that folder, build_patch.py compares
 its FILES.json to baseline-files-0.86.json and packages only cumulative changes.

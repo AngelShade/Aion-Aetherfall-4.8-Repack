@@ -12,9 +12,10 @@ build_meta = import_module('build-manifest')
 
 FEATURE_CONFIGURATION = 'config/playerbots/features.properties'
 NAVIGATION_CONFIGURATION = 'config/playerbots/navigation.properties'
+PVP_CONFIGURATION = 'config/playerbots/pvp.properties'
 PLAYERBOT_CONFIGURATION = 'config/playerbots/playerbots.properties'
 INSTANCE_CONFIGURATION = 'config/main/instance.properties'
-OWNER_CONFIGURATIONS = frozenset({FEATURE_CONFIGURATION, NAVIGATION_CONFIGURATION, PLAYERBOT_CONFIGURATION, INSTANCE_CONFIGURATION})
+OWNER_CONFIGURATIONS = frozenset({FEATURE_CONFIGURATION, NAVIGATION_CONFIGURATION, PVP_CONFIGURATION, PLAYERBOT_CONFIGURATION, INSTANCE_CONFIGURATION})
 
 
 def initial_feature_configuration(target):

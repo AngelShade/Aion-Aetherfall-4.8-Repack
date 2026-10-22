@@ -84,9 +84,8 @@ future separately validated 32-bit launch. Aion's `d3d9.dll` stays DXVK.
 
 - **Scroll Lock:** toggle all additional post-processing for comparison.
 - **Home:** open/close ReShade's settings overlay.
-- **Print Screen:** save PNG screenshots before and after post-processing in the
-  client's `Screenshot` folder. This compares renderer effects; archive artwork
-  and native environment changes remain in both images.
+- **ReShade screenshots:** disabled (`KeyScreenshot=0,0,0,0`), leaving Print Screen
+  available for the client's normal screenshot behavior.
 
 ```powershell
 ./GraphicsOverhaul/VerifyGlobal.ps1 -ClientPath '.'

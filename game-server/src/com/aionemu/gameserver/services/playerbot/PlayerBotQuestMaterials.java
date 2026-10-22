@@ -337,8 +337,22 @@ final class PlayerBotQuestMaterials {
   state.planned=needed;state.hunts=Set.copyOf(hunts);state.places=List.copyOf(places);state.nextSearch=now+10000;
  }
  /** Local live global-source matching also includes instance/temporary spawns unavailable for autonomous travel. */
+ private record CachedHunts(Map<Integer,Long> needs,int map,int instance,long until,Set<Integer> ids) {}
+ private static final java.util.concurrent.ConcurrentHashMap<Integer,CachedHunts> HUNT_CACHE=new java.util.concurrent.ConcurrentHashMap<>();
+ /** Material-source monsters change only with quest needs or the visible area.
+  * Reuse the answer for 3 s instead of rescanning every visible monster against
+  * every drop rule several times a second (about 27% of live server CPU). */
  static Set<Integer> huntNpcIds(PlayerBotSession session) {
-  var needs=needed(session);if(needs.isEmpty())return Set.of();plan(session,needs);var bot=session.bot();var result=new TreeSet<>(actor(session,false).hunts);var data=catalog();
+  var needs=needed(session);if(needs.isEmpty())return Set.of();
+  var bot0=session.bot();long now=System.currentTimeMillis();var cached=HUNT_CACHE.get(bot0.getObjectId());
+  if(cached!=null && cached.until()>now && cached.map()==bot0.getWorldId() && cached.instance()==bot0.getInstanceId() && cached.needs().equals(needs))return cached.ids();
+  var ids=computeHuntNpcIds(session,needs);
+  if(HUNT_CACHE.size()>20000)HUNT_CACHE.clear();
+  HUNT_CACHE.put(bot0.getObjectId(),new CachedHunts(Map.copyOf(needs),bot0.getWorldId(),bot0.getInstanceId(),now+3000,ids));
+  return ids;
+ }
+ private static Set<Integer> computeHuntNpcIds(PlayerBotSession session,Map<Integer,Long> needs) {
+  plan(session,needs);var bot=session.bot();var result=new TreeSet<>(actor(session,false).hunts);var data=catalog();
   var sources=new ArrayList<GlobalSource>();for(int item:needs.keySet())for(var source:data.global().getOrDefault(item,List.of()))if(race(source.itemRace(),bot.getRace()))sources.add(source);
   if(sources.isEmpty())return Set.copyOf(result);
   var service=DropRegistrationService.getInstance();

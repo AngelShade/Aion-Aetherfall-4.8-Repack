@@ -109,6 +109,11 @@ public class Config {
 				log.info("Loading default configuration values from: ./config/playerbots/navigation.properties");
 				defaults.putAll(PropertiesUtils.load(navigation.toFile(), null));
 			}
+			Path pvp = root.resolve("./config/playerbots/pvp.properties");
+			if (Files.isRegularFile(pvp)) {
+				log.info("Loading default configuration values from: ./config/playerbots/pvp.properties");
+				defaults.putAll(PropertiesUtils.load(pvp.toFile(), null));
+			}
 			log.info("Loading: ./config/mygs.properties");
 			Properties properties = PropertiesUtils.load(root.resolve("./config/mygs.properties").toFile(), defaults);
 			if (properties.isEmpty())

@@ -46,12 +46,12 @@ final class PlayerBotDefense {
  }
  static double health(Creature target){return 100.0*target.getLifeStats().getCurrentHp()/Math.max(1,target.getLifeStats().getMaxHp());}
  static double mana(Creature target){return 100.0*target.getLifeStats().getCurrentMp()/Math.max(1,target.getLifeStats().getMaxMp());}
- static List<Npc> attackers(Player bot,Creature target) {
-  var attackers=new ArrayList<Npc>();bot.getKnownList().forEachNpc(n->{
-   if(n.getTarget()==target && PlayerBotService.allowsTarget(bot,n))attackers.add(n);
+ static List<Creature> attackers(Player bot,Creature target) {
+  var attackers=new ArrayList<Creature>();bot.getKnownList().forEachObject(o->{
+   if(o instanceof Creature n && bot.isEnemy(n) && n.getTarget()==target && PlayerBotService.allowsTarget(bot,n))attackers.add(n);
   });return attackers;
  }
- static boolean magical(List<Npc> attackers,Creature target) {
+ static boolean magical(List<? extends Creature> attackers,Creature target) {
   return attackers.stream().anyMatch(n->{var cast=n.getCastingSkill();return cast!=null && cast.getSkillTemplate().getType()==SkillType.MAGICAL
    && cast.getSkillTemplate().getProperties()!=null && cast.getSkillTemplate().getProperties().getTargetRelation()==com.aionemu.gameserver.skillengine.properties.TargetRelationAttribute.ENEMY
    && (cast.getFirstTarget()==target || cast.getEffectedList().contains(target));});
@@ -86,12 +86,12 @@ final class PlayerBotDefense {
  static double peelPriority(Player bot,Role role,PlayerBotSkills.Entry entry,Creature target) {
   if(!entry.template().hasAnyEffect(ROOT,SNARE) || role==Role.TANK || role==Role.MELEE
    || bot.getPlayerClass()!=PlayerClass.MAGE && bot.getPlayerClass()!=PlayerClass.SORCERER && bot.getPlayerClass()!=PlayerClass.RANGER
-   || !(target instanceof Npc npc) || entry.template().isCharge())return 0;
+   || target==null || entry.template().isCharge())return 0;
   double priority=peelPolicy(bot.getPlayerClass(),role,entry.template(),PositionUtil.getDistance(bot,target),target.getTarget()==bot,
    target.getEffectController().isInAnyAbnormalState(AbnormalState.CANT_MOVE_STATE),target.getEffectController().isAbnormalSet(AbnormalState.SNARE));
   // Prove an action has benefit before spending native sight/cast admission.
   // Useful candidates still require the same fresh native authority.
-  return priority>0 && PlayerBotEnemyUtility.ready(bot,entry,npc)
+  return priority>0 && PlayerBotEnemyUtility.ready(bot,entry,target)
    && !PlayerBotService.getInstance().isReserved(bot,target,SkillKind.CONTROL) ? priority : 0;
  }
  static Creature peelRecipient(Player bot,Role role,PlayerBotSkills.Entry entry,Npc primary) {
@@ -102,7 +102,7 @@ final class PlayerBotDefense {
   Npc best=null;double value=0;for(var target:candidates){double score=peelPriority(bot,role,entry,target);if(score>value){best=target;value=score;}}
   return best;
  }
- static boolean useful(Player bot,Role role,PlayerBotSkills.Entry entry,Creature target,List<Npc> enemies) {
+ static boolean useful(Player bot,Role role,PlayerBotSkills.Entry entry,Creature target,List<? extends Creature> enemies) {
   if(entry.kind()==SkillKind.DEFENSE) {
    var party=PlayerBotSupport.members(bot);
    boolean combat=enemies.stream().anyMatch(n->n.isSpawned() && !n.isDead() && PlayerBotService.allowsTarget(bot,n));
@@ -111,7 +111,7 @@ final class PlayerBotDefense {
   if(entry.kind()==SkillKind.CONTROL) {
    boolean interrupt=PlayerBotSkills.canInterrupt(entry.template()) && target.isCasting()
     && !PlayerBotService.getInstance().isReserved(bot,target,SkillKind.CONTROL);
-   return interrupt || peelPriority(bot,role,entry,target)>0;
+   return interrupt || peelPriority(bot,role,entry,target)>0 || PlayerBotPvp.controlUseful(entry,target);
   }return true;
  }
  private PlayerBotDefense(){}

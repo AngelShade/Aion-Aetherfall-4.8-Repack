@@ -49,8 +49,10 @@ final class PlayerBotRouteSearch {
  }
  PlayerBotRouteSearch(int world,Point start,Point goal,float mapSize,int capacity,float segmentDistance,PlayerBotMeshJourney journey,PlayerBotMeshRoute.Admission admission) {
   this(start,goal,mapSize,capacity,segmentDistance,false);
-  this.journey=journey;
-  if(finite(start) && finite(goal) && com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED)
+  this.journey=journey;this.world=world;
+  // A prepared corridor that failed its ground proof twice from this spot toward
+  // this goal goes straight to the native search for five minutes.
+  if(finite(start) && finite(goal) && com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED && !meshBlockedHere(world,start,goal))
    mesh=new PlayerBotMeshRoute(world,start,goal,segmentDistance,journey,admission);
  }
  private PlayerBotRouteSearch(Point start,Point goal,float mapSize,int capacity,float segmentDistance,boolean fullRoute) {
@@ -63,6 +65,38 @@ final class PlayerBotRouteSearch {
   }
   seed();
  }
+ /* WoW bots remember unreachable targets. A route that fully failed twice from
+  * the same 6 m spot toward the same 12 m goal area is refused for five minutes,
+  * so the travel layer picks another destination instead of re-running the same
+  * failing mesh proof and native search hundreds of times (live logs showed a
+  * few such spots producing most "blocked" corridor checks). */
+ private record Key(int world,int sx,int sy,int gx,int gy) {}
+ private record Failure(int count,long until) {}
+ private static final java.util.concurrent.ConcurrentHashMap<Key,Failure> UNREACHABLE=new java.util.concurrent.ConcurrentHashMap<>();
+ private static final java.util.concurrent.ConcurrentHashMap<Key,Failure> MESH_BLOCKED=new java.util.concurrent.ConcurrentHashMap<>();
+ private int world;
+ private static boolean meshBlockedHere(int world,Point s,Point g){
+  var f=MESH_BLOCKED.get(key(world,s,g));return f!=null && f.count()>=2 && f.until()>System.currentTimeMillis();
+ }
+ private static void meshBlocked(int world,Point s,Point g){
+  if(MESH_BLOCKED.size()>50_000)MESH_BLOCKED.clear();
+  long now=System.currentTimeMillis();
+  MESH_BLOCKED.merge(key(world,s,g),new Failure(1,now+300_000),(a,b)->new Failure(a.until()>now?a.count()+1:1,b.until()));
+ }
+ private static Key key(int world,Point s,Point g){return new Key(world,(int)Math.floor(s.x()/6),(int)Math.floor(s.y()/6),(int)Math.floor(g.x()/12),(int)Math.floor(g.y()/12));}
+ static boolean recentlyUnreachable(int world,Point s,Point g){
+  var f=UNREACHABLE.get(key(world,s,g));return f!=null && f.count()>=2 && f.until()>System.currentTimeMillis();
+ }
+ static void failed(int world,Point s,Point g){
+  if(UNREACHABLE.size()>50_000)UNREACHABLE.clear();
+  long now=System.currentTimeMillis();
+  UNREACHABLE.merge(key(world,s,g),new Failure(1,now+300_000),(a,b)->new Failure(a.until()>now?a.count()+1:1,b.until()));
+ }
+ static void succeeded(int world,Point s,Point g){UNREACHABLE.remove(key(world,s,g));}
+ Point start(){return start;}
+ Point finalGoal(){return finalGoal;}
+ /** Refuse this search without any work: the route recently failed repeatedly. */
+ void refuse(String why){if(mesh!=null){mesh.close();mesh=null;}complete=true;route=List.of();reason=why;open.clear();best.clear();current=null;}
  boolean pending(){return mesh!=null?mesh.pending():!complete;}
  boolean partial(){return mesh!=null?mesh.partial():partial || !goal.equals(finalGoal);}
  List<Point> route(){return mesh!=null?mesh.route():route;}
@@ -79,6 +113,7 @@ final class PlayerBotRouteSearch {
    try {mesh.advance(ground,probes,expired);}
    catch(RuntimeException | Error failure){mesh.close();mesh=null;if(journey!=null)journey.pause();throw failure;}
    if(!mesh.fallback())return;
+   meshBlocked(world,start,finalGoal);
    Point next=mesh.nativeTarget();mesh.close();mesh=null;
    if(!next.equals(goal)){goal=next;open.clear();best.clear();current=progress=null;stride=4;phaseExpanded=0;seed();}
    portalApproach=journey!=null && !goal.equals(finalGoal) && journey.walkingTarget(start,goal) && distance(start,goal)<=6;

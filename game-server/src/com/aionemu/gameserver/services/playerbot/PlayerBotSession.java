@@ -35,10 +35,15 @@ public final class PlayerBotSession {
 	private final PlayerBotEngine engine = new PlayerBotEngine();
 	private final PlayerBotNavigation navigation;
 	private final PlayerBotPets pets = new PlayerBotPets();
+	private final PlayerBotPvp pvp = new PlayerBotPvp(this);
 	private final PlayerBotLoot loot = new PlayerBotLoot();
 	private final PlayerBotQuests quests = new PlayerBotQuests();
 	private final PlayerBotThreat threat = new PlayerBotThreat();
 	private boolean withholdDamage;
+	// Per-decision tank/mark context: active pull, loose enemies for area threat, enemy count.
+	private PlayerBotMarks.Pull activePull;
+	private boolean rangedPullReady;
+	private int looseEnemies, enemyCount;
 	private boolean decisionCombat;
 	private int decisionTarget;
 	private PlayerBotMission mission;
@@ -78,6 +83,7 @@ public final class PlayerBotSession {
  long reactionDelay(){
   if(activityTransition())return worldSleepRequested && !worldDormant?500:100;
   if(forcedFollow!=null && forcedFollow())return 100;
+  if(order!=Order.STAY && pets!=null && pets.needsFollow(bot))return 200;
   if(navigation!=null && navigation.waitingForSearchTurn() || pets!=null && pets.waitingForSearchTurn())return 100;
   boolean resting=bot.isInState(CreatureState.RESTING);
   boolean threatened=resting && bot.getAggroList().stream().anyMatch(a->a.getHate()>0 && !a.getAttacker().isDead()
@@ -88,7 +94,8 @@ public final class PlayerBotSession {
    && movementCadence.active(System.currentTimeMillis(),resting,bot.getMoveController().isInMove()));}
  boolean activeDecision(){return reactionDelay()<=500 || bot.isLooting();}
  /** Grouping key for the periodic population report: decision status and movement state, ids removed. */
- String diagnosticState(){return (status+" | move: "+(navigation==null?"-":navigation.status())).replaceAll("\\d+","#");}
+ String diagnosticState(){return (status+" | move: "+(navigation==null?"-":navigation.status())+" | did: "+engine.getLastAction().replaceAll("\\(.*?\\)|->.*","").trim()
+  +(autonomous()?" | world: "+PlayerBotWorldActivities.why(bot):"")).replaceAll("\\d+","#");}
  public String activitySummary(){return (autonomous()?"independent: ":"party: ")+status+"; last action: "+engine.getLastAction();}
 	private volatile boolean closing;
 	private int failures;
@@ -104,6 +111,7 @@ public final class PlayerBotSession {
 		followMotion = new PlayerBotFollowMotion(owner, bot);
 		if (world()) {
 			consumables = true; autoLoot = true; autoGear = true; questing = true;
+			pvp.rifts.observe(this,System.currentTimeMillis());
 			return;
 		}
 		try { applyPreferences(PREFERENCES.load(owner.getAccount().getId(), bot.getObjectId(), role)); }
@@ -248,20 +256,20 @@ public final class PlayerBotSession {
 	}
 	public synchronized void attackSelectedTarget() {
 		if (closing) throw new IllegalArgumentException("Companion is waiting for dismissal/save.");
-		if (!(owner.getTarget() instanceof Npc npc))
-			throw new IllegalArgumentException("Select a monster for your companions to attack.");
-		if (npc.isDead()) throw new IllegalArgumentException("The selected monster is already dead.");
+		if (!(owner.getTarget() instanceof Creature npc))
+			throw new IllegalArgumentException("Select an enemy for your companions to attack.");
+		if (npc.isDead()) throw new IllegalArgumentException("The selected enemy is already dead.");
 		if (!PositionUtil.isInRange(owner, npc, 45))
-			throw new IllegalArgumentException("The selected monster must be within 45m of you.");
+			throw new IllegalArgumentException("The selected enemy must be within 45m of you.");
 		// Validate the requested combat order before committing it. Passive and
 		// crowd-control preservation are automatic policy, not invalid targets
 		// when the owner explicitly orders an attack on this particular monster.
 		if (!validEnemy(npc, List.of(owner, bot), true, true))
-			throw new IllegalArgumentException(bot.getName() + " cannot attack that monster: "
+			throw new IllegalArgumentException(bot.getName() + " cannot attack that enemy: "
 				+ (!PlayerBotTargetEligibility.visible(bot, npc) ? "it is not visible to this companion."
 					: order == Order.GUARD && guardPosition != null && PositionUtil.getDistance(npc, guardPosition.x(), guardPosition.y(), guardPosition.z()) > 20
 						? "it is outside this companion's guard area. Use Follow first."
-						: "it is not an eligible hostile PvE target."));
+						: "it is not an eligible hostile target under the current combat settings."));
 		PlayerBotArbitration.clear(engine);
 		forcedFollow.cancel();
 		if (order == Order.PASSIVE) {
@@ -271,12 +279,23 @@ public final class PlayerBotSession {
 		stand();
 		commandedTarget = npc.getObjectId(); nextDecision = 0;
 	}
+	/** Tank half of PlayerBotMarks.pull: an explicit attack that the tag-and-return logic then shapes. */
+	synchronized void pullSelectedTarget(Npc npc) {
+		if (closing) throw new IllegalArgumentException("Companion is waiting for dismissal/save.");
+		if (!validEnemy(npc, List.of(owner, bot), true, true))
+			throw new IllegalArgumentException(bot.getName() + " cannot pull that monster.");
+		PlayerBotArbitration.clear(engine);
+		forcedFollow.cancel();
+		if (order != Order.FOLLOW) { order = Order.FOLLOW; PlayerBotPartyBehavior.update(this, role, order); }
+		stand();
+		commandedTarget = npc.getObjectId(); nextDecision = 0;
+	}
 
-	synchronized boolean allowsEnemy(Npc npc) {
+	synchronized boolean allowsEnemy(Creature npc) {
 		return !closing && !forcedFollow() && (autonomous() || bot.getCurrentTeam() != null)
 			&& (!worldSleepRequested || settlingEnemy(npc)) && validEnemy(npc, party(), explicitTarget(npc));
 	}
-	private boolean settlingEnemy(Npc npc){var pet=bot.getSummon();return bot.getTarget()==npc
+	private boolean settlingEnemy(Creature npc){var pet=bot.getSummon();return bot.getTarget()==npc
 		|| bot.getAggroList().stream().anyMatch(a->a.getAttacker()==npc && a.getHate()>0)
 		|| pet!=null && (pet.getTarget()==npc || pet.getAggroList().stream().anyMatch(a->a.getAttacker()==npc && a.getHate()>0));}
 
@@ -289,12 +308,18 @@ public final class PlayerBotSession {
 	}
 
 	void preparePopulationPlacement() { navigation.stop(); pets.stop(bot); PlayerBotArbitration.clear(engine); PlayerBotQuestRoutes.close(bot); PlayerBotWorldActivities.close(bot); bot.setTarget(null); }
+	boolean worldExcursion() { return pvp.rifts.inProgress(); }
+	Npc riftRally() { return pvp.rifts.rally(); }
+	long riftRallyUntil() { return pvp.rifts.rallyUntil(); }
 	private boolean settlingCombat(){
 		if(bot.isDead())return false;
 		var pet=bot.getSummon();
 		return bot.getController().isInCombat()
+			// The bot's own aggro list keeps entries after a mob resets; only an
+			// attacker that still hates the bot keeps it awake on an empty map.
 			|| bot.getAggroList().stream().anyMatch(a->a.getHate()>0 && !a.getAttacker().isDead() && a.getAttacker().isSpawned()
-			 && a.getAttacker().getWorldId()==bot.getWorldId() && a.getAttacker().getInstanceId()==bot.getInstanceId())
+			 && a.getAttacker().getWorldId()==bot.getWorldId() && a.getAttacker().getInstanceId()==bot.getInstanceId()
+			 && a.getAttacker().getAggroList().isHating(bot))
 			|| pet!=null && pet.isSpawned() && !pet.isDead() && (pet.getTarget() instanceof Npc enemy && enemy.isSpawned() && !enemy.isDead()
 			 && pet.getMode()==com.aionemu.gameserver.model.summons.SummonMode.ATTACK
 			 || pet.getAggroList().stream().anyMatch(a->a.getHate()>0 && !a.getAttacker().isDead() && a.getAttacker().isSpawned()));
@@ -339,6 +364,7 @@ public final class PlayerBotSession {
 		if (closing) return true;
 		if(followProgress!=null && !canRecoverFollow())followProgress.clear();
 		if(!worldActivity())return true;
+		if(bot.isSpawned() && !bot.isDead())pets.follow(bot,order!=Order.STAY);
 		PlayerBotArbitration.context(engine, List.of(owner.getWorldId(), owner.getInstanceId(),
 			bot.getWorldId(), bot.getInstanceId(), owner.isSpawned(), bot.isSpawned(), owner.isDead(), bot.isDead(),
 			owner.isFlying(), bot.isFlying(), role, order, commandedTarget, mission == null ? 0 : mission.quest,
@@ -418,7 +444,13 @@ public final class PlayerBotSession {
 		// explicit attack), never to Aion's ten-second post-hit combat timer, which
 		// left companions standing after every fight while the owner walked away.
 		List<Npc> enemies = new ArrayList<>();
+		var pull = autonomous() ? null : PlayerBotMarks.pull(owner, System.currentTimeMillis());
+		boolean puller = pull != null && pull.tank == bot.getObjectId();
+		activePull = puller ? pull : null;
 		bot.getKnownList().forEachNpc(npc -> {
+			// While the tank brings a pull back, the others wait at the pull position
+			// unless the monster turns on them (WoW PullStrategy).
+			if (pull != null && !puller && pull.npc == npc && npc.getTarget() != bot && (bot.getSummon() == null || npc.getTarget() != bot.getSummon())) return;
 			if ((!worldSleepRequested || settlingEnemy(npc)) && validEnemy(npc, party, explicitTarget(npc))) enemies.add(npc);
 		});
 		boolean companionFollow = companionFollowWanted();
@@ -462,6 +494,14 @@ public final class PlayerBotSession {
 		if (now >= nextSkillRefresh) {
 			skills = PlayerBotRotation.rankedSkills(PlayerBotSkills.read(bot)); nextSkillRefresh = now + 10000;
 		}
+		pvp.rifts.observe(this,now);
+		boolean wasPvp=pvp.active();
+		Creature opponent=pvp.choose(party,order,commandedTarget,!worldSleepRequested && enemies.isEmpty()
+			&& !bot.getController().isInCombat() && !bot.isTrading() && !bot.isLooting()
+			&& (bot.getInteractionTask()==null || !bot.getInteractionTask().isInProgress())
+			&& party.stream().noneMatch(p->!p.isDead() && hp(p)<55),now);
+		if(opponent!=null) return pvpCombat(opponent,party,support,enemies,now);
+		if(wasPvp){pets.stop(bot);navigation.stop();PlayerBotArbitration.clear(engine);if(bot.getTarget() instanceof Creature c && PlayerBotPvp.playerOwned(c) && bot.isEnemy(c))bot.setTarget(null);}
   // Useful public support shares spell arbitration, never combat/loot membership.
   PlayerBotRecoveryIntent.update(bot,false,!autonomous() && owner.getMoveController().isInMove());
   boolean supportNeeded=false,urgentSupport=false;
@@ -484,6 +524,13 @@ public final class PlayerBotSession {
 		if (PlayerBotQuestObjects.pending(bot) && PlayerBotQuestObjects.tick(this,navigation,questActionsAllowed,questCommitmentSafe)) { PlayerBotWorldActivities.interacting(bot);status="finishing native quest object";return true; }
 		var travelHazards = PlayerBotHazards.visible(bot);
 		navigation.hazards(travelHazards);
+		if(autonomous() && !worldSleepRequested && order==Order.FOLLOW && enemies.isEmpty() && !supportNeeded && !incapacitated
+			&& !materialFlight && !bot.getController().hasTask(com.aionemu.gameserver.model.TaskId.ITEM_USE)
+			&& !bot.getController().hasTask(com.aionemu.gameserver.model.TaskId.ACTION_ITEM_NPC)
+			&& PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot))
+			&& pvp.rifts.tick(this,navigation,now)) {
+			PlayerBotArbitration.clear(engine);status="travelling through an open faction rift";return true;
+		}
 		// Social grouping owns only safe, optional travel. Native combat, support,
 		// hazards and in-progress item/quest work retain their existing custody.
 		if(autonomous() && !worldSleepRequested && enemies.isEmpty() && !supportNeeded && !materialFlight && !incapacitated
@@ -546,6 +593,12 @@ public final class PlayerBotSession {
 			}
 		}
 		Npc target = chooseTarget(enemies, party);
+		enemyCount = enemies.size();
+		// Loose enemies: in the fight, not on this tank, not held by crowd control.
+		looseEnemies = role != Role.TANK || !com.aionemu.gameserver.configs.main.PlayerBotConfig.TANK_AREA_THREAT ? 0 : (int) enemies.stream().filter(n -> n.getTarget() != bot && !controlled(n)
+			&& !PlayerBotMarks.leaveAlone(owner, n, enemyCount, now) && party.stream().anyMatch(p -> n.getAggroList().isHating(p))).count();
+		rangedPullReady = activePull != null && skills.stream().anyMatch(e -> (e.kind() == SkillKind.DAMAGE || e.kind() == SkillKind.TAUNT)
+			&& e.range() >= com.aionemu.gameserver.configs.main.PlayerBotConfig.TANK_PULL_RANGE && PlayerBotSorcerer.singleTarget(e.template()) && !bot.isSkillDisabled(e.template()));
 		PlayerBotSpacing.observe(bot,target,now);
 		withholdDamage = threat.hold(bot, role, target, party, now);
 		var hazards = travelHazards;
@@ -638,6 +691,17 @@ public final class PlayerBotSession {
 		if (order == Order.FOLLOW && !incapacitated) {
 			if (spread != null) triggers.add(trigger(new SimpleAction("spread targeted area cast", () -> true,
 				() -> navigation.move(spread.x(), spread.y(), spread.z())), ENCOUNTER + 15));
+			var pulled = activePull;
+			if (pulled != null && pulled.tagged(bot, now)) {
+				var spot = pulled.spot;
+				// Back at the group, caught by the monster, or out of time: the pull is over.
+				if (PositionUtil.getDistance(bot, spot.x(), spot.y(), spot.z()) <= 3 || PositionUtil.isInRange(bot, pulled.npc, 3))
+					PlayerBotMarks.endPull(owner, pulled);
+				else if (bot.canPerformMove()) triggers.add(trigger(new SimpleAction("bring the pull back to the group", () -> true, () -> {
+					stand(); status = "bringing the pull back to the group";
+					return navigation.move(spot.x(), spot.y(), spot.z());
+				}), ENCOUNTER + 25));
+			}
 			var facing = role == Role.TANK ? PlayerBotCoordination.tankFacing(bot, target, party) : null;
 			if (facing != null) triggers.add(trigger(new SimpleAction("face enemy away from party", () -> PositionUtil.getDistance(bot, facing.x(), facing.y(), facing.z()) > 1.5,
 				() -> navigation.move(facing.x(), facing.y(), facing.z())), MOVE + 3));
@@ -985,9 +1049,82 @@ public final class PlayerBotSession {
   if(commandedTarget==0){Npc add=PlayerBotSteelRake.adds(enemies);if(add!=null)return add;}
 		Npc lab=PlayerBotTheobomosLab.target(bot,role,commandedTarget,enemies);if(lab!=null)return lab;
         Npc adma=PlayerBotAdmaStronghold.target(bot,role,commandedTarget,enemies);if(adma!=null)return adma;
-  return PlayerBotTargetValues.choose(bot,owner,role,commandedTarget,enemies.stream().filter(PlayerBotSteelRake::attackable).filter(PlayerBotTheobomosLab::attackable).filter(PlayerBotAdmaStronghold::attackable).toList(),party,skills);
+		// Marks (WoW RTI): a crowd-control mark is skipped while other enemies remain;
+		// the kill mark ranks like an explicit command, after the tank's rescues.
+		long now=System.currentTimeMillis();int count=enemies.size();
+		var unmarked=autonomous() ? enemies : enemies.stream().filter(n->n.getObjectId()==commandedTarget || !PlayerBotMarks.leaveAlone(owner,n,count,now)).toList();
+		if(!unmarked.isEmpty())enemies=unmarked;
+		int focus=commandedTarget!=0 || autonomous() ? commandedTarget : PlayerBotMarks.kill(owner);
+  return PlayerBotTargetValues.choose(bot,owner,role,focus,enemies.stream().filter(PlayerBotSteelRake::attackable).filter(PlayerBotTheobomosLab::attackable).filter(PlayerBotAdmaStronghold::attackable).toList(),party,skills);
 	}
 
+	/** PvP shares native cast admission, class rotations, support, pets and movement with PvE. */
+	private boolean pvpCombat(Creature target,List<Player> party,List<Player> support,List<Npc> monsters,long now) {
+		decisionCombat=true;decisionTarget=target.getObjectId();withholdDamage=false;activePull=null;looseEnemies=0;
+		PlayerBotRecoveryIntent.clear(bot);stand();
+		if(bot.getInteractionTask()!=null && bot.getInteractionTask().isInProgress()
+			|| bot.getController().hasTask(com.aionemu.gameserver.model.TaskId.ACTION_ITEM_NPC))bot.getObserveController().notifyMoveObservers();
+		List<Creature> enemies=new ArrayList<>(monsters);enemies.add(target);
+		var hazards=PlayerBotHazards.visible(bot);navigation.hazards(hazards);
+		boolean escape=order==Order.FOLLOW && bot.canPerformMove()
+			&& PlayerBotHazards.risk(new PlayerBotNavigation.Point(bot.getX(),bot.getY(),bot.getZ()),hazards)>0;
+		pets.tick(bot,target,order==Order.FOLLOW,order!=Order.PASSIVE,controlled(target));
+		if(bot.isCasting() || now<nextDecision)return true;
+		List<Trigger> actions=new ArrayList<>();
+		if(escape)actions.add(trigger(new SimpleAction("leave dangerous ground during faction fight",()->true,navigation::escapeHazards),ENCOUNTER+15));
+		boolean retreat=pvp.retreat(target);
+		if(retreat && order==Order.FOLLOW && bot.canPerformMove())actions.add(trigger(new SimpleAction("retreat from faction pressure",()->pvp.retreat(target),()->{
+			double dx=bot.getX()-target.getX(),dy=bot.getY()-target.getY(),length=Math.hypot(dx,dy);
+			if(length<.01){dx=Math.cos(bot.getHeading()*Math.PI/60);dy=Math.sin(bot.getHeading()*Math.PI/60);length=1;}
+			return navigation.move(bot.getX()+(float)(dx/length*6),bot.getY()+(float)(dy/length*6),bot.getZ());
+		}),MOVE+8));
+		for(var entry:skills) {
+			if(entry.kind()==SkillKind.TAUNT || entry.kind()==SkillKind.RESURRECT || entry.kind()==SkillKind.UNSUPPORTED)continue;
+			var actual=PlayerBotSkills.actualTemplate(bot,entry);if(actual==null)continue;
+			SkillKind kind=entry.kind()==SkillKind.PET_ORDER?PlayerBotSkills.classify(actual):entry.kind();
+			boolean offense=kind==SkillKind.DAMAGE || kind==SkillKind.CONTROL || kind==SkillKind.TAUNT;
+			if(kind==SkillKind.TAUNT || offense && controlled(target))continue;
+			Creature recipient=offense?target:recipient(entry,support,null,true);
+			if(recipient==null)continue;
+			double value=priority(entry,recipient,true,support);
+			if(kind==SkillKind.CONTROL && PlayerBotPvp.controlUseful(entry,target))value=Math.max(value,INTERRUPT-2);
+			if(retreat && offense)value=Math.min(value,HIGH);
+			if(value>0)actions.add(trigger(new CastAction(entry,recipient,enemies).withSupport(support),value));
+		}
+		if(consumables)for(var item:PlayerBotConsumables.candidates(bot))actions.add(trigger(new SimpleAction("use recovery supplies in faction fight",()->!bot.isCasting(),()->{
+			navigation.stop();return PlayerBotConsumables.use(bot,item);
+		}),EMERGENCY+2));
+		if(!retreat && !controlled(target) && bot.canAttack()) {
+			float desired=PlayerBotCombatPosition.desired(bot,role,skills);
+			PlayerBotSpacing.observe(bot,target,now);
+			if(PlayerBotCombatPosition.ranged(bot.getPlayerClass(),role) && PlayerBotCombatPosition.tooClose(bot,target,desired))
+				actions.add(trigger(new SimpleAction("keep distance from enemy fighter",()->order==Order.FOLLOW && bot.canPerformMove(),()->PlayerBotSpacing.retreat(owner,bot,target,navigation)),MOVE+2));
+			actions.add(trigger(new ReachAction(target,desired),MOVE));
+			float range=Math.max(1.5f,bot.getGameStats().getAttackRange().getCurrent()/1000f);
+			actions.add(trigger(new SimpleAction("attack enemy faction",()->validEnemy(target,party,explicitTarget(target))
+				&& now>=nextAttack && PositionUtil.isInAttackRange(bot,target,range) && GeoService.getInstance().canSee(bot,target),()->{
+				navigation.stop();bot.setTarget(target);PlayerBotWeaponStance.draw(bot);
+				int speed=Math.max(300,bot.getGameStats().getAttackSpeed().getCurrent());
+				bot.getController().attackTarget(target,Math.min(500,speed/3),false);nextAttack=System.currentTimeMillis()+speed;
+				return true;
+			}),DEFAULT));
+		}
+		status="faction fight: "+target.getName();
+		engine.tick(State.COMBAT,List.of(new Strategy("Aion faction combat",actions)),List.of(),24);
+		return true;
+	}
+
+	private boolean validEnemy(Creature enemy,List<Player> party,boolean explicit) {
+		return validEnemy(enemy,party,explicit,enemy.getObjectId()==commandedTarget);
+	}
+	private boolean validEnemy(Creature enemy,List<Player> party,boolean explicit,boolean commanded) {
+		if(enemy instanceof Npc npc && npc.getMaster()==npc)return validEnemy(npc,party,explicit,commanded);
+		return !forcedFollow() && pvp.allows(enemy,party,explicit || commanded,commanded?Order.FOLLOW:order)
+			&& (order!=Order.GUARD || guardPosition==null || PositionUtil.getDistance(enemy,guardPosition.x(),guardPosition.y(),guardPosition.z())<=20);
+	}
+	private boolean explicitTarget(Creature enemy) {
+		return enemy instanceof Npc npc && npc.getMaster()==npc?explicitTarget(npc):enemy.getObjectId()==commandedTarget;
+	}
 	private boolean validEnemy(Npc npc, List<Player> party, boolean explicit) {
 		return validEnemy(npc, party, explicit, npc.getObjectId() == commandedTarget);
 	}
@@ -1010,6 +1147,8 @@ public final class PlayerBotSession {
 		if (mission != null && questing && Boolean.TRUE.equals(PlayerBotPartyBehavior.snapshot(this).get("questCombat")) && npc.getObjectId() == questTarget && order == Order.FOLLOW && !owner.isDead()
 			&& !owner.getMoveController().isInMove() && PositionUtil.isInRange(owner, npc, PlayerBotMission.range()))
 			return com.aionemu.gameserver.questEngine.QuestEngine.getInstance().getRequiredKillNpcIds(bot, mission.quest).contains(npc.getNpcId());
+		// A crowd-control mark joins the fight as soon as the party is engaged, so it can be controlled first.
+		if (!autonomous() && PlayerBotMarks.ccMarked(owner, npc) && PositionUtil.isInRange(owner, npc, 25) && partyEngaged()) return true;
 		return npc.getObjectId() == commandedTarget || questing && npc.getObjectId() == questTarget && order == Order.FOLLOW
 			&& Boolean.TRUE.equals(PlayerBotPartyBehavior.snapshot(this).get("questCombat")) && !owner.isDead() && (autonomous() || !owner.getMoveController().isInMove()) && PositionUtil.isInRange(owner, npc, autonomous() ? 45 : 25);
 	}
@@ -1050,6 +1189,10 @@ public final class PlayerBotSession {
 			};
 		}
 		if (e.kind() == SkillKind.DEFENSE) return PlayerBotDefense.recipient(bot, e, party, combat);
+		if (e.kind() == SkillKind.CONTROL && combat && !autonomous() && PlayerBotMarks.longControl(e.template())) {
+			Npc held = PlayerBotMarks.controlTarget(owner);
+			if (held != null && PositionUtil.isInRange(owner, held, 25)) return held;
+		}
 		if (e.kind() == SkillKind.DAMAGE || e.kind() == SkillKind.CONTROL) {
 			Creature pursuer = PlayerBotDefense.peelRecipient(bot, role, e, enemy);
 			return pursuer != null ? pursuer : PlayerBotEnemyUtility.recipient(bot, e, enemy);
@@ -1090,10 +1233,31 @@ public final class PlayerBotSession {
 	}
 
 	private double priority(PlayerBotSkills.Entry e, Creature recipient, boolean combat, List<Player> party) {
+		boolean hostile = e.kind() == SkillKind.DAMAGE || e.kind() == SkillKind.TAUNT;
+		if (recipient instanceof Npc npc && !autonomous()) {
+			// Crowd-control mark (WoW moon): only control it, never break it with damage.
+			if (hostile && npc.getObjectId() != commandedTarget && PlayerBotMarks.leaveAlone(owner, npc, enemyCount, System.currentTimeMillis())) return 0;
+			if (e.kind() == SkillKind.CONTROL && PlayerBotMarks.keepControlled(owner, npc, e.template())) return INTERRUPT + 5;
+		}
+		double value = basePriority(e, recipient, combat, party);
+		var pulled = activePull;
+		// Pull: tag from range when a ranged single-target skill is ready, then walk it back.
+		if (pulled != null && hostile && recipient == pulled.npc && pulled.taggedAt == 0 && rangedPullReady && e.range() < com.aionemu.gameserver.configs.main.PlayerBotConfig.TANK_PULL_RANGE)
+			return Math.min(value, 1);
+		if (role == Role.TANK && hostile && looseEnemies >= Math.max(2, com.aionemu.gameserver.configs.main.PlayerBotConfig.TANK_AREA_THREAT_MIN) && !PlayerBotSorcerer.singleTarget(e.template())) {
+			// An area taunt is worth casting for the loose enemies even when the main target is held.
+			double bonus = PlayerBotTank.areaBonus(PlayerBotSkills.actualTemplate(bot, e), e.level(), looseEnemies);
+			if (bonus > 0 && (value > 0 || e.kind() == SkillKind.TAUNT)) value = Math.max(value, e.kind() == SkillKind.TAUNT ? 40 : 0) + bonus;
+		}
+		return value;
+	}
+	private double basePriority(PlayerBotSkills.Entry e, Creature recipient, boolean combat, List<Player> party) {
 		double chanterSupport = PlayerBotChanter.support(bot,e,recipient,party,combat);
 		if (!Double.isNaN(chanterSupport)) return chanterSupport;
 		double classSupport = PlayerBotSorcerer.support(bot,role,e,recipient,combat);
 		if (!Double.isNaN(classSupport)) return classSupport;
+		double rotationSupport = PlayerBotClassRotations.support(bot,role,e,recipient,combat);
+		if (!Double.isNaN(rotationSupport)) return rotationSupport;
 		if (e.kind() == SkillKind.DEFENSE) return PlayerBotDefense.priority(bot, e, recipient, combat, party);
 		if (e.kind() == SkillKind.DAMAGE && PlayerBotEnemyUtility.purge(e.template())) {
 			if (withholdDamage || role == Role.HEALER && PlayerBotEnemyUtility.injured(party)) return 0;
@@ -1155,7 +1319,7 @@ public final class PlayerBotSession {
 		};
 	}
 
-	private boolean safeArea(PlayerBotSkills.Entry e, Creature target, List<Npc> engaged) {
+	private boolean safeArea(PlayerBotSkills.Entry e, Creature target, List<? extends Creature> engaged) {
 		if (e.template().isCharge()) {
 			var condition = e.template().getSkillChargeCondition();
 			var stages = com.aionemu.gameserver.dataholders.DataManager.SKILL_CHARGE_DATA.getChargedSkillEntry(condition.getValue());
@@ -1167,18 +1331,25 @@ public final class PlayerBotSession {
 		var actual = PlayerBotSkills.actualTemplate(bot, e);
 		return safeAreaTemplate(actual, target, engaged, e.kind() == SkillKind.PET_ORDER ? bot.getSummon() : bot);
 	}
-	private boolean safeAreaTemplate(com.aionemu.gameserver.skillengine.model.SkillTemplate template, Creature target, List<Npc> engaged, Creature effector) {
+	private boolean safeAreaTemplate(com.aionemu.gameserver.skillengine.model.SkillTemplate template, Creature target, List<? extends Creature> engaged, Creature effector) {
 		if (template == null || template.getProperties() == null || effector == null) return false;
 		var p = template.getProperties();
 		boolean hostile = p.getTargetRelation() == com.aionemu.gameserver.skillengine.properties.TargetRelationAttribute.ENEMY;
 		if (!hostile || p.getTargetType() == TargetRangeAttribute.ONLYONE) return true;
-		if (!areaSkills) return false;
+		// Tanks gather several loose enemies with area threat (WoW Thunder Clap /
+		// Consecration) even with area attacks off; the safety scan below still applies.
+		boolean tankThreat = role == Role.TANK && effector == bot && looseEnemies >= Math.max(2, com.aionemu.gameserver.configs.main.PlayerBotConfig.TANK_AREA_THREAT_MIN)
+			&& (template.hasAnyEffect(com.aionemu.gameserver.skillengine.effect.EffectType.HOSTILEUP, com.aionemu.gameserver.skillengine.effect.EffectType.PROVOKER)
+				|| PlayerBotTank.enmity(template, template.getLvl()) > 0);
+		if (!areaSkills && !tankThreat) return false;
 		float radius = Math.max(5, Math.max(p.getEffectiveDist(), Math.max(p.getEffectiveRange(), p.getTargetDistance())));
 		boolean[] safe = { true };
 		bot.getKnownList().forEachObject(object -> {
 			if (object instanceof Creature other && !other.isDead() && bot.isEnemy(other)
 				&& (PositionUtil.isInRange(target, other, radius) || PositionUtil.isInRange(effector, other, radius)))
-				if (!(other instanceof Npc npc) || !engaged.contains(npc) || controlled(npc) || !PlayerBotEncounters.allowsSkill(effector, npc, template, 0)) safe[0] = false;
+				if (!engaged.contains(other) || controlled(other) || !validEnemy(other,party(),explicitTarget(other))
+					|| other instanceof Npc npc && (!autonomous() && PlayerBotMarks.ccMarked(owner,npc)
+					 || !PlayerBotEncounters.allowsSkill(effector,npc,template,0))) safe[0] = false;
 		});
 		return safe[0];
 	}
@@ -1186,16 +1357,15 @@ public final class PlayerBotSession {
 	private final class CastAction implements Action {
 		private final PlayerBotSkills.Entry entry;
 		private final Creature recipient;
-		private final List<Npc> enemies;
-		CastAction(PlayerBotSkills.Entry entry, Creature recipient, List<Npc> enemies) { this.entry = entry; this.recipient = recipient; this.enemies = enemies; }
+		private final List<? extends Creature> enemies;
+		CastAction(PlayerBotSkills.Entry entry, Creature recipient, List<? extends Creature> enemies) { this.entry = entry; this.recipient = recipient; this.enemies = enemies; }
 		private List<Player> supportSnapshot;
 		private CastAction withSupport(List<Player> support) { supportSnapshot=List.copyOf(support);return this; }
 		@Override public String name() { return "cast " + entry.template().getName() + " (" + entry.template().getSkillId() + ") -> " + recipient.getName(); }
 		@Override public boolean isUseful() {
 			var actual = PlayerBotSkills.actualTemplate(bot, entry);
 			if (actual == null) return false;
-			if(recipient instanceof Npc npc && bot.isEnemy(npc)
-				&& !validEnemy(npc,party(),explicitTarget(npc)))return false;
+			if(bot.isEnemy(recipient) && !validEnemy(recipient,party(),explicitTarget(recipient)))return false;
 			if((entry.kind()==SkillKind.BUFF || entry.kind()==SkillKind.PET_ORDER && PlayerBotSkills.classify(actual)==SkillKind.BUFF)
 				&& !PlayerBotCombatBuffs.nonCombatUseful(actual) && !PlayerBotTownPolicy.buffUseful(actual,
 					enemies.stream().anyMatch(n->n.isSpawned() && !n.isDead() && n.getWorldId()==bot.getWorldId()
@@ -1205,7 +1375,8 @@ public final class PlayerBotSession {
 			if (PlayerBotSpiritmaster.applies(bot.getPlayerClass()) && (entry.kind() == SkillKind.BUFF || entry.kind() == SkillKind.PET_ORDER)
 				&& !PlayerBotSpiritmaster.idleUseful(bot,entry,recipient,!enemies.isEmpty() || bot.getController().isInCombat())) return false;
 			if (!PlayerBotEnemyUtility.useful(bot, entry, recipient)) return false;
-			if (!PlayerBotDefense.useful(bot, role, entry, recipient, enemies)) return false;
+			if (!PlayerBotDefense.useful(bot, role, entry, recipient, enemies)
+				&& !(recipient instanceof Npc held && !autonomous() && PlayerBotMarks.keepControlled(owner, held, entry.template()))) return false;
 			if (!PlayerBotOffense.useful(bot, entry, recipient)) return false;
 			if (recipient instanceof Npc npc && bot.isEnemy(npc) && (!PlayerBotEncounters.allowsSkill(bot, npc, actual, Math.max(0, entry.template().getDuration()) + 750L)
 				|| entry.kind() == SkillKind.PET_ORDER && (bot.getSummon() == null || !PlayerBotEncounters.allowsAttack(bot.getSummon(), npc)))) return false;
@@ -1273,8 +1444,9 @@ public final class PlayerBotSession {
 				if (closing || bot.getCastingSkill() != skill) return;
 				try {
 					var group = bot.getCurrentTeam();
-					List<Npc> engaged = new ArrayList<>();
+					List<Creature> engaged = new ArrayList<>();
 					if (group != null) bot.getKnownList().forEachNpc(n -> { if (validEnemy(n, group.getMembers(), explicitTarget(n))) engaged.add(n); });
+					if (PlayerBotPvp.playerOwned(target) && validEnemy(target,party(),explicitTarget(target)))engaged.add(target);
 					if (order == Order.PASSIVE || bot.isDead() || !target.isSpawned() || !PlayerBotService.allowsTarget(bot, target)
 						|| target.isDead() || target instanceof Npc npc && !PlayerBotEncounters.allowsSkill(bot, npc, entry.template(),0) || !safeArea(entry, target, engaged)) {
 						bot.getController().cancelCurrentSkill(null); nextDecision = 0; return;
@@ -1316,11 +1488,11 @@ public final class PlayerBotSession {
 		private final float range;
 		ReachAction(Creature target, float range) {
 			this.target = target; this.range = range;
-			hostile=target instanceof Npc && !target.isDead() && bot.isEnemy(target);
+			hostile=!target.isDead() && bot.isEnemy(target);
 		}
 		private boolean admitted() {
 			return target.isSpawned() && target.getWorldId()==bot.getWorldId() && target.getInstanceId()==bot.getInstanceId()
-				&& (!hostile || validEnemy((Npc)target,party(),explicitTarget((Npc)target)));
+				&& (!hostile || validEnemy(target,party(),explicitTarget(target)));
 		}
 		@Override public String name() { return "reach " + target.getName(); }
 		@Override public boolean isUseful() { return admitted() && (!(target instanceof Npc npc) || PlayerBotTheobomosLab.mayApproach(bot,npc))

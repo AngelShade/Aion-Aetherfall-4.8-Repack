@@ -22,7 +22,7 @@ final class PlayerBotTemplar {
    && (e.kind()==SkillKind.DEFENSE || e.kind()==SkillKind.CLEANSE)
    && e.template().hasAnyEffect(EffectType.SHIELD,EffectType.ALWAYSBLOCK) && !PlayerBotHealing.heals(e);
  }
- static boolean pressure(Npc enemy,Creature target,boolean magical) {
+ static boolean pressure(Creature enemy,Creature target,boolean magical) {
   if(enemy.isDead() || !enemy.isSpawned() || enemy.getWorldId()!=target.getWorldId() || enemy.getInstanceId()!=target.getInstanceId()
    || !PositionUtil.isInRange(enemy,target,40))return false;
   var cast=enemy.getCastingSkill();
@@ -41,7 +41,7 @@ final class PlayerBotTemplar {
    default -> false;
   };
  }
- static double priority(Player bot,PlayerBotSkills.Entry e,Creature target,boolean combat,List<Npc> attackers) {
+ static double priority(Player bot,PlayerBotSkills.Entry e,Creature target,boolean combat,List<? extends Creature> attackers) {
   if(!managed(bot,e) || !combat || target.isDead() || !target.isSpawned())return 0;
   if(e.kind()==SkillKind.CLEANSE && PlayerBotService.getInstance().isReserved(bot,target,SkillKind.CLEANSE))return 0;
   boolean physical=attackers.stream().anyMatch(n->pressure(n,target,false));

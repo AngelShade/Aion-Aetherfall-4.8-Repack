@@ -32,7 +32,9 @@ public final class PlayerBotSummonMoveController extends SummonMoveController {
 		super.moveToDestination();
 		owner.getKnownList().update();
 		owner.getController().onMove();
-		if (PositionUtil.getDistance(owner, targetDestX, targetDestY, targetDestZ) < 0.3) abortMove();
+		// The navigator consumes a summon waypoint only after physical arrival
+		// within 1cm. Stopping at 30cm left the same route point forever unearned.
+		if (PositionUtil.getDistance(owner, targetDestX, targetDestY, targetDestZ) < 0.01) abortMove();
 	}
 	@Override public synchronized void abortMove() {
 		boolean moving = isInMove();

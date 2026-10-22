@@ -20,12 +20,17 @@ final class PlayerBotWorldActivity {
   if(interval<100 || interval>10000)throw new IllegalArgumentException("World-bot presence refresh must be 100..10000 milliseconds");
   var next=new HashSet<Long>();
   for(var player:World.getInstance().getAllPlayers())
-   if(!player.isPlayerBot() && player.isOnline() && player.isSpawned())next.add(zone(player.getWorldId(),player.getInstanceId()));
+   if(!player.isPlayerBot() && player.isOnline() && player.isSpawned()) {
+    next.add(zone(player.getWorldId(),player.getInstanceId()));
+    if(player.getInstanceId()==1 && PlayerBotConfig.PVP_ENABLED && PlayerBotConfig.PVP_RIFTS && PlayerBotConfig.PVP_RIFT_HOME_ACTIVITY) {
+     int home=PlayerBotTerritory.counterpart(player.getWorldId());if(home!=0)next.add(zone(home,1));
+    }
+   }
   occupied=Set.copyOf(next);nextObservation=now+interval;
  }
  static boolean occupied(Player bot){return occupied.contains(zone(bot.getWorldId(),bot.getInstanceId()));}
  static boolean allowed(PlayerBotSession session){
-  return !PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS || !session.autonomous() || occupied(session.bot());
+  return !PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS || !session.autonomous() || session.worldExcursion() || occupied(session.bot());
  }
  private PlayerBotWorldActivity(){}
 }

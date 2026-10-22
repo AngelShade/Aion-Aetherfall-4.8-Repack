@@ -153,6 +153,8 @@ public final class PlayerBotHttpService {
 					}
 				}
 			}
+			case "pull" -> { return PlayerBotMarks.pull(owner, service.companions(owner)); }
+			case "mark" -> { return PlayerBotMarks.mark(owner, service.companions(owner), values.getOrDefault("mark", "").toLowerCase(Locale.ROOT)); }
 			case "stigmabuild" -> { return PlayerBotGearPolicy.configureBuild(service.find(owner, name), values.getOrDefault("build", "")); }
 			case "role" -> service.find(owner, name).setRole(Role.valueOf(values.getOrDefault("role", "").toUpperCase(Locale.ROOT)));
 			case "mission" -> service.find(owner, name).mission(Integer.parseInt(values.getOrDefault("quest", "0")));

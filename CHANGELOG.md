@@ -1,5 +1,14 @@
 # Aion Aetherfall 4.8 Repack — Changelog
 
+## Local preparation — Current downloader for new installations (22 October 2026)
+
+- Each update now prepares a complete downloader ZIP with the current Setup,
+  mirror list, extraction/download tools and clean portable settings. New users
+  can receive the MEGA-to-Google Drive repair before downloading the base game.
+- Publish Update includes this ZIP and changes the public download links to
+  follow the latest release. The large 0.86 base archive remains compatible.
+- Prepared locally; these download-entry changes are not published yet.
+
 ## Local preparation — Setup download mirror fallback (21 October 2026)
 
 - Standalone Setup now loads the standard mirror list when no mirror URL was

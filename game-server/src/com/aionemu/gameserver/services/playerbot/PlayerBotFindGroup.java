@@ -137,6 +137,11 @@ public final class PlayerBotFindGroup {
    && now-post.lastAnnouncement>=180000+Math.floorMod(post.bot.getObjectId(),120)*1000L;
  }
 
+ /* The native client prefixes its own LFG posts with [cmd:<name>;<code>]. The
+  * code captured on 20 October rendered as an empty "<>" link when reused with a
+  * bot's name (tested in game), so it is bound to the original poster. Bot posts
+  * stay plain text until the client's code format is decoded. */
+
  static String announcement(FindGroupEntry entry) {
   if(entry instanceof GroupRecruitment r)return r.getMessage()+" ("+r.getSize()+"/6)";
   if(entry instanceof GroupApplication a)return a.getMessage();
@@ -227,8 +232,13 @@ public final class PlayerBotFindGroup {
   if(post!=null && post.bot!=bot) {
    var leader=post.bot;
    if(!leader.isSpawned() || leader.isDead() || leader.getWorldId()!=bot.getWorldId() || leader.getInstanceId()!=bot.getInstanceId())return true;
-   double distance=PositionUtil.getDistance(bot,leader);
-   if(distance>7)navigation.follow(leader,Math.max(1,leader.getPlayerGroup().getMembers().indexOf(bot)));
+   // Companion formation/follow is keyed to a human owner's roster: for a bot
+   // leader every member resolved to the same front slot and inherited the
+   // companion catch-up speed. Keep members in a loose column behind the leader.
+   int index=Math.max(1,leader.getPlayerGroup().getMembers().indexOf(bot));
+   double heading=leader.getHeading()*Math.PI/60,back=-(2.5+1.5*((index-1)/2)),side=(index%2==0?-1:1)*1.8;
+   float x=leader.getX()+(float)(Math.cos(heading)*back-Math.sin(heading)*side),y=leader.getY()+(float)(Math.sin(heading)*back+Math.cos(heading)*side);
+   if(PositionUtil.getDistance(bot,leader)>6 || Math.hypot(bot.getX()-x,bot.getY()-y)>3)navigation.move(x,y,leader.getZ());
    else navigation.stop();
    return true;
   }

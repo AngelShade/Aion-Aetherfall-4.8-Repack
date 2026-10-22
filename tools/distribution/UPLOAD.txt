@@ -1,5 +1,15 @@
 AETHERFALL RELEASE — UPLOAD, SEED & UPDATE GUIDE
 
+CURRENT PREPARED RELEASES
+Use Prepare Patch, then Publish Update from the release workspace. This also
+prepares/uploads a clean current Aetherfall-Downloader.zip and updates the public
+README download links. Share the stable link after publication:
+https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/latest/download/Aetherfall-Downloader.zip
+Do not send new users the historical v0.86 downloader ZIP. The large v0.86 base
+archive remains compatible. Users already downloading can replace only Setup
+while it is closed, keeping their settings and Downloads folder to resume.
+
+INITIAL BASE ARCHIVE / MANUAL MIRROR PUBLICATION
 1. Upload "Aetherfall-0.86.7z" and "Aetherfall-Downloader.zip" to your Google Drive
    and MEGA folders.
 2. Share "Aetherfall-Downloader.zip" (plus your public Google Drive / MEGA links,

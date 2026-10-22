@@ -32,6 +32,8 @@ public final class Bot extends PlayerCommand {
 			Follow interrupts activity and pulls companions to you; regroup out of combat or use Attack to resume.
 			formation circle|box|line|spread - Arrange following companions around you; regroup after combat.
 			attack [name|all] - Attack your selected hostile PvE NPC.
+			pull - Your tank companion tags your selected monster and brings it back to you; the others wait.
+			mark kill|cc|clear - Mark your selected monster: kill = focus it, cc = keep it asleep/feared and leave it alone.
 			role <name> <tank|healer|support|melee|ranged> - Set combat role.
 			aoe <on|off> [name|all] - Enable or disable area attacks (default off).
 			supplies <on|off> [name|all] - Use the companion's recovery consumables (default on).
@@ -101,6 +103,8 @@ public final class Bot extends PlayerCommand {
 					for (var session : selected(service, owner, params.length > 1 ? params[1] : "all")) session.attackSelectedTarget();
 					sendInfo(owner, "Companions will attack your selected PvE target.");
 				}
+				case "pull" -> sendInfo(owner, PlayerBotMarks.pull(owner, service.companions(owner)));
+				case "mark" -> { require(params, 2); sendInfo(owner, PlayerBotMarks.mark(owner, service.companions(owner), params[1].toLowerCase(Locale.ROOT))); }
 				case "role" -> { require(params, 3); service.find(owner, params[1]).setRole(Role.valueOf(params[2].toUpperCase(Locale.ROOT))); sendInfo(owner, "Companion role updated."); }
 				case "inventory" -> { require(params, 2); service.find(owner, params[1]).inventory().forEach(line -> sendInfo(owner, line)); }
 				case "mail" -> {
