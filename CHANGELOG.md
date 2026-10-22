@@ -1,38 +1,72 @@
 # Aion Aetherfall 4.8 Repack — Changelog
 
-## Local preparation — Current downloader for new installations (22 October 2026)
+## Development updates — Companions, PvP and client repairs (22 October 2026)
+
+These changes are available in the current `4.8` source and original development
+installation. They are recorded separately from the published 0.94 repack below;
+pushing source does not update an installed repack or publish a new game release.
+
+### Playerbots and combat
+
+- Added configurable faction PvP against enemy players, world bots and their pets, using native Aion combat rules. Companions assist actual party attacks or explicit orders and defend against aggression; simply selecting an enemy during an unrelated monster fight does not start PvP. Passive orders still prevent attacks.
+- Added independent bot trips through real open rifts, with normal entry restrictions, physical travel, saved rest periods and group members following their bot leader. Bots continue ordinary world activity between trips.
+- Added faction-correct homeland placement and shared-map camp selection. World bots appear away from human players and opposing camps instead of being moved into the wrong homeland.
+- Added `.bot pull` and `.bot mark kill|cc|clear`: a tank tags a selected monster and brings it back while the party waits; kill marks focus an engaged target, and crowd-control marks are held with sleep, paralysis or fear while companions avoid damaging them. Tanks can gather loose enemies with safe area-threat skills even when ordinary area attacks are off.
+- Added class-specific skill priorities for Ranger, Gunner, Songweaver and Aethertech, including available follow-ups, useful debuffs, periodic damage, close-range control and recovery. Learned skills, equipment, cooldowns and native casting checks remain authoritative.
+- Repaired bot-owned spirit following, waypoint completion and return-to-master behavior during combat, quests and travel. Spirits beyond the normal distance limit are released; human-controlled spirits retain their existing behavior.
+
+### Movement and world activity
+
+- Improved formation spacing on stairs and slopes so companions use reachable ground beside the owner. Descending stairs no longer causes an ordinary walking step to be mistaken for a fall.
+- World-bot parties now gather behind their bot leader without inheriting human-companion catch-up speed or crowding into the same formation slot.
+- Navigation learns blocked terrain spots, avoids repeatedly failed destinations and checks already loaded navigation meshes before expensive ground probes. Native collision and hazard checks still govern actual movement.
+- Reduced repeated quest-material and travel-destination calculations, and added optional route diagnostics to help locate remaining terrain problems.
+
+### Client, quests and server repairs
+
+- Corrected camera jumps and reversed movement at the start of a drag, including repeated drags with the native UI cursor. Corrected, upstream and disabled camera-fix modes remain available.
+- Disabled ReShade's screenshot shortcut so Print Screen remains available to the game's normal screenshot behavior.
+- Improved the Player Companions window's fit at different UI scales and reduced repeated resize work. Restored the shared Wardrobe/interface timer after world transitions so its updates can resume reliably.
+- Quest acceptance now closes the dialog correctly after the native quest-capacity refusal instead of treating the acceptance action as a page number. The normal quest limit and refusal message remain in place.
+- Reduced Central Market database contention and repeated catalog scans, and separated web-window requests from shared gameplay workers. Account-window artwork can be cached, and cancelled browser downloads no longer appear as server errors.
+- Fixed camp raiders stopping after their first movement step and prevented movement requests for NPCs that have already despawned.
+
+Normal builds and focused offline checks are recorded for these changes. Stair
+following and the camera correction have owner confirmation; broader PvP, rift,
+combat, spirit, quest and performance acceptance remains in-game testing.
+
+## Current downloader for new installations (published with 0.94; verified 22 October 2026)
 
 - Each update now prepares a complete downloader ZIP with the current Setup,
   mirror list, extraction/download tools and clean portable settings. New users
   can receive the MEGA-to-Google Drive repair before downloading the base game.
 - Publish Update includes this ZIP and changes the public download links to
   follow the latest release. The large 0.86 base archive remains compatible.
-- Prepared locally; these download-entry changes are not published yet.
+- The complete downloader ZIP is published with 0.94 and advertised by the public update channel. New installations can use the current kit without replacing the compatible 0.86 base archive.
 
-## Local preparation — Setup download mirror fallback (21 October 2026)
+## Setup download mirror fallback (21 October 2026)
 
 - Standalone Setup now loads the standard mirror list when no mirror URL was
   saved, allowing Google Drive to take over when MEGA refuses a download.
 - The original base archive has both mirrors built in if mirror metadata cannot
   be loaded. Existing custom mirror settings remain supported.
-- Setup build 0.90.1021.1 is installed locally and included in the prepared
-  cumulative patch. Not published.
+- Initially prepared as Setup build 0.90.1021.1; the published 0.94 release
+  includes the later Setup build 0.90.1022.1 with this fallback retained.
 
-## Local preparation — Hub automatic updates (18 October 2026)
+## Hub automatic updates (18 October 2026)
 
 - Update now uses the saved online channel, including the client's update
   settings, or the standard Aetherfall channel when none is configured.
 - Download and apply updates automatically; the file picker is reserved for
   the separate manual patch action. Connection errors remain visible.
-- Installed locally and included in the prepared patch; not published.
+- Included in the published cumulative updates through 0.94.
 
-## Local preparation — Aetherfall Hub icon (18 October 2026)
+## Aetherfall Hub icon (18 October 2026)
 
 - Added an original generated Aetherfall emblem to the Hub/Setup executable,
   including Explorer and taskbar icon sizes. The aether crystal, contrasting
   wings and fractured-world base represent the repack's world and factions.
-- Applied locally to the original Hub and repack copies; matching patch prepared.
-  This does not publish a new game release or change gameplay.
+- Included in the published Hub/Setup. The icon does not change gameplay.
 
 This history includes the full initial-release changelog for 0.86, followed by
 the updates through 0.94, in version order. Earlier development work is recorded under 0.86,
@@ -49,11 +83,11 @@ because that is the first public repack in which those changes were bundled.
 | [0.92](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.92) | Party UI, legion invitations, bot lifts and Setup update fixes | Published cumulative patch; includes 0.91 |
 | [0.92.1](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.92.1) | Missing broker sellers in fresh and existing repacks | Published cumulative patch |
 | [0.92.2](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.92.2) | Revert the pet interaction changes introduced in 0.91 | Published cumulative patch |
-| 0.92.3 | Setup server shutdown and leftover console repair | Local cumulative patch prepared; not yet published |
-| 0.93 | Bot navigation, companion spacing and Profile Stigma controls | Local cumulative patch prepared; not yet published |
-| 0.93.1 | Companion follow, lifts, quest turn-in and memory controls | Local cumulative patch prepared; not yet published |
-| 0.93.2 | Companion pursuit, teleport statue timing, Protectors Hall and Zirius | Local cumulative patch prepared; not yet published |
-| 0.94 | Account Fame, native companion/account windows, Interface and world textures | Local preparation; not published |
+| 0.92.3 | Setup server shutdown and leftover console repair | Included in 0.93; no separate release download |
+| [0.93](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.93) | Bot navigation, companion spacing and Profile Stigma controls | Published cumulative patch; includes 0.92.3 |
+| [0.93.1](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.93.1) | Companion follow, lifts, quest turn-in and memory controls | Published cumulative patch |
+| [0.93.2](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.93.2) | Companion pursuit, teleport statue timing, Protectors Hall and Zirius | Published cumulative patch |
+| [0.94](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.94) | Account Fame, native companion/account windows, Interface and world textures | Published cumulative patch, Setup and current downloader ZIP |
 
 ## 0.86 — Initial release: full changelog
 
@@ -274,7 +308,7 @@ Published on GitHub and available through Setup’s Update Repack button. Pet in
 - Kept normal Java shutdown and saving, the existing shutdown wait and the running database. No force termination was added.
 - Updated Setup and the repack Hub to build 0.90.1018.2. The cumulative repack update retains the pet rollback and earlier repairs.
 
-Prepared locally; publication through Setup remains separate. Stopping all three running servers still needs user confirmation with the updated Setup.
+Included in the published 0.93 cumulative patch; there is no separate 0.92.3 release download. Stopping all three running servers still needs user confirmation with the updated Setup.
 
 ## 0.93 — Navigation, companions and Stigma controls
 
@@ -292,7 +326,7 @@ Prepared locally; publication through Setup remains separate. Stopping all three
 - Carried the original's matching client signing, native companion controls and graphics restore resources into the repack, with portable ownership paths.
 - Retained Setup's server shutdown repair and the earlier broker and population startup repairs.
 
-Applied from the current original development installation to the repack. The cumulative 0.93 patch is prepared locally; publication remains separate. Existing accounts, characters, database contents and local connection settings are retained. Normal builder outputs and copied files are verified; in-game movement, Stigma controls, quest choices and CPU acceptance remain the player's checks.
+Applied from the original development installation to the repack and published as the cumulative 0.93 patch. Existing accounts, characters, database contents and local connection settings are retained. Normal builder outputs and copied files are verified; in-game movement, Stigma controls, quest choices and CPU acceptance remain the player's checks.
 
 ## 0.93.1 — Companion movement and quest repairs
 
@@ -307,7 +341,7 @@ Applied from the current original development installation to the repack. The cu
 - Added configurable GameServer heap settings based on available RAM, plus navigation memory and per-map route-cache controls. Existing explicit owner limits remain available.
 - Retained the current Hub automatic-update action and generated icon, Stigma controls, pet rollback and earlier cumulative repairs.
 
-Copied from the current original's normal build into the full and installed test repacks. Database contents, characters, credentials and local connection settings are retained. The cumulative patch is prepared locally; publication remains separate. Actual movement, lifts, quest rewards and CPU/RAM behavior still need in-game confirmation.
+Copied from the original's normal build into the full and installed test repacks and published as the cumulative 0.93.1 patch. Database contents, characters, credentials and local connection settings are retained. Actual movement, lifts, quest rewards and CPU/RAM behavior still need in-game confirmation.
 
 ## 0.93.2 — Companion pursuit, teleport statues and Cursed Zirius
 
@@ -319,7 +353,7 @@ Copied from the current original's normal build into the full and installed test
 - Fixed the Cursed Zirius quest handler failing to load during server startup.
 - Retained the earlier companion, Stigma, pet rollback, broker, graphics recovery and Setup fixes.
 
-Applied from recorded original normal builder outputs and the matching native client cohort. Existing database contents, accounts, characters and local settings are retained. Prepared locally; publication remains separate. Companion movement, teleport timing/routes and Zirius quest acceptance remain in-game checks.
+Applied from recorded original normal builder outputs and the matching native client cohort and published as the cumulative 0.93.2 patch. Existing database contents, accounts, characters and local settings are retained. Companion movement, teleport timing/routes and Zirius quest acceptance remain in-game checks.
 
 ## Release-tool changes made alongside these updates
 
@@ -345,7 +379,7 @@ These are maintainer workflow changes, separate from the player patch contents.
 - Prepared a separate optional 2x HD world-texture pack for Poeta/Ishalgen, Verteron/Altgard, Eltnen/Morheim, Sanctum/Pandaemonium, Heiron/Beluslan, Theobomos/Brusthonin and Inggison/Gelkmaros. The core update uses standard textures and retains the other graphics improvements and engine quality defaults.
 - Added **Mods & tools** inside Aetherfall Hub, with the optional HD pack download, ZIP installation and an HD/standard texture switch. Shared graphics files and the selected profile are checked before launch. Added a Make Admin account control using the native Admin rank 9, replacing the old standalone scripts. Development rollback history is excluded from both downloads; active native graphics recovery remains included.
 - Repaired fresh database verification to recognize the six reserved broker sellers while still requiring no player accounts or personal characters. Existing databases are preserved.
-- Includes the locally prepared Setup mirror fallback repair. This update is prepared locally; publication and in-game acceptance remain separate.
+- Includes the Setup mirror fallback repair. Published as 0.94 with the cumulative patch, Setup 0.90.1022.1 and the current complete downloader ZIP. Publication does not establish in-game acceptance of every included feature.
 
 ## Updating an existing repack
 
