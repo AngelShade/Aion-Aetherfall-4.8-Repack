@@ -15,6 +15,10 @@ const wchar_t* order(const std::string& name) {
     if(name=="distance_close")return L".bot distance 2";
     if(name=="distance_normal")return L".bot distance 4";
     if(name=="distance_far")return L".bot distance 8";
+    if(name=="pull")return L".bot pull";
+    if(name=="mark_kill")return L".bot mark kill";
+    if(name=="mark_cc")return L".bot mark cc";
+    if(name=="mark_clear")return L".bot mark clear";
     return nullptr;
 }
 struct Saved { int x=220,y=180,mode=0; } saved,observed;

@@ -20,7 +20,7 @@ import com.aionemu.gameserver.services.playerbot.PlayerBotRules.Role;
 
 /** Only dedicated roster characters can enter the automatic maintenance path. */
 public final class PlayerBotTemporary {
- private static final class State {int level=-1,tier=-1;Role role;long next;final Set<Integer> created=new HashSet<>();}
+ private static final class State {int level=-1,tier=-1;Role role;String build;long next;final Set<Integer> created=new HashSet<>();}
  private static final Map<Integer,State> STATES=new ConcurrentHashMap<>();
  private static final ThreadLocal<Integer> BUILDING=new ThreadLocal<>();
  private static final List<ItemSlot> GEAR=List.of(ItemSlot.MAIN_HAND,ItemSlot.SUB_HAND,ItemSlot.TORSO,ItemSlot.SHOULDER,ItemSlot.GLOVES,ItemSlot.PANTS,ItemSlot.BOOTS,ItemSlot.HELMET,ItemSlot.NECKLACE,ItemSlot.WAIST,ItemSlot.EARRINGS_LEFT,ItemSlot.EARRINGS_RIGHT,ItemSlot.RING_LEFT,ItemSlot.RING_RIGHT);
@@ -133,8 +133,10 @@ public final class PlayerBotTemporary {
  }
  private static void stigmas(Player player,Role role,State state){
   List<ItemSlot> slots=new ArrayList<>();slots.addAll(List.of(ItemSlot.STIGMA1,ItemSlot.STIGMA2,ItemSlot.STIGMA3).subList(0,regularSlots(player.getLevel())));slots.addAll(List.of(ItemSlot.ADV_STIGMA1,ItemSlot.ADV_STIGMA2,ItemSlot.ADV_STIGMA3).subList(0,advancedSlots(player.getLevel())));
-  Set<String> used=new HashSet<>();var choices=DataManager.ITEM_DATA.getItemTemplates().stream().filter(t->t.isStigma() && t.getStigma().isChargeable() && t.isClassSpecific(player.getPlayerClass()) && t.getRequiredLevel(player.getPlayerClass())>=0 && t.getRequiredLevel(player.getPlayerClass())<=player.getLevel() && (t.getRace()==Race.PC_ALL || t.getRace()==player.getRace()) && stigmaScore(player,role,t)>0)
-   .sorted(Comparator.<ItemTemplate>comparingDouble(t->stigmaScore(player,role,t)).reversed().thenComparingInt(ItemTemplate::getTemplateId)).toList();
+  // A chosen build's Stigmas come first, in its order; remaining slots use the automatic role scoring.
+  var build=PlayerBotGearPolicy.stigmaBuild(player);state.build=build==null ? null : build.key();
+  Set<String> used=new HashSet<>();var choices=DataManager.ITEM_DATA.getItemTemplates().stream().filter(t->t.isStigma() && !t.isTestItem() && t.getStigma().isChargeable() && t.isClassSpecific(player.getPlayerClass()) && t.getRequiredLevel(player.getPlayerClass())>=0 && t.getRequiredLevel(player.getPlayerClass())<=player.getLevel() && (t.getRace()==Race.PC_ALL || t.getRace()==player.getRace()) && (stigmaScore(player,role,t)>0 || PlayerBotStigmaBuilds.priority(build,t)!=Integer.MAX_VALUE))
+   .sorted(Comparator.<ItemTemplate>comparingInt(t->PlayerBotStigmaBuilds.priority(build,t)).thenComparing(Comparator.<ItemTemplate>comparingDouble(t->stigmaScore(player,role,t)).reversed()).thenComparingInt(ItemTemplate::getTemplateId)).toList();
   Map<Long,ItemTemplate> plan=new LinkedHashMap<>();
   for(var slot:slots)for(var t:choices)if((t.getItemSlot() & slot.getSlotIdMask())!=0 && Arrays.stream(t.getStigma().getGainSkillGroups()).noneMatch(used::contains)){plan.put(slot.getSlotIdMask(),t);used.addAll(Arrays.asList(t.getStigma().getGainSkillGroups()));break;}
   for(var old:List.copyOf(player.getEquipment().getEquippedItemsAllStigma())){var expected=plan.get(old.getEquipmentSlot());if(expected==null || expected.getTemplateId()!=old.getItemId())player.getEquipment().unEquipItem(old.getObjectId(),false);}
@@ -151,7 +153,7 @@ public final class PlayerBotTemporary {
   if(!session.generated())return;
   Player bot=session.bot(),owner=session.owner();State state=STATES.computeIfAbsent(bot.getObjectId(),id->new State());long now=System.currentTimeMillis();if(now<state.next)return;state.next=now+2000;
   if(bot.isDead() || owner.isDead() || bot.isCasting() || bot.isLooting() || bot.getController().isInCombat() || owner.getController().isInCombat())return;
-  int level=Math.min(65,Math.max(1,owner.getLevel()));boolean changed=state.level!=level || bot.getLevel()!=level || state.role!=session.combatRole();boolean updateGear=gear && (state.tier!=tier(level) || state.role!=session.combatRole());
+  int level=Math.min(65,Math.max(1,owner.getLevel()));var build=PlayerBotGearPolicy.stigmaBuild(bot);boolean changed=state.level!=level || bot.getLevel()!=level || state.role!=session.combatRole() || !Objects.equals(state.build,build==null ? null : build.key());boolean updateGear=gear && (state.tier!=tier(level) || state.role!=session.combatRole());
   if(!changed && !updateGear)return;
   if(bot.getPlayerClass().isStartingClass() && level>=10){bot.getCommonData().setPlayerClass(switch(bot.getPlayerClass()){case WARRIOR->session.combatRole()==Role.TANK ? PlayerClass.TEMPLAR : PlayerClass.GLADIATOR;case SCOUT->session.combatRole()==Role.RANGED ? PlayerClass.RANGER : PlayerClass.ASSASSIN;case MAGE->PlayerClass.SORCERER;case PRIEST->session.combatRole()==Role.SUPPORT ? PlayerClass.CHANTER : PlayerClass.CLERIC;case ENGINEER->session.combatRole()==Role.TANK || session.combatRole()==Role.MELEE ? PlayerClass.RIDER : PlayerClass.GUNNER;case ARTIST->PlayerClass.BARD;default->bot.getPlayerClass();});bot.getCommonData().setDaeva(true);updateGear=gear;}
   double hp=bot.getLifeStats().getCurrentHp()/(double)Math.max(1,bot.getLifeStats().getMaxHp()),mp=bot.getLifeStats().getCurrentMp()/(double)Math.max(1,bot.getLifeStats().getMaxMp());

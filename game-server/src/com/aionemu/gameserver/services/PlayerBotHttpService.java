@@ -153,6 +153,7 @@ public final class PlayerBotHttpService {
 					}
 				}
 			}
+			case "stigmabuild" -> { return PlayerBotGearPolicy.configureBuild(service.find(owner, name), values.getOrDefault("build", "")); }
 			case "role" -> service.find(owner, name).setRole(Role.valueOf(values.getOrDefault("role", "").toUpperCase(Locale.ROOT)));
 			case "mission" -> service.find(owner, name).mission(Integer.parseInt(values.getOrDefault("quest", "0")));
 			case "equip" -> service.find(owner, name).equip(Integer.parseInt(values.getOrDefault("item", "0")), com.aionemu.gameserver.model.items.ItemSlot.valueOf(values.getOrDefault("slot", "")));

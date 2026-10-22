@@ -79,6 +79,10 @@ public class ItemTemplate extends VisibleObjectTemplate {
 	private Stigma stigma;
 	@XmlAttribute(name = "name")
 	private String name;
+	// Client development name; only kept as the flag below.
+	@XmlAttribute(name = "cName")
+	private String clientName;
+	private boolean testItem;
 	@XmlJavaTypeAdapter(SpaceSeparatedBytesAdapter.class)
 	@XmlAttribute(name = "restrict")
 	private byte[] levelRestrictions = DEFAULT_LEVEL_RESTRICTION;
@@ -146,6 +150,11 @@ public class ItemTemplate extends VisibleObjectTemplate {
 	}
 
 	void afterUnmarshal(Unmarshaller u, Object parent) {
+		if (clientName != null) {
+			String c = clientName.toLowerCase();
+			testItem = c.startsWith("test") || c.contains("_test") || c.contains("test_");
+			clientName = null;
+		}
 		if (weaponStats == null)
 			weaponStats = emptyWeaponStats;
 		if (useLimits == null)
@@ -306,6 +315,11 @@ public class ItemTemplate extends VisibleObjectTemplate {
 
 	public GodstoneInfo getGodstoneInfo() {
 		return godstoneInfo;
+	}
+
+	/** Developer test or prop item (client name test_..., ..._test_...), never part of normal play. */
+	public boolean isTestItem() {
+		return testItem;
 	}
 
 	@Override

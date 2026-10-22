@@ -36,6 +36,7 @@ public final class PlayerBotMetadata {
    } else if(section.equals("gear")) {
     PlayerBotGearPolicy.parse(map.get("mode"),map.get("profile"),map.get("quality"),map.get("level"),map.get("threshold"),map.get("weapon"),map.get("vendors"),map.get("rolls"));
     ids(map.getOrDefault("generated",""));for(String slot:map.getOrDefault("starterSlots","").split(","))if(!slot.isBlank() && Long.parseLong(slot)<=0)throw new IllegalArgumentException("Invalid starter slot");
+    if(!map.getOrDefault("build","AUTO").matches("AUTO|[a-z0-9_]{1,24}"))throw new IllegalArgumentException("Invalid Stigma build");
    } else if(section.equals("preferences")) {
     PlayerBotRules.Role.valueOf(map.get("role"));
     for(String flag:List.of("area","supplies","gear","loot","questing"))if(map.containsKey(flag) && !Set.of("true","false").contains(map.get(flag)))throw new IllegalArgumentException("Invalid preference flag");

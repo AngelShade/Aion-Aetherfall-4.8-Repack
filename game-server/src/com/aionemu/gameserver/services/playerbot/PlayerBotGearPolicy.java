@@ -51,6 +51,7 @@ public final class PlayerBotGearPolicy {
  static final class State {
   final PlayerBotSession session;
   Settings settings=DEFAULT;
+  String build=PlayerBotStigmaBuilds.AUTO;
   final Set<Integer> generated=new HashSet<>();
   final Set<Long> starterSlots=new HashSet<>();
   long next;
@@ -71,6 +72,7 @@ public final class PlayerBotGearPolicy {
     settings=parse(p.getProperty("mode"),p.getProperty("profile"),p.getProperty("quality"),p.getProperty("level"),p.getProperty("threshold"),p.getProperty("weapon"),p.getProperty("vendors"),p.getProperty("rolls"));
     for(String id:p.getProperty("generated","").split(","))if(!id.isBlank())generated.add(Integer.parseInt(id));
     for(String slot:p.getProperty("starterSlots","").split(","))if(!slot.isBlank())starterSlots.add(Long.parseLong(slot));
+    build=p.getProperty("build",PlayerBotStigmaBuilds.AUTO);
     }
    }catch(Exception error){throw new IllegalStateException("Cannot load companion equipment settings",error);}
   }
@@ -79,7 +81,7 @@ public final class PlayerBotGearPolicy {
    if(session.world())return;
    Properties p=new Properties();p.setProperty("account",Integer.toString(session.owner().getAccount().getId()));p.setProperty("character",Integer.toString(session.bot().getObjectId()));
    Settings s=settings;p.setProperty("mode",s.mode.name());p.setProperty("profile",s.profile.name());p.setProperty("quality",s.quality.name());p.setProperty("level",Integer.toString(s.level));
-   p.setProperty("threshold",Double.toString(s.threshold));p.setProperty("weapon",s.weapon);p.setProperty("vendors",Boolean.toString(s.vendors));p.setProperty("rolls",s.rolls.name());
+   p.setProperty("build",build);p.setProperty("threshold",Double.toString(s.threshold));p.setProperty("weapon",s.weapon);p.setProperty("vendors",Boolean.toString(s.vendors));p.setProperty("rolls",s.rolls.name());
    p.setProperty("generated",generated.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
    p.setProperty("starterSlots",starterSlots.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
    try {PlayerBotMetadata.save(session.owner().getAccount().getId(),session.bot().getObjectId(),"gear",p);}
@@ -106,10 +108,28 @@ public final class PlayerBotGearPolicy {
    PlayerBotQuestSync.notice(session.bot(),"Equipment policy: "+selected.mode+", "+selected.profile+", "+selected.weapon+". Generated gear is limited to "+selected.quality+" and level "+targetLevel(session,selected)+"; gameplay loot is retained.","gear-policy",0);
   }
  }
+ /** The Stigma build chosen for this Temporary Bot, or null for automatic Stigmas (also when its class has no such build). */
+ static PlayerBotStigmaBuilds.Build stigmaBuild(Player bot){State s=STATES.get(bot.getObjectId());return s==null || s.build.equals(PlayerBotStigmaBuilds.AUTO) ? null : PlayerBotStigmaBuilds.find(bot.getPlayerClass(),s.build);}
+ public static String configureBuild(PlayerBotSession session,String key) {
+  if(!session.generated())throw new IllegalArgumentException("Stigma builds apply only to Temporary Bots. Your alt's Stigmas remain yours.");
+  var build=PlayerBotStigmaBuilds.find(session.bot().getPlayerClass(),key);
+  if(!key.equals(PlayerBotStigmaBuilds.AUTO) && build==null)throw new IllegalArgumentException("Choose a Stigma build for this class.");
+  synchronized(session) {
+   if(session.closing())throw new IllegalArgumentException("Companion is saving/dismissing.");
+   State s=state(session);String before=s.build;s.build=key;
+   try{s.save();}catch(RuntimeException error){s.build=before;throw error;}
+  }
+  return session.bot().getName()+(build==null ? " will choose Stigmas automatically for its role." : " will use the "+build.name()+" Stigma build out of combat.");
+ }
  static Map<String,Object> snapshot(PlayerBotSession session) {
   Settings s=state(session).settings;
-  return Map.of("gearMode",s.mode.name(),"gearProfile",s.profile.name(),"gearQuality",s.quality.name(),"gearLevel",s.level,"gearThreshold",s.threshold,
-   "gearWeapon",s.weapon,"gearVendors",s.vendors,"gearRolls",s.rolls.name(),"gearTargetLevel",targetLevel(session,s));
+  var builds=new ArrayList<Map<String,Object>>();
+  for(var b:PlayerBotStigmaBuilds.forClass(session.bot().getPlayerClass()))
+   builds.add(Map.of("key",b.key(),"name",b.name(),"text",b.text(),"stigmas",b.groups().stream().map(PlayerBotStigmaBuilds::groupName).toList()));
+  var result=new HashMap<String,Object>();result.put("stigmaBuild",state(session).build);result.put("stigmaBuilds",builds);
+  result.putAll(Map.of("gearMode",s.mode.name(),"gearProfile",s.profile.name(),"gearQuality",s.quality.name(),"gearLevel",s.level,"gearThreshold",s.threshold,
+   "gearWeapon",s.weapon,"gearVendors",s.vendors,"gearRolls",s.rolls.name(),"gearTargetLevel",targetLevel(session,s)));
+  return result;
  }
  static int targetLevel(PlayerBotSession session,Settings s){int limit=Math.min(session.bot().getLevel(),session.owner().getLevel());return s.level==0 ? limit : Math.min(limit,s.level);}
  static Role role(Player bot,Role fallback) {
@@ -120,7 +140,7 @@ public final class PlayerBotGearPolicy {
  }
  static boolean improvement(double score,double current,double ratio){return Double.isFinite(score) && Double.isFinite(current) && Double.isFinite(ratio) && ratio>=1 && score-current>1 && (current<=0 || score+1e-9>=current*ratio);}
  static boolean eligible(Player bot,ItemTemplate t) {
-  if(t==null || PlayerBotCombatGear.skinOnly(t) || t.getItemSlot()==0 || ItemSlot.isStigma(t.getItemSlot()) || !(t.isWeapon() || t.isArmor()) || !t.isClassSpecific(bot.getPlayerClass()))return false;
+  if(t==null || t.isTestItem() || PlayerBotCombatGear.skinOnly(t) || t.getItemSlot()==0 || ItemSlot.isStigma(t.getItemSlot()) || !(t.isWeapon() || t.isArmor()) || !t.isClassSpecific(bot.getPlayerClass()))return false;
   int required=t.getRequiredLevel(bot.getPlayerClass()),max=t.getMaxLevelRestrict(bot.getPlayerClass());
   if(required<0 || required>bot.getLevel() || max>0 && bot.getLevel()>max || t.getRace()!=Race.PC_ALL && t.getRace()!=bot.getRace())return false;
   var limits=t.getUseLimits();

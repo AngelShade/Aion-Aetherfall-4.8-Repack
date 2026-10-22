@@ -9,12 +9,12 @@ function PlayerBotBar_Layout()
     local scale=GetUIScale() or 1
     -- Child frames start at the native dialog's content origin, which already
     -- includes its title and skin margins. Do not add the title a second time.
-    PlayerBotBar:SetRect(x/scale,y/scale,B.mode==2 and 44 or 400,B.mode==2 and 52 or (B.mode==1 and 204 or 70))
+    PlayerBotBar:SetRect(x/scale,y/scale,B.mode==2 and 44 or 400,B.mode==2 and 52 or (B.mode==1 and 240 or 70))
     PlayerBotBar:SetText(B.mode==2 and '' or 'Companions')
     PlayerBotBar:SetTitleHeight(B.mode==2 and 10 or 22)
     visible('Icon',B.mode==2)
     for _,name in ipairs({'Attack','Follow','Stay','Summon','More','Hide'}) do visible(name,B.mode~=2) end
-    for _,name in ipairs({'Guard','Passive','Manage','Circle','Box','Line','Spread','Close','Normal','Far','Hint'}) do visible(name,B.mode==1) end
+    for _,name in ipairs({'Guard','Passive','Manage','Circle','Box','Line','Spread','Close','Normal','Far','Pull','Kill','CC','Clear','Hint'}) do visible(name,B.mode==1) end
     widget('More'):SetText(B.mode==1 and '-' or '+')
     widget('More'):SetTooltip(B.mode==1 and 'Collapse party commands' or 'Expand party commands')
     if B.loaded then widget('Mode'):SetText(tostring(B.mode)) end
@@ -25,7 +25,7 @@ function PlayerBotBar_Click(name)
     if name=='PlayerBotBarIcon' then B.mode=B.previous or 0;PlayerBotBar_Layout();return end
     if name=='PlayerBotBarMore' then B.mode=B.mode==1 and 0 or 1;PlayerBotBar_Layout();return end
     if name=='PlayerBotBarManage' then PrivateCompanions_Open();return end
-    local command=({PlayerBotBarAttack='attack',PlayerBotBarFollow='follow',PlayerBotBarStay='stay',PlayerBotBarSummon='summon',PlayerBotBarGuard='guard',PlayerBotBarPassive='passive',PlayerBotBarCircle='formation_circle',PlayerBotBarBox='formation_box',PlayerBotBarLine='formation_line',PlayerBotBarSpread='formation_spread',PlayerBotBarClose='distance_close',PlayerBotBarNormal='distance_normal',PlayerBotBarFar='distance_far'})[name]
+    local command=({PlayerBotBarAttack='attack',PlayerBotBarFollow='follow',PlayerBotBarStay='stay',PlayerBotBarSummon='summon',PlayerBotBarGuard='guard',PlayerBotBarPassive='passive',PlayerBotBarCircle='formation_circle',PlayerBotBarBox='formation_box',PlayerBotBarLine='formation_line',PlayerBotBarSpread='formation_spread',PlayerBotBarClose='distance_close',PlayerBotBarNormal='distance_normal',PlayerBotBarFar='distance_far',PlayerBotBarPull='pull',PlayerBotBarKill='mark_kill',PlayerBotBarCC='mark_cc',PlayerBotBarClear='mark_clear'})[name]
     if command and B.ready and widget('Tx'):GetText()=='' then widget('Tx'):SetText(command) end
 end
 function PlayerBotBar_Open()
@@ -42,7 +42,7 @@ function PlayerBotBar_OnEvent(event)
             if not B.loaded then B.loaded=true;B.mode=tonumber(mode);PlayerBotBar_Layout() end
             B.ready=ready=='1'
         else B.ready=false end
-        for _,name in ipairs({'Attack','Follow','Stay','Summon','Guard','Passive','Circle','Box','Line','Spread','Close','Normal','Far'}) do widget(name):Enable(B.ready) end
+        for _,name in ipairs({'Attack','Follow','Stay','Summon','Guard','Passive','Circle','Box','Line','Spread','Close','Normal','Far','Pull','Kill','CC','Clear'}) do widget(name):Enable(B.ready) end
         local result=widget('Rx'):GetText()
         if result~='' then widget('Rx'):SetText('');if result~='sent' then DEFAULT_CHAT_DIALOG:AddMessage(result,1,.7,.3) end end
         -- RelicCalc has one shared addon timer, already maintained by Wardrobe.
@@ -54,7 +54,7 @@ function PlayerBotBar_OnLoad()
     B.loaded=false;B.ready=false;widget('Mode'):SetText('');widget('Tx'):SetText('')
     PlayerBotBar:RegisterEvent('PLAYER_ENTERING_WORLD');PlayerBotBar:RegisterEvent('ADDON_TIMER')
     SlashCmdList['PLAYERBOTBAR']=PlayerBotBar_Open;SLASH_PLAYERBOTBAR1='/botbar'
-    for _,name in ipairs({'Attack','Follow','Stay','Summon','Guard','Passive','Circle','Box','Line','Spread','Close','Normal','Far'}) do widget(name):Enable(false) end
+    for _,name in ipairs({'Attack','Follow','Stay','Summon','Guard','Passive','Circle','Box','Line','Spread','Close','Normal','Far','Pull','Kill','CC','Clear'}) do widget(name):Enable(false) end
     PlayerBotBar:Hide();PlayerBotBar_Layout()
     widget('Icon'):SetTooltip('Show companion commands. Drag the top grip to move this icon.')
     widget('Hide'):SetTooltip('Hide commands in a movable icon')
@@ -72,4 +72,8 @@ function PlayerBotBar_OnLoad()
     widget('Normal'):SetTooltip('Set follow spacing to 4 m for all active private companions; keep attack spacing')
     widget('Far'):SetTooltip('Set follow spacing to 8 m for all active private companions; keep attack spacing')
     widget('Manage'):SetTooltip('Open the companion roster and individual settings')
+    widget('Pull'):SetTooltip('Your tank pulls your selected monster back to the party')
+    widget('Kill'):SetTooltip('Mark your selected monster: every companion focuses it')
+    widget('CC'):SetTooltip('Mark your selected monster for sleep, paralysis or fear; nobody hits it')
+    widget('Clear'):SetTooltip('Remove the kill and crowd-control marks')
 end

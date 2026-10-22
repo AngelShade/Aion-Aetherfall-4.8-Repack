@@ -26,7 +26,20 @@
 
   function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); }
 
-  function notice(text, error) { byId('notice').textContent = text; byId('notice').className = error ? 'error' : ''; }
+  function notice(text, error) { byId('notice').textContent = text; byId('notice').className = error ? 'error' : ''; document.querySelector('footer').className = error ? 'error' : ''; }
+  // Class medallion: class initials in a ring coloured by combat role (no role: a plain ring for human members).
+  // Client UI art served in memory by the native icon bridge (native-icon-bridge/prepare_ui_art.py); nothing is extracted.
+  var ART = '/market/companions/media/art/';
+  // The class's own emblem from the client in a ring coloured by combat role; initials if the image is missing.
+  function crest(playerClass, role) {
+    var words = label(playerClass).split(' '), letters = words.length > 1 ? words[0].charAt(0) + words[1].charAt(0) : words[0].substring(0, 2);
+    var ring = node('span', null, 'crest ' + (role ? 'role-' + String(role).toLowerCase() : 'human')), emblem = node('img');
+    emblem.alt = ''; emblem.src = ART + 'class-' + String(playerClass || '').toLowerCase() + '.png'; ring.title = label(playerClass);
+    emblem.onerror = function () { this.parentNode.appendChild(node('span', letters || '?', 'crest-letters')); this.style.display = 'none'; };
+    ring.appendChild(emblem); return ring;
+  }
+  // The Account window's Season Pass art, behind a shade, for the selected companion's framed header.
+  function headerArt(header) { var art = node('img', null, 'bot-art'); art.alt = ''; art.src = '/market/account/media/ascendant-dawn.png'; art.onerror = function () { this.style.display = 'none'; }; header.appendChild(art); header.appendChild(node('div', null, 'bot-shade')); }
 
   var sectionNames = {
     behavior: [['combat','Combat'],['automation','Quest automation'],['spacing','Spacing']],
@@ -190,21 +203,49 @@
     box.appendChild(grid); box.appendChild(details); parent.appendChild(box); return box;
   }
 
+  // Character-panel layout of the native player info dialog: weapons and wings on top, armour left, accessories right.
+  var DOLL = [['MAIN_HAND','rhand',0,0],['POWER_SHARD_RIGHT','battery',62,5],['WINGS','wing',134,0],['POWER_SHARD_LEFT','battery',215,5],['SUB_HAND','lhand',268,0],
+    ['HELMET','helmet',0,62],['EARRINGS_LEFT','learring',0,110],['TORSO','armor',0,158],['PANTS','pants',0,206],['RING_LEFT','lring',0,254],['BOOTS','shoes',0,302],
+    ['NECKLACE','amulet',268,62],['EARRINGS_RIGHT','rearring',268,110],['SHOULDER','shoulder',268,158],['GLOVES','glove',268,206],['RING_RIGHT','rring',268,254],['WAIST','belt',268,302],
+    ['MAIN_OFF_HAND','switch',62,358],['PLUME','feather',138,362],['SUB_OFF_HAND','switch',206,358]];
   function renderProfile(parent,bot,items) {
-    var layout = node('div',null,'character-profile'), slots = node('div',null,'profile-slots'), summary = node('div',null,'profile-identity');
-    summary.appendChild(node('h3',bot.name)); summary.appendChild(node('p','Level ' + bot.level + ' ' + label(bot.playerClass)));
-    summary.appendChild(node('p',label(bot.role) + ' \u00b7 Health ' + bot.health + '% \u00b7 Mana ' + bot.mana + '%','hint'));
-    var names = ['HELMET','NECKLACE','SHOULDER','EARRINGS_LEFT','TORSO','EARRINGS_RIGHT','GLOVES','RING_LEFT','PANTS','RING_RIGHT','BOOTS','WAIST','MAIN_HAND','SUB_HAND','WINGS','PLUME','MAIN_OFF_HAND','SUB_OFF_HAND','POWER_SHARD_RIGHT','POWER_SHARD_LEFT'];
-    for (var n = 0; n < names.length; n++) {
-      var slot = node('div',null,'profile-slot'), present = null;
-      for (var i = 0; i < items.length; i++) if ((items[i].equippedSlots || []).indexOf(names[n]) !== -1) present = items[i];
-      slot.appendChild(node('span',label(names[n]),'slot-label'));
-      if (present) { var icon = itemIcon(present); slot.appendChild(icon); slot.appendChild(node('span',present.name,'slot-name')); }
-      else slot.appendChild(node('span','Empty','slot-empty'));
-      slots.appendChild(slot);
+    var layout = node('div',null,'character-profile'), doll = node('div',null,'paperdoll'), portrait = node('div',null,'portrait'), details = node('div',null,'doll-details');
+    var choiceKey = bot.id + '|equipped', selected = itemSelections[choiceKey], chosen = null;
+    portrait.appendChild(crest(bot.playerClass, bot.role)); portrait.appendChild(node('strong',bot.name));
+    portrait.appendChild(node('span','Level ' + bot.level + ' ' + label(bot.playerClass),'portrait-class'));
+    portrait.appendChild(node('span',label(bot.role) + ' · ' + items.length + ' equipped','portrait-role')); doll.appendChild(portrait);
+    for (var n = 0; n < DOLL.length; n++) (function (slotName, art, x, y) {
+      var present = null, small = art === 'battery' || art === 'feather';
+      for (var i = 0; i < items.length; i++) if ((items[i].equippedSlots || []).indexOf(slotName) !== -1) present = items[i];
+      var slot = node('div',null,'doll-slot' + (small ? ' small' : '') + (present ? ' filled' : '')); slot.style.left = x + 'px'; slot.style.top = y + 'px';
+      slot.title = label(slotName);
+      if (!present) { var empty = node('img',null,'doll-empty'); empty.alt = ''; empty.src = ART + 'slot-' + art + '.png'; slot.appendChild(empty); doll.appendChild(slot); return; }
+      if (String(present.id) === String(selected)) { chosen = present; slot.className += ' selected'; }
+      slot.appendChild(itemIcon(present,'doll-icon'));
+      var pick = node('button',null,'doll-pick'); pick.type = 'button'; pick.setAttribute('data-local-control','true'); pick.setAttribute('data-item-id',present.id);
+      pick.setAttribute('data-focus-key','doll|' + bot.id + '|' + slotName); pick.setAttribute('aria-label',label(slotName) + ': ' + present.name);
+      if (nativeItemLink(present)) pick.title = nativeItemLink(present);
+      pick.onclick = function () { captureDrafts(); itemSelections[choiceKey] = present.id; renderSelection(); };
+      slot.appendChild(pick); doll.appendChild(slot);
+    }(DOLL[n][0], DOLL[n][1], DOLL[n][2], DOLL[n][3]));
+    if (!chosen && items.length) { chosen = items[0]; itemSelections[choiceKey] = chosen.id; var first = doll.querySelector('[data-item-id="' + chosen.id + '"]'); if (first) first.parentNode.className += ' selected'; }
+    if (chosen) renderItem(details,bot,chosen);
+    else details.appendChild(node('p','Nothing equipped yet. Equip items from the Inventory section.','empty-state'));
+    layout.appendChild(doll); layout.appendChild(details); parent.appendChild(layout);
+  }
+
+  var ORDERS = [['attack','Attack','Attack your selected target',{action:'attack',name:'all'}],['follow','Follow','Follow you',{action:'order',name:'all',order:'FOLLOW'}],
+    ['stay','Stay','Hold position',{action:'order',name:'all',order:'STAY'}],['guard','Guard','Guard this position',{action:'order',name:'all',order:'GUARD'}],
+    ['passive','Passive','Stop attacking and follow without casting',{action:'order',name:'all',order:'PASSIVE'}],['summon','Summon','Summon every companion to you (out of combat)',{action:'summon',name:'all'}],
+    ['pull','Pull','The tank pulls your selected target back to the party',{action:'pull'}],['mark-kill','Kill','Mark your selected target to kill first',{action:'mark',mark:'kill'}],
+    ['mark-cc','Crowd control','Mark your selected target for sleep, paralysis or fear; nobody hits it',{action:'mark',mark:'cc'}],['mark-clear','Clear marks','Remove kill and crowd-control marks',{action:'mark',mark:'clear'}]];
+  var GLYPHS = {attack:'⚔',follow:'➤',stay:'✋',guard:'⛨',passive:'☮',summon:'✧',pull:'⛓','mark-kill':'◎','mark-cc':'☾','mark-clear':'✖'};
+  function renderOrders() {
+    var parent = byId('party-orders'); if (!parent || !state) return; clear(parent);
+    for (var i = 0; i < ORDERS.length; i++) {
+      var order = button(parent,'',ORDERS[i][3],!state.active.length,'order'), icon = node('span', GLYPHS[ORDERS[i][0]], 'order-glyph ' + ORDERS[i][0]);
+      order.title = ORDERS[i][1] + ': ' + ORDERS[i][2]; order.setAttribute('aria-label',ORDERS[i][1]); order.appendChild(icon);
     }
-    layout.appendChild(summary); layout.appendChild(slots); parent.appendChild(layout);
-    itemGrid(parent,bot,items,'equipped','Equipped items (' + items.length + ')',renderItem);
   }
 
   function metrics() {
@@ -374,7 +415,7 @@
 
   function render() {
 
-    captureDrafts(); metrics();
+    captureDrafts(); metrics(); renderOrders();
     byId('count').textContent = state.active.length + ' / ' + state.limit;
     byId('team-label').textContent = state.teamKind || 'Party';
 
@@ -412,7 +453,7 @@
   function botSummary(parent,bot) {
       var row = localButton(parent, null, function () { openBot(bot.id); }, 'bot-summary' + (String(selectedBot) === String(bot.id) ? ' selected' : ''));
 
-      row.setAttribute('data-bot-id', bot.id); row.setAttribute('aria-pressed', String(selectedBot) === String(bot.id) ? 'true' : 'false');
+      row.setAttribute('data-bot-id', bot.id); row.setAttribute('aria-pressed', String(selectedBot) === String(bot.id) ? 'true' : 'false'); row.appendChild(crest(bot.playerClass, bot.role));
 
       row.appendChild(node('strong', bot.name)); row.appendChild(node('span', 'Lv. ' + bot.level + ' ' + label(bot.playerClass) + ' \u00b7 ' + label(bot.role), 'meta'));
 
@@ -443,7 +484,7 @@
         var member = group.members[m], bot = activeBot(member.id); shown[member.id] = true;
         if (bot) botSummary(panel,bot);
         else {
-          var row = node('div',null,'human-member'); row.appendChild(node('strong',member.name + (member.self ? ' (you)' : '')));
+          var row = node('div',null,'human-member'); row.appendChild(crest(member.playerClass)); row.appendChild(node('strong',member.name + (member.self ? ' (you)' : '')));
           row.appendChild(node('span','Lv. ' + member.level + ' ' + label(member.playerClass),'meta'));
           var rank = member.leader ? 'Leader' : member.viceCaptain ? 'Vice-captain' : '';
           row.appendChild(node('span',(rank ? rank + ' \u00b7 ' : '') + (member.dead ? 'Dead' : member.online ? 'Online' : 'Offline'),'summary-status'));
@@ -538,7 +579,7 @@
 
     else if (character) {
 
-      var card = node('article', null, 'bot'), head = node('div', null, 'bot-header'); head.appendChild(node('p', 'ROSTER COMPANION', 'eyebrow')); head.appendChild(node('h3', character.name)); head.appendChild(node('p', rosterIdentity(character), 'badge')); card.appendChild(head);
+      var card = node('article', null, 'bot'), head = node('div', null, 'bot-header'), headTop = node('div', null, 'bot-top'), headId = node('div'); headerArt(head); head.appendChild(crest(character.playerClass, character.generated ? 'support' : null)); headId.appendChild(node('p', 'ROSTER COMPANION', 'eyebrow')); headId.appendChild(node('h3', character.name)); headId.appendChild(node('p', rosterIdentity(character), 'badge')); headTop.appendChild(headId); head.appendChild(headTop); card.appendChild(head);
 
       var body = node('div', null, 'bot-body'); body.appendChild(node('h3', character.generated ? 'Temporary Bot' : 'Account character')); body.appendChild(node('p', !character.ready ? 'Creation is pending.' : character.reserved ? 'This character is active or saving and cannot currently be recruited.' : 'This character is offline and in your roster.', 'hint'));
 
@@ -614,7 +655,7 @@
 
     for (var r = start; r < end; r++) (function (character) {
 
-      var live = activeBot(character.id), row = node('div', null, 'roster-row'), identity = node('div', null, 'roster-identity'), status = node('div', null, 'roster-state'), action = node('div', null, 'roster-action'); row.setAttribute('data-bot-id', character.id);
+      var live = activeBot(character.id), row = node('div', null, 'roster-row'), medal = crest(character.playerClass, live ? live.role : null), identity = node('div', null, 'roster-identity'), status = node('div', null, 'roster-state'), action = node('div', null, 'roster-action'); row.setAttribute('data-bot-id', character.id);
 
       identity.appendChild(node('strong', character.name)); identity.appendChild(node('p', rosterIdentity(character), 'hint')); if (character.level != null || character.playerClass) identity.appendChild(node('p', character.generated ? 'Temporary Bot' : 'Account character', 'hint'));
 
@@ -628,7 +669,7 @@
 
       removalControls(action, character, live);
 
-      row.appendChild(identity); row.appendChild(status); row.appendChild(action); parent.appendChild(row);
+      row.appendChild(medal); row.appendChild(identity); row.appendChild(status); row.appendChild(action); parent.appendChild(row);
 
     }(rows[r]));
 
@@ -653,7 +694,7 @@
 
   function renderBot(parent, bot) {
 
-    var card = node('article', null, 'bot'), header = node('div', null, 'bot-header'), top = node('div', null, 'bot-top'), identity = node('div'); card.setAttribute('data-bot-id', bot.id);
+    var card = node('article', null, 'bot'), header = node('div', null, 'bot-header'), top = node('div', null, 'bot-top'), identity = node('div'); card.setAttribute('data-bot-id', bot.id); headerArt(header); header.appendChild(crest(bot.playerClass, bot.role));
 
     identity.appendChild(node('p', 'COMPANION / ' + label(bot.role).toUpperCase(), 'eyebrow')); identity.appendChild(node('h3', bot.name)); identity.appendChild(node('p', 'Level ' + bot.level + ' ' + label(bot.playerClass), 'badge')); top.appendChild(identity); top.appendChild(node('div', bot.closing ? 'Saving\u2026' : bot.dead ? 'Awaiting resurrection' : label(bot.order), 'bot-state')); header.appendChild(top);
 
@@ -862,7 +903,27 @@
 
   }
 
+  // Stigma builds (config/playerbots/stigma-builds.properties): the chosen build's Stigmas are equipped first, out of combat.
+  function renderStigmaBuilds(parent, bot) {
+    var builds = bot.stigmaBuilds || []; if (!bot.temporary || !builds.length) return;
+    var box = node('section', null, 'stigma-builds'); box.appendChild(node('h3', 'Stigma build'));
+    box.appendChild(node('p', 'Pick a build and your companion swaps to its Stigmas, and their skills, the next time it is out of combat. Slots it has not unlocked yet stay on automatic picks.', 'hint'));
+    var choices = [{ key: 'AUTO', name: 'Automatic', text: 'Chooses Stigmas for the companion’s combat role.', stigmas: [] }].concat(builds);
+    for (var i = 0; i < choices.length; i++) (function (build) {
+      var active = (bot.stigmaBuild || 'AUTO') === build.key, card = node('div', null, 'build-card' + (active ? ' active' : ''));
+      card.appendChild(node('strong', build.name)); card.appendChild(node('p', build.text, 'hint'));
+      var stones = node('div', null, 'build-stones');
+      for (var n = 0; n < build.stigmas.length; n++) { var stone = node('span', build.stigmas[n], 'build-stone' + (n < 6 ? ' core' : '')); stones.appendChild(stone); }
+      if (build.stigmas.length) card.appendChild(stones);
+      if (active) card.appendChild(node('span', 'In use', 'status-pill'));
+      else button(card, 'Use this build', { action: 'stigmabuild', name: bot.name, build: build.key }, bot.closing, 'primary small');
+      box.appendChild(card);
+    }(choices[i]));
+    parent.appendChild(box);
+  }
+
   function renderGearPolicy(parent, bot) {
+    renderStigmaBuilds(parent, bot);
 
     var body = node('div', null, 'gear-policy'); parent.appendChild(body); body.appendChild(node('h3', 'Equipment acquisition & choices'));
 

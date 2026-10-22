@@ -25,7 +25,8 @@ def main():
     prepared, backup = args.prepared.resolve(strict=True), args.backup.resolve()
     manifest = json.loads((prepared / 'manifest.json').read_text())
     client = Path(manifest['clientRoot']).resolve(strict=True)
-    if manifest.get('feature') != 'account-window' or (client.parent / 'REPACK.json').exists():
+    # Also installs the Player Companions window (playerbots/prepare_companions_window.py), the same kind of package.
+    if manifest.get('feature') not in ('account-window', 'companions-window') or (client.parent / 'REPACK.json').exists():
         raise ValueError('Expected the original-client Account window package')
     if backup.exists() or backup.is_relative_to(client) or backup.is_relative_to(prepared):
         raise ValueError('Use a fresh external backup directory')
@@ -33,6 +34,8 @@ def main():
                'Plugin/RelicCalc/RelicCalc.pak.sig', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig', 'Addon.key',
                'Mods/AccountWindow/mod.json', 'Mods/AccountWindow/README.md', 'Mods/InstalledMods.json'}
     allowed.update(compatibility_paths(manifest['graphicsCompatibility']))
+    if manifest['feature'] == 'companions-window':
+        allowed.update({'bin64/AionIconBridge.dll', 'bin64/AionUiArt.index'})
     staged = {e['path'] for e in manifest['files']}
     if not staged <= allowed or len(staged) != len(manifest['files']):
         raise ValueError('Unexpected Account window package file list')
@@ -89,7 +92,7 @@ def main():
             else:
                 shutil.copy2(backup / entry['path'], path)
         raise
-    receipt = dict(feature='account-window', clientRoot=str(client), installedAt=datetime.now().astimezone().isoformat(),
+    receipt = dict(feature=manifest['feature'], clientRoot=str(client), installedAt=datetime.now().astimezone().isoformat(),
                    backup=str(backup), files=manifest['files'], preservedFiles=manifest['preservedFiles'],
                    originalClientClosureVerified=True, serverChanged=False, repackChanged=False,
                    installerSha256=sha(Path(__file__)), gameplayAcceptance=manifest['gameplayAcceptance'])

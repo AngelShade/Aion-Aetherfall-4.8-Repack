@@ -55,16 +55,16 @@ constexpr size_t callback_offset=0xe8;
 template<typename T>T symbol(HMODULE module,const char* name){return reinterpret_cast<T>(GetProcAddress(module,name));}
 void check(HRESULT result){if(FAILED(result))throw std::runtime_error("WIC failure");}
 
-std::vector<uint8_t> png(const icons::Image& image){
+std::vector<uint8_t> png(const icons::Image& image,unsigned out_w=64,unsigned out_h=64){
     HRESULT apartment=CoInitializeEx(nullptr,COINIT_MULTITHREADED);
     struct Uninitialize{bool active;~Uninitialize(){if(active)CoUninitialize();}} uninitialize{SUCCEEDED(apartment)};
     if(FAILED(apartment)&&apartment!=RPC_E_CHANGED_MODE)check(apartment);
     ComPtr<IWICImagingFactory> factory;check(CoCreateInstance(CLSID_WICImagingFactory,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(&factory)));
     ComPtr<IWICBitmap> bitmap;check(factory->CreateBitmapFromMemory(image.width,image.height,GUID_WICPixelFormat32bppBGRA,image.width*4,UINT(image.bgra.size()),const_cast<BYTE*>(image.bgra.data()),&bitmap));
-    ComPtr<IWICBitmapScaler> scaled;check(factory->CreateBitmapScaler(&scaled));check(scaled->Initialize(bitmap.Get(),64,64,WICBitmapInterpolationModeHighQualityCubic));
+    ComPtr<IWICBitmapScaler> scaled;check(factory->CreateBitmapScaler(&scaled));check(scaled->Initialize(bitmap.Get(),out_w,out_h,WICBitmapInterpolationModeHighQualityCubic));
     ComPtr<IStream> stream;check(CreateStreamOnHGlobal(nullptr,TRUE,&stream));
     ComPtr<IWICBitmapEncoder> encoder;check(factory->CreateEncoder(GUID_ContainerFormatPng,nullptr,&encoder));check(encoder->Initialize(stream.Get(),WICBitmapEncoderNoCache));
-    ComPtr<IWICBitmapFrameEncode> frame;check(encoder->CreateNewFrame(&frame,nullptr));check(frame->Initialize(nullptr));check(frame->SetSize(64,64));
+    ComPtr<IWICBitmapFrameEncode> frame;check(encoder->CreateNewFrame(&frame,nullptr));check(frame->Initialize(nullptr));check(frame->SetSize(out_w,out_h));
     WICPixelFormatGUID format=GUID_WICPixelFormat32bppBGRA;check(frame->SetPixelFormat(&format));check(frame->WriteSource(scaled.Get(),nullptr));check(frame->Commit());check(encoder->Commit());
     STATSTG stat{};check(stream->Stat(&stat,STATFLAG_NONAME));if(stat.cbSize.QuadPart>1024*1024)throw std::runtime_error("PNG too large");
     LARGE_INTEGER zero{};check(stream->Seek(zero,STREAM_SEEK_SET,nullptr));std::vector<uint8_t> bytes(size_t(stat.cbSize.QuadPart));ULONG got=0;check(stream->Read(bytes.data(),ULONG(bytes.size()),&got));if(got!=bytes.size())throw std::runtime_error("Short PNG");return bytes;
@@ -104,6 +104,57 @@ std::shared_ptr<std::vector<uint8_t>> get_icon(uint32_t item){
     auto bytes=std::make_shared<std::vector<uint8_t>>(png(icons::crop(icons::sprite(icons::dds(plain),a.sprite_side))));recent.push_front(index);cache.emplace(index,Cached{bytes,recent.begin()});
     if(cache.size()>512){cache.erase(recent.back());recent.pop_back();}return bytes;
 }
+// Player Companions window art: UI sprites read in memory from the client's own Textures/ui archives
+// (bin64/AionUiArt.index from prepare_ui_art.py). Optional; without the index only item icons are served.
+struct Art {uint8_t archive,transform;uint16_t x,y,w,h,method;uint32_t offset,compressed,size,crc;uint16_t key_size;uint8_t key[32];};
+std::unordered_map<std::string,Art> arts;
+std::vector<HANDLE> art_archives;
+std::unordered_map<std::string,std::shared_ptr<std::vector<uint8_t>>> art_cache;
+bool load_ui_art(const std::filesystem::path& root){
+    std::ifstream input(root/L"bin64/AionUiArt.index",std::ios::binary|std::ios::ate);if(!input)return false;
+    auto length=input.tellg();if(length<12||length>1024*1024)return false;
+    std::vector<uint8_t> data(size_t(length),0);input.seekg(0);input.read(reinterpret_cast<char*>(data.data()),std::streamsize(data.size()));if(!input||std::memcmp(data.data(),"AIART001",8))return false;
+    uint32_t count=icons::u32(data.data()+8);const size_t archives=2,archive_size=64+8+32,record=94;if(count>256||12+archives*archive_size+count*record!=data.size())return false;
+    std::vector<HANDLE> handles;struct Close{std::vector<HANDLE>& h;bool keep=false;~Close(){if(!keep)for(auto f:h)CloseHandle(f);}} close{handles};
+    for(size_t a=0;a<archives;++a){
+        const uint8_t* p=data.data()+12+a*archive_size;std::string rel(reinterpret_cast<const char*>(p),strnlen(reinterpret_cast<const char*>(p),64));if(rel.empty()||rel.find("..")!=std::string::npos)return false;
+        HANDLE file=CreateFileW((root/std::filesystem::path(rel)).c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);if(file==INVALID_HANDLE_VALUE)return false;handles.push_back(file);
+        uint64_t expected;std::memcpy(&expected,p+64,8);LARGE_INTEGER size{};if(!GetFileSizeEx(file,&size)||uint64_t(size.QuadPart)!=expected)return false;
+        auto hash=file_hash(file);if(std::memcmp(hash.data(),p+72,32))return false;
+    }
+    std::unordered_map<std::string,Art> loaded;
+    for(uint32_t i=0;i<count;++i){
+        const uint8_t* p=data.data()+12+archives*archive_size+i*record;Art a{};std::string name(reinterpret_cast<const char*>(p),strnlen(reinterpret_cast<const char*>(p),32));
+        a.archive=p[32];a.transform=p[33];a.x=icons::u16(p+34);a.y=icons::u16(p+36);a.w=icons::u16(p+38);a.h=icons::u16(p+40);a.method=icons::u16(p+42);
+        a.offset=icons::u32(p+44);a.compressed=icons::u32(p+48);a.size=icons::u32(p+52);a.crc=icons::u32(p+56);a.key_size=icons::u16(p+60);std::memcpy(a.key,p+62,32);
+        if(name.empty()||a.archive>=archives||a.transform>2||!a.w||!a.h||a.key_size>32||(a.method!=0&&a.method!=8)||a.compressed>16*1024*1024||a.size>16*1024*1024)return false;
+        for(char c:name)if(!(c>='a'&&c<='z')&&c!='-'&&c!='_')return false;
+        loaded.emplace(name,a);
+    }
+    close.keep=true;art_archives=std::move(handles);arts=std::move(loaded);return true;
+}
+std::shared_ptr<std::vector<uint8_t>> get_art(const std::string& name){
+    std::lock_guard<std::mutex> lock(cache_mutex);auto found=arts.find(name);if(found==arts.end())return {};
+    auto hit=art_cache.find(name);if(hit!=art_cache.end())return hit->second;
+    const auto& a=found->second;std::vector<uint8_t> compressed(a.compressed);LARGE_INTEGER offset{};offset.QuadPart=a.offset;DWORD got=0;HANDLE file=art_archives[a.archive];
+    if(!SetFilePointerEx(file,offset,nullptr,FILE_BEGIN)||!ReadFile(file,compressed.data(),a.compressed,&got,nullptr)||got!=a.compressed)throw std::runtime_error("Archive read");
+    for(unsigned i=0;i<a.key_size;++i)compressed[i]^=a.key[i];auto plain=a.method==8?icons::inflate(compressed,a.size):std::move(compressed);
+    if(plain.size()!=a.size||icons::crc32(plain)!=a.crc)throw std::runtime_error("DDS CRC");
+    auto texture=icons::dds(plain);if(a.x+a.w>texture.width||a.y+a.h>texture.height)throw std::runtime_error("Sprite bounds");
+    icons::Image sprite{a.w,a.h,std::vector<uint8_t>(size_t(a.w)*a.h*4)};
+    for(unsigned y=0;y<a.h;++y)std::memcpy(sprite.bgra.data()+y*a.w*4,texture.bgra.data()+((a.y+y)*texture.width+a.x)*4,a.w*4);
+    for(size_t i=0;i<sprite.bgra.size();i+=4){uint8_t* px=sprite.bgra.data()+i;
+        if(a.transform==1){unsigned l=std::min(255u,(px[0]*29u+px[1]*150u+px[2]*77u)/256u*3u);const unsigned dark[3]={58,112,150},light[3]={180,230,250};for(int c=0;c<3;++c)px[c]=uint8_t((dark[c]*(255-l)+light[c]*l)/255);}
+        else if(a.transform==2)for(int c=0;c<3;++c)px[c]=uint8_t(std::min(255u,px[c]*19u/10u));}
+    unsigned side=a.transform==1?96:0;
+    auto bytes=std::make_shared<std::vector<uint8_t>>(png(sprite,side?side:a.w,side?side:a.h));art_cache.emplace(name,bytes);return bytes;
+}
+std::string art_name(const std::string& url){
+    const std::string origin="http://127.0.0.1:",prefix="/market/companions/media/art/";if(url.rfind(origin,0)!=0)return {};size_t slash=url.find('/',origin.size());
+    if(slash==std::string::npos||slash==origin.size()||slash-origin.size()>5||url.compare(slash,prefix.size(),prefix))return {};
+    size_t start=slash+prefix.size(),end=url.find(".png",start);if(end==std::string::npos||end==start||end-start>31||(url.size()!=end+4&&url[end+4]!='?'))return {};
+    std::string name=url.substr(start,end-start);for(char c:name)if(!(c>='a'&&c<='z')&&c!='-'&&c!='_')return {};return name;
+}
 uint32_t icon_id(const std::string& url){
     const std::string origin="http://127.0.0.1:";if(url.rfind(origin,0)!=0)return 0;size_t slash=url.find('/',origin.size());
     if(slash==std::string::npos||slash==origin.size()||slash-origin.size()>5)return 0;
@@ -115,6 +166,7 @@ uint32_t icon_id(const std::string& url){
 Ptr __cdecl on_resource(Ptr view,Ptr request){
     try{
         std::array<char,256> address{};Ptr value=request_url(request);size_t count=value?to_utf8(value,address.data(),address.size()):address.size();if(value)destroy_string(value);
+        if(count<address.size()){std::string url(address.data(),count);auto art=art_name(url);if(!art.empty()){auto bytes=get_art(art);if(bytes){Ptr mime=from_wide(L"image/png",9);if(mime){Ptr response=response_create(bytes->size(),bytes->data(),mime);destroy_string(mime);if(response)return response;}}}}
         if(count<address.size()){auto bytes=get_icon(icon_id(std::string(address.data(),count)));if(bytes){Ptr mime=from_wide(L"image/png",9);if(mime){Ptr response=response_create(bytes->size(),bytes->data(),mime);destroy_string(mime);if(response){std::lock_guard<std::mutex> lock(log_mutex);bool& recorded=std::strstr(address.data(),"/market/")?logged_market:logged_shop;if(!recorded){recorded=true;if(!log_path.empty()){std::ofstream out(log_path,std::ios::app);out<<"Native icon served: "<<address.data()<<'\n';}}return response;}}}}
     }catch(...){/* Preserve callback chaining; the native-only server returns 404. */}
     Callback prior=nullptr;{std::lock_guard<std::mutex> lock(callback_mutex);auto found=previous_callbacks.find(view);if(found!=previous_callbacks.end())prior=found->second;}
@@ -138,7 +190,9 @@ struct NativeIconBinding { NativeIconBinding(){wardrobe::native_ui::icon_side=na
 bool setup(const std::filesystem::path& root){
     HMODULE module=GetModuleHandleW(L"Awesomium.dll");if(!module)return false;
     request_url=symbol<decltype(request_url)>(module,"awe_resource_request_get_url");to_utf8=symbol<decltype(to_utf8)>(module,"awe_string_to_utf8");from_wide=symbol<decltype(from_wide)>(module,"awe_string_create_from_wide");destroy_string=symbol<decltype(destroy_string)>(module,"awe_string_destroy");response_create=symbol<decltype(response_create)>(module,"awe_resource_response_create");set_callback=symbol<Set>(module,"awe_webview_set_callback_resource_request");
-    return request_url&&to_utf8&&from_wide&&destroy_string&&response_create&&set_callback&&load_index(root);
+    if(!(request_url&&to_utf8&&from_wide&&destroy_string&&response_create&&set_callback&&load_index(root)))return false;
+    if(arts.empty())log(load_ui_art(root)?"Companion window art: original Textures/ui archives":"Companion window art unavailable: AionUiArt.index missing or client archives changed");
+    return true;
 }
 }
 extern "C" __declspec(dllexport) void __cdecl AionWardrobeVisibility(Ptr widget,int event){wardrobe::visible(widget,event);}

@@ -4,55 +4,62 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Player Companions</title>
-  <link rel="stylesheet" href="/market/companions/media/bots.css">
+  <link rel="stylesheet" href="/market/companions/media/bots.css?v=window-3">
 </head>
 <body>
-<main class="command-window">
-  <header class="masthead">
-    <div class="brand"><div class="brand-copy"><p class="eyebrow">ATREIA · PLAYERBOTS</p><h1>Companion command</h1><p class="subtitle">Build your party. Manage your companions.</p></div></div>
-    <div class="connection"><p id="owner-label">Connecting…</p><div class="header-tools"><button id="keyboard-help" type="button" class="secondary" aria-controls="keyboard-panel" aria-expanded="false" title="Keyboard controls">Keys <kbd>?</kbd></button><button id="refresh" type="button" title="Refresh companion data">Refresh <span aria-hidden="true">↻</span></button></div></div>
-  </header>
-  <div id="notice" role="status" aria-live="polite">Connecting to your character…</div>
-  <section id="keyboard-panel" class="keyboard-panel section-card" aria-label="Keyboard controls" style="display:none">
-    <div class="section-heading"><h2>Keyboard controls</h2><button id="keyboard-close" type="button" class="secondary">Close</button></div>
-    <div class="key-grid"><p><kbd>Alt</kbd> + <kbd>1–4</kbd> Main sections</p><p><kbd>←</kbd> <kbd>→</kbd> Change focused tab</p><p><kbd>Home</kbd> <kbd>End</kbd> First / last tab</p><p><kbd>/</kbd> Search roster</p><p><kbd>Tab</kbd> Next control</p><p><kbd>Enter</kbd> <kbd>Space</kbd> Activate button</p><p><kbd>Esc</kbd> Back / close help</p><p><kbd>?</kbd> Keyboard help</p></div>
-    <p class="hint">Shortcuts pause while you type. Orders and purchases always require an explicit button action.</p>
+<header id="top">
+  <img class="top-art" src="/market/account/media/ascendant-dawn.png" alt=""><div class="top-shade"></div>
+  <div class="brand"><span class="mark">&#10022;</span>AETHERFALL</div><span class="title">COMPANIONS</span>
+  <div class="header-tools"><button id="refresh" type="button" class="quiet" title="Refresh companion data">&#8635; Refresh</button><button id="keyboard-help" type="button" class="quiet" aria-controls="keyboard-panel" aria-expanded="false" title="Keyboard controls">Keys <kbd>?</kbd></button></div>
+  <div class="who"><span id="owner-label">Connecting&hellip;</span><b>COMMANDER</b></div>
+</header>
+<nav id="main-tabs" class="sections" aria-label="Companion sections" role="tablist">
+  <button id="tab-party" data-view="party" role="tab" aria-controls="view-party" aria-selected="true" class="selected" type="button"><span class="glyph" aria-hidden="true">&#10022;</span><span class="nav-title" id="team-label">Party</span><span id="count" class="nav-count">0 / 0</span><span class="nav-caption">Orders, gear and settings</span></button>
+  <button id="tab-roster" data-view="roster" role="tab" aria-controls="view-roster" aria-selected="false" type="button"><span class="glyph" aria-hidden="true">&#9671;</span><span class="nav-title">Roster</span><span id="roster-count" class="nav-count">0</span><span class="nav-caption">Recruit and saved parties</span></button>
+  <button id="tab-create" data-view="create" role="tab" aria-controls="view-create" aria-selected="false" type="button"><span class="glyph" aria-hidden="true">&#10010;</span><span class="nav-title">Create</span><span class="nav-caption">A new companion</span></button>
+  <button id="tab-quests" data-view="quests" role="tab" aria-controls="view-quests" aria-selected="false" type="button"><span class="glyph" aria-hidden="true">&#9733;</span><span class="nav-title">Party quests</span><span id="question-count" class="nav-count"></span><span class="nav-caption">Progress and requests</span></button>
+  <div class="glance"><p class="glance-title">AT A GLANCE</p><div id="party-metrics" aria-label="Party at a glance"></div></div>
+  <img class="rail-crest" src="/market/account/media/aether-crest.png" alt="">
+</nav>
+<section id="keyboard-panel" class="keyboard-panel" aria-label="Keyboard controls" style="display:none">
+  <div class="heading"><span class="ornament">&#10022;</span><h2>Keyboard controls</h2><button id="keyboard-close" type="button" class="quiet">Close</button></div>
+  <div class="key-grid"><p><kbd>Alt</kbd> + <kbd>1&ndash;4</kbd> Main sections</p><p><kbd>&larr;</kbd> <kbd>&rarr;</kbd> Change focused tab</p><p><kbd>Home</kbd> <kbd>End</kbd> First / last tab</p><p><kbd>/</kbd> Search roster</p><p><kbd>Tab</kbd> Next control</p><p><kbd>Enter</kbd> <kbd>Space</kbd> Activate button</p><p><kbd>Esc</kbd> Back / close help</p><p><kbd>?</kbd> Keyboard help</p></div>
+  <p class="hint">Shortcuts pause while you type. Orders and purchases always require an explicit button action.</p>
+</section>
+<section id="view-party" class="main-view" role="tabpanel" aria-labelledby="tab-party">
+  <div class="party-layout">
+    <aside class="party-list">
+      <div class="pane-heading"><h2>Your team</h2><button id="browse-roster" type="button" class="primary small">+ Recruit</button></div>
+      <div id="party-orders" class="orders" aria-label="Orders for every companion"></div>
+      <div id="active"></div>
+      <section id="team-controls" class="team-controls" aria-label="Party and alliance management"></section>
+      <form id="save-party" class="preset-form"><label for="preset-name">Keep this party for later</label><input id="preset-name" maxlength="40" autocomplete="off" placeholder="Party preset name" required><button type="submit" class="primary">Save party</button><p class="hint">Recruit it again from Roster, Saved parties.</p></form>
+    </aside>
+    <section id="bot-detail" class="detail-panel" aria-label="Selected companion"><div class="empty"><h3>Your companion details</h3><p>Select a companion to see their status, settings and equipment.</p></div></section>
+  </div>
+</section>
+<section id="view-roster" class="main-view scroll" role="tabpanel" aria-labelledby="tab-roster" style="display:none">
+  <div class="heading"><span class="ornament">&#9671;</span><h2>Companion roster</h2><p>Recruit a saved companion or a whole saved party.</p><button id="roster-create" type="button" class="primary">+ Create companion</button></div>
+  <nav id="roster-subtabs" class="tabs subtabs" aria-label="Roster sections" role="tablist"><button id="roster-tab-characters" data-roster-view="characters" type="button" role="tab" aria-controls="roster-characters" aria-selected="true" class="selected">Companions</button><button id="roster-tab-presets" data-roster-view="presets" type="button" role="tab" aria-controls="roster-presets" aria-selected="false">Saved parties</button></nav>
+  <section id="roster-characters" role="tabpanel" aria-labelledby="roster-tab-characters">
+    <div class="filters"><div class="search-field"><label for="roster-search">Find a companion <kbd>/</kbd></label><input id="roster-search" type="search" placeholder="Name or class&hellip;" autocomplete="off"></div><div><label for="roster-filter">Show</label><select id="roster-filter"><option value="all">All companions</option><option value="available">Available to recruit</option><option value="active">Active party</option><option value="generated">Temporary Bots</option><option value="saved">Saved Temporary Bots</option><option value="characters">Account characters</option></select></div><div><label for="roster-sort">Sort by</label><select id="roster-sort"><option value="name">Name</option><option value="level">Highest level</option><option value="class">Class</option></select></div></div>
+    <p id="roster-results" class="hint" aria-live="polite"></p><div id="roster" class="roster-grid"></div><div class="pagination"><button id="roster-prev" type="button" class="quiet">&larr; Previous</button><span id="roster-page"></span><button id="roster-next" type="button" class="quiet">Next &rarr;</button></div>
   </section>
-  <nav id="main-tabs" class="tabs main-tabs" aria-label="Companion sections" role="tablist">
-    <button id="tab-party" data-view="party" role="tab" aria-controls="view-party" aria-selected="true" class="selected" type="button"><span class="nav-symbol" aria-hidden="true">Ⅰ</span><span class="nav-copy"><span id="team-label" class="nav-title">Party</span><span class="nav-caption">Status &amp; companions</span></span><span id="count" class="nav-count">0 / 0</span></button>
-    <button id="tab-roster" data-view="roster" role="tab" aria-controls="view-roster" aria-selected="false" type="button"><span class="nav-symbol" aria-hidden="true">Ⅱ</span><span class="nav-copy"><span class="nav-title">Roster</span><span class="nav-caption">Recruit &amp; saved teams</span></span><span id="roster-count" class="nav-count">0</span></button>
-    <button id="tab-create" data-view="create" role="tab" aria-controls="view-create" aria-selected="false" type="button"><span class="nav-symbol" aria-hidden="true">Ⅲ</span><span class="nav-copy"><span class="nav-title">Create</span><span class="nav-caption">A new companion</span></span></button>
-    <button id="tab-quests" data-view="quests" role="tab" aria-controls="view-quests" aria-selected="false" type="button"><span class="nav-symbol" aria-hidden="true">Ⅳ</span><span class="nav-copy"><span class="nav-title">Party quests</span><span class="nav-caption">Progress &amp; requests</span></span><span id="question-count" class="nav-count"></span></button>
-  </nav>
-  <section id="view-party" class="main-view" role="tabpanel" aria-labelledby="tab-party">
-    <div id="party-metrics" class="stat-grid" aria-label="Party at a glance"></div>
-    <section id="team-controls" class="section-card team-controls" aria-label="Party and alliance management"></section>
-    <div class="party-layout">
-      <aside class="party-list"><div class="list-heading"><p class="eyebrow">YOUR TEAM</p><h2>Companions</h2></div><div id="active"></div><button id="browse-roster" type="button" class="wide primary">+ Recruit a companion</button></aside>
-      <section id="bot-detail" class="detail-panel" aria-label="Selected companion"><div class="empty"><h3>Your companion details</h3><p>Select a companion to see their status, settings and equipment.</p></div></section>
-    </div>
-    <form id="save-party" class="preset-form panel"><div><label for="preset-name">Keep this party for later</label><input id="preset-name" maxlength="40" autocomplete="off" placeholder="Party preset name" required></div><button type="submit" class="primary">Save party</button><p class="hint">Stores this mix of companions, roles and orders. Recruit it again from Roster → Saved parties.</p></form>
-  </section>
-  <section id="view-roster" class="main-view panel" role="tabpanel" aria-labelledby="tab-roster" style="display:none">
-    <div class="section-heading"><div><p class="eyebrow">RECRUITMENT</p><h2>Your companion roster</h2></div><button id="roster-create" type="button" class="primary">+ Create companion</button></div>
-    <nav id="roster-subtabs" class="tabs subtabs" aria-label="Roster sections" role="tablist"><button id="roster-tab-characters" data-roster-view="characters" type="button" role="tab" aria-controls="roster-characters" aria-selected="true" class="selected">Companions</button><button id="roster-tab-presets" data-roster-view="presets" type="button" role="tab" aria-controls="roster-presets" aria-selected="false">Saved parties</button></nav>
-    <section id="roster-characters" role="tabpanel" aria-labelledby="roster-tab-characters">
-      <div class="filters"><div class="search-field"><label for="roster-search">Find a companion <kbd>/</kbd></label><input id="roster-search" type="search" placeholder="Name or class…" autocomplete="off"></div><div><label for="roster-filter">Show</label><select id="roster-filter"><option value="all">All companions</option><option value="available">Available to recruit</option><option value="active">Active party</option><option value="generated">Temporary Bots</option><option value="saved">Saved Temporary Bots</option><option value="characters">Account characters</option></select></div><div><label for="roster-sort">Sort by</label><select id="roster-sort"><option value="name">Name</option><option value="level">Highest level</option><option value="class">Class</option></select></div></div>
-      <p id="roster-results" class="hint" aria-live="polite"></p><div id="roster"></div><div class="pagination"><button id="roster-prev" type="button" class="secondary">← Previous</button><span id="roster-page"></span><button id="roster-next" type="button" class="secondary">Next →</button></div>
-    </section>
-    <section id="roster-presets" role="tabpanel" aria-labelledby="roster-tab-presets" style="display:none"><div class="section-toolbar"><h3>Saved parties</h3><p class="hint">Recruit missing members together. Existing companions and human party members stay.</p></div><div id="saved-parties" class="preset-cards"></div></section>
-  </section>
-  <section id="view-create" class="main-view panel" role="tabpanel" aria-labelledby="tab-create" style="display:none">
-    <div class="section-heading"><div><p class="eyebrow">RECRUITMENT</p><h2>Create a companion</h2></div><span class="step-badge">Name · class · level</span></div>
-    <div class="create-layout"><form id="create" class="creation-form">
-      <div class="field-section"><span class="step-number" aria-hidden="true">1</span><div><h3>Choose their origin</h3><label for="model">Recruitment model</label><select id="model"><option value="generate">Temporary Bot</option><option value="create">Account character</option></select><div id="starting-level"><label for="start-level">Starting level</label><select id="start-level"><option value="matched">My current level · equipment and skills</option></select></div><div id="creation-journey" style="display:none"><label for="new-journey">Choose Your Journey</label><select id="new-journey"></select></div><p class="hint" id="model-hint">Progress is saved as a real character.</p><p class="capacity-note" id="creation-capacity" aria-live="polite"></p></div></div>
-      <div class="field-section"><span class="step-number" aria-hidden="true">2</span><div><h3>Make them yours</h3><label for="new-name">Character name</label><input id="new-name" maxlength="24" autocomplete="off" placeholder="Companion name" required><label for="new-class">Class</label><select id="new-class"></select></div></div>
-      <button type="submit" class="primary">Create companion</button>
-    </form><aside class="creation-note"><p class="eyebrow">BEFORE YOU RECRUIT</p><h3>Two ways to build your party</h3><div class="origin-card"><span class="origin-tag">TEMPORARY BOT</span><p>Follows your level with a managed class build. Keeps its own earned progress and equipment for future recruitment.</p></div><div class="origin-card"><span class="origin-tag">ACCOUNT CHARACTER</span><p>A real level-one character, or recruit an existing alt. Existing alts keep their equipment, skills and Stigmas.</p></div><div class="origin-card"><span class="origin-tag">YOUR PARTY, SAVED</span><p>Mix both types. Save the party once, then recruit it again from your roster.</p></div><button id="creation-help-toggle" type="button" class="disclosure-toggle" aria-controls="creation-help" aria-expanded="false">Recruitment rules &amp; progression <span aria-hidden="true">+</span></button><div id="creation-help" class="section-help" style="display:none"><p>Temporary Bots receive class and role equipment, skills and Stigmas. Gear tiers advance at levels 20, 30, 40, 50 and 60. Dismissal saves their characters; Save Temporary Bot checkpoints progress. Player-owned alts retain their existing builds.</p><p>A full ordinary party can expand into a native alliance when your configured active limit permits it. Alliances hold up to 24 total members. Native level, faction and team rules apply; an active combat timer prevents recruitment.</p></div><button id="create-roster" type="button" class="secondary wide">Browse existing companions →</button></aside></div>
-  </section>
-  <section id="view-quests" class="main-view panel" role="tabpanel" aria-labelledby="tab-quests" style="display:none"><div class="section-heading"><div><p class="eyebrow">PROGRESS TOGETHER</p><h2>Party quest journal</h2></div></div><div class="share-strip section-card"><label for="owner-quest">Share an active quest</label><div class="share-controls"><select id="owner-quest"></select><button id="share" type="button" class="primary">Share with party</button></div><p class="hint">Each eligible companion accepts and earns its own native rewards.</p></div><div id="quest-overview"></div></section>
-  <footer><span>Player Companions <span class="footer-separator">·</span> Atreia</span><span>Live data updates every 10 seconds. Drafts stay while you edit.</span></footer>
-</main>
-<script src="/market/companions/media/bots.js"></script>
+  <section id="roster-presets" role="tabpanel" aria-labelledby="roster-tab-presets" style="display:none"><p class="hint">Recruit missing members together. Existing companions and human party members stay.</p><div id="saved-parties" class="preset-cards"></div></section>
+</section>
+<section id="view-create" class="main-view scroll" role="tabpanel" aria-labelledby="tab-create" style="display:none">
+  <div class="heading"><span class="ornament">&#10010;</span><h2>Create a companion</h2><p>Choose their origin, then a name and class.</p></div>
+  <div class="create-layout"><form id="create" class="creation-form framed">
+    <div class="field-section"><span class="step-number" aria-hidden="true">1</span><div><h3>Choose their origin</h3><label for="model">Recruitment model</label><select id="model"><option value="generate">Temporary Bot</option><option value="create">Account character</option></select><div id="starting-level"><label for="start-level">Starting level</label><select id="start-level"><option value="matched">My current level &middot; equipment and skills</option></select></div><div id="creation-journey" style="display:none"><label for="new-journey">Choose Your Journey</label><select id="new-journey"></select></div><p class="hint" id="model-hint">Progress is saved as a real character.</p><p class="capacity-note" id="creation-capacity" aria-live="polite"></p></div></div>
+    <div class="field-section"><span class="step-number" aria-hidden="true">2</span><div><h3>Make them yours</h3><label for="new-name">Character name</label><input id="new-name" maxlength="24" autocomplete="off" placeholder="Companion name" required><label for="new-class">Class</label><select id="new-class"></select></div></div>
+    <button type="submit" class="primary">Create companion</button>
+  </form><aside class="creation-note"><h3>Two ways to build your party</h3><div class="origin-card"><span class="origin-tag">TEMPORARY BOT</span><p>Follows your level with a managed class build. Keeps its own earned progress and equipment for future recruitment.</p></div><div class="origin-card"><span class="origin-tag">ACCOUNT CHARACTER</span><p>A real level-one character, or recruit an existing alt. Existing alts keep their equipment, skills and Stigmas.</p></div><div class="origin-card"><span class="origin-tag">YOUR PARTY, SAVED</span><p>Mix both types. Save the party once, then recruit it again from your roster.</p></div><button id="creation-help-toggle" type="button" class="disclosure-toggle" aria-controls="creation-help" aria-expanded="false">Recruitment rules and progression <span aria-hidden="true">+</span></button><div id="creation-help" class="section-help" style="display:none"><p>Temporary Bots receive class and role equipment, skills and Stigmas. Gear tiers advance at levels 20, 30, 40, 50 and 60. Dismissal saves their characters; Save Temporary Bot checkpoints progress. Player-owned alts retain their existing builds.</p><p>A full ordinary party can expand into a native alliance when your configured active limit permits it. Alliances hold up to 24 total members. Native level, faction and team rules apply; an active combat timer prevents recruitment.</p></div><button id="create-roster" type="button" class="quiet wide">Browse existing companions &rarr;</button></aside></div>
+</section>
+<section id="view-quests" class="main-view scroll" role="tabpanel" aria-labelledby="tab-quests" style="display:none">
+  <div class="heading"><span class="ornament">&#9733;</span><h2>Party quest journal</h2><p>Share your quests and follow every companion's progress.</p></div>
+  <div class="share-strip"><label for="owner-quest">Share an active quest</label><div class="share-controls"><select id="owner-quest"></select><button id="share" type="button" class="primary">Share with party</button></div><p class="hint">Each eligible companion accepts and earns its own native rewards.</p></div><div id="quest-overview"></div>
+</section>
+<footer><span class="dot"></span><span id="notice" role="status" aria-live="polite">Connecting to your character&hellip;</span><span class="footer-note">Updates every 10 seconds &middot; drafts stay while you edit</span></footer>
+<script src="/market/companions/media/bots.js?v=window-3"></script>
 </body>
 </html>
