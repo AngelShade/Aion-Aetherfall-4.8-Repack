@@ -1,0 +1,64 @@
+diff --git a/src/AionVersionDll/camera_fix.cpp b/src/AionVersionDll/camera_fix.cpp
+index 7253f61..4991860 100644
+--- a/src/AionVersionDll/camera_fix.cpp
++++ b/src/AionVersionDll/camera_fix.cpp
+@@ -12,6 +12,29 @@ static DWORD fixCoordsExpirationTime = 0;
+ static POINT lastVisibleCursorPos = {};
+ static POINT hiddenCursorPos = {};
+ 
++// Aetherfall: [CameraFix] Mode in mods.ini next to version.dll.
++// corrected (default) keeps first-move direction, upstream is the original
++// behavior, off leaves the camera input untouched.
++enum class CameraFixMode { Corrected, Upstream, Off };
++static CameraFixMode cameraFixMode = CameraFixMode::Corrected;
++
++static void ReadCameraFixMode() {
++    HMODULE self = nullptr;
++    wchar_t path[MAX_PATH] = {};
++    if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCWSTR)&ReadCameraFixMode, &self) ||
++        !GetModuleFileNameW(self, path, MAX_PATH)) {
++        return;
++    }
++    wchar_t* slash = wcsrchr(path, L'\\');
++    if (!slash || wcscpy_s(slash + 1, MAX_PATH - (slash + 1 - path), L"mods.ini")) {
++        return;
++    }
++    wchar_t mode[16] = {};
++    GetPrivateProfileStringW(L"CameraFix", L"Mode", L"corrected", mode, 16, path);
++    if (_wcsicmp(mode, L"upstream") == 0) cameraFixMode = CameraFixMode::Upstream;
++    else if (_wcsicmp(mode, L"off") == 0) cameraFixMode = CameraFixMode::Off;
++}
++
+ 
+ static bool IsRightLeftOrMiddleMouseButtonDown();
+ static decltype(SetCursor)* real_SetCursor = SetCursor;
+@@ -114,9 +137,12 @@ static void FixCoords(LPMSG lpMsg) {
+     }
+     long cursorPosLParamX = GET_X_LPARAM(hiddenMouseMoveMsg.lParam);
+     long cursorPosLParamY = GET_Y_LPARAM(hiddenMouseMoveMsg.lParam);
+-    lpMsg->lParam = MAKELPARAM(cursorPosLParamX + lastVisibleCursorPosDistX, cursorPosLParamY + lastVisibleCursorPosDistY);
+-    lpMsg->pt.x = hiddenMouseMoveMsg.pt.x + lastVisibleCursorPosDistX;
+-    lpMsg->pt.y = hiddenMouseMoveMsg.pt.y + lastVisibleCursorPosDistY;
++    // Aetherfall: the message moved from the last visible position, so keep that
++    // movement relative to the hidden position. Upstream adds it reversed.
++    long sign = cameraFixMode == CameraFixMode::Upstream ? 1 : -1;
++    lpMsg->lParam = MAKELPARAM(cursorPosLParamX + sign * lastVisibleCursorPosDistX, cursorPosLParamY + sign * lastVisibleCursorPosDistY);
++    lpMsg->pt.x = hiddenMouseMoveMsg.pt.x + sign * lastVisibleCursorPosDistX;
++    lpMsg->pt.y = hiddenMouseMoveMsg.pt.y + sign * lastVisibleCursorPosDistY;
+ }
+ 
+ static bool IsWindowsVersionOrLater(int major, int minor, int build) {
+@@ -143,7 +169,12 @@ static bool IsWindows10FallCreatorsUpdateOrLater() {
+ /// Fixes stuttering camera movement on Windows 10 and later
+ void InstallOrUpdateCameraFix(HWND hWnd) {
+     hiddenMouseMoveMsg.hwnd = hWnd;
+-    if (real_SetCursor == SetCursor && IsWindows10FallCreatorsUpdateOrLater()) {
++    static bool modeRead = false;
++    if (!modeRead) {
++        ReadCameraFixMode();
++        modeRead = true;
++    }
++    if (cameraFixMode != CameraFixMode::Off && real_SetCursor == SetCursor && IsWindows10FallCreatorsUpdateOrLater()) {
+         DetourTransactionBegin();
+         DetourUpdateThread(GetCurrentThread());
+         DetourAttach(&(PVOID&)real_SetCursor, zzSetCursor);
