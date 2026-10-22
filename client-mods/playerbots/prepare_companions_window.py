@@ -36,7 +36,7 @@ OLD_OPEN = '''function PrivateCompanions_Open()
     PrivateWarehouseBrowser:LoadUrlWithWebAuth(PRIVATE_PLAYERBOTS_URL);
 end
 '''
-NEW_OPEN = f'''-- false: open Companions in the old fullscreen Market dialog instead of its own window.
+REVISION1 = f'''-- false: open Companions in the old fullscreen Market dialog instead of its own window.
 PRIVATE_COMPANIONS_WINDOWED = true;
 PrivateCompanionsSize = {{}};
 
@@ -87,6 +87,80 @@ function PrivateCompanions_Open()
     PrivateCompanionsBrowser:LoadUrlWithWebAuth(PRIVATE_PLAYERBOTS_URL);
 end
 '''
+# Second revision: the page follows the window's pixel size (UI scale included) and the window keeps a minimum size.
+NEW_OPEN = f'''-- false: open Companions in the old fullscreen Market dialog instead of its own window.
+PRIVATE_COMPANIONS_WINDOWED = true;
+-- Smallest window the page lays out in (UI units).
+PRIVATE_COMPANIONS_MIN_W, PRIVATE_COMPANIONS_MIN_H = 760, 520;
+PrivateCompanionsSize = {{}};
+
+function PrivateCompanions_OnLoad()
+    PrivateCompanionsBrowser:CreateWebView();
+    PrivateCompanions:Hide();
+    PrivateCompanions:RegisterEvent("ADDON_TIMER");
+end
+
+-- A web page is drawn at the pixel size its view was created with, which ignores the UI scale and later resizes.
+-- Size the browser to the window's client area (never below the minimum) and create its view again whenever
+-- that pixel size differs from the view's, then load the page.
+function PrivateCompanions_Fit(load)
+    local S = PrivateCompanionsSize;
+    local x, y, w, h = PrivateCompanions:GetRect();
+    local s = (GetUIScale and GetUIScale()) or 1;
+    if not w or not h or s <= 0 then
+        -- Not measurable yet: show the page now; the timer fits it once the window has a size.
+        S.view = "?";
+        if load then PrivateCompanionsBrowser:LoadUrlWithWebAuth(PRIVATE_PLAYERBOTS_URL); end
+        return;
+    end
+    local uw, uh = math.max(w / s, PRIVATE_COMPANIONS_MIN_W), math.max(h / s, PRIVATE_COMPANIONS_MIN_H);
+    if uw > w / s + 0.5 or uh > h / s + 0.5 then PrivateCompanions:SetRect(x / s, y / s, uw, uh); end
+    local size = string.format("%.0fx%.0f", uw * s, uh * s);
+    S.pending = nil;
+    if size ~= S.view then
+        g_AddonName = "RelicCalc";
+        S.view = size;
+        PrivateCompanionsBrowser:SetRect(0, 0, uw, uh - {TITLE});
+        PrivateCompanionsBrowser:DestroyWebView();
+        PrivateCompanionsBrowser:CreateWebView();
+        load = true;
+    end
+    if load then PrivateCompanionsBrowser:LoadUrlWithWebAuth(PRIVATE_PLAYERBOTS_URL); end
+end
+
+function PrivateCompanions_OnEvent(event)
+    -- After the player resizes the window and stops for half a second, fit the page to it again.
+    local S = PrivateCompanionsSize;
+    if event ~= "ADDON_TIMER" or not S.view or PrivateCompanions:IsVisible() ~= 1 then return; end
+    local _, _, w, h = PrivateCompanions:GetRect();
+    local size = string.format("%.0fx%.0f", w, h);
+    if size == S.view then S.pending = nil; return; end
+    if S.pending ~= size then S.pending = size; S.ticks = 0; return; end
+    S.ticks = S.ticks + 1;
+    if S.ticks >= 10 then PrivateCompanions_Fit(false); end
+end
+
+function PrivateCompanions_Open()
+    if not PRIVATE_COMPANIONS_WINDOWED then
+        PrivateWarehouse:Show();
+        PrivateWarehouse:SetText("Player Companions");
+        PrivateWarehouse:SetRect(0, 0, 1280, 960);
+        PrivateWarehouseBrowser:LoadUrlWithWebAuth(PRIVATE_PLAYERBOTS_URL);
+        return;
+    end
+    -- A normal movable, resizable window. Centre it once per session; later opens keep the player's spot and size.
+    PrivateCompanions:Show();
+    if not PrivateCompanionsSize.placed then
+        PrivateCompanionsSize.placed = true;
+        local ok, _, sw, sh = pcall(function() if AFCore and AFCore.Scale then return AFCore.Scale() end end);
+        local s = (GetUIScale and GetUIScale()) or 1;
+        if ok and sw and sh and sw > 0 and sh > 0 and s > 0 then
+            PrivateCompanions:SetRect(math.max(0, math.floor((sw / s - {WIDTH}) / 2)), math.max(0, math.floor((sh / s - {HEIGHT}) / 2)), {WIDTH}, {HEIGHT});
+        end
+    end
+    PrivateCompanions_Fit(true);
+end
+'''
 
 
 def sha(data):
@@ -98,18 +172,22 @@ def menus(data):
     text = data.decode('utf-8-sig')
     newline = '\r\n' if '\r\n' in text else '\n'
     text = text.replace('\r\n', '\n')
-    if 'function PrivateCompanions_OnLoad(' in text:
-        raise ValueError('The Companions window is already installed')
-    if text.count(OLD_OPEN) != 1:
+    if NEW_OPEN in text:
+        return data
+    # Fresh client: the fullscreen opener; installed first revision: the window that did not follow the UI scale.
+    old = REVISION1 if REVISION1 in text else OLD_OPEN
+    if text.count(old) != 1:
         raise ValueError('Unexpected installed PrivateCompanions_Open')
-    out = text.replace(OLD_OPEN, NEW_OPEN).replace('\n', newline).encode('utf-8')
+    out = text.replace(old, NEW_OPEN).replace('\n', newline).encode('utf-8')
     return (b'\xef\xbb\xbf' + out) if bom else out
 
 
 def toc(data):
     text = data.decode('utf-8')
     anchor = 'Account.xml\r\n'
-    if '\r\nCompanions.xml\r\n' in text or text.count(anchor) != 1:
+    if '\r\nCompanions.xml\r\n' in text:
+        return data
+    if text.count(anchor) != 1:
         raise ValueError('Unexpected RelicCalc.toc (install the Account window first)')
     return text.replace(anchor, anchor + 'Companions.xml\r\n').encode('utf-8')
 
@@ -118,7 +196,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--client', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--bridge', type=Path, required=True, help='native-icon-bridge build output with bin64/AionIconBridge.dll and AionUiArt.index')
+    parser.add_argument('--bridge', type=Path, help='native-icon-bridge build output with bin64/AionIconBridge.dll and AionUiArt.index')
     args = parser.parse_args()
     client, output = args.client.resolve(strict=True), args.output.resolve()
     if output.exists() or output.is_relative_to(client) or output.is_relative_to(HERE.parents[1]):
@@ -133,9 +211,13 @@ def main():
                     # The command bar's Pull and Mark buttons (their orders are in the rebuilt bridge).
                     'PlayerBotBar.lua': (HERE / 'PlayerBotBar.lua').read_bytes(), 'PlayerBotBar.xml': (HERE / 'PlayerBotBar.xml').read_bytes()}
     dialog = b'\xff\xfe' + DIALOG.encode('utf-16-le')
-    built = extend(raw, replacements, {'Companions.xml': dialog})
+    replacements = {n: v for n, v in replacements.items() if v != others[n]}
+    added = [] if 'Companions.xml' in names else ['Companions.xml']
+    if not added and others['Companions.xml'] != dialog:
+        raise ValueError('Unexpected installed Companions dialog')
+    built = extend(raw, replacements, {'Companions.xml': dialog} if added else {})
     with read_pak_bytes(built) as check:
-        if check.namelist() != names + ['Companions.xml'] or check.testzip() is not None:
+        if check.namelist() != names + added or check.testzip() is not None:
             raise ValueError('RelicCalc archive structure changed')
         for n in names:
             if check.read(n) != replacements.get(n, others[n]):
@@ -152,10 +234,10 @@ def main():
     subprocess.run(['java', str(HERE.parent / 'transmog-menu/SignClientPackages.java'), str(client), str(output)], check=True)
     (output / 'Pub.key').unlink(missing_ok=True)
     # The rebuilt icon bridge serves the window's art from the client's own archives; its item index stays the live one.
-    bridge = args.bridge.resolve(strict=True)
-    if (bridge / 'bin64/AionIconBridge.index').read_bytes() != (client / 'bin64/AionIconBridge.index').read_bytes():
+    bridge = args.bridge.resolve(strict=True) if args.bridge else None
+    if bridge and (bridge / 'bin64/AionIconBridge.index').read_bytes() != (client / 'bin64/AionIconBridge.index').read_bytes():
         raise ValueError('Installed native item index drifted; rebuild the bridge against the current client')
-    for name in ('AionIconBridge.dll', 'AionUiArt.index'):
+    for name in ('AionIconBridge.dll', 'AionUiArt.index') if bridge else ():
         (output / 'bin64').mkdir(exist_ok=True)
         (output / 'bin64' / name).write_bytes((bridge / 'bin64' / name).read_bytes())
     records = []
@@ -166,12 +248,12 @@ def main():
             records.append(dict(path=rel, original=sha(old.read_bytes()) if old.exists() else None, staged=sha(path.read_bytes())))
     sources = [Path(__file__).resolve(), Path(account_window.__file__).resolve(), HERE / 'PlayerBotBar.lua', HERE / 'PlayerBotBar.xml',
                HERE / 'playerbot_bar.h', HERE.parent / 'native-icon-bridge/icon_bridge.cpp', HERE.parent / 'native-icon-bridge/prepare_ui_art.py']
-    manifest = dict(feature='companions-window', revision='own-window', clientRoot=str(client), files=records, graphicsCompatibility=None,
+    manifest = dict(feature='companions-window', revision='fitted-window', clientRoot=str(client), files=records, graphicsCompatibility=None,
                     serverChanged=False, repackChanged=False, pluginDialogs='+1 (PrivateCompanions)',
                     sourceHashes={str(p): sha(p.read_bytes()) for p in sources},
                     preservedFiles=[dict(path=rel, sha256=sha((client / rel).read_bytes())) for rel in
                                     ['bin64/Game.dll', 'bin64/AionIconBridge.index', 'Data/ui/game/game.pak', 'L10N/enu/Data/data.pak', 'Pub.key']],
-                    gameplayAcceptance='Pending: Player Companions opens as a normal, movable, resizable window and reflows after a resize')
+                    gameplayAcceptance='Pending: Player Companions opens as a normal, movable, resizable window and its page fills it at any UI scale and after a resize, never smaller than 760x520')
     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
     print('Prepared', len(records), 'affected files; original client unchanged:', output)
 
