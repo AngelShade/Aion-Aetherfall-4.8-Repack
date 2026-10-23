@@ -31,6 +31,39 @@ MARKET_RECT_ORIGINAL = bytes.fromhex('488bc44881ecb8000000')
 UI_WIDTH_RVA, UI_HEIGHT_RVA, UI_SCALE_RVA = 0x1378ea8, 0x1378eb0, 0x1378ec8
 
 
+def patch_development_session(source):
+    """Retain invalid-ID rejection; avoid the delayed publisher-address trap.
+
+    S_EXP can latch a failed server-address range check. The next S_PUT_USER
+    deliberately writes to address zero, independently of cinematic assets.
+    Only that latch branch changes; the zero object-ID branch still traps.
+    """
+    data = bytearray(source)
+    pe = struct.unpack_from('<I', data, 60)[0]
+    if (data[pe:pe+4] != b'PE\0\0'
+            or struct.unpack_from('<H', data, pe+4)[0] != 0x8664
+            or struct.unpack_from('<I', data, pe+8)[0] != 0x561c7ce5
+            or struct.unpack_from('<H', data, pe+24)[0] != 0x20b
+            or struct.unpack_from('<Q', data, pe+48)[0] != 0x10000000):
+        raise ValueError('Unsupported native session client build')
+    table = pe+24+struct.unpack_from('<H', data, pe+20)[0]
+    matches = []
+    for index in range(struct.unpack_from('<H', data, pe+6)[0]):
+        at = table+index*40
+        rva, size, raw = struct.unpack_from('<III', data, at+12)
+        if rva <= 0x2c3098 and 0x2c30aa <= rva+size:
+            matches.append(raw+0x2c3098-rva)
+    if len(matches) != 1:
+        raise ValueError('Native session instructions are not uniquely mapped')
+    at = matches[0]
+    expected = bytes.fromhex('7409f6054b3d0601017407893c2500000000')
+    repaired = expected[:9]+b'\xeb'+expected[10:]
+    if data[at:at+len(expected)] not in (expected, repaired):
+        raise ValueError('Native session guard instructions changed')
+    data[at:at+len(expected)] = repaired
+    return bytes(data)
+
+
 def build_market_rect_code(include_journey=True, client_origin=True):
     if include_journey:
         return build_journey_rect_code(client_origin)
@@ -550,4 +583,4 @@ def build_dll(original_path, commands, cash_shop_url):
     data[PREVIEW_DOCK_RVA:PREVIEW_DOCK_RVA + len(PREVIEW_DOCK_ORIGINAL)] = (
         b'\xe9' + struct.pack('<i', PREVIEW_DOCK_HOOK_RVA - PREVIEW_DOCK_RVA - 5)
         + b'\x90' * (len(PREVIEW_DOCK_ORIGINAL) - 5))
-    return bytes(data)
+    return patch_development_session(bytes(data))

@@ -24971,7 +24971,7 @@
 		<npc_skill id="19232" lv="43" prob="25" />
 	</npc_skills>
 	<npc_skills npc_ids="215482">
-		<npc_skill id="16644" lv="43" prob="25" />
+		<npc_skill id="18821" lv="43" prob="25" />
 		<npc_skill id="18801" lv="43" prob="25" />
 		<npc_skill id="18814" lv="43" prob="25" />
 	</npc_skills>
@@ -28481,6 +28481,7 @@
 		<npc_skill id="19052" lv="20" prob="25" />
 		<npc_skill id="19053" lv="20" prob="25" />
 		<npc_skill id="19054" lv="20" prob="25" />
+		<npc_skill id="19049" lv="1" prob="0" />
 	</npc_skills>
 	<npc_skills npc_ids="216246">
 		<npc_skill id="18602" lv="2" prob="20" />

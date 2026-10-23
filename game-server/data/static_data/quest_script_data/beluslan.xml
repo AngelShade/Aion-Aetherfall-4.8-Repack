@@ -119,7 +119,7 @@
 			2606 [XML] A Ribbit in Need
 			2607 [XML] Silencing the Hermit
 			2608 [XML] Halt the Contamination
-			2611 [SCRIPT] Consulting the Leaders
+			2611 [XML] Consulting the Leaders
 			2612 [XML] A Tonic for Nargatal
 			2613 [XML] Devoted Husband Akagitan
 			2614 [XML] Decorative Skulls
@@ -246,12 +246,13 @@
 			4541 [XML] Imports & Exports
 			4542 [SCRIPT] The Secret of the Seiren Treasure
 			16909 [SCRIPT] [Spy] A Mark of Distinction
-			24150 [TODO] Interior Landscaping
-			24151 [TODO] Reclaiming the Damned
+			24150 [SCRIPT] Interior Landscaping
+			24151 [SCRIPT] Reclaiming the Damned
 			24152 [TODO] Through the Looking Glass
-			24153 [TODO] The Efficacy of Fire
-			24154 [TODO] Better than Last Time
-			24155 [TODO] Leather Wings and Shiny Things
+			24153 [SCRIPT] The Efficacy of Fire
+			24154 [SCRIPT] Better than Last Time
+			24155 [SCRIPT] Leather Wings and Shiny Things
+			24250 [XML] Time Has Come
 			26902 [XML] [Spy] An Eye on the Research
 			26903 [XML] [Spy] Bottling Kishar Krall
 			26907 [XML] Malek-nant Growth
@@ -304,6 +305,13 @@
 	-->
 	
 	<!-- REPORTING QUESTS -->
+	<report_to_many id="2611" start_npc_ids="204763">
+		<npc_infos npc_ids="204783"/>
+		<npc_infos npc_ids="204784"/>
+		<npc_infos npc_ids="204700"/>
+		<npc_infos npc_ids="204763"/>
+	</report_to_many>
+	<report_to id="24250" start_npc_ids="802053" end_npc_ids="832820"/>
 	<report_to id="2507" start_npc_ids="204702" end_npc_ids="204801"/>
 	<report_to id="2508" start_npc_ids="204734" end_npc_ids="204802"/>
 	<report_to id="2526" start_npc_ids="204804" end_npc_ids="204811"/>

@@ -3,8 +3,10 @@ package ai.instance.tallocsHollow;
 import java.util.concurrent.Future;
 
 import com.aionemu.gameserver.ai.AIName;
+import com.aionemu.gameserver.ai.AIState;
 import com.aionemu.gameserver.ai.poll.AIQuestion;
 import com.aionemu.gameserver.model.gameobjects.Npc;
+import com.aionemu.gameserver.spawnengine.SpawnEngine;
 import com.aionemu.gameserver.utils.ThreadPoolManager;
 
 import ai.AggressiveNpcAI;
@@ -22,24 +24,36 @@ public class MosquaEggAI extends AggressiveNpcAI {
 	}
 
 	@Override
-	protected void handleSpawned() {
+	protected synchronized void handleSpawned() {
 		super.handleSpawned();
-		supraklawSpawnTask = ThreadPoolManager.getInstance().schedule(() -> {
-			spawn(217132, getPosition().getX(), getPosition().getY(), getPosition().getZ(), getPosition().getHeading());
-			getOwner().getController().delete();
-		}, 17000);
+		supraklawSpawnTask = ThreadPoolManager.getInstance().schedule(this::hatch, 17000);
+	}
+
+	private synchronized void hatch() {
+		if (isDead() || !getOwner().isSpawned() || supraklawSpawnTask == null)
+			return;
+		if (getOwner().getCreator() instanceof Npc queen && queen.getNpcId() == 215480
+			&& queen.isSpawned() && !queen.isDead()
+			&& (queen.getAi().getState() == AIState.FIGHT || queen.getAi().getState() == AIState.FEAR
+				|| queen.getAi().getState() == AIState.CONFUSE)) {
+			// Keep the hatchling under the queen's ownership after its egg is deleted.
+			SpawnEngine.spawnObject(SpawnEngine.newSingleTimeSpawn(getOwner().getWorldId(), 217132,
+				getOwner().getX(), getOwner().getY(), getOwner().getZ(), getOwner().getHeading(), queen.getObjectId()),
+				getOwner().getInstanceId());
+		}
+		getOwner().getController().delete();
 	}
 
 	@Override
-	protected void handleDespawned() {
+	protected synchronized void handleDespawned() {
+		cancelSpawnTask();
 		super.handleDespawned();
-		cancelSpawnTask();
 	}
 
 	@Override
-	protected void handleDied() {
-		super.handleDied();
+	protected synchronized void handleDied() {
 		cancelSpawnTask();
+		super.handleDied();
 	}
 
 	@Override
@@ -52,7 +66,7 @@ public class MosquaEggAI extends AggressiveNpcAI {
 
 	private void cancelSpawnTask() {
 		if (supraklawSpawnTask != null && !supraklawSpawnTask.isDone()) {
-			supraklawSpawnTask.cancel(true);
+			supraklawSpawnTask.cancel(false);
 			supraklawSpawnTask = null;
 		}
 	}

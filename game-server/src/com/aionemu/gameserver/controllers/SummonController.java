@@ -102,12 +102,12 @@ public class SummonController extends CreatureController<Summon> {
 
 	public boolean canAttack(int targetObjId) {
 		return getOwner().getKnownList().getObject(targetObjId) instanceof Creature creature && getOwner().isEnemy(creature)
-			&& (!getMaster().isPlayerBot() || com.aionemu.gameserver.services.playerbot.PlayerBotService.allowsTarget(getMaster(), creature));
+			&& (!getMaster().isPlayerBot() || com.aionemu.gameserver.services.playerbot.PlayerBotService.allowsAttackTarget(getMaster(), creature));
 	}
 
 	@Override
 	public void attackTarget(Creature target, int time, boolean skipChecks) {
-		if (getMaster().isPlayerBot() && !com.aionemu.gameserver.services.playerbot.PlayerBotService.allowsTarget(getMaster(), target)) return;
+		if (getMaster().isPlayerBot() && !com.aionemu.gameserver.services.playerbot.PlayerBotService.allowsAttackTarget(getMaster(), target)) return;
 		if (target.isDead() || target.getLifeStats().isAboutToDie()) {
 			PacketSendUtility.sendPacket(getMaster(), SM_SYSTEM_MESSAGE.STR_INVALID_TARGET());
 			return;

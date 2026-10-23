@@ -15,6 +15,7 @@ final class PlayerBotNavigationBudget {
   Request(Object token,int priority,long now,long sequence){this.token=new WeakReference<>(token);this.priority=priority;queued=now;this.sequence=sequence;}
  }
  private final LongSupplier clock;
+ private final boolean independent;
  private final long sliceNanos,burstNanos;
  private final int workers;
  private final double rate;
@@ -31,15 +32,20 @@ final class PlayerBotNavigationBudget {
 
  PlayerBotNavigationBudget(int budgetMs,int sliceMs,int workers){this(System::nanoTime,budgetMs,sliceMs,workers);}
  PlayerBotNavigationBudget(LongSupplier clock,int budgetMs,int sliceMs,int workers){
+  this(clock,budgetMs,sliceMs,workers,false);
+ }
+ static PlayerBotNavigationBudget independent(int sliceMs){return new PlayerBotNavigationBudget(System::nanoTime,1000,sliceMs,1,true);}
+ PlayerBotNavigationBudget(LongSupplier clock,int budgetMs,int sliceMs,int workers,boolean independent){
   if(clock==null || budgetMs<1 || budgetMs>1000 || workers<1 || workers>6 || sliceMs<1 || sliceMs>50)
    throw new IllegalArgumentException("Terrain budget requires 1..1000 ms/s, 1..6 workers and 1..50 ms slices");
-  this.clock=clock;this.workers=workers;sliceNanos=sliceMs*1_000_000L;burstNanos=sliceNanos*workers;
+  this.clock=clock;this.independent=independent;this.workers=workers;sliceNanos=sliceMs*1_000_000L;burstNanos=sliceNanos*workers;
   rate=budgetMs/1000d;lastRefill=clock.getAsLong();credit=burstNanos;typicalNanos=sliceNanos;
  }
  synchronized void request(Object token,int priority){request(token,priority,clock.getAsLong());}
  void request(Object token,Priority priority){request(token,priority.ordinal());}
  synchronized boolean nominated(Object token){
   if(!waiting.containsKey(token))return false;
+  if(independent)return true;
   long now=clock.getAsLong();refill(now);
   if(credit<0)return false;
   // Wake enough independent actors to cover the existing100ms AI reaction.
@@ -59,11 +65,13 @@ final class PlayerBotNavigationBudget {
   return wakeups.contains(waiting.get(token));
  }
  synchronized boolean waiting(Object token){return waiting.containsKey(token)||running.containsKey(token);}
+ boolean independent(){return independent;}
  Lease begin(Object token,Priority priority){return begin(token,priority.ordinal());}
  private void request(Object token,int priority,long now){
   if(token==null)throw new IllegalArgumentException("Missing terrain intent");
   if(running.containsKey(token))return;
   int band=Math.max(0,Math.min(2,priority));Request old=waiting.get(token);
+  if(independent){if(old==null)waiting.put(token,new Request(token,band,now,sequence++));return;}
   if(old!=null && expired(old,now)){old.cancelled=true;waiting.remove(token);old=null;}
   if(old==null){old=new Request(token,band,now,sequence++);waiting.put(token,old);queues.get(band).addLast(old);wakeupDirty=true;}
   else if(old.priority!=band){queues.get(old.priority).remove(old);old.priority=band;queues.get(band).addLast(old);wakeupDirty=true;}
@@ -72,11 +80,16 @@ final class PlayerBotNavigationBudget {
   // Most actors have no pending terrain intent. They must not allocate or
   // nominate somebody else's queue merely to classify their reaction delay.
   if(!waiting.containsKey(token))return false;
+  if(independent)return true;
   long now=clock.getAsLong();refill(now);
   for(Request request:nominees(now))if(request.token.get()==token)return true;
   return false;
  }
  synchronized Lease begin(Object token,int priority){
+  if(independent){
+   if(!running.isEmpty())return null;
+   waiting.remove(token);Lease lease=new Lease(token,clock.getAsLong());running.put(token,lease);return lease;
+  }
   long now=clock.getAsLong();refill(now);request(token,priority,now);
   if(running.containsKey(token))return null;
   // Nomination asks the actor scheduler to wake an aged/important intent; it
@@ -147,6 +160,7 @@ final class PlayerBotNavigationBudget {
   long deadlineNanos(){return started+sliceNanos;}
   @Override public void close(){synchronized(PlayerBotNavigationBudget.this){
    if(closed)return;closed=true;long now=clock.getAsLong(),spent=Math.max(0,now-started);refill(now);
+   if(independent){running.remove(token);return;}
    running.remove(token);credit=Math.min(burstNanos,credit+sliceNanos-spent);chargedNanos+=spent;
    typicalNanos=Math.max(1,typicalNanos+(spent-typicalNanos)/16);
    wakeupDirty=true;

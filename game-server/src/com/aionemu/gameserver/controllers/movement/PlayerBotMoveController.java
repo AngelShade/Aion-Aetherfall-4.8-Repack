@@ -299,10 +299,16 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 			float y=owner.getY()+(float)((targetDestY-owner.getY())*fraction);
 			var ground=com.aionemu.gameserver.world.geo.GeoService.getInstance().findGroundMovementCollision(
 				owner.getWorldId(),owner.getInstanceId(),owner.getX(),owner.getY(),owner.getZ(),x,y,targetDestZ);
-			if(ground==null || !Float.isFinite(ground.x) || !Float.isFinite(ground.y) || !Float.isFinite(ground.z)){walkBlocked=true;abortMove();return;}
+			if(ground==null || !Float.isFinite(ground.x) || !Float.isFinite(ground.y) || !Float.isFinite(ground.z)){
+				com.aionemu.gameserver.services.playerbot.PlayerBotRouteMemory.obstructed(owner.getWorldId(),owner.getX(),owner.getY(),owner.getZ(),x,y);
+				walkBlocked=true;abortMove();return;
+			}
 			if(steepDrop(ground)){startSupportedFall();return;}
 			double covered=Math.hypot(ground.x-owner.getX(),ground.y-owner.getY());
-			if(covered<.001){walkBlocked=true;abortMove();return;}
+			if(covered<.001){
+				com.aionemu.gameserver.services.playerbot.PlayerBotRouteMemory.obstructed(owner.getWorldId(),owner.getX(),owner.getY(),owner.getZ(),x,y);
+				walkBlocked=true;abortMove();return;
+			}
 			long generation=walkGeneration;boolean owned=walkActive;
 			com.aionemu.gameserver.world.World.getInstance().updatePosition(owner,ground.x,ground.y,ground.z,heading,false);
 			remaining=Math.max(0,remaining-covered/speed);updateLastMove();

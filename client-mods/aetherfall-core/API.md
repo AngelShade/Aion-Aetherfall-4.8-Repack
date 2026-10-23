@@ -19,6 +19,7 @@ if AFCore and AFCore.Loaded() then ... end
 | `AFCore.Exp()` | current XP (within the level), XP needed for the level, recoverable XP, repose current, repose max |
 | `AFCore.FPS()` | engine frame rate |
 | `AFCore.Unit(unit)` | object id, name, level, hp, max hp, mp, max mp: `"target"` or `"targettarget"` |
+| `AFCore.PlayerId()` | the connected player's native object id, or `nil` when unavailable |
 | `AFCore.NumAuras(unit)` | buff/debuff count: `"player"`, `"target"`, `"targettarget"` |
 | `AFCore.Aura(unit, i)` | skill id, name, level, slot (0 buff, 1 debuff, 2 chant, 3/4 special, 5 boost), native remaining s, total (`nil`), raw remaining ms, effector, time mode |
 | `AFCore.SkillName(id)` | localized skill name |
@@ -52,6 +53,7 @@ ones (`basic_status`, `target`, `target_assist`, `party`, `radar`, `start`,
 | `AFCore.Gauge(id, widget)` | value, max, shown (for example the cast bars' `"delay"`) |
 | `AFCore.Text(id, widget)` | text of a static widget |
 | `AFCore.Move(id, x, y[, w, h])` | moves a native window (pixels), as the engine does; preserves zero-sized canvases such as Target Auras. False means no placement was applied. |
+| `AFCore.Backdrop(id, alpha[, widget, kind, recursive])` | Fades native background skins (0–1), preserving text-state alpha, item-icon alpha and gauge foregrounds. Walks current children with a depth/node bound; `recursive=false` affects only the requested widget's skin. No retained native pointers. |
 | `AFCore.SetShown(id, on)` | shows or hides a native window |
 | `AFCore.Scale()` | engine UI scale, screen width, screen height (pixels) |
 | `AFCore.ModPath(name)` | path under `Mods/AetherfallUI/`, whatever the client's working folder |
@@ -120,3 +122,40 @@ All positions are screen pixels (the engine's screen size from `AFCore.Scale()`)
 `/afcore test` runs these against the live game and prints PASS/FAIL lines; `/afcore watch`
 lists every game window that opens during 15 seconds with its class (to identify windows such
 as tooltips).
+
+## Complete resource catalogue and live widget tree (1.2.51)
+
+`AFCore.UI` contains generated `layouts`, `presets`, `skins`, `nativeTypes`,
+`widgetTypes` and per-resource `sources` hashes. Definitions remain available
+when a window is closed. Base, English, HUD1/HUD2 and plugin variants remain
+separate. A definition's `nativeIds` is empty when native mapping is unverified;
+the catalogue is not a claim that every definition creates a dialog slot.
+
+- `AFCore.Layouts([name])`: sorted resource records (`key`, `definition`). Each
+  definition includes its source, root attributes and widgets with ordinal
+  `path`, `parent`, attributes and direct skin references. Preset child
+  declarations remain in their own definitions; live enumeration includes
+  instantiated and dynamically added controls.
+- `AFCore.FrameCatalog()`: verified movable native previews derived from this
+  catalogue, preferring the active English ordinary-window layout.
+- `AFCore.FindDialogs([name])`: current matching native slots, without opening
+  any window or retaining instance pointers.
+- `AFCore.Widget(id[, path[, childIndex]])`: one live node, or its direct child.
+  Returns a table with `name`, native numeric `type`, `flags`, `localRect`,
+  screen `rect`, and effective `shown`; unavailable nodes return nil.
+- `AFCore.Children(id[, path, first, limit])`: at most 64 direct children per
+  call, with ordinal paths and a next-page index. Stop when no next page exists.
+
+A plain name retains native recursive lookup. A path such as `#4/btn_zoom`,
+`#4/#1`, or `item_shop_container/item_shop` follows exact parent relationships.
+Duplicate sibling names require ordinal paths. Rect, Pin, Backdrop and sparse
+hit testing use the same resolver. Their kind argument also accepts a verified
+numeric widget type from `Widget`; unknown kind strings do not become gauges.
+Geometry uses the existing native coordinate conversion and effective visibility.
+Inspection performs no layout, painting or window creation.
+
+`/afcore ui` summarizes the catalogue. `/afcore inspect 14 #4/btn_zoom` reports
+one current control and a bounded child list. The build's external
+`ui-registry-report.json` records counts, unresolved mappings and source parse
+issues. The shipped English Gatha file has mismatched `preset` tag case; the
+catalogue records its case-only parse normalization without changing that file.

@@ -259,6 +259,8 @@ public final class PlayerBotSession {
 		if (!(owner.getTarget() instanceof Creature npc))
 			throw new IllegalArgumentException("Select an enemy for your companions to attack.");
 		if (npc.isDead()) throw new IllegalArgumentException("The selected enemy is already dead.");
+		if (npc instanceof Npc held && PlayerBotMarks.nativeCcMarked(owner,held))
+			throw new IllegalArgumentException("Clear the native sleep mark before attacking that monster.");
 		if (!PositionUtil.isInRange(owner, npc, 45))
 			throw new IllegalArgumentException("The selected enemy must be within 45m of you.");
 		// Validate the requested combat order before committing it. Passive and
@@ -444,6 +446,12 @@ public final class PlayerBotSession {
 		// explicit attack), never to Aion's ten-second post-hit combat timer, which
 		// left companions standing after every fight while the owner walked away.
 		List<Npc> enemies = new ArrayList<>();
+		if (!autonomous() && bot.getCastingSkill() != null) {
+			var cast = bot.getCastingSkill();
+			if (cast != null && cast.getFirstTarget() instanceof Npc held && !PlayerBotMarks.nativeSkillAllowed(owner, held, cast.getSkillTemplate())) {
+				cancelCharge(); bot.getController().cancelCurrentSkill(null); nextDecision = 0;
+			}
+		}
 		var pull = autonomous() ? null : PlayerBotMarks.pull(owner, System.currentTimeMillis());
 		boolean puller = pull != null && pull.tank == bot.getObjectId();
 		activePull = puller ? pull : null;
@@ -848,6 +856,7 @@ public final class PlayerBotSession {
 					}), MOVE + 2));
 				triggers.add(trigger(new ReachAction(target, desired), MOVE));
 				triggers.add(trigger(new SimpleAction("auto attack", () -> validEnemy(target, party, explicitTarget(target))
+					&& (autonomous() || !PlayerBotMarks.nativeCcMarked(owner,target))
 					&& !withholdDamage
 					&& PlayerBotEncounters.allowsAttack(bot, target)
 					&& System.currentTimeMillis() >= nextAttack && PositionUtil.isInAttackRange(bot, target, range)
@@ -1046,6 +1055,8 @@ public final class PlayerBotSession {
 	}
 
 	private Npc chooseTarget(List<Npc> enemies, List<Player> party) {
+		// Native Zzz is protected even as the last enemy, before encounter-specific selection.
+		if (!autonomous()) enemies=enemies.stream().filter(n->!PlayerBotMarks.nativeCcMarked(owner,n)).toList();
   if(commandedTarget==0){Npc add=PlayerBotSteelRake.adds(enemies);if(add!=null)return add;}
 		Npc lab=PlayerBotTheobomosLab.target(bot,role,commandedTarget,enemies);if(lab!=null)return lab;
         Npc adma=PlayerBotAdmaStronghold.target(bot,role,commandedTarget,enemies);if(adma!=null)return adma;
@@ -1055,6 +1066,10 @@ public final class PlayerBotSession {
 		var unmarked=autonomous() ? enemies : enemies.stream().filter(n->n.getObjectId()==commandedTarget || !PlayerBotMarks.leaveAlone(owner,n,count,now)).toList();
 		if(!unmarked.isEmpty())enemies=unmarked;
 		int focus=commandedTarget!=0 || autonomous() ? commandedTarget : PlayerBotMarks.kill(owner);
+		if (!autonomous() && commandedTarget==0) {
+			int commandMark=focus;
+			if (enemies.stream().noneMatch(n->n.getObjectId()==commandMark)) focus=PlayerBotMarks.nativeFocus(owner,enemies);
+		}
   return PlayerBotTargetValues.choose(bot,owner,role,focus,enemies.stream().filter(PlayerBotSteelRake::attackable).filter(PlayerBotTheobomosLab::attackable).filter(PlayerBotAdmaStronghold::attackable).toList(),party,skills);
 	}
 
@@ -1235,6 +1250,7 @@ public final class PlayerBotSession {
 	private double priority(PlayerBotSkills.Entry e, Creature recipient, boolean combat, List<Player> party) {
 		boolean hostile = e.kind() == SkillKind.DAMAGE || e.kind() == SkillKind.TAUNT;
 		if (recipient instanceof Npc npc && !autonomous()) {
+			if (!PlayerBotMarks.nativeSkillAllowed(owner,npc,PlayerBotSkills.actualTemplate(bot,e))) return 0;
 			// Crowd-control mark (WoW moon): only control it, never break it with damage.
 			if (hostile && npc.getObjectId() != commandedTarget && PlayerBotMarks.leaveAlone(owner, npc, enemyCount, System.currentTimeMillis())) return 0;
 			if (e.kind() == SkillKind.CONTROL && PlayerBotMarks.keepControlled(owner, npc, e.template())) return INTERRUPT + 5;
@@ -1365,6 +1381,7 @@ public final class PlayerBotSession {
 		@Override public boolean isUseful() {
 			var actual = PlayerBotSkills.actualTemplate(bot, entry);
 			if (actual == null) return false;
+			if (!autonomous() && recipient instanceof Npc held && !PlayerBotMarks.nativeSkillAllowed(owner,held,actual)) return false;
 			if(bot.isEnemy(recipient) && !validEnemy(recipient,party(),explicitTarget(recipient)))return false;
 			if((entry.kind()==SkillKind.BUFF || entry.kind()==SkillKind.PET_ORDER && PlayerBotSkills.classify(actual)==SkillKind.BUFF)
 				&& !PlayerBotCombatBuffs.nonCombatUseful(actual) && !PlayerBotTownPolicy.buffUseful(actual,
@@ -1448,6 +1465,7 @@ public final class PlayerBotSession {
 					if (group != null) bot.getKnownList().forEachNpc(n -> { if (validEnemy(n, group.getMembers(), explicitTarget(n))) engaged.add(n); });
 					if (PlayerBotPvp.playerOwned(target) && validEnemy(target,party(),explicitTarget(target)))engaged.add(target);
 					if (order == Order.PASSIVE || bot.isDead() || !target.isSpawned() || !PlayerBotService.allowsTarget(bot, target)
+						|| !autonomous() && target instanceof Npc held && !PlayerBotMarks.nativeSkillAllowed(owner,held,entry.template())
 						|| target.isDead() || target instanceof Npc npc && !PlayerBotEncounters.allowsSkill(bot, npc, entry.template(),0) || !safeArea(entry, target, engaged)) {
 						bot.getController().cancelCurrentSkill(null); nextDecision = 0; return;
 					}

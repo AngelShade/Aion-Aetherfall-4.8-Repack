@@ -84,6 +84,7 @@ public class TalocsHollowInstance extends GeneralInstanceHandler {
 	public void onBackHome(Npc npc) {
 		if (npc.getNpcId() == 215480) { // queen mosqua
 			isQueenMosquaHome.set(true);
+			deleteMosquaSummons(npc);
 			instance.setDoorState(7, true);
 		}
 	}
@@ -99,6 +100,7 @@ public class TalocsHollowInstance extends GeneralInstanceHandler {
 				deleteAliveNpcs(700633);
 				break;
 			case 215480: // queen mosqua
+				deleteMosquaSummons(npc);
 				instance.setDoorState(7, true);
 				Npc insectEgg = getNpc(700738);
 				if (insectEgg != null) {
@@ -135,6 +137,13 @@ public class TalocsHollowInstance extends GeneralInstanceHandler {
 				spawn(799503, 548f, 811f, 1375f, (byte) 0);
 				break;
 		}
+	}
+
+	private void deleteMosquaSummons(Npc queen) {
+		// Eggs first: their deletion cancels hatching before the hatchling pass.
+		for (int npcId : new int[] { 282006, 282007, 217132 })
+			instance.getNpcs(npcId).stream().filter(npc -> npc.getSpawn().getCreatorId() == queen.getObjectId())
+				.forEach(npc -> npc.getController().delete());
 	}
 
 	@Override

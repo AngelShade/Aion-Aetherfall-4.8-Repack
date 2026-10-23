@@ -27,6 +27,7 @@ public final class PlayerBotNavigationBudgetCheck {
   check((long)field(budget,"chargedNanos")<=clock.now*.5+6_000_000,"aggregate cost remains inside elapsed rate plus tiny burst population"+count);
  }
  public static void main(String[] args)throws Exception{
+  independentAndMemory();
   for(int count:new int[]{250,1000,3000})population(count);
   var clock=new Clock();var budget=new PlayerBotNavigationBudget(clock,500,3,2);Object a=new Object(),b=new Object(),c=new Object();
   budget.request(a,0);budget.request(b,0);budget.request(c,0);
@@ -82,5 +83,65 @@ public final class PlayerBotNavigationBudgetCheck {
   for(int[] bad:new int[][]{{0,3,2},{1001,3,2},{500,3,0},{500,3,7},{500,0,2},{500,51,2}})
    try{new PlayerBotNavigationBudget(new Clock(),bad[0],bad[1],bad[2]);throw new AssertionError("invalid policy admitted");}catch(IllegalArgumentException expected){checks++;}
   System.out.println("OK: "+checks+" elapsed terrain budget, priority, retained fairness, debt and lease lifecycle checks");
+ }
+ private static void independentAndMemory()throws Exception{
+  var clock=new Clock();var a=new PlayerBotNavigationBudget(clock,500,3,1,true);
+  var b=new PlayerBotNavigationBudget(clock,500,3,1,true);Object first=new Object(),second=new Object();
+  a.request(first,0);b.request(second,0);
+  var longProbe=a.begin(first,0);check(longProbe!=null,"independent actor starts without a shared turn");
+  clock.ms(100);longProbe.close();
+  var other=b.begin(second,0);check(other!=null && other.deadlineNanos()==clock.now+3_000_000,"another actor never inherits a slow actor's terrain debt");
+  check(b.begin(new Object(),2)==null,"one actor cannot overlap its own planning callbacks");other.close();
+  var resumed=a.begin(first,0);check(resumed!=null,"even the same actor may resume after its own overrun without a population queue");resumed.close();
+  check(((Map<?,?>)field(a,"waiting")).isEmpty(),"independent admission leaves no population ticket");
+  boolean independent=com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_INDEPENDENT;
+  boolean memoryFirst=com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_MEMORY_FIRST;
+  boolean learning=com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_LEARN_BLOCKS;
+  try{
+   com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_INDEPENDENT=true;
+   com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_MEMORY_FIRST=true;
+   com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_LEARN_BLOCKS=false;
+   var admission=new PlayerBotMeshRoute.Admission(1);
+   Object one=new Object(),two=new Object();
+   check(admission.demand(one)&&admission.demand(two)&&admission.retain(one)&&admission.retain(two),"one bot's retained query cannot queue another actor");
+   check(admission.begin(one)&&admission.begin(two)&&admission.slots.availablePermits()==1,"independent graph callbacks consume no shared calculation permit");
+   admission.end(one);admission.end(two);
+   var start=new PlayerBotNavigation.Point(10,10,0);var goal=new PlayerBotNavigation.Point(30,10,0);
+   var mesh=new PlayerBotMeshRoute(1,start,goal,24);
+   var candidates=PlayerBotMeshRoute.class.getDeclaredField("candidates");candidates.setAccessible(true);
+   candidates.set(mesh,List.of(start,new PlayerBotNavigation.Point(20,10,0),goal));
+   var complete=PlayerBotMeshRoute.class.getDeclaredField("graphComplete");complete.setAccessible(true);complete.setBoolean(mesh,true);
+   mesh.advance((from,x,y)->{throw new AssertionError("RAM route redundantly called native corridor collision");},128,()->false);
+   check(!mesh.pending() && !mesh.route().isEmpty() && mesh.route().getLast().equals(goal),"a prepared RAM route publishes without a duplicate native corridor walk");
+   mesh.close();
+   var unavailable=new PlayerBotMeshRoute(1,start,goal,24);
+   var done=PlayerBotMeshRoute.class.getDeclaredField("done");done.setAccessible(true);done.setBoolean(unavailable,true);
+   var fallback=PlayerBotMeshRoute.class.getDeclaredField("fallback");fallback.setAccessible(true);fallback.setBoolean(unavailable,true);
+   var search=new PlayerBotRouteSearch(start,goal,100,4096);
+   var prepared=PlayerBotRouteSearch.class.getDeclaredField("mesh");prepared.setAccessible(true);prepared.set(search,unavailable);
+   search.advance((from,x,y)->{throw new AssertionError("memory mode started a live terrain grid");},128,()->false);
+   check(!search.pending() && search.route().isEmpty(),"an unavailable RAM route never starts an expensive native grid fallback");
+   com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_LEARN_BLOCKS=true;
+   PlayerBotMeshRoute.rememberObstruction(42,20,10,0);
+   check(PlayerBotMeshRoute.learnedObstruction(42,start,goal),"a native failure is shared with other routes before another collision attempt");
+   check(!PlayerBotMeshRoute.learnedObstruction(42,new PlayerBotNavigation.Point(20,10,0),start),"recording a failed spot never traps a bot that needs to leave it");
+   com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_LEARN_BLOCKS=false;
+   var directory=java.nio.file.Files.createTempDirectory("playerbot-route-memory-");var file=directory.resolve("routes.csv");
+   var store=new PlayerBotRouteMemory.Store(file);
+   store.remember(1,start,goal,List.of(new PlayerBotNavigation.Point(20,10,0),goal));
+   check(store.lookup(1,start,goal).size()==2,"another bot can reuse a reached route");
+   check(store.lookup(1,goal,start).isEmpty(),"learned routes never invent a reverse climb or drop");
+   check(store.lookup(2,start,goal).isEmpty(),"learned geometry never crosses maps");
+   check(store.lookup(1,new PlayerBotNavigation.Point(10,10,5),goal).isEmpty(),"nearby floors keep separate route memories");
+   store.flush();var reloaded=new PlayerBotRouteMemory.Store(file);
+   check(reloaded.lookup(1,start,goal).size()==2,"walked routes survive restart");
+   reloaded.forget(1,start,goal);reloaded.flush();
+   check(new PlayerBotRouteMemory.Store(file).lookup(1,start,goal).isEmpty(),"a stale route stays invalidated after restart");
+   java.nio.file.Files.delete(file);java.nio.file.Files.delete(directory);
+  }finally{
+   com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_INDEPENDENT=independent;
+   com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_MEMORY_FIRST=memoryFirst;
+   com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_LEARN_BLOCKS=learning;
+  }
  }
 }

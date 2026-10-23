@@ -32,6 +32,13 @@ Ptr entry(int slot){
 void bounds(Ptr p,Rect r){if(p && std::memcmp(&field<Rect>(p,0x50),&r,sizeof r))method<void(*)(Ptr,const Rect*)>(p,0x1a8)(p,&r);}
 struct Vote { int corpse=0,index=0,item=0;bool sent=false;int choice=0; } votes[5];
 bool same(Vote& v,Ptr item){return v.corpse==field<int>(item,0x6dc) && v.index==field<int>(item,0x6d8) && v.item==field<int>(item,8);}
+struct Placement {
+    Ptr dialog=nullptr;Rect last{};
+    double scale=0,width=0,height=0,x=0,y=0;
+    bool custom=false;
+} placements[5];
+bool moved(const Rect& a,const Rect& b){return std::abs(a.x-b.x)>.01 || std::abs(a.y-b.y)>.01;}
+bool finite(const Rect& r){return std::isfinite(r.x) && std::isfinite(r.y) && std::isfinite(r.w) && std::isfinite(r.h);}
 }
 
 extern "C" __declspec(dllexport) void AionLootLayout(Ptr dialog){
@@ -42,13 +49,14 @@ extern "C" __declspec(dllexport) void AionLootLayout(Ptr dialog){
     text(find(dialog,"roll"),rolling?L"Need":L"Bid");text(find(dialog,"abandon"),L"Pass");
     if(!item)return;
     Vote& vote=votes[slot];
-    if(!same(vote,item)){vote={field<int>(item,0x6dc),field<int>(item,0x6d8),field<int>(item,8),false,0};}
+    bool newItem=!same(vote,item);
+    if(newItem){vote={field<int>(item,0x6dc),field<int>(item,0x6d8),field<int>(item,8),false,0};}
     visible(greed,rolling && !vote.sent);
     visible(find(dialog,"roll"),!rolling || !vote.sent);visible(find(dialog,"abandon"),!rolling || !vote.sent);
     Ptr choice=find(dialog,"your_choice",0x2022);visible(choice,rolling && vote.sent);
     if(vote.sent)text(choice,vote.choice==1?L"Your choice: Need":vote.choice==2?L"Your choice: Greed":L"Your choice: Pass");
     double scale=*reinterpret_cast<double*>(g+0x1378ec8),width=*reinterpret_cast<double*>(g+0x1378ea8),height=*reinterpret_cast<double*>(g+0x1378eb0);
-    if(!std::isfinite(scale) || scale<=0 || scale>4 || !std::isfinite(width) || !std::isfinite(height))return;
+    if(!std::isfinite(scale) || scale<=0 || scale>4 || !std::isfinite(width) || !std::isfinite(height) || width<=0 || height<=0)return;
     int count=0,row=0;
     for(int i=0;i<5;++i){
         Ptr peer=*reinterpret_cast<Ptr*>(g+0x13875c0+(0x123+i)*8);
@@ -57,7 +65,28 @@ extern "C" __declspec(dllexport) void AionLootLayout(Ptr dialog){
     // XML child coordinates are client-relative: reserve the 18px title and
     // lower native frame beyond the gauge's y=99 endpoint.
     double h=128*scale,gap=5*scale,total=std::max(1,count)*(h+gap),top=std::max(8*scale,std::min(height*.24,height-total-12*scale));
-    bounds(dialog,{std::max(0.0,width-350*scale),top+row*(h+gap),334*scale,h});
+    Placement& p=placements[slot];
+    if(p.dialog!=dialog){p={};p.dialog=dialog;}
+    Rect current=field<Rect>(dialog,0x50);
+    // A title-bar drag and MoveUI both enter the native SetRect. Adopt that
+    // position instead of overwriting it on the next countdown refresh. A new
+    // item may restore the stock rectangle first; it must not erase our choice.
+    if(!newItem && p.scale==scale && p.width==width && p.height==height && finite(current) && moved(current,p.last)){
+        p.custom=true;p.x=current.x/width;p.y=current.y/height;
+    }
+    Rect requested{std::max(0.0,width-350*scale),top+row*(h+gap),334*scale,h};
+    if(p.custom){
+        requested.x=std::max(0.0,std::min(width-requested.w,p.x*width));
+        requested.y=std::max(0.0,std::min(height-requested.h,p.y*height));
+    }
+    bounds(dialog,requested);
+    // MoveUI can hold a draft through a SetRect pin. Observe the actual result
+    // too, so releasing that pin after Save/Cancel does not restore our old spot.
+    p.last=field<Rect>(dialog,0x50);
+    if(finite(p.last) && moved(p.last,requested)){
+        p.custom=true;p.x=p.last.x/width;p.y=p.last.y/height;
+    }
+    p.scale=scale;p.width=width;p.height=height;
 }
 
 extern "C" __declspec(dllexport) int AionLootCommand(Ptr dialog,Ptr event){

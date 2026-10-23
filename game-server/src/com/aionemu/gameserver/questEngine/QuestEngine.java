@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import com.aionemu.commons.scripting.ScriptManager;
 import com.aionemu.commons.scripting.classlistener.AggregatedClassListener;
 import com.aionemu.commons.scripting.classlistener.OnClassLoadUnloadListener;
+import com.aionemu.gameserver.configs.main.CustomConfig;
 import com.aionemu.gameserver.configs.main.GSConfig;
 import com.aionemu.gameserver.dataholders.DataManager;
 import com.aionemu.gameserver.model.GameEngine;
@@ -939,6 +940,23 @@ public class QuestEngine implements GameEngine {
 
 	public void addQuestHandler(AbstractQuestHandler questHandler) {
 		int questId = questHandler.getQuestId();
+		if (!CustomConfig.ALTGARD_QUEST_RESTORATION_ENABLE && switch (questId) {
+			case 24110, 24111, 24113, 24114, 24115, 24232, 24233 -> true;
+			default -> false;
+		})
+			return;
+		if (!CustomConfig.PANDAEMONIUM_QUEST_RESTORATION_ENABLE && switch (questId) {
+			case 2929, 29049, 29051, 29078 -> true;
+			default -> false;
+		})
+			return;
+		if (!CustomConfig.MORHEIM_QUEST_RESTORATION_ENABLE && (questId == 4338 || questId == 24240))
+			return;
+		if (!CustomConfig.BELUSLAN_QUEST_RESTORATION_ENABLE && switch (questId) {
+			case 2611, 24150, 24151, 24153, 24154, 24155, 24250, 26908 -> true;
+			default -> false;
+		})
+			return;
 		if (questHandlers.putIfAbsent(questId, questHandler) != null)
 			log.warn("Duplicate handler for quest: {}", questId);
 		else

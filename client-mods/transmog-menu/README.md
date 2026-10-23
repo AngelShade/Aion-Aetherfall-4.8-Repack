@@ -610,3 +610,12 @@ Installed on 2026-10-02 with Aion closed. All 12 installed files and 12 preserve
 files were hash-verified. Backup:
 `TransmogMenu-backups/signed-20261002-133106-372`. GameServer stayed running.
 Actual title-bar dragging still needs confirmation in Aion.
+
+`prepare_lfg_movement.py --client <original-client> --output <fresh-external-stage>`
+applies the same native movement settings to Find Group (Shift+V). It changes only
+the LFG dialog's movement flag and automatic alignment in the base/English
+archives, composing the Graphics menu package and restore copies. Its tabs,
+controls and exact compressed bytes of every other archive member are retained.
+No binary, plugin or server change is needed. With LFG open, it is also eligible
+for the existing `/moveui` editor; Save / Lock keeps that editor's normal profile
+behavior. Native dragging, reopen and relog need owner acceptance.

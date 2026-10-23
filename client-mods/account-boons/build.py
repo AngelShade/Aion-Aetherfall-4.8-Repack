@@ -29,9 +29,14 @@ TEXT = {
     'STR_F2P_PACK_PACK_2_DESC': "Earned with the Season Pass Advanced Premium tier. Until the season ends: +20%% item drops, Energy of Repose refills in "
                                 "24 hours offline instead of 48, and +2,000 VT Central Market warehouse capacity.",
     'STR_F2P_PACK_PACK_3': "Aetherfall Renown",
-    'STR_F2P_PACK_PACK_3_DESC': "Account fame from every character's level (55+ counts double, 65 five times) and every gathering and crafting skill. "
-                                "Your first login each day mails a Kinah stipend of 100 per point, up to 1,000,000. At 1,000 points Central Market sales "
-                                "return 5%% more. At 2,500 points: +10%% item drops.",
+    'STR_F2P_PACK_PACK_3_DESC': "Account Fame combines Combat (character levels from 10; 55+ counts double, 65 five times), Life "
+                                "(gathering and crafting skills from 100: one fame per five skill points), and Legend "
+                                "(one fame per ten completed quests and five per title). Daily mail pays 100 Kinah per fame point, "
+                                "capped at 500,000 Combat, 250,000 Life and 250,000 Legend. Combat steps grant +10/20/30/40/50%% Abyss Points "
+                                "at 200/500/1,000/2,000/3,000 fame. Life steps grant +50/100/200/300/500%% crafting skill XP and "
+                                "+0/100/100/200/200%% gathering skill XP at 50/100/200/400/800 fame. Legend steps raise the Repose XP bonus "
+                                "to 50/60/70/80/100%% at 50/100/200/300/400 fame. At 1,000 total fame, Central Market sales return "
+                                "5%% more; at 2,500: +10%% item drops. Open Account Window for your current points and steps.",
     'STR_F2P_PACK_PACK_4': "Chronicle of Atreia",
     'STR_F2P_PACK_PACK_4_DESC': "Permanent account stats for each chapter written by any of your characters: the Ascension ceremony, entering the Abyss, "
                                 "The Unfinished Entry, and 300 and 800 completed quests. Each chapter: +3%% max HP and MP, +2%% physical attack, "

@@ -159,14 +159,24 @@ public class _2042TheLastCheckpoint extends AbstractQuestHandler {
 
 	@Override
 	public boolean onDieEvent(QuestEnv env) {
+		if (!isOnTheRingCourse(env))
+			return false;
 		QuestService.questTimerEnd(env);
 		return onQuestTimerEndEvent(env);
 	}
 
 	@Override
 	public boolean onEnterWorldEvent(QuestEnv env) {
+		if (!isOnTheRingCourse(env))
+			return false;
 		QuestService.questTimerEnd(env);
 		return onQuestTimerEndEvent(env);
+	}
+
+	// QUEST_TIMER is shared by all quests; these global hooks may only cancel our active course.
+	private boolean isOnTheRingCourse(QuestEnv env) {
+		QuestState qs = env.getPlayer().getQuestStateList().getQuestState(questId);
+		return qs != null && qs.getStatus() == QuestStatus.START && qs.getQuestVarById(0) >= 2 && qs.getQuestVarById(0) <= 7;
 	}
 
 	@Override

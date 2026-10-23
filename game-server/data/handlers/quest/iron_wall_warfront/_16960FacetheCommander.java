@@ -66,7 +66,7 @@ public class _16960FacetheCommander extends AbstractQuestHandler {
 
 	@Override
 	public boolean onKillEvent(QuestEnv env) {
-		return defaultOnKillEvent(env, 233544, 0, true);
+		return defaultOnKillEvent(env, 233544, 1, true);
 	}
 
 }

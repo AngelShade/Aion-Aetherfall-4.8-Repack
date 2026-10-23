@@ -61,6 +61,10 @@ final class PlayerBotNavigation {
 	private Point publishedGoal,publishedDestination;
 	private long walkGeneration=1,routeHeadIndex;
 	private boolean walkRouteOwned;
+	private Point recordingStart,recordingGoal;
+	private java.util.List<com.aionemu.gameserver.controllers.movement.PlayerBotMoveController.WalkPoint> recordingPoints=java.util.List.of();
+	private final java.util.List<Point> recordingReached=new java.util.ArrayList<>();
+	private int recordingCursor;
 	private Point followTrailTail;
 	private Intent routeIntent;
 	private long intentUntil;
@@ -90,7 +94,7 @@ final class PlayerBotNavigation {
 
 	PlayerBotNavigation(Creature bot) { this(bot,bot.getMaster() instanceof Player player && (!player.isWorldBot() || player.getPlayerBotOwnerId()!=0)); }
 	PlayerBotNavigation(Creature bot,boolean companion) {
-		this.bot=bot;terrain=companion?COMPANION_TERRAIN:TERRAIN;
+		this.bot=bot;terrain=PlayerBotConfig.NAVIGATION_INDEPENDENT?PlayerBotNavigationBudget.independent(PlayerBotConfig.TERRAIN_SLICE_MS):companion?COMPANION_TERRAIN:TERRAIN;
 		meshAdmission=companion?PlayerBotMeshRoute.companionAdmission():PlayerBotMeshRoute.admission();
 	}
 	boolean waitingForSearchTurn() {
@@ -112,15 +116,22 @@ final class PlayerBotNavigation {
 	private void clearRoute() {
 		if(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover)mover.cancelWalk(walkGeneration);
 		walkGeneration++;routeHeadIndex=0;walkRouteOwned=false;followTrailTail=null;route.clear();publishedDestination=null;
+		recordingStart=recordingGoal=null;recordingPoints=java.util.List.of();recordingReached.clear();recordingCursor=0;
 	}
 	/** Only mover acknowledgments consume a published corridor. Repeated spatial
 	 * coordinates cannot acknowledge another generation or a later visit. */
 	private void syncWalk() {
 		if(!(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover))return;
 		var state=mover.walkStatus();if(state.generation()!=walkGeneration)return;
+		// Only acknowledged native movement teaches a reusable directed path.
+		while(recordingStart!=null && recordingCursor<recordingPoints.size() && recordingPoints.get(recordingCursor).index()<=state.reachedIndex()) {
+			var reached=recordingPoints.get(recordingCursor++);recordingReached.add(new Point(reached.x(),reached.y(),reached.z()));
+			PlayerBotRouteMemory.remember(bot.getWorldId(),recordingStart,recordingGoal,recordingReached);
+		}
 		if(walkRouteOwned)while(!route.isEmpty() && routeHeadIndex<=state.reachedIndex()){route.removeFirst();routeHeadIndex++;}
 		publishedDestination=state.active() && state.current()!=null?new Point(state.current().x(),state.current().y(),state.current().z()):null;
 		if(state.blocked()) {
+			if(PlayerBotConfig.NAVIGATION_MEMORY_FIRST)meshJourney.obstructed(new Point(bot.getX(),bot.getY(),bot.getZ()));
 			cancelTicket(searchToken);clearSearch();lookahead=partialRoute=false;localOrigin=null;clearRoute();nextSearch=0;
 		}
 	}
@@ -153,8 +164,8 @@ final class PlayerBotNavigation {
 			&& PositionUtil.getDistance(bot,routeGoal.x(),routeGoal.y(),routeGoal.z())>1.6
 			&& (retainCurrent() || routeProgressing(now) || waitingForTransport() || localOrigin!=null || pausedAt!=0 && now-pausedAt<3000);
 	}
-	boolean waitingForTerrainWork(){return terrain.waiting(searchToken) || terrain.waiting(heightSearchToken)
-		|| terrain.waiting(localSearchToken) || terrain.waiting(approachSearchToken);}
+	boolean waitingForTerrainWork(){return !terrain.independent() && (terrain.waiting(searchToken) || terrain.waiting(heightSearchToken)
+		|| terrain.waiting(localSearchToken) || terrain.waiting(approachSearchToken));}
 	boolean waitingForTransport(){return queuedPlatform!=null || bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover && mover.ridingPlatform();}
 	boolean transportCongested(){return transportCongested;}
 	boolean routeProgressing(long now){return planningRoute() && (terrain.waiting(searchToken) || now-searchProgress<30000);}
@@ -178,7 +189,7 @@ final class PlayerBotNavigation {
 		if(now<nextSearch){routeFailure=true;status="ground route unavailable; awaiting retry";stopMovement();return false;}
 		cancelTicket(heightSearchToken);
 		// A single vertical support probe; it does not wait for the shared quota.
-		Vector3f supported=GeoService.getInstance().findGroundMovementCollision(bot.getWorldId(),bot.getInstanceId(),origin.x(),origin.y(),origin.z(),origin.x(),origin.y(),goal.z());
+		Vector3f supported=PlayerBotConfig.NAVIGATION_MEMORY_FIRST?null:GeoService.getInstance().findGroundMovementCollision(bot.getWorldId(),bot.getInstanceId(),origin.x(),origin.y(),origin.z(),origin.x(),origin.y(),goal.z());
 		Point start=supported==null?origin:new Point(supported.x,supported.y,supported.z);
 		cancelTicket(localSearchToken);localOrigin=null;
 		planRoute(start,goal,false,now);
@@ -627,6 +638,8 @@ final class PlayerBotNavigation {
 		// before walking. Only an entire short direct connection may avoid it;
 		// clipped goalward steps are not a substitute for going around obstacles.
 		if(route.isEmpty() && intent!=Intent.EVADE && goalDistance>walkingHorizon && !nearbyDescent && !groundRouteUnavailable) {
+			if(PlayerBotConfig.NAVIGATION_MEMORY_FIRST && PlayerBotConfig.NAVMESH_ENABLED)
+				return beginGroundRoute(actualPosition,goal,goalDistance,now);
 			// WoW MovePoint/MoveChase: when a straight walk reaches the goal, walk
 			// it. One native probe replaces a queued grid/mesh search; the mover
 			// still checks every step and hands a blocked walk back for planning.
@@ -767,6 +780,9 @@ final class PlayerBotNavigation {
 				var points=walkRouteOwned?walkPoints():java.util.List.of(new com.aionemu.gameserver.controllers.movement.PlayerBotMoveController.WalkPoint(0,best.x(),best.y(),best.z()));
 				var safety=hazards;
 				if(!mover.publishWalk(walkGeneration,points,(from,to)->PlayerBotHazards.safePath(new Point(from.x(),from.y(),from.z()),new Point(to.x(),to.y(),to.z()),safety)))return false;
+				if(PlayerBotConfig.NAVIGATION_MEMORY_FIRST && intent==Intent.TRAVEL) {
+					recordingStart=origin;recordingGoal=goal;recordingPoints=java.util.List.copyOf(points);recordingReached.clear();recordingCursor=0;
+				}
 			}else {
 				bot.getMoveController().setNewDirection(best.x(),best.y(),best.z(),heading);
 				bot.getMoveController().startMovingToDestination();
@@ -909,5 +925,5 @@ final class PlayerBotNavigation {
 		return true;
 	}
 	private void stopMovement() { publishedGoal=null;publishedDestination=null;if (bot.getMoveController().isInMove()) bot.getMoveController().abortMove(); }
-	String status() { return terrain.waiting(searchToken) || terrain.waiting(heightSearchToken) || terrain.waiting(localSearchToken) || terrain.waiting(approachSearchToken)?"waiting for terrain work budget":status; }
+	String status() { return waitingForTerrainWork()?"waiting for terrain work budget":status; }
 }

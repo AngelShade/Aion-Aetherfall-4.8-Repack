@@ -25,7 +25,7 @@ using System.Windows.Threading;
 using Microsoft.Win32;
 
 [assembly: AssemblyVersion("0.90.0.0")]
-[assembly: AssemblyFileVersion("0.90.1022.1")]
+[assembly: AssemblyFileVersion("0.90.1022.2")]
 
 namespace AetherfallSetup {
  public sealed class SetupSettings {
@@ -69,6 +69,7 @@ namespace AetherfallSetup {
   bool busy, closed, preview, serverControlBusy;
   CancellationTokenSource downloadCts;
   SetupSettings settings = new SetupSettings();
+  readonly ArchiveMirrorRouting archiveMirrors = new ArchiveMirrorRouting();
   OriginalInstallation original;
   ReleaseManifest manifest = new ReleaseManifest();
   DispatcherTimer timer;
@@ -607,10 +608,13 @@ namespace AetherfallSetup {
     }
    }
    // These mirrors contain this exact pinned base archive, not arbitrary releases.
-   if (urls.Count == 0 && fileInfo.name == BaseArchiveName && fileInfo.bytes == BaseArchiveBytes &&
+   if ((urls.Count == 0 || urls.Contains("https://mega.nz/file/hJt0hYTC#fr0RDjsLl4CriZ5dw8MljBhrlP6nD4oYkaErD2iW-vQ")) &&
+       fileInfo.name == BaseArchiveName && fileInfo.bytes == BaseArchiveBytes &&
        String.Equals(fileInfo.sha256, BaseArchiveSha256, StringComparison.OrdinalIgnoreCase)) {
-    urls.Add("https://mega.nz/file/hJt0hYTC#fr0RDjsLl4CriZ5dw8MljBhrlP6nD4oYkaErD2iW-vQ");
-    urls.Add("https://drive.usercontent.google.com/download?id=1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2&export=download&confirm=t");
+    foreach (string url in new [] {
+     "https://mega.nz/file/hJt0hYTC#fr0RDjsLl4CriZ5dw8MljBhrlP6nD4oYkaErD2iW-vQ",
+     "https://drive.usercontent.google.com/download?id=1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2&export=download&confirm=t"
+    }) if (!urls.Contains(url)) urls.Add(url);
    }
    return urls;
   }
@@ -631,6 +635,46 @@ namespace AetherfallSetup {
     }
    } catch {}
    return cfg;
+  }
+
+  static string ArchiveMirrorName(string url) {
+   Uri uri;
+   if (!Uri.TryCreate(url, UriKind.Absolute, out uri)) return "Download source";
+   if (uri.Host.EndsWith("mega.nz", StringComparison.OrdinalIgnoreCase)) return "MEGA";
+   if (uri.Host.IndexOf("google", StringComparison.OrdinalIgnoreCase) >= 0 || uri.Host == "drive.google.com") return "Google Drive";
+   return uri.Host;
+  }
+
+  // Shared by every range worker and retained when the user clicks Resume.
+  sealed class ArchiveMirrorRouting {
+   readonly object sync = new object();
+   readonly Dictionary<string, DateTime> blocked = new Dictionary<string, DateTime>();
+   readonly Dictionary<string, string> errors = new Dictionary<string, string>();
+   string preferred;
+   public string Select(List<string> urls) {
+    lock (sync) {
+     var available = urls.Where(u => !blocked.ContainsKey(u) || blocked[u] <= DateTime.UtcNow).ToList();
+     if (available.Contains(preferred)) return preferred;
+     return available.FirstOrDefault();
+    }
+   }
+   public void Succeeded(string url) {
+    lock (sync) {
+     if (!blocked.ContainsKey(url) || blocked[url] <= DateTime.UtcNow) { preferred = url; errors.Remove(url); }
+    }
+   }
+   public void Failed(string url, string reason) {
+    lock (sync) {
+     blocked[url] = DateTime.UtcNow.AddMinutes(2);
+     errors[url] = reason;
+     if (preferred == url) preferred = null;
+    }
+   }
+   public string Failure(List<string> urls) {
+    lock (sync) return "No download source is available. " + String.Join("; ", urls.Select(u =>
+     ArchiveMirrorName(u) + ": " + (errors.ContainsKey(u) ? errors[u] : "unavailable"))) +
+     ". Progress saved. Wait two minutes before RESUME, or try Torrent mode.";
+   }
   }
 
   sealed class MegaMirrorSpec {
@@ -762,14 +806,7 @@ namespace AetherfallSetup {
     return archivePath;
    }
 
-   // Prepare mirror list (prioritizing MEGA first so Google Drive quota locks never stall resuming)
-   var mirrors = new List<string>();
-   foreach (string m in rawMirrors) {
-    if (!String.IsNullOrWhiteSpace(m) && m.IndexOf("mega.nz", StringComparison.OrdinalIgnoreCase) >= 0) mirrors.Add(m.Trim());
-   }
-   foreach (string m in rawMirrors) {
-    if (!String.IsNullOrWhiteSpace(m) && m.IndexOf("mega.nz", StringComparison.OrdinalIgnoreCase) < 0) mirrors.Add(m.Trim());
-   }
+   var mirrors = rawMirrors.Where(m => !String.IsNullOrWhiteSpace(m)).Select(m => m.Trim()).Distinct().ToList();
    var megaSpecs = new Dictionary<string, MegaMirrorSpec>(StringComparer.OrdinalIgnoreCase);
    foreach (string m in mirrors) {
     MegaMirrorSpec spec = ParseMegaUrl(m);
@@ -782,7 +819,7 @@ namespace AetherfallSetup {
    long lastSampleBytes = 0;
    double lastSampleSec = 0;
    double smoothedMbps = 0;
-   string activeMirrorName = megaSpecs.Count > 0 ? "MEGA CDN" : "Direct CDN";
+   string activeMirrorName = "available sources";
 
    using (var uiTimer = new Timer(_ => {
     double nowSec = sw.Elapsed.TotalSeconds;
@@ -822,13 +859,14 @@ namespace AetherfallSetup {
        long end = Math.Min(totalBytes - 1, start + chunkSize - 1);
        int expectedLen = (int)(end - start + 1);
        bool ok = false;
-       string lastError = "Mirror connection interrupted.";
 
        for (int attempt = 0; attempt < mirrors.Count * 4 && !ct.IsCancellationRequested && !ok; attempt++) {
-        string mirrorUrl = mirrors[attempt % mirrors.Count];
+        string mirrorUrl = archiveMirrors.Select(mirrors);
+        if (mirrorUrl == null) break;
         MegaMirrorSpec mega = megaSpecs.ContainsKey(mirrorUrl) ? megaSpecs[mirrorUrl] : null;
         int readInAttempt = 0;
         try {
+         activeMirrorName = ArchiveMirrorName(mirrorUrl) + " (connecting)";
          HttpWebRequest req;
          if (mega != null) {
           string dlBase = ResolveMegaDirectUrl(mega, attempt >= mirrors.Count);
@@ -841,14 +879,21 @@ namespace AetherfallSetup {
          req.Timeout = 30000;
          req.ReadWriteTimeout = 30000;
 
-         using (ct.Register(() => { try { req.Abort(); } catch {} }))
+         using (var requestTimeout = CancellationTokenSource.CreateLinkedTokenSource(ct)) {
+         requestTimeout.CancelAfter(30000);
+         using (requestTimeout.Token.Register(() => { try { req.Abort(); } catch {} }))
          using (HttpWebResponse resp = (HttpWebResponse)await req.GetResponseAsync()) {
           if (resp.StatusCode != HttpStatusCode.PartialContent && resp.StatusCode != HttpStatusCode.OK)
            throw new IOException("HTTP " + (int)resp.StatusCode);
           if (resp.ContentType != null && resp.ContentType.IndexOf("text/html", StringComparison.OrdinalIgnoreCase) >= 0)
-           throw new IOException("Mirror quota busy (switching to alternate mirror).");
+           throw new IOException("Quota or confirmation page returned instead of archive data");
 
-          activeMirrorName = mega != null ? "MEGA High-Speed CDN" : "Google Drive CDN";
+          if (resp.ContentLength != expectedLen || (mega == null &&
+              (resp.StatusCode != HttpStatusCode.PartialContent ||
+               resp.Headers["Content-Range"] != "bytes " + start + "-" + end + "/" + totalBytes)))
+           throw new IOException("Source did not return the requested archive range");
+
+          activeMirrorName = ArchiveMirrorName(mirrorUrl);
           using (Stream netStream = resp.GetResponseStream()) {
            while (readInAttempt < expectedLen) {
             int r = await netStream.ReadAsync(chunkBuf, readInAttempt, expectedLen - readInAttempt, ct);
@@ -858,6 +903,7 @@ namespace AetherfallSetup {
             Interlocked.Add(ref sessionBytes, r);
            }
           }
+         }
          }
          if (readInAttempt != expectedLen)
           throw new IOException("Incomplete chunk stream.");
@@ -879,14 +925,20 @@ namespace AetherfallSetup {
           }
           completed[chunkIdx] = 1;
          }
+         archiveMirrors.Succeeded(mirrorUrl);
          ok = true;
         } catch (Exception ex) {
-         lastError = ex.Message;
          if (readInAttempt > 0) {
           Interlocked.Add(ref completedBytes, -readInAttempt);
           Interlocked.Add(ref sessionBytes, -readInAttempt);
          }
          if (ct.IsCancellationRequested) throw new OperationCanceledException(ct);
+         var webError = ex as WebException;
+         var errorResponse = webError == null ? null : webError.Response as HttpWebResponse;
+         string reason = errorResponse == null ? ex.Message : "HTTP " + (int)errorResponse.StatusCode;
+         if (errorResponse != null) errorResponse.Close();
+         archiveMirrors.Failed(mirrorUrl, reason);
+         activeMirrorName = "alternate sources (previous source failed)";
         }
         if (!ok) {
          await Task.Delay(600 * ((attempt / Math.Max(1, mirrors.Count)) + 1), ct);
@@ -894,7 +946,7 @@ namespace AetherfallSetup {
        }
        if (!ok) {
         pending.Enqueue(chunkIdx);
-        throw new IOException(lastError + " — Click RESUME to continue.");
+        throw new IOException(archiveMirrors.Failure(mirrors));
        }
       }
      }, ct));

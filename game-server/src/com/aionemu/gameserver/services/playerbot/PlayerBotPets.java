@@ -61,6 +61,12 @@ final class PlayerBotPets {
 		return returning;
 	}
 	void tick(Player master, Creature enemy, boolean mayMove, boolean active, boolean withholdDamage) {
+		Summon summoned=master.getSummon();
+		var cast=summoned==null ? null : summoned.getCastingSkill();
+		if(cast!=null && cast.getFirstTarget() instanceof Npc held && PlayerBotMarks.nativeCcMarked(master,held)) {
+			summoned.clearSkillOrders(); summoned.getController().cancelCurrentSkill(null);
+		}
+		if(enemy instanceof Npc held && PlayerBotMarks.nativeCcMarked(master,held))enemy=null;
 		if(follow(master,mayMove))return;
 		Summon pet=master.getSummon();
 		if(pet==null || pet.isDead() || !pet.isSpawned() || pet.isBeingReleased())return;
@@ -82,6 +88,7 @@ final class PlayerBotPets {
 		if (order != null) {
 			var template = DataManager.SKILL_DATA.getSkillTemplate(order.getSkillId());
 			if (template == null || !order.getTarget().isSpawned() || order.getTarget().isDead()
+				|| order.getTarget() instanceof Npc held && PlayerBotMarks.nativeCcMarked(master,held)
 				|| withholdDamage && pet.isEnemy(order.getTarget()) && !(order.getTarget().isCasting() && PlayerBotSkills.canInterrupt(template))
 				|| !PlayerBotService.allowsTarget(master, order.getTarget())
 				|| order.getTarget() instanceof Npc npc && !PlayerBotEncounters.allowsAttack(pet, npc)) { pet.retrieveNextSkillOrder(); return; }

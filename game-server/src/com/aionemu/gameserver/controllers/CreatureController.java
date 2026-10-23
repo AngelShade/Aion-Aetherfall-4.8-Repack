@@ -591,7 +591,7 @@ public abstract class CreatureController<T extends Creature> extends VisibleObje
 		@Override
 		public void run() {
 			if (!(creature.getMaster() instanceof Player player) || !player.isPlayerBot()
-				|| com.aionemu.gameserver.services.playerbot.PlayerBotService.allowsTarget(player, target))
+				|| com.aionemu.gameserver.services.playerbot.PlayerBotService.allowsAttackTarget(player, target))
 				target.getController().onAttack(creature, finalDamage, attackStatus, criticalProcEffect);
 			target = null;
 			creature = null;

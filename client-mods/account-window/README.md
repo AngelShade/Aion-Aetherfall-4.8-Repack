@@ -23,3 +23,21 @@ data are served by the game server (`/market/account`, `AccountHttpService`,
 Every unrelated byte, archive member and Lua file is checked unchanged. `install.py --prepared
 <folder> --backup <fresh-external-folder>` requires Aion closed, verifies every hash, backs up and
 rolls back on failure. The Account window needs the matching GameServer build.
+
+## Native Account details
+
+`prepare_details.py --client <original-client> --output <fresh-external-folder>` repairs
+P > Account using resources only. The stock Details renderer builds text from retail
+bonus fields rather than the installed long descriptions. Those retail fields are
+intentionally absent because Aetherfall applies the earned benefits on the server.
+The existing scrolling static box now holds a localized guide to all five boons,
+including their requirements and the Combat, Life and Legend Fame ladders. The empty
+retail HTML child is removed; its native renderer explicitly handles a missing widget.
+The list above is labelled Active boons and still contains only server-earned packs.
+Individual pack hover descriptions remain available. Account Window shows live points,
+steps, timers, locked boons and progress.
+
+The builder updates both base and English profile layouts, English guide/pack strings,
+the Graphics menu package and its verified restore resources, and affected inventory
+records. It preserves Game.dll, plugin/signing files and both retail pack tables.
+Install with the same `install.py`. In-game scrolling and appearance need owner acceptance.

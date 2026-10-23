@@ -11,6 +11,9 @@ AFCore.DIALOG = {
     start = 0x11, chat = 0x0d, chat_input = 0xcf, basic_status = 0x0a, party = 0x21, radar = 0x0e, exp_bar = 0x14,
     skill_delay = 0x15a, target_delay = 0x17d, target_assist_delay = 0x17c,
     target = 0x0b, target_assist = 0x0c, buff_status = 0xb0, debuff_status = 0xb1, target_buff = 0x20,
+    subzone_name = 0x0f, -- DlgSubZoneName::GetType (native 0x86f1d0)
+    help_indicator = 0x120, -- DlgHelpIndicator::GetType (native 0x7538a0)
+    gm_indicator = 0x11f, -- DlgGMIndicator::GetType (0x753890); daily_quest_button lives here
     shortcut_sep2 = 0x18,  -- second separated bar (multi-copy dialogs take consecutive ids)
 }
 
@@ -40,6 +43,7 @@ function AFCore.NumAuras(unit) if core then return core("auras", unit) end end
 function AFCore.Aura(unit, index) if core then return core("aura", unit, index) end end
 -- object id, name, level, hp, max hp, mp, max mp ("target", "targettarget")
 function AFCore.Unit(unit) if core then return core("unit", unit) end end
+function AFCore.PlayerId() if core then return core("playerid") end end
 function AFCore.SkillName(id) if core then return core("skill", id) end end
 -- type, template id, id, count, cooldown value, cooldown max, shown
 function AFCore.Slot(dialog, index, prefix) if core then return core("slot", dialog, index, prefix) end end
@@ -48,6 +52,67 @@ function AFCore.Gauge(dialog, widget) if core then return core("gauge", dialog, 
 function AFCore.Text(dialog, widget) if core then return core("text", dialog, widget) end end
 -- absolute native rectangle in screen pixels: x, y, width, height, shown (widget optional)
 function AFCore.Rect(dialog, widget, kind) if core then return core("rect", dialog, widget, kind) end end
+-- One live widget, with local and screen geometry from the same native resolver
+-- used by placement/hit testing. Optional child index enumerates direct children.
+function AFCore.Widget(dialog, path, childIndex)
+    if not core then return end
+    local name, kind, flags, x, y, width, height, sx, sy, sw, sh, shown = core('widget', dialog, path or '', childIndex)
+    if name == nil then return end
+    return {name=name, type=kind, flags=flags, localRect={x,y,width,height}, rect={sx,sy,sw,sh}, shown=shown}
+end
+function AFCore.Children(dialog, path, first, limit)
+    first, limit = math.max(1, math.floor(tonumber(first) or 1)), math.max(1, math.min(64, math.floor(tonumber(limit) or 32)))
+    local rows = {}
+    for i = first, math.min(2048, first + limit - 1) do
+        local row = AFCore.Widget(dialog, path, i); if not row then return rows end
+        row.path=(path and path~='' and path..'/' or '')..'#'..i
+        rows[#rows+1]=row
+    end
+    return rows, first + #rows
+end
+-- Resource definitions remain available before a window is ever opened. Names
+-- may have multiple HUD/locale/plugin variants; callers choose the exact source.
+local indexedUI, layoutIndex, allLayouts
+function AFCore.Layouts(name)
+    if indexedUI~=AFCore.UI or not layoutIndex then
+        indexedUI,layoutIndex,allLayouts=AFCore.UI,{},{}
+        for key,row in pairs(AFCore.UI and AFCore.UI.layouts or {})do
+            local record={key=key,definition=row}
+            allLayouts[#allLayouts+1]=record
+            layoutIndex[row.name]=layoutIndex[row.name]or{}
+            local rows=layoutIndex[row.name];rows[#rows+1]=record
+        end
+        local function order(a,b)return a.key<b.key end
+        table.sort(allLayouts,order)
+        for _,rows in pairs(layoutIndex)do table.sort(rows,order)end
+    end
+    return name and (layoutIndex[name]or{})or allLayouts
+end
+function AFCore.FrameCatalog()
+    local result, priority = {}, {}
+    for _, record in ipairs(AFCore.Layouts()) do
+        local row=record.definition; local a=row.attributes; local flags=';'..(a.flag or '')..';'
+        local ordinary=row.source:find('|ui/game/',1,true) or row.source:find('Data/ui/game/game.pak|',1,true)
+        local movable=flags:find(';movable;',1,true) or (flags:find(';title;',1,true) and not flags:find(';not_movable;',1,true))
+        if ordinary and movable and #row.nativeIds==1 then
+            local bounds={};for number in (a.frame or ''):gmatch('[^,]+')do bounds[#bounds+1]=tonumber(number)end
+            local id=row.nativeIds[1];local rank=row.source:find('L10N/',1,true)==1 and 2 or 1
+            if #bounds==4 and (not priority[id] or rank>priority[id]) then
+                bounds[5],bounds[6],bounds[7]=a.h_pos_align or 'left',a.v_pos_align or 'top',row.name
+                result[id],priority[id]=bounds,rank
+            end
+        end
+    end
+    return result
+end
+function AFCore.FindDialogs(name)
+    local rows={}
+    for id=1,0x224 do
+        local actual=AFCore.Dialog(id)
+        if actual and (not name or actual==name)then rows[#rows+1]={id=id,name=actual}end
+    end
+    return rows
+end
 -- engine UI scale, screen width, screen height
 function AFCore.Scale() if core then return core("scale") end end
 -- Native dialog: layout name, x/y/width/height (pixels), shown, class,
@@ -55,6 +120,8 @@ function AFCore.Scale() if core then return core("scale") end end
 function AFCore.Dialog(dialog) if core then return core("dialog", dialog) end end
 -- interface placement of a native dialog (pixels); returns true when applied
 function AFCore.Move(dialog, x, y, width, height) if core then return core("move", dialog, x, y, width, height) end end
+-- Fade native skins, preserving item icons, text and gauge foregrounds.
+function AFCore.Backdrop(dialog, alpha, widget, kind, recursive) if core then return core("backdrop", dialog, alpha, widget, kind, recursive) end end
 --- keep a native dialog's spot (pixels) when the game re-places it itself (the target re-centres
 --- on every target change, tooltips follow the mouse). mode: 0 top-left at x,y (default);
 --- 1 top-right, 2 bottom-left, 3 bottom-right corner at x,y; 4 x,y added to the game's spot;
@@ -117,7 +184,31 @@ function AFCore.Report(arg)
     if not core then say("Aetherfall Core: bridge not loaded") return end
     local D = AFCore.DIALOG
     -- "/afcore open" and "/afcore move" call the interface commands directly (bypassing chat dispatch).
-    arg = tostring(arg or ''):lower():match('^%s*(%a*)')
+    local raw=tostring(arg or ''):match('^%s*(.-)%s*$')
+    arg = raw:lower():match('^(%a*)')
+    if arg == 'ui' then
+        local ui=AFCore.UI
+        if not ui then say('UI catalogue is not installed');return end
+        local layouts,widgets,presets,skins=0,0,0,0
+        for _,r in pairs(ui.layouts)do layouts=layouts+1;widgets=widgets+#r.widgets end
+        for _ in pairs(ui.presets)do presets=presets+1 end
+        for _ in pairs(ui.skins)do skins=skins+1 end
+        say(string.format('UI catalogue: %d definitions, %d widgets, %d presets, %d skins',layouts,widgets,presets,skins))
+        say('Use /afcore inspect <dialog id> [widget path] for current native geometry.')
+        return
+    end
+    if arg == 'inspect' then
+        local id,path=raw:match('^%a+%s+(%d+)%s*(.-)$');id=tonumber(id)
+        if not id then say('Use /afcore inspect <dialog id> [widget path]');return end
+        local row=AFCore.Widget(id,path)
+        if not row then say('UI widget is unavailable');return end
+        say(string.format('%s type %x flags %x shown %s',row.name,row.type,row.flags,tostring(row.shown)))
+        say('local '..list(unpack(row.localRect))..'; screen '..list(unpack(row.rect)))
+        local children,nextPage=AFCore.Children(id,path,1,16)
+        for _,child in ipairs(children)do say(child.path..' '..child.name..string.format(' type %x',child.type))end
+        if nextPage then say('More children are available through AFCore.Children.')end
+        return
+    end
     if arg == 'test' then AFCore.SelfTest(); return end
     if arg == 'watch' then
         if AFUI then AFUI.watchUntil, AFUI.watchSeen = (AFUI.ticks or 0) + 300, {} end

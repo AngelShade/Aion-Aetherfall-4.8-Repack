@@ -22,7 +22,7 @@
 // from the client's Lua states on the native UI thread.
 namespace {
 using Ptr=void*;
-constexpr char CORE_VERSION[]="1.2.38";  // checked against the normal builder's NATIVE_VERSION
+constexpr char CORE_VERSION[]="1.2.51";  // checked against the normal builder's NATIVE_VERSION
 constexpr uintptr_t PREFERRED=0x10000000;  // Game.dll has no relocations.
 unsigned char* image=nullptr;
 unsigned char* game(){return image;}
@@ -174,8 +174,84 @@ Rect screen_rect(Ptr w){
     }
     return r;
 }
+// Invert the same parent/content/scroll conversion used by native painting.
+// A screen position is not necessarily the object's stored +0x50 position.
+Rect local_rect(Ptr w,Rect screen){
+    if(!w)return screen;  // synthetic tooltip groups have no single widget
+    Rect at=screen_rect(w),local=field<Rect>(w,0x50);
+    screen.x-=at.x-local.x;screen.y-=at.y-local.y;
+    return screen;
+}
 bool is_kind(const char* a,const char* b){return !std::strcmp(a,b);}
-Ptr widget(int id,const char* name,int type){Ptr d=dialog(id);return d && name && *name?method<Ptr(*)(Ptr,const char*,int)>(d,0x338)(d,name,type):nullptr;}
+// Native FindWidget compares exact type ids (5ae37f..5ae384); zero is
+// not a wildcard. Traverse the same child list for explicitly untyped lookups.
+Ptr find_any(Ptr parent,const char* name,int depth,int& budget){
+    if(!parent || depth>24 || --budget<0 || !readable(parent,0x2a8))return nullptr;
+    Ptr head=field<Ptr>(parent,0x2a0);
+    if(!head || !readable(head,0x18))return nullptr;
+    Ptr node=field<Ptr>(head,0);
+    for(int count=0;node && node!=head;++count){
+        if(count>=512 || budget<=0 || !readable(node,0x18))return nullptr;
+        Ptr entry=field<Ptr>(node,0x10);
+        if(entry && readable(entry,0x2a8)){
+            const char* found=method<const char*(*)(Ptr)>(entry,0xa8)(entry);
+            if(found && !std::strcmp(found,name))return entry;
+            if(Ptr result=find_any(entry,name,depth+1,budget))return result;
+        }
+        node=field<Ptr>(node,0);
+    }
+    return nullptr;
+}
+Ptr child(Ptr parent,int n);
+Ptr direct_child(Ptr parent,const char* name){
+    if(!parent || !readable(parent,0x2a8))return nullptr;
+    Ptr head=field<Ptr>(parent,0x2a0);
+    if(!head || !readable(head,0x18))return nullptr;
+    Ptr node=field<Ptr>(head,0);Ptr result=nullptr;
+    for(int count=0;node && node!=head && count<2048;++count){
+        if(!readable(node,0x18))return nullptr;
+        Ptr entry=field<Ptr>(node,0x10);
+        if(entry && readable(entry,0x2a8)){
+            const char* found=method<const char*(*)(Ptr)>(entry,0xa8)(entry);
+            if(found && !std::strcmp(found,name)){
+                if(result)return nullptr;
+                result=entry;
+            }
+        }
+        node=field<Ptr>(node,0);
+    }
+    return result;
+}
+// One resolver for geometry, placement, inspection and sparse hit testing.
+// A plain name retains native recursive lookup. Paths select direct children;
+// ordinal segments address unnamed containers without pretending they have names.
+Ptr resolve_widget(Ptr parent,const char* path,int type){
+    if(!parent || !path || !*path)return parent;
+    if(path[0]!='#' && !std::strchr(path,'/')){
+        if(type)return method<Ptr(*)(Ptr,const char*,int)>(parent,0x338)(parent,path,type);
+        int budget=2048;return find_any(parent,path,0,budget);
+    }
+    for(int depth=0;depth<24 && *path;++depth){
+        const char* slash=std::strchr(path,'/');size_t length=slash?size_t(slash-path):std::strlen(path);
+        if(!length || length>=128)return nullptr;
+        char segment[128]{};std::memcpy(segment,path,length);
+        Ptr next=nullptr;
+        if(segment[0]=='#'){
+            char* end=nullptr;long index=std::strtol(segment+1,&end,10);
+            if(end==segment+1 || *end || index<1 || index>2048)return nullptr;
+            next=child(parent,int(index));
+        }else next=direct_child(parent,segment);
+        if(!next)return nullptr;
+        parent=next;
+        if(!slash)return !type || method<int(*)(Ptr)>(parent,0x10)(parent)==type?parent:nullptr;
+        path=slash+1;if(!*path)return nullptr;
+    }
+    return nullptr;
+}
+Ptr widget(int id,const char* name,int type){
+    Ptr d=dialog(id);if(!d || !name || !*name)return nullptr;
+    return resolve_widget(d,name,type);
+}
 
 // Pinned windows. The game re-places some HUD dialogs itself before Lua hears of it: the
 // target re-centres at the top of the screen on every target change (Game.dll 0x8bd2c8,
@@ -259,10 +335,22 @@ Rect placed(const Pin& given,Rect p){
     }
     else if(pin.mode==5){p.x=-20000;p.y=-20000;}
     else{p.x=pin.mode&1?pin.x-p.w:pin.x;p.y=pin.mode&2?pin.y-p.h:pin.y;}
-    if(pin.clamp && pin.mode!=5 && width>0 && height>0){
+    // Minimise/focus transitions expose temporary viewport dimensions. They
+    // must not drag a held bar to that temporary bottom/right edge.
+    DWORD foreground=0;GetWindowThreadProcessId(GetForegroundWindow(),&foreground);
+    if(pin.clamp && pin.mode!=5 && foreground==GetCurrentProcessId() && width>=800 && height>=600){
         p.x=std::max(0.0,std::min(width-p.w,p.x));p.y=std::max(0.0,std::min(height-p.h,p.y));
     }
-    return p;
+    if(pin.widget[0] && pin.owner){
+        // Widget pins are relative to their dialog's visible origin, including
+        // widgets inside containers. Native parent offsets can change on focus
+        // return; using x/y as raw local coordinates separates art and hit areas.
+        // Subtract the owner origin before conversion so a parent SetRect that
+        // is still laying out its children does not introduce its pending move.
+        Rect owner=screen_rect(pin.owner);
+        p.x+=owner.x;p.y+=owner.y;
+    }
+    return local_rect(pin.target,p);
 }
 uintptr_t pinned_set_rect(Ptr self,const Rect* r){
     Table* t=own_table(self);
@@ -274,6 +362,29 @@ uintptr_t pinned_set_rect(Ptr self,const Rect* r){
         return original(self,&p);
     }
     return original(self,r);
+}
+// DlgTargetBuffStatus recalculates its anchor INSIDE SetRect, through +0x478
+// (Game.dll 0x654f60). Holding only the incoming SetRect loses to that later
+// calculation. Keep its native layout, then apply the held canvas origin.
+using AdjustRectFn=uintptr_t(*)(Ptr,Rect*);
+constexpr size_t AURA_VTABLE=0xc7f668, ADJUST_RECT=0x478, AURA_ADJUST=0x654f60;
+// These verified 4.8 classes overwrite x/y inside UIWidget::SetRect as well.
+// Holding its input alone cannot override their later native anchor calculation.
+size_t anchor_adjust(unsigned char* vt){
+    if(vt==game()+AURA_VTABLE)return AURA_ADJUST;
+    if(vt==game()+0xcea368)return 0x8bdf20; // DlgTargetAssist
+    if(vt==game()+0xce9ce8)return 0x8bc630; // DlgTarget
+    if(vt==game()+0xce6fb8)return 0x8a2d00; // DlgTargetDelay
+    if(vt==game()+0xc69998)return 0x8a2f30; // DlgTargetAssistDelay
+    return 0;
+}
+uintptr_t pinned_aura_adjust(Ptr self,Rect* r){
+    Table* t=own_table(self);
+    auto result=reinterpret_cast<AdjustRectFn>(t->original[ADJUST_RECT/8])(self,r);
+    for(int i=0;r && i<pin_count;++i)if(pins[i].target==self && !*pins[i].widget){
+        *r=placed(pins[i],*r);break;
+    }
+    return result;
 }
 // The named tooltip_proto windows are layout templates. The visible outer window is
 // a freshly-created DlgTooltip* (normally slots 0x1ec..0x1ee). Its native placement
@@ -477,19 +588,20 @@ bool over_ui(Ptr self){
     }
     return false;
 }
-// The start menu takes the mouse only over its pinned buttons, so the space between buttons the
-// player spread out stays clickable in the world. Each button keeps its own hover and click.
+// Sparse native canvases take the mouse only over their pinned widgets, so the
+// space between separated controls stays clickable in the world. Widgets retain
+// their own native hover/click handlers (start menu, radar and subzone strip).
 int start_hit_test(Ptr self,double x,double y,int a,int b){
     auto original=reinterpret_cast<HitTestFn>(own_table(self)->original[HIT_TEST/8]);
     int id=0;
     for(int i=1;i<=int(DIALOG_LIMIT) && !id;++i)if(gaps[i] && dialog(i)==self)id=i;
     if(!id)return original(self,x,y,a,b);
-    const Rect& at=field<Rect>(self,0x50);
     for(int i=0;i<pin_count;++i){
         const Pin& p=pins[i];
-        if(p.id!=id || !p.widget[0] || p.owner!=self || !shown(p.target))continue;  // owner: not a freed old button
-        const Rect& r=field<Rect>(p.target,0x50);
-        if(x>=at.x+r.x && x<at.x+r.x+r.w && y>=at.y+r.y && y<at.y+r.y+r.h)return original(self,x,y,a,b);
+        if(p.id!=id || !p.widget[0] || p.owner!=self || widget(id,p.widget,p.type)!=p.target
+           || !effectively_shown(p.target))continue;
+        Rect r=screen_rect(p.target);
+        if(x>=r.x && x<r.x+r.w && y>=r.y && y<r.y+r.h)return original(self,x,y,a,b);
     }
     return 0;
 }
@@ -539,14 +651,24 @@ bool hook(Ptr d){
     if(!t){
         size_t slots=vtable_slots(vt);
         bool start=low==game()+START_VTABLE;
+        bool separated=low==game()+0xccee98 || low==game()+0xccf518; // verified DlgRadar / DlgSubZoneName
+        size_t adjust=anchor_adjust(low);
         if(table_count==TABLE_LIMIT){hook_refusal="too many window classes held";return false;}
         if(slots<=SET_RECT/8 || (start && slots<=START_COMMAND/8)){hook_refusal="class table too short";return false;}
+        if(adjust && (slots<=ADJUST_RECT/8 || vt[ADJUST_RECT/8]!=game()+adjust)){
+            hook_refusal="native frame anchor changed";return false;
+        }
+        if(separated && (slots<=HIT_TEST/8 || vt[HIT_TEST/8]!=game()+0x5af4a0)){
+            hook_refusal="native minimap hit test changed";return false;
+        }
         t=&tables[table_count++];
         std::memset(t->copy,0,sizeof t->copy);
         t->copy[0]=vt[-1];
         std::memcpy(t->copy+1,vt,slots*sizeof(void*));
         t->original=vt;
         t->copy[1+SET_RECT/8]=reinterpret_cast<void*>(&pinned_set_rect);
+        if(adjust)t->copy[1+ADJUST_RECT/8]=reinterpret_cast<void*>(&pinned_aura_adjust);
+        if(start || separated)t->copy[1+HIT_TEST/8]=reinterpret_cast<void*>(&start_hit_test);
         if(start){
             t->copy[1+HIT_TEST/8]=reinterpret_cast<void*>(&start_hit_test);
             t->copy[1+START_COMMAND/8]=reinterpret_cast<void*>(&start_command);
@@ -567,7 +689,7 @@ Ptr child(Ptr parent,int n){
     auto head=field<unsigned char*>(parent,0x2a0);
     if(!head || !readable(head,0x18))return nullptr;
     auto node=*reinterpret_cast<unsigned char**>(head);
-    for(int i=1;node && node!=head && i<=64;++i,node=*reinterpret_cast<unsigned char**>(node)){
+    for(int i=1;node && node!=head && i<=2048;++i,node=*reinterpret_cast<unsigned char**>(node)){
         if(!readable(node,0x18))return nullptr;
         if(i==n)return *reinterpret_cast<Ptr*>(node+0x10);
     }
@@ -577,12 +699,7 @@ Ptr child(Ptr parent,int n){
 // or "#n/name" (a named widget inside that child).
 Ptr pin_target(int id,const char* name,int type){
     if(!*name)return dialog(id);
-    if(name[0]!='#')return widget(id,name,type);
-    char* end=nullptr;long n=std::strtol(name+1,&end,10);
-    Ptr c=child(dialog(id),int(n));
-    if(!c || !end || !*end)return c;
-    if(*end!='/' || !end[1])return nullptr;
-    return method<Ptr(*)(Ptr,const char*,int)>(c,0x338)(c,end+1,type);
+    return widget(id,name,type);
 }
 // Only a window or button that still exists is given its vtable back: after a reconnect the game
 // has deleted the old ones, and nothing of a deleted object may be written.
@@ -597,7 +714,45 @@ int kind_type(const char* kind){
     if(is_kind(kind,"button"))return BUTTON;
     if(is_kind(kind,"container"))return CONTAINER;
     if(is_kind(kind,"flygauge"))return FLYGAUGE;
-    return GAUGE;
+    if(is_kind(kind,"gauge"))return GAUGE;
+    return -1;
+}
+int kind_arg(Ptr L,int index){
+    Value* value=arg(L,index);
+    if(value && value->tt==3){
+        double n=value->v.n;
+        return std::isfinite(n) && n>=0x2000 && n<=0x2100 && n==std::floor(n)?int(n):-1;
+    }
+    return kind_type(text(L,index));
+}
+
+// UIWidget::SetAlpha (5ad310, vtable +268) changes skin alpha. Derived
+// UIItemView::SetAlpha (4f86f0) additionally changes its icon at +3a0;
+// static/gauge overrides likewise own their foreground. Use the base method
+// without its recursive flag, then walk the live child list ourselves so
+// backgrounds fade while text, skill icons and resource values stay readable.
+bool backdrop(Ptr w,float alpha,int depth,int& budget,bool recursive=true){
+    if(!w || depth>24 || --budget<0 || !readable(w,0x2a8))return false;
+    int type=method<int(*)(Ptr)>(w,0x10)(w);
+    if(type!=GAUGE && type!=FLYGAUGE && field<float>(w,0x1b8)!=alpha){
+        // The base implementation also changes the four text-state colours
+        // when flag 80000 is set. Preserve their existing alpha components.
+        float text_alpha[4];
+        for(int i=0;i<4;++i)text_alpha[i]=field<float>(w,0x164+size_t(i)*16);
+        native<void(*)(Ptr,float,int)>(0x5ad310)(w,alpha,0);
+        for(int i=0;i<4;++i)field<float>(w,0x164+size_t(i)*16)=text_alpha[i];
+    }
+    if(!recursive)return true;
+    Ptr head=field<Ptr>(w,0x2a0);
+    if(!head || !readable(head,0x18))return true;
+    Ptr node=field<Ptr>(head,0);
+    for(int count=0;node && node!=head;++count){
+        if(count>=512 || !readable(node,0x18))return false;
+        Ptr entry=field<Ptr>(node,0x10);
+        if(entry && !backdrop(entry,alpha,depth+1,budget))return false;
+        node=field<Ptr>(node,0);
+    }
+    return node==head;
 }
 
 bool is(const char* a,const char* b){return !std::strcmp(a,b);}
@@ -687,6 +842,11 @@ int dispatch(Ptr L){
         nil(L);  // original total duration is unavailable; never synthesize it
         push(L,double(a.time));push(L,double(a.first));return 8+push(L,a.time>0?2.0:0.0);
     }
+    if(is(cmd,"playerid")){
+        // Native actor identity is +0x30 (also copied by target-record 0x17bf2f).
+        Ptr p=global<Ptr>(PLAYER);
+        return p && readable(p,0x34)?push(L,double(field<int>(p,0x30))):nil(L);
+    }
     if(is(cmd,"unit")){
         if(!unit_record(text(L,2)))return nil(L);
         push(L,double(field<int>(record,0)));push(L,reinterpret_cast<const wchar_t*>(record+4),64);
@@ -695,13 +855,32 @@ int dispatch(Ptr L){
     }
     if(is(cmd,"rect")){
         // Absolute native rectangle in screen pixels (+0x50 x,y,w,h); widget optional.
-        int id=int(number(L,2,0));const char* kind=text(L,4);
+        int id=int(number(L,2,0));int type=kind_arg(L,4);
         Ptr d=dialog(id);
-        Ptr w=text(L,3)?widget(id,text(L,3),kind_type(kind)):d;
+        Ptr w=text(L,3)?widget(id,text(L,3),type):d;
         if(!w || !d)return nil(L);
-        Rect r=w==d?field<Rect>(d,0x50):screen_rect(w);
+        Rect r=screen_rect(w);
         push(L,r.x);push(L,r.y);push(L,r.w);push(L,r.h);
         return 4+boolean(L,effectively_shown(d) && effectively_shown(w));
+    }
+    if(is(cmd,"widget")){
+        // Read one live node (optionally its nth child), without opening windows,
+        // invoking layout/painting, or retaining object pointers between calls.
+        int id=int(number(L,2,0));Ptr owner=dialog(id);
+        Ptr w=resolve_widget(owner,text(L,3)?text(L,3):"",0);
+        if(arg(L,4) && arg(L,4)->tt==3){
+            double index=number(L,4,0);
+            if(!std::isfinite(index) || index<1 || index>2048 || index!=std::floor(index))return nil(L);
+            w=child(w,int(index));
+        }
+        if(!w || !readable(w,0x2a8))return nil(L);
+        const char* name=method<const char*(*)(Ptr)>(w,0xa8)(w);
+        push(L,name?name:"");push(L,double(method<int(*)(Ptr)>(w,0x10)(w)));
+        push(L,double(method<int(*)(Ptr)>(w,0xb8)(w)));
+        Rect local=field<Rect>(w,0x50),screen=screen_rect(w);
+        push(L,local.x);push(L,local.y);push(L,local.w);push(L,local.h);
+        push(L,screen.x);push(L,screen.y);push(L,screen.w);push(L,screen.h);
+        return 11+boolean(L,effectively_shown(w));
     }
     if(is(cmd,"scale")){
         double scale=global<double>(UI_SCALE),width=global<double>(UI_WIDTH),height=global<double>(UI_HEIGHT);
@@ -714,7 +893,8 @@ int dispatch(Ptr L){
         Ptr d=dialog(int(number(L,2,0)));if(!d)return nil(L);
         const char* name=method<const char*(*)(Ptr)>(d,0xa8)(d);
         push(L,name && readable(name,1)?name:"");
-        for(int k=0;k<4;++k)push(L,field<double>(d,0x50+8*k));
+        Rect r=screen_rect(d);
+        push(L,r.x);push(L,r.y);push(L,r.w);push(L,r.h);
         int flags=method<int(*)(Ptr)>(d,0xb8)(d);
         boolean(L,(flags&1)!=0);
         auto vt=reinterpret_cast<uintptr_t>(*static_cast<void**>(d));
@@ -734,8 +914,20 @@ int dispatch(Ptr L){
         if(!std::isfinite(r.x) || !std::isfinite(r.y) || !std::isfinite(r.w) || !std::isfinite(r.h)
            || r.w<0 || r.h<0 || r.w>16384 || r.h>16384)return boolean(L,false);
         if(Pin* p=find_pin(int(number(L,2,0)),""))if(p->mode==0){p->x=r.x;p->y=r.y;}  // a dragged pinned window keeps its new spot
+        r=local_rect(d,r);
         if(std::memcmp(&field<Rect>(d,0x50),&r,sizeof r))method<void(*)(Ptr,const Rect*)>(d,0x1a8)(d,&r);
         return boolean(L,true);
+    }
+    if(is(cmd,"backdrop")){
+        double a=number(L,3,-1);
+        if(!std::isfinite(a) || a<0 || a>1)return boolean(L,false);
+        // Guard this exact native background implementation before calling it.
+        const unsigned char prolog[]={0x48,0x83,0xec,0x38,0x48,0x8b,0x01};
+        if(std::memcmp(game()+0x5ad310,prolog,sizeof prolog))return boolean(L,false);
+        Ptr w=pin_target(int(number(L,2,0)),text(L,4)?text(L,4):"",kind_arg(L,5));
+        int budget=2048;
+        Value* recursive=arg(L,6);
+        return boolean(L,backdrop(w,float(a),0,budget,!(recursive && recursive->tt==1 && !recursive->v.b)));
     }
     if(is(cmd,"pin")){
         // pin(id, x, y[, mode, clamp, w, h, widget, kind]): the game's own re-placing of that dialog
@@ -750,7 +942,7 @@ int dispatch(Ptr L){
             if(!*name && id==tooltip_policy.id)release_tooltips();
             if(p)unpin(int(p-pins));return boolean(L,true);
         }
-        int type=kind_type(text(L,10));
+        int type=kind_arg(L,10);
         Ptr target=pin_target(id,name,type);
         double w=number(L,7,0),h=number(L,8,0);
         if(!target || !std::isfinite(x->v.n) || !std::isfinite(y->v.n) || std::fabs(x->v.n)>16384 || std::fabs(y->v.n)>16384

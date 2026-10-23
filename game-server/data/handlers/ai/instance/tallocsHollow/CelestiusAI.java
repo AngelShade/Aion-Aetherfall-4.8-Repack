@@ -1,19 +1,19 @@
 package ai.instance.tallocsHollow;
 
 import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.aionemu.gameserver.ai.AIName;
+import com.aionemu.gameserver.ai.AIState;
 import com.aionemu.gameserver.ai.NpcAI;
 import com.aionemu.gameserver.ai.manager.WalkManager;
 import com.aionemu.gameserver.model.EmotionType;
 import com.aionemu.gameserver.model.gameobjects.Creature;
 import com.aionemu.gameserver.model.gameobjects.Npc;
-import com.aionemu.gameserver.model.gameobjects.Summon;
-import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.model.gameobjects.state.CreatureState;
+import com.aionemu.gameserver.model.skill.NpcSkillTemplateEntry;
+import com.aionemu.gameserver.model.templates.npcskill.NpcSkillTargetAttribute;
+import com.aionemu.gameserver.model.templates.npcskill.QueuedNpcSkillTemplate;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_EMOTION;
-import com.aionemu.gameserver.skillengine.SkillEngine;
 import com.aionemu.gameserver.utils.PacketSendUtility;
 import com.aionemu.gameserver.utils.ThreadPoolManager;
 
@@ -26,29 +26,45 @@ import ai.AggressiveNpcAI;
 public class CelestiusAI extends AggressiveNpcAI {
 
 	private static final int SUMMONS_ID = 281514;
-	private final AtomicBoolean isSpawnTaskStarted = new AtomicBoolean();
 	private Future<?> helpersTask;
+	private int encounter;
 
 	public CelestiusAI(Npc owner) {
 		super(owner);
 	}
 
 	@Override
-	protected void handleAttack(Creature creature) {
+	protected synchronized void handleAttack(Creature creature) {
 		super.handleAttack(creature);
-		if ((creature instanceof Player || creature instanceof Summon) && isSpawnTaskStarted.compareAndSet(false, true))
+		if (isInState(AIState.FIGHT) && helpersTask == null)
 			startHelpersCall();
 	}
 
 	private void startHelpersCall() {
-		helpersTask = ThreadPoolManager.getInstance().scheduleAtFixedRate(() -> {
-			if (!isDead()) {
-				SkillEngine.getInstance().getSkill(getOwner(), 18981, 44, getOwner()).useNoAnimationSkill();
-				startWalker((Npc) spawn(SUMMONS_ID, 518, 813, 1378, (byte) 0), "3001900001");
-				startWalker((Npc) spawn(SUMMONS_ID, 551, 795, 1376, (byte) 0), "3001900002");
-				startWalker((Npc) spawn(SUMMONS_ID, 574, 854, 1375, (byte) 0), "3001900003");
+		int pull = ++encounter;
+		helpersTask = ThreadPoolManager.getInstance().scheduleAtFixedRate(() -> queueHelpersCall(pull), 1000, 25000);
+	}
+
+	private synchronized void queueHelpersCall(int pull) {
+		if (pull != encounter || !getOwner().isSpawned() || isDead() || !isInState(AIState.FIGHT)
+			|| getOwner().hasQueuedSkill(skill -> skill.getSkillId() == 18981))
+			return;
+		// Reinforcements belong to a completed native cast, never an interrupted or previous pull's call.
+		getOwner().queueSkill(new NpcSkillTemplateEntry(new QueuedNpcSkillTemplate(18981, 44, 0, NpcSkillTargetAttribute.ME)) {
+			@Override
+			public void fireOnEndCastEvents(Npc npc) {
+				super.fireOnEndCastEvents(npc);
+				spawnHelpers(pull);
 			}
-		}, 1000, 25000);
+		});
+	}
+
+	private synchronized void spawnHelpers(int pull) {
+		if (pull != encounter || helpersTask == null || !getOwner().isSpawned() || isDead() || !isInState(AIState.FIGHT))
+			return;
+		startWalker((Npc) spawn(SUMMONS_ID, 518, 813, 1378, (byte) 0), "3001900001");
+		startWalker((Npc) spawn(SUMMONS_ID, 551, 795, 1376, (byte) 0), "3001900002");
+		startWalker((Npc) spawn(SUMMONS_ID, 574, 854, 1375, (byte) 0), "3001900003");
 	}
 
 	private void startWalker(Npc npc, String walkId) {
@@ -58,35 +74,35 @@ public class CelestiusAI extends AggressiveNpcAI {
 		PacketSendUtility.broadcastPacket(npc, new SM_EMOTION(npc, EmotionType.CHANGE_SPEED, 0, npc.getObjectId()));
 	}
 
-	private void cleanUp() {
-		cancelTask();
+	private synchronized void cleanUp() {
+		encounter++;
+		if (helpersTask != null) {
+			helpersTask.cancel(false);
+			helpersTask = null;
+		}
+		getOwner().clearQueuedSkills();
 		deleteSummons();
 	}
 
-	private void cancelTask() {
-		if (helpersTask != null && !helpersTask.isDone()) {
-			helpersTask.cancel(true);
-		}
-	}
-
 	private void deleteSummons() {
-		getPosition().getWorldMapInstance().getNpcs(SUMMONS_ID).forEach(npc -> npc.getController().delete());
+		getPosition().getWorldMapInstance().getNpcs(SUMMONS_ID).stream()
+			.filter(npc -> npc.getSpawn().getCreatorId() == getObjectId()).forEach(npc -> npc.getController().delete());
 	}
 
 	@Override
-	protected void handleBackHome() {
+	protected synchronized void handleBackHome() {
 		cleanUp();
 		super.handleBackHome();
 	}
 
 	@Override
-	protected void handleDespawned() {
+	protected synchronized void handleDespawned() {
 		cleanUp();
 		super.handleDespawned();
 	}
 
 	@Override
-	protected void handleDied() {
+	protected synchronized void handleDied() {
 		cleanUp();
 		super.handleDied();
 	}

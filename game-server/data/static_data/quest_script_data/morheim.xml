@@ -245,6 +245,8 @@
 			4335 [XML] Nature or Nuisance
 			4336 [XML] Cold Deals
 			4337 [XML] Cold Case
+			4338 [SCRIPT] Necklace War
+			24240 [XML] Wig Out Over the Sprigg Sprout
 			26900 [XML] [Spy] Foothold in Eracus Desert
 			26901 [XML] [Spy] Taking the High Ground
 			26905 [XML] Occupiers All Over the Place
@@ -254,6 +256,7 @@
 	-->
 	
 	<!-- REPORTING QUESTS -->
+	<report_to id="24240" start_npc_ids="204392" end_npc_ids="204379"/>
 	<report_to id="2306" start_npc_ids="204303" end_npc_ids="204378"/>
 	<report_to id="2310" start_npc_ids="730038" end_npc_ids="204392"/>
 	<report_to id="2319" start_npc_ids="730037" end_npc_ids="798105"/>

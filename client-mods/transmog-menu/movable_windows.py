@@ -11,8 +11,8 @@ WINDOWS = {
 }
 
 
-def patch_layout(root):
-    if root.get('type') not in WINDOWS.values():
+def patch_layout(root, expected_type=None):
+    if root.get('type') not in ((expected_type,) if expected_type else WINDOWS.values()):
         raise ValueError('Unexpected movable dialog type')
     # The native constructor's default alignment is 5 (unmanaged). XML left,
     # right and task opt into the stock automatic window arrangement instead.

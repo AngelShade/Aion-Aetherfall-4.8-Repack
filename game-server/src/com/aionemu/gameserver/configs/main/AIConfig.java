@@ -9,6 +9,9 @@ import com.aionemu.commons.configuration.Property;
  */
 public class AIConfig {
 
+	@Property(key = "gameserver.ai.beshmundir.macunbello.enable", defaultValue = "true")
+	public static boolean MACUNBELLO_ENABLE;
+
 	/**
 	 * Debug (for developers)
 	 */

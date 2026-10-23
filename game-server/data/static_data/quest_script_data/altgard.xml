@@ -127,9 +127,16 @@
 			24014 [SCRIPT] Stomp Out the Plot
 			24015 [SCRIPT] Totem-Plowed
 			24016 [SCRIPT] A Strange New Threat
+			24110 [XML] Control Altgard, Delete Revolutions
+			24111 [XML] What's Up, Dock?
 			24112 [SCRIPT] No Laissez-faire for Lepharists
+			24113 [XML] Sword to Secrecy
+			24114 [SCRIPT] You Gotta Stop Umkata
+			24115 [XML] A Shugo Apropos
 			24230 [XML] A Grave Situation
 			24231 [XML] Take Back, Sword!
+			24232 [XML] Little Help from a Daeva
+			24233 [XML] Adieu to You, Manumumu
 			80005 [XML] [Event] Heart Headband Pursuit
 			80142 [XML] [Event] Lost in Altgard
 			80143 [TODO] [Event] Warped Rift Blocking
@@ -202,6 +209,8 @@
 	<item_collecting id="2297" start_npc_ids="798105"/>
 	<item_collecting id="2298" start_npc_ids="203690"/>
 	<item_collecting id="2299" start_npc_ids="203690"/>
+	<item_collecting id="24111" start_npc_ids="203606" end_npc_ids="203631"/>
+	<item_collecting id="24113" start_npc_ids="203654"/>
 	<item_collecting id="24231" start_npc_ids="832821"/>
 	<item_collecting id="80005" start_npc_ids="799789"/>
 	<item_collecting id="80142" start_npc_ids="830244"/>
@@ -226,5 +235,9 @@
 	<monster_hunt id="2281" start_npc_ids="203558"/>
 	<monster_hunt id="2282" start_npc_ids="203557"/>
 	<monster_hunt id="2293" start_npc_ids="203659"/>
+	<monster_hunt id="24110" start_npc_ids="203559"/>
+	<monster_hunt id="24115" start_npc_ids="798033" end_npc_ids="203673"/>
 	<monster_hunt id="24230" start_npc_ids="832821" end_reward="true"/>
+	<monster_hunt id="24232" start_npc_ids="832822"/>
+	<monster_hunt id="24233" start_npc_ids="832821" end_npc_ids="203557"/>
 </quest_scripts>

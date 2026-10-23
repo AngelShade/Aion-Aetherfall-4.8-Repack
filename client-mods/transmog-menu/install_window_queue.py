@@ -29,11 +29,14 @@ def closed():
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--package',type=Path,required=True)
     p.add_argument('--verify-only',action='store_true');p.add_argument('--restore',type=Path)
+    p.add_argument('--client',type=Path,help='Explicit original client for native-session compatibility')
     a=p.parse_args();package=a.package.resolve()
     if not package.is_relative_to(DEV_ROOT/'staging/output'):raise ValueError('Expected external staged package')
     m=json.loads((package/'manifest.json').read_text());root=Path(m['clientRoot']).resolve()
-    prefixes={'custom-window-queue-v1':'window-queue','remember-login-return-v2':'remember-login-return','remember-login-reconnect-v3':'remember-login-return','marketplace-session-v1':'marketplace-session'}
-    if m['feature'] not in prefixes or root!=CLIENT:raise ValueError('Wrong feature or installation')
+    prefixes={'custom-window-queue-v1':'window-queue','remember-login-return-v2':'remember-login-return','remember-login-reconnect-v3':'remember-login-return','marketplace-session-v1':'marketplace-session','native-session-compat-v1':'native-session-compat'}
+    expected_client = a.client.resolve() if m['feature']=='native-session-compat-v1' and a.client else CLIENT
+    if m['feature']=='native-session-compat-v1' and not a.client:raise ValueError('Specify the original client explicitly')
+    if m['feature'] not in prefixes or root!=expected_client:raise ValueError('Wrong feature or installation')
     name=m['graphicsCompatibility']['backupName']
     if not re.fullmatch(r'service-menu-graphics-\d{8}-\d{6}-\d{6}',name):raise ValueError('Invalid graphics recovery path')
     backup='Mods/Backups/Renderer/'+name

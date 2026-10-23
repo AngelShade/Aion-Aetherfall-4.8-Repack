@@ -15,10 +15,10 @@ import subprocess
 import sys
 
 HERE = Path(__file__).resolve().parent
-NATIVE_VERSION = '1.2.38'  # Native bridge releases are independent of Lua-only updates.
+NATIVE_VERSION = '1.2.51'  # Generated shared UI catalogue, square shortcuts and derived mover previews; Shared widget resolver, read-only tree reflection and numeric kinds; 1.2.50: correct opaque minimap frame to native transparent-centre border; revert 1.2.48 broad tooltip hit-policy change; 1.2.49: clock, zoom and conditional vendor notice each have an independent mover; Native bridge releases are independent of Lua-only updates.
 PAK = 'Plugin/RelicCalc/RelicCalc.pak'
 PLUGIN_COHORT = [PAK, PAK + '.sig', 'Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig']
-VERSION = '1.2.39'  # 1.2.39: target/target-of-target/aura/cast movers publish the draft before native events and refresh pins throughout dragging; native Core 1.2.38 retained; 1.2.38: native non-item map hover panels share one bounded cursor/mover group; alternate tooltip slot retained; Lua 1.2.37 retained on DLL-only delivery; 1.2.37: native MoveUI grid, draggable control panel, explicit transactional Save/Cancel, selection/filter/temporary hide and precise positioning; native Core 1.2.34 retained; 1.2.36: action-bar resizing fits viewport with aligned movers; separated-bar switch handles/restores both verified windows; native Core 1.2.34 retained; 1.2.35: profile switches preserve and restore each profile's settings, new/partial profiles use their own defaults; plugin-only retains native 1.2.34; 1.2.34: native nested-widget coordinate conversion/effective visibility, authoritative aura remaining milliseconds, unavailable aura counts, and real bridge build diagnostics; 1.2.33: reconnect readiness and character profile isolation; focus-resume cache recovery and settling, paused background geometry, cancelled stale mover drags;  1.2.32: existing shared one-shot timer owner resumes after world transitions and before timer work; single-chain editor wakeup and owner diagnostics;  1.2.31: plugin editors use only queued widget size/visibility operations; remove direct native editor writes added in 1.2.30 after immediate MoveUI rendering crash;  1.2.30: exact mover geometry, movable-window ownership and name-bound persistence, zero-sized target aura canvas, isolated event dispatch and post-world HUD recovery; retained-layout bridge/Lua builder;  1.2.29: XP mover preserves native 5px bounds for dragging, clamping and snapping, with hover/nudge label; 1.2.28: data texts remove native clock line endings and use separate screen-width columns; plugin-only build retains generated layouts and native bridge; 1.2.27: native item comparison columns share one cursor/mover anchor and fit on screen as a group, retaining native sizes and 5/20-pixel spacing; 1.2.26: cursor/mover/hidden policies apply to the live DlgTooltip outer windows before first native placement, with guarded class hooks; tooltip templates and internal item/text layout remain native; 1.2.25: the core decides a tooltip's anchor when the game places it (mouse over a game window: UI anchor, else world anchor), so it opens at its spot with no jump and the target frame counts as UI; nothing is re-placed while the game is not in front or the screen size is settling (Alt+Tab moved windows); 1.2.24: start-menu submenus and context menus work again (slot 0x1ec is a shared pop-up, never a tooltip; unnamed windows get no mover), NPC tooltips are the game's tooltip_proto window and count as world tooltips when the mouse is over the world (UI tooltips over windows), /moveui fixed (hideNudge was called before it was defined), the layout pass leaves held windows alone (a taller bar kept its bottom edge), the offline check fails on any interface error in chat; 1.2.23: up to 128 held window classes (24 ran out, so the world tooltip's pin was refused and it stayed under the minimap), /afcore test names why a pin is refused, Broker button 34x32 with hover and pressed art (interface 1.3.10); 1.2.22: pins copy only a class vtable's real length (a fixed 8 KiB copy was refused for classes near the end of a memory region, e.g. the plugin windows and likely the tooltips, which were then only put back a tick later), /afcore test lists held windows whose pin was refused; 1.2.21: Broker finds the chat box by name, world and UI tooltips with their own anchors (UI tooltips native by default), an unnamed window counts as the world tooltip only once seen small, movers: nudge panel (exact position, arrows) and snap to frames, action bars: buttons per row and button size, world map draggable at any time and remembered, /afcore test (in-game PASS/FAIL of the native parts) and /afcore watch; core: widgets by child index, movable flag, hit-test probe, window class in dialog; 1.2.20: Broker button sends /say .broker through the chat box's own submit (the slash routine ignored /say), cursor-anchored tooltips follow the mouse, /afcore shows how tooltips are placed, the server's browser windows (market, pass, companions, shop, journey) get a web view at screen size and fit the screen, big closed windows get no mover; 1.2.19: start menu takes the mouse only over its buttons (core hit test; the transparent flag had stopped its hover pop-ups), Broker and Interface are native start-menu buttons (interface 1.3.8) run from the menu's own command handler, the once-a-second pass no longer fights pinned windows (buttons bounced), no stray start mover, pins never touch windows the game deleted (reconnect), back to 5 plugin windows; 1.2.18: every start-menu button on its own mover (the menu window is click-through and holds them wherever they are; the core pins each button, also against market-shortcut's re-placing), Broker and Aetherfall Interface buttons (own windows, own movers; 7 of the 20 plugin windows), HUD entries left out of Additional Functions while the interface is on, 56 movers; core: widget pins, size, transparent flag, chat command; 1.2.17: Tooltip anchor mover (fixed-size box; the unnamed text tooltip and the item/skill tooltips grow from its chosen corner) and an ElvUI-style Tooltip options page (show, anchor mover/cursor, grow corner, cursor offset X/Y, keep on screen); pin modes for corners, cursor offset and hidden; no unnamed mover; 1.2.16: moved windows are pinned in the core (the game's own re-placing keeps the mover spot, so the target no longer shows at the top for a frame when a target is picked); 1.2.15: named movers for the progress / enchant bars and target-of-target cast bar, windows placed with movers are pinned on the game's USER_CHANGED_TARGET and GAME_UI_DIALOG_VISIBLE_CHANGED events (no flash) and every tick; movers for windows seen this session, the notification icons (help_indicator) and Movement / GM Indicator; 1.2.14: start-menu design position for the market-shortcut-aligned grid (interface 1.3.5); 1.2.13: transparent mover overlay (preset without a skin), no movers for party buffs / gm indicator / move state, named Quest Tracker and Zone Name movers, five distinct colour themes (data texts, status line, minimap label, options accents), eight real client fonts, backdrop opacity 30-100%, design positions for raised unit frames (interface 1.3.4); 1.2.12: ElvUI-style options window (category sidebar, titled panel, label and control rows, one-line hints), window switches apply at once and show windows again when turned back on, honest names for data-text settings; 1.2.11: design position for the taller player frame (interface 1.3.3, readable DP bar); 1.2.10: options window and movers built with the plugin (built at runtime their clicks never reached Lua), status line at a fixed spot under the chat input, click counter in /afcore; 1.2.9: movers are one overlay window with a box per frame dragged via AFCore.Cursor (all frames at once, live native moves, Shift+click reset), re-anchored frames held every tick, options Close button, 5 of the 20 plugin windows; 1.2.8: fits the client's 20 plugin window slots (RelicCalc uses 7): 12 Aetherfall windows, 8 paged movers, no aura timer labels, slot usage in /afcore; 1.2.7: options window and movers built on first use from the addon timer with the client's own XML loader (built at load they ignored SetRect/Show in game); 1.2.6: /afui, /moveui and /afcore open|move only queue the request; the addon timer tick shows the window or movers (windows shown from chat dispatch never appear in this client); 1.2.5: aura timer labels only under icons inside their own window (or around the target frame), aura geometry in /afcore; design positions for the taller player frame and action bars 4-6 (interface 1.3.2), movers for both separated bars, design moves only on the matching window; 1.2.4: widget rectangles made absolute (aura timers under their icons), target frames, cast bars and target auras held at their design spots when the game re-anchors them; 1.2.3: options command on its own slash key with a state-based toggle, /afcore open|move and dispatch diagnostics, status line yields to the chat input, start-menu design position under the minimap label; 1.2.2: layout load cost halved (client drops widget calls beyond 4000 queued), named movers for every HUD frame incl. hidden ones, state and settings read natively, layout diagnostics; 1.2.1: settings saved through the bridge (client io has no write), calibrated movers, /afui and /aetherfall commands, slash errors in chat; 1.2.0: design table for the skin-pack HUD (quickbar controls inside the bar); 1.1.1: loader-safe plugin XML, design positions, diagnostics, mod-folder resolution; 1.1.0: options window, movers, native placement commands; 1.0.1: registration waits for Game.dll's own relocation; 1.0.2: Kinah from the bag map
+VERSION = '1.2.51'  # 1.2.50: correct opaque minimap frame to native transparent-centre border; revert 1.2.48 broad tooltip hit-policy change; 1.2.49: clock, zoom and conditional vendor notice each have an independent mover; 1.2.48: separate minimap/buttons/area/sword movers, native minimap border and bounded click-through parent canvases; 1.2.47: scale-safe MoveUI grid and passive full-name captions; native bridge retained; 1.2.46: native minimap viewport resize, separate footer controls and attached native area/PvP strip; bridge 1.2.45 retained; 1.2.45: verified native post-anchor holds, mouse-admitted placement saves, closed-window catalogue and native shortcut artwork bounds; 1.2.43: borderless resizable minimap, attached label, uniform shortcut grid and native background opacity;  1.2.42: frameless target readout with queued forced placement after Show; plugin-only retains native Core 1.2.41; 1.2.41: render-space pins and hit bounds, continuous focus recovery, actual daily/system notification mover; 1.2.40: post-native target aura anchor hold, explicit daily notification mover, equal-height target details and persistent companion bar; 1.2.39: target/target-of-target/aura/cast movers publish the draft before native events and refresh pins throughout dragging; native Core 1.2.38 retained; 1.2.38: native non-item map hover panels share one bounded cursor/mover group; alternate tooltip slot retained; Lua 1.2.37 retained on DLL-only delivery; 1.2.37: native MoveUI grid, draggable control panel, explicit transactional Save/Cancel, selection/filter/temporary hide and precise positioning; native Core 1.2.34 retained; 1.2.36: action-bar resizing fits viewport with aligned movers; separated-bar switch handles/restores both verified windows; native Core 1.2.34 retained; 1.2.35: profile switches preserve and restore each profile's settings, new/partial profiles use their own defaults; plugin-only retains native 1.2.34; 1.2.34: native nested-widget coordinate conversion/effective visibility, authoritative aura remaining milliseconds, unavailable aura counts, and real bridge build diagnostics; 1.2.33: reconnect readiness and character profile isolation; focus-resume cache recovery and settling, paused background geometry, cancelled stale mover drags;  1.2.32: existing shared one-shot timer owner resumes after world transitions and before timer work; single-chain editor wakeup and owner diagnostics;  1.2.31: plugin editors use only queued widget size/visibility operations; remove direct native editor writes added in 1.2.30 after immediate MoveUI rendering crash;  1.2.30: exact mover geometry, movable-window ownership and name-bound persistence, zero-sized target aura canvas, isolated event dispatch and post-world HUD recovery; retained-layout bridge/Lua builder;  1.2.29: XP mover preserves native 5px bounds for dragging, clamping and snapping, with hover/nudge label; 1.2.28: data texts remove native clock line endings and use separate screen-width columns; plugin-only build retains generated layouts and native bridge; 1.2.27: native item comparison columns share one cursor/mover anchor and fit on screen as a group, retaining native sizes and 5/20-pixel spacing; 1.2.26: cursor/mover/hidden policies apply to the live DlgTooltip outer windows before first native placement, with guarded class hooks; tooltip templates and internal item/text layout remain native; 1.2.25: the core decides a tooltip's anchor when the game places it (mouse over a game window: UI anchor, else world anchor), so it opens at its spot with no jump and the target frame counts as UI; nothing is re-placed while the game is not in front or the screen size is settling (Alt+Tab moved windows); 1.2.24: start-menu submenus and context menus work again (slot 0x1ec is a shared pop-up, never a tooltip; unnamed windows get no mover), NPC tooltips are the game's tooltip_proto window and count as world tooltips when the mouse is over the world (UI tooltips over windows), /moveui fixed (hideNudge was called before it was defined), the layout pass leaves held windows alone (a taller bar kept its bottom edge), the offline check fails on any interface error in chat; 1.2.23: up to 128 held window classes (24 ran out, so the world tooltip's pin was refused and it stayed under the minimap), /afcore test names why a pin is refused, Broker button 34x32 with hover and pressed art (interface 1.3.10); 1.2.22: pins copy only a class vtable's real length (a fixed 8 KiB copy was refused for classes near the end of a memory region, e.g. the plugin windows and likely the tooltips, which were then only put back a tick later), /afcore test lists held windows whose pin was refused; 1.2.21: Broker finds the chat box by name, world and UI tooltips with their own anchors (UI tooltips native by default), an unnamed window counts as the world tooltip only once seen small, movers: nudge panel (exact position, arrows) and snap to frames, action bars: buttons per row and button size, world map draggable at any time and remembered, /afcore test (in-game PASS/FAIL of the native parts) and /afcore watch; core: widgets by child index, movable flag, hit-test probe, window class in dialog; 1.2.20: Broker button sends /say .broker through the chat box's own submit (the slash routine ignored /say), cursor-anchored tooltips follow the mouse, /afcore shows how tooltips are placed, the server's browser windows (market, pass, companions, shop, journey) get a web view at screen size and fit the screen, big closed windows get no mover; 1.2.19: start menu takes the mouse only over its buttons (core hit test; the transparent flag had stopped its hover pop-ups), Broker and Interface are native start-menu buttons (interface 1.3.8) run from the menu's own command handler, the once-a-second pass no longer fights pinned windows (buttons bounced), no stray start mover, pins never touch windows the game deleted (reconnect), back to 5 plugin windows; 1.2.18: every start-menu button on its own mover (the menu window is click-through and holds them wherever they are; the core pins each button, also against market-shortcut's re-placing), Broker and Aetherfall Interface buttons (own windows, own movers; 7 of the 20 plugin windows), HUD entries left out of Additional Functions while the interface is on, 56 movers; core: widget pins, size, transparent flag, chat command; 1.2.17: Tooltip anchor mover (fixed-size box; the unnamed text tooltip and the item/skill tooltips grow from its chosen corner) and an ElvUI-style Tooltip options page (show, anchor mover/cursor, grow corner, cursor offset X/Y, keep on screen); pin modes for corners, cursor offset and hidden; no unnamed mover; 1.2.16: moved windows are pinned in the core (the game's own re-placing keeps the mover spot, so the target no longer shows at the top for a frame when a target is picked); 1.2.15: named movers for the progress / enchant bars and target-of-target cast bar, windows placed with movers are pinned on the game's USER_CHANGED_TARGET and GAME_UI_DIALOG_VISIBLE_CHANGED events (no flash) and every tick; movers for windows seen this session, the notification icons (help_indicator) and Movement / GM Indicator; 1.2.14: start-menu design position for the market-shortcut-aligned grid (interface 1.3.5); 1.2.13: transparent mover overlay (preset without a skin), no movers for party buffs / gm indicator / move state, named Quest Tracker and Zone Name movers, five distinct colour themes (data texts, status line, minimap label, options accents), eight real client fonts, backdrop opacity 30-100%, design positions for raised unit frames (interface 1.3.4); 1.2.12: ElvUI-style options window (category sidebar, titled panel, label and control rows, one-line hints), window switches apply at once and show windows again when turned back on, honest names for data-text settings; 1.2.11: design position for the taller player frame (interface 1.3.3, readable DP bar); 1.2.10: options window and movers built with the plugin (built at runtime their clicks never reached Lua), status line at a fixed spot under the chat input, click counter in /afcore; 1.2.9: movers are one overlay window with a box per frame dragged via AFCore.Cursor (all frames at once, live native moves, Shift+click reset), re-anchored frames held every tick, options Close button, 5 of the 20 plugin windows; 1.2.8: fits the client's 20 plugin window slots (RelicCalc uses 7): 12 Aetherfall windows, 8 paged movers, no aura timer labels, slot usage in /afcore; 1.2.7: options window and movers built on first use from the addon timer with the client's own XML loader (built at load they ignored SetRect/Show in game); 1.2.6: /afui, /moveui and /afcore open|move only queue the request; the addon timer tick shows the window or movers (windows shown from chat dispatch never appear in this client); 1.2.5: aura timer labels only under icons inside their own window (or around the target frame), aura geometry in /afcore; design positions for the taller player frame and action bars 4-6 (interface 1.3.2), movers for both separated bars, design moves only on the matching window; 1.2.4: widget rectangles made absolute (aura timers under their icons), target frames, cast bars and target auras held at their design spots when the game re-anchors them; 1.2.3: options command on its own slash key with a state-based toggle, /afcore open|move and dispatch diagnostics, status line yields to the chat input, start-menu design position under the minimap label; 1.2.2: layout load cost halved (client drops widget calls beyond 4000 queued), named movers for every HUD frame incl. hidden ones, state and settings read natively, layout diagnostics; 1.2.1: settings saved through the bridge (client io has no write), calibrated movers, /afui and /aetherfall commands, slash errors in chat; 1.2.0: design table for the skin-pack HUD (quickbar controls inside the bar); 1.1.1: loader-safe plugin XML, design positions, diagnostics, mod-folder resolution; 1.1.0: options window, movers, native placement commands; 1.0.1: registration waits for Game.dll's own relocation; 1.0.2: Kinah from the bag map
 LUA = 'AetherfallCore.lua'
 ADDON = ['AetherfallCore.lua', 'AetherfallLayout.lua', 'AetherfallLazy.lua', 'AetherfallHUD.lua', 'AetherfallOptions.lua',
          'AetherfallHUD.xml']
@@ -203,6 +203,15 @@ def main():
     parser.add_argument('--retain-layout', action='store_true', help='with --update, build bridge/Lua while retaining installed generated layouts and load order')
     parser.add_argument('--shared-timer-update', action='store_true', help='with retained layout, include the maintained RelicCalc shared timer owner (WardrobeNative.lua)')
     parser.add_argument('--mover-editor-update', action='store_true', help='replace only the installed MoveUI dialog and stage its grid-line texture')
+    parser.add_argument('--ui-registry-update', action='store_true', help='install the generated native/resource UI catalogue; future updates refresh it automatically')
+    parser.add_argument('--shortcut-geometry-update', action='store_true', help='normalize native shortcut artwork, nested shop geometry and square control bounds')
+    parser.add_argument('--hud-repair-update', action='store_true', help='update target details, notification mover and persistent companion-bar controls')
+    parser.add_argument('--hud-customization-update', action='store_true', help='borderless minimap resources and label, retaining other installed layouts')
+    parser.add_argument('--minimap-border-update', action='store_true', help='restore the native minimap border on an independently pinned child image')
+    parser.add_argument('--minimap-renderer-update', action='store_true', help='repair the fixed native radar viewport with matching graphics/cursor recovery')
+    parser.add_argument('--minimap-elements-update', action='store_true', help='update independent minimap element movers and their affected inventory records')
+    parser.add_argument('--refresh-hud-inventory', action='store_true', help='stage only current HUD cohort inventory hashes; do not repack, sign or rebuild binaries')
+    parser.add_argument('--target-overlay-update', action='store_true', help='repair only the installed target readout dialog and its Lua; retain native layouts and bridge')
     parser.add_argument('--client-mods', type=Path, default=HERE.parent, help='maintained client-mods folder (helpers)')
     args = parser.parse_args()
     if not args.plugin_only and f'CORE_VERSION[]="{NATIVE_VERSION}"' not in (HERE / 'aetherfall_core.cpp').read_text(encoding='utf-8'):
@@ -215,6 +224,22 @@ def main():
         parser.error('--shared-timer-update requires --plugin-only or --retain-layout')
     if args.mover_editor_update and not (args.plugin_only or args.retain_layout):
         parser.error('--mover-editor-update requires --plugin-only or --retain-layout')
+    if args.shortcut_geometry_update and (not args.retain_layout or args.hud_customization_update):
+        parser.error('--shortcut-geometry-update requires --retain-layout and a separate resource update')
+    if args.hud_repair_update and not args.retain_layout:
+        parser.error('--hud-repair-update requires --retain-layout')
+    if args.target_overlay_update and not (args.plugin_only or args.retain_layout):
+        parser.error('--target-overlay-update requires --plugin-only or --retain-layout')
+    if args.target_overlay_update and args.hud_repair_update:
+        parser.error('Choose the initial target installation or its overlay repair')
+    if args.hud_customization_update and (not args.retain_layout or args.hud_repair_update):
+        parser.error('--hud-customization-update requires --retain-layout and cannot repeat initial HUD repair')
+    if args.minimap_renderer_update and (not args.retain_layout or args.hud_customization_update or args.refresh_hud_inventory):
+        parser.error('--minimap-renderer-update requires --retain-layout and cannot combine with resource/inventory updates')
+    if args.minimap_border_update and not args.hud_customization_update:
+        parser.error('--minimap-border-update requires --hud-customization-update')
+    if args.minimap_elements_update and not args.retain_layout:
+        parser.error('--minimap-elements-update requires --retain-layout')
     mods = args.client_mods.resolve(strict=True)
     sys.path.insert(0, str(mods / 'speech-bubbles'))
     sys.path.insert(0, str(HERE))
@@ -233,6 +258,7 @@ def main():
     output.mkdir(parents=True)
     files = {}
     before = {}
+    customization_inventory = None
 
     def stage(relative, data):
         if relative in files and files[relative] != data:
@@ -246,6 +272,15 @@ def main():
         path = client / relative
         before.setdefault(relative, sha(path.read_bytes()) if path.exists() else None)
         return path.read_bytes() if path.exists() else None
+
+    if args.refresh_hud_inventory:
+        if args.update or args.dll_only or args.plugin_only or args.retain_layout or args.hud_customization_update:
+            raise ValueError('Inventory refresh is a standalone metadata operation')
+        from hud_customization import refresh_inventory
+        original('Mods/InstalledMods.json')
+        stage('Mods/InstalledMods.json', json.dumps(refresh_inventory(client), indent=2).encode())
+        write_manifest(output, client, 'unchanged (inventory refresh only)', files, before)
+        return
 
     if not args.dll_only:
         from mover_editor import LINE_PATH, line_texture
@@ -261,6 +296,21 @@ def main():
         game, info = patch(original('bin64/Game.dll'))
         stage('bin64/Game.dll', game)
 
+    if args.minimap_renderer_update:
+        from minimap_renderer import patch as repair_radar
+        sys.path.insert(0, str(mods / 'transmog-menu'))
+        from graphics_compat import prepare_incremental, compatibility_paths
+        repaired = repair_radar(original('bin64/Game.dll'))
+        repaired, graphics = prepare_incremental(client, output, repaired)
+        if not graphics:
+            raise ValueError('Expected the original Graphics/cursor recovery cohort')
+        stage('bin64/Game.dll', repaired)
+        for rel in sorted(compatibility_paths(graphics)):
+            prior = original(rel)
+            payload = (output / rel).read_bytes()
+            if payload != prior:
+                stage(rel, payload)
+
     if not args.plugin_only:
         # Native bridge, normal MSVC build of the maintained source.
         work = output.parent / (output.name + '-compile')
@@ -274,6 +324,9 @@ def main():
     if args.dll_only:
         write_manifest(output, client, info, files, before, version=NATIVE_VERSION)
         return
+    if args.shortcut_geometry_update:
+        from shortcut_geometry import prepare as prepare_shortcuts
+        prepare_shortcuts(client, stage, original, extend_archive, read_pak)
 
     if not args.update:
         # Keep the import in the active package and both restore baselines.
@@ -322,6 +375,8 @@ def main():
     addon = {name: (HERE / name).read_bytes() for name in ADDON if name.endswith('.lua') and name not in GENERATED}
     if args.shared_timer_update:
         addon['WardrobeNative.lua'] = (mods / 'transmog-menu/WardrobeNative.lua').read_bytes()
+    if args.hud_repair_update:
+        addon['PlayerBotBar.lua'] = (mods / 'playerbots/PlayerBotBar.lua').read_bytes()
     if not (args.plugin_only or args.retain_layout):
         addon['AetherfallLayout.lua'] = layout_lua(client, mods)
         addon['AetherfallLazy.lua'] = lazy_lua()
@@ -351,10 +406,32 @@ def main():
             if args.mover_editor_update:
                 from mover_editor import update_xml
                 changes['AetherfallHUD.xml'] = update_xml(changes.get('AetherfallHUD.xml', xml))
+            if args.hud_repair_update:
+                import target_details
+                changes['AetherfallHUD.xml'] = target_details.update_xml(changes.get('AetherfallHUD.xml', xml))
+                changes['AetherfallLayout.lua'] = target_details.update_design(old.read('AetherfallLayout.lua'))
+                target_details.prepare(client, stage, original, extend_archive, read_pak)
+            if args.target_overlay_update:
+                from target_details import repair_overlay_xml
+                changes['AetherfallHUD.xml'] = repair_overlay_xml(changes.get('AetherfallHUD.xml', xml))
+            if args.hud_customization_update:
+                import hud_customization
+                changes['AetherfallHUD.xml'] = hud_customization.plugin_xml(changes.get('AetherfallHUD.xml', xml))
+                customization_inventory = hud_customization.prepare(client, stage, original, extend_archive, read_pak, restore_border=args.minimap_border_update)
         else:
             toc = old.read('RelicCalc.toc').decode('utf-8-sig').replace('\r', '').splitlines()
             toc = [n for n in toc if n not in addon] + ADDON
             changes['RelicCalc.toc'] = ('\r\n'.join(toc) + '\r\n').encode('utf-8')
+        if args.ui_registry_update or 'AetherfallRegistry.lua' in old.namelist():
+            from ui_registry import generate
+            changes['AetherfallRegistry.lua'] = generate(client, output, changes)
+            toc = changes.get('RelicCalc.toc', old.read('RelicCalc.toc')).decode('utf-8-sig').replace('\r', '').splitlines()
+            toc = [name for name in toc if name != 'AetherfallRegistry.lua']
+            toc.insert(toc.index('AetherfallCore.lua') + 1, 'AetherfallRegistry.lua')
+            changes['RelicCalc.toc'] = ('\r\n'.join(toc) + '\r\n').encode('utf-8')
+        # Retained-layout transformations can return identical XML. Keep its
+        # original compressed bytes too, including newer MoveUI layouts.
+        changes = {n: d for n, d in changes.items() if n not in old.namelist() or old.read(n) != d}
         replacements = {n: d for n, d in changes.items() if n in old.namelist()}
         additions = {n: d for n, d in changes.items() if n not in old.namelist()}
         source = (client / PAK).read_bytes()
@@ -378,7 +455,36 @@ def main():
     for rel in PLUGIN_COHORT:
         files[rel] = (output / rel).read_bytes()
 
+    if args.minimap_renderer_update or args.minimap_elements_update:
+        customization_inventory = json.loads(original('Mods/InstalledMods.json'))
+        customization_inventory['features']['AetherfallMinimap'] = [
+            dict(path=rel, installedSha256=sha(data), bytes=len(data)) for rel, data in files.items()]
+    if customization_inventory is not None:
+        for records in customization_inventory['features'].values():
+            for entry in records:
+                rel = next((name for name in files if name.lower() == entry.get('path', '').lower()), None)
+                if rel:
+                    entry.update(installedSha256=sha(files[rel]), bytes=len(files[rel]))
+        records = customization_inventory['features']['AetherfallHudCustomization']
+        for rel in ('bin64/AetherfallCore.dll', PAK):
+            data = files.get(rel) or (client / rel).read_bytes()
+            records.append(dict(path=rel, installedSha256=sha(data), bytes=len(data)))
+    if 'AetherfallRegistry.lua' in changes:
+        if customization_inventory is None:
+            customization_inventory = json.loads(original('Mods/InstalledMods.json'))
+        for records in customization_inventory['features'].values():
+            for entry in records:
+                rel = next((name for name in files if name.lower() == entry.get('path', '').lower()), None)
+                if rel:
+                    entry.update(installedSha256=sha(files[rel]), bytes=len(files[rel]))
+        customization_inventory['features']['AetherfallUIFoundation'] = [
+            dict(path=rel, installedSha256=sha(data), bytes=len(data)) for rel, data in files.items()]
+    if customization_inventory is not None:
+        stage('Mods/InstalledMods.json', json.dumps(customization_inventory, indent=2).encode())
+
     extra_sources = {'../transmog-menu/WardrobeNative.lua': sha(addon['WardrobeNative.lua'])} if args.shared_timer_update else {}
+    if args.hud_repair_update:
+        extra_sources['../playerbots/PlayerBotBar.lua'] = sha(addon['PlayerBotBar.lua'])
     write_manifest(output, client, info, files, before, extra_sources)
 
 

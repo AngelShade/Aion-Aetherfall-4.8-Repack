@@ -101073,7 +101073,7 @@
 		</stats>
 		<bound_radius front="1" side="1.48" upper="1.1" />
 	</npc_template>
-	<npc_template npc_id="216164" level="55" name="macunbello" name_id="320451" height="3.7240002" group_drop="LICH" rank="VETERAN" rating="HERO" race="UNDEAD" tribe="AGGRESSIVESUPPORTMONSTER" type="MONSTER" ai="aggressive" srange="15" arange="37" attack_speed="2530" hpgauge="21" cancel_level="0">
+	<npc_template npc_id="216164" level="55" name="macunbello" name_id="320451" height="3.7240002" group_drop="LICH" rank="VETERAN" rating="HERO" race="UNDEAD" tribe="AGGRESSIVESUPPORTMONSTER" type="MONSTER" ai="macunbello" srange="15" arange="37" attack_speed="2530" hpgauge="21" cancel_level="0">
 		<stats maxHp="875467" />
 		<bound_radius front="0.861" side="1.5680001" upper="3.724" />
 	</npc_template>
@@ -101730,7 +101730,7 @@
 		</stats>
 		<bound_radius front="1" side="1.48" upper="1.1" />
 	</npc_template>
-	<npc_template npc_id="216245" level="55" name="macunbello" name_id="320532" height="3.7240002" group_drop="LICH" rank="VETERAN" rating="HERO" race="UNDEAD" tribe="AGGRESSIVESUPPORTMONSTER" type="MONSTER" ai="aggressive" srange="15" arange="37" attack_speed="2530" hpgauge="21" cancel_level="0">
+	<npc_template npc_id="216245" level="55" name="macunbello" name_id="320532" height="3.7240002" group_drop="LICH" rank="VETERAN" rating="HERO" race="UNDEAD" tribe="AGGRESSIVESUPPORTMONSTER" type="MONSTER" ai="macunbello" srange="15" arange="37" attack_speed="2530" hpgauge="21" cancel_level="0">
 		<stats maxHp="875467" />
 		<bound_radius front="0.861" side="1.5680001" upper="3.724" />
 	</npc_template>
@@ -106191,11 +106191,11 @@
 		<stats maxHp="875467" />
 		<bound_radius front="0.79950005" side="1.4560001" upper="3.458" />
 	</npc_template>
-	<npc_template npc_id="216734" level="55" name="macunbello" name_id="320451" height="3.1920002" group_drop="LICH" rank="VETERAN" rating="HERO" race="UNDEAD" tribe="AGGRESSIVESUPPORTMONSTER" ai="aggressive" srange="10" arange="37" attack_speed="2530" hpgauge="21" cancel_level="0">
+	<npc_template npc_id="216734" level="55" name="macunbello" name_id="320451" height="3.1920002" group_drop="LICH" rank="VETERAN" rating="HERO" race="UNDEAD" tribe="AGGRESSIVESUPPORTMONSTER" ai="macunbello" srange="10" arange="37" attack_speed="2530" hpgauge="21" cancel_level="0">
 		<stats maxHp="984900" />
 		<bound_radius front="0.73800004" side="1.344" upper="3.192" />
 	</npc_template>
-	<npc_template npc_id="216735" level="55" name="macunbello" name_id="320451" height="2.394" group_drop="LICH" rank="VETERAN" rating="HERO" race="UNDEAD" tribe="AGGRESSIVESUPPORTMONSTER" ai="aggressive" srange="10" arange="37" attack_speed="2530" hpgauge="21" cancel_level="0">
+	<npc_template npc_id="216735" level="55" name="macunbello" name_id="320451" height="2.394" group_drop="LICH" rank="VETERAN" rating="HERO" race="UNDEAD" tribe="AGGRESSIVESUPPORTMONSTER" ai="macunbello" srange="10" arange="37" attack_speed="2530" hpgauge="21" cancel_level="0">
 		<stats maxHp="492450" />
 		<bound_radius front="0.5535" side="1.008" upper="2.394" />
 	</npc_template>
@@ -106203,7 +106203,7 @@
 		<stats maxHp="787921" />
 		<bound_radius front="0.79950005" side="1.4560001" upper="3.458" />
 	</npc_template>
-	<npc_template npc_id="216737" level="55" name="macunbello" name_id="320532" height="3.1920002" group_drop="LICH" rank="VETERAN" rating="HERO" race="UNDEAD" tribe="AGGRESSIVESUPPORTMONSTER" ai="aggressive" srange="12" arange="37" attack_speed="2530" hpgauge="21" cancel_level="0">
+	<npc_template npc_id="216737" level="55" name="macunbello" name_id="320532" height="3.1920002" group_drop="LICH" rank="VETERAN" rating="HERO" race="UNDEAD" tribe="AGGRESSIVESUPPORTMONSTER" ai="macunbello" srange="12" arange="37" attack_speed="2530" hpgauge="21" cancel_level="0">
 		<stats maxHp="875467" />
 		<bound_radius front="0.73800004" side="1.344" upper="3.192" />
 	</npc_template>
@@ -364382,7 +364382,7 @@
 		<stats maxHp="23691" />
 		<bound_radius front="0.6" side="1.728" upper="3" />
 	</npc_template>
-	<npc_template npc_id="281698" level="55" name="macunbello's right hand" name_id="321689" height="2.66" group_drop="LICH" rank="NOVICE" rating="ELITE" tribe="AGGRESSIVESUPPORTMONSTER" ai="aggressive" srange="20" arange="37" attack_speed="2300" hpgauge="10" cancel_level="50">
+	<npc_template npc_id="281698" level="55" name="macunbello's right hand" name_id="321689" height="2.66" group_drop="LICH" rank="NOVICE" rating="ELITE" tribe="AGGRESSIVESUPPORTMONSTER" ai="macunbello_soul_reaper" srange="20" arange="37" attack_speed="2300" hpgauge="10" cancel_level="50">
 		<stats maxHp="11494">
 			<speeds walk="1.13" group_walk="1.13" run="6" run_fight="4.5" group_run_fight="6" />
 		</stats>
@@ -364884,7 +364884,7 @@
 		</stats>
 		<bound_radius front="0.615" side="1.12" upper="2.66" />
 	</npc_template>
-	<npc_template npc_id="281775" level="55" name="macunbello's right hand" name_id="321689" height="2.66" group_drop="LICH" rank="DISCIPLINED" rating="ELITE" tribe="AGGRESSIVESUPPORTMONSTER" ai="aggressive" srange="20" arange="37" attack_speed="2300" hpgauge="11" cancel_level="40">
+	<npc_template npc_id="281775" level="55" name="macunbello's right hand" name_id="321689" height="2.66" group_drop="LICH" rank="DISCIPLINED" rating="ELITE" tribe="AGGRESSIVESUPPORTMONSTER" ai="macunbello_soul_reaper" srange="20" arange="37" attack_speed="2300" hpgauge="11" cancel_level="40">
 		<stats maxHp="17172">
 			<speeds walk="1.13" group_walk="1.13" run="6" run_fight="4.5" group_run_fight="6" />
 		</stats>

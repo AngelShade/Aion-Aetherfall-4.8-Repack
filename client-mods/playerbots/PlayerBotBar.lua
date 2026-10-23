@@ -3,6 +3,18 @@ PlayerBotBarState = { mode=0, ready=false }
 local B=PlayerBotBarState
 local function widget(name) return _G['PlayerBotBar'..name] end
 local function visible(name,value) if value then widget(name):Show() else widget(name):Hide() end end
+function PlayerBotBar_ApplyVisibility()
+    local identity = tostring(GetServerName() or '') .. ':' .. tostring(UnitName('player') or '')
+    local settingsReady = not AFUI or (AFUI.ready and AFUI.connected and AFUI.identity == identity)
+    local allowed = settingsReady and not (AFUI and AFUI.Get('botbar') == 0)
+    local show = allowed and B.loaded and B.ready and not B.waiting
+    if B.shown == show then return end
+    B.shown = show
+    if show then PlayerBotBar:Show() else PlayerBotBar:Hide() end
+end
+local function rememberMode()
+    if AFUI and AFUI.RememberCompanionMode then AFUI.RememberCompanionMode(B.mode) end
+end
 function PlayerBotBar_Layout()
     g_AddonName='RelicCalc'
     local x,y=PlayerBotBar:GetRect()
@@ -21,20 +33,23 @@ function PlayerBotBar_Layout()
 end
 function PlayerBotBar_Click(name)
     g_AddonName='RelicCalc'
-    if name=='PlayerBotBarHide' then B.previous=B.mode;B.mode=2;PlayerBotBar_Layout();return end
-    if name=='PlayerBotBarIcon' then B.mode=B.previous or 0;PlayerBotBar_Layout();return end
-    if name=='PlayerBotBarMore' then B.mode=B.mode==1 and 0 or 1;PlayerBotBar_Layout();return end
+    if name=='PlayerBotBarHide' then B.previous=B.mode;B.mode=2;PlayerBotBar_Layout();rememberMode();return end
+    if name=='PlayerBotBarIcon' then B.mode=B.previous or 0;PlayerBotBar_Layout();rememberMode();return end
+    if name=='PlayerBotBarMore' then B.mode=B.mode==1 and 0 or 1;PlayerBotBar_Layout();rememberMode();return end
     if name=='PlayerBotBarManage' then PrivateCompanions_Open();return end
     local command=({PlayerBotBarAttack='attack',PlayerBotBarFollow='follow',PlayerBotBarStay='stay',PlayerBotBarSummon='summon',PlayerBotBarGuard='guard',PlayerBotBarPassive='passive',PlayerBotBarCircle='formation_circle',PlayerBotBarBox='formation_box',PlayerBotBarLine='formation_line',PlayerBotBarSpread='formation_spread',PlayerBotBarClose='distance_close',PlayerBotBarNormal='distance_normal',PlayerBotBarFar='distance_far',PlayerBotBarPull='pull',PlayerBotBarKill='mark_kill',PlayerBotBarCC='mark_cc',PlayerBotBarClear='mark_clear'})[name]
     if command and B.ready and widget('Tx'):GetText()=='' then widget('Tx'):SetText(command) end
 end
 function PlayerBotBar_Open()
     g_AddonName='RelicCalc'
-    PlayerBotBar:Show();B.mode=B.mode==2 and (B.previous or 0) or B.mode;PlayerBotBar_Layout()
+    B.openRequested=true
 end
 function PlayerBotBar_OnEvent(event)
     g_AddonName='RelicCalc'
-    if event=='PLAYER_ENTERING_WORLD' then PlayerBotBar:Show();PlayerBotBar_Layout()
+    if event=='PLAYER_ENTERING_WORLD' then
+        -- Keep the dialog hidden until the native bridge supplies its saved
+        -- mode and the current character's interface preference has loaded.
+        B.waiting=true;B.ready=false;B.shown=nil;PlayerBotBar:Hide()
     elseif event=='ADDON_TIMER' then
         local meta=widget('Meta'):GetText()
         local width,height,mode,ready=meta:match('^(%d+)|(%d+)|(%d+)|(%d+)$')
@@ -42,6 +57,17 @@ function PlayerBotBar_OnEvent(event)
             if not B.loaded then B.loaded=true;B.mode=tonumber(mode);PlayerBotBar_Layout() end
             B.ready=ready=='1'
         else B.ready=false end
+        if B.ready and (not AFUI or (AFUI.ready and AFUI.connected)) then B.waiting=false end
+        if AFUI and AFUI.ready and (B.identity~=AFUI.identity or B.profile~=AFUI.Get('profile')) then
+            B.identity=AFUI.identity;B.profile=AFUI.Get('profile')
+            local saved=AFUI.Get('botbarmode')
+            if saved and saved>=0 then B.mode=saved;PlayerBotBar_Layout() end
+        end
+        if B.openRequested and B.loaded and not B.waiting then
+            if AFUI and AFUI.ready and AFUI.ShowCompanionBar then AFUI.ShowCompanionBar() end
+            B.openRequested=nil;B.mode=B.mode==2 and (B.previous or 0) or B.mode;PlayerBotBar_Layout();rememberMode()
+        end
+        PlayerBotBar_ApplyVisibility()
         for _,name in ipairs({'Attack','Follow','Stay','Summon','Guard','Passive','Circle','Box','Line','Spread','Close','Normal','Far','Pull','Kill','CC','Clear'}) do widget(name):Enable(B.ready) end
         local result=widget('Rx'):GetText()
         if result~='' then widget('Rx'):SetText('');if result~='sent' then DEFAULT_CHAT_DIALOG:AddMessage(result,1,.7,.3) end end
@@ -51,7 +77,7 @@ function PlayerBotBar_OnEvent(event)
 end
 function PlayerBotBar_OnLoad()
     g_AddonName='RelicCalc'
-    B.loaded=false;B.ready=false;widget('Mode'):SetText('');widget('Tx'):SetText('')
+    B.loaded=false;B.ready=false;B.waiting=true;B.shown=nil;widget('Mode'):SetText('');widget('Tx'):SetText('')
     PlayerBotBar:RegisterEvent('PLAYER_ENTERING_WORLD');PlayerBotBar:RegisterEvent('ADDON_TIMER')
     SlashCmdList['PLAYERBOTBAR']=PlayerBotBar_Open;SLASH_PLAYERBOTBAR1='/botbar'
     for _,name in ipairs({'Attack','Follow','Stay','Summon','Guard','Passive','Circle','Box','Line','Spread','Close','Normal','Far','Pull','Kill','CC','Clear'}) do widget(name):Enable(false) end

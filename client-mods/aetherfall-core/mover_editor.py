@@ -44,6 +44,10 @@ def dialog(movers=56):
         widget('image', 'Guide' + name, '0,0,1,1')
     for i in range(1, movers + 1):
         widget('button', f'Move{i}', '0,0,120,30')
+    # Passive captions and tethers preserve even the smallest native hit boxes.
+    for i in range(1, movers + 1):
+        widget('image', f'MoveLeader{i}', '0,0,1,1')
+        widget('static', f'MoveLabel{i}', '0,0,120,20', preset='v5_staticbox')
     for i in range(1, 5):
         widget('image', f'Selection{i}', '0,0,1,1')
 

@@ -19,6 +19,7 @@ final class PlayerBotMeshRoute implements AutoCloseable {
     private static final java.util.concurrent.ConcurrentHashMap<String,java.util.concurrent.atomic.LongAdder> OUTCOMES=new java.util.concurrent.ConcurrentHashMap<>();
     private static void count(String outcome){
         if(!PlayerBotConfig.NAVMESH_DIAGNOSTICS)return;OUTCOMES.computeIfAbsent(outcome,k->new java.util.concurrent.atomic.LongAdder()).increment();}
+    static void reusedRecording(){count("recorded walked route from RAM");}
     /** Where prepared corridors pass or fail, in 50 m cells per map, so a session
      * shows whether native-terrain disagreement is local (towns, buildings) or
      * map-wide. Cumulative since start; written to log/navmesh_areas.csv every
@@ -94,6 +95,30 @@ final class PlayerBotMeshRoute implements AutoCloseable {
         }
         return false;
     }
+    static void rememberObstruction(int world,float x,float y,float z){
+        if(world<=0 || !Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z))return;
+        loadLearned();remember(world,x,y,z,true);
+    }
+    static boolean learnedObstruction(int world,Point from,Point to){
+        if(!PlayerBotConfig.NAVMESH_LEARN_BLOCKS)return false;
+        loadLearned();double length=distance(from,to);int samples=(int)Math.min(64,Math.max(1,Math.ceil(length/2)));
+        for(int i=1;i<=samples;i++){float t=(float)i/samples;
+            float x=from.x()+(to.x()-from.x())*t,y=from.y()+(to.y()-from.y())*t;
+            for(int dx=-1;dx<=1;dx++)for(int dy=-1;dy<=1;dy++){
+                var spots=LEARNED.get(learnedCell(world,x+dx*4,y+dy*4));if(spots==null)continue;
+                for(float[] p:spots){
+                    double vx=to.x()-from.x(),vy=to.y()-from.y(),squared=vx*vx+vy*vy;
+                    double at=squared<.001?0:Math.max(0,Math.min(1,((p[0]-from.x())*vx+(p[1]-from.y())*vy)/squared));
+                    double separation=Math.hypot(from.x()+vx*at-p[0],from.y()+vy*at-p[1]);
+                    // A failed spot ahead is avoided; leaving that spot must
+                    // remain possible, including when the actor starts inside its radius.
+                    if(at>.001 && separation<2.5 && separation+.1<Math.hypot(from.x()-p[0],from.y()-p[1])
+                        && Math.abs(from.z()+(to.z()-from.z())*at-p[2])<3)return true;
+                }
+            }
+        }
+        return false;
+    }
     private static void remember(int world,float x,float y,float z,boolean persist){
         if(!PlayerBotConfig.NAVMESH_LEARN_BLOCKS || LEARNED_COUNT.get()>=200_000 || dedupe(world,x,y,z))return;
         var spot=new float[]{x,y,z};
@@ -130,10 +155,11 @@ final class PlayerBotMeshRoute implements AutoCloseable {
         return false;
     }
     static void flushLearned(){
+        PlayerBotRouteMemory.flush();
         if(LEARNED_PENDING.isEmpty())return;
         var lines=new ArrayList<String>();for(String l;(l=LEARNED_PENDING.poll())!=null;)lines.add(l);
         try{java.nio.file.Files.write(LEARNED_FILE,lines,java.nio.charset.StandardCharsets.UTF_8,java.nio.file.StandardOpenOption.CREATE,java.nio.file.StandardOpenOption.APPEND);}
-        catch(java.io.IOException e){LOG.warn("Could not save learned navmesh blocks {}: {}",LEARNED_FILE,e.getMessage());}
+        catch(java.io.IOException e){LEARNED_PENDING.addAll(lines);LOG.warn("Could not save learned navmesh blocks {}: {}",LEARNED_FILE,e.getMessage());}
     }
     static String outcomes(){
         flushLearned();
@@ -165,17 +191,19 @@ final class PlayerBotMeshRoute implements AutoCloseable {
             demands=new Waiting(limit);memory=new Waiting(limit);calculations=new Waiting(limit);
             slots=new Semaphore(limit);
         }
-        boolean demand(Object owner){return demands.acquire(owner);}
-        void releaseDemand(Object owner){demands.release(owner);}
-        boolean retain(Object owner){return memory.acquire(owner);}
-        void releaseMemory(Object owner){memory.release(owner);}
+        boolean demand(Object owner){return independent() || demands.acquire(owner);}
+        void releaseDemand(Object owner){if(!independent())demands.release(owner);}
+        boolean retain(Object owner){return independent() || memory.acquire(owner);}
+        void releaseMemory(Object owner){if(!independent())memory.release(owner);}
+        private boolean independent(){return PlayerBotConfig.NAVIGATION_INDEPENDENT;}
         boolean begin(Object owner){
+            if(independent())return true;
             if(!calculations.acquire(owner))return false;
             if(slots.tryAcquire())return true;
             calculations.release(owner);return false;
         }
-        void end(Object owner){slots.release();calculations.release(owner);}
-        void cancel(Object owner){demands.release(owner);memory.release(owner);calculations.cancel(owner);}
+        void end(Object owner){if(!independent()){slots.release();calculations.release(owner);}}
+        void cancel(Object owner){if(!independent()){demands.release(owner);memory.release(owner);calculations.cancel(owner);}}
         /** One small weak ticket per pending owner; no mesh, query, graph or actor is stored here.
          * Ready waiters cannot be overtaken by new demand. A nominated owner that never returns
          * yields its place after the same five-second callback grace used by terrain admission. */
@@ -221,7 +249,7 @@ final class PlayerBotMeshRoute implements AutoCloseable {
             long memory=memoryAllowance(companion?PlayerBotConfig.COMPANION_NAVMESH_MEMORY_MB:PlayerBotConfig.NAVMESH_MEMORY_MB,java.lang.Runtime.getRuntime().maxMemory());
             int queries=companion?PlayerBotConfig.COMPANION_NAVMESH_MAX_QUERIES:PlayerBotConfig.NAVMESH_MAX_QUERIES;
             if(queries<1 || queries>256)throw new IllegalArgumentException("Invalid playerbot mesh query limit");
-            LOG.info("Playerbot {} navigation: lazy cache allowance={} MiB, road route cache={} KiB per loaded map, concurrent queries={}",companion?"companion":"world",memory,PlayerBotConfig.NAVMESH_ROUTE_CACHE_KB,queries);
+            LOG.info("Playerbot {} navigation: lazy cache allowance={} MiB, road route cache={} KiB per loaded map, query mode={}",companion?"companion":"world",memory,PlayerBotConfig.NAVMESH_ROUTE_CACHE_KB,PlayerBotConfig.NAVIGATION_INDEPENDENT?"independent per actor":queries);
             store=new PlayerBotNavmeshStore(Path.of("data/navmesh"),memory*1024L*1024L,
                 task->ThreadPoolManager.getInstance().executeLongRunning(task));
         }
@@ -238,7 +266,7 @@ final class PlayerBotMeshRoute implements AutoCloseable {
         if(admission==companionAdmission){if(companionRuntime==null)companionRuntime=new Runtime(true);return companionRuntime;}
         if(runtime==null)runtime=new Runtime(false);return runtime;
     }
-    static synchronized void shutdown(){if(runtime!=null)runtime.store.close();if(companionRuntime!=null)companionRuntime.store.close();}
+    static synchronized void shutdown(){flushLearned();if(runtime!=null)runtime.store.close();if(companionRuntime!=null)companionRuntime.store.close();}
     private final int world;
     private final Point start,goal;
     private Point target;
@@ -310,7 +338,8 @@ final class PlayerBotMeshRoute implements AutoCloseable {
                 // Bounded I/O demand never occupies a calculation permit or query reservation.
                 reason=access.reason();
                 if(access.status()==PlayerBotNavmeshStore.Status.UNAVAILABLE){
-                    if(host.reported.size()<256 && host.reported.add(world))LOG.warn("Prepared navigation unavailable on map {}: {}. Using native collision search.",world,reason);
+                    if(host.reported.size()<256 && host.reported.add(world))LOG.warn("Prepared navigation unavailable on map {}: {}. {}",world,reason,
+                        PlayerBotConfig.NAVIGATION_MEMORY_FIRST?"No expensive live-grid fallback; destination will be retried or replaced.":"Using native collision search.");
                     useNative(reason);
                 }
                 return;
@@ -323,6 +352,9 @@ final class PlayerBotMeshRoute implements AutoCloseable {
             if(!admission.begin(this)){reason="waiting for prepared calculation turn";return;}
             try {used=advanceGraph(allowance,expired,used,journeyNeeded);}
             finally {admission.end(this);}
+        }
+        if(PlayerBotConfig.NAVIGATION_MEMORY_FIRST && !candidates.isEmpty()){
+            publishFromMemory(allowance,expired);return;
         }
         while(!candidates.isEmpty() && !done && used<allowance && !expired.getAsBoolean()){
             if(cursor>=candidates.size()){finish();break;}
@@ -441,6 +473,34 @@ final class PlayerBotMeshRoute implements AutoCloseable {
         done=true;reason=partial?"native-proved prepared route segment":"native-proved prepared route";releaseGraph();
         count("passed");blockedAt=null;recordArea("passed","");
     }
+    /** Use the in-memory corridor as a proposal instead of walking it with
+     * expensive native collision probes before the actor walks it again.
+     * No quest/transport arrival is granted; only the native mover earns that. */
+    private void publishFromMemory(int allowance,BooleanSupplier expired){
+        int used=0;
+        while(cursor<candidates.size() && used++<allowance && !expired.getAsBoolean()){
+            Point next=candidates.get(cursor);double length=distance(proofOrigin,next);
+            if(Math.hypot(next.x()-proofOrigin.x(),next.y()-proofOrigin.y())<.05 && Math.abs(next.z()-proofOrigin.z())<2){cursor++;continue;}
+            double remaining=horizon-provedDistance;
+            if(remaining<=.05)break;
+            float t=(float)Math.min(1,remaining/Math.max(.001,length));
+            Point end=new Point(proofOrigin.x()+(next.x()-proofOrigin.x())*t,proofOrigin.y()+(next.y()-proofOrigin.y())*t,proofOrigin.z()+(next.z()-proofOrigin.z())*t);
+            if(learnedObstruction(world,proofOrigin,end)){
+                journey.obstructed(proofOrigin);useNative("prepared corridor crosses a recorded obstruction");return;
+            }
+            proved.add(end);provedDistance+=distance(proofOrigin,end);proofOrigin=end;
+            if(t==1)cursor++;
+            if(t<1 || provedDistance>=horizon-.05)break;
+        }
+        if(proved.isEmpty()){
+            if(cursor>=candidates.size())useNative("prepared corridor has no advancing corners");
+            return;
+        }
+        // A callback deadline can yield a useful prefix, not a new global turn.
+        route=List.copyOf(proved);partial=!graphComplete || cursor<candidates.size() || distance(proofOrigin,goal)>.6;
+        if(bakedCorridor)journey.provedCorridor(start,proofOrigin,bakedStart,cursor);else journey.provedSegment(start,proofOrigin,target);
+        done=true;reason="prepared route from shared map memory";releaseGraph();count("prepared route from RAM");
+    }
     private boolean requestJourney(){
         if(coarseRequired || journey.ready())return false;
         // A short disconnected gap may need an authored platform too. Discover
@@ -456,7 +516,8 @@ final class PlayerBotMeshRoute implements AutoCloseable {
         if(!proved.isEmpty() && provedDistance>=.6){
             route=List.copyOf(proved);partial=true;done=true;
             if(bakedCorridor)journey.provedCorridor(start,proofOrigin,bakedStart,cursor);else journey.provedSegment(start,proofOrigin,target);
-            reason="native-proved prepared prefix before obstruction";count("partly passed: "+why);recordArea("partly",why);
+            if(PlayerBotConfig.NAVIGATION_MEMORY_FIRST){reason="prepared memory prefix before recorded obstruction";count("memory route prefix: "+why);}
+            else {reason="native-proved prepared prefix before obstruction";count("partly passed: "+why);recordArea("partly",why);}
             candidates=List.of();releaseGraph();return;
         }
         fallback=true;done=true;reason=why;proved.clear();candidates=List.of();releaseGraph();count("failed: "+why);recordArea("failed",why);

@@ -28,14 +28,17 @@ local defaults = {
     snap = 1, grid = 8, showgrid = 1, guidesize = 64, font = 1, theme = 1, alpha = 90,
     ttshow = 1, ttanchor = 1, ttui = 1, ttgrow = 1, ttx = 0, tty = 0, ttclamp = 1, snapframes = 1,
     abbar = 1, abrow1 = 12, abrow2 = 12, abrow3 = 12, abrow4 = 6, absize1 = 40, absize2 = 40, absize3 = 40, absize4 = 40,
-    mapx = -1, mapy = -1,
+    mapx = -1, mapy = -1, mapsize = 180, windowsalpha = 100, chatalpha = 100, barsalpha = 100,
+    menusize = 34, menucols = 7, menugap = 4,
     dl1 = 'zone', dl2 = 'coords', dl3 = 'time', dc1 = 'xp', dc2 = 'kinah', dc3 = 'off', dr1 = 'fps', dr2 = 'group', dr3 = 'legion',
-    profile = 'DPS',
+    profile = 'DPS', botbar = 1, botbarmode = -1,
 }
 local NUMERIC = {warn = {0, 60, 1}, grid = {2, 32, 2}, guidesize = {16, 128, 16}, alpha = {30, 100, 10}, ttx = {-64, 64, 8}, tty = {-64, 64, 8},
                  abrow1 = {1, 12, 1}, abrow2 = {1, 12, 1}, abrow3 = {1, 12, 1}, abrow4 = {1, 12, 1},
                  absize1 = {28, 56, 2}, absize2 = {28, 56, 2}, absize3 = {28, 56, 2}, absize4 = {28, 56, 2},
-                 mapx = {-1, 1, 0}, mapy = {-1, 1, 0}}
+                 mapx = {-1, 1, 0}, mapy = {-1, 1, 0}, botbarmode = {-1, 2, 1},
+                 mapsize = {120, 320, 10}, windowsalpha = {0, 100, 10}, chatalpha = {0, 100, 10}, barsalpha = {0, 100, 10},
+                 menusize = {24, 48, 2}, menucols = {1, 14, 1}, menugap = {0, 16, 2}}
 -- Tooltip anchor (ElvUI): on the Tooltip mover, growing away from one of its corners, or
 -- at the game's cursor spot plus an offset.
 local ANCHORS = {'Mover', 'Cursor', 'Native'}      -- world tooltips (NPCs, monsters, players)
@@ -70,6 +73,16 @@ local function screen()
     return n(sw) or 1280 * scale(), n(sh) or 960 * scale()
 end
 function AFUI.Get(key) local v = U.db and U.db[key]; if v == nil then v = defaults[key] end; return v end
+function AFUI.ShowCompanionBar()
+    if not U.ready then return false end
+    U.db.botbar = 1
+    return AFUI.Save()
+end
+function AFUI.RememberCompanionMode(mode)
+    if not U.ready or (mode ~= 0 and mode ~= 1 and mode ~= 2) then return end
+    U.db.botbarmode = mode
+    return AFUI.Save()
+end
 
 local function readFile(name)
     local s = AFCore.ReadFile(name)
@@ -163,13 +176,18 @@ local function remember(id, d, x, y, sw, sh)
     dirty()
 end
 -- Design positions (AetherfallLayout.lua, reference 1280x960 + alignment) in pixels.
+local NOTIFICATION_DESIGN = {
+    [0x11f] = {950, 845, 166, 137, 'right', 'bottom', 'gm_indicator_dialog'},
+    [0x120] = {360, 800, 505, 47, 'left', 'bottom', 'help_indicator_dialog'},
+}
+local function designRef(id) return (AFUI_DESIGN and AFUI_DESIGN[id]) or NOTIFICATION_DESIGN[id] end
 local function design(id)
-    local d = AFUI_DESIGN and AFUI_DESIGN[id]; if not d then return end
+    local d = designRef(id); if not d then return end
     local s = n((AFCore.Scale())) or 1
     local sw, sh = screen()
     local x = d[5] == 'center' and sw / 2 + (d[1] - 640) * s or d[5] == 'right' and sw - (1280 - d[1]) * s or d[1] * s
     local y = d[6] == 'bottom' and sh - (960 - d[2]) * s or d[6] == 'middle' and sh / 2 + (d[2] - 480) * s or d[2] * s
-    return x, y
+    return math.max(0, math.min(sw - d[3] * s, x)), math.max(0, math.min(sh - d[4] * s, y))
 end
 -- Once per login and per screen size, native HUD windows without a user position
 -- go to the Aetherfall design position (the game may restore older saved ones).
@@ -177,7 +195,7 @@ end
 -- target auras): held at their design spot while shown. Others are placed once, so a
 -- window the player drags natively (chat) is not fought.
 local REANCHORED = {}
-for _, name in ipairs({'target', 'target_assist', 'target_delay', 'target_assist_delay', 'skill_delay', 'target_buff'}) do
+for _, name in ipairs({'target', 'target_assist', 'target_delay', 'target_assist_delay', 'skill_delay', 'target_buff', 'help_indicator', 'gm_indicator'}) do
     if D[name] then REANCHORED[D[name]] = true end
 end
 local HUD_IDS = {}
@@ -252,9 +270,7 @@ local function enforce()
                     local x = math.max(0, math.min(sw - d.w, p[1] * sw))
                     local y = math.max(0, math.min(sh - d.h, p[2] * sh))
                     if AFCore.Move(id, x, y) then d.x, d.y = x, y end
-                elseif d.shown and not U.unlocked and not owned(id, d) and not fresh
-                    and (math.abs(d.x - prev.x) > 1 or math.abs(d.y - prev.y) > 1) then
-                    remember(id, d, d.x, d.y, sw, sh)
+
                 end
                 U.observed[id] = {token = identity(d), shown = d.shown, x = d.x, y = d.y, profile = AFUI.Get('profile')}
             else
@@ -262,6 +278,31 @@ local function enforce()
             end
         end
     end
+end
+
+-- Save native title dragging only after a foreground mouse press inside the
+-- window. Engine layout/focus changes are never user-position edits.
+local function nativeDragTick()
+    local cx, cy, down = AFCore.Cursor()
+    if not U.settled or U.unlocked or not cx then U.nativeDrags=nil; U.nativeDown=down; return end
+    if down and not U.nativeDown then
+        U.nativeDrags={}
+        for id=1,PLUGIN_FIRST-1 do
+            local d=dialog(id)
+            if d and d.shown and nativeMovable(d) and not owned(id,d) and cx>=d.x and cy>=d.y and cx<d.x+d.w and cy<d.y+d.h then
+                U.nativeDrags[id]={token=identity(d),x=d.x,y=d.y}
+            end
+        end
+    end
+    local sw,sh=screen()
+    for id,prev in pairs(U.nativeDrags or {}) do
+        local d=dialog(id)
+        if d and d.shown and identity(d)==prev.token and (math.abs(d.x-prev.x)>1 or math.abs(d.y-prev.y)>1) then
+            remember(id,d,d.x,d.y,sw,sh);prev.x,prev.y=d.x,d.y
+        end
+    end
+    if not down then U.nativeDrags=nil end
+    U.nativeDown=down
 end
 
 -- ---------- movers ----------
@@ -278,6 +319,7 @@ local function movable(d, sw, sh)
     return d and nativeMovable(d) and d.shown and d.w > 0 and d.h > 0 and d.w < sw * .95 and d.h < sh * .95
 end
 local FRAMES = {
+    {'gm_indicator', 'Daily Quest / System Notifications'}, {'help_indicator', 'Tutorial Notifications'},
     {'basic_status', 'Player'}, {'target', 'Target'}, {'target_assist', 'Target of Target'}, {'party', 'Party'},
     {'radar', 'Minimap'}, {'start', 'Menu'}, {'shortcut', 'Action Bar 1'}, {'shortcut_ctrl', 'Action Bar 2'},
     {'shortcut_alt', 'Action Bar 3'}, {'shortcut_extra', 'Action Bar 4'}, {'shortcut_sep', 'Action Bar 5'},
@@ -285,9 +327,13 @@ local FRAMES = {
     {'chat', 'Chat'}, {'chat_input', 'Chat Input'}, {'exp_bar', 'Experience Bar'}, {'buff_status', 'Buffs'},
     {'debuff_status', 'Debuffs'}, {'target_buff', 'Target Auras'}, {'skill_delay', 'Cast Bar'},
     {'target_delay', 'Target Cast Bar'},
+    {'target_assist_delay', 'Target of Target Cast Bar'},
 }
--- Open game windows that follow another frame or are not worth a mover, and friendlier names.
-local SKIP_MOVERS = {party_buff = true, new_map = true}  -- party buff rows follow the party frames; the map drags itself
+-- The builder derives previews from the same active UI catalogue as the core.
+-- Unmapped native types remain resource definitions until actually discovered.
+local FRAME_CATALOG = AFCore.FrameCatalog and AFCore.FrameCatalog() or {}
+
+local SKIP_MOVERS = {party_buff = true, new_map = true, subzone_name = true}  -- the native area strip follows the minimap
 -- Tooltips: the game's text tooltip has no layout name; item and skill tooltips are the
 -- tooltip_proto windows. They share the Tooltip anchor mover (TOOLTIP, not a game window id).
 -- Two kinds, as in ElvUI: world tooltips (NPCs, monsters and players under the mouse) and UI
@@ -297,6 +343,34 @@ local SKIP_MOVERS = {party_buff = true, new_map = true}  -- party buff rows foll
 -- (tooltip_proto_skill) is always UI. Unnamed windows are never tooltips: Game.dll gives slot 0x1ec
 -- to about sixty pop-ups (start-menu submenus, context menus), which must stay where they open.
 local TOOLTIP, TOOLTIP_UI = 0x7f0, 0x7f1
+-- Independent widgets owned by native radar/subzone dialogs, not new windows.
+local MAP_ZOOM, MAP_AREA, MAP_SWORD, MAP_CLOCK, MAP_VENDOR = 0x820, 0x821, 0x822, 0x823, 0x824
+local MAP_LABELS = {[MAP_ZOOM]='Minimap Zoom', [MAP_CLOCK]='Minimap Clock', [MAP_VENDOR]='Vendor Notice',
+                    [MAP_AREA]='Current Area', [MAP_SWORD]='Area Sword'}
+local function minimapParts()
+    local s = scale(); local sw, sh = screen()
+    local size = math.min(AFUI.Get('mapsize')*s, sw, sh-18*s)
+    local dx, dy = design(D.radar)
+    local ref = designRef(D.radar)
+    dx, dy = (dx or sw-188*s) + ((ref and ref[3] or 180)*s-size), dy or 22*s
+    local info = AFUI.Get('minimapinfo') == 1 and 18*s or 0
+    local row = dy+size+info+2*s
+    local result = {
+        [D.radar]={dx,dy,size,size},
+        [MAP_ZOOM]={dx+size-38*s,row,38*s,38*s},
+        [MAP_CLOCK]={dx+size-75*s,row+4*s,31*s,31*s},
+        [MAP_VENDOR]={dx+size-110*s,row+7*s,24*s,24*s},
+        [MAP_AREA]={dx+32*s,row+42*s,math.max(86,AFUI.Get('mapsize')-34)*s,40*s},
+        [MAP_SWORD]={dx,row+47*s,29*s,29*s},
+    }
+    for id, r in pairs(result) do
+        local p = U.positions[key(id)]
+        if p then r[1],r[2] = p[1]*sw,p[2]*sh end
+        r[1] = math.max(0,math.min(sw-r[3],r[1]))
+        r[2] = math.max(0,math.min(sh-r[4]-(id==D.radar and info or 0),r[2]))
+    end
+    return result
+end
 local function tooltipKind(d)
     local name = tostring(d.name)
     if name:match('^tooltip_proto_skill') then return 'ui' end
@@ -338,12 +412,21 @@ local function buttonSpot(k, sw, sh)
     local f = AFUI_MENU and MENU_BUTTONS[k] and AFUI_MENU[MENU_BUTTONS[k][1]]
     if not f then return end
     local p = U.positions[key(MENU_ID + k)]
-    if p then return p[1] * sw, p[2] * sh, f[3] * s, f[4] * s end
+    -- Private native skin variants stretch the original icon states to this
+    -- square. Layout, rendered artwork, click bounds and movers share one size.
+    local size = AFUI.Get('menusize') * s
+    local bw, bh = size, size
+    if p then return p[1] * sw, p[2] * sh, bw, bh end
     local ox, oy
     local m = D.start and U.positions[key(D.start)]
     if m then ox, oy = m[1] * sw, m[2] * sh else ox, oy = design(D.start) end
     if not ox then return end
-    return ox + f[1] * s, oy + f[2] * s, f[3] * s, f[4] * s
+    local pitch = size + AFUI.Get('menugap') * s
+    local cols = math.min(AFUI.Get('menucols'), math.max(1, math.floor((sw + AFUI.Get('menugap') * s) / pitch)))
+    local width = math.min(cols, #MENU_BUTTONS) * pitch - AFUI.Get('menugap') * s
+    local height = math.ceil(#MENU_BUTTONS / cols) * pitch - AFUI.Get('menugap') * s
+    ox, oy = math.max(0, math.min(sw - width, ox)), math.max(0, math.min(sh - height, oy))
+    return ox + ((k - 1) % cols) * pitch + (size-bw)/2, oy + math.floor((k - 1) / cols) * pitch + (size-bh)/2, bw, bh
 end
 -- Additional Functions menu: entries that have a button on the HUD while the interface is on are
 -- left out (RelicCalc registers them from its OnLoad, after every plugin file has run).
@@ -368,15 +451,39 @@ local function moverCandidates()
     for _, f in ipairs(FRAMES) do
         local id = D[f[1]]
         local d = id and dialog(id)
-        local ref = id and AFUI_DESIGN and AFUI_DESIGN[id]
+        local ref = id and designRef(id)
+        -- The native notification canvas can be absent/empty until the first
+        -- tutorial or daily quest. Its verified type is still selectable.
+        if f[1] == 'help_indicator' and not ref then
+            ref = {360, 800, 505, 47, 'left', 'top', 'help_indicator_dialog'}
+        elseif f[1] == 'gm_indicator' and not ref then
+            ref = {950, 845, 166, 137, 'left', 'top', 'gm_indicator_dialog'}
+        end
         if not d and ref then
             local x, y = design(id); local s = n((AFCore.Scale())) or 1
+            x, y = x or ref[1] * s, y or ref[2] * s
             d = {name = ref[7], x = x, y = y, w = ref[3] * s, h = ref[4] * s, shown = false, virtual = true}
         end
         if d and ref and d.name ~= ref[7] then d = nil end
         if d and f[1] == 'shortcut_sep2' and d.name ~= 'quickbar_dialog_sep' then d = nil end
         if d and f[1] == 'start' and menuManaged() then seen[id] = true; d = nil end  -- each button has its own mover
         if d then list[#list + 1] = {id, d, f[2]}; seen[id] = true end
+    end
+    for id = 1, PLUGIN_FIRST - 1 do
+        local ref = not seen[id] and FRAME_CATALOG[id]
+        if ref then
+            local d = dialog(id)
+            if not d then
+                local s = scale()
+                local x = ref[5] == 'center' and sw/2 + (ref[1]-640)*s or ref[5] == 'right' and sw-(1280-ref[1])*s or ref[1]*s
+                local y = ref[6] == 'bottom' and sh-(960-ref[2])*s or ref[6] == 'middle' and sh/2+(ref[2]-480)*s or ref[2]*s
+                d = {name=ref[7], x=math.max(0,math.min(sw-ref[3]*s,x)), y=math.max(0,math.min(sh-ref[4]*s,y)), w=ref[3]*s, h=ref[4]*s, virtual=true, shown=false}
+            end
+            if d.name == ref[7] then
+                list[#list+1] = {id, d, OTHER_LABELS[d.name:gsub('_dialog$', '')] or d.name:gsub('_dialog$', ''):gsub('_',' ')}
+                seen[id] = true
+            end
+        end
     end
     for id = 1, PLUGIN_FIRST - 1 do
         local d = not seen[id] and dialog(id)
@@ -418,6 +525,23 @@ local function auraBounds(id, d)
     f = f or {scale(), scale(), 22 * scale(), 22 * scale()}
     return unpack(f)
 end
+-- GM/system notifications contain the daily-quest icon, unlike the separate
+-- tutorial canvas. Match the shown icons instead of the canvas's empty space.
+local NOTIFICATION_BUTTONS = {'poll_button', 'petition_button1', 'petition_button2', 'indun_reg_button', 'indun_wait_button',
+    'party_match_button', 'daily_quest_button', 'predefined_addon_button', 'housing_mode_button', 'powermap_button',
+    'housing_return_button', 'beginner_server_button', 'litedown_info_button', 'gatha_start_button', 'account_info_button',
+    'new_skill_button', 'quest_reward_button', 'gold_vendor_button', 'login_event_button'}
+local function notificationBounds(id, d)
+    if id ~= D.gm_indicator then return end
+    local x0, y0, x1, y1 = math.huge, math.huge, -math.huge, -math.huge
+    for _, name in ipairs(NOTIFICATION_BUTTONS) do
+        local x, y, wd, ht, shown = AFCore.Rect(id, name, 'button')
+        if shown and x and wd > 0 and ht > 0 then
+            x0, y0, x1, y1 = math.min(x0, x - d.x), math.min(y0, y - d.y), math.max(x1, x - d.x + wd), math.max(y1, y - d.y + ht)
+        end
+    end
+    if x0 < math.huge then return x0, y0, x1 - x0, y1 - y0 end
+end
 local function frameRect(id, d)
     local s = scale(); local sw, sh = screen()
     local x, y = d.x, d.y
@@ -426,7 +550,12 @@ local function frameRect(id, d)
         if p then x, y = p[1] * sw, p[2] * sh else local dx, dy = design(id); if dx then x, y = dx, dy end end
     end
     local ox, oy, wd, ht = auraBounds(id, d)
+    if not ox then ox, oy, wd, ht = notificationBounds(id, d) end
     if ox then return x + ox, y + oy, wd, ht, ox, oy end
+    if id == D.radar then
+        local r = minimapParts()[id]
+        return r[1],r[2],r[3],r[4]+(AFUI.Get('minimapinfo')==1 and 18*s or 0),0,0
+    end
     return x, y, math.max(s, d.w), math.max(s, d.h), 0, 0
 end
 local function boxSize(mv)
@@ -446,7 +575,20 @@ local function showPanel(name, on)
 end
 local function placeBox(i)
     local mv = U.movers[i]; local s = scale(); local bw, bh = boxSize(mv)
-    w('Move' .. i):SetRect(mv.x / s, mv.y / s, bw / s, bh / s)
+    if mv.slot then w('Move' .. mv.slot):SetRect(mv.x / s, mv.y / s, bw / s, bh / s) end
+    if mv.tag then
+        local sw, sh = screen(); local t = mv.tag
+        local x = math.max(0, math.min(sw - t[3], mv.x + t[1]))
+        local y = math.max(0, math.min(sh - t[4], mv.y + t[2]))
+        w('MoveLabel' .. mv.slot):SetRect(x / s, y / s, t[3] / s, t[4] / s)
+        local cx, cy = mv.x + bw / 2, mv.y + bh / 2
+        local lx, ly = math.max(x, math.min(x + t[3], cx)), math.max(y, math.min(y + t[4], cy))
+        -- Each tag is above/below or beside its box, so one straight tether suffices.
+        if t[5] == 'Y' then lx = cx else ly = cy end
+        local line = w('MoveLeader' .. mv.slot)
+        line:SetRect(math.min(cx,lx)/s, math.min(cy,ly)/s,
+                     math.max(1, math.ceil(math.abs(lx-cx)/s)), math.max(1, math.ceil(math.abs(ly-cy)/s)))
+    end
 end
 local hideNudge, releasePins  -- editor and native pin cleanup (defined below)
 local function layoutMovers()
@@ -455,7 +597,6 @@ local function layoutMovers()
     U.movers = {}
     w('Movers'):SetRect(0, 0, sw / s, sh / s)
     for i, c in ipairs(moverCandidates()) do
-        if i > MOVERS then break end
         local id, d, label = c[1], c[2], c[3]
         if not U.defaults[id] then
             local dx, dy = design(id)
@@ -463,27 +604,32 @@ local function layoutMovers()
         end
         local x, y, wd, ht, ox, oy = frameRect(id, d)
         local thinXP = ht < 16 * s or wd < 90 * s
-        U.movers[i] = {id = id, x = x, y = y, w = wd, h = ht, ox = ox, oy = oy, label = label, exact = true, virtual = d.virtual}
+        U.movers[i] = {id = id, x = x, y = y, w = wd, h = ht, ox = ox, oy = oy, label = label, name=d.name, exact = true, virtual = d.virtual, shown=d.shown}
         placeBox(i)
-        -- A full text line cannot fit inside the XP strip. Its hover label and
-        -- selected-frame nudge panel identify it without enlarging the hit box.
-        w('Move' .. i):SetText(thinXP and '' or (label .. (d.shown and '' or ' (hidden)')))
-        w('Move' .. i):SetTooltip(label .. ' - select for position arrows')
-        w('Move' .. i):Show()
+
     end
     for _, t in ipairs({{TOOLTIP, AFUI.Get('ttanchor') == 1, 'Tooltip (world)'}, {TOOLTIP_UI, AFUI.Get('ttui') == 2, 'Tooltip (UI)'}}) do
-        if t[2] and #U.movers < MOVERS then
+        if t[2] then
             local i = #U.movers + 1; local x, y = tooltipAnchor(t[1]); local bw, bh = tooltipBox()
             U.movers[i] = {id = t[1], x = x, y = y, w = bw, h = bh, label = t[3]}
-            placeBox(i); w('Move' .. i):SetText(t[3]); w('Move' .. i):Show()
+            placeBox(i)
         end
     end
     for k = 1, menuManaged() and #MENU_BUTTONS or 0 do  -- last: small boxes on top of the large ones
         local x, y, bw, bh = buttonSpot(k, sw, sh)
-        if x and #U.movers < MOVERS then
+        if x then
             local i = #U.movers + 1
             U.movers[i] = {id = MENU_ID + k, x = x, y = y, w = bw, h = bh, exact = true, label = MENU_BUTTONS[k][2]}
-            placeBox(i); w('Move' .. i):SetText(MENU_BUTTONS[k][2]); w('Move' .. i):Show()
+            placeBox(i)
+        end
+    end
+    local radar = D.radar and dialog(D.radar)
+    if radar and radar.name == 'radar_dialog' then
+        local parts = minimapParts()
+        for _, id in ipairs({MAP_ZOOM,MAP_CLOCK,MAP_VENDOR,MAP_AREA,MAP_SWORD}) do
+            local r = parts[id]; local i = #U.movers+1
+            U.movers[i] = {id=id,x=r[1],y=r[2],w=r[3],h=r[4],exact=true,label=MAP_LABELS[id]}
+            placeBox(i)
         end
     end
     for i = #U.movers + 1, MOVERS do w('Move' .. i):Hide() end
@@ -522,9 +668,11 @@ local function moveMover(i, tx, ty)
     -- visibility/target event synchronously; its hold pass must see the new
     -- position, rather than restoring the preceding saved/default anchor.
     local k = key(mv.id); local previous, binding, saveAt = U.positions[k], U.bindings[k], U.saveAt
-    remember(mv.id, d, rx, ry, sw, sh)
+    remember(mv.id, d or (mv.name and {name=mv.name}), rx, ry, sw, sh)
     local placed = true
-    if d then
+    if mv.id == D.radar or MAP_LABELS[mv.id] then
+        AFUI.HoldPinned()
+    elseif d then
         -- These frames can be re-anchored by the game between drag samples.
         -- Pin immediately (also retargeting a refreshed native instance), so
         -- the first placement after each sample already holds the draft spot.
@@ -538,6 +686,7 @@ local function moveMover(i, tx, ty)
     end
     if d and REANCHORED[mv.id] then U.pins[mv.id] = true end
     mv.x, mv.y = tx, ty; placeBox(i)
+    if mv.id == D.target and AFHUD_TargetDetails then AFHUD_TargetDetails() end
     if U.selected == i then AFUI.ShowNudge() end
 end
 AFUI.MoveMover = moveMover
@@ -568,7 +717,9 @@ local function guide(name, x, y, wd, ht, alpha)
     local widget = w(name); if not widget then return end
     U.guideReady = U.guideReady or {}
     if not U.guideReady[name] then widget:SetUIImage(0, 'Textures/UI/AetherfallMovers/line'); widget:SetAlpha(alpha); U.guideReady[name] = true end
-    local s = scale(); widget:SetRect(x / s, y / s, math.max(1, wd) / s, math.max(1, ht) / s); widget:Show()
+    -- SetWidgetRect opcode 6 truncates to integers before applying UI scale.
+    -- A one-physical-pixel line divided by scale > 1 otherwise becomes zero.
+    local s = scale(); widget:SetRect(x / s, y / s, math.max(1, math.ceil(wd / s)), math.max(1, math.ceil(ht / s))); widget:Show()
 end
 local function editorGrid()
     if not w('GridX1') then return end
@@ -583,7 +734,7 @@ local function editorGrid()
             local pos = math.floor(i * step + .5)
             if AFUI.Get('showgrid') == 1 and pos < axis[3] then
                 guide('Grid' .. axis[1] .. i, axis[1] == 'X' and pos or 0, axis[1] == 'Y' and pos or 0,
-                      axis[1] == 'X' and 1 or sw, axis[1] == 'Y' and 1 or sh, .22)
+                      axis[1] == 'X' and 1 or sw, axis[1] == 'Y' and 1 or sh, .38)
             else w('Grid' .. axis[1] .. i):Hide() end
         end
     end
@@ -593,6 +744,7 @@ local function editorGrid()
     else w('GuideCenterX'):Hide(); w('GuideCenterY'):Hide() end
 end
 local function editorCategory(mv)
+    if MAP_LABELS[mv.id] then return 'HUD' end
     if mv.id > MENU_ID and mv.id <= MENU_ID + #MENU_BUTTONS then return 'Menus' end
     if tostring(mv.label):match('^Action Bar') then return 'Action bars' end
     return (HUD_IDS[mv.id] or REANCHORED[mv.id] or mv.id == TOOLTIP or mv.id == TOOLTIP_UI) and 'HUD' or 'Windows'
@@ -600,12 +752,65 @@ end
 local function editorBoxes()
     local filter = FILTERS[U.editorFilter or 1]
     U.hiddenMovers = U.hiddenMovers or {}
+    local eligible, selected = {}, 1
     for i, mv in ipairs(U.movers) do
+        mv.slot, mv.tag = nil, nil
         mv.editorHidden = U.hiddenMovers[mv.id] or (filter ~= 'All frames' and editorCategory(mv) ~= filter)
-        if mv.editorHidden then w('Move' .. i):Hide() else w('Move' .. i):Show() end
-        w('Move' .. i):SetAlpha(U.selected == i and 1 or .65)
+        -- Keep every mapped frame in the selector. Closed ordinary windows
+        -- get a preview box when selected, without covering the HUD in boxes.
+        local category=editorCategory(mv)
+        if not mv.editorHidden and (category ~= 'Windows' or mv.shown or U.selected == i) then
+            eligible[#eligible+1] = i
+            if U.selected == i then selected = #eligible end
+        end
+    end
+    -- Reuse the bounded widget pool. The selector visits every mapped frame;
+    -- selecting one on another page brings that page's boxes into the overlay.
+    local first = math.floor((selected-1)/MOVERS)*MOVERS+1
+    local s = scale(); local sw, sh = screen(); local occupied, tags = {}, {}
+    local function overlaps(a,b)
+        return a[1] < b[1]+b[3]+2*s and b[1] < a[1]+a[3]+2*s
+           and a[2] < b[2]+b[4]+2*s and b[2] < a[2]+a[4]+2*s
+    end
+    occupied[1] = {(U.editorX or 0)*s, (U.editorY or 0)*s, 380*s, 278*s}
+    for slot = 1, MOVERS do
+        if w('MoveLabel'..slot) then w('MoveLabel'..slot):Hide(); w('MoveLeader'..slot):Hide() end
+        local i = eligible[first+slot-1]
+        if i then
+            local mv=U.movers[i]; mv.slot=slot; mv.tag=nil; placeBox(i)
+            w('Move'..slot):SetText(mv.label)
+            local tw, th = (#mv.label*8+16)*s, 20*s
+            if w('MoveLabel'..slot) and (mv.h < th or mv.w < tw) then
+                w('Move'..slot):SetText(''); tags[#tags+1] = {i,math.min(tw,sw),th}
+            else occupied[#occupied+1] = {mv.x+(mv.w-tw)/2,mv.y+(mv.h-th)/2,tw,th} end
+            w('Move'..slot):SetTooltip(mv.label .. (mv.virtual and ' (not opened)' or '') .. ' - select for position arrows')
+            w('Move'..slot):SetAlpha(U.selected==i and 1 or .65); w('Move'..slot):Show()
+        else w('Move'..slot):Hide() end
+    end
+    for _, entry in ipairs(tags) do
+        local i, tw, th = unpack(entry); local mv = U.movers[i]; local chosen
+        -- Search near the box first, reserving full names against other captions.
+        for row = 0, math.ceil(sh/(th+4*s)) do
+            local gap = (4+row*24)*s
+            local cx,cy = mv.x+mv.w/2,mv.y+mv.h/2
+            local candidates = {{cx-tw/2,mv.y-th-gap,tw,th,'Y'}, {cx-tw/2,mv.y+mv.h+gap,tw,th,'Y'},
+                                {mv.x-tw-gap,cy-th/2,tw,th,'X'}, {mv.x+mv.w+gap,cy-th/2,tw,th,'X'}}
+            for _, r in ipairs(candidates) do
+                if r[1]>=0 and r[2]>=0 and r[1]+tw<=sw and r[2]+th<=sh then
+                    local free = true; for _, other in ipairs(occupied) do if overlaps(r,other) then free=false; break end end
+                    if free then chosen=r; break end
+                end
+            end
+            if chosen then break end
+        end
+        chosen = chosen or {math.max(0,math.min(sw-tw,mv.x)),math.max(0,math.min(sh-th,mv.y-th)),tw,th,'Y'}
+        occupied[#occupied+1]=chosen
+        mv.tag={chosen[1]-mv.x,chosen[2]-mv.y,tw,th,chosen[5]}
+        local label=w('MoveLabel'..mv.slot); label:SetText(mv.label); label:SetAttr('textColor',ICE); label:Show()
+        guide('MoveLeader'..mv.slot,0,0,1,1,.65); placeBox(i)
     end
 end
+
 local function placeEditor()
     if not w('EditorPanel') then return end
     local sw, sh = screen(); local s = scale()
@@ -614,6 +819,9 @@ local function placeEditor()
     U.editorX, U.editorY = x, y
     for name, r in pairs(EDITOR_PARTS) do w(name):SetRect(x + r[1], y + r[2], r[3], r[4]); w(name):Show() end
     w('EditorTitle'):SetAttr('textColor', GOLD); w('EditorSave'):SetAttr('textColor', GOLD)
+    w('EditorTitle'):SetText('MOVE UI | drag header')
+    w('EditorXLabel'):SetText('X'); w('EditorYLabel'):SetText('Y')
+    w('EditorHelp'):SetText('Drag a box. Arrows: 1 px; Shift: 10 px.')
     w('NudgeName'):SetAttr('textColor', AETHER)
 end
 local function onNudge(cx, cy)
@@ -720,7 +928,7 @@ function AFUI.Editor(action)
     elseif action == 'Step' then
         local _, _, _, shift = AFCore.Cursor()
         U.db.grid = math.max(2, math.min(32, AFUI.Get('grid') + (shift and -2 or 2))); dirty()
-    elseif action == 'Filter' then U.editorFilter = (U.editorFilter or 1) % #FILTERS + 1
+    elseif action == 'Filter' then U.editorFilter = (U.editorFilter or 1) % #FILTERS + 1; U.selected=nil
     elseif action == 'Hide' and mv then U.hiddenMovers[mv.id] = true; U.selected = nil
     elseif action == 'Restore' then U.hiddenMovers = {}; U.editorFilter = 1
     elseif action == 'Previous' or action == 'Next' then
@@ -741,7 +949,7 @@ function AFUI.Editor(action)
         if U.resetConfirm and U.ticks <= U.resetConfirm then AFUI.ResetAll(); U.resetConfirm = nil; editorStatus('All positions reset. Save to keep; Cancel to undo.')
         else U.resetConfirm = U.ticks + 100; editorStatus('Reset every position? Click Reset all again.') end
     elseif action == 'Settings' then
-        local tab = mv and (editorCategory(mv) == 'Action bars' and 'Action Bars' or mv.id == D.radar and 'Minimap'
+        local tab = mv and (editorCategory(mv) == 'Action bars' and 'Action Bars' or (mv.id == D.radar or MAP_LABELS[mv.id]) and 'Minimap'
                     or (mv.id == TOOLTIP or mv.id == TOOLTIP_UI) and 'Tooltip' or 'Movers') or 'Movers'
         if AFUI.EndEdit(true) then U.tab = tab; AFUI.Open() end; return
     elseif action == 'Reset' or action == 'Left' or action == 'Up' or action == 'Down' or action == 'Right' then AFUI.Nudge(action)
@@ -776,7 +984,7 @@ local function dragMovers()
     if down and not drag and not U.wasDown and not onNudge(cx, cy) then
         for i = #U.movers, 1, -1 do  -- topmost box first
             local mv = U.movers[i]; local bw, bh = boxSize(mv)
-            if not mv.editorHidden and cx >= mv.x and cx <= mv.x + bw and cy >= mv.y and cy <= mv.y + bh then
+            if mv.slot and not mv.editorHidden and cx >= mv.x and cx <= mv.x + bw and cy >= mv.y and cy <= mv.y + bh then
                 U.selected = i
                 if shift then AFUI.ResetMover(i) else U.drag = {i = i, dx = cx - mv.x, dy = cy - mv.y} end
                 AFUI.ShowNudge()
@@ -813,6 +1021,7 @@ function AFUI.Unlock()
         U.edit = {db=copy(U.db), positions=copy(U.positions), bindings=copy(U.bindings), stored=copy(U.stored), frames={}, saveAt=U.saveAt}
         U.open = false; if _G.AFUIOptions then w('Options'):Hide() end
         U.hiddenMovers, U.editorFilter, U.editorOrigin = {}, 1, 1
+        U.editorOpenedAt = U.ticks
         U.unlocked, U.drag, U.wasDown = true, nil, true  -- a press must start on a box
         layoutMovers()
         DisplayChatMessage(0, 'Aetherfall MoveUI: drag boxes, then Save / Lock. Cancel restores your starting layout. Drag the panel header to move it.', 0.56, 0.89, 0.93)
@@ -826,7 +1035,8 @@ function AFUI.ResetMover(i)
     local mv = U.movers[i]; if not mv then return end
     local sw, sh = screen(); local def = U.defaults[mv.id]
     U.positions[key(mv.id)] = nil; U.bindings[key(mv.id)] = nil; dirty()
-    if mv.id == TOOLTIP or mv.id == TOOLTIP_UI then mv.x, mv.y = tooltipAnchor(mv.id); placeBox(i)
+    if mv.id == D.radar or MAP_LABELS[mv.id] then AFUI.HoldPinned()
+    elseif mv.id == TOOLTIP or mv.id == TOOLTIP_UI then mv.x, mv.y = tooltipAnchor(mv.id); placeBox(i)
     elseif mv.id > MENU_ID and mv.id <= MENU_ID + #MENU_BUTTONS then
         mv.x, mv.y = buttonSpot(mv.id - MENU_ID, sw, sh); placeBox(i)
     elseif def then
@@ -871,8 +1081,8 @@ local function applyPins()
         local p = d and position(id, d)
         local x, y
         if p then x, y = p[1] * sw, p[2] * sh
-        elseif d and REANCHORED[id] and AFUI_DESIGN and AFUI_DESIGN[id] and d.name == AFUI_DESIGN[id][7] then x, y = design(id) end
-        if x and not AFUI.ManagedBar(id, d) then
+        elseif d and REANCHORED[id] and designRef(id) and d.name == designRef(id)[7] then x, y = design(id) end
+        if x and id ~= D.radar and id ~= D.subzone_name and not AFUI.ManagedBar(id, d) then
             -- Keep the current draft held even during a drag. Skipping it let
             -- a late-created/recreated target frame use the game's anchor until
             -- mouse-up. The draft is set before native placement can re-enter.
@@ -911,7 +1121,7 @@ local function applyPins()
         for k = 1, #MENU_BUTTONS do
             local x, y, bw, bh = buttonSpot(k, sw, sh)
             if x then
-                spots[k] = {x, y}
+                spots[k] = {x, y, bw, bh}
                 x0, y0, x1, y1 = math.min(x0, x), math.min(y0, y), math.max(x1, x + bw), math.max(y1, y + bh)
             end
         end
@@ -922,13 +1132,35 @@ local function applyPins()
             for k, b in ipairs(MENU_BUTTONS) do
                 local sp = spots[k]
                 for _, name in ipairs(sp and {b[1], unpack(b[4] or {})} or {}) do
-                    AFCore.Pin(D.start, sp[1] - x0, sp[2] - y0, 0, false, 0, 0, name, b[3])
+                    AFCore.Pin(D.start, sp[1] - x0, sp[2] - y0, 0, false, sp[3], sp[4], name, b[3])
                     pinned[D.start .. ':' .. name] = {D.start, name}
+                end
+                if b[1]=='item_shop_container' then
+                    -- Use the catalogue's native children instead of leaving
+                    -- 64px shop offsets inside a resized square container.
+                    for _,record in ipairs(AFCore.Layouts('start_dialog')) do
+                        if record.definition.source=='L10N/enu/data/data.pak|ui/game_hud_s1/start_dialog.xml' then
+                            local nodes=record.definition.widgets;local parent
+                            for _,node in ipairs(nodes)do if node.attributes.name==b[1]then parent=node.path;break end end
+                            for _,node in ipairs(nodes)do
+                                if parent and node.parent==parent then
+                                    local r={};for v in (node.attributes.frame or ''):gmatch('[^,]+')do r[#r+1]=tonumber(v)end
+                                    if #r==4 then
+                                        local factor=sp[3]/34
+                                        AFCore.Pin(D.start,r[1]*factor,r[2]*factor,0,false,r[3]*factor,r[4]*factor,node.path,'any')
+                                        pinned[D.start..':'..node.path]={D.start,node.path}
+                                    end
+                                end
+                            end
+                            break
+                        end
+                    end
                 end
             end
         end
     end
     AFUI.HoldBars(pinned)
+    AFUI.HoldMinimap(pinned)
     for k, v in pairs(U.pins) do
         if not pinned[k] then
             if type(v) == 'table' then AFCore.Pin(v[1], nil, nil, nil, nil, nil, nil, v[2]) else AFCore.Pin(k) end
@@ -947,6 +1179,93 @@ local function holdPinned()
     if not ok then U.pinError = tostring(why) end
 end
 AFUI.HoldPinned = holdPinned
+
+function AFUI.AlignMenu()
+    for k in ipairs(MENU_BUTTONS) do
+        U.positions[key(MENU_ID + k)], U.bindings[key(MENU_ID + k)] = nil, nil
+    end
+    dirty(); holdPinned()
+    if U.unlocked then layoutMovers() end
+end
+
+function AFUI.HoldMinimap(pinned)
+    local id = D.radar; local d = id and dialog(id)
+    if not d or d.name ~= 'radar_dialog' then return end
+    local s = scale(); local parts = minimapParts()
+    local map = parts[id]
+    -- Native children must remain inside their owner's canvas for dispatch and
+    -- clipping. Its bounding canvas is invisible and only real widgets take hits.
+    local x,y,right,bottom = map[1],map[2],map[1]+map[3],map[2]+map[4]
+    for _,part in ipairs({MAP_ZOOM,MAP_CLOCK,MAP_VENDOR}) do
+        local r=parts[part]
+        x,y,right,bottom=math.min(x,r[1]),math.min(y,r[2]),math.max(right,r[1]+r[3]),math.max(bottom,r[2]+r[4])
+    end
+    AFCore.Gaps(id,true)
+    AFCore.Pin(id,x,y,0,false,right-x,bottom-y); pinned[id]=true
+    local function child(owner,name,cx,cy,cw,ch,mode)
+        AFCore.Pin(owner,cx,cy,mode or 0,false,cw,ch,name,'any')
+        pinned[owner..':'..name]={owner,name}
+    end
+    local mx,my = map[1]-x,map[2]-y
+    child(id,'af_minimap_border',mx,my,map[3],map[4])
+    child(id,'radar_wnd',mx+5*s,my+5*s,map[3]-10*s,map[4]-10*s)
+    child(id,'radar_sight',mx+5*s,my+5*s,map[3]-10*s,map[4]-10*s)
+    for _,control in ipairs({{MAP_ZOOM,'#4'},{MAP_CLOCK,'time_slot'},{MAP_VENDOR,'vendor_notice'}}) do
+        local r=parts[control[1]]
+        child(id,control[2],r[1]-x,r[2]-y,r[3],r[4])
+    end
+    local aid = D.subzone_name; local area = aid and dialog(aid)
+    if area and area.name == 'subzone_name_dialog' then
+        local name,sword = parts[MAP_AREA],parts[MAP_SWORD]
+        local ax,ay = math.min(name[1],sword[1]),math.min(name[2],sword[2])
+        local ar = math.max(name[1]+name[3],sword[1]+sword[3])
+        local ab = math.max(name[2]+name[4],sword[2]+sword[4])
+        AFCore.Gaps(aid,true)
+        AFCore.Pin(aid,ax,ay,0,false,ar-ax,ab-ay); pinned[aid]=true
+        child(aid,'neutral',sword[1]-ax,sword[2]-ay,sword[3],sword[4])
+        child(aid,'text',name[1]-ax,name[2]-ay,name[3],18*s)
+        child(aid,'server_name',name[1]-ax,name[2]-ay+20*s,name[3],18*s)
+        child(aid,'bgimage',0,0,140*s,38*s,5)
+    end
+    for i,mv in ipairs(U.movers) do
+        local r=parts[mv.id]
+        if r then
+            local h=r[4]+(mv.id==id and AFUI.Get('minimapinfo')==1 and 18*s or 0)
+            if mv.x~=r[1] or mv.y~=r[2] or mv.w~=r[3] or mv.h~=h then
+                mv.x,mv.y,mv.w,mv.h=r[1],r[2],r[3],h;placeBox(i)
+            end
+        end
+    end
+end
+
+-- Once per second and when settings change. Recreated windows are looked up
+-- afresh; no native object pointers survive a close, character or world change.
+function AFUI.ApplyOpacity()
+    if not AFCore.Backdrop then return end
+    for id = 1, PLUGIN_FIRST - 1 do
+        local d = dialog(id)
+        if d and d.shown then
+            local alpha
+            if id == D.chat then alpha = AFUI.Get('chatalpha')
+            elseif id == D.shortcut or id == D.shortcut_ctrl or id == D.shortcut_alt or id == D.shortcut_extra
+                or ((id == D.shortcut_sep or id == D.shortcut_sep2) and d.name == 'quickbar_dialog_sep') then
+                alpha = AFUI.Get('barsalpha')
+            elseif nativeMovable(d) and not HUD_IDS[id] and not tooltipKind(d) then alpha = AFUI.Get('windowsalpha') end
+            if alpha then AFCore.Backdrop(id, alpha / 100) end
+            if HUD_IDS[id] and id ~= D.chat and id ~= D.chat_input and id ~= D.start and id ~= D.radar
+                and id ~= D.shortcut and id ~= D.shortcut_ctrl and id ~= D.shortcut_alt and id ~= D.shortcut_extra
+                and id ~= D.shortcut_sep and id ~= D.shortcut_sep2 then
+                local a=AFUI.Get('alpha')/100
+                AFCore.Backdrop(id,a,nil,nil,false)
+                AFCore.Backdrop(id,a,'bg','any')
+            end
+        end
+    end
+    -- Plugin windows use their normal queued API. Keep controls and text solid.
+    for _, win in ipairs({'PlayerBotBar', 'AFUIOptions'}) do
+        if _G[win] then _G[win]:SetAlpha(AFUI.Get('windowsalpha') / 100, false) end
+    end
+end
 -- Action bars (ElvUI): buttons per row and button size. The twelve slots are laid out in rows inside
 -- their container, the container and the bar window take the new size (bottom edge kept), bar 1's
 -- page arrows and lock follow. A bar once changed stays held (also back at its default) until relog.
@@ -1004,7 +1323,7 @@ function AFUI.HoldBars(pinned)
             for k = 1, 12 do
                 local slot = b[2] == '#1' and ('#1/shortcut' .. k) or ('shortcut' .. k)
                 local c, r = (k - 1) % per, math.floor((k - 1) / per)
-                AFCore.Pin(id, c * pitch, r * pitch, 0, false, m.size, m.size, slot, 'itemview')
+                AFCore.Pin(id, ox + c * pitch, oy + r * pitch, 0, false, m.size, m.size, slot, 'itemview')
                 pinned[id .. ':' .. slot] = {id, slot}
             end
             if i == 1 then
@@ -1167,15 +1486,16 @@ local function data(k) return {k = k, kind = 'data'} end
 local function action(name, arg) return {kind = 'action', action = name, arg = arg} end
 -- {category, rows, hint}
 local TABS = {
-    {'General', {{'Data text font', choice('font')}, {'Colour theme', choice('theme')}, {'Data bar opacity', numeric('alpha')}},
-     'Top bar and status line. Window skins: launcher Mods window.'},
+    {'General', {{'Data text font', choice('font')}, {'Colour theme', choice('theme')}, {'HUD background opacity', numeric('alpha')},
+                 {'Companion bar', toggle('botbar')}, {'Window backgrounds', numeric('windowsalpha')}},
+     'Companion bar Off hides the window and icon. /botbar opens it again.'},
     {'Unit Frames', {{'Target of target', toggle('tot')}, {'Party frames', toggle('party')}},
      'Move frames with /moveui.'},
     {'Action Bars', {{'Bar 3', toggle('altbar')}, {'Bar 4', toggle('extrabar')}, {'Bars 5 and 6', toggle('sepbar')},
                      {'Layout of', choice('abbar')}, {'Buttons per row', {kind = 'barnumber', base = 'abrow'}},
-                     {'Button size', {kind = 'barnumber', base = 'absize'}}},
-     'Rows and size apply to the bar chosen in Layout of.'},
-    {'Chat', {{'Status line', toggle('chatline')}}, 'Chat size and tabs are the game\'s own.'},
+                     {'Button size', {kind = 'barnumber', base = 'absize'}}, {'Background opacity', numeric('barsalpha')}},
+     'Background opacity applies to all six bars. Skill icons stay readable.'},
+    {'Chat', {{'Status line', toggle('chatline')}, {'Background opacity', numeric('chatalpha')}}, 'Text stays solid as backgrounds fade.'},
     {'Data Texts', {{'Top bar', toggle('databar')}, {'Left 1', data('dl1')}, {'Left 2', data('dl2')}, {'Left 3', data('dl3')},
                     {'Centre 1', data('dc1')}, {'Centre 2', data('dc2')}, {'Centre 3', data('dc3')},
                     {'Right 1', data('dr1')}, {'Right 2', data('dr2')}, {'Right 3', data('dr3')}}, nil},
@@ -1184,7 +1504,10 @@ local TABS = {
                  {'Cursor offset X', numeric('ttx')}, {'Cursor offset Y', numeric('tty')}, {'Keep on screen', toggle('ttclamp')},
                  {'Tooltip mover', action('unlock')}},
      'Mover: drag the Tooltip boxes in /moveui. Native: where the game puts it.'},
-    {'Minimap', {{'Zone and coordinates', toggle('minimapinfo')}, {'XP bar', toggle('xpbar')}, {'Start menu', toggle('startmenu')}}, nil},
+    {'Minimap', {{'Coordinates', toggle('minimapinfo')}, {'Minimap size', numeric('mapsize')},
+                 {'XP bar', toggle('xpbar')}, {'Start menu', toggle('startmenu')}, {'Shortcut size', numeric('menusize')},
+                 {'Shortcuts per row', numeric('menucols')}, {'Shortcut spacing', numeric('menugap')}, {'Align shortcuts', action('alignmenu')}},
+     'Area and map controls follow the minimap. Align shortcuts restores their grid.'},
     {'Movers', {{'Movers', action('unlock')}, {'Show grid', toggle('showgrid')}, {'Guide spacing', numeric('guidesize')},
                 {'Snap to grid', toggle('snap')}, {'Snap to frames', toggle('snapframes')}, {'Snap step', numeric('grid')},
                 {'All positions', action('resetall')}},
@@ -1196,7 +1519,7 @@ local TABS = {
 U.TABS = TABS
 local TAB_SLOTS = 10  -- sidebar buttons in the layout
 
-local ACTION_LABEL = {unlock = 'Unlock', resetall = 'Reset', preset = 'Apply', store = 'Save'}
+local ACTION_LABEL = {unlock = 'Unlock', resetall = 'Reset', preset = 'Apply', store = 'Save', alignmenu = 'Align'}
 local function value(item)
     local spec = item[2]
     if spec.kind == 'toggle' then return onoff(spec.k) end
@@ -1255,7 +1578,12 @@ end
 local function set(k, v)
     U.db[k] = v; dirty()
     if AFHUD_Apply then AFHUD_Apply() end
+    if AFHUD and AFHUD.on and U.settled then holdPinned(); AFUI.ApplyOpacity() end
     if TOGGLES[k] then pcall(AFUI.ApplyToggles) end  -- immediately, not on the next second
+    if k == 'botbar' then
+        if PlayerBotBar_ApplyVisibility then PlayerBotBar_ApplyVisibility() end
+        AFUI.Save()
+    end
 end
 local function cycle(list, cur, dir)
     for i, v in ipairs(list) do if v == cur then return list[(i - 1 + dir) % #list + 1] end end
@@ -1314,6 +1642,7 @@ function AFUI.Click(what)
     elseif spec.kind == 'action' then
         if spec.action == 'unlock' then AFUI.Unlock(); return
         elseif spec.action == 'resetall' then AFUI.ResetAll()
+        elseif spec.action == 'alignmenu' then AFUI.AlignMenu()
         elseif spec.action == 'preset' then
             rememberProfile()
             for k, v in pairs(defaults) do if k ~= 'profile' then U.db[k] = v end end
@@ -1405,7 +1734,9 @@ end
 local function recoverLayout(keepEditor)
     if not keepEditor and U.edit then AFUI.EndEdit(false, true, true) end
     U.settled = false
-    releasePins()
+    -- Focus return retains the live holds while viewport metrics settle. A full
+    -- release here gives native shortcut layout a gap in which to relocate them.
+    if not keepEditor then releasePins() end
     U.designed, U.observed, U.checked, U.fitted = {}, {}, {}, {}
     U.designSize, U.menuGaps, U.mapShown = nil, nil, false
     U.sizeSince = U.ticks
@@ -1435,6 +1766,7 @@ local function refreshMoverRects()
     for i, mv in ipairs(U.movers) do
         local d = mv.id < PLUGIN_FIRST and dialog(mv.id)
         if d then
+            mv.virtual, mv.shown = nil, d.shown
             local x, y, wd, ht, ox, oy = frameRect(mv.id, d)
             local changed = x ~= mv.x or y ~= mv.y or wd ~= mv.w or ht ~= mv.h
             mv.x, mv.y, mv.w, mv.h, mv.ox, mv.oy = x, y, wd, ht, ox, oy
@@ -1537,14 +1869,15 @@ function AFUI_OnEvent(event, ...)
         end
         local primary, chat = D.basic_status and dialog(D.basic_status), D.chat and dialog(D.chat)
         local worldShown = (primary and primary.shown) or (chat and chat.shown)
-        if U.worldShown == true and not worldShown then U.suspended = true; releasePins() end
-        if worldShown and U.suspended then U.suspended = nil; recoverLayout() end
-        U.worldShown = worldShown and true or false
+        if focused and U.worldShown == true and not worldShown then U.suspended = true; releasePins() end
+        if focused and worldShown and U.suspended then U.suspended = nil; recoverLayout() end
+        if focused then U.worldShown = worldShown and true or false end
         local zone = call('GetZoneText')
-        if zone and U.zone and zone ~= U.zone then recoverLayout() end
+        if focused and zone and U.zone and zone ~= U.zone then recoverLayout() end
         U.zone = zone or U.zone
         U.settled = focused and sw >= 800 and sh >= 600 and U.ticks - (U.sizeSince or 0) >= 20
         U.settled = U.settled and not U.suspended
+        nativeDragTick()
         if U.settled then
             if U.restoreEdit then AFUI.RestoreEditFrames() end
             runPending()
@@ -1552,6 +1885,10 @@ function AFUI_OnEvent(event, ...)
                 U.refreshMovers = nil
                 if U.unlocked then layoutMovers() end
             end
+        end
+        if U.unlocked and U.settled and U.ticks - (U.editorOpenedAt or 0) > 3 then
+            local _, ed = panel('Movers')
+            if ed and not ed.shown then AFUI.EndEdit(false, true) end
         end
         if U.unlocked and U.settled then
             dragMovers()
@@ -1574,6 +1911,7 @@ function AFUI_OnEvent(event, ...)
         if U.ticks % 20 == 0 then
             U.alive = U.ticks
             if AFHUD and AFHUD.on and U.settled then
+                pcall(AFUI.ApplyOpacity)
                 local ok, why = pcall(enforce)
                 if not ok then U.enforceError = tostring(why) end
                 U.lastHudShown = {}

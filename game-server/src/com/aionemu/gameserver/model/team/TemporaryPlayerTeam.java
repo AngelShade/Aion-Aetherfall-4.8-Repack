@@ -42,6 +42,11 @@ public abstract class TemporaryPlayerTeam<TM extends TeamMember<Player>> extends
 		sendPackets(new SM_SHOW_BRAND(brandId, targetObjectId));
 	}
 
+	/** Current native mark target, or zero after clearing; does not expose the mutable team map. */
+	public int getBrandTargetId(int brandId) {
+		return targetIdsByBrandId.getOrDefault(brandId, 0);
+	}
+
 	public void sendBrands(Player member) {
 		PacketSendUtility.sendPacket(member, new SM_SHOW_BRAND(targetIdsByBrandId));
 	}

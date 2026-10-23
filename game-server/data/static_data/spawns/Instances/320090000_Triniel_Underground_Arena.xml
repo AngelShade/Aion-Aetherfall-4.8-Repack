@@ -21,6 +21,8 @@
 			<spot x="314.001" y="244.455" z="158.895" h="60"/>
 			<spot x="314.274" y="236.252" z="158.895" h="60"/>
 			<spot x="320.238" y="236.093" z="158.895" h="60"/>
+			<!-- The fourth eastern Warrior Spirit shares the third spirit's native position. -->
+			<spot x="320.238" y="236.093" z="158.895" h="60"/>
 		</spawn>
 	</spawn_map>
 </spawns>

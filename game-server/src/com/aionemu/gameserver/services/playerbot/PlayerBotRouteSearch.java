@@ -32,6 +32,7 @@ final class PlayerBotRouteSearch {
  private boolean portalApproach;
  private int portalCursor;
  private List<Point> route=List.of();
+ private List<Point> recorded=List.of();
  private String reason="searching supported ground";
 
  PlayerBotRouteSearch(Point start,Point goal,float mapSize,int capacity) {
@@ -50,6 +51,13 @@ final class PlayerBotRouteSearch {
  PlayerBotRouteSearch(int world,Point start,Point goal,float mapSize,int capacity,float segmentDistance,PlayerBotMeshJourney journey,PlayerBotMeshRoute.Admission admission) {
   this(start,goal,mapSize,capacity,segmentDistance,false);
   this.journey=journey;this.world=world;
+  if(world>0 && finite(start) && finite(goal) && com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_MEMORY_FIRST){
+   recorded=PlayerBotRouteMemory.lookup(world,start,goal);
+   if(!recorded.isEmpty()){
+    reason="recorded walked route ready";
+    return;
+   }
+  }
   // A prepared corridor that failed its ground proof twice from this spot toward
   // this goal goes straight to the native search for five minutes.
   if(finite(start) && finite(goal) && com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED && !meshBlockedHere(world,start,goal))
@@ -109,10 +117,25 @@ final class PlayerBotRouteSearch {
  boolean targets(Point point){return finite(point) && distance(finalGoal,point)<=.25;}
 
  void advance(PlayerBotPathfinder.Ground ground,int probes,BooleanSupplier expired) {
+  if(!recorded.isEmpty()){
+   if(expired.getAsBoolean())return;
+   route=recorded;recorded=List.of();partial=distance(route.getLast(),finalGoal)>.6;complete=true;
+   reason="reusing recorded walked route";open.clear();best.clear();
+   if(journey!=null)journey.provedSegment(start,route.getLast(),goal);
+   PlayerBotMeshRoute.reusedRecording();return;
+  }
   if(mesh!=null){
    try {mesh.advance(ground,probes,expired);}
    catch(RuntimeException | Error failure){mesh.close();mesh=null;if(journey!=null)journey.pause();throw failure;}
    if(!mesh.fallback())return;
+   if(com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_MEMORY_FIRST){
+    // A missing/obstructed prepared route is unavailable, not a request to
+    // rebuild thousands of terrain cells with live collision probes.
+    reason=mesh.reason();mesh.close();mesh=null;complete=true;route=List.of();
+    open.clear();best.clear();current=null;
+    if(journey!=null)journey.obstructed(start);
+    return;
+   }
    meshBlocked(world,start,finalGoal);
    Point next=mesh.nativeTarget();mesh.close();mesh=null;
    if(!next.equals(goal)){goal=next;open.clear();best.clear();current=progress=null;stride=4;phaseExpanded=0;seed();}

@@ -5,6 +5,198 @@ Aetherfall Interface. It reads native HUD data and applies the interface's windo
 positions, visibility and tooltip settings. Settings remain in `Mods/AetherfallUI`.
 Existing chat commands run through the native chat input.
 
+## Shared native UI catalogue and geometry, 1.2.51
+
+The normal builder generates `AetherfallRegistry.lua` from the exact active
+base, English and plugin UI definitions. It records every declared window and
+widget, including parent paths, variants, presets, skin references and source
+hashes. Native IDs come from verified client RTTI/GetType methods. Resource-only
+and dynamic definitions keep their distinct status; no IDs are invented.
+
+`AFCore.Widget` and `AFCore.Children` inspect live controls without opening
+windows. Placement, rectangles and sparse click testing share one selector
+resolver, including named and unnamed nested containers. MoveUI previews now
+come from the shared catalogue instead of a separate hand-maintained list.
+`/afcore ui` summarizes coverage; `/afcore inspect <id> [path]` shows live bounds.
+
+HUD shortcuts use square native geometry and private stretched-sprite skin
+variants. Original artwork, native gauge/button handlers, shop notifications
+and particle controls remain. Shortcut size, spacing, row count and **Align
+shortcuts** use the same square dimensions. Existing individually saved positions
+are preserved until Align is chosen. Minimap zoom retains its native handler;
+its unnamed parent now resolves correctly during sparse click testing.
+
+Build with `prepare.py --update --retain-layout --ui-registry-update
+--shortcut-geometry-update`. Subsequent plugin builds refresh an installed
+catalogue automatically. Game.dll and texture archives do not change. The
+builder composes affected full-HUD resources, signing, interface payloads and
+Graphics restore metadata together. Live artwork/hover/click behavior, flight,
+shop states, Save/Cancel, focus changes and relog require owner acceptance.
+
+## MoveUI grid and names, Lua 1.2.47
+
+Grid lines retain at least one whole UI pixel before native scaling, so they
+remain visible above 100% UI scale. Small boxes and long names use passive full
+captions with a connecting line. Their native drag bounds, saved positions,
+profiles and snapping are retained. Editor captions are filled by Lua.
+
+Build with `prepare.py --update --plugin-only --mover-editor-update`. Only the
+MoveUI dialog and Options Lua change within the signed plugin; native binaries
+and other installed dialog bytes are retained. Actual appearance and input need
+in-game acceptance.
+
+## Independent minimap elements and border, 1.2.49
+
+MoveUI offers **Minimap**, **Minimap Zoom**, **Minimap Clock**, **Current Area**,
+**Area Sword**, and the conditional **Vendor Notice**. Each has independent profile positions,
+Save/Cancel, precise placement and reset. Moving one does not move the others.
+Clock, zoom and vendor notice have separate bounds and independent movers, with
+space between them by default. The native area/server text and safe/PvP icon keep their
+own native states, localized text, visibility and hover behavior.
+
+The minimap's native Aetherfall frame is restored as a separate image around
+the map only. Map drawing uses the existing 1.2.46 renderer correction inside
+that frame. Coordinates, when enabled, follow only the map. The invisible native
+parent canvases cover their separated children; verified radar/subzone class
+hit tests leave gaps clickable in the world. No new native windows are created.
+The MoveUI 1.2.47 labels/grid remain intact.
+
+Build with `prepare.py --update --retain-layout --hud-customization-update
+--minimap-border-update`. This builds Lua 1.2.49 and bridge 1.2.48, composes the four native
+radar layouts with their interface payloads, signs the plugin and stages matching
+Graphics package/restore records. The existing Game.dll renderer repair and
+other native bytes are retained. Appearance, real dragging, hover/click behavior
+between widely separated elements and relog remain owner acceptance checks.
+
+## Minimap rendering and native area strip, 1.2.46
+
+The size setting now changes the map renderer's viewport as well as its window.
+The verified native renderer previously drew a fixed 156-pixel square inside the
+resized image, with a separate 165-pixel vertical inset calculation. Its viewport
+and centring dimensions now come from that image, so map
+drawing and marker projection share the chosen bounds. Zoom retains its native
+behavior. Clock, zoom and vendor notice occupy separate spaces below the map.
+
+The native area name, server line and PvP/safe-area sword icon follow below those
+controls, with optional coordinates underneath. The whole group uses the Minimap
+mover. Native text, icon states and hover behavior remain in use; the separate
+Zone Name mover is removed from the active interface. Saved profile files remain
+intact.
+
+Build with `prepare.py --update --plugin-only --retain-layout
+--minimap-renderer-update`. This retains bridge 1.2.45 and installed layouts,
+signs the updated Lua plugin, and uses the existing incremental Graphics/cursor
+helper to compose the bounded Game.dll edit with both restore baselines. Native
+pet/Lua imports, the session repair and all other native bytes are preserved.
+In-game resize, zoom, icon/area hover, focus recovery and relog need owner testing.
+
+## HUD size, alignment and transparency, 1.2.43
+
+Open `/afui` to adjust these settings for the current UI profile:
+
+- **Minimap:** size from 120 to 320 UI pixels, with zone and coordinates attached
+  immediately below it. The thick black frame and label backdrop are removed.
+- **Minimap > Shortcuts:** all fourteen menu controls use the same square size.
+  Choose size, spacing and icons per row, then **Align shortcuts** to return
+  individually moved icons to the grid. Other saved frame positions are retained.
+- **General > Window backgrounds**, **Chat > Background opacity**, and
+  **Action Bars > Background opacity:** 0Ã¢â‚¬â€œ100%. Text, resource gauges and skill
+  icons retain their foreground opacity. Companion and settings windows use their
+  normal queued background control.
+
+Player and target frames retain their matching 251Ãƒâ€”72 dimensions and HP/MP rows.
+Action slot pins include the main bar's native container offset, so their visible
+and clickable bounds agree after resizing. The minimap reserves space for its
+label at the bottom of the viewport. Zoom, clock and vendor notice remain native.
+
+Build with `prepare.py --update --retain-layout --hud-customization-update`.
+Use `--target-overlay-update` when composing the earlier target readout repair.
+Only the four radar layout members, minimap label and maintained Lua/native bridge
+are updated; the builder composes the active English/base archives with the
+interface payloads and matching Graphics package metadata. Native window skin
+alpha uses the verified base method and a bounded walk of current children;
+no pointers persist across window recreation. Appearance and interaction still
+need in-game acceptance.
+
+## Placement and MoveUI repair, 1.2.45
+
+Native target, target-of-target and target cast bars now retain their mover
+positions after the engine's internal anchor calculation. Target Auras retains
+its existing native zero-sized canvas and post-anchor hold. The native client has
+no separate target-of-target aura dialog; its cast bar has a permanent mover.
+
+Focus loss no longer treats temporarily hidden HUD windows as a world transition.
+Ordinary window positions are saved only after a foreground mouse drag, so engine
+layout changes cannot silently overwrite the user's saved position. Hiding an
+open MoveUI editor cancels the draft and releases ordinary window pins.
+
+MoveUI includes previews for 154 verified native window layouts before opening
+them. Native GetType values and English layout bounds define the catalogue;
+unmapped dialogs still require native discovery. Closed ordinary windows show a
+preview box when selected. Previous/next selection reaches the entire catalogue
+while reusing the existing 56-box pool. No windows are opened to discover them.
+
+Daily/system notification placement has a screen-bounded default. The game still
+controls whether a daily quest is available and whether its button is shown.
+Shortcut art keeps its shipped bounds, including the nested shop notification
+and flight control; cell size controls grid padding. HUD background opacity also
+applies to native HUD skins while keeping their text and foregrounds intact.
+
+Build with `prepare.py --update --retain-layout`. Untyped widget lookups use a bounded child traversal: native type zero is not
+a wildcard. This also restores named minimap and HUD background lookups.
+
+Native appearance, real focus
+changes, title dragging, conditional notifications and relog require owner testing.
+
+## Target readout placement, Lua 1.2.42
+
+The target HP/MP/DP readout uses the existing frameless HUD preset and a passive,
+click-through dialog. Queued placement is refreshed after showing it, so native
+saved window positions cannot leave it beside the target. Value updates, target
+changes and MoveUI dragging use the same native target rectangle.
+
+Build with `prepare.py --update --plugin-only --target-overlay-update`. Only the
+target readout dialog and HUD Lua change inside the signed plugin. Native Core
+1.2.41, focus/daily-icon repairs, layouts, profiles and other plugin members remain.
+Actual rendering, target selection, dragging and relog need owner acceptance.
+
+## Target, notifications and companion bar, 1.2.40
+
+### Focus and daily quest icon repair, 1.2.41
+
+Shortcut pins and click bounds use native screen coordinates, including parent
+content offsets and nested containers. Focus return retains live holds while the
+viewport settles. `/moveui` now offers **Daily Quest / System Notifications** for
+the actual daily quest icon in `gm_indicator_dialog` (native type `0x11f`), with a
+box matching its visible icons. **Tutorial Notifications** controls the separate
+`help_indicator_dialog`; existing saved tutorial positions remain valid.
+
+Build with `prepare.py --update --retain-layout`. Native rendering and repeated
+Alt+Tab, dragging, Save/Cancel and relog still require owner acceptance.
+
+`/moveui` includes **Daily Quest / Notifications** even before the notification
+window exists. Saved positions also hold newly shown notifications after locking.
+Target aura placement is held after the native anchor calculation inside SetRect;
+the earlier incoming-rectangle hold could be overwritten by that calculation.
+The native aura canvas stays zero-sized and the game's icon arrangement is retained.
+
+The target frame is 251 by 72 UI pixels, matching the player frame. It shows HP/MP
+values and reserves a third row for DP. Self-target DP uses the player's native DP
+gauge. The native target record exposes no DP; other targets keep this row empty.
+Unavailable MP stays empty too. The passive value overlay adds one plugin dialog.
+
+In `/afui` **General**, turn **Companion bar** Off to hide both the commands and
+their icon. World bots and bot interaction continue. `/botbar` restores the bar.
+Pressing its X keeps the small icon; that choice is saved immediately per character.
+Login waits for the saved mode and character settings before showing the bar.
+
+Build with `prepare.py --update --retain-layout --hud-repair-update`. This builds
+the native bridge, updates only the affected Lua/layout members, and composes the
+target layout with the installed interface and Graphics menu package. Off/on skin
+payloads, restore baselines, other plugin members and profile files are retained.
+The normal signer and guarded installer deliver the original-client cohort.
+Native rendering, dragging, targeting and relog behavior need owner acceptance.
+
 ## Target movers, Lua 1.2.39
 
 Target, target-of-target, target aura and cast movers hold the current draft

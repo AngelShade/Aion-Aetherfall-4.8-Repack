@@ -117,10 +117,19 @@ public final class PlayerBotConfig {
  /** Owner kill/crowd-control marks for companions. */
  @Property(key = "gameserver.playerbots.marks.enable", defaultValue = "true")
  public static boolean MARKS = true;
+ /** Read numbered attack marks and the sleep mark from the native party/alliance. */
+ @Property(key = "gameserver.playerbots.marks.native.enable", defaultValue = "true")
+ public static boolean NATIVE_MARKS = true;
  /** A crowd-control mark left uncontrolled this long while hostile is released. */
  @Property(key = "gameserver.playerbots.marks.cc_release_ms", defaultValue = "8000")
  public static long MARKS_CC_RELEASE_MS = 8000;
- /** Native terrain work is bounded by measured elapsed cost, not population-wide fixed turns. */
+ /** Each actor plans from shared map memory without population-wide terrain/query admission. */
+ @Property(key = "gameserver.playerbots.navigation.independent", defaultValue = "true")
+ public static boolean NAVIGATION_INDEPENDENT = true;
+ /** Prepared/recorded paths are proposals; the native mover validates actual steps. */
+ @Property(key = "gameserver.playerbots.navigation.memory_first", defaultValue = "true")
+ public static boolean NAVIGATION_MEMORY_FIRST = true;
+ /** Compatibility allowance when independent planning is disabled. */
  @Property(key = "gameserver.playerbots.navigation.budget_ms_per_second", defaultValue = "500")
  public static int TERRAIN_BUDGET_MS = 500;
  @Property(key = "gameserver.playerbots.navigation.slice_ms", defaultValue = "3")

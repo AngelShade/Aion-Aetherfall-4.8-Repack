@@ -68,6 +68,43 @@ local function thousands(v)
     local s = string.format('%d', math.floor(v + .5))
     while true do local k; s, k = s:gsub('^(-?%d+)(%d%d%d)', '%1,%2'); if k == 0 then return s end end
 end
+-- Readable values over the native target bars. The native target record has
+-- HP/MP but no DP; self-target DP comes from the player's native DP gauge.
+-- Unavailable resources keep their row empty, including on monster targets.
+function AFHUD_TargetDetails()
+    if not w('Target') then return end
+    if H.targetWidget ~= w('TargetDPFill') then
+        w('TargetDPFill'):SetUIImage(0, 'Textures/UI/AetherfallMovers/target_dp.dds')
+        H.targetWidget = w('TargetDPFill')
+    end
+    local name, x, y, width, height, shown = AFCore.Dialog(D.target)
+    local id, unit, level, hp, hpmax, mp, mpmax = AFCore.Unit('target')
+    local active = shown and id and id > 0 and name == 'target_dialog'
+    if not active then show('Target', false); return end
+    -- Plugin dialogs have native saved/automatic window placement. SetRect
+    -- alone can be superseded when Show restores that placement. Keep this
+    -- passive readout over the native target using queued widget operations;
+    -- refresh even when the target itself has not moved, and force after Show.
+    local s = scale()
+    w('Target'):SetRect(x / s, y / s, width / s, height / s)
+    show('Target', true)
+    w('Target'):SetPosForced(x / s, y / s)
+    local function value(cur, max)
+        cur, max = n(cur), n(max)
+        return cur and max and max > 0 and (thousands(cur) .. '/' .. thousands(max)) or ''
+    end
+    settext('TargetHP', value(hp, hpmax))
+    settext('TargetMP', value(mp, mpmax))
+    local dp, dpmax
+    if AFCore.PlayerId and id == AFCore.PlayerId() then dp, dpmax = AFCore.Gauge(D.basic_status, 'dp_gauge_text') end
+    dp, dpmax = n(dp), n(dpmax)
+    local available = dp and dpmax and dpmax > 0
+    settext('TargetDP', available and value(dp, dpmax) or '')
+    if available and dp > 0 then
+        w('TargetDPFill'):SetRect(6, 55, 239 * math.max(0, math.min(1, dp / dpmax)), 13)
+        w('TargetDPFill'):Show()
+    else w('TargetDPFill'):Hide() end
+end
 local function clock(sec)
     if not sec then return '' end
     if sec >= 3600 then return string.format('%dh', math.floor(sec / 3600 + .5)) end
@@ -151,14 +188,18 @@ local function chatpanel()
 end
 
 local function minimapinfo()
-    local x, y, wd, ht, visible = AFCore.Rect(D.radar or 0x0e)
+    local x, y, wd, ht, visible = AFCore.Rect(D.radar or 0x0e, 'af_minimap_border', 'any')
     if opt('minimapinfo') ~= 1 or not (n(x) and visible) then show('Map', false) return end
     local s = scale()
-    place('Map', x, y + ht + 1 * s, wd, 16 * s)
+    local labelY = y + ht + s -- coordinates belong only to the map mover
+    place('Map', x, labelY, wd, 16 * s)
     local parts = {}
-    for _, k in ipairs({'zone', 'coords'}) do local v = SOURCES[k](); if v then parts[#parts + 1] = v end end
+    for _, k in ipairs({'coords'}) do local v = SOURCES[k](); if v then parts[#parts + 1] = v end end
     settext('MapText', table.concat(parts, '  '), colours()[3])
     show('Map', true)
+    -- Show can restore a plugin dialog's previous native position. Always
+    -- anchor after it, including a stationary map following a world change.
+    w('Map'):SetPosForced(x / s, labelY / s)
 end
 
 -- ---------- aura timers under native icons ----------
@@ -226,6 +267,7 @@ end
 
 local function hideall()
     show('Top', false); show('Chat', false); show('Map', false)
+    if w('Target') then show('Target', false) end
     for i = 1, POOL do show('T' .. i, false) end
 end
 
@@ -244,7 +286,7 @@ end
 function AFHUD_Update()
     if not H.on then return end
     if AFUI and AFUI.ready ~= nil and (not AFUI.ready or not AFUI.settled) then return end
-    local ok, why = pcall(function() databar(); chatpanel(); minimapinfo(); auratimers() end)
+    local ok, why = pcall(function() databar(); chatpanel(); minimapinfo(); auratimers(); AFHUD_TargetDetails() end)
     if not ok then H.error = why end
 end
 function AFHUD_Invalidate() H.shown = {}; H.text = {} end
@@ -263,6 +305,9 @@ function AFHUD_OnEvent(event, ...)
         if H.on and H.ticks % 5 == 0 then AFHUD_Update() end
     elseif event == 'PLAYER_ENTERING_WORLD' then
         H.ticks = 0; AFHUD_Invalidate()
+        if w('Target') then show('Target', false) end
+    elseif event == 'USER_CHANGED_TARGET' and H.on then
+        AFHUD_TargetDetails()
     end
 end
 
@@ -287,7 +332,11 @@ end
 function AFHUD_OnLoad()
     g_AddonName = 'RelicCalc'
     for _, id in ipairs({'Top', 'Chat', 'Map'}) do w(id):Hide(); H.shown[id] = false end
+    if w('Target') then
+        w('Target'):Hide(); H.shown.Target = false
+        w('TargetDPFill'):SetUIImage(0, 'Textures/UI/AetherfallMovers/target_dp.dds')
+    end
     for i = 1, POOL do w('T' .. i):Hide(); H.shown['T' .. i] = false end
-    for _, event in ipairs({'ADDON_TIMER', 'PLAYER_ENTERING_WORLD'}) do w('Top'):RegisterEvent(event) end
+    for _, event in ipairs({'ADDON_TIMER', 'PLAYER_ENTERING_WORLD', 'USER_CHANGED_TARGET'}) do w('Top'):RegisterEvent(event) end
     -- RelicCalc's Wardrobe owns the shared .05 second timer. Never reset it.
 end

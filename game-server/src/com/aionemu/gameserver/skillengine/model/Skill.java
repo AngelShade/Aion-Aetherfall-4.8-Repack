@@ -202,7 +202,7 @@ public class Skill {
 
 	private boolean validateEffectedList() {
 		if (effector.getMaster() instanceof Player bot && bot.isPlayerBot()) {
-			effectedList.removeIf(target -> !com.aionemu.gameserver.services.playerbot.PlayerBotService.allowsTarget(bot, target));
+			effectedList.removeIf(target -> !com.aionemu.gameserver.services.playerbot.PlayerBotService.allowsSkillTarget(bot, target, skillTemplate));
 			if (effectedList.isEmpty()) return false;
 		}
 		if (effector instanceof Player player) {
@@ -804,7 +804,7 @@ public class Skill {
 	private void applyEffect(List<Effect> effects) {
 		// Projectile travel can outlast an order change, disengagement, or a map transfer.
 		if (effector.getMaster() instanceof Player caster && caster.isPlayerBot())
-			effects = effects.stream().filter(effect -> com.aionemu.gameserver.services.playerbot.PlayerBotService.allowsTarget(caster, effect.getEffected())).toList();
+			effects = effects.stream().filter(effect -> com.aionemu.gameserver.services.playerbot.PlayerBotService.allowsSkillTarget(caster, effect.getEffected(), skillTemplate)).toList();
 		// Apply effects to effected objects
 		effects.forEach(Effect::applyEffect);
 

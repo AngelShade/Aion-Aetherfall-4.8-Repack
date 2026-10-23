@@ -38,6 +38,7 @@ public class SM_STATUPDATE_EXP extends AionServerPacket {
 		writeQ(maxExp);
 		writeQ(curBoostExp);
 		writeQ(maxBoostExp);
+		writeQ(0); // Blessing of Wisdom pool remains disabled; the 4.8 client reads six int64 fields.
 	}
 
 }

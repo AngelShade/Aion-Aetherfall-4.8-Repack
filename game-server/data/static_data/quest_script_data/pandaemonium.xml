@@ -27,6 +27,7 @@
 			2926 [XML] Heart in Love
 			2927 [XML] A Many-Splendored Ring
 			2928 [SCRIPT] Power of Love
+			2929 [XML] Welcome to the Temple of Artisans
 			2931 [XML] [Expert] Weaponsmithing Expert
 			2932 [XML] [Expert] Armorsmithing Expert
 			2933 [XML] [Expert] Handicrafting Expert
@@ -192,9 +193,9 @@
 			29045 [XML] A Passion for Pets
 			29047 [XML] Secrets and Lies
 			29048 [SCRIPT] Seriphim's Teachings
-			29049 [TODO] [Craft] Construction Basics
+			29049 [XML] [Craft] Construction Basics
 			29050 [XML] [Expert] Construction Expert
-			29051 [TODO] Running the Tables
+			29051 [XML] Running the Tables
 			29052 [SCRIPT] [Expert] Passion for Construction
 			29053 [SCRIPT] [Expert] Expert of Construction
 			29054 [XML] [Expert] Construction Zeal
@@ -213,6 +214,7 @@
 			29075 [XML] The Songweaver Preceptor's Test
 			29076 [XML] A New Preceptor
 			29077 [XML] A New Preceptor
+			29078 [XML] Aethertech Master's Test
 			48008 [TODO] The Art of the Craft
 			51000 [TODO] [Event] Heat of High Summer
 			51001 [TODO] [Event] Heat of High Summer
@@ -301,6 +303,7 @@
 	-->
 	
 	<!-- REPORTING QUESTS -->
+	<report_to id="2929" start_npc_ids="204092" end_npc_ids="798317"/>
 	<report_to id="2939" start_npc_ids="204104" end_npc_ids="278010"/>
 	<report_to id="2940" start_npc_ids="204106" end_npc_ids="278011"/>
 	<report_to id="2941" start_npc_ids="204108" end_npc_ids="278010"/>
@@ -350,6 +353,7 @@
 		<npc_infos npc_ids="203385"/>
 	</report_to_many>
 	<report_to id="29047" start_npc_ids="204052"/>
+	<report_to id="29051" start_npc_ids="798452" end_npc_ids="278007"/>
 	<report_to_many id="28225" start_npc_ids="205472">
 	    <npc_infos npc_ids="205321"/>
 		<npc_infos npc_ids="205323"/>
@@ -397,6 +401,9 @@
 	</skill_use>
 	<skill_use id="29075" start_npc_ids="801223">
 		<skill end_var="10" ids="4469"/><!-- Bard: Symphony of Destruction -->
+	</skill_use>
+	<skill_use id="29078" start_npc_ids="801222">
+		<skill end_var="10" ids="2572 2573 2574 2575 2576 2577 2578"/><!-- Aethertech: native Power Flux upgrade chain -->
 	</skill_use>
 	
 	<!-- COLLECTING QUESTS -->
@@ -448,6 +455,7 @@
 	<item_collecting id="9552" start_npc_ids="204209"/>
 	<item_collecting id="29042" start_npc_ids="204286"/>
 	<item_collecting id="29043" start_npc_ids="798445"/>
+	<item_collecting id="29049" start_npc_ids="798452"/>
 	<item_collecting id="29054" start_npc_ids="798452"/>
 	<item_collecting id="80015" start_npc_ids="799788"/>
 	<item_collecting id="80025" start_npc_ids="799777"/>

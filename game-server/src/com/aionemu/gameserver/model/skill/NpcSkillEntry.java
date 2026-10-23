@@ -27,6 +27,11 @@ public abstract class NpcSkillEntry extends SkillEntry {
 	public abstract int getPriority();
 	
 	public abstract boolean conditionReady(Creature creature);
+
+	/** A queued encounter skill may retain its selected victim until cast admission. */
+	public Creature getTargetOverride() {
+		return null;
+	}
 	
 	public abstract NpcSkillConditionTemplate getConditionTemplate();
 	

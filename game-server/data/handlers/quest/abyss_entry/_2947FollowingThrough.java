@@ -2,13 +2,17 @@ package quest.abyss_entry;
 
 import static com.aionemu.gameserver.model.DialogAction.*;
 
+import com.aionemu.gameserver.model.animations.TeleportAnimation;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.questEngine.handlers.AbstractQuestHandler;
 import com.aionemu.gameserver.questEngine.model.QuestEnv;
 import com.aionemu.gameserver.questEngine.model.QuestState;
 import com.aionemu.gameserver.questEngine.model.QuestStatus;
 import com.aionemu.gameserver.services.QuestService;
+import com.aionemu.gameserver.services.instance.InstanceService;
 import com.aionemu.gameserver.services.teleport.TeleportService;
+import com.aionemu.gameserver.world.WorldMapInstance;
+import com.aionemu.gameserver.world.WorldMapType;
 
 /**
  * Meet Kvasir (204053) and choose your mission.<br>
@@ -45,6 +49,7 @@ public class _2947FollowingThrough extends AbstractQuestHandler {
 		qe.registerOnQuestCompleted(questId);
 		qe.registerOnQuestTimerEnd(questId);
 		qe.registerOnEnterWorld(questId);
+		qe.registerOnDie(questId);
 		for (int npc : npcs) {
 			qe.registerQuestNpc(npc).addOnTalkEvent(questId);
 		}
@@ -114,8 +119,15 @@ public class _2947FollowingThrough extends AbstractQuestHandler {
 							}
 							return false;
 						case SETPRO3:
-							if (var == 4 || var == 6)
-								return defaultCloseDialog(env, var, 5); // 5
+							if (var == 4 || var == 6) {
+								resetArena(player);
+								WorldMapInstance arena = InstanceService.getNextAvailableInstance(WorldMapType.TRINIEL_UNDERGROUND_ARENA.getId(), player);
+								// Enter-world hooks can run synchronously for bots, so publish the attempt before teleporting.
+								qs.setQuestVar(5);
+								updateQuestStatus(env);
+								TeleportService.teleportTo(player, arena, 276, 293, 163, (byte) 90, TeleportAnimation.NONE);
+								return closeDialogWindow(env);
+							}
 							return false;
 						case SETPRO4:
 							qs.setQuestVarById(0, 7);
@@ -179,13 +191,14 @@ public class _2947FollowingThrough extends AbstractQuestHandler {
 						}
 						changeQuestStep(env, var3, var3 + 1, false, 3); // 3: 1 - 3
 				}
-			} else if (var == 5) {
+			} else if (isOnTheArenaAttempt(env)) {
 				int var4 = qs.getQuestVarById(4);
 				int[] mobs = { 213583, 290048, 211987, 290047, 290050, 211986, 290049, 213584, 211982 };
 				if (var4 < 9) {
 					return defaultOnKillEvent(env, mobs, 0, 9, 4); // 4: 1 - 9
 				} else if (var4 == 9) {
-					defaultOnKillEvent(env, mobs, 9, 10, 4); // 4: 10
+					if (!defaultOnKillEvent(env, mobs, 9, 10, 4)) // 4: 10
+						return false;
 					QuestService.questTimerEnd(env);
 					playQuestMovie(env, 168);
 					return true;
@@ -197,6 +210,8 @@ public class _2947FollowingThrough extends AbstractQuestHandler {
 
 	@Override
 	public boolean onQuestTimerEndEvent(QuestEnv env) {
+		if (!isOnTheArenaAttempt(env))
+			return false;
 		Player player = env.getPlayer();
 		QuestState qs = player.getQuestStateList().getQuestState(questId);
 		if (qs != null && qs.getStatus() == QuestStatus.START) {
@@ -205,10 +220,22 @@ public class _2947FollowingThrough extends AbstractQuestHandler {
 				qs.setQuestVar(6);
 				updateQuestStatus(env);
 				TeleportService.teleportTo(player, 120010000, 1006.1f, 1526, 222.2f, (byte) 90);
+				resetArena(player);
 				return true;
 			}
 		}
 		return false;
+	}
+
+	@Override
+	public boolean onDieEvent(QuestEnv env) {
+		if (!isOnTheArenaAttempt(env))
+			return false;
+		QuestService.questTimerEnd(env);
+		QuestState qs = env.getPlayer().getQuestStateList().getQuestState(questId);
+		qs.setQuestVar(6); // clear the failed attempt's kill counters as well
+		updateQuestStatus(env);
+		return true;
 	}
 
 	@Override
@@ -218,11 +245,14 @@ public class _2947FollowingThrough extends AbstractQuestHandler {
 		if (qs != null && qs.getStatus() == QuestStatus.START) {
 			int var = qs.getQuestVarById(0);
 			int var4 = qs.getQuestVars().getVarById(4);
+			if (var == 6 && player.getWorldId() != 320090000)
+				resetArena(player);
 			if (var == 5 && var4 != 10) {
 				if (player.getWorldId() != 320090000) {
 					QuestService.questTimerEnd(env);
 					qs.setQuestVar(6);
 					updateQuestStatus(env);
+					resetArena(player);
 					return true;
 				} else {
 					playQuestMovie(env, 167);
@@ -239,8 +269,24 @@ public class _2947FollowingThrough extends AbstractQuestHandler {
 		if (movieId == 168) {
 			TeleportService.teleportTo(env.getPlayer(), 120010000, 1006.1f, 1526, 222.2f, (byte) 90);
 		} else if (movieId == 167) {
-			QuestService.questTimerStart(env, 240);
+			if (isOnTheArenaAttempt(env))
+				QuestService.questTimerStart(env, 240);
 		}
+	}
+
+	// Timer-end hooks are broadcast to every registered quest, not just the quest that started the timer.
+	private boolean isOnTheArenaAttempt(QuestEnv env) {
+		Player player = env.getPlayer();
+		QuestState qs = player.getQuestStateList().getQuestState(questId);
+		return qs != null && qs.getStatus() == QuestStatus.START && qs.getQuestVarById(0) == 5 && qs.getQuestVarById(4) < 10
+			&& player.getWorldId() == 320090000 && player.getWorldMapInstance().isRegistered(player.getObjectId());
+	}
+
+	// Only destroy this player's empty arena after they have left it. Never remove an occupied instance.
+	private static void resetArena(Player player) {
+		WorldMapInstance arena = InstanceService.getRegisteredInstance(320090000, player.getObjectId());
+		if (arena != null && player.getWorldMapInstance() != arena && arena.getPlayersInside().isEmpty())
+			InstanceService.destroyInstance(arena);
 	}
 
 	@Override

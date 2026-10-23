@@ -2,8 +2,8 @@
  * RtiTargetValue.cpp / RtiCcValue.cpp (raid target icons for kill and crowd-control
  * targets), PullStrategy.cpp and the tank "pull" actions (tag from range, return to
  * the pull position, let the group wait for threat). GPL-2.0-or-later; upstream
- * contributors: third-party/playerbots/AUTHORS.md. Aion has no native raid icons:
- * marks are owner commands kept per owner, and native hate decides who is tagged. */
+ * contributors: third-party/playerbots/AUTHORS.md. Aion native party/alliance
+ * brands supplement owner command marks; native hate decides who is tagged. */
 package com.aionemu.gameserver.services.playerbot;
 
 import java.util.*;
@@ -15,6 +15,7 @@ import com.aionemu.gameserver.skillengine.effect.AbnormalState;
 import com.aionemu.gameserver.skillengine.effect.EffectType;
 import com.aionemu.gameserver.skillengine.model.SkillTemplate;
 import com.aionemu.gameserver.utils.PositionUtil;
+import com.aionemu.gameserver.world.World;
 import static com.aionemu.gameserver.services.playerbot.PlayerBotRules.*;
 
 /**
@@ -38,6 +39,28 @@ public final class PlayerBotMarks {
  }
  private static final class Marks { volatile Npc kill, cc; volatile long ccFreeSince; volatile Pull pull; }
  private static final Map<Integer,Marks> MARKS=new ConcurrentHashMap<>();
+ // Installed NA v5_sign.dds: icons 1-4, 5, 6 and Zzz use these native brand IDs.
+ private static final int[] ATTACK_BRANDS={0,1,2,3,7,8};
+ private static final int SLEEP_BRAND=14;
+
+ static boolean nativeCcMarked(Player member,Npc npc) {
+  var team=PlayerBotConfig.NATIVE_MARKS ? member.getCurrentTeam() : null;
+  return team!=null && alive(npc) && team.getBrandTargetId(SLEEP_BRAND)==npc.getObjectId();
+ }
+ /** Only native long control may target the protected NPC; no damage, taunt or pet order. */
+ static boolean nativeSkillAllowed(Player member,Npc npc,SkillTemplate skill) {
+  return !nativeCcMarked(member,npc) || longControl(skill) && PlayerBotSkills.classify(skill)==SkillKind.CONTROL;
+ }
+ /** Native marks never add an enemy to combat: choose only from already admitted targets. */
+ static int nativeFocus(Player member,List<Npc> enemies) {
+  var team=PlayerBotConfig.NATIVE_MARKS ? member.getCurrentTeam() : null;if(team==null)return 0;
+  for(int brand:ATTACK_BRANDS) {
+   int id=team.getBrandTargetId(brand);
+   if(enemies.stream().anyMatch(n->n.getObjectId()==id && !nativeCcMarked(member,n)))return id;
+  }
+  var target=team.getLeaderObject().getTarget();
+  return enemies.stream().anyMatch(n->n==target && !nativeCcMarked(member,n)) ? target.getObjectId() : 0;
+ }
 
  private static boolean alive(Npc npc){return npc!=null && npc.isSpawned() && !npc.isDead();}
  static boolean longControl(SkillTemplate skill){return skill!=null && skill.hasAnyEffect(EffectType.SLEEP,EffectType.PARALYZE,EffectType.FEAR);}
@@ -74,12 +97,14 @@ public final class PlayerBotMarks {
   return npc.getObjectId();
  }
  static boolean ccMarked(Player owner,Npc npc) {
+  if(nativeCcMarked(owner,npc))return true;
   var marks=PlayerBotConfig.MARKS ? MARKS.get(owner.getObjectId()) : null;if(marks==null || marks.cc!=npc)return false;
   if(!alive(npc)){marks.cc=null;return false;}
   return true;
  }
  /** Leave a crowd-control mark alone while it is not the last enemy and its control has not failed for too long. */
  static boolean leaveAlone(Player owner,Npc npc,int enemies,long now) {
+  if(nativeCcMarked(owner,npc))return true;
   if(enemies<=1 || !ccMarked(owner,npc))return false;
   var marks=MARKS.get(owner.getObjectId());if(marks==null)return false;
   if(controlled(npc) || npc.getAggroList().stream().findAny().isEmpty()){marks.ccFreeSince=0;return true;}
@@ -92,16 +117,22 @@ public final class PlayerBotMarks {
  }
  /** The free crowd-control mark, if any, for control recipient selection. */
  static Npc controlTarget(Player owner) {
-  var marks=PlayerBotConfig.MARKS ? MARKS.get(owner.getObjectId()) : null;if(marks==null)return null;
-  var npc=marks.cc;if(npc==null)return null;
-  if(!alive(npc)){marks.cc=null;return null;}
-  return controlled(npc) ? null : npc;
+  var marks=PlayerBotConfig.MARKS ? MARKS.get(owner.getObjectId()) : null;
+  if(marks!=null && marks.cc!=null) {
+   if(alive(marks.cc)) {if(!controlled(marks.cc))return marks.cc;}
+   else marks.cc=null;
+  }
+  var team=PlayerBotConfig.NATIVE_MARKS ? owner.getCurrentTeam() : null;if(team==null)return null;
+  var target=World.getInstance().findVisibleObject(team.getBrandTargetId(SLEEP_BRAND));
+  return target instanceof Npc npc && alive(npc) && !controlled(npc)
+   && npc.getWorldId()==owner.getWorldId() && npc.getInstanceId()==owner.getInstanceId() ? npc : null;
  }
 
  /** Owner command: the tank companion tags the selected monster and brings it back here. */
  public static String pull(Player owner,List<PlayerBotSession> companions) {
   if(!PlayerBotConfig.TANK_PULL)throw new IllegalArgumentException("Companion pulls are disabled on this server.");
   if(!(owner.getTarget() instanceof Npc npc) || !alive(npc) || !owner.isEnemy(npc))throw new IllegalArgumentException("Select a hostile monster to pull.");
+  if(nativeCcMarked(owner,npc))throw new IllegalArgumentException("Clear the native sleep mark before pulling that monster.");
   if(!PositionUtil.isInRange(owner,npc,45))throw new IllegalArgumentException("The monster to pull must be within 45m of you.");
   if(npc.getAggroList().stream().findAny().isPresent())throw new IllegalArgumentException(npc.getName()+" is already fighting; use .bot attack instead.");
   var tank=companions.stream().filter(s->!s.bot().isDead() && s.bot().getWorldId()==owner.getWorldId() && s.bot().getInstanceId()==owner.getInstanceId()
@@ -117,7 +148,7 @@ public final class PlayerBotMarks {
   var marks=MARKS.get(owner.getObjectId());if(marks==null)return null;
   var pull=marks.pull;if(pull==null)return null;
   if(!PlayerBotConfig.TANK_PULL){marks.pull=null;return null;}
-  if(!alive(pull.npc) || pull.taggedAt==0 && now-pull.started>PlayerBotConfig.TANK_PULL_REACH_MS || pull.taggedAt!=0 && now-pull.taggedAt>PlayerBotConfig.TANK_PULL_RETURN_MS){marks.pull=null;return null;}
+  if(!alive(pull.npc) || nativeCcMarked(owner,pull.npc) || pull.taggedAt==0 && now-pull.started>PlayerBotConfig.TANK_PULL_REACH_MS || pull.taggedAt!=0 && now-pull.taggedAt>PlayerBotConfig.TANK_PULL_RETURN_MS){marks.pull=null;return null;}
   return pull;
  }
  static void endPull(Player owner,Pull pull){var marks=MARKS.get(owner.getObjectId());if(marks!=null && marks.pull==pull)marks.pull=null;}

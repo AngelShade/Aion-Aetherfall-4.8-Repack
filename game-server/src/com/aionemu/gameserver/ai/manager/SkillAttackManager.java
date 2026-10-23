@@ -58,6 +58,14 @@ public class SkillAttackManager {
 		Npc owner = npcAI.getOwner();
 		VisibleObject target = owner.getTarget();
 		NpcSkillEntry skill = owner.getGameStats().getLastSkill();
+		if (skill != null && skill.getTargetOverride() != null) {
+			target = skill.getTargetOverride();
+			if (!target.isSpawned() || target.getWorldMapInstance() != owner.getWorldMapInstance()) {
+				afterUseSkill(npcAI);
+				return;
+			}
+			owner.setTarget(target);
+		}
 		if (!(target instanceof Creature) || ((Creature) target).isDead() || skill == null) {
 			npcAI.setSubStateIfNot(AISubState.NONE);
 			npcAI.onGeneralEvent(AIEventType.TARGET_GIVEUP);
@@ -114,6 +122,11 @@ public class SkillAttackManager {
 	}
 
 	public static NpcSkillEntry chooseNextSkill(NpcAI npcAI) {
+		return chooseNextSkill(npcAI, false);
+	}
+
+	/** Uses the same cast admission rules, optionally excluding automatic template skills. */
+	public static NpcSkillEntry chooseNextSkill(NpcAI npcAI, boolean queuedOnly) {
 		if (npcAI.isInSubState(AISubState.CAST)) {
 			return null;
 		}
@@ -130,6 +143,9 @@ public class SkillAttackManager {
 			if (queuedSkill != null && isReady(owner, queuedSkill)) {
 				return getNpcSkillEntryIfNotTooFarAway(owner, queuedSkill);
 			}
+
+			if (queuedOnly)
+				return null;
 
 			NpcSkillList skillList = owner.getSkillList();
 			if (skillList.isEmpty()) {

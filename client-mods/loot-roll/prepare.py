@@ -30,12 +30,16 @@ def layout(data, installed=False):
     existing = root.find("Widget[@name='greed']")
     if root.get('type') != 'dlg_loot_roll' or (existing is not None) != installed:
         raise ValueError('Unexpected native loot-roll layout')
+    flags = [f for f in root.get('flag', '').split(';') if f and f not in ('movable', 'not_movable')]
+    if 'title' not in flags:
+        raise ValueError('Expected the native loot-roll title bar')
+    root.set('flag', ';'.join(flags + ['movable']))
     if installed:
         if root.get('frame') not in ('99,190,334,108', f'99,190,334,{PANEL_HEIGHT}'):
             raise ValueError('Unexpected installed loot-roll dimensions')
         if existing.get('frame') != '117,49,100,24' or root.find("Widget[@name='your_choice']") is None:
             raise ValueError('Unexpected installed loot-roll controls')
-        # A layout repair changes only the outer height. Existing text, buttons,
+        # A layout repair changes only the outer height and movement flag. Text, buttons,
         # localization, client widget metadata and item tooltip behavior survive.
         root.set('frame', f'99,190,334,{PANEL_HEIGHT}')
         return encode_binary_xml(root)

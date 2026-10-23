@@ -1344,6 +1344,19 @@ public final class PlayerBotService {
 		return target.getMaster() instanceof Player ? PlayerBotSupport.effectAllowed(bot,target) : true;
 	}
 
+	/** Re-check native sleep protection when a queued physical hit lands, including owned spirits. */
+	public static boolean allowsAttackTarget(Player bot, com.aionemu.gameserver.model.gameobjects.Creature target) {
+		return !(bot.isPlayerBot() && target instanceof com.aionemu.gameserver.model.gameobjects.Npc npc
+			&& PlayerBotMarks.nativeCcMarked(bot,npc)) && allowsTarget(bot,target);
+	}
+
+	/** Preserve non-damaging long control while excluding damage at cast and projectile application time. */
+	public static boolean allowsSkillTarget(Player bot, com.aionemu.gameserver.model.gameobjects.Creature target,
+		com.aionemu.gameserver.skillengine.model.SkillTemplate skill) {
+		return !(bot.isPlayerBot() && target instanceof com.aionemu.gameserver.model.gameobjects.Npc npc
+			&& !PlayerBotMarks.nativeSkillAllowed(bot,npc,skill)) && allowsTarget(bot,target);
+	}
+
 	private PlayerBotSession session(int id) { return sessions.get(id); }
  /** Native timed work needs a current actor, not a client socket. This read does
   * not acquire service/session locks or treat slow-work diagnostics as logout. */
