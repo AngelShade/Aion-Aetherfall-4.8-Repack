@@ -5,6 +5,198 @@ Aetherfall Interface. It reads native HUD data and applies the interface's windo
 positions, visibility and tooltip settings. Settings remain in `Mods/AetherfallUI`.
 Existing chat commands run through the native chat input.
 
+## Quest mob names and progress, native 1.2.63
+
+Attack-cursor quest mobs gain the existing native quest-type glyph immediately
+before their overhead name. The client still owns the nameplate position,
+projection, visibility, distance scaling, font and targeting behavior. The actor's
+actual name and the larger NPC interaction markers are unchanged. Campaign,
+important, legion, event and ordinary types use the same mapping as native quest
+tooltips; a campaign takes priority when several quests need the same mob.
+
+The native working-quest tooltip adds current/required counters to its quest
+title. Compiled quests use their native journal parameter callback and authored
+journal quotas. The maintained data-driven hunts use their verified six-bit
+SECTION_0 stage/SECTION_1 count contract. Collection counters use the native
+quest definition and bag inventory. Unavailable or nonnumeric progress retains
+the original title. No quest progress is changed or stored by this feature.
+
+The normal native builder regenerates `quest_target_data.h` externally from the
+active NPC attack cursors, English journal totals and maintained custom-quest
+registration contracts. Rebuild it when those inputs change. The manifest records
+their hashes, and installation rejects inputs changed since preparation. The
+installed mod inventory is refreshed with every native bridge build. Lua-only
+updates retain this native DLL. Game.dll on disk, signing and recovery images do
+not change: two guarded native formatter calls are redirected by the already
+imported bridge at startup. A failed guard leaves native formatting intact.
+
+Owner acceptance still covers actual glyph appearance, native scaling/occlusion,
+partial kills and pickups, completion/abandonment, several simultaneous quests,
+tooltip refresh and relog. Offline adapter checks do not establish rendering.
+
+## Window lifecycle and opacity controls, Lua 1.2.62
+
+The UI exposes a master backdrop opacity and multipliers for windows, chat and
+action bars. The effective group opacity is master x group (70% x 70% = 49%).
+These are Lua policy over the same generic native backdrop setter; border and
+background pixels belong to one frame skin. Labels and hints now explain that
+relationship. Saved values and confirmation opacity remain unchanged.
+
+Opacity edits update only skins, including the addon data panels. They do not
+reapply layout, companion visibility or HUD toggles. Native visibility/target
+notifications enqueue a bounded refresh for the normal addon tick instead of
+moving or showing/hiding other windows on the native notification stack.
+Placement/appearance refreshes no longer include visibility enforcement; periodic
+enforcement can hide explicitly disabled HUD elements, while restoration belongs
+to an explicit settings change. Ordinary native window closure remains native.
+
+The native drag recorder requires cursor displacement and a matching translation
+at constant frame size before saving a named window position. A stationary press
+over several opening or resizing windows no longer records their animation as
+user dragging. The map uses this recorder too, instead of periodically saving
+any native map movement. Existing profiles and unrelated mods are retained.
+
+Build with `prepare.py --update --plugin-only`. The native core remains unchanged.
+Owner verifies repeated opening/closing, window positions, native title dragging,
+map persistence and all opacity controls after a normal client restart.
+
+## Shared window opening settings, Lua 1.2.61
+
+This earlier revision applied the full appearance/placement pass synchronously
+on native visibility changes. Revision 1.2.62 supersedes that lifecycle policy;
+notifications now queue work for the normal addon tick.
+
+Unnamed native popups retain their opener's placement. They have no persistent
+window identity, so the UI neither restores a saved slot position nor records
+their native motion as a named-window layout edit. Existing profile values are
+preserved. General, Window, Chat and Action Bar opacity controls keep their
+shared behavior, including confirmations; there are no class-specific exceptions.
+
+Build with `prepare.py --update --plugin-only`. Only the Options Lua member
+changes in the signed plugin. Native core, theme resources and button actions
+are retained. Owner verifies first-frame appearance, waiting, opening several
+confirmations, OK/Cancel and saved positions for ordinary named windows.
+
+## Chat and companion-bar background opacity, Lua 1.2.60
+
+Chat opacity now selects the native `v5_chat_tabpage` skins on all seven chat
+pages. These panels have no background-style name and were previously skipped.
+Chat text, tabs and scroll controls keep their own alpha. The companion command
+bar uses the existing guarded native backdrop setter, resolved
+by current dialog name on every pass, instead of the queued plugin alpha call.
+The shared General value and separate Chat/Window reductions still apply.
+
+Build with `prepare.py --update --plugin-only`. The native bridge, client layouts,
+companion controls and saved settings are retained. Owner verifies actual fading,
+tab switching, bar expand/collapse and relog in game.
+
+## Countdown timer mover, Lua 1.2.59
+
+Move UI offers **Countdown Timer** independently of the minimap. Its exact native
+layout and verified type come from the shared UI catalogue, so the mover is also
+available before a countdown starts. The native timer has no title-bar dragging;
+the editor uses the existing HUD pin, profile, Save/Cancel and Reset behavior.
+The game still owns its text, duration and visibility.
+
+Build with `prepare.py --update --plugin-only`. Only the two maintained Lua
+modules change in the plugin; the native bridge and base/English resources stay
+unchanged. Owner verifies dragging, Save/Cancel, later countdowns and relog.
+
+## Target number foreground repair, 1.2.57
+
+HP/MP and self-target DP numbers are native target-frame labels, appended after
+their bars with white text and a dark shadow. Target-of-target has the same
+foreground HP label. They inherit their frame's visibility, movement and UI scale;
+the old separate plugin dialog keeps only its existing self-target DP fill.
+Values still come from the native target snapshots; unavailable resources stay
+blank. Toy-pet feeling gauges retain their native behavior.
+
+`AFCore.SetText` uses the stock widget text setter on existing static widgets,
+with bounded UTF-8, fresh path resolution and no retained pointers. Build with
+`prepare.py --update --retain-layout --target-foreground-update`. Only the two
+target layouts change in the base/English UI archives, with matching owned skin
+payloads and graphics recovery images. Other generated plugin dialogs, native
+frame geometry and installed client features are retained. Owner acceptance is
+still required for actual rendering, target changes, dragging and relog.
+
+## Target panels and artwork-sized movers, Lua 1.2.54
+
+MoveUI offers **Target Altitude / Distance** separately from the target unit
+frame. It follows the target until positioned independently; Reset attaches it
+again. Save/Cancel and profile positions use the existing editor transaction.
+Only declared native panels are offered: the shipped target-of-target layout
+has no separate altitude/distance child.
+
+Target and target-of-target mover bounds come from their active panel background,
+with catalogue bounds before a frame appears. Hidden alternate target groups and
+the detached distance panel do not enlarge the unit-frame box.
+
+The Shop mover fits the sprite's nontransparent pixels. Its catalogue bounds are
+derived from the actual atlas alpha (27×31 within a 35×36 source rectangle), so
+transparent padding does not enlarge the box. Moving the box retains the native
+button origin, click area, shortcut grid, notification and effects.
+
+Build with `prepare.py --update --plugin-only`. The normal builder refreshes the
+catalogue and signs the plugin; native bridge 1.2.53 and all UI resources remain.
+Owner verifies actual target changes, independent dragging, shop box, Save/Cancel
+and relog in game.
+
+## Background opacity, flight artwork and tooltip defaults, 1.2.53
+
+General **Background opacity** is the shared 0–100% backdrop setting. Window,
+chat and action-bar controls further reduce their own backgrounds. Native
+catalogue paths select background images, containers and background-only gauges;
+action-slot skins are adjusted separately from their icon pixels. Text, health
+and mana fills, portraits, minimap terrain, flight rings and button states retain
+their foreground opacity. Plugin windows use nonrecursive queued alpha changes,
+except the companion command bar which uses the guarded native backdrop API.
+
+This follows ElvUI's `GetTemplate` / `SetTemplate` backdrop-color alpha and
+`CreateBackdrop` separation, inspected at upstream commit
+`ad4a7f7dea79b91f7a7f7bd404e0cede8af9e5fb` in
+`ElvUI/Game/Shared/General/Toolkit.lua`. Aion uses its existing native skin alpha
+and verified widget paths rather than WoW's frame API. The bridge defaults to
+nonrecursive changes; optional recursion only admits named backdrop children.
+
+Flight keeps the native image skins for all states, including radial flight-time
+and cooldown slices. Generic tiled-skin conversion is limited to ordinary
+shortcuts. Tooltip modes default to Cursor for characters/profiles without a
+saved choice; explicit Native/Mover/Cursor choices remain intact. The accepted
+native tooltip placement and comparison/map grouping implementation is retained.
+
+Build with `prepare.py --update --retain-layout --shortcut-geometry-update`.
+The normal builder composes both HUD styles, the English locale, signed plugin,
+interface payloads and Graphics recovery records. Owner verifies real opacity
+changes, flight artwork/states and tooltips in game.
+
+## Existing feature controls, Lua 1.2.52
+
+`/moveui` includes **Shortcuts (all)** for moving the complete shortcut group.
+Individual icons remain adjustable. In `/afui` > **Minimap**, shortcut size,
+spacing and row count rebuild an evenly spaced grid; **Align shortcuts** also
+rebuilds it. All icons share square native artwork and click bounds. The active
+HUD style is identified through live widget names and catalogue paths; nested
+shop controls follow their container in either style. Tall grids gain columns when needed to
+keep every icon on screen; the control shows the effective count.
+
+Unpositioned clock, zoom, vendor notice and area controls follow the minimap.
+Their individual movers allow separate placement; **Align map controls** places
+them below the current map again. Bar 1–4 layout controls use the catalogue's
+exact container and slot paths for every size and row count.
+
+Profile switching applies native visibility, bar geometry, backgrounds and
+readouts together. Applying a preset resets that profile's arrangement. Saving
+a user profile writes its settings and positions immediately. Numeric controls
+stop at their limits; choices still cycle. Conditional party/target frames show
+only when the corresponding native unit exists. MoveUI remains a draft until
+**Save / Lock**, with **Cancel** available while arranging it.
+
+Build with `prepare.py --update --plugin-only`. Native bridge 1.2.51 remains;
+this feature update changes the Options controller in the signed plugin.
+Focused Lua checks use installed widget wrappers and actual catalogue hierarchy
+with simulated native placement. Appearance, input, focus recovery and relog
+still require in-game acceptance.
+
 ## Shared native UI catalogue and geometry, 1.2.51
 
 The normal builder generates `AetherfallRegistry.lua` from the exact active
@@ -22,8 +214,8 @@ come from the shared catalogue instead of a separate hand-maintained list.
 HUD shortcuts use square native geometry and private stretched-sprite skin
 variants. Original artwork, native gauge/button handlers, shop notifications
 and particle controls remain. Shortcut size, spacing, row count and **Align
-shortcuts** use the same square dimensions. Existing individually saved positions
-are preserved until Align is chosen. Minimap zoom retains its native handler;
+shortcuts** use the same square dimensions. Size, spacing and row changes also
+rebuild the grid in 1.2.52. Minimap zoom retains its native handler;
 its unnamed parent now resolves correctly during sparse click testing.
 
 Build with `prepare.py --update --retain-layout --ui-registry-update
@@ -49,7 +241,8 @@ in-game acceptance.
 
 MoveUI offers **Minimap**, **Minimap Zoom**, **Minimap Clock**, **Current Area**,
 **Area Sword**, and the conditional **Vendor Notice**. Each has independent profile positions,
-Save/Cancel, precise placement and reset. Moving one does not move the others.
+Save/Cancel, precise placement and reset. Explicitly positioned controls remain
+independent; unpositioned controls follow the map in 1.2.52.
 Clock, zoom and vendor notice have separate bounds and independent movers, with
 space between them by default. The native area/server text and safe/PvP icon keep their
 own native states, localized text, visibility and hover behavior.
@@ -448,6 +641,14 @@ beside native widgets. Cooldown numbers on slots are native: game option *Show c
 time* (`show_cooltime`).
 
 ## Build, verify, install
+
+The Menu arrow's popup follows its live position using native popup ownership
+and the active layout. Lua applies the client's original above/below and
+horizontal edge rules when the popup opens. Core only exposes the generic,
+read-only `PopupOwner` query; it adds no Menu-specific positioning or command hook.
+Lua 1.2.56 limits the anchor adjustment to native root slot `0x1e9`. Slots
+`0x1ea`/`0x1eb` are hover submenu depths and retain the client's original cascade
+placement, even when they share the Start dialog as their command owner.
 
 The Lua package and native bridge have independent versions. The verifier needs
 Lupa with Lua 5.1 in the verification environment; `AION_LUA_TEST_DEPS` can name an

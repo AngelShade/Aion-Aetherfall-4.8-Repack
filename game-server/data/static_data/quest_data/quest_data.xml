@@ -82487,4 +82487,109 @@
 		<rewards/>
 		<bonus level="5" type="MEDAL"/>
 	</quest>
+	<!-- BEGIN AETHERFALL THE UNBROKEN FIELD -->
+	<quest id="14980" name="The Letter Left Open" nameId="1801365" quest_zone="Verteron" minlevel_permitted="12" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST">
+		<rewards gold="3910" exp="17850" />
+		<start_conditions>
+			<finished quest_id="1198" />
+		</start_conditions>
+	</quest>
+	<quest id="14981" name="Weight Beneath the Sacks" nameId="1801366" quest_zone="Verteron" minlevel_permitted="12" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST">
+		<rewards gold="4200" exp="22275" />
+		<start_conditions>
+			<finished quest_id="14980" />
+		</start_conditions>
+	</quest>
+	<quest id="14982" name="Between the Knife Marks" nameId="1801367" quest_zone="Verteron" minlevel_permitted="13" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST">
+		<rewards gold="4600" exp="25000" />
+		<start_conditions>
+			<finished quest_id="14981" />
+		</start_conditions>
+	</quest>
+	<quest id="14983" name="An Honest Seal" nameId="1801368" quest_zone="Verteron" minlevel_permitted="14" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST">
+		<collect_items>
+			<collect_item item_id="182299980" count="1" />
+		</collect_items>
+		<rewards gold="5000" exp="28500" />
+		<quest_drop npc_id="700117" item_id="182299980" chance="100" drop_each_member="1" />
+		<start_conditions>
+			<finished quest_id="14982" />
+		</start_conditions>
+		<quest_work_items>
+			<quest_work_item item_id="182299980" />
+		</quest_work_items>
+	</quest>
+	<quest id="14984" name="The Ore Road" nameId="1801369" quest_zone="Verteron" minlevel_permitted="14" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST">
+		<rewards gold="5400" exp="33450" />
+		<start_conditions>
+			<finished quest_id="14983" />
+		</start_conditions>
+	</quest>
+	<quest id="14985" name="The False Alarm" nameId="1801370" quest_zone="Verteron" minlevel_permitted="15" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST">
+		<rewards gold="5900" exp="37500" />
+		<start_conditions>
+			<finished quest_id="14984" />
+		</start_conditions>
+	</quest>
+	<quest id="14986" name="People Behind the Diversion" nameId="1801371" quest_zone="Verteron" minlevel_permitted="15" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST">
+		<rewards gold="6200" exp="30000" />
+		<start_conditions>
+			<finished quest_id="14985" />
+		</start_conditions>
+	</quest>
+	<quest id="14987" name="What the Water Carries" nameId="1801372" quest_zone="Verteron" minlevel_permitted="16" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST">
+		<rewards gold="6800" exp="42000" />
+		<start_conditions>
+			<finished quest_id="14986" />
+		</start_conditions>
+	</quest>
+	<quest id="14988" name="A Stone Out of Place" nameId="1801373" quest_zone="Verteron" minlevel_permitted="17" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST">
+		<rewards gold="7200" exp="46000" />
+		<start_conditions>
+			<finished quest_id="14987" />
+		</start_conditions>
+	</quest>
+	<quest id="14989" name="The Pilgrims' Road" nameId="1801374" quest_zone="Verteron" minlevel_permitted="17" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST">
+		<rewards gold="7800" exp="49500" />
+		<start_conditions>
+			<finished quest_id="14988" />
+		</start_conditions>
+	</quest>
+	<quest id="14990" name="Behind the Tursin Lines" nameId="1801375" quest_zone="Verteron" minlevel_permitted="18" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST">
+		<rewards gold="8600" exp="57000" />
+		<start_conditions>
+			<finished quest_id="14989" />
+		</start_conditions>
+	</quest>
+	<quest id="14991" name="The Cold Furnace" nameId="1801376" quest_zone="Verteron" minlevel_permitted="19" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST">
+		<rewards gold="9500" exp="65000" />
+		<start_conditions>
+			<finished quest_id="14990" />
+		</start_conditions>
+	</quest>
+	<quest id="14992" name="Cargo Without a Consignee" nameId="1801377" quest_zone="Verteron" minlevel_permitted="19" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST">
+		<rewards gold="10000" exp="60000" />
+		<start_conditions>
+			<finished quest_id="14991" />
+		</start_conditions>
+	</quest>
+	<quest id="14993" name="The Captain's Last Order" nameId="1801378" quest_zone="Verteron" minlevel_permitted="20" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST">
+		<rewards gold="12000" exp="80000" />
+		<start_conditions>
+			<finished quest_id="14992" />
+		</start_conditions>
+	</quest>
+	<quest id="14994" name="Before the Watch Changes" nameId="1801379" quest_zone="Verteron" minlevel_permitted="20" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST">
+		<rewards gold="11500" exp="72000" />
+		<start_conditions>
+			<finished quest_id="14993" />
+		</start_conditions>
+	</quest>
+	<quest id="14995" name="The Unbroken Field" nameId="1801380" quest_zone="Verteron" minlevel_permitted="20" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST">
+		<rewards gold="15000" exp="90000" />
+		<start_conditions>
+			<finished quest_id="14994" />
+		</start_conditions>
+	</quest>
+	<!-- END AETHERFALL THE UNBROKEN FIELD -->
 </quests>

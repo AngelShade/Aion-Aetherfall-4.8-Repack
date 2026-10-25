@@ -165,5 +165,50 @@ public final class PlayerBotTemporary {
  }
  static void close(PlayerBotSession session){STATES.remove(session.bot().getObjectId());}
  static void release(Player player){STATES.remove(player.getObjectId());}
+ /** Native PlayerbotFactory adapter, only while an exclusively leased global actor is unpublished.
+  * The caller commits this build, quests, inventory and population intent in one native transaction. */
+ static void rebuildWorld(Player player,Role role,boolean full) throws java.io.IOException {
+  if(!player.isWorldBot() || !PlayerBotPopulationPolicy.serverAccount(player.getAccount().getId())
+   || player.isSpawned() || com.aionemu.gameserver.world.World.getInstance().isInWorld(player.getObjectId())
+   || !PlayerBotLease.isReserved(player.getObjectId()) || !PlayerBotRoster.contains(player.getObjectId()))
+   throw new IllegalArgumentException("Population factory requires an unpublished generated global character");
+  var properties=PlayerBotMetadata.load(player.getAccount().getId(),player.getObjectId(),"gear",null);
+  if(full) {
+   // Clear native quest states before inventory removal can notify their handlers.
+   for(var quest:player.getQuestStateList().getAllQuestState())player.getQuestStateList().deleteQuest(quest.getQuestId());
+   // Free the cube first so normal unequip can preserve item custody before deletion.
+   for(var item:List.copyOf(player.getInventory().getItems()))if(!item.getItemTemplate().isKinah())player.getInventory().delete(item);
+   var equipment=new LinkedHashMap<Integer,Item>();
+   player.getEquipment().getEquippedItems().forEach(i->equipment.put(i.getObjectId(),i));
+   player.getEquipment().getEquippedItemsAllStigma().forEach(i->equipment.put(i.getObjectId(),i));
+   for(var item:equipment.values()) {
+    player.getEquipment().unEquipItem(item.getObjectId(),false);
+    if(item.isEquipped())throw new IllegalStateException("Population reset could not unequip native item "+item.getObjectId());
+    player.getInventory().delete(item);
+   }
+   for(String section:List.of("quest-completion","party-rewards")) {
+    PlayerBotMetadata.load(player.getAccount().getId(),player.getObjectId(),section,null);
+    var cleared=new Properties();cleared.setProperty("account",Integer.toString(player.getAccount().getId()));cleared.setProperty("character",Integer.toString(player.getObjectId()));
+    PlayerBotMetadata.save(player.getAccount().getId(),player.getObjectId(),section,cleared);
+   }
+   for(var skill:List.copyOf(player.getSkillList().getAllSkills()))SkillLearnService.removeSkill(player,skill.getSkillId());
+   player.getEffectController().removeAllEffects(true);
+   if(player.getSkillCoolDowns()!=null)player.getSkillCoolDowns().clear();
+   player.getItemCoolDowns().clear();player.getCommonData().resetRecoverableExp();player.getCommonData().setDeathCount(0);player.getCommonData().setDp(0);
+  }
+  var state=new State();
+  if(!full)for(String id:properties.getProperty("generated","").split(","))if(!id.isBlank())state.created.add(Integer.parseInt(id));
+  STATES.put(player.getObjectId(),state);
+  try {
+   build(player,role,true);PlayerBotSupplies.close(player);PlayerBotSupplies.provision(player);
+   properties.setProperty("account",Integer.toString(player.getAccount().getId()));properties.setProperty("character",Integer.toString(player.getObjectId()));
+   String[] keys={"mode","profile","quality","level","threshold","weapon","vendors","rolls","starterSlots"};
+   String[] values={"EARNED","AUTO","LEGEND","0","1.1","AUTO","true","UPGRADES",""};
+   for(int i=0;i<keys.length;i++)properties.putIfAbsent(keys[i],values[i]);
+   properties.setProperty("generated",state.created.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
+   PlayerBotMetadata.save(player.getAccount().getId(),player.getObjectId(),"gear",properties);
+   player.getLifeStats().updateCurrentStats();player.getLifeStats().setCurrentHp(player.getLifeStats().getMaxHp());player.getLifeStats().setCurrentMp(player.getLifeStats().getMaxMp());player.getLifeStats().setCurrentFp(player.getLifeStats().getMaxFp());
+  } finally {STATES.remove(player.getObjectId());PlayerBotSupplies.close(player);}
+ }
  private PlayerBotTemporary(){}
 }

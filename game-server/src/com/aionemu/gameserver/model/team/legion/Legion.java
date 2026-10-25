@@ -61,7 +61,12 @@ public class Legion extends AionObject {
 	}
 
 	public void setMemberIds(List<Integer> memberIds) {
-		this.memberIds = memberIds;
+		this.memberIds = new CopyOnWriteArrayList<>(memberIds);
+	}
+
+	/** Projection only after an independently committed native membership transaction. */
+	public synchronized void registerCommittedMember(int playerId) {
+		if (!memberIds.contains(playerId)) memberIds.add(playerId);
 	}
 
 	public List<Integer> getMemberIds() {

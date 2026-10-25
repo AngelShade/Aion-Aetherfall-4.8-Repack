@@ -54,9 +54,9 @@ final class PlayerBotPopulationPolicy {
   return residents.stream().filter(id->!active.contains(id) && !retiring.contains(id) && retries.getOrDefault(id,0L)<=now).findFirst().orElse(null);
  }
  static long deadline(long now,RandomGenerator rng,int minimum,int maximum){return Math.addExact(now,1000L*between(rng,minimum,maximum));}
- static int level(Settings s,int maxPlayerLevel,RandomGenerator rng) {
+ static int level(Settings s,int playerLevelLimit,RandomGenerator rng) {
   if(!s.randomLevels())return s.startingLevel();
-  int max=s.syncLevels()?Math.max(s.minLevel(),Math.min(s.maxLevel(),maxPlayerLevel+3)):s.maxLevel();
+  int max=s.syncLevels()?Math.max(s.minLevel(),Math.min(65,playerLevelLimit)):s.maxLevel();
   int roll=rng.nextInt(100);
   if(roll<s.maxChance())return max;
   if(roll<s.maxChance()+s.minChance())return s.minLevel();

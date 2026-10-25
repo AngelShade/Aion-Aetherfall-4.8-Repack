@@ -30,13 +30,17 @@ public class ZoneLevelService {
 			return;
 		}
 
-		float defaultEyeHeight = player.getGender() == Gender.MALE ? 1.7f : 1.58f; // eye_height from client_PCRace.xml
-		float eyeHeight = player.getPlayerAppearance().getHeightScale() * defaultEyeHeight;
-		float mouthHeight = eyeHeight - 0.05f;
+		float mouthHeight = mouthHeight(player);
 		if (z + mouthHeight < world.getWorldMap(player.getWorldId()).getWaterLevel())
 			startDrowning(player);
 		else
 			stopDrowning(player);
+	}
+
+	/** Shared native drowning boundary; appearance scale also applies to headless players. */
+	public static float mouthHeight(Player player) {
+		float defaultEyeHeight = player.getGender() == Gender.MALE ? 1.7f : 1.58f; // eye_height from client_PCRace.xml
+		return player.getPlayerAppearance().getHeightScale() * defaultEyeHeight - 0.05f;
 	}
 
 	private static void stopDrowning(Player player) {

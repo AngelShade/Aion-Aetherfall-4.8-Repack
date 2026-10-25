@@ -49,7 +49,8 @@ final class PlayerBotPopulationFocus {
  }
  static Snapshot capture(Collection<Player> players) {
   var anchors=new ArrayList<Anchor>();
-  if(PlayerBotConfig.POPULATION_PLAYER_FOCUS && PlayerBotConfig.POPULATION_ENABLED && PlayerBotConfig.WORLD_ENABLED && PlayerBotConfig.ENABLED)for(var p:players) {
+  if(!com.aionemu.gameserver.configs.main.PlayerBotPopulationConfig.UPSTREAM_PLACEMENT
+   && PlayerBotConfig.POPULATION_PLAYER_FOCUS && PlayerBotConfig.POPULATION_ENABLED && PlayerBotConfig.WORLD_ENABLED && PlayerBotConfig.ENABLED)for(var p:players) {
    if(p!=null && PlayerBotPlayerZones.eligible(p.isPlayerBot(),p.isOnline(),p.isSpawned(),
     p.isStaff() && p.isInVisualState(CreatureVisualState.HIDE20),p.getInstanceId(),DataManager.WORLD_MAPS_DATA.getTemplate(p.getWorldId())))
     anchors.add(new Anchor(p.getWorldId(),p.getX(),p.getY(),p.getZ()));

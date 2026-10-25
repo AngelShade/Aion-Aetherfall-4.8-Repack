@@ -14,6 +14,7 @@ AFCore.DIALOG = {
     subzone_name = 0x0f, -- DlgSubZoneName::GetType (native 0x86f1d0)
     help_indicator = 0x120, -- DlgHelpIndicator::GetType (native 0x7538a0)
     gm_indicator = 0x11f, -- DlgGMIndicator::GetType (0x753890); daily_quest_button lives here
+    timer = 0xf9, -- DlgTimer::GetType; verified native catalogue timer_dialog mapping
     shortcut_sep2 = 0x18,  -- second separated bar (multi-copy dialogs take consecutive ids)
 }
 
@@ -50,6 +51,8 @@ function AFCore.Slot(dialog, index, prefix) if core then return core("slot", dia
 -- value, max, shown (for example the native cast bars' "delay" gauges)
 function AFCore.Gauge(dialog, widget) if core then return core("gauge", dialog, widget) end end
 function AFCore.Text(dialog, widget) if core then return core("text", dialog, widget) end end
+-- Bounded UTF-8 text on an existing native static label; native UI thread only.
+function AFCore.SetText(dialog, widget, value) if core then return core("settext", dialog, widget, value) end end
 -- absolute native rectangle in screen pixels: x, y, width, height, shown (widget optional)
 function AFCore.Rect(dialog, widget, kind) if core then return core("rect", dialog, widget, kind) end end
 -- One live widget, with local and screen geometry from the same native resolver
@@ -94,7 +97,9 @@ function AFCore.FrameCatalog()
         local row=record.definition; local a=row.attributes; local flags=';'..(a.flag or '')..';'
         local ordinary=row.source:find('|ui/game/',1,true) or row.source:find('Data/ui/game/game.pak|',1,true)
         local movable=flags:find(';movable;',1,true) or (flags:find(';title;',1,true) and not flags:find(';not_movable;',1,true))
-        if ordinary and movable and #row.nativeIds==1 then
+        -- The native countdown has no title-bar drag, but the editor can pin it.
+        local countdown=row.name=='timer_dialog' and row.nativeIds[1]==AFCore.DIALOG.timer
+        if ordinary and (movable or countdown) and #row.nativeIds==1 then
             local bounds={};for number in (a.frame or ''):gmatch('[^,]+')do bounds[#bounds+1]=tonumber(number)end
             local id=row.nativeIds[1];local rank=row.source:find('L10N/',1,true)==1 and 2 or 1
             if #bounds==4 and (not priority[id] or rank>priority[id]) then
@@ -118,6 +123,8 @@ function AFCore.Scale() if core then return core("scale") end end
 -- Native dialog: layout name, x/y/width/height (pixels), shown, class,
 -- instance identity (session only) and native flags (movable bit 0x8).
 function AFCore.Dialog(dialog) if core then return core("dialog", dialog) end end
+-- Owner dialog type for a live native popup menu; nil for other windows/unavailable owners.
+function AFCore.PopupOwner(dialog) if core then return core("popupowner", dialog) end end
 -- interface placement of a native dialog (pixels); returns true when applied
 function AFCore.Move(dialog, x, y, width, height) if core then return core("move", dialog, x, y, width, height) end end
 -- Fade native skins, preserving item icons, text and gauge foregrounds.

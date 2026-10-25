@@ -1,0 +1,15 @@
+.portal-feature-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.portal-feature-card,.portal-gallery-card{min-width:0;margin:0;background:#111925;border:1px solid #293441}
+.portal-feature-copy,.portal-gallery-card figcaption{padding:22px}
+.portal-feature-copy h3,.portal-gallery-card h2{margin:0 0 12px;font-size:21px;color:#ead7b0}
+.portal-feature-copy p,.portal-gallery-card p{color:#a8b2be;font-size:13px;line-height:1.8;margin:0 0 18px}
+.portal-feature-copy>a,.portal-gallery-link a{font-size:11px;letter-spacing:1px;color:#d6b878}
+.portal-gallery-link{margin-top:24px;text-align:right}
+.portal-gallery-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;padding-bottom:72px}
+.game-shot{display:block;position:relative;width:100%;overflow:hidden;background:#0a1521}
+.game-shot>img{position:absolute;display:block;max-width:none;max-height:none;object-fit:unset;height:auto}
+.aion-news-card .aion-news-image{height:auto;aspect-ratio:16/9}
+.portal-search{display:flex;flex-wrap:wrap;gap:12px;max-width:640px;margin-top:22px}
+.portal-search input{flex:1;min-width:180px;background:#101923;border:1px solid #2e4a61;padding:12px 15px;color:#dfe9f0;font:inherit}
+@media(max-width:920px){.portal-feature-grid{grid-template-columns:1fr}.portal-feature-card{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+@media(max-width:640px){.portal-gallery-grid{grid-template-columns:1fr}.portal-feature-card{display:block}.portal-gallery-link{text-align:left}}

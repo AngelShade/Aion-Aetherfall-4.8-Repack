@@ -26,7 +26,7 @@ def main():
     manifest = json.loads((prepared / 'manifest.json').read_text())
     client = Path(manifest['clientRoot']).resolve(strict=True)
     # Also installs the Player Companions window (playerbots/prepare_companions_window.py), the same kind of package.
-    if manifest.get('feature') not in ('account-window', 'companions-window', 'account-details') or (client.parent / 'REPACK.json').exists():
+    if manifest.get('feature') not in ('account-window', 'companions-window', 'account-details', 'marketplace-window') or (client.parent / 'REPACK.json').exists():
         raise ValueError('Expected the original-client Account window package')
     if backup.exists() or backup.is_relative_to(client) or backup.is_relative_to(prepared):
         raise ValueError('Use a fresh external backup directory')
@@ -34,7 +34,7 @@ def main():
                'Plugin/RelicCalc/RelicCalc.pak.sig', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig', 'Addon.key',
                'Mods/AccountWindow/mod.json', 'Mods/AccountWindow/README.md', 'Mods/InstalledMods.json'}
     allowed.update(compatibility_paths(manifest['graphicsCompatibility']))
-    if manifest['feature'] == 'account-details':
+    if manifest['feature'] == 'account-details' and not manifest['graphicsCompatibility']:
         graphics = json.loads((client / 'Mods/GraphicsMenu/installed.json').read_text(encoding='utf-8-sig'))
         baseline = owned_renderer_backup(client, graphics['backupRoot']).relative_to(client).as_posix()
         resources = ['Data/ui/game/game.pak', 'L10N/enu/Data/data.pak']

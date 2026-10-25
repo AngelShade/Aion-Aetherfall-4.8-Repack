@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<quest_data_driven>
+  <id>14993</id>
+  <name>Q14993</name>
+  <dev_name />
+  <category_acquire_>Talk</category_acquire_>
+  <value0_acquire_>Une</value0_acquire_>
+  <reward_npc_name>Zephyros</reward_npc_name>
+  <progress_info>
+    <data>
+      <category_progress_>Hunt</category_progress_>
+      <value0_progress_>LehparBoatswain_20_An, LehparCrew_19_An 4;</value0_progress_>
+    </data>
+    <data>
+      <category_progress_>Hunt</category_progress_>
+      <value0_progress_>LehparCaptain_21_An 1;</value0_progress_>
+    </data>
+    <data>
+      <category_progress_>Talk</category_progress_>
+      <value0_progress_>Zephyros</value0_progress_>
+    </data>
+  </progress_info>
+</quest_data_driven>

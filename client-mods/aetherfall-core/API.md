@@ -52,8 +52,9 @@ ones (`basic_status`, `target`, `target_assist`, `party`, `radar`, `start`,
 | `AFCore.Slot(id, i[, prefix])` | item view `prefix..i` (default `shortcut`): type, template id, id, count, gauge value, gauge max, shown |
 | `AFCore.Gauge(id, widget)` | value, max, shown (for example the cast bars' `"delay"`) |
 | `AFCore.Text(id, widget)` | text of a static widget |
+| `AFCore.SetText(id, widget, text)` | Updates an existing native static label through the stock widget text setter; bounded UTF-8 (256 bytes), resolves the widget on each UI-thread call and skips identical text. Missing labels return false. |
 | `AFCore.Move(id, x, y[, w, h])` | moves a native window (pixels), as the engine does; preserves zero-sized canvases such as Target Auras. False means no placement was applied. |
-| `AFCore.Backdrop(id, alpha[, widget, kind, recursive])` | Fades native background skins (0–1), preserving text-state alpha, item-icon alpha and gauge foregrounds. Walks current children with a depth/node bound; `recursive=false` affects only the requested widget's skin. No retained native pointers. |
+| `AFCore.Backdrop(id, alpha[, widget, kind, recursive])` | Changes only the selected native backdrop skin (0–1), preserving text-state and item-icon alpha. Defaults to nonrecursive. Buttons, flight gauges and foreground gauges are excluded; explicitly named background gauges are supported. Optional recursion admits named backdrop children only, with depth/node bounds. No retained native pointers. |
 | `AFCore.SetShown(id, on)` | shows or hides a native window |
 | `AFCore.Scale()` | engine UI scale, screen width, screen height (pixels) |
 | `AFCore.ModPath(name)` | path under `Mods/AetherfallUI/`, whatever the client's working folder |
@@ -115,6 +116,7 @@ All positions are screen pixels (the engine's screen size from `AFCore.Scale()`)
 | `AFCore.Movable(dialog, on)` | The native "movable" flag: drag the window by its frame (the world map). |
 | `AFCore.SetShown(dialog, on)` | Native show/hide. |
 | `AFCore.Dialog(dialog)` | layout name, x, y, w, h, shown, class (vtable RVA), session-only instance identity, native flags (`0x8` movable). The original seven return fields retain their order. |
+| `AFCore.PopupOwner(dialog)` | Read-only owner dialog type for a verified native popup menu; nil for other classes or an unavailable owner. Does not create, move or hook windows. |
 | `AFCore.Cursor()` | mouse x, y, left button down, Shift down (nil when the game is not in front). |
 | `AFCore.Command(text)` | One line through the chat box as if typed and sent, e.g. `"/say .broker"`. |
 | `AFCore.SaveFile(name, text)` / `AFCore.ReadFile(name)` | Bounded `name.cfg` files in `Mods/AetherfallUI`. |

@@ -724,12 +724,9 @@ public final class QuestService {
 						}
 					}
 				} else {
-					for (Player member : players) {
-						if (isQuestDrop(member, drop)) {
-							pls.add(member);
-							break;
-						}
-					}
+					Player recipient = selectQuestLooter(players, drop);
+					if (recipient != null)
+						pls.add(recipient);
 				}
 				if (pls.size() > 0) {
 					DropItem dItem = null;
@@ -749,12 +746,9 @@ public final class QuestService {
 						}
 					}
 				} else {
-					for (Player member : players) {
-						if (isQuestDrop(member, drop)) {
-							pls.add(member);
-							break;
-						}
-					}
+					Player recipient = selectQuestLooter(players, drop);
+					if (recipient != null)
+						pls.add(recipient);
 				}
 				if (pls.size() > 0) {
 					DropItem dItem = null;
@@ -773,6 +767,20 @@ public final class QuestService {
 		return index;
 	}
 
+	/** A companion must not reserve a shared quest drop while a nearby human still needs it. */
+	private static Player selectQuestLooter(Collection<Player> players, QuestDrop drop) {
+		Player firstBot = null;
+		for (Player member : players) {
+			if (!isQuestDrop(member, drop))
+				continue;
+			if (!member.isPlayerBot())
+				return member;
+			if (firstBot == null)
+				firstBot = member;
+		}
+		return firstBot;
+	}
+
 	private static void allowLooting(List<Player> players, DropNpc dropNpc, DropItem dropItem) {
 		for (Player player : players) {
 			if (dropItem != null)
@@ -785,7 +793,7 @@ public final class QuestService {
 	}
 
 	private static DropItem regQuestDropItem(QuestDrop drop, int index, Integer winner) {
-		DropItem item = new DropItem(new Drop(drop.getItemId(), 1, 1, drop.getChance()));
+		DropItem item = new DropItem(new Drop(drop.getItemId(), 1, 1, drop.getChance()), true);
 		item.setPlayerObjId(winner);
 		item.setIndex(index);
 		item.setCount(Math.max(1, DropConfig.QUEST_ITEM_COUNT));

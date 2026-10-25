@@ -7,6 +7,11 @@ before Play. Adding another quest does not add another entry to the Mods list.
 The Unfinished Entry (3999) starts at Nagrunerk in Jamanok Inn after The Red
 Journal (3060). Its server handler must also be installed on the game server.
 
+The Unbroken Field (14980-14995) is a sixteen-quest continuation of The Writing
+on the Wall (1198), starting with Spatalos in Verteron Citadel. It follows the
+letter's conspiracy across Verteron and returns to Spatalos for its conclusion.
+The original server must also have the matching quest templates and handlers.
+
 Each quest folder contains quest.json, quest.xml, registration.xml, strings.xml,
 dialog.html and quest_script_monster.csv. These hold the native client quest,
 NPC/objective registration, English text/dialogue and optional monster guidance.

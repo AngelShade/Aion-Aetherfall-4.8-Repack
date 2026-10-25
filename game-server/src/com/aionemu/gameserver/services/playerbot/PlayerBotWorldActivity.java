@@ -19,10 +19,11 @@ final class PlayerBotWorldActivity {
   int interval=PlayerBotConfig.WORLD_PRESENCE_REFRESH_MS;
   if(interval<100 || interval>10000)throw new IllegalArgumentException("World-bot presence refresh must be 100..10000 milliseconds");
   var next=new HashSet<Long>();
-  for(var player:World.getInstance().getAllPlayers())
+  var players=World.getInstance().getAllPlayers();PlayerBotPlayerPresence.refresh(players);
+  for(var player:players)
    if(!player.isPlayerBot() && player.isOnline() && player.isSpawned()) {
     next.add(zone(player.getWorldId(),player.getInstanceId()));
-    if(player.getInstanceId()==1 && PlayerBotConfig.PVP_ENABLED && PlayerBotConfig.PVP_RIFTS && PlayerBotConfig.PVP_RIFT_HOME_ACTIVITY) {
+    if(!PlayerBotPlayerPresence.enabled() && player.getInstanceId()==1 && PlayerBotConfig.PVP_ENABLED && PlayerBotConfig.PVP_RIFTS && PlayerBotConfig.PVP_RIFT_HOME_ACTIVITY) {
      int home=PlayerBotTerritory.counterpart(player.getWorldId());if(home!=0)next.add(zone(home,1));
     }
    }

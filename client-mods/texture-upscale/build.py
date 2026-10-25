@@ -10,8 +10,10 @@ from pathlib import Path
 from PIL import Image, ImageEnhance, ImageFilter
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parent / 'expanded-warehouse'))
 from codec import read_pak, encode_pak
+from dds_alpha import write_dxt3_alpha
 
 PAD = 16           # wrap padding around each tile, in source pixels
 MIN_SIDE = 64      # tiny textures gain nothing visible
@@ -110,6 +112,8 @@ def encode_dds(image, fmt):
     while True:
         buffer = io.BytesIO(); image.save(buffer, format='DDS', pixel_format=fmt)
         data = buffer.getvalue()
+        if fmt == 'DXT3':
+            data = write_dxt3_alpha(data, image.getchannel('A'))
         if header is None: header = bytearray(data[:128])
         payloads.append(data[128:])
         if image.size == (1, 1): break
@@ -143,11 +147,6 @@ def main():
         if folder == client or client in folder.parents: raise ValueError('Use folders outside the client')
     if out.exists(): raise ValueError('Use a new output folder')
     zones = [z for z in args.zones.split(',') if z]
-    targets = zone_targets(client, zones)
-    if args.skip_tracked:
-        tracked = {f['path'].lower() for f in json.loads(args.skip_tracked.read_text())['files']}
-        for archive in [a for a in targets if a.lower() in tracked]:
-            print('Skipping archive tracked by the graphics package:', archive, flush=True); del targets[archive]
     preserved = collections.defaultdict(set)
     previous_ids = []
     for previous in args.previous_package:
@@ -157,6 +156,20 @@ def main():
         previous_ids.append(prior['packageId'])
         for archive in prior['files']:
             preserved[archive['path']].update(archive['changedEntries'])
+    installed_ids = set()
+    for state_path in (client / 'Mods/TextureUpscale').glob('installed-*.json'):
+        state = json.loads(state_path.read_text(encoding='utf-8-sig'))
+        if not state.get('restored'):
+            installed_ids.add(state['packageId'])
+    missing_ids = installed_ids - set(previous_ids)
+    if missing_ids:
+        raise ValueError('Pass --previous-package for every installed texture batch before upscaling: '
+                         + ', '.join(sorted(missing_ids)))
+    targets = zone_targets(client, zones)
+    if args.skip_tracked:
+        tracked = {f['path'].lower() for f in json.loads(args.skip_tracked.read_text())['files']}
+        for archive in [a for a in targets if a.lower() in tracked]:
+            print('Skipping archive tracked by the graphics package:', archive, flush=True); del targets[archive]
     src_dir, up_dir = work / 'source', (args.upscaled.resolve() if args.upscaled else work / 'upscaled')
     src_dir.mkdir(parents=True, exist_ok=True); up_dir.mkdir(parents=True, exist_ok=True)
 

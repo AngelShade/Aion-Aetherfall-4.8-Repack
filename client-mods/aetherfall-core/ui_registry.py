@@ -5,6 +5,7 @@ windows. Native dialog IDs come only from verified RTTI/GetType implementations;
 resource-only definitions remain explicitly unmapped.
 """
 import hashlib
+import io
 import json
 from pathlib import Path
 import re
@@ -18,6 +19,38 @@ from codec import binary_xml, read_pak
 
 def sha(data):
     return hashlib.sha256(data).hexdigest()
+
+
+def shortcut_content_bounds(client, skins):
+    """Measure only the shop sprite needed by its artwork-sized MoveUI box."""
+    from PIL import Image
+    selected = [row for name in ('mkt_shop_up', 'af_shortcut_mkt_shop_up')
+                for row in skins.get(name, [])]
+    if not selected:
+        return
+    with read_pak(client / 'Textures/ui/ui.pak') as archive:
+        names = {Path(name).name.lower(): name for name in archive.namelist()}
+        images = {}
+        for row in selected:
+            attributes = row['attributes']
+            texture = attributes.get('texture', '').replace('\\', '/')
+            entry = names.get(Path(texture).name.lower() + '.dds')
+            if not entry or not attributes.get('src_image'):
+                raise ValueError('Shop sprite texture or rectangle is unavailable')
+            if entry not in images:
+                data = archive.read(entry)
+                images[entry] = Image.open(io.BytesIO(data)).convert('RGBA'), sha(data)
+            image, digest = images[entry]
+            x, y, width, height = [int(value) for value in attributes['src_image'].split(',')]
+            if width <= 0 or height <= 0 or x < 0 or y < 0 or x + width > image.width or y + height > image.height:
+                raise ValueError('Shop sprite rectangle exceeds its atlas')
+            bounds = image.getchannel('A').crop((x, y, x + width, y + height)).getbbox()
+            if bounds is None:
+                raise ValueError('Shop sprite is fully transparent')
+            left, top, right, bottom = bounds
+            row['contentBounds'] = [left / width, top / height, (right - left) / width, (bottom - top) / height]
+            row['contentSource'] = dict(archive='Textures/ui/ui.pak', entry=entry, sha256=digest,
+                                        rectangle=[x, y, width, height], alphaBounds=list(bounds))
 
 
 def native_types(path):
@@ -167,6 +200,7 @@ def generate(client, output, plugin_members=None):
     if errors:
         (output / 'ui-registry-errors.json').write_text(json.dumps(errors, indent=2), encoding='utf-8')
         raise ValueError('UI XML could not be catalogued; see ui-registry-errors.json')
+    shortcut_content_bounds(client, skins)
     report = dict(schema=1, layouts=len(layouts), widgets=sum(len(r['widgets']) for r in layouts.values()),
                   presets=len(presets), skins=len(skins), nativeDialogTypes=len(dialogs), nativeWidgetTypes=len(widget_types),
                   unmappedLayouts=sorted(k for k, r in layouts.items() if not r['nativeIds']), sources=sources,

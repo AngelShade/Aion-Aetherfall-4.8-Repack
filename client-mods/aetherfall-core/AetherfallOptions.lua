@@ -26,14 +26,14 @@ local defaults = {
     databar = 1, chatline = 1, minimapinfo = 1, timers = 1, targettimers = 1, warn = 10,
     tot = 1, party = 1, xpbar = 1, startmenu = 1, altbar = 1, extrabar = 1, sepbar = 1,
     snap = 1, grid = 8, showgrid = 1, guidesize = 64, font = 1, theme = 1, alpha = 90,
-    ttshow = 1, ttanchor = 1, ttui = 1, ttgrow = 1, ttx = 0, tty = 0, ttclamp = 1, snapframes = 1,
+    ttshow = 1, ttanchor = 2, ttui = 3, ttgrow = 1, ttx = 0, tty = 0, ttclamp = 1, snapframes = 1,
     abbar = 1, abrow1 = 12, abrow2 = 12, abrow3 = 12, abrow4 = 6, absize1 = 40, absize2 = 40, absize3 = 40, absize4 = 40,
     mapx = -1, mapy = -1, mapsize = 180, windowsalpha = 100, chatalpha = 100, barsalpha = 100,
     menusize = 34, menucols = 7, menugap = 4,
     dl1 = 'zone', dl2 = 'coords', dl3 = 'time', dc1 = 'xp', dc2 = 'kinah', dc3 = 'off', dr1 = 'fps', dr2 = 'group', dr3 = 'legion',
     profile = 'DPS', botbar = 1, botbarmode = -1,
 }
-local NUMERIC = {warn = {0, 60, 1}, grid = {2, 32, 2}, guidesize = {16, 128, 16}, alpha = {30, 100, 10}, ttx = {-64, 64, 8}, tty = {-64, 64, 8},
+local NUMERIC = {warn = {0, 60, 1}, grid = {2, 32, 2}, guidesize = {16, 128, 16}, alpha = {0, 100, 10}, ttx = {-64, 64, 8}, tty = {-64, 64, 8},
                  abrow1 = {1, 12, 1}, abrow2 = {1, 12, 1}, abrow3 = {1, 12, 1}, abrow4 = {1, 12, 1},
                  absize1 = {28, 56, 2}, absize2 = {28, 56, 2}, absize3 = {28, 56, 2}, absize4 = {28, 56, 2},
                  mapx = {-1, 1, 0}, mapy = {-1, 1, 0}, botbarmode = {-1, 2, 1},
@@ -57,8 +57,8 @@ local PRESET = {
 local TOGGLES = {tot = 'target_assist', party = 'party', xpbar = 'exp_bar', startmenu = 'start',
                  altbar = 'shortcut_alt', extrabar = 'shortcut_extra', sepbar = {'shortcut_sep', 'shortcut_sep2'}}
 -- Windows that are always up in the game: switching them back on shows them again. The
--- separated bars restore only if this controller hid them while shown; conditional
--- unit frames still reappear when the native game next needs them.
+-- Conditional windows restore the instance we hid only while native data still
+-- supports showing it; later instances retain their native visibility.
 local ALWAYS_UP = {xpbar = true, startmenu = true, altbar = true, extrabar = true}
 
 local function call(name, ...)
@@ -71,6 +71,49 @@ local function scale() return math.max(.5, math.min(2, n(call('GetUIScale')) or 
 local function screen()
     local _, sw, sh = AFCore.Scale()
     return n(sw) or 1280 * scale(), n(sh) or 960 * scale()
+end
+-- Features consume the core catalogue's exact parent paths. Cache declarations,
+-- never live widgets; native placement resolves the current instance each time.
+local layoutRegistry, layoutCache
+local function featureLayout(name,id)
+    if layoutRegistry ~= AFCore.UI or not layoutCache then layoutRegistry,layoutCache=AFCore.UI,{} end
+    local instance
+    if id then local a,b,c,d,e,f,g,value=AFCore.Dialog(id);instance=value end
+    local token=instance and tostring(instance) or 'closed'
+    if layoutCache[name] and layoutCache[name].token==token then return layoutCache[name].layout end
+    local chosen,rank
+    for _,record in ipairs(AFCore.Layouts(name)) do
+        local source=record.definition.source
+        local score=(source:find('L10N/',1,true)==1 and 4 or 0)+(source:find('game_hud_s1/',1,true) and 2 or 0)
+        if #record.definition.widgets>0 then
+            if instance then
+                for _,node in ipairs(record.definition.widgets)do
+                    local expected=node.attributes.name
+                    if expected and expected~='' then
+                        local live=AFCore.Widget(id,node.path)
+                        score=score+(live and live.name==expected and 10 or -100)
+                    end
+                end
+            end
+            if not rank or score>rank then chosen,rank=record.definition,score end
+        end
+    end
+    if not chosen then return end
+    local result={definition=chosen,paths={},names={}}
+    for _,node in ipairs(chosen.widgets) do
+        local bounds={};for value in (node.attributes.frame or ''):gmatch('[^,]+')do bounds[#bounds+1]=tonumber(value)end
+        local row={path=node.path,parent=node.parent,kind=node.attributes.type,rect=bounds,attributes=node.attributes}
+        result.paths[node.path]=row
+        local name=node.attributes.name
+        if name and name~='' then
+            result.names[name]=result.names[name]or{};local rows=result.names[name];rows[#rows+1]=row
+        end
+    end
+    layoutCache[name]={token=token,layout=result};return result
+end
+local function featureWidget(layout,name)
+    local rows=layout and layout.names[name]
+    return rows and #rows==1 and rows[1] or nil
 end
 function AFUI.Get(key) local v = U.db and U.db[key]; if v == nil then v = defaults[key] end; return v end
 function AFUI.ShowCompanionBar()
@@ -94,12 +137,13 @@ local function valid(key, v)
     local d = defaults[key]
     if NUMERIC[key] then
         local x = tonumber(v); local r = NUMERIC[key]
-        if x and x >= r[1] and x <= r[2] then return x end
+        if x and x >= r[1] and x <= r[2] and (key=='mapx' or key=='mapy' or x==math.floor(x)) then return x end
     elseif key == 'profile' then
         for _, p in ipairs(PROFILES) do if p == v then return v end end
+    elseif CHOICE[key] then
+        local x=tonumber(v);if x and x==math.floor(x) and x>=1 and x<=#CHOICE[key]then return x end
     elseif type(d) == 'number' then
         if v == '0' or v == '1' then return tonumber(v) end
-        if CHOICE[key] and tonumber(v) and tonumber(v) >= 1 and tonumber(v) <= #CHOICE[key] then return tonumber(v) end
     elseif type(d) == 'string' then
         for _, item in ipairs(DATA) do if item == v then return v end end
     end
@@ -166,11 +210,15 @@ end
 local function nativeMovable(d) return d and d.flags and math.floor(d.flags / 8) % 2 == 1 end
 local function identity(d) return d and (d.name .. ':' .. tostring(d.instance or d.class or '')) end
 local function position(id, d)
+    -- Unnamed native popups share transient slots; they have no persistent
+    -- window identity and must keep the placement selected by their opener.
+    if d and d.name == '' then return end
     local k = key(id); local name = U.bindings and U.bindings[k]
     if d and name and name ~= d.name then return end
     return U.positions[k]
 end
 local function remember(id, d, x, y, sw, sh)
+    if d and d.name == '' then return end
     U.positions[key(id)] = {x / sw, y / sh}
     if d and d.name:match('^[%w_]+$') then U.bindings[key(id)] = d.name end
     dirty()
@@ -201,7 +249,7 @@ end
 local HUD_IDS = {}
 for _, name in ipairs({'basic_status', 'target', 'target_assist', 'party', 'radar', 'start', 'shortcut', 'shortcut_ctrl',
                       'shortcut_alt', 'shortcut_extra', 'shortcut_sep', 'shortcut_sep2', 'chat', 'chat_input', 'exp_bar',
-                      'buff_status', 'debuff_status', 'target_buff', 'skill_delay', 'target_delay'}) do
+                      'buff_status', 'debuff_status', 'target_buff', 'skill_delay', 'target_delay', 'timer'}) do
     if D[name] then HUD_IDS[D[name]] = true end
 end
 -- Ordinary windows retain their own title-bar dragging after the editor closes.
@@ -228,7 +276,7 @@ local function applyDesign()
 end
 -- Show/hide the native windows the options switch (off: kept hidden; back on: shown again).
 U.hidden = {}
-function AFUI.ApplyToggles()
+function AFUI.ApplyToggles(restore)
     for setting, names in pairs(TOGGLES) do
         local off = AFUI.Get(setting) == 0
         local hidden = U.hidden[setting] or {}
@@ -239,9 +287,14 @@ function AFUI.ApplyToggles()
             -- may be hidden/restored, never a different window using that slot.
             if setting == 'sepbar' and d and d.name ~= 'quickbar_dialog_sep' then d = nil end
             if d and off then
-                if d.shown then hidden[id] = true; AFCore.SetShown(id, false) end
-            elseif d and U.hidden[setting] and (ALWAYS_UP[setting] or (setting == 'sepbar' and hidden[id])) then
-                if not d.shown then AFCore.SetShown(id, true) end
+                if d.shown then hidden[id] = identity(d); AFCore.SetShown(id, false) end
+            elseif restore ~= false and d and U.hidden[setting] and (ALWAYS_UP[setting] or hidden[id]==identity(d)) then
+                -- Restore the instance we hid. A new conditional window retains
+                -- native visibility instead of inheriting an old instance's state.
+                local available=true
+                if setting=='party' then available=(n(call('GetNumPartyMembers'))or 0)>0 end
+                if setting=='tot' then local target=AFCore.Unit('targettarget');available=n(target) and target>0 end
+                if available and not d.shown then AFCore.SetShown(id, true) end
             end
         end
         U.hidden[setting] = off and hidden or nil
@@ -253,7 +306,6 @@ local function enforce()
     local sw, sh = screen()
     local size = tostring(sw) .. ':' .. tostring(sh)
     if U.positionSize ~= size then U.positionSize, U.observed = size, {} end
-    AFUI.ApplyToggles()
     local held = U.pins or {}
     U.observed = U.observed or {}
     for id = 1, PLUGIN_FIRST - 1 do
@@ -269,7 +321,9 @@ local function enforce()
                 if p and d.shown and not held[id] and fresh then
                     local x = math.max(0, math.min(sw - d.w, p[1] * sw))
                     local y = math.max(0, math.min(sh - d.h, p[2] * sh))
-                    if AFCore.Move(id, x, y) then d.x, d.y = x, y end
+                    if math.abs(d.x-x) > .5 or math.abs(d.y-y) > .5 then
+                        if AFCore.Move(id, x, y) then d.x, d.y = x, y end
+                    end
 
                 end
                 U.observed[id] = {token = identity(d), shown = d.shown, x = d.x, y = d.y, profile = AFUI.Get('profile')}
@@ -289,16 +343,27 @@ local function nativeDragTick()
         U.nativeDrags={}
         for id=1,PLUGIN_FIRST-1 do
             local d=dialog(id)
-            if d and d.shown and nativeMovable(d) and not owned(id,d) and cx>=d.x and cy>=d.y and cx<d.x+d.w and cy<d.y+d.h then
-                U.nativeDrags[id]={token=identity(d),x=d.x,y=d.y}
+            if d and d.name ~= '' and d.shown and nativeMovable(d) and not owned(id,d) and cx>=d.x and cy>=d.y and cx<d.x+d.w and cy<d.y+d.h then
+                U.nativeDrags[id]={token=identity(d),x=d.x,y=d.y,w=d.w,h=d.h,cx=cx,cy=cy,savedX=d.x,savedY=d.y}
             end
         end
     end
     local sw,sh=screen()
     for id,prev in pairs(U.nativeDrags or {}) do
         local d=dialog(id)
-        if d and d.shown and identity(d)==prev.token and (math.abs(d.x-prev.x)>1 or math.abs(d.y-prev.y)>1) then
-            remember(id,d,d.x,d.y,sw,sh);prev.x,prev.y=d.x,d.y
+        if d and d.shown and identity(d)==prev.token then
+            local dx,dy=cx-prev.cx,cy-prev.cy
+            local moved=math.abs(dx)>2 or math.abs(dy)>2
+            -- A native opening animation can move/resize every overlapping
+            -- frame under a stationary press. Only a frame following actual
+            -- cursor displacement is a native user drag.
+            local follows=math.abs(d.x-prev.x-dx)<=2 and math.abs(d.y-prev.y-dy)<=2
+            local changed=math.abs(d.x-prev.savedX)>1 or math.abs(d.y-prev.savedY)>1
+            if moved and follows and changed and math.abs(d.w-prev.w)<.5 and math.abs(d.h-prev.h)<.5 then
+                remember(id,d,d.x,d.y,sw,sh)
+                if id==U.mapId then U.db.mapx,U.db.mapy=d.x/sw,d.y/sh end
+                prev.savedX,prev.savedY=d.x,d.y
+            end
         end
     end
     if not down then U.nativeDrags=nil end
@@ -347,12 +412,33 @@ local TOOLTIP, TOOLTIP_UI = 0x7f0, 0x7f1
 local MAP_ZOOM, MAP_AREA, MAP_SWORD, MAP_CLOCK, MAP_VENDOR = 0x820, 0x821, 0x822, 0x823, 0x824
 local MAP_LABELS = {[MAP_ZOOM]='Minimap Zoom', [MAP_CLOCK]='Minimap Clock', [MAP_VENDOR]='Vendor Notice',
                     [MAP_AREA]='Current Area', [MAP_SWORD]='Area Sword'}
+local TARGET_DETAILS, ASSIST_DETAILS = 0x825, 0x826
+local TARGET_PARTS = {
+    [TARGET_DETAILS]={D.target,'target_dialog','Target Altitude / Distance'},
+    [ASSIST_DETAILS]={D.target_assist,'target_assist_dialog','Target of Target Altitude / Distance'},
+}
+local function targetDetailRect(id)
+    local spec=TARGET_PARTS[id];local d=spec and dialog(spec[1])
+    if not d or d.name~=spec[2] then return end
+    local layout=featureLayout(d.name,spec[1]);local node=featureWidget(layout,'dist_info')
+    -- Offer only panels actually declared by this native layout. The shipped
+    -- target-assist layout has no distance panel; do not invent one.
+    if not node or node.kind~='container' or node.parent~='' or #node.rect~=4 then return end
+    local s=scale();local sw,sh=screen();local p=U.positions[key(id)]
+    local x,y=d.x+node.rect[1]*s,d.y+node.rect[2]*s
+    if p then x,y=p[1]*sw,p[2]*sh end
+    local width,height=node.rect[3]*s,node.rect[4]*s
+    return math.max(0,math.min(sw-width,x)),math.max(0,math.min(sh-height,y)),width,height,node.path,spec[1]
+end
 local function minimapParts()
     local s = scale(); local sw, sh = screen()
     local size = math.min(AFUI.Get('mapsize')*s, sw, sh-18*s)
     local dx, dy = design(D.radar)
     local ref = designRef(D.radar)
     dx, dy = (dx or sw-188*s) + ((ref and ref[3] or 180)*s-size), dy or 22*s
+    local saved=U.positions[key(D.radar)]
+    if saved then dx,dy=saved[1]*sw,saved[2]*sh end
+    dx,dy=math.max(0,math.min(sw-size,dx)),math.max(0,math.min(sh-size-18*s,dy))
     local info = AFUI.Get('minimapinfo') == 1 and 18*s or 0
     local row = dy+size+info+2*s
     local result = {
@@ -391,6 +477,7 @@ end
 -- saved under MENU_ID + index (no game window has those ids). AFUI_MENU (AetherfallLayout.lua):
 -- each button's layout spot inside the menu, the interface's Broker and Interface buttons included.
 local MENU_ID = 0x800
+local MENU_GROUP = 0x81f
 local MENU_BUTTONS = {
     {'fly_gauge', 'Flight', 'flygauge'}, {'start_button', 'Start', 'button'}, {'prophet_button', 'Influence', 'button'},
     {'btn_radar_map', 'Map', 'button'}, {'ingame_web', 'Web', 'button'}, {'companion_menu_button', 'Companions', 'button'},
@@ -407,26 +494,75 @@ local function menuManaged()
 end
 -- Absolute spot of button k: its mover's, else its layout spot in the menu (where the old Menu
 -- mover or the layout put the menu).
-local function buttonSpot(k, sw, sh)
+local function menuGrid(sw,sh)
     local s = n((AFCore.Scale())) or 1
-    local f = AFUI_MENU and MENU_BUTTONS[k] and AFUI_MENU[MENU_BUTTONS[k][1]]
-    if not f then return end
-    local p = U.positions[key(MENU_ID + k)]
-    -- Private native skin variants stretch the original icon states to this
-    -- square. Layout, rendered artwork, click bounds and movers share one size.
     local size = AFUI.Get('menusize') * s
-    local bw, bh = size, size
-    if p then return p[1] * sw, p[2] * sh, bw, bh end
     local ox, oy
-    local m = D.start and U.positions[key(D.start)]
+    local m = U.positions[key(MENU_GROUP)] or (D.start and U.positions[key(D.start)])
     if m then ox, oy = m[1] * sw, m[2] * sh else ox, oy = design(D.start) end
     if not ox then return end
     local pitch = size + AFUI.Get('menugap') * s
-    local cols = math.min(AFUI.Get('menucols'), math.max(1, math.floor((sw + AFUI.Get('menugap') * s) / pitch)))
+    local maxcols=math.max(1,math.floor((sw+AFUI.Get('menugap')*s)/pitch))
+    local maxrows=math.max(1,math.floor((sh+AFUI.Get('menugap')*s)/pitch))
+    local cols=math.min(maxcols,math.max(math.ceil(#MENU_BUTTONS/maxrows),AFUI.Get('menucols')))
     local width = math.min(cols, #MENU_BUTTONS) * pitch - AFUI.Get('menugap') * s
     local height = math.ceil(#MENU_BUTTONS / cols) * pitch - AFUI.Get('menugap') * s
     ox, oy = math.max(0, math.min(sw - width, ox)), math.max(0, math.min(sh - height, oy))
-    return ox + ((k - 1) % cols) * pitch + (size-bw)/2, oy + math.floor((k - 1) / cols) * pitch + (size-bh)/2, bw, bh
+    return {x=ox,y=oy,size=size,pitch=pitch,cols=cols,w=width,h=height}
+end
+function AFUI.MenuMetrics()local sw,sh=screen();return menuGrid(sw,sh)end
+local function buttonSpot(k, sw, sh)
+    local layout=featureLayout('start_dialog',D.start)
+    if not MENU_BUTTONS[k] or not featureWidget(layout,MENU_BUTTONS[k][1]) then return end
+    local grid=menuGrid(sw,sh);if not grid then return end
+    local p=U.positions[key(MENU_ID+k)]
+    if p then return math.max(0,math.min(sw-grid.size,p[1]*sw)),math.max(0,math.min(sh-grid.size,p[2]*sh)),grid.size,grid.size end
+    return grid.x+((k-1)%grid.cols)*grid.pitch,grid.y+math.floor((k-1)/grid.cols)*grid.pitch,grid.size,grid.size
+end
+local function buttonMoverRect(k,sw,sh)
+    local x,y,width,height=buttonSpot(k,sw,sh)
+    if not x then return end
+    if MENU_BUTTONS[k][1]=='item_shop_container' then
+        local ui=AFCore.UI
+        for _,row in ipairs(ui and ui.skins and ui.skins.af_shortcut_mkt_shop_up or {})do
+            local bounds=row.contentBounds
+            if bounds and #bounds==4 then
+                local ox,oy=width*bounds[1],height*bounds[2]
+                return x+ox,y+oy,width*bounds[3],height*bounds[4],ox,oy
+            end
+        end
+    end
+    return x,y,width,height,0,0
+end
+local function menuBounds()
+    local sw,sh=screen();local x0,y0,x1,y1=math.huge,math.huge,-math.huge,-math.huge
+    for k in ipairs(MENU_BUTTONS) do
+        local x,y,width,height=buttonSpot(k,sw,sh)
+        if x then x0,y0,x1,y1=math.min(x0,x),math.min(y0,y),math.max(x1,x+width),math.max(y1,y+height) end
+    end
+    if x0<math.huge then return x0,y0,x1-x0,y1-y0 end
+end
+local function holdMenuPopup()
+    if not menuManaged() or not AFCore.PopupOwner then return end
+    -- UIPopupMenu::Init (536020) assigns 1e9 + depth: only 1e9 is the
+    -- root. Hover submenus can retain the same command owner as the root;
+    -- leave their native cascading placement at depths 1/2 untouched.
+    local id=0x1e9
+    if AFCore.PopupOwner(id)~=D.start then return end
+    local d=dialog(id)
+    if not d or not d.shown then return end
+    local layout=featureLayout('start_dialog',D.start)
+    local arrow=featureWidget(layout,'start_button')
+    local owner={};for v in tostring(layout and layout.definition.attributes.frame or ''):gmatch('[^,]+')do owner[#owner+1]=tonumber(v)end
+    if not arrow or arrow.parent~='' or #arrow.rect~=4 or #owner~=4 then return end
+    local ax,ay,aw,ah,shown=AFCore.Rect(D.start,arrow.path,'button')
+    if not ax or not shown then return end
+    local s=scale();local sw,sh=screen()
+    -- DlgStart::OpenMenu (8b6d10), original mode-5 placement for the root.
+    local x,y=ax-(arrow.rect[1]+50)*s,ay-arrow.rect[2]*s
+    if x+d.w>sw then x=x+owner[3]*s-d.w end
+    y=y-d.h;if y<0 then y=ay-arrow.rect[2]*s+owner[4]*s end
+    if math.abs(d.x-x)>.01 or math.abs(d.y-y)>.01 then AFCore.Move(id,x,y)end
 end
 -- Additional Functions menu: entries that have a button on the HUD while the interface is on are
 -- left out (RelicCalc registers them from its OnLoad, after every plugin file has run).
@@ -439,7 +575,7 @@ if type(RegisterMenu) == 'function' and not AFUI.NativeRegisterMenu then
         return AFUI.NativeRegisterMenu(label, command, icon, ...)
     end
 end
-local OTHER_LABELS = {quest_indicator = 'Quest Tracker', subzone_name = 'Zone Name', help_indicator = 'Notifications',
+local OTHER_LABELS = {timer = 'Countdown Timer', quest_indicator = 'Quest Tracker', subzone_name = 'Zone Name', help_indicator = 'Notifications',
                       move_state = 'Movement', gm_indicator = 'GM Indicator', event_shortcut = 'Event Bar',
                       skill_penalty = 'Skill Penalty', tooltip = 'Tooltip', tooltip_skill = 'Skill Tooltip',
                       general_delay = 'Progress Bar', enchant_delay = 'Enchant Bar', target_assist_delay = 'Target of Target Cast Bar'}
@@ -542,6 +678,23 @@ local function notificationBounds(id, d)
     end
     if x0 < math.huge then return x0, y0, x1 - x0, y1 - y0 end
 end
+local function targetBounds(id,d)
+    if id~=D.target and id~=D.target_assist then return end
+    local layout=featureLayout(d.name,id)
+    local fallback
+    for _,node in pairs(layout and layout.paths or {})do
+        local parent=layout.paths[node.parent]
+        if node.attributes.name=='bg' and parent and parent.parent==''
+            and (parent.attributes.name=='container' or tostring(parent.attributes.name):match('^container%d+$'))
+            and #node.rect==4 and #parent.rect==4 then
+            local s=scale()
+            fallback=fallback or {(parent.rect[1]+node.rect[1])*s,(parent.rect[2]+node.rect[2])*s,node.rect[3]*s,node.rect[4]*s}
+            local x,y,width,height,visible=AFCore.Rect(id,node.path,'any')
+            if d.shown and visible and x and width>0 and height>0 then return x-d.x,y-d.y,width,height end
+        end
+    end
+    if fallback then return unpack(fallback)end
+end
 local function frameRect(id, d)
     local s = scale(); local sw, sh = screen()
     local x, y = d.x, d.y
@@ -551,6 +704,7 @@ local function frameRect(id, d)
     end
     local ox, oy, wd, ht = auraBounds(id, d)
     if not ox then ox, oy, wd, ht = notificationBounds(id, d) end
+    if not ox then ox, oy, wd, ht = targetBounds(id,d)end
     if ox then return x + ox, y + oy, wd, ht, ox, oy end
     if id == D.radar then
         local r = minimapParts()[id]
@@ -603,7 +757,6 @@ local function layoutMovers()
             U.defaults[id] = dx and {dx / sw, dy / sh} or {d.x / sw, d.y / sh}
         end
         local x, y, wd, ht, ox, oy = frameRect(id, d)
-        local thinXP = ht < 16 * s or wd < 90 * s
         U.movers[i] = {id = id, x = x, y = y, w = wd, h = ht, ox = ox, oy = oy, label = label, name=d.name, exact = true, virtual = d.virtual, shown=d.shown}
         placeBox(i)
 
@@ -615,11 +768,21 @@ local function layoutMovers()
             placeBox(i)
         end
     end
+    for _,id in ipairs({TARGET_DETAILS,ASSIST_DETAILS})do
+        local x,y,width,height=targetDetailRect(id)
+        if x then
+            U.movers[#U.movers+1]={id=id,x=x,y=y,w=width,h=height,exact=true,label=TARGET_PARTS[id][3]}
+        end
+    end
+    if menuManaged() then
+        local x,y,width,height=menuBounds()
+        if x then U.movers[#U.movers+1]={id=MENU_GROUP,x=x,y=y,w=width,h=height,exact=true,label='Shortcuts (all)'} end
+    end
     for k = 1, menuManaged() and #MENU_BUTTONS or 0 do  -- last: small boxes on top of the large ones
-        local x, y, bw, bh = buttonSpot(k, sw, sh)
+        local x, y, bw, bh, ox, oy = buttonMoverRect(k, sw, sh)
         if x then
             local i = #U.movers + 1
-            U.movers[i] = {id = MENU_ID + k, x = x, y = y, w = bw, h = bh, exact = true, label = MENU_BUTTONS[k][2]}
+            U.movers[i] = {id = MENU_ID + k, x = x, y = y, w = bw, h = bh, ox=ox, oy=oy, exact = true, label = MENU_BUTTONS[k][2]}
             placeBox(i)
         end
     end
@@ -645,7 +808,9 @@ local function snapToFrames(i, tx, ty)
     local mv = U.movers[i]; local bw, bh = boxSize(mv); local near = 6 * scale()
     local bx, by = math.huge, math.huge
     for j, o in ipairs(U.movers) do
-        if j ~= i and not o.editorHidden then
+        local sameMenu=(mv.id==MENU_GROUP and o.id>MENU_ID and o.id<=MENU_ID+#MENU_BUTTONS)
+                    or (o.id==MENU_GROUP and mv.id>MENU_ID and mv.id<=MENU_ID+#MENU_BUTTONS)
+        if j ~= i and not o.editorHidden and not sameMenu then
             local ow, oh = boxSize(o)
             for _, c in ipairs({{o.x, 0}, {o.x + ow, 0}, {o.x, bw}, {o.x + ow, bw}, {o.x + ow / 2, bw / 2}}) do
                 local d = math.abs(tx + c[2] - c[1]); if d < near and d < bx then bx = d; mv.snapx = c[1] - c[2] end
@@ -660,7 +825,16 @@ end
 -- Put mover i (and its window) at x, y in pixels and remember it.
 local function moveMover(i, tx, ty)
     local mv = U.movers[i]; local sw, sh = screen()
-    tx, ty = math.max(0, math.min(sw - mv.w, tx)), math.max(0, math.min(sh - mv.h, ty))
+    if mv.id>MENU_ID and mv.id<=MENU_ID+#MENU_BUTTONS then
+        -- Keep the full native click cell on screen even when its artwork box
+        -- excludes transparent padding; storing an out-of-bounds cell would
+        -- otherwise make the box jump on the next native refresh.
+        local grid=menuGrid(sw,sh);local size=grid and grid.size or mv.w
+        local ox,oy=mv.ox or 0,mv.oy or 0
+        tx,ty=math.max(ox,math.min(sw-size+ox,tx)),math.max(oy,math.min(sh-size+oy,ty))
+    else
+        tx, ty = math.max(0, math.min(sw - mv.w, tx)), math.max(0, math.min(sh - mv.h, ty))
+    end
     if math.abs(tx - mv.x) < .5 and math.abs(ty - mv.y) < .5 then return end
     local rx, ry = tx - (mv.ox or 0), ty - (mv.oy or 0)
     local d = mv.id < PLUGIN_FIRST and dialog(mv.id)
@@ -668,9 +842,20 @@ local function moveMover(i, tx, ty)
     -- visibility/target event synchronously; its hold pass must see the new
     -- position, rather than restoring the preceding saved/default anchor.
     local k = key(mv.id); local previous, binding, saveAt = U.positions[k], U.bindings[k], U.saveAt
+    if mv.id==MENU_GROUP then
+        local dx,dy=tx-mv.x,ty-mv.y;local grid=menuGrid(sw,sh)
+        if not grid then return false end
+        for index in ipairs(MENU_BUTTONS) do
+            local x,y=buttonSpot(index,sw,sh)
+            if x then remember(MENU_ID+index,nil,x+dx,y+dy,sw,sh) end
+        end
+        remember(MENU_GROUP,nil,grid.x+dx,grid.y+dy,sw,sh)
+        AFUI.HoldPinned()
+        mv.x,mv.y=tx,ty;placeBox(i);if U.selected==i then AFUI.ShowNudge()end;return true
+    end
     remember(mv.id, d or (mv.name and {name=mv.name}), rx, ry, sw, sh)
     local placed = true
-    if mv.id == D.radar or MAP_LABELS[mv.id] then
+    if TARGET_PARTS[mv.id] or mv.id == D.radar or MAP_LABELS[mv.id] or (mv.id>MENU_ID and mv.id<=MENU_ID+#MENU_BUTTONS) then
         AFUI.HoldPinned()
     elseif d then
         -- These frames can be re-anchored by the game between drag samples.
@@ -685,6 +870,7 @@ local function moveMover(i, tx, ty)
         U.moveError = mv.label; return false
     end
     if d and REANCHORED[mv.id] then U.pins[mv.id] = true end
+    if mv.id==D.target or mv.id==D.target_assist then AFUI.HoldPinned()end
     mv.x, mv.y = tx, ty; placeBox(i)
     if mv.id == D.target and AFHUD_TargetDetails then AFHUD_TargetDetails() end
     if U.selected == i then AFUI.ShowNudge() end
@@ -744,10 +930,11 @@ local function editorGrid()
     else w('GuideCenterX'):Hide(); w('GuideCenterY'):Hide() end
 end
 local function editorCategory(mv)
+    if mv.id==MENU_GROUP then return 'Menus' end
     if MAP_LABELS[mv.id] then return 'HUD' end
     if mv.id > MENU_ID and mv.id <= MENU_ID + #MENU_BUTTONS then return 'Menus' end
     if tostring(mv.label):match('^Action Bar') then return 'Action bars' end
-    return (HUD_IDS[mv.id] or REANCHORED[mv.id] or mv.id == TOOLTIP or mv.id == TOOLTIP_UI) and 'HUD' or 'Windows'
+    return (HUD_IDS[mv.id] or REANCHORED[mv.id] or TARGET_PARTS[mv.id] or mv.id == TOOLTIP or mv.id == TOOLTIP_UI) and 'HUD' or 'Windows'
 end
 local function editorBoxes()
     local filter = FILTERS[U.editorFilter or 1]
@@ -889,8 +1076,8 @@ function AFUI.EndEdit(save, quiet, defer)
     U.edit, U.unlocked, U.drag, U.panelDrag, U.selected = nil, false, nil, nil, nil
     U.hiddenMovers, U.editorStatus, U.resetConfirm, U.refreshMovers = {}, nil, nil, nil
     showPanel('Movers', false); U.movers = {}
-    if not defer and AFHUD_Apply then AFHUD_Apply() end
-    if not defer and U.settled and AFHUD and AFHUD.on then pcall(AFUI.HoldPinned) end
+    if not defer and AFUI.ApplySettings then AFUI.ApplySettings(true)
+    elseif not defer and AFHUD_Apply then AFHUD_Apply() end
     -- Once locked, ordinary native windows retain normal title-bar dragging.
     for id = 1, PLUGIN_FIRST - 1 do
         local d = U.positions[key(id)] and dialog(id)
@@ -949,7 +1136,7 @@ function AFUI.Editor(action)
         if U.resetConfirm and U.ticks <= U.resetConfirm then AFUI.ResetAll(); U.resetConfirm = nil; editorStatus('All positions reset. Save to keep; Cancel to undo.')
         else U.resetConfirm = U.ticks + 100; editorStatus('Reset every position? Click Reset all again.') end
     elseif action == 'Settings' then
-        local tab = mv and (editorCategory(mv) == 'Action bars' and 'Action Bars' or (mv.id == D.radar or MAP_LABELS[mv.id]) and 'Minimap'
+        local tab = mv and (editorCategory(mv) == 'Action bars' and 'Action Bars' or (editorCategory(mv)=='Menus' or mv.id == D.radar or MAP_LABELS[mv.id]) and 'Minimap'
                     or (mv.id == TOOLTIP or mv.id == TOOLTIP_UI) and 'Tooltip' or 'Movers') or 'Movers'
         if AFUI.EndEdit(true) then U.tab = tab; AFUI.Open() end; return
     elseif action == 'Reset' or action == 'Left' or action == 'Up' or action == 'Down' or action == 'Right' then AFUI.Nudge(action)
@@ -1035,10 +1222,11 @@ function AFUI.ResetMover(i)
     local mv = U.movers[i]; if not mv then return end
     local sw, sh = screen(); local def = U.defaults[mv.id]
     U.positions[key(mv.id)] = nil; U.bindings[key(mv.id)] = nil; dirty()
-    if mv.id == D.radar or MAP_LABELS[mv.id] then AFUI.HoldPinned()
+    if mv.id==MENU_GROUP then AFUI.AlignMenu(true)
+    elseif TARGET_PARTS[mv.id] or mv.id == D.radar or MAP_LABELS[mv.id] then AFUI.HoldPinned()
     elseif mv.id == TOOLTIP or mv.id == TOOLTIP_UI then mv.x, mv.y = tooltipAnchor(mv.id); placeBox(i)
     elseif mv.id > MENU_ID and mv.id <= MENU_ID + #MENU_BUTTONS then
-        mv.x, mv.y = buttonSpot(mv.id - MENU_ID, sw, sh); placeBox(i)
+        mv.x,mv.y,mv.w,mv.h,mv.ox,mv.oy=buttonMoverRect(mv.id-MENU_ID,sw,sh);placeBox(i)
     elseif def then
         local x, y = def[1] * sw, def[2] * sh
         AFCore.Move(mv.id, x, y)
@@ -1054,7 +1242,7 @@ function AFUI.ResetAll()
             U.positions[k] = nil; U.bindings[k] = nil
         end
     end
-    dirty(); if U.unlocked then layoutMovers() end
+    dirty();AFUI.ApplySettings(true)
 end
 -- Windows the game re-places itself (the target re-centres at the top on every target change;
 -- cast bars, target auras, tooltips, notification icons) stay on the spot of their mover, or the
@@ -1135,32 +1323,40 @@ local function applyPins()
                     AFCore.Pin(D.start, sp[1] - x0, sp[2] - y0, 0, false, sp[3], sp[4], name, b[3])
                     pinned[D.start .. ':' .. name] = {D.start, name}
                 end
-                if b[1]=='item_shop_container' then
-                    -- Use the catalogue's native children instead of leaving
-                    -- 64px shop offsets inside a resized square container.
-                    for _,record in ipairs(AFCore.Layouts('start_dialog')) do
-                        if record.definition.source=='L10N/enu/data/data.pak|ui/game_hud_s1/start_dialog.xml' then
-                            local nodes=record.definition.widgets;local parent
-                            for _,node in ipairs(nodes)do if node.attributes.name==b[1]then parent=node.path;break end end
-                            for _,node in ipairs(nodes)do
-                                if parent and node.parent==parent then
-                                    local r={};for v in (node.attributes.frame or ''):gmatch('[^,]+')do r[#r+1]=tonumber(v)end
-                                    if #r==4 then
-                                        local factor=sp[3]/34
-                                        AFCore.Pin(D.start,r[1]*factor,r[2]*factor,0,false,r[3]*factor,r[4]*factor,node.path,'any')
-                                        pinned[D.start..':'..node.path]={D.start,node.path}
-                                    end
-                                end
+                if sp and b[1]=='item_shop_container' then
+                    local layout=featureLayout('start_dialog',D.start);local parent=featureWidget(layout,b[1])
+                    if parent then
+                        for _,node in pairs(layout.paths) do
+                            local r=node.rect
+                            if node.parent==parent.path and #r==4 then
+                                local factor=sp[3]/parent.rect[3]
+                                -- Core widget pins are relative to the owner
+                                -- dialog, including children inside containers.
+                                AFCore.Pin(D.start,sp[1]-x0+r[1]*factor,sp[2]-y0+r[2]*factor,0,false,r[3]*factor,r[4]*factor,node.path,'any')
+                                pinned[D.start..':'..node.path]={D.start,node.path}
                             end
-                            break
                         end
                     end
                 end
             end
         end
+        local gx,gy,gw,gh=menuBounds()
+        for index,mv in ipairs(U.movers)do
+            local x,y,width,height
+            if mv.id==MENU_GROUP then x,y,width,height=gx,gy,gw,gh
+            elseif mv.id>MENU_ID and mv.id<=MENU_ID+#MENU_BUTTONS then
+                local ox,oy
+                x,y,width,height,ox,oy=buttonMoverRect(mv.id-MENU_ID,sw,sh);mv.ox,mv.oy=ox,oy
+            end
+            if x and (mv.x~=x or mv.y~=y or mv.w~=width or mv.h~=height)then
+                mv.x,mv.y,mv.w,mv.h=x,y,width,height;placeBox(index)
+            end
+        end
     end
     AFUI.HoldBars(pinned)
     AFUI.HoldMinimap(pinned)
+    AFUI.HoldTargetDetails(pinned)
+    holdMenuPopup()
     for k, v in pairs(U.pins) do
         if not pinned[k] then
             if type(v) == 'table' then AFCore.Pin(v[1], nil, nil, nil, nil, nil, nil, v[2]) else AFCore.Pin(k) end
@@ -1180,12 +1376,32 @@ local function holdPinned()
 end
 AFUI.HoldPinned = holdPinned
 
-function AFUI.AlignMenu()
+function AFUI.AlignMenu(resetAnchor)
     for k in ipairs(MENU_BUTTONS) do
         U.positions[key(MENU_ID + k)], U.bindings[key(MENU_ID + k)] = nil, nil
     end
+    if resetAnchor then
+        U.positions[key(MENU_GROUP)],U.bindings[key(MENU_GROUP)]=nil,nil
+        U.positions[key(D.start)],U.bindings[key(D.start)]=nil,nil
+    end
     dirty(); holdPinned()
     if U.unlocked then layoutMovers() end
+end
+
+function AFUI.HoldTargetDetails(pinned)
+    for _,id in ipairs({TARGET_DETAILS,ASSIST_DETAILS})do
+        local x,y,width,height,path,owner=targetDetailRect(id)
+        local d=owner and dialog(owner)
+        if x and d then
+            AFCore.Pin(owner,x-d.x,y-d.y,0,false,width,height,path,'any')
+            pinned[owner..':'..path]={owner,path}
+            for i,mv in ipairs(U.movers)do
+                if mv.id==id and (mv.x~=x or mv.y~=y or mv.w~=width or mv.h~=height)then
+                    mv.x,mv.y,mv.w,mv.h=x,y,width,height;placeBox(i)
+                end
+            end
+        end
+    end
 end
 
 function AFUI.HoldMinimap(pinned)
@@ -1210,9 +1426,11 @@ function AFUI.HoldMinimap(pinned)
     child(id,'af_minimap_border',mx,my,map[3],map[4])
     child(id,'radar_wnd',mx+5*s,my+5*s,map[3]-10*s,map[4]-10*s)
     child(id,'radar_sight',mx+5*s,my+5*s,map[3]-10*s,map[4]-10*s)
-    for _,control in ipairs({{MAP_ZOOM,'#4'},{MAP_CLOCK,'time_slot'},{MAP_VENDOR,'vendor_notice'}}) do
+    local radarLayout=featureLayout(d.name,id);local zoom=featureWidget(radarLayout,'btn_zoom')
+    local zoomParent=zoom and radarLayout.paths[zoom.parent]
+    for _,control in ipairs({{MAP_ZOOM,zoomParent and zoomParent.path},{MAP_CLOCK,'time_slot'},{MAP_VENDOR,'vendor_notice'}}) do
         local r=parts[control[1]]
-        child(id,control[2],r[1]-x,r[2]-y,r[3],r[4])
+        if control[2] then child(id,control[2],r[1]-x,r[2]-y,r[3],r[4]) end
     end
     local aid = D.subzone_name; local area = aid and dialog(aid)
     if area and area.name == 'subzone_name_dialog' then
@@ -1237,52 +1455,89 @@ function AFUI.HoldMinimap(pinned)
         end
     end
 end
+function AFUI.AlignMinimap()
+    for id in pairs(MAP_LABELS)do U.positions[key(id)],U.bindings[key(id)]=nil,nil end
+    dirty();holdPinned();if U.unlocked then layoutMovers()end
+end
 
 -- Once per second and when settings change. Recreated windows are looked up
 -- afresh; no native object pointers survive a close, character or world change.
+function AFUI.BackgroundAlpha(group)
+    -- ElvUI's Transparent template changes registered backdrops, not frame
+    -- alpha. The general value is the shared backdrop alpha; group controls
+    -- further reduce their own backgrounds without fading their contents.
+    return AFUI.Get('alpha') / 100 * (group and AFUI.Get(group) / 100 or 1)
+end
+local function backgroundName(name)
+    return name=='bg' or name=='background' or name=='backdrop' or name:match('^bg_')
+        or name:match('_bg$') or name:match('_bg_') or name:match('_background$')
+end
+local OPACITY_SETTINGS = {alpha=true, windowsalpha=true, chatalpha=true, barsalpha=true}
+local PLUGIN_OPACITY = {PlayerBotBar='windowsalpha', AFHTop=false, AFHChat='chatalpha', AFHMap=false}
 function AFUI.ApplyOpacity()
     if not AFCore.Backdrop then return end
+    U.opacityApplied,U.opacityRefused=0,0
+    local function apply(id,alpha,path)
+        if AFCore.Backdrop(id,alpha,path,'any',false) then U.opacityApplied=U.opacityApplied+1
+        else U.opacityRefused=U.opacityRefused+1 end
+    end
     for id = 1, PLUGIN_FIRST - 1 do
         local d = dialog(id)
         if d and d.shown then
-            local alpha
-            if id == D.chat then alpha = AFUI.Get('chatalpha')
+            local alpha,bar
+            if id == D.chat then alpha = AFUI.BackgroundAlpha('chatalpha')
             elseif id == D.shortcut or id == D.shortcut_ctrl or id == D.shortcut_alt or id == D.shortcut_extra
                 or ((id == D.shortcut_sep or id == D.shortcut_sep2) and d.name == 'quickbar_dialog_sep') then
-                alpha = AFUI.Get('barsalpha')
-            elseif nativeMovable(d) and not HUD_IDS[id] and not tooltipKind(d) then alpha = AFUI.Get('windowsalpha') end
-            if alpha then AFCore.Backdrop(id, alpha / 100) end
-            if HUD_IDS[id] and id ~= D.chat and id ~= D.chat_input and id ~= D.start and id ~= D.radar
+                alpha,bar = AFUI.BackgroundAlpha('barsalpha'),true
+            elseif nativeMovable(d) and not HUD_IDS[id] and not tooltipKind(d) then alpha = AFUI.BackgroundAlpha('windowsalpha')
+            elseif HUD_IDS[id] and id ~= D.chat_input and id ~= D.start and id ~= D.radar
                 and id ~= D.shortcut and id ~= D.shortcut_ctrl and id ~= D.shortcut_alt and id ~= D.shortcut_extra
                 and id ~= D.shortcut_sep and id ~= D.shortcut_sep2 then
-                local a=AFUI.Get('alpha')/100
-                AFCore.Backdrop(id,a,nil,nil,false)
-                AFCore.Backdrop(id,a,'bg','any')
+                alpha=AFUI.BackgroundAlpha()
+            end
+            if alpha then
+                apply(id,alpha)
+                local layout=featureLayout(d.name,id)
+                for _,node in pairs(layout and layout.paths or {})do
+                    local kind=node.kind
+                    -- Chat's opaque panel is a tabpage skin, not a bg-named
+                    -- image. Select its exact preset; never fade chat_list_*.
+                    local chatPage=id==D.chat and kind=='tabpage'
+                        and node.attributes.preset=='v5_chat_tabpage'
+                    if chatPage or ((kind=='image' or kind=='container' or kind=='static' or kind=='gauge')
+                        and backgroundName(node.attributes.name or '')) or (bar and kind=='itemview') then
+                        apply(id,alpha,node.path)
+                    end
+                end
             end
         end
     end
-    -- Plugin windows use their normal queued API. Keep controls and text solid.
-    for _, win in ipairs({'PlayerBotBar', 'AFUIOptions'}) do
-        if _G[win] then _G[win]:SetAlpha(AFUI.Get('windowsalpha') / 100, false) end
+    -- Resolve addon dialogs by their native names, as the companion bridge
+    -- does. The guarded skin setter preserves title text and child controls;
+    -- visibility and geometry still belong to the normal queued widget API.
+    for id=PLUGIN_FIRST,0x221 do
+        local d=dialog(id)
+        local group=d and PLUGIN_OPACITY[d.name]
+        if d and d.shown and group~=nil then
+            apply(id,AFUI.BackgroundAlpha(group or nil))
+        end
     end
+    if AFUIOptions then AFUIOptions:SetAlpha(AFUI.BackgroundAlpha('windowsalpha'),false) end
 end
 -- Action bars (ElvUI): buttons per row and button size. The twelve slots are laid out in rows inside
 -- their container, the container and the bar window take the new size (bottom edge kept), bar 1's
--- page arrows and lock follow. A bar once changed stays held (also back at its default) until relog.
--- {bar window, slot container (name, or "#1": the bar's first child), its spot in the bar}
-local BAR_LAYOUT = {{'shortcut', 'ctn_shortcut', 26, 4}, {'shortcut_ctrl', '#1', 0, 0}, {'shortcut_alt', '#1', 0, 0}, {'shortcut_extra', '#1', 0, 0}}
-local BAR_DEFAULT = {12, 12, 12, 6}
-U.barsHeld = {}
+-- page arrows and lock follow. Every profile applies its own geometry, including defaults.
+-- Exact slot/container paths come from the shared native catalogue.
+local BAR_LAYOUT = {{'shortcut','quickbar_dialog'}, {'shortcut_ctrl','quickbar_dialog_ctrl'},
+                    {'shortcut_alt','quickbar_dialog_alt'}, {'shortcut_extra','quickbar_dialog_extra'}}
 U.barFit = {}
 local function barDialog(i, d)
-    local suffix = ({'', '_ctrl', '_alt', '_extra'})[i]
-    return d and d.name == 'quickbar_dialog' .. suffix
+    return d and BAR_LAYOUT[i] and d.name == BAR_LAYOUT[i][2]
 end
 function AFUI.ManagedBar(id, d)
     for i, b in ipairs(BAR_LAYOUT) do
         if D[b[1]] == id and barDialog(i, d) then
-            return U.barsHeld[i] or position(id, d) ~= nil
-                or AFUI.Get('abrow' .. i) ~= BAR_DEFAULT[i] or AFUI.Get('absize' .. i) ~= 40
+            return true
         end
     end
     return false
@@ -1292,6 +1547,11 @@ end
 -- it into extra columns without shrinking buttons or losing any of the 12 slots.
 function AFUI.BarMetrics(i)
     local b = BAR_LAYOUT[i]; if not b then return end
+    local layout=featureLayout(b[2],D[b[1]]);local first=featureWidget(layout,'shortcut1')
+    local container=first and layout.paths[first.parent]
+    if not container or #container.rect~=4 then return end
+    local slots={}
+    for k=1,12 do local node=featureWidget(layout,'shortcut'..k);if not node or node.parent~=container.path then return end;slots[k]=node.path end
     local s = n((AFCore.Scale())) or 1
     local sw, sh = screen()
     local requested, size = AFUI.Get('abrow' .. i), AFUI.Get('absize' .. i)
@@ -1303,25 +1563,26 @@ function AFUI.BarMetrics(i)
     local rows = math.ceil(12 / per)
     local cw, ch = per * pitch - gap, rows * pitch - gap
     return {per = per, requested = requested, size = size * s, pitch = pitch, cw = cw, ch = ch,
-            ox = b[3] * s, oy = b[4] * s, w = cw + padw, h = math.max(i == 1 and 48 * s or 0, ch + padh)}
+            ox = container.rect[1]*s, oy = container.rect[2]*s, container=container.path,slots=slots,
+            w = cw + padw, h = math.max(i == 1 and 48 * s or 0, ch + padh)}
 end
 function AFUI.HoldBars(pinned)
     local s = n((AFCore.Scale())) or 1
     local sw, sh = screen()
     for i, b in ipairs(BAR_LAYOUT) do
         local id = D[b[1]]; local d = id and dialog(id)
-        local per, size = AFUI.Get('abrow' .. i), AFUI.Get('absize' .. i)
-        if per ~= BAR_DEFAULT[i] or size ~= 40 then U.barsHeld[i] = true end
-        if barDialog(i, d) and AFUI.ManagedBar(id, d) then
-            local m = AFUI.BarMetrics(i)
+        local m=barDialog(i,d) and AFUI.BarMetrics(i)
+        if m then
             local pitch, per, cw, ch, ox, oy, w0, h0 = m.pitch, m.per, m.cw, m.ch, m.ox, m.oy, m.w, m.h
             local p = position(id, d)
-            local x, y = p and p[1] * sw or d.x, p and p[2] * sh or d.y + d.h - h0
+            local dx,dy=design(id);local ref=designRef(id)
+            local x=p and p[1]*sw or (dx or d.x)+(ref and ref[5]=='center' and (ref[3]*s-w0)/2 or 0)
+            local y=p and p[2]*sh or (dy or d.y)+(ref and ref[4]*s or d.h)-h0
             x, y = math.max(0, math.min(sw - w0, x)), math.max(0, math.min(sh - h0, y))
             AFCore.Pin(id, x, y, 0, true, w0, h0); pinned[id] = true
-            AFCore.Pin(id, ox, oy, 0, false, cw, ch, b[2], b[2] == '#1' and 'any' or 'container'); pinned[id .. ':' .. b[2]] = {id, b[2]}
+            AFCore.Pin(id, ox, oy, 0, false, cw, ch, m.container,'container'); pinned[id .. ':' .. m.container] = {id, m.container}
             for k = 1, 12 do
-                local slot = b[2] == '#1' and ('#1/shortcut' .. k) or ('shortcut' .. k)
+                local slot = m.slots[k]
                 local c, r = (k - 1) % per, math.floor((k - 1) / per)
                 AFCore.Pin(id, ox + c * pitch, oy + r * pitch, 0, false, m.size, m.size, slot, 'itemview')
                 pinned[id .. ':' .. slot] = {id, slot}
@@ -1387,12 +1648,6 @@ function AFUI.HoldMap()
         local mx, my = AFUI.Get('mapx'), AFUI.Get('mapy')
         if mx >= 0 and my >= 0 then AFCore.Move(id, math.min(sw - d.w, mx * sw), math.min(sh - d.h, my * sh)) end
         U.mapAt = U.ticks
-    elseif d.shown and U.ticks - (U.mapAt or 0) >= 20 then
-        U.mapAt = U.ticks
-        local mx, my = d.x / sw, d.y / sh
-        if mx >= 0 and my >= 0 and (math.abs(mx - AFUI.Get('mapx')) > .002 or math.abs(my - AFUI.Get('mapy')) > .002) then
-            U.db.mapx, U.db.mapy = mx, my; dirty()
-        end
     end
     U.mapShown = d.shown
 end
@@ -1412,18 +1667,20 @@ function AFUI.FindTooltips()
         else U.checked[id], U.tooltips[id] = nil, nil end
     end
 end
--- The server's own windows (Central Market / Season Pass / Companions, Shop, Journey, Wardrobe) are
--- 1280x960 plugin windows the game stretches to the screen: their content stayed 1280 wide and a
--- second close button stayed at the old edge. Sized to the screen here, content with them.
+-- Fit the server's fullscreen plugin windows and their browser content together.
+-- A window with its own sizing controller retains its position and dimensions.
 local FIT = {{'PrivateWarehouse', 'PrivateWarehouseBrowser', 25}, {'PrivateCashShop', 'PrivateCashShopBrowser', 25},
              {'PrivateJourney', 'PrivateJourneyBrowser', 0}, {'PrivateWardrobe', nil, 25}}
+local function ownsWindowSize(f)
+    return f[1] == 'PrivateCashShop' and type(PrivateCashShop_Fit) == 'function'
+end
 U.fitted = {}
 local function fitWindows()
     local sw, sh = screen(); local s = scale(); local W, H = sw / s, sh / s
     for _, f in ipairs(FIT) do
         local win = _G[f[1]]
         local open = win and win.IsVisible and win:IsVisible() == 1
-        if not open then U.fitted[f[1]] = nil
+        if not open or ownsWindowSize(f) then U.fitted[f[1]] = nil
         else
             local want = string.format('%.1fx%.1f', W, H)
             if U.fitted[f[1]] ~= want then
@@ -1437,8 +1694,8 @@ local function fitWindows()
     end
 end
 AFUI.FitWindows = fitWindows
--- Each open sets the 1280x960 seed again (Season Pass and Companions reuse the market window):
--- fit again on the next tick. A browser's web page keeps the size it was created with (its XML
+-- Fullscreen opens set the 1280x960 seed again: fit again on the next tick.
+-- A browser's web page keeps the size it was created with (its XML
 -- 1280x935, about 1706 px wide at UI scale 1.33), so before the page loads the browser is sized
 -- to the screen and its web view created again at that size (once per screen size).
 -- RelicCalc binds these at its OnLoad, after this file has run.
@@ -1446,6 +1703,7 @@ U.webSize = {}
 local OPENS = {PrivateWarehouse_Open = 1, PrivateSeasonPass_Open = 1, PrivateCompanions_Open = 1, PrivateCashShop_Open = 2,
                PrivateJourney_Open = 3, PrivateWardrobe_Open = 4}
 local function fitContent(f)
+    if ownsWindowSize(f) then return end
     local content = f[2] and _G[f[2]]
     if not content then return end
     g_AddonName = 'RelicCalc'
@@ -1486,16 +1744,16 @@ local function data(k) return {k = k, kind = 'data'} end
 local function action(name, arg) return {kind = 'action', action = name, arg = arg} end
 -- {category, rows, hint}
 local TABS = {
-    {'General', {{'Data text font', choice('font')}, {'Colour theme', choice('theme')}, {'HUD background opacity', numeric('alpha')},
-                 {'Companion bar', toggle('botbar')}, {'Window backgrounds', numeric('windowsalpha')}},
-     'Companion bar Off hides the window and icon. /botbar opens it again.'},
+    {'General', {{'Data text font', choice('font')}, {'Colour theme', choice('theme')}, {'Master backdrop opacity', numeric('alpha')},
+                 {'Companion bar', toggle('botbar')}, {'Window opacity multiplier', numeric('windowsalpha')}},
+     'Master x group: 70% x 70% = 49%. Borders and backgrounds share the skin.'},
     {'Unit Frames', {{'Target of target', toggle('tot')}, {'Party frames', toggle('party')}},
      'Move frames with /moveui.'},
     {'Action Bars', {{'Bar 3', toggle('altbar')}, {'Bar 4', toggle('extrabar')}, {'Bars 5 and 6', toggle('sepbar')},
                      {'Layout of', choice('abbar')}, {'Buttons per row', {kind = 'barnumber', base = 'abrow'}},
-                     {'Button size', {kind = 'barnumber', base = 'absize'}}, {'Background opacity', numeric('barsalpha')}},
-     'Background opacity applies to all six bars. Skill icons stay readable.'},
-    {'Chat', {{'Status line', toggle('chatline')}, {'Background opacity', numeric('chatalpha')}}, 'Text stays solid as backgrounds fade.'},
+                     {'Button size', {kind = 'barnumber', base = 'absize'}}, {'Opacity multiplier', numeric('barsalpha')}},
+     'Master x bar opacity applies to all six bars. Skill icons stay readable.'},
+    {'Chat', {{'Status line', toggle('chatline')}, {'Opacity multiplier', numeric('chatalpha')}}, 'Master x chat opacity fades backdrops; text stays solid.'},
     {'Data Texts', {{'Top bar', toggle('databar')}, {'Left 1', data('dl1')}, {'Left 2', data('dl2')}, {'Left 3', data('dl3')},
                     {'Centre 1', data('dc1')}, {'Centre 2', data('dc2')}, {'Centre 3', data('dc3')},
                     {'Right 1', data('dr1')}, {'Right 2', data('dr2')}, {'Right 3', data('dr3')}}, nil},
@@ -1506,8 +1764,9 @@ local TABS = {
      'Mover: drag the Tooltip boxes in /moveui. Native: where the game puts it.'},
     {'Minimap', {{'Coordinates', toggle('minimapinfo')}, {'Minimap size', numeric('mapsize')},
                  {'XP bar', toggle('xpbar')}, {'Start menu', toggle('startmenu')}, {'Shortcut size', numeric('menusize')},
-                 {'Shortcuts per row', numeric('menucols')}, {'Shortcut spacing', numeric('menugap')}, {'Align shortcuts', action('alignmenu')}},
-     'Area and map controls follow the minimap. Align shortcuts restores their grid.'},
+                 {'Shortcuts per row', numeric('menucols')}, {'Shortcut spacing', numeric('menugap')}, {'Align shortcuts', action('alignmenu')},
+                 {'Align map controls', action('alignmap')}},
+     'Size, rows and spacing rebuild the shortcut grid. Move Shortcuts (all) as a group.'},
     {'Movers', {{'Movers', action('unlock')}, {'Show grid', toggle('showgrid')}, {'Guide spacing', numeric('guidesize')},
                 {'Snap to grid', toggle('snap')}, {'Snap to frames', toggle('snapframes')}, {'Snap step', numeric('grid')},
                 {'All positions', action('resetall')}},
@@ -1519,11 +1778,14 @@ local TABS = {
 U.TABS = TABS
 local TAB_SLOTS = 10  -- sidebar buttons in the layout
 
-local ACTION_LABEL = {unlock = 'Unlock', resetall = 'Reset', preset = 'Apply', store = 'Save', alignmenu = 'Align'}
+local ACTION_LABEL = {unlock = 'Unlock', resetall = 'Reset', preset = 'Apply', store = 'Save', alignmenu = 'Align',alignmap='Align'}
 local function value(item)
     local spec = item[2]
     if spec.kind == 'toggle' then return onoff(spec.k) end
-    if spec.kind == 'number' then return tostring(AFUI.Get(spec.k)) end
+    if spec.kind == 'number' then
+        local requested=AFUI.Get(spec.k);local m=spec.k=='menucols' and AFUI.MenuMetrics()
+        return tostring(requested)..(m and m.cols~=requested and (' ('..m.cols..' fit)') or '')
+    end
     if spec.kind == 'barnumber' then
         local i = AFUI.Get('abbar'); local requested = AFUI.Get(spec.base .. i)
         local m = spec.base == 'abrow' and AFUI.BarMetrics(i)
@@ -1575,15 +1837,48 @@ function AFUI.Refresh()
     w('Status'):SetText(U.saveError or current[3] or '')
 end
 
+-- Placement and appearance run on the normal addon tick or an explicit edit.
+-- Visibility notifications never move or show/hide windows on the native stack.
+function AFUI.QueueVisibleSettings()
+    -- Observe closes even when the same native instance reopens before the
+    -- next timer. Invalidate only closed/replaced entries, never other windows.
+    for id,previous in pairs(U.observed or {}) do
+        local d=dialog(id)
+        if not d or not d.shown or identity(d)~=previous.token then U.observed[id]=nil end
+    end
+    local map=U.mapId and dialog(U.mapId)
+    if map and not map.shown then U.mapShown=false end
+    U.visiblePending=true
+end
+function AFUI.ApplyVisibleSettings()
+    if U.applyingVisibleSettings then return end
+    U.applyingVisibleSettings = true
+    local ok, why = pcall(function() holdPinned(); enforce(); AFUI.ApplyOpacity() end)
+    U.applyingVisibleSettings = nil
+    if not ok then error(why) end
+end
+function AFUI.ApplySettings(resetLayout, setting)
+    if OPACITY_SETTINGS[setting] then
+        if AFHUD and AFHUD.on and U.settled then AFUI.ApplyOpacity() end
+        return
+    end
+    if resetLayout then U.designed,U.observed,U.checked,U.fitted={},{},{},{} end
+    if not setting or TOGGLES[setting] then AFUI.ApplyToggles(true) end
+    if (not setting or setting=='botbar') and PlayerBotBar_ApplyVisibility then PlayerBotBar_ApplyVisibility() end
+    if AFHUD and AFHUD.on and U.settled then
+        AFUI.ApplyVisibleSettings()
+    end
+    -- Readouts render after native placement/visibility, using its final bounds.
+    if AFHUD_Apply then AFHUD_Apply() end
+    if U.unlocked then layoutMovers() end
+end
 local function set(k, v)
     U.db[k] = v; dirty()
-    if AFHUD_Apply then AFHUD_Apply() end
-    if AFHUD and AFHUD.on and U.settled then holdPinned(); AFUI.ApplyOpacity() end
-    if TOGGLES[k] then pcall(AFUI.ApplyToggles) end  -- immediately, not on the next second
-    if k == 'botbar' then
-        if PlayerBotBar_ApplyVisibility then PlayerBotBar_ApplyVisibility() end
-        AFUI.Save()
+    if k=='menusize' or k=='menucols' or k=='menugap' then
+        for i in ipairs(MENU_BUTTONS)do U.positions[key(MENU_ID+i)],U.bindings[key(MENU_ID+i)]=nil,nil end
     end
+    AFUI.ApplySettings(false,k)
+    if k == 'botbar' then AFUI.Save() end
 end
 local function cycle(list, cur, dir)
     for i, v in ipairs(list) do if v == cur then return list[(i - 1 + dir) % #list + 1] end end
@@ -1628,7 +1923,7 @@ function AFUI.Click(what)
         local k = spec.kind == 'barnumber' and spec.base .. AFUI.Get('abbar') or spec.k
         local r = NUMERIC[k]; local step = part == 'Less' and -r[3] or r[3]
         if part == 'Value' then step = r[3] end
-        local v = AFUI.Get(k) + step; if v > r[2] then v = r[1] elseif v < r[1] then v = r[2] end
+        local v=math.max(r[1],math.min(r[2],AFUI.Get(k)+step))
         set(k, v)
     elseif spec.kind == 'choice' then set(spec.k, (AFUI.Get(spec.k) - 1 + dir) % #CHOICE[spec.k] + 1)
     elseif spec.kind == 'data' then set(spec.k, cycle(DATA, AFUI.Get(spec.k), dir))
@@ -1637,17 +1932,20 @@ function AFUI.Click(what)
         rememberProfile()
         U.db.profile = nxt
         restore(nxt)
-        U.observed = {}; dirty(); if AFHUD_Apply then AFHUD_Apply() end
-        if U.unlocked then layoutMovers() end
+        dirty();AFUI.ApplySettings(true)
     elseif spec.kind == 'action' then
         if spec.action == 'unlock' then AFUI.Unlock(); return
         elseif spec.action == 'resetall' then AFUI.ResetAll()
         elseif spec.action == 'alignmenu' then AFUI.AlignMenu()
+        elseif spec.action == 'alignmap' then AFUI.AlignMinimap()
         elseif spec.action == 'preset' then
             rememberProfile()
             for k, v in pairs(defaults) do if k ~= 'profile' then U.db[k] = v end end
             for k, v in pairs(PRESET[spec.arg] or {}) do U.db[k] = v end
-            U.db.profile = spec.arg; dirty(); if AFHUD_Apply then AFHUD_Apply() end
+            U.db.profile = spec.arg
+            local prefix=spec.arg..'.'
+            for k in pairs(U.positions)do if k:sub(1,#prefix)==prefix then U.positions[k],U.bindings[k]=nil,nil end end
+            U.stored[spec.arg]=snapshot();dirty();AFUI.ApplySettings(true)
         elseif spec.action == 'store' then
             rememberProfile()
             local prefix = AFUI.Get('profile') .. '.'; local copied, names = {}, {}
@@ -1661,7 +1959,8 @@ function AFUI.Click(what)
             for k in pairs(U.positions) do if k:sub(1, #dest) == dest then U.positions[k], U.bindings[k] = nil, nil end end
             for k, p in pairs(copied) do U.positions[k], U.bindings[k] = p, names[k] end
             U.stored[spec.arg] = snapshot(); U.db.profile = spec.arg; U.observed = {}; dirty()
-            if U.unlocked then layoutMovers() end
+            AFUI.ApplySettings(true)
+            AFUI.Save()
         end
     end
     AFUI.Refresh()
@@ -1908,12 +2207,20 @@ function AFUI_OnEvent(event, ...)
         if U.settled then pcall(fitWindows) end
         if U.watchUntil then pcall(AFUI.WatchTick) end
         if U.settled and U.ticks % 40 == 0 then pcall(noteShown) end
-        if U.ticks % 20 == 0 then
-            U.alive = U.ticks
+        local periodic=U.ticks % 20 == 0
+        if periodic then U.alive=U.ticks end
+        if U.settled and AFHUD and AFHUD.on and (U.visiblePending or periodic) then
+            U.visiblePending=nil
+            if periodic then
+                -- Keep explicitly disabled HUD elements off. Only settings
+                -- edits may restore elements previously hidden by the UI.
+                pcall(AFUI.ApplyToggles,false)
+            end
+            local ok,why=pcall(AFUI.ApplyVisibleSettings)
+            if not ok then U.enforceError=tostring(why) end
+        end
+        if periodic then
             if AFHUD and AFHUD.on and U.settled then
-                pcall(AFUI.ApplyOpacity)
-                local ok, why = pcall(enforce)
-                if not ok then U.enforceError = tostring(why) end
                 U.lastHudShown = {}
                 for id in pairs(RESTORE_HUD) do local d = dialog(id); if d then U.lastHudShown[id] = d.shown end end
             end
@@ -1921,7 +2228,9 @@ function AFUI_OnEvent(event, ...)
         if not U.edit and U.saveAt and U.ticks >= U.saveAt then AFUI.Save() end
     elseif event == 'USER_CHANGED_TARGET' or event == 'GAME_UI_DIALOG_VISIBLE_CHANGED' then
         if U.ready and U.connected and U.settled and not U.suspended and playerIdentity() == U.identity
-            and AFCore.Cursor() ~= nil and AFHUD and AFHUD.on then holdPinned() end
+            and AFCore.Cursor() ~= nil and AFHUD and AFHUD.on then
+            AFUI.QueueVisibleSettings()
+        end
     elseif event == 'PLAYER_ENTERING_WORLD' then
         enter(); if playerIdentity() then U.connected = true end; recoverLayout()
     elseif event == 'ADDON_EXIT' then

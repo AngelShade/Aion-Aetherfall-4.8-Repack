@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/latest/download/Aetherfall-Downloader.zip"><img src="https://img.shields.io/badge/Download-Current_Aetherfall_Setup_Hub-2563eb?style=for-the-badge&logo=windows" alt="Download Aetherfall Setup Hub"></a>
-  <a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.94"><img src="https://img.shields.io/badge/Latest_Release-v0.94-eab308?style=for-the-badge" alt="Latest Release v0.94"></a>
+  <a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.96.6"><img src="https://img.shields.io/badge/Latest_Release-v0.96.6-eab308?style=for-the-badge" alt="Latest Release v0.96.6"></a>
   <a href="https://mega.nz/file/hJt0hYTC#fr0RDjsLl4CriZ5dw8MljBhrlP6nD4oYkaErD2iW-vQ"><img src="https://img.shields.io/badge/MEGA_Mirror-Base_Repack_0.86_(36.35_GB)-d9272e?style=for-the-badge" alt="MEGA Mirror"></a>
   <a href="https://drive.google.com/file/d/1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2/view?usp=sharing"><img src="https://img.shields.io/badge/Google_Drive-Base_Repack_0.86_(36.35_GB)-16a34a?style=for-the-badge&logo=googledrive" alt="Google Drive Mirror"></a>
   <a href="https://discord.com/invite/cpRYCRsSnR"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
@@ -16,7 +16,7 @@
 
 Aetherfall lets you build a party from your own alternate characters or temporary companions. Take them through quests and dungeons, manage their equipment and combat behavior, and keep your alts caught up with your main. Independent playerbots also quest, fight and visit towns around the world.
 
-**Latest release: [0.94](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.94), released 22 October 2026.** It adds Account Fame, new Account and Player Companions windows, more interface options and launcher controls for mods.
+**Latest release: [0.96.6](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.96.6), released 24 October 2026.** It improves Verteron quests, companion looting, world-bot activity and recovery, monster difficulty and interface controls. It also includes the movable Marketplace and earlier 0.95 updates.
 
 The repack includes the game client, servers, Java and MariaDB in one Windows folder. Use the [downloader](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/latest/download/Aetherfall-Downloader.zip) to install it, then follow the steps below.
 
@@ -30,16 +30,17 @@ Features available in the published repack:
 | --- | --- |
 | Party companions | Recruit your own alts or temporary companions. Manage their gear, roles, skills, Stigma builds and party orders in the Player Companions window. |
 | Shared quests | Let your owned alts catch up on completed quests and share new completions, including rewards. |
-| World playerbots | Independent characters quest, fight, gather, craft and visit towns. Their characters and progress are saved. |
+| World playerbots | Independent characters quest, fight, gather, craft and visit towns. Their characters and progress are saved. Generated world bots can form legions, respond to nearby players and join eligible instance queues. |
 | Account Fame | Build Combat, Life and Legend progress across your account. Earn bonuses, complete Chronicle goals and collect daily Kinah. |
-| Dungeon and campaign repairs | Quest, boss, loot and exit fixes, including work on Theobomos Lab and Adma Stronghold. |
+| Dungeon and campaign repairs | Restored quests in Verteron and other regions, plus boss and progression repairs in Taloc’s Hollow, Beshmundir Temple and other dungeons. |
 | Repeat dungeon entry | Entry limits are disabled by default. Level, quest, party and instance requirements still apply. |
-| Central Market & Cash Shop | Buy and sell through the player market, with simulated traders, or browse the in-game Cash Shop. |
+| Central Market & Cash Shop | Buy and sell through the player market, with simulated traders, or browse the movable, resizable Black Cloud Marketplace. |
+| Monster difficulty | Open-world monsters start with 2x HP and increased PvE damage, with extra scaling for nearby party or alliance members. You can change these settings. |
 | Wardrobe | Customize your character's appearance through the in-game Wardrobe. |
 | Season Pass | An in-game progression and reward interface. |
 | Starting-area Journey | Begin the story at level 1 or skip to level 10 Daeva Ascension in Poeta or Ishalgen. Available for your main character and companions. |
-| Inventory and warehouse | Expanded 288-slot storage with search controls for finding your items. |
-| Aetherfall Interface | Move and resize windows, change action-bar layouts and save different HUD profiles. |
+| Inventory and warehouse | Inventory supports up to 288 slots, with 360 Character Warehouse and 540 Account Warehouse slots and search controls. |
+| Aetherfall Interface | Move and resize windows, change action-bar layouts, adjust minimap and background settings, position the Countdown Timer and save different HUD profiles. |
 | Custom launcher | Choose graphics modes, themes and mods. Run multiple clients using separate accounts. |
 | Setup & Server Control Hub | Download, install and update the repack. Start and stop the servers from one window. |
 | Optional HD world textures | Use **Mods & tools** in the Hub to download the optional 2x HD pack or switch back to standard textures. |
@@ -57,7 +58,7 @@ Alts receive the quest's usual rewards, with item choices suited to their class.
 
 **Recommended:** download the current Setup below. It installs the full game and lets you apply the latest update. You can pause the download and resume later. If MEGA is unavailable, Setup can try Google Drive.
 
-The full game archive is **36.35 GiB** (about 39 GB). The downloader is about **8.65 MB**, and the `0.94` update is about **639 MB**. The base download is still named `0.86`; use **Update Repack** after installing it to get the latest version. You do not need to install each earlier update.
+The full game archive is **36.35 GiB** (about 39 GB). The downloader is about **8.65 MB**, and the `0.96.6` update is about **641 MB**. The base download is still named `0.86`; use **Update Repack** after installing it to get the latest version. You do not need to install each earlier update.
 
 GitHub's **Code → Download ZIP** downloads source code only. Use one of these options to get the playable repack:
 
@@ -123,6 +124,8 @@ Inside the repack, server settings are under `Server/game-server/config`:
 | `playerbots/playerbots.properties` | Bot numbers and companion settings. |
 | `playerbots/features.properties` | Quest automation, crafting, gathering, flight and world activity switches. |
 | `playerbots/navigation.properties` | Bot pathfinding and its memory and processing limits. |
+| `playerbots/population-management.properties` | Generated world-bot levels, refresh, legions and queue behavior. |
+| `main/mob-scaling.properties` | Open-world monster HP, damage and group scaling. |
 | `main/instance.properties` | Instance entry limits and other dungeon settings. |
 | `mygs.properties` | Your own settings, which override the other GameServer settings. |
 
@@ -130,11 +133,11 @@ Restart GameServer after changing these settings. Disabling bot automation does 
 
 The repack is set up to play on the same computer as the server. Playing from other computers requires changes to the server and client connection settings.
 
-## In development
+## Newer 4.8 source work
 
-The `4.8` source has newer work on faction PvP, rift trips, class combat skills, companion movement and spirit following. It also includes camera, quest-dialog and performance fixes.
+The `4.8` source also contains **The Unbroken Field**, a sixteen-quest story continuing The Writing on the Wall in Verteron, along with newer quest tracking, interface and companion-window repairs. These changes are newer than the published `0.96.6` repack. See the [source development notes](CHANGELOG.md#newer-48-source-work-25-october-2026).
 
-These changes are not all included in the published `0.94` download. Some still need testing in the game. See the [development changelog](CHANGELOG.md#development-updates--companions-pvp-and-client-repairs-22-october-2026) for details.
+A separate [Aetherfall website project](website/README-AETHERFALL.md) provides account registration, character pages, server information, news and an admin panel. Its build tools are under `tools/website`. It is separate from the game repack and needs its own setup and database connections.
 
 ## Help and bug reports
 

@@ -1,8 +1,8 @@
 """Give HUD shortcuts square artwork and geometry without replacing native controls.
 
-Each icon state gets a private, zero-border native nine-slice skin whose centre
-uses the original sprite. The engine stretches that centre to the chosen square;
-original skin definitions, texture pixels and button/gauge handlers stay intact.
+Button states get private, zero-border native nine-slice skins. The flight
+gauge keeps image skins: its radial renderer reads their image coordinates
+directly, which is incompatible with tiled-skin coordinate records.
 """
 import copy
 from datetime import datetime
@@ -72,7 +72,7 @@ def preload(payload, presets):
                 raise ValueError('Missing native shortcut skin: ' + str(skin_name))
             if skin_name not in seen:
                 skin = copy.deepcopy(skin_by_name[skin_name]); skin.set('name', PREFIX + skin_name)
-                if skin.get('src_image') and skin.get('type') != 'tiled':
+                if skin.get('src_image') and skin.get('type') != 'tiled' and not name.startswith('v5_fly_gauge'):
                     source = skin.get('src_image')
                     skin.set('type', 'tiled'); skin.set('src_middle_middle', source)
                     for part in ('left_top', 'middle_top', 'right_top', 'left_middle', 'middle_middle',

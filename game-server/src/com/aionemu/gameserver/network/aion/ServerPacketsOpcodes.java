@@ -175,7 +175,7 @@ public class ServerPacketsOpcodes {
 		addPacketOpcode(157, SM_LEGION_MEMBERLIST.class); // [S_GUILD_MEMBER_INFO]
 		addPacketOpcode(158, SM_LEGION_EDIT.class); // [S_CHANGE_GUILD_INFO]
 		// addPacketOpcode(159, SM_TOLL_INFO.class); // [S_SHOP_POINT_INFO]
-		// addPacketOpcode(160, ); // [S_CHANGE_NPC_STATUS]
+		addPacketOpcode(160, SM_NPC_STATUS_UPDATE.class); // [S_CHANGE_NPC_STATUS]
 		addPacketOpcode(161, SM_MAIL_SERVICE.class); // [S_MAIL]
 		addPacketOpcode(162, SM_SUMMON_USESKILL.class); // [S_ALLOW_PET_USE_SKILL]
 		addPacketOpcode(163, SM_WINDSTREAM.class); // [S_WIND_PATH_RESULT]

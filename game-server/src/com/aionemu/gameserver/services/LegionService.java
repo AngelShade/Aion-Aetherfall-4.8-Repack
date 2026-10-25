@@ -715,6 +715,32 @@ public class LegionService {
 		player.getLegionMember().setRank(rank);
 		LegionMemberDAO.saveNewLegionMember(player.getLegionMember());
 		legionMemberById.put(player.getObjectId(), player.getLegionMember());
+		projectLegionMember(legion, player);
+	}
+
+	/** Publish only membership already committed in the native SQL tables. */
+	public void publishPopulationMembership(Player player, int legionId) throws java.sql.SQLException {
+		if (!player.isWorldBot() || player.getAccount().getId() < -1023999 || player.getAccount().getId() > -1000000)
+			throw new java.sql.SQLException("Generated global legion projection required");
+		synchronized (LegionWarehouse.CUSTODY_LOCK) {
+			var loaded = LegionMemberDAO.loadLegionMember(player.getObjectId());
+			if (loaded == null || loaded.getLegion().getLegionId() != legionId || loaded.getLegion().isDisbanding())
+				throw new java.sql.SQLException("Committed generated legion membership unavailable; retry native load");
+			var existing = legionMemberById.putIfAbsent(player.getObjectId(), loaded);
+			var member = existing == null ? loaded : existing;
+			if (member.getLegion() != loaded.getLegion())
+				throw new java.sql.SQLException("Native legion cache custody changed");
+			member.setRank(loaded.getRank());member.setPlayerData(player);
+			member.getLegion().registerCommittedMember(player.getObjectId());
+			boolean changed = player.getLegionMember() != member;player.setLegionMember(member);
+			if (changed) {
+				LegionDAO.loadHistory(member.getLegion());
+				if (player.isSpawned()) projectLegionMember(member.getLegion(), player);
+			}
+		}
+	}
+
+	private void projectLegionMember(Legion legion, Player player) {
 
 		// Send the new legion member the required legion packets
 		PacketSendUtility.sendPacket(player, new SM_LEGION_INFO(legion));

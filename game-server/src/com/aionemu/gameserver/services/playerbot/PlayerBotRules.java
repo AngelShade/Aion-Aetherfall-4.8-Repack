@@ -15,8 +15,8 @@ public final class PlayerBotRules {
 
 	public static boolean shouldRest(double health, double mana, boolean resting, boolean combat, boolean ownerMoving, double ownerDistance) {
 		return Double.isFinite(health) && Double.isFinite(mana) && Double.isFinite(ownerDistance)
-			&& health > 0 && !combat && !ownerMoving && ownerDistance <= 8
-			&& (resting ? health < 95 || mana < 95 : health < 70 || mana < 40);
+			&& !ownerMoving && ownerDistance <= 8
+			&& PlayerBotRecoveryPolicy.recover(health, mana, resting, combat);
 	}
 
 	public static Role roleFor(PlayerClass pc) {

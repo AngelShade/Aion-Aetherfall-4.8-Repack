@@ -30,6 +30,16 @@ No Python or additional runtime is required on the client. These are the existin
 checks, not additional full-client scans. Renderer selection still uses native
 `DXVK/renderer.ini`; Vulkan effects use the existing per-process environment.
 The connection arguments are read directly from `Mods/Launcher/connection.json`.
+
+When the Companions artwork index is installed, the final preparation step checks
+its two source UI archives and rebuilds matching offsets, decoding keys, CRCs and
+archive fingerprints from the maintained sprite recipe. Interface/theme switches
+also update that index in their existing rollback transaction. This keeps a skin
+change from silently removing Companions buttons, tabs, slots and class emblems.
+Invalid DDS data stops preparation; archive hash guards remain enabled. No Python
+is needed on the client. `--companion-art-sync --client <folder> --report <file>`
+runs this same focused preparation without opening the launcher or starting Aion.
+
 The installer migrates the existing BAT's exact arguments into that file and
 archives the BAT externally before removing it from the client root. The EXE
 starts Aion directly; no BAT is required. Edit `Arguments` in connection.json

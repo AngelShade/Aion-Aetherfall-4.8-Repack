@@ -19,6 +19,7 @@ import com.aionemu.gameserver.controllers.effect.PlayerEffectController;
 import com.aionemu.gameserver.controllers.movement.PlayerMoveController;
 import com.aionemu.gameserver.controllers.observer.ActionObserver;
 import com.aionemu.gameserver.dataholders.DataManager;
+import com.aionemu.gameserver.custom.mobscaling.WorldMobScaler;
 import com.aionemu.gameserver.model.Gender;
 import com.aionemu.gameserver.model.PlayerClass;
 import com.aionemu.gameserver.model.Race;
@@ -627,6 +628,7 @@ public class Player extends Creature {
 
 	public void setPlayerGroup(PlayerGroup playerGroup) {
 		this.playerGroup = playerGroup;
+		WorldMobScaler.onPlayerChanged(this);
 	}
 
 	/**
@@ -1104,6 +1106,7 @@ public class Player extends Creature {
 
 	public void setPlayerAllianceGroup(PlayerAllianceGroup playerAllianceGroup) {
 		this.playerAllianceGroup = playerAllianceGroup;
+		WorldMobScaler.onPlayerChanged(this);
 	}
 
 	public final boolean isInLeague() {

@@ -4,6 +4,7 @@ import os
 import subprocess
 from pathlib import Path
 from prepare_index import prepare
+from prepare_ui_art import prepare as prepare_ui_art
 from patch_client import AWESOMIUM_SHA256
 
 def build(client, output):
@@ -27,6 +28,7 @@ def build(client, output):
     # them as C-runtime arguments, which breaks a quoted CALL path.
     subprocess.run(f'cmd.exe /d /s /c ""{script}""', check=True)
     result = prepare(client, target / 'AionIconBridge.index')
+    result['uiArt'] = prepare_ui_art(client, target / 'AionUiArt.index')
     result['awesomiumSha256'] = AWESOMIUM_SHA256
     print('Original client icon bridge:', result)
     return result

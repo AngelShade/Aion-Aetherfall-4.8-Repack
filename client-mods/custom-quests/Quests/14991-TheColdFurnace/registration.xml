@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<quest_data_driven>
+  <id>14991</id>
+  <name>Q14991</name>
+  <dev_name />
+  <category_acquire_>Talk</category_acquire_>
+  <value0_acquire_>Meteina</value0_acquire_>
+  <reward_npc_name>Meteina</reward_npc_name>
+  <progress_info>
+    <data>
+      <category_progress_>TalkFOBJ</category_progress_>
+      <value0_progress_>Krall_Caldron, 0</value0_progress_>
+    </data>
+    <data>
+      <category_progress_>Hunt</category_progress_>
+      <value0_progress_>TKrallShamanNamed_18_Ae 1;</value0_progress_>
+    </data>
+    <data>
+      <category_progress_>Talk</category_progress_>
+      <value0_progress_>Meteina</value0_progress_>
+    </data>
+  </progress_info>
+</quest_data_driven>

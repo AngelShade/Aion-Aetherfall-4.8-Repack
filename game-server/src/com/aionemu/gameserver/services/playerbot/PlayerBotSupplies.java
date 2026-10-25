@@ -15,7 +15,7 @@ import com.aionemu.gameserver.skillengine.effect.*;
 import com.aionemu.gameserver.skillengine.model.*;
 import com.aionemu.gameserver.skillengine.properties.FirstTargetAttribute;
 
-/** Native consumable effects, build scoring, and bounded supplies for Temporary Bots only. */
+/** Native consumable effects and finite supplies for dedicated generated actors only. */
 public final class PlayerBotSupplies {
  private static final Map<Integer,Long> NEXT=new ConcurrentHashMap<>();
  static SkillTemplate skill(ItemTemplate item) {
@@ -58,11 +58,14 @@ public final class PlayerBotSupplies {
   return PlayerBotBuffs.canAdd(bot.getPlayerClass(),skill,PlayerBotBuffs.active(bot.getEffectController()));
  }
  static boolean needed(Player bot,SkillTemplate skill) {
+  var owner=com.aionemu.gameserver.world.World.getInstance().getPlayer(bot.getPlayerBotOwnerId());
+  return needed(bot,skill,bot.getController().isInCombat() || owner!=null && owner.getController().isInCombat());
+ }
+ static boolean needed(Player bot,SkillTemplate skill,boolean combat) {
   if(!safe(skill) || bot.isDead())return false;
-  boolean combat=bot.getController().isInCombat();var owner=com.aionemu.gameserver.world.World.getInstance().getPlayer(bot.getPlayerBotOwnerId());combat|=owner!=null && owner.getController().isInCombat();
   double hp=100.0*bot.getLifeStats().getCurrentHp()/Math.max(1,bot.getLifeStats().getMaxHp()),mp=100.0*bot.getLifeStats().getCurrentMp()/Math.max(1,bot.getLifeStats().getMaxMp());
-  boolean recovery=skill.hasAnyEffect(EffectType.HEAL,EffectType.HEALINSTANT,EffectType.PROCHEALINSTANT) && hp<(combat ? 55 : 90)
-   || skill.hasAnyEffect(EffectType.MPHEAL,EffectType.MPHEALINSTANT,EffectType.PROCMPHEALINSTANT) && mp<(combat ? 40 : 85)
+  boolean recovery=skill.hasAnyEffect(EffectType.HEAL,EffectType.HEALINSTANT,EffectType.PROCHEALINSTANT) && hp<(combat ? 25 : PlayerBotRecoveryPolicy.healthLimit(PlayerBotRecoveryIntent.active(bot),false))
+   || skill.hasAnyEffect(EffectType.MPHEAL,EffectType.MPHEALINSTANT,EffectType.PROCMPHEALINSTANT) && mp<PlayerBotRecoveryPolicy.manaLimit(PlayerBotRecoveryIntent.active(bot),combat)
    || skill.hasAnyEffect(EffectType.DISPELDEBUFF,EffectType.DISPELDEBUFFMENTAL,EffectType.DISPELDEBUFFPHYSICAL)
     && bot.getEffectController().getAbnormalEffects().stream().anyMatch(e->e.getSkillTemplate().getTargetSlot()==SkillTargetSlot.DEBUFF);
   if(recovery)return buffFree(bot,skill);
@@ -72,21 +75,31 @@ public final class PlayerBotSupplies {
   var s=skill(item.getItemTemplate());return (s.hasAnyEffect(EffectType.HEAL,EffectType.HEALINSTANT,EffectType.PROCHEALINSTANT,EffectType.MPHEAL,EffectType.MPHEALINSTANT,EffectType.PROCMPHEALINSTANT,EffectType.DISPELDEBUFF,EffectType.DISPELDEBUFFMENTAL,EffectType.DISPELDEBUFFPHYSICAL) ? 1000 : 0)
    +buffScore(bot,s)+item.getItemTemplate().getLevel();
  }
- static List<Item> candidates(Player bot) {
+ static List<Item> candidates(Player bot) { return candidates(bot,true); }
+ static List<Item> candidates(Player bot,boolean combat) {
   provision(bot);
-  return bot.getInventory().getItems().stream().filter(i->!i.isEquipped() && i.getItemCount()>0 && !bot.hasCooldown(i) && available(bot,i.getItemTemplate()) && needed(bot,skill(i.getItemTemplate())))
+  return bot.getInventory().getItems().stream().filter(i->!i.isEquipped() && i.getItemCount()>0 && !bot.hasCooldown(i) && available(bot,i.getItemTemplate()) && needed(bot,skill(i.getItemTemplate()),combat))
    .sorted(Comparator.<Item>comparingDouble(i->priority(bot,i)).reversed().thenComparingInt(Item::getItemId)).toList();
  }
- static boolean use(Player bot,Item item) {
+ static boolean use(Player bot,Item item) { return use(bot,item,true); }
+ static boolean use(Player bot,Item item,boolean combat) {
+  synchronized(bot.getMoveController()) {
   if(bot.isDead() || bot.isCasting() || bot.getController().hasScheduledTask(TaskId.ITEM_USE) || item!=bot.getInventory().getItemByObjId(item.getObjectId())
-   || bot.hasCooldown(item) || !available(bot,item.getItemTemplate()) || !needed(bot,skill(item.getItemTemplate())) || !PlayerRestrictions.canUseItem(bot,item))return false;
+   || bot.hasCooldown(item) || !available(bot,item.getItemTemplate()) || !needed(bot,skill(item.getItemTemplate()),combat) || !PlayerRestrictions.canUseItem(bot,item,bot))return false;
   var old=bot.getTarget();bot.setTarget(bot);
   try {
+   // Cast-time item admission reads movement. Stop and stand before native validation.
+   bot.getMoveController().abortMove();
+   if(bot.isInState(com.aionemu.gameserver.model.gameobjects.state.CreatureState.RESTING)) {
+    bot.unsetState(com.aionemu.gameserver.model.gameobjects.state.CreatureState.RESTING);
+    com.aionemu.gameserver.utils.PacketSendUtility.broadcastPacketAndReceive(bot,new com.aionemu.gameserver.network.aion.serverpackets.SM_EMOTION(bot,com.aionemu.gameserver.model.EmotionType.STAND));
+   }
    var action=item.getItemTemplate().getActions().getSkillUseAction();if(!action.canAct(bot,item,null))return false;
    var nativeSkill=SkillEngine.getInstance().getSkill(bot,action.getSkillId(),action.getLevel(),bot,item.getItemTemplate());if(nativeSkill==null)return false;
    bot.getMoveController().abortMove();bot.getObserveController().notifyItemuseObservers(item);nativeSkill.setItemObjectId(item.getObjectId());
    nativeSkill.setClientHitTime(Math.max(0,Math.round(DataManager.MOTION_DATA.calculateAnimationTimeUntilFirstHit(bot,nativeSkill))));return nativeSkill.useSkill();
   }finally{bot.setTarget(old);}
+  }
  }
  static String category(Player bot,ItemTemplate t) {
   var s=skill(t);if(!available(bot,t))return "";
@@ -98,15 +111,21 @@ public final class PlayerBotSupplies {
   if(buffScore(bot,s)<=0)return "";
   return "buff:"+(s.getConflictId()!=0 ? "conflict:"+s.getConflictId() : s.getStack()!=null && !s.getStack().isEmpty() ? "stack:"+s.getStack() : "cooldown:"+s.getCooldownId());
  }
+ /** Loaded once after static data; never rescan the full item database for every world actor. */
+ private static final class Catalog {
+  static final List<ItemTemplate> ITEMS=DataManager.ITEM_DATA.getItemTemplates().stream().filter(t->
+   PlayerBotSupplyCatalog.ordinary(t) && t.getItemType()==ItemType.NORMAL && t.getItemSlot()==0 && t.getAcquisition()==null
+   && !t.hasAreaRestriction() && !t.hasWorldRestrictions() && t.getExpireTime()==0 && t.getExtraInventoryId()==0
+   && t.getUseLimits().getMinRank()<=1 && t.getUseLimits().getGuildLevelPermitted()==0 && t.getActions()!=null
+   && t.getActions().getSkillUseAction()!=null && t.getActions().getSkillUseAction().getMapId()==0 && safe(skill(t))).toList();
+ }
  static void provision(Player bot) {
-  if(!PlayerBotTemporary.managed(bot) || bot.isDead() || bot.isCasting() || bot.getController().isInCombat())return;
+  if(!(PlayerBotTemporary.managed(bot) || PlayerBotPopulationManager.global(bot)) || bot.isDead() || bot.isCasting() || bot.getController().isInCombat())return;
   long now=System.currentTimeMillis();if(now<NEXT.getOrDefault(bot.getObjectId(),0L))return;NEXT.put(bot.getObjectId(),now+60000);
+  provisionReagents(bot);
   var best=new TreeMap<String,ItemTemplate>();
-  for(var t:DataManager.ITEM_DATA.getItemTemplates()) {
-   if(!PlayerBotSupplyCatalog.ordinary(t) || t.getItemType()!=ItemType.NORMAL || t.getItemSlot()!=0 || t.getAcquisition()!=null
-    || t.hasAreaRestriction() || t.hasWorldRestrictions() || t.getExpireTime()!=0 || t.getExtraInventoryId()>0 || t.getLevel()>bot.getLevel()
-    || t.getUseLimits().getMinRank()>1 || t.getUseLimits().getGuildLevelPermitted()>0 || t.getActions()==null
-    || t.getActions().getSkillUseAction()==null || t.getActions().getSkillUseAction().getMapId()!=0)continue;
+  for(var t:Catalog.ITEMS) {
+   if(t.getLevel()>bot.getLevel())continue;
    String category=category(bot,t);if(category.isEmpty())continue;
    var old=best.get(category);double value=potency(bot,t),before=old==null ? -1 : potency(bot,old);
    if(old==null || value>before || value==before && t.getTemplateId()<old.getTemplateId())best.put(category,t);
@@ -122,6 +141,28 @@ public final class PlayerBotSupplies {
    long existing=bot.getInventory().getItemCountByItemId(t.getTemplateId());long count=Math.min(t.getMaxStackCount(),desired-existing);if(count<=0 || bot.getInventory().isFull())continue;
    // A native, finite stack. Item skill costs consume it; replenish only the dedicated actor.
    var item=ItemFactory.newItem(t.getTemplateId(),count);if(item==null)continue;item.setSoulBound(true);PlayerBotSupplyCatalog.record(bot,item);bot.getInventory().onLoadHandler(item);
+  }
+ }
+ private static void provisionReagents(Player bot) {
+  var costs=new TreeMap<Integer,Integer>();
+  for(var entry:PlayerBotSkills.read(bot)) {
+   var skill=entry.template();
+   if((entry.kind()!=PlayerBotRules.SkillKind.HEAL && entry.kind()!=PlayerBotRules.SkillKind.MANA) || !safe(skill) || skill.getActions()==null)continue;
+   for(var action:skill.getActions().getActions())if(action instanceof com.aionemu.gameserver.skillengine.action.ItemUseAction cost && cost.getCount()>0)
+    costs.merge(cost.getItemId(),cost.getCount(),Math::max);
+  }
+  for(var cost:costs.entrySet()) {
+   var t=DataManager.ITEM_DATA.getItemTemplate(cost.getKey());
+   if(t==null || !PlayerBotSupplyCatalog.ordinary(t) || t.getItemType()!=ItemType.NORMAL || t.getItemSlot()!=0 || t.getActions()!=null
+    || t.getAcquisition()!=null || t.hasAreaRestriction() || t.hasWorldRestrictions() || t.getExpireTime()!=0 || t.getExtraInventoryId()>0
+    || t.getLevel()>bot.getLevel() || !t.isClassSpecific(bot.getPlayerClass())
+    || t.getUseLimits().getMinRank()>1 || t.getUseLimits().getGuildLevelPermitted()>0
+    || t.getUseLimits().getGenderPermitted()!=null && t.getUseLimits().getGenderPermitted()!=bot.getGender()
+    || t.getRace()!=com.aionemu.gameserver.model.Race.PC_ALL && t.getRace()!=bot.getRace())continue;
+   long existing=bot.getInventory().getItemCountByItemId(t.getTemplateId());if(existing>=5L*cost.getValue())continue;
+   long count=Math.min(t.getMaxStackCount(),20L*cost.getValue())-existing;if(count<=0 || bot.getInventory().isFull())continue;
+   var item=ItemFactory.newItem(t.getTemplateId(),count);if(item==null)continue;
+   item.setSoulBound(true);PlayerBotSupplyCatalog.record(bot,item);bot.getInventory().onLoadHandler(item);
   }
  }
  static double potency(Player bot,ItemTemplate t) {

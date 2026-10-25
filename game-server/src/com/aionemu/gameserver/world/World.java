@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aionemu.gameserver.dataholders.DataManager;
+import com.aionemu.gameserver.custom.mobscaling.WorldMobScaler;
 import com.aionemu.gameserver.dataholders.PlayerInitialData.LocationData;
 import com.aionemu.gameserver.model.animations.ObjectDeleteAnimation;
 import com.aionemu.gameserver.model.gameobjects.AionObject;
@@ -234,6 +235,7 @@ public class World {
 
 		if (updateKnownList)
 			object.updateKnownlist();
+		WorldMobScaler.onWorldChange(object, oldRegion);
 	}
 
 	/**
@@ -296,6 +298,7 @@ public class World {
 		object.getController().onAfterSpawn();
 
 		object.updateKnownlist();
+		WorldMobScaler.onWorldChange(object, null);
 	}
 
 	/**
@@ -324,6 +327,7 @@ public class World {
 					oldMapRegion.revalidateZones(creature);
 			}
 			object.clearKnownlist(animation);
+			WorldMobScaler.onWorldChange(object, oldMapRegion);
 		}
 	}
 

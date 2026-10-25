@@ -19,10 +19,12 @@
 // settings files in Mods/AetherfallUI, because this client's Lua io library has no
 // write. "command" runs one chat command the player could type (the Broker button's
 // "/say .broker"), as the start-menu entries do. Nothing writes game state. Called only
-// from the client's Lua states on the native UI thread.
+// from the client's Lua states on the native UI thread. Quest target hooks also
+// decorate native name/tooltip formatter outputs; actor names and quest state
+// remain native and unchanged.
 namespace {
 using Ptr=void*;
-constexpr char CORE_VERSION[]="1.2.51";  // checked against the normal builder's NATIVE_VERSION
+constexpr char CORE_VERSION[]="1.2.63";  // checked against the normal builder's NATIVE_VERSION
 constexpr uintptr_t PREFERRED=0x10000000;  // Game.dll has no relocations.
 unsigned char* image=nullptr;
 unsigned char* game(){return image;}
@@ -84,6 +86,8 @@ bool readable(const void* p,size_t n){
     if(!p || !VirtualQuery(p,&m,sizeof m) || m.State!=MEM_COMMIT || (m.Protect&(PAGE_GUARD|PAGE_NOACCESS)))return false;
     return static_cast<const unsigned char*>(p)+n<=static_cast<unsigned char*>(m.BaseAddress)+m.RegionSize;
 }
+
+#include "quest_targets.h"
 
 // Native string table: sorted 20-byte rows {int id, ..., const wchar_t* at +0xc}
 // (the lookup GetUnlearnedSkillList inlines with bsearch and comparator 0xa873d0).
@@ -729,12 +733,24 @@ int kind_arg(Ptr L,int index){
 // UIWidget::SetAlpha (5ad310, vtable +268) changes skin alpha. Derived
 // UIItemView::SetAlpha (4f86f0) additionally changes its icon at +3a0;
 // static/gauge overrides likewise own their foreground. Use the base method
-// without its recursive flag, then walk the live child list ourselves so
-// backgrounds fade while text, skill icons and resource values stay readable.
-bool backdrop(Ptr w,float alpha,int depth,int& budget,bool recursive=true){
+// without its recursive flag. Callers select backdrop layers from the native
+// catalogue; never fade an arbitrary subtree containing controls/foregrounds.
+bool backdrop_background(Ptr w){
+    if(!w || !readable(w,0x2a8))return false;
+    int type=method<int(*)(Ptr)>(w,0x10)(w);
+    if(type==BUTTON || type==ITEMVIEW || type==FLYGAUGE)return false;
+    const char* name=method<const char*(*)(Ptr)>(w,0xa8)(w);
+    if(!name || !readable(name,1))return false;
+    size_t size=0;while(size<128 && readable(name+size,1) && name[size])++size;
+    if(size==128)return false;
+    return !std::strcmp(name,"bg") || !std::strcmp(name,"background") || !std::strcmp(name,"backdrop")
+        || !std::strncmp(name,"bg_",3) || (size>=3 && !std::strcmp(name+size-3,"_bg"))
+        || std::strstr(name,"_bg_") || (size>=11 && !std::strcmp(name+size-11,"_background"));
+}
+bool backdrop(Ptr w,float alpha,int depth,int& budget,bool recursive=false){
     if(!w || depth>24 || --budget<0 || !readable(w,0x2a8))return false;
     int type=method<int(*)(Ptr)>(w,0x10)(w);
-    if(type!=GAUGE && type!=FLYGAUGE && field<float>(w,0x1b8)!=alpha){
+    if(type!=FLYGAUGE && type!=BUTTON && (type!=GAUGE || backdrop_background(w)) && field<float>(w,0x1b8)!=alpha){
         // The base implementation also changes the four text-state colours
         // when flag 80000 is set. Preserve their existing alpha components.
         float text_alpha[4];
@@ -749,7 +765,9 @@ bool backdrop(Ptr w,float alpha,int depth,int& budget,bool recursive=true){
     for(int count=0;node && node!=head;++count){
         if(count>=512 || !readable(node,0x18))return false;
         Ptr entry=field<Ptr>(node,0x10);
-        if(entry && !backdrop(entry,alpha,depth+1,budget))return false;
+        // Retain compatibility with explicit recursive requests, but admit
+        // only named backdrop layers. Foreground siblings keep their alpha.
+        if(entry && backdrop_background(entry) && !backdrop(entry,alpha,depth+1,budget,true))return false;
         node=field<Ptr>(node,0);
     }
     return node==head;
@@ -903,6 +921,17 @@ int dispatch(Ptr L){
         push(L,double(reinterpret_cast<uintptr_t>(d)));  // instance identity, never persisted
         return 8+push(L,double(flags));  // native flags: movable is 0x8
     }
+    if(is(cmd,"popupowner")){
+        // UIPopupMenu::Init (536020) stores its owner's native dialog type
+        // at +458; GetOwner (4b0900) resolves that through the dialog table.
+        // Read only: no creation, placement, hooks or retained pointers.
+        Ptr d=dialog(int(number(L,2,0)));if(!d || !readable(d,0x45c))return nil(L);
+        void** vt=*static_cast<void***>(d);if(Table* t=own_table(d))vt=t->original;
+        if(reinterpret_cast<unsigned char*>(vt)!=game()+0xc4ada8
+           || vt[0x530/8]!=game()+0x4b0900)return nil(L);
+        int owner=field<int>(d,0x458);
+        return owner>0 && owner<=int(DIALOG_LIMIT) && dialog(owner)?push(L,double(owner)):nil(L);
+    }
     if(is(cmd,"move")){
         // Interface placement of a native dialog: top-left in pixels, size kept
         // unless given. Same native SetRect (vtable +0x1a8) the engine uses.
@@ -927,7 +956,7 @@ int dispatch(Ptr L){
         Ptr w=pin_target(int(number(L,2,0)),text(L,4)?text(L,4):"",kind_arg(L,5));
         int budget=2048;
         Value* recursive=arg(L,6);
-        return boolean(L,backdrop(w,float(a),0,budget,!(recursive && recursive->tt==1 && !recursive->v.b)));
+        return boolean(L,backdrop(w,float(a),0,budget,recursive && recursive->tt==1 && recursive->v.b));
     }
     if(is(cmd,"pin")){
         // pin(id, x, y[, mode, clamp, w, h, widget, kind]): the game's own re-placing of that dialog
@@ -1056,6 +1085,25 @@ int dispatch(Ptr L){
         push(L,field<double>(g,0x370));push(L,field<double>(g,0x360));
         return 2+boolean(L,effectively_shown(dialog(id)) && effectively_shown(g));
     }
+    if(is(cmd,"settext")){
+        // The native target's own static text update calls vtable +0x290
+        // with UTF-16 (8bc227); its paired getter is +0x298, as in "text".
+        // Resolve af_resource labels afresh on the UI thread; no native
+        // pointers survive a call, and a skin without these labels is harmless.
+        const char* path=text(L,3);const char* value=text(L,4);
+        size_t length=text_length(L,4);
+        if(!path || !value || length>256)return boolean(L,false);
+        const unsigned char setter_dispatch[]={0x48,0x8b,0x01,0xff,0x90,0x90,0x02,0x00,0x00};
+        if(std::memcmp(game()+0x8bc227,setter_dispatch,sizeof setter_dispatch))return boolean(L,false);
+        Ptr s=widget(int(number(L,2,0)),path,STATIC);
+        if(!s)return boolean(L,false);
+        wchar_t line[257]{};
+        if(length && !MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,value,int(length),line,256))return boolean(L,false);
+        const wchar_t* previous=method<const wchar_t*(*)(Ptr)>(s,0x298)(s);
+        if(previous && readable(previous,sizeof line) && !std::wcsncmp(previous,line,257))return boolean(L,true);
+        method<void(*)(Ptr,const wchar_t*)>(s,0x290)(s,line);
+        return boolean(L,true);
+    }
     if(is(cmd,"text")){
         Ptr s=widget(int(number(L,2,0)),text(L,3),STATIC);if(!s)return nil(L);
         return push(L,method<const wchar_t*(*)(Ptr)>(s,0x298)(s));
@@ -1114,6 +1162,7 @@ bool try_install(){
     if(previous->fn!=g+LUA_DUPLICATE_FN || duplicate->fn!=previous->fn || duplicate->name!=previous->name)return false;
     if(!readable(previous->name,35) || std::strcmp(previous->name,"UnregisterPredefinedQuestIndicator"))return false;
     image=g;
+    install_quest_targets();
     DWORD old=0;
     if(!VirtualProtect(duplicate,sizeof(Reg),PAGE_EXECUTE_READWRITE,&old))return false;
     duplicate->fn=reinterpret_cast<Ptr>(&AetherfallCore);duplicate->name="AetherfallCore";

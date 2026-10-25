@@ -27,17 +27,29 @@ rolls back on failure. The Account window needs the matching GameServer build.
 ## Native Account details
 
 `prepare_details.py --client <original-client> --output <fresh-external-folder>` repairs
-P > Account using resources only. The stock Details renderer builds text from retail
+P > Account using the native list and existing BM descriptions. The stock Details renderer builds text from retail
 bonus fields rather than the installed long descriptions. Those retail fields are
 intentionally absent because Aetherfall applies the earned benefits on the server.
-The existing scrolling static box now holds a localized guide to all five boons,
-including their requirements and the Combat, Life and Legend Fame ladders. The empty
-retail HTML child is removed; its native renderer explicitly handles a missing widget.
-The list above is labelled Active boons and still contains only server-earned packs.
-Individual pack hover descriptions remain available. Account Window shows live points,
-steps, timers, locked boons and progress.
+The original scrolling HTML child is restored. The native selected-row highlight is
+enabled; opening the panel selects its first earned boon. Clicking another row displays
+that pack's localized `desc_long`, with a title and readable sections. Hover uses its
+existing short `desc` name. The list stays earned-only. Account Window shows live points,
+steps, timers, locked boons and progress. The earlier static guide did not render in game
+and is superseded by this selection-driven implementation.
 
-The builder updates both base and English profile layouts, English guide/pack strings,
+`details_binary.py` changes only the Account list's initialization, pack insertion,
+hover-field choice, local event dispatch and Details call. The name cell's existing
+native user-data slot holds the localized description pointer from the native pack
+array (`0x1392f48`, 40-byte entries), like the time cell holds its expiry. The short
+name is at entry -8 and the long description at +0. This was checked read-only against
+the four actual client rows. The earlier pack-ID bridge changed the separate Legion/
+security buff branch and left this real pack branch untouched; it is corrected here.
+The renderer does not assume row order or synthesize benefit values. Two checked padding
+regions hold the bridge; unrelated Profile events retain the original handler.
+
+The builder updates both base and English profile layouts, English pack strings,
 the Graphics menu package and its verified restore resources, and affected inventory
-records. It preserves Game.dll, plugin/signing files and both retail pack tables.
+records. Native DLL changes are applied equally to Graphics/cursor restore images
+through the maintained compatibility helper. Plugin/signing files, Aetherfall Core
+and both retail pack tables stay unchanged.
 Install with the same `install.py`. In-game scrolling and appearance need owner acceptance.

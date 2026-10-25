@@ -36,8 +36,8 @@ public class Config {
 	private static final List<Class<?>> CONFIGS = Arrays.asList(AdminConfig.class, CommandsConfig.class, AIConfig.class,
 		AutoGroupConfig.class, BrokerMarketConfig.class, CentralMarketSimulationConfig.class, CommonsConfig.class, CleaningConfig.class, CraftConfig.class, CustomConfig.class, DropConfig.class, EventsConfig.class,
 		FallDamageConfig.class, GSConfig.class, GeoDataConfig.class, GroupConfig.class, HousingConfig.class, HTMLConfig.class,
-		InstanceConfig.class, LegionConfig.class, LoggingConfig.class, MembershipConfig.class, NameConfig.class, PeriodicSaveConfig.class,
-		PlayerBotConfig.class, PlayerTransferConfig.class, PricesConfig.class, PunishmentConfig.class, RankingConfig.class, RatesConfig.class, SecurityConfig.class,
+		InstanceConfig.class, LegionConfig.class, LoggingConfig.class, MembershipConfig.class, MobScalingConfig.class, NameConfig.class, PeriodicSaveConfig.class,
+		PlayerBotConfig.class, PlayerBotPopulationConfig.class, PlayerTransferConfig.class, PricesConfig.class, PunishmentConfig.class, RankingConfig.class, RatesConfig.class, SecurityConfig.class,
 		ShutdownConfig.class, SiegeConfig.class, ThreadConfig.class, WorldConfig.class, DatabaseConfig.class, NetworkConfig.class, PffConfig.class);
 
 	/**
@@ -53,6 +53,8 @@ public class Config {
 		}
 		boolean processAllConfigs = allowedConfigs.length == 0;
 		Set<String> unusedProperties = ConfigurableProcessor.process(properties, processAllConfigs ? configs.toArray() : allowedConfigs);
+		if (processAllConfigs || Arrays.asList(allowedConfigs).contains(MobScalingConfig.class))
+			MobScalingConfig.validate();
 		if (processAllConfigs && !unusedProperties.isEmpty()) {
 			removePropertiesUsedInLogbackXml(unusedProperties);
 			unusedProperties.forEach(p -> LoggerFactory.getLogger(Config.class).warn("Config property {} is unknown and therefore ignored.", p));
@@ -113,6 +115,11 @@ public class Config {
 			if (Files.isRegularFile(pvp)) {
 				log.info("Loading default configuration values from: ./config/playerbots/pvp.properties");
 				defaults.putAll(PropertiesUtils.load(pvp.toFile(), null));
+			}
+			Path populationManagement = root.resolve("./config/playerbots/population-management.properties");
+			if (Files.isRegularFile(populationManagement)) {
+				log.info("Loading default configuration values from: ./config/playerbots/population-management.properties");
+				defaults.putAll(PropertiesUtils.load(populationManagement.toFile(), null));
 			}
 			log.info("Loading: ./config/mygs.properties");
 			Properties properties = PropertiesUtils.load(root.resolve("./config/mygs.properties").toFile(), defaults);

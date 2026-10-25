@@ -20,6 +20,9 @@ public class CustomConfig {
 	@Property(key = "gameserver.quests.beluslan.restoration.enable", defaultValue = "true")
 	public static boolean BELUSLAN_QUEST_RESTORATION_ENABLE;
 
+	@Property(key = "gameserver.quests.verteron.restoration.enable", defaultValue = "true")
+	public static boolean VERTERON_QUEST_RESTORATION_ENABLE;
+
 	/** Statue cast and the native client progress bar share this duration. */
 	@Property(key = "gameserver.hotspot.teleport.cast_time_millis", defaultValue = "1000")
 	public static int HOTSPOT_TELEPORT_CAST_MILLIS;

@@ -933489,4 +933489,9 @@
 			<skilluse level="0" skillid="10374"/>
 		</actions>
 	</item_template>
+	<!-- BEGIN AETHERFALL UNBROKEN FIELD ITEMS -->
+	<item_template id="182299980" name="Copied Seal Impression" level="1" cName="quest_14983a" mask="20545" item_group="QUEST" quality="COMMON" price="1" desc="9901498">
+	<inventory id="2" />
+</item_template>
+	<!-- END AETHERFALL UNBROKEN FIELD ITEMS -->
 </item_templates>

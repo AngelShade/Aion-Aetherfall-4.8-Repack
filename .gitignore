@@ -18,6 +18,7 @@
 !/login-server/
 !/client-mods/
 !/tools/
+!/website/
 !/third-party/
 !/docs/
 
@@ -187,3 +188,11 @@ AGENTS.md
 /tools/organize-original-client-mods.py
 /tools/organize-repack-client-mods.py
 /tools/verify-raid-delivery.py
+
+# Public website gallery assets referenced by the shipped content.
+!/website/public/images/aetherfall/screenshots/
+/website/public/images/aetherfall/screenshots/*
+!/website/public/images/aetherfall/screenshots/companions.jpg
+!/website/public/images/aetherfall/screenshots/fortress.jpg
+!/website/public/images/aetherfall/screenshots/questing.jpg
+!/website/public/images/aetherfall/screenshots/taloc.jpg

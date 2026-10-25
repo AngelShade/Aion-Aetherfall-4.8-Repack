@@ -10,6 +10,40 @@ Validated with `verify_native.py` and `verify_package.py`: executable hooks and 
 
 Artwork: `assets/scales.png`; exact built-in generation prompt: `assets/prompts.md`.
 
+## Marketplace companion-style window
+
+`prepare_window.py` prepares the current original client's Black Cloud Marketplace
+with the same native 1180x780 movable, resizable frame as Player Companions. The
+browser follows the selected UI scale and settled resizing, retains the position
+and size on reopening within the session, and enforces the same 760x520 minimum.
+`MarketplaceWindow.lua` owns those handlers. The existing dialog/browser names,
+Shop shortcuts, authentication and native Item Preview docking remain intact;
+no plugin dialog slot is added.
+
+The builder changes only `CashShop.xml` and the shop handlers in `PrivateMenus.lua`,
+preserving every other compressed plugin member. It removes only Cash Shop from
+the verified native fullscreen route list, retaining Market, Wardrobe and Journey.
+The existing graphics compatibility helper updates active/package/restore images
+and cursor records together. Addon signatures are regenerated as one cohort.
+Install the prepared manifest with `client-mods/account-window/install.py` after
+normal closure of the original client.
+
+For the installed windowed controller, use the normal Core builder with
+`--update --plugin-only --marketplace-window-update`, then its guarded installer.
+The fullscreen controller yields to `PrivateCashShop_Fit`. Opening reuses the
+browser created by OnLoad; replacement occurs only after a settled resize on
+the addon timer. Reopening retains the size and position. Upgrade guards use
+revision hashes rather than keeping old controller copies in source.
+
+The maintained storefront is `game-server/config/ingameshop/media/marketplace.css`
+and `MarketplaceService.java`: Companion header, native button/slot artwork,
+196px navigation rail, framed headings, compact responsive item panels and matching
+detail/review/receipt/history layouts. Existing catalog, prices, filters, favorites,
+native previews, quantity and purchase checks remain owned by their existing code.
+Use the normal server builder and copy its exact JAR and packaged stylesheet to
+the original server after normal closure. Actual rendering and shopping acceptance
+belong to the owner in game.
+
 ## HUD revision 2
 
 `stage_revision.py` stages into `output/market-shortcut/revision-2`. The outlined scales and gift-box icons have normal, hover and pressed states. Market's tooltip uses the new English `STR_PRIVATE_CENTRAL_MARKET_HUD` localization entry; the stock Shop tooltip is `STR_WINDOW_INGAMESHOP` (Black Cloud Marketplace). All three native Shop variants dispatch `/privatecashshop` to the existing embedded authenticated browser. The Cash Shop Additional Functions entry is removed. The window title is restored to the English client's original name, Black Cloud Marketplace.

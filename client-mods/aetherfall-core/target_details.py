@@ -1,5 +1,6 @@
 """Bounded target-frame update composed with the installed interface and Graphics menu."""
 import gzip
+from datetime import datetime
 import hashlib
 import json
 import re
@@ -87,6 +88,100 @@ def update_design(payload):
     if count != 1:
         raise ValueError('Unexpected target design')
     return result
+
+
+def foreground(payload):
+    """Numbers belong to the native frame, after its bars, rather than another dialog."""
+    root = binary_xml(payload)
+    name = root.get('name')
+    if name not in ('target_dialog', 'target_assist_dialog'):
+        raise ValueError('Unexpected target frame')
+    count = 0
+    for container in root.findall('Widget'):
+        hp = container.find("Widget[@name='hp_gauge']")
+        if hp is None or hp.get('preset') != 'v5_hp_gauge_target':
+            continue  # Toy-pet feeling gauges are not health bars.
+        if any(n.get('name', '').startswith('af_resource_') for n in container):
+            raise ValueError('Native target labels already installed; review the current revision')
+        resources = [('hp', hp.get('frame'))]
+        mp = container.find("Widget[@name='mp_gauge']")
+        if mp is not None:
+            resources += [('mp', mp.get('frame')), ('dp', '6,55,239,13')]
+        hp.set('show_value', 'false')
+        if mp is not None:
+            mp.set('show_value', 'false')
+        for resource, frame in resources:
+            E.SubElement(container, 'Widget', type='static', name='af_resource_' + resource,
+                         frame=frame, font='button', halign='center', valign='middle',
+                         text_color='1,1,1,1', text_shade='True', shade_color='0,0,0,1',
+                         shade_offset='1,1', flag='transparent;not_focusable')
+            count += 1
+    expected = 7 if name == 'target_dialog' else 1
+    if count != expected:
+        raise ValueError('Unexpected native target gauge inventory: ' + name)
+    return encode_binary_xml(root)
+
+
+def prepare_foreground(client, stage, original, extend_archive, read_pak):
+    """Update exactly two layouts in the base/English archives and owned recovery images."""
+    state = json.loads(original('Mods/AetherfallUI/state.json'))
+    if state['Applied'] != 'layout':
+        raise ValueError('Enable the full HUD layout before preparing native target readouts')
+    manifest = json.loads(original('Mods/AetherfallUI/manifest.json'))
+    graphics = json.loads(original('Mods/GraphicsMenu/installed.json'))
+    package = json.loads(original('Mods/GraphicsMenu/package/manifest.json'))
+    if graphics.get('restoredAt') or graphics['files'] != package['files']:
+        raise ValueError('Graphics recovery ownership differs')
+    replacements = {}
+    for rel, prefix in [('Data/ui/game/game.pak', ''), ('L10N/enu/data/data.pak', 'ui/game/')]:
+        source = original(rel)
+        changes = {}
+        with read_pak(client / rel) as z:
+            for name in ('target_dialog.xml', 'target_assist_dialog.xml'):
+                entry = prefix + name
+                owned = manifest['archives'][rel]['entries'][entry]
+                payload = z.read(entry)
+                if sha(payload) != owned['layout']:
+                    raise ValueError('Active target differs from its owned layout: ' + entry)
+                replacement = foreground(payload)
+                changes[entry] = replacement
+                owned['layout'] = sha(replacement)
+                blob = 'Mods/AetherfallUI/payloads/' + owned['layout'] + '.gz'
+                original(blob)
+                stage(blob, gzip.compress(replacement, mtime=0))
+        replacements[rel.lower()] = changes
+        data = extend_archive(source, changes, {})
+        stage(rel, data)
+        record = next(e for e in graphics['files'] if e['path'].lower() == rel.lower())
+        package_rel = 'Mods/GraphicsMenu/package/' + record['path']
+        if sha(source) != record['installed'] or sha(original(package_rel)) != record['installed']:
+            raise ValueError('Active/package Graphics hashes differ: ' + rel)
+        stage(package_rel, data)
+        for rows in (graphics['files'], package['files']):
+            next(e for e in rows if e['path'].lower() == rel.lower())['installed'] = sha(data)
+    # Preserve the previous recovery folder; carry the same labels into a fresh
+    # baseline so removing Graphics retains the current full HUD resources.
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'transmog-menu'))
+    from graphics_compat import owned_renderer_backup
+    old_backup = owned_renderer_backup(client, graphics['backupRoot'])
+    new_backup = 'Mods/Backups/Renderer/service-menu-graphics-' + datetime.now().strftime('%Y%m%d-%H%M%S-%f')
+    for record in graphics['files']:
+        if record.get('original') is None:
+            continue
+        rel = record['path']
+        baseline = original((old_backup / rel).relative_to(client).as_posix())
+        if sha(baseline) != record['original']:
+            raise ValueError('Graphics restore baseline changed: ' + rel)
+        changes = replacements.get(rel.lower())
+        if changes:
+            baseline = extend_archive(baseline, changes, {})
+            for rows in (graphics['files'], package['files']):
+                next(e for e in rows if e['path'].lower() == rel.lower())['original'] = sha(baseline)
+        stage(new_backup + '/' + rel, baseline)
+    graphics['backupRoot'] = str(client / new_backup)
+    stage('Mods/AetherfallUI/manifest.json', json.dumps(manifest, indent=2).encode())
+    stage('Mods/GraphicsMenu/installed.json', json.dumps(graphics, indent=2).encode())
+    stage('Mods/GraphicsMenu/package/manifest.json', json.dumps(package, indent=2).encode())
 
 
 def prepare(client, stage, original, extend_archive, read_pak):

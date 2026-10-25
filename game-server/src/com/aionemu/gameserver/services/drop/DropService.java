@@ -188,7 +188,7 @@ public class DropService {
 							dropNpc.setAllowedLooter(member);
 					}
 					for (DropItem dropItem : dropItems) {
-						if (!dropItem.getDropTemplate().isEachMember())
+						if (!dropItem.isQuestDrop() && !dropItem.getDropTemplate().isEachMember())
 							dropItem.getPlayerObjIds().clear();
 					}
 				}
@@ -200,6 +200,7 @@ public class DropService {
 	public boolean canDistribute(Player player, DropItem requestedItem) {
 		DropNpc dropNpc = DropRegistrationService.getInstance().getDropRegistrationMap().get(requestedItem.getNpcObj());
 		if (dropNpc == null) return false;
+		if (requestedItem.isQuestDrop()) return true;
 		LootGroupRules rules = dropNpc.getLootGroupRules();
 		int itemId = requestedItem.getDropTemplate().getItemId();
 		if (rules == null || itemId == ItemId.KINAH || dropNpc.getInRangePlayers().size() <= 1) return true;
@@ -218,6 +219,7 @@ public class DropService {
 		if (dropNpc == null) {
 			return false;
 		}
+		if (requestedItem.isQuestDrop()) return true;
 		LootGroupRules lootGroupRules = dropNpc.getLootGroupRules();
 		if (lootGroupRules == null) {
 			return true;
@@ -272,6 +274,8 @@ public class DropService {
 
 		if (requestedItem == null) // lag can cause drops to be displayed long enough for the client to send multiple loot requests when spamming 'C'
 			return;
+		if (!requestedItem.canViewDropItem(player.getObjectId()))
+			return;
 
 		// fix exploit
 		if (!requestedItem.isDistributeItem() && !dropNpc.isAllowedToLoot(player)) {
@@ -289,7 +293,7 @@ public class DropService {
 		}
 
 		LootGroupRules lootGroupRules = dropNpc.getLootGroupRules();
-		if (lootGroupRules != null && !requestedItem.isDistributeItem() && !requestedItem.isFreeForAll()) {
+		if (lootGroupRules != null && !requestedItem.isQuestDrop() && !requestedItem.isDistributeItem() && !requestedItem.isFreeForAll()) {
 			if (lootGroupRules.containDropItem(requestedItem)) {
 				if (!autoLoot)
 					PacketSendUtility.sendPacket(player, SM_SYSTEM_MESSAGE.STR_MSG_LOOT_ALREADY_DISTRIBUTING_ITEM(template.getL10n()));
@@ -319,6 +323,10 @@ public class DropService {
 						.filterMembers(m -> m.isPlaying() && !m.isDead() && !m.isMentor() && PositionUtil.isInRange(m, player, GroupConfig.GROUP_MAX_DISTANCE));
 					distributeEqually(requestedItem, entitledPlayers);
 				}
+			} else if (requestedItem.isQuestDrop()) {
+				// Eligibility belongs to this slot, not the party's ordinary roll/misc winner.
+				requestedItem.setWinningPlayer(player);
+				requestedItem.setCount(ItemService.addItem(player, itemId, requestedItem.getCount()));
 			} else if (!player.isInTeam() && !requestedItem.isDistributeItem() && !requestedItem.isItemWonNotCollected() && dropNpc.getDistributionId() == 0) {
 				requestedItem.setCount(ItemService.addItem(player, itemId, requestedItem.getCount()));
 			} else if (!requestedItem.isDistributeItem()) {

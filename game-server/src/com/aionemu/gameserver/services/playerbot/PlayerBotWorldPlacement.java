@@ -19,7 +19,7 @@ import com.aionemu.gameserver.model.templates.zone.ZoneInfo;
 
 /** Background population placement, separate from ordinary paid-route activity travel. */
 final class PlayerBotWorldPlacement {
- enum Purpose { POPULATION, FIELD_RESCUE, RESERVE_CREATION }
+ enum Purpose { POPULATION, FIELD_RESCUE, RESERVE_CREATION, PLAYER_PRESENCE }
  record Location(Race race,int map,float x,float y,float z,int minimum,int maximum,boolean city,boolean hub) {
   Location {if(race!=Race.ELYOS && race!=Race.ASMODIANS || map<=0 || !Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z)
     || minimum<1 || maximum<minimum || maximum>65)throw new IllegalArgumentException("Invalid population location");}
@@ -76,6 +76,11 @@ final class PlayerBotWorldPlacement {
  static boolean focusCompatibleOnMap(Race race,int level,int map) {
   return focusCandidates(race,level).containsKey(map)
    && (PlayerBotConfig.POPULATION_MAPS.isEmpty() || PlayerBotConfig.POPULATION_MAPS.contains(map));
+ }
+ static boolean presenceCompatible(Race race,int level,PlayerBotPopulationFocus.Anchor area,int radius) {
+  if(!PlayerBotConfig.POPULATION_MAPS.isEmpty() && !PlayerBotConfig.POPULATION_MAPS.contains(area.map()))return false;
+  return focusCandidates(race,level).getOrDefault(area.map(),List.of()).stream()
+   .anyMatch(p->PlayerBotPlayerPresence.near(area,p.map(),p.x(),p.y(),p.z(),radius));
  }
  static boolean mapEligible(WorldMapTemplate map,Race race,Set<Integer> enabled) {
   return map!=null && !map.isInstance() && !map.isPrison() && map.getWorldType()!=WorldType.NONE
@@ -248,18 +253,43 @@ final class PlayerBotWorldPlacement {
  static Selection chooseReserveDestination(Race race,int level,int cityPercent,RandomGenerator rng) {
   return chooseDestination(race,level,cityPercent,Purpose.RESERVE_CREATION,rng,Set.of());
  }
+ static Selection chooseGrindDestination(Race race,int level,RandomGenerator rng) {
+  return chooseDestination(race,level,0,Purpose.FIELD_RESCUE,rng,Set.of());
+ }
  private static Selection chooseDestination(Race race,int level,int cityPercent,RandomGenerator rng,Set<Integer> focusMaps) {
   return chooseDestination(race,level,cityPercent,Purpose.POPULATION,rng,focusMaps);
  }
  private static Selection chooseDestination(Race race,int level,int cityPercent,Purpose purpose,RandomGenerator rng,Set<Integer> focusMaps) {
+  if(purpose==Purpose.POPULATION && focusMaps.isEmpty() && PlayerBotPlayerPresence.enabled()) {
+   var demand=PlayerBotPlayerPresence.demand(World.getInstance().getAllPlayers(),race,level);
+   if(demand.active() && focusCompatible(race,level,demand)) {
+    var local=choosePresenceDestination(race,level,rng,demand);
+    if(local.location()!=null)return local;
+   }
+   // Local shortage must never block the original manager's safe admission.
+  }
+  return chooseDestination(race,level,cityPercent,purpose,rng,focusMaps,null);
+ }
+ static Selection choosePresenceDestination(Race race,int level,RandomGenerator rng,PlayerBotPopulationFocus.Snapshot demand) {
+  return chooseDestination(race,level,0,Purpose.PLAYER_PRESENCE,rng,Set.of(),demand);
+ }
+ private static Selection chooseDestination(Race race,int level,int cityPercent,Purpose purpose,RandomGenerator rng,Set<Integer> focusMaps,PlayerBotPopulationFocus.Snapshot explicitPresence) {
   var enabled=PlayerBotConfig.POPULATION_MAPS;
   var players=World.getInstance().getAllPlayers();
   // Saved reserves are not visible admissions. They need native faction/level
   // camps even when the only human occupies the other faction's homeland.
   // Player focus still governs actual residency; all landing guards below stay live.
   var focus=PlayerBotPopulationFocus.capture(purpose==Purpose.RESERVE_CREATION?List.<Player>of():players);
+  var presence=explicitPresence;
+  boolean nearbyPresence=presence!=null && presence.active() && focusCompatible(race,level,presence);
+  if(purpose==Purpose.PLAYER_PRESENCE && !nearbyPresence)return new Selection(null,"no compatible native camps for actual player demand",0,true);
+  if(nearbyPresence)focus=presence;
   // A rescue needs an actual grind camp. Human focus must not convert it into a capital service visit.
   var choices=focus.active()?focusChoices(race,level,focus,purpose,rng):select(locations(),race,level,enabled,Set.of(),false,cityPercent,purpose,rng);
+  // The overlay fills only the requested nearby area. Ordinary worldwide/city
+  // selection resumes once its quota is met or this native level cannot fit.
+  final var landingFocus=focus;
+  if(nearbyPresence)choices=choices.stream().filter(p->landingFocus.nearby(p.map(),p.x(),p.y(),p.z())).toList();
   if(!focusMaps.isEmpty())choices=choices.stream().filter(p->focusMaps.contains(p.map())).toList();
   var counts=new HashMap<Integer,Integer>();
   if(focus.active())for(var player:players)if(player.isWorldBot() && player.getPlayerBotOwnerId()==0 && player.isSpawned()
@@ -269,6 +299,13 @@ final class PlayerBotWorldPlacement {
   var positions=new ArrayList<PlayerBotCampDistribution.Position>();
   for(var p:players)if(p.isPlayerBot() && p.isSpawned() && p.getInstanceId()==1)positions.add(new PlayerBotCampDistribution.Position(p.getWorldId(),p.getX(),p.getY(),p.getZ()));
   var distribution=new PlayerBotCampDistribution(positions);preferred=distribution.prefer(preferred,counts);
+  if(nearbyPresence) {
+   // Fill closer native camps first; equal 100m distance bands retain local
+   // crowd spreading. The outer radius is fallback, not a ring to hide bots in.
+   var nearby=new ArrayList<>(preferred);
+   nearby.sort(Comparator.comparingInt(p->(int)(landingFocus.distance(p.map(),p.x(),p.y(),p.z())/100)));
+   preferred=List.copyOf(nearby);
+  }
   if(preferred.isEmpty())return new Selection(null,"no native faction/level camps on the current enabled focus maps",0,true);
   Scan scan;String scanKey=race+":"+level+":"+purpose;
   synchronized(admissionCursor){scan=admissionCursor.computeIfAbsent(scanKey,key->new Scan());}
@@ -303,7 +340,8 @@ final class PlayerBotWorldPlacement {
     public float height(float x,float y,float sourceZ){return GeoService.getInstance().getZ(p.map(),x,y,sourceZ+2,sourceZ-4,1);}
     public boolean safe(PlayerBotNavigation.Point point){
      var worldMap=World.getInstance().getWorldMap(p.map());
-     return ground(map,point.x(),point.y(),p.z(),point.z()) && factionSide(race,p.map(),point.x(),point.y(),point.z()) && !nearHuman(p.map(),point.x(),point.y(),point.z())
+     return (!nearbyPresence || landingFocus.nearby(p.map(),point.x(),point.y(),point.z()))
+      && ground(map,point.x(),point.y(),p.z(),point.z()) && factionSide(race,p.map(),point.x(),point.y(),point.z()) && !nearHuman(p.map(),point.x(),point.y(),point.z())
       && distribution.clear(p.map(),point.x(),point.y(),point.z())
       && worldMap!=null && worldMap.getMainWorldMapInstance().getRegion(point.x(),point.y(),point.z())!=null
       && GeoService.getInstance().isPlayerBotLanding(p.map(),1,point.x(),point.y(),point.z()) && !occupiedLanding(p.map(),point.x(),point.y(),point.z());
@@ -331,7 +369,17 @@ final class PlayerBotWorldPlacement {
  }
  static boolean place(PlayerBotSession session,Purpose purpose,int cityPercent,RandomGenerator rng,Set<Integer> focusMaps) {
   Player bot=session.bot();if(!idle(session) || nearHuman(bot.getWorldId(),bot.getX(),bot.getY(),bot.getZ()))return false;
-  var p=destination(bot.getRace(),bot.getLevel(),cityPercent,purpose,rng,focusMaps);if(p==null)return false;
+  return placeAt(session,destination(bot.getRace(),bot.getLevel(),cityPercent,purpose,rng,focusMaps));
+ }
+ static boolean placePresence(PlayerBotSession session,RandomGenerator rng) {
+  var bot=session.bot();if(!idle(session) || nearHuman(bot.getWorldId(),bot.getX(),bot.getY(),bot.getZ()))return false;
+  var selection=choosePresenceDestination(bot.getRace(),bot.getLevel(),rng,PlayerBotPlayerPresence.demand(World.getInstance().getAllPlayers(),bot.getRace(),bot.getLevel()));
+  var p=selection.location();
+  if(p==null || !PlayerBotPlayerPresence.demand(World.getInstance().getAllPlayers(),bot.getRace(),bot.getLevel()).nearby(p.map(),p.x(),p.y(),p.z()))return false;
+  return placeAt(session,p);
+ }
+ private static boolean placeAt(PlayerBotSession session,Location p) {
+  if(p==null)return false;Player bot=session.bot();
   if(!idle(session) || nearHuman(bot.getWorldId(),bot.getX(),bot.getY(),bot.getZ()) || nearHuman(p.map(),p.x(),p.y(),p.z()) || occupiedLanding(p.map(),p.x(),p.y(),p.z()))return false;
   session.preparePopulationPlacement();
   TeleportService.teleportTo(bot,p.map(),1,p.x(),p.y(),p.z(),bot.getHeading());

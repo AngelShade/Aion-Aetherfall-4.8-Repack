@@ -10,6 +10,7 @@ Install with account-window/install.py.
 import argparse
 import hashlib
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -27,7 +28,7 @@ DIALOG = ('<?xml version="1.0" encoding="UTF-16"?>\r\n<Screen widget_cnt="2">\r\
           f'title_height="{TITLE}" title_offset="0,5">\r\n'
           '    <Scripts><OnLoad>PrivateCompanions_OnLoad();</OnLoad><OnEvent>PrivateCompanions_OnEvent(event);</OnEvent></Scripts>\r\n'
           f'    <Widget type="Browser" name="PrivateCompanionsBrowser" frame="0,0,{WIDTH},{HEIGHT - TITLE}" '
-          'h_pos_align="proportion" v_pos_align="proportion"/>\r\n'
+          'flag="noscale"/>\r\n'
           '  </Dialog>\r\n</Screen>\r\n')
 OLD_OPEN = '''function PrivateCompanions_Open()
     PrivateWarehouse:Show();
@@ -333,23 +334,51 @@ end
 '''
 
 
+# Retain recognition of the installed fourth revision. Only the browser surface
+# changes: native noscale prevents shrinking rasterized text at low UI scales,
+# and integer physical dimensions make creation and painting use the same size.
+REVISION4 = NEW_OPEN
+NEW_OPEN = REVISION4.replace(
+    '-- A web page is drawn at the pixel size its view was created with, which ignores the UI scale and later resizes.\n'
+    '-- Size the browser to the window\'s client area (never below the minimum) and create its view again whenever\n'
+    '-- that pixel size differs from the view\'s, then load the page.',
+    '-- Render the noscale browser at one physical pixel per page pixel. The native\n'
+    '-- creator rounds to nearest, while painting rounds the widget bounds outward;\n'
+    '-- fractional dimensions would otherwise stretch an already-rasterized page.')
+NEW_OPEN = NEW_OPEN.replace(
+    '    local size = string.format("%.0fx%.0f", w, h);',
+    f'    local scale = (GetUIScale and GetUIScale()) or 1;\n'
+    '    if scale <= 0 then return; end\n'
+    '    local pw = math.max(1, math.floor((w / (S.units or 1)) * scale + 0.5));\n'
+    f'    local ph = math.max(1, math.floor((h / (S.units or 1) - {TITLE}) * scale + 0.5));\n'
+    '    local size = string.format("%dx%d", pw, ph);')
+NEW_OPEN = NEW_OPEN.replace(
+    f'        PrivateCompanionsBrowser:SetRect(0, 0, uw, uh - {TITLE});',
+    '        PrivateCompanionsBrowser:SetRect(0, 0, pw / scale, ph / scale);')
+
+
 def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
 def menus(data):
-    bom = data.startswith(b'\xef\xbb\xbf')
-    text = data.decode('utf-8-sig')
-    newline = '\r\n' if '\r\n' in text else '\n'
-    text = text.replace('\r\n', '\n')
-    if NEW_OPEN in text:
-        return data
-    # Fresh client: the fullscreen opener; installed first revision: the window that did not follow the UI scale.
-    old = REVISION3 if REVISION3 in text else REVISION2 if REVISION2 in text else REVISION1 if REVISION1 in text else OLD_OPEN
-    if text.count(old) != 1:
+    # Replace only this controller; preserve every byte of other menu features,
+    # including the installed client's CRCRLF member line endings.
+    pattern = (rb'-- false: open Companions[^\n]*\n.*?function PrivateCompanions_Open\(\).*?\nend'
+               if b'PRIVATE_COMPANIONS_WINDOWED' in data else rb'function PrivateCompanions_Open\(\).*?\nend')
+    matches = list(re.finditer(pattern, data, re.S))
+    if len(matches) != 1:
         raise ValueError('Unexpected installed PrivateCompanions_Open')
-    out = text.replace(old, NEW_OPEN).replace('\n', newline).encode('utf-8')
-    return (b'\xef\xbb\xbf' + out) if bom else out
+    match = matches[0]
+    old = match.group().replace(b'\r', b'').rstrip(b'\n')
+    new = NEW_OPEN.encode('utf-8').rstrip(b'\n')
+    if old == new:
+        return data
+    accepted = [revision.encode('utf-8').rstrip(b'\n') for revision in (OLD_OPEN, REVISION1, REVISION2, REVISION3, REVISION4)]
+    if old not in accepted:
+        raise ValueError('Unrecognized Companions controller; preserve it for review')
+    newline = b'\r\r\n' if b'\r\r\n' in match.group() else b'\r\n' if b'\r\n' in match.group() else b'\n'
+    return data[:match.start()] + new.replace(b'\n', newline) + data[match.end():]
 
 
 def toc(data):
@@ -367,6 +396,7 @@ def main():
     parser.add_argument('--client', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--bridge', type=Path, help='native-icon-bridge build output with bin64/AionIconBridge.dll and AionUiArt.index')
+    parser.add_argument('--window-only', action='store_true', help='update only the Companions controller/dialog and signatures, preserving the installed command bar')
     args = parser.parse_args()
     client, output = args.client.resolve(strict=True), args.output.resolve()
     if output.exists() or output.is_relative_to(client) or output.is_relative_to(HERE.parents[1]):
@@ -377,14 +407,18 @@ def main():
     with read_pak_bytes(raw) as z:
         names = z.namelist()
         others = {n: z.read(n) for n in names}
-    replacements = {'PrivateMenus.lua': menus(others['PrivateMenus.lua']), 'RelicCalc.toc': toc(others['RelicCalc.toc']),
-                    # The command bar's Pull and Mark buttons (their orders are in the rebuilt bridge).
-                    'PlayerBotBar.lua': (HERE / 'PlayerBotBar.lua').read_bytes(), 'PlayerBotBar.xml': (HERE / 'PlayerBotBar.xml').read_bytes()}
+    replacements = {'PrivateMenus.lua': menus(others['PrivateMenus.lua']), 'RelicCalc.toc': toc(others['RelicCalc.toc'])}
+    if not args.window_only:
+        # The full feature builder also stages the maintained command bar.
+        replacements.update({'PlayerBotBar.lua': (HERE / 'PlayerBotBar.lua').read_bytes(), 'PlayerBotBar.xml': (HERE / 'PlayerBotBar.xml').read_bytes()})
     dialog = b'\xff\xfe' + DIALOG.encode('utf-16-le')
     replacements = {n: v for n, v in replacements.items() if v != others[n]}
     added = [] if 'Companions.xml' in names else ['Companions.xml']
     if not added and others['Companions.xml'] != dialog:
-        raise ValueError('Unexpected installed Companions dialog')
+        previous = DIALOG.replace('flag="noscale"', 'h_pos_align="proportion" v_pos_align="proportion"')
+        if others['Companions.xml'].decode('utf-16').replace('\r', '') != previous.replace('\r', ''):
+            raise ValueError('Unexpected installed Companions dialog')
+        replacements['Companions.xml'] = dialog
     built = extend(raw, replacements, {'Companions.xml': dialog} if added else {})
     with read_pak_bytes(built) as check:
         if check.namelist() != names + added or check.testzip() is not None:
@@ -417,13 +451,15 @@ def main():
             old = client / rel
             records.append(dict(path=rel, original=sha(old.read_bytes()) if old.exists() else None, staged=sha(path.read_bytes())))
     sources = [Path(__file__).resolve(), Path(account_window.__file__).resolve(), HERE / 'PlayerBotBar.lua', HERE / 'PlayerBotBar.xml',
-               HERE / 'playerbot_bar.h', HERE.parent / 'native-icon-bridge/icon_bridge.cpp', HERE.parent / 'native-icon-bridge/prepare_ui_art.py']
-    manifest = dict(feature='companions-window', revision='fitted-window-4', clientRoot=str(client), files=records, graphicsCompatibility=None,
+               HERE / 'playerbot_bar.h', HERE.parent / 'native-icon-bridge/icon_bridge.cpp', HERE.parent / 'native-icon-bridge/prepare_ui_art.py',
+               HERE.parent / 'native-icon-bridge/ui_art.json']
+    manifest = dict(feature='companions-window', revision='physical-browser-pixels-5', clientRoot=str(client), files=records, graphicsCompatibility=None,
                     serverChanged=False, repackChanged=False, pluginDialogs='+1 (PrivateCompanions)',
                     sourceHashes={str(p): sha(p.read_bytes()) for p in sources},
                     preservedFiles=[dict(path=rel, sha256=sha((client / rel).read_bytes())) for rel in
-                                    ['bin64/Game.dll', 'bin64/AionIconBridge.index', 'Data/ui/game/game.pak', 'L10N/enu/Data/data.pak', 'Pub.key']],
-                    gameplayAcceptance='Pending: Player Companions opens as a normal, movable, resizable window and its page fills it at any UI scale and after a resize, never smaller than 760x520')
+                                    ['bin64/Game.dll', 'bin64/AetherfallCore.dll', 'bin64/AionIconBridge.dll', 'bin64/AionIconBridge.index',
+                                     'bin64/AionUiArt.index', 'Data/ui/game/game.pak', 'L10N/enu/Data/data.pak', 'Pub.key']],
+                    gameplayAcceptance='Pending owner: Companions text sharpness at the current and smaller/larger UI scales; page fills the movable/resizable window after resize; artwork, navigation, orders and other plugin windows. No Core/native DLL/font changes.')
     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
     print('Prepared', len(records), 'affected files; original client unchanged:', output)
 

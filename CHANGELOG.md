@@ -1,10 +1,30 @@
 # Aion Aetherfall 4.8 Repack — Changelog
 
-## Development updates — Companions, PvP and client repairs (22 October 2026)
+## Latest published release — 0.96.6 (24 October 2026)
 
-These changes are available in the current `4.8` source and original development
-installation. They are recorded separately from the published 0.94 repack below;
-pushing source does not update an installed repack or publish a new game release.
+[Download 0.96.6](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.96.6), or open Aetherfall Setup and choose **Update Repack**. This cumulative update includes the earlier 0.95 and 0.96.5 changes; install it directly over 0.86 or any later repack.
+
+- Restored Verteron quests and improved companion corpse looting and quest-item ownership.
+- Added configurable open-world monster difficulty and nearby party/alliance scaling.
+- Improved generated world-bot population, legions, nearby activity, water safety and recovery.
+- Includes the movable Marketplace, earlier quest and encounter repairs, Countdown Timer placement and chat/companion background controls.
+- Ships Setup/Hub **0.90.1022.2**. The current downloader ZIP is **8.65 MB** and the update archive is **641.30 MB**. The full **0.86** game archive remains the compatible base download.
+
+Release files, the live update channel and the Setup inside the public downloader were verified on 25 October 2026. See the version entries below for details. Gameplay fixes still require normal in-game acceptance.
+
+## Newer 4.8 source work (25 October 2026)
+
+These changes are in the `4.8` source and are separate from the published 0.96.6 repack:
+
+- Added **The Unbroken Field**, sixteen original quests (14980–14995) continuing The Writing on the Wall across Verteron, including native dialogue, objectives, rewards and the Copied Seal Impression quest item.
+- Added quest-target tracking and further quest text, completion-dialogue and interface refinements.
+- Updated open-world group scaling to react to nearby parties within 100 metres and refresh visible HP without respawning monsters. This extends the earlier scaling shipped in 0.96.6.
+- Repaired native selected-boon Account details, companion-menu artwork refresh after theme changes and companion-window sizing for clearer text. Visual results remain in-game checks.
+- Added a separate Aetherfall website project with native account/character integration, news, guides, downloads, gallery and administration. Its portable build tools are included in source; the website is not bundled in the repack.
+
+## Earlier development updates — Companions, PvP and client repairs (22 October 2026)
+
+These changes were included in the published 0.95 repack and remain included in 0.96.6. Pushing newer source does not publish another game release.
 
 ### Playerbots and combat
 
@@ -35,14 +55,14 @@ Normal builds and focused offline checks are recorded for these changes. Stair
 following and the camera correction have owner confirmation; broader PvP, rift,
 combat, spirit, quest and performance acceptance remains in-game testing.
 
-## Current downloader for new installations (published with 0.94; verified 22 October 2026)
+## Current downloader for new installations (0.96.6; verified 25 October 2026)
 
 - Each update now prepares a complete downloader ZIP with the current Setup,
   mirror list, extraction/download tools and clean portable settings. New users
   can receive the MEGA-to-Google Drive repair before downloading the base game.
 - Publish Update includes this ZIP and changes the public download links to
   follow the latest release. The large 0.86 base archive remains compatible.
-- The complete downloader ZIP is published with 0.94 and advertised by the public update channel. New installations can use the current kit without replacing the compatible 0.86 base archive.
+- The complete downloader ZIP is published with 0.96.6 and advertised by the public update channel. It contains Setup 0.90.1022.2, including the shared mirror retry repair. New installations can use the current kit without replacing the compatible 0.86 base archive.
 
 ## Setup download mirror fallback (21 October 2026)
 
@@ -69,7 +89,7 @@ combat, spirit, quest and performance acceptance remains in-game testing.
 - Included in the published Hub/Setup. The icon does not change gameplay.
 
 This history includes the full initial-release changelog for 0.86, followed by
-the updates through 0.94, in version order. Earlier development work is recorded under 0.86,
+the updates through 0.96.6, in version order. Earlier development work is recorded under 0.86,
 because that is the first public repack in which those changes were bundled.
 
 | Version | Release | Download |
@@ -88,6 +108,9 @@ because that is the first public repack in which those changes were bundled.
 | [0.93.1](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.93.1) | Companion follow, lifts, quest turn-in and memory controls | Published cumulative patch |
 | [0.93.2](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.93.2) | Companion pursuit, teleport statue timing, Protectors Hall and Zirius | Published cumulative patch |
 | [0.94](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.94) | Account Fame, native companion/account windows, Interface and world textures | Published cumulative patch, Setup and current downloader ZIP |
+| [0.95](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.95) | Marketplace window, interface controls, navigation, quests and encounter repairs | Published cumulative patch |
+| 0.96.5 | World-bot population, nearby presence, legions, water safety and recovery | Included in 0.96.6; no separate release download |
+| [0.96.6](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.96.6) | Verteron quests, loot ownership, monster difficulty and interface controls | Latest published cumulative patch, Setup and downloader ZIP |
 
 ## 0.86 — Initial release: full changelog
 
@@ -380,6 +403,43 @@ These are maintainer workflow changes, separate from the player patch contents.
 - Added **Mods & tools** inside Aetherfall Hub, with the optional HD pack download, ZIP installation and an HD/standard texture switch. Shared graphics files and the selected profile are checked before launch. Added a Make Admin account control using the native Admin rank 9, replacing the old standalone scripts. Development rollback history is excluded from both downloads; active native graphics recovery remains included.
 - Repaired fresh database verification to recognize the six reserved broker sellers while still requiring no player accounts or personal characters. Existing databases are preserved.
 - Includes the Setup mirror fallback repair. Published as 0.94 with the cumulative patch, Setup 0.90.1022.1 and the current complete downloader ZIP. Publication does not establish in-game acceptance of every included feature.
+
+## 0.95 — Marketplace, interface, navigation and encounter repairs (24 October 2026)
+
+- Redesigned Black Cloud Marketplace as a movable, resizable window matching Player Companions, with categories, item details, purchase review and history. Fixed competing window controllers and repeated browser destruction when opening the shop. Existing prices, eligibility, quantities, previews and mail delivery remain.
+- Improved MoveUI selection and nested widgets, Save/Cancel behavior, feature controls, tooltip positioning, flight-meter opacity, menu anchoring and submenu interaction. Restored clear target and target-of-target numbers above their bars, including the player's DP display.
+- Includes the companion PvP, rift travel, class combat priorities, spirit-following, camera-drag, quest-limit dialogue and camp-raid repairs described in the development notes above.
+- Improved independent world-bot route planning, shared route and obstruction memory, continuation between prepared path sections and recovery after failed lookahead. Companion following retains its separate movement controls.
+- Repaired Taloc's Hollow boss progression, timed mechanics, eggs and debuffs, and Gellmar's Protective Barrier. Added a native guard for the Mosqua cinematic's delayed connection callback.
+- Restored verified quest progress, item checks and rewards in Altgard, Pandaemonium, Morheim and Beluslan, along with Abyss-entry and other affected quests. Includes underground-arena progression and Macunbello encounter repairs.
+- Updated Setup and Hub to 0.90.1022.2. Download workers share temporary mirror-failure cooldowns, retain a working alternate across resumed downloads, validate archive ranges and explain failures from all attempted sources.
+- Preserved local connections, settings, accounts, characters, database contents and existing mods. Standard world textures remain the full repack default; the existing optional HD pack and the installed copy's HD selection remain unchanged.
+
+Published as 0.95 on 24 October 2026 and included in 0.96.6. Marketplace appearance, movement, quests, encounters and download behavior remain in-game acceptance checks. The optional HD pack’s later lamp-transparency repair is not part of this core update.
+
+## 0.96.5 — World-bot population, water safety and recovery (24 October 2026)
+
+- Added generated world-bot population balancing, level resets and timed refresh/revival. Generated bots can be rebuilt with level-appropriate gear, skills, Stigmas and quests. The new management configuration enables balancing and resets for generated global bots; normal owned alts and manual pools retain their separate rules and progress.
+- Added automatic generated-bot legions using native membership, faction and capacity rules, with a configurable pool of 20 legions and 15 members each. Existing memberships are retained. Generated-character rebuilds now save their recipe changes with the rest of the character.
+- Added nearby bot presence around actual player areas by reusing existing world bots. Active quests, parties and queue reservations keep control of their bots. Added a 25% city destination preference while retaining each repack's existing explicit settings.
+- Added native queue demand, invitation acceptance and refill handling with normal level, ticket, cooldown and registration restrictions.
+- Improved deep-water avoidance along walking paths and prepared routes. Submerged bots interrupt resting and attempt a bounded route to shore before healing or sitting.
+- Changed field recovery to start below 45% HP or 15% MP. Bots use learned recovery skills, Treatment and finite real supplies before sitting as a last resort, and remain standing while useful regeneration works. Healthy bots continue their activity without repeatedly topping one another off; native costs and cooldowns remain.
+- Retained the 0.95 marketplace/interface, quest and encounter fixes, Setup/Hub 0.90.1022.2 and the existing optional HD pack. Existing connections, owner population limits, profiles and database contents are retained during installation.
+
+Included in the published 0.96.6 cumulative update; there is no separate 0.96.5 download. No manual database migration is required. Population balance, bot legions, nearby activity, water escape, recovery and performance remain in-game acceptance checks.
+
+## 0.96.6 — Verteron, loot, monster difficulty and interface controls (24 October 2026)
+
+- Restored Verteron quests 14110–14114, including gathering and hunt progress, Kato's appearance after Bubblegut's defeat, and Khidia's Plumis scouting route. Native level requirements, rewards, drops, spawns and existing progress remain authoritative.
+- Improved bot corpse discovery, approach and looting before optional travel or another pull. Repaired solo ownership, party roll handling, retries for won items, Kinah collection and stack/bag capacity checks.
+- Repaired quest-item ownership after closing a corpse. Quest items retain their eligible looters and avoid ordinary party rolls; shared quest drops prefer an eligible human before a bot, while personal bot quest progress remains supported.
+- Added configurable open-world monster difficulty, initially 2x native HP and 1.25x PvE damage, with additional scaling for nearby party or alliance members including playerbots. Older monster templates are recognized correctly. Native XP stays unchanged; instances, friendly/functional NPCs, guards, summons and siege actors are excluded from this open-world scaler. Existing separate instance scaling and owner overrides are retained.
+- Added Countdown Timer to MoveUI, including before a countdown appears, with saved positioning, Save/Cancel and Reset support.
+- Repaired chat backdrop opacity across all seven chat tab skins and the Player Companions command-bar backdrop. Existing controls, profiles, native timer behavior and marketplace fixes remain.
+- Retained each repack's interface theme, graphics recovery files, connections, player data, population settings and optional HD selection. Setup/Hub remains 0.90.1022.2.
+
+Published on 24 October 2026 with the cumulative patch, Setup/Hub 0.90.1022.2 and the complete downloader kit. No manual database migration is required. Quest progression, loot distribution, difficulty, timer positioning and opacity remain in-game acceptance checks.
 
 ## Updating an existing repack
 

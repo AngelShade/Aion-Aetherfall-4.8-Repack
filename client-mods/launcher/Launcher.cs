@@ -48,6 +48,13 @@ namespace Aetherfall {
 
   [STAThread] public static int Main(string[] args) {
    try {
+    if(args.Contains("--companion-art-sync")) {
+     int at=Array.IndexOf(args,"--client"),report=Array.IndexOf(args,"--report");
+     if(at<0||at+1>=args.Length)throw new ArgumentException("Companion artwork preparation requires a client folder.");
+     string result=CompanionArt.Refresh(args[at+1]);
+     if(report>=0&&report+1<args.Length)File.WriteAllText(args[report+1],result);
+     return 0;
+    }
     if(args.Contains("--aetherfall-interface")) {
      int at=Array.IndexOf(args,"--client"), state=Array.IndexOf(args,"--state"), theme=Array.IndexOf(args,"--theme"), report=Array.IndexOf(args,"--report");
      if(at<0||at+1>=args.Length)throw new ArgumentException("Aetherfall Interface requires a client folder.");
@@ -75,7 +82,7 @@ namespace Aetherfall {
     if (launcher.preview) { launcher.RenderPreview(args); return 0; }
     app.Run(launcher.window); return 0;
    } catch(Exception error) {
-    if(args.Contains("--custom-quests-sync")||args.Contains("--aetherfall-interface")||args.Contains("--mods-apply")) {
+    if(args.Contains("--custom-quests-sync")||args.Contains("--aetherfall-interface")||args.Contains("--mods-apply")||args.Contains("--companion-art-sync")) {
      int report=Array.IndexOf(args,"--report");if(report>=0&&report+1<args.Length)File.WriteAllText(args[report+1],error.ToString());return 1;
     }
     int at=Array.IndexOf(args,"--preview");
@@ -231,6 +238,10 @@ namespace Aetherfall {
    return path;
   }
   async Task RunScript(Step step) {
+   if(step.Script=="@CompanionArt") {
+    string result=await Task.Run(()=>CompanionArt.Refresh(root));
+    File.AppendAllText(logPath,"\r\n"+result+"\r\n");return;
+   }
    if(step.Script=="@AetherfallInterface") {
     string result;
     try { result=await Task.Run(()=>AetherfallInterface.Apply(root)); }
@@ -303,7 +314,9 @@ namespace Aetherfall {
     if(GameRunning()) File.AppendAllText(logPath,"Additional client requested; startup helpers must reuse the current renderer and installed files.\r\n");
     if(File.Exists(ClientPath("bin64/game.dll.patched"))) throw new InvalidOperationException("A pending Game.dll update needs to be installed before launch. Open the client folder and finish that update.");
     if(!File.Exists(ClientPath("bin64/aion.bin"))) throw new FileNotFoundException("The 64-bit Aion client was not found.");
-    List<Step> steps=Steps(); double width=Find<Grid>("ProgressTrack").ActualWidth;
+    List<Step> steps=Steps();
+    if(CompanionArt.Installed(root))steps.Add(new Step("Preparing companion artwork","@CompanionArt"));
+    double width=Find<Grid>("ProgressTrack").ActualWidth;
     for(int i=0;i<steps.Count;i++) {
      if(closeRequested) { busy=false; window.Close(); return; }
      await RunScript(steps[i]);

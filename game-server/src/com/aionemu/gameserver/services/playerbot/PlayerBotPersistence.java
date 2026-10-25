@@ -13,6 +13,38 @@ import com.aionemu.gameserver.model.gameobjects.Persistable.PersistentState;
 
 /** Private character progress only. Shared account/legion storage and passports are never saved by bots. */
 final class PlayerBotPersistence {
+	/** Failed unpublished factory attempts must not leak newly allocated item IDs.
+	 * Query after the save connection closed: an uncertain commit may have persisted
+	 * an item even when the caller saw an exception. Never release those IDs. */
+	static void discardUnpublishedFactory(Player bot) throws SQLException {
+		if (!PlayerBotPopulationManager.global(bot) || bot.isSpawned()
+			|| com.aionemu.gameserver.world.World.getInstance().isInWorld(bot.getObjectId())
+			|| !PlayerBotLease.isReserved(bot.getObjectId()))
+			throw new SQLException("Factory discard requires exclusive unpublished global custody");
+		var candidates = new java.util.LinkedHashMap<Integer, com.aionemu.gameserver.model.gameobjects.Item>();
+		for (var item : bot.getAllItems()) candidates.put(item.getObjectId(), item);
+		for (var type : com.aionemu.gameserver.model.items.storage.StorageType.values()) {
+			if (type == com.aionemu.gameserver.model.items.storage.StorageType.ACCOUNT_WAREHOUSE
+				|| type == com.aionemu.gameserver.model.items.storage.StorageType.LEGION_WAREHOUSE
+				|| type == com.aionemu.gameserver.model.items.storage.StorageType.MARKET_WAREHOUSE) continue;
+			var storage = bot.getStorage(type.getId());
+			if (storage != null && storage.getDeletedItems() != null)
+				for (var item : storage.getDeletedItems()) candidates.put(item.getObjectId(), item);
+		}
+		var unused = new java.util.ArrayList<com.aionemu.gameserver.model.gameobjects.Item>();
+		try (var connection = DatabaseFactory.getConnection()) {
+			connection.setReadOnly(true);
+			try (var statement = connection.prepareStatement("SELECT item_unique_id FROM inventory WHERE item_unique_id=?")) {
+				for (var item : candidates.values()) {
+					if (item.getPersistentState() != PersistentState.NEW && item.getPersistentState() != PersistentState.DELETED) continue;
+					statement.setInt(1, item.getObjectId());
+					try (var row = statement.executeQuery()) { if (!row.next()) unused.add(item); }
+				}
+			}
+		}
+		com.aionemu.gameserver.utils.idfactory.IDFactory.getInstance().releaseObjectIds(unused);
+	}
+
 	record Home(int map, float x, float y, float z, byte heading, int worldOwner) {
 		static Home of(Player player) {
 			var p = player.getCommonData();
@@ -30,12 +62,19 @@ final class PlayerBotPersistence {
 			try {
 				var inventory = InventoryDAO.storeCompanionInventory(connection, bot);
 				saveProgress(connection, bot, home);
+				var recipeFactory = bot.getRecipeList() instanceof PlayerBotFactoryRecipes factory ? factory : null;
+				var recipes = recipeFactory == null ? null : recipeFactory.pending();
+				if (recipes != null) {
+					if (!PlayerBotPopulationManager.global(bot) || bot.isSpawned()) throw new SQLException("Factory recipe checkpoint lost unpublished generated custody");
+					PlayerBotFactoryRecipes.store(connection, bot.getObjectId(), recipes);
+				}
 				var metadata = PlayerBotMetadata.pending(bot.getAccount().getId(),bot.getObjectId());
 				PlayerBotMetadata.store(connection,metadata);
 				connection.commit();
 				if (bot.getAbyssRank() != null) bot.getAbyssRank().markInsertCommitted();
 				PlayerBotMetadata.committed(metadata);
 				InventoryDAO.companionInventoryCommitted(inventory);
+				if (recipes != null) recipeFactory.committed(recipes);
 			} catch (SQLException | RuntimeException e) {
 				try { connection.rollback(); } catch (SQLException rollback) { e.addSuppressed(rollback); }
 				InventoryDAO.markCompanionInventoryDirty(bot);
@@ -53,6 +92,10 @@ final class PlayerBotPersistence {
 				bot.getSkillList().getAllSkills().stream().map(e -> e.getSkillId()).collect(java.util.stream.Collectors.toSet()));
 			verifyIds(connection, bot, "SELECT quest_id FROM player_quests WHERE player_id=?",
 				bot.getQuestStateList().getAllQuestState().stream().map(e -> e.getQuestId()).collect(java.util.stream.Collectors.toSet()));
+			if (PlayerBotPopulationPolicy.serverAccount(bot.getAccount().getId())) {
+				if (bot.getRecipeList() == null) throw new SQLException("Native generated recipe load incomplete");
+				verifyIds(connection, bot, "SELECT recipe_id FROM player_recipes WHERE player_id=?", bot.getRecipeList().getRecipes().keySet());
+			}
 			verifyIds(connection, bot, "SELECT item_unique_id FROM inventory WHERE item_owner=? AND (item_location IN (0,1) OR item_location BETWEEN 32 AND 43 OR item_location BETWEEN 60 AND 79)",
 				bot.getAllItems().stream().map(e -> e.getObjectId()).collect(java.util.stream.Collectors.toSet()));
 			var cooldowns = bot.getSkillCoolDowns();

@@ -272,6 +272,7 @@ final class PlayerBotMeshRoute implements AutoCloseable {
     private Point target;
     private final PlayerBotMeshJourney journey;
     private final boolean ownsJourney;
+    private final boolean worldMovement;
     private final Admission admission;
     private final float horizon;
     private Runtime host;
@@ -296,7 +297,11 @@ final class PlayerBotMeshRoute implements AutoCloseable {
         this(world,start,goal,horizon,journey,admission());
     }
     PlayerBotMeshRoute(int world,Point start,Point goal,float horizon,PlayerBotMeshJourney journey,Admission admission){
+        this(world,start,goal,horizon,journey,admission,false);
+    }
+    PlayerBotMeshRoute(int world,Point start,Point goal,float horizon,PlayerBotMeshJourney journey,Admission admission,boolean worldMovement){
         this.world=world;this.start=start;this.goal=goal;this.target=goal;this.horizon=horizon;proofOrigin=start;
+        this.worldMovement=worldMovement;
         this.admission=Objects.requireNonNull(admission);
         ownsJourney=journey==null;this.journey=ownsJourney?new PlayerBotMeshJourney():journey;this.journey.bind(world,goal);
     }
@@ -322,8 +327,16 @@ final class PlayerBotMeshRoute implements AutoCloseable {
             // small itineraries to wait for many shared terrain grants. Keep
             // the same funded deadline/admission; only this pure graph batch
             // has a larger operation cap. Native edge proof below is unchanged.
-            used=journey.advance(host.store,start,Math.max(allowance,8192),expired,admission);work+=used;reason=journey.reason();
-            if(!journey.ready() || used>0)return;
+            int cap=Math.max(allowance,8192),journeyWork=0;
+            do {
+                int advanced=journey.advance(host.store,start,cap-journeyWork,expired,admission);journeyWork+=advanced;
+                if(advanced==0)break; // I/O or unavailable memory is not a busy-wait.
+            } while(worldMovement && !journey.ready() && cap-journeyWork>=4 && !expired.getAsBoolean());
+            work+=journeyWork;reason=journey.reason();
+            if(!journey.ready() || !worldMovement && journeyWork>0)return;
+            // World planning consumes ready RAM phases within this actor's
+            // deadline. Pure graph work does not spend native collision probes.
+            used=worldMovement?0:journeyWork;
         }
         target=journeyNeeded?journey.target(start):goal;
         if(candidates.isEmpty() && query==null && request==null && journeyNeeded){
@@ -390,6 +403,8 @@ final class PlayerBotMeshRoute implements AutoCloseable {
             if(provedDistance>=horizon || cursor>=candidates.size())finish();
         }
     }
+    private float minimumZ=Float.NEGATIVE_INFINITY;
+    void minimumZ(float value){minimumZ=value;}
     private int advanceGraph(int allowance,BooleanSupplier expired,int used,boolean journeyNeeded){
         if(query==null){
             if(!learnedLoaded)loadLearned();
@@ -401,7 +416,8 @@ final class PlayerBotMeshRoute implements AutoCloseable {
                     // Sliced options=0 creates only state-0 nodes immediately after this predicate.
                     // Keep existing nodes traversable, but reject new allocations at the actor limit.
                     var nodes=boundedQuery.getNodePool().getNodeMap();
-                    return super.passFilter(ref,tile,poly) && (nodes.containsKey(ref) || nodes.size()<MAX_NODES);
+                    return super.passFilter(ref,tile,poly) && PlayerBotWater.polygon(tile.data.verts,poly.verts,poly.vertCount,minimumZ)
+                        && (nodes.containsKey(ref) || nodes.size()<MAX_NODES);
                 }
                 @Override public float getCost(float[] pa,float[] pb,long prevRef,MeshTile prevTile,Poly prevPoly,long curRef,MeshTile curTile,Poly curPoly,long nextRef,MeshTile nextTile,Poly nextPoly){
                     float cost=super.getCost(pa,pb,prevRef,prevTile,prevPoly,curRef,curTile,curPoly,nextRef,nextTile,nextPoly);
@@ -486,7 +502,9 @@ final class PlayerBotMeshRoute implements AutoCloseable {
             float t=(float)Math.min(1,remaining/Math.max(.001,length));
             Point end=new Point(proofOrigin.x()+(next.x()-proofOrigin.x())*t,proofOrigin.y()+(next.y()-proofOrigin.y())*t,proofOrigin.z()+(next.z()-proofOrigin.z())*t);
             if(learnedObstruction(world,proofOrigin,end)){
-                journey.obstructed(proofOrigin);useNative("prepared corridor crosses a recorded obstruction");return;
+                // Publish the earned prefix before obstruction invalidates its
+                // itinerary. A callback after that reset has no corridor to credit.
+                useNative("prepared corridor crosses a recorded obstruction");journey.obstructed(proofOrigin);return;
             }
             proved.add(end);provedDistance+=distance(proofOrigin,end);proofOrigin=end;
             if(t==1)cursor++;

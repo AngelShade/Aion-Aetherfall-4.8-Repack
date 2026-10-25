@@ -133,7 +133,9 @@ final class PlayerBotWorldActivities {
   if(!session.world())return;Player bot=session.bot();State s=state(bot);long now=System.currentTimeMillis();
   if(bot.isDead()) {
    if(s.deadSince==0)s.deadSince=now;
-   if(session.autonomous() && now-s.deadSince>=15000){s.deadSince=now;PlayerReviveService.bindRevive(bot);goal(s,null);}
+   // Global revival belongs to the SQL-backed manager, including its instance,
+   // human-party and queue checks. Visible activity must not bypass that owner.
+   if(!PlayerBotPopulationManager.global(bot) && session.autonomous() && now-s.deadSince>=15000){s.deadSince=now;PlayerReviveService.bindRevive(bot);goal(s,null);}
    return;
   }
   s.deadSince=0;
@@ -186,7 +188,11 @@ final class PlayerBotWorldActivities {
   add(bot,goals,quest,kind,npcs,s,now,distances,false);
  }
  private static void add(Player bot,List<Goal> goals,int quest,PlayerBotQuestRoutes.Kind kind,Collection<Integer> npcs,State s,long now,PlayerBotWorldTravel.Distances distances,boolean local) {
+  boolean nearbyResident=quest==0 && PlayerBotPlayerPresence.resident(bot);
   for(int npc:npcs)for(var place:local?PlayerBotWorldTravel.near(npc,distances,900):PlayerBotWorldTravel.places(npc)) {
+   // Local residents pick new work in the player area. Already accepted quests
+   // and their earned rewards retain the existing complete travel catalogue.
+   if(nearbyResident && !PlayerBotPlayerPresence.snapshot().nearby(place.map(),place.x(),place.y(),place.z()))continue;
    double distance=distances.distance(place);if(!Double.isFinite(distance) || distance<0)continue;
    Goal g=new Goal(quest,kind,place,distance);
    if(s.excluded.getOrDefault(key(g),0L)<=now)goals.add(g);

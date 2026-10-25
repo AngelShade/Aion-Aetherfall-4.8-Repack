@@ -28,6 +28,12 @@ inventory, shortcuts) stay byte-identical. An entry whose content matches no
 recorded state was changed by another mod: switching stops and asks for a rebuild.
 Unchanged state with matching stamps costs no archive reads.
 
+If `bin64/AionUiArt.index` is installed, theme/interface archive changes also
+rebuild that dependent Companions artwork index in the same write/rollback
+transaction. The launcher's final preparation checks it after all other helpers,
+including changes outside this addon's ownership. The bridge's source-archive hash
+and DDS CRC checks remain mandatory.
+
 The Graphics menu records exact hashes of `game.pak` and `data.pak` and keeps
 installed copies in `Mods/GraphicsMenu/package`. After a switch, when those archives
 differ from its record only in addon entries, the launcher updates the package copy

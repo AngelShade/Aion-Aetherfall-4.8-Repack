@@ -8,6 +8,7 @@ $arguments=@('/nologo','/target:winexe','/platform:x64','/optimize+','/debug-',
     ('/out:'+(Join-Path $outputRoot 'Aetherfall Launcher.exe')),
     ('/win32manifest:'+(Join-Path $PSScriptRoot 'app.manifest')),
     ('/resource:'+(Join-Path $PSScriptRoot 'MainWindow.xaml')+',Aetherfall.MainWindow.xaml'),
+    ('/resource:'+(Join-Path $PSScriptRoot '../native-icon-bridge/ui_art.json')+',Aetherfall.CompanionArt.json'),
     ('/reference:'+(Join-Path $framework 'WPF/PresentationFramework.dll')),
     ('/reference:'+(Join-Path $framework 'WPF/PresentationCore.dll')),
     ('/reference:'+(Join-Path $framework 'WPF/WindowsBase.dll')),
@@ -20,6 +21,7 @@ $arguments+=(Join-Path $PSScriptRoot 'Launcher.cs')
 $arguments+=(Join-Path $PSScriptRoot 'StartupPresentation.cs')
 $arguments+=(Join-Path $PSScriptRoot 'CustomQuests.cs')
 $arguments+=(Join-Path $PSScriptRoot 'AetherfallInterface.cs')
+$arguments+=(Join-Path $PSScriptRoot 'CompanionArt.cs')
 $arguments+=(Join-Path $PSScriptRoot 'Mods.cs')
 $arguments+=(Join-Path $PSScriptRoot 'ModsWindow.cs')
 $arguments+=(Join-Path $PSScriptRoot 'QuestPakKeys.cs')

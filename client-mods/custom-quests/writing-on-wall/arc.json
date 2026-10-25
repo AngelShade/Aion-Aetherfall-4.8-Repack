@@ -1,0 +1,693 @@
+{
+  "title": "The Unbroken Field",
+  "prerequisite": 1198,
+  "quests": [
+    {
+      "id": 14980,
+      "slug": "TheLetterLeftOpen",
+      "title": "The Letter Left Open",
+      "level": 12,
+      "exp": 17850,
+      "gold": 3910,
+      "start": 203098,
+      "end": 203111,
+      "offer": [
+        "I sent your letter to Sanctum. That does not mean we can sit here waiting for an answer.",
+        "The writer promised a diversion, an infiltration of the Observatory, and damage to the Aetheric Field. We know the threat. We do not yet know the route, the supplies, or who is meant to give the signal.",
+        "William keeps the watch reports. Compare his missing patrols with Spiros's accounts from the farms. Bring me a trail we can follow, rather than another reason to be afraid."
+      ],
+      "accept": "I will start with the watch reports.",
+      "summary": "Spatalos has warned Sanctum about the letter. Trace the diversion before its authors can carry out their threat against the Observatory.",
+      "steps": [
+        {
+          "type": "talk",
+          "npc": 203096,
+          "objective": "Compare the watch reports with {npc} at Verteron Citadel.",
+          "text": [
+            "Three patrols sent towards Tolbas. Two requests for escorts. Every report uses the same phrase: urgent village business.",
+            "No one forged my signature. They did something easier: they gave us enough real trouble that we stopped asking which emergency mattered most.",
+            "Spiros knows who has been leaving Belbua's Farm. Ask him about workers travelling with empty carts."
+          ],
+          "reply": "Real trouble can still be a diversion."
+        }
+      ],
+      "turnin": [
+        "Empty carts going out. Loaded carts coming back. I thought they were taking food from the village.",
+        "But the wheels sat low even when the sacks looked half empty. There was something heavier beneath them.",
+        "If Spatalos wants the route, we start where those carts started: the farm."
+      ],
+      "complete": "William's reports showed that genuine village emergencies were drawing patrols away. Spiros had seen suspiciously heavy carts leaving Belbua's Farm. Spatalos's warning now had a trail to follow."
+    },
+    {
+      "id": 14981,
+      "slug": "WeightBeneathTheSacks",
+      "title": "Weight Beneath the Sacks",
+      "level": 12,
+      "exp": 22275,
+      "gold": 4200,
+      "start": 203111,
+      "end": 203124,
+      "offer": [
+        "Gano works the ground beside that farm. He will have seen more than a passing patrol.",
+        "Ask him first. Then break the hold of the Lepharist peons and thieves around the buildings. Look at what they are moving, not just the weapons they carry.",
+        "Ondanius can tell us whether any of it belongs to the local farmers. Keep the villagers out of the fighting."
+      ],
+      "accept": "I will find out what those carts carried.",
+      "summary": "Return to Belbua's Farm, question Gano, and expose the cargo concealed beneath the Lepharists' stolen produce.",
+      "steps": [
+        {
+          "type": "talk",
+          "npc": 203123,
+          "objective": "Ask {npc} in Northern Tolbas Forest about the carts.",
+          "text": [
+            "Those sacks were mine. The crates underneath were not.",
+            "I saw pale dust where a board had split. One of the men covered it before he bothered picking up the vegetables. Whatever it was, it mattered more than food.",
+            "The peons and thieves still working the farm know the loading place. Clear them out before another cart leaves."
+          ],
+          "reply": "Stay clear of the buildings."
+        },
+        {
+          "type": "hunt",
+          "npcs": [
+            210077,
+            210698,
+            210688
+          ],
+          "count": 4,
+          "objective": "Defeat Lepharist peons or thieves around Belbua's Farm (4) and examine their cargo."
+        }
+      ],
+      "turnin": [
+        "That grit is not from our soil. There is nothing like it in my fields.",
+        "You found the same scrape on the crates? A short line crossed by three cuts. I have seen that scratched beside a message in the farmhouse.",
+        "The letter you took may not have been their only message. Read what they left behind this time."
+      ],
+      "complete": "Gano confirmed that the Lepharists hid heavy crates beneath stolen farm produce. After clearing their loaders, you found a repeated cargo mark. Ondanius recognised it from messages near the farmhouse."
+    },
+    {
+      "id": 14982,
+      "slug": "BetweenTheKnifeMarks",
+      "title": "Between the Knife Marks",
+      "level": 13,
+      "exp": 25000,
+      "gold": 4600,
+      "start": 203124,
+      "end": 203126,
+      "offer": [
+        "You already took the warning pinned inside the farm. Look at the place where it hung, not only the words on the page.",
+        "Knife cuts, copied marks, the impression left by another sheet: anything that tells us where the cargo went.",
+        "Take an exact account to Qydro in Tolbas Village. He knows which requests for help actually came from the village. Abolos needs to hear the result."
+      ],
+      "accept": "This time I will read the marks as well.",
+      "summary": "Re-examine the Suspicious Document at Belbua's Farm and compare the cargo marks with Tolbas's genuine requests for aid.",
+      "steps": [
+        {
+          "type": "inspect",
+          "npc": 700009,
+          "objective": "Examine the {npc} inside Belbua's Farm.",
+          "text": [
+            "(The cuts beside the old letter match the marks on the cargo crates.)",
+            "(A second sheet has left an impression beneath it: a request for an escort, marked as village business. The route turns towards the Dukaki sites before continuing east.)",
+            "(You copy the route and the marks. The original warning was part of a larger set of instructions.)"
+          ],
+          "reply": "Record the route and leave the old warning undisturbed."
+        },
+        {
+          "type": "talk",
+          "npc": 203125,
+          "objective": "Compare the copied request with {npc} in Tolbas Village.",
+          "text": [
+            "We asked for help with stolen goods. We did not ask the Citadel to escort a shipment through the Dukaki camps.",
+            "That is close enough to our wording to fool someone who has never been here. It is not one of our requests.",
+            "Tell Abolos. Someone has been using Tolbas's troubles as a pass through our own watch lines."
+          ],
+          "reply": "I will show him the copied route."
+        }
+      ],
+      "turnin": [
+        "A diversion does not have to be a battle. A believable request can move a patrol just as easily.",
+        "They borrowed our distress and added a route of their own. Santenius keeps the village seal. He can tell us how far that deception goes.",
+        "We will find what they copied before we accuse anyone of helping them."
+      ],
+      "complete": "The mounting marks and impressions at the farmhouse exposed a false escort request. Qydro confirmed that it copied Tolbas's genuine pleas for aid. Abolos ordered an investigation of the stolen village goods."
+    },
+    {
+      "id": 14983,
+      "slug": "AnHonestSeal",
+      "title": "An Honest Seal",
+      "level": 14,
+      "exp": 28500,
+      "gold": 5000,
+      "start": 203126,
+      "end": 203128,
+      "offer": [
+        "Stolen property is still scattered through the Dukaki Settlement. Search the containers marked as goods from Tolbas.",
+        "Look for a wax impression among the stolen goods and bring it back intact. Do not mistake a stolen seal for a guilty villager.",
+        "Santenius will compare your findings with his own records. He deserves the chance to do that himself."
+      ],
+      "accept": "I will bring evidence, not an accusation.",
+      "summary": "Recover a Copied Seal Impression from the stolen Tolbas goods in the Dukaki Settlement and bring it to Santenius for comparison with his genuine seal.",
+      "steps": [
+        {
+          "type": "collect",
+          "npc": 700117,
+          "item": 182299980,
+          "item_name": "quest_14983a",
+          "count": 1,
+          "objective": "Loot a Copied Seal Impression from the {npc} in the Dukaki Settlement."
+        }
+      ],
+      "turnin": [
+        "These scraps were packed with the village belongings? Look at the repeated impressions. Someone was practising the mark used on that false escort request.",
+        "This nick on the rim is wrong. Whoever pressed that wax copied a damaged impression, not my seal. I will keep it with the genuine village records as proof.",
+        "I was ready to be questioned about losing village property. I was not ready to hear that someone used it to put the whole region in danger.",
+        "Tell Leto what you found. And tell her I will mark every genuine message differently until this is over."
+      ],
+      "complete": "You recovered a Copied Seal Impression from the stolen goods. Santenius compared the wax with his genuine seal, identified the flaw, and kept the evidence with the village records. He agreed to change the authentication marks so that the false escort orders could be recognised."
+    },
+    {
+      "id": 14984,
+      "slug": "TheOreRoad",
+      "title": "The Ore Road",
+      "level": 14,
+      "exp": 33450,
+      "gold": 5400,
+      "start": 203128,
+      "end": 203129,
+      "offer": [
+        "The false escort route goes through the Dukaki Mine. Those pale crates were not carrying vegetables, and the mine gives us a better explanation for their weight.",
+        "The watchers and lookouts control the approaches. Push them back and examine the traffic they were protecting.",
+        "Leto commands the village's response. Give her a clear account of the ore road before she commits more people to the wrong emergency."
+      ],
+      "accept": "I will open a way through the mine approaches.",
+      "summary": "Break the Dukaki watch on the mine approaches and trace the heavy cargo moving under false escort orders.",
+      "steps": [
+        {
+          "type": "hunt",
+          "npcs": [
+            210090,
+            210091,
+            210690
+          ],
+          "count": 6,
+          "objective": "Defeat Dukaki Watchers or Dukaki Lookouts on the mine approaches (6)."
+        }
+      ],
+      "turnin": [
+        "Ore dust in the crates, farm sacks over the lids, and our seal on the request. Each part looked ordinary on its own.",
+        "Your account joins them. The traffic is real, and someone planned a route through our blind spots.",
+        "There is still the alarm in the settlement. If it draws my guards away while the carts move, we will be following their orders instead of mine."
+      ],
+      "complete": "You broke the Dukaki watch around the mine approaches and traced the concealed ore traffic. Leto connected the cargo route with the false village orders and recognised the settlement alarm as the next possible diversion."
+    },
+    {
+      "id": 14985,
+      "slug": "TheFalseAlarm",
+      "title": "The False Alarm",
+      "level": 15,
+      "exp": 37500,
+      "gold": 5900,
+      "start": 203129,
+      "end": 203129,
+      "offer": [
+        "I cannot leave the Dukaki unchecked. I also cannot empty Tolbas every time they make a noise.",
+        "Strike at Shaman Chankaki in the settlement. Break the leadership behind this surge of activity and make them answer to us for once.",
+        "When you return, I will send the watch out in measured patrols. Our people need help in the east, but the village will keep its guard."
+      ],
+      "accept": "I will deal with Chankaki.",
+      "summary": "Defeat Shaman Chankaki in the Dukaki Settlement so Leto can respond without abandoning Tolbas's defences.",
+      "steps": [
+        {
+          "type": "hunt",
+          "npcs": [
+            210296
+          ],
+          "count": 1,
+          "objective": "Defeat {npc} in the Dukaki Settlement."
+        }
+      ],
+      "turnin": [
+        "Chankaki is down. The patrols can hold the approaches without chasing every shout from the settlement.",
+        "We have stopped one part of their plan: stolen village authority will no longer send our guards wandering.",
+        "But the people affected by the diversion are still out there. Before we follow the cargo further, we make sure they live to see it stopped."
+      ],
+      "complete": "You defeated Shaman Chankaki. Leto restored controlled patrols without leaving Tolbas undefended. The false escort orders and settlement diversion could no longer dictate the village's response."
+    },
+    {
+      "id": 14986,
+      "slug": "PeopleBehindTheDiversion",
+      "title": "People Behind the Diversion",
+      "level": 15,
+      "exp": 30000,
+      "gold": 6200,
+      "start": 203129,
+      "end": 203149,
+      "offer": [
+        "There are sick people along the eastern road. The Lepharists counted on that trouble to keep us looking away from their cargo.",
+        "Maniparas knows what aid the village can spare. Hear him out, then take his advice to Geolus at the campsite.",
+        "This investigation is supposed to protect Verteron. If we let people suffer because their suffering was useful to the enemy, we have missed the point."
+      ],
+      "accept": "The people come first.",
+      "summary": "Coordinate Tolbas's aid with Maniparas and bring it to Geolus before pursuing the cargo through the polluted country.",
+      "steps": [
+        {
+          "type": "talk",
+          "npc": 203131,
+          "objective": "Discuss aid for the eastern road with {npc} in Tolbas Village.",
+          "text": [
+            "Do not promise them a cure on my word. I can help with the symptoms; Lepios is the one who needs to understand the cause.",
+            "Tell Geolus to keep the sick away from the runoff and have anyone handling the affected plants wash before preparing food.",
+            "And if you find ore residue, describe where it was. A useful observation is worth more than a heroic guess."
+          ],
+          "reply": "I will pass on exactly what you said."
+        }
+      ],
+      "turnin": [
+        "So Leto has not forgotten us. That will do more for morale than another warning nailed to a post.",
+        "We have seen pale grit along the water. Whether it caused the sickness or merely travelled through it, I cannot tell you.",
+        "Lepios can. Help him separate what we know from what frightens us."
+      ],
+      "complete": "Maniparas provided practical precautions without claiming an unproven cure. You carried that advice to Geolus and brought the eastern campsite into Leto's response. The investigation continued without abandoning the people caught in the diversion."
+    },
+    {
+      "id": 14987,
+      "slug": "WhatTheWaterCarries",
+      "title": "What the Water Carries",
+      "level": 16,
+      "exp": 42000,
+      "gold": 6800,
+      "start": 203149,
+      "end": 203148,
+      "offer": [
+        "The contaminated slimes make it dangerous even to reach the waterline. Clear a path through them.",
+        "Then inspect a contaminated swamp plant. Note the grit on the outside separately from the damage in the plant itself.",
+        "Lepios needs observations from the ground. We will not call every illness part of this plot simply because we found them on the same road."
+      ],
+      "accept": "I will bring him something he can judge.",
+      "summary": "Clear the polluted approaches and inspect a swamp plant to distinguish the cargo's residue from Verteron's existing contamination.",
+      "steps": [
+        {
+          "type": "hunt",
+          "npcs": [
+            210121
+          ],
+          "count": 4,
+          "objective": "Defeat {npc} near the polluted approaches (4)."
+        },
+        {
+          "type": "inspect",
+          "npc": 700113,
+          "objective": "Inspect a {npc} in the Contaminated Swamp.",
+          "text": [
+            "(The leaves are damaged, but the pale grit lies loosely on their surface. It has washed here from elsewhere.)",
+            "(Along the bank, the same residue collects above the usual waterline, where heavy boots and wheels have disturbed the ground.)",
+            "(You record the two observations separately. The cargo passed this way; that alone does not explain the swamp's corruption.)"
+          ],
+          "reply": "Keep the residue and the sickness distinct in the report."
+        }
+      ],
+      "turnin": [
+        "Good. You have given me two facts instead of one convenient story.",
+        "The plant's sickness is not proof that the Lepharists poisoned this swamp. The grit and tracks do support a cargo route along its edge.",
+        "Meliodas watches the northern approaches. Ask about the stones found there. If those crates contain material intended for the Field, the distinction matters."
+      ],
+      "complete": "You cleared contaminated slimes and examined a swamp plant. Lepios distinguished existing corruption from recently deposited cargo residue. The evidence followed the ore traffic towards the northern stones without falsely blaming the entire pollution crisis on the conspiracy."
+    },
+    {
+      "id": 14988,
+      "slug": "AStoneOutOfPlace",
+      "title": "A Stone Out of Place",
+      "level": 17,
+      "exp": 46000,
+      "gold": 7200,
+      "start": 203148,
+      "end": 203158,
+      "offer": [
+        "The Mysterious Stones stand beyond the swamp. Examine one before you ask Meliodas what has changed around them.",
+        "Compare the stone itself with the grit on the road. If they are different, say so. Someone may be relying on us to confuse an old mystery with a new crime.",
+        "Ibion at Pilgrims Respite knows the sacred ground farther east. He can help decide where this trail leads."
+      ],
+      "accept": "I will look for what does not belong.",
+      "summary": "Inspect a Mysterious Stone, question Meliodas, and follow the cargo trail towards Pilgrims Respite.",
+      "steps": [
+        {
+          "type": "inspect",
+          "npc": 700006,
+          "objective": "Examine a {npc} beyond the Contaminated Swamp.",
+          "text": [
+            "(The weathered stone does not match the pale ore dust.)",
+            "(Fresh scuff marks and spilled grit cross its base. Someone stopped a heavy load here, then continued along the higher road.)",
+            "(There is no sign that this stone was cut or removed. You record a stopping place, not a stolen relic.)"
+          ],
+          "reply": "Trace the fresh marks without disturbing the stone."
+        },
+        {
+          "type": "talk",
+          "npc": 203156,
+          "objective": "Ask {npc} what passed the northern swamp watch.",
+          "text": [
+            "A cart went through under escort. The men called themselves relief workers and complained about the delay.",
+            "They would not let us open the lower crates. I remembered that because sick people usually need what relief workers carry.",
+            "They took the higher road towards the pilgrims. Tell Ibion to ask better questions than we did."
+          ],
+          "reply": "I will warn him about the covered crates."
+        }
+      ],
+      "turnin": [
+        "They used our need for help as a disguise. That is a particularly ugly kind of theft.",
+        "The pilgrims saw the cart, but seeing a cart does not make them witnesses to sabotage. We will ask carefully.",
+        "Vascus can account for those who passed the Respite. Beyond him, Lunax guards the holy ground. There are troubles there that no forged order should be allowed to exploit."
+      ],
+      "complete": "The Mysterious Stone was intact, but fresh cargo tracks marked a stopping place beside it. Meliodas confirmed that a covered cart had travelled under a false relief pretext. You warned Ibion at Pilgrims Respite."
+    },
+    {
+      "id": 14989,
+      "slug": "ThePilgrimsRoad",
+      "title": "The Pilgrims' Road",
+      "level": 17,
+      "exp": 49500,
+      "gold": 7800,
+      "start": 203158,
+      "end": 203178,
+      "offer": [
+        "Speak to Vascus before entering Miraju's Holy Ground. He keeps track of the people travelling this road.",
+        "Then quiet the spirits threatening the approach. We need the road open for witnesses and wounded travellers, not only for armed Daevas.",
+        "Lunax must know that the cargo passed under false pretences. Do not let the pursuit become another disturbance of the place he protects."
+      ],
+      "accept": "I will open the road and warn Lunax.",
+      "summary": "Question Vascus and quiet the spirits on the pilgrims' route before bringing the warning to Lunax.",
+      "steps": [
+        {
+          "type": "talk",
+          "npc": 203157,
+          "objective": "Ask {npc} at Pilgrims Respite about the escorted cart.",
+          "text": [
+            "They asked how far the Tursin patrols ranged. An odd question for people delivering medicine.",
+            "I told them the dangerous road. They thanked me as if I had given them the safe one.",
+            "That is all I know. Put those words in your account exactly as I said them. I will not pretend I saw more."
+          ],
+          "reply": "Your account is enough. I will keep it exact."
+        },
+        {
+          "type": "hunt",
+          "npcs": [
+            210080
+          ],
+          "count": 4,
+          "objective": "Defeat the restless spirits around Miraju's Holy Ground (4)."
+        }
+      ],
+      "turnin": [
+        "You quieted the approach without laying the blame for every restless spirit at the Lepharists' feet. I appreciate that.",
+        "The cargo sought the Tursin road. That suggests contact, or a hiding place, but it does not yet prove an alliance.",
+        "Meteina watches the outpost approaches. Take the witnesses' accounts to her. Let the next evidence answer the next question."
+      ],
+      "complete": "Vascus recalled the supposed relief workers asking about Tursin patrols. You quieted the spirits threatening the pilgrims' route and warned Lunax. The accounts pointed towards the Tursin approaches without establishing an unproven alliance."
+    },
+    {
+      "id": 14990,
+      "slug": "BehindTheTursinLines",
+      "title": "Behind the Tursin Lines",
+      "level": 18,
+      "exp": 57000,
+      "gold": 8600,
+      "start": 203178,
+      "end": 203147,
+      "offer": [
+        "Meteina has been holding the approaches while the rest of Verteron asks for more guards.",
+        "Show her the copied route. Then break the scouts screening the outpost and inspect a Krall Supply Box behind them.",
+        "We need to know whether the ore changed hands there. Do not turn a suspicion into a war plan before we have looked inside."
+      ],
+      "accept": "I will look behind their screening patrols.",
+      "summary": "Bring the cargo trail to Meteina, push past the Tursin scouts, and examine supplies in the outpost.",
+      "steps": [
+        {
+          "type": "talk",
+          "npc": 203147,
+          "objective": "Show the copied route to {npc} at the Tursin Outpost entrance.",
+          "text": [
+            "That route skirts the patrols just long enough to reach the supply grounds. Whoever drew it had watched us both.",
+            "My scouts cannot get close while the Tursin watchers are out. Clear their screen, then inspect a supply box.",
+            "If you find the same cargo marks, record where they face. A crate prepared for collection tells a different story from one unpacked for use."
+          ],
+          "reply": "I will check how the cargo was left."
+        },
+        {
+          "type": "hunt",
+          "npcs": [
+            210183,
+            210184
+          ],
+          "count": 4,
+          "objective": "Defeat Veteran Tursin Scouts around the outpost approaches (4)."
+        },
+        {
+          "type": "inspect",
+          "npc": 700115,
+          "objective": "Examine a {npc} in the Tursin Outpost.",
+          "text": [
+            "(The familiar three cuts mark a lid beneath newer rope.)",
+            "(The marked cargo has been repacked among ordinary Krall supplies. The knots are arranged for another journey, not for storage.)",
+            "(A trail of pale residue continues towards the refining ground. You record it before leaving the supply box as you found it.)"
+          ],
+          "reply": "Record the repacked cargo and the direction of the residue."
+        }
+      ],
+      "turnin": [
+        "A transfer point. That explains why the carts disappeared before reaching the coast.",
+        "We have proved the cargo passed through Tursin supplies. We still have not proved what anyone promised in exchange.",
+        "There is a refining machine deeper in. Its residue may tell us what they wanted the ore to do."
+      ],
+      "complete": "Meteina helped you locate the route through the Tursin screen. After defeating the scouts, you found the marked cargo repacked for onward transport. The residue led towards an existing Odium Refining Machine."
+    },
+    {
+      "id": 14991,
+      "slug": "TheColdFurnace",
+      "title": "The Cold Furnace",
+      "level": 19,
+      "exp": 65000,
+      "gold": 9500,
+      "start": 203147,
+      "end": 203147,
+      "offer": [
+        "The Odium Refining Machine is already there. We do not need to imagine a hidden laboratory to explain a cart full of ore.",
+        "Examine what has been processed at the machine, then defeat Kumbacha the Shaman among the Tursin forces guarding the deeper route.",
+        "Bring back your observations. If the material has been prepared for the Observatory, we need to stop its final journey."
+      ],
+      "accept": "I will follow the ore through the refining ground.",
+      "summary": "Examine the Odium Refining Machine and defeat Kumbacha the Shaman before the marked cargo can leave the Tursin supply route.",
+      "steps": [
+        {
+          "type": "inspect",
+          "npc": 700038,
+          "objective": "Examine the {npc} inside the Tursin supply grounds.",
+          "text": [
+            "(The machine's rim is stained with the same pale residue found beneath the farm sacks.)",
+            "(Beside the working surface are repeated measures, short timings, and a rough drawing of an enclosed delivery crate. This was preparation for transport, not ordinary mining.)",
+            "(You copy the measures and the drawing. The machine's purpose is familiar; the way this batch was prepared is not.)"
+          ],
+          "reply": "Copy the batch measures for the Observatory watch."
+        },
+        {
+          "type": "hunt",
+          "npcs": [
+            210312
+          ],
+          "count": 1,
+          "objective": "Defeat {npc} in the Tursin-held grounds."
+        }
+      ],
+      "turnin": [
+        "That is enough to warn the coast intelligently. We know what the crate looks like and what residue to look for.",
+        "With Kumbacha defeated, the route has lost another guard. I will keep pressure on the transfer point.",
+        "Estino can direct you towards the coast. Take those copied measures to Zephyros. The letter named the Observatory; now we finally have something more useful than its name."
+      ],
+      "complete": "You traced the marked residue to the Odium Refining Machine, copied the transport batch measures, and defeated Kumbacha. Meteina secured the intelligence for the coast while keeping pressure on the transfer point."
+    },
+    {
+      "id": 14992,
+      "slug": "CargoWithoutAConsignee",
+      "title": "Cargo Without a Consignee",
+      "level": 19,
+      "exp": 60000,
+      "gold": 10000,
+      "start": 203147,
+      "end": 203172,
+      "offer": [
+        "The next leg ends at the coast. Estino knows the approach; Zephyros needs to see the copied batch measures before anyone waves another delivery through.",
+        "The shipwreck holds Lepharist supplies. Examine a Lepharist Treasure Box there for the cargo mark.",
+        "Une knows the shore's less respectable traffic. Speak to her after you have something definite to put before her."
+      ],
+      "accept": "I will take the warning to the coast.",
+      "summary": "Warn the coastal watch and match the inland cargo trail to the Lepharists' supplies at the shipwreck.",
+      "steps": [
+        {
+          "type": "talk",
+          "npc": 203146,
+          "objective": "Ask {npc} about the coastal approach.",
+          "text": [
+            "Use the road towards Cantas Coast. Do not cut through the garrison simply because a cargo route did.",
+            "I will pass Meteina's warning to the next patrol. Zephyros can compare your copied measures with what comes ashore.",
+            "And keep the account with you. A warning that changes in every retelling is no warning at all."
+          ],
+          "reply": "Zephyros will hear the same account."
+        },
+        {
+          "type": "talk",
+          "npc": 203166,
+          "objective": "Warn {npc} on Cantas Coast about the prepared cargo.",
+          "text": [
+            "I have been watching the shipwreck, but not every crate reaches shore where we can see it.",
+            "These measures give us something to recognise. Look through the Lepharist Treasure Boxes at the wreck and see whether their supplies bear the same marks.",
+            "Une will know who expects to collect them. Make her answer a fact, not a rumour."
+          ],
+          "reply": "I will check the wreck's cargo first."
+        },
+        {
+          "type": "inspect",
+          "npc": 700283,
+          "objective": "Inspect a {npc} at the Mysterious Shipwreck.",
+          "text": [
+            "(The box contains ordinary loot above an inner wrapping stiff with pale dust.)",
+            "(On the underside of the lid are the three cuts and the same short timings copied at the refining machine. A final instruction calls for delivery during the next watch change.)",
+            "(You record the instruction. The farm, the inland transfer, and the shore shipment belong to the same operation.)"
+          ],
+          "reply": "Record the delivery timing and take it to Une."
+        }
+      ],
+      "turnin": [
+        "I know those marks. Before you start, no, I did not know they meant an attack on the Field.",
+        "A shipwreck captain arranged the collection. Kinsgreen. He paid for discretion and asked which watch changed last.",
+        "I took his coin. I will answer for that. But you need to stop his people before they collect the last load."
+      ],
+      "complete": "Estino and Zephyros received the warning. At the shipwreck you matched the cargo marks and delivery timing to the inland evidence. Une identified Captain Kinsgreen as the collection organiser and admitted accepting payment for information."
+    },
+    {
+      "id": 14993,
+      "slug": "TheCaptainsLastOrder",
+      "title": "The Captain's Last Order",
+      "level": 20,
+      "exp": 80000,
+      "gold": 12000,
+      "start": 203172,
+      "end": 203166,
+      "offer": [
+        "Kinsgreen's deckhands and crewmembers still hold the wreck. Break the collection party, then defeat the captain himself.",
+        "He knows the watch change, and his last instructions may tell us where the prepared load is waiting.",
+        "Do not bring his payment back to me and call this settled. Tell Zephyros what I said. I helped a stranger past the watch because I liked the price. That belongs in the account too."
+      ],
+      "accept": "I will stop the captain and report the whole account.",
+      "summary": "Break the collection party at the Mysterious Shipwreck and defeat Captain Kinsgreen before the final delivery reaches the Observatory.",
+      "steps": [
+        {
+          "type": "hunt",
+          "npcs": [
+            210073,
+            210074
+          ],
+          "count": 4,
+          "objective": "Defeat Shipwrecked Deckhands or Shipwrecked Crewmembers at the wreck (4)."
+        },
+        {
+          "type": "hunt",
+          "npcs": [
+            210075
+          ],
+          "count": 1,
+          "objective": "Defeat {npc} at the Mysterious Shipwreck and recover the delivery instructions."
+        }
+      ],
+      "turnin": [
+        "Kinsgreen is defeated, and the collection party is broken. These instructions point to the suspicious Odium already left near the shore.",
+        "The attack was meant to enter as a delivery while the watch was looking elsewhere. We will not give it that chance.",
+        "Une's admission goes into my report. So does the fact that she named him while there was still time to act. Neither fact erases the other."
+      ],
+      "complete": "You defeated the shipwreck collection party and Captain Kinsgreen. His final instructions identified prepared Odium waiting near the coastal watch. Zephyros recorded Une's admission and ordered the staged load secured."
+    },
+    {
+      "id": 14994,
+      "slug": "BeforeTheWatchChanges",
+      "title": "Before the Watch Changes",
+      "level": 20,
+      "exp": 72000,
+      "gold": 11500,
+      "start": 203166,
+      "end": 203166,
+      "offer": [
+        "The suspicious Odium near the shore matches the captain's instructions. Check the separate piece first, then the larger pile.",
+        "Use the batch measures you copied. Break the prepared arrangement and mark the material for the watch to isolate. Do not throw it into the water and make it someone else's problem.",
+        "When you return, I want a final account of both sites. The Observatory gets no unexamined delivery while I am here."
+      ],
+      "accept": "I will secure both parts of the staged load.",
+      "summary": "Secure the Suspicious Odium Piece and Suspicious Odium Pile on Cantas Coast before the planned watch change.",
+      "steps": [
+        {
+          "type": "inspect",
+          "npc": 730304,
+          "objective": "Secure the {npc} near the Cantas Coast watch.",
+          "text": [
+            "(The separate piece has been wrapped to match an ordinary delivery. Its prepared contact surfaces match the measures copied at the furnace.)",
+            "(You separate the contact pieces and spoil the timed arrangement. The material remains on dry ground, clearly marked for the watch.)",
+            "(This part of the load can no longer be carried straight into the Observatory and used as prepared.)"
+          ],
+          "reply": "Record the secured piece and continue to the pile."
+        },
+        {
+          "type": "inspect",
+          "npc": 730305,
+          "objective": "Secure the {npc} beside the coastal staging place.",
+          "text": [
+            "(Beneath the rough outer heap, the prepared portions are set in the sequence described by the captain's order.)",
+            "(You break that sequence and mark the material for isolation. Nothing is washed into the sea or left disguised as an innocent delivery.)",
+            "(The final load is exposed. With its collection party defeated and its preparation spoiled, the operation described in the letter has no remaining path to the Observatory.)"
+          ],
+          "reply": "Record the secured pile and report to Zephyros."
+        }
+      ],
+      "turnin": [
+        "Both sites accounted for. The collection party is gone, the prepared loads are spoiled, and the watch knows what it is looking at.",
+        "I have stopped unscreened deliveries and assigned the staged material to the watch's account. We will inspect it before anything moves.",
+        "Take my report to Spatalos. This time the dispatch should say what was done, not merely what we fear might happen."
+      ],
+      "complete": "You secured both staged Odium sites, spoiled the prepared arrangements, and reported them to Zephyros. The collection party was defeated, the false delivery exposed, and the Observatory watch warned. The attack described in the original letter was stopped."
+    },
+    {
+      "id": 14995,
+      "slug": "TheUnbrokenField",
+      "title": "The Unbroken Field",
+      "level": 20,
+      "exp": 90000,
+      "gold": 15000,
+      "start": 203166,
+      "end": 203098,
+      "offer": [
+        "You can trace the whole operation now: stolen village authority, ore hidden beneath farm produce, an inland transfer, and a coastal collection timed to the watch.",
+        "William should have the corrected patrol account. Then give Spatalos my report and your own testimony.",
+        "I will not tell you Verteron has become peaceful. I will tell you that this attack has failed, and why. That is a better message to carry home."
+      ],
+      "accept": "I will close the account at the Citadel.",
+      "summary": "Return to Verteron Citadel with the completed investigation. Correct the watch records with William and give Spatalos a final account of the stopped attack.",
+      "steps": [
+        {
+          "type": "talk",
+          "npc": 203096,
+          "objective": "Give {npc} the corrected patrol account at Verteron Citadel.",
+          "text": [
+            "The village requests were genuine until someone copied them. I have marked the false ones and sent the new seal instructions to the watch.",
+            "We will keep enough guards here and enough in Tolbas. No more emptying one post because a stranger knows which words to use.",
+            "Spatalos is waiting. Tell him the road stayed open for our people even while you closed it to theirs."
+          ],
+          "reply": "He will receive the full account."
+        }
+      ],
+      "turnin": [
+        "When you brought me that letter, I asked whether the Lepharists were in league with the Balaur. Fear was running ahead of the evidence.",
+        "You proved what this operation intended and stopped it. You did not invent an answer to the larger question. Sanctum will receive that distinction, along with the names, the copied orders, and Zephyros's report.",
+        "Tolbas keeps its guards. The pilgrims' road remains open. The coastal watch has the prepared cargo in its account, and the Observatory has not fallen silent.",
+        "The men who wrote that warning expected us to chase each alarm until there was nobody left where they meant to strike. You brought the scattered reports together, and you brought our people through it.",
+        "This investigation is closed. The Field still stands. Take this reward with my thanks, [%username]. You have earned an ending to that letter."
+      ],
+      "complete": "You returned the corrected patrol account to William and gave Spatalos the complete investigation. The copied seals were exposed, the inland transfer disrupted, Captain Kinsgreen and his collection party defeated, and the staged Odium secured before delivery. Spatalos sent the evidence to Sanctum without presenting his earlier fear of a Balaur alliance as a proven fact. The particular attack described in The Writing on the Wall was stopped, the witnesses were heard, and the investigation was formally closed."
+    }
+  ]
+}

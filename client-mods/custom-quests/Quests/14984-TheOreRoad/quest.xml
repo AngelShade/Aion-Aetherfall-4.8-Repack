@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<quest>
+  <id>14984</id>
+  <name>Q14984</name>
+  <dev_name />
+  <desc>STR_QUEST_NAME_Q14984</desc>
+  <category1>quest</category1>
+  <category2>STR_QUEST_ZONE02</category2>
+  <f_mission>0</f_mission>
+  <max_repeat_count>1</max_repeat_count>
+  <client_level>15</client_level>
+  <minlevel_permitted>14</minlevel_permitted>
+  <maxlevel_permitted>0</maxlevel_permitted>
+  <cannot_share>1</cannot_share>
+  <gender_permitted>all</gender_permitted>
+  <reward_exp1>33450</reward_exp1>
+  <reward_gold1>5400</reward_gold1>
+  <class_permitted>warrior scout mage cleric engineer artist fighter knight assassin ranger wizard elementallist chanter priest gunner bard rider</class_permitted>
+  <race_permitted>pc_light</race_permitted>
+  <finished_quest_cond1>Q14983</finished_quest_cond1>
+</quest>

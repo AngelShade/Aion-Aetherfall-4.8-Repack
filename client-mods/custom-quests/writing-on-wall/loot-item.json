@@ -1,0 +1,12 @@
+{
+  "id": 182299980,
+  "prototype": 182200502,
+  "clientName": "quest_14983a",
+  "name": "Copied Seal Impression",
+  "nameKey": "STR_QUEST_14983A",
+  "descriptionKey": "STR_QUEST_14983A_DESC",
+  "nameStringId": 9901498,
+  "descriptionStringId": 9901499,
+  "description": "A crude wax impression recovered from the stolen Tolbas goods. A nick in its rim may reveal how the false escort orders were made. Bring it to Santenius in Tolbas Village.",
+  "icon": "Icon_Item_Seal01"
+}

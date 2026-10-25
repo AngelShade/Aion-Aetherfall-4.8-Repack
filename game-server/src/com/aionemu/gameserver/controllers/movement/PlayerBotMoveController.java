@@ -111,7 +111,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		if(walkSafe==null || !walkSafe.test(from,next)){walkBlocked=true;return false;}
 		// Recheck the whole handoff edge for fresh walls/doors. The ordinary
 		// ground loop still checks the actual floor step on every movement tick.
-		var ground=com.aionemu.gameserver.world.geo.GeoService.getInstance().findGroundMovementCollision(owner.getWorldId(),owner.getInstanceId(),
+		var ground=com.aionemu.gameserver.services.playerbot.PlayerBotWater.walk(owner,owner.getWorldId(),owner.getInstanceId(),
 			owner.getX(),owner.getY(),owner.getZ(),next.x(),next.y(),next.z());
 		if(ground==null || !Float.isFinite(ground.x) || !Float.isFinite(ground.y) || !Float.isFinite(ground.z)
 			|| Math.hypot(ground.x-next.x(),ground.y-next.y())>.15 || Math.abs(ground.z-next.z())>2){walkBlocked=true;return false;}
@@ -283,7 +283,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 				walkBlocked=true;abortMove();return;
 			}
 			if(distance<.01) {
-				var ground=com.aionemu.gameserver.world.geo.GeoService.getInstance().findGroundMovementCollision(
+				var ground=com.aionemu.gameserver.services.playerbot.PlayerBotWater.walk(owner,
 					owner.getWorldId(),owner.getInstanceId(),owner.getX(),owner.getY(),owner.getZ(),owner.getX(),owner.getY(),targetDestZ);
 				if(ground!=null && Float.isFinite(ground.z) && ground.z<owner.getZ()-1.25f){startSupportedFall();return;}
 				if(ground==null || !Float.isFinite(ground.z) || Math.abs(ground.z-targetDestZ)>.75) {walkBlocked=true;abortMove();return;}
@@ -297,7 +297,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 			double fraction=Math.min(1,speed*remaining/distance);
 			float x=owner.getX()+(float)((targetDestX-owner.getX())*fraction);
 			float y=owner.getY()+(float)((targetDestY-owner.getY())*fraction);
-			var ground=com.aionemu.gameserver.world.geo.GeoService.getInstance().findGroundMovementCollision(
+			var ground=com.aionemu.gameserver.services.playerbot.PlayerBotWater.walk(owner,
 				owner.getWorldId(),owner.getInstanceId(),owner.getX(),owner.getY(),owner.getZ(),x,y,targetDestZ);
 			if(ground==null || !Float.isFinite(ground.x) || !Float.isFinite(ground.y) || !Float.isFinite(ground.z)){
 				com.aionemu.gameserver.services.playerbot.PlayerBotRouteMemory.obstructed(owner.getWorldId(),owner.getX(),owner.getY(),owner.getZ(),x,y);
@@ -354,7 +354,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		if(elapsed<=0 || !Float.isFinite(speed) || speed<=0){updateLastMove();return;}
 		double fraction=Math.min(1,speed*elapsed/1000.0/distance);
 		float x=owner.getX()+(float)((step.x()-owner.getX())*fraction),y=owner.getY()+(float)((step.y()-owner.getY())*fraction);
-		var ground=com.aionemu.gameserver.world.geo.GeoService.getInstance().findGroundMovementCollision(
+		var ground=com.aionemu.gameserver.services.playerbot.PlayerBotWater.walk(owner,
 			owner.getWorldId(),owner.getInstanceId(),owner.getX(),owner.getY(),owner.getZ(),x,y,step.z());
 		if(ground==null || !Float.isFinite(ground.x) || !Float.isFinite(ground.y) || !Float.isFinite(ground.z)){follow.blocked(now);holdFollow();return;}
 		if(steepDrop(ground)){startSupportedFall();return;}

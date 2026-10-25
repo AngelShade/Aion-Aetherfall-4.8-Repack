@@ -12,8 +12,22 @@ final class PlayerBotRecoveryIntent {
  static void start(Player bot){RECOVERING.add(bot.getObjectId());}
  static void clear(Player bot){RECOVERING.remove(bot.getObjectId());}
  static void update(Player bot,boolean engaged,boolean leaderMoving) {
-  if(bot.isDead() || engaged || leaderMoving || PlayerBotHealing.health(bot)>=95 && PlayerBotDefense.mana(bot)>=95)clear(bot);
+  if(bot.isDead() || engaged || leaderMoving || PlayerBotHealing.health(bot)>=PlayerBotRecoveryPolicy.RECOVERED && PlayerBotDefense.mana(bot)>=PlayerBotRecoveryPolicy.RECOVERED)clear(bot);
   else if(bot.isInState(CreatureState.RESTING))start(bot);
+ }
+ /** Wait standing only while native periodic effects cover every resource still being recovered. */
+ static boolean regenerating(Player bot) {
+  boolean health=PlayerBotHealing.health(bot)>=PlayerBotRecoveryPolicy.RECOVERED;
+  boolean mana=PlayerBotDefense.mana(bot)>=PlayerBotRecoveryPolicy.RECOVERED;
+  for(var effect:bot.getEffectController().getAllEffects()) {
+   if(effect.isPassive() || effect.getRemainingTimeMillis()<=0)continue;
+   for(var template:effect.getSuccessEffects()) {
+    var tick=effect.getReserveds(template.getPosition());if(tick==null || tick.getValue()<=0)continue;
+    if(template instanceof com.aionemu.gameserver.skillengine.effect.HealEffect && !bot.getEffectController().isAbnormalSet(com.aionemu.gameserver.skillengine.effect.AbnormalState.DISEASE))health=true;
+    if(template instanceof com.aionemu.gameserver.skillengine.effect.MPHealEffect)mana=true;
+   }
+  }
+  return health && mana;
  }
  private PlayerBotRecoveryIntent(){}
 }

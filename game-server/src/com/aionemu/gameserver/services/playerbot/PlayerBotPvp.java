@@ -60,10 +60,12 @@ final class PlayerBotPvp {
   // another unprovoked fight. Explicit orders and real defence can still act.
   if(current!=null && !legal(current)){quietUntil=now+15000;clear();}
   var objects=new ArrayList<Creature>();bot.getKnownList().forEachObject(o->{if(o instanceof Creature c && playerOwned(c))objects.add(c);});
-  var visible=objects.stream().filter(this::legal).filter(c->PositionUtil.isInRange(bot,c,PlayerBotConfig.PVP_CHASE_DISTANCE))
+  var visibleCandidates=objects.stream().filter(this::legal).filter(c->PositionUtil.isInRange(bot,c,PlayerBotConfig.PVP_CHASE_DISTANCE));
+  var visible=session.autonomous()?nearest(bot,visibleCandidates,32):visibleCandidates
    .sorted(Comparator.comparingDouble(c->PositionUtil.getDistance(bot,c))).limit(32).toList();
-  var nearby=bot.getKnownList().streamPlayers().filter(p->p.isSpawned() && !p.isDead() && bot.canSee(p)
-   && p.getWorldId()==bot.getWorldId() && p.getInstanceId()==bot.getInstanceId() && PositionUtil.isInRange(bot,p,40))
+  var nearbyCandidates=bot.getKnownList().streamPlayers().filter(p->p.isSpawned() && !p.isDead() && bot.canSee(p)
+   && p.getWorldId()==bot.getWorldId() && p.getInstanceId()==bot.getInstanceId() && PositionUtil.isInRange(bot,p,40));
+  var nearby=session.autonomous()?nearest(bot,nearbyCandidates,48):nearbyCandidates
    .sorted(Comparator.comparingDouble(p->PositionUtil.getDistance(bot,p))).limit(48).toList();
   var allies=session.autonomous()?java.util.stream.Stream.concat(party.stream(),nearby.stream()
    .filter(p->p.getRace()==bot.getRace() && !bot.isEnemy(p))).distinct().toList():party;
@@ -71,6 +73,7 @@ final class PlayerBotPvp {
   for(var p:nearby)if(bot.isEnemy(p))hostile+=power(p);else if(p.getRace()==bot.getRace())friendly+=power(p);
   Creature best=null;double score=Double.NEGATIVE_INFINITY;
   for(var target:visible) {
+   if(session.autonomous() && !legal(target))continue;
    boolean explicit=target.getObjectId()==commanded || !session.autonomous() && party.stream().anyMatch(p->
     p.getTarget()==target && recent(target,p,now));
    boolean direct=threatens(target,party,now);
@@ -109,6 +112,14 @@ final class PlayerBotPvp {
    current=best;
   }
   return best;
+ }
+ private record Distance<T extends Creature>(T actor,double distance,int id){}
+ private static <T extends Creature> List<T> nearest(Player bot,java.util.stream.Stream<T> candidates,int limit){
+  // Moving actors must not change comparison keys part way through TimSort.
+  // Companion selection retains its existing path; world decisions snapshot once.
+  return candidates.map(c->new Distance<>(c,PositionUtil.getDistance(bot,c),c.getObjectId()))
+   .sorted(Comparator.<Distance<T>>comparingDouble(Distance::distance).thenComparingInt(Distance::id))
+   .limit(limit).map(Distance::actor).toList();
  }
  private static double power(Player p){return Math.pow(Math.max(1,p.getLevel()),2)*(.35+.65*hp(p)/100);}
  static double hp(Creature p){return PlayerBotDefense.health(p);}

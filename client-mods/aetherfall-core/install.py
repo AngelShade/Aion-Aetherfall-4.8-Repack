@@ -60,6 +60,9 @@ def main():
     if backup.exists() or backup.is_relative_to(client):
         raise SystemExit('Use a fresh external backup folder')
     closed()
+    for rel, digest in manifest.get('inputGuards', {}).items():
+        if sha(client / rel) != digest:
+            raise SystemExit('Native quest metadata input changed; rebuild: ' + rel)
     for f in manifest['files']:
         live = client / f['path']
         current = sha(live) if live.exists() else None

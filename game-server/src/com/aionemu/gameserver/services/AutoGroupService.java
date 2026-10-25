@@ -226,6 +226,12 @@ public class AutoGroupService {
 
 	public void onLogout(Player player) {
 		int objectId = player.getObjectId();
+		// A generated actor can leave before pressing Enter. Its current map is
+		// still outdoors, so the normal current-instance lookup cannot find it.
+		if (generatedPopulationBot(player))
+			for (var pending : autoInstances.values())
+				if (pending.getInstance() != player.getWorldMapInstance() && pending.getRegisteredAGPlayers().containsKey(objectId))
+					cancelEnter(player, pending.getAutoGroupType().getTemplate().getMaskId());
 		for (LookingForParty lfp : getSearchEntries(objectId)) {
 			if (lfp.isOnStartEnterTask()) {
 				for (AutoInstance autoInstance : autoInstances.values()) {
@@ -233,6 +239,8 @@ public class AutoGroupService {
 				}
 			} else if (lfp.isLeader(objectId)) {
 				lfp.setLeaderObjId(lfp.getMembers().keySet().stream().filter(id -> id != objectId).findFirst().orElse(0));
+				if (generatedPopulationBot(player))
+					lfp.unregisterMember(objectId);
 				if (lfp.getLeaderObjId() == 0) {
 					removeSearchEntry(lfp);
 				}
@@ -348,6 +356,127 @@ public class AutoGroupService {
 
 	public boolean isInAutoInstance(Player player) {
 		return autoInstances.containsKey(player.getWorldMapInstance());
+	}
+
+	/** Native queue custody, including a party entry, before a background bot rebuild. */
+	public boolean isLookingForInstance(Player player) {
+		for (var searches : lookingParties.values()) {
+			synchronized (searches) {
+				if (getSearchEntry(player.getObjectId(), searches) != null)
+					return true;
+			}
+		}
+		return autoInstances.values().stream().anyMatch(instance -> instance.getRegisteredAGPlayers().containsKey(player.getObjectId()));
+	}
+
+	public int populationInvitationMask(Player player) {
+		return autoInstances.values().stream().filter(instance -> instance.getInstance() != player.getWorldMapInstance()
+			&& instance.getRegisteredAGPlayers().containsKey(player.getObjectId()))
+			.mapToInt(instance -> instance.getAutoGroupType().getTemplate().getMaskId()).findFirst().orElse(0);
+	}
+
+	public int populationQueuedMask(Player player) {
+		if (!generatedPopulationBot(player))
+			return 0;
+		return getSearchEntries(player.getObjectId()).stream()
+			.filter(search -> search.getMembers().size() == 1 && !search.isOnStartEnterTask())
+			.mapToInt(LookingForParty::getMaskId).findFirst().orElse(0);
+	}
+
+	/** Explicit feature disable; never cancels a matched invitation or a human party. */
+	public boolean leavePopulationQueue(Player player, int maskId) {
+		if (!generatedPopulationBot(player))
+			return false;
+		var searches = lookingParties.get(maskId);
+		if (searches == null)
+			return false;
+		synchronized (searches) {
+			var search = getSearchEntry(player, maskId);
+			if (search == null || search.getMembers().size() != 1 || search.isOnStartEnterTask())
+				return false;
+			cancelRegistration(search, player, maskId);
+			return true;
+		}
+	}
+
+	private static boolean generatedPopulationBot(Player player) {
+		return player.isWorldBot() && player.getAccount().getId() <= -1000000 && player.getAccount().getId() >= -1023999;
+	}
+
+	/** Same entry checks and matching path as a human request; no synthetic client packets. */
+	public boolean joinPopulationQueue(Player player, int maskId) {
+		if (!AutoGroupConfig.AUTO_GROUP_ENABLE || !generatedPopulationBot(player)
+			|| player.isInTeam() || player.isInInstance() || isLookingForInstance(player))
+			return false;
+		var type = AutoGroupType.getAGTByMaskId(maskId);
+		if (type == null || type.isPeriodicInstance() && !PeriodicInstanceManager.getInstance().isRegistrationOpen(maskId))
+			return false;
+		// A human demand must still exist after queue-census planning.
+		var demand = populationQueues().stream().filter(queue -> queue.maskId() == maskId && queue.humanDemand()).findFirst().orElse(null);
+		if (demand == null)
+			return false;
+		boolean open = player.getRace() == com.aionemu.gameserver.model.Race.ELYOS ? demand.elyosOpenSeats() > 0 : demand.asmodianOpenSeats() > 0;
+		var request = open && type.getTemplate().canRegisterQuickEntry() || !type.getTemplate().canRegisterNewEntry()
+			? EntryRequestType.QUICK_GROUP_ENTRY : EntryRequestType.NEW_GROUP_ENTRY;
+		startLooking(player, maskId, request);
+		return isLookingForInstance(player);
+	}
+
+	/** Native counterpart of population CheckBgQueue/CheckLfgQueue; no invented WoW queue IDs. */
+	public record PopulationQueue(int maskId, int mapId, int minimumLevel, int maximumLevel,
+		int elyosPlayers, int asmodianPlayers, int elyosBots, int asmodianBots, int instances,
+		int instanceHumans, int elyosOpenSeats, int asmodianOpenSeats) {
+		public boolean humanDemand() { return elyosPlayers + asmodianPlayers + instanceHumans > 0; }
+	}
+
+	public List<PopulationQueue> populationQueues() {
+		var rows = new TreeMap<Integer, int[]>();
+		for (var pair : lookingParties.entrySet()) {
+			var type = AutoGroupType.getAGTByMaskId(pair.getKey());
+			if (type == null)
+				continue;
+			var counts = rows.computeIfAbsent(pair.getKey(), ignored -> new int[8]);
+			var seen = new HashSet<Integer>();
+			synchronized (pair.getValue()) {
+				for (var search : pair.getValue())
+					for (var member : search.getMembers().values()) {
+						var player = com.aionemu.gameserver.world.World.getInstance().getPlayer(member.objectId());
+						if (player == null || !player.isSpawned() || !seen.add(member.objectId()))
+							continue;
+						int faction = player.getRace() == com.aionemu.gameserver.model.Race.ELYOS ? 0 : 1;
+						counts[faction + (player.isPlayerBot() ? 2 : 0)]++;
+					}
+			}
+		}
+		for (var instance : autoInstances.values()) {
+			var type = instance.getAutoGroupType(); int mask = type.getTemplate().getMaskId();
+			var counts = rows.computeIfAbsent(mask, ignored -> new int[8]); counts[4]++;
+			var members = List.copyOf(instance.getRegisteredAGPlayers().values());
+			int humans = (int) members.stream().filter(member -> {
+				var player = com.aionemu.gameserver.world.World.getInstance().getPlayer(member.objectId());
+				return player != null && player.isOnline() && !player.isPlayerBot();
+			}).count(); counts[5] += humans;
+			var score = instance.getInstance().getInstanceHandler().getInstanceScore();
+			if (humans == 0 || !type.getTemplate().canRegisterQuickEntry()
+				|| System.currentTimeMillis() - instance.getStartInstanceTime() > type.getMaximumJoinTime()
+				|| score != null && score.getInstanceProgressionType() == com.aionemu.gameserver.model.instance.InstanceProgressionType.END_PROGRESS)
+				continue;
+			for (var race : List.of(com.aionemu.gameserver.model.Race.ELYOS, com.aionemu.gameserver.model.Race.ASMODIANS)) {
+				int maximum = com.aionemu.gameserver.dataholders.DataManager.INSTANCE_COOLTIME_DATA.getMaxMemberCount(type.getTemplate().getInstanceMapId(), race);
+				int occupied = (int) members.stream().filter(member -> member.race() == race).count();
+				counts[race == com.aionemu.gameserver.model.Race.ELYOS ? 6 : 7] += Math.max(0, maximum - occupied);
+			}
+		}
+		var result = new ArrayList<PopulationQueue>();
+		for (var row : rows.entrySet()) {
+			var type = AutoGroupType.getAGTByMaskId(row.getKey());
+			if (type == null)
+				continue;
+			var template = type.getTemplate(); var counts = row.getValue();
+			result.add(new PopulationQueue(row.getKey(), template.getInstanceMapId(), template.getMinLvl(), template.getMaxLvl(),
+				counts[0], counts[1], counts[2], counts[3], counts[4], counts[5], counts[6], counts[7]));
+		}
+		return List.copyOf(result);
 	}
 
 	public static AutoGroupService getInstance() {

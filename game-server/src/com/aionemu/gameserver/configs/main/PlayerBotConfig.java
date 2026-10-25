@@ -234,6 +234,13 @@ public final class PlayerBotConfig {
 	 * Enabled by user request; level/faction eligibility and worldwide fallback remain. */
 	@Property(key = "gameserver.playerbots.population.concentrate_player_maps", defaultValue = "true")
 	public static boolean POPULATION_CONCENTRATE;
+	/** Additive nearby residency; the pinned worldwide manager and its target remain authoritative. */
+	@Property(key = "gameserver.playerbots.population.player_presence.enable", defaultValue = "false")
+	public static boolean POPULATION_PLAYER_PRESENCE;
+	@Property(key = "gameserver.playerbots.population.player_presence.per_area", defaultValue = "40")
+	public static int POPULATION_PRESENCE_PER_AREA;
+	@Property(key = "gameserver.playerbots.population.player_presence.radius", defaultValue = "600")
+	public static int POPULATION_PRESENCE_RADIUS;
 	/** User-requested responsive residency around real players; no saved character rerolls. */
 	@Property(key = "gameserver.playerbots.population.player_focus.enable", defaultValue = "true")
 	public static boolean POPULATION_PLAYER_FOCUS;

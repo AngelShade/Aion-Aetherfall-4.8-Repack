@@ -64,9 +64,11 @@ def patch_development_session(source):
     return bytes(data)
 
 
-def build_market_rect_code(include_journey=True, client_origin=True):
+def build_market_rect_code(include_journey=True, client_origin=True, windowed_cashshop=False):
     if include_journey:
-        return build_journey_rect_code(client_origin)
+        return build_journey_rect_code(client_origin, windowed_cashshop)
+    if windowed_cashshop:
+        raise ValueError('Windowed shop requires the current four-dialog layout hook')
     return build_legacy_market_rect_code(client_origin)
 
 
@@ -156,7 +158,7 @@ def build_legacy_market_rect_code(client_origin=True):
     return a.finish()
 
 
-def build_journey_rect_code(client_origin=True):
+def build_journey_rect_code(client_origin=True, windowed_cashshop=False):
     """Use the proven pixel layout path for all four native browser dialogs."""
     a = Assembler(MARKET_RECT_HOOK_RVA)
     a.emit(bytes.fromhex('5356574883ec604889cb4889542440'))
@@ -167,6 +169,10 @@ def build_journey_rect_code(client_origin=True):
     def short(op,label):
         a.emit(bytes([op,0]));shorts.append((len(a.code)-1,label))
     for index, (name, inset) in enumerate((('PrivateWarehouse',25),('PrivateCashShop',25),('PrivateWardrobe',25),('PrivateJourney',0))):
+        if index == 1 and windowed_cashshop:
+            # Leave the exact shop dialog and browser to their native resizable
+            # XML/Lua layout. Keep the other three viewport routes unchanged.
+            continue
         a.emit(bytes.fromhex('488b7c2420'))
         a.branch(b'\x48\x8d\x35','route_'+str(index))
         a.emit(b'\xb9'+struct.pack('<I',len(name))+bytes.fromhex('f3a6'))

@@ -957,6 +957,8 @@ public class QuestEngine implements GameEngine {
 			default -> false;
 		})
 			return;
+		if (!CustomConfig.VERTERON_QUEST_RESTORATION_ENABLE && questId >= 14110 && questId <= 14114)
+			return;
 		if (questHandlers.putIfAbsent(questId, questHandler) != null)
 			log.warn("Duplicate handler for quest: {}", questId);
 		else

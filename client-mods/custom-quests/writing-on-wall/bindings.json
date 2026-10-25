@@ -1,0 +1,266 @@
+{
+  "203096": {
+    "key": "Kinesos",
+    "dictionary": "STR_DIC_N_Kinesos",
+    "label": "William",
+    "ai": "simple_abyssguard"
+  },
+  "203098": {
+    "key": "Spatalos",
+    "dictionary": "STR_DIC_N_Spatalos",
+    "label": "Spatalos",
+    "ai": "simple_abyssguard"
+  },
+  "203111": {
+    "key": "Spiros",
+    "dictionary": "STR_DIC_N_Spiros",
+    "label": "Spiros",
+    "ai": "simple_abyssguard"
+  },
+  "203123": {
+    "key": "Gano",
+    "dictionary": "STR_DIC_N_Gano",
+    "label": "Gano",
+    "ai": "general"
+  },
+  "203124": {
+    "key": "Ondanius",
+    "dictionary": "STR_DIC_N_Ondanius",
+    "label": "Ondanius",
+    "ai": "general"
+  },
+  "203125": {
+    "key": "Qydro",
+    "dictionary": "STR_DIC_N_Qydro",
+    "label": "Qydro",
+    "ai": "general"
+  },
+  "203126": {
+    "key": "Abolos",
+    "dictionary": "STR_DIC_N_Abolos",
+    "label": "Abolos",
+    "ai": "simple_abyssguard"
+  },
+  "203128": {
+    "key": "Santenius",
+    "dictionary": "STR_DIC_N_Santenius",
+    "label": "Santenius",
+    "ai": "general"
+  },
+  "203129": {
+    "key": "Leto",
+    "dictionary": "STR_DIC_N_Leto",
+    "label": "Leto",
+    "ai": "aggressive"
+  },
+  "203131": {
+    "key": "Maniparas",
+    "dictionary": "STR_DIC_N_Maniparas",
+    "label": "Maniparas",
+    "ai": "general"
+  },
+  "203146": {
+    "key": "Estino",
+    "dictionary": "STR_DIC_N_Estino",
+    "label": "Estino",
+    "ai": "general"
+  },
+  "203147": {
+    "key": "Meteina",
+    "dictionary": "STR_DIC_N_Meteina",
+    "label": "Meteina",
+    "ai": "general"
+  },
+  "203148": {
+    "key": "Lepios",
+    "dictionary": "STR_DIC_N_Lepios",
+    "label": "Lepios",
+    "ai": "general"
+  },
+  "203149": {
+    "key": "Gogohas",
+    "dictionary": "STR_DIC_N_Gogohas",
+    "label": "Geolus",
+    "ai": "general"
+  },
+  "203156": {
+    "key": "Meliodas",
+    "dictionary": "STR_DIC_LA82",
+    "label": "Meliodas",
+    "ai": "simple_abyssguard"
+  },
+  "203157": {
+    "key": "Leipos",
+    "dictionary": "STR_DIC_N_Leipos",
+    "label": "Vascus",
+    "ai": "general"
+  },
+  "203158": {
+    "key": "Ibion",
+    "dictionary": "STR_DIC_N_Ibion",
+    "label": "Ibion",
+    "ai": "general"
+  },
+  "203166": {
+    "key": "Zephyros",
+    "dictionary": "STR_DIC_N_Zephyros",
+    "label": "Zephyros",
+    "ai": "simple_abyssguard"
+  },
+  "203172": {
+    "key": "Une",
+    "dictionary": "STR_DIC_N_Une",
+    "label": "Une",
+    "ai": "simple_abyssguard"
+  },
+  "203178": {
+    "key": "Lunax",
+    "dictionary": "STR_DIC_N_Lunax",
+    "label": "Lunax",
+    "ai": "general"
+  },
+  "210073": {
+    "key": "LehparBoatswain_20_An",
+    "dictionary": null,
+    "label": "Shipwrecked Deckhand",
+    "ai": "aggressive"
+  },
+  "210074": {
+    "key": "LehparCrew_19_An",
+    "dictionary": null,
+    "label": "Shipwrecked Crewmember",
+    "ai": "aggressive"
+  },
+  "210075": {
+    "key": "LehparCaptain_21_An",
+    "dictionary": "STR_DIC_MLA34",
+    "label": "Captain Kinsgreen",
+    "ai": "aggressive"
+  },
+  "210077": {
+    "key": "LehparWa_11_An",
+    "dictionary": "STR_DIC_MLA17",
+    "label": "Peon",
+    "ai": "aggressive"
+  },
+  "210080": {
+    "key": "WElemental1st_18_An",
+    "dictionary": "STR_DIC_M_WElemental1st_18_An",
+    "label": "Aqueous Spirit",
+    "ai": "aggressive"
+  },
+  "210090": {
+    "key": "DBrownieWSc_13_An",
+    "dictionary": null,
+    "label": "Dukaki Watcher",
+    "ai": "aggressive"
+  },
+  "210091": {
+    "key": "DBrownieWSc_14_An",
+    "dictionary": null,
+    "label": "Dukaki Watcher",
+    "ai": "aggressive"
+  },
+  "210121": {
+    "key": "Slime_16_An_1",
+    "dictionary": "STR_DIC_MLA147",
+    "label": "Contaminated Slime",
+    "ai": "aggressive"
+  },
+  "210183": {
+    "key": "TKrallScout_17_Ae",
+    "dictionary": "STR_DIC_MLA63",
+    "label": "Veteran Tursin Scout",
+    "ai": "aggressive"
+  },
+  "210184": {
+    "key": "TKrallScout_18_Ae",
+    "dictionary": "STR_DIC_MLA63",
+    "label": "Veteran Tursin Scout",
+    "ai": "aggressive"
+  },
+  "210296": {
+    "key": "TKrallShamanR3_16_Ae",
+    "dictionary": null,
+    "label": "Shaman Chankaki",
+    "ai": "aggressive"
+  },
+  "210312": {
+    "key": "TKrallShamanNamed_18_Ae",
+    "dictionary": null,
+    "label": "Kumbacha the Shaman",
+    "ai": "aggressive"
+  },
+  "210688": {
+    "key": "LehparAs_11_An",
+    "dictionary": "STR_DIC_MLA59",
+    "label": "Thief",
+    "ai": "aggressive"
+  },
+  "210690": {
+    "key": "DBrownieMScTW_14_An",
+    "dictionary": null,
+    "label": "Dukaki Lookout",
+    "ai": "aggressive"
+  },
+  "210698": {
+    "key": "LehparWa_12_An",
+    "dictionary": "STR_DIC_MLA17",
+    "label": "Peon",
+    "ai": "aggressive"
+  },
+  "700006": {
+    "key": "GodStone_Q73",
+    "dictionary": null,
+    "label": "Mysterious Stone",
+    "ai": "quest_use_item"
+  },
+  "700009": {
+    "key": "Scroll_Q41",
+    "dictionary": "STR_DIC_E_DF1A_Lehpar_Order",
+    "label": "Suspicious Document",
+    "ai": "quest_start_use_item"
+  },
+  "700038": {
+    "key": "Krall_Caldron",
+    "dictionary": null,
+    "label": "Odium Refining Machine",
+    "ai": "quest_use_item"
+  },
+  "700113": {
+    "key": "LF1_polluted_seed",
+    "dictionary": null,
+    "label": "Contaminated Swamp Plant",
+    "ai": "quest_use_item"
+  },
+  "700115": {
+    "key": "LF1_krall_Box",
+    "dictionary": null,
+    "label": "Krall Supply Box",
+    "ai": "quest_use_item"
+  },
+  "700117": {
+    "key": "LF1_brownie_Box",
+    "dictionary": null,
+    "label": "Stolen Items of Tolbas Village",
+    "ai": "quest_use_item"
+  },
+  "700283": {
+    "key": "LF1a_JewelBox_Q1219",
+    "dictionary": "STR_DIC_E_OBJ_LF1a_JewelBox_Q1219",
+    "label": "Lepharist Treasure Box",
+    "ai": "quest_use_item"
+  },
+  "730304": {
+    "key": "LF1a_FOBJ_Q18500A",
+    "dictionary": "STR_DIC_OBJ_Mystery_OdStone_001_Li",
+    "label": "Suspicious Odium Piece",
+    "ai": "quest_use_item"
+  },
+  "730305": {
+    "key": "LF1a_FOBJ_Q18500B",
+    "dictionary": "STR_DIC_OBJ_Mystery_OdStone_002_Li",
+    "label": "Suspicious Odium Pile",
+    "ai": "quest_use_item"
+  }
+}

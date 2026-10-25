@@ -74,6 +74,26 @@ files that were newly added by that installation.
 
 ## Verify
 
+The Companions menu also uses `bin64/AionUiArt.index`, derived from both
+`Textures/ui/ui.pak` and `Textures/ui/skill_bg/skill_bg.pak`. A changed archive
+invalidates the entire artwork set, including buttons, tabs, slots and class
+emblems. Check this dependency after any change to either source archive:
+
+```powershell
+python client-mods/native-icon-bridge/prepare_ui_art.py --client '<client>' --verify
+```
+
+The normal bridge builder now stages this index too. The launcher embeds the
+same `ui_art.json` recipe as the Python builder. Interface/theme switches include
+the regenerated index in their existing write/rollback transaction, and the final
+launch-preparation step verifies or rebuilds it after other helpers. Only these
+two known archives are read. Every used DDS is decoded and CRC-checked; the
+bridge's exact archive hash checks remain in place. Invalid/missing source data
+stops preparation instead of silently launching with missing menu artwork.
+
+The index is startup metadata: replacing it does not change a running session's
+loaded artwork. The owner must launch a new session to see a repaired index.
+
 The isolated test uses the client's actual Awesomium browser. Prepare a disposable
 root containing `bin64/AionIconBridge.dll`, `bin64/AionIconBridge.index`, and an
 unchanged copy of `Data/Items/Items.pak`, then run:

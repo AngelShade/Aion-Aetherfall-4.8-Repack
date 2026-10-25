@@ -1,0 +1,403 @@
+# Static names from mod-playerbots playerbots_guild_names, commit 037c01418b5d01506917a3db9b44fd56ac5f965c.
+# GPL-2.0-or-later; see third-party/playerbots/AUTHORS.md.
+# Native naming/banned-word rules and SQL uniqueness are rechecked at creation.
+Black Guard
+White Guard
+Amber Guard
+Elite Guard
+Honor Guard
+Border Guard
+Unusual Guardians
+Backstreet Guardians
+Guardians of Honor
+Animal Kingdom
+Abyssal Kingdom
+Adventurer Kingdom
+Greenfield Kingdom
+Army of Azeroth
+Army of Destitute Minds
+Army of Three Horses
+Army of Clones
+Final Army
+Hinterland Army
+Avatars of Warsong
+Arathi Avengers
+Alterac Honor Guard
+Arathi Veterans
+Bad Sentinels
+Black Sentinels
+Basic Order
+Natural Order
+Righteous Order
+Blue Order
+Order of the Sea
+Order of Honor
+Order of Dusk
+Order of Gold
+Order of Warsong
+Order of Arathi
+Order of Alterac
+Order of Valor
+Blackwater Committee
+Alterac Committee
+Border Knights
+Death Knights
+Dorcha Knights
+Heart Knights
+Reckless Knights
+Shadow Knights
+Knights of Darkspear
+Knights of the Sovereign
+Knights of the Storm
+Knights of Fury
+Knights of Honor
+Brotherhood of Twilight
+Brotherhood of Truth
+Sacrificial Brotherhood
+Blackrock Brotherhood
+Cake Crusaders
+Dark Crusaders
+Bloody Crusaders
+Crusaders of the Light
+Redwood Companions
+Companions of Honor
+Companions of Alterac
+Sanguine Council
+Secret Council
+Council of Azeroth
+Dragon Cult
+Cult of the Raging Raid
+Defenders of Sanity
+Defenders of Chaos
+Steadfast Defenders
+Dynasty of the Free
+Dynasty of Winterwood
+Emerald Dynasty
+Endless Dynasty
+Elite Clan
+Fallen Clan
+Nightmare Clan
+Raven Clan
+Secret Clan
+Blackwatch Clan
+Cat Clan
+Crimson Clan
+Wintermane Clan
+Elite Legion
+Silent Legion
+War Legion
+Legion of United Souls
+Legion of the Dark
+Legion of Doom
+Legion of Death
+Lethal Legionnaires
+Elite Vanguard
+Darkside Vanguard
+Black Vanguard
+Vanguard of the Left
+Vanguard of the Right
+Vanguard Redeemers
+Safety Division
+Westward Division
+Trueblood Division
+Last Warriors
+Midnight Warriors
+Helpless Warriors
+Watchful Warriors
+Warriors of the Tundra
+Warriors of Light
+Mercenaries of Death
+Backwater Mercenaries
+Blades of the Hive
+Blades of Caer Eel
+Age of Blood
+Within Reason
+Allegiance of the Vile
+Anarchy
+Anchors of the Nominal
+Ancients of Part Times
+Angry Party
+Apocalyptic Lament
+Architects of the Green
+Arrows of Midnight
+Artisans of Azeroth
+Axis of the Night
+Azeroth Souls
+Banana Republic
+Band of Thieves
+Band of the Dawn
+Blessed Lair
+Iron Blizzard
+Blood Consortium
+Blood Intrigue
+Booty Cry
+Braveheart Heaven
+Bruised Pain
+Burning Control
+Burning Oblivion
+Call of the Netherworld
+Carebears of Thunder
+Carpe Diem
+Children of Order
+Children of Chaos
+Circle of Giants
+Coalition of Prodigies
+Blackwall Collective
+Conclave of the Triad
+Cradle Scourge
+Crimson Angels
+Crimson Saints
+Cryptic Serenity
+Dalaran Fair
+Damage Inc
+Dark Azeroth
+Dark Damage
+Dark Resistance
+Dark Mercenaries
+Dead Brains
+Death Collaboration
+Decree of the Stars
+Dies Irae
+Disciples of the Night
+Disciples of the Light
+Doomsday Youth
+Dragon Armada
+Dragonhawk Revolution
+Black Dragons
+Drunken Thunder
+Drunks of Matoskan
+Eastern Asylum
+Echo Sanctus
+Echoes of the Muphin
+Echoes of the Sky
+Effreno Vici
+Emerald Dawn
+Endless Defense
+Eternal Dawn
+Evictors of the Returned
+Exalted Effect
+Seekers
+Flames of Antarian Chaos
+Wrath of the Forest
+Forgotten Within
+Symbiosis
+Frozen Oblivion
+Gashlycrumb Rollers
+Glass Meridian
+Golden Generation
+Gold Catchers
+Golden Legends
+Golden Souls
+Good Azeroth
+Grammaton Collective
+Great Circle
+Haggle Brigade
+Hands of Iron
+Immortal Honor
+Insiders
+Iscariot Ginas
+Killer Force
+Kindred Yardies
+Legacy of the Ninth Era
+Legendary Sons
+Light of the Dark Spire
+Jade Renegades
+Liquid Gold
+Lone Side
+Lords of Fallen Blood
+Lost Squad
+Mad Daggers
+Malice Fatale
+Mandate of Jade
+Midnight Norrathians
+Midnight Slayers
+Minions of the Shadow
+Mithril Destiny
+Monarchs of the Day
+Money Call
+Moonwood Redeye
+Narrow Patrol
+Night Pack
+Nocturne of the Dead
+Obsidian Fellowship
+Old Case
+True Valor
+Opus Veritas
+Path of the Brain
+Peddlers of the Hidden
+Phantoms of the Wicked
+Phoenix Keepers
+Pillowcase Cats
+Pius Tribe
+Power of Blood
+Protectors of Truth
+Pure Aequitas
+Rage of the Flame
+Raiders of the Deep
+Ram Runners
+Rangers of Vengeance
+Rangers of Interitus
+Reapers of Shadow
+Red Death
+Restoration of the Mind
+Ruins of Dark Azeroth
+Rulers of the Night
+Sacred Society
+Sapphic Exiles
+Seraph Legends
+Shadow Assassins
+Shadow Ghosts
+Shattered Legacy
+Silent Night
+Silver Fools
+Silversky Sun
+Slayers of the Primals
+Sleepy Steel
+Soldiers of Azeroth
+Soldiers of Virtue
+Sons of Lambent Virtue
+Sons of Truth
+Soul Wish
+Squires of the Tribe
+Stagnant Jesters
+Stronghold Angels
+Sturgeon Empire
+Sweet Bear
+Sword of Lost Evil
+Tainted Bunnies
+Talon of the Eclectic
+Standing United
+Terra Totem
+Terra Victus
+Afterlife
+Aggression
+Ancona Fire
+Apocalypse
+Avalon
+Azure Gang
+Black Hand Haven
+Blood Red Violence
+Azeroth Blues
+Grimfang
+Blue Thunder
+Arcane Bonds
+Brimstone
+Broken Chaos
+Brood of the Unknown
+Circle of Shadow
+Clean Combinations
+Covenant of Light
+Daggers of the Vile
+Dark Pain
+Darkfall
+Darkside of Initium
+Daytripper
+Defiant
+Overwhelming Force
+Dreadlords
+Dublainn Crown
+Durban Protectors
+Emissaries
+Eternal Chaos
+Eternus
+Exile
+Expendable Shadow
+Family of Misfits
+Final Tears
+Gates of Blood
+Gold Fighters
+Greyhawks
+Hotpocket
+Illuminati
+Immortal League
+Independent
+Cobra
+Leaders of Life
+Blinding Light
+Little Hunters
+Mithril Justice
+Morgantis
+Mulletmen
+Nightfall
+Overlords
+Protectors
+Pyreborne
+Resurrection
+Ring of Honor
+Royal Militia
+Sanity
+Shadow Gate
+Shadow Misfits
+Shadowborn
+Silent Grunts
+Sorrow
+Souls of Azeroth
+Red Stronghold
+Green Stronghold
+Trusted Handlers
+Noble Thieves
+Thorium Claw
+Thunderslayers
+Trusted Minions
+Twilight Rangers
+Ultimates
+Unsung Efficiency
+Violent Chaos
+Virus Eternal
+Chroniclers
+Windsword Nightmare
+Theramore Azeroth
+Titans of the Blood Sun
+Torvus Dragons
+Tower of the Little
+White Tower
+Ultimatum
+Unforgiven Destiny
+Valiant Raiders
+Verata Blackflame
+Vicious Renegades
+Warlords of Azeroth
+Warsong Insanity
+Wayward Agenda
+Web of Forgotten Warfare
+Wild Fire
+Will of the Forgotten
+Witchhunters
+Violet Dawn
+Advanced Intelligence
+Argentum
+Tomb Raiders
+Strategists
+Winterwind
+Persona Grata
+Peacekeepers
+Watchdogs
+Grey Party
+Dungeon Divers
+Golden Gate
+Lost Armada
+Strike Commando
+Silverstar
+Streamlined Minds
+Merchant Consortium
+Fantasia
+Clockwork Battallion
+Cerulean Union
+Free Flight
+Rearguard
+High Society
+Honest Robbery
+Silverstorm
+Dreadnaught
+Murloc Militia
+Sapphire Peak
+Cloud Nine
+Debt Collectors
+In Vino Veritas
+Elder Council
+Exodia
+Method
+Adventurer Union
+Breakneck Raiders
+Dungeoneers
+Confused Confederation

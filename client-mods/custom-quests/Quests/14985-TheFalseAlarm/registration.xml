@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<quest_data_driven>
+  <id>14985</id>
+  <name>Q14985</name>
+  <dev_name />
+  <category_acquire_>Talk</category_acquire_>
+  <value0_acquire_>Leto</value0_acquire_>
+  <reward_npc_name>Leto</reward_npc_name>
+  <progress_info>
+    <data>
+      <category_progress_>Hunt</category_progress_>
+      <value0_progress_>TKrallShamanR3_16_Ae 1;</value0_progress_>
+    </data>
+    <data>
+      <category_progress_>Talk</category_progress_>
+      <value0_progress_>Leto</value0_progress_>
+    </data>
+  </progress_info>
+</quest_data_driven>

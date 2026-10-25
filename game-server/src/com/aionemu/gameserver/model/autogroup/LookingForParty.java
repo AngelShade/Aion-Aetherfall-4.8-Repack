@@ -22,7 +22,7 @@ public class LookingForParty implements Comparable<LookingForParty> {
 	private int leaderObjId;
 
 	public LookingForParty(Player player, EntryRequestType ert, int maskId) {
-		this.members = createMembers(player);
+		this.members = new java.util.concurrent.ConcurrentHashMap<>(createMembers(player));
 		this.ert = ert;
 		this.race = player.getRace();
 		this.maskId = maskId;

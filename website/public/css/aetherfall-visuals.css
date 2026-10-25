@@ -1,0 +1,91 @@
+/* Launcher identity and compositor-based motion; no layout animation or canvas. */
+body{background-color:#080f19;background-image:radial-gradient(ellipse at 0 35%,rgba(47,108,132,.065),transparent 52%)}
+.aetherfall-wordmark{display:block;width:100%;height:auto;overflow:hidden}
+.navbar .brand{display:block;width:214px;flex:0 0 214px;line-height:1}
+.navbar{border-bottom-color:rgba(143,227,236,.2);background:linear-gradient(180deg,#101b29,#0a111b)}
+.navbar::after{content:"";position:absolute;bottom:-1px;left:10%;right:10%;height:1px;background:linear-gradient(90deg,transparent,#8fe3ec55,#d6b87888,#8fe3ec55,transparent);pointer-events:none}
+.navbar .nav-links a{position:relative;transition:color .2s}
+.navbar .nav-links a::after{content:"";position:absolute;left:0;right:0;bottom:-9px;height:1px;background:#9de4ed;transform:scaleX(0);transition:transform .25s;transform-origin:left}
+.navbar .nav-links a:hover::after,.navbar .nav-links a[aria-current="page"]::after{transform:scaleX(1)}
+.navbar .nav-links a[aria-current="page"]{color:#c9f1f5}
+.aion-hero .aion-hero-copy{width:min(100%,620px);max-width:620px}
+.aion-hero .aion-hero-copy h1.aetherfall-hero-brand{width:min(100%,600px);margin:22px 0 18px;font-size:inherit;line-height:1}
+.aion-hero .aetherfall-hero-brand em{margin-top:12px;font-size:20px;letter-spacing:4px}
+.aion-hero .aion-hero-copy>p{max-width:480px;color:#c6d0dd;font-size:14px;line-height:1.9}
+.aion-hero .aion-hero-vignette{background:linear-gradient(90deg,#050c16ed 0%,#050c16c4 28%,#050c1650 55%,#050c1600 80%),linear-gradient(0deg,#08101be8,transparent 45%)}
+.aion-hero .aion-hero-image{animation:none;transition:none;transform:scale(1.03)}
+.aion-hero .aion-hero-slide.is-active .aion-hero-image{animation:af-landscape 28s ease-in-out infinite alternate}
+.aion-hero .aion-hero-particles{inset:-40px;opacity:.55;animation:af-aether-drift 32s ease-in-out infinite alternate;contain:paint;background-position:0 0}
+.aion-hero::after{content:"";position:absolute;z-index:4;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,transparent,#397b98,#bcdfeb,#d6b878,#397b98,transparent);pointer-events:none}
+.aion-hero-stats{border-color:#91d9e040!important;background:linear-gradient(120deg,#101b2aee,#0a1421f5)!important;box-shadow:0 15px 35px #0004}
+.aion-hero-stats .aion-stat-icon{color:#9ddce6}
+.section-heading .eyebrow,.page-intro .eyebrow{color:#a0d9e0}
+.section-heading h2{position:relative;padding-bottom:22px}
+.section-heading h2::after{content:"";position:absolute;left:50%;bottom:0;width:110px;height:1px;background:linear-gradient(90deg,transparent,#9bdce3,transparent);transform:translateX(-50%)}
+.portal-feature-card,.portal-gallery-card,.news-card,.news-page-card,.info-stat-card,.info-faction-card,.download-card{border-color:#294050;background:linear-gradient(145deg,#142132,#0c1521);transition:transform .3s,border-color .3s,box-shadow .3s}
+.portal-feature-card,.portal-gallery-card,.news-card,.news-page-card{position:relative;overflow:hidden}
+.portal-feature-card::after,.portal-gallery-card::after{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,#8fe3ec99,transparent);pointer-events:none}
+.portal-feature-copy,.portal-gallery-card figcaption{padding:26px}
+.portal-feature-copy h3,.portal-gallery-card h2{font-family:'Cinzel',serif;letter-spacing:.3px}
+.portal-feature-copy>a,.portal-gallery-link a,.realm-banner-guide{transition:color .2s}
+.portal-feature-copy>a:hover,.portal-gallery-link a:hover,.realm-banner-guide:hover{color:#bceff4}
+.game-shot{isolation:isolate}
+.game-shot>img{transition:transform .6s ease;transform-origin:50% 50%}
+.game-shot::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(0deg,#07111d55,transparent 50%)}
+.btn{position:relative;overflow:hidden;transition:transform .2s,border-color .2s,background-color .2s,box-shadow .2s}
+.btn:focus-visible,.nav-links a:focus-visible,.realm-banner-guide:focus-visible,.af-motion-toggle:focus-visible{outline:2px solid #a9edf4;outline-offset:5px}
+.realm-banner{position:relative;isolation:isolate;min-height:430px;margin:30px 0 85px;overflow:hidden;border:1px solid #35526a;background:#091422}
+.realm-banner-art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:70% 43%;z-index:-3}
+.realm-banner-shade{position:absolute;inset:0;z-index:-2;background:linear-gradient(90deg,#06101bea,#07121ac2 35%,#07121a15 80%),linear-gradient(0deg,#07111b8c,transparent 70%)}
+.realm-banner-frame{position:absolute;inset:0;z-index:2;width:100%;height:100%;pointer-events:none;opacity:.85}
+.realm-banner-copy{position:relative;z-index:3;padding:66px 70px;max-width:600px}
+.realm-banner-copy>.aetherfall-wordmark{width:min(100%,360px);margin:12px 0 18px}
+.realm-banner-copy h2{margin:0 0 10px;font:24px 'Cinzel',serif;color:#e9e4d7}
+.realm-banner-copy p{margin:0 0 24px;max-width:340px;color:#b9cbd8;font-size:13px;line-height:1.9}
+.realm-banner-actions{display:flex;flex-wrap:wrap;gap:20px;align-items:center}
+.realm-banner-guide{color:#d9bc88;font-size:10px;letter-spacing:1.2px}
+.af-motion-toggle{position:absolute;z-index:8;right:24px;top:24px;padding:9px 13px;border:1px solid #b3d8e844;background:#0a1621c9;color:#bcd2df;font:10px 'Inter',sans-serif;letter-spacing:.7px;cursor:pointer}
+.af-motion-toggle[hidden]{display:none}
+.af-reading-progress{position:fixed;z-index:150;left:0;top:0;right:0;height:2px;pointer-events:none;background:linear-gradient(90deg,#77d6e4,#d8bd85);transform:scaleX(var(--af-reading,0));transform-origin:left}
+.af-reveal{opacity:0;transform:translate3d(0,22px,0);transition:opacity .65s ease,transform .65s ease;transition-delay:var(--af-reveal-delay,0ms)}
+.af-reveal.is-revealed{opacity:1;transform:none}
+.af-motion-paused .aion-hero-image,.af-motion-paused .aion-hero-particles,.af-hero-away .aion-hero-image,.af-hero-away .aion-hero-particles{animation-play-state:paused!important}
+.af-motion-off .aion-hero-image,.af-motion-off .aion-hero-particles{animation:none!important;transform:none!important}
+.af-motion-off .af-reveal{opacity:1;transform:none;transition:none}
+.af-motion-off *,.af-motion-off *::before,.af-motion-off *::after{animation:none!important;transition:none!important}
+.af-motion-off .af-reading-progress{display:none}
+@media(hover:hover) and (pointer:fine){
+ .portal-feature-card:hover,.portal-gallery-card:hover,.news-card:hover,.news-page-card:hover{transform:translateY(-6px);border-color:#80ccd588;box-shadow:0 14px 30px #0004}
+ .portal-feature-card:hover .game-shot>img,.portal-gallery-card:hover .game-shot>img{transform:scale(1.025)}
+ .btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px #a4dce51c}
+ .info-stat-card:hover,.info-faction-card:hover,.download-card:hover{border-color:#71b4c080}
+}
+@keyframes af-landscape{from{transform:scale(1.025) translate3d(0,0,0)}to{transform:scale(1.075) translate3d(-.4%,.35%,0)}}
+@keyframes af-aether-drift{from{transform:translate3d(-12px,12px,0);opacity:.3}to{transform:translate3d(14px,-16px,0);opacity:.65}}
+@media(max-width:1100px){
+ .navbar .brand{width:190px;flex-basis:190px}
+ .navbar .nav-inner{flex-wrap:wrap;padding:14px 0;min-height:74px}
+ .navbar .menu-toggle{display:block;margin-left:auto}
+ .navbar .nav-links{display:none;width:100%;flex-direction:column;align-items:stretch;gap:0;order:3}
+ .navbar .nav-links.open{display:flex}
+ .navbar .nav-links a{padding:13px 0;border-top:1px solid #284152}
+ .navbar .nav-links a::after{bottom:0;right:80%}
+ .navbar .nav-actions{margin-left:15px}
+}
+@media(max-width:640px){
+ .navbar .brand{width:155px;flex-basis:155px}.navbar .nav-actions{gap:5px;margin-left:10px}
+ .navbar .nav-actions .btn{font-size:9px;padding:0 8px;min-height:34px}.navbar .menu-toggle{font-size:10px}
+ .aion-hero .aion-hero-copy h1.aetherfall-hero-brand{margin-top:26px;width:100%}
+ .aion-hero .aion-hero-copy>p{font-size:13px;max-width:340px}
+ .realm-banner{min-height:390px;margin-bottom:60px}.realm-banner-copy{padding:55px 36px}.realm-banner-art{object-position:65% center}
+ .realm-banner-shade{background:linear-gradient(90deg,#07111beb,#07111b99 68%,#07111b33)}
+ .af-motion-toggle{right:16px;top:16px;font-size:9px}.portal-feature-copy,.portal-gallery-card figcaption{padding:22px}
+}
+@media(max-width:380px){.navbar .brand{width:130px;flex-basis:130px}.navbar .nav-actions{margin-left:7px}}
+@media(prefers-reduced-motion:reduce){
+ html{scroll-behavior:auto!important}.aion-hero *, .realm-banner *, .portal-feature-card *, .portal-gallery-card *{animation:none!important;transition:none!important}
+ .aion-hero .aion-hero-image,.aion-hero .aion-hero-particles{transform:none!important}.af-reveal{transform:none!important;opacity:1}
+ .af-reveal,.btn,.portal-feature-card,.portal-gallery-card,.news-card,.news-page-card{transition:none!important}
+ .portal-feature-card:hover,.portal-gallery-card:hover,.news-card:hover,.news-page-card:hover,.btn:hover{transform:none}
+ .af-reading-progress{display:none}
+}

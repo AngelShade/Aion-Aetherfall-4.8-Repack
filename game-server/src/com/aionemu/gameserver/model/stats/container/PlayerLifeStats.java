@@ -3,6 +3,7 @@ package com.aionemu.gameserver.model.stats.container;
 import java.util.concurrent.Future;
 
 import com.aionemu.gameserver.configs.administration.AdminConfig;
+import com.aionemu.gameserver.custom.mobscaling.WorldMobScaler;
 import com.aionemu.gameserver.model.gameobjects.Creature;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_ATTACK_STATUS.LOG;
@@ -33,6 +34,8 @@ public class PlayerLifeStats extends CreatureLifeStats<Player> {
 
 	@Override
 	protected void onHpChanged(TYPE type, int previousHp, int newHp, Creature effector) {
+		if ((previousHp == 0) != (newHp == 0))
+			WorldMobScaler.onPlayerChanged(owner);
 		if (isFullyRestoredHp()) // FIXME: Temp Fix: Reset aggro list when hp is full
 			owner.getAggroList().clear();
 		if (owner.isSpawned()) {

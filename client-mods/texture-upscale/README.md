@@ -56,6 +56,19 @@ For delivery, pass `-BackupRoot '<new external backup folder>'` to keep recovery
 archives in the external workspace. Verification follows the complete installed
 batch chain; restore still proceeds newest first.
 
+DXT3 alpha is packed explicitly as four-bit values and checked after decoding each
+mip. This avoids the Pillow BC2 encoder corrupting smooth glow masks. The builder
+refuses to run unless every active installed batch is supplied with
+`--previous-package`, preventing shared lamp textures being upscaled twice.
+
+To repair already installed lamp masks, run `repair_lighting.py --client '<client>'
+--previous-package '<package>' ... --output '<fresh external folder>'` with every
+active package. It recovers the earliest hash-verified native lamp alpha from the
+installed receipts' backups, resizes it to the installed mip chain and retains the
+exact compressed RGB blocks. Only affected `lightings/` DXT3 members change; other
+compressed archive members remain byte-identical. Install the resulting package
+with the normal installer above while the client is closed.
+
 ## Repack baseline
 
 Bundled texture batches are the repack's baseline. Their installed records retain

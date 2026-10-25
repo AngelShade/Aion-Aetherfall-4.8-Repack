@@ -68,11 +68,27 @@ local function thousands(v)
     local s = string.format('%d', math.floor(v + .5))
     while true do local k; s, k = s:gsub('^(-?%d+)(%d%d%d)', '%1,%2'); if k == 0 then return s end end
 end
--- Readable values over the native target bars. The native target record has
+local TARGET_PANELS = {'container1', 'container2', 'container3', 'container4', 'container7'}
+local function resourceValue(cur, max)
+    cur, max = n(cur), n(max)
+    return cur and max and max > 0 and (thousands(cur) .. '/' .. thousands(max)) or ''
+end
+-- Labels are children of each native frame, after its bars in drawing order.
+-- A separate plugin dialog cannot guarantee foreground order against native HUD.
+-- The native target record has
 -- HP/MP but no DP; self-target DP comes from the player's native DP gauge.
 -- Unavailable resources keep their row empty, including on monster targets.
 function AFHUD_TargetDetails()
-    if not w('Target') then return end
+    if not w('Target') or not AFCore.SetText then return end
+    local assistName, _, _, _, _, assistShown = AFCore.Dialog(D.target_assist)
+    local assistId, _, _, assistHP, assistMax = AFCore.Unit('targettarget')
+    local assistActive = assistShown and assistName == 'target_assist_dialog' and assistId and assistId > 0
+    AFCore.SetText(D.target_assist, 'container/af_resource_hp', assistActive and resourceValue(assistHP, assistMax) or '')
+    -- Retain the existing passive DP fill, but never leave duplicate text in
+    -- the old cross-dialog overlay, even after a reconnect or target change.
+    settext('TargetHP', '')
+    settext('TargetMP', '')
+    settext('TargetDP', '')
     if H.targetWidget ~= w('TargetDPFill') then
         w('TargetDPFill'):SetUIImage(0, 'Textures/UI/AetherfallMovers/target_dp.dds')
         H.targetWidget = w('TargetDPFill')
@@ -89,17 +105,16 @@ function AFHUD_TargetDetails()
     w('Target'):SetRect(x / s, y / s, width / s, height / s)
     show('Target', true)
     w('Target'):SetPosForced(x / s, y / s)
-    local function value(cur, max)
-        cur, max = n(cur), n(max)
-        return cur and max and max > 0 and (thousands(cur) .. '/' .. thousands(max)) or ''
-    end
-    settext('TargetHP', value(hp, hpmax))
-    settext('TargetMP', value(mp, mpmax))
     local dp, dpmax
     if AFCore.PlayerId and id == AFCore.PlayerId() then dp, dpmax = AFCore.Gauge(D.basic_status, 'dp_gauge_text') end
     dp, dpmax = n(dp), n(dpmax)
     local available = dp and dpmax and dpmax > 0
-    settext('TargetDP', available and value(dp, dpmax) or '')
+    local hpText, mpText = resourceValue(hp, hpmax), resourceValue(mp, mpmax)
+    for _, panel in ipairs(TARGET_PANELS) do
+        AFCore.SetText(D.target, panel .. '/af_resource_hp', hpText)
+    end
+    AFCore.SetText(D.target, 'container7/af_resource_mp', mpText)
+    AFCore.SetText(D.target, 'container7/af_resource_dp', available and resourceValue(dp, dpmax) or '')
     if available and dp > 0 then
         w('TargetDPFill'):SetRect(6, 55, 239 * math.max(0, math.min(1, dp / dpmax)), 13)
         w('TargetDPFill'):Show()
@@ -279,7 +294,12 @@ function AFHUD_Apply()
         H.text[id .. '#'] = nil
     end
     -- Backdrop opacity only (text stays solid), as ElvUI's backdrop transparency.
-    for _, id in ipairs({'Top', 'Chat', 'Map'}) do pcall(function() w(id):SetAlpha(opt('alpha') / 100, false) end) end
+    for _, id in ipairs({'Top', 'Chat', 'Map'}) do
+        pcall(function()
+            local group=id=='Chat' and 'chatalpha' or nil
+            w(id):SetAlpha(AFUI and AFUI.BackgroundAlpha and AFUI.BackgroundAlpha(group) or opt('alpha')/100,false)
+        end)
+    end
     if H.on then AFHUD_Update() end
 end
 

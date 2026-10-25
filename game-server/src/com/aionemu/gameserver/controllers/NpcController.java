@@ -13,6 +13,7 @@ import com.aionemu.gameserver.controllers.attack.AttackStatus;
 import com.aionemu.gameserver.controllers.attack.DamageInfo;
 import com.aionemu.gameserver.controllers.attack.TeamDamageList;
 import com.aionemu.gameserver.custom.pvpmap.PvpMapHandler;
+import com.aionemu.gameserver.custom.mobscaling.WorldMobScaler;
 import com.aionemu.gameserver.dataholders.DataManager;
 import com.aionemu.gameserver.instance.handlers.InstanceHandler;
 import com.aionemu.gameserver.model.animations.ObjectDeleteAnimation;
@@ -115,6 +116,7 @@ public class NpcController extends CreatureController<Npc> {
 		}
 
 		InstanceScaler.onBeforeSpawn(owner);
+		WorldMobScaler.onBeforeSpawn(owner);
 		owner.getLifeStats().setCurrentHpPercent(100);
 		owner.getAi().onGeneralEvent(AIEventType.BEFORE_SPAWNED);
 	}
@@ -127,6 +129,7 @@ public class NpcController extends CreatureController<Npc> {
 
 	@Override
 	public void onDespawn() {
+		WorldMobScaler.onDespawn(getOwner());
 		Npc owner = getOwner();
 		cancelCurrentSkill(null);
 		owner.getEffectController().removeAllEffects();
@@ -284,6 +287,7 @@ public class NpcController extends CreatureController<Npc> {
 
 	@Override
 	public void onAddHate(Creature attacker, boolean isNewInAggroList) {
+		WorldMobScaler.onAddHate(getOwner(), attacker);
 		if (isNewInAggroList && attacker instanceof Player) {
 			if (((Player) attacker).isInTeam()) {
 				for (Player player : ((Player) attacker).getCurrentTeam().filterMembers(m -> PositionUtil.isInRange(getOwner(), m, 50)))
@@ -341,7 +345,9 @@ public class NpcController extends CreatureController<Npc> {
 	public void loseAggro(boolean restoreHp) {
 		getOwner().setTarget(null);
 		getOwner().getAggroList().clear();
-		if (restoreHp)
+		if (restoreHp) {
+			WorldMobScaler.onReset(getOwner());
 			getOwner().getLifeStats().triggerRestoreTask();
+		}
 	}
 }

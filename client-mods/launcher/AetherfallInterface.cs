@@ -198,6 +198,7 @@ namespace Aetherfall {
     if(!Known(item.Value,current))throw new InvalidDataException("Another mod changed "+item.Key+". Rebuild Aetherfall Interface before switching it.");
     writes.Add(item.Key,Payload(root,wanted));entries++;
    }
+   CompanionArt.Include(root,writes);
    Dictionary<string,byte[]> before=writes.Keys.ToDictionary(x=>x,x=>File.ReadAllBytes(Path.Combine(root,x)));
    List<string> done=new List<string>();
    try {

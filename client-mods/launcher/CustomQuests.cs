@@ -161,6 +161,9 @@ namespace Aetherfall {
   }
  }
 
+ public sealed class QuestPakLocation {
+  public uint Offset, Compressed, Size, Crc; public ushort Method; public byte[] Key;
+ }
  public sealed class QuestPak {
   sealed class Record { public string Name;public byte[] Local,Central;public int Header;public ushort Method;public uint Crc;public int Size,Length; }
   readonly List<Record> records=new List<Record>();readonly Dictionary<string,Record> byName=new Dictionary<string,Record>(StringComparer.Ordinal);readonly byte[] end;readonly int version;
@@ -177,6 +180,12 @@ namespace Aetherfall {
    if(version==0)throw new InvalidDataException("Unknown quest archive encoding.");
   }
   public bool Contains(string name){return byName.ContainsKey(name);}public IEnumerable<string> Names{get{return records.Select(r=>r.Name);}}public byte[] Read(string name){Record r=byName[name];byte[] bytes=Payload(r,version);if(bytes.Length!=r.Length||Crc(bytes)!=r.Crc)throw new InvalidDataException("Quest archive CRC mismatch: "+name);return bytes;}
+  public QuestPakLocation Locate(string name) {
+   Record entry=byName[name];uint offset=0;
+   foreach(Record record in records){if(record==entry)break;offset=checked(offset+(uint)record.Local.Length);}
+   byte[] key=QuestPakKeys.Keys[version-1];int start=version==1?(entry.Size&31)*32:entry.Size&1023;
+   return new QuestPakLocation { Offset=checked(offset+(uint)entry.Header),Compressed=(uint)entry.Size,Size=(uint)entry.Length,Crc=entry.Crc,Method=entry.Method,Key=key.Skip(start).Take(Math.Min(32,entry.Size)).ToArray() };
+  }
   static byte[] NativeZip(byte[] bytes,int version){byte[] key=QuestPakKeys.Keys[version-1];int pos=0;while(U32(bytes,pos)==0x04034b50){if((U16(bytes,pos+6)&8)!=0)throw new InvalidDataException("Generated quest archive uses data descriptors.");int size=checked((int)U32(bytes,pos+18)),start=pos+30+U16(bytes,pos+26)+U16(bytes,pos+28),offset=version==1?(size&31)*32:size&1023;for(int i=0;i<Math.Min(32,size);i++)bytes[start+i]^=key[offset+i];Put(bytes,pos,0xfbfcb4af);pos=start+size;}while(U32(bytes,pos)==0x02014b50){Put(bytes,pos,0xfdfeb4af);pos+=46+U16(bytes,pos+28)+U16(bytes,pos+30)+U16(bytes,pos+32);}if(U32(bytes,pos)!=0x06054b50)throw new InvalidDataException("Invalid generated quest archive.");Put(bytes,pos,0xf9fab4af);return bytes;}
   public byte[] Build(Dictionary<string,byte[]> replacements) {
    MemoryStream temp=new MemoryStream();using(ZipArchive zip=new ZipArchive(temp,ZipArchiveMode.Create,true))foreach(var item in replacements){ZipArchiveEntry entry=zip.CreateEntry(item.Key,CompressionLevel.Optimal);using(Stream stream=entry.Open())stream.Write(item.Value,0,item.Value.Length);}

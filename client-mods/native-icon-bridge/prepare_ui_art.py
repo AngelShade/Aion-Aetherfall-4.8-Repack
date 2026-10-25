@@ -7,6 +7,7 @@ come from the client's UI_Preload.xml skins (class emblems: Textures/ui/skill_bg
 import argparse
 import binascii
 import hashlib
+import json
 import struct
 import sys
 import zlib
@@ -15,31 +16,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'expanded-warehouse'))
 from codec import read_pak, KEYS  # noqa: E402
 
-UI, JOBS = 'Textures/ui/ui.pak', 'Textures/ui/skill_bg/skill_bg.pak'
-NONE, GOLD, LIFT = 0, 1, 2  # bridge transforms: as is, gold emblem, brightened empty-slot silhouette
-# PlayerClass -> the client's job texture name
-CLASSES = {'warrior': 'warrior', 'gladiator': 'fighter', 'templar': 'knight', 'scout': 'scout', 'assassin': 'assassin',
-           'ranger': 'ranger', 'mage': 'mage', 'sorcerer': 'wizard', 'spirit_master': 'elementalist', 'priest': 'priest',
-           'cleric': 'cleric', 'chanter': 'chanter', 'engineer': 'engineer', 'gunner': 'gunner', 'rider': 'rider',
-           'artist': 'artist', 'bard': 'bard'}
-# name -> (archive, texture, x, y, w, h, transform)
-SPRITES = {'slot-bg': (UI, 'v5_hud_s2', 134, 2, 44, 44, NONE), 'slot-filled': (UI, 'v5_hud_s2', 180, 2, 44, 44, NONE),
-           'slot-helmet': (UI, 'v5_common_2', 931, 2, 44, 44, LIFT), 'slot-amulet': (UI, 'v5_common_2', 978, 2, 44, 44, LIFT),
-           'slot-shoulder': (UI, 'v5_common_2', 978, 90, 44, 44, LIFT), 'slot-learring': (UI, 'v5_common_2', 978, 46, 44, 44, LIFT),
-           'slot-rearring': (UI, 'v5_common_2', 931, 46, 44, 44, LIFT), 'slot-armor': (UI, 'v5_common_2', 931, 90, 44, 44, LIFT),
-           'slot-glove': (UI, 'v5_common_2', 978, 134, 44, 44, LIFT), 'slot-lring': (UI, 'v5_common_2', 978, 178, 44, 44, LIFT),
-           'slot-rring': (UI, 'v5_common_2', 931, 178, 44, 44, LIFT), 'slot-pants': (UI, 'v5_common_2', 931, 134, 44, 44, LIFT),
-           'slot-belt': (UI, 'v5_common_2', 978, 222, 44, 44, LIFT), 'slot-shoes': (UI, 'v5_common_2', 931, 222, 44, 44, LIFT),
-           'slot-rhand': (UI, 'v5_common_2', 884, 2, 44, 44, LIFT), 'slot-lhand': (UI, 'v5_common_2', 839, 2, 44, 44, LIFT),
-           'slot-switch': (UI, 'v5_common_2', 794, 2, 44, 44, LIFT), 'slot-wing': (UI, 'v5_common_2', 807, 48, 44, 44, LIFT),
-           'slot-feather': (UI, 'v5_common_2', 817, 231, 35, 34, LIFT), 'slot-battery': (UI, 'v5_common_2', 893, 49, 35, 34, LIFT),
-           'stigma-normal': (UI, 'v5_common_5', 575, 80, 78, 78, NONE), 'stigma-highest': (UI, 'v5_common_5', 741, 80, 78, 78, NONE),
-           'button-up': (UI, 'v5_hud_s2', 924, 2, 48, 24, NONE), 'button-over': (UI, 'v5_hud_s2', 102, 84, 48, 24, NONE),
-           'button-down': (UI, 'v5_hud_s2', 52, 84, 48, 24, NONE), 'button-gold': (UI, 'v5_hud_s2', 974, 2, 48, 24, NONE),
-           'button-disabled': (UI, 'v5_hud_s2', 2, 84, 48, 24, NONE), 'tab-up': (UI, 'v5_hud_s2', 798, 2, 40, 26, NONE),
-           'tab-down': (UI, 'v5_hud_s2', 840, 2, 40, 26, NONE), 'tab-over': (UI, 'v5_hud_s2', 882, 2, 40, 26, NONE),
-           'portrait-bg': (UI, 'v5_common_2', 894, 270, 128, 178, NONE)}
-SPRITES.update({'class-' + c: (JOBS, 'job_skill_' + j, 0, 0, 256, 256, GOLD) for c, j in CLASSES.items()})
+# The launcher embeds this same recipe, so theme switches rebuild matching metadata
+# without Python or a second independently maintained sprite mapping.
+RECIPE = json.loads(Path(__file__).with_name('ui_art.json').read_text(encoding='utf-8'))
+SPRITES = RECIPE['sprites']
 SPRITE = struct.Struct('<32sBBHHHHHIIII H32s')
 
 
@@ -66,8 +46,8 @@ def entry(raw, archive, texture):
     raise ValueError('DDS decoding check failed: ' + texture)
 
 
-def prepare(client, output):
-    archives = [UI, JOBS]
+def build(client):
+    archives = RECIPE['archives']
     raws = {a: (client / a).read_bytes() for a in archives}
     paks = {a: read_pak(client / a) for a in archives}
     records = []
@@ -81,14 +61,29 @@ def prepare(client, output):
     for a in archives:
         header += a.encode().ljust(64, b'\0') + struct.pack('<Q', len(raws[a])) + hashlib.sha256(raws[a]).digest()
     data = header + b''.join(records)
+    return data, {'sprites': len(records), 'indexBytes': len(data), 'archives': {a: hashlib.sha256(r).hexdigest() for a, r in raws.items()}}
+
+
+def prepare(client, output):
+    data, report = build(client)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_bytes(data)
-    return {'sprites': len(records), 'indexBytes': len(data), 'archives': {a: hashlib.sha256(r).hexdigest() for a, r in raws.items()}}
+    return report
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--client', type=Path, required=True)
-    parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--output', type=Path, help='staged output, or the index to check with --verify')
+    parser.add_argument('--verify', action='store_true', help='verify all archive fingerprints, DDS entries and sprite records without writing')
     args = parser.parse_args()
-    print(prepare(args.client, args.output))
+    if args.verify:
+        expected, report = build(args.client)
+        target = args.output or args.client / 'bin64/AionUiArt.index'
+        if target.read_bytes() != expected:
+            raise SystemExit('Companion artwork index is stale; rebuild it against the current client archives: ' + str(target))
+        print(json.dumps(dict(report, verified=str(target))))
+    else:
+        if args.output is None:
+            parser.error('--output is required unless --verify is used')
+        print(json.dumps(prepare(args.client, args.output)))

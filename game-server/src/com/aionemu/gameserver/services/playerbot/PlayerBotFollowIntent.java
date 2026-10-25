@@ -81,7 +81,7 @@ public final class PlayerBotFollowIntent {
   if(bot.isFlying()) {
    if(!GeoService.getInstance().canSee(bot,goal.x(),goal.y(),goal.z(),com.aionemu.gameserver.geoEngine.collision.IgnoreProperties.ANY_RACE)){clear(bot);return false;}
   }else{
-   var ground=GeoService.getInstance().findGroundMovementCollision(bot.getWorldId(),bot.getInstanceId(),bot.getX(),bot.getY(),bot.getZ(),goal.x(),goal.y(),goal.z());
+   var ground=PlayerBotWater.walk(bot,bot.getWorldId(),bot.getInstanceId(),bot.getX(),bot.getY(),bot.getZ(),goal.x(),goal.y(),goal.z());
    if(ground==null || !Float.isFinite(ground.z) || Math.hypot(ground.x-goal.x(),ground.y-goal.y())>.3 || Math.abs(ground.z-goal.z())>2){clear(bot);return false;}
    goal=new PlayerBotNavigation.Point(ground.x,ground.y,ground.z);
   }

@@ -21,6 +21,11 @@ public final class PlayerBotGroundNavigation {
 	}
 
 	public static Vector3f walk(GeoMap map, int instance, float x, float y, float z, float targetX, float targetY, float targetZ) {
+		return walk(map,instance,x,y,z,targetX,targetY,targetZ,Float.NEGATIVE_INFINITY);
+	}
+
+	/** Optional bot water boundary is tested at every supported step, including hidden dips. */
+	public static Vector3f walk(GeoMap map, int instance, float x, float y, float z, float targetX, float targetY, float targetZ, float minimumZ) {
 		Vector3f start = new Vector3f(x, y, z);
 		if (map == null || !finite(start) || !Float.isFinite(targetX) || !Float.isFinite(targetY) || !Float.isFinite(targetZ)) return start;
 		double distance = Math.hypot(targetX - x, targetY - y);
@@ -46,6 +51,8 @@ public final class PlayerBotGroundNavigation {
 		// A center ray alone can report success through a missing floor or beside
 		// an object touching the actor's body. Validate the walking strip below.
 		if (!Float.isFinite(floor)) return start;
+		minimumZ=PlayerBotWater.floorLimit(minimumZ,z,floor);
+		if(floor<minimumZ)return new Vector3f(x,y,z);
 		Vector3f current = new Vector3f(x, y, floor);
 		// Vertical correction is a walking destination, not a relocation. Reject a body obstruction during it.
 		for(float height:new float[]{0.75f,1.5f})
@@ -58,7 +65,7 @@ public final class PlayerBotGroundNavigation {
 			float nextX = x + dx * travelled, nextY = y + dy * travelled;
 			float ground = PlayerBotGroundSupport.floor(map, instance, nextX, nextY, current.z + 0.6f, current.z - 0.85f);
 			float horizontal = (float)Math.hypot(nextX - current.x, nextY - current.y);
-			if (!Float.isFinite(ground) || ground - current.z > horizontal + 0.15f || current.z - ground > horizontal + 0.3f) break;
+			if (!Float.isFinite(ground) || ground < minimumZ || ground - current.z > horizontal + 0.15f || current.z - ground > horizontal + 0.3f) break;
 			Vector3f next = new Vector3f(nextX, nextY, ground);
 			boolean pass = true;
 			for (float side : new float[]{-0.3f, 0, 0.3f}) for (float height : new float[]{0.75f, 1.5f})

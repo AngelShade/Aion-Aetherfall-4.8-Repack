@@ -36,8 +36,9 @@ Restore by copying the backup's files back. Rebuild after any other mod changes 
 ## Unverified
 
 The native Details renderer consumes retail effect fields, not the long descriptions.
-Use `client-mods/account-window/prepare_details.py` and its installer for the localized,
-scrollable benefits guide and updated Fame descriptions, including Graphics restore resources.
+Use `client-mods/account-window/prepare_details.py` and its installer for native row
+selection, short name hovers and localized selected-boon details, including Graphics
+and cursor restore resources. It reads the existing BM name/long-description fields.
 The list remains earned-only; Account Window includes locked benefits and live progress.
 The panel's exact rendering is the in-game acceptance check. Boons refresh at
 login and after a Season Pass purchase; new levels, skills and quests count at the next login.

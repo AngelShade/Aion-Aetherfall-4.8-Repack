@@ -418,9 +418,10 @@ public final class MarketplaceService {
 		long balance = player.getInventory().getKinah();
 		if (!List.of("curated", "price-low", "price-high", "name").contains(sort)) sort = "curated";
 		if (!List.of("all", "usable", "affordable", "equip", "appearance").contains(filter)) filter = "all";
-		StringBuilder body = new StringBuilder("<div class='shell'><div class='skyline'><div class='skyline-inner'>")
-			.append("<span class='realm-mark'>◆</span> BLACK CLOUD MARKETPLACE <span class='skyline-right'>KINAH · BLACK CLOUD MAIL</span></div></div>")
-			.append("<header class='hero'><div class='hero-inner'><h1>Black Cloud <span>Marketplace</span></h1><nav class='shop-tabs' aria-label='Shop pages'>");
+		StringBuilder body = new StringBuilder("<div class='shell'><header class='hero'>")
+			.append("<img class='top-art' src='/market/account/media/ascendant-dawn.png' alt=''><div class='top-shade'></div>")
+			.append("<div class='hero-inner'><div class='brand'><span class='realm-mark'>✦</span>AETHERFALL</div>")
+			.append("<h1>BLACK CLOUD MARKETPLACE</h1><nav class='shop-tabs' aria-label='Shop pages'>");
 		appendShopTab(body, sessionId, "catalog", "Items", view, "");
 		appendShopTab(body, sessionId, "favorites", "Favorites", view, "favorite");
 		appendShopTab(body, sessionId, "history", "Purchase history", view, "history");
@@ -470,7 +471,7 @@ public final class MarketplaceService {
 			body.append("<div class='collection-heading'><div><h2>")
 				.append(view.equals("favorites") ? "Favorites" : escape(section.title)).append("</h2><p>")
 				.append(view.equals("favorites") ? "Items saved for this character." : escape(section.description)).append("</p></div>")
-				.append("<div class='heading-seal'>◆<small>ATREIA</small></div></div>");
+				.append("<div class='heading-seal' aria-hidden='true'>✦</div></div>");
 			if (section.hasChildren() && view.equals("catalog")) {
 				body.append("<div class='subcat-strip' aria-label='Browse subcategories'>");
 				for (Section child : Section.values()) if (child.parent() == section && categoryCounts.getOrDefault(child, 0) > 0) {
@@ -554,9 +555,9 @@ public final class MarketplaceService {
 			body.append("</div>");
 		}
 		}
-		body.append("</main></div><footer class='shop-footer'><div><strong>BLACK CLOUD MARKETPLACE</strong>")
-			.append("<p>Pay in Kinah. Your purchase is sent to Black Cloud mail.</p></div>")
-			.append("<div>Character requirements are shown in item details.</div></footer></div>");
+		body.append("</main></div><footer class='shop-footer'><div><span class='status-dot'></span>")
+			.append("<p>Purchases arrive in Black Cloud mail · Pay with Inventory Kinah</p></div>")
+			.append("<div>Review item requirements before purchase</div></footer></div>");
 		return page(body.toString());
 	}
 
@@ -968,7 +969,7 @@ public final class MarketplaceService {
 
 	private static String page(String body) {
 		return "<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>"
-			+ "<title>Cash Shop</title><link rel='stylesheet' href='/shop/media/marketplace.css?v=16'>"
+			+ "<title>Black Cloud Marketplace</title><link rel='stylesheet' href='/shop/media/marketplace.css?v=companions-1'>"
 			+ "<script src='/shop/media/quantity.js?v=1' defer></script><script src='/shop/media/marketplace.js?v=3' defer></script>"
 			+ "</head><body>" + body + "</body></html>";
 	}

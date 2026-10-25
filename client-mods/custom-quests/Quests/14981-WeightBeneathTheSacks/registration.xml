@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<quest_data_driven>
+  <id>14981</id>
+  <name>Q14981</name>
+  <dev_name />
+  <category_acquire_>Talk</category_acquire_>
+  <value0_acquire_>Spiros</value0_acquire_>
+  <reward_npc_name>Ondanius</reward_npc_name>
+  <progress_info>
+    <data>
+      <category_progress_>Talk</category_progress_>
+      <value0_progress_>Gano</value0_progress_>
+    </data>
+    <data>
+      <category_progress_>Hunt</category_progress_>
+      <value0_progress_>LehparWa_11_An, LehparWa_12_An, LehparAs_11_An 4;</value0_progress_>
+    </data>
+    <data>
+      <category_progress_>Talk</category_progress_>
+      <value0_progress_>Ondanius</value0_progress_>
+    </data>
+  </progress_info>
+</quest_data_driven>

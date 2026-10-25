@@ -28,6 +28,7 @@ final class PlayerBotRouteSearch {
  private int stride=4,phaseExpanded;
  private long sequence;
  private boolean complete;
+ private boolean worldMovement;
  private boolean partial;
  private boolean portalApproach;
  private int portalCursor;
@@ -49,19 +50,27 @@ final class PlayerBotRouteSearch {
   this(world,start,goal,mapSize,capacity,segmentDistance,journey,PlayerBotMeshRoute.admission());
  }
  PlayerBotRouteSearch(int world,Point start,Point goal,float mapSize,int capacity,float segmentDistance,PlayerBotMeshJourney journey,PlayerBotMeshRoute.Admission admission) {
+  this(world,start,goal,mapSize,capacity,segmentDistance,journey,admission,false);
+ }
+ PlayerBotRouteSearch(int world,Point start,Point goal,float mapSize,int capacity,float segmentDistance,PlayerBotMeshJourney journey,PlayerBotMeshRoute.Admission admission,boolean worldMovement) {
+  this(world,start,goal,mapSize,capacity,segmentDistance,journey,admission,worldMovement,Float.NEGATIVE_INFINITY);
+ }
+ PlayerBotRouteSearch(int world,Point start,Point goal,float mapSize,int capacity,float segmentDistance,PlayerBotMeshJourney journey,PlayerBotMeshRoute.Admission admission,boolean worldMovement,float minimumZ) {
   this(start,goal,mapSize,capacity,segmentDistance,false);
+  this.worldMovement=worldMovement;
   this.journey=journey;this.world=world;
   if(world>0 && finite(start) && finite(goal) && com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_MEMORY_FIRST){
    recorded=PlayerBotRouteMemory.lookup(world,start,goal);
-   if(!recorded.isEmpty()){
+   if(!recorded.isEmpty() && recorded.stream().allMatch(p->p.z()>=minimumZ)){
     reason="recorded walked route ready";
     return;
    }
+   recorded=List.of();
   }
   // A prepared corridor that failed its ground proof twice from this spot toward
   // this goal goes straight to the native search for five minutes.
   if(finite(start) && finite(goal) && com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED && !meshBlockedHere(world,start,goal))
-   mesh=new PlayerBotMeshRoute(world,start,goal,segmentDistance,journey,admission);
+   {mesh=new PlayerBotMeshRoute(world,start,goal,segmentDistance,journey,admission,worldMovement);mesh.minimumZ(minimumZ);}
  }
  private PlayerBotRouteSearch(Point start,Point goal,float mapSize,int capacity,float segmentDistance,boolean fullRoute) {
   this.start=start;this.goal=goal;this.finalGoal=goal;this.mapSize=mapSize;this.capacity=Math.max(1,capacity);
@@ -126,7 +135,17 @@ final class PlayerBotRouteSearch {
   }
   if(mesh!=null){
    try {mesh.advance(ground,probes,expired);}
-   catch(RuntimeException | Error failure){mesh.close();mesh=null;if(journey!=null)journey.pause();throw failure;}
+   catch(RuntimeException | Error failure){
+    mesh.close();mesh=null;if(journey!=null)journey.pause();
+    if(worldMovement && com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_MEMORY_FIRST){
+     // Preserve the exception for the normal diagnostic owner, but make the
+     // failed RAM query terminal. Its next callback must not silently enter
+     // the expensive live terrain search after mesh ownership was released.
+     complete=true;partial=false;route=recorded=List.of();reason="prepared world route calculation failed";
+     open.clear();best.clear();current=null;
+    }
+    throw failure;
+   }
    if(!mesh.fallback())return;
    if(com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_MEMORY_FIRST){
     // A missing/obstructed prepared route is unavailable, not a request to

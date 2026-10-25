@@ -16,6 +16,7 @@ public class DropItem {
 	private int index = 0;
 	private volatile long count = 0;
 	private final Drop dropTemplate;
+	private final boolean questDrop;
 	private List<Integer> playerObjIds;
 	private boolean isFreeForAll = false;
 	private long highestValue = 0;
@@ -34,10 +35,20 @@ public class DropItem {
 	public void setDistributionMode(int mode) { distributionMode = mode; }
 
 	public DropItem(Drop dropTemplate) {
+		this(dropTemplate, false);
+	}
+
+	public DropItem(Drop dropTemplate, boolean questDrop) {
 		this.dropTemplate = dropTemplate;
+		this.questDrop = questDrop;
 		this.playerObjIds = new ArrayList<>();
 		if (DataManager.ITEM_DATA.getItemTemplate(dropTemplate.getItemId()).getOptionSlotBonus() != 0)
 			optionalSocket = -1;
+	}
+
+	/** Quest slots retain their eligible looters and bypass ordinary party distribution. */
+	public boolean isQuestDrop() {
+		return questDrop;
 	}
 
 	/**

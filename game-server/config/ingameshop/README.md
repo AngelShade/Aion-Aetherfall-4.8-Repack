@@ -1,5 +1,16 @@
 # Private Black Cloud Marketplace
 
+The storefront uses the Player Companions presentation: Aetherfall header,
+native button artwork, category rail, framed headings and compact item panels.
+The original client's matching movable/resizable 1180x780 frame is maintained by
+`client-mods/market-shortcut/prepare_window.py` and `MarketplaceWindow.lua`.
+Its minimum frame is 760x520, with responsive columns at smaller UI scales.
+Item details, favorites, history, native previews, quantity and reviewed purchases
+retain the existing shopping behavior. Build `MarketplaceService.java` normally
+and deliver its exact JAR with the packaged `media/marketplace.css`; the page
+versions the stylesheet to refresh the in-client cache. See the client builder
+README for signing, graphics recovery and closure requirements.
+
 The NA client's Black Cloud Marketplace button uses two URLs stored in
 `L10N/enu/data/data.pak` (`STR_WEB_SHOP` and `STR_WEB_INDIRECT_URL`). This client
 ignores the web shop URL console variables. Patch those two strings to point to

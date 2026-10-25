@@ -43,9 +43,9 @@ final class PlayerBotHealing {
     && (cast.getFirstTarget()==target || cast.getEffectedList().contains(target)))return true;
   }return false;
  }
- static boolean needs(Player bot,PlayerBotSkills.Entry e,Creature target,List<Player> party) {
+ static boolean needs(Player bot,PlayerBotSkills.Entry e,Creature target,List<Player> party,boolean combat) {
   if(target.isDead() || !target.isSpawned() || target.getWorldId()!=bot.getWorldId() || target.getInstanceId()!=bot.getInstanceId())return false;
-  double hp=health(target);if(hp>=recoveryLimit(bot,target) || hp<=0)return false;
+  double hp=health(target);if(hp>=recoveryLimit(bot,target,combat) || hp<=0)return false;
   if(target instanceof Summon && e.template().getProperties().getFirstTarget()!=FirstTargetAttribute.MYPET && hp>=65)return false;
   // Upstream permits another heal below medium health even while a heal is in
   // progress. Keep this exception so reservations cannot starve a falling tank.
@@ -53,7 +53,16 @@ final class PlayerBotHealing {
   var skill=e.template();return skill.hasAnyEffect(EffectType.HEALINSTANT)
    || !skill.hasAnyEffect(EffectType.HEAL,EffectType.CASEHEAL) || !sameBuff(target,skill);
  }
- static double recoveryLimit(Player bot,Creature target){return target==bot && PlayerBotRecoveryIntent.active(bot) ? 95 : 85;}
+ static double recoveryLimit(Player bot,Creature target,boolean combat){
+  return target instanceof Player player && player.isPlayerBot() ? PlayerBotRecoveryPolicy.healthLimit(PlayerBotRecoveryIntent.active(player),combat || player!=bot && engaged(player)) : 85;
+ }
+ static double manaLimit(Player bot,Player target,boolean combat){
+  return target.isPlayerBot() ? PlayerBotRecoveryPolicy.manaLimit(PlayerBotRecoveryIntent.active(target),combat || target!=bot && engaged(target)) : 40;
+ }
+ private static boolean engaged(Player target) {
+  // Existing bounded native owner/pet threat checks; never acquire a peer session lock.
+  return PlayerBotWorldActivities.travelThreatened(target);
+ }
  static List<Creature> targets(Player bot,PlayerBotSkills.Entry e,Creature anchor,List<Player> party) {
   List<Creature> targets=new ArrayList<>();targets.add(anchor);var p=e.template().getProperties();
   var result=p.validateEffectedList(targets,anchor,bot,e.template(),anchor.getX(),anchor.getY(),anchor.getZ());
@@ -106,12 +115,11 @@ final class PlayerBotHealing {
 		}
 		return best;
 	}
- static double priority(Player bot,PlayerBotSkills.Entry e,Creature anchor,List<Player> party) {
+ static double priority(Player bot,PlayerBotSkills.Entry e,Creature anchor,List<Player> party,boolean combat) {
   double urgency=0,fit=0;int players=0,pets=0;
-  for(var target:targets(bot,e,anchor,party))if(heals(e) && needs(bot,e,target,party)) {
+  for(var target:targets(bot,e,anchor,party))if(heals(e) && needs(bot,e,target,party,combat)) {
    boolean pet=target instanceof Summon;double hp=health(target);
-   double candidate=target==bot && hp>=85 && hp<recoveryLimit(bot,target) ? PlayerBotEngine.HIGH+(95-hp)/20
-    : healPriority(pet && e.template().getProperties().getFirstTarget()!=FirstTargetAttribute.MYPET ? Math.min(84,hp+30) : hp,target.getAggroList().stream().findAny().isPresent());
+   double candidate=healPriority(pet && e.template().getProperties().getFirstTarget()!=FirstTargetAttribute.MYPET ? Math.min(84,hp+30) : hp,target.getAggroList().stream().findAny().isPresent());
    if(candidate<=0)continue;
    var recovery=PlayerBotCleric.recovery(bot,e,target,candidate);
    if(recovery!=null) {
@@ -132,12 +140,12 @@ final class PlayerBotHealing {
    return Math.max(existing,PlayerBotDefense.priority(bot,e,anchor,true,party));
   return Math.max(existing,PlayerBotAethertech.recoveryPriority(bot,e,anchor));
  }
- static Creature recipient(Player bot,PlayerBotSkills.Entry e,List<Player> party) {
+ static Creature recipient(Player bot,PlayerBotSkills.Entry e,List<Player> party,boolean combat) {
   var props=e.template().getProperties();List<Creature> candidates=props.getFirstTarget()==FirstTargetAttribute.ME ? List.of(bot) : members(party);
   boolean group=props.getTargetType()!=null && props.getTargetType()!=TargetRangeAttribute.ONLYONE && props.getTargetMaxCount()!=1;
   Creature best=null;double bestPriority=Double.NEGATIVE_INFINITY,bestProbe=Double.POSITIVE_INFINITY;
   for(var target:candidates)if(!target.isDead()) {
-   double priority=priority(bot,e,target,party);
+   double priority=priority(bot,e,target,party,combat);
    if(priority<=0 || !reachable(bot,e,target))continue;
    double probe=probe(health(target),PositionUtil.getDistance(bot,target),e.range(),target instanceof Summon);
    double ranking=group || e.kind()==SkillKind.CLEANSE ? priority : -probe;
@@ -146,13 +154,13 @@ final class PlayerBotHealing {
    }
   }return best;
  }
- static boolean useful(Player bot,PlayerBotSkills.Entry e,Creature anchor){return priority(bot,e,anchor,party(bot))>0;}
+ static boolean useful(Player bot,PlayerBotSkills.Entry e,Creature anchor,boolean combat){return priority(bot,e,anchor,party(bot),combat)>0;}
  /** Reuse this decision's bounded membership, never its mutable health/rights.
   * Native admission and effect-time checks still revalidate the actual cast. */
- static boolean useful(Player bot,PlayerBotSkills.Entry e,Creature anchor,List<Player> party){
+ static boolean useful(Player bot,PlayerBotSkills.Entry e,Creature anchor,List<Player> party,boolean combat){
   if(!PlayerBotSupport.effectAllowed(bot,anchor))return false;
   var current=party.stream().filter(p->PlayerBotSupport.eligible(bot,p)).toList();
-  return priority(bot,e,anchor,current)>0;
+  return priority(bot,e,anchor,current,combat)>0;
  }
  static void reserve(Player bot,PlayerBotSkills.Entry e,Skill skill,long until) {
   var members=members(party(bot));for(var target:List.copyOf(skill.getEffectedList()))

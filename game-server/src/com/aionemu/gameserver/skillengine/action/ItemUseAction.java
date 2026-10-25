@@ -28,6 +28,10 @@ public class ItemUseAction extends Action {
 	@XmlAttribute
 	protected boolean expendable = true;
 
+	/** Read-only native cost metadata for recovery-supply planning. */
+	public int getItemId() { return itemid; }
+	public int getCount() { return count; }
+
 	@Override
 	public boolean act(Skill skill) {
 		if (!expendable)

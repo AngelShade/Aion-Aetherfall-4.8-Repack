@@ -24,9 +24,17 @@ public final class PlayerBotMetadata {
  public static boolean validAccount(int account){return PlayerBotPopulationPolicy.account(account);}
  public static void validate(int account,int character,String section,Map<String,String> map)throws IOException {
   try {
-   if(!validAccount(account) || character<=0 || !Set.of("care","gear","preferences","behavior","formation","spacing","party-rewards","quest-completion","looks","pvp").contains(section))throw new IllegalArgumentException("Invalid section/owner");
+   if(!validAccount(account) || character<=0 || !Set.of("care","gear","preferences","behavior","formation","spacing","party-rewards","quest-completion","looks","pvp","population").contains(section))throw new IllegalArgumentException("Invalid section/owner");
    if(Integer.parseInt(map.get("account"))!=account || Integer.parseInt(map.get("character"))!=character)throw new IllegalArgumentException("Owner mismatch");
-   if(section.equals("pvp")) {
+   if(section.equals("population")) {
+    if(!PlayerBotPopulationPolicy.serverAccount(account))throw new IllegalArgumentException("Population management requires a generated global account");
+    for(String key:List.of("randomizeAt","levelPlayedMillis","playedCheckAt","lastLevel","pendingLevel","deadUntil","reviveAt"))
+     if(Long.parseLong(map.getOrDefault(key,"0"))<0)throw new IllegalArgumentException("Invalid population event");
+    for(String key:List.of("lastLevel","pendingLevel"))if(Integer.parseInt(map.getOrDefault(key,"0"))>65)throw new IllegalArgumentException("Invalid population level");
+    if(!Set.of("true","false").contains(map.getOrDefault("pendingFull","false")))throw new IllegalArgumentException("Invalid population factory mode");
+    if(!Set.of("true","false").contains(map.getOrDefault("pendingField","false"))
+     || !Set.of("","bracket","reset","refresh","revive","teleport").contains(map.getOrDefault("pendingReason","")))throw new IllegalArgumentException("Invalid population factory intent");
+   } else if(section.equals("pvp")) {
     for(String key:List.of("nextRift","visitUntil"))if(Long.parseLong(map.getOrDefault(key,"0"))<0)throw new IllegalArgumentException("Invalid PvP timer");
    } else if(section.equals("looks")) {
     if(!Set.of("2","3","4").contains(map.get("version")))throw new IllegalArgumentException("Invalid companion appearance version");
@@ -103,6 +111,15 @@ public final class PlayerBotMetadata {
  }
  public static synchronized void release(int account,int character)throws SQLException {
   if(!pending(account,character).isEmpty())throw new SQLException("Unsaved bot metadata cannot be discarded");
+  CACHE.entrySet().removeIf(e->e.getKey().character==character && e.getValue().account==account);
+ }
+ /** Rehydrate a discarded, unpublished generated factory attempt from SQL on its next load.
+  * Pending reset intent was checkpointed before normal logout. Never discard a live actor's work. */
+ static synchronized void reloadUnpublished(int account,int character)throws SQLException {
+  if(!PlayerBotPopulationPolicy.serverAccount(account) || !PlayerBotLease.isReserved(character)
+   || com.aionemu.gameserver.world.World.getInstance().isInWorld(character)
+   || com.aionemu.gameserver.services.player.PlayerLeaveWorldService.isLeavingWorld(character))
+   throw new SQLException("Population factory reload requires exclusive unpublished character custody");
   CACHE.entrySet().removeIf(e->e.getKey().character==character && e.getValue().account==account);
  }
  /** Idempotent offline migration; existing database values always win over retained legacy files. */
