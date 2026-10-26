@@ -23,6 +23,7 @@
 !/docs/
 
 # Generated output, editor state and local receipts are never build inputs.
+/tools/distribution/release-workspace.local.json
 **/target/
 **/node_modules/
 **/.venv/

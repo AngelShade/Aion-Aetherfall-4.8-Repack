@@ -8,6 +8,7 @@ import com.aionemu.gameserver.questEngine.model.QuestActionType;
 import com.aionemu.gameserver.questEngine.model.QuestEnv;
 import com.aionemu.gameserver.questEngine.model.QuestState;
 import com.aionemu.gameserver.questEngine.model.QuestStatus;
+import com.aionemu.gameserver.services.QuestService;
 
 /** The Unbroken Field: Cargo Without a Consignee. Native quest persistence; no core overrides. */
 public class _14992CargoWithoutAConsignee extends AbstractQuestHandler {
@@ -21,6 +22,8 @@ public class _14992CargoWithoutAConsignee extends AbstractQuestHandler {
 		qe.registerQuestNpc(203147).addOnQuestStart(questId);
 		for (int npc : new int[] { 203146, 203147, 203166, 203172, 700283 })
 			qe.registerQuestNpc(npc).addOnTalkEvent(questId);
+		qe.registerOnGetItem(182299984, questId);
+		qe.registerOnEnterWorld(questId);
 		qe.registerCanAct(questId, 700283);
 	}
 
@@ -64,20 +67,45 @@ public class _14992CargoWithoutAConsignee extends AbstractQuestHandler {
 			if (action == SETPRO1)
 				return defaultCloseDialog(env, 1, 2);
 		}
-		if (step == 2 && npc == 700283) {
-			if (action == QUEST_SELECT || action == USE_OBJECT)
-				return sendQuestDialog(env, SELECT4);
-			if (action == SETPRO1)
-				return defaultCloseDialog(env, 2, 3);
+		if (step == 2 && npc == 700283)
+			return action == USE_OBJECT;
+
+		if (step == 3 && npc == 203172 && !QuestService.collectItemCheck(env, false)) {
+			changeQuestStep(env, 3, 2);
+			return sendQuestDialog(env, SELECT6);
 		}
 		if (step == 3 && npc == 203172) {
 			if (action == QUEST_SELECT || action == USE_OBJECT)
 				return sendQuestDialog(env, SELECT5);
 			if (action == SELECT_QUEST_REWARD) {
+				if (!QuestService.collectItemCheck(env, true))
+					return false;
 				changeQuestStep(env, step, step, true);
 				return sendQuestEndDialog(env);
 			}
 		}
+		return false;
+	}
+
+	@Override
+	public boolean onGetItemEvent(QuestEnv env) {
+		QuestState state = env.getPlayer().getQuestStateList().getQuestState(questId);
+		if (state == null || state.getStatus() != QuestStatus.START || state.getQuestVarById(0) != 2)
+			return false;
+		return QuestService.collectItemCheck(env, false) && changeQuestStep(env, 2, 3);
+	}
+
+	@Override
+	public boolean onEnterWorldEvent(QuestEnv env) {
+		QuestState state = env.getPlayer().getQuestStateList().getQuestState(questId);
+		if (state == null || state.getStatus() != QuestStatus.START)
+			return false;
+		boolean collected = QuestService.collectItemCheck(env, false);
+		int step = state.getQuestVarById(0);
+		if (step == 2 && collected)
+			return changeQuestStep(env, 2, 3);
+		if (step == 3 && !collected)
+			return changeQuestStep(env, 3, 2);
 		return false;
 	}
 

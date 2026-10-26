@@ -23,6 +23,7 @@
             default => 'status-unknown',
         };
         $onlinePlayers = $serverMetrics['online_players'] ?? null;
+        $onlineBots = $serverMetrics['online_bots'] ?? null;
     @endphp
 
     <section class="info-status-grid" aria-label="Server overview">
@@ -33,9 +34,12 @@
             <span class="info-stat-footnote">Use the Aetherfall launcher to enter the game.</span>
         </article>
         <article class="info-stat-card">
-            <span class="info-stat-label">Online Players</span>
-            <div class="info-stat-value" data-live-info-players>{{ is_numeric($onlinePlayers) ? number_format((int) $onlinePlayers) : '—' }}</div>
-            <p data-live-info-players-detail>{{ $serverMetrics['players_detail'] ?? 'Live player statistics are not currently available.' }}</p>
+            <span class="info-stat-label">Online Now</span>
+            <div class="aion-population-counts" aria-live="polite">
+                <div><span class="info-stat-label">Players</span><div class="info-stat-value" data-live-info-players>{{ is_numeric($onlinePlayers) ? number_format((int) $onlinePlayers) : '—' }}</div></div>
+                <div><span class="info-stat-label">Bots</span><div class="info-stat-value" data-live-info-bots>{{ is_numeric($onlineBots) ? number_format((int) $onlineBots) : '—' }}</div></div>
+            </div>
+            <p data-live-info-bots-detail>{{ $serverMetrics['bots_detail'] ?? 'Live bot statistics are not currently available.' }}</p>
         </article>
         <article class="info-stat-card">
             <span class="info-stat-label">Game Version</span>
@@ -167,7 +171,8 @@
     const label = document.querySelector('[data-live-info-status-label]');
     const statusDetail = document.querySelector('[data-live-info-status-detail]');
     const players = document.querySelector('[data-live-info-players]');
-    const playersDetail = document.querySelector('[data-live-info-players-detail]');
+    const bots = document.querySelector('[data-live-info-bots]');
+    const botsDetail = document.querySelector('[data-live-info-bots-detail]');
     if (!status && !players) return;
     const endpoint = @json(url('/api/server-status'));
     let active = true;
@@ -185,7 +190,8 @@
             }
             if (statusDetail && typeof data.server_status_detail === 'string') statusDetail.textContent = data.server_status_detail;
             if (players) players.textContent = Number.isFinite(Number(data.online_players)) && data.online_players !== null ? Number(data.online_players).toLocaleString() : '—';
-            if (playersDetail && typeof data.players_detail === 'string') playersDetail.textContent = data.players_detail;
+            if (bots) bots.textContent = Number.isFinite(Number(data.online_bots)) && data.online_bots !== null ? Number(data.online_bots).toLocaleString() : '—';
+            if (botsDetail && typeof data.bots_detail === 'string') botsDetail.textContent = data.bots_detail;
         } catch (_) { /* Keep the last server-rendered values when polling fails. */ }
     };
     refresh();

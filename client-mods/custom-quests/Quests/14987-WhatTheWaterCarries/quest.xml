@@ -18,4 +18,11 @@
   <class_permitted>warrior scout mage cleric engineer artist fighter knight assassin ranger wizard elementallist chanter priest gunner bard rider</class_permitted>
   <race_permitted>pc_light</race_permitted>
   <finished_quest_cond1>Q14986</finished_quest_cond1>
+  <collect_progress>1</collect_progress>
+  <collect_item1>quest_14987a 1</collect_item1>
+  <drop_monster_1>LF1_polluted_seed</drop_monster_1>
+  <drop_item_1>quest_14987a</drop_item_1>
+  <drop_prob_1>100</drop_prob_1>
+  <drop_each_member_1>1</drop_each_member_1>
+  <check_item1_1>quest_14987a 1</check_item1_1>
 </quest>

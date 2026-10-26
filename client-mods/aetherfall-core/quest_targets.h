@@ -195,37 +195,42 @@ void quest_append_count(wchar_t* title,size_t capacity,int current,int required,
     wchar_t part[64]{};int written=swprintf_s(part,any?L", %d/%d":L" (%d/%d",std::min(current,required),required);
     if(written>0 && size_t(written)+2<capacity-length){std::memcpy(title+length,part,(size_t(written)+1)*sizeof(wchar_t));any=true;}
 }
-int quest_tooltip_format(wchar_t* out,int cap,const wchar_t* format,int kind,const wchar_t* icon,const wchar_t* title,int qid){
+int quest_tooltip_text(wchar_t* out,Ptr definition,int kind){
     ++AetherfallQuestDiagnostics[5];
-    auto original=native<int(*)(wchar_t*,int,const wchar_t*,int,const wchar_t*,const wchar_t*)>(0x1c2ca0);
-    const QuestRecord* q=active_quest(qid);if(!q || !title)return original(out,cap,format,kind,icon,title);
-    wchar_t enriched[512]{};wcsncpy_s(enriched,title,_TRUNCATE);bool any=false,authored=false;
+    // DlgTooltipObj builds this 256-character line before measuring/adding it.
+    // 0x6c17ef is an NPC dialogue button formatter, not a world-hover route.
+    int result=native<int(*)(wchar_t*,Ptr,int)>(0x8f06b0)(out,definition,kind);
+    if(!result || !readable(out,256*sizeof(wchar_t)) || !readable(definition,4))return result;
+    int qid=field<int>(definition,0);
+    const QuestRecord* q=active_quest(qid);if(!q)return result;
+    bool any=false,authored=false;
     unsigned progress=quest_progress(*q);
     for(const auto& hunt:QUEST_AUTHORED_HUNTS)if(hunt.quest==qid && unsigned(hunt.stage)==(progress&63)){
-        quest_append_count(enriched,512,int((progress>>6)&63),hunt.required,any);authored=true;
+        quest_append_count(out,256,int((progress>>6)&63),hunt.required,any);authored=true;
     }
     if(!authored){
         QuestParameters params;
         if(quest_parameters(*q,params))for(const auto& quota:QUEST_QUOTAS)if(quota.quest==qid){
             int current=0,visible=1;
             if(quota.visible>=0 && (!quest_integer(params.values[quota.visible],visible) || !visible))continue;
-            if(quest_integer(params.values[quota.param],current))quest_append_count(enriched,512,current,quota.required,any);
+            if(quest_integer(params.values[quota.param],current))quest_append_count(out,256,current,quota.required,any);
         }
     }
     if(!any){
         const QuestDefinition* def=quest_definition(qid);
         if(def)for(int i=0;i<4;++i)if(def->items[i]>0 && def->required[i]>0){
-            long long count=quest_item_count(def->items[i]);if(count>=0)quest_append_count(enriched,512,int(std::min(count,static_cast<long long>(def->required[i]))),def->required[i],any);
+            long long count=quest_item_count(def->items[i]);if(count>=0)quest_append_count(out,256,int(std::min(count,static_cast<long long>(def->required[i]))),def->required[i],any);
         }
     }
-    if(any){size_t length=wcsnlen(enriched,512);if(length<511){enriched[length]=L')';enriched[length+1]=0;}++AetherfallQuestDiagnostics[6];}
-    return original(out,cap,format,kind,icon,any?enriched:title);
+    if(any){size_t length=wcsnlen(out,256);if(length<255){out[length]=L')';out[length+1]=0;}++AetherfallQuestDiagnostics[6];}
+    return result;
 }
 bool install_quest_targets(){
-    constexpr size_t sites[]={0x9633e5,0x6c17ef};
-    const void* targets[]={reinterpret_cast<const void*>(&quest_name_format),reinterpret_cast<const void*>(&quest_tooltip_format)};
+    constexpr size_t sites[]={0x9633e5,0x8f3a44};
+    constexpr size_t originals[]={0x1c2ca0,0x8f06b0};
+    const void* targets[]={reinterpret_cast<const void*>(&quest_name_format),reinterpret_cast<const void*>(&quest_tooltip_text)};
     unsigned char expected[2][5]{};
-    for(int i=0;i<2;++i){expected[i][0]=0xe8;int32_t displacement=int32_t(0x1c2ca0-sites[i]-5);std::memcpy(expected[i]+1,&displacement,4);
+    for(int i=0;i<2;++i){expected[i][0]=0xe8;int32_t displacement=int32_t(originals[i]-sites[i]-5);std::memcpy(expected[i]+1,&displacement,4);
         if(std::memcmp(game()+sites[i],expected[i],5)){AetherfallQuestDiagnostics[0]=2;return false;}}
     // A near relay keeps each native call at five bytes, without changing any
     // adjacent instructions, imports, Game.dll files or graphics recovery images.

@@ -5,7 +5,124 @@ Aetherfall Interface. It reads native HUD data and applies the interface's windo
 positions, visibility and tooltip settings. Settings remain in `Mods/AetherfallUI`.
 Existing chat commands run through the native chat input.
 
-## Quest mob names and progress, native 1.2.63
+## Quest tracker starting height, Lua 1.2.79 and layout
+
+The stock tracker layout (`quest_indicator_dialog`) is 960 high, the full layout
+height; at UI scale 1.125 on a 1080 screen it fills the screen and can only move
+sideways. The game derives the height from that frame inside its own SetRect, so
+the runtime size hold added in 1.2.77/1.2.78 had no effect and is removed. The
+layout frame is now 830, the bottom of the main and temporary-quest lists, staged
+by `../transmog-menu/prepare_quest_tracker_height.py` into the base and English
+active, Graphics package and restore archives. The size-only pin mode 7 (native
+1.2.77) remains available but unused.
+
+## Tooltip policy on all tooltip classes, native 1.2.76
+
+Backdrop and pin hooks no longer redirect a live tooltip class's SetRect slot.
+A backdrop on the name-link tooltip classes had taken that slot first, so the
+tooltip policy refused every class and no Tooltip option applied. A read-only
+reading of the running client confirmed 0 of 54 classes before and 54 of 54 after.
+Native 1.2.75 adds the right-drag camera turn (`camera_turn.h`).
+
+## Cursor tooltips use the real mouse, native 1.2.73
+
+Cursor-anchored tooltips, and the over-window/over-world decision, read the real
+Windows cursor in UI pixels (as MoveUI dragging does). The engine's dispatcher copy
+(`CURSOR_X/Y`) stopped following the mouse with the system cursor hidden, leaving
+cursor tooltips at a fixed spot. It remains the fallback when the game is not in
+front. Lua 1.2.74 is retained.
+
+## Saved world-tooltip choice, Lua 1.2.74
+
+Before Lua 1.2.53 the world-tooltip default was Mover, and profile switches,
+presets and stored snapshots wrote that default into saves. Those characters kept
+world tooltips fixed at the mover spot while UI tooltips followed the cursor. Each
+save and stored profile now moves a saved Mover choice to Cursor once (`tipcursor`
+marks it); any later choice, including Mover, is kept. Native and Hidden are not
+changed. Build with `prepare.py --update --plugin-only`; native Core 1.2.72 retained.
+
+## Reset defaults and shortcut group, Lua 1.2.73
+
+Reset and Reset all return an ordinary window to its native layout spot from the
+catalogue (or its Aetherfall design spot). Previously the default was wherever the
+window was when MoveUI first saw it. Moving **Shortcuts (all)** now moves only the
+grid anchor; icons placed individually keep their own offsets, and grid icons stay
+aligned at screen edges. Build with `prepare.py --update --plugin-only`; native
+Core 1.2.72 is retained.
+
+## Interface work only when something changes, Core/Lua 1.2.72
+
+A faded background's draw checks only its owner dialog slot and object class.
+The full widget-path check runs when selections are made and every five seconds.
+Re-selecting an unchanged widget returns at once, and a held class reuses its
+measured table instead of querying memory for each slot.
+
+Opacity prepares a window instance once at its current value. Target changes and
+window openings handle only new or changed windows. A five-second sweep picks up
+widgets the game adds later and prunes retired selections. The holds are rebuilt
+after a change, while MoveUI is open, and otherwise five times a second. The
+tooltip policy still runs every tick, so a cursor tooltip follows the mouse;
+an unchanged policy otherwise returns without re-checking the tooltip classes.
+
+Zone changes, loading screens and teleports keep the native holds. Each hold
+checks its current dialog, classes and widget path (1.2.71), so the game no longer
+places every frame itself for the settling second. An unsaved MoveUI draft is
+still cancelled. Character switches and disconnects release the holds as before.
+
+Build with `prepare.py --update --retain-layout`. Only `AetherfallCore.lua` and
+`AetherfallOptions.lua` change inside the signed plugin. In-game appearance,
+tooltips, teleports, loading screens and combat smoothness need owner testing.
+
+## Quit countdown and retired mover owners, native 1.2.71
+
+Native layout callbacks verify a mover's current dialog slot, owner and target
+classes, and widget path before using its saved coordinates. The client can
+rebuild UI objects when the quit countdown expires; a reused target address
+previously let the mover read a retired owner's memory. A stale selection now
+delegates to the saved native layout method until Lua selects the current object.
+Removing a mover policy also avoids looking up retired objects. Native class
+identity, backdrop rendering, Lua and saved profiles are retained.
+
+The reported access violation maps to the retired owner's flag call inside
+`placed`. An isolated native fixture reproduces the former access violation;
+492 checks, including 50 dialog recreation cycles, validate native pass-through,
+live mover positions, anchor adjustment, class identity and safe policy removal.
+Completing the quit countdown in the real client remains owner acceptance.
+
+## First opening, Lua 1.2.69
+
+Existing ordinary dialogs receive their profile position and backdrop policy
+while still hidden. The previous visible-only sweep let the native opener draw
+one placement/opacity first, then replayed the profile on an addon tick.
+Native 1.2.68 retains the prepared backdrop through hide/show; this Lua update
+uses that lifetime before the first visible draw. Later native dragging and
+reopening remain authoritative, and conditional HUD geometry still waits for
+native visibility. No timer acceleration or rendering callback was added.
+
+Lua 5.1 checks reproduce the prior hidden-window omission and exercise preparation,
+first-visible state, opacity edits, profile changes, reopen/drag ownership and
+window identity at four UI scales. Live appearance and native opener behavior
+remain owner acceptance, particularly for windows instantiated only when opened.
+
+## Native class identity, native 1.2.68
+
+Layout and backdrop policies retain each object's native class-table pointer.
+The unified inventory and native client use that pointer for concrete-class
+admission: substituting a private table made the inventory guards fail after
+opacity or a mover selected the window. Guarded native class slots now dispatch
+to per-object policies, forwarding unselected objects to saved native methods.
+The bounded class registry remains while the bridge is loaded; clearing policies
+leaves native pass-through without writing retired objects. Hidden, still-owned
+backdrop selections survive reopening so the first draw retains their policy.
+
+The earlier bridge reproduces the shipped inventory guard failure in an isolated
+native fixture. The correction retains all five exact inventory admission checks
+while geometry and all four opacity delegates remain active; 8,088 checks pass.
+Game.dll on disk, renderer/camera DLLs, Lua and saved positions are retained.
+Inventory sizing/reopening, bottom-menu controls, opacity and focus return still
+require owner acceptance in both renderers.
+
+## Quest mob names and progress, native 1.2.66
 
 Attack-cursor quest mobs gain the existing native quest-type glyph immediately
 before their overhead name. The client still owns the nameplate position,
@@ -14,8 +131,10 @@ actual name and the larger NPC interaction markers are unchanged. Campaign,
 important, legion, event and ordinary types use the same mapping as native quest
 tooltips; a campaign takes priority when several quests need the same mob.
 
-The native working-quest tooltip adds current/required counters to its quest
-title. Compiled quests use their native journal parameter callback and authored
+The native world-hover quest-text function adds current/required counters before
+the tooltip measures and adds each quest row. The original 1.2.63 implementation
+hooked NPC dialogue buttons instead; 1.2.66 corrects that route and preserves the
+native hover buffer's 256-character capacity and return value. Compiled quests use their native journal parameter callback and authored
 journal quotas. The maintained data-driven hunts use their verified six-bit
 SECTION_0 stage/SECTION_1 count contract. Collection counters use the native
 quest definition and bag inventory. Unavailable or nonnumeric progress retains
@@ -27,12 +146,95 @@ registration contracts. Rebuild it when those inputs change. The manifest record
 their hashes, and installation rejects inputs changed since preparation. The
 installed mod inventory is refreshed with every native bridge build. Lua-only
 updates retain this native DLL. Game.dll on disk, signing and recovery images do
-not change: two guarded native formatter calls are redirected by the already
+not change: the guarded native name formatter and world-hover quest-text calls are redirected by the already
 imported bridge at startup. A failed guard leaves native formatting intact.
 
 Owner acceptance still covers actual glyph appearance, native scaling/occlusion,
 partial kills and pickups, completion/abandonment, several simultaneous quests,
 tooltip refresh and relog. Offline adapter checks do not establish rendering.
+
+## Direct backdrop opacity and complete draw coverage, Core/Lua 1.2.67
+
+General has one **Window background opacity** control. Chat and Action Bars each
+have an independent **Background opacity** control. Values are direct 0–100
+percentages: zero omits the selected backgrounds, and 100 retains their native
+opacity. Text and item icons remain visible. There is no active master setting
+or second multiplier. Native frame skins include their border artwork.
+
+Existing settings fold the former master into each category once. A saved
+master/window pair of 70/70 becomes window opacity 49; zero stays zero. The
+`opacitydirect` scalar prevents applying the conversion again after save/reload.
+Stored profiles migrate when restored. Fractional products survive file/profile
+roundtrips. Other settings, mover positions and profile bindings are preserved.
+
+Owner screenshots confirm that 1.2.65 did not fix the reported reversal. Its
+checks covered only float-colour skin drawing. Native `UIDialog::Draw` also
+uses byte RGBA drawing in another render mode, which bypassed the policy.
+The native 1.2.67 correction covers all four verified relative/absolute
+float/byte delegates. Zero omits only the selected skin draw. Positive values
+multiply native alpha, with byte results rounded to the nearest byte. This
+correction preserves native RGB, state/animation alpha and draw arguments.
+
+An external harness executes the installed `UIDialog::Draw` machine code and
+all four delegates with simulated widget/skin objects. The old byte path passes
+255 even at a zero setting; the correction passes 7,541 checks across all 101
+integer settings and five native alpha values. This proves the omitted path and
+the correction's delegate behavior. It does not prove what switches modes in
+the owner's screenshots or establish final GPU rendering.
+
+The previous opacity controller wrote the widget's native skin alpha and revisited
+it on settings/visibility events or the periodic tick. That field also belongs
+to native colour/state/animation updates. A scalar/controller sweep did not test
+what a subsequent native draw would receive after another update replaced it.
+
+Backdrop settings are now independent render multipliers on the selected skin
+draws. Each call copies the native draw colour and multiplies its alpha by the
+current setting. Native RGB, fade/state alpha, coordinates, clipping, text, item
+icons and widget state remain untouched. There is no percentage cutoff or
+replacement opaque value in the policy.
+Only the verified native skin delegates are intercepted through guarded native
+class slots. Object class identity and Game.dll on disk are retained.
+Selections validate current dialog ownership and exact widget paths and are
+released on replacement, character changes or interface disable. Hidden live
+selections remain ready for reopening. Geometry
+pins retain their own lifetime independently of opacity selections.
+
+The focused native harness executes the installed skin delegate machine code
+with simulated native widgets and captures its outgoing colours. It exercises
+native alpha changes between controller updates, all integer percentages, zero,
+pin/release ownership and stale-instance rejection. Live appearance remains an
+owner acceptance check.
+
+The former master and window/chat/bar multipliers were an Aion-specific design.
+They have been replaced by the direct category values above. The inspected
+ElvUI `GetTemplate`/`SetTemplate` code instead distinguishes Default and
+Transparent backdrop colours, preserves a separate border colour, and permits
+an explicit per-frame backdrop alpha. Aion's native skins combine their fill and
+border artwork, so multiplying a skin does not reproduce that border separation.
+The native quest summary still uses parchment and dark text; fading its artwork
+does not create a readable dark-theme text skin. That resource styling remains
+unmodified by this opacity repair.
+
+## Native reopening and panel opacity, Lua 1.2.64
+
+Ordinary named windows restore their saved profile position once per profile and
+viewport. Native title dragging and subsequent close/reopen placement stay with
+the game. A visibility notification no longer replays an older addon coordinate
+over the native opener. HUD pins and explicit Move UI placement remain separate.
+
+Opacity also includes passive tiled panel skins selected from the installed
+catalogue. This covers the quest journal's unnamed tab-page, container and list
+backgrounds, which previously remained opaque while the quest scroll frame faded.
+Options and HUD panels use the same guarded native backdrop operation; the two
+inner options panels participate as well. Text, icons, buttons, HTML content and
+foreground gauges are excluded. The existing master/group multipliers and saved
+values are retained, including zero. Multiple overlapping skins and different
+native artwork can still produce different pixel colours at the same setting.
+
+Focused offline checks reproduce the old reopen replay and journal omissions and
+sweep all four controls from 100% through 30%, 20%, 10% and zero using the installed
+catalogue. Actual reopening and the reported low-opacity visual reversal require
+owner confirmation in the game; controller checks do not prove rendering.
 
 ## Window lifecycle and opacity controls, Lua 1.2.62
 
@@ -456,6 +658,21 @@ snapshots cannot inherit values from the previous profile. Applying a preset als
 preserves the outgoing profile's settings. User1/2/3 Save still copies settings and
 positions explicitly. Existing alternating per-character files retain both active
 settings and inactive snapshots. Native Core remains 1.2.34 in a plugin-only update.
+
+## First-use tooltip initialization, 1.2.70 (26 October 2026)
+
+Configure the verified live tooltip classes from the placement pass with
+`AFCore.TipPin(0, ...)`, before any named tooltip template exists. The previous
+template discovery path could leave new characters without a policy when only
+the skill template existed, while established characters had already created
+the shared template. World and UI choices remain independent; the skill
+template is never repositioned or used to replace the world policy.
+
+Cursor, Mover, Native and Hidden behavior, native class guards, comparison/map
+grouping, profiles and bar positions are preserved. This is a shared code repair:
+maintained source and original installation precede the requested repack sync.
+Focused native/Lua checks cover empty, skill-only and shared-template inventories;
+actual first-use hovering remains an owner acceptance check.
 
 ## Tooltip correction, 1.2.26 (21 October 2026)
 

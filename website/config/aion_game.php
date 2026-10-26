@@ -13,6 +13,7 @@ return [
         explode(',', (string) env('AION_PLAYER_SERVER_IDS', '1')),
     ), static fn (int $id): bool => $id >= 0 && $id <= 255)),
     'cache_seconds' => (int) env('AION_STATUS_CACHE_SECONDS', 30),
+    'presence_url' => env('AION_PRESENCE_URL', 'http://127.0.0.1:8092/website/status'),
 
     /*
      * Server status is based on TCP reachability, not an unverified MSSQL

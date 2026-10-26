@@ -25,15 +25,16 @@ local THEMES = {'Aether', 'Gold', 'Ice', 'Ember', 'Jade'}  -- AetherfallHUD.lua 
 local defaults = {
     databar = 1, chatline = 1, minimapinfo = 1, timers = 1, targettimers = 1, warn = 10,
     tot = 1, party = 1, xpbar = 1, startmenu = 1, altbar = 1, extrabar = 1, sepbar = 1,
-    snap = 1, grid = 8, showgrid = 1, guidesize = 64, font = 1, theme = 1, alpha = 90,
+    snap = 1, grid = 8, showgrid = 1, guidesize = 64, font = 1, theme = 1, opacitydirect = 1, tipcursor = 1,
     ttshow = 1, ttanchor = 2, ttui = 3, ttgrow = 1, ttx = 0, tty = 0, ttclamp = 1, snapframes = 1,
     abbar = 1, abrow1 = 12, abrow2 = 12, abrow3 = 12, abrow4 = 6, absize1 = 40, absize2 = 40, absize3 = 40, absize4 = 40,
-    mapx = -1, mapy = -1, mapsize = 180, windowsalpha = 100, chatalpha = 100, barsalpha = 100,
+    mapx = -1, mapy = -1, mapsize = 180, windowsalpha = 90, chatalpha = 90, barsalpha = 90,
     menusize = 34, menucols = 7, menugap = 4,
     dl1 = 'zone', dl2 = 'coords', dl3 = 'time', dc1 = 'xp', dc2 = 'kinah', dc3 = 'off', dr1 = 'fps', dr2 = 'group', dr3 = 'legion',
     profile = 'DPS', botbar = 1, botbarmode = -1,
 }
-local NUMERIC = {warn = {0, 60, 1}, grid = {2, 32, 2}, guidesize = {16, 128, 16}, alpha = {0, 100, 10}, ttx = {-64, 64, 8}, tty = {-64, 64, 8},
+local OPACITY_SETTINGS = {windowsalpha=true, chatalpha=true, barsalpha=true}
+local NUMERIC = {warn = {0, 60, 1}, grid = {2, 32, 2}, guidesize = {16, 128, 16}, ttx = {-64, 64, 8}, tty = {-64, 64, 8},
                  abrow1 = {1, 12, 1}, abrow2 = {1, 12, 1}, abrow3 = {1, 12, 1}, abrow4 = {1, 12, 1},
                  absize1 = {28, 56, 2}, absize2 = {28, 56, 2}, absize3 = {28, 56, 2}, absize4 = {28, 56, 2},
                  mapx = {-1, 1, 0}, mapy = {-1, 1, 0}, botbarmode = {-1, 2, 1},
@@ -137,7 +138,7 @@ local function valid(key, v)
     local d = defaults[key]
     if NUMERIC[key] then
         local x = tonumber(v); local r = NUMERIC[key]
-        if x and x >= r[1] and x <= r[2] and (key=='mapx' or key=='mapy' or x==math.floor(x)) then return x end
+        if x and x >= r[1] and x <= r[2] and (OPACITY_SETTINGS[key] or key=='mapx' or key=='mapy' or x==math.floor(x)) then return x end
     elseif key == 'profile' then
         for _, p in ipairs(PROFILES) do if p == v then return v end end
     elseif CHOICE[key] then
@@ -153,6 +154,26 @@ local function playerIdentity()
     if type(name) ~= 'string' or name == '' then return end
     return tostring(call('GetServerName') or '') .. ':' .. name
 end
+local function migrateOpacity(settings)
+    if settings.opacitydirect == 1 then settings.alpha = nil; return false end
+    -- Read the retired master only at this boundary. Fold old combinations
+    -- once, including zero, without resetting other settings or mover positions.
+    local master = settings.alpha or 90
+    for key in pairs(OPACITY_SETTINGS) do settings[key] = master * (settings[key] or 100) / 100 end
+    settings.alpha, settings.opacitydirect = nil, 1
+    return true
+end
+-- Before Lua 1.2.53 the world-tooltip default was Mover. Profile switches, presets
+-- and stored snapshots wrote that default into saves, so those characters keep a
+-- world tooltip fixed at the mover spot while UI tooltips follow the cursor.
+-- Move a saved Mover choice to the Cursor default once; afterwards any choice,
+-- including Mover chosen again, is kept. tipcursor marks a migrated save.
+local function migrateTooltips(settings)
+    if settings.tipcursor == 1 then return false end
+    if settings.ttanchor == 1 then settings.ttanchor = 2 end
+    settings.tipcursor = 1
+    return true
+end
 local function load()
     U.db, U.positions, U.stored, U.bindings = {}, {}, {}, {}
     local identity = assert(playerIdentity(), 'character is not connected')
@@ -161,13 +182,13 @@ local function load()
     local best, body = 0, nil
     for slot = 0, 1 do local seq, s = readFile(U.file .. '.' .. slot .. '.cfg'); if seq and seq > best then best, body = seq, s end end
     U.sequence = best
-    if not body then return end
+    if not body then U.db.opacitydirect, U.db.tipcursor = 1, 1; return end
     for k, v in body:gmatch('\n([%w%.]+)=([^\n]+)') do
         local binding = k:match('^bind%.(%w+%.%d+)$')
         local p, key = k:match('^(%w+)%.(%w+)$')
         if binding and v:match('^[%w_]+$') then U.bindings[binding] = v
-        elseif p == 'set' and defaults[key] ~= nil then
-            U.db[key] = valid(key, v)
+        elseif p == 'set' and (defaults[key] ~= nil or key == 'alpha') then
+            U.db[key] = valid(key == 'alpha' and 'windowsalpha' or key, v)
         elseif p and key and tonumber(key) then
             -- position: profile.dialogId = fx,fy (fractions of the screen)
             local fx, fy = v:match('^([%-%d%.]+),([%-%d%.]+)$')
@@ -177,6 +198,8 @@ local function load()
             U.stored[key] = v:sub(1, 2048)  -- saved user profile snapshot (scalar list)
         end
     end
+    local opacity, tooltips = migrateOpacity(U.db), migrateTooltips(U.db)
+    if opacity or tooltips then U.saveAt = U.ticks + 20 end
 end
 local function dirty() U.saveAt = U.ticks + 20 end
 function AFUI.Save()
@@ -237,6 +260,7 @@ local function design(id)
     local y = d[6] == 'bottom' and sh - (960 - d[2]) * s or d[6] == 'middle' and sh / 2 + (d[2] - 480) * s or d[2] * s
     return math.max(0, math.min(sw - d[3] * s, x)), math.max(0, math.min(sh - d[4] * s, y))
 end
+local defaultSpot  -- Reset target for a frame (assigned once the native catalogue is loaded)
 -- Once per login and per screen size, native HUD windows without a user position
 -- go to the Aetherfall design position (the game may restore older saved ones).
 -- Frames the game re-anchors each time they appear (target, target of target, cast bars,
@@ -305,24 +329,39 @@ local function enforce()
     applyDesign()
     local sw, sh = screen()
     local size = tostring(sw) .. ':' .. tostring(sh)
-    if U.positionSize ~= size then U.positionSize, U.observed = size, {} end
+    if U.positionSize ~= size then U.positionSize, U.observed, U.restoredWindows = size, {}, {} end
     local held = U.pins or {}
     U.observed = U.observed or {}
+    U.restoredWindows = U.restoredWindows or {}
     for id = 1, PLUGIN_FIRST - 1 do
         if HUD_IDS[id] or U.positions[key(id)] then
             local d = dialog(id); local p = d and position(id, d)
             local prev = U.observed[id]
             if d and (p or HUD_IDS[id]) then
-                if not U.defaults[id] then
-                    local dx, dy = design(id)
-                    U.defaults[id] = dx and {dx / sw, dy / sh} or {d.x / sw, d.y / sh}
-                end
+                if not U.defaults[id] then U.defaults[id] = defaultSpot(id, d) end
                 local fresh = not prev or prev.token ~= identity(d) or prev.profile ~= AFUI.Get('profile') or not prev.shown
-                if p and d.shown and not held[id] and fresh then
+                -- Ordinary dialogs already remember their position natively.
+                -- Restore the profile once, then let their opener/dragging own
+                -- close/reopen. Replaying an older addon coordinate on every
+                -- Show races the native inventory/attached-window layout.
+                local restoreKey = AFUI.Get('profile') .. ':' .. d.name
+                if not HUD_IDS[id] then fresh = U.restoredWindows[id] ~= restoreKey end
+                -- Existing ordinary windows are already constructed while hidden.
+                -- Restore their profile now, before the opener can paint them,
+                -- rather than replaying that restore on the first visible tick.
+                -- Conditional HUD placement still waits for its native visibility.
+                if p and (d.shown or not HUD_IDS[id]) and not held[id] and fresh then
                     local x = math.max(0, math.min(sw - d.w, p[1] * sw))
                     local y = math.max(0, math.min(sh - d.h, p[2] * sh))
                     if math.abs(d.x-x) > .5 or math.abs(d.y-y) > .5 then
-                        if AFCore.Move(id, x, y) then d.x, d.y = x, y end
+                        if AFCore.Move(id, x, y) then
+                            -- SetRect can run the dialog's alignment code.
+                            -- Observe its actual result, not the requested rect.
+                            d = dialog(id) or d
+                            if not HUD_IDS[id] then U.restoredWindows[id] = restoreKey end
+                        end
+                    elseif not HUD_IDS[id] then
+                        U.restoredWindows[id] = restoreKey
                     end
 
                 end
@@ -397,6 +436,22 @@ local FRAMES = {
 -- The builder derives previews from the same active UI catalogue as the core.
 -- Unmapped native types remain resource definitions until actually discovered.
 local FRAME_CATALOG = AFCore.FrameCatalog and AFCore.FrameCatalog() or {}
+-- Where Reset puts a frame: its Aetherfall design spot, else its native layout
+-- spot from the catalogue. Only a window known to neither keeps its current spot
+-- (previously every ordinary window "reset" to wherever MoveUI first found it).
+defaultSpot = function(id, d)
+    local sw, sh = screen()
+    local dx, dy = design(id)
+    if dx then return {dx / sw, dy / sh} end
+    local ref = FRAME_CATALOG[id]
+    if ref and d and d.name == ref[7] then
+        local s = scale()
+        local x = ref[5] == 'center' and sw/2 + (ref[1]-640)*s or ref[5] == 'right' and sw-(1280-ref[1])*s or ref[1]*s
+        local y = ref[6] == 'bottom' and sh-(960-ref[2])*s or ref[6] == 'middle' and sh/2+(ref[2]-480)*s or ref[2]*s
+        return {math.max(0, math.min(sw-ref[3]*s, x)) / sw, math.max(0, math.min(sh-ref[4]*s, y)) / sh}
+    end
+    return d and {d.x / sw, d.y / sh}
+end
 
 local SKIP_MOVERS = {party_buff = true, new_map = true, subzone_name = true}  -- the native area strip follows the minimap
 -- Tooltips: the game's text tooltip has no layout name; item and skill tooltips are the
@@ -752,10 +807,7 @@ local function layoutMovers()
     w('Movers'):SetRect(0, 0, sw / s, sh / s)
     for i, c in ipairs(moverCandidates()) do
         local id, d, label = c[1], c[2], c[3]
-        if not U.defaults[id] then
-            local dx, dy = design(id)
-            U.defaults[id] = dx and {dx / sw, dy / sh} or {d.x / sw, d.y / sh}
-        end
+        if not U.defaults[id] then U.defaults[id] = defaultSpot(id, d) end
         local x, y, wd, ht, ox, oy = frameRect(id, d)
         U.movers[i] = {id = id, x = x, y = y, w = wd, h = ht, ox = ox, oy = oy, label = label, name=d.name, exact = true, virtual = d.virtual, shown=d.shown}
         placeBox(i)
@@ -845,9 +897,15 @@ local function moveMover(i, tx, ty)
     if mv.id==MENU_GROUP then
         local dx,dy=tx-mv.x,ty-mv.y;local grid=menuGrid(sw,sh)
         if not grid then return false end
+        -- Move the grid anchor; grid buttons follow it. Only icons the player
+        -- placed individually keep their own offset. Saving all fourteen made
+        -- every icon "individual", so each was clamped on its own at a screen
+        -- edge and the grid bent.
         for index in ipairs(MENU_BUTTONS) do
-            local x,y=buttonSpot(index,sw,sh)
-            if x then remember(MENU_ID+index,nil,x+dx,y+dy,sw,sh) end
+            if U.positions[key(MENU_ID+index)] then
+                local x,y=buttonSpot(index,sw,sh)
+                if x then remember(MENU_ID+index,nil,x+dx,y+dy,sw,sh) end
+            end
         end
         remember(MENU_GROUP,nil,grid.x+dx,grid.y+dy,sw,sh)
         AFUI.HoldPinned()
@@ -1249,6 +1307,30 @@ end
 -- layout spot. The core pins them (the game's own re-placing keeps that spot, so nothing is
 -- drawn elsewhere first); each tick also puts back a shown one that is off its spot.
 U.pins = {}
+-- Tooltips by kind: hidden, beside the mouse, grown from a corner of their mover, or left
+-- where the game puts them (Native: not pinned at all). Runs every tick: the core
+-- re-places a visible cursor-anchored tooltip so it follows the mouse, and returns
+-- at once for an unchanged policy otherwise.
+local function holdTooltips()
+    local clamp = AFUI.Get('ttclamp') == 1
+    local function anchor(kind)
+        local choice = kind == 'ui' and ({'native', 'mover', 'cursor'})[AFUI.Get('ttui')] or ({'mover', 'cursor', 'native'})[AFUI.Get('ttanchor')]
+        if AFUI.Get('ttshow') == 0 then return 5, 0, 0 end
+        if choice == 'native' then return nil end
+        if choice == 'cursor' then return 4, AFUI.Get('ttx') * scale(), AFUI.Get('tty') * scale() end
+        local ax, ay = tooltipAnchor(kind == 'ui' and TOOLTIP_UI or TOOLTIP); local bw, bh = tooltipBox()
+        local m = GROW_MODE[AFUI.Get('ttgrow')] or 3
+        return m, m % 2 == 1 and ax + bw or ax, m >= 2 and ay + bh or ay
+    end
+    -- Configure the verified live classes even before any named template exists.
+    -- New accounts may initially create only the skill template, which must not
+    -- overwrite the independent world/UI policy or be moved as a live tooltip.
+    local wa, ua = {anchor('world')}, {anchor('ui')}
+    U.tooltipReady = AFCore.TipPin(0, wa[1] or -1, wa[2] or 0, wa[3] or 0,
+                                  ua[1] or -1, ua[2] or 0, ua[3] or 0, clamp)
+    U.tooltipError = not U.tooltipReady and 'Live tooltip policy was refused' or nil
+end
+AFUI.HoldTooltips = holdTooltips
 local function applyPins()
     local sw, sh = screen(); local prefix = AFUI.Get('profile') .. '.'
     local ids = {}
@@ -1280,29 +1362,7 @@ local function applyPins()
             end
         end
     end
-    -- Tooltips by kind: hidden, beside the mouse, grown from a corner of their mover, or left
-    -- where the game puts them (Native: not pinned at all).
-    local clamp = AFUI.Get('ttclamp') == 1
-    local function anchor(kind)
-        local choice = kind == 'ui' and ({'native', 'mover', 'cursor'})[AFUI.Get('ttui')] or ({'mover', 'cursor', 'native'})[AFUI.Get('ttanchor')]
-        if AFUI.Get('ttshow') == 0 then return 5, 0, 0 end
-        if choice == 'native' then return nil end
-        if choice == 'cursor' then return 4, AFUI.Get('ttx') * scale(), AFUI.Get('tty') * scale() end
-        local ax, ay = tooltipAnchor(kind == 'ui' and TOOLTIP_UI or TOOLTIP); local bw, bh = tooltipBox()
-        local m = GROW_MODE[AFUI.Get('ttgrow')] or 3
-        return m, m % 2 == 1 and ax + bw or ax, m >= 2 and ay + bh or ay
-    end
-    local anchors = {ui = {anchor('ui')}, world = {anchor('world')}}
-    -- The core decides each time the game places a tooltip: mouse over a game window -> UI anchor,
-    -- over the world -> world anchor (so it opens at the right spot, no jump). Skill tooltips: UI.
-    for id, kind in pairs(U.tooltips) do
-        local wa, ua = anchors.world, anchors.ui
-        if kind == 'ui' then wa = ua end
-        if (wa[1] or ua[1]) and not pinned[id] then
-            pinned[id] = true
-            AFCore.TipPin(id, wa[1] or -1, wa[2] or 0, wa[3] or 0, ua[1] or -1, ua[2] or 0, ua[3] or 0, clamp)
-        end
-    end
+    holdTooltips()
     -- Start menu: each button at its spot; the click-through window just holds them all.
     if menu then
         local spots, x0, y0, x1, y1 = {}, math.huge, math.huge, -math.huge, -math.huge
@@ -1463,27 +1523,69 @@ end
 -- Once per second and when settings change. Recreated windows are looked up
 -- afresh; no native object pointers survive a close, character or world change.
 function AFUI.BackgroundAlpha(group)
-    -- ElvUI's Transparent template changes registered backdrops, not frame
-    -- alpha. The general value is the shared backdrop alpha; group controls
-    -- further reduce their own backgrounds without fading their contents.
-    return AFUI.Get('alpha') / 100 * (group and AFUI.Get(group) / 100 or 1)
+    -- Each category has one direct 0-100 value. There is no live master or
+    -- second window multiplier; the retired value is read only for migration.
+    return AFUI.Get(group or 'windowsalpha') / 100
 end
 local function backgroundName(name)
     return name=='bg' or name=='background' or name=='backdrop' or name:match('^bg_')
         or name:match('_bg$') or name:match('_bg_') or name:match('_background$')
 end
-local OPACITY_SETTINGS = {alpha=true, windowsalpha=true, chatalpha=true, barsalpha=true}
-local PLUGIN_OPACITY = {PlayerBotBar='windowsalpha', AFHTop=false, AFHChat='chatalpha', AFHMap=false}
+local backdropRegistry, backdropPresets
+local function backdropPreset(name)
+    if backdropRegistry ~= AFCore.UI or not backdropPresets then
+        backdropRegistry, backdropPresets = AFCore.UI, {}
+    end
+    if not name or not backdropRegistry then return false end
+    if backdropPresets[name] ~= nil then return backdropPresets[name] end
+    local found, safe = false, true
+    -- A tiled skin on a passive panel is a frame/background, including the
+    -- unnamed v5_tabpage/container/listview panels in the native quest journal.
+    -- Image sprites (portraits, decorative icons, gauges) are not admitted.
+    for _,preset in ipairs(backdropRegistry.presets[name] or {}) do
+        for _,ref in ipairs(preset.references or {}) do
+            for _,skin in ipairs(backdropRegistry.skins[ref.name] or {}) do
+                found = true
+                if skin.attributes.type ~= 'tiled' then safe = false end
+            end
+        end
+    end
+    backdropPresets[name] = found and safe
+    return backdropPresets[name]
+end
+local PLUGIN_OPACITY = {PlayerBotBar='windowsalpha', AFUIOptions='windowsalpha', AFHTop=false, AFHChat='chatalpha', AFHMap=false}
+-- Native selections persist across hide/show (1.2.68), so a dialog instance
+-- already prepared at its current value needs no further pass on every target
+-- change or window opening. A sweep every five seconds still picks up widgets
+-- the game adds to an existing window later and prunes retired selections.
+-- AFCore.ClearBackdrops forgets these records with the native selections.
+U.opacityDone = {}
 function AFUI.ApplyOpacity()
     if not AFCore.Backdrop then return end
+    if not U.opacitySwept or U.ticks - U.opacitySwept >= 100 or U.ticks < U.opacitySwept then
+        U.opacitySwept, U.opacityDone = U.ticks, {}
+        if AFCore.PruneBackdrops then AFCore.PruneBackdrops() end
+    end
     U.opacityApplied,U.opacityRefused=0,0
+    local refused
     local function apply(id,alpha,path)
         if AFCore.Backdrop(id,alpha,path,'any',false) then U.opacityApplied=U.opacityApplied+1
-        else U.opacityRefused=U.opacityRefused+1 end
+        else U.opacityRefused=U.opacityRefused+1; refused=true end
+    end
+    -- A dialog is complete only when every selection succeeded; a widget the
+    -- game has not created yet is retried on the next pass.
+    local function prepared(id,d,alpha)
+        local signature=identity(d)..'|'..alpha
+        if U.opacityDone[id]==signature then return true end
+        refused=nil
+        return false,signature
     end
     for id = 1, PLUGIN_FIRST - 1 do
         local d = dialog(id)
-        if d and d.shown then
+        -- Native 1.2.68 retains a still-owned selection across hide/show. Prepare
+        -- existing hidden dialogs too, so the first draw has the same policy as
+        -- later draws; visibility remains entirely native.
+        if d then
             local alpha,bar
             if id == D.chat then alpha = AFUI.BackgroundAlpha('chatalpha')
             elseif id == D.shortcut or id == D.shortcut_ctrl or id == D.shortcut_alt or id == D.shortcut_extra
@@ -1495,7 +1597,9 @@ function AFUI.ApplyOpacity()
                 and id ~= D.shortcut_sep and id ~= D.shortcut_sep2 then
                 alpha=AFUI.BackgroundAlpha()
             end
-            if alpha then
+            local done,signature
+            if alpha then done,signature=prepared(id,d,alpha) end
+            if alpha and not done then
                 apply(id,alpha)
                 local layout=featureLayout(d.name,id)
                 for _,node in pairs(layout and layout.paths or {})do
@@ -1504,11 +1608,14 @@ function AFUI.ApplyOpacity()
                     -- image. Select its exact preset; never fade chat_list_*.
                     local chatPage=id==D.chat and kind=='tabpage'
                         and node.attributes.preset=='v5_chat_tabpage'
-                    if chatPage or ((kind=='image' or kind=='container' or kind=='static' or kind=='gauge')
+                    local passivePanel = (kind=='image' or kind=='container' or kind=='static' or kind=='tabpage')
+                        and backdropPreset(node.attributes.preset)
+                    if chatPage or passivePanel or ((kind=='image' or kind=='container' or kind=='static' or kind=='gauge')
                         and backgroundName(node.attributes.name or '')) or (bar and kind=='itemview') then
                         apply(id,alpha,node.path)
                     end
                 end
+                U.opacityDone[id]=not refused and signature or nil
             end
         end
     end
@@ -1518,11 +1625,19 @@ function AFUI.ApplyOpacity()
     for id=PLUGIN_FIRST,0x221 do
         local d=dialog(id)
         local group=d and PLUGIN_OPACITY[d.name]
-        if d and d.shown and group~=nil then
-            apply(id,AFUI.BackgroundAlpha(group or nil))
+        if d and group~=nil then
+            local alpha = AFUI.BackgroundAlpha(group or nil)
+            local done,signature=prepared(id,d,alpha)
+            if not done then
+                apply(id,alpha)
+                if d.name == 'AFUIOptions' then
+                    apply(id,alpha,'AFUISide')
+                    apply(id,alpha,'AFUIPanel')
+                end
+                U.opacityDone[id]=not refused and signature or nil
+            end
         end
     end
-    if AFUIOptions then AFUIOptions:SetAlpha(AFUI.BackgroundAlpha('windowsalpha'),false) end
 end
 -- Action bars (ElvUI): buttons per row and button size. The twelve slots are laid out in rows inside
 -- their container, the container and the bar window take the new size (bottom edge kept), bar 1's
@@ -1744,16 +1859,16 @@ local function data(k) return {k = k, kind = 'data'} end
 local function action(name, arg) return {kind = 'action', action = name, arg = arg} end
 -- {category, rows, hint}
 local TABS = {
-    {'General', {{'Data text font', choice('font')}, {'Colour theme', choice('theme')}, {'Master backdrop opacity', numeric('alpha')},
-                 {'Companion bar', toggle('botbar')}, {'Window opacity multiplier', numeric('windowsalpha')}},
-     'Master x group: 70% x 70% = 49%. Borders and backgrounds share the skin.'},
+    {'General', {{'Data text font', choice('font')}, {'Colour theme', choice('theme')}, {'Window background opacity', numeric('windowsalpha')},
+                 {'Companion bar', toggle('botbar')}},
+     '0 hides window backgrounds; 100 keeps native opacity. Text stays visible.'},
     {'Unit Frames', {{'Target of target', toggle('tot')}, {'Party frames', toggle('party')}},
      'Move frames with /moveui.'},
     {'Action Bars', {{'Bar 3', toggle('altbar')}, {'Bar 4', toggle('extrabar')}, {'Bars 5 and 6', toggle('sepbar')},
                      {'Layout of', choice('abbar')}, {'Buttons per row', {kind = 'barnumber', base = 'abrow'}},
-                     {'Button size', {kind = 'barnumber', base = 'absize'}}, {'Opacity multiplier', numeric('barsalpha')}},
-     'Master x bar opacity applies to all six bars. Skill icons stay readable.'},
-    {'Chat', {{'Status line', toggle('chatline')}, {'Opacity multiplier', numeric('chatalpha')}}, 'Master x chat opacity fades backdrops; text stays solid.'},
+                     {'Button size', {kind = 'barnumber', base = 'absize'}}, {'Background opacity', numeric('barsalpha')}},
+     'Background opacity applies to all six bars. Skill icons stay readable.'},
+    {'Chat', {{'Status line', toggle('chatline')}, {'Background opacity', numeric('chatalpha')}}, 'Chat background opacity is independent; text stays solid.'},
     {'Data Texts', {{'Top bar', toggle('databar')}, {'Left 1', data('dl1')}, {'Left 2', data('dl2')}, {'Left 3', data('dl3')},
                     {'Centre 1', data('dc1')}, {'Centre 2', data('dc2')}, {'Centre 3', data('dc3')},
                     {'Right 1', data('dr1')}, {'Right 2', data('dr2')}, {'Right 3', data('dr3')}}, nil},
@@ -1893,14 +2008,17 @@ local function restore(profile)
     -- A profile owns its settings as well as its mover positions. Missing or
     -- older partial snapshots start from that profile's defaults, never from
     -- whichever profile happened to be active before it.
-    for k, v in pairs(defaults) do if k ~= 'profile' then U.db[k] = v end end
-    for k, v in pairs(PRESET[profile] or {}) do U.db[k] = v end
+    local settings = {}
     for k, v in (U.stored[profile] or ''):gmatch('(%w+):([^;]+)') do
-        if defaults[k] ~= nil and k ~= 'profile' then
-            local value = valid(k, v)
-            if value ~= nil then U.db[k] = value end
+        if (defaults[k] ~= nil or k == 'alpha') and k ~= 'profile' then
+            settings[k] = valid(k == 'alpha' and 'windowsalpha' or k, v)
         end
     end
+    if U.stored[profile] then migrateOpacity(settings); migrateTooltips(settings) end
+    U.db.alpha = nil
+    for k, v in pairs(defaults) do if k ~= 'profile' then U.db[k] = v end end
+    for k, v in pairs(PRESET[profile] or {}) do U.db[k] = v end
+    for k, v in pairs(settings) do if defaults[k] ~= nil then U.db[k] = v end end
 end
 local function rememberProfile()
     U.stored[AFUI.Get('profile')] = snapshot()
@@ -1999,6 +2117,8 @@ local function enter()
         local ok, why = pcall(load)
         if not ok then U.loadError = tostring(why); U.db, U.positions, U.stored, U.bindings = {}, {}, {}, {} end
         U.identity = identity; U.defaults = {}; U.designed = {}; U.designSize = nil; U.unlocked = false; U.restoreEdit = nil
+        if AFCore.ClearBackdrops then AFCore.ClearBackdrops() end
+        U.restoredWindows = {}
         U.hidden = {}  -- shown-state restoration belongs to the current character
         U.lastHudShown = nil
         U.initialRadar = true  -- the active Aetherfall layout includes a visible minimap
@@ -2030,12 +2150,18 @@ function AFUI.BindCommands()
     SlashCmdList.AETHERFALLMOVE = AFUI.SlashMove; SLASH_AETHERFALLMOVE1 = '/moveui'
 end
 
-local function recoverLayout(keepEditor)
+-- keepPins: zone changes and loading screens keep the native holds too. Each
+-- hold checks its current dialog, classes and widget path before acting (1.2.71),
+-- so a window the game rebuilt is passed through untouched until the next hold
+-- pass retargets it. Releasing here let the game place every frame itself for
+-- the settling second, and dropped the tooltip policy and menu click-through.
+local function recoverLayout(keepEditor, keepPins)
     if not keepEditor and U.edit then AFUI.EndEdit(false, true, true) end
     U.settled = false
+    U.pinsDirty = true
     -- Focus return retains the live holds while viewport metrics settle. A full
     -- release here gives native shortcut layout a gap in which to relocate them.
-    if not keepEditor then releasePins() end
+    if not keepEditor and not keepPins then releasePins() end
     U.designed, U.observed, U.checked, U.fitted = {}, {}, {}, {}
     U.designSize, U.menuGaps, U.mapShown = nil, nil, false
     U.sizeSince = U.ticks
@@ -2131,6 +2257,7 @@ function AFUI_OnEvent(event, ...)
         local current = playerIdentity()
         if not current then
             if U.connected ~= false then
+                if AFCore.ClearBackdrops then AFCore.ClearBackdrops() end
                 if U.edit then AFUI.EndEdit(false, true, true) end
                 if U.ready and U.saveAt then AFUI.Save() end
                 U.connected, U.ready, U.settled = false, false, false
@@ -2168,11 +2295,13 @@ function AFUI_OnEvent(event, ...)
         end
         local primary, chat = D.basic_status and dialog(D.basic_status), D.chat and dialog(D.chat)
         local worldShown = (primary and primary.shown) or (chat and chat.shown)
-        if focused and U.worldShown == true and not worldShown then U.suspended = true; releasePins() end
-        if focused and worldShown and U.suspended then U.suspended = nil; recoverLayout() end
+        -- Loading screens and zone changes pause the hold pass but keep the native
+        -- holds (see recoverLayout); an unsaved MoveUI draft is still cancelled.
+        if focused and U.worldShown == true and not worldShown then U.suspended = true end
+        if focused and worldShown and U.suspended then U.suspended = nil; recoverLayout(false, true) end
         if focused then U.worldShown = worldShown and true or false end
         local zone = call('GetZoneText')
-        if focused and zone and U.zone and zone ~= U.zone then recoverLayout() end
+        if focused and zone and U.zone and zone ~= U.zone then recoverLayout(false, true) end
         U.zone = zone or U.zone
         U.settled = focused and sw >= 800 and sh >= 600 and U.ticks - (U.sizeSince or 0) >= 20
         U.settled = U.settled and not U.suspended
@@ -2202,7 +2331,13 @@ function AFUI_OnEvent(event, ...)
                 end
             end
             if U.recoverShown then recoverShown() end
-            holdPinned()
+            -- The native class slots hold every pinned SetRect as it happens; this
+            -- pass re-issues the holds. Run it after a change, while MoveUI is open,
+            -- and otherwise five times a second as a backstop. Only the tooltip
+            -- policy runs every tick, so a cursor-anchored tooltip follows the mouse.
+            if U.pinsDirty or U.unlocked or U.ticks % 4 == 0 then
+                U.pinsDirty = nil; holdPinned()
+            else pcall(holdTooltips) end
         end
         if U.settled then pcall(fitWindows) end
         if U.watchUntil then pcall(AFUI.WatchTick) end
@@ -2232,7 +2367,9 @@ function AFUI_OnEvent(event, ...)
             AFUI.QueueVisibleSettings()
         end
     elseif event == 'PLAYER_ENTERING_WORLD' then
-        enter(); if playerIdentity() then U.connected = true end; recoverLayout()
+        -- A teleport keeps this character's holds; a different character starts clean.
+        local previous = U.identity
+        enter(); if playerIdentity() then U.connected = true end; recoverLayout(false, previous ~= nil and previous == U.identity)
     elseif event == 'ADDON_EXIT' then
         if U.edit then AFUI.EndEdit(false, true, true) end
         if U.ready then AFUI.Save() end

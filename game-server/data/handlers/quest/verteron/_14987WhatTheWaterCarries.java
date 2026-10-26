@@ -8,6 +8,7 @@ import com.aionemu.gameserver.questEngine.model.QuestActionType;
 import com.aionemu.gameserver.questEngine.model.QuestEnv;
 import com.aionemu.gameserver.questEngine.model.QuestState;
 import com.aionemu.gameserver.questEngine.model.QuestStatus;
+import com.aionemu.gameserver.services.QuestService;
 
 /** The Unbroken Field: What the Water Carries. Native quest persistence; no core overrides. */
 public class _14987WhatTheWaterCarries extends AbstractQuestHandler {
@@ -23,6 +24,8 @@ public class _14987WhatTheWaterCarries extends AbstractQuestHandler {
 			qe.registerQuestNpc(npc).addOnTalkEvent(questId);
 		for (int npc : new int[] { 210121 })
 			qe.registerQuestNpc(npc).addOnKillEvent(questId);
+		qe.registerOnGetItem(182299981, questId);
+		qe.registerOnEnterWorld(questId);
 		qe.registerCanAct(questId, 700113);
 	}
 
@@ -54,20 +57,45 @@ public class _14987WhatTheWaterCarries extends AbstractQuestHandler {
 		if (state.getStatus() != QuestStatus.START)
 			return false;
 		int step = state.getQuestVarById(0);
-		if (step == 1 && npc == 700113) {
-			if (action == QUEST_SELECT || action == USE_OBJECT)
-				return sendQuestDialog(env, SELECT3);
-			if (action == SETPRO1)
-				return defaultCloseDialog(env, 1, 2);
+		if (step == 1 && npc == 700113)
+			return action == USE_OBJECT;
+
+		if (step == 2 && npc == 203148 && !QuestService.collectItemCheck(env, false)) {
+			changeQuestStep(env, 2, 1);
+			return sendQuestDialog(env, SELECT6);
 		}
 		if (step == 2 && npc == 203148) {
 			if (action == QUEST_SELECT || action == USE_OBJECT)
 				return sendQuestDialog(env, SELECT5);
 			if (action == SELECT_QUEST_REWARD) {
+				if (!QuestService.collectItemCheck(env, true))
+					return false;
 				changeQuestStep(env, step, step, true);
 				return sendQuestEndDialog(env);
 			}
 		}
+		return false;
+	}
+
+	@Override
+	public boolean onGetItemEvent(QuestEnv env) {
+		QuestState state = env.getPlayer().getQuestStateList().getQuestState(questId);
+		if (state == null || state.getStatus() != QuestStatus.START || state.getQuestVarById(0) != 1)
+			return false;
+		return QuestService.collectItemCheck(env, false) && changeQuestStep(env, 1, 2);
+	}
+
+	@Override
+	public boolean onEnterWorldEvent(QuestEnv env) {
+		QuestState state = env.getPlayer().getQuestStateList().getQuestState(questId);
+		if (state == null || state.getStatus() != QuestStatus.START)
+			return false;
+		boolean collected = QuestService.collectItemCheck(env, false);
+		int step = state.getQuestVarById(0);
+		if (step == 1 && collected)
+			return changeQuestStep(env, 1, 2);
+		if (step == 2 && !collected)
+			return changeQuestStep(env, 2, 1);
 		return false;
 	}
 

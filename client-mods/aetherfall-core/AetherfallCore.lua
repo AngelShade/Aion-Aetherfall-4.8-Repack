@@ -129,6 +129,11 @@ function AFCore.PopupOwner(dialog) if core then return core("popupowner", dialog
 function AFCore.Move(dialog, x, y, width, height) if core then return core("move", dialog, x, y, width, height) end end
 -- Fade native skins, preserving item icons, text and gauge foregrounds.
 function AFCore.Backdrop(dialog, alpha, widget, kind, recursive) if core then return core("backdrop", dialog, alpha, widget, kind, recursive) end end
+function AFCore.PruneBackdrops() if core then return core("backdropprune") end end
+function AFCore.ClearBackdrops()
+    if AFUI then AFUI.opacityDone = {} end  -- the interface's record of prepared dialogs
+    if core then return core("backdropclear") end
+end
 --- keep a native dialog's spot (pixels) when the game re-places it itself (the target re-centres
 --- on every target change, tooltips follow the mouse). mode: 0 top-left at x,y (default);
 --- 1 top-right, 2 bottom-left, 3 bottom-right corner at x,y; 4 x,y added to the game's spot;
@@ -138,6 +143,7 @@ function AFCore.Backdrop(dialog, alpha, widget, kind, recursive) if core then re
 function AFCore.Pin(dialog, x, y, mode, clamp, width, height, widget, kind)
     if core then return core("pin", dialog or 0, x, y, mode or 0, clamp and true or false, width or 0, height or 0, widget, kind) end
 end
+--- dialog 0 configures live tooltip classes before any prototype/tooltip exists.
 --- a tooltip held by where the mouse is when the game places it: over a game window the UI spot
 --- (umode, ux, uy), else the world spot (wmode, wx, wy); modes as AFCore.Pin, -1 = where the game puts it
 function AFCore.TipPin(dialog, wmode, wx, wy, umode, ux, uy, clamp)

@@ -13,14 +13,18 @@ from datetime import datetime
 from pathlib import Path
 from setup_version import setup_version
 from build_downloader import build_downloader
+from release_workspace import release_path
 
 DOWNLOAD_URL = 'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/latest/download/Aetherfall-Downloader.zip'
 LEGACY_DOWNLOAD_URL = 'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.86/Aetherfall-Downloader.zip'
 
 
-def prepare_downloader(dist_dir, output_dir, setup, latest):
-    archive = build_downloader(setup, dist_dir / 'Aetherfall-Downloader',
-        output_dir / 'Aetherfall-Downloader.zip', Path(__file__).resolve().parents[2] / 'CHANGELOG.md')
+def prepare_downloader(dist_dir, output_dir, setup, latest, changelog):
+    layout_path = dist_dir / 'Maintenance/release-layout.json'
+    layout = json.loads(layout_path.read_text(encoding='utf-8-sig')) if layout_path.is_file() else {}
+    support = dist_dir / layout.get('setupSupport', 'Aetherfall-Downloader')
+    archive = build_downloader(setup, support,
+        output_dir / 'Aetherfall-Downloader.zip', changelog)
     base = 'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v' + latest['version']
     latest.update(downloaderUrl=base+'/Aetherfall-Downloader.zip',
                   downloaderBytes=archive.stat().st_size, downloaderSha256=sha256_file(archive))
@@ -226,7 +230,7 @@ def scan_and_build_patch(package: Path, baseline_path: Path, dist_dir: Path, tar
         'filesChanged': len(changed_entries),
         'filesRemoved': len(removed_entries),
     }
-    prepare_downloader(dist_dir, dist_dir, setup_exe, latest)
+    prepare_downloader(dist_dir, dist_dir, setup_exe, latest, package / 'CHANGELOG.md')
     latest_path = dist_dir / 'latest-update.json'
     latest_path.write_text(json.dumps(latest, indent=2) + '\n', encoding='utf-8')
     print(f'      Created {patch_path} ({patch_bytes / 1024 / 1024:.2f} MB, SHA256={patch_sha})')
@@ -244,7 +248,8 @@ def publish_prepared(package, baseline_path, dist_dir, target_version, upload):
     base = 'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/' + tag
     organized = (dist_dir / 'Maintenance/release-layout.json').is_file()
     patch_dir = dist_dir / 'Patches' / current if organized else dist_dir
-    setup = dist_dir / 'Aetherfall Setup.exe' if organized else dist_dir / 'Aetherfall-Downloader' / 'Aetherfall Setup.exe'
+    layout = json.loads((dist_dir / 'Maintenance/release-layout.json').read_text(encoding='utf-8-sig')) if organized else {}
+    setup = dist_dir / layout.get('setupExecutable', 'Aetherfall Setup.exe') if organized else dist_dir / 'Aetherfall-Downloader' / 'Aetherfall Setup.exe'
     latest_path = patch_dir / 'latest-update.json'
     latest = json.loads(latest_path.read_text()) if latest_path.is_file() else {}
     patch_path = patch_dir / ('Aetherfall-Patch-' + current + '.zip')
@@ -271,7 +276,7 @@ def publish_prepared(package, baseline_path, dist_dir, target_version, upload):
                 raise ValueError('Setup and the prepared patch Hub differ; install the same build before publishing')
         latest.update(setupExeUrl=base+'/Aetherfall-Setup.exe', setupExeBytes=setup.stat().st_size,
                       setupExeSha256=sha256_file(setup), setupVersion=setup_version(setup))
-        prepare_downloader(dist_dir, patch_dir, setup, latest)
+        prepare_downloader(dist_dir, patch_dir, setup, latest, package / 'CHANGELOG.md')
         latest_path.write_text(json.dumps(latest, indent=2)+'\n', encoding='utf-8')
     if upload:
         publish_assets(patch_dir, latest, setup)
@@ -375,18 +380,21 @@ def publish_assets(dist_dir, latest, setup_path=None):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--package', type=Path, default=Path(r'D:\Proiecte\Project Restructure\Aion Development Workspace\Aion Aetherfall Repack Client + Server\Aetherfall-4.8-067-20261016'))
-    workspace = Path(__file__).resolve().parents[2] / 'releases'
-    parser.add_argument('--baseline', type=Path, default=workspace / 'Maintenance/Baseline/baseline-files-0.86.json')
-    parser.add_argument('--dist', type=Path, default=workspace)
+    parser.add_argument('--package', type=Path, help='Repack folder; defaults to repackFolder in the configured release layout')
+    parser.add_argument('--baseline', type=Path)
+    parser.add_argument('--dist', type=Path)
     parser.add_argument('--version', default='', help='Target version (e.g. 0.87). Auto-increments if omitted.')
     parser.add_argument('--prepared', action='store_true', help='Use the current installed repack index and version; no rescan, version bump or repack metadata writes')
     parser.add_argument('--no-upload', action='store_true', help='Build patch ZIP locally without uploading to GitHub')
     args = parser.parse_args()
+    args.dist = release_path(args.dist)
+    args.baseline = release_path(args.baseline) if args.baseline else args.dist / 'Maintenance/Baseline/baseline-files-0.86.json'
     layout_path = args.dist / 'Maintenance/release-layout.json'
     if layout_path.is_file():
         layout = json.loads(layout_path.read_text(encoding='utf-8-sig'))
         args.package = Path(layout['repackFolder'])
         args.baseline = args.dist / layout['baselineIndex']
         args.prepared = True
+    if args.package is None:
+        parser.error('Pass --package or configure repackFolder in Maintenance/release-layout.json')
     scan_and_build_patch(args.package.resolve(), args.baseline.resolve(), args.dist.resolve(), args.version, not args.no_upload, args.prepared)

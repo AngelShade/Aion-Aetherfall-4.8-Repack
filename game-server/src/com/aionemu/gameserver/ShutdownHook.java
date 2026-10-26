@@ -16,6 +16,7 @@ import com.aionemu.gameserver.network.aion.serverpackets.SM_SYSTEM_MESSAGE;
 import com.aionemu.gameserver.services.GameTimeService;
 import com.aionemu.gameserver.services.MarketplaceService;
 import com.aionemu.gameserver.services.PeriodicSaveService;
+import com.aionemu.gameserver.services.WebsiteStatusHttpService;
 import com.aionemu.gameserver.services.cron.CronService;
 import com.aionemu.gameserver.services.cron.CurrentThreadRunnableRunner;
 import com.aionemu.gameserver.services.player.PlayerLeaveWorldService;
@@ -75,6 +76,7 @@ public class ShutdownHook extends Thread {
 			}
 		}
 
+		WebsiteStatusHttpService.stop();
 		com.aionemu.gameserver.services.playerbot.PlayerBotService.getInstance().shutdown();
 		GameServer.shutdownNioServer(); // shuts down network, disconnects cs/ls/all players and schedules leaveWorld
 		MarketplaceService.stop();

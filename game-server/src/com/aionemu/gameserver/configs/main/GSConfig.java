@@ -86,6 +86,12 @@ public class GSConfig {
 	@Property(key = "gameserver.marketplace.port", defaultValue = "8091")
 	public static int MARKETPLACE_PORT;
 
+	@Property(key = "gameserver.website_status.enable", defaultValue = "true")
+	public static boolean ENABLE_WEBSITE_STATUS;
+
+	@Property(key = "gameserver.website_status.port", defaultValue = "8092")
+	public static int WEBSITE_STATUS_PORT;
+
 	@Property(key = "gameserver.analysis.quest_handlers", defaultValue = "true")
 	public static boolean ANALYZE_QUESTHANDLERS;
 

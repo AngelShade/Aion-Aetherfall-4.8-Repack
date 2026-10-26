@@ -281,6 +281,7 @@ local function auratimers()
 end
 
 local function hideall()
+    if AFCore.ClearBackdrops then AFCore.ClearBackdrops() end
     show('Top', false); show('Chat', false); show('Map', false)
     if w('Target') then show('Target', false) end
     for i = 1, POOL do show('T' .. i, false) end
@@ -294,12 +295,7 @@ function AFHUD_Apply()
         H.text[id .. '#'] = nil
     end
     -- Backdrop opacity only (text stays solid), as ElvUI's backdrop transparency.
-    for _, id in ipairs({'Top', 'Chat', 'Map'}) do
-        pcall(function()
-            local group=id=='Chat' and 'chatalpha' or nil
-            w(id):SetAlpha(AFUI and AFUI.BackgroundAlpha and AFUI.BackgroundAlpha(group) or opt('alpha')/100,false)
-        end)
-    end
+    if AFUI and AFUI.ApplyOpacity then AFUI.ApplyOpacity() end
     if H.on then AFHUD_Update() end
 end
 

@@ -38,22 +38,31 @@ public class _24114YouGottaStopUmkata extends AbstractQuestHandler {
 	public boolean onDialogEvent(QuestEnv env) {
 		Player player = env.getPlayer();
 		QuestState qs = player.getQuestStateList().getQuestState(questId);
-		if (qs == null || qs.isStartable())
-			return sendQuestNoneDialog(env, GIVER, SELECT_NONE);
 		int targetId = env.getTargetId();
-		if (qs.getStatus() == QuestStatus.REWARD)
-			return targetId == GULKALLA && sendQuestEndDialog(env);
-		if (qs.getStatus() != QuestStatus.START)
+		if (targetId != GIVER && targetId != GULKALLA && targetId != JEWEL_BOX && targetId != GRAVE)
 			return false;
-		int var = qs.getQuestVarById(0);
 		int action = env.getDialogActionId();
+		if (qs == null || qs.isStartable()) {
+			if (sendQuestNoneDialog(env, GIVER, SELECT_NONE))
+				return true;
+		} else if (qs.getStatus() == QuestStatus.REWARD) {
+			if (targetId == GULKALLA && sendQuestEndDialog(env))
+				return true;
+		} else if (qs.getStatus() == QuestStatus.START) {
+			return onProgressDialog(env, targetId, action, qs.getQuestVarById(0));
+		}
+		return handleRemainingDialog(env, targetId, action);
+	}
+
+	private boolean onProgressDialog(QuestEnv env, int targetId, int action, int var) {
+		Player player = env.getPlayer();
 		if (targetId == GULKALLA) {
-			if (var == 3) {
+			if (var == 3 || var == 4) {
 				if (action == QUEST_SELECT)
-					return sendQuestDialog(env, 1011);
+					return sendQuestDialog(env, var == 3 ? SELECT1 : SELECT1_1_1_1);
 				if (action == SELECT1_1 || action == SELECT1_1_1 || action == SELECT1_1_1_1)
 					return sendQuestDialog(env, action);
-				if (action == SETPRO1)
+				if (action == SETPRO1 && var == 3)
 					return defaultCloseDialog(env, 3, 4);
 			} else if (var == 5) {
 				if (action == QUEST_SELECT)
@@ -81,7 +90,16 @@ public class _24114YouGottaStopUmkata extends AbstractQuestHandler {
 			if (action == FINISH_DIALOG)
 				return closeDialogWindow(env);
 		}
-		return false;
+		return handleRemainingDialog(env, targetId, action);
+	}
+
+	private boolean handleRemainingDialog(QuestEnv env, int targetId, int action) {
+		if (action == USE_OBJECT)
+			return false; // Let ordinary NPC menus/object use continue when this quest has no interaction.
+		if (action == QUEST_SELECT && (targetId == GIVER || targetId == GULKALLA))
+			return sendQuestSelectionDialog(env);
+		// Never let an early report, repeated button or stale reward become an HTML page ID.
+		return closeDialogWindow(env);
 	}
 
 	@Override

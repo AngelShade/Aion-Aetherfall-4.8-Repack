@@ -82538,16 +82538,30 @@
 		</start_conditions>
 	</quest>
 	<quest id="14987" name="What the Water Carries" nameId="1801372" quest_zone="Verteron" minlevel_permitted="16" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST">
+		<collect_items>
+			<collect_item item_id="182299981" count="1" />
+		</collect_items>
 		<rewards gold="6800" exp="42000" />
+		<quest_drop npc_id="700113" item_id="182299981" chance="100" drop_each_member="1" collecting_step="1" />
 		<start_conditions>
 			<finished quest_id="14986" />
 		</start_conditions>
+		<quest_work_items>
+			<quest_work_item item_id="182299981" />
+		</quest_work_items>
 	</quest>
 	<quest id="14988" name="A Stone Out of Place" nameId="1801373" quest_zone="Verteron" minlevel_permitted="17" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST">
+		<collect_items>
+			<collect_item item_id="182299982" count="1" />
+		</collect_items>
 		<rewards gold="7200" exp="46000" />
+		<quest_drop npc_id="700006" item_id="182299982" chance="100" drop_each_member="1" />
 		<start_conditions>
 			<finished quest_id="14987" />
 		</start_conditions>
+		<quest_work_items>
+			<quest_work_item item_id="182299982" />
+		</quest_work_items>
 	</quest>
 	<quest id="14989" name="The Pilgrims' Road" nameId="1801374" quest_zone="Verteron" minlevel_permitted="17" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST">
 		<rewards gold="7800" exp="49500" />
@@ -82556,10 +82570,17 @@
 		</start_conditions>
 	</quest>
 	<quest id="14990" name="Behind the Tursin Lines" nameId="1801375" quest_zone="Verteron" minlevel_permitted="18" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST">
+		<collect_items>
+			<collect_item item_id="182299983" count="1" />
+		</collect_items>
 		<rewards gold="8600" exp="57000" />
+		<quest_drop npc_id="700115" item_id="182299983" chance="100" drop_each_member="1" collecting_step="2" />
 		<start_conditions>
 			<finished quest_id="14989" />
 		</start_conditions>
+		<quest_work_items>
+			<quest_work_item item_id="182299983" />
+		</quest_work_items>
 	</quest>
 	<quest id="14991" name="The Cold Furnace" nameId="1801376" quest_zone="Verteron" minlevel_permitted="19" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST">
 		<rewards gold="9500" exp="65000" />
@@ -82568,10 +82589,17 @@
 		</start_conditions>
 	</quest>
 	<quest id="14992" name="Cargo Without a Consignee" nameId="1801377" quest_zone="Verteron" minlevel_permitted="19" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST">
+		<collect_items>
+			<collect_item item_id="182299984" count="1" />
+		</collect_items>
 		<rewards gold="10000" exp="60000" />
+		<quest_drop npc_id="700283" item_id="182299984" chance="100" drop_each_member="1" collecting_step="2" />
 		<start_conditions>
 			<finished quest_id="14991" />
 		</start_conditions>
+		<quest_work_items>
+			<quest_work_item item_id="182299984" />
+		</quest_work_items>
 	</quest>
 	<quest id="14993" name="The Captain's Last Order" nameId="1801378" quest_zone="Verteron" minlevel_permitted="20" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST">
 		<rewards gold="12000" exp="80000" />

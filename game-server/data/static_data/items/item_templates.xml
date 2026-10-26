@@ -933493,5 +933493,17 @@
 	<item_template id="182299980" name="Copied Seal Impression" level="1" cName="quest_14983a" mask="20545" item_group="QUEST" quality="COMMON" price="1" desc="9901498">
 	<inventory id="2" />
 </item_template>
+	<item_template id="182299981" name="Residue-Coated Swamp Root" level="1" cName="quest_14987a" mask="28736" max_stack_count="20" item_group="QUEST" quality="COMMON" price="1" desc="9901500">
+	<inventory id="2" />
+</item_template>
+	<item_template id="182299982" name="Roadside Grit Sample" level="1" cName="quest_14988a" mask="28736" max_stack_count="20" item_group="QUEST" quality="COMMON" price="1" desc="9901502">
+	<inventory id="2" />
+</item_template>
+	<item_template id="182299983" name="Marked Supply Packet" level="1" cName="quest_14990a" mask="28736" max_stack_count="20" item_group="QUEST" quality="COMMON" price="1" desc="9901504">
+	<inventory id="2" />
+</item_template>
+	<item_template id="182299984" name="Timed Shipment Packet" level="1" cName="quest_14992a" mask="28736" max_stack_count="20" item_group="QUEST" quality="COMMON" price="1" desc="9901506">
+	<inventory id="2" />
+</item_template>
 	<!-- END AETHERFALL UNBROKEN FIELD ITEMS -->
 </item_templates>

@@ -111,6 +111,10 @@ def handler(quest, previous, bindings):
     for index, step in enumerate(steps):
         if step['type'] == 'hunt':
             continue
+        if collects and index > collects[0][0] and step['type'] == 'talk':
+            lines += ['\t\tif (step == ' + str(index) + ' && npc == ' + str(step['npc']) + ' && !QuestService.collectItemCheck(env, false)) {',
+                      '\t\t\tchangeQuestStep(env, ' + str(index) + ', ' + str(collects[0][0]) + ');',
+                      '\t\t\treturn sendQuestDialog(env, SELECT6);', '\t\t}']
         if step['type'] == 'collect':
             # quest_use_item owns the use bar, death and native loot window.
             # A successful interaction only admits looting; pickup advances it.
@@ -123,11 +127,12 @@ def handler(quest, previous, bindings):
                   '\t\t\tif (action == SETPRO1)',
                   '\t\t\t\treturn defaultCloseDialog(env, ' + str(index) + ', ' + str(index + 1) + ');', '\t\t}']
     if collects:
-        # This authoring form has one collection followed by the report. Keep
-        # its existing 0/1 stages so already accepted quests need no reset.
-        assert len(steps) == 1 and len(collects) == 1
-        lines += ['\t\tif (step == 1 && npc == ' + str(quest['end']) + ' && !QuestService.collectItemCheck(env, false)) {',
-                  '\t\t\tchangeQuestStep(env, 1, 0);', '\t\t\treturn sendQuestDialog(env, SELECT6);', '\t\t}']
+        # Keep evidence through later conversations until the final report.
+        # Native stage numbers remain stable for already accepted quests.
+        assert len(collects) == 1
+        collect_stage = collects[0][0]
+        lines += ['\t\tif (step == ' + str(len(steps)) + ' && npc == ' + str(quest['end']) + ' && !QuestService.collectItemCheck(env, false)) {',
+                  '\t\t\tchangeQuestStep(env, ' + str(len(steps)) + ', ' + str(collect_stage) + ');', '\t\t\treturn sendQuestDialog(env, SELECT6);', '\t\t}']
     lines += ['\t\tif (step == ' + str(len(steps)) + ' && npc == ' + str(quest['end']) + ') {',
               '\t\t\tif (action == QUEST_SELECT || action == USE_OBJECT)', '\t\t\t\treturn sendQuestDialog(env, SELECT5);',
               '\t\t\tif (action == SELECT_QUEST_REWARD) {',
@@ -138,16 +143,17 @@ def handler(quest, previous, bindings):
         index, step = collects[0]
         lines += ['\t@Override', '\tpublic boolean onGetItemEvent(QuestEnv env) {',
                   '\t\tQuestState state = env.getPlayer().getQuestStateList().getQuestState(questId);',
-                  '\t\tif (state == null || state.getStatus() != QuestStatus.START || state.getQuestVarById(0) != 0)',
+                  '\t\tif (state == null || state.getStatus() != QuestStatus.START || state.getQuestVarById(0) != ' + str(index) + ')',
                   '\t\t\treturn false;',
-                  '\t\treturn QuestService.collectItemCheck(env, false) && changeQuestStep(env, 0, 1);', '\t}', '',
+                  '\t\treturn QuestService.collectItemCheck(env, false) && changeQuestStep(env, ' + str(index) + ', ' + str(index + 1) + ');', '\t}', '',
                   '\t@Override', '\tpublic boolean onEnterWorldEvent(QuestEnv env) {',
                   '\t\tQuestState state = env.getPlayer().getQuestStateList().getQuestState(questId);',
                   '\t\tif (state == null || state.getStatus() != QuestStatus.START)', '\t\t\treturn false;',
                   '\t\tboolean collected = QuestService.collectItemCheck(env, false);',
                   '\t\tint step = state.getQuestVarById(0);',
-                  '\t\tif (step == 0 && collected)', '\t\t\treturn changeQuestStep(env, 0, 1);',
-                  '\t\tif (step == 1 && !collected)', '\t\t\treturn changeQuestStep(env, 1, 0);',
+                  '\t\tif (step == ' + str(index) + ' && collected)', '\t\t\treturn changeQuestStep(env, ' + str(index) + ', ' + str(index + 1) + ');',
+                  *(['\t\tif (step > ' + str(index) + ' && step <= ' + str(len(steps)) + ' && !collected)', '\t\t\treturn changeQuestStep(env, step, ' + str(index) + ');']
+                    if index < len(steps) - 1 else ['\t\tif (step == ' + str(index + 1) + ' && !collected)', '\t\t\treturn changeQuestStep(env, ' + str(index + 1) + ', ' + str(index) + ');']),
                   '\t\treturn false;', '\t}', '']
     if kills:
         lines += ['\t@Override', '\tpublic boolean onKillEvent(QuestEnv env) {',
@@ -252,7 +258,7 @@ def generate(root):
             if step['type'] not in ('hunt', 'collect'):
                 page(dialog, 'select' + str(stage + 2), step['text'], [('SETPRO1', step['reply'])])
         if any(s['type'] == 'collect' for s in quest['steps']):
-            page(dialog, 'select6', ['Bring me the Copied Seal Impression from the stolen Tolbas goods. I must examine the wax itself.'], [('FINISH_DIALOG', 'I will recover it.')])
+            page(dialog, 'select6', [quest.get('missing_item', 'Bring me the Copied Seal Impression from the stolen Tolbas goods. I must examine the wax itself.')], [('FINISH_DIALOG', 'I will recover it.')])
         page(dialog, 'select5', quest['turnin'], [('SELECT_QUEST_REWARD', 'Complete the report.')])
         page(dialog, 'select_quest_reward1', [quest['turnin'][-1]])
         body = page(dialog, 'quest_summary', [])
@@ -288,8 +294,11 @@ def generate(root):
             for step in collects:
                 ET.SubElement(items, 'collect_item', item_id=str(step['item']), count=str(step['count']))
         ET.SubElement(template, 'rewards', gold=str(quest['gold']), exp=str(quest['exp']))
-        for step in collects:
-            ET.SubElement(template, 'quest_drop', npc_id=str(step['npc']), item_id=str(step['item']), chance='100', drop_each_member='1')
+        for stage, step in enumerate(quest['steps']):
+            if step['type'] == 'collect':
+                drop = ET.SubElement(template, 'quest_drop', npc_id=str(step['npc']), item_id=str(step['item']), chance='100', drop_each_member='1')
+                if stage:
+                    drop.set('collecting_step', str(stage))
         ET.SubElement(ET.SubElement(template, 'start_conditions'), 'finished', quest_id=str(previous))
         if collects:
             work = ET.SubElement(template, 'quest_work_items')
@@ -320,22 +329,27 @@ def generate(root):
     temporary = target.with_name(target.name + '.writing-on-wall.tmp')
     temporary.write_bytes(current)
     temporary.replace(target)
-    item = json.loads((HERE / 'loot-item.json').read_text(encoding='utf-8'))
+    item_specs = [json.loads((HERE / name).read_text(encoding='utf-8'))
+                  for name in ('loot-item.json', 'water-loot-item.json')]
+    item_specs += json.loads((HERE / 'chain-loot-items.json').read_text(encoding='utf-8'))
     target = root / 'game-server/data/static_data/items/item_templates.xml'
     current = target.read_bytes()
-    prototype = re.search(rb'\t<item_template id="' + str(item['prototype']).encode() + rb'"[^>]*>.*?</item_template>', current, re.S)
-    assert prototype is not None
-    native = ET.fromstring(prototype.group())
-    native.attrib.update(id=str(item['id']), name=item['name'], cName=item['clientName'], desc=str(item['nameStringId']))
-    ET.indent(native, space='\t')
+    entries = []
+    for item in item_specs:
+        prototype = re.search(rb'\t<item_template id="' + str(item['prototype']).encode() + rb'"[^>]*>.*?</item_template>', current, re.S)
+        assert prototype is not None
+        native = ET.fromstring(prototype.group())
+        native.attrib.update(id=str(item['id']), name=item['name'], cName=item['clientName'], desc=str(item['nameStringId']))
+        ET.indent(native, space='\t')
+        entries.append(ET.tostring(native, encoding='utf-8'))
     start = b'\t<!-- BEGIN AETHERFALL UNBROKEN FIELD ITEMS -->'
     end = b'\t<!-- END AETHERFALL UNBROKEN FIELD ITEMS -->'
     newline = b'\r\n' if b'\r\n' in current else b'\n'
-    block = start + newline + b'\t' + ET.tostring(native, encoding='utf-8').replace(b'\n', newline) + newline + end + newline
+    block = start + newline + newline.join(b'\t' + entry.replace(b'\n', newline) for entry in entries) + newline + end + newline
     if start in current:
         current = re.sub(re.escape(start) + rb'.*?' + re.escape(end) + rb'\r?\n', lambda _: block, current, flags=re.S)
     else:
-        assert b'id="' + str(item['id']).encode() + b'"' not in current
+        assert all(b'id="' + str(item['id']).encode() + b'"' not in current for item in item_specs)
         current = current.replace(b'</item_templates>', block + b'</item_templates>')
     temporary = target.with_name(target.name + '.writing-on-wall.tmp')
     temporary.write_bytes(current)

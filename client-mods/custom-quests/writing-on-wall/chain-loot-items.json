@@ -1,0 +1,44 @@
+[
+  {
+    "questId": 14988,
+    "slug": "AStoneOutOfPlace",
+    "id": 182299982,
+    "prototype": 182200546,
+    "clientName": "quest_14988a",
+    "name": "Roadside Grit Sample",
+    "nameKey": "STR_QUEST_14988A",
+    "descriptionKey": "STR_QUEST_14988A_DESC",
+    "nameStringId": 9901502,
+    "descriptionStringId": 9901503,
+    "description": "Loose pale grit recovered beside an intact Mysterious Stone. Show it to Meliodas and bring it to Ibion at Pilgrims Respite.",
+    "icon": "Icon_Item_Gemstone02F"
+  },
+  {
+    "questId": 14990,
+    "slug": "BehindTheTursinLines",
+    "id": 182299983,
+    "prototype": 182200567,
+    "clientName": "quest_14990a",
+    "name": "Marked Supply Packet",
+    "nameKey": "STR_QUEST_14990A",
+    "descriptionKey": "STR_QUEST_14990A_DESC",
+    "nameStringId": 9901504,
+    "descriptionStringId": 9901505,
+    "description": "A cargo packet bearing three cut marks, repacked among Krall supplies. Bring it to Meteina as evidence of the transfer point.",
+    "icon": "Icon_Item_Box02"
+  },
+  {
+    "questId": 14992,
+    "slug": "CargoWithoutAConsignee",
+    "id": 182299984,
+    "prototype": 182200567,
+    "clientName": "quest_14992a",
+    "name": "Timed Shipment Packet",
+    "nameKey": "STR_QUEST_14992A",
+    "descriptionKey": "STR_QUEST_14992A_DESC",
+    "nameStringId": 9901506,
+    "descriptionStringId": 9901507,
+    "description": "A dust-stiffened packet carrying cargo marks and watch-change delivery instructions. Bring it to Une on Cantas Coast.",
+    "icon": "Icon_Item_Box02"
+  }
+]

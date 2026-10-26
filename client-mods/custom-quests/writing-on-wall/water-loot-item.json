@@ -1,0 +1,16 @@
+{
+  "questId": 14987,
+  "slug": "WhatTheWaterCarries",
+  "feature": "water-carries-loot",
+  "inventoryKey": "lastWaterCarriesLootDelivery",
+  "id": 182299981,
+  "prototype": 182200547,
+  "clientName": "quest_14987a",
+  "name": "Residue-Coated Swamp Root",
+  "nameKey": "STR_QUEST_14987A",
+  "descriptionKey": "STR_QUEST_14987A_DESC",
+  "nameStringId": 9901500,
+  "descriptionStringId": 9901501,
+  "description": "A damaged swamp root coated with loose, pale grit. Bring this sample to Lepios so he can distinguish the cargo residue from the swamp's existing contamination.",
+  "icon": "Icon_Item_Root01"
+}

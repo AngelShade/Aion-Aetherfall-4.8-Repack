@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstddef>
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
@@ -24,7 +25,7 @@
 // remain native and unchanged.
 namespace {
 using Ptr=void*;
-constexpr char CORE_VERSION[]="1.2.63";  // checked against the normal builder's NATIVE_VERSION
+constexpr char CORE_VERSION[]="1.2.77";  // checked against the normal builder's NATIVE_VERSION
 constexpr uintptr_t PREFERRED=0x10000000;  // Game.dll has no relocations.
 unsigned char* image=nullptr;
 unsigned char* game(){return image;}
@@ -88,6 +89,7 @@ bool readable(const void* p,size_t n){
 }
 
 #include "quest_targets.h"
+#include "camera_turn.h"
 
 // Native string table: sorted 20-byte rows {int id, ..., const wchar_t* at +0xc}
 // (the lookup GetUnlearnedSkillList inlines with bsearch and comparator 0xa873d0).
@@ -261,9 +263,10 @@ Ptr widget(int id,const char* name,int type){
 // target re-centres at the top of the screen on every target change (Game.dll 0x8bd2c8,
 // 0x8bd349, 0x8bd3ad: x from the screen width, y from its group container), so a moved
 // target was drawn there for a frame; the market-shortcut mod re-places start-menu buttons
-// every frame. "pin" gives that one dialog or widget object its own copy of its class vtable
-// whose SetRect (+0x1a8) keeps the pinned spot. Class vtables and Game.dll code are not
-// changed; unpinning restores the object.
+// every frame. Dispatch through guarded native class slots while keeping each
+// object's original class pointer: the maintained inventory layout and native code
+// compare that pointer for concrete-class admission. Policies remain per object;
+// other instances delegate unchanged to the saved native methods.
 constexpr size_t SET_RECT=0x1a8, VTABLE_SLOTS=1024;  // the dialog vtables have about 620 slots
 // The start menu (dlg_start, vtable RVA 0xcea9e8): +0x418 is its "point inside" test (Game.dll
 // 0x53f054, the dispatcher skips a window and its buttons when it answers no) and +0x490 its
@@ -279,8 +282,9 @@ using SetRectFn=uintptr_t(*)(Ptr,const Rect*);
 // Mode 6 (tooltips): decided when the game places it: the "ui" spot (umode, ux, uy) while the mouse
 // is over a game window, else the world spot (wmode, x, y); a mode below 0 leaves it where the game put it.
 struct Pin { int id; char widget[48]; int type; Ptr target; Ptr owner; double x,y,w,h; int mode; bool clamp; unsigned calls,retargets;
-             int wmode,umode; double ux,uy; };
-struct Table { void** original; void* copy[VTABLE_SLOTS+1]; };  // copy[0] is the RTTI slot
+             int wmode,umode; double ux,uy; void** native_class; void** owner_class; };
+bool pin_live(const Pin& p);
+struct Table { void** native; void** original; void* copy[VTABLE_SLOTS+1]; int next; bool ready; size_t slots; };
 Pin pins[192];int pin_count=0;
 struct Refusal { int id; char widget[48]; const char* why; };
 Refusal refusals[32];int refusal_next=0;
@@ -289,8 +293,18 @@ void refuse(int id,const char* name,const char* why){
     Refusal& r=refusals[refusal_next++%32];r.id=id;std::memcpy(r.widget,name,std::strlen(name)+1);r.why=why;
 }
 void accept(int id,const char* name){for(auto& r:refusals)if(r.id==id && !std::strcmp(r.widget,name))r.id=0;}
-constexpr int TABLE_LIMIT=128;  // one per window/widget class held (24 ran out with many movers in use)
+constexpr int TABLE_LIMIT=512;  // bounded cache for native HUD pins and backdrop classes across a session
 Table tables[TABLE_LIMIT];int table_count=0;
+constexpr size_t TABLE_BUCKETS=1024;
+int table_buckets[TABLE_BUCKETS]{};
+size_t table_bucket(void** vt){return (reinterpret_cast<uintptr_t>(vt)>>3)%TABLE_BUCKETS;}
+constexpr size_t DRAW_SKIN=0x3c8,DRAW_SKIN_ABSOLUTE=0x3d0,DRAW_SKIN_BYTES=0x3d8,DRAW_SKIN_BYTES_ABSOLUTE=0x3e0;
+using DrawSkinFn=void(*)(Ptr,int,const float*,float,float,Ptr);
+using DrawSkinBytesFn=void(*)(Ptr,int,Ptr,unsigned char,unsigned char,unsigned char,unsigned char,float,float);
+void backdrop_draw(Ptr,int,const float*,float,float,Ptr);
+void backdrop_draw_absolute(Ptr,int,const float*,float,float,Ptr);
+void backdrop_draw_bytes(Ptr,int,Ptr,unsigned char,unsigned char,unsigned char,unsigned char,float,float);
+void backdrop_draw_bytes_absolute(Ptr,int,Ptr,unsigned char,unsigned char,unsigned char,unsigned char,float,float);
 const char* hook_refusal="";  // why the last hook() failed (for pininfo)
 bool gaps[DIALOG_LIMIT+1];  // dialogs whose empty space lets the mouse through (start menu)
 Pin* find_pin(int id,const char* name){
@@ -299,7 +313,8 @@ Pin* find_pin(int id,const char* name){
 }
 Table* own_table(Ptr d){
     void** vt=*static_cast<void***>(d);
-    for(int i=0;i<table_count;++i)if(vt==tables[i].copy+1)return &tables[i];
+    for(int link=table_buckets[table_bucket(vt)];link;link=tables[link-1].next)
+        if(tables[link-1].native==vt)return &tables[link-1];
     return nullptr;
 }
 #include "tooltip_classes.h"
@@ -313,13 +328,28 @@ using HitTestFn=int(*)(Ptr,double,double,int,int);
 const TooltipClass* tooltip_class(Ptr d){
     if(!d)return nullptr;
     void** vt=*static_cast<void***>(d);
-    if(Table* t=own_table(d))vt=t->original;
+    if(Table* t=own_table(d))vt=t->native;
     size_t rva=reinterpret_cast<uintptr_t>(vt)-reinterpret_cast<uintptr_t>(game());
     size_t lo=0,hi=TOOLTIP_CLASS_COUNT;
     while(lo<hi){size_t mid=(lo+hi)/2;if(TOOLTIP_CLASSES[mid].vtable<rva)lo=mid+1;else hi=mid;}
     return lo<TOOLTIP_CLASS_COUNT && TOOLTIP_CLASSES[lo].vtable==rva?&TOOLTIP_CLASSES[lo]:nullptr;
 }
 bool over_ui(Ptr self);
+// The mouse in UI pixels. The engine's dispatcher copy (CURSOR_X/Y) comes from
+// window mouse messages, which Windows keeps reporting from the last visible
+// cursor position while the system cursor is hidden; only the version.dll camera
+// fix corrects them. Read the real cursor, as "cursor" does for MoveUI dragging,
+// and keep the engine copy when the game is not in front.
+void cursor_ui(double& x,double& y){
+    x=global<int>(CURSOR_X);y=global<int>(CURSOR_Y);
+    HWND hwnd=GetForegroundWindow();DWORD pid=0;
+    if(!hwnd || !GetWindowThreadProcessId(hwnd,&pid) || pid!=GetCurrentProcessId())return;
+    POINT p{};RECT client{};
+    if(!GetCursorPos(&p) || !ScreenToClient(hwnd,&p) || !GetClientRect(hwnd,&client) || client.right<=0 || client.bottom<=0)return;
+    double width=global<double>(UI_WIDTH),height=global<double>(UI_HEIGHT);
+    if(width<=0 || height<=0)return;
+    x=p.x*width/client.right;y=p.y*height/client.bottom;
+}
 Rect placed(const Pin& given,Rect p){
     Pin pin=given;
     if(pin.mode==6){
@@ -332,12 +362,13 @@ Rect placed(const Pin& given,Rect p){
     if(pin.w>0 && pin.h>0){p.w=pin.w;p.h=pin.h;}
     double width=global<double>(UI_WIDTH),height=global<double>(UI_HEIGHT);
     if(pin.mode==4){
-        double gap=16*global<double>(UI_SCALE),cx=global<int>(CURSOR_X),cy=global<int>(CURSOR_Y);
+        double gap=16*global<double>(UI_SCALE),cx,cy;cursor_ui(cx,cy);
         p.x=cx+gap+pin.x;p.y=cy+gap+pin.y;
         if(width>0 && p.x+p.w>width)p.x=cx-gap-p.w-pin.x;
         if(height>0 && p.y+p.h>height)p.y=cy-gap-p.h-pin.y;
     }
     else if(pin.mode==5){p.x=-20000;p.y=-20000;}
+    else if(pin.mode==7){}  // size only: the game, the player or a move keeps the position
     else{p.x=pin.mode&1?pin.x-p.w:pin.x;p.y=pin.mode&2?pin.y-p.h:pin.y;}
     // Minimise/focus transitions expose temporary viewport dimensions. They
     // must not drag a held bar to that temporary bottom/right edge.
@@ -360,7 +391,7 @@ uintptr_t pinned_set_rect(Ptr self,const Rect* r){
     Table* t=own_table(self);
     auto original=reinterpret_cast<SetRectFn>(t->original[SET_RECT/8]);
     for(int i=0;r && i<pin_count;++i){
-        if(pins[i].target!=self)continue;
+        if(pins[i].target!=self || !pin_live(pins[i]))continue;
         ++pins[i].calls;
         Rect p=placed(pins[i],*r);
         return original(self,&p);
@@ -385,7 +416,7 @@ size_t anchor_adjust(unsigned char* vt){
 uintptr_t pinned_aura_adjust(Ptr self,Rect* r){
     Table* t=own_table(self);
     auto result=reinterpret_cast<AdjustRectFn>(t->original[ADJUST_RECT/8])(self,r);
-    for(int i=0;r && i<pin_count;++i)if(pins[i].target==self && !*pins[i].widget){
+    for(int i=0;r && i<pin_count;++i)if(pins[i].target==self && !*pins[i].widget && pin_live(pins[i])){
         *r=placed(pins[i],*r);break;
     }
     return result;
@@ -406,9 +437,9 @@ bool map_hover(){
     Ptr d=dialog(0xe5);
     if(!d)return false;
     void** vt=*static_cast<void***>(d);
-    if(Table* t=own_table(d))vt=t->original;
+    if(Table* t=own_table(d))vt=t->native;
     if(reinterpret_cast<uintptr_t>(vt)!=reinterpret_cast<uintptr_t>(game()+0xccfb88) || !shown(d))return false;
-    const double x=global<int>(CURSOR_X),y=global<int>(CURSOR_Y);
+    double x,y;cursor_ui(x,y);
     const Rect& r=field<Rect>(d,0x50);
     return x>=r.x && y>=r.y && x<=r.x+r.w && y<=r.y+r.h
         && method<HitTestFn>(d,HIT_TEST)(d,x,y,0,0)!=0;
@@ -543,6 +574,16 @@ void release_tooltips(){
 }
 bool configure_tooltips(const Pin& policy){
     if(policy.wmode<0 && policy.umode<0){release_tooltips();return true;}
+    // Lua repeats an unchanged policy on its hold pass. With every class slot
+    // still ours, only a cursor-anchored tooltip needs re-placing (it follows
+    // the mouse); the class checks and other re-placement ran when it changed.
+    bool installed=tooltip_enabled;
+    for(const auto& h:tooltip_hooks)installed=installed && h.slot && *h.slot==reinterpret_cast<void*>(&tooltip_set_rect);
+    const Pin& p=tooltip_policy;
+    if(installed && p.id==policy.id && p.wmode==policy.wmode && p.umode==policy.umode && p.x==policy.x && p.y==policy.y
+       && p.ux==policy.ux && p.uy==policy.uy && p.clamp==policy.clamp){
+        if(policy.wmode!=4 && policy.umode!=4)return true;
+    }
     // Recheck the installed client's RTTI and original entry before any writes. A
     // changed class table is refused, rather than replacing another mod's hook.
     for(size_t i=0;i<TOOLTIP_CLASS_COUNT;++i){
@@ -577,7 +618,7 @@ bool configure_tooltips(const Pin& policy){
 // Whether the mouse is over a game window (not the world): any shown dialog that is not full-screen,
 // not a tooltip and not the window being placed. Asked only when a tooltip is placed.
 bool over_ui(Ptr self){
-    double cx=global<int>(CURSOR_X),cy=global<int>(CURSOR_Y);
+    double cx,cy;cursor_ui(cx,cy);
     double sw=global<double>(UI_WIDTH),sh=global<double>(UI_HEIGHT);
     for(int id=1;id<=int(PLUGIN_LAST);++id){
         Ptr d=dialog(id);
@@ -602,7 +643,7 @@ int start_hit_test(Ptr self,double x,double y,int a,int b){
     if(!id)return original(self,x,y,a,b);
     for(int i=0;i<pin_count;++i){
         const Pin& p=pins[i];
-        if(p.id!=id || !p.widget[0] || p.owner!=self || widget(id,p.widget,p.type)!=p.target
+        if(p.id!=id || !p.widget[0] || p.owner!=self || !pin_live(p)
            || !effectively_shown(p.target))continue;
         Rect r=screen_rect(p.target);
         if(x>=r.x && x<r.x+r.w && y>=r.y && y<r.y+r.h)return original(self,x,y,a,b);
@@ -646,46 +687,70 @@ size_t vtable_slots(void** vt){
     return n;
 }
 bool hook(Ptr d){
-    if(own_table(d))return true;
+    if(Table* known=own_table(d)){
+        if(!known->ready)hook_refusal="native class slot installation was refused";
+        return known->ready;
+    }
     void** vt=*static_cast<void***>(d);
     auto low=reinterpret_cast<unsigned char*>(vt);
     if(low<game() || !readable(vt-1,sizeof(void*))){hook_refusal="class table not in Game.dll";return false;}
-    Table* t=nullptr;
-    for(int i=0;i<table_count && !t;++i)if(tables[i].original==vt)t=&tables[i];
-    if(!t){
-        size_t slots=vtable_slots(vt);
-        bool start=low==game()+START_VTABLE;
-        bool separated=low==game()+0xccee98 || low==game()+0xccf518; // verified DlgRadar / DlgSubZoneName
-        size_t adjust=anchor_adjust(low);
-        if(table_count==TABLE_LIMIT){hook_refusal="too many window classes held";return false;}
-        if(slots<=SET_RECT/8 || (start && slots<=START_COMMAND/8)){hook_refusal="class table too short";return false;}
-        if(adjust && (slots<=ADJUST_RECT/8 || vt[ADJUST_RECT/8]!=game()+adjust)){
-            hook_refusal="native frame anchor changed";return false;
-        }
-        if(separated && (slots<=HIT_TEST/8 || vt[HIT_TEST/8]!=game()+0x5af4a0)){
-            hook_refusal="native minimap hit test changed";return false;
-        }
-        t=&tables[table_count++];
-        std::memset(t->copy,0,sizeof t->copy);
-        t->copy[0]=vt[-1];
-        std::memcpy(t->copy+1,vt,slots*sizeof(void*));
-        t->original=vt;
-        t->copy[1+SET_RECT/8]=reinterpret_cast<void*>(&pinned_set_rect);
-        if(adjust)t->copy[1+ADJUST_RECT/8]=reinterpret_cast<void*>(&pinned_aura_adjust);
-        if(start || separated)t->copy[1+HIT_TEST/8]=reinterpret_cast<void*>(&start_hit_test);
-        if(start){
-            t->copy[1+HIT_TEST/8]=reinterpret_cast<void*>(&start_hit_test);
-            t->copy[1+START_COMMAND/8]=reinterpret_cast<void*>(&start_command);
+    size_t slots=vtable_slots(vt);
+    bool start=low==game()+START_VTABLE;
+    bool separated=low==game()+0xccee98 || low==game()+0xccf518;
+    size_t adjust=anchor_adjust(low);
+    if(table_count==TABLE_LIMIT){hook_refusal="too many window classes held";return false;}
+    if(slots<=SET_RECT/8 || (start && slots<=START_COMMAND/8)){hook_refusal="class table too short";return false;}
+    if(adjust && (slots<=ADJUST_RECT/8 || vt[ADJUST_RECT/8]!=game()+adjust)){
+        hook_refusal="native frame anchor changed";return false;
+    }
+    if(separated && (slots<=HIT_TEST/8 || vt[HIT_TEST/8]!=game()+0x5af4a0)){
+        hook_refusal="native minimap hit test changed";return false;
+    }
+    struct Redirect {size_t slot;void* replacement;};
+    Redirect redirects[9]{};size_t count=0;
+    auto add=[&](size_t slot,void* replacement){redirects[count++]={slot,replacement};};
+    // Live tooltip classes place through the tooltip policy's own SetRect slot
+    // (configure_tooltips). A backdrop or pin on one of them, e.g. a name-link
+    // tooltip window, previously took that slot first; the policy then found an
+    // unknown entry and refused every tooltip class, so no tooltip option applied.
+    if(!tooltip_class(d))add(SET_RECT,reinterpret_cast<void*>(&pinned_set_rect));
+    if(slots>DRAW_SKIN_ABSOLUTE/8 && vt[DRAW_SKIN/8]==game()+0x5aed00 && vt[DRAW_SKIN_ABSOLUTE/8]==game()+0x5aed90){
+        add(DRAW_SKIN,reinterpret_cast<void*>(&backdrop_draw));
+        add(DRAW_SKIN_ABSOLUTE,reinterpret_cast<void*>(&backdrop_draw_absolute));
+    }
+    if(slots>DRAW_SKIN_BYTES_ABSOLUTE/8 && vt[DRAW_SKIN_BYTES/8]==game()+0x5aee20 && vt[DRAW_SKIN_BYTES_ABSOLUTE/8]==game()+0x5aeee0){
+        add(DRAW_SKIN_BYTES,reinterpret_cast<void*>(&backdrop_draw_bytes));
+        add(DRAW_SKIN_BYTES_ABSOLUTE,reinterpret_cast<void*>(&backdrop_draw_bytes_absolute));
+    }
+    if(adjust)add(ADJUST_RECT,reinterpret_cast<void*>(&pinned_aura_adjust));
+    if(start || separated)add(HIT_TEST,reinterpret_cast<void*>(&start_hit_test));
+    if(start)add(START_COMMAND,reinterpret_cast<void*>(&start_command));
+    Table* t=&tables[table_count];
+    *t=Table{};t->native=vt;t->slots=slots;t->copy[0]=vt[-1];
+    std::memcpy(t->copy+1,vt,slots*sizeof(void*));t->original=t->copy+1;
+    size_t bucket=table_bucket(vt);t->next=table_buckets[bucket];
+    table_buckets[bucket]=++table_count;
+    // Publish saved native delegates before routing any slot to the bridge.
+    // Installation and policy updates occur on the native UI thread.
+    for(size_t i=0;i<count;++i){
+        const auto& r=redirects[i];
+        if(!tooltip_slot(vt+r.slot/8,t->original[r.slot/8],r.replacement)){
+            bool restored=true;
+            while(i){const auto& prior=redirects[--i];
+                if(!tooltip_slot(vt+prior.slot/8,prior.replacement,t->original[prior.slot/8]))restored=false;
+            }
+            if(restored){table_buckets[bucket]=t->next;--table_count;*t=Table{};}
+            hook_refusal="native class slot changed or is not writable";return false;
         }
     }
-    *static_cast<void***>(d)=t->copy+1;
+    t->ready=true;
     return true;
 }
-// The object's own vtable comes back once no pin holds it.
+// Native class slots stay routed while the bridge is loaded. No selected policy
+// means native pass-through, including new objects of the same class. Releasing
+// a policy never changes an object's identity or writes into a retired object.
 void unhook(Ptr d){
-    if(!d)return;
-    for(int i=0;i<pin_count;++i)if(pins[i].target==d)return;
-    if(Table* t=own_table(d))*static_cast<void***>(d)=t->original;
+    (void)d;
 }
 // A dialog's children: std::list at +0x2a0 (node: next, prev, widget at +0x10), as find (+0x338) walks it.
 Ptr child(Ptr parent,int n){
@@ -705,11 +770,21 @@ Ptr pin_target(int id,const char* name,int type){
     if(!*name)return dialog(id);
     return widget(id,name,type);
 }
-// Only a window or button that still exists is given its vtable back: after a reconnect the game
-// has deleted the old ones, and nothing of a deleted object may be written.
+bool pin_live(const Pin& p){
+    // Class slots also receive newly constructed/reused objects during logout.
+    // A matching target address alone does not establish that its saved owner
+    // still exists. Check the native slot before dereferencing either retained
+    // pointer, then require both original classes and the current widget path.
+    // In particular, never call screen_rect on the retired owner's heap data.
+    if(!p.owner || dialog(p.id)!=p.owner || !p.owner_class || !p.native_class)return false;
+    if(!readable(p.owner,sizeof(void*)) || *static_cast<void***>(p.owner)!=p.owner_class)return false;
+    if(!readable(p.target,sizeof(void*)) || *static_cast<void***>(p.target)!=p.native_class)return false;
+    return pin_target(p.id,p.widget,p.type)==p.target;
+}
+// Class hooks remain native pass-through after a policy is removed. Retiring a
+// pin needs no lookup or access to an object the client may already have deleted.
 void unpin(int index){
-    Pin p=pins[index];pins[index]=pins[--pin_count];
-    if(p.target && pin_target(p.id,p.widget,p.type)==p.target)unhook(p.target);
+    pins[index]=pins[--pin_count];
 }
 int kind_type(const char* kind){
     if(!kind || is_kind(kind,"itemview"))return ITEMVIEW;
@@ -730,11 +805,8 @@ int kind_arg(Ptr L,int index){
     return kind_type(text(L,index));
 }
 
-// UIWidget::SetAlpha (5ad310, vtable +268) changes skin alpha. Derived
-// UIItemView::SetAlpha (4f86f0) additionally changes its icon at +3a0;
-// static/gauge overrides likewise own their foreground. Use the base method
-// without its recursive flag. Callers select backdrop layers from the native
-// catalogue; never fade an arbitrary subtree containing controls/foregrounds.
+// Callers select backdrop layers from the native catalogue. The setting is a
+// render multiplier, not a write to the native widget's transient skin colour.
 bool backdrop_background(Ptr w){
     if(!w || !readable(w,0x2a8))return false;
     int type=method<int(*)(Ptr)>(w,0x10)(w);
@@ -747,31 +819,7 @@ bool backdrop_background(Ptr w){
         || !std::strncmp(name,"bg_",3) || (size>=3 && !std::strcmp(name+size-3,"_bg"))
         || std::strstr(name,"_bg_") || (size>=11 && !std::strcmp(name+size-11,"_background"));
 }
-bool backdrop(Ptr w,float alpha,int depth,int& budget,bool recursive=false){
-    if(!w || depth>24 || --budget<0 || !readable(w,0x2a8))return false;
-    int type=method<int(*)(Ptr)>(w,0x10)(w);
-    if(type!=FLYGAUGE && type!=BUTTON && (type!=GAUGE || backdrop_background(w)) && field<float>(w,0x1b8)!=alpha){
-        // The base implementation also changes the four text-state colours
-        // when flag 80000 is set. Preserve their existing alpha components.
-        float text_alpha[4];
-        for(int i=0;i<4;++i)text_alpha[i]=field<float>(w,0x164+size_t(i)*16);
-        native<void(*)(Ptr,float,int)>(0x5ad310)(w,alpha,0);
-        for(int i=0;i<4;++i)field<float>(w,0x164+size_t(i)*16)=text_alpha[i];
-    }
-    if(!recursive)return true;
-    Ptr head=field<Ptr>(w,0x2a0);
-    if(!head || !readable(head,0x18))return true;
-    Ptr node=field<Ptr>(head,0);
-    for(int count=0;node && node!=head;++count){
-        if(count>=512 || !readable(node,0x18))return false;
-        Ptr entry=field<Ptr>(node,0x10);
-        // Retain compatibility with explicit recursive requests, but admit
-        // only named backdrop layers. Foreground siblings keep their alpha.
-        if(entry && backdrop_background(entry) && !backdrop(entry,alpha,depth+1,budget,true))return false;
-        node=field<Ptr>(node,0);
-    }
-    return node==head;
-}
+#include "backdrops.h"
 
 bool is(const char* a,const char* b){return !std::strcmp(a,b);}
 
@@ -916,7 +964,7 @@ int dispatch(Ptr L){
         int flags=method<int(*)(Ptr)>(d,0xb8)(d);
         boolean(L,(flags&1)!=0);
         auto vt=reinterpret_cast<uintptr_t>(*static_cast<void**>(d));
-        if(Table* t=own_table(d))vt=reinterpret_cast<uintptr_t>(t->original);
+        if(Table* t=own_table(d))vt=reinterpret_cast<uintptr_t>(t->native);
         push(L,double(vt-reinterpret_cast<uintptr_t>(game())));  // class (vtable RVA)
         push(L,double(reinterpret_cast<uintptr_t>(d)));  // instance identity, never persisted
         return 8+push(L,double(flags));  // native flags: movable is 0x8
@@ -926,7 +974,7 @@ int dispatch(Ptr L){
         // at +458; GetOwner (4b0900) resolves that through the dialog table.
         // Read only: no creation, placement, hooks or retained pointers.
         Ptr d=dialog(int(number(L,2,0)));if(!d || !readable(d,0x45c))return nil(L);
-        void** vt=*static_cast<void***>(d);if(Table* t=own_table(d))vt=t->original;
+        void** vt=*static_cast<void***>(d);if(Table* t=own_table(d))vt=t->native;
         if(reinterpret_cast<unsigned char*>(vt)!=game()+0xc4ada8
            || vt[0x530/8]!=game()+0x4b0900)return nil(L);
         int owner=field<int>(d,0x458);
@@ -950,14 +998,12 @@ int dispatch(Ptr L){
     if(is(cmd,"backdrop")){
         double a=number(L,3,-1);
         if(!std::isfinite(a) || a<0 || a>1)return boolean(L,false);
-        // Guard this exact native background implementation before calling it.
-        const unsigned char prolog[]={0x48,0x83,0xec,0x38,0x48,0x8b,0x01};
-        if(std::memcmp(game()+0x5ad310,prolog,sizeof prolog))return boolean(L,false);
-        Ptr w=pin_target(int(number(L,2,0)),text(L,4)?text(L,4):"",kind_arg(L,5));
         int budget=2048;
         Value* recursive=arg(L,6);
-        return boolean(L,backdrop(w,float(a),0,budget,recursive && recursive->tt==1 && recursive->v.b));
+        return boolean(L,backdrop(int(number(L,2,0)),text(L,4)?text(L,4):"",kind_arg(L,5),float(a),0,budget,recursive && recursive->tt==1 && recursive->v.b));
     }
+    if(is(cmd,"backdropprune")){prune_backdrops();return boolean(L,true);}
+    if(is(cmd,"backdropclear")){clear_backdrops();return boolean(L,true);}
     if(is(cmd,"pin")){
         // pin(id, x, y[, mode, clamp, w, h, widget, kind]): the game's own re-placing of that dialog
         // (or of its widget, by name and kind) keeps this spot (pixels; modes at struct Pin), applied
@@ -984,7 +1030,8 @@ int dispatch(Ptr L){
         if(p->target && p->target!=target)++p->retargets;
         int mode=int(number(L,5,0));Value* clamp=arg(L,6);
         p->type=type;p->target=target;p->owner=dialog(id);p->x=x->v.n;p->y=y->v.n;p->w=w;p->h=h;
-        p->mode=mode>=0 && mode<=5?mode:0;p->clamp=clamp && clamp->tt==1 && clamp->v.b;
+        p->native_class=*static_cast<void***>(target);p->owner_class=*static_cast<void***>(p->owner);
+        p->mode=(mode>=0 && mode<=5) || (mode==7 && !*name)?mode:0;p->clamp=clamp && clamp->tt==1 && clamp->v.b;  // 7: dialog size only
         if(!hook(target)){refuse(id,name,hook_refusal);unpin(int(p-pins));return boolean(L,false);}
         accept(id,name);
         // Applied at once (also each tick, so a cursor-anchored tooltip follows the mouse).
@@ -995,14 +1042,16 @@ int dispatch(Ptr L){
     if(is(cmd,"tippin")){
         // tippin(id, wmode, wx, wy, umode, ux, uy, clamp): a tooltip held by where the mouse is when the
         // game places it (modes as for pin; below 0 = where the game puts it).
-        int id=int(number(L,2,0));Ptr d=dialog(id);
-        if(!d)return boolean(L,false);
-        const char* name=method<const char*(*)(Ptr)>(d,0xa8)(d);
-        if(name && readable(name,19) && !std::strncmp(name,"tooltip_proto",13)){
+        // id 0 installs the class policy without waiting for a named prototype.
+        // Fresh accounts may have only a skill template, or no template yet.
+        int id=int(number(L,2,0));Ptr d=id?dialog(id):nullptr;
+        if(id && !d)return boolean(L,false);
+        const char* name=d?method<const char*(*)(Ptr)>(d,0xa8)(d):nullptr;
+        if(!id || (name && readable(name,19) && !std::strncmp(name,"tooltip_proto",13))){
             // The shared item/world template supplies both policies. The skill
             // template is only an inner layout: it must never be moved or overwrite
             // the world policy with the skill's UI-only policy.
-            if(!std::strncmp(name,"tooltip_proto_skill",19))return boolean(L,true);
+            if(name && !std::strncmp(name,"tooltip_proto_skill",19))return boolean(L,true);
             Pin policy{};policy.id=id;policy.mode=6;
             policy.wmode=int(number(L,3,-1));policy.x=number(L,4,0);policy.y=number(L,5,0);
             policy.umode=int(number(L,6,-1));policy.ux=number(L,7,0);policy.uy=number(L,8,0);
@@ -1020,6 +1069,7 @@ int dispatch(Ptr L){
         }
         if(p->target && p->target!=d)++p->retargets;
         p->target=d;p->owner=d;p->mode=6;p->type=0;
+        p->native_class=p->owner_class=*static_cast<void***>(d);
         p->wmode=int(number(L,3,-1));p->x=number(L,4,0);p->y=number(L,5,0);
         p->umode=int(number(L,6,-1));p->ux=number(L,7,0);p->uy=number(L,8,0);
         Value* clamp=arg(L,9);p->clamp=clamp && clamp->tt==1 && clamp->v.b;
@@ -1163,6 +1213,7 @@ bool try_install(){
     if(!readable(previous->name,35) || std::strcmp(previous->name,"UnregisterPredefinedQuestIndicator"))return false;
     image=g;
     install_quest_targets();
+    install_camera_turn();
     DWORD old=0;
     if(!VirtualProtect(duplicate,sizeof(Reg),PAGE_EXECUTE_READWRITE,&old))return false;
     duplicate->fn=reinterpret_cast<Ptr>(&AetherfallCore);duplicate->name="AetherfallCore";

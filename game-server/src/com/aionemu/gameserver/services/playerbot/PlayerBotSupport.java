@@ -13,11 +13,19 @@ import com.aionemu.gameserver.world.geo.GeoService;
  */
 final class PlayerBotSupport {
  private record Candidate(Player player,double health,double distance,int id) {}
- /** Nearby public spell assistance is an Aion extension; it never extends attack or loot rights. */
+ /** Controlled companions serve their native team; independent world actors retain public aid. */
+ static boolean partyOnly(Player bot) {
+  return bot.isPlayerBot() && (!bot.isWorldBot() || bot.getPlayerBotOwnerId()!=0);
+ }
+ static boolean recipientAllowed(Player bot,Creature target) {
+  return target!=null && (!partyOnly(bot) || target==bot || target.getMaster()==bot
+   || target.getMaster() instanceof Player player && PlayerBotTeams.same(bot,player));
+ }
  static List<Player> members(Player bot) { return members(bot,PlayerBotTeams.members(bot)); }
  static List<Player> members(Player bot,List<Player> party) {
   var result=new LinkedHashSet<Player>();result.add(bot);
   party.stream().filter(p->p==bot || PlayerBotTeams.same(bot,p)).filter(p->eligible(bot,p)).forEach(result::add);
+  if(partyOnly(bot))return List.copyOf(result);
   var nearby=new ArrayList<Candidate>();var known=bot.getKnownList();
   if(known!=null)known.forEachPlayer(p->{if(!result.contains(p) && eligible(bot,p) && PositionUtil.isInRange(bot,p,40))
    nearby.add(new Candidate(p,PlayerBotHealing.health(p),PositionUtil.getDistance(bot,p),p.getObjectId()));});
@@ -28,7 +36,7 @@ final class PlayerBotSupport {
   return List.copyOf(result);
  }
  static boolean eligible(Player bot,Player target) {
-  return target!=null && target.isSpawned() && target.isPlaying() && target.getWorldId()==bot.getWorldId() && target.getInstanceId()==bot.getInstanceId()
+  return recipientAllowed(bot,target) && target.isSpawned() && target.isPlaying() && target.getWorldId()==bot.getWorldId() && target.getInstanceId()==bot.getInstanceId()
    && !bot.isEnemy(target) && !target.isEnemy(bot) && TargetRelationProperty.isBuffAllowed(bot,target)
    && (target==bot || PlayerBotTeams.same(bot,target) || bot.getRace()==target.getRace());
  }
@@ -42,6 +50,7 @@ final class PlayerBotSupport {
  }
  /** Match native FirstTargetProperty without its target fallback or packet side effects. */
  static boolean legalAnchor(Player bot,PlayerBotSkills.Entry entry,Creature target) {
+  if(!recipientAllowed(bot,target))return false;
   var p=entry.template().getProperties();var first=p.getFirstTarget();
   if(first==FirstTargetAttribute.ME || first==FirstTargetAttribute.PASSIVE)return target==bot;
   if(first==FirstTargetAttribute.MYPET)return target==bot.getSummon();

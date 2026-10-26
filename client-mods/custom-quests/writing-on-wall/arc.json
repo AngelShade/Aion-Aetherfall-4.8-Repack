@@ -280,11 +280,12 @@
       "end": 203148,
       "offer": [
         "The contaminated slimes make it dangerous even to reach the waterline. Clear a path through them.",
-        "Then inspect a contaminated swamp plant. Note the grit on the outside separately from the damage in the plant itself.",
+        "Then collect a Residue-Coated Swamp Root from a contaminated swamp plant. Keep the grit on the outside separate from the damage in the plant itself.",
         "Lepios needs observations from the ground. We will not call every illness part of this plot simply because we found them on the same road."
       ],
       "accept": "I will bring him something he can judge.",
-      "summary": "Clear the polluted approaches and inspect a swamp plant to distinguish the cargo's residue from Verteron's existing contamination.",
+      "summary": "Clear the polluted approaches, recover a Residue-Coated Swamp Root and bring it to Lepios so he can distinguish the cargo's residue from Verteron's existing contamination.",
+      "missing_item": "Bring me a Residue-Coated Swamp Root from a contaminated swamp plant. I need to examine both the loose grit and the damaged root.",
       "steps": [
         {
           "type": "hunt",
@@ -295,23 +296,20 @@
           "objective": "Defeat {npc} near the polluted approaches (4)."
         },
         {
-          "type": "inspect",
+          "type": "collect",
           "npc": 700113,
-          "objective": "Inspect a {npc} in the Contaminated Swamp.",
-          "text": [
-            "(The leaves are damaged, but the pale grit lies loosely on their surface. It has washed here from elsewhere.)",
-            "(Along the bank, the same residue collects above the usual waterline, where heavy boots and wheels have disturbed the ground.)",
-            "(You record the two observations separately. The cargo passed this way; that alone does not explain the swamp's corruption.)"
-          ],
-          "reply": "Keep the residue and the sickness distinct in the report."
+          "item": 182299981,
+          "item_name": "quest_14987a",
+          "count": 1,
+          "objective": "Loot a Residue-Coated Swamp Root from a {npc} in the Contaminated Swamp."
         }
       ],
       "turnin": [
-        "Good. You have given me two facts instead of one convenient story.",
+        "Good. This root gives me two facts instead of one convenient story. The pale grit lies loosely on its surface; the damage inside is different.",
         "The plant's sickness is not proof that the Lepharists poisoned this swamp. The grit and tracks do support a cargo route along its edge.",
         "Meliodas watches the northern approaches. Ask about the stones found there. If those crates contain material intended for the Field, the distinction matters."
       ],
-      "complete": "You cleared contaminated slimes and examined a swamp plant. Lepios distinguished existing corruption from recently deposited cargo residue. The evidence followed the ore traffic towards the northern stones without falsely blaming the entire pollution crisis on the conspiracy."
+      "complete": "You cleared contaminated slimes and recovered a Residue-Coated Swamp Root. Lepios examined the sample and distinguished existing corruption from recently deposited cargo residue. The evidence followed the ore traffic towards the northern stones without falsely blaming the entire pollution crisis on the conspiracy."
     },
     {
       "id": 14988,
@@ -323,29 +321,27 @@
       "start": 203148,
       "end": 203158,
       "offer": [
-        "The Mysterious Stones stand beyond the swamp. Examine one before you ask Meliodas what has changed around them.",
+        "The Mysterious Stones stand beyond the swamp. Collect the loose grit beside one before you ask Meliodas what has changed around them.",
         "Compare the stone itself with the grit on the road. If they are different, say so. Someone may be relying on us to confuse an old mystery with a new crime.",
         "Ibion at Pilgrims Respite knows the sacred ground farther east. He can help decide where this trail leads."
       ],
       "accept": "I will look for what does not belong.",
-      "summary": "Inspect a Mysterious Stone, question Meliodas, and follow the cargo trail towards Pilgrims Respite.",
+      "summary": "Recover a Roadside Grit Sample beside a Mysterious Stone, question Meliodas, and bring the evidence to Ibion at Pilgrims Respite.",
       "steps": [
         {
-          "type": "inspect",
+          "type": "collect",
           "npc": 700006,
-          "objective": "Examine a {npc} beyond the Contaminated Swamp.",
-          "text": [
-            "(The weathered stone does not match the pale ore dust.)",
-            "(Fresh scuff marks and spilled grit cross its base. Someone stopped a heavy load here, then continued along the higher road.)",
-            "(There is no sign that this stone was cut or removed. You record a stopping place, not a stolen relic.)"
-          ],
-          "reply": "Trace the fresh marks without disturbing the stone."
+          "item": 182299982,
+          "item_name": "quest_14988a",
+          "count": 1,
+          "objective": "Loot a Roadside Grit Sample beside a {npc} beyond the Contaminated Swamp."
         },
         {
           "type": "talk",
           "npc": 203156,
           "objective": "Ask {npc} what passed the northern swamp watch.",
           "text": [
+            "This grit is fresh cargo dust, not part of the weathered stone. Keep the sample for Ibion.",
             "A cart went through under escort. The men called themselves relief workers and complained about the delay.",
             "They would not let us open the lower crates. I remembered that because sick people usually need what relief workers carry.",
             "They took the higher road towards the pilgrims. Tell Ibion to ask better questions than we did."
@@ -354,11 +350,12 @@
         }
       ],
       "turnin": [
-        "They used our need for help as a disguise. That is a particularly ugly kind of theft.",
+        "This sample and your account show they used our need for help as a disguise. That is a particularly ugly kind of theft.",
         "The pilgrims saw the cart, but seeing a cart does not make them witnesses to sabotage. We will ask carefully.",
         "Vascus can account for those who passed the Respite. Beyond him, Lunax guards the holy ground. There are troubles there that no forged order should be allowed to exploit."
       ],
-      "complete": "The Mysterious Stone was intact, but fresh cargo tracks marked a stopping place beside it. Meliodas confirmed that a covered cart had travelled under a false relief pretext. You warned Ibion at Pilgrims Respite."
+      "complete": "You recovered loose cargo grit beside the intact Mysterious Stone. Meliodas confirmed that a covered cart had travelled under a false relief pretext. You brought the sample and warning to Ibion at Pilgrims Respite.",
+      "missing_item": "Bring the Roadside Grit Sample from the Mysterious Stone. Keep it with you while Meliodas and Ibion compare it with the cargo trail."
     },
     {
       "id": 14989,
@@ -415,11 +412,11 @@
       "end": 203147,
       "offer": [
         "Meteina has been holding the approaches while the rest of Verteron asks for more guards.",
-        "Show her the copied route. Then break the scouts screening the outpost and inspect a Krall Supply Box behind them.",
+        "Show her the copied route. Then break the scouts screening the outpost and recover a Marked Supply Packet from a Krall Supply Box behind them.",
         "We need to know whether the ore changed hands there. Do not turn a suspicion into a war plan before we have looked inside."
       ],
       "accept": "I will look behind their screening patrols.",
-      "summary": "Bring the cargo trail to Meteina, push past the Tursin scouts, and examine supplies in the outpost.",
+      "summary": "Bring the cargo trail to Meteina, push past the Tursin scouts, and recover a Marked Supply Packet from the outpost.",
       "steps": [
         {
           "type": "talk",
@@ -442,23 +439,21 @@
           "objective": "Defeat Veteran Tursin Scouts around the outpost approaches (4)."
         },
         {
-          "type": "inspect",
+          "type": "collect",
           "npc": 700115,
-          "objective": "Examine a {npc} in the Tursin Outpost.",
-          "text": [
-            "(The familiar three cuts mark a lid beneath newer rope.)",
-            "(The marked cargo has been repacked among ordinary Krall supplies. The knots are arranged for another journey, not for storage.)",
-            "(A trail of pale residue continues towards the refining ground. You record it before leaving the supply box as you found it.)"
-          ],
-          "reply": "Record the repacked cargo and the direction of the residue."
+          "item": 182299983,
+          "item_name": "quest_14990a",
+          "count": 1,
+          "objective": "Loot a Marked Supply Packet from a {npc} in the Tursin Outpost."
         }
       ],
       "turnin": [
-        "A transfer point. That explains why the carts disappeared before reaching the coast.",
+        "These markings identify a transfer point. That explains why the carts disappeared before reaching the coast.",
         "We have proved the cargo passed through Tursin supplies. We still have not proved what anyone promised in exchange.",
         "There is a refining machine deeper in. Its residue may tell us what they wanted the ore to do."
       ],
-      "complete": "Meteina helped you locate the route through the Tursin screen. After defeating the scouts, you found the marked cargo repacked for onward transport. The residue led towards an existing Odium Refining Machine."
+      "complete": "Meteina helped you locate the route through the Tursin screen. After defeating the scouts, you recovered a Marked Supply Packet proving the cargo had been repacked for onward transport. Its residue led towards the existing Odium Refining Machine.",
+      "missing_item": "Recover a Marked Supply Packet from the Krall Supply Box. Meteina needs the actual cargo mark."
     },
     {
       "id": 14991,
@@ -515,11 +510,11 @@
       "end": 203172,
       "offer": [
         "The next leg ends at the coast. Estino knows the approach; Zephyros needs to see the copied batch measures before anyone waves another delivery through.",
-        "The shipwreck holds Lepharist supplies. Examine a Lepharist Treasure Box there for the cargo mark.",
+        "The shipwreck holds Lepharist supplies. Recover a Timed Shipment Packet from a Lepharist Treasure Box there.",
         "Une knows the shore's less respectable traffic. Speak to her after you have something definite to put before her."
       ],
       "accept": "I will take the warning to the coast.",
-      "summary": "Warn the coastal watch and match the inland cargo trail to the Lepharists' supplies at the shipwreck.",
+      "summary": "Warn the coastal watch and bring Une the Timed Shipment Packet linking the shipwreck supplies to the inland cargo trail.",
       "steps": [
         {
           "type": "talk",
@@ -544,23 +539,21 @@
           "reply": "I will check the wreck's cargo first."
         },
         {
-          "type": "inspect",
+          "type": "collect",
           "npc": 700283,
-          "objective": "Inspect a {npc} at the Mysterious Shipwreck.",
-          "text": [
-            "(The box contains ordinary loot above an inner wrapping stiff with pale dust.)",
-            "(On the underside of the lid are the three cuts and the same short timings copied at the refining machine. A final instruction calls for delivery during the next watch change.)",
-            "(You record the instruction. The farm, the inland transfer, and the shore shipment belong to the same operation.)"
-          ],
-          "reply": "Record the delivery timing and take it to Une."
+          "item": 182299984,
+          "item_name": "quest_14992a",
+          "count": 1,
+          "objective": "Loot a Timed Shipment Packet from a {npc} at the Mysterious Shipwreck."
         }
       ],
       "turnin": [
-        "I know those marks. Before you start, no, I did not know they meant an attack on the Field.",
+        "I know the marks on this packet. Before you start, no, I did not know they meant an attack on the Field.",
         "A shipwreck captain arranged the collection. Kinsgreen. He paid for discretion and asked which watch changed last.",
         "I took his coin. I will answer for that. But you need to stop his people before they collect the last load."
       ],
-      "complete": "Estino and Zephyros received the warning. At the shipwreck you matched the cargo marks and delivery timing to the inland evidence. Une identified Captain Kinsgreen as the collection organiser and admitted accepting payment for information."
+      "complete": "Estino and Zephyros received the warning. You recovered a Timed Shipment Packet matching the inland cargo marks and delivery schedule. Une identified Captain Kinsgreen as the collection organiser and admitted accepting payment for information.",
+      "missing_item": "Recover a Timed Shipment Packet from a Lepharist Treasure Box and bring its delivery instructions to Une."
     },
     {
       "id": 14993,

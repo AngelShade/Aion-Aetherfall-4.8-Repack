@@ -19,6 +19,9 @@ body{background-color:#080f19;background-image:radial-gradient(ellipse at 0 35%,
 .aion-hero::after{content:"";position:absolute;z-index:4;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,transparent,#397b98,#bcdfeb,#d6b878,#397b98,transparent);pointer-events:none}
 .aion-hero-stats{border-color:#91d9e040!important;background:linear-gradient(120deg,#101b2aee,#0a1421f5)!important;box-shadow:0 15px 35px #0004}
 .aion-hero-stats .aion-stat-icon{color:#9ddce6}
+.aion-population-counts{display:flex;flex-wrap:wrap;gap:12px 28px;margin-top:6px}
+.aion-hero-stats .aion-population-counts small{margin-bottom:3px;color:#9ddce6;font-size:9px;letter-spacing:1px}
+.aion-hero-stats .aion-population-counts strong{font-size:20px}
 .section-heading .eyebrow,.page-intro .eyebrow{color:#a0d9e0}
 .section-heading h2{position:relative;padding-bottom:22px}
 .section-heading h2::after{content:"";position:absolute;left:50%;bottom:0;width:110px;height:1px;background:linear-gradient(90deg,transparent,#9bdce3,transparent);transform:translateX(-50%)}

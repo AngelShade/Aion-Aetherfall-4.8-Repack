@@ -12,8 +12,10 @@
       <value0_progress_>Slime_16_An_1 4;</value0_progress_>
     </data>
     <data>
-      <category_progress_>TalkFOBJ</category_progress_>
-      <value0_progress_>LF1_polluted_seed, 0</value0_progress_>
+      <category_progress_>CollectItem</category_progress_>
+      <value0_progress_>Lepios</value0_progress_>
+      <value1_progress_>LF1_polluted_seed</value1_progress_>
+      <value5_progress_>1</value5_progress_>
     </data>
     <data>
       <category_progress_>Talk</category_progress_>

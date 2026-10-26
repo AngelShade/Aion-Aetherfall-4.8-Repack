@@ -122,17 +122,34 @@ Setup supports both a `Setup` support folder in new bundles and the existing
 game stays at its existing path. Public downloader ZIPs exclude installed games,
 download caches, logs and local installation paths.
 
-The owner's workspace now lives at `C:/Git/aion-server/releases`. Its entry
-points call this repository's `tools/distribution/publish_update.py` directly,
-so changes to the maintained scripts apply on the next invocation. The former
-standalone copies are historical only. Generated release files and the owner's
-installed game are ignored by Git; source and distribution tools stay in the
-existing repository. No background watcher or automatic publication is used.
+The owner's release workspace is configured outside the source repository.
+Run `python tools/distribution/release_workspace.py` to print its location, or
+add `--layout` for the active layout file. Resolution uses `AION_RELEASE_ROOT`,
+then the Git-ignored `tools/distribution/release-workspace.local.json` configuration.
+Without local configuration, `AION_DEV_ROOT` locates the repack parent's
+`Distribution` folder or an existing legacy `distribution` workspace. Existing legacy
+workspaces remain usable until migration; a missing legacy folder is never
+recreated automatically. The local configuration has schema `1`, a `releaseRoot`
+path and optional `legacyRoots` aliases for earlier command-line paths.
 
-After the normal build/install and full repack refresh, run `releases/Prepare
-Patch.cmd` to prepare the current version, or `releases/Publish Update.cmd` when
-ready to publish it. Commits and pushes do not create releases. The original
-0.86 archive stays unchanged and incremental patches remain cumulative.
+The repack parent's Prepare Patch and Publish Update entry points read the
+distribution layout and call the maintained
+`tools/distribution/publish_update.py` through `Maintenance/Run-Publisher.ps1`,
+so source changes apply on the next invocation. Historical standalone copies
+remain inactive. Generated archives, settings and retained installations stay
+local; source and distribution tools stay in the existing repository.
+
+After the normal build/install and full repack refresh, run `Prepare Patch.cmd`
+beside the maintained repack folder, or `Publish Update.cmd` when ready to publish it.
+Commits and pushes do not create releases. The original 0.86 archive stays
+unchanged and incremental patches remain cumulative.
+
+The layout's `repackFolder` points to the maintained game payload. Its
+`setupExecutable` may reference that payload's Hub directly; `setupSupport`
+locates the clean downloader inputs under Maintenance. The baseline file index
+is required for cumulative patches. Old installed test copies, download caches,
+past patch versions, logs and the release Git checkout are not publisher inputs.
+The full base archive is needed locally only for seeding or a local base install.
 
 ## Native world-bot population initialization
 

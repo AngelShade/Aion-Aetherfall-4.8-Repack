@@ -1,20 +1,26 @@
 # Aion Aetherfall 4.8 Repack — Changelog
 
-## Latest published release — 0.96.6 (24 October 2026)
+## Latest published release — 0.98.3 (26 October 2026)
 
-[Download 0.96.6](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.96.6), or open Aetherfall Setup and choose **Update Repack**. This cumulative update includes the earlier 0.95 and 0.96.5 changes; install it directly over 0.86 or any later repack.
+[Download 0.98.3](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.3), or open Aetherfall Setup and choose **Update Repack**. This cumulative update includes the earlier 0.97 quests and interface repairs, Find Group announcements, Boons/target artwork, first-use tooltips and the quit-countdown crash repair.
 
-- Restored Verteron quests and improved companion corpse looting and quest-item ownership.
-- Added configurable open-world monster difficulty and nearby party/alliance scaling.
-- Improved generated world-bot population, legions, nearby activity, water safety and recovery.
-- Includes the movable Marketplace, earlier quest and encounter repairs, Countdown Timer placement and chat/companion background controls.
-- Ships Setup/Hub **0.90.1022.2**. The current downloader ZIP is **8.65 MB** and the update archive is **641.30 MB**. The full **0.86** game archive remains the compatible base download.
+Install directly over 0.86 or any later repack. Setup/Hub remains 0.90.1022.2; the original 0.86 archive remains the compatible base download. Existing accounts, characters, settings and profiles are retained. GitHub publication was verified on 27 October 2026; gameplay acceptance remains with the owner.
 
-Release files, the live update channel and the Setup inside the public downloader were verified on 25 October 2026. See the version entries below for details. Gameplay fixes still require normal in-game acceptance.
+## Newer 4.8 source work (27 October 2026)
+
+These maintained changes are separate from the published 0.98.3 payload. A source commit does not publish a repack update:
+
+- Restricted controlled companions' healing, buffs and resurrection to their party/alliance and pets. Independent world bots retain bounded public assistance. Party combat takes priority over optional looting, quest work, rest and equipment changes.
+- Let nearby earned corpse loot take priority over formation while the owner is stationary, releasing that priority when the owner moves or combat/support requires it. This companion repair has a normal build and focused offline checks; installation and gameplay acceptance are pending.
+- Reduced repeated interface work: opacity applies to new or changed windows, unchanged native policies return early, and safe layout holds survive zone/loading transitions.
+- Corrected Move UI reset positions and grouped shortcut movement. Added a one-time conversion of older saved world-tooltip Mover defaults to Cursor; later explicit choices remain saved.
+- Updated cursor tooltips to use the live mouse position, added native right-drag camera turning and kept window backdrop hooks from blocking the tooltip placement policy.
+- Added quest-tracker layout preparation that reduces its full-screen frame to its content height so it can move vertically. Current maintained versions are native Core 1.2.77 and Lua 1.2.79; visual, input and transition behavior still require in-game acceptance.
+- Made the release workspace configurable outside source and used the maintained repack's matching changelog when preparing its downloader. Local workspace settings remain private.
 
 ## Newer 4.8 source work (25 October 2026)
 
-These changes are in the `4.8` source and are separate from the published 0.96.6 repack:
+The 0.97 game changes listed here are published. The website remains a separate installation:
 
 - Added **The Unbroken Field**, sixteen original quests (14980–14995) continuing The Writing on the Wall across Verteron, including native dialogue, objectives, rewards and the Copied Seal Impression quest item.
 - Added quest-target tracking and further quest text, completion-dialogue and interface refinements.
@@ -55,14 +61,14 @@ Normal builds and focused offline checks are recorded for these changes. Stair
 following and the camera correction have owner confirmation; broader PvP, rift,
 combat, spirit, quest and performance acceptance remains in-game testing.
 
-## Current downloader for new installations (0.96.6; verified 25 October 2026)
+## Downloader kit for new installations (introduced in 0.96.6)
 
 - Each update now prepares a complete downloader ZIP with the current Setup,
   mirror list, extraction/download tools and clean portable settings. New users
   can receive the MEGA-to-Google Drive repair before downloading the base game.
 - Publish Update includes this ZIP and changes the public download links to
   follow the latest release. The large 0.86 base archive remains compatible.
-- The complete downloader ZIP is published with 0.96.6 and advertised by the public update channel. It contains Setup 0.90.1022.2, including the shared mirror retry repair. New installations can use the current kit without replacing the compatible 0.86 base archive.
+- The complete downloader ZIP was first published with 0.96.6. Use the kit from the latest release for new installations; Setup 0.90.1022.2 includes the shared mirror retry repair and retains the compatible 0.86 base archive.
 
 ## Setup download mirror fallback (21 October 2026)
 
@@ -89,7 +95,7 @@ combat, spirit, quest and performance acceptance remains in-game testing.
 - Included in the published Hub/Setup. The icon does not change gameplay.
 
 This history includes the full initial-release changelog for 0.86, followed by
-the updates through 0.96.6, in version order. Earlier development work is recorded under 0.86,
+the updates through 0.98.3. Earlier development work is recorded under 0.86,
 because that is the first public repack in which those changes were bundled.
 
 | Version | Release | Download |
@@ -110,7 +116,11 @@ because that is the first public repack in which those changes were bundled.
 | [0.94](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.94) | Account Fame, native companion/account windows, Interface and world textures | Published cumulative patch, Setup and current downloader ZIP |
 | [0.95](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.95) | Marketplace window, interface controls, navigation, quests and encounter repairs | Published cumulative patch |
 | 0.96.5 | World-bot population, nearby presence, legions, water safety and recovery | Included in 0.96.6; no separate release download |
-| [0.96.6](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.96.6) | Verteron quests, loot ownership, monster difficulty and interface controls | Latest published cumulative patch, Setup and downloader ZIP |
+| [0.96.6](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.96.6) | Verteron quests, loot ownership, monster difficulty and interface controls | Published cumulative patch, Setup and downloader ZIP |
+| [0.97](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.97) | Current original quests, loot, scaling, native windows and artwork/launcher repairs | Published cumulative patch |
+| 0.98 | Find Group, Boons/DP artwork, file verification and recovery parity | Included in 0.98.3; no separate release download |
+| 0.98.1–0.98.2 | First-use tooltip initialization and original-to-repack sync | Included in 0.98.3; no separate release downloads |
+| [0.98.3](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.3) | Quit-countdown crash repair and earlier parity/tooltip updates | Latest published cumulative patch, Setup and downloader ZIP |
 
 ## 0.86 — Initial release: full changelog
 
@@ -440,6 +450,54 @@ Included in the published 0.96.6 cumulative update; there is no separate 0.96.5 
 - Retained each repack's interface theme, graphics recovery files, connections, player data, population settings and optional HD selection. Setup/Hub remains 0.90.1022.2.
 
 Published on 24 October 2026 with the cumulative patch, Setup/Hub 0.90.1022.2 and the complete downloader kit. No manual database migration is required. Quest progression, loot distribution, difficulty, timer positioning and opacity remain in-game acceptance checks.
+
+## 0.97 — Quest continuation, native windows and current original repairs (25 October 2026)
+
+- Added **The Unbroken Field**, sixteen Verteron quests continuing The Writing on the Wall, with native dialogue, rewards, quest tracking and completion pages. Added native quest-object loot for the seal, swamp root, stone, Tursin cargo and unclaimed shipment while retaining their existing quest uses.
+- Updated nearby party/alliance monster scaling to refresh visible HP directly before combat within 100 metres, including bot-only groups, while preserving native XP and separate instance rules.
+- Included the current original's quest dialogue corrections and independent server-status endpoint. The standalone website remains a separate installation.
+- Repaired native window identity and inventory layout alongside custom movement and opacity controls. First-open windows now receive saved positions and opacity before appearing, preventing the initial opaque flash and position jump. The owner reported no problems in the final Direct3D 9 test; the first-open repair was also confirmed during Vulkan testing.
+- Included current quest-target markers and hover progress, confirmation/background repairs, companion-window text sizing and selected-boon Account details. Refreshed companion-menu artwork indexing and launcher checks so theme changes retain the matching artwork index.
+- Preserved portable connections, server overrides, interface profiles, renderer/camera settings, database contents and optional HD selection. Updated active graphics recovery metadata and custom-quest portability together with the affected assets. Setup/Hub remains 0.90.1022.2.
+
+Published on 25 October 2026 as a cumulative update from 0.86. No manual database
+migration is required. Original-client UI acceptance does not replace gameplay
+acceptance of the updated repack, quests or scaling.
+
+## 0.98.3 — Quit-countdown crash repair (26 October 2026)
+
+- Included the original's native 1.2.71 repair for a crash when the quit countdown completes after UI windows or their widgets have been retired/recreated. Invalid mover references now defer to native layout safely.
+- Retained the shared tooltip initialization repair, Lua 1.2.70, package signatures, profiles, bar positions and graphics/cursor recovery. No profile or database reset is required.
+
+Published on 26 October 2026. The normal source-built repair was installed and checked in the original before this repack update. Owner acceptance remains the normal quit countdown, relog and UI/tooltips in game.
+
+## 0.98.2 — Shared tooltip repair from the original build (26 October 2026)
+
+- Synced the new-character tooltip repair from the maintained source and the original development installation. Both clients now use the same normal native/Lua Core 1.2.70 output and signing cohort.
+- Preserved existing bar positions, profile choices, interface artwork and graphics/cursor recovery. No profile, character or database reset is required.
+
+Included in published 0.98.3; no separate release download. Original installation and compatibility checks completed before repack transfer. Live first-use hovering remains the owner's acceptance check.
+
+## 0.98.1 — Tooltip anchoring on new accounts (26 October 2026)
+
+- Fixed tooltip anchoring initialization for new characters. World and UI tooltips now receive the selected Cursor, Mover, Native or Hidden policy from first use, without depending on previously opened tooltip windows.
+- Preserved separate world/UI choices, bar positions, saved layouts, opacity, item-comparison spacing and map tooltip grouping. No account, character or profile reset is required.
+- Includes native/Lua Core 1.2.70 and its verified signing cohort. The original client, server and maintained source remain unchanged.
+
+Included in published 0.98.3; no separate release download. First-use behavior passes focused native/Lua checks; live hover acceptance remains with the owner. The earlier 0.98 saved-setting correction did not resolve this initialization dependency.
+
+## 0.98 — Complete repack parity and recovery repair (26 October 2026)
+
+- Restored the original's ChatServer support for bot Find Group channel announcements.
+- Included both Aetherfall Boons pack tables, removing the old retail pack effects/restriction declarations, and restored the target DP-bar texture.
+- Matched the original GameServer database connection limit of 20 while preserving each repack's connection credentials and addresses.
+- Corrected the local repack's saved world-tooltip setting from Mover to Cursor so hovering follows the mouse, matching the original. Both alternating saved slots are corrected; unrelated profile settings and layouts remain intact. New profiles already default to Cursor.
+- Repaired delivery inventories and generated-state handling so normal shader-cache regeneration, guild-emblem caching and interface/quest state do not appear as missing or damaged immutable payloads.
+- Removed obsolete environment-package tooling from the distribution and corrected legacy world-art rollback declarations; current graphics/cursor recovery and installed artwork remain intact.
+- Prepared optional HD textures 2026.10.26.1 with the 33-lamp, 313-mip transparency repair. Existing HD selections remain supported during upgrade; standard world textures stay optional and unchanged.
+- Preserved accounts, characters, database contents, profiles, renderer/camera settings and the newer repack cash-shop catalogue. Setup/Hub remains 0.90.1022.2.
+
+The parity repairs are included in published 0.98.3; no separate 0.98 release download. The optional HD package was prepared separately. No manual SQL migration is required. Repack gameplay and visual acceptance remain with the owner.
 
 ## Updating an existing repack
 

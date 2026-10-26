@@ -169,12 +169,18 @@ final class PlayerBotHealing {
     if(e.kind()==SkillKind.CLEANSE)PlayerBotService.getInstance().reserve(bot,target,SkillKind.CLEANSE,until);
    }
  }
- static Creature resurrection(Player bot,PlayerBotSkills.Entry e,List<Player> party) {
-  // There is no blanket combat veto. Native CombatCheck/weapon/resource/target
-  // restrictions decide whether this particular learned resurrection is legal.
+ static boolean resurrectionAllowed(Player bot,Creature target,boolean combat) {
+  return PlayerBotSupport.recipientAllowed(bot,target)
+   && (!combat || target instanceof Player player && PlayerBotTeams.same(bot,player));
+ }
+ static Creature resurrection(Player bot,PlayerBotSkills.Entry e,List<Player> party,boolean combat) {
+  // Public aid must yield to the current fight. Native restrictions still decide
+  // whether a learned resurrection can bring an actual teammate back in combat.
   return PlayerBotSupport.allowed(bot,e,party,p->p.isDead() && !p.getResStatus()
+   && resurrectionAllowed(bot,p,combat)
    && !PlayerBotService.getInstance().isReserved(bot,p,SkillKind.RESURRECT)).stream()
-   .min(Comparator.comparingDouble(p->PositionUtil.getDistance(bot,p))).orElse(null);
+   .min(Comparator.<Player>comparingInt(p->PlayerBotTeams.same(bot,p)?0:1)
+    .thenComparingDouble(p->PositionUtil.getDistance(bot,p))).orElse(null);
  }
  private PlayerBotHealing(){}
 }

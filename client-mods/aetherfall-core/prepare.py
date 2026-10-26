@@ -15,10 +15,10 @@ import subprocess
 import sys
 
 HERE = Path(__file__).resolve().parent
-NATIVE_VERSION = '1.2.63'  # Native bridge version is independent of Lua-only updates.
+NATIVE_VERSION = '1.2.77'  # Size-only dialog pin (mode 7) for the full-height quest tracker; 1.2.76: Window hooks leave live tooltip classes' SetRect to the tooltip policy, which had refused every class; 1.2.75: Right-drag camera turns by the live cursor minus the game's saved centre (no Windows mouse hooks); 1.2.73: Tooltips use the real cursor, not the stale engine copy, with the camera fix off; 1.2.72: Cheap per-draw backdrop checks; unchanged backdrop and tooltip policies return early.
 PAK = 'Plugin/RelicCalc/RelicCalc.pak'
 PLUGIN_COHORT = [PAK, PAK + '.sig', 'Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig']
-VERSION = '1.2.62'  # Separate appearance, placement and native window lifecycle updates.
+VERSION = '1.2.79'  # Remove the runtime quest tracker height hold (the game resets it; the layout height is fixed instead); 1.2.78: Tracker height includes the temporary-quest list when shown; 1.2.77: Quest tracker held at its content height so it can move vertically; 1.2.74: Saved pre-1.2.53 Mover world-tooltip choices move to Cursor once; 1.2.73: Reset uses design/catalogue defaults; Shortcuts (all) moves only the grid anchor; 1.2.72: opacity per new window or value, holds on change or 5 Hz, kept through zone changes.
 LUA = 'AetherfallCore.lua'
 ADDON = ['AetherfallCore.lua', 'AetherfallLayout.lua', 'AetherfallLazy.lua', 'AetherfallHUD.lua', 'AetherfallOptions.lua',
          'AetherfallHUD.xml']

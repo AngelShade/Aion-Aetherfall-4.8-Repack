@@ -469,6 +469,8 @@ public final class PlayerBotSession {
 			if ((!worldSleepRequested || settlingEnemy(npc)) && validEnemy(npc, party, explicitTarget(npc))) enemies.add(npc);
 		});
 		boolean companionFollow = companionFollowWanted();
+		boolean partyFight = !autonomous() && partyEngaged();
+		interruptPublicSupport(!enemies.isEmpty());
 		// canAttack() is false during a cast too. Shed an optional travel buff
 		// before deriving crowd control, otherwise it blocks following as if rooted.
 		if (companionFollow && enemies.isEmpty() && bot.isCasting() && bot.canPerformMove()) {
@@ -518,7 +520,7 @@ public final class PlayerBotSession {
 			&& !loot.pending() && party.stream().noneMatch(p->!p.isDead() && hp(p)<55),now);
 		if(opponent!=null) return pvpCombat(opponent,party,support,enemies,now);
 		if(wasPvp){pets.stop(bot);navigation.stop();PlayerBotArbitration.clear(engine);if(bot.getTarget() instanceof Creature c && PlayerBotPvp.playerOwned(c) && bot.isEnemy(c))bot.setTarget(null);}
-  // Useful public support shares spell arbitration, never combat/loot membership.
+  // Companion support is party-only; independent actors retain bounded public aid.
   PlayerBotRecoveryIntent.update(bot,!enemies.isEmpty(),!autonomous() && owner.getMoveController().isInMove());
   boolean supportNeeded=false,urgentSupport=false;
   if(!bot.isCasting() && order!=Order.PASSIVE)for(var entry:skills) {
@@ -531,6 +533,24 @@ public final class PlayerBotSession {
   // Donor DropTarget/LootNonCombat flow runs before optional autonomous travel,
   // food/grind/quest selection. Real attackers and urgent native aid retain custody.
   var lootHazards=PlayerBotHazards.visible(bot);navigation.hazards(lootHazards);
+  // Discover companion loot before either formation early return. A stationary
+  // owner's nearby earned corpse owns approach/collection until it is invalid.
+  Npc companionCorpse = !autonomous() && companionLootAllowed() && enemies.isEmpty() && !incapacitated
+   && !supportNeeded && !bot.isCasting() && !bot.isTrading() && !bot.isLooting()
+   && !bot.getController().hasScheduledTask(com.aionemu.gameserver.model.TaskId.ITEM_USE)
+   && !bot.getController().hasScheduledTask(com.aionemu.gameserver.model.TaskId.ACTION_ITEM_NPC)
+   && (bot.getInteractionTask()==null || !bot.getInteractionTask().isInProgress())
+   && !PlayerBotQuestObjects.pending(bot) && !PlayerBotQuestMaterials.flightPending(this)
+   && PlayerBotHazards.risk(new PlayerBotNavigation.Point(bot.getX(),bot.getY(),bot.getZ()),lootHazards)==0
+   ? loot.choose(owner,bot) : null;
+  if(companionCorpse!=null && !PositionUtil.isInRange(bot,companionCorpse,PlayerBotLoot.LOOT_DISTANCE,false))companionCorpse=null;
+  boolean lootingNearOwner=companionCorpse!=null;
+  if(lootingNearOwner) {
+   companionFollow=false;
+   if(followMotion!=null && followMotion.attached()) {
+    bot.getMoveController().abortMove();navigation.stop();
+   }
+  }
   if(autonomous() && autoLoot && order!=Order.PASSIVE && !worldSleepRequested && enemies.isEmpty() && !incapacitated
    && !supportNeeded && hp(bot)>=25 && !bot.isFlying() && !bot.isCasting() && now>=nextDecision
    && !bot.isTrading() && !bot.getController().hasScheduledTask(com.aionemu.gameserver.model.TaskId.ITEM_USE)
@@ -544,7 +564,7 @@ public final class PlayerBotSession {
    if(runDecision(lootPlan,true,false,0)){status="looting earned drops";return true;}
   }
 		boolean materialFlight=PlayerBotQuestMaterials.flightPending(this);
-		boolean questCommitmentSafe = questing && !supportNeeded && order == Order.FOLLOW && !incapacitated && !owner.isDead()
+		boolean questCommitmentSafe = questing && !partyFight && !lootingNearOwner && !supportNeeded && order == Order.FOLLOW && !incapacitated && !owner.isDead()
 			&& !(!autonomous() && owner.getMoveController().isInMove())
 			&& !owner.isFlying() && !bot.isFlying() && !PlayerBotQuestSync.returning(this) && !bot.isCasting()
 			&& !owner.getController().isInCombat() && !bot.getController().isInCombat() && party.stream().allMatch(p -> p.getAggroList().stream().findAny().isEmpty())
@@ -709,6 +729,7 @@ public final class PlayerBotSession {
 			: shouldRest(hp(bot), mp(bot), PlayerBotRecoveryIntent.active(bot), combat,
 				owner.getMoveController().isInMove(), PositionUtil.getDistance(bot, owner));
 		rest |= mission != null && !combat && !(!autonomous() && owner.getMoveController().isInMove()) && PositionUtil.isInRange(bot, owner, 8) && PlayerBotFieldCombat.recover(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot),false);
+		rest &= !partyFight;
 		if (!rest) { PlayerBotRecoveryIntent.clear(bot);stand(); } else PlayerBotRecoveryIntent.start(bot);
 		if (commandedTarget != 0 && enemies.stream().noneMatch(n -> n.getObjectId() == commandedTarget)) commandedTarget = 0;
 		var strategyPlan = new PlayerBotStrategyComposition.Plan(combat ? State.COMBAT : State.NON_COMBAT);
@@ -786,17 +807,17 @@ public final class PlayerBotSession {
 			}, DEFAULT + 3));
 		}
 		triggers = strategyPlan.triggers("loot", State.NON_COMBAT);
-		if (autoLoot && !combat && !incapacitated && order != Order.PASSIVE) {
+		if (autoLoot && !combat && !partyFight && !incapacitated && order != Order.PASSIVE) {
    if(autonomous())addLootTriggers(triggers,now);
    else {
-			Npc corpse = loot.choose(owner, bot);
+			Npc corpse = companionCorpse;
 			if (corpse != null) triggers.add(trigger(new Action() {
 				@Override public String name() { return "loot " + corpse.getName(); }
-				@Override public boolean isUseful() { return corpse.isDead() && corpse.isSpawned(); }
+				@Override public boolean isUseful() { return companionLootAllowed() && corpse.isDead() && corpse.isSpawned(); }
 				@Override public boolean isPossible() { return !bot.isCasting() && !bot.isLooting(); }
 				@Override public List<Action> prerequisites() { return !PositionUtil.isInRange(bot, corpse, 3) || !GeoService.getInstance().canSee(bot, corpse)
 					? List.of(new ReachAction(corpse, 2.5f)) : List.of(); }
-				@Override public boolean execute() { navigation.stop(); stand(); return loot.collect(bot, corpse); }
+				@Override public boolean execute() { if(!companionLootAllowed())return false;navigation.stop(); stand(); return loot.collect(bot, corpse); }
 			}, DEFAULT + 2));
    }
 		}
@@ -825,7 +846,7 @@ public final class PlayerBotSession {
 		triggers = strategyPlan.triggers("equipment", State.NON_COMBAT);
 		boolean committedTravel=autonomous() && PlayerBotWorldActivities.committedTravel(bot);
 		boolean optionalPreparation=PlayerBotTownPolicy.serviceUseful(autonomous(),committedTravel,false,false);
-		if ((generated || world()) && autoGear && optionalPreparation && !combat && !incapacitated && now >= nextGearCheck) {
+		if ((generated || world()) && autoGear && optionalPreparation && !combat && !partyFight && !incapacitated && now >= nextGearCheck) {
 			nextGearCheck = now + 5000;
 			for (var upgrade : PlayerBotEquipment.upgrades(bot, role))
 				triggers.add(trigger(new SimpleAction("equip upgrade " + upgrade.item().getItemId(), () -> !bot.isCasting(), () -> {
@@ -850,8 +871,8 @@ public final class PlayerBotSession {
 			if(com.aionemu.gameserver.configs.main.PlayerBotConfig.QUEST_MATERIALS && !PlayerBotQuestMaterials.needed(this).isEmpty())triggers.add(trigger(new SimpleAction("earn native quest materials",
 			 ()->!bot.isCasting() && !bot.isLooting(),()->{stand();return PlayerBotQuestMaterials.tick(this,navigation,true);}),DEFAULT+1));
 		}
-		if (generated && !combat && !incapacitated && !rest && order == Order.FOLLOW) triggers.add(PlayerBotCare.trigger(this, navigation));
-		if ((generated || world()) && autoGear && optionalPreparation && !combat && !incapacitated && !rest && order == Order.FOLLOW) triggers.add(PlayerBotGearPolicy.trigger(this, navigation));
+		if (generated && !combat && !partyFight && !incapacitated && !rest && order == Order.FOLLOW) triggers.add(PlayerBotCare.trigger(this, navigation));
+		if ((generated || world()) && autoGear && optionalPreparation && !combat && !partyFight && !incapacitated && !rest && order == Order.FOLLOW) triggers.add(PlayerBotGearPolicy.trigger(this, navigation));
 		triggers = strategyPlan.triggers("supplies", State.NON_COMBAT, State.COMBAT);
 		if (consumables && !incapacitated)
 			for (var item : PlayerBotSupplies.candidates(bot,combat))
@@ -917,12 +938,12 @@ public final class PlayerBotSession {
 			var route=PlayerBotQuestRoutes.trigger(this,navigation);if(route!=null)triggers.add(route);
 		}
 		triggers = strategyPlan.triggers("follow across height", State.NON_COMBAT);
-		if(!combat && PlayerBotHeightTraversal.followRequired(autonomous(),order,!owner.isDead(),!incapacitated && bot.canPerformMove(),mission!=null,
+		if(!combat && !lootingNearOwner && PlayerBotHeightTraversal.followRequired(autonomous(),order,!owner.isDead(),!incapacitated && bot.canPerformMove(),mission!=null,
 			owner.getX()-bot.getX(),owner.getY()-bot.getY(),owner.getZ()-bot.getZ()))
 			triggers.add(trigger(new SimpleAction("follow owner across height", () -> !bot.isCasting() && !bot.isLooting() && !bot.isTrading(),
 				() -> {stand();return followOwner();}), PlayerBotHeightTraversal.FOLLOW_PRIORITY));
 		triggers = strategyPlan.triggers("follow and guard", State.NON_COMBAT);
-		if (!autonomous() && !incapacitated && !combat && !owner.isDead() && (order == Order.FOLLOW || order == Order.PASSIVE) && (mission == null || !PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot)) || (!autonomous() && owner.getMoveController().isInMove())))
+		if (!autonomous() && !incapacitated && !combat && !lootingNearOwner && !owner.isDead() && (order == Order.FOLLOW || order == Order.PASSIVE) && (mission == null || !PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot)) || (!autonomous() && owner.getMoveController().isInMove())))
 			strategyPlan.defaults("follow and guard", new SimpleAction("follow owner", this::followNeeded,
 				this::followOwner), PlayerBotFollowIntent.priority(traveling), State.NON_COMBAT);
 		if (!incapacitated && !combat && order == Order.GUARD && guardPosition != null)
@@ -960,6 +981,32 @@ public final class PlayerBotSession {
 		if(!wanted)followFallback=false;
 		return wanted;
 	}
+	private boolean resurrectionAllowed(Creature target,boolean combat) {
+		if(target instanceof Player player && PlayerBotTeams.same(bot,player))return true;
+		return PlayerBotHealing.resurrectionAllowed(bot,target,combat || !autonomous() && partyEngaged());
+	}
+	private boolean optionalActivitiesAllowed() {
+		return autonomous() || !partyEngaged() && !pvp.active();
+	}
+	private boolean companionLootAllowed() {
+		return !autonomous() && autoLoot && order!=Order.PASSIVE && !forcedFollow() && optionalActivitiesAllowed()
+			&& !owner.isDead() && !owner.getMoveController().isInMove() && !owner.isFlying() && !bot.isFlying()
+			&& !owner.isInGlidingState() && !bot.isInGlidingState()
+			&& PositionUtil.isInRange(owner,bot,PlayerBotLoot.LOOT_DISTANCE,false)
+			&& !(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover
+				&& (mover.traversingHeight() || mover.ridingPlatform()));
+	}
+	/** Party custody also applies to casts admitted before a control/team change. */
+	private void interruptPublicSupport(boolean combat) {
+		var cast=bot.getCastingSkill();
+		if(cast==null)return;
+		var target=cast.getFirstTarget();
+		boolean outsideParty=target!=null && target.getMaster() instanceof Player && !bot.isEnemy(target)
+			&& !PlayerBotSupport.recipientAllowed(bot,target);
+		if(!outsideParty && (!cast.getSkillTemplate().hasResurrectEffect() || resurrectionAllowed(target,combat)))return;
+		cancelCharge();bot.getController().cancelCurrentSkill(null);navigation.stop();
+		PlayerBotArbitration.clear(engine);nextDecision=0;
+	}
 	/** WoW combat state for the early custody checks: a live NPC actually hating
 	 * the party (or an explicit attack order), not the native post-hit timer. */
 	private boolean partyEngaged() {
@@ -967,7 +1014,9 @@ public final class PlayerBotSession {
 		long now=System.currentTimeMillis();
 		if(now-engagedAt<100)return engagedValue;
 		List<Player> members=PlayerBotTeams.members(owner);
-		boolean[] found={commandedTarget!=0};
+		var commanded=commandedTarget==0?null:bot.getKnownList().getObject(commandedTarget);
+		boolean[] found={commanded instanceof Creature target && target.isSpawned() && !target.isDead()
+			&& target.getWorldId()==bot.getWorldId() && target.getInstanceId()==bot.getInstanceId() && bot.isEnemy(target)};
 		if(!found[0])bot.getKnownList().forEachNpc(npc->{
 			if(found[0] || npc.isDead() || !npc.isSpawned() || npc.getWorldId()!=bot.getWorldId() || npc.getInstanceId()!=bot.getInstanceId()
 				|| !PositionUtil.isInRange(owner,npc,45))return;
@@ -1125,6 +1174,7 @@ public final class PlayerBotSession {
 
 	/** PvP shares native cast admission, class rotations, support, pets and movement with PvE. */
 	private boolean pvpCombat(Creature target,List<Player> party,List<Player> support,List<Npc> monsters,long now) {
+		interruptPublicSupport(true);
 		decisionCombat=true;decisionTarget=target.getObjectId();withholdDamage=false;activePull=null;looseEnemies=0;
 		PlayerBotRecoveryIntent.clear(bot);stand();
 		if(bot.getInteractionTask()!=null && bot.getInteractionTask().isInProgress()
@@ -1264,7 +1314,8 @@ public final class PlayerBotSession {
 		}
 		if (e.kind() == SkillKind.TAUNT) return enemy;
 		if (PlayerBotHealing.managed(e)) return PlayerBotHealing.recipient(bot, e, party,combat);
-		if (e.kind() == SkillKind.RESURRECT) return PlayerBotHealing.resurrection(bot, e, party);
+		if (e.kind() == SkillKind.RESURRECT) return PlayerBotHealing.resurrection(bot, e, party,
+			combat || !autonomous() && partyEngaged());
 		// WoW action usefulness precedes expensive admission. Re-read benefit here
 		// and again in CastAction; never retain health, auras or visibility across decisions.
 		List<Player> allowed = switch(e.kind()) {
@@ -1431,6 +1482,8 @@ public final class PlayerBotSession {
 		@Override public boolean isUseful() {
 			var actual = PlayerBotSkills.actualTemplate(bot, entry);
 			if (actual == null) return false;
+			if (!bot.isEnemy(recipient) && recipient.getMaster() instanceof Player && !PlayerBotSupport.recipientAllowed(bot,recipient)) return false;
+			if (entry.kind()==SkillKind.RESURRECT && !resurrectionAllowed(recipient,!enemies.isEmpty())) return false;
 			if (!autonomous() && recipient instanceof Npc held && !PlayerBotMarks.nativeSkillAllowed(owner,held,actual)) return false;
 			if(bot.isEnemy(recipient) && !validEnemy(recipient,party(),explicitTarget(recipient)))return false;
 			if((entry.kind()==SkillKind.BUFF || entry.kind()==SkillKind.PET_ORDER && PlayerBotSkills.classify(actual)==SkillKind.BUFF)
@@ -1560,6 +1613,10 @@ public final class PlayerBotSession {
 		}
 		private boolean admitted() {
 			return target.isSpawned() && target.getWorldId()==bot.getWorldId() && target.getInstanceId()==bot.getInstanceId()
+				&& (hostile || !(target.getMaster() instanceof Player) || PlayerBotSupport.recipientAllowed(bot,target))
+				&& (hostile || !(target instanceof Npc) || !target.isDead()
+					|| optionalActivitiesAllowed() && (autonomous() || companionLootAllowed()))
+				&& (!(target instanceof Player) || !target.isDead() || resurrectionAllowed(target,false))
 				&& (!hostile || validEnemy(target,party(),explicitTarget(target)));
 		}
 		@Override public String name() { return "reach " + target.getName(); }

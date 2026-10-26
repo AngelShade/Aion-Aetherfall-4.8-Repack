@@ -78,3 +78,15 @@ visible without JavaScript; the visual script has no idle frame loop.
 Each standalone installation also has its own Windows OPcache identity and a
 private file-cache fallback, avoiding shared-memory/ASLR startup conflicts when
 another PHP website runs under the same Windows user.
+
+Player and bot presence have separate counts. The native core exposes aggregate
+spawned-player/world-bot/companion totals at GET /website/status on a dedicated
+loopback listener started/stopped by GameServer independently of the marketplace.
+The endpoint has no character details or actions; it caches a world traversal for
+five seconds. gameserver.website_status.enable and gameserver.website_status.port
+control this listener (default enabled, port 8092). AION_PRESENCE_URL selects that
+local endpoint (default http://127.0.0.1:8092/website/status). The website keeps its
+30-second snapshot/poll interval and rejects stale or malformed presence data.
+Without this core endpoint, native SQL still supplies human logins; the bot
+count remains unavailable, since saved rosters and population targets are not
+live bot counts. The stopped game server reports zero for both populations.

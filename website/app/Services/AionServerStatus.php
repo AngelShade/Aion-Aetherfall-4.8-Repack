@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Throwable;
 
 class AionServerStatus
@@ -13,20 +14,22 @@ class AionServerStatus
      *
      * Server reachability is determined by a short TCP probe to the configured
      * game port. This confirms that something accepts TCP connections; it does
-     * not prove that the game world is fully healthy. Player counts still come
-     * from recent user_count statistics and are never fabricated.
+     * not prove that the game world is fully healthy. Native presence comes from
+     * the core's local aggregate endpoint; SQL online flags only cover humans.
      */
     public function snapshot(): array
     {
         $cacheSeconds = max(5, (int) config('aion_game.cache_seconds', 30));
 
-        return Cache::remember('aion_game.status_snapshot.v3', $cacheSeconds, function () use ($cacheSeconds): array {
+        return Cache::remember('aion_game.status_snapshot.v4', $cacheSeconds, function () use ($cacheSeconds): array {
             $result = [
                 'connection' => 'unknown',
                 'server_status' => 'UNKNOWN',
                 'server_status_detail' => 'Server reachability has not been verified.',
                 'online_players' => null,
+                'online_bots' => null,
                 'players_detail' => 'Live player statistics are not currently available.',
+                'bots_detail' => 'Live bot statistics are not currently available.',
                 'last_record_at' => null,
                 'checked_at' => now(),
             ];
@@ -41,14 +44,20 @@ class AionServerStatus
                 if (AetherfallGame::enabled()) {
                     $native = app(AetherfallGame::class);
                     $native->accounts()->select('SELECT 1');
-                    $online = $native->world()->table('players')->where('online', 1)->whereNull('deletion_date')->count();
                     $result['connection'] = 'connected';
                     $result['server_status_detail'] = $reachable
                         ? 'The game server is accepting connections.'
                         : 'The game server is offline. Start it from Aetherfall Setup if you play locally.';
-                    // Native online flags are only presented while the world port responds.
-                    $result['online_players'] = $reachable ? $online : 0;
-                    $result['players_detail'] = 'Players and bots in the world. Updated about every '.$cacheSeconds.' seconds.';
+                    $presence = $reachable ? $this->nativePresence() : null;
+                    // Headless bots intentionally never set players.online. Saved roster
+                    // size and population targets are not live presence counts.
+                    $result['online_players'] = ! $reachable ? 0 : ($presence['online_players']
+                        ?? $native->world()->table('players')->where('online', 1)->whereNull('deletion_date')->count());
+                    $result['online_bots'] = ! $reachable ? 0 : ($presence['online_bots'] ?? null);
+                    $result['players_detail'] = 'Players in the world. Updated about every '.$cacheSeconds.' seconds.';
+                    if (! $reachable || $presence !== null) {
+                        $result['bots_detail'] = 'World bots and companions. Updated about every '.$cacheSeconds.' seconds.';
+                    }
                     $result['last_record_at'] = now();
                     return $result;
                 }
@@ -152,6 +161,25 @@ class AionServerStatus
                 return $result;
             }
         });
+    }
+
+    private function nativePresence(): ?array
+    {
+        $url = trim((string) config('aion_game.presence_url', ''));
+        if ($url === '') return null;
+        try {
+            $response = Http::acceptJson()->connectTimeout(0.25)->timeout(0.75)->get($url);
+            if (! $response->successful()) return null;
+            $data = $response->json();
+            if (! is_array($data) || ($data['source'] ?? null) !== 'aetherfall-live-world') return null;
+            foreach (['online_players', 'online_bots', 'checked_at_epoch'] as $key) {
+                if (! isset($data[$key]) || ! is_int($data[$key]) || $data[$key] < 0) return null;
+            }
+            $age = time() - $data['checked_at_epoch'];
+            return $age >= -5 && $age <= 45 ? $data : null;
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     /** @return array{0: bool, 1: string} */

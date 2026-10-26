@@ -6,6 +6,7 @@ import urllib.parse
 import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
+from release_workspace import release_path
 
 
 def decode(data):
@@ -129,7 +130,7 @@ def publish(root, mirrors_url=None, trackers=None):
     import os
     with zipfile.ZipFile(release/'Aetherfall-Downloader.zip', 'w', zipfile.ZIP_DEFLATED) as archive:
         if layout:
-            archive.write(root/'Aetherfall Setup.exe', 'Aetherfall Setup.exe')
+            archive.write(root/layout.get('setupExecutable', 'Aetherfall Setup.exe'), 'Aetherfall Setup.exe')
         for directory, folders, files in os.walk(downloader):
             folders[:] = [name for name in folders if name.casefold() not in {'downloads', 'games', 'logs'}]
             for name in files:
@@ -149,8 +150,8 @@ def publish(root, mirrors_url=None, trackers=None):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('distribution', type=Path)
+    parser.add_argument('distribution', type=Path, nargs='?')
     parser.add_argument('--mirrors-url')
     parser.add_argument('--tracker', action='append')
     args = parser.parse_args()
-    publish(args.distribution.resolve(strict=True), args.mirrors_url, args.tracker)
+    publish(release_path(args.distribution).resolve(strict=True), args.mirrors_url, args.tracker)

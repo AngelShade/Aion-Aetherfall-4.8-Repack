@@ -1,4 +1,4 @@
-"""Build and deliver An Honest Seal's item through native loot and Custom Quests.
+"""Build and deliver a custom quest item through native loot and Custom Quests.
 
 Preparation uses external fixtures and the installed, unchanged quest loader.
 Installation requires normal client, launcher and GameServer closure.
@@ -18,7 +18,6 @@ import zipfile
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
-FOLDER = '14983-AnHonestSeal'
 ITEMS = 'Data/Items/Items.pak'
 ENGLISH = 'L10N/ENU/data/data.pak'
 INDEX = 'bin64/AionIconBridge.index'
@@ -71,10 +70,22 @@ def preservation(before, after, allowed, table_ids):
                 unrelatedTableRowsPreserved=True)
 
 
-def prepare(client, build, output):
+def prepare(client, build, output, item_file=None):
     assert not output.exists() and not output.is_relative_to(ROOT) and not output.is_relative_to(client)
     output.mkdir(parents=True)
-    item = json.loads((HERE / 'loot-item.json').read_text())
+    item_file = (item_file or HERE / 'loot-item.json').resolve(strict=True)
+    assert item_file.parent == HERE
+    loaded = json.loads(item_file.read_text())
+    items = loaded if isinstance(loaded, list) else [loaded]
+    assert items and len({i['id'] for i in items}) == len(items)
+    item = items[0]
+    qids = [i.get('questId', 14983) for i in items]
+    assert len(set(qids)) == len(qids) and set(qids) <= {14983, 14987, 14988, 14990, 14992}
+    folders = {i.get('questId', 14983): str(i.get('questId', 14983)) + '-' + i.get('slug', 'AnHonestSeal') for i in items}
+    server_files = tuple('game-server/data/handlers/quest/verteron/_' + str(i.get('questId', 14983)) + i.get('slug', 'AnHonestSeal') + '.java' for i in items) + SERVER_FILES[1:]
+    guidance_changed = {qid for qid, folder in folders.items() if
+        (HERE.parent / 'Quests' / folder / 'quest_script_monster.csv').read_bytes() !=
+        (client / 'Mods/CustomQuests/Quests' / folder / 'quest_script_monster.csv').read_bytes()}
     captured, writes = {}, []
 
     def watch(path):
@@ -112,13 +123,14 @@ def prepare(client, build, output):
     for relative in ('data/handlers/ai/quests/QuestItemNpcAI.java', 'data/static_data/npcs/npc_templates.xml',
                      'data/static_data/spawns/Npcs/210030000_Verteron.xml'):
         watch(ROOT / 'target-deploy/game-server' / relative)
-    source_paths = [HERE / n for n in ('generate.py', 'arc.json', 'bindings.json', 'loot-item.json', 'update_loot.py')]
-    source_paths += list((HERE.parent / 'Quests' / FOLDER).iterdir())
-    source_paths += [ROOT / n for n in SERVER_FILES]
+    source_paths = [HERE / n for n in ('generate.py', 'arc.json', 'bindings.json', 'loot-item.json', 'water-loot-item.json', 'chain-loot-items.json', 'update_loot.py')]
+    for folder in folders.values():
+        source_paths += list((HERE.parent / 'Quests' / folder).iterdir())
+    source_paths += [ROOT / n for n in server_files]
     sources = {p.relative_to(ROOT).as_posix(): sha(p) for p in source_paths if p.is_file()}
     build_manifest = json.loads((build / 'build-manifest.json').read_text())
     with zipfile.ZipFile(build / 'game-server/game-server.zip') as assembly:
-        for relative in SERVER_FILES:
+        for relative in server_files:
             assert build_manifest['inputs'][relative] == sha(ROOT / relative)
             data = assembly.read(relative)
             assert hashlib.sha256(data).hexdigest() == sha(ROOT / relative)
@@ -127,18 +139,19 @@ def prepare(client, build, output):
             path.write_bytes(data)
             payload(ROOT / 'target-deploy' / relative, path)
 
-    # A genuine quest item, with the restrictions and native art of the Tolbas
-    # seal. Its distinct ID leaves Q1155's supplies and Q1158's seal untouched.
+    # A distinct quest item inherits its native prototype's art/restrictions;
+    # existing quests retain their own original item IDs and drops.
     active = output / 'active'
     copy_file(client / ITEMS, active / ITEMS)
     def add_item(tree):
-        assert all(n.findtext('id') != str(item['id']) and n.findtext('name') != item['clientName'] for n in tree)
-        prototype = next(n for n in tree if n.findtext('id') == str(item['prototype']))
-        assert prototype.findtext('icon_name') == item['icon']
-        added = copy.deepcopy(prototype)
-        for field, value in dict(id=item['id'], name=item['clientName'], desc=item['nameKey'], desc_long=item['descriptionKey']).items():
-            added.find(field).text = str(value)
-        tree.append(added)
+        for item in items:
+            assert all(n.findtext('id') != str(item['id']) and n.findtext('name') != item['clientName'] for n in tree)
+            prototype = next(n for n in tree if n.findtext('id') == str(item['prototype']))
+            assert prototype.findtext('icon_name') == item['icon']
+            added = copy.deepcopy(prototype)
+            for field, value in dict(id=item['id'], name=item['clientName'], desc=item['nameKey'], desc_long=item['descriptionKey']).items():
+                added.find(field).text = str(value)
+            tree.append(added)
     patch_archive(active / ITEMS, 'client_items_etc.xml', add_item)
     old_index = (client / INDEX).read_bytes()
     magic, old_count, textures, length, digest = struct.unpack_from('<8sIIQ32s', old_index)
@@ -149,8 +162,9 @@ def prepare(client, build, output):
     _, new_count, new_textures, _, _ = struct.unpack_from('<8sIIQ32s', new_index)
     old_mapping = dict(struct.iter_unpack('<II', old_index[56:56 + old_count * 8]))
     new_mapping = dict(struct.iter_unpack('<II', new_index[56:56 + new_count * 8]))
-    assert new_count == old_count + 1 and textures == new_textures
-    assert item['id'] not in old_mapping and new_mapping.pop(item['id']) == old_mapping[item['prototype']]
+    assert new_count == old_count + len(items) and textures == new_textures
+    for item in items:
+        assert item['id'] not in old_mapping and new_mapping.pop(item['id']) == old_mapping[item['prototype']]
     assert new_mapping == old_mapping
     for i in range(textures):
         a, b = 56 + old_count * 8 + i * 56, 56 + new_count * 8 + i * 56
@@ -163,16 +177,18 @@ def prepare(client, build, output):
         for relative in resources.ARCHIVES:
             copy_file(restore / relative if kind == 'restore' and relative == ENGLISH else client / relative, fixture / relative)
         shutil.copytree(client / 'Mods/CustomQuests', fixture / 'Mods/CustomQuests')
-        for path in (HERE.parent / 'Quests' / FOLDER).iterdir():
-            watch(client / 'Mods/CustomQuests/Quests' / FOLDER / path.name)
-            copy_file(path, fixture / 'Mods/CustomQuests/Quests' / FOLDER / path.name)
+        for folder in folders.values():
+            for path in (HERE.parent / 'Quests' / folder).iterdir():
+                watch(client / 'Mods/CustomQuests/Quests' / folder / path.name)
+                copy_file(path, fixture / 'Mods/CustomQuests/Quests' / folder / path.name)
         def add_strings(tree):
-            for ident, key, body in ((item['nameStringId'], item['nameKey'], item['name']),
-                                     (item['descriptionStringId'], item['descriptionKey'], item['description'])):
-                assert all(n.findtext('id') != str(ident) and n.findtext('name') != key for n in tree)
-                n = ET.SubElement(tree, 'string')
-                for field, value in dict(id=ident, name=key, body=body).items():
-                    ET.SubElement(n, field).text = str(value)
+            for item in items:
+                for ident, key, body in ((item['nameStringId'], item['nameKey'], item['name']),
+                                         (item['descriptionStringId'], item['descriptionKey'], item['description'])):
+                    assert all(n.findtext('id') != str(ident) and n.findtext('name') != key for n in tree)
+                    n = ET.SubElement(tree, 'string')
+                    for field, value in dict(id=ident, name=key, body=body).items():
+                        ET.SubElement(n, field).text = str(value)
         patch_archive(fixture / ENGLISH, 'strings/client_strings_item.xml', add_strings)
         save(fixture / 'Mods/CustomQuests/settings.json', dict(BackupRoot=str(output / 'loader-backups')))
         report = output / (kind + '-loader.txt')
@@ -181,20 +197,33 @@ def prepare(client, build, output):
         assert result.returncode == 0, message
         ledger = json.loads((fixture / 'Mods/CustomQuests/installed.json').read_text())
         assert ledger['Owned'].keys() == original_ledger['Owned'].keys()
-        assert {k for k in ledger['Owned'] if ledger['Owned'][k] != original_ledger['Owned'][k]} == {'q:14983', 'r:14983', 'd:14983'}
+        expected_owned_changes = {prefix + str(qid) for qid in qids for prefix in ('q:', 'r:', 'd:')}
+        expected_owned_changes |= {'c:' + str(qid) for qid in guidance_changed}
+        assert {k for k in ledger['Owned'] if ledger['Owned'][k] != original_ledger['Owned'][k]} == expected_owned_changes
+        quest_members = {'quest.xml', 'data_driven_quest.xml'}
+        if guidance_changed:
+            quest_members.add('quest_script_monster.csv')
+            with resources.read_pak(client / resources.ARCHIVES[0]) as before, resources.read_pak(fixture / resources.ARCHIVES[0]) as after:
+                old_rows = before.read('quest_script_monster.csv').decode('utf-8-sig').splitlines(keepends=True)
+                new_rows = after.read('quest_script_monster.csv').decode('utf-8-sig').splitlines(keepends=True)
+                prefixes = tuple(str(qid) + ',' for qid in guidance_changed)
+                assert [r for r in old_rows if not r.startswith(prefixes)] == [r for r in new_rows if not r.startswith(prefixes)]
+                for qid in guidance_changed:
+                    assert ''.join(r for r in new_rows if r.startswith(str(qid) + ',')) == (HERE.parent / 'Quests' / folders[qid] / 'quest_script_monster.csv').read_bytes().decode('utf-8')
         validation[kind] = dict(loader=message.strip(),
             questArchive=preservation(client / resources.ARCHIVES[0], fixture / resources.ARCHIVES[0],
-                                     {'quest.xml', 'data_driven_quest.xml'},
-                                     {'quest.xml': {'14983'}, 'data_driven_quest.xml': {'14983'}}),
+                                     quest_members,
+                                     {'quest.xml': set(map(str, qids)), 'data_driven_quest.xml': set(map(str, qids))}),
             englishArchive=preservation(restore / ENGLISH if kind == 'restore' else client / ENGLISH, fixture / ENGLISH,
-                                       {'strings/client_strings_item.xml', 'dialogs/quest_q14983.html'},
-                                       {'strings/client_strings_item.xml': {str(item['nameStringId']), str(item['descriptionStringId'])}}))
+                                       {'strings/client_strings_item.xml'} | {'dialogs/quest_q' + str(qid) + '.html' for qid in qids},
+                                       {'strings/client_strings_item.xml': {str(i[k]) for i in items for k in ('nameStringId', 'descriptionStringId')}}))
     validation['itemsArchive'] = preservation(client / ITEMS, active / ITEMS, {'client_items_etc.xml'},
-                                              {'client_items_etc.xml': {str(item['id'])}})
-    for path in (HERE.parent / 'Quests' / FOLDER).iterdir():
-        target = client / 'Mods/CustomQuests/Quests' / FOLDER / path.name
-        if sha(path) != sha(target):
-            payload(target, path)
+                                              {'client_items_etc.xml': {str(i['id']) for i in items}})
+    for folder in folders.values():
+        for path in (HERE.parent / 'Quests' / folder).iterdir():
+            target = client / 'Mods/CustomQuests/Quests' / folder / path.name
+            if sha(path) != sha(target):
+                payload(target, path)
     for relative in (*resources.ARCHIVES, ITEMS, INDEX, 'Mods/CustomQuests/installed.json'):
         payload(client / relative, active / relative)
     payload(client / 'Mods/GraphicsMenu/package' / ENGLISH, active / ENGLISH)
@@ -214,8 +243,8 @@ def prepare(client, build, output):
     json_payload('Mods/InstalledMods.json', mods)
     assert all((sha(Path(p)) if Path(p).exists() else None) == v for p, v in captured.items()), 'Installed baseline changed during preparation'
     assert all(sha(ROOT / p) == v for p, v in sources.items()), 'Authoring changed during preparation; use a fresh stage'
-    save(output / 'manifest.json', dict(feature='an-honest-seal-loot', originalOnly=True, client=str(client), build=str(build),
-         questIds=[14983], item=item, files=writes, sourceHashes=sources, liveInputs=captured,
+    save(output / 'manifest.json', dict(feature='unbroken-field-native-loot' if len(items) > 1 else item.get('feature', 'an-honest-seal-loot'), originalOnly=True, client=str(client), build=str(build),
+         questIds=qids, item=items[0], items=items, files=writes, sourceHashes=sources, liveInputs=captured,
          validation=validation, installed=False, coreChanged=False, gameplayVerified=False))
     print('Prepared genuine quest item, native crate loot, pickup progression, journal and recovery resources; '
           + str(len(writes)) + ' affected files. Original installations untouched.')
@@ -223,7 +252,7 @@ def prepare(client, build, output):
 
 def install(stage, backup):
     manifest = json.loads((stage / 'manifest.json').read_text())
-    assert manifest['feature'] == 'an-honest-seal-loot' and not manifest['installed']
+    assert manifest['feature'] in ('an-honest-seal-loot', 'water-carries-loot', 'unbroken-field-native-loot') and not manifest['installed']
     client, server = Path(manifest['client']), ROOT / 'target-deploy/game-server'
     assert not backup.exists() and not backup.is_relative_to(ROOT) and not backup.is_relative_to(client)
     for name, expected in manifest['sourceHashes'].items():
@@ -282,16 +311,18 @@ def install(stage, backup):
             relative = p.relative_to(client).as_posix()
             assert relative.casefold() in known
             known[relative.casefold()]['sha256'] = e['after']
-    inventory['lastHonestSealLootDelivery'] = dict(installedAt=receipt['installedAt'], receipt=str(backup / 'receipt.json'),
-        stage=str(stage), build=manifest['build'], originalOnly=True, questId=14983, itemId=manifest['item']['id'],
+    inventory_key = 'lastUnbrokenFieldNativeLootDelivery' if len(manifest.get('items', [])) > 1 else manifest['item'].get('inventoryKey', 'lastHonestSealLootDelivery')
+    inventory[inventory_key] = dict(installedAt=receipt['installedAt'], receipt=str(backup / 'receipt.json'),
+        stage=str(stage), build=manifest['build'], originalOnly=True, questId=manifest['questIds'][0], itemId=manifest['item']['id'],
         coreChanged=False, serverJarChanged=False,
-        gameplayAcceptance='Owner: crate loot/pickup, Santenius turn-in, native Q1155 coexistence, relog and abandon/reaccept pending')
+        gameplayAcceptance='Owner: native object loot/pickup, sample turn-in, original quest coexistence, relog and abandon/reaccept pending')
+    inventory[inventory_key].update(questIds=manifest['questIds'], itemIds=[i['id'] for i in manifest.get('items', [manifest['item']])])
     for key in ('clientReceipts', 'serverReceipts'):
         inventory[key].append(str(backup / 'receipt.json'))
     save(inventory_path, inventory)
     manifest.update(installed=True, receipt=str(backup / 'receipt.json'))
     save(stage / 'manifest.json', manifest)
-    print('Installed An Honest Seal loot correction; ' + str(len(files)) + ' copied hashes and client compatibility checks passed. Receipt: ' + str(backup / 'receipt.json'))
+    print('Installed ' + manifest['feature'] + '; ' + str(len(files)) + ' copied hashes and client compatibility checks passed. Receipt: ' + str(backup / 'receipt.json'))
 
 
 if __name__ == '__main__':
@@ -300,11 +331,12 @@ if __name__ == '__main__':
     prep = sub.add_parser('prepare')
     for name in ('client', 'build', 'output'):
         prep.add_argument('--' + name, type=Path, required=True)
+    prep.add_argument('--item', type=Path)
     deliver = sub.add_parser('install')
     for name in ('stage', 'backup'):
         deliver.add_argument('--' + name, type=Path, required=True)
     args = parser.parse_args()
     if args.mode == 'prepare':
-        prepare(args.client.resolve(strict=True), args.build.resolve(strict=True), args.output.resolve())
+        prepare(args.client.resolve(strict=True), args.build.resolve(strict=True), args.output.resolve(), args.item)
     else:
         install(args.stage.resolve(strict=True), args.backup.resolve())

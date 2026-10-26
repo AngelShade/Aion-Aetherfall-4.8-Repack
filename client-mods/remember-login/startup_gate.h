@@ -8,9 +8,10 @@ HHOOK creation=nullptr;
 ULONGLONG began=0;
 HWND renderer=nullptr;
 WNDPROC previous=nullptr;
-LONG_PTR originalTaskbar=0;
 UINT releaseMessage=0;
-constexpr LONG_PTR taskbarMask=WS_EX_APPWINDOW|WS_EX_TOOLWINDOW;
+// Hiding alone keeps the loading renderer off the taskbar. The extended style is
+// never changed: a temporary WS_EX_TOOLWINDOW could leave the shown game without
+// a taskbar/Alt+Tab entry on Direct3D 9 full-screen setups.
 
 void log(const char* text){
     if(trace==INVALID_HANDLE_VALUE)return;
@@ -113,10 +114,7 @@ void patchReferences(){
 LRESULT CALLBACK windowProcedure(HWND window,UINT message,WPARAM wparam,LPARAM lparam){
     WNDPROC original=previous;
     if(message==releaseMessage&&releaseMessage){
-        LONG_PTR style=GetWindowLongPtrW(window,GWL_EXSTYLE);
-        SetWindowLongPtrW(window,GWL_EXSTYLE,(style&~taskbarMask)|originalTaskbar);
         // This runs on the game's UI thread after the real login draw signal.
-        SetWindowPos(window,nullptr,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOZORDER|SWP_NOACTIVATE|SWP_FRAMECHANGED);
         ShowWindow(window,SW_SHOWNOACTIVATE);
         if(reinterpret_cast<WNDPROC>(GetWindowLongPtrW(window,GWLP_WNDPROC))==windowProcedure)
             SetWindowLongPtrW(window,GWLP_WNDPROC,reinterpret_cast<LONG_PTR>(original));
@@ -132,7 +130,6 @@ LRESULT CALLBACK windowProcedure(HWND window,UINT message,WPARAM wparam,LPARAM l
         LRESULT result=CallWindowProcW(original,window,message,wparam,lparam);
         auto style=reinterpret_cast<STYLESTRUCT*>(lparam);
         if(static_cast<int>(wparam)==GWL_STYLE)style->styleNew&=~WS_VISIBLE;
-        if(static_cast<int>(wparam)==GWL_EXSTYLE)style->styleNew=(style->styleNew&~WS_EX_APPWINDOW)|WS_EX_TOOLWINDOW;
         return result;
     }
     return CallWindowProcW(original,window,message,wparam,lparam);
@@ -140,13 +137,11 @@ LRESULT CALLBACK windowProcedure(HWND window,UINT message,WPARAM wparam,LPARAM l
 void guard(HWND window){
     if(!gated(window)||renderer==window)return;
     // CBT reaches here before WM_NCCREATE and before WS_VISIBLE can be shown.
-    originalTaskbar=GetWindowLongPtrW(window,GWL_EXSTYLE)&taskbarMask;
     previous=reinterpret_cast<WNDPROC>(GetWindowLongPtrW(window,GWLP_WNDPROC));
     if(!previous)return;
     renderer=window;
     SetWindowLongPtrW(window,GWLP_WNDPROC,reinterpret_cast<LONG_PTR>(&windowProcedure));
     SetWindowLongPtrW(window,GWL_STYLE,GetWindowLongPtrW(window,GWL_STYLE)&~WS_VISIBLE);
-    SetWindowLongPtrW(window,GWL_EXSTYLE,(GetWindowLongPtrW(window,GWL_EXSTYLE)&~taskbarMask)|WS_EX_TOOLWINDOW);
     log("Renderer creation guarded; native loading stays hidden.");
     patchReferences();
 }

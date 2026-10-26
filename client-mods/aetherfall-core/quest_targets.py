@@ -43,14 +43,16 @@ def generate(client, output, read_pak, decode_html):
     client, output = Path(client), Path(output)
     inputs = {}
     game = (client / 'bin64/Game.dll').read_bytes()
-    for site in (0x9633e5, 0x6c17ef):
-        expected = b'\xe8' + struct.pack('<i', 0x1c2ca0 - site - 5)
+    for site, target in ((0x9633e5, 0x1c2ca0), (0x8f3a44, 0x8f06b0)):
+        expected = b'\xe8' + struct.pack('<i', target - site - 5)
         if game[site:site + 5] != expected:
             raise ValueError('Unsupported native quest formatter call: ' + hex(site))
     if game[0x9633d0:0x9633d4] != bytes.fromhex('4d8d4f46'):
         raise ValueError('Native mob-name pointer contract differs')
-    if game[0x6c16ee:0x6c16f3] != bytes.fromhex('44896c2430'):
-        raise ValueError('Native tooltip quest-ID argument contract differs')
+    if game[0x8f3a31:0x8f3a44] != bytes.fromhex('488d942450080000488d8c2450060000448bc3'):
+        raise ValueError('Native world-hover quest definition/output argument contract differs')
+    if game[0x8f06e7:0x8f06ed] != bytes.fromhex('41b800010000'):
+        raise ValueError('Native world-hover quest text capacity differs')
     inputs['bin64/Game.dll'] = hashlib.sha256(game).hexdigest()
     def archive(relative):
         path = client / relative

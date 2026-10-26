@@ -25,7 +25,7 @@ def closed():
     # The restricted Get-Process view can omit a running elevated Aion process.
     # CIM must succeed; an inaccessible full process list is never closure proof.
     result = subprocess.run(['powershell.exe', '-NoProfile', '-Command',
-        "$ErrorActionPreference='Stop'; Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object { $_.Name -match '^(aion\\.bin|aion\\.exe|Aetherfall Launcher\\.exe)$' } | Select-Object -ExpandProperty Name"],
+        "$ErrorActionPreference='Stop'; Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object { $_.Name -in @('aion.bin','aion.exe','Aetherfall Launcher.exe') } | Select-Object -ExpandProperty Name"],
         check=True, capture_output=True, text=True)
     if result.stdout.strip():
         raise SystemExit('Close Aion and its launcher normally first: ' + result.stdout.strip())

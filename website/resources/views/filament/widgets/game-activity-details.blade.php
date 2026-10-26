@@ -124,6 +124,11 @@
                     <div class="mt-1 text-lg font-semibold text-gray-950 dark:text-white">{{ isset($online['online_players']) ? number_format($online['online_players']) : 'Unavailable' }}</div>
                 </x-filament::section>
                 <x-filament::section compact>
+                    <div class="text-sm text-gray-500 dark:text-gray-400">Online bots</div>
+                    <div class="mt-1 text-lg font-semibold text-gray-950 dark:text-white">{{ isset($online['online_bots']) ? number_format($online['online_bots']) : 'Unavailable' }}</div>
+                    <div class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ $online['bots_detail'] ?? 'Live bot statistics are unavailable.' }}</div>
+                </x-filament::section>
+                <x-filament::section compact>
                     <div class="text-sm text-gray-500 dark:text-gray-400">Player details</div>
                     <div class="mt-1 text-sm font-medium text-gray-950 dark:text-white">{{ $online['players_detail'] ?? 'No additional details' }}</div>
                 </x-filament::section>
