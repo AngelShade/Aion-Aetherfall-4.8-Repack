@@ -9,7 +9,7 @@
   <a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.96.6"><img src="https://img.shields.io/badge/Latest_Release-v0.96.6-eab308?style=for-the-badge" alt="Latest Release v0.96.6"></a>
   <a href="https://mega.nz/file/hJt0hYTC#fr0RDjsLl4CriZ5dw8MljBhrlP6nD4oYkaErD2iW-vQ"><img src="https://img.shields.io/badge/MEGA_Mirror-Base_Repack_0.86_(36.35_GB)-d9272e?style=for-the-badge" alt="MEGA Mirror"></a>
   <a href="https://drive.google.com/file/d/1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2/view?usp=sharing"><img src="https://img.shields.io/badge/Google_Drive-Base_Repack_0.86_(36.35_GB)-16a34a?style=for-the-badge&logo=googledrive" alt="Google Drive Mirror"></a>
-  <a href="https://discord.com/invite/cpRYCRsSnR"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
+  <a href="https://discord.gg/DAnAjx3tY2"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
 </p>
 
 **Play Aion 4.8 NA with party companions, shared quests and a world of independent playerbots.**
@@ -69,7 +69,7 @@ GitHub's **Code → Download ZIP** downloads source code only. Use one of these 
 | **Google Drive** | [**Download `Aetherfall-0.86.7z`**](https://drive.google.com/file/d/1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2/view?usp=sharing) | Another download location for the same archive. |
 | **BitTorrent** | [**Download `Aetherfall-0.86.torrent`**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.86/Aetherfall-0.86.torrent) | Download through a torrent client; requires available seeders. |
 | **Releases & updates** | [**View releases**](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases) | Update files, Setup downloads and release notes. |
-| **Community Discord** | [**Join the Aetherfall Discord**](https://discord.com/invite/cpRYCRsSnR) | Updates, support, playerbot tips and bug reports. |
+| **Community Discord** | [**Join the Aetherfall Discord**](https://discord.gg/DAnAjx3tY2) | Updates, support, playerbot tips and bug reports. |
 
 <details>
 <summary>Archive checksums for manual downloads</summary>
@@ -141,7 +141,7 @@ A separate [Aetherfall website project](website/README-AETHERFALL.md) provides a
 
 ## Help and bug reports
 
-Join the [Aetherfall Discord](https://discord.com/invite/cpRYCRsSnR) for support. When reporting a problem, include your repack version, where it happened, what you did and what you expected. Quest names, NPC names, screenshots and relevant log lines help.
+Join the [Aetherfall Discord](https://discord.gg/DAnAjx3tY2) for support. When reporting a problem, include your repack version, where it happened, what you did and what you expected. Quest names, NPC names, screenshots and relevant log lines help.
 
 Development is ongoing. Some routes, quests and encounters still need work.
 
