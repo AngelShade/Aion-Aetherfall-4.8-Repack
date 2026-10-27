@@ -47,6 +47,12 @@ public final class PlayerBotPresets {
    if(current==null && doc.presets().size()>=MAX_PRESETS)throw new IllegalArgumentException("You can save up to 20 party presets.");
    var presets=new ArrayList<>(doc.presets());presets.removeIf(p->p.id().equals(preset.id()));presets.add(preset);var saved=new HashSet<>(doc.saved());for(var m:members)if(m.temporary())saved.add(m.id());write(new Document(account,saved,presets));return preset;
   }
+  synchronized Preset edit(int account,String id,String name,List<Member> members)throws IOException {
+   var doc=load(account);if(doc.presets().stream().noneMatch(p->p.id().equals(id)))throw new IllegalArgumentException("That party preset no longer exists.");
+   if(doc.presets().stream().anyMatch(p->!p.id().equals(id) && p.name().equalsIgnoreCase(name.strip())))throw new IllegalArgumentException("Another saved party already uses that name.");
+   var preset=new Preset(id,name.strip(),members);var presets=new ArrayList<Preset>();for(var p:doc.presets())presets.add(p.id().equals(id) ? preset : p);
+   var saved=new HashSet<>(doc.saved());for(var m:members)if(m.temporary())saved.add(m.id());write(new Document(account,saved,presets));return preset;
+  }
   synchronized void remove(int account,String id)throws IOException {var doc=load(account);var presets=new ArrayList<>(doc.presets());if(!presets.removeIf(p->p.id().equals(id)))throw new IllegalArgumentException("That party preset no longer exists.");write(new Document(account,doc.saved(),presets));}
  }
  public static Map<String,Object> snapshot(Player owner) {
@@ -78,6 +84,24 @@ public final class PlayerBotPresets {
     var preset=STORE.saveParty(owner.getAccount().getId(),name,members);return "Saved party preset "+preset.name()+" ("+members.size()+" companions).";
    }catch(Exception e){throw failure("Could not save this party preset",e);}
   }
+ }
+ /** Rename a saved party and set its members, roles and orders; members must be this account's characters or Temporary Bots. */
+ public static String editParty(Player owner,String id,String name,String spec) {
+  if(!id.matches("[a-f0-9]{32}") || spec.length()>2048)throw new IllegalArgumentException("Choose a saved party.");
+  var roster=PlayerBotRoster.list(owner.getAccount().getId());List<Member> members=new ArrayList<>();
+  for(String part:spec.split(",")) {
+   String[] f=part.split(":");if(f.length!=3)throw new IllegalArgumentException("Invalid saved party member.");
+   int member=Integer.parseInt(f[0]);if(member==owner.getObjectId())throw new IllegalArgumentException("Your current character cannot be a member of its own saved party.");
+   var temporary=roster.stream().filter(e->e.id()==member && e.ready()).findFirst().orElse(null);String memberName;
+   if(temporary!=null)memberName=temporary.name();
+   else {
+    if(PlayerDAO.getAccountId(member)!=owner.getAccount().getId())throw new IllegalArgumentException("A saved party member no longer belongs to this account.");
+    var data=AccountService.loadPlayerAccountData(member);if(data==null)throw new IllegalArgumentException("A saved party member no longer exists.");memberName=data.getPlayerCommonData().getName();
+   }
+   members.add(new Member(member,memberName,temporary!=null,Role.valueOf(f[1].toUpperCase(Locale.ROOT)),Order.valueOf(f[2].toUpperCase(Locale.ROOT))));
+  }
+  try{var preset=STORE.edit(owner.getAccount().getId(),id,name,members);return "Saved party "+preset.name()+" updated ("+members.size()+" companions).";}
+  catch(IOException e){throw failure("Could not update the saved party",e);}
  }
  private static IllegalArgumentException failure(String context,Exception e){return new IllegalArgumentException(context+": "+e.getMessage(),e);}
  public static String remove(Player owner,String id){if(id.startsWith("bot:"))return PlayerBotRosterRemoval.remove(owner,Integer.parseInt(id.substring(4)),STORE);try{STORE.remove(owner.getAccount().getId(),id);return "Party preset removed. Your characters and saved bots were kept.";}catch(IOException e){throw failure("Could not remove the preset",e);}}

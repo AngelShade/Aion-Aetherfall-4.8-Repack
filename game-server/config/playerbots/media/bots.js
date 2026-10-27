@@ -43,7 +43,7 @@
 
   var sectionNames = {
     behavior: [['combat','Combat'],['automation','Quest automation'],['spacing','Spacing']],
-    equipment: [['profile','Character'],['inventory','Inventory'],['build','Build choices'],['warehouse','Private warehouse'],['legion','Legion storage']],
+    equipment: [['profile','Character'],['inventory','Inventory'],['transfer','Transfer items'],['build','Build choices'],['warehouse','Private warehouse'],['legion','Legion storage']],
     mail: [['inbox','Inbox'],['send','Send']], quests: [['journal','Journal'],['requests','Requests']],
     care: [['maintenance','Maintenance'],['budget','Spending budget']]
   };
@@ -433,6 +433,7 @@
 
     if (!activeBot(selectedBot) && !rosterBot(selectedBot)) selectedBot = state.active.length ? state.active[0].id : null;
 
+    if (pendingTransfer) for (var pt = 0; pt < state.active.length; pt++) if (state.active[pt].name === pendingTransfer) { pendingTransfer = null; subTabs.equipment = 'transfer'; selectedBot = state.active[pt].id; botTab = 'equipment'; inspecting = true; showView('party'); }
     renderSelection(); renderRoster(); renderOverview(); renderPresets(); updateClasses();
     byId('save-party').querySelector('button').disabled = !state.active.length || busy;
 
@@ -606,17 +607,63 @@
       remove.setAttribute('data-action', 'confirm-removebot'); remove.disabled = busy || (live ? live.closing : character.reserved);
     }
   }
+  // Saved parties: one banner per preset, members in party-sized groups (alliances show Group 1-4), edited in place.
+  var presetEdit = null;
+  function rosterEntry(id) { for (var i = 0; state && i < state.roster.length; i++) if (String(state.roster[i].id) === String(id)) return state.roster[i]; return null; }
+  function presetMember(parent, member, editing) {
+    var known = rosterEntry(member.id), chip = node('div', null, 'preset-member' + (editing ? ' editing' : ''));
+    chip.appendChild(crest(known && known.playerClass, member.role));
+    chip.appendChild(node('strong', member.name));
+    chip.appendChild(node('span', (known && known.level != null ? 'Lv. ' + known.level + ' ' : '') + (known && known.playerClass ? label(known.playerClass) : member.temporary ? 'Temporary Bot' : 'Account character'), 'meta'));
+    if (!editing) { chip.appendChild(node('span', label(member.role) + ' · ' + label(member.order), 'summary-status')); parent.appendChild(chip); return; }
+    var role = select(chip, state.roles, member.role), order = select(chip, ['FOLLOW', 'STAY', 'GUARD', 'PASSIVE'], member.order);
+    role.className = 'preset-role'; order.className = 'preset-order'; role.setAttribute('aria-label', member.name + ' role'); order.setAttribute('aria-label', member.name + ' order');
+    role.onchange = function () { member.role = role.value; }; order.onchange = function () { member.order = order.value; };
+    var drop = localButton(chip, '✖', function () { presetEdit.members.splice(presetEdit.members.indexOf(member), 1); renderPresets(); }, 'preset-drop');
+    drop.title = 'Remove ' + member.name + ' from this saved party';
+    parent.appendChild(chip);
+  }
   function renderPresets() {
     var parent = byId('saved-parties'), presets = state.presets || []; clear(parent);
-    if (!presets.length) { parent.appendChild(node('p', 'Save your current party from the Party tab. You can mix player-owned alts and Temporary Bots.', 'empty')); return; }
+    var head = node('div', null, 'preset-summary'); head.appendChild(node('span', presets.length + ' / ' + (state.presetLimit || 20) + ' saved parties', 'status-pill'));
+    head.appendChild(node('span', 'Save your current party from the Party tab. Edit a saved party to rename it, change roles and orders, or add and remove members.', 'hint'));
+    parent.appendChild(head);
+    if (!presets.length) { parent.appendChild(node('p', 'No saved parties yet. You can mix player-owned alts and Temporary Bots.', 'empty')); return; }
+    if (presetEdit) { var still = false; for (var k = 0; k < presets.length; k++) if (presets[k].id === presetEdit.id) still = true; if (!still) presetEdit = null; }
     for (var i = 0; i < presets.length; i++) (function (preset) {
-      var card = node('article', null, 'preset-card'); card.setAttribute('data-preset-id', preset.id); card.appendChild(node('h4', preset.name));
-      var members = node('div', null, 'preset-members');
-      for (var j = 0; j < preset.members.length; j++) { var m = preset.members[j]; members.appendChild(node('p', m.name + ' / ' + label(m.role) + ' / ' + (m.temporary ? 'Temporary Bot' : 'Player-owned alt'), 'hint')); }
-      card.appendChild(members); var actions = node('div', null, 'roster-action');
-      button(actions, 'Summon preset', { action: 'loadparty', preset: preset.id }, !state.enabled, 'primary');
-      button(actions, 'Remove preset', { action: 'deleteparty', preset: preset.id }, false, 'secondary');
-      card.appendChild(actions); parent.appendChild(card);
+      var editing = presetEdit && presetEdit.id === preset.id, members = editing ? presetEdit.members : preset.members;
+      var card = node('article', null, 'preset-card' + (editing ? ' editing' : '')); card.setAttribute('data-preset-id', preset.id);
+      var top = node('div', null, 'preset-head'), temporary = 0;
+      for (var t = 0; t < members.length; t++) if (members[t].temporary) temporary++;
+      if (editing) { var title = node('input'); title.id = 'preset-edit-name'; title.maxLength = 40; title.value = presetEdit.name; title.setAttribute('aria-label', 'Saved party name'); title.oninput = function () { presetEdit.name = title.value; }; top.appendChild(title); }
+      else top.appendChild(node('h4', preset.name));
+      top.appendChild(node('span', (members.length > 5 ? 'Alliance' : 'Party') + ' · ' + members.length + ' companions · ' + temporary + (temporary === 1 ? ' Temporary Bot' : ' Temporary Bots'), 'preset-meta'));
+      var actions = node('div', null, 'preset-actions');
+      if (editing) {
+        var save = button(actions, 'Save changes', {}, !members.length, 'primary small');
+        save.onclick = function () { var spec = []; for (var m = 0; m < presetEdit.members.length; m++) spec.push(presetEdit.members[m].id + ':' + presetEdit.members[m].role + ':' + presetEdit.members[m].order); act({ action: 'editparty', preset: preset.id, presetName: presetEdit.name, members: spec.join(',') }); presetEdit = null; };
+        localButton(actions, 'Cancel', function () { presetEdit = null; renderPresets(); }, 'quiet small');
+      } else {
+        button(actions, 'Summon', { action: 'loadparty', preset: preset.id }, !state.enabled, 'primary small');
+        localButton(actions, 'Edit', function () { var copy = []; for (var m = 0; m < preset.members.length; m++) copy.push({ id: preset.members[m].id, name: preset.members[m].name, temporary: preset.members[m].temporary, role: preset.members[m].role, order: preset.members[m].order }); presetEdit = { id: preset.id, name: preset.name, members: copy }; renderPresets(); }, 'small');
+        button(actions, 'Remove', { action: 'deleteparty', preset: preset.id }, false, 'danger small');
+      }
+      top.appendChild(actions); card.appendChild(top);
+      for (var g = 0; g * 6 < Math.max(members.length, 1); g++) {
+        var group = node('div', null, 'preset-group');
+        if (members.length > 6) group.appendChild(node('span', 'Group ' + (g + 1), 'preset-group-title'));
+        for (var n = g * 6; n < Math.min(members.length, g * 6 + 6); n++) presetMember(group, members[n], editing);
+        card.appendChild(group);
+      }
+      if (editing && members.length < 23) {
+        var add = node('div', null, 'preset-add'), choice = node('select'), taken = {};
+        for (var a = 0; a < members.length; a++) taken[members[a].id] = true;
+        for (var r = 0; r < state.roster.length; r++) { var c = state.roster[r]; if (taken[c.id] || (c.generated && !c.ready)) continue; var opt = node('option', c.name + (c.level != null ? ' · Lv. ' + c.level : '') + (c.playerClass ? ' ' + label(c.playerClass) : '')); opt.value = c.id; choice.appendChild(opt); }
+        choice.setAttribute('aria-label', 'Companion to add'); add.appendChild(choice);
+        localButton(add, '+ Add to party', function () { var c = rosterEntry(choice.value); if (!c) return; presetEdit.members.push({ id: c.id, name: c.name, temporary: !!c.generated, role: state.roles[0], order: 'FOLLOW' }); renderPresets(); }, 'small').disabled = !choice.options.length;
+        card.appendChild(add);
+      }
+      parent.appendChild(card);
     }(presets[i]));
   }
 
@@ -651,6 +698,7 @@
 
     byId('roster-page').textContent = 'Page ' + (rosterPage + 1) + ' of ' + pages; byId('roster-prev').disabled = rosterPage === 0; byId('roster-next').disabled = rosterPage >= pages - 1;
 
+    var mailPanel = byId('mail-alt-panel'); clear(mailPanel); if (mailTarget) renderMailAlt(mailPanel);
     if (!rows.length) parent.appendChild(node('div', state.roster.length ? 'Try another name, class or filter.' : 'Your roster is empty. Create a companion to get started.', 'empty'));
 
     for (var r = start; r < end; r++) (function (character) {
@@ -665,6 +713,13 @@
       var view = localButton(action, live ? 'Manage' : 'View', function () { openBot(character.id, 'overview'); }); view.setAttribute('data-action', 'view');
 
       if (character.generated && character.ready) button(action, isSavedBot(character.id) ? 'Save progress' : 'Save bot', { action: 'savebot', name: character.name }, live && live.closing, 'secondary');
+      if (live) localButton(action, 'Move items', function () { subTabs.equipment = 'transfer'; openBot(character.id, 'equipment'); }, 'small');
+      else if (!character.generated) {
+        var moveItems = button(action, 'Move items', { action: 'recruit', name: character.name }, !state.enabled || character.reserved || !character.ready || !(state.recruitRemaining > 0), 'small');
+        moveItems.title = 'Recruit ' + character.name + ', then open its item transfer';
+        moveItems.onclick = function () { pendingTransfer = character.name; act({ action: 'recruit', name: character.name }); };
+        localButton(action, 'Mail items', function () { mailTarget = character.name; transferPick.mail = null; renderRoster(); }, 'small');
+      }
       if (!live) button(action, character.generated && isSavedBot(character.id) ? 'Summon saved bot' : 'Recruit', { action: 'recruit', name: character.name }, !state.enabled || character.reserved || !character.ready || !(state.recruitRemaining > 0), 'secondary');
 
       removalControls(action, character, live);
@@ -738,6 +793,7 @@
       var inventory = subPanel(body,'inventory','Inventory');
       inventory.appendChild(node('p','Items belong to this companion. Hover for native item details; select a slot for available actions.','hint'));
       itemGrid(inventory,bot,carried,'inventory','Inventory (' + carried.length + (bot.inventoryLimit != null ? ' / ' + bot.inventoryLimit : '') + ')',renderItem);
+      renderTransfer(subPanel(body,'transfer','Transfer items'),bot);
 
       var warehousePanel = subPanel(body,'warehouse','Private warehouse'), legionPanel = subPanel(body,'legion','Legion storage');
       if (bot.world) { warehousePanel.appendChild(node('p','Independent bots retain ownership of their private warehouse.','empty-state')); legionPanel.appendChild(node('p','Inviting an independent bot does not grant access to its stored possessions.','empty-state')); }
@@ -904,6 +960,64 @@
   }
 
   // Stigma builds (config/playerbots/stigma-builds.properties): the chosen build's Stigmas are equipped first, out of combat.
+  // Item transfer: your bag on the left, the companion's on the right; one whole stack or a Kinah amount per move.
+  var transferPick = {}, pendingTransfer = null, mailTarget = null;
+  function bagGrid(parent, title, items, key) {
+    var box = node('section', null, 'bag'), grid = node('div', null, 'cube-grid');
+    box.appendChild(node('h3', title));
+    for (var i = 0; i < items.length; i++) (function (item) {
+      var cell = node('div', null, 'cube-cell'), tile = node('button', null, 'cube-slot' + (String(transferPick[key]) === String(item.id) ? ' selected' : ''));
+      cell.appendChild(itemIcon(item, 'cube-icon')); tile.type = 'button'; tile.setAttribute('data-local-control', 'true');
+      tile.title = nativeItemLink(item) || item.name; tile.setAttribute('aria-label', item.name + ', ' + item.count);
+      tile.appendChild(node('span', item.count > 1 ? item.count : '', 'stack-count'));
+      tile.onclick = function () { transferPick[key] = String(transferPick[key]) === String(item.id) ? null : item.id; renderSelection(); renderRoster(); };
+      cell.appendChild(tile); grid.appendChild(cell);
+    }(items[i]));
+    if (!items.length) grid.appendChild(node('p', 'Nothing tradeable here.', 'empty-cube'));
+    box.appendChild(grid);
+    var picked = null; for (var n = 0; n < items.length; n++) if (String(items[n].id) === String(transferPick[key])) picked = items[n];
+    box.appendChild(node('p', picked ? picked.name + ' ×' + picked.count : 'Select a stack to move it.', 'bag-pick'));
+    parent.appendChild(box); return picked;
+  }
+  function kinahField(parent, id, text) {
+    var row = node('label', text), input = node('input'); input.id = id; input.type = 'text'; input.setAttribute('inputmode', 'numeric'); input.placeholder = '0';
+    row.appendChild(input); parent.appendChild(row); return input;
+  }
+  function wholeKinah(input) { return /^[1-9][0-9]{0,18}$/.test(input.value) ? input.value : null; }
+  function renderTransfer(parent, bot) {
+    if (bot.world) { parent.appendChild(node('p', 'Invited world bots keep their own items.', 'empty-state')); return; }
+    var ids = (state.movable || {})[bot.name] || [], theirs = [], ownKey = 'own', botKey = 'bot' + bot.id;
+    for (var i = 0; i < (bot.inventory || []).length; i++) if (ids.indexOf(bot.inventory[i].id) !== -1) theirs.push(bot.inventory[i]);
+    parent.appendChild(node('p', 'Move a whole tradeable stack or Kinah between you and ' + bot.name + ', anywhere outside combat. Equipped, soul-bound and quest items stay where they are.', 'hint'));
+    var layout = node('div', null, 'transfer'), mine = bagGrid(layout, 'Your bag', state.ownerBag || [], ownKey);
+    var middle = node('div', null, 'transfer-arrows');
+    var give = button(middle, 'Give →', { action: 'transfer', name: bot.name, direction: 'give', item: mine ? mine.id : 0 }, !mine || bot.closing, 'primary');
+    layout.appendChild(middle);
+    var picked = bagGrid(layout, bot.name + '’s bag', theirs, botKey);
+    var take = button(middle, '← Take', { action: 'transfer', name: bot.name, direction: 'take', item: picked ? picked.id : 0 }, !picked || bot.closing, 'primary');
+    give.onclick = function () { transferPick[ownKey] = null; act({ action: 'transfer', name: bot.name, direction: 'give', item: mine.id }); };
+    take.onclick = function () { transferPick[botKey] = null; act({ action: 'transfer', name: bot.name, direction: 'take', item: picked.id }); };
+    parent.appendChild(layout);
+    var money = node('div', null, 'transfer-kinah'), amount = kinahField(money, 'transfer-kinah-' + bot.id, 'Kinah (you have ' + (state.ownerKinah || 0) + ')');
+    var giveK = button(money, 'Give Kinah →', {}, bot.closing), takeK = button(money, '← Take Kinah', {}, bot.closing);
+    giveK.onclick = function () { var k = wholeKinah(amount); if (!k) { notice('Enter a whole Kinah amount.', true); return; } act({ action: 'transfer', name: bot.name, direction: 'give', kinah: k }); };
+    takeK.onclick = function () { var k = wholeKinah(amount); if (!k) { notice('Enter a whole Kinah amount.', true); return; } act({ action: 'transfer', name: bot.name, direction: 'take', kinah: k }); };
+    draftField(amount, bot, 'transfer-kinah'); parent.appendChild(money);
+  }
+  function renderMailAlt(parent) {
+    var panel = node('section', null, 'mail-alt'), head = node('div', null, 'preset-head');
+    head.appendChild(node('h4', 'Mail items to ' + mailTarget));
+    head.appendChild(node('span', 'Express mail: arrives in their mailbox at once; normal postage applies', 'preset-meta'));
+    var actions = node('div', null, 'preset-actions'); localButton(actions, 'Close', function () { mailTarget = null; renderRoster(); }, 'quiet small'); head.appendChild(actions);
+    panel.appendChild(head);
+    var picked = bagGrid(panel, 'Your bag', state.ownerBag || [], 'mail');
+    var send = button(panel, 'Mail this stack', {}, !picked, 'primary');
+    send.onclick = function () { transferPick.mail = null; act({ action: 'sendalt', alt: mailTarget, item: picked.id }); };
+    var money = node('div', null, 'transfer-kinah'), amount = kinahField(money, 'mail-alt-kinah', 'Kinah (you have ' + (state.ownerKinah || 0) + ')');
+    var sendK = button(money, 'Mail Kinah', {}, false); sendK.onclick = function () { var k = wholeKinah(amount); if (!k) { notice('Enter a whole Kinah amount.', true); return; } act({ action: 'sendalt', alt: mailTarget, kinah: k }); };
+    panel.appendChild(money); parent.appendChild(panel);
+  }
+
   function renderStigmaBuilds(parent, bot) {
     var builds = bot.stigmaBuilds || []; if (!bot.temporary || !builds.length) return;
     var box = node('section', null, 'stigma-builds'); box.appendChild(node('h3', 'Stigma build'));

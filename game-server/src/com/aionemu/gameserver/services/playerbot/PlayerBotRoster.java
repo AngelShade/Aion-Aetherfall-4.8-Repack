@@ -37,6 +37,21 @@ public final class PlayerBotRoster {
 	public static List<Entry> list(int account) {
 		return lists(List.of(account)).getOrDefault(account, List.of());
 	}
+	/** Saved level and class of roster characters, for the Companions roster cards (one bounded query). */
+	public static Map<Integer, Map.Entry<Integer, String>> identities(Collection<Integer> characters) {
+		if (characters.isEmpty()) return Map.of();
+		var ids = new ArrayList<>(new TreeSet<>(characters));
+		if (ids.size() > 1024 || ids.stream().anyMatch(id -> id <= 0)) throw new IllegalArgumentException("Invalid companion roster identities");
+		var result = new HashMap<Integer, Map.Entry<Integer, String>>();
+		try (Connection connection = DatabaseFactory.getConnection();
+			PreparedStatement statement = connection.prepareStatement("SELECT id,exp,player_class FROM players WHERE id IN (" + String.join(",", Collections.nCopies(ids.size(), "?")) + ")")) {
+			for (int i = 0; i < ids.size(); i++) statement.setInt(i + 1, ids.get(i));
+			try (ResultSet rows = statement.executeQuery()) {
+				while (rows.next()) result.put(rows.getInt(1), Map.entry(com.aionemu.gameserver.dataholders.DataManager.PLAYER_EXPERIENCE_TABLE.getLevelForExp(rows.getLong(2)), rows.getString(3)));
+			}
+		} catch (SQLException e) { throw new IllegalStateException("Cannot read companion roster levels", e); }
+		return result;
+	}
 	/** Bounded native XP snapshot only for identities already verified by the joined roster query. */
 	static Map<Integer,Integer> populationLevels(Collection<Integer> characters) {
 		if(characters.isEmpty())return Map.of();

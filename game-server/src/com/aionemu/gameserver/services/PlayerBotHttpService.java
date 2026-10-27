@@ -95,9 +95,26 @@ public final class PlayerBotHttpService {
 		var generated = PlayerBotRoster.list(owner.getAccount().getId());
 		state.put("generatedCount", generated.size());
 		state.put("generatedLimit", PlayerBotCreationPolicy.limit());
-		for (var data : generated) roster.add(Map.of("name", data.name() == null ? "Pending companion " + data.id() : data.name(), "id", data.id(),
-			"reserved", PlayerBotLease.isReserved(data.id()), "generated", true, "ready", data.ready()));
+		// Level and class: the live companion when it is in the party, otherwise its saved character.
+		var live = new HashMap<Integer, Player>();
+		for (var session : PlayerBotService.getInstance().companions(owner)) live.put(session.bot().getObjectId(), session.bot());
+		var saved = PlayerBotRoster.identities(generated.stream().filter(d -> d.ready() && !live.containsKey(d.id())).map(PlayerBotRoster.Entry::id).toList());
+		for (var data : generated) {
+			var entry = new HashMap<String, Object>(Map.of("name", data.name() == null ? "Pending companion " + data.id() : data.name(), "id", data.id(),
+				"reserved", PlayerBotLease.isReserved(data.id()), "generated", true, "ready", data.ready()));
+			Player bot = live.get(data.id());
+			if (bot != null) { entry.put("level", (int) bot.getLevel()); entry.put("playerClass", bot.getPlayerClass().name()); }
+			else if (saved.containsKey(data.id())) { entry.put("level", saved.get(data.id()).getKey()); entry.put("playerClass", saved.get(data.id()).getValue()); }
+			roster.add(entry);
+		}
 		state.put("roster", roster);
+		// Companions window item transfer: the owner's tradeable bag and each companion's movable stacks.
+		state.put("ownerBag", PlayerBotItemTransfer.ownerBag(owner));
+		state.put("ownerKinah", owner.getInventory().getKinah());
+		var movable = new HashMap<String, Object>();
+		for (var session : PlayerBotService.getInstance().companions(owner))
+			movable.put(session.bot().getName(), session.bot().getInventory().getItems().stream().filter(PlayerBotItemTransfer::transferable).map(i -> i.getObjectId()).toList());
+		state.put("movable", movable);
 		state.putAll(PlayerBotPresets.snapshot(owner));
 		state.put("classes", Arrays.stream(PlayerClass.values()).filter(pc -> pc.isStartingClass() == (owner.getLevel() < 10)).map(Enum::name).toList());
 		state.put("startingClasses", Arrays.stream(PlayerClass.values()).filter(PlayerClass::isStartingClass).map(Enum::name).toList());
@@ -115,6 +132,9 @@ public final class PlayerBotHttpService {
 			case "savebot" -> { return PlayerBotPresets.saveBot(owner,name); }
 			case "saveparty" -> { return PlayerBotPresets.saveParty(owner,values.getOrDefault("presetName","")); }
 			case "loadparty" -> { return PlayerBotPresets.activate(owner,values.getOrDefault("preset","")); }
+			case "transfer" -> { return PlayerBotItemTransfer.move(owner, name, "give".equals(values.get("direction")), Integer.parseInt(values.getOrDefault("item", "0")), Long.parseLong(values.getOrDefault("kinah", "0"))); }
+			case "sendalt" -> { return PlayerBotItemTransfer.sendToAlt(owner, values.getOrDefault("alt", ""), Integer.parseInt(values.getOrDefault("item", "0")), Long.parseLong(values.getOrDefault("kinah", "0"))); }
+			case "editparty" -> { return PlayerBotPresets.editParty(owner, values.getOrDefault("preset", ""), values.getOrDefault("presetName", ""), values.getOrDefault("members", "")); }
 			case "deleteparty" -> { String preset=values.getOrDefault("preset",""); if(!preset.matches("[a-f0-9]{32}"))throw new IllegalArgumentException("Choose a party preset."); return PlayerBotPresets.remove(owner,preset); }
 			case "removebot" -> { if(!"yes".equals(values.get("confirm")))throw new IllegalArgumentException("Confirm removal of this Temporary Bot first."); return PlayerBotPresets.remove(owner,"bot:"+values.getOrDefault("id","0")); }
 			case "recruit" -> service.recruit(owner, name);

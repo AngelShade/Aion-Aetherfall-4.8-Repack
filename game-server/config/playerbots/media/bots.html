@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Player Companions</title>
-  <link rel="stylesheet" href="/market/companions/media/bots.css?v=window-3">
+  <link rel="stylesheet" href="/market/companions/media/bots.css?v=window-4-t">
 </head>
 <body>
 <header id="top">
@@ -43,7 +43,7 @@
   <nav id="roster-subtabs" class="tabs subtabs" aria-label="Roster sections" role="tablist"><button id="roster-tab-characters" data-roster-view="characters" type="button" role="tab" aria-controls="roster-characters" aria-selected="true" class="selected">Companions</button><button id="roster-tab-presets" data-roster-view="presets" type="button" role="tab" aria-controls="roster-presets" aria-selected="false">Saved parties</button></nav>
   <section id="roster-characters" role="tabpanel" aria-labelledby="roster-tab-characters">
     <div class="filters"><div class="search-field"><label for="roster-search">Find a companion <kbd>/</kbd></label><input id="roster-search" type="search" placeholder="Name or class&hellip;" autocomplete="off"></div><div><label for="roster-filter">Show</label><select id="roster-filter"><option value="all">All companions</option><option value="available">Available to recruit</option><option value="active">Active party</option><option value="generated">Temporary Bots</option><option value="saved">Saved Temporary Bots</option><option value="characters">Account characters</option></select></div><div><label for="roster-sort">Sort by</label><select id="roster-sort"><option value="name">Name</option><option value="level">Highest level</option><option value="class">Class</option></select></div></div>
-    <p id="roster-results" class="hint" aria-live="polite"></p><div id="roster" class="roster-grid"></div><div class="pagination"><button id="roster-prev" type="button" class="quiet">&larr; Previous</button><span id="roster-page"></span><button id="roster-next" type="button" class="quiet">Next &rarr;</button></div>
+    <p id="roster-results" class="hint" aria-live="polite"></p><div id="mail-alt-panel"></div><div id="roster" class="roster-grid"></div><div class="pagination"><button id="roster-prev" type="button" class="quiet">&larr; Previous</button><span id="roster-page"></span><button id="roster-next" type="button" class="quiet">Next &rarr;</button></div>
   </section>
   <section id="roster-presets" role="tabpanel" aria-labelledby="roster-tab-presets" style="display:none"><p class="hint">Recruit missing members together. Existing companions and human party members stay.</p><div id="saved-parties" class="preset-cards"></div></section>
 </section>
@@ -60,6 +60,6 @@
   <div class="share-strip"><label for="owner-quest">Share an active quest</label><div class="share-controls"><select id="owner-quest"></select><button id="share" type="button" class="primary">Share with party</button></div><p class="hint">Each eligible companion accepts and earns its own native rewards.</p></div><div id="quest-overview"></div>
 </section>
 <footer><span class="dot"></span><span id="notice" role="status" aria-live="polite">Connecting to your character&hellip;</span><span class="footer-note">Updates every 10 seconds &middot; drafts stay while you edit</span></footer>
-<script src="/market/companions/media/bots.js?v=window-3"></script>
+<script src="/market/companions/media/bots.js?v=window-3-t"></script>
 </body>
 </html>
