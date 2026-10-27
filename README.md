@@ -7,7 +7,7 @@
 [![Download Aetherfall Setup](https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_DOWNLOAD-Aetherfall_Setup_(7.7_MB)-E5AF41?style=for-the-badge&labelColor=12161E)](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/latest/download/Aetherfall-Downloader.zip)
 [![MEGA Mirror](https://img.shields.io/badge/%E2%9A%A1_MEGA_MIRROR-Full_Archive_(36.3_GB)-D9272E?style=for-the-badge&labelColor=12161E)](https://mega.nz/file/hJt0hYTC#fr0RDjsLl4CriZ5dw8MljBhrlP6nD4oYkaErD2iW-vQ)
 [![Google Drive Mirror](https://img.shields.io/badge/%E2%98%81%EF%B8%8F_GOOGLE_DRIVE-Full_Archive_(36.3_GB)-3B82F6?style=for-the-badge&labelColor=12161E)](https://drive.google.com/file/d/1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2/view?usp=sharing)
-[![Join Discord Community](https://img.shields.io/badge/%F0%9F%92%AC_DISCORD-Join_Community_Server-5865F2?style=for-the-badge&labelColor=12161E)](https://discord.com/invite/cpRYCRsSnR)
+[![Join Discord Community](https://img.shields.io/badge/%F0%9F%92%AC_DISCORD-Join_Community_Server-5865F2?style=for-the-badge&labelColor=12161E)](https://discord.gg/DAnAjx3tY2)
 
 <br/>
 
@@ -100,6 +100,6 @@ When a new version (e.g., `v0.87`) is released:
 <div align="center">
 
 ### 🌟 Ready to Spread Your Wings?
-**[⬇️ Download Aetherfall Setup (`Aetherfall-Downloader.zip`)](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/latest/download/Aetherfall-Downloader.zip)** • **[☁️ Google Drive Mirror](https://drive.google.com/file/d/1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2/view?usp=sharing)** • **[💬 Join the Discord](https://discord.com/invite/cpRYCRsSnR)**
+**[⬇️ Download Aetherfall Setup (`Aetherfall-Downloader.zip`)](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/latest/download/Aetherfall-Downloader.zip)** • **[☁️ Google Drive Mirror](https://drive.google.com/file/d/1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2/view?usp=sharing)** • **[💬 Join the Discord](https://discord.gg/DAnAjx3tY2)**
 
 </div>
