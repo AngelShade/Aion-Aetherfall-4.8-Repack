@@ -322,6 +322,10 @@
 
       if (mutation && values.action === 'carebudget') { for (var d = 0; d < result.active.length; d++) if (result.active[d].name === values.name && String(result.active[d].reserve) === String(values.reserve) && String(result.active[d].dailyBudget) === String(values.dailyBudget)) delete careDrafts[result.active[d].id]; }
 
+      // The 10 s auto refresh redraws only when the data changed, keeping drafts, selection and scroll untouched.
+      var fingerprint = unchanged(result);
+      if (!mutation && fingerprint === lastFingerprint) { state.request = result.request; return; }
+      lastFingerprint = fingerprint;
       state = result; render(); restoreFocus(focus); notice(result.notice || 'Connected as ' + result.owner + '. Select a companion to manage its settings and equipment.', false);
 
     };
@@ -413,7 +417,18 @@
 
   function openBot(id, tab) { selectedBot = id; if (tab) botTab = tab; inspecting = true; showView('party'); }
 
-  function render() {
+  // Fingerprint of the server state without its one-use request ticket.
+  var lastFingerprint = null;
+  function unchanged(result) { var ticket = result.request; result.request = ''; var text = JSON.stringify(result); result.request = ticket; return text; }
+  // Scrolling panes are emptied while redrawn; put each back where the player left it.
+  function keepScroll(redraw) {
+    var panes = document.querySelectorAll('.party-list, .detail-panel, .main-view.scroll'), tops = [];
+    for (var i = 0; i < panes.length; i++) tops.push(panes[i].scrollTop);
+    redraw();
+    for (var j = 0; j < panes.length; j++) if (panes[j].scrollTop !== tops[j]) panes[j].scrollTop = tops[j];
+  }
+  function render() { keepScroll(redraw); }
+  function redraw() {
 
     captureDrafts(); metrics(); renderOrders();
     byId('count').textContent = state.active.length + ' / ' + state.limit;
@@ -557,7 +572,8 @@
     setBusy();
   }
 
-  function renderSelection() {
+  function renderSelection() { keepScroll(drawSelection); }
+  function drawSelection() {
 
     captureDrafts(); var savedFocus = captureFocus(), detailScroll = byId('bot-detail').scrollTop;
     var parent = byId('active'), scroll = parent.scrollTop; clear(parent);
@@ -970,7 +986,7 @@
       cell.appendChild(itemIcon(item, 'cube-icon')); tile.type = 'button'; tile.setAttribute('data-local-control', 'true');
       tile.title = nativeItemLink(item) || item.name; tile.setAttribute('aria-label', item.name + ', ' + item.count);
       tile.appendChild(node('span', item.count > 1 ? item.count : '', 'stack-count'));
-      tile.onclick = function () { transferPick[key] = String(transferPick[key]) === String(item.id) ? null : item.id; renderSelection(); renderRoster(); };
+      tile.onclick = function () { transferPick[key] = String(transferPick[key]) === String(item.id) ? null : item.id; keepScroll(function () { renderSelection(); renderRoster(); }); };
       cell.appendChild(tile); grid.appendChild(cell);
     }(items[i]));
     if (!items.length) grid.appendChild(node('p', 'Nothing tradeable here.', 'empty-cube'));
