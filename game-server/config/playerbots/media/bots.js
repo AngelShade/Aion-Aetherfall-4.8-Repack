@@ -323,8 +323,8 @@
       if (mutation && values.action === 'carebudget') { for (var d = 0; d < result.active.length; d++) if (result.active[d].name === values.name && String(result.active[d].reserve) === String(values.reserve) && String(result.active[d].dailyBudget) === String(values.dailyBudget)) delete careDrafts[result.active[d].id]; }
 
       // The 10 s auto refresh redraws only when the data changed, keeping drafts, selection and scroll untouched.
-      var fingerprint = unchanged(result);
-      if (!mutation && fingerprint === lastFingerprint) { state.request = result.request; return; }
+      var fingerprint = viewPrint(result);
+      if (!mutation && state && fingerprint === lastFingerprint) { state = result; quietUpdate(); return; }
       lastFingerprint = fingerprint;
       state = result; render(); restoreFocus(focus); notice(result.notice || 'Connected as ' + result.owner + '. Select a companion to manage its settings and equipment.', false);
 
@@ -411,15 +411,37 @@
 
     }
 
-    if (state) { if (view === 'roster') renderRoster(); if (view === 'party') renderSelection(); if (view === 'quests') renderOverview(); }
+    if (state) { lastFingerprint = viewPrint(state); if (view === 'roster') { renderRoster(); renderPresets(); } if (view === 'party') renderSelection(); if (view === 'quests') renderOverview(); }
 
   }
 
   function openBot(id, tab) { selectedBot = id; if (tab) botTab = tab; inspecting = true; showView('party'); }
 
-  // Fingerprint of the server state without its one-use request ticket.
+  // Fingerprint of only the data the visible section shows, with object keys sorted so the server's map
+  // ordering cannot count as a change. Other sections draw the new state when they are opened.
   var lastFingerprint = null;
-  function unchanged(result) { var ticket = result.request; result.request = ''; var text = JSON.stringify(result); result.request = ticket; return text; }
+  function canon(value) {
+    if (value === null || typeof value !== 'object') return JSON.stringify(value);
+    var out = [], i;
+    if (value instanceof Array) { for (i = 0; i < value.length; i++) out.push(canon(value[i])); return '[' + out.join(',') + ']'; }
+    var keys = Object.keys(value).sort(); for (i = 0; i < keys.length; i++) out.push(JSON.stringify(keys[i]) + ':' + canon(value[keys[i]]));
+    return '{' + out.join(',') + '}';
+  }
+  var VIEW_KEYS = { party: ['active', 'team', 'teamKind', 'recruitRemaining', 'limit', 'enabled', 'ownerBag', 'ownerKinah', 'movable', 'roles', 'owner'],
+    roster: ['roster', 'presets', 'savedBots', 'presetLimit', 'recruitRemaining', 'enabled', 'ownerBag', 'ownerKinah', 'roles'],
+    create: ['classes', 'startingClasses', 'creationJourney', 'generatedCount', 'generatedLimit', 'enabled', 'recruitRemaining'],
+    quests: ['active', 'quests'] };
+  function viewPrint(result) {
+    var keys = VIEW_KEYS[currentView] || [], picked = { view: currentView }, i;
+    for (i = 0; i < keys.length; i++) picked[keys[i]] = result[keys[i]];
+    // The roster only shows who is in the party, not their live health or position.
+    if (currentView === 'roster') { picked.party = []; for (i = 0; i < (result.active || []).length; i++) picked.party.push(result.active[i].id); }
+    return canon(picked);
+  }
+  // Unchanged section: keep the page as it is and refresh only the small counters.
+  function quietUpdate() {
+    metrics(); byId('count').textContent = state.active.length + ' / ' + state.limit; byId('roster-count').textContent = state.roster.length;
+  }
   // Scrolling panes are emptied while redrawn; put each back where the player left it.
   function keepScroll(redraw) {
     var panes = document.querySelectorAll('.party-list, .detail-panel, .main-view.scroll'), tops = [];
