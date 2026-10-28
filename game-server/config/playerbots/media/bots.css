@@ -129,7 +129,8 @@ button.order:disabled{-webkit-border-image:none;opacity:.35}
 .bot-top .eyebrow{margin-top:2px}.bot-top h3{font-size:26px;line-height:30px;white-space:nowrap;overflow:hidden}
 .badge{display:inline-block;font-size:11px;color:#93abbc}
 .bot-state{float:right;margin-top:6px;padding:2px 12px;font-size:11px;letter-spacing:1px;color:#8fe3ec;background:rgba(10,34,48,.9);border:1px solid #3a9fbe;border-radius:3px;text-transform:uppercase}
-.bot-header .vitals{width:62%;height:28px}.vital{float:left;width:48%;margin-right:4%}.vital:last-child{margin-right:0}
+.bot-header .vitals{width:70%;height:28px}.vital{float:left;width:31%;margin-right:3.5%}.vital:last-child{margin-right:0}
+.xp .fill{background:#d6b878;background:-webkit-gradient(linear,left top,left bottom,from(#f1dca8),to(#a8823f))}
 .vital span{display:block;font-size:10px;line-height:13px;color:#93abbc}
 .bar{height:9px;margin-top:2px;background:#03070c;border:1px solid #1f3447;border-radius:2px}.fill{height:7px;background:#8fd8b4;background:-webkit-gradient(linear,left top,left bottom,from(#b8ecd2),to(#4f9e78))}
 .mana .fill{background:#3a9fbe;background:-webkit-gradient(linear,left top,left bottom,from(#a6eef5),to(#2a8aab))}

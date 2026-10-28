@@ -133,7 +133,7 @@ public final class PlayerBotSession {
 		state.put("name", bot.getName()); state.put("id", bot.getObjectId()); state.put("level", bot.getLevel());
 		state.putAll(PlayerBotSpacing.snapshot(bot,role));
 		state.put("playerClass", bot.getPlayerClass().name()); state.put("role", role.name()); state.put("order", order.name());
-		state.put("health", Math.round(hp(bot))); state.put("mana", Math.round(mp(bot))); state.put("dead", bot.isDead());
+		state.put("health", Math.round(hp(bot))); state.put("mana", Math.round(mp(bot))); long need = bot.getCommonData().getExpNeed(); state.put("xp", need <= 0 ? 100 : (int) Math.min(100, bot.getCommonData().getExpShown() * 100 / need)); state.put("dead", bot.isDead());
 		state.put("closing", closing); state.put("status", status); state.put("action", engine.getLastAction());
 		state.put("dormant",worldDormant);
 		state.put("forcedFollow", forcedFollow());
