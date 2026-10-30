@@ -31,7 +31,7 @@ local defaults = {
     mapx = -1, mapy = -1, mapsize = 180, windowsalpha = 90, chatalpha = 90, barsalpha = 90,
     menusize = 34, menucols = 7, menugap = 4,
     dl1 = 'zone', dl2 = 'coords', dl3 = 'time', dc1 = 'xp', dc2 = 'kinah', dc3 = 'off', dr1 = 'fps', dr2 = 'group', dr3 = 'legion',
-    profile = 'DPS', botbar = 1, botbarmode = -1,
+    profile = 'DPS', botbar = 1, botbarmode = -1, camfov = 1, camdist = 1,
 }
 local OPACITY_SETTINGS = {windowsalpha=true, chatalpha=true, barsalpha=true}
 local NUMERIC = {warn = {0, 60, 1}, grid = {2, 32, 2}, guidesize = {16, 128, 16}, ttx = {-64, 64, 8}, tty = {-64, 64, 8},
@@ -48,10 +48,24 @@ local BARS = {'Bar 1', 'Bar 2', 'Bar 3', 'Bar 4'}
 local GROW = {'Bottom right', 'Bottom left', 'Top right', 'Top left'}
 local GROW_MODE = {3, 2, 1, 0}  -- AFCore.Pin corner modes
 local CHOICE = {font = FONTS, theme = THEMES, ttanchor = ANCHORS, ttui = UI_ANCHORS, ttgrow = GROW, abbar = BARS}
+-- Camera choices are independent of layout presets. Older saves keep the
+-- client's native values until the player explicitly selects a custom value.
+local CAMERA = {camfov = {name = 'fov', values = {-1}}, camdist = {name = 'distance', values = {-1}}}
+for key, spec in pairs(CAMERA) do
+    CHOICE[key] = {'Native'}
+    local first, last, step = key == 'camfov' and 60 or 5, key == 'camfov' and 170 or 50, key == 'camfov' and 5 or 1
+    for v = first, last, step do
+        spec.values[#spec.values + 1] = v
+        CHOICE[key][#CHOICE[key] + 1] = tostring(v) .. (key == 'camfov' and ' deg' or '')
+    end
+end
 local PROFILES = {'DPS', 'Healer', 'Minimal', 'User1', 'User2', 'User3'}
+-- Preset frame spots (ElvUI healer layout): {dialog, centre x, bottom y} as screen fractions.
+-- The party frames sit centred above the action bars, where a healer watches.
+local PRESET_SPOTS = {Healer = {{'party', .5, .72}}}
 local PRESET = {
     DPS = {},
-    Healer = {party = 1, tot = 1, timers = 1, targettimers = 1},
+    Healer = {party = 1, tot = 1, timers = 1, targettimers = 1},  -- plus centred party frames (PRESET_SPOTS)
     Minimal = {databar = 0, chatline = 0, minimapinfo = 0, targettimers = 0, altbar = 0, extrabar = 0, sepbar = 0, xpbar = 0},
 }
 -- Native windows whose visibility the interface may enforce off (engine shows them again otherwise).
@@ -117,6 +131,14 @@ local function featureWidget(layout,name)
     return rows and #rows==1 and rows[1] or nil
 end
 function AFUI.Get(key) local v = U.db and U.db[key]; if v == nil then v = defaults[key] end; return v end
+function AFUI.ApplyCamera()
+    U.cameraError = nil
+    for key, spec in pairs(CAMERA) do
+        if not AFCore.SetCameraSetting or not AFCore.SetCameraSetting(spec.name, spec.values[AFUI.Get(key)]) then
+            U.cameraError = 'Camera settings unavailable in this client.'
+        end
+    end
+end
 function AFUI.ShowCompanionBar()
     if not U.ready then return false end
     U.db.botbar = 1
@@ -175,7 +197,7 @@ local function migrateTooltips(settings)
     return true
 end
 local function load()
-    U.db, U.positions, U.stored, U.bindings = {}, {}, {}, {}
+    U.db, U.positions, U.stored, U.bindings, U.windows = {}, {}, {}, {}, {}
     local identity = assert(playerIdentity(), 'character is not connected')
     U.file = 'ui-' .. sha1.sha1(identity)
     U.path = AFCore.ModPath(U.file)
@@ -194,6 +216,11 @@ local function load()
             local fx, fy = v:match('^([%-%d%.]+),([%-%d%.]+)$')
             fx, fy = tonumber(fx), tonumber(fy)
             if fx and fy and fx >= -1 and fy >= -1 and fx <= 1 and fy <= 1 then U.positions[p .. '.' .. key] = {fx, fy} end
+        elseif p == 'win' and key then
+            -- custom window spot: win.PrivateCompanions = fx,fy (fractions of the screen)
+            local fx, fy = v:match('^([%-%d%.]+),([%-%d%.]+)$')
+            fx, fy = tonumber(fx), tonumber(fy)
+            if fx and fy and fx >= 0 and fy >= 0 and fx <= 1 and fy <= 1 then U.windows[key] = {fx, fy} end
         elseif p == 'store' and key then
             U.stored[key] = v:sub(1, 2048)  -- saved user profile snapshot (scalar list)
         end
@@ -211,6 +238,7 @@ function AFUI.Save()
     for k in pairs(defaults) do if U.db[k] ~= nil then lines[#lines + 1] = 'set.' .. k .. '=' .. tostring(U.db[k]) end end
     for k, p in pairs(U.positions) do lines[#lines + 1] = k .. '=' .. string.format('%.5f,%.5f', p[1], p[2]) end
     for k, name in pairs(U.bindings or {}) do if U.positions[k] then lines[#lines + 1] = 'bind.' .. k .. '=' .. name end end
+    for k, p in pairs(U.windows or {}) do lines[#lines + 1] = 'win.' .. k .. '=' .. string.format('%.5f,%.5f', p[1], p[2]) end
     for k, v in pairs(U.stored) do lines[#lines + 1] = 'store.' .. k .. '=' .. v end
     local slot = '.' .. seq % 2 .. '.cfg'
     -- The client's Lua io cannot write; the bridge stores the file, Lua reads it back.
@@ -1194,7 +1222,10 @@ function AFUI.Editor(action)
         if U.resetConfirm and U.ticks <= U.resetConfirm then AFUI.ResetAll(); U.resetConfirm = nil; editorStatus('All positions reset. Save to keep; Cancel to undo.')
         else U.resetConfirm = U.ticks + 100; editorStatus('Reset every position? Click Reset all again.') end
     elseif action == 'Settings' then
-        local tab = mv and (editorCategory(mv) == 'Action bars' and 'Action Bars' or (editorCategory(mv)=='Menus' or mv.id == D.radar or MAP_LABELS[mv.id]) and 'Minimap'
+        -- The tab holding the selected frame's own switch: unit frames, chat, XP bar and shortcut menu.
+        local own = mv and ({[D.target_assist or -1]='Unit Frames', [D.party or -1]='Unit Frames', [D.chat or -1]='Chat',
+                             [D.chat_input or -1]='Chat', [D.exp_bar or -1]='General', [D.start or -1]='Shortcuts'})[mv.id]
+        local tab = mv and (own or editorCategory(mv) == 'Action bars' and 'Action Bars' or editorCategory(mv) == 'Menus' and 'Shortcuts' or (mv.id == D.radar or MAP_LABELS[mv.id]) and 'Minimap'
                     or (mv.id == TOOLTIP or mv.id == TOOLTIP_UI) and 'Tooltip' or 'Movers') or 'Movers'
         if AFUI.EndEdit(true) then U.tab = tab; AFUI.Open() end; return
     elseif action == 'Reset' or action == 'Left' or action == 'Up' or action == 'Down' or action == 'Right' then AFUI.Nudge(action)
@@ -1833,6 +1864,75 @@ for name, index in pairs(OPENS) do
         _G[name] = function(...) U.fitted = {}; pcall(fitContent, FIT[index]); return open(...) end
     end
 end
+-- Movable custom windows. With the game's "auto-align windows" option (dlg_auto_align)
+-- a movable window shown for the first time is parked on the right, and their openers
+-- only centre them once, in memory. Like native windows, AFUI keeps each one's spot for
+-- the character: the first open after entering the world goes to the saved spot (else
+-- the centre) and is held there for a second against the native alignment; a drag saves.
+local CUSTOM_WINDOWS = {PrivateCompanions = 'PrivateCompanions_Open', PrivateAccount = 'PrivateAccount_Open',
+                        PrivateCashShop = 'PrivateCashShop_Open'}
+local CUSTOM_HOLD = 20  -- ticks
+U.custom, U.windows = {}, U.windows or {}
+local function customDialog(name)
+    local c = U.custom[name]; local d = c.id and dialog(c.id)
+    if d and d.name == name then return d end
+    for id = PLUGIN_FIRST, 0x221 do
+        d = dialog(id)
+        if d and d.name == name then c.id = id; return d end
+    end
+end
+local function placeCustom(name, c, d)
+    local s = scale()
+    _G[name]:SetRect(c.x / s, c.y / s, d.w / s, d.h / s)
+end
+local function customOpened(name)
+    local c = U.custom[name]
+    if not U.ready or c.entered == U.entry then return end
+    local d = customDialog(name)
+    if not d or d.w <= 0 or d.h <= 0 then return end
+    c.entered = U.entry
+    local sw, sh = screen(); local p = U.windows[name]
+    local x, y = (sw - d.w) / 2, (sh - d.h) / 2
+    if p then x, y = p[1] * sw, p[2] * sh end
+    c.x, c.y = math.floor(math.max(0, math.min(sw - d.w, x))), math.floor(math.max(0, math.min(sh - d.h, y)))
+    c.hold = U.ticks + CUSTOM_HOLD
+    g_AddonName = 'RelicCalc'
+    placeCustom(name, c, d)
+end
+for name, opener in pairs(CUSTOM_WINDOWS) do
+    local open = _G[opener]
+    U.custom[name] = {}
+    if type(open) == 'function' then
+        _G[opener] = function(...)
+            local result = open(...)
+            pcall(customOpened, name)
+            return result
+        end
+    end
+end
+-- Runs while settled, only for custom windows opened this session.
+local function customWindowsTick()
+    local cx, cy, down = AFCore.Cursor()
+    local sw, sh = screen()
+    for name, c in pairs(U.custom) do
+        local d = c.id and dialog(c.id)
+        if d and d.name == name and d.shown then
+            if c.hold and (down or U.ticks > c.hold) then c.hold = nil end
+            if c.hold and (math.abs(d.x - c.x) > 1 or math.abs(d.y - c.y) > 1) then placeCustom(name, c, d) end
+            if down and not c.down and cx and cx >= d.x and cy >= d.y and cx < d.x + d.w and cy < d.y + d.h then
+                c.press = {d.x, d.y}
+            elseif not down and c.press then
+                if not U.unlocked and (math.abs(d.x - c.press[1]) > 1 or math.abs(d.y - c.press[2]) > 1) then
+                    U.windows[name] = {d.x / sw, d.y / sh}; dirty()
+                end
+                c.press = nil
+            end
+        else
+            c.press = nil
+        end
+        c.down = down
+    end
+end
 releasePins = function()
     if next(U.pins) then AFCore.Pin(); U.pins = {} end
     U.menuGaps = nil  -- releasing every pin also ends the start menu's gaps
@@ -1859,57 +1959,79 @@ local function data(k) return {k = k, kind = 'data'} end
 local function action(name, arg) return {kind = 'action', action = name, arg = arg} end
 -- {category, rows, hint}
 local TABS = {
-    {'General', {{'Data text font', choice('font')}, {'Colour theme', choice('theme')}, {'Window background opacity', numeric('windowsalpha')},
-                 {'Companion bar', toggle('botbar')}},
-     '0 hides window backgrounds; 100 keeps native opacity. Text stays visible.'},
+    {'General', {{'Data text font', choice('font')}, {'Colour theme', choice('theme')}, {'Window and HUD opacity', numeric('windowsalpha')},
+                 {'Companion bar', toggle('botbar')}, {'XP bar', toggle('xpbar')}},
+     'Opacity fades window and HUD frame backgrounds; text stays visible.'},
     {'Unit Frames', {{'Target of target', toggle('tot')}, {'Party frames', toggle('party')}},
      'Move frames with /moveui.'},
     {'Action Bars', {{'Bar 3', toggle('altbar')}, {'Bar 4', toggle('extrabar')}, {'Bars 5 and 6', toggle('sepbar')},
-                     {'Layout of', choice('abbar')}, {'Buttons per row', {kind = 'barnumber', base = 'abrow'}},
+                     {'Bar to arrange', choice('abbar')}, {'Buttons per row', {kind = 'barnumber', base = 'abrow'}},
                      {'Button size', {kind = 'barnumber', base = 'absize'}}, {'Background opacity', numeric('barsalpha')}},
-     'Background opacity applies to all six bars. Skill icons stay readable.'},
+     'Rows and size apply to the bar to arrange; opacity to all six bars.'},
     {'Chat', {{'Status line', toggle('chatline')}, {'Background opacity', numeric('chatalpha')}}, 'Chat background opacity is independent; text stays solid.'},
     {'Data Texts', {{'Top bar', toggle('databar')}, {'Left 1', data('dl1')}, {'Left 2', data('dl2')}, {'Left 3', data('dl3')},
                     {'Centre 1', data('dc1')}, {'Centre 2', data('dc2')}, {'Centre 3', data('dc3')},
                     {'Right 1', data('dr1')}, {'Right 2', data('dr2')}, {'Right 3', data('dr3')}}, nil},
     {'Tooltip', {{'Tooltips', toggle('ttshow')}, {'World (NPCs, players)', choice('ttanchor')}, {'UI (buttons, items)', choice('ttui')},
-                 {'Grow from', choice('ttgrow')},
+                 {'Grow from (Mover)', choice('ttgrow')},
                  {'Cursor offset X', numeric('ttx')}, {'Cursor offset Y', numeric('tty')}, {'Keep on screen', toggle('ttclamp')},
-                 {'Tooltip mover', action('unlock')}},
-     'Mover: drag the Tooltip boxes in /moveui. Native: where the game puts it.'},
-    {'Minimap', {{'Coordinates', toggle('minimapinfo')}, {'Minimap size', numeric('mapsize')},
-                 {'XP bar', toggle('xpbar')}, {'Start menu', toggle('startmenu')}, {'Shortcut size', numeric('menusize')},
-                 {'Shortcuts per row', numeric('menucols')}, {'Shortcut spacing', numeric('menugap')}, {'Align shortcuts', action('alignmenu')},
-                 {'Align map controls', action('alignmap')}},
-     'Size, rows and spacing rebuild the shortcut grid. Move Shortcuts (all) as a group.'},
+                 {'Tooltip mover', action('unlock', 'tooltip')}},
+     'Mover: a box in /moveui. Cursor: beside the mouse. Native: game spot.'},
+    {'Minimap', {{'Coordinates', toggle('minimapinfo')}, {'Minimap size', numeric('mapsize')}, {'Align map controls', action('alignmap')}},
+     'Move the map and its zoom, clock and zone name with /moveui.'},
+    {'Shortcuts', {{'Shortcut menu', toggle('startmenu')}, {'Shortcut size', numeric('menusize')},
+                   {'Shortcuts per row', numeric('menucols')}, {'Shortcut spacing', numeric('menugap')}, {'Align shortcuts', action('alignmenu')}},
+     'Size, rows and spacing rebuild the grid. Move Shortcuts (all) as a group.'},
+    {'Camera', {{'Field of view', choice('camfov')}, {'Maximum zoom distance', choice('camdist')}},
+     'Applies now. Scroll to zoom out. Native restores your original value.'},
     {'Movers', {{'Movers', action('unlock')}, {'Show grid', toggle('showgrid')}, {'Guide spacing', numeric('guidesize')},
                 {'Snap to grid', toggle('snap')}, {'Snap to frames', toggle('snapframes')}, {'Snap step', numeric('grid')},
                 {'All positions', action('resetall')}},
      'MoveUI has Save / Lock, Cancel, frame selection and exact position controls.'},
     {'Profiles', {{'Profile', {kind = 'profile'}}, {'DPS preset', action('preset', 'DPS')}, {'Healer preset', action('preset', 'Healer')},
-                  {'Minimal preset', action('preset', 'Minimal')}, {'User1', action('store', 'User1')},
-                  {'User2', action('store', 'User2')}, {'User3', action('store', 'User3')}}, nil},
+                  {'Minimal preset', action('preset', 'Minimal')}, {'Save as User1', action('store', 'User1')},
+                  {'Save as User2', action('store', 'User2')}, {'Save as User3', action('store', 'User3')},
+                  {'Export code', action('export')}, {'Import code', action('import')}},
+     'Presets reset the profile they name. Save copies this layout and switches.'},
 }
 U.TABS = TABS
-local TAB_SLOTS = 10  -- sidebar buttons in the layout
+local TAB_SLOTS = 11  -- sidebar buttons in the layout
 
-local ACTION_LABEL = {unlock = 'Unlock', resetall = 'Reset', preset = 'Apply', store = 'Save', alignmenu = 'Align',alignmap='Align'}
+local ACTION_LABEL = {unlock = 'Unlock', resetall = 'Reset', preset = 'Apply', store = 'Save', alignmenu = 'Align',alignmap='Align',
+                      export = 'Export', import = 'Import'}
+-- Shown values: units on numbers, readable names for data-text sources.
+local UNIT = {windowsalpha = '%', chatalpha = '%', barsalpha = '%', mapsize = ' px', menusize = ' px', menugap = ' px',
+              guidesize = ' px', grid = ' px', ttx = ' px', tty = ' px', absize = ' px'}
+local DATA_LABEL = {zone = 'Zone', coords = 'Coordinates', time = 'Time', xp = 'Experience', kinah = 'Kinah', fps = 'FPS',
+                    group = 'Group', legion = 'Legion', level = 'Level', hp = 'Health', off = 'Off'}
 local function value(item)
     local spec = item[2]
     if spec.kind == 'toggle' then return onoff(spec.k) end
     if spec.kind == 'number' then
         local requested=AFUI.Get(spec.k);local m=spec.k=='menucols' and AFUI.MenuMetrics()
-        return tostring(requested)..(m and m.cols~=requested and (' ('..m.cols..' fit)') or '')
+        return tostring(requested)..(UNIT[spec.k] or '')..(m and m.cols~=requested and (' ('..m.cols..' fit)') or '')
     end
     if spec.kind == 'barnumber' then
         local i = AFUI.Get('abbar'); local requested = AFUI.Get(spec.base .. i)
         local m = spec.base == 'abrow' and AFUI.BarMetrics(i)
-        return tostring(requested) .. (m and m.per ~= requested and (' (' .. m.per .. ' fit)') or '')
+        return tostring(requested) .. (UNIT[spec.base] or '') .. (m and m.per ~= requested and (' (' .. m.per .. ' fit)') or '')
     end
-    if spec.kind == 'choice' then return CHOICE[spec.k][AFUI.Get(spec.k)] end
-    if spec.kind == 'data' then return AFUI.Get(spec.k) end
+    if spec.kind == 'choice' then
+        local camera = CAMERA[spec.k]
+        if camera then
+            local current, original
+            if AFCore.CameraSetting then current, original = AFCore.CameraSetting(camera.name) end
+            if not current then return 'Unavailable' end
+            if AFUI.Get(spec.k) == 1 then return 'Native (' .. string.format('%g', original or current) .. ')' end
+        end
+        return CHOICE[spec.k][AFUI.Get(spec.k)]
+    end
+    if spec.kind == 'data' then return DATA_LABEL[AFUI.Get(spec.k)] or AFUI.Get(spec.k) end
     if spec.kind == 'profile' then return AFUI.Get('profile') end
-    if spec.kind == 'action' then return spec.action == 'unlock' and (U.unlocked and 'Lock' or 'Unlock') or ACTION_LABEL[spec.action] end
+    if spec.kind == 'action' then
+        if spec.action == 'resetall' and U.confirmReset then return 'Confirm' end
+        return spec.action == 'unlock' and (U.unlocked and 'Lock' or 'Unlock') or ACTION_LABEL[spec.action]
+    end
     return ''
 end
 local function currentTab()
@@ -1949,7 +2071,8 @@ function AFUI.Refresh()
             label:Hide(); val:Hide(); less:Hide(); more:Hide()
         end
     end
-    w('Status'):SetText(U.saveError or current[3] or '')
+    if _G.AFUICode then if current[1] == 'Profiles' then w('Code'):Show() else w('Code'):Hide() end end
+    w('Status'):SetText(U.saveError or (current[1] == 'Camera' and U.cameraError) or U.note or current[3] or '')
 end
 
 -- Placement and appearance run on the normal addon tick or an explicit edit.
@@ -1973,6 +2096,7 @@ function AFUI.ApplyVisibleSettings()
     if not ok then error(why) end
 end
 function AFUI.ApplySettings(resetLayout, setting)
+    if CAMERA[setting] then return end  -- only explicit edits and character entry apply camera choices
     if OPACITY_SETTINGS[setting] then
         if AFHUD and AFHUD.on and U.settled then AFUI.ApplyOpacity() end
         return
@@ -1988,6 +2112,14 @@ function AFUI.ApplySettings(resetLayout, setting)
     if U.unlocked then layoutMovers() end
 end
 local function set(k, v)
+    if CAMERA[k] then
+        local spec = CAMERA[k]
+        if not AFCore.SetCameraSetting or not AFCore.SetCameraSetting(spec.name, spec.values[v]) then
+            U.cameraError = 'Camera settings unavailable; your choice was kept.'
+            return
+        end
+        U.cameraError = nil
+    end
     U.db[k] = v; dirty()
     if k=='menusize' or k=='menucols' or k=='menugap' then
         for i in ipairs(MENU_BUTTONS)do U.positions[key(MENU_ID+i)],U.bindings[key(MENU_ID+i)]=nil,nil end
@@ -1999,9 +2131,65 @@ local function cycle(list, cur, dir)
     for i, v in ipairs(list) do if v == cur then return list[(i - 1 + dir) % #list + 1] end end
     return list[1]
 end
+-- Profile sharing (ElvUI-style export string): every option of every tab, the camera
+-- choices and the current profile's frame positions. Plain scalars only, with a length and
+-- checksum so a cut-off paste is refused instead of half applied. Export also writes
+-- Mods/AetherfallUI/afui-export.cfg; Import reads that file when the box is empty.
+local SHARE_FILE, SHARE_SKIP = 'afui-export.cfg', {profile = true, opacitydirect = true, tipcursor = true, botbarmode = true}
+local function shareSum(body)
+    local sum = 0
+    for i = 1, #body do sum = (sum * 31 + body:byte(i)) % 65521 end
+    return string.format('%04x', sum)
+end
+local function exportCode()
+    local parts = {}
+    for k in pairs(defaults) do
+        if not SHARE_SKIP[k] and AFUI.Get(k) ~= defaults[k] then parts[#parts + 1] = k .. '=' .. tostring(AFUI.Get(k)) end
+    end
+    local prefix = AFUI.Get('profile') .. '.'
+    for k, p in pairs(U.positions) do
+        if k:sub(1, #prefix) == prefix then
+            local id = k:sub(#prefix + 1); local name = U.bindings[k]
+            parts[#parts + 1] = 'p' .. id .. '=' .. string.format('%.4f,%.4f', p[1], p[2]) .. (name and (',' .. name) or '')
+        end
+    end
+    table.sort(parts)
+    local body = table.concat(parts, ';')
+    return 'AFUI1!' .. #body .. '!' .. body .. '!' .. shareSum(body)
+end
+local function importCode(code)
+    code = tostring(code or ''):gsub('%s+', '')
+    local size, body, sum = code:match('^AFUI1!(%d+)!(.*)!(%x%x%x%x)$')
+    if not size then return nil, code:match('^AFUI1!') and 'The code is incomplete; copy all of it.' or 'Not an Aetherfall Interface code.' end
+    if #body ~= tonumber(size) or shareSum(body) ~= sum:lower() then return nil, 'The code is incomplete or changed; copy all of it.' end
+    local settings, positions = {}, {}
+    for entry in body:gmatch('[^;]+') do
+        local k, v = entry:match('^(%w+)=(.+)$')
+        local id = k and tonumber(k:match('^p(%d+)$'))
+        if id then
+            local fx, fy, name = v:match('^([%-%d%.]+),([%-%d%.]+),?([%w_]*)$')
+            fx, fy = tonumber(fx), tonumber(fy)
+            if not (fx and fy and fx >= -1 and fy >= -1 and fx <= 1 and fy <= 1) then return nil, 'Bad frame position in the code.' end
+            positions[id] = {fx, fy, name ~= '' and name or nil}
+        elseif k and defaults[k] ~= nil and not SHARE_SKIP[k] then
+            local x = valid(k, v)
+            if x == nil then return nil, 'Bad value for ' .. k .. ' in the code.' end
+            settings[k] = x
+        elseif k then
+            return nil, 'Unknown setting ' .. k .. ' (made by a newer version?).'
+        end
+    end
+    -- Validated as a whole: start from defaults so the result matches the exported layout.
+    for k, v in pairs(defaults) do if not SHARE_SKIP[k] then U.db[k] = v end end
+    for k, v in pairs(settings) do U.db[k] = v end
+    local prefix = AFUI.Get('profile') .. '.'
+    for k in pairs(U.positions) do if k:sub(1, #prefix) == prefix then U.positions[k], U.bindings[k] = nil, nil end end
+    for id, p in pairs(positions) do U.positions[prefix .. id], U.bindings[prefix .. id] = {p[1], p[2]}, p[3] end
+    return true
+end
 local function snapshot()
     local parts = {}
-    for k in pairs(defaults) do if k ~= 'profile' then parts[#parts + 1] = k .. ':' .. tostring(AFUI.Get(k)) end end
+    for k in pairs(defaults) do if k ~= 'profile' and not CAMERA[k] then parts[#parts + 1] = k .. ':' .. tostring(AFUI.Get(k)) end end
     return table.concat(parts, ';')
 end
 local function restore(profile)
@@ -2010,13 +2198,13 @@ local function restore(profile)
     -- whichever profile happened to be active before it.
     local settings = {}
     for k, v in (U.stored[profile] or ''):gmatch('(%w+):([^;]+)') do
-        if (defaults[k] ~= nil or k == 'alpha') and k ~= 'profile' then
+        if (defaults[k] ~= nil or k == 'alpha') and k ~= 'profile' and not CAMERA[k] then
             settings[k] = valid(k == 'alpha' and 'windowsalpha' or k, v)
         end
     end
     if U.stored[profile] then migrateOpacity(settings); migrateTooltips(settings) end
     U.db.alpha = nil
-    for k, v in pairs(defaults) do if k ~= 'profile' then U.db[k] = v end end
+    for k, v in pairs(defaults) do if k ~= 'profile' and not CAMERA[k] then U.db[k] = v end end
     for k, v in pairs(PRESET[profile] or {}) do U.db[k] = v end
     for k, v in pairs(settings) do if defaults[k] ~= nil then U.db[k] = v end end
 end
@@ -2027,8 +2215,11 @@ end
 function AFUI.Click(what)
     g_AddonName = 'RelicCalc'
     U.clicks, U.lastClick = (U.clicks or 0) + 1, tostring(what)
-    if what == 'Close' then U.open = false; if _G.AFUIOptions then w('Options'):Hide() end; return end
+    if what == 'Close' then U.open, U.note, U.confirmReset = false, nil, nil; if _G.AFUIOptions then w('Options'):Hide() end; return end
     if not U.ready then return end
+    -- A pending Reset confirmation and its note last only until the next click.
+    local confirming = U.confirmReset
+    U.note, U.confirmReset = nil, nil
     local tabIndex = tonumber(tostring(what):match('^Tab(%d+)$'))
     if tabIndex and TABS[tabIndex] then U.tab = TABS[tabIndex][1]; AFUI.Refresh(); return end
     local row, part = tostring(what):match('^Row(%d+)(%a+)$'); row = tonumber(row)
@@ -2052,17 +2243,54 @@ function AFUI.Click(what)
         restore(nxt)
         dirty();AFUI.ApplySettings(true)
     elseif spec.kind == 'action' then
-        if spec.action == 'unlock' then AFUI.Unlock(); return
-        elseif spec.action == 'resetall' then AFUI.ResetAll()
+        if spec.action == 'unlock' then
+            -- Tooltip boxes exist in MoveUI only for a kind anchored to its Mover.
+            local tip = spec.arg == 'tooltip'
+            if tip and AFUI.Get('ttanchor') ~= 1 and AFUI.Get('ttui') ~= 2 then
+                U.note = 'Set World or UI to Mover first; Cursor and Native have no box to move.'
+            else
+                AFUI.Unlock()
+                if tip and U.unlocked then
+                    for i, mv in ipairs(U.movers) do if mv.id == TOOLTIP or mv.id == TOOLTIP_UI then U.selected = i; break end end
+                    AFUI.EditorLayout()
+                end
+                return
+            end
+        elseif spec.action == 'resetall' then
+            -- Unlike MoveUI there is no Cancel here, so ask twice as MoveUI's Reset all does.
+            if confirming then AFUI.ResetAll(); U.note = 'All positions of this profile reset to the layout.'
+            else U.confirmReset = true; U.note = 'Reset every position of this profile? Click Confirm.' end
+        elseif spec.action == 'export' then
+            local code = exportCode()
+            if _G.AFUICode then w('Code'):SetText(code) end
+            local saved = AFCore.SaveFile and AFCore.SaveFile(SHARE_FILE, code .. '\n')
+            U.note = 'Code in the box: select it and copy.' .. (saved and ' Also saved to Mods/AetherfallUI/' .. SHARE_FILE .. '.' or '')
+        elseif spec.action == 'import' then
+            local code = _G.AFUICode and w('Code'):GetText() or ''
+            local fromFile = code:gsub('%s+', '') == ''
+            if fromFile then code = AFCore.ReadFile and AFCore.ReadFile(SHARE_FILE) or '' end
+            local ok, why = importCode(code)
+            if ok then
+                U.observed, U.stored[AFUI.Get('profile')] = {}, snapshot(); dirty()
+                AFUI.ApplySettings(true); AFUI.ApplyCamera(); AFUI.Save()
+                U.note = 'Imported into profile ' .. AFUI.Get('profile') .. (fromFile and ' from ' .. SHARE_FILE or '') .. '.'
+            else U.note = fromFile and code == '' and 'Paste a code in the box first.' or why end
         elseif spec.action == 'alignmenu' then AFUI.AlignMenu()
         elseif spec.action == 'alignmap' then AFUI.AlignMinimap()
         elseif spec.action == 'preset' then
             rememberProfile()
-            for k, v in pairs(defaults) do if k ~= 'profile' then U.db[k] = v end end
+            for k, v in pairs(defaults) do if k ~= 'profile' and not CAMERA[k] then U.db[k] = v end end
             for k, v in pairs(PRESET[spec.arg] or {}) do U.db[k] = v end
             U.db.profile = spec.arg
             local prefix=spec.arg..'.'
             for k in pairs(U.positions)do if k:sub(1,#prefix)==prefix then U.positions[k],U.bindings[k]=nil,nil end end
+            local sw,sh=screen()
+            for _,spot in ipairs(PRESET_SPOTS[spec.arg] or {}) do
+                local id=D[spot[1]];local d=id and dialog(id)
+                if d and d.w>0 and d.h>0 then
+                    U.positions[prefix..id]={math.max(0,spot[2]-d.w/sw/2),math.max(0,spot[3]-d.h/sh)};U.bindings[prefix..id]=d.name
+                end
+            end
             U.stored[spec.arg]=snapshot();dirty();AFUI.ApplySettings(true)
         elseif spec.action == 'store' then
             rememberProfile()
@@ -2111,11 +2339,13 @@ end
 
 local function enter()
     local identity = playerIdentity(); if not identity then return end
+    -- Each login or character switch: custom windows open at their saved spot once.
+    if U.identity ~= identity or not U.connected then U.entry = (U.entry or 0) + 1 end
     if U.identity ~= identity then
         if U.edit then AFUI.EndEdit(false, true, true) end
         if U.ready then AFUI.Save() end
         local ok, why = pcall(load)
-        if not ok then U.loadError = tostring(why); U.db, U.positions, U.stored, U.bindings = {}, {}, {}, {} end
+        if not ok then U.loadError = tostring(why); U.db, U.positions, U.stored, U.bindings, U.windows = {}, {}, {}, {}, {} end
         U.identity = identity; U.defaults = {}; U.designed = {}; U.designSize = nil; U.unlocked = false; U.restoreEdit = nil
         if AFCore.ClearBackdrops then AFCore.ClearBackdrops() end
         U.restoredWindows = {}
@@ -2124,6 +2354,7 @@ local function enter()
         U.initialRadar = true  -- the active Aetherfall layout includes a visible minimap
     end
     U.ready = true
+    AFUI.ApplyCamera()
 end
 AFUI.Enter = enter
 
@@ -2306,6 +2537,7 @@ function AFUI_OnEvent(event, ...)
         U.settled = focused and sw >= 800 and sh >= 600 and U.ticks - (U.sizeSince or 0) >= 20
         U.settled = U.settled and not U.suspended
         nativeDragTick()
+        if U.settled then pcall(customWindowsTick) end
         if U.settled then
             if U.restoreEdit then AFUI.RestoreEditFrames() end
             runPending()

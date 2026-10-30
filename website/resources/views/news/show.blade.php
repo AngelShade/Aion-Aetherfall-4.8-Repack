@@ -37,8 +37,8 @@
                 <a href="{{ $article->category === 'Guide' ? route('guides') : route('news.index') }}">{{ $article->category === 'Guide' ? 'Player Guides' : 'News & Announcements' }}</a>
             </div>
 
-            <h1>{{ $article->category === 'Guide' ? 'Player Guide' : 'Server News' }}</h1>
-            <p>{{ $article->category === 'Guide' ? 'Help with playing Aetherfall.' : 'Updates and notes from the server.' }}</p>
+            <h1>{{ $article->category === 'Guide' ? 'Player Guide' : 'Repack News' }}</h1>
+            <p>{{ $article->category === 'Guide' ? 'Help with playing Aetherfall.' : 'Repack releases, development notes and community updates.' }}</p>
         </section>
 
         <div class="news-detail-layout">
@@ -91,14 +91,14 @@
 
             <aside class="news-detail-sidebar">
                 <section class="news-sidebar-panel">
-                    <h2>Server Information</h2>
+                    <h2>Repack Features</h2>
 
                     <p class="muted">
-                        Discover server details, game features, and important gameplay information.
+                        Explore the companions, custom services, progression and client tools included in Aetherpack.
                     </p>
 
                     <a class="news-page-button" href="{{ url('/info') }}">
-                        SERVER INFO &rarr;
+                        REPACK FEATURES &rarr;
                     </a>
                 </section>
 

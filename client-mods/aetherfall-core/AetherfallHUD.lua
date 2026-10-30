@@ -332,6 +332,14 @@ end
 -- controller must still receive the original timer/world event, even if the
 -- other controller raises an error while the game rebuilds its windows.
 function AFHUD_Dispatch(event)
+    if AFCodex then
+        local ok, why = pcall(AFCodex.OnEvent, event)
+        if not ok then
+            local message=tostring(why)
+            if H.codexError~=message then DisplayChatMessage(0,'Codex: '..message,.91,.63,.56) end
+            H.codexError=message
+        else H.codexError=nil end
+    end
     local ok, why = pcall(AFUI_OnEvent, event)
     if not ok and AFUI then
         local message = tostring(why)

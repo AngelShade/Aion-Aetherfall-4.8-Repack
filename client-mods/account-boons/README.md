@@ -4,7 +4,10 @@ The Profile window's Account tab is NCSoft's free-to-play pack panel. Aetherfall
 account bonuses that are earned in game, never sold. The server
 (`AetherfallBoonService`) works out each account's boons at login and after a Season Pass
 purchase, applies their effects and sends the list in `S_BM_PACK_LIST`
-(`SM_PACKAGE_INFO_NOTIFY`, opcode 266: count, then pack id byte + seconds left, 0 = no time limit).
+(`SM_PACKAGE_INFO_NOTIFY`, opcode 266: count, then zero-based pack slot byte + seconds left,
+0 = no time limit). Both this packet and the purchased-pack mask use XML id minus one.
+The native Account details patch displays permanent boons as **Permanent** and preserves
+their rows through the existing refresh loop. Timed boons keep the native countdown.
 
 | Pack | Boon | Earned by | Effect |
 | --- | --- | --- | --- |

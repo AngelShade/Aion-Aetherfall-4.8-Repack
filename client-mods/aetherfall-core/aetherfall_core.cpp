@@ -9,23 +9,32 @@
 #include <cstdio>
 #include <cstring>
 #include <cwchar>
+#include <string>
+#include <unordered_map>
+#include <deque>
+#include <vector>
+#include <future>
+#include <optional>
+#include <winhttp.h>
+#pragma comment(lib, "winhttp.lib")
 #pragma comment(lib, "user32.lib")  // cursor and button state for addon dragging ("cursor")
 
 // Aion 4.8 NA x64 Lua bridge for the Aetherfall Interface. Data commands read
 // engine state that native windows already display and push Lua values. The
-// only writes are the interface's own window placement: "move" (native SetRect,
+// writes cover the interface's own window placement: "move" (native SetRect,
 // as the loot-roll bridge positions its dialogs), "pin" (keeps a moved dialog's or
 // start-menu button's spot when the game re-places it; the start menu's own buttons and
 // mouse-through gaps) and "setshown" (native show/hide). "save"/"read" store bounded
 // settings files in Mods/AetherfallUI, because this client's Lua io library has no
 // write. "command" runs one chat command the player could type (the Broker button's
-// "/say .broker"), as the start-menu entries do. Nothing writes game state. Called only
+// "/say .broker"), as the start-menu entries do. "setcamerasetting" updates only the
+// two allowlisted local camera CVars. Nothing writes gameplay state. Called only
 // from the client's Lua states on the native UI thread. Quest target hooks also
 // decorate native name/tooltip formatter outputs; actor names and quest state
 // remain native and unchanged.
 namespace {
 using Ptr=void*;
-constexpr char CORE_VERSION[]="1.2.77";  // checked against the normal builder's NATIVE_VERSION
+constexpr char CORE_VERSION[]="1.2.90";  // checked against the normal builder's NATIVE_VERSION
 constexpr uintptr_t PREFERRED=0x10000000;  // Game.dll has no relocations.
 unsigned char* image=nullptr;
 unsigned char* game(){return image;}
@@ -90,6 +99,7 @@ bool readable(const void* p,size_t n){
 
 #include "quest_targets.h"
 #include "camera_turn.h"
+#include "camera_settings.h"
 
 // Native string table: sorted 20-byte rows {int id, ..., const wchar_t* at +0xc}
 // (the lookup GetUnlearnedSkillList inlines with bsearch and comparator 0xa873d0).
@@ -387,6 +397,7 @@ Rect placed(const Pin& given,Rect p){
     }
     return local_rect(pin.target,p);
 }
+void codex_frame_changed(Ptr);
 uintptr_t pinned_set_rect(Ptr self,const Rect* r){
     Table* t=own_table(self);
     auto original=reinterpret_cast<SetRectFn>(t->original[SET_RECT/8]);
@@ -394,9 +405,9 @@ uintptr_t pinned_set_rect(Ptr self,const Rect* r){
         if(pins[i].target!=self || !pin_live(pins[i]))continue;
         ++pins[i].calls;
         Rect p=placed(pins[i],*r);
-        return original(self,&p);
+        auto result=original(self,&p);codex_frame_changed(self);return result;
     }
-    return original(self,r);
+    auto result=original(self,r);codex_frame_changed(self);return result;
 }
 // DlgTargetBuffStatus recalculates its anchor INSIDE SetRect, through +0x478
 // (Game.dll 0x654f60). Holding only the incoming SetRect loses to that later
@@ -686,6 +697,7 @@ size_t vtable_slots(void** vt){
     }
     return n;
 }
+int codex_command(Ptr,Ptr);
 bool hook(Ptr d){
     if(Table* known=own_table(d)){
         if(!known->ready)hook_refusal="native class slot installation was refused";
@@ -696,6 +708,10 @@ bool hook(Ptr d){
     if(low<game() || !readable(vt-1,sizeof(void*))){hook_refusal="class table not in Game.dll";return false;}
     size_t slots=vtable_slots(vt);
     bool start=low==game()+START_VTABLE;
+    // DlgNewMap / DlgTarget button commands for the Codex (loot_codex.h). A changed
+    // native slot leaves the class with its other policies and without the Codex.
+    bool codex=(low==game()+0xccfb88 || low==game()+0xce9ce8) && slots>START_COMMAND/8
+        && vt[START_COMMAND/8]==game()+(low==game()+0xccfb88?0x7ef580:0x4ae9d0);
     bool separated=low==game()+0xccee98 || low==game()+0xccf518;
     size_t adjust=anchor_adjust(low);
     if(table_count==TABLE_LIMIT){hook_refusal="too many window classes held";return false;}
@@ -725,6 +741,7 @@ bool hook(Ptr d){
     if(adjust)add(ADJUST_RECT,reinterpret_cast<void*>(&pinned_aura_adjust));
     if(start || separated)add(HIT_TEST,reinterpret_cast<void*>(&start_hit_test));
     if(start)add(START_COMMAND,reinterpret_cast<void*>(&start_command));
+    if(codex)add(START_COMMAND,reinterpret_cast<void*>(&codex_command));
     Table* t=&tables[table_count];
     *t=Table{};t->native=vt;t->slots=slots;t->copy[0]=vt[-1];
     std::memcpy(t->copy+1,vt,slots*sizeof(void*));t->original=t->copy+1;
@@ -749,6 +766,8 @@ bool hook(Ptr d){
 // Native class slots stay routed while the bridge is loaded. No selected policy
 // means native pass-through, including new objects of the same class. Releasing
 // a policy never changes an object's identity or writes into a retired object.
+#include "loot_codex.h"
+
 void unhook(Ptr d){
     (void)d;
 }
@@ -876,11 +895,23 @@ bool save_file(const char* name,const char* data,size_t n){
 
 int dispatch(Ptr L){
     const char* cmd=text(L,1);
+    if(cmd && !std::strcmp(cmd,"codex"))return codex::ui(L);
     if(!cmd || is(cmd,"version")){
         char version[64];std::snprintf(version,sizeof version,"AetherfallCore %s",CORE_VERSION);
         push(L,1.0);return 1+push(L,version);  // protocol version, installed build
     }
     if(is(cmd,"money")){long long k=kinah();return k<0?nil(L):push(L,double(k));}
+    if(is(cmd,"camerasetting") || is(cmd,"setcamerasetting")){
+        auto setting=camera_setting(text(L,2));
+        Ptr value=setting?camera_variable(*setting):nullptr;
+        if(is(cmd,"setcamerasetting")){
+            Value* requested=arg(L,3);
+            return boolean(L,value && requested && requested->tt==3 && set_camera_setting(*setting,value,requested->v.n));
+        }
+        if(!value)return nil(L);
+        push(L,double(field<float>(value,0xbc)));
+        return 1+push(L,double(setting->overridden?setting->original_float:field<float>(value,0xbc)));
+    }
     if(is(cmd,"exp")){
         push(L,double(global<long long>(EXP_CURRENT)));push(L,double(global<long long>(EXP_MAX)));
         push(L,double(global<long long>(EXP_RECOVERABLE)));push(L,double(global<long long>(REPOSE_CURRENT)));
@@ -1234,6 +1265,15 @@ DWORD WINAPI waiter(LPVOID){
 // Imported by Game.dll so the loader maps this bridge. 1 once the Lua
 // registration is applied, 0 while waiting, 2 when it timed out unapplied.
 extern "C" __declspec(dllexport) int AetherfallCoreStatus(){return int(AetherfallCoreDiagnostics[0]);}
+
+// Called by AionIconBridge's browser event pump, which already runs on the native UI thread.
+extern "C" __declspec(dllexport) void AetherfallCodexTick(){if(image)codex::tick();}
+extern "C" __declspec(dllexport) void AetherfallCodexAction(int command,int map,float x,float y,float z){
+    if(image)codex::action(command,map,x,y,z);
+}
+extern "C" __declspec(dllexport) bool AetherfallCodexBrowse(int kind,int id,int world){
+    return image && codex::browse(kind,id,world);
+}
 
 BOOL WINAPI DllMain(HINSTANCE instance,DWORD reason,LPVOID){
     if(reason==DLL_PROCESS_ATTACH){

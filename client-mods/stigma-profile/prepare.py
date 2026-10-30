@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-from patch_binary import patch, BUTTON, GATES, CLICK_CAVE, SLOT_CAVE
+from patch_binary import patch, verify_access, BUTTON, GATES, CLICK_CAVE, SLOT_CAVE, LIFECYCLE_RESETS
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / 'expanded-warehouse'))
@@ -111,6 +111,10 @@ def main():
     package_path = output / 'Mods/GraphicsMenu/package/manifest.json'
     package = json.loads(package_path.read_text())
     backup = output / 'Mods/Backups/Renderer' / compatibility['backupName']
+    for image in [dll, (output / 'Mods/GraphicsMenu/package/bin64/Game.dll').read_bytes(),
+                  (backup / 'bin64/Game.dll').read_bytes(),
+                  (backup / 'cursor-base/bin64/Game.dll').read_bytes()]:
+        verify_access(image)
 
     def stage(relative, data):
         path = output / relative
@@ -156,6 +160,7 @@ def main():
     manifest = dict(feature='stigma-profile', clientRoot=str(client), files=records,
                     graphicsCompatibility=compatibility, serverChanged=False, repackChanged=False,
                     nativeGates=[dict(rva=hex(r), purpose=p) for r, _, p in GATES],
+                    lifecycleResets=[dict(rva=hex(r), purpose=p) for r, p in LIFECYCLE_RESETS],
                     bridges=[hex(CLICK_CAVE), hex(SLOT_CAVE)],
                     sourceHashes={str(p): sha(p.read_bytes()) for p in HERE.iterdir() if p.is_file()},
                     preservedFiles=[dict(path=rel, sha256=sha((client / rel).read_bytes())) for rel in

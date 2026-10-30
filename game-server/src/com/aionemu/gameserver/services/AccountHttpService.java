@@ -36,7 +36,7 @@ public final class AccountHttpService {
 				if (!file.endsWith(".html")) // versioned by ?v= in account.html
 					x.getResponseHeaders().set("Cache-Control", "public, max-age=86400");
 				send(x, 200, file.endsWith(".html") ? "text/html" : file.endsWith(".css") ? "text/css" : "application/javascript",
-					Files.readString(MEDIA.resolve(file)));
+					file.endsWith(".css") ? WindowTextScale.css(Files.readString(MEDIA.resolve(file))) : Files.readString(MEDIA.resolve(file)));
 				return;
 			}
 			if (path.matches("/market/account/media/[a-z-]+\\.png")) {

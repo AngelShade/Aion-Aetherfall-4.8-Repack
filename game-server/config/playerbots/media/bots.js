@@ -24,6 +24,10 @@
 
   function label(value) { if (value === 'RIDER') return 'Aethertech'; return String(value || '').toLowerCase().replace(/_/g, ' ').replace(/\b[a-z]/g, function (c) { return c.toUpperCase(); }); }
 
+  function originLabel(temporary, world) { return world ? 'World Bot' : temporary ? 'Temporary Bot' : 'Account Alt'; }
+
+  function originBadge(parent, temporary, world) { parent.appendChild(node('span', originLabel(temporary, world), 'companion-origin' + (world ? ' world' : temporary ? ' temporary' : ' alt'))); }
+
   function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); }
 
   function notice(text, error) { byId('notice').textContent = text; byId('notice').className = error ? 'error' : ''; document.querySelector('footer').className = error ? 'error' : ''; }
@@ -495,6 +499,8 @@
 
       row.appendChild(node('strong', bot.name)); row.appendChild(node('span', 'Lv. ' + bot.level + ' ' + label(bot.playerClass) + ' \u00b7 ' + label(bot.role), 'meta'));
 
+      originBadge(row, bot.generated || bot.temporary, bot.world);
+
       row.appendChild(node('span', bot.closing ? 'Saving and dismissing\u2026' : bot.dead ? 'Waiting for resurrection' : label(bot.order) + ' \u00b7 ' + label(bot.status), 'summary-status'));
 
       var bars = node('span', null, 'mini-bars');
@@ -653,6 +659,7 @@
     chip.appendChild(crest(known && known.playerClass, member.role));
     chip.appendChild(node('strong', member.name));
     chip.appendChild(node('span', (known && known.level != null ? 'Lv. ' + known.level + ' ' : '') + (known && known.playerClass ? label(known.playerClass) : member.temporary ? 'Temporary Bot' : 'Account character'), 'meta'));
+    originBadge(chip, member.temporary);
     if (!editing) { chip.appendChild(node('span', label(member.role) + ' · ' + label(member.order), 'summary-status')); parent.appendChild(chip); return; }
     var role = select(chip, state.roles, member.role), order = select(chip, ['FOLLOW', 'STAY', 'GUARD', 'PASSIVE'], member.order);
     role.className = 'preset-role'; order.className = 'preset-order'; role.setAttribute('aria-label', member.name + ' role'); order.setAttribute('aria-label', member.name + ' order');
@@ -675,7 +682,8 @@
       for (var t = 0; t < members.length; t++) if (members[t].temporary) temporary++;
       if (editing) { var title = node('input'); title.id = 'preset-edit-name'; title.maxLength = 40; title.value = presetEdit.name; title.setAttribute('aria-label', 'Saved party name'); title.oninput = function () { presetEdit.name = title.value; }; top.appendChild(title); }
       else top.appendChild(node('h4', preset.name));
-      top.appendChild(node('span', (members.length > 5 ? 'Alliance' : 'Party') + ' · ' + members.length + ' companions · ' + temporary + (temporary === 1 ? ' Temporary Bot' : ' Temporary Bots'), 'preset-meta'));
+      var alts = members.length - temporary;
+      top.appendChild(node('span', (members.length > 5 ? 'Alliance' : 'Party') + ' · ' + members.length + ' companions · ' + temporary + (temporary === 1 ? ' Temporary Bot' : ' Temporary Bots') + ' · ' + alts + (alts === 1 ? ' Account Alt' : ' Account Alts'), 'preset-meta'));
       var actions = node('div', null, 'preset-actions');
       if (editing) {
         var save = button(actions, 'Save changes', {}, !members.length, 'primary small');
@@ -695,8 +703,13 @@
       }
       if (editing && members.length < 23) {
         var add = node('div', null, 'preset-add'), choice = node('select'), taken = {};
+        var choiceLabel = node('label', 'Choose a companion to add'); choice.id = 'preset-add-choice'; choiceLabel.htmlFor = choice.id; add.appendChild(choiceLabel);
+        // Render inside the page: popup menus can extend beyond the native browser surface.
+        choice.size = 6;
         for (var a = 0; a < members.length; a++) taken[members[a].id] = true;
-        for (var r = 0; r < state.roster.length; r++) { var c = state.roster[r]; if (taken[c.id] || (c.generated && !c.ready)) continue; var opt = node('option', c.name + (c.level != null ? ' · Lv. ' + c.level : '') + (c.playerClass ? ' ' + label(c.playerClass) : '')); opt.value = c.id; choice.appendChild(opt); }
+        for (var r = 0; r < state.roster.length; r++) { var c = state.roster[r]; if (taken[c.id] || (c.generated && !c.ready)) continue; var opt = node('option', '[' + originLabel(c.generated) + '] ' + c.name + (c.level != null ? ' · Lv. ' + c.level : '') + (c.playerClass ? ' ' + label(c.playerClass) : '')); opt.value = c.id; choice.appendChild(opt); }
+        if (choice.options.length) choice.selectedIndex = 0;
+        else choice.disabled = true;
         choice.setAttribute('aria-label', 'Companion to add'); add.appendChild(choice);
         localButton(add, '+ Add to party', function () { var c = rosterEntry(choice.value); if (!c) return; presetEdit.members.push({ id: c.id, name: c.name, temporary: !!c.generated, role: state.roles[0], order: 'FOLLOW' }); renderPresets(); }, 'small').disabled = !choice.options.length;
         card.appendChild(add);
@@ -743,7 +756,7 @@
 
       var live = activeBot(character.id), row = node('div', null, 'roster-row'), medal = crest(character.playerClass, live ? live.role : null), identity = node('div', null, 'roster-identity'), status = node('div', null, 'roster-state'), action = node('div', null, 'roster-action'); row.setAttribute('data-bot-id', character.id);
 
-      identity.appendChild(node('strong', character.name)); identity.appendChild(node('p', rosterIdentity(character), 'hint')); if (character.level != null || character.playerClass) identity.appendChild(node('p', character.generated ? 'Temporary Bot' : 'Account character', 'hint'));
+      identity.appendChild(node('strong', character.name)); identity.appendChild(node('p', rosterIdentity(character), 'hint')); if (character.level != null || character.playerClass) originBadge(identity, character.generated);
 
       if (character.generated && isSavedBot(character.id)) identity.appendChild(node('span', 'Saved Temporary Bot', 'badge'));
       status.textContent = live ? 'In your party' : !character.ready ? 'Creation pending' : character.reserved ? 'Active or saving' : 'Offline \u00b7 available';
@@ -789,7 +802,7 @@
 
     var card = node('article', null, 'bot'), header = node('div', null, 'bot-header'), top = node('div', null, 'bot-top'), identity = node('div'); card.setAttribute('data-bot-id', bot.id); headerArt(header); header.appendChild(crest(bot.playerClass, bot.role));
 
-    identity.appendChild(node('p', 'COMPANION / ' + label(bot.role).toUpperCase(), 'eyebrow')); identity.appendChild(node('h3', bot.name)); identity.appendChild(node('p', 'Level ' + bot.level + ' ' + label(bot.playerClass), 'badge')); top.appendChild(identity); top.appendChild(node('div', bot.closing ? 'Saving\u2026' : bot.dead ? 'Awaiting resurrection' : label(bot.order), 'bot-state')); header.appendChild(top);
+    identity.appendChild(node('p', 'COMPANION / ' + label(bot.role).toUpperCase(), 'eyebrow')); identity.appendChild(node('h3', bot.name)); identity.appendChild(node('p', 'Level ' + bot.level + ' ' + label(bot.playerClass) + ' · ' + originLabel(bot.generated || bot.temporary, bot.world), 'badge')); top.appendChild(identity); top.appendChild(node('div', bot.closing ? 'Saving\u2026' : bot.dead ? 'Awaiting resurrection' : label(bot.order), 'bot-state')); header.appendChild(top);
 
     var health = node('div', null, 'vitals'); vitals(health, 'Health', bot.health, 'health'); vitals(health, 'Mana', bot.mana, 'mana'); if (bot.xp != null) vitals(health, 'XP', bot.xp, 'xp'); header.appendChild(health); card.appendChild(header);
 

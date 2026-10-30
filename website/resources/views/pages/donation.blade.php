@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('title', 'Donation | Aetherfall')
-@section('meta_description', 'Support the Aetherfall community. Official donation methods are shown only when configured by the server team.')
+@section('meta_description', 'Support the Aetherfall community. Official donation methods are shown only when configured by the website owner.')
 
 @section('content')
 <main class="container aion-donation">

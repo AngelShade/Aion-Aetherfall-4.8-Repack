@@ -34,7 +34,7 @@ public final class WardrobeHttpService {
 			}
 			if (method.equals("GET") && path.matches("/market/wardrobe/media/wardrobe\\.(css|js)")) {
 				String file = path.substring(path.lastIndexOf('/')+1);
-				send(x,200,file.endsWith(".js") ? "application/javascript" : "text/css",Files.readString(MEDIA.resolve(file))); return;
+				send(x,200,file.endsWith(".js") ? "application/javascript" : "text/css",file.endsWith(".css") ? WindowTextScale.css(Files.readString(MEDIA.resolve(file))) : Files.readString(MEDIA.resolve(file))); return;
 			}
 			boolean action = path.equals("/market/wardrobe/action");
 			if (!action && !path.equals("/market/wardrobe/state")) { send(x,404,"application/json","{\"error\":\"Not found.\"}"); return; }

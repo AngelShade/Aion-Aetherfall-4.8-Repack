@@ -134,7 +134,7 @@ try {
             & $php @arguments portable.php aetherfall:website-defaults
             if($LASTEXITCODE -ne 0){throw 'Website settings initialization failed.'}
         }
-        $contentMarker=Join-Path $localRoot 'aetherfall-content-v1.json'
+        $contentMarker=Join-Path $localRoot 'aetherfall-content-v5.json'
         if(!(Test-Path -LiteralPath $contentMarker)){
             & $php @arguments portable.php aetherfall:website-content --no-interaction
             if($LASTEXITCODE -ne 0){throw 'The Aetherfall website content could not be prepared.'}

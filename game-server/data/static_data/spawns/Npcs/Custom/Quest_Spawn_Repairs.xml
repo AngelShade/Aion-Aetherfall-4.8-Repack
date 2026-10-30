@@ -68,7 +68,7 @@
     </spawn_map>
     <spawn_map map_id="220070000">
         <!-- Pinebeak: center of the existing Q46500 quest encounter zone. -->
-        <spawn npc_id="216624" respawn_time="295"><spot x="124.08" y="2402.66" z="456"/></spawn>
+        <spawn npc_id="216624" respawn_time="295"><spot x="124.08" y="2402.66" z="453.02124"/></spawn>
         <!-- Balaur Limbcleavers for 21248, from the installed 4.8 client_world_df4.xml. -->
         <spawn npc_id="700930" respawn_time="295">
             <spot x="2416.155273" y="1608.620605" z="234.000000"/>

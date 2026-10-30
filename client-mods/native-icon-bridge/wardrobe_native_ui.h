@@ -170,7 +170,7 @@ void tick(){
         write(preview_tx,L"");try{
             auto parts=split(appearance,'|');if(parts.size()!=3)throw std::runtime_error("Invalid preview");Command c;c.request=int(number(parts[0]));
             Ptr bounds=lookup(active,"WardrobePreviewBounds",0x200b);if(!bounds)throw std::runtime_error("Missing preview bounds");c.bounds=rect(bounds);
-            for(const auto& id:split(parts[1],',')){if(id.empty())continue;auto n=number(id,199999999);if(n<100000000 || c.items.size()>=32)throw std::runtime_error("Invalid item");c.items.push_back(n);}
+            for(const auto& id:split(parts[1],',')){if(id.empty())continue;auto token=split(id,':');if(token.size()>2)throw std::runtime_error("Invalid item");auto n=number(token[0],199999999);if(n<100000000 || c.items.size()>=32)throw std::runtime_error("Invalid item");c.items.push_back(n);c.colors.push_back(token.size()==2?dye_field(token[1]):0);}
             preview_ready=preview(c);preview_sequence=unsigned(c.request);if(preview_ready)control("wings",parts[2]=="1");
         }catch(...){preview_ready=false;}
     }

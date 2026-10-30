@@ -561,10 +561,15 @@ public final class PlayerBotService {
   if(!mesh.isEmpty())lines.add("Navmesh corridor checks since last report: "+mesh);
   PlayerBotMeshRoute.flushAreas(java.nio.file.Path.of("log","navmesh_areas-"+NAVMESH_REPORT_RUN+".csv"));
   // What awake world bots are actually doing, so stalls show up in the log.
-  var states=new TreeMap<String,Integer>();
-  for(var s:active)if(s.autonomous() && !s.dormant() && !s.bot().isDead())states.merge(s.diagnosticState(),1,Integer::sum);
+  var states=new TreeMap<String,Integer>();var examples=new HashMap<String,String>();
+  for(var s:active)if(s.autonomous() && !s.dormant() && !s.bot().isDead()){
+   var state=s.diagnosticState();states.merge(state,1,Integer::sum);
+   // Idle states name one actor, so a stall can be found without standing next to it.
+   if(state.contains("did: idle"))examples.putIfAbsent(state,s.bot().getName()+" map "+s.bot().getWorldId()
+    +String.format(Locale.ROOT," (%.0f, %.0f)",s.bot().getX(),s.bot().getY())+(s.bot().isCasting()?" casting":"")+(s.bot().isInTeam()?" in party":""));
+  }
   if(!states.isEmpty())lines.add("Awake world bot states: "+states.entrySet().stream().sorted(Map.Entry.<String,Integer>comparingByValue().reversed())
-   .limit(10).map(e->e.getValue()+" x "+e.getKey()).collect(java.util.stream.Collectors.joining("; ")));
+   .limit(10).map(e->e.getValue()+" x "+e.getKey()+(examples.containsKey(e.getKey())?" [e.g. "+examples.get(e.getKey())+"]":"")).collect(java.util.stream.Collectors.joining("; ")));
   var maps=new TreeMap<String,Integer>();for(var s:active){var b=s.bot();maps.merge("map "+b.getWorldId()+" instance "+b.getInstanceId(),1,Integer::sum);}
   maps.forEach((map,count)->lines.add(map+": "+count+" spawned"));
   if(viewer!=null)lines.add("On your map/instance: "+active.stream().filter(s->s.bot().getWorldId()==viewer.getWorldId() && s.bot().getInstanceId()==viewer.getInstanceId()).count()+". Use .bot worldlist 1 here for coordinates.");
@@ -937,10 +942,24 @@ public final class PlayerBotService {
   }
   return true;
  }
- /** Admit two current autonomous actors without changing their owners or AI lanes. */
+ /** A bot already in an adopted Find Group party follows the same human. */
+ public synchronized boolean adoptFindGroupMember(Player player,Player bot) {
+  var current=sessions.get(bot.getObjectId());
+  if(current!=null && this.current(current) && current.owner()==player && PlayerBotTeams.same(player,bot))return true;
+  if(current==null || !this.current(current) || !current.autonomous() || !PlayerBotTeams.same(player,bot)
+   || shuttingDown || retiringWorldBots.contains(bot.getObjectId()) || player.isPlayerBot() || !player.isOnline() || player.isDead()
+   || player.getRace()!=bot.getRace() || companions(player).size()>=Math.min(5,PlayerBotRaidPolicy.limit()))return false;
+  synchronized(current) {
+   if(!this.current(current) || !current.autonomous() || !PlayerBotTeams.same(player,bot))return false;
+   changeWorldController(current,player);
+  }
+  return true;
+ }
+ /** Admit a free actor to an autonomous or adopted Find Group party through native invitation rules. */
  synchronized boolean joinFindGroupBots(Player leader,Player member) {
   var a=currentActor(leader);var b=currentActor(member);
-  if(a==null || b==null || !a.autonomous() || !b.autonomous() || retiringWorldBots.contains(leader.getObjectId())
+  var controller=PlayerBotFindGroup.recruitmentController(leader);
+  if(a==null || b==null || !(a.autonomous() || a.owner()==controller) || !b.autonomous() || retiringWorldBots.contains(leader.getObjectId())
    || retiringWorldBots.contains(member.getObjectId()) || !PlayerBotFindGroup.canJoin(leader,member))return false;
   long now=System.currentTimeMillis();int first=Math.min(leader.getObjectId(),member.getObjectId()),second=Math.max(leader.getObjectId(),member.getObjectId());
   if(first==focusJobId || second==focusJobId || !execution.claim(first,"Find Group invitation",now))return false;
@@ -948,8 +967,15 @@ public final class PlayerBotService {
    if(!execution.claim(second,"Find Group invitation",now))return false;
    try {synchronized(a){synchronized(b){
     if(!current(a) || !current(b) || !PlayerBotFindGroup.canJoin(leader,member))return false;
-    new com.aionemu.gameserver.model.team.group.events.PlayerGroupInvite(leader).acceptRequest(leader,member);
-    return PlayerBotTeams.same(leader,member);
+    if(PlayerBotFindGroup.recruitmentController(leader)!=controller || !(a.autonomous() || a.owner()==controller))return false;
+    var inviter=leader.getPlayerGroup()==null?leader:leader.getPlayerGroup().getLeaderObject();
+    new com.aionemu.gameserver.model.team.group.events.PlayerGroupInvite(inviter).acceptRequest(inviter,member);
+    if(!PlayerBotTeams.same(leader,member))return false;
+    if(controller!=null && !adoptFindGroupMember(controller,member)) {
+     PlayerGroupService.removePlayer(member);
+     return false;
+    }
+    return true;
    }}}finally{execution.complete(second);}
   }finally{execution.complete(first);}
  }
@@ -981,6 +1007,7 @@ public final class PlayerBotService {
   if(PlayerBotTeams.same(inviter,bot)) {
    changeWorldController(current,inviter);
    PacketSendUtility.sendMessage(inviter,bot.getName()+" joined your "+(alliance?"alliance":"party")+". Normal .bot orders work; its character remains an independent world bot.");
+   PlayerBotFindGroup.arrived(inviter,bot);
   }
   return true;}
  }

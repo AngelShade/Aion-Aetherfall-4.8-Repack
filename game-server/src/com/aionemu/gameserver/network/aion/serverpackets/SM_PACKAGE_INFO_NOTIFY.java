@@ -16,7 +16,7 @@ public class SM_PACKAGE_INFO_NOTIFY extends AionServerPacket {
 
 	/**
 	 * @param packs
-	 *          client pack id -> seconds until expiration (0 = no time limit)
+	 *          zero-based client pack slot -> seconds until expiration (0 = no time limit)
 	 */
 	public SM_PACKAGE_INFO_NOTIFY(Map<Integer, Integer> packs) {
 		this.packs = packs;

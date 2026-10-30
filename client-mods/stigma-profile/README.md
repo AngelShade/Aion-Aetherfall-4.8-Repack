@@ -18,6 +18,13 @@ graphics/cursor restore images. Only known bytes of the supported client are
 accepted. Five Stigma-only NPC admission branches change; initial construction
 and mode resets retain interactive native normal/greater/major slot classes.
 This works on the first profile opening without an earlier NPC visit.
+Profile initialization/reset and both NPC-service close paths retain those
+interactive slot kinds. They no longer turn unlocked slots into display-only
+controls, which silently prevented double-click and drag/drop equipping.
+The builder checks this in the active, graphics package and restore images.
+For an installed Stigma build, the repair starts from the current DLL and
+rejects changes outside those three instructions. Later click bridges, imports
+and other native mods remain byte-for-byte intact; no older image is restored.
 The button routes only its exact name to
 native local dialog 431, without fabricating an NPC or a server interaction.
 

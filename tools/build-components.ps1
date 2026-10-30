@@ -19,6 +19,12 @@ if (Test-Path -LiteralPath $OutputRoot) { throw 'Use a fresh build directory; re
 New-Item -ItemType Directory -Path $OutputRoot | Out-Null
 & python (Join-Path $PSScriptRoot 'build-manifest.py') snapshot --build $OutputRoot
 if ($LASTEXITCODE -ne 0) { throw 'Could not snapshot authoritative build inputs.' }
+# Generate the read-only Codex catalog from the same source closure as this build.
+# Keep generated data external; the normal assembly packages only the runtime TSV.
+if (($Modules -split ',') -contains 'game-server') {
+    & java (Join-Path $PSScriptRoot 'codex/ScriptedSpawnCatalog.java') (Join-Path $repoRoot 'game-server') (Join-Path $OutputRoot 'codex-data')
+    if ($LASTEXITCODE -ne 0) { throw 'Could not generate the scripted spawn catalog.' }
+}
 $mavenArgs = @('-pl',$Modules,'-am','-Dmaven.test.skip=true','-Dassembly.skipAssembly=false',("-Daion.build.root=" + $OutputRoot.Replace('\','/')),'package')
 if (!$Online) { $mavenArgs = @('-o') + $mavenArgs }
 Push-Location $repoRoot

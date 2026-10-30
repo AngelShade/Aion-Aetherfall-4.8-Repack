@@ -41,7 +41,7 @@ class ModulePluginResource extends Resource
 
     public static function builtInFeatureKeys(): array
     {
-        return ['home', 'news', 'info', 'download', 'donation', 'support', 'account.registration', 'account.login', 'account.characters', 'account.password', 'server.status'];
+        return ['home', 'news', 'info', 'download', 'donation', 'support', 'account.registration', 'account.login', 'account.characters', 'account.password', 'server.status', 'rankings', 'events', 'start', 'repack.tools'];
     }
 
     public static function isBuiltInFeatureKey(?string $key): bool

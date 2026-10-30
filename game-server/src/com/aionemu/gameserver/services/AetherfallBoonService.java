@@ -42,6 +42,11 @@ public final class AetherfallBoonService {
 		Boon(int pack) {
 			this.pack = pack;
 		}
+
+		/** Native pack-array index; BM XML ids are one-based. Both account packets use this slot. */
+		public int clientSlot() {
+			return pack - 1;
+		}
 	}
 
 	/** Instant.MAX marks a permanent boon. */
@@ -386,7 +391,7 @@ public final class AetherfallBoonService {
 	}
 
 	/**
-	 * Active packs as the client's bitmask (bit = pack id), sent in SM_ACCOUNT_PROPERTIES. The Account tab lists
+	 * Active packs as the client's bitmask (bit = zero-based pack slot), sent in SM_ACCOUNT_PROPERTIES. The Account tab lists
 	 * only packs whose bit is set; SM_PACKAGE_INFO_NOTIFY supplies their remaining time.
 	 */
 	public static int packMask(int account) {
@@ -395,7 +400,7 @@ public final class AetherfallBoonService {
 		if (state != null)
 			for (Boon boon : Boon.values())
 				if (state.has(boon))
-					mask |= 1 << boon.pack;
+					mask |= 1 << boon.clientSlot();
 		return mask;
 	}
 
@@ -411,8 +416,8 @@ public final class AetherfallBoonService {
 			if (!state.has(boon))
 				continue;
 			Instant until = state.boons().get(boon);
-			// 0 shows "No time limit".
-			packs.put(boon.pack, until == Instant.MAX ? 0 : (int) Math.max(1, Math.min(Integer.MAX_VALUE, Duration.between(now, until).toSeconds())));
+			// The native Account renderer displays zero-duration Aetherfall packs as Permanent.
+			packs.put(boon.clientSlot(), until == Instant.MAX ? 0 : (int) Math.max(1, Math.min(Integer.MAX_VALUE, Duration.between(now, until).toSeconds())));
 		}
 		PacketSendUtility.sendPacket(p, new SM_PACKAGE_INFO_NOTIFY(packs));
 	}

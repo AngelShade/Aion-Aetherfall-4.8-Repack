@@ -21,6 +21,12 @@ The source's current appearance is collected, including an existing permanent
 remodel. Enchantment, sockets, fusion, tempering and other equipment attributes
 stay intact. Applying a skin keeps the target equipment's dye.
 
+An appearance that is already applied is accepted without rewriting the item.
+It does not prevent the remaining changes in a batch from being applied. A stale
+preview that would overwrite a different current appearance is still rejected;
+the message names the affected equipment. A saved-inventory mismatch asks you to
+log in again and records the differing fields in the server log.
+
 **All appearances** shows eligible client-supported equipment skins; **Locked**
 shows skins not collected yet. Search and category buttons narrow the list.
 Selecting equipment also filters by compatible equipment type. Race and gender
@@ -45,6 +51,31 @@ wings; applying a wing appearance still requires a wing item.
 **Reset Preview** discards staged changes. **Restore Appearance** stages the
 selected equipment's original skin; choose **Apply Changes** to save it.
 
+## Dyes
+
+The **Dyes** tab keeps an account dye palette, like a permanent color collection.
+It uses Aion's own dyes: one color per equipment item, the same dye field the
+native dye items write. The palette lists every permanent equipment dye with a
+client item (Dye:, Legion Reward and event dyes, and flower Petals). Housing
+paints, test items and timed dyes (1 to 30 days) are not part of it.
+
+- **Register Dye** consumes one permanent dye from Inventory and adds its color
+  for every character on the account. A color already in the palette is not
+  consumed again.
+- **Aether Palette** (item 168100002, Season Pass free track level 19) opens every
+  palette color at once. Choose **Unlock Palette** in the Dyes tab to use it.
+  It is not sold in the Cash Shop.
+- Select equipment and a color, then **Try On**, or **Try On All** for every
+  equipped dyeable item. **Remove Dye** stages the undyed look. Colors that are
+  not registered can be tried on, but must be registered before applying.
+- **Apply Changes** saves skins and dyes together in one transaction. Palette dyes
+  and dye removal are free and unlimited, and replace timed native dyes with a
+  permanent color. Items whose appearance Aion marks as not dyeable stay blocked.
+
+The character preview receives each staged color in the native appearance record
+(the same 16-byte layout as the equipment appearance packet: item, godstone, dye,
+enchant).
+
 ## Saved outfits
 
 Equip the items you want, apply their collected appearances, then choose
@@ -54,18 +85,21 @@ account. Saving with an existing name asks to replace it.
 **Try On Outfit** stages appearances on the currently equipped items in its saved
 slots. **Apply Changes** saves the whole selection in one transaction.
 Every slot must exist and match the stored appearance. If any slot is incompatible,
-the whole operation is rejected. Outfits contain appearances, not equipment,
-stats or dyes. Original appearances are stored as “use this item's original skin”.
+the whole operation is rejected. Outfits contain appearances and palette dyes, not equipment or
+stats. Dyes outside your palette are not saved; outfits saved before Dyes keep the current dyes. Original appearances are stored as “use this item's original skin”.
 
 ## Server files and database
 
-The GameServer creates four dedicated InnoDB tables at startup from
+The GameServer creates seven dedicated InnoDB tables at startup from
 `config/wardrobe/schema.sql`:
 
 - `wardrobe_accounts`: account transaction locks.
 - `wardrobe_skins`: permanent account appearance collection.
 - `wardrobe_outfits`: named equipped appearance sets.
 - `wardrobe_requests`: completed request receipts to prevent repeated consumption.
+- `wardrobe_dyes`: registered palette colors per account.
+- `wardrobe_palettes`: accounts that used an Aether Palette.
+- `wardrobe_outfit_dyes`: saved outfit dyes per slot (-1 for no dye).
 
 The existing `inventory` table must also use InnoDB. Ticket consumption and the
 collection insert commit in one transaction. Equipment appearance changes commit

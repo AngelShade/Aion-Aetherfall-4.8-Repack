@@ -7,7 +7,7 @@ from prepare_index import prepare
 from prepare_ui_art import prepare as prepare_ui_art
 from patch_client import AWESOMIUM_SHA256
 
-def build(client, output):
+def build(client, output, *, refresh_indexes=True):
     awesomium = client / 'bin64/Awesomium.dll'
     if hashlib.sha256(awesomium.read_bytes()).hexdigest() != AWESOMIUM_SHA256:
         raise ValueError('Native icon bridge requires the verified 4.8 NA Awesomium.dll')
@@ -27,8 +27,15 @@ def build(client, output):
     # A raw command line preserves cmd.exe's nested quotes; list2cmdline escapes
     # them as C-runtime arguments, which breaks a quoted CALL path.
     subprocess.run(f'cmd.exe /d /s /c ""{script}""', check=True)
-    result = prepare(client, target / 'AionIconBridge.index')
-    result['uiArt'] = prepare_ui_art(client, target / 'AionUiArt.index')
+    if refresh_indexes:
+        result = prepare(client, target / 'AionIconBridge.index')
+        result['uiArt'] = prepare_ui_art(client, target / 'AionUiArt.index')
+    else:
+        # Code-only update: the item/UI archives have not changed. Keep the
+        # installed indexes and guard their exact inputs for installation.
+        paths = ['Data/Items/Items.pak', 'Textures/ui/ui.pak', 'Textures/ui/skill_bg/skill_bg.pak',
+                 'bin64/AionIconBridge.index', 'bin64/AionUiArt.index', 'bin64/Awesomium.dll']
+        result = {'inputGuards': {p: hashlib.file_digest((client / p).open('rb'), 'sha256').hexdigest() for p in paths}}
     result['awesomiumSha256'] = AWESOMIUM_SHA256
     print('Original client icon bridge:', result)
     return result

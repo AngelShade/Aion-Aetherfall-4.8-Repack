@@ -8,11 +8,20 @@
     <section class="page-intro">
         <div class="eyebrow">Aetherfall</div>
         <h1>{{ $pageTitle ?? 'Latest News' }}</h1>
-        <p>{{ $pageIntro ?? 'Release news, changes and notes from the server.' }}</p>
+        <p>{{ $pageIntro ?? 'Repack releases, feature updates and community announcements.' }}</p>
         @isset($guideSearch)
             <form method="GET" action="{{ route('guides') }}" class="portal-search" role="search">
                 <input type="search" name="q" value="{{ $guideSearch }}" placeholder="Find a guide" aria-label="Search player guides" maxlength="80">
                 <button class="btn" type="submit">SEARCH</button>
+            </form>
+        @endisset
+        @isset($newsSearch)
+            <form method="GET" action="{{ route('news.index') }}" class="hub-filters" role="search">
+                <label>Search news<input type="search" name="q" value="{{ $newsSearch }}" placeholder="Updates, quests, companions…" maxlength="80"></label>
+                <label>Category<select name="category"><option value="">All news</option>@foreach ($categories as $name)<option value="{{ $name }}" @selected($category === $name)>{{ $name }}</option>@endforeach</select></label>
+                <button class="btn" type="submit">FIND NEWS</button>
+                @if ($newsSearch !== '' || $category !== '')<a class="hub-text-link" href="{{ route('news.index') }}">Clear filters</a>@endif
+                <a class="hub-text-link" href="{{ route('news.feed') }}">RSS feed ↗</a>
             </form>
         @endisset
     </section>
@@ -45,8 +54,8 @@
         @empty
             <div class="news-page-empty">
                 <div class="eyebrow">No News Available</div>
-                <h2>{{ isset($guideSearch) ? 'No matching guides.' : 'No published articles yet.' }}</h2>
-                <p>{{ isset($guideSearch) ? 'Try another word or clear the search.' : 'New posts will appear here when published.' }}</p>
+                <h2>{{ isset($guideSearch) || ($newsSearch ?? '') !== '' || ($category ?? '') !== '' ? 'No matching articles.' : 'No published articles yet.' }}</h2>
+                <p>Try another word, clear the filters or return for new posts.</p>
                 @if ($aionFeatures['home'] ?? false)<a class="news-page-button" href="{{ route('home') }}">BACK TO HOME</a>@endif
             </div>
         @endforelse

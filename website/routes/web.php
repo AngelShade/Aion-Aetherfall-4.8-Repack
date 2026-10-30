@@ -10,6 +10,9 @@ use App\Models\DownloadItem;
 use App\Models\News;
 use App\Models\HeroSlide;
 use App\Services\AionServerStatus;
+use App\Services\AionEventSchedule;
+use App\Http\Controllers\CommunityController;
+use App\Http\Controllers\RepackToolsController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/owner-access/{token}', \App\Http\Controllers\WebsiteOwnerController::class)
@@ -19,6 +22,39 @@ Route::get('/guides', [NewsController::class, 'guides'])
     ->middleware(['website.available', 'feature.enabled:news'])->name('guides');
 
 Route::view('/gallery', 'pages.gallery')->middleware(['website.available', 'feature.enabled:info'])->name('gallery');
+
+Route::view('/start', 'pages.start')->middleware(['website.available', 'feature.enabled:start'])->name('start');
+Route::get('/rankings', [CommunityController::class, 'index'])
+    ->middleware(['website.available', 'feature.enabled:rankings', 'throttle:60,1'])->name('rankings');
+Route::get('/characters/{id}', [CommunityController::class, 'character'])->whereNumber('id')
+    ->middleware(['website.available', 'feature.enabled:rankings', 'throttle:60,1'])->name('characters.show');
+Route::get('/legions', [CommunityController::class, 'legions'])
+    ->middleware(['website.available', 'feature.enabled:rankings', 'throttle:60,1'])->name('legions');
+Route::get('/legions/{id}', [CommunityController::class, 'legion'])->whereNumber('id')
+    ->middleware(['website.available', 'feature.enabled:rankings', 'throttle:60,1'])->name('legions.show');
+Route::get('/events', function (\Illuminate\Http\Request $request, AionEventSchedule $events) {
+    $selectedDay = $request->query('day');
+    if (! is_string($selectedDay) || ! array_key_exists($selectedDay, AionEventSchedule::DAYS)) $selectedDay = 'MON';
+    $schedule = $events->weekly();
+    $announcements = \App\Models\ModulePlugin::featureEnabled('news') ? News::query()
+        ->where('category', 'Event')->where('status', 'published')
+        ->where(fn ($q) => $q->whereNull('published_at')->orWhere('published_at', '<=', now()))
+        ->orderByDesc('published_at')->limit(6)->get() : collect();
+    return view('pages.events', compact('selectedDay', 'schedule', 'announcements'));
+})->middleware(['website.available', 'feature.enabled:events'])->name('events');
+Route::get('/status', function (AionServerStatus $status) {
+    return view('pages.status', ['metrics' => $status->snapshot()]);
+})->middleware(['website.available', 'feature.enabled:server.status'])->name('status');
+Route::get('/feed.xml', [NewsController::class, 'feed'])
+    ->middleware(['website.available', 'feature.enabled:news'])->name('news.feed');
+
+Route::middleware(['website.available', 'feature.enabled:repack.tools'])->group(function () {
+    Route::get('/tools', [RepackToolsController::class, 'index'])->name('tools');
+    Route::get('/tools/classes', [RepackToolsController::class, 'classes'])->name('tools.classes');
+    Route::get('/tools/party-planner', [RepackToolsController::class, 'planner'])->name('tools.planner');
+    Route::get('/tools/instances', [RepackToolsController::class, 'atlas'])->name('tools.atlas');
+    Route::get('/tools/commands', [RepackToolsController::class, 'commands'])->name('tools.commands');
+});
 
 Route::get('/', function (AionServerStatus $aionServerStatus) {
     $latestNews = News::query()->where('category', '<>', 'Guide')
@@ -142,15 +178,24 @@ Route::get('/sitemap.xml', function () {
 
     foreach ([
         'news' => 'news.index', 'info' => 'info', 'download' => 'download',
-        'donation' => 'donation', 'support' => 'support',
+        'donation' => 'donation', 'support' => 'support', 'rankings' => 'rankings',
+        'events' => 'events', 'start' => 'start', 'server.status' => 'status',
+        'repack.tools' => 'tools',
     ] as $feature => $routeName) {
         if (\App\Models\ModulePlugin::featureEnabled($feature)) {
             $urls->push(['loc' => route($routeName), 'lastmod' => now()->toAtomString()]);
         }
     }
 
+    if (\App\Models\ModulePlugin::featureEnabled('repack.tools')) {
+        foreach (['tools.classes', 'tools.planner', 'tools.atlas', 'tools.commands'] as $routeName) {
+            $urls->push(['loc' => route($routeName), 'lastmod' => now()->toAtomString()]);
+        }
+    }
+
     if (\App\Models\ModulePlugin::featureEnabled('news')) $urls->push(['loc'=>route('guides'), 'lastmod'=>now()->toAtomString()]);
     if (\App\Models\ModulePlugin::featureEnabled('info')) $urls->push(['loc'=>route('gallery'), 'lastmod'=>now()->toAtomString()]);
+    if (\App\Models\ModulePlugin::featureEnabled('rankings')) $urls->push(['loc'=>route('legions'), 'lastmod'=>now()->toAtomString()]);
 
     if (\App\Models\ModulePlugin::featureEnabled('news')) News::query()
         ->where('status', 'published')

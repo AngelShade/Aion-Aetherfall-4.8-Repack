@@ -45,7 +45,7 @@ std::unordered_map<Ptr,Widget*> widgets;
 std::array<Ptr,0x500/8> vtable{};
 std::unordered_map<Ptr,std::vector<Ptr>> children;
 Widget *host,*browser,*paper,*normal,*zoom,*robot;
-int resets=0;std::vector<uint32_t> appearances;
+int resets=0;std::vector<uint32_t> appearances,dyes;
 const char* __cdecl name(Ptr p){return widgets.at(p)->name.c_str();}
 const wchar_t* __cdecl edit_text(Ptr p){return widgets.at(p)->native_text.c_str();}
 void __cdecl set_edit_text(Ptr p,const wchar_t* value){widgets.at(p)->native_text=value;}
@@ -60,8 +60,8 @@ void __cdecl set_flag(Ptr p,uint64_t bits,int){
  if(p==paper->bytes.data()&&(bits&1))wardrobe::field<wardrobe::Rect>(p,0x50)={20,140,320,490};
 }
 void __cdecl clear_flag(Ptr p,uint64_t bits,int){wardrobe::field<uint64_t>(p,0x30)&=~bits;}
-void __cdecl reset(Ptr p,bool){assert(p==paper->bytes.data());resets++;appearances.clear();wardrobe::field<uint64_t>(normal->bytes.data(),0x30)|=1;wardrobe::field<int>(p,0x598)=1;}
-void __cdecl appearance(Ptr p,const uint32_t* data){assert(p==paper->bytes.data());appearances.push_back(data[0]);}
+void __cdecl reset(Ptr p,bool){assert(p==paper->bytes.data());resets++;appearances.clear();dyes.clear();wardrobe::field<uint64_t>(normal->bytes.data(),0x30)|=1;wardrobe::field<int>(p,0x598)=1;}
+void __cdecl appearance(Ptr p,const uint32_t* data){assert(p==paper->bytes.data());appearances.push_back(data[0]);dyes.push_back(data[2]);}
 void __cdecl zoom_change(Ptr p,int value){wardrobe::field<int>(p,0x57c)=value;}
 void __cdecl noop(Ptr){}
 #ifdef VERIFY_NATIVE_WARDROBE_UI
@@ -327,6 +327,10 @@ int main(int argc,char** argv){
  assert(wardrobe::native_ui::preview_sequence==42 && wardrobe::native_ui::preview_ready);
  assert(appearances.size()==3 && appearances.back()==187000001);
  assert(wardrobe::rect(normal->bytes.data()).x==100 && wardrobe::rect(normal->bytes.data()).y==180);
+ // Dye tokens fill the native record's dye field: status 1, then R, G, B.
+ mailboxes[3].native_text=L"44|100000096,125000001:1f87f5|0";wardrobe::tick();
+ assert(wardrobe::native_ui::preview_ready && dyes==std::vector<uint32_t>({0u,0xf5871f01u}));
+ mailboxes[3].native_text=L"45|125000001:zz0000|0";wardrobe::tick();assert(!wardrobe::native_ui::preview_ready);
  mailboxes[3].native_text=L"43|7|1";wardrobe::tick();assert(!wardrobe::native_ui::preview_ready);
  std::promise<wardrobe::native_ui::Result> delayed;
  wardrobe::native_ui::pending=delayed.get_future();auto epoch=wardrobe::native_ui::generation;

@@ -1,0 +1,30 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Aetherfall Codex</title><link rel="stylesheet" href="/market/codex/media/codex.css?v=8"></head>
+<body>
+<header><div class="crest" aria-hidden="true">âœ¦</div><div class="brand">AETHERFALL <span>FIELD ARCHIVES</span></div><h1>The Codex</h1><p id="subtitle">Creatures, treasures &amp; the worlds that hold them</p><div class="header-seal" aria-hidden="true">â—‡<span>KNOWLEDGE IS YOUR EDGE</span></div></header>
+<nav id="navigation" aria-label="Codex navigation"><button id="back" class="return" disabled>â€¹ Central Market</button><button id="items" class="active"><span aria-hidden="true">â—‡</span> Item archive</button><button id="creatures"><span aria-hidden="true">âœ¦</span> Bestiary</button><button id="target" style="display:none">My target</button><button id="map-codex">Map Codex</button><button id="close" style="display:none">Close</button></nav>
+<aside id="filters">
+  <div class="chapter"><span id="filter-number">I</span><div class="eyebrow">REFINE YOUR SEARCH</div><h2 id="filter-title">Item archive</h2></div>
+  <form id="search"><div class="filter-scroll">
+    <label for="query">Name or template ID</label><input id="query" maxlength="100" placeholder="What are you looking for?">
+    <div class="filter-section"><h3>Classification</h3>
+      <div id="item-filters"><label for="category">Category</label><select id="category"><option value="">All categories</option><option>Weapons</option><option>Armour</option><option>Accessories</option><option>Materials</option><option>Recipes</option><option>Enhancement</option><option>Quest</option><option>Other</option></select>
+      <label for="group">Item type</label><select id="group"><option value="">All item types</option></select>
+      <label for="grade">Quality</label><select id="grade"><option value="">Any quality</option><option value="COMMON">Common</option><option value="RARE">Superior</option><option value="LEGEND">Heroic</option><option value="UNIQUE">Fabled</option><option value="EPIC">Eternal</option><option value="MYTHIC">Mythic</option><option value="JUNK">Junk</option></select>
+      <label for="faction">Usable by</label><select id="faction"><option value="">Any faction</option><option value="ELYOS">Elyos</option><option value="ASMODIANS">Asmodians</option></select>
+      <label for="source">Acquisition</label><select id="source"><option value="">All recorded sources</option><option value="npc">Creature loot</option><option value="rule">World loot pools</option><option value="vendor">Merchants</option><option value="quest">Quest rewards</option><option value="recipe">Crafting &amp; morphing</option><option value="item">Containers</option><option value="event">Active events</option></select></div>
+      <div id="creature-filters" style="display:none"><label for="rating">Rating</label><select id="rating"><option value="">Any rating</option><option value="JUNK">Junk</option><option value="NORMAL">Normal</option><option value="ELITE">Elite</option><option value="HERO">Hero</option><option value="LEGENDARY">Legendary</option></select>
+      <label for="rank">Rank</label><select id="rank"><option value="">Any rank</option><option value="NOVICE">Novice</option><option value="DISCIPLINED">Disciplined</option><option value="SEASONED">Seasoned</option><option value="EXPERT">Expert</option><option value="VETERAN">Veteran</option><option value="MASTER">Master</option></select>
+      <label for="race">Race / creature family</label><select id="race"><option value="">All creature families</option></select>
+      <label for="area">Region</label><input id="area" maxlength="100" placeholder="Area name or map ID"></div>
+    </div>
+    <div class="filter-section"><h3>Level &amp; ordering</h3><div class="level-range"><label for="minLevel">Min level</label><label for="maxLevel">Max level</label><input id="minLevel" maxlength="3" placeholder="Any" aria-label="Minimum level"><input id="maxLevel" maxlength="3" placeholder="Any" aria-label="Maximum level"></div>
+    <label for="sort">Sort results</label><select id="sort"><option value="name">Name: A to Z</option><option value="level_asc">Level: low to high</option><option value="level_desc">Level: high to low</option></select></div>
+    <p id="drop-rate" class="bonus"></p>
+    <div class="field-note"><span aria-hidden="true">âœ¦</span> Follow an item to its sources, or open a creature to study its rewards and spawn areas.</div>
+    </div><div class="filter-actions"><button type="submit" class="primary">Search archive</button><button type="button" id="reset">Reset filters</button></div>
+  </form>
+</aside>
+<main id="content"><div id="breadcrumb" class="eyebrow"></div><div id="heading"></div><div id="notice" role="status" aria-live="polite"></div><div id="list-heading"><span id="list-title"></span><label id="world-control" style="display:none"><input id="world" type="checkbox" checked> Include world drops</label></div><div id="rows"></div></main>
+<footer><span class="footer-crest" aria-hidden="true">âœ¦</span><span id="count"></span><div id="paging"><button id="previous" aria-label="Previous page">â€¹</button><span id="page"></span><button id="next" aria-label="Next page">â€º</button></div></footer>
+<script src="/market/codex/media/codex.js?v=9-scripted"></script></body></html>

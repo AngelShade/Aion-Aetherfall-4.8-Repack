@@ -10,10 +10,10 @@
             $slides = isset($heroSlides) && $heroSlides->isNotEmpty()
                 ? $heroSlides
                 : collect([[
-                    'eyebrow' => 'Aion · Solo and co-op',
+                    'eyebrow' => 'Aion 4.8 NA · Repack',
                     'title' => 'Aetherfall',
                     'highlight' => '',
-                    'description' => 'Quest with friends, recruit your alts and build a companion party.',
+                    'description' => 'Install the complete Aion 4.8 repack. Play solo, host friends and build your companion party.',
                     'image_path' => 'hero-slides/aion-hero.jpg',
                     'primary_label' => 'EXPLORE DOWNLOADS',
                     'primary_url' => route('download'),
@@ -23,7 +23,6 @@
         @endphp
 
         <section class="hero aion-hero" aria-label="Aetherfall featured introduction">
-            <button class="af-motion-toggle" type="button" data-motion-toggle aria-pressed="false" hidden>Pause motion</button>
             <div class="aion-hero-slides" data-aion-slider>
                 @foreach ($slides as $index => $slide)
                     @php
@@ -60,7 +59,7 @@
                                         <em>{{ data_get($slide, 'highlight') }}</em>
                                     @endif
                                 </h1>
-                                <p>{{ data_get($slide, 'description', 'Discover the timeless world of Atreia. Two factions, one destiny. Begin your journey in Aetherfall.') }}</p>
+                                <p>{{ data_get($slide, 'description', 'Your own Aion 4.8 adventure, with the client, game services and companion tools included.') }}</p>
 
                                 @if (($aionFeatures['download'] ?? false) || ($aionFeatures['news'] ?? false))
                                     <div class="hero-buttons aion-hero-buttons">
@@ -154,13 +153,22 @@
         </section>
 
         <div class="container">@include('partials.aetherfall-features')</div>
+        <nav class="container hub-home-links" aria-label="Find your next step">
+            @if ($aionFeatures['start'] ?? false)<a href="{{ route('start') }}"><strong>Start your journey ↗</strong><span>From first download to your first Daeva.</span></a>@endif
+            @if ($aionFeatures['rankings'] ?? false)<a href="{{ route('rankings') }}"><strong>Daevas of Atreia ↗</strong><span>Player rankings, characters and legions.</span></a>@endif
+            @if ($aionFeatures['events'] ?? false)<a href="{{ route('events') }}"><strong>Plan your battles ↗</strong><span>Weekly sieges and community events.</span></a>@endif
+            @if ($aionFeatures['server.status'] ?? false)<a href="{{ route('status') }}"><strong>Your world today ↗</strong><span>Your installation’s connection, players and bots.</span></a>@endif
+        </nav>
+        @if ($aionFeatures['repack.tools'] ?? false)
+        <section class="container hub-callout"><div><span class="eyebrow">The Daeva’s field kit</span><h2>A little planning. A better adventure.</h2><p>Compare classes, build a companion party, explore the instance atlas and keep your command reference close at hand.</p></div><a class="btn btn-outline" href="{{ route('tools') }}">OPEN REPACK TOOLS →</a></section>
+        @endif
         @if ($aionFeatures['news'] ?? false)
         <section class="section news-section" id="news">
             <div class="container">
                 <div class="section-heading">
                     <div class="eyebrow">From the world of Atreia</div>
                     <h2>LATEST NEWS</h2>
-                    <p>Announcements and updates from the server team.</p>
+                    <p>Repack releases, feature updates and community news.</p>
                 </div>
 
                 <div class="news-grid aion-news-grid">
@@ -207,7 +215,7 @@
                             <div class="aion-news-card-content">
                                 <div class="aion-news-meta"><span>ANNOUNCEMENTS</span></div>
                                 <h3>Welcome to Aetherfall</h3>
-                                <p>News and server announcements will appear here when published.</p>
+                                <p>Repack news and announcements will appear here when published.</p>
                             </div>
                         </article>
                     @endforelse
@@ -226,8 +234,8 @@
             $homeExploreCards = [
                 [
                     'key' => 'info', 'route' => 'info', 'eyebrow' => 'KNOW ATREIA',
-                    'title' => 'SERVER INFORMATION', 'description' => 'Review server status, game version, factions, and published configuration.',
-                    'mark' => '✧', 'action' => 'EXPLORE SERVER',
+                    'title' => 'REPACK FEATURES', 'description' => 'Explore companions, progression, storage, interface tools and everything included in Aetherpack.',
+                    'mark' => '✧', 'action' => 'EXPLORE THE REPACK',
                 ],
                 [
                     'key' => 'download', 'route' => 'download', 'eyebrow' => 'PREPARE YOUR CLIENT',
@@ -236,12 +244,12 @@
                 ],
                 [
                     'key' => 'donation', 'route' => 'donation', 'eyebrow' => 'SUPPORT THE REALM',
-                    'title' => 'DONATION', 'description' => 'View the support options configured by the server team.',
+                    'title' => 'DONATION', 'description' => 'View the community support options configured for this website.',
                     'mark' => '✦', 'action' => 'SUPPORT Aetherfall',
                 ],
                 [
                     'key' => 'support', 'route' => 'support', 'eyebrow' => 'NEED ASSISTANCE',
-                    'title' => 'PLAYER SUPPORT', 'description' => 'Find help and answers to common questions about the server.',
+                    'title' => 'PLAYER SUPPORT', 'description' => 'Find help with installing, updating and playing the repack.',
                     'mark' => '?', 'action' => 'VISIT SUPPORT',
                 ],
             ];
@@ -256,7 +264,7 @@
                     <div class="section-heading">
                         <div class="eyebrow">Your next step in Atreia</div>
                         <h2 id="aion-home-explore-title">EXPLORE Aetherfall</h2>
-                        <p>Everything you need to prepare, discover the server, and get support for your journey.</p>
+                        <p>Discover what the repack includes, prepare your installation and find help for your adventure.</p>
                     </div>
                     <div class="aion-home-explore-grid">
                         @foreach ($availableExploreCards as $card)
@@ -275,38 +283,6 @@
             </section>
         @endif
 
-        @if (($aionFeatures['download'] ?? false) || ($aionFeatures['news'] ?? false))
-        @php
-            $ctaSlide = $slides->first();
-            $ctaImagePath = data_get($ctaSlide, 'image_path');
-            $ctaImageUrl = is_string($ctaImagePath) && preg_match('/^https?:\\/\\//i', $ctaImagePath)
-                ? $ctaImagePath
-                : (is_string($ctaImagePath) && $ctaImagePath !== ''
-                    ? (\Illuminate\Support\Facades\Storage::disk('public')->exists($ctaImagePath)
-                        ? \Illuminate\Support\Facades\Storage::disk('public')->url($ctaImagePath)
-                        : asset('media/' . $ctaImagePath))
-                    : null);
-        @endphp
-        <section class="cta aion-adventure-cta"
-            @if ($ctaImageUrl)
-                style="--cta-art: url('{{ $ctaImageUrl }}')"
-            @endif
-        >
-            <div class="aion-cta-frame">
-                <div class="eyebrow">Your adventure starts now</div>
-                <h2>ANSWER THE CALL <em>OF ATREIA</em></h2>
-                <p>Prepare your client and follow the latest announcements before your journey begins.</p>
-                <div class="aion-cta-actions">
-                    @if ($aionFeatures['download'] ?? false)
-                        <a href="{{ route('download') }}" class="btn aion-primary-btn">PREPARE YOUR JOURNEY <span aria-hidden="true">↗</span></a>
-                    @endif
-                    @if ($aionFeatures['news'] ?? false)
-                        <a href="{{ route('news.index') }}" class="btn btn-outline aion-secondary-btn">READ CHRONICLES <span aria-hidden="true">→</span></a>
-                    @endif
-                </div>
-            </div>
-        </section>
-        @endif
         <div class="container">@include('partials.realm-banner')</div>
 </main>
 @endsection
@@ -486,7 +462,7 @@
         .aion-slider-arrows button { width:32px; height:32px; }
     }
     @media(prefers-reduced-motion:reduce) {
-        .aion-hero *, .aion-hero *::before, .aion-hero *::after { animation:none !important; transition:none !important; }
+        html:not(.af-motion-enabled) .aion-hero *, html:not(.af-motion-enabled) .aion-hero *::before, html:not(.af-motion-enabled) .aion-hero *::after { animation:none !important; transition:none !important; }
     }
 
 
@@ -578,9 +554,9 @@
 
             const mobile = window.matchMedia('(max-width: 780px)').matches;
             const copyHeight = Math.ceil(copy.getBoundingClientRect().height);
-            const topSpace = mobile ? 110 : 140;
-            const bottomSpace = mobile ? 390 : 300;
-            const minimum = mobile ? 800 : 650;
+            const topSpace = mobile ? 84 : 96;
+            const bottomSpace = (stats?.offsetHeight || 0) + 126;
+            const minimum = mobile ? 690 : 640;
             const needed = Math.max(minimum, copyHeight + topSpace + bottomSpace);
             hero.style.setProperty('--aion-dynamic-height', `${needed}px`);
         };
@@ -605,6 +581,7 @@
             slides.forEach((slide, i) => {
                 slide.classList.toggle('is-active', i === active);
                 slide.setAttribute('aria-hidden', i === active ? 'false' : 'true');
+                slide.inert = i !== active;
             });
             dots.forEach((dot, i) => {
                 dot.classList.toggle('is-active', i === active);
@@ -616,7 +593,9 @@
         const stop = () => { if (timer) window.clearInterval(timer); timer = null; };
         const start = () => {
             stop();
-            if (!document.hidden && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            const page = document.documentElement;
+            const motionAllowed = page.classList.contains('af-motion-enabled') || (!page.classList.contains('af-motion-off') && !window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+            if (!document.hidden && motionAllowed && !hero?.classList.contains('af-hero-away') && !root.matches(':hover') && !root.contains(document.activeElement)) {
                 timer = window.setInterval(() => show(active + 1), 6500);
             }
         };
@@ -628,7 +607,7 @@
         document.addEventListener('visibilitychange', () => document.hidden ? stop() : start());
         root.addEventListener('focusin', stop);
         root.addEventListener('focusout', start);
-        window.matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change', start);
+        document.addEventListener('af:motionchange', start);
 
         // Touch and pointer swipe support for mobile and desktop touch screens.
         let startX = null;

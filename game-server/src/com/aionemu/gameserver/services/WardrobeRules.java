@@ -4,6 +4,7 @@ import java.util.Locale;
 import com.aionemu.gameserver.model.Gender;
 import com.aionemu.gameserver.model.Race;
 import com.aionemu.gameserver.model.templates.item.ItemTemplate;
+import com.aionemu.gameserver.model.templates.item.actions.DyeAction;
 import com.aionemu.gameserver.model.templates.item.enums.ItemSubType;
 import com.aionemu.gameserver.model.templates.item.enums.ItemGroup;
 import java.util.EnumSet;
@@ -12,6 +13,8 @@ import java.util.EnumSet;
 public final class WardrobeRules {
 
 	public static final int UNLOCK_ITEM = 168100001;
+	/** Season Pass reward that opens every palette color for the account. */
+	public static final int PALETTE_ITEM = 168100002;
 	private static final EnumSet<ItemGroup> VISUAL = EnumSet.of(
 		ItemGroup.SWORD, ItemGroup.GREATSWORD, ItemGroup.DAGGER, ItemGroup.MACE, ItemGroup.ORB,
 		ItemGroup.SPELLBOOK, ItemGroup.POLEARM, ItemGroup.STAFF, ItemGroup.BOW, ItemGroup.HARP,
@@ -32,6 +35,14 @@ public final class WardrobeRules {
 		if (n.matches(".*(test|debug|dummy|prototype|placeholder|npc).*" ) || n.matches(".*\\bprop\\b.*")) return false;
 		var action = t.getActions() == null ? null : t.getActions().getRemodelAction();
 		return action == null || action.getExpireMinutes() == 0;
+	}
+
+	/** Permanent equipment dyes. Housing paints, test items and timed dyes stay outside the palette. */
+	public static Integer paletteColor(ItemTemplate t) {
+		DyeAction dye = t == null || t.getActions() == null ? null : t.getActions().getDyeAction();
+		if (dye == null || dye.getMinutes() != null || dye.getColor() == null || t.getExpireTime() != 0) return null;
+		String n = t.getName().toLowerCase(Locale.ROOT);
+		return n.startsWith("paint") || n.matches(".*(test|debug).*") ? null : dye.getColor();
 	}
 
 	public static boolean permitted(ItemTemplate skin, Race race, Gender gender) {

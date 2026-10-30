@@ -1,0 +1,1 @@
+<section class="hub-empty" role="status"><span class="eyebrow">Game data unavailable</span><h2>The roster is taking a break</h2><p>Character statistics could not be loaded from the connected world. Please try again shortly.</p>@if ($aionFeatures['server.status'] ?? false)<a class="btn btn-outline" href="{{ route('status') }}">CHECK SERVER STATUS</a>@endif</section>

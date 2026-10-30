@@ -135,9 +135,13 @@ public class CM_FIND_GROUP extends AionClientPacket {
 			case 10 -> FindGroupService.getInstance().showInstanceGroups(player, false);
 			case 11 -> FindGroupService.getInstance().sendInstanceApplication(player, playerOrTeamId);
 			case 12 -> FindGroupService.getInstance().sendInstanceApplicationResult(player, playerOrTeamId, instanceApplicationReply);
-			case 13 -> FindGroupService.getInstance().showInstanceGroups(player, true);
+			case 13 -> {
+				FindGroupService.getInstance().showInstanceGroups(player, true);
+				com.aionemu.gameserver.services.playerbot.PlayerBotFindGroup.searchWhileClosed(player);
+			}
 			case 15 -> FindGroupService.getInstance().showInstanceGroupMembersInfo(player, playerOrTeamId);
 			case 17 -> FindGroupService.getInstance().updateInstanceGroup(player, message);
+			case 20 -> FindGroupService.getInstance().enterPrepared(player);
 		}
 	}
 }

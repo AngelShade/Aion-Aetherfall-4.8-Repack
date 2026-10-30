@@ -33,7 +33,7 @@ public final class SeasonPassHttpService {
 				if(file.endsWith(".png")) {
 					byte[] bytes=Files.readAllBytes(MEDIA.resolve(file)); x.getResponseHeaders().set("Content-Type","image/png");
 					x.sendResponseHeaders(200,bytes.length); x.getResponseBody().write(bytes);
-				} else send(x,200,file.endsWith(".html")?"text/html":file.endsWith(".css")?"text/css":"application/javascript",Files.readString(MEDIA.resolve(file)));
+				} else send(x,200,file.endsWith(".html")?"text/html":file.endsWith(".css")?"text/css":"application/javascript",file.endsWith(".css")?WindowTextScale.css(Files.readString(MEDIA.resolve(file))):Files.readString(MEDIA.resolve(file)));
 				return;
 			}
 			boolean action=path.equals("/market/pass/action");

@@ -7,7 +7,7 @@
         <span class="eyebrow">Aion · Solo and co-op</span>
         @include('partials.brand-wordmark')
         <h2>Ready to play?</h2>
-        <p>Get the pack, start your server and build your party.</p>
+        <p>Install the repack, bring your world online and build your party.</p>
         <div class="realm-banner-actions">
             <a href="{{ route('download') }}" class="btn">GET AETHERPACK <span aria-hidden="true">↗</span></a>
             @if ($aionFeatures['news'] ?? false)<a href="{{ route('guides') }}" class="realm-banner-guide">PLAYER GUIDES →</a>@endif

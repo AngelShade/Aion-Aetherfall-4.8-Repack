@@ -24,7 +24,7 @@ public class SM_ACCOUNT_PROPERTIES extends AionServerPacket {
 		writeH(0); // can be 1
 		writeD(0); // 0 or 16 (or 31 = strong energy of repose)
 		writeD(0); // always 0
-		writeD(AetherfallBoonService.packMask(con.getAccount().getId())); // active packs, bit = pack id (8 = gold pack); Aetherfall Boons
+		writeD(AetherfallBoonService.packMask(con.getAccount().getId())); // active packs, bit = zero-based client pack slot; Aetherfall Boons
 		writeD(4); // account status (0 = gold-user, 1/2 = starter, 3/4 = veteran)
 	}
 }

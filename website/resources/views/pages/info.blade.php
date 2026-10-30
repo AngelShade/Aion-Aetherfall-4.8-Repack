@@ -1,18 +1,52 @@
 @extends('layouts.app')
 
-@section('title', 'Server Information | Aetherfall')
-@section('meta_description', 'Aetherfall factions, level cap, rates, companions and server status.')
+@section('title', 'Repack Features | Aetherfall')
+@section('meta_description', 'Explore the Aion 4.8 NA repack: solo and co-op play, companions, world bots, trading, progression, expanded storage and client tools.')
 
 @section('content')
 <main class="container aion-info">
     <section class="page-intro info-intro">
         <div class="eyebrow">The World of Atreia</div>
-        <h1>Server Information</h1>
-        <p>Aion with companions, world bots and custom in-game features. Play solo or with friends. This page describes the server connected to this website.</p>
+        <h1>Inside Aetherpack</h1>
+        <p>Aetherfall is a complete Aion 4.8 NA repack you install and run yourself. Play solo or host friends, recruit a companion party and explore the custom features included with the client and game services.</p>
         <div class="info-intro-actions">
+            <a href="#repack-features" class="btn">EXPLORE THE FEATURES <span aria-hidden="true">↓</span></a>
+            @if ($aionFeatures['repack.tools'] ?? false)<a href="{{ route('tools') }}" class="btn btn-outline">ADVENTURE TOOLS <span aria-hidden="true">→</span></a>@endif
             @if ($aionFeatures['download'] ?? false)<a href="{{ route('download') }}" class="btn">DOWNLOAD CENTER <span aria-hidden="true">→</span></a>@endif
             @if ($aionFeatures['news'] ?? false)<a href="{{ route('news.index') }}" class="btn btn-outline">LATEST ANNOUNCEMENTS</a>@endif
         </div>
+    </section>
+
+    <section class="section info-section info-repack" id="repack-features" aria-labelledby="repack-title">
+        <div class="section-heading">
+            <div class="eyebrow">More than the base game</div>
+            <h2 id="repack-title">What is in the repack?</h2>
+            <p>The base pack and current cumulative update include the features below. Set up your own world, choose your population and difficulty, and keep control of your settings.</p>
+        </div>
+        <div class="info-release">
+            <div>
+                <span class="eyebrow">Latest published release · {{ config('aetherfall_content.release.published_on') }}</span>
+                <h3>Aetherpack {{ config('aetherfall_content.release.version') }}</h3>
+                <p>Smoother windows and camera turning, clearer custom menus, better companion priorities and updates that preserve your customized settings. Includes earlier cumulative updates.</p>
+            </div>
+            <div class="info-release-actions">
+                @if ($aionFeatures['news'] ?? false)<a class="btn" href="{{ route('news.show', 'aetherpack-0-98-4') }}">WHAT'S NEW <span aria-hidden="true">↗</span></a>@endif
+                <a class="info-text-link" href="{{ config('aetherfall_content.release.url') }}" target="_blank" rel="noopener noreferrer">Official release notes ↗</a>
+            </div>
+        </div>
+        <div class="info-feature-grid">
+            @foreach (config('aetherfall_content.repack_features', []) as $feature)
+                <article class="info-feature-card">
+                    <span class="eyebrow">{{ $feature['label'] }}</span>
+                    <h3>{{ $feature['title'] }}</h3>
+                    <ul>
+                        @foreach ($feature['items'] as $item)<li>{{ $item }}</li>@endforeach
+                    </ul>
+                    @if ($aionFeatures['news'] ?? false)<a class="info-text-link" href="{{ route('news.show', $feature['guide']) }}">Read the guide <span aria-hidden="true">↗</span></a>@endif
+                </article>
+            @endforeach
+        </div>
+        <p class="info-repack-note">Quest, navigation and encounter coverage continue to be developed. HD textures are optional. This companion website is installed separately; its live panels describe the game installation configured for it.</p>
     </section>
 
     @php
@@ -26,7 +60,7 @@
         $onlineBots = $serverMetrics['online_bots'] ?? null;
     @endphp
 
-    <section class="info-status-grid" aria-label="Server overview">
+    <section class="info-status-grid" aria-label="Linked game installation">
         <article class="info-stat-card info-stat-featured">
             <div class="info-stat-top"><span class="info-stat-label">Game Server</span><span class="status-pill {{ $statusClass }}" data-live-info-status><span class="status-indicator"></span><span data-live-info-status-label>{{ $serverState }}</span></span></div>
             <h2>{{ $serverState === 'ONLINE' ? 'Server Online' : ($serverState === 'OFFLINE' ? 'Server Offline' : 'Status Unavailable') }}</h2>
@@ -74,9 +108,9 @@
 
     <section class="section info-section info-configuration">
         <div class="section-heading">
-            <div class="eyebrow">Configuration Brief</div>
-            <h2>Server Details</h2>
-            <p>Rates below are for regular accounts. Some game systems and premium memberships use different rates.</p>
+            <div class="eyebrow">Your installation’s configuration</div>
+            <h2>Rates &amp; character rules</h2>
+            <p>These are the values entered in this website’s settings for its linked game installation. Each repack owner can configure their own rates and character rules. Account bonuses and specific game systems may use different rates.</p>
         </div>
         <div class="info-detail-list">
             <div class="info-detail-row"><span>Game version</span><strong>Aion {{ $websiteSettings['server_version'] }}</strong></div>
@@ -91,7 +125,6 @@
         </div>
     </section>
 
-    @include('partials.aetherfall-features')
     <section class="info-next-step">
         <div class="info-next-copy">
             <div class="eyebrow">Prepare for Your Journey</div>
@@ -109,6 +142,31 @@
 
 @push('head')
 <style>
+.aion-info .info-repack { padding-top:12px; padding-bottom:48px; scroll-margin-top:110px; }
+.info-repack .section-heading { max-width:820px; text-align:left; }
+.info-repack .section-heading h2::after { left:0; transform:none; }
+.info-release { display:flex; align-items:center; justify-content:space-between; gap:35px; margin:28px 0; padding:30px; background:linear-gradient(120deg,#183142,#0d1b29); border:1px solid #4b6f7d; border-left:3px solid #8fe3ec; }
+.info-release .eyebrow { color:#8fe3ec; font-size:9px; letter-spacing:1.4px; }
+.info-release h3 { margin:11px 0; color:#f0e4c8; font:500 29px Cinzel,serif; }
+.info-release p { max-width:670px; margin:0; color:#a9c0ce; font-size:13px; line-height:1.9; }
+.info-release-actions { flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-start; gap:13px; }
+.info-release-actions .info-text-link { font-size:11px; }
+.info-feature-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; }
+.info-feature-card { min-width:0; display:flex; flex-direction:column; padding:27px; border:1px solid #294050; border-top:2px solid #4d7b89; background:#0e1d2b; }
+.info-feature-card .eyebrow { font-size:9px; letter-spacing:1.4px; color:#8fe3ec; }
+.info-feature-card h3 { margin:14px 0 18px; font:500 24px/1.4 Cinzel,serif; color:#eee0c2; }
+.info-feature-card ul { margin:0 0 23px; padding-left:17px; color:#a6bdcc; font-size:12px; line-height:1.9; }
+.info-feature-card li+li { margin-top:10px; }
+.info-feature-card li::marker { color:#6ab3c3; }
+.info-feature-card .info-text-link { align-self:flex-start; margin-top:auto; font-size:11px; }
+.info-repack-note { margin:24px 0 0; padding:18px 22px; border-left:2px solid #526b7a; background:#0b1723; color:#91aaba; font-size:12px; line-height:1.9; }
+@media(max-width:1000px) { .info-feature-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .info-release { align-items:flex-start; } }
+@media(max-width:600px) {
+ .aion-info .info-repack { padding-top:6px; padding-bottom:35px; scroll-margin-top:90px; }
+ .info-release { flex-direction:column; gap:22px; padding:23px; }.info-release h3 { font-size:26px; }
+ .info-feature-grid { grid-template-columns:1fr; gap:14px; }.info-feature-card { padding:24px; }
+ .info-feature-card h3 { font-size:24px; }.info-feature-card ul { font-size:13px; }
+}
 .aion-info { padding-bottom:76px; }
 .info-intro { position:relative; padding-top:66px; padding-bottom:42px; }
 .info-intro::after { content:""; position:absolute; z-index:-1; top:12px; right:0; width:min(42%,420px); height:210px; background:radial-gradient(ellipse at center,rgba(200,170,112,.12),transparent 68%); pointer-events:none; }

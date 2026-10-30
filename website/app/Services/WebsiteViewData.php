@@ -28,7 +28,7 @@ class WebsiteViewData
         }
         $defaults = [
             'site_name'=>'Aetherfall', 'tagline'=>'Explore Atreia',
-            'meta_description'=>'Explore Atreia with the Aetherfall community.',
+            'meta_description'=>'Aetherfall: a complete Aion 4.8 NA repack for solo and co-op play, with companions, world bots and custom features.',
             'logo_path'=>'', 'favicon_path'=>'', 'server_name'=>'Aetherfall',
             'server_version'=>'4.8', 'server_rate'=>'', 'level_cap'=>'',
             'xp_rate'=>'', 'quest_xp_rate'=>'', 'drop_rate'=>'', 'quest_kinah_rate'=>'',
@@ -43,7 +43,7 @@ class WebsiteViewData
         $settings['maintenance_mode'] = filter_var($settings['maintenance_mode'], FILTER_VALIDATE_BOOLEAN);
         $features = [];
         foreach (['home', 'news', 'info', 'download', 'donation', 'support',
-            'account.registration', 'account.login', 'account.characters', 'account.password', 'server.status'] as $key) {
+            'account.registration', 'account.login', 'account.characters', 'account.password', 'server.status', 'rankings', 'events', 'start', 'repack.tools'] as $key) {
             $features[$key] = ModulePlugin::featureEnabled($key);
         }
         $hooks = $navigation = $accountNavigation = [];

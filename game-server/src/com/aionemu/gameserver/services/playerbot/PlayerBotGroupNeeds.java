@@ -3,6 +3,7 @@ package com.aionemu.gameserver.services.playerbot;
 import java.util.*;
 
 import com.aionemu.gameserver.configs.main.GroupConfig;
+import com.aionemu.gameserver.configs.main.PlayerBotConfig;
 import com.aionemu.gameserver.dataholders.DataManager;
 import com.aionemu.gameserver.model.Race;
 import com.aionemu.gameserver.model.autogroup.AutoGroup;
@@ -31,14 +32,13 @@ final class PlayerBotGroupNeeds {
    int npc = ((Number) activity.get("npc")).intValue();
    int map = ((Number) activity.get("map")).intValue();
    if (map == bot.getWorldId()) {
-    if (quest > 0 && PlayerBotQuestRoutes.ids(bot,bot,quest,PlayerBotQuestRoutes.Kind.HUNT).contains(npc)) {
+    if (quest > 0 && hard(bot,npc) && PlayerBotQuestRoutes.ids(bot,bot,quest,PlayerBotQuestRoutes.Kind.HUNT).contains(npc)) {
      var need=quest(bot,quest,npc);if(need!=null)return need;
     }
-    if (quest == 0) {
+    if (quest == 0 && hard(bot,npc)) {
      var target=DataManager.NPC_DATA.getNpcTemplate(npc);
-     if(bot.getLevel()<65 && target!=null && PlayerBotHunting.template(target)
-      && PlayerBotWorldActivities.levelSuitable(bot.getLevel(),target.getLevel()))
-      return new Need(0,npc,map,0,6,Math.max(1,bot.getLevel()-5),Math.min(65,bot.getLevel()+5),"XP and "+target.getName());
+     if(bot.getLevel()<65 && target!=null && PlayerBotHunting.template(target))
+      return new Need(0,npc,map,0,6,Math.max(1,bot.getLevel()-5),Math.min(65,bot.getLevel()+5),target.getName());
     }
    }
   }
@@ -47,11 +47,59 @@ final class PlayerBotGroupNeeds {
   for(var state:bot.getQuestStateList().getUncompletedQuests().stream().limit(40).toList()) {
    if(state.getStatus()!=QuestStatus.START)continue;
    for(int npc:PlayerBotQuestRoutes.ids(bot,bot,state.getQuestId(),PlayerBotQuestRoutes.Kind.HUNT))
-    if(DataManager.SPAWNS_DATA.getSpawnsForNpc(bot.getWorldId(),npc).stream().anyMatch(g->!g.isTemporarySpawn() && g.getHandlerType()==null)) {
+    if(hard(bot,npc) && DataManager.SPAWNS_DATA.getSpawnsForNpc(bot.getWorldId(),npc).stream().anyMatch(g->!g.isTemporarySpawn() && g.getHandlerType()==null)) {
      var need=quest(bot,state.getQuestId(),npc);if(need!=null)return need;
     }
   }
-  return leveling(bot.getLevel(),bot.getWorldId());
+  // Chore quests and ordinary levelling are solo work: no help request.
+  return null;
+ }
+
+ /** Worth asking for help: an elite/hero/legendary monster, or one clearly above the bot's level. */
+ static boolean hard(Player bot,int npc) {
+  var target=DataManager.NPC_DATA.getNpcTemplate(npc);
+  if(target==null || target.getLevel()<=0 || target.getRace()==bot.getRace()
+   || target.getNpcTemplateType()==com.aionemu.gameserver.model.templates.npc.NpcTemplateType.FLAG)return false;
+  // Quest target lists also hold friendly NPCs (e.g. Elyos 'andu'): only a monster hostile to the bot's faction counts.
+  var own=bot.getRace()==Race.ELYOS?com.aionemu.gameserver.model.TribeClass.PC:com.aionemu.gameserver.model.TribeClass.PC_DARK;
+  if(DataManager.TRIBE_RELATIONS_DATA.isFriendlyRelation(target.getTribe(),own)
+   || !DataManager.TRIBE_RELATIONS_DATA.isHostileRelation(target.getTribe(),own) && !DataManager.TRIBE_RELATIONS_DATA.isAggressiveRelation(target.getTribe(),own)
+    && !target.getTribe().name().contains("MONSTER"))return false;
+  var rating=target.getRating();
+  return rating==com.aionemu.gameserver.model.templates.npc.NpcRating.ELITE || rating==com.aionemu.gameserver.model.templates.npc.NpcRating.HERO
+   || rating==com.aionemu.gameserver.model.templates.npc.NpcRating.LEGENDARY || target.getLevel()>=bot.getLevel()+3;
+ }
+ /** Why the target is hard, for the post and dialogue. */
+ static String difficulty(int npc) {
+  var target=DataManager.NPC_DATA.getNpcTemplate(npc);
+  if(target==null)return "";
+  String rating=switch(target.getRating()){case ELITE->"elite ";case HERO->"hero ";case LEGENDARY->"legendary ";default->"";};
+  return display(target.getName())+" ("+rating+"Lv"+target.getLevel()+")";
+ }
+ /** Native template names are lower-case keys (e.g. "hagiaphilia"); show them as names. */
+ static String display(String name) {
+  var words=name.replace('_',' ').trim().split(" +");var out=new StringBuilder();
+  for(var w:words)if(!w.isEmpty())out.append(out.length()==0?"":" ").append(Character.toUpperCase(w.charAt(0))).append(w.substring(1));
+  return out.toString();
+ }
+ /** A bot with no hard need of its own offers its help (npc -1 marks the offer). */
+ static Need helper(Player bot) {
+  if (bot.isInInstance() || bot.getLevel() < 10) return null;
+  return new Need(0,-1,bot.getWorldId(),0,6,Math.max(1,bot.getLevel()-5),Math.min(65,bot.getLevel()+5),"help offer");
+ }
+ static boolean helping(Need need){return need.npc()==-1;}
+ /** The entrance for this run that a player may use, on any map. */
+ static PlayerBotWorldTravel.Place entranceFor(Player player,AutoGroup group) {
+  for(int npc:group.getNpcIds()) {
+   if(DataManager.PORTAL2_DATA.getPortalPaths(npc).stream().noneMatch(p->portal(player,p,group.getInstanceMapId())))continue;
+   for(var map:DataManager.WORLD_MAPS_DATA)
+    for(var spawn:DataManager.SPAWNS_DATA.getSpawnsForNpc(map.getMapId(),npc)) {
+     if(spawn.isTemporarySpawn() || spawn.getHandlerType()!=null)continue;
+     for(var point:spawn.getSpawnTemplates())
+      if(!point.isAerialSpawn())return new PlayerBotWorldTravel.Place(map.getMapId(),npc,point.getX(),point.getY(),point.getZ());
+    }
+  }
+  return null;
  }
 
  private static Need quest(Player bot,int quest,int npc) {
@@ -73,28 +121,57 @@ final class PlayerBotGroupNeeds {
   return plan!=null && entrance(bot,DataManager.AUTO_GROUP.getTemplateByInstanceMaskId(plan.need().mask())) ? plan.need() : null;
  }
 
- static InstancePlan instancePlan(Player bot) {
+ static InstancePlan instancePlan(Player bot) { return instancePlan(bot, Set.of(), mask -> 0); }
+ /**
+  * wanted: dungeons inside some online player's level range; posted: current
+  * posts per dungeon. Spreads posts over the dungeons players can pick from,
+  * at most two per dungeon, instead of many bots posting the same run.
+  */
+ static InstancePlan instancePlan(Player bot, Set<Integer> wanted, java.util.function.ToIntFunction<Integer> posted) {
   if (DataManager.AUTO_GROUP == null || DataManager.PORTAL2_DATA == null) return null;
   var quests=new LinkedHashMap<Integer,Set<Integer>>();
   for (var state : bot.getQuestStateList().getUncompletedQuests().stream().limit(40).toList())
    if (state.getStatus()==QuestStatus.START && !PlayerBotQuestMetadata.ready(bot,state.getQuestId()))
     quests.put(state.getQuestId(),QuestEngine.getInstance().getRequiredKillNpcIds(bot,state.getQuestId()));
-  // Native order is stable. Pick a level-appropriate, genuinely accessible run,
-  // rather than a famous dungeon name unrelated to this character.
+  // Pick a level-appropriate, genuinely accessible run, rather than a famous
+  // dungeon name unrelated to this character. Quest runs come first; otherwise
+  // each bot rotates through its eligible runs so the list is not one dungeon.
+  var plans=new ArrayList<InstancePlan>();
   for (int mask : DataManager.AUTO_GROUP.getRecruitableInstanceMaskIds().stream().sorted().toList()) {
    var group = DataManager.AUTO_GROUP.getTemplateByInstanceMaskId(mask);
    int map = group.getInstanceMapId();
    int members = DataManager.INSTANCE_COOLTIME_DATA.getMaxMemberCount(map, bot.getRace());
    int quest = instanceQuest(quests, map);
    if (members < 2 || members > 6 || !level(bot.getLevel(), group.getMinLvl(), group.getMaxLvl())
-    || quest == 0 && (bot.getLevel() > group.getMinLvl()+8 || bot.getLevel() >= 65) || blocked(bot,map)) continue;
+    || quest == 0 && !worthRunning(bot.getLevel(), group) || blocked(bot,map)) continue;
    var portal=plannedEntrance(bot,group);
-   if(portal==null)continue;
+   // An entrance on another map: the bot posts from here and is summoned to the
+   // human who joins (they meet at the entrance), instead of never posting.
+   if(portal==null && !(PlayerBotConfig.FIND_GROUP_REMOTE_INSTANCES && eligibleEntrance(bot,group)))continue;
    var world = DataManager.WORLD_MAPS_DATA.getTemplate(map);
-   if (world != null) return new InstancePlan(new Need(quest, 0, map, mask, members, group.getMinLvl(), quest>0 ? group.getMaxLvl() : Math.min(group.getMaxLvl(), group.getMinLvl()+8), world.getName()),portal);
+   if (world == null) continue;
+   var plan=new InstancePlan(new Need(quest, 0, map, mask, members, group.getMinLvl(), quest>0 || gearRun(bot.getLevel(),group) ? group.getMaxLvl() : Math.min(group.getMaxLvl(), group.getMinLvl()+8), world.getName()),portal);
+   if (quest > 0) return plan;
+   plans.add(plan);
   }
-  return null;
+  plans.removeIf(p->posted.applyAsInt(p.need().mask())>=2);
+  if (plans.isEmpty()) return null;
+  var forPlayers=plans.stream().filter(p->wanted.contains(p.need().mask())).toList();
+  if (!forPlayers.isEmpty()) plans=new ArrayList<>(forPlayers);
+  // Least-posted dungeon first; random among equals so the list stays varied.
+  Collections.shuffle(plans);
+  return plans.stream().min(Comparator.comparingInt((InstancePlan p)->posted.applyAsInt(p.need().mask()))
+   .thenComparing(p->p.entrance()==null)).orElse(null);
  }
+ /** Native portal admission (level, race, quests, items, cooldown) without standing at the entrance. */
+ static boolean eligibleEntrance(Player bot,AutoGroup group) {
+  return !blocked(bot,group.getInstanceMapId()) && group.getNpcIds().stream()
+   .anyMatch(npc->DataManager.PORTAL2_DATA.getPortalPaths(npc).stream().anyMatch(p->portal(bot,p,group.getInstanceMapId())));
+ }
+ /** Max-level characters run endgame dungeons for gear/AP even without a quest. */
+ static boolean gearRun(int level,AutoGroup group) { return level >= 65 && group.getMinLvl() >= 60; }
+ /** Below max level a run is worth it for XP near its entry level; at max level, endgame runs for gear. */
+ static boolean worthRunning(int level,AutoGroup group) { return gearRun(level, group) || level < 65 && level <= group.getMinLvl() + 8; }
 
  private static PlayerBotWorldTravel.Place plannedEntrance(Player bot,AutoGroup group) {
   PlayerBotWorldTravel.Place best=null;double distance=Double.POSITIVE_INFINITY;
@@ -118,8 +195,9 @@ final class PlayerBotGroupNeeds {
    var own=bot.getQuestStateList().getQuestState(need.quest());
    if(own!=null && own.getStatus()==QuestStatus.START && !PlayerBotQuestMetadata.ready(bot,need.quest()))return true;
   }
+  if(helping(need))return false;
+  if(need.instance())return worthRunning(bot.getLevel(),DataManager.AUTO_GROUP.getTemplateByInstanceMaskId(need.mask()));
   if(bot.getLevel()>=65)return false;
-  if(need.instance())return bot.getLevel()<=DataManager.AUTO_GROUP.getTemplateByInstanceMaskId(need.mask()).getMinLvl()+8;
   if(need.npc()==0)return true;
   var target=DataManager.NPC_DATA.getNpcTemplate(need.npc());
   return target!=null && PlayerBotWorldActivities.levelSuitable(bot.getLevel(),target.getLevel());
@@ -177,9 +255,17 @@ final class PlayerBotGroupNeeds {
  }
 
  static boolean unfinished(Player bot, Need need) {
+  if (helping(need)) return true;
   if (need.quest() > 0) {
    var state = bot.getQuestStateList().getQuestState(need.quest());
    return state != null && state.getStatus() == QuestStatus.START && !PlayerBotQuestMetadata.ready(bot, need.quest());
+  }
+  if (need.instance()) {
+   var group = DataManager.AUTO_GROUP.getTemplateByInstanceMaskId(need.mask());
+   // Entry consumes the run's cooldown; it must not retire recruitment for the
+   // very instance the organizer is currently playing.
+   return group != null && level(bot.getLevel(), need.minLevel(), need.maxLevel()) && worthRunning(bot.getLevel(), group)
+    && (bot.isInInstance() && bot.getWorldId()==need.map() || !blocked(bot, need.map()));
   }
   return bot.getLevel() < 65 && level(bot.getLevel(), need.minLevel(), need.maxLevel());
  }
@@ -192,15 +278,65 @@ final class PlayerBotGroupNeeds {
    && group.getNpcIds().stream().anyMatch(npc -> DataManager.PORTAL2_DATA.getPortalPaths(npc).stream().anyMatch(path -> portal(player, path, need.map())));
  }
 
+ /**
+  * Joining a human's run: the human leads the entry, so level range and
+  * re-entry cooldown decide. Entry quests/items are checked by the native
+  * portal when the party enters; requiring them here left no bot to offer.
+  */
+ static boolean joinable(Player player, Need need) {
+  return level(player.getLevel(), need.minLevel(), need.maxLevel()) && (!need.instance() || !blocked(player, need.map()));
+ }
+
  static String guidance(Player bot, Need need) {
   if (need.instance()) return (need.quest()>0 ? "I still need " + PlayerBotQuestJournal.name(need.quest()) + " in " : "I'm looking for an XP run in ") + need.title() + ". We need a tank, healing and damage for a " + need.members() + "-person party. Meet at the entrance; we enter normally when everyone is ready.";
+  if(helping(need))return "I'm offering my help as a "+switch(PlayerBotRules.roleFor(bot.getPlayerClass())){case TANK->"tank";case HEALER->"healer";case SUPPORT->"support";default->"damage dealer";}
+   +", Lv"+bot.getLevel()+". Invite me and tell me what you need: a tough monster, a group quest or a dungeon. I'll come to you.";
   if(need.quest()==0 && need.npc()==0)return "I'm level "+bot.getLevel()+" and looking for company to earn XP. Let's head to a hunting area around our level. I'll follow your lead and help with normal combat and loot.";
   var target = DataManager.NPC_DATA.getNpcTemplate(need.npc());
   String objective = target == null ? "the quest objectives" : target.getName();
   var map = DataManager.WORLD_MAPS_DATA.getTemplate(need.map());
   String place = map == null ? "my current area" : map.getName();
-  return (need.quest() == 0 ? "I'm earning XP against " : "I still need " + objective + " for " + need.title() + ". Help me with ")
-   + (need.quest() == 0 ? objective : "those objectives") + " in " + place + ". I'll follow your lead and use my normal combat and quest actions.";
+  String hard = difficulty(need.npc());
+  return (need.quest() == 0 ? "I can't beat " + hard + " alone" : "I can't beat " + hard + " alone for " + need.title())
+   + " in " + place + "." + where(bot, need) + " Join me and I'll offer to bring you here; we fight them together.";
+ }
+
+ /** Nearest native spawn of the objective, so the human can lead the party to it. */
+ /** The objective's nearest native spawn on the bot's map: {x, y, z}, or null. */
+ static float[] objective(Player bot, Need need) {
+  if (need.npc() <= 0 || bot.getWorldId() != need.map()) return null;
+  double best = Double.POSITIVE_INFINITY; float[] spot = null;
+  for (var spawn : DataManager.SPAWNS_DATA.getSpawnsForNpc(need.map(), need.npc())) {
+   if (spawn.isTemporarySpawn() || spawn.getHandlerType() != null) continue;
+   for (var point : spawn.getSpawnTemplates()) {
+    double d = PositionUtil.getDistance(bot, point.getX(), point.getY(), point.getZ());
+    if (d < best) { best = d; spot = new float[]{point.getX(), point.getY(), point.getZ()}; }
+   }
+  }
+  return spot;
+ }
+ /**
+  * Where a helper should arrive: on the ground 15 m short of the objective,
+  * on the bot's side, so nobody lands on top of the monster.
+  */
+ static float[] meetingPoint(Player bot, Need need) {
+  float[] spot = objective(bot, need);
+  if (spot == null) return null;
+  double dx = bot.getX() - spot[0], dy = bot.getY() - spot[1], d = Math.hypot(dx, dy);
+  float x = d < 1 ? spot[0] : spot[0] + (float) (dx / d * Math.min(15, d));
+  float y = d < 1 ? spot[1] : spot[1] + (float) (dy / d * Math.min(15, d));
+  float z = com.aionemu.gameserver.world.geo.GeoService.getInstance().getZ(need.map(), x, y, spot[2] + 10, spot[2] - 20, bot.getInstanceId());
+  return new float[]{x, y, Float.isFinite(z) ? z : spot[2]};
+ }
+
+ static String where(Player bot, Need need) {
+  float[] spot = objective(bot, need);
+  if (spot == null) return "";
+  double best = PositionUtil.getDistance(bot, spot[0], spot[1], spot[2]); float bx = spot[0], by = spot[1];
+  if (best < 30) return " They're right around here.";
+  String[] names = {"east", "north-east", "north", "north-west", "west", "south-west", "south", "south-east"};
+  int octant = (int) Math.floorMod(Math.round(Math.toDegrees(Math.atan2(by - bot.getY(), bx - bot.getX())) / 45), 8L);
+  return " The nearest ones are about " + Math.round(best / 10) * 10 + " m " + names[octant] + " of me (X " + Math.round(bx) + ", Y " + Math.round(by) + ").";
  }
 
  private PlayerBotGroupNeeds() {}

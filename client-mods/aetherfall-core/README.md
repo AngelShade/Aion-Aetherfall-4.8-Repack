@@ -5,6 +5,29 @@ Aetherfall Interface. It reads native HUD data and applies the interface's windo
 positions, visibility and tooltip settings. Settings remain in `Mods/AetherfallUI`.
 Existing chat commands run through the native chat input.
 
+## Camera controls, native 1.2.78 / Lua 1.2.80
+
+Open `/afui` and choose **Camera**. Field of view offers 60–170 degrees in
+5-degree steps; maximum zoom distance offers 5–50. Changes apply immediately;
+use the mouse wheel to zoom out to the new limit. **Native** preserves the current
+client value until a custom choice is made, and then restores the exact value
+captured before that override. Old saves start on Native. Camera choices save per
+character and remain independent of layout profiles and DPS/Healer/Minimal presets.
+
+These are the two camera variables exposed by
+[ShugoConsole](https://github.com/grenadium/ShugoConsole/blob/master/shugoconsolewidget.cpp):
+`g_minFov` and `g_camMax`. The bridge uses the existing game's console-variable
+lookup and verifies the current native class and local numeric/string storage.
+Only these two allowlisted variables can change. FPS limits, chat logging, texture
+filtering, triple buffering, console availability and input behavior are retained.
+No external utility or repeated memory scan is needed. The bridge applies choices
+only on an explicit edit or character entry; it does not enforce them every tick.
+
+`camera_settings.py` checks the relevant installed Game/CrySystem ABI before the
+normal builder runs, and both files become installation input guards. Build with
+`prepare.py --update --retain-layout`. Actual camera appearance, mouse-wheel zoom,
+loading/zone/cinematic behavior and restoration remain in-game acceptance checks.
+
 ## Quest tracker starting height, Lua 1.2.79 and layout
 
 The stock tracker layout (`quest_indicator_dialog`) is 960 high, the full layout

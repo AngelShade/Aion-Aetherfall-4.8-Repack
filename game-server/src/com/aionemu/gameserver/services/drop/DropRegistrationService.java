@@ -201,9 +201,15 @@ public class DropRegistrationService {
 
 	private float calculateBoostDropRate(Player killer, Npc npc) {
 		// Drop rate from NPC can be boosted by Spiritmaster Erosion skill
-		int boostDropRate = npc.getGameStats().getStat(StatEnum.BOOST_DROP_RATE, 100).getCurrent();
+		return getPlayerDropRate(killer, npc.getGameStats().getStat(StatEnum.BOOST_DROP_RATE, 100).getCurrent());
+	}
+
+	/**
+	 * The killer's drop rate multiplier over a creature's base drop rate in percent (100 without creature effects).
+	 */
+	public float getPlayerDropRate(Player killer, int npcDropRate) {
 		// can be exploited on duel with Spiritmaster Erosion skill
-		boostDropRate = killer.getGameStats().getStat(StatEnum.BOOST_DROP_RATE, boostDropRate).getCurrent();
+		int boostDropRate = killer.getGameStats().getStat(StatEnum.BOOST_DROP_RATE, npcDropRate).getCurrent();
 		// Drop rate can be boosted by player buff too
 		boostDropRate = killer.getGameStats().getStat(StatEnum.DR_BOOST, boostDropRate).getCurrent();
 

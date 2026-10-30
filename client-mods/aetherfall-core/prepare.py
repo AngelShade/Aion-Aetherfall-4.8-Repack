@@ -15,10 +15,10 @@ import subprocess
 import sys
 
 HERE = Path(__file__).resolve().parent
-NATIVE_VERSION = '1.2.77'  # Size-only dialog pin (mode 7) for the full-height quest tracker; 1.2.76: Window hooks leave live tooltip classes' SetRect to the tooltip policy, which had refused every class; 1.2.75: Right-drag camera turns by the live cursor minus the game's saved centre (no Windows mouse hooks); 1.2.73: Tooltips use the real cursor, not the stale engine copy, with the camera fix off; 1.2.72: Cheap per-draw backdrop checks; unchanged backdrop and tooltip policies return early.
+NATIVE_VERSION = '1.2.90'  # Codex Market/map handoff through the native UI command phase.
 PAK = 'Plugin/RelicCalc/RelicCalc.pak'
 PLUGIN_COHORT = [PAK, PAK + '.sig', 'Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig']
-VERSION = '1.2.79'  # Remove the runtime quest tracker height hold (the game resets it; the layout height is fixed instead); 1.2.78: Tracker height includes the temporary-quest list when shown; 1.2.77: Quest tracker held at its content height so it can move vertically; 1.2.74: Saved pre-1.2.53 Mover world-tooltip choices move to Cursor once; 1.2.73: Reset uses design/catalogue defaults; Shortcuts (all) moves only the grid anchor; 1.2.72: opacity per new window or value, holds on change or 5 Hz, kept through zone changes.
+VERSION = '1.2.91'  # Independent Codex view histories, drafts and map return control.
 LUA = 'AetherfallCore.lua'
 ADDON = ['AetherfallCore.lua', 'AetherfallLayout.lua', 'AetherfallLazy.lua', 'AetherfallHUD.lua', 'AetherfallOptions.lua',
          'AetherfallHUD.xml']
@@ -135,23 +135,27 @@ def screens():
 
     # Options window (/afui), ElvUI-style: category sidebar, a panel with the category title and a
     # divider, 10 rows of label | control (value button with - / + or < / > beside it), a one-line
-    # hint and Close. Built with the plugin like every plugin window whose buttons work.
+    # hint and Close. Built with the plugin like every plugin window whose buttons work. Child
+    # frames start below the 32 px title, so the content area is 640 x 428.
     opts = dialog('AFUIOptions', '320,250,640,460', 'v5_dialog', 'close;title;not_visible', text='Aetherfall Interface',
                   title_height='32', title_offset='12,6', close_preset='v5_close', close_offset='6,6')
-    image(opts, 'AFUISide', '6,34,144,388', 'v5_staticbox')
-    image(opts, 'AFUIPanel', '156,34,478,388', 'v5_staticbox')
+    image(opts, 'AFUISide', '6,2,144,388', 'v5_staticbox')
+    image(opts, 'AFUIPanel', '156,2,478,388', 'v5_staticbox')
+    for i in range(1, 12):
+        button(opts, f'AFUITab{i}', f'12,{8 + (i - 1) * 34},132,30', click=f"AFUI.Click('Tab{i}');", preset='v5_tabbutton')
+    label(opts, 'AFUIHeader', '170,10,450,22', font='window')
+    image(opts, 'AFUIRuler', '170,34,450,2', 'v5_ruler')
     for i in range(1, 11):
-        button(opts, f'AFUITab{i}', f'12,{40 + (i - 1) * 32},132,28', click=f"AFUI.Click('Tab{i}');", preset='v5_tabbutton')
-    label(opts, 'AFUIHeader', '170,42,450,22', font='window')
-    image(opts, 'AFUIRuler', '170,66,450,2', 'v5_ruler')
-    for i in range(1, 11):
-        y = 74 + (i - 1) * 34
+        y = 44 + (i - 1) * 34
         label(opts, f'AFUIRow{i}Label', f'170,{y},270,28')
         button(opts, f'AFUIRow{i}Less', f'456,{y},26,28', '<', f"AFUI.Click('Row{i}Less');")
         button(opts, f'AFUIRow{i}Value', f'486,{y},110,28', click=f"AFUI.Click('Row{i}Value');")
         button(opts, f'AFUIRow{i}More', f'600,{y},26,28', '>', f"AFUI.Click('Row{i}More');")
-    label(opts, 'AFUIStatus', '12,428,540,24')
-    button(opts, 'AFUIClose', '566,428,68,24', 'Close', "AFUI.Click('Close');")
+    # Profiles tab: the import/export code box in the tenth row (Lua shows it on that tab only).
+    E.SubElement(opts, 'Widget', type='editbox', name='AFUICode', frame='170,350,456,28', font='ui_default',
+                 preset='v5_editbox', flag='not_visible')
+    label(opts, 'AFUIStatus', '12,396,540,24')
+    button(opts, 'AFUIClose', '566,396,68,24', 'Close', "AFUI.Click('Close');")
 
     # Keep the editor generator shared with retained-layout updates.
     from mover_editor import dialog as mover_dialog
@@ -162,6 +166,22 @@ def screens():
         r.set('widget_cnt', str(sum(1 for n in r.iter() if n.tag in ('Dialog', 'Widget'))))
         E.indent(r, '  ')
     return root, lazy
+
+
+def update_options_xml(xml):
+    """Replace only the installed /afui options dialog; keep all other installed dialog bytes."""
+    import re
+    import xml.etree.ElementTree as E
+    fresh = next(d for d in screens()[0] if d.get('name') == 'AFUIOptions')
+    fresh.tail = None
+    replacement = E.tostring(fresh, encoding='utf-8')
+    pattern = rb'<Dialog\s+[^>]*name=["\']AFUIOptions["\'][^>]*>.*?</Dialog>'
+    if len(re.findall(pattern, xml, re.S)) != 1:
+        raise ValueError('Expected exactly one installed AFUIOptions dialog')
+    updated = re.sub(pattern, lambda _: replacement, xml, count=1, flags=re.S)
+    count = sum(1 for n in E.fromstring(updated).iter() if n.tag in ('Dialog', 'Widget'))
+    return re.sub(rb'(<Screen\b[^>]*\bwidget_cnt=)["\']\d+["\']',
+                  lambda m: m[1] + b'"' + str(count).encode() + b'"', updated, count=1)
 
 
 def hud_xml():
@@ -203,6 +223,7 @@ def main():
     parser.add_argument('--retain-layout', action='store_true', help='with --update, build bridge/Lua while retaining installed generated layouts and load order')
     parser.add_argument('--shared-timer-update', action='store_true', help='with retained layout, include the maintained RelicCalc shared timer owner (WardrobeNative.lua)')
     parser.add_argument('--mover-editor-update', action='store_true', help='replace only the installed MoveUI dialog and stage its grid-line texture')
+    parser.add_argument('--options-window-update', action='store_true', help='replace only the installed /afui options dialog (geometry, code box)')
     parser.add_argument('--ui-registry-update', action='store_true', help='install the generated native/resource UI catalogue; future updates refresh it automatically')
     parser.add_argument('--shortcut-geometry-update', action='store_true', help='normalize native shortcut artwork, nested shop geometry and square control bounds')
     parser.add_argument('--hud-repair-update', action='store_true', help='update target details, notification mover and persistent companion-bar controls')
@@ -213,6 +234,9 @@ def main():
     parser.add_argument('--refresh-hud-inventory', action='store_true', help='stage only current HUD cohort inventory hashes; do not repack, sign or rebuild binaries')
     parser.add_argument('--target-overlay-update', action='store_true', help='repair only the installed target readout dialog and its Lua; retain native layouts and bridge')
     parser.add_argument('--target-foreground-update', action='store_true', help='put target and target-of-target number labels inside their native frames; build the matching native text setter')
+    parser.add_argument('--codex-update', action='store_true', help='add the Codex map panel, target-frame chest and skin to every owned layout variant (client-mods/loot-codex)')
+    parser.add_argument('--codex-controller-update', action='store_true', help='update only the installed Codex Lua controller, retaining its existing map layouts and recovery cohort')
+    parser.add_argument('--codex-browser-update', action='store_true', help='with --codex-update, build the matching browser handoff bridge without rebuilding unchanged item/UI indexes')
     parser.add_argument('--marketplace-window-update', action='store_true', help='update the installed windowed Marketplace controller while retaining native layouts and bridge')
     parser.add_argument('--client-mods', type=Path, default=HERE.parent, help='maintained client-mods folder (helpers)')
     args = parser.parse_args()
@@ -226,6 +250,8 @@ def main():
         parser.error('--retain-layout requires --update and cannot be combined with --dll-only')
     if args.shared_timer_update and not (args.plugin_only or args.retain_layout):
         parser.error('--shared-timer-update requires --plugin-only or --retain-layout')
+    if args.options_window_update and not (args.plugin_only or args.retain_layout):
+        parser.error('--options-window-update requires --plugin-only or --retain-layout')
     if args.mover_editor_update and not (args.plugin_only or args.retain_layout):
         parser.error('--mover-editor-update requires --plugin-only or --retain-layout')
     if args.shortcut_geometry_update and (not args.retain_layout or args.hud_customization_update):
@@ -238,6 +264,12 @@ def main():
         parser.error('Choose the initial target installation or its overlay repair')
     if args.target_foreground_update and (not args.retain_layout or args.plugin_only or args.hud_repair_update or args.target_overlay_update):
         parser.error('--target-foreground-update requires --retain-layout and the matching native build')
+    if args.codex_update and (not args.retain_layout or args.plugin_only):
+        parser.error('--codex-update requires --retain-layout and the matching native build')
+    if args.codex_controller_update and (not (args.retain_layout or args.plugin_only) or args.codex_update):
+        parser.error('--codex-controller-update requires --retain-layout or --plugin-only, without --codex-update')
+    if args.codex_browser_update and not args.codex_update:
+        parser.error('--codex-browser-update requires --codex-update and its native layout cohort')
     if args.hud_customization_update and (not args.retain_layout or args.hud_repair_update):
         parser.error('--hud-customization-update requires --retain-layout and cannot repeat initial HUD repair')
     if args.minimap_renderer_update and (not args.retain_layout or args.hud_customization_update or args.refresh_hud_inventory):
@@ -319,6 +351,12 @@ def main():
 
     if not args.plugin_only:
         # Native bridge, normal MSVC build of the maintained source.
+        from camera_settings import verify as verify_camera_settings
+        verify_camera_settings(client)
+        spec = importlib.util.spec_from_file_location('loot_codex_verify', mods / 'loot-codex/verify_native.py')
+        codex_verify = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(codex_verify)
+        codex_verify.verify(client)
         work = output.parent / (output.name + '-compile')
         work.mkdir()
         from quest_targets import generate as generate_quest_targets
@@ -415,6 +453,8 @@ def main():
             if args.mover_editor_update:
                 from mover_editor import update_xml
                 changes['AetherfallHUD.xml'] = update_xml(changes.get('AetherfallHUD.xml', xml))
+            if args.options_window_update:
+                changes['AetherfallHUD.xml'] = update_options_xml(changes.get('AetherfallHUD.xml', xml))
             if args.hud_repair_update:
                 import target_details
                 changes['AetherfallHUD.xml'] = target_details.update_xml(changes.get('AetherfallHUD.xml', xml))
@@ -426,6 +466,18 @@ def main():
             if args.target_foreground_update:
                 from target_details import prepare_foreground
                 prepare_foreground(client, stage, original, extend_archive, read_pak)
+            if args.codex_update:
+                spec = importlib.util.spec_from_file_location('loot_codex_layout', mods / 'loot-codex/layout.py')
+                codex_layout = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(codex_layout)
+                codex_layout.prepare(client, stage, original, extend_archive, read_pak)
+                changes['CodexNative.lua'] = (mods / 'loot-codex/CodexNative.lua').read_bytes()
+                if 'CodexNative.lua' not in toc: toc.insert(toc.index('AetherfallHUD.lua'), 'CodexNative.lua')
+                changes['RelicCalc.toc'] = ('\r\n'.join(toc) + '\r\n').encode('utf-8')
+            if args.codex_controller_update:
+                if 'CodexNative.lua' not in toc or 'CodexNative.lua' not in old.namelist():
+                    raise ValueError('Codex controller update requires the installed native Codex layout')
+                changes['CodexNative.lua'] = (mods / 'loot-codex/CodexNative.lua').read_bytes()
             if args.hud_customization_update:
                 import hud_customization
                 changes['AetherfallHUD.xml'] = hud_customization.plugin_xml(changes.get('AetherfallHUD.xml', xml))
@@ -496,11 +548,34 @@ def main():
     if args.target_foreground_update:
         customization_inventory['features']['AetherfallTargetReadouts'] = [
             dict(path=rel, installedSha256=sha(data), bytes=len(data)) for rel, data in files.items()]
+    if args.codex_update:
+        customization_inventory['features']['AetherfallCodex'] = [
+            dict(path=rel, installedSha256=sha(data), bytes=len(data)) for rel, data in files.items()]
+    if args.codex_browser_update:
+        sys.path.insert(0, str(mods / 'native-icon-bridge'))
+        from build_bridge import build as build_browser_bridge
+        original('bin64/AionIconBridge.dll')
+        bridge = build_browser_bridge(client, output, refresh_indexes=False)
+        stage('bin64/AionIconBridge.dll', (output / 'bin64/AionIconBridge.dll').read_bytes())
+        (output / 'codex-browser-inputs.json').write_text(json.dumps(bridge, indent=2), encoding='utf-8')
+        for feature in ('NativeIcons', 'AetherfallCodex'):
+            records = customization_inventory['features'].setdefault(feature, [])
+            records[:] = [r for r in records if r.get('path') != 'bin64/AionIconBridge.dll']
+            records.append(dict(path='bin64/AionIconBridge.dll', installedSha256=sha(files['bin64/AionIconBridge.dll']), bytes=len(files['bin64/AionIconBridge.dll'])))
+            # Indexes are retained in a code-only build, but older inventory
+            # snapshots may predate their most recent owning archive update.
+            for entry in records:
+                rel = entry.get('path')
+                if rel in bridge['inputGuards']:
+                    entry.update(installedSha256=bridge['inputGuards'][rel], bytes=(client / rel).stat().st_size)
     stage('Mods/InstalledMods.json', json.dumps(customization_inventory, indent=2).encode())
 
     extra_sources = {'../transmog-menu/WardrobeNative.lua': sha(addon['WardrobeNative.lua'])} if args.shared_timer_update else {}
     if args.hud_repair_update:
         extra_sources['../playerbots/PlayerBotBar.lua'] = sha(addon['PlayerBotBar.lua'])
+    if args.codex_update or args.codex_controller_update:
+        extra_sources['../loot-codex/layout.py'] = sha((mods / 'loot-codex/layout.py').read_bytes())
+        extra_sources['../loot-codex/CodexNative.lua'] = sha((mods / 'loot-codex/CodexNative.lua').read_bytes())
     if args.marketplace_window_update:
         for name in ('prepare_window.py', 'MarketplaceWindow.lua'):
             extra_sources['../market-shortcut/' + name] = sha((mods / 'market-shortcut' / name).read_bytes())
@@ -514,6 +589,12 @@ def write_manifest(output, client, info, files, before, extra_sources=None, vers
         current = (client / relative).read_bytes()
         before.setdefault(relative, sha(current))
         files[relative] = refresh_quest_inventory(files.get(relative, current), files['bin64/AetherfallCore.dll'])
+        if PAK in files:
+            inventory = json.loads(files[relative])
+            inventory['features']['AetherfallCamera'] = [
+                dict(path=rel, installedSha256=sha(files[rel]), bytes=len(files[rel]))
+                for rel in ('bin64/AetherfallCore.dll', PAK)]
+            files[relative] = json.dumps(inventory, indent=2).encode()
         target = output / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(files[relative])
@@ -523,11 +604,19 @@ def write_manifest(output, client, info, files, before, extra_sources=None, vers
                   testsRun=False, gameStarted=False)
     if 'bin64/AetherfallCore.dll' in files:
         record['nativeVersion'] = NATIVE_VERSION
+        from camera_settings import verify as verify_camera_settings
+        record['cameraSettings'] = verify_camera_settings(client)
+        record['inputGuards'] = dict(record['cameraSettings']['inputs'])
         data = output / 'quest-target-data.json'
         if data.exists():
             record['questTargets'] = json.loads(data.read_text(encoding='utf-8'))
-            record['inputGuards'] = record['questTargets']['inputs']
+            record['inputGuards'].update(record['questTargets']['inputs'])
     record['sourceHashes'].update(extra_sources or {})
+    browser_inputs = output / 'codex-browser-inputs.json'
+    if browser_inputs.exists():
+        record['inputGuards'].update(json.loads(browser_inputs.read_text())['inputGuards'])
+        record['sourceHashes'].update({'../native-icon-bridge/' + p.name: sha(p.read_bytes())
+            for p in (HERE.parent / 'native-icon-bridge').iterdir() if p.suffix in ('.py', '.cpp', '.h')})
     (output / 'manifest.json').write_text(json.dumps(record, indent=2), encoding='utf-8')
     print('Built/staged', len(files), 'files; live client unchanged.')
 

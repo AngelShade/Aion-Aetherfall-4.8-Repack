@@ -36,4 +36,16 @@ public class HTMLConfig {
 	 */
 	@Property(key = "gameserver.html.encoding", defaultValue = "UTF-8")
 	public static String HTML_ENCODING;
+
+	/**
+	 * Text size of the custom windows in percent; small text is raised most. 0 serves the stylesheets' original sizes.
+	 */
+	@Property(key = "gameserver.html.window.text.scale", defaultValue = "100")
+	public static int WINDOW_TEXT_SCALE;
+
+	/**
+	 * Enables the Codex item and creature drop database and its Central Market tab.
+	 */
+	@Property(key = "gameserver.html.codex.enabled", defaultValue = "true")
+	public static boolean CODEX_ENABLED;
 }

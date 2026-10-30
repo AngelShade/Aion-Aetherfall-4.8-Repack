@@ -89,6 +89,11 @@ public class DyeAction extends AbstractItemAction {
 		return color.equals("no") ? null : Integer.parseInt(color, 16);
 	}
 
+	/** @return dye duration in minutes, or null for a permanent dye */
+	public Integer getMinutes() {
+		return minutes;
+	}
+
 	private void dyeHouseObject(Player player, Item dyeItem, HouseObject<?> houseObject) {
 		if (!player.getInventory().decreaseByObjectId(dyeItem.getObjectId(), 1))
 			return;

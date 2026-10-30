@@ -26,6 +26,8 @@ def digest(path):
 
 def inputs():
     paths = [ROOT / 'pom.xml']
+    paths.extend([ROOT / 'tools/build-components.ps1', ROOT / 'tools/build-manifest.py'])
+    paths.extend((ROOT / 'tools/codex').glob('*.java'))
     paths.extend(p for p in (ROOT / 'tools/navmesh').rglob('*') if p.is_file())
     for name in ['commons', 'game-server', 'login-server', 'chat-server']:
         folder = ROOT / name

@@ -1,6 +1,6 @@
-# AION PTS Website
+# Aetherfall Repack Website
 
-**Aetherfall native-core port:** this checkout includes the original presentation
+**Aion 4.8 NA repack companion website:** this checkout includes the original presentation
 and CMS with Java/MariaDB account, character and status adapters. Use the separate
 portable package's `Website.cmd` for one-click startup and `Website Tools.cmd` for
 configuration. See [compatibility details](UPSTREAM.md) and the
@@ -18,7 +18,7 @@ Discover more extensions, modules, updates, and community support.
 
 **AION PTS Web CMS** built with **Laravel 12** and **Filament 5**.
 
-A web portal and administration panel for AION private-server projects. The application connects to a website database for CMS data and a separate Microsoft SQL Server database for AION account/game data.
+A companion portal and administration panel for the Aetherfall repack. The standalone Aetherfall build uses SQLite for website content and the configured native MariaDB game databases for accounts and characters. The original SQL Server setup described below is retained as donor documentation.
 
 > **Project status:** This repository is under active development. Installation and compatibility should be verified against your specific AION Producer/database schema before using it on a production server.
 

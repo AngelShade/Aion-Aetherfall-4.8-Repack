@@ -61,6 +61,15 @@ public final class PlayerBotConfig {
  public static boolean FIND_GROUP_ENABLED = true;
  @Property(key = "gameserver.playerbots.social.findgroup.posts_per_tab", defaultValue = "12")
  public static int FIND_GROUP_POSTS_PER_TAB = 12;
+ /** Dungeon (Instance Groups tab) posts per faction at the same time. */
+ @Property(key = "gameserver.playerbots.social.findgroup.instance_posts", defaultValue = "20")
+ public static int FIND_GROUP_INSTANCE_POSTS = 20;
+ /** Bots on any map post dungeon runs; they are summoned to the human who joins. */
+ @Property(key = "gameserver.playerbots.social.findgroup.remote_instances", defaultValue = "true")
+ public static boolean FIND_GROUP_REMOTE_INSTANCES = true;
+ /** Bots whisper human Find Group posts: the role a party lacks, or an invite to a forming bot group. */
+ @Property(key = "gameserver.playerbots.social.findgroup.offers", defaultValue = "true")
+ public static boolean FIND_GROUP_OFFERS = true;
  /** Custom catch-up while a companion owns an admitted follow movement. */
  @Property(key = "gameserver.playerbots.companion.catchup_multiplier", defaultValue = "4")
  public static float COMPANION_CATCHUP_MULTIPLIER = 4;

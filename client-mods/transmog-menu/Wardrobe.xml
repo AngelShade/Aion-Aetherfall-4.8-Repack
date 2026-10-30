@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<Screen widget_cnt="275">
+<Screen widget_cnt="278">
   <Dialog name="PrivateWardrobe" frame="0,0,1280,960" text="Wardrobe" close_offset="4,1" close_preset="v5_close" flag="close;title;not_visible;not_movable;fittoscreenwidth;fittoscreenheight" preset="v5_dialog2" title_height="25" title_offset="0,5">
     <Scripts>
       <OnLoad>WardrobeNative_OnLoad();</OnLoad>
@@ -52,6 +52,11 @@
         <OnClick>WardrobeNative_Click(this.name);</OnClick>
       </Scripts>
     </Widget>
+    <Widget type="button" name="WardrobeDyes" frame="0,0,1,1" font="ui_default" text="Dyes" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
     <Widget type="button" name="WardrobeClear" frame="0,0,1,1" font="ui_default" text="Clear" preset="v5_button" style="pushbutton">
       <Scripts>
         <OnClick>WardrobeNative_Click(this.name);</OnClick>
@@ -68,6 +73,16 @@
       </Scripts>
     </Widget>
     <Widget type="button" name="WardrobeTryOn" frame="0,0,1,1" font="ui_default" text="Try On" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobeDyeAll" frame="0,0,1,1" font="ui_default" text="Try On All" preset="v5_button" style="pushbutton">
+      <Scripts>
+        <OnClick>WardrobeNative_Click(this.name);</OnClick>
+      </Scripts>
+    </Widget>
+    <Widget type="button" name="WardrobePalette" frame="0,0,1,1" font="ui_default" text="Unlock Palette" preset="v5_button" style="pushbutton">
       <Scripts>
         <OnClick>WardrobeNative_Click(this.name);</OnClick>
       </Scripts>

@@ -2422,7 +2422,7 @@
 		</spawn>
 		<!-- Combat Team Leader Orku -->
 		<spawn npc_id="216895" respawn_time="295">
-			<spot x="2223.07" y="2358.951" z="595"/>
+			<spot x="2223.07" y="2358.951" z="593.492554"/>
 		</spawn>
 		<!-- Commander Brhekman -->
 		<spawn npc_id="213765" respawn_time="14400">
@@ -4651,8 +4651,8 @@
 		</spawn>
 		<!-- Lieutenant Aamaah -->
 		<spawn npc_id="213766" respawn_time="3600" pool="1">
-			<spot x="1627.8785" y="2106.5464" z="581.164" h="40"/>
-			<spot x="1687.5211" y="2049.822" z="589.05164" h="105"/>
+			<spot x="1623.5484" y="2104.0464" z="579.727539" h="40"/>
+			<spot x="1687.5211" y="2044.822" z="587.660217" h="105"/>
 			<spot x="1918.05" y="1919.81" z="596.619" h="30"/>
 		</spawn>
 		<!-- Lieutenant Dynah -->
@@ -4675,7 +4675,7 @@
 		<!-- Lindasie the Prim -->
 		<spawn npc_id="213761" respawn_time="3600" pool="1">
 			<spot x="2676.25" y="2918.87" z="691.625" h="101"/>
-			<spot x="2754.1201" y="2877.55" z="696.8507" h="60"/>
+			<spot x="2754.1201" y="2877.55" z="695.971863" h="60"/>
 		</spawn>
 		<!-- Lint -->
 		<spawn npc_id="204757" respawn_time="295">
@@ -6883,8 +6883,8 @@
 		</spawn>
 		<!-- Shadowmaster Zoang -->
 		<spawn npc_id="213768" respawn_time="3600" pool="1">
-			<spot x="1700.5696" y="1945.9347" z="597" h="75"/>
-			<spot x="1735.2324" y="1868.635" z="598" h="90"/>
+			<spot x="1704.8997" y="1943.4347" z="596.235596" h="75"/>
+			<spot x="1736.5265" y="1873.4646" z="593.753052" h="90"/>
 			<spot x="1804.05" y="2019.89" z="592.357" h="16"/>
 		</spawn>
 		<!-- Sieger -->

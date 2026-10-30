@@ -9,7 +9,9 @@ import struct
 from account_binary import Assembler
 
 RENDER, RENDER_END = 0x144e9c0, 0x144eb00
-EVENT, EVENT_END = 0x144ef20, 0x144f000
+EVENT, EVENT_END = 0x144ef20, 0x144ef80
+TIMERS, TIMERS_END = 0x144ef80, 0x144f000
+PERMANENT_EXPIRY = -0x7fffffffffffffff
 PACK_ARRAY = 0x1392f48  # 40-byte entries: name at -8, long description at +0
 LEGACY_RENDER_SHA256 = '6ed03d421d8c3fc8bfbe56a17b51e87dbfa3ca7e19c13a67ee2502b1e18b14a0'
 
@@ -70,6 +72,57 @@ def event_code():
     return a.finish(), EVENT + a.labels['insert']
 
 
+def timer_code():
+    a = Assembler(TIMERS)
+    # The real pack insertion path still has edi = raw native expiry (zero = permanent).
+    a.emit(bytes.fromhex('85ff'))
+    a.branch(bytes.fromhex('0f85'), 'finite')
+    # The existing Account refresh loop negates negative expiries, skips their
+    # countdown and removes them only after their magnitude expires. Keep that
+    # policy with a permanent negative sentinel, rather than a zero-second date.
+    a.emit(bytes.fromhex('48be') + struct.pack('<q', PERMANENT_EXPIRY))
+    a.relative(b'\xe9', 0x836ae8)
+    a.label('finite')
+    a.emit(bytes.fromhex('4c3bfe'))
+    a.relative(bytes.fromhex('0f8f'), 0x836c93)
+    a.relative(b'\xe9', 0x836ae8)
+    a.label('format')
+    # Only this Account pack call uses the wrapper. Other timers retain their formatter.
+    a.emit(bytes.fromhex('4d85c0'))
+    a.branch(bytes.fromhex('0f89'), 'original')
+    a.emit(bytes.fromhex('4d85c9'))
+    a.branch(bytes.fromhex('0f84'), 'text')
+    a.emit(bytes.fromhex('41c70100000000'))  # permanent rows have no expiry warning
+    a.label('text')
+    a.branch(bytes.fromhex('488d05'), 'permanent')
+    a.emit(b'\xc3')
+    a.label('original')
+    a.relative(b'\xe9', 0x9e8730)
+    a.label('permanent')
+    a.emit('Permanent\0'.encode('utf-16le'))
+    return a.finish(), TIMERS + a.labels['format']
+
+
+def patch_timers(data):
+    code, formatter = timer_code()
+    if len(code) > TIMERS_END - TIMERS:
+        raise ValueError('Account timers exceed their verified unused padding')
+    code = code.ljust(TIMERS_END - TIMERS, b'\0')
+    def branch(opcode, site, target):
+        return opcode + struct.pack('<i', target - site - 5)
+    edits = [
+        (TIMERS, bytes(len(code)), code),
+        (0x836adb, bytes.fromhex('85ff74094c3bfe0f8fab010000'),
+         branch(b'\xe9', 0x836adb, TIMERS) + b'\x90' * 8),
+        (0x836b37, branch(b'\xe8', 0x836b37, 0x9e8730), branch(b'\xe8', 0x836b37, formatter)),
+    ]
+    if not any(all(data[at:at+len(new)] == entry[which] for entry in edits
+                   for at, old, new in [entry]) for which in (1, 2)):
+        raise ValueError('Unknown or partial native Account timer cohort')
+    for at, old, new in edits:
+        data[at:at+len(new)] = new
+
+
 def patch(source):
     data = bytearray(source)
     pe = struct.unpack_from('<I', data, 60)[0]
@@ -113,4 +166,5 @@ def patch(source):
     data[RENDER:RENDER_END] = renderer
     for at, _, _, new in edits:
         data[at:at+len(new)] = new
+    patch_timers(data)
     return bytes(data)

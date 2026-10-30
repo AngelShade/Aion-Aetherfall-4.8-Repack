@@ -31,8 +31,8 @@ function WardrobeTheme_Apply()
         local object=_G['Wardrobe'..name];if object then object:SetAttr('textColor',T.muted) end
     end
     WardrobeConfirmError:SetAttr('textColor','1,0.64,0.58,1')
-    for _,name in ipairs({'Refresh','Collection','Outfits','Inventory','Clear','Previous','Next','TryOn','Unlock','Restore','Reset','RemoveLocked','Apply','SaveOutfit','DeleteOutfit','ClearTarget','Left','Right','Zoom','Helmet','Combat','Wings','ConfirmCancel','ConfirmAccept'}) do
-        WardrobeTheme_Button(_G['Wardrobe'..name],false,name=='Apply' or name=='ConfirmAccept' or name=='Unlock')
+    for _,name in ipairs({'Refresh','Collection','Outfits','Inventory','Dyes','Clear','Previous','Next','TryOn','DyeAll','Unlock','Restore','Reset','RemoveLocked','Apply','SaveOutfit','DeleteOutfit','ClearTarget','Palette','Left','Right','Zoom','Helmet','Combat','Wings','ConfirmCancel','ConfirmAccept'}) do
+        WardrobeTheme_Button(_G['Wardrobe'..name],false,name=='Apply' or name=='ConfirmAccept' or name=='Unlock' or name=='Palette')
     end
     for i=1,7 do WardrobeTheme_Button(_G['WardrobeCategory'..i],false,false) end
     for i=1,36 do

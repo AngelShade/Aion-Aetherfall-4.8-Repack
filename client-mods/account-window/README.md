@@ -53,3 +53,11 @@ records. Native DLL changes are applied equally to Graphics/cursor restore image
 through the maintained compatibility helper. Plugin/signing files, Aetherfall Core
 and both retail pack tables stay unchanged.
 Install with the same `install.py`. In-game scrolling and appearance need owner acceptance.
+
+Permanent boon rows now show **Permanent**, with no expiry warning. The pack insertion
+path translates the native zero duration to a negative permanent date whose magnitude
+keeps the row in the existing Account refresh loop without countdown updates. Only the
+Account pack formatter is wrapped; finite pack dates and all other native timers keep
+their original behavior. This is paired with the server's zero-based purchased-pack mask
+and timer slots, so each name receives its own duration and the Veteran's Coffer receives
+the next account-month countdown.

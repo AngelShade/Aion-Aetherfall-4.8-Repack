@@ -28,6 +28,7 @@ public class _24114YouGottaStopUmkata extends AbstractQuestHandler {
 	@Override
 	public void register() {
 		qe.registerQuestNpc(GIVER).addOnQuestStart(questId);
+		qe.registerQuestNpc(GULKALLA).addOnQuestStart(questId);
 		for (int npcId : new int[] { GIVER, GULKALLA, JEWEL_BOX, GRAVE })
 			qe.registerQuestNpc(npcId).addOnTalkEvent(questId);
 		for (int npcId : new int[] { 210588, 210722, UMKATA })
@@ -43,7 +44,8 @@ public class _24114YouGottaStopUmkata extends AbstractQuestHandler {
 			return false;
 		int action = env.getDialogActionId();
 		if (qs == null || qs.isStartable()) {
-			if (sendQuestNoneDialog(env, GIVER, SELECT_NONE))
+			// The native Gulkalla menu also offers this quest; keep Neparinerk's existing start path.
+			if ((targetId == GIVER || targetId == GULKALLA) && sendQuestNoneDialog(env, targetId, SELECT_NONE))
 				return true;
 		} else if (qs.getStatus() == QuestStatus.REWARD) {
 			if (targetId == GULKALLA && sendQuestEndDialog(env))

@@ -1,0 +1,10 @@
+@extends('layouts.app')
+@section('title', 'Server Status | Aetherfall')
+@section('meta_description', 'Check the game connection and player and bot counts for the repack installation linked to this website.')
+@section('content')
+<main class="container player-hub"><section class="page-intro"><div class="eyebrow">Your repack installation</div><h1>Server Status</h1><p>Connection and population for the game installation linked to this website. Each repack runs its own game services and saved world.</p></section>@include('community.navigation')
+<section class="hub-status-grid"><article class="hub-status-card"><span class="eyebrow">Game connection</span><strong class="{{ $metrics['server_status'] === 'ONLINE' ? 'hub-online' : 'hub-muted' }}">{{ $metrics['server_status'] }}</strong><p>{{ $metrics['server_status_detail'] }}</p></article><article class="hub-status-card"><span class="eyebrow">Players</span><strong>{{ $metrics['online_players'] !== null ? number_format($metrics['online_players']) : 'Unavailable' }}</strong><p>{{ $metrics['players_detail'] }}</p></article><article class="hub-status-card"><span class="eyebrow">Bots &amp; companions</span><strong>{{ $metrics['online_bots'] !== null ? number_format($metrics['online_bots']) : 'Unavailable' }}</strong><p>{{ $metrics['bots_detail'] }}</p></article></section>
+<div class="hub-callout"><div><h3>Last checked <time datetime="{{ $metrics['checked_at']->toAtomString() }}">{{ $metrics['checked_at']->format('d M Y, H:i:s T') }}</time></h3><p>Data connection: {{ $metrics['connection'] === 'connected' ? 'available' : 'unavailable' }}. Results are cached briefly. Connection status alone does not verify every game system.</p></div><a class="btn btn-outline" href="{{ route('status') }}">REFRESH STATUS</a></div>
+@if ($aionFeatures['start'] ?? false)<div class="hub-callout"><div><h3>Playing on your own machine?</h3><p>Start the database and servers from Setup’s Server Control, then wait for GameServer to finish loading.</p></div><a class="hub-text-link" href="{{ route('start') }}">Open the play checklist →</a></div>@endif
+</main>
+@endsection

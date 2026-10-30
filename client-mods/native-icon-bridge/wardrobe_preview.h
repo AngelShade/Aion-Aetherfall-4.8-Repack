@@ -30,18 +30,40 @@ std::array<uint64_t,3> modal_flags{};
 bool modal_hidden=false;
 const char* last_failure=nullptr;
 bool fail(const char* reason){if(last_failure!=reason){log(reason);last_failure=reason;}return false;}
-struct State { bool active=true; int completed=0; bool ready=false; bool model_visible=true; bool journey_key_requested=false; };
+struct State { bool active=true; int completed=0; bool ready=false; bool model_visible=true; bool journey_key_requested=false; int codex_completed=0; bool codex_ready=false; };
 struct Command {
     std::shared_ptr<State> state;
     int request=0,pressed=0;
     Rect bounds{};
     std::vector<uint32_t> items;
+    // Per item: the 4-byte dye field of Aion's equipment appearance record
+    // (status 1, then R, G, B), or 0 for an undyed item.
+    std::vector<uint32_t> colors;
     std::string control;
+    std::array<int,5> codex{};  // Codex panel: command, map, x/y/z in hundredths
 };
+// "ffffff" -> dye field as the native preview record stores it; throws on bad text.
+uint32_t dye_field(const std::string& hex){
+    if(hex.size()!=6)throw std::runtime_error("Invalid dye");
+    uint32_t rgb=0;for(char c:hex){int v=c>='0'&&c<='9'?c-'0':c>='a'&&c<='f'?c-'a'+10:-1;if(v<0)throw std::runtime_error("Invalid dye");rgb=rgb*16+v;}
+    return 1u|((rgb>>16&0xff)<<8)|((rgb>>8&0xff)<<16)|((rgb&0xff)<<24);
+}
 std::mutex queue_mutex;
 std::unordered_map<Ptr,std::shared_ptr<State>> states;
 std::vector<Command> commands;
 bool stock_preview_pending=false;
+// AetherfallCore's Codex map panel (loot_codex.h), resolved once the bridge is loaded.
+void(*codex_tick)()=nullptr;
+void(*codex_action)(int,int,float,float,float)=nullptr;
+bool(*codex_browse)(int,int,int)=nullptr;
+int codex_lookups=0;
+void resolve_codex(){
+    if(codex_tick || codex_lookups>=40 || (++codex_lookups%10)!=1)return;
+    HMODULE core=GetModuleHandleW(L"AetherfallCore.dll");if(!core)return;
+    auto tick=reinterpret_cast<decltype(codex_tick)>(GetProcAddress(core,"AetherfallCodexTick"));
+    auto action=reinterpret_cast<decltype(codex_action)>(GetProcAddress(core,"AetherfallCodexAction"));
+    if(tick && action){codex_action=action;codex_tick=tick;codex_browse=reinterpret_cast<decltype(codex_browse)>(GetProcAddress(core,"AetherfallCodexBrowse"));}
+}
 
 uint8_t* game(){return reinterpret_cast<uint8_t*>(GetModuleHandleW(L"Game.dll"));}
 template<typename T>T& field(Ptr p,size_t offset){return *reinterpret_cast<T*>(static_cast<uint8_t*>(p)+offset);}
@@ -123,6 +145,16 @@ bool local_view(Ptr view){
     const std::string expected="http://127.0.0.1:8091/market/wardrobe";
     return s==expected || s.rfind(expected+"?",0)==0;
 }
+bool codex_panel_view(Ptr view){
+    Ptr url=view_url(view);std::string s=string(url);if(url)destroy_string(url);
+    const std::string expected="http://127.0.0.1:8091/market/codex?panel=1";
+    return s==expected || s.rfind(expected+"&",0)==0;
+}
+bool codex_view(Ptr view){
+    Ptr url=view_url(view);std::string s=string(url);if(url)destroy_string(url);
+    const std::string expected="http://127.0.0.1:8091/market/codex";
+    return s==expected || s.rfind(expected+"?",0)==0;
+}
 bool journey_view(Ptr view){
     Ptr url=view_url(view);std::string s=string(url);if(url)destroy_string(url);
     const std::string expected="http://127.0.0.1:8091/journey";
@@ -170,7 +202,8 @@ bool preview(const Command& command){
     if(keep_hidden)control("visible",1);
     auto g=game();
     reinterpret_cast<void(__cdecl*)(Ptr,bool)>(g+0x8053f0)(paper,false);
-    for(uint32_t item:command.items){uint32_t data[4]={item,0,0,0};reinterpret_cast<void(__cdecl*)(Ptr,const uint32_t*)>(g+0x804bd0)(paper,data);}
+    // Record layout matches the native preview source at 0x804004: item, godstone, dye, enchant.
+    for(size_t i=0;i<command.items.size();++i){uint32_t data[4]={command.items[i],0,i<command.colors.size()?command.colors[i]:0,0};reinterpret_cast<void(__cdecl*)(Ptr,const uint32_t*)>(g+0x804bd0)(paper,data);}
     // The stock dialog's next update rebuilds the model. Complete that update
     // before taking the camera baseline; unopened native views have zero cameras.
     field<int>(paper,0x598)=1;
@@ -217,6 +250,8 @@ void tick(){
     if(!ui_thread){ui_thread=GetCurrentThreadId();log("Wardrobe: native event thread ready");}
     if(GetCurrentThreadId()!=ui_thread || changing)return;
     if(native_tick_hook)native_tick_hook();
+    resolve_codex();
+    if(codex_tick)codex_tick();
     if(Ptr dialog=journey_dialog();dialog && (field<uint64_t>(dialog,0x30)&1))journey_layout(dialog);
     std::vector<Command> pending;bool stock=false;
     {std::lock_guard<std::mutex> lock(queue_mutex);pending.swap(commands);stock=stock_preview_pending;stock_preview_pending=false;}
@@ -225,7 +260,17 @@ void tick(){
         {std::lock_guard<std::mutex> lock(queue_mutex);if(!command.state->active)continue;}
         bool ready=false;
         try{
-            if(command.control=="journey-key"){
+            if(command.control=="codex"){
+                const auto& c=command.codex;
+                if(codex_action)codex_action(c[0],c[1],c[2]/100.0f,c[3]/100.0f,c[4]/100.0f);
+            }
+            else if(command.control=="codex-browse"){
+                const auto& c=command.codex;
+                const bool opened=codex_browse && codex_browse(c[0],c[1],c[2]);
+                std::lock_guard<std::mutex> lock(queue_mutex);
+                command.state->codex_completed=c[4];command.state->codex_ready=opened;
+            }
+            else if(command.control=="journey-key"){
                 auto g=game();uint64_t key[2]{};if(g)std::memcpy(key,g+0x130c8f0,sizeof(key));
                 if(g && !(key[0]|key[1]))reinterpret_cast<void(__cdecl*)()>(g+0x3321c0)();
             }
@@ -243,6 +288,34 @@ void tick(){
 }
 void __cdecl callback(Ptr view,Ptr object,Ptr name,Ptr args){
     std::string method_name=string(name);
+    if(string(object)=="AionObject" && method_name=="CodexAction"){
+        // CodexAction(action, map, x, y, z): coordinates in hundredths, as the page sends them.
+        if(codex_view(view) && array_size(args)==5){
+            Ptr value=value_string(array_element(args,0));std::string action=string(value);if(value)destroy_string(value);
+            if(action=="map-result"){
+                int token=value_integer(array_element(args,4));bool done=false,ready=false;
+                {std::lock_guard<std::mutex> lock(queue_mutex);auto found=states.find(view);if(found!=states.end() && found->second->active && found->second->codex_completed==token){done=true;ready=found->second->codex_ready;}}
+                if(done){std::wstring code=L"window.CodexMapResult&&window.CodexMapResult("+std::to_wstring(token)+(ready?L",true)":L",false)");Ptr script=from_wide(code.c_str(),code.size()),frame=from_wide(L"",0);if(script&&frame)execute_js(view,script,frame);if(script)destroy_string(script);if(frame)destroy_string(frame);}
+                return;
+            }
+            int kind=action=="resume-map"?0:action=="npc-spawns"?1:action=="item-sources"?2:action=="clear-markers"?3:-1;
+            if(kind>=0){
+                Command command;command.control="codex-browse";command.codex[0]=kind;
+                for(size_t i=1;i<command.codex.size();++i)command.codex[i]=value_integer(array_element(args,i));
+                if((kind==1 && (command.codex[1]<=0 || command.codex[1]>=100000000)) || (kind==2 && (command.codex[1]<100000000 || command.codex[1]>=200000000)) || command.codex[4]<0)return;
+                std::lock_guard<std::mutex> lock(queue_mutex);auto& state=states[view];if(!state)state=std::make_shared<State>();
+                if(state->active && commands.size()<128){command.state=state;commands.push_back(std::move(command));}return;
+            }
+            if(!codex_panel_view(view))return;
+            int code=action=="close"?0:action=="locate"?3:-1;
+            if(code<0)return;
+            Command command;command.control="codex";command.codex[0]=code;
+            for(size_t i=1;i<command.codex.size();++i)command.codex[i]=value_integer(array_element(args,i));
+            std::lock_guard<std::mutex> lock(queue_mutex);
+            auto& state=states[view];if(!state)state=std::make_shared<State>();
+            if(state->active && commands.size()<128){command.state=state;commands.push_back(std::move(command));}
+        }return;
+    }
     if(string(object)=="AionObject" && method_name=="JourneySession"){
         if(journey_view(view) && array_size(args)==0){
             auto g=game();if(!g)return;
@@ -310,6 +383,9 @@ void register_methods(Ptr view){
     Ptr journey=from_wide(L"JourneyVisibility",17);
     if(object&&journey)object_callback(view,object,journey);
     if(journey)destroy_string(journey);
+    Ptr codex=from_wide(L"CodexAction",11);
+    if(object&&codex)object_callback(view,object,codex);
+    if(codex)destroy_string(codex);
     Ptr session=from_wide(L"JourneySession",14);
     if(object&&session)object_callback(view,object,session);
     if(session)destroy_string(session);

@@ -9,6 +9,7 @@
         <div class="eyebrow">Prepare for Atreia</div>
         <h1>Download Center</h1>
         <p>Download Aetherpack for a new installation, or get the current Setup and update files. These links go to the official releases.</p>
+        @if ($aionFeatures['start'] ?? false)<a class="btn btn-outline" href="{{ route('start') }}">FIRST TIME? OPEN THE PLAY CHECKLIST →</a>@endif
     </section>
 
     <section class="download-list" aria-label="Available downloads">

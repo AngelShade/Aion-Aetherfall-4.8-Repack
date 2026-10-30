@@ -6,6 +6,11 @@
 	</formats>
 	<fileSets>
 		<fileSet>
+			<directory>${aion.build.root}/codex-data</directory>
+			<outputDirectory>config/codex</outputDirectory>
+			<includes><include>scripted-spawns.tsv</include></includes>
+		</fileSet>
+		<fileSet>
 			<outputDirectory>./</outputDirectory>
 			<includes>
 				<include>config/**/*</include>

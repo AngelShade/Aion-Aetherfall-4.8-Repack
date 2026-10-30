@@ -17,6 +17,9 @@ final class PlayerBotPets {
 	private volatile PlayerBotNavigation navigation;
 	private long nextAttack;
 	private boolean returning;
+	// Stuck watchdog: closest distance to the master recently reached, and when.
+	private double bestDistance=Double.POSITIVE_INFINITY;
+	private long progressAt;
 	boolean waitingForSearchTurn() { var currentNavigation=navigation;return currentNavigation!=null && currentNavigation.waitingForSearchTurn(); }
 	boolean needsFollow(Player master) {
 		Summon pet=master.getSummon();
@@ -31,6 +34,7 @@ final class PlayerBotPets {
 		if (current != pet) {
 			if(navigation!=null)navigation.stop();
 			current = pet; pet.enablePlayerBotMovement(); navigation = new PlayerBotNavigation(pet); nextAttack = 0; returning=false;
+			bestDistance=Double.POSITIVE_INFINITY; progressAt=System.currentTimeMillis();
 		}
 		if (pet.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotSummonMoveController move && move.hasFailed()) {
 			release(master); return null;
@@ -44,8 +48,22 @@ final class PlayerBotPets {
 		Summon pet=prepare(master);if(pet==null)return false;
 		if(master.isDead() || master.isUsingFlightTransporterOrWindstream())return false;
 		double distance=PositionUtil.getDistance(pet,master);
+		long now=System.currentTimeMillis();
+		// An attack-mode spirit whose target is gone (dead, despawned or far from the
+		// master) kept ATTACK mode and never followed: only GUARD mode walks after the master.
+		if(pet.getMode()!=SummonMode.GUARD && pet.getNextSkillOrder()==null && !pet.isCasting()
+			&& (!(pet.getTarget() instanceof com.aionemu.gameserver.model.gameobjects.Creature target) || target.isDead() || !target.isSpawned()
+				|| PositionUtil.getDistance(target,master)>35)) {
+			SummonsService.guardMode(pet);pet.setTarget(null);
+		}
 		if(distance>35)returning=true;
 		else if(distance<=5)returning=false;
+		// A spirit that cannot find a way to its master (doors, rooms, ledges) for 8 s
+		// is dismissed like the native distance rule; the master summons it again beside itself.
+		if(distance<=8 || distance<bestDistance-1 || pet.getMode()!=SummonMode.GUARD){bestDistance=distance;progressAt=now;}
+		else if(distance>15 && now-progressAt>8000 && !master.isCasting()){
+			navigation.stop();SummonsService.release(pet,UnsummonType.DISTANCE);current=null;navigation=null;returning=false;return true;
+		}
 		if(returning) {
 			pet.clearSkillOrders();
 			if(pet.isCasting())pet.getController().cancelCurrentSkill(null);

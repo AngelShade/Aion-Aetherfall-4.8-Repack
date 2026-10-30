@@ -1,0 +1,356 @@
+{
+  "schema": 1,
+  "classes": [
+    {
+      "key": "GLADIATOR",
+      "id": 1,
+      "name": "Gladiator",
+      "family_key": "WARRIOR",
+      "family": "Warrior",
+      "tags": [
+        "frontline",
+        "melee"
+      ],
+      "role": "melee",
+      "subtitle": "Heavy weapon fighter",
+      "summary": "Broad melee pressure, durable positioning and flexible weapon choices.",
+      "strength": "Close-range damage and control",
+      "tip": "Keep enemies positioned so your group can fight safely.",
+      "icon": "gladiator"
+    },
+    {
+      "key": "TEMPLAR",
+      "id": 2,
+      "name": "Templar",
+      "family_key": "WARRIOR",
+      "family": "Warrior",
+      "tags": [
+        "frontline",
+        "melee"
+      ],
+      "role": "tank",
+      "subtitle": "Shield-bearing protector",
+      "summary": "A defensive frontline for keeping dangerous enemies occupied and protecting the party.",
+      "strength": "Defence and threat management",
+      "tip": "Bring damage dealers and reliable healing for longer encounters.",
+      "icon": "templar"
+    },
+    {
+      "key": "ASSASSIN",
+      "id": 4,
+      "name": "Assassin",
+      "family_key": "SCOUT",
+      "family": "Scout",
+      "tags": [
+        "melee"
+      ],
+      "role": "melee",
+      "subtitle": "Close-range ambusher",
+      "summary": "Fast melee attacks, stealth and rune combinations reward careful target choice.",
+      "strength": "Burst damage and positioning",
+      "tip": "Plan your approach and escape before committing.",
+      "icon": "assassin"
+    },
+    {
+      "key": "RANGER",
+      "id": 5,
+      "name": "Ranger",
+      "family_key": "SCOUT",
+      "family": "Scout",
+      "tags": [
+        "ranged"
+      ],
+      "role": "ranged",
+      "subtitle": "Bow-wielding hunter",
+      "summary": "Ranged physical attacks, traps and control help keep a safe distance.",
+      "strength": "Physical ranged pressure",
+      "tip": "Leave room to move and watch enemies that close the gap.",
+      "icon": "ranger"
+    },
+    {
+      "key": "SORCERER",
+      "id": 7,
+      "name": "Sorcerer",
+      "family_key": "MAGE",
+      "family": "Mage",
+      "tags": [
+        "ranged",
+        "support"
+      ],
+      "role": "ranged",
+      "subtitle": "Master of destructive magic",
+      "summary": "Strong spells and crowd control reward good spacing and uninterrupted casting.",
+      "strength": "Magic damage and control",
+      "tip": "Protect your casting time and manage your mana.",
+      "icon": "sorcerer"
+    },
+    {
+      "key": "SPIRIT_MASTER",
+      "id": 8,
+      "name": "Spiritmaster",
+      "family_key": "MAGE",
+      "family": "Mage",
+      "tags": [
+        "ranged",
+        "support",
+        "pets"
+      ],
+      "role": "ranged",
+      "subtitle": "Spirit summoner",
+      "summary": "Summoned spirits, persistent damage and disruptive magic support a measured approach.",
+      "strength": "Pets, debuffs and pressure",
+      "tip": "Account for your spirit’s position as well as your own.",
+      "icon": "spiritmaster"
+    },
+    {
+      "key": "CLERIC",
+      "id": 10,
+      "name": "Cleric",
+      "family_key": "PRIEST",
+      "family": "Priest",
+      "tags": [
+        "healing",
+        "support",
+        "ranged"
+      ],
+      "role": "healer",
+      "subtitle": "Restorer and protector",
+      "summary": "Healing, cleansing and resurrection give a party a dependable recovery core.",
+      "strength": "Healing and cleansing",
+      "tip": "Balance immediate recovery with mana and cooldown management.",
+      "icon": "cleric"
+    },
+    {
+      "key": "CHANTER",
+      "id": 11,
+      "name": "Chanter",
+      "family_key": "PRIEST",
+      "family": "Priest",
+      "tags": [
+        "healing",
+        "support",
+        "melee"
+      ],
+      "role": "support",
+      "subtitle": "Battlefield inspirer",
+      "summary": "Mantras, supportive skills, recovery and staff combat complement a group.",
+      "strength": "Party support and melee",
+      "tip": "Coordinate recovery with your main healer.",
+      "icon": "chanter"
+    },
+    {
+      "key": "RIDER",
+      "id": 13,
+      "name": "Aethertech",
+      "family_key": "ENGINEER",
+      "family": "Engineer",
+      "tags": [
+        "frontline",
+        "melee"
+      ],
+      "role": "tank",
+      "subtitle": "Aether-powered vanguard",
+      "summary": "A key-driven mechanical fighter that combines frontline presence with magical attacks.",
+      "strength": "Mechanical frontline combat",
+      "tip": "Manage your resources and pick suitable defensive tools.",
+      "icon": "rider"
+    },
+    {
+      "key": "GUNNER",
+      "id": 14,
+      "name": "Gunner",
+      "family_key": "ENGINEER",
+      "family": "Engineer",
+      "tags": [
+        "ranged"
+      ],
+      "role": "ranged",
+      "subtitle": "Aether firearm specialist",
+      "summary": "Pistols and aethercannons offer different rhythms of ranged magical pressure.",
+      "strength": "Ranged magical firepower",
+      "tip": "Choose range and weapon timing around the encounter.",
+      "icon": "gunner"
+    },
+    {
+      "key": "BARD",
+      "id": 16,
+      "name": "Songweaver",
+      "family_key": "ARTIST",
+      "family": "Artist",
+      "tags": [
+        "healing",
+        "support",
+        "ranged"
+      ],
+      "role": "support",
+      "subtitle": "Melodic spellcaster",
+      "summary": "Music combines ranged magic with recovery, control and party support.",
+      "strength": "Magic and supportive recovery",
+      "tip": "Balance offensive casting with the party’s recovery needs.",
+      "icon": "bard"
+    }
+  ],
+  "commands": [
+    {
+      "category": "Party",
+      "syntax": ".bot list",
+      "description": "List your offline account characters and active companions.",
+      "evidence": "list - List your offline characters",
+      "source": "data/handlers/playercommands/Bot.java"
+    },
+    {
+      "category": "Party",
+      "syntax": ".bot add <name>",
+      "description": "Recruit an eligible offline character from your own account. Replace <name> with the character name.",
+      "evidence": "add <name> - Recruit",
+      "source": "data/handlers/playercommands/Bot.java"
+    },
+    {
+      "category": "Party",
+      "syntax": ".bot dismiss all",
+      "description": "Save and dismiss your controlled companions.",
+      "evidence": "dismiss <name|all> - Save",
+      "source": "data/handlers/playercommands/Bot.java"
+    },
+    {
+      "category": "Party",
+      "syntax": ".bot summon all",
+      "description": "Revive and summon eligible companions while alive and out of combat. Normal conditions still apply.",
+      "evidence": "summon [name|all] - Revive",
+      "source": "data/handlers/playercommands/Bot.java"
+    },
+    {
+      "category": "Orders",
+      "syntax": ".bot follow all",
+      "description": "Interrupt companion activity and bring the party back to you. Regroup out of combat or use Attack to resume.",
+      "evidence": "follow|stay|guard|passive [name|all]",
+      "source": "data/handlers/playercommands/Bot.java"
+    },
+    {
+      "category": "Orders",
+      "syntax": ".bot stay all",
+      "description": "Hold the companions in position.",
+      "evidence": "follow|stay|guard|passive [name|all]",
+      "source": "data/handlers/playercommands/Bot.java"
+    },
+    {
+      "category": "Orders",
+      "syntax": ".bot guard all",
+      "description": "Switch your companions to the guard order.",
+      "evidence": "follow|stay|guard|passive [name|all]",
+      "source": "data/handlers/playercommands/Bot.java"
+    },
+    {
+      "category": "Orders",
+      "syntax": ".bot passive all",
+      "description": "Prevent companion attacks.",
+      "evidence": "follow|stay|guard|passive [name|all]",
+      "source": "data/handlers/playercommands/Bot.java"
+    },
+    {
+      "category": "Combat",
+      "syntax": ".bot attack all",
+      "description": "Attack your selected eligible hostile target. Normal combat rules apply.",
+      "evidence": "attack [name|all]",
+      "source": "data/handlers/playercommands/Bot.java"
+    },
+    {
+      "category": "Combat",
+      "syntax": ".bot pull",
+      "description": "Have a tank companion pull your selected monster back to the waiting party.",
+      "evidence": "pull - Your tank companion",
+      "source": "data/handlers/playercommands/Bot.java"
+    },
+    {
+      "category": "Combat",
+      "syntax": ".bot mark kill",
+      "description": "Mark your selected monster as the party’s focus target.",
+      "evidence": "mark kill|cc|clear",
+      "source": "data/handlers/playercommands/Bot.java"
+    },
+    {
+      "category": "Combat",
+      "syntax": ".bot mark cc",
+      "description": "Reserve your selected monster for supported crowd control. Companions avoid breaking it with damage.",
+      "evidence": "mark kill|cc|clear",
+      "source": "data/handlers/playercommands/Bot.java"
+    },
+    {
+      "category": "Combat",
+      "syntax": ".bot mark clear",
+      "description": "Clear the active target mark.",
+      "evidence": "mark kill|cc|clear",
+      "source": "data/handlers/playercommands/Bot.java"
+    },
+    {
+      "category": "Combat",
+      "syntax": ".bot role <name> <tank|healer|support|melee|ranged>",
+      "description": "Set a companion role. Replace the placeholders with one name and one role.",
+      "evidence": "role <name> <tank|healer|support|melee|ranged>",
+      "source": "data/handlers/playercommands/Bot.java"
+    },
+    {
+      "category": "Combat",
+      "syntax": ".bot aoe off all",
+      "description": "Turn off optional area attacks for the controlled party.",
+      "evidence": "aoe <on|off> [name|all]",
+      "source": "data/handlers/playercommands/Bot.java"
+    },
+    {
+      "category": "Supplies",
+      "syntax": ".bot supplies on all",
+      "description": "Allow companions to use their own recovery consumables.",
+      "evidence": "supplies <on|off> [name|all]",
+      "source": "data/handlers/playercommands/Bot.java"
+    },
+    {
+      "category": "Supplies",
+      "syntax": ".bot loot on all",
+      "description": "Allow eligible nearby corpse looting. Ownership, combat priorities and inventory space still matter.",
+      "evidence": "loot <on|off> [name|all]",
+      "source": "data/handlers/playercommands/Bot.java"
+    },
+    {
+      "category": "Supplies",
+      "syntax": ".bot gear on all",
+      "description": "Allow compatible inventory upgrades to be equipped automatically.",
+      "evidence": "gear <on|off> [name|all]",
+      "source": "data/handlers/playercommands/Bot.java"
+    },
+    {
+      "category": "Quests",
+      "syntax": ".bot quests <name>",
+      "description": "Inspect a companion’s active quest progress.",
+      "evidence": "quests <name>",
+      "source": "data/handlers/playercommands/Bot.java"
+    },
+    {
+      "category": "Quests",
+      "syntax": ".bot questing on all",
+      "description": "Allow supported nearby quest acceptance and turn-in.",
+      "evidence": "questing <on|off> [name|all]",
+      "source": "data/handlers/playercommands/Bot.java"
+    },
+    {
+      "category": "Quests",
+      "syntax": ".bot partysync on all",
+      "description": "Enable eligible grouped quest-completion sharing.",
+      "evidence": "partysync <on|off> [name|all]",
+      "source": "data/handlers/playercommands/Bot.java"
+    },
+    {
+      "category": "Formation",
+      "syntax": ".bot formation circle",
+      "description": "Arrange following companions around you in a circle. Other choices: box, line and spread.",
+      "evidence": "Use .bot formation circle|box|line|spread.",
+      "source": "src/com/aionemu/gameserver/services/playerbot/PlayerBotFormationLayout.java"
+    },
+    {
+      "category": "Formation",
+      "syntax": ".bot distance 4",
+      "description": "Set follow spacing to four metres. Supported values range from 2 to 12 metres; attack spacing remains separate.",
+      "evidence": "Use .bot distance <2-12 meters>.",
+      "source": "src/com/aionemu/gameserver/services/playerbot/PlayerBotFormationLayout.java"
+    }
+  ]
+}

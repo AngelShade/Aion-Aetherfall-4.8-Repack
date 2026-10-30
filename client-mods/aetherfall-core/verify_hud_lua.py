@@ -254,9 +254,9 @@ def main():
         assert widgets['AFUIHeader']['attr'].get('textColor', '').startswith('0.839')
         g.AFUI.Click('Row2Less')  # back to Aether
         g.AFUI.Click('Tab5')  # Data Texts
-        assert widgets['AFUIRow1Label']['text'] == 'Top bar' and widgets['AFUIRow2Value']['text'] == 'zone'
+        assert widgets['AFUIRow1Label']['text'] == 'Top bar' and widgets['AFUIRow2Value']['text'] == 'Zone'
         g.AFUI.Click('Row2Value')
-        assert widgets['AFUIRow2Value']['text'] == 'coords' and lua.eval("AFUI.Get('dl1')") == 'coords'
+        assert widgets['AFUIRow2Value']['text'] == 'Coordinates' and lua.eval("AFUI.Get('dl1')") == 'coords'
         g.AFUI.Click('Tab8')  # Movers
         assert widgets['AFUIRow4Label']['text'] == 'Grid size' and widgets['AFUIRow4Less']['visible'] == 1
         g.AFUI.Click('Row4More')

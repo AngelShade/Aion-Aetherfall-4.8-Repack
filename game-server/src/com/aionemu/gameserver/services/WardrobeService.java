@@ -36,9 +36,17 @@ public final class WardrobeService {
 	private static volatile Map<Integer,Entry> entries = Map.of();
 	private static final Map<String,List<Entry>> permittedCatalog = new ConcurrentHashMap<>();
 	private static final Map<Integer,CollectionRead> collectionReads = new ConcurrentHashMap<>();
-	private record CollectionRead(Object connection, long expires, Set<Integer> unlocked, List<Map<String,Object>> outfits) {}
+	private record CollectionRead(Object connection, long expires, Set<Integer> unlocked, Palette palette, List<Map<String,Object>> outfits) {}
 	private static volatile boolean ready;
 	private record Entry(ItemTemplate template, String search, String category) {}
+	/** One palette color, shown with the native dye item that represents it. */
+	private record Dye(int color, ItemTemplate item, String name) {}
+	private static volatile Map<Integer,Dye> dyes = Map.of();
+	private static volatile Map<Integer,Integer> dyeItems = Map.of();
+	/** Account dye palette. A Season Pass palette opens every color without registrations. */
+	record Palette(boolean full, Set<Integer> registered) {
+		boolean has(Integer color) { return color != null && dyes.containsKey(color) && (full || registered.contains(color)); }
+	}
 	private WardrobeService() {}
 
 	public static void start() throws Exception {
@@ -56,11 +64,45 @@ public final class WardrobeService {
 			.map(t -> new Entry(t,t.getName().toLowerCase(Locale.ROOT),WardrobeRules.category(t))).toList();
 		byId = catalog.stream().collect(Collectors.toUnmodifiableMap(e -> e.template().getTemplateId(),Entry::template));
 		entries = catalog.stream().collect(Collectors.toUnmodifiableMap(e -> e.template().getTemplateId(), e -> e));
+		Map<Integer,Integer> items = new HashMap<>(); Map<Integer,ItemTemplate> shown = new HashMap<>();
+		for (ItemTemplate t : DataManager.ITEM_DATA.getItemTemplates()) {
+			Integer color = WardrobeRules.paletteColor(t);
+			if (color == null || !CentralMarketHttpService.hasClientItem(t.getTemplateId())) continue;
+			items.put(t.getTemplateId(),color);
+			// Prefer the plain native dye name over event and reward editions of the same color.
+			shown.merge(color,t,(a,b) -> rank(b) < rank(a) || rank(b) == rank(a) && b.getTemplateId() < a.getTemplateId() ? b : a);
+		}
+		Map<Integer,Dye> palette = new LinkedHashMap<>();
+		shown.values().stream().sorted(Comparator.comparingDouble((ItemTemplate t) -> hue(items.get(t.getTemplateId())))
+			.thenComparingInt(t -> items.get(t.getTemplateId()))).forEach(t -> {
+				int color = items.get(t.getTemplateId());
+				palette.put(color,new Dye(color,t,t.getName().replaceFirst("^\\[[^\\]]*\\]\\s*","").replaceFirst("^Dye:\\s*","")));
+			});
+		dyes = Collections.unmodifiableMap(palette); dyeItems = Map.copyOf(items);
 		permittedCatalog.clear(); collectionReads.clear();
 		if (DataManager.ITEM_DATA.getItemTemplate(WardrobeRules.UNLOCK_ITEM) == null)
 			throw new IllegalStateException("Appearance Unlock item template is missing.");
+		if (DataManager.ITEM_DATA.getItemTemplate(WardrobeRules.PALETTE_ITEM) == null)
+			throw new IllegalStateException("Aether Palette item template is missing.");
 		ready = true;
-		log.info("Wardrobe ready: {} permanent appearances; account collection enabled", catalog.size());
+		log.info("Wardrobe ready: {} permanent appearances, {} palette dyes; account collection enabled", catalog.size(), dyes.size());
+	}
+
+	private static int rank(ItemTemplate t) { return t.getName().startsWith("[") ? 2 : t.getName().startsWith("Dye:") ? 0 : 1; }
+
+	/** Hue order with grays first keeps the palette readable like a color wheel. */
+	private static double hue(int rgb) {
+		double r = (rgb >> 16 & 255) / 255d, g = (rgb >> 8 & 255) / 255d, b = (rgb & 255) / 255d;
+		double max = Math.max(r,Math.max(g,b)), min = Math.min(r,Math.min(g,b)), d = max-min;
+		if (d < 0.08) return -1 + max/2;
+		double h = max == r ? ((g-b)/d + 6) % 6 : max == g ? (b-r)/d + 2 : (r-g)/d + 4;
+		return h + (1-max) * 0.01;
+	}
+
+	static Palette palette(Connection c, int account) throws SQLException {
+		boolean full = row(c,"SELECT account_id FROM wardrobe_palettes WHERE account_id=?",account) != null;
+		return new Palette(full,rows(c,"SELECT color FROM wardrobe_dyes WHERE account_id=?",account).stream()
+			.map(r -> (int)number(r,"color")).collect(Collectors.toSet()));
 	}
 
 	private static void available(Player p) {
@@ -93,8 +135,9 @@ public final class WardrobeService {
 				CollectionRead collection = collectionReads.get(account);
 				if (collection == null || collection.connection() != guard || collection.expires() < now || args.containsKey("refresh")) {
 					if (collectionReads.size() > 1024) collectionReads.entrySet().removeIf(e -> e.getValue().expires() < now);
-					collection = new CollectionRead(guard, now+3000, unlocked(c,account),
-						rows(c,"SELECT name,skins_json,updated_at FROM wardrobe_outfits WHERE account_id=? ORDER BY updated_at DESC",account));
+					collection = new CollectionRead(guard, now+3000, unlocked(c,account), palette(c,account),
+						rows(c,"SELECT o.name,o.skins_json,o.updated_at,COALESCE(d.dyes_json,'{}') dyes_json FROM wardrobe_outfits o"
+							+ " LEFT JOIN wardrobe_outfit_dyes d ON d.account_id=o.account_id AND d.name=o.name WHERE o.account_id=? ORDER BY o.updated_at DESC",account));
 					collectionReads.put(account,collection);
 				}
 				Set<Integer> unlocked = collection.unlocked();
@@ -138,6 +181,20 @@ public final class WardrobeService {
 				state.put("skins",skins); state.put("results",matches.size()); state.put("page",page); state.put("pages",pages);
 				state.put("target",target == null ? 0 : targetId);
 				state.put("outfits",collection.outfits());
+				Palette palette = collection.palette();
+				Map<Integer,List<Item>> dyeSources = p.getInventory().getItems().stream().filter(i -> dyeItems.containsKey(i.getItemId())
+					&& i.getExpireTime() == 0).collect(Collectors.groupingBy(i -> dyeItems.get(i.getItemId())));
+				state.put("palette",palette.full());
+				state.put("paletteItems",p.getInventory().getItemCountByItemId(WardrobeRules.PALETTE_ITEM));
+				state.put("dyesUnlocked",dyes.keySet().stream().filter(palette::has).count()); state.put("dyesTotal",dyes.size());
+				state.put("dyes",dyes.values().stream().map(d -> {
+					Map<String,Object> v = new LinkedHashMap<>();
+					v.put("color",d.color()); v.put("hex",String.format("%06x",d.color())); v.put("name",d.name());
+					v.put("item",d.item().getTemplateId()); v.put("unlocked",palette.has(d.color()));
+					v.put("sources",dyeSources.getOrDefault(d.color(),List.of()).stream()
+						.map(i -> Map.of("object",i.getObjectId(),"name",i.getItemName(),"count",i.getItemCount())).toList());
+					return v;
+				}).toList());
 				Set<Integer> outfitIds = new HashSet<>();
 				for (var outfit : collection.outfits()) {
 					Map<String,Integer> saved = Json.read(outfit.get("skins_json").toString(),new com.google.gson.reflect.TypeToken<Map<String,Integer>>() {});
@@ -175,6 +232,8 @@ public final class WardrobeService {
 			"tooltip","item="+i.getItemId()+"&count=1&enchant_count="+i.getEnchantLevel()+"&authorize_count="+i.getTempering()));
 		result.put("group",i.getItemTemplate().getItemGroup().name());
 		result.put("slots",i.getItemTemplate().getItemGroup().getValidEquipmentSlots());
+		result.put("color",i.getItemColor() == null ? -1 : i.getItemColor());
+		result.put("dyeable",i.getItemSkinTemplate().isItemDyePermitted());
 		return result;
 	}
 
@@ -199,6 +258,8 @@ public final class WardrobeService {
 					if (receipt != null) return receipt.get("result").toString();
 					String result = switch (args.getOrDefault("action","")) {
 						case "unlock" -> unlock(c,p,args,committed);
+						case "registerDye" -> registerDye(c,p,args,committed);
+						case "unlockPalette" -> unlockPalette(c,p,committed);
 						case "apply" -> apply(c,p,args,committed);
 						case "applyChanges" -> applyChanges(c,p,args,committed);
 						case "restore" -> restore(c,p,args,committed);
@@ -259,26 +320,63 @@ public final class WardrobeService {
 			.orElseThrow(() -> new IllegalArgumentException("You need one Appearance Unlock item."));
 		lockItem(c,p,ticket);
 		commitUnlock(c,account,skin.getTemplateId(),p.getObjectId(),ticket.getObjectId(),ticket.getItemCount());
-		long remaining = ticket.getItemCount()-1;
-		committed.add(() -> {
-			ticket.setItemCount(remaining); ticket.setPersistentState(PersistentState.UPDATED);
-			if (remaining == 0) {
-				p.getInventory().remove(ticket);
-				ItemPacketService.sendItemDeletePacket(p,StorageType.CUBE,ticket,ItemDeleteType.USE);
-				IDFactory.getInstance().releaseId(ticket.getObjectId());
-			} else ItemPacketService.sendItemUpdatePacket(p,StorageType.CUBE,ticket,ItemUpdateType.DEC_ITEM_USE);
-		});
+		useOne(p,ticket,committed);
 		return "Unlocked " + skin.getName() + ". Equipment kept.";
+	}
+
+	/** Applies the committed removal of one consumed item to the live inventory. */
+	private static void useOne(Player p,Item used,List<Runnable> committed) {
+		long remaining = used.getItemCount()-1;
+		committed.add(() -> {
+			used.setItemCount(remaining); used.setPersistentState(PersistentState.UPDATED);
+			if (remaining == 0) {
+				p.getInventory().remove(used);
+				ItemPacketService.sendItemDeletePacket(p,StorageType.CUBE,used,ItemDeleteType.USE);
+				IDFactory.getInstance().releaseId(used.getObjectId());
+			} else ItemPacketService.sendItemUpdatePacket(p,StorageType.CUBE,used,ItemUpdateType.DEC_ITEM_USE);
+		});
+	}
+
+	static void consume(Connection c,int character,int object,int itemId,long count,String missing) throws SQLException {
+		if (count < 1) throw new IllegalArgumentException(missing);
+		int changed = count == 1
+			? update(c,"DELETE FROM inventory WHERE item_unique_id=? AND item_owner=? AND item_id=? AND item_location=0 AND is_equipped=0 AND item_count=1",object,character,itemId)
+			: update(c,"UPDATE inventory SET item_count=item_count-1 WHERE item_unique_id=? AND item_owner=? AND item_id=? AND item_location=0 AND is_equipped=0 AND item_count=?",object,character,itemId,count);
+		if (changed != 1) throw new IllegalArgumentException(missing + " Refresh Wardrobe.");
+	}
+
+	private static String registerDye(Connection c,Player p,Map<String,String> args,List<Runnable> committed) throws SQLException {
+		int sourceId = integer(args,"source",0), account = p.getAccount().getId();
+		Item source = p.getInventory().getItems().stream().filter(i -> i.getObjectId() == sourceId && dyeItems.containsKey(i.getItemId())
+			&& i.getExpireTime() == 0).findFirst().orElseThrow(() -> new IllegalArgumentException("Keep a permanent dye in your Inventory to register it."));
+		Dye dye = dyes.get(dyeItems.get(source.getItemId()));
+		if (palette(c,account).has(dye.color())) return dye.name() + " is already in your palette. The dye was kept.";
+		lockItem(c,p,source);
+		if (update(c,"INSERT IGNORE INTO wardrobe_dyes VALUES(?,?,?,?,?)",account,dye.color(),source.getItemId(),System.currentTimeMillis(),p.getObjectId()) != 1)
+			throw new IllegalArgumentException("This dye is already registered.");
+		consume(c,p.getObjectId(),source.getObjectId(),source.getItemId(),source.getItemCount(),"The dye changed.");
+		useOne(p,source,committed);
+		return "Registered " + dye.name() + " to your account palette.";
+	}
+
+	private static String unlockPalette(Connection c,Player p,List<Runnable> committed) throws SQLException {
+		int account = p.getAccount().getId();
+		if (palette(c,account).full()) return "Your account palette is already complete. The Aether Palette was kept.";
+		Item palette = p.getInventory().getItemsByItemId(WardrobeRules.PALETTE_ITEM).stream().filter(i -> i.getItemCount() > 0).findFirst()
+			.orElseThrow(() -> new IllegalArgumentException("You need an Aether Palette in your Inventory."));
+		lockItem(c,p,palette);
+		if (update(c,"INSERT IGNORE INTO wardrobe_palettes VALUES(?,?,?)",account,System.currentTimeMillis(),p.getObjectId()) != 1)
+			throw new IllegalArgumentException("Your account palette is already complete.");
+		consume(c,p.getObjectId(),palette.getObjectId(),WardrobeRules.PALETTE_ITEM,palette.getItemCount(),"The Aether Palette changed.");
+		useOne(p,palette,committed);
+		return "Every palette color is now unlocked for your account.";
 	}
 
 	static void commitUnlock(Connection c,int account,int skin,int character,int ticket,long count) throws SQLException {
 		if (count < 1) throw new IllegalArgumentException("You need one Appearance Unlock item.");
 		if (update(c,"INSERT IGNORE INTO wardrobe_skins VALUES(?,?,?,?)",account,skin,System.currentTimeMillis(),character) != 1)
 			throw new IllegalArgumentException("Appearance already unlocked.");
-		int changed = count == 1
-			? update(c,"DELETE FROM inventory WHERE item_unique_id=? AND item_owner=? AND item_id=? AND item_location=0 AND is_equipped=0 AND item_count=1",ticket,character,WardrobeRules.UNLOCK_ITEM)
-			: update(c,"UPDATE inventory SET item_count=item_count-1 WHERE item_unique_id=? AND item_owner=? AND item_id=? AND item_location=0 AND is_equipped=0 AND item_count=?",ticket,character,WardrobeRules.UNLOCK_ITEM,count);
-		if (changed != 1) throw new IllegalArgumentException("Appearance Unlock item changed. Refresh Wardrobe.");
+		consume(c,character,ticket,WardrobeRules.UNLOCK_ITEM,count,"Appearance Unlock item changed.");
 	}
 
 	private static String apply(Connection c,Player p,Map<String,String> args,List<Runnable> committed) throws SQLException {
@@ -302,37 +400,87 @@ public final class WardrobeService {
 		catch (Exception e) { throw new IllegalArgumentException("Invalid appearance changes."); }
 		if (changes == null || changes.isEmpty() || changes.size() > 16) throw new IllegalArgumentException("Select up to 16 equipment appearances.");
 		Set<Integer> owned = unlocked(c,p.getAccount().getId()), seen = new HashSet<>();
+		Palette palette = palette(c,p.getAccount().getId());
 		List<Item> equipment = equipment(p);
 		Map<Item,ItemTemplate> validated = new LinkedHashMap<>();
+		Map<Item,Integer> colors = new LinkedHashMap<>();
 		for (Map<String,Integer> change : changes) {
 			if (change == null) throw new IllegalArgumentException("Invalid appearance changes.");
 			Integer object = change.get("object"), skinId = change.get("skin"), expected = change.get("expected");
-			if (object == null || skinId == null || expected == null || !seen.add(object)) throw new IllegalArgumentException("Invalid appearance changes.");
+			Integer color = change.get("color"), expectedColor = change.get("expectedColor");
+			// A change carries a skin, a palette dye (-1 removes the dye), or both.
+			if (object == null || skinId == null && color == null || skinId != null && expected == null
+				|| color != null && (expectedColor == null || color < -1 || color > 0xFFFFFF) || !seen.add(object))
+				throw new IllegalArgumentException("Invalid appearance changes.");
 			Item item = equipment.stream().filter(i -> i.getObjectId() == object).findFirst()
-				.orElseThrow(() -> new IllegalArgumentException("Equipment changed. Refresh Wardrobe."));
-			if (item.getItemSkinTemplate().getTemplateId() != expected) throw new IllegalArgumentException("Equipment changed. Refresh Wardrobe.");
+				.orElseThrow(() -> new IllegalArgumentException("Selected equipment is no longer available. Refresh Wardrobe."));
+			if (color != null) {
+				int current = item.getItemColor() == null ? -1 : item.getItemColor();
+				if (current != expectedColor && current != color) throw new IllegalArgumentException(item.getItemName() + ": dye changed. Refresh Wardrobe.");
+				if (color != -1 && !palette.has(color)) throw new IllegalArgumentException("Register this dye to your palette before applying it.");
+				colors.put(item,color);
+			}
+			if (skinId == null) continue;
 			ItemTemplate skin = skinId == 0 ? item.getItemTemplate() : byId.get(skinId);
 			if (skin == null || skinId != 0 && (!owned.contains(skinId) || !WardrobeRules.permitted(skin,p.getRace(),p.getGender())
 				|| !WardrobeRules.compatible(item.getItemTemplate(),skin))) throw new IllegalArgumentException("Unlock a compatible appearance before applying changes.");
+			int current = item.getItemSkinTemplate().getTemplateId();
+			// A stale draft that already matches the requested look is harmless. Keep
+			// rejecting stale drafts that would overwrite a different current look.
+			if (current != expected && current != skin.getTemplateId()) {
+				log.warn("Wardrobe stale appearance for item {}: expected={}, current={}, requested={}",object,expected,current,skin.getTemplateId());
+				throw new IllegalArgumentException(item.getItemName() + ": appearance changed. Refresh Wardrobe.");
+			}
 			validated.put(item,skin);
 		}
+		for (var entry : colors.entrySet())
+			if (entry.getValue() != -1 && !validated.getOrDefault(entry.getKey(),entry.getKey().getItemSkinTemplate()).isItemDyePermitted())
+				throw new IllegalArgumentException(entry.getKey().getItemName() + " cannot be dyed with this appearance.");
 		// All selections are validated before any writes. The surrounding transaction commits the whole outfit together.
+		// Dyes are written first: changeSkin's custody check compares the saved skin with the live item.
+		int before = committed.size();
+		for (var entry : colors.entrySet()) changeColor(c,p,entry.getKey(),entry.getValue(),committed);
 		for (var entry : validated.entrySet()) changeSkin(c,p,entry.getKey(),entry.getValue(),committed);
-		return "Applied " + validated.size() + " appearance changes.";
+		int changed = committed.size()-before;
+		return changed == 0 ? "Selected appearances are already applied." : "Applied " + changed + " appearance changes.";
+	}
+
+	private static void changeColor(Connection c,Player p,Item target,int color,List<Runnable> committed) throws SQLException {
+		lockItem(c,p,target);
+		Integer value = color == -1 ? null : color;
+		if (Objects.equals(target.getItemColor(),value) && target.getColorExpireTime() == 0) return;
+		try (PreparedStatement statement = c.prepareStatement("UPDATE inventory SET item_color=?,color_expires=0 WHERE item_unique_id=? AND item_owner=? AND item_location=0")) {
+			if (value == null) statement.setNull(1,Types.INTEGER); else statement.setInt(1,value);
+			statement.setInt(2,target.getObjectId()); statement.setInt(3,p.getObjectId());
+			if (statement.executeUpdate() != 1) throw new IllegalArgumentException("Equipment is no longer available to update. Refresh Wardrobe.");
+		}
+		committed.add(() -> {
+			target.setItemColor(value); target.setColorExpireTime(0); target.setPersistentState(PersistentState.UPDATED);
+			ItemPacketService.updateItemAfterInfoChange(p,target);
+		});
 	}
 
 	private static void lockItem(Connection c,Player p,Item item) throws SQLException {
 		Map<String,Object> saved = row(c,"SELECT item_count,item_id,item_skin,is_equipped FROM inventory WHERE item_unique_id=? AND item_owner=? AND item_location=0 FOR UPDATE",item.getObjectId(),p.getObjectId());
-		if (saved == null || number(saved,"item_count") != item.getItemCount() || number(saved,"item_id") != item.getItemId()
+		if (saved == null)
+			throw new IllegalArgumentException(item.getItemName() + ": no longer available. Refresh Wardrobe.");
+		if (number(saved,"item_count") != item.getItemCount() || number(saved,"item_id") != item.getItemId()
 			|| (number(saved,"is_equipped") != 0) != item.isEquipped()
 			|| number(saved,"item_skin") != item.getItemSkinTemplate().getTemplateId()
-				&& !(number(saved,"item_skin") == 0 && !item.isSkinnedItem()))
-			throw new IllegalArgumentException("Equipment changed. Refresh Wardrobe.");
+				&& !(number(saved,"item_skin") == 0 && !item.isSkinnedItem())) {
+			log.warn("Wardrobe saved equipment mismatch for item {}: saved count/id/skin/equipped={}/{}/{}/{}, live={}/{}/{}/{}",
+				item.getObjectId(),number(saved,"item_count"),number(saved,"item_id"),number(saved,"item_skin"),number(saved,"is_equipped"),
+				item.getItemCount(),item.getItemId(),item.getItemSkinTemplate().getTemplateId(),item.isEquipped());
+			throw new IllegalArgumentException(item.getItemName() + ": saved equipment differs. Log in again.");
+		}
 	}
 
 	private static void changeSkin(Connection c,Player p,Item target,ItemTemplate skin,List<Runnable> committed) throws SQLException {
 		lockItem(c,p,target);
 		int skinId = skin.getTemplateId();
+		// Do not issue an UPDATE for an unchanged appearance: affected-row JDBC
+		// settings can report zero for it even though custody is still valid.
+		if (target.getItemSkinTemplate().getTemplateId() == skinId) return;
 		commitAppearance(c,p.getObjectId(),target.getObjectId(),skinId);
 		committed.add(() -> {
 			target.setItemSkinTemplate(skin); target.setPersistentState(PersistentState.UPDATED);
@@ -343,7 +491,7 @@ public final class WardrobeService {
 	static void commitAppearance(Connection c,int owner,int object,int skin) throws SQLException {
 		try (PreparedStatement statement = c.prepareStatement("UPDATE inventory SET item_skin=? WHERE item_unique_id=? AND item_owner=? AND item_location=0")) {
 			statement.setInt(1,skin); statement.setInt(2,object); statement.setInt(3,owner);
-			if (statement.executeUpdate() != 1) throw new IllegalArgumentException("Equipment changed. Refresh Wardrobe.");
+			if (statement.executeUpdate() != 1) throw new IllegalArgumentException("Equipment is no longer available to update. Refresh Wardrobe.");
 		}
 	}
 
@@ -360,15 +508,23 @@ public final class WardrobeService {
 			&& rows(c,"SELECT name FROM wardrobe_outfits WHERE account_id=?",account).size() >= 20)
 			throw new IllegalArgumentException("You can save up to 20 outfits. Delete an outfit first.");
 		Set<Integer> owned = unlocked(c,account);
-		Map<String,Integer> skins = new LinkedHashMap<>();
+		Palette palette = palette(c,account);
+		Map<String,Integer> skins = new LinkedHashMap<>(), colors = new LinkedHashMap<>();
+		boolean skipped = false;
 		for (Item i : equipment(p)) if (i.isEquipped()) {
 			int skin = i.isSkinnedItem() ? i.getItemSkinTemplate().getTemplateId() : 0;
 			if (skin != 0 && !owned.contains(skin)) throw new IllegalArgumentException("Unlock " + i.getItemSkinTemplate().getName() + " before saving this outfit.");
-			skins.put(Long.toString(i.getEquipmentSlot()),skin);
+			String slot = Long.toString(i.getEquipmentSlot());
+			skins.put(slot,skin);
+			// Undyed slots are saved as -1. Dyes outside the palette are left out so outfits cannot copy them for free.
+			if (i.getItemColor() == null) colors.put(slot,-1);
+			else if (palette.has(i.getItemColor()) && i.getColorExpireTime() == 0) colors.put(slot,i.getItemColor());
+			else skipped = true;
 		}
 		if (skins.isEmpty()) throw new IllegalArgumentException("Equip appearance-compatible equipment first.");
 		update(c,"INSERT INTO wardrobe_outfits VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE skins_json=VALUES(skins_json),updated_at=VALUES(updated_at)",account,name,Json.write(skins),System.currentTimeMillis());
-		return "Saved outfit " + name + ".";
+		update(c,"INSERT INTO wardrobe_outfit_dyes VALUES(?,?,?) ON DUPLICATE KEY UPDATE dyes_json=VALUES(dyes_json)",account,name,Json.write(colors));
+		return "Saved outfit " + name + "." + (skipped ? " Dyes not registered to your palette were not saved." : "");
 	}
 
 	private static String applyOutfit(Connection c,Player p,Map<String,String> args,List<Runnable> committed) throws SQLException {
@@ -377,6 +533,21 @@ public final class WardrobeService {
 		if (saved == null) throw new IllegalArgumentException("This outfit was deleted. Refresh Wardrobe.");
 		Map<String,Integer> skins = Json.read(saved.get("skins_json").toString(),new com.google.gson.reflect.TypeToken<Map<String,Integer>>() {});
 		Set<Integer> owned = unlocked(c,p.getAccount().getId());
+		Palette palette = palette(c,p.getAccount().getId());
+		Map<String,Object> savedDyes = row(c,"SELECT dyes_json FROM wardrobe_outfit_dyes WHERE account_id=? AND name=?",p.getAccount().getId(),name);
+		Map<String,Integer> colors = savedDyes == null ? Map.of()
+			: Json.read(savedDyes.get("dyes_json").toString(),new com.google.gson.reflect.TypeToken<Map<String,Integer>>() {});
+		// Dyes first, for the same custody reason as applyChanges. Outfits saved before dyes keep the current dyes.
+		for (var entry : colors.entrySet()) {
+			long slot = Long.parseLong(entry.getKey());
+			Item target = equipment(p).stream().filter(i -> i.isEquipped() && i.getEquipmentSlot() == slot).findFirst()
+				.orElseThrow(() -> new IllegalArgumentException("Equip the equipment slots saved in this outfit first."));
+			Integer savedSkin = skins.get(entry.getKey());
+			ItemTemplate skin = savedSkin == null ? target.getItemSkinTemplate() : savedSkin == 0 ? target.getItemTemplate() : byId.get(savedSkin);
+			if (entry.getValue() != -1 && (!palette.has(entry.getValue()) || skin == null || !skin.isItemDyePermitted()))
+				throw new IllegalArgumentException("This outfit's dyes do not match your palette or equipped items.");
+			changeColor(c,p,target,entry.getValue(),committed);
+		}
 		for (var entry : skins.entrySet()) {
 			long slot = Long.parseLong(entry.getKey());
 			Item target = equipment(p).stream().filter(i -> i.isEquipped() && i.getEquipmentSlot() == slot).findFirst()
@@ -392,6 +563,7 @@ public final class WardrobeService {
 
 	private static String deleteOutfit(Connection c,int account,Map<String,String> args) throws SQLException {
 		update(c,"DELETE FROM wardrobe_outfits WHERE account_id=? AND name=?",account,name(args));
+		update(c,"DELETE FROM wardrobe_outfit_dyes WHERE account_id=? AND name=?",account,name(args));
 		return "Outfit deleted.";
 	}
 

@@ -11,6 +11,7 @@ from patch_game_dll import Assembler
 EXPECTED = '01784637e17ce712f6f64b6d56b1b5565cf06619f3bbbde8d83086d46393a5e8'
 INITIAL_STIGMA_BUILD = '7225a21491cd4e5a5c8ce8e80ca786e7452eb347acc6defe77df7fda9fb74b7f'
 INSTALLED_STIGMA_BUILD = 'b3ad20db678e7a3c35bfc9731d08915012e225c42cae3d9c1be8ef623a0ffaff'
+CURRENT_STIGMA_BUILD = '1820bb008928b7e8ba9538eb86c242420e02a02411b1f5d223da76f6c37f5913'
 BUTTON = 'btn_stigma_upgrade'
 CLICK_CAVE, SLOT_CAVE, CAVE_END = 0x144daa0, 0x144db30, 0x144dc00
 # Each branch tests only the native NPC Stigma-edit flag. Ownership, item type,
@@ -20,6 +21,14 @@ GATES = [(0x452483, '741a', 'inventory double-click'),
          (0x83421b, '7430', 'profile drag admission'),
          (0x83429e, '0f84c1000000', 'profile drop dispatch'),
          (0x83d576, '7417', 'profile item click')]
+# These native lifecycle paths run after slot construction. They used to change
+# all six slot kinds back to the display-only kind (0x4a), silently disabling
+# both inventory actions and drops. Retain each constructor's interactive kind;
+# native enabled/locked flags, slot indices and item validation remain intact.
+LIFECYCLE_RESETS = [(0x53a80, 'NPC service close'),
+                    (0x53c08, 'secondary NPC service close'),
+                    (0x832f2c, 'Profile reset/init')]
+VIEW_ONLY_STORE = bytes.fromhex('c781880300004a000000')
 
 
 def offset(data, rva):
@@ -81,10 +90,19 @@ def slot_code():
 
 
 def patch(source, expected=EXPECTED):
-    source_hash = hashlib.sha256(source).hexdigest()
-    if source_hash == INSTALLED_STIGMA_BUILD:
-        return source
-    if source_hash not in (expected, INITIAL_STIGMA_BUILD):
+    # Normalize only this repair's exact instructions for hash admission. This
+    # accepts an already-prepared output without allowing unrelated DLL changes.
+    normalized = bytearray(source)
+    for rva, _ in LIFECYCLE_RESETS:
+        pos = offset(normalized, rva)
+        current = normalized[pos:pos + len(VIEW_ONLY_STORE)]
+        if current == b'\x90' * len(VIEW_ONLY_STORE):
+            normalized[pos:pos + len(VIEW_ONLY_STORE)] = VIEW_ONLY_STORE
+        elif current != VIEW_ONLY_STORE:
+            raise ValueError('Native Stigma lifecycle store differs at ' + hex(rva))
+    source_hash = hashlib.sha256(normalized).hexdigest()
+    installed = source_hash in (INSTALLED_STIGMA_BUILD, CURRENT_STIGMA_BUILD)
+    if source_hash not in (expected, INITIAL_STIGMA_BUILD, INSTALLED_STIGMA_BUILD, CURRENT_STIGMA_BUILD):
         raise ValueError('Unexpected Game.dll; inspect later changes before preparing Stigma access')
     data = bytearray(source)
     def replace(rva, before, after):
@@ -92,7 +110,7 @@ def patch(source, expected=EXPECTED):
         if data[pos:pos + len(before)] != before or len(before) != len(after):
             raise ValueError('Native Stigma guard differs at ' + hex(rva))
         data[pos:pos + len(before)] = after
-    if source_hash != INITIAL_STIGMA_BUILD:
+    if not installed and source_hash != INITIAL_STIGMA_BUILD:
         for rva, original, _ in GATES:
             before = bytes.fromhex(original)
             replace(rva, before, b'\x90' * len(before))
@@ -104,6 +122,41 @@ def patch(source, expected=EXPECTED):
             replace(cave, bytes(len(code)), code)
     # Initial construction also needs interactive slot kinds: the NPC mode
     # setter is not guaranteed to run before a player first opens Profile.
-    for site, kind in [(0x83d2e6, 0x47), (0x83d395, 0x48), (0x83d449, 0x49)]:
-        replace(site, struct.pack('<I', 0x4a), struct.pack('<I', kind))
+    if not installed:
+        for site, kind in [(0x83d2e6, 0x47), (0x83d395, 0x48), (0x83d449, 0x49)]:
+            replace(site, struct.pack('<I', 0x4a), struct.pack('<I', kind))
+    for rva, _ in LIFECYCLE_RESETS:
+        pos = offset(data, rva)
+        if data[pos:pos + len(VIEW_ONLY_STORE)] == VIEW_ONLY_STORE:
+            replace(rva, VIEW_ONLY_STORE, b'\x90' * len(VIEW_ONLY_STORE))
+    if installed:
+        verify_incremental_preservation(source, data)
+    verify_access(data)
     return bytes(data)
+
+
+def verify_incremental_preservation(source, result):
+    """Keep every later mod byte outside the three Stigma stores unchanged."""
+    if len(source) != len(result):
+        raise ValueError('Incremental Stigma repair changed the DLL size')
+    previous = 0
+    for pos in sorted(offset(source, rva) for rva, _ in LIFECYCLE_RESETS):
+        if source[previous:pos] != result[previous:pos]:
+            raise ValueError('Incremental Stigma repair changed another native feature')
+        previous = pos + len(VIEW_ONLY_STORE)
+    if source[previous:] != result[previous:]:
+        raise ValueError('Incremental Stigma repair changed another native feature')
+
+
+def verify_access(data):
+    """Reject prepared images that can return Stigma slots to display-only mode."""
+    expected = [(rva, b'\x90' * len(bytes.fromhex(before))) for rva, before, _ in GATES]
+    expected += [(site, struct.pack('<I', kind)) for site, kind in
+                 [(0x83d2e6, 0x47), (0x83d395, 0x48), (0x83d449, 0x49)]]
+    expected += [(rva, b'\x90' * len(VIEW_ONLY_STORE)) for rva, _ in LIFECYCLE_RESETS]
+    expected += [(0x8349d5, b'\xe9' + struct.pack('<i', SLOT_CAVE - 0x8349d5 - 5) + b'\x90\x90'),
+                 (SLOT_CAVE, slot_code())]
+    for rva, wanted in expected:
+        pos = offset(data, rva)
+        if data[pos:pos + len(wanted)] != wanted:
+            raise ValueError('Incomplete native Stigma access at ' + hex(rva))

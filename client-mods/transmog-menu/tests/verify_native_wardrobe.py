@@ -76,12 +76,15 @@ g.Widget_TriggerScript('PrivateWardrobe','OnLoad','')
 g.WardrobeNative_Open()
 state=dict(character='Babe',unlocked=2,total=3,tickets=2,page=1,pages=1,target=0,results=3,notice='',request='fixture',
     equipment=[dict(object=10,item=100000096,skin=100000096,name='Sword',equipped=True,slot=1,type='Sword',group='SWORD',slots=1,tooltip='item=100000096&count=1'),
-        dict(object=11,item=125000001,skin=125000001,name='Helmet',equipped=True,slot=4,type='Headwear',group='HEAD',slots=4),
+        dict(object=11,item=125000001,skin=125000001,name='Helmet',equipped=True,slot=4,type='Headwear',group='HEAD',slots=4,color=-1,dyeable=True),
         dict(object=12,item=187000001,skin=187000001,name='Wings',equipped=True,slot=32768,type='Wings',group='WING',slots=32768)],
     skins=[dict(item=125000002,name='Appearance Headwear',category='Headwear',type='Headwear',unlocked=True,group='HEAD',slots=4,sources=[]),
         dict(item=100000097,name='Locked Sword',category='Weapons',type='Sword',unlocked=False,group='SWORD',slots=1,sources=[dict(object=20,name='Sword Skin',equipped=False)]),
         dict(item=187000002,name='Wing Appearance',category='Wings',type='Wings',unlocked=True,group='WING',slots=32768,sources=[])],
-    outfits=[dict(name='Outfit',skins_json='{"4":125000002,"32768":187000002}',updated_at=1)],outfitAppearances=[])
+    outfits=[dict(name='Outfit',skins_json='{"4":125000002,"32768":187000002}',dyes_json='{}',updated_at=1)],outfitAppearances=[],
+    palette=False,paletteItems=1,dyesUnlocked=1,dyesTotal=2,
+    dyes=[dict(color=0x1f87f5,hex='1f87f5',name='Blue',item=169200002,unlocked=True,sources=[]),
+        dict(color=0xff0000,hex='ff0000',name='Bright Red',item=169231089,unlocked=False,sources=[dict(object=30,name='Dye: Bright Red',count=2)])])
 def respond(s,action=None):
     sequence=g.WardrobeNative.pending.sequence
     body=json.dumps(s,ensure_ascii=True)
@@ -160,6 +163,16 @@ assert 'action=unlock' in widgets['WardrobeNativeTx']['text'] and 'source=20' in
 respond(state,'unlock')
 click('WardrobeOutfits');click('WardrobeRow1');click('WardrobeTryOn')
 assert g.WardrobeNative.drafts[11].skin==125000002 and g.WardrobeNative.drafts[12].skin==187000002
+click('WardrobeDyes');assert g.WardrobeNative.view=='dyes' and widgets['WardrobePalette']['visible']
+click('WardrobeSlot4');click('WardrobeRow2');click('WardrobeTryOn')
+assert g.WardrobeNative.drafts[11].color==0xff0000 and g.WardrobeNative.drafts[11].dyeLocked and g.WardrobeNative.drafts[11].skin==125000002
+assert '125000002:ff0000' in widgets['WardrobeNativePreview']['text'] and not widgets['WardrobeApply']['enabled']
+click('WardrobeUnlock');click('WardrobeConfirmAccept');assert 'action=registerDye' in widgets['WardrobeNativeTx']['text'] and 'source=30' in widgets['WardrobeNativeTx']['text']
+respond(state,'registerDye')
+click('WardrobeRemoveLocked');assert g.WardrobeNative.drafts[11].color is None and g.WardrobeNative.drafts[11].skin==125000002
+click('WardrobeSlot4');click('WardrobeRow1');click('WardrobeTryOn');click('WardrobeApply');click('WardrobeConfirmAccept')
+assert '%22color%22%3A2066421%2C%22expectedColor%22%3A-1' in widgets['WardrobeNativeTx']['text'],widgets['WardrobeNativeTx']['text']
+respond(state,'applyChanges');click('WardrobeCollection')
 for bad in ('{','[1,]','"\\uD800"','{} trailing'):
     try:g.WardrobeJSON.decode(bad)
     except Exception:pass

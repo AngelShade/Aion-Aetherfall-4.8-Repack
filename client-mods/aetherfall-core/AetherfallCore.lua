@@ -36,6 +36,10 @@ function AFCore.Money() if core then return core("money") end end
 -- current, needed for this level, recoverable, repose current, repose max
 function AFCore.Exp() if core then return core("exp") end end
 function AFCore.FPS() if core then return core("fps") end end
+-- Only FOV and maximum zoom distance; current value and pre-override native value.
+function AFCore.CameraSetting(name) if core then return core('camerasetting', name) end end
+-- -1 restores the exact native value captured before the first custom choice.
+function AFCore.SetCameraSetting(name, value) if core then return core('setcamerasetting', name, value) end end
 -- unit: "player", "target", "targettarget"
 function AFCore.NumAuras(unit) if core then return core("auras", unit) end end
 -- skill id, name, level, slot (0 buff, 1 debuff, 2 chant, 3 special, 4 special2, 5 boost),

@@ -112,7 +112,7 @@
 			<gd_item id="188052657" /><!-- Tatar's Pistol Box -->
 			<gd_item id="188052658" /><!-- Tatar's Aethercannon Box -->
 			<gd_item id="188052659" /><!-- Tatar's Harp Box -->
-			<gd_item id="188051833" /><!-- Tatar's Cipher-Blade Box -->
+			<gd_item id="188052833" /><!-- Tatar's Cipher-Blade Box -->
 		</gd_items>
 	</gd_rule>
 	<gd_rule rule_name="Named Eternal Shield" chance="40">

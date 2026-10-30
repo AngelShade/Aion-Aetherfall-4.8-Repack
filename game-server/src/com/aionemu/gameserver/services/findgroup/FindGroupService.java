@@ -183,11 +183,57 @@ public class FindGroupService {
 		}
 	}
 
+	private final Map<Integer, ServerWideGroup> prepared = new ConcurrentHashMap<>(); // leader -> group ready to enter
+
+	/**
+	 * Native "Prepare for entry" window (SM_FIND_GROUP 22/24/18): every human in the
+	 * leader's team sees the full group; the leader gets the Enter button.
+	 */
+	public void prepareEntry(Player leader, ServerWideGroup group) {
+		TemporaryPlayerTeam<?> team = leader.getCurrentTeam();
+		if (team == null || !team.isLeader(leader))
+			return;
+		prepared.put(leader.getObjectId(), group);
+		for (Player member : team.getMembers()) {
+			if (member.isPlayerBot() || !member.isOnline())
+				continue;
+			PacketSendUtility.sendPacket(member, new SM_FIND_GROUP(22, List.of(group)));
+			PacketSendUtility.sendPacket(member, new SM_FIND_GROUP(24, List.of(group)));
+			if (member == leader)
+				PacketSendUtility.sendPacket(member, new SM_FIND_GROUP(18, List.of(group)));
+		}
+	}
+
+	/** The leader pressed Enter: each human enters through the native portal rules; companions follow their owner. */
+	public void enterPrepared(Player leader) {
+		ServerWideGroup group = prepared.remove(leader.getObjectId());
+		TemporaryPlayerTeam<?> team = leader.getCurrentTeam();
+		if (group == null || team == null || !team.isLeader(leader))
+			return;
+		for (Player member : team.getMembers()) {
+			if (member.isPlayerBot() || !member.isOnline())
+				continue;
+			PlayerBotFindGroup.enterInstance(member, group);
+			// Close the window for this member (the boolean-only packet has no group and cannot be written).
+			PacketSendUtility.sendPacket(member, new SM_FIND_GROUP(23, List.of(group)));
+		}
+	}
+
 	public void onJoinedTeam(Player player) {
 		PlayerBotFindGroup.teamJoined(player);
+		TemporaryPlayerTeam<?> joinedTeam = player.getCurrentTeam();
+		if (joinedTeam != null) {
+			// The leader's own Instance Group offer is complete: show the native Prepare for entry window.
+			Player leader = joinedTeam.getLeaderObject();
+			ServerWideGroup leaderOffer = leader == null ? null : instanceGroups.get(leader.getObjectId());
+			if (leaderOffer != null && !PlayerBotFindGroup.manages(leaderOffer) && joinedTeam.getMembers().size() >= Math.max(2, leaderOffer.getMinMembers())) {
+				instanceGroups.remove(leader.getObjectId());
+				prepareEntry(leader, leaderOffer);
+			}
+		}
 		ServerWideGroup instanceGroup = instanceGroups.get(player.getObjectId());
 		// custom: team is used as a proxy for a server-wide instance group (forming a team removes instance group registrations on official servers)
-		if (instanceGroup != null && instanceGroup.getMembers().size() >= instanceGroup.getMinMembers())
+		if (instanceGroup != null && !PlayerBotFindGroup.manages(instanceGroup) && instanceGroup.getMembers().size() >= instanceGroup.getMinMembers())
 			instanceGroups.remove(player.getObjectId());
 		removeApplication(player);
 		GroupRecruitment recruitment = removeRecruitment(player.getObjectId(), (byte) NetworkConfig.GAMESERVER_ID, (byte) 0, (byte) 0, (byte) 16);
@@ -204,10 +250,21 @@ public class FindGroupService {
 		instanceGroups.remove(player.getObjectId());
 	}
 
+	/** Human registrations only (snapshot, no packets), so bots can answer them. */
+	public List<FindGroupEntry> humanEntries() {
+		var entries = new java.util.ArrayList<FindGroupEntry>();
+		for (var r : recruitments.values())
+			if (!PlayerBotFindGroup.manages(r) && !(r.getObject() instanceof Player p && p.isWorldBot()) && !(r.getObject() instanceof TemporaryPlayerTeam<?> t && t.getLeaderObject().isWorldBot()))
+				entries.add(r);
+		for (var a : applications.values()) if (!a.getPlayer().isWorldBot()) entries.add(a);
+		for (var g : instanceGroups.values()) if (!g.getRecruiter().isWorldBot()) entries.add(g);
+		return entries;
+	}
+
 	/** Headless registrations share the human maps and packets; never replace another post. */
 	public boolean registerBotEntry(FindGroupEntry entry) {
 		if (entry instanceof GroupRecruitment r && (r.getObject() instanceof Player p && p.isWorldBot()
-			|| r.getObject() instanceof TemporaryPlayerTeam<?> t && t.getLeaderObject().isWorldBot()))
+			|| r.getObject() instanceof TemporaryPlayerTeam<?> t && (t.getLeaderObject().isWorldBot() || PlayerBotFindGroup.manages(r))))
 			return recruitments.putIfAbsent(r.getObjectId(), r) == null;
 		if (entry instanceof GroupApplication a && a.getPlayer().isWorldBot())
 			return applications.putIfAbsent(a.getPlayer().getObjectId(), a) == null;

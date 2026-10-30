@@ -1,5 +1,5 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Aetherfall · Central Market</title><link rel="stylesheet" href="/market/media/market.css?v=aetherfall-1"></head>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Aetherfall · Central Market</title><link rel="stylesheet" href="/market/media/market.css?v=aetherfall-4"></head>
 <body>
 <header><div class="crest">✦</div><div class="heading"><h1><small>AETHERFALL</small>Central Market</h1><span id="character">Warehouse</span></div><div class="funds"><span>Market Warehouse</span><strong id="balance">—</strong><small id="reserved">Reserved Kinah —</small></div><button id="refresh" class="refresh" title="Refresh warehouse and market">Refresh</button></header>
 <aside id="warehouse">
@@ -14,12 +14,12 @@
   <div class="proceeds"><span>Sale proceeds <small id="return-rate"></small></span><strong id="proceeds">—</strong><span class="collection-hint">Collect in My Orders</span></div>
 </aside>
 <main>
-  <nav class="market-tabs"><button data-view="market" class="active">Market</button><button data-view="orders">My Orders <span id="order-count"></span></button><button data-view="history">Trade History</button><button data-view="notifications">Notifications <span id="notification-count"></span></button></nav>
+  <nav class="market-tabs"><button data-view="market" class="active">Market</button><button data-view="orders">My Orders <span id="order-count"></span></button><button data-view="history">Trade History</button><button data-view="notifications">Notifications <span id="notification-count"></span></button><button id="codex-link" class="codex-link" style="display:none" title="Item and creature drop database">Codex</button></nav>
   <div id="market-view">
     <div class="market-search"><input id="search" placeholder="Search all market items" maxlength="60"><button id="clear-search" title="Clear search">×</button><button id="save-search" title="Save this search">★</button><button id="saved-searches" title="Saved searches">Saved</button><select id="filter"><option value="all">All items</option><option value="stock">In stock</option><option value="favorites">Favorites</option><option value="usable">My faction</option><option value="changed">Price changes</option></select></div>
     <form id="item-filters" class="item-filters">
-      <label class="level-range">Level <input id="min-level" aria-label="Minimum item level" placeholder="Min" maxlength="2" inputmode="numeric"> <span>–</span> <input id="max-level" aria-label="Maximum item level" placeholder="65" maxlength="2" inputmode="numeric"></label>
-      <label class="price-range">Price <span>Kinah</span> <input id="min-price" aria-label="Minimum base price in Kinah" placeholder="Min" maxlength="15" inputmode="numeric"> <span>–</span> <input id="max-price" aria-label="Maximum base price in Kinah" placeholder="Max" maxlength="15" inputmode="numeric"></label>
+      <div class="filter-field level-range">Level <input id="min-level" aria-label="Minimum item level" placeholder="Min" maxlength="2" inputmode="numeric"> <span>–</span> <input id="max-level" aria-label="Maximum item level" placeholder="65" maxlength="2" inputmode="numeric"></div>
+      <div class="filter-field price-range">Price <span>Kinah</span> <input id="min-price" aria-label="Minimum base price in Kinah" placeholder="Min" maxlength="15" inputmode="numeric"> <span>–</span> <input id="max-price" aria-label="Maximum base price in Kinah" placeholder="Max" maxlength="15" inputmode="numeric"></div>
       <label>Grade <select id="quality"><option value="all">Any grade</option><option value="COMMON">Common</option><option value="RARE">Superior</option><option value="LEGEND">Heroic</option><option value="UNIQUE">Fabled</option><option value="EPIC">Eternal</option><option value="MYTHIC">Mythic</option><option value="JUNK">Junk</option></select></label>
       <label>Slot <select id="slot"><option value="All">Any slot</option><option>Head</option><option>Chest</option><option>Shoulders</option><option>Hands</option><option>Legs</option><option>Feet</option></select></label>
       <button type="submit" id="apply-filters">Apply</button><button type="button" id="reset-filters">Reset</button>
@@ -33,4 +33,4 @@
 </main>
 <footer><span class="connection-dot" id="connection-dot"></span><span id="status" role="status" aria-live="polite">Loading Warehouse…</span><span class="keyboard-hint">Enter to search · Esc to close item details</span></footer>
 <div id="dialog-shade" class="dialog-shade"><section id="dialog" class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><button id="dialog-close" class="dialog-close">×</button><h2 id="dialog-title"></h2><div id="dialog-body"></div><div id="dialog-error" class="dialog-error" role="alert"></div><div class="dialog-actions"><button id="dialog-cancel">Cancel</button><button id="dialog-confirm" class="primary">Confirm</button></div></section></div>
-<script src="/market/media/quantity.js?v=1"></script><script src="/market/media/market.js?v=aetherfall-1"></script></body></html>
+<script src="/market/media/quantity.js?v=1"></script><script src="/market/media/market.js?v=aetherfall-2"></script></body></html>

@@ -7,7 +7,11 @@ import re
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import zipfile
+
+sys.dont_write_bytecode = True
+from build_repack_catalog import build_catalog
 
 
 def digest(path):
@@ -51,6 +55,9 @@ def main():
     out.mkdir(parents=True, exist_ok=args.resume)
     shutil.copytree(repo/'website', app, ignore=shutil.ignore_patterns(
         '.git', '.env', 'vendor', 'node_modules', 'build', 'hot', '*.sqlite*'), dirs_exist_ok=args.resume)
+    # Ship the maintained native timetable byte-for-byte, without importing owner settings.
+    shutil.copyfile(repo/'game-server/config/schedule/siege_schedule.xml', app/'resources/content/siege-schedule.xml')
+    build_catalog(repo, app)
     env = os.environ.copy()
     env.update(COMPOSER_HOME=str(out/'build/composer-home'), COMPOSER_CACHE_DIR=str(out/'build/composer-cache'))
     php = [str(args.php.resolve()), '-d', 'extension_dir='+str(args.php.resolve().parent/'ext')]
@@ -69,7 +76,9 @@ def main():
         if {p['name']:p['version'] for p in lock['packages']} != {p['name']:p['version'] for p in installed['packages']}:
             raise ValueError('Cannot resume: installed production dependencies do not match composer.lock')
         commands[0] = php+[str(args.composer.resolve()), 'check-platform-reqs', '--no-dev']
-    for index, command in enumerate([] if reuse_assets else commands):
+    # Copying maintained source restores composer.json, so keep the same
+    # portable autoloader configuration even when dependency/assets stay built.
+    for index, command in enumerate(commands[1:2] if reuse_assets else commands):
         with (out/f'build-{index}.log').open('w', encoding='utf-8') as log:
             result = subprocess.run(command, cwd=app, env=env, stdout=log, stderr=subprocess.STDOUT)
         if result.returncode:

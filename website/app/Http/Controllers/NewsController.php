@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\News;
 use App\Support\NewsHtml;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\Request;
 
 class NewsController extends Controller
 {
@@ -24,22 +25,38 @@ class NewsController extends Controller
     /**
      * Display published news articles.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
-        $news = News::query()->where('category', '<>', 'Guide')
+        $query = News::query()->where('category', '<>', 'Guide')
             ->where('status', 'published')
             ->where(function ($query) {
                 $query->whereNull('published_at')
                     ->orWhere('published_at', '<=', now());
-            })
+            });
+        $categories = (clone $query)->whereNotNull('category')->distinct()->orderBy('category')->pluck('category');
+        $newsSearch = is_string($request->query('q')) ? mb_substr(trim($request->query('q')), 0, 80) : '';
+        $category = is_string($request->query('category')) && $categories->contains($request->query('category')) ? $request->query('category') : '';
+        $needle = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $newsSearch).'%';
+        $news = $query->when($category !== '', fn ($q) => $q->where('category', $category))
+            ->when($newsSearch !== '', fn ($q) => $q->where(fn ($match) => $match
+                ->whereRaw("title LIKE ? ESCAPE '!'", [$needle])->orWhereRaw("body LIKE ? ESCAPE '!'", [$needle])))
             ->orderByRaw(
                 'CASE WHEN published_at IS NULL THEN 1 ELSE 0 END'
             )
             ->orderByDesc('published_at')
             ->orderByDesc('created_at')
-            ->paginate(9);
+            ->paginate(9)->withQueryString();
 
-        return view('news.index', compact('news'));
+        return view('news.index', compact('news', 'newsSearch', 'category', 'categories'));
+    }
+
+    public function feed()
+    {
+        $articles = News::query()->where('category', '<>', 'Guide')->where('status', 'published')
+            ->where(fn ($q) => $q->whereNull('published_at')->orWhere('published_at', '<=', now()))
+            ->orderByDesc('published_at')->orderByDesc('id')->limit(20)->get();
+        return response()->view('news.feed', compact('articles'))
+            ->header('Content-Type', 'application/rss+xml; charset=UTF-8')->header('Cache-Control', 'public, max-age=60');
     }
 
     /**

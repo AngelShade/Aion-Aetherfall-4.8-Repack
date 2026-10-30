@@ -37,7 +37,7 @@ main{position:absolute;left:190px;right:0;top:196px;bottom:28px;overflow-y:auto;
 .chapter{float:left;width:20%;padding-right:8px;color:#6f889a;line-height:16px}.chapter b{display:block;font-weight:normal;font-size:16px;color:#2e4a61}.chapter.done{color:#dfe9f0}.chapter.done b{color:#8fd8b4}.clear{clear:both}
 table.roster{width:100%;border-collapse:collapse}.roster th{height:28px;text-align:left;font-weight:normal;font-size:10px;letter-spacing:2px;color:#6f889a;border-bottom:1px solid #8a6d3c}
 .roster td{height:32px;border-bottom:1px solid #1f3447;color:#93abbc}.roster td.name{color:#f4e8c8;font:14px Georgia,serif}.roster tr.online td.name{color:#8fe3ec}.roster td.num{color:#f1dca8}
-footer{position:absolute;left:0;right:0;bottom:0;height:28px;background:#0a1420;border-top:1px solid #344957;padding:6px 24px;font-size:10px;color:#7c9cb0}
+footer{position:absolute;left:0;right:0;bottom:0;height:28px;background:#0a1420;border-top:1px solid #344957;padding:6px 24px;font-size:10px;line-height:16px;color:#7c9cb0}
 .dot{display:inline-block;width:6px;height:6px;margin-right:8px;background:#6f889a}.dot.ok{background:#8fd8b4}.dot.bad{background:#e8a08e}
 ::-webkit-scrollbar{width:7px}::-webkit-scrollbar-track{background:#0c1927}::-webkit-scrollbar-thumb{background:#415b69;border:2px solid #0c1927}
 .fame-parts{margin:0 0 18px}.fame-part{float:left;width:33.33%;padding:0 9px}.fame-card{height:auto;min-height:150px;padding:16px 18px;background:#0e1b29;border:1px solid #1f3447;border-top:2px solid #8a6d3c}

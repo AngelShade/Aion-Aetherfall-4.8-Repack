@@ -39,7 +39,7 @@ public final class PoetaJourneyHttpService {
 			String path = x.getRequestURI().getPath(), method = x.getRequestMethod();
 			if (method.equals("GET") && (path.equals("/journey") || path.matches("/journey/media/(journey\\.(html|css|js)|(poeta|sanctum|ishalgen|pandaemonium)\\.jpg)"))) {
 				String file = path.equals("/journey") ? "journey.html" : path.substring(path.lastIndexOf('/')+1);
-				send(x,200,file.endsWith(".jpg") ? "image/jpeg" : file.endsWith(".css") ? "text/css" : file.endsWith(".js") ? "application/javascript" : "text/html",Files.readAllBytes(MEDIA.resolve(file))); return;
+				send(x,200,file.endsWith(".jpg") ? "image/jpeg" : file.endsWith(".css") ? "text/css" : file.endsWith(".js") ? "application/javascript" : "text/html",file.endsWith(".css") ? WindowTextScale.css(Files.readAllBytes(MEDIA.resolve(file))) : Files.readAllBytes(MEDIA.resolve(file))); return;
 			}
 			boolean action = path.equals("/journey/action");
 			if (!action && !path.equals("/journey/state")) { json(x,404,Map.of("error","Not found.")); return; }

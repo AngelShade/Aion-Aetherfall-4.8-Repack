@@ -330,7 +330,15 @@ final class PlayerBotPopulationManager {
    var selection=Boolean.parseBoolean(state.values.getProperty("pendingField","false"))
     ?PlayerBotWorldPlacement.chooseGrindDestination(bot.getRace(),level,random)
     :PlayerBotWorldPlacement.chooseReserveDestination(bot.getRace(),level,PlayerBotConfig.POPULATION_CITY_PERCENT,random);
-   var place=selection.location();if(place==null)throw new IllegalStateException("Population factory awaits native level "+level+" landing: "+selection.reason());
+   var place=selection.location();
+   if(place==null) {
+    // Every camp for that level is crowded or near a human right now. Enter
+    // unchanged at the saved level/position; the pending change stays for a
+    // later login instead of holding the bot offline in a 30 s retry loop.
+    org.slf4j.LoggerFactory.getLogger(PlayerBotPopulationManager.class).info("World bot {} ({}) enters unchanged; native level {} landing deferred: {}",
+     bot.getName(),bot.getObjectId(),level,selection.reason());
+    return false;
+   }
    home=new PlayerBotPersistence.Home(place.map(),place.x(),place.y(),place.z(),(byte)0,0);
   }
   var chosen=PlayerBotService.getInstance().plannedPopulationClass(bot);

@@ -40,6 +40,13 @@ native bridge build, for example `AetherfallCore 1.2.34`.
 
 ## Native windows
 
+Camera controls use `AFCore.CameraSetting(name)` for the current and pre-override
+native value, and `AFCore.SetCameraSetting(name, value)` to apply a bounded integer
+or `-1` to restore Native. Only `"fov"` (60–170) and `"distance"` (5–50) are accepted.
+Queries return `nil` and writes return `false` when the installed ABI is unavailable.
+These UI-thread calls update the native variable's local numeric/string values;
+they do not open the console or run commands. Call on changes, never per frame.
+
 Native windows are addressed by dialog type id. `AFCore.DIALOG` names the common
 ones (`basic_status`, `target`, `target_assist`, `party`, `radar`, `start`,
 `shortcut`, `shortcut_ctrl`, `shortcut_alt`, `chat`, `chat_input`, `exp_bar`,

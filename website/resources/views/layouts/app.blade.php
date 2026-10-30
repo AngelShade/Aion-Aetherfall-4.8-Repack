@@ -26,6 +26,7 @@
         <link rel="icon" type="image/x-icon" href="{{ asset('images/aetherfall/brand/crest.ico') }}">
     @endif
     @yield('meta_extra')
+    @if ($aionFeatures['news'] ?? false)<link rel="alternate" type="application/rss+xml" title="Aetherfall News" href="{{ route('news.feed') }}">@endif
     <title>@yield('title', (($websiteSettings['site_name'] ?? 'Aetherfall') . ' — ' . ($websiteSettings['tagline'] ?? 'Play solo or with friends')))</title>
 
     <link rel="stylesheet" href="{{ asset('css/aetherfall-portal.css') }}">
@@ -572,16 +573,26 @@
 }
     </style>
     @stack('head')
-    <link rel="stylesheet" href="{{ asset('css/aetherfall-visuals.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/aetherfall-visuals.css') }}?v=20261028-frame2">
+    <link rel="stylesheet" href="{{ asset('css/aetherfall-community.css') }}?v=20261028g">
 </head>
 <body>
+    @php
+        $websiteAdmin = auth('web')->user();
+        $showAdminLinks = auth('web')->check()
+            && $websiteAdmin instanceof \Filament\Models\Contracts\FilamentUser
+            && $websiteAdmin->canAccessPanel(\Filament\Facades\Filament::getPanel('admin'));
+    @endphp
     @if (filled($aionPluginHooks['topbar'] ?? null))
         @include($aionPluginHooks['topbar'])
     @else
         <div class="topbar">
             <div class="container topbar-inner">
-                <span>{{ $websiteSettings['server_name'] ?: $websiteSettings['site_name'] }} <span class="brand-gold">ATREIA</span></span>
-                <span>{{ strtoupper($websiteSettings['tagline'] ?: 'OFFICIAL WEBSITE') }}</span>
+                <span>{{ $websiteSettings['server_name'] ?: $websiteSettings['site_name'] }} <span class="brand-gold">REPACK</span></span>
+                <div class="af-topbar-tools">
+                    <span>{{ strtoupper($websiteSettings['tagline'] ?: 'OFFICIAL WEBSITE') }}</span>
+                    <button class="af-motion-toggle" type="button" data-motion-toggle aria-pressed="false" hidden>Motion off</button>
+                </div>
             </div>
         </div>
     @endif
@@ -605,7 +616,16 @@
                 @if ($aionFeatures['home'] ?? false)<a href="{{ route('home') }}">HOME</a>@endif
                 @if ($aionFeatures['news'] ?? false)<a href="{{ route('news.index') }}">NEWS</a>@endif
                 @if ($aionFeatures['news'] ?? false)<a href="{{ route('guides') }}">GUIDES</a>@endif
-                @if ($aionFeatures['info'] ?? false)<a href="{{ route('info') }}">INFO</a>@endif
+                @if ($aionFeatures['info'] ?? false)<a href="{{ route('info') }}">REPACK</a>@endif
+                @if (($aionFeatures['rankings'] ?? false) || ($aionFeatures['events'] ?? false) || ($aionFeatures['server.status'] ?? false) || ($aionFeatures['start'] ?? false) || ($aionFeatures['repack.tools'] ?? false))
+                    <details class="hub-menu"><summary>PLAYER HUB</summary><div class="hub-menu-panel">
+                        @if ($aionFeatures['start'] ?? false)<a href="{{ route('start') }}">START PLAYING</a>@endif
+                        @if ($aionFeatures['repack.tools'] ?? false)<a href="{{ route('tools') }}">REPACK TOOLS &amp; CODEX</a>@endif
+                        @if ($aionFeatures['rankings'] ?? false)<a href="{{ route('rankings') }}">PLAYERS &amp; RANKINGS</a><a href="{{ route('legions') }}">LEGIONS</a>@endif
+                        @if ($aionFeatures['events'] ?? false)<a href="{{ route('events') }}">EVENTS &amp; SIEGES</a>@endif
+                        @if ($aionFeatures['server.status'] ?? false)<a href="{{ route('status') }}">SERVER STATUS</a>@endif
+                    </div></details>
+                @endif
                 @if ($aionFeatures['download'] ?? false)<a href="{{ route('download') }}">DOWNLOAD</a>@endif
                 @if ($aionFeatures['donation'] ?? false)<a href="{{ route('donation') }}">DONATION</a>@endif
                 @if ($aionFeatures['support'] ?? false)<a href="{{ route('support') }}">SUPPORT</a>@endif
@@ -615,7 +635,7 @@
             </nav>
 
             <div class="nav-actions">
-                @if (auth()->user()?->hasRole('super_admin'))<a href="{{ url('/admin') }}" class="btn btn-outline">ADMIN</a>@endif
+                @if ($showAdminLinks)<a href="{{ url('/admin') }}" class="btn btn-outline">ADMIN</a>@endif
                 @if (session()->has('aion_account_username'))
                     <a href="{{ route('account') }}" class="btn btn-outline">MY ACCOUNT</a>
                     <form method="POST" action="{{ route('logout') }}" style="display:inline-flex;margin:0">
@@ -632,6 +652,10 @@
 
     @yield('content')
 
+    @if (request()->routeIs('news.index', 'news.show', 'guides', 'info', 'download', 'donation', 'support', 'gallery'))
+        @include('partials.continue-exploring')
+    @endif
+
     @if (filled($aionPluginHooks['footer'] ?? null))
         @include($aionPluginHooks['footer'])
     @else
@@ -639,8 +663,11 @@
         <div class="container footer-inner">
             <span>© {{ date('Y') }} {{ $websiteSettings['site_name'] ?: 'Aetherfall' }} — {{ strtoupper($websiteSettings['tagline'] ?: 'AETHERFALL') }}</span>
             <span class="footer-community">
-                <a href="{{ url('/admin') }}">ADMIN CP</a>
+                @if ($showAdminLinks)<a href="{{ url('/admin') }}">ADMIN CP</a>@endif
                 @if ($aionFeatures['info'] ?? false)<a href="{{ route('gallery') }}">SCREENSHOTS</a>@endif
+                @if ($aionFeatures['start'] ?? false)<a href="{{ route('start') }}">START PLAYING</a>@endif
+                @if ($aionFeatures['rankings'] ?? false)<a href="{{ route('rankings') }}">RANKINGS</a>@endif
+                @if ($aionFeatures['news'] ?? false)<a href="{{ route('news.feed') }}">RSS</a>@endif
                 @if (filled($websiteSettings['contact_email']))
                     <a href="mailto:{{ $websiteSettings['contact_email'] }}">SUPPORT</a>
                 @endif
@@ -668,6 +695,7 @@
         });
     </script>
     @stack('scripts')
-    <script src="{{ asset('js/aetherfall-visuals.js') }}" defer></script>
+    <script src="{{ asset('js/aetherfall-visuals.js') }}?v=20261028" defer></script>
+    <script src="{{ asset('js/aetherfall-community.js') }}?v=20261028g" defer></script>
 </body>
 </html>

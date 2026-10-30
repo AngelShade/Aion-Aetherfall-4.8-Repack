@@ -1,4 +1,4 @@
-"""Add one Wardrobe consumable while preserving every original archive entry."""
+"""Add the Wardrobe consumables while preserving every original archive entry."""
 import copy
 import io
 import sys
@@ -9,10 +9,15 @@ from xml.etree import ElementTree as ET
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'expanded-warehouse'))
 from codec import read_pak, binary_xml, encode_binary_xml, encode_pak
 
-ITEM_ID = 168100001
+# id, client name, extra fields, native icon (None keeps the template's)
+ITEMS = ((168100001, 'wardrobe_appearance_unlock', {'max_stack_count': '100', 'can_split': 'TRUE', 'quality': 'rare'}, None),
+         (168100002, 'wardrobe_aether_palette', {'max_stack_count': '1', 'can_split': 'FALSE', 'quality': 'unique'}, 'icon_cash_item_dye_pack_01'))
 STRINGS = ((9901001, 'STR_WARDROBE_APPEARANCE_UNLOCK', 'Appearance Unlock'),
            (9901002, 'STR_WARDROBE_APPEARANCE_UNLOCK_DESC',
-            'Unlocks one equipment appearance for your account in Wardrobe. Keeps the equipment. Unlocked skins can be applied without another material.'))
+            'Unlocks one equipment appearance for your account in Wardrobe. Keeps the equipment. Unlocked skins can be applied without another material.'),
+           (9901003, 'STR_WARDROBE_AETHER_PALETTE', 'Aether Palette'),
+           (9901004, 'STR_WARDROBE_AETHER_PALETTE_DESC',
+            'Opens every dye color in the Wardrobe palette for your whole account. Open Wardrobe, choose Dyes, then Unlock Palette. Palette dyes are free and unlimited.'))
 
 def rebuild(path, replacements, destination):
     output = io.BytesIO()
@@ -30,22 +35,25 @@ def prepare_wardrobe_item(client, output):
     path = client / 'Data/Items/Items.pak'
     with read_pak(path) as archive:
         root = binary_xml(archive.read('client_items_etc.xml'))
-        existing = [e for e in root if e.findtext('id') == str(ITEM_ID)]
-        if existing and existing[0].findtext('name') != 'wardrobe_appearance_unlock':
-            raise ValueError('Appearance Unlock item ID is already occupied')
-        for entry in existing:
-            root.remove(entry)
         original = next(e for e in root if e.findtext('id') == '168100000')
-        item = copy.deepcopy(original)
-        values = {'id': str(ITEM_ID), 'name': 'wardrobe_appearance_unlock',
-                  'desc': STRINGS[0][1], 'desc_long': STRINGS[1][1],
-                  'max_stack_count': '100', 'can_split': 'TRUE', 'quality': 'rare'}
-        for key, value in values.items():
-            child = item.find(key)
-            if child is None:
-                child = ET.SubElement(item, key)
-            child.text = value
-        root.insert(list(root).index(original) + 1, item)
+        anchor = original
+        for index, (ident, name, extra, icon) in enumerate(ITEMS):
+            existing = [e for e in root if e.findtext('id') == str(ident)]
+            if existing and existing[0].findtext('name') != name:
+                raise ValueError('Wardrobe item ID is already occupied: %d' % ident)
+            for entry in existing:
+                root.remove(entry)
+            item = copy.deepcopy(original)
+            values = {'id': str(ident), 'name': name, 'desc': STRINGS[2*index][1], 'desc_long': STRINGS[2*index+1][1], **extra}
+            if icon:
+                values['icon_name'] = icon
+            for key, value in values.items():
+                child = item.find(key)
+                if child is None:
+                    child = ET.SubElement(item, key)
+                child.text = value
+            root.insert(list(root).index(anchor) + 1, item)
+            anchor = item
         changed = encode_binary_xml(root)
         assert binary_xml(changed).findall('client_item')
     rebuild(path, {'client_items_etc.xml': changed}, output / 'Data/Items/Items.pak')

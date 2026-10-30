@@ -655,7 +655,7 @@ public final class PlayerBotSession {
 		withholdDamage = threat.hold(bot, role, target, party, now);
 		var hazards = travelHazards;
 		navigation.hazards(hazards);
-		if(bot.getWorldId()==310110000 && bot.getSummon()!=null) {
+		if((bot.getWorldId()==310110000 || bot.getWorldId()==PlayerBotDarkPoeta.MAP) && bot.getSummon()!=null) {
 			var pet=bot.getSummon();var cast=pet.getCastingSkill();
 			if(cast!=null && cast.getFirstTarget() instanceof Npc enemy && pet.isEnemy(enemy)
 				&& (!PlayerBotEncounters.allowsSkill(pet,enemy,cast.getSkillTemplate(),0)
@@ -667,7 +667,7 @@ public final class PlayerBotSession {
 		boolean escapeHazard = PlayerBotHazards.risk(new PlayerBotNavigation.Point(bot.getX(), bot.getY(), bot.getZ()), hazards) > 0
 			&& order == Order.FOLLOW && bot.canPerformMove();
 		var spread = order == Order.FOLLOW && !incapacitated ? PlayerBotCoordination.spread(bot, party, enemies) : null;
-		if(bot.getWorldId()==310110000 && bot.isCasting()) {
+		if((bot.getWorldId()==310110000 || bot.getWorldId()==PlayerBotDarkPoeta.MAP) && bot.isCasting()) {
 			var cast=bot.getCastingSkill();
 			if(cast!=null && cast.getFirstTarget() instanceof Npc enemy && bot.isEnemy(enemy)
 				&& (!PlayerBotEncounters.allowsSkill(bot,enemy,cast.getSkillTemplate(),0)
@@ -767,6 +767,12 @@ public final class PlayerBotSession {
   if(order==Order.FOLLOW && !incapacitated){var feeding=PlayerBotSteelRake.feeding(this,navigation,enemies);if(feeding!=null)triggers.add(feeding);}
 		if(order==Order.FOLLOW && !incapacitated){var lab=PlayerBotTheobomosLab.positioning(this,navigation,enemies);if(lab!=null)triggers.add(lab);}
         if(order==Order.FOLLOW && !incapacitated){var adma=PlayerBotAdmaStronghold.recovery(this,navigation,enemies);if(adma!=null)triggers.add(adma);}
+		if (order == Order.FOLLOW && !incapacitated && PlayerBotDarkPoeta.approachMirror(bot, target))
+			triggers.add(trigger(new SimpleAction("approach Marabata booster inside mirror range",
+				() -> PlayerBotDarkPoeta.approachMirror(bot, target), () -> {
+					stand(); status = "approaching Marabata booster";
+					return navigation.approach(target, 6);
+				}), ENCOUNTER + 5));
 		Npc protection = PlayerBotEncounters.protection(owner, bot, enemies);
 		if (protection != null && order == Order.FOLLOW && !incapacitated)
 			triggers.add(trigger(new SimpleAction("acquire Vasharti flame protection", () -> true, () -> {
@@ -1169,6 +1175,8 @@ public final class PlayerBotSession {
 			int commandMark=focus;
 			if (enemies.stream().noneMatch(n->n.getObjectId()==commandMark)) focus=PlayerBotMarks.nativeFocus(owner,enemies);
 		}
+		Npc darkPoeta = PlayerBotDarkPoeta.target(bot, role, focus, enemies);
+		if (darkPoeta != null) return darkPoeta;
   return PlayerBotTargetValues.choose(bot,owner,role,focus,enemies.stream().filter(PlayerBotSteelRake::attackable).filter(PlayerBotTheobomosLab::attackable).filter(PlayerBotAdmaStronghold::attackable).toList(),party,skills);
 	}
 
@@ -1250,7 +1258,8 @@ public final class PlayerBotSession {
 			|| npc.getWorldId()==310110000 && npc.getNpcId()==280973 || PlayerBotAdmaStronghold.scenery(npc)) return false;
 		boolean engaged = party.stream().anyMatch(p -> npc.getAggroList().isHating(p)
 			|| p.getSummon() != null && npc.getAggroList().isHating(p.getSummon()));
-		engaged |= PlayerBotTheobomosLab.mechanicEnemy(bot,npc,party) || PlayerBotAdmaStronghold.mechanicEnemy(bot,npc,party);
+		engaged |= PlayerBotTheobomosLab.mechanicEnemy(bot,npc,party) || PlayerBotAdmaStronghold.mechanicEnemy(bot,npc,party)
+			|| PlayerBotDarkPoeta.mechanicEnemy(bot,npc,party);
 		return bot.getKnownList().sees(npc) && PlayerBotRules.canAttack(true, bot.isEnemy(npc), !npc.isDead(), engaged,
 			explicit, !commanded && controlled(npc), !commanded && order == Order.PASSIVE, PositionUtil.getDistance(owner, npc), mission == null ? 45 : PlayerBotMission.range())
 			&& npc.getWorldId() == bot.getWorldId() && npc.getInstanceId() == bot.getInstanceId()
@@ -1329,7 +1338,8 @@ public final class PlayerBotSession {
 			default -> List.of();
 		};
 		return switch (e.kind()) {
-			case SUMMON -> !combat && bot.getSummon() == null ? bot : null;
+			// A Spirit Master whose spirit was lost mid-fight calls it again (WoW hunter Call Pet).
+			case SUMMON -> (!combat || PlayerBotSpiritmaster.applies(bot.getPlayerClass())) && bot.getSummon() == null ? bot : null;
 			case MODE -> !PlayerBotRecoveryIntent.active(bot) && !bot.isInRobotMode() && bot.getEquipment().getMainHandWeapon() != null
 				&& bot.getEquipment().getMainHandWeapon().getItemSkinTemplate().getRobotId() > 0 ? bot : null;
 			case RECOVERY -> bot.getEffectController().isInAnyAbnormalState(AbnormalState.CANT_ATTACK_STATE)

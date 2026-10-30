@@ -50,15 +50,15 @@ footer .dot{display:inline-block;width:7px;height:7px;margin-right:8px;backgroun
 /* section rail */
 nav.sections{position:absolute;left:0;top:46px;bottom:26px;width:196px;padding-top:10px;background:#08111b;background:-webkit-gradient(linear,left top,left bottom,from(#0c1a29),to(#060b13));border-right:1px solid #8a6d3c;overflow:hidden}
 .rail-crest{position:absolute;left:28px;bottom:-30px;width:140px;opacity:.16}
-nav.sections button{display:block;width:100%;height:52px;padding:7px 12px 0 46px;text-align:left;color:#93abbc;border:0;-webkit-border-image:none;border-left:3px solid transparent;text-shadow:none}
+nav.sections button{display:block;width:100%;height:60px;padding:7px 12px 0 46px;text-align:left;color:#93abbc;border:0;-webkit-border-image:none;border-left:3px solid transparent;text-shadow:none}
 nav.sections button:hover{color:#dfe9f0;background:rgba(58,159,190,.08)}
 nav.sections button.selected{color:#f4e8c8;border-left-color:#d6b878;background:-webkit-gradient(linear,left top,right top,from(rgba(214,184,120,.22)),to(rgba(214,184,120,0)))}
 nav.sections .glyph{position:absolute;left:12px;top:12px;width:24px;height:24px;border:1px solid #3a5a75;border-radius:13px;text-align:center;color:#8fe3ec;font-size:13px;line-height:22px;background:#0a1521}
 nav.sections button.selected .glyph{border-color:#d6b878;color:#f1dca8}
-.nav-title{display:block;font:14px/18px Georgia,serif}.nav-caption{display:block;font-size:10px;color:#6f889a;white-space:nowrap;overflow:hidden}
+.nav-title{display:block;font:14px/18px Georgia,serif}.nav-caption{display:block;max-height:30px;font-size:10px;line-height:15px;color:#6f889a;overflow:hidden}
 .nav-count{position:absolute;right:10px;top:9px;color:#d6b878;font-size:11px}.nav-count:empty{display:none}
 .glance{position:relative;margin:14px 12px 0;padding-top:12px;border-top:1px solid #8a6d3c}
-.stat-card{height:38px;padding:3px 0 0 10px;margin-bottom:6px;background:rgba(14,27,41,.85);border-left:2px solid #3a9fbe}
+.stat-card{height:42px;padding:3px 0 0 10px;margin-bottom:6px;background:rgba(14,27,41,.85);border-left:2px solid #3a9fbe}
 .stat-card span{display:block;font-size:9px;letter-spacing:1px;color:#6f889a;text-transform:uppercase}.stat-card strong{display:block;font:normal 14px/16px Georgia,serif;color:#f1dca8}
 
 /* views */
@@ -103,6 +103,7 @@ button.order:disabled{-webkit-border-image:none;opacity:.35}
 .bot-summary strong,.human-member strong{display:block;font:normal 15px/18px Georgia,serif;color:#f4e8c8;white-space:nowrap;overflow:hidden}
 .bot-summary .meta,.human-member .meta{display:block;font-size:10px;color:#93abbc;white-space:nowrap;overflow:hidden}
 .summary-status{display:block;font-size:10px;color:#d6b878;white-space:nowrap;overflow:hidden}
+.companion-origin{display:block;font-size:10px;line-height:1.5;color:#d6b878}.companion-origin.alt{color:#8fe3ec}
 .human-member{background:#08121c;min-height:60px}.human-member strong{font-size:14px;color:#dfe9f0}
 .mini-bars{display:block;margin-top:4px}.mini-track{display:block;height:4px;margin-top:2px;background:#03070c;border-radius:2px}
 .mini-fill{display:block;height:4px;border-radius:2px;background:#8fd8b4;background:-webkit-gradient(linear,left top,right top,from(#3f9c74),to(#9fe8c4))}
@@ -119,19 +120,19 @@ button.order:disabled{-webkit-border-image:none;opacity:.35}
 
 /* selected companion */
 .bot{position:relative}
-.bot-header{position:relative;height:152px;margin:0 0 10px;padding:14px 18px 0 104px;background:#0c1927;border:solid transparent;border-width:26px 34px 22px;-webkit-border-image:url('/market/account/media/aether-frame.png') 83 61 54 61 stretch;overflow:hidden}
+.bot-header{position:relative;min-height:152px;margin:0 0 10px;padding:14px 18px 8px 104px;background:#0c1927;border:solid transparent;border-width:26px 34px 22px;-webkit-border-image:url('/market/account/media/aether-frame.png') 83 61 54 61 stretch;overflow:hidden}
 .bot-art{position:absolute;right:-30px;top:-120px;width:620px;opacity:.6}
 .bot-shade{position:absolute;left:0;top:0;bottom:0;width:72%;background:#0c1927;background:-webkit-gradient(linear,left top,right top,from(#0c1927),color-stop(.6,rgba(12,25,39,.85)),to(rgba(12,25,39,0)))}
 .bot-header .crest{left:12px;top:8px;width:78px;height:78px;border-width:3px;border-radius:40px;background:-webkit-gradient(radial,50% 40%,0,50% 50%,40,from(#24476a),to(#050a11))}
 .bot-header .crest img{left:9px;top:9px;width:54px;height:54px}.bot-header .crest-letters{font-size:26px;line-height:72px}
 .bot-top,.bot-header .vitals,.bot-header>button{position:relative}
-.bot-top{height:62px;overflow:hidden}.bot-top>div:first-child{float:left;max-width:60%}
-.bot-top .eyebrow{margin-top:2px}.bot-top h3{font-size:26px;line-height:30px;white-space:nowrap;overflow:hidden}
+.bot-top{min-height:62px;margin-bottom:4px;overflow:hidden}.bot-top>div:first-child{float:left;max-width:60%}
+.bot-top .eyebrow{margin-top:2px}.bot-top h3{font-size:26px;line-height:1.2;white-space:nowrap;overflow:hidden}
 .badge{display:inline-block;font-size:11px;color:#93abbc}
 .bot-state{float:right;margin-top:6px;padding:2px 12px;font-size:11px;letter-spacing:1px;color:#8fe3ec;background:rgba(10,34,48,.9);border:1px solid #3a9fbe;border-radius:3px;text-transform:uppercase}
-.bot-header .vitals{width:70%;height:28px}.vital{float:left;width:31%;margin-right:3.5%}.vital:last-child{margin-right:0}
+.bot-header .vitals{width:70%;min-height:28px;overflow:hidden}.vital{float:left;width:31%;margin-right:3.5%}.vital:last-child{margin-right:0}
 .xp .fill{background:#d6b878;background:-webkit-gradient(linear,left top,left bottom,from(#f1dca8),to(#a8823f))}
-.vital span{display:block;font-size:10px;line-height:13px;color:#93abbc}
+.vital span{display:block;font-size:10px;line-height:1.3;color:#93abbc}
 .bar{height:9px;margin-top:2px;background:#03070c;border:1px solid #1f3447;border-radius:2px}.fill{height:7px;background:#8fd8b4;background:-webkit-gradient(linear,left top,left bottom,from(#b8ecd2),to(#4f9e78))}
 .mana .fill{background:#3a9fbe;background:-webkit-gradient(linear,left top,left bottom,from(#a6eef5),to(#2a8aab))}
 .bot-header>button{position:absolute;right:16px;bottom:8px;min-height:24px;padding:0 10px;font-size:11px}
@@ -204,11 +205,11 @@ button.order:disabled{-webkit-border-image:none;opacity:.35}
 .filters>div{float:left;width:24%;margin-left:2%}.filters>.search-field{width:48%;margin-left:0}
 .filters label{margin-top:0}.filters input,.filters select{width:100%}
 .roster-grid{overflow:hidden}
-.roster-row{position:relative;float:left;width:32%;height:176px;margin:0 2% 12px 0;padding:14px 12px 0 72px;background:#0c1826;background:-webkit-gradient(linear,left top,left bottom,from(#13263a),to(#0a1521));border:1px solid #1f3447;border-top:2px solid #8a6d3c;border-radius:3px}
+.roster-row{position:relative;float:left;width:32%;height:192px;margin:0 2% 12px 0;padding:14px 12px 0 72px;background:#0c1826;background:-webkit-gradient(linear,left top,left bottom,from(#13263a),to(#0a1521));border:1px solid #1f3447;border-top:2px solid #8a6d3c;border-radius:3px}
 .roster-row:nth-child(3n){margin-right:0}
 .roster-row .crest{left:12px;top:14px;width:50px;height:50px;border-radius:26px}.roster-row .crest img{left:6px;top:6px;width:34px;height:34px}
 .roster-identity strong{display:block;font:normal 16px/20px Georgia,serif;color:#f4e8c8;white-space:nowrap;overflow:hidden}
-.roster-identity .hint{margin:0;font-size:10px;line-height:14px}
+.roster-identity .hint{margin:0;font-size:10px;line-height:16px}
 .roster-row .badge{margin-top:2px;padding:0 6px;font-size:9px;letter-spacing:1px;color:#8fe3ec;border:1px solid #3a9fbe;border-radius:3px}
 .roster-state{margin-top:4px;font-size:10px;color:#d6b878}
 .roster-action{position:absolute;left:10px;right:10px;bottom:8px}
@@ -233,7 +234,7 @@ button.order:disabled{-webkit-border-image:none;opacity:.35}
 .preset-member .meta,.preset-member .summary-status{display:block;font-size:10px;color:#93abbc;white-space:nowrap;overflow:hidden}.preset-member .summary-status{color:#d6b878}
 .preset-member.editing{min-height:112px}.preset-member select{display:block;width:100%;min-height:22px;margin-top:3px;padding:1px 4px;font-size:10px}
 .preset-drop{position:absolute;right:3px;top:3px;min-height:18px;width:20px;padding:0;font-size:10px;line-height:10px}
-.preset-add{clear:both;padding:4px 0 6px}.preset-add select{width:50%;margin-right:8px}
+.preset-add{clear:both;padding:4px 0 6px}.preset-add label{margin-top:4px}.preset-add select{display:block;width:100%;height:148px;margin:0 0 8px}
 @media (max-width:1100px){.preset-member{width:32%}}
 
 /* create */

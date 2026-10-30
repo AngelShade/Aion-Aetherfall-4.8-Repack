@@ -129,6 +129,7 @@
   function currentStorage() { var i; if (!state) return null; for (i = 0; i < state.storages.length; i++) if (state.storages[i].id === storage) return state.storages[i]; return state.storages[0]; }
   function selectedItem() { var s = currentStorage(), i; if (!s) return null; for (i = 0; i < s.items.length; i++) if (s.items[i].object === selectedObject) return s.items[i]; return null; }
   function render(activityOnly) {
+    byId('codex-link').style.display = state.codex ? '' : 'none';
     byId('character').innerHTML = html(state.player) + ' · Account Market Warehouse' + (state.simulatedTraders ? ' · ' + money(state.simulatedTraders) + ' simulated traders' : '');
     byId('balance').innerHTML = money(state.balance) + ' Kinah'; byId('reserved').innerHTML = 'Reserved ' + money(state.reservedKinah) + ' Kinah';
     byId('volume').innerHTML = volume(state.volume) + ' / ' + volume(state.volumeLimit) + ' VT';
@@ -423,6 +424,7 @@
   }(tabs[i]));
   var views = document.querySelectorAll('[data-view]');
   for (i = 0; i < views.length; i++) views[i].onclick = function () { view = this.getAttribute('data-view'); var j; for (j = 0; j < views.length; j++) views[j].className = views[j] === this ? 'active' : ''; byId('market-view').style.display = view === 'market' ? '' : 'none'; byId('orders-view').style.display = view === 'orders' ? 'block' : 'none'; byId('history-view').style.display = view === 'history' ? 'block' : 'none'; byId('notifications-view').style.display = view === 'notifications' ? 'block' : 'none'; if(state) { renderDetail(); renderActivity(); } };
+  byId('codex-link').onclick = function () { if (!busy) location.href = '/market/codex?session_id=' + session; };
   byId('warehouse-search').oninput = function () { warehouseQuery = this.value; if (state) renderStorage(); };
   byId('select-items').onclick = function () { if (!state) return; selectMode = !selectMode; selectedObjects = {}; renderStorageSelection(); };
   byId('select-all').onclick = function () { if (!state) return; var s = currentStorage(), i, count = selectedItems().length; for (i = 0; i < s.items.length && count < 300; i++) if (!s.items[i].reserved && !selectedObjects[s.items[i].object] && name(s.items[i]).toLowerCase().indexOf(warehouseQuery.toLowerCase()) >= 0) { selectedObjects[s.items[i].object] = true; count++; } renderStorageSelection(); if (count === 300) status('Selected 300 item stacks. Transfer these before selecting more.'); };

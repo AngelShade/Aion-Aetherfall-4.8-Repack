@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.aionemu.gameserver.configs.main.GSConfig;
+import com.aionemu.gameserver.configs.main.HTMLConfig;
 import com.aionemu.gameserver.dataholders.DataManager;
 import com.aionemu.gameserver.model.Gender;
 import com.aionemu.gameserver.model.Race;
@@ -83,6 +84,8 @@ public final class MarketplaceService {
 			try { CentralMarketService.start(); }
 			catch (Exception e) { log.error("Could not start Central Market", e); }
 			server.createContext("/market", CentralMarketHttpService::handle);
+			server.createContext("/market/codex", LootCodexService::handle);
+			LootCodexService.start();
 			try { WardrobeService.start(); }
 			catch (Exception e) { log.error("Could not start Wardrobe", e); }
 			server.createContext("/market/wardrobe", WardrobeHttpService::handle);
@@ -200,7 +203,7 @@ public final class MarketplaceService {
 				: name.endsWith(".ttf") ? "font/ttf" : name.endsWith(".svg") ? "image/svg+xml"
 				: name.endsWith(".js") ? "text/javascript; charset=utf-8" : "text/css; charset=utf-8";
 			FileStamp stamp = new FileStamp(Files.getLastModifiedTime(file), Files.size(file));
-			String etag = "\"" + Long.toHexString(stamp.modified().toMillis()) + "-" + Long.toHexString(stamp.size()) + "\"";
+			String etag = "\"" + Long.toHexString(stamp.modified().toMillis()) + "-" + Long.toHexString(stamp.size()) + "-" + HTMLConfig.WINDOW_TEXT_SCALE + "\"";
 			exchange.getResponseHeaders().set("Content-Type", type);
 			exchange.getResponseHeaders().set("Cache-Control", "private, max-age=3600");
 			exchange.getResponseHeaders().set("ETag", etag);
@@ -211,7 +214,8 @@ public final class MarketplaceService {
 			}
 			CachedMedia cached = mediaCache.get(name);
 			if (cached == null || !cached.stamp().equals(stamp)) {
-				cached = new CachedMedia(stamp, Files.readAllBytes(file));
+				byte[] bytes = Files.readAllBytes(file);
+				cached = new CachedMedia(stamp, name.endsWith(".css") ? WindowTextScale.css(bytes) : bytes);
 				if (mediaCache.size() >= 2048) mediaCache.clear();
 				mediaCache.put(name, cached);
 			}
@@ -969,7 +973,7 @@ public final class MarketplaceService {
 
 	private static String page(String body) {
 		return "<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>"
-			+ "<title>Black Cloud Marketplace</title><link rel='stylesheet' href='/shop/media/marketplace.css?v=companions-1'>"
+			+ "<title>Black Cloud Marketplace</title><link rel='stylesheet' href='/shop/media/marketplace.css?v=companions-2'>"
 			+ "<script src='/shop/media/quantity.js?v=1' defer></script><script src='/shop/media/marketplace.js?v=3' defer></script>"
 			+ "</head><body>" + body + "</body></html>";
 	}

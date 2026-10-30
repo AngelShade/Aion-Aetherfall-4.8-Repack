@@ -14,6 +14,8 @@ return [
     ), static fn (int $id): bool => $id >= 0 && $id <= 255)),
     'cache_seconds' => (int) env('AION_STATUS_CACHE_SECONDS', 30),
     'presence_url' => env('AION_PRESENCE_URL', 'http://127.0.0.1:8092/website/status'),
+    'siege_schedule' => env('AION_SIEGE_SCHEDULE', ''),
+    'server_timezone' => env('AION_SERVER_TIMEZONE', ''),
 
     /*
      * Server status is based on TCP reachability, not an unverified MSSQL
