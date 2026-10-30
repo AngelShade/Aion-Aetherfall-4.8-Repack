@@ -1,18 +1,58 @@
 {
   "schema": 1,
   "product": "Aion Aetherfall Repack",
-  "version": "0.98.5",
-  "patchFile": "Aetherfall-Patch-0.98.5.zip",
-  "patchBytes": 1948982646,
-  "patchSha256": "174a21af985964b934c521c6131374d2b81f7cad93f62bddb62fe2a0683259e0",
-  "patchUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.5/Aetherfall-Patch-0.98.5.zip",
-  "filesChanged": 878,
+  "version": "0.98.7",
+  "patchFile": "Aetherfall-Patch-0.98.7.json",
+  "patchBytes": 608932,
+  "patchSha256": "1ae6e340e9c1fefe1f216164a7255834944d5f2328dba21e161ca941a673b091",
+  "patchUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.7/Aetherfall-Patch-0.98.7.json",
+  "patchFormat": "chunked-v1",
+  "downloadBytes": 555325607,
+  "assetCount": 121,
+  "filesChanged": 792,
   "filesRemoved": 795,
-  "setupExeUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.5/Aetherfall-Setup.exe",
-  "setupExeBytes": 5612032,
-  "setupExeSha256": "8d6acfb0dacbd01c51c000318c9b0f9d83fcc935335051724944dcf3bbba0807",
-  "setupVersion": "0.90.1027.1",
-  "downloaderUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.5/Aetherfall-Downloader.zip",
-  "downloaderBytes": 8660855,
-  "downloaderSha256": "e999f3b791b12ec570070d04a97d26afcd329729213fe3b6673bfaf25a4169f7"
+  "setupExeUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.7/Aetherfall-Setup.exe",
+  "setupExeBytes": 5687296,
+  "setupExeSha256": "d099603906fbddc9915877ecb773be8869333a1ccf1435131bc306b16f977f82",
+  "setupVersion": "0.90.1030.4",
+  "languageAssets": [
+    {
+      "file": "Aetherfall-Language-deu-text-0.98.7.zip",
+      "bytes": 82639370,
+      "sha256": "283c3693a8ce8b3918409a04dc801070ca6590da476c7d605808e93df628af11"
+    },
+    {
+      "file": "Aetherfall-Language-fra-text-0.98.7.zip",
+      "bytes": 83564224,
+      "sha256": "af93a84686f8dfde1063c7d3e74d1ece3f4eef13eb1b7693731b75ca1481badc"
+    },
+    {
+      "file": "Aetherfall-Language-esn-text-0.98.7.zip",
+      "bytes": 80626579,
+      "sha256": "55bcaeb87e02418ca565e0095f7250452a11403ee1674548f6baa09e5c70d52d"
+    },
+    {
+      "file": "Aetherfall-Language-rus-text-0.98.7.zip",
+      "bytes": 86342687,
+      "sha256": "54a84fd0e767a2df26cc8b56bb1251616e97dac5d8ede9ff048a0bbfb9c71bab"
+    },
+    {
+      "file": "Aetherfall-Language-chs-text-0.98.7.zip",
+      "bytes": 70419949,
+      "sha256": "978deef16d71b7456f66ec9732ae67e73f8ea778b8600402dc08a7b7f04862ea"
+    },
+    {
+      "file": "Aetherfall-Language-kor-voice-0.98.7.zip",
+      "bytes": 615704341,
+      "sha256": "97def3e3987ad6b89c3f21d4d6bcb8ace3d73dc34f6b1326729fb6b9dd4c6517"
+    },
+    {
+      "file": "Aetherfall-Language-jpn-voice-0.98.7.zip",
+      "bytes": 689604355,
+      "sha256": "954c1ea2949b589e76b4284099fa1a3fcee56d672ca8229f0132f8576cd1c343"
+    }
+  ],
+  "downloaderUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.7/Aetherfall-Downloader.zip",
+  "downloaderBytes": 8685065,
+  "downloaderSha256": "cb051d19229bc08fb0701636b746c058220099bf62b3d4a1a1f24bd820ace6a5"
 }
