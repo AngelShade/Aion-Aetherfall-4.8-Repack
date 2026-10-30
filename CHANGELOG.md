@@ -1,14 +1,110 @@
 # Aion Aetherfall 4.8 Repack — Changelog
 
-## Latest published release — 0.98.3 (26 October 2026)
+## Prepared local update — 0.98.7 (30 October 2026)
 
-[Download 0.98.3](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.3), or open Aetherfall Setup and choose **Update Repack**. This cumulative update includes the earlier 0.97 quests and interface repairs, Find Group announcements, Boons/target artwork, first-use tooltips and the quit-countdown crash repair.
+- Launch settings now uses the same gold Save settings button style as Apply languages, in both original and repack launchers.
+- Recognized previously downloaded HD ZIPs can be installed directly, including the older October 22 pack, while retaining checksum verification and standard-texture recovery.
+- Optional language packs retain their download identity when unchanged. Future pack updates keep supported older ZIPs available for offline installation.
+- Older Hubs continue the game update after upgrading themselves. Fresh base installations check for the current cumulative update before reporting completion; interrupted launcher upgrades pause safely.
+- English remains the main included language. Aetherfall Hub's Languages page offers separate optional downloads for German, French, Spanish, Russian and Simplified Chinese text, NPC dialogue and required fonts, hosted in the Aetherfall GitHub release.
+- The original development client selects languages in its game launcher. Its Hub retains the server dashboard. The repack offers languages in both its Hub and game launcher, with Aetherfall's dark dropdowns, gold trim and themed controls.
+- Korean text remains available from native client resources. Existing Korean and Japanese voice packs are separate optional downloads; text and voices can be chosen independently. Japanese text remains unavailable.
+- Language downloads run in the Hub, with sizes, percentage, speed, remaining size and ETA, pause/resume, and verification before installation. The Hub's Install ZIP supports offline copies of the same verified packs. The game launcher selects installed languages.
+- Language dropdown changes now save immediately for the next Play, including when the game launcher is already open. Apply languages remains available. Downloading or refreshing packs preserves the current selection, and English stays available. Existing language choices and installed packs are retained by updates.
+- Language payloads are kept out of the core cumulative update. Packs contain only adapted translations, compatible dialogue and font assets; foreign server branding, layouts, settings and custom overrides are excluded. Current custom UI and quest actions remain in place, with English fallbacks for unmatched or incompatible text.
+- Prepared locally; optional downloads become available online after the matching release is published. In-game language/font acceptance remains with the owner.
 
-Install directly over 0.86 or any later repack. Setup/Hub remains 0.90.1022.2; the original 0.86 archive remains the compatible base download. Existing accounts, characters, settings and profiles are retained. GitHub publication was verified on 27 October 2026; gameplay acceptance remains with the owner.
+## Prepared local update — 0.98.6 (29 October 2026)
+
+- Updates download only required files and chunks, reusing matching installed content instead of downloading the full cumulative patch again.
+- Update downloads are split into small verified packages, keeping each file below GitHub's release limit. Completed packages are cached for retry.
+- The updater shows live download percentage, speed, remaining size, ETA and package counts, with separate progress for checking, preparing, verifying, backing up and installing files. Completion details remain visible.
+- Older repacks can still update directly, and existing offline patch ZIPs remain supported. Setup updates itself first when needed; click Update Repack again after it restarts.
+- Existing accounts, characters, database contents and player settings are retained.
+
+## Prepared local update — 0.98.5 (29 October 2026)
+
+The maintained repack includes the current original client and server changes through 29 October. The cumulative patch and downloader are prepared locally; publication is separate.
+
+## 0.98.5 — Codex, languages, camera and companion improvements (29 October 2026)
+
+- Added the native Map Codex and expanded Central Market Codex: search items and creatures, inspect loot and source locations, select bounded map markers, and move between Market and map views while retaining each view's searches and filters. Native creature loot distinguishes direct, quest and named-pool drops; world drops are optional.
+- Added independent launcher choices for English/Korean text and English/Korean/Japanese voices. Korean text retains current custom UI and quest actions, with English fallbacks for untranslated content. Japanese text remains unavailable; pre-rendered movie audio remains English. The repack keeps its current language preferences.
+- Added saved camera field-of-view and maximum zoom controls in `/afui`, improved options tabs and presets, profile export/import, and remembered per-character positions for the Companion, Account and Marketplace windows.
+- Restored Profile Stigma equipment controls and corrected account-boon slots, timers and Permanent labels.
+- Improved the Companion window header and scrolling saved-party list, with clearer labels for temporary bots, account alts and world bots.
+- Expanded Find Group with instance posting/applications away from entrances, relevant bot groups and roles, party fill offers, teleport/entry assistance and clearer whispers and listings. Improved bot spirit recovery and safe population landing when camps are crowded.
+- Added account Wardrobe dye collections, palette/outfit support and corrected repeated Apply Changes requests. Existing Wardrobe collections are retained; the normal server startup creates only the additional missing dye tables.
+- Corrected Marketplace range-filter inputs, Gulkalla's quest acceptance, and verified static mob height/overlap placements while retaining all affected mobs.
+
+### Map and Central Market Codex
+
+The Map Codex and the Codex in Central Market now work together. Search for items or creatures, inspect a creature's loot, follow an item back to its sources, and open recorded source locations on the map. Each view keeps its own search, filters, page and navigation state when switching between Market and map.
+
+Source locations use recorded creature and merchant spawns. Select locations from a paged list; map markers are limited to 48 at a time. Scripted-only sources without recorded coordinates remain explicitly without a location. The native creature view shows direct, quest and named-pool drops by default, with world drops available separately; the Market retains its existing world-drop option.
+
+The Market Codex has item and creature filters, clearer category artwork and creature dossiers, visible Search/Reset controls, query-preserving Back navigation, and native item icons and tooltips. Opening the Market Codex clears only the Codex's own map markers and pending map movement.
+
+### Launcher languages
+
+Choose on-screen text and character/NPC voices independently on the launcher's Languages page. Available choices are English or Korean text, and English, Korean or Japanese voices. Existing language preferences are retained when updating.
+
+Korean text is composed around the current interface and quests, preserving custom layouts, text keys and quest dialogue actions. Untranslated/custom content falls back to English. Voice resources use the native 4.8 audio paths, with English fallbacks where a matching clip is unavailable. Japanese text is unavailable, and pre-rendered movie audio remains English.
+
+### Camera and interface controls
+
+Open `/afui` and choose Camera to set field of view from 60 to 170 and maximum zoom distance from 5 to 50. Choices are saved per character; Native restores the original camera values.
+
+The options window has clearer labels and units, a Shortcuts tab, XP controls, and corrected Tooltip mover, Reset and Setup actions. The Healer preset centres party frames above the action bars. Profile export/import codes let players save or share their interface choices and positions.
+
+Companions, Account/Boons and Black Cloud Marketplace remember dragged positions per character. Windows that have never been moved open centred. The Marketplace's maximum-level and maximum-price fields accept clicks correctly.
+
+### Companions, Find Group and world bots
+
+The Companion window header fits the shared text size, and saved-party choices use a six-row scrolling list. Temporary Bot, Account Alt and World Bot labels make roster origins clearer.
+
+Find Group supports instance posting and applications away from entrances. Bot listings account for eligible player levels, party capacity and missing roles; descriptions fit the native listing limit. Bots can answer player posts, offer party fill help and provide teleport/entry assistance. Native entry restrictions still apply.
+
+Help requests name actual hostile objectives. Bot-controlled spirits recover from stale attack states or stuck movement through release and re-summoning. When no safe free camp is available, world-bot admission retains the bot's current state and pending level change instead of repeatedly failing the landing step.
+
+### Wardrobe dyes and saved outfits
+
+The Wardrobe Dyes tab adds a permanent account palette. Register Dye consumes one permanent dye from Inventory and unlocks its colour across the account; a colour already registered keeps the duplicate dye. Housing paint, test items and timed dyes are excluded.
+
+An Aether Palette from the Season Pass free track at level 19 can unlock the full palette. Preview colours before registration, then apply registered colours to eligible equipped items. Apply Changes saves skins and dyes together; palette dye application and removal are free and repeatable. Native appearance dye restrictions remain in force.
+
+Saved outfits include registered palette dyes. Older outfits retain the equipment's current dyes. Reapplying an appearance already on the item is accepted after the normal ownership and eligibility checks, avoiding a stale-draft refusal for an unchanged result.
+
+### Stigma, Account and quest/world repairs
+
+Profile Stigma equipment controls retain their usable state while keeping Upgrade available. Account boons use corrected slots and duration mapping; zero-duration boons display Permanent.
+
+Gulkalla can start the relevant You Gotta Stop Umkata quest step after the required loot conversation, using the native acceptance path. Verified static spawn height and overlap corrections retain the affected mobs across multiple maps. Uncertain placements remain unchanged.
+
+### Compatibility and update status
+
+This is a cumulative update over repack 0.86 or any later version. The existing 0.86 full archive remains the base for new installations. Existing accounts, characters, progress, connections, profiles and customized settings are preserved.
+
+Wardrobe's normal server startup creates only its additional missing dye tables. No manual database reset or import is required. Optional HD textures remain separate. The website and Discord services are separate from the game payload.
+
+Version 0.98.5 is installed in the maintained repack and prepared locally. Publication is pending; the public updater receives it only after Publish Update. Normal build and offline delivery checks passed; broader in-game acceptance remains with the owner.
+
+### How to update after publication
+
+1. Close Aion and all three game servers normally. The repack database may remain running.
+2. Open Aetherfall Setup/Hub and select Update Repack.
+3. If Setup updates itself, let it restart, then select Update Repack again.
+4. Start the servers normally and launch the client. Choose any new language options on the launcher's Languages page.
+
+For a new installation, use the latest published downloader kit. A full reinstall is unnecessary for existing repacks.
+
+## Latest published release — 0.98.4 (27 October 2026)
+
+[Download 0.98.4](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.4), or open Aetherfall Setup and choose **Update Repack**. This cumulative release includes interface/camera/tooltip improvements and updates that preserve customized settings. Setup/Hub is 0.90.1027.1; the original 0.86 archive remains the compatible base download. Public release and update-channel metadata were verified on 29 October 2026. The newer 0.98.5 update above is prepared locally.
 
 ## Newer 4.8 source work (27 October 2026)
 
-These maintained changes are separate from the published 0.98.3 payload. A source commit does not publish a repack update:
+These maintained changes are included in the locally prepared 0.98.4 update below; publication is separate:
 
 - Restricted controlled companions' healing, buffs and resurrection to their party/alliance and pets. Independent world bots retain bounded public assistance. Party combat takes priority over optional looting, quest work, rest and equipment changes.
 - Let nearby earned corpse loot take priority over formation while the owner is stationary, releasing that priority when the owner moves or combat/support requires it. This companion repair has a normal build and focused offline checks; installation and gameplay acceptance are pending.
@@ -95,7 +191,7 @@ combat, spirit, quest and performance acceptance remains in-game testing.
 - Included in the published Hub/Setup. The icon does not change gameplay.
 
 This history includes the full initial-release changelog for 0.86, followed by
-the updates through 0.98.3. Earlier development work is recorded under 0.86,
+the updates through 0.98.5. Earlier development work is recorded under 0.86,
 because that is the first public repack in which those changes were bundled.
 
 | Version | Release | Download |
@@ -120,7 +216,9 @@ because that is the first public repack in which those changes were bundled.
 | [0.97](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.97) | Current original quests, loot, scaling, native windows and artwork/launcher repairs | Published cumulative patch |
 | 0.98 | Find Group, Boons/DP artwork, file verification and recovery parity | Included in 0.98.3; no separate release download |
 | 0.98.1–0.98.2 | First-use tooltip initialization and original-to-repack sync | Included in 0.98.3; no separate release downloads |
-| [0.98.3](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.3) | Quit-countdown crash repair and earlier parity/tooltip updates | Latest published cumulative patch, Setup and downloader ZIP |
+| [0.98.3](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.3) | Quit-countdown crash repair and earlier parity/tooltip updates | Published cumulative patch, Setup and downloader ZIP |
+| [0.98.4](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.4) | Interface performance, camera turning, quest tracker, Remember Login, window text size and updates that keep your settings | Published cumulative patch, Setup and downloader ZIP |
+| 0.98.5 | Codex, languages, camera controls, companions, Wardrobe dyes and quest/spawn repairs | Prepared locally; publication pending |
 
 ## 0.86 — Initial release: full changelog
 
@@ -463,6 +561,20 @@ Published on 24 October 2026 with the cumulative patch, Setup/Hub 0.90.1022.2 an
 Published on 25 October 2026 as a cumulative update from 0.86. No manual database
 migration is required. Original-client UI acceptance does not replace gameplay
 acceptance of the updated repack, quests or scaling.
+
+## 0.98.4 — Interface performance, camera turning and window text size (27 October 2026)
+
+- Smoother interface: window opacity and layout holds only update when a window opens or a value changes, and stay in place through zone changes and loading screens.
+- Right-click camera turning no longer snaps; it follows the real mouse movement. The old camera fix in version.dll is switched off (`[CameraFix] Mode=off` in `bin64/mods.ini`), which also restores normal pointer speed and tooltips.
+- Tooltips follow the real mouse position. Saved world-tooltip Mover choices from older versions move to Cursor once; choices made later are kept.
+- Move UI reset returns windows to their designed positions, and moving all shortcut bars together moves only the shared anchor.
+- The quest tracker is now as tall as its contents, so it can be dragged up and down.
+- Remember Login: the startup window shows correctly on the taskbar and in Alt+Tab.
+- Custom web windows (Account, Season Pass, Wardrobe, Marketplace, Journey and Companions) use a larger, shared text size, set by `gameserver.html.window.text.scale` in `config/main/html.properties` (100 by default, 0 for the original size).
+- Companions only heal, buff and resurrect their own party/alliance and pets, and fighting with the party comes before looting or quest work. Nearby loot is picked up first while the owner stands still.
+- Updates keep the settings you changed. Game options (`system.cfg`, `SystemOptionGraphics.cfg`), the PlayerBot bar position, speech-bubble options, the interface on/off and theme choice, launcher and connection settings and ReShade presets are kept when you have changed them; untouched copies still update. Server `.properties` files you edited keep your values and gain any new settings at the end. Setup/Hub 0.90.1027.1 carries this updater: choose **Update Repack**, let Setup restart, then choose **Update Repack** again.
+
+Accounts, characters, interface profiles, bar positions, connections and database contents are kept. Setup/Hub is now 0.90.1027.1. No database migration is needed. Prepared locally; not published. Everything was installed and checked in the original first; in-game acceptance stays with the owner.
 
 ## 0.98.3 — Quit-countdown crash repair (26 October 2026)
 

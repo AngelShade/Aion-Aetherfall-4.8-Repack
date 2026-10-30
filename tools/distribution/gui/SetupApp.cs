@@ -23,9 +23,10 @@ using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using Microsoft.Win32;
+using AetherfallUpdate;
 
 [assembly: AssemblyVersion("0.90.0.0")]
-[assembly: AssemblyFileVersion("0.90.1022.2")]
+[assembly: AssemblyFileVersion("0.90.1030.4")]
 
 namespace AetherfallSetup {
  public sealed class SetupSettings {
@@ -54,7 +55,7 @@ namespace AetherfallSetup {
  public sealed class ReleaseJson { public string Product, Version; }
  public sealed class LatestUpdateManifest {
   public int schema = 1;
-  public string version, patchFile, patchSha256, patchUrl, setupExeUrl, setupExeSha256, setupVersion;
+  public string version, patchFile, patchSha256, patchUrl, patchFormat, setupExeUrl, setupExeSha256, setupVersion;
   public long patchBytes, setupExeBytes;
  }
 
@@ -113,13 +114,23 @@ namespace AetherfallSetup {
      break;
     }
    }
+   // Earlier Hubs relaunch without arguments after swapping themselves.
+   bool legacyReplacement = false;
    try {
-    string oldSelf = Process.GetCurrentProcess().MainModule.FileName + ".old";
-    if (File.Exists(oldSelf)) File.Delete(oldSelf);
+    string self = Process.GetCurrentProcess().MainModule.FileName;
+    string oldSelf = self + ".old";
+    if (File.Exists(oldSelf)) {
+     Version oldVersion, currentVersion;
+     legacyReplacement = Version.TryParse(FileVersionInfo.GetVersionInfo(oldSelf).FileVersion, out oldVersion)
+      && Version.TryParse(FileVersionInfo.GetVersionInfo(self).FileVersion, out currentVersion)
+      && oldVersion < currentVersion;
+     File.Delete(oldSelf);
+    }
    } catch {}
    preview = args.Contains("--preview");
    using (Stream s = Assembly.GetExecutingAssembly().GetManifestResourceStream("Aetherfall.SetupWindow.xaml"))
     window = (Window)XamlReader.Load(s);
+   Aetherfall.LanguageSelector.Theme(window);
    scene = Find<Grid>("Scene");
    using (Stream icon = Assembly.GetExecutingAssembly().GetManifestResourceStream("Aetherfall.HubIcon.ico"))
     window.Icon = new IconBitmapDecoder(icon, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames.OrderBy(frame=>frame.PixelWidth).Last();
@@ -143,6 +154,7 @@ namespace AetherfallSetup {
    Btn("ServersTab").Click += delegate { SwitchTab("Servers"); };
    Btn("PathsTab").Click += delegate { SwitchTab("Paths"); };
    InitializeMods();
+   InitializeLanguages();
    Btn("OpenInstallFolder").Click += delegate { OpenFolder(ResolveInstallPath()); };
    Btn("BrowseInstall").Click += delegate { PickInstallFolder(); };
    Btn("SelectArchiveBtn").Click += delegate { PickLocalArchive(); };
@@ -168,11 +180,17 @@ namespace AetherfallSetup {
     SwitchTab("Servers");
    }
 
-   window.Loaded += delegate { RefreshState(); };
+   if(original==null&&args.Contains("--languages"))SwitchTab("Languages");
+   window.Loaded += async delegate {
+    RefreshState();
+    if (!preview && original == null && (legacyReplacement || args.Contains("--continue-update")))
+     await RunUpdate(null);
+   };
    window.Closing += delegate(object sender, System.ComponentModel.CancelEventArgs e) {
     if(serverControlBusy || modControlBusy) {
      e.Cancel=true;
-     if(modControlBusy)Text("ModsFeedback").Text="Wait for this operation to finish before closing the Hub.";
+     if(languageCancel!=null) { languageCancel.Cancel();Text("LanguageFeedback").Text="Pausing the transfer. Wait for verification or installation to finish before closing."; }
+     else if(modControlBusy)Text("ModsFeedback").Text="Wait for this operation to finish before closing the Hub.";
      else Text("ServerControlFeedback").Text="Wait for the server operation to finish before closing Setup.";
     }
    };
@@ -396,7 +414,7 @@ namespace AetherfallSetup {
     Text("PrimaryLabel").Text = "PLAY";
     Text("LaunchCaption").Text = "OPEN AETHERFALL GAME LAUNCHER";
     Text("HeroHeadline").Text = "Aetherfall " + ver + " is Installed.";
-    Text("ArchiveSourceLabel").Text = "Click 'Update Repack' anytime to apply a new patch ZIP without losing characters.";
+    Text("ArchiveSourceLabel").Text = "Click Update Repack to download required update packages while keeping your characters.";
     if (!busy && !preserveStatus) {
      Text("StatusTitle").Text = "Ready for Atreia.";
      Text("StatusDetail").Text = "Use Server Control to start MariaDB & GameServer, or click PLAY to open the game launcher.";
@@ -448,12 +466,14 @@ namespace AetherfallSetup {
   }
 
   void SwitchTab(string tab) {
-   foreach (string name in new[] { "Hub", "Servers", "Mods", "Paths" }) {
+   if(original!=null&&tab=="Languages")tab="Servers";
+   foreach (string name in new[] { "Hub", "Servers", "Mods", "Languages", "Paths" }) {
     Find<FrameworkElement>(name + "Panel").Visibility = name == tab ? Visibility.Visible : Visibility.Collapsed;
     Btn(name + "Tab").Background = Brush(name == tab ? "#B8252C4E" : "#00000000");
     Btn(name + "Tab").BorderBrush = Brush(name == tab ? "#749B8E6E" : "#00000000");
    }
    if(tab=="Mods")RefreshMods();
+   if(tab=="Languages")RefreshLanguagePage();
   }
 
   void PickInstallFolder() {
@@ -489,8 +509,8 @@ namespace AetherfallSetup {
   async Task PickAndApplyPatch() {
    if (busy || serverControlBusy || modControlBusy) return;
    var dlg = new OpenFileDialog {
-    Title = "Select Aetherfall-Patch-<version>.zip file",
-    Filter = "Aetherfall Patch ZIP (Aetherfall-Patch-*.zip;*.zip)|Aetherfall-Patch-*.zip;*.zip"
+    Title = "Select an Aetherfall update manifest or patch ZIP",
+    Filter = "Aetherfall update (*.json;*.zip)|Aetherfall-Patch-*.json;Aetherfall-Patch-*.zip"
    };
    if (dlg.ShowDialog() == true) {
     await RunUpdate(dlg.FileName);
@@ -524,6 +544,7 @@ namespace AetherfallSetup {
 
   void SetBusy(bool value, string banner, string title, string detail, bool allowPause = false) {
    busy = value;
+   if (value) Text("UpdateTransferDetail").Visibility = Visibility.Collapsed;
    RefreshMods();
    Btn("PrimaryBtn").IsEnabled = !value || allowPause;
    if (value && allowPause) {
@@ -561,6 +582,57 @@ namespace AetherfallSetup {
    TimeSpan ts = TimeSpan.FromSeconds(seconds);
    if (ts.TotalHours >= 1) return string.Format("{0}h {1:00}m", (int)ts.TotalHours, ts.Minutes);
    return string.Format("{0:00}m {1:00}s", ts.Minutes, ts.Seconds);
+  }
+
+  static string FormatUpdateBytes(long bytes) {
+   string[] units = { "B", "KB", "MB", "GB", "TB", "PB" };
+   double value = Math.Max(0, bytes); int unit = 0;
+   while (value >= 1024 && unit < units.Length - 1) { value /= 1024; unit++; }
+   return value.ToString(unit == 0 ? "0" : "0.0") + " " + units[unit];
+  }
+
+  bool ApplyUpdaterLine(string line) {
+   if (!line.StartsWith(UpdateTransfer.Prefix, StringComparison.Ordinal)) return false;
+   UpdateProgress value;
+   if (UpdateTransfer.TryParse(line, out value)) ApplyUpdaterProgress(value);
+   return true;
+  }
+
+  void ApplyUpdaterProgress(UpdateProgress value) {
+   string banner, title, counter = "";
+   bool download = value.phase == "download" || value.phase == "setup" || value.phase == "manifest";
+   switch (value.phase) {
+    case "setup": banner = "UPDATING SETUP"; title = "Downloading the latest Setup…"; break;
+    case "manifest": banner = "CHECKING FOR UPDATES"; title = "Downloading update information…"; break;
+    case "checking": banner = "CHECKING INSTALLED FILES"; title = "Finding the files you need…"; break;
+    case "checking-file": banner = "CHECKING FILE"; title = "Checking an installed file…"; break;
+    case "cache": banner = "CHECKING SAVED DOWNLOADS"; title = "Reusing completed update packages…"; break;
+    case "download": banner = "DOWNLOADING UPDATE"; title = value.total > 0 ? "Downloading required packages…" : "All required packages are available locally."; break;
+    case "assemble": banner = "PREPARING UPDATE"; title = "Preparing updated files…"; break;
+    case "extract": banner = "PREPARING UPDATE"; title = "Extracting the legacy patch…"; break;
+    case "verify": banner = "VERIFYING UPDATE"; title = "Checking prepared files…"; break;
+    case "backup": banner = "BACKING UP FILE"; title = "Saving the previous file…"; break;
+    case "install": banner = "INSTALLING UPDATE"; title = "Installing updated files…"; break;
+    case "remove": banner = "FINISHING UPDATE"; title = "Removing retired files…"; break;
+    default: banner = "UPDATING REPACK"; title = "Updating files…"; break;
+   }
+   double ratio = value.total > 0 ? Math.Min(1.0, value.completed / (double)value.total) : 0;
+   string percent = value.total > 0 ? (ratio * 100).ToString("0.0") + "%" : (value.phase == "download" ? "No download needed" : "Checking…");
+   if (value.phase == "checking-file" || value.phase == "backup") percent += " of file";
+   if (value.items > 0) counter = (value.phase == "download" || value.phase == "cache" || value.phase == "setup" || value.phase == "manifest" ? "Package " : "File ") + Math.Min(value.item, value.items) + " / " + value.items;
+   Text("StatusBanner").Text = banner; Text("StatusTitle").Text = title;
+   Text("StatusDetail").Text = download ? "Completed packages are saved for retry." : (String.IsNullOrEmpty(value.current) ? title : value.current);
+   SetProgress(ratio, percent, counter);
+   TextBlock stats = Text("UpdateTransferDetail");
+   stats.Visibility = value.unit == "bytes" ? Visibility.Visible : Visibility.Collapsed;
+   long remaining = Math.Max(0, value.total - value.completed);
+   string detail = FormatUpdateBytes(value.completed) + " / " + FormatUpdateBytes(value.total);
+   if (download) {
+    double rate = Math.Max(0, value.bytesPerSecond);
+    detail += "  ·  " + FormatUpdateBytes((long)Math.Min(rate, long.MaxValue)) + "/s  ·  " + FormatUpdateBytes(remaining) + " left";
+    detail += "  ·  ETA " + (remaining == 0 ? "0s" : (rate > 0 ? FormatEta(remaining / rate) : "calculating…"));
+   }
+   stats.Text = detail;
   }
 
   void CleanStaleLocksAndProcesses(string archivePath, bool removeAria2Control) {
@@ -1181,9 +1253,9 @@ namespace AetherfallSetup {
      try { File.Delete(archivePath); } catch {}
     }
 
-    SetProgress(1.0, "100% Complete", "✅ Ready to Play");
-    SetBusy(false, "INSTALLATION COMPLETE", "Aetherfall is ready!", "Click PLAY to open the Aetherfall Launcher, or use Server Control to start MariaDB & GameServer.");
+    SetBusy(false, "BASE INSTALLED", "Checking the installed base for updates...", "The Hub will now apply the current cumulative update.");
     RefreshState();
+    await RunUpdate(null);
    } catch (OperationCanceledException) {
     SetBusy(false, "DOWNLOAD PAUSED", "Download paused — Progress saved.", "Click RESUME anytime to continue from the exact chunk where you left off.");
     RefreshState();
@@ -1220,22 +1292,29 @@ namespace AetherfallSetup {
       }
       string raw = wc.DownloadString(settings.UpdateUrl + "?t=" + Environment.TickCount);
       var latest = js.Deserialize<LatestUpdateManifest>(raw);
-      if (latest == null || String.IsNullOrWhiteSpace(latest.setupExeUrl) || String.IsNullOrWhiteSpace(latest.setupExeSha256))
-       return false;
+      if (latest == null || latest.schema != 1) throw new InvalidDataException("Unsupported update channel.");
+      if (String.IsNullOrWhiteSpace(latest.setupExeUrl) || String.IsNullOrWhiteSpace(latest.setupExeSha256)) {
+       if (latest.patchFormat == "chunked-v1") throw new InvalidDataException("The update channel is missing the launcher upgrade required for this patch.");
+       return false; // Preserve older private channels using legacy ZIP patches.
+      }
       string selfExe = Process.GetCurrentProcess().MainModule.FileName;
       string currentSha = ComputeFileSha256(selfExe);
       if (String.Equals(currentSha, latest.setupExeSha256.Trim(), StringComparison.OrdinalIgnoreCase))
        return false;
       Version currentVersion = new Version(FileVersionInfo.GetVersionInfo(selfExe).FileVersion);
-      Version offeredVersion;
-      // Legacy channels have no build version. Inspect their verified EXE below.
-      if (Version.TryParse(latest.setupVersion, out offeredVersion) && offeredVersion <= currentVersion)
-       return false;
+      Version offeredVersion = null;
+      // Older private channels can omit the build version; verify the EXE below.
+      if (!String.IsNullOrWhiteSpace(latest.setupVersion) && !Version.TryParse(latest.setupVersion, out offeredVersion))
+       throw new InvalidDataException("Invalid published launcher build version.");
+      if (offeredVersion != null && offeredVersion <= currentVersion) return false;
 
       string tempNew = selfExe + ".new";
       string tempOld = selfExe + ".old";
       if (File.Exists(tempNew)) File.Delete(tempNew);
-      wc.DownloadFile(latest.setupExeUrl, tempNew);
+      Action<UpdateProgress> progress = value => window.Dispatcher.BeginInvoke(new Action(() => ApplyUpdaterProgress(value)));
+      UpdateTransfer.ProgressChanged += progress;
+      try { UpdateTransfer.Download(latest.setupExeUrl, tempNew, latest.setupExeBytes, latest.setupExeSha256, "setup", 0, latest.setupExeBytes, 1, 1); }
+      finally { UpdateTransfer.ProgressChanged -= progress; }
       string downloadedSha = ComputeFileSha256(tempNew);
       if (!String.Equals(downloadedSha, latest.setupExeSha256.Trim(), StringComparison.OrdinalIgnoreCase)) {
        File.Delete(tempNew);
@@ -1243,9 +1322,9 @@ namespace AetherfallSetup {
       }
       Version downloadedVersion;
       if (!Version.TryParse(FileVersionInfo.GetVersionInfo(tempNew).FileVersion, out downloadedVersion)
-          || downloadedVersion <= currentVersion) {
+          || downloadedVersion <= currentVersion || (offeredVersion != null && downloadedVersion != offeredVersion)) {
        File.Delete(tempNew);
-       return false;
+       throw new InvalidDataException("The downloaded launcher build differs from its update channel.");
       }
       if (File.Exists(tempOld)) File.Delete(tempOld);
       File.Move(selfExe, tempOld);
@@ -1257,8 +1336,8 @@ namespace AetherfallSetup {
       } catch {}
       return true;
      }
-    } catch {
-     return false;
+    } catch (Exception error) {
+     throw new InvalidOperationException("The launcher upgrade could not finish. Retry Update Repack; the installed game has not been updated. " + error.Message, error);
     }
    });
   }
@@ -1266,15 +1345,21 @@ namespace AetherfallSetup {
   async Task RunUpdate(string chosenZip) {
    if(serverControlBusy || modControlBusy)return;
    SetBusy(true, "CHECKING FOR UPDATES", "Checking launcher & repack updates…", "Contacting GitHub update channel…");
-   SetProgress(0.25, "Checking…", "↻ Update Channel");
+   Text("UpdateTransferDetail").Visibility = Visibility.Collapsed;
+   SetProgress(0, "Checking…", "Update Channel");
 
    if (String.IsNullOrEmpty(chosenZip)) {
-    bool selfUpdated = await CheckAndApplyLauncherSelfUpdateAsync();
+    bool selfUpdated;
+    try { selfUpdated = await CheckAndApplyLauncherSelfUpdateAsync(); }
+    catch (Exception error) {
+     SetBusy(false, "UPDATE PAUSED", "The launcher must update first", error.Message);
+     return;
+    }
     if (selfUpdated) {
      SetProgress(1.0, "100%", "✨ Restarting Launcher");
      SetBusy(false, "LAUNCHER UPDATED", "Restarting updated Aetherfall Setup…", "Launching new version now…");
      string selfExe = Process.GetCurrentProcess().MainModule.FileName;
-     Process.Start(new ProcessStartInfo(selfExe) { WorkingDirectory = root, UseShellExecute = true });
+     Process.Start(new ProcessStartInfo(selfExe, "--continue-update") { WorkingDirectory = root, UseShellExecute = true });
      window.Close();
      return;
     }
@@ -1290,15 +1375,17 @@ namespace AetherfallSetup {
    // Carry the maintained updater with Setup, including for users on an older repack.
    string updScript = System.IO.Path.Combine(pkg, "Control", "Update-Repack.ps1");
    try {
-    using (var source = Assembly.GetExecutingAssembly().GetManifestResourceStream("Aetherfall.Update-Repack.ps1"))
-    using (var destination = File.Create(updScript)) source.CopyTo(destination);
+    foreach (string name in new[] { "UpdateTransfer.cs", "Update-Repack.ps1" }) {
+     using (var source = Assembly.GetExecutingAssembly().GetManifestResourceStream("Aetherfall." + name))
+     using (var destination = File.Create(System.IO.Path.Combine(pkg, "Control", name))) source.CopyTo(destination);
+    }
    } catch (Exception ex) {
     SetBusy(false, "UPDATE PAUSED", "Could not prepare the updater", ex.Message);
     return;
    }
 
-   SetBusy(true, "UPDATING REPACK", "Applying delta update…", "Verifying patch checksums and backing up replaced files…");
-   SetProgress(0.45, "Updating…", "⚡ Delta Patch");
+   SetBusy(true, "UPDATING REPACK", "Checking installed files…", "Downloading required update chunks and backing up replaced files…");
+   SetProgress(0, "Checking…", "Repack Update");
    try {
     string args = "-PackagePath " + Quote(pkg);
     if (!String.IsNullOrEmpty(chosenZip)) args += " -PatchFile " + Quote(chosenZip);
@@ -1309,6 +1396,7 @@ namespace AetherfallSetup {
     File.WriteAllText(logPath, DateTime.Now.ToString("s") + " Update started" + Environment.NewLine);
     int code = await RunPowerShell(updScript, args, line => {
      if (!String.IsNullOrWhiteSpace(line)) {
+      if (ApplyUpdaterLine(line)) return;
       lastLine = line; Text("StatusDetail").Text = line;
       File.AppendAllText(logPath, line + Environment.NewLine);
       if (line.StartsWith("UPDATE ERROR: ")) firstError = line;
@@ -1316,8 +1404,9 @@ namespace AetherfallSetup {
     }, line => { if (String.IsNullOrWhiteSpace(firstError)) firstError = line; });
     if (code != 0) throw new InvalidOperationException(firstError.Length > 0 ? firstError : (lastLine.Length > 0 ? lastLine : "Update stopped."));
     SetProgress(1.0, "100%", "✅ Up to date");
+    Text("UpdateTransferDetail").Visibility = Visibility.Collapsed;
     SetBusy(false, "UPDATE COMPLETE", "Repack is up to date", lastLine);
-    RefreshState();
+    RefreshState(true);
    } catch (Exception ex) {
     SetBusy(false, "UPDATE PAUSED", "Could not complete update", ex.Message);
     RefreshState(true);

@@ -152,6 +152,8 @@ try {
     $updHelper = if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'Update-Repack.ps1')) { Join-Path $PSScriptRoot 'Update-Repack.ps1' } else { Join-Path $root 'bin/Update-Repack.ps1' }
     if (Test-Path -LiteralPath $updHelper) {
         Copy-Item -LiteralPath $updHelper -Destination (Join-Path $install 'Control/Update-Repack.ps1') -Force
+        $transferHelper = Join-Path (Split-Path -Parent $updHelper) 'UpdateTransfer.cs'
+        if (Test-Path -LiteralPath $transferHelper) { Copy-Item -LiteralPath $transferHelper -Destination (Join-Path $install 'Control/UpdateTransfer.cs') -Force }
     }
     Remove-Item -LiteralPath $marker
     Write-Host ('Ready: '+$install) -ForegroundColor Green

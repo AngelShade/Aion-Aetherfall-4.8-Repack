@@ -28,10 +28,10 @@ namespace Aetherfall {
  public sealed class ModInfo { public string Title, Description, Switch; public bool Listed=true; public string[] Files=new string[0]; }
  public sealed class InstalledFile { public string path, installedSha256; }
  public sealed class ModInventory { public Dictionary<string,List<InstalledFile>> features=new Dictionary<string,List<InstalledFile>>(); }
- public sealed class Preferences { public bool Animations = true; public bool CloseAfter = false; }
+ public sealed class Preferences { public bool Animations = true; public bool CloseAfter = false; public string TextLanguage="enu", VoiceLanguage="enu"; }
  public sealed class ConnectionSettings { public string Arguments; }
  public sealed class Step { public string Title, Script; public string[] Arguments; public Step(string title, string script, params string[] args) { Title=title; Script=script; Arguments=args; } }
- public sealed class Launcher {
+ public sealed partial class Launcher {
   Window window; Grid scene; string root, support, logPath, gameArgs, host; int port=2106;
   bool busy, closeRequested, closed, polling, preview; Mutex mutex; EventWaitHandle activation;
   Preferences preferences=new Preferences(); DispatcherTimer timer; ModsPage modsPage;
@@ -48,6 +48,19 @@ namespace Aetherfall {
 
   [STAThread] public static int Main(string[] args) {
    try {
+    if(args.Contains("--install-language-pack")) {
+     Func<string,string> option=key=>{int index=Array.IndexOf(args,key);return index>=0&&index+1<args.Length?args[index+1]:null;};
+     string client=option("--client"),archive=option("--archive");if(client==null||archive==null)throw new ArgumentException("Provide a client folder and language ZIP.");
+     var pack=LanguageDownloads.Identify(client,archive);LanguageDownloads.Install(client,pack,archive);
+     if(option("--report")!=null)File.WriteAllText(option("--report"),new JavaScriptSerializer().Serialize(new { status="installed",id=pack.id,version=pack.version }));return 0;
+    }
+    if(args.Contains("--language-sync")) {
+     Func<string,string> option=key=>{int index=Array.IndexOf(args,key);return index>=0&&index+1<args.Length?args[index+1]:null;};
+     string client=option("--client");if(client==null)throw new ArgumentException("Language preparation requires a client folder.");
+     LanguageResult result=Languages.Prepare(client,option("--text")??"enu",option("--voice")??"enu",option("--output"),option("--packs"));
+     if(option("--report")!=null)File.WriteAllText(option("--report"),new JavaScriptSerializer { MaxJsonLength=64*1024*1024 }.Serialize(result));
+     return 0;
+    }
     if(args.Contains("--companion-art-sync")) {
      int at=Array.IndexOf(args,"--client"),report=Array.IndexOf(args,"--report");
      if(at<0||at+1>=args.Length)throw new ArgumentException("Companion artwork preparation requires a client folder.");
@@ -82,7 +95,7 @@ namespace Aetherfall {
     if (launcher.preview) { launcher.RenderPreview(args); return 0; }
     app.Run(launcher.window); return 0;
    } catch(Exception error) {
-    if(args.Contains("--custom-quests-sync")||args.Contains("--aetherfall-interface")||args.Contains("--mods-apply")||args.Contains("--companion-art-sync")) {
+    if(args.Contains("--custom-quests-sync")||args.Contains("--aetherfall-interface")||args.Contains("--mods-apply")||args.Contains("--companion-art-sync")||args.Contains("--language-sync")||args.Contains("--install-language-pack")) {
      int report=Array.IndexOf(args,"--report");if(report>=0&&report+1<args.Length)File.WriteAllText(args[report+1],error.ToString());return 1;
     }
     int at=Array.IndexOf(args,"--preview");
@@ -93,7 +106,7 @@ namespace Aetherfall {
   }
   void Initialize(string[] args) {
    root=AppDomain.CurrentDomain.BaseDirectory.TrimEnd(System.IO.Path.DirectorySeparatorChar);
-   for(int i=0;i+1<args.Length;i++) if(args[i]=="--client") root=System.IO.Path.GetFullPath(args[i+1]);
+   for(int i=0;i+1<args.Length;i++) if(args[i]=="--client") root=System.IO.Path.GetFullPath(args[i+1]).TrimEnd(System.IO.Path.DirectorySeparatorChar);
    preview=args.Contains("--preview"); support=System.IO.Path.Combine(root,"Mods","Launcher");
    if(!Directory.Exists(support)) throw new DirectoryNotFoundException("Launcher files are missing from Mods\\Launcher.");
    string key; using(SHA256 hash=SHA256.Create()) key=BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(root.ToUpperInvariant()))).Replace("-","").Substring(0,20);
@@ -101,6 +114,7 @@ namespace Aetherfall {
    activation=new EventWaitHandle(false,EventResetMode.AutoReset,"Local\\AetherfallLauncherActivate-"+key);
    if(!created && !preview) { activation.Set(); activation.Dispose(); mutex.Dispose(); return; }
    using(Stream stream=Assembly.GetExecutingAssembly().GetManifestResourceStream("Aetherfall.MainWindow.xaml")) window=(Window)XamlReader.Load(stream);
+   LanguageSelector.Theme(window);
    scene=Find<Grid>("Scene");
    string iconPath=System.IO.Path.Combine(root,"AionClient.ico"); if(File.Exists(iconPath)) window.Icon=BitmapFrame.Create(new Uri(iconPath));
    ImageSource hero=LoadImage("atreia.png"), frame=LoadImage("frame.png");
@@ -112,6 +126,7 @@ namespace Aetherfall {
    string preferencePath=System.IO.Path.Combine(support,"preferences.json");
    try { if(File.Exists(preferencePath)) preferences=new JavaScriptSerializer().Deserialize<Preferences>(File.ReadAllText(preferencePath))??new Preferences(); } catch { preferences=new Preferences(); }
    Find<CheckBox>("Animations").IsChecked=preferences.Animations; Find<CheckBox>("CloseAfter").IsChecked=preferences.CloseAfter;
+   LoadLanguages();
    bool vulkan=ReadVulkan(); Find<RadioButton>("Vulkan").IsChecked=vulkan; Find<RadioButton>("Direct3D").IsChecked=!vulkan;
    ReadGameArguments(); Text("ServerAddress").Text=host+" : "+port;
    Find<Border>("DragArea").MouseLeftButtonDown+=delegate { if(Mouse.LeftButton==MouseButtonState.Pressed) window.DragMove(); };
@@ -121,6 +136,7 @@ namespace Aetherfall {
    modsPage=new ModsPage(window,root,()=>busy,GameRunning);
    Button("ModsTab").Click+=delegate { modsPage.Open(); };
    Button("SettingsTab").Click+=delegate { Page("Settings"); };
+   Button("LanguagesTab").Click+=delegate { Page("Languages"); };
    Button("Folder").Click+=delegate { Open(root); };
    Button("OpenLog").Click+=delegate { if(logPath!=null) Open(logPath); };
    Button("SaveSettings").Click+=delegate { SaveSettings(); };
@@ -160,7 +176,8 @@ namespace Aetherfall {
   }
   static bool GameRunning() { return Process.GetProcessesByName("aion.bin").Any() || Process.GetProcessesByName("aion").Any(); }
   void Page(string page) {
-   foreach(string name in new string[]{"Overview","Settings"}) {
+   if(page=="Languages")LoadLanguages();
+   foreach(string name in new string[]{"Overview","Settings","Languages"}) {
     Find<FrameworkElement>(name+"Panel").Visibility=name==page?Visibility.Visible:Visibility.Collapsed;
     Button(name+"Tab").Background=Brush(name==page?"#B8203A48":"#00000000");
     Button(name+"Tab").BorderBrush=Brush(name==page?"#7477998E":"#00000000");
@@ -177,7 +194,7 @@ namespace Aetherfall {
      File.WriteAllText(path,text,Encoding.ASCII);
     }
     preferences.Animations=Find<CheckBox>("Animations").IsChecked==true; preferences.CloseAfter=Find<CheckBox>("CloseAfter").IsChecked==true;
-    File.WriteAllText(System.IO.Path.Combine(support,"preferences.json"),new JavaScriptSerializer().Serialize(preferences));
+    LanguageSelection.SaveFields(root,new Dictionary<string,object> { {"Animations",preferences.Animations},{"CloseAfter",preferences.CloseAfter} });
     SetMotion();
     Text("SettingsFeedback").Text="Saved. Your next launch will use "+(selected?"Vulkan / DXVK.":"Direct3D 9.");
    } catch(Exception error) { Text("SettingsFeedback").Text=error.Message; }
@@ -305,7 +322,7 @@ namespace Aetherfall {
    return steps;
   }
   async Task Launch() {
-   if(busy) return; busy=true; closeRequested=false; Button("Play").IsEnabled=false; Button("SaveSettings").IsEnabled=false;
+   if(busy) return; busy=true; closeRequested=false; Button("Play").IsEnabled=false; Button("SaveSettings").IsEnabled=false;languageSelector.SetEnabled(false);
    LoadingDisplay(true); Button("OpenLog").Visibility=Visibility.Collapsed;
    try {
     ReadGameArguments(); string logs=ClientPath("Mods/Launcher/Logs"); Directory.CreateDirectory(logs);
@@ -323,6 +340,12 @@ namespace Aetherfall {
      Find<Border>("ProgressFill").BeginAnimation(FrameworkElement.WidthProperty,new DoubleAnimation(.6*(i+1)*width/steps.Count,TimeSpan.FromMilliseconds(250)));
     }
     if(closeRequested) { busy=false; window.Close(); return; }
+    Text("StatusTitle").Text="Preparing text and voices";Text("StatusDetail").Text="Checking the selected language against your current mods.";
+    ReadLanguagePreferences();
+    File.AppendAllText(logPath,"\r\nSelected text: "+preferences.TextLanguage+"; selected voices: "+preferences.VoiceLanguage+"\r\n");
+    LanguageResult language=await Task.Run(()=>Languages.Prepare(root,preferences.TextLanguage??"enu",preferences.VoiceLanguage??"enu"));
+    if(closeRequested) { busy=false; window.Close(); return; }
+    gameArgs=Languages.Arguments(gameArgs,language.Locale);File.AppendAllText(logPath,"\r\n"+language.Summary+"\r\nNative locale: "+language.Locale+"\r\n");
     ProcessStartInfo start=new ProcessStartInfo(ClientPath("bin64/aion.bin"),gameArgs) { WorkingDirectory=root,UseShellExecute=false,CreateNoWindow=true,WindowStyle=ProcessWindowStyle.Hidden };
     start.EnvironmentVariables["DXVK_CONFIG_FILE"]=ClientPath("dxvk.conf");
     string rendererLogs=ClientPath("Mods/Renderer/logs"); Directory.CreateDirectory(rendererLogs); start.EnvironmentVariables["DXVK_LOG_PATH"]=rendererLogs;
@@ -383,7 +406,7 @@ namespace Aetherfall {
     Text("StatusTitle").Text="Launch paused"; Text("StatusDetail").Text=error.Message; Text("StageCount").Text="ACTION NEEDED";
     if(logPath!=null) { try { File.AppendAllText(logPath,"\r\nStopped: "+error+"\r\n"); } catch(IOException) {} Button("OpenLog").Visibility=Visibility.Visible; }
    } finally {
-    busy=false; LoadingDisplay(false); Button("Play").IsEnabled=true; Button("SaveSettings").IsEnabled=true;
+    busy=false; LoadingDisplay(false); Button("Play").IsEnabled=true; Button("SaveSettings").IsEnabled=true;languageSelector.SetEnabled(true);
     if(closeRequested && !closed) window.Close();
    }
   }

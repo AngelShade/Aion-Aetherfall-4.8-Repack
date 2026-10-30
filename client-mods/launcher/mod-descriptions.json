@@ -1,4 +1,10 @@
 {
+  "Languages": {
+    "Title": "Client languages",
+    "Description": "Independent text and voice choices in Launch settings. Builds a native locale from current installed mods and verified language resources.",
+    "Listed": false,
+    "Files": []
+  },
   "AetherfallUI": {
     "Title": "Aetherfall Interface",
     "Description": "Aetherfall skin for the whole Aion interface with an optional target frame above the action bars. Switch it in the launcher's Mods window.",

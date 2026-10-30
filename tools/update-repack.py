@@ -211,9 +211,13 @@ if hd_component:
     excluded_mod_folders.update({'textureupscale', 'hdtextures'})
 for directory, folders, files in os.walk(client/'Mods'):
     folders[:] = [name for name in folders if name.casefold() not in excluded_mod_folders]
+    if Path(directory).relative_to(client/'Mods').as_posix().casefold() == 'languages':
+        folders[:] = [name for name in folders if name.casefold() not in {'packs', 'installed'}]
     support_files.extend(Path(directory)/name for name in files)
 for source in sorted(support_files):
     relative = source.relative_to(client).as_posix()
+    if relative.startswith('Mods/Languages/') and relative.rsplit('/', 1)[-1] in {'state.json', 'settings.json'}:
+        continue
     parts = source.relative_to(client/'Mods').parts
     # Historical backups, logs, compiled shader caches and per-user preferences
     # are not release payloads. Only active renderer recovery is added below.

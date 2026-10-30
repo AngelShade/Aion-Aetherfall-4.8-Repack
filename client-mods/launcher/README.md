@@ -63,6 +63,85 @@ the existing connection arguments, game files, renderer and user settings. Previ
 not launch Aion or execute preparation helpers. No gameplay is claimed by a
 preview or successful build.
 
+The sidebar's **Languages** page has themed **On-screen text** and **Character
+& NPC voices** dropdowns. Choices save immediately for the next Play; **Apply
+languages** remains available. Refreshing the page or pack library never saves
+temporary English defaults. The original development client selects languages
+only in its game launcher; the original Hub retains its server dashboard. The
+repack offers Languages in both its Hub and game launcher, using the same saved
+choices. Language selection, checkboxes and renderer controls use the Aetherfall theme. English uses the original locale when both choices are English.
+Other combinations compose `L10N/fra` and pass `-lang:fra` to the actual native
+client without changing the country, connection or original English archives.
+This is a reserved native resource slot, not a claim that the selected content
+is French. The NA executable admits only ENU/DEU/FRA for country 1 and rejects
+invented locale names. French source packs belong under `Mods/Languages/Packs/fra`,
+so the generated slot is never mistaken for a French text/voice pack. An existing
+unowned FRA folder blocks preparation rather than overwriting its resources.
+Preparation runs after the existing mod helpers and regenerates only when its
+inputs or selections change. Close Aion normally before regeneration; additional
+clients can reuse an unchanged prepared locale.
+
+Korean text comes from this client's native 4.8 base string tables and dialogues.
+The composer preserves current IDs, layouts, custom keys and dialogue actions;
+unmatched/custom text stays English. Native Korean font definitions are included.
+Voice packs are adapted by `prepare_voice_pack.py` to exact installed 4.8 audio
+paths, with CRC-checked output and an explicit English fallback count. Videos
+keep their original audio unless a selected voice pack includes matching videos.
+Text and voice packs for other languages are discovered independently under
+`Mods/Languages/Packs/<code>/data/data.pak` and `sounds/`, or `L10N/<code>`.
+The shared selector reads the small `Mods/Languages/catalog.json` shipped by the
+core updater. **Languages in the repack Aetherfall Hub** owns the pack library; each absent
+text or voice component has its own **Download** button and size. The game launcher
+selects installed languages and has no download controls. English is included and is the default for fresh installations. Native
+Korean text is included; Korean and Japanese voice downloads are independent.
+German, French, Spanish, Russian and Simplified Chinese have separate text packs.
+Japanese text remains unavailable. Existing selections are never changed by a
+download or pack installation. Selecting an installed language saves it immediately
+for the next Play, including when the game launcher is already open.
+
+Hub downloads come from the Aetherfall GitHub release repository
+(`AngelShade/Aion-Aetherfall-4.8-Repack`) and use the shared updater transfer helper with 64-bit progress, percentage,
+speed, remaining bytes, ETA and package counts. **Pause** retains partial bytes;
+**Resume** continues them. The expected size and SHA-256 are verified before
+installation. **Install ZIP** accepts the identical catalogued archive for offline
+use. Close Aion normally before installation; a verified download is retained when
+the game is still running. Staging, backups, copied-file hashes and rollback protect
+existing packs; edited/unowned files block replacement. No game component is started
+or stopped. Updating the core preserves installed packs, cache and selections.
+
+Only installed packs can be selected. Missing catalogued components are disabled
+in the dropdown until installed; voice-only languages do not invent text options. Imported text must match native string keys
+and IDs; its gameplay resources never replace the installed modded layouts.
+`prepare_text_pack.py` emits only admitted translated string rows, compatible-path
+native dialogues, font faces and font definitions. It excludes foreign server
+branding, URLs, regional settings, layouts and custom override archives. String
+format-token mismatches retain English. The runtime merges font faces into current
+styles, preserving sizes, colours, custom definitions and native glyph policy.
+
+Existing downloaded ZIPs can also be installed when their exact version is retained
+in the trusted catalog's `previousVersions`. The library lists current packs only.
+Unchanged pack content retains its original version, URL and checksum across core
+updates; changed content gets a new immutable version while old trusted entries
+remain available for offline import. `--previous-assets` supplies verified earlier
+ZIPs when preparing a fresh release output, without recompressing them.
+
+`tools/distribution/build_language_packs.py` creates one verified ZIP per language
+component from normal text outputs and the original's adapted voice packs. The core
+inventory excludes `Mods/Languages/Packs`, `Cache` and `Installed`; updates never
+delete existing optional packs. The maintained publisher validates and uploads
+optional ZIPs alongside the matching release only when publication is requested.
+Local preparation does not make their future HTTPS links available online.
+
+Offline language preparation uses the same code as Play:
+`--language-sync --client <client> --text kor --voice kor --output <external-stage>
+--packs <external-stage>/Mods/Languages/Packs --report <external-report>`.
+Install that exact generated cohort with `install.py --launcher-only --languages
+--stage <stage> --languages-stage <separate-composed-output-if-used> --client <client>
+--backup <external-backup>` after normal closure. `--check-only` validates the
+cohort and computes the delivery without writing to the installation.
+It selects the prepared pair while retaining other launcher preferences. Future
+switch backups use the external `Mods/Languages/settings.json` BackupRoot.
+
 The existing AionRememberLogin module receives a unique event name through the
 launched game's environment. Its native login draw callback signals that event
 after widgets and the announcement have been restored and subsequent visible

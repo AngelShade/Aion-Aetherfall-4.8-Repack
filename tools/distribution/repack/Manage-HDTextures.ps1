@@ -33,7 +33,50 @@ function File-Stamp([string]$Path) {
     return @{bytes=$file.Length; ticks=$file.LastWriteTimeUtc.Ticks}
 }
 if (-not (Test-Path -LiteralPath (Join-Path $package 'REPACK.json')) -or -not (Test-Path -LiteralPath (Join-Path $client 'bin64/aion.bin'))) { throw 'Select the Client folder inside an Aetherfall repack.' }
-$contract=Read-Json $contractPath
+$latestContract=Read-Json $contractPath
+if ($latestContract.schema -ne 1 -or $latestContract.id -ne 'aetherfall-world-hd' -or $latestContract.files.Count -lt 1) { throw 'Unsupported HD texture component.' }
+function Compatible-Contract([string]$Version) {
+    if($Version -eq $latestContract.assetVersion){return $latestContract}
+    $record=@($latestContract.compatibleComponents | Where-Object {$_.assetVersion -eq $Version})
+    if($record.Count -ne 1 -or $record[0].path -notmatch '^compatibility/[0-9.]+\.json$' -or $record[0].sha256 -notmatch '^[a-f0-9]{64}$'){throw 'This HD selection requires its matching texture pack.'}
+    $path=Within $mod $record[0].path
+    if((Hash $path) -ne $record[0].sha256){throw 'HD compatibility metadata checksum failed. No textures changed.'}
+    $previous=Read-Json $path
+    if($previous.schema -ne 1 -or $previous.id -ne $latestContract.id -or $previous.assetVersion -ne $Version -or $previous.files.Count -ne $latestContract.files.Count -or $previous.graphicsPackageId -ne $latestContract.graphicsPackageId -or $previous.graphicsManifest -ne $latestContract.graphicsManifest -or $previous.shared.Count -ne $latestContract.shared.Count){throw 'Invalid HD compatibility metadata.'}
+    foreach($entry in $latestContract.files){
+        $old=@($previous.files | Where-Object {$_.path -eq $entry.path})
+        if($old.Count -ne 1 -or $old[0].standardSha256 -ne $entry.standardSha256 -or [int64]$old[0].standardBytes -ne [int64]$entry.standardBytes){throw 'HD compatibility requires the same standard recovery archives.'}
+    }
+    foreach($entry in $latestContract.shared){
+        $old=@($previous.shared | Where-Object {$_.path -eq $entry.path})
+        if($old.Count -ne 1 -or $old[0].packagePath -ne $entry.packagePath -or $old[0].standardEntry.original -ne $entry.standardEntry.original -or $old[0].standardEntry.staged -ne $entry.standardEntry.staged){throw 'HD compatibility requires the same shared graphics recovery data.'}
+    }
+    return $previous
+}
+$state=if(Test-Path -LiteralPath $statePath){Read-Json $statePath}else{$null}
+$sourceContract=$latestContract
+if($state -and $state.enabled){$sourceContract=Compatible-Contract ([string]$state.assetVersion)}
+$contract=$sourceContract
+$sourceOwned=@{}
+$archiveStamp=$null
+if($Action -eq 'Enable'){
+    if(-not $ArchivePath){throw 'Select the downloaded HD ZIP first.'}
+    'Checking the downloaded HD pack...'
+    $archiveStamp=File-Stamp $ArchivePath
+    $archiveHash=Hash $ArchivePath
+    $afterHash=File-Stamp $ArchivePath
+    if($afterHash.bytes -ne $archiveStamp.bytes -or $afterHash.ticks -ne $archiveStamp.ticks){throw 'The selected HD ZIP changed during verification. Retry with the complete matching pack.'}
+    $contract=$null
+    if($archiveStamp.bytes -eq [int64]$latestContract.archiveBytes -and $archiveHash -eq $latestContract.archiveSha256){$contract=$latestContract}
+    else{
+        foreach($candidate in $latestContract.compatibleComponents){
+            $previous=Compatible-Contract ([string]$candidate.assetVersion)
+            if($archiveStamp.bytes -eq [int64]$previous.archiveBytes -and $archiveHash -eq $previous.archiveSha256){$contract=$previous;break}
+        }
+    }
+    if(-not $contract){throw 'The HD ZIP checksum does not match any supported pack. Select the complete matching ZIP.'}
+    if($state -and $state.enabled){foreach($entry in $sourceContract.files){$sourceOwned[$entry.path]=$entry}}
+}
 if ($contract.schema -ne 1 -or $contract.id -ne 'aetherfall-world-hd' -or $contract.files.Count -lt 1) { throw 'Unsupported HD texture component.' }
 $coreRelease=Read-Json (Join-Path $package 'release.json')
 if ([Version]$coreRelease.Version -lt [Version]$contract.minimumCoreVersion) { throw 'Update the repack before installing these HD textures.' }
@@ -45,9 +88,7 @@ foreach ($entry in $contract.files) {
 foreach ($shared in $contract.shared) {
     if (-not $owned.ContainsKey($shared.path) -or $shared.packagePath -notmatch '^Mods/GraphicsOverhaul/packages/[a-f0-9]{16}/Levels/[A-Za-z0-9_]+/[A-Za-z0-9_]+\.pak$') { throw 'Invalid shared graphics archive.' }
 }
-$state=if(Test-Path -LiteralPath $statePath){Read-Json $statePath}else{$null}
 if (($Action -eq 'Ensure' -or $Action -eq 'Verify') -and (-not $state -or -not $state.enabled)) { 'Standard world textures are active.';return }
-if ($state -and $state.enabled -and $state.assetVersion -ne $contract.assetVersion) { throw 'This HD pack is incompatible with the current core update. Restore standard textures or install the matching HD pack.' }
 if ($Action -eq 'Disable' -and (-not $state -or -not $state.enabled)) { 'Standard textures are already active.';return }
 if ($Action -eq 'Enable' -or $Action -eq 'Disable') { Assert-Closed }
 $stamps=@{};if($state -and $state.stamps){foreach($property in $state.stamps.PSObject.Properties){$stamps[$property.Name]=$property.Value}}
@@ -56,7 +97,8 @@ function Verify-Current([string]$Relative,$Entry,[bool]$AllowStandard,[bool]$Fas
     $path=Within $client $Relative;$stamp=File-Stamp $path;$saved=$stamps[$Relative]
     if($Fast -and $saved -and $saved.bytes -eq $stamp.bytes -and $saved.ticks -eq $stamp.ticks){$hash=$Entry.hdSha256}
     else{$hash=Hash $path}
-    if($hash -ne $Entry.hdSha256 -and (-not $AllowStandard -or $hash -ne $Entry.standardSha256)){throw "Texture archive differs from this pack: $Relative. No textures were changed."}
+    $source=$sourceOwned[$Entry.path]
+    if($hash -ne $Entry.hdSha256 -and (-not $source -or $hash -ne $source.hdSha256) -and (-not $AllowStandard -or $hash -ne $Entry.standardSha256)){throw "Texture archive differs from this pack: $Relative. No textures were changed."}
     $actual[$Relative]=$hash
 }
 foreach($entry in $contract.files){Verify-Current $entry.path $entry ($Action -eq 'Enable') ($Action -eq 'Ensure')}
@@ -66,7 +108,8 @@ $graphics=Read-Json $graphicsPath
 if($graphics.packageId -ne $contract.graphicsPackageId){throw 'The graphics package does not match this HD pack.'}
 foreach($shared in $contract.shared){
     $matches=@($graphics.files | Where-Object {$_.path -eq $shared.path})
-    if($matches.Count -ne 1 -or $matches[0].original -ne $shared.standardEntry.original -or ($matches[0].staged -ne $owned[$shared.path].standardSha256 -and $matches[0].staged -ne $owned[$shared.path].hdSha256)){throw 'Shared graphics data changed. Install a compatible HD pack before proceeding.'}
+    $source=$sourceOwned[$shared.path]
+    if($matches.Count -ne 1 -or $matches[0].original -ne $shared.standardEntry.original -or ($matches[0].staged -ne $owned[$shared.path].standardSha256 -and $matches[0].staged -ne $owned[$shared.path].hdSha256 -and (-not $source -or $matches[0].staged -ne $source.hdSha256))){throw 'Shared graphics data changed. Install a compatible HD pack before proceeding.'}
 }
 if($Action -eq 'Verify'){'HD texture archives and shared graphics data verified.';return}
 $targetHD=$Action -ne 'Disable';$repair=$false
@@ -102,9 +145,8 @@ function Replace-Archive([string]$Relative,[string]$Source,[string]$Desired,[str
 }
 try {
     if($Action -eq 'Enable'){
-        if(-not $ArchivePath){throw 'Select the downloaded HD ZIP first.'}
-        'Checking the downloaded HD pack...'
-        if((Hash $ArchivePath) -ne $contract.archiveSha256){throw 'The HD ZIP checksum does not match. Download the complete matching pack.'}
+        $currentArchive=File-Stamp $ArchivePath
+        if($currentArchive.bytes -ne $archiveStamp.bytes -or $currentArchive.ticks -ne $archiveStamp.ticks){throw 'The selected HD ZIP changed after verification. Retry with the complete matching pack.'}
         $reserve=[int64]$contract.hdBytes*2+[int64]$contract.standardBytes+536870912
         $drive=New-Object IO.DriveInfo ([IO.Path]::GetPathRoot($client));if($drive.AvailableFreeSpace -lt $reserve){throw ('Free at least '+[Math]::Ceiling($reserve/1GB)+' GiB on the game drive before installing HD textures.')}
         Add-Type -AssemblyName System.IO.Compression.FileSystem

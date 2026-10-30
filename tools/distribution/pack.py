@@ -11,6 +11,7 @@ import zipfile
 from pathlib import Path
 from repack_recovery import validate_recovery_payload
 from optional_textures import validate_core
+from optional_languages import validate_core as validate_languages
 
 HERE = Path(__file__).resolve().parent
 TRACKERS = ['udp://tracker.opentrackr.org:1337/announce']
@@ -45,6 +46,7 @@ def build(package, output, tools, sevenzip):
     raw_index = (package/'FILES.json').read_bytes()
     index = json.loads(raw_index)
     validate_core(package, index['files'])
+    validate_languages(package, index['files'])
     validate_recovery_payload(package, index['files'])
     names = [entry['path'] for entry in index['files']]+['FILES.json']
     names = sorted(set(names), key=str.casefold)
@@ -128,7 +130,7 @@ def build(package, output, tools, sevenzip):
         source = tools/'7zip'/name
         if source.exists():
             shutil.copy2(source, downloader/'licenses/7zip'/name)
-    for name in ['Download.ps1', 'Start-Download.cmd', 'Update-Repack.ps1', 'Start-Update.cmd', 'README.txt']:
+    for name in ['Download.ps1', 'Start-Download.cmd', 'Update-Repack.ps1', 'UpdateTransfer.cs', 'Start-Update.cmd', 'README.txt']:
         shutil.copy2(HERE/name, downloader/name)
     shutil.copy2(output/'release-manifest.json', downloader/'release-manifest.json')
     shutil.copy2(output/(label+'.torrent'), downloader/(label+'.torrent'))

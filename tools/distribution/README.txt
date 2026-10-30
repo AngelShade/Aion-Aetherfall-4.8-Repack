@@ -30,10 +30,16 @@ HOW TO PLAY
 HOW TO UPDATE LATER (1 CLICK)
 1. Open "Aetherfall Setup.exe" (or "Aetherfall Hub.exe" inside your repack folder)
    and click "Update Repack".
-2. It automatically applies the latest small "Aetherfall-Patch-<version>.zip" from
-   the configured online update channel or your Downloads folder (or lets you select
-   the patch ZIP file), verifying every file and keeping your database, accounts,
-   characters, companions, and settings intact.
+2. Setup updates itself first when needed. After it restarts, click Update Repack
+   again. It checks installed files and downloads only required update chunks.
+   Unchanged files and matching chunks of large files are reused. Verified
+   downloads are cached for retry. No single download approaches GitHub's limit.
+   Live progress shows download percentage, speed, remaining size, ETA and package
+   counts. File checking, preparation, verification and installation have their
+   own progress; completion details remain visible.
+3. Your database, accounts, characters, companions, and settings are retained.
+   Older installations can update directly. Existing offline patch ZIPs still work;
+   new offline updates need the patch JSON manifest and its chunk ZIPs together.
 
 OPEN SOURCE TOOLS
 aria2 1.37.0: GNU GPL v2 or later; bundled original COPYING and OpenSSL notices.

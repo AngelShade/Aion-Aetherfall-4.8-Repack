@@ -1,6 +1,8 @@
-"""One-click owner script: scans the portable repack folder for changes against baseline-files-0.86.json,
-auto-updates release.json / REPACK.json / FILES.json, builds Aetherfall-Patch-<version>.zip,
-and publishes the patch + latest-update.json directly to GitHub."""
+"""Prepare cumulative chunked updates against baseline 0.86 and publish only when requested.
+
+The prepared flow retains the installed version/index. The legacy scan flow also
+refreshes release metadata before entering the same chunk builder and publisher.
+"""
 import argparse
 import hashlib
 import json
@@ -8,12 +10,21 @@ import os
 import subprocess
 import urllib.error
 import urllib.request
+import urllib.parse
 import zipfile
 from datetime import datetime
 from pathlib import Path
 from setup_version import setup_version
 from build_downloader import build_downloader
 from release_workspace import release_path
+from chunked_patch import read_patch, verify_assets, GITHUB_ASSET_BYTES
+from optional_languages import assets as language_assets, optional_path
+
+try:
+    import certifi  # Windows' store can lack the root of GitHub's current chain (USERTrust ECC).
+    os.environ.setdefault('SSL_CERT_FILE', certifi.where())
+except ImportError:
+    pass
 
 DOWNLOAD_URL = 'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/latest/download/Aetherfall-Downloader.zip'
 LEGACY_DOWNLOAD_URL = 'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.86/Aetherfall-Downloader.zip'
@@ -124,6 +135,8 @@ def scan_and_build_patch(package: Path, baseline_path: Path, dist_dir: Path, tar
         for fname in files:
             rel_path = f'{rel_dir}/{fname}' if rel_dir else fname
             key = rel_path.casefold()
+            if optional_path(rel_path):
+                continue
             if key.startswith(EXCLUDED_PREFIXES) or key.endswith(('.lock', '.err', '.pid')):
                 continue
             if key in ('files.json', 'repack.json', 'release.json', 'client/mods/release.json'):
@@ -139,7 +152,7 @@ def scan_and_build_patch(package: Path, baseline_path: Path, dist_dir: Path, tar
             else:
                 file_sha = sha256_file(full)
 
-            entry = {'path': rel_path, 'bytes': size, 'sha256': file_sha}
+            entry = dict(prev or {}, path=rel_path, bytes=size, sha256=file_sha)
             new_files_list.append(entry)
 
             base_old = base_map.get(key)
@@ -189,54 +202,8 @@ def scan_and_build_patch(package: Path, baseline_path: Path, dist_dir: Path, tar
         if key not in new_keys
     ]
 
-    patch_name = f'Aetherfall-Patch-{target_version}.zip'
-    patch_path = dist_dir / patch_name
-    print(f'[2/4] Packing {patch_name} ({len(changed_entries)} changed files, {len(removed_entries)} removed)...')
-
-    patch_manifest = {
-        'schema': 1,
-        'product': 'Aion Aetherfall Repack',
-        'version': target_version,
-        'createdAt': now_iso,
-        'files': changed_entries,
-        'removed': removed_entries,
-    }
-    with zipfile.ZipFile(patch_path, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
-        zf.writestr('patch-manifest.json', json.dumps(patch_manifest, indent=2))
-        for item in changed_entries:
-            zf.write(package / item['path'], 'payload/' + item['path'])
-
-    patch_sha = sha256_file(patch_path)
-    patch_bytes = patch_path.stat().st_size
-    tag_name = f'v{target_version}'
-    patch_url = f'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/{tag_name}/{patch_name}'
-
-    setup_exe = dist_dir / 'Aetherfall-Downloader' / 'Aetherfall Setup.exe'
-    setup_sha = sha256_file(setup_exe) if setup_exe.is_file() else ''
-    setup_bytes = setup_exe.stat().st_size if setup_exe.is_file() else 0
-    setup_url = f'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/{tag_name}/Aetherfall-Setup.exe' if setup_exe.is_file() else ''
-
-    latest = {
-        'schema': 1,
-        'product': 'Aion Aetherfall Repack',
-        'version': target_version,
-        'patchFile': patch_name,
-        'patchBytes': patch_bytes,
-        'patchSha256': patch_sha,
-        'patchUrl': patch_url,
-        'setupExeUrl': setup_url,
-        'setupExeBytes': setup_bytes,
-        'setupExeSha256': setup_sha,
-        'filesChanged': len(changed_entries),
-        'filesRemoved': len(removed_entries),
-    }
-    prepare_downloader(dist_dir, dist_dir, setup_exe, latest, package / 'CHANGELOG.md')
-    latest_path = dist_dir / 'latest-update.json'
-    latest_path.write_text(json.dumps(latest, indent=2) + '\n', encoding='utf-8')
-    print(f'      Created {patch_path} ({patch_bytes / 1024 / 1024:.2f} MB, SHA256={patch_sha})')
-
-    if publish_github:
-        publish_assets(dist_dir, latest)
+    # Use the same cumulative coverage and settings rules for both owner entry points.
+    publish_prepared(package, baseline_path, dist_dir, target_version, publish_github)
 
 
 def publish_prepared(package, baseline_path, dist_dir, target_version, upload):
@@ -252,36 +219,60 @@ def publish_prepared(package, baseline_path, dist_dir, target_version, upload):
     setup = dist_dir / layout.get('setupExecutable', 'Aetherfall Setup.exe') if organized else dist_dir / 'Aetherfall-Downloader' / 'Aetherfall Setup.exe'
     latest_path = patch_dir / 'latest-update.json'
     latest = json.loads(latest_path.read_text()) if latest_path.is_file() else {}
-    patch_path = patch_dir / ('Aetherfall-Patch-' + current + '.zip')
-    rebuild = latest.get('version') != current or not patch_path.is_file() or not latest.get('setupExeSha256') or not latest.get('patchUrl')
+    patch_path = patch_dir / ('Aetherfall-Patch-' + current + '.json')
+    rebuild = latest.get('version') != current or latest.get('patchFormat') != 'chunked-v1' or not patch_path.is_file() or not latest.get('setupExeSha256') or not latest.get('patchUrl')
     if not rebuild:
-        with zipfile.ZipFile(patch_path) as archive:
-            patch = json.loads(archive.read('patch-manifest.json'))
-            entry = next((record for record in patch['files'] if record['path'].casefold() == 'files.json'), None)
-            rebuild = not entry or entry['sha256'] != sha256_file(package / 'FILES.json')
+        patch = read_patch(patch_path)
+        entry = next((record for record in patch['files'] if record['path'].casefold() == 'files.json'), None)
+        rebuild = not entry or entry['sha256'] != sha256_file(package / 'FILES.json')
     if rebuild:
         build_patch(package, baseline_path, patch_dir, base, setup)
         latest = json.loads(latest_path.read_text())
-    with zipfile.ZipFile(patch_path) as archive:
-        patch = json.loads(archive.read('patch-manifest.json'))
-        entry = next((record for record in patch['files'] if record['path'].casefold() == 'files.json'), None)
-        if not entry or entry['sha256'] != sha256_file(package / 'FILES.json'):
-            raise ValueError('The repack changed after its patch was prepared; rebuild the local patch first')
+    patch = read_patch(patch_path)
+    entry = next((record for record in patch['files'] if record['path'].casefold() == 'files.json'), None)
+    if not entry or entry['sha256'] != sha256_file(package / 'FILES.json'):
+        raise ValueError('The repack changed after its patch was prepared; rebuild the local patch first')
+    verify_assets(patch_dir, patch)
+    optional_assets = language_assets(package, patch_dir)
+    latest['languageAssets'] = [dict(file=path.name, bytes=path.stat().st_size,
+                                    sha256=sha256_file(path)) for path in optional_assets]
+    if len(patch['assets']) + len(optional_assets) > 990:
+        raise ValueError('Core and optional assets exceed the release asset limit')
     if latest.get('patchSha256') != sha256_file(patch_path):
         raise ValueError('The prepared patch checksum changed')
     if setup.is_file():
-        with zipfile.ZipFile(patch_path) as archive:
-            hub = next((record for record in patch['files'] if record['path'].casefold() == 'aetherfall hub.exe'), None)
-            if not hub or hub['sha256'] != sha256_file(setup) or sha256_file(package / 'Aetherfall Hub.exe') != hub['sha256']:
-                raise ValueError('Setup and the prepared patch Hub differ; install the same build before publishing')
+        hub = next((record for record in patch['files'] if record['path'].casefold() == 'aetherfall hub.exe'), None)
+        if not hub or hub['sha256'] != sha256_file(setup) or sha256_file(package / 'Aetherfall Hub.exe') != hub['sha256']:
+            raise ValueError('Setup and the prepared patch Hub differ; install the same build before publishing')
         latest.update(setupExeUrl=base+'/Aetherfall-Setup.exe', setupExeBytes=setup.stat().st_size,
                       setupExeSha256=sha256_file(setup), setupVersion=setup_version(setup))
+        validate_launcher_bridge(latest, setup)
         prepare_downloader(dist_dir, patch_dir, setup, latest, package / 'CHANGELOG.md')
         latest_path.write_text(json.dumps(latest, indent=2)+'\n', encoding='utf-8')
+    else:
+        raise ValueError('A normal Setup/Hub build is required to bridge older launchers')
     if upload:
         publish_assets(patch_dir, latest, setup)
     else:
         print('Prepared update metadata for ' + tag + '; no upload or channel change performed.')
+
+
+
+def validate_launcher_bridge(latest, setup):
+    """Keep the schema-1 self-update contract understood by earlier Hubs."""
+    if latest.get('schema') != 1:
+        raise ValueError('Older launchers require update channel schema 1')
+    if any(not latest.get(key) for key in ('setupExeUrl', 'setupExeSha256', 'setupExeBytes', 'setupVersion')):
+        raise ValueError('The update must include the legacy launcher self-update fields')
+    url = urllib.parse.urlsplit(latest['setupExeUrl'])
+    if url.scheme != 'https' or not url.netloc or url.username or url.password:
+        raise ValueError('Launcher self-update requires a public HTTPS asset URL')
+    if not setup.is_file() or not 0 < setup.stat().st_size < GITHUB_ASSET_BYTES:
+        raise ValueError('The launcher upgrade is missing or exceeds the asset size limit')
+    if (setup.stat().st_size != latest['setupExeBytes']
+            or sha256_file(setup) != latest['setupExeSha256']
+            or setup_version(setup) != latest['setupVersion']):
+        raise ValueError('The launcher upgrade and legacy self-update metadata differ')
 
 
 def publish_assets(dist_dir, latest, setup_path=None):
@@ -290,8 +281,20 @@ def publish_assets(dist_dir, latest, setup_path=None):
     patch_path = dist_dir / patch_name
     if sha256_file(patch_path) != latest['patchSha256'] or patch_path.stat().st_size != latest['patchBytes']:
         raise ValueError('Prepared patch differs from its update metadata')
+    patch = read_patch(patch_path)
+    chunk_assets = verify_assets(dist_dir, patch)
+    optional_assets = []
+    for entry in latest.get('languageAssets', []):
+        name = entry['file']
+        if Path(name).name != name or '/' in name or '\\' in name:
+            raise ValueError('Invalid optional language asset path')
+        path = dist_dir / name
+        if not path.is_file() or path.stat().st_size != entry['bytes'] or sha256_file(path) != entry['sha256']:
+            raise ValueError('Prepared optional language asset differs: ' + name)
+        optional_assets.append(path)
     tag_name = 'v' + target_version
     setup_exe = setup_path or dist_dir / 'Aetherfall-Downloader' / 'Aetherfall Setup.exe'
+    validate_launcher_bridge(latest, setup_exe)
     if setup_exe.is_file() and (sha256_file(setup_exe) != latest.get('setupExeSha256') or setup_exe.stat().st_size != latest.get('setupExeBytes')):
         raise ValueError('Prepared Setup differs from its update metadata')
     downloader = dist_dir / 'Aetherfall-Downloader.zip'
@@ -300,6 +303,9 @@ def publish_assets(dist_dir, latest, setup_path=None):
     with zipfile.ZipFile(downloader) as archive:
         if hashlib.sha256(archive.read('Aetherfall Setup.exe')).hexdigest() != latest.get('setupExeSha256'):
             raise ValueError('Downloader ZIP and published Setup differ')
+    for asset_path in [patch_path, downloader, setup_exe] + [dist_dir / asset['file'] for asset in chunk_assets] + optional_assets:
+        if asset_path.is_file() and asset_path.stat().st_size >= GITHUB_ASSET_BYTES:
+            raise ValueError('GitHub release asset must be under 2 GiB: ' + asset_path.name)
     print(f'[3/4] Uploading {patch_name} and Aetherfall-Setup.exe to GitHub Release {tag_name}...')
     token = get_github_token()
     headers = {
@@ -313,7 +319,7 @@ def publish_assets(dist_dir, latest, setup_path=None):
         'tag_name': tag_name,
         'target_commitish': 'main',
         'name': f'Aion Aetherfall Repack v{target_version} (Delta Update Patch)',
-        'body': f"Delta update patch to **v{target_version}** ({latest['filesChanged']} updated files).\n\nPlayers: Open **`Aetherfall Setup.exe`** and click **`Update Repack`** to update automatically in 1 click!",
+        'body': f"Chunked update to **v{target_version}** ({latest['filesChanged']} updated files).\n\nPlayers: Open **`Aetherfall Setup.exe`** and click **`Update Repack`** to download only required chunks. Older Setup versions restart after updating themselves; click Update Repack again afterward.",
         'draft': False,
         'prerelease': False,
     }).encode('utf-8')
@@ -347,7 +353,11 @@ def publish_assets(dist_dir, latest, setup_path=None):
             u_info = json.loads(u_resp.read().decode())
             print('      Uploaded:', u_info['browser_download_url'])
 
-    upload_asset(patch_path, patch_name, 'application/zip')
+    for asset in chunk_assets:
+        upload_asset(dist_dir / asset['file'], asset['file'], 'application/zip')
+    for path in optional_assets:
+        upload_asset(path, path.name, 'application/zip')
+    upload_asset(patch_path, patch_name, 'application/json' if patch_path.suffix == '.json' else 'application/zip')
     if setup_exe.is_file():
         upload_asset(setup_exe, 'Aetherfall-Setup.exe', 'application/octet-stream')
     upload_asset(downloader, 'Aetherfall-Downloader.zip', 'application/zip')

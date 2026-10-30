@@ -23,25 +23,6 @@
    <Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="Margin" Value="0,0,0,5"/>
    <Setter Property="Padding" Value="14,10"/>
   </Style>
-  <Style TargetType="RadioButton">
-   <Setter Property="Foreground" Value="#F2EBDD"/><Setter Property="FontSize" Value="13"/><Setter Property="Margin" Value="0,0,22,0"/><Setter Property="Cursor" Value="Hand"/>
-   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RadioButton">
-    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Background="Transparent">
-     <Grid Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center">
-      <Ellipse x:Name="OuterRing" Width="16" Height="16" Fill="#12172B" Stroke="#669A8C6E" StrokeThickness="1.5"/>
-      <Ellipse x:Name="InnerDot" Width="8" Height="8" Fill="#E5AF41" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-     </Grid>
-     <ContentPresenter VerticalAlignment="Center"/>
-    </StackPanel>
-    <ControlTemplate.Triggers>
-     <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="OuterRing" Property="Stroke" Value="#E8CB91"/></Trigger>
-     <Trigger Property="IsChecked" Value="True">
-      <Setter TargetName="OuterRing" Property="Stroke" Value="#E5AF41"/>
-      <Setter TargetName="InnerDot" Property="Visibility" Value="Visible"/>
-     </Trigger>
-    </ControlTemplate.Triggers>
-   </ControlTemplate></Setter.Value></Setter>
-  </Style>
  </Window.Resources>
  <Viewbox Stretch="Uniform"><Grid x:Name="Scene" Width="1180" Height="744">
   <Border Margin="13" Background="#080B18" CornerRadius="19"/>
@@ -90,6 +71,7 @@
    <Button x:Name="HubTab" Style="{StaticResource Nav}" Background="#B8252C4E" BorderBrush="#749B8E6E"><TextBlock Text="❖    INSTALL &amp; UPDATE" FontSize="12"/></Button>
    <Button x:Name="ServersTab" Style="{StaticResource Nav}"><TextBlock Text="⚡    SERVER CONTROL" FontSize="12"/></Button>
    <Button x:Name="ModsTab" Style="{StaticResource Nav}"><TextBlock Text="✦    MODS &amp; TOOLS" FontSize="12"/></Button>
+   <Button x:Name="LanguagesTab" Style="{StaticResource Nav}"><TextBlock Text="◎    LANGUAGES" FontSize="12"/></Button>
    <Button x:Name="PathsTab" Style="{StaticResource Nav}"><TextBlock Text="⚙    PATHS &amp; MIRRORS" FontSize="12"/></Button>
    <Border Height="1" Background="#497F829E" Margin="14,15,18,18"/>
    <TextBlock x:Name="StatusListLabel" Text="REPACK STATUS" Foreground="#C4C8DE" FontSize="10" Margin="14,0,0,10"/>
@@ -129,7 +111,7 @@
          <TextBlock x:Name="ArchiveSourceLabel" Text="Auto: BitTorrent Swarm + Local Aetherfall-0.86.7z Detection" FontSize="12" Foreground="#D6DFEC" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/>
         </StackPanel>
         <Button x:Name="SelectArchiveBtn" Grid.Column="1" Content="Use Local .7z…" Padding="12,7" FontSize="12" Margin="10,0,0,0" ToolTip="Pick an Aetherfall-0.86.7z file you already downloaded from MEGA or Google Drive"/>
-        <Button x:Name="UpdateNowBtn" Grid.Column="2" Content="↻  Update Repack" Padding="15,7" FontSize="12" Margin="8,0,0,0" Background="#263B5E" BorderBrush="#E8CB91" ToolTip="Check for updates or install a small Aetherfall-Patch ZIP"/>
+        <Button x:Name="UpdateNowBtn" Grid.Column="2" Content="↻  Update Repack" Padding="15,7" FontSize="12" Margin="8,0,0,0" Background="#263B5E" BorderBrush="#E8CB91" ToolTip="Check for updates and download the packages this installation needs"/>
        </Grid>
       </Border>
      </StackPanel>
@@ -187,6 +169,23 @@
      <Border Grid.Row="2" Background="#7A101729" CornerRadius="3" Padding="10,7" Margin="0,12,0,0" VerticalAlignment="Bottom">
       <TextBlock x:Name="ServerControlFeedback" Text="Ready. Server shutdown waits for saving to finish; the database stays running." FontSize="11" Foreground="#EAD29E" TextWrapping="Wrap" MaxHeight="31" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
      </Border>
+    </Grid>
+   </Border>
+
+   <Border x:Name="LanguagesPanel" Visibility="Collapsed" Background="#EF0A1521" BorderBrush="#8A6D3C" BorderThickness="1" Padding="22,17" CornerRadius="3">
+    <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+     <TextBlock Text="Language of Atreia" FontFamily="Georgia" Foreground="#F4E8C8" FontSize="25" Margin="0,0,0,12"/>
+     <Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="24"/><ColumnDefinition Width="1.15*"/></Grid.ColumnDefinitions>
+      <ContentControl x:Name="HubLanguageSelector" VerticalAlignment="Top"/>
+      <Grid Grid.Column="2"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition/></Grid.RowDefinitions>
+       <Grid Margin="0,0,0,8"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock Text="PACK LIBRARY" Foreground="#D6B878" FontSize="10" VerticalAlignment="Center"/><Button x:Name="LanguageZipBtn" Grid.Column="1" Content="Install ZIP" Style="{DynamicResource LanguageFlat}" Padding="9,5"/></Grid>
+       <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel x:Name="LanguagePackLibrary"/></ScrollViewer>
+      </Grid>
+     </Grid>
+     <Grid Grid.Row="2" Margin="0,9,0,0"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <StackPanel><ProgressBar x:Name="HubLanguageProgress" Height="4" Maximum="100" Style="{DynamicResource LanguageProgress}" Visibility="Collapsed" Margin="0,0,0,6"/><TextBlock x:Name="LanguageFeedback" Text="English is included. Download only the packs you want." Foreground="#93ABBC" FontSize="11" TextWrapping="Wrap"/></StackPanel>
+      <Button x:Name="PauseLanguageBtn" Grid.Column="1" Content="Pause" Style="{DynamicResource LanguageFlat}" Visibility="Collapsed" Margin="10,0,0,0"/>
+     </Grid>
     </Grid>
    </Border>
 
@@ -263,6 +262,7 @@
     </Grid>
     <TextBlock x:Name="StatusTitle" Text="Ready to install or update." FontFamily="Palatino Linotype" FontSize="23"/>
     <TextBlock x:Name="StatusDetail" Text="Press Install to download and extract the repack, or Update to apply the latest patch." Foreground="#C4D5DE" FontSize="12" Margin="0,4,0,10" TextWrapping="Wrap" MaxHeight="36"/>
+      <TextBlock x:Name="UpdateTransferDetail" Visibility="Collapsed" Foreground="#9CDEC3" FontSize="12" Margin="0,0,0,8" TextWrapping="Wrap"/>
     <Border CornerRadius="4" BorderBrush="#669B8E6E" BorderThickness="1" Background="#55161E2E" Height="10" ClipToBounds="True">
      <Grid x:Name="ProgressTrack" Height="10" ClipToBounds="True" Background="#00000000"><Border x:Name="ProgressFill" HorizontalAlignment="Left" Width="0" Background="#E5AF41"/><Rectangle x:Name="ProgressShine" Width="92" HorizontalAlignment="Left" Opacity="0"><Rectangle.Fill><LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#00A6C8FA"/><GradientStop Color="#FFD4E4FF" Offset="0.5"/><GradientStop Color="#00A6C8FA" Offset="1"/></LinearGradientBrush></Rectangle.Fill><Rectangle.RenderTransform><TranslateTransform/></Rectangle.RenderTransform></Rectangle></Grid>
     </Border>

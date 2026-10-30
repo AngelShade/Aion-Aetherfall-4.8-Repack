@@ -87,10 +87,25 @@ unchanged. `--prepared --no-upload` does not change public files or links.
 Maintain the full portable repack folder separately from the original0.86 archive.
 After an installed release is copied into that folder, build_patch.py compares
 its FILES.json to baseline-files-0.86.json and packages only cumulative changes.
+Updates use `Aetherfall-Patch-<version>.json` and content-addressed chunk ZIPs.
+Each uncompressed chunk is at most 32 MiB; small files share bounded bundles.
+The updater verifies actual installed files, reuses matching chunks at the same
+offset in large files, and downloads only the required bundles. Verified bundles
+are cached for retry. Each upload must be under 2 GiB, with at most 990 chunk
+assets per release (leaving room for Setup, downloader and the patch manifest).
+Older Hubs self-update before applying this format. Old offline ZIPs still work;
+new offline updates use the JSON manifest with its chunk ZIPs alongside it.
+The updater plans missing packages before transfer, excluding verified local and
+cached data from its download total. Setup shows byte-based percentage, speed,
+remaining size, ETA and package counts, then separate checking/preparation/
+verification/backup/installation progress. Counters use 64-bit values. A versioned
+progress stream is throttled to four updates per second plus explicit boundaries;
+the same transport supports Setup self-update. Setup carries both the updater and
+its `UpdateTransfer.cs` helper so older installations receive the matching pair.
 The local latest-update.json includes the patch and Setup EXE hashes/asset URLs.
 The release folder Publish Update.cmd runs publish_update.py --prepared: no
 whole-package rescan, version bump or full archive rebuild. It validates the
-prepared inventory/ZIP and uploads through the existing release/channel flow.
+prepared inventory, manifest and chunk assets and uploads through the existing release/channel flow.
 --prepared --no-upload prepares or checks local metadata only. New Setup detection
 uses the native game-server/libs layout and finds completed older installations
 before considering a download. Existing users get this repair by Setup self-update
@@ -190,3 +205,58 @@ import characters, alter settings, or disable the native repository validation.
 repack and updates only changed inventory entries. Existing downloads receive
 the cumulative 0.88 patch through the usual publication/update flow, without
 replacing the original archive or requiring a new full download.
+
+## Optional language packs
+
+English is included in the core client. **Languages** in the repack Aetherfall Hub
+owns per-component downloads, pause/resume and verified offline Install ZIP. The
+original development Hub retains its server dashboard; original language selection
+belongs only to its game launcher. The repack Hub and both game launchers share
+themed text/voice dropdowns and the same saved choices. Dropdown
+changes save immediately; page/library refreshes retain them. The game launcher
+contains selection controls only. Native Korean text stays included; five
+adapted text packs and the original Korean/Japanese voices are separate downloads
+from `AngelShade/Aion-Aetherfall-4.8-Repack` GitHub release assets.
+
+`client-mods/launcher/prepare_text_pack.py` builds only current native translations,
+compatible-path dialogue and required font assets. Existing identical English fonts
+are reused. Foreign server overrides, layouts, settings, branding and unused fonts
+are excluded. `build_language_packs.py` creates the optional ZIPs and core catalog;
+`deliver_language_packs.py` installs exact normal outputs without changing choices.
+
+The core inventory excludes language Packs, Cache and Installed state. Cumulative
+updates never delete previously installed optional packs. `publish_update.py
+--prepared --no-upload` validates their hashes alongside the core patch; only an
+explicit Publish Update uploads the ZIPs and makes their catalog URLs available.
+Keep each optional asset below the publisher's asset-size guard. Source archives,
+diagnostics, personal settings and download caches are not optional-pack payloads.
+
+The prepared core builder retains player-edited mutable settings in the maintained
+repack. When their bytes differ from the recorded shipped defaults, `stock_defaults.py`
+recovers the exact defaults from a prior normal chunk manifest, verifying the
+manifest, asset, part and full-file hashes. It packages those recorded defaults,
+never the owner's saved choices. Missing verified defaults or changed immutable
+files fail preparation; no owner settings are rewritten to make validation pass.
+
+
+## Backward launcher and downloaded-pack compatibility
+
+Keep the standard update-channel URL and schema-1 `setupExeUrl`, `setupExeBytes`,
+`setupExeSha256` and `setupVersion` fields. Earlier Hubs use that contract to verify
+and replace themselves before their legacy ZIP-only updater sees a chunked patch.
+Publication checks the fields against the exact normal Setup/Hub build; missing
+or mismatched launcher upgrades block preparation and publication.
+
+The Hub consumes an earlier Hub's `.old` replacement handoff and continues its
+requested update. New self-updates also pass `--continue-update`. A failed launcher
+upgrade pauses the operation instead of falling through into a game update.
+Fresh extraction continues into the cumulative update before declaring completion.
+The fixed 0.86 archive, install path and player settings remain. That earliest
+archive has no installed Hub: current Setup supplies its bootstrap. Historical
+launchers without any configured self-update channel require current Setup to
+select the existing installation, without downloading the full game again.
+
+Optional ZIPs remain importable when they match trusted current or retained pack
+metadata. Changed content receives a new pack version; unchanged content keeps its
+version, checksum and download identity across core updates. Never bypass ZIP
+checksums or replace a published archive in place.

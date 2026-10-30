@@ -79,12 +79,12 @@ namespace Aetherfall {
    unchecked { for(int i=0;i<stem.Length;i++){uint v=(uint)((stem[i]&15)+i);a+=v;b^=v;}
     byte[] result=new byte[input.Length];for(int i=0;i<input.Length;i++){a=(a+0x1d)^b;b+=3;result[i]=(byte)(input[i]^(a&255));}return result; }
   }
-  static string DecodeHtml(byte[] input,string name) {
+  internal static string DecodeHtml(byte[] input,string name) {
    if(input.Length<4||input[0]!=0x81)throw new InvalidDataException("Expected native custom quest dialogue.");
    byte[] plain=CryptHtml(input.Skip(1).ToArray(),name);if(plain[0]!=0x81||plain[1]!=255||plain[2]!=254)throw new InvalidDataException("Custom quest dialogue could not be read.");
    return Encoding.Unicode.GetString(plain,3,plain.Length-3);
   }
-  static byte[] EncodeHtml(string text,string name) {
+  internal static byte[] EncodeHtml(string text,string name) {
    text=Regex.Replace(text,"encoding=\"UTF-8\"","encoding=\"UTF-16\"",RegexOptions.IgnoreCase);
    byte[] plain=new byte[]{0x81,255,254}.Concat(Encoding.Unicode.GetBytes(text)).ToArray();return new byte[]{0x81}.Concat(CryptHtml(plain,name)).ToArray();
   }
@@ -190,8 +190,8 @@ namespace Aetherfall {
   public byte[] Build(Dictionary<string,byte[]> replacements) {
    MemoryStream temp=new MemoryStream();using(ZipArchive zip=new ZipArchive(temp,ZipArchiveMode.Create,true))foreach(var item in replacements){ZipArchiveEntry entry=zip.CreateEntry(item.Key,CompressionLevel.Optimal);using(Stream stream=entry.Open())stream.Write(item.Value,0,item.Value.Length);}
    QuestPak changed=new QuestPak(NativeZip(temp.ToArray(),version));List<Record> ordered=new List<Record>(records);foreach(Record r in changed.records)if(!Contains(r.Name))ordered.Add(r);
-   MemoryStream result=new MemoryStream();Dictionary<string,uint> offsets=new Dictionary<string,uint>();foreach(Record r in ordered){offsets.Add(r.Name,(uint)result.Position);Record selected=changed.records.FirstOrDefault(x=>x.Name==r.Name)??r;result.Write(selected.Local,0,selected.Local.Length);}uint centralStart=(uint)result.Position;
-   foreach(Record r in ordered){Record selected=changed.records.FirstOrDefault(x=>x.Name==r.Name)??r;byte[] central=(byte[])selected.Central.Clone();Put(central,42,offsets[r.Name]);result.Write(central,0,central.Length);}uint centralLength=(uint)result.Position-centralStart;byte[] tail=(byte[])end.Clone();Array.Copy(BitConverter.GetBytes(checked((ushort)ordered.Count)),0,tail,8,2);Array.Copy(BitConverter.GetBytes(checked((ushort)ordered.Count)),0,tail,10,2);Put(tail,12,centralLength);Put(tail,16,centralStart);result.Write(tail,0,tail.Length);byte[] output=result.ToArray();QuestPak check=new QuestPak(output);
+   MemoryStream result=new MemoryStream();Dictionary<string,uint> offsets=new Dictionary<string,uint>();foreach(Record r in ordered){offsets.Add(r.Name,(uint)result.Position);Record selected;if(!changed.byName.TryGetValue(r.Name,out selected))selected=r;result.Write(selected.Local,0,selected.Local.Length);}uint centralStart=(uint)result.Position;
+   foreach(Record r in ordered){Record selected;if(!changed.byName.TryGetValue(r.Name,out selected))selected=r;byte[] central=(byte[])selected.Central.Clone();Put(central,42,offsets[r.Name]);result.Write(central,0,central.Length);}uint centralLength=(uint)result.Position-centralStart;byte[] tail=(byte[])end.Clone();Array.Copy(BitConverter.GetBytes(checked((ushort)ordered.Count)),0,tail,8,2);Array.Copy(BitConverter.GetBytes(checked((ushort)ordered.Count)),0,tail,10,2);Put(tail,12,centralLength);Put(tail,16,centralStart);result.Write(tail,0,tail.Length);byte[] output=result.ToArray();QuestPak check=new QuestPak(output);
    foreach(var item in replacements)if(!check.Read(item.Key).SequenceEqual(item.Value))throw new InvalidDataException("Generated quest archive payload differs.");foreach(Record r in records)if(!replacements.ContainsKey(r.Name)&&!r.Local.SequenceEqual(check.byName[r.Name].Local))throw new InvalidDataException("Unrelated compressed quest archive member changed.");return output;
   }
  }

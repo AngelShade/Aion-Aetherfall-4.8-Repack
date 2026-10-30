@@ -23,8 +23,6 @@
    <Setter Property="HorizontalContentAlignment" Value="Left"/><Setter Property="Margin" Value="0,0,0,9"/>
    <Setter Property="Padding" Value="14,13"/>
   </Style>
-  <Style TargetType="CheckBox"><Setter Property="Foreground" Value="#E4EAF0"/><Setter Property="FontSize" Value="14"/><Setter Property="Margin" Value="0,0,0,16"/></Style>
-  <Style TargetType="RadioButton"><Setter Property="Foreground" Value="#F2EBDD"/><Setter Property="FontSize" Value="15"/><Setter Property="Margin" Value="0,0,24,0"/></Style>
  </Window.Resources>
  <Viewbox Stretch="Uniform"><Grid x:Name="Scene" Width="1180" Height="744">
   <Border Margin="13" Background="#07121D" CornerRadius="19"/>
@@ -48,11 +46,12 @@
    <Button x:Name="OverviewTab" Style="{StaticResource Nav}" Background="#B8203A48" BorderBrush="#7477998E"><TextBlock Text="◇    YOUR ADVENTURE" FontSize="12" Width="140"/></Button>
    <Button x:Name="ModsTab" Style="{StaticResource Nav}"><TextBlock Text="✧    MODS" FontSize="12" Width="140"/></Button>
    <Button x:Name="SettingsTab" Style="{StaticResource Nav}"><TextBlock Text="⚙    LAUNCH SETTINGS" FontSize="12" Width="140"/></Button>
-   <Border Height="1" Background="#497F9297" Margin="14,19,18,22"/>
+   <Button x:Name="LanguagesTab" Style="{StaticResource Nav}"><TextBlock Text="◎    LANGUAGES" FontSize="12" Width="140"/></Button>
+   <Border Height="1" Background="#497F9297" Margin="14,9,18,12"/>
    <TextBlock Text="CONNECTION" Foreground="#B8C8D0" FontSize="10" Margin="14,0,0,12"/>
    <StackPanel Orientation="Horizontal" Margin="14,0,0,0"><Ellipse x:Name="ServerDot" Width="6" Height="6" Fill="#CFAD72" Margin="0,0,8,0"/><TextBlock x:Name="ServerStatus" Text="Checking server…" FontSize="12" Foreground="#ECDFCA"/></StackPanel>
    <TextBlock x:Name="ServerAddress" Text="127.0.0.1 : 2106" Foreground="#B3C7D1" FontSize="11" Margin="28,6,0,0"/>
-   <Button x:Name="Folder" Content="Open client folder  ↗" Background="Transparent" BorderBrush="Transparent" FontSize="11" Foreground="#BBD5DF" Margin="0,16,0,0" Padding="8"/>
+   <Button x:Name="Folder" Content="Open client folder  ↗" Background="Transparent" BorderBrush="Transparent" FontSize="11" Foreground="#BBD5DF" Margin="0,8,0,0" Padding="8"/>
   </StackPanel>
   <Grid Margin="286,211,73,207">
    <StackPanel x:Name="OverviewPanel" VerticalAlignment="Center">
@@ -69,9 +68,15 @@
      <TextBlock Text="Applies on the next game launch. Keep Aion closed to change it. The Aetherfall Interface and other mods are in Mods." Foreground="#BCD0DA" FontSize="12" Margin="0,10,0,19" TextWrapping="Wrap"/>
      <CheckBox x:Name="Animations" Content="Animated aether and ambient particles" IsChecked="True"/>
      <CheckBox x:Name="CloseAfter" Content="Close launcher when the login screen is ready" IsChecked="False"/>
-     <Button x:Name="SaveSettings" Content="Save settings" HorizontalAlignment="Left" Padding="22,9"/>
+     <Button x:Name="SaveSettings" Content="Save settings" Style="{DynamicResource LanguagePrimary}" HorizontalAlignment="Left" Padding="20,9" Margin="0,12,0,0"/>
      <TextBlock x:Name="SettingsFeedback" Foreground="#EAD29E" FontSize="12" TextWrapping="Wrap" Margin="0,11,0,0"/>
     </StackPanel>
+   </Border>
+   <Border x:Name="LanguagesPanel" Visibility="Collapsed" Background="#EF0A1521" BorderBrush="#8A6D3C" BorderThickness="1" Padding="25,18" CornerRadius="3">
+    <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition/></Grid.RowDefinitions>
+     <TextBlock Text="Language of Atreia" FontFamily="Georgia" Foreground="#F4E8C8" FontSize="26" Margin="0,0,0,14"/>
+     <ContentControl x:Name="LanguageSelectionHost" Grid.Row="1" MaxWidth="520" HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+    </Grid>
    </Border>
   </Grid>
   <Grid Margin="110,0,110,70" Height="126" VerticalAlignment="Bottom">
