@@ -1,20 +1,20 @@
 {
   "schema": 1,
   "product": "Aion Aetherfall Repack",
-  "version": "0.98.7",
-  "patchFile": "Aetherfall-Patch-0.98.7.json",
-  "patchBytes": 608932,
-  "patchSha256": "1ae6e340e9c1fefe1f216164a7255834944d5f2328dba21e161ca941a673b091",
-  "patchUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.7/Aetherfall-Patch-0.98.7.json",
+  "version": "0.98.8",
+  "patchFile": "Aetherfall-Patch-0.98.8.json",
+  "patchBytes": 609374,
+  "patchSha256": "228d16abe2c92d0037432bdbeb5bb5249f6e57eda6bba33498026d237d1f18aa",
+  "patchUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.8/Aetherfall-Patch-0.98.8.json",
   "patchFormat": "chunked-v1",
-  "downloadBytes": 555325607,
+  "downloadBytes": 555425006,
   "assetCount": 121,
-  "filesChanged": 792,
+  "filesChanged": 793,
   "filesRemoved": 795,
-  "setupExeUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.7/Aetherfall-Setup.exe",
-  "setupExeBytes": 5687296,
-  "setupExeSha256": "d099603906fbddc9915877ecb773be8869333a1ccf1435131bc306b16f977f82",
-  "setupVersion": "0.90.1030.4",
+  "setupExeUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.8/Aetherfall-Setup.exe",
+  "setupExeBytes": 5698560,
+  "setupExeSha256": "f3ec84f847758fbaf5017a0f8f9dcaf2c63b6bdfed3c2ae64e8a46e030a0d693",
+  "setupVersion": "0.90.1031.1",
   "languageAssets": [
     {
       "file": "Aetherfall-Language-deu-text-0.98.7.zip",
@@ -52,7 +52,7 @@
       "sha256": "954c1ea2949b589e76b4284099fa1a3fcee56d672ca8229f0132f8576cd1c343"
     }
   ],
-  "downloaderUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.7/Aetherfall-Downloader.zip",
-  "downloaderBytes": 8685065,
-  "downloaderSha256": "cb051d19229bc08fb0701636b746c058220099bf62b3d4a1a1f24bd820ace6a5"
+  "downloaderUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.8/Aetherfall-Downloader.zip",
+  "downloaderBytes": 8688889,
+  "downloaderSha256": "81773f2d0687d4746e65fc67c7f4aab6de56a2b251675b5516be7fa5e0a658f7"
 }
