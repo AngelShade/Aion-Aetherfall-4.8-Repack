@@ -198,7 +198,10 @@ namespace Aetherfall {
    List<string> inputs=Inputs(root,text,voice,packs);
    if(output==null&&old!=null&&old.Text==text&&old.Voice==voice&&Current(root,old,inputs,packs))return new LanguageResult { Locale=Locale,Summary="Prepared language unchanged: "+text+" text / "+voice+" voices.",State=old };
    if(output==null)Closed();
-   if(Directory.Exists(PathAt(root,Active))&&(old==null||old.Version!=2))throw new IOException("The FRA language slot is already in use. Preserve its resources before preparing composed languages.");
+   // A slot without a current state is empty after a rolled-back first install, or foreign.
+   bool foreign=Directory.Exists(PathAt(root,Active))&&(old==null||old.Version!=2);
+   if(foreign&&output!=null&&Directory.EnumerateFiles(PathAt(root,Active),"*",SearchOption.AllDirectories).Any())throw new IOException("The FRA language slot is already in use. Preserve its resources before preparing composed languages.");
+   if(foreign)old=null;
    if(old!=null)foreach(var item in old.Outputs) {
     string path=PathAt(root,item.Key);if(File.Exists(path)&&!Same(item.Value,Stamp(path))&&HashFile(path)!=item.Value.Hash)throw new IOException("A prepared language file was edited externally: "+item.Key);
    }
@@ -217,11 +220,17 @@ namespace Aetherfall {
    foreach(string relative in inputs.Where(x=>x.StartsWith("L10N/enu/",StringComparison.OrdinalIgnoreCase)&&!x.EndsWith(".pak",StringComparison.OrdinalIgnoreCase)&&!x.EndsWith(".bik",StringComparison.OrdinalIgnoreCase)))Copy(work,Active+"/"+relative.Substring(9),Source(root,packs,relative),state);
    foreach(string relative in inputs)if(!Same(state.Inputs[relative],Stamp(Source(root,packs,relative))))throw new IOException("Language source changed during preparation: "+relative);
    Directory.CreateDirectory(Path.GetDirectoryName(PathAt(work,Folder+"/state.json")));File.WriteAllText(PathAt(work,Folder+"/state.json"),Json.Serialize(state),Utf8);
-   if(output==null)Install(root,work,old,state);
+   if(output==null) { if(foreign)Preserve(root);Install(root,work,old,state); }
    return new LanguageResult { Locale=Locale,Summary="Prepared "+text+" text / "+voice+" voices; translated "+state.Strings+" strings and "+state.DialoguePages+" dialogue pages. Custom/unmatched text stays English. Movies use the supplied voice pack when available, otherwise the original English videos.",State=state };
   }
   static void Copy(string work,string relative,string source,LanguageState state) {
    string target=PathAt(work,relative);Directory.CreateDirectory(Path.GetDirectoryName(target));File.Copy(source,target);var stamp=Stamp(target);stamp.Hash=HashFile(target);state.Outputs.Add(relative,stamp);
+  }
+  // Same volume as the slot, so a large foreign locale moves instantly and stays recoverable.
+  static void Preserve(string root) {
+   string slot=PathAt(root,Active);Closed();
+   if(!Directory.EnumerateFiles(slot,"*",SearchOption.AllDirectories).Any()) { Directory.Delete(slot,true);return; }
+   string saved=PathAt(root,Folder+"/Preserved/"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(saved);Directory.Move(slot,Path.Combine(saved,"fra"));
   }
   static void Install(string root,string work,LanguageState old,LanguageState state) {
    // Only generated locale files are replaced; retain every previous image for rollback.
