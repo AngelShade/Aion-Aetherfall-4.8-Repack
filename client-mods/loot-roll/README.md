@@ -32,3 +32,5 @@ The appearance follows the supplied compact loot-roll reference using Aion's
 own item artwork, quality colours, controls and frame. It does not add the WoW
 bonus-loot currency mechanism. Build and static package inspection do not prove
 the live visual result; gameplay acceptance belongs to the user.
+
+The server-side Need/Greed behavior is controlled by `gameserver.group.loot.need_greed` in `game-server/config/main/group.properties`.
