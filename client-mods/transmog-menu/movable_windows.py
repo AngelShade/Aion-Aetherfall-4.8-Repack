@@ -1,4 +1,4 @@
-"""Release the three detached 4.8 NA windows from automatic UI alignment."""
+"""Enable native title dragging for the detached windows and quest journal."""
 import copy
 import io
 import zipfile
@@ -8,6 +8,7 @@ WINDOWS = {
     'inventory_dialog.xml': 'dlg_inventory',
     'player_info_dialog.xml': 'dlg_player_info',
     'warehouse_dialog.xml': 'dlg_warehouse',
+    'quest_dialog.xml': 'dlg_quest',
 }
 
 

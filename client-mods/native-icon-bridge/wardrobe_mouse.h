@@ -14,6 +14,26 @@ float rotation=0,pan_x=0,pan_y=0,wheel=0;
 float scale=1,offset_x=0,offset_z=0;
 bool refresh_pending=false;
 ULONGLONG retry_after=0;
+// The full-screen recruitment dialog owns keyboard messages before the stock
+// window procedure can dispatch shortcuts (and hide the paper-doll controller).
+// A short UI-thread lease fails open if the UI stops updating or is reloaded.
+ULONGLONG pull_until=0;
+bool pull_close=false;
+Rect pull_bounds{};
+double pull_width=0,pull_height=0;
+bool pull_button_enabled=false,pull_pressed=false;
+std::array<bool,256> pull_keys{};
+void pull_modal(bool enabled){
+    std::lock_guard<std::mutex> lock(mutex);
+    pull_until=enabled?GetTickCount64()+750:0;
+    if(!enabled){pull_close=false;pull_button_enabled=false;pull_pressed=false;}
+}
+void pull_button(const Rect& r,bool enabled,double width=0,double height=0){
+    std::lock_guard<std::mutex> lock(mutex);
+    if(enabled!=pull_button_enabled || r.x!=pull_bounds.x || r.y!=pull_bounds.y || r.w!=pull_bounds.w || r.h!=pull_bounds.h)pull_pressed=false;
+    pull_bounds=r;pull_button_enabled=enabled;pull_width=width;pull_height=height;
+}
+bool pull_closing(){std::lock_guard<std::mutex> lock(mutex);bool close=pull_close;pull_close=false;return close;}
 float clamp(float n,float lo,float hi){return (std::max)(lo,(std::min)(hi,n));}
 bool inside(POINT p){return p.x>=bounds.x && p.y>=bounds.y && p.x<bounds.x+bounds.w && p.y<bounds.y+bounds.h;}
 LRESULT CALLBACK receive(HWND hwnd,UINT message,WPARAM wparam,LPARAM lparam){
@@ -22,7 +42,43 @@ LRESULT CALLBACK receive(HWND hwnd,UINT message,WPARAM wparam,LPARAM lparam){
     bool consume=false,capture=false,release=false;WNDPROC forward;
     {
         std::lock_guard<std::mutex> lock(mutex);forward=prior;
-        if(active && (message==WM_LBUTTONDOWN || message==WM_RBUTTONDOWN) && inside(point)){
+        const bool modal=pull_until && GetTickCount64()<pull_until;
+        const bool key_down=message==WM_KEYDOWN || message==WM_SYSKEYDOWN;
+        const bool key_up=message==WM_KEYUP || message==WM_SYSKEYUP;
+        if((key_down || key_up) && wparam<pull_keys.size()){
+            // Screenshots and the stock Alt+F4 close action remain available.
+            const bool stock_key=wparam==VK_SNAPSHOT || (wparam==VK_F4 && (uintptr_t(lparam)&(uintptr_t(1)<<29)));
+            // A fresh press always works after closing, even if focus loss
+            // swallowed the previous key-up. Repeats from the modal stay eaten.
+            if(key_down && !(uintptr_t(lparam)&(uintptr_t(1)<<30)))pull_keys[wparam]=false;
+            consume=!stock_key && (modal || pull_keys[wparam]);
+            if(stock_key)pull_keys[wparam]=false;
+            else if(modal && key_down){pull_keys[wparam]=true;if(wparam==VK_ESCAPE)pull_close=true;}
+            if(key_up)pull_keys[wparam]=false;
+        }else if(message==WM_CHAR || message==WM_SYSCHAR || message==WM_DEADCHAR || message==WM_SYSDEADCHAR || message==WM_UNICHAR || message==WM_HOTKEY){
+            consume=modal || (wparam==VK_ESCAPE && pull_keys[VK_ESCAPE]);
+        }
+        if(message==WM_KILLFOCUS || message==WM_CANCELMODE){pull_keys.fill(false);pull_pressed=false;}
+        double px=point.x,py=point.y;
+        if(modal && pull_width>0 && pull_height>0 && (message==WM_LBUTTONDOWN || message==WM_LBUTTONUP || message==WM_RBUTTONDOWN || message==WM_RBUTTONUP)){
+            RECT client{};if(GetClientRect(hwnd,&client) && client.right>0 && client.bottom>0){px*=pull_width/client.right;py*=pull_height/client.bottom;}
+        }
+        const bool in_button=pull_button_enabled && px>=pull_bounds.x && py>=pull_bounds.y
+            && px<pull_bounds.x+pull_bounds.w && py<pull_bounds.y+pull_bounds.h;
+        // Reuse the modal's existing native message owner. Down and up both
+        // arrive even when a full click fits between two addon timer ticks.
+        // Only the labeled active button can dismiss; gameplay receives none
+        // of the reveal's mouse presses, including the matching release tail.
+        const UINT primary_down=GetSystemMetrics(SM_SWAPBUTTON)?WM_RBUTTONDOWN:WM_LBUTTONDOWN;
+        const UINT primary_up=GetSystemMetrics(SM_SWAPBUTTON)?WM_RBUTTONUP:WM_LBUTTONUP;
+        if(modal && message==primary_down){pull_pressed=in_button;consume=true;}
+        else if(message==primary_up && (modal || pull_pressed)){
+            if(modal && pull_pressed && in_button)pull_close=true;
+            pull_pressed=false;consume=true;
+        }else if(modal && (message==WM_LBUTTONDOWN || message==WM_LBUTTONUP || message==WM_RBUTTONDOWN
+            || message==WM_RBUTTONUP || message==WM_MBUTTONDOWN || message==WM_MBUTTONUP || message==WM_MOUSEWHEEL
+            || message==WM_XBUTTONDOWN || message==WM_XBUTTONUP || message==WM_LBUTTONDBLCLK || message==WM_RBUTTONDBLCLK))consume=true;
+        if(!consume && active && (message==WM_LBUTTONDOWN || message==WM_RBUTTONDOWN) && inside(point)){
             dragging=message==WM_LBUTTONDOWN?1:2;anchor=point;capture=consume=true;
         }else if(message==WM_MOUSEMOVE && dragging){
             if(active){
@@ -45,7 +101,7 @@ LRESULT CALLBACK receive(HWND hwnd,UINT message,WPARAM wparam,LPARAM lparam){
     if(capture)SetCapture(hwnd);
     if(release && GetCapture()==hwnd)ReleaseCapture();
     LRESULT result=consume?0:(forward?CallWindowProcW(forward,hwnd,message,wparam,lparam):DefWindowProcW(hwnd,message,wparam,lparam));
-    if(message==WM_NCDESTROY){std::lock_guard<std::mutex> lock(mutex);if(window==hwnd){window=nullptr;prior=nullptr;active=false;dragging=0;}}
+    if(message==WM_NCDESTROY){std::lock_guard<std::mutex> lock(mutex);if(window==hwnd){window=nullptr;prior=nullptr;active=false;dragging=0;pull_until=0;pull_close=false;pull_button_enabled=false;pull_pressed=false;pull_keys.fill(false);}}
     return result;
 }
 BOOL CALLBACK find_window(HWND candidate,LPARAM value){

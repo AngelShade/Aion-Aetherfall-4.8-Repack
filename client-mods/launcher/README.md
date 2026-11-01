@@ -30,6 +30,10 @@ No Python or additional runtime is required on the client. These are the existin
 checks, not additional full-client scans. Renderer selection still uses native
 `DXVK/renderer.ini`; Vulkan effects use the existing per-process environment.
 The connection arguments are read directly from `Mods/Launcher/connection.json`.
+Launch settings owns the normal Server address and Login port fields. In-game
+service metadata comes from the authenticated GameServer session, with no extra
+web address, hostname inference or diagnostic controls in the launcher. Existing
+arguments and unrelated connection fields are retained. See `docs/INGAME_WINDOWS.md`.
 
 When the Companions artwork index is installed, the final preparation step checks
 its two source UI archives and rebuilds matching offsets, decoding keys, CRCs and

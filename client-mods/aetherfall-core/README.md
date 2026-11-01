@@ -5,6 +5,85 @@ Aetherfall Interface. It reads native HUD data and applies the interface's windo
 positions, visibility and tooltip settings. Settings remain in `Mods/AetherfallUI`.
 Existing chat commands run through the native chat input.
 
+## Shared server connection, native 1.3.0
+
+Native Codex and help-quest requests use `shared/web_endpoint.h`, also used by
+the browser/preview bridge and native Wardrobe. The launcher selects one endpoint
+per child process; direct launches derive it from `-ip:`. Requests retain the
+native session, normal HTTPS certificate validation, bounded timeouts and disabled
+redirects. Existing custom window layout/input/gameplay owners are retained.
+See `docs/INGAME_WINDOWS.md`.
+
+## Native drags that stop at a screen edge
+
+The game stops a dragged window at the screen edge while the cursor keeps moving. A drag now
+saves when the window lags the cursor on an axis, not only when it matches on both, so the
+quest tracker keeps any position. `verify_native_drag.py` runs the real tick on scripted paths.
+
+## Help quest title, native 1.2.99
+
+An accepted bot help request is the one reusable quest 14996 from `custom-quests`.
+As the client adds it, before its journal and tracker rows exist, Core reads the
+title from `/market/companions/help` and points that quest's row in the native
+string table at it. The client then shows the bot and its need like any quest name.
+Nothing changes on disk. If the read fails, the quest keeps the title "Help Request",
+and the UI waits at most about a second. `AetherfallHelpDiagnostics` holds additions,
+titles applied and the last failure (1 no title row, 2 no text from the server).
+
+## Quest journal and NPC keyboard, native 1.2.98
+
+Newly accepted active quests use the native checked-quest owner and appear in the
+main tracker. Existing manually unchecked quests retain their saved setting.
+The server allows 1,000 ordinary active quests; the matching client relocates both
+working arrays to 2,048 records, widens their constructor/reset/packet bounds and
+checked-quest capacity, and replaces the fixed NPC quest-mask scratch buffer.
+Campaign and locked entries retain native status and eligibility rules.
+
+The journal's four native virtual getters use the same relocated records.
+Version 1.2.92 missed these leaf getters outside the native unwind table, so the
+Q window read the old empty arrays even while the tracker showed quests. Their
+auxiliary-map pointers retain the native manager-owned objects: they are tree
+containers, not array bounds. Version 1.2.94 corrects the 1.2.93 login crash
+caused by relocating those map pointers. The builder checks the native vtable
+owners and rejects relocation of the auxiliary-map references.
+
+New quest acceptance uses the native checked owner, then calls its original
+arrival owner once. Only that owner's temporary-row creation request is redirected
+to the checked destination; its existing native update owner commits that position
+before effect selection. The native checked order puts the new quest first. The
+original history-row call, pending queue, `Sys_UIfx.Quest.get` and animation remain native.
+Calling arrival before the destination exists binds the effect to a temporary
+unchecked row, which the checkbox refresh subsequently removes. Versions
+1.2.94/1.2.95 changed the check/arrival order without committing that destination.
+No animation replacement, timer or event replay is added. Rendered movement
+remains an in-game acceptance check.
+
+The Q title bar uses the native movable layout. Its OnRectChanged owner keeps
+visible quest details beside it using the original detail opener's placement:
+right of Q, or left when the pair would exceed the viewport. The original opener,
+detail size and all native controls remain intact. Unchanged rectangle events and
+hidden details do no placement work; no polling or second pin controller is added.
+
+Both overhead and world-map markers retain native acceptance masks while showing
+acceptable quests regardless of how far the player has outleveled them. The old
+normal-quest display suppression no longer hides these markers.
+
+With the NPC dialog open, **F activates its first visible enabled choice**.
+On an acceptance page, **1 or Enter** activates the visible native acceptance
+button. These keys call the same UIButton click owner as the mouse. Chat input,
+modifier shortcuts, modal checks and disabled controls retain their native handling.
+Version 1.2.98 intercepts the normal native window-message call before keyboard
+binding filtering and the F interaction action. The earlier dialog-only hook ran
+too late: F closed the conversation instead of reaching it. A handled press and
+its matching release are consumed, and holding a key cannot advance extra pages.
+
+`quest_journal.py` verifies the exact supported Game.dll instructions and dialog
+vtable before compilation. Hooks install during normal startup through the
+existing bridge import; the installed Game.dll and graphics/cursor recovery files
+are retained. Build using `prepare.py --update --dll-only`, then install with the
+client and launcher closed. Live quest acceptance, large journals, saved checkbox
+state, markers and keyboard navigation require in-game acceptance.
+
 ## Camera controls, native 1.2.78 / Lua 1.2.80
 
 Open `/afui` and choose **Camera**. Field of view offers 60–170 degrees in

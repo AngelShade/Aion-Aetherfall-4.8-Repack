@@ -129,6 +129,7 @@ namespace Aetherfall {
    LoadLanguages();
    bool vulkan=ReadVulkan(); Find<RadioButton>("Vulkan").IsChecked=vulkan; Find<RadioButton>("Direct3D").IsChecked=!vulkan;
    ReadGameArguments(); Text("ServerAddress").Text=host+" : "+port;
+   Find<TextBox>("ConnectionHost").Text=host;Find<TextBox>("ConnectionPort").Text=port.ToString(CultureInfo.InvariantCulture);
    Find<Border>("DragArea").MouseLeftButtonDown+=delegate { if(Mouse.LeftButton==MouseButtonState.Pressed) window.DragMove(); };
    Button("Minimize").Click+=delegate { window.WindowState=WindowState.Minimized; };
    Button("Exit").Click+=delegate { window.Close(); };
@@ -186,6 +187,9 @@ namespace Aetherfall {
   void SaveSettings() {
    if(busy) return;
    try {
+    int selectedPort;
+    if(!int.TryParse(Find<TextBox>("ConnectionPort").Text,out selectedPort) || selectedPort<1 || selectedPort>65535)throw new InvalidDataException("Login port must be between 1 and 65535.");
+    string selectedHost=ServerConnection.ValidateHost(Find<TextBox>("ConnectionHost").Text);
     bool selected=Find<RadioButton>("Vulkan").IsChecked==true;
     if(selected!=ReadVulkan()) {
      if(GameRunning()) throw new InvalidOperationException("Close Aion before changing the renderer.");
@@ -194,6 +198,8 @@ namespace Aetherfall {
      File.WriteAllText(path,text,Encoding.ASCII);
     }
     preferences.Animations=Find<CheckBox>("Animations").IsChecked==true; preferences.CloseAfter=Find<CheckBox>("CloseAfter").IsChecked==true;
+    ServerConnection.Save(System.IO.Path.Combine(support,"connection.json"),selectedHost,selectedPort);
+    ReadGameArguments();Text("ServerAddress").Text=host+" : "+port;
     LanguageSelection.SaveFields(root,new Dictionary<string,object> { {"Animations",preferences.Animations},{"CloseAfter",preferences.CloseAfter} });
     SetMotion();
     Text("SettingsFeedback").Text="Saved. Your next launch will use "+(selected?"Vulkan / DXVK.":"Direct3D 9.");

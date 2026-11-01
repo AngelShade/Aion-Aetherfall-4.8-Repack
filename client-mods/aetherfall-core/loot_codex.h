@@ -314,12 +314,14 @@ void apply_visuals(){
 struct Internet { HINTERNET handle=nullptr;~Internet(){if(handle)WinHttpCloseHandle(handle);} };
 Response request(unsigned generation,unsigned sequence,std::string params){
     Response result{generation,sequence,"{\"error\":\"Codex could not connect. Use Search to retry.\"}"};
+    const auto id=aetherfall_web::token(params);const auto endpoint=aetherfall_web::selected(id.empty()?nullptr:id.c_str());
+    if(!endpoint.valid){result.body=aetherfall_web::error_json(endpoint.error);return result;}
     Internet transport{WinHttpOpen(L"Aetherfall Codex/1",WINHTTP_ACCESS_TYPE_NO_PROXY,nullptr,nullptr,0)};
     if(!transport.handle)return result;
     WinHttpSetTimeouts(transport.handle,3000,3000,6000,12000);
-    Internet connection{WinHttpConnect(transport.handle,L"127.0.0.1",8091,0)};if(!connection.handle)return result;
+    Internet connection{aetherfall_web::connect(transport.handle,endpoint)};if(!connection.handle)return result;
     std::wstring path=L"/market/codex/state?"+wide(params);
-    Internet query{WinHttpOpenRequest(connection.handle,L"GET",path.c_str(),nullptr,WINHTTP_NO_REFERER,WINHTTP_DEFAULT_ACCEPT_TYPES,0)};
+    Internet query{aetherfall_web::request(connection.handle,endpoint,L"GET",path.c_str())};
     if(!query.handle)return result;
     DWORD redirects=WINHTTP_OPTION_REDIRECT_POLICY_NEVER;WinHttpSetOption(query.handle,WINHTTP_OPTION_REDIRECT_POLICY,&redirects,sizeof redirects);
     if(!WinHttpSendRequest(query.handle,nullptr,0,nullptr,0,0,0) || !WinHttpReceiveResponse(query.handle,nullptr))return result;

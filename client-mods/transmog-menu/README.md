@@ -429,6 +429,22 @@ native widget fixtures and checks show/hide arguments, repeated opening,
 null widgets, preserved position, and caller registers. In-game appearance
 and dragging still require a client check.
 
+Warehouse item clicks also use a native context resolver. The independent
+Inventory patch keeps Warehouse out of the docking list, so
+`patch_warehouse_item_context` supplies a visible Warehouse when that resolver
+has no selected owner. Existing owners retain priority. Both native item-click
+dispatchers keep their original tab selection, transfer restrictions and stack
+count prompts; ordinary item use returns when Warehouse closes. No saved
+options or window positions are rewritten.
+
+`prepare_warehouse_item_context.py` stages this bounded repair over the current
+client with matching graphics/cursor package and restore images. Install it
+with `install_window_queue.py --package <output> --client <original>` after
+closing Aion. The existing detached-Inventory check executes the installed
+resolver for missing/hidden/reopened Warehouse and other native owners. NPC
+Warehouse transfers, count prompts, tabs and normal Inventory use still need
+in-game acceptance.
+
 ### Native Wardrobe
 
 Wardrobe now uses native addon XML and Lua controls. The left panel places
@@ -594,17 +610,23 @@ rendering still need visual confirmation.
 
 ### Independent native window movement
 
-Profile, Inventory, and Private Warehouse explicitly enable native title-bar
+Profile, Inventory, Private Warehouse and the quest journal enable native title-bar
 movement and omit the stock automatic alignment group. The normal Inventory
 remains independent when Profile or Warehouse opens. Existing grids, scrolling,
 search controls, window sizes, and item handling are preserved.
 
-`prepare_movable_windows.py` stages only the three dialog roots in the base and
+`prepare_movable_windows.py` stages only those four dialog roots in the base and
 English UI archives, plus matching graphics launcher and restore records.
-Future Inventory and Warehouse builds also retain these movement attributes.
+Future Inventory, Warehouse and normal client builds retain these movement attributes.
 `tests/verify_movable_windows.py` checks archive preservation and executes the
 original client's title-bar hit test. The detached Inventory fixture passes;
 graphics launch verification and removal retain the movement changes.
+
+For the quest journal alone, use `prepare_lfg_movement.py --dialog quest` with
+the same client/output arguments. It enables the Q window's native movable flag
+and removes its fixed left alignment, preserving every child control and the
+quest detail panel's native subordinate alignment. The Core DLL, quest journal
+storage and tracker animation are retained.
 
 Installed on 2026-10-02 with Aion closed. All 12 installed files and 12 preserved
 files were hash-verified. Backup:

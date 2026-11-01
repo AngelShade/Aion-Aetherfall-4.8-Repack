@@ -1,6 +1,7 @@
 // 4.8 NA paper-doll integration. Browser requests are queued for the native
 // browser event pump; only that thread accesses the native character widgets.
 // The existing native 3dviews are moved, never copied or replaced by a web model.
+#include "../shared/web_endpoint.h"
 namespace wardrobe {
 using Ptr = void*;
 using JSCallback = void(__cdecl*)(Ptr,Ptr,Ptr,Ptr);
@@ -33,6 +34,7 @@ bool fail(const char* reason){if(last_failure!=reason){log(reason);last_failure=
 struct State { bool active=true; int completed=0; bool ready=false; bool model_visible=true; bool journey_key_requested=false; int codex_completed=0; bool codex_ready=false; };
 struct Command {
     std::shared_ptr<State> state;
+    std::string text;
     int request=0,pressed=0;
     Rect bounds{};
     std::vector<uint32_t> items;
@@ -106,14 +108,11 @@ void detach(bool hide=true){
     field<int>(paper,0x574)=1;
     paper=nullptr;host=nullptr;modal_hidden=false;changing=false;
 }
-bool attach(const Rect& css){
-    Ptr current=find_host();auto g=game();
-    if(!current || !g)return fail("Wardrobe: visible host or browser not found");
-    if(GetCurrentThreadId()!=ui_thread)return fail("Wardrobe: callback is not on the native UI thread");
-    Ptr browser=lookup(current,"PrivateWardrobeBrowser",0x2012);
-    Ptr native_anchor=lookup(current,"WardrobePreviewBounds",0x200b);
+// Moves the stock controller's views onto a host; they stay owned by that controller.
+bool borrow(Ptr current){
+    auto g=game();
     Ptr model_dialog=*reinterpret_cast<Ptr*>(g+0x13875c0+0x110*8);
-    if((!browser && !native_anchor) || !model_dialog || field<uint32_t>(model_dialog,0x340)!=0x110)return fail("Wardrobe: native preview controller not found");
+    if(!model_dialog || field<uint32_t>(model_dialog,0x340)!=0x110)return fail("Wardrobe: native preview controller not found");
     if(paper && (host!=current || paper!=model_dialog))detach();
     if(!paper){
         // The native controller owns these views for the whole UI lifetime.
@@ -130,6 +129,16 @@ bool attach(const Rect& css){
         // after that handler has run. Only the reparented views remain onscreen.
         flag(paper,1,true);rect(paper,{-10000,-10000,1,1});log("Wardrobe: native character views attached");
     }
+    return true;
+}
+bool attach(const Rect& css){
+    Ptr current=find_host();auto g=game();
+    if(!current || !g)return fail("Wardrobe: visible host or browser not found");
+    if(GetCurrentThreadId()!=ui_thread)return fail("Wardrobe: callback is not on the native UI thread");
+    Ptr browser=lookup(current,"PrivateWardrobeBrowser",0x2012);
+    Ptr native_anchor=lookup(current,"WardrobePreviewBounds",0x200b);
+    if(!browser && !native_anchor)return fail("Wardrobe: native preview controller not found");
+    if(!borrow(current))return false;
     const Rect browser_rect=browser?rect(browser):rect(current);
     if(css.x+css.w>browser_rect.w+1 || css.y+css.h>browser_rect.h+1)return fail("Wardrobe: preview bounds exceed native browser");
     Rect r{(browser?browser_rect.x:0)+css.x,(browser?browser_rect.y:0)+css.y,css.w,css.h};
@@ -142,23 +151,23 @@ std::string string(Ptr value){
 }
 bool local_view(Ptr view){
     Ptr url=view_url(view);std::string s=string(url);if(url)destroy_string(url);
-    const std::string expected="http://127.0.0.1:8091/market/wardrobe";
-    return s==expected || s.rfind(expected+"?",0)==0;
+    return aetherfall_web::route(s,"/market/wardrobe");
 }
 bool codex_panel_view(Ptr view){
     Ptr url=view_url(view);std::string s=string(url);if(url)destroy_string(url);
-    const std::string expected="http://127.0.0.1:8091/market/codex?panel=1";
-    return s==expected || s.rfind(expected+"&",0)==0;
+    return aetherfall_web::route(s,"/market/codex?panel=1");
 }
 bool codex_view(Ptr view){
     Ptr url=view_url(view);std::string s=string(url);if(url)destroy_string(url);
-    const std::string expected="http://127.0.0.1:8091/market/codex";
-    return s==expected || s.rfind(expected+"?",0)==0;
+    return aetherfall_web::route(s,"/market/codex");
+}
+bool companions_view(Ptr view){
+    Ptr url=view_url(view);std::string s=string(url);if(url)destroy_string(url);
+    return aetherfall_web::route(s,"/market/companions");
 }
 bool journey_view(Ptr view){
     Ptr url=view_url(view);std::string s=string(url);if(url)destroy_string(url);
-    const std::string expected="http://127.0.0.1:8091/journey";
-    return s==expected || s.rfind(expected+"?",0)==0;
+    return aetherfall_web::route(s,"/journey");
 }
 Ptr journey_dialog(){
     auto g=game();if(!g)return nullptr;
@@ -212,6 +221,173 @@ bool preview(const Command& command){
     // Native controls and model flags, including zoom and robot state, stay in the controller.
     return true;
 }
+// Companion Recruitment: the same native view shows the recruit's own model. The look is the 66 bytes
+// the server sends in player info; the seven floats after them stay the human's, because a companion
+// keeps its owner's proportions. Nothing here touches the player's actor or the saved result.
+namespace pull {
+Ptr dialog=nullptr;bool shown=false;int idle=0;
+Command pending_model{};bool model_pending=false;ULONGLONG pending_until=0;
+bool opening_pending=false;ULONGLONG opening_until=0;
+Ptr marker_widget=nullptr,skip_button=nullptr,continue_button=nullptr,result_group=nullptr;
+Rect placed{};
+constexpr uint64_t NO_SKIN=uint64_t(1)<<21,ACTIVE=2;
+std::array<uint64_t,3> view_flags{};
+bool skinned=false;
+Ptr direct(Ptr parent,const char* name){
+    if(!parent)return nullptr;
+    // Use the same native child API as Core's NPC dialog owner, rather than
+    // treating the widget's internal collection storage as a linked list.
+    int count=method<int(__cdecl*)(Ptr)>(parent,0x2f0)(parent);
+    if(count<0 || count>2048)return nullptr;
+    for(int i=0;i<count;++i){
+        Ptr entry=method<Ptr(__cdecl*)(Ptr,int)>(parent,0x2e8)(parent,i);if(!entry)continue;
+        const char* found=method<const char*(__cdecl*)(Ptr)>(entry,0xa8)(entry);
+        if(found && !std::strcmp(found,name))return entry;
+    }
+    return nullptr;
+}
+Ptr find(){
+    auto g=game();if(!g)return nullptr;
+    Ptr companions=nullptr;
+    for(int id=0x20e;id<=0x221;++id){
+        Ptr p=*reinterpret_cast<Ptr*>(g+0x13875c0+id*8);if(!p)continue;
+        const char* n=method<const char*(__cdecl*)(Ptr)>(p,0xa8)(p);
+        if(n && !std::strcmp(n,"PlayerBotPull"))return p;
+        if(n && !std::strcmp(n,"PrivateCompanions"))companions=p;
+    }
+    // A dialog loaded after startup may have no plugin slot; it then sits beside the others.
+    return companions?direct(field<Ptr>(companions,0x290),"PlayerBotPull"):nullptr;
+}
+// Draws a widget last, so effects and text stay over the model.
+void front(const char* name){
+    Ptr w=direct(dialog,name);if(!w)return;
+    method<void(__cdecl*)(Ptr,Ptr)>(dialog,0x300)(dialog,w);
+    method<void(__cdecl*)(Ptr,Ptr,int)>(dialog,0x2f8)(dialog,w,0);
+}
+void place(){
+    Ptr marker=marker_widget;if(!marker)return;
+    // Off the screen until the reveal: the model and its gear load without being seen.
+    Rect r=rect(marker);if(!shown)r.x=-10000;
+    for(const auto& m:moved)rect(m.widget,r);
+    placed=rect(marker);
+}
+void bind_controls(){
+    marker_widget=direct(dialog,"PlayerBotPullModel");
+    result_group=direct(dialog,"PlayerBotPullResult");
+    skip_button=direct(dialog,"PlayerBotPullSkip");
+    continue_button=direct(result_group?result_group:dialog,"PlayerBotPullContinue");
+}
+void release(bool restore=true){
+    model_pending=false;
+    opening_pending=false;
+    mouse::pull_modal(false);
+    marker_widget=skip_button=continue_button=result_group=nullptr;
+    if(!dialog)return;
+    dialog=nullptr;shown=false;
+    if(!paper)return;
+    auto g=game();
+    // A UI reload can destroy the controller and all borrowed children. Drop
+    // those pointers without calling their former vtables.
+    if(!g || *reinterpret_cast<Ptr*>(g+0x13875c0+0x110*8)!=paper){
+        mouse::stop();moved.clear();paper=nullptr;host=nullptr;modal_hidden=false;skinned=false;return;
+    }
+    if(skinned){
+        for(size_t i=0;i<moved.size();++i){flag(moved[i].widget,NO_SKIN,(view_flags[i]&NO_SKIN)!=0);flag(moved[i].widget,ACTIVE,(view_flags[i]&ACTIVE)!=0);}
+        skinned=false;
+    }
+    Ptr view=field<Ptr>(paper,0x528);
+    if(restore && view){
+        reinterpret_cast<void(__cdecl*)(Ptr)>(g+0x488650)(view);
+        reinterpret_cast<void(__cdecl*)(Ptr,bool)>(g+0x8053f0)(paper,false);
+    }
+    detach();
+}
+void begin(){
+    // Modal ownership is independent of model success, and starts only after
+    // the native queue has actually shown the Lua dialog.
+    opening_pending=true;opening_until=GetTickCount64()+3000;
+}
+void close(){
+    Ptr current=dialog;
+    if(auto g=game())reinterpret_cast<int(*)(const char*)>(g+0x628270)("/companionpullclose");
+    // Escape remains a way out even if the Lua timer/controller failed.
+    if(current && find()==current)flag(current,1,false);
+    release();
+}
+bool start(const Command& c){
+    Ptr found=find();if(!found || !(field<uint64_t>(found,0x30)&1))return false;
+    if(GetCurrentThreadId()!=ui_thread)return false;
+    release();detach();
+    dialog=found;shown=false;idle=0;
+    bind_controls();
+    mouse::install();mouse::pull_modal(true);
+    if(!borrow(found))return false;
+    auto g=game();Ptr view=field<Ptr>(paper,0x528);
+    if(!view)return fail("Companion pull: native view missing");
+    for(size_t i=0;i<moved.size();++i){
+        view_flags[i]=field<uint64_t>(moved[i].widget,0x30);
+        // UI3DView::Draw RVA 0x4870aa and skin draw RVA 0x5aed00
+        // both test bit 21. This suppresses v5_potrait_bg, not the model.
+        // Keep native model admission/update flags. Mouse interaction is
+        // already owned by block_input below, independently of model updates.
+        flag(moved[i].widget,NO_SKIN,true);
+    }
+    skinned=true;mouse::block_input(true);
+    reinterpret_cast<void(__cdecl*)(Ptr,bool)>(g+0x8053f0)(paper,false);
+    uint8_t* look=static_cast<uint8_t*>(paper)+0x880;
+    std::memcpy(look,c.text.data(),0x42);
+    std::array<int,4> stats{field<int>(view,0x34c),field<int>(view,0x350),field<int>(view,0x358),field<int>(view,0x35c)};
+    std::array<uint8_t,0x60> record;std::memcpy(record.data(),look,record.size());
+    // A new body needs a new native model; a stock view only rebuilds when its id is clear.
+    reinterpret_cast<void(__cdecl*)(Ptr)>(g+0x488650)(view);
+    reinterpret_cast<void(__cdecl*)(Ptr,int,float,const uint8_t*)>(g+0x487dd0)(view,c.pressed,1.0f,record.data());
+    field<int>(view,0x34c)=stats[0];field<int>(view,0x350)=stats[1];field<int>(view,0x358)=stats[2];field<int>(view,0x35c)=stats[3];
+    // Start from nothing, or the human's gear would show in every slot the recruit leaves empty.
+    std::memset(static_cast<uint8_t*>(paper)+0x5a0,0,0x170);
+    for(size_t i=0;i<c.items.size();++i){uint32_t data[4]={c.items[i],0,c.colors[i],0};reinterpret_cast<void(__cdecl*)(Ptr,const uint32_t*)>(g+0x804bd0)(paper,data);}
+    field<int>(paper,0x598)=1;
+    mouse::refresh_pending=true;
+    for(const char* name:{"PlayerBotPullSparks","PlayerBotPullResult","PlayerBotPullSkipFace","PlayerBotPullSkip"})front(name);
+    place();
+    last_failure=nullptr;log("Companion pull: native model ready");return true;
+}
+void queue_model(const Command& c){
+    // Lua's Show/SetRect calls are queued. The browser callback and native
+    // pump can finish before those calls have made the dialog visible.
+    pending_model=c;model_pending=true;pending_until=GetTickCount64()+3000;
+}
+void tick(){
+    if(opening_pending){
+        Ptr found=find();
+        if(found && (field<uint64_t>(found,0x30)&1)){
+            opening_pending=false;dialog=found;idle=0;bind_controls();mouse::install();mouse::pull_modal(true);
+        }else if(GetTickCount64()>=opening_until)opening_pending=false;
+    }
+    if(model_pending){
+        Ptr found=find();
+        if(found && (field<uint64_t>(found,0x30)&1)){
+            Command command=std::move(pending_model);model_pending=false;start(command);
+        }else if(GetTickCount64()>=pending_until){
+            model_pending=false;fail("Companion pull: native dialog did not become visible");
+        }
+    }
+    if(!dialog)return;
+    // The dialog can go with a UI reload; never touch it through a stale pointer.
+    if(find()!=dialog){release(false);return;}
+    if(!(field<uint64_t>(dialog,0x30)&1)){release();return;}
+    idle=0;
+    mouse::pull_modal(true);
+    if(mouse::pull_closing()){close();return;}
+    Ptr button=continue_button && (field<uint64_t>(continue_button,0x30)&1)
+        && (!result_group || (field<uint64_t>(result_group,0x30)&1))?continue_button:skip_button;
+    const bool enabled=button && (field<uint64_t>(button,0x30)&7)==7;
+    Rect hit{};if(enabled)method<void(__cdecl*)(Ptr,Rect*)>(button,0x58)(button,&hit);
+    mouse::pull_button(hit,enabled,*reinterpret_cast<double*>(game()+0x1378ea8),*reinterpret_cast<double*>(game()+0x1378eb0));
+    Ptr marker=marker_widget;if(!marker)return;
+    const bool now=(field<uint64_t>(marker,0x30)&1)!=0;const Rect r=rect(marker);
+    if(now!=shown || r.x!=placed.x || r.y!=placed.y || r.w!=placed.w || r.h!=placed.h){shown=now;place();}
+}
+}
 void preview_state(Ptr view,bool ready,int request){
     std::wstring code=L"window.WardrobePreviewState&&window.WardrobePreviewState(";
     code+=ready?L"true,":L"false,";code+=std::to_wstring(request)+L")";
@@ -255,7 +431,7 @@ void tick(){
     if(Ptr dialog=journey_dialog();dialog && (field<uint64_t>(dialog,0x30)&1))journey_layout(dialog);
     std::vector<Command> pending;bool stock=false;
     {std::lock_guard<std::mutex> lock(queue_mutex);pending.swap(commands);stock=stock_preview_pending;stock_preview_pending=false;}
-    if(stock)detach();
+    if(stock){pull::release();detach();}
     for(const auto& command:pending){
         {std::lock_guard<std::mutex> lock(queue_mutex);if(!command.state->active)continue;}
         bool ready=false;
@@ -277,6 +453,18 @@ void tick(){
             else if(command.control=="journey-visible"){
                 if(Ptr dialog=journey_dialog()){flag(dialog,1,command.pressed!=0);if(command.pressed)journey_layout(dialog);}
             }
+            else if(command.control=="companion-pull"){
+                // Plugin slash command, on the game thread. The text was limited to safe characters on arrival.
+                pull::release();
+                if(auto g=game())reinterpret_cast<int(*)(const char*)>(g+0x628270)(("/companionpull "+command.text).c_str());
+                pull::begin();
+            }
+            else if(command.control=="companion-model")pull::queue_model(command);
+            else if(command.control=="journey-companions"){
+                // The same slash dispatch the Companions button uses, on the game thread.
+                if(Ptr dialog=journey_dialog())flag(dialog,1,false);
+                if(auto g=game())reinterpret_cast<int(*)(const char*)>(g+0x628270)("/companions");
+            }
             else if(stock)continue;
             else if(command.request){ready=preview(command);if(ready && !command.state->model_visible)control("visible",0);}
             else{if(command.control=="visible")command.state->model_visible=command.pressed!=0;control(command.control,command.pressed);}
@@ -284,6 +472,7 @@ void tick(){
         catch(...){fail("Wardrobe: native preview update failed");}
         if(command.request){std::lock_guard<std::mutex> lock(queue_mutex);command.state->completed=command.request;command.state->ready=ready;}
     }
+    pull::tick();
     mouse::tick();
 }
 void __cdecl callback(Ptr view,Ptr object,Ptr name,Ptr args){
@@ -346,6 +535,47 @@ void __cdecl callback(Ptr view,Ptr object,Ptr name,Ptr args){
             if(state->active && commands.size()<128){Command command;command.state=state;command.control="journey-visible";command.pressed=visible;commands.push_back(std::move(command));}
         }return;
     }
+    if(string(object)=="AionObject" && method_name=="CompanionPull"){
+        if(companions_view(view) && array_size(args)==1){
+            Ptr value=value_string(array_element(args,0));std::string text=string(value);if(value)destroy_string(value);
+            if(text.empty() || text.size()>80)return;
+            for(char c:text)if(!std::isalnum(static_cast<unsigned char>(c)) && c!='_' && c!=' ')return;
+            std::lock_guard<std::mutex> lock(queue_mutex);
+            auto& state=states[view];if(!state)state=std::make_shared<State>();
+            if(commands.size()<128){Command command;command.state=state;command.control="companion-pull";command.text=std::move(text);commands.push_back(std::move(command));}
+        }return;
+    }
+    if(string(object)=="AionObject" && method_name=="CompanionModel"){
+        if(companions_view(view) && array_size(args)==3){
+            Command command;command.control="companion-model";
+            command.pressed=value_integer(array_element(args,0));
+            if(command.pressed<100000 || command.pressed>100003)return;
+            Ptr value=value_string(array_element(args,1));std::string look=string(value);if(value)destroy_string(value);
+            value=value_string(array_element(args,2));std::string gear=string(value);if(value)destroy_string(value);
+            if(look.size()!=0x84)return;
+            try{
+                for(size_t i=0;i<look.size();i+=2)command.text.push_back(static_cast<char>(std::stoi(look.substr(i,2),nullptr,16)));
+                for(size_t start=0;start<gear.size();){
+                    size_t end=gear.find(',',start);if(end==std::string::npos)end=gear.size();
+                    std::string part=gear.substr(start,end-start);size_t colon=part.find(':');
+                    int item=std::stoi(part.substr(0,colon));
+                    if(item<100000000 || item>=200000000 || command.items.size()>=16)return;
+                    command.items.push_back(item);command.colors.push_back(colon==std::string::npos?0:dye_field(part.substr(colon+1)));
+                    start=end+1;
+                }
+            }catch(...){return;}
+            std::lock_guard<std::mutex> lock(queue_mutex);
+            auto& state=states[view];if(!state)state=std::make_shared<State>();
+            if(commands.size()<128){command.state=state;commands.push_back(std::move(command));}
+        }return;
+    }
+    if(string(object)=="AionObject" && method_name=="JourneyCompanions"){
+        if(journey_view(view) && array_size(args)==0){
+            std::lock_guard<std::mutex> lock(queue_mutex);
+            auto& state=states[view];if(!state)state=std::make_shared<State>();
+            if(state->active && commands.size()<128){Command command;command.state=state;command.control="journey-companions";commands.push_back(std::move(command));}
+        }return;
+    }
     if(string(object)=="AionObject" && (method_name=="WardrobePreview" || method_name=="WardrobeControl" || method_name=="WardrobePoll")){
         if(local_view(view)){
             Command command;bool valid=true;int completed=0;bool ready=false;
@@ -383,6 +613,15 @@ void register_methods(Ptr view){
     Ptr journey=from_wide(L"JourneyVisibility",17);
     if(object&&journey)object_callback(view,object,journey);
     if(journey)destroy_string(journey);
+    Ptr pull=from_wide(L"CompanionPull",13);
+    if(object&&pull)object_callback(view,object,pull);
+    if(pull)destroy_string(pull);
+    Ptr model=from_wide(L"CompanionModel",14);
+    if(object&&model)object_callback(view,object,model);
+    if(model)destroy_string(model);
+    Ptr companions=from_wide(L"JourneyCompanions",17);
+    if(object&&companions)object_callback(view,object,companions);
+    if(companions)destroy_string(companions);
     Ptr codex=from_wide(L"CodexAction",11);
     if(object&&codex)object_callback(view,object,codex);
     if(codex)destroy_string(codex);
@@ -423,6 +662,7 @@ void destroy(Ptr view){
 }
 void visible(Ptr widget,int event){
     if(GetCurrentThreadId()!=ui_thread || changing)return;
+    if(pull::dialog && ((widget==host && event<=0) || (widget==paper && event<=0))){pull::release(widget!=paper);return;}
     if((widget==host && event<=0) || (widget==paper && event<=0))detach(widget!=paper);
 }
 }

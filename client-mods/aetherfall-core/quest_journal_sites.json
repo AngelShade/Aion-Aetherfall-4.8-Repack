@@ -1,0 +1,737 @@
+[
+  {
+    "rva": 1214951,
+    "before": "488d15729d2401",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 1550838,
+    "before": "488d15637d1f01",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 1550910,
+    "before": "488d151b7d1f01",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 3594473,
+    "before": "488d15704e0001",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 3594551,
+    "before": "488d15224e0001",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 3620880,
+    "before": "488d0d49e7ff00",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 3620960,
+    "before": "488d0dfde6ff00",
+    "offset": 3,
+    "target": 20391780,
+    "kind": "primary"
+  },
+  {
+    "rva": 3620967,
+    "before": "488d15fce6ff00",
+    "offset": 3,
+    "target": 20391786,
+    "kind": "primary"
+  },
+  {
+    "rva": 3621282,
+    "before": "488d0dbbe5ff00",
+    "offset": 3,
+    "target": 20391780,
+    "kind": "primary"
+  },
+  {
+    "rva": 3621289,
+    "before": "488d15bae5ff00",
+    "offset": 3,
+    "target": 20391786,
+    "kind": "primary"
+  },
+  {
+    "rva": 3621335,
+    "before": "488d0d82e5ff00",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 3621469,
+    "before": "4c8d2dd8f5ff00",
+    "offset": 3,
+    "target": 20396092,
+    "kind": "secondary"
+  },
+  {
+    "rva": 3621537,
+    "before": "4c8d3598f5ff00",
+    "offset": 3,
+    "target": 20396096,
+    "kind": "secondary"
+  },
+  {
+    "rva": 3621544,
+    "before": "4c8d2597f5ff00",
+    "offset": 3,
+    "target": 20396102,
+    "kind": "secondary"
+  },
+  {
+    "rva": 4133157,
+    "before": "488d053d16f800",
+    "offset": 3,
+    "target": 20391785,
+    "kind": "primary"
+  },
+  {
+    "rva": 4133313,
+    "before": "488d057d26f800",
+    "offset": 3,
+    "target": 20396101,
+    "kind": "secondary"
+  },
+  {
+    "rva": 4133686,
+    "before": "488d0d2314f800",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4133712,
+    "before": "488d0de524f800",
+    "offset": 3,
+    "target": 20396092,
+    "kind": "secondary"
+  },
+  {
+    "rva": 4135696,
+    "before": "488d15490cf800",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4135768,
+    "before": "488d15010cf800",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4137047,
+    "before": "488d150207f800",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4137118,
+    "before": "488d15bb06f800",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4143558,
+    "before": "488d1593edf700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4143686,
+    "before": "488d1513edf700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4148586,
+    "before": "488d15efd9f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4149213,
+    "before": "488d157cd7f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4153185,
+    "before": "488d15f8c7f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4154306,
+    "before": "488d1597c3f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4154467,
+    "before": "488d0df6c2f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4154493,
+    "before": "488d0db8d3f700",
+    "offset": 3,
+    "target": 20396092,
+    "kind": "secondary"
+  },
+  {
+    "rva": 4155282,
+    "before": "488d15c7bff700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4157851,
+    "before": "488d1dbeb5f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4158066,
+    "before": "4c8d0debb4f700",
+    "offset": 3,
+    "target": 20391780,
+    "kind": "primary"
+  },
+  {
+    "rva": 4158123,
+    "before": "4c8d0db8b4f700",
+    "offset": 3,
+    "target": 20391786,
+    "kind": "primary"
+  },
+  {
+    "rva": 4158174,
+    "before": "488d0d7bb4f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4158378,
+    "before": "488d1dafb3f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4158691,
+    "before": "488d1576b2f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4158780,
+    "before": "488d151db2f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4158881,
+    "before": "488d15b8b1f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4159068,
+    "before": "488d15fdb0f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4159294,
+    "before": "488d1d1bb0f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4161600,
+    "before": "488d1519a7f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4162384,
+    "before": "488d1509a4f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4163148,
+    "before": "488d150da1f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4164036,
+    "before": "488d15959df700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4165813,
+    "before": "488d15a496f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4166517,
+    "before": "488d15e493f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4175156,
+    "before": "488d152572f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4182137,
+    "before": "488d15e056f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4183350,
+    "before": "488d152352f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4185807,
+    "before": "4c8d058a48f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4185897,
+    "before": "488d1d3048f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4186619,
+    "before": "488d1d5e45f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4186662,
+    "before": "488d1d3345f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4190251,
+    "before": "488d152e37f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4190369,
+    "before": "488d15b836f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4195552,
+    "before": "488d157922f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 4195648,
+    "before": "488d151922f700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 6724455,
+    "before": "488d15f28bd000",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 6727676,
+    "before": "488d155d7fd000",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 6728529,
+    "before": "488d15087cd000",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 7082845,
+    "before": "488d15fc13cb00",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 7087029,
+    "before": "488d15a403cb00",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 8383707,
+    "before": "488d057e3ab700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 8386032,
+    "before": "488d156931b700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 8389404,
+    "before": "488d153d24b700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 8705816,
+    "before": "488d154150b200",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 8705917,
+    "before": "488d15b860b200",
+    "offset": 3,
+    "target": 20396092,
+    "kind": "secondary"
+  },
+  {
+    "rva": 8723371,
+    "before": "488d15ae0bb200",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 8723532,
+    "before": "488d150d0bb200",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 8723771,
+    "before": "488d15fa1ab200",
+    "offset": 3,
+    "target": 20396092,
+    "kind": "secondary"
+  },
+  {
+    "rva": 8723932,
+    "before": "488d15591ab200",
+    "offset": 3,
+    "target": 20396092,
+    "kind": "secondary"
+  },
+  {
+    "rva": 8752470,
+    "before": "488d15039ab100",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 8753454,
+    "before": "488d152b96b100",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 8756640,
+    "before": "488d15b989b100",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 8767848,
+    "before": "488d3df15db100",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 8768544,
+    "before": "488d3d395bb100",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 8771529,
+    "before": "488d15904fb100",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 8789765,
+    "before": "488d155408b100",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 9385556,
+    "before": "488d3d05f1a700",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 10965870,
+    "before": "488d15ebd38f00",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 10968653,
+    "before": "488d3d0cc98f00",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 11003849,
+    "before": "488d15903f8f00",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 11003891,
+    "before": "488d1542508f00",
+    "offset": 3,
+    "target": 20396092,
+    "kind": "secondary"
+  },
+  {
+    "rva": 11004811,
+    "before": "488d15ce3b8f00",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 11004886,
+    "before": "488d155f4c8f00",
+    "offset": 3,
+    "target": 20396092,
+    "kind": "secondary"
+  },
+  {
+    "rva": 3621031,
+    "before": "4189b4c780110000",
+    "offset": 4,
+    "kind": "primary-relative",
+    "target": 4480
+  },
+  {
+    "rva": 3621842,
+    "before": "4189acc75c220000",
+    "offset": 4,
+    "kind": "secondary-relative",
+    "target": 8796
+  },
+  {
+    "rva": 4158085,
+    "before": "89bcc580110000",
+    "offset": 3,
+    "kind": "primary-relative",
+    "target": 4480
+  },
+  {
+    "rva": 3620889,
+    "before": "41b8a0100000",
+    "offset": 2,
+    "kind": "capacity",
+    "target": 32768
+  },
+  {
+    "rva": 3621016,
+    "before": "3d0a010000",
+    "offset": 1,
+    "kind": "capacity",
+    "target": 2048
+  },
+  {
+    "rva": 3621480,
+    "before": "41b8a0100000",
+    "offset": 2,
+    "kind": "capacity",
+    "target": 32768
+  },
+  {
+    "rva": 3621813,
+    "before": "81f90a010000",
+    "offset": 2,
+    "kind": "capacity",
+    "target": 2048
+  },
+  {
+    "rva": 4133152,
+    "before": "bb09010000",
+    "offset": 1,
+    "kind": "capacity",
+    "target": 2047
+  },
+  {
+    "rva": 4133695,
+    "before": "41b8a0100000",
+    "offset": 2,
+    "kind": "capacity",
+    "target": 32768
+  },
+  {
+    "rva": 4133721,
+    "before": "41b8a0100000",
+    "offset": 2,
+    "kind": "capacity",
+    "target": 32768
+  },
+  {
+    "rva": 4154476,
+    "before": "41b8a0100000",
+    "offset": 2,
+    "kind": "capacity",
+    "target": 32768
+  },
+  {
+    "rva": 4154502,
+    "before": "41b8a0100000",
+    "offset": 2,
+    "kind": "capacity",
+    "target": 32768
+  },
+  {
+    "rva": 4158025,
+    "before": "3d0a010000",
+    "offset": 1,
+    "kind": "capacity",
+    "target": 2048
+  },
+  {
+    "rva": 4158442,
+    "before": "4881ea80110000",
+    "offset": 3,
+    "kind": "primary-relative",
+    "target": 4480
+  },
+  {
+    "rva": 4159355,
+    "before": "4981e880110000",
+    "offset": 3,
+    "kind": "primary-relative",
+    "target": 4480
+  },
+  {
+    "rva": 8723239,
+    "before": "488d0d320cb200",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 8723288,
+    "before": "488d05010cb200",
+    "offset": 3,
+    "target": 20391776,
+    "kind": "primary"
+  },
+  {
+    "rva": 8723639,
+    "before": "488d0d7e1bb200",
+    "offset": 3,
+    "target": 20396092,
+    "kind": "secondary"
+  },
+  {
+    "rva": 8723688,
+    "before": "488d054d1bb200",
+    "offset": 3,
+    "target": 20396092,
+    "kind": "secondary"
+  }
+]

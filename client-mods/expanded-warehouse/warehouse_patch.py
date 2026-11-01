@@ -31,6 +31,9 @@ HOOKS = (
     (0x946F8D, bytes.fromhex("4883ff107c9d")),
     (0x9472BB, bytes.fromhex("be03000000")),
 )
+def patch_collapse_dll(payload):
+    from warehouse_controls import patch_dll as patch_controls
+    return patch_controls(payload)
 
 
 def _jump(source, target):
@@ -102,7 +105,11 @@ def patch_layout(root):
     root.find("Widget[@name='money']").set("frame", "278,622,262,24")
     root.find("Widget[@name='money_item']").set("frame", "279,623,24,22")
     from warehouse_search import search_widgets
-    return search_widgets(root)
+    result = search_widgets(root)
+    from warehouse_controls import patch_layout as patch_controls, money_hitbox
+    patch_controls(result)
+    money_hitbox(result)
+    return result
 
 
 def patch_archive(payload, prefix):

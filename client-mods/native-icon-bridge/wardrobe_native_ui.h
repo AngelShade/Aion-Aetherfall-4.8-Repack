@@ -118,17 +118,19 @@ struct Internet { HINTERNET handle=nullptr; ~Internet(){if(handle)WinHttpCloseHa
 Result request(unsigned epoch,unsigned sequence,bool post,std::string params,std::string session){
     Result result{epoch,sequence,"{\"error\":\"Wardrobe could not connect. Refresh to retry.\"}"};
     try{
+        const auto endpoint=aetherfall_web::selected(session.c_str());
+        if(!endpoint.valid){result.body=aetherfall_web::error_json(endpoint.error);return result;}
         params+="&session_id="+session;
         Internet transport{WinHttpOpen(L"Aion Native Wardrobe/1",WINHTTP_ACCESS_TYPE_NO_PROXY,nullptr,nullptr,0)};
         if(!transport.handle)return result;
         WinHttpSetTimeouts(transport.handle,3000,3000,6000,12000);
-        Internet connection{WinHttpConnect(transport.handle,L"127.0.0.1",8091,0)};if(!connection.handle)return result;
+        Internet connection{aetherfall_web::connect(transport.handle,endpoint)};if(!connection.handle)return result;
         std::wstring path=L"/market/wardrobe/";path+=post?L"action":L"state?"+wide(params);
-        Internet query{WinHttpOpenRequest(connection.handle,post?L"POST":L"GET",path.c_str(),nullptr,WINHTTP_NO_REFERER,WINHTTP_DEFAULT_ACCEPT_TYPES,0)};
+        Internet query{aetherfall_web::request(connection.handle,endpoint,post?L"POST":L"GET",path.c_str())};
         if(!query.handle)return result;
         DWORD redirects=WINHTTP_OPTION_REDIRECT_POLICY_NEVER;WinHttpSetOption(query.handle,WINHTTP_OPTION_REDIRECT_POLICY,&redirects,sizeof(redirects));
-        const wchar_t* headers=L"Content-Type: application/x-www-form-urlencoded\r\nOrigin: http://127.0.0.1:8091\r\n";
-        if(!WinHttpSendRequest(query.handle,headers,DWORD(-1),post?params.data():nullptr,post?DWORD(params.size()):0,post?DWORD(params.size()):0,0) || !WinHttpReceiveResponse(query.handle,nullptr))return result;
+        const auto headers=aetherfall_web::form_headers(endpoint);
+        if(!WinHttpSendRequest(query.handle,headers.c_str(),DWORD(-1),post?params.data():nullptr,post?DWORD(params.size()):0,post?DWORD(params.size()):0,0) || !WinHttpReceiveResponse(query.handle,nullptr))return result;
         std::string body;std::array<char,16384> chunk;DWORD got=0;
         do{if(!WinHttpReadData(query.handle,chunk.data(),DWORD(chunk.size()),&got))return result;if(body.size()+got>1048576)return result;body.append(chunk.data(),got);}while(got);
         if(!body.empty())result.body=std::move(body);
@@ -137,6 +139,7 @@ Result request(unsigned epoch,unsigned sequence,bool post,std::string params,std
 void tick(){
     Ptr dialog=find_host();if(dialog && !lookup(dialog,"WardrobeNativeTx",0x200b))dialog=nullptr;
     if(dialog!=active){
+        const Ptr previous=active;
         if(active)tooltip(active,"");
         active=dialog;++generation;preview_sequence=0;preview_ready=false;previous_meta.clear();response_body.clear();response_offset=0;
         icon_widgets.clear();hover_widgets.clear();hover_name.clear();visual_poll=0;scroll=nullptr;
@@ -145,7 +148,9 @@ void tick(){
             for(auto mask:slot_masks){auto name="WardrobeSlot"+std::to_string(mask);auto p=lookup(dialog,name.c_str(),0x2001);if(p)hover_widgets.push_back({p,name,false});}
             for(int i=1;i<=36;++i){auto name="WardrobeRow"+std::to_string(i);auto p=lookup(dialog,name.c_str(),0x2001);if(p)hover_widgets.push_back({p,name,true});}
         }
-        if(!dialog && paper)detach();
+        // A recruitment pull can borrow these same views after Wardrobe
+        // closes. Release only the preview this owner actually hosted.
+        if(!dialog && paper && host==previous)detach();
     }
     if(pending.valid() && pending.wait_for(std::chrono::seconds(0))==std::future_status::ready){
         auto result=pending.get();if(active && result.generation==generation){response_body=std::move(result.body);response_sequence=result.sequence;response_offset=0;}

@@ -131,6 +131,54 @@ def literal(value):
     return '{' + ','.join('[' + literal(k) + ']=' + literal(v) for k, v in sorted(value.items())) + '}'
 
 
+def refresh_layouts(registry, output, entries):
+    """Refresh known XML rows only; retain native mappings and other catalogue rows."""
+    text = registry.decode('utf-8-sig')
+    changed = {}
+    for relative, names in entries.items():
+        with read_pak(Path(output) / relative) as archive:
+            for name in names:
+                data = archive.read(name)
+                source = relative + '|' + name
+                source_pattern = re.escape('[' + literal(source) + ']=') + '"[0-9a-f]{64}"'
+                text, count = re.subn(source_pattern, '[' + literal(source) + ']=' + literal(sha(data)), text, count=1)
+                if count != 1:
+                    raise ValueError('UI catalogue source missing: ' + source)
+                root = parse(data)
+                roots = [root] if root.tag == 'Dialog' else list(root.iter('Dialog'))
+                for index, dialog in enumerate(roots, 1):
+                    key = source + '#' + str(index)
+                    prefix = '(function() AFCore.UI.layouts[' + literal(key) + ']='
+                    matches = [line for line in text.splitlines() if line.startswith(prefix)]
+                    if len(matches) != 1:
+                        raise ValueError('UI catalogue layout missing: ' + key)
+                    native = re.search(r'\["nativeIds"\]=\{([0-9,]*)\}', matches[0])
+                    if not native:
+                        raise ValueError('UI catalogue native mapping changed: ' + key)
+                    nodes = []
+                    def walk(node, path):
+                        ordinal = 0
+                        for widget in node:
+                            if widget.tag != 'Widget':
+                                continue
+                            ordinal += 1
+                            selector = path + ('/' if path else '') + '#' + str(ordinal)
+                            nodes.append(dict(path=selector, parent=path, attributes=dict(widget.attrib),
+                                              skins=[dict(n.attrib) for n in widget if n.tag == 'Skin']))
+                            walk(widget, selector)
+                    walk(dialog, '')
+                    row = dict(name=dialog.get('name', ''), source=source, attributes=dict(dialog.attrib),
+                               nativeIds=[int(v) for v in native[1].split(',') if v], widgets=nodes)
+                    text = text.replace(matches[0], prefix + literal(row) + ' end)();', 1)
+                    changed[key] = len(nodes)
+    native = Path(output) / 'bin64/Game.dll'
+    pattern = re.escape('["bin64/Game.dll"]=') + '"[0-9a-f]{64}"'
+    text, count = re.subn(pattern, '["bin64/Game.dll"]=' + literal(sha(native.read_bytes())), text, count=1)
+    if count != 1:
+        raise ValueError('UI catalogue native source fingerprint missing')
+    return text.encode('utf-8'), changed
+
+
 def generate(client, output, plugin_members=None):
     client, output = Path(client), Path(output)
     layouts, presets, skins, sources, errors, normalizations = {}, {}, {}, {}, [], []

@@ -62,15 +62,17 @@
     <TextBlock Text="Bring your companions. Choose your journey.&#10;Atreia is waiting." FontSize="16" LineHeight="25" Foreground="#E0E9ED" Margin="3,19,0,0"/>
    </StackPanel>
    <Border x:Name="SettingsPanel" Visibility="Collapsed" Background="#EF091722" BorderBrush="#786A8D96" BorderThickness="1" Padding="25,21" CornerRadius="5">
-    <StackPanel><TextBlock Text="MAKE IT YOURS" Foreground="#E8CB91" FontSize="10"/><TextBlock Text="Launch settings" FontFamily="Palatino Linotype" FontSize="27" Margin="0,7,0,18"/>
+    <Grid><Grid.RowDefinitions><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions><ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel Margin="0,0,12,0"><TextBlock Text="MAKE IT YOURS" Foreground="#E8CB91" FontSize="10"/><TextBlock Text="Launch settings" FontFamily="Palatino Linotype" FontSize="27" Margin="0,7,0,14"/>
+     <TextBlock Text="SERVER CONNECTION" Foreground="#B8CCD5" FontSize="10" Margin="0,0,0,8"/>
+     <Grid><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions><StackPanel Margin="0,0,10,0"><TextBlock Text="Server address" FontSize="12"/><TextBox x:Name="ConnectionHost" Background="#102330" Foreground="#EEF4F5" BorderBrush="#66778778" Padding="7,5" Margin="0,5,0,0"/></StackPanel><StackPanel Grid.Column="1"><TextBlock Text="Login port" FontSize="12"/><TextBox x:Name="ConnectionPort" Background="#102330" Foreground="#EEF4F5" BorderBrush="#66778778" Padding="7,5" Margin="0,5,0,0"/></StackPanel></Grid>
+     <TextBlock Text="Applies on your next launch. In-game windows use connection details supplied by your game server." Foreground="#BCD0DA" FontSize="11" TextWrapping="Wrap" Margin="0,7,0,16"/>
      <TextBlock Text="GRAPHICS RENDERER" Foreground="#B8CCD5" FontSize="10" Margin="0,0,0,12"/>
      <StackPanel Orientation="Horizontal"><RadioButton x:Name="Vulkan" Content="Vulkan / DXVK" GroupName="Renderer"/><RadioButton x:Name="Direct3D" Content="Direct3D 9" GroupName="Renderer"/></StackPanel>
      <TextBlock Text="Applies on the next game launch. Keep Aion closed to change it. The Aetherfall Interface and other mods are in Mods." Foreground="#BCD0DA" FontSize="12" Margin="0,10,0,19" TextWrapping="Wrap"/>
      <CheckBox x:Name="Animations" Content="Animated aether and ambient particles" IsChecked="True"/>
      <CheckBox x:Name="CloseAfter" Content="Close launcher when the login screen is ready" IsChecked="False"/>
-     <Button x:Name="SaveSettings" Content="Save settings" Style="{DynamicResource LanguagePrimary}" HorizontalAlignment="Left" Padding="20,9" Margin="0,12,0,0"/>
-     <TextBlock x:Name="SettingsFeedback" Foreground="#EAD29E" FontSize="12" TextWrapping="Wrap" Margin="0,11,0,0"/>
-    </StackPanel>
+    </StackPanel></ScrollViewer>
+    <Grid Grid.Row="1" Margin="0,12,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition/></Grid.ColumnDefinitions><Button x:Name="SaveSettings" Content="Save settings" Style="{DynamicResource LanguagePrimary}" HorizontalAlignment="Left" VerticalAlignment="Center" Padding="20,9"/><TextBlock x:Name="SettingsFeedback" Grid.Column="1" Foreground="#EAD29E" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" Margin="14,0,0,0"/></Grid></Grid>
    </Border>
    <Border x:Name="LanguagesPanel" Visibility="Collapsed" Background="#EF0A1521" BorderBrush="#8A6D3C" BorderThickness="1" Padding="25,18" CornerRadius="3">
     <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition/></Grid.RowDefinitions>

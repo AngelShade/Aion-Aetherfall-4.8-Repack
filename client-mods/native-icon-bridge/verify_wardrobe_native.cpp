@@ -51,9 +51,14 @@ const wchar_t* __cdecl edit_text(Ptr p){return widgets.at(p)->native_text.c_str(
 void __cdecl set_edit_text(Ptr p,const wchar_t* value){widgets.at(p)->native_text=value;}
 Ptr __cdecl lookup(Ptr p,const char* n,uint32_t type){for(Ptr c:children[p])if(widgets.at(c)->name==n&&widgets.at(c)->type==type)return c;return nullptr;}
 void __cdecl set_rect(Ptr p,const wardrobe::Rect* r){wardrobe::field<wardrobe::Rect>(p,0x50)=*r;}
-void __cdecl absolute_rect(Ptr p,wardrobe::Rect* r){*r=wardrobe::rect(p);}
+void __cdecl absolute_rect(Ptr p,wardrobe::Rect* r){
+ *r=wardrobe::rect(p);Ptr parent=wardrobe::field<Ptr>(p,0x290);
+ for(int depth=0;parent && depth<8;++depth){auto pr=wardrobe::rect(parent);r->x+=pr.x;r->y+=pr.y;parent=wardrobe::field<Ptr>(parent,0x290);}
+}
 void __cdecl add(Ptr p,Ptr c,int){children[p].push_back(c);}
 void __cdecl remove_child(Ptr p,Ptr c){auto& a=children[p];a.erase(std::remove(a.begin(),a.end(),c),a.end());}
+int __cdecl child_count(Ptr p){return int(children[p].size());}
+Ptr __cdecl child_at(Ptr p,int i){return children[p].at(i);}
 void __cdecl set_flag(Ptr p,uint64_t bits,int){
  wardrobe::field<uint64_t>(p,0x30)|=bits;
  // Stock OnVisible restores the saved popup rectangle.
@@ -64,6 +69,10 @@ void __cdecl reset(Ptr p,bool){assert(p==paper->bytes.data());resets++;appearanc
 void __cdecl appearance(Ptr p,const uint32_t* data){assert(p==paper->bytes.data());appearances.push_back(data[0]);dyes.push_back(data[2]);}
 void __cdecl zoom_change(Ptr p,int value){wardrobe::field<int>(p,0x57c)=value;}
 void __cdecl noop(Ptr){}
+int skin_requests=0,keyboard_forwarded=0;
+uint64_t __cdecl widget_flags(Ptr p){return wardrobe::field<uint64_t>(p,0x30);}
+Ptr __cdecl absent_skin(Ptr,int){++skin_requests;return nullptr;}
+LRESULT CALLBACK keyboard_forward(HWND,UINT,WPARAM,LPARAM){++keyboard_forwarded;return 73;}
 #ifdef VERIFY_NATIVE_WARDROBE_UI
 std::string tooltip_query;
 void __cdecl item_tooltip(Ptr,uint32_t,const char* title){tooltip_query=title;}
@@ -73,6 +82,7 @@ int uv_updates=0;
 void __cdecl uv_refresh(Ptr){++uv_updates;}
 #endif
 void __cdecl model_reload(Ptr p){assert(p==paper->bytes.data());for(auto w:{normal,zoom,robot})wardrobe::field<Ptr>(w->bytes.data(),0x470)=w;}
+void __cdecl recruit_model(Ptr p,int id,float,const uint8_t*){wardrobe::field<int>(p,0x348)=id;wardrobe::field<Ptr>(p,0x470)=p;}
 void __cdecl model_camera(Ptr p){
  auto& camera=wardrobe::field<std::array<float,3>>(p,0x6e8);
  camera=p==zoom->bytes.data()?std::array<float,3>{-.02f,.8f,.55f}:std::array<float,3>{0,5,0};
@@ -90,6 +100,8 @@ Ptr __cdecl view_url(Ptr){return new std::string(callback_url);}
 void __cdecl execute_js(Ptr,Ptr script,Ptr){callback_script=*static_cast<std::string*>(script);}
 int journey_key_requests=0;
 void __cdecl request_journey_key(){++journey_key_requests;}
+std::vector<std::string> slash_commands;
+int run_slash(const char* command){slash_commands.push_back(command);return 1;}
 void emit(size_t offset,Ptr function){uint8_t jump[12]={0x48,0xb8};std::memcpy(jump+2,&function,8);jump[10]=0xff;jump[11]=0xe0;std::memcpy(fixture_game+offset,jump,sizeof(jump));}
 Widget make(const char* n,uint32_t type,uint32_t id,wardrobe::Rect rect,uint64_t flags){Widget w;w.name=n;w.type=type;Ptr vt=vtable.data();std::memcpy(w.bytes.data(),&vt,8);wardrobe::field<uint32_t>(w.bytes.data(),0x340)=id;wardrobe::field<wardrobe::Rect>(w.bytes.data(),0x50)=rect;wardrobe::field<uint64_t>(w.bytes.data(),0x30)=flags;return w;}
 int main(int argc,char** argv){
@@ -110,7 +122,9 @@ int main(int argc,char** argv){
  std::cout<<"Original native CPU functions mapped\n";
  vtable[0xa8/8]=reinterpret_cast<Ptr>(name);vtable[0x338/8]=reinterpret_cast<Ptr>(lookup);vtable[0x1a8/8]=reinterpret_cast<Ptr>(set_rect);
  vtable[0x58/8]=reinterpret_cast<Ptr>(absolute_rect);
+ vtable[0xb8/8]=reinterpret_cast<Ptr>(widget_flags);vtable[0x3c0/8]=reinterpret_cast<Ptr>(absent_skin);
  vtable[0x2f8/8]=reinterpret_cast<Ptr>(add);vtable[0x300/8]=reinterpret_cast<Ptr>(remove_child);vtable[0xd0/8]=reinterpret_cast<Ptr>(set_flag);vtable[0xd8/8]=reinterpret_cast<Ptr>(clear_flag);
+ vtable[0x2f0/8]=reinterpret_cast<Ptr>(child_count);vtable[0x2e8/8]=reinterpret_cast<Ptr>(child_at);
  auto h=make("PrivateWardrobe",0x2003,0x211,{0,0,1920,1080},1),b=make("PrivateWardrobeBrowser",0x2012,0,{0,28,1920,1052},1),p=make("paper_doll_dialog",0x2003,0x110,{20,140,320,490},0);
  auto n=make("char_model",0x2000,0,{1,0,318,426},1),z=make("char_model_zoomin",0x2000,0,{1,0,318,426},0),r=make("robot_model",0x2000,0,{1,0,318,426},0);
  host=&h;browser=&b;paper=&p;normal=&n;zoom=&z;robot=&r;
@@ -208,7 +222,77 @@ int main(int argc,char** argv){
  wardrobe::control("input",1);assert(!wardrobe::mouse::input_blocked);
  wardrobe::control("visible",0);wardrobe::tick();SendMessageW(hwnd,WM_LBUTTONDOWN,MK_LBUTTON,MAKELPARAM(800,300));assert(wardrobe::mouse::dragging==0);wardrobe::control("visible",1);
  wardrobe::mouse::apply(0,0,0,100);assert(wardrobe::mouse::scale==0.35f);wardrobe::mouse::apply(0,0,0,-100);assert(wardrobe::mouse::scale==2.5f);wardrobe::control("camera-reset",1);assert(wardrobe::mouse::scale==1 && wardrobe::field<float>(n.bytes.data(),0x6ec)==5 && wardrobe::field<float>(n.bytes.data(),0x65c)==0);
- DestroyWindow(hwnd);assert(!wardrobe::mouse::window);UnregisterClassW(wc.lpszClassName,wc.hInstance);
+ // Real WndProc entry, before its prior/native procedure. No running game.
+ wardrobe::mouse::prior=keyboard_forward;wardrobe::mouse::pull_modal(true);
+ for(WPARAM key:{WPARAM('I'),WPARAM('P'),WPARAM('M'),WPARAM('F'),WPARAM('1'),WPARAM(VK_RETURN),WPARAM(VK_ESCAPE)}){
+  assert(SendMessageW(hwnd,WM_KEYDOWN,key,0)==0);assert(SendMessageW(hwnd,WM_CHAR,key,0)==0);
+  if(key!=VK_ESCAPE)assert(SendMessageW(hwnd,WM_KEYUP,key,0)==0);
+ }
+ assert(keyboard_forwarded==0 && wardrobe::mouse::pull_closing());
+  // Both screenshot edges and Alt+F4 (including repeats) reach the stock
+  // procedure. Plain F4 and other system shortcuts remain modal-owned.
+  for(UINT message:{WM_KEYDOWN,WM_KEYUP,WM_SYSKEYDOWN,WM_SYSKEYUP})
+   assert(SendMessageW(hwnd,message,VK_SNAPSHOT,0)==73);
+  const LPARAM alt_context=LPARAM(1)<<29,repeat=LPARAM(1)<<30;
+  assert(SendMessageW(hwnd,WM_SYSKEYDOWN,VK_F4,alt_context)==73);
+  assert(SendMessageW(hwnd,WM_SYSKEYDOWN,VK_F4,alt_context|repeat)==73);
+  assert(SendMessageW(hwnd,WM_SYSKEYUP,VK_F4,alt_context|repeat)==73);
+  assert(keyboard_forwarded==7 && !wardrobe::mouse::pull_keys[VK_SNAPSHOT] && !wardrobe::mouse::pull_keys[VK_F4]);
+  assert(SendMessageW(hwnd,WM_KEYDOWN,VK_F4,0)==0 && SendMessageW(hwnd,WM_KEYUP,VK_F4,0)==0);
+  assert(SendMessageW(hwnd,WM_SYSKEYDOWN,'X',alt_context)==0 && SendMessageW(hwnd,WM_SYSCHAR,'x',alt_context)==0);
+  assert(SendMessageW(hwnd,WM_SYSKEYUP,'X',alt_context)==0 && !wardrobe::mouse::pull_closing());
+  std::cout<<"PASS: modal Print Screen and Alt+F4 reach the stock WndProc; plain F4, other system keys and Escape retain modal behavior\n";
+ wardrobe::mouse::pull_modal(false);
+ assert(SendMessageW(hwnd,WM_KEYDOWN,VK_ESCAPE,LPARAM(1)<<30)==0);
+ assert(SendMessageW(hwnd,WM_CHAR,VK_ESCAPE,0)==0);
+ assert(SendMessageW(hwnd,WM_KEYUP,VK_ESCAPE,0)==0);
+ assert(SendMessageW(hwnd,WM_KEYDOWN,'I',0)==73 && SendMessageW(hwnd,WM_CHAR,'x',0)==73);
+ // Both edges of a quick click arrive between UI timer ticks. Only a press
+ // and release inside the same configured labeled button may close.
+ wardrobe::mouse::pull_modal(true);wardrobe::mouse::pull_button({600,400,200,60},true);
+ UINT primary_down=GetSystemMetrics(SM_SWAPBUTTON)?WM_RBUTTONDOWN:WM_LBUTTONDOWN;
+ UINT primary_up=GetSystemMetrics(SM_SWAPBUTTON)?WM_RBUTTONUP:WM_LBUTTONUP;
+ SendMessageW(hwnd,primary_down,0,MAKELPARAM(50,50));SendMessageW(hwnd,primary_up,0,MAKELPARAM(650,420));
+ assert(!wardrobe::mouse::pull_closing());
+ SendMessageW(hwnd,primary_down,0,MAKELPARAM(650,420));SendMessageW(hwnd,primary_up,0,MAKELPARAM(50,50));
+ assert(!wardrobe::mouse::pull_closing());
+ SendMessageW(hwnd,primary_down,0,MAKELPARAM(650,420));SendMessageW(hwnd,primary_up,0,MAKELPARAM(650,420));
+ assert(wardrobe::mouse::pull_closing());
+ wardrobe::mouse::pull_button({600,400,200,60},false);
+ SendMessageW(hwnd,primary_down,0,MAKELPARAM(650,420));SendMessageW(hwnd,primary_up,0,MAKELPARAM(650,420));assert(!wardrobe::mouse::pull_closing());
+ wardrobe::mouse::pull_button({600,400,200,60},true);
+ SendMessageW(hwnd,primary_down,0,MAKELPARAM(650,420));SendMessageW(hwnd,WM_KILLFOCUS,0,0);SendMessageW(hwnd,primary_up,0,MAKELPARAM(650,420));assert(!wardrobe::mouse::pull_closing());
+ wardrobe::mouse::pull_modal(false);assert(SendMessageW(hwnd,primary_down,0,MAKELPARAM(650,420))==73);
+ std::cout<<"PASS: actual WndProc short-click edges between timer ticks, drag-outside, press-outside, disabled/focus guards and normal input restoration\n";
+ wardrobe::mouse::pull_modal(true);wardrobe::mouse::pull_until=GetTickCount64()-1;
+ assert(SendMessageW(hwnd,WM_KEYDOWN,'M',0)==73); // Lost UI heartbeat fails open.
+ wardrobe::mouse::pull_modal(true);SendMessageW(hwnd,WM_KEYDOWN,'P',0);SendMessageW(hwnd,WM_KILLFOCUS,0,0);
+ wardrobe::mouse::pull_modal(false);assert(SendMessageW(hwnd,WM_KEYDOWN,'P',0)==73);
+ wardrobe::mouse::prior=DefWindowProcW;
+ DestroyWindow(hwnd);assert(!wardrobe::mouse::window && !wardrobe::mouse::pull_until);UnregisterClassW(wc.lpszClassName,wc.hInstance);
+ // Execute the original Game.dll skin draw guard, with an inert skin lookup.
+ auto draw_skin=reinterpret_cast<void(*)(Ptr,int,Ptr,int,int,Ptr)>(fixture_game+0x5aed00);
+ for(auto w:{normal,zoom,robot}){
+  auto original_flags=wardrobe::field<uint64_t>(w->bytes.data(),0x30);skin_requests=0;
+  wardrobe::flag(w->bytes.data(),wardrobe::pull::NO_SKIN,false);draw_skin(w->bytes.data(),1,nullptr,0,0,nullptr);assert(skin_requests==1);
+  wardrobe::flag(w->bytes.data(),wardrobe::pull::NO_SKIN,true);draw_skin(w->bytes.data(),1,nullptr,0,0,nullptr);assert(skin_requests==1);
+  wardrobe::field<uint64_t>(w->bytes.data(),0x30)=original_flags;
+ }
+ wardrobe::pull::dialog=h.bytes.data();wardrobe::pull::skinned=true;
+ for(size_t i=0;i<wardrobe::moved.size();++i){
+  auto widget=wardrobe::moved[i].widget;wardrobe::pull::view_flags[i]=wardrobe::field<uint64_t>(widget,0x30);
+  wardrobe::flag(widget,wardrobe::pull::NO_SKIN,true);wardrobe::flag(widget,2,false);
+ }
+ wardrobe::mouse::pull_modal(true);wardrobe::pull::release(false);
+ assert(!wardrobe::paper && !wardrobe::pull::dialog && !wardrobe::mouse::pull_until);
+ for(size_t i=0;i<3;++i){auto w=i==0?normal:i==1?zoom:robot;assert(wardrobe::field<uint64_t>(w->bytes.data(),0x30)==wardrobe::pull::view_flags[i]);assert(wardrobe::field<Ptr>(w->bytes.data(),0x290)==p.bytes.data());}
+ assert(wardrobe::borrow(h.bytes.data()));wardrobe::pull::dialog=h.bytes.data();wardrobe::mouse::pull_modal(true);
+ *reinterpret_cast<Ptr*>(fixture_game+0x13875c0+0x110*8)=nullptr;wardrobe::pull::release(false);
+ assert(!wardrobe::paper && wardrobe::moved.empty() && !wardrobe::mouse::pull_until);
+ *reinterpret_cast<Ptr*>(fixture_game+0x13875c0+0x110*8)=p.bytes.data();
+ // Restore fixture ancestry after simulating destroyed/replaced UI widgets.
+ for(auto w:{normal,zoom,robot}){wardrobe::field<Ptr>(w->bytes.data(),0x290)=p.bytes.data();}
+ std::cout<<"PASS: real native skin bit-21 guard; three-view flag restoration; early keyboard capture, Escape tail, normal chat, lost-heartbeat/focus release and stale-controller teardown\n";
  wardrobe::visible(p.bytes.data(),-1);assert(!wardrobe::paper);
  // The journey browser fills the viewport on the UI thread, including resize.
  auto journey=make("PrivateJourney",0x2003,0x212,{5,5,1280,960},0),journeyBrowser=make("PrivateJourneyBrowser",0x2012,0,{0,0,1280,960},1);
@@ -250,6 +334,17 @@ int main(int argc,char** argv){
  callback_url="https://example.invalid/journey";journeyArgs[0].number=1;wardrobe::callback(nullptr,&object,&journeyMethod,&journeyArgs);wardrobe::tick();assert(!(wardrobe::field<uint64_t>(journey.bytes.data(),0x30)&1));
  callback_url="http://127.0.0.1:8091/journey";wardrobe::callback(nullptr,&object,&journeyMethod,&journeyArgs);wardrobe::destroy(nullptr);wardrobe::tick();assert(!(wardrobe::field<uint64_t>(journey.bytes.data(),0x30)&1));
  std::cout<<"PASS: journey local-page and destroyed-view guards; game-thread fullscreen show/hide and viewport resize\n";
+ std::string companionsMethod="JourneyCompanions";std::vector<Value> companionsArgs;
+ emit(0x628270,reinterpret_cast<Ptr>(run_slash));
+ callback_url="http://127.0.0.1:8091/journey?session_id=fixture";
+ journeyArgs[0].number=1;wardrobe::callback(nullptr,&object,&journeyMethod,&journeyArgs);wardrobe::tick();assert(wardrobe::field<uint64_t>(journey.bytes.data(),0x30)&1);
+ std::thread companionsWorker([&]{wardrobe::callback(nullptr,&object,&companionsMethod,&companionsArgs);});companionsWorker.join();
+ assert(slash_commands.empty());wardrobe::tick();
+ assert(slash_commands==std::vector<std::string>{"/companions"} && !(wardrobe::field<uint64_t>(journey.bytes.data(),0x30)&1));
+ companionsArgs.push_back({"unexpected",0});wardrobe::callback(nullptr,&object,&companionsMethod,&companionsArgs);companionsArgs.clear();wardrobe::tick();assert(slash_commands.size()==1);
+ callback_url="http://127.0.0.1:8091/market";wardrobe::callback(nullptr,&object,&companionsMethod,&companionsArgs);wardrobe::tick();assert(slash_commands.size()==1);
+ callback_url="http://127.0.0.1:8091/journey";
+ std::cout<<"PASS: Journey Companions button hides Journey and dispatches /companions on the game thread from the Journey page only\n";
 #ifdef VERIFY_NATIVE_WARDROBE_UI
  // The same original paper-doll now belongs to a native addon without Browser.
  emit(0x12e7e0,reinterpret_cast<Ptr>(item_tooltip));
@@ -343,6 +438,72 @@ int main(int argc,char** argv){
  auto response=http_worker.get();assert(response.generation==1 && response.sequence==77 && !response.body.empty());
  std::cout<<"PASS: native-only host, mailbox virtual methods, fullscreen dimensions, native preview anchor, multi-item/wings preview, invalid input, stale completion discard, asynchronous loopback request\n";
 #endif
+ // Real browser callback -> native command pump, with Lua's queued Show not
+ // applied until the following pump. Immediate start used to attach and tear
+ // the model/input guard down in the same hidden frame.
+ wardrobe::pull::release();wardrobe::detach();h.name="PlayerBotPull";
+ children[p.bytes.data()]={n.bytes.data(),z.bytes.data(),r.bytes.data()};
+ for(auto w:{normal,zoom,robot})wardrobe::field<Ptr>(w->bytes.data(),0x290)=p.bytes.data();
+ wardrobe::field<uint64_t>(h.bytes.data(),0x30)=0;
+ auto marker=make("PlayerBotPullModel",0x2021,0,{680,86,583,799},0);
+ auto result=make("PlayerBotPullResult",0x2003,0,{1300,130,430,760},1);
+ auto continuation=make("PlayerBotPullContinue",0x2001,0,{45,654,340,66},6);
+ auto skip=make("PlayerBotPullSkip",0x2001,0,{1650,1000,190,44},7);
+ for(auto w:{&marker,&result,&continuation,&skip})widgets[w->bytes.data()]=w;
+ children[h.bytes.data()]={marker.bytes.data(),result.bytes.data(),skip.bytes.data()};children[result.bytes.data()]={continuation.bytes.data()};
+ wardrobe::field<Ptr>(continuation.bytes.data(),0x290)=result.bytes.data();
+ wardrobe::pull::begin();wardrobe::tick();
+ assert(wardrobe::pull::opening_pending && !wardrobe::pull::dialog);
+ wardrobe::field<uint64_t>(h.bytes.data(),0x30)|=1;wardrobe::tick();
+ assert(wardrobe::pull::dialog==h.bytes.data() && !wardrobe::paper && wardrobe::mouse::pull_until>GetTickCount64());
+ wardrobe::pull::release();wardrobe::field<uint64_t>(h.bytes.data(),0x30)=0;
+ for(auto w:{normal,zoom,robot})wardrobe::field<uint64_t>(w->bytes.data(),0x30)|=2;
+ emit(0x488650,reinterpret_cast<Ptr>(noop));emit(0x487dd0,reinterpret_cast<Ptr>(recruit_model));
+ callback_url="http://127.0.0.1:8091/market/companions?session_id=fixture";
+ std::string pull_object="AionObject",pull_name="CompanionModel";
+ std::vector<Value> pull_args={{"",100000},{std::string(132,'0')},{""}};
+ wardrobe::callback(&marker,&pull_object,&pull_name,&pull_args);wardrobe::tick();
+ assert(wardrobe::pull::model_pending && !wardrobe::pull::dialog && !wardrobe::paper);
+ wardrobe::field<uint64_t>(h.bytes.data(),0x30)|=1;wardrobe::tick();
+ assert(!wardrobe::pull::model_pending && wardrobe::pull::dialog==h.bytes.data() && wardrobe::paper==p.bytes.data());
+ assert(wardrobe::mouse::pull_until>GetTickCount64() && (wardrobe::field<uint64_t>(n.bytes.data(),0x30)&2));
+ assert(wardrobe::rect(n.bytes.data()).x==-10000);
+ wardrobe::field<uint64_t>(marker.bytes.data(),0x30)|=1;wardrobe::tick();
+ assert(wardrobe::pull::shown && wardrobe::rect(n.bytes.data()).x==680 && wardrobe::rect(n.bytes.data()).w==583);
+ assert(wardrobe::mouse::pull_button_enabled && wardrobe::mouse::pull_bounds.x==1650);
+ wardrobe::field<uint64_t>(continuation.bytes.data(),0x30)=7;wardrobe::field<uint64_t>(skip.bytes.data(),0x30)=6;wardrobe::tick();
+ assert(wardrobe::mouse::pull_button_enabled && wardrobe::mouse::pull_bounds.x==1345 && wardrobe::mouse::pull_bounds.y==784);
+ // Route a short physical click through the actual WndProc into the next
+ // normal command pump, using the nested button's native absolute rectangle.
+ RegisterClassW(&wc);hwnd=CreateWindowW(wc.lpszClassName,L"pull",WS_OVERLAPPEDWINDOW,0,0,1920,1080,nullptr,nullptr,wc.hInstance,nullptr);assert(hwnd);
+ wardrobe::mouse::window=hwnd;wardrobe::mouse::prior=keyboard_forward;SetWindowLongPtrW(hwnd,GWLP_WNDPROC,reinterpret_cast<LONG_PTR>(wardrobe::mouse::receive));
+ RECT client_area{};GetClientRect(hwnd,&client_area);
+ double ew=*reinterpret_cast<double*>(fixture_game+0x1378ea8),eh=*reinterpret_cast<double*>(fixture_game+0x1378eb0);
+ POINT click{LONG(1400*client_area.right/ew),LONG(810*client_area.bottom/eh)};
+ SendMessageW(hwnd,primary_down,0,MAKELPARAM(click.x,click.y));SendMessageW(hwnd,primary_up,0,MAKELPARAM(click.x,click.y));wardrobe::tick();
+ assert(!wardrobe::pull::dialog && !wardrobe::paper && !wardrobe::mouse::pull_until);
+ assert(slash_commands.back()=="/companionpullclose" && !(wardrobe::field<uint64_t>(h.bytes.data(),0x30)&1));
+  // nativePull sends CompanionPull first. A missing look yields model 0,
+  // rejected before any look/gear read; the independent modal still works.
+  for(bool escape:{true,false}){
+   std::string opening="CompanionPull";std::vector<Value> result_args={{"CLERIC GOOD GREAT Tester"}};
+   std::vector<Value> missing_model={{"",0},{""},{""}};
+   wardrobe::callback(&marker,&pull_object,&opening,&result_args);
+   wardrobe::callback(&marker,&pull_object,&pull_name,&missing_model);wardrobe::tick();
+   assert(slash_commands.back()=="/companionpull CLERIC GOOD GREAT Tester");
+   assert(wardrobe::pull::opening_pending && !wardrobe::pull::model_pending && !wardrobe::paper);
+   wardrobe::field<uint64_t>(h.bytes.data(),0x30)|=1;wardrobe::tick();
+   assert(wardrobe::pull::dialog==h.bytes.data() && !wardrobe::paper && wardrobe::mouse::pull_until>GetTickCount64());
+   if(escape){SendMessageW(hwnd,WM_KEYDOWN,VK_ESCAPE,0);SendMessageW(hwnd,WM_KEYUP,VK_ESCAPE,repeat);}
+   else{SendMessageW(hwnd,primary_down,0,MAKELPARAM(click.x,click.y));SendMessageW(hwnd,primary_up,0,MAKELPARAM(click.x,click.y));}
+   wardrobe::tick();
+   assert(slash_commands.back()=="/companionpullclose" && !(wardrobe::field<uint64_t>(h.bytes.data(),0x30)&1));
+   assert(!wardrobe::pull::dialog && !wardrobe::pull::opening_pending && !wardrobe::pull::model_pending && !wardrobe::paper && !wardrobe::mouse::pull_until);
+   assert(SendMessageW(hwnd,WM_KEYDOWN,'I',0)==73);
+  }
+  std::cout<<"PASS: CompanionPull callback/pump with rejected model 0 opens without borrowed views; Escape and Continue close cleanly and restore input\n";
+ DestroyWindow(hwnd);UnregisterClassW(wc.lpszClassName,wc.hInstance);
+ std::cout<<"PASS: actual CompanionModel callback/pump defers until queued native Show; child API finds reveal marker; model admission retained, offscreen preload/reveal and close restore input/views\n";
  VirtualFree(fixture_game,0,MEM_RELEASE);
  std::cout<<"PASS: unopened cameras initialize before input; original Game.dll rotation and camera/frustum CPU math; Win32 drag/wheel; appearance and invalid-camera recovery; bounds/zoom limits; modal blocking; native ownership and queued-thread guards\n";
 }

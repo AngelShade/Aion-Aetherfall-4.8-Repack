@@ -41,6 +41,8 @@ camera triggers a bounded retry through the stock model/framing routines.
 
 ## Prepare and install
 
+`aetherfall-core/prepare_bridge.py` stages this DLL alone for `aetherfall-core/install.py`.
+
 Use the combined `../transmog-menu/build_package.py` builder with
 `"nativeIcons": true` in `../transmog-menu/menus.json`. Existing Inventory,
 warehouse and private-menu settings are included in the same build.

@@ -3,14 +3,17 @@
 #include "quest_target_data.h"
 
 extern "C" __declspec(dllexport) volatile uintptr_t AetherfallQuestDiagnostics[8]={0,0,0,0,0,0,0,0};
-constexpr size_t QUEST_LIST=0x1372760,QUEST_COUNT=0x137275c,QUEST_LIMIT=0x10a;
+constexpr size_t QUEST_LIST=0x1372760,QUEST_COUNT=0x137275c,QUEST_LIMIT=2048;
 struct QuestRecord { int id; unsigned char status; unsigned char packed[4]; unsigned char rest[7]; };
 static_assert(sizeof(QuestRecord)==16,"native quest record");
+QuestRecord* quest_record_override=nullptr;
+int quest_record_capacity=266;
+const QuestRecord* quest_records(){return quest_record_override?quest_record_override:reinterpret_cast<const QuestRecord*>(game()+QUEST_LIST);}
 unsigned quest_progress(const QuestRecord& q){unsigned v;std::memcpy(&v,q.packed,4);return v;}
 const QuestRecord* active_quest(int id){
     int count=global<int>(QUEST_COUNT);
-    if(count<0 || count>int(QUEST_LIMIT))return nullptr;
-    const auto* list=reinterpret_cast<const QuestRecord*>(game()+QUEST_LIST);
+    if(count<0 || count>quest_record_capacity)return nullptr;
+    const auto* list=quest_records();
     for(int i=0;i<count;++i)if(list[i].id==id && list[i].status==3)return list+i;
     return nullptr;
 }
@@ -85,10 +88,10 @@ bool quest_snapshot(){
     ULONGLONG now=GetTickCount64();if(quest_last_poll && now-quest_last_poll<100)return quest_snapshot_valid;
     quest_last_poll=now;quest_budget=4;quest_snapshot_valid=false;
     int count=global<int>(QUEST_COUNT);
-    if(count<0 || count>int(QUEST_LIMIT)){++quest_epoch;return false;}
+    if(count<0 || count>quest_record_capacity){++quest_epoch;return false;}
     uint64_t hash=quest_hash(1469598103934665603ULL,unsigned(global<int>(0x1313070)));
     hash=quest_hash(hash,unsigned(global<int>(0x1312fd0)));hash=quest_hash(hash,unsigned(count));
-    const auto* list=reinterpret_cast<const QuestRecord*>(game()+QUEST_LIST);
+    const auto* list=quest_records();
     for(int i=0;i<count;++i){hash=quest_hash(hash,unsigned(list[i].id));hash=quest_hash(hash,list[i].status);hash=quest_hash(hash,quest_progress(list[i]));}
     // Collection objectives can change without a quest-stage packet. Include bag
     // template/count data, using the same native map traversal as the Kinah reader.
@@ -129,7 +132,7 @@ int quest_badge(int npc){
     if(!slot)slot=&quest_badges[quest_badge_next++%256];
     *slot={npc,0,quest_epoch};
     int count=global<int>(QUEST_COUNT),priority=-1;
-    const auto* list=reinterpret_cast<const QuestRecord*>(game()+QUEST_LIST);
+    const auto* list=quest_records();
     for(int i=0;i<count;++i){
         if(list[i].status!=3 || !quest_matches_npc(list[i],npc))continue;
         const QuestDefinition* def=quest_definition(list[i].id);if(!def)continue;

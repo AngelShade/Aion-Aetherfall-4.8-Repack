@@ -136,6 +136,8 @@ def main():
         dll = patch_dll(dll)
         from warehouse_search import patch_search_dll as patch_warehouse_search_dll
         dll = patch_warehouse_search_dll(dll)
+        from warehouse_patch import patch_collapse_dll
+        dll = patch_collapse_dll(dll)
     if inventory:
         from movable_windows import patch_archive as patch_movable_windows
         for relative,prefix in [('Data/ui/game/game.pak',''),('L10N/enu/data/data.pak','ui/game/')]:
@@ -154,9 +156,15 @@ def main():
         native_manifest['originalArchiveSha256'] = digest(root / 'Data/Items/Items.pak')
         native_manifest.update(prepare_icon_index(output, output / 'bin64/AionIconBridge.index'))
         dll = patch_icon_bridge_dll(dll)
+    if inventory and warehouse:
+        from detached_inventory import patch_warehouse_item_context
+        dll = patch_warehouse_item_context(dll)
     from graphics_compat import prepare as prepare_graphics_compat
     dll, graphics_compatibility = prepare_graphics_compat(root, output, dll)
     patched_dll.write_bytes(dll)
+    if inventory and warehouse:
+        from warehouse_controls import stage_catalogue
+        stage_catalogue(root, output)
     from native_wardrobe_theme import stage as stage_wardrobe_theme
     stage_wardrobe_theme(output)
     replacements = []

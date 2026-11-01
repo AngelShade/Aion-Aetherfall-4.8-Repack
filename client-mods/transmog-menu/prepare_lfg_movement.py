@@ -1,9 +1,10 @@
-"""Stage native Find Group (Shift+V) title dragging without changing binaries."""
+"""Stage native title dragging for Find Group, the quest journal or every titled window, without changing binaries."""
 import argparse
 import copy
 import hashlib
 import json
 from pathlib import Path
+import re
 import sys
 from xml.etree import ElementTree as ET
 
@@ -23,30 +24,61 @@ def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def archive(path, localized):
-    name = 'ui/game/' + NAME if localized else NAME
+# Attached and exclusive windows are placed by their owners; the rest are development tools.
+SKIPPED_ALIGNMENT = ('sub', 'exclusive')
+SKIPPED_NAMES = re.compile(r'(^gm_|^gm$|_dev|^dev_|test|debug|builder_)')
+
+
+def titled_windows(path):
+    """Every stock titled, closable window that no layout flag has decided about."""
+    found = []
+    with read_pak(path) as source:
+        for name in sorted(source.namelist()):
+            if not name.endswith('.xml'):
+                continue
+            try:
+                root = binary_xml(source.read(name))
+            except Exception:
+                continue
+            flags = root.get('flag', '').split(';')
+            kind = root.get('type', '')
+            if (kind.startswith('dlg_') and root.get('name') == Path(name).stem and 'title' in flags and 'close' in flags
+                    and 'movable' not in flags and 'not_movable' not in flags
+                    and root.get('align_type') not in SKIPPED_ALIGNMENT and not SKIPPED_NAMES.search(root.get('name'))):
+                found.append((name, kind))
+    return found
+
+
+def archive(path, localized, layouts):
+    prefix = 'ui/game/' if localized else ''
     raw = path.read_bytes()
+    payloads = {}
     with read_pak(path) as source:
         infos = {i.filename: i for i in source.infolist()}
         if len(infos) != len(source.infolist()):
             raise ValueError('Duplicate UI archive entry')
-        root = binary_xml(source.read(name))
-        if root.get('name') != 'party_match_dialog' or root.get('type') != TYPE:
-            raise ValueError('Unexpected Find Group layout')
-        expected = copy.deepcopy(root)
-        expected.attrib.pop('align_type', None)
-        flags = [s for s in expected.get('flag', '').split(';') if s and s not in ('movable', 'not_movable')]
-        expected.set('flag', ';'.join(flags + ['movable']))
-        payload = encode_binary_xml(patch_layout(root, TYPE))
-        if ET.tostring(binary_xml(payload)) != ET.tostring(expected):
-            raise ValueError('Unexpected Find Group widget change')
-        updated, _ = rebuild(raw, {name: payload}, infos)
+        for layout, kind in layouts:
+            name = prefix + layout
+            if name not in infos:
+                continue
+            root = binary_xml(source.read(name))
+            if root.get('name') != Path(layout).stem or root.get('type') != kind:
+                raise ValueError('Unexpected native dialog layout: ' + layout)
+            expected = copy.deepcopy(root)
+            expected.attrib.pop('align_type', None)
+            flags = [s for s in expected.get('flag', '').split(';') if s and s not in ('movable', 'not_movable')]
+            expected.set('flag', ';'.join(flags + ['movable']))
+            payload = encode_binary_xml(patch_layout(root, kind))
+            if ET.tostring(binary_xml(payload)) != ET.tostring(expected):
+                raise ValueError('Unexpected native dialog widget change: ' + layout)
+            payloads[name] = payload
+    updated, _ = rebuild(raw, payloads, infos)
     before, _, _, version = parts(raw)
     after, _, _, updated_version = parts(updated)
     if version != updated_version or list(before) != list(after):
         raise ValueError('UI archive structure changed')
     for entry in before:
-        if entry != name and before[entry][0] != after[entry][0]:
+        if entry not in payloads and before[entry][0] != after[entry][0]:
             raise ValueError('Unrelated compressed UI member changed: ' + entry)
     return updated
 
@@ -55,8 +87,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--client', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--dialog', choices=('lfg', 'quest', 'all'), default='lfg')
     args = parser.parse_args()
     client, output = args.client.resolve(strict=True), args.output.resolve()
+    layout, kind, label, feature, inventory_feature = {
+        'lfg': (NAME, TYPE, 'Find Group', 'lfg-window-movement', 'LfgWindowMovement'),
+        'quest': ('quest_dialog.xml', 'dlg_quest', 'Quest journal', 'quest-window-movement', 'QuestWindowMovement'),
+        'all': ('', '', 'Titled window', 'all-window-movement', 'AllWindowMovement'),
+    }[args.dialog]
     if output.exists() or output.is_relative_to(client) or output.is_relative_to(HERE.parents[1]):
         raise ValueError('Use a fresh external output folder')
     if (client.parent / 'REPACK.json').exists():
@@ -67,10 +105,16 @@ def main():
         raise ValueError('Active Graphics menu records disagree')
     baseline = owned_renderer_backup(client, state['backupRoot'])
     skin = json.loads((client / 'Mods/AetherfallUI/manifest.json').read_text(encoding='utf-8-sig'))
+    skinned = set()
     for name, record in skin['archives'].items():
         if name.lower() in ('data/ui/game/game.pak', 'l10n/enu/data/data.pak'):
-            if any(n.lower().endswith(NAME) for n in record['entries']):
-                raise ValueError('Find Group is now skin-owned; update its state payloads together')
+            if args.dialog == 'all':
+                skinned.update(n.lower().rsplit('/', 1)[-1] for n in record['entries'])
+            elif any(n.lower().endswith(layout) for n in record['entries']):
+                raise ValueError(label + ' is now skin-owned; update its state payloads together')
+    layouts = [(layout, kind)]
+    if args.dialog == 'all':
+        layouts = [row for row in titled_windows(client / 'Data/ui/game/game.pak') if row[0].lower() not in skinned]
     files = []
     def stage(relative, data):
         target = output / relative
@@ -86,7 +130,7 @@ def main():
                 sha(client / 'Mods/GraphicsMenu/package' / rel) != record['installed']):
             raise ValueError('Graphics active/package/restore hashes disagree: ' + rel)
         localized = rel.startswith('L10N/')
-        active, restore = archive(client / rel, localized), archive(saved, localized)
+        active, restore = archive(client / rel, localized, layouts), archive(saved, localized, layouts)
         stage(rel, active)
         stage('Mods/GraphicsMenu/package/' + rel, active)
         stage(baseline.relative_to(client).as_posix() + '/' + rel, restore)
@@ -100,7 +144,7 @@ def main():
             if record.get('path') in affected:
                 target = output / record['path']
                 record.update(installedSha256=sha(target), bytes=target.stat().st_size)
-    inventory['features']['LfgWindowMovement'] = [dict(path=rel, installedSha256=sha(output / rel),
+    inventory['features'][inventory_feature] = [dict(path=rel, installedSha256=sha(output / rel),
         bytes=(output / rel).stat().st_size) for rel in affected]
     stage('Mods/InstalledMods.json', json.dumps(inventory, indent=2).encode())
     preserved = ['bin64/Game.dll', 'bin64/AetherfallCore.dll', 'bin64/AionLootRoll.dll',
@@ -108,12 +152,12 @@ def main():
         'bin32/bin32.pak', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak', 'Data/func_pet/func_pet.pak.sig',
         'bin64/AionGraphicsMenu.dll', 'bin64/CrySystem.dll', 'Mods/Renderer/installed.json',
         'Mods/AetherfallUI/manifest.json', 'Mods/AetherfallUI/installed.json']
-    manifest = dict(feature='lfg-window-movement', clientRoot=str(client), files=files,
+    manifest = dict(feature=feature, clientRoot=str(client), files=files,
         sourceHashes={str(p): sha(p) for p in [Path(__file__), HERE / 'movable_windows.py']},
         preservedFiles=[dict(path=n, sha256=sha(client / n)) for n in preserved if (client / n).is_file()],
-        gameplayAcceptance='Pending owner: Shift+V title drag, /moveui Save/Cancel, close/reopen and relog')
+        gameplayAcceptance={'quest':'Pending owner: Q title drag, attached quest details, close/reopen and relog','all':'Pending owner: title drag, close/reopen and relog across windows'}.get(args.dialog,'Pending owner: Shift+V title drag, /moveui Save/Cancel, close/reopen and relog'))
     (output / 'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
-    print('Prepared', len(files), 'files; only Find Group movement/alignment changed; live client untouched.')
+    print('Prepared', len(files), 'files;', len(layouts), label, 'layouts changed movement/alignment only; live client untouched.')
 
 
 if __name__ == '__main__':

@@ -12,6 +12,67 @@ OPEN_REGION_SIZE = 0x80
 NORMAL_INVENTORY = 0x13875c0 + 0x1b * 8
 WAREHOUSE_CLOSE_SITE = 0x947d35
 WAREHOUSE_CLOSE_END = 0x947d63
+# The remaining verified padding follows open_code(), before the menu hook.
+CONTEXT_CAVE = 0x144d0b8
+CONTEXT_REGION_SIZE = 0x48
+CONTEXT_LOAD = 0x78bfd6
+CONTEXT_COMPARE = 0x78bfdc
+CONTEXT_OWNER = 0xe973ec
+WAREHOUSE_ID = 247
+WAREHOUSE = 0x13875c0 + WAREHOUSE_ID * 8
+
+
+def warehouse_context_code():
+    """Restore native item context without reattaching Inventory geometry.
+
+    The native item-click dispatchers at 0x785e01 and 0x78e786 both call
+    0x78bfd0. Removing Warehouse from OWNER_LIST leaves CONTEXT_OWNER at -1,
+    so both dispatchers otherwise fall through to ordinary item use. Keep a
+    selected native owner first; only supply a visible Warehouse as fallback.
+    Native tab selection, transfer restrictions and stack prompts stay native.
+    """
+    a = Assembler(CONTEXT_CAVE)
+    a.relative(bytes.fromhex('8b05'), CONTEXT_OWNER)
+    a.emit(bytes.fromhex('83f8ff'))
+    a.relative(bytes.fromhex('0f85'), CONTEXT_COMPARE)
+    a.relative(bytes.fromhex('488b0d'), WAREHOUSE)
+    a.emit(bytes.fromhex('4885c9'))
+    a.short_branch(b'\x74', 'none')
+    a.emit(bytes.fromhex('488b01ff90f000000085c0'))
+    a.short_branch(b'\x74', 'none')
+    a.emit(b'\xb8' + struct.pack('<I', WAREHOUSE_ID))
+    a.relative(b'\xe9', CONTEXT_COMPARE)
+    a.label('none')
+    a.emit(bytes.fromhex('b8ffffffff'))
+    a.relative(b'\xe9', CONTEXT_COMPARE)
+    return a.finish()
+
+
+def patch_warehouse_item_context(payload):
+    data = bytearray(payload)
+    if patch_detached_inventory(payload) != payload:
+        raise ValueError('Expected the independent Inventory patch first')
+    if len(open_code()) > CONTEXT_CAVE - OPEN_CAVE:
+        raise ValueError('Inventory opening hook overlaps item context')
+    code = warehouse_context_code()
+    if len(code) > CONTEXT_REGION_SIZE:
+        raise ValueError('Warehouse context hook exceeds its reserved region')
+    original = bytes.fromhex('8b0510b47000')
+    replacement = b'\xe9' + struct.pack('<i', CONTEXT_CAVE-CONTEXT_LOAD-5) + b'\x90'
+    if (data[CONTEXT_LOAD-6:CONTEXT_LOAD] != bytes.fromhex('40534883ec20')
+            or data[CONTEXT_COMPARE:CONTEXT_COMPARE+9] != bytes.fromhex('83f8ff0f854a010000')):
+        raise ValueError('Unsupported native item-context resolver')
+    if data[CONTEXT_LOAD:CONTEXT_COMPARE] == replacement:
+        if data[CONTEXT_CAVE:CONTEXT_CAVE+CONTEXT_REGION_SIZE] != code.ljust(CONTEXT_REGION_SIZE, b'\0'):
+            raise ValueError('Warehouse item-context code changed')
+        return bytes(data)
+    if data[CONTEXT_LOAD:CONTEXT_COMPARE] != original:
+        raise ValueError('Unknown native item-context load')
+    if any(data[CONTEXT_CAVE:CONTEXT_CAVE+CONTEXT_REGION_SIZE]):
+        raise ValueError('Warehouse item-context code region is occupied')
+    data[CONTEXT_LOAD:CONTEXT_COMPARE] = replacement
+    data[CONTEXT_CAVE:CONTEXT_CAVE+len(code)] = code
+    return bytes(data)
 
 
 def open_code():

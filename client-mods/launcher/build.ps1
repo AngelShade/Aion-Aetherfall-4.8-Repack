@@ -21,6 +21,7 @@ $arguments=@('/nologo','/target:winexe','/platform:x64','/optimize+','/debug-',
     ('/reference:'+(Join-Path $framework 'System.IO.Compression.FileSystem.dll')))
 if($IconPath){$arguments+=('/win32icon:'+([IO.Path]::GetFullPath($IconPath)))}
 $arguments+=(Join-Path $PSScriptRoot 'Launcher.cs')
+$arguments+=(Join-Path $PSScriptRoot 'ServerConnection.cs')
 $arguments+=(Join-Path $PSScriptRoot 'StartupPresentation.cs')
 $arguments+=(Join-Path $PSScriptRoot 'CustomQuests.cs')
 $arguments+=(Join-Path $PSScriptRoot 'AetherfallInterface.cs')

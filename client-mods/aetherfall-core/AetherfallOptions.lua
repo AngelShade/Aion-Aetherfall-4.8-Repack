@@ -352,6 +352,24 @@ function AFUI.ApplyToggles(restore)
         U.hidden[setting] = off and hidden or nil
     end
 end
+-- Quest details are a native attached window, but the movable journal no longer anchors them.
+local ATTACHED = {{184, 'quest_dialog', 185, 'quest_summary_dialog'}}
+function AFUI_BesideOwner(owner, child, sw)
+    local x = owner.x + owner.w
+    if x + child.w > sw then x = owner.x - child.w end
+    return math.max(0, x), owner.y
+end
+local function followOwners()
+    if U.unlocked then return end
+    local sw = screen()
+    for _, pair in ipairs(ATTACHED) do
+        local owner, child = dialog(pair[1]), dialog(pair[3])
+        if owner and child and owner.name == pair[2] and child.name == pair[4] and owner.shown and child.shown then
+            local x, y = AFUI_BesideOwner(owner, child, sw)
+            if math.abs(child.x - x) > .5 or math.abs(child.y - y) > .5 then AFCore.Move(pair[3], x, y) end
+        end
+    end
+end
 -- Apply saved positions and visibility to native windows (engine may re-anchor them).
 local function enforce()
     applyDesign()
@@ -399,6 +417,7 @@ local function enforce()
             end
         end
     end
+    followOwners()
 end
 
 -- Save native title dragging only after a foreground mouse press inside the
@@ -423,8 +442,11 @@ local function nativeDragTick()
             local moved=math.abs(dx)>2 or math.abs(dy)>2
             -- A native opening animation can move/resize every overlapping
             -- frame under a stationary press. Only a frame following actual
-            -- cursor displacement is a native user drag.
-            local follows=math.abs(d.x-prev.x-dx)<=2 and math.abs(d.y-prev.y-dy)<=2
+            -- cursor displacement is a native user drag. The game stops a window
+            -- at the screen edge, so on each axis it may lag the cursor, never lead it.
+            local wx,wy=d.x-prev.x,d.y-prev.y
+            local follows=math.abs(wx)<=math.abs(dx)+2 and math.abs(wy)<=math.abs(dy)+2
+                and wx*dx>=0 and wy*dy>=0
             local changed=math.abs(d.x-prev.savedX)>1 or math.abs(d.y-prev.savedY)>1
             if moved and follows and changed and math.abs(d.w-prev.w)<.5 and math.abs(d.h-prev.h)<.5 then
                 remember(id,d,d.x,d.y,sw,sh)

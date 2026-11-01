@@ -16,6 +16,7 @@
 #include <future>
 #include <optional>
 #include <winhttp.h>
+#include "../shared/web_endpoint.h"
 #pragma comment(lib, "winhttp.lib")
 #pragma comment(lib, "user32.lib")  // cursor and button state for addon dragging ("cursor")
 
@@ -34,7 +35,7 @@
 // remain native and unchanged.
 namespace {
 using Ptr=void*;
-constexpr char CORE_VERSION[]="1.2.90";  // checked against the normal builder's NATIVE_VERSION
+constexpr char CORE_VERSION[]="1.3.1";  // Native Find Group Hire details owner.
 constexpr uintptr_t PREFERRED=0x10000000;  // Game.dll has no relocations.
 unsigned char* image=nullptr;
 unsigned char* game(){return image;}
@@ -269,6 +270,10 @@ Ptr widget(int id,const char* name,int type){
     return resolve_widget(d,name,type);
 }
 
+#include "quest_dialog.h"
+#include "help_quest.h"
+#include "quest_journal.h"
+
 // Pinned windows. The game re-places some HUD dialogs itself before Lua hears of it: the
 // target re-centres at the top of the screen on every target change (Game.dll 0x8bd2c8,
 // 0x8bd349, 0x8bd3ad: x from the screen width, y from its group container), so a moved
@@ -398,6 +403,7 @@ Rect placed(const Pin& given,Rect p){
     return local_rect(pin.target,p);
 }
 void codex_frame_changed(Ptr);
+void hire_frame_changed(Ptr);
 uintptr_t pinned_set_rect(Ptr self,const Rect* r){
     Table* t=own_table(self);
     auto original=reinterpret_cast<SetRectFn>(t->original[SET_RECT/8]);
@@ -405,9 +411,9 @@ uintptr_t pinned_set_rect(Ptr self,const Rect* r){
         if(pins[i].target!=self || !pin_live(pins[i]))continue;
         ++pins[i].calls;
         Rect p=placed(pins[i],*r);
-        auto result=original(self,&p);codex_frame_changed(self);return result;
+        auto result=original(self,&p);codex_frame_changed(self);hire_frame_changed(self);return result;
     }
-    auto result=original(self,r);codex_frame_changed(self);return result;
+    auto result=original(self,r);codex_frame_changed(self);hire_frame_changed(self);return result;
 }
 // DlgTargetBuffStatus recalculates its anchor INSIDE SetRect, through +0x478
 // (Game.dll 0x654f60). Holding only the incoming SetRect loses to that later
@@ -698,6 +704,9 @@ size_t vtable_slots(void** vt){
     return n;
 }
 int codex_command(Ptr,Ptr);
+int hire_command(Ptr,Ptr);
+void hire_show(Ptr,uint64_t,int);
+void hire_hide(Ptr,uint64_t,int);
 bool hook(Ptr d){
     if(Table* known=own_table(d)){
         if(!known->ready)hook_refusal="native class slot installation was refused";
@@ -712,6 +721,12 @@ bool hook(Ptr d){
     // native slot leaves the class with its other policies and without the Codex.
     bool codex=(low==game()+0xccfb88 || low==game()+0xce9ce8) && slots>START_COMMAND/8
         && vt[START_COMMAND/8]==game()+(low==game()+0xccfb88?0x7ef580:0x4ae9d0);
+    // DlgPartyMatch: retain its native class identity and all stock commands.
+    bool hire=low==game()+0xcd2ee8;
+    if(hire && (slots<=START_COMMAND/8 || vt[START_COMMAND/8]!=game()+0x80f7f0
+       || vt[0xd0/8]!=game()+0x5ac3e0 || vt[0xd8/8]!=game()+0x5ac4a0)){
+        hook_refusal="Find Group native command/visibility slots changed";return false;
+    }
     bool separated=low==game()+0xccee98 || low==game()+0xccf518;
     size_t adjust=anchor_adjust(low);
     if(table_count==TABLE_LIMIT){hook_refusal="too many window classes held";return false;}
@@ -723,7 +738,7 @@ bool hook(Ptr d){
         hook_refusal="native minimap hit test changed";return false;
     }
     struct Redirect {size_t slot;void* replacement;};
-    Redirect redirects[9]{};size_t count=0;
+    Redirect redirects[12]{};size_t count=0;
     auto add=[&](size_t slot,void* replacement){redirects[count++]={slot,replacement};};
     // Live tooltip classes place through the tooltip policy's own SetRect slot
     // (configure_tooltips). A backdrop or pin on one of them, e.g. a name-link
@@ -742,6 +757,11 @@ bool hook(Ptr d){
     if(start || separated)add(HIT_TEST,reinterpret_cast<void*>(&start_hit_test));
     if(start)add(START_COMMAND,reinterpret_cast<void*>(&start_command));
     if(codex)add(START_COMMAND,reinterpret_cast<void*>(&codex_command));
+    if(hire){
+        add(START_COMMAND,reinterpret_cast<void*>(&hire_command));
+        add(0xd0,reinterpret_cast<void*>(&hire_show));
+        add(0xd8,reinterpret_cast<void*>(&hire_hide));
+    }
     Table* t=&tables[table_count];
     *t=Table{};t->native=vt;t->slots=slots;t->copy[0]=vt[-1];
     std::memcpy(t->copy+1,vt,slots*sizeof(void*));t->original=t->copy+1;
@@ -767,6 +787,7 @@ bool hook(Ptr d){
 // means native pass-through, including new objects of the same class. Releasing
 // a policy never changes an object's identity or writes into a retired object.
 #include "loot_codex.h"
+#include "lfg_hire.h"
 
 void unhook(Ptr d){
     (void)d;
@@ -960,6 +981,7 @@ int dispatch(Ptr L){
         push(L,r.x);push(L,r.y);push(L,r.w);push(L,r.h);
         return 4+boolean(L,effectively_shown(d) && effectively_shown(w));
     }
+    if(is(cmd,"hireterms"))return boolean(L,hire_terms::poll());
     if(is(cmd,"widget")){
         // Read one live node (optionally its nth child), without opening windows,
         // invoking layout/painting, or retaining object pointers between calls.
@@ -1245,6 +1267,8 @@ bool try_install(){
     image=g;
     install_quest_targets();
     install_camera_turn();
+    quest_dialog::install();
+    quest_journal::install();
     DWORD old=0;
     if(!VirtualProtect(duplicate,sizeof(Reg),PAGE_EXECUTE_READWRITE,&old))return false;
     duplicate->fn=reinterpret_cast<Ptr>(&AetherfallCore);duplicate->name="AetherfallCore";

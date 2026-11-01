@@ -15,7 +15,7 @@ import subprocess
 import sys
 
 HERE = Path(__file__).resolve().parent
-NATIVE_VERSION = '1.2.90'  # Codex Market/map handoff through the native UI command phase.
+NATIVE_VERSION = '1.3.1'  # Native Find Group Hire details owner.
 PAK = 'Plugin/RelicCalc/RelicCalc.pak'
 PLUGIN_COHORT = [PAK, PAK + '.sig', 'Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig']
 VERSION = '1.2.91'  # Independent Codex view histories, drafts and map return control.
@@ -227,6 +227,7 @@ def main():
     parser.add_argument('--ui-registry-update', action='store_true', help='install the generated native/resource UI catalogue; future updates refresh it automatically')
     parser.add_argument('--shortcut-geometry-update', action='store_true', help='normalize native shortcut artwork, nested shop geometry and square control bounds')
     parser.add_argument('--hud-repair-update', action='store_true', help='update target details, notification mover and persistent companion-bar controls')
+    parser.add_argument('--companion-bar-update', action='store_true', help='update the installed companion command-bar Lua while retaining its layout and native bridge')
     parser.add_argument('--hud-customization-update', action='store_true', help='borderless minimap resources and label, retaining other installed layouts')
     parser.add_argument('--minimap-border-update', action='store_true', help='restore the native minimap border on an independently pinned child image')
     parser.add_argument('--minimap-renderer-update', action='store_true', help='repair the fixed native radar viewport with matching graphics/cursor recovery')
@@ -258,6 +259,8 @@ def main():
         parser.error('--shortcut-geometry-update requires --retain-layout and a separate resource update')
     if args.hud_repair_update and not args.retain_layout:
         parser.error('--hud-repair-update requires --retain-layout')
+    if args.companion_bar_update and not (args.plugin_only or args.retain_layout):
+        parser.error('--companion-bar-update requires --plugin-only or --retain-layout')
     if args.target_overlay_update and not (args.plugin_only or args.retain_layout):
         parser.error('--target-overlay-update requires --plugin-only or --retain-layout')
     if args.target_overlay_update and args.hud_repair_update:
@@ -351,6 +354,8 @@ def main():
 
     if not args.plugin_only:
         # Native bridge, normal MSVC build of the maintained source.
+        native_inputs = [*HERE.glob('*.h'), HERE / 'aetherfall_core.cpp', HERE.parent / 'shared/web_endpoint.h']
+        native_hashes = {p: sha(p.read_bytes()) for p in native_inputs}
         from camera_settings import verify as verify_camera_settings
         verify_camera_settings(client)
         spec = importlib.util.spec_from_file_location('loot_codex_verify', mods / 'loot-codex/verify_native.py')
@@ -361,12 +366,17 @@ def main():
         work.mkdir()
         from quest_targets import generate as generate_quest_targets
         quest_data = generate_quest_targets(client, work, read_pak, journal.decode_html)
+        from quest_journal import generate as generate_quest_journal
+        journal_data = generate_quest_journal(client, work)
+        (output / 'quest-journal-data.json').write_text(json.dumps(journal_data, indent=2), encoding='utf-8')
         (output / 'quest-target-data.json').write_text(json.dumps(quest_data, indent=2), encoding='utf-8')
         vcvars = Path(os.environ.get('ProgramFiles(x86)', r'C:\Program Files (x86)')) / 'Microsoft Visual Studio/2022/BuildTools/VC/Auxiliary/Build/vcvars64.bat'
         dll = work / 'AetherfallCore.dll'
         script = work / 'build.cmd'
         script.write_text(f'@echo off\ncall "{vcvars}" >nul\ncl /nologo /std:c++17 /EHsc /O2 /MT /LD /W4 /WX /I"{work}" /Fo:"{work / "core.obj"}" "{HERE / "aetherfall_core.cpp"}" /link /OUT:"{dll}" /IMPLIB:"{work / "core.lib"}"\n')
         subprocess.run('cmd.exe /d /s /c ""' + str(script) + '""', check=True)
+        if any(sha(p.read_bytes()) != digest for p, digest in native_hashes.items()):
+            raise ValueError('Native Core source changed during build; do not install this output')
         stage('bin64/AetherfallCore.dll', dll.read_bytes())
     if args.dll_only:
         write_manifest(output, client, info, files, before, version=NATIVE_VERSION)
@@ -422,7 +432,7 @@ def main():
     addon = {name: (HERE / name).read_bytes() for name in ADDON if name.endswith('.lua') and name not in GENERATED}
     if args.shared_timer_update:
         addon['WardrobeNative.lua'] = (mods / 'transmog-menu/WardrobeNative.lua').read_bytes()
-    if args.hud_repair_update:
+    if args.hud_repair_update or args.companion_bar_update:
         addon['PlayerBotBar.lua'] = (mods / 'playerbots/PlayerBotBar.lua').read_bytes()
     if not (args.plugin_only or args.retain_layout):
         addon['AetherfallLayout.lua'] = layout_lua(client, mods)
@@ -491,7 +501,10 @@ def main():
             market = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(market)
             changes['PrivateMenus.lua'] = market.menus(old.read('PrivateMenus.lua'), update=True)
-        if args.ui_registry_update or 'AetherfallRegistry.lua' in old.namelist():
+        # The companion controller does not change the UI catalogue. Retain the
+        # installed generated registry when this is the only changed member.
+        bar_only = args.companion_bar_update and set(changes) <= {'PlayerBotBar.lua'}
+        if args.ui_registry_update or ('AetherfallRegistry.lua' in old.namelist() and not bar_only):
             from ui_registry import generate
             changes['AetherfallRegistry.lua'] = generate(client, output, changes)
             toc = changes.get('RelicCalc.toc', old.read('RelicCalc.toc')).decode('utf-8-sig').replace('\r', '').splitlines()
@@ -571,7 +584,7 @@ def main():
     stage('Mods/InstalledMods.json', json.dumps(customization_inventory, indent=2).encode())
 
     extra_sources = {'../transmog-menu/WardrobeNative.lua': sha(addon['WardrobeNative.lua'])} if args.shared_timer_update else {}
-    if args.hud_repair_update:
+    if args.hud_repair_update or args.companion_bar_update:
         extra_sources['../playerbots/PlayerBotBar.lua'] = sha(addon['PlayerBotBar.lua'])
     if args.codex_update or args.codex_controller_update:
         extra_sources['../loot-codex/layout.py'] = sha((mods / 'loot-codex/layout.py').read_bytes())
@@ -607,11 +620,17 @@ def write_manifest(output, client, info, files, before, extra_sources=None, vers
         from camera_settings import verify as verify_camera_settings
         record['cameraSettings'] = verify_camera_settings(client)
         record['inputGuards'] = dict(record['cameraSettings']['inputs'])
+        journal_data = output / 'quest-journal-data.json'
+        if journal_data.exists():
+            record['questJournal'] = json.loads(journal_data.read_text(encoding='utf-8'))
+            record['inputGuards'].update(record['questJournal']['inputs'])
+            record['sourceHashes']['quest_journal_sites.json'] = sha((HERE / 'quest_journal_sites.json').read_bytes())
         data = output / 'quest-target-data.json'
         if data.exists():
             record['questTargets'] = json.loads(data.read_text(encoding='utf-8'))
             record['inputGuards'].update(record['questTargets']['inputs'])
     record['sourceHashes'].update(extra_sources or {})
+    record['sourceHashes']['../shared/web_endpoint.h'] = sha((HERE.parent / 'shared/web_endpoint.h').read_bytes())
     browser_inputs = output / 'codex-browser-inputs.json'
     if browser_inputs.exists():
         record['inputGuards'].update(json.loads(browser_inputs.read_text())['inputGuards'])

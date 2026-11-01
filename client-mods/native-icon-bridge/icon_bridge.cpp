@@ -5,18 +5,24 @@
 #include <wrl/client.h>
 #include <bcrypt.h>
 #include <winhttp.h>
+#define AETHERFALL_WEB_OWNER
+#include "../shared/web_endpoint.h"
 #include "icon_codec.h"
 #include <filesystem>
 #include <fstream>
 #include <list>
 #include <memory>
 #include <mutex>
+#include <cctype>
 #include <cmath>
 #include <string>
 #include <unordered_map>
 #include <future>
 #include <chrono>
 #include <sstream>
+#include <algorithm>
+#include <regex>
+#include "web_shells.h"
 
 namespace {
 using Microsoft::WRL::ComPtr;
@@ -38,10 +44,35 @@ HMODULE own_module;
 HANDLE archive=INVALID_HANDLE_VALUE;
 std::mutex cache_mutex,callback_mutex;
 std::once_flag initialize_once;
+std::once_flag connection_once;
+bool connection_initialized=false;
 bool initialized=false;
 std::filesystem::path log_path;
 std::mutex log_mutex;
 bool logged_market=false,logged_shop=false;
+unsigned char* web_game=nullptr;
+struct WebMetadata { std::string origin,message;std::array<uint8_t,16> token{};int scale=100,flags=0;bool received=false; };
+WebMetadata web_metadata;
+std::mutex web_mutex;
+void log(const char* message);
+bool memory_span(const void* address,size_t bytes){
+    if(!address || !bytes)return false;MEMORY_BASIC_INFORMATION info{};
+    auto start=reinterpret_cast<uintptr_t>(address);
+    return VirtualQuery(address,&info,sizeof info) && info.State==MEM_COMMIT && !(info.Protect&(PAGE_GUARD|PAGE_NOACCESS))
+        && start>=reinterpret_cast<uintptr_t>(info.BaseAddress) && bytes<=info.RegionSize-(start-reinterpret_cast<uintptr_t>(info.BaseAddress));
+}
+bool receive_web_metadata(const uint8_t* body,size_t size){
+    if(size<29 || body[0]!=0xaf || std::memcmp(body+1,"AFW1",4) || body[5]!=1)return false;
+    size_t origin_size=icons::u16(body+6),message_size=icons::u16(body+8);
+    if(origin_size>512 || message_size>512 || size!=29+origin_size+message_size || icons::u16(body+10)>200 || body[12]>1)return false;
+    WebMetadata next;next.origin.assign(reinterpret_cast<const char*>(body+29),origin_size);
+    next.message.assign(reinterpret_cast<const char*>(body+29+origin_size),message_size);
+    if(!next.origin.empty() && !aetherfall_web::parse(aetherfall_web::wide(next.origin)).valid)return false;
+    if(next.origin.find('\0')!=std::string::npos || next.message.find('\0')!=std::string::npos)return false;
+    std::memcpy(next.token.data(),body+13,16);next.scale=icons::u16(body+10);next.flags=body[12];next.received=true;
+    {std::lock_guard<std::mutex> lock(web_mutex);web_metadata=std::move(next);}
+    log("Window connection: server metadata received");return true;
+}
 void log(const char* message){try{std::lock_guard<std::mutex> lock(log_mutex);if(!log_path.empty()){std::ofstream out(log_path,std::ios::app);out<<message<<'\n';}}catch(...){}}
 struct Asset {uint32_t offset,compressed,size,crc,sprite_side;uint16_t method,key_size;uint8_t key[32];};
 static_assert(sizeof(Asset)==56);
@@ -150,22 +181,62 @@ std::shared_ptr<std::vector<uint8_t>> get_art(const std::string& name){
     auto bytes=std::make_shared<std::vector<uint8_t>>(png(sprite,side?side:a.w,side?side:a.h));art_cache.emplace(name,bytes);return bytes;
 }
 std::string art_name(const std::string& url){
-    const std::string origin="http://127.0.0.1:",prefix="/market/companions/media/art/";if(url.rfind(origin,0)!=0)return {};size_t slash=url.find('/',origin.size());
-    if(slash==std::string::npos||slash==origin.size()||slash-origin.size()>5||url.compare(slash,prefix.size(),prefix))return {};
+    const std::string path=aetherfall_web::resource_path(url),prefix="/market/companions/media/art/";if(path.compare(0,prefix.size(),prefix))return {};
+    const size_t slash=url.size()-path.size();
     size_t start=slash+prefix.size(),end=url.find(".png",start);if(end==std::string::npos||end==start||end-start>31||(url.size()!=end+4&&url[end+4]!='?'))return {};
     std::string name=url.substr(start,end-start);for(char c:name)if(!(c>='a'&&c<='z')&&c!='-'&&c!='_')return {};return name;
 }
 uint32_t icon_id(const std::string& url){
-    const std::string origin="http://127.0.0.1:";if(url.rfind(origin,0)!=0)return 0;size_t slash=url.find('/',origin.size());
-    if(slash==std::string::npos||slash==origin.size()||slash-origin.size()>5)return 0;
-    for(size_t i=origin.size();i<slash;++i)if(url[i]<'0'||url[i]>'9')return 0;
+    const auto path=aetherfall_web::resource_path(url);if(path.empty())return 0;const size_t slash=url.size()-path.size();
     size_t start=0;for(const auto* prefix:{"/market/media/icons/","/shop/media/icons/"}){size_t n=std::strlen(prefix);if(url.compare(slash,n,prefix)==0){start=slash+n;break;}}
     if(!start||url.size()<start+13||url.compare(start+9,4,".png")|| (url.size()!=start+13&&url[start+13]!='?'))return 0;
     uint32_t item=0;for(size_t i=start;i<start+9;++i){if(url[i]<'0'||url[i]>'9')return 0;item=item*10+url[i]-'0';}return item;
 }
+std::unordered_map<std::string,std::shared_ptr<std::vector<uint8_t>>> shell_cache;
+std::shared_ptr<std::vector<uint8_t>> window_shell(const std::string& path,int scale,const char*& mime){
+    static const auto records=[](){std::unordered_map<std::string,const web_shells::Record*> out;for(const auto& a:web_shells::assets)out.emplace(a.path,&a);return out;}();
+    auto found=records.find(path);if(found==records.end())return {};
+    const auto& record=*found->second;mime=record.mime;
+    std::string key=path+"|"+std::to_string(scale);std::lock_guard<std::mutex> lock(cache_mutex);
+    auto cached=shell_cache.find(key);if(cached!=shell_cache.end())return cached->second;
+    std::vector<uint8_t> compressed(record.data,record.data+record.packed);auto data=icons::inflate(compressed,record.size);
+    if(path.size()>=4 && path.compare(path.size()-4,4,".css")==0 && scale>0){
+        // The existing WindowTextScale policy, applied once to a cached static
+        // shell. Its server-owned scale travels in the same session metadata.
+        static const std::regex sizes("(font-size\\s*:\\s*|font\\s*:[^;}]*?)(\\d+(?:\\.\\d+)?)px");
+        std::string css(data.begin(),data.end()),out;size_t offset=0;
+        for(std::sregex_iterator i(css.begin(),css.end(),sizes),end;i!=end;++i){
+            const auto& match=*i;double px=std::stod(match[2].str()),readable=px<16?px+(16-px)*.45:px;
+            long value=px<=0?0:std::lround(readable*(std::min)((std::max)(scale,50),200)/100.0);
+            out.append(css,offset,size_t(match.position())-offset);out+=match[1].str()+std::to_string(value)+"px";offset=size_t(match.position()+match.length());
+        }
+        out.append(css,offset,std::string::npos);data.assign(out.begin(),out.end());
+    }
+    auto result=std::make_shared<std::vector<uint8_t>>(std::move(data));if(shell_cache.size()>=128)shell_cache.clear();shell_cache.emplace(key,result);return result;
+}
+Ptr browser_response(const std::vector<uint8_t>& bytes,const char* type){
+    std::wstring name(type,type+std::strlen(type));Ptr mime=from_wide(name.c_str(),name.size());if(!mime)return nullptr;
+    Ptr response=response_create(bytes.size(),bytes.data(),mime);destroy_string(mime);return response;
+}
 Ptr __cdecl on_resource(Ptr view,Ptr request){
     try{
-        std::array<char,256> address{};Ptr value=request_url(request);size_t count=value?to_utf8(value,address.data(),address.size()):address.size();if(value)destroy_string(value);
+        std::array<char,1024> address{};Ptr value=request_url(request);size_t count=value?to_utf8(value,address.data(),address.size()):address.size();if(value)destroy_string(value);
+        if(count<address.size()){
+            std::string url(address.data(),count),path=aetherfall_web::resource_path(url),session=aetherfall_web::token(url);
+            auto endpoint=aetherfall_web::selected(session.empty()?nullptr:session.c_str());
+            auto query=path.find('?');std::string bare=path.substr(0,query);bool shop_fetch=bare=="/shop" && path.find("af_fetch=1")!=std::string::npos;
+            const char* type=nullptr;
+            // The server remains the owner of all current window pages. Local
+            // shells exist only to show the established connection message
+            // when metadata is unavailable; never replace a working page.
+            if(!endpoint.valid && !shop_fetch){auto bytes=window_shell(bare,endpoint.text_scale,type);if(bytes){auto response=browser_response(*bytes,type);if(response)return response;}}
+            bool api=shop_fetch || (bare.size()>=6 && bare.compare(bare.size()-6,6,"/state")==0) || (bare.size()>=7 && bare.compare(bare.size()-7,7,"/action")==0) || bare=="/market/companions/help";
+            std::string error;
+            if(api && !endpoint.valid)error=endpoint.error;
+            if(api && endpoint.valid && url.compare(0,aetherfall_web::utf8(endpoint.origin).size(),aetherfall_web::utf8(endpoint.origin)))error="This window belongs to an earlier connection. Reopen it from Additional Functions.";
+            if(api && bare.rfind("/journey/",0)==0 && !(endpoint.flags&1))error="Choose Your Journey is available only to this server's local game client.";
+            if(!error.empty()){auto json=aetherfall_web::error_json(error);std::vector<uint8_t> bytes(json.begin(),json.end());auto response=browser_response(bytes,"application/json");if(response)return response;}
+        }
         if(count<address.size()){std::string url(address.data(),count);auto art=art_name(url);if(!art.empty()){auto bytes=get_art(art);if(bytes){Ptr mime=from_wide(L"image/png",9);if(mime){Ptr response=response_create(bytes->size(),bytes->data(),mime);destroy_string(mime);if(response)return response;}}}}
         if(count<address.size()){auto bytes=get_icon(icon_id(std::string(address.data(),count)));if(bytes){Ptr mime=from_wide(L"image/png",9);if(mime){Ptr response=response_create(bytes->size(),bytes->data(),mime);destroy_string(mime);if(response){std::lock_guard<std::mutex> lock(log_mutex);bool& recorded=std::strstr(address.data(),"/market/")?logged_market:logged_shop;if(!recorded){recorded=true;if(!log_path.empty()){std::ofstream out(log_path,std::ios::app);out<<"Native icon served: "<<address.data()<<'\n';}}return response;}}}}
     }catch(...){/* Preserve callback chaining; the native-only server returns 404. */}
@@ -182,6 +253,91 @@ void __cdecl destroy_view(Ptr view){{std::lock_guard<std::mutex> lock(callback_m
 void jump(uint8_t* p,void* destination){const uint8_t op[]={0xff,0x25,0,0,0,0};std::memcpy(p,op,6);std::memcpy(p+6,&destination,8);}
 void* trampoline(void* target,size_t length){auto memory=static_cast<uint8_t*>(VirtualAlloc(nullptr,length+14,MEM_COMMIT|MEM_RESERVE,PAGE_EXECUTE_READWRITE));if(!memory)throw std::runtime_error("Trampoline allocation");std::memcpy(memory,target,length);jump(memory+length,static_cast<uint8_t*>(target)+length);return memory;}
 void detour(void* target,void* destination,size_t length){DWORD old;if(!VirtualProtect(target,length,PAGE_EXECUTE_READWRITE,&old))throw std::runtime_error("Hook protection");jump(static_cast<uint8_t*>(target),destination);std::memset(static_cast<uint8_t*>(target)+14,0x90,length-14);DWORD ignored;VirtualProtect(target,length,old,&ignored);FlushInstructionCache(GetCurrentProcess(),target,length);}
+using BrowserLoad=uintptr_t(__cdecl*)(Ptr,int,const char*);
+BrowserLoad original_browser_load=nullptr;
+struct PendingNavigation {Ptr manager;int view;std::string url;std::array<uint8_t,16> token;ULONGLONG since;};
+std::vector<PendingNavigation> pending_navigation;
+bool metadata_for(const uint8_t* token){std::lock_guard<std::mutex> lock(web_mutex);return web_metadata.received && !std::memcmp(token,web_metadata.token.data(),16);}
+using SecurityResponse=uintptr_t(__cdecl*)(Ptr,Ptr);
+SecurityResponse original_security_response=nullptr;
+uintptr_t __cdecl connected_security_response(Ptr context,Ptr packet){
+    // Use the consumer's actual current payload pointer, exactly as its
+    // original instructions do. A packet delivered by the native dispatcher
+    // need not retain the transport header or use our fixture's cursor of 7.
+    if(memory_span(packet,0x24)){
+        auto object=static_cast<const uint8_t*>(packet);const uint8_t* data=nullptr;int offset=0;
+        std::memcpy(&data,object+0x18,8);std::memcpy(&offset,object+0x20,4);
+        if(offset>=0 && offset<=8192-29 && data){
+            auto body=data+offset;
+            if(memory_span(body,29) && body[0]==0xaf){
+                {std::lock_guard<std::mutex> lock(web_mutex);web_metadata.received=false;}
+                size_t size=29+size_t(icons::u16(body+6))+size_t(icons::u16(body+8));
+                if(size>1053 || !memory_span(body,size) || !receive_web_metadata(body,size))log("Window connection metadata rejected: invalid version or payload bounds");
+                return 0;
+            }
+        }
+    }
+    return original_security_response(context,packet);
+}
+uintptr_t __cdecl connected_browser_load(Ptr manager,int view,const char* url){
+    if(!url)return original_browser_load(manager,view,url);
+    constexpr char prefix[]="http://127.0.0.1:8091";const std::string requested=url;
+    if(web_game && requested.compare(0,sizeof(prefix)-1,prefix)==0 && aetherfall_web::private_path(requested.substr(sizeof(prefix)-1)) && !metadata_for(web_game+0x130c8f0)){
+        auto found=std::find_if(pending_navigation.begin(),pending_navigation.end(),[view](const auto& p){return p.view==view;});
+        PendingNavigation pending{manager,view,requested,{},GetTickCount64()};std::memcpy(pending.token.data(),web_game+0x130c8f0,16);
+        if(found!=pending_navigation.end())*found=std::move(pending);
+        else if(pending_navigation.size()<16)pending_navigation.push_back(std::move(pending));
+        return 0;
+    }
+    // This is the existing native navigation queue: authentication and all
+    // window owners run unchanged, then the selected endpoint is substituted.
+    auto selected=aetherfall_web::navigation(url);return original_browser_load(manager,view,selected.c_str());
+}
+bool connect_browser(){
+    auto base=reinterpret_cast<uint8_t*>(GetModuleHandleW(L"Game.dll"));if(!base)return false;
+    constexpr uint8_t prologue[]={0x48,0x8b,0xc4,0x48,0x81,0xec,0xd8,0x01,0,0,0xc7,0x44,0x24,0x30,0x03,0,0,0};
+    constexpr uint8_t security_prologue[]={0x4c,0x8b,0xdc,0x48,0x81,0xec,0xa8,0,0,0,0x48,0x63,0x42,0x20};
+    auto entry=base+0x12cc80,security=base+0x3663c0;
+    if(std::memcmp(entry,prologue,sizeof prologue) || std::memcmp(security,security_prologue,sizeof security_prologue))return false;
+    web_game=base;
+    original_browser_load=reinterpret_cast<BrowserLoad>(trampoline(entry,sizeof prologue));
+    original_security_response=reinterpret_cast<SecurityResponse>(trampoline(security,sizeof security_prologue));
+    detour(security,reinterpret_cast<void*>(connected_security_response),sizeof security_prologue);
+    detour(entry,reinterpret_cast<void*>(connected_browser_load),sizeof prologue);return true;
+}
+bool ensure_connection(){
+    std::call_once(connection_once,[]{connection_initialized=connect_browser();});return connection_initialized;
+}
+std::array<uint8_t,16> connection_token{};
+bool connection_can_send=false;
+void connection_tick(){
+    if(!ensure_connection())return;
+    auto token=web_game+0x130c8f0;
+    // Use SendChat/web-key's existing native socket admission. A token may
+    // arrive before sending is enabled; make one request when that changes.
+    bool can_send=*reinterpret_cast<Ptr*>(web_game+0x133bb30) && web_game[0x133bb38]!=0;
+    bool admitted=can_send && !connection_can_send;connection_can_send=can_send;
+    if(std::memcmp(token,connection_token.data(),16) || admitted){
+        std::memcpy(connection_token.data(),token,16);
+        bool present=false;for(auto b:connection_token)present|=b!=0;
+        if(present && can_send && !metadata_for(token)){
+        // The bridge used to install its receive hook only when Lua created
+        // the first browser, after the login/enter-world reply. Recover once
+        // per changed native session through the existing web-key request.
+            reinterpret_cast<void(__cdecl*)()>(web_game+0x3321c0)();
+            log("Window connection: requested metadata for newly observed game session");
+        }
+    }
+    if(pending_navigation.empty())return;
+    bool received=metadata_for(token);auto now=GetTickCount64();
+    for(size_t i=0;i<pending_navigation.size();){
+        auto& pending=pending_navigation[i];
+        if(std::memcmp(token,pending.token.data(),16)){pending_navigation.erase(pending_navigation.begin()+i);continue;}
+        if(!received && now-pending.since<4000){++i;continue;}
+        auto ready=std::move(pending);pending_navigation.erase(pending_navigation.begin()+i);
+        auto destination=aetherfall_web::navigation(ready.url);original_browser_load(ready.manager,ready.view,destination.c_str());
+    }
+}
 #include "wardrobe_preview.h"
 #include "wardrobe_native_ui.h"
 #include "../playerbots/playerbot_bar.h"
@@ -196,7 +352,26 @@ bool setup(const std::filesystem::path& root){
 }
 }
 extern "C" __declspec(dllexport) void __cdecl AionWardrobeVisibility(Ptr widget,int event){wardrobe::visible(widget,event);}
-extern "C" __declspec(dllexport) void __cdecl AionWardrobeTick(){wardrobe::tick();if(wardrobe::ui_thread==GetCurrentThreadId() && !wardrobe::changing)companion_bar::tick();}
+extern "C" __declspec(dllexport) int __cdecl AionWebConnection(const char* expected,wchar_t* origin,size_t capacity,char* error,size_t error_capacity,int* scale,int* flags){
+    aetherfall_web::Endpoint out;bool ready=false;
+    {
+        std::lock_guard<std::mutex> lock(web_mutex);
+        bool same=web_game && web_metadata.received && !std::memcmp(web_game+0x130c8f0,web_metadata.token.data(),16);
+        if(same && expected){
+            constexpr char hex[]="0123456789abcdef";std::string id;
+            for(uint8_t b:web_metadata.token){id+=hex[b>>4];id+=hex[b&15];}same=id==expected;
+        }
+        if(same){
+            out=aetherfall_web::parse(aetherfall_web::wide(web_metadata.origin));out.text_scale=web_metadata.scale;out.flags=web_metadata.flags;
+            if(!web_metadata.message.empty())out.error=web_metadata.message;
+            ready=out.valid;
+        }
+    }
+    if(origin && capacity){origin[0]=0;if(ready && out.origin.size()<capacity)std::memcpy(origin,out.origin.c_str(),(out.origin.size()+1)*sizeof(wchar_t));else ready=false;}
+    if(error && error_capacity){size_t n=(std::min)(out.error.size(),error_capacity-1);std::memcpy(error,out.error.data(),n);error[n]=0;}
+    if(scale)*scale=out.text_scale;if(flags)*flags=out.flags;return ready?1:0;
+}
+extern "C" __declspec(dllexport) void __cdecl AionWardrobeTick(){connection_tick();wardrobe::tick();if(wardrobe::ui_thread==GetCurrentThreadId() && !wardrobe::changing)companion_bar::tick();}
 extern "C" __declspec(dllexport) int __cdecl AionIconBridgeAttach(Ptr view,const wchar_t* root){try{if(!view||!root||!setup(root))return 0;attach(view);return 1;}catch(...){return 0;}}
 extern "C" __declspec(dllexport) size_t __cdecl AionIconBridgeDecode(uint32_t item,uint8_t* output,size_t capacity){try{auto bytes=get_icon(item);if(!bytes)return 0;if(output&&capacity>=bytes->size())std::memcpy(output,bytes->data(),bytes->size());return bytes->size();}catch(...){return 0;}}
 extern "C" __declspec(dllexport) int __cdecl AionIconBridgeInitialize(){
@@ -212,6 +387,7 @@ extern "C" __declspec(dllexport) int __cdecl AionIconBridgeInitialize(){
         original_create=reinterpret_cast<Create>(trampoline(reinterpret_cast<void*>(create),sizeof(create_bytes)));original_destroy=reinterpret_cast<Destroy>(trampoline(reinterpret_cast<void*>(destroy),sizeof(destroy_bytes)));original_set=reinterpret_cast<Set>(trampoline(reinterpret_cast<void*>(set_callback),sizeof(set_bytes)));
         detour(reinterpret_cast<void*>(set_callback),reinterpret_cast<void*>(set_resource),sizeof(set_bytes));detour(reinterpret_cast<void*>(destroy),reinterpret_cast<void*>(destroy_view),sizeof(destroy_bytes));detour(reinterpret_cast<void*>(create),reinterpret_cast<void*>(create_view),sizeof(create_bytes));
         if(!wardrobe::initialize(module))throw std::runtime_error("Unsupported Wardrobe browser callback");
+        if(!ensure_connection())throw std::runtime_error("Unsupported native browser navigation owner");
         initialized=true;log("Initialized: original Items.pak, 512-texture memory cache, native Wardrobe preview");
     }catch(...){log("Initialization failed: native exception; native icons unavailable");}});return initialized?1:0;
 }

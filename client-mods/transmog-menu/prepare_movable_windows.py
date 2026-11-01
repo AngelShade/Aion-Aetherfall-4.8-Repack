@@ -1,4 +1,4 @@
-"""Stage movement for Profile, full Inventory and native Warehouse only."""
+"""Stage movement for Profile, full Inventory, native Warehouse and quest journal."""
 import argparse
 import hashlib
 import json
@@ -49,7 +49,7 @@ def main():
         files=[dict(path=p.relative_to(out).as_posix(),original=digest(root/p.relative_to(out)) if (root/p.relative_to(out)).exists() else None,staged=digest(p)) for p in sorted(out.rglob('*')) if p.is_file()],
         preservedFiles=[dict(path=n,sha256=digest(root/n)) for n in preserved])
     (out/'manifest.json').write_text(json.dumps(manifest,indent=2))
-    print(f'Prepared {len(manifest["files"])} files; native movement for three dialogs in both UI archives and matching graphics restore baselines. Client untouched.')
+    print(f'Prepared {len(manifest["files"])} files; native movement for four dialogs in both UI archives and matching graphics restore baselines. Client untouched.')
 
 
 if __name__=='__main__':main()

@@ -35,11 +35,18 @@ Keep published reward slots and economics stable under an existing season ID. To
 
 ## Remote players and the in-game browser
 
-Pass progress, purchases and claims are stored on the GameServer for each character. The in-game window is a browser running on each player's PC, so its page URL must reach the server over the network. `127.0.0.1` works only when that player also runs GameServer on the same PC.
+Pass progress, purchases and claims are stored on the GameServer for each character.
+The shared window connection now uses metadata supplied through the authenticated game connection. The server
+administrator configures its service origin; a new per-server
+Season Pass client patch is no longer necessary. See [window connections](INGAME_WINDOWS.md).
 
-For remote players, keep `gameserver.marketplace.bind = 127.0.0.1` and put an HTTPS reverse proxy on the server host. Publish only `/market/pass` and `/market/pass/` through the proxy to `http://127.0.0.1:8091`; keep port 8091 private. Preserve the incoming `Host` header and forward the normal `Origin` header. The Java handler accepts an HTTP or HTTPS Origin only when its authority matches `Host`. Do not expose the session-bearing HTTP endpoint directly to the Internet.
+For public service, keep `gameserver.marketplace.bind = 127.0.0.1` and put an HTTPS reverse
+proxy on the server host. Publish the shared window routes described in that
+document, including `/market/pass`, through the proxy to the private listener.
+Set `gameserver.web.public_url` to the public HTTPS origin.
+Preserve `Host` and `Origin`; all mutating windows use the shared origin policy.
 
-Build each client's patch with the same public HTTPS origin, for example:
+The older standalone Pass builder still accepts a fixed origin for legacy clients:
 
 ```powershell
 python client-mods/season-pass/prepare.py --client "C:\Aion 4.8 NA" --output "C:\Aion-SeasonPass-Staged" --server-url "https://play.example.com"

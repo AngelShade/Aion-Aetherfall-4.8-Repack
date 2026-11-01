@@ -198,7 +198,11 @@ def patch_layout(root):
             _, y, w, h = map(int, widget.get('frame').split(','))
             widget.set('frame', f'{x},{y},{w},{h}')
     from inventory_search import patch_search_layout
-    return patch_search_layout(root)
+    result = patch_search_layout(root)
+    money = result.find(".//Widget[@name='money']")
+    flags = [v for v in money.get('flag', '').split(';') if v]
+    money.set('flag', ';'.join(dict.fromkeys(flags + ['not_active'])))
+    return result
 
 
 def prepare_inventory_archive(client_root, output, relative='Data/ui/game/game.pak', prefix=''):

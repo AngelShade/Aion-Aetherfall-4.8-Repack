@@ -122,7 +122,13 @@ The package build, 102 isolated database checks, list-node preservation, latest-
 5. Restart GameServer. Confirm the log contains **Central Market ready** and the marketplace listener starts.
 6. Reopen Aion. Verify Inventory still works, open Warehouse, transfer an item and Kinah, then test a sale and purchase with different accounts. Verify cancellation, collection and persistence after relogin.
 
-The supplied client URL is `http://127.0.0.1:8091/market`, matching this local server installation. The client requests its existing account security token through the native game packet and opens the market with the token in `session_id`. Each browser is authenticated to its own account, including when several characters are online. The Market API has no unauthenticated player fallback. The browser hook retains the publisher path for unrelated URLs. Remote deployments require a matching client URL/transport configuration; this package uses the local endpoint.
+The menu retains `http://127.0.0.1:8091/market` as its logical authentication route.
+After the native account-token callback, the shared navigation owner substitutes
+the GameServer-advertised, session-bound origin. Native icons and previews recognize only
+that selected origin. Each browser keeps its own account session, including when
+several characters are online. The Market API has no unauthenticated player
+fallback. Unrelated publisher URLs retain their original path. See
+[shared window connections](INGAME_WINDOWS.md) for LAN, HTTPS and split hosting.
 
 Do not restore an older server JAR after market activity without keeping market custody supported or first reconciling items and escrow. Client backups restore visuals; they do not reverse trades. Keep the database tables and location-125 rows when updating the server. Database backups must include all market tables, `inventory` and `item_stones` together.
 

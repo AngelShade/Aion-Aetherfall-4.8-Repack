@@ -33,9 +33,11 @@ def main():
     a=p.parse_args();package=a.package.resolve()
     if not package.is_relative_to(DEV_ROOT/'staging/output'):raise ValueError('Expected external staged package')
     m=json.loads((package/'manifest.json').read_text());root=Path(m['clientRoot']).resolve()
-    prefixes={'custom-window-queue-v1':'window-queue','remember-login-return-v2':'remember-login-return','remember-login-reconnect-v3':'remember-login-return','marketplace-session-v1':'marketplace-session','native-session-compat-v1':'native-session-compat'}
-    expected_client = a.client.resolve() if m['feature']=='native-session-compat-v1' and a.client else CLIENT
-    if m['feature']=='native-session-compat-v1' and not a.client:raise ValueError('Specify the original client explicitly')
+    prefixes={'custom-window-queue-v1':'window-queue','remember-login-return-v2':'remember-login-return','remember-login-reconnect-v3':'remember-login-return','marketplace-session-v1':'marketplace-session','native-session-compat-v1':'native-session-compat','warehouse-item-context-v1':'warehouse-item-context','warehouse-collapse-v1':'warehouse-collapse'}
+    prefixes['warehouse-controls-v1']='warehouse-controls'
+    explicit_client = m['feature'] in ('native-session-compat-v1','warehouse-item-context-v1','warehouse-collapse-v1','warehouse-controls-v1')
+    expected_client = a.client.resolve() if explicit_client and a.client else CLIENT
+    if explicit_client and not a.client:raise ValueError('Specify the original client explicitly')
     if m['feature'] not in prefixes or root!=expected_client:raise ValueError('Wrong feature or installation')
     name=m['graphicsCompatibility']['backupName']
     if not re.fullmatch(r'service-menu-graphics-\d{8}-\d{6}-\d{6}',name):raise ValueError('Invalid graphics recovery path')
@@ -45,6 +47,10 @@ def main():
              backup+'/bin64/Game.dll',backup+'/Data/ui/game/game.pak',backup+'/cursor-base/bin64/Game.dll'}
     if m['graphicsCompatibility']['localized']:allowed.update({'Mods/GraphicsMenu/package/L10N/enu/Data/data.pak',backup+'/L10N/enu/Data/data.pak'})
     if m['feature'] in ('remember-login-return-v2','remember-login-reconnect-v3'):allowed.add('bin64/AionRememberLogin.dll')
+    if m['feature'] in ('warehouse-item-context-v1','warehouse-collapse-v1','warehouse-controls-v1'):allowed.add('Mods/InstalledMods.json')
+    if m['feature']=='warehouse-controls-v1':allowed.update({'Data/ui/game/game.pak','L10N/enu/Data/data.pak',
+        'Plugin/RelicCalc/RelicCalc.pak','Plugin/RelicCalc/RelicCalc.pak.sig','Addon.key',
+        'bin32/bin32.pak.sig','Data/func_pet/func_pet.pak.sig'})
     if len(m['files'])!=len(allowed) or {e['path'] for e in m['files']}!=allowed:raise ValueError('Unexpected transaction scope')
     def preserve():
         for e in m['preservedFiles']:

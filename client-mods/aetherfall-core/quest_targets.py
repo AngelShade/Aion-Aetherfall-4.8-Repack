@@ -157,4 +157,7 @@ def refresh_inventory(payload, dll):
     refresh(inventory)
     inventory.setdefault('features', {})['AetherfallQuestTargets'] = [
         dict(path='bin64/AetherfallCore.dll', installedSha256=digest, bytes=len(dll))]
+    for feature in ('AetherfallQuestJournal', 'AetherfallNpcKeyboard'):
+        inventory['features'][feature] = [
+            dict(path='bin64/AetherfallCore.dll', installedSha256=digest, bytes=len(dll))]
     return json.dumps(inventory, indent=2).encode('utf-8')

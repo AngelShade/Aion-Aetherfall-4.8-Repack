@@ -31,6 +31,12 @@ settings.json. installed.json records the current owned records and archive
 state. Do not delete it to bypass a conflict. Removing an installed quest's
 source folder is rejected; restoring its folder keeps progress safe.
 
+Help Request (14996) is the journal and tracker entry of an accepted bot help request.
+The server starts and removes it; Aetherfall Core sets its title.
+
+A new quest changes data.pak, which the Graphics menu locks by hash. Add one with
+add_package.py, or Play stops at the Graphics step.
+
 Client packages do not install server handlers or change character progress.
 Server support is required for each quest. The in-game quest menu, markers and
 gameplay remain acceptance checks after the client has restarted.
