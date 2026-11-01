@@ -1,7 +1,10 @@
 """Optional language assets are separate from the English core update."""
 import hashlib
 import json
+import urllib.request
 from pathlib import Path
+
+RELEASES_API = 'https://api.github.com/repos/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tags/'
 
 
 def optional_path(relative):
@@ -16,15 +19,41 @@ def validate_core(package, entries):
             raise ValueError('Optional language payload/state is in the core inventory: ' + entry['path'])
 
 
-def assets(package, patch_dir):
+def packs(package):
     catalog = Path(package) / 'Client/Mods/Languages/catalog.json'
     if not catalog.is_file():
         return []
     document = json.loads(catalog.read_text(encoding='utf-8-sig'))
     if document.get('schema') != 1:
         raise ValueError('Unsupported language catalog')
+    return document['packs']
+
+
+def hosted_here(pack, tag):
+    return f'/releases/download/{tag}/' in pack['url']
+
+
+def verify_published(package, tag):
+    """Unchanged packs stay on the release that first hosted them; that release must still serve them."""
+    releases = {}
+    for pack in packs(package):
+        if hosted_here(pack, tag):
+            continue
+        host = pack['url'].split('/releases/download/')[1].split('/')[0]
+        if host not in releases:
+            request = urllib.request.Request(RELEASES_API + host, headers={'User-Agent': 'Aetherfall-Publisher'})
+            with urllib.request.urlopen(request) as response:
+                releases[host] = {a['name']: a['size'] for a in json.load(response)['assets']}
+        if releases[host].get(pack['file']) != pack['bytes']:
+            raise ValueError('Published optional language asset differs: ' + pack['url'])
+
+
+def assets(package, patch_dir, tag):
+    """Only packs whose catalog URL names this release are uploaded with it."""
     result = []
-    for pack in document['packs']:
+    for pack in packs(package):
+        if not hosted_here(pack, tag):
+            continue
         name = pack['file']
         if Path(name).name != name or '/' in name or '\\' in name:
             raise ValueError('Unsafe optional language asset name')

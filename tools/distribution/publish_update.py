@@ -18,7 +18,7 @@ from setup_version import setup_version
 from build_downloader import build_downloader
 from release_workspace import release_path
 from chunked_patch import read_patch, verify_assets, GITHUB_ASSET_BYTES
-from optional_languages import assets as language_assets, optional_path
+from optional_languages import assets as language_assets, optional_path, verify_published as verify_published_languages
 
 try:
     import certifi  # Windows' store can lack the root of GitHub's current chain (USERTrust ECC).
@@ -233,7 +233,9 @@ def publish_prepared(package, baseline_path, dist_dir, target_version, upload):
     if not entry or entry['sha256'] != sha256_file(package / 'FILES.json'):
         raise ValueError('The repack changed after its patch was prepared; rebuild the local patch first')
     verify_assets(patch_dir, patch)
-    optional_assets = language_assets(package, patch_dir)
+    optional_assets = language_assets(package, patch_dir, tag)
+    if upload:
+        verify_published_languages(package, tag)
     latest['languageAssets'] = [dict(file=path.name, bytes=path.stat().st_size,
                                     sha256=sha256_file(path)) for path in optional_assets]
     if len(patch['assets']) + len(optional_assets) > 990:

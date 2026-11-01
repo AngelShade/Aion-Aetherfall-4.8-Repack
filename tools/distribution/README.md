@@ -226,9 +226,12 @@ are excluded. `build_language_packs.py` creates the optional ZIPs and core catal
 
 The core inventory excludes language Packs, Cache and Installed state. Cumulative
 updates never delete previously installed optional packs. `publish_update.py
---prepared --no-upload` validates their hashes alongside the core patch; only an
-explicit Publish Update uploads the ZIPs and makes their catalog URLs available.
-Keep each optional asset below the publisher's asset-size guard. Source archives,
+--prepared --no-upload` validates the hashes of packs new in this release alongside
+the core patch; only an explicit Publish Update uploads those ZIPs. An unchanged
+pack keeps its catalog URL on the release that first hosted it, so it is not uploaded
+again and that release must never be deleted; Publish Update checks it still serves
+each pack. A rebuilt pack gets a new version and URL, and installed players are
+offered Update beside that pack in the Hub. Keep each optional asset below the publisher's asset-size guard. Source archives,
 diagnostics, personal settings and download caches are not optional-pack payloads.
 
 The prepared core builder retains player-edited mutable settings in the maintained

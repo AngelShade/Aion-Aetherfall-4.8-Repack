@@ -48,6 +48,11 @@ namespace Aetherfall {
    return catalog;
   }
   public static List<LanguageDownload> Catalog(string root) { return ReadCatalog(root).packs; }
+  // Packs are never updated silently: the Hub offers a newer catalog version for the player to choose.
+  public static bool UpdateAvailable(string root,LanguageDownload pack) {
+   string receipt=At(root,"Mods/Languages/Installed/"+pack.id+".json");if(!File.Exists(receipt))return false;
+   var installed=Json.Deserialize<LanguageDownload>(File.ReadAllText(receipt));return installed!=null&&installed.version!=pack.version;
+  }
   static LanguageDownload KnownPack(string root,string id,string version) {
    var catalog=ReadCatalog(root);var pack=catalog.packs.Concat(catalog.previousVersions).FirstOrDefault(x=>x.id==id&&x.version==version);
    if(pack==null)throw new InvalidDataException("Update the launcher catalog before installing this language pack.");return pack;
