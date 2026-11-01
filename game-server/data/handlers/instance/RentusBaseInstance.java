@@ -42,6 +42,7 @@ public class RentusBaseInstance extends GeneralInstanceHandler {
 
 	@Override
 	public void onDie(final Npc npc) {
+        if (npc.getNpcId()==217313) completeRun(npc);
 		super.onDie(npc);
 		switch (npc.getNpcId()) {
 			case 217315: // Umatha the Crazed

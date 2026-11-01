@@ -87,9 +87,16 @@
         renderCurrent(); timer();
         status(data.notice || (data.active ? 'Progress saved automatically · Free Pass is active' : data.claimable ? 'Season ended · Claim your earned rewards before the deadline' : data.now < data.starts ? 'The season has not started yet' : 'Season closed · Claims have ended'), false);
     }
+    // Scrolling panes are emptied while redrawn; put each back where the player left it.
+    function keepScroll(redraw) {
+        var nodes = document.getElementsByTagName('*'), panes = [], i;
+        for (i = 0; i < nodes.length; i++) if (nodes[i].scrollTop > 0) panes.push([nodes[i], nodes[i].scrollTop]);
+        redraw();
+        for (i = 0; i < panes.length; i++) if (panes[i][0].scrollTop !== panes[i][1]) panes[i][0].scrollTop = panes[i][1];
+    }
     function load(initial) {
         if (busy) return;
-        request('GET', {}, function (data) { if (initial) page = Math.min(Math.floor(data.level / 5), Math.ceil(data.season.levels / 5) - 1); apply(data); });
+        request('GET', {}, function (data) { if (initial) page = Math.min(Math.floor(data.level / 5), Math.ceil(data.season.levels / 5) - 1); keepScroll(function () { apply(data); }); });
     }
     function renderCurrent() {
         if (!state) return;
@@ -275,5 +282,4 @@
     });
     load(true);
     setInterval(function () { timer(); if (state && view === 'missions') updateMissionReset(); }, 60000);
-    setInterval(function () { if (!busy && el('shade').className.indexOf('hidden') !== -1) load(false); }, 30000);
 })();

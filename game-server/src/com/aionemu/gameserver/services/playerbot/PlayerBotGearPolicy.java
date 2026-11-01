@@ -45,15 +45,24 @@ public final class PlayerBotGearPolicy {
     throw new IllegalArgumentException("Use an item level of 0–65 and an upgrade ratio of 1.0–2.0.");
    if(!weapon.equals("AUTO") && !WEAPONS.contains(weapon))throw new IllegalArgumentException("Unknown weapon preference.");
   }
+  Settings withWeapon(String choice){return new Settings(mode,profile,quality,level,threshold,choice,vendors,rolls);}
  }
  static final Set<String> WEAPONS=Set.of("SWORD","DAGGER","MACE","ORB","SPELLBOOK","POLEARM","STAFF","BOW","HARP","GUN","CANNON","KEYBLADE","2H_SWORD");
  static final Settings DEFAULT=new Settings(Mode.EARNED,Profile.AUTO,ItemQuality.LEGEND,0,1.1,"AUTO",false,Rolls.UPGRADES);
+ /** Ticket recruits have no policy choices: earned gear plus catch-up up to their permanent rarity, whatever an older save held. */
+ static final Settings RECRUIT=new Settings(Mode.EARNED,Profile.AUTO,ItemQuality.LEGEND,0,1.1,"AUTO",true,Rolls.UPGRADES);
+ /** A preset's saved slot points at one owned item; the template still names it after the item is gone. */
+ record Reference(int object,int template) {}
  static final class State {
   final PlayerBotSession session;
   Settings settings=DEFAULT;
   String build=PlayerBotStigmaBuilds.AUTO;
   final Set<Integer> generated=new HashSet<>();
   final Set<Long> starterSlots=new HashSet<>();
+  final Map<String,Reference> references=new ConcurrentHashMap<>();
+  final Map<String,String> goals=new ConcurrentHashMap<>();
+  volatile String goalsFor="";
+  volatile long pinned,pinnedUntil,nextGoals;
   long next;
   State(PlayerBotSession session) {
    this.session=session;
@@ -74,7 +83,22 @@ public final class PlayerBotGearPolicy {
     for(String slot:p.getProperty("starterSlots","").split(","))if(!slot.isBlank())starterSlots.add(Long.parseLong(slot));
     build=p.getProperty("build",PlayerBotStigmaBuilds.AUTO);
     }
+    if(session.recruit())settings=RECRUIT;
+    if(session.generated())loadLoadouts(PlayerBotMetadata.load(session.owner().getAccount().getId(),session.bot().getObjectId(),"loadouts",null));
    }catch(Exception error){throw new IllegalStateException("Cannot load companion equipment settings",error);}
+  }
+  private void loadLoadouts(Properties p) {
+   for(String key:p.stringPropertyNames())
+    if(key.startsWith("ref.")){var f=p.getProperty(key).split(":");references.put(key.substring(4),new Reference(Integer.parseInt(f[0]),Integer.parseInt(f[1])));}
+    else if(key.startsWith("goal."))goals.put(key.substring(5),p.getProperty(key));
+   goalsFor=p.getProperty("goalsFor","");
+  }
+  void saveLoadouts() {
+   Properties p=new Properties();p.setProperty("account",Integer.toString(session.owner().getAccount().getId()));p.setProperty("character",Integer.toString(session.bot().getObjectId()));
+   references.forEach((key,r)->p.setProperty("ref."+key,r.object+":"+r.template));goals.forEach((key,goal)->p.setProperty("goal."+key,goal));
+   if(!goalsFor.isEmpty())p.setProperty("goalsFor",goalsFor);
+   try {PlayerBotMetadata.save(session.owner().getAccount().getId(),session.bot().getObjectId(),"loadouts",p);}
+   catch(IOException error){throw new IllegalStateException("Cannot queue companion loadout metadata",error);}
   }
   Path path(){return Path.of("config","playerbots","gear-character-"+session.bot().getObjectId()+".properties");}
   void save() {
@@ -90,7 +114,12 @@ public final class PlayerBotGearPolicy {
  }
  private static final Map<Integer,State> STATES=new ConcurrentHashMap<>();
  static State state(PlayerBotSession session){return STATES.computeIfAbsent(session.bot().getObjectId(),id->new State(session));}
- static Settings settings(Player bot){State s=STATES.get(bot.getObjectId());return s==null ? DEFAULT : s.settings;}
+ /** The saved policy, with a chosen build's weapon in place of AUTO so every equip, upgrade and roll path agrees on it. */
+ static Settings settings(Player bot) {
+  State s=STATES.get(bot.getObjectId());if(s==null)return DEFAULT;
+  var build=stigmaBuild(bot);
+  return build==null || build.weapon()==null || !s.settings.weapon.equals("AUTO") ? s.settings : s.settings.withWeapon(build.weapon());
+ }
  static void close(PlayerBotSession session){STATES.remove(session.bot().getObjectId());}
  static boolean generated(Player bot,Item item){State s=STATES.get(bot.getObjectId());return s!=null && s.generated.contains(item.getObjectId());}
  static Settings parse(String mode,String profile,String quality,String level,String threshold,String weapon,String vendors,String rolls) {
@@ -99,6 +128,7 @@ public final class PlayerBotGearPolicy {
  }
  public static void configure(PlayerBotSession session,String mode,String profile,String quality,String level,String threshold,String weapon,String vendors,String rolls) {
   if(!session.generated())throw new IllegalArgumentException("Automatic equipment policies apply only to Temporary Bots. Your alt's equipment and build remain yours.");
+  if(session.recruit())throw new IllegalArgumentException("A ticket recruit always manages its own equipment, up to its permanent gear rarity.");
   Settings selected=parse(mode,profile,quality,level,threshold,weapon,vendors,rolls);
   synchronized(session) {
    if(session.closing())throw new IllegalArgumentException("Companion is saving/dismissing.");
@@ -119,14 +149,100 @@ public final class PlayerBotGearPolicy {
    State s=state(session);String before=s.build;s.build=key;
    try{s.save();}catch(RuntimeException error){s.build=before;throw error;}
   }
+  state(session).pinnedUntil=0;state(session).nextGoals=0;
   return session.bot().getName()+(build==null ? " will choose Stigmas automatically for its role." : " will use the "+build.name()+" Stigma build out of combat.");
  }
+ private static String stagePrefix(String build,int stage){return build+"."+stage+".";}
+ static String stagePrefix(Player bot,State s){return stagePrefix(s.build,PlayerBotStigmaBuilds.stage(bot.getLevel()));}
+ static Item worn(Player bot,ItemSlot slot) {
+  return bot.getEquipment().getEquippedItems().stream().filter(i->(i.getEquipmentSlot() & slot.getSlotIdMask())!=0 && (slot!=ItemSlot.SUB_HAND || !i.getItemTemplate().isTwoHandWeapon())).findFirst().orElse(null);
+ }
+ static Item owned(Player bot,int object){Item item=bot.getInventory().getItemByObjId(object);return item!=null ? item : bot.getEquipment().getEquippedItemByObjId(object);}
+ static boolean wearable(Player bot,Item item,ItemSlot slot) {
+  var t=item.getItemTemplate();Settings s=settings(bot);
+  return item.isIdentified() && !PlayerBotRoadMerchants.merchandise(bot,item) && eligible(bot,t) && (s.weapon.equals("AUTO") || allowedWeapon(t,s,Role.MELEE))
+   && (t.isTwoHandWeapon() ? slot==ItemSlot.MAIN_HAND : slots(bot,t).contains(slot.getSlotIdMask()));
+ }
+ /** Items the chosen preset saved for this level stage that the bot can wear now, by equipment mask.
+  * A missing or currently illegal item is left out, so its slot takes the normal owned or catch-up fallback. */
+ static Map<Long,Item> saved(Player bot) {
+  State s=STATES.get(bot.getObjectId());if(s==null || s.references.isEmpty() || stigmaBuild(bot)==null)return Map.of();
+  var result=new LinkedHashMap<Long,Item>();String prefix=stagePrefix(bot,s);long pinned=0;
+  for(var slot:PlayerBotTemporary.GEAR) {
+   var reference=s.references.get(prefix+slot.name());Item item=reference==null ? null : owned(bot,reference.object());
+   if(item==null || !wearable(bot,item,slot) || slot==ItemSlot.SUB_HAND && result.containsKey(ItemSlot.MAIN_OR_SUB.getSlotIdMask()))continue;
+   long mask=item.getItemTemplate().isTwoHandWeapon() ? ItemSlot.MAIN_OR_SUB.getSlotIdMask() : slot.getSlotIdMask();
+   result.put(mask,item);pinned|=mask|(item.isEquipped() ? item.getEquipmentSlot() : 0);
+  }
+  s.pinned=pinned;s.pinnedUntil=System.currentTimeMillis()+1000;
+  return result;
+ }
+ /** Slots held by saved items. Gain comparisons run for thousands of templates, so this is cached for a second. */
+ static long pinned(Player bot) {
+  State s=STATES.get(bot.getObjectId());if(s==null || s.references.isEmpty())return 0;
+  if(System.currentTimeMillis()>=s.pinnedUntil)saved(bot);
+  return s.pinned;
+ }
+ /** Any preset of this bot saves this item, so automatic retirement and extraction leave it alone. */
+ static boolean referenced(Player bot,Item item){State s=STATES.get(bot.getObjectId());return s!=null && s.references.values().stream().anyMatch(r->r.object()==item.getObjectId());}
+ /** The bot is working toward this item for its chosen preset. */
+ static boolean goal(Player bot,ItemTemplate t){State s=STATES.get(bot.getObjectId());return s!=null && t!=null && s.goals.values().stream().anyMatch(g->g.startsWith(t.getTemplateId()+":"));}
+ private static State loadoutOwner(PlayerBotSession session) {
+  if(!session.generated())throw new IllegalArgumentException("Saved equipment applies only to Temporary Bots. Your alt's equipment remains yours.");
+  if(session.closing())throw new IllegalArgumentException("Companion is saving/dismissing.");
+  if(stigmaBuild(session.bot())==null)throw new IllegalArgumentException("Choose one of the four builds first. Automatic has no saved equipment.");
+  return state(session);
+ }
+ private static void replaceStage(State s,String prefix,Map<String,Reference> stage) {
+  var before=Map.copyOf(s.references);s.references.keySet().removeIf(k->k.startsWith(prefix));s.references.putAll(stage);s.pinnedUntil=0;s.nextGoals=0;
+  try{s.saveLoadouts();}catch(RuntimeException error){s.references.clear();s.references.putAll(before);throw error;}
+ }
+ /** References what is worn now to the chosen preset at this level stage. No item is copied, and one item may serve several presets. */
+ public static String saveLoadout(PlayerBotSession session) {
+  synchronized(session) {
+   State s=loadoutOwner(session);Player bot=session.bot();String prefix=stagePrefix(bot,s);var stage=new HashMap<String,Reference>();
+   for(var slot:PlayerBotTemporary.GEAR){Item item=worn(bot,slot);if(item!=null)stage.put(prefix+slot.name(),new Reference(item.getObjectId(),item.getItemId()));}
+   if(stage.isEmpty())throw new IllegalArgumentException(bot.getName()+" is not wearing anything to save.");
+   replaceStage(s,prefix,stage);
+   int from=PlayerBotStigmaBuilds.stage(bot.getLevel());
+   return "Saved "+stage.size()+" worn items to "+stigmaBuild(bot).name()+" for levels "+from+"–"+PlayerBotStigmaBuilds.stageEnd(from)+". Nothing was copied.";
+  }
+ }
+ public static String clearLoadout(PlayerBotSession session) {
+  synchronized(session) {
+   State s=loadoutOwner(session);Player bot=session.bot();replaceStage(s,stagePrefix(bot,s),Map.of());
+   int from=PlayerBotStigmaBuilds.stage(bot.getLevel());
+   return "Cleared saved equipment for levels "+from+"–"+PlayerBotStigmaBuilds.stageEnd(from)+". Those slots use the best owned or catch-up gear, and the items stay with "+bot.getName()+".";
+  }
+ }
+ /** The owner's manual equip replaces what the preset saved for that slot, so automatic equipping never undoes it. */
+ static void manualEquip(PlayerBotSession session,Item item) {
+  State s=STATES.get(session.bot().getObjectId());if(s==null || s.references.isEmpty() || stigmaBuild(session.bot())==null)return;
+  String prefix=stagePrefix(session.bot(),s);boolean changed=false;
+  for(var slot:PlayerBotTemporary.GEAR)if((slot.getSlotIdMask() & item.getEquipmentSlot())!=0 && s.references.containsKey(prefix+slot.name())){s.references.put(prefix+slot.name(),new Reference(item.getObjectId(),item.getItemId()));changed=true;}
+  if(changed){s.pinnedUntil=0;s.nextGoals=0;s.saveLoadouts();}
+ }
+ static void validateLoadouts(Map<String,String> map) {
+  for(var e:map.entrySet()) {
+   String key=e.getKey(),value=e.getValue();String[] part=key.split("\\."),f=value.split(":");
+   if(key.equals("account") || key.equals("character"))continue;
+   if(key.equals("goalsFor")){if(!value.matches("[a-z0-9_]{1,24}\\.[0-9]{1,2}") || !PlayerBotStigmaBuilds.STAGES.contains(Integer.parseInt(value.substring(value.indexOf('.')+1))))throw new IllegalArgumentException("Invalid goal stage");continue;}
+   if(part[0].equals("ref")) {
+    if(part.length!=4 || !part[1].matches("[a-z0-9_]{1,24}") || !PlayerBotStigmaBuilds.STAGES.contains(Integer.parseInt(part[2])) || !PlayerBotTemporary.GEAR.contains(ItemSlot.valueOf(part[3]))
+     || f.length!=2 || Integer.parseInt(f[0])<=0 || Integer.parseInt(f[1])<=0)throw new IllegalArgumentException("Invalid saved equipment reference");
+   } else if(part[0].equals("goal")) {
+    if(part.length!=2 || !PlayerBotTemporary.GEAR.contains(ItemSlot.valueOf(part[1])) || f.length!=3 || Integer.parseInt(f[0])<=0 || !PlayerBotLoadouts.KINDS.contains(f[1]) || Integer.parseInt(f[2])<0)throw new IllegalArgumentException("Invalid acquisition goal");
+   } else throw new IllegalArgumentException("Unknown loadout key");
+  }
+ }
  static Map<String,Object> snapshot(PlayerBotSession session) {
-  Settings s=state(session).settings;
+  State state=state(session);Settings s=state.settings;
   var builds=new ArrayList<Map<String,Object>>();
   for(var b:PlayerBotStigmaBuilds.forClass(session.bot().getPlayerClass()))
-   builds.add(Map.of("key",b.key(),"name",b.name(),"text",b.text(),"stigmas",b.groups().stream().map(PlayerBotStigmaBuilds::groupName).toList()));
-  var result=new HashMap<String,Object>();result.put("stigmaBuild",state(session).build);result.put("stigmaBuilds",builds);
+   builds.add(Map.of("key",b.key(),"name",b.name(),"text",b.text(),"stigmas",b.groups().stream().map(PlayerBotStigmaBuilds::groupName).toList(),
+    "savedStages",PlayerBotStigmaBuilds.STAGES.stream().filter(from->state.references.keySet().stream().anyMatch(k->k.startsWith(stagePrefix(b.key(),from)))).count()));
+  var result=new HashMap<String,Object>();result.put("stigmaBuild",state.build);result.put("stigmaBuilds",builds);
+  if(session.generated() && stigmaBuild(session.bot())!=null)result.put("loadout",PlayerBotLoadouts.snapshot(session,state));
   result.putAll(Map.of("gearMode",s.mode.name(),"gearProfile",s.profile.name(),"gearQuality",s.quality.name(),"gearLevel",s.level,"gearThreshold",s.threshold,
    "gearWeapon",s.weapon,"gearVendors",s.vendors,"gearRolls",s.rolls.name(),"gearTargetLevel",targetLevel(session,s)));
   return result;
@@ -163,6 +279,7 @@ public final class PlayerBotGearPolicy {
   return Arrays.stream(ItemSlot.getSlotsFor(t.getItemSlot())).filter(s->s!=ItemSlot.MAIN_OFF_HAND && s!=ItemSlot.SUB_OFF_HAND && s!=ItemSlot.POWER_SHARD_LEFT && s!=ItemSlot.POWER_SHARD_RIGHT).map(ItemSlot::getSlotIdMask).toList();
  }
  static double gain(Player bot,ItemTemplate t,double score,long slot,Role role) {
+  if((pinned(bot) & slot)!=0)return -Double.MAX_VALUE;
   var replaced=bot.getEquipment().getEquippedItems().stream().filter(i->(i.getEquipmentSlot() & slot)!=0).toList();
   // Do not dismantle two-handed weapons to populate only their off-hand.
   if(slot==ItemSlot.SUB_HAND.getSlotIdMask() && replaced.stream().anyMatch(i->i.getItemTemplate().isTwoHandWeapon()))return -Double.MAX_VALUE;
@@ -200,8 +317,10 @@ public final class PlayerBotGearPolicy {
  }
  static List<PlayerBotEquipment.Upgrade> upgrades(Player bot,Role requested) {
   Role role=role(bot,requested);Settings s=settings(bot);List<PlayerBotEquipment.Upgrade> result=new ArrayList<>();
+  // A saved preset item goes on first. Saved slots accept nothing else, so gain() rejects them below.
+  saved(bot).forEach((slot,item)->{if(!item.isEquipped())result.add(new PlayerBotEquipment.Upgrade(item,slot,Double.MAX_VALUE));});
   for(Item item:bot.getInventory().getItems()) {
-   var t=item.getItemTemplate();if(item.isEquipped() || !item.isIdentified() || !eligible(bot,t) || !allowedWeapon(t,s,role))continue;
+   var t=item.getItemTemplate();if(item.isEquipped() || PlayerBotRoadMerchants.merchandise(bot,item) || !item.isIdentified() || !eligible(bot,t) || !allowedWeapon(t,s,role))continue;
    double score=score(bot,item,role);
    for(long slot:slots(bot,t)){double gain=gain(bot,t,score,slot,role);if(gain>1)result.add(new PlayerBotEquipment.Upgrade(item,slot,gain));}
   }
@@ -209,7 +328,7 @@ public final class PlayerBotGearPolicy {
  }
  static boolean equip(PlayerBotSession session,PlayerBotEquipment.Upgrade upgrade) {
   Player bot=session.bot();Item item=upgrade.item();
-  if(bot.getController().isInCombat() || session.owner().getController().isInCombat() || !eligible(bot,item.getItemTemplate()))return false;
+  if(PlayerBotRoadMerchants.merchandise(bot,item) || bot.getController().isInCombat() || session.owner().getController().isInCombat() || !eligible(bot,item.getItemTemplate()))return false;
   if(!item.isIdentified()){bot.getObserveController().notifyItemuseObservers(item);ItemActionService.identifyItem(bot,item);return true;}
   boolean equipped=bot.getEquipment().equipItem(item.getObjectId(),upgrade.slot())!=null;
   if(!equipped && item.getItemTemplate().isSoulBound() && !item.isSoulBound())
@@ -227,6 +346,7 @@ public final class PlayerBotGearPolicy {
    // When no choice improves equipped gear, choose the most useful future gear,
    // then normal vendor value. Never preserve weapon type with an arbitrary bonus.
    if(value<=0)value=allowedWeapon(t,s,role) && t.getItemSlot()!=0 ? score(bot,t,role)/1000000 : Math.min(t.getPrice(),1000000)/1000000000.0;
+   if(goal(bot,t))value=Double.MAX_VALUE;
    if(value>best){best=value;selected=index;}
   }
   return selected;
@@ -235,6 +355,7 @@ public final class PlayerBotGearPolicy {
   Settings s=settings(bot);if(t==null || s.rolls==Rolls.PASS || bot.getInventory().isFull(t.getExtraInventoryId()))return false;
   State st=STATES.get(bot.getObjectId());Role role=role(bot,st==null ? PlayerBotRules.roleFor(bot.getPlayerClass()) : st.session.combatRole());
   if(!eligible(bot,t) || !allowedWeapon(t,s,role))return false;
+  if(goal(bot,t))return true;
   double value=score(bot,t,role);
   for(long slot:slots(bot,t))if(gain(bot,t,value,slot,role)>1) {
    boolean alreadyOwned=bot.getInventory().getItems().stream().anyMatch(i->!i.isEquipped() && i.isIdentified() && eligible(bot,i.getItemTemplate())
@@ -245,7 +366,7 @@ public final class PlayerBotGearPolicy {
  }
  static Trigger trigger(PlayerBotSession session,PlayerBotNavigation navigation) {
   State s=state(session);Action action=new Action(){public String name(){return "acquire companion equipment";}public boolean isUseful(){return available(session,s);}public boolean isPossible(){return available(session,s);}public boolean execute(){return perform(session,navigation,s);}};
-  return new Trigger(()->available(session,s),action,()->DEFAULT_PRIORITY);
+  return new Trigger(()->available(session,s),action,()->PlayerBotFocus.priority(session,"gear",DEFAULT_PRIORITY,false));
  }
  private static final double DEFAULT_PRIORITY=PlayerBotEngine.DEFAULT+1;
  static boolean available(PlayerBotSession session,State s) {
@@ -264,12 +385,13 @@ public final class PlayerBotGearPolicy {
   return eligible(bot,t) && allowedWeapon(t,s,role(bot,PlayerBotRules.roleFor(bot.getPlayerClass()))) && t.getItemType()==ItemType.NORMAL && t.getAcquisition()==null
    && t.getExpireTime()==0 && t.getExtraInventoryId()<=0 && t.getItemQuality()!=null && t.getItemQuality()!=ItemQuality.JUNK && t.getItemQuality().getQualityId()<=s.quality.getQualityId()
    && t.getRequiredLevel(bot.getPlayerClass())<=level && t.getLevel()<=level && t.getUseLimits().getMinRank()==1 && t.getUseLimits().getGuildLevelPermitted()==0
-   && t.getItemGroup()!=ItemGroup.WING && t.getItemGroup()!=ItemGroup.PLUME && !t.hasLimitOne() && !t.hasWorldRestrictions();
+   && t.getItemGroup()!=ItemGroup.WING && t.getItemGroup()!=ItemGroup.PLUME && !t.hasLimitOne() && !t.hasWorldRestrictions() && PlayerBotCatchUpPool.admitted(t);
  }
  static Candidate candidate(PlayerBotSession session,State s) {
   Player bot=session.bot();Role role=role(bot,session.combatRole());int level=targetLevel(session,s.settings);Candidate best=null;
-  for(ItemTemplate t:DataManager.ITEM_DATA.getItemTemplates()) {
-   if(!generatedTemplate(bot,t,s.settings,level))continue;
+  Settings settings=settings(bot);
+  for(ItemTemplate t:PlayerBotCatchUpPool.forClass(bot.getPlayerClass())) {
+   if(!generatedTemplate(bot,t,settings,level))continue;
    for(long slot:slots(bot,t)) {
     if(s.settings.mode==Mode.STARTER && (s.starterSlots.contains(slot) || bot.getEquipment().getEquippedItems().stream().anyMatch(i->(i.getEquipmentSlot() & slot)!=0)))continue;
     if(bot.getInventory().getItemCountByItemId(t.getTemplateId())>0)continue;
@@ -313,8 +435,8 @@ public final class PlayerBotGearPolicy {
    for(var tab:catalog.getTradeTablist()) {
     var goods=DataManager.GOODSLIST_DATA.getGoodsListById(tab.getId());if(goods==null || goods.getItemIdList()==null || goods.getLegionLevel()>(bot.getLegion()==null ? 0 : bot.getLegion().getLegionLevel()))continue;
     for(int id:goods.getItemIdList()) {
-     var t=DataManager.ITEM_DATA.getItemTemplate(id);if(!eligible(bot,t) || !allowedWeapon(t,s.settings,role) || t.getAcquisition()!=null || bot.getInventory().getItemCountByItemId(id)>0)continue;
-     double gain=slots(bot,t).stream().mapToDouble(slot->gain(bot,t,score(bot,t,role),slot,role)).max().orElse(0);if(gain<=1)continue;
+     var t=DataManager.ITEM_DATA.getItemTemplate(id);if(!eligible(bot,t) || !allowedWeapon(t,settings(bot),role) || t.getAcquisition()!=null || bot.getInventory().getItemCountByItemId(id)>0)continue;
+     double gain=goal(bot,t) ? Double.MAX_VALUE/2 : slots(bot,t).stream().mapToDouble(slot->gain(bot,t,score(bot,t,role),slot,role)).max().orElse(0);if(gain<=1)continue;
      TradeList list=new TradeList(npc.getObjectId());list.addItem(id,1);
      if(list.calculateBuyListPrice(bot,catalog.getSellPriceRate()) && list.getRequiredKinah()>0 && list.getRequiredKinah()<=allowed)choices.add(new Purchase(npc,t,list.getRequiredKinah(),gain));
     }

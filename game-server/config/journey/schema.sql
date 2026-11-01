@@ -11,3 +11,15 @@ CREATE TABLE IF NOT EXISTS poeta_journey (
  chosen_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
  CONSTRAINT poeta_journey_player FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS poeta_journey_continuation (
+ player_id INT NOT NULL PRIMARY KEY,
+ unlocked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ CONSTRAINT poeta_journey_continuation_player FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS poeta_journey_progress (
+ player_id INT NOT NULL,
+ entry VARCHAR(24) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ recorded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ PRIMARY KEY (player_id,entry),
+ CONSTRAINT poeta_journey_progress_player FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

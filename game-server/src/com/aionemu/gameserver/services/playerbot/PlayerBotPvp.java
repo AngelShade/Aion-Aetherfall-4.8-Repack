@@ -27,9 +27,11 @@ final class PlayerBotPvp {
   || target.getEffectController().isUnderFear();}
  private boolean legal(Creature target) {
   Player bot=session.bot();
+  if(PlayerBotRoadDuty.assigned(bot) && !PlayerBotRoadDuty.withinRoad(bot,100))return false;
   return PlayerBotConfig.PVP_ENABLED && playerOwned(target) && target!=bot && target.isSpawned() && !target.isDead()
    && !target.getLifeStats().isAboutToDie() && !target.isInvulnerable() && !target.isSpawnProtectedFrom(bot)
    && target.getWorldId()==bot.getWorldId() && target.getInstanceId()==bot.getInstanceId()
+   && (!PlayerBotRoadDuty.assigned(bot) || PlayerBotRoadDuty.state(bot).route.distance(target.getX(),target.getY(),target.getZ())<=100)
    && bot.isEnemy(target) && bot.canSee(target) && bot.getKnownList().sees(target)
    && !(target.getMaster() instanceof Player p && p.isUsingFlightTransporterOrWindstream());
  }
@@ -55,6 +57,7 @@ final class PlayerBotPvp {
  }
  Creature choose(List<Player> party,Order order,int commanded,boolean mayStart,long now) {
   Player bot=session.bot();
+  if(PlayerBotRoadDuty.assigned(bot))mayStart=false;
   if(order==Order.PASSIVE || !PlayerBotConfig.PVP_ENABLED){clear();return null;}
   // Ended engagements, including a kill/despawn, must rest before scanning for
   // another unprovoked fight. Explicit orders and real defence can still act.
@@ -91,7 +94,7 @@ final class PlayerBotPvp {
     if(!defence || !PositionUtil.isInRange(bot,target,PlayerBotConfig.PVP_NOTICE_DISTANCE))continue;
    }
    if(!explicit && !defence && !continuing) {
-    if(!session.autonomous() || !mayStart || now<quietUntil || hp(bot)<70 || mp(bot)<30
+    if(!session.autonomous() && !PlayerBotFocus.pvp(session) || !mayStart || now<quietUntil || hp(bot)<70 || mp(bot)<30
      || Math.abs(target.getLevel()-bot.getLevel())>PlayerBotConfig.PVP_LEVEL_DIFFERENCE
      || !PositionUtil.isInRange(bot,target,PlayerBotConfig.PVP_NOTICE_DISTANCE)
      || hostile>friendly*PlayerBotConfig.PVP_STRENGTH_LIMIT

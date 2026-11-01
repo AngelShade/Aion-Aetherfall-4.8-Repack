@@ -36,6 +36,20 @@ public final class PlayerBotFindGroup {
  private static final Pattern LEAVE = Pattern.compile("^(?:bye|goodbye|leave|cancel|no thanks|never mind|nevermind)[.! ]*$");
  private static final Pattern NEGATIVE = Pattern.compile("\\b(no|not|don't|dont|never|can't|cant|cannot)\\b");
  private static final Map<Integer, Post> POSTS = new ConcurrentHashMap<>();
+ private static final class FreeHelp {
+  final Post post;final Player human;volatile boolean ended;
+  final Set<Integer> members=ConcurrentHashMap.newKeySet();
+  FreeHelp(Post post,Player human){this.post=post;this.human=human;}
+ }
+ private static final Map<Integer,FreeHelp> FREE_HELP=new ConcurrentHashMap<>();
+ /** Transient rendezvous in the current native party. No saved membership or timer. */
+ private static final class EntranceMeeting {
+  final Player bot,human;final ServerWideGroup group;final PlayerBotWorldTravel.Place entrance;final int channel;
+  volatile boolean accepted,arrived;
+  EntranceMeeting(Player bot,Player human,ServerWideGroup group,PlayerBotWorldTravel.Place entrance,int channel){this.bot=bot;this.human=human;this.group=group;this.entrance=entrance;this.channel=channel;}
+ }
+ private static final Map<Integer,EntranceMeeting> MEETINGS=new ConcurrentHashMap<>();
+ private static Iterator<EntranceMeeting> meetingCursor=Collections.emptyIterator();
  private static final ArrayBlockingQueue<Runnable> REQUESTS = new ArrayBlockingQueue<>(128);
  private static final ScheduledExecutorService SOCIAL = Executors.newSingleThreadScheduledExecutor(new PriorityThreadFactory("PlayerbotFindGroup", Thread.NORM_PRIORITY));
  private static volatile boolean stopped;
@@ -43,10 +57,13 @@ public final class PlayerBotFindGroup {
  private static Collection<PlayerBotSession> actors = List.of();
  private static Iterator<PlayerBotSession> cursor = Collections.emptyIterator();
  private static Iterator<Post> postCursor = Collections.emptyIterator();
- private static long nextReport,observed,available,withoutNeed,published,joined;
+ private static long nextReport,observed,available,withoutNeed,published,publishedCandidates,joined,alreadyPosted,hireDisabled,bracketFull,tabFull,registrationFailed,gatheringPlanned;
+ private static final Map<String,Long> COVERAGE=new TreeMap<>();
  private static final Map<com.aionemu.gameserver.model.Race,Long> NEXT_ANNOUNCEMENT = new EnumMap<>(com.aionemu.gameserver.model.Race.class);
 
+ private static final long ROLE_PATIENCE=45_000;
  private static final class Post {
+  volatile long lastJoin=System.currentTimeMillis();
   final Player bot;
   final Tab tab;
   final PlayerBotGroupNeeds.Need need;
@@ -79,6 +96,7 @@ public final class PlayerBotFindGroup {
   synchronized (PlayerBotFindGroup.class) { if (task != null) task.cancel(false); }
   REQUESTS.clear();
   SOCIAL.shutdown();
+  MEETINGS.clear();
   boolean interrupted=false;
   for (;;) try { if (SOCIAL.awaitTermination(1, TimeUnit.SECONDS)) break; } catch (InterruptedException e) { interrupted=true; }
   for (var post : POSTS.values()) withdraw(post);
@@ -93,7 +111,7 @@ public final class PlayerBotFindGroup {
  }
  private static boolean free(Player bot) {
   var session=PlayerBotService.getInstance().currentActor(bot);
-  return session != null && session.autonomous() && resident(bot) && !bot.isInTeam() && !bot.isTrading() && bot.getFlightPath()==null;
+  return session != null && session.autonomous() && !PlayerBotRoadDuty.assigned(bot) && resident(bot) && !bot.isInTeam() && !bot.isTrading() && bot.getFlightPath()==null;
  }
  private static boolean forming(Post post) {
   var team=post.bot.getPlayerGroup();
@@ -109,6 +127,8 @@ public final class PlayerBotFindGroup {
    // runs in chat packets, native team locks, combat or companion scheduling.
    if (!postCursor.hasNext()) postCursor=POSTS.values().iterator();
    for (int i=0; i<16 && postCursor.hasNext(); i++) maintain(postCursor.next());
+   if(!meetingCursor.hasNext())meetingCursor=MEETINGS.values().iterator();
+   for(int i=0;i<16 && meetingCursor.hasNext();i++)maintainMeeting(meetingCursor.next());
    if (!enabled()) { report(); return; }
    if (!cursor.hasNext()) cursor=actors.iterator();
    plansThisPulse=0;
@@ -117,8 +137,9 @@ public final class PlayerBotFindGroup {
     observed++;
     if (!PlayerBotService.getInstance().current(session) || !free(bot)) continue;
     available++;
+    COVERAGE.merge(bot.getRace()+"/"+bracket(bot.getLevel()),1L,Long::sum);
     if(tryJoin(bot))continue;
-    if(POSTS.containsKey(bot.getObjectId()))continue;
+    if(POSTS.containsKey(bot.getObjectId())){alreadyPosted++;continue;}
     publish(bot);
    }
    announce();
@@ -190,13 +211,15 @@ public final class PlayerBotFindGroup {
  private static void report() {
   long now=System.currentTimeMillis();if(now<nextReport)return;nextReport=now+30000;
   long recruit=0,apply=0,instance=0,gathering=0,parties=0,members=0;
+  var liveCoverage=new TreeMap<String,Long>();
   for(var post:POSTS.values()) {
-   if(post.entry!=null)switch(post.tab){case RECRUIT->recruit++;case APPLY->apply++;case INSTANCE->instance++;}
+   if(post.entry!=null && visible(post.entry))liveCoverage.merge(post.bot.getRace()+"/"+bracket(post.bot.getLevel())+"/"+post.tab,1L,Long::sum);
+   if(post.entry!=null && visible(post.entry))switch(post.tab){case RECRUIT->recruit++;case APPLY->apply++;case INSTANCE->instance++;}
    else if(post.gathering!=null && post.controller==null)gathering++;
    if(post.bot.getPlayerGroup()!=null && post.bot.getPlayerGroup().isLeader(post.bot)){parties++;members+=post.bot.getPlayerGroup().size();}
   }
-  LoggerFactory.getLogger(PlayerBotFindGroup.class).info("Playerbot Find Group: enabled={}; observed={}, available={}, without need={}, published={}, joined={}; current recruit/apply/instance={}/{}/{}; gathering={}, parties={}, party members={}; chat queue={}",enabled(),observed,available,withoutNeed,published,joined,recruit,apply,instance,gathering,parties,members,REQUESTS.size());
-  observed=available=withoutNeed=published=joined=0;
+  LoggerFactory.getLogger(PlayerBotFindGroup.class).info("Playerbot Find Group: enabled={}; interval visits observed={}, available={}, without need={}, newly published={}, joined={}; available publication successes={}, already posted={}, hiring disabled={}, bracket full={}, tab full={}, registration failed={}, gathering planned={}; live recruit/apply/instance={}/{}/{}; gathering={}, parties={}, party members={}; live visible race/bracket/tab coverage={}; available visit race/bracket coverage={} (brackets 1-20/21-35/36-50/51-60/61-65); chat queue={}",enabled(),observed,available,withoutNeed,published,joined,publishedCandidates,alreadyPosted,hireDisabled,bracketFull,tabFull,registrationFailed,gatheringPlanned,recruit,apply,instance,gathering,parties,members,liveCoverage,COVERAGE,REQUESTS.size());
+  observed=available=withoutNeed=published=publishedCandidates=joined=alreadyPosted=hireDisabled=bracketFull=tabFull=registrationFailed=gatheringPlanned=0;COVERAGE.clear();
  }
 
  private static void publish(Player bot) {
@@ -226,12 +249,14 @@ public final class PlayerBotFindGroup {
   }
   if (need==null) { withoutNeed++; return; }
   final Tab target=tab;
-  if (target==Tab.APPLY && !bracketRoom(bot)) return;
+  if (target==Tab.APPLY && !PlayerBotConfig.HIRING_ENABLED) {hireDisabled++;return;}
+  if (target==Tab.APPLY && !bracketRoom(bot)) {bracketFull++;return;}
   long count=POSTS.values().stream().filter(p->p.entry!=null && p.tab==target && p.bot.getRace()==bot.getRace()).count();
-  if (count>=(target==Tab.INSTANCE?instanceLimit():Math.clamp(PlayerBotConfig.FIND_GROUP_POSTS_PER_TAB,1,30))) return;
+  if (count>=(target==Tab.INSTANCE?instanceLimit():Math.clamp(PlayerBotConfig.FIND_GROUP_POSTS_PER_TAB,1,30))) {tabFull++;return;}
   var post=new Post(bot,tab,need,gathering);
   POSTS.put(bot.getObjectId(),post);
   register(post);
+  if(post.entry==null){if(post.gathering!=null)gatheringPlanned++;else registrationFailed++;}else publishedCandidates++;
  }
 
  private static void register(Post post) {
@@ -245,7 +270,7 @@ public final class PlayerBotFindGroup {
    // long (bot posts of 80+ characters emptied Apply and Instance). Keep each
    // post short; the details are in the whispered guidance.
    case RECRUIT, INSTANCE -> text(post);
-   case APPLY -> variant(bot, "Lv"+bot.getLevel()+" "+role+" offering help. Invite me.", "Lv"+bot.getLevel()+" "+role+" free to help. Invite me.");
+   case APPLY -> PlayerBotHiring.offerText(bot);
   };
   message=fit(message);
   post.entry=switch (tab) {
@@ -277,7 +302,7 @@ public final class PlayerBotFindGroup {
  static boolean cooperative(Player bot) { return groupPost(bot)!=null; }
  static boolean committed(Player bot) {
   var post=POSTS.get(bot.getObjectId());
-  return enabled() && (groupPost(bot)!=null || post!=null && !post.expired && post.controller==null && post.gathering!=null);
+  return enabled() && (MEETINGS.containsKey(bot.getObjectId()) || groupPost(bot)!=null || post!=null && !post.expired && post.controller==null && post.gathering!=null);
  }
 
  /** Called only by the actor's normal decision while native actions/support are safe. */
@@ -335,6 +360,9 @@ public final class PlayerBotFindGroup {
   if(post.controller==null && members.stream().anyMatch(p->!p.isWorldBot()) || members.size()>=seats)return false;
   long tanks=members.stream().filter(p->PlayerBotRules.roleFor(p.getPlayerClass())==PlayerBotRules.Role.TANK).count();
   long healers=members.stream().filter(p->PlayerBotRules.roleFor(p.getPlayerClass())==PlayerBotRules.Role.HEALER).count();
+  // A role is a preference, not a lock: a human's party must not wait forever for
+  // a class nobody free can fill. Only the human-led party may stop waiting.
+  if(post.controller!=null && System.currentTimeMillis()-post.lastJoin>ROLE_PATIENCE)return true;
   return partyRoleFits(PlayerBotRules.roleFor(member.getPlayerClass()),tanks,healers,members.size(),seats);
  }
 
@@ -357,7 +385,7 @@ public final class PlayerBotFindGroup {
   try {
    if(!PlayerBotService.getInstance().joinFindGroupBots(offer.bot,bot))return false;
    if(own!=null){withdraw(own);POSTS.remove(bot.getObjectId(),own);}
-   offer.joiningUntil=0;joined++;
+   offer.joiningUntil=0;offer.lastJoin=System.currentTimeMillis();joined++;
    register(offer);
    if(offer.controller!=null)arrived(offer.controller,bot);
    return true;
@@ -366,6 +394,8 @@ public final class PlayerBotFindGroup {
 
  private static void retire(Post post) {
   post.expired=true;withdraw(post);
+  var scope=FREE_HELP.get(post.bot.getObjectId());
+  if(scope!=null && scope.post==post){scope.ended=true;for(int id:scope.members)FREE_HELP.remove(id,scope);}
   var team=post.bot.getPlayerGroup();
   if(post.controller==null && team!=null && team.getLeaderObject()==post.bot && team.getMembers().stream().allMatch(Player::isWorldBot)) {
    for(var member:team.getMembers())if(member!=post.bot && !PlayerBotService.getInstance().leaveFindGroup(member))return;
@@ -388,9 +418,9 @@ public final class PlayerBotFindGroup {
      : "Hi "+post.controller.getName()+"! Thanks for joining for "+post.need.title()+". Want to start, wait for more, or hear how you can help?"+(forming(post)?" I'll keep recruiting for our missing roles until the party is full; you can ask for lead.":" I'll follow your lead.")
       +" You can also ask me to trade, follow, stay or attack your target.",true);
    }
-   if (!post.finished && !PlayerBotGroupNeeds.unfinished(post.bot,post.need)) {
+   if (!post.finished && !requestOpen(post)) {
     post.finished=true;
-    say(post,post.controller,"Thanks, that's what I needed! I'll stay with the party while you finish up; say 'leave' when you're done with my help.",true);
+    say(post,post.controller,"Thanks, that's what I needed! Our reciprocal help ends with this objective. I'll leave safely after the current fight.",true);
     withdraw(post);
    }
    if (forming(post) && !post.finished) { register(post); refresh(post); }
@@ -404,6 +434,7 @@ public final class PlayerBotFindGroup {
    return;
   }
   if(post.assembling)return;
+  if(MEETINGS.containsKey(post.bot.getObjectId())){refresh(post);return;}
   if (post.bot.isInTeam() && System.currentTimeMillis()<post.joiningUntil) return;
   refresh(post);
   if (!(free(post.bot) || forming(post)) || !PlayerBotGroupNeeds.unfinished(post.bot,post.need) || System.currentTimeMillis()-post.created>900000
@@ -421,7 +452,8 @@ public final class PlayerBotFindGroup {
  private static boolean bracketRoom(Player bot) {
   int b=bracket(bot.getLevel());
   var same=POSTS.values().stream().filter(p->p.tab==Tab.APPLY && p.entry!=null && !p.expired && p.bot.getRace()==bot.getRace() && bracket(p.bot.getLevel())==b).toList();
-  int share=Math.max(2,(Math.clamp(PlayerBotConfig.FIND_GROUP_POSTS_PER_TAB,1,30)+BRACKETS.length-1)/BRACKETS.length);
+  int cap=Math.clamp(PlayerBotConfig.FIND_GROUP_POSTS_PER_TAB,1,30);
+  int share=bracketShare(bot.getLevel(),cap);
   if (same.size()>=share) return false;
   var role=PlayerBotRules.roleFor(bot.getPlayerClass());
   boolean tank=same.stream().anyMatch(p->PlayerBotRules.roleFor(p.bot.getPlayerClass())==PlayerBotRules.Role.TANK);
@@ -429,7 +461,14 @@ public final class PlayerBotFindGroup {
   int reserved=(tank?0:1)+(healer?0:1);
   if (role==PlayerBotRules.Role.TANK) return !tank;
   if (role==PlayerBotRules.Role.HEALER) return !healer;
-  return same.size()<share-reserved;
+  // Never leave a bracket invisible while waiting for classes which do not
+  // exist below Ascension or whose free actors are currently unavailable.
+  // Reserve one slot where there is room, without reserving the entire share.
+  return same.size()<Math.max(1,share-Math.min(reserved,share-1));
+ }
+ static int bracketShare(int level,int cap) {
+  int b=bracket(level);
+  return cap/BRACKETS.length+(b<cap%BRACKETS.length?1:0);
  }
 
  /** Post text for Recruit/Instance: where it is and what is still missing (client limit 50). */
@@ -457,11 +496,15 @@ public final class PlayerBotFindGroup {
    String text=text(post);
    if (entry instanceof GroupRecruitment r && (stale || !text.equals(r.getMessage()))) { r.setMessage(text); r.updateLastUpdate(); post.refreshedAt=now; }
    else if (entry instanceof ServerWideGroup g && (stale || !text.equals(g.getMessage()))) { g.setMessage(text); g.setLastUpdate(); post.refreshedAt=now; }
-  } else if (stale && entry instanceof GroupApplication a) { a.updateLastUpdate(); post.refreshedAt=now; }
+  } else if (entry instanceof GroupApplication a) {
+   String text=fit(PlayerBotHiring.offerText(post.bot));
+   if(stale || !text.equals(a.getMessage())){a.setMessage(text);a.updateLastUpdate();post.refreshedAt=now;}
+  }
  }
 
  /** The leader pressed Enter in the native window: enter through the normal portal rules. */
  public static boolean enterInstance(Player member,ServerWideGroup group) {
+  if(member.getController().hasScheduledTask(com.aionemu.gameserver.model.TaskId.TELEPORT))return false;
   var template=com.aionemu.gameserver.dataholders.DataManager.AUTO_GROUP.getTemplateByInstanceMaskId(group.getInstanceMaskId());
   if (template==null) return false;
   int map=template.getInstanceMapId();
@@ -469,7 +512,13 @@ public final class PlayerBotFindGroup {
    for (var path:com.aionemu.gameserver.dataholders.DataManager.PORTAL2_DATA.getPortalPaths(npc))
     if (PlayerBotGroupNeeds.portal(member,path,map)) {
      // Requirements were checked above, so the native portal never needs an NPC dialog for a refusal.
-     try { com.aionemu.gameserver.services.teleport.PortalService.port(path,member,null); return true; }
+      try {
+       com.aionemu.gameserver.services.teleport.PortalService.port(path,member,null);
+       // Human FADE_OUT_BEAM stores a native TELEPORT FutureTask until
+       // CM_TELEPORT_ANIMATION_DONE; headless bots spawn synchronously.
+       return member.getController().hasScheduledTask(com.aionemu.gameserver.model.TaskId.TELEPORT)
+        || member.getWorldId()==map && member.isInInstance();
+      }
      catch (RuntimeException e) { LoggerFactory.getLogger(PlayerBotFindGroup.class).warn("Find Group entry for {} failed",member.getName(),e); return false; }
     }
   com.aionemu.gameserver.utils.PacketSendUtility.sendMessage(member,"You don't meet this dungeon's entry requirements yet (level, quest or item).");
@@ -508,6 +557,10 @@ public final class PlayerBotFindGroup {
 
  /** Called after native control publication. Conversation is delivered by the social lane. */
  static void controlled(Player bot,Player controller) {
+  if(controller==bot) {
+   var scope=FREE_HELP.remove(bot.getObjectId());
+   if(scope!=null && scope.post.bot==bot)scope.ended=true;
+  }
   var post=POSTS.get(bot.getObjectId());
   if (post==null) return;
   if (post.tab==Tab.APPLY || controller==bot || !PlayerBotTeams.same(bot,controller)) withdraw(post);
@@ -522,14 +575,71 @@ public final class PlayerBotFindGroup {
   if (!inviter.isWorldBot() || invited.isPlayerBot() || !PlayerBotTeams.same(inviter,invited)) return;
   var post=POSTS.get(inviter.getObjectId());
   if (post==null) return;
+  if(post.tab==Tab.APPLY || PlayerBotGroupNeeds.helping(post.need)) {
+   // An offering helper cannot obtain unpaid control by inviting the human instead.
+   PlayerGroupService.removePlayer(invited);PlayerBotHiring.offer(invited,inviter);return;
+  }
   if (!enabled() || !PlayerBotGroupNeeds.unfinished(inviter,post.need) || !PlayerBotGroupNeeds.applicant(invited,post.need)) { PlayerGroupService.removePlayer(invited); return; }
+  PlayerBotHelpObjectives.accept(inviter,invited,post.need);
+  var previous=FREE_HELP.get(inviter.getObjectId());
+  if(post.controller==null && (previous==null || previous.ended || previous.post!=post || !previous.human.isOnline() || !PlayerBotTeams.same(previous.human,inviter))) {
+   if(previous!=null){previous.ended=true;for(int id:previous.members)FREE_HELP.remove(id,previous);}
+   var scope=new FreeHelp(post,invited);
+   for(var member:PlayerBotTeams.members(inviter))if(member.isWorldBot()){scope.members.add(member.getObjectId());FREE_HELP.put(member.getObjectId(),scope);}
+  }
   if (post.controller!=null) {
    REQUESTS.offer(()->say(post,invited,"Welcome, "+invited.getName()+"! We're gathering for "+post.need.title()+". Let me know if you need the details.",true));
-  } else if (PlayerBotGroupNeeds.helping(post.need)) {
-   // A bot offering help comes to the human.
-   var adopted=adopt(post,invited);
-   if (adopted==null) PlayerGroupService.removePlayer(invited); else bringToHuman(invited,adopted);
   } else REQUESTS.offer(()->offerTeleport(post,invited)); // the human travels to the bots
+ }
+ /** Intercept the paid helper route before native group membership is changed. */
+ public static boolean paidInvitation(Player inviter,Player invited) {
+  if(!inviter.isWorldBot() || invited.isPlayerBot())return false;
+  var post=POSTS.get(inviter.getObjectId());
+  if(post==null || post.tab!=Tab.APPLY && !PlayerBotGroupNeeds.helping(post.need))return false;
+  PlayerBotHiring.offer(invited,inviter);return true;
+ }
+
+ private static boolean requestOpen(Post post) {
+  if(post.tab==Tab.APPLY)return true;
+  if(post.finished || post.expired)return false;
+  if(post.need.quest()>0) {
+   var state=post.bot.getQuestStateList().getQuestState(post.need.quest());
+   return state!=null && (state.getStatus()==com.aionemu.gameserver.questEngine.model.QuestStatus.START
+    || state.getStatus()==com.aionemu.gameserver.questEngine.model.QuestStatus.REWARD);
+  }
+  return true; // Concrete target/run completion closes the scope through the native completion adapters below.
+ }
+ /** Exact reciprocal request scope, bounded by this six-person native party and its actual completion. */
+ static boolean freeHelpControl(Player human,Player bot) {
+  if(human==null || human.isPlayerBot() || !human.isOnline() || !PlayerBotTeams.same(human,bot))return false;
+  var scope=FREE_HELP.get(bot.getObjectId());
+  if(scope==null && bot.getPlayerGroup()!=null) {
+   for(var member:bot.getPlayerGroup().getMembers()) {
+    var candidate=FREE_HELP.get(member.getObjectId());
+    if(candidate!=null && candidate.human==human && !candidate.ended){scope=candidate;break;}
+   }
+   if(scope!=null){scope.members.add(bot.getObjectId());FREE_HELP.putIfAbsent(bot.getObjectId(),scope);}
+  }
+  return scope!=null && scope.human==human && !scope.ended && requestOpen(scope.post)
+   && (scope.post.controller==null || scope.post.controller==human) && PlayerBotTeams.same(scope.post.bot,human);
+ }
+ /** This bot posted a request for its own quest, so that quest is the job it is in the party for. */
+ static boolean questRequest(Player bot) {
+  var scope=FREE_HELP.get(bot.getObjectId());
+  return scope!=null && !scope.ended && scope.post.bot==bot && scope.post.need.quest()>0;
+ }
+ static int requestedQuest(Player bot) {
+  var scope=FREE_HELP.get(bot.getObjectId());
+  return scope!=null && !scope.ended && scope.post.bot==bot ? scope.post.need.quest() : 0;
+ }
+ /** Native help target death / requesting bot turn-in, never acceptance or a UI counter. */
+ public static void helpCompleted(Player requester) {
+  var scope=FREE_HELP.get(requester.getObjectId());if(scope!=null && scope.post.bot==requester){scope.ended=true;scope.post.finished=true;}
+ }
+ /** Existing verified completeRun() adapters close only the exact joined native run. */
+ public static void runCompleted(int map,int instance) {
+  for(var scope:FREE_HELP.values())if(!scope.ended && scope.post.need.instance() && scope.post.need.map()==map
+   && scope.post.bot.getWorldId()==map && scope.post.bot.getInstanceId()==instance){scope.ended=true;scope.post.finished=true;}
  }
 
  /** Hand the whole bot party to the human as companions; null when the leader cannot be adopted. */
@@ -548,14 +658,22 @@ public final class PlayerBotFindGroup {
     }
    }
   // The human leads: enters the dungeon or guides the hunt.
-  if (post.tab!=Tab.INSTANCE || post.gathering==null) PlayerGroupService.changeLeader(human);
+  PlayerGroupService.changeLeader(human);
   return adopted;
  }
 
  public static boolean apply(Player applicant,Player recruiter) {
   var post=POSTS.get(recruiter.getObjectId());
   if (post==null || post.tab!=Tab.INSTANCE || !recruiting(recruiter)) return false;
-  REQUESTS.offer(()->invite(post,applicant));
+  if(!REQUESTS.offer(()->invite(post,applicant)))com.aionemu.gameserver.utils.PacketSendUtility.sendMessage(applicant,"Find Group is busy. Press Apply again shortly.");
+  return true;
+ }
+ /** The Recruit tab's native Invite reverses to the bot requester's invitation,
+  * preserving its existing party and reciprocal objective instead of selling it. */
+ public static boolean requestInvitation(Player human,Player bot) {
+  var post=POSTS.get(bot.getObjectId());
+  if(post==null || post.tab==Tab.APPLY || PlayerBotGroupNeeds.helping(post.need))return false;
+  if(!REQUESTS.offer(()->invite(post,human)))com.aionemu.gameserver.utils.PacketSendUtility.sendMessage(human,"Find Group is busy. Press Invite again shortly.");
   return true;
  }
 
@@ -662,7 +780,11 @@ public final class PlayerBotFindGroup {
   if (talk(post.bot,sender,action,party)) return;
   if (!party) {
    if (post.controller!=null && !forming(post)) { say(post,sender,"I'm already helping a party. Good luck finding a group!",false); return; }
-   if (PlayerBotGroupNeeds.helping(post.need) && (action==Intent.JOIN || action==Intent.START)) { say(post,sender,"Great! Invite me ("+post.bot.getName()+") to your party and I'll come to you.",false); return; }
+   if (post.tab==Tab.APPLY || PlayerBotGroupNeeds.helping(post.need)) {
+    if(action==Intent.JOIN || action==Intent.START)PlayerBotHiring.offer(sender,post.bot);
+    else say(post,sender,"Select me in Find Group and press Invite to see my price.",false);
+    return;
+   }
    if (action==Intent.JOIN || action==Intent.START) { invite(post,sender); return; }
    say(post,sender,PlayerBotGroupNeeds.guidance(post.bot,post.need)+(post.tab==Tab.APPLY ? " Invite me if your party needs a "+role(post.bot)+"." : " Want an invite?"),false);
    return;
@@ -673,7 +795,7 @@ public final class PlayerBotFindGroup {
    return;
   }
   switch (action) {
-   case TELEPORT -> say(post,sender,"You're already with us. Use .bot summon if anyone fell behind.",true);
+   case TELEPORT -> say(post,sender,"Use the dungeon entry window when the group is ready; we will join through the normal entrance.",true);
    case START -> {
     if (sender!=post.controller) { say(post,sender,"Let's let "+post.controller.getName()+" decide when we start.",true); break; }
     var session=PlayerBotService.getInstance().currentActor(post.bot);
@@ -710,6 +832,7 @@ public final class PlayerBotFindGroup {
  }
 
  private static void invite(Post post,Player player) {
+  if(post.tab==Tab.APPLY || PlayerBotGroupNeeds.helping(post.need)){PlayerBotHiring.offer(player,post.bot);return;}
   if (!enabled() || POSTS.get(post.bot.getObjectId())!=post || !canTalk(post.bot,player) || !(free(post.bot) || forming(post))) return;
   if (player.isInTeam()) { say(post,player,"You're already in a party. Your leader can invite me if there's room.",false); return; }
   if(post.bot.getPlayerGroup()!=null && post.bot.getPlayerGroup().size()>=post.need.members()) { say(post,player,"We've filled the available places for this run. Thanks for asking!",false);return; }
@@ -786,69 +909,123 @@ public final class PlayerBotFindGroup {
   */
  private static void offerTeleport(Post post,Player human) {
   if (!human.isOnline() || human.isDead() || !PlayerBotTeams.same(human,post.bot)) return;
-  int map,instance=1;float x,y,z;String label;
-  if (post.need.instance()) {
-   var group=com.aionemu.gameserver.dataholders.DataManager.AUTO_GROUP.getTemplateByInstanceMaskId(post.need.mask());
-   var place=post.gathering!=null ? post.gathering : group==null ? null : PlayerBotGroupNeeds.entranceFor(human,group);
-   if (place==null) {
-    // No entrance this player may use: nowhere to send them, so the bots come instead.
-    var adopted=adopt(post,human);
-    if (adopted==null) PlayerGroupService.removePlayer(human); else bringToHuman(human,adopted);
-    return;
-   }
-   map=place.map();x=place.x();y=place.y();z=place.z();label=post.need.title()+" entrance";
-  } else {
-   // A help request meets where the help is needed: beside the objective,
-   // not wherever the bot or the human happens to stand.
-   var bot=post.bot;var spot=PlayerBotGroupNeeds.meetingPoint(bot,post.need);
-   var target=com.aionemu.gameserver.dataholders.DataManager.NPC_DATA.getNpcTemplate(post.need.npc());
-   map=bot.getWorldId();instance=bot.getInstanceId();
-   if(spot!=null){x=spot[0];y=spot[1];z=spot[2];label=(target==null?"the objective":target.getName())+" area";}
-   else{x=bot.getX();y=bot.getY();z=bot.getZ();label=bot.getName();}
+  if(post.need.instance()) {
+   var template=com.aionemu.gameserver.dataholders.DataManager.AUTO_GROUP.getTemplateByInstanceMaskId(post.need.mask());
+   var place=post.gathering!=null ? post.gathering : template==null ? null : PlayerBotGroupNeeds.entranceFor(human,template);
+   if(place==null && template!=null)place=PlayerBotGroupNeeds.entranceFor(post.bot,template);
+   if(place==null){say(post,human,"This dungeon has no available entrance for our group. Please choose another run.",true);PlayerGroupService.removePlayer(human);return;}
+   int channel=post.bot.getWorldId()==place.map()?post.bot.getInstanceId():human.getWorldId()==place.map()?human.getInstanceId():1;
+   var group=new ServerWideGroup(post.bot,post.need.mask(),post.need.members(),fit(post.need.title()));
+   for(var member:PlayerBotTeams.members(post.bot))if(member.isWorldBot())MEETINGS.putIfAbsent(member.getObjectId(),new EntranceMeeting(member,human,group,place,channel));
+   offerEntrance(MEETINGS.get(post.bot.getObjectId()));return;
   }
-  if (human.getWorldId()==map && human.getInstanceId()==instance && PositionUtil.getDistance(human,x,y,z)<=80) {
-   var adopted=adopt(post,human);
-   if (adopted==null) PlayerGroupService.removePlayer(human);
-   else if (!post.need.instance()) {
-    // Already close to the objective: the bots meet the human there.
-    bringToHuman(human,adopted);
-   }
-   return;
+  var bot=post.bot;var spot=PlayerBotGroupNeeds.meetingPoint(bot,post.need);
+  float x=spot==null?bot.getX():spot[0],y=spot==null?bot.getY():spot[1],z=spot==null?bot.getZ():spot[2];
+  if(human.getWorldId()==bot.getWorldId() && human.getInstanceId()==bot.getInstanceId() && PositionUtil.getDistance(human,x,y,z)<=80) {
+   if(adopt(post,human)==null)PlayerGroupService.removePlayer(human);return;
   }
-  final int toMap=map,toInstance=instance;final float tx=x,ty=y,tz=z;
   final int serial=++post.tpSerial;post.tpOffers++;post.tpGraceUntil=0;
   var handler=new com.aionemu.gameserver.model.gameobjects.player.RequestResponseHandler<com.aionemu.gameserver.model.gameobjects.Creature>(null) {
    @Override public void acceptRequest(com.aionemu.gameserver.model.gameobjects.Creature requester,Player responder) {
     REQUESTS.offer(()->{
-     if (!PlayerBotTeams.same(responder,post.bot)) return;
-     if (responder.isDead() || responder.getController().isInCombat()) {
-      say(post,responder,"You can't be moved during combat. Join us again when you're free; we'll keep the spot open if we can.",false);
-      PlayerGroupService.removePlayer(responder);return;
-     }
-     com.aionemu.gameserver.services.teleport.TeleportService.teleportTo(responder,toMap,toInstance,tx,ty,tz);
-     var adopted=adopt(post,responder);
-     if (adopted==null) { PlayerGroupService.removePlayer(responder); return; }
-     // Bots elsewhere (another map, or a dungeon post made away from its
-     // entrance) join the human once the teleport has landed.
-     SOCIAL.schedule(()->bringToHuman(responder,adopted),3,TimeUnit.SECONDS);
+     if(post.tpSerial!=serial || post.expired || !PlayerBotTeams.same(responder,bot))return;
+     if(responder.isDead() || responder.getController().isInCombat()){PlayerGroupService.removePlayer(responder);return;}
+     com.aionemu.gameserver.services.teleport.TeleportService.teleportTo(responder,bot.getWorldId(),bot.getInstanceId(),x,y,z);
+     // Physical arrival is checked on the social lane before control publication.
+     SOCIAL.schedule(()->REQUESTS.offer(()->{
+      if(post.tpSerial==serial && !post.expired && PlayerBotTeams.same(responder,bot) && responder.isSpawned()
+       && responder.getWorldId()==bot.getWorldId() && responder.getInstanceId()==bot.getInstanceId() && PositionUtil.getDistance(responder,x,y,z)<=80) {
+       if(adopt(post,responder)==null)PlayerGroupService.removePlayer(responder);
+      }
+     }),3,TimeUnit.SECONDS);
     });
    }
-   @Override public void denyRequest(com.aionemu.gameserver.model.gameobjects.Creature requester,Player responder) {
-    REQUESTS.offer(()->declined(post,responder,serial));
-   }
+   @Override public void denyRequest(com.aionemu.gameserver.model.gameobjects.Creature requester,Player responder){REQUESTS.offer(()->declined(post,responder,serial));}
   };
-  if (!human.getResponseRequester().putRequest(905097,handler)) { if (adopt(post,human)==null) PlayerGroupService.removePlayer(human); return; }
-  com.aionemu.gameserver.utils.PacketSendUtility.sendPacket(human,new com.aionemu.gameserver.network.aion.serverpackets.SM_QUESTION_WINDOW(905097,0,0,label));
-  // An unanswered window counts as a decline: the human must not hold a seat the bots cannot use.
-  SOCIAL.schedule(()->{
-   if (post.controller!=null || post.tpSerial!=serial || post.tpGraceUntil!=0 || !PlayerBotTeams.same(human,post.bot)) return;
-   human.getResponseRequester().remove(905097);
-   declined(post,human,serial);
-  },60,TimeUnit.SECONDS);
-  say(post,human,post.need.instance() ? "Want to go straight to the "+label+"? Say yes in the window and we'll meet you there."
-   : "Accept the window to meet me at the "+label+"; that's where I need help.",true);
+  if(!human.getResponseRequester().putRequest(905097,handler)){say(post,human,"Answer your open travel window first; I will keep waiting here.",true);return;}
+  com.aionemu.gameserver.utils.PacketSendUtility.sendPacket(human,new com.aionemu.gameserver.network.aion.serverpackets.SM_QUESTION_WINDOW(905097,0,0,post.need.title()));
+  SOCIAL.schedule(()->REQUESTS.offer(()->{if(post.controller==null && post.tpSerial==serial && post.tpGraceUntil==0 && PlayerBotTeams.same(human,bot)){human.getResponseRequester().remove(905097);declined(post,human,serial);}}),60,TimeUnit.SECONDS);
+  say(post,human,"Accept the travel window to meet us at the objective.",true);
  }
 
+ /** The central relocation guard also covers manual summons and another companion's group transfer. */
+ public static boolean waitingAtEntrance(PlayerBotSession session) { return MEETINGS.containsKey(session.bot().getObjectId()); }
+ private static boolean atEntrance(EntranceMeeting meeting) {
+  var human=meeting.human;var place=meeting.entrance;
+  return human.isOnline() && human.isSpawned() && !human.isDead() && human.getWorldId()==place.map() && human.getInstanceId()==meeting.channel
+   && PositionUtil.getDistance(human,place.x(),place.y(),place.z())<=80;
+ }
+ private static void offerEntrance(EntranceMeeting meeting) {
+  if(meeting==null)return;
+  var human=meeting.human;
+  if(atEntrance(meeting)){meeting.accepted=true;return;}
+  var handler=new com.aionemu.gameserver.model.gameobjects.player.RequestResponseHandler<com.aionemu.gameserver.model.gameobjects.Creature>(null) {
+   @Override public void acceptRequest(com.aionemu.gameserver.model.gameobjects.Creature requester,Player responder){REQUESTS.offer(()->{
+    if(MEETINGS.get(meeting.bot.getObjectId())!=meeting || !PlayerBotTeams.same(responder,meeting.bot) || !responder.isOnline())return;
+    if(responder.isDead() || responder.getController().isInCombat()){whisper(meeting.bot,responder,"Travel is unavailable during combat or death. We will wait at our meeting point.");return;}
+    for(var other:MEETINGS.values())if(other.human==responder && other.group.getInstanceMaskId()==meeting.group.getInstanceMaskId())other.accepted=true;
+    var p=meeting.entrance;
+    com.aionemu.gameserver.services.teleport.TeleportService.teleportTo(responder,p.map(),meeting.channel,p.x(),p.y(),p.z());
+   });}
+   @Override public void denyRequest(com.aionemu.gameserver.model.gameobjects.Creature requester,Player responder){whisper(meeting.bot,responder,"We will wait here. Travel to the entrance to continue, or leave the party to cancel.");}
+  };
+  if(!human.getResponseRequester().putRequest(905097,handler)){whisper(meeting.bot,human,"Answer your open travel window first. We will keep waiting; travel to the entrance to continue.");return;}
+  com.aionemu.gameserver.utils.PacketSendUtility.sendPacket(human,new com.aionemu.gameserver.network.aion.serverpackets.SM_QUESTION_WINDOW(905097,0,0,meeting.group.getMessage()+" entrance"));
+  whisper(meeting.bot,human,"Accept the travel window to reach the dungeon entrance. We stay here until you arrive, then enter through the normal group window.");
+  SOCIAL.schedule(()->REQUESTS.offer(()->{if(MEETINGS.get(meeting.bot.getObjectId())==meeting && !meeting.arrived)human.getResponseRequester().remove(905097);}),60,TimeUnit.SECONDS);
+ }
+ private static void maintainMeeting(EntranceMeeting meeting) {
+  if(MEETINGS.get(meeting.bot.getObjectId())!=meeting)return;
+  var human=meeting.human;var bot=meeting.bot;
+  // The bots wait for as long as the human stays in the party; leaving is how a player cancels.
+  if(!human.isOnline() || !PlayerBotTeams.same(human,bot)) {
+   LoggerFactory.getLogger(PlayerBotFindGroup.class).info("Find Group entrance wait ended for {}: human {}",bot.getName(),human.isOnline()?"left the party":"went offline");
+   if(MEETINGS.remove(bot.getObjectId(),meeting) && PlayerBotTeams.same(human,bot)) {
+    var post=POSTS.get(bot.getObjectId());
+    if(post!=null && post.controller==null)PlayerGroupService.removePlayer(human);else PlayerGroupService.removePlayer(bot);
+   }
+   return;
+  }
+  if(bot.isDead() || human.isDead())return;
+  if(atEntrance(meeting)) {
+   // Walking to the exact entrance is an explicit travel choice too. Merely
+   // accepting a window or beginning a loading screen never publishes control.
+   meeting.accepted=meeting.arrived=true;
+   var post=POSTS.get(bot.getObjectId());
+   if(post!=null && post.controller==null && adopt(post,human)==null){PlayerGroupService.removePlayer(human);return;}
+  }
+  if(!meeting.accepted || !meeting.arrived || !human.isSpawned())return;
+  var template=com.aionemu.gameserver.dataholders.DataManager.AUTO_GROUP.getTemplateByInstanceMaskId(meeting.group.getInstanceMaskId());
+  if(template==null || human.getWorldId()!=template.getInstanceMapId() || !human.isInInstance())return;
+  if(bot.getWorldId()==human.getWorldId() && bot.getInstanceId()==human.getInstanceId()){MEETINGS.remove(bot.getObjectId(),meeting);return;}
+  // Never pull a waiting bot onto the human. It enters through the same native
+  // portal admission and team instance selection only after the human entered.
+  if(enterInstance(bot,meeting.group) && bot.getWorldId()==human.getWorldId() && bot.getInstanceId()==human.getInstanceId())MEETINGS.remove(bot.getObjectId(),meeting);
+ }
+ public static boolean canEnterPrepared(Player leader,ServerWideGroup group) {
+  var template=com.aionemu.gameserver.dataholders.DataManager.AUTO_GROUP.getTemplateByInstanceMaskId(group.getInstanceMaskId());
+  if(template!=null && leader.getCurrentTeam()!=null)for(var bot:leader.getCurrentTeam().getMembers()) {
+   if(bot.isWorldBot() && !MEETINGS.containsKey(bot.getObjectId()) && (bot.getWorldId()!=template.getInstanceMapId() || bot.getInstanceId()!=leader.getInstanceId())) {
+    // Covers a last-member response before its committed hire arrival callback,
+    // and an existing field helper selected for a new native dungeon offer.
+    arrived(leader,bot);
+    com.aionemu.gameserver.utils.PacketSendUtility.sendMessage(leader,"Wait for your helpers' entrance travel window before pressing Enter.");return false;
+   }
+  }
+  for(var meeting:MEETINGS.values())if(meeting.human==leader && meeting.group.getInstanceMaskId()==group.getInstanceMaskId() && PlayerBotTeams.same(leader,meeting.bot)) {
+   if(!meeting.arrived || !atEntrance(meeting)){com.aionemu.gameserver.utils.PacketSendUtility.sendMessage(leader,"Reach the dungeon entrance on the offered channel before pressing Enter.");return false;}
+  }
+  return true;
+ }
+ public static void validateHire(Player human,Player bot) {
+  var offer=FindGroupService.getInstance().instanceOffer(human);
+  if(offer==null)return;
+  var template=com.aionemu.gameserver.dataholders.DataManager.AUTO_GROUP.getTemplateByInstanceMaskId(offer.getInstanceMaskId());
+  if(template==null || human.getRace()!=bot.getRace() || !PlayerBotGroupNeeds.level(bot.getLevel(),template.getMinLvl(),template.getMaxLvl())
+   || !PlayerBotGroupNeeds.eligibleEntrance(bot,template) || !PlayerBotGroupNeeds.eligibleEntrance(human,template)
+   || PlayerBotGroupNeeds.entranceFor(human,template)==null)
+   throw new IllegalArgumentException("This helper or your character does not meet the posted dungeon's level or entrance requirements.");
+ }
  /**
   * A cancelled (or unanswered) teleport is not final at once: the first time,
   * the human keeps the seat for two minutes and can say 'tp' to get the window
@@ -896,6 +1073,16 @@ public final class PlayerBotFindGroup {
  /** A human invited a world bot directly (for example after its offer). */
  public static void arrived(Player human,Player bot) {
   if(!enabled() || human.isPlayerBot())return;
+  var offer=FindGroupService.getInstance().instanceOffer(human);
+  if(offer!=null) {
+   var template=com.aionemu.gameserver.dataholders.DataManager.AUTO_GROUP.getTemplateByInstanceMaskId(offer.getInstanceMaskId());
+   var place=template==null?null:PlayerBotGroupNeeds.entranceFor(human,template);
+   if(place==null){com.aionemu.gameserver.utils.PacketSendUtility.sendMessage(human,"This dungeon has no available entrance. Leave the party to end the term.");return;}
+   int channel=human.getWorldId()==place.map()?human.getInstanceId():1;
+   var meeting=new EntranceMeeting(bot,human,offer,place,channel);
+   MEETINGS.put(bot.getObjectId(),meeting);
+   REQUESTS.offer(()->offerEntrance(meeting));return;
+  }
   REQUESTS.offer(()->speak(bot,human,line(bot,"joined",null,null),true));
   bringToHuman(human,List.of(bot));
  }
@@ -906,6 +1093,30 @@ public final class PlayerBotFindGroup {
   if(entry instanceof GroupApplication a)return a.getPlayer();
   if(entry instanceof ServerWideGroup g)return g.getRecruiter();
   return null;
+ }
+ /** A hire advertisement is available to answer humans; a concrete bot request
+  * or entrance gathering keeps its own job and party. */
+ private static boolean canOffer(Player bot) {
+  var post=POSTS.get(bot.getObjectId());
+  return post==null || post.tab==Tab.APPLY && !post.expired && post.controller==null;
+ }
+ private static int rolePriority(Player bot,long tanks,long healers) {
+  var role=PlayerBotRules.roleFor(bot.getPlayerClass());
+  if(role==PlayerBotRules.Role.TANK)return tanks==0?0:3;
+  if(role==PlayerBotRules.Role.HEALER)return healers==0?1:3;
+  return 2;
+ }
+
+ /** A native reply only consumes an actual, unexpired bot application. */
+ public static boolean instanceApplicationReply(Player human,Player applicant,byte reply) {
+  if(!applicant.isWorldBot())return false;
+  var until=APPLIED.remove(human.getObjectId()+":"+applicant.getObjectId());
+  if(until==null || until<System.currentTimeMillis()) {
+   com.aionemu.gameserver.utils.PacketSendUtility.sendMessage(human,"That helper application expired. Wait for a new application or select a helper in Find Group.");return true;
+  }
+  if(reply!=1){APPLIED.put(human.getObjectId()+":"+applicant.getObjectId(),-(System.currentTimeMillis()+120_000));return true;}
+  try{validateHire(human,applicant);}catch(IllegalArgumentException error){com.aionemu.gameserver.utils.PacketSendUtility.sendMessage(human,error.getMessage());return true;}
+  return false;
  }
  private static void whisper(Player bot,Player human,String message) {
   if(canTalk(bot,human) && !human.isInCustomState(CustomPlayerState.NO_WHISPERS_MODE))
@@ -924,7 +1135,7 @@ public final class PlayerBotFindGroup {
    if(made>=3)continue;
    if(human==null || human.isPlayerBot() || !human.isOnline() || !human.isSpawned() || human.isDead())continue;
    // A human Instance Group offer is filled with native applications, role by role, until complete.
-   if(entry instanceof ServerWideGroup g){fillInstanceGroup(g,human,now);continue;}
+   if(entry instanceof ServerWideGroup g){if(PlayerBotConfig.HIRING_ENABLED)fillInstanceGroup(g,human,now);continue;}
    if(OFFERED.getOrDefault(human.getObjectId()+":"+entry.getClass().getSimpleName(),0L)>now)continue;
    boolean offered=entry instanceof GroupApplication ? offerInvite(human,now) : offerMember(entry,human);
    if(offered){made++;OFFERED.put(human.getObjectId()+":"+entry.getClass().getSimpleName(),now+180_000);}
@@ -949,7 +1160,7 @@ public final class PlayerBotFindGroup {
   int size=Math.min(Math.max(2,offer.getMinMembers()),max>0?max:offer.getMinMembers());
   var members=team==null?List.of(human):team.getMembers();
   String prefix=human.getObjectId()+":";
-  if(APPLIED.size()>4096)APPLIED.entrySet().removeIf(e->e.getValue()<now);
+  if(APPLIED.size()>4096)APPLIED.entrySet().removeIf(e->Math.abs(e.getValue())<now);
   var pending=new ArrayList<Player>();
   for(var e:APPLIED.entrySet())if(e.getKey().startsWith(prefix) && e.getValue()>now){
    var bot=com.aionemu.gameserver.world.World.getInstance().getPlayer(Integer.parseInt(e.getKey().substring(prefix.length())));
@@ -969,14 +1180,13 @@ public final class PlayerBotFindGroup {
    Player best=null;double bestDistance=Double.POSITIVE_INFINITY;
    for(var session:actors) {
     var bot=session.bot();
-    if(bot.getRace()!=human.getRace() || !session.autonomous() || POSTS.containsKey(bot.getObjectId())
-     || APPLIED.getOrDefault(prefix+bot.getObjectId(),0L)>now)continue;
+    if(bot.getRace()!=human.getRace() || !session.autonomous() || !canOffer(bot)
+     || Math.abs(APPLIED.getOrDefault(prefix+bot.getObjectId(),0L))>now)continue;
     var role=PlayerBotRules.roleFor(bot.getPlayerClass());
-    if(needTank ? role!=PlayerBotRules.Role.TANK : needHealer ? role!=PlayerBotRules.Role.HEALER
-     : role==PlayerBotRules.Role.TANK || role==PlayerBotRules.Role.HEALER)continue;
+
     if(!free(bot) || !PlayerBotGroupNeeds.joinable(bot,need))continue;
     if(bot.getBlockList().contains(human.getObjectId()) || human.getBlockList().contains(bot.getObjectId()))continue;
-    double distance=bot.getWorldId()==human.getWorldId() ? PositionUtil.getDistance(bot,human) : 1_000_000+bot.getObjectId()%1000;
+    double distance=rolePriority(bot,needTank?0:1,needHealer?0:1)*10_000_000D+(bot.getWorldId()==human.getWorldId() ? PositionUtil.getDistance(bot,human) : 1_000_000+bot.getObjectId()%1000);
     if(distance<bestDistance){bestDistance=distance;best=bot;}
    }
    if(best==null){quiet(human,"instance offer for "+need.title(),"no free Lv"+need.minLevel()+"-"+need.maxLevel()+" "+(needTank?"tank":needHealer?"healer":"damage dealer")+" of your faction",now);return;}
@@ -985,12 +1195,13 @@ public final class PlayerBotFindGroup {
    if(role==PlayerBotRules.Role.TANK)tanks++;else if(role==PlayerBotRules.Role.HEALER)healers++;
    // Native instance-group application: the human accepts or declines it in the window.
    com.aionemu.gameserver.utils.PacketSendUtility.sendPacket(human,new com.aionemu.gameserver.network.aion.serverpackets.SM_FIND_GROUP(best));
-   whisper(best,human,line(best,"applied",need.title(),role==PlayerBotRules.Role.TANK?"tank":role==PlayerBotRules.Role.HEALER?"heal":"bring damage"));
+   whisper(best,human,PlayerBotHiring.offerText(best)+". Accepting this application opens the Hire confirmation; no payment until you accept Hire.");
   }
  }
 
  /** The human recruits: one free bot of the missing role whispers that it can join. */
  private static boolean offerMember(FindGroupEntry entry,Player human) {
+  if(!PlayerBotConfig.HIRING_ENABLED)return false;
   var team=human.getCurrentTeam();
   if(team!=null && !team.isLeader(human))return false;
   var members=team==null?List.of(human):team.getMembers();
@@ -1009,19 +1220,18 @@ public final class PlayerBotFindGroup {
   Player best=null;double bestDistance=Double.POSITIVE_INFINITY;
   for(var session:actors) {
    var bot=session.bot();
-   if(bot.getRace()!=human.getRace() || !session.autonomous() || POSTS.containsKey(bot.getObjectId()))continue;
+   if(bot.getRace()!=human.getRace() || !session.autonomous() || !canOffer(bot))continue;
    var role=PlayerBotRules.roleFor(bot.getPlayerClass());
-   if(tanks==0 ? role!=PlayerBotRules.Role.TANK : healers==0 ? role!=PlayerBotRules.Role.HEALER
-    : role==PlayerBotRules.Role.TANK || role==PlayerBotRules.Role.HEALER)continue;
+
    if(instanceNeed==null && Math.abs(bot.getLevel()-level)>5 || !free(bot))continue;
    if(instanceNeed!=null ? !PlayerBotGroupNeeds.joinable(bot,instanceNeed) : Math.abs(bot.getLevel()-level)>5)continue;
    if(bot.getBlockList().contains(human.getObjectId()) || human.getBlockList().contains(bot.getObjectId()))continue;
-   double distance=bot.getWorldId()==human.getWorldId() ? PositionUtil.getDistance(bot,human) : 1_000_000+bot.getObjectId()%1000;
+   double distance=rolePriority(bot,tanks,healers)*10_000_000D+(bot.getWorldId()==human.getWorldId() ? PositionUtil.getDistance(bot,human) : 1_000_000+bot.getObjectId()%1000);
    if(distance<bestDistance){bestDistance=distance;best=bot;}
   }
   String what=tanks==0?"tank":healers==0?"heal":"bring damage";
   if(best==null){quiet(human,"group post","no free "+what+" bot within 5 levels of Lv"+level+" on your faction",System.currentTimeMillis());return false;}
-  whisper(best,human,line(best,"offer",instanceNeed!=null?instanceNeed.title():null,what));
+  whisper(best,human,PlayerBotHiring.offerText(best)+". Invite to select my quote, then review the Hire confirmation. No payment until you accept.");
   return true;
  }
 
@@ -1064,6 +1274,7 @@ public final class PlayerBotFindGroup {
   * already has a Find Group post (those are answered above).
   */
  private static void fillPlayerParties(long now,java.util.Set<Integer> posted) {
+  if(!PlayerBotConfig.HIRING_ENABLED)return;
   var leaders=new ArrayList<Player>();
   com.aionemu.gameserver.world.World.getInstance().forEachPlayer(p->{
    if(p.isPlayerBot() || !p.isOnline() || !p.isSpawned() || p.isDead())return;
@@ -1082,17 +1293,16 @@ public final class PlayerBotFindGroup {
    int level=leader.getLevel();Player best=null;double bestDistance=Double.POSITIVE_INFINITY;
    for(var session:actors) {
     var bot=session.bot();
-    if(bot.getRace()!=leader.getRace() || !session.autonomous() || POSTS.containsKey(bot.getObjectId()) || Math.abs(bot.getLevel()-level)>5)continue;
+    if(bot.getRace()!=leader.getRace() || !session.autonomous() || !canOffer(bot) || Math.abs(bot.getLevel()-level)>5)continue;
     var role=PlayerBotRules.roleFor(bot.getPlayerClass());
-    if(tanks==0 ? role!=PlayerBotRules.Role.TANK : healers==0 ? role!=PlayerBotRules.Role.HEALER
-     : role==PlayerBotRules.Role.TANK || role==PlayerBotRules.Role.HEALER)continue;
+
     if(!free(bot) || bot.getBlockList().contains(leader.getObjectId()) || leader.getBlockList().contains(bot.getObjectId()))continue;
-    double distance=bot.getWorldId()==leader.getWorldId() ? PositionUtil.getDistance(bot,leader) : 1_000_000+bot.getObjectId()%1000;
+    double distance=rolePriority(bot,tanks,healers)*10_000_000D+(bot.getWorldId()==leader.getWorldId() ? PositionUtil.getDistance(bot,leader) : 1_000_000+bot.getObjectId()%1000);
     if(distance<bestDistance){bestDistance=distance;best=bot;}
    }
    String what=tanks==0?"tank":healers==0?"heal":"bring damage";
    if(best==null){quiet(leader,"party","no free "+what+" bot within 5 levels of Lv"+level,now);continue;}
-   whisper(best,leader,line(best,"fill",null,what));
+   whisper(best,leader,PlayerBotHiring.offerText(best)+". Invite to select my quote, then review the Hire confirmation. No payment until you accept.");
    return; // one party per scan
   }
  }

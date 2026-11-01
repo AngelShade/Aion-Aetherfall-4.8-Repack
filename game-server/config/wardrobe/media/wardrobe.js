@@ -19,6 +19,13 @@
   }
   function bindIcons(root) { var anchors = root.querySelectorAll('.item-icon'); for (var i = 0; i < anchors.length; i++) anchors[i].onclick = function (event) { if (event) event.preventDefault(); return false; }; }
   function cacheKey() { return [query.category, query.filter, query.q, query.page, query.target].join('|'); }
+  // Scrolling panes are emptied while redrawn; put each back where the player left it.
+  function keepScroll(redraw) {
+    var nodes = document.getElementsByTagName('*'), panes = [], i;
+    for (i = 0; i < nodes.length; i++) if (nodes[i].scrollTop > 0) panes.push([nodes[i], nodes[i].scrollTop]);
+    redraw();
+    for (i = 0; i < panes.length; i++) if (panes[i][0].scrollTop !== panes[i][1]) panes[i][0].scrollTop = panes[i][1];
+  }
   function receive(result, action) {
     state = result; query.page = result.page; query.target = result.target;
     if (action) skinIndex = {};
@@ -31,7 +38,7 @@
       else for (var object in drafts) if (drafts.hasOwnProperty(object) && skinIndex[drafts[object].skin]) drafts[object].unlocked = skinIndex[drafts[object].skin].unlocked;
       closeDialog();
     }
-    render(); status(result.notice || 'Wardrobe ready.', false);
+    keepScroll(render); status(result.notice || 'Wardrobe ready.', false);
     if (!nativeStarted) { nativeStarted = true; updatePreview(); }
   }
   function fetchState(extra, action) {

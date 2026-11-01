@@ -110,6 +110,7 @@ public class DredgionInstance extends GeneralInstanceHandler {
 		stopInstanceTask();
 		instanceScore.setInstanceProgressionType(InstanceProgressionType.END_PROGRESS);
 		instance.forEachPlayer(p -> doReward(p, getPlayerReward(p), winnerRace));
+		completeRun(p -> getPlayerReward(p) != null && getPlayerReward(p).getRace() == winnerRace);
 		instance.forEachNpc(npc -> npc.getController().delete());
 		ThreadPoolManager.getInstance().schedule(() -> instance.getPlayersInside().forEach(this::revivePlayerOnEnd), 10000);
 		ThreadPoolManager.getInstance().schedule(() -> instance.getPlayersInside().forEach(this::leaveInstance), 60000);

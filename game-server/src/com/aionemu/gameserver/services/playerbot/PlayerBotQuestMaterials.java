@@ -232,6 +232,8 @@ final class PlayerBotQuestMaterials {
     acquireRequirements(actionable,custody,PlayerBotConfig.QUEST_MATERIALS && PlayerBotQuestFeatures.enabled(q.getQuestId()));
    }
    if(PlayerBotConfig.QUESTS_ENABLED && PlayerBotConfig.QUEST_MATERIALS)PlayerBotQuestCraftingDriver.neededMaterials(session).forEach((id,count)->{if(id>0 && count>0)actionable.merge(id,Math.addExact(bot.getInventory().getItemCountByItemId(id),count),Math::max);});
+   if(PlayerBotConfig.QUESTS_ENABLED && PlayerBotConfig.QUEST_MATERIALS && actionable.isEmpty())
+    PlayerBotFocus.gatheringGoals(session).forEach((id,count)->actionable.merge(id,count,Math::max));
    // A native consumable gathering gate is a real dependency too. Resolve one
    // complete held quantity, never a virtual tool or an extra-material fallback.
    var data=actionable.isEmpty()?null:catalog();var visited=new HashSet<Integer>();
@@ -532,5 +534,6 @@ final class PlayerBotQuestMaterials {
   return data.aerial().contains(destination)?aerialMove(session,destination,navigation,decision):decision.move(destination,navigation);
  }
  static void close(Player bot){ACTORS.remove(bot.getObjectId());}
+ static void invalidate(Player bot){var actor=ACTORS.get(bot.getObjectId());if(actor!=null){actor.scan=0;actor.nextSearch=0;}}
  private PlayerBotQuestMaterials() {}
 }

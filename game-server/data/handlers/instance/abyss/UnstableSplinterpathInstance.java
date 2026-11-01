@@ -38,6 +38,7 @@ public class UnstableSplinterpathInstance extends GeneralInstanceHandler {
 
 	@Override
 	public void onDie(Npc npc) {
+        if (npc.getNpcId()==219555 || npc.getNpcId()==219563) completeRun(npc);
 		super.onDie(npc);
 		final int npcId = npc.getNpcId();
 		switch (npcId) {

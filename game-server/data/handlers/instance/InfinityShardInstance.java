@@ -65,6 +65,7 @@ public class InfinityShardInstance extends GeneralInstanceHandler {
 					ThreadPoolManager.getInstance().schedule(() -> spawn(npc.getNpcId(), npc.getX(), npc.getY(), npc.getZ(), (byte) 0), Rnd.get(29000, 31000)));
 				break;
 			case 231073: // Hyperion
+				completeRun(npc);
 				cancelTasks();
 				despawnAllAndSpawnExit();
 				// rewardGP();

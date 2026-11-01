@@ -26,6 +26,7 @@ public final class PlayerBotWorldTrade {
   final Player human,bot;final boolean selling;final long started=System.currentTimeMillis();long price;
   Deal(Player human,Player bot,boolean selling,long price){this.human=human;this.bot=bot;this.selling=selling;this.price=price;}
  }
+ private static final String MERCHANT_SHOP="Travelling merchants sell through their shop. Walk up to them and right-click to browse.";
  private static final Map<Integer,Deal> DEALS=new ConcurrentHashMap<>();
  private static final ThreadLocal<Boolean> INSIDE=ThreadLocal.withInitial(()->false);
  private static final ThreadLocal<Player> FINISHING=new ThreadLocal<>();
@@ -55,19 +56,19 @@ public final class PlayerBotWorldTrade {
  private static long value(Item item,long count,boolean sale){return price(PricesService.getSellReward(item.getItemTemplate().getPrice(),PricesService.getVendorSellModifier()),count,sale);}
  private static Player find(Player human,String name){List<Player> bots=new ArrayList<>();human.getKnownList().forEachPlayer(p->{if(p.isWorldBot() && p.getName().equalsIgnoreCase(name))bots.add(p);});
   if(bots.size()!=1 || !ready(human,bots.getFirst()))throw new IllegalArgumentException("Stand within 5m of that world bot, outside combat.");return bots.getFirst();}
- public static void shop(Player human,String name){Player bot=find(human,name);var s=PlayerBotService.getInstance().worldSession(bot);if(s==null)throw new IllegalArgumentException("World bot is unavailable.");synchronized(s){if(!PlayerBotService.getInstance().current(s))throw new IllegalArgumentException("World bot control changed; retry.");int count=0;
+ public static void shop(Player human,String name){Player bot=find(human,name);if(PlayerBotRoadDuty.merchant(bot))throw new IllegalArgumentException(MERCHANT_SHOP);var s=PlayerBotService.getInstance().worldSession(bot);if(s==null)throw new IllegalArgumentException("World bot is unavailable.");synchronized(s){if(!PlayerBotService.getInstance().current(s))throw new IllegalArgumentException("World bot control changed; retry.");int count=0;
   for(Item i:bot.getInventory().getItems())if(PlayerBotTrade.rights(bot,human,i) && PlayerBotWorldActivities.surplus(s,i)) {
    try{PacketSendUtility.sendMessage(human,i.getObjectId()+": "+i.getItemName()+" x"+i.getItemCount()+" — "+value(i,1,true)+" Kinah each");count++;}catch(IllegalArgumentException ignored){}
   }
   PacketSendUtility.sendMessage(human,count==0?bot.getName()+" has no surplus equipment for sale.":"Use .bot buy "+bot.getName()+" <object ID> [count]. Native trade lets you review and confirm.");}}
- public static void buy(Player human,String name,int object,long count){Player bot=find(human,name);var s=PlayerBotService.getInstance().worldSession(bot);if(s==null)throw new IllegalArgumentException("World bot is unavailable.");synchronized(s){if(!PlayerBotService.getInstance().current(s))throw new IllegalArgumentException("World bot control changed; retry.");
+ public static void buy(Player human,String name,int object,long count){Player bot=find(human,name);if(PlayerBotRoadDuty.merchant(bot))throw new IllegalArgumentException(MERCHANT_SHOP);var s=PlayerBotService.getInstance().worldSession(bot);if(s==null)throw new IllegalArgumentException("World bot is unavailable.");synchronized(s){if(!PlayerBotService.getInstance().current(s))throw new IllegalArgumentException("World bot control changed; retry.");
   Item item=bot.getInventory().getItemByObjId(object);
   if(!PlayerBotTrade.rights(bot,human,item) || count<=0 || count>item.getItemCount() || !PlayerBotWorldActivities.surplus(s,item))throw new IllegalArgumentException("That stock is unavailable.");
   long price=value(item,count,true);if(price>human.getInventory().getKinah())throw new IllegalArgumentException("Not enough Kinah for this quote.");
   if(!open(human,bot,true,price))return;
   INSIDE.set(true);try{ExchangeService.getInstance().addItem(bot,object,count);}finally{INSIDE.remove();}
   PacketSendUtility.sendMessage(human,"Price: "+price+" Kinah. Add exactly that amount, then lock and confirm; cancelling spends nothing.");}}
- static boolean request(Player human,Player bot){var s=PlayerBotService.getInstance().worldSession(bot);if(s==null){PacketSendUtility.sendMessage(human,"World bot is unavailable.");return true;}synchronized(s){if(!PlayerBotService.getInstance().current(s))return true;if(open(human,bot,false,0))
+ static boolean request(Player human,Player bot){if(PlayerBotRoadDuty.merchant(bot)){PacketSendUtility.sendMessage(human,MERCHANT_SHOP);return true;}var s=PlayerBotService.getInstance().worldSession(bot);if(s==null){PacketSendUtility.sendMessage(human,"World bot is unavailable.");return true;}synchronized(s){if(!PlayerBotService.getInstance().current(s))return true;if(open(human,bot,false,0))
   PacketSendUtility.sendMessage(human,"Offer usable equipment upgrades or recovery supplies. Lock to see the bot's Kinah quote, then confirm or cancel.");return true;}}
  private static boolean open(Player human,Player bot,boolean sale,long price) {
   String why=refusal(human,bot);
@@ -121,17 +122,8 @@ public final class PlayerBotWorldTrade {
   try{PlayerBotTradeStore.purchase(seller,buyer,d.bot,goods,d.price);}
   catch(PlayerBotTradeStore.Indeterminate e){hold(d,e);return true;}
   catch(Exception e){org.slf4j.LoggerFactory.getLogger(PlayerBotWorldTrade.class).error("World trade refused before custody transfer",e);service.cancelExchange(p);return true;}
-  List<Item> received=new ArrayList<>();
-  try {
-   for(var e:goods.getItems().values()){Item real=seller.getInventory().getItemByObjId(e.getItemObjId()),given=e.getItem();
-    if(real.getItemCount()==e.getItemCount()){if(given!=real)IDFactory.getInstance().releaseId(given.getObjectId());given=real;seller.getInventory().remove(real);e.setItem(real);}
-    else{real.setItemCount(real.getItemCount()-e.getItemCount());real.setPersistentState(PersistentState.UPDATED);}
-    given.setEquipmentSlot(0);if(given.getPackCount()>0)given.setPackCount(-given.getPackCount());
-    if(buyer.getInventory().add_CharacterTransfer(given)==null)throw new IllegalStateException("Committed world trade projection failed");given.setPersistentState(PersistentState.UPDATED);received.add(given);
-   }
-   Item from=buyer.getInventory().getKinahItem(),to=seller.getInventory().getKinahItem();from.setItemCount(from.getItemCount()-d.price);to.setItemCount(to.getItemCount()+d.price);
-   from.setPersistentState(PersistentState.UPDATED);to.setPersistentState(PersistentState.UPDATED);
-  }catch(RuntimeException e){hold(d,e);return true;}
+  List<Item> received;
+  try{received=project(seller,buyer,goods,d.price);}catch(RuntimeException e){hold(d,e);return true;}
   FINISHING.set(p);try{service.cancelExchange(p);}finally{FINISHING.remove();DEALS.remove(d.bot.getObjectId());}
   PacketSendUtility.sendPacket(p,new SM_EXCHANGE_CONFIRMATION(SM_EXCHANGE_CONFIRMATION.Action.COMPLETED));
   try {
@@ -143,12 +135,41 @@ public final class PlayerBotWorldTrade {
   }catch(RuntimeException e){org.slf4j.LoggerFactory.getLogger(PlayerBotWorldTrade.class).error("Committed world trade notification failed",e);}
   return true;
  }
- private static void hold(Deal d,Exception e){InventoryDAO.quarantineMarketInventory(d.human.getObjectId());InventoryDAO.quarantineMarketInventory(d.bot.getObjectId());
+ /** In-memory half of a committed sale; a failure here means custody moved and the actors must be held. */
+ private static List<Item> project(Player seller,Player buyer,Exchange goods,long price) {
+  List<Item> received=new ArrayList<>();
+  for(var e:goods.getItems().values()){Item real=seller.getInventory().getItemByObjId(e.getItemObjId()),given=e.getItem();
+   if(real.getItemCount()==e.getItemCount()){if(given!=real)IDFactory.getInstance().releaseId(given.getObjectId());given=real;seller.getInventory().remove(real);e.setItem(real);}
+   else{real.setItemCount(real.getItemCount()-e.getItemCount());real.setPersistentState(PersistentState.UPDATED);}
+   given.setEquipmentSlot(0);if(given.getPackCount()>0)given.setPackCount(-given.getPackCount());
+   if(buyer.getInventory().add_CharacterTransfer(given)==null)throw new IllegalStateException("Committed world trade projection failed");given.setPersistentState(PersistentState.UPDATED);received.add(given);
+  }
+  Item from=buyer.getInventory().getKinahItem(),to=seller.getInventory().getKinahItem();from.setItemCount(from.getItemCount()-price);to.setItemCount(to.getItemCount()+price);
+  from.setPersistentState(PersistentState.UPDATED);to.setPersistentState(PersistentState.UPDATED);
+  return received;
+ }
+ /** Native shop counterpart of confirm: the same custody commit without a trade window. True once goods changed hands. */
+ static boolean shopSale(Player seller,Player buyer,Exchange goods,long price) {
+  try{PlayerBotTradeStore.purchase(seller,buyer,seller,goods,price);}
+  catch(PlayerBotTradeStore.Indeterminate e){quarantine(buyer,seller);release(buyer,seller,e);return false;}
+  catch(Exception e){org.slf4j.LoggerFactory.getLogger(PlayerBotWorldTrade.class).error("Merchant sale refused before custody transfer",e);return false;}
+  List<Item> received;
+  try{received=project(seller,buyer,goods,price);}catch(RuntimeException e){quarantine(buyer,seller);release(buyer,seller,e);return false;}
+  try {
+   PacketSendUtility.sendPacket(buyer,new SM_INVENTORY_ADD_ITEM(received,buyer,ItemPacketService.ItemAddType.PLAYER_EXCHANGE_GET_BACK));
+   PacketSendUtility.sendPacket(buyer,new SM_INVENTORY_UPDATE_ITEM(buyer,buyer.getInventory().getKinahItem(),ItemPacketService.ItemUpdateType.INC_PLAYER_EXCHANGE_GET_BACK));
+   for(Item item:received)QuestEngine.getInstance().onItemGet(buyer,item.getItemId());
+  }catch(RuntimeException e){org.slf4j.LoggerFactory.getLogger(PlayerBotWorldTrade.class).error("Committed merchant sale notification failed",e);}
+  return true;
+ }
+ private static void quarantine(Player human,Player bot){InventoryDAO.quarantineMarketInventory(human.getObjectId());InventoryDAO.quarantineMarketInventory(bot.getObjectId());}
+ private static void hold(Deal d,Exception e){quarantine(d.human,d.bot);
   FINISHING.set(d.human);try{ExchangeService.getInstance().cancelExchange(d.human);}finally{FINISHING.remove();DEALS.remove(d.bot.getObjectId());}
-  var s=PlayerBotService.getInstance().worldSession(d.bot);if(s!=null)s.markClosing();
+  release(d.human,d.bot,e);}
+ private static void release(Player human,Player bot,Exception e){var s=PlayerBotService.getInstance().worldSession(bot);if(s!=null)s.markClosing();
   org.slf4j.LoggerFactory.getLogger(PlayerBotWorldTrade.class).error("World trade held for custody verification; IDs retained",e);
-  PacketSendUtility.sendMessage(d.human,"Trade persistence requires custody verification; reconnect after the server log is reviewed.");
-  if(d.human.getClientConnection()!=null)d.human.getClientConnection().close();}
+  PacketSendUtility.sendMessage(human,"Trade persistence requires custody verification; reconnect after the server log is reviewed.");
+  if(human.getClientConnection()!=null)human.getClientConnection().close();}
  static void closed(Player p){DEALS.remove(p.getObjectId());}
  static boolean tick(PlayerBotSession s){Deal d=DEALS.get(s.bot().getObjectId());if(!s.bot().isTrading())return false;
   if(d==null || !ready(d.human,d.bot) || System.currentTimeMillis()-d.started>120000)PlayerBotTrade.cancelFromAi(s.bot());return s.bot().isTrading();}

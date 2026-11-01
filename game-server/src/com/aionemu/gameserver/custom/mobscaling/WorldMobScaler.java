@@ -250,6 +250,12 @@ public final class WorldMobScaler {
 		return stat.getCurrent();
 	}
 
+	/** Read the existing scaler owner; learning must see stat-scaled challenge without changing NPC levels. */
+	public static double demand(Npc npc) {
+		var scaling=scalings.get(npc.getObjectId());
+		return scaling==null?1:Math.max(0.000001,scaling.hpMultiplier*scaling.damageMultiplier);
+	}
+
 	static final class Scaling implements StatOwner {
 		private int members;
 		private long nextGroupCheck;

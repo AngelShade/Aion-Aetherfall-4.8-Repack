@@ -21,6 +21,7 @@ public class HaramelInstance extends GeneralInstanceHandler {
 
 	@Override
 	public void onDie(Npc npc) {
+        if (npc.getNpcId()==216922) completeRun(npc);
 		switch (npc.getNpcId()) {
 			case 216922:
 				Player player = npc.getAggroList().getMostPlayerDamage();

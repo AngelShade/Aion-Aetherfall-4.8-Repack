@@ -125,6 +125,7 @@ public class TalocsHollowInstance extends GeneralInstanceHandler {
 				sendMsg(SM_SYSTEM_MESSAGE.STR_MSG_IDELIM_WIND_INFO());
 				break;
 			case 215488: // celestius
+				completeRun(npc);
 				Player player = npc.getAggroList().getMostPlayerDamage();
 				if (player != null)
 					PacketSendUtility.sendPacket(player, new SM_PLAY_MOVIE(false, 0, 10021, 437, true));

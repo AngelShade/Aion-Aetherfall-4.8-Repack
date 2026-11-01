@@ -74,6 +74,7 @@ public class OphidanBridgeInstance extends GeneralInstanceHandler {
 			case 235771:
 				endBossKills++;
 				if (endBossKills == (isNormalMode.get() ? 1 : 2)) {
+					completeRun(npc);
 					spawn(730868, 315.85f, 488.65f, 607.6435f, (byte) 0); // Ophidan Bridge exit
 				} else {
 					scheduleEnrage();

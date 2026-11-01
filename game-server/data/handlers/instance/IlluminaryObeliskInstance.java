@@ -364,8 +364,10 @@ public class IlluminaryObeliskInstance extends GeneralInstanceHandler {
 	public void onDie(Npc npc) {
 		super.onDie(npc);
 		int npcId = npc.getNpcId();
-		if (npcId == 233740 || npcId == 234686)
+		if (npcId == 233740 || npcId == 234686) {
 			spawn(730905, 267.64062f, 267.84793f, 276.65512f, (byte) 75); // exit
+			completeRun(npc);
+		}
 	}
 
 	@Override

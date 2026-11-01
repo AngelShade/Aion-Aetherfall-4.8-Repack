@@ -44,6 +44,7 @@ public class DanuarSanctuaryInstance extends GeneralInstanceHandler {
 			case 235624:
 			case 235625:
 			case 235626:
+				completeRun(npc);
 				spawn(701876, 1071.9772f, 682.4911f, 282.0391f, (byte) 60); // Emergency Exit
 				break;
 			case 730866:

@@ -4,7 +4,10 @@
 
   var state = null, busy = false, selectedDetails = {}, session = '', requestSerial = 0, spacingDrafts = {};
 
-  var currentView = 'party', selectedBot = null, botTab = 'overview', rosterPage = 0, pageSize = 12, inspecting = false, careDrafts = {}, removalConfirmation = null, subTabs = {}, fieldDrafts = {}, teamDraft = {}, teamConfirmation = null;
+  var currentView = 'party', selectedBot = null, botTab = 'overview', rosterPage = 0, pageSize = 6, inspecting = false, careDrafts = {}, removalConfirmation = null, subTabs = {}, fieldDrafts = {}, teamDraft = {}, teamConfirmation = null;
+  var cardFaces = {}, cardMore = {}, cardTurns = {}, cardScroll = {};
+  var stateRevision = 0, receivedAt = 0, renderedViews = {}, partyRevision = -1;
+  var mountedDetail = null, detailCache = {}, detailHistory = [], rosterView = 'characters';
 
   var itemSelections = {};
 
@@ -24,9 +27,17 @@
 
   function label(value) { if (value === 'RIDER') return 'Aethertech'; return String(value || '').toLowerCase().replace(/_/g, ' ').replace(/\b[a-z]/g, function (c) { return c.toUpperCase(); }); }
 
-  function originLabel(temporary, world) { return world ? 'World Bot' : temporary ? 'Temporary Bot' : 'Account Alt'; }
+  function ticketRecruit(growth) { return !!growth && growth.origin === 'GACHA'; }
 
-  function originBadge(parent, temporary, world) { parent.appendChild(node('span', originLabel(temporary, world), 'companion-origin' + (world ? ' world' : temporary ? ' temporary' : ' alt'))); }
+  function originLabel(temporary, world, growth) { return world ? 'World Bot' : ticketRecruit(growth) ? 'Ticket Recruit' : temporary ? 'Temporary Bot' : 'Account Alt'; }
+
+  function rarityClass(growth) { return growth ? ' rarity-' + growth.rarity.toLowerCase() : ''; }
+
+  function rankLine(growth) { return label(growth.rank) + (growth.needed ? ' (' + growth.learning + ' / ' + growth.needed + ' Learning XP)' : ' (fully trained)'); }
+
+  function mistakeLine(bot) { return bot.growth.mistakeChance + '% mistake chance \u00b7 ' + (bot.mistakes || 0) + ' this session'; }
+
+  function originBadge(parent, temporary, world, growth) { parent.appendChild(node('span', originLabel(temporary, world, growth), 'companion-origin' + (world ? ' world' : temporary ? ' temporary' : ' alt'))); }
 
   function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); }
 
@@ -42,14 +53,14 @@
     emblem.onerror = function () { this.parentNode.appendChild(node('span', letters || '?', 'crest-letters')); this.style.display = 'none'; };
     ring.appendChild(emblem); return ring;
   }
-  // The Account window's Season Pass art, behind a shade, for the selected companion's framed header.
-  function headerArt(header) { var art = node('img', null, 'bot-art'); art.alt = ''; art.src = '/market/account/media/ascendant-dawn.png'; art.onerror = function () { this.style.display = 'none'; }; header.appendChild(art); header.appendChild(node('div', null, 'bot-shade')); }
+  // One shared illustrated setting across the window, selected companion and collection.
+  function headerArt(header, character) { var art = node('img', null, 'bot-art'); art.alt = ''; art.src = '/market/companions/media/cards/castle-background.png?v=2'; art.onerror = function () { this.style.display = 'none'; }; header.appendChild(art); header.appendChild(node('div', null, 'bot-shade')); if (character) header.appendChild(cardPortrait(character.playerClass,'header-class-art')); }
 
   var sectionNames = {
-    behavior: [['combat','Combat'],['automation','Quest automation'],['spacing','Spacing']],
-    equipment: [['profile','Character'],['inventory','Inventory'],['transfer','Transfer items'],['build','Build choices'],['warehouse','Private warehouse'],['legion','Legion storage']],
+    behavior: [['combat','Combat'],['automation','Quest automation'],['spacing','Spacing'],['focus','Focus']],
+    equipment: [['profile','Character'],['inventory','Inventory'],['transfer','Transfer items'],['build','Stigma build'],['saved','Saved gear'],['policy','Equipment rules'],['warehouse','Private warehouse'],['legion','Legion storage']],
     mail: [['inbox','Inbox'],['send','Send']], quests: [['journal','Journal'],['requests','Requests']],
-    care: [['maintenance','Maintenance'],['budget','Spending budget']]
+    care: [['maintenance','Maintenance'],['budget','Spending budget'],['benefits','Benefits'],['recycle','Recycle']]
   };
 
   function captureDrafts() {
@@ -113,7 +124,7 @@
     body.insertBefore(tabs, body.firstChild);
     for (var i = 0; i < names.length; i++) (function (key, title) {
       var panel = byId('bot-section-' + key); if (!panel) return;
-      var tab = localButton(tabs, title, function () { captureDrafts(); subTabs[botTab] = key; chooseSubTab(body, key); tab.focus(); });
+      var tab = localButton(tabs, title, function () { captureDrafts(); subTabs[botTab] = key; chooseSubTab(body, key); tab.focus(); if (key === 'benefits') request(null); });
       tab.id = 'bot-subtab-' + key; tab.setAttribute('role','tab'); tab.setAttribute('aria-controls',panel.id);
     }(names[i][0], names[i][1]));
     chooseSubTab(body, selected);
@@ -215,6 +226,7 @@
   function renderProfile(parent,bot,items) {
     var layout = node('div',null,'character-profile'), doll = node('div',null,'paperdoll'), portrait = node('div',null,'portrait'), details = node('div',null,'doll-details');
     var choiceKey = bot.id + '|equipped', selected = itemSelections[choiceKey], chosen = null;
+    portrait.appendChild(cardPortrait(bot.playerClass,'profile-class-art'));
     portrait.appendChild(crest(bot.playerClass, bot.role)); portrait.appendChild(node('strong',bot.name));
     portrait.appendChild(node('span','Level ' + bot.level + ' ' + label(bot.playerClass),'portrait-class'));
     portrait.appendChild(node('span',label(bot.role) + ' · ' + items.length + ' equipped','portrait-role')); doll.appendChild(portrait);
@@ -286,13 +298,13 @@
 
     for (var i = 0; i < options.length; i++) { var opt = node('option', label(options[i])); opt.value = options[i]; el.appendChild(opt); }
 
-    if (current) el.value = current; parent.appendChild(el); return el;
+    if (current) el.value = current; parent.appendChild(el); skinSelects(parent); return el;
 
   }
 
   function encode(values) { var encoded = []; for (var key in values) if (Object.prototype.hasOwnProperty.call(values, key)) encoded.push(encodeURIComponent(key) + '=' + encodeURIComponent(values[key])); return encoded.join('&'); }
 
-  function request(values) {
+  function request(values, followup) {
 
     if (busy) return;
 
@@ -302,11 +314,11 @@
 
     var xhr = new XMLHttpRequest(), mutation = values !== null, finished = false, watchdog;
 
-    xhr.open(mutation ? 'POST' : 'GET', '/market/companions/' + (mutation ? 'action' : 'state?session_id=' + encodeURIComponent(session)), true);
-
+    var rosterArgs = {page:rosterPage, search:byId('roster-search').value, filter:currentView === 'roster' && rosterView === 'presets' ? 'all' : collectionFilter(), sort:byId('roster-sort').value};
+    if (currentView === 'party' && botTab === 'care' && subTabs.care === 'benefits' && inspecting && selectedBot != null) rosterArgs.benefitBot = selectedBot;
+    xhr.open(mutation ? 'POST' : 'GET', '/market/companions/' + (mutation ? 'action' : 'state?session_id=' + encodeURIComponent(session) + '&' + encode(rosterArgs)), true);
     xhr.timeout = 30000;
-
-    if (mutation) { values.session_id = session; values.request = state.request; xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded'); }
+    if (mutation) { for (var arg in rosterArgs) if (Object.prototype.hasOwnProperty.call(rosterArgs,arg)) values[arg] = rosterArgs[arg]; values.session_id = session; values.request = state.request; xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded'); }
 
     function finish() { if (finished || serial !== requestSerial) return false; finished = true; window.clearTimeout(watchdog); busy = false; setBusy(); return true; }
 
@@ -326,11 +338,13 @@
 
       if (mutation && values.action === 'carebudget') { for (var d = 0; d < result.active.length; d++) if (result.active[d].name === values.name && String(result.active[d].reserve) === String(values.reserve) && String(result.active[d].dailyBudget) === String(values.dailyBudget)) delete careDrafts[result.active[d].id]; }
 
-      // The 10 s auto refresh redraws only when the data changed, keeping drafts, selection and scroll untouched.
+      receivedAt = new Date().getTime();
+      if (followup) { state = result; invalidateViews(); request(followup); return; }
+      // Refresh is explicit. Keep an unchanged visible panel instead of rebuilding it.
       var fingerprint = viewPrint(result);
-      if (!mutation && state && fingerprint === lastFingerprint) { state = result; quietUpdate(); return; }
+      if (!mutation && state && fingerprint === lastFingerprint) { state = result; invalidateViews(); quietUpdate(); return; }
       lastFingerprint = fingerprint;
-      state = result; render(); restoreFocus(focus); notice(result.notice || 'Connected as ' + result.owner + '. Select a companion to manage its settings and equipment.', false);
+      state = result; invalidateViews(); render(); restoreFocus(focus); notice(result.notice || 'Connected as ' + result.owner + '. Refresh when you want updated status.', false);
 
     };
 
@@ -347,8 +361,9 @@
   }
 
   function setBusy() {
+    skinSelects(document);
 
-    var controls = document.querySelectorAll('button,select,input');
+    var controls = document.querySelectorAll(busy ? 'button,select,input' : '[data-disabled]');
 
     for (var i = 0; i < controls.length; i++) {
 
@@ -363,7 +378,11 @@
 
   }
 
-  function act(values) { if (!state || !state.request) { notice('Refresh Companions before submitting another action.', true); return; } request(values); }
+  function act(values) {
+    if (!state || !state.request) { notice('Refresh Companions before submitting another action.', true); return; }
+    // Renew an old nonce only when an action needs it; never poll or replay a submitted mutation.
+    if (new Date().getTime() - receivedAt > 90000) request(null,values); else request(values);
+  }
 
   function vitals(parent, text, value, cls) {
 
@@ -415,11 +434,36 @@
 
     }
 
-    if (state) { lastFingerprint = viewPrint(state); if (view === 'roster') { renderRoster(); renderPresets(); } if (view === 'party') renderSelection(); if (view === 'quests') renderOverview(); }
+    if (state) renderCurrentView(true);
 
   }
 
   function openBot(id, tab) { selectedBot = id; if (tab) botTab = tab; inspecting = true; showView('party'); }
+
+  function invalidateViews() {
+    stateRevision++; renderedViews = {}; partyRevision = -1;
+    mountedDetail = null; detailCache = {}; detailHistory = [];
+  }
+
+  function renderCurrentView(reuse) {
+    if (currentView === 'party') { if (partyRevision !== stateRevision) renderOrders(); renderSelection(reuse); }
+    else if (currentView === 'roster') {
+      if (!reuse || renderedViews[rosterView] !== stateRevision) {
+        if (rosterView === 'presets') renderPresets(); else renderRoster();
+        renderedViews[rosterView] = stateRevision;
+      }
+    } else if (currentView === 'quests' && (!reuse || renderedViews.quests !== stateRevision)) {
+      renderOverview();
+      var quest = byId('owner-quest'), previous = quest.value; clear(quest);
+      for (var q = 0; q < state.quests.length; q++) { var opt = node('option',(state.quests[q].name || 'Quest ' + state.quests[q].id) + ' \u00b7 ' + label(state.quests[q].status)); opt.value = state.quests[q].id; quest.appendChild(opt); }
+      if (previous) quest.value = previous;
+      if (quest.selectedIndex < 0 && quest.options.length) quest.selectedIndex = 0;
+      updateShare(); renderedViews.quests = stateRevision;
+    } else if (currentView === 'create' && (!reuse || renderedViews.create !== stateRevision)) {
+      updateClasses(); updateCreation(); renderedViews.create = stateRevision;
+    }
+    setBusy();
+  }
 
   // Fingerprint of only the data the visible section shows, with object keys sorted so the server's map
   // ordering cannot count as a change. Other sections draw the new state when they are opened.
@@ -431,20 +475,26 @@
     var keys = Object.keys(value).sort(); for (i = 0; i < keys.length; i++) out.push(JSON.stringify(keys[i]) + ':' + canon(value[keys[i]]));
     return '{' + out.join(',') + '}';
   }
-  var VIEW_KEYS = { party: ['active', 'team', 'teamKind', 'recruitRemaining', 'limit', 'enabled', 'ownerBag', 'ownerKinah', 'movable', 'roles', 'owner'],
-    roster: ['roster', 'presets', 'savedBots', 'presetLimit', 'recruitRemaining', 'enabled', 'ownerBag', 'ownerKinah', 'roles'],
-    create: ['classes', 'startingClasses', 'creationJourney', 'generatedCount', 'generatedLimit', 'enabled', 'recruitRemaining'],
+  var VIEW_KEYS = { party: ['active', 'team', 'teamKind', 'recruitRemaining', 'limit', 'enabled', 'ownerBag', 'ownerKinah', 'movable', 'companionMovable', 'collectionRenown', 'benefits', 'recycleQuote', 'recyclingEnabled', 'roles', 'owner'],
+    roster: ['roster', 'rosterTotal', 'rosterPage', 'presets', 'savedBots', 'presetLimit', 'recruitRemaining', 'enabled', 'ownerBag', 'ownerKinah', 'roles'],
+    create: ['classes', 'startingClasses', 'creationJourney', 'generatedCount', 'freeGeneratedCount', 'generatedLimit', 'enabled', 'recruitRemaining', 'tickets'],
     quests: ['active', 'quests'] };
   function viewPrint(result) {
     var keys = VIEW_KEYS[currentView] || [], picked = { view: currentView }, i;
     for (i = 0; i < keys.length; i++) picked[keys[i]] = result[keys[i]];
-    // The roster only shows who is in the party, not their live health or position.
-    if (currentView === 'roster') { picked.party = []; for (i = 0; i < (result.active || []).length; i++) picked.party.push(result.active[i].id); }
+    // Only card-visible configuration/status, never moving positions, bags or changing HP.
+    if (currentView === 'roster') {
+      picked.party = [];
+      for (i = 0; i < (result.active || []).length; i++) {
+        var bot = result.active[i];
+        picked.party.push([bot.id, bot.closing, bot.dead, bot.role, bot.order, bot.gear, bot.stigmaBuild, bot.gearProfile]);
+      }
+    }
     return canon(picked);
   }
   // Unchanged section: keep the page as it is and refresh only the small counters.
   function quietUpdate() {
-    metrics(); byId('count').textContent = state.active.length + ' / ' + state.limit; byId('roster-count').textContent = state.roster.length;
+    metrics(); byId('count').textContent = state.active.length + ' / ' + state.limit; byId('roster-count').textContent = state.rosterTotal == null ? state.roster.length : state.rosterTotal;
   }
   // Scrolling panes are emptied while redrawn; put each back where the player left it.
   function keepScroll(redraw) {
@@ -453,14 +503,14 @@
     redraw();
     for (var j = 0; j < panes.length; j++) if (panes[j].scrollTop !== tops[j]) panes[j].scrollTop = tops[j];
   }
-  function render() { keepScroll(redraw); }
+  function render() { keepScroll(redraw); summonEntry(); }
   function redraw() {
 
-    captureDrafts(); metrics(); renderOrders();
+    captureDrafts(); metrics();
     byId('count').textContent = state.active.length + ' / ' + state.limit;
     byId('team-label').textContent = state.teamKind || 'Party';
 
-    byId('roster-count').textContent = state.roster.length;
+    byId('roster-count').textContent = state.rosterTotal == null ? state.roster.length : state.rosterTotal;
 
     byId('owner-label').textContent = state.owner;
 
@@ -468,38 +518,30 @@
 
     for (var i = 0; i < state.active.length; i++) pending += (state.active[i].questions || []).length;
 
-    byId('question-count').textContent = pending ? pending + ' requests' : '';
+    byId('question-count').textContent = pending ? String(pending) : '';
+    byId('question-count').title = pending + ' quest requests';
+    byId('question-count').setAttribute('aria-label',pending + ' quest requests');
 
 
 
     if (!activeBot(selectedBot) && !rosterBot(selectedBot)) selectedBot = state.active.length ? state.active[0].id : null;
+    if (state.recycleQuote) recycleQuotes[String(state.recycleQuote.sourceId)] = state.recycleQuote;
 
+    if (pendingRecycle) for (var pr = 0; pr < state.active.length; pr++) if (state.active[pr].name === pendingRecycle) { pendingRecycle = null; subTabs.care = 'recycle'; selectedBot = state.active[pr].id; botTab = 'care'; inspecting = true; showView('party'); break; }
     if (pendingTransfer) for (var pt = 0; pt < state.active.length; pt++) if (state.active[pt].name === pendingTransfer) { pendingTransfer = null; subTabs.equipment = 'transfer'; selectedBot = state.active[pt].id; botTab = 'equipment'; inspecting = true; showView('party'); }
-    renderSelection(); renderRoster(); renderOverview(); renderPresets(); updateClasses();
+    renderCurrentView(false);
     byId('save-party').querySelector('button').disabled = !state.active.length || busy;
-
-    var quest = byId('owner-quest'), previous = quest.value; clear(quest);
-
-    for (var q = 0; q < state.quests.length; q++) { var opt = node('option', (state.quests[q].name || 'Quest ' + state.quests[q].id) + ' \u00b7 ' + label(state.quests[q].status)); opt.value = state.quests[q].id; quest.appendChild(opt); }
-
-    if (previous) quest.value = previous;
-
-    if (quest.selectedIndex < 0 && quest.options.length) quest.selectedIndex = 0;
-
-    updateShare();
-
-    updateCreation();
 
   }
 
   function botSummary(parent,bot) {
       var row = localButton(parent, null, function () { openBot(bot.id); }, 'bot-summary' + (String(selectedBot) === String(bot.id) ? ' selected' : ''));
 
-      row.setAttribute('data-bot-id', bot.id); row.setAttribute('aria-pressed', String(selectedBot) === String(bot.id) ? 'true' : 'false'); row.appendChild(crest(bot.playerClass, bot.role));
+      row.setAttribute('data-bot-id', bot.id); row.setAttribute('aria-pressed', String(selectedBot) === String(bot.id) ? 'true' : 'false'); row.appendChild(cardPortrait(bot.playerClass,'summary-class-art')); row.appendChild(crest(bot.playerClass, bot.role));
 
       row.appendChild(node('strong', bot.name)); row.appendChild(node('span', 'Lv. ' + bot.level + ' ' + label(bot.playerClass) + ' \u00b7 ' + label(bot.role), 'meta'));
 
-      originBadge(row, bot.generated || bot.temporary, bot.world);
+      originBadge(row, bot.generated || bot.temporary, bot.world, bot.growth);
 
       row.appendChild(node('span', bot.closing ? 'Saving and dismissing\u2026' : bot.dead ? 'Waiting for resurrection' : label(bot.order) + ' \u00b7 ' + label(bot.status), 'summary-status'));
 
@@ -528,7 +570,7 @@
         var member = group.members[m], bot = activeBot(member.id); shown[member.id] = true;
         if (bot) botSummary(panel,bot);
         else {
-          var row = node('div',null,'human-member'); row.appendChild(crest(member.playerClass)); row.appendChild(node('strong',member.name + (member.self ? ' (you)' : '')));
+          var row = node('div',null,'human-member'); row.appendChild(cardPortrait(member.playerClass,'summary-class-art')); row.appendChild(crest(member.playerClass)); row.appendChild(node('strong',member.name + (member.self ? ' (you)' : '')));
           row.appendChild(node('span','Lv. ' + member.level + ' ' + label(member.playerClass),'meta'));
           var rank = member.leader ? 'Leader' : member.viceCaptain ? 'Vice-captain' : '';
           row.appendChild(node('span',(rank ? rank + ' \u00b7 ' : '') + (member.dead ? 'Dead' : member.online ? 'Online' : 'Offline'),'summary-status'));
@@ -600,21 +642,49 @@
     setBusy();
   }
 
-  function renderSelection() { keepScroll(drawSelection); }
-  function drawSelection() {
+  function renderSelection(reuse) { drawSelection(reuse); }
+  function drawSelection(reuse) {
 
     captureDrafts(); var savedFocus = captureFocus(), detailScroll = byId('bot-detail').scrollTop;
-    var parent = byId('active'), scroll = parent.scrollTop; clear(parent);
+    var parent = byId('active'), scroll = parent.scrollTop;
 
-    if (!state.active.length) parent.appendChild(node('p', 'No active companions yet. Recruit from your roster to build a party.', 'hint'));
-
-    renderTeamGroups(parent); renderTeamControls();
+    if (partyRevision !== stateRevision) {
+      clear(parent);
+      if (!state.active.length) parent.appendChild(node('p','No active companions yet. Recruit from your roster to build a party.','hint'));
+      renderTeamGroups(parent); renderTeamControls(); partyRevision = stateRevision;
+    } else {
+      var summaries = parent.querySelectorAll('.bot-summary');
+      for (var s = 0; s < summaries.length; s++) {
+        var chosen = String(summaries[s].getAttribute('data-bot-id')) === String(selectedBot);
+        summaries[s].className = 'bot-summary' + (chosen ? ' selected' : ''); summaries[s].setAttribute('aria-pressed',chosen ? 'true' : 'false');
+      }
+    }
 
     parent.scrollTop = scroll;
 
     document.querySelector('.party-layout').className = 'party-layout' + (inspecting ? ' inspecting' : '');
 
-    var detailPanel = byId('bot-detail'); clear(detailPanel);
+    var detailPanel = byId('bot-detail'), key = String(selectedBot) + '|' + botTab;
+    if (reuse && mountedDetail === key) return;
+    // Take the destination out before evicting: cycling all seven tabs must not
+    // discard the very oldest panel just as it is about to become visible.
+    var cached = reuse ? detailCache[key] : null;
+    if (cached) {
+      delete detailCache[key];
+      for (var h = detailHistory.length - 1; h >= 0; h--) if (detailHistory[h] === key) detailHistory.splice(h,1);
+    }
+    if (mountedDetail && mountedDetail !== key) {
+      var fragment = document.createDocumentFragment();
+      while (detailPanel.firstChild) fragment.appendChild(detailPanel.firstChild);
+      detailCache[mountedDetail] = {nodes:fragment,scroll:detailScroll}; detailHistory.push(mountedDetail);
+      while (detailHistory.length > 6) delete detailCache[detailHistory.shift()];
+    } else clear(detailPanel);
+    if (cached) {
+      detailPanel.appendChild(cached.nodes); mountedDetail = key;
+      var body = byId('bot-content'); if (body && sectionNames[botTab]) chooseSubTab(body,subTabs[botTab] || sectionNames[botTab][0][0]);
+      detailPanel.scrollTop = cached.scroll; restoreFocus(savedFocus); setBusy(); return;
+    }
+    mountedDetail = key;
 
     var back = localButton(detailPanel, '\u2039 Back to active party', function () { inspecting = false; renderSelection(); }, 'secondary'); back.id = 'bot-back';
 
@@ -624,9 +694,9 @@
 
     else if (character) {
 
-      var card = node('article', null, 'bot'), head = node('div', null, 'bot-header'), headTop = node('div', null, 'bot-top'), headId = node('div'); headerArt(head); head.appendChild(crest(character.playerClass, character.generated ? 'support' : null)); headId.appendChild(node('p', 'ROSTER COMPANION', 'eyebrow')); headId.appendChild(node('h3', character.name)); headId.appendChild(node('p', rosterIdentity(character), 'badge')); headTop.appendChild(headId); head.appendChild(headTop); card.appendChild(head);
+      var card = node('article', null, 'bot'), head = node('div', null, 'bot-header'), headTop = node('div', null, 'bot-top'), headId = node('div'); headerArt(head,character); head.appendChild(crest(character.playerClass, character.generated ? 'support' : null)); headId.appendChild(node('p', 'ROSTER COMPANION', 'eyebrow')); headId.appendChild(node('h3', character.name)); headId.appendChild(node('p', rosterIdentity(character), 'badge')); headTop.appendChild(headId); head.appendChild(headTop); card.appendChild(head);
 
-      var body = node('div', null, 'bot-body'); body.appendChild(node('h3', character.generated ? 'Temporary Bot' : 'Account character')); body.appendChild(node('p', !character.ready ? 'Creation is pending.' : character.reserved ? 'This character is active or saving and cannot currently be recruited.' : 'This character is offline and in your roster.', 'hint'));
+      var body = node('div', null, 'bot-body'); body.appendChild(node('h3', character.generated ? originLabel(true, false, character.growth) : 'Account character')); body.appendChild(node('p', !character.ready ? 'Creation is pending.' : character.reserved ? 'This character is active or saving and cannot currently be recruited.' : 'This character is offline and in your roster.', 'hint'));
 
       body.appendChild(node('p', 'Recruit this companion to view their live equipment, quests, orders and care settings.', 'hint')); button(body, 'Recruit companion', { action: 'recruit', name: character.name }, !state.enabled || character.reserved || !character.ready || !(state.recruitRemaining > 0), 'primary'); localButton(body, 'Back to roster', function () { showView('roster'); }, 'secondary'); card.appendChild(body); detailPanel.appendChild(card);
 
@@ -705,9 +775,14 @@
         var add = node('div', null, 'preset-add'), choice = node('select'), taken = {};
         var choiceLabel = node('label', 'Choose a companion to add'); choice.id = 'preset-add-choice'; choiceLabel.htmlFor = choice.id; add.appendChild(choiceLabel);
         // Render inside the page: popup menus can extend beyond the native browser surface.
+        var searchLabel = node('label', 'Search the collection'); searchLabel.htmlFor = 'preset-roster-search'; add.appendChild(searchLabel);
+        var search = node('input'); search.id = 'preset-roster-search'; search.type = 'search'; search.value = byId('roster-search').value;
+        search.oninput = function () { byId('roster-search').value = search.value; rosterPage = 0; queueRosterSearch(); }; add.appendChild(search);
+        var previousPage = localButton(add, 'Previous companions', function () { if (rosterPage > 0) { rosterPage--; request(null); } }, 'small'); previousPage.disabled = rosterPage === 0;
+        var nextPage = localButton(add, 'Next companions', function () { rosterPage++; request(null); }, 'small'); nextPage.disabled = (rosterPage + 1) * pageSize >= state.rosterTotal;
         choice.size = 6;
         for (var a = 0; a < members.length; a++) taken[members[a].id] = true;
-        for (var r = 0; r < state.roster.length; r++) { var c = state.roster[r]; if (taken[c.id] || (c.generated && !c.ready)) continue; var opt = node('option', '[' + originLabel(c.generated) + '] ' + c.name + (c.level != null ? ' · Lv. ' + c.level : '') + (c.playerClass ? ' ' + label(c.playerClass) : '')); opt.value = c.id; choice.appendChild(opt); }
+        for (var r = 0; r < state.roster.length; r++) { var c = state.roster[r]; if (taken[c.id] || (c.generated && !c.ready)) continue; var opt = node('option', '[' + originLabel(c.generated, false, c.growth) + '] ' + c.name + (c.level != null ? ' · Lv. ' + c.level : '') + (c.playerClass ? ' ' + label(c.playerClass) : '')); opt.value = c.id; choice.appendChild(opt); }
         if (choice.options.length) choice.selectedIndex = 0;
         else choice.disabled = true;
         choice.setAttribute('aria-label', 'Companion to add'); add.appendChild(choice);
@@ -718,67 +793,253 @@
     }(presets[i]));
   }
 
+  // Class illustrations are deliberately separate from a character's saved native face/equipment.
+  var CARD_ART = '/market/companions/media/cards/';
+  var cardRenames = {};
+  var cardPortraits = { TEMPLAR:0, GLADIATOR:1, ASSASSIN:2, RANGER:3, SORCERER:4, SPIRIT_MASTER:5, CLERIC:6, CHANTER:7, GUNNER:8, RIDER:9, BARD:10,
+    WARRIOR:1, SCOUT:3, MAGE:4, PRIEST:6, ENGINEER:8, ARTIST:10 };
+
+  function cardPortrait(playerClass, className) {
+    var key = String(playerClass || '').toUpperCase(), index = Object.prototype.hasOwnProperty.call(cardPortraits,key) ? cardPortraits[key] : 11;
+    var portrait = node('span',null,className), image = node('img');
+    portrait.setAttribute('aria-hidden','true'); image.alt = ''; image.src = CARD_ART + 'class-portraits.jpg?v=2';
+    image.style.left = -(index % 4) * 100 + '%'; image.style.top = -Math.floor(index / 4) * 100 + '%';
+    portrait.appendChild(image); return portrait;
+  }
+
+  function cardStatus(character, live) {
+    return live ? live.closing ? 'Saving progress' : live.dead ? 'Awaiting resurrection' : 'In your party' :
+      !character.ready ? 'Creation pending' : character.reserved ? 'Active or saving' : 'Available';
+  }
+
+  function cardBuild(live) {
+    if (!live) return 'Not loaded';
+    if (!live.stigmaBuild || live.stigmaBuild === 'AUTO') return 'Automatic';
+    var builds = live.stigmaBuilds || [];
+    for (var i = 0; i < builds.length; i++) if (builds[i].key === live.stigmaBuild) return builds[i].name;
+    return label(live.stigmaBuild);
+  }
+
+  // Gear rarity caps what auto-equip may wear: PlayerBotTemporary.ceiling.
+  var RARITY_GEAR = { POOR:'Common', ORDINARY:'Rare', GOOD:'Legendary', GREAT:'Unique', EXCELLENT:'Mythic' };
+  function cardTier(parent, title, value) {
+    var tier = summonTier(value), row = node('span',null,'collection-tier t' + tier), pips = node('span',null,'collection-pips');
+    row.appendChild(node('span',title,'collection-metric-label')); row.appendChild(node('strong',label(value)));
+    for (var i = 0; i < 5; i++) pips.appendChild(node('i',null,i <= tier ? 'on' : ''));
+    row.appendChild(pips); parent.appendChild(row);
+  }
+  function cardTierNote(parent, growth) {
+    var rarity = String(growth.rarity).toUpperCase(), gear = node('p',null,'collection-tier-note t' + summonTier(rarity)), rank = node('p',null,'collection-tier-note t' + summonTier(growth.rank));
+    gear.appendChild(node('strong','Gear rarity ' + label(growth.rarity))); gear.appendChild(node('span',': permanent, equips up to ' + (RARITY_GEAR[rarity] || 'its own') + ' gear.'));
+    rank.appendChild(node('strong','Combat rank ' + label(growth.rank))); rank.appendChild(node('span',': ' + (growth.mistakeChance != null ? growth.mistakeChance + '% mistakes' : 'how well it fights') + (growth.needed ? ', ' + growth.learning + ' / ' + growth.needed + ' Learning XP.' : ', fully trained.')));
+    parent.appendChild(gear); parent.appendChild(rank);
+  }
+  function cardMetric(parent, title, value) {
+    var field = node('span',null,'collection-metric'); field.appendChild(node('span',title,'collection-metric-label'));
+    field.appendChild(node('strong',value)); parent.appendChild(field);
+  }
+
+  function cancelCardTurn(id) {
+    var turn = cardTurns[id]; if (!turn) return;
+    window.clearTimeout(turn.swap); window.clearTimeout(turn.end); delete cardTurns[id];
+  }
+
+  // Authored painted icon atlas shared by card actions and the window chrome.
+  var skinIcons = {summon:0,equipment:1,focus:2,progress:3,coins:4,more:5,profile:6,save:7,transfer:8,mail:9,retire:10,collection:11,create:12,quests:13,refresh:14,chevron:15};
+  function paintedIcon(kind, className) {
+    var index = Object.prototype.hasOwnProperty.call(skinIcons,kind) ? skinIcons[kind] : skinIcons.profile;
+    var icon = node('span',null,'authored-icon ' + (className || '')), image = node('img');
+    icon.setAttribute('aria-hidden','true'); image.alt = ''; image.src = CARD_ART + 'skin-icons.png?v=2';
+    image.style.left = -(index % 4) * 100 + '%'; image.style.top = -Math.floor(index / 4) * 100 + '%';
+    icon.appendChild(image); return icon;
+  }
+  function cardActionIcon(control, kind) {
+    control.insertBefore(paintedIcon(kind,'collection-action-icon'),control.firstChild);
+  }
+  function skinChromeIcons() {
+    var names = [['party','profile'],['roster','collection'],['create','create'],['quests','quests']];
+    for (var i = 0; i < names.length; i++) {
+      var glyph = byId('tab-' + names[i][0]).querySelector('.glyph'); clear(glyph); glyph.appendChild(paintedIcon(names[i][1]));
+    }
+    var refresh = byId('refresh'); refresh.textContent = 'Refresh'; refresh.insertBefore(paintedIcon('refresh','refresh-icon'),refresh.firstChild);
+  }
+  // Keep the real select/label/change handler; only the generated chevron is overlaid.
+  function skinSelects(parent) {
+    var fields = parent.querySelectorAll('select');
+    for (var i = 0; i < fields.length; i++) {
+      var field = fields[i];
+      if (field.hasAttribute('size') || field.parentNode.className === 'skin-select') continue;
+      var wrap = node('span',null,'skin-select'); field.parentNode.insertBefore(wrap,field); wrap.appendChild(field);
+    }
+  }
+
+  function cardActionKind(control) {
+    var text = control.textContent;
+    if (/^(Recruit|Summon|Manage)/.test(text)) return 'summon';
+    if (/Equipment/.test(text)) return 'equipment';
+    if (/Behavior/.test(text)) return 'focus';
+    if (/Quests/.test(text)) return 'progress';
+    if (/Care/.test(text)) return 'coins';
+    if (/actions$/.test(text)) return 'more';
+    if (/^Save/.test(text)) return 'save';
+    if (/^Move/.test(text)) return 'transfer';
+    if (/^Mail/.test(text)) return 'mail';
+    if (/remov|Remove/.test(text)) return 'retire';
+    return 'profile';
+  }
+
+  function collectionFilter() {
+    var filter = byId('roster-filter').value, fields = ['class','rank','rarity'];
+    for (var i = 0; i < fields.length; i++) { var field = byId('roster-' + fields[i]); if (field && field.value !== 'all') filter += '|' + fields[i] + ':' + field.value; }
+    return filter;
+  }
+  function renderCollectionCard(parent, character) {
+    var id = String(character.id), live = activeBot(character.id), flipped = !!cardFaces[id];
+    var card = node('article',null,'collection-card'), shell = node('div',null,'collection-shell'), turn = node('div',null,'collection-turn');
+    card.setAttribute('data-bot-id',id); card.setAttribute('aria-label',character.name + ', ' + rosterIdentity(character));
+    var front = localButton(turn,null,function () { flip(true); },'collection-front');
+    front.id = 'card-front-' + id; front.setAttribute('aria-controls','card-back-' + id);
+    front.setAttribute('aria-label','Turn ' + character.name + "'s card for details and actions");
+    front.setAttribute('data-focus-key','card|' + id + '|front'); front.title = 'Illustrated ' + label(character.playerClass || 'Daeva') + ' class artwork';
+    front.appendChild(cardPortrait(character.playerClass,'collection-portrait'));
+    front.appendChild(node('span',null,'collection-shade'));
+    var origin = node('span',character.generated && isSavedBot(character.id) ? 'Saved ' + originLabel(true,false,character.growth) : originLabel(character.generated,false,character.growth),'collection-origin' + rarityClass(character.growth)); front.appendChild(origin);
+    var identity = node('span',null,'collection-identity'); identity.appendChild(crest(character.playerClass,live ? live.role : null));
+    identity.appendChild(node('strong',character.name,'collection-name'));
+    identity.appendChild(node('span',rosterIdentity(character),'collection-class'));
+    var metrics = node('span',null,'collection-metrics');
+    cardMetric(metrics,'Auto-equip',ticketRecruit(character.growth) ? 'Always on' : live ? live.gear ? 'On' : 'Off' : 'Not loaded');
+    cardMetric(metrics,'Build',cardBuild(live));
+    if (ticketRecruit(character.growth)) { cardTier(metrics,'Gear rarity',character.growth.rarity); cardTier(metrics,'Combat rank',character.growth.rank); }
+    identity.appendChild(metrics);
+    var stateLine = node('span',cardStatus(character,live),'collection-status' + (!live && character.ready && !character.reserved ? ' available' : ''));
+    identity.appendChild(stateLine); identity.appendChild(node('span','Click to flip \u203a','collection-flip-hint')); front.appendChild(identity);
+
+    var back = node('div',null,'collection-back'); back.id = 'card-back-' + id;
+    var content = node('div',null,'collection-back-content'); content.setAttribute('data-card-scroll',id);
+    var heading = node('div',null,'collection-back-heading'); heading.appendChild(cardPortrait(character.playerClass,'collection-mini'));
+    heading.appendChild(node('h3',character.name)); heading.appendChild(node('p',rosterIdentity(character),'collection-class'));
+    heading.appendChild(node('span',originLabel(character.generated,false,character.growth),'collection-back-origin')); content.appendChild(heading);
+    content.appendChild(node('p',cardStatus(character,live),'collection-back-status'));
+    if (ticketRecruit(character.growth)) cardTierNote(content,character.growth);
+    if (live) {
+      content.appendChild(node('p',label(live.role) + ' \u00b7 ' + label(live.order),'collection-config'));
+      content.appendChild(node('p','Build: ' + cardBuild(live),'collection-config'));
+    } else content.appendChild(node('p','Recruit to inspect live equipment, builds and quests.','collection-config'));
+    var actions = node('div',null,'collection-actions'); content.appendChild(actions);
+    var unavailable = !state.enabled || character.reserved || !character.ready || !(state.recruitRemaining > 0);
+    if (live) localButton(actions,'Manage companion',function () { openBot(character.id,'overview'); },'primary');
+    else {
+      var summon = button(actions,character.generated && isSavedBot(character.id) ? 'Summon saved bot' : 'Recruit companion',{action:'recruit',name:character.name},unavailable,'primary');
+      if (unavailable) summon.title = !state.enabled ? 'Companion recruitment is disabled.' : !character.ready ? 'Creation is still pending.' : character.reserved ? 'This character is active or saving.' : 'Your active team has no recruitment slots.';
+      localButton(actions,'View companion record',function () { openBot(character.id,'overview'); });
+      if (character.generated && !live && character.ready) {
+        var rename = node('div', null, 'collection-rename'), field = document.createElement('input'), renamed = cardRenames[id] || '';
+        field.type = 'text'; field.maxLength = 16; field.placeholder = 'New name'; field.value = renamed; field.setAttribute('aria-label', 'New name for ' + character.name);
+        field.oninput = function () { cardRenames[id] = field.value; };
+        rename.appendChild(field);
+        localButton(rename, 'Rename', function () { var wanted = field.value; delete cardRenames[id]; act({ action:'renamebot', name:character.name, newName:wanted }); });
+        actions.appendChild(rename);
+      }
+    }
+    if (live) {
+      localButton(actions,'Equipment & builds',function () { subTabs.equipment = 'profile'; openBot(character.id,'equipment'); });
+      localButton(actions,'Behavior & role',function () { openBot(character.id,'behavior'); });
+      localButton(actions,'Quests & progress',function () { openBot(character.id,'quests'); });
+      localButton(actions,'Care & spending',function () { openBot(character.id,'care'); });
+    }
+    var extra = node('div',null,'collection-more'); extra.id = 'card-more-' + id;
+    var more = localButton(actions,cardMore[id] ? 'Fewer actions' : 'More actions',function () {
+      cardMore[id] = !cardMore[id]; extra.style.display = cardMore[id] ? 'block' : 'none';
+      more.textContent = cardMore[id] ? 'Fewer actions' : 'More actions'; cardActionIcon(more,'more'); more.setAttribute('aria-expanded',cardMore[id] ? 'true' : 'false');
+    },'quiet'); more.setAttribute('aria-controls',extra.id); more.setAttribute('aria-expanded',cardMore[id] ? 'true' : 'false');
+    if (character.generated && character.ready) button(extra,isSavedBot(character.id) ? 'Save progress' : 'Save bot',{action:'savebot',name:character.name},live && live.closing,'secondary');
+    if (live) localButton(extra,'Move items',function () { subTabs.equipment = 'transfer'; openBot(character.id,'equipment'); });
+    else if (!character.generated) {
+      var move = button(extra,'Move items',{action:'recruit',name:character.name},unavailable);
+      move.title = 'Recruit ' + character.name + ', then open item transfer'; move.onclick = function () { pendingTransfer = character.name; act({action:'recruit',name:character.name}); };
+      localButton(extra,'Mail items',function () { mailTarget = character.name; transferPick.mail = null; renderRoster(); });
+    }
+    if (ticketRecruit(character.growth)) {
+      if (live) localButton(extra,'Recycle',function () { subTabs.care = 'recycle'; openBot(character.id,'care'); });
+      else if (character.ready) {
+        // Recycling needs the recruit active; a saved one joins first, then its Recycle page opens.
+        var recycle = button(extra,'Recycle',{action:'recruit',name:character.name},unavailable);
+        recycle.title = 'Recruit ' + character.name + ', then open recycling'; recycle.onclick = function () { pendingRecycle = character.name; act({action:'recruit',name:character.name}); };
+      }
+    }
+    removalControls(extra,character,live); extra.style.display = cardMore[id] ? 'block' : 'none'; actions.appendChild(extra);
+    back.appendChild(content);
+    back.appendChild(node('span','\u2039 Click to flip','collection-flip-back')); back.tabIndex = -1;
+    turn.appendChild(back);
+    var frame = node('img',null,'collection-frame'); frame.src = CARD_ART + 'ornate-frame.png?v=2'; frame.alt = ''; frame.setAttribute('aria-hidden','true'); turn.appendChild(frame);
+    shell.appendChild(turn); card.appendChild(shell); parent.appendChild(card);
+    // Identical local labels on different cards still restore focus to the correct native identity.
+    var controls = back.querySelectorAll('button');
+    for (var c = 0; c < controls.length; c++) {
+      controls[c].setAttribute('data-focus-key','card|' + id + '|' + (controls[c].getAttribute('data-focus-key') || c));
+      if (controls[c].parentNode.className !== 'collection-rename') cardActionIcon(controls[c],cardActionKind(controls[c]));
+    }
+    function face(value, focus) {
+      front.style.display = value ? 'none' : 'block'; back.style.display = value ? 'block' : 'none';
+      front.setAttribute('aria-expanded',value ? 'true' : 'false'); front.setAttribute('aria-hidden',value ? 'true' : 'false'); back.setAttribute('aria-hidden',value ? 'false' : 'true');
+      if (focus) {
+        var pane = byId('view-roster'), top = pane.scrollTop, inside = content.scrollTop, x = window.pageXOffset, y = window.pageYOffset;
+        (value ? back : front).focus();
+        pane.scrollTop = top; content.scrollTop = inside;
+        if (window.pageXOffset !== x || window.pageYOffset !== y) window.scrollTo(x,y);
+      }
+    }
+    function flip(value) {
+      if (cardTurns[id]) return;
+      cardFaces[id] = value;
+      var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var supported = typeof turn.style.webkitAnimationName !== 'undefined' || typeof turn.style.WebkitAnimationName !== 'undefined' || typeof turn.style.animationName !== 'undefined';
+      if (!supported || reduced) { face(value,true); return; }
+      turn.className = 'collection-turn collection-flipping';
+      cardTurns[id] = {swap:window.setTimeout(function () { face(value,true); },160),end:window.setTimeout(function () {
+        turn.className = 'collection-turn'; delete cardTurns[id];
+      },340)};
+    }
+    // Anywhere on the back turns the card over, except the controls placed on it.
+    turn.onclick = function (event) {
+      if (!cardFaces[id]) return;
+      for (var el = event.target; el && el !== turn; el = el.parentNode) if (/^(BUTTON|INPUT|SELECT|TEXTAREA|LABEL|OPTION|A)$/.test(el.tagName)) return;
+      flip(false);
+    };
+    face(flipped,false); content.scrollTop = cardScroll[id] || 0;
+  }
+
   function renderRoster() {
+
+    var priorFocus = captureFocus(), oldScroll = parentCardScroll();
+    for (var turnId in cardTurns) if (Object.prototype.hasOwnProperty.call(cardTurns,turnId)) cancelCardTurn(turnId);
 
     var parent = byId('roster'), query = byId('roster-search').value.toLowerCase().replace(/^\s+|\s+$/g, ''), filter = byId('roster-filter').value, sort = byId('roster-sort').value, rows = []; clear(parent);
 
-    for (var i = 0; i < state.roster.length; i++) {
 
-      var character = state.roster[i], live = activeBot(character.id);
-
-      if (query && (character.name + ' ' + label(character.playerClass)).toLowerCase().indexOf(query) === -1) continue;
-
-      if (filter === 'available' && (character.reserved || !character.ready || live)) continue;
-
-      if (filter === 'active' && !live) continue;
-
-      if (filter === 'generated' && !character.generated) continue;
-      if (filter === 'saved' && (!character.generated || !isSavedBot(character.id))) continue;
-
-      if (filter === 'characters' && character.generated) continue;
-
-      rows.push(character);
-
-    }
-
-    rows.sort(function (a, b) { var first = sort === 'class' ? label(a.playerClass) : a.name, second = sort === 'class' ? label(b.playerClass) : b.name; if (sort === 'level' && (a.level || 0) !== (b.level || 0)) return (b.level || 0) - (a.level || 0); return first.toLowerCase() < second.toLowerCase() ? -1 : first.toLowerCase() > second.toLowerCase() ? 1 : String(a.name).localeCompare(String(b.name)); });
-
-    var pages = Math.max(1, Math.ceil(rows.length / pageSize)); rosterPage = Math.min(rosterPage, pages - 1); var start = rosterPage * pageSize, end = Math.min(start + pageSize, rows.length);
-
-    byId('roster-results').textContent = rows.length ? 'Showing ' + (start + 1) + '\u2013' + end + ' of ' + rows.length + ' companions' : 'No companions match your search.';
-
+    rows = state.roster;
+    var total = state.rosterTotal == null ? rows.length : state.rosterTotal;
+    rosterPage = state.rosterPage || 0;
+    var pages = Math.max(1, Math.ceil(total / pageSize)), start = 0, end = rows.length;
+    byId('roster-results').textContent = total ? 'Showing ' + (rosterPage * pageSize + 1) + '\u2013' + (rosterPage * pageSize + end) + ' of ' + total + ' companions' : 'No companions match your search.';
     byId('roster-page').textContent = 'Page ' + (rosterPage + 1) + ' of ' + pages; byId('roster-prev').disabled = rosterPage === 0; byId('roster-next').disabled = rosterPage >= pages - 1;
-
     var mailPanel = byId('mail-alt-panel'); clear(mailPanel); if (mailTarget) renderMailAlt(mailPanel);
     if (!rows.length) parent.appendChild(node('div', state.roster.length ? 'Try another name, class or filter.' : 'Your roster is empty. Create a companion to get started.', 'empty'));
 
-    for (var r = start; r < end; r++) (function (character) {
+    var classSelect = byId('roster-class');
+    if (classSelect && classSelect.options.length === 1) {
+      var classes = (state.startingClasses || []).concat(state.classes || []).sort(), seenClasses = {};
+      for (var k = 0; k < classes.length; k++) if (!seenClasses[classes[k]]) { var option = node('option',label(classes[k])); option.value = classes[k]; classSelect.appendChild(option); seenClasses[classes[k]] = true; }
+    }
+    for (var r = start; r < end; r++) renderCollectionCard(parent,rows[r]);
+    restoreFocus(priorFocus); byId('view-roster').scrollTop = oldScroll; setBusy();
+  }
 
-      var live = activeBot(character.id), row = node('div', null, 'roster-row'), medal = crest(character.playerClass, live ? live.role : null), identity = node('div', null, 'roster-identity'), status = node('div', null, 'roster-state'), action = node('div', null, 'roster-action'); row.setAttribute('data-bot-id', character.id);
-
-      identity.appendChild(node('strong', character.name)); identity.appendChild(node('p', rosterIdentity(character), 'hint')); if (character.level != null || character.playerClass) originBadge(identity, character.generated);
-
-      if (character.generated && isSavedBot(character.id)) identity.appendChild(node('span', 'Saved Temporary Bot', 'badge'));
-      status.textContent = live ? 'In your party' : !character.ready ? 'Creation pending' : character.reserved ? 'Active or saving' : 'Offline \u00b7 available';
-
-      var view = localButton(action, live ? 'Manage' : 'View', function () { openBot(character.id, 'overview'); }); view.setAttribute('data-action', 'view');
-
-      if (character.generated && character.ready) button(action, isSavedBot(character.id) ? 'Save progress' : 'Save bot', { action: 'savebot', name: character.name }, live && live.closing, 'secondary');
-      if (live) localButton(action, 'Move items', function () { subTabs.equipment = 'transfer'; openBot(character.id, 'equipment'); }, 'small');
-      else if (!character.generated) {
-        var moveItems = button(action, 'Move items', { action: 'recruit', name: character.name }, !state.enabled || character.reserved || !character.ready || !(state.recruitRemaining > 0), 'small');
-        moveItems.title = 'Recruit ' + character.name + ', then open its item transfer';
-        moveItems.onclick = function () { pendingTransfer = character.name; act({ action: 'recruit', name: character.name }); };
-        localButton(action, 'Mail items', function () { mailTarget = character.name; transferPick.mail = null; renderRoster(); }, 'small');
-      }
-      if (!live) button(action, character.generated && isSavedBot(character.id) ? 'Summon saved bot' : 'Recruit', { action: 'recruit', name: character.name }, !state.enabled || character.reserved || !character.ready || !(state.recruitRemaining > 0), 'secondary');
-
-      removalControls(action, character, live);
-
-      row.appendChild(medal); row.appendChild(identity); row.appendChild(status); row.appendChild(action); parent.appendChild(row);
-
-    }(rows[r]));
-
+  function parentCardScroll() {
+    var content = byId('roster').querySelectorAll('[data-card-scroll]');
+    for (var i = 0; i < content.length; i++) cardScroll[content[i].getAttribute('data-card-scroll')] = content[i].scrollTop;
+    return byId('view-roster').scrollTop;
   }
 
   function renderSpacing(parent, bot) {
@@ -798,24 +1059,71 @@
     draftField(follow,bot,'spacing-owner'); draftField(attack,bot,'spacing-attack');
   }
 
+  // Overview: one framed tile for each area, each leading to the tab that manages it.
+  function overviewTile(grid, title, target, section) {
+    var tile = node('section', null, 'overview-tile'), head = node('div', null, 'overview-head'); head.appendChild(node('h4', title));
+    if (target) localButton(head, 'Open \u203a', function () { captureDrafts(); if (section) subTabs[target] = section; botTab = target; renderSelection(true); }, 'overview-open');
+    tile.appendChild(head); grid.appendChild(tile); return tile;
+  }
+  function overviewRow(tile, title, value) {
+    var row = node('p', null, 'overview-row'); row.appendChild(node('span', title)); row.appendChild(node('strong', String(value))); tile.appendChild(row);
+  }
+  function overviewBoard(body, bot) {
+    var grid = node('div', null, 'overview-grid'), items = bot.inventory || [], worn = 0, carried = 0, ready = 0;
+    for (var i = 0; i < items.length; i++) { if (items[i].equipped) worn++; else carried++; }
+    for (var q = 0; q < (bot.quests || []).length; q++) if (bot.quests[q].ready) ready++;
+    var now = overviewTile(grid, 'Right now', 'activity');
+    overviewRow(now, 'Status', bot.closing ? 'Saving and dismissing' : bot.dead ? 'Waiting for resurrection' : label(bot.status));
+    overviewRow(now, 'Doing', bot.action ? label(bot.action) : 'Nothing yet'); overviewRow(now, 'Order', label(bot.order));
+    var progress = overviewTile(grid, ticketRecruit(bot.growth) ? 'Rarity and rank' : 'Character');
+    if (ticketRecruit(bot.growth)) {
+      cardTier(progress, 'Gear rarity', bot.growth.rarity); cardTier(progress, 'Combat rank', bot.growth.rank);
+      overviewRow(progress, 'Learning XP', bot.growth.needed ? bot.growth.learning + ' / ' + bot.growth.needed : 'Fully trained');
+      if (bot.growth.mistakeChance != null) overviewRow(progress, 'Mistake chance', bot.growth.mistakeChance + '%');
+    } else { overviewRow(progress, 'Type', bot.characterType || 'Companion'); overviewRow(progress, 'Build', bot.build || 'Automatic'); }
+    var gear = overviewTile(grid, 'Equipment', 'equipment', 'profile');
+    overviewRow(gear, 'Worn', worn + ' items'); overviewRow(gear, 'Carried', carried + (bot.inventoryLimit ? ' / ' + bot.inventoryLimit : '') + ' items');
+    overviewRow(gear, 'Auto-equip', ticketRecruit(bot.growth) ? 'Always on' : bot.gear ? 'On' : 'Off');
+    var quests = overviewTile(grid, 'Quests', 'quests', 'journal');
+    overviewRow(quests, 'Active', (bot.quests || []).length); overviewRow(quests, 'Ready to turn in', ready); overviewRow(quests, 'Requests', (bot.questions || []).length);
+    var combat = overviewTile(grid, 'Combat', 'behavior', 'combat');
+    overviewRow(combat, 'Role', label(bot.role)); overviewRow(combat, 'Build', bot.stigmaBuild ? label(bot.stigmaBuild) : bot.build || 'Automatic');
+    overviewRow(combat, 'Mistakes this session', bot.mistakes || 0);
+    var care = overviewTile(grid, 'Care', 'care', 'maintenance');
+    overviewRow(care, 'Spent today', (bot.spent || 0) + (bot.dailyBudget ? ' / ' + bot.dailyBudget : '') + ' Kinah'); overviewRow(care, 'Mail', bot.mailCount || 0);
+    body.appendChild(grid);
+  }
   function renderBot(parent, bot) {
 
-    var card = node('article', null, 'bot'), header = node('div', null, 'bot-header'), top = node('div', null, 'bot-top'), identity = node('div'); card.setAttribute('data-bot-id', bot.id); headerArt(header); header.appendChild(crest(bot.playerClass, bot.role));
+    var card = node('article', null, 'bot'), header = node('div', null, 'bot-header'), top = node('div', null, 'bot-top'), identity = node('div'); card.setAttribute('data-bot-id', bot.id); headerArt(header,bot); header.appendChild(crest(bot.playerClass, bot.role));
 
-    identity.appendChild(node('p', 'COMPANION / ' + label(bot.role).toUpperCase(), 'eyebrow')); identity.appendChild(node('h3', bot.name)); identity.appendChild(node('p', 'Level ' + bot.level + ' ' + label(bot.playerClass) + ' · ' + originLabel(bot.generated || bot.temporary, bot.world), 'badge')); top.appendChild(identity); top.appendChild(node('div', bot.closing ? 'Saving\u2026' : bot.dead ? 'Awaiting resurrection' : label(bot.order), 'bot-state')); header.appendChild(top);
+    identity.appendChild(node('p', 'COMPANION / ' + label(bot.role).toUpperCase(), 'eyebrow')); identity.appendChild(node('h3', bot.name)); identity.appendChild(node('p', 'Level ' + bot.level + ' ' + label(bot.playerClass) + ' · ' + originLabel(bot.generated || bot.temporary, bot.world, bot.growth), 'badge')); if (bot.growth) { identity.appendChild(node('p', 'Gear rarity: ' + label(bot.growth.rarity) + ' (permanent) · Combat rank: ' + rankLine(bot.growth), 'badge' + rarityClass(bot.growth))); identity.appendChild(node('p', mistakeLine(bot), 'badge')); } top.appendChild(identity); top.appendChild(node('div', bot.closing ? 'Saving\u2026' : bot.dead ? 'Awaiting resurrection' : label(bot.order), 'bot-state')); header.appendChild(top);
 
     var health = node('div', null, 'vitals'); vitals(health, 'Health', bot.health, 'health'); vitals(health, 'Mana', bot.mana, 'mana'); if (bot.xp != null) vitals(health, 'XP', bot.xp, 'xp'); header.appendChild(health); card.appendChild(header);
 
-    if (bot.generated || bot.temporary) button(header, 'Save Temporary Bot', { action: 'savebot', name: bot.name }, bot.closing, 'secondary');
+    if (bot.generated || bot.temporary) button(header, 'Save ' + originLabel(true, false, bot.growth), { action: 'savebot', name: bot.name }, bot.closing, 'secondary');
     var tabs = node('nav', null, 'tabs bot-tabs'), names = [['overview','Overview'],['behavior','Behavior'],['equipment','Equipment'],['mail','Mail'],['quests','Quests'],['care','Care'],['activity','Activity']]; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', bot.name + ' details');
 
-    for (var t = 0; t < names.length; t++) (function (name, title) { var tab = localButton(tabs, title, function () { captureDrafts(); botTab = name; renderSelection(); var selected = byId('bot-tab-' + name); if (selected) selected.focus(); }, botTab === name ? 'selected' : ''); tab.id = 'bot-tab-' + name; tab.setAttribute('role','tab'); tab.setAttribute('aria-controls','bot-content'); tab.setAttribute('aria-selected',botTab === name ? 'true' : 'false'); tab.tabIndex = botTab === name ? 0 : -1; }(names[t][0], names[t][1])); card.appendChild(tabs);
+    for (var t = 0; t < names.length; t++) (function (name, title) { var tab = localButton(tabs, title, function () { captureDrafts(); botTab = name; renderSelection(true); var selected = byId('bot-tab-' + name); if (selected) selected.focus(); }, botTab === name ? 'selected' : ''); tab.id = 'bot-tab-' + name; tab.setAttribute('role','tab'); tab.setAttribute('aria-controls','bot-content'); tab.setAttribute('aria-selected',botTab === name ? 'true' : 'false'); tab.tabIndex = botTab === name ? 0 : -1; }(names[t][0], names[t][1])); card.appendChild(tabs);
 
     var body = node('div', null, 'bot-body'); body.id = 'bot-content'; body.setAttribute('role','tabpanel'); body.setAttribute('aria-labelledby','bot-tab-' + botTab); card.appendChild(body);
 
     if (botTab === 'overview') {
 
-      body.appendChild(node('h3', 'Current status')); body.appendChild(node('p', bot.closing ? 'Saving and dismissing\u2026' : bot.dead ? 'Waiting for resurrection' : label(bot.status) + ' \u00b7 ' + bot.action, 'detail'));
+      overviewBoard(body,bot);
+
+      if (bot.ownedProgression) {
+        var together = node('div', null, 'role-row'); together.appendChild(node('h3', 'Level together'));
+        together.appendChild(node('p', 'While alive, nearby, and in your team, this alt catches up to your level and XP progress after combat. Higher levels are kept. Equipment remains earned. A starting class still needs your advanced-class choice.', 'hint'));
+        button(together, bot.levelTogether ? 'Disable level matching' : 'Enable level matching', { action: 'leveltogether', name: bot.name, enabled: !bot.levelTogether }, bot.closing); body.appendChild(together);
+      }
+      if (bot.ascensionChoices && bot.ascensionChoices.length) {
+        var ascend = node('div', null, 'role-row'); ascend.appendChild(node('h3', 'Choose advanced class'));
+        ascend.appendChild(node('p', 'This is a permanent class choice for your account character. Equipment and earned progress are preserved. Available from level 9.', 'hint'));
+        var advanced = select(ascend, bot.ascensionChoices, bot.ascensionChoices[0]); advanced.id = 'owned-advanced-class'; advanced.setAttribute('aria-label', 'Advanced class');
+        var ascendButton = localButton(ascend, 'Confirm advanced class', function () { act({ action: 'ascend', name: bot.name, playerClass: advanced.value }); }, 'primary');
+        ascendButton.disabled = bot.closing || busy || !bot.ascensionReady; body.appendChild(ascend);
+      }
 
       if (bot.mission) { var mission = node('div', null, 'mission'); mission.appendChild(node('p', 'Quest ' + bot.mission + ' \u00b7 ' + label(bot.missionStatus), 'route')); button(mission, 'Cancel quest mission', { action: 'mission', name: bot.name, quest: 0 }, bot.closing); body.appendChild(mission); }
 
@@ -828,16 +1136,20 @@
     } else if (botTab === 'behavior') {
       var combat = subPanel(body,'combat','Combat behavior');
       var settings = node('div', null, 'settings control-grid'), flags = [['area','Area attacks'],['supplies','Recovery and build supplies'],['gear','Auto equipment'],['loot','Auto loot']];
+      if (ticketRecruit(bot.growth)) flags.splice(2,1);
 
       for (var f = 0; f < flags.length; f++) button(settings, flags[f][1] + ': ' + (bot[flags[f][0]] ? 'On' : 'Off'), { action: 'setting', name: bot.name, setting: flags[f][0], enabled: !bot[flags[f][0]] }, bot.closing || (flags[f][0] === 'gear' && !bot.temporary), 'setting-card' + (bot[flags[f][0]] ? ' on' : '')); combat.appendChild(settings);
       var automation = subPanel(body,'automation','Quest automation'); automation.className += ' settings control-grid'; var flags = [['questing','Auto quests'],['questCombat','Nearby quest combat'],['partySync','Party completion sync']];
       for (var f = 0; f < flags.length; f++) button(automation,flags[f][1] + ': ' + (bot[flags[f][0]] ? 'On' : 'Off'),{ action:'setting',name:bot.name,setting:flags[f][0],enabled:!bot[flags[f][0]] },bot.closing,'setting-card' + (bot[flags[f][0]] ? ' on' : ''));
       var spacing = subPanel(body,'spacing','Follow and attack spacing'); renderSpacing(spacing,bot);
       if (!bot.rangedSpacing) spacing.appendChild(node('p','Ranged spacing controls apply to ranged companions. This companion uses its native role spacing.','empty-state'));
+      if (bot.focus && bot.focus.available) renderFocus(subPanel(body,'focus','Optional activity focus'), bot);
 
     } else if (botTab === 'equipment') {
 
-      var build = subPanel(body,'build','Equipment build'); renderGearPolicy(build, bot);
+      if (bot.temporary && (bot.stigmaBuilds || []).length) renderStigmaBuilds(subPanel(body,'build','Stigma build'), bot);
+      if (bot.loadout) renderLoadout(subPanel(body,'saved','Saved gear'), bot);
+      if (!ticketRecruit(bot.growth)) renderGearPolicy(subPanel(body,'policy','Equipment rules'), bot);
       var equipped = [], carried = [];
       for (var i = 0; i < bot.inventory.length; i++) (bot.inventory[i].equipped ? equipped : carried).push(bot.inventory[i]);
       var profile = subPanel(body,'profile','Character equipment'); renderProfile(profile,bot,equipped);
@@ -916,7 +1228,11 @@
 
       for (var q = 0; q < bot.quests.length; q++) { var row = node('div', null, 'quest'); journal.appendChild(row); renderQuest(row, bot.quests[q]); if (bot.quests[q].missionEligible) button(row, 'Assign quest mission', { action: 'mission', name: bot.name, quest: bot.quests[q].id }, bot.closing || bot.dead); }
 
-    } else if (botTab === 'care') renderCare(body, bot);
+    } else if (botTab === 'care') {
+      renderCare(body, bot);
+      if (bot.generated || bot.world) renderBenefits(subPanel(body,'benefits','Benefits earned by this companion'), bot);
+      if (bot.giveOnly) renderRecycling(subPanel(body,'recycle','Recycle a ticket recruit'), bot);
+    }
 
     else { body.appendChild(node('h3', 'Recent activity')); if (!bot.announcements || !bot.announcements.length) body.appendChild(node('p', 'Companion announcements will appear here.', 'empty')); else for (var msg = bot.announcements.length - 1; msg >= 0; msg--) body.appendChild(node('p', bot.announcements[msg], 'activity-row')); }
 
@@ -960,59 +1276,58 @@
 
   }
 
+  // One line per quest, a page at a time. Journals open once per companion, not once per quest.
+  var QUEST_PAGE = 7, questBoard = { page:0, ready:false };
   function renderOverview() {
-
     var parent = byId('quest-overview'), groups = {}, order = []; clear(parent);
-
     if (!state.active.length) { parent.appendChild(node('div', 'Recruit companions to track their quests together.', 'empty')); return; }
-
-    var body = node('div'); parent.appendChild(body); body.appendChild(node('h3', 'Party quest tracker'));
-
-    for (var a = 0; a < state.active.length; a++) if ((state.active[a].questions || []).length) { var requestRow = node('div', null, 'catch-up'), member = state.active[a]; requestRow.appendChild(node('strong', member.name + ' \u00b7 ' + member.questions.length + ' catch-up request(s)')); (function (id) { localButton(requestRow, 'Review requests', function () { openBot(id, 'quests'); }); }(member.id)); body.appendChild(requestRow); }
-
+    var body = node('div', null, 'quest-board'); parent.appendChild(body);
+    var head = node('div', null, 'quest-board-head'); head.appendChild(node('h3', 'Party quest tracker')); body.appendChild(head);
+    var journals = node('div', null, 'quest-journals'); journals.appendChild(node('span', 'Open journal'));
+    for (var j = 0; j < state.active.length; j++) (function (bot) { localButton(journals, bot.name, function () { openBot(bot.id, 'quests'); }, 'quest-member'); }(state.active[j]));
+    body.appendChild(journals);
+    for (var a = 0; a < state.active.length; a++) if ((state.active[a].questions || []).length) { var requestRow = node('div', null, 'catch-up'), asking = state.active[a]; requestRow.appendChild(node('strong', asking.name + ' \u00b7 ' + asking.questions.length + ' catch-up request(s)')); (function (id) { localButton(requestRow, 'Review requests', function () { openBot(id, 'quests'); }); }(asking.id)); body.appendChild(requestRow); }
     for (var b = 0; b < state.active.length; b++) {
-
       var bot = state.active[b];
-
       for (var q = 0; q < bot.quests.length; q++) {
-
         var quest = bot.quests[q], key = String(quest.id);
-
-        if (!groups[key]) { groups[key] = { quest: quest, members: [], locations: [] }; order.push(key); }
-
-        groups[key].members.push(bot.name + ': ' + (quest.ready ? 'Ready to turn in' : label(quest.status)));
-
-        if (!groups[key].bots) groups[key].bots = []; groups[key].bots.push({ id: bot.id, name: bot.name });
-
-        var destinations = quest.destinations || []; if (quest.ready && destinations.length) groups[key].locations.push(bot.name + ' \u2192 ' + coordinates(destinations[0]));
-
+        if (!groups[key]) { groups[key] = { quest: quest, total: 0, ready: 0, states: {}, location: '' }; order.push(key); }
+        var group = groups[key], status = quest.ready ? 'Ready to turn in' : label(quest.status);
+        group.total++; if (quest.ready) group.ready++;
+        group.states[status] = (group.states[status] || 0) + 1;
+        var destinations = quest.destinations || []; if (quest.ready && destinations.length && !group.location) group.location = coordinates(destinations[0]);
       }
-
     }
-
-    if (!order.length) body.appendChild(node('p', 'Companion quests will appear here as they are accepted.', 'hint'));
-
-    for (var i = 0; i < order.length; i++) {
-
-      var group = groups[order[i]], row = node('div', null, 'quest');
-
-      row.appendChild(node('strong', group.quest.name || 'Quest ' + group.quest.id));
-
-      row.appendChild(node('p', group.members.join(' \u00b7 '), 'hint'));
-
-      for (var loc = 0; loc < group.locations.length; loc++) row.appendChild(node('p', group.locations[loc], 'route'));
-
-      for (var member = 0; member < group.bots.length; member++) (function (bot) { localButton(row, bot.name + ' \u00b7 Open journal', function () { openBot(bot.id, 'quests'); }, 'quest-member'); }(group.bots[member]));
-
-      body.appendChild(row);
-
+    if (!order.length) { body.appendChild(node('p', 'Companion quests will appear here as they are accepted.', 'hint')); return; }
+    var readyCount = order.filter(function (k) { return groups[k].ready > 0; }).length;
+    if (!readyCount) questBoard.ready = false;
+    var filters = node('div', null, 'quest-filters');
+    function filter(text, ready) { var choice = localButton(filters, text, function () { questBoard.ready = ready; questBoard.page = 0; renderOverview(); }, questBoard.ready === ready ? 'on' : ''); if (ready && !readyCount) choice.disabled = true; }
+    filter('All ' + order.length, false); filter('Ready to turn in ' + readyCount, true); head.appendChild(filters);
+    var shown = order.filter(function (k) { return !questBoard.ready || groups[k].ready > 0; });
+    shown.sort(function (x, y) { return (groups[y].ready > 0) - (groups[x].ready > 0) || String(groups[x].quest.name).localeCompare(String(groups[y].quest.name)); });
+    var pages = Math.max(1, Math.ceil(shown.length / QUEST_PAGE)); questBoard.page = Math.min(questBoard.page, pages - 1);
+    var first = questBoard.page * QUEST_PAGE, table = node('div', null, 'quest-table'), titles = node('div', null, 'quest-line quest-titles');
+    titles.appendChild(node('span', 'Quest')); titles.appendChild(node('span', 'Progress')); titles.appendChild(node('span', 'Turn in at')); table.appendChild(titles);
+    shown.slice(first, first + QUEST_PAGE).forEach(function (k) {
+      var entry = groups[k], line = node('div', null, 'quest-line' + (entry.ready ? ' ready' : '')), parts = [];
+      for (var name in entry.states) if (Object.prototype.hasOwnProperty.call(entry.states, name)) parts.push(name + ' ' + entry.states[name] + '/' + entry.total);
+      line.appendChild(node('strong', entry.quest.name || 'Quest ' + entry.quest.id)); line.appendChild(node('span', parts.join(' \u00b7 '))); line.appendChild(node('span', entry.location || '\u2014'));
+      table.appendChild(line);
+    });
+    body.appendChild(table);
+    if (pages > 1) {
+      var pager = node('div', null, 'quest-pager');
+      var back = localButton(pager, '\u2039 Previous', function () { questBoard.page--; renderOverview(); }); back.disabled = questBoard.page === 0;
+      pager.appendChild(node('span', (first + 1) + '\u2013' + Math.min(first + QUEST_PAGE, shown.length) + ' of ' + shown.length));
+      var next = localButton(pager, 'Next \u203a', function () { questBoard.page++; renderOverview(); }); next.disabled = questBoard.page >= pages - 1;
+      body.appendChild(pager);
     }
-
   }
 
   // Stigma builds (config/playerbots/stigma-builds.properties): the chosen build's Stigmas are equipped first, out of combat.
   // Item transfer: your bag on the left, the companion's on the right; one whole stack or a Kinah amount per move.
-  var transferPick = {}, pendingTransfer = null, mailTarget = null;
+  var transferPick = {}, pendingTransfer = null, pendingRecycle = null, mailTarget = null;
   function bagGrid(parent, title, items, key) {
     var box = node('section', null, 'bag'), grid = node('div', null, 'cube-grid');
     box.appendChild(node('h3', title));
@@ -1039,21 +1354,50 @@
     if (bot.world) { parent.appendChild(node('p', 'Invited world bots keep their own items.', 'empty-state')); return; }
     var ids = (state.movable || {})[bot.name] || [], theirs = [], ownKey = 'own', botKey = 'bot' + bot.id;
     for (var i = 0; i < (bot.inventory || []).length; i++) if (ids.indexOf(bot.inventory[i].id) !== -1) theirs.push(bot.inventory[i]);
-    parent.appendChild(node('p', 'Move a whole tradeable stack or Kinah between you and ' + bot.name + ', anywhere outside combat. Equipped, soul-bound and quest items stay where they are.', 'hint'));
+    parent.appendChild(node('p', bot.giveOnly ? 'Give a whole tradeable stack or Kinah to ' + bot.name + ' outside combat. Ticket recruits keep what you give them.' : 'Move a whole tradeable stack or Kinah between you and ' + bot.name + ', anywhere outside combat. Equipped, soul-bound and quest items stay where they are.', 'hint'));
     var layout = node('div', null, 'transfer'), mine = bagGrid(layout, 'Your bag', state.ownerBag || [], ownKey);
     var middle = node('div', null, 'transfer-arrows');
     var give = button(middle, 'Give →', { action: 'transfer', name: bot.name, direction: 'give', item: mine ? mine.id : 0 }, !mine || bot.closing, 'primary');
     layout.appendChild(middle);
     var picked = bagGrid(layout, bot.name + '’s bag', theirs, botKey);
-    var take = button(middle, '← Take', { action: 'transfer', name: bot.name, direction: 'take', item: picked ? picked.id : 0 }, !picked || bot.closing, 'primary');
+    var take = button(middle, '← Take', { action: 'transfer', name: bot.name, direction: 'take', item: picked ? picked.id : 0 }, !picked || bot.closing || bot.giveOnly, 'primary');
     give.onclick = function () { transferPick[ownKey] = null; act({ action: 'transfer', name: bot.name, direction: 'give', item: mine.id }); };
     take.onclick = function () { transferPick[botKey] = null; act({ action: 'transfer', name: bot.name, direction: 'take', item: picked.id }); };
     parent.appendChild(layout);
+    if (bot.giveOnly) parent.appendChild(node('p', 'Ticket companions keep their items and Kinah. Giving is permanent.', 'hint'));
     var money = node('div', null, 'transfer-kinah'), amount = kinahField(money, 'transfer-kinah-' + bot.id, 'Kinah (you have ' + (state.ownerKinah || 0) + ')');
-    var giveK = button(money, 'Give Kinah →', {}, bot.closing), takeK = button(money, '← Take Kinah', {}, bot.closing);
+    var giveK = button(money, 'Give Kinah →', {}, bot.closing), takeK = button(money, '← Take Kinah', {}, bot.closing || bot.giveOnly);
     giveK.onclick = function () { var k = wholeKinah(amount); if (!k) { notice('Enter a whole Kinah amount.', true); return; } act({ action: 'transfer', name: bot.name, direction: 'give', kinah: k }); };
     takeK.onclick = function () { var k = wholeKinah(amount); if (!k) { notice('Enter a whole Kinah amount.', true); return; } act({ action: 'transfer', name: bot.name, direction: 'take', kinah: k }); };
     draftField(amount, bot, 'transfer-kinah'); parent.appendChild(money);
+    if (bot.giveOnly) renderCompanionTransfer(parent, bot);
+  }
+  function renderCompanionTransfer(parent, bot) {
+    var allowed = (state.companionMovable || {})[bot.name];
+    if (!allowed) return;
+    var panel = node('section', null, 'control-panel'), items = [], targets = [];
+    panel.appendChild(node('h3', 'Give to another ticket recruit'));
+    panel.appendChild(node('p', 'Move one eligible whole stack between your active ticket recruits. Equipped, bound, saved-loadout and protected quest or crafting items stay with their current companion.', 'hint'));
+    for (var i = 0; i < (bot.inventory || []).length; i++) if (allowed.indexOf(bot.inventory[i].id) !== -1) items.push(bot.inventory[i]);
+    for (var n = 0; n < state.active.length; n++) {
+      var candidate = state.active[n];
+      if (candidate.id !== bot.id && !candidate.closing && Object.prototype.hasOwnProperty.call(state.companionMovable || {}, candidate.name)) targets.push(candidate.name);
+    }
+    var picked = bagGrid(panel, bot.name + '\u2019s transferable items', items, 'collection' + bot.id);
+    if (!targets.length) panel.appendChild(node('p', 'Recruit another ticket companion from this account to receive items.', 'hint'));
+    else {
+      var targetLabel = node('label', 'Receiving ticket recruit'); panel.appendChild(targetLabel);
+      var target = select(panel, targets, targets[0]);
+      target.id = 'companion-transfer-target-' + bot.id; targetLabel.htmlFor = target.id;
+      draftField(target, bot, 'companion-transfer-target');
+      var send = localButton(panel, 'Give selected stack', function () {
+        if (!picked) return;
+        transferPick['collection' + bot.id] = null;
+        act({action:'companiontransfer',name:bot.name,target:target.value,item:picked.id});
+      }, 'primary');
+      send.disabled = busy || bot.closing || !picked;
+    }
+    parent.appendChild(panel);
   }
   function renderMailAlt(parent) {
     var panel = node('section', null, 'mail-alt'), head = node('div', null, 'preset-head');
@@ -1069,32 +1413,89 @@
     panel.appendChild(money); parent.appendChild(panel);
   }
 
+  var stoneOpen = {}, loadoutOpen = {}, loadoutAuto = false;
   function renderStigmaBuilds(parent, bot) {
     var builds = bot.stigmaBuilds || []; if (!bot.temporary || !builds.length) return;
-    var box = node('section', null, 'stigma-builds'); box.appendChild(node('h3', 'Stigma build'));
-    box.appendChild(node('p', 'Pick a build and your companion swaps to its Stigmas, and their skills, the next time it is out of combat. Slots it has not unlocked yet stay on automatic picks.', 'hint'));
-    var choices = [{ key: 'AUTO', name: 'Automatic', text: 'Chooses Stigmas for the companion’s combat role.', stigmas: [] }].concat(builds);
+    var box = node('section', null, 'stigma-builds');
+    box.appendChild(node('p', 'Your companion swaps to the chosen build the next time it is out of combat.', 'hint'));
+    // Automatic is a default, not a build to compare: one line above the choices.
+    var automatic = node('div', null, 'build-auto' + ((bot.stigmaBuild || 'AUTO') === 'AUTO' ? ' active' : ''));
+    automatic.appendChild(node('strong', 'Automatic')); automatic.appendChild(node('span', 'Chooses Stigmas for the companion’s combat role.'));
+    if ((bot.stigmaBuild || 'AUTO') === 'AUTO') automatic.appendChild(node('em', 'In use', 'status-pill'));
+    else button(automatic, 'Use automatic', { action: 'stigmabuild', name: bot.name, build: 'AUTO' }, bot.closing, 'small');
+    box.appendChild(automatic);
+    var choices = builds;
     for (var i = 0; i < choices.length; i++) (function (build) {
       var active = (bot.stigmaBuild || 'AUTO') === build.key, card = node('div', null, 'build-card' + (active ? ' active' : ''));
       card.appendChild(node('strong', build.name)); card.appendChild(node('p', build.text, 'hint'));
-      var stones = node('div', null, 'build-stones');
+      var buttons = node('div', null, 'build-actions'), stones = node('div', null, 'build-stones'); stones.style.display = stoneOpen[build.key] ? 'block' : 'none';
       for (var n = 0; n < build.stigmas.length; n++) { var stone = node('span', build.stigmas[n], 'build-stone' + (n < 6 ? ' core' : '')); stones.appendChild(stone); }
-      if (build.stigmas.length) card.appendChild(stones);
-      if (active) card.appendChild(node('span', 'In use', 'status-pill'));
-      else button(card, 'Use this build', { action: 'stigmabuild', name: bot.name, build: build.key }, bot.closing, 'primary small');
-      box.appendChild(card);
+      if (build.stigmas.length) {
+        card.appendChild(stones);
+        var toggle = localButton(buttons, (stoneOpen[build.key] ? 'Hide' : 'Show') + ' stones', function () { stoneOpen[build.key] = !stoneOpen[build.key]; stones.style.display = stoneOpen[build.key] ? 'block' : 'none'; toggle.textContent = (stoneOpen[build.key] ? 'Hide' : 'Show') + ' stones'; }, 'build-toggle small');
+      }
+      if (build.savedStages) card.appendChild(node('p', 'Saved equipment: ' + build.savedStages + (build.savedStages === 1 ? ' level range' : ' level ranges'), 'hint'));
+      if (active) buttons.appendChild(node('span', 'In use', 'status-pill'));
+      else button(buttons, 'Use this build', { action: 'stigmabuild', name: bot.name, build: build.key }, bot.closing, 'primary small');
+      card.appendChild(buttons); box.appendChild(card);
     }(choices[i]));
     parent.appendChild(box);
   }
 
-  function renderGearPolicy(parent, bot) {
-    renderStigmaBuilds(parent, bot);
+  var LOADOUT_STATUS = { SAVED: 'Saved', HELD: 'Not usable now', MISSING: 'Item gone', GAP: 'Gap', AUTO: 'Automatic' };
+  function loadoutNote(row) {
+    var goal = row.target ? row.source + (row.moreSources ? ' (+' + row.moreSources + ' more)' : '') + '.' + (row.usableAt ? ' Usable at level ' + row.usableAt + '.' : '') + (row.market ? ' Also tradable on the Central Market.' : '') : '';
+    if (row.status === 'HELD') return row.saved + ' is held but cannot be worn at this level or with this weapon choice. Wearing the best fallback.';
+    if (row.status === 'MISSING') return row.saved + ' is no longer owned. Wearing the best fallback. ' + (row.target ? 'Goal: ' + goal : 'No recorded source to plan from.');
+    if (row.status === 'GAP') return goal;
+    if (row.status === 'SAVED' && row.saved !== row.worn) return 'Putting on ' + row.saved + ' when out of combat.';
+    return '';
+  }
+  function renderLoadout(parent, bot) {
+    var plan = bot.loadout; if (!plan) return;
+    var box = node('section', null, 'loadout-plan'); box.appendChild(node('h3', plan.build + ' equipment, levels ' + plan.from + '–' + plan.to));
+    box.appendChild(node('p', (ticketRecruit(bot.growth) ? 'Equipment is automatic, up to ' + label(bot.growth.rarity) + ' gear rarity. ' : '') + 'Saved items are worn instead of automatic picks. Click a row for its goal and source.', 'hint'));
+    if (!bot.gear) box.appendChild(node('p', 'Auto equipment is Off, so saved items are not put on until you turn it On.', 'hint'));
+    if (!plan.ready) box.appendChild(node('p', 'Item sources are still loading. Gaps appear shortly.', 'hint'));
+    var stages = node('div', null, 'loadout-stages'), current = 0, i;
+    for (i = 0; i < plan.stages.length; i++) {
+      var stage = plan.stages[i]; if (stage.current) current = stage.saved;
+      stages.appendChild(node('span', stage.from + (stage.to > stage.from ? '–' + stage.to : '') + (stage.saved ? ' · ' + stage.saved : ''), 'loadout-stage' + (stage.current ? ' current' : '') + (stage.saved ? ' saved' : '')));
+    }
+    box.appendChild(stages);
+    var actions = node('div', null, 'loadout-actions'); box.appendChild(actions);
+    button(actions, 'Save worn gear for this level range', { action: 'loadoutsave', name: bot.name }, bot.closing, 'primary small');
+    if (current) button(actions, 'Clear saved gear for this level range', { action: 'loadoutclear', name: bot.name }, bot.closing, 'quiet small');
+    var automatic = [];
+    for (i = 0; i < plan.rows.length; i++) (function (index) {
+      var row = plan.rows[index], line = node('div', null, 'loadout-row ' + row.status.toLowerCase()), text = loadoutNote(row);
+      if (row.status === 'AUTO') { automatic.push(line); line.style.display = loadoutAuto ? 'block' : 'none'; }
+      line.appendChild(node('span', LOADOUT_STATUS[row.status], 'status-pill'));
+      line.appendChild(node('span', row.slot, 'loadout-slot')); line.appendChild(node('span', (row.worn || 'Empty') + (row.target ? ' \u2192 ' + row.target : ''), 'loadout-worn'));
+      if (text) {
+        var note = node('p', text, 'hint'); if (row.sourceDetail) note.title = row.sourceDetail;
+        note.style.display = loadoutOpen[index] ? 'block' : 'none'; line.className += ' expandable'; line.setAttribute('role', 'button'); line.setAttribute('tabindex', '0');
+        line.onclick = function () { loadoutOpen[index] = !loadoutOpen[index]; note.style.display = loadoutOpen[index] ? 'block' : 'none'; };
+        line.appendChild(note);
+      }
+      box.appendChild(line);
+    }(i));
+    if (automatic.length) {
+      var more = localButton(box, (loadoutAuto ? 'Hide ' : 'Show ') + automatic.length + ' automatic slots', function () {
+        loadoutAuto = !loadoutAuto; for (var a = 0; a < automatic.length; a++) automatic[a].style.display = loadoutAuto ? 'block' : 'none';
+        more.textContent = (loadoutAuto ? 'Hide ' : 'Show ') + automatic.length + ' automatic slots';
+      }, 'loadout-more');
+    }
+    parent.appendChild(box);
+  }
 
-    var body = node('div', null, 'gear-policy'); parent.appendChild(body); body.appendChild(node('h3', 'Equipment acquisition & choices'));
+  function renderGearPolicy(parent, bot) {
+
+    var body = node('div', null, 'gear-policy'); parent.appendChild(body);
 
     if (!bot.temporary) { body.appendChild(node('p', bot.world ? 'Independent bot: equipment comes from its own earned loot, quests and native shops. Private ownership and progression stay with this bot.' : 'Player-owned alt: automatic equipment, build and Stigma management are disabled. Your existing setup is preserved; you can equip items manually below.', 'hint')); return; }
 
-    body.appendChild(node('p', (bot.build || 'Temporary Bot') + '. Automatic native skills and Stigmas follow your role and level. Gear tiers advance every 10 levels from 20. Only replaced system-generated gear is retired; earned equipment stays in your inventory.', 'hint'));
+    body.appendChild(node('p', (bot.build || 'Temporary Bot') + '. Automatic native skills and Stigmas follow your role and level. Catch-up gear is checked every level, up to its permanent gear rarity. Only replaced system-generated gear is retired, and never an item saved in a build; earned equipment stays in your inventory.', 'hint'));
 
     button(body, 'Auto equipment: ' + (bot.gear ? 'On' : 'Off'), { action: 'setting', name: bot.name, setting: 'gear', enabled: !bot.gear }, bot.closing, bot.gear ? 'on' : '');
 
@@ -1128,6 +1529,99 @@
 
   }
 
+  function renderFocus(parent, bot) {
+    var focus = bot.focus;
+    parent.appendChild(node('p', focus.scope, 'hint'));
+    var focusLabel = node('label', 'Activity priority'), choice = node('select'); choice.id = 'focus-' + bot.id; focusLabel.htmlFor = choice.id;
+    for (var i = 0; i < focus.choices.length; i++) { var option = node('option', focus.choices[i].name); option.value = focus.choices[i].id; choice.appendChild(option); }
+    choice.value = focus.selected; parent.appendChild(focusLabel); parent.appendChild(choice); draftField(choice, bot, 'focus-choice');
+    var professionLabel = node('label', 'Profession'), profession = node('select'); profession.id = 'focus-profession-' + bot.id; professionLabel.htmlFor = profession.id;
+    var automatic = node('option', 'Best currently learned profession'); automatic.value = '0'; profession.appendChild(automatic);
+    for (var n = 0; n < focus.professions.length; n++) { var p = focus.professions[n], opt = node('option', label(p.name) + ' \u00b7 ' + p.level); opt.value = p.id; profession.appendChild(opt); }
+    profession.value = String(focus.profession); parent.appendChild(professionLabel); parent.appendChild(profession); draftField(profession, bot, 'focus-profession');
+    var save = localButton(parent, 'Save activity focus', function () { act({action:'focus',name:bot.name,focus:choice.value,profession:profession.value}); }, 'primary'); save.disabled = busy || bot.closing;
+    parent.appendChild(node('p', focus.knownRecipes + ' known native recipes \u00b7 ' + focus.reason, 'hint'));
+    parent.appendChild(node('p', 'Instance PvE prioritizes equipment readiness; it does not enter a queue or leave your party. Gathering and crafting use real nearby sources, trainers, materials, tools and this companion\u2019s own budget.', 'hint'));
+  }
+  var passConfirmation = {}, recycleQuotes = {}, recycleTargets = {};
+  function renderBenefits(parent, bot) {
+    var chronicle = bot.chronicle || {}, collection = state.collectionRenown || {};
+    parent.appendChild(node('h3', 'Chronicle of Atreia'));
+    parent.appendChild(node('p', (chronicle.chapters || 0) + ' / ' + (chronicle.chapterGoal || 5) + ' chapters \u00b7 ' + (chronicle.completedQuests || 0) + ' own completed quests' + (chronicle.pending ? ' \u00b7 awaiting native save' : ''), 'detail'));
+    parent.appendChild(node('p', 'Only this companion\u2019s own committed quest history grants Chronicle benefits.', 'hint'));
+    if (bot.giveOnly && collection.enabled) {
+      parent.appendChild(node('h3', 'Aetherfall Renown \u00b7 companion collection'));
+      parent.appendChild(node('p', 'Combat ' + collection.combat + ' \u00b7 Life ' + collection.life + ' \u00b7 Legend ' + collection.legend + ' \u00b7 ' + collection.creditedBots + ' credited recruits', 'detail'));
+      parent.appendChild(node('p', 'Historical credit stays after recycling. Existing recruits add their contribution at their next native save. Your human account and normal alts have separate benefits.', 'hint'));
+      button(parent, collection.stipendClaimed ? 'Collection stipend claimed today' : 'Claim ' + collection.stipend + ' Kinah for ' + bot.name, {action:'collectionstipend',name:bot.name}, bot.closing || collection.stipendClaimed || !(collection.stipend > 0), 'primary');
+      parent.appendChild(node('p', 'One stipend per collection each day, paid into the selected recruit\u2019s own inventory.', 'hint'));
+    }
+    parent.appendChild(node('h3', 'Daeva Veteran\u2019s Coffer'));
+    parent.appendChild(node('p', 'Generated companions have no enabled Veteran\u2019s Coffer claim. Your normal character\u2019s eligibility is unchanged.', 'hint'));
+    var refresh = localButton(parent, 'Refresh personal Season Pass', function () { request(null); }, 'secondary'); refresh.disabled = busy || bot.closing;
+    var data = state.benefits;
+    if (!data || String(data.id) !== String(bot.id)) { parent.appendChild(node('p', 'Select Benefits to load this companion\u2019s own Pass.', 'hint')); return; }
+    if (data.error) { parent.appendChild(node('p', data.error, 'hint')); return; }
+    var pass = data.pass, season = pass.season || {};
+    parent.appendChild(node('h3', 'Season Pass \u00b7 ' + (season.name || 'Current season')));
+    parent.appendChild(node('p', 'Level ' + pass.level + ' \u00b7 ' + pass.xp + ' XP \u00b7 ' + pass.kinah + ' Kinah owned by ' + bot.name, 'detail'));
+    parent.appendChild(node('p', 'Charter of Atreia: ' + (pass.tier >= 1 ? 'personally owned this season' : 'locked') + ' \u00b7 Grace of the Tower: ' + (pass.tier >= 2 ? 'personally owned this season' : 'locked'), 'hint'));
+    if (pass.queuedActivity) parent.appendChild(node('p', pass.queuedActivity + ' real activities await the companion\u2019s next native save.', 'hint'));
+    if (!pass.canManage) parent.appendChild(node('p', 'This independent world character owns its Pass. Borrowing it grants viewing access only.', 'hint'));
+    if (pass.canManage && pass.active) for (var tier = 1; tier <= 2; tier++) (function (tier) {
+      if (pass.tier >= tier) return;
+      var cost = (tier === 1 ? season.premiumKinah : season.advancedKinah) - (pass.tier === 1 ? season.premiumKinah : 0);
+      var title = tier === 1 ? 'Charter of Atreia / Premium' : 'Grace of the Tower / Advanced Premium';
+      if (passConfirmation[bot.id] === tier) {
+        parent.appendChild(node('p', 'Pay ' + cost + ' Kinah from ' + bot.name + '\u2019s inventory for ' + title + ' until season end?', 'detail'));
+        button(parent, 'Confirm purchase \u00b7 ' + cost + ' Kinah', {action:'passaction',passAction:'purchase',name:bot.name,tier:tier}, bot.closing || pass.kinah < cost, 'primary');
+        localButton(parent, 'Cancel purchase', function () { delete passConfirmation[bot.id]; renderSelection(); }, 'secondary');
+      } else localButton(parent, 'Review ' + title + ' \u00b7 ' + cost + ' Kinah', function () { passConfirmation[bot.id] = tier; renderSelection(); }, 'secondary').disabled = busy || bot.closing || pass.kinah < cost;
+    }(tier));
+    var missions = pass.missions || [];
+    parent.appendChild(node('h3', 'Own activity missions'));
+    for (var m = 0; m < missions.length; m++) {
+      var mission = missions[m];
+      parent.appendChild(node('p', mission.name + ': ' + mission.progress + ' / ' + mission.target + (mission.complete ? ' \u00b7 complete' : ' \u00b7 ' + mission.xp + ' XP'), 'route'));
+    }
+    parent.appendChild(node('h3', 'Earned Pass rewards'));
+    var rewards = pass.rewards || [], available = 0;
+    for (var r = 0; r < rewards.length; r++) if (rewards[r].available) available++;
+    button(parent, 'Claim ' + available + ' available rewards', {action:'passaction',passAction:'claimAll',name:bot.name}, !available || !pass.canManage || bot.closing, 'primary');
+    parent.appendChild(node('p', 'Rewards belong to ' + bot.name + ' and arrive in this companion\u2019s native mailbox. Open their Mail tab to collect them.', 'hint'));
+    for (var n = 0; n < rewards.length; n++) {
+      var reward = rewards[n], row = node('div', null, 'item');
+      row.appendChild(node('strong', 'Lv. ' + reward.level + ' \u00b7 ' + (reward.track === 0 ? 'Free' : reward.track === 1 ? 'Premium' : 'Advanced') + ' \u00b7 ' + reward.name + ' x' + reward.quantity));
+      row.appendChild(node('p', reward.claimed ? 'Claimed to this companion\u2019s mail' : reward.available ? 'Available' : 'Locked', 'hint'));
+      if (reward.available && pass.canManage) button(row, 'Claim reward', {action:'passaction',passAction:'claim',name:bot.name,level:reward.level,track:reward.track}, bot.closing);
+      parent.appendChild(row);
+    }
+  }
+  function renderRecycling(parent, bot) {
+    parent.appendChild(node('p', 'Recycling permanently archives this recruit. Their items and stored Kinah cannot be withdrawn. All three displayed rewards are granted together once.', 'hint'));
+    if (!state.recyclingEnabled) { parent.appendChild(node('p', 'Recycling is disabled.', 'hint')); return; }
+    var targets = [];
+    for (var n = 0; n < state.active.length; n++) {
+      var candidate = state.active[n];
+      if (String(candidate.id) !== String(bot.id) && candidate.giveOnly && !candidate.closing && candidate.growth && candidate.growth.needed > 0) targets.push(candidate);
+    }
+    if (!targets.length) { parent.appendChild(node('p', 'Recruit another ticket companion that still needs Learning XP.', 'hint')); return; }
+    var title = node('label', 'Receive Learning XP on'), target = node('select'); target.id = 'recycle-target-' + bot.id; title.htmlFor = target.id;
+    for (var i = 0; i < targets.length; i++) { var option = node('option', targets[i].name); option.value = targets[i].name; target.appendChild(option); }
+    if (recycleTargets[bot.id]) target.value = recycleTargets[bot.id];
+    if (!target.value) target.selectedIndex = 0;
+    recycleTargets[bot.id] = target.value;
+    target.onchange = function () { recycleTargets[bot.id] = target.value; delete recycleQuotes[String(bot.id)]; renderSelection(); };
+    parent.appendChild(title); parent.appendChild(target);
+    button(parent, 'Preview exact recycling rewards', {action:'recyclequote',name:bot.name,target:target.value}, bot.closing, 'secondary');
+    var quote = recycleQuotes[String(bot.id)];
+    if (quote && quote.target === target.value) {
+      parent.appendChild(node('p', 'Account: +0.33 Ticket credit \u00b7 ' + quote.target + ': +' + quote.learningXp + ' Learning XP \u00b7 Your inventory: +' + quote.kinah + ' Kinah', 'detail'));
+      parent.appendChild(node('p', quote.appraisedItems + ' eligible owned items appraised at ' + quote.itemAppraisal + ' Kinah. ' + quote.warning, 'hint'));
+      var expired = quote.expiresAt <= new Date().getTime();
+      button(parent, expired ? 'Quote expired \u00b7 preview again' : 'Confirm permanent recycling of ' + bot.name, {action:'recycle',name:bot.name,target:quote.target,quote:quote.key,confirm:'yes'}, bot.closing || expired, 'danger');
+    }
+  }
   function renderCare(parent, bot) {
 
     var body = subPanel(parent,'maintenance','Equipment care'); body.className += ' care-fields'; body.appendChild(node('h3', 'Equipment care'));
@@ -1226,16 +1720,102 @@
 
   }
 
+  var ticketRequest = '';
+  function freshTicketRequest() { return 'r' + new Date().getTime().toString(36) + Math.floor(Math.random() * 1e9).toString(36); }
+
+  // Companion Recruitment. The saved result decides everything; the animation has no say in it.
+  var RANKS = { POOR:0, ORDINARY:1, GOOD:2, GREAT:3, EXCELLENT:4 };
+  var summon = { phase:'ready', timers:[], waiting:null, result:null, odds:false, start:'matched' };
+  function summonTier(value) { var key = String(value || '').toUpperCase(); return Object.prototype.hasOwnProperty.call(RANKS,key) ? RANKS[key] : 1; }
+  function summonLater(handler, delay) { summon.timers.push(window.setTimeout(handler, delay)); }
+  function summonClear() { while (summon.timers.length) window.clearTimeout(summon.timers.pop()); }
+  function summonPhase(phase) { summon.phase = phase; byId('summon').className = 'recruit-gate s-' + phase; }
+  function summonRoll(parent, title, value, tier) {
+    var row = node('div', null, 'summon-roll t' + tier); row.appendChild(node('span', title)); row.appendChild(node('strong', label(value))); parent.appendChild(row);
+  }
+  function summonPanel() {
+    var t = state && state.tickets, actions = byId('summon-actions'), cards = byId('summon-card'), rolls = byId('summon-rolls'), hint = byId('summon-hint'), result = summon.result;
+    clear(actions); clear(cards); clear(rolls); clear(byId('summon-result-card')); hint.textContent = '';
+    byId('summon-balance').textContent = t ? t.tickets : '';
+    byId('summon-credit').textContent = t && t.credit ? 'Recycle credit: ' + (t.credit / 100).toFixed(2) : '';
+    byId('summon-start-matched').className = summon.start === 'matched' ? 'on' : ''; byId('summon-start-level1').className = summon.start === 'level1' ? 'on' : '';
+    var go = byId('summon-go'), pending = !!(t && t.unfinished), broke = !t || (!pending && t.tickets < t.cost);
+    go.textContent = pending ? 'Reveal your paid recruit' : 'Recruit \u00b7 ' + (t ? t.cost : 1) + ' Ticket'; go.disabled = broke || summon.phase !== 'ready' && summon.phase !== 'result';
+    if (summon.phase === 'result' && result) {
+      byId('summon-panel-title').textContent = 'Companion recruited';
+      var medal = node('span', label(result.advancedClass).slice(0, 2), 'summon-medal'), who = node('span', null, 'summon-who');
+      who.appendChild(node('strong', result.name)); who.appendChild(node('span', label(result.advancedClass)));
+      cards.appendChild(medal); cards.appendChild(who);
+      var shown = byId('summon-result-card'); shown.appendChild(cardPortrait(result.advancedClass, 'summon-mini'));
+      var plate = node('span', null, 'summon-plate'); plate.appendChild(node('strong', result.name)); plate.appendChild(node('span', label(result.advancedClass))); shown.appendChild(plate);
+      summonRoll(rolls, 'Auto-equip', result.gear, summonTier(result.gear)); summonRoll(rolls, 'Combat rank', result.rank, summonTier(result.rank));
+      localButton(actions, 'View companion', function () { closeSummon(); byId('tab-roster').onclick(); });
+      go.textContent = 'Recruit again \u00b7 ' + t.cost + ' Ticket';
+      if (broke) hint.textContent = 'You have no Tickets left.';
+    } else {
+      byId('summon-panel-title').textContent = 'Recruit a companion';
+      hint.textContent = pending ? 'Your Ticket is already spent. Revealing it costs nothing more.' : broke ? 'You need a Recruitment Ticket to recruit.' : 'Each of the ' + (t ? t.classCount : 11) + ' classes is equally likely. A name is chosen for you, and you can rename them later from their card.';
+    }
+    var odds = byId('summon-odds'); clear(odds); odds.style.display = summon.odds ? 'block' : 'none';
+    if (summon.odds && t) {
+      odds.appendChild(node('p', 'Auto-equip and Combat rank are drawn separately, each with these chances:', 'hint'));
+      for (var tier in t.odds) if (Object.prototype.hasOwnProperty.call(t.odds, tier)) odds.appendChild(node('span', label(tier) + ' ' + t.odds[tier].toFixed(2) + '%'));
+    }
+  }
+  function summonShowResult() { summonClear(); summonPhase('result'); summonPanel(); }
+  // The frames and the companion's own 3D model play natively; a browser window cannot animate at this size.
+  function nativePull(r) {
+    if (!window.AionObject || !AionObject.CompanionPull) return;
+    AionObject.CompanionPull([r.advancedClass, r.gear, r.rank, r.name].join(' '));
+    if (AionObject.CompanionModel) AionObject.CompanionModel(r.model, r.look, r.items || '');
+  }
+  function summonWatch(started) {
+    // The roll is stored by the server. Show it only once its answer is here, however long the gate has to charge.
+    if (!summon.waiting) return;
+    if (busy) { summonLater(function () { summonWatch(started); }, 120); return; }
+    var t = state.tickets, key = summon.waiting; summon.waiting = null;
+    if (t && t.last && t.last.request === key) {
+      summon.result = t.last; ticketRequest = '';
+      nativePull(t.last); summonShowResult(); return;
+    }
+    summonClear(); summonPhase('ready'); summonPanel();
+    byId('summon-hint').textContent = byId('notice').textContent;
+  }
+  function summonRecruit() {
+    var t = state && state.tickets; if (!t || busy || summon.waiting) return;
+    if (t.unfinished) ticketRequest = t.unfinished.request;
+    if (!ticketRequest || (t.last && t.last.request === ticketRequest)) ticketRequest = freshTicketRequest();
+    summon.result = null; summon.waiting = ticketRequest;
+    summonPhase('charge'); summonPanel();
+    act({ action:'recruitticket', name:'', recruitRequest:ticketRequest, start:summon.start });
+    if (!busy) { summon.waiting = null; summonClear(); summonPhase('ready'); summonPanel(); return; }
+    summonLater(function () { summonWatch(new Date().getTime()); }, 120);
+  }
+  function openSummon() {
+    summonClear(); summon.result = null; summon.waiting = null; summon.odds = false;
+    byId('summon').style.display = 'block'; summonPhase('ready'); summonPanel();
+  }
+  function closeSummon() { if (summon.waiting) return; summonClear(); byId('summon').style.display = 'none'; }
+  function summonEntry() { var t = state && state.tickets; byId('open-summon').style.display = t && t.enabled ? 'block' : 'none'; }
+  byId('open-summon').onclick = function () { openSummon(); };
+  byId('summon-go').onclick = function () { summonRecruit(); };
+  byId('summon-start-matched').onclick = function () { summon.start = 'matched'; summonPanel(); };
+  byId('summon-start-level1').onclick = function () { summon.start = 'level1'; summonPanel(); };
+  byId('summon-close').onclick = function () { closeSummon(); };
+  byId('summon-collection').onclick = function () { closeSummon(); byId('tab-roster').onclick(); };
+  byId('summon-odds-toggle').onclick = function () { summon.odds = !summon.odds; summonPanel(); };
+  document.addEventListener('keydown', function (event) { if (event.keyCode === 27 && byId('summon').style.display === 'block') closeSummon(); }, false);
+
   function updateCreation() {
     if (!state) return;
-    var temporary = byId('model').value === 'generate';
+    var temporary = byId('model').value === 'generate', freeCount = state.freeGeneratedCount == null ? state.generatedCount : state.freeGeneratedCount;
     byId('create').querySelector('button').disabled = !state.enabled || (temporary ?
-      !state.generatedEnabled || state.generatedCount >= state.generatedLimit : !(state.recruitRemaining > 0));
-    byId('creation-capacity').textContent = temporary ? 'Temporary Bots: ' + state.generatedCount + ' / ' + state.generatedLimit +
+      !state.generatedEnabled || freeCount >= state.generatedLimit : !(state.recruitRemaining > 0));
+    byId('creation-capacity').textContent = temporary ? 'Free-generation companions: ' + freeCount + ' / ' + state.generatedLimit +
       ' created. Full teams keep new bots in your roster for later recruitment.' : '';
   }
 
-  var mainTabs = document.querySelectorAll('#main-tabs button');
+  var mainTabs = document.querySelectorAll('#main-tabs button[data-view]');
 
   for (var nav = 0; nav < mainTabs.length; nav++) mainTabs[nav].onclick = function () { showView(this.getAttribute('data-view')); };
 
@@ -1243,11 +1823,14 @@
 
   byId('roster-create').onclick = function () { showView('create'); };
 
-  byId('roster-search').oninput = byId('roster-filter').onchange = byId('roster-sort').onchange = function () { rosterPage = 0; if (state) renderRoster(); };
+  var rosterSearchTimer;
+  function queueRosterSearch() { window.clearTimeout(rosterSearchTimer); rosterSearchTimer = window.setTimeout(function () { if (busy) queueRosterSearch(); else request(null); }, 250); }
+  byId('roster-search').oninput = byId('roster-filter').onchange = byId('roster-sort').onchange = function () { rosterPage = 0; queueRosterSearch(); };
+  byId('roster-class').onchange = byId('roster-rank').onchange = byId('roster-rarity').onchange = function () { rosterPage = 0; queueRosterSearch(); };
 
-  byId('roster-prev').onclick = function () { if (rosterPage > 0) rosterPage--; if (state) renderRoster(); };
+  byId('roster-prev').onclick = function () { if (rosterPage > 0) rosterPage--; request(null); };
 
-  byId('roster-next').onclick = function () { rosterPage++; if (state) renderRoster(); };
+  byId('roster-next').onclick = function () { rosterPage++; request(null); };
 
   byId('refresh').onclick = function () { request(null); };
 
@@ -1262,12 +1845,14 @@
   function updateShare() { if (!state) return; byId('share').disabled = busy || !state.quests.length || !state.active.length; byId('share').textContent = 'Share with party'; }
 
   function rosterSection(view) {
+    rosterView = view;
     var names = ['characters','presets'];
     for (var i = 0; i < names.length; i++) {
       var panel = byId('roster-' + names[i]), tab = byId('roster-tab-' + names[i]), active = view === names[i];
       if (panel) panel.style.display = active ? 'block' : 'none';
       if (tab) { tab.className = active ? 'selected' : ''; tab.setAttribute('aria-selected',active ? 'true' : 'false'); tab.tabIndex = active ? 0 : -1; }
     }
+    if (state && currentView === 'roster') renderCurrentView(true);
   }
 
   function disclosure(toggleId,panelId) {
@@ -1302,8 +1887,7 @@
     }
   },false);
 
+  skinChromeIcons();
   if (session) request(null); else notice('Open Companions from Additional Functions while logged in to your character.', true);
-
-  window.setInterval(function () { var focused = document.activeElement, tag = focused && focused.tagName; if (session && !busy && !document.hidden && tag !== 'INPUT' && tag !== 'SELECT') request(null); }, 10000);
 
 }());

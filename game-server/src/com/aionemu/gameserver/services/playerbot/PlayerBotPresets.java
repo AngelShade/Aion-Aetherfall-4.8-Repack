@@ -28,7 +28,7 @@ public final class PlayerBotPresets {
   }
  }
  record Document(int account,Set<Integer> saved,List<Preset> presets) {
-  Document { saved=Set.copyOf(saved);presets=List.copyOf(presets);if(account<=0 || saved.size()>100 || saved.stream().anyMatch(i->i<=0) || presets.size()>MAX_PRESETS || presets.stream().map(Preset::id).distinct().count()!=presets.size())throw new IllegalArgumentException("Invalid saved-party data."); }
+  Document { saved=Set.copyOf(saved);presets=List.copyOf(presets);if(account<=0 || saved.stream().anyMatch(i->i<=0) || presets.size()>MAX_PRESETS || presets.stream().map(Preset::id).distinct().count()!=presets.size())throw new IllegalArgumentException("Invalid saved-party data."); }
  }
  static final class Store {
   private final Path directory;

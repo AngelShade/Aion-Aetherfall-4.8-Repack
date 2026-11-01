@@ -55,14 +55,14 @@ final class PlayerBotPopulationManager {
  }
  private boolean realLegion(Player bot) {return bot.getLegion()!=null && humanLegions.contains(bot.getLegion().getLegionId());}
  private boolean queueSafe(PlayerBotSession session) {
-  var bot=session.bot();return global(bot) && session.autonomous() && !session.closing() && bot.isSpawned() && !bot.isDead()
+  var bot=session.bot();return global(bot) && !PlayerBotRoadDuty.assigned(bot) && session.autonomous() && !session.closing() && bot.isSpawned() && !bot.isDead()
    && !bot.isInInstance() && !bot.isInTeam() && !session.worldExcursion() && !bot.isCasting() && !bot.isTrading() && !bot.isLooting()
    && !bot.getController().isInCombat() && !bot.isFlying() && bot.getFlightPath()==null && bot.canPerformMove()
    && !PlayerBotFindGroup.committed(bot) && !(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController move
     && (move.ridingPlatform() || move.traversingHeight()));
  }
  private boolean excluded(PlayerBotSession session,boolean brackets) {
-  Player bot=session.bot();return !global(bot) || !session.autonomous() || session.closing() || humanParty(bot)
+  Player bot=session.bot();return !global(bot) || PlayerBotRoadDuty.assigned(bot) || !session.autonomous() || session.closing() || humanParty(bot)
    || named(brackets?PlayerBotPopulationConfig.BRACKET_EXCLUDE:PlayerBotPopulationConfig.RESET_EXCLUDE,bot)
    || (brackets?PlayerBotPopulationConfig.LEGIONS:PlayerBotPopulationConfig.RESET_LEGIONS) && realLegion(bot)
    || brackets && PlayerBotPopulationConfig.FRIENDS && friends.contains(bot.getObjectId());
@@ -343,6 +343,7 @@ final class PlayerBotPopulationManager {
   }
   var chosen=PlayerBotService.getInstance().plannedPopulationClass(bot);
   PlayerBotFactoryRecipes.prepare(bot,full);
+  if(full)PlayerBotGrowth.assignWorld(bot,chosen);
   if(full){bot.getCommonData().setPlayerClass(level>=10?chosen:chosen.getStartingClass());bot.getCommonData().setDaeva(level>=10);bot.getCommonData().setLevel(level);}
   bot.getGameStats().updateStatsTemplate();
   PlayerBotTemporary.rebuildWorld(bot,PlayerBotRules.roleFor(level>=10?chosen:chosen.getStartingClass()),full);

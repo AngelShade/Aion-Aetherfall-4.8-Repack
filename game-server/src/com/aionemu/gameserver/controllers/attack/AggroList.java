@@ -70,6 +70,12 @@ public class AggroList {
 		ai.addDamage(damage);
 		ai.addHate(hate);
 		owner.getController().onAddHate(creature, isNewInAggroList);
+		if(damage>0 || hate>1) {
+			if(owner instanceof com.aionemu.gameserver.model.gameobjects.Npc npc && creature.getMaster() instanceof Player player)
+				com.aionemu.gameserver.services.playerbot.PlayerBotRunRewards.contribution(npc,player);
+			else if(damage>0 && owner instanceof Player player && creature.getMaster() instanceof com.aionemu.gameserver.model.gameobjects.Npc npc)
+				com.aionemu.gameserver.services.playerbot.PlayerBotRunRewards.contribution(npc,player);
+		}
 	}
 
 	private boolean shouldAddHateToMaster(Creature creature) {
@@ -134,6 +140,7 @@ public class AggroList {
 			}
 		}
 		aggroList.clear();
+		if(owner instanceof com.aionemu.gameserver.model.gameobjects.Npc npc)com.aionemu.gameserver.services.playerbot.PlayerBotRunRewards.reset(npc);
 	}
 
 	public boolean isHating(Creature creature) {

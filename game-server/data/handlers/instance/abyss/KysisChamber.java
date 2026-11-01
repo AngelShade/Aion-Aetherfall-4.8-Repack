@@ -59,7 +59,7 @@ public class KysisChamber extends AbstractInnerUpperAbyssInstance {
 			case 215171 -> openDoor(13);
 			case 215172 -> openDoor(7);
 			case 215177 -> openDoor(16);
-			case 215178, 215179 -> spawnChests();
+			case 215178, 215179 -> {completeRun(npc);spawnChests();}
 			case 215414 -> switchToEasyMode();
 		}
 	}

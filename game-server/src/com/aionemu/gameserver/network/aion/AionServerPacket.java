@@ -37,6 +37,11 @@ public abstract class AionServerPacket extends BaseServerPacket {
 		super(opCode);
 	}
 
+	/** A versioned extension sharing an existing native response consumer. */
+	protected AionServerPacket(Class<? extends AionServerPacket> nativePacket) {
+		super(ServerPacketsOpcodes.getOpcode(nativePacket));
+	}
+
 	/**
 	 * Write packet opCode and two additional bytes
 	 */

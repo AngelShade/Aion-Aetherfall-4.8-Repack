@@ -124,6 +124,8 @@ public abstract class PvPArenaInstance extends GeneralInstanceHandler {
 		calculateRewards();
 		reward();
 		broadcastResults();
+		if (!isInterrupted)
+			completeRun(p -> getStatReward(p) != null && instanceScore.getRank(getStatReward(p)) == 0);
 	}
 
 	@Override

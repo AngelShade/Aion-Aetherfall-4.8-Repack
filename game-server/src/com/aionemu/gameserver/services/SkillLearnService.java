@@ -22,6 +22,8 @@ public class SkillLearnService {
 	public static void onLearnSkill(Player player, int skillId, int skillLevel, boolean isNew) {
 		PlayerSkillEntry skill = player.getSkillList().getSkillEntry(skillId);
 		if (skill.isProfessionSkill())
+			com.aionemu.gameserver.services.playerbot.PlayerBotCollectionRenown.markChanged(player);
+		if (skill.isProfessionSkill())
 			switch (skillLevel) {
 				case 1, 100, 200, 300, 400, 450, 500 -> {
 					if (skillLevel != 1 || skill.isCraftingSkill()) // exclude lvl 1 tapping skills

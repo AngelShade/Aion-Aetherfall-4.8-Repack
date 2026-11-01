@@ -59,7 +59,7 @@ public class MirenChamber extends AbstractInnerUpperAbyssInstance {
 			case 215214 -> openDoor(16);
 			case 215215 -> openDoor(82);
 			case 215220 -> openDoor(73);
-			case 215221, 215222 -> spawnChests();
+			case 215221, 215222 -> {completeRun(npc);spawnChests();}
 			case 215415 -> switchToEasyMode();
 		}
 	}

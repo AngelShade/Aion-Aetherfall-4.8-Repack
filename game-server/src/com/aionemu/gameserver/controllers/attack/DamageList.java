@@ -19,6 +19,10 @@ public class DamageList {
 			if (aggroInfo.getDamage() <= 0)
 				continue;
 			Creature attackerMaster = aggroInfo.getAttacker().getMaster();
+			// Public Road Wardens provide NPC-style aid without taking travellers' XP or loot claims.
+			if (owner instanceof com.aionemu.gameserver.model.gameobjects.Npc && attackerMaster instanceof com.aionemu.gameserver.model.gameobjects.player.Player player
+				&& com.aionemu.gameserver.services.playerbot.PlayerBotRoadDuty.publicWarden(player))
+				continue;
 			// Don't include damage from creatures outside the known list.
 			if (!owner.getKnownList().knows(attackerMaster))
 				continue;

@@ -1994,7 +1994,7 @@
 			<spot x="2421.35" y="895.962" z="103.33438" h="75" random_walk="5"/>
 			<spot x="2443.72" y="845.039" z="99.46251" h="95" random_walk="5"/>
 			<spot x="2480.99" y="827.817" z="102.208496" h="60" random_walk="5"/>
-			<spot x="2531.16" y="847.336" z="100.96748" h="75" random_walk="5"/>
+			<spot x="2508.66" y="849.836" z="99.051498" h="75" random_walk="5"/>
 		</spawn>
 		<!-- Secret Note -->
 		<spawn npc_id="700112" respawn_time="295">

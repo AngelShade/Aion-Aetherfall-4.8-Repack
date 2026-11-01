@@ -104,7 +104,7 @@ final class PlayerBotCare {
     }
    }
   }
-  Item unused=s.salvage ? bot.getInventory().getItems().stream().filter(i->disposable(i,s.protectedItems.contains(i.getObjectId()) || PlayerBotGearPolicy.generated(bot,i),false,
+  Item unused=s.salvage ? bot.getInventory().getItems().stream().filter(i->disposable(i,s.protectedItems.contains(i.getObjectId()) || PlayerBotGearPolicy.generated(bot,i) || PlayerBotGearPolicy.referenced(bot,i),false,
    questItem(bot,i.getItemId()),i.getItemTemplate().getRequiredLevel(bot.getPlayerClass())>bot.getLevel())).findFirst().orElse(null) : null;
   if(unused!=null) {
    Item tool=bot.getInventory().getItems().stream().filter(i->extract(i.getItemTemplate())!=null).findFirst().orElse(null);

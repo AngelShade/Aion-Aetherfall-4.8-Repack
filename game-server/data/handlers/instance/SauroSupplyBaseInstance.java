@@ -116,6 +116,7 @@ public class SauroSupplyBaseInstance extends GeneralInstanceHandler {
 				instance.setDoorState(376, true);
 				break;
 			case 230853:
+				completeRun(npc);
 				sendMsg(SM_SYSTEM_MESSAGE.STR_MSG_IDVritra_Base_DoorOpen_08());
 				spawn(730872, 129.16417f, 432.32669f, 153.33147f, (byte) 2, 3);// Boss Teleporter
 				break;
@@ -123,16 +124,20 @@ public class SauroSupplyBaseInstance extends GeneralInstanceHandler {
 				spawn(801967, 91.69f, 889.8f, 411.45f, (byte) 120);// Sauro Exit
 				break;
 			case 230855:
+				completeRun(npc);
 				spawn(801967, 289.38f, 889.82f, 411.45f, (byte) 120);// Sauro Exit
 				break;
 			case 230856:
+				completeRun(npc);
 				spawn(801967, 485.1f, 889.93f, 411.45f, (byte) 0);// Sauro Exit
 				break;
 			case 230857:
+				completeRun(npc);
 				spawn(801967, 721.84f, 889.93f, 411.45f, (byte) 60);// Sauro Exit
 				cancelTask();
 				break;
 			case 230858:
+				completeRun(npc);
 				spawn(801967, 880.82f, 889.93f, 411.45f, (byte) 120);// Sauro Exit
 				break;
 			case 284437: // protective shield generator

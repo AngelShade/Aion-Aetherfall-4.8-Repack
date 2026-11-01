@@ -59,7 +59,7 @@ public class KrotanBarracks extends AbstractInnerUpperAbyssInstance {
 			case 233625 -> openDoor(7);
 			case 233626 -> openDoor(9);
 			case 233631 -> openDoor(16);
-			case 233632, 233633 -> spawnChests();
+			case 233632, 233633 -> {completeRun(npc);spawnChests();}
 			case 215413 -> switchToEasyMode();
 			case 235536 -> rewardStatueKill(3000);
 			case 235537 -> rewardStatueKill(6000);

@@ -43,6 +43,18 @@ public class PrivateStoreService {
 				return;
 			store.addItemToSell(tradePSItem.getItemObjId(), tradePSItem);
 		}
+		activateStore(player, store);
+	}
+
+	/**
+	 * Opens a shop prepared by a travelling merchant bot. Its goods are validated by that merchant's own stock rules, which include items players cannot list.
+	 */
+	public static void openPlayerBotStore(Player bot, PrivateStore store, String message) {
+		activateStore(bot, store);
+		openPrivateStore(bot, message);
+	}
+
+	private static void activateStore(Player player, PrivateStore store) {
 		player.setStore(store);
 		player.setState(CreatureState.PRIVATE_SHOP, true);
 		RecallService.getInstance().cancel(player, CancelReason.CANCELLED);
@@ -152,6 +164,11 @@ public class PrivateStoreService {
 
 		if (price < 0) { // Kinah dupe
 			AuditLogger.log(buyer, "tried to buy item with negative kinah price from private store");
+			return;
+		}
+
+		if (seller.isPlayerBot()) {
+			com.aionemu.gameserver.services.playerbot.PlayerBotRoadMerchants.sell(seller, buyer, store, boughtItems, price);
 			return;
 		}
 

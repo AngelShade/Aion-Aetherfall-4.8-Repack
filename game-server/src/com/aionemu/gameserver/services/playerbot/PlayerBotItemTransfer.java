@@ -41,6 +41,102 @@ public final class PlayerBotItemTransfer {
   return owner.getInventory().getItems().stream().filter(PlayerBotItemTransfer::transferable).sorted(Comparator.comparingInt(Item::getObjectId))
    .map(PlayerBotItemView::stored).toList();
  }
+ /** Only ticket recruits in the same owner's active collection can exchange items. */
+ public static boolean collectionCompanion(Player owner, PlayerBotSession session) {
+  return owner!=null && !owner.isPlayerBot() && session!=null && session.owner()==owner && session.recruit()
+   && PlayerBotWarehouse.privateOwner(session) && PlayerBotService.getInstance().current(session);
+ }
+ /** A manual collection transfer cannot remove gear promised to a saved build or a current quest/craft. */
+ public static boolean companionTransferable(PlayerBotSession session, Item item) {
+  return session!=null && collectionCompanion(session.owner(),session) && transferable(item)
+   && session.bot().getInventory().getItemByObjId(item.getObjectId())==item
+   && !PlayerBotGearPolicy.state(session).generated.contains(item.getObjectId())
+   && !PlayerBotGearPolicy.referenced(session.bot(),item) && !PlayerBotCare.worldQuestItem(session.bot(),item.getItemId());
+ }
+ /** One whole native item stack, directly between two active ticket recruits. The human never takes custody. */
+ public static String moveBetween(Player owner, String sourceName, String targetName, int object) {
+  var service=PlayerBotService.getInstance();
+  var from=service.find(owner,sourceName);var to=service.find(owner,targetName);
+  if(from==to || from.bot().getObjectId()==to.bot().getObjectId())throw new IllegalArgumentException("Choose a different ticket recruit to receive the item.");
+  var first=from.bot().getObjectId()<to.bot().getObjectId()?from:to;var second=first==from?to:from;
+  if(!service.claimTransfer(first))throw new IllegalArgumentException("A companion is busy; wait for its current action and retry.");
+  try {
+   if(!service.claimTransfer(second))throw new IllegalArgumentException("A companion is busy; wait for its current action and retry.");
+   try {synchronized(first) {synchronized(second) {
+    if(!collectionCompanion(owner,from) || !collectionCompanion(owner,to))
+     throw new IllegalArgumentException("Choose two active ticket recruits from your own collection. Account characters and world bots cannot receive collection items.");
+    for(var session:List.of(first,second)) {
+     String reason=blocker(session);if(!reason.isEmpty())throw new IllegalArgumentException(reason);
+     var interaction=session.bot().getInteractionTask();
+     if(interaction!=null && interaction.isInProgress())throw new IllegalArgumentException("Finish the companion's current interaction before moving items.");
+    }
+    if(object<=0)throw new IllegalArgumentException("Choose an item stack; collection transfers do not move Kinah.");
+    Item item=from.bot().getInventory().getItemByObjId(object);
+    if(!companionTransferable(from,item))throw new IllegalArgumentException("Choose an earned or gifted, unequipped, tradeable stack that is not saved to a build or needed for a current quest or craft. Generated catch-up gear and managed Stigmas stay with their original recruit.");
+    short slot=PlayerBotWarehouse.freeSlot(to.bot().getInventory(),item);
+    if(to.bot().getInventory().getItemByObjId(object)!=null)throw new IllegalArgumentException("The destination already contains that native item identity.");
+    var fromGear=PlayerBotGearPolicy.state(from);var toGear=PlayerBotGearPolicy.state(to);
+    try {
+     from.bot().getMoveController().abortMove();to.bot().getMoveController().abortMove();
+     commitBetween(first,second,from,to,item,slot);
+    }catch(PlayerBotWarehouseStore.Held error) {
+     holdBetween(first,second,error);
+     throw new IllegalStateException("Collection item persistence needs custody verification; both companions are held. See the server log.",error);
+    }catch(SQLException|RuntimeException error) {
+     throw new IllegalStateException("Collection item transfer was rolled back; the stack remains with its original companion.",error);
+    }
+    fromGear.nextGoals=0;toGear.nextGoals=0;
+    try{QuestEngine.getInstance().onItemGet(to.bot(),item.getItemId());}
+    catch(RuntimeException error){LoggerFactory.getLogger(PlayerBotItemTransfer.class).error("Committed collection transfer quest notification failed",error);}
+    return "Moved "+item.getItemTemplate().getName()+" x"+item.getItemCount()+" from "+from.bot().getName()+" to "+to.bot().getName()+".";
+   }}}finally{service.completeTransfer(second);}
+  }finally{service.completeTransfer(first);}
+ }
+ private static void commitBetween(PlayerBotSession first, PlayerBotSession second, PlayerBotSession from, PlayerBotSession to, Item item, short slot)throws SQLException {
+  long count=item.getItemCount(),oldSlot=item.getEquipmentSlot();int pack=item.getPackCount();
+  var pending=new ArrayList<Item>();var metadata=new ArrayList<PlayerBotMetadata.Pending>();
+  var connection=DatabaseFactory.getConnection();
+  try {
+   // Reuse the native custody transaction's acknowledgement state machine: a failed
+   // commit, rollback acknowledgement or committed projection holds both actors.
+   PlayerBotWarehouseStore.transaction(connection,()->{
+    PlayerBotTradeStore.source(connection,from.bot(),item,true);
+    for(var session:List.of(first,second)) {
+     pending.addAll(InventoryDAO.storeCompanionInventory(connection,session.bot()));
+     var rows=PlayerBotMetadata.pending(session.bot().getAccount().getId(),session.bot().getObjectId());
+     PlayerBotMetadata.store(connection,rows);metadata.addAll(rows);
+    }
+    PlayerBotTradeStore.source(connection,from.bot(),item,false);
+    try(var s=connection.prepareStatement("SELECT item_unique_id,item_id FROM inventory WHERE item_owner=? AND item_location=0 AND slot=? AND is_equipped=0 AND item_id<>182400001 FOR UPDATE")) {
+     s.setInt(1,to.bot().getObjectId());s.setInt(2,slot);
+     try(var row=s.executeQuery()){while(row.next()) {
+      Item existing=to.bot().getInventory().getItemByObjId(row.getInt(1));
+      if(existing==null || existing.getItemId()!=row.getInt(2) || PlayerBotWarehouse.sameSlots(to.bot().getInventory(),existing,item))
+       throw new SQLException("Collection destination slot changed");
+     }}
+    }
+    try(var s=connection.prepareStatement("UPDATE inventory SET item_owner=?,slot=?,pack_count=CASE WHEN pack_count>0 THEN -pack_count ELSE pack_count END WHERE item_unique_id=? AND item_owner=? AND item_id=? AND item_location=0 AND item_count=? AND is_equipped=0 AND slot=? AND pack_count=? AND is_soul_bound=?")) {
+     s.setInt(1,to.bot().getObjectId());s.setInt(2,slot);s.setInt(3,item.getObjectId());s.setInt(4,from.bot().getObjectId());
+     s.setInt(5,item.getItemId());s.setLong(6,count);s.setLong(7,oldSlot);s.setInt(8,pack);s.setBoolean(9,item.isSoulBound());
+     if(s.executeUpdate()!=1)throw new SQLException("Collection source custody, count or binding changed");
+    }
+   },()->{
+    InventoryDAO.companionInventoryCommitted(pending);PlayerBotMetadata.committed(metadata);
+    if(from.bot().getInventory().remove(item)!=item)throw new IllegalStateException("Committed collection source projection changed");
+    item.setEquipmentSlot(slot);if(pack>0)item.setPackCount(-pack);
+    if(to.bot().getInventory().add_CharacterTransfer(item)!=item || item.getItemCount()!=count || item.isEquipped()
+     || item.getItemLocation()!=0 || item.getEquipmentSlot()!=slot || item.getPackCount()!=(pack>0?-pack:pack))
+     throw new IllegalStateException("Committed collection destination could not be projected exactly");
+    item.setPersistentState(PersistentState.UPDATED);
+   });
+  }catch(SQLException|RuntimeException error){InventoryDAO.markCompanionInventoryDirty(first.bot());InventoryDAO.markCompanionInventoryDirty(second.bot());throw error;}
+  finally{try{connection.close();}catch(SQLException close){LoggerFactory.getLogger(PlayerBotItemTransfer.class).warn("Collection transfer connection cleanup failed after outcome was determined",close);}}
+ }
+ private static void holdBetween(PlayerBotSession first, PlayerBotSession second, Exception error) {
+  InventoryDAO.quarantineMarketInventory(first.bot().getObjectId());InventoryDAO.quarantineMarketInventory(second.bot().getObjectId());
+  first.markClosing();second.markClosing();
+  LoggerFactory.getLogger(PlayerBotItemTransfer.class).error("Collection item transfer held for companions {} and {}; native identities retained",first.bot().getObjectId(),second.bot().getObjectId(),error);
+ }
  public static String move(Player owner, String name, boolean give, int object, long kinah) {
   var service = PlayerBotService.getInstance();
   var session = service.find(owner, name);
@@ -49,6 +145,7 @@ public final class PlayerBotItemTransfer {
    String reason = blocker(session);
    if (!reason.isEmpty()) throw new IllegalArgumentException(reason);
    Player bot = session.bot(), from = give ? owner : bot, to = give ? bot : owner;
+   if(!give && PlayerBotGrowth.giveOnly(bot))throw new IllegalArgumentException("Ticket companions keep their items and Kinah. You can give to them, but cannot withdraw.");
    Item item = null;
    if (object > 0) {
     item = from.getInventory().getItemByObjId(object);

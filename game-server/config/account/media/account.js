@@ -18,6 +18,7 @@
     ARTIST: 'Artist', BARD: 'Bard', RIDER: 'Aethertech' };
   var session = (/[?&]session_id=([^&]+)/.exec(location.search) || [])[1] || '';
   var state = null, busy = false;
+  var lastPrint = null;
 
   function id(x) { return document.getElementById(x); }
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -115,11 +116,21 @@
       busy = false;
       var data = null;
       try { data = JSON.parse(x.responseText); } catch (e) { }
-      if (x.status !== 200 || !data) { status(data && data.error ? data.error : 'Account is unavailable. Refresh to try again.', 'bad'); return; }
-      state = data; renderBanner(data); renderBoons(data); renderFame(data); renderCharacters(data);
+      if (x.status !== 200 || !data || data.error) { status(data && data.error ? data.error : 'Account is unavailable. Refresh to try again.', 'bad'); return; }
+      var print = JSON.stringify(data), unchanged = print === lastPrint;
+      state = data; lastPrint = print;
+      if (!unchanged) keepScroll(function () { renderBanner(data); renderBoons(data); renderFame(data); renderCharacters(data); });
       status('Up to date · boons apply to every character on this account', 'ok');
     };
     x.send(null);
+  }
+
+  // Scrolling panes are emptied while redrawn; put each back where the player left it.
+  function keepScroll(redraw) {
+    var nodes = document.getElementsByTagName('*'), panes = [], i;
+    for (i = 0; i < nodes.length; i++) if (nodes[i].scrollTop > 0) panes.push([nodes[i], nodes[i].scrollTop]);
+    redraw();
+    for (i = 0; i < panes.length; i++) if (panes[i][0].scrollTop !== panes[i][1]) panes[i][0].scrollTop = panes[i][1];
   }
 
   var tabs = document.querySelectorAll('nav.sections button'), t;

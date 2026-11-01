@@ -24,9 +24,28 @@ public final class PlayerBotMetadata {
  public static boolean validAccount(int account){return PlayerBotPopulationPolicy.account(account);}
  public static void validate(int account,int character,String section,Map<String,String> map)throws IOException {
   try {
-   if(!validAccount(account) || character<=0 || !Set.of("care","gear","preferences","behavior","formation","spacing","party-rewards","quest-completion","looks","pvp","population").contains(section))throw new IllegalArgumentException("Invalid section/owner");
+   if(!validAccount(account) || character<=0 || !Set.of("care","gear","preferences","behavior","formation","spacing","party-rewards","quest-completion","looks","pvp","population","growth","quest-practice","road-duty","loadouts","focus").contains(section))throw new IllegalArgumentException("Invalid section/owner");
    if(Integer.parseInt(map.get("account"))!=account || Integer.parseInt(map.get("character"))!=character)throw new IllegalArgumentException("Owner mismatch");
-   if(section.equals("population")) {
+   if(section.equals("focus")) {
+    PlayerBotFocus.validate(map);
+   } else if(section.equals("road-duty")) {
+    if(!PlayerBotPopulationPolicy.serverAccount(account))throw new IllegalArgumentException("Road careers require a generated global resident");
+    PlayerBotRoadDuty.Career.valueOf(map.getOrDefault("career","NONE"));PlayerBotRoadDuty.Rank.valueOf(map.getOrDefault("rank","PEDDLER"));
+    int point=Integer.parseInt(map.getOrDefault("point","0")),direction=Integer.parseInt(map.getOrDefault("direction","1"));
+    if(point<0 || point>1023 || Math.abs(direction)!=1 || Long.parseLong(map.getOrDefault("restockAt","0"))<0)throw new IllegalArgumentException("Invalid road progress");
+    if(Integer.parseInt(map.getOrDefault("visitor","0"))<0)throw new IllegalArgumentException("Invalid road visitor");
+    for(String key:List.of("stopUntil","escortUntil","waitUntil"))
+     if(Long.parseLong(map.getOrDefault(key,"0"))<0)throw new IllegalArgumentException("Invalid road timer");
+    for(var e:map.entrySet())if(e.getKey().startsWith("stock.")) {
+     var origin=e.getValue().split(":");if(Integer.parseInt(e.getKey().substring(6))<=0 || origin.length!=2
+      || Integer.parseInt(origin[0])<=0 || Integer.parseInt(origin[1])<=0)throw new IllegalArgumentException("Invalid merchant provenance");
+    }
+   } else if(section.equals("growth")) {
+    PlayerBotGrowth.validate(account,map);
+   } else if(section.equals("quest-practice")) {
+    for(var e:map.entrySet())if(e.getKey().startsWith("quest."))if(Integer.parseInt(e.getKey().substring(6))<=0 || !e.getValue().equals("1"))throw new IllegalArgumentException("Invalid quest practice mark");
+    if(!map.getOrDefault("help","").matches("([qn][0-9]+:[0-9]+:[0-9]+(,|$))*"))throw new IllegalArgumentException("Invalid help claim");
+   } else if(section.equals("population")) {
     if(!PlayerBotPopulationPolicy.serverAccount(account))throw new IllegalArgumentException("Population management requires a generated global account");
     for(String key:List.of("randomizeAt","levelPlayedMillis","playedCheckAt","lastLevel","pendingLevel","deadUntil","reviveAt"))
      if(Long.parseLong(map.getOrDefault(key,"0"))<0)throw new IllegalArgumentException("Invalid population event");
@@ -39,7 +58,7 @@ public final class PlayerBotMetadata {
    } else if(section.equals("looks")) {
     if(!Set.of("2","3","4").contains(map.get("version")))throw new IllegalArgumentException("Invalid companion appearance version");
    } else if(section.equals("care")) {
-    for(String key:List.of("enchant","salvage","partySync"))if(map.containsKey(key) && !Set.of("true","false").contains(map.get(key)))throw new IllegalArgumentException("Invalid care flag");
+    for(String key:List.of("enchant","salvage","partySync","levelTogether"))if(map.containsKey(key) && !Set.of("true","false").contains(map.get(key)))throw new IllegalArgumentException("Invalid care flag");
     for(String key:List.of("reserve","dailyBudget","spent"))if(map.containsKey(key) && Long.parseLong(map.get(key))<0)throw new IllegalArgumentException("Invalid budget");
     ids(map.getOrDefault("skipped",""));ids(map.getOrDefault("approved",""));
     for(var e:map.entrySet())if(e.getKey().startsWith("together.")){if(Integer.parseInt(e.getKey().substring(9))<=0 || Integer.parseInt(e.getValue())<0)throw new IllegalArgumentException("Invalid quest witness");}
@@ -47,6 +66,8 @@ public final class PlayerBotMetadata {
     PlayerBotGearPolicy.parse(map.get("mode"),map.get("profile"),map.get("quality"),map.get("level"),map.get("threshold"),map.get("weapon"),map.get("vendors"),map.get("rolls"));
     ids(map.getOrDefault("generated",""));for(String slot:map.getOrDefault("starterSlots","").split(","))if(!slot.isBlank() && Long.parseLong(slot)<=0)throw new IllegalArgumentException("Invalid starter slot");
     if(!map.getOrDefault("build","AUTO").matches("AUTO|[a-z0-9_]{1,24}"))throw new IllegalArgumentException("Invalid Stigma build");
+   } else if(section.equals("loadouts")) {
+    PlayerBotGearPolicy.validateLoadouts(map);
    } else if(section.equals("preferences")) {
     PlayerBotRules.Role.valueOf(map.get("role"));
     for(String flag:List.of("area","supplies","gear","loot","questing"))if(map.containsKey(flag) && !Set.of("true","false").contains(map.get(flag)))throw new IllegalArgumentException("Invalid preference flag");
@@ -89,7 +110,15 @@ public final class PlayerBotMetadata {
  static synchronized void save(int account,int character,String section,Properties p)throws IOException {
   var map=values(p);validate(account,character,section,map);Entry e=CACHE.get(new Key(character,section));
   if(e==null || e.account!=account)throw new IOException("Bot metadata was not loaded for this owner");
+  if(section.equals("growth"))try{PlayerBotGrowth.validateUpdate(e.current,map);}
+  catch(RuntimeException ex){throw new IOException("Cannot replace immutable bot growth traits",ex);}
   e.current=map; // equality with committed handles repeated identical saves; no file or SQL here.
+ }
+ /** Read an existing actor snapshot without loading SQL or creating a dirty section. */
+ static synchronized Map<String,String> cached(int account,int character,String section)throws IOException {
+  Entry entry=CACHE.get(new Key(character,section));if(entry==null)return null;
+  if(entry.account!=account)throw new IOException("Cached bot metadata owner mismatch");
+  return entry.current;
  }
  public static synchronized List<Pending> pending(int account,int character)throws SQLException {
   var rows=new ArrayList<Pending>();

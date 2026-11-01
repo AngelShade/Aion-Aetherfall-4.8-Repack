@@ -22,6 +22,7 @@ public class AggroEventHandler {
 		Npc owner = npcAI.getOwner();
 		ThreadPoolManager.getInstance().schedule(new AggroNotifier(owner, target, true), 500);
 		owner.getWorldMapInstance().getInstanceHandler().onAggro(owner);
+		com.aionemu.gameserver.services.playerbot.PlayerBotRunRewards.onPull(owner);
 	}
 
 	public static boolean onCreatureNeedsSupport(NpcAI npcAI, Creature creatureAskingForSupport) {

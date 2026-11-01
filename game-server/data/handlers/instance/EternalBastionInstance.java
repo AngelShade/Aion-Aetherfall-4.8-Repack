@@ -172,6 +172,7 @@ public class EternalBastionInstance extends GeneralInstanceHandler {
 			case 231130: // Grand Commander Pashid
 				addPoints(npc, 24000);
 				endInstance();
+				completeRun(npc);
 				break;
 			case 231117: // Pashid Elite Siege Combatant
 			case 231118: // Pashid Elite Siege Protector

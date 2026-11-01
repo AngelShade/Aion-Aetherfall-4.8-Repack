@@ -28,9 +28,21 @@ public final class PlayerBotHttpService {
 			exchange.getResponseHeaders().set("X-Content-Type-Options", "nosniff");
 			exchange.getResponseHeaders().set("Referrer-Policy", "no-referrer");
 			String path = exchange.getRequestURI().getPath(), method = exchange.getRequestMethod();
+			String cardPrefix = "/market/companions/media/cards/";
+			if (method.equals("GET") && path.startsWith(cardPrefix) && PlayerBotMedia.cardArt(path.substring(cardPrefix.length()))) {
+				byte[] image = PlayerBotMedia.readCardArt(path.substring(cardPrefix.length()));
+				exchange.getResponseHeaders().set("Content-Type", path.endsWith(".jpg") ? "image/jpeg" : "image/png");
+				exchange.getResponseHeaders().set("Cache-Control", "public, max-age=31536000, immutable");
+				exchange.sendResponseHeaders(200, image.length); exchange.getResponseBody().write(image); return;
+			}
 			if (method.equals("GET") && (path.equals("/market/companions") || path.equals("/market/companions/media/bots.js") || path.equals("/market/companions/media/bots.css"))) {
 				String file = path.endsWith("bots.js") ? "bots.js" : path.endsWith("bots.css") ? "bots.css" : "bots.html";
 				send(exchange, 200, file.endsWith("js") ? "application/javascript" : file.endsWith("css") ? "text/css" : "text/html", file.endsWith("css") ? WindowTextScale.css(PlayerBotMedia.read(file)) : PlayerBotMedia.read(file)); return;
+			}
+			if (method.equals("GET") && path.equals("/market/companions/help")) {
+				Player helper = MarketplaceService.findPlayer(parse(exchange.getRequestURI().getRawQuery()).getOrDefault("session_id", ""));
+				if (helper == null || !helper.isOnline() || helper.isPlayerBot()) { send(exchange, 403, "text/plain", ""); return; }
+				send(exchange, 200, "text/plain", PlayerBotHelpObjectives.title(helper)); return;
 			}
 			boolean mutation = path.equals("/market/companions/action");
 			if (!mutation && !path.equals("/market/companions/state")) { send(exchange, 404, "text/plain", "Not found"); return; }
@@ -39,18 +51,22 @@ public final class PlayerBotHttpService {
 			Player player = MarketplaceService.findPlayer(values.getOrDefault("session_id", ""));
 			if (player == null || !player.isOnline() || player.isPlayerBot()) { send(exchange, 403, "application/json", Json.write(Map.of("error", "Log in and reopen Companions from Additional Functions."))); return; }
 			String notice = "";
+			Map<String,Object> responseDetails = new LinkedHashMap<>();
 			var service = PlayerBotService.getInstance();
 			synchronized (player) {
 				if (mutation) {
-					String origin = exchange.getRequestHeaders().getFirst("Origin"), host = exchange.getRequestHeaders().getFirst("Host");
-					if (origin != null && !origin.equals("http://" + host)) throw new IllegalArgumentException("Reopen Companions to continue.");
+					if (!WebUiConnection.sameOrigin(exchange)) throw new IllegalArgumentException("Reopen Companions to continue.");
 					Ticket ticket = TICKETS.remove(values.getOrDefault("request", ""));
 					if (ticket == null || !validTicket(ticket.player(), player, ticket.connection(), player.getClientConnection(), ticket.expires(), System.currentTimeMillis()))
 						throw new IllegalArgumentException("This selection expired or was already submitted. Refresh Companions.");
 					if (!player.isOnline() || !player.isSpawned()) throw new IllegalArgumentException("Wait until your character is in the world.");
-					notice = action(player, values);
+					if ("recyclequote".equals(values.get("action"))) {
+						responseDetails.put("recycleQuote", PlayerBotRecycling.quote(player, values.getOrDefault("name",""), values.getOrDefault("target","")));
+						notice = "Review the exact recycling rewards before confirming.";
+					} else notice = action(player, values);
 				}
-				var state = snapshot(player); state.put("notice", notice);
+				var state = snapshot(player,values); state.put("notice", notice);
+				state.putAll(responseDetails);
 				long now = System.currentTimeMillis(); TICKETS.entrySet().removeIf(e -> e.getValue().expires() < now || !e.getValue().player().isOnline() || e.getValue().player() == player);
 				if (TICKETS.size() >= 4096) throw new IllegalStateException("Companion panel is busy");
 				byte[] bytes = new byte[24]; RANDOM.nextBytes(bytes); String id = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
@@ -78,11 +94,26 @@ public final class PlayerBotHttpService {
 		}
 		return result;
 	}
-	private static Map<String, Object> snapshot(Player owner) {
+	private static Map<String, Object> snapshot(Player owner,Map<String,String> values) throws Exception {
 		Map<String, Object> state = new LinkedHashMap<>();
 		state.put("owner", owner.getName()); state.put("ownerLevel", owner.getLevel()); state.put("levelDifference", PlayerBotConfig.LEVEL_DIFFERENCE); state.put("enabled", PlayerBotConfig.ENABLED); state.put("limit", PlayerBotRaidPolicy.limit());
 		state.put("generatedEnabled", PlayerBotConfig.GENERATED_ENABLED);
-		state.put("active", PlayerBotService.getInstance().companions(owner).stream().map(PlayerBotSession::snapshot).toList());
+		state.put("tickets", com.aionemu.gameserver.services.playerbot.PlayerBotRecruitment.snapshot(owner));
+		var active=PlayerBotService.getInstance().companions(owner).stream().map(s->{var bot=s.snapshot();bot.put("giveOnly",PlayerBotGrowth.giveOnly(s.bot()));var growth=PlayerBotGrowth.identity(s.bot());if(growth!=null)bot.put("growth",growth);return bot;}).toList();
+		state.put("active",active);
+		state.put("collectionRenown", PlayerBotCollectionRenown.view(owner));
+		state.put("recyclingEnabled", PlayerBotRecycling.enabled());
+		String benefitId = values.getOrDefault("benefitBot", "");
+		for (var session : PlayerBotService.getInstance().companions(owner))
+			if (Integer.toString(session.bot().getObjectId()).equals(benefitId)
+			 && (session.bot().isWorldBot() || Boolean.TRUE.equals(session.snapshot().get("generated")))) {
+				try { state.put("benefits", Map.of("id", session.bot().getObjectId(), "pass", PlayerBotPass.snapshot(owner, session.bot().getName()))); }
+				catch (Exception error) {
+					org.slf4j.LoggerFactory.getLogger(PlayerBotHttpService.class).warn("Companion pass view unavailable for {}", session.bot().getObjectId(), error);
+					state.put("benefits", Map.of("id", session.bot().getObjectId(), "error", "Season Pass is unavailable. Refresh after the companion finishes its current work."));
+				}
+				break;
+			}
 		state.put("recruitRemaining", PlayerBotRaidPolicy.remaining(owner, PlayerBotService.getInstance().companions(owner).size(), PlayerBotService.getInstance().companionCount()));
 		state.put("teamKind", owner.isInAlliance() ? "Alliance" : "Party");
 		state.put("team", PlayerBotAllianceControl.snapshot(owner));
@@ -92,30 +123,36 @@ public final class PlayerBotHttpService {
 			if (character.getPlayerObjId() != owner.getObjectId()) roster.add(Map.of("name", character.getName(), "id", character.getPlayerObjId(), "level", character.getLevel(),
 				"playerClass", character.getPlayerClass().name(), "reserved", PlayerBotLease.isReserved(character.getPlayerObjId()), "generated", false, "ready", true));
 		}
-		var generated = PlayerBotRoster.list(owner.getAccount().getId());
-		state.put("generatedCount", generated.size());
-		state.put("generatedLimit", PlayerBotCreationPolicy.limit());
-		// Level and class: the live companion when it is in the party, otherwise its saved character.
-		var live = new HashMap<Integer, Player>();
-		for (var session : PlayerBotService.getInstance().companions(owner)) live.put(session.bot().getObjectId(), session.bot());
-		var saved = PlayerBotRoster.identities(generated.stream().filter(d -> d.ready() && !live.containsKey(d.id())).map(PlayerBotRoster.Entry::id).toList());
-		for (var data : generated) {
-			var entry = new HashMap<String, Object>(Map.of("name", data.name() == null ? "Pending companion " + data.id() : data.name(), "id", data.id(),
-				"reserved", PlayerBotLease.isReserved(data.id()), "generated", true, "ready", data.ready()));
-			Player bot = live.get(data.id());
-			if (bot != null) { entry.put("level", (int) bot.getLevel()); entry.put("playerClass", bot.getPlayerClass().name()); }
-			else if (saved.containsKey(data.id())) { entry.put("level", saved.get(data.id()).getKey()); entry.put("playerClass", saved.get(data.id()).getValue()); }
-			roster.add(entry);
-		}
+
+        state.put("accountCharacters",List.copyOf(roster));
+        var activeIds=PlayerBotService.getInstance().companions(owner).stream().map(session->session.bot().getObjectId()).collect(java.util.stream.Collectors.toSet());
+        var presets=PlayerBotPresets.snapshot(owner);
+        var savedIds=new HashSet<Integer>();for(var id:(Collection<?>)presets.get("savedBots"))savedIds.add(Integer.parseInt(id.toString()));
+        var page=PlayerBotRoster.page(owner.getAccount().getId(),owner.getObjectId(),values.getOrDefault("search",""),values.getOrDefault("filter","all"),values.getOrDefault("sort","name"),Integer.parseInt(values.getOrDefault("page","0")),activeIds,savedIds);
+        roster=new ArrayList<>(page.rows());
+        for(var row:roster)for(var live:active)if(row.get("id").equals(live.get("id"))) {
+            row.put("level",live.get("level"));row.put("playerClass",live.get("playerClass"));
+            if(live.containsKey("growth"))row.put("growth",live.get("growth"));
+        }
+        state.put("generatedCount",page.generatedCount());state.put("generatedLimit",PlayerBotCreationPolicy.limit());
+        state.put("freeGeneratedCount",PlayerBotRoster.freeGeneratedCount(owner.getAccount().getId()));
+        state.put("rosterTotal",page.total());state.put("rosterPage",page.page());
+
 		state.put("roster", roster);
 		// Companions window item transfer: the owner's tradeable bag and each companion's movable stacks.
 		state.put("ownerBag", PlayerBotItemTransfer.ownerBag(owner));
 		state.put("ownerKinah", owner.getInventory().getKinah());
 		var movable = new HashMap<String, Object>();
+		var companionMovable = new HashMap<String, Object>();
 		for (var session : PlayerBotService.getInstance().companions(owner))
+		{
 			movable.put(session.bot().getName(), session.bot().getInventory().getItems().stream().filter(PlayerBotItemTransfer::transferable).map(i -> i.getObjectId()).toList());
+			if (PlayerBotItemTransfer.collectionCompanion(owner, session))
+				companionMovable.put(session.bot().getName(), session.bot().getInventory().getItems().stream().filter(i -> PlayerBotItemTransfer.companionTransferable(session, i)).map(i -> i.getObjectId()).toList());
+		}
 		state.put("movable", movable);
-		state.putAll(PlayerBotPresets.snapshot(owner));
+		state.put("companionMovable", companionMovable);
+		state.putAll(presets);
 		state.put("classes", Arrays.stream(PlayerClass.values()).filter(pc -> pc.isStartingClass() == (owner.getLevel() < 10)).map(Enum::name).toList());
 		state.put("startingClasses", Arrays.stream(PlayerClass.values()).filter(PlayerClass::isStartingClass).map(Enum::name).toList());
 		state.put("creationJourney", PoetaJourneyService.creationOptions(owner.getRace()));
@@ -124,7 +161,7 @@ public final class PlayerBotHttpService {
 		state.put("quests", owner.getQuestStateList().getUncompletedQuests().stream().map(q -> Map.of("id", q.getQuestId(), "name", PlayerBotQuestJournal.name(q.getQuestId()), "status", q.getStatus().name())).toList());
 		return state;
 	}
-	private static String action(Player owner, Map<String, String> values) {
+	private static String action(Player owner, Map<String, String> values) throws Exception {
 		var service = PlayerBotService.getInstance();
 		String op = values.getOrDefault("action", ""), name = values.getOrDefault("name", "");
 		switch (op) {
@@ -133,11 +170,23 @@ public final class PlayerBotHttpService {
 			case "saveparty" -> { return PlayerBotPresets.saveParty(owner,values.getOrDefault("presetName","")); }
 			case "loadparty" -> { return PlayerBotPresets.activate(owner,values.getOrDefault("preset","")); }
 			case "transfer" -> { return PlayerBotItemTransfer.move(owner, name, "give".equals(values.get("direction")), Integer.parseInt(values.getOrDefault("item", "0")), Long.parseLong(values.getOrDefault("kinah", "0"))); }
+			case "companiontransfer" -> { return PlayerBotItemTransfer.moveBetween(owner, name, values.getOrDefault("target", ""), Integer.parseInt(values.getOrDefault("item", "0"))); }
+			case "collectionstipend" -> { return PlayerBotCollectionRenown.claimStipend(owner, name); }
+			case "focus" -> { return PlayerBotFocus.select(owner, name, values.getOrDefault("focus", ""), Integer.parseInt(values.getOrDefault("profession", "0"))); }
+			case "passaction" -> { var args = new HashMap<>(values); args.put("action", values.getOrDefault("passAction", "")); return PlayerBotPass.action(owner, name, args, values.get("request")); }
+			case "recycle" -> {
+				if (!"yes".equals(values.get("confirm"))) throw new IllegalArgumentException("Review and confirm the recycling quote first.");
+				return PlayerBotRecycling.execute(owner, name, values.getOrDefault("target", ""), values.getOrDefault("quote", ""));
+			}
 			case "sendalt" -> { return PlayerBotItemTransfer.sendToAlt(owner, values.getOrDefault("alt", ""), Integer.parseInt(values.getOrDefault("item", "0")), Long.parseLong(values.getOrDefault("kinah", "0"))); }
 			case "editparty" -> { return PlayerBotPresets.editParty(owner, values.getOrDefault("preset", ""), values.getOrDefault("presetName", ""), values.getOrDefault("members", "")); }
 			case "deleteparty" -> { String preset=values.getOrDefault("preset",""); if(!preset.matches("[a-f0-9]{32}"))throw new IllegalArgumentException("Choose a party preset."); return PlayerBotPresets.remove(owner,preset); }
 			case "removebot" -> { if(!"yes".equals(values.get("confirm")))throw new IllegalArgumentException("Confirm removal of this Temporary Bot first."); return PlayerBotPresets.remove(owner,"bot:"+values.getOrDefault("id","0")); }
+			case "renamebot" -> { return PlayerBotNames.renameCompanion(owner.getAccount().getId(), name, values.getOrDefault("newName", "")); }
 			case "recruit" -> service.recruit(owner, name);
+			case "recruitticket" -> com.aionemu.gameserver.services.playerbot.PlayerBotRecruitment.recruit(owner, name, values.getOrDefault("recruitRequest", ""), values.getOrDefault("start", "matched"));
+			case "ascend" -> PlayerBotOwnedProgression.ascend(service.find(owner,name),values.getOrDefault("playerClass",""));
+			case "leveltogether" -> PlayerBotOwnedProgression.levelTogether(service.find(owner,name),"true".equals(values.get("enabled")));
 			case "create", "generate" -> {
 				PlayerClass pc = PlayerClass.valueOf(values.getOrDefault("playerClass", "").toUpperCase(Locale.ROOT));
 				if (op.equals("create")) service.create(owner, name, pc, values.getOrDefault("start", "level1")); else PlayerBotGenerationOptions.generate(owner, name, pc, values.getOrDefault("start", "matched"));
@@ -176,6 +225,8 @@ public final class PlayerBotHttpService {
 			case "pull" -> { return PlayerBotMarks.pull(owner, service.companions(owner)); }
 			case "mark" -> { return PlayerBotMarks.mark(owner, service.companions(owner), values.getOrDefault("mark", "").toLowerCase(Locale.ROOT)); }
 			case "stigmabuild" -> { return PlayerBotGearPolicy.configureBuild(service.find(owner, name), values.getOrDefault("build", "")); }
+			case "loadoutsave" -> { return PlayerBotGearPolicy.saveLoadout(service.find(owner, name)); }
+			case "loadoutclear" -> { return PlayerBotGearPolicy.clearLoadout(service.find(owner, name)); }
 			case "role" -> service.find(owner, name).setRole(Role.valueOf(values.getOrDefault("role", "").toUpperCase(Locale.ROOT)));
 			case "mission" -> service.find(owner, name).mission(Integer.parseInt(values.getOrDefault("quest", "0")));
 			case "equip" -> service.find(owner, name).equip(Integer.parseInt(values.getOrDefault("item", "0")), com.aionemu.gameserver.model.items.ItemSlot.valueOf(values.getOrDefault("slot", "")));

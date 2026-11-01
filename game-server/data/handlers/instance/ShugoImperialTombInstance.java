@@ -109,6 +109,7 @@ public class ShugoImperialTombInstance extends GeneralInstanceHandler {
 				onChangeStageList(StageList.START_STAGE_3_PHASE_2);
 				break;
 			case 219531: // Captain Lediar
+				completeRun(npc);
 				deleteAliveNpcs(831250, 831251, 831305); // Towers
 				spawn(831350, 450.61487f, 105.30411f, 212.20023f, (byte) 70); // Imperial Shrine
 				spawn(831116, 330.54459f, 428.68497f, 294.76053f, (byte) 116); // Emperor's Delighted Admirer

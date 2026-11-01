@@ -193,6 +193,7 @@ public abstract class CreatureLifeStats<T extends Creature> {
 			sendAttackStatusPacketUpdate(type, newHp - previousHp, skillId, log);
 		if (newHp != previousHp)
 			onHpChanged(type, previousHp, newHp, effector == null ? getOwner() : effector);
+		if(newHp>previousHp && effector!=null)com.aionemu.gameserver.services.playerbot.PlayerBotRunRewards.support(effector,getOwner());
 		return newHp;
 	}
 

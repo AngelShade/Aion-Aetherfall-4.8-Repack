@@ -296,6 +296,7 @@ public class NightmareCircus extends GeneralInstanceHandler {
 				npc.getController().delete();
 				break;
 			case 233467:
+				completeRun(npc);
 				PacketSendUtility.broadcastToMap(instance, new SM_PLAY_MOVIE(false, 0, 0, 984, true));
 				deleteAliveNpcs(831740, 831627, 831741, 831718, 831551, 831552, 831553);
 				// Open Cage

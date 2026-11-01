@@ -1,10 +1,13 @@
 package com.aionemu.gameserver.services;
 
 import java.util.*;
+import java.util.function.ToLongFunction;
+import com.aionemu.gameserver.configs.main.PlayerBotConfig;
 import com.aionemu.gameserver.model.PlayerClass;
 import com.aionemu.gameserver.model.Race;
 import com.aionemu.gameserver.model.templates.QuestTemplate;
 import com.aionemu.gameserver.model.templates.quest.QuestItems;
+import com.aionemu.gameserver.services.playerbot.PlayerBotJourneyEvidence;
 
 /** Builds a single-completion reward bundle, including every alternative item. */
 public final class PoetaJourneyRules {
@@ -66,6 +69,42 @@ public final class PoetaJourneyRules {
 		journey(race); // Reject unsupported races rather than defaulting to another faction.
 		return (race == Race.ELYOS ? new int[] {1913,1914,1915,1916,19070,19071}
 			: new int[] {2901,2902,2903,2904,29070,29071})[ceremonyGroup(advanced)];
+	}
+
+	/** A skip finishes at the capital; a played story finishes at native Ascension. */
+	public static boolean continuationOpen(String decision,PlayerClass current) {
+		return "SKIP".equals(decision) || !current.isStartingClass();
+	}
+
+	public record Chapter(String id,String title,String task,long goal,boolean needsTickets,ToLongFunction<PlayerBotJourneyEvidence.Facts> progress) {
+		boolean done(PlayerBotJourneyEvidence.Facts facts) { return progress.applyAsLong(facts) >= goal; }
+	}
+
+	/** Each goal is met by play recorded in its own owner, so a button can never complete one. */
+	public static List<Chapter> chapters(boolean tickets) {
+		long earned = Math.max(1,PlayerBotConfig.JOURNEY_TICKETS_GOAL), runs = Math.max(1,PlayerBotConfig.JOURNEY_RUNS_GOAL), help = Math.max(1,PlayerBotConfig.JOURNEY_HELP_GOAL);
+		return List.of(
+			new Chapter("earn","Earn Recruitment","Earn "+count(earned,"Recruitment Ticket")+" from challenging instances or PvP wins.",earned,true,PlayerBotJourneyEvidence.Facts::tickets),
+			new Chapter("recruit","Recruit a Companion","Press Recruit with Ticket and welcome your first recruit.",1,true,PlayerBotJourneyEvidence.Facts::recruits),
+			new Chapter("manage","Manage and Develop","In Roster, save gear to a companion's build.",1,false,PlayerBotJourneyEvidence.Facts::saved),
+			new Chapter("help","Group and Help","Answer a bot's call for help and finish "+count(help,"objective")+" together.",help,false,PlayerBotJourneyEvidence.Facts::helped),
+			new Chapter("fight","Fight Together","Finish "+count(runs,"challenging run")+" and see the ending through.",runs,true,PlayerBotJourneyEvidence.Facts::runs),
+			new Chapter("promote","Earn Promotion","Fight beside a recruit until its combat rank rises.",1,false,PlayerBotJourneyEvidence.Facts::promoted)
+		).stream().filter(c -> tickets || !c.needsTickets()).toList();
+	}
+
+	private static String count(long amount,String noun) { return amount == 1 ? (noun.startsWith("o") ? "an " : "a ")+noun : amount+" "+noun+"s"; }
+
+	/** Rewards are titles: bound to one character, so they cannot be traded, sold or recycled. */
+	public static Map<String,Integer> rewardTitles() {
+		Map<String,Integer> titles = new LinkedHashMap<>();
+		if (PlayerBotConfig.JOURNEY_MIDPOINT_TITLE > 0) titles.put("midpoint",PlayerBotConfig.JOURNEY_MIDPOINT_TITLE);
+		if (PlayerBotConfig.JOURNEY_FINAL_TITLE > 0) titles.put("final",PlayerBotConfig.JOURNEY_FINAL_TITLE);
+		return titles;
+	}
+
+	public static List<Chapter> rewardChapters(String reward,List<Chapter> chapters) {
+		return reward.equals("midpoint") ? chapters.subList(0,Math.min(3,chapters.size())) : chapters;
 	}
 
 	public static Map<Integer,Long> rewardItems(QuestTemplate q) {

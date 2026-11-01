@@ -37,7 +37,7 @@ public class Config {
 		AutoGroupConfig.class, BrokerMarketConfig.class, CentralMarketSimulationConfig.class, CommonsConfig.class, CleaningConfig.class, CraftConfig.class, CustomConfig.class, DropConfig.class, EventsConfig.class,
 		FallDamageConfig.class, GSConfig.class, GeoDataConfig.class, GroupConfig.class, HousingConfig.class, HTMLConfig.class,
 		InstanceConfig.class, LegionConfig.class, LoggingConfig.class, MembershipConfig.class, MobScalingConfig.class, NameConfig.class, PeriodicSaveConfig.class,
-		PlayerBotConfig.class, PlayerBotPopulationConfig.class, PlayerTransferConfig.class, PricesConfig.class, PunishmentConfig.class, RankingConfig.class, RatesConfig.class, SecurityConfig.class,
+		PlayerBotConfig.class, PlayerBotMerchantConfig.class, PlayerBotPopulationConfig.class, PlayerTransferConfig.class, PricesConfig.class, PunishmentConfig.class, RankingConfig.class, RatesConfig.class, SecurityConfig.class,
 		ShutdownConfig.class, SiegeConfig.class, ThreadConfig.class, WorldConfig.class, DatabaseConfig.class, NetworkConfig.class, PffConfig.class);
 
 	/**
@@ -120,6 +120,11 @@ public class Config {
 			if (Files.isRegularFile(populationManagement)) {
 				log.info("Loading default configuration values from: ./config/playerbots/population-management.properties");
 				defaults.putAll(PropertiesUtils.load(populationManagement.toFile(), null));
+			}
+			Path roadMerchants = root.resolve("./config/playerbots/road-merchants.properties");
+			if (Files.isRegularFile(roadMerchants)) {
+				log.info("Loading default configuration values from: ./config/playerbots/road-merchants.properties");
+				defaults.putAll(PropertiesUtils.load(roadMerchants.toFile(), null));
 			}
 			log.info("Loading: ./config/mygs.properties");
 			Properties properties = PropertiesUtils.load(root.resolve("./config/mygs.properties").toFile(), defaults);

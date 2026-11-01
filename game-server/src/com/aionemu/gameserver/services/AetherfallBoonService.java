@@ -21,6 +21,8 @@ import com.aionemu.gameserver.model.stats.container.StatEnum;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_ACCOUNT_PROPERTIES;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_PACKAGE_INFO_NOTIFY;
 import com.aionemu.gameserver.services.mail.SystemMailService;
+import com.aionemu.gameserver.services.playerbot.PlayerBotCollectionRenown;
+import com.aionemu.gameserver.services.playerbot.PlayerBotRoster;
 import com.aionemu.gameserver.utils.PacketSendUtility;
 import com.aionemu.gameserver.utils.ThreadPoolManager;
 
@@ -90,7 +92,44 @@ public final class AetherfallBoonService {
 
 	private static final Map<Integer,State> accounts = new ConcurrentHashMap<>();
 	private static final Map<Integer,StatOwner> owners = new ConcurrentHashMap<>();
+	private static final Map<Integer,BotChronicle> botChronicles = new ConcurrentHashMap<>();
+	private static final Map<Integer,Map<Integer,BotChronicle>> collectionSubjects = new ConcurrentHashMap<>();
 	private static volatile boolean schemaReady;
+
+	/** Only an active dedicated character's committed, individual Chronicle; never an account subject. */
+	private static final class BotChronicle {
+		final Player player;
+		final boolean dedicated;
+		final boolean gacha;
+		Set<Integer> completed;
+		volatile State state;
+		long revision, committedRevision;
+		boolean dirty, closed;
+		int passTier;
+		Instant passEnds;
+		java.util.concurrent.ScheduledFuture<?> passExpiry;
+
+		BotChronicle(Player player, boolean dedicated, boolean gacha, Set<Integer> completed) {
+			this.player = player;
+			this.dedicated = dedicated;
+			this.gacha = gacha;
+			this.completed = completed;
+			state = botState(this, completed);
+		}
+	}
+
+	/** Opaque snapshot prepared before the native progress transaction, applied only after its commit. */
+	public static final class BotChronicleCheckpoint {
+		private final BotChronicle tracker;
+		private final long revision;
+		private final Set<Integer> completed;
+
+		private BotChronicleCheckpoint(BotChronicle tracker) {
+			this.tracker = tracker;
+			revision = tracker.revision;
+			completed = botCompletedQuests(tracker.player);
+		}
+	}
 
 	private AetherfallBoonService() {}
 
@@ -112,7 +151,178 @@ public final class AetherfallBoonService {
 	}
 
 	public static void onLogout(Player p) {
+		BotChronicle tracker = botChronicles.get(p.getObjectId());
+		if (tracker != null && tracker.player == p && botChronicles.remove(p.getObjectId(), tracker)) {
+			synchronized (tracker) { tracker.closed = true; if (tracker.passExpiry != null) tracker.passExpiry.cancel(false); }
+			Map<Integer,BotChronicle> collection = collectionSubjects.get(p.getAccount().getId());
+			if (collection != null)
+				collection.remove(p.getObjectId(), tracker);
+		}
 		owners.remove(p.getObjectId());
+	}
+
+	/** Called after native load/factory checkpoint and before spawn, with the session's dedicated identity flag. */
+	public static void onBotEnterWorld(Player p, boolean dedicated) {
+		if (!p.isPlayerBot())
+			return;
+		BotChronicle known = botChronicles.get(p.getObjectId());
+		if (known != null && known.player == p)
+			return; // A world bot changing party controller keeps the same benefit owner.
+		boolean gacha = dedicated && PlayerBotCollectionRenown.loaded(p);
+		BotChronicle tracker = new BotChronicle(p, dedicated, gacha, dedicated ? botCompletedQuests(p) : Set.of());
+		BotChronicle previous = botChronicles.put(p.getObjectId(), tracker);
+		if (previous != null)
+			synchronized (previous) { previous.closed = true; if (previous.passExpiry != null) previous.passExpiry.cancel(false); }
+		if (gacha)
+			collectionSubjects.computeIfAbsent(p.getAccount().getId(), id -> new ConcurrentHashMap<>()).put(p.getObjectId(), tracker);
+		if (dedicated)
+			apply(p, tracker.state, false);
+	}
+
+	/** Native successful turn-in only: no quest scan or benefit is applied before persistence commits. */
+	public static void markBotQuestCompleted(Player p) {
+		BotChronicle tracker = botChronicles.get(p.getObjectId());
+		if (tracker == null || tracker.player != p || !tracker.dedicated)
+			return;
+		synchronized (tracker) {
+			tracker.revision++;
+			tracker.dirty = true;
+		}
+		PlayerBotCollectionRenown.markChanged(p);
+	}
+
+	public static BotChronicleCheckpoint prepareBotChronicleCheckpoint(Player p) {
+		BotChronicle tracker = botChronicles.get(p.getObjectId());
+		if (tracker == null || tracker.player != p || !tracker.dedicated)
+			return null;
+		synchronized (tracker) {
+			return tracker.closed || !tracker.dirty ? null : new BotChronicleCheckpoint(tracker);
+		}
+	}
+
+	public static void commitBotChronicleCheckpoint(BotChronicleCheckpoint checkpoint) {
+		if (checkpoint == null)
+			return;
+		BotChronicle tracker = checkpoint.tracker;
+		synchronized (tracker) {
+			if (tracker.closed || botChronicles.get(tracker.player.getObjectId()) != tracker || checkpoint.revision < tracker.committedRevision)
+				return;
+			State next = botState(tracker, checkpoint.completed);
+			boolean changed = !next.equals(tracker.state);
+			tracker.completed = checkpoint.completed;
+			tracker.state = next;
+			tracker.committedRevision = checkpoint.revision;
+			if (checkpoint.revision == tracker.revision)
+				tracker.dirty = false;
+			if (changed)
+				apply(tracker.player, next, false);
+		}
+	}
+
+	private static Set<Integer> botCompletedQuests(Player p) {
+		Set<Integer> completed = new HashSet<>();
+		for (var quest : p.getQuestStateList().getAllQuestState())
+			if (quest.getCompleteCount() > 0)
+				completed.add(quest.getQuestId());
+		return Set.copyOf(completed);
+	}
+
+	private static State botState(BotChronicle tracker, Set<Integer> completed) {
+		int chapters = chapters(completed);
+		Map<Boon,Instant> boons = new EnumMap<>(Boon.class);
+		if (chapters > 0)
+			boons.put(Boon.CHRONICLE_OF_ATREIA, Instant.MAX);
+		if (tracker.passTier > 0 && tracker.passEnds != null && Instant.now().isBefore(tracker.passEnds)) {
+			boons.put(Boon.SHUGO_TRADE_CHARTER, tracker.passEnds);
+			if (tracker.passTier > 1)
+				boons.put(Boon.GRACE_OF_THE_TOWER, tracker.passEnds);
+		}
+		var collection = tracker.gacha ? PlayerBotCollectionRenown.cached(tracker.player.getAccount().getId()) : null;
+		int combat = collection == null ? 0 : cappedFame(collection.combat()), life = collection == null ? 0 : cappedFame(collection.life()),
+			legend = collection == null ? 0 : cappedFame(collection.legend());
+		int total = cappedFame((long) combat + life + legend);
+		if (total > 0)
+			boons.put(Boon.AETHERFALL_RENOWN, Instant.MAX);
+		return new State(boons, total, chapters, combat, life, legend);
+	}
+
+	private static int cappedFame(long value) { return (int) Math.min(Integer.MAX_VALUE, Math.max(0, value)); }
+
+	/** Native personal inputs only; called once when earned progress dirties a dedicated bot's checkpoint. */
+	public record BotFame(int combat, int life, int legend) {}
+	public static BotFame botPersonalFame(Player p) {
+		int combat = p.getLevel() >= FAME_MIN_LEVEL ? levelRenown(p.getLevel()) : 0, life = 0;
+		for (int id : LIFE_SKILLS) {
+			var skill = p.getSkillList().getSkillEntry(id);
+			int level = skill == null ? 0 : skill.getSkillLevel();
+			if (level >= LIFE_MIN_SKILL)
+				life += level / 5;
+		}
+		return new BotFame(combat, life, botCompletedQuests(p).size() / QUESTS_PER_LEGEND + p.getTitleList().size() * LEGEND_PER_TITLE);
+	}
+
+	public static long collectionStipend(long combat, long life, long legend) {
+		return stipend(cappedFame(combat), COMBAT_STIPEND_CAP) + stipend(cappedFame(life), LIFE_STIPEND_CAP)
+			+ stipend(cappedFame(legend), LEGEND_STIPEND_CAP);
+	}
+
+	/** Changed aggregate only; visit this account's active ticket recruits, never the saved roster or world population. */
+	public static void collectionRenownChanged(int account) {
+		Map<Integer,BotChronicle> collection = collectionSubjects.get(account);
+		if (collection == null)
+			return;
+		for (BotChronicle tracker : collection.values())
+			synchronized (tracker) {
+				if (!tracker.closed && botChronicles.get(tracker.player.getObjectId()) == tracker) {
+					State next = botState(tracker, tracker.completed);
+					if (!next.equals(tracker.state)) { tracker.state = next; apply(tracker.player, next, false); }
+				}
+			}
+	}
+
+	/** Only the character's own loaded/committed Pass row may call this; never the account's maximum tier. */
+	public static void setBotPassBenefits(Player p, int tier, Instant seasonEnds) {
+		if (tier < 0 || tier > 2 || tier > 0 && (seasonEnds == null || seasonEnds.equals(Instant.MAX)))
+			throw new IllegalArgumentException("Invalid personal bot Pass benefit");
+		BotChronicle tracker = botChronicles.get(p.getObjectId());
+		if (tracker == null || tracker.player != p || !tracker.dedicated)
+			return;
+		synchronized (tracker) {
+			if (tracker.closed)
+				return;
+			if (tracker.passTier == tier && Objects.equals(tracker.passEnds, seasonEnds))
+				return;
+			if (tracker.passExpiry != null)
+				tracker.passExpiry.cancel(false);
+			tracker.passTier = tier;
+			tracker.passEnds = seasonEnds;
+			State next = botState(tracker, tracker.completed);
+			if (!next.equals(tracker.state)) {
+				tracker.state = next;
+				apply(p, next, false);
+			}
+			if (tier > 0 && Instant.now().isBefore(seasonEnds))
+				tracker.passExpiry = ThreadPoolManager.getInstance().schedule(() -> {
+					synchronized (tracker) {
+						if (tracker.closed || botChronicles.get(p.getObjectId()) != tracker || !Objects.equals(tracker.passEnds, seasonEnds))
+							return;
+						State expired = botState(tracker, tracker.completed);
+						tracker.state = expired;
+						apply(p, expired, false);
+					}
+				}, Math.max(1, Duration.between(Instant.now(), seasonEnds).toMillis() + 1));
+		}
+	}
+
+	/** Already cached native progress only; opening the Companions window performs no SQL or quest scan. */
+	public static Map<String,Object> botChronicleView(Player p) {
+		BotChronicle tracker = botChronicles.get(p.getObjectId());
+		if (tracker == null || tracker.player != p || !tracker.dedicated)
+			return Map.of();
+		synchronized (tracker) {
+			return Map.of("chapters", tracker.state.chapters(), "chapterGoal", STORY_CHAPTERS.length + QUEST_CHAPTERS.length,
+				"completedQuests", tracker.completed.size(), "pending", tracker.dirty);
+		}
 	}
 
 	/** Recomputes the account's boons, reapplies their stats and updates the Account tab. */
@@ -135,7 +345,7 @@ public final class AetherfallBoonService {
 		SeasonPassRules.Season season = SeasonPassService.season;
 		if (season != null && season.active(now)) {
 			long tier = lng(row(c, "SELECT COALESCE(MAX(s.tier),0) tier FROM season_pass_progress s JOIN players p ON p.id=s.player_id"
-				+ " WHERE s.season_id=? AND p.account_id=?", season.id(), account), "tier");
+				+ " WHERE s.season_id=? AND p.account_id=?" + ordinaryAccountCharacters(), season.id(), account), "tier");
 			if (tier >= 1)
 				boons.put(Boon.SHUGO_TRADE_CHARTER, season.ends());
 			if (tier >= 2)
@@ -163,12 +373,13 @@ public final class AetherfallBoonService {
 			SeasonPassRules.Season season = SeasonPassService.season;
 			boolean seasonActive = season != null && season.active(now);
 			long tier = !seasonActive ? 0 : lng(row(c, "SELECT COALESCE(MAX(s.tier),0) tier FROM season_pass_progress s JOIN players p ON p.id=s.player_id"
-				+ " WHERE s.season_id=? AND p.account_id=?", season.id(), account), "tier");
+				+ " WHERE s.season_id=? AND p.account_id=?" + ordinaryAccountCharacters(), season.id(), account), "tier");
 			Fame fame = fame(c, account);
 			Set<Integer> completed = fame.quests();
 			int maxLevel = fame.maxLevel();
 			List<Map<String,Object>> characters = new ArrayList<>();
-			for (var r : rows(c, "SELECT id,name,player_class,race,exp FROM players WHERE account_id=? ORDER BY exp DESC,name", account)) {
+			for (var r : rows(c, "SELECT p.id,p.name,p.player_class,p.race,p.exp FROM players p WHERE p.account_id=?" + ordinaryAccountCharacters()
+				+ " ORDER BY p.exp DESC,p.name", account)) {
 				int id = (int) lng(r, "id");
 				characters.add(Map.of("name", str(r, "name"), "playerClass", str(r, "player_class"), "race", str(r, "race"),
 					"level", DataManager.PLAYER_EXPERIENCE_TABLE.getLevelForExp(lng(r, "exp")), "renown", fame.characterFame().getOrDefault(id, 0),
@@ -264,7 +475,7 @@ public final class AetherfallBoonService {
 	static Fame fame(Connection c, int account) throws SQLException {
 		Map<Integer,Integer> characterFame = new HashMap<>();
 		int combat = 0, life = 0, maxLevel = 0;
-		for (var r : rows(c, "SELECT id,exp FROM players WHERE account_id=?", account)) {
+		for (var r : rows(c, "SELECT p.id,p.exp FROM players p WHERE p.account_id=?" + ordinaryAccountCharacters(), account)) {
 			int level = DataManager.PLAYER_EXPERIENCE_TABLE.getLevelForExp(lng(r, "exp"));
 			maxLevel = Math.max(maxLevel, level);
 			int points = level >= FAME_MIN_LEVEL ? levelRenown(level) : 0;
@@ -275,17 +486,23 @@ public final class AetherfallBoonService {
 		for (int id : LIFE_SKILLS)
 			skills.add(Integer.toString(id));
 		for (var r : rows(c, "SELECT s.player_id,s.skill_level FROM player_skills s JOIN players p ON p.id=s.player_id WHERE p.account_id=? AND s.skill_id IN ("
-			+ skills + ") AND s.skill_level>=?", account, LIFE_MIN_SKILL)) {
+			+ skills + ") AND s.skill_level>=?" + ordinaryAccountCharacters(), account, LIFE_MIN_SKILL)) {
 			int points = (int) lng(r, "skill_level") / 5;
 			life += points;
 			characterFame.merge((int) lng(r, "player_id"), points, Integer::sum);
 		}
 		Set<Integer> quests = new HashSet<>();
 		for (var r : rows(c, "SELECT DISTINCT q.quest_id FROM player_quests q JOIN players p ON p.id=q.player_id WHERE p.account_id=?"
-			+ " AND (q.status='COMPLETE' OR q.complete_count>0)", account))
+			+ " AND (q.status='COMPLETE' OR q.complete_count>0)" + ordinaryAccountCharacters(), account))
 			quests.add((int) lng(r, "quest_id"));
-		int titles = (int) lng(row(c, "SELECT COUNT(DISTINCT t.title_id) n FROM player_titles t JOIN players p ON p.id=t.player_id WHERE p.account_id=?", account), "n");
+		int titles = (int) lng(row(c, "SELECT COUNT(DISTINCT t.title_id) n FROM player_titles t JOIN players p ON p.id=t.player_id WHERE p.account_id=?"
+			+ ordinaryAccountCharacters(), account), "n");
 		return new Fame(combat, life, quests.size() / QUESTS_PER_LEGEND + titles * LEGEND_PER_TITLE, titles, maxLevel, quests, characterFame);
+	}
+
+	/** The roster's cached, fail-closed optional-schema authority also protects normal account subjects. */
+	private static String ordinaryAccountCharacters() {
+		return PlayerBotRoster.ordinaryCharactersClause().replace("players.id", "p.id");
 	}
 
 	/** Number of steps reached (0-5). */
@@ -311,7 +528,8 @@ public final class AetherfallBoonService {
 
 	/** Energy of Repose XP bonus in percent (Legend Fame), used by PlayerCommonData. */
 	public static int reposeBonus(Player p) {
-		State state = p == null || p.isPlayerBot() ? null : state(p);
+		BotChronicle tracker = p == null ? null : botChronicles.get(p.getObjectId());
+		State state = p == null || p.isPlayerBot() && (tracker == null || tracker.player != p || !tracker.gacha) ? null : state(p);
 		return state == null ? BASE_REPOSE : Math.max(BASE_REPOSE, ladder(state.legend(), LEGEND_STEPS, LEGEND_REPOSE));
 	}
 
@@ -459,6 +677,10 @@ public final class AetherfallBoonService {
 	}
 
 	public static State state(Player p) {
+		if (p.isPlayerBot()) {
+			BotChronicle tracker = botChronicles.get(p.getObjectId());
+			return tracker == null || tracker.player != p ? null : tracker.dedicated ? tracker.state : accounts.get(p.getAccount().getId());
+		}
 		return accounts.get(p.getAccount().getId());
 	}
 
@@ -469,7 +691,9 @@ public final class AetherfallBoonService {
 
 	/** Share of a Central Market sale returned to the seller, in basis points. */
 	public static int marketReturn(Player p) {
-		int bp = p.getAccount().getMembership() > 0 || has(p, Boon.SHUGO_TRADE_CHARTER) ? 8450 : 6500;
+		BotChronicle tracker = p.isPlayerBot() ? botChronicles.get(p.getObjectId()) : null;
+		boolean accountMembership = !p.isPlayerBot() || tracker != null && tracker.player == p && !tracker.dedicated;
+		int bp = accountMembership && p.getAccount().getMembership() > 0 || has(p, Boon.SHUGO_TRADE_CHARTER) ? 8450 : 6500;
 		State state = state(p);
 		return state != null && state.renown() >= RENOWN_MARKET ? bp + MARKET_BONUS_BP : bp;
 	}

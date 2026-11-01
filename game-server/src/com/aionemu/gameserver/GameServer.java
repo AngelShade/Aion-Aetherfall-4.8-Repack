@@ -179,6 +179,10 @@ public class GameServer {
 		PvpMapService.getInstance().init();
 		CustomInstanceService.getInstance();
 		DataManager.waitForValidationToFinishAndShutdownOnFail();
+		com.aionemu.gameserver.services.playerbot.PlayerBotTickets.initialize();
+		try { com.aionemu.gameserver.services.playerbot.PlayerBotCollectionRenown.initialize(); }
+		catch (java.sql.SQLException error) { throw new IllegalStateException("Cannot initialize companion collection progression", error); }
+		com.aionemu.gameserver.services.playerbot.PlayerBotHiring.initialize();
 		MarketplaceService.start();
 
 		System.gc();

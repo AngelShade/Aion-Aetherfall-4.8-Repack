@@ -146,6 +146,7 @@ public class AnguishedDragonLordsRefugeInstance extends DragonLordsRefugeInstanc
 
 	@Override
 	public void onDie(Npc npc) {
+        if (npc.getNpcId()==236277) completeRun(npc);
 		super.onDie(npc);
 		switch (npc.getNpcId()) {
 			case 236274: // Calindi Flamelord

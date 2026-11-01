@@ -44,8 +44,7 @@ public final class SeasonPassHttpService {
 			if(p==null || !p.isOnline()) { send(x,403,"application/json","{\"error\":\"Log in and reopen Season Pass from Additional Functions.\"}"); return; }
 			String notice="";
 			if(action) {
-				String origin=x.getRequestHeaders().getFirst("Origin"), host=x.getRequestHeaders().getFirst("Host");
-				if(origin!=null && !matchesOriginHost(origin,host)) throw new IllegalArgumentException("Reopen the pass to continue.");
+				if(!WebUiConnection.sameOrigin(x)) throw new IllegalArgumentException("Reopen the pass to continue.");
 				Form form=FORMS.get(args.getOrDefault("request",""));
 				if(form==null || form.player()!=p || form.connection()!=p.getClientConnection() || form.expires()<System.currentTimeMillis()) {
 					send(x,403,"application/json","{\"error\":\"This selection expired. Refresh the pass.\"}"); return;

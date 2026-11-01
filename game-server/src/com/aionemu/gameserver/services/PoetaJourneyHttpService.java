@@ -37,9 +37,9 @@ public final class PoetaJourneyHttpService {
 			x.getResponseHeaders().set("X-Content-Type-Options","nosniff");
 			x.getResponseHeaders().set("Referrer-Policy","no-referrer");
 			String path = x.getRequestURI().getPath(), method = x.getRequestMethod();
-			if (method.equals("GET") && (path.equals("/journey") || path.matches("/journey/media/(journey\\.(html|css|js)|(poeta|sanctum|ishalgen|pandaemonium)\\.jpg)"))) {
+			if (method.equals("GET") && (path.equals("/journey") || path.matches("/journey/media/(journey\\.(html|css|js)|(poeta|sanctum|ishalgen|pandaemonium|journey-party|journey-backdrop)\\.jpg|(journey-emblems|path-veil)\\.png)"))) {
 				String file = path.equals("/journey") ? "journey.html" : path.substring(path.lastIndexOf('/')+1);
-				send(x,200,file.endsWith(".jpg") ? "image/jpeg" : file.endsWith(".css") ? "text/css" : file.endsWith(".js") ? "application/javascript" : "text/html",file.endsWith(".css") ? WindowTextScale.css(Files.readAllBytes(MEDIA.resolve(file))) : Files.readAllBytes(MEDIA.resolve(file))); return;
+				send(x,200,file.endsWith(".jpg") ? "image/jpeg" : file.endsWith(".png") ? "image/png" : file.endsWith(".css") ? "text/css" : file.endsWith(".js") ? "application/javascript" : "text/html",file.endsWith(".css") ? WindowTextScale.css(Files.readAllBytes(MEDIA.resolve(file))) : Files.readAllBytes(MEDIA.resolve(file))); return;
 			}
 			boolean action = path.equals("/journey/action");
 			if (!action && !path.equals("/journey/state")) { json(x,404,Map.of("error","Not found.")); return; }
@@ -51,8 +51,7 @@ public final class PoetaJourneyHttpService {
 			if (p == null || !p.isOnline()) { json(x,403,Map.of("error","Log in to choose your journey.")); return; }
 			String notice = "";
 			if (action) {
-				String origin = x.getRequestHeaders().getFirst("Origin"), expected = "http://"+host;
-				if (origin != null && !origin.equals(expected)) throw new IllegalArgumentException("Reopen Choose Your Journey.");
+				if (!WebUiConnection.sameOrigin(x)) throw new IllegalArgumentException("Reopen Choose Your Journey.");
 				Form form = forms.remove(args.getOrDefault("request",""));
 				if (form == null || form.player() != p || form.connection() != p.getClientConnection() || form.expires() < System.currentTimeMillis()) {
 					json(x,403,Map.of("error","The choice expired. Reopen Choose Your Journey.")); return;

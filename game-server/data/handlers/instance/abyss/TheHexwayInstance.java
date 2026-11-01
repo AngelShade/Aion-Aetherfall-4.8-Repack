@@ -167,6 +167,7 @@ public class TheHexwayInstance extends GeneralInstanceHandler {
 						}
 						// spawn bonus loot chest if all 6 boss npc are killed in the given time limits
 						if (killedBossCount.incrementAndGet() == 6 && attackedBossCount.get() == 6) {
+                            completeRun(npc);
 							if (bonusChestSpawnAllowed.compareAndSet(true, false)) {
 								if (disableBonusChestSpawnTask != null && !disableBonusChestSpawnTask.isDone())
 									disableBonusChestSpawnTask.cancel(true);

@@ -20,17 +20,24 @@ import com.aionemu.gameserver.services.playerbot.PlayerBotRules.Role;
 
 /** Only dedicated roster characters can enter the automatic maintenance path. */
 public final class PlayerBotTemporary {
- private static final class State {int level=-1,tier=-1;Role role;String build;long next;final Set<Integer> created=new HashSet<>();}
+ private static final class State {int level=-1;Role role;String build;long next;final Set<Integer> created=new HashSet<>();}
  private static final Map<Integer,State> STATES=new ConcurrentHashMap<>();
  private static final ThreadLocal<Integer> BUILDING=new ThreadLocal<>();
- private static final List<ItemSlot> GEAR=List.of(ItemSlot.MAIN_HAND,ItemSlot.SUB_HAND,ItemSlot.TORSO,ItemSlot.SHOULDER,ItemSlot.GLOVES,ItemSlot.PANTS,ItemSlot.BOOTS,ItemSlot.HELMET,ItemSlot.NECKLACE,ItemSlot.WAIST,ItemSlot.EARRINGS_LEFT,ItemSlot.EARRINGS_RIGHT,ItemSlot.RING_LEFT,ItemSlot.RING_RIGHT);
+ static final List<ItemSlot> GEAR=List.of(ItemSlot.MAIN_HAND,ItemSlot.SUB_HAND,ItemSlot.TORSO,ItemSlot.SHOULDER,ItemSlot.GLOVES,ItemSlot.PANTS,ItemSlot.BOOTS,ItemSlot.HELMET,ItemSlot.NECKLACE,ItemSlot.WAIST,ItemSlot.EARRINGS_LEFT,ItemSlot.EARRINGS_RIGHT,ItemSlot.RING_LEFT,ItemSlot.RING_RIGHT);
  public static boolean managed(Player player){return player.isPlayerBot() && STATES.containsKey(player.getObjectId());}
  public static boolean building(Player player){return managed(player) && Objects.equals(BUILDING.get(),player.getObjectId());}
  public static int regularSlots(int level){return level<20 ? 0 : level<30 ? 1 : level<40 ? 2 : 3;}
  public static int advancedSlots(int level){return level<45 ? 0 : level<50 ? 1 : level<55 ? 2 : 3;}
  public static int tier(int level){return level<20 ? 0 : level/10*10;}
  public static ItemQuality quality(int level){return level<20 ? ItemQuality.RARE : level<30 ? ItemQuality.LEGEND : level<40 ? ItemQuality.UNIQUE : level<60 ? ItemQuality.EPIC : ItemQuality.MYTHIC;}
- public static String description(Player player){return "Temporary Bot · "+player.getPlayerClass()+" · "+quality(player.getLevel())+" tier "+tier(player.getLevel());}
+ /** Catch-up never exceeds the bot's permanent rarity. Earned or gifted gear above it stays. */
+ private static ItemQuality ceiling(Player player){
+  var level=quality(player.getLevel());var rarity=PlayerBotGrowth.rarity(player);
+  if(rarity==null)return level;
+  var cap=switch(rarity){case POOR->ItemQuality.COMMON;case ORDINARY->ItemQuality.RARE;case GOOD->ItemQuality.LEGEND;case GREAT->ItemQuality.UNIQUE;case EXCELLENT->ItemQuality.MYTHIC;};
+  return cap.getQualityId()<level.getQualityId()?cap:level;
+ }
+ public static String description(Player player){return (PlayerBotGrowth.rarity(player)==null ? "Temporary Bot" : "Ticket Recruit")+" · "+player.getPlayerClass()+" · "+ceiling(player)+" tier "+tier(player.getLevel());}
  public static void initialize(Player player,Role role){
   if(!player.isPlayerBot() || !PlayerBotRoster.contains(player.getObjectId()))throw new IllegalArgumentException("Automatic builds require a dedicated Temporary Bot, never an owned alt.");
   build(player,role,true);
@@ -57,7 +64,7 @@ public final class PlayerBotTemporary {
    player.getLifeStats().updateCurrentStats();
    player.getLifeStats().setCurrentHp((int)Math.round(player.getLifeStats().getMaxHp()*hp));
    player.getLifeStats().setCurrentMp((int)Math.round(player.getLifeStats().getMaxMp()*mp));
-   state.level=player.getLevel();state.tier=tier(player.getLevel());state.role=role;
+   state.level=player.getLevel();state.role=role;
   }finally{BUILDING.remove();}
  }
  private static void learn(Player player){
@@ -75,19 +82,21 @@ public final class PlayerBotTemporary {
   allowed.forEach((id,level)->player.getSkillList().addSkill(player,id,level));
  }
  private static Role gearRole(Player player,Role requested){return PlayerBotGearPolicy.role(player,requested);}
+ static ItemGroup preferredWeapon(PlayerClass pc,Role role){return role==Role.TANK && Set.of(PlayerClass.WARRIOR,PlayerClass.GLADIATOR,PlayerClass.TEMPLAR).contains(pc) ? ItemGroup.SWORD : PlayerBotGenerated.weapon(pc);}
+ static boolean offHandShield(PlayerClass pc,Role role){return role==Role.TANK || pc==PlayerClass.CLERIC || pc==PlayerClass.PRIEST;}
  private static ItemTemplate choice(Player player,Role role,ItemSlot slot){
   ItemTemplate best=null;double score=-Double.MAX_VALUE;
   String weapon=PlayerBotGearPolicy.settings(player).weapon();
-  var settings=new PlayerBotGearPolicy.Settings(PlayerBotGearPolicy.Mode.GENERATED,PlayerBotGearPolicy.Profile.AUTO,quality(player.getLevel()),0,1,weapon,false,PlayerBotGearPolicy.Rolls.UPGRADES);
-  ItemGroup preferred=role==Role.TANK && Set.of(PlayerClass.WARRIOR,PlayerClass.GLADIATOR,PlayerClass.TEMPLAR).contains(player.getPlayerClass()) ? ItemGroup.SWORD : PlayerBotGenerated.weapon(player.getPlayerClass());
-  for(var template:DataManager.ITEM_DATA.getItemTemplates()) {
+  var settings=new PlayerBotGearPolicy.Settings(PlayerBotGearPolicy.Mode.GENERATED,PlayerBotGearPolicy.Profile.AUTO,ceiling(player),0,1,weapon,false,PlayerBotGearPolicy.Rolls.UPGRADES);
+  ItemGroup preferred=preferredWeapon(player.getPlayerClass(),role);
+  for(var template:PlayerBotCatchUpPool.forClass(player.getPlayerClass())) {
    if(!PlayerBotGearPolicy.generatedTemplate(player,template,settings,player.getLevel()))continue;
    if(template.isWeapon() && weapon.equals("AUTO") && template.getItemGroup()!=preferred)continue;
    long target=slot.getSlotIdMask();
    if(slot==ItemSlot.MAIN_HAND){if(!template.isWeapon())continue;}
    else if(slot==ItemSlot.SUB_HAND){
     var main=player.getEquipment().getMainHandWeapon();if(main!=null && main.getItemTemplate().isTwoHandWeapon())continue;
-    boolean shield=role==Role.TANK || player.getPlayerClass()==PlayerClass.CLERIC || player.getPlayerClass()==PlayerClass.PRIEST;
+    boolean shield=offHandShield(player.getPlayerClass(),role);
     if(shield ? template.getItemGroup()!=ItemGroup.SHIELD : !template.isOneHandWeapon() || !com.aionemu.gameserver.skillengine.effect.WeaponDualEffect.hasDualWieldEffect(player))continue;
    }else if(template.isWeapon() || (template.getItemSlot() & target)==0 || Long.bitCount(template.getItemSlot())>1 && template.getItemGroup()!=ItemGroup.EARRING && template.getItemGroup()!=ItemGroup.RING)continue;
    double value=PlayerBotGearPolicy.score(player,template,role);
@@ -98,12 +107,26 @@ public final class PlayerBotTemporary {
  }
  private static void gear(Player player,Role requested,State state){
   Role role=gearRole(player,requested);
+  PlayerBotGearPolicy.saved(player); // the level may have just changed; read the stage's items fresh
   for(var slot:GEAR) {
+   // Use the same owned-item policy as ordinary equipment work before creating catch-up.
+   // Unbound items retain the existing asynchronous native binding action owner.
+   var owned=PlayerBotGearPolicy.upgrades(player,role).stream().filter(u->u.slot()==slot.getSlotIdMask()
+    || slot==ItemSlot.MAIN_HAND && u.slot()==ItemSlot.MAIN_OR_SUB.getSlotIdMask()).findFirst().orElse(null);
+   if(owned!=null) {
+    if(owned.item().getItemTemplate().isSoulBound() && !owned.item().isSoulBound())continue;
+    if(player.getEquipment().equipItem(owned.item().getObjectId(),owned.slot())==null)continue;
+   }
    ItemTemplate selected=choice(player,role,slot);if(selected==null)continue;
    long mask=selected.isTwoHandWeapon() ? ItemSlot.MAIN_OR_SUB.getSlotIdMask() : slot.getSlotIdMask();
+   // A slot held by a preset's saved item takes no catch-up replacement.
+   if((PlayerBotGearPolicy.pinned(player) & mask)!=0)continue;
    List<Item> current=player.getEquipment().getEquippedItems().stream().filter(i->(i.getEquipmentSlot() & mask)!=0).toList();
-   boolean valid=!current.isEmpty() && current.stream().allMatch(i->PlayerBotGearPolicy.eligible(player,i.getItemTemplate()) && (!i.getItemTemplate().isWeapon() || PlayerBotBuildRules.weaponAllowed(i.getItemTemplate().getItemGroup(),player.getPlayerClass(),role)));
-   if(valid && current.stream().allMatch(i->i.getItemTemplate().getItemQuality().getQualityId()>=selected.getItemQuality().getQualityId()) && current.stream().mapToDouble(i->PlayerBotGearPolicy.score(player,i,role)).sum()>=PlayerBotGearPolicy.score(player,selected,role))continue;
+   // A chosen build's weapon replaces a held one its stones cannot use; the old weapon stays in the inventory.
+   var build=PlayerBotGearPolicy.stigmaBuild(player);String needed=build==null || !PlayerBotGearPolicy.settings(player).weapon().equals(build.weapon()) ? null : build.weapon();
+   boolean valid=!current.isEmpty() && current.stream().allMatch(i->PlayerBotGearPolicy.eligible(player,i.getItemTemplate()) && (!i.getItemTemplate().isWeapon() || PlayerBotBuildRules.weaponAllowed(i.getItemTemplate().getItemGroup(),player.getPlayerClass(),role) && (needed==null || i.getItemTemplate().getItemGroup().name().equals(needed))));
+   // Actual role value includes enchantments, sockets and fusion; item color cannot override it.
+   if(valid && current.stream().mapToDouble(i->PlayerBotGearPolicy.score(player,i,role)).sum()>=PlayerBotGearPolicy.score(player,selected,role))continue;
    if(player.getInventory().isFull())return;
    Item item=player.getInventory().getItems().stream().filter(i->i.getItemId()==selected.getTemplateId() && i.isIdentified()).findFirst().orElse(null);
    if(item==null){item=ItemFactory.newItem(selected.getTemplateId(),1);if(item==null)throw new IllegalStateException("Missing Temporary gear template: "+selected.getTemplateId());
@@ -111,7 +134,7 @@ public final class PlayerBotTemporary {
     if(!item.isIdentified()){item.setOptionalSockets(com.aionemu.commons.utils.Rnd.get(0,selected.getOptionSlotBonus()));item.setBonusStats(com.aionemu.gameserver.model.templates.item.actions.TuningAction.getRandomStatBonusIdFor(item),true);item.setEnchantBonus(com.aionemu.commons.utils.Rnd.get(0,selected.getMaxEnchantBonus()));item.setTuneCount(item.getTuneCount()+1);}
     item.setSoulBound(true);state.created.add(item.getObjectId());player.getInventory().onLoadHandler(item);}
    if(player.getEquipment().equipItem(item.getObjectId(),mask)==null)throw new IllegalStateException("Native Temporary Bot equip rejected: "+selected.getTemplateId()+" slot="+slot);
-   for(var old:current)if(!old.isEquipped() && state.created.contains(old.getObjectId()) && !PlayerBotCombatGear.skinOnly(old.getItemTemplate())){player.getInventory().decreaseByObjectId(old.getObjectId(),old.getItemCount(),com.aionemu.gameserver.services.item.ItemPacketService.ItemUpdateType.DEC_ITEM_USE);state.created.remove(old.getObjectId());}
+   for(var old:current)if(!old.isEquipped() && state.created.contains(old.getObjectId()) && !PlayerBotCombatGear.skinOnly(old.getItemTemplate()) && !PlayerBotGearPolicy.referenced(player,old)){player.getInventory().decreaseByObjectId(old.getObjectId(),old.getItemCount(),com.aionemu.gameserver.services.item.ItemPacketService.ItemUpdateType.DEC_ITEM_USE);state.created.remove(old.getObjectId());}
   }
  }
  private static double stigmaScore(Player player,Role role,ItemTemplate item){
@@ -131,20 +154,26 @@ public final class PlayerBotTemporary {
   }
   return result;
  }
- private static void stigmas(Player player,Role role,State state){
+ /** The stone for each open slot at the bot's level. */
+ static Map<Long,ItemTemplate> stigmaPlan(Player player,Role role,PlayerBotStigmaBuilds.Build build){
   List<ItemSlot> slots=new ArrayList<>();slots.addAll(List.of(ItemSlot.STIGMA1,ItemSlot.STIGMA2,ItemSlot.STIGMA3).subList(0,regularSlots(player.getLevel())));slots.addAll(List.of(ItemSlot.ADV_STIGMA1,ItemSlot.ADV_STIGMA2,ItemSlot.ADV_STIGMA3).subList(0,advancedSlots(player.getLevel())));
   // A chosen build's Stigmas come first, in its order; remaining slots use the automatic role scoring.
-  var build=PlayerBotGearPolicy.stigmaBuild(player);state.build=build==null ? null : build.key();
+  // Stones already held are kept and reused; a build's stone is only created when the bot holds none of that skill.
+  Set<Integer> held=new HashSet<>();player.getInventory().getItems().forEach(i->held.add(i.getItemId()));player.getEquipment().getEquippedItemsAllStigma().forEach(i->held.add(i.getItemId()));
   Set<String> used=new HashSet<>();var choices=DataManager.ITEM_DATA.getItemTemplates().stream().filter(t->t.isStigma() && !t.isTestItem() && t.getStigma().isChargeable() && t.isClassSpecific(player.getPlayerClass()) && t.getRequiredLevel(player.getPlayerClass())>=0 && t.getRequiredLevel(player.getPlayerClass())<=player.getLevel() && (t.getRace()==Race.PC_ALL || t.getRace()==player.getRace()) && (stigmaScore(player,role,t)>0 || PlayerBotStigmaBuilds.priority(build,t)!=Integer.MAX_VALUE))
-   .sorted(Comparator.<ItemTemplate>comparingInt(t->PlayerBotStigmaBuilds.priority(build,t)).thenComparing(Comparator.<ItemTemplate>comparingDouble(t->stigmaScore(player,role,t)).reversed()).thenComparingInt(ItemTemplate::getTemplateId)).toList();
+   .sorted(Comparator.<ItemTemplate>comparingInt(t->PlayerBotStigmaBuilds.priority(build,t)).thenComparingInt(t->PlayerBotStigmaBuilds.priority(build,t)==Integer.MAX_VALUE || held.contains(t.getTemplateId()) ? 0 : 1).thenComparing(Comparator.<ItemTemplate>comparingDouble(t->stigmaScore(player,role,t)).reversed()).thenComparingInt(ItemTemplate::getTemplateId)).toList();
   Map<Long,ItemTemplate> plan=new LinkedHashMap<>();
   for(var slot:slots)for(var t:choices)if((t.getItemSlot() & slot.getSlotIdMask())!=0 && Arrays.stream(t.getStigma().getGainSkillGroups()).noneMatch(used::contains)){plan.put(slot.getSlotIdMask(),t);used.addAll(Arrays.asList(t.getStigma().getGainSkillGroups()));break;}
+  return plan;
+ }
+ private static void stigmas(Player player,Role role,State state){
+  var build=PlayerBotGearPolicy.stigmaBuild(player);state.build=build==null ? null : build.key();
+  var plan=stigmaPlan(player,role,build);
   for(var old:List.copyOf(player.getEquipment().getEquippedItemsAllStigma())){var expected=plan.get(old.getEquipmentSlot());if(expected==null || expected.getTemplateId()!=old.getItemId())player.getEquipment().unEquipItem(old.getObjectId(),false);}
   for(var entry:plan.entrySet()) {
    if(player.getEquipment().getEquippedItemsAllStigma().stream().anyMatch(i->i.getEquipmentSlot()==entry.getKey() && i.getItemId()==entry.getValue().getTemplateId()))continue;
-   if(player.getInventory().isFull())break;
-   Item item=player.getInventory().getItems().stream().filter(i->i.getItemId()==entry.getValue().getTemplateId()).findFirst().orElse(null);
-   if(item==null){item=ItemFactory.newItem(entry.getValue().getTemplateId(),1);if(item==null)throw new IllegalStateException("Missing Stigma template");state.created.add(item.getObjectId());player.getInventory().onLoadHandler(item);}
+   Item item=player.getInventory().getItems().stream().filter(i->i.getItemId()==entry.getValue().getTemplateId()).max(Comparator.comparingInt(Item::getEnchantLevel).thenComparingInt(Item::getChargePoints)).orElse(null);
+   if(item==null){if(player.getInventory().isFull())break;item=ItemFactory.newItem(entry.getValue().getTemplateId(),1);if(item==null)throw new IllegalStateException("Missing Stigma template");state.created.add(item.getObjectId());player.getInventory().onLoadHandler(item);}
    if(player.getEquipment().equipItem(item.getObjectId(),entry.getKey())==null)throw new IllegalStateException("Native Temporary Stigma equip rejected: "+item.getItemId());
   }
   StigmaService.onPlayerLogin(player);
@@ -153,15 +182,16 @@ public final class PlayerBotTemporary {
   if(!session.generated())return;
   Player bot=session.bot(),owner=session.owner();State state=STATES.computeIfAbsent(bot.getObjectId(),id->new State());long now=System.currentTimeMillis();if(now<state.next)return;state.next=now+2000;
   if(bot.isDead() || owner.isDead() || bot.isCasting() || bot.isLooting() || bot.getController().isInCombat() || owner.getController().isInCombat())return;
-  int level=Math.min(65,Math.max(1,owner.getLevel()));var build=PlayerBotGearPolicy.stigmaBuild(bot);boolean changed=state.level!=level || bot.getLevel()!=level || state.role!=session.combatRole() || !Objects.equals(state.build,build==null ? null : build.key());boolean updateGear=gear && (state.tier!=tier(level) || state.role!=session.combatRole());
+  PlayerBotLoadouts.refresh(session);
+  int level=Math.min(65,Math.max(1,owner.getLevel()));var build=PlayerBotGearPolicy.stigmaBuild(bot);boolean changed=state.level!=level || bot.getLevel()!=level || state.role!=session.combatRole() || !Objects.equals(state.build,build==null ? null : build.key());boolean updateGear=gear && (state.level!=level || state.role!=session.combatRole() || !Objects.equals(state.build,build==null ? null : build.key()));
   if(!changed && !updateGear)return;
-  if(bot.getPlayerClass().isStartingClass() && level>=10){bot.getCommonData().setPlayerClass(switch(bot.getPlayerClass()){case WARRIOR->session.combatRole()==Role.TANK ? PlayerClass.TEMPLAR : PlayerClass.GLADIATOR;case SCOUT->session.combatRole()==Role.RANGED ? PlayerClass.RANGER : PlayerClass.ASSASSIN;case MAGE->PlayerClass.SORCERER;case PRIEST->session.combatRole()==Role.SUPPORT ? PlayerClass.CHANTER : PlayerClass.CLERIC;case ENGINEER->session.combatRole()==Role.TANK || session.combatRole()==Role.MELEE ? PlayerClass.RIDER : PlayerClass.GUNNER;case ARTIST->PlayerClass.BARD;default->bot.getPlayerClass();});bot.getCommonData().setDaeva(true);updateGear=gear;}
+  if(bot.getPlayerClass().isStartingClass() && level>=10){var rolled=PlayerBotRecruitment.rolledClass(bot);bot.getCommonData().setPlayerClass(rolled!=null ? rolled : switch(bot.getPlayerClass()){case WARRIOR->session.combatRole()==Role.TANK ? PlayerClass.TEMPLAR : PlayerClass.GLADIATOR;case SCOUT->session.combatRole()==Role.RANGED ? PlayerClass.RANGER : PlayerClass.ASSASSIN;case MAGE->PlayerClass.SORCERER;case PRIEST->session.combatRole()==Role.SUPPORT ? PlayerClass.CHANTER : PlayerClass.CLERIC;case ENGINEER->session.combatRole()==Role.TANK || session.combatRole()==Role.MELEE ? PlayerClass.RIDER : PlayerClass.GUNNER;case ARTIST->PlayerClass.BARD;default->bot.getPlayerClass();});bot.getCommonData().setDaeva(true);updateGear=gear;}
   double hp=bot.getLifeStats().getCurrentHp()/(double)Math.max(1,bot.getLifeStats().getMaxHp()),mp=bot.getLifeStats().getCurrentMp()/(double)Math.max(1,bot.getLifeStats().getMaxMp());
   if(bot.getLevel()!=level){bot.getCommonData().setLevel(level);bot.getGameStats().updateStatsTemplate();bot.getLifeStats().setCurrentHp((int)Math.round(bot.getLifeStats().getMaxHp()*hp));bot.getLifeStats().setCurrentMp((int)Math.round(bot.getLifeStats().getMaxMp()*mp));}
   state.created.addAll(PlayerBotGearPolicy.state(session).generated);
   build(bot,session.combatRole(),updateGear);
-  var policy=PlayerBotGearPolicy.state(session);policy.generated.clear();policy.generated.addAll(state.created);policy.save();
-  PlayerBotQuestSync.notice(bot,"Temporary Bot maintained: level "+bot.getLevel()+", "+session.combatRole()+", gear tier "+tier(level)+" (quality ceiling "+quality(level)+"); native skills and Stigmas updated.","temporary-build",10000);
+  var policy=PlayerBotGearPolicy.state(session);policy.generated.clear();policy.generated.addAll(state.created);policy.nextGoals=0;policy.save();
+  PlayerBotQuestSync.notice(bot,"Temporary Bot maintained: level "+bot.getLevel()+", "+session.combatRole()+", catch-up gear up to "+ceiling(bot)+"; native skills and Stigmas updated.","temporary-build",10000);
  }
  static void close(PlayerBotSession session){STATES.remove(session.bot().getObjectId());}
  static void release(Player player){STATES.remove(player.getObjectId());}
@@ -186,7 +216,7 @@ public final class PlayerBotTemporary {
     if(item.isEquipped())throw new IllegalStateException("Population reset could not unequip native item "+item.getObjectId());
     player.getInventory().delete(item);
    }
-   for(String section:List.of("quest-completion","party-rewards")) {
+   for(String section:List.of("quest-completion","party-rewards","quest-practice")) {
     PlayerBotMetadata.load(player.getAccount().getId(),player.getObjectId(),section,null);
     var cleared=new Properties();cleared.setProperty("account",Integer.toString(player.getAccount().getId()));cleared.setProperty("character",Integer.toString(player.getObjectId()));
     PlayerBotMetadata.save(player.getAccount().getId(),player.getObjectId(),section,cleared);

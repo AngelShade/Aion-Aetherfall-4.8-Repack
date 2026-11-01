@@ -185,6 +185,8 @@ public class StonespearReachInstance extends GeneralInstanceHandler {
 				break;
 			case 855843: // guardian general
 				addPoints(npc, 42000);
+				if (!reward.isRewarded())
+					completeRun(npc);
 				checkRank(reward.getPoints(), true);
 				break;
 			// guardian stone

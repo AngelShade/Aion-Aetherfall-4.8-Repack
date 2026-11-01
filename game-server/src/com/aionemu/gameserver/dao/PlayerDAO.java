@@ -85,8 +85,15 @@ public class PlayerDAO {
 	}
 
 	public static boolean saveNewPlayer(Player player, int accountId, String accountName) {
-		try (Connection con = DatabaseFactory.getConnection();
-				 PreparedStatement stmt = con.prepareStatement(
+		try (Connection con = DatabaseFactory.getConnection()) {
+			saveNewPlayer(con,player,accountId,accountName);
+		} catch (Exception e) { log.error("Error saving new {}",player,e);return false; }
+		return true;
+	}
+
+	/** Native creation INSERT on the caller's transaction (paid companion checkpoint). */
+	public static void saveNewPlayer(Connection con,Player player,int accountId,String accountName)throws SQLException {
+		try (PreparedStatement stmt = con.prepareStatement(
 					 "INSERT INTO players(id, `name`, account_id, account_name, x, y, z, heading, world_id, gender, race, player_class , quest_expands, npc_expands, item_expands, wh_npc_expands, wh_bonus_expands, online) "
 						 + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)")) {
 			stmt.setInt(1, player.getObjectId());
@@ -107,11 +114,7 @@ public class PlayerDAO {
 			stmt.setInt(16, player.getWhNpcExpands());
 			stmt.setInt(17, player.getWhBonusExpands());
 			stmt.execute();
-		} catch (Exception e) {
-			log.error("Error saving new {}", player, e);
-			return false;
 		}
-		return true;
 	}
 
 	public static PlayerCommonData loadPlayerCommonDataByName(String name) {

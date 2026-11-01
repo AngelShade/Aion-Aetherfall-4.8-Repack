@@ -241,6 +241,7 @@ public class NpcController extends CreatureController<Npc> {
 						QuestEngine.getInstance().onKill(new QuestEnv(getOwner(), player, 0));
 					EventService.getInstance().onPveKill(player, getOwner());
 					com.aionemu.gameserver.services.SeasonPassService.onNpcKill(player, getOwner());
+					com.aionemu.gameserver.services.playerbot.PlayerBotGrowth.learnKill(player, getOwner());
 					player.getCommonData().addExp(rewardXp, Rates.XP_HUNTING, getOwner().getObjectTemplate().getL10n());
 					player.getCommonData().addDp(rewardDp);
 					if (getOwner().getAi().ask(AIQuestion.REWARD_AP)) {

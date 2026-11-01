@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Player Companions</title>
-  <link rel="stylesheet" href="/market/companions/media/bots.css?v=window-6-roster">
+  <link rel="stylesheet" href="/market/companions/media/bots.css?v=playerbots-recruitment-20261101a">
 </head>
 <body>
 <header id="top">
-  <img class="top-art" src="/market/account/media/ascendant-dawn.png" alt=""><div class="top-shade"></div>
+  <img class="top-art" src="/market/companions/media/cards/castle-background.png?v=1" alt=""><div class="top-shade"></div>
   <div class="brand"><span class="mark">&#10022;</span>AETHERFALL</div><span class="title">COMPANIONS</span>
   <div class="header-tools"><button id="refresh" type="button" class="quiet" title="Refresh companion data">&#8635; Refresh</button><button id="keyboard-help" type="button" class="quiet" aria-controls="keyboard-panel" aria-expanded="false" title="Keyboard controls">Keys <kbd>?</kbd></button></div>
   <div class="who"><span id="owner-label">Connecting&hellip;</span><b>COMMANDER</b></div>
@@ -16,8 +16,9 @@
 <nav id="main-tabs" class="sections" aria-label="Companion sections" role="tablist">
   <button id="tab-party" data-view="party" role="tab" aria-controls="view-party" aria-selected="true" class="selected" type="button"><span class="glyph" aria-hidden="true">&#10022;</span><span class="nav-title" id="team-label">Party</span><span id="count" class="nav-count">0 / 0</span><span class="nav-caption">Orders, gear and settings</span></button>
   <button id="tab-roster" data-view="roster" role="tab" aria-controls="view-roster" aria-selected="false" type="button"><span class="glyph" aria-hidden="true">&#9671;</span><span class="nav-title">Roster</span><span id="roster-count" class="nav-count">0</span><span class="nav-caption">Recruit and saved parties</span></button>
-  <button id="tab-create" data-view="create" role="tab" aria-controls="view-create" aria-selected="false" type="button"><span class="glyph" aria-hidden="true">&#10010;</span><span class="nav-title">Create</span><span class="nav-caption">A new companion</span></button>
+  <button id="tab-create" data-view="create" role="tab" aria-controls="view-create" aria-selected="false" type="button"><span class="glyph" aria-hidden="true">&#10010;</span><span class="nav-title">Create</span><span class="nav-caption">New recruits</span></button>
   <button id="tab-quests" data-view="quests" role="tab" aria-controls="view-quests" aria-selected="false" type="button"><span class="glyph" aria-hidden="true">&#9733;</span><span class="nav-title">Party quests</span><span id="question-count" class="nav-count"></span><span class="nav-caption">Progress and requests</span></button>
+  <button id="open-summon" class="rail-summon primary" type="button" data-local-control="true" style="display:none">Recruit with Ticket</button>
   <div class="glance"><p class="glance-title">AT A GLANCE</p><div id="party-metrics" aria-label="Party at a glance"></div></div>
   <img class="rail-crest" src="/market/account/media/aether-crest.png" alt="">
 </nav>
@@ -39,11 +40,12 @@
   </div>
 </section>
 <section id="view-roster" class="main-view scroll" role="tabpanel" aria-labelledby="tab-roster" style="display:none">
-  <div class="heading"><span class="ornament">&#9671;</span><h2>Companion roster</h2><p>Recruit a saved companion or a whole saved party.</p><button id="roster-create" type="button" class="primary">+ Create companion</button></div>
+  <div class="heading collection-heading"><span class="ornament">&#9671;</span><h2>Companion Collection</h2><p>Click a portrait to flip its card for details and actions.</p><button id="roster-create" type="button" class="primary">+ Create companion</button></div>
   <nav id="roster-subtabs" class="tabs subtabs" aria-label="Roster sections" role="tablist"><button id="roster-tab-characters" data-roster-view="characters" type="button" role="tab" aria-controls="roster-characters" aria-selected="true" class="selected">Companions</button><button id="roster-tab-presets" data-roster-view="presets" type="button" role="tab" aria-controls="roster-presets" aria-selected="false">Saved parties</button></nav>
   <section id="roster-characters" role="tabpanel" aria-labelledby="roster-tab-characters">
-    <div class="filters"><div class="search-field"><label for="roster-search">Find a companion <kbd>/</kbd></label><input id="roster-search" type="search" placeholder="Name or class&hellip;" autocomplete="off"></div><div><label for="roster-filter">Show</label><select id="roster-filter"><option value="all">All companions</option><option value="available">Available to recruit</option><option value="active">Active party</option><option value="generated">Temporary Bots</option><option value="saved">Saved Temporary Bots</option><option value="characters">Account characters</option></select></div><div><label for="roster-sort">Sort by</label><select id="roster-sort"><option value="name">Name</option><option value="level">Highest level</option><option value="class">Class</option></select></div></div>
-    <p id="roster-results" class="hint" aria-live="polite"></p><div id="mail-alt-panel"></div><div id="roster" class="roster-grid"></div><div class="pagination"><button id="roster-prev" type="button" class="quiet">&larr; Previous</button><span id="roster-page"></span><button id="roster-next" type="button" class="quiet">Next &rarr;</button></div>
+    <div class="filters collection-filters"><div class="search-field"><label for="roster-search">Search companions <kbd>/</kbd></label><input id="roster-search" type="search" placeholder="Search companions&hellip;" autocomplete="off"></div><div><label for="roster-class">Class</label><select id="roster-class"><option value="all">All classes</option></select></div><div><label for="roster-rank">Combat rank</label><select id="roster-rank"><option value="all">All ranks</option><option value="POOR">Poor</option><option value="ORDINARY">Ordinary</option><option value="GOOD">Good</option><option value="GREAT">Great</option><option value="EXCELLENT">Excellent</option></select></div><div><label for="roster-rarity">Auto-equip</label><select id="roster-rarity"><option value="all">All rarities</option><option value="POOR">Poor</option><option value="ORDINARY">Ordinary</option><option value="GOOD">Good</option><option value="GREAT">Great</option><option value="EXCELLENT">Excellent</option></select></div></div>
+    <div class="collection-toolbar"><p id="roster-results" class="hint collection-results" aria-live="polite"></p><div class="collection-arrange"><label for="roster-filter">Show</label><select id="roster-filter"><option value="all">All companions</option><option value="available">Available to recruit</option><option value="active">Active party</option><option value="tickets">Ticket Recruits</option><option value="generated">Temporary Bots</option><option value="saved">Saved bots</option><option value="characters">Account characters</option></select><label for="roster-sort">Sort</label><select id="roster-sort"><option value="name">Name</option><option value="level">Highest level</option><option value="class">Class</option><option value="rarity">Gear rarity</option><option value="rank">Combat rank</option></select></div></div>
+    <div id="mail-alt-panel"></div><div id="roster" class="roster-grid collection-grid" aria-label="Companion cards"></div><div class="pagination"><span class="collection-capacity">Unlimited saved collection</span><button id="roster-prev" type="button" class="quiet">&#8249;</button><span id="roster-page"></span><button id="roster-next" type="button" class="quiet">&#8250;</button></div>
   </section>
   <section id="roster-presets" role="tabpanel" aria-labelledby="roster-tab-presets" style="display:none"><p class="hint">Recruit missing members together. Existing companions and human party members stay.</p><div id="saved-parties" class="preset-cards"></div></section>
 </section>
@@ -59,7 +61,27 @@
   <div class="heading"><span class="ornament">&#9733;</span><h2>Party quest journal</h2><p>Share your quests and follow every companion's progress.</p></div>
   <div class="share-strip"><label for="owner-quest">Share an active quest</label><div class="share-controls"><select id="owner-quest"></select><button id="share" type="button" class="primary">Share with party</button></div><p class="hint">Each eligible companion accepts and earns its own native rewards.</p></div><div id="quest-overview"></div>
 </section>
-<footer><span class="dot"></span><span id="notice" role="status" aria-live="polite">Connecting to your character&hellip;</span><span class="footer-note">Updates every 10 seconds &middot; drafts stay while you edit</span></footer>
-<script src="/market/companions/media/bots.js?v=window-4-roster-s"></script>
+<footer><span class="dot"></span><span id="notice" role="status" aria-live="polite">Connecting to your character&hellip;</span><span class="footer-note">Manual refresh &middot; actions update their result &middot; drafts stay while you edit</span></footer>
+<section id="summon" class="recruit-gate" role="dialog" aria-label="Companion Recruitment" style="display:none">
+  <header class="summon-top"><span class="summon-brand">AETHERFALL</span><h2>Companion Recruitment</h2>
+    <button id="summon-close" class="summon-x" type="button" data-local-control="true" aria-label="Close">&#10005;</button>
+    <button id="summon-collection" type="button" data-local-control="true">Collection</button>
+    <button id="summon-odds-toggle" type="button" data-local-control="true">View odds</button></header>
+  <div id="summon-stage" class="summon-stage">
+    <aside id="summon-panel" class="summon-panel">
+      <h3 id="summon-panel-title">Recruit a companion</h3>
+      <div class="summon-wallet"><span>Recruitment Tickets</span><strong id="summon-balance"></strong><em id="summon-credit"></em></div>
+      <div id="summon-card" class="summon-card"></div>
+      <div id="summon-rolls" class="summon-rolls"></div>
+      <div id="summon-result-card" class="summon-result-card"></div>
+      <p id="summon-hint" class="summon-hint"></p>
+      <div id="summon-odds" class="summon-odds" style="display:none"></div>
+      <div class="summon-start"><span>Starts at</span><button id="summon-start-matched" type="button" data-local-control="true">Your level</button><button id="summon-start-level1" type="button" data-local-control="true">Level 1</button></div>
+      <div id="summon-actions" class="summon-actions"></div>
+      <button id="summon-go" class="primary" type="button" data-local-control="true"></button>
+    </aside>
+  </div>
+</section>
+<script src="/market/companions/media/bots.js?v=playerbots-recruitment-20261101a"></script>
 </body>
 </html>

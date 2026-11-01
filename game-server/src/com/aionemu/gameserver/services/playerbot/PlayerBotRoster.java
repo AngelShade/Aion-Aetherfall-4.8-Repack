@@ -8,6 +8,86 @@ import com.aionemu.commons.database.DatabaseFactory;
 /** Dedicated generated characters share character persistence but never normal character slots. */
 public final class PlayerBotRoster {
 	public record Entry(int id, String name, boolean ready) {}
+	public record Page(List<Map<String,Object>> rows,int total,int page,int generatedCount) {}
+	/** Page only identities; no player/inventory loading and no collection-size ceiling. */
+	public static Page page(int account,int owner,String search,String filter,String sort,int requested,Set<Integer> active,Set<Integer> saved) {
+		if(search.length()>80 || filter.length()>200 || requested<0)throw new IllegalArgumentException("Invalid collection page");
+		String[] facets=filter.split("\\|",-1);filter=facets[0];
+		boolean generatedSchema=available();
+		String base=generatedSchema?" FROM players p LEFT JOIN playerbot_roster b ON b.player_id=p.id LEFT JOIN playerbot_removed r ON r.player_id=p.id WHERE p.account_id=? AND p.id<>? AND (b.player_id IS NULL OR b.account_id=p.account_id) AND r.player_id IS NULL AND NOT EXISTS (SELECT 1 FROM playerbot_recycles consumed WHERE consumed.source_id=p.id)":" FROM players p WHERE p.account_id=? AND p.id<>?";
+		String extra=switch(filter){
+			case "all"->"";case "characters"->generatedSchema?" AND b.player_id IS NULL":"";case "generated"->generatedSchema?" AND b.player_id IS NOT NULL AND COALESCE("+trait("origin")+",'')<>'GACHA'":" AND FALSE";
+			case "tickets"->generatedSchema?" AND "+trait("origin")+"='GACHA'":" AND FALSE";
+			case "available"->" AND p.online=0"+(generatedSchema?" AND (b.player_id IS NULL OR b.ready=TRUE)":"")+ids("NOT IN",PlayerBotLease.reservedIds());
+			case "active"->ids("IN",active);case "saved"->(generatedSchema?" AND b.player_id IS NOT NULL":" AND FALSE")+ids("IN",saved);
+			default->throw new IllegalArgumentException("Invalid collection filter");};
+		String order=switch(sort){case "name"->"p.name,p.id";case "class"->"p.player_class,p.name,p.id";case "level"->"p.exp DESC,p.name,p.id";case "rarity"->tier("autoEquipRarity",generatedSchema);case "rank"->tier("combatRank",generatedSchema);default->throw new IllegalArgumentException("Invalid collection sort");};
+		String where=base+extra+facets(facets,generatedSchema)+" AND (p.name LIKE ? ESCAPE '!' OR REPLACE(p.player_class,'_',' ') LIKE ? ESCAPE '!')";
+		String query="%"+search.replace("!","!!").replace("%","!%").replace("_","!_")+"%";
+		try(var c=DatabaseFactory.getConnection()) {
+			int total,count;
+			try(var s=c.prepareStatement("SELECT COUNT(*)"+where)){parameters(s,account,owner,query);try(var r=s.executeQuery()){r.next();total=r.getInt(1);}}
+			try(var s=c.prepareStatement("SELECT COUNT(*)"+base+(generatedSchema?" AND b.player_id IS NOT NULL":" AND FALSE"))){s.setInt(1,account);s.setInt(2,owner);try(var r=s.executeQuery()){r.next();count=r.getInt(1);}}
+			int page=Math.min(requested,Math.max(0,(total-1)/6));var rows=new ArrayList<Map<String,Object>>();
+			try(var s=c.prepareStatement("SELECT p.id,p.name,p.exp,p.player_class,"+(generatedSchema?"b.player_id,b.ready":"NULL,FALSE")+where+" ORDER BY "+order+" LIMIT 6 OFFSET ?")) {
+				parameters(s,account,owner,query);s.setLong(5,(long)page*6);
+				try(var r=s.executeQuery()){while(r.next()){
+					int id=r.getInt(1);boolean generated=r.getObject(5)!=null;var row=new HashMap<String,Object>();
+					row.put("id",id);row.put("name",r.getString(2));row.put("level",com.aionemu.gameserver.dataholders.DataManager.PLAYER_EXPERIENCE_TABLE.getLevelForExp(r.getLong(3)));row.put("playerClass",r.getString(4));
+					row.put("generated",generated);row.put("ready",!generated || r.getBoolean(6));row.put("reserved",PlayerBotLease.isReserved(id));rows.add(row);
+				}}
+			}
+			traits(c,account,rows);
+			return new Page(List.copyOf(rows),total,page,count);
+		}catch(SQLException e){throw new IllegalStateException("Cannot read collection page",e);}
+	}
+	/** Explicit enum facets share the paged count/query. Never filter only the six visible cards. */
+	private static String facets(String[] facets,boolean schema) {
+		if(facets.length>4)throw new IllegalArgumentException("Invalid collection filters");
+		var seen=new HashSet<String>();var sql=new StringBuilder();
+		for(int i=1;i<facets.length;i++) {
+			String[] pair=facets[i].split(":",-1);
+			if(pair.length!=2 || !seen.add(pair[0]))throw new IllegalArgumentException("Invalid collection filter");
+			switch(pair[0]) {
+				case "class" -> sql.append(" AND p.player_class='").append(com.aionemu.gameserver.model.PlayerClass.valueOf(pair[1]).name()).append("'");
+				case "rank" -> {var rank=PlayerBotGrowth.CombatRank.valueOf(pair[1]);sql.append(schema?" AND "+trait("combatRank")+"='"+rank.name()+"'":" AND FALSE");}
+				case "rarity" -> {var rarity=PlayerBotGrowth.GearRarity.valueOf(pair[1]);sql.append(schema?" AND "+trait("autoEquipRarity")+"='"+rarity.name()+"'":" AND FALSE");}
+				default -> throw new IllegalArgumentException("Invalid collection filter");
+			}
+		}
+		return sql.toString();
+	}
+	/** One stored growth field, for filters and sorting. The primary key makes this a single row read. */
+	private static String trait(String field) {return "(SELECT JSON_UNQUOTE(JSON_EXTRACT(m.settings,'$."+field+"')) FROM playerbot_metadata m WHERE m.player_id=p.id AND m.section='growth')";}
+	/** Highest tier first; bots with no traits follow, by name. */
+	private static String tier(String field,boolean schema) {return (schema?"FIELD("+trait(field)+",'POOR','ORDINARY','GOOD','GREAT','EXCELLENT') DESC,":"")+"p.name,p.id";}
+	/** Stored traits for the page's generated rows. A bot with no growth row stays a plain Temporary Bot. */
+	private static void traits(Connection c,int account,List<Map<String,Object>> rows)throws SQLException {
+		var generated=new HashMap<Object,Map<String,Object>>();
+		for(var row:rows)if(Boolean.TRUE.equals(row.get("generated")))generated.put(row.get("id"),row);
+		if(generated.isEmpty())return;
+		String field="JSON_UNQUOTE(JSON_EXTRACT(settings,'$.%s'))",fields=String.join(",",field.formatted("origin"),field.formatted("rolledAdvancedClass"),field.formatted("autoEquipRarity"),field.formatted("initialCombatRank"),field.formatted("combatRank"),field.formatted("earnedLearningXp"));
+		try(var s=c.prepareStatement("SELECT player_id,"+fields+" FROM playerbot_metadata WHERE section='growth' AND account_id=? AND player_id IN ("+String.join(",",Collections.nCopies(generated.size(),"?"))+")")) {
+			s.setInt(1,account);int index=1;for(var id:generated.keySet())s.setInt(++index,(Integer)id);
+			try(var r=s.executeQuery()){while(r.next()){
+				var values=new HashMap<>(Map.of("version","1","account",Integer.toString(account),"character",Integer.toString(r.getInt(1)),"origin",r.getString(2),"rolledAdvancedClass",r.getString(3),"autoEquipRarity",r.getString(4),"initialCombatRank",r.getString(5),"combatRank",r.getString(6),"earnedLearningXp",r.getString(7)));
+				var identity=PlayerBotGrowth.identity(PlayerBotGrowth.decode(values));
+				if(identity!=null)generated.get(r.getInt(1)).put("growth",identity);
+			}}
+		}
+	}
+	private static void parameters(PreparedStatement s,int account,int owner,String query)throws SQLException {s.setInt(1,account);s.setInt(2,owner);s.setString(3,query);s.setString(4,query);}
+	public static int freeGeneratedCount(int account) {
+        if(!available())return 0;
+		try(var c=DatabaseFactory.getConnection();var s=c.prepareStatement("SELECT COUNT(*) FROM playerbot_roster b LEFT JOIN playerbot_removed r ON r.player_id=b.player_id WHERE b.account_id=? AND r.player_id IS NULL AND NOT EXISTS (SELECT 1 FROM playerbot_metadata m WHERE m.player_id=b.player_id AND m.account_id=b.account_id AND m.section='growth' AND JSON_UNQUOTE(JSON_EXTRACT(m.settings,'$.origin'))='GACHA')")) {
+			s.setInt(1,account);try(var r=s.executeQuery()){r.next();return r.getInt(1);}
+		}catch(SQLException e){throw new IllegalStateException("Cannot read free-generation quota",e);}
+	}
+	private static String ids(String operation,Set<Integer> ids) {
+		if(ids.isEmpty())return operation.equals("IN")?" AND FALSE":"";
+		if(ids.stream().anyMatch(i->i<=0))throw new IllegalArgumentException("Invalid collection identity");
+		return " AND p.id "+operation+" ("+ids.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(","))+")";
+	}
 	private static volatile Boolean schemaAvailable;
 	private PlayerBotRoster() {}
 
@@ -36,6 +116,12 @@ public final class PlayerBotRoster {
 
 	public static List<Entry> list(int account) {
 		return lists(List.of(account)).getOrDefault(account, List.of());
+	}
+	public static Entry findReady(int account,String name) {
+		if(!available())return null;
+		try(var c=DatabaseFactory.getConnection();var s=c.prepareStatement("SELECT b.player_id,p.name FROM players p JOIN playerbot_roster b ON b.player_id=p.id AND b.account_id=p.account_id LEFT JOIN playerbot_removed r ON r.player_id=p.id WHERE b.account_id=? AND b.ready=TRUE AND p.name=? AND r.player_id IS NULL AND NOT EXISTS (SELECT 1 FROM playerbot_recycles consumed WHERE consumed.source_id=p.id)")) {
+			s.setInt(1,account);s.setString(2,name);try(var r=s.executeQuery()){return r.next()?new Entry(r.getInt(1),r.getString(2),true):null;}
+		}catch(SQLException e){throw new IllegalStateException("Cannot look up companion",e);}
 	}
 	/** Saved level and class of roster characters, for the Companions roster cards (one bounded query). */
 	public static Map<Integer, Map.Entry<Integer, String>> identities(Collection<Integer> characters) {
@@ -95,7 +181,7 @@ public final class PlayerBotRoster {
 		try (PreparedStatement statement = connection.prepareStatement(
 			"SELECT b.account_id,b.player_id,p.name,b.ready,r.account_id,r.document FROM playerbot_roster b "
 			+ "LEFT JOIN players p ON p.id=b.player_id LEFT JOIN playerbot_removed r ON r.player_id=b.player_id "
-			+ "WHERE b.account_id IN (" + placeholders + ") ORDER BY b.account_id,b.player_id")) {
+			+ "WHERE b.account_id IN (" + placeholders + ") AND NOT EXISTS (SELECT 1 FROM playerbot_recycles consumed WHERE consumed.source_id=b.player_id) ORDER BY b.account_id,b.player_id")) {
 			int index = 0;
 			for (int account : requested) statement.setInt(++index, account);
 			try (ResultSet rows = statement.executeQuery()) {
@@ -140,7 +226,7 @@ public final class PlayerBotRoster {
 
 	static void ready(int account, int character) throws SQLException {
 		try (Connection connection = DatabaseFactory.getConnection(); PreparedStatement statement = connection.prepareStatement(
-			"UPDATE playerbot_roster SET ready=TRUE WHERE player_id=? AND account_id=? AND ready=FALSE")) {
+			"UPDATE playerbot_roster SET ready=TRUE WHERE player_id=? AND account_id=? AND ready=FALSE AND NOT EXISTS (SELECT 1 FROM playerbot_removed r WHERE r.player_id=playerbot_roster.player_id) AND NOT EXISTS (SELECT 1 FROM playerbot_recycles consumed WHERE consumed.source_id=playerbot_roster.player_id)")) {
 			statement.setInt(1, character); statement.setInt(2, account);
 			if (statement.executeUpdate() != 1) throw new SQLException("Cannot finalize generated companion");
 		}

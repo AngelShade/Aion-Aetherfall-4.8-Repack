@@ -84,7 +84,7 @@ final class PlayerBotGroupNeeds {
  }
  /** A bot with no hard need of its own offers its help (npc -1 marks the offer). */
  static Need helper(Player bot) {
-  if (bot.isInInstance() || bot.getLevel() < 10) return null;
+  if (bot.isInInstance() || bot.getLevel() < 1) return null;
   return new Need(0,-1,bot.getWorldId(),0,6,Math.max(1,bot.getLevel()-5),Math.min(65,bot.getLevel()+5),"help offer");
  }
  static boolean helping(Need need){return need.npc()==-1;}

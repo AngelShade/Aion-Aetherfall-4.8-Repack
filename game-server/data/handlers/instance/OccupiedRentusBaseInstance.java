@@ -35,6 +35,7 @@ public class OccupiedRentusBaseInstance extends GeneralInstanceHandler {
 
 	@Override
 	public void onDie(final Npc npc) {
+        if (npc.getNpcId()==236300) completeRun(npc);
 		super.onDie(npc);
 		switch (npc.getNpcId()) {
 			case 236299:

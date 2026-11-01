@@ -93,6 +93,10 @@ final class PlayerBotQuestCraftingDriver {
     var plan=plan(bot,quest);if(plan.stage()==Stage.TRAIN)result.add(resolve(bot,plan,new HashSet<>(),protection));
    }
   });
+  if(result.isEmpty()) {
+   var focus=PlayerBotFocus.craftingPlan(session);
+   if(focus!=null && focus.stage()!=Stage.NONE)result.add(resolve(bot,focus,new HashSet<>(),protection));
+  }
   var frozen=List.copyOf(result);SNAPSHOTS.put(bot.getObjectId(),new Snapshot(now+2000,fingerprint,frozen,Set.copyOf(protection)));return frozen;
  }
  /** Current native stage requirements, preserving alternative exchanges and collecting-step gates. */
@@ -131,16 +135,17 @@ final class PlayerBotQuestCraftingDriver {
   var requests=requests(session);return requests.stream().filter(n->admitted(n) && preparationUseful(session,n) && n.stage()!=Stage.BLOCKED && n.stage()!=Stage.WAIT && !excluded(session.bot(),n)).findFirst().orElse(null);
  }
  static boolean preparationUseful(PlayerBotSession session,Need need) {
+  if(need.quest()==0)return PlayerBotFocus.chosen(session)==PlayerBotFocus.Focus.CRAFTING;
   var state=session.bot().getQuestStateList().getQuestState(need.quest());
   return PlayerBotTownPolicy.serviceUseful(session.autonomous(),PlayerBotWorldActivities.committedTravel(session.bot()),
    state!=null && state.getStatus()==QuestStatus.START,false);
  }
  static boolean admitted(Need need) {
-  return PlayerBotQuestFeatures.enabled(need.quest()) && (need.stage()!=Stage.MATERIALS || com.aionemu.gameserver.configs.main.PlayerBotConfig.QUEST_MATERIALS);
+  return (need.quest()==0 || PlayerBotQuestFeatures.enabled(need.quest())) && (need.stage()!=Stage.MATERIALS || com.aionemu.gameserver.configs.main.PlayerBotConfig.QUEST_MATERIALS);
  }
  /** Root gathering/drop routing can earn these exact terminal dependencies normally. */
  static Map<Integer,Long> neededMaterials(PlayerBotSession session) {
-  var result=new TreeMap<Integer,Long>();for(var need:requests(session))if(PlayerBotQuestFeatures.enabled(need.quest()) && preparationUseful(session,need) && (need.stage()==Stage.MATERIALS || need.stage()==Stage.LEARN_RECIPE) && need.item()>0 && need.npcs().isEmpty())result.merge(need.item(),need.count(),Math::max);return Map.copyOf(result);
+  var result=new TreeMap<Integer,Long>();for(var need:requests(session))if((need.quest()==0 || PlayerBotQuestFeatures.enabled(need.quest())) && preparationUseful(session,need) && (need.stage()==Stage.MATERIALS || need.stage()==Stage.LEARN_RECIPE) && need.item()>0 && need.npcs().isEmpty())result.merge(need.item(),need.count(),Math::max);return Map.copyOf(result);
  }
  static Need training(Player bot,int quest,int skill,int points){return resolve(bot,new Plan(Stage.TRAIN,quest,0,skill,0,Map.of(),Map.of(),"Native profession "+skill+" requires "+points+" points"),new HashSet<>());}
  /** Includes owned parent ingredients and designs, not just the currently missing terminal component. */
@@ -207,7 +212,8 @@ final class PlayerBotQuestCraftingDriver {
   if(wanted.stage()==Stage.LEARN_RECIPE && current(session,wanted) && learnRecipe(bot,wanted.plan().recipeId())){invalidate(bot);return true;}
   if(wanted.stage()==Stage.CRAFT) {
    var tools=new ArrayList<StaticObject>();bot.getKnownList().forEachObject(o->{if(o instanceof StaticObject tool && wanted.npcs().contains(tool.getObjectTemplate().getTemplateId()) && tool.isSpawned()
-    && tool.getWorldId()==bot.getWorldId() && tool.getInstanceId()==bot.getInstanceId() && bot.getKnownList().sees(tool))tools.add(tool);});
+    && tool.getWorldId()==bot.getWorldId() && tool.getInstanceId()==bot.getInstanceId() && bot.getKnownList().sees(tool)
+    && (wanted.quest()!=0 || PositionUtil.isInRange(session.owner(),tool,25)))tools.add(tool);});
    var tool=tools.stream().min(Comparator.comparingDouble(t->PositionUtil.getDistance(bot,t))).orElse(null);
    if(tool!=null) {
     if(!PositionUtil.isInRange(bot,tool,4,false) || !GeoService.getInstance().canSee(bot,tool)){boolean moved=navigation.move(tool.getX(),tool.getY(),tool.getZ());if(!moved)exclude(bot,wanted);return moved;}
@@ -223,7 +229,8 @@ final class PlayerBotQuestCraftingDriver {
    }
   }else {
    var candidates=new ArrayList<Npc>();bot.getKnownList().forEachNpc(n->{if(wanted.npcs().contains(n.getNpcId()) && !n.isDead() && n.isSpawned() && !bot.isEnemy(n)
-    && n.getWorldId()==bot.getWorldId() && n.getInstanceId()==bot.getInstanceId() && bot.getKnownList().sees(n))candidates.add(n);});
+    && n.getWorldId()==bot.getWorldId() && n.getInstanceId()==bot.getInstanceId() && bot.getKnownList().sees(n)
+    && (wanted.quest()!=0 || PositionUtil.isInRange(session.owner(),n,25)))candidates.add(n);});
    var npc=candidates.stream().min(Comparator.comparingDouble(n->PositionUtil.getDistance(bot,n))).orElse(null);
    if(npc!=null) {
     if(!PositionUtil.isInTalkRange(bot,npc) || !GeoService.getInstance().canSee(bot,npc)){boolean moved=navigation.approach(npc,2);if(!moved)exclude(bot,wanted);return moved;}
@@ -248,7 +255,7 @@ final class PlayerBotQuestCraftingDriver {
   }
   boolean moved=destination!=null && decision.move(destination,navigation);if(!moved)exclude(bot,wanted);return moved;
  }
- private static boolean current(PlayerBotSession session,Need need){invalidate(session.bot());return admitted(need) && requests(session).contains(need);}
+ private static boolean current(PlayerBotSession session,Need need){invalidate(session.bot());if(need.quest()==0)PlayerBotFocus.invalidateCraft(session.bot());return admitted(need) && requests(session).contains(need);}
  /** A map sleep releases travel intent without losing observation of an already paid craft. */
  static void suspend(Player bot){observe(bot);SUSPENDED.putIfAbsent(bot.getObjectId(),System.currentTimeMillis());SNAPSHOTS.remove(bot.getObjectId());ROUTES.remove(bot.getObjectId());}
  /** Known map-sleep time does not make an earned outcome stale; ordinary active-age guards remain. */

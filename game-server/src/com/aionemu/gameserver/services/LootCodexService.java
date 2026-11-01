@@ -12,6 +12,7 @@ import java.util.function.Function;
 import com.aionemu.commons.utils.Json;
 import com.aionemu.gameserver.configs.main.HTMLConfig;
 import com.aionemu.gameserver.dataholders.DataManager;
+import com.aionemu.gameserver.model.Race;
 import com.aionemu.gameserver.model.drop.*;
 import com.aionemu.gameserver.model.gameobjects.Npc;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
@@ -23,6 +24,7 @@ import com.aionemu.gameserver.model.templates.npc.NpcTemplate;
 import com.aionemu.gameserver.model.templates.npc.NpcTemplateType;
 import com.aionemu.gameserver.model.templates.quest.*;
 import com.aionemu.gameserver.model.templates.spawns.SpawnTemplate;
+import com.aionemu.gameserver.model.templates.tradelist.TradeNpcType;
 import com.aionemu.gameserver.services.drop.DropRegistrationService;
 import com.aionemu.gameserver.services.event.EventService;
 import com.aionemu.gameserver.world.World;
@@ -47,6 +49,107 @@ public final class LootCodexService {
 		Map<Integer, List<Source>> sources, Map<Integer, Integer> sourceCounts, Map<Integer, List<SpawnTemplate>> spots, Map<Integer, Set<Integer>> npcMaps, Map<Integer, List<QuestDropRow>> questDrops,
 		Map<Integer, List<NpcTemplate>> ruleNpcs, Map<Integer, List<ScriptedSpawn>> scripted) {}
 	private LootCodexService() {}
+
+	public record RegionalGoods(int item,int sourceNpc,int sourceMap,String sourceName) {}
+	/** Immutable loot evidence shared with road merchants; excludes quest-only, shop and container inference. */
+	public static List<RegionalGoods> regionalGoods(int world,com.aionemu.gameserver.model.Race race) {
+		var maps=instances(world,race);maps.add(world);
+		return goods(maps);
+	}
+
+	/** Only the drops of instances whose native exit leads back to this map. */
+	public static List<RegionalGoods> instanceGoods(int world,com.aionemu.gameserver.model.Race race) {
+		return goods(instances(world,race));
+	}
+
+	private static Set<Integer> instances(int world,com.aionemu.gameserver.model.Race race) {
+		var maps=new HashSet<Integer>();
+		for(var map:DataManager.WORLD_MAPS_DATA)if(map.isInstance()) {
+			var exit=DataManager.INSTANCE_EXIT_DATA.getInstanceExit(map.getMapId(),race);
+			if(exit!=null && exit.getExitWorld()==world)maps.add(map.getMapId());
+		}
+		return maps;
+	}
+
+	private static List<RegionalGoods> goods(Set<Integer> maps) {
+		var data=current();
+		var goods=new TreeMap<Integer,RegionalGoods>();
+		data.sources.forEach((item,sources)->{
+			for(var source:sources)if(source.kind.equals("npc") && source.chance>0 && !source.detail.startsWith("Quest ")) {
+				var npc=DataManager.NPC_DATA.getNpcTemplate(source.id);if(npc==null || !creature(npc))continue;
+				for(int map:data.npcMaps.getOrDefault(source.id,Set.of()))if(maps.contains(map)) {
+					goods.putIfAbsent(item,new RegionalGoods(item,source.id,map,display(npc)));break;
+				}
+			}
+		});
+		return List.copyOf(goods.values());
+	}
+
+	/** One real way to obtain an item. kind is quest, recipe, vendor, exchange, npc or item (a container). */
+	public record Acquisition(String kind, int id, String name, String detail) {}
+	private static final java.util.concurrent.atomic.AtomicBoolean WARMING = new java.util.concurrent.atomic.AtomicBoolean();
+
+	/** True once the index is usable. Otherwise builds it on its own thread, so a bot tick never waits for the data scan. */
+	public static boolean warm() {
+		Index data = index;
+		if (data != null && data.items == DataManager.ITEM_DATA && data.drops == DataManager.CUSTOM_NPC_DROP && data.rules == DataManager.GLOBAL_DROP_DATA && data.spawns == DataManager.SPAWNS_DATA) return true;
+		if (WARMING.compareAndSet(false, true)) {
+			Thread warm = new Thread(() -> {
+				try { current(); }
+				catch (Exception e) { LoggerFactory.getLogger(LootCodexService.class).warn("Codex index could not be prepared for companion goals", e); }
+				finally { WARMING.set(false); }
+			}, "LootCodexIndex");
+			warm.setDaemon(true);
+			warm.setPriority(Thread.MIN_PRIORITY);
+			warm.start();
+		}
+		return false;
+	}
+
+	/** Verified sources open to this faction, most dependable first. Global rules, event quests, quest-step drops and unspawned NPCs are not plannable sources. */
+	public static List<Acquisition> acquisitions(int item, Race race) {
+		var rows = new LinkedHashMap<String, Acquisition>();
+		var chance = new HashMap<String, Float>();
+		var template = DataManager.ITEM_DATA.getItemTemplate(item);
+		var data = current();
+		for (Source source : data.sources.getOrDefault(item, List.of())) {
+			Acquisition row = switch (source.kind) {
+				case "quest" -> { var quest = DataManager.QUEST_DATA.getQuestById(source.id); yield quest != null && quest.getCategory() != QuestCategory.EVENT && open(quest.getRacePermitted(), race) ? new Acquisition("quest", source.id, source.name, source.detail) : null; }
+				case "recipe" -> {
+					var recipe = DataManager.RECIPE_DATA.getRecipeTemplateById(source.id);
+					var skill = recipe == null ? null : DataManager.SKILL_DATA.getSkillTemplate(recipe.getSkillId());
+					yield recipe != null && open(recipe.getRace(), race) ? new Acquisition("recipe", source.id, (skill == null ? "Crafting" : skill.getName()) + " " + recipe.getSkillpoint(), source.detail) : null;
+				}
+				case "vendor" -> {
+					var npc = DataManager.NPC_DATA.getNpcTemplate(source.id);
+					var shop = DataManager.TRADE_LIST_DATA.getTradeListTemplate(source.id);
+					boolean exchange = shop != null && shop.getTradeNpcType() != TradeNpcType.NORMAL || template != null && template.getAcquisition() != null;
+					yield npc != null && data.npcMaps.containsKey(source.id) && open(npc.getRace(), race) ? new Acquisition(exchange ? "exchange" : "vendor", source.id, display(npc), source.detail) : null;
+				}
+				case "npc" -> {
+					var npc = DataManager.NPC_DATA.getNpcTemplate(source.id);
+					yield npc != null && creature(npc) && data.npcMaps.containsKey(source.id) && source.chance > 0 && !source.detail.startsWith("Quest ") ? new Acquisition("npc", source.id, display(npc), source.detail) : null;
+				}
+				case "item" -> {
+					// A container counts only when it can itself be obtained; internal names show where it comes from instead.
+					var box = DataManager.ITEM_DATA.getItemTemplate(source.id);
+					var origin = box == null || box.isTestItem() ? null : data.sources.getOrDefault(source.id, List.of()).stream()
+						.filter(s -> s.kind.equals("quest") || s.kind.equals("vendor") || s.kind.equals("recipe") || s.kind.equals("npc") && s.chance > 0 && !s.detail.startsWith("Quest ")).findFirst().orElse(null);
+					yield origin == null ? null : new Acquisition("item", source.id, source.name.contains("_") ? origin.name : source.name, source.detail);
+				}
+				default -> null;
+			};
+			if (row != null && rows.putIfAbsent(row.kind + ":" + row.id, row) == null) chance.put(row.kind + ":" + row.id, source.chance);
+		}
+		var order = List.of("quest", "vendor", "recipe", "exchange", "npc", "item");
+		return rows.values().stream().sorted(Comparator.<Acquisition>comparingInt(row -> order.indexOf(row.kind))
+			.thenComparing(Comparator.<Acquisition, Float>comparing(row -> chance.get(row.kind + ":" + row.id)).reversed()).thenComparingInt(Acquisition::id)).toList();
+	}
+
+	/** Only the opposite faction closes a source; neutral NPCs, quests and recipes stay open. */
+	private static boolean open(Race source, Race race) {
+		return source == null || source == race || source != Race.ELYOS && source != Race.ASMODIANS;
+	}
 
 	/** Builds the static index in the background so the first page opens without the full data scan. */
 	public static void start() {

@@ -301,6 +301,8 @@ public class TheShugoEmperorsVault extends GeneralInstanceHandler {
 			case 235647: // Grand Commander Gradi
 				addPoints(npc, 224000);
 				sendMsg(SM_SYSTEM_MESSAGE.STR_IDSweep_Stage2_End()); // Intruders have fled
+				if (!instanceReward.isRewarded())
+					completeRun(npc);
 				checkRank(instanceReward.getPoints());
 				break;
 		}

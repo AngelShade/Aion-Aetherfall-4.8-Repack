@@ -47,6 +47,7 @@ public abstract class WorldMapInstance implements Iterable<VisibleObject> {
 	private final InstanceHandler instanceHandler;
 	private final int instanceId; // Id of this instance (channel)
 	private final int maxPlayers;
+	private final long createdMillis = System.currentTimeMillis();
 	private WorldPosition startPos;
 	private long lastPlayerLeaveTime;
 	private GeneralTeam<?, ?> registeredTeam;
@@ -193,6 +194,13 @@ public abstract class WorldMapInstance implements Iterable<VisibleObject> {
 
 	public VisibleObject getObjectByStaticId(int staticId) {
 		return worldMapObjects.values().stream().filter(o -> o != null && o.getSpawn() != null && o.getSpawn().getStaticId() == staticId).findAny().orElse(null);
+	}
+
+	/**
+	 * @return Lifetime identity of this run. The instance id alone is reused once the instance is destroyed.
+	 */
+	public String getRunId() {
+		return getMapId() + ":" + instanceId + ":" + createdMillis;
 	}
 
 	public int getInstanceId() {

@@ -32,6 +32,7 @@ public class TheobomosLabInstance extends GeneralInstanceHandler implements Theo
 
 	@Override
 	public synchronized void onDie(Npc npc) {
+        if (npc.getNpcId()==214669) completeRun(npc);
 		if (isInstanceDestroyed)
 			return;
 

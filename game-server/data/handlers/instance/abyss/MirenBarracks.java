@@ -59,7 +59,7 @@ public class MirenBarracks extends AbstractInnerUpperAbyssInstance {
 			case 233711 -> openDoor(16);
 			case 233712 -> openDoor(82);
 			case 233717 -> openDoor(73);
-			case 233718, 233719 -> spawnChests();
+			case 233718, 233719 -> {completeRun(npc);spawnChests();}
 			case 215415 -> switchToEasyMode();
 			case 235536 -> rewardStatueKill(3000);
 			case 235537 -> rewardStatueKill(6000);

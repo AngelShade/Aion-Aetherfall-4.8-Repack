@@ -189,6 +189,7 @@ public class DrakenspireDepthsInstance extends GeneralInstanceHandler {
 				break;
 			case 236244: // Beritra Easy Mode
 			case 236245: // Beritra Normal Mode
+				completeRun(npc);
 				WorldPosition pos = npc.getPosition();
 				spawn(npcId == 236244 ? 833012 : 833013, pos.getX(), pos.getY(), pos.getZ(), pos.getHeading());
 				spawn(702769, pos.getX(), pos.getY(), pos.getZ(), pos.getHeading()); // Mind Your Business quest object
@@ -196,6 +197,7 @@ public class DrakenspireDepthsInstance extends GeneralInstanceHandler {
 				break;
 			case 236246: // Beritra Hard Mode
 			case 236247: // Beritra Dragon
+				completeRun(npc);
 				// TODO: spawn exit and NPCs
 				spawn(702769, npc.getX(), npc.getY(), npc.getZ(), npc.getHeading());
 				spawnExit();

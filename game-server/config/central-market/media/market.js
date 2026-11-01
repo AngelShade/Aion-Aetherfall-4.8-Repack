@@ -85,8 +85,7 @@
     if (!state) { detail = false; catalogOnly = false; }
     cancelRead(); var version = readVersion, requestedVariant = query.variant;
     loading = true; byId('refresh').disabled = true;
-    // The 20-second background poll stays quiet; only reads the player started show progress.
-    if (catalogOnly !== 'activity') status(detail ? 'Loading item prices…' : 'Updating Warehouse…');
+    status(detail ? 'Loading item prices…' : 'Updating Warehouse…');
     activeRead = request('GET', '/market/state?' + encode(fields(detail ? {section:'detail'} : catalogOnly ? {section:catalogOnly === 'activity' ? 'activity' : 'catalog'} : {})), null, function (ok, r) {
       if (version !== readVersion) return;
       activeRead = null; loading = false; byId('refresh').disabled = false;
@@ -95,16 +94,37 @@
         state.selected = r.selected; state.request = r.request; state.serverTime = r.serverTime;
         renderDetail(); markCatalogSelection();
       } else if (catalogOnly === 'activity') {
-        for (var key in r) if(r.hasOwnProperty(key)) state[key] = r[key]; render(true);
+        for (var key in r) if(r.hasOwnProperty(key)) state[key] = r[key]; keepScroll(function () { render(true); });
       } else if (catalogOnly) {
         state.catalog = r.catalog; state.subcategories = r.subcategories; state.categoryTree = r.categoryTree; state.page = r.page; state.total = r.total;
         state.request = r.request; state.serverTime = r.serverTime; query.page = r.page; renderCatalog();
-      } else { state = r; query.page = r.page; render(); }
+      } else {
+        var print = marketPrint(r), unchanged = print === lastPrint;
+        state = r; query.page = r.page; lastPrint = print;
+        if (!unchanged) keepScroll(render);
+      }
       status('Warehouse updated · ' + date(r.serverTime));
       if (done && requestedVariant === query.variant) done();
     });
   }
   function refresh() { fetchState(false); }
+  // Fingerprint of what the page shows, with sorted keys so the server's map order cannot count as a change.
+  var lastPrint = null;
+  function canon(value) {
+    if (value === null || typeof value !== 'object') return JSON.stringify(value);
+    var out = [], i;
+    if (value instanceof Array) { for (i = 0; i < value.length; i++) out.push(canon(value[i])); return '[' + out.join(',') + ']'; }
+    var keys = Object.keys(value).sort(); for (i = 0; i < keys.length; i++) if (keys[i] !== 'serverTime' && keys[i] !== 'request') out.push(JSON.stringify(keys[i]) + ':' + canon(value[keys[i]]));
+    return '{' + out.join(',') + '}';
+  }
+  function marketPrint(result) { return query.variant + '|' + storage + '|' + canon(result); }
+  // Scrolling panes are emptied while redrawn; put each back where the player left it.
+  function keepScroll(redraw) {
+    var nodes = document.getElementsByTagName('*'), panes = [], i;
+    for (i = 0; i < nodes.length; i++) if (nodes[i].scrollTop > 0) panes.push([nodes[i], nodes[i].scrollTop]);
+    redraw();
+    for (i = 0; i < panes.length; i++) if (panes[i][0].scrollTop !== panes[i][1]) panes[i][0].scrollTop = panes[i][1];
+  }
   function refreshCatalog() {
     if(state) renderCategories();
     fetchState(false, null, true);
@@ -457,5 +477,5 @@
   document.onkeydown = function (e) { if (e.keyCode === 27) { if (byId('dialog-shade').style.display === 'block') closeDialog(); else if (query.variant) { cancelRead(); query.variant = ''; state.selected = null; renderDetail(); markCatalogSelection(); } } };
   window.onresize = function () { if (state) { renderDetail(); if (storagePanes[storage]) loadStorageIcons(storagePanes[storage]); } positionDialog(); };
   for (i = 0; i < tabs.length; i++) tabs[i].className = +tabs[i].getAttribute('data-storage') === storage ? 'active' : '';
-  refresh(); setInterval(function () { if (!busy && !loading && byId('dialog-shade').style.display !== 'block' && document.activeElement.tagName !== 'INPUT') fetchState(false,function(){if(query.variant && view==='market' && byId('dialog-shade').style.display !== 'block') fetchState(true);},'activity'); }, 20000);
+  refresh();
 }());

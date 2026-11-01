@@ -562,6 +562,7 @@ public class PlayerController extends CreatureController<Player> {
 
 		Player player = getOwner();
 		int minNewLevel = oldLevel < newLevel ? oldLevel + 1 : oldLevel - 1; // for skill learning and other stuff that only wants the new level(s)
+		com.aionemu.gameserver.services.playerbot.PlayerBotCollectionRenown.markChanged(player);
 
 		if (!player.isPlayerBot() && GSConfig.ENABLE_RATIO_LIMITATION
 			&& (player.getAccount().getNumberOf(player.getRace()) == 1 || player.getAccount().getMaxPlayerLevel() == newLevel)) {
@@ -585,7 +586,8 @@ public class PlayerController extends CreatureController<Player> {
 		SkillLearnService.learnNewSkills(player, minNewLevel, newLevel);
 		if(player.isWorldBot())com.aionemu.gameserver.services.playerbot.PlayerBotService.getInstance().populationLevelChanged(player,oldLevel,newLevel);
 		// System-scaled private companions must not consume human account reward packs.
-		if(player.isWorldBot() || com.aionemu.gameserver.services.playerbot.PlayerBotTemporary.managed(player))return;
+		if(player.isWorldBot() || com.aionemu.gameserver.services.playerbot.PlayerBotTemporary.managed(player)
+		 || player.isPlayerBot() && com.aionemu.gameserver.services.playerbot.PlayerBotOwnedProgression.matching())return;
 		BonusPackService.getInstance().addPlayerCustomReward(player);
 		FactionPackService.getInstance().addPlayerCustomReward(player);
 		if (CustomConfig.ENABLE_STARTER_KIT)

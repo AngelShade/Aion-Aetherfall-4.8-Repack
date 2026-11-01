@@ -57,6 +57,18 @@ public class InstanceScaler implements StatOwner {
 				scaleNpc(npc, scaling);
 	}
 
+	/**
+	 * @return The run's scaled boss HP multiplier times its damage multiplier, 1 when unscaled.
+	 */
+	public static float demand(WorldMapInstance instance) {
+		Scaling scaling = scalings.get(instance);
+		if (scaling == null)
+			return 1;
+		synchronized (scaling) {
+			return scaling.demand;
+		}
+	}
+
 	public static boolean canScale(WorldMapInstance instance) {
 		return INSTANCE_SCALING_ENABLE && instance.getMaxPlayers() > 1 && instance.getParent().isInstanceType() && !INSTANCE_SCALING_EXCLUDED_MAPS.contains(instance.getMapId());
 	}
@@ -80,6 +92,7 @@ public class InstanceScaler implements StatOwner {
 	static class Scaling {
 
 		private int playerCount;
+		private float demand = 1;
 		private List<InstanceScalerStatFunction> statFunctions = Collections.emptyList();
 
 		boolean update(WorldMapInstance instance) {
@@ -110,6 +123,7 @@ public class InstanceScaler implements StatOwner {
 			List<InstanceScalerStatFunction> statFunctions = new ArrayList<>();
 			float hpMulti = calculateMultiplier(instance, INSTANCE_SCALING_HP_FLOOR, INSTANCE_SCALING_HP_SCALE_FACTOR, playerCount);
 			float dmgMulti = calculateMultiplier(instance, INSTANCE_SCALING_DMG_FLOOR, INSTANCE_SCALING_DMG_SCALE_FACTOR, playerCount);
+			demand = hpMulti * dmgMulti;
 			if (hpMulti != 1) {
 				statFunctions.add(new InstanceScalerStatFunction(StatEnum.MAXHP, hpMulti));
 			}

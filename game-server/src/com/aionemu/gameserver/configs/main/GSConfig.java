@@ -83,6 +83,9 @@ public class GSConfig {
 	@Property(key = "gameserver.marketplace.bind", defaultValue = "127.0.0.1")
 	public static String MARKETPLACE_BIND;
 
+	@Property(key = "gameserver.web.public_url", defaultValue = "")
+	public static String WEB_PUBLIC_URL;
+
 	@Property(key = "gameserver.marketplace.port", defaultValue = "8091")
 	public static int MARKETPLACE_PORT;
 

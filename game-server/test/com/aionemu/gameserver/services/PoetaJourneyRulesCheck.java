@@ -75,6 +75,18 @@ public final class PoetaJourneyRulesCheck {
 			check(path.welcome().contains(path.guide()) && path.welcome().contains(path.onward()),"faction-specific welcome guidance");
 		}
 		check(Collections.disjoint(actual,asmodianActual),"faction quest rosters never overlap");
+		check(PoetaJourneyRules.continuationOpen("SKIP",PlayerClass.GLADIATOR),"skip opens the continuation");
+		check(PoetaJourneyRules.continuationOpen("PLAY",PlayerClass.GLADIATOR),"played Ascension opens the continuation");
+		check(PoetaJourneyRules.continuationOpen("",PlayerClass.GLADIATOR),"Ascension from before Journey opens the continuation");
+		check(!PoetaJourneyRules.continuationOpen("PLAY",PlayerClass.WARRIOR),"unfinished story stays closed");
+		check(!PoetaJourneyRules.continuationOpen("",PlayerClass.WARRIOR),"undecided starter stays closed");
+		var chapters=PoetaJourneyRules.chapters(true);
+		check(chapters.stream().map(PoetaJourneyRules.Chapter::id).toList().equals(List.of("earn","recruit","manage","help","fight","promote")),"six chapters in story order");
+		check(PoetaJourneyRules.chapters(false).stream().noneMatch(PoetaJourneyRules.Chapter::needsTickets),"no ticket chapter when tickets are off");
+		var nothing=new com.aionemu.gameserver.services.playerbot.PlayerBotJourneyEvidence.Facts(0,0,0,0,0,0);
+		check(chapters.stream().allMatch(c -> c.goal()>=1 && c.progress().applyAsLong(nothing)==0),"no chapter completes without play");
+		check(PoetaJourneyRules.rewardTitles().keySet().equals(new LinkedHashSet<>(List.of("midpoint","final"))),"two title rewards and no ticket reward");
+		check(PoetaJourneyRules.rewardChapters("midpoint",chapters).size()==3 && PoetaJourneyRules.rewardChapters("final",chapters).size()==6,"midpoint needs three chapters, final needs all");
 		System.out.println("PASS: 41 Poeta and 47 Ishalgen quests; both ceremony rewards deferred; eleven advanced classes and six dispatches per faction; no cross-faction quests.");
 	}
 }

@@ -79,6 +79,10 @@ public class BasicPvpInstance extends GeneralInstanceHandler {
 
 		Race winningRace = instanceScore.getRaceWithHighestPoints();
 		instance.forEachPlayer(p -> setAndDistributeRewards(p, instanceScore.getPlayerReward(p.getObjectId()), winningRace, isBossKilled));
+		completeRun(p -> {
+			PvpInstancePlayerReward reward = instanceScore.getPlayerReward(p.getObjectId());
+			return reward != null && reward.getRace() == winningRace;
+		});
 		instance.forEachNpc(npc -> npc.getController().delete());
 		tasks.add(ThreadPoolManager.getInstance().schedule(() -> instance.getPlayersInside().forEach(this::revivePlayerOnEnd), 10000));
 		tasks.add(ThreadPoolManager.getInstance().schedule(() -> instance.getPlayersInside().forEach(this::leaveInstance), 60000));

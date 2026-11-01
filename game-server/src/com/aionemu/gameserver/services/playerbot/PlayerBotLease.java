@@ -15,6 +15,7 @@ public final class PlayerBotLease implements AutoCloseable {
 	}
 
 	public static boolean isReserved(int characterId) { return leases.containsKey(characterId); }
+	public static java.util.Set<Integer> reservedIds() {return java.util.Set.copyOf(leases.keySet());}
 
 	@Override
 	public void close() { leases.remove(characterId, this); }

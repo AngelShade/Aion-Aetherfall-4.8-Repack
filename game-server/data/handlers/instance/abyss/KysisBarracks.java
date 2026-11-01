@@ -59,7 +59,7 @@ public class KysisBarracks extends AbstractInnerUpperAbyssInstance {
 			case 233668 -> openDoor(13);
 			case 233669 -> openDoor(7);
 			case 233674 -> openDoor(16);
-			case 233675, 233676 -> spawnChests();
+			case 233675, 233676 -> {completeRun(npc);spawnChests();}
 			case 215414 -> switchToEasyMode();
 			case 235536 -> rewardStatueKill(3000);
 			case 235537 -> rewardStatueKill(6000);

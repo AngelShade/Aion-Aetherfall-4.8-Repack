@@ -23,6 +23,9 @@ import com.aionemu.gameserver.network.aion.serverpackets.SM_MAIL_SERVICE;
 import com.aionemu.gameserver.services.item.ItemFactory;
 import com.aionemu.gameserver.services.item.ItemPacketService;
 import com.aionemu.gameserver.services.item.ItemPacketService.ItemUpdateType;
+import com.aionemu.gameserver.services.playerbot.PlayerBotPass;
+import com.aionemu.gameserver.services.playerbot.PlayerBotMetadata;
+import com.aionemu.gameserver.services.playerbot.PlayerBotMail;
 import com.aionemu.gameserver.utils.PacketSendUtility;
 import com.aionemu.gameserver.utils.ThreadPoolManager;
 import com.aionemu.gameserver.utils.idfactory.IDFactory;
@@ -35,6 +38,8 @@ public final class SeasonPassService {
 	private static final Path ROOT = Path.of("config/season-pass");
 	static Season season;
 	static List<Mission> missions = List.of();
+	private static Map<Event,Integer> companionEventLimits = Map.of();
+	private static List<Mission> companionPvpMissions = List.of();
 	static List<Reward> rewards = List.of();
 	private static volatile boolean ready;
 	private static ScheduledFuture<?> pulse;
@@ -75,6 +80,129 @@ public final class SeasonPassService {
 	private record Tick(Object connection,long since) {}
 	private static final Map<Integer,Tick> online = new java.util.concurrent.ConcurrentHashMap<>();
 	static void stop() { ready = false; if (pulse != null) pulse.cancel(false); online.clear(); }
+	private record Activity(Event event, long day, int victim, long slot) {}
+	private record ActivityCount(Activity key, Instant at, int count) {}
+	private static final class CompanionEvents {
+		final Player player;
+		final Map<Activity,ActivityCount> events = new LinkedHashMap<>();
+		final Map<Integer,Long> rivalCredit = new HashMap<>();
+		final Map<String,Integer> pvpProgress = new HashMap<>();
+		boolean pvpLoaded;
+		long sequence;
+		CompanionProgress pending;
+		CompanionEvents(Player player) { this.player=player; }
+	}
+	/** Frozen checkpoint batch. Its durable request receipt makes an uncertain commit safe to retry. */
+	public static final class CompanionProgress {
+		private final CompanionEvents owner;
+		private final Season sourceSeason=season;
+		private final String request=UUID.randomUUID().toString();
+		private final List<ActivityCount> events;
+		private CompanionProgress(CompanionEvents owner) { this.owner=owner; events=List.copyOf(owner.events.values()); }
+	}
+	private static final Map<Integer,CompanionEvents> companionEvents = new java.util.concurrent.ConcurrentHashMap<>();
+	private static void queueCompanion(Player p,Event event,int victim) {
+		if(event==Event.LOGIN || event==Event.MINUTE || !PlayerBotPass.activeSubject(p))return;
+		Instant now=Instant.now();
+		if(!season.active(now))return;
+		int limit=companionEventLimits.getOrDefault(event,0);
+		if(limit==0)return;
+		var state=companionEvents.computeIfAbsent(p.getObjectId(),id->new CompanionEvents(p));
+		synchronized(state) {
+			if(state.player!=p)throw new IllegalStateException("Companion pass identity changed before checkpoint");
+			if(event==Event.PVP) {
+				if(!state.pvpLoaded)throw new IllegalStateException("Companion PvP pass progress must be loaded before native activity");
+				var active=companionPvpMissions;
+				if(active.stream().noneMatch(m->state.pvpProgress.getOrDefault(m.id()+":"+period(m,season,now),0)<m.target()))return;
+				long last=state.rivalCredit.getOrDefault(victim,Long.MIN_VALUE);
+				if(last!=Long.MIN_VALUE && now.toEpochMilli()-last<1800000)return;
+				state.rivalCredit.entrySet().removeIf(e->now.toEpochMilli()-e.getValue()>=1800000);
+				state.rivalCredit.put(victim,now.toEpochMilli());
+				var currentKeys=new HashSet<String>();
+				for(var mission:active) {
+					String key=mission.id()+":"+period(mission,season,now);currentKeys.add(key);
+					state.pvpProgress.compute(key,(k,prior)->Math.min(mission.target(),prior==null?1:prior+1));
+				}
+				state.pvpProgress.keySet().retainAll(currentKeys);
+			}
+			long day=now.atZone(season.zone()).toLocalDate().toEpochDay();
+			// Keep exact PvP observations: pre-coalescing a rival can discard a later legal kill after a cooldown rejection.
+			Activity key=new Activity(event,day,victim,event==Event.PVP?++state.sequence:0);
+			var prior=state.events.get(key);int count=event==Event.PVP?1:Math.min(limit,prior==null?1:prior.count()+1);
+			state.events.put(key,new ActivityCount(key,prior==null?now:prior.at(),count));
+		}
+	}
+	public static CompanionProgress pendingCompanionProgress(Player p) {
+		var state=companionEvents.get(p.getObjectId());if(state==null)return null;
+		synchronized(state) {
+			if(state.player!=p)throw new IllegalStateException("Companion pass checkpoint identity changed");
+			if(state.events.isEmpty())return null;
+			if(state.pending==null)state.pending=new CompanionProgress(state);
+			return state.pending;
+		}
+	}
+	/** Called inside the same transaction as this bot's native quests, items and progress. */
+	public static void storeCompanionProgress(Connection c,CompanionProgress pending)throws SQLException {
+		if(pending==null)return;
+		if(c.getAutoCommit())throw new SQLException("Companion pass progress needs the native checkpoint transaction");
+		if(pending.sourceSeason!=season)throw new SQLException("Companion activity belongs to a prior season configuration; recover its checkpoint before changing seasons");
+		int player=pending.owner.player.getObjectId();progress(c,player);
+		if(row(c,"SELECT request_id FROM season_pass_requests WHERE request_id=? AND season_id=? AND player_id=?",pending.request,season.id(),player)!=null)return;
+		for(var observed:pending.events) {
+			if(observed.key().event()==Event.PVP) {
+				if(rival(c,player,observed.key().victim(),observed.at().toEpochMilli()))event(c,player,Event.PVP,observed.at());
+			} else event(c,player,observed.key().event(),observed.at(),observed.count());
+		}
+		receipt(c,player,pending.request,"companion-progress","Recorded native companion activity");
+	}
+	public static void committedCompanionProgress(CompanionProgress pending) {
+		if(pending==null)return;
+		var state=pending.owner;
+		synchronized(state) {
+			if(state.pending!=pending)return;
+			for(var saved:pending.events) {
+				var current=state.events.get(saved.key());if(current==null)continue;
+				int remaining=current.count()-saved.count();
+				if(remaining<=0)state.events.remove(saved.key());
+				else state.events.put(saved.key(),new ActivityCount(saved.key(),current.at(),remaining));
+			}
+			state.pending=null;
+			// Keep this per-actor state until explicit release, so concurrent callbacks cannot lose a queued event.
+		}
+	}
+	public static void releaseCompanion(Player p) {
+		var state=companionEvents.get(p.getObjectId());if(state==null)return;
+		synchronized(state) {if(state.player==p && state.events.isEmpty() && state.pending==null)companionEvents.remove(p.getObjectId(),state);}
+	}
+	/** Load only this native character's purchased tier; human account aggregation is never consulted. */
+	public static void refreshCompanionBenefits(Player p)throws SQLException {
+		if(!ready || !p.isPlayerBot())return;
+		loadCompanionRivals(p);
+		int tier=0;
+		if(season.active(Instant.now()))try(var c=DatabaseFactory.getConnection()) {
+			var saved=row(c,"SELECT tier FROM season_pass_progress WHERE season_id=? AND player_id=?",season.id(),p.getObjectId());
+			if(saved!=null)tier=(int)lng(saved,"tier");
+		}
+		AetherfallBoonService.setBotPassBenefits(p,tier,season.ends());
+	}
+	private static void loadCompanionRivals(Player p)throws SQLException {
+		var state=companionEvents.computeIfAbsent(p.getObjectId(),id->new CompanionEvents(p));
+		synchronized(state) {
+			if(state.player!=p)throw new SQLException("Companion pass load identity changed");
+			if(state.pvpLoaded)return;
+			Instant now=Instant.now();var rivals=new HashMap<Integer,Long>();var progress=new HashMap<String,Integer>();
+			try(var c=DatabaseFactory.getConnection()) {
+				for(var saved:rows(c,"SELECT victim_id,credited_at FROM season_pass_rivals WHERE season_id=? AND player_id=? AND credited_at>?",season.id(),p.getObjectId(),now.toEpochMilli()-1800000))
+					rivals.put((int)lng(saved,"victim_id"),lng(saved,"credited_at"));
+				for(var mission:missions)if(mission.event()==Event.PVP) {
+					String period=period(mission,season,now);
+					var saved=row(c,"SELECT progress FROM season_pass_missions WHERE season_id=? AND player_id=? AND mission_id=? AND period_key=?",season.id(),p.getObjectId(),mission.id(),period);
+					progress.put(mission.id()+":"+period,saved==null?0:(int)lng(saved,"progress"));
+				}
+			}
+			state.rivalCredit.putAll(rivals);state.pvpProgress.putAll(progress);state.pvpLoaded=true;
+		}
+	}
 	private static void validateRewardItem(int id,long count) {
 		var t=DataManager.ITEM_DATA.getItemTemplate(id);
 		if(t==null || count>t.getMaxStackCount() || t.getExpireTime()!=0
@@ -138,6 +266,10 @@ public final class SeasonPassService {
 			ms.add(m);
 		}
 		missions = List.copyOf(ms);
+		companionPvpMissions=missions.stream().filter(m->m.event()==Event.PVP).toList();
+		var eventLimits=new EnumMap<Event,Integer>(Event.class);
+		for(var mission:missions)if(mission.event()!=Event.LOGIN && mission.event()!=Event.MINUTE)eventLimits.merge(mission.event(),mission.target(),Math::max);
+		companionEventLimits=Map.copyOf(eventLimits);
 		List<Reward> rs = new ArrayList<>(); Set<String> slots = new HashSet<>();
 		for (String line : Files.readAllLines(root.resolve("rewards.tsv"))) {
 			if (line.isBlank() || line.startsWith("#")) continue;
@@ -163,6 +295,10 @@ public final class SeasonPassService {
 	}
 	/** Caller locks the character's progress row before any mission/rival changes. */
 	static int event(Connection c, int player, Event event, Instant now) throws SQLException {
+		return event(c,player,event,now,1);
+	}
+	private static int event(Connection c,int player,Event event,Instant now,int amount)throws SQLException {
+		if(amount<1)throw new IllegalArgumentException("Mission activity must be positive");
 		if (!season.active(now)) return 0;
 		progress(c,player); int earned = 0;
 		for (Mission m : missions) {
@@ -171,7 +307,7 @@ public final class SeasonPassService {
 			update(c,"INSERT IGNORE INTO season_pass_missions(season_id,player_id,mission_id,period_key) VALUES(?,?,?,?)",season.id(),player,m.id(),period);
 			Map<String,Object> r = row(c,"SELECT progress,awarded FROM season_pass_missions WHERE season_id=? AND player_id=? AND mission_id=? AND period_key=?",season.id(),player,m.id(),period);
 			if (flag(r,"awarded")) continue;
-			int next = (int)Math.min(m.target(),lng(r,"progress")+1);
+			int next = (int)Math.min(m.target(),lng(r,"progress")+amount);
 			boolean done = next == m.target();
 			update(c,"UPDATE season_pass_missions SET progress=?,awarded=? WHERE season_id=? AND player_id=? AND mission_id=? AND period_key=?",next,done,season.id(),player,m.id(),period);
 			if (done) earned += m.xp();
@@ -181,6 +317,7 @@ public final class SeasonPassService {
 	}
 	public static void record(Player p, Event event) {
 		if (!ready || p == null || !season.active(Instant.now())) return;
+		if(p.isPlayerBot()) {queueCompanion(p,event,0);return;}
 		Object guard = p.getClientConnection(); if (guard == null) return;
 		synchronized (guard) {
 			if (p.getClientConnection() != guard || !p.isOnline()) return;
@@ -202,7 +339,9 @@ public final class SeasonPassService {
 	}
 	public static void onPvpKill(Player p, Player victim) {
 		if (!ready || p.getRace()==victim.getRace() || p.getAccount().getId()==victim.getAccount().getId()
-			|| Math.abs(p.getLevel()-victim.getLevel()) > 10 || p.getClientConnection()==null) return;
+			|| Math.abs(p.getLevel()-victim.getLevel()) > 10) return;
+		if(p.isPlayerBot()) {queueCompanion(p,Event.PVP,victim.getObjectId());return;}
+		if(p.getClientConnection()==null)return;
 		synchronized (p.getClientConnection()) {
 			try (Connection c = DatabaseFactory.getConnection()) {
 				c.setAutoCommit(false);
@@ -245,15 +384,29 @@ public final class SeasonPassService {
 		update(c,"INSERT INTO mail(mail_unique_id,mail_recipient_id,sender_name,mail_title,mail_message,unread,attached_item_id,attached_kinah_count,express) VALUES(?,?,'Daeva Pass',?,?,1,?,0,2)",mail,player,mailTitle(r),mailMessage(r),item);
 	}
 	public static String action(Player p, Map<String,String> args, String request) throws Exception {
+		return action(p,args,request,false);
+	}
+	/** Called only by the companion adapter while it holds the native actor admission and session lock. */
+	public static String companionAction(Player p,Map<String,String> args,String request)throws Exception {
+		if(!PlayerBotPass.activeSubject(p))throw new IllegalArgumentException("Choose an active generated companion.");
+		return action(p,args,request,true);
+	}
+	public static final class CompanionHeld extends SQLException {
+		public CompanionHeld(Throwable cause) {super("Companion pass custody needs verification",cause);}
+	}
+	private static String action(Player p,Map<String,String> args,String request,boolean companion)throws Exception {
 		if (!ready) throw new IllegalStateException("Season pass is unavailable.");
-		Object guard=p.getClientConnection(); if(guard==null) throw new IllegalArgumentException("Reopen the pass after logging in.");
+		Object guard=companion?p:p.getClientConnection(); if(guard==null) throw new IllegalArgumentException("Reopen the pass after logging in.");
 		synchronized (guard) {
-			if (p.getClientConnection()!=guard || World.getInstance().getPlayer(p.getObjectId())!=p || !p.isOnline() || p.isTrading() || p.isDead() || GameServer.isShuttingDownSoon())
+			if ((!companion && (p.getClientConnection()!=guard || !p.isOnline())) || companion && !PlayerBotPass.activeSubject(p)
+				|| World.getInstance().getPlayer(p.getObjectId())!=p || p.isTrading() || p.isDead() || GameServer.isShuttingDownSoon())
 				throw new IllegalArgumentException("Finish trading or reconnect before using the pass.");
 			String action=args.getOrDefault("action","");
 			if (!Set.of("purchase","claim","claimAll").contains(action)) throw new IllegalArgumentException("Unknown season pass action.");
 			List<Integer> allocated=new ArrayList<>(); List<Letter> mail=new ArrayList<>(); boolean committed=false;
+			List<Item> companionInventory=List.of(); List<PlayerBotMetadata.Pending> companionMetadata=List.of();
 			Item coin=p.getInventory().getKinahItem(); long balance=p.getInventory().getKinah(); Upgrade plan=null;
+			long mailboxAfter=0;
 			try (Connection c=DatabaseFactory.getConnection()) {
 				c.setAutoCommit(false);
 				try {
@@ -263,7 +416,11 @@ public final class SeasonPassService {
 					String result;
 					if (action.equals("purchase")) {
 						if (coin==null) throw new IllegalArgumentException("Not enough Kinah in Inventory.");
-						if (!InventoryDAO.store(p)) throw new SQLException("Inventory save failed.");
+						if(companion) {
+							companionInventory=InventoryDAO.storeCompanionInventory(c,p);
+							companionMetadata=PlayerBotMetadata.pending(p.getAccount().getId(),p.getObjectId());
+							PlayerBotMetadata.store(c,companionMetadata);
+						} else if (!InventoryDAO.store(p)) throw new SQLException("Inventory save failed.");
 						int tier=Integer.parseInt(args.getOrDefault("tier","0"));
 						plan=purchase(c,p.getObjectId(),tier,coin.getObjectId(),balance,Instant.now());
 						result=(tier==1?"Premium":"Advanced Premium")+" unlocked. Paid "+plan.cost()+" Kinah. Earlier earned rewards are now claimable.";
@@ -283,34 +440,57 @@ public final class SeasonPassService {
 							saveReward(c,p.getObjectId(),r,id,item.getObjectId(),now);
 							mail.add(new Letter(id,p.getObjectId(),item,0,mailTitle(r),mailMessage(r),"Daeva Pass",new Timestamp(now.toEpochMilli()),true,LetterType.BLACKCLOUD));
 						}
-						update(c,"UPDATE players SET mailbox_letters=? WHERE id=?",lng(mailboxCount,"n")+mail.size(),p.getObjectId());
-						result="Claimed "+mail.size()+" reward"+(mail.size()==1?"":"s")+". Collect them from Black Cloud mail.";
+						mailboxAfter=lng(mailboxCount,"n")+mail.size();
+						update(c,"UPDATE players SET mailbox_letters=? WHERE id=?",mailboxAfter,p.getObjectId());
+						result="Claimed "+mail.size()+" reward"+(mail.size()==1?"":"s")+(companion?" for "+p.getName()+". Collect them through the companion's Mail tab at a mailbox.":". Collect them from Black Cloud mail.");
 					}
-					receipt(c,p.getObjectId(),request,action,result); c.commit(); committed=true;
+					receipt(c,p.getObjectId(),request,action,result);
+					try {c.commit();}catch(SQLException e){if(companion)throw new CompanionHeld(e);throw e;}
+					committed=true;
 					try {
+						if(companion) {PlayerBotMetadata.committed(companionMetadata);InventoryDAO.companionInventoryCommitted(companionInventory);}
 						if(plan!=null) { coin.setItemCount(balance-plan.cost()); coin.setPersistentState(PersistentState.UPDATED);
 							ItemPacketService.sendItemUpdatePacket(p,p.getInventory().getStorageType(),coin,ItemUpdateType.DEC_KINAH_BUY); }
 						for(Letter l:mail) {
 							l.setPersistentState(PersistentState.UPDATED);
 							l.getAttachedItem().setPersistentState(PersistentState.UPDATED);
-							p.getMailbox().putLetterToMailbox(l);
+							if(companion)PlayerBotMail.delivered(p,l);else p.getMailbox().putLetterToMailbox(l);
 						}
-						if(!mail.isEmpty()) { p.getCommonData().setMailboxLetters(p.getMailbox().size()); PacketSendUtility.sendPacket(p,new SM_MAIL_SERVICE()); }
+						if(!mail.isEmpty()) { p.getCommonData().setMailboxLetters(companion?(int)mailboxAfter:p.getMailbox().size()); if(!companion)PacketSendUtility.sendPacket(p,new SM_MAIL_SERVICE()); }
 					} catch(Exception refresh) {
+						if(companion)throw new CompanionHeld(refresh);
 						if(plan!=null) { coin.setItemCount(balance-plan.cost()); InventoryDAO.quarantineMarketInventory(p.getObjectId()); }
 						log.error("Committed season pass action needs reconnect for {}",p,refresh); p.getClientConnection().close();
 						return result+" Reconnect to refresh your Inventory and mail.";
 					}
 					log.info("Season pass {} for {}: {}",action,p,result);
-					if(action.equals("purchase")) AetherfallBoonService.refresh(p);
+					if(action.equals("purchase")) {
+						if(companion)AetherfallBoonService.setBotPassBenefits(p,Integer.parseInt(args.getOrDefault("tier","0")),season.ends());
+						else AetherfallBoonService.refresh(p);
+					}
 					return result;
-				} catch(Exception e) { if(!committed) { c.rollback(); for(int id:allocated) IDFactory.getInstance().releaseId(id); } throw e; }
+				} catch(Exception e) {
+					if(e instanceof CompanionHeld)throw e;
+					if(!committed) {
+						try {c.rollback();}catch(SQLException rollback) {e.addSuppressed(rollback);if(companion)throw new CompanionHeld(e);throw e;}
+						if(companion)InventoryDAO.markCompanionInventoryDirty(p);
+						for(int id:allocated)IDFactory.getInstance().releaseId(id);
+					}
+					throw e;
+				}
 			}
 		}
 	}
 	public static Map<String,Object> snapshot(Player p) throws Exception {
+		return snapshot(p,false);
+	}
+	public static Map<String,Object> companionSnapshot(Player p)throws Exception {
+		if(!PlayerBotPass.activeSubject(p))throw new IllegalArgumentException("Choose an active generated companion.");
+		return snapshot(p,true);
+	}
+	private static Map<String,Object> snapshot(Player p,boolean companion)throws Exception {
 		if(!ready) throw new IllegalStateException("Season pass is unavailable.");
-		Object guard=p.getClientConnection(); if(guard==null) throw new IllegalArgumentException("Log in and reopen the pass.");
+		Object guard=companion?p:p.getClientConnection(); if(guard==null) throw new IllegalArgumentException("Log in and reopen the pass.");
 		synchronized(guard) {
 			try(Connection c=DatabaseFactory.getConnection()) {
 				c.setAutoCommit(false); Instant now=Instant.now(); var state=progress(c,p.getObjectId());
@@ -324,6 +504,7 @@ public final class SeasonPassService {
 				Instant missionTime=now.isBefore(season.ends())?now:season.ends().minusMillis(1);
 				List<Map<String,Object>> ms=new ArrayList<>();
 				for(Mission m:missions) {
+					if(companion && (m.event()==Event.LOGIN || m.event()==Event.MINUTE))continue;
 					var r=saved.get(m.id()+":"+period(m,season,missionTime));
 					ms.add(Map.of("id",m.id(),"cadence",m.cadence(),"name",m.name(),"description",m.description(),"target",m.target(),"xp",m.xp(),"progress",r==null?0:lng(r,"progress"),"complete",r!=null&&flag(r,"awarded"),"reset",reset(m,season,missionTime).toEpochMilli()));
 				}
@@ -338,7 +519,13 @@ public final class SeasonPassService {
 					entry.putAll(Map.of("level",r.level(),"track",r.track(),"item",r.item(),"quantity",r.count(),"name",needsClass?"Class Stigma Bundle":r.name(),"description",r.description(),"requiredLevel",t.getLevel(),"claimed",done,"available",!needsClass&&canClaim(season,r,(int)lng(state,"tier"),(int)lng(state,"xp"),done,now)));
 					entry.put("needsClass",needsClass); entry.put("box",needsClass?Map.of("mode","contents","items",List.of()):boxPreview(r,p)); rs.add(entry);
 				}
-				out.put("rewards",rs); c.commit(); return out;
+				out.put("rewards",rs);out.put("companion",companion);
+				if(companion) {
+					var events=companionEvents.get(p.getObjectId());long queued=0;
+					if(events!=null)synchronized(events){queued=events.events.values().stream().mapToLong(ActivityCount::count).sum();}
+					out.put("queuedActivity",queued);
+				}
+				c.commit(); return out;
 			}
 		}
 	}

@@ -82620,4 +82620,5 @@
 		</start_conditions>
 	</quest>
 	<!-- END AETHERFALL THE UNBROKEN FIELD -->
+	<quest id="14996" name="Help Request" nameId="1801381" minlevel_permitted="1" max_repeat_count="255" cannot_share="true" category="QUEST" />
 </quests>

@@ -8,9 +8,7 @@ import java.sql.SQLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.aionemu.commons.database.DB;
 import com.aionemu.commons.database.DatabaseFactory;
-import com.aionemu.commons.database.IUStH;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.model.gameobjects.player.PlayerAppearance;
 
@@ -105,8 +103,12 @@ public class PlayerAppearanceDAO {
 	}
 
 	public static boolean store(int id, PlayerAppearance pa) {
-
-		return DB.insertUpdate("REPLACE INTO player_appearance ("
+        try (Connection c=DatabaseFactory.getConnection()) {store(c,id,pa);return true;}
+        catch(Exception e){log.error("Could not store appearance for {}",id,e);return false;}
+    }
+    /** Same native appearance fields, joining the caller's creation transaction. */
+    public static void store(Connection c,int id,PlayerAppearance pa)throws SQLException {
+        try(PreparedStatement ps=c.prepareStatement("REPLACE INTO player_appearance ("
 			+ "player_id, face, hair, deco, tattoo, face_contour, expression, jaw_line, skin_rgb, hair_rgb, lip_rgb, eye_rgb, face_shape,"
 			+ "forehead, eye_height, eye_space, eye_width, eye_size, eye_shape, eye_angle,"
 			+ "brow_height, brow_angle, brow_shape, nose, nose_bridge, nose_width, nose_tip, "
@@ -114,10 +116,7 @@ public class PlayerAppearanceDAO {
 			+ "head_size, neck, neck_length, shoulders, shoulder_size , torso, chest, waist, hips, arm_thickness, arm_length, hand_size,"
 			+ "leg_thickness, leg_length, foot_size, facial_rate, voice, height)" + " VALUES "
 			+ "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,"
-			+ "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?" + ")", new IUStH() {
-
-			@Override
-			public void handleInsertUpdate(PreparedStatement ps) throws SQLException {
+			+ "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?" + ")")) {
 				ps.setInt(1, id);
 				ps.setInt(2, pa.getFace());
 				ps.setInt(3, pa.getHair());
@@ -173,8 +172,6 @@ public class PlayerAppearanceDAO {
 				ps.setInt(53, pa.getVoice());
 				ps.setFloat(54, pa.getHeightScale());
 				ps.execute();
-			}
-		});
-	}
-
+        }
+    }
 }

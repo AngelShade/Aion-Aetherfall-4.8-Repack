@@ -40,7 +40,10 @@ public class LinkgateFoundryInstance extends GeneralInstanceHandler {
 	@Override
 	public void onDie(Npc npc) {
 		switch (npc.getNpcId()) {
-			case 233898, 234990, 234991 -> spawn(instanceRace == Race.ELYOS ? 702338 : 702389, 246.74345f, 258.35843f, 312.32327f, (byte) 10);
+			case 233898, 234990, 234991 -> {
+				spawn(instanceRace == Race.ELYOS ? 702338 : 702389, 246.74345f, 258.35843f, 312.32327f, (byte) 10);
+				completeRun(npc);
+			}
 		}
 	}
 

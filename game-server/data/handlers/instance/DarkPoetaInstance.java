@@ -66,6 +66,7 @@ public class DarkPoetaInstance extends GeneralInstanceHandler {
 				instanceReward.setInstanceProgressionType(InstanceProgressionType.END_PROGRESS);
 				instanceReward.setRank(checkRank(instanceReward.getPoints()));
 				sendPacket(null, 0);
+				completeRun(npc);
 				break;
 			case 215280: // Tahabata Pyrelord
 			case 215281: // Calindi Flamelord

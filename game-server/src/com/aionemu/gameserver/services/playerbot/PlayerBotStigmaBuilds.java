@@ -13,7 +13,12 @@ import com.aionemu.gameserver.model.templates.item.ItemTemplate;
 /** Selectable Temporary Bot Stigma builds from config/playerbots/stigma-builds.properties (static configuration). */
 public final class PlayerBotStigmaBuilds {
  public static final String AUTO="AUTO";
- public record Build(String key,String name,String text,List<String> groups) {}
+ /** weapon is the group a build's stones need, or null when any class weapon works. */
+ public record Build(String key,String name,String text,List<String> groups,String weapon) {}
+ /** First level of each preset stage: Ascension at 10, Stigma slots at 20, 30, 40, 45, 50 and 55, then the level cap steps. */
+ static final List<Integer> STAGES=List.of(1,10,20,30,40,45,50,55,60,65);
+ static int stage(int level){int result=STAGES.getFirst();for(int from:STAGES)if(level>=from)result=from;return result;}
+ static int stageEnd(int stage){int next=STAGES.indexOf(stage)+1;return next<STAGES.size() ? STAGES.get(next)-1 : stage;}
  private static final Path FILE=Path.of("config","playerbots","stigma-builds.properties");
  private static volatile Map<PlayerClass,List<Build>> builds;
  private static volatile Map<String,String> names;
@@ -31,7 +36,8 @@ public final class PlayerBotStigmaBuilds {
      int dot=id.indexOf('.');PlayerClass pc=PlayerClass.valueOf(id.substring(0,dot));String key=id.substring(dot+1);
      if(!key.matches("[a-z0-9_]{1,24}"))throw new IllegalStateException("Invalid Stigma build key "+id);
      var groups=Arrays.stream(p.getProperty(id+".stigmas").split(",")).map(String::trim).filter(s->!s.isEmpty()).toList();
-     result.computeIfAbsent(pc,c->new ArrayList<>()).add(new Build(key,p.getProperty(id+".name",key),p.getProperty(id+".text",""),groups));
+     String weapon=p.getProperty(id+".weapon");if(weapon!=null && !PlayerBotGearPolicy.WEAPONS.contains(weapon))throw new IllegalStateException("Invalid Stigma build weapon "+id);
+     result.computeIfAbsent(pc,c->new ArrayList<>()).add(new Build(key,p.getProperty(id+".name",key),p.getProperty(id+".text",""),groups,weapon));
     }
    }
    result.replaceAll((pc,list)->List.copyOf(list));

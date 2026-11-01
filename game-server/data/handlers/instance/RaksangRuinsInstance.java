@@ -117,6 +117,7 @@ public class RaksangRuinsInstance extends GeneralInstanceHandler {
 				sendMsg(SM_SYSTEM_MESSAGE.STR_MSG_TAMES_SOLO_B_END());
 				break;
 			case 236306:
+				completeRun(npc);
 				spawn(730445, 620.65f, 663.44f, 522.049f, (byte) 27); // Exit
 				break;
 			case 0:

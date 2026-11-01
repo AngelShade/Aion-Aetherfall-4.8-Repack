@@ -17,7 +17,7 @@ final class PlayerBotPersistence {
 	 * Query after the save connection closed: an uncertain commit may have persisted
 	 * an item even when the caller saw an exception. Never release those IDs. */
 	static void discardUnpublishedFactory(Player bot) throws SQLException {
-		if (!PlayerBotPopulationManager.global(bot) || bot.isSpawned()
+		if (!PlayerBotPopulationManager.global(bot) && !PlayerBotRecruitment.active() || bot.isSpawned()
 			|| com.aionemu.gameserver.world.World.getInstance().isInWorld(bot.getObjectId())
 			|| !PlayerBotLease.isReserved(bot.getObjectId()))
 			throw new SQLException("Factory discard requires exclusive unpublished global custody");
@@ -52,9 +52,40 @@ final class PlayerBotPersistence {
 		}
 	}
 
+	/** All paid-creation rows, native progress and readiness commit with the stored roll. */
+	static void create(Player bot,Home home)throws SQLException {
+		var passProgress = com.aionemu.gameserver.services.SeasonPassService.pendingCompanionProgress(bot);
+		try(var connection=DatabaseFactory.getConnection()) {
+			connection.setAutoCommit(false);
+			try {
+				com.aionemu.gameserver.dao.PlayerDAO.saveNewPlayer(connection,bot,bot.getAccount().getId(),bot.getAccount().getName());
+				com.aionemu.gameserver.dao.PlayerAppearanceDAO.store(connection,bot.getObjectId(),bot.getPlayerAppearance());
+				var inventory=InventoryDAO.storeCompanionInventory(connection,bot);
+				saveProgress(connection,bot,home);
+				try(var s=connection.prepareStatement("INSERT INTO player_recipes (player_id,recipe_id,production_limit) VALUES (?,?,?)")) {
+					for(var recipe:bot.getRecipeList().getRecipes().entrySet()){s.setInt(1,bot.getObjectId());s.setInt(2,recipe.getKey());s.setInt(3,recipe.getValue());s.addBatch();}s.executeBatch();
+				}
+				PlayerBotCreationMetadata.storeCreation(connection,bot);
+				PlayerBotRecruitment.complete(connection,bot);
+				com.aionemu.gameserver.services.SeasonPassService.storeCompanionProgress(connection, passProgress);
+				connection.commit();
+				com.aionemu.gameserver.services.SeasonPassService.committedCompanionProgress(passProgress);
+				PlayerBotCreationMetadata.discard(bot.getObjectId());
+				InventoryDAO.companionInventoryCommitted(inventory);
+				if(bot.getAbyssRank()!=null)bot.getAbyssRank().markInsertCommitted();
+			} catch(SQLException|RuntimeException e) {try{connection.rollback();}catch(SQLException rollback){e.addSuppressed(rollback);}InventoryDAO.markCompanionInventoryDirty(bot);throw e;}
+		} catch(SQLException|RuntimeException failure) {
+			try{discardUnpublishedFactory(bot);}catch(Exception cleanup){failure.addSuppressed(cleanup);}
+			throw failure;
+		}
+	}
+
 	static void save(Player bot, Home home) throws SQLException {
 		if (home == null) throw new SQLException("Missing companion home checkpoint");
 		try { PlayerBotCreationMetadata.prepare(bot); } catch (java.io.IOException e) { throw new SQLException("Cannot queue native creation provenance",e); }
+		var chronicle = com.aionemu.gameserver.services.AetherfallBoonService.prepareBotChronicleCheckpoint(bot);
+		var collection = PlayerBotCollectionRenown.prepare(bot);
+		var passProgress = com.aionemu.gameserver.services.SeasonPassService.pendingCompanionProgress(bot);
 		// Several legacy DAOs catch their SQL errors and return success. For companions, every
 		// progress-table write must throw on failure so dismissal cannot release an unsaved character.
 		try (Connection connection = DatabaseFactory.getConnection()) {
@@ -70,8 +101,14 @@ final class PlayerBotPersistence {
 				}
 				var metadata = PlayerBotMetadata.pending(bot.getAccount().getId(),bot.getObjectId());
 				PlayerBotMetadata.store(connection,metadata);
+				PlayerBotCollectionRenown.store(connection, collection);
+				PlayerBotRecruitment.complete(connection,bot);
+				com.aionemu.gameserver.services.SeasonPassService.storeCompanionProgress(connection, passProgress);
 				connection.commit();
-				if (bot.getAbyssRank() != null) bot.getAbyssRank().markInsertCommitted();
+				com.aionemu.gameserver.services.SeasonPassService.committedCompanionProgress(passProgress);
+				PlayerBotCollectionRenown.committed(collection);
+				com.aionemu.gameserver.services.AetherfallBoonService.commitBotChronicleCheckpoint(chronicle);
+								if (bot.getAbyssRank() != null) bot.getAbyssRank().markInsertCommitted();
 				PlayerBotMetadata.committed(metadata);
 				InventoryDAO.companionInventoryCommitted(inventory);
 				if (recipes != null) recipeFactory.committed(recipes);

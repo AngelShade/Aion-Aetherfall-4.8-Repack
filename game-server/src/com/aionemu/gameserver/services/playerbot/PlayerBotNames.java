@@ -81,5 +81,31 @@ public final class PlayerBotNames {
    try(var r=s.getGeneratedKeys()){if(!r.next() || r.getLong(1)<=0)throw new SQLException("Native name history identity missing");return r.getLong(1);}
   }
  }
+ /** A saved companion the owner has dismissed. Its native row and name history change together. */
+ public static String renameCompanion(int account,String oldName,String newName) {
+  if(!NameRestrictionService.isValidName(newName) || NameRestrictionService.isForbidden(newName))throw new IllegalArgumentException("Choose a valid companion name.");
+  try(var c=DatabaseFactory.getConnection()) {
+   c.setAutoCommit(false);
+   try {
+    int id=0;
+    try(var s=c.prepareStatement("SELECT p.id FROM players p JOIN playerbot_roster r ON r.player_id=p.id AND r.account_id=p.account_id WHERE p.name=? AND p.account_id=? AND r.ready=TRUE AND p.online=0 FOR UPDATE")) {
+     s.setString(1,oldName);s.setInt(2,account);
+     try(var r=s.executeQuery()){if(r.next())id=r.getInt(1);}
+    }
+    if(id<=0)throw new IllegalArgumentException("Choose one of your saved companions.");
+    if(PlayerBotLease.isReserved(id) || com.aionemu.gameserver.world.World.getInstance().isInWorld(id))throw new IllegalArgumentException("Dismiss "+oldName+" before renaming them.");
+    if(unavailable(c,newName))throw new IllegalArgumentException("That name is already taken.");
+    try(var s=c.prepareStatement("UPDATE players SET name=? WHERE id=? AND account_id=? AND name=?")) {
+     s.setString(1,newName);s.setInt(2,id);s.setInt(3,account);s.setString(4,oldName);
+     if(s.executeUpdate()!=1)throw new IllegalArgumentException("Choose one of your saved companions.");
+    }
+    try(var s=c.prepareStatement("INSERT INTO old_names (player_id,old_name,new_name) VALUES (?,?,?)")) {
+     s.setInt(1,id);s.setString(2,oldName);s.setString(3,newName);s.executeUpdate();
+    }
+    c.commit();
+    return oldName+" is now called "+newName+".";
+   }catch(SQLException | RuntimeException error){c.rollback();throw error;}
+  }catch(SQLException error){throw new IllegalStateException("Could not rename this companion; nothing was changed",error);}
+ }
  private PlayerBotNames(){}
 }

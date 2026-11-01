@@ -43,7 +43,8 @@ public class _14112PollutionResolution extends AbstractQuestHandler {
 		}
 		if (state.getStatus() != QuestStatus.START || npc != LEPIOS || state.getQuestVarById(0) != 0)
 			return false;
-		if (action == QUEST_SELECT)
+		// The 4.8 task table only exposes the kill; opening Lepios must offer his briefing directly.
+		if (action == QUEST_SELECT || action == USE_OBJECT)
 			return sendQuestDialog(env, SELECT2);
 		if (action == SELECT2_1)
 			return sendQuestDialog(env, action);

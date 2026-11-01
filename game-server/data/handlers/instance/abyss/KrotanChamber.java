@@ -59,7 +59,7 @@ public class KrotanChamber extends AbstractInnerUpperAbyssInstance {
 			case 215128 -> openDoor(7);
 			case 215129 -> openDoor(9);
 			case 215134 -> openDoor(16);
-			case 215135, 215136 -> spawnChests();
+			case 215135, 215136 -> {completeRun(npc);spawnChests();}
 			case 215413 -> switchToEasyMode();
 		}
 	}

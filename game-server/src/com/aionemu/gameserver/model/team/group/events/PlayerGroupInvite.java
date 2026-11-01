@@ -20,15 +20,21 @@ public class PlayerGroupInvite extends RequestResponseHandler<Player> {
 
 	@Override
 	public void acceptRequest(Player inviter, Player invited) {
-		if (PlayerRestrictions.canInviteToGroup(inviter, invited)) {
+		if (com.aionemu.gameserver.services.playerbot.PlayerBotFindGroup.paidInvitation(inviter, invited)) return;
+		// Several humans can accept the same bot leader's invitation on different client connections.
+		// Serialize initial group creation, then use the native team lock for capacity + admission.
+		synchronized (inviter) {
 			PlayerGroup group = inviter.getPlayerGroup();
-			if (group != null) {
-				PlayerGroupService.addPlayer(group, invited);
-			} else {
-				PlayerGroupService.createGroup(inviter, invited, TeamType.GROUP, 0);
-			}
-			com.aionemu.gameserver.services.playerbot.PlayerBotFindGroup.accepted(inviter, invited);
+			Runnable admission = () -> {
+				if (inviter.getPlayerGroup() != group || inviter.isInAlliance()
+					|| group != null && group.size() >= group.getMaxMemberCount()) return;
+				if (!PlayerRestrictions.canInviteToGroup(inviter, invited)) return;
+				if (group != null) PlayerGroupService.addPlayer(group, invited);
+				else PlayerGroupService.createGroup(inviter, invited, TeamType.GROUP, 0);
+			};
+			if (group == null) admission.run(); else group.executeLocked(admission);
 		}
+		com.aionemu.gameserver.services.playerbot.PlayerBotFindGroup.accepted(inviter, invited);
 	}
 
 	@Override

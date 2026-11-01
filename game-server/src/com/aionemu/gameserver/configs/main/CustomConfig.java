@@ -120,7 +120,7 @@ public class CustomConfig {
 	/**
 	 * Basic Quest limit size
 	 */
-	@Property(key = "gameserver.basic.questsize.limit", defaultValue = "40")
+	@Property(key = "gameserver.basic.questsize.limit", defaultValue = "1000")
 	public static int BASIC_QUEST_SIZE_LIMIT;
 
 	/**

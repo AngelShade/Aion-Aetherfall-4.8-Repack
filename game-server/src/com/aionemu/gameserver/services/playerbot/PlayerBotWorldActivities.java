@@ -162,6 +162,7 @@ final class PlayerBotWorldActivities {
   return choices.stream().min(Comparator.comparingDouble(n->PositionUtil.getDistance(bot,n))).orElse(null);
  }
  static boolean surplus(PlayerBotSession session,Item item) {
+  if(PlayerBotRoadMerchants.merchandise(session.bot(),item))return false;
   Player bot=session.bot();
   boolean upgrade=PlayerBotEquipment.upgrades(bot,session.combatRole()).stream().anyMatch(u->u.item()==item);
   return PlayerBotCare.disposable(item,PlayerBotGearPolicy.generated(bot,item),upgrade,PlayerBotCare.worldQuestItem(bot,item.getItemId()),

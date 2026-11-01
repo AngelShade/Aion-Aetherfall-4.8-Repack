@@ -62,6 +62,7 @@ public class TitleList {
 				titles.put(titleId, entry);
 				ExpireTimerTask.getInstance().registerExpirable(entry, owner);
 				PlayerTitleListDAO.storeTitles(owner, entry);
+				com.aionemu.gameserver.services.playerbot.PlayerBotCollectionRenown.markChanged(owner);
 			} else {
 				PacketSendUtility.sendPacket(owner, SM_SYSTEM_MESSAGE.STR_TOOLTIP_LEARNED_TITLE());
 				return false;

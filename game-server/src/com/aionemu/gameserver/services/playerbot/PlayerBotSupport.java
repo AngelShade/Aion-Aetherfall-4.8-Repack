@@ -36,7 +36,7 @@ final class PlayerBotSupport {
   return List.copyOf(result);
  }
  static boolean eligible(Player bot,Player target) {
-  return recipientAllowed(bot,target) && target.isSpawned() && target.isPlaying() && target.getWorldId()==bot.getWorldId() && target.getInstanceId()==bot.getInstanceId()
+  return recipientAllowed(bot,target) && PlayerBotRoadDuty.recipient(bot,target) && target.isSpawned() && target.isPlaying() && target.getWorldId()==bot.getWorldId() && target.getInstanceId()==bot.getInstanceId()
    && !bot.isEnemy(target) && !target.isEnemy(bot) && TargetRelationProperty.isBuffAllowed(bot,target)
    && (target==bot || PlayerBotTeams.same(bot,target) || bot.getRace()==target.getRace());
  }

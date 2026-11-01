@@ -87,6 +87,7 @@ public class DanuarReliquaryInstance extends GeneralInstanceHandler {
 			case 231305: // Enraged Queen Modor
 			case 234691: // Crazed Modor
 				onInstanceEnd(true);
+				completeRun(npc);
 				break;
 			case 701795: // Treasure Box
 			case 802183:

@@ -21,18 +21,22 @@ final class PlayerBotCompanionLooks {
 
     static void recruited(Player owner, Player bot) {
         if (!PlayerBotConfig.GENERATED_RANDOM_LOOKS) return;
-        try {
-            int account=owner.getAccount().getId(),character=bot.getObjectId();
-            var settings=PlayerBotMetadata.load(account,character,"looks",java.nio.file.Path.of("config/playerbots/looks-character-"+character+".properties"));
-            if (!"4".equals(settings.getProperty("version"))) {
-                var appearance = create(owner,bot.getGender(),character);
-                if (!PlayerAppearanceDAO.store(character,appearance)) throw new IllegalStateException("Could not save companion appearance.");
-                bot.setPlayerAppearance(appearance);
-                settings.setProperty("account",Integer.toString(account));settings.setProperty("character",Integer.toString(character));settings.setProperty("version","4");
-                PlayerBotMetadata.save(account,character,"looks",settings);
-            }
-        } catch (java.io.IOException error) { throw new IllegalStateException("Could not load companion appearance settings.",error); }
+        try { bot.setPlayerAppearance(settled(owner,bot.getGender(),bot.getObjectId())); }
+        catch (java.io.IOException error) { throw new IllegalStateException("Could not load companion appearance settings.",error); }
         matchHeight(owner,bot);
+    }
+
+    /** The saved look, rolled on first need: a pull shows the same face the first hire will use. */
+    static PlayerAppearance settled(Player owner, Gender gender, int character) throws java.io.IOException {
+        if (!PlayerBotConfig.GENERATED_RANDOM_LOOKS) return PlayerAppearanceDAO.load(character);
+        int account=owner.getAccount().getId();
+        var settings=PlayerBotMetadata.load(account,character,"looks",java.nio.file.Path.of("config/playerbots/looks-character-"+character+".properties"));
+        if ("4".equals(settings.getProperty("version"))) return PlayerAppearanceDAO.load(character);
+        var appearance = create(owner,gender,character);
+        if (!PlayerAppearanceDAO.store(character,appearance)) throw new IllegalStateException("Could not save companion appearance.");
+        settings.setProperty("account",Integer.toString(account));settings.setProperty("character",Integer.toString(character));settings.setProperty("version","4");
+        PlayerBotMetadata.save(account,character,"looks",settings);
+        return appearance;
     }
 
     static void tick(PlayerBotSession session) {

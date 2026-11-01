@@ -174,6 +174,7 @@ public class DragonLordsRefugeInstance extends GeneralInstanceHandler {
 
 	@Override
 	public void onDie(Npc npc) {
+        if (npc.getNpcId()==219362) completeRun(npc);
 		super.onDie(npc);
 		switch (npc.getNpcId()) {
 			case 219359: // Calindi Flamelord

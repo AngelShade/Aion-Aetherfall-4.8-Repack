@@ -421,6 +421,7 @@ public final class PlayerBotService {
  }
  public void populationLevelChanged(Player bot,int oldLevel,int newLevel) {populationManager.levelChanged(bot,oldLevel,newLevel);}
  private boolean placePopulation(PlayerBotSession session,boolean focusMove) {
+  if(PlayerBotRoadDuty.assigned(session.bot()))return false;
   if(PlayerBotFindGroup.committed(session.bot()) || session.worldExcursion())return false;
   if(!PlayerBotConfig.POPULATION_ENABLED || !PlayerBotPopulationPolicy.serverAccount(session.bot().getAccount().getId()) || !PlayerBotWorldPlacement.idle(session))return false;
   var bot=session.bot();long now=System.currentTimeMillis();
@@ -601,7 +602,7 @@ public final class PlayerBotService {
   var candidates=new ArrayList<>(sessions.values());Collections.shuffle(candidates,new Random(populationRandom.nextLong()));
   for(var session:candidates) {
    var bot=session.bot();int id=bot.getObjectId();
-   if(!session.autonomous() || session.closing() || !PlayerBotPlayerPresence.global(bot) || !bot.isSpawned()
+   if(!session.autonomous() || session.closing() || !PlayerBotPlayerPresence.global(bot) || !bot.isSpawned() || PlayerBotRoadDuty.assigned(bot)
     || PlayerBotPlayerPresence.resident(bot) || PlayerBotFindGroup.committed(bot) || session.worldExcursion()
     || !PlayerBotWorldPlacement.idle(session) || PlayerBotWorldAscension.pending(bot)
     || PlayerBotWorldActivities.committedTravel(bot) && PlayerBotWorldActivities.questTravel(bot)
@@ -613,7 +614,7 @@ public final class PlayerBotService {
     submitted=backgroundWork.submit(ThreadPoolManager.getInstance()::executeLongRunning,()->{
      focusJobThread=Thread.currentThread();
      try{synchronized(session){
-      if(shuttingDown || sessions.get(id)!=session || !PlayerBotPlayerPresence.enabled() || focusProtected(session)
+      if(shuttingDown || sessions.get(id)!=session || !PlayerBotPlayerPresence.enabled() || focusProtected(session) || PlayerBotRoadDuty.assigned(bot)
        || PlayerBotFindGroup.committed(bot) || session.worldExcursion() || PlayerBotWorldAscension.pending(bot)
        || PlayerBotWorldActivities.committedTravel(bot) && PlayerBotWorldActivities.questTravel(bot))return;
       var state=populationSchedule.peek();var event=state==null?null:state.events().get(id);if(event==null)return;
@@ -756,10 +757,17 @@ public final class PlayerBotService {
   removeResidence(r.character());nextServerPopulation=0;}
  }
 
- private PlayerBotPersistence.Home checkpoint(PlayerBotSession session) {
+ PlayerBotPersistence.Home checkpoint(PlayerBotSession session) {
   Player bot=session.bot();
   if(session.world() && bot.isSpawned() && !bot.isInInstance())return new PlayerBotPersistence.Home(bot.getWorldId(),bot.getX(),bot.getY(),bot.getZ(),bot.getHeading(),0);
   return homes.get(bot.getObjectId());
+ }
+ void checkpointBeforeArchive(PlayerBotSession session) throws java.sql.SQLException {
+  if (!current(session)) throw new java.sql.SQLException("Companion custody changed before archival checkpoint");
+  PlayerBotPersistence.save(session.bot(), checkpoint(session));
+ }
+ void checkpointForOwnerAction(PlayerBotSession session) throws java.sql.SQLException {
+  checkpointBeforeArchive(session);
  }
  PlayerBotSession worldSession(Player bot){var s=sessions.get(bot.getObjectId());return s!=null && s.world() && !s.closing() ? s : null;}
 
@@ -817,14 +825,15 @@ public final class PlayerBotService {
 			}
 			session=new PlayerBotSession(bot,bot,lease,0,false);
    var saved=PlayerBotPersistence.Home.of(bot);
+   var roadHome=PlayerBotRoadDuty.savedHome(bot);if(roadHome!=null){saved=roadHome;entryCamp=null;}
    var map=DataManager.WORLD_MAPS_DATA.getTemplate(saved.map());
    if(map==null || map.isInstance())saved=r.home();
    boolean repairedLanding=false;
    boolean safeLanding=com.aionemu.gameserver.world.geo.GeoService.getInstance().isPlayerBotLanding(saved.map(),1,saved.x(),saved.y(),saved.z());
    // Reused global identities use the same zone preference as new characters,
    // before visibility. Manual residents and owned companions retain their homes.
-   boolean concentrate=PlayerBotPopulationPolicy.serverAccount(r.account()) && (PlayerBotConfig.POPULATION_CONCENTRATE || focused);
-   boolean guardedLanding=PlayerBotPopulationPolicy.serverAccount(r.account()) && (PlayerBotWorldPlacement.nearHuman(saved.map(),saved.x(),saved.y(),saved.z())
+   boolean concentrate=roadHome==null && PlayerBotPopulationPolicy.serverAccount(r.account()) && (PlayerBotConfig.POPULATION_CONCENTRATE || focused);
+   boolean guardedLanding=roadHome==null && PlayerBotPopulationPolicy.serverAccount(r.account()) && (PlayerBotWorldPlacement.nearHuman(saved.map(),saved.x(),saved.y(),saved.z())
     || !PlayerBotWorldPlacement.mapEligible(DataManager.WORLD_MAPS_DATA.getTemplate(saved.map()),bot.getRace(),PlayerBotConfig.POPULATION_MAPS));
    if(!safeLanding || concentrate || guardedLanding) {
     var camp=entryCamp!=null?entryCamp:PlayerBotWorldPlacement.destination(bot.getRace(),bot.getLevel(),PlayerBotPopulationPolicy.settings().cityChance(),populationRandom);
@@ -852,6 +861,9 @@ public final class PlayerBotService {
     // Recheck after slow native loading, under the same lock as publication/manual admission.
     // Target/config/manual capacity can have changed while this character was being loaded.
     if(global && (!automaticPopulationReady || !automaticAdmissionsInitialized) || !PlayerBotPopulationPolicy.mayEnter(global,PlayerBotConfig.POPULATION_ENABLED,target,activeGlobal,activeWorld,PlayerBotConfig.WORLD_MAX_ACTIVE))return;
+    com.aionemu.gameserver.services.AetherfallBoonService.onBotEnterWorld(bot, true);
+    PlayerBotHiring.loaded(bot);
+    PlayerBotPass.loaded(bot);
     if(!World.getInstance().setPosition(bot,saved.map(),1,saved.x(),saved.y(),saved.z(),saved.heading()))throw new IllegalStateException("Invalid residence position");
     World.getInstance().storeObject(bot);World.getInstance().spawn(bot);bot.getController().updateZone();bot.getLifeStats().updateCurrentStats();
      publishSession(session);homes.put(bot.getObjectId(),global?saved:repairedLanding?saved:r.home());registered=true;
@@ -873,7 +885,7 @@ public final class PlayerBotService {
 		}finally {
 			if(!registered) {
 				if(session!=null)session.markClosing();
-				if(bot!=null){if(bot.isSpawned())World.getInstance().despawn(bot);World.getInstance().removeObject(bot);bot.getEffectController().removeAllEffects(true);bot.getLifeStats().cancelAllTasks();
+				if(bot!=null){com.aionemu.gameserver.services.AetherfallBoonService.onLogout(bot);PlayerBotCollectionRenown.close(bot);com.aionemu.gameserver.services.SeasonPassService.releaseCompanion(bot);if(bot.isSpawned())World.getInstance().despawn(bot);World.getInstance().removeObject(bot);bot.getEffectController().removeAllEffects(true);bot.getLifeStats().cancelAllTasks();
      if(PlayerBotPopulationManager.global(bot))try{PlayerBotPersistence.discardUnpublishedFactory(bot);}catch(Exception e){log.error("Unpublished population item IDs retained until safe recovery for {}",r.character(),e);}
     }
 				populationManager.closedId(r.character());
@@ -894,6 +906,7 @@ public final class PlayerBotService {
 	private void releaseWorldControl(PlayerBotSession previous) {
 		var bot=previous.bot();
 		synchronized(previous) {
+			PlayerBotHiring.released(bot, "CONTROL_ENDED");
 			PlayerBotTeams.remove(bot);previous.markClosing();bot.setTarget(null);bot.setWorldBotController(0);
 			var next=new PlayerBotSession(bot,bot,previous.lease(),0,false);
 			synchronized(next) {
@@ -905,6 +918,7 @@ public final class PlayerBotService {
 					com.aionemu.gameserver.services.teleport.TeleportService.teleportTo(bot,r.map(),1,r.x(),r.y(),r.z(),r.heading());
 				}
 			}
+			PlayerBotFindGroup.controlled(bot,bot);
 		}
 	}
 	/** GuildAcceptAction: answer the native legion request without changing party control. */
@@ -929,6 +943,7 @@ public final class PlayerBotService {
  }
  /** Adopt a listed world bot only after the human accepted its native party invitation. */
  public synchronized boolean controlFindGroupBot(Player player,Player bot) {
+  if (!PlayerBotHiring.paidControl(player,bot) && !PlayerBotFindGroup.freeHelpControl(player,bot)) return false;
   var current=sessions.get(bot.getObjectId());
   // The decision worker may observe native membership before the invitation
   // callback reaches this handoff. An already completed handoff is success.
@@ -944,6 +959,7 @@ public final class PlayerBotService {
  }
  /** A bot already in an adopted Find Group party follows the same human. */
  public synchronized boolean adoptFindGroupMember(Player player,Player bot) {
+  if (!PlayerBotHiring.paidControl(player,bot) && !PlayerBotFindGroup.freeHelpControl(player,bot)) return false;
   var current=sessions.get(bot.getObjectId());
   if(current!=null && this.current(current) && current.owner()==player && PlayerBotTeams.same(player,bot))return true;
   if(current==null || !this.current(current) || !current.autonomous() || !PlayerBotTeams.same(player,bot)
@@ -989,7 +1005,14 @@ public final class PlayerBotService {
   return inviteWorldBot(inviter,bot,invitation,true);
  }
  private boolean inviteWorldBot(Player inviter,Player bot,com.aionemu.gameserver.model.gameobjects.player.RequestResponseHandler<Player> invitation,boolean alliance) {
+   if(PlayerBotRoadDuty.assigned(bot)){PlayerBotRoadDuty.invited(inviter,bot);return true;}
   if(!bot.isWorldBot())return false;
+   if(!PlayerBotHiring.confirmedAdmission(inviter,bot) && PlayerBotFindGroup.requestInvitation(inviter,bot))return true;
+  if (!PlayerBotHiring.confirmedAdmission(inviter,bot) && !PlayerBotHiring.paidControl(inviter,bot)
+   && !PlayerBotFindGroup.freeHelpControl(inviter,bot)) {
+   PlayerBotHiring.offer(inviter,bot);
+   return true;
+  }
   var current=sessions.get(bot.getObjectId());var team=inviter.getCurrentTeam();
   synchronized(current==null?bot:current) {
   boolean ownTeam=current!=null && current.owner()==inviter && PlayerBotTeams.same(inviter,bot);
@@ -1000,27 +1023,58 @@ public final class PlayerBotService {
    || !ownTeam && companions(inviter).size()>=(alliance?PlayerBotRaidPolicy.limit():Math.min(5,PlayerBotRaidPolicy.limit()))
    || team!=null && (!PlayerBotTeams.allowed(team) || !team.isLeader(inviter) && !(alliance && inviter.isInAlliance() && inviter.getPlayerAlliance().isSomeCaptain(inviter)))
    || !alliance && inviter.isInAlliance()) {
-   invitation.denyRequest(inviter,bot);
    PacketSendUtility.sendMessage(inviter,"Invite an available living bot of your faction; lead the party/alliance and keep a free companion slot.");return true;
   }
   invitation.acceptRequest(inviter,bot);
   if(PlayerBotTeams.same(inviter,bot)) {
    changeWorldController(current,inviter);
    PacketSendUtility.sendMessage(inviter,bot.getName()+" joined your "+(alliance?"alliance":"party")+". Normal .bot orders work; its character remains an independent world bot.");
-   PlayerBotFindGroup.arrived(inviter,bot);
-  }
+    PlayerBotFindGroup.arrived(inviter,bot);
+   } else PacketSendUtility.sendMessage(inviter,"The helper could not join your current party/alliance. No new payment was charged.");
   return true;}
+ }
+ /** Payment owner already holds the actor claim and session. Do not take the service monitor here. */
+ public boolean admitHiredWorldBot(Player owner, Player bot) {
+  var actor = currentActor(bot);
+  if (!PlayerBotHiring.confirmedAdmission(owner,bot) || actor == null || !actor.world() || !actor.autonomous()
+   || shuttingDown || retiringWorldBots.contains(bot.getObjectId()) || !owner.isOnline() || owner.isDead()
+   || !owner.isSpawned() || owner.getRace()!=bot.getRace() || bot.isDead() || bot.isInTeam()
+   || companions(owner).size() >= (owner.isInAlliance()?PlayerBotRaidPolicy.limit():Math.min(5,PlayerBotRaidPolicy.limit()))) return false;
+  PlayerBotFindGroup.validateHire(owner,bot);
+  var team = owner.getCurrentTeam();boolean[] joined={false};
+  Runnable admission=()->{
+   // Native events and this decision share the team lock, including the final free-slot check.
+   if(owner.getCurrentTeam()!=team || !current(actor) || !actor.autonomous() || bot.isInTeam()
+    || team!=null && (!PlayerBotTeams.allowed(team) || team.size()>=team.getMaxMemberCount() || !team.isLeader(owner)
+      && !(owner.isInAlliance() && owner.getPlayerAlliance().isSomeCaptain(owner))))return;
+   if (owner.isInAlliance()) new com.aionemu.gameserver.model.team.alliance.events.PlayerAllianceInvite(owner).acceptRequest(owner,bot);
+   else new com.aionemu.gameserver.model.team.group.events.PlayerGroupInvite(owner).acceptRequest(owner,bot);
+   joined[0]=PlayerBotTeams.same(owner,bot);
+  };
+  synchronized(owner){if(team==null)admission.run();else team.executeLocked(admission);}
+  if(!joined[0])return false;
+  changeWorldController(actor,owner);
+  var current = currentActor(bot);
+  return current != null && current.owner()==owner && PlayerBotTeams.same(owner,bot);
+ }
+ public void rollbackHiredWorldBot(Player owner, Player bot) {
+  if (!PlayerBotHiring.confirmedAdmission(owner,bot)) throw new IllegalStateException("Hire rollback lost its payment owner");
+  var actor = currentActor(bot);
+  if (actor != null && actor.world() && actor.owner()==owner) releaseWorldControl(actor);
+  else if (PlayerBotTeams.same(owner,bot)) PlayerBotTeams.remove(bot);
  }
 	private Player worldController(PlayerBotSession s,Player excluded) {
 		var group=s.bot().getCurrentTeam();if(group==null || !PlayerBotTeams.allowed(group))return null;
 		var leader=group.getLeader().getObject();
-		if(leader!=excluded && !leader.isPlayerBot() && leader.isOnline())return leader;
-		return group.getMembers().stream().filter(p->p!=excluded && !p.isPlayerBot() && p.isOnline()).findFirst().orElse(null);
+		if(leader!=excluded && !leader.isPlayerBot() && leader.isOnline()
+   && (PlayerBotHiring.paidControl(leader,s.bot()) || PlayerBotFindGroup.freeHelpControl(leader,s.bot())))return leader;
+		return group.getMembers().stream().filter(p->p!=excluded && !p.isPlayerBot() && p.isOnline()
+   && (PlayerBotHiring.paidControl(p,s.bot()) || PlayerBotFindGroup.freeHelpControl(p,s.bot()))).findFirst().orElse(null);
 	}
 	public void controllerLogout(Player owner) {
 		for(var s:companions(owner)) {
 			if(!s.world()){dismiss(s);continue;}
-			synchronized(this){if(sessions.get(s.bot().getObjectId())==s){var replacement=worldController(s,owner);if(replacement==null)releaseWorldControl(s);else changeWorldController(s,replacement);}}
+			synchronized(this){if(sessions.get(s.bot().getObjectId())==s){PlayerBotHiring.released(s.bot(),"DISCONNECTED");if(PlayerBotHiring.shouldRelease(s,System.currentTimeMillis()))releaseWorldControl(s);}}
 		}
 	}
 
@@ -1062,13 +1116,13 @@ public final class PlayerBotService {
 			.filter(p -> p.getPlayerCommonData().getName().equalsIgnoreCase(name)).findFirst()
 			.orElse(null);
 		if (ownData == null) {
-			var dedicated = PlayerBotRoster.list(owner.getAccount().getId()).stream()
-				.filter(e -> e.ready() && name.equalsIgnoreCase(e.name())).findFirst()
-				.orElseThrow(() -> new IllegalArgumentException("Recruit an offline character or generated companion belonging to your own account."));
+			var dedicated = PlayerBotRoster.findReady(owner.getAccount().getId(),name);
+			if(dedicated==null)throw new IllegalArgumentException("Recruit an offline character or generated companion belonging to your own account.");
 			ownData = AccountService.loadPlayerAccountData(dedicated.id());
 		}
 		int id = ownData.getPlayerCommonData().getPlayerObjId();
 		boolean generated = PlayerBotRoster.contains(id);
+		if (generated) PlayerBotRecycling.requireRecruitable(owner.getAccount().getId(), id);
 		try { loadWorldRoster(); if(residents.containsKey(id))throw new IllegalArgumentException("This is a world bot. Invite it normally, or withdraw it with .bot worldoff <name> first."); }
 		catch(java.io.IOException e){throw new IllegalStateException("Cannot verify world roster",e);}
 		if (id == owner.getObjectId()) throw new IllegalArgumentException("You cannot recruit your current character.");
@@ -1084,7 +1138,8 @@ public final class PlayerBotService {
 			PlayerCommonData common = data.getPlayerCommonData();
 			boolean banned = data.getCharBanInfo() != null && data.getCharBanInfo().getEnd() >= System.currentTimeMillis() / 1000;
 			if (!PlayerBotRules.canRecruit(PlayerDAO.getAccountId(id) == owner.getAccount().getId(), common.getRace() == owner.getRace(),
-				common.isOnline(), banned, data.getDeletionDate() != null, false, generated ? 0 : common.getLevel() - owner.getLevel(), PlayerBotConfig.LEVEL_DIFFERENCE))
+				common.isOnline(), banned, data.getDeletionDate() != null, false, generated || common.getLevel()<owner.getLevel()
+				 && PlayerBotOwnedProgression.recruitmentMatches(owner.getAccount().getId(),id) ? 0 : common.getLevel() - owner.getLevel(), PlayerBotConfig.LEVEL_DIFFERENCE))
 				throw new IllegalArgumentException("Companion must be offline, same faction, not banned/deleting, and within " + PlayerBotConfig.LEVEL_DIFFERENCE + " levels.");
 			// Isolated account view avoids changing the human's live warehouse owner, visible equipment or passports.
 			Account account = new Account(owner.getAccount().getId());
@@ -1103,6 +1158,7 @@ public final class PlayerBotService {
 			PlayerBotPersistence.Home home = PlayerBotPersistence.Home.of(bot);
 			bot.setPlayerBotOwner(owner.getObjectId());
 			bot.setCubeLimit(); bot.setWarehouseLimit();
+			if(generated)try{PlayerBotGrowth.profile(bot);}catch(java.io.IOException e){throw new IllegalStateException("Cannot load companion growth",e);}
 			session = new PlayerBotSession(owner, bot, lease, companions(owner).size(), generated);
 			// Register Temporary Bot management before native Stigma reconstruction.
 			// Owned alts return immediately from this path and retain normal login rules.
@@ -1115,6 +1171,8 @@ public final class PlayerBotService {
 					SkillEngine.getInstance().applyEffectDirectly(template, skillEntry.getSkillLevel(), bot, bot);
 			}
 			var arrival=PlayerBotFormation.arrival(owner,bot);
+			com.aionemu.gameserver.services.AetherfallBoonService.onBotEnterWorld(bot, generated);
+			if (generated) PlayerBotPass.loaded(bot);
 			if(!World.getInstance().setPosition(bot, owner.getWorldId(), owner.getInstanceId(), arrival.x(), arrival.y(), arrival.z(), owner.getHeading()))
 				throw new IllegalStateException("Companion could not enter your current map instance.");
 			World.getInstance().storeObject(bot);
@@ -1132,6 +1190,9 @@ public final class PlayerBotService {
 			if (!registered) {
 				if(session!=null)PlayerBotQuestSync.close(session);
 				if (bot != null) {
+					com.aionemu.gameserver.services.AetherfallBoonService.onLogout(bot);
+					PlayerBotCollectionRenown.close(bot);
+					com.aionemu.gameserver.services.SeasonPassService.releaseCompanion(bot);
 					PlayerBotTeams.remove(bot);
 					World.getInstance().removeObject(bot);
 					bot.getEffectController().removeAllEffects(true);
@@ -1226,22 +1287,25 @@ public final class PlayerBotService {
 
 	/** Separate bot-only roster: level/class at recruitment, ordinary stats/skills, no human character slot. */
 	public synchronized void generate(Player owner, String name, PlayerClass playerClass) {
+		if(PlayerBotRecruitment.alreadyCompleted())return; // Another account character may have finished the same paid operation while this request waited.
 		ensureCreation(owner);
 		int startingLevel = PlayerBotGenerationOptions.level(owner.getLevel());
-		if (!PlayerBotConfig.GENERATED_ENABLED) throw new IllegalArgumentException("Generated companions are disabled.");
+		boolean earned = PlayerBotRecruitment.active(); // A stored ticket roll is outside the free-generation switch and limit.
+		if (!earned && !PlayerBotConfig.GENERATED_ENABLED) throw new IllegalArgumentException("Generated companions are disabled.");
 		if (!PlayerBotRoster.available()) throw new IllegalArgumentException("The separate companion roster needs game-server/sql/playerbots.sql applied and a server restart.");
-		if (!PlayerBotCreationPolicy.room(PlayerBotRoster.list(owner.getAccount().getId()).size()))
+		if (!earned && !PlayerBotCreationPolicy.room(PlayerBotRoster.freeGeneratedCount(owner.getAccount().getId())))
 			throw new IllegalArgumentException("Your Temporary Bot roster has reached its configured limit of " + PlayerBotCreationPolicy.limit() + ".");
 		if (startingLevel < 10 && !playerClass.isStartingClass() || startingLevel >= 10 && playerClass.isStartingClass())
 			throw new IllegalArgumentException("Choose a starting class below level 10, or an advanced class from level 10 onward.");
 		if (!NameRestrictionService.isValidName(name) || NameRestrictionService.isForbidden(name) || PlayerService.isNameUsedOrReserved(null, name))
 			throw new IllegalArgumentException("Choose an available valid companion name.");
-		int id = IDFactory.getInstance().nextId();
+		int id = earned ? PlayerBotRecruitment.identity() : IDFactory.getInstance().nextId();
 		Player generated = null;
 		try (PlayerBotLease lease = PlayerBotLease.acquire(id)) {
 			if (lease == null) throw new IllegalStateException("New generated companion ID is already reserved");
 			// Pending metadata is inserted first so a partial create can never appear at character selection.
-			PlayerBotRoster.reserve(owner.getAccount().getId(), id);
+			if(!earned)PlayerBotRoster.reserve(owner.getAccount().getId(), id);
+			else PlayerBotCreationMetadata.discard(id);
 			PlayerCommonData common = new PlayerCommonData(id);
 			common.setName(name); common.setRace(owner.getRace()); common.setGender(owner.getGender());
 			common.setPlayerClass(playerClass); common.setDaeva(!playerClass.isStartingClass()); common.setLevel(startingLevel);
@@ -1253,12 +1317,16 @@ public final class PlayerBotService {
 			generated = PlayerService.newPlayer(data, isolated);
 			generated.setPlayerBotOwner(owner.getObjectId());
 			PlayerBotGenerationOptions.initialize(generated);
+			PlayerBotRecruitment.stage(generated);
 			PlayerBotTemporary.initialize(generated,PlayerBotRules.roleFor(playerClass));
 			generated.getLifeStats().synchronizeWithMaxStats();
-			if (!PlayerService.storeNewPlayer(generated, isolated.getName(), isolated.getId()))
-				throw new java.sql.SQLException("Generated character or inventory creation failed");
-			PlayerBotPersistence.save(generated, PlayerBotPersistence.Home.of(generated));
-			PlayerBotRoster.ready(isolated.getId(), id);
+			if(earned)PlayerBotPersistence.create(generated,PlayerBotPersistence.Home.of(generated));
+			else {
+				if (!PlayerService.storeNewPlayer(generated, isolated.getName(), isolated.getId()))
+					throw new java.sql.SQLException("Generated character or inventory creation failed");
+				PlayerBotPersistence.save(generated, PlayerBotPersistence.Home.of(generated));
+				PlayerBotRoster.ready(isolated.getId(), id);
+			}
 		} catch (Exception e) {
 			log.error("Generated companion {} (id {}) remains pending after creation failure", name, id, e);
 			throw new IllegalArgumentException("Generated companion creation failed. Pending entries stay hidden from character selection; check server logs for id " + id + ".", e);
@@ -1268,6 +1336,12 @@ public final class PlayerBotService {
 				if (generated.getEffectController() != null) generated.getEffectController().removeAllEffects(true);
 				generated.getLifeStats().cancelAllTasks();
 			}
+		}
+		if (earned) {
+			// Ticket recruitment acquires a saved collection member. Joining the
+			// active party is a separate action through the existing roster UI.
+			PacketSendUtility.sendMessage(owner, "Ticket Recruit " + name + " is saved in your companion roster as a level-" + startingLevel + " " + playerClass + ".");
+			return;
 		}
 		PacketSendUtility.sendMessage(owner, "Temporary Bot " + name + " is ready as a level-" + startingLevel + " " + playerClass + ". Automatic builds and equipment apply only to Temporary Bots.");
 		try { ensureOwner(owner); }
@@ -1402,10 +1476,19 @@ public final class PlayerBotService {
     decided=true;
     // Membership transitions acquire service -> actor; decisions never do the reverse.
     if(session.world()) {
+     if (!session.autonomous() && (!session.owner().isOnline() || !PlayerBotTeams.same(session.owner(),session.bot())
+      || !PlayerBotHiring.paidControl(session.owner(),session.bot()) && !PlayerBotFindGroup.freeHelpControl(session.owner(),session.bot()))) {
+      session.endWorldControl();
+      if (PlayerBotHiring.shouldRelease(session,admission)) {
+       synchronized(this){if(!shuttingDown && sessions.get(id)==session)releaseWorldControl(session);}
+       continue;
+      }
+     } else {
      var controller=worldController(session,null);
      if(controller==null && !session.autonomous() || controller!=null && session.owner()!=controller) {
       synchronized(this){if(!shuttingDown && sessions.get(id)==session){if(controller==null)releaseWorldControl(session);else changeWorldController(session,controller);}}
       continue;
+     }
      }
     }
     long sessionLockBegan=System.nanoTime();
@@ -1586,7 +1669,11 @@ public final class PlayerBotService {
 				bot.getLifeStats().cancelAllTasks();
 				bot.getEffectController().removeNonStorableEffectsForLogout();
 				PlayerBotPersistence.save(bot, checkpoint(session));
+				com.aionemu.gameserver.services.AetherfallBoonService.onLogout(bot);
+				PlayerBotCollectionRenown.close(bot);
+				com.aionemu.gameserver.services.SeasonPassService.releaseCompanion(bot);
 				PlayerBotMetadata.release(bot.getAccount().getId(),bot.getObjectId());
+				PlayerBotFocus.close(session);
 				populationManager.closed(bot);
 				if(retiringWorldBots.contains(bot.getObjectId()))removeResidence(bot.getObjectId());
 				bot.getEffectController().removeAllEffects(true);
@@ -1611,7 +1698,8 @@ public final class PlayerBotService {
 	}
 
 	public boolean relocate(PlayerBotSession session) {
-		synchronized(session){return !shuttingDown && sessions.get(session.bot().getObjectId())==session && PlayerBotTransfers.relocate(session);}
+		synchronized(session){return !shuttingDown && sessions.get(session.bot().getObjectId())==session
+    && !PlayerBotFindGroup.waitingAtEntrance(session) && PlayerBotTransfers.relocate(session);}
 	}
 
 	private boolean canEnter(Player owner, WorldMapInstance destination) {

@@ -1,0 +1,14 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Black Cloud Marketplace</title><link rel="stylesheet" href="/shop/media/marketplace.css?v=companions-2"></head>
+<body><main><div class="shop-status" id="shop-status" role="status">Connecting to the Marketplace…</div></main>
+<script>(function(){
+  var message=document.getElementById('shop-status'),xhr=new XMLHttpRequest(),finished=false;
+  function fail(text){if(finished)return;finished=true;message.textContent=text||'Marketplace could not connect. Reopen this window to try again.';}
+  xhr.open('GET',location.pathname+location.search+(location.search?'&':'?')+'af_fetch=1',true);xhr.timeout=12000;
+  xhr.onreadystatechange=function(){if(xhr.readyState!==4||finished)return;
+    if(xhr.status!==200){fail('Marketplace could not connect. Reopen this window to try again.');return;}
+    var text=xhr.responseText;if(text.charAt(0)==='{'){try{fail(JSON.parse(text).error);}catch(ignore){fail();}return;}
+    if(text.toLowerCase().indexOf('<html')<0){fail();return;}
+    finished=true;document.open();document.write(text);document.close();
+  };
+  xhr.onerror=xhr.ontimeout=function(){fail();};xhr.send(null);
+}());</script></body></html>

@@ -53,6 +53,7 @@ public class DraupnirCaveInstance extends GeneralInstanceHandler {
 
 	@Override
 	public void onDie(Npc npc) {
+        if (npc.getNpcId()==213780) completeRun(npc);
 		switch (npc.getNpcId()) {
 			case 213776: // Instructor Afrane
 			case 213778: // Beautiful Lakshmi

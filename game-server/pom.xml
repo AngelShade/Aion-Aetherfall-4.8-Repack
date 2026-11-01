@@ -25,7 +25,7 @@
 			<resource>
 				<directory>config/playerbots/media</directory>
 				<targetPath>playerbots/media</targetPath>
-				<includes><include>bots.html</include><include>bots.css</include><include>bots.js</include></includes>
+				<includes><include>bots.html</include><include>bots.css</include><include>bots.js</include><include>cards/*.png</include><include>cards/*.jpg</include></includes>
 			</resource>
 		</resources>
 		<plugins>

@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.aionemu.commons.database.DatabaseFactory;
 import com.aionemu.gameserver.configs.main.CustomConfig;
+import com.aionemu.gameserver.configs.main.PlayerBotConfig;
 import com.aionemu.gameserver.dao.*;
 import com.aionemu.gameserver.dataholders.DataManager;
 import com.aionemu.gameserver.model.PlayerClass;
@@ -25,6 +26,7 @@ import com.aionemu.gameserver.questEngine.model.*;
 import com.aionemu.gameserver.services.item.ItemFactory;
 import com.aionemu.gameserver.services.mail.MailService;
 import com.aionemu.gameserver.services.player.PlayerService;
+import com.aionemu.gameserver.services.playerbot.PlayerBotJourneyEvidence;
 import com.aionemu.gameserver.services.teleport.TeleportService;
 import com.aionemu.gameserver.utils.PacketSendUtility;
 import com.aionemu.gameserver.utils.idfactory.IDFactory;
@@ -42,10 +44,10 @@ public final class PoetaJourneyService {
 		try (Connection c = DatabaseFactory.getConnection(); Statement s = c.createStatement()) {
 			for (String sql : Files.readString(Path.of("config/journey/schema.sql")).split(";")) if (!sql.isBlank()) s.execute(sql);
 			migrate(c);
-			try (ResultSet r = s.executeQuery("SELECT TABLE_NAME,ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('players','player_quests','player_titles','inventory','mail','player_bind_point','poeta_journey')")) {
+			try (ResultSet r = s.executeQuery("SELECT TABLE_NAME,ENGINE FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('players','player_quests','player_titles','inventory','mail','player_bind_point','poeta_journey','poeta_journey_continuation','poeta_journey_progress')")) {
 				int count = 0;
 				while (r.next()) { count++; if (!"InnoDB".equalsIgnoreCase(r.getString(2))) throw new SQLException("Journey requires InnoDB: " + r.getString(1)); }
-				if (count != 7) throw new SQLException("Journey persistence tables are missing.");
+				if (count != 9) throw new SQLException("Journey persistence tables are missing.");
 			}
 		}
 		for (QuestTemplate q : quests()) for (int id : PoetaJourneyRules.rewardItems(q).keySet())
@@ -116,10 +118,29 @@ public final class PoetaJourneyService {
 			List<Map<String,Object>> classes = PoetaJourneyRules.advancedClasses(p.getPlayerClass()).stream()
 				.map(v -> Map.<String,Object>of("id",v.name(),"name",className(v))).toList();
 			int pending = (int) quests(p.getRace()).stream().filter(q -> !completed(p,q.getId())).count();
-			return new LinkedHashMap<>(Map.of("eligible",eligible(p),"prompt",eligible(p) && choice.isEmpty(),"decision",choice,
+			Map<String,Object> state = new LinkedHashMap<>(Map.of("eligible",eligible(p),"prompt",eligible(p) && choice.isEmpty(),"decision",choice,
 				"name",p.getName(),"classes",classes,"quests",pending,"level",p.getLevel(),"welcome",welcomePending(c,p.getObjectId()),
 				"ceremonyRewardsMailed",ceremonyRewardsMailed(p),"journey",PoetaJourneyRules.journey(p.getRace()).presentation()));
+			state.put("continuationOpen",PlayerBotConfig.ENABLED && PoetaJourneyRules.continuationOpen(choice,p.getPlayerClass()));
+			state.put("continuationUnlocked",PlayerBotConfig.ENABLED && continuationUnlocked(c,p.getObjectId()));
+			state.put("tickets",PlayerBotConfig.TICKETS_ENABLED);
+			if (PlayerBotConfig.ENABLED && !eligible(p) && continuationUnlocked(c,p.getObjectId())) {
+				Map<String,Object> chapters = chapters(c,p.getObjectId(),evidence(c,p.getAccount().getId()),PlayerBotConfig.TICKETS_ENABLED);
+				for (Object reward : (List<?>) chapters.get("rewards")) {
+					@SuppressWarnings("unchecked") Map<String,Object> row = (Map<String,Object>) reward;
+					var title = DataManager.TITLE_DATA.getTitleTemplate((Integer) row.get("titleId"));
+					row.put("title",title == null ? "Title" : title.getDesc());
+				}
+				state.put("chapters",chapters);
+			}
+			return state;
 		}
+	}
+
+	/** A broken companion record must not close the page; chapters already recorded still show. */
+	private static PlayerBotJourneyEvidence.Facts evidence(Connection c,int account) {
+		try { return PlayerBotJourneyEvidence.read(c,account); }
+		catch (SQLException | RuntimeException e) { log.warn("Could not read Journey evidence for account {}",account,e); return new PlayerBotJourneyEvidence.Facts(0,0,0,0,0,0); }
 	}
 
 	private static String className(PlayerClass c) {
@@ -137,6 +158,24 @@ public final class PoetaJourneyService {
 				if (!p.isOnline() || World.getInstance().getPlayer(p.getObjectId()) != p) throw new IllegalArgumentException("Log in to continue.");
 				try (Connection c = DatabaseFactory.getConnection()) { acknowledge(c,p.getObjectId()); }
 				return "Enjoy your journey!";
+			}
+			if (action.equals("proceed")) {
+				if (!p.isOnline() || World.getInstance().getPlayer(p.getObjectId()) != p) throw new IllegalArgumentException("Log in to continue.");
+				if (!PlayerBotConfig.ENABLED) throw new IllegalArgumentException("Player Companions are unavailable.");
+				try (Connection c = DatabaseFactory.getConnection()) { proceed(c,p.getObjectId(),p.getPlayerClass()); }
+				return "";
+			}
+			if (action.equals("claim")) {
+				if (!p.isOnline() || World.getInstance().getPlayer(p.getObjectId()) != p) throw new IllegalArgumentException("Log in to continue.");
+				Integer id = PlayerBotConfig.ENABLED ? PoetaJourneyRules.rewardTitles().get(selected) : null;
+				var title = id == null ? null : DataManager.TITLE_DATA.getTitleTemplate(id);
+				if (title == null || (title.getRace() != Race.PC_ALL && title.getRace() != p.getRace())) throw new IllegalArgumentException("This reward is unavailable.");
+				boolean paid;
+				try (Connection c = DatabaseFactory.getConnection()) {
+					paid = claim(c,p.getObjectId(),selected,id,PoetaJourneyRules.rewardChapters(selected,PoetaJourneyRules.chapters(PlayerBotConfig.TICKETS_ENABLED)));
+				}
+				if (paid && !p.getTitleList().contains(id)) { p.getTitleList().addEntry(id,0); PacketSendUtility.sendPacket(p,new SM_TITLE_INFO(p)); }
+				return paid ? "Title earned: "+title.getDesc()+"." : "";
 			}
 			if (!p.isOnline() || World.getInstance().getPlayer(p.getObjectId()) != p || !eligible(p) || !p.isSpawned()
 				|| !CreatureState.isStanding(p.getState()) || p.getController().isInCombat())
@@ -365,6 +404,76 @@ public final class PoetaJourneyService {
 
 	static void acknowledge(Connection c,int player) throws SQLException {
 		update(c,"UPDATE poeta_journey SET welcome_pending=0 WHERE player_id=? AND decision='SKIP'",player);
+	}
+
+	static boolean continuationUnlocked(Connection c,int player) throws SQLException {
+		try (PreparedStatement s = c.prepareStatement("SELECT 1 FROM poeta_journey_continuation WHERE player_id=?")) {
+			s.setInt(1,player); try (ResultSet r=s.executeQuery()) { return r.next(); }
+		}
+	}
+
+	/** Unlocks by writing its own row only, so older characters need no migration. Grants nothing. */
+	static void proceed(Connection c,int player,PlayerClass current) throws SQLException {
+		boolean previousAutoCommit=c.getAutoCommit();
+		c.setAutoCommit(false);
+		try {
+			try (PreparedStatement s = c.prepareStatement("SELECT 1 FROM players WHERE id=? FOR UPDATE")) {
+				s.setInt(1,player); try (ResultSet r=s.executeQuery()) { if (!r.next()) throw new IllegalArgumentException("Character is unavailable."); }
+			}
+			if (!PoetaJourneyRules.continuationOpen(decision(c,player),current)) throw new IllegalArgumentException("Complete your Ascension first.");
+			update(c,"INSERT IGNORE INTO poeta_journey_continuation(player_id) VALUES(?)",player);
+			acknowledge(c,player);
+			c.commit();
+		} catch (SQLException | RuntimeException e) { c.rollback(); throw e; }
+		finally { c.setAutoCommit(previousAutoCommit); }
+	}
+
+	private static Set<String> entries(Connection c,int player) throws SQLException {
+		Set<String> entries = new HashSet<>();
+		try (PreparedStatement s = c.prepareStatement("SELECT entry FROM poeta_journey_progress WHERE player_id=?")) {
+			s.setInt(1,player); try (ResultSet r=s.executeQuery()) { while (r.next()) entries.add(r.getString(1)); }
+		}
+		return entries;
+	}
+
+	/** Records what play has proven, so losing a companion later never undoes a chapter. */
+	static Map<String,Object> chapters(Connection c,int player,PlayerBotJourneyEvidence.Facts facts,boolean tickets) throws SQLException {
+		Set<String> entries = entries(c,player);
+		List<PoetaJourneyRules.Chapter> chapters = PoetaJourneyRules.chapters(tickets);
+		List<Map<String,Object>> rows = new ArrayList<>();
+		for (var chapter : chapters) {
+			boolean done = entries.contains("chapter:"+chapter.id());
+			if (!done && chapter.done(facts)) {
+				update(c,"INSERT IGNORE INTO poeta_journey_progress(player_id,entry) VALUES(?,?)",player,"chapter:"+chapter.id());
+				entries.add("chapter:"+chapter.id()); done = true;
+			}
+			long value = done ? chapter.goal() : chapter.progress().applyAsLong(facts);
+			rows.add(Map.of("id",chapter.id(),"title",chapter.title(),"task",chapter.task(),"goal",chapter.goal(),"value",value,"done",done));
+		}
+		List<Map<String,Object>> rewards = new ArrayList<>();
+		PoetaJourneyRules.rewardTitles().forEach((reward,title) -> {
+			boolean ready = PoetaJourneyRules.rewardChapters(reward,chapters).stream().allMatch(chapter -> entries.contains("chapter:"+chapter.id()));
+			rewards.add(new LinkedHashMap<>(Map.of("id",reward,"titleId",title,"ready",ready,"claimed",entries.contains("claim:"+reward))));
+		});
+		return new LinkedHashMap<>(Map.of("chapters",rows,"rewards",rewards));
+	}
+
+	/** Pays a title once per character, only for chapters already recorded. False when it was already paid. */
+	static boolean claim(Connection c,int player,String reward,int title,List<PoetaJourneyRules.Chapter> required) throws SQLException {
+		boolean previousAutoCommit=c.getAutoCommit();
+		c.setAutoCommit(false);
+		try {
+			try (PreparedStatement s = c.prepareStatement("SELECT 1 FROM poeta_journey_continuation WHERE player_id=? FOR UPDATE")) {
+				s.setInt(1,player); try (ResultSet r=s.executeQuery()) { if (!r.next()) throw new IllegalArgumentException("Proceed from your Journey first."); }
+			}
+			Set<String> entries = entries(c,player);
+			if (required.isEmpty() || !required.stream().allMatch(chapter -> entries.contains("chapter:"+chapter.id()))) throw new IllegalArgumentException("Finish these chapters first.");
+			boolean paid = update(c,"INSERT IGNORE INTO poeta_journey_progress(player_id,entry) VALUES(?,?)",player,"claim:"+reward) == 1;
+			if (paid) update(c,"INSERT IGNORE INTO player_titles(player_id,title_id,remaining) VALUES(?,?,0)",player,title);
+			c.commit();
+			return paid;
+		} catch (SQLException | RuntimeException e) { c.rollback(); throw e; }
+		finally { c.setAutoCommit(previousAutoCommit); }
 	}
 
 	public static boolean ceremonyRewardsMailed(Player player) {

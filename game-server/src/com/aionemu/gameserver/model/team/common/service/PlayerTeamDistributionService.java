@@ -72,6 +72,7 @@ public class PlayerTeamDistributionService {
 			rewardAp *= damagePercent;
 			rewardAp *= instanceApMultiplier;
 
+			com.aionemu.gameserver.services.playerbot.PlayerBotGrowth.learnKill(member,owner);
 			member.getCommonData().addExp(rewardXp, Rates.XP_GROUP_HUNTING, owner.getObjectTemplate().getL10n());
 			member.getCommonData().addDp(rewardDp);
 			if (owner.getAi().ask(AIQuestion.REWARD_AP) && !(filteredStats.mentorCount > 0 && CustomConfig.MENTOR_GROUP_AP)) {

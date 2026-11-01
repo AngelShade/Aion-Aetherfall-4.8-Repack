@@ -103,6 +103,7 @@ public final class QuestService {
 		// exclude 1007 from their receipt and receive the normal turn-in rewards.
 		if (id == 1007 && PoetaJourneyService.ceremonyRewardsMailed(player)) {
 			qs.setStatus(QuestStatus.COMPLETE);
+			AetherfallBoonService.markBotQuestCompleted(player);
 			qs.setQuestVar(0);
 			PacketSendUtility.sendPacket(player,new SM_QUEST_ACTION(ActionType.UPDATE,qs));
 			QuestEngine.getInstance().onQuestCompleted(player,id);
@@ -132,7 +133,9 @@ public final class QuestService {
 		if (choice == null)
 			removeQuestWorkItems(player, qs);
 		qs.setStatus(QuestStatus.COMPLETE);
+		AetherfallBoonService.markBotQuestCompleted(player);
 		com.aionemu.gameserver.services.playerbot.PlayerBotPartyCompletion.ownerCompleted(env);
+		com.aionemu.gameserver.services.playerbot.PlayerBotGrowth.learnQuest(player, id);
 		qs.setQuestVar(0);
 		if (id == 1127 && player.getQuestExpands() > ancientCubeQuestExpands)
 			qs.setQuestVarById(5, 1); // records that Ancient Cube's expansion was granted

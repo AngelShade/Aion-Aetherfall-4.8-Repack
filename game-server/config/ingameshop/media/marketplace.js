@@ -83,7 +83,9 @@
       finish();
       message(wasWriting ? 'Confirmation unavailable. Check Kinah and Purchase history before another purchase.' : 'Cash Shop could not load. Select a category to try again.', true);
     }
-    xhr.open(method, url.split('#')[0], true);
+    var targetUrl = url.split('#')[0];
+    targetUrl += (targetUrl.indexOf('?') >= 0 ? '&' : '?') + 'af_fetch=1';
+    xhr.open(method, targetUrl, true);
     if (method === 'POST') xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
     xhr.onreadystatechange = function () {
       if (xhr.readyState !== 4 || current !== serial) return;

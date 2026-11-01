@@ -130,6 +130,8 @@ public class FindGroupService {
 	}
 
 	public void registerInstanceGroup(Player player, int instanceMaskId, String message, int minMembers) {
+		prepared.remove(player.getObjectId());
+		preparedTeams.remove(player.getObjectId());
 		ServerWideGroup instanceGroup = new ServerWideGroup(player, instanceMaskId, minMembers, message);
 		instanceGroups.put(player.getObjectId(), instanceGroup);
 		PacketSendUtility.sendPacket(player, new SM_FIND_GROUP(14, List.of(instanceGroup)));
@@ -166,6 +168,8 @@ public class FindGroupService {
 	public void sendInstanceApplicationResult(Player responder, int applicantId, byte instanceApplicationReply) {
 		Player applicant = World.getInstance().getPlayer(applicantId);
 		if (applicant != null) {
+			if (PlayerBotFindGroup.instanceApplicationReply(responder, applicant, instanceApplicationReply))
+				return;
 			if (instanceApplicationReply == 1) {
 				ServerWideGroup instanceGroup = instanceGroups.get(responder.getObjectId());
 				if (instanceGroup != null) {
@@ -184,6 +188,7 @@ public class FindGroupService {
 	}
 
 	private final Map<Integer, ServerWideGroup> prepared = new ConcurrentHashMap<>(); // leader -> group ready to enter
+	private final Map<Integer, Integer> preparedTeams = new ConcurrentHashMap<>(); // exact native team lifetime
 
 	/**
 	 * Native "Prepare for entry" window (SM_FIND_GROUP 22/24/18): every human in the
@@ -194,6 +199,7 @@ public class FindGroupService {
 		if (team == null || !team.isLeader(leader))
 			return;
 		prepared.put(leader.getObjectId(), group);
+		preparedTeams.put(leader.getObjectId(), team.getTeamId());
 		for (Player member : team.getMembers()) {
 			if (member.isPlayerBot() || !member.isOnline())
 				continue;
@@ -206,14 +212,24 @@ public class FindGroupService {
 
 	/** The leader pressed Enter: each human enters through the native portal rules; companions follow their owner. */
 	public void enterPrepared(Player leader) {
-		ServerWideGroup group = prepared.remove(leader.getObjectId());
+		ServerWideGroup group = prepared.get(leader.getObjectId());
 		TemporaryPlayerTeam<?> team = leader.getCurrentTeam();
-		if (group == null || team == null || !team.isLeader(leader))
+		if (group == null || team == null || !team.isLeader(leader)
+			|| preparedTeams.getOrDefault(leader.getObjectId(), 0) != team.getTeamId())
 			return;
+		if (!PlayerBotFindGroup.canEnterPrepared(leader, group))
+			return;
+		// Native portals may refuse without throwing (cooldown, mentor, group
+		// size, changed quest/item state). Preserve the window so the leader can retry.
+		if (!PlayerBotFindGroup.enterInstance(leader, group))
+			return;
+		prepared.remove(leader.getObjectId(), group);
+		preparedTeams.remove(leader.getObjectId());
 		for (Player member : team.getMembers()) {
 			if (member.isPlayerBot() || !member.isOnline())
 				continue;
-			PlayerBotFindGroup.enterInstance(member, group);
+			if (member != leader && !PlayerBotFindGroup.enterInstance(member, group))
+				continue;
 			// Close the window for this member (the boolean-only packet has no group and cannot be written).
 			PacketSendUtility.sendPacket(member, new SM_FIND_GROUP(23, List.of(group)));
 		}
@@ -248,6 +264,23 @@ public class FindGroupService {
 		recruitments.remove(player.getObjectId());
 		applications.remove(player.getObjectId());
 		instanceGroups.remove(player.getObjectId());
+		prepared.remove(player.getObjectId());
+		preparedTeams.remove(player.getObjectId());
+	}
+
+	/** Retain the exact native run while its last member opens Prepare for entry. */
+	public ServerWideGroup instanceOffer(Player player) {
+		ServerWideGroup offer = instanceGroups.get(player.getObjectId());
+		if (offer == null) {
+			var team = player.getCurrentTeam();
+			if (team != null && team.isLeader(player) && preparedTeams.getOrDefault(player.getObjectId(), 0) == team.getTeamId())
+				offer = prepared.get(player.getObjectId());
+			else {
+				prepared.remove(player.getObjectId());
+				preparedTeams.remove(player.getObjectId());
+			}
+		}
+		return offer;
 	}
 
 	/** Human registrations only (snapshot, no packets), so bots can answer them. */

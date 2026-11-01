@@ -234,6 +234,10 @@ public final class MarketplaceService {
 			exchange.getResponseHeaders().set("Referrer-Policy", "no-referrer");
 			exchange.getResponseHeaders().set("X-Content-Type-Options", "nosniff");
 			String method = exchange.getRequestMethod();
+			if (method.equals("POST") && !WebUiConnection.sameOrigin(exchange)) {
+				reply(exchange, 403, page("Reopen the Marketplace to continue."));
+				return;
+			}
 			if (!method.equals("GET") && !method.equals("POST")) {
 				reply(exchange, 405, page("Method not allowed"));
 				return;
@@ -248,12 +252,12 @@ public final class MarketplaceService {
 			CatalogState catalog = currentCatalog();
 			String sessionId = args.getOrDefault("session_id", args.getOrDefault("token", ""));
 			Player player = findPlayer(sessionId);
-			// The NA browser may omit its session query or keep the old one after a game-server restart.
-			// For the loopback-only solo shop, the sole online character can still be identified locally.
+			// Preserve the existing same-PC Shop recovery for the native browser's
+			// missing/stale query. Network clients still require their own token.
 			if (player == null && exchange.getRemoteAddress().getAddress().isLoopbackAddress()
 				&& GSConfig.MARKETPLACE_BIND.equals("127.0.0.1") && World.getInstance().getAllPlayers().size() == 1) {
 				player = World.getInstance().getAllPlayers().iterator().next();
-				sessionId = ""; // Do not carry a stale token into links or purchase forms.
+				sessionId = "";
 			}
 			if (player == null) {
 				reply(exchange, 403, page("Open the Marketplace while logged in to your character."));
@@ -381,6 +385,8 @@ public final class MarketplaceService {
 		if (sessionId.isBlank())
 			return null;
 		for (Player player : World.getInstance().getAllPlayers()) {
+			if (!player.isOnline() || player.isPlayerBot())
+				continue;
 			String token = player.getAccount().getSecurityToken();
 			if (token.isEmpty())
 				continue;

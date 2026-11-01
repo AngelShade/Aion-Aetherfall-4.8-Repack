@@ -40,7 +40,9 @@ public class AuraEffect extends EffectTemplate {
 	public void applyEffect(Effect effect) {
 		Creature effector = effect.getEffector();
 		if (effector instanceof Player && effector.getEffectController().findBySkillId(effect.getSkillId()) != null) {
-			AuditLogger.log((Player) effector, "might be abusing CM_CASTSPELL mantra effect, skill id: " + effect.getSkillId());
+			// Bots cast on the server, so no client sent this; there is nothing to audit.
+			if (!((Player) effector).isPlayerBot())
+				AuditLogger.log((Player) effector, "might be abusing CM_CASTSPELL mantra effect, skill id: " + effect.getSkillId());
 			return;
 		}
 		effect.addToEffectedController();

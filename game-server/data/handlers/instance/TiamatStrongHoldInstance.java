@@ -70,7 +70,7 @@ public class TiamatStrongHoldInstance extends GeneralInstanceHandler {
 				spawn(701527, 1073.948f, 1068.8732f, 787.685f, (byte) 61);
 				spawn(730622, 652.4821f, 1069.0302f, 498.7787f, (byte) 0, 82);
 				spawn(283178, 679.88f, 1068.88f, 504.2f, (byte) 119);// ex 283916
-				spawnExitIfCleared();
+				spawnExitIfCleared(npc);
 				break;
 			case 219353:// ex 219401
 				sendMsg(SM_SYSTEM_MESSAGE.STR_IDTIAMAT_TIAMAT_REWARD_SPAWN());
@@ -82,7 +82,7 @@ public class TiamatStrongHoldInstance extends GeneralInstanceHandler {
 				spawn(283179, 1030.03f, 301.83f, 411f, (byte) 26);// ex 283914
 				spawn(701501, 1086.274f, 1098.3997f, 787.685f, (byte) 90);
 				spawn(730622, 1029.792f, 267.0502f, 409.7982f, (byte) 0, 83);
-				spawnExitIfCleared();
+				spawnExitIfCleared(npc);
 				break;
 			case 219355:// ex 219403
 				sendMsg(SM_SYSTEM_MESSAGE.STR_IDTIAMAT_TIAMAT_REWARD_SPAWN());
@@ -99,7 +99,7 @@ public class TiamatStrongHoldInstance extends GeneralInstanceHandler {
 				spawn(730622, 644.4221f, 1319.6221f, 488.7422f, (byte) 0, 15);
 				spawn(800438, 665.63409f, 1319.7051f, 487.9f, (byte) 61);
 				spawn(283180, 629.1f, 1319.5f, 501.2f, (byte) 0);// ex 283915
-				spawnExitIfCleared();
+				spawnExitIfCleared(npc);
 				break;
 		}
 	}
@@ -216,8 +216,9 @@ public class TiamatStrongHoldInstance extends GeneralInstanceHandler {
 		}
 	}
 
-	private void spawnExitIfCleared() {
+	private void spawnExitIfCleared(Npc finalBoss) {
 		if (instance.getNpcs(219354, 219356, 219358).stream().allMatch(Creature::isDead)) {
+            completeRun(finalBoss);
 			spawn(800464, 1119.7076f, 1071.1401f, 496.8615f, (byte) 119);
 			spawn(800465, 1119.7421f, 1068.4998f, 496.8616f, (byte) 3);
 			spawn(730629, 1121.3807f, 1069.8124f, 500.3319f, (byte) 0, 555);

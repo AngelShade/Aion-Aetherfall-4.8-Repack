@@ -40,6 +40,7 @@ public class AbyssalSplinterInstance extends GeneralInstanceHandler {
 
 	@Override
 	public void onDie(Npc npc) {
+        if (npc.getNpcId()==216952 || npc.getNpcId()==216960) completeRun(npc);
 		super.onDie(npc);
 		final int npcId = npc.getNpcId();
 		switch (npcId) {

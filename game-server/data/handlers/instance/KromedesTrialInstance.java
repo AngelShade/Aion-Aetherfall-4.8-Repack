@@ -97,6 +97,7 @@ public class KromedesTrialInstance extends GeneralInstanceHandler {
 
 	@Override
 	public void onDie(Npc npc) {
+        if (npc.getNpcId()==217005 || npc.getNpcId()==217006) completeRun(npc);
 		switch (npc.getNpcId()) {
 			case 216982:
 			case 217000:

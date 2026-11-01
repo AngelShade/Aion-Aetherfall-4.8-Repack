@@ -29,8 +29,8 @@ public final class PlayerBotQuestSync {
   // Transient native story intent for approved catch-up, never saved quest state.
   final Map<Integer,Integer> requiredRewards = new HashMap<>();
   final Deque<String> messages = new ArrayDeque<>();
-  long nextScan, returnUntil;
-  boolean enchant, salvage, partySync = true;
+  long nextScan, returnUntil, nextLevelMatch;
+  boolean enchant, salvage, partySync = true, levelTogether = true;
   long reserve = 10000, dailyBudget = 50000, spent;
   String spentDay = "";
   State(PlayerBotSession session) {
@@ -50,6 +50,7 @@ public final class PlayerBotQuestSync {
     if(Integer.parseInt(p.getProperty("account"))!=account || Integer.parseInt(p.getProperty("character"))!=character)throw new IOException("Companion care settings owner mismatch");
     enchant=Boolean.parseBoolean(p.getProperty("enchant","false"));salvage=Boolean.parseBoolean(p.getProperty("salvage","false"));
     partySync=Boolean.parseBoolean(p.getProperty("partySync","true"));
+    levelTogether=Boolean.parseBoolean(p.getProperty("levelTogether","true"));
     reserve=Math.max(10000,Long.parseLong(p.getProperty("reserve","10000")));dailyBudget=Math.max(0,Long.parseLong(p.getProperty("dailyBudget","50000")));
     spent=Math.max(0,Long.parseLong(p.getProperty("spent","0")));spentDay=p.getProperty("spentDay","");
     for(String id:p.getProperty("skipped","").split(","))if(!id.isBlank())skipped.add(Integer.parseInt(id));
@@ -64,6 +65,7 @@ public final class PlayerBotQuestSync {
    Properties p=new Properties();p.setProperty("account",Integer.toString(account));p.setProperty("character",Integer.toString(character));
    p.setProperty("enchant",Boolean.toString(enchant));p.setProperty("salvage",Boolean.toString(salvage));p.setProperty("reserve",Long.toString(reserve));
    p.setProperty("partySync",Boolean.toString(partySync));
+   p.setProperty("levelTogether",Boolean.toString(levelTogether));
    p.setProperty("dailyBudget",Long.toString(dailyBudget));p.setProperty("spent",Long.toString(spent));p.setProperty("spentDay",spentDay);
    p.setProperty("skipped",skipped.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
    p.setProperty("approved",approved.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
@@ -85,7 +87,8 @@ public final class PlayerBotQuestSync {
  static void notice(Player bot,String text,String key,long interval) {
   var s=STATES.get(bot.getObjectId());if(s==null)return;
   long now=System.currentTimeMillis();if(s.announcements.getOrDefault(key,0L)>now)return;s.announcements.put(key,now+interval);
-  if(s.session.owner().isOnline())PacketSendUtility.sendMessage(s.session.owner(),bot.getName()+": "+text);
+  // Only personal companions report to their owner; a world bot's routine is its own business.
+  if(!s.session.world() && s.session.owner().isOnline())PacketSendUtility.sendMessage(s.session.owner(),bot.getName()+": "+text);
   String readable=java.util.regex.Pattern.compile("\\[(quest|item):([0-9]+)\\]").matcher(text).replaceAll(match->{
    int id=Integer.parseInt(match.group(2));String name;
    if(match.group(1).equals("quest"))name=PlayerBotQuestJournal.name(id);
@@ -100,6 +103,8 @@ public final class PlayerBotQuestSync {
   returnToOwner(bot);
  }
  static boolean wanted(Player owner,Player bot,int quest) {
+  var actor=PlayerBotService.getInstance().currentActor(bot);
+  if(actor!=null && actor.borrowed())return PlayerBotFindGroup.requestedQuest(bot)==quest;
   var s=STATES.get(bot.getObjectId());if(s!=null && s.skipped.contains(quest))return false;
   if(owner==bot) {
    var actual=bot.getQuestStateList().getQuestState(quest);
@@ -131,6 +136,8 @@ public final class PlayerBotQuestSync {
   for(var e:s.requiredRewards.entrySet())if(e.getValue()==-2)notice(s.session.bot(),"Approved catch-up quests require conflicting native story branches for "+ChatUtil.quest(e.getKey())+". Choose one quest chain before that story decision.","reward-conflict:"+e.getKey(),120000);
  }
  static void tick(PlayerBotSession session,boolean enabled) {
+  // Copying the owner's quests and asking to catch up belong to personal companions alone.
+  if(session.borrowed())return;
   State s=state(session);Player owner=session.owner(),bot=session.bot();long now=System.currentTimeMillis();
   if(!enabled || now<s.nextScan || owner.isDead() || bot.isDead())return;s.nextScan=now+3000;
   boolean automatic=s.partySync && PlayerBotQuestCompletionSharing.applies(session);
@@ -167,7 +174,7 @@ public final class PlayerBotQuestSync {
   notice(session.bot(),prompt.reason()+" "+ChatUtil.quest(prompt.quest())+" Reply in Companions with Yes/No, or .bot answer "+session.bot().getName()+" "+prompt.quest()+" yes|no.","prompt:"+prompt.quest(),Long.MAX_VALUE-System.currentTimeMillis());
  }
  static void nearby(Player owner,Player bot,int quest) {
-  var s=STATES.get(bot.getObjectId());if(s==null || s.skipped.contains(quest) || s.approved.contains(quest))return;
+  var s=STATES.get(bot.getObjectId());if(s==null || s.session.world() || s.skipped.contains(quest) || s.approved.contains(quest))return;
   if(s.partySync && PlayerBotQuestCompletionSharing.applies(s.session))return;
   var owned=owner.getQuestStateList().getQuestState(quest);var current=bot.getQuestStateList().getQuestState(quest);
   if(owned==null || owned.getStatus()!=QuestStatus.COMPLETE || current!=null && current.getStatus()!=QuestStatus.LOCKED)return;

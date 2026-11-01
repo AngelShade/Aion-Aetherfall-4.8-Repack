@@ -1,5 +1,7 @@
 package com.aionemu.gameserver.instance.handlers;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -15,6 +17,7 @@ import com.aionemu.gameserver.model.items.storage.Storage;
 import com.aionemu.gameserver.model.templates.npc.NpcRating;
 import com.aionemu.gameserver.model.templates.spawns.SpawnTemplate;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_SYSTEM_MESSAGE;
+import com.aionemu.gameserver.services.playerbot.PlayerBotRunRewards;
 import com.aionemu.gameserver.skillengine.model.Effect;
 import com.aionemu.gameserver.skillengine.model.Skill;
 import com.aionemu.gameserver.spawnengine.SpawnEngine;
@@ -31,10 +34,30 @@ public class GeneralInstanceHandler implements InstanceHandler {
 	protected static final Logger log = LoggerFactory.getLogger("INSTANCE_LOG");
 	protected final WorldMapInstance instance;
 	protected final int mapId;
-
+	private final AtomicBoolean runCompleted = new AtomicBoolean();
 	public GeneralInstanceHandler(WorldMapInstance instance) {
 		this.instance = instance;
 		this.mapId = instance.getMapId();
+	}
+
+	/**
+	 * Call when the final boss dies at the instance's verified native success, never on a failure, timeout or exit.
+	 */
+	protected final void completeRun(Npc finalBoss) {
+		if (runCompleted.compareAndSet(false, true)) {
+			PlayerBotRunRewards.completed(instance, finalBoss);
+			com.aionemu.gameserver.services.playerbot.PlayerBotFindGroup.runCompleted(instance.getMapId(), instance.getInstanceId());
+		}
+	}
+
+	/**
+	 * Same, for a PvP result that only some players won. A draw or a loss is not a completion.
+	 */
+	protected final void completeRun(Predicate<Player> winners) {
+		if (runCompleted.compareAndSet(false, true)) {
+			PlayerBotRunRewards.won(instance, winners);
+			com.aionemu.gameserver.services.playerbot.PlayerBotFindGroup.runCompleted(instance.getMapId(), instance.getInstanceId());
+		}
 	}
 
 	@Override

@@ -44,8 +44,7 @@ public final class WardrobeHttpService {
 			if (p == null || !p.isOnline()) { send(x,403,"application/json","{\"error\":\"Log in, then reopen Wardrobe.\"}"); return; }
 			String notice = "";
 			if (action) {
-				String origin = x.getRequestHeaders().getFirst("Origin"), expected = "http://"+x.getRequestHeaders().getFirst("Host");
-				if (origin != null && !origin.equals(expected)) throw new IllegalArgumentException("Reopen Wardrobe to continue.");
+				if (!WebUiConnection.sameOrigin(x)) throw new IllegalArgumentException("Reopen Wardrobe to continue.");
 				String request = args.getOrDefault("request",""); Form form = FORMS.get(request);
 				if (form == null || form.player() != p || form.connection() != p.getClientConnection() || form.expires() < System.currentTimeMillis()) {
 					send(x,403,"application/json","{\"error\":\"This form expired. Refresh Wardrobe.\"}"); return;
