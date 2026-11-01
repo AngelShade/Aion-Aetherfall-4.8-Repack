@@ -26,8 +26,7 @@ namespace Aetherfall {
   // invented names (and KOR for this country), silently falling back to ENU.
   // Reserve the otherwise absent FRA slot for composed resources; this never
   // changes the selected text/voice labels, country, server or English archives.
-  // Staging is deliberately short: .NET Framework stops at 260 characters and deep install folders exist.
-  public const string Folder="Mods/Languages", Locale="fra", Staging="~Lang";
+  public const string Folder="Mods/Languages", Locale="fra";
   const string Active="L10N/fra", LegacyActive="L10N/afl", English="L10N/enu/data/data.pak";
   static readonly UTF8Encoding Utf8=new UTF8Encoding(false,true);
   static readonly JavaScriptSerializer Json=new JavaScriptSerializer { MaxJsonLength=64*1024*1024 };
@@ -50,22 +49,16 @@ namespace Aetherfall {
    return result+" -lang:"+locale.ToUpperInvariant();
   }
   static bool Linked(string path) { return (File.GetAttributes(path)&FileAttributes.ReparsePoint)!=0; }
-  // Best effort: a locked file must not fail a language that was already installed.
-  public static string StagingId() { return Guid.NewGuid().ToString("N").Substring(0,8); }
-  public static void Discard(string folder) {
-   try { if(Directory.Exists(folder))Directory.Delete(folder,true);string parent=Path.GetDirectoryName(folder);if(!Directory.EnumerateFileSystemEntries(parent).Any())Directory.Delete(parent); }
-   catch(IOException) {} catch(UnauthorizedAccessException) {}
-  }
   // Older launchers left composed images and backups on the system drive, wherever the client
   // was installed, and nothing ever read them. The age guard skips work another launcher or Hub
   // on this PC may still be doing.
   public static void Sweep(string root) {
    string temp=Path.Combine(Path.GetTempPath(),"AetherfallLanguages"),downloads=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Aetherfall","LanguageBackups");
-   foreach(string folder in new string[]{Path.Combine(temp,"Backups"),temp,downloads,PathAt(root,Staging)}) {
+   foreach(string folder in new string[]{Path.Combine(temp,"Backups"),temp,downloads,PathAt(root,LanguageDownloads.Staging)}) {
     try {
      if(!Directory.Exists(folder)||Linked(folder))continue;
      foreach(string child in Directory.GetDirectories(folder))
-      if(Regex.IsMatch(Path.GetFileName(child),"^(?:[0-9a-f]{8}|[0-9a-f]{32})$")&&!Linked(child)&&DateTime.UtcNow-Directory.GetLastWriteTimeUtc(child)>=TimeSpan.FromDays(1))Discard(child);
+      if(Regex.IsMatch(Path.GetFileName(child),"^(?:[0-9a-f]{8}|[0-9a-f]{32})$")&&!Linked(child)&&DateTime.UtcNow-Directory.GetLastWriteTimeUtc(child)>=TimeSpan.FromDays(1))LanguageDownloads.Discard(child);
     } catch(IOException) {} catch(UnauthorizedAccessException) {}
    }
   }
@@ -227,8 +220,8 @@ namespace Aetherfall {
     string path=PathAt(root,item.Key);if(File.Exists(path)&&!Same(item.Value,Stamp(path))&&HashFile(path)!=item.Value.Hash)throw new IOException("A prepared language file was edited externally: "+item.Key);
    }
    // Stage beside the client, on its own drive, and never keep the image: it is a few GB per build.
-   if(output==null)LanguageDownloads.NoLinks(root,Staging);
-   string work=output==null?PathAt(root,Staging+"/"+StagingId()):Path.GetFullPath(output);
+   if(output==null)LanguageDownloads.NoLinks(root,LanguageDownloads.Staging);
+   string work=output==null?PathAt(root,LanguageDownloads.StagingFolder()):Path.GetFullPath(output);
    if(output!=null&&(work.Equals(root,StringComparison.OrdinalIgnoreCase)||work.StartsWith(root+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)))throw new IOException("Language preparation needs an external output folder.");
    if(Directory.Exists(PathAt(work,Active)))throw new IOException("Use a fresh language output folder.");
    try {
@@ -246,7 +239,7 @@ namespace Aetherfall {
    Directory.CreateDirectory(Path.GetDirectoryName(PathAt(work,Folder+"/state.json")));File.WriteAllText(PathAt(work,Folder+"/state.json"),Json.Serialize(state),Utf8);
    if(output==null) { if(foreign)Preserve(root);Install(root,work,old,state); }
    return new LanguageResult { Locale=Locale,Summary="Prepared "+text+" text / "+voice+" voices; translated "+state.Strings+" strings and "+state.DialoguePages+" dialogue pages. Custom/unmatched text stays English. Movies use the supplied voice pack when available, otherwise the original English videos.",State=state };
-   } finally { if(output==null)Discard(work); }
+   } finally { if(output==null)LanguageDownloads.Discard(work); }
   }
   static void Copy(string work,string relative,string source,LanguageState state) {
    string target=PathAt(work,relative);Directory.CreateDirectory(Path.GetDirectoryName(target));File.Copy(source,target);var stamp=Stamp(target);stamp.Hash=HashFile(target);state.Outputs.Add(relative,stamp);

@@ -14,6 +14,14 @@ namespace Aetherfall {
  public sealed class LanguageDownloadCatalog { public int schema=1;public List<LanguageDownload> packs=new List<LanguageDownload>();public List<LanguageDownload> previousVersions=new List<LanguageDownload>(); }
  public static class LanguageDownloads {
   static readonly JavaScriptSerializer Json=new JavaScriptSerializer { MaxJsonLength=16*1024*1024 };
+  // Staging is deliberately short: .NET Framework stops at 260 characters and deep install folders exist.
+  public const string Staging="~Lang";
+  public static string StagingFolder(){return Staging+"/"+Guid.NewGuid().ToString("N").Substring(0,8);}
+  // Best effort: a locked file must not fail a language that was already installed.
+  public static void Discard(string folder) {
+   try { if(Directory.Exists(folder))Directory.Delete(folder,true);string parent=Path.GetDirectoryName(folder);if(!Directory.EnumerateFileSystemEntries(parent).Any())Directory.Delete(parent); }
+   catch(IOException) {} catch(UnauthorizedAccessException) {}
+  }
   static string At(string root,string relative){return Path.Combine(root,relative.Replace('/',Path.DirectorySeparatorChar));}
   static string Hash(string path){return UpdateTransfer.Hash(path,"",0,0,0,0,"");}
   static void Validate(LanguageDownload pack) {
@@ -64,7 +72,7 @@ namespace Aetherfall {
   public static void Install(string root,LanguageDownload pack,string archive) {
    Validate(pack);pack=KnownPack(root,pack.id,pack.version);Closed();root=Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar);
    if(new FileInfo(archive).Length!=pack.bytes||!String.Equals(UpdateTransfer.Hash(archive,"verifying",0,pack.bytes,1,1,pack.file),pack.sha256,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("Language pack size or checksum differs from its catalog.");
-   NoLinks(root,Languages.Staging);string temp=At(root,Languages.Staging+"/"+Languages.StagingId());Directory.CreateDirectory(temp);
+   NoLinks(root,Staging);string temp=At(root,StagingFolder());Directory.CreateDirectory(temp);
    string backupRoot=null;
    string settings=At(root,"Mods/Languages/settings.json");if(File.Exists(settings)){var values=Json.Deserialize<Dictionary<string,string>>(File.ReadAllText(settings));if(values.ContainsKey("BackupRoot"))backupRoot=Path.GetFullPath(values["BackupRoot"]);}
    if(backupRoot!=null&&(backupRoot.Equals(root,StringComparison.OrdinalIgnoreCase)||backupRoot.StartsWith(root+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)))throw new IOException("Language backups must be outside the client.");
@@ -96,7 +104,7 @@ namespace Aetherfall {
       UpdateTransfer.Report("installing","files",++index,changes.Count,index,changes.Count,item.Key,0,true);
      }
     }catch{foreach(string relative in written.AsEnumerable().Reverse()){string target=At(root,relative);if(before[relative]!=null)File.Copy(At(backup,relative),target,true);else if(File.Exists(target))File.Delete(target);}throw;}
-   }finally{Languages.Discard(temp);}
+   }finally{Discard(temp);}
   }
  }
 }
