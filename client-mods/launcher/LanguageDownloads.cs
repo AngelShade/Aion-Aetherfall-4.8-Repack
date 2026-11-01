@@ -47,7 +47,7 @@ namespace Aetherfall {
   static void Closed() {
    foreach(string name in new[]{"aion","aion.bin"})foreach(Process process in Process.GetProcessesByName(name))using(process)if(!process.HasExited)throw new InvalidOperationException("Close Aion normally before installing a language pack. Your verified download is retained.");
   }
-  static void NoLinks(string root,string relative) {
+  public static void NoLinks(string root,string relative) {
    string path=root;foreach(string part in relative.Split('/')){path=Path.Combine(path,part);if((File.Exists(path)||Directory.Exists(path))&&(File.GetAttributes(path)&FileAttributes.ReparsePoint)!=0)throw new IOException("Language paths must not be links.");}
   }
   public static string Fetch(string root,LanguageDownload pack,CancellationToken cancel) {
@@ -64,10 +64,10 @@ namespace Aetherfall {
   public static void Install(string root,LanguageDownload pack,string archive) {
    Validate(pack);pack=KnownPack(root,pack.id,pack.version);Closed();root=Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar);
    if(new FileInfo(archive).Length!=pack.bytes||!String.Equals(UpdateTransfer.Hash(archive,"verifying",0,pack.bytes,1,1,pack.file),pack.sha256,StringComparison.OrdinalIgnoreCase))throw new InvalidDataException("Language pack size or checksum differs from its catalog.");
-   string temp=Path.Combine(Path.GetTempPath(),"AetherfallLanguages",Guid.NewGuid().ToString("N"));Directory.CreateDirectory(temp);
-   string backupRoot=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Aetherfall","LanguageBackups");
+   NoLinks(root,Languages.Staging);string temp=At(root,Languages.Staging+"/"+Languages.StagingId());Directory.CreateDirectory(temp);
+   string backupRoot=null;
    string settings=At(root,"Mods/Languages/settings.json");if(File.Exists(settings)){var values=Json.Deserialize<Dictionary<string,string>>(File.ReadAllText(settings));if(values.ContainsKey("BackupRoot"))backupRoot=Path.GetFullPath(values["BackupRoot"]);}
-   if(backupRoot.Equals(root,StringComparison.OrdinalIgnoreCase)||backupRoot.StartsWith(root+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase))throw new IOException("Language backups must be outside the client.");
+   if(backupRoot!=null&&(backupRoot.Equals(root,StringComparison.OrdinalIgnoreCase)||backupRoot.StartsWith(root+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)))throw new IOException("Language backups must be outside the client.");
    string receipt="Mods/Languages/Installed/"+pack.id+".json";NoLinks(root,receipt);
    LanguageDownload old=File.Exists(At(root,receipt))?Json.Deserialize<LanguageDownload>(File.ReadAllText(At(root,receipt))):null;
    var changes=new Dictionary<string,string>();var before=new Dictionary<string,string>();long total=pack.files.Sum(x=>x.bytes),done=0;int index=0;
@@ -87,7 +87,7 @@ namespace Aetherfall {
      }
     }
     string stagedReceipt=At(temp,receipt);Directory.CreateDirectory(Path.GetDirectoryName(stagedReceipt));File.WriteAllText(stagedReceipt,Json.Serialize(pack));changes.Add(receipt,stagedReceipt);before.Add(receipt,File.Exists(At(root,receipt))?Hash(At(root,receipt)):null);
-    Closed();string backup=Path.Combine(backupRoot,Guid.NewGuid().ToString("N"));Directory.CreateDirectory(backup);
+    Closed();string backup=backupRoot==null?Path.Combine(temp,"R"):Path.Combine(backupRoot,Guid.NewGuid().ToString("N"));Directory.CreateDirectory(backup);
     foreach(var item in changes)if(before[item.Key]!=null){string saved=At(backup,item.Key);Directory.CreateDirectory(Path.GetDirectoryName(saved));File.Copy(At(root,item.Key),saved);if(Hash(saved)!=before[item.Key])throw new IOException("Language backup checksum mismatch.");}
     var written=new List<string>();try {
      index=0;foreach(var item in changes) {
@@ -96,7 +96,7 @@ namespace Aetherfall {
       UpdateTransfer.Report("installing","files",++index,changes.Count,index,changes.Count,item.Key,0,true);
      }
     }catch{foreach(string relative in written.AsEnumerable().Reverse()){string target=At(root,relative);if(before[relative]!=null)File.Copy(At(backup,relative),target,true);else if(File.Exists(target))File.Delete(target);}throw;}
-   }finally{if(Directory.Exists(temp))Directory.Delete(temp,true);}
+   }finally{Languages.Discard(temp);}
   }
  }
 }

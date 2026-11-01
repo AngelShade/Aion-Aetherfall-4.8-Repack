@@ -26,7 +26,8 @@ namespace Aetherfall {
   // invented names (and KOR for this country), silently falling back to ENU.
   // Reserve the otherwise absent FRA slot for composed resources; this never
   // changes the selected text/voice labels, country, server or English archives.
-  public const string Folder="Mods/Languages", Locale="fra";
+  // Staging is deliberately short: .NET Framework stops at 260 characters and deep install folders exist.
+  public const string Folder="Mods/Languages", Locale="fra", Staging="~Lang";
   const string Active="L10N/fra", LegacyActive="L10N/afl", English="L10N/enu/data/data.pak";
   static readonly UTF8Encoding Utf8=new UTF8Encoding(false,true);
   static readonly JavaScriptSerializer Json=new JavaScriptSerializer { MaxJsonLength=64*1024*1024 };
@@ -47,6 +48,26 @@ namespace Aetherfall {
    if(locale!="enu"&&locale!=Locale)throw new ArgumentException("Unsupported prepared locale.");
    string result=Regex.Replace(arguments,@"(?i)(?:^|\s)-lang:[^\s]+","").Trim();
    return result+" -lang:"+locale.ToUpperInvariant();
+  }
+  static bool Linked(string path) { return (File.GetAttributes(path)&FileAttributes.ReparsePoint)!=0; }
+  // Best effort: a locked file must not fail a language that was already installed.
+  public static string StagingId() { return Guid.NewGuid().ToString("N").Substring(0,8); }
+  public static void Discard(string folder) {
+   try { if(Directory.Exists(folder))Directory.Delete(folder,true);string parent=Path.GetDirectoryName(folder);if(!Directory.EnumerateFileSystemEntries(parent).Any())Directory.Delete(parent); }
+   catch(IOException) {} catch(UnauthorizedAccessException) {}
+  }
+  // Older launchers left composed images and backups on the system drive, wherever the client
+  // was installed, and nothing ever read them. The age guard skips work another launcher or Hub
+  // on this PC may still be doing.
+  public static void Sweep(string root) {
+   string temp=Path.Combine(Path.GetTempPath(),"AetherfallLanguages"),downloads=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Aetherfall","LanguageBackups");
+   foreach(string folder in new string[]{Path.Combine(temp,"Backups"),temp,downloads,PathAt(root,Staging)}) {
+    try {
+     if(!Directory.Exists(folder)||Linked(folder))continue;
+     foreach(string child in Directory.GetDirectories(folder))
+      if(Regex.IsMatch(Path.GetFileName(child),"^(?:[0-9a-f]{8}|[0-9a-f]{32})$")&&!Linked(child)&&DateTime.UtcNow-Directory.GetLastWriteTimeUtc(child)>=TimeSpan.FromDays(1))Discard(child);
+    } catch(IOException) {} catch(UnauthorizedAccessException) {}
+   }
   }
   static LanguageStamp Stamp(string path) { FileInfo file=new FileInfo(path);return new LanguageStamp { Length=file.Length,Ticks=file.LastWriteTimeUtc.Ticks }; }
   static bool Same(LanguageStamp a,LanguageStamp b) { return a!=null&&b!=null&&a.Length==b.Length&&a.Ticks==b.Ticks; }
@@ -205,9 +226,12 @@ namespace Aetherfall {
    if(old!=null)foreach(var item in old.Outputs) {
     string path=PathAt(root,item.Key);if(File.Exists(path)&&!Same(item.Value,Stamp(path))&&HashFile(path)!=item.Value.Hash)throw new IOException("A prepared language file was edited externally: "+item.Key);
    }
-   string work=output==null?Path.Combine(Path.GetTempPath(),"AetherfallLanguages",Guid.NewGuid().ToString("N")):Path.GetFullPath(output);
-   if(work.Equals(root,StringComparison.OrdinalIgnoreCase)||work.StartsWith(root+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase))throw new IOException("Language preparation needs an external output folder.");
+   // Stage beside the client, on its own drive, and never keep the image: it is a few GB per build.
+   if(output==null)LanguageDownloads.NoLinks(root,Staging);
+   string work=output==null?PathAt(root,Staging+"/"+StagingId()):Path.GetFullPath(output);
+   if(output!=null&&(work.Equals(root,StringComparison.OrdinalIgnoreCase)||work.StartsWith(root+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)))throw new IOException("Language preparation needs an external output folder.");
    if(Directory.Exists(PathAt(work,Active)))throw new IOException("Use a fresh language output folder.");
+   try {
    LanguageState state=new LanguageState { Text=text,Voice=voice };
    foreach(string relative in inputs)state.Inputs.Add(relative,Stamp(Source(root,packs,relative)));
    QuestPak english=new QuestPak(File.ReadAllBytes(PathAt(root,English)));var replacements=Translations(root,text,english,state,packs);
@@ -222,6 +246,7 @@ namespace Aetherfall {
    Directory.CreateDirectory(Path.GetDirectoryName(PathAt(work,Folder+"/state.json")));File.WriteAllText(PathAt(work,Folder+"/state.json"),Json.Serialize(state),Utf8);
    if(output==null) { if(foreign)Preserve(root);Install(root,work,old,state); }
    return new LanguageResult { Locale=Locale,Summary="Prepared "+text+" text / "+voice+" voices; translated "+state.Strings+" strings and "+state.DialoguePages+" dialogue pages. Custom/unmatched text stays English. Movies use the supplied voice pack when available, otherwise the original English videos.",State=state };
+   } finally { if(output==null)Discard(work); }
   }
   static void Copy(string work,string relative,string source,LanguageState state) {
    string target=PathAt(work,relative);Directory.CreateDirectory(Path.GetDirectoryName(target));File.Copy(source,target);var stamp=Stamp(target);stamp.Hash=HashFile(target);state.Outputs.Add(relative,stamp);
@@ -233,11 +258,12 @@ namespace Aetherfall {
    string saved=PathAt(root,Folder+"/Preserved/"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(saved);Directory.Move(slot,Path.Combine(saved,"fra"));
   }
   static void Install(string root,string work,LanguageState old,LanguageState state) {
-   // Only generated locale files are replaced; retain every previous image for rollback.
-   string backupRoot=Path.Combine(Path.GetTempPath(),"AetherfallLanguages","Backups"),settings=PathAt(root,Folder+"/settings.json");
+   // Only generated locale files are replaced. The previous image covers this install's rollback;
+   // it is retained afterwards only at an explicitly configured BackupRoot.
+   string backupRoot=null,settings=PathAt(root,Folder+"/settings.json");
    if(File.Exists(settings)) { var config=Json.Deserialize<Dictionary<string,string>>(File.ReadAllText(settings,Utf8));if(config!=null&&config.ContainsKey("BackupRoot"))backupRoot=Path.GetFullPath(config["BackupRoot"]); }
-   if(backupRoot==root||backupRoot.StartsWith(root+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase))throw new IOException("Language backups must be outside the client.");
-   string backup=Path.Combine(backupRoot,Guid.NewGuid().ToString("N"));Directory.CreateDirectory(backup);
+   if(backupRoot!=null&&(backupRoot==root||backupRoot.StartsWith(root+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)))throw new IOException("Language backups must be outside the client.");
+   string backup=backupRoot==null?Path.Combine(work,"R"):Path.Combine(backupRoot,Guid.NewGuid().ToString("N"));Directory.CreateDirectory(backup);
    var files=state.Outputs.Keys.Concat(old==null?Enumerable.Empty<string>():old.Outputs.Keys.AsEnumerable()).Concat(new string[]{Folder+"/state.json"}).Distinct().ToList();
    foreach(string relative in files) {
     string target=PathAt(root,relative);if(!File.Exists(target))continue;

@@ -141,6 +141,11 @@ Install that exact generated cohort with `install.py --launcher-only --languages
 cohort and computes the delivery without writing to the installation.
 It selects the prepared pair while retaining other launcher preferences. Future
 switch backups use the external `Mods/Languages/settings.json` BackupRoot.
+Without that setting, as in the repack, the previous image exists only for the
+install's own rollback. Composition and pack installs stage in the client's
+short `~Lang` folder, on the client's drive, and delete it when finished.
+Play also removes day-old leftovers there and those of older launchers in
+`%TEMP%/AetherfallLanguages` and `%LOCALAPPDATA%/Aetherfall/LanguageBackups`.
 
 The existing AionRememberLogin module receives a unique event name through the
 launched game's environment. Its native login draw callback signals that event

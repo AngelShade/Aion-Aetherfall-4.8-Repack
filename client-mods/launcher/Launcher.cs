@@ -343,7 +343,7 @@ namespace Aetherfall {
     Text("StatusTitle").Text="Preparing text and voices";Text("StatusDetail").Text="Checking the selected language against your current mods.";
     ReadLanguagePreferences();
     File.AppendAllText(logPath,"\r\nSelected text: "+preferences.TextLanguage+"; selected voices: "+preferences.VoiceLanguage+"\r\n");
-    LanguageResult language=await Task.Run(()=>Languages.Prepare(root,preferences.TextLanguage??"enu",preferences.VoiceLanguage??"enu"));
+    LanguageResult language=await Task.Run(()=>{Languages.Sweep(root);return Languages.Prepare(root,preferences.TextLanguage??"enu",preferences.VoiceLanguage??"enu");});
     if(closeRequested) { busy=false; window.Close(); return; }
     gameArgs=Languages.Arguments(gameArgs,language.Locale);File.AppendAllText(logPath,"\r\n"+language.Summary+"\r\nNative locale: "+language.Locale+"\r\n");
     ProcessStartInfo start=new ProcessStartInfo(ClientPath("bin64/aion.bin"),gameArgs) { WorkingDirectory=root,UseShellExecute=false,CreateNoWindow=true,WindowStyle=ProcessWindowStyle.Hidden };
