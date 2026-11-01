@@ -21,6 +21,6 @@ public final class SM_WEB_CONNECTION extends AionServerPacket {
 		if (origin.length > 512 || message.length > 512) throw new IllegalStateException("Window metadata exceeds protocol bounds");
 		writeC(0xAF); writeB(new byte[] {'A', 'F', 'W', '1'}); writeC(1);
 		writeH(origin.length); writeH(message.length); writeH(Math.max(0, Math.min(200, description.textScale())));
-		writeC(description.localJourney() ? 1 : 0); writeB(fingerprint); writeB(origin); writeB(message);
+		writeC(description.journey() ? 1 : 0); writeB(fingerprint); writeB(origin); writeB(message);
 	}
 }

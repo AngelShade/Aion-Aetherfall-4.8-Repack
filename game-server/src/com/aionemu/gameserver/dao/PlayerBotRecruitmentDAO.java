@@ -63,6 +63,15 @@ public final class PlayerBotRecruitmentDAO {
  }
  public static Receipt recycle(Connection c,int account,String key)throws SQLException { return post(c,account,key,"RECYCLE",0,RECYCLE_CREDIT); }
 
+ /** Hub updates carry no SQL, so an updated server brings its own ticket tables to an existing database. */
+ public static void prepare(Connection c)throws SQLException {
+  try(var s=c.createStatement()){
+   s.executeUpdate("CREATE TABLE IF NOT EXISTS playerbot_ticket_wallet (account_id INT NOT NULL PRIMARY KEY,tickets BIGINT NOT NULL DEFAULT 0,recycle_credit INT NOT NULL DEFAULT 0,revision BIGINT NOT NULL DEFAULT 0,updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+   s.executeUpdate("CREATE TABLE IF NOT EXISTS playerbot_ticket_receipts (receipt_key VARCHAR(96) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY,account_id INT NOT NULL,kind VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,ticket_delta BIGINT NOT NULL,credit_delta INT NOT NULL,tickets_after BIGINT NOT NULL,credit_after INT NOT NULL,created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,KEY account_ticket_receipts (account_id,created_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+   s.executeUpdate("CREATE TABLE IF NOT EXISTS playerbot_recruitment_operations (id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,account_id INT NOT NULL,request_key VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,state VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,advanced_class VARCHAR(24) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,auto_equip_rarity VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,combat_rank VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,character_id INT NULL,created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,completed_at TIMESTAMP NULL,UNIQUE KEY account_recruitment_request (account_id,request_key),UNIQUE KEY recruited_character (character_id),KEY account_recruitment_state (account_id,state)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+  }
+  prepareDelivery(c);
+ }
  public static void prepareDelivery(Connection c)throws SQLException {
   try(var s=c.createStatement()){s.executeUpdate("CREATE TABLE IF NOT EXISTS playerbot_ticket_entitlements (receipt_key VARCHAR(96) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY,account_id INT NOT NULL,tickets BIGINT NOT NULL,created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,KEY pending_account(account_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");}
  }

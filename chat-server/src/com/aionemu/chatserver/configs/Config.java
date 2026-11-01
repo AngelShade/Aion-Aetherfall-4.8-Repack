@@ -20,6 +20,7 @@ import com.aionemu.commons.configs.DatabaseConfig;
 import com.aionemu.commons.configuration.ConfigurableProcessor;
 import com.aionemu.commons.utils.NetworkUtils;
 import com.aionemu.commons.utils.PropertiesUtils;
+import com.aionemu.commons.utils.ServerAddress;
 
 import ch.qos.logback.classic.ClassicConstants;
 
@@ -32,7 +33,7 @@ public class Config {
 	 * Load configs from files.
 	 */
 	public static void load() {
-		Set<String> unusedProperties = ConfigurableProcessor.process(loadProperties(), CommonsConfig.class, LoggingConfig.class, DatabaseConfig.class, NetworkConfig.class);
+		Set<String> unusedProperties = ConfigurableProcessor.process(addressedProperties(), CommonsConfig.class, LoggingConfig.class, DatabaseConfig.class, NetworkConfig.class);
 		if (!unusedProperties.isEmpty()) {
 			removePropertiesUsedInLogbackXml(unusedProperties);
 			unusedProperties.forEach(p -> LoggerFactory.getLogger(Config.class).warn("Config property {} is unknown and therefore ignored.", p));
@@ -45,6 +46,12 @@ public class Config {
 			NetworkConfig.CLIENT_CONNECT_ADDRESS = new InetSocketAddress(localIPv4, NetworkConfig.CLIENT_CONNECT_ADDRESS.getPort());
 			LoggerFactory.getLogger(Config.class).info("No connect IP for Aion client configured, using {}", localIPv4.getHostAddress());
 		}
+	}
+
+	private static Properties addressedProperties() {
+		Properties properties = loadProperties();
+		ServerAddress.apply(properties, "chatserver.network.client.socket_address", "chatserver.network.client.connect_address");
+		return properties;
 	}
 
 	private static Properties loadProperties() {

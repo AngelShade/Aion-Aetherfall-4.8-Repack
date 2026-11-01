@@ -15,6 +15,7 @@ import com.aionemu.commons.configs.DatabaseConfig;
 import com.aionemu.commons.configuration.ConfigurableProcessor;
 import com.aionemu.commons.configuration.Property;
 import com.aionemu.commons.utils.PropertiesUtils;
+import com.aionemu.commons.utils.ServerAddress;
 
 import ch.qos.logback.classic.ClassicConstants;
 
@@ -112,6 +113,7 @@ public class Config {
 			Properties properties = PropertiesUtils.load("./config/myls.properties", defaults);
 			if (properties.isEmpty())
 				log.info("No override properties found");
+			ServerAddress.apply(properties, "loginserver.network.client.socket_address", null);
 			return properties;
 		} catch (Exception e) {
 			throw new Error("Can't load loginserver configuration:", e);

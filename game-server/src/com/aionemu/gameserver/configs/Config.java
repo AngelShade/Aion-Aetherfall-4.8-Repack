@@ -18,6 +18,7 @@ import com.aionemu.commons.configs.DatabaseConfig;
 import com.aionemu.commons.configuration.ConfigurableProcessor;
 import com.aionemu.commons.utils.NetworkUtils;
 import com.aionemu.commons.utils.PropertiesUtils;
+import com.aionemu.commons.utils.ServerAddress;
 import com.aionemu.gameserver.GameServerError;
 import com.aionemu.gameserver.configs.administration.AdminConfig;
 import com.aionemu.gameserver.configs.administration.CommandsConfig;
@@ -82,7 +83,24 @@ public class Config {
 	}
 
 	private static Properties loadProperties() {
-		return loadProperties(Path.of("."));
+		Properties properties = loadProperties(Path.of("."));
+		String host = ServerAddress.apply(properties, "gameserver.network.client.socket_address", "gameserver.network.client.connect_address");
+		if (host != null) {
+			properties.setProperty("gameserver.marketplace.bind", "0.0.0.0");
+			// A private LAN reaches the windows on the interface each client used. Beyond it, they need the shared address.
+			if (properties.getProperty("gameserver.web.public_url", "").isBlank() && !privateAddress(host))
+				properties.setProperty("gameserver.web.public_url", "http://" + host + ":" + properties.getProperty("gameserver.marketplace.port", "8091"));
+		}
+		return properties;
+	}
+
+	private static boolean privateAddress(String host) {
+		try {
+			var address = java.net.InetAddress.getByName(host);
+			return address.isSiteLocalAddress() || address.isLinkLocalAddress();
+		} catch (java.net.UnknownHostException e) {
+			return false;
+		}
 	}
 
 	/** Same startup loading/override order with an explicit root for offline verification. */

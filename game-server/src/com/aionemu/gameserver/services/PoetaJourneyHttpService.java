@@ -28,11 +28,6 @@ public final class PoetaJourneyHttpService {
 
 	public static void handle(HttpExchange x) throws IOException {
 		try {
-			if (!x.getRemoteAddress().getAddress().isLoopbackAddress() || !x.getLocalAddress().getAddress().isLoopbackAddress()) {
-				json(x,403,Map.of("error","This menu is available only to the local game client.")); return;
-			}
-			String host = x.getRequestHeaders().getFirst("Host");
-			if (host == null || !host.equals("127.0.0.1:"+x.getLocalAddress().getPort())) { json(x,403,Map.of("error","Invalid local client host.")); return; }
 			x.getResponseHeaders().set("Cache-Control","no-store");
 			x.getResponseHeaders().set("X-Content-Type-Options","nosniff");
 			x.getResponseHeaders().set("Referrer-Policy","no-referrer");

@@ -94,12 +94,10 @@ public final class MarketplaceService {
 			server.createContext("/market/pass", SeasonPassHttpService::handle);
 			server.createContext("/market/companions", PlayerBotHttpService::handle);
 			server.createContext("/market/account", AccountHttpService::handle);
-			// The optional starter skip is available only on this PC's loopback listener.
-			if (java.net.InetAddress.getByName(GSConfig.MARKETPLACE_BIND).isLoopbackAddress()) {
-				try { PoetaJourneyService.start(); }
-				catch (Exception e) { log.error("Could not start Poeta journey", e); }
-				server.createContext("/journey", PoetaJourneyHttpService::handle);
-			}
+			// Every request is authenticated by the player's session, wherever the client connects from.
+			try { PoetaJourneyService.start(); }
+			catch (Exception e) { log.error("Could not start Poeta journey", e); }
+			server.createContext("/journey", PoetaJourneyHttpService::handle);
 			// Browser windows wait on the database. Serve them on their own threads so a slow page
 			// cannot occupy the game's shared instant pool (packet and gameplay tasks).
 			server.setExecutor(Executors.newFixedThreadPool(8, task -> {

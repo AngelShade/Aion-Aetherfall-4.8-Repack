@@ -25,6 +25,8 @@ public final class PlayerBotTickets {
   delivery=com.aionemu.gameserver.utils.ThreadPoolManager.getInstance().scheduleAtFixedRate(PlayerBotTickets::drain,1000,10000);
  }
  public static void initialize() {
+  try(var c=DatabaseFactory.getConnection()){PlayerBotRecruitmentDAO.prepare(c);}
+  catch(SQLException e){log.error("Cannot prepare the Recruitment Ticket tables",e);}
   PlayerBotRecycling.initialize();
   if(com.aionemu.gameserver.configs.main.PlayerBotConfig.TICKETS_ENABLED){start();return;}
   // Turning off new earning/spending does not erase already recorded debt.

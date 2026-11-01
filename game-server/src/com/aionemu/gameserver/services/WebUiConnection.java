@@ -13,7 +13,7 @@ public final class WebUiConnection {
 
 	private WebUiConnection() {}
 
-	public record Description(String origin, String message, int textScale, boolean localJourney) {}
+	public record Description(String origin, String message, int textScale, boolean journey) {}
 	public static Description describe(AionConnection connection) {
 		try {
 			InetAddress local = ((InetSocketAddress) connection.getSocketChannel().getLocalAddress()).getAddress();
@@ -41,7 +41,7 @@ public final class WebUiConnection {
 				|| !(uri.getRawPath().isEmpty() || uri.getRawPath().equals("/")) || !(uri.getScheme().equals("http") || uri.getScheme().equals("https"))
 				|| origin.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 512)
 				return unavailable("The server's in-game window address is invalid. Please contact the server administrator.");
-			return new Description(uri.getScheme() + "://" + uri.getRawAuthority(), "", HTMLConfig.WINDOW_TEXT_SCALE, samePc && bind.isLoopbackAddress());
+			return new Description(uri.getScheme() + "://" + uri.getRawAuthority(), "", HTMLConfig.WINDOW_TEXT_SCALE, true);
 		} catch (Exception e) { return unavailable("The server's in-game window connection is unavailable. Please contact the server administrator."); }
 	}
 	private static Description unavailable(String message) { return new Description("", message, HTMLConfig.WINDOW_TEXT_SCALE, false); }
