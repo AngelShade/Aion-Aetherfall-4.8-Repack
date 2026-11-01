@@ -56,8 +56,12 @@ public class QuestTasks {
 	 * @return
 	 */
 	public static final Future<?> newFollowingToTargetCheckTask(final QuestEnv env, Npc npc, float x, float y, float z) {
-		return ThreadPoolManager.getInstance().scheduleAtFixedRate(new FollowingNpcCheckTask(env, new CoordinateDestinationChecker(npc, x, y, z)), 1000,
-			1000);
+		return newFollowingToTargetCheckTask(env, npc, x, y, z, new float[0][]);
+	}
+
+	public static Future<?> newFollowingToTargetCheckTask(QuestEnv env, Npc npc, float x, float y, float z, float[]... additionalDestinations) {
+		return ThreadPoolManager.getInstance().scheduleAtFixedRate(
+			new FollowingNpcCheckTask(env, new CoordinateDestinationChecker(npc, x, y, z, additionalDestinations)), 1000, 1000);
 	}
 
 	public static Future<?> newFollowingToTargetCheckTask(QuestEnv env, Npc npc, String zoneName) {

@@ -85,7 +85,9 @@ public class _1041ADangerousArtifact extends AbstractQuestHandler {
 							}
 						}
 						case SETPRO2: {
-							return defaultStartFollowEvent(env, (Npc) env.getVisibleObject(), 2264.636f, 2359.2563f, 278.62735f, 1, 2);
+							// Secret Exit or Forgotten Passage (LF2_SENSORYAREA_Q1041_B).
+							return defaultStartFollowEvent(env, (Npc) env.getVisibleObject(), 2264.636f, 2359.2563f, 278.62735f, 1, 2,
+								new float[] { 1831.1919f, 2528.628f, 273.76776f });
 						}
 					}
 					break;

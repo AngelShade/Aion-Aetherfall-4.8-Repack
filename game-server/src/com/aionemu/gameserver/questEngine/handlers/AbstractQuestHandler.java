@@ -862,13 +862,20 @@ public abstract class AbstractQuestHandler {
 
 	/** NPC starts following the player to the target location. Use onLostTarget and onReachTarget for further actions. */
 	public boolean defaultStartFollowEvent(QuestEnv env, Npc follower, float x, float y, float z, int step, int nextStep) {
+		return defaultStartFollowEvent(env, follower, x, y, z, step, nextStep, new float[0][]);
+	}
+
+	/** NPC starts following the player to any target location. Use onLostTarget and onReachTarget for further actions. */
+	public boolean defaultStartFollowEvent(QuestEnv env, Npc follower, float x, float y, float z, int step, int nextStep,
+		float[]... additionalDestinations) {
 		final Player player = env.getPlayer();
 		if (!(env.getVisibleObject() instanceof Npc)) {
 			return false;
 		}
 		PacketSendUtility.sendPacket(player, new SM_NPC_INFO(follower, player));
 		follower.getAi().onCreatureEvent(AIEventType.FOLLOW_ME, player);
-		player.getController().addTask(TaskId.QUEST_FOLLOW, QuestTasks.newFollowingToTargetCheckTask(env, follower, x, y, z));
+		player.getController().addTask(TaskId.QUEST_FOLLOW,
+			QuestTasks.newFollowingToTargetCheckTask(env, follower, x, y, z, additionalDestinations));
 		if (step == 0 && nextStep == 0) {
 			return true;
 		} else {
