@@ -16,7 +16,7 @@
 
 Aetherfall lets you build a party from your own alternate characters or temporary companions. Take them through quests and dungeons, manage their equipment and combat behavior, and keep your alts caught up with your main. Independent playerbots also quest, fight and visit towns around the world.
 
-**Latest release: [0.98.11](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.11), released 2 November 2026.** Build your Companions collection with Recruitment Tickets, watch each recruit's reveal, meet road Wardens and regional merchants, and follow the expanded Journey chapters.
+**Latest release: [0.98.11](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.11), released 2 November 2026.** Build your Companions collection, watch each new recruit's reveal, and choose who joins your party. Road Wardens, regional merchants and new Journey chapters give you more to discover as you play.
 
 The repack includes the game client, servers, Java and MariaDB in one Windows folder. Use the [downloader](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/latest/download/Aetherfall-Downloader.zip) to install it, then follow the steps below.
 

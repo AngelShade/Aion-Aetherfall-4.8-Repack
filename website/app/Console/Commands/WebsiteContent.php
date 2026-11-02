@@ -19,6 +19,8 @@ class WebsiteContent extends Command
     public function handle(): int
     {
         $baselines = array_map(fn ($revision) => require resource_path('content/aetherfall-'.$revision.'.php'), ['v1', 'v3', 'v4']);
+        // Later releases are recorded by tools/distribution/sync_release_text.py.
+        $baselines = array_merge($baselines, json_decode(file_get_contents(resource_path('content/aetherfall-v5.json')), true, 512, JSON_THROW_ON_ERROR));
         DB::transaction(function () use ($baselines): void {
             $starter = ['tagline'=>'Explore Atreia', 'meta_description'=>'Explore Atreia with the Aetherfall community.'];
             foreach (config('aetherfall_content.settings') as $key=>$value) {

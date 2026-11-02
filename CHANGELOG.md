@@ -1,5 +1,13 @@
 # Aion Aetherfall 4.8 Repack — Changelog
 
+## Next update
+
+### New
+
+### Improved
+
+### Fixed
+
 ## 0.98.11 - New Companions collection, Recruitment Tickets and road merchants (2 November 2026)
 
 Build your Companions collection, watch each new recruit's reveal, and choose who joins your party. Road Wardens, regional merchants and new Journey chapters give you more to discover as you play.

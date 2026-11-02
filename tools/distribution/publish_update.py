@@ -19,6 +19,7 @@ from build_downloader import build_downloader
 from release_workspace import release_path
 from chunked_patch import read_patch, verify_assets, GITHUB_ASSET_BYTES
 from optional_languages import assets as language_assets, optional_path, verify_published as verify_published_languages
+from release_notes import github_release_body, previous_published_version
 
 try:
     import certifi  # Windows' store can lack the root of GitHub's current chain (USERTrust ECC).
@@ -28,6 +29,28 @@ except ImportError:
 
 DOWNLOAD_URL = 'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/latest/download/Aetherfall-Downloader.zip'
 LEGACY_DOWNLOAD_URL = 'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.86/Aetherfall-Downloader.zip'
+
+
+def previous_release(version):
+    releases = []
+    page = 1
+    try:
+        while True:
+            request = urllib.request.Request(
+                'https://api.github.com/repos/AngelShade/Aion-Aetherfall-4.8-Repack/releases'
+                f'?per_page=100&page={page}',
+                headers={'Accept': 'application/vnd.github+json', 'User-Agent': 'Aetherfall-Publisher'})
+            with urllib.request.urlopen(request, timeout=30) as response:
+                records = json.loads(response.read().decode('utf-8'))
+            if not isinstance(records, list):
+                raise ValueError('GitHub did not return a release list')
+            releases.extend(records)
+            if len(records) < 100:
+                break
+            page += 1
+    except (OSError, ValueError) as error:
+        raise ValueError('Previous published release could not be determined; publication stopped: ' + str(error)) from error
+    return previous_published_version(version, releases)
 
 
 def prepare_downloader(dist_dir, output_dir, setup, latest, changelog):
@@ -211,6 +234,10 @@ def publish_prepared(package, baseline_path, dist_dir, target_version, upload):
     current = json.loads((package / 'release.json').read_text(encoding='utf-8-sig'))['Version']
     if target_version and target_version != current:
         raise ValueError('Prepared publication must retain the already installed repack version')
+    # Validate all notes since the preceding public release before preparing anything.
+    from sync_release_text import check_release_text
+    check_release_text(package=package, version=current)
+    github_release_body((package / 'CHANGELOG.md').read_text(encoding='utf-8-sig'), current, previous_release(current))
     tag = 'v' + current
     base = 'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/' + tag
     organized = (dist_dir / 'Maintenance/release-layout.json').is_file()
@@ -305,6 +332,8 @@ def publish_assets(dist_dir, latest, setup_path=None):
     with zipfile.ZipFile(downloader) as archive:
         if hashlib.sha256(archive.read('Aetherfall Setup.exe')).hexdigest() != latest.get('setupExeSha256'):
             raise ValueError('Downloader ZIP and published Setup differ')
+        release_body = github_release_body(archive.read('CHANGELOG.md').decode('utf-8-sig'), target_version,
+                                           previous_release(target_version))
     for asset_path in [patch_path, downloader, setup_exe] + [dist_dir / asset['file'] for asset in chunk_assets] + optional_assets:
         if asset_path.is_file() and asset_path.stat().st_size >= GITHUB_ASSET_BYTES:
             raise ValueError('GitHub release asset must be under 2 GiB: ' + asset_path.name)
@@ -321,7 +350,7 @@ def publish_assets(dist_dir, latest, setup_path=None):
         'tag_name': tag_name,
         'target_commitish': 'main',
         'name': f'Aion Aetherfall Repack v{target_version} (Delta Update Patch)',
-        'body': f"Chunked update to **v{target_version}** ({latest['filesChanged']} updated files).\n\nPlayers: Open **`Aetherfall Setup.exe`** and click **`Update Repack`** to download only required chunks. Older Setup versions restart after updating themselves; click Update Repack again afterward.",
+        'body': release_body,
         'draft': False,
         'prerelease': False,
     }).encode('utf-8')
@@ -329,10 +358,18 @@ def publish_assets(dist_dir, latest, setup_path=None):
         req = urllib.request.Request(rel_api, data=payload, headers=headers, method='POST')
         with urllib.request.urlopen(req) as resp:
             rel_info = json.loads(resp.read().decode())
-    except urllib.error.HTTPError:
+    except urllib.error.HTTPError as error:
+        if error.code != 422:
+            raise
         req = urllib.request.Request(f'{rel_api}/tags/{tag_name}', headers=headers)
         with urllib.request.urlopen(req) as resp:
             rel_info = json.loads(resp.read().decode())
+        req = urllib.request.Request(f"{rel_api}/{rel_info['id']}",
+            data=json.dumps({'body': release_body}).encode('utf-8'), headers=headers, method='PATCH')
+        with urllib.request.urlopen(req) as resp:
+            rel_info = json.loads(resp.read().decode())
+    if rel_info.get('body') != release_body:
+        raise ValueError('GitHub release notes readback differs from the shipped changelog')
 
     upload_base = rel_info['upload_url'].split('{')[0]
     existing_assets = {a['name']: a['id'] for a in rel_info.get('assets', [])}
@@ -388,6 +425,13 @@ def publish_assets(dist_dir, latest, setup_path=None):
     put_req = urllib.request.Request(contents_api, data=json.dumps(put_body).encode('utf-8'), headers=headers, method='PUT')
     with urllib.request.urlopen(put_req):
         print(f'SUCCESS! Update v{target_version} is now live for all players via "Update Repack"!')
+    # The update is already live, so a text problem is reported rather than failing the release.
+    from sync_release_text import sync_release_text
+    try:
+        sync_release_text(target_version, metadata=latest)
+        print('README and website source updated; commit them and deploy the website.')
+    except (ValueError, OSError, KeyError) as error:
+        print(f'WARNING: README and website were not updated: {error}')
 
 
 if __name__ == '__main__':

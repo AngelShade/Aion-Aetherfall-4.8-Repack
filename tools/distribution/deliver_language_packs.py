@@ -10,6 +10,7 @@ import shutil
 import subprocess
 
 from optional_languages import optional_path, validate_core
+from release_notes import shipped_changelog
 from release_workspace import release_root
 
 
@@ -205,7 +206,8 @@ def main():
     release = dict(Product='Aion Aetherfall Repack', Version=args.version)
     repack_changes.update({'release.json': staged('repack/release.json', release),
                           'Client/Mods/release.json': staged('repack/client-release.json', release),
-                          'CHANGELOG.md': repo/'CHANGELOG.md'})
+                          'CHANGELOG.md': staged('repack/CHANGELOG.md', shipped_changelog(
+                              (repo/'CHANGELOG.md').read_text(encoding='utf-8-sig')).encode('utf-8'))})
     identity = read(package/'REPACK.json')
     identity.update(productVersion=args.version, release=args.version.replace('.', ''),
                     updatedAt=datetime.now().astimezone().isoformat(),

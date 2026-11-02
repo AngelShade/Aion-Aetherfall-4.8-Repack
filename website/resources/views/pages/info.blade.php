@@ -27,7 +27,7 @@
             <div>
                 <span class="eyebrow">Latest published release · {{ config('aetherfall_content.release.published_on') }}</span>
                 <h3>Aetherpack {{ config('aetherfall_content.release.version') }}</h3>
-                <p>Build your Companions collection, recruit with account-shared tickets, meet road Wardens and regional merchants, and follow six Journey chapters. Your characters, progress and settings carry over.</p>
+                <p>Build your Companions collection, watch each new recruit's reveal, and choose who joins your party. Road Wardens, regional merchants and new Journey chapters give you more to discover as you play. Your characters, progress and settings carry over.</p>
             </div>
             <div class="info-release-actions">
                 @if ($aionFeatures['news'] ?? false)<a class="btn" href="{{ route('news.show', 'aetherfall-0-98-11') }}">WHAT'S NEW <span aria-hidden="true">↗</span></a>@endif

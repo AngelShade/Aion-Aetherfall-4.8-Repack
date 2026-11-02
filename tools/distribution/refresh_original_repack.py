@@ -9,6 +9,8 @@ import shutil
 import subprocess
 import zipfile
 
+from release_notes import shipped_changelog
+
 
 def read(path):
     return json.loads(path.read_text(encoding='utf-8-sig'))
@@ -150,7 +152,7 @@ def main():
         for name in new.namelist():
             if name!='META-INF/MANIFEST.MF' and new.read(name)!=old.read(name):raise ValueError('Commons executable dependency changed')
     release=encoded(dict(Product='Aion Aetherfall Repack',Version=args.version))
-    changes.update({'release.json':release,'Client/Mods/release.json':release,'CHANGELOG.md':(repo/'CHANGELOG.md').read_bytes()})
+    changes.update({'release.json':release,'Client/Mods/release.json':release,'CHANGELOG.md':shipped_changelog((repo/'CHANGELOG.md').read_text(encoding='utf-8-sig')).encode()})
     identity=read(full/'REPACK.json');identity.update(release=args.version.replace('.',''),productVersion=args.version,gameServerSha256=expected,updatedAt=datetime.now().astimezone().isoformat())
     identity['latestOriginalRefresh']=dict(version=args.version,build=str(build),receipt=str(backup/'receipt.json'),sourceRowsCopied=0)
     changes['REPACK.json']=encoded(identity)

@@ -1,6 +1,8 @@
 # Detailed development history
 
 > **How to write player notes:** Write to “you” in short, plain sentences. Lead with new features and what you can do in the game; keep fixes brief. Use New, Improved, Fixed and, only when needed, For server hosts. Keep each bullet to one idea and about 25 words; merge small related changes. Use familiar game words, no developer jargon, hype, internal status or unshipped work. Put exact files and settings only under For server hosts. Verify claims; omit anything unclear. Group changes under the release that actually delivered them, including skipped versions. When needed, use one safety line: “Your characters, progress and settings carry over.”
+>
+> **Keeping it up to date:** every finished feature or fix adds a line under `## Next update` in `CHANGELOG.md`. To release, run `python sync_release_text.py start-release <version> <YYYY-MM-DD>` from `tools/distribution`, refresh the repack, then publish. Publishing stops if the notes break these rules, and afterwards it updates the README and website source. Run `python sync_release_text.py check` at any time.
 
 The changelog below is the complete, verbatim history saved before the player-facing rewrite.
 
