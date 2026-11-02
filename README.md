@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚔️ Aion 4.8 Playerbots — Aetherfall Repack (v0.86)
+# ⚔️ Aion 4.8 Playerbots — Aetherfall Repack (v0.98.11)
 
 ### **Full Solo & Co-Op Private Server Repack • Autonomous AI Companions • 1-Click Setup & Play**
 
@@ -16,6 +16,23 @@
 </div>
 
 ---
+
+<!-- whats-new:start -->
+## ✨ What's new in 0.98.11
+
+Build your Companions collection, watch each new recruit's reveal, and choose who joins your party. Road Wardens, regional merchants and new Journey chapters give you more to discover as you play.
+
+- **Companions collection:** browse illustrated companion cards, filter and sort your collection, and open an Overview to see each companion's details.
+- **Recruitment Tickets:** spend tickets shared across your account to recruit companions. Your results stay in your collection until you invite them into your party.
+- **Earn Recruitment Tickets:** complete challenging instances or win PvP matches to earn tickets for your account.
+- **50 starter tickets:** your account receives them once when you first open the ticket wallet, including through Companions. Existing accounts receive them too.
+- **Recruitment reveal:** see your new companion's appearance in an animated reveal. Use Continue or Skip to move through the results.
+- **Companion recycling:** recycle a Ticket Recruit for Ticket credit, Learning XP for another chosen Ticket Recruit, and Kinah. Review the rewards before confirming.
+
+**[See everything in 0.98.11](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.11)** • [All updates](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases)
+
+---
+<!-- whats-new:end -->
 
 ## 💬 Join Beyond emulator Discord thats where my residence is ;)
 
