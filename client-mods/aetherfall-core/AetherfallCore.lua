@@ -180,6 +180,22 @@ function AFCore.Cursor()
 end
 -- Contents of Mods/AetherfallUI/<name> (a .cfg file or state.json, at most 64 KiB), or nil.
 function AFCore.ReadFile(name) if core then return core("read", name) end end
+-- Hands the native lookup every plugin command, so the game thread never runs IsSlashCmd.
+function AFCore.PublishSlashCommands()
+    if not core or not SlashCmdList then return end
+    local names = {}
+    for key, handler in pairs(SlashCmdList) do
+        if type(handler) == "function" then
+            local i = 1
+            while type(_G["SLASH_" .. key .. i]) == "string" do
+                names[#names + 1] = _G["SLASH_" .. key .. i]
+                i = i + 1
+            end
+        end
+    end
+    table.sort(names)
+    return core("slashes", table.concat(names, "\n"))
+end
 
 local function say(text)
     DisplayChatMessage(0, tostring(text), 0.56, 0.89, 0.93)

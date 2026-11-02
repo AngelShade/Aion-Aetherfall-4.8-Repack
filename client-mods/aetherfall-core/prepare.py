@@ -15,7 +15,7 @@ import subprocess
 import sys
 
 HERE = Path(__file__).resolve().parent
-NATIVE_VERSION = '1.3.1'  # Native Find Group Hire details owner.
+NATIVE_VERSION = '1.3.2'  # Slash lookup stays off the game thread's Lua.
 PAK = 'Plugin/RelicCalc/RelicCalc.pak'
 PLUGIN_COHORT = [PAK, PAK + '.sig', 'Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig']
 VERSION = '1.2.91'  # Independent Codex view histories, drafts and map return control.

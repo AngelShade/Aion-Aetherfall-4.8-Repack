@@ -32,6 +32,7 @@ AetherfallCore=function(cmd,a,b,c,d,e,f,g,h,i)
     if a==0x20 and c=="debuff_item" and b==1 then return 0x16,2001,2001,1,nil,nil,true end return 0,0,0,0 end
   if cmd=="dialog" then local d=DIALOGS[a]; if not d then return nil end return d.name,d.x,d.y,d.w,d.h,d.shown end
   if cmd=="save" then return SAVEFILE(a,b) end
+  if cmd=="slashes" then SLASHES=a return true end
   if cmd=="cursor" then if CX==false then return nil end return CX or 1,CY or 1,1280*UISCALE,960*UISCALE,CDOWN==true,CSHIFT==true end
   if cmd=="tippin" then if not DIALOGS[a] then return false end PINS[a]={b,c,d,e,f,g,h} return true end
   if cmd=="read" then return READFILE(a) end
@@ -246,6 +247,7 @@ def main():
         for _ in range(4):  # commands queue; timer ticks build the window, then open it
             g.AFUI_OnEvent('ADDON_TIMER')
         assert widgets['AFUIOptions']['visible'] == 1 and widgets['AFUITab1']['text'] == 'General'
+        assert {'/afui', '/aetherfall', '/aui', '/ec', '/moveui'} <= set(str(lua.eval('SLASHES')).split('\n')), 'native lookup receives every alias'
         # Colour theme: the top bar's values and the options accent follow it at once.
         g.AFUI.Click('Tab1'); g.AFUI.Click('Row2More')  # Aether -> Gold
         for _ in range(20):

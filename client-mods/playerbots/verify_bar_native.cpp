@@ -32,7 +32,8 @@ void rect(Ptr p,Rect r){static_cast<Widget*>(p)->bounds=r;}
 Ptr lookup(Ptr p,const char* name,int){auto& children=static_cast<Widget*>(p)->children;auto it=children.find(name);return it==children.end()?nullptr:it->second;}
 namespace native_ui {
 std::string read(Ptr p,size_t limit){return p && static_cast<Widget*>(p)->text.size()<=limit?static_cast<Widget*>(p)->text:"";}
-void write(Ptr p,const std::wstring& text){if(p)static_cast<Widget*>(p)->text=std::string(text.begin(),text.end());}
+size_t writes=0;
+void write(Ptr p,const std::wstring& text){if(p){++writes;static_cast<Widget*>(p)->text=std::string(text.begin(),text.end());}}
 }
 }
 #include "playerbot_bar.h"
@@ -54,6 +55,7 @@ int main(int argc,char** argv){
     auto tick=[](){fixture_time+=100;companion_bar::tick();};tick();
     assert(meta.text=="1280|720|2|1" && bar.bounds.x==0 && bar.bounds.y==656);
     mode.text="2";tick();assert(meta.text=="1280|720|2|1");
+    auto writes=wardrobe::native_ui::writes;tick();tick();assert(wardrobe::native_ui::writes==writes && "An unchanged state queues no Lua event");
     for(const auto& command:{"attack","follow","stay","guard","passive","summon"}){
         fixture_time+=300;tx.text=command;tick();assert(tx.text.empty() && rx.text=="sent");
         assert(packets.back()==std::wstring(L".bot ")+std::wstring(command,command+std::strlen(command))+L" all");

@@ -35,7 +35,7 @@
 // remain native and unchanged.
 namespace {
 using Ptr=void*;
-constexpr char CORE_VERSION[]="1.3.1";  // Native Find Group Hire details owner.
+constexpr char CORE_VERSION[]="1.3.2";  // Slash lookup stays off the game thread's Lua.
 constexpr uintptr_t PREFERRED=0x10000000;  // Game.dll has no relocations.
 unsigned char* image=nullptr;
 unsigned char* game(){return image;}
@@ -101,6 +101,7 @@ bool readable(const void* p,size_t n){
 #include "quest_targets.h"
 #include "camera_turn.h"
 #include "camera_settings.h"
+#include "slash_lookup.h"
 
 // Native string table: sorted 20-byte rows {int id, ..., const wchar_t* at +0xc}
 // (the lookup GetUnlearnedSkillList inlines with bsearch and comparator 0xa873d0).
@@ -982,6 +983,7 @@ int dispatch(Ptr L){
         return 4+boolean(L,effectively_shown(d) && effectively_shown(w));
     }
     if(is(cmd,"hireterms"))return boolean(L,hire_terms::poll());
+    if(is(cmd,"slashes"))return boolean(L,slash_names::publish(text(L,2),text_length(L,2)));
     if(is(cmd,"widget")){
         // Read one live node (optionally its nth child), without opening windows,
         // invoking layout/painting, or retaining object pointers between calls.
@@ -1267,6 +1269,7 @@ bool try_install(){
     image=g;
     install_quest_targets();
     install_camera_turn();
+    install_slash_lookup();
     quest_dialog::install();
     quest_journal::install();
     DWORD old=0;

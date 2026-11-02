@@ -64,7 +64,11 @@ void tick() {
     const bool connected=*reinterpret_cast<Ptr*>(g+0x133bb30) && *reinterpret_cast<unsigned char*>(g+0x133bb38)!=0;
     // Seed mode once; Lua reads this before publishing its selected mode.
     const int published_mode=mode.empty()?saved.mode:current_mode;
-    native_ui::write(find("PlayerBotBarMeta"),std::to_wstring(int(width))+L"|"+std::to_wstring(int(height))+L"|"+std::to_wstring(published_mode)+L"|"+(connected?L"1":L"0"));
+    // Every write queues a Lua text-change event, so an unchanged value is left alone.
+    auto meta=find("PlayerBotBarMeta");
+    const std::wstring state=std::to_wstring(int(width))+L"|"+std::to_wstring(int(height))+L"|"+std::to_wstring(published_mode)+L"|"+(connected?L"1":L"0");
+    const auto written=native_ui::read(meta,32);
+    if(std::wstring(written.begin(),written.end())!=state)native_ui::write(meta,state);
     auto tx=find("PlayerBotBarTx");auto request=native_ui::read(tx,16);
     if(!request.empty()){
         // Clear before sending: no retry of a stale Attack after reconnect.

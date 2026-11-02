@@ -2506,7 +2506,7 @@ function AFUI_OnEvent(event, ...)
     g_AddonName = 'RelicCalc'
     if event == 'ADDON_TIMER' then
         U.ticks = U.ticks + 1
-        if U.ticks % 20 == 1 then AFUI.BindCommands() end
+        if U.ticks % 20 == 1 then AFUI.BindCommands(); AFCore.PublishSlashCommands() end
         local current = playerIdentity()
         if not current then
             if U.connected ~= false then

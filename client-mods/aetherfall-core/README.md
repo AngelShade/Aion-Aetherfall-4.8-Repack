@@ -5,6 +5,19 @@ Aetherfall Interface. It reads native HUD data and applies the interface's windo
 positions, visibility and tooltip settings. Settings remain in `Mods/AetherfallUI`.
 Existing chat commands run through the native chat input.
 
+## Slash lookup off the game thread, native 1.3.2
+
+Game.dll asks Lua's `IsSlashCmd` whether a chat line is a plugin command, on the
+game thread, while the addon worker runs the same Lua state with no lock. One
+collision overwrote Lua's shared nil: every missing table key then read as
+`SlashCmdList`, all plugin commands failed and the worker stayed in `luaH_getn`.
+Lua now publishes its command names once a second, and a guarded hook at
+`0x62832a` answers from that immutable list using the stock `^/[.%S]+` match.
+Accepted commands still queue for the stock `DoSlashCmd` on the worker. Until the
+first publish, the stock check still answers. `AetherfallSlashDiagnostics` holds
+install state, list answers and stock answers. Typing `/script` still runs its Lua
+on the game thread. Offline check: `verify_slash_names.cpp`.
+
 ## Shared server connection, native 1.3.0
 
 Native Codex and help-quest requests use `shared/web_endpoint.h`, also used by
