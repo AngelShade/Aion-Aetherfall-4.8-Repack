@@ -1,5 +1,6 @@
 """Generate release copy from CHANGELOG.md, without PHP or local release credentials."""
 import argparse
+import base64
 import html
 import json
 import re
@@ -15,6 +16,10 @@ from release_notes import (changelog_sections, github_release_body, player_notes
 ROOT = Path(__file__).resolve().parents[2]
 RELEASES = 'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases'
 API = 'https://api.github.com/repos/AngelShade/Aion-Aetherfall-4.8-Repack/releases'
+CONTENTS = 'https://api.github.com/repos/AngelShade/Aion-Aetherfall-4.8-Repack/contents/README.md'
+WHATS_NEW_START = '<!-- whats-new:start -->'
+WHATS_NEW_END = '<!-- whats-new:end -->'
+HOMEPAGE_BULLETS = 6
 CONTENT = Path('website/config/aetherfall_content.php')
 BASELINES = Path('website/resources/content/aetherfall-v5.json')
 INFO = Path('website/resources/views/pages/info.blade.php')
@@ -394,6 +399,55 @@ def github_body(text, version):
     return github_release_body(section_text(section), section.version, '0.0')
 
 
+def homepage_readme(readme, text, version):
+    """Keep the default branch's title and What's new block on the given release."""
+    section = release_section(text, version)
+    version = section.version
+    first_paragraph = ' '.join(section.intro.split('\n\n')[0].split())
+    new = re.search(r'^### New\n(.*?)(?=^### |\Z)', section.body, re.M | re.S)
+    bullets = re.findall(r'^[-*] .+$', new[1] if new else section.body, re.M)[:HOMEPAGE_BULLETS]
+    block = '\n'.join([WHATS_NEW_START, f"## ✨ What's new in {version}", '', first_paragraph, '', *bullets, '',
+                       f'**[See everything in {version}]({RELEASES}/tag/v{version})** • [All updates]({RELEASES})',
+                       '', '---', WHATS_NEW_END, '', ''])
+    readme, count = re.subn(r'^(# .*\(v)\d+(?:\.\d+){1,3}(\)[ \t]*)$', lambda m: m[1] + version + m[2], readme, count=1, flags=re.M)
+    if count != 1:
+        raise ValueError('Homepage README needs a title ending in its version')
+    marked = re.compile(re.escape(WHATS_NEW_START) + r'.*?' + re.escape(WHATS_NEW_END) + r'\s*', re.S)
+    if marked.search(readme):
+        return marked.sub(lambda _: block, readme, count=1)
+    anchor = '</div>\n\n---\n\n'
+    if anchor not in readme:
+        raise ValueError('Homepage README has no place for the What\'s new block')
+    return readme.replace(anchor, anchor + block, 1)
+
+
+def homepage(version, root=ROOT, apply=False):
+    text = read(Path(root) / 'CHANGELOG.md')
+    version = version or next(s.version for s in changelog_sections(text) if s.version)
+    record = github_request(CONTENTS + '?ref=main')
+    before = base64.b64decode(record['content']).decode('utf-8')
+    after = homepage_readme(before, text, version)
+    if after == before:
+        print(f'homepage {version}: no changes')
+        return
+    sys.stdout.buffer.write(after[after.index(WHATS_NEW_START):after.index(WHATS_NEW_END)].encode('utf-8') + b'\n')
+    if not apply:
+        print('Dry run; add --apply to update the homepage.')
+        return
+    from publish_update import get_github_token
+    token = get_github_token()
+    backup = Path(root) / 'tools/distribution/.release-text-backups'
+    backup.mkdir(parents=True, exist_ok=True)
+    (backup / f'README-main-{record["sha"]}.md').write_text(before, encoding='utf-8', newline='\n')
+    github_request(CONTENTS, method='PUT', token=token, data=dict(
+        message=f"Show what's new in {version} on the homepage", branch='main', sha=record['sha'],
+        content=base64.b64encode(after.encode('utf-8')).decode('ascii')))
+    current = github_request(CONTENTS + '?ref=main', token=token)
+    if base64.b64decode(current['content']).decode('utf-8') != after:
+        raise ValueError('Homepage README readback mismatch')
+    print(f'homepage {version}: updated')
+
+
 def github_request(url, method='GET', data=None, token=None):
     # Match publish_update.py's certifi handling. Never disable certificate verification.
     import os
@@ -503,6 +557,9 @@ def main(argv=None):
     start.add_argument('date', help='YYYY-MM-DD')
     back = commands.add_parser('backfill')
     back.add_argument('--apply', action='store_true')
+    home = commands.add_parser('homepage')
+    home.add_argument('version', nargs='?')
+    home.add_argument('--apply', action='store_true')
     args = parser.parse_args(argv)
     try:
         if args.command == 'check':
@@ -517,6 +574,8 @@ def main(argv=None):
                 sys.stdout.buffer.write(body.encode('utf-8'))
         elif args.command == 'start-release':
             start_release(args.version, args.date, args.root)
+        elif args.command == 'homepage':
+            homepage(args.version, args.root, args.apply)
         else:
             backfill(args.root, args.apply)
     except (ValueError, OSError, KeyError) as error:

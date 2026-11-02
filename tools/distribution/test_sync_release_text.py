@@ -6,8 +6,8 @@ import unittest
 from pathlib import Path
 
 from release_notes import github_release_body, shipped_changelog
-from sync_release_text import (UPDATE_LINE, backfill_plan, check_release_text, lint, start_release,
-                               sync_release_text)
+from sync_release_text import (UPDATE_LINE, WHATS_NEW_START, backfill_plan, check_release_text, homepage_readme,
+                               lint, start_release, sync_release_text)
 
 
 CHANGELOG = """# Changelog
@@ -183,6 +183,24 @@ class SyncReleaseTextTests(unittest.TestCase):
         quiet(check_release_text, self.root, package, '0.2')
         with self.assertRaisesRegex(ValueError, 'Expected exactly one'):
             check_release_text(self.root, package, '0.3')
+
+    def test_homepage_block_is_added_then_replaced(self):
+        home = ('<div>\n\n# Aetherfall Repack (v0.1)\n\n</div>\n\n---\n\n'
+                '## Join us\n\n## Release v0.1 Checksums\n')
+        first = homepage_readme(home, CHANGELOG, '0.2')
+        self.assertIn('# Aetherfall Repack (v0.2)', first)
+        self.assertIn('**Merchants:**', first)
+        self.assertLess(first.index(WHATS_NEW_START), first.index('## Join us'))
+        self.assertIn('## Release v0.1 Checksums', first)
+        self.assertEqual(first, homepage_readme(first, CHANGELOG, '0.2'))
+        older = homepage_readme(first, CHANGELOG, '0.1')
+        self.assertEqual(1, older.count(WHATS_NEW_START))
+        self.assertNotIn('**Merchants:**', older)
+        self.assertIn('Quest windows close correctly', older)
+
+    def test_homepage_refuses_unknown_layout(self):
+        with self.assertRaisesRegex(ValueError, 'title'):
+            homepage_readme('# No version here\n', CHANGELOG, '0.2')
 
     def test_backfill_plan(self):
         def release(tag, body):

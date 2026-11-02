@@ -65,21 +65,26 @@ def prepare_downloader(dist_dir, output_dir, setup, latest, changelog):
     return archive
 
 
-def refresh_public_download_links(contents_api, headers):
+def refresh_public_download_links(contents_api, headers, changelog, version):
     import base64
+    from sync_release_text import homepage_readme
     request = urllib.request.Request(contents_api + '/README.md?ref=main', headers=headers)
     with urllib.request.urlopen(request) as response:
         record = json.loads(response.read().decode())
     before = base64.b64decode(record['content']).decode('utf-8')
     after = before.replace(LEGACY_DOWNLOAD_URL, DOWNLOAD_URL)
+    try:
+        after = homepage_readme(after, changelog, version)
+    except ValueError as error:
+        print(f'WARNING: homepage What\'s new was not updated: {error}')
     if after == before:
         return
-    body = dict(message='Point new installations to the current downloader', branch='main',
+    body = dict(message=f"Update the homepage for {version}", branch='main',
                 sha=record['sha'], content=base64.b64encode(after.encode('utf-8')).decode('ascii'))
     request = urllib.request.Request(contents_api + '/README.md',
         data=json.dumps(body).encode('utf-8'), headers=headers, method='PUT')
     with urllib.request.urlopen(request):
-        print('      Public download links now follow the latest downloader ZIP.')
+        print('      Homepage links and What\'s new now follow the latest release.')
 
 EXCLUDED_PREFIXES = (
     'server/database/data/',
@@ -332,8 +337,8 @@ def publish_assets(dist_dir, latest, setup_path=None):
     with zipfile.ZipFile(downloader) as archive:
         if hashlib.sha256(archive.read('Aetherfall Setup.exe')).hexdigest() != latest.get('setupExeSha256'):
             raise ValueError('Downloader ZIP and published Setup differ')
-        release_body = github_release_body(archive.read('CHANGELOG.md').decode('utf-8-sig'), target_version,
-                                           previous_release(target_version))
+        shipped_notes = archive.read('CHANGELOG.md').decode('utf-8-sig')
+        release_body = github_release_body(shipped_notes, target_version, previous_release(target_version))
     for asset_path in [patch_path, downloader, setup_exe] + [dist_dir / asset['file'] for asset in chunk_assets] + optional_assets:
         if asset_path.is_file() and asset_path.stat().st_size >= GITHUB_ASSET_BYTES:
             raise ValueError('GitHub release asset must be under 2 GiB: ' + asset_path.name)
@@ -402,7 +407,8 @@ def publish_assets(dist_dir, latest, setup_path=None):
     upload_asset(downloader, 'Aetherfall-Downloader.zip', 'application/zip')
     # Change public entry points only after the matching complete kit is available.
     refresh_public_download_links(
-        'https://api.github.com/repos/AngelShade/Aion-Aetherfall-4.8-Repack/contents', headers)
+        'https://api.github.com/repos/AngelShade/Aion-Aetherfall-4.8-Repack/contents', headers,
+        shipped_notes, target_version)
 
     print('[4/4] Publishing latest-update.json to GitHub main branch via API...')
     import base64
