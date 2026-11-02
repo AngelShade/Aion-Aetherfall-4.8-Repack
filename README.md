@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/latest/download/Aetherfall-Downloader.zip"><img src="https://img.shields.io/badge/Download-Current_Aetherfall_Setup_Hub-2563eb?style=for-the-badge&logo=windows" alt="Download Aetherfall Setup Hub"></a>
-  <a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.96.6"><img src="https://img.shields.io/badge/Latest_Release-v0.96.6-eab308?style=for-the-badge" alt="Latest Release v0.96.6"></a>
+  <a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.11"><img src="https://img.shields.io/badge/Latest_Release-v0.98.11-eab308?style=for-the-badge" alt="Latest Release v0.98.11"></a>
   <a href="https://mega.nz/file/hJt0hYTC#fr0RDjsLl4CriZ5dw8MljBhrlP6nD4oYkaErD2iW-vQ"><img src="https://img.shields.io/badge/MEGA_Mirror-Base_Repack_0.86_(36.35_GB)-d9272e?style=for-the-badge" alt="MEGA Mirror"></a>
   <a href="https://drive.google.com/file/d/1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2/view?usp=sharing"><img src="https://img.shields.io/badge/Google_Drive-Base_Repack_0.86_(36.35_GB)-16a34a?style=for-the-badge&logo=googledrive" alt="Google Drive Mirror"></a>
   <a href="https://discord.gg/DAnAjx3tY2"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
@@ -16,11 +16,11 @@
 
 Aetherfall lets you build a party from your own alternate characters or temporary companions. Take them through quests and dungeons, manage their equipment and combat behavior, and keep your alts caught up with your main. Independent playerbots also quest, fight and visit towns around the world.
 
-**Latest release: [0.96.6](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.96.6), released 24 October 2026.** It improves Verteron quests, companion looting, world-bot activity and recovery, monster difficulty and interface controls. It also includes the movable Marketplace and earlier 0.95 updates.
+**Latest release: [0.98.11](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.11), released 2 November 2026.** Build your Companions collection with Recruitment Tickets, watch each recruit's reveal, meet road Wardens and regional merchants, and follow the expanded Journey chapters.
 
 The repack includes the game client, servers, Java and MariaDB in one Windows folder. Use the [downloader](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/latest/download/Aetherfall-Downloader.zip) to install it, then follow the steps below.
 
-This repository also contains the `4.8` source code. Some newer changes are still in development; the [changelog](CHANGELOG.md) separates them from released updates.
+This repository also contains the `4.8` source code. See [What's new](CHANGELOG.md) for published updates and the [detailed development history](docs/CHANGELOG-technical.md) for source notes.
 
 ## What's included
 
@@ -58,7 +58,7 @@ Alts receive the quest's usual rewards, with item choices suited to their class.
 
 **Recommended:** download the current Setup below. It installs the full game and lets you apply the latest update. You can pause the download and resume later. If MEGA is unavailable, Setup can try Google Drive.
 
-The full game archive is **36.35 GiB** (about 39 GB). The downloader is about **8.65 MB**, and the `0.96.6` update is about **641 MB**. The base download is still named `0.86`; use **Update Repack** after installing it to get the latest version. You do not need to install each earlier update.
+The full game archive is **36.35 GiB** (about 39 GB). The base download is still named `0.86`; use **Update Repack** after installing it to get the latest version. You do not need to install each earlier update.
 
 GitHub's **Code → Download ZIP** downloads source code only. Use one of these options to get the playable repack:
 
@@ -135,7 +135,7 @@ The repack is set up to play on the same computer as the server. Playing from ot
 
 ## Newer 4.8 source work
 
-The `4.8` source also contains **The Unbroken Field**, a sixteen-quest story continuing The Writing on the Wall in Verteron, along with newer quest tracking, interface and companion-window repairs. These changes are newer than the published `0.96.6` repack. See the [source development notes](CHANGELOG.md#newer-48-source-work-25-october-2026).
+The `4.8` source also contains **The Unbroken Field**, a sixteen-quest story continuing The Writing on the Wall in Verteron, along with quest tracking, interface and companion-window repairs. These changes have been included in the published repack since `0.97`. See the [source development notes](docs/CHANGELOG-technical.md#newer-48-source-work-25-october-2026).
 
 A separate [Aetherfall website project](website/README-AETHERFALL.md) provides account registration, character pages, server information, news and an admin panel. Its build tools are under `tools/website`. It is separate from the game repack and needs its own setup and database connections.
 

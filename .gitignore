@@ -108,6 +108,7 @@ AGENTS.md
 !/docs/PLAYERBOTS_FIND_GROUP_20261019.md
 !/docs/PLAYERBOTS_FAST_CATCHUP_20261018.md
 !/docs/PLAYERBOTS_COMPANION_PURSUIT_20261018.md
+!/docs/CHANGELOG-technical.md
 .claude/settings.json
 
 # Installed servers and machine-specific records stay local, including overrides.

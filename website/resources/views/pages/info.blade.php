@@ -27,10 +27,10 @@
             <div>
                 <span class="eyebrow">Latest published release · {{ config('aetherfall_content.release.published_on') }}</span>
                 <h3>Aetherpack {{ config('aetherfall_content.release.version') }}</h3>
-                <p>Smoother windows and camera turning, clearer custom menus, better companion priorities and updates that preserve your customized settings. Includes earlier cumulative updates.</p>
+                <p>Build your Companions collection, recruit with account-shared tickets, meet road Wardens and regional merchants, and follow six Journey chapters. Your characters, progress and settings carry over.</p>
             </div>
             <div class="info-release-actions">
-                @if ($aionFeatures['news'] ?? false)<a class="btn" href="{{ route('news.show', 'aetherpack-0-98-4') }}">WHAT'S NEW <span aria-hidden="true">↗</span></a>@endif
+                @if ($aionFeatures['news'] ?? false)<a class="btn" href="{{ route('news.show', 'aetherfall-0-98-11') }}">WHAT'S NEW <span aria-hidden="true">↗</span></a>@endif
                 <a class="info-text-link" href="{{ config('aetherfall_content.release.url') }}" target="_blank" rel="noopener noreferrer">Official release notes ↗</a>
             </div>
         </div>

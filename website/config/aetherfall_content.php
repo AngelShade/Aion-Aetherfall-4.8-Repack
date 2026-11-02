@@ -1,6 +1,6 @@
 <?php
 
-// Published release metadata verified against the official GitHub release on 29 October 2026.
+// Published release metadata verified against the official GitHub release on 2 November 2026.
 // Feature copy follows the shipped repack changelog; connected-server rates remain owner settings.
 return [
     'settings' => [
@@ -20,10 +20,20 @@ return [
         'character_slots' => '8',
         'character_faction_rule' => 'One faction per account',
         'discord_url' => 'https://discord.gg/bS3NZu5UJT',
-        'release_url' => 'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.5',
-        'repack_version' => '0.98.5',
+        'release_url' => 'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.11',
+        'repack_version' => '0.98.11',
     ],
     'articles' => [
+        [
+            'slug' => 'aetherfall-0-98-11',
+            'title' => 'Aetherfall 0.98.11: Companions, Recruitment Tickets and road merchants',
+            'category' => 'Update',
+            'published_at' => '2026-11-02 10:29:18',
+            'is_featured' => true,
+            'excerpt' => 'Build your Companions collection, recruit with account-shared tickets, meet road Wardens and merchants, and follow six Journey chapters.',
+            'cover' => 'aetherfall/screenshots/companions.jpg',
+            'body' => '<p>Build your Companions collection, watch each new recruit\'s reveal, and choose who joins your party. Road Wardens, regional merchants and new Journey chapters give you more to discover as you play.</p><p>Your characters, progress and settings carry over.</p><h2>New</h2><ul><li><strong>Companions collection:</strong> browse illustrated companion cards, filter and sort your collection, and open an Overview to see each companion\'s details.</li><li><strong>Recruitment Tickets:</strong> spend tickets shared across your account to recruit companions. Your results stay in your collection until you invite them into your party.</li><li><strong>Earn Recruitment Tickets:</strong> complete challenging instances or win PvP matches to earn tickets for your account.</li><li><strong>50 starter tickets:</strong> your account receives them once when you first open the ticket wallet, including through Companions. Existing accounts receive them too.</li><li><strong>Recruitment reveal:</strong> see your new companion\'s appearance in an animated reveal. Use Continue or Skip to move through the results.</li><li><strong>Companion recycling:</strong> recycle a Ticket Recruit for Ticket credit, Learning XP for another chosen Ticket Recruit, and Kinah. Review the rewards before confirming.</li><li><strong>Hire world companions:</strong> check a companion\'s hiring price and confirm the cost before inviting them into your party.</li><li><strong>Gear plans:</strong> save equipment presets and see which pieces your companion still needs.</li><li><strong>Stigma builds:</strong> choose from four builds for each advanced companion class.</li><li><strong>Collection rewards:</strong> grow your collection\'s Renown, earn Kinah stipends, and follow companion progress through Chronicle and Season Pass goals.</li><li><strong>Share gear:</strong> transfer earned or gifted equipment between active Ticket Recruits in your collection.</li><li><strong>Road Wardens:</strong> meet companions who patrol roads and fight nearby monsters. Invite one to escort you along the road.</li><li><strong>Regional merchants:</strong> browse changing regional stock. Merchants in Oriel and Pernon also sell housing goods.</li><li><strong>Companion quest goals:</strong> follow companion-help objectives in your quest journal and tracker, with more room for active quests.</li><li><strong>Journey chapters:</strong> follow six chapters covering recruitment, companion growth, party help and fighting together, with titles to earn along the way.</li></ul><h2>Improved</h2><ul><li><strong>Companions look after their rewards:</strong> while idle, they claim Pass rewards and stipends, collect Daeva Pass reward mail, and open reward boxes.</li><li><strong>Party orders:</strong> companions prioritize your orders and combat. Recruited road companions pause their patrol duties while helping you.</li><li><strong>Companion windows:</strong> read clearer Benefits, mission, reward and party-quest pages, with collection actions available directly on companion cards.</li><li><strong>Find Group:</strong> use clearer companion listings, party vacancies and party-filling offers to find help for your group.</li><li><strong>Journey:</strong> enjoy updated artwork and reopen the continuation page whenever you want to pick it up again.</li><li><strong>Loot windows:</strong> move the loot-roll rows together. Rows close gaps after rolls finish and wrap to fit shorter screens.</li></ul><h2>Fixed</h2><ul><li><strong>Recruitment artwork:</strong> fixed the red “Replace Me” screen during companion recruitment.</li><li><strong>Warden patrols:</strong> road Wardens now choose roads that have monsters to fight.</li><li><strong>Journey connections:</strong> fixed opening Journey when you connect to a server on another computer.</li><li><strong>Quest conversations:</strong> corrected F, 1 and Enter controls when speaking with NPCs.</li><li><strong>Pollution Resolution:</strong> repaired Lepios\'s quest conversation and moved a trapped Cantas Coast Sea Starturtle out of collision.</li><li><strong>Warehouse:</strong> corrected right-click item transfers.</li></ul><h2>For server hosts</h2><ul><li><strong>Temporary Bots:</strong> free recruitment is off by default, including saved Temporary Bots. Ticket recruitment and recruiting your account characters are available.</li><li><strong>Enable free recruitment:</strong> in <code>Server/game-server/config/playerbots/playerbots.properties</code>, set <code>gameserver.playerbots.generated.enable = true</code>, then restart GameServer.</li><li><strong>Turn it off again:</strong> set <code>gameserver.playerbots.generated.enable = false</code>. This also blocks recruiting missing Temporary Bots from saved parties.</li><li><strong>Starter grant:</strong> in <code>Server/game-server/config/playerbots/features.properties</code>, <code>gameserver.playerbots.tickets.starting = 50</code> controls the once-per-account grant. Set <code>0</code> to disable future grants.</li><li><strong>Existing ticket balances:</strong> starter tickets add to your balance once. Changing the grant amount or relogging does not award them again.</li><li><strong>Shared server address:</strong> in <code>Server/server-address.properties</code>, set <code>server.address</code> to the IP address or hostname your players connect to, then restart the servers.</li></ul><h2>Update your installation</h2><ol><li>Close Aion and the three game servers normally. The database can keep running.</li><li>Open Aetherfall Setup/Hub and choose <strong>Update Repack</strong>. If Setup updates and restarts, choose Update Repack again.</li><li>Start the servers and launch the client.</li></ol><p><a href="/download">Download 0.98.11</a> &middot; <a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.11" target="_blank" rel="noopener noreferrer">Official release notes</a></p>',
+        ],
         [
             'slug' => 'aetherfall-0-98-5',
             'title' => 'Aetherfall 0.98.5: Codex, languages and companion improvements',
@@ -52,7 +62,7 @@ return [
             'is_featured' => false,
             'excerpt' => 'The 0.98.3 update repaired the quit-countdown crash, first-use tooltips, bot recruitment announcements and missing artwork. Included in 0.98.5.',
             'cover' => 'aetherfall/screenshots/companions.jpg',
-            'body' => '<p>Released on 26 October, <strong>0.98.3</strong> collected several interface and reliability repairs. All of these changes are included in the current 0.98.5 cumulative update.</p><ul><li>Repaired a crash when the normal quit countdown completes after interface windows have been closed or recreated.</li><li>Made world and interface tooltips follow their selected placement from the first hover on new accounts and characters, while keeping separate choices and saved layouts.</li><li>Restored bot recruitment announcements in the Find Group chat channel.</li><li>Updated Aetherfall Boons item data and restored missing target DP-bar artwork.</li><li>Improved file verification so normal shader caches, guild emblems and saved interface or quest state are not treated as damaged game files.</li></ul><p>Profiles, character progress, connection settings and graphics recovery remain in place. <a href="/news/aetherfall-0-98-5">Read the current update instructions</a>.</p><p><a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.3" target="_blank" rel="noopener noreferrer">Official 0.98.3 release notes</a></p>',
+            'body' => '<p>Released on 26 October, <strong>0.98.3</strong> collected several interface and reliability repairs. All of these changes are included in later cumulative updates.</p><ul><li>Repaired a crash when the normal quit countdown completes after interface windows have been closed or recreated.</li><li>Made world and interface tooltips follow their selected placement from the first hover on new accounts and characters, while keeping separate choices and saved layouts.</li><li>Restored bot recruitment announcements in the Find Group chat channel.</li><li>Updated Aetherfall Boons item data and restored missing target DP-bar artwork.</li><li>Improved file verification so normal shader caches, guild emblems and saved interface or quest state are not treated as damaged game files.</li></ul><p>Profiles, character progress, connection settings and graphics recovery remain in place. <a href="/news/aetherfall-0-98-11">Read the current update instructions</a>.</p><p><a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.3" target="_blank" rel="noopener noreferrer">Official 0.98.3 release notes</a></p>',
         ],
         [
             'slug' => 'aetherpack-0-97',
@@ -62,7 +72,7 @@ return [
             'is_featured' => false,
             'excerpt' => 'Continue The Writing on the Wall, follow improved quest markers and take your companion group into encounters that scale with the party.',
             'cover' => 'aetherfall/screenshots/questing.jpg',
-            'body' => '<p>The <strong>0.97</strong> release on 25 October added <strong>The Unbroken Field</strong>: sixteen Verteron quests continuing <em>The Writing on the Wall</em>, with new objectives, dialogue and rewards. The current 0.98.5 update includes this quest chain.</p><h2>Follow the story</h2><p>Quest-item collection, completion dialogue, target markers and progress shown while hovering over quest targets received improvements.</p><h2>Bring your party</h2><p>Open-world monsters react to nearby parties and alliances, including companion groups, and display their updated health without a respawn. Normal experience rewards remain unchanged; instance rules are separate.</p><h2>Keep your layout</h2><p>Saved positions and transparency apply when windows first open. Inventory placement, companion text, Account Details and companion-menu artwork after theme changes also received repairs.</p><p><a href="/info#repack-features">See the repack feature overview</a> or <a href="/news/aetherfall-0-98-5">update to the current release</a>.</p><p><a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.97" target="_blank" rel="noopener noreferrer">Official 0.97 release notes</a></p>',
+            'body' => '<p>The <strong>0.97</strong> release on 25 October added <strong>The Unbroken Field</strong>: sixteen Verteron quests continuing <em>The Writing on the Wall</em>, with new objectives, dialogue and rewards. Later updates include this quest chain.</p><h2>Follow the story</h2><p>Quest-item collection, completion dialogue, target markers and progress shown while hovering over quest targets received improvements.</p><h2>Bring your party</h2><p>Open-world monsters react to nearby parties and alliances, including companion groups, and display their updated health without a respawn. Normal experience rewards remain unchanged; instance rules are separate.</p><h2>Keep your layout</h2><p>Saved positions and transparency apply when windows first open. Inventory placement, companion text, Account Details and companion-menu artwork after theme changes also received repairs.</p><p><a href="/info#repack-features">See the repack feature overview</a> or <a href="/news/aetherfall-0-98-11">update to the current release</a>.</p><p><a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.97" target="_blank" rel="noopener noreferrer">Official 0.97 release notes</a></p>',
         ],
         [
             'slug' => 'aetherfall-play-your-way',
@@ -70,7 +80,7 @@ return [
             'category' => 'Announcement',
             'excerpt' => 'Play Aion solo or with friends, build a companion party and explore alongside world bots.',
             'cover' => 'aetherfall/hero-v1.png',
-            'body' => '<p>Aetherfall is an Aion 4.8 NA repack for solo and co-op play. Recruit your offline alts or temporary companions, bring friends and explore alongside independent world bots.</p><h2>More than the base game</h2><p>The repack includes companion roles and formations, owned-alt quest sharing, Central Market, Wardrobe, Aetherpass, the in-game Cash Shop, Account Fame, expanded inventory and warehouses, and a customizable interface with graphics and launcher controls.</p><h2>Recent additions</h2><p>The current 0.98.5 update adds Map and Market Codex, independent language choices, saved camera controls, Wardrobe dyes, companion/Find Group improvements and quest/world repairs. Earlier quest chains, interface improvements and settings-preserving updates are included.</p><p><a href="/info#repack-features">Explore what is included</a>, <a href="/news/aetherfall-0-98-5">read the latest release notes</a> or <a href="/download">get the installer</a>. Some quests, routes and encounters still need further work and play testing.</p>',
+            'body' => '<p>Aetherfall is an Aion 4.8 NA repack for solo and co-op play. Recruit your offline alts or temporary companions, bring friends and explore alongside independent world bots.</p><h2>More than the base game</h2><p>The repack includes companion roles and formations, owned-alt quest sharing, Central Market, Wardrobe, Aetherpass, the in-game Cash Shop, Account Fame, expanded inventory and warehouses, and a customizable interface with graphics and launcher controls.</p><h2>Recent additions</h2><p>The current 0.98.11 update adds the Companions collection, Recruitment Tickets, an animated recruitment reveal, recycling, road Wardens, regional merchants and Journey chapters. Earlier quests and improvements are included.</p><p><a href="/info#repack-features">Explore what is included</a>, <a href="/news/aetherfall-0-98-11">read the latest release notes</a> or <a href="/download">get the installer</a>. Some quests, routes and encounters still need further work and play testing.</p>',
             'published_at' => '2026-10-24 19:03:11',
         ],
         [
@@ -79,7 +89,7 @@ return [
             'category' => 'Update',
             'excerpt' => 'The 24 October release brought Verteron quest repairs, looting improvements, open-world difficulty and interface controls. Included in later updates.',
             'cover' => 'aetherfall/screenshots/fortress.jpg',
-            'body' => '<p>This is the archived <strong>24 October 2026</strong> release, included in the current 0.98.5 cumulative update.</p><ul><li>Restored the affected Verteron gathering, hunting and scouting quest steps.</li><li>Improved companion corpse approach and looting, party rolls, quest-item ownership and bag-capacity checks.</li><li>Added configurable open-world monster health and damage, with nearby party or alliance scaling. Native experience stays unchanged and instance scaling remains separate.</li><li>Added Countdown Timer positioning to Move UI and repaired chat and companion-toolbar backdrop opacity.</li></ul><p>For current files and installation steps, use <a href="/news/aetherfall-0-98-5">the latest release announcement</a> and the <a href="/download">Download Center</a>.</p>',
+            'body' => '<p>This is the archived <strong>24 October 2026</strong> release, included in later cumulative updates.</p><ul><li>Restored the affected Verteron gathering, hunting and scouting quest steps.</li><li>Improved companion corpse approach and looting, party rolls, quest-item ownership and bag-capacity checks.</li><li>Added configurable open-world monster health and damage, with nearby party or alliance scaling. Native experience stays unchanged and instance scaling remains separate.</li><li>Added Countdown Timer positioning to Move UI and repaired chat and companion-toolbar backdrop opacity.</li></ul><p>For current files and installation steps, use <a href="/news/aetherfall-0-98-11">the latest release announcement</a> and the <a href="/download">Download Center</a>.</p>',
             'published_at' => '2026-10-24 19:02:11',
         ],
         [
@@ -88,7 +98,7 @@ return [
             'category' => 'Update',
             'excerpt' => 'Population balancing, bot legions, queue activity, water safety, recovery and quest-loot improvements shipped with the October 24 updates.',
             'cover' => 'aetherfall/screenshots/questing.jpg',
-            'body' => '<p>The 24 October updates expanded generated world-bot population balancing, native bot legions, nearby activity and queue participation. Those features are carried forward in the current cumulative repack.</p><h2>Recovery and movement</h2><p>Bots gained better deep-water avoidance and shore recovery. Field recovery prioritizes learned skills, Treatment and finite real supplies before sitting, while respecting native costs and cooldowns.</p><h2>Loot and quest items</h2><p>Corpse discovery, approach, normal party rolls and quest-item eligibility received repairs. Shared quest drops prefer an eligible human before a bot.</p><p>Controlled companions and independent world bots remain different systems. Owned alts retain their progress; generated world bots have separate population rules. The 0.98.4 release further improves controlled companions’ support and combat priorities.</p><p><a href="/guides">Read the companion guides</a> or <a href="/news/aetherfall-0-98-5">see the latest release</a>. Quest coverage, navigation and encounter behavior continue to be developed; report the version, location and steps if something fails.</p>',
+            'body' => '<p>The 24 October updates expanded generated world-bot population balancing, native bot legions, nearby activity and queue participation. Those features are carried forward in the current cumulative repack.</p><h2>Recovery and movement</h2><p>Bots gained better deep-water avoidance and shore recovery. Field recovery prioritizes learned skills, Treatment and finite real supplies before sitting, while respecting native costs and cooldowns.</p><h2>Loot and quest items</h2><p>Corpse discovery, approach, normal party rolls and quest-item eligibility received repairs. Shared quest drops prefer an eligible human before a bot.</p><p>Controlled companions and independent world bots remain different systems. Owned alts retain their progress; generated world bots have separate population rules. The 0.98.4 release further improves controlled companions’ support and combat priorities.</p><p><a href="/guides">Read the companion guides</a> or <a href="/news/aetherfall-0-98-11">see the latest release</a>. Quest coverage, navigation and encounter behavior continue to be developed; report the version, location and steps if something fails.</p>',
             'published_at' => '2026-10-24 19:01:11',
         ],
         [
@@ -133,28 +143,28 @@ return [
             'slug' => 'aetherfall-installer-kit',
             'title' => 'Aetherfall installer kit',
             'type' => 'installer',
-            'version' => '0.98.5',
+            'version' => '0.98.11',
             'description' => 'Start here for a new installation. Extract the ZIP and run Aetherfall Setup.exe. It downloads the full pack and includes the download tools.',
-            'file_size_bytes' => 8660855,
-            'download_url' => 'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.5/Aetherfall-Downloader.zip',
+            'file_size_bytes' => 8691625,
+            'download_url' => 'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.11/Aetherfall-Downloader.zip',
         ],
         [
             'slug' => 'aetherfall-setup',
             'title' => 'Setup only',
             'type' => 'installer',
-            'version' => '0.98.5',
+            'version' => '0.98.11',
             'description' => 'For an existing installer folder. Keep its settings and download tools. New players should use the installer kit above.',
-            'file_size_bytes' => 5612032,
-            'download_url' => 'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.5/Aetherfall-Setup.exe',
+            'file_size_bytes' => 5698560,
+            'download_url' => 'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.11/Aetherfall-Setup.exe',
         ],
         [
             'slug' => 'aetherfall-manual-update',
-            'title' => 'Manual update archive',
+            'title' => 'Update an existing installation',
             'type' => 'manual_patch',
-            'version' => '0.98.5',
-            'description' => 'For an existing installation. Setup → Update Repack is recommended: let Setup restart if it updates itself, then choose Update Repack again for the game update. The archive is cumulative from 0.86.',
-            'file_size_bytes' => 1948982646,
-            'download_url' => 'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.5/Aetherfall-Patch-0.98.5.zip',
+            'version' => '0.98.11',
+            'description' => 'Download current Setup into your existing installer folder. Open it and choose Update Repack. If Setup restarts after updating itself, choose Update Repack again.',
+            'file_size_bytes' => 5698560,
+            'download_url' => 'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.11/Aetherfall-Setup.exe',
         ],
     ],
     'faqs' => [
@@ -253,9 +263,9 @@ return [
         ],
     ],
     'release' => [
-        'version' => '0.98.5',
-        'published_on' => '29 October 2026',
-        'url' => 'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.5',
+        'version' => '0.98.11',
+        'published_on' => '2 November 2026',
+        'url' => 'https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.11',
         'base_version' => '0.86',
     ],
     'repack_features' => [
