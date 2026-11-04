@@ -36,6 +36,7 @@ public class EsoterraceInstance extends GeneralInstanceHandler {
 
 	@Override
 	public void onDie(Npc npc) {
+        if (npc.getNpcId()==217204 || npc.getNpcId()==217206) completeRun(npc);
 		switch (npc.getObjectTemplate().getTemplateId()) {
 			case 282295:
 				instance.setDoorState(39, true);

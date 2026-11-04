@@ -3,6 +3,7 @@ package instance;
 import com.aionemu.commons.utils.Rnd;
 import com.aionemu.gameserver.instance.handlers.GeneralInstanceHandler;
 import com.aionemu.gameserver.instance.handlers.InstanceID;
+import com.aionemu.gameserver.model.gameobjects.Npc;
 import com.aionemu.gameserver.world.WorldMapInstance;
 
 /**
@@ -13,6 +14,12 @@ public class FireTempleInstance extends GeneralInstanceHandler {
 
 	public FireTempleInstance(WorldMapInstance instance) {
 		super(instance);
+	}
+
+	@Override
+	public void onDie(Npc npc) {
+		if (npc.getNpcId()==212846 || npc.getNpcId()==214621) completeRun(npc);
+		super.onDie(npc);
 	}
 
 	@Override

@@ -810,6 +810,7 @@ public class EmpyreanCrucibleInstance extends CrucibleInstance {
 				sp(217609, 1766.35f, 1279.24f, 394.23764f, (byte) 0, 6000);
 				break;
 			case 217609:
+				completeRun(npc);
 				setStage(StageType.PASS_GROUP_STAGE_10, 0);
 				sp(205344, 1766.16f, 1291.98f, 394.23764f, (byte) 90);
 				rewardGroup();

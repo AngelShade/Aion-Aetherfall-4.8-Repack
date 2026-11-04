@@ -8,6 +8,7 @@ import com.aionemu.gameserver.instance.handlers.GeneralInstanceHandler;
 import com.aionemu.gameserver.instance.handlers.InstanceID;
 import com.aionemu.gameserver.model.Race;
 import com.aionemu.gameserver.model.flyring.FlyRing;
+import com.aionemu.gameserver.model.gameobjects.Npc;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.model.geometry.Point3D;
 import com.aionemu.gameserver.model.templates.flyring.FlyRingTemplate;
@@ -27,6 +28,12 @@ public class AsteriaInstance extends GeneralInstanceHandler {
 
 	public AsteriaInstance(WorldMapInstance instance) {
 		super(instance);
+	}
+
+	@Override
+	public void onDie(Npc npc) {
+		if (npc.getNpcId()==215444) completeRun(npc);
+		super.onDie(npc);
 	}
 
 	@Override

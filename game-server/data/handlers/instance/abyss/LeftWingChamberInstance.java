@@ -31,6 +31,12 @@ public class LeftWingChamberInstance extends GeneralInstanceHandler {
 	}
 
 	@Override
+	public void onDie(Npc npc) {
+		if (npc.getNpcId()==215424) completeRun(npc);
+		super.onDie(npc);
+	}
+
+	@Override
 	public void onInstanceCreate() {
 		spawnRings();
 		if (Rnd.nextBoolean()) // spawn Treasurer Nabatma (pool=1)

@@ -46,6 +46,7 @@ public class BeshmundirInstance extends GeneralInstanceHandler {
 
 	@Override
 	public void onDie(Npc npc) {
+        if (npc.getNpcId()==216263 || npc.getNpcId()==216182) completeRun(npc);
 		switch (npc.getNpcId()) {
 			case 216583: // Brutal Soulwatcher (Difficult)
 			case 216587: // Brutal Soulwatcher (Normal)

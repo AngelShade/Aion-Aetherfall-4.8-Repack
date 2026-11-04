@@ -43,6 +43,7 @@ public class AdmaStrongholdInstance extends GeneralInstanceHandler implements Ad
     }
 
     @Override public synchronized void onDie(Npc npc) {
+        if (npc.getNpcId()==214696) completeRun(npc);
         if (npc == betrayer && npc.getNpcId() == 214701) betrayerDefeated = true;
         super.onDie(npc);
     }

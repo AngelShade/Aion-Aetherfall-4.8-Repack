@@ -33,6 +33,7 @@ public class PadmarashkasCaveInstance extends GeneralInstanceHandler {
 
 	@Override
 	public void onDie(Npc npc) {
+        if (npc.getNpcId()==218756) completeRun(npc);
 		final int npcId = npc.getNpcId();
 		switch (npcId) {
 			case 218670:

@@ -46,6 +46,12 @@ public class LowerUdasTempleInstance extends GeneralInstanceHandler {
 	}
 
 	@Override
+	public void onDie(Npc npc) {
+		if (npc.getNpcId()==215795) completeRun(npc);
+		super.onDie(npc);
+	}
+
+	@Override
 	public void onInstanceCreate() {
 		float chance = Rnd.chance();
 		if (chance < 20) { // spawn named drop chests, 20% both, 30% epic, 50% fabled chest

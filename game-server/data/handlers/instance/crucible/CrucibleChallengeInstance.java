@@ -162,6 +162,7 @@ public class CrucibleChallengeInstance extends CrucibleInstance {
 				break;
 			case 217819:
 				if (changeStage(StageType.PASS_STAGE_6, 0)) {
+					completeRun(npc);
 					ThreadPoolManager.getInstance().schedule(() -> {
 						Player player = null;
 						if (!instance.getPlayersInside().isEmpty()) {
