@@ -131,9 +131,9 @@ public final class PlayerBotFocus {
   if(!owned(session))return Map.of("available",false);var s=state(session);var bot=session.bot();var professions=new ArrayList<Map<String,Object>>();
   for(var p:Profession.values())professions.add(Map.of("id",p.getSkillId(),"name",p.name(),"crafting",p.isCrafting(),"level",bot.getSkillList().isSkillPresent(p.getSkillId())?bot.getSkillList().getSkillLevel(p.getSkillId()):0));
   return Map.of("available",true,"selected",s.focus.name(),"profession",s.profession,"choices",Arrays.stream(Focus.values()).map(f->Map.of("id",f.name(),"name",label(f))).toList(),
-   "professions",professions,"knownRecipes",bot.getRecipeList().size(),"reason",s.reason,"scope","Optional nearby work while your party is idle. Follow, combat, accepted objectives and paid commitments keep priority; no independent expeditions or queue submission.");
+   "professions",professions,"knownRecipes",bot.getRecipeList().size(),"reason",s.reason,"market",PlayerBotMarket.snapshot(session),"scope","Optional nearby work while your party is idle. Follow, combat, accepted objectives and paid commitments keep priority; no independent expeditions or queue submission.");
  }
- static void close(PlayerBotSession session){STATES.remove(session.bot().getObjectId());}
+ static void close(PlayerBotSession session){STATES.remove(session.bot().getObjectId());PlayerBotMarket.close(session);}
  static void invalidateCraft(Player bot){var s=STATES.get(bot.getObjectId());if(s!=null)s.nextCraft=0;}
  private PlayerBotFocus() {}
 }

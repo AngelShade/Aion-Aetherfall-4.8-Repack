@@ -19,6 +19,7 @@ public final class PlayerBotRepositoryCheck {
   var document=new PlayerBotPresets.Document(7,Set.of(102),List.of(preset));String text=PlayerBotRepository.encode(document);
   check(PlayerBotRepository.decode(7,text).equals(document),"Native document roundtrip preserves mixed party, role/order/IDs");
   check(PlayerBotRepository.decode(7,PlayerBotRepository.encode(new PlayerBotPresets.Document(7,Set.of(),List.of()))).saved().isEmpty(),"Empty bookmarks supported");
+  text=com.aionemu.commons.utils.Json.write(com.aionemu.commons.utils.Json.read(text));
   invalid(text.replace("\"account\":7","\"account\":8"));invalid(text.replace("\"version\":1","\"version\":2"));
   invalid(text.replace("SUPPORT","INVALID"));invalid(text.replace("PASSIVE","INVALID"));invalid(text.replace("\"temporary\":false","\"temporary\":\"yes\""));
   invalid(text.replace("0123456789abcdef0123456789abcdef","invalid"));invalid(" ".repeat(524289));

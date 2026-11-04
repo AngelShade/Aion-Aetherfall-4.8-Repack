@@ -42,8 +42,8 @@ public final class PlayerBotPartyBehavior {
  private static final ThreadLocal<Boolean> CATCH_UP=ThreadLocal.withInitial(()->false);
  static State state(PlayerBotSession session){return STATES.computeIfAbsent(session.bot().getObjectId(),id->new State(session));}
  static void update(PlayerBotSession session,Role role,Order order){State s=state(session);s.role=role;s.order=order;}
- public static void configure(PlayerBotSession session,boolean enabled){synchronized(session){if(session.closing())throw new IllegalArgumentException("Companion is saving/dismissing.");State s=state(session);boolean old=s.enabled;s.enabled=enabled;try{s.save();}catch(RuntimeException e){s.enabled=old;throw e;}if(!enabled)s.sharedTarget=0;}}
- static Map<String,Object> snapshot(PlayerBotSession session){return Map.of("questCombat",state(session).enabled);}
+ public static void configure(PlayerBotSession session,boolean enabled){synchronized(session){session.requirePrivateCompanion();if(session.closing())throw new IllegalArgumentException("Companion is saving/dismissing.");State s=state(session);boolean old=s.enabled;s.enabled=enabled;try{s.save();}catch(RuntimeException e){s.enabled=old;throw e;}if(!enabled)s.sharedTarget=0;}}
+ static Map<String,Object> snapshot(PlayerBotSession session){return Map.of("questCombat",session.world() || state(session).enabled);}
  static void close(PlayerBotSession session){STATES.remove(session.bot().getObjectId());PlayerBotRecall.close(session.bot());PlayerBotSupplies.close(session.bot());PlayerBotRecovery.close(session.owner());PlayerBotTemporary.close(session);PlayerBotTank.close(session.bot());PlayerBotFormation.close(session.bot());PlayerBotTransfers.close(session.bot());PlayerBotQuestConversations.close(session.bot());PlayerBotQuestObjects.close(session.bot());PlayerBotPartyCompletion.close(session.bot());}
  static boolean catchUpNeeded(double distance,boolean ownerCombat,Order order){return Double.isFinite(distance) && (order==Order.FOLLOW || order==Order.PASSIVE) && distance>(ownerCombat ? 18 : 60);}
  static boolean canRelocate(PlayerBotSession session) {

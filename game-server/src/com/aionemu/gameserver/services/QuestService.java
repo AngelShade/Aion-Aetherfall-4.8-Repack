@@ -135,6 +135,7 @@ public final class QuestService {
 		qs.setStatus(QuestStatus.COMPLETE);
 		AetherfallBoonService.markBotQuestCompleted(player);
 		com.aionemu.gameserver.services.playerbot.PlayerBotPartyCompletion.ownerCompleted(env);
+		com.aionemu.gameserver.services.playerbot.PlayerBotWorldOutcomes.questReward(player);
 		com.aionemu.gameserver.services.playerbot.PlayerBotGrowth.learnQuest(player, id);
 		qs.setQuestVar(0);
 		if (id == 1127 && player.getQuestExpands() > ancientCubeQuestExpands)
@@ -143,6 +144,8 @@ public final class QuestService {
 			qs.setNextRepeatTime(calculateRepeatDate(player, template));
 		PacketSendUtility.sendPacket(player, new SM_QUEST_ACTION(ActionType.UPDATE, qs));
 		QuestEngine.getInstance().onQuestCompleted(player, id);
+		if (id == com.aionemu.gameserver.services.playerbot.PlayerBotRoadBounty.QUEST)
+			com.aionemu.gameserver.services.playerbot.PlayerBotRoadBounty.completed(player);
 		SeasonPassService.record(player, SeasonPassRules.Event.QUEST);
 		if (template.getNpcFactionId() != 0) {
 			var faction = player.getNpcFactions().getFactionById(template.getNpcFactionId());
@@ -263,6 +266,13 @@ public final class QuestService {
 
 	private static void giveReward(QuestEnv env, Rewards rewards) {
 		Player player = env.getPlayer();
+		if(env.getQuestId()==com.aionemu.gameserver.services.playerbot.PlayerBotRoadBounty.QUEST) {
+			long gold=com.aionemu.gameserver.services.playerbot.PlayerBotRoadBounty.reward(rewards.getKinah(),false);
+			long xp=com.aionemu.gameserver.services.playerbot.PlayerBotRoadBounty.reward(rewards.getExp(),true);
+			if(gold>0)player.getInventory().increaseKinah(Rates.QUEST_KINAH.calcResult(player,gold),ItemUpdateType.INC_KINAH_QUEST);
+			if(xp>0)player.getCommonData().addExp(xp,Rates.XP_QUEST,null);
+			return;
+		}
 		if (rewards.getKinah() != 0)
 			player.getInventory().increaseKinah(Rates.QUEST_KINAH.calcResult(player, rewards.getKinah()), ItemUpdateType.INC_KINAH_QUEST);
 		if (rewards.getExp() != 0) {

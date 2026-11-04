@@ -191,7 +191,7 @@ public final class PlayerBotTemporary {
   state.created.addAll(PlayerBotGearPolicy.state(session).generated);
   build(bot,session.combatRole(),updateGear);
   var policy=PlayerBotGearPolicy.state(session);policy.generated.clear();policy.generated.addAll(state.created);policy.nextGoals=0;policy.save();
-  PlayerBotQuestSync.notice(bot,"Temporary Bot maintained: level "+bot.getLevel()+", "+session.combatRole()+", catch-up gear up to "+ceiling(bot)+"; native skills and Stigmas updated.","temporary-build",10000);
+  PlayerBotQuestSync.notice(bot,(PlayerBotGrowth.rarity(bot)==null ? "Temporary Bot" : "Ticket Recruit")+" maintained: level "+bot.getLevel()+", "+session.combatRole()+", catch-up gear up to "+ceiling(bot)+"; native skills and Stigmas updated.","temporary-build",10000);
  }
  static void close(PlayerBotSession session){STATES.remove(session.bot().getObjectId());}
  static void release(Player player){STATES.remove(player.getObjectId());}

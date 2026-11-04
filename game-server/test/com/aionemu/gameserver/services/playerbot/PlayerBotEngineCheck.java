@@ -33,7 +33,7 @@ public final class PlayerBotEngineCheck {
 	private static boolean tick(PlayerBotEngine engine, Trigger... triggers) {
 		return engine.tick(State.COMBAT, List.of(new Strategy("check", List.of(triggers))), List.of(), 64);
 	}
-	public static void main(String[] args) throws Exception {
+	public static void main(String[] args) throws Exception {PlayerBotMetadataCheck.defaults();
 		List<String> trace = new ArrayList<>();
 		PlayerBotEngine engine = new PlayerBotEngine();
 		Action heal = action("heal", trace), damage = action("damage", trace), interrupt = action("interrupt", trace);
@@ -104,9 +104,9 @@ public final class PlayerBotEngineCheck {
 		check(!canAttack(true, true, true, true, true, false, false, 46), "owner leash");
 		check(!canAttack(true, true, true, true, true, false, false, Double.NaN), "invalid distance rejected");
 		leaseChecks();
-		check(shouldRest(60, 80, false, false, false, 4), "injured companion rests near stationary owner");
-		check(shouldRest(90, 90, true, false, false, 4), "resting hysteresis avoids repeated standing and sitting");
-		check(!shouldRest(96, 96, true, false, false, 4), "stand after recovery");
+		check(shouldRest(40, 80, false, false, false, 4), "injured companion rests near stationary owner");
+		check(shouldRest(80, 80, true, false, false, 4), "resting hysteresis avoids repeated standing and sitting");
+		check(!shouldRest(85, 85, true, false, false, 4), "stand after recovery");
 		check(!shouldRest(20, 20, false, true, false, 4), "never sit during combat");
 		check(!shouldRest(20, 20, false, false, true, 4), "follow moving owner instead of sitting");
 		check(!shouldRest(20, 20, false, false, false, 9), "catch up before resting");

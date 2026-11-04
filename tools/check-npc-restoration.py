@@ -1,4 +1,4 @@
-"""Require original native NPC behavior against the normal pre-patrol build.
+"""Preserve reviewed native NPC behavior against the installed normal build.
 
 Added compatibility methods may remain, but every original native method must
 retain its original executable instructions. No World, IDs or server lifecycle.
@@ -10,8 +10,12 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'client-mods/playerbots'))
 import stage_companion_update as shared
 
-BASELINE=shared.DEV_ROOT/'staging/target/release-20261011-214044-035423/game-server/game-server-4.8-SNAPSHOT.jar'
-BASELINE_SHA='2db067b4bd12ec3f7fd4ff79db1713e3dd0eb3b4c3fe894a3e53060fa0478849'
+# Receipted Warden normal output, installed 2026-11-04. The twelve changes
+# since the pre-patrol baseline are committed in b233e8bc45, 725851b0a9,
+# and upstream 7840be30d9/ca2155e6dc (imported by 6a36f85611).
+# Pin every method in all five classes, including their compatibility methods.
+BASELINE=shared.DEV_ROOT/'staging/target/npc-preservation-baseline-20261104/game-server/game-server-4.8-SNAPSHOT.jar'
+BASELINE_SHA='6144b2a2681999e9c4bca187412421078c61a72f656d2053295cb0a0f9fbdad0'
 CLASSES=['controllers/movement/NpcMoveController','spawnengine/ClusteredNpc','spawnengine/WalkerGroup','ai/manager/WalkManager','world/geo/GeoService']
 
 def verify(build):

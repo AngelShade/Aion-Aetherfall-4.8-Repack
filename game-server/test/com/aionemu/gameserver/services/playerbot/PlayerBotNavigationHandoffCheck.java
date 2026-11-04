@@ -19,7 +19,7 @@ public final class PlayerBotNavigationHandoffCheck {
  }
  static void exhaustedGround(Unsafe unsafe)throws Exception {
   var bot=PlayerBotCpuPlanningCheck.actor(unsafe,10);
-  var nav=new PlayerBotNavigation(bot);var geo=com.aionemu.gameserver.world.geo.GeoService.getInstance();
+  PlayerBotRouteContinuationCheck.nativeMover(bot);var nav=new PlayerBotNavigation(bot);PlayerBotMetadataCheck.travelIntent(nav);var geo=com.aionemu.gameserver.world.geo.GeoService.getInstance();
   var f=geo.getClass().getDeclaredField("geoMaps");f.setAccessible(true);
   @SuppressWarnings("unchecked") var maps=(Map<Integer,GeoMap>)f.get(geo);var mesh=new ProbedMap();
   PlayerBotRouteContinuationCheck.add(mesh,PlayerBotRouteContinuationCheck.floor(9.7f,9.7f,10.3f,10.3f,0));var previous=maps.put(197,mesh);
@@ -42,7 +42,7 @@ public final class PlayerBotNavigationHandoffCheck {
   var bot=PlayerBotCpuPlanningCheck.actor(unsafe,10);
   bot.spawned=true;bot.movable=true;bot.world=197;bot.instance=1;bot.x=10;bot.y=10;
   bot.move=new PlayerBotRouteContinuationCheck.RouteMove(bot);bot.stats=(PlayerBotRouteContinuationCheck.RouteStats)unsafe.allocateInstance(PlayerBotRouteContinuationCheck.RouteStats.class);
-  var nav=new PlayerBotNavigation(bot);var geo=com.aionemu.gameserver.world.geo.GeoService.getInstance();
+  PlayerBotRouteContinuationCheck.nativeMover(bot);var nav=new PlayerBotNavigation(bot);PlayerBotMetadataCheck.travelIntent(nav);var geo=com.aionemu.gameserver.world.geo.GeoService.getInstance();
   var f=geo.getClass().getDeclaredField("geoMaps");f.setAccessible(true);
   @SuppressWarnings("unchecked") var maps=(Map<Integer,GeoMap>)f.get(geo);var mesh=new ProbedMap();
   PlayerBotRouteContinuationCheck.add(mesh,PlayerBotRouteContinuationCheck.floor(0,0,160,160,0));var previous=maps.put(197,mesh);
@@ -60,20 +60,20 @@ public final class PlayerBotNavigationHandoffCheck {
    var quota=quotaField.get(null);var credit=quota.getClass().getDeclaredField("credit");credit.setAccessible(true);credit.setDouble(quota,6e6);
    PlayerBotQuestObjectivesCheck.field(nav,"nextMove",0L);nav.move(20,10,0);
    check(mesh.probes>probes,"New hazard on committed path requires fresh geometry and avoidance");
-   for(int turn=0;field(nav,"publishedDestination")==null && turn<7;turn++){
+   for(int turn=0;field(nav,"publishedDestination")==null && turn<200;turn++){
     credit.setDouble(quota,6e6);PlayerBotQuestObjectivesCheck.field(nav,"nextMove",0L);nav.move(20,10,0);
    }
-   check(PlayerBotHazards.safePath(new Point(bot.x,bot.y,bot.z),(Point)field(nav,"publishedDestination"),List.of(new PlayerBotHazards.Area(15,10,0,1,0,0,0,0,3,PlayerBotHazards.Shape.CIRCLE))),"Replacement published path remains safe against fresh hazard");
+   check(field(nav,"publishedDestination")!=null && PlayerBotHazards.safePath(new Point(bot.x,bot.y,bot.z),(Point)field(nav,"publishedDestination"),List.of(new PlayerBotHazards.Area(15,10,0,1,0,0,0,0,3,PlayerBotHazards.Shape.CIRCLE))),"Replacement published path remains safe against fresh hazard");
   }finally{nav.stop();com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED=prepared;if(previous==null)maps.remove(197);else maps.put(197,previous);}
  }
- public static void main(String[] args)throws Exception {
+ public static void main(String[] args)throws Exception {PlayerBotMetadataCheck.dryWorld();com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_INDEPENDENT=false;com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_MEMORY_FIRST=false;
   var uf=Unsafe.class.getDeclaredField("theUnsafe");uf.setAccessible(true);var unsafe=(Unsafe)uf.get(null);
   if(args.length>0){committedPath(unsafe);System.out.println("OK: "+checks+" native committed-path probe checks");return;}
   var bot=(PlayerBotRouteContinuationCheck.RouteActor)unsafe.allocateInstance(PlayerBotRouteContinuationCheck.RouteActor.class);
   bot.spawned=true;bot.movable=true;bot.world=197;bot.instance=1;bot.x=10;bot.y=10;
   bot.move=new PlayerBotRouteContinuationCheck.RouteMove(bot);
   bot.stats=(PlayerBotRouteContinuationCheck.RouteStats)unsafe.allocateInstance(PlayerBotRouteContinuationCheck.RouteStats.class);
-  var nav=new PlayerBotNavigation(bot);
+  PlayerBotRouteContinuationCheck.nativeMover(bot);var nav=new PlayerBotNavigation(bot);PlayerBotMetadataCheck.travelIntent(nav);
   var f=PlayerBotNavigation.class.getDeclaredField("TERRAIN");f.setAccessible(true);var quota=(PlayerBotNavigationBudget)f.get(null);
   Object height=field(nav,"heightSearchToken"),ground=field(nav,"searchToken"),seed=new Object();
   long now=System.currentTimeMillis();

@@ -10,6 +10,7 @@ import com.aionemu.commons.database.DatabaseFactory;
 import com.aionemu.commons.utils.Json;
 import com.aionemu.gameserver.GameServer;
 import com.aionemu.gameserver.configs.main.PlayerBotConfig;
+import com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig;
 import com.aionemu.gameserver.dao.*;
 import com.aionemu.gameserver.dao.PlayerBotRecyclingDAO.Quote;
 import com.aionemu.gameserver.dao.PlayerBotRecyclingDAO.Receipt;
@@ -29,6 +30,8 @@ public final class PlayerBotRecycling {
  private record Pair(PlayerBotSession from,PlayerBotSession to,PlayerBotSession first,PlayerBotSession second) {}
  private record Terms(String fingerprint,int learning,long kinah,long appraisal,int items,long actual,long recycled,Properties nextGrowth) {}
  @FunctionalInterface private interface Work<T>{T run(Pair pair)throws SQLException,IOException;}
+ /** A quote is set only when the rewards dropped and the player has to review them again. */
+ public record Outcome(String notice,Map<String,Object> quote) {}
 
  /** The tombstone remains enforced even after new recycling is disabled. */
  public static synchronized void initialize() {
@@ -36,12 +39,17 @@ public final class PlayerBotRecycling {
   try(var c=DatabaseFactory.getConnection()){PlayerBotRecyclingDAO.prepare(c);ready=true;}
   catch(SQLException e){throw new IllegalStateException("Cannot initialize permanent companion recycling custody",e);}
  }
- public static boolean enabled(){return ready && PlayerBotConfig.RECYCLING_ENABLED && PlayerBotConfig.TICKETS_ENABLED;}
+ public static boolean enabled(){return ready && PlayerBotEconomyConfig.RECYCLING_ENABLED && PlayerBotConfig.TICKETS_ENABLED;}
  /** Dedicated identity admission also checks terminal history when a caller has stale account data. */
  static void requireRecruitable(int account,int character) {
   try(var c=DatabaseFactory.getConnection()) {
    if(PlayerBotRecyclingDAO.receipt(c,character)!=null || PlayerBotRepositoryDAO.removed(c,account,character)!=null)
     throw new IllegalArgumentException("This companion was archived or permanently recycled and cannot be recruited.");
+   if(!PlayerBotConfig.GENERATED_ENABLED) {
+    var growth=PlayerBotMetadataDAO.load(c,account,character,"growth");
+    boolean ticket=growth!=null && PlayerBotGrowth.decode(growth.values()).origin()==PlayerBotGrowth.Origin.GACHA;
+    PlayerBotCreationPolicy.requireRecruitment(true,ticket);
+   }
   }catch(SQLException error){throw new IllegalStateException("Cannot verify companion archive custody; recruitment refused.",error);}
  }
  private static void available(){if(!enabled())throw new IllegalArgumentException("Companion recycling is unavailable.");}
@@ -76,28 +84,30 @@ public final class PlayerBotRecycling {
   available();Object guard=client(owner);
   synchronized(guard) {
    if(owner.getClientConnection()!=guard)throw new IllegalArgumentException("Reconnect before recycling.");
-   try{return actors(owner,source,target,pair->{
-    int account=owner.getAccount().getId();
-    try(var c=DatabaseFactory.getConnection()) {
-     c.setAutoCommit(false);
-     try {
-      for(var s:List.of(pair.first(),pair.second()))PlayerBotRecyclingDAO.actor(c,account,s.bot().getObjectId());
-      var terms=terms(c,pair);long expiry=Math.addExact(System.currentTimeMillis(),Math.multiplyExact(PlayerBotConfig.RECYCLE_QUOTE_SECONDS,1000L));
-      var q=new Quote(UUID.randomUUID().toString(),account,pair.from().bot().getObjectId(),pair.to().bot().getObjectId(),owner.getObjectId(),
-       pair.from().bot().getName(),pair.to().bot().getName(),terms.fingerprint(),terms.learning(),terms.kinah(),terms.appraisal(),terms.items(),terms.actual(),terms.recycled(),expiry);
-      PlayerBotRecyclingDAO.quote(c,q);c.commit();return view(q);
-     }catch(SQLException|IOException|RuntimeException error){try{c.rollback();}catch(SQLException rollback){error.addSuppressed(rollback);}throw error;}
-    }
-   });}catch(SQLException|IOException error){throw new IllegalStateException("Cannot save a recycling quote; no companion was consumed.",error);}
+   try{return actors(owner,source,target,pair->{PlayerBotMarket.requireSettled(pair.from());return view(fresh(owner,pair));});}
+   catch(SQLException|IOException error){throw new IllegalStateException("Cannot save a recycling quote; no companion was consumed.",error);}
+  }
+ }
+ private static Quote fresh(Player owner,Pair pair)throws SQLException,IOException {
+  int account=owner.getAccount().getId();
+  try(var c=DatabaseFactory.getConnection()) {
+   c.setAutoCommit(false);
+   try {
+    for(var s:List.of(pair.first(),pair.second()))PlayerBotRecyclingDAO.actor(c,account,s.bot().getObjectId());
+    var terms=terms(c,pair);long expiry=Math.addExact(System.currentTimeMillis(),Math.multiplyExact(PlayerBotEconomyConfig.RECYCLE_QUOTE_SECONDS,1000L));
+    var q=new Quote(UUID.randomUUID().toString(),account,pair.from().bot().getObjectId(),pair.to().bot().getObjectId(),owner.getObjectId(),
+     pair.from().bot().getName(),pair.to().bot().getName(),terms.fingerprint(),terms.learning(),terms.kinah(),terms.appraisal(),terms.items(),terms.actual(),terms.recycled(),expiry);
+    PlayerBotRecyclingDAO.quote(c,q);c.commit();return q;
+   }catch(SQLException|IOException|RuntimeException error){try{c.rollback();}catch(SQLException rollback){error.addSuppressed(rollback);}throw error;}
   }
  }
  private static Map<String,Object> view(Quote q) {
   var out=new LinkedHashMap<String,Object>();out.put("key",q.key());out.put("source",q.sourceName());out.put("sourceId",q.source());out.put("target",q.targetName());out.put("targetId",q.target());
   out.put("ticketCredit",0.33);out.put("learningXp",q.learning());out.put("kinah",q.kinah());out.put("itemAppraisal",q.appraisal());out.put("appraisedItems",q.items());
   out.put("actualPlayLearning",q.actualLearning());out.put("recycledLearning",q.recycledLearning());out.put("expiresAt",q.expires());
-  out.put("warning","Permanent recycling. This recruit cannot return. Its items, equipment and stored Kinah remain archived and cannot be withdrawn. Rewards go to your account, the selected recruit, and your character respectively.");return out;
+  out.put("warning","Permanent recycling. Market orders close automatically and their goods and Kinah return to this recruit before appraisal. Its items, equipment and stored Kinah remain archived and cannot be withdrawn. Rewards go to your account, the selected recruit, and your character respectively.");return out;
  }
- public static String execute(Player owner,String source,String target,String key) {
+ public static Outcome execute(Player owner,String source,String target,String key) {
   available();Object guard=client(owner);
   if(key==null || !key.matches("[a-f0-9-]{36}"))throw new IllegalArgumentException("Preview recycling before confirming it.");
   synchronized(guard) {
@@ -105,27 +115,31 @@ public final class PlayerBotRecycling {
    try {
     Quote q;Receipt previous;
     try(var c=DatabaseFactory.getConnection()){q=PlayerBotRecyclingDAO.quote(c,key,false);bound(owner,source,target,q);previous=PlayerBotRecyclingDAO.receipt(c,q.source());}
-    if(previous!=null)return replay(q,previous);
+    if(previous!=null)return new Outcome(replay(q,previous),null);
     return actors(owner,source,target,pair->{
      if(pair.from().bot().getObjectId()!=q.source() || pair.to().bot().getObjectId()!=q.target())throw new IllegalArgumentException("Companion identity changed; preview again.");
-     if(q.expires()<System.currentTimeMillis())throw new IllegalArgumentException("This recycling quote expired. Preview it again.");
+     PlayerBotMarket.requireSettled(pair.from());
+     boolean changed=q.expires()<System.currentTimeMillis();
      try(var c=DatabaseFactory.getConnection()) {
       var current=terms(c,pair);
-      if(!current.fingerprint().equals(q.fingerprint()) || current.learning()!=q.learning() || current.kinah()!=q.kinah())
-       throw new IllegalArgumentException("Items, companion progress or recycling settings changed. Preview again before confirming.");
+      changed|=!current.fingerprint().equals(q.fingerprint()) || current.learning()!=q.learning() || current.kinah()!=q.kinah();
      }
+     // Active recruits loot and spend all the time. The player approved these rewards as a minimum.
+     var latest=changed?fresh(owner,pair):q;
+     if(latest.learning()<q.learning() || latest.kinah()<q.kinah())
+      return new Outcome("The rewards dropped while "+q.sourceName()+" was active. Review the new amounts and confirm again.",view(latest));
      // Preserve all final native progress and historical collection contribution, using
      // the existing home/checkpoint owner before any irreversible archive or reward.
      try{PlayerBotService.getInstance().checkpointBeforeArchive(pair.from());}
      catch(SQLException|RuntimeException error){hold(owner,pair,error);throw new IllegalStateException("Final companion progress needs verification; recycling did not proceed.",error);}
      if(owner.getInventory().getKinahItem()==null)owner.getInventory().increaseKinah(0);
      if(!InventoryDAO.store(owner))throw new SQLException("Recycling recipient wallet checkpoint failed");
-     complete(owner,pair,q);
+     complete(owner,pair,latest);
      // The tombstone already prevents every admission path. Normal dismissal keeps
      // rows, IDs and archived equipment; its existing save retry retains custody.
      try{PlayerBotService.getInstance().dismiss(owner,pair.from().bot().getName());}
      catch(RuntimeException error){pair.from().markClosing();LoggerFactory.getLogger(PlayerBotRecycling.class).error("Recycled companion awaits normal dismissal retry",error);}
-     return result(q);
+     return new Outcome(result(latest),null);
     });
    }catch(SQLException|IOException error){throw new IllegalStateException("Recycling could not be saved; no completed reward is retried without its native receipt.",error);}
   }
@@ -150,6 +164,7 @@ public final class PlayerBotRecycling {
     if(q.expires()<System.currentTimeMillis())throw new IllegalArgumentException("This recycling quote expired. Preview it again.");
     var previous=PlayerBotRecyclingDAO.receipt(c,q.source());if(previous!=null)throw new IllegalArgumentException("This recruit was already recycled; refresh the window.");
     for(var s:List.of(pair.first(),pair.second()))PlayerBotRecyclingDAO.actor(c,q.account(),s.bot().getObjectId());
+    com.aionemu.gameserver.services.CentralMarketService.requireCompanionClosed(c,q.source());
     Terms terms;
     try{terms=terms(c,pair);}catch(IOException error){throw new SQLException("Cannot verify quoted companion growth",error);}
     if(!terms.fingerprint().equals(q.fingerprint()) || terms.learning()!=q.learning() || terms.kinah()!=q.kinah())throw new IllegalArgumentException("Items, companion progress or recycling settings changed. Preview again before confirming.");
@@ -196,16 +211,16 @@ public final class PlayerBotRecycling {
   return Math.max(0,total-p.earnedLearningXp());
  }
  private static String tuning() {
-  if(PlayerBotConfig.RECYCLE_LEARNING_BASE==null || PlayerBotConfig.RECYCLE_KINAH_BASE==null || PlayerBotConfig.RECYCLE_LEARNING_BASE.length!=5 || PlayerBotConfig.RECYCLE_KINAH_BASE.length!=5
-   || Arrays.stream(PlayerBotConfig.RECYCLE_LEARNING_BASE).anyMatch(n->n<=0) || Arrays.stream(PlayerBotConfig.RECYCLE_KINAH_BASE).anyMatch(n->n<=0)
-   || PlayerBotConfig.RECYCLE_LEARNING_PERCENT<0 || PlayerBotConfig.RECYCLE_LEARNING_PERCENT>100 || PlayerBotConfig.RECYCLE_LEARNING_CAP<=0
-   || PlayerBotConfig.RECYCLE_ITEM_LEARNING_DIVISOR<=0 || PlayerBotConfig.RECYCLE_ITEM_LEARNING_CAP<0 || PlayerBotConfig.RECYCLE_KINAH_CAP<=0
-   || PlayerBotConfig.RECYCLE_KINAH_CAP>CentralMarketRules.MAX_KINAH || PlayerBotConfig.RECYCLE_ACTUAL_LEARNING_CAP<0
-   || PlayerBotConfig.RECYCLE_KINAH_PER_LEARNING<0 || PlayerBotConfig.RECYCLE_QUOTE_SECONDS<10 || PlayerBotConfig.RECYCLE_QUOTE_SECONDS>3600)
+  if(PlayerBotEconomyConfig.RECYCLE_LEARNING_BASE==null || PlayerBotEconomyConfig.RECYCLE_KINAH_BASE==null || PlayerBotEconomyConfig.RECYCLE_LEARNING_BASE.length!=5 || PlayerBotEconomyConfig.RECYCLE_KINAH_BASE.length!=5
+   || Arrays.stream(PlayerBotEconomyConfig.RECYCLE_LEARNING_BASE).anyMatch(n->n<=0) || Arrays.stream(PlayerBotEconomyConfig.RECYCLE_KINAH_BASE).anyMatch(n->n<=0)
+   || PlayerBotEconomyConfig.RECYCLE_LEARNING_PERCENT<0 || PlayerBotEconomyConfig.RECYCLE_LEARNING_PERCENT>100 || PlayerBotEconomyConfig.RECYCLE_LEARNING_CAP<=0
+   || PlayerBotEconomyConfig.RECYCLE_ITEM_LEARNING_DIVISOR<=0 || PlayerBotEconomyConfig.RECYCLE_ITEM_LEARNING_CAP<0 || PlayerBotEconomyConfig.RECYCLE_KINAH_CAP<=0
+   || PlayerBotEconomyConfig.RECYCLE_KINAH_CAP>CentralMarketRules.MAX_KINAH || PlayerBotEconomyConfig.RECYCLE_ACTUAL_LEARNING_CAP<0
+   || PlayerBotEconomyConfig.RECYCLE_KINAH_PER_LEARNING<0 || PlayerBotEconomyConfig.RECYCLE_QUOTE_SECONDS<10 || PlayerBotEconomyConfig.RECYCLE_QUOTE_SECONDS>3600)
    throw new IllegalArgumentException("Recycling configuration contains an invalid reward or quote limit.");
-  return Arrays.toString(PlayerBotConfig.RECYCLE_LEARNING_BASE)+Arrays.toString(PlayerBotConfig.RECYCLE_KINAH_BASE)+":"+PlayerBotConfig.RECYCLE_LEARNING_PERCENT+":"+PlayerBotConfig.RECYCLE_LEARNING_CAP
-   +":"+PlayerBotConfig.RECYCLE_ITEM_LEARNING_DIVISOR+":"+PlayerBotConfig.RECYCLE_ITEM_LEARNING_CAP+":"+PlayerBotConfig.RECYCLE_KINAH_CAP+":"+PlayerBotConfig.RECYCLE_ACTUAL_LEARNING_CAP
-   +":"+PlayerBotConfig.RECYCLE_KINAH_PER_LEARNING+":"+PlayerBotConfig.RECYCLE_QUOTE_SECONDS+":"+PricesService.getVendorSellModifier();
+  return Arrays.toString(PlayerBotEconomyConfig.RECYCLE_LEARNING_BASE)+Arrays.toString(PlayerBotEconomyConfig.RECYCLE_KINAH_BASE)+":"+PlayerBotEconomyConfig.RECYCLE_LEARNING_PERCENT+":"+PlayerBotEconomyConfig.RECYCLE_LEARNING_CAP
+   +":"+PlayerBotEconomyConfig.RECYCLE_ITEM_LEARNING_DIVISOR+":"+PlayerBotEconomyConfig.RECYCLE_ITEM_LEARNING_CAP+":"+PlayerBotEconomyConfig.RECYCLE_KINAH_CAP+":"+PlayerBotEconomyConfig.RECYCLE_ACTUAL_LEARNING_CAP
+   +":"+PlayerBotEconomyConfig.RECYCLE_KINAH_PER_LEARNING+":"+PlayerBotEconomyConfig.RECYCLE_QUOTE_SECONDS+":"+PricesService.getVendorSellModifier();
  }
  private static Terms terms(Connection c,Pair pair)throws SQLException,IOException {
   var from=pair.from().bot();var to=pair.to().bot();int account=from.getAccount().getId();
@@ -228,16 +243,16 @@ public final class PlayerBotRecycling {
    if(!eligible)continue;
    long unit=PricesService.getSellReward(item.getItemTemplate().getPrice(),PricesService.getVendorSellModifier());
    if(unit<=0)continue;
-   long value=saturatingMultiply(unit,item.getItemCount(),PlayerBotConfig.RECYCLE_KINAH_CAP);
-   appraisal=saturatingAdd(appraisal,value,PlayerBotConfig.RECYCLE_KINAH_CAP);counted++;
+   long value=saturatingMultiply(unit,item.getItemCount(),PlayerBotEconomyConfig.RECYCLE_KINAH_CAP);
+   appraisal=saturatingAdd(appraisal,value,PlayerBotEconomyConfig.RECYCLE_KINAH_CAP);counted++;
   }
   int rarity=source.autoEquipRarity().ordinal();
-  long learning=PlayerBotConfig.RECYCLE_LEARNING_BASE[rarity];
-  learning=saturatingAdd(learning,saturatingMultiply(actual,PlayerBotConfig.RECYCLE_LEARNING_PERCENT,Long.MAX_VALUE)/100,PlayerBotConfig.RECYCLE_LEARNING_CAP);
-  learning=saturatingAdd(learning,Math.min(appraisal,PlayerBotConfig.RECYCLE_ITEM_LEARNING_CAP)/PlayerBotConfig.RECYCLE_ITEM_LEARNING_DIVISOR,PlayerBotConfig.RECYCLE_LEARNING_CAP);
+  long learning=PlayerBotEconomyConfig.RECYCLE_LEARNING_BASE[rarity];
+  learning=saturatingAdd(learning,saturatingMultiply(actual,PlayerBotEconomyConfig.RECYCLE_LEARNING_PERCENT,Long.MAX_VALUE)/100,PlayerBotEconomyConfig.RECYCLE_LEARNING_CAP);
+  learning=saturatingAdd(learning,Math.min(appraisal,PlayerBotEconomyConfig.RECYCLE_ITEM_LEARNING_CAP)/PlayerBotEconomyConfig.RECYCLE_ITEM_LEARNING_DIVISOR,PlayerBotEconomyConfig.RECYCLE_LEARNING_CAP);
   learning=Math.min(capacity,learning);
-  long kinah=saturatingAdd(PlayerBotConfig.RECYCLE_KINAH_BASE[rarity],saturatingMultiply(Math.min(actual,PlayerBotConfig.RECYCLE_ACTUAL_LEARNING_CAP),PlayerBotConfig.RECYCLE_KINAH_PER_LEARNING,PlayerBotConfig.RECYCLE_KINAH_CAP),PlayerBotConfig.RECYCLE_KINAH_CAP);
-  kinah=saturatingAdd(kinah,appraisal,PlayerBotConfig.RECYCLE_KINAH_CAP);
+  long kinah=saturatingAdd(PlayerBotEconomyConfig.RECYCLE_KINAH_BASE[rarity],saturatingMultiply(Math.min(actual,PlayerBotEconomyConfig.RECYCLE_ACTUAL_LEARNING_CAP),PlayerBotEconomyConfig.RECYCLE_KINAH_PER_LEARNING,PlayerBotEconomyConfig.RECYCLE_KINAH_CAP),PlayerBotEconomyConfig.RECYCLE_KINAH_CAP);
+  kinah=saturatingAdd(kinah,appraisal,PlayerBotEconomyConfig.RECYCLE_KINAH_CAP);
   if(learning<=0 || kinah<=0)throw new IllegalArgumentException("This recycling quote cannot deliver all three rewards.");
   var values=PlayerBotMetadata.cached(account,to.getObjectId(),"growth");if(values==null || values.isEmpty())throw new SQLException("Target growth is not loaded");
   var next=PlayerBotMetadata.properties(values);long xp=Math.addExact(target.earnedLearningXp(),learning);

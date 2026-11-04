@@ -35,7 +35,7 @@
 // remain native and unchanged.
 namespace {
 using Ptr=void*;
-constexpr char CORE_VERSION[]="1.3.2";  // Slash lookup stays off the game thread's Lua.
+constexpr char CORE_VERSION[]="1.3.5";  // Show location opens the map without the market window.
 constexpr uintptr_t PREFERRED=0x10000000;  // Game.dll has no relocations.
 unsigned char* image=nullptr;
 unsigned char* game(){return image;}
@@ -983,6 +983,7 @@ int dispatch(Ptr L){
         return 4+boolean(L,effectively_shown(d) && effectively_shown(w));
     }
     if(is(cmd,"hireterms"))return boolean(L,hire_terms::poll());
+    if(is(cmd,"helpview")){help_view_until=GetTickCount64()+30000;return boolean(L,true);}
     if(is(cmd,"slashes"))return boolean(L,slash_names::publish(text(L,2),text_length(L,2)));
     if(is(cmd,"widget")){
         // Read one live node (optionally its nth child), without opening windows,
@@ -1294,9 +1295,21 @@ DWORD WINAPI waiter(LPVOID){
 extern "C" __declspec(dllexport) int AetherfallCoreStatus(){return int(AetherfallCoreDiagnostics[0]);}
 
 // Called by AionIconBridge's browser event pump, which already runs on the native UI thread.
-extern "C" __declspec(dllexport) void AetherfallCodexTick(){if(image)codex::tick();}
+extern "C" __declspec(dllexport) void AetherfallCodexTick(){
+    if(!image)return;
+    if(help_quest::poll())if(Ptr tracker=dialog(0xba))native<void(*)(Ptr,int)>(0x856bf0)(tracker,1);
+    codex::tick();
+}
+extern "C" __declspec(dllexport) void AetherfallHelpRequestTrack(){
+    if(!image || !active_quest(help_quest::QUEST))return;
+    native<int(*)(Ptr,int,int)>(0x3f6120)(game()+0x13715e0,help_quest::QUEST,1);
+    if(Ptr tracker=dialog(0xba))native<void(*)(Ptr,int)>(0x856bf0)(tracker,1);
+}
 extern "C" __declspec(dllexport) void AetherfallCodexAction(int command,int map,float x,float y,float z){
     if(image)codex::action(command,map,x,y,z);
+}
+extern "C" __declspec(dllexport) bool AetherfallCodexLocate(int map,float x,float y,float z){
+    return image && codex::show_location(map,x,y,z);
 }
 extern "C" __declspec(dllexport) bool AetherfallCodexBrowse(int kind,int id,int world){
     return image && codex::browse(kind,id,world);

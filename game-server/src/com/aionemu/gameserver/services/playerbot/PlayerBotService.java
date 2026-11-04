@@ -70,6 +70,7 @@ public final class PlayerBotService {
  private static final String NAVMESH_REPORT_RUN=java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
  private final Object populationLock=new Object();
  private final Map<Integer,Long> retireQueue=new java.util.concurrent.ConcurrentHashMap<>();
+ private final PlayerBotHeapGuard heapGuard=new PlayerBotHeapGuard();
  private final PlayerBotDecisionSchedule decisions=new PlayerBotDecisionSchedule();
  private final PlayerBotCheckpointSchedule checkpoints=new PlayerBotCheckpointSchedule();
  private long nextAiMaintenance;
@@ -101,6 +102,9 @@ public final class PlayerBotService {
 	private final PlayerBotWorldPopulation population = new PlayerBotWorldPopulation(populationRepository,false);
  private void publishSession(PlayerBotSession session) {
   int id=session.bot().getObjectId();
+  // Bind at the final admitted position, before presence can select even a dormant resident.
+  PlayerBotRoadDuty.initialize(session);
+  if(session.autonomous())PlayerBotWorldActivities.begin(session.bot());
   sessions.put(id,session);
   if(session.autonomous())controlledSessions.remove(id);else controlledSessions.put(id,session);
  }
@@ -358,6 +362,7 @@ public final class PlayerBotService {
   effectiveWorldTarget=PlayerBotPopulationPolicy.target(requestedWorldTarget,PlayerBotConfig.WORLD_MAX_ACTIVE,
    (int)residents.values().stream().filter(r->!PlayerBotPopulationPolicy.serverAccount(r.account())).count());
   effectiveWorldTarget=playerFocus.target(effectiveWorldTarget);
+  effectiveWorldTarget=heapGuard.target(effectiveWorldTarget,(int)sessions.values().stream().filter(s->s.world() && PlayerBotPopulationPolicy.serverAccount(s.bot().getAccount().getId())).count());
   if(before.target()!=state.target() || before.targetUntil()!=state.targetUntil())log.info("Server world-bot population target {} ({}..{})",requestedWorldTarget,settings.minimum(),settings.maximum());
   return state;
  }
@@ -419,9 +424,9 @@ public final class PlayerBotService {
  boolean populationReviveReady(Player bot,long now) {
   try{return populationManager.reviveDue(bot,now);}catch(java.io.IOException e){log.error("World bot revival event {} retained pending native checkpoint",bot.getObjectId(),e);return false;}
  }
- public void populationLevelChanged(Player bot,int oldLevel,int newLevel) {populationManager.levelChanged(bot,oldLevel,newLevel);}
+  public void populationLevelChanged(Player bot,int oldLevel,int newLevel) {PlayerBotWorldOutcomes.levelChanged(bot,oldLevel,newLevel);populationManager.levelChanged(bot,oldLevel,newLevel);}
  private boolean placePopulation(PlayerBotSession session,boolean focusMove) {
-  if(PlayerBotRoadDuty.assigned(session.bot()))return false;
+   if(PlayerBotRoadDuty.onDuty(session.bot()))return false;
   if(PlayerBotFindGroup.committed(session.bot()) || session.worldExcursion())return false;
   if(!PlayerBotConfig.POPULATION_ENABLED || !PlayerBotPopulationPolicy.serverAccount(session.bot().getAccount().getId()) || !PlayerBotWorldPlacement.idle(session))return false;
   var bot=session.bot();long now=System.currentTimeMillis();
@@ -546,6 +551,7 @@ public final class PlayerBotService {
   lines.add(PlayerBotPlayerPresence.summary(World.getInstance().getAllPlayers()));
   lines.add("World population: requested="+requestedWorldTarget+", target="+effectiveWorldTarget+", spawned="+global+", remaining="+Math.max(0,effectiveWorldTarget-global)
    +", admitted waiting="+Math.max(0,admitted-global)+", native job="+(backgroundWork.busy()?"in progress":"idle")+", world limit="+PlayerBotConfig.WORLD_MAX_ACTIVE+"; companions="+companionCount()+"/"+PlayerBotConfig.MAX_ACTIVE);
+  lines.add(heapGuard.summary());
   if(playerFocus.active())lines.add("Player-area population: maps="+new TreeSet<>(playerFocus.maps())+", redistributing existing population="+PlayerBotPopulationLifecycle.redistributionCeiling(effectiveWorldTarget,admitted)
    +", preferred camp radius="+playerFocus.radius()+"m; safe redistribution is paced; unseen excess is saved offline, existing characters reused.");
   long elyos=active.stream().filter(s->s.bot().getRace()==com.aionemu.gameserver.model.Race.ELYOS).count();
@@ -553,6 +559,11 @@ public final class PlayerBotService {
    +", combat="+active.stream().filter(s->s.bot().getController().isInCombat()).count()+", dead="+active.stream().filter(s->s.bot().isDead()).count()
    +", looting="+active.stream().filter(s->s.bot().isLooting()).count()+", traveling to quest="+active.stream().filter(s->PlayerBotWorldActivities.questTravel(s.bot())).count()
    +", traveling to grind="+active.stream().filter(s->PlayerBotWorldActivities.grindTravel(s.bot())).count());
+  lines.add("World goals: bots with goals="+active.stream().filter(s->PlayerBotGearPolicy.goalCount(s.bot())>0).count()
+   +", open goals="+active.stream().mapToInt(s->PlayerBotGearPolicy.goalCount(s.bot())).sum()
+   +", with a monster source="+active.stream().filter(s->!PlayerBotGearPolicy.goalDrops(s.bot()).isEmpty()).count()
+   +", hunts started="+PlayerBotWorldActivities.goalHuntsStarted()+", hunting now="+active.stream().filter(s->PlayerBotWorldActivities.goalHuntTravel(s.bot())).count()
+   +"; "+PlayerBotLoadouts.worldStats()+"; "+PlayerBotMarket.stats());
   var liveLevels=new TreeMap<Integer,Integer>();
   for(var s:active)if(PlayerBotPopulationManager.global(s.bot()))liveLevels.merge((int)s.bot().getLevel(),1,Integer::sum);
   lines.add("Live global level distribution (native visible levels): "+liveLevels);
@@ -579,7 +590,10 @@ public final class PlayerBotService {
  private void reportWorldPopulation(){
   long now=System.currentTimeMillis();if(now<nextWorldReport)return;nextWorldReport=now+30000;
   var current=worldStats(null);
-  for(var line:current)if(!lastWorldReport.contains(line))log.info("Playerbots: {}",line);
+   // Drain completion deltas only at the periodic report, never from UI queries.
+   // Always emit this line: equal nonzero deltas in adjacent windows are still new work.
+   for(var line:current)if(line.startsWith("World goals:"))log.info("Playerbots: {}; {}",line,PlayerBotWorldOutcomes.report());
+   else if(!lastWorldReport.contains(line))log.info("Playerbots: {}",line);
   // A map disappearing from the current snapshot is also a population change.
   for(var previous:lastWorldReport)if(previous.startsWith("map ")) {
    var map=previous.substring(0,previous.indexOf(':')+1);
@@ -733,17 +747,19 @@ public final class PlayerBotService {
   // A lease/admission failure must not monopolize the only native background job.
   nextWorldAdmission.put(id,System.currentTimeMillis()+30000);
   backgroundWork.submit(ThreadPoolManager.getInstance()::executeLongRunning,()->{
-   try{loadWorldResident(r);}
+   boolean[] fieldRetry={false};
+   try{loadWorldResident(r,fieldRetry);}
    catch(Exception e){log.error("World bot {} could not enter; saved character retained; admission will retry in 30 seconds",r.character(),e);}
    finally {
-    try{failedWorldAdmission(r,System.currentTimeMillis());}
+    try{failedWorldAdmission(r,System.currentTimeMillis(),fieldRetry[0]);}
     catch(java.io.IOException e){log.error("Failed world admission {} remains registered pending a durable retry-state save",r.character(),e);}
    }
   });
  }
  List<Integer> populationLoadCandidates(boolean manualOnly,int target,int global,int world){
   return residents.values().stream().filter(r->!manualOnly || !PlayerBotPopulationPolicy.serverAccount(r.account()))
-   .filter(r->!PlayerBotPopulationPolicy.serverAccount(r.account()) || automaticPopulationReady && automaticAdmissionsInitialized && (!playerFocus.active() || playerFocus.contains(r.map())))
+   .filter(r->!PlayerBotPopulationPolicy.serverAccount(r.account()) || automaticPopulationReady && automaticAdmissionsInitialized
+    && (!playerFocus.active() || playerFocus.contains(r.map()) || PlayerBotRoadDuty.wardenCareer(r.account(),r.character())))
    .filter(r->PlayerBotPopulationPolicy.mayEnter(PlayerBotPopulationPolicy.serverAccount(r.account()),PlayerBotConfig.POPULATION_ENABLED,target,global,world,PlayerBotConfig.WORLD_MAX_ACTIVE))
    .map(PlayerBotWorldRoster.Resident::character).toList();
  }
@@ -751,9 +767,13 @@ public final class PlayerBotService {
  // RandomPlayerbotMgr::OnPlayerLoginError clears its add/currentBots state.
  // Keep native identity and the completion-based Aion retry deadline, but release
  // the failed global admission slot so another eligible reserve can take it.
- void failedWorldAdmission(PlayerBotWorldRoster.Resident r,long now)throws java.io.IOException {synchronized(populationLock) {
+ void failedWorldAdmission(PlayerBotWorldRoster.Resident r,long now)throws java.io.IOException {failedWorldAdmission(r,now,false);}
+ void failedWorldAdmission(PlayerBotWorldRoster.Resident r,long now,boolean fieldRetry)throws java.io.IOException {synchronized(populationLock) {
    if(shuttingDown || !PlayerBotPopulationPolicy.serverAccount(r.account()) || sessions.containsKey(r.character()) || residents==null || !residents.containsKey(r.character()))return;
   nextWorldAdmission.put(r.character(),Math.addExact(now,30000));
+  // Road admission guards retain the native resident for the next due cycle.
+  // A missing beat is an active field reserve, not a population retirement.
+  if(fieldRetry)return;
   removeResidence(r.character());nextServerPopulation=0;}
  }
 
@@ -771,7 +791,7 @@ public final class PlayerBotService {
  }
  PlayerBotSession worldSession(Player bot){var s=sessions.get(bot.getObjectId());return s!=null && s.world() && !s.closing() ? s : null;}
 
-	private void loadWorldResident(PlayerBotWorldRoster.Resident r)throws Exception {
+	private void loadWorldResident(PlayerBotWorldRoster.Resident r,boolean[] fieldRetry)throws Exception {
 		if(PlayerBotPopulationPolicy.serverAccount(r.account()) && (!automaticPopulationReady || !automaticAdmissionsInitialized))return;
 		validateResidence(r);
   // A committed offline event survives queued-retirement interruption/restart.
@@ -794,7 +814,8 @@ public final class PlayerBotService {
 			var data=AccountService.loadPlayerAccountData(r.character());
 			if(data==null || data.getDeletionDate()!=null || data.getPlayerCommonData().isOnline()
 				|| data.getCharBanInfo()!=null && data.getCharBanInfo().getEnd()>=System.currentTimeMillis()/1000)throw new IllegalArgumentException("World bot is banned, deleting or online");
-   boolean focused=PlayerBotPopulationPolicy.serverAccount(r.account()) && PlayerBotPopulationFocus.capture(World.getInstance().getAllPlayers()).active();
+   boolean wardenResident=PlayerBotRoadDuty.savedWardenCareer(r.account(),r.character());
+   boolean focused=!wardenResident && PlayerBotPopulationPolicy.serverAccount(r.account()) && PlayerBotPopulationFocus.capture(World.getInstance().getAllPlayers()).active();
    PlayerBotWorldPlacement.Location entryCamp=null;
    if(focused){
     var common=data.getPlayerCommonData();
@@ -824,17 +845,34 @@ public final class PlayerBotService {
 				if(template!=null && template.isPassive())SkillEngine.getInstance().applyEffectDirectly(template,learned.getSkillLevel(),bot,bot);
 			}
 			session=new PlayerBotSession(bot,bot,lease,0,false);
+   // These used to perform their first SQL/legacy-file reads on the decision
+   // worker (including the first self buff). Prepare them on the resident loader.
+   PlayerBotGearPolicy.state(session);
+   PlayerBotQuestSync.state(session);
+   PlayerBotSpacing.values(bot);
+   for(String section:List.of("growth","quest-practice"))PlayerBotMetadata.load(r.account(),r.character(),section,null);
    var saved=PlayerBotPersistence.Home.of(bot);
    var roadHome=PlayerBotRoadDuty.savedHome(bot);if(roadHome!=null){saved=roadHome;entryCamp=null;}
+   boolean warden=PlayerBotRoadDuty.wardenCareer(bot);
+   if(warden && roadHome==null) {
+    // A deferred beat leaves ordinary field activity available, never a town admission.
+    // Keep the native placement owner's landing, level, faction and visibility guards.
+    if(PlayerBotWorldPlacement.nearHuman(saved.map(),saved.x(),saved.y(),saved.z())){fieldRetry[0]=true;return;}
+    entryCamp=PlayerBotWorldPlacement.chooseGrindDestination(bot.getRace(),bot.getLevel(),populationRandom).location();
+    if(entryCamp==null || !PlayerBotWardenBeats.field(entryCamp.map(),entryCamp.x(),entryCamp.y(),entryCamp.z())){fieldRetry[0]=true;return;}
+    saved=new PlayerBotPersistence.Home(entryCamp.map(),entryCamp.x(),entryCamp.y(),entryCamp.z(),saved.heading(),0);
+   }
    var map=DataManager.WORLD_MAPS_DATA.getTemplate(saved.map());
    if(map==null || map.isInstance())saved=r.home();
    boolean repairedLanding=false;
    boolean safeLanding=com.aionemu.gameserver.world.geo.GeoService.getInstance().isPlayerBotLanding(saved.map(),1,saved.x(),saved.y(),saved.z());
+   if(warden && !safeLanding){fieldRetry[0]=true;return;}
    // Reused global identities use the same zone preference as new characters,
    // before visibility. Manual residents and owned companions retain their homes.
-   boolean concentrate=roadHome==null && PlayerBotPopulationPolicy.serverAccount(r.account()) && (PlayerBotConfig.POPULATION_CONCENTRATE || focused);
-   boolean guardedLanding=roadHome==null && PlayerBotPopulationPolicy.serverAccount(r.account()) && (PlayerBotWorldPlacement.nearHuman(saved.map(),saved.x(),saved.y(),saved.z())
-    || !PlayerBotWorldPlacement.mapEligible(DataManager.WORLD_MAPS_DATA.getTemplate(saved.map()),bot.getRace(),PlayerBotConfig.POPULATION_MAPS));
+   boolean concentrate=!warden && roadHome==null && PlayerBotPopulationPolicy.serverAccount(r.account()) && (PlayerBotConfig.POPULATION_CONCENTRATE || focused);
+   boolean guardedLanding=!warden && roadHome==null && PlayerBotPopulationPolicy.serverAccount(r.account()) && (PlayerBotWorldPlacement.nearHuman(saved.map(),saved.x(),saved.y(),saved.z())
+     || !PlayerBotWorldPlacement.mapEligible(DataManager.WORLD_MAPS_DATA.getTemplate(saved.map()),bot.getRace(),PlayerBotConfig.POPULATION_MAPS)
+     || !PlayerBotWorldPlacement.focusCompatibleOnMap(bot.getRace(),bot.getLevel(),saved.map()));
    if(!safeLanding || concentrate || guardedLanding) {
     var camp=entryCamp!=null?entryCamp:PlayerBotWorldPlacement.destination(bot.getRace(),bot.getLevel(),PlayerBotPopulationPolicy.settings().cityChance(),populationRandom);
     if(camp==null && (focused || guardedLanding)){log.info("World bot {} admission deferred: no currently safe faction camp; saved character remains offline",r.character());return;}
@@ -845,10 +883,12 @@ public final class PlayerBotService {
      if(!safeLanding)log.info("World bot {} saved position needs repair; entering validated level {} camp on map {}",bot.getName(),bot.getLevel(),camp.map());
     }
    }
-   if(entryCamp!=null && !PlayerBotWorldPlacement.current(entryCamp))return;
+   if(entryCamp!=null && !PlayerBotWorldPlacement.current(entryCamp)){fieldRetry[0]=warden;return;}
+   if(warden && (!PlayerBotWardenBeats.field(saved.map(),saved.x(),saved.y(),saved.z())
+    || PlayerBotWorldPlacement.nearHuman(saved.map(),saved.x(),saved.y(),saved.z()))){fieldRetry[0]=true;return;}
    synchronized(this) {synchronized(session) {
     var latestFocus=PlayerBotPopulationFocus.capture(World.getInstance().getAllPlayers());
-    if(PlayerBotPopulationPolicy.serverAccount(r.account()) && latestFocus.active() && !latestFocus.contains(saved.map()))return;
+    if(!warden && PlayerBotPopulationPolicy.serverAccount(r.account()) && latestFocus.active() && !latestFocus.contains(saved.map()))return;
     if(shuttingDown || !PlayerBotConfig.ENABLED || !PlayerBotConfig.WORLD_ENABLED || !residents.containsKey(r.character()) || retiringWorldBots.contains(r.character())
      || sessions.values().stream().filter(PlayerBotSession::world).count()>=PlayerBotConfig.WORLD_MAX_ACTIVE || sessions.containsKey(r.character()))return;
     boolean global=PlayerBotPopulationPolicy.serverAccount(r.account());
@@ -910,13 +950,13 @@ public final class PlayerBotService {
 			PlayerBotTeams.remove(bot);previous.markClosing();bot.setTarget(null);bot.setWorldBotController(0);
 			var next=new PlayerBotSession(bot,bot,previous.lease(),0,false);
 			synchronized(next) {
-				publishSession(next);
-				// A new decision cannot run between control publication and native arrival.
 				// Never leave a controller-less resident stranded in a private instance.
 				if(bot.isInInstance() || !bot.isSpawned()) {
 					var r=residents.get(bot.getObjectId());validateResidence(r);
 					com.aionemu.gameserver.services.teleport.TeleportService.teleportTo(bot,r.map(),1,r.x(),r.y(),r.z(),r.heading());
 				}
+				// Publish and bind road duty only after the native return has placed the resident.
+				publishSession(next);
 			}
 			PlayerBotFindGroup.controlled(bot,bot);
 		}
@@ -1005,7 +1045,7 @@ public final class PlayerBotService {
   return inviteWorldBot(inviter,bot,invitation,true);
  }
  private boolean inviteWorldBot(Player inviter,Player bot,com.aionemu.gameserver.model.gameobjects.player.RequestResponseHandler<Player> invitation,boolean alliance) {
-   if(PlayerBotRoadDuty.assigned(bot)){PlayerBotRoadDuty.invited(inviter,bot);return true;}
+   if(PlayerBotRoadDuty.onDuty(bot)){PlayerBotRoadDuty.invited(inviter,bot);return true;}
   if(!bot.isWorldBot())return false;
    if(!PlayerBotHiring.confirmedAdmission(inviter,bot) && PlayerBotFindGroup.requestInvitation(inviter,bot))return true;
   if (!PlayerBotHiring.confirmedAdmission(inviter,bot) && !PlayerBotHiring.paidControl(inviter,bot)
@@ -1224,7 +1264,6 @@ public final class PlayerBotService {
 
 	public synchronized void create(Player owner, String name, PlayerClass playerClass, String journey) {
 		ensureOwner(owner);
-		if (!PlayerBotConfig.GENERATED_ENABLED) throw new IllegalArgumentException("Generated companions are disabled.");
 		boolean skip = journey.equals("skip");
 		if (!skip && !journey.equals("level1")) throw new IllegalArgumentException("Choose a starting journey.");
 		if (skip && (!Boolean.TRUE.equals(com.aionemu.gameserver.services.PoetaJourneyService.creationOptions(owner.getRace()).get("enabled")) || playerClass.isStartingClass()))
@@ -1291,7 +1330,7 @@ public final class PlayerBotService {
 		ensureCreation(owner);
 		int startingLevel = PlayerBotGenerationOptions.level(owner.getLevel());
 		boolean earned = PlayerBotRecruitment.active(); // A stored ticket roll is outside the free-generation switch and limit.
-		if (!earned && !PlayerBotConfig.GENERATED_ENABLED) throw new IllegalArgumentException("Generated companions are disabled.");
+		PlayerBotCreationPolicy.requireRecruitment(true,earned);
 		if (!PlayerBotRoster.available()) throw new IllegalArgumentException("The separate companion roster needs game-server/sql/playerbots.sql applied and a server restart.");
 		if (!earned && !PlayerBotCreationPolicy.room(PlayerBotRoster.freeGeneratedCount(owner.getAccount().getId())))
 			throw new IllegalArgumentException("Your Temporary Bot roster has reached its configured limit of " + PlayerBotCreationPolicy.limit() + ".");
@@ -1727,6 +1766,7 @@ public final class PlayerBotService {
 			if (companionSaveTask != null) companionSaveTask.cancel(false);
 			companionClock.shutdown();companionWorker.shutdown();
 		}
+		log.info("Playerbot shutdown started: closing Find Group and draining bot work");
 		PlayerBotFindGroup.shutdown();
 		// Pinned Playerbots OnShutdown clears pending logins outside their callbacks.
 		// Native Aion creation/load must finish its own persistence/lease cleanup first.

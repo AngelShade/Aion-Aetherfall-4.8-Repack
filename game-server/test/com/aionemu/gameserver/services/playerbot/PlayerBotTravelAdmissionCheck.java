@@ -50,8 +50,10 @@ public final class PlayerBotTravelAdmissionCheck {
   f=PlayerBotNavigation.class.getDeclaredField("TERRAIN");f.setAccessible(true);var quota=(PlayerBotNavigationBudget)f.get(null);
   f=quota.getClass().getDeclaredField("credit");f.setAccessible(true);var credit=f;double saved=credit.getDouble(quota);
   try {
-   credit.setDouble(quota,-1e12);navigation.move(20,10,0);
+   navigation.hazards(java.util.List.of(new PlayerBotHazards.Area(15,10,0,1,0,0,0,0,3,PlayerBotHazards.Shape.CIRCLE)));
+   credit.setDouble(quota,-1e12);navigation.waterMove(new Point(20,10,0));
    check(!actor.move.moving,"Denied terrain work does not publish an unproved walking step");
+   navigation.hazards(java.util.List.of());navigation.stop();
    PlayerBotQuestObjectivesCheck.field(navigation,"lastProgress",System.currentTimeMillis()-5000);
    PlayerBotQuestObjectivesCheck.field(navigation,"closestGoalDistance",10d);
    // Reproduce a supported local step reached after prolonged admission waiting.
@@ -63,7 +65,7 @@ public final class PlayerBotTravelAdmissionCheck {
    check(actor.move.moving,"Native supported useful step publishes after terrain admission");
    check(actor.move.getTargetX2()>actor.x,"Published native destination makes actual forward progress");
    if(oldProof)return;
-   navigation.stop();credit.setDouble(quota,-1e12);PlayerBotQuestObjectivesCheck.field(navigation,"nextMove",0L);navigation.move(20,10,0);
+   navigation.stop();credit.setDouble(quota,-1e12);PlayerBotQuestObjectivesCheck.field(navigation,"nextMove",0L);navigation.waterMove(new Point(20,10,0));
    check(navigation.waitingForTerrainWork(),"Actual denied native planning has explicit wait custody");
    var type=Class.forName(PlayerBotWorldActivities.class.getName()+"$State");var c=type.getDeclaredConstructor();c.setAccessible(true);var state=c.newInstance();
    var writer=PlayerBotWorldActivities.class.getDeclaredMethod("goal",type,PlayerBotWorldActivities.Goal.class);writer.setAccessible(true);
@@ -87,6 +89,6 @@ public final class PlayerBotTravelAdmissionCheck {
    PlayerBotWorldActivities.close(actor);check(!states.containsKey(actor.id),"Closing releases activity state normally");
   }finally{navigation.stop();PlayerBotWorldActivities.close(actor);credit.setDouble(quota,saved);if(old==null)maps.remove(197);else maps.put(197,old);}
  }
- public static void main(String[]args)throws Exception{nativeTravel(args.length>0);if(args.length==0)clocks();System.out.println("OK: "+checks+" native travel admission and active failure-clock checks; no World/IDs/SQL/tasks");}
+ public static void main(String[]args)throws Exception{com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_INDEPENDENT=false;com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_MEMORY_FIRST=false;PlayerBotMetadataCheck.dryWorld();nativeTravel(args.length>0);if(args.length==0)clocks();System.out.println("OK: "+checks+" native travel admission and active failure-clock checks; no World/IDs/SQL/tasks");}
  private PlayerBotTravelAdmissionCheck(){}
 }

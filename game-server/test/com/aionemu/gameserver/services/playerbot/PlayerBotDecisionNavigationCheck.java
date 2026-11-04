@@ -12,10 +12,10 @@ public final class PlayerBotDecisionNavigationCheck {
  static void set(Object o,String name,Object value)throws Exception{PlayerBotQuestObjectivesCheck.field(o,name,value);}
  static Action action(boolean useful,boolean executed){return new Action(){public String name(){return "current native travel";}public boolean isUseful(){return useful;}public boolean isPossible(){return true;}public boolean execute(){return executed;}};}
  static boolean run(PlayerBotSession session,PlayerBotStrategyComposition.Plan plan)throws Exception {
-  try{var m=PlayerBotSession.class.getDeclaredMethod("runDecision",PlayerBotStrategyComposition.Plan.class);m.setAccessible(true);return (boolean)m.invoke(session,plan);}
-  catch(NoSuchMethodException original){return plan.tick((PlayerBotEngine)field(session,"engine"),64);} // Exact installed055 decision seam.
+  var method=PlayerBotSession.class.getDeclaredMethod("runDecision",PlayerBotStrategyComposition.Plan.class,boolean.class,boolean.class,int.class);
+  method.setAccessible(true);return (boolean)method.invoke(session,plan,true,false,0);
  }
- public static void main(String[] args)throws Exception {
+ public static void main(String[] args)throws Exception {com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_INDEPENDENT=false;com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_MEMORY_FIRST=false;
   var f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);var u=(Unsafe)f.get(null);
   var actor=(PlayerBotRouteContinuationCheck.RouteActor)u.allocateInstance(PlayerBotRouteContinuationCheck.RouteActor.class);actor.spawned=true;actor.movable=true;actor.world=197;actor.instance=1;
   actor.move=new PlayerBotRouteContinuationCheck.RouteMove(actor);

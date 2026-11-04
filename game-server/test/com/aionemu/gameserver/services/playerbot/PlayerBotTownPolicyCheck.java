@@ -47,7 +47,7 @@ public final class PlayerBotTownPolicyCheck {
    check(bot.life.hp==1000 && bot.life.mp==1000 && bot.effects.observed.isEmpty(),"Purpose/Session probes neither spend resources nor create auras");
   }finally{DataManager.SKILL_DATA=previous;DataManager.MATERIAL_DATA=material;PlayerBotSupportCooperationCheck.data=helperData;helperUnsafe.set(null,oldUnsafe);}
  }
- public static void main(String[] args)throws Exception {
+ public static void main(String[] args)throws Exception {PlayerBotMetadataCheck.defaults();
   var data=(SkillData)JAXBContext.newInstance(SkillData.class).createUnmarshaller().unmarshal(Path.of(args[0],"data/static_data/skills/skill_templates.xml").toFile());
   // This first direct predicate also reproduces installed057's missing defensive gate.
   check(!PlayerBotCombatBuffs.nonCombatUseful(data.getSkillTemplate(1755)),"Captured native Word of Protection defensive15s burst is not idle maintenance");
@@ -65,7 +65,8 @@ public final class PlayerBotTownPolicyCheck {
   }
   for(int id:new int[]{809,796,3124,4538,2737,3877,4373,3779,3888,1663}) {
    var skill=data.getSkillTemplate(id);check(skill!=null,"Native maintenance spell exists");
-   check(PlayerBotTownPolicy.buffUseful(skill,false,false),"Lasting, movement, mana, summon and casting/recovery preparations remain: "+id);
+   check(id==2737 ? !PlayerBotTownPolicy.buffUseful(skill,false,false) : PlayerBotTownPolicy.buffUseful(skill,false,false),
+    "Native maintenance remains available while MP-draining Stability Thrusters stays combat-only: "+id);
   }
   for(var skill:data.getSkillTemplates())if(PlayerBotChanter.mantra(skill))check(PlayerBotTownPolicy.buffUseful(skill,false,false),"All native mantra maintenance remains");
   check(!PlayerBotTownPolicy.buffUseful(null,true,true),"Missing template is never useful");

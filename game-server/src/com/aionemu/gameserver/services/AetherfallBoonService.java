@@ -690,6 +690,11 @@ public final class AetherfallBoonService {
 	}
 
 	/** Share of a Central Market sale returned to the seller, in basis points. */
+	public static int maximumMarketReturn() {
+		return Math.min(10_000, 8450 + MARKET_BONUS_BP);
+	}
+
+	/** Share of a Central Market sale returned to the seller, in basis points. */
 	public static int marketReturn(Player p) {
 		BotChronicle tracker = p.isPlayerBot() ? botChronicles.get(p.getObjectId()) : null;
 		boolean accountMembership = !p.isPlayerBot() || tracker != null && tracker.player == p && !tracker.dedicated;

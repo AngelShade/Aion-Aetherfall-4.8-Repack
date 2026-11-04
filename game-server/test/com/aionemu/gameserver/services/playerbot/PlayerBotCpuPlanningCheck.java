@@ -67,16 +67,16 @@ public final class PlayerBotCpuPlanningCheck {
   @Override public com.aionemu.gameserver.model.templates.spawns.SpawnTemplate getSpawn(){return null;}
  }
  static class Mesh extends GeoMap {
-  int ground,sight;boolean blockedSight,delayOnce;
+  int ground,sight;boolean blockedSight,delayOnce,denySight;
   Mesh(){super(197);}
   @Override public CollisionResults getPlayerBotCollisions(Vector3f p,float x,float y,float z,int instance,byte flags,IgnoreProperties ignore){ground++;if(delayOnce){delayOnce=false;java.util.concurrent.locks.LockSupport.parkNanos(4_000_000);}return super.getPlayerBotCollisions(p,x,y,z,instance,flags,ignore);}
-  @Override public boolean canSee(float x,float y,float z,float tx,float ty,float tz,int instance,IgnoreProperties ignore){sight++;return !blockedSight || x>35;}
+  @Override public boolean canSee(float x,float y,float z,float tx,float ty,float tz,int instance,IgnoreProperties ignore){sight++;return !denySight && (!blockedSight || x>35);}
  }
  static Actor actor(Unsafe u,float x)throws Exception {
   var a=(Actor)u.allocateInstance(Actor.class);a.spawned=true;a.movable=true;a.world=197;a.instance=1;a.x=x;a.y=10;
   a.scene=(PlayerBotTravelAdmissionCheck.SceneShell)u.allocateInstance(PlayerBotTravelAdmissionCheck.SceneShell.class);
   a.scene.map=(PlayerBotTravelAdmissionCheck.MapShell)u.allocateInstance(PlayerBotTravelAdmissionCheck.MapShell.class);
-  a.move=new PlayerBotRouteContinuationCheck.RouteMove(a);a.stats=(PlayerBotRouteContinuationCheck.RouteStats)u.allocateInstance(PlayerBotRouteContinuationCheck.RouteStats.class);return a;
+  PlayerBotRouteContinuationCheck.nativeMover(a);a.move=new PlayerBotRouteContinuationCheck.RouteMove(a);a.stats=(PlayerBotRouteContinuationCheck.RouteStats)u.allocateInstance(PlayerBotRouteContinuationCheck.RouteStats.class);return a;
  }
  static void navigation()throws Exception {
   var f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);var u=(Unsafe)f.get(null);
@@ -97,14 +97,14 @@ public final class PlayerBotCpuPlanningCheck {
    com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_MIDAIR=200;
    // This inert197 scene supplies native geometry, not a prepared map catalog.
    com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED=false;
-   credit.setDouble(quota,-1e12);check(nav.move(20,10,0) && mesh.ground==0,"Ordinary local steering cannot bypass exhausted terrain quota");
-   check(nav.status().contains("budget"),"Pending local movement stays visible as terrain work");
-   credit.setDouble(quota,6e6);PlayerBotQuestObjectivesCheck.field(nav,"nextMove",0L);
-   check(nav.move(20,10,0) && mesh.ground>0 && a.move.moving,"Granted local turn proves native ground before publishing movement");
+   credit.setDouble(quota,-1e12);check(nav.waterMove(new Point(20,10,0)) && mesh.ground==0,"Multi-candidate evasion cannot bypass exhausted terrain quota");
+   check(nav.waitingForTerrainWork(),"Pending local movement stays visible as terrain work");
+   nav.stop();credit.setDouble(quota,6e6);PlayerBotQuestObjectivesCheck.field(nav,"nextMove",0L);
+   check(nav.move(20,10,0) && mesh.ground>0 && a.getMoveController().isInMove(),"Granted local turn proves native ground before publishing movement");
    int probes=mesh.ground;PlayerBotQuestObjectivesCheck.field(nav,"nextMove",0L);
    check(nav.move(20,10,0) && mesh.ground==probes,"Unchanged active commitment never repeats whole ground planning");
    nav.stop();PlayerBotQuestObjectivesCheck.field(nav,"nextMove",0L);credit.setDouble(quota,-1e12);check(nav.move(30,10,0),"Another local commitment can wait without being abandoned");
-   nav.stop();check(!nav.status().contains("budget"),"Explicit stop clears local planning ticket");
+   nav.stop();check(!nav.waitingForTerrainWork(),"Explicit stop clears local planning ticket");
    mesh.blockedSight=true;com.aionemu.gameserver.configs.main.GeoDataConfig.CANSEE_ENABLE=true;
    var target=actor(u,40);credit.setDouble(quota,6e6);PlayerBotQuestObjectivesCheck.field(nav,"nextMove",0L);
    check(nav.approach(target,10),"Occluded ranged target creates a retained firing intent");
@@ -113,18 +113,18 @@ public final class PlayerBotCpuPlanningCheck {
    // force the selected firing point to be discarded before movement admission.
    for(int i=0;selected.get(nav)==null && i<20;i++){credit.setDouble(quota,6e6);nav.approach(target,10);}
    check(selected.get(nav)!=null,"Measured firing slices eventually retain a native-supported destination");
-   for(int turn=0;!a.move.moving && turn<200;turn++){credit.setDouble(quota,6e6);PlayerBotQuestObjectivesCheck.field(nav,"nextMove",0L);nav.approach(target,10);}
+   for(int turn=0;!a.getMoveController().isInMove() && turn<200;turn++){credit.setDouble(quota,6e6);PlayerBotQuestObjectivesCheck.field(nav,"nextMove",0L);nav.approach(target,10);}
    probes=mesh.ground;int sights=mesh.sight;
    credit.setDouble(quota,6e6);PlayerBotQuestObjectivesCheck.field(nav,"nextMove",0L);nav.approach(target,10);
    check(mesh.ground==probes && mesh.sight>sights,"Committed firing movement avoids repeated shell walks but retains fresh native sight");
-   nav.stop();credit.setDouble(quota,-1e12);nav.approach(target,10);probes=mesh.ground;
-   check(nav.status().contains("budget") && mesh.ground==probes,"Firing shell cannot bypass measured planning budget");
+   nav.stop();mesh.denySight=true;credit.setDouble(quota,-1e12);probes=mesh.ground;nav.approach(target,10);
+   check(nav.waitingForTerrainWork() && mesh.ground>probes,"An unqueued straight proof may fail, but the firing candidate fan cannot bypass measured planning budget");
    var approachTicket=PlayerBotNavigation.class.getDeclaredField("approachSearchToken");approachTicket.setAccessible(true);
    Object firing=approachTicket.get(nav);check(quota.waiting(firing),"Denied firing branch owns its actual queue ticket");
    PlayerBotQuestObjectivesCheck.field(nav,"nextMove",0L);nav.move(10,20,0);
    check(!quota.waiting(firing),"Safety/order successor cancels firing ticket before waiting on another branch");
    nav.stop();nav.approach(target,10);probes=mesh.ground;
-   a.casting=true;check(!nav.approach(target,10) && mesh.ground==probes,"Native committed cast never spends speculative terrain work");a.casting=false;
+   a.casting=true;check(!nav.approach(target,10) && mesh.ground==probes,"Native committed cast never spends speculative terrain work");a.casting=false;mesh.denySight=false;
    nav.stop();check(!nav.waitingForSearchTurn(),"Explicit stop releases all new planning nominations");
    a.actualMove=new com.aionemu.gameserver.controllers.movement.PlayerBotMoveController(a);
    for(var entry:Map.of("routeWorld",197,"routeInstance",1,"localLimit",1,"localCursor",1).entrySet())PlayerBotQuestObjectivesCheck.field(nav,entry.getKey(),entry.getValue());
@@ -162,6 +162,6 @@ public final class PlayerBotCpuPlanningCheck {
    com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_MIDAIR=oldMidair;
    if(old==null)maps.remove(197);else maps.put(197,old);}
  }
- public static void main(String[]args)throws Exception{if(args.length>0){navigation();return;}fields();visitors();navigation();System.out.println("OK: "+checks+" CPU planning, inherited fresh-field, visitor custody and native terrain checks; no World/IDs/SQL/tasks");}
+ public static void main(String[]args)throws Exception{com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_INDEPENDENT=false;com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_MEMORY_FIRST=false;PlayerBotMetadataCheck.dryWorld();if(args.length>0){navigation();return;}fields();visitors();navigation();System.out.println("OK: "+checks+" CPU planning, inherited fresh-field, visitor custody and native terrain checks; no World/IDs/SQL/tasks");}
  private PlayerBotCpuPlanningCheck(){}
 }

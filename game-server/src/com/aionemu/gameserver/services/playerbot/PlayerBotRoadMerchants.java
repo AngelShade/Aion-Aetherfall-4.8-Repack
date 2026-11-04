@@ -16,6 +16,8 @@ import com.aionemu.gameserver.model.trade.Exchange;
 import com.aionemu.gameserver.model.trade.ExchangeItem;
 import com.aionemu.gameserver.model.trade.TradePSItem;
 import com.aionemu.gameserver.services.LootCodexService;
+import com.aionemu.gameserver.services.ItemEligibility;
+import com.aionemu.gameserver.services.trade.EconomyPrices;
 import com.aionemu.gameserver.services.PrivateStoreService;
 import com.aionemu.gameserver.services.item.ItemFactory;
 import com.aionemu.gameserver.utils.PacketSendUtility;
@@ -24,6 +26,10 @@ import com.aionemu.gameserver.world.WorldMapType;
 
 /** Finite, provenance-backed regional merchandise, checkpointed with native inventory and road career. */
 public final class PlayerBotRoadMerchants {
+ public static void refuse(Player seller,Player buyer,Object item,String reason) {
+  org.slf4j.LoggerFactory.getLogger(PlayerBotRoadMerchants.class).warn("Merchant sale refused: merchant={} ({}) buyer={} ({}) item={} reason={}",seller.getName(),seller.getObjectId(),buyer.getName(),buyer.getObjectId(),item,reason);
+  PacketSendUtility.sendMessage(buyer,reason);
+ }
  private record Pool(int map,Race race,int level,int rank) {}
  /** Everything a merchant can stock, and which of it comes from this map's instances. */
  private record Supply(List<LootCodexService.RegionalGoods> goods,Set<Integer> instance) {}
@@ -40,7 +46,7 @@ public final class PlayerBotRoadMerchants {
    && item.isTradeable() && item.getName()!=null && !item.getName().contains("_");
  }
  private static boolean eligible(ItemTemplate item,PlayerBotRoadDuty.State s) {
-  return item!=null && item.getItemQuality()!=null && !item.isTestItem() && !item.isKinah() && item.getItemGroup()!=ItemGroup.QUEST
+  return ItemEligibility.isPlayerItem(item) && !ItemEligibility.isAppearanceOnly(item) && item.getItemQuality()!=null && !item.isKinah() && item.getItemGroup()!=ItemGroup.QUEST
    && (housing(s.route.map())?houseGoods(item):item.isWeapon() || item.isArmor() || item.isStigma()) && item.getItemQuality().getQualityId()<=ceiling(s.rank)
    && (item.getRace()==Race.PC_ALL || item.getRace()==s.route.race()) && item.getUseLimits().getMinRank()==1
    && item.getUseLimits().getGuildLevelPermitted()==0 && !item.hasAreaRestriction();
@@ -71,13 +77,14 @@ public final class PlayerBotRoadMerchants {
  }
  static long price(Player bot,Item item,long count) {
   var s=PlayerBotRoadDuty.state(bot);if(!merchandise(bot,item) || count!=1)throw new IllegalArgumentException("Choose one available merchant item.");
-  // Item level sets the base, fitted to native prices; many high-grade templates carry placeholder prices.
-  double level=item.getItemTemplate().getLevel();
-  double base=level*level*level*level/Math.max(1,PlayerBotMerchantConfig.PRICE_LEVEL_DIVISOR)*qualityMultiplier(item.getItemTemplate());
+  // Native per-item value retains slot/crafting differences; rarity is a modest retail premium.
+  var template=item.getItemTemplate();
+  long quoted=EconomyPrices.cashPrice(template);
+  double base=quoted>0?quoted:EconomyPrices.reference(template)*Math.max(1,qualityMultiplier(template)/10.0);
   // House goods are all level 1, so quality and their native price set the value.
   if(houseGoods(item.getItemTemplate()))base=Math.max(item.getItemTemplate().getPrice(),PlayerBotMerchantConfig.PRICE_HOUSE_BASE*qualityMultiplier(item.getItemTemplate()));
   double value=base*rankPercent(s.rank)/100*PlayerBotMerchantConfig.PRICE_SCALE/100;
-  return Math.max(PlayerBotMerchantConfig.PRICE_MINIMUM,Math.min((long)value,PlayerBotMerchantConfig.PRICE_MAXIMUM));
+  return Math.max(EconomyPrices.generatedFloor(template),Math.max(PlayerBotMerchantConfig.PRICE_MINIMUM,Math.min((long)value,PlayerBotMerchantConfig.PRICE_MAXIMUM)));
  }
  static void maintenance(PlayerBotRoadDuty.State s) {
   long now=System.currentTimeMillis();if(now<s.next || !s.session.autonomous())return;
@@ -141,17 +148,19 @@ public final class PlayerBotRoadMerchants {
  static void close(Player bot){if(bot.hasStore())PrivateStoreService.closePrivateStore(bot);}
  /** Native shop purchase through the world-trade custody commit; merchandise is never a plain inventory hand-off. */
  public static void sell(Player seller,Player buyer,PrivateStore store,List<TradePSItem> bought,long price) {
-  var session=PlayerBotService.getInstance().worldSession(seller);if(session==null)return;
+  var items=bought.stream().map(TradePSItem::getItemObjId).toList();
+  var session=PlayerBotService.getInstance().worldSession(seller);if(session==null){refuse(seller,buyer,items,"This merchant is unavailable. Try again when they are ready.");return;}
   synchronized(session) {
-   if(!PlayerBotService.getInstance().current(session) || seller.getStore()!=store)return;
-   if(buyer.isDead() || seller.isDead() || buyer.getWorldId()!=seller.getWorldId() || buyer.getInstanceId()!=seller.getInstanceId() || !PositionUtil.isInRange(buyer,seller,PlayerBotMerchantConfig.SHOP_CLOSE_RANGE)) {
-    PacketSendUtility.sendMessage(buyer,"Stay beside "+seller.getName()+" to buy from their shop.");return;
+   if(!PlayerBotService.getInstance().current(session) || !session.autonomous() || seller.getStore()!=store){refuse(seller,buyer,items,"This shop has changed or closed. Browse it again.");return;}
+   if(buyer.isDead() || seller.isDead()){refuse(seller,buyer,items,"Both of you must be alive to buy.");return;}
+   if(buyer.getWorldId()!=seller.getWorldId() || buyer.getInstanceId()!=seller.getInstanceId() || !PositionUtil.isInRange(buyer,seller,PlayerBotMerchantConfig.SHOP_CLOSE_RANGE)) {
+    refuse(seller,buyer,items,"Stay beside "+seller.getName()+" to buy from their shop.");return;
    }
-   if(buyer.getInventory().getKinah()<price){PacketSendUtility.sendMessage(buyer,"Not enough Kinah for this purchase.");return;}
+   if(buyer.getInventory().getKinah()<price){refuse(seller,buyer,items,"Not enough Kinah for this purchase.");return;}
    var goods=new Exchange(seller,buyer);
    for(var entry:bought) {
     var item=seller.getInventory().getItemByObjId(entry.getItemObjId());
-    if(!merchandise(seller,item) || entry.getCount()!=1)return;
+    if(!merchandise(seller,item) || entry.getCount()!=1){refuse(seller,buyer,entry.getItemObjId(),"That merchant item is no longer available. Browse the shop again.");return;}
     goods.addItem(item.getObjectId(),new ExchangeItem(item.getObjectId(),1,item));
    }
    if(!PlayerBotWorldTrade.shopSale(seller,buyer,goods,price))return;

@@ -105,3 +105,10 @@ replace that action with a separate selected-card preview or inspector. Preserve
 the ornate frame's native 2:3 ratio and the portrait atlas tile's 3:4 ratio.
 Use proportional card sizing and ordinary pane scrolling rather than stretching
 the artwork or moving the categories to a top bar to fit more cards onscreen.
+
+Companions reading panes keep a clean opaque navy interior with authored edge
+art at its native scale. Do not stretch the panel material behind long text.
+Benefits uses a compact Summary and separate labeled mission, reward and optional
+upgrade views; long journals and reward lists use bounded pages. World-character
+progress is observational, with automatic earned-reward handling and no private
+quest/purchase controls exposed to the borrower.

@@ -183,7 +183,7 @@ public enum DialogPage {
 		//@formatter:on
 	}
 
-	private static boolean hasQuestInteraction(Player player, Npc npc) {
+	public static boolean hasQuestInteraction(Player player, Npc npc) {
 		QuestNpc questNpc = QuestEngine.getInstance().getQuestNpc(npc.getNpcId());
 		if (questNpc == null)
 			return false;

@@ -18,4 +18,10 @@ public class CentralMarketSimulationConfig {
 	public static int REFRESH_MAX_SECONDS;
 	@Property(key="gameserver.central.market.simulation.max_stack", defaultValue="100")
 	public static int MAX_STACK;
+	@Property(key="gameserver.central.market.simulation.price_levels", defaultValue="7")
+	public static int PRICE_LEVELS;
+	@Property(key="gameserver.central.market.simulation.low_price_demand_percent", defaultValue="80")
+	public static int LOW_PRICE_DEMAND;
+	@Property(key="gameserver.central.market.simulation.high_price_demand_percent", defaultValue="10")
+	public static int HIGH_PRICE_DEMAND;
 }

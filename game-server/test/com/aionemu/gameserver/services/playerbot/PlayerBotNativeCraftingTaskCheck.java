@@ -42,7 +42,7 @@ public final class PlayerBotNativeCraftingTaskCheck {
   @Override public long getItemCountByItemId(int id){return held.getOrDefault(id,0L);}
   @Override public boolean decreaseByItemId(int id,long count){if(getItemCountByItemId(id)<count)return false;held.put(id,getItemCountByItemId(id)-count);consumed++;return true;}
   @Override public List<Item> getItemsByItemId(int id){var stack=stacks.get(id);check(stack!=null,"Actual native ItemService must use an existing owned product stack, no ItemFactory allocation");return List.of(stack);}
-  @Override public long increaseItemCount(Item item,long count,ItemUpdateType type){check(stacks.get(item.getItemId())==item && type==ItemUpdateType.INC_ITEM_COLLECT,"Native craft outcome updates actual owned stack with native custody type");held.merge(item.getItemId(),count,Long::sum);item.setItemCount(held.get(item.getItemId()));updates++;added+=count;return 0;}
+  @Override public long increaseItemCount(Item item,long count,ItemUpdateType type){check(stacks.get(item.getItemId())==item && type==ItemUpdateType.INC_ITEM_CRAFT,"Native craft outcome updates actual owned stack with native custody type");held.merge(item.getItemId(),count,Long::sum);item.setItemCount(held.get(item.getItemId()));updates++;added+=count;return 0;}
   @Override public Item add(Item item,ItemAddType type){throw new AssertionError("No native new item or ID allocation allowed");}
   @Override public boolean isFull(){return false;}
  }
@@ -57,8 +57,12 @@ public final class PlayerBotNativeCraftingTaskCheck {
  }
  static final class Recipes extends RecipeList {
   int deleted;
-  @Override public boolean deleteRecipe(Player player,int id){check(getRecipeList().remove(id),"Native finite-production recipe removal owns the actual learned recipe");deleted++;return true;}
+  @Override public void decreaseProductionLimit(Player player,int id) {
+   boolean known=isRecipePresent(id);super.decreaseProductionLimit(player,id);
+   if(known && !isRecipePresent(id)){check(true,"Native finite-production consumption removes the actual learned recipe");deleted++;}
+  }
  }
+
  static final class Actor extends Player {
   boolean spawned,dead,playing;int map,instance;Inventory cube;KnownList known;Common common;Stats stats;Account account;PlayerSkillList skills;Recipes recipes;QuestStateList quests;Cooldowns cooldown;
   Actor(){super(null,null);}
@@ -98,9 +102,14 @@ public final class PlayerBotNativeCraftingTaskCheck {
   var component=new Component();set(component,"itemid",152000100);set(component,"quantity",2);var group=new ComponentsData();set(group,"component",List.of(component));set(recipe,"componentsData",List.of(group));return recipe;
  }
  static boolean admit(Actor bot,Tool tool,RecipeTemplate recipe)throws Exception {
-  var method=CraftService.class.getDeclaredMethod("checkCraft",Player.class,RecipeTemplate.class,int.class,VisibleObject.class,ItemTemplate.class,int.class,Map.class);method.setAccessible(true);
   var sent=new HashMap<Integer,Long>();for(var component:recipe.getComponents().getFirst().getComponent())sent.put(component.getItemId(),(long)component.getQuantity());
-  return (boolean)method.invoke(null,bot,recipe,recipe.getSkillId(),tool,DataManager.ITEM_DATA.getItemTemplate(recipe.getProductId()),0,sent);
+  var find=CraftService.class.getDeclaredMethod("findComponents",RecipeTemplate.class,Map.class);find.setAccessible(true);
+  var components=(ComponentsData)find.invoke(null,recipe,sent);
+  var method=CraftService.class.getDeclaredMethod("checkCraft",Player.class,RecipeTemplate.class,int.class,VisibleObject.class,int.class,ComponentsData.class);method.setAccessible(true);
+  if(!(boolean)method.invoke(null,bot,recipe,recipe.getSkillId(),tool,0,components))return false;
+  bot.getRecipeList().decreaseProductionLimit(bot,recipe.getId());
+  var consume=CraftService.class.getDeclaredMethod("consumeComponents",Player.class,ComponentsData.class);consume.setAccessible(true);consume.invoke(null,bot,components);
+  return true;
  }
  static void addTemplate(ItemData data,Actor actor,int id)throws Exception {
   var template=new ItemTemplate();set(template,"itemId",id);set(template,"maxStackCount",9999);set(template,"itemQuality",ItemQuality.COMMON);
@@ -116,7 +125,7 @@ public final class PlayerBotNativeCraftingTaskCheck {
   var oldRate=RatesConfig.SKILL_XP_CRAFTING_RATES;var oldCrit=RatesConfig.CRAFT_CRIT_CHANCES;var oldCombo=RatesConfig.CRAFT_COMBO_CHANCES;int oldFailure=CraftConfig.MAX_CRAFT_FAILURE_CHANCE;boolean oldItemLog=LoggingConfig.LOG_ITEM,oldCraftLog=LoggingConfig.LOG_CRAFT;
   boolean oldQuestAi=PlayerBotConfig.QUESTS_ENABLED,oldCraftAi=PlayerBotConfig.QUEST_CRAFTING;
   var engine=QuestEngine.getInstance();@SuppressWarnings("unchecked") var handlers=(Map<Integer,com.aionemu.gameserver.questEngine.handlers.AbstractQuestHandler>)get(engine,"questHandlers");@SuppressWarnings("unchecked") var failHooks=(Map<Integer,Integer>)get(engine,"questOnFailCraft");var oldHandler=handlers.get(19038);var oldHook=failHooks.get(182206773);
-  try {
+  try(var database=PlayerBotMetadataCheck.isolated(0)) {
    RatesConfig.SKILL_XP_CRAFTING_RATES=new float[]{1};RatesConfig.CRAFT_CRIT_CHANCES=new float[]{0};RatesConfig.CRAFT_COMBO_CHANCES=new float[]{0};CraftConfig.MAX_CRAFT_FAILURE_CHANCE=0;LoggingConfig.LOG_ITEM=LoggingConfig.LOG_CRAFT=false;
    var actor=(Actor)unsafe.allocateInstance(Actor.class);actor.cube=new Inventory();actor.known=new KnownList(actor);actor.common=(Common)unsafe.allocateInstance(Common.class);actor.stats=(Stats)unsafe.allocateInstance(Stats.class);actor.account=new Account(0);actor.skills=new PlayerSkillList(List.of(new PlayerSkillEntry(40008,440,0,Persistable.PersistentState.UPDATED)));actor.recipes=new Recipes();actor.quests=new QuestStateList();actor.cooldown=new Cooldowns();
    var recipe=ordinary();var items=new ItemData();addTemplate(items,actor,recipe.getProductId());addTemplate(items,actor,152000100);DataManager.ITEM_DATA=items;
@@ -124,22 +133,26 @@ public final class PlayerBotNativeCraftingTaskCheck {
    var skillData=new SkillData();@SuppressWarnings("unchecked") var skillMap=(Map<Integer,SkillTemplate>)get(skillData,"skillTemplateById");for(int id:List.of(40008,40001)){var skill=new SkillTemplate();set(skill,"skillId",id);skillMap.put(id,skill);}DataManager.SKILL_DATA=skillData;
    DataManager.QUEST_DATA=(QuestsData)JAXBContext.newInstance(QuestsData.class).createUnmarshaller().unmarshal(new StringReader("<quests>"+nativeEntry("game-server/data/static_data/quest_data/quest_data.xml","quest",19038)+"</quests>"));
    var service=(PlayerBotService)unsafe.allocateInstance(PlayerBotService.class);Map<Integer,PlayerBotSession> sessions=new ConcurrentHashMap<>();set(service,"sessions",sessions);var session=(PlayerBotSession)unsafe.allocateInstance(PlayerBotSession.class);set(session,"bot",actor);var tool=(Tool)unsafe.allocateInstance(Tool.class);reset(actor,service,session,sessions);
+   set(actor,"worldBot",true);PlayerBotWorldOutcomes.report();
    try(var lease=PlayerBotLease.acquire(actor.getObjectId())) {
     check(lease!=null && !actor.isOnline() && service.allowsHeadlessInteraction(actor),"Actual registered actor/lease admits headless native crafting");
-    actor.recipes.getRecipeList().add(recipe.getId());actor.cube.held.put(152000100,10L);int consumed=actor.cube.consumed;
-    check(admit(actor,tool,recipe) && actor.cube.consumed==consumed+1 && actor.cube.held.get(152000100)==8,"Actual native CraftService.checkCraft consumes owned ingredients before starting real task");
+    actor.recipes.addRecipe(recipe.getId(),0);actor.cube.held.put(152000100,10L);int consumed=actor.cube.consumed;
+    check(admit(actor,tool,recipe) && actor.cube.consumed==consumed+1 && actor.cube.held.get(152000100)==8,"Actual native CraftService preflight and consumption use owned ingredients before starting real task");
     var work=new Work(actor,tool,recipe,0,service);work.begin();long product=actor.cube.held.get(recipe.getProductId());int xp=actor.skills.getSkillEntry(40008).getCurrentXp();int ticks=0;
     boolean noPrematureAward=true;while(work.progress()<1000 && ticks++<100){work.tick();noPrematureAward &= actor.cube.held.get(recipe.getProductId())==product && actor.skills.getSkillEntry(40008).getCurrentXp()==xp;}
     check(noPrematureAward,"Every actual native analysis tick preserves unfinished product/XP custody");
     check(ticks>1 && work.updates==ticks && work.success==0 && work.isInProgress(),"Actual native crafting uses multiple runInteraction analysis ticks before finalization");
+    check(PlayerBotWorldOutcomes.report().contains("crafts=0"),"Unfinished native craft cannot increment live completion count");
     work.tick();check(work.success==1 && work.finished==1 && work.aborted==0 && actor.getInteractionTask()==null && !work.isInProgress(),"Only actual native completion finalizes headless crafting task");
     check(actor.cube.held.get(recipe.getProductId())==product+1 && actor.cube.updates==1 && actor.skills.getSkillEntry(40008).getCurrentXp()>xp && actor.common.xp>0,"Native CraftingTask -> finishCrafting -> ItemService and real skill list earn owned product/profession XP");
     check(actor.cube.held.get(152000100)==8 && actor.cube.consumed==consumed+1,"Native completion never duplicates ingredient consumption");
+    check(PlayerBotWorldOutcomes.report().contains("crafts=1"),"Actual native craft finalization counts one completed craft, not output quantity");
     // AI admission disables future work; a committed native task keeps its earned completion.
-    reset(actor,service,session,sessions);actor.recipes.getRecipeList().add(recipe.getId());check(admit(actor,tool,recipe),"Second real attempt consumes actual owned components");work=new Work(actor,tool,recipe,0,service);work.begin();PlayerBotConfig.QUESTS_ENABLED=PlayerBotConfig.QUEST_CRAFTING=false;
+    reset(actor,service,session,sessions);actor.recipes.addRecipe(recipe.getId(),0);check(admit(actor,tool,recipe),"Second real attempt consumes actual owned components");work=new Work(actor,tool,recipe,0,service);work.begin();PlayerBotConfig.QUESTS_ENABLED=PlayerBotConfig.QUEST_CRAFTING=false;
     product=actor.cube.held.get(recipe.getProductId());while(work.progress()<1000)work.tick();work.tick();check(!PlayerBotConfig.QUESTS_ENABLED && !PlayerBotConfig.QUEST_CRAFTING && actor.cube.held.get(recipe.getProductId())==product+1,"Disabling actual new quest/crafting AI configuration preserves an already committed native craft completion");
     reset(actor,service,session,sessions);CraftConfig.MAX_CRAFT_FAILURE_CHANCE=100;work=new Work(actor,tool,recipe,0,service);work.begin();product=actor.cube.held.get(recipe.getProductId());xp=actor.skills.getSkillEntry(40008).getCurrentXp();while(work.failure()<1000)work.tick();work.tick();
     check(work.failed==1 && work.success==0 && work.finished==1 && actor.cube.held.get(recipe.getProductId())==product && actor.skills.getSkillEntry(40008).getCurrentXp()==xp,"Actual native analysis failure awards no product or profession XP");
+    check(PlayerBotWorldOutcomes.report().contains("crafts=1"),"Second committed success counts once; failed native crafting adds nothing");
     for(int invalid=0;invalid<10;invalid++) {
      reset(actor,service,session,sessions);work=new Work(actor,tool,recipe,41,service);work.begin();product=actor.cube.held.get(recipe.getProductId());xp=actor.skills.getSkillEntry(40008).getCurrentXp();
      switch(invalid){case 0->actor.dead=true;case 1->actor.spawned=false;case 2->actor.map=2;case 3->actor.instance=2;case 4->set(session,"closing",true);case 5->set(service,"shuttingDown",true);case 6->sessions.clear();case 7->set(session,"bot",unsafe.allocateInstance(Actor.class));case 8->actor.setInteractionTask(new Work(actor,tool,recipe,41,service));default->actor.playing=false;}
@@ -147,10 +160,13 @@ public final class PlayerBotNativeCraftingTaskCheck {
      check(actor.cube.held.get(recipe.getProductId())==product && actor.skills.getSkillEntry(40008).getCurrentXp()==xp && actor.getInteractionTask()==(invalid==8?successor:null),"Invalid task cannot grant products/XP or clear successor custody "+invalid);
     }
     reset(actor,service,session,sessions);var cooking=(RecipeData)JAXBContext.newInstance(RecipeData.class).createUnmarshaller().unmarshal(new StringReader("<recipe_templates>"+nativeEntry("game-server/data/static_data/recipe/recipe_templates.xml","recipe_template",155002239)+"</recipe_templates>"));var cook=cooking.getRecipeTemplateById(155002239);DataManager.RECIPE_DATA=cooking;
-    addTemplate(items,actor,cook.getProductId());addTemplate(items,actor,cook.getComboProduct(1));actor.cube.held.put(cook.getComboProduct(1),0L);actor.skills=new PlayerSkillList(List.of(new PlayerSkillEntry(40001,499,0,Persistable.PersistentState.UPDATED)));actor.recipes.getRecipeList().add(cook.getId());actor.quests.addQuest(19038,new QuestState(19038,QuestStatus.START));actor.quests.getQuestState(19038).setQuestVarById(0,2);
-    var handler=new Cooking();handlers.put(19038,handler);failHooks.put(cook.getComboProduct(1),19038);CraftConfig.MAX_CRAFT_FAILURE_CHANCE=0;work=new Work(actor,tool,cook,0,service);work.begin();product=actor.cube.held.get(cook.getProductId());while(work.progress()<1000)work.tick();work.tick();
+    addTemplate(items,actor,cook.getProductId());addTemplate(items,actor,cook.getComboProduct(1));actor.cube.held.put(cook.getComboProduct(1),0L);actor.skills=new PlayerSkillList(List.of(new PlayerSkillEntry(40001,499,0,Persistable.PersistentState.UPDATED)));actor.recipes.addRecipe(cook.getId(),cook.getMaxProductionCount());actor.quests.addQuest(19038,new QuestState(19038,QuestStatus.START));actor.quests.getQuestState(19038).setQuestVarById(0,2);
+    var handler=new Cooking();handlers.put(19038,handler);failHooks.put(cook.getComboProduct(1),19038);CraftConfig.MAX_CRAFT_FAILURE_CHANCE=0;
+    for(var component:cook.getComponents().getFirst().getComponent())actor.cube.held.put(component.getItemId(),(long)component.getQuantity());
+    if(!admit(actor,tool,cook))throw new AssertionError("Native finite cooking preflight refused fixture ingredients");
+    work=new Work(actor,tool,cook,0,service);work.begin();product=actor.cube.held.get(cook.getProductId());while(work.progress()<1000)work.tick();work.tick();
     check(work.success==1 && actor.cube.held.get(cook.getProductId())==product+1 && actor.cube.held.get(cook.getComboProduct(1))==0,"Actual finite cooking craft produces its native noncritical outcome only");
-    check(handler.failures==1 && handler.updates==1 && actor.quests.getQuestState(19038).getQuestVarById(0)==1 && actor.recipes.deleted==1,"Native finishCrafting dispatches real cooking onFailCraft to native retry stage and removes its finite recipe");
+    check(handler.failures==1 && handler.updates==1 && actor.quests.getQuestState(19038).getQuestVarById(0)==1 && actor.recipes.deleted==1,"Native craft admission consumes its finite recipe and finishCrafting dispatches the real cooking retry stage");
     check(actor.skills.getSkillLevel(40001)==499 && actor.skills.getSkillEntry(40001).getCurrentXp()==0 && actor.quests.getQuestState(19038).getStatus()==QuestStatus.START,"Native qualification cap and cooking retry preserve rank/completion authority");
    }
    check(!service.allowsHeadlessInteraction(actor),"Released character lease denies further native crafting progress");

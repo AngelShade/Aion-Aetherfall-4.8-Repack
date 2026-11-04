@@ -22,11 +22,13 @@ known moved-client `Mods/Backups` paths are rebased only after hash validation.
 Game.dll, cursor recovery, release metadata and shared inventory are not staged.
 The 18px title and lower frame now fit outside the countdown/gauge content.
 
-Drag a roll by its title bar, or select its window in `/moveui`. Countdown
-refreshes and reused roll slots keep a moved panel's position for the current
-client session. Untouched panels retain the compact stack. MoveUI's Save / Lock
-keeps its normal per-character/profile persistence; native dragging stays enabled
-after locking. Moved panels fit inside the viewport after resolution/scale changes.
+Drag any visible roll by its title bar to move the whole group. Each item keeps
+its own Need / Greed / Pass controls and countdown. Rows compact when a roll
+closes; reused slots keep the shared anchor. On short viewports, the group wraps
+into adjacent columns so simultaneous rolls remain separate. MoveUI's existing
+single-window draft pin is respected and moves the peer rows with it. Native
+bidding, five pending roll slots and the server's remaining-item queue are retained.
+
 
 The appearance follows the supplied compact loot-roll reference using Aion's
 own item artwork, quality colours, controls and frame. It does not add the WoW

@@ -71,8 +71,8 @@ final class PlayerBotMailStore {
   }
  }
  static void transfer(Connection c,PlayerBotMail.Request r)throws SQLException {
-  if(c.getAutoCommit() || !r.bot().isPlayerBot() || r.bot().isWorldBot() || r.bot().getPlayerBotOwnerId()!=r.owner().getObjectId()
-   || r.bot().getAccount().getId()!=r.owner().getAccount().getId())throw new SQLException("Mail requires exact private transaction");
+  if(c.getAutoCommit() || !r.bot().isPlayerBot() || !(r.bot()==r.owner() && Set.of("take","delete").contains(r.action())) && (r.bot().isWorldBot() || r.bot().getPlayerBotOwnerId()!=r.owner().getObjectId()
+   || r.bot().getAccount().getId()!=r.owner().getAccount().getId()))throw new SQLException("Mail requires exact private transaction");
   boolean send=r.action().startsWith("send");var item=r.item();var letter=r.letter();
   if(send) {
    if(!Set.of("senditem","sendkinah").contains(r.action()) || letter.getObjectId()<=0 || letter.getRecipientId()!=r.owner().getObjectId()

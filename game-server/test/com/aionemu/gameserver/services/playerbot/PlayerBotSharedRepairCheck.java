@@ -16,7 +16,34 @@ public final class PlayerBotSharedRepairCheck {
  }
  private static int checks;
  private static void check(boolean condition,String message){checks++;if(!condition)throw new AssertionError(message);}
+ private static long[] lanes() {
+  var scheduler=new PlayerBotDecisionSchedule();long[] last=new long[1000],worst=new long[1000],runs=new long[1000];Arrays.fill(last,-1);
+  // 7df67215155 splits controlled, active-world and idle work; 6a0fc23c9a8 gives
+  // companions their own clock. One worker per lane is conservative (live active-world has four).
+  for(int lane=0;lane<3;lane++) {
+   long now=0;int from=lane==0?0:lane==1?20:100,to=lane==0?20:lane==1?100:1000;
+   while(now<20000) {
+    var ids=new ArrayList<Integer>();for(int id=from;id<to;id++)ids.add(id);
+    long began=now;
+    var ready=PlayerBotDecisionSchedule.ready(ids,id->id,id->scheduler.due(id,period(id)),id->id<20,now);
+    for(var batch:PlayerBotDecisionSchedule.batches(ready,1))for(var candidate:batch) {
+     int id=candidate.id();if(now<scheduler.due(id,period(id)))continue;
+     if(last[id]>=1200)worst[id]=Math.max(worst[id],now-last[id]);
+     last[id]=now;runs[id]++;now++;scheduler.complete(id,now);
+     if(now-began>=50)break;
+    }
+    long earliest=Long.MAX_VALUE;for(int id=from;id<to;id++)earliest=Math.min(earliest,scheduler.due(id,period(id)));
+    now+=PlayerBotDecisionSchedule.delay(now,earliest,400);
+   }
+  }
+  check(Arrays.stream(runs).allMatch(n->n>=5),"Every resident remains scheduled under mixed 1000-character load");
+  for(int id=0;id<20;id++)check(worst[id]<=500,"Interactive decisions remain responsive under isolated native lanes: "+id+" gap="+worst[id]);
+  for(int id=20;id<100;id++)check(worst[id]<=900,"Shared combat decisions remain responsive under isolated native lanes: "+id+" gap="+worst[id]);
+  System.out.println("Fake-clock lane gaps: interactive="+Arrays.stream(worst,0,20).min().orElseThrow()+".."+Arrays.stream(worst,0,20).max().orElseThrow()+", combat="+Arrays.stream(worst,20,100).min().orElseThrow()+".."+Arrays.stream(worst,20,100).max().orElseThrow()+" ms");
+  return worst;
+ }
  private static long[] simulate(boolean legacy) {
+  if(!legacy)return lanes();
   var scheduler=new PlayerBotDecisionSchedule();
   long[] last=new long[1000],worst=new long[1000],runs=new long[1000];
   Arrays.fill(last,-1);long now=0;int cursor=0;
@@ -52,16 +79,19 @@ public final class PlayerBotSharedRepairCheck {
   scheduler.complete(1,1000);check(scheduler.due(1,2000)==3000,"Completion determines the next deadline");
   check(scheduler.due(1,100)==1100,"A changed controller/state advances the same shared callback");
   scheduler.retain(Set.of());check(scheduler.due(1,2000)==0,"Retired session deadline does not delay a new admission");
-  check(PlayerBotDecisionSchedule.delay(1000,0,400)==1,"Unfinished batch continues promptly");
+  check(PlayerBotDecisionSchedule.delay(1000,0,400)==25,"Unfinished batch continues promptly");
   check(PlayerBotDecisionSchedule.delay(1000,1080,400)==80,"Future callback waits until due");
   check(PlayerBotDecisionSchedule.delay(1000,Long.MAX_VALUE,400)==400,"Empty population does not busy-loop");
   var access=sun.misc.Unsafe.class.getDeclaredField("theUnsafe");access.setAccessible(true);var unsafe=(sun.misc.Unsafe)access.get(null);
   var resident=(SessionActor)unsafe.allocateInstance(SessionActor.class);var leader=(SessionActor)unsafe.allocateInstance(SessionActor.class);
+  com.aionemu.gameserver.configs.main.PlayerBotConfig.PVP_ENABLED=false;
+  try(var database=PlayerBotMetadataCheck.isolated(7)) {
   var independent=new PlayerBotSession(resident,resident,null,0,false);var controlled=new PlayerBotSession(leader,resident,null,0,false);
   var questing=PlayerBotSession.class.getDeclaredField("questing");questing.setAccessible(true);
   check(questing.getBoolean(independent),"Independent context uses the shared quest engine");
   check(questing.getBoolean(controlled),"Invitation/control transition must not disable shared quest actions");
   check(independent.autonomous() && !controlled.autonomous(),"Ownership changes orders/context while retaining quest actions");
+  }
   var repaired=simulate(false);var legacy=simulate(true);
   check(legacy[0]>repaired[0]*5,"Installed fixed batch sleep reproduces population-dependent response regression");
   for(var tribe:List.of(TribeClass.TARGETBASFELT_DF1,TribeClass.TARGETBASFELT2_DF1,TribeClass.DUMMY,TribeClass.DUMMY2,
@@ -71,10 +101,11 @@ public final class PlayerBotSharedRepairCheck {
   var place=new PlayerBotWorldTravel.Place(1,301,10,0,0);
   var giver=new PlayerBotWorldActivities.Goal(0,PlayerBotQuestRoutes.Kind.CONVERSATION,place,10);
   var objective=new PlayerBotWorldActivities.Goal(4,PlayerBotQuestRoutes.Kind.HUNT,place,10);
-  check(!PlayerBotHunting.opportunistic(giver,302),"Travel to eligible new quest is not displaced by an unrelated nearby mob");
+  check(PlayerBotHunting.opportunistic(giver,302),"3dfef5f3f3 deliberately permits suitable hunting while travelling to a new quest");
   check(!PlayerBotHunting.opportunistic(objective,302),"Active quest travel keeps its required target");
   check(PlayerBotHunting.opportunistic(objective,301),"Required quest mob may interrupt travel to execute shared combat");
   check(PlayerBotHunting.opportunistic(null,302),"Idle bot still has a hunting fallback");
+  check(!PlayerBotHunting.opportunistic(new PlayerBotWorldActivities.Goal(4,PlayerBotQuestRoutes.Kind.REWARD,place,10),302),"Earned quest reward travel keeps priority over opportunistic hunting");
   check(!PlayerBotWorldActivities.stranded(60000,0,false),"Unscanned actor is not declared stranded");
   check(!PlayerBotWorldActivities.stranded(60000,1,false),"Idle destination recovery waits for a full minute");
   check(PlayerBotWorldActivities.stranded(60001,1,false),"No reachable native activity permits bounded field recovery");

@@ -40,6 +40,7 @@ public class PlayerReviveService {
 	}
 
 	public static void skillRevive(Player player) {
+		if(com.aionemu.gameserver.services.playerbot.PlayerBotWardens.completeRescue(player))return;
 		if (!player.getResStatus()) {
 			AuditLogger.log(player, "possibly tried to use a selfres hack (accepted missing res by another player)");
 			return;

@@ -3,7 +3,7 @@ import argparse,copy,hashlib,json,os,re,shutil,subprocess,sys,zipfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 DEV_ROOT=Path(os.environ.get('AION_DEV_ROOT','D:/Proiecte/Project Restructure/Aion Development Workspace')).resolve()
-CLIENT_ROOT=(Path.home() / 'Downloads/aion-4.8-na/Aion 4.8 NA').resolve()
+CLIENT_ROOT=(Path.home() / 'Downloads/Aion Client Development Server 4.8 NA').resolve()
 if DEV_ROOT.is_relative_to(ROOT) or DEV_ROOT.is_relative_to(CLIENT_ROOT):raise ValueError('Aion development artifacts must live outside the source repository and installed client')
 
 def java_tool(name):

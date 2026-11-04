@@ -69,6 +69,17 @@ exact compressed RGB blocks. Only affected `lightings/` DXT3 members change; oth
 compressed archive members remain byte-identical. Install the resulting package
 with the normal installer above while the client is closed.
 
+To repair batches built before those rules, run `repair_upscale.py --client '<client>'
+--previous-package '<package>' ... --output '<fresh external folder>'` with every active
+package (Aion may stay open; it only reads). It takes each entry's native texture from
+the earliest hash-verified backup of its archive and, without an AI run: writes native
+DXT3 alpha back over speckled masks (RGB blocks kept); reduces textures that later
+batches upscaled again (4x/8x) to exactly 2x, with `lightings/` sprites rebuilt from
+native; and rebuilds DXT1 cut-out mips whose coverage faded. Every new mip is decoded
+and checked against the native mask. `--replace '<folder>'` packs hand-made 2x PNGs
+named like the entry path with `__` for `/` (their own alpha is used), for redrawn glow
+sprites. Install the result with the normal installer while the client is closed.
+
 ## Repack baseline
 
 Bundled texture batches are the repack's baseline. Their installed records retain

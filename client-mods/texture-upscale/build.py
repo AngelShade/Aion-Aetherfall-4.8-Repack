@@ -83,11 +83,11 @@ def wrap_pad(image):
     return tiled.crop((w - PAD, h - PAD, 2 * w + PAD, 2 * h + PAD))
 
 
-def finish(original, upscaled4, style='boost'):
-    """Crop the padding, reduce to 2x (plain, or with clarity and a little colour), keep alpha."""
+def finish(original, upscaled4, style='boost', scale=2):
+    """Crop the padding, reduce to scale (plain, or with clarity and a little colour), keep alpha."""
     w, h = original.size
     ai = upscaled4.convert('RGB').crop((PAD * 4, PAD * 4, PAD * 4 + w * 4, PAD * 4 + h * 4))
-    target = (w * 2, h * 2)
+    target = (w * scale, h * scale)
     ai = ai.resize(target, Image.Resampling.LANCZOS)
     base = original.convert('RGB').resize(target, Image.Resampling.LANCZOS)
     if style == 'plain':

@@ -16,6 +16,7 @@ import com.aionemu.gameserver.questEngine.QuestEngine;
 import com.aionemu.gameserver.services.ExchangeService;
 import com.aionemu.gameserver.services.item.ItemPacketService;
 import com.aionemu.gameserver.services.trade.PricesService;
+import com.aionemu.gameserver.services.trade.EconomyPrices;
 import com.aionemu.gameserver.utils.PacketSendUtility;
 import com.aionemu.gameserver.utils.PositionUtil;
 import com.aionemu.gameserver.utils.idfactory.IDFactory;
@@ -53,7 +54,12 @@ public final class PlayerBotWorldTrade {
  static boolean participants(Player a,Player b){Player bot=a.isWorldBot()?a:b,human=a.isWorldBot()?b:a;return ready(human,bot) && !a.isTrading() && !b.isTrading();}
  static long price(long unit,long count,boolean sale){if(unit<=0 || count<=0)throw new IllegalArgumentException("Item has no trade value");
   try{return Math.multiplyExact(sale?Math.multiplyExact(unit,2):unit,count);}catch(ArithmeticException e){throw new IllegalArgumentException("Trade price is too large",e);}}
- private static long value(Item item,long count,boolean sale){return price(PricesService.getSellReward(item.getItemTemplate().getPrice(),PricesService.getVendorSellModifier()),count,sale);}
+ static long quote(long vendor,long resaleFloor,long count,boolean sale) {
+  long unit=sale?Math.max(price(vendor,1,true),resaleFloor):vendor;
+  return price(unit,count,false);
+ }
+ private static long value(Item item,long count,boolean sale){return quote(PricesService.getSellReward(item.getItemTemplate().getPrice(),PricesService.getVendorSellModifier()),
+  sale?EconomyPrices.generatedFloor(item.getItemTemplate()):0,count,sale);}
  private static Player find(Player human,String name){List<Player> bots=new ArrayList<>();human.getKnownList().forEachPlayer(p->{if(p.isWorldBot() && p.getName().equalsIgnoreCase(name))bots.add(p);});
   if(bots.size()!=1 || !ready(human,bots.getFirst()))throw new IllegalArgumentException("Stand within 5m of that world bot, outside combat.");return bots.getFirst();}
  public static void shop(Player human,String name){Player bot=find(human,name);if(PlayerBotRoadDuty.merchant(bot))throw new IllegalArgumentException(MERCHANT_SHOP);var s=PlayerBotService.getInstance().worldSession(bot);if(s==null)throw new IllegalArgumentException("World bot is unavailable.");synchronized(s){if(!PlayerBotService.getInstance().current(s))throw new IllegalArgumentException("World bot control changed; retry.");int count=0;
@@ -84,7 +90,7 @@ public final class PlayerBotWorldTrade {
   if(item==null || count<=0 || count>item.getItemCount() || PlayerBotCare.worldQuestItem(s.bot(),item.getItemId()))return false;
   var t=item.getItemTemplate();Player bot=s.bot();
   if(PlayerBotSupplies.available(bot,t))return count<=10 && bot.getInventory().getItemCountByItemId(item.getItemId())+count<=20;
-  return count==1 && PlayerBotGearPolicy.eligible(bot,t) && PlayerBotGearPolicy.slots(bot,t).stream().anyMatch(slot->
+  return count==1 && PlayerBotGearPolicy.purchasable(bot,t) && PlayerBotGearPolicy.slots(bot,t).stream().anyMatch(slot->
    PlayerBotGearPolicy.gain(bot,t,PlayerBotGearPolicy.score(bot,item,s.combatRole()),slot,s.combatRole())>0);
  }
  static boolean guard(Player p,String operation,int object,long count) {
@@ -151,10 +157,10 @@ public final class PlayerBotWorldTrade {
  /** Native shop counterpart of confirm: the same custody commit without a trade window. True once goods changed hands. */
  static boolean shopSale(Player seller,Player buyer,Exchange goods,long price) {
   try{PlayerBotTradeStore.purchase(seller,buyer,seller,goods,price);}
-  catch(PlayerBotTradeStore.Indeterminate e){quarantine(buyer,seller);release(buyer,seller,e);return false;}
-  catch(Exception e){org.slf4j.LoggerFactory.getLogger(PlayerBotWorldTrade.class).error("Merchant sale refused before custody transfer",e);return false;}
+  catch(PlayerBotTradeStore.Indeterminate e){merchantHeld(seller,buyer,goods);quarantine(buyer,seller);release(buyer,seller,e);return false;}
+  catch(Exception e){PlayerBotRoadMerchants.refuse(seller,buyer,goods.getItems().keySet(),"The purchase could not be saved. Please try again.");org.slf4j.LoggerFactory.getLogger(PlayerBotWorldTrade.class).error("Merchant sale refused before custody transfer",e);return false;}
   List<Item> received;
-  try{received=project(seller,buyer,goods,price);}catch(RuntimeException e){quarantine(buyer,seller);release(buyer,seller,e);return false;}
+  try{received=project(seller,buyer,goods,price);}catch(RuntimeException e){merchantHeld(seller,buyer,goods);quarantine(buyer,seller);release(buyer,seller,e);return false;}
   try {
    PacketSendUtility.sendPacket(buyer,new SM_INVENTORY_ADD_ITEM(received,buyer,ItemPacketService.ItemAddType.PLAYER_EXCHANGE_GET_BACK));
    PacketSendUtility.sendPacket(buyer,new SM_INVENTORY_UPDATE_ITEM(buyer,buyer.getInventory().getKinahItem(),ItemPacketService.ItemUpdateType.INC_PLAYER_EXCHANGE_GET_BACK));
@@ -162,6 +168,7 @@ public final class PlayerBotWorldTrade {
   }catch(RuntimeException e){org.slf4j.LoggerFactory.getLogger(PlayerBotWorldTrade.class).error("Committed merchant sale notification failed",e);}
   return true;
  }
+ private static void merchantHeld(Player seller,Player buyer,Exchange goods){org.slf4j.LoggerFactory.getLogger(PlayerBotWorldTrade.class).warn("Merchant sale held: merchant={} ({}) buyer={} ({}) item={} reason=custody verification required",seller.getName(),seller.getObjectId(),buyer.getName(),buyer.getObjectId(),goods.getItems().keySet());}
  private static void quarantine(Player human,Player bot){InventoryDAO.quarantineMarketInventory(human.getObjectId());InventoryDAO.quarantineMarketInventory(bot.getObjectId());}
  private static void hold(Deal d,Exception e){quarantine(d.human,d.bot);
   FINISHING.set(d.human);try{ExchangeService.getInstance().cancelExchange(d.human);}finally{FINISHING.remove();DEALS.remove(d.bot.getObjectId());}

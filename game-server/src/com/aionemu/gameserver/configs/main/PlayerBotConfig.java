@@ -3,46 +3,14 @@ package com.aionemu.gameserver.configs.main;
 import com.aionemu.commons.configuration.Property;
 
 public final class PlayerBotConfig {
- @Property(key = "gameserver.playerbots.hiring.enable", defaultValue = "true")
- public static boolean HIRING_ENABLED = true;
- @Property(key = "gameserver.playerbots.hiring.minimum_kinah", defaultValue = "1000")
- public static long HIRING_MINIMUM_KINAH = 1000;
- @Property(key = "gameserver.playerbots.hiring.level_kinah", defaultValue = "10")
- public static long HIRING_LEVEL_KINAH = 10;
- @Property(key = "gameserver.playerbots.hiring.rank_percent", defaultValue = "100,110,125,150,200")
- public static String HIRING_RANK_PERCENT = "100,110,125,150,200";
- @Property(key = "gameserver.playerbots.hiring.duration_minutes", defaultValue = "60")
- public static int HIRING_DURATION_MINUTES = 60;
- @Property(key = "gameserver.playerbots.hiring.quote_seconds", defaultValue = "300")
- public static int HIRING_QUOTE_SECONDS = 300;
- @Property(key = "gameserver.playerbots.recycle.enable", defaultValue = "true")
- public static boolean RECYCLING_ENABLED = true;
- @Property(key = "gameserver.playerbots.recycle.learning_base", defaultValue = "25,50,100,250,500")
- public static int[] RECYCLE_LEARNING_BASE = {25,50,100,250,500};
- @Property(key = "gameserver.playerbots.recycle.kinah_base", defaultValue = "1000,2500,5000,10000,20000")
- public static long[] RECYCLE_KINAH_BASE = {1000,2500,5000,10000,20000};
- @Property(key = "gameserver.playerbots.recycle.learning_percent", defaultValue = "25")
- public static int RECYCLE_LEARNING_PERCENT = 25;
- @Property(key = "gameserver.playerbots.recycle.learning_cap", defaultValue = "5000")
- public static int RECYCLE_LEARNING_CAP = 5000;
- @Property(key = "gameserver.playerbots.recycle.item_learning_divisor", defaultValue = "1000")
- public static int RECYCLE_ITEM_LEARNING_DIVISOR = 1000;
- @Property(key = "gameserver.playerbots.recycle.item_learning_cap", defaultValue = "500000")
- public static long RECYCLE_ITEM_LEARNING_CAP = 500000;
- @Property(key = "gameserver.playerbots.recycle.kinah_cap", defaultValue = "1000000")
- public static long RECYCLE_KINAH_CAP = 1000000;
- @Property(key = "gameserver.playerbots.recycle.actual_learning_cap", defaultValue = "20000")
- public static long RECYCLE_ACTUAL_LEARNING_CAP = 20000;
- @Property(key = "gameserver.playerbots.recycle.kinah_per_learning", defaultValue = "2")
- public static long RECYCLE_KINAH_PER_LEARNING = 2;
- @Property(key = "gameserver.playerbots.recycle.quote_seconds", defaultValue = "120")
- public static int RECYCLE_QUOTE_SECONDS = 120;
  @Property(key = "gameserver.playerbots.collection.renown.enable", defaultValue = "true")
  public static boolean COLLECTION_RENOWN_ENABLED = true;
  @Property(key = "gameserver.playerbots.collection.renown.rarity_weights", defaultValue = "10,25,50,100,200")
  public static String COLLECTION_RENOWN_RARITY_WEIGHTS = "10,25,50,100,200";
  @Property(key = "gameserver.playerbots.tickets.enable", defaultValue = "false")
  public static boolean TICKETS_ENABLED = false;
+ @Property(key = "gameserver.playerbots.tickets.starting", defaultValue = "50")
+ public static long TICKET_STARTING = 50;
  @Property(key = "gameserver.playerbots.tickets.challenge_one", defaultValue = "0.60")
  public static double TICKET_CHALLENGE_ONE = 0.60;
  @Property(key = "gameserver.playerbots.tickets.challenge_two", defaultValue = "1.10")
@@ -348,7 +316,7 @@ public final class PlayerBotConfig {
 	public static int MAX_ACTIVE;
 	@Property(key = "gameserver.playerbots.tick_ms", defaultValue = "400")
 	public static int TICK_MS;
-	@Property(key = "gameserver.playerbots.generated.enable", defaultValue = "true")
+	@Property(key = "gameserver.playerbots.generated.enable", defaultValue = "false")
 	public static boolean GENERATED_ENABLED;
 	@Property(key = "gameserver.playerbots.generated.random_looks", defaultValue = "true")
 	public static boolean GENERATED_RANDOM_LOOKS;

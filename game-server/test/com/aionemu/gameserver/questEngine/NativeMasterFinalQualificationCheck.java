@@ -56,14 +56,15 @@ public final class NativeMasterFinalQualificationCheck {
         var existingRecipes=new HashSet<Integer>();
         for(var recipe:DataManager.RECIPE_DATA.getAutolearnRecipes(race,skill,500))existingRecipes.add(recipe.getId());
         // A saved learned-recipe snapshot prevents native autoLearnRecipes from calling its DAO.
-        bot.recipes=new com.aionemu.gameserver.model.gameobjects.player.RecipeList(existingRecipes);
+        bot.recipes=new com.aionemu.gameserver.model.gameobjects.player.RecipeList();
+        existingRecipes.forEach(id->bot.recipes.addRecipe(id,0));
         check(existingRecipes.stream().allMatch(bot.recipes::isRecipePresent),"All actual native auto-learned recipes already belong to this inert actor; no SQL admission");
         check(Objects.equals(NativeSielQuestCheck.offered(handler,bot,end,report.dialogAction()),5)
             &&bot.skills.getSkillLevel(skill)==500&&active.getStatus()==QuestStatus.REWARD,"Original native earned report grants rank500 at its legitimate report moment");
         var learned=bot.skills.getSkillEntry(skill);
         check(Objects.equals(NativeSielQuestCheck.offered(handler,bot,end,DialogAction.SELECT_QUEST_REWARD),5)
             &&bot.skills.getSkillEntry(skill)==learned&&bot.skills.getSkillLevel(skill)==500&&active.getCompleteCount()==0,"Reward reopening neither duplicates rank nor fabricates final completion");
-        check(bot.cube.counts.isEmpty()&&bot.recipes.getRecipeList().equals(existingRecipes),"Native report preserves existing item/recipe custody without offline grants");
+        check(bot.cube.counts.isEmpty()&&bot.recipes.getRecipes().keySet().equals(existingRecipes),"Native report preserves existing item/recipe custody without offline grants");
         check(handler.getPlayerBotActions(bot).getFirst().kind()==QuestBotAction.Kind.REWARD,"Earned native reward remains separately actionable");
         active.setStatus(QuestStatus.COMPLETE);active.setCompleteCount(1);check(handler.getPlayerBotActions(bot).isEmpty(),"Completed native qualification cannot replay");
     }

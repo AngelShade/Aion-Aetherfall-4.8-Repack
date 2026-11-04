@@ -26,7 +26,27 @@ public final class PlayerBotPopulationLifecycleServiceCheck {
  }
  private static PlayerBotWorldRoster.Resident row(int account,int id){return new PlayerBotWorldRoster.Resident(account,id,210030000,1,2,3,(byte)0);}
  @SuppressWarnings("unchecked")
+ private static void wardens(Store store,PlayerBotService manager)throws Exception {
+  boolean road=PlayerBotConfig.ROAD_DUTY,enabled=com.aionemu.gameserver.configs.main.PlayerBotWardenConfig.ENABLED,failed=store.fail;store.fail=false;
+  var saved=new TreeMap<>(store.residents());var snapshot=field("residents").get(manager);
+  try {
+   PlayerBotConfig.ROAD_DUTY=true;com.aionemu.gameserver.configs.main.PlayerBotWardenConfig.ENABLED=true;
+   int id=100000;while(PlayerBotRoadDuty.career(id)!=PlayerBotRoadDuty.Career.WARDEN)id++;
+   var warden=row(-1000000,id);var rows=new TreeMap<Integer,PlayerBotWorldRoster.Resident>();rows.put(id,warden);store.residents(rows);field("residents").set(manager,rows);
+   check(manager.populationLoadCandidates(false,3,0,0).contains(id),"Warden outside human-focus map reaches native field admission");
+   manager.failedWorldAdmission(warden,10000,true);
+   check(store.residents().containsKey(id) && ((Map<?,?>)field("residents").get(manager)).containsKey(id),"Field guard refusal retains native durable and current residence");
+   var retries=(Map<Integer,Long>)field("nextWorldAdmission").get(manager);
+   check(retries.get(id)==40000,"Field guard retries thirty seconds after completion");
+   check(PlayerBotPopulationPolicy.nextLoad(List.of(id),Set.of(),Set.of(),retries,39999)==null,"Field retry respects its deadline");
+   check(PlayerBotPopulationPolicy.nextLoad(List.of(id),Set.of(),Set.of(),retries,40000)==id,"Field retry becomes a candidate on the next due cycle");
+   manager.failedWorldAdmission(warden,20000);
+   check(!store.residents().containsKey(id),"Other Warden load failures retain native slot-release behavior");
+  }finally{store.residents(saved);store.fail=failed;field("residents").set(manager,snapshot);PlayerBotConfig.ROAD_DUTY=road;com.aionemu.gameserver.configs.main.PlayerBotWardenConfig.ENABLED=enabled;}
+ }
+ @SuppressWarnings("unchecked")
  public static void main(String[] args)throws Exception {
+  PlayerBotWardenExpansionCheck.defaults(com.aionemu.gameserver.configs.main.PlayerBotMerchantConfig.class);
   var store=new Store();var original=new TreeMap<Integer,PlayerBotWorldRoster.Resident>();original.put(100,row(-1000000,100));original.put(101,row(-1000001,101));original.put(102,row(-1000000,102));original.put(99,row(7,99));
   var s=(PlayerBotService)service(store,original);
   var retiring=(Set<Integer>)field("retiringWorldBots").get(s);var queue=(Map<Integer,Long>)field("retireQueue").get(s);retiring.add(101);queue.put(102,0L);
@@ -76,6 +96,7 @@ public final class PlayerBotPopulationLifecycleServiceCheck {
    check(manager.populationLoadCandidates(false,3,0,4).isEmpty(),"Hard native world cap still blocks every new entry");
    field("playerFocus").set(manager,new PlayerBotPopulationFocus.Snapshot(List.of(new PlayerBotPopulationFocus.Anchor(210040000,1,2,3)),900));
    check(manager.populationLoadCandidates(false,3,0,0).equals(List.of(99)),"Focus restricts automatic destinations without starving manual ones");
+   wardens(ordinary,manager);
    field("nextServerPopulation").setLong(s,9000);field("nextWorldLoad").setLong(s,8000);field("nextPopulation").setLong(s,7000);s.nativeLoginCompleted();
    check(field("nextServerPopulation").getLong(s)==9000 && field("nextWorldLoad").getLong(s)==0 && field("nextPopulation").getLong(s)==0,"Native login wakes draining/manual work without bypassing manager cadence");
    check(!s.serverPopulationDue(8999),"Successful login cannot admit another early population batch");

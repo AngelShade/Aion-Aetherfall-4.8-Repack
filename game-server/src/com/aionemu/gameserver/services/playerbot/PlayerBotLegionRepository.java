@@ -47,7 +47,7 @@ final class PlayerBotLegionRepository {
    +"FROM legions l JOIN legion_members leader ON leader.legion_id=l.id AND leader.rank='BRIGADE_GENERAL' "
    +"JOIN players h ON h.id=leader.player_id JOIN legion_members m ON m.legion_id=l.id JOIN players p ON p.id=m.player_id "
    +"LEFT JOIN playerbot_roster b ON b.player_id=p.id LEFT JOIN playerbot_removed x ON x.player_id=p.id WHERE h.account_id BETWEEN -1023999 AND -1000000 "
-   +"GROUP BY l.id,l.name,l.level,l.disband_time,h.race ORDER BY l.id";
+   +"AND NOT EXISTS (SELECT 1 FROM playerbot_warden_companies wc WHERE wc.legion_id=l.id) GROUP BY l.id,l.name,l.level,l.disband_time,h.race ORDER BY l.id";
   try(var s=c.prepareStatement(query);var r=s.executeQuery()) {
    while(r.next())guilds.add(new Guild(r.getInt(1),r.getString(2),Race.valueOf(r.getString(5)),r.getInt(3),r.getInt(6),r.getInt(7)>0,r.getInt(4)!=0));
   }
@@ -70,7 +70,7 @@ final class PlayerBotLegionRepository {
   }
   int id=request.target();boolean created=id==0;
   if(created) {
-   try(var s=c.prepareStatement("SELECT COUNT(*) FROM legion_members m JOIN players p ON p.id=m.player_id WHERE m.rank='BRIGADE_GENERAL' AND p.account_id BETWEEN -1023999 AND -1000000");var r=s.executeQuery()) {
+   try(var s=c.prepareStatement("SELECT COUNT(*) FROM legion_members m JOIN players p ON p.id=m.player_id WHERE m.rank='BRIGADE_GENERAL' AND p.account_id BETWEEN -1023999 AND -1000000 AND NOT EXISTS (SELECT 1 FROM playerbot_warden_companies wc WHERE wc.legion_id=m.legion_id)");var r=s.executeQuery()) {
     if(!r.next() || r.getInt(1)>=request.maximumGuilds())return new Assignment(0,false,false);
    }
    if(capacity(1)<1)return new Assignment(0,false,false);
@@ -100,6 +100,70 @@ final class PlayerBotLegionRepository {
   }
   if(created)history(c,id,"CREATE","");history(c,id,"JOIN",request.characterName());
   return new Assignment(id,created,true);
+ }
+ record CompanyRequest(int account,int character,Race race,String characterName,int map,int allocated,String baseName,int maximum,int emblem,byte red,byte green,byte blue) {}
+ static int companyLevel(int count) {
+  for(int level=1;level<=8;level++)if(capacity(level)>=count)return level;throw new IllegalArgumentException("Company exceeds native legion capacity");
+ }
+ static Assignment commitCompany(Connection c,CompanyRequest request)throws SQLException {
+  boolean attempted=false;
+  try{c.setAutoCommit(false);var result=company(c,request);attempted=true;c.commit();return result;}
+  catch(SQLException|RuntimeException error){boolean reusable=false;try{c.rollback();reusable=!attempted;}catch(SQLException rollback){error.addSuppressed(rollback);}throw new TransactionFailure(error,reusable);}
+ }
+ static Assignment company(Connection c,CompanyRequest q)throws SQLException {
+  if(c.getAutoCommit() || !PlayerBotPopulationPolicy.serverAccount(q.account()) || q.maximum()<1 || q.maximum()>capacity(8) || q.map()<=0 || q.allocated()<=0)throw new SQLException("Invalid Warden company request");
+  try(var s=c.prepareStatement("SELECT p.account_id,p.race,b.account_id,b.ready,x.player_id FROM players p JOIN playerbot_roster b ON b.player_id=p.id LEFT JOIN playerbot_removed x ON x.player_id=p.id WHERE p.id=? FOR UPDATE")) {
+   s.setInt(1,q.character());try(var r=s.executeQuery()){if(!r.next() || r.getInt(1)!=q.account() || r.getInt(3)!=q.account() || !r.getBoolean(4) || r.getObject(5)!=null || !q.race().name().equals(r.getString(2)))throw new SQLException("Warden native custody changed");}
+  }
+  int old=membership(c,q.character());
+  if(old>0) {
+   try(var s=c.prepareStatement("SELECT map_id,race FROM playerbot_warden_companies WHERE legion_id=?")){s.setInt(1,old);try(var r=s.executeQuery()){if(r.next() && r.getInt(1)==q.map() && r.getString(2).equals(q.race().name()))return new Assignment(old,false,false);}}
+   // Only generated-only membership can migrate. A human legion is never commandeered.
+   try(var s=c.prepareStatement("SELECT p.account_id,b.account_id,b.ready,x.player_id FROM legion_members m JOIN players p ON p.id=m.player_id LEFT JOIN playerbot_roster b ON b.player_id=p.id LEFT JOIN playerbot_removed x ON x.player_id=p.id WHERE m.legion_id=? FOR UPDATE")) {
+    s.setInt(1,old);try(var r=s.executeQuery()){while(r.next())if(!PlayerBotPopulationPolicy.serverAccount(r.getInt(1)) || r.getInt(1)!=r.getInt(2) || !r.getBoolean(3) || r.getObject(4)!=null)throw new SQLException("Warden belongs to a protected legion");}
+   }
+  }
+  int target=0,number=1,count=0;
+  // One native regional registry row serializes overflow decisions, including an empty first company.
+  try(var s=c.prepareStatement("INSERT IGNORE INTO playerbot_warden_companies (map_id,race,company_no,legion_id) VALUES (?,?,0,NULL)")){s.setInt(1,q.map());s.setString(2,q.race().name());s.executeUpdate();}
+  try(var s=c.prepareStatement("SELECT legion_id FROM playerbot_warden_companies WHERE map_id=? AND race=? AND company_no=0 FOR UPDATE")){s.setInt(1,q.map());s.setString(2,q.race().name());try(var r=s.executeQuery()){if(!r.next())throw new SQLException("Missing company lock");}}
+  try(var s=c.prepareStatement("SELECT wc.company_no,wc.legion_id,COUNT(m.player_id) FROM playerbot_warden_companies wc JOIN legions l ON l.id=wc.legion_id LEFT JOIN legion_members m ON m.legion_id=wc.legion_id WHERE wc.map_id=? AND wc.race=? AND wc.company_no>0 AND l.disband_time=0 GROUP BY wc.company_no,wc.legion_id ORDER BY wc.company_no FOR UPDATE")) {
+   s.setInt(1,q.map());s.setString(2,q.race().name());try(var r=s.executeQuery()){while(r.next()){number=Math.max(number,r.getInt(1)+1);if(target==0 && r.getInt(3)<q.maximum()){target=r.getInt(2);count=r.getInt(3);}}}
+  }
+  boolean created=target==0;
+  if(created) {
+   target=q.allocated();String name=PlayerBotWardenCompanies.name(q.baseName(),number);
+   try(var s=c.prepareStatement("INSERT INTO legions (id,name,level) VALUES (?,?,?)")){s.setInt(1,target);s.setString(2,name);s.setInt(3,companyLevel(1));s.executeUpdate();}
+   try(var s=c.prepareStatement("INSERT INTO playerbot_warden_companies (map_id,race,company_no,legion_id) VALUES (?,?,?,?)")){s.setInt(1,q.map());s.setString(2,q.race().name());s.setInt(3,number);s.setInt(4,target);s.executeUpdate();}
+   try(var s=c.prepareStatement("INSERT INTO legion_emblems (legion_id,emblem_id,color_a,color_r,color_g,color_b,emblem_type,emblem_data) VALUES (?,?,?,?,?,?,'DEFAULT',?)")){s.setInt(1,target);s.setInt(2,q.emblem());s.setByte(3,(byte)255);s.setByte(4,q.red());s.setByte(5,q.green());s.setByte(6,q.blue());s.setBytes(7,new byte[0]);s.executeUpdate();}
+  }
+  if(old>0) {
+   boolean leader=false;
+   try(var s=c.prepareStatement("SELECT `rank` FROM legion_members WHERE player_id=? FOR UPDATE")){s.setInt(1,q.character());try(var r=s.executeQuery()){if(r.next())leader=r.getString(1).equals("BRIGADE_GENERAL");}}
+   try(var s=c.prepareStatement("DELETE FROM legion_members WHERE player_id=? AND legion_id=?")){s.setInt(1,q.character());s.setInt(2,old);if(s.executeUpdate()!=1)throw new SQLException("Warden membership changed");}
+   if(leader)try(var s=c.prepareStatement("UPDATE legion_members SET `rank`='BRIGADE_GENERAL' WHERE legion_id=? ORDER BY player_id LIMIT 1")){s.setInt(1,old);s.executeUpdate();}
+   history(c,old,"KICK",q.characterName());
+  }
+  try(var s=c.prepareStatement("UPDATE legions SET level=? WHERE id=?")){s.setInt(1,companyLevel(count+1));s.setInt(2,target);s.executeUpdate();}
+  try(var s=c.prepareStatement("INSERT INTO legion_members (legion_id,player_id,`rank`) VALUES (?,?,?)")){s.setInt(1,target);s.setInt(2,q.character());s.setString(3,count==0?"BRIGADE_GENERAL":"LEGIONARY");s.executeUpdate();}
+  if(created)history(c,target,"CREATE","");history(c,target,"JOIN",q.characterName());return new Assignment(target,created,true);
+ }
+ static void releaseCompany(Connection c,int account,int actor,String name,int expected)throws SQLException {
+  try {
+   c.setAutoCommit(false);
+   try(var s=c.prepareStatement("SELECT p.account_id,b.account_id,b.ready,x.player_id FROM players p JOIN playerbot_roster b ON b.player_id=p.id LEFT JOIN playerbot_removed x ON x.player_id=p.id WHERE p.id=? FOR UPDATE")) {
+    s.setInt(1,actor);try(var r=s.executeQuery()){if(!r.next() || !PlayerBotPopulationPolicy.serverAccount(account) || r.getInt(1)!=account || r.getInt(2)!=account || !r.getBoolean(3) || r.getObject(4)!=null)throw new SQLException("Reserve native custody changed");}
+   }
+   int old=membership(c,actor);if(old==0){c.commit();return;}if(old!=expected)throw new SQLException("Reserve company changed");
+   try(var s=c.prepareStatement("SELECT legion_id FROM playerbot_warden_companies WHERE legion_id=? AND company_no>0 FOR UPDATE")) {
+    s.setInt(1,old);try(var r=s.executeQuery()){if(!r.next())throw new SQLException("Reserve membership is not a company");}
+   }
+   boolean leader;
+   try(var s=c.prepareStatement("SELECT `rank` FROM legion_members WHERE player_id=? FOR UPDATE")){s.setInt(1,actor);try(var r=s.executeQuery()){leader=r.next() && r.getString(1).equals("BRIGADE_GENERAL");}}
+   try(var s=c.prepareStatement("DELETE FROM legion_members WHERE player_id=? AND legion_id=?")){s.setInt(1,actor);s.setInt(2,old);if(s.executeUpdate()!=1)throw new SQLException("Reserve membership changed");}
+   if(leader)try(var s=c.prepareStatement("UPDATE legion_members SET `rank`='BRIGADE_GENERAL' WHERE legion_id=? ORDER BY player_id LIMIT 1")){s.setInt(1,old);s.executeUpdate();}
+   history(c,old,"KICK",name);c.commit();
+  }catch(SQLException|RuntimeException error){try{c.rollback();}catch(SQLException rollback){error.addSuppressed(rollback);}throw error;}
  }
  private static void history(Connection c,int id,String action,String name)throws SQLException {
   try(var s=c.prepareStatement("INSERT INTO legion_history (legion_id,history_type,name,description) VALUES (?,?,?,'')")) {

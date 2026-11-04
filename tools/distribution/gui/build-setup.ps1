@@ -22,6 +22,7 @@ $arguments = @(
     ('/resource:' + (Join-Path $launcherDir 'LanguageSelector.xaml') + ',Aetherfall.LanguageSelector.xaml'),
     ('/resource:' + (Join-Path $PSScriptRoot '../Update-Repack.ps1') + ',Aetherfall.Update-Repack.ps1'),
     ('/resource:' + (Join-Path $PSScriptRoot '../UpdateTransfer.cs') + ',Aetherfall.UpdateTransfer.cs'),
+    ('/resource:' + (Join-Path $PSScriptRoot 'RepackInstallation.cs') + ',Aetherfall.RepackInstallation.cs'),
     ('/resource:' + (Join-Path $assetsDir 'atreia.png') + ',Aetherfall.atreia.png'),
     ('/resource:' + (Join-Path $assetsDir 'frame.png') + ',Aetherfall.frame.png'),
     ('/resource:' + (Join-Path $assetsDir 'aetherfall-logo.png') + ',Aetherfall.aetherfall-logo.png'),
@@ -38,10 +39,13 @@ $arguments = @(
 )
 $arguments += ('/win32icon:' + ([IO.Path]::GetFullPath($IconPath)))
 $arguments += (Join-Path $PSScriptRoot 'SetupApp.cs')
+$arguments += (Join-Path $PSScriptRoot 'RepackInstallation.cs')
 $arguments += (Join-Path $PSScriptRoot 'ServerControl.cs')
 $arguments += (Join-Path $PSScriptRoot 'OriginalInstallation.cs')
 $arguments += (Join-Path $PSScriptRoot 'HubMods.cs')
 $arguments += (Join-Path $PSScriptRoot 'HubLanguages.cs')
+$arguments += (Join-Path $PSScriptRoot 'HubVerify.cs')
+$arguments += (Join-Path $PSScriptRoot 'RepackVerification.cs')
 $arguments += (Join-Path $launcherDir 'LanguageSelection.cs')
 $arguments += (Join-Path $launcherDir 'LanguageSelector.cs')
 $arguments += (Join-Path $launcherDir 'LanguageDownloads.cs')

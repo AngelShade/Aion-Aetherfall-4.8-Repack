@@ -23,6 +23,8 @@ import com.aionemu.gameserver.model.broker.BrokerRace;
 import com.aionemu.gameserver.model.templates.item.ItemTemplate;
 import com.aionemu.gameserver.model.templates.item.enums.ItemGroup;
 import com.aionemu.gameserver.services.BrokerService;
+import com.aionemu.gameserver.services.ItemEligibility;
+import com.aionemu.gameserver.services.trade.EconomyPrices;
 import com.aionemu.gameserver.services.trade.PricesService;
 import com.aionemu.gameserver.utils.ThreadPoolManager;
 
@@ -112,7 +114,8 @@ public class AuctionHouseSimulator {
 	}
 
 	private boolean eligible(ItemTemplate t, Race race) {
-		if (!t.isTradeable() || t.getPrice() < 0 ||
+		if (!ItemEligibility.isPlayerItem(t) || !t.isTradeable() || t.getPrice() < 0 ||
+			t.getAcquisition()!=null && t.getAcquisition().getRequiredAp()>0 ||
 			((t.isWeapon() || t.isArmor() || t.isStigma()) && t.getLevel() > GSConfig.PLAYER_MAX_LEVEL) ||
 			(t.getRace() != Race.PC_ALL && t.getRace() != race) || t.isKinah())
 			return false;
@@ -208,7 +211,7 @@ public class AuctionHouseSimulator {
 			floor = 100 + level * level * 3.0;
 		double multiplier = Math.max(0.1, BrokerMarketConfig.PRICE_MULTIPLIER);
 		double variance = 0.9 + ThreadLocalRandom.current().nextDouble() * 0.2;
-		return Math.max(1, Math.min(999_999_999L, Math.round(Math.max(floor, vendorPrice) * multiplier * variance)));
+		return Math.max(EconomyPrices.generatedFloor(template), Math.min(999_999_999L, Math.round(Math.max(floor, vendorPrice) * multiplier * variance)));
 	}
 
 	private void scheduleNext(boolean needsCatchup) {

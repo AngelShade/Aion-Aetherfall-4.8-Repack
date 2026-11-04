@@ -11,7 +11,7 @@ public final class PlayerBotRoadLaneCheck {
  public static void main(String[] args) {
   var points=List.of(new PlayerBotNavigation.Point(0,0,5),new PlayerBotNavigation.Point(10,0,5),new PlayerBotNavigation.Point(20,0,5),
    new PlayerBotNavigation.Point(10,0,5),new PlayerBotNavigation.Point(10,0,5));
-  var route=new PlayerBotPatrolRoutes.Route("lane",1,Race.ELYOS,10,1,"lane",points,Map.of());
+  var route=new PlayerBotPatrolRoutes.Route("lane",1,Race.ELYOS,10,1,"lane",points,Map.of(),true);
   var forward=route.beside(1,1,2.5f);
   check(near(forward.x(),10) && near(forward.y(),2.5f) && near(forward.z(),5),"lane sits on the traveller's left");
   var back=route.beside(1,-1,2.5f);

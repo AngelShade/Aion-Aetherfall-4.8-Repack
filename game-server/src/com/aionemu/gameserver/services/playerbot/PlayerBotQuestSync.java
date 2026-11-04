@@ -36,7 +36,15 @@ public final class PlayerBotQuestSync {
   State(PlayerBotSession session) {
    this.session=session;
    account=session.bot().getAccount().getId();character=session.bot().getObjectId();
-   if(session.world()){partySync=false;return;}
+   if(session.world()) {
+    partySync=false;
+    try {
+     var p=PlayerBotMetadata.load(account,character,"care",null);
+     reserve=Math.max(10000,Long.parseLong(p.getProperty("reserve","10000")));dailyBudget=Math.max(0,Long.parseLong(p.getProperty("dailyBudget","50000")));
+     spent=Math.max(0,Long.parseLong(p.getProperty("spent","0")));spentDay=p.getProperty("spentDay","");
+    }catch(IOException error){throw new IllegalStateException("Cannot load world bot spending custody",error);}
+    return;
+   }
    session.bot().getInventory().getItems().forEach(i->protectedItems.add(i.getObjectId()));
    session.bot().getEquipment().getEquippedItems().forEach(i->protectedItems.add(i.getObjectId()));
    for(var q:session.owner().getQuestStateList().getAllQuestState())ownerCompletions.put(q.getQuestId(),q.getCompleteCount());
@@ -61,7 +69,6 @@ public final class PlayerBotQuestSync {
   }
   Path path(){return Path.of("config","playerbots","care-character-"+character+".properties");}
   void save() {
-   if(session.world())return;
    Properties p=new Properties();p.setProperty("account",Integer.toString(account));p.setProperty("character",Integer.toString(character));
    p.setProperty("enchant",Boolean.toString(enchant));p.setProperty("salvage",Boolean.toString(salvage));p.setProperty("reserve",Long.toString(reserve));
    p.setProperty("partySync",Boolean.toString(partySync));

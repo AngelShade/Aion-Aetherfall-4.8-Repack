@@ -20,13 +20,13 @@ public final class PlayerBotPopulationCheck {
  static WorldMapTemplate map(String attributes)throws Exception{
   return (WorldMapTemplate)JAXBContext.newInstance(WorldMapTemplate.class).createUnmarshaller().unmarshal(new StringReader("<map id='210030000' cName='check' world_size='4096' water_level='16' death_level='0' "+attributes+"/>"));
  }
- public static void main(String[]args)throws Exception {
+ public static void main(String[]args)throws Exception {PlayerBotMetadataCheck.defaults();PlayerBotMetadataCheck.dryWorld();
   var s=settings(1,65,10,10,true,false);var random=new Random(91871);var levels=new HashSet<Integer>();int ones=0,max=0;
   for(int i=0;i<10000;i++){int n=PlayerBotPopulationPolicy.level(s,1,random);levels.add(n);if(n==1)ones++;if(n==65)max++;}
   check(levels.size()==65,"Global initialization covers all native levels");check(ones>950 && ones<1450 && max>950 && max<1450,"Upstream min/max probability bands preserved");
   check(PlayerBotPopulationPolicy.level(settings(1,65,0,100,true,false),1,random)==65,"Maximum probability");
   check(PlayerBotPopulationPolicy.level(settings(1,65,100,0,true,false),65,random)==1,"Minimum probability");
-  check(PlayerBotPopulationPolicy.level(settings(1,65,0,100,true,true),10,random)==13,"Player level sync adds three and respects upper limit");
+  check(PlayerBotPopulationPolicy.level(settings(1,65,0,100,true,true),10,random)==10,"Player level sync respects the caller-resolved native ceiling");
   check(PlayerBotPopulationPolicy.level(settings(20,65,0,100,true,true),1,random)==20,"Sync never falls below configured minimum");
   check(PlayerBotPopulationPolicy.level(settings(1,65,0,0,false,false),65,random)==7,"Fixed starting-level mode");
   refused(()->settings(0,65,0,0,true,false));refused(()->settings(20,10,0,0,true,false));refused(()->settings(1,66,0,0,true,false));refused(()->settings(1,65,60,50,true,false));

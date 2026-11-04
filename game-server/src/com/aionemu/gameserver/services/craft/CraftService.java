@@ -77,6 +77,8 @@ public class CraftService {
 		}
 		if (!recipetemplate.isMorph())
 			com.aionemu.gameserver.services.SeasonPassService.record(player, com.aionemu.gameserver.services.SeasonPassRules.Event.CRAFT);
+		if (!recipetemplate.isMorph())
+			com.aionemu.gameserver.services.playerbot.PlayerBotWorldOutcomes.crafted(player);
 	}
 
 	@SuppressWarnings("lossy-conversions")

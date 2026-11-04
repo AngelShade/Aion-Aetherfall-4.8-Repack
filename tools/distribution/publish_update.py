@@ -235,6 +235,8 @@ def scan_and_build_patch(package: Path, baseline_path: Path, dist_dir: Path, tar
 
 
 def publish_prepared(package, baseline_path, dist_dir, target_version, upload):
+    from client_assets import validate_client_assets
+    validate_client_assets(package / 'Client', json.loads((package / 'FILES.json').read_text(encoding='utf-8-sig'))['files'])
     from build_patch import build_patch
     current = json.loads((package / 'release.json').read_text(encoding='utf-8-sig'))['Version']
     if target_version and target_version != current:

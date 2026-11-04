@@ -121,6 +121,7 @@ public final class MarketplaceService {
 
 	private static List<Offer> loadOffers() throws IOException {
 		List<Offer> result = new ArrayList<>();
+		Map<Integer, Long> retail = new java.util.HashMap<>();
 		for (String line : Files.readAllLines(CASH_CATALOG, StandardCharsets.UTF_8)) {
 			if (line.isBlank() || line.startsWith("#"))
 				continue;
@@ -137,9 +138,16 @@ public final class MarketplaceService {
 				|| section == null || section == Section.ALL || unlockLevel < 1 || unlockLevel > GSConfig.PLAYER_MAX_LEVEL
 				|| parts[5].isBlank())
 				throw new IOException("Invalid marketplace item, quantity, or price: " + line);
+			if (!ItemEligibility.isPlayerItem(item) || item.isWeapon() && !ItemEligibility.isAppearanceOnly(item)
+				|| (item.isWeapon() || item.isArmor()) && item.getAcquisition()!=null && item.getAcquisition().getRequiredAp()>0
+				|| section == Section.EQUIPMENT || section == Section.EQUIPMENT_WEAPONS || section == Section.EQUIPMENT_ARMOR)
+				continue;
+			price = Math.max(price, Math.multiplyExact(com.aionemu.gameserver.services.trade.EconomyPrices.retailFloor(item), count));
+			retail.merge(itemId, (price + count - 1) / count, Math::min);
 			Gender gender = item.getUseLimits() == null ? null : item.getUseLimits().getGenderPermitted();
 			result.add(new Offer(itemId, count, price, section, unlockLevel, item.getName(), parts[5], item.getRace(), gender, item.getItemQuality()));
 		}
+		com.aionemu.gameserver.services.trade.EconomyPrices.cashPrices(retail);
 		return List.copyOf(result);
 	}
 
@@ -443,6 +451,7 @@ public final class MarketplaceService {
 			.append("<div class='sidebar-heading'>CATEGORIES</div><nav class='side-nav' aria-label='Marketplace categories'>");
 		Map<Section, Integer> categoryCounts = catalog.categoryCounts();
 		for (Section tab : Section.values()) {
+			if (tab == Section.EQUIPMENT || tab == Section.EQUIPMENT_WEAPONS || tab == Section.EQUIPMENT_ARMOR) continue;
 			if (tab.isChild() && tab.parent() != section && tab.parent() != section.parent()
 				&& (section.parent() == null || tab.parent() != section.parent().parent())) continue;
 			body.append("<a class='side-link").append(tab == section && view.equals("catalog") ? " active" : "")

@@ -484,6 +484,11 @@ public final class SeasonPassService {
 	public static Map<String,Object> snapshot(Player p) throws Exception {
 		return snapshot(p,false);
 	}
+	/** Today's price of the tier above this one, or 0 when the season has closed or nothing is left to buy. */
+	public static long companionNextCost(int tier) {
+		if(!ready || tier<0 || tier>=2 || !season.active(Instant.now()))return 0;
+		return upgrade(season,tier,tier+1,0,true,Instant.now()).cost();
+	}
 	public static Map<String,Object> companionSnapshot(Player p)throws Exception {
 		if(!PlayerBotPass.activeSubject(p))throw new IllegalArgumentException("Choose an active generated companion.");
 		return snapshot(p,true);

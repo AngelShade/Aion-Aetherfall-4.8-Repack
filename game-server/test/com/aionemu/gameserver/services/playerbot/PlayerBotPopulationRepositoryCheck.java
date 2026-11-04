@@ -3,7 +3,7 @@ package com.aionemu.gameserver.services.playerbot;
 import java.sql.*;
 import java.nio.file.*;
 import java.util.*;
-import com.alibaba.fastjson2.JSON;
+import com.aionemu.commons.utils.Json;
 import com.aionemu.gameserver.model.*;
 
 /** Production repository/transaction/import paths with recording JDBC, no actual DB/World/IDs. */
@@ -98,14 +98,14 @@ public final class PlayerBotPopulationRepositoryCheck {
   var dir=Files.createTempDirectory(Path.of("."),"population-import-");
   try {
    Files.writeString(dir.resolve("world-bots.properties"),"91=-1000000,210030000,12.25,23.5,34.75,-3,1\n");
-   Files.writeString(dir.resolve("world-server-population.json"),JSON.toJSONString(snapshot().server().values()));
-   Files.writeString(dir.resolve("world-population.json"),JSON.toJSONString(snapshot().manual().values()));
-   Files.writeString(dir.resolve("world-population-events.json"),JSON.toJSONString(snapshot().schedule()));
+   Files.writeString(dir.resolve("world-server-population.json"),Json.write(snapshot().server().values()));
+   Files.writeString(dir.resolve("world-population.json"),Json.write(snapshot().manual().values()));
+   Files.writeString(dir.resolve("world-population-events.json"),Json.write(snapshot().schedule()));
    check(PlayerBotPopulationRepository.same(snapshot(),PlayerBotPopulationLegacy.snapshot(dir)),"Actual four-file legacy import preserves exact native state");
    String original=Files.readString(dir.resolve("world-bots.properties"));Files.writeString(dir.resolve("world-bots.properties"),original+original);refused(()->PlayerBotPopulationLegacy.snapshot(dir),"Duplicate residence cannot be silently discarded");
    Files.writeString(dir.resolve("world-bots.properties"),original.replace(",1\n",",2\n"));refused(()->PlayerBotPopulationLegacy.snapshot(dir),"Future roster version retained for review");
    Files.writeString(dir.resolve("world-bots.properties"),original);Files.writeString(dir.resolve("world-server-population.json"),"null");refused(()->PlayerBotPopulationLegacy.snapshot(dir),"Null legacy document never becomes empty pool");
-   Files.writeString(dir.resolve("world-server-population.json"),JSON.toJSONString(List.of(pool(-1000000,List.of(91)),pool(-1000001,List.of(91)))));refused(()->PlayerBotPopulationLegacy.snapshot(dir),"Duplicate identity across faction pools refused");
+   Files.writeString(dir.resolve("world-server-population.json"),Json.write(List.of(pool(-1000000,List.of(91)),pool(-1000001,List.of(91)))));refused(()->PlayerBotPopulationLegacy.snapshot(dir),"Duplicate identity across faction pools refused");
   }finally{try(var paths=Files.walk(dir)){for(var path:paths.sorted(Comparator.reverseOrder()).toList())Files.delete(path);}}
   System.out.println("OK: "+checks+" population SQL/cache/ownership/transaction/migration checks; recording JDBC only; no world/DB/native IDs");
  }

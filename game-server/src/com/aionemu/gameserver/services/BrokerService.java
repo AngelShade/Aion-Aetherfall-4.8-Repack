@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 
 import com.aionemu.gameserver.configs.main.LoggingConfig;
 import com.aionemu.gameserver.dao.BrokerDAO;
+import com.aionemu.gameserver.dataholders.DataManager;
 import com.aionemu.gameserver.dao.InventoryDAO;
 import com.aionemu.gameserver.dao.ItemStoneListDAO;
 import com.aionemu.gameserver.model.Race;
@@ -74,6 +75,13 @@ public class BrokerService {
 		List<BrokerItem> brokerItems = BrokerDAO.loadBroker();
 
 		for (BrokerItem item : brokerItems) {
+			if (!item.isSettled() && !item.isSold() && AuctionHouseSimulator.isSimulatedSeller(item.getSellerId())) {
+				var template = DataManager.ITEM_DATA.getItemTemplate(item.getItemId());
+				// Old generated offers must obey the same rules as newly seeded stock. Human listings
+				// and their custody/proceeds are retained; obsolete reserved-seller rows are not published.
+				if (!ItemEligibility.isPlayerItem(template) || template.getAcquisition()!=null && template.getAcquisition().getRequiredAp()>0
+					|| item.getPrice()<com.aionemu.gameserver.services.trade.EconomyPrices.generatedFloor(template)) continue;
+			}
 			if (item.getItemBrokerRace() == BrokerRace.ASMODIAN) {
 				if (item.isSettled()) {
 					asmodianSettledItems.put(item.getItemUniqueId(), item);

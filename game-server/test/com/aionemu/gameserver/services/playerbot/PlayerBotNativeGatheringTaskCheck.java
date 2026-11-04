@@ -114,6 +114,7 @@ public final class PlayerBotNativeGatheringTaskCheck {
    set(instance,"instanceHandler",handler);actor.position=new Position(instance);
    var service=allocate(PlayerBotService.class);Map<Integer,PlayerBotSession> sessions=new ConcurrentHashMap<>();set(service,"sessions",sessions);
    var session=allocate(PlayerBotSession.class);set(session,"bot",actor);sessions.put(actor.getObjectId(),session);
+   set(actor,"worldBot",true);PlayerBotWorldOutcomes.report();
    try(var lease=PlayerBotLease.acquire(actor.getObjectId())) {
     check(lease!=null && !actor.isOnline() && service.allowsHeadlessInteraction(actor),"Actual registration/lease permits inert headless native gathering");
     for(int difference:new int[]{41,0}) {
@@ -122,7 +123,9 @@ public final class PlayerBotNativeGatheringTaskCheck {
      check(work.isInProgress() && actor.getInteractionTask()==work,"Native gathering task owns current scheduled interaction");
      work.tick();check(work.progress()==1000 && work.updates==1 && work.success==0 && work.finished==0,"First exact scheduled native tick calculates gathering success, without premature awarding");
      check(actor.inventory.consumed==consumed && actor.inventory.added==added,"Gather analysis preserves prerequisite/output custody");
+     check(PlayerBotWorldOutcomes.report().contains("gathers=0"),"Native gathering analysis does not count as a completed gather");
      work.tick();check(work.success==1 && work.finished==1 && work.aborted==0 && !work.isInProgress() && actor.getInteractionTask()==null,"Second exact scheduled tick owns native success/finalization");
+     check(PlayerBotWorldOutcomes.report().contains("gathers=1"),"Actual native gather finalization counts once after reward delivery");
      check(actor.inventory.consumed==consumed+1 && actor.inventory.added==added+1,"Only native gathering success consumes/updates actual recorded holdings");
      check(node.controller.rewards==rewards+1 && node.controller.finishes==finished+1 && gathers[0]==instances+1,"Native success reaches reward/instance/complete endpoints exactly once");
      check(work.schedule.cancels==1 && node.controller.getGatheringPlayerId()==0 && ((List<?>)get(actor.observers,"observers")).isEmpty(),"Native finish releases node custody, cancels scheduled handle and removes gather observer");
@@ -148,6 +151,7 @@ public final class PlayerBotNativeGatheringTaskCheck {
     actor.observers.notifyMoveObservers();check(work.aborted==1 && work.finished==1 && !work.isInProgress(),"Actual native gather move observer aborts scheduled task");
     check(actor.inventory.held==held && actor.inventory.added==added,"Movement abort retains actual owned gathering prerequisites");
    }
+   check(PlayerBotWorldOutcomes.report().contains("gathers=0"),"Failed, stale and move-aborted gathering tasks never enter live counters");
    check(!service.allowsHeadlessInteraction(actor),"Released lease prevents further native gathering admission");
    System.out.println("OK: "+checks+" actual native GatheringTask progression/custody/presence/abort checks; no scheduler/World/SQL/IDFactory");
   }finally {DataManager.ITEM_DATA=originalItems;RatesConfig.GATHERING_COUNT_RATES=originalRates;CraftConfig.MAX_GATHER_FAILURE_CHANCE=originalFailure;LoggingConfig.LOG_ITEM=originalLog;}

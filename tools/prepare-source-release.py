@@ -59,7 +59,7 @@ def main():
     with zipfile.ZipFile(build / 'game-server/game-server.zip') as assembly:
         managed = {n.removeprefix('game-server/'): n for n in assembly.namelist()
             if not n.endswith('/') and (n.startswith('game-server/data/') and not n.startswith('game-server/data/geo/')
-                or n.removeprefix('game-server/') in delivery.OWNER_CONFIGURATIONS)}
+                or n.removeprefix('game-server/') in delivery.OWNER_CONFIGURATIONS or n.removeprefix('game-server/') == delivery.WARDEN_BEATS)}
         assert delivery.OWNER_CONFIGURATIONS <= set(managed), 'Normal assembly omitted documented Playerbots owner configuration'
         extras = [f.relative_to(server).as_posix() for folder in ['data/handlers', 'data/static_data', 'data/scripts']
             for f in (server / folder).rglob('*') if f.is_file() and f.suffix in {'.java', '.xml', '.xsd'} and f.relative_to(server).as_posix() not in managed]

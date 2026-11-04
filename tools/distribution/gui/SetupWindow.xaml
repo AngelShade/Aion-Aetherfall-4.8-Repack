@@ -80,7 +80,6 @@
    <StackPanel Orientation="Horizontal" Margin="14,0,0,0"><Ellipse x:Name="GsDot" Width="7" Height="7" Fill="#7E8B9B" Margin="0,0,8,0"/><TextBlock x:Name="GsBadge" Text="Servers stopped" FontSize="11" Foreground="#B8C4D4"/></StackPanel>
    <StackPanel x:Name="GameDotRow" Orientation="Horizontal" Margin="14,6,0,0" Visibility="Collapsed"><Ellipse x:Name="GameDot" Width="7" Height="7" Fill="#7E8B9B" Margin="0,0,8,0"/><TextBlock x:Name="GameBadge" Text="GameServer stopped" FontSize="11" Foreground="#B8C4D4"/></StackPanel>
    <StackPanel x:Name="ChatDotRow" Orientation="Horizontal" Margin="14,6,0,0" Visibility="Collapsed"><Ellipse x:Name="ChatDot" Width="7" Height="7" Fill="#7E8B9B" Margin="0,0,8,0"/><TextBlock x:Name="ChatBadge" Text="ChatServer stopped" FontSize="11" Foreground="#B8C4D4"/></StackPanel>
-   <Button x:Name="OpenInstallFolder" Content="Open repack folder  ↗" Background="Transparent" BorderBrush="Transparent" FontSize="11" Foreground="#C5D2EC" Margin="0,14,0,0" Padding="8"/>
   </StackPanel>
 
   <Grid Margin="286,204,73,205">
@@ -92,18 +91,22 @@
       <TextBlock x:Name="HeroHeadline" Text="One Click. Ready to Play." FontFamily="Palatino Linotype" FontSize="31" Margin="0,5,0,10"/>
       <TextBlock x:Name="HeroDescription" Text="Download the full 0.86 portable repack via BitTorrent or direct archive, verify every file automatically, and apply future updates in seconds without touching your characters or database." FontSize="13" LineHeight="20" Foreground="#D4DCE8" TextWrapping="Wrap"/>
      </StackPanel>
-     <StackPanel Grid.Row="1" VerticalAlignment="Center" Margin="0,12,0,0">
-      <Border Background="#99141B34" BorderBrush="#448E836B" BorderThickness="1" CornerRadius="4" Padding="16,12" Margin="0,0,0,12">
+     <StackPanel Grid.Row="1" VerticalAlignment="Center" Margin="0,6,0,0">
+      <Border Background="#99141B34" BorderBrush="#448E836B" BorderThickness="1" CornerRadius="4" Padding="16,8" Margin="0,0,0,8">
        <Grid>
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <StackPanel>
          <TextBlock Text="INSTALL LOCATION" Foreground="#E8CB91" FontSize="10"/>
          <TextBlock x:Name="InstallPathLabel" Text="C:\Games\Aetherfall-0.86" FontSize="13" Foreground="#EEF4F5" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/>
         </StackPanel>
-        <Button x:Name="BrowseInstall" Grid.Column="1" Content="Change Folder…" Padding="14,7" FontSize="12" Margin="12,0,0,0"/>
+        <StackPanel Grid.Column="1" Orientation="Horizontal">
+         <Button x:Name="OpenInstallFolder" Content="Open Folder  ↗" Padding="10,7" FontSize="12" Margin="12,0,0,0" ToolTip="Open the repack folder"/>
+         <Button x:Name="UseExistingInstall" Content="Use Existing Repack…" Padding="10,7" FontSize="12" Margin="8,0,0,0"/>
+         <Button x:Name="BrowseInstall" Content="Change Folder…" Padding="10,7" FontSize="12" Margin="8,0,0,0"/>
+        </StackPanel>
        </Grid>
       </Border>
-      <Border Background="#99141B34" BorderBrush="#448E836B" BorderThickness="1" CornerRadius="4" Padding="16,12">
+      <Border Background="#99141B34" BorderBrush="#448E836B" BorderThickness="1" CornerRadius="4" Padding="16,8">
        <Grid>
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <StackPanel>
@@ -115,9 +118,11 @@
        </Grid>
       </Border>
      </StackPanel>
-     <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0">
+     <Grid Grid.Row="2" Margin="0,6,0,0">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
       <CheckBox x:Name="DeleteArchiveAfter" Content="Delete temporary .7z archive after extraction to free 36 GB" Foreground="#D4DCE8" FontSize="12" VerticalAlignment="Center"/>
-     </StackPanel>
+      <Button x:Name="VerifyFilesBtn" Grid.Column="1" Content="✓  Verify Files" Padding="15,5" FontSize="12" Margin="0,0,17,0" MinWidth="129" ToolTip="Check your game files and repair any that are damaged or missing"/>
+     </Grid>
     </Grid>
    </Border>
 

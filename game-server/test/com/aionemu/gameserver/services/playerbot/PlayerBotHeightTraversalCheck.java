@@ -87,7 +87,7 @@ public final class PlayerBotHeightTraversalCheck {
   check(p.at(0).distance(new Vector3f(-.5f,0,0))<.001 && p.at(p.seconds()).distance(new Vector3f(3,0,-4))<.001,"arc endpoints match native ray support");
   check(p.at(p.seconds()/4).z>0,"launch clears edge before descending");
   check(Math.hypot(p.endX()-p.x(),p.endY()-p.y())/p.seconds()<=6,"horizontal speed remains native bounded");
-  check(p.fallDistance()>4 && p.fallDistance()<5,"fall damage includes actual launch apex");
+  check(p.fallDistance()>4 && Math.abs(p.fallDistance()-(4+p.launch()*p.launch()/(2*PlayerBotHeightTraversal.GRAVITY)))<.001,"fall damage includes actual launch apex");
   Vector3f previous=p.at(0);
   for(int i=1;i<=16;i++){var next=p.at(p.seconds()*i/16);check(PlayerBotHeightTraversal.segment(drop,1,previous,next),"each airborne step rechecks body/feet");previous=next;}
   check(PlayerBotHeightTraversal.landing(drop,1,p),"body footprint has supported landing");
@@ -110,7 +110,9 @@ public final class PlayerBotHeightTraversalCheck {
   check(PlayerBotHeightTraversal.plan(level(-20),1,-.5f,0,0,3,0,-20,6,Long.MAX_VALUE,15)==null,"native shorter fall bound remains authoritative");
   check(PlayerBotHeightTraversal.plan(level(-20),1,-.5f,0,0,3,0,-20,6,Long.MAX_VALUE,0)==null,"uninitialized native fall bounds reject planned descent");
   check(PlayerBotHeightTraversal.plan(level(-20),1,-.5f,0,0,3,0,-20,6,Long.MAX_VALUE,Float.NaN)==null,"nonfinite native fall envelope rejected");
-  check(PlayerBotHeightTraversal.plan(level(-49.8f),1,-.5f,0,0,3,0,-49.8f,6,Long.MAX_VALUE,50)==null,"launch apex cannot exceed native lethal or midair threshold");
+  var nearLimit=PlayerBotHeightTraversal.plan(level(-49.8f),1,-.5f,0,0,3,0,-49.8f,6,Long.MAX_VALUE,50);
+  check(nearLimit!=null && nearLimit.launch()==0 && nearLimit.fallDistance()<50,"Only the deliberate supported zero-launch variant fits below the explicit fall envelope");
+  check(PlayerBotHeightTraversal.plan(level(-50.01f),1,-.5f,0,0,3,0,-50,6,Long.MAX_VALUE,50)==null,"Every launch variant is strictly rejected at the explicit lethal fall limit");
   check(PlayerBotHeightTraversal.plan(level(-40),1,-.5f,0,0,3,0,-40,6,0,50)==null,"larger fall bounds do not bypass shared search deadline");
   var blockedDrop=level(-40);add(blockedDrop,wall(1,8));
   check(PlayerBotHeightTraversal.plan(blockedDrop,1,-.5f,0,0,3,0,-40,6,Long.MAX_VALUE,50)==null,"larger fall envelope cannot cross a wall");

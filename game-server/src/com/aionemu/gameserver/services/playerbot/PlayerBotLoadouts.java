@@ -35,7 +35,7 @@ final class PlayerBotLoadouts {
   return TARGETS.computeIfAbsent(key,k->compute(bot,k));
  }
  private static boolean listed(ItemTemplate t,Key k,int top) {
-  if(t.getName()==null || t.getName().isBlank() || t.isTestItem() || PlayerBotCombatGear.skinOnly(t) || !(t.isWeapon() || t.isArmor()) || t.getItemSlot()==0 || ItemSlot.isStigma(t.getItemSlot()) || !t.isClassSpecific(k.pc))return false;
+  if(!PlayerBotCombatGear.usable(t) || com.aionemu.gameserver.services.ItemEligibility.isAppearanceOnly(t) || !(t.isWeapon() || t.isArmor()) || t.getItemSlot()==0 || ItemSlot.isStigma(t.getItemSlot()) || !t.isClassSpecific(k.pc))return false;
   int required=t.getRequiredLevel(k.pc),max=t.getMaxLevelRestrict(k.pc);var limits=t.getUseLimits();
   return required>=0 && required<=top && t.getLevel()<=top && (max==0 || max>=k.stage) && (t.getRace()==Race.PC_ALL || t.getRace()==k.race) && (limits.getGenderPermitted()==null || limits.getGenderPermitted()==k.gender)
    && t.getExpireTime()==0 && !t.hasWorldRestrictions() && limits.getMinRank()==1 && limits.getGuildLevelPermitted()==0 && t.getItemGroup()!=ItemGroup.WING && t.getItemGroup()!=ItemGroup.PLUME
@@ -93,22 +93,51 @@ final class PlayerBotLoadouts {
   }
   return rows;
  }
+ private static final java.util.concurrent.atomic.AtomicLong WORLD_RUNS=new java.util.concurrent.atomic.AtomicLong(),WORLD_NANOS=new java.util.concurrent.atomic.AtomicLong(),WORLD_MAX=new java.util.concurrent.atomic.AtomicLong();
+ /** World bots share one measured path, so the population's cost can be read from worldstats. */
+ private static long worldWindow;
+ private static int worldBudget;
+ private static synchronized boolean admitWorld(long now) {
+  if(now-worldWindow>=1000){worldWindow=now;worldBudget=0;}
+  return worldBudget++<Math.clamp(com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.WORLD_GOALS_PER_SECOND,1,20);
+ }
+ static void refreshWorld(PlayerBotSession session) {
+  long now=System.currentTimeMillis();
+  if(session.closing() || now<PlayerBotGearPolicy.state(session).nextGoals
+   || !com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.ECONOMY_ENABLED
+   || !com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.WORLD_GOALS_ENABLED || !admitWorld(now))return;
+  long begin=System.nanoTime();
+  try{refreshGoals(session);}
+  finally{long spent=System.nanoTime()-begin;WORLD_RUNS.incrementAndGet();WORLD_NANOS.addAndGet(spent);WORLD_MAX.accumulateAndGet(spent,Math::max);}
+ }
+ static String worldStats() {
+  long runs=WORLD_RUNS.get();
+  return "goal work runs="+runs+", average="+(runs==0?0:WORLD_NANOS.get()/runs/1000)+"us, slowest="+WORLD_MAX.get()/1000+"us, total="+WORLD_NANOS.get()/1000000+"ms";
+ }
  /** Keeps the recorded goals in step with the stage. A goal survives dismissal because it commits with the bot's checkpoint. */
  static void refresh(PlayerBotSession session) {
+  // Temporary maintenance and the session tick both reach here. All autonomous
+  // callers must share the measured/rate-limited owner before advancing nextGoals.
+  if(session.autonomous()){refreshWorld(session);return;}
+  refreshGoals(session);
+ }
+ private static void refreshGoals(PlayerBotSession session) {
   var s=PlayerBotGearPolicy.state(session);long now=System.currentTimeMillis();if(session.closing() || now<s.nextGoals)return;
   Player bot=session.bot();var build=PlayerBotGearPolicy.stigmaBuild(bot);var next=new TreeMap<String,String>();String owner="";
-  if(build!=null) {
+  // World bots have no chosen build, but they still want the best gear of their stage. There are hundreds, so they look less often.
+  boolean world=session.autonomous() && com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.ECONOMY_ENABLED && com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.WORLD_GOALS_ENABLED;
+  if(build!=null || world) {
    if(!LootCodexService.warm()){s.nextGoals=now+5000;return;}
-   owner=build.key()+"."+PlayerBotStigmaBuilds.stage(bot.getLevel());
+   owner=(build!=null?build.key():"world")+"."+PlayerBotStigmaBuilds.stage(bot.getLevel());
    for(var row:plan(session,s,targets(bot,PlayerBotGearPolicy.role(bot,session.combatRole()))))if(row.goal()!=null) {
     var source=row.goal().sources().getFirst();next.put(row.slot().name(),row.goal().item().getTemplateId()+":"+source.kind()+":"+source.id());
    }
   }
-  s.nextGoals=now+60000;
+  s.nextGoals=now+(world?Math.max(60,com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.WORLD_GOALS_INTERVAL_SECONDS)*1000L:60000);
   if(next.equals(new TreeMap<>(s.goals)) && owner.equals(s.goalsFor))return;
   boolean added=!s.goals.keySet().containsAll(next.keySet());
   s.goals.clear();s.goals.putAll(next);s.goalsFor=owner;s.saveLoadouts();
-  if(added)PlayerBotQuestSync.notice(bot,"My "+build.name()+" equipment for levels "+PlayerBotStigmaBuilds.stage(bot.getLevel())+"–"+PlayerBotStigmaBuilds.stageEnd(PlayerBotStigmaBuilds.stage(bot.getLevel()))+" has "+next.size()+" open goals. I am wearing my best legal gear meanwhile.","gear-goal",300000);
+  if(added && build!=null)PlayerBotQuestSync.notice(bot,"My "+build.name()+" equipment for levels "+PlayerBotStigmaBuilds.stage(bot.getLevel())+"–"+PlayerBotStigmaBuilds.stageEnd(PlayerBotStigmaBuilds.stage(bot.getLevel()))+" has "+next.size()+" open goals. I am wearing my best legal gear meanwhile.","gear-goal",300000);
  }
  private static String label(ItemSlot slot) {
   return switch(slot){case MAIN_HAND->"Main hand";case SUB_HAND->"Off hand";case TORSO->"Chest";case SHOULDER->"Shoulders";case GLOVES->"Gloves";case PANTS->"Legs";case BOOTS->"Boots";case HELMET->"Head";

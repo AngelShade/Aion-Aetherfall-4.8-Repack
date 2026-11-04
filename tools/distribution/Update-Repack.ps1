@@ -2,13 +2,19 @@ param(
     [string]$ClientPath,
     [string]$PackagePath,
     [string]$PatchFile,
-    [string]$UpdateUrl
+    [string]$UpdateUrl,
+    [string]$RepairList
 )
 $ErrorActionPreference = 'Stop'
 trap { Write-Output ('UPDATE ERROR: ' + $_.Exception.Message); exit 1 }
 
 if (-not ('AetherfallUpdate.UpdateTransfer' -as [type])) {
     Add-Type -Path (Join-Path $PSScriptRoot 'UpdateTransfer.cs') -ReferencedAssemblies 'System.dll','System.Web.Extensions.dll'
+}
+if (-not ('AetherfallSetup.RepackInstallation' -as [type])) {
+    $layoutSource = Join-Path $PSScriptRoot 'RepackInstallation.cs'
+    if (-not (Test-Path -LiteralPath $layoutSource)) { $layoutSource = Join-Path $PSScriptRoot 'gui/RepackInstallation.cs' }
+    Add-Type -Path $layoutSource
 }
 
 function Write-UpdateProgress([string]$Phase, [string]$Unit, [Int64]$Done, [Int64]$Total, [int]$Item, [int]$Items, [string]$Current, [bool]$Force = $false) {
@@ -274,6 +280,9 @@ if ($PackagePath) {
 if (-not (Test-Path -LiteralPath (Join-Path $package 'REPACK.json'))) {
     throw ('Could not find an installed Aetherfall repack at: ' + $package)
 }
+$installationProblem = [AetherfallSetup.RepackInstallation]::Problem($package)
+if ($installationProblem) { throw $installationProblem }
+if (Test-Path -LiteralPath (Join-Path $package '.aetherfall-extracting')) { throw 'The full base extraction has not finished. Open Setup and click RESUME first.' }
 
 $releasePath = Join-Path $package 'release.json'
 $currentRelease = Read-Json $releasePath
@@ -321,7 +330,10 @@ if (-not $PatchFile) {
     if (-not $remoteManifest -or $remoteManifest.schema -ne 1 -or -not $remoteManifest.version) {
         throw 'Invalid remote update manifest.'
     }
-    if ([Version]([string]$remoteManifest.version) -le [Version]$currentVersion) {
+    if ($RepairList) {
+        # Repairs restore the installed release from its own patch, never a different one.
+        if ([Version]([string]$remoteManifest.version) -ne [Version]$currentVersion) { throw 'Update the repack first, then run Verify Files again.' }
+    } elseif ([Version]([string]$remoteManifest.version) -le [Version]$currentVersion) {
         Write-Output ('Aion Aetherfall ' + $currentVersion + ' is already up to date.')
         exit 0
     }
@@ -373,7 +385,13 @@ try {
     if ([Version]$targetVersion -lt [Version]$currentVersion) {
         throw ('Refusing to downgrade Aion Aetherfall from ' + $currentVersion + ' to ' + $targetVersion + '.')
     }
-    if ($targetVersion -eq $currentVersion) {
+    if ($RepairList) {
+        if ($targetVersion -ne $currentVersion) { throw 'Update the repack first, then run Verify Files again.' }
+        $repair = @{}
+        foreach ($line in [IO.File]::ReadAllLines($RepairList)) { $repair[$line.ToLowerInvariant()] = $true }
+        $patch.files = @($patch.files | Where-Object { $repair.ContainsKey(([string]$_.path).ToLowerInvariant()) })
+        $patch.removed = @()
+    } elseif ($targetVersion -eq $currentVersion) {
         Write-Output ('Aion Aetherfall ' + $currentVersion + ' is already installed.')
         exit 0
     }
@@ -491,7 +509,8 @@ try {
     }
 
     if ($kept.Count -gt 0) { Write-Output ('Kept your settings: ' + ($kept -join ', ')) }
-    Write-Output ('Updated Aion Aetherfall from ' + $currentVersion + ' to ' + $targetVersion + ' (' + $written.Count + ' files updated, ' + $kept.Count + ' settings kept).')
+    if ($RepairList) { Write-Output ('Repaired ' + $written.Count + ' files.') }
+    else { Write-Output ('Updated Aion Aetherfall from ' + $currentVersion + ' to ' + $targetVersion + ' (' + $written.Count + ' files updated, ' + $kept.Count + ' settings kept).') }
 } finally {
     if (Test-Path -LiteralPath $stageDir) {
         Remove-Item -LiteralPath $stageDir -Recurse -Force -ErrorAction SilentlyContinue

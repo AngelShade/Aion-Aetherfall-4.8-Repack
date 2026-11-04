@@ -55,7 +55,7 @@ public final class PlayerBotGladiatorCheck {
   plan.defaults("native melee",new Action(){public String name(){return "melee";}public boolean isUseful(){return true;}public boolean isPossible(){return true;}public boolean execute(){return true;}},5,State.COMBAT);
   check(plan.tick(engine,64),"Fresh engine resolves real final gates or native fallback");return engine.getLastAction();
  }
- public static void main(String[] args)throws Exception {
+ public static void main(String[] args)throws Exception {PlayerBotMetadataCheck.defaults();
   var f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);u=(Unsafe)f.get(null);bot=actor(830002);target=actor(830003);
   var group=(PlayerBotClericCheck.Group)u.allocateInstance(PlayerBotClericCheck.Group.class);group.members=List.of(bot,target);bot.group=target.group=group;
   var context=JAXBContext.newInstance(SkillData.class);
@@ -74,7 +74,7 @@ public final class PlayerBotGladiatorCheck {
    </skill_data>
    """));DataManager.SKILL_DATA=data;DataManager.MATERIAL_DATA=new MaterialData();
   bot.learned=new PlayerSkillList(data.getSkillTemplates().stream().map(s->new PlayerSkillEntry(s.getSkillId(),1,0,Persistable.PersistentState.NEW)).toList());
-  session=(PlayerBotSession)u.allocateInstance(PlayerBotSession.class);PlayerBotClericCheck.field(session,PlayerBotSession.class,"bot",bot);PlayerBotClericCheck.field(session,PlayerBotSession.class,"owner",bot);PlayerBotClericCheck.field(session,PlayerBotSession.class,"role",Role.MELEE);
+  session=PlayerBotMetadataCheck.sessionDefaults(PlayerBotMetadataCheck.sessionDefaults((PlayerBotSession)u.allocateInstance(PlayerBotSession.class)));PlayerBotClericCheck.field(session,PlayerBotSession.class,"bot",bot);PlayerBotClericCheck.field(session,PlayerBotSession.class,"owner",bot);PlayerBotClericCheck.field(session,PlayerBotSession.class,"role",Role.MELEE);
   PlayerBotClericCheck.field(session,PlayerBotSession.class,"skills",List.of());
   priority=PlayerBotSession.class.getDeclaredMethod("priority",PlayerBotSkills.Entry.class,Creature.class,boolean.class,List.class);priority.setAccessible(true);
   cast=Class.forName(PlayerBotSession.class.getName()+"$CastAction").getDeclaredConstructors()[0];cast.setAccessible(true);

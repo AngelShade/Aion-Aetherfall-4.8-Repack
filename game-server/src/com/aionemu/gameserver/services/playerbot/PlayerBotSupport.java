@@ -24,11 +24,11 @@ final class PlayerBotSupport {
  static List<Player> members(Player bot) { return members(bot,PlayerBotTeams.members(bot)); }
  static List<Player> members(Player bot,List<Player> party) {
   var result=new LinkedHashSet<Player>();result.add(bot);
-  party.stream().filter(p->p==bot || PlayerBotTeams.same(bot,p)).filter(p->eligible(bot,p)).forEach(result::add);
+  party.stream().filter(p->p==bot || PlayerBotTeams.same(bot,p) || PlayerBotWardens.supportMember(bot,p)).filter(p->eligible(bot,p)).forEach(result::add);
   if(partyOnly(bot))return List.copyOf(result);
   var nearby=new ArrayList<Candidate>();var known=bot.getKnownList();
   if(known!=null)known.forEachPlayer(p->{if(!result.contains(p) && eligible(bot,p) && PositionUtil.isInRange(bot,p,40))
-   nearby.add(new Candidate(p,PlayerBotHealing.health(p),PositionUtil.getDistance(bot,p),p.getObjectId()));});
+   if(!PlayerBotRoadDuty.publicWarden(bot) || p.isPlayerBot() || PlayerBotWardens.traveller(bot,p))nearby.add(new Candidate(p,PlayerBotHealing.health(p),PositionUtil.getDistance(bot,p),p.getObjectId()));});
   // Native HP and positions can change on other workers during selection.
   // A comparator must compare the same immutable keys throughout the sort.
   nearby.sort(Comparator.comparingDouble(Candidate::health).thenComparingDouble(Candidate::distance).thenComparingInt(Candidate::id));
@@ -50,6 +50,7 @@ final class PlayerBotSupport {
  }
  /** Match native FirstTargetProperty without its target fallback or packet side effects. */
  static boolean legalAnchor(Player bot,PlayerBotSkills.Entry entry,Creature target) {
+  if(PlayerBotRoadDuty.publicWarden(bot) && entry.kind()==PlayerBotRules.SkillKind.RESURRECT && target!=bot)return false;
   if(!recipientAllowed(bot,target))return false;
   var p=entry.template().getProperties();var first=p.getFirstTarget();
   if(first==FirstTargetAttribute.ME || first==FirstTargetAttribute.PASSIVE)return target==bot;
@@ -58,10 +59,10 @@ final class PlayerBotSupport {
   if(bot.isEnemy(target) || !TargetRelationProperty.isBuffAllowed(bot,target))return false;
   if(p.getTargetType()==TargetRangeAttribute.PARTY || p.getTargetType()==TargetRangeAttribute.PARTY_WITHPET) {
    var team=p.getTargetType()==TargetRangeAttribute.PARTY ? bot.getCurrentGroup() : bot.getCurrentTeam();
-   if(target!=bot && (team==null || !team.getMembers().contains(target)))return false;
+   if(target!=bot && (team==null || !team.getMembers().contains(target)) && !PlayerBotWardens.supportMember(bot,target))return false;
   }
   if(p.getTargetRelation()==TargetRelationAttribute.MYPARTY)
-   return target==bot ? first==FirstTargetAttribute.TARGETORME : target instanceof Player player && PlayerBotTeams.same(bot,player);
+   return target==bot ? first==FirstTargetAttribute.TARGETORME : target instanceof Player player && (PlayerBotTeams.same(bot,player) || PlayerBotWardens.supportMember(bot,target));
   return p.getTargetRelation()!=TargetRelationAttribute.ENEMY
    && !(target==bot && first==FirstTargetAttribute.TARGET && p.getTargetType()==TargetRangeAttribute.PARTY);
  }

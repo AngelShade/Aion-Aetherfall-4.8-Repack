@@ -30,6 +30,8 @@ import com.aionemu.gameserver.model.templates.zone.ZoneTemplate;
 import com.aionemu.gameserver.network.aion.serverpackets.*;
 import com.aionemu.gameserver.questEngine.QuestEngine;
 import com.aionemu.gameserver.questEngine.model.QuestEnv;
+import com.aionemu.gameserver.questEngine.model.QuestState;
+import com.aionemu.gameserver.questEngine.model.QuestStatus;
 import com.aionemu.gameserver.services.abyss.AbyssRankingCache;
 import com.aionemu.gameserver.services.craft.CraftSkillUpdateService;
 import com.aionemu.gameserver.services.craft.RelinquishCraftStatus;
@@ -285,6 +287,18 @@ public class DialogService {
 			env.setExtendedRewardIndex(extendedRewardIndex);
 			if (QuestEngine.getInstance().onDialog(env))
 				return;
+			if (questId != 0 && dialogActionId >= SELECTED_QUEST_REWARD1 && dialogActionId <= SELECTED_QUEST_NOREWARD) {
+				// Reward confirmations are actions, never quest HTML pages.
+				QuestState qs = player.getQuestStateList().getQuestState(questId);
+				if (qs != null && qs.getStatus() == QuestStatus.REWARD) {
+					int rewardPageId = DialogPage.getRewardPageByIndex(qs.getRewardGroup()).id();
+					PacketSendUtility.sendPacket(player, new SM_DIALOG_WINDOW(npc.getObjectId(), rewardPageId, rewardPageId == 0 ? 0 : questId));
+				} else {
+					int pageId = qs != null && qs.getStatus() == QuestStatus.COMPLETE && DialogPage.hasQuestInteraction(player, npc) ? 10 : 0;
+					PacketSendUtility.sendPacket(player, new SM_DIALOG_WINDOW(npc.getObjectId(), pageId, 0));
+				}
+				return;
+			}
 		}
 		// action id = next page id
 		PacketSendUtility.sendPacket(player, new SM_DIALOG_WINDOW(npc.getObjectId(), dialogActionId, questId));

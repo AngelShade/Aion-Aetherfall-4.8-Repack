@@ -14,7 +14,7 @@ public final class PlayerBotDecisionIsolationCheck {
  }
  private static int checks;
  private static void check(boolean value,String why){checks++;if(!value)throw new AssertionError(why);}
- public static void main(String[] args)throws Exception {
+ public static void main(String[] args)throws Exception {com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_INDEPENDENT=false;com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_MEMORY_FIRST=false;PlayerBotMetadataCheck.dryWorld();
   // These inert active-bot fixtures have no native human-presence World.
   com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS=false;
   var field=sun.misc.Unsafe.class.getDeclaredField("theUnsafe");field.setAccessible(true);
@@ -26,7 +26,7 @@ public final class PlayerBotDecisionIsolationCheck {
   PlayerBotShutdownCheck.set(service,"autonomousWork",idle);
   var actor=(Actor)unsafe.allocateInstance(Actor.class);
   actor.control=new PlayerBotFieldCombatCheck.Clock();
-  var session=(PlayerBotSession)unsafe.allocateInstance(PlayerBotSession.class);
+  var session=PlayerBotMetadataCheck.sessionDefaults((PlayerBotSession)unsafe.allocateInstance(PlayerBotSession.class));
   PlayerBotShutdownCheck.set(session,"bot",actor);PlayerBotShutdownCheck.set(session,"owner",actor);
   var engine=new PlayerBotEngine();PlayerBotShutdownCheck.set(session,"engine",engine);
   var selection=PlayerBotService.class.getDeclaredMethod("decisionWork",PlayerBotSession.class);selection.setAccessible(true);

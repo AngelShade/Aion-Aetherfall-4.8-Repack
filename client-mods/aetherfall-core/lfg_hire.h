@@ -7,7 +7,7 @@
 namespace hire_terms {
 constexpr int DIALOG=0x14d;
 struct State {
-    Ptr owner=nullptr,help=nullptr,toggle=nullptr,panel=nullptr;
+    Ptr owner=nullptr,help=nullptr,toggle=nullptr,panel=nullptr,requests=nullptr;
     Rect helpRect{};double screenWidth=0,screenHeight=0;
     bool layingOut=false,laidOut=false;
 } state;
@@ -28,6 +28,8 @@ void layout(){
     // Help sits at the window's bottom left (frame x 3), so the button follows it.
     // Going left of Help puts it outside the dialog, where nothing draws it.
     set_rect(state.toggle,Rect{help.x+help.w+4*s,help.y,104*s,help.h});
+    // Member Info starts at frame x 277 on the tab pages, so this must end before it.
+    if(state.requests)set_rect(state.requests,Rect{help.x+help.w+112*s,help.y,97*s,help.h});
     // Keep the box above the button row and wholly inside the native content.
     // Native screen_rect supplies the title/skin offset; use that same offset
     // to clamp to the viewport when the player drags near a screen edge.
@@ -57,7 +59,8 @@ bool poll(){
         Ptr panel=resolve_widget(d,"af_hire_terms",CONTAINER);
         if(!help || !toggle || !panel || field<Ptr>(help,0x290)!=d
            || field<Ptr>(toggle,0x290)!=d || field<Ptr>(panel,0x290)!=d || !hook(d))return false;
-        state.help=help;state.toggle=toggle;state.panel=panel;close();layout();
+        state.help=help;state.toggle=toggle;state.panel=panel;
+        state.requests=resolve_widget(d,"af_help_requests",BUTTON);close();layout();
     }
     if(!d || !state.help)return false;
     if(!shown(d))close();
@@ -66,6 +69,12 @@ bool poll(){
        || state.screenWidth!=global<double>(UI_WIDTH) || state.screenHeight!=global<double>(UI_HEIGHT))layout();
     return true;
 }
+}
+// The next Companions navigation opens its help section. Game.dll's exact route
+// and session stay unchanged; the bridge takes this once, before picking the origin.
+ULONGLONG help_view_until=0;
+extern "C" __declspec(dllexport) bool AetherfallTakeHelpView(){
+    bool wanted=help_view_until && GetTickCount64()<help_view_until;help_view_until=0;return wanted;
 }
 void hire_frame_changed(Ptr self){if(self==hire_terms::state.owner)hire_terms::layout();}
 void hire_show(Ptr self,uint64_t mask,int propagate){
@@ -81,6 +90,9 @@ void hire_hide(Ptr self,uint64_t mask,int propagate){
 }
 int hire_command(Ptr self,Ptr event){
     Ptr button=event?*static_cast<Ptr*>(event):nullptr;
+    if(self==hire_terms::state.owner && button==hire_terms::state.requests && button && effectively_shown(self)){
+        native<int(*)(const char*)>(CHAT_COMMAND)("/helprequests");return 1;
+    }
     if(self==hire_terms::state.owner && button==hire_terms::state.toggle && effectively_shown(self)){
         hire_terms::layout();hire_terms::show(hire_terms::state.panel,!shown(hire_terms::state.panel));return 1;
     }

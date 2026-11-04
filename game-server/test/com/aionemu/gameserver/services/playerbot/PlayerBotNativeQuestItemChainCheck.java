@@ -37,6 +37,7 @@ public final class PlayerBotNativeQuestItemChainCheck {
   RecordingController controller;KnownList known;ObserveController observe;PlayerEffectController effects;
   TransformModel transform;Life life;PlayerCommonData common;
   Bot(){super(null,null);}
+  @Override public com.aionemu.gameserver.model.account.Account getAccount(){return new com.aionemu.gameserver.model.account.Account(7);}
   @Override public int getObjectId(){return id;}
   @Override public int getWorldId(){return world;}
   @Override public int getInstanceId(){return instance;}

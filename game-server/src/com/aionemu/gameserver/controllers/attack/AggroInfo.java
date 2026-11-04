@@ -13,6 +13,8 @@ public class AggroInfo {
 	private final Creature attacker;
 	private int hate;
 	private int damage;
+	private int wardenDamage;
+	private long firstNonWardenDamageTime;
 	private long firstDamageTime;
 	private long lastInteractionTime = 0;
 	private int hateReduceCount = 1;
@@ -33,6 +35,14 @@ public class AggroInfo {
 		if (damage > 0) {
 			if (this.damage == 0 || time < firstDamageTime)
 				firstDamageTime = time;
+			// Capture public-aid provenance when the hit lands. Duty/company/death transitions
+			// before reward distribution must never turn earlier Warden aid into a loot claim.
+			Creature master = attacker.getMaster();
+			if (master instanceof com.aionemu.gameserver.model.gameobjects.player.Player player
+				&& com.aionemu.gameserver.services.playerbot.PlayerBotRoadDuty.publicWarden(player))
+				wardenDamage += damage;
+			else if (this.damage == wardenDamage || time < firstNonWardenDamageTime)
+				firstNonWardenDamageTime = time;
 			this.damage += damage;
 		}
 	}
@@ -55,6 +65,14 @@ public class AggroInfo {
 
 	public int getDamage() {
 		return this.damage;
+	}
+
+	public int getWardenDamage() {
+		return wardenDamage;
+	}
+
+	public long getFirstNonWardenDamageTime() {
+		return firstNonWardenDamageTime;
 	}
 
 	public long getFirstDamageTime() {

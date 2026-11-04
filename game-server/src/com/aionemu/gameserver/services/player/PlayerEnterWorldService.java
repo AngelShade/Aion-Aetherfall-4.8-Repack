@@ -251,6 +251,8 @@ public final class PlayerEnterWorldService {
 
 		QuestEngine.getInstance().sendCompletedQuests(player);
 		client.sendPacket(new SM_QUEST_LIST(player.getQuestStateList().getUncompletedQuests()));
+		try { com.aionemu.gameserver.services.playerbot.PlayerBotHelpObjectives.entered(player); }
+		catch (RuntimeException error) { log.warn("Help request restore awaits retry for {}: {}", player.getObjectId(), error.toString()); }
 		client.sendPacket(new SM_TITLE_INFO(pcd.getTitleId()));
 		if (pcd.getBonusTitleId() != 0) {
 			player.getTitleList().setBonusTitle(pcd.getBonusTitleId());

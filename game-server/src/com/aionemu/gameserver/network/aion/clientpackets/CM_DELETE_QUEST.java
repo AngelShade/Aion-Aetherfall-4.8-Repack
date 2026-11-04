@@ -27,6 +27,14 @@ public class CM_DELETE_QUEST extends AionClientPacket {
 	@Override
 	protected void runImpl() {
 		Player player = getConnection().getActivePlayer();
+		if (questId == com.aionemu.gameserver.services.playerbot.PlayerBotHelpObjectives.HELP_QUEST) {
+			try { com.aionemu.gameserver.services.playerbot.PlayerBotHelpObjectives.abandonFromJournal(player); }
+			catch (RuntimeException error) {
+				org.slf4j.LoggerFactory.getLogger(CM_DELETE_QUEST.class).warn("Help abandonment retained for retry: {}", error.toString());
+				com.aionemu.gameserver.utils.PacketSendUtility.sendMessage(player, "Your help request could not be abandoned. Reopen Help requests and retry.");
+			}
+			return;
+		}
 		QuestTemplate qt = DataManager.QUEST_DATA.getQuestById(questId);
 
 		if (qt != null && qt.isTimer()) {

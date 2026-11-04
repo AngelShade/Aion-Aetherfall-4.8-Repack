@@ -24,7 +24,7 @@ public final class PlayerBotSupportOrderingCheck {
   a.seen=new KnownList(a){@Override public void forEachPlayer(java.util.function.Consumer<Player> c){a.nearby.forEach(c);}};
   return a;
  }
- public static void main(String[] args)throws Exception {
+ public static void main(String[] args)throws Exception {PlayerBotMetadataCheck.defaults();
   var f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);unsafe=(Unsafe)f.get(null);
   var bot=actor(890000,1000);var allies=new ArrayList<PlayerBotSupportCooperationCheck.Actor>();
   for(int i=0;i<1000;i++){var a=actor(890001+i,(i*73)%1000);a.x=i%39;allies.add(a);}

@@ -1,5 +1,14 @@
 # Aetherfall repack distribution
 
+GitHub release descriptions take the matching version's changes from the
+`CHANGELOG.md` inside the verified downloader ZIP, followed by compatibility and
+update instructions. Named headings such as `Update — 0.98.9` and
+`Prepared local update — 0.98.8` are supported, as are bracketed version headings.
+Separate sections for the same version are combined; other versions and private
+preparation/handoff notes are excluded. Missing version notes stop publication.
+Republishing an existing tag updates its description as well. Correcting a live
+description does not require rebuilding or replacing release assets.
+
 This packages the **portable repack**, not the original playable client or the
 development server. It does not upload, start seeding, run tests, or start any game
 component. Keep the repack stopped and unchanged while it is packed.
@@ -126,11 +135,18 @@ connection file. Original-only firewall restrictions and listener/port changes
 must stay on the development installation; do not transfer them through default
 merging. Changing a repack's connections requires a separate explicit request.
 
+Native recruitment textures use the complete `Client/Mods/PlayerBotBar/assets.json`
+manifest. Incremental feature receipts alone do not describe the whole animation.
+Original-to-repack syncs include every declared asset; Prepare Patch and Publish
+Update reject missing textures or files omitted from the cumulative inventory.
+
 Hub updates replace patch files and do not run arbitrary SQL migrations. A new
 database imports its bundled bootstrap on first database start. Existing databases
-retain their contents; server startup runs only the included guarded population
+retain their contents; server startup runs the included guarded population
 and broker-seller initializers. Other schema/data changes need an explicit upgrade
 step for existing users; replacing bootstrap.sql alone does not apply them.
+Fresh schemas include the three ticket tables; server startup also creates them for existing databases.
+`Server/server-address.properties` ships blank; updates keep a host's changed or hand-made copy.
 
 Setup supports both a `Setup` support folder in new bundles and the existing
 `Aetherfall-Downloader` folder in the owner's workspace. The owner's installed
@@ -190,6 +206,18 @@ with a redirected `Start-Process`, which inherits Setup's output pipe, so the
 pipe stays open for as long as the database runs. Waiting for that pipe kept
 Setup busy forever and never started the servers (fixed after 0.90's layout
 build). Remaining output is read for at most 1.5 seconds after the script exits.
+
+`Control/Start-Database.ps1`, `Database-Common.ps1` and `Watch-Database.ps1` are
+sourced from `repack/`. `my.ini` and `local-client.ini` are replaced rather than
+overwritten, so a read-only leftover cannot block startup, and the data folder
+check reads `@@datadir` as hex, so non-English install paths compare correctly.
+First-time setup builds in `Server/database/data.init` and becomes
+`data` only on success, with its output in `install.log` and `install-errors.log`.
+An unfinished `data` folder, recognised by a missing `mysql` folder and no
+`ready.json`, is renamed to `data.failed-<time>` and setup runs again; nothing is
+deleted. With `ready.json` present the script refuses, since that folder may hold
+real accounts. `mysqld` stays hidden and `Watch-Database.ps1` shows its log in a
+separate window, so closing that window cannot stop the database.
 
 The 0.86/0.87 fresh schema omitted the required `playerbot_population_state`
 singleton. `repack_population.py` adds the native empty-import state to the fresh

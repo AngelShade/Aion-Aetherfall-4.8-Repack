@@ -10,7 +10,7 @@ public final class PlayerBotEarlyRoutePrefetchCheck {
  private static void check(boolean value,String why){checks++;if(!value)throw new AssertionError(why);}
  private static Object get(Object o,String name)throws Exception{return PlayerBotRouteContinuationCheck.value(o,name);}
  private static void set(Object o,String name,Object value)throws Exception{PlayerBotQuestObjectivesCheck.field(o,name,value);}
- public static void main(String[] args)throws Exception{
+ public static void main(String[] args)throws Exception{com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_INDEPENDENT=false;com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_MEMORY_FIRST=false;PlayerBotMetadataCheck.dryWorld();
   var uf=Unsafe.class.getDeclaredField("theUnsafe");uf.setAccessible(true);var u=(Unsafe)uf.get(null);
   var actor=(PlayerBotPartialRouteCheck.Actor)u.allocateInstance(PlayerBotPartialRouteCheck.Actor.class);
   actor.spawned=true;actor.movable=true;actor.world=197;actor.instance=1;actor.x=10;actor.y=10;
@@ -18,13 +18,16 @@ public final class PlayerBotEarlyRoutePrefetchCheck {
   actor.stats=(PlayerBotRouteContinuationCheck.RouteStats)u.allocateInstance(PlayerBotRouteContinuationCheck.RouteStats.class);
   var instance=(PlayerBotPartialRouteCheck.Instance)u.allocateInstance(PlayerBotPartialRouteCheck.Instance.class);
   instance.parent=(PlayerBotPartialRouteCheck.Map)u.allocateInstance(PlayerBotPartialRouteCheck.Map.class);actor.map=instance;
-  var nav=new PlayerBotNavigation(actor);Point goal=new Point(510,10,0),first=new Point(14,10,0),end=new Point(34,10,0);
+  PlayerBotRouteContinuationCheck.nativeMover(actor);var nav=new PlayerBotNavigation(actor);PlayerBotMetadataCheck.travelIntent(nav);Point goal=new Point(510,10,0),first=new Point(14,10,0),end=new Point(34,10,0);
   @SuppressWarnings("unchecked") var route=(Deque<Point>)get(nav,"route");
   for(int x=14;x<=34;x+=4)route.add(new Point(x,10,0));
   set(nav,"routeWorld",197);set(nav,"routeInstance",1);set(nav,"routeGoal",goal);set(nav,"partialRoute",true);
   set(nav,"publishedGoal",goal);set(nav,"publishedDestination",first);set(nav,"publishedWorld",197);set(nav,"publishedInstance",1);
   set(nav,"closestGoalDistance",500d);set(nav,"lastProgress",System.currentTimeMillis());
-  actor.move.setNewDirection(first.x(),first.y(),first.z(),(byte)0);actor.move.moving=true;
+  set(nav,"walkGeneration",1L);set(nav,"walkRouteOwned",true);
+  var points=new java.util.ArrayList<com.aionemu.gameserver.controllers.movement.PlayerBotMoveController.WalkPoint>();long index=0;
+  for(Point point:route)points.add(new com.aionemu.gameserver.controllers.movement.PlayerBotMoveController.WalkPoint(index++,point.x(),point.y(),point.z()));
+  check(actor.corridor.publishWalk(1,points,(from,to)->true),"Earned prefix is published to the real native corridor generation");
   var bf=PlayerBotNavigation.class.getDeclaredField("TERRAIN");bf.setAccessible(true);var budget=(PlayerBotNavigationBudget)bf.get(null);
   var cf=PlayerBotNavigationBudget.class.getDeclaredField("credit");cf.setAccessible(true);double saved=cf.getDouble(budget);
   try{
@@ -34,14 +37,14 @@ public final class PlayerBotEarlyRoutePrefetchCheck {
    check(search!=null && (boolean)get(nav,"lookahead"),"Prefetch begins with the entire six-edge earned prefix still available");
    check(get(search,"start").equals(end) && search.targets(goal),"Future search begins at proved endpoint and retains actual final goal");
    check(search.probed()==0 && budget.waiting(get(nav,"searchToken")),"Unfunded prefetch owns a queue request without uncharged native probes");
-   check(actor.move.isInMove() && actor.move.getTargetX2()==first.x(),"Awaiting prefetch does not stop or redirect the current native mover");
+   check(actor.getMoveController().isInMove() && actor.getMoveController().getTargetX2()==first.x(),"Awaiting prefetch does not stop or redirect the current native mover");
    check(!budget.waiting(get(nav,"localSearchToken")),"An unchanged already walking edge does not create competing local proof work");
    set(nav,"nextMove",0L);actor.x=11;
    check(nav.move(goal.x(),goal.y(),goal.z()) && get(nav,"routeSearch")==search,"Earned actor progress retains one future query instead of replacing it");
    check(search.probed()==0 && route.size()==6,"No quota and no arrival produce neither new proof nor consumed waypoints");
    nav.hazards(List.of(new PlayerBotHazards.Area(12,10,0,1,0,0,0,0,3,PlayerBotHazards.Shape.CIRCLE)));set(nav,"nextMove",0L);
    check(!nav.move(goal.x(),goal.y(),goal.z()),"A fresh on-path hazard revokes the current unsafe commitment before queue admission");
-   check(!actor.move.isInMove() && !nav.planningRoute() && !budget.waiting(get(nav,"searchToken")),"Hazard cancellation also releases unearned future work");
+   check(!actor.getMoveController().isInMove() && !nav.planningRoute() && !budget.waiting(get(nav,"searchToken")),"Hazard cancellation also releases unearned future work");
    check(route.isEmpty(),"Unsafe prefix is not retained as a route around an unproved obstruction");
   }finally{nav.stop();cf.setDouble(budget,saved);}
   System.out.println("OK: "+checks+" actual early-prefetch, native movement, quota and hazard custody checks");

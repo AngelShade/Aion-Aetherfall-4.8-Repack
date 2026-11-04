@@ -38,12 +38,12 @@ final class PlayerBotCatchUpPool {
   }
  }
  private static void add(Set<Integer> sourced,List<QuestItems> items){for(var item:items)sourced.add(item.getItemId());}
- private static boolean admitted(Index index,ItemTemplate t){return t.getItemQuality()!=null && t.getItemQuality().getQualityId()<=ItemQuality.RARE.getQualityId() || index.sourced().contains(t.getTemplateId());}
+ private static boolean admitted(Index index,ItemTemplate t){return PlayerBotCombatGear.usable(t) && !com.aionemu.gameserver.services.ItemEligibility.isAppearanceOnly(t) && (t.getItemQuality()!=null && t.getItemQuality().getQualityId()<=ItemQuality.RARE.getQualityId() || index.sourced().contains(t.getTemplateId()));}
  static boolean admitted(ItemTemplate t){return admitted(index(),t);}
  /** Class-legal gear this pool admits. Level, race and role admission stay with PlayerBotGearPolicy.generatedTemplate. */
  static List<ItemTemplate> forClass(PlayerClass pc) {
   var index=index();
-  return index.classes().computeIfAbsent(pc,c->DataManager.ITEM_DATA.getItemTemplates().stream().filter(t->(t.isWeapon() || t.isArmor()) && !t.isTestItem() && t.isClassSpecific(c)
+  return index.classes().computeIfAbsent(pc,c->DataManager.ITEM_DATA.getItemTemplates().stream().filter(t->(t.isWeapon() || t.isArmor()) && PlayerBotCombatGear.usable(t) && t.isClassSpecific(c)
    && t.getItemType()==ItemType.NORMAL && t.getAcquisition()==null && t.getExpireTime()==0 && admitted(index,t)).toList());
  }
  private PlayerBotCatchUpPool() {}

@@ -38,6 +38,8 @@ public final class PlayerBotClericCheck {
  static class Actor extends PlayerBotSorcererCheck.Actor {
   Stats stats; Group group; int id; boolean spawned=true, disease; Skill casting;
   Actor(){super();}
+  @Override public com.aionemu.gameserver.model.Gender getGender(){return com.aionemu.gameserver.model.Gender.MALE;}
+  @Override public com.aionemu.gameserver.model.gameobjects.player.PlayerAppearance getPlayerAppearance(){return new com.aionemu.gameserver.model.gameobjects.player.PlayerAppearance();}
   @Override public int getObjectId(){return id;}
   @Override public int getPlayerBotOwnerId(){return 800001;}
   @Override public PlayerGameStats getGameStats(){return stats;}
@@ -80,7 +82,7 @@ public final class PlayerBotClericCheck {
   plan.defaults("fallback",new Action(){public String name(){return "fallback";}public boolean isUseful(){return true;}public boolean isPossible(){return true;}public boolean execute(){return true;}},5,State.COMBAT);
   check(plan.tick(engine,64),"Fresh engine resolves actual final gates or fallback");return engine.getLastAction();
  }
- public static void main(String[] args)throws Exception {
+ public static void main(String[] args)throws Exception {PlayerBotMetadataCheck.defaults();PlayerBotMetadataCheck.dryWorld();
   var f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);unsafe=(Unsafe)f.get(null);
   bot=actor(800002);target=actor(800003);
   var group=(Group)unsafe.allocateInstance(Group.class);group.members=List.of(bot,target);bot.group=target.group=group;
@@ -98,7 +100,7 @@ public final class PlayerBotClericCheck {
    """));
   bot.learned=new PlayerSkillList(data.getSkillTemplates().stream().map(s->new PlayerSkillEntry(s.getSkillId(),1,0,PersistentState.NEW)).toList());
   DataManager.MATERIAL_DATA=new MaterialData();DataManager.SKILL_DATA=data;
-  session=(PlayerBotSession)unsafe.allocateInstance(PlayerBotSession.class);
+  session=PlayerBotMetadataCheck.sessionDefaults((PlayerBotSession)unsafe.allocateInstance(PlayerBotSession.class));
   field(session,PlayerBotSession.class,"bot",bot);field(session,PlayerBotSession.class,"owner",bot);
   field(session,PlayerBotSession.class,"role",Role.HEALER);field(session,PlayerBotSession.class,"skills",data.getSkillTemplates().stream().map(s->entry(s.getSkillId())).toList());
   priority=PlayerBotSession.class.getDeclaredMethod("priority",PlayerBotSkills.Entry.class,Creature.class,boolean.class,List.class);priority.setAccessible(true);
@@ -132,11 +134,11 @@ public final class PlayerBotClericCheck {
   check(score(991207)==0,"Zero-checktime HoT never schedules a tick and cannot be emergency recovery");
   var peer=actor(800004);peer.life.hp=1000;
   PlayerBotService.getInstance().reserve(peer,target,SkillKind.HEAL,System.currentTimeMillis()+10000);
-  target.life.hp=750;check(!PlayerBotHealing.needs(bot,entry(991201),target,List.of(bot,target)),"Existing healthy-recipient reservation remains effective");
-  target.life.hp=250;check(PlayerBotHealing.needs(bot,entry(991201),target,List.of(bot,target)),"Existing emergency reservation exception retained");
-  double groupOne=PlayerBotHealing.priority(bot,entry(991208),bot,List.of(bot,target));
+  target.life.hp=750;check(!PlayerBotHealing.needs(bot,entry(991201),target,List.of(bot,target),false),"Existing healthy-recipient reservation remains effective");
+  target.life.hp=250;check(PlayerBotHealing.needs(bot,entry(991201),target,List.of(bot,target),false),"Existing emergency reservation exception retained");
+  double groupOne=PlayerBotHealing.priority(bot,entry(991208),bot,List.of(bot,target),false);
   check(groupOne>0 && PlayerBotHealing.targets(bot,entry(991208),bot,List.of(bot,target)).contains(target),"Healthy group anchor still heals native affected ally");
-  bot.life.hp=250;check(PlayerBotHealing.priority(bot,entry(991208),bot,List.of(bot,target))>groupOne,"Two actual injured group recipients retain group-heal preference");bot.life.hp=1000;
+  bot.life.hp=250;check(PlayerBotHealing.priority(bot,entry(991208),bot,List.of(bot,target),false)>groupOne,"Two actual injured group recipients retain group-heal preference");bot.life.hp=1000;
   bot.pc=PlayerClass.CHANTER;check(score(991202)>score(991201),"Chanter retains its previous general heal scoring for separate review");bot.pc=PlayerClass.CLERIC;
   var passive=new PlayerBotStrategyComposition.Plan(State.COMBAT);passive.defaults(PlayerBotCleric.strategy(bot.pc),new Action(){public String name(){return "disabled cleric";}public boolean isUseful(){return true;}public boolean isPossible(){return true;}public boolean execute(){throw new AssertionError("Passive strategy executed");}},100,State.COMBAT);
   passive.enable(PlayerBotCleric.strategy(bot.pc),false);check(!passive.tick(new PlayerBotEngine(),64),"Named Cleric strategy respects existing passive-order composition");

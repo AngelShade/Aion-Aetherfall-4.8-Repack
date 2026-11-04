@@ -44,3 +44,11 @@ CREATE TABLE IF NOT EXISTS playerbot_recruitment_operations (
  UNIQUE KEY recruited_character (character_id),
  KEY account_recruitment_state (account_id,state)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- One row per distinct finished help request; every third pays a ticket by default.
+CREATE TABLE IF NOT EXISTS playerbot_ticket_help (
+ request_key VARCHAR(96) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY,
+ account_id INT NOT NULL,
+ created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ KEY account_help (account_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

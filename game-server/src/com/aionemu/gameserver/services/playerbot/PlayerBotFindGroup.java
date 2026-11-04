@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import com.aionemu.commons.utils.concurrent.PriorityThreadFactory;
 import com.aionemu.gameserver.configs.main.PlayerBotConfig;
+import com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig;
 import com.aionemu.gameserver.model.ChatType;
 import com.aionemu.gameserver.model.gameobjects.findGroup.*;
 import com.aionemu.gameserver.model.gameobjects.player.CustomPlayerState;
@@ -51,7 +52,13 @@ public final class PlayerBotFindGroup {
  private static final Map<Integer,EntranceMeeting> MEETINGS=new ConcurrentHashMap<>();
  private static Iterator<EntranceMeeting> meetingCursor=Collections.emptyIterator();
  private static final ArrayBlockingQueue<Runnable> REQUESTS = new ArrayBlockingQueue<>(128);
- private static final ScheduledExecutorService SOCIAL = Executors.newSingleThreadScheduledExecutor(new PriorityThreadFactory("PlayerbotFindGroup", Thread.NORM_PRIORITY));
+ private static final ScheduledThreadPoolExecutor SOCIAL = socialExecutor();
+ // Delayed invitation follow-ups (up to 120 s) must not hold server shutdown: REQUESTS is cleared by then anyway.
+ private static ScheduledThreadPoolExecutor socialExecutor() {
+  var executor=new ScheduledThreadPoolExecutor(1,new PriorityThreadFactory("PlayerbotFindGroup", Thread.NORM_PRIORITY));
+  executor.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+  return executor;
+ }
  private static volatile boolean stopped;
  private static Future<?> task;
  private static Collection<PlayerBotSession> actors = List.of();
@@ -249,7 +256,7 @@ public final class PlayerBotFindGroup {
   }
   if (need==null) { withoutNeed++; return; }
   final Tab target=tab;
-  if (target==Tab.APPLY && !PlayerBotConfig.HIRING_ENABLED) {hireDisabled++;return;}
+  if (target==Tab.APPLY && !PlayerBotEconomyConfig.HIRING_ENABLED) {hireDisabled++;return;}
   if (target==Tab.APPLY && !bracketRoom(bot)) {bracketFull++;return;}
   long count=POSTS.values().stream().filter(p->p.entry!=null && p.tab==target && p.bot.getRace()==bot.getRace()).count();
   if (count>=(target==Tab.INSTANCE?instanceLimit():Math.clamp(PlayerBotConfig.FIND_GROUP_POSTS_PER_TAB,1,30))) {tabFull++;return;}
@@ -580,7 +587,7 @@ public final class PlayerBotFindGroup {
    PlayerGroupService.removePlayer(invited);PlayerBotHiring.offer(invited,inviter);return;
   }
   if (!enabled() || !PlayerBotGroupNeeds.unfinished(inviter,post.need) || !PlayerBotGroupNeeds.applicant(invited,post.need)) { PlayerGroupService.removePlayer(invited); return; }
-  PlayerBotHelpObjectives.accept(inviter,invited,post.need);
+  PlayerBotHelpObjectives.joined(inviter,invited);
   var previous=FREE_HELP.get(inviter.getObjectId());
   if(post.controller==null && (previous==null || previous.ended || previous.post!=post || !previous.human.isOnline() || !PlayerBotTeams.same(previous.human,inviter))) {
    if(previous!=null){previous.ended=true;for(int id:previous.members)FREE_HELP.remove(id,previous);}
@@ -693,6 +700,34 @@ public final class PlayerBotFindGroup {
  }
 
  public static boolean manages(FindGroupEntry entry) { return entryPost(entry)!=null; }
+
+ /** Concrete help contracts from the same native LFG posts, not another planner. */
+ public static List<Map<String,Object>> helpRequests(Player human) {
+  record Open(Post post,PlayerBotGroupNeeds.Need need,boolean helpable,boolean here,String name) {}
+  var open=new ArrayList<Open>();
+  for(var post:POSTS.values()) {
+   if(post.bot.getRace()!=human.getRace() || post.expired || post.entry==null || !visible(post.entry)
+    || post.need.instance() || PlayerBotGroupNeeds.helping(post.need) || post.need.quest()<=0 && post.need.npc()<=0)continue;
+   open.add(new Open(post,post.need,PlayerBotGroupNeeds.applicant(human,post.need),post.need.map()==human.getWorldId(),post.bot.getName()));
+  }
+  // Requests the player can help with first, then nearby ones. Only the rows shown build their full terms.
+  open.sort(Comparator.comparing(Open::helpable).thenComparing(Open::here).reversed().thenComparing(Open::name));
+  var rows=new ArrayList<Map<String,Object>>();
+  for(var row:open) {
+   if(rows.size()>=60)break;
+   try{rows.add(PlayerBotHelpObjectives.details(human,row.post().bot,row.need()));}
+   catch(IllegalArgumentException stale){/* Native objective changed before the incremental post cleanup. */}
+  }
+  return rows;
+ }
+ public static String acceptHelp(Player human,int botId) {
+  var post=POSTS.get(botId);
+  if(post==null || post.expired || post.entry==null || !visible(post.entry) || post.bot.getRace()!=human.getRace()
+   || post.need.instance() || PlayerBotGroupNeeds.helping(post.need) || post.need.quest()<=0 && post.need.npc()<=0
+   || !PlayerBotGroupNeeds.applicant(human,post.need) || !PlayerBotGroupNeeds.unfinished(post.bot,post.need))throw new IllegalArgumentException("This LFG need changed or you are not eligible. Refresh its details.");
+  PlayerBotHelpObjectives.accept(post.bot,human,post.need);
+  return "Help request accepted. Join this bot through the native Find Group invitation; your accepted objective is saved.";
+ }
 
  /** Filter stale bot ads immediately on refresh, even before the incremental cleanup reaches them. */
  public static boolean visible(FindGroupEntry entry) {
@@ -1135,7 +1170,7 @@ public final class PlayerBotFindGroup {
    if(made>=3)continue;
    if(human==null || human.isPlayerBot() || !human.isOnline() || !human.isSpawned() || human.isDead())continue;
    // A human Instance Group offer is filled with native applications, role by role, until complete.
-   if(entry instanceof ServerWideGroup g){if(PlayerBotConfig.HIRING_ENABLED)fillInstanceGroup(g,human,now);continue;}
+   if(entry instanceof ServerWideGroup g){if(PlayerBotEconomyConfig.HIRING_ENABLED)fillInstanceGroup(g,human,now);continue;}
    if(OFFERED.getOrDefault(human.getObjectId()+":"+entry.getClass().getSimpleName(),0L)>now)continue;
    boolean offered=entry instanceof GroupApplication ? offerInvite(human,now) : offerMember(entry,human);
    if(offered){made++;OFFERED.put(human.getObjectId()+":"+entry.getClass().getSimpleName(),now+180_000);}
@@ -1201,7 +1236,7 @@ public final class PlayerBotFindGroup {
 
  /** The human recruits: one free bot of the missing role whispers that it can join. */
  private static boolean offerMember(FindGroupEntry entry,Player human) {
-  if(!PlayerBotConfig.HIRING_ENABLED)return false;
+  if(!PlayerBotEconomyConfig.HIRING_ENABLED)return false;
   var team=human.getCurrentTeam();
   if(team!=null && !team.isLeader(human))return false;
   var members=team==null?List.of(human):team.getMembers();
@@ -1274,7 +1309,7 @@ public final class PlayerBotFindGroup {
   * already has a Find Group post (those are answered above).
   */
  private static void fillPlayerParties(long now,java.util.Set<Integer> posted) {
-  if(!PlayerBotConfig.HIRING_ENABLED)return;
+  if(!PlayerBotEconomyConfig.HIRING_ENABLED)return;
   var leaders=new ArrayList<Player>();
   com.aionemu.gameserver.world.World.getInstance().forEachPlayer(p->{
    if(p.isPlayerBot() || !p.isOnline() || !p.isSpawned() || p.isDead())return;

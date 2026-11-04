@@ -104,7 +104,10 @@ final class PlayerBotPersistence {
 				PlayerBotCollectionRenown.store(connection, collection);
 				PlayerBotRecruitment.complete(connection,bot);
 				com.aionemu.gameserver.services.SeasonPassService.storeCompanionProgress(connection, passProgress);
+				var help = PlayerBotHelpObjectives.pending(bot);
+				var helpRow = PlayerBotHelpObjectives.store(connection, help);
 				connection.commit();
+				PlayerBotHelpObjectives.committed(help, helpRow);
 				com.aionemu.gameserver.services.SeasonPassService.committedCompanionProgress(passProgress);
 				PlayerBotCollectionRenown.committed(collection);
 				com.aionemu.gameserver.services.AetherfallBoonService.commitBotChronicleCheckpoint(chronicle);

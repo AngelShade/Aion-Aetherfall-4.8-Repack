@@ -15,7 +15,7 @@ import subprocess
 import sys
 
 HERE = Path(__file__).resolve().parent
-NATIVE_VERSION = '1.3.2'  # Slash lookup stays off the game thread's Lua.
+NATIVE_VERSION = '1.3.5'  # Show location opens the map without the market window.
 PAK = 'Plugin/RelicCalc/RelicCalc.pak'
 PLUGIN_COHORT = [PAK, PAK + '.sig', 'Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig']
 VERSION = '1.2.91'  # Independent Codex view histories, drafts and map return control.
@@ -239,6 +239,7 @@ def main():
     parser.add_argument('--codex-controller-update', action='store_true', help='update only the installed Codex Lua controller, retaining its existing map layouts and recovery cohort')
     parser.add_argument('--codex-browser-update', action='store_true', help='with --codex-update, build the matching browser handoff bridge without rebuilding unchanged item/UI indexes')
     parser.add_argument('--marketplace-window-update', action='store_true', help='update the installed windowed Marketplace controller while retaining native layouts and bridge')
+    parser.add_argument('--help-requests-update', action='store_true', help='extend the installed Companions menu owner for the native LFG Help requests button')
     parser.add_argument('--client-mods', type=Path, default=HERE.parent, help='maintained client-mods folder (helpers)')
     args = parser.parse_args()
     if not args.plugin_only and f'CORE_VERSION[]="{NATIVE_VERSION}"' not in (HERE / 'aetherfall_core.cpp').read_text(encoding='utf-8'):
@@ -273,6 +274,10 @@ def main():
         parser.error('--codex-controller-update requires --retain-layout or --plugin-only, without --codex-update')
     if args.codex_browser_update and not args.codex_update:
         parser.error('--codex-browser-update requires --codex-update and its native layout cohort')
+    if args.help_requests_update and (not args.retain_layout or not args.update or args.dll_only or args.plugin_only):
+        parser.error('--help-requests-update requires --update --retain-layout and the matching native build')
+    if args.help_requests_update and any(value for name, value in vars(args).items() if name.endswith('_update') and name != 'help_requests_update'):
+        parser.error('--help-requests-update is a focused menu/native update; prepare other feature updates separately')
     if args.hud_customization_update and (not args.retain_layout or args.hud_repair_update):
         parser.error('--hud-customization-update requires --retain-layout and cannot repeat initial HUD repair')
     if args.minimap_renderer_update and (not args.retain_layout or args.hud_customization_update or args.refresh_hud_inventory):
@@ -430,6 +435,8 @@ def main():
     # Plugin: add the bridge and HUD data layer to the installed RelicCalc archive, keeping
     # every other compressed member byte-identical, then sign with the normal signer.
     addon = {name: (HERE / name).read_bytes() for name in ADDON if name.endswith('.lua') and name not in GENERATED}
+    if args.help_requests_update:
+        addon = {}  # Keep all installed HUD/options/controller Lua byte-identical.
     if args.shared_timer_update:
         addon['WardrobeNative.lua'] = (mods / 'transmog-menu/WardrobeNative.lua').read_bytes()
     if args.hud_repair_update or args.companion_bar_update:
@@ -501,9 +508,14 @@ def main():
             market = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(market)
             changes['PrivateMenus.lua'] = market.menus(old.read('PrivateMenus.lua'), update=True)
+        if args.help_requests_update:
+            spec = importlib.util.spec_from_file_location('help_requests_prepare', mods / 'playerbots/prepare_hire_terms.py')
+            help_requests = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(help_requests)
+            changes['PrivateMenus.lua'] = help_requests.menus(changes.get('PrivateMenus.lua', old.read('PrivateMenus.lua')))
         # The companion controller does not change the UI catalogue. Retain the
         # installed generated registry when this is the only changed member.
-        bar_only = args.companion_bar_update and set(changes) <= {'PlayerBotBar.lua'}
+        bar_only = (args.companion_bar_update and set(changes) <= {'PlayerBotBar.lua'}) or (args.help_requests_update and set(changes) <= {'PrivateMenus.lua'})
         if args.ui_registry_update or ('AetherfallRegistry.lua' in old.namelist() and not bar_only):
             from ui_registry import generate
             changes['AetherfallRegistry.lua'] = generate(client, output, changes)

@@ -5,20 +5,19 @@
 187060001	1	600000	featured	30	A pair of Dazzling Black Cloud Wings for your character's wing slot or appearance. Check the item level and use details before buying.
 190100127	1	750000	featured	1	Use Flamekissed Aetherboard to register a rideable mount for travel. One mount item is delivered by Black Cloud mail.
 190020007	1	350000	featured	1	Use Acute Shugo Egg to adopt a pet companion. The egg arrives by Black Cloud mail; open it from your inventory.
-110900063	1	125000	featured	1	A outfit piece for the Andu's Party Dress look. Use it to remodel compatible equipment; one appearance item is included.
+110900063	1	1000000	featured	1	A outfit piece for the Andu's Party Dress look. Use it to remodel compatible equipment; one appearance item is included.
 169630000	1	400000	featured	1	A cube expansion ticket for your character's inventory. Check the level shown in the item name against your current cube tier.
 169600001	1	90000	featured	1	Learn the 'Aion Boogie' expression or dance on your character. Use the delivered emotion card to unlock it.
-162000092	5	15000	featured	60	Restores 1550 HP immediately. Reuse: 1 min. Offer contains 5 Fine Panacea of Life items.
+162000092	5	21000	featured	60	Restores 1550 HP immediately. Reuse: 1 min. Offer contains 5 Fine Panacea of Life items.
 100000879	1	175000	featured	1	Aether Blade is a sword item. Open its details for the server's weapon attributes and check your class before buying.
-110900063	1	125000	fashion_outfits	1	A outfit piece for the Andu's Party Dress look. Use it to remodel compatible equipment; one appearance item is included.
+110900063	1	1000000	fashion_outfits	1	A outfit piece for the Andu's Party Dress look. Use it to remodel compatible equipment; one appearance item is included.
 110900099	1	125000	fashion_outfits	1	A outfit piece for the Andu's Party Outfit look. Use it to remodel compatible equipment; one appearance item is included.
 110900552	1	125000	fashion_outfits	1	A outfit piece for the Aquablue Swimsuit look. Use it to remodel compatible equipment; one appearance item is included.
 110900763	1	125000	fashion_outfits	1	A outfit piece for the Bolero Attire look. Use it to remodel compatible equipment; one appearance item is included.
 110900762	1	125000	fashion_outfits	1	A outfit piece for the Bolero Garb look. Use it to remodel compatible equipment; one appearance item is included.
 110900885	1	125000	fashion_outfits	1	A outfit piece for the Antique Silk Costume look. Use it to remodel compatible equipment; one appearance item is included.
 110900125	1	125000	fashion_outfits	1	A outfit piece for the Antique Silk Hanbok look. Use it to remodel compatible equipment; one appearance item is included.
-110101735	1	125000	fashion_outfits	1	A outfit piece for the Charming Kitter Suit look. Use it to remodel compatible equipment; one appearance item is included.
-110101731	1	125000	fashion_outfits	1	A outfit piece for the Chic Wedding Garb look. Use it to remodel compatible equipment; one appearance item is included.
+110101731	1	400000000	fashion_outfits	1	A outfit piece for the Chic Wedding Garb look. Use it to remodel compatible equipment; one appearance item is included.
 125040118	1	90000	fashion_headwear	1	A headpiece for the Agrint Hat look. Use it to remodel compatible equipment; one appearance item is included.
 125040083	1	90000	fashion_headwear	1	A headpiece for the Antique Head Accessory look. Use it to remodel compatible equipment; one appearance item is included.
 169220010	5	25000	fashion_dyes	1	Apply Dye: Deep Blue to dyeable equipment. This offer includes 5 dye items.
@@ -38,9 +37,9 @@
 190020034	1	350000	pets	1	Use Altgard Kitter Egg to adopt a pet companion. The egg arrives by Black Cloud mail; open it from your inventory.
 190020031	1	350000	pets	1	Use Aqua Griffo Egg to adopt a pet companion. The egg arrives by Black Cloud mail; open it from your inventory.
 190000063	1	350000	pets	1	Use Auric Ribbit Egg to adopt a pet companion. The egg arrives by Black Cloud mail; open it from your inventory.
-190000054	1	350000	pets	1	Use Azure Drakie Egg to adopt a pet companion. The egg arrives by Black Cloud mail; open it from your inventory.
+190000054	1	945000	pets	1	Use Azure Drakie Egg to adopt a pet companion. The egg arrives by Black Cloud mail; open it from your inventory.
 190100005	1	750000	mounts	1	Use Agitated Fourgill to register a rideable mount for travel. One mount item is delivered by Black Cloud mail.
-190100011	1	750000	mounts	1	Use Airskim Surfrider to register a rideable mount for travel. One mount item is delivered by Black Cloud mail.
+190100011	1	51031300	mounts	1	Use Airskim Surfrider to register a rideable mount for travel. One mount item is delivered by Black Cloud mail.
 190100084	1	750000	mounts	1	Use Ceruleanimbus to register a rideable mount for travel. One mount item is delivered by Black Cloud mail.
 190100127	1	750000	mounts	1	Use Flamekissed Aetherboard to register a rideable mount for travel. One mount item is delivered by Black Cloud mail.
 190100107	1	750000	mounts	1	Use Emerald Crestlich to register a rideable mount for travel. One mount item is delivered by Black Cloud mail.
@@ -92,8 +91,8 @@
 162000037	5	75000	recovery	50	Restores 2350 MP immediately. Reuse: 5 min. Offer contains 5 Greater Divine Mana Serum items.
 162000069	5	100000	recovery	60	Restores 3680 HP immediately. Reuse: 5 min. Offer contains 5 Major Divine Life Serum items.
 162000070	5	100000	recovery	60	Restores 3450 MP immediately. Reuse: 5 min. Offer contains 5 Major Divine Mana Serum items.
-162000092	5	15000	recovery	60	Restores 1550 HP immediately. Reuse: 1 min. Offer contains 5 Fine Panacea of Life items.
-162000098	5	15000	recovery	60	Restores 1340 MP immediately. Reuse: 1 min. Offer contains 5 Fine Panacea of Mana items.
+162000092	5	21000	recovery	60	Restores 1550 HP immediately. Reuse: 1 min. Offer contains 5 Fine Panacea of Life items.
+162000098	5	21000	recovery	60	Restores 1340 MP immediately. Reuse: 1 min. Offer contains 5 Fine Panacea of Mana items.
 162000091	5	15000	recovery	50	Restores 1130 HP immediately. Reuse: 1 min. Offer contains 5 Major Panacea of Life items.
 162000097	5	15000	recovery	50	Restores 1180 MP immediately. Reuse: 1 min. Offer contains 5 Major Panacea of Mana items.
 160003004	5	12000	food_drink	10	Grants +40 maximum MP for 15 min. Reuse: 5 sec. Offer contains 5 Augri Omelette items.
@@ -111,7 +110,7 @@
 167000705	10	500000	manastone_magic	60	Socket Manastone: Magic Boost +27 / Magical Accuracy +7 into a compatible manastone slot to add Magic Boost +27 and Magical Accuracy +7. Stone level 60; check the target equipment's level and free slots. 10 stones per offer.
 188052083	1	2000000	gift_boxes	1	Open Small GM Gift Box to receive its server-defined contents. The unopened item arrives through Black Cloud mail.
 188052086	1	2000000	gift_boxes	1	Open Big GM Gift Box to receive its server-defined contents. The unopened item arrives through Black Cloud mail.
-188053624	1	50000	travel_bundles	50	Open Unified Return Scroll Bundle to receive its server-defined contents. The unopened item arrives through Black Cloud mail.
+188053624	1	200000	travel_bundles	50	Open Unified Return Scroll Bundle to receive its server-defined contents. The unopened item arrives through Black Cloud mail.
 110900083	1	125000	fashion_outfits	1	A outfit piece for the Ribbit Costume look. Use it to remodel compatible equipment; one appearance item is included.
 110900084	1	125000	fashion_outfits	1	A outfit piece for the Wedding Dress/Tuxedo look. Use it to remodel compatible equipment; one appearance item is included.
 110900113	1	125000	fashion_outfits	1	A outfit piece for the Porgus Costume look. Use it to remodel compatible equipment; one appearance item is included.
@@ -120,8 +119,8 @@
 125040072	1	90000	fashion_headwear	1	A headpiece for the Sunflower Headband look. Use it to remodel compatible equipment; one appearance item is included.
 125040074	1	90000	fashion_headwear	1	A headpiece for the Devil Horns look. Use it to remodel compatible equipment; one appearance item is included.
 125040183	1	90000	fashion_headwear	1	A headpiece for the Summer Sunglasses look. Use it to remodel compatible equipment; one appearance item is included.
-162000085	20	60000	recovery	60	Restores 176 HP immediately. Then restores 176 HP every 2 sec for 20 sec. Reuse: 1 min. Offer contains 20 Fine Life Elixir items.
-162000086	20	60000	recovery	60	Restores 153 MP immediately. Then restores 153 MP every 2 sec for 20 sec. Reuse: 1 min. Offer contains 20 Fine Mana Elixir items.
+162000085	20	96000	recovery	60	Restores 176 HP immediately. Then restores 176 HP every 2 sec for 20 sec. Reuse: 1 min. Offer contains 20 Fine Life Elixir items.
+162000086	20	96000	recovery	60	Restores 153 MP immediately. Then restores 153 MP every 2 sec for 20 sec. Reuse: 1 min. Offer contains 20 Fine Mana Elixir items.
 164002022	5	15000	supply_scrolls	1	An Elyos instant return scroll for Sanctum. This offer includes 5 scrolls.
 164002023	5	15000	supply_scrolls	1	An Asmodian instant return scroll for Pandaemonium. This offer includes 5 scrolls.
 160000001	10	1000	food_drink	1	Grants +2 HP regeneration for 15 min. Reuse: 5 sec. Offer contains 10 Mercenary's Fruit Juice items.
@@ -161,59 +160,6 @@
 164000133	20	50000	supply_scrolls	20	Use Awakening Scroll for its listed travel or combat effect. This offer contains 20 scrolls.
 164000134	20	75000	supply_scrolls	30	Use Greater Awakening Scroll for its listed travel or combat effect. This offer contains 20 scrolls.
 164002200	1	250000	summoned_npcs	10	Use on the ground to summon a warehouse manager for your character for 5 minutes. One summoning stone is delivered.
-100001578	1	8000000	equipment_weapons	65	Sauro Guard's Sword is level 65 sword equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-100101214	1	8000000	equipment_weapons	65	Sauro Guard's Mace is level 65 mace equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-100201386	1	8000000	equipment_weapons	65	Sauro Guard's Dagger is level 65 dagger equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-100501206	1	8000000	equipment_weapons	65	Sauro Guard's Orb is level 65 orb equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-100601298	1	8000000	equipment_weapons	65	Sauro Guard's Spellbook is level 65 spellbook equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-100901228	1	8000000	equipment_weapons	65	Sauro Guard's Greatsword is level 65 greatsword equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-101301154	1	8000000	equipment_weapons	65	Sauro Guard's Polearm is level 65 polearm equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-101501240	1	8000000	equipment_weapons	65	Sauro Guard's Staff is level 65 staff equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-101701257	1	8000000	equipment_weapons	65	Sauro Guard's Bow is level 65 bow equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-101801063	1	8000000	equipment_weapons	65	Sauro Guard's Pistol is level 65 gun equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-101901013	1	8000000	equipment_weapons	65	Sauro Guard's Aethercannon is level 65 cannon equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-102001087	1	8000000	equipment_weapons	65	Sauro Guard's Harp is level 65 harp equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-102100840	1	8000000	equipment_weapons	65	Sauro Guard's Cipher-Blade is level 65 keyblade equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-115001622	1	6500000	equipment_weapons	65	Sauro Guard's Shield is level 65 shield equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-100001580	1	35000000	equipment_weapons	65	Sauro Commander's Sword is level 65 sword equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-100101217	1	35000000	equipment_weapons	65	Sauro Commander's Mace is level 65 mace equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-100201388	1	35000000	equipment_weapons	65	Sauro Commander's Dagger is level 65 dagger equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-100501208	1	35000000	equipment_weapons	65	Sauro Commander's Orb is level 65 orb equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-100601300	1	35000000	equipment_weapons	65	Sauro Commander's Spellbook is level 65 spellbook equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-100901230	1	35000000	equipment_weapons	65	Sauro Commander's Greatsword is level 65 greatsword equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-101301156	1	35000000	equipment_weapons	65	Sauro Commander's Polearm is level 65 polearm equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-101501243	1	35000000	equipment_weapons	65	Sauro Commander's Staff is level 65 staff equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-101701259	1	35000000	equipment_weapons	65	Sauro Commander's Bow is level 65 bow equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-101801065	1	35000000	equipment_weapons	65	Sauro Commander's Pistol is level 65 gun equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-101901015	1	35000000	equipment_weapons	65	Sauro Commander's Aethercannon is level 65 cannon equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-102001089	1	35000000	equipment_weapons	65	Sauro Commander's Harp is level 65 harp equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-102100842	1	35000000	equipment_weapons	65	Sauro Commander's Cipher-Blade is level 65 keyblade equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-115001623	1	30000000	equipment_weapons	65	Sauro Commander's Shield is level 65 shield equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-110101673	1	4500000	equipment_armor	65	Sauro Guard's Tunic is level 65 cloth torso equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-113101520	1	3200000	equipment_armor	65	Sauro Guard's Leggings is level 65 cloth pants equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-112101458	1	2200000	equipment_armor	65	Sauro Guard's Pauldrons is level 65 cloth shoulder equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-111101505	1	2200000	equipment_armor	65	Sauro Guard's Gloves is level 65 cloth glove equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-114101552	1	2200000	equipment_armor	65	Sauro Guard's Shoes is level 65 cloth shoes equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-110301681	1	4500000	equipment_armor	65	Sauro Guard's Jerkin is level 65 leather torso equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-113301650	1	3200000	equipment_armor	65	Sauro Guard's Breeches is level 65 leather pants equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-112301558	1	2200000	equipment_armor	65	Sauro Guard's Shoulderguards is level 65 leather shoulder equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-111301619	1	2200000	equipment_armor	65	Sauro Guard's Vambrace is level 65 leather glove equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-114301687	1	2200000	equipment_armor	65	Sauro Guard's Boots is level 65 leather shoes equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-110501511	1	4500000	equipment_armor	65	Sauro Guard's Hauberk is level 65 chain torso equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-113501484	1	3200000	equipment_armor	65	Sauro Guard's Chausses is level 65 chain pants equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-112501408	1	2200000	equipment_armor	65	Sauro Guard's Spaulders is level 65 chain shoulder equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-111501466	1	2200000	equipment_armor	65	Sauro Guard's Handguards is level 65 chain glove equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-114501493	1	2200000	equipment_armor	65	Sauro Guard's Brogans is level 65 chain shoes equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-110550934	1	4500000	equipment_armor	65	Sauro Guard's Magic Hauberk is level 65 chain torso equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-113501510	1	3200000	equipment_armor	65	Sauro Guard's Magic Chausses is level 65 chain pants equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-112501434	1	2200000	equipment_armor	65	Sauro Guard's Magic Spaulders is level 65 chain shoulder equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-111501492	1	2200000	equipment_armor	65	Sauro Guard's Magic Handguards is level 65 chain glove equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-114501519	1	2200000	equipment_armor	65	Sauro Guard's Magic Brogans is level 65 chain shoes equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-110601485	1	4500000	equipment_armor	65	Sauro Guard's Breastplate is level 65 plate torso equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-113601431	1	3200000	equipment_armor	65	Sauro Guard's Greaves is level 65 plate pants equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-112601429	1	2200000	equipment_armor	65	Sauro Guard's Shoulderplates is level 65 plate shoulder equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-111601448	1	2200000	equipment_armor	65	Sauro Guard's Gauntlets is level 65 plate glove equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
-114601436	1	2200000	equipment_armor	65	Sauro Guard's Sabatons is level 65 plate shoes equipment from the Sauro collection. Check class and item attributes on its detail page before equipping.
 165000001	20	30000	upgrade_tools	1	Extraction Tools supports equipment extraction or enhancement. Check its use action in item details. The offer contains 20 items.
 169000005	500	40000	upgrade_shards	20	Keep Power Shard ready for combat or stigma use. This offer contains 500 shards.
 169000011	500	375000	upgrade_shards	65	Keep Ancient Power Shard ready for combat or stigma use. This offer contains 500 shards.
@@ -413,16 +359,16 @@
 160003014	5	12000	food_drink	20	Grants +80 maximum MP for 15 min. Reuse: 5 sec. Offer contains 5 Kukuru Omelette items.
 160003558	5	12000	food_drink	20	Grants +4 Physical Attack, +20 Magic Boost for 15 min. Reuse: 5 sec. Offer contains 5 Lesser Focus Agent items.
 160003552	5	12000	food_drink	20	Grants +4 HP regeneration, +6 MP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Lesser Rally Serum items.
-160003543	5	12000	food_drink	40	Grants +40 Physical Accuracy for 15 min. Reuse: 5 sec. Offer contains 5 Level 40 Accuracy Increase Shop Food items.
-160003539	5	12000	food_drink	40	Grants +8 Physical Attack for 15 min. Reuse: 5 sec. Offer contains 5 Level 40 Attack Power Increase Shop Food items.
-160003544	5	12000	food_drink	40	Grants +20 Evasion for 15 min. Reuse: 5 sec. Offer contains 5 Level 40 Evasion Increase Shop Food items.
-160003547	5	12000	food_drink	40	Grants +8 HP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Level 40 HP Regeneration Shop Food items.
-160003545	5	12000	food_drink	40	Grants +20 Magical Accuracy for 15 min. Reuse: 5 sec. Offer contains 5 Level 40 Magic Accuracy Increase Shop Food items.
-160003540	5	12000	food_drink	40	Grants +40 Magic Boost for 15 min. Reuse: 5 sec. Offer contains 5 Level 40 Magic Boost Increase Shop Food items.
-160003541	5	12000	food_drink	40	Grants +160 maximum HP for 15 min. Reuse: 5 sec. Offer contains 5 Level 40 Maximum HP Increase Shop Food items.
-160003542	5	12000	food_drink	40	Grants +160 maximum MP for 15 min. Reuse: 5 sec. Offer contains 5 Level 40 Maximum MP Increase Shop Food items.
-160003548	5	12000	food_drink	40	Grants +12 MP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Level 40 MP Regeneration Shop Food items.
-160003546	5	12000	food_drink	40	Grants +20 Magic Resist for 15 min. Reuse: 5 sec. Offer contains 5 Level 40 Resist Magic Increase Shop Food items.
+160003543	5	32000	food_drink	40	Grants +40 Physical Accuracy for 15 min. Reuse: 5 sec. Offer contains 5 Level 40 Accuracy Increase Shop Food items.
+160003539	5	32000	food_drink	40	Grants +8 Physical Attack for 15 min. Reuse: 5 sec. Offer contains 5 Level 40 Attack Power Increase Shop Food items.
+160003544	5	32000	food_drink	40	Grants +20 Evasion for 15 min. Reuse: 5 sec. Offer contains 5 Level 40 Evasion Increase Shop Food items.
+160003547	5	32000	food_drink	40	Grants +8 HP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Level 40 HP Regeneration Shop Food items.
+160003545	5	32000	food_drink	40	Grants +20 Magical Accuracy for 15 min. Reuse: 5 sec. Offer contains 5 Level 40 Magic Accuracy Increase Shop Food items.
+160003540	5	32000	food_drink	40	Grants +40 Magic Boost for 15 min. Reuse: 5 sec. Offer contains 5 Level 40 Magic Boost Increase Shop Food items.
+160003541	5	32000	food_drink	40	Grants +160 maximum HP for 15 min. Reuse: 5 sec. Offer contains 5 Level 40 Maximum HP Increase Shop Food items.
+160003542	5	32000	food_drink	40	Grants +160 maximum MP for 15 min. Reuse: 5 sec. Offer contains 5 Level 40 Maximum MP Increase Shop Food items.
+160003548	5	32000	food_drink	40	Grants +12 MP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Level 40 MP Regeneration Shop Food items.
+160003546	5	32000	food_drink	40	Grants +20 Magic Resist for 15 min. Reuse: 5 sec. Offer contains 5 Level 40 Resist Magic Increase Shop Food items.
 160003006	5	12000	food_drink	10	Grants +5 Evasion for 15 min. Reuse: 5 sec. Offer contains 5 Lini Salad items.
 160003010	5	12000	food_drink	10	Grants +3 MP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Lisheri Juice items.
 160003561	5	12000	food_drink	50	Grants +10 Physical Attack, +50 Magic Boost for 15 min. Reuse: 5 sec. Offer contains 5 Major Focus Agent items.
@@ -481,9 +427,9 @@
 160003012	5	12000	food_drink	20	Grants +20 Magic Boost for 15 min. Reuse: 5 sec. Offer contains 5 Savory Mela items.
 160003502	5	12000	food_drink	10	Grants +10 Magic Boost for 15 min. Reuse: 5 sec. Offer contains 5 Savory Micory items.
 160003512	5	12000	food_drink	20	Grants +20 Magic Boost for 15 min. Reuse: 5 sec. Offer contains 5 Savory Tikel items.
-160003534	5	12000	food_drink	50	Grants +50 Magic Boost for 15 min. Also applies Befuddled, lowering Magical Accuracy with a chance of reduced MP regeneration. Reuse: 5 sec. Offer contains 5 Shulack Double Chili items.
-160003535	5	12000	food_drink	50	Grants +200 maximum HP for 15 min. Also applies Full Stomach, lowering Evasion with a chance of reduced MP regeneration. Reuse: 5 sec. Offer contains 5 Shulack Super Duper Dumpling items.
-160003533	5	12000	food_drink	50	Grants +10 Physical Attack for 15 min. Also applies Stomachache, lowering Physical Accuracy with a chance of reduced MP regeneration. Reuse: 5 sec. Offer contains 5 Shulack Whole Tub Honey Pudding items.
+160003534	5	30000	food_drink	50	Grants +50 Magic Boost for 15 min. Also applies Befuddled, lowering Magical Accuracy with a chance of reduced MP regeneration. Reuse: 5 sec. Offer contains 5 Shulack Double Chili items.
+160003535	5	30000	food_drink	50	Grants +200 maximum HP for 15 min. Also applies Full Stomach, lowering Evasion with a chance of reduced MP regeneration. Reuse: 5 sec. Offer contains 5 Shulack Super Duper Dumpling items.
+160003533	5	30000	food_drink	50	Grants +10 Physical Attack for 15 min. Also applies Stomachache, lowering Physical Accuracy with a chance of reduced MP regeneration. Reuse: 5 sec. Offer contains 5 Shulack Whole Tub Honey Pudding items.
 160010125	5	12000	transformation_candy	40	Use Solorius Inquin Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010126	5	12000	transformation_candy	40	Use Solorius Inquin Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010123	5	12000	transformation_candy	40	Use Solorius Polar Bear Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
@@ -497,8 +443,8 @@
 160003518	5	12000	food_drink	20	Grants +10 Magic Resist for 15 min. Reuse: 5 sec. Offer contains 5 Spicy Tog items.
 160010273	5	12000	transformation_candy	40	Use Stalwart Dandi Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010275	5	12000	transformation_candy	40	Use Stalwart Dandi Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
-160003532	5	12000	transformation_candy	40	Transforms your character for 10 min. Skills and flight are unavailable in this form. Reuse: 5 sec. Offer contains 5 Steel Rake Scout Form Candy items.
-160003531	5	12000	transformation_candy	40	Transforms your character for 10 min. Skills and flight are unavailable in this form. Reuse: 5 sec. Offer contains 5 Steel Rake Swabbie Form Candy items.
+160003532	5	99000	transformation_candy	40	Transforms your character for 10 min. Skills and flight are unavailable in this form. Reuse: 5 sec. Offer contains 5 Steel Rake Scout Form Candy items.
+160003531	5	99000	transformation_candy	40	Transforms your character for 10 min. Skills and flight are unavailable in this form. Reuse: 5 sec. Offer contains 5 Steel Rake Swabbie Form Candy items.
 160010188	5	12000	transformation_candy	40	Use Strongest Gold Inquin Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010189	5	12000	transformation_candy	40	Use Strongest Gold Inquin Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010192	5	12000	transformation_candy	40	Use Strongest Green Inquin Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
@@ -572,14 +518,10 @@
 125045445	1	90000	fashion_headwear	1	Use Bolero Topper to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
 125040108	1	90000	fashion_headwear	1	Use Breathe Cap to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
 125040247	1	90000	fashion_headwear	1	Use Brommel Hat to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
-125003946	1	90000	fashion_headwear	1	Use Casually Alluring Hairpin to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
-125003949	1	90000	fashion_headwear	1	Use Charming Kitter Mask to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
-125003945	1	90000	fashion_headwear	1	Use Chic Wedding Veil to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
+125003945	1	400000000	fashion_headwear	1	Use Chic Wedding Veil to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
 125045448	1	90000	fashion_headwear	1	Use Contemporary Headpiece to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
-125003948	1	90000	fashion_headwear	1	Use Cute Kitter Headgear to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
 125045519	1	90000	fashion_headwear	1	Use Cute Korean Costume Hat to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
 125040078	1	90000	fashion_headwear	1	Use Cute Swim Hat to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
-125004118	1	90000	fashion_headwear	1	Use Daeva's Alluring Headpiece to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
 125040084	1	90000	fashion_headwear	1	Use Decorated Headwrap to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
 125040038	1	90000	fashion_headwear	1	Use Devil Horns to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
 125045518	1	90000	fashion_headwear	1	Use Dignified Korean Costume Hat to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
@@ -609,12 +551,7 @@
 125040250	1	90000	fashion_headwear	1	Use Lemon Hairpin to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
 125045521	1	90000	fashion_headwear	1	Use Luxury Outfit Feather Hat to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
 125045542	1	90000	fashion_headwear	1	Use Luxury Outfit Feather Hat Special to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
-125004095	1	90000	fashion_headwear	65	Use Malefic Bandana to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
-125004096	1	90000	fashion_headwear	65	Use Malefic Chain Helm to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
-125004094	1	90000	fashion_headwear	65	Use Malefic Hat to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
-125004097	1	90000	fashion_headwear	65	Use Malefic Helm to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
 125040182	1	90000	fashion_headwear	1	Use Marine Hat to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
-125003947	1	90000	fashion_headwear	1	Use Masquerade Tiara to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
 125040246	1	90000	fashion_headwear	1	Use Merone Hat to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
 125045520	1	90000	fashion_headwear	1	Use Modern Edge Look Hat to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
 125045541	1	90000	fashion_headwear	1	Use Modern Look Head Special to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
@@ -655,7 +592,7 @@
 125040251	1	90000	fashion_headwear	1	Use Vinna Hairpin to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
 125040117	1	90000	fashion_headwear	1	Use Wind Spirit Hat to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
 125040114	1	90000	fashion_headwear	1	Use Winged Circlet to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
-190100010	1	750000	mounts	1	Register Blue Surfrider as a rideable mount for travel. Use the delivered mount item from your inventory.
+190100010	1	10059230	mounts	1	Register Blue Surfrider as a rideable mount for travel. Use the delivered mount item from your inventory.
 190100000	1	750000	mounts	1	Register Cirruspeed as a rideable mount for travel. Use the delivered mount item from your inventory.
 190100090	1	750000	mounts	1	Register Crimsonimbus as a rideable mount for travel. Use the delivered mount item from your inventory.
 190100155	1	750000	mounts	1	Register Fast Flight Bykion as a rideable mount for travel. Use the delivered mount item from your inventory.
@@ -699,13 +636,8 @@
 110900217	1	125000	fashion_outfits	1	Use 'I-Can-Hear-Only-You' Matching T-Shirt to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900213	1	125000	fashion_outfits	1	Use Beatific Outfit to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900080	1	125000	fashion_outfits	1	Caftan/Sarafan is an outfit piece for your character's look. Check the item details for its equipment requirements.
-110101732	1	125000	fashion_outfits	1	Use Casually Alluring Outfit to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-111101567	1	125000	fashion_outfits	1	Use Charming Kitter Gloves to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-113101579	1	125000	fashion_outfits	1	Use Charming Kitter Pants to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-114101613	1	125000	fashion_outfits	1	Use Charming Kitter Shoes to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-112101517	1	125000	fashion_outfits	1	Use Charming Kitter Shoulderpiece to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900032	1	125000	fashion_outfits	1	Chipao/Changpao is an outfit piece for your character's look. Check the item details for its equipment requirements.
-110900126	1	125000	fashion_outfits	1	Use Cinna's Leather Chic to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
+110900126	1	2000000	fashion_outfits	1	Use Cinna's Leather Chic to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900767	1	125000	fashion_outfits	1	Use Classic Coat to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900764	1	125000	fashion_outfits	1	Use Contemporary Dress to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900765	1	125000	fashion_outfits	1	Use Contemporary Look to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
@@ -713,18 +645,12 @@
 110900118	1	125000	fashion_outfits	1	Use Cool Swimwear to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900215	1	125000	fashion_outfits	1	Use Couture Clothing to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900087	1	125000	fashion_outfits	1	Use Cute Denim Dress to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-110101734	1	125000	fashion_outfits	1	Use Cute Kitter Ensemble to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-111101566	1	125000	fashion_outfits	1	Use Cute Kitter Gloves to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-113101578	1	125000	fashion_outfits	1	Use Cute Kitter Pants to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-114101612	1	125000	fashion_outfits	1	Use Cute Kitter Shoes to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-112101516	1	125000	fashion_outfits	1	Use Cute Kitter Shoulderpiece to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900864	1	125000	fashion_outfits	1	Use Cute Korean Costume to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900103	1	125000	fashion_outfits	1	Use Cute Swimsuit to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900116	1	125000	fashion_outfits	1	Use Cute Swimwear to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-110101829	1	125000	fashion_outfits	1	Use Daeva's Alluring Party Dress to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900079	1	125000	fashion_outfits	1	Dandy/Bustle is an outfit piece for your character's look. Check the item details for its equipment requirements.
 110900100	1	125000	fashion_outfits	1	Use Daskin's Party Outfit to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-110900064	1	125000	fashion_outfits	1	Use Daskin's Party Suit to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
+110900064	1	1000000	fashion_outfits	1	Use Daskin's Party Suit to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900859	1	125000	fashion_outfits	1	Use Delightful Outfit to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900863	1	125000	fashion_outfits	1	Use Dignified Korean Costume to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900772	1	125000	fashion_outfits	1	Use Duster to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
@@ -737,17 +663,17 @@
 110900737	1	125000	fashion_outfits	1	Use Flamekissed Boarding Outfit to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900136	1	125000	fashion_outfits	1	Use Foxtail Hot Pants Outfit to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900028	1	125000	fashion_outfits	1	Fur-Lined Hanbok is an outfit piece for your character's look. Check the item details for its equipment requirements.
-110900127	1	125000	fashion_outfits	1	Use Gabrez's Cocktail Scales to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-110900065	1	125000	fashion_outfits	1	Use Glamorous High Class Costume (Elyos) to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
+110900127	1	2000000	fashion_outfits	1	Use Gabrez's Cocktail Scales to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
+110900065	1	10000000	fashion_outfits	1	Use Glamorous High Class Costume (Elyos) to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900223	1	125000	fashion_outfits	1	Use Gym Suit to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900866	1	125000	fashion_outfits	1	Use Halloween Pumpkin to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900059	1	125000	fashion_outfits	1	Hanbok is an outfit piece for your character's look. Check the item details for its equipment requirements.
-110900068	1	125000	fashion_outfits	1	Use High Class Costume Lolita (Asmodian) to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
+110900068	1	10000000	fashion_outfits	1	Use High Class Costume Lolita (Asmodian) to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900081	1	125000	fashion_outfits	1	Himation/Chiton is an outfit piece for your character's look. Check the item details for its equipment requirements.
 110900085	1	125000	fashion_outfits	1	Use Hot Denim Dress to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900105	1	125000	fashion_outfits	1	Use Hot Swimsuit to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900117	1	125000	fashion_outfits	1	Use Hot Swimwear to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-110900031	1	125000	fashion_outfits	1	Imperial Chipao/Changpao is an outfit piece for your character's look. Check the item details for its equipment requirements.
+110900031	1	298000	fashion_outfits	1	Imperial Chipao/Changpao is an outfit piece for your character's look. Check the item details for its equipment requirements.
 110900140	1	125000	fashion_outfits	1	Use Joyful Festival Costume to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900030	1	125000	fashion_outfits	1	Kimono is an outfit piece for your character's look. Check the item details for its equipment requirements.
 110900232	1	125000	fashion_outfits	1	Use Koinobori Festival Costume to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
@@ -759,43 +685,22 @@
 110900963	1	125000	fashion_outfits	1	Use Majestic Banded Armor to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900964	1	125000	fashion_outfits	1	Use Majestic Stitched Armor to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900962	1	125000	fashion_outfits	1	Use Majestic Tempered Armor to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-114301799	1	125000	fashion_outfits	65	Use Malefic Boots to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-110601596	1	125000	fashion_outfits	65	Use Malefic Breastplate to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-113301762	1	125000	fashion_outfits	65	Use Malefic Breeches to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-114501716	1	125000	fashion_outfits	65	Use Malefic Brogans to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-113501706	1	125000	fashion_outfits	65	Use Malefic Chausses to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-111601559	1	125000	fashion_outfits	65	Use Malefic Gauntlets to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-111101630	1	125000	fashion_outfits	65	Use Malefic Gloves to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-113601542	1	125000	fashion_outfits	65	Use Malefic Greaves to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-111501688	1	125000	fashion_outfits	65	Use Malefic Handguards to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-110551129	1	125000	fashion_outfits	65	Use Malefic Hauberk to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-110301793	1	125000	fashion_outfits	65	Use Malefic Jerkin to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-113101642	1	125000	fashion_outfits	65	Use Malefic Leggings to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-112101580	1	125000	fashion_outfits	65	Use Malefic Pauldrons to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-114601549	1	125000	fashion_outfits	65	Use Malefic Sabatons to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-114101676	1	125000	fashion_outfits	65	Use Malefic Shoes to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-112301670	1	125000	fashion_outfits	65	Use Malefic Shoulderguards to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-112601541	1	125000	fashion_outfits	65	Use Malefic Shoulderplates to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-112501627	1	125000	fashion_outfits	65	Use Malefic Spaulders to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-110101812	1	125000	fashion_outfits	65	Use Malefic Tunic to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-111301731	1	125000	fashion_outfits	65	Use Malefic Vambrace to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-110900066	1	125000	fashion_outfits	1	Use Marra's Party Dress to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
+110900066	1	1000000	fashion_outfits	1	Use Marra's Party Dress to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900101	1	125000	fashion_outfits	1	Use Marra's Party Outfit to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-110101733	1	125000	fashion_outfits	1	Use Masquerade Dress to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900773	1	125000	fashion_outfits	1	Use Mesmerizing Club Outfit to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900868	1	125000	fashion_outfits	1	Use Modern Edge Look to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900867	1	125000	fashion_outfits	1	Use Moon Rabbit's Picnic to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900214	1	125000	fashion_outfits	1	Use My Other Half T-Shirt to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900230	1	125000	fashion_outfits	1	Use Neat Marine Look to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900089	1	125000	fashion_outfits	1	Use Nobody Retro Dress to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-110900067	1	125000	fashion_outfits	1	Use Palentine's Party Dress to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
+110900067	1	1000000	fashion_outfits	1	Use Palentine's Party Dress to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900102	1	125000	fashion_outfits	1	Use Palentine's Party Outfit to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900869	1	125000	fashion_outfits	1	Use Peacock's Proposal to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900862	1	125000	fashion_outfits	1	Use Police Uniform to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900061	1	125000	fashion_outfits	1	Porgus Costume is an outfit piece for your character's look. Check the item details for its equipment requirements.
 114000008	1	125000	fashion_outfits	1	Porgus Feet is an outfit piece for your character's look. Check the item details for its equipment requirements.
 111000008	1	125000	fashion_outfits	1	Porgus Hooves is an outfit piece for your character's look. Check the item details for its equipment requirements.
-110900128	1	125000	fashion_outfits	1	Use Portia's Formalwear to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
+110900128	1	2000000	fashion_outfits	1	Use Portia's Formalwear to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900887	1	125000	fashion_outfits	1	Use Purple Joyful Festival Costume to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900442	1	125000	fashion_outfits	1	Use Rainbow Snake Costume to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900231	1	125000	fashion_outfits	1	Use Refreshing Marine Look to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
@@ -804,7 +709,7 @@
 110900062	1	125000	fashion_outfits	1	Ribbit Costume is an outfit piece for your character's look. Check the item details for its equipment requirements.
 111000009	1	125000	fashion_outfits	1	Ribbit Gloves is an outfit piece for your character's look. Check the item details for its equipment requirements.
 114000009	1	125000	fashion_outfits	1	Ribbit Shoes is an outfit piece for your character's look. Check the item details for its equipment requirements.
-110900129	1	125000	fashion_outfits	1	Use Rillard's Celebrity Line to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
+110900129	1	2000000	fashion_outfits	1	Use Rillard's Celebrity Line to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900553	1	125000	fashion_outfits	1	Use Sexy Costume to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900865	1	125000	fashion_outfits	1	Use Singer's Comfort to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
 110900738	1	125000	fashion_outfits	1	Use Snowkissed Boarding Outfit to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
@@ -842,20 +747,20 @@
 190020219	1	350000	pets	1	Adopt a companion with Bottlenose Tion's Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020078	1	350000	pets	1	Adopt a companion with Box Mimic Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020026	1	350000	pets	1	Adopt a companion with Boxing King Kerub Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000020	1	350000	pets	1	Adopt a companion with Button-Eye Mookie Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000026	1	350000	pets	1	Adopt a companion with Capped Fungie Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000020	1	2700000	pets	1	Adopt a companion with Button-Eye Mookie Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000026	1	735000	pets	1	Adopt a companion with Capped Fungie Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020070	1	350000	pets	1	Adopt a companion with Centennial Golden Saam Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020014	1	350000	pets	1	Adopt a companion with Crescent Inquin Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020073	1	350000	pets	1	Adopt a companion with Crewcut Fungie Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190000073	1	350000	pets	1	Adopt a companion with Crikey Kitter Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000036	1	350000	pets	1	Adopt a companion with Crimson Kerub Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000036	1	1494000	pets	1	Adopt a companion with Crimson Kerub Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190000057	1	350000	pets	1	Adopt a companion with Croaking Ribbit Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020050	1	350000	pets	1	Adopt a companion with Cute Team Spirit Shugo Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020164	1	350000	pets	1	Adopt a companion with Dandi Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020049	1	350000	pets	1	Adopt a companion with Dapper Team Spirit Shugo Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000027	1	350000	pets	1	Adopt a companion with Desert Naeda Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000027	1	1908000	pets	1	Adopt a companion with Desert Naeda Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020090	1	350000	pets	1	Adopt a companion with Dragon Manduri Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000035	1	350000	pets	1	Adopt a companion with Eager Sprigg Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000035	1	1494000	pets	1	Adopt a companion with Eager Sprigg Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020136	1	350000	pets	1	Adopt a companion with Evolved Kungfu Manduri Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020135	1	350000	pets	1	Adopt a companion with Evolved Speckled Ailu Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020137	1	350000	pets	1	Adopt a companion with Evolved Teasing Jefi Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
@@ -863,31 +768,31 @@
 190020075	1	350000	pets	1	Adopt a companion with Flash Bogel Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020072	1	350000	pets	1	Adopt a companion with Flattop Fungie Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190000053	1	350000	pets	1	Adopt a companion with Fuzzy Elroco Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000047	1	350000	pets	1	Adopt a companion with Golden Drakie Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000048	1	350000	pets	1	Adopt a companion with Golden Nyanco Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000047	1	1764000	pets	1	Adopt a companion with Golden Drakie Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000048	1	3835000	pets	1	Adopt a companion with Golden Nyanco Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020180	1	350000	pets	1	Adopt a companion with Golden Pack Saam Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020062	1	350000	pets	1	Adopt a companion with Golden Radama Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000017	1	350000	pets	1	Adopt a companion with Golden Wuf Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000019	1	350000	pets	1	Adopt a companion with Goldentail Dorion Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000017	1	7950000	pets	1	Adopt a companion with Golden Wuf Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000019	1	4275000	pets	1	Adopt a companion with Goldentail Dorion Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020237	1	350000	pets	1	Adopt a companion with Goldfur Adventurer. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000046	1	350000	pets	1	Adopt a companion with Goldmane Trico Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000046	1	1494000	pets	1	Adopt a companion with Goldmane Trico Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190010000	1	350000	pets	1	Adopt a companion with Grassy Drakie Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020087	1	350000	pets	1	Adopt a companion with Green Diabol Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190000056	1	350000	pets	1	Adopt a companion with Green Ribbit Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020077	1	350000	pets	1	Adopt a companion with Green Shell Potcrab Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020201	1	350000	pets	1	Adopt a companion with Harvest Saam Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000065	1	350000	pets	1	Adopt a companion with Headstrong Poroco Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000066	1	350000	pets	1	Adopt a companion with Headstrong Poroco Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000065	1	5100000	pets	1	Adopt a companion with Headstrong Poroco Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000066	1	5100000	pets	1	Adopt a companion with Headstrong Poroco Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020023	1	350000	pets	1	Adopt a companion with Headstrong Poroco Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190000041	1	350000	pets	1	Adopt a companion with Heiron Kitter Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020079	1	350000	pets	1	Adopt a companion with Helpful Box Mimic Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000023	1	350000	pets	1	Adopt a companion with Hungry Porgus Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000014	1	350000	pets	1	Adopt a companion with Indigo Ribbit Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000023	1	450000	pets	1	Adopt a companion with Hungry Porgus Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000014	1	735000	pets	1	Adopt a companion with Indigo Ribbit Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020006	1	350000	pets	1	Adopt a companion with Jumpy Shugo Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190000012	1	350000	pets	1	Adopt a companion with Manic Aukwi Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020003	1	350000	pets	1	Adopt a companion with Mau Cubling Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020022	1	350000	pets	1	Adopt a companion with Mean Poroco Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000021	1	350000	pets	1	Adopt a companion with Mellow Ksellid Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000021	1	2250000	pets	1	Adopt a companion with Mellow Ksellid Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020082	1	350000	pets	1	Adopt a companion with Meon Bulldozer Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020017	1	350000	pets	1	Adopt a companion with Micro MuMu Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020235	1	350000	pets	1	Adopt a companion with Mini Hyperion Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
@@ -897,15 +802,15 @@
 190000033	1	350000	pets	1	Adopt a companion with Pesky Manduri Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020028	1	350000	pets	1	Adopt a companion with Pink Griffo Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020088	1	350000	pets	1	Adopt a companion with Pink Merek Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000049	1	350000	pets	1	Adopt a companion with Pink Nyanco Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000049	1	3835000	pets	1	Adopt a companion with Pink Nyanco Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020013	1	350000	pets	1	Adopt a companion with Pinkhair Steren Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020223	1	350000	pets	1	Adopt a companion with Pinkybell's Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020114	1	350000	pets	1	Adopt a companion with Pointy Kitter Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000051	1	350000	pets	1	Adopt a companion with Pointyhat Sprigg Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000051	1	2502000	pets	1	Adopt a companion with Pointyhat Sprigg Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020060	1	350000	pets	1	Adopt a companion with Pointytail Acarun Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190070010	1	350000	pets	1	Adopt a companion with Popstar Summoning Lamp. Use the egg from your inventory after it arrives by Black Cloud mail.
 190010001	1	350000	pets	1	Adopt a companion with Potbelly Inquin Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000031	1	350000	pets	1	Adopt a companion with Pudgy Porgus Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000031	1	450000	pets	1	Adopt a companion with Pudgy Porgus Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190000055	1	350000	pets	1	Adopt a companion with Purple Ribbit Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190000011	1	350000	pets	1	Adopt a companion with Quick Kirca Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020161	1	350000	pets	1	Adopt a companion with Red Bulldozer Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
@@ -915,10 +820,10 @@
 190020076	1	350000	pets	1	Adopt a companion with Red Shell Potcrab Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190000059	1	350000	pets	1	Adopt a companion with Ribbitron Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020063	1	350000	pets	1	Adopt a companion with Robust Ailu Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000022	1	350000	pets	1	Adopt a companion with Rotund Ayas Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000022	1	3150000	pets	1	Adopt a companion with Rotund Ayas Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190000013	1	350000	pets	1	Adopt a companion with Rotund Methu Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020205	1	350000	pets	1	Adopt a companion with Royal Kitter Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000075	1	350000	pets	1	Adopt a companion with Runaway Poppy Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000075	1	1987500	pets	1	Adopt a companion with Runaway Poppy Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020010	1	350000	pets	1	Adopt a companion with Sassy Manduri Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190000016	1	350000	pets	1	Adopt a companion with Sawteeth Rotan Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020221	1	350000	pets	1	Adopt a companion with Shu-Ghost's Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
@@ -947,8 +852,8 @@
 190020020	1	350000	pets	1	Adopt a companion with Shugo Lad Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020019	1	350000	pets	1	Adopt a companion with Shugo Lass Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190070017	1	350000	pets	1	Adopt a companion with Sidekick Akumu Summoning Lamp. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000045	1	350000	pets	1	Adopt a companion with Silver Wuf Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000018	1	350000	pets	1	Adopt a companion with Silvertail Dorion Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000045	1	1987500	pets	1	Adopt a companion with Silver Wuf Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000018	1	4275000	pets	1	Adopt a companion with Silvertail Dorion Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020001	1	350000	pets	1	Adopt a companion with Skullabra Krall Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020061	1	350000	pets	1	Adopt a companion with Snowy Radama Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020109	1	350000	pets	1	Adopt a companion with Solorinerk Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
@@ -958,8 +863,8 @@
 190020057	1	350000	pets	1	Adopt a companion with Stately Crestlich Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190000077	1	350000	pets	1	Adopt a companion with Steel Narki Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020138	1	350000	pets	1	Adopt a companion with Stormwing Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000015	1	350000	pets	1	Adopt a companion with Striped Elroco Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000067	1	350000	pets	1	Adopt a companion with Sunset Drakie Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000015	1	735000	pets	1	Adopt a companion with Striped Elroco Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000067	1	2187000	pets	1	Adopt a companion with Sunset Drakie Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020234	1	350000	pets	1	Adopt a companion with Swordsman Ailu Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020175	1	350000	pets	1	Adopt a companion with Tahabata Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190000061	1	350000	pets	1	Adopt a companion with Tangerine Ribbit Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
@@ -974,8 +879,8 @@
 190000062	1	350000	pets	1	Adopt a companion with Violet Ribbit Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020064	1	350000	pets	1	Adopt a companion with Watchful Ailu Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020081	1	350000	pets	1	Adopt a companion with Waxy Humpback Worg Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000025	1	350000	pets	1	Adopt a companion with White Dagg Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000050	1	350000	pets	1	Adopt a companion with Whitebeard Manduri Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000025	1	735000	pets	1	Adopt a companion with White Dagg Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000050	1	1945000	pets	1	Adopt a companion with Whitebeard Manduri Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190000024	1	350000	pets	1	Adopt a companion with Wild Kitter Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190000078	1	350000	pets	1	Adopt a companion with Woodkeeper Ailu Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020080	1	350000	pets	1	Adopt a companion with Worg of the Dead Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
@@ -1064,26 +969,12 @@
 115001835	1	175000	weapon_melee	1	Use Crystal of Nuhun to remodel compatible shield and carry its appearance into battle. One item is delivered by Black Cloud mail.
 102101001	1	175000	weapon_arcane	50	Use Daru Cipher-Blade to remodel compatible keyblade and carry its appearance into battle. One item is delivered by Black Cloud mail.
 101501411	1	175000	weapon_melee	1	Use Dember's Toy to remodel compatible staff and carry its appearance into battle. One item is delivered by Black Cloud mail.
-102101062	1	175000	weapon_arcane	65	Use Feline Cipher-Blade to remodel compatible keyblade and carry its appearance into battle. One item is delivered by Black Cloud mail.
 101701427	1	175000	weapon_ranged	1	Use Festive Hanger to remodel compatible bow and carry its appearance into battle. One item is delivered by Black Cloud mail.
 100501371	1	175000	weapon_arcane	1	Use Florid Christmas Wreath to remodel compatible orb and carry its appearance into battle. One item is delivered by Black Cloud mail.
 115001866	1	175000	weapon_melee	1	Use Frosting Snowman to remodel compatible shield and carry its appearance into battle. One item is delivered by Black Cloud mail.
 100001806	1	175000	weapon_melee	1	Use Jenai's Lighting to remodel compatible sword and carry its appearance into battle. One item is delivered by Black Cloud mail.
 100501359	1	175000	weapon_arcane	1	Use Kitz's Sundial to remodel compatible orb and carry its appearance into battle. One item is delivered by Black Cloud mail.
 101300652	1	175000	weapon_melee	1	Lux's Glow is a polearm with a distinctive weapon appearance. Check its class, level, and attributes before buying.
-101901105	1	175000	weapon_ranged	65	Use Malefic Aethercannon to remodel compatible cannon and carry its appearance into battle. One item is delivered by Black Cloud mail.
-101701344	1	175000	weapon_ranged	65	Use Malefic Bow to remodel compatible bow and carry its appearance into battle. One item is delivered by Black Cloud mail.
-102101038	1	175000	weapon_arcane	65	Use Malefic Cipher-Blade to remodel compatible keyblade and carry its appearance into battle. One item is delivered by Black Cloud mail.
-100201479	1	175000	weapon_melee	65	Use Malefic Dagger to remodel compatible dagger and carry its appearance into battle. One item is delivered by Black Cloud mail.
-102001222	1	175000	weapon_arcane	65	Use Malefic Harp to remodel compatible harp and carry its appearance into battle. One item is delivered by Black Cloud mail.
-100101307	1	175000	weapon_melee	65	Use Malefic Mace to remodel compatible mace and carry its appearance into battle. One item is delivered by Black Cloud mail.
-100501293	1	175000	weapon_arcane	65	Use Malefic Orb to remodel compatible orb and carry its appearance into battle. One item is delivered by Black Cloud mail.
-101801194	1	175000	weapon_ranged	65	Use Malefic Pistol to remodel compatible gun and carry its appearance into battle. One item is delivered by Black Cloud mail.
-101301245	1	175000	weapon_melee	65	Use Malefic Polearm to remodel compatible polearm and carry its appearance into battle. One item is delivered by Black Cloud mail.
-115001733	1	175000	weapon_melee	65	Use Malefic Shield to remodel compatible shield and carry its appearance into battle. One item is delivered by Black Cloud mail.
-101501336	1	175000	weapon_melee	65	Use Malefic Staff to remodel compatible staff and carry its appearance into battle. One item is delivered by Black Cloud mail.
-100001708	1	175000	weapon_melee	65	Use Malefic Sword to remodel compatible sword and carry its appearance into battle. One item is delivered by Black Cloud mail.
-100901342	1	175000	weapon_melee	65	Use Malefic Two-handed Sword to remodel compatible greatsword and carry its appearance into battle. One item is delivered by Black Cloud mail.
 100200803	1	175000	weapon_melee	1	Mellin's Treat is a dagger with a distinctive weapon appearance. Check its class, level, and attributes before buying.
 100901428	1	175000	weapon_melee	1	Use Mooshu's Tool to remodel compatible greatsword and carry its appearance into battle. One item is delivered by Black Cloud mail.
 102101004	1	175000	weapon_arcane	50	Use Pink Ailu Cipher-Blade to remodel compatible keyblade and carry its appearance into battle. One item is delivered by Black Cloud mail.
@@ -1238,12 +1129,12 @@
 164000184	1	30000	travel	1	Use Oriel Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
 164000185	1	30000	travel	1	Use Pernon Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
 164000250	1	30000	travel	1	Use [Event] Quick-return Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
-164000317	1	30000	travel	1	Use Lumewillow Glade Scout Base Return Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
-164000318	1	30000	travel	1	Use Pinnacle Cataract Outpost Return Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
+164000317	1	49200	travel	1	Use Lumewillow Glade Scout Base Return Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
+164000318	1	49200	travel	1	Use Pinnacle Cataract Outpost Return Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
 164000335	1	30000	travel	10	Use Abbey Return Stone (30 days) to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
 164000336	1	30000	travel	10	Use Abbey Return Stone (30 days) to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
-164000343	1	30000	travel	1	Use Aequis Expedition Headquarters Return Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
-164000344	1	30000	travel	1	Use Dragonrest Temple Return Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
+164000343	1	38400	travel	1	Use Aequis Expedition Headquarters Return Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
+164000344	1	38400	travel	1	Use Dragonrest Temple Return Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
 164001006	1	30000	travel	1	Use [Legion Reward] Sanctum Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
 164001007	1	30000	travel	1	Use [Legion Reward] Pandaemonium Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
 164002007	1	30000	travel	1	Use [Event] Sanctum Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
@@ -1265,10 +1156,10 @@
 164002183	1	30000	travel	1	Use Pandaemonium Instant Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
 164002186	1	500000	character_services	1	Activate Administrator's Boon – 30-Day Pass for the service duration in its name. Review the item details for the exact benefits and level restrictions.
 164002273	1	30000	travel	1	Use Instant Return Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
-164002279	1	30000	travel	1	Use Lumewillow Glade Scout Base Return Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
-164002280	1	30000	travel	1	Use Pinnacle Cataract Outpost Return Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
-164020005	1	30000	travel	50	Use Return Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
-164020006	1	30000	travel	50	Use Return Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
+164002279	1	49200	travel	1	Use Lumewillow Glade Scout Base Return Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
+164002280	1	49200	travel	1	Use Pinnacle Cataract Outpost Return Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
+164020005	1	200000	travel	50	Use Return Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
+164020006	1	200000	travel	50	Use Return Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
 169630001	1	400000	storage	1	Expand your cube inventory with [Event] Expand Cube Ticket (lvl 1). The ticket applies to the tier shown in its name; check your current expansion tier before buying.
 169630005	1	400000	storage	1	Expand your cube inventory with [Expand Card] Expand Cube Ticket (lvl 3). The ticket applies to the tier shown in its name; check your current expansion tier before buying.
 169630008	1	400000	storage	1	Expand your cube inventory with [Expand Card] Expand Cube Ticket (lvl 4). The ticket applies to the tier shown in its name; check your current expansion tier before buying.
@@ -1280,91 +1171,91 @@
 169650002	1	950000	character_services	1	A Plastic Surgery Ticket for the character appearance editor. Use it when changing your character’s look; one ticket is delivered by Black Cloud mail.
 169650003	1	950000	character_services	1	A Plastic Surgery Ticket for the character appearance editor. Use it when changing your character’s look; one ticket is delivered by Black Cloud mail.
 169660000	1	1400000	character_services	1	A Gender Switch Ticket for the character appearance editor. One ticket is delivered by Black Cloud mail.
-169661000	1	600000	character_services	1	Use Palace Exterior Remodeling Ticket to change the exterior of the matching house type. Check your house type before buying this ticket.
-169661001	1	600000	character_services	1	Use Estate Exterior Remodeling Ticket to change the exterior of the matching house type. Check your house type before buying this ticket.
-169661002	1	600000	character_services	1	Use Mansion Exterior Remodeling Ticket to change the exterior of the matching house type. Check your house type before buying this ticket.
-169661003	1	600000	character_services	1	Use House Exterior Remodeling Ticket to change the exterior of the matching house type. Check your house type before buying this ticket.
-169661004	1	600000	character_services	1	Use Palace Exterior Remodeling Ticket to change the exterior of the matching house type. Check your house type before buying this ticket.
-169661005	1	600000	character_services	1	Use Estate Exterior Remodeling Ticket to change the exterior of the matching house type. Check your house type before buying this ticket.
-169661006	1	600000	character_services	1	Use Mansion Exterior Remodeling Ticket to change the exterior of the matching house type. Check your house type before buying this ticket.
-169661007	1	600000	character_services	1	Use House Exterior Remodeling Ticket to change the exterior of the matching house type. Check your house type before buying this ticket.
+169661000	1	100000000	character_services	1	Use Palace Exterior Remodeling Ticket to change the exterior of the matching house type. Check your house type before buying this ticket.
+169661001	1	33500000	character_services	1	Use Estate Exterior Remodeling Ticket to change the exterior of the matching house type. Check your house type before buying this ticket.
+169661002	1	11200000	character_services	1	Use Mansion Exterior Remodeling Ticket to change the exterior of the matching house type. Check your house type before buying this ticket.
+169661003	1	1200000	character_services	1	Use House Exterior Remodeling Ticket to change the exterior of the matching house type. Check your house type before buying this ticket.
+169661004	1	100000000	character_services	1	Use Palace Exterior Remodeling Ticket to change the exterior of the matching house type. Check your house type before buying this ticket.
+169661005	1	33500000	character_services	1	Use Estate Exterior Remodeling Ticket to change the exterior of the matching house type. Check your house type before buying this ticket.
+169661006	1	11200000	character_services	1	Use Mansion Exterior Remodeling Ticket to change the exterior of the matching house type. Check your house type before buying this ticket.
+169661007	1	1200000	character_services	1	Use House Exterior Remodeling Ticket to change the exterior of the matching house type. Check your house type before buying this ticket.
 169670000	1	1400000	character_services	1	A Name Change Ticket for renaming your character through the supported name change flow. One ticket is delivered by Black Cloud mail.
-169840203	1	45000	character_services	1	Apply Hair Dye: White to change your character's hair color. Check your faction and appearance options before buying.
-169840204	1	45000	character_services	1	Apply Hair Dye: Black to change your character's hair color. Check your faction and appearance options before buying.
-169840205	1	45000	character_services	1	Apply Hair Dye: Dark Pink to change your character's hair color. Check your faction and appearance options before buying.
-169840206	1	45000	character_services	1	Apply Hair Dye: Cream to change your character's hair color. Check your faction and appearance options before buying.
-169840207	1	45000	character_services	1	Apply Hair Dye: Dusty Pink to change your character's hair color. Check your faction and appearance options before buying.
-169840208	1	45000	character_services	1	Apply Hair Dye: Light Yellow to change your character's hair color. Check your faction and appearance options before buying.
-169840209	1	45000	character_services	1	Apply Hair Dye: Pale Green to change your character's hair color. Check your faction and appearance options before buying.
-169840210	1	45000	character_services	1	Apply Hair Dye: Olive Green to change your character's hair color. Check your faction and appearance options before buying.
-169840211	1	45000	character_services	1	Apply Hair Dye: Lilac to change your character's hair color. Check your faction and appearance options before buying.
-169840212	1	45000	character_services	1	Apply Hair Dye: Silver to change your character's hair color. Check your faction and appearance options before buying.
-169840213	1	45000	character_services	1	Apply Hair Dye: Gray to change your character's hair color. Check your faction and appearance options before buying.
-169840214	1	45000	character_services	1	Apply Hair Dye: Brown to change your character's hair color. Check your faction and appearance options before buying.
-169840215	1	45000	character_services	1	Apply Hair Dye: Hazy Blue to change your character's hair color. Check your faction and appearance options before buying.
-169840216	1	45000	character_services	1	Apply Hair Dye: Indigo to change your character's hair color. Check your faction and appearance options before buying.
-169840217	1	45000	character_services	1	Apply Hair Dye: Copper to change your character's hair color. Check your faction and appearance options before buying.
-169840218	1	45000	character_services	1	Apply Hair Dye: Mauve to change your character's hair color. Check your faction and appearance options before buying.
-169840219	1	45000	character_services	1	Apply Hair Dye: Maroon to change your character's hair color. Check your faction and appearance options before buying.
-169840220	1	45000	character_services	1	Apply Hair Dye: Violet to change your character's hair color. Check your faction and appearance options before buying.
-169840503	1	45000	character_services	1	Apply Hair Dye: White to change your character's hair color. Check your faction and appearance options before buying.
-169840504	1	45000	character_services	1	Apply Hair Dye: Black to change your character's hair color. Check your faction and appearance options before buying.
-169840505	1	45000	character_services	1	Apply Hair Dye: Dusky Violet to change your character's hair color. Check your faction and appearance options before buying.
-169840506	1	45000	character_services	1	Apply Hair Dye: Black Violet to change your character's hair color. Check your faction and appearance options before buying.
-169840507	1	45000	character_services	1	Apply Hair Dye: Dusky Maroon to change your character's hair color. Check your faction and appearance options before buying.
-169840508	1	45000	character_services	1	Apply Hair Dye: Blond to change your character's hair color. Check your faction and appearance options before buying.
-169840509	1	45000	character_services	1	Apply Hair Dye: True Violet to change your character's hair color. Check your faction and appearance options before buying.
-169840510	1	45000	character_services	1	Apply Hair Dye: Olive Green to change your character's hair color. Check your faction and appearance options before buying.
-169840511	1	45000	character_services	1	Apply Hair Dye: Lilac to change your character's hair color. Check your faction and appearance options before buying.
-169840512	1	45000	character_services	1	Apply Hair Dye: Silver to change your character's hair color. Check your faction and appearance options before buying.
-169840513	1	45000	character_services	1	Apply Hair Dye: Gray to change your character's hair color. Check your faction and appearance options before buying.
-169840514	1	45000	character_services	1	Apply Hair Dye: Brown to change your character's hair color. Check your faction and appearance options before buying.
-169840515	1	45000	character_services	1	Apply Hair Dye: Pink to change your character's hair color. Check your faction and appearance options before buying.
-169840516	1	45000	character_services	1	Apply Hair Dye: Hazy Blue to change your character's hair color. Check your faction and appearance options before buying.
-169840517	1	45000	character_services	1	Apply Hair Dye: Pale Blond to change your character's hair color. Check your faction and appearance options before buying.
-169840518	1	45000	character_services	1	Apply Hair Dye: Copper to change your character's hair color. Check your faction and appearance options before buying.
-169840519	1	45000	character_services	1	Apply Hair Dye: Dusky Indigo to change your character's hair color. Check your faction and appearance options before buying.
-169840520	1	45000	character_services	1	Apply Hair Dye: Yellow to change your character's hair color. Check your faction and appearance options before buying.
-169850203	1	45000	character_services	1	Apply Color Spray No. 28 to change your character's face paint color. Check your faction and appearance options before buying.
-169850204	1	45000	character_services	1	Apply Color Spray No. 38 to change your character's face paint color. Check your faction and appearance options before buying.
-169850205	1	45000	character_services	1	Apply Color Spray No. 17 to change your character's face paint color. Check your faction and appearance options before buying.
-169850206	1	45000	character_services	1	Apply Color Spray No. 88 to change your character's face paint color. Check your faction and appearance options before buying.
-169850207	1	45000	character_services	1	Apply Color Spray No. 9 to change your character's face paint color. Check your faction and appearance options before buying.
-169850208	1	45000	character_services	1	Apply Color Spray No. 8 to change your character's face paint color. Check your faction and appearance options before buying.
-169850209	1	45000	character_services	1	Apply Color Spray No. 5 to change your character's face paint color. Check your faction and appearance options before buying.
-169850210	1	45000	character_services	1	Apply Color Spray No. 63 to change your character's face paint color. Check your faction and appearance options before buying.
-169850211	1	45000	character_services	1	Apply Color Spray No. 82 to change your character's face paint color. Check your faction and appearance options before buying.
-169850212	1	45000	character_services	1	Apply Color Spray No. 75 to change your character's face paint color. Check your faction and appearance options before buying.
-169850213	1	45000	character_services	1	Apply Color Spray No. 44 to change your character's face paint color. Check your faction and appearance options before buying.
-169850214	1	45000	character_services	1	Apply Color Spray No. 53 to change your character's face paint color. Check your faction and appearance options before buying.
-169850503	1	45000	character_services	1	Apply Color Spray No. 78 to change your character's face paint color. Check your faction and appearance options before buying.
-169850504	1	45000	character_services	1	Apply Color Spray No. 89 to change your character's face paint color. Check your faction and appearance options before buying.
-169850505	1	45000	character_services	1	Apply Color Spray No. 79 to change your character's face paint color. Check your faction and appearance options before buying.
-169850506	1	45000	character_services	1	Apply Color Spray No. 29 to change your character's face paint color. Check your faction and appearance options before buying.
-169850507	1	45000	character_services	1	Apply Color Spray No. 6 to change your character's face paint color. Check your faction and appearance options before buying.
-169850508	1	45000	character_services	1	Apply Color Spray No. 28 to change your character's face paint color. Check your faction and appearance options before buying.
-169850509	1	45000	character_services	1	Apply Color Spray No. 2 to change your character's face paint color. Check your faction and appearance options before buying.
-169850510	1	45000	character_services	1	Apply Color Spray No. 3 to change your character's face paint color. Check your faction and appearance options before buying.
-169850511	1	45000	character_services	1	Apply Color Spray No. 84 to change your character's face paint color. Check your faction and appearance options before buying.
-169850512	1	45000	character_services	1	Apply Color Spray No. 13 to change your character's face paint color. Check your faction and appearance options before buying.
-169850513	1	45000	character_services	1	Apply Color Spray No. 12 to change your character's face paint color. Check your faction and appearance options before buying.
-169850514	1	45000	character_services	1	Apply Color Spray No. 44 to change your character's face paint color. Check your faction and appearance options before buying.
+169840203	1	500000	character_services	1	Apply Hair Dye: White to change your character's hair color. Check your faction and appearance options before buying.
+169840204	1	500000	character_services	1	Apply Hair Dye: Black to change your character's hair color. Check your faction and appearance options before buying.
+169840205	1	500000	character_services	1	Apply Hair Dye: Dark Pink to change your character's hair color. Check your faction and appearance options before buying.
+169840206	1	500000	character_services	1	Apply Hair Dye: Cream to change your character's hair color. Check your faction and appearance options before buying.
+169840207	1	500000	character_services	1	Apply Hair Dye: Dusty Pink to change your character's hair color. Check your faction and appearance options before buying.
+169840208	1	500000	character_services	1	Apply Hair Dye: Light Yellow to change your character's hair color. Check your faction and appearance options before buying.
+169840209	1	500000	character_services	1	Apply Hair Dye: Pale Green to change your character's hair color. Check your faction and appearance options before buying.
+169840210	1	500000	character_services	1	Apply Hair Dye: Olive Green to change your character's hair color. Check your faction and appearance options before buying.
+169840211	1	500000	character_services	1	Apply Hair Dye: Lilac to change your character's hair color. Check your faction and appearance options before buying.
+169840212	1	500000	character_services	1	Apply Hair Dye: Silver to change your character's hair color. Check your faction and appearance options before buying.
+169840213	1	500000	character_services	1	Apply Hair Dye: Gray to change your character's hair color. Check your faction and appearance options before buying.
+169840214	1	500000	character_services	1	Apply Hair Dye: Brown to change your character's hair color. Check your faction and appearance options before buying.
+169840215	1	500000	character_services	1	Apply Hair Dye: Hazy Blue to change your character's hair color. Check your faction and appearance options before buying.
+169840216	1	500000	character_services	1	Apply Hair Dye: Indigo to change your character's hair color. Check your faction and appearance options before buying.
+169840217	1	500000	character_services	1	Apply Hair Dye: Copper to change your character's hair color. Check your faction and appearance options before buying.
+169840218	1	500000	character_services	1	Apply Hair Dye: Mauve to change your character's hair color. Check your faction and appearance options before buying.
+169840219	1	500000	character_services	1	Apply Hair Dye: Maroon to change your character's hair color. Check your faction and appearance options before buying.
+169840220	1	500000	character_services	1	Apply Hair Dye: Violet to change your character's hair color. Check your faction and appearance options before buying.
+169840503	1	500000	character_services	1	Apply Hair Dye: White to change your character's hair color. Check your faction and appearance options before buying.
+169840504	1	500000	character_services	1	Apply Hair Dye: Black to change your character's hair color. Check your faction and appearance options before buying.
+169840505	1	500000	character_services	1	Apply Hair Dye: Dusky Violet to change your character's hair color. Check your faction and appearance options before buying.
+169840506	1	500000	character_services	1	Apply Hair Dye: Black Violet to change your character's hair color. Check your faction and appearance options before buying.
+169840507	1	500000	character_services	1	Apply Hair Dye: Dusky Maroon to change your character's hair color. Check your faction and appearance options before buying.
+169840508	1	500000	character_services	1	Apply Hair Dye: Blond to change your character's hair color. Check your faction and appearance options before buying.
+169840509	1	500000	character_services	1	Apply Hair Dye: True Violet to change your character's hair color. Check your faction and appearance options before buying.
+169840510	1	500000	character_services	1	Apply Hair Dye: Olive Green to change your character's hair color. Check your faction and appearance options before buying.
+169840511	1	500000	character_services	1	Apply Hair Dye: Lilac to change your character's hair color. Check your faction and appearance options before buying.
+169840512	1	500000	character_services	1	Apply Hair Dye: Silver to change your character's hair color. Check your faction and appearance options before buying.
+169840513	1	500000	character_services	1	Apply Hair Dye: Gray to change your character's hair color. Check your faction and appearance options before buying.
+169840514	1	500000	character_services	1	Apply Hair Dye: Brown to change your character's hair color. Check your faction and appearance options before buying.
+169840515	1	500000	character_services	1	Apply Hair Dye: Pink to change your character's hair color. Check your faction and appearance options before buying.
+169840516	1	500000	character_services	1	Apply Hair Dye: Hazy Blue to change your character's hair color. Check your faction and appearance options before buying.
+169840517	1	500000	character_services	1	Apply Hair Dye: Pale Blond to change your character's hair color. Check your faction and appearance options before buying.
+169840518	1	500000	character_services	1	Apply Hair Dye: Copper to change your character's hair color. Check your faction and appearance options before buying.
+169840519	1	500000	character_services	1	Apply Hair Dye: Dusky Indigo to change your character's hair color. Check your faction and appearance options before buying.
+169840520	1	500000	character_services	1	Apply Hair Dye: Yellow to change your character's hair color. Check your faction and appearance options before buying.
+169850203	1	500000	character_services	1	Apply Color Spray No. 28 to change your character's face paint color. Check your faction and appearance options before buying.
+169850204	1	500000	character_services	1	Apply Color Spray No. 38 to change your character's face paint color. Check your faction and appearance options before buying.
+169850205	1	500000	character_services	1	Apply Color Spray No. 17 to change your character's face paint color. Check your faction and appearance options before buying.
+169850206	1	500000	character_services	1	Apply Color Spray No. 88 to change your character's face paint color. Check your faction and appearance options before buying.
+169850207	1	500000	character_services	1	Apply Color Spray No. 9 to change your character's face paint color. Check your faction and appearance options before buying.
+169850208	1	500000	character_services	1	Apply Color Spray No. 8 to change your character's face paint color. Check your faction and appearance options before buying.
+169850209	1	500000	character_services	1	Apply Color Spray No. 5 to change your character's face paint color. Check your faction and appearance options before buying.
+169850210	1	500000	character_services	1	Apply Color Spray No. 63 to change your character's face paint color. Check your faction and appearance options before buying.
+169850211	1	500000	character_services	1	Apply Color Spray No. 82 to change your character's face paint color. Check your faction and appearance options before buying.
+169850212	1	500000	character_services	1	Apply Color Spray No. 75 to change your character's face paint color. Check your faction and appearance options before buying.
+169850213	1	500000	character_services	1	Apply Color Spray No. 44 to change your character's face paint color. Check your faction and appearance options before buying.
+169850214	1	500000	character_services	1	Apply Color Spray No. 53 to change your character's face paint color. Check your faction and appearance options before buying.
+169850503	1	500000	character_services	1	Apply Color Spray No. 78 to change your character's face paint color. Check your faction and appearance options before buying.
+169850504	1	500000	character_services	1	Apply Color Spray No. 89 to change your character's face paint color. Check your faction and appearance options before buying.
+169850505	1	500000	character_services	1	Apply Color Spray No. 79 to change your character's face paint color. Check your faction and appearance options before buying.
+169850506	1	500000	character_services	1	Apply Color Spray No. 29 to change your character's face paint color. Check your faction and appearance options before buying.
+169850507	1	500000	character_services	1	Apply Color Spray No. 6 to change your character's face paint color. Check your faction and appearance options before buying.
+169850508	1	500000	character_services	1	Apply Color Spray No. 28 to change your character's face paint color. Check your faction and appearance options before buying.
+169850509	1	500000	character_services	1	Apply Color Spray No. 2 to change your character's face paint color. Check your faction and appearance options before buying.
+169850510	1	500000	character_services	1	Apply Color Spray No. 3 to change your character's face paint color. Check your faction and appearance options before buying.
+169850511	1	500000	character_services	1	Apply Color Spray No. 84 to change your character's face paint color. Check your faction and appearance options before buying.
+169850512	1	500000	character_services	1	Apply Color Spray No. 13 to change your character's face paint color. Check your faction and appearance options before buying.
+169850513	1	500000	character_services	1	Apply Color Spray No. 12 to change your character's face paint color. Check your faction and appearance options before buying.
+169850514	1	500000	character_services	1	Apply Color Spray No. 44 to change your character's face paint color. Check your faction and appearance options before buying.
 187000000	1	850000	wing_permanent	30	Equip Darrinerk's Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000001	1	850000	wing_permanent	40	Equip Tashunerk's Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000001	1	10000000	wing_permanent	40	Equip Tashunerk's Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000002	1	850000	wing_permanent	30	Equip Midnight Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000003	1	850000	wing_permanent	40	Equip Abyssal Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000003	1	10000000	wing_permanent	40	Equip Abyssal Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000006	1	1450000	wing_permanent	50	Equip Nestor's Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000007	1	1450000	wing_permanent	50	Equip Sigyn's Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000008	1	1450000	wing_permanent	50	Equip Haroshunerk's Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000009	1	1450000	wing_permanent	50	Equip Agony Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000010	1	1450000	wing_permanent	50	Equip Haroshunerk's Noble Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000011	1	1450000	wing_permanent	50	Equip Noble Agony Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000012	1	850000	wing_permanent	40	Equip Daloshunerk's Noble Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000013	1	850000	wing_permanent	40	Equip Noble Abyssal Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000014	1	850000	wing_permanent	30	Equip Chantinerk's Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000015	1	850000	wing_permanent	30	Equip Despair Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000016	1	850000	wing_permanent	30	Equip Chantinerk's Noble Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000017	1	850000	wing_permanent	30	Equip Noble Despair Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000008	1	30000000	wing_permanent	50	Equip Haroshunerk's Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000009	1	30000000	wing_permanent	50	Equip Agony Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000010	1	60000000	wing_permanent	50	Equip Haroshunerk's Noble Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000011	1	60000000	wing_permanent	50	Equip Noble Agony Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000012	1	25000000	wing_permanent	40	Equip Daloshunerk's Noble Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000013	1	25000000	wing_permanent	40	Equip Noble Abyssal Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000014	1	1500000	wing_permanent	30	Equip Chantinerk's Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000015	1	1500000	wing_permanent	30	Equip Despair Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000016	1	8000000	wing_permanent	30	Equip Chantinerk's Noble Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000017	1	8000000	wing_permanent	30	Equip Noble Despair Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000019	1	850000	wing_permanent	40	Equip Operative's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000020	1	1450000	wing_permanent	50	Equip Chief Operative's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000021	1	850000	wing_permanent	40	Equip Crusader's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
@@ -1379,8 +1270,6 @@
 187000030	1	1450000	wing_permanent	50	Equip Bold Chief Crusader's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000031	1	1450000	wing_permanent	50	Equip Orichalcum Key Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000032	1	1450000	wing_permanent	50	Equip Wings of The Circle in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000033	1	1450000	wing_permanent	50	Equip Wings of The Circle in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000034	1	1450000	wing_permanent	50	Equip Wings of The Circle in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000035	1	850000	wing_permanent	45	Equip Yuditio's Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000036	1	850000	wing_permanent	45	Equip Munin's Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000037	1	1450000	wing_permanent	55	Equip Lucky Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
@@ -1401,71 +1290,44 @@
 187000072	1	1450000	wing_permanent	60	Equip Skafir's Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000073	1	1450000	wing_permanent	60	Equip Wing Feather of Magic in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000074	1	1450000	wing_permanent	60	Equip Wing Feather of Fallen Angel in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000079	1	1450000	wing_permanent	60	Equip NPC Tiamat Eternal Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000080	1	1450000	wing_permanent	60	Equip NPC Legion Fabled Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000081	1	850000	wing_permanent	30	Equip NPC Wings for Growth Support in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000088	1	1450000	wing_permanent	50	Equip Triumphant Legion's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000089	1	1450000	wing_permanent	50	Equip Honorable Legion's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000090	1	1450000	wing_permanent	60	Equip Tiamat's Spectral Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000094	1	1450000	wing_permanent	60	Equip Ancient Spirit's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000103	1	850000	wing_permanent	40	Equip APTest_Wing_C_40lv in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000104	1	1450000	wing_permanent	60	Equip APTest_Wing_E_60lv in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000105	1	1450000	wing_permanent	65	Equip APTest_Wing_M_65lv in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000107	1	1450000	wing_permanent	60	Equip NPC Goldrinerk Daily Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000108	1	1450000	wing_permanent	60	Equip NPC Environment Daily Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000109	1	1450000	wing_permanent	65	Equip Courageous Silverine Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000110	1	1450000	wing_permanent	65	Equip Wise Silverine Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000113	1	1450000	wing_permanent	65	Equip Courageous Greenkeeper's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000114	1	1450000	wing_permanent	65	Equip Wise Greenkeeper's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000115	1	1450000	wing_permanent	65	Equip Noble Greenkeeper's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000116	1	1450000	wing_permanent	65	Equip Smart Greenkeeper's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000117	1	1450000	wing_permanent	60	Equip NPC Fortress Castle Lord Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000118	1	180000	wing_skins	65	A wing appearance for the wing slot. Check Silona Lord's Pinions (7 days) for its duration and flight attributes in the item details before buying.
-187000120	1	1450000	wing_permanent	60	Equip NPC IU Wing in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000121	1	1450000	wing_permanent	65	Equip Hyperion Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000122	1	1450000	wing_permanent	60	Equip NPC_Hyperion_Wing_01A in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000123	1	1450000	wing_permanent	60	Equip NPC_Test Booster_Wing_01A in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000126	1	850000	wing_permanent	1	Equip NPC Defense Instanced Dungeon Mythic Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000127	1	850000	wing_permanent	1	Equip NPC Defense Instanced Dungeon Hero Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000129	1	1450000	wing_permanent	65	Equip Brazen Bulwark Burster in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000130	1	1450000	wing_permanent	65	Equip Bulwark Burster in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000137	1	1450000	wing_permanent	60	Equip NPC Level 54 Mobile Reward Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000138	1	1450000	wing_permanent	60	Equip NPC Level 64 Mobile Reward Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000139	1	1450000	wing_permanent	60	Equip NPC General's Gallery Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000140	1	1450000	wing_permanent	60	Equip NPC Abyss Officer Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000142	1	1450000	wing_permanent	65	Equip Brilliant Gilded Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000143	1	1450000	wing_permanent	65	Equip Pure Dynatoum's Radiant Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000144	1	1450000	wing_permanent	65	Equip Elite Principal's Divine Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000145	1	1450000	wing_permanent	65	Equip Elite Controller's Divine Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000147	1	1450000	wing_permanent	65	Equip Special Elite Emissary's Divine Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000148	1	1450000	wing_permanent	65	Equip Special Elite Ambassador's Divine Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000109	1	2149842	wing_permanent	65	Equip Courageous Silverine Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000110	1	2149842	wing_permanent	65	Equip Wise Silverine Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000113	1	2149842	wing_permanent	65	Equip Courageous Greenkeeper's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000114	1	2149842	wing_permanent	65	Equip Wise Greenkeeper's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000115	1	2687303	wing_permanent	65	Equip Noble Greenkeeper's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000116	1	2687303	wing_permanent	65	Equip Smart Greenkeeper's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000118	1	20154773	wing_skins	65	A wing appearance for the wing slot. Check Silona Lord's Pinions (7 days) for its duration and flight attributes in the item details before buying.
+187000121	1	3224763	wing_permanent	65	Equip Hyperion Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000129	1	3224763	wing_permanent	65	Equip Brazen Bulwark Burster in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000130	1	2687303	wing_permanent	65	Equip Bulwark Burster in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000143	1	3224763	wing_permanent	65	Equip Pure Dynatoum's Radiant Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000149	1	1450000	wing_permanent	55	Equip Wing Feather of Allure in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000150	1	1450000	wing_permanent	60	Equip Golden Wing Feather of Allure in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000151	1	1450000	wing_permanent	60	Equip Bright Wing Feather of Allure in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000152	1	1450000	wing_permanent	55	Equip NPC_BeritraInstancedDungeon_WingFeather_01 in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000153	1	1450000	wing_permanent	60	Equip NPC_RentusHard_WingFeather_01 in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000154	1	1450000	wing_permanent	60	Equip NPC_BalaurLordHard_WingFeather_01 in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000155	1	1450000	wing_permanent	65	Equip Brigade General Vasharti's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000156	1	1450000	wing_permanent	65	Equip Glimmering Wing Feather of Balaur Lord in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000157	1	1450000	wing_permanent	65	Equip Beritra's Phantom Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000155	1	3224763	wing_permanent	65	Equip Brigade General Vasharti's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000156	1	3224763	wing_permanent	65	Equip Glimmering Wing Feather of Balaur Lord in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000157	1	3224763	wing_permanent	65	Equip Beritra's Phantom Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000158	1	1450000	wing_permanent	60	Equip Wing Feather of Rentus Recovery Squad in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000159	1	1450000	wing_permanent	65	Equip Courageous Silverine's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000160	1	1450000	wing_permanent	65	Equip Wise Silverine's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000161	1	1450000	wing_permanent	65	Equip Shining Silverine's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000162	1	1450000	wing_permanent	65	Equip Smart Silverine's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000163	1	1450000	wing_permanent	65	Equip Courageous Wings of Purification in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000164	1	1450000	wing_permanent	65	Equip Wise Wings of Purification in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000165	1	1450000	wing_permanent	65	Equip Shining Wings of Purification in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000166	1	1450000	wing_permanent	65	Equip Smart Wings of Purification in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000167	1	1450000	wing_permanent	60	Equip NPC_Rentus_Hero_WingFeather_01 in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000168	1	1450000	wing_permanent	65	Equip Courageous Silverine's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000169	1	1450000	wing_permanent	65	Equip Wise Silverine's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000170	1	1450000	wing_permanent	65	Equip Shining Silverine's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000171	1	1450000	wing_permanent	65	Equip Smart Silverine's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000172	1	1450000	wing_permanent	65	Equip Courageous Purity Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000173	1	1450000	wing_permanent	65	Equip Wise Purity Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000174	1	1450000	wing_permanent	65	Equip Noble Purity Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000175	1	1450000	wing_permanent	65	Equip Mind Purity Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000159	1	2149842	wing_permanent	65	Equip Courageous Silverine's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000160	1	2149842	wing_permanent	65	Equip Wise Silverine's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000161	1	2687303	wing_permanent	65	Equip Shining Silverine's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000162	1	2687303	wing_permanent	65	Equip Smart Silverine's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000163	1	2149842	wing_permanent	65	Equip Courageous Wings of Purification in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000164	1	2149842	wing_permanent	65	Equip Wise Wings of Purification in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000165	1	2687303	wing_permanent	65	Equip Shining Wings of Purification in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000166	1	2687303	wing_permanent	65	Equip Smart Wings of Purification in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000168	1	2149842	wing_permanent	65	Equip Courageous Silverine's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000169	1	2149842	wing_permanent	65	Equip Wise Silverine's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000170	1	2687303	wing_permanent	65	Equip Shining Silverine's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000171	1	2687303	wing_permanent	65	Equip Smart Silverine's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000172	1	2149842	wing_permanent	65	Equip Courageous Purity Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000173	1	2149842	wing_permanent	65	Equip Wise Purity Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000174	1	2687303	wing_permanent	65	Equip Noble Purity Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000175	1	2687303	wing_permanent	65	Equip Mind Purity Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187050001	1	850000	wing_permanent	30	Equip [Event] Wing in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187050002	1	850000	wing_permanent	40	Equip [Event] Tashunerk's Bright Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187050003	1	850000	wing_permanent	40	Equip [Event] Dark Abyssal Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.

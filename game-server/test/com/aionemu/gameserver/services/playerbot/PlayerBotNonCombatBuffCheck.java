@@ -13,7 +13,7 @@ import com.aionemu.gameserver.services.playerbot.PlayerBotRules.SkillKind;
 public final class PlayerBotNonCombatBuffCheck {
  static int checks;
  static void check(boolean ok,String why){if(!ok)throw new AssertionError(why);checks++;}
- public static void main(String[] args)throws Exception {
+ public static void main(String[] args)throws Exception {PlayerBotMetadataCheck.defaults();
   var old=DataManager.SKILL_DATA;var material=DataManager.MATERIAL_DATA;
   var data=(SkillData)JAXBContext.newInstance(SkillData.class).createUnmarshaller().unmarshal(Path.of(args[0],"data/static_data/skills/skill_templates.xml").toFile());
   var f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);var u=(Unsafe)f.get(null);

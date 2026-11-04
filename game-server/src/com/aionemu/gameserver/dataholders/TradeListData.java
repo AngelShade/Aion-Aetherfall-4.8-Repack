@@ -80,6 +80,10 @@ public class TradeListData {
 		return npcPurchaseTemplateData.get(id);
 	}
 
+	public Collection<TradeListTemplate> getPurchaseTemplates() {
+		return java.util.Collections.unmodifiableCollection(npcPurchaseTemplateData.values());
+	}
+
 	public Map<Integer, TradeListTemplate> getTradeListTemplate() {
 		return npctlistData;
 	}

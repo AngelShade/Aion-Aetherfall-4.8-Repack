@@ -34,7 +34,7 @@ public final class PlayerBotPartialRouteCheck {
   var actor=(Actor)unsafe.allocateInstance(Actor.class);actor.spawned=true;actor.movable=true;actor.world=197;actor.instance=1;actor.x=10;actor.y=10;
   actor.move=new PlayerBotRouteContinuationCheck.RouteMove(actor);actor.stats=(PlayerBotRouteContinuationCheck.RouteStats)unsafe.allocateInstance(PlayerBotRouteContinuationCheck.RouteStats.class);
   var instance=(Instance)unsafe.allocateInstance(Instance.class);instance.parent=(Map)unsafe.allocateInstance(Map.class);actor.map=instance;
-  var nav=new PlayerBotNavigation(actor);
+  PlayerBotRouteContinuationCheck.nativeMover(actor);var nav=new PlayerBotNavigation(actor);PlayerBotMetadataCheck.travelIntent(nav);
   var geo=com.aionemu.gameserver.world.geo.GeoService.getInstance();var mapsField=geo.getClass().getDeclaredField("geoMaps");mapsField.setAccessible(true);
   @SuppressWarnings("unchecked") var maps=(java.util.Map<Integer,GeoMap>)mapsField.get(geo);var mesh=new GeoMap(197);
   PlayerBotRouteContinuationCheck.add(mesh,PlayerBotRouteContinuationCheck.floor(0,0,2000,2000,0));var previous=maps.put(197,mesh);
@@ -50,12 +50,12 @@ public final class PlayerBotPartialRouteCheck {
     credit.setDouble(budget,6e6);PlayerBotQuestObjectivesCheck.field(nav,"nextMove",0L);
     nav.move(goal.x(),goal.y(),goal.z());
     lookahead |= (boolean)field(nav,"lookahead");
-    if(actor.move.isInMove()){
-     Point endpoint=new Point(actor.move.getTargetX2(),actor.move.getTargetY2(),actor.move.getTargetZ2());
+    if(actor.getMoveController().isInMove()){
+     Point endpoint=new Point(actor.getMoveController().getTargetX2(),actor.getMoveController().getTargetY2(),actor.getMoveController().getTargetZ2());
      var supported=geo.findGroundMovementCollision(197,1,actor.x,actor.y,actor.z,endpoint.x(),endpoint.y(),endpoint.z());
      check(supported!=null && distance(endpoint,new Point(supported.x,supported.y,supported.z))<.15,"production mover only publishes actual native supported steps");
      if(!first){check(distance(endpoint,goal)>400,"movement starts before resolving the complete500m destination");first=true;}
-     actor.x=endpoint.x();actor.y=endpoint.y();actor.z=endpoint.z();actor.move.moving=false;
+     PlayerBotRouteContinuationCheck.acknowledge(actor);
     }
    }
    check(first && lookahead,"actual Navigation prefetches remaining terrain while following partial paths");
@@ -71,7 +71,7 @@ public final class PlayerBotPartialRouteCheck {
    check(!budget.waiting(field(nav,"searchToken")),"discarded prefetch cannot retain global queue ownership");
   }finally{nav.stop();credit.setDouble(budget,saved);if(previous==null)maps.remove(197);else maps.put(197,previous);}
  }
- public static void main(String[] args)throws Exception {
+ public static void main(String[] args)throws Exception {com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_INDEPENDENT=false;com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_MEMORY_FIRST=false;PlayerBotMetadataCheck.dryWorld();
   var uf=Unsafe.class.getDeclaredField("theUnsafe");uf.setAccessible(true);var unsafe=(Unsafe)uf.get(null);
   var mesh=new GeoMap(197);PlayerBotRouteContinuationCheck.add(mesh,PlayerBotRouteContinuationCheck.floor(0,0,2000,2000,0));
   Point origin=new Point(10,10,0);

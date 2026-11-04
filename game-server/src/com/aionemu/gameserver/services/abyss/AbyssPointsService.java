@@ -46,7 +46,7 @@ public class AbyssPointsService {
 		SM_SYSTEM_MESSAGE msg = amount >= 0 ? gainMessage.apply(added) : SM_SYSTEM_MESSAGE.STR_MSG_USE_ABYSSPOINT(-added);
 		PacketSendUtility.sendPacket(player, msg);
 		onRankChanged(player, added != 0, oldAbyssRank != player.getAbyssRank().getRank(), null);
-		if (player.isLegionMember() && added > 0) {
+		if (player.isLegionMember() && added > 0 && !com.aionemu.gameserver.services.playerbot.PlayerBotWardenCompanies.company(player.getLegion().getLegionId())) {
 			player.getLegion().addContributionPoints(added);
 			PacketSendUtility.broadcastToLegion(player.getLegion(), new SM_LEGION_EDIT(0x03, player.getLegion()));
 		}

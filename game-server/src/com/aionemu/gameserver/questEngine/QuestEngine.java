@@ -52,6 +52,7 @@ public class QuestEngine implements GameEngine {
 	private JobDetail messageTask;
 	private final Map<Integer, AbstractQuestHandler> questHandlers = new HashMap<>();
 	private final Map<Integer, QuestNpc> questNpcs = new HashMap<>();
+	private volatile Map<Integer, Set<Integer>> talkNpcs;
 	private final Map<Integer, List<Integer>> questItemRelated = new HashMap<>();
 	private final List<Integer> questHouseItems = new ArrayList<>();
 	private final Map<Integer, List<Integer>> questItems = new HashMap<>();
@@ -120,6 +121,7 @@ public class QuestEngine implements GameEngine {
 		CronService.getInstance().cancel(messageTask);
 		QuestService.clearQuestDrops();
 		questNpcs.clear();
+		talkNpcs = null;
 		questItemRelated.clear();
 		questItems.clear();
 		questHouseItems.clear();
@@ -895,6 +897,26 @@ public class QuestEngine implements GameEngine {
 		AbstractQuestHandler handler = questHandlers.get(questId);
 		return handler instanceof com.aionemu.gameserver.questEngine.handlers.template.MonsterHunt hunt
 			? hunt.getRewardNpcIds(player.getQuestStateList().getQuestState(questId)) : Set.of();
+	}
+
+	/** Directions for scripted quests that name no reward NPC. A quest talking to several NPCs stays unknown: the nearest may be the wrong one. */
+	public Set<Integer> getTurnInGuideNpcIds(Player player, int questId) {
+		AbstractQuestHandler handler = questHandlers.get(questId);
+		if (handler == null)
+			return Set.of();
+		Set<Integer> declared = handler.getTurnInNpcIds(player);
+		if (!declared.isEmpty())
+			return declared;
+		Map<Integer, Set<Integer>> index = talkNpcs;
+		if (index == null) {
+			index = new HashMap<>();
+			for (QuestNpc npc : questNpcs.values())
+				for (int quest : npc.getOnTalkEvent())
+					index.computeIfAbsent(quest, q -> new HashSet<>()).add(npc.getNpcId());
+			talkNpcs = index;
+		}
+		Set<Integer> talk = index.getOrDefault(questId, Set.of());
+		return talk.size() == 1 ? talk : Set.of();
 	}
 
 	public int getQuestHandlerCount() {

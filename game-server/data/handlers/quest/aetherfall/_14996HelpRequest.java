@@ -8,7 +8,7 @@ import com.aionemu.gameserver.services.playerbot.PlayerBotHelpObjectives;
 public class _14996HelpRequest extends AbstractQuestHandler {
 
 	public _14996HelpRequest() {
-		super(PlayerBotHelpObjectives.HELP_QUEST);
+		super(14996);
 	}
 
 	@Override

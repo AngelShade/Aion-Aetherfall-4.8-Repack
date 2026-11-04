@@ -5,4 +5,9 @@
     <name>STR_QUEST_NAME_Q14996</name>
     <body>Help Request</body>
   </string>
+  <string>
+    <id>1801382</id>
+    <name>STR_AETHERFALL_HELP_PROGRESS</name>
+    <body>Join the requesting companion through Find Group. Confirmed objectives appear here.</body>
+  </string>
 </strings>

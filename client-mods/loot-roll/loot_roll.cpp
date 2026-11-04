@@ -34,9 +34,10 @@ struct Vote { int corpse=0,index=0,item=0;bool sent=false;int choice=0; } votes[
 bool same(Vote& v,Ptr item){return v.corpse==field<int>(item,0x6dc) && v.index==field<int>(item,0x6d8) && v.item==field<int>(item,8);}
 struct Placement {
     Ptr dialog=nullptr;Rect last{};
-    double scale=0,width=0,height=0,x=0,y=0;
-    bool custom=false;
+    double scale=0,width=0,height=0,offsetX=0,offsetY=0;
+    Vote identity{};
 } placements[5];
+struct StackAnchor {bool custom=false;double x=0,y=0;} anchor;
 bool moved(const Rect& a,const Rect& b){return std::abs(a.x-b.x)>.01 || std::abs(a.y-b.y)>.01;}
 bool finite(const Rect& r){return std::isfinite(r.x) && std::isfinite(r.y) && std::isfinite(r.w) && std::isfinite(r.h);}
 }
@@ -57,36 +58,61 @@ extern "C" __declspec(dllexport) void AionLootLayout(Ptr dialog){
     if(vote.sent)text(choice,vote.choice==1?L"Your choice: Need":vote.choice==2?L"Your choice: Greed":L"Your choice: Pass");
     double scale=*reinterpret_cast<double*>(g+0x1378ec8),width=*reinterpret_cast<double*>(g+0x1378ea8),height=*reinterpret_cast<double*>(g+0x1378eb0);
     if(!std::isfinite(scale) || scale<=0 || scale>4 || !std::isfinite(width) || !std::isfinite(height) || width<=0 || height<=0)return;
-    int count=0,row=0;
+    Ptr peers[5]{}, records[5]{}; int count=0;
+    // One bounded pass over the native roll list supplies identities for all
+    // rows. A newly initialized slot must never look like a title drag.
+    Ptr player=*reinterpret_cast<Ptr*>(g+0x12eda48);
+    Ptr sentinel=player?field<Ptr>(player,0xe68):nullptr;
+    Ptr cursor=sentinel?field<Ptr>(sentinel,0):nullptr;
+    for(int n=0;cursor && cursor!=sentinel && n<512;++n,cursor=field<Ptr>(cursor,0)){
+        Ptr record=field<Ptr>(cursor,0x10); if(!record)continue;
+        int i=field<int>(record,0x6e8);if(i>=0 && i<5)records[i]=record;
+    }
+    // Inspect every row before placing any row: an earlier countdown callback
+    // must not erase a drag on a different row.
     for(int i=0;i<5;++i){
         Ptr peer=*reinterpret_cast<Ptr*>(g+0x13875c0+(0x123+i)*8);
-        if(peer && (method<int(*)(Ptr)>(peer,0xb8)(peer)&1)) {if(i<slot)++row;++count;}
+        if(!peer || !records[i] || !(method<int(*)(Ptr)>(peer,0xb8)(peer)&1))continue;
+        peers[i]=peer;++count;
+        auto& p=placements[i];auto current=field<Rect>(peer,0x50);
+        if(p.dialog==peer && same(p.identity,records[i]) && p.scale==scale && p.width==width && p.height==height
+           && finite(current) && moved(current,p.last)){
+            anchor.custom=true;anchor.x=(current.x-p.offsetX)/width;anchor.y=(current.y-p.offsetY)/height;
+        }
     }
-    // XML child coordinates are client-relative: reserve the 18px title and
-    // lower native frame beyond the gauge's y=99 endpoint.
-    double h=128*scale,gap=5*scale,total=std::max(1,count)*(h+gap),top=std::max(8*scale,std::min(height*.24,height-total-12*scale));
-    Placement& p=placements[slot];
-    if(p.dialog!=dialog){p={};p.dialog=dialog;}
-    Rect current=field<Rect>(dialog,0x50);
-    // A title-bar drag and MoveUI both enter the native SetRect. Adopt that
-    // position instead of overwriting it on the next countdown refresh. A new
-    // item may restore the stock rectangle first; it must not erase our choice.
-    if(!newItem && p.scale==scale && p.width==width && p.height==height && finite(current) && moved(current,p.last)){
-        p.custom=true;p.x=current.x/width;p.y=current.y/height;
+    if(!count)return;
+    double h=128*scale,gap=5*scale,step=h+gap;
+    int rows=std::max(1,std::min(count,int(std::max(0.0,height-16*scale)/step)));
+    int columns=(count+rows-1)/rows;
+    double groupW=columns*(334*scale+gap)-gap,groupH=rows*step-gap;
+    double x=anchor.custom?anchor.x*width:width-groupW-16*scale;
+    double y=anchor.custom?anchor.y*height:std::min(height*.24,height-groupH-12*scale);
+    x=std::max(0.0,std::min(width-groupW,x));y=std::max(0.0,std::min(height-groupH,y));
+    int index=0;
+    for(int i=0;i<5;++i){
+        if(!peers[i])continue;
+        double dx=(index/rows)*(334*scale+gap),dy=(index%rows)*step;
+        bounds(peers[i],{x+dx,y+dy,334*scale,h});
+        auto& p=placements[i];p.dialog=peers[i];p.last=field<Rect>(peers[i],0x50);
+        p.scale=scale;p.width=width;p.height=height;p.offsetX=dx;p.offsetY=dy;
+        p.identity={field<int>(records[i],0x6dc),field<int>(records[i],0x6d8),field<int>(records[i],8),false,0};
+        ++index;
     }
-    Rect requested{std::max(0.0,width-350*scale),top+row*(h+gap),334*scale,h};
-    if(p.custom){
-        requested.x=std::max(0.0,std::min(width-requested.w,p.x*width));
-        requested.y=std::max(0.0,std::min(height-requested.h,p.y*height));
+    // MoveUI's native hold can apply its draft inside SetRect. Adopt the held
+    // row's actual anchor and move its peers in the same callback.
+    bool held=false;index=0;
+    for(int i=0;i<5;++i)if(peers[i]){
+        auto& p=placements[i];Rect requested{x+p.offsetX,y+p.offsetY,334*scale,h};
+        if(!held && finite(p.last) && moved(p.last,requested)){
+            x=p.last.x-p.offsetX;y=p.last.y-p.offsetY;held=true;
+            anchor.custom=true;anchor.x=x/width;anchor.y=y/height;
+        }
+        ++index;
     }
-    bounds(dialog,requested);
-    // MoveUI can hold a draft through a SetRect pin. Observe the actual result
-    // too, so releasing that pin after Save/Cancel does not restore our old spot.
-    p.last=field<Rect>(dialog,0x50);
-    if(finite(p.last) && moved(p.last,requested)){
-        p.custom=true;p.x=p.last.x/width;p.y=p.last.y/height;
+    if(held)for(int i=0;i<5;++i)if(peers[i]){
+        auto& p=placements[i];bounds(peers[i],{x+p.offsetX,y+p.offsetY,334*scale,h});p.last=field<Rect>(peers[i],0x50);
     }
-    p.scale=scale;p.width=width;p.height=height;
+
 }
 
 extern "C" __declspec(dllexport) int AionLootCommand(Ptr dialog,Ptr event){

@@ -2,6 +2,8 @@ package quest.poeta;
 
 import static com.aionemu.gameserver.model.DialogAction.USE_OBJECT;
 
+import java.util.Set;
+
 import com.aionemu.gameserver.model.PlayerClass;
 import com.aionemu.gameserver.model.gameobjects.Npc;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
@@ -29,6 +31,19 @@ public class _1205ANewSkill extends AbstractQuestHandler {
 		qe.registerQuestNpc(203090).addOnTalkEvent(questId); // Priest
 		qe.registerQuestNpc(801210).addOnTalkEvent(questId); // Engineer
 		qe.registerQuestNpc(801211).addOnTalkEvent(questId); // Artist
+	}
+
+	@Override
+	public Set<Integer> getTurnInNpcIds(Player player) {
+		return switch (player.getPlayerClass().getStartingClass()) {
+			case WARRIOR -> Set.of(203087);
+			case SCOUT -> Set.of(203088);
+			case MAGE -> Set.of(203089);
+			case PRIEST -> Set.of(203090);
+			case ENGINEER -> Set.of(801210);
+			case ARTIST -> Set.of(801211);
+			default -> Set.of();
+		};
 	}
 
 	@Override

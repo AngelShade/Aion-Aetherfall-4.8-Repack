@@ -37,7 +37,10 @@ public final class PlayerBotRecruitmentDAO {
   }
  }
  private static Receipt post(Connection c,int account,String key,String kind,long tickets,int credit)throws SQLException {
-  var wallet=lock(c,account);var prior=recorded(c,key);
+  return post(c,account,key,kind,tickets,credit,lock(c,account));
+ }
+ private static Receipt post(Connection c,int account,String key,String kind,long tickets,int credit,Wallet wallet)throws SQLException {
+  var prior=recorded(c,key);
   if(prior!=null) {
    if(prior.account()!=account || !prior.kind().equals(kind) || prior.tickets()!=tickets || prior.credit()!=credit)
     throw new SQLException("Ticket receipt key reused with different terms");
@@ -61,7 +64,29 @@ public final class PlayerBotRecruitmentDAO {
   if(tickets<=0)throw new IllegalArgumentException("Ticket grants are whole positive amounts");
   return post(c,account,key,kind,tickets,0);
  }
+ /** Account starter policy v1: one durable grant, regardless of later amount changes. */
+ public static Receipt starter(Connection c,int account,long tickets)throws SQLException {
+  if(tickets<=0)return null;
+  var wallet=lock(c,account);String key="starter:v1:"+account;var prior=recorded(c,key);
+  if(prior!=null) {
+   if(prior.account()!=account || !prior.kind().equals("STARTER") || prior.tickets()<=0 || prior.credit()!=0)
+    throw new SQLException("Invalid starter ticket receipt");
+   return prior;
+  }
+  return post(c,account,key,"STARTER",tickets,0,wallet);
+ }
  public static Receipt recycle(Connection c,int account,String key)throws SQLException { return post(c,account,key,"RECYCLE",0,RECYCLE_CREDIT); }
+ /** Counts one distinct finished help request; every needed-th pays. Returns the account's new total, or 0 for a request already counted. */
+ public static long helped(Connection c,int account,String request,int needed,long tickets)throws SQLException {
+  if(needed<=0 || tickets<=0)throw new IllegalArgumentException("Invalid help contract");
+  var wallet=lock(c,account);
+  try(var s=c.prepareStatement("INSERT IGNORE INTO playerbot_ticket_help (request_key,account_id) VALUES (?,?)")){s.setString(1,request);s.setInt(2,account);if(s.executeUpdate()==0)return 0;}
+  long total;
+  boolean bounty=request.startsWith("road-bounty:");
+  try(var s=c.prepareStatement("SELECT COUNT(*) FROM playerbot_ticket_help WHERE account_id=? AND request_key "+(bounty?"LIKE":"NOT LIKE")+" 'road-bounty:%'")){s.setInt(1,account);try(var r=s.executeQuery()){r.next();total=r.getLong(1);}}
+  if(total%needed==0)post(c,account,(bounty?"road-bounty:":"help:")+account+":"+total,"HELP",tickets,0,wallet);
+  return total;
+ }
 
  /** Hub updates carry no SQL, so an updated server brings its own ticket tables to an existing database. */
  public static void prepare(Connection c)throws SQLException {
@@ -71,6 +96,7 @@ public final class PlayerBotRecruitmentDAO {
    s.executeUpdate("CREATE TABLE IF NOT EXISTS playerbot_recruitment_operations (id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,account_id INT NOT NULL,request_key VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,state VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,advanced_class VARCHAR(24) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,auto_equip_rarity VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,combat_rank VARCHAR(16) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,character_id INT NULL,created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,completed_at TIMESTAMP NULL,UNIQUE KEY account_recruitment_request (account_id,request_key),UNIQUE KEY recruited_character (character_id),KEY account_recruitment_state (account_id,state)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
   }
   prepareDelivery(c);
+  try(var s=c.createStatement()){s.executeUpdate("CREATE TABLE IF NOT EXISTS playerbot_ticket_help (request_key VARCHAR(96) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY,account_id INT NOT NULL,created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,KEY account_help (account_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");}
  }
  public static void prepareDelivery(Connection c)throws SQLException {
   try(var s=c.createStatement()){s.executeUpdate("CREATE TABLE IF NOT EXISTS playerbot_ticket_entitlements (receipt_key VARCHAR(96) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY,account_id INT NOT NULL,tickets BIGINT NOT NULL,created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,KEY pending_account(account_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");}

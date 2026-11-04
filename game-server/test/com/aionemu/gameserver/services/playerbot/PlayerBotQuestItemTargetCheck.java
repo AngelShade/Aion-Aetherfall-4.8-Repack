@@ -67,7 +67,7 @@ public final class PlayerBotQuestItemTargetCheck {
   a.seen=new KnownList(a){@Override public void forEachPlayer(java.util.function.Consumer<Player> c){List.copyOf(a.nearby).forEach(c);}@Override public boolean sees(VisibleObject other){return a.nearby.contains(other);}};
   return a;
  }
- @SuppressWarnings("unchecked") public static void main(String[] args)throws Exception{
+ @SuppressWarnings("unchecked") public static void main(String[] args)throws Exception{PlayerBotMetadataCheck.defaults();
   var uf=sun.misc.Unsafe.class.getDeclaredField("theUnsafe");uf.setAccessible(true);unsafe=(sun.misc.Unsafe)uf.get(null);PlayerBotSupportCooperationCheck.unsafe=unsafe;Path root=Path.of(args[0]);
   var oldSkills=DataManager.SKILL_DATA;var oldItems=DataManager.ITEM_DATA;var oldQuests=DataManager.QUEST_DATA;var oldXml=DataManager.XML_QUESTS;var oldMaterials=DataManager.MATERIAL_DATA;
   boolean enabled=PlayerBotConfig.QUESTS_ENABLED,custom=PlayerBotConfig.QUEST_CUSTOM;

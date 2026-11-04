@@ -132,8 +132,10 @@ public final class PlayerBotFormationLayout {
             var p=point(0,0,0,0,index,count,formation);
             // A travelling line has successive rows instead of parking every
             // healer/ranged companion alongside the tank's wings.
-            if (formation.equals("line") && index>0)
-                p=new PlayerBotNavigation.Point(p.x()-1.2f*((index+1)/2),p.y(),0);
+            if (formation.equals("line") && index>0) {
+                int column = count>5 ? index%5 : index;
+                p=new PlayerBotNavigation.Point(p.x()-1.2f*((column+1)/2),p.y(),0);
+            }
             slots.add(p);
         }
         slots.sort(Comparator.comparingDouble((PlayerBotNavigation.Point p)->-Math.round(p.x()*1000)).thenComparingDouble(PlayerBotNavigation.Point::y));

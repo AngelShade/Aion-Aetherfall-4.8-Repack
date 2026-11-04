@@ -26,7 +26,7 @@ using Microsoft.Win32;
 using AetherfallUpdate;
 
 [assembly: AssemblyVersion("0.90.0.0")]
-[assembly: AssemblyFileVersion("0.90.1030.4")]
+[assembly: AssemblyFileVersion("0.90.1031.1")]
 
 namespace AetherfallSetup {
  public sealed class SetupSettings {
@@ -57,6 +57,8 @@ namespace AetherfallSetup {
   public int schema = 1;
   public string version, patchFile, patchSha256, patchUrl, patchFormat, setupExeUrl, setupExeSha256, setupVersion;
   public long patchBytes, setupExeBytes;
+  public string downloaderUrl, downloaderSha256;
+  public long downloaderBytes;
  }
 
  public sealed partial class SetupApp {
@@ -155,8 +157,10 @@ namespace AetherfallSetup {
    Btn("PathsTab").Click += delegate { SwitchTab("Paths"); };
    InitializeMods();
    InitializeLanguages();
+   InitializeVerify();
    Btn("OpenInstallFolder").Click += delegate { OpenFolder(ResolveInstallPath()); };
    Btn("BrowseInstall").Click += delegate { PickInstallFolder(); };
+   Btn("UseExistingInstall").Click += delegate { PickExistingInstallation(); };
    Btn("SelectArchiveBtn").Click += delegate { PickLocalArchive(); };
    Btn("UpdateNowBtn").Click += async delegate { await RunUpdate(null); };
    Btn("ApplyPatchFileBtn").Click += async delegate { await PickAndApplyPatch(); };
@@ -187,7 +191,7 @@ namespace AetherfallSetup {
      await RunUpdate(null);
    };
    window.Closing += delegate(object sender, System.ComponentModel.CancelEventArgs e) {
-    if(serverControlBusy || modControlBusy) {
+    if((serverControlBusy && !ServerControl.WaitingForExit) || modControlBusy) {
      e.Cancel=true;
      if(languageCancel!=null) { languageCancel.Cancel();Text("LanguageFeedback").Text="Pausing the transfer. Wait for verification or installation to finish before closing."; }
      else if(modControlBusy)Text("ModsFeedback").Text="Wait for this operation to finish before closing the Hub.";
@@ -290,29 +294,30 @@ namespace AetherfallSetup {
 
   string ResolveInstallPath() {
    if(original!=null)return original.ServerRoot;
-   if (File.Exists(System.IO.Path.Combine(root, "REPACK.json"))) return root;
+   if (HasInstalledPayload(settings.InstalledPath)) return settings.InstalledPath;
+   if (HasInstalledPayload(root)) return root;
    string parent = Directory.GetParent(root) != null ? Directory.GetParent(root).FullName : root;
-   if (File.Exists(System.IO.Path.Combine(parent, "REPACK.json"))) return parent;
-   if (!String.IsNullOrWhiteSpace(settings.InstalledPath) && HasInstalledPayload(settings.InstalledPath)) return settings.InstalledPath;
+   if (HasInstalledPayload(parent)) return parent;
+   string baseRoot = RepackInstallation.IsPatchPayload(root) && Directory.GetParent(parent) != null
+    ? Directory.GetParent(parent).FullName : root;
    string installBase = System.IO.Path.IsPathRooted(settings.InstallDirectory)
     ? System.IO.Path.GetFullPath(settings.InstallDirectory)
-    : System.IO.Path.GetFullPath(System.IO.Path.Combine(root, settings.InstallDirectory));
+    : System.IO.Path.GetFullPath(System.IO.Path.Combine(baseRoot, settings.InstallDirectory));
    if (HasInstalledPayload(installBase)) return installBase;
    string expected = System.IO.Path.Combine(installBase, manifest.installFolder ?? "Aetherfall-0.86");
-   if (File.Exists(System.IO.Path.Combine(expected, "REPACK.json"))) return expected;
+   if (HasInstalledPayload(expected)) return expected;
    if (Directory.Exists(installBase)) {
     string[] existing = Directory.GetDirectories(installBase, "Aetherfall-*").Where(HasInstalledPayload).ToArray();
     if (existing.Length == 1) return existing[0];
    }
+   if (!String.IsNullOrWhiteSpace(settings.InstalledPath) && !RepackInstallation.IsPatchPayload(settings.InstalledPath)) return settings.InstalledPath;
+   if (File.Exists(System.IO.Path.Combine(root, "REPACK.json")) && !RepackInstallation.IsPatchPayload(root)) return root;
+   if (File.Exists(System.IO.Path.Combine(parent, "REPACK.json")) && !RepackInstallation.IsPatchPayload(parent)) return parent;
    return expected;
   }
 
   static bool HasInstalledPayload(string pkg) {
-   return !String.IsNullOrWhiteSpace(pkg) &&
-          File.Exists(System.IO.Path.Combine(pkg, "REPACK.json")) &&
-          File.Exists(System.IO.Path.Combine(pkg, "release.json")) &&
-          File.Exists(System.IO.Path.Combine(pkg, "Client", "Aetherfall Launcher.exe")) &&
-          File.Exists(System.IO.Path.Combine(pkg, "Server", "game-server", "libs", "game-server-4.8-SNAPSHOT.jar"));
+   return RepackInstallation.IsComplete(pkg);
   }
 
   bool IsInstalled() {
@@ -396,7 +401,7 @@ namespace AetherfallSetup {
     Text("LaunchCaption").Text="ORIGINAL CLIENT";
     Text("ServersEyebrow").Text="ORIGINAL INSTALLATION";
     Text("ServersTitle").Text="Dashboard";
-    foreach(string name in new[]{"HubTab","ServersTab","PathsTab","OpenInstallFolder","UpdateNowBtn","SelectArchiveBtn","BrowseInstall"})Btn(name).Visibility=Visibility.Collapsed;
+    foreach(string name in new[]{"HubTab","ServersTab","PathsTab","OpenInstallFolder","UpdateNowBtn","VerifyFilesBtn","SelectArchiveBtn","BrowseInstall","UseExistingInstall"})Btn(name).Visibility=Visibility.Collapsed;
     foreach(string name in new[]{"HubPanel","ServersSubtitle","StatusBlock"})Find<FrameworkElement>(name).Visibility=Visibility.Collapsed;
     ((FrameworkElement)Find<Ellipse>("InstallDot").Parent).Visibility=Visibility.Collapsed;
     foreach(string name in new[]{"GameDotRow","ChatDotRow","QuickLinks"})Find<FrameworkElement>(name).Visibility=Visibility.Visible;
@@ -416,6 +421,7 @@ namespace AetherfallSetup {
     Text("HeroHeadline").Text = "Aetherfall " + ver + " is Installed.";
     Text("ArchiveSourceLabel").Text = "Click Update Repack to download required update packages while keeping your characters.";
     if (!busy && !preserveStatus) {
+     Text("StatusBanner").Text = "READY TO PLAY";
      Text("StatusTitle").Text = "Ready for Atreia.";
      Text("StatusDetail").Text = "Use Server Control to start MariaDB & GameServer, or click PLAY to open the game launcher.";
     }
@@ -463,6 +469,14 @@ namespace AetherfallSetup {
      }
     }
    }
+   if (!installed && !busy && !preserveStatus &&
+       (RepackInstallation.IsPatchPayload(root) || File.Exists(System.IO.Path.Combine(pkg,"REPACK.json")))) {
+    Text("InstallBadge").Text = RepackInstallation.IsPatchPayload(root) ? "Full base required" : "Installation incomplete";
+    Text("HeroHeadline").Text = "Install or select the full repack.";
+    Text("StatusBanner").Text = "FULL BASE REQUIRED";
+    Text("StatusTitle").Text = "The full repack must be installed first.";
+    Text("StatusDetail").Text = RepackInstallation.Problem(RepackInstallation.IsPatchPayload(root) ? root : pkg);
+   }
   }
 
   void SwitchTab(string tab) {
@@ -488,10 +502,21 @@ namespace AetherfallSetup {
     string parent = System.IO.Path.GetDirectoryName(dlg.FileName);
     if (!String.IsNullOrEmpty(parent)) {
      settings.InstallDirectory = parent;
-     settings.InstalledPath = "";
+     settings.InstalledPath = System.IO.Path.Combine(parent, manifest.installFolder ?? "Aetherfall-0.86");
      SaveSettingsFromUi();
     }
    }
+  }
+
+  void PickExistingInstallation() {
+   if (busy || serverControlBusy || modControlBusy) return;
+   var picker = new OpenFileDialog { Title="Select REPACK.json in your complete Aetherfall repack folder", Filter="Aetherfall repack (REPACK.json)|REPACK.json", CheckFileExists=true };
+   if (picker.ShowDialog(window) != true) return;
+   string package = System.IO.Path.GetDirectoryName(picker.FileName);
+   string problem = RepackInstallation.Problem(package);
+   if (problem != null) { SetBusy(false,"FULL BASE REQUIRED","Select a complete repack",problem);return; }
+   settings.InstalledPath = package;
+   SaveSettingsFromUi();
   }
 
   void PickLocalArchive() {
@@ -551,8 +576,11 @@ namespace AetherfallSetup {
     Text("PrimaryLabel").Text = "PAUSE";
    }
    Btn("UpdateNowBtn").IsEnabled = !value;
+   Btn("VerifyFilesBtn").IsEnabled = !value;
+   if (value && verifyCancel == null) ResetRepair();
    Btn("SelectArchiveBtn").IsEnabled = !value;
    Btn("BrowseInstall").IsEnabled = !value;
+   Btn("UseExistingInstall").IsEnabled = !value;
    Text("StatusBanner").Text = banner;
    Text("StatusTitle").Text = title;
    Text("StatusDetail").Text = detail;
@@ -1197,6 +1225,7 @@ namespace AetherfallSetup {
      if (proc.ExitCode != 0) throw new InvalidOperationException("7-Zip extraction stopped with exit code " + proc.ExitCode);
     }
    }
+   if (!HasInstalledPayload(installDir)) throw new InvalidDataException("The full base extraction is incomplete. Keep the archive and click RESUME. " + RepackInstallation.Problem(installDir));
    if (File.Exists(marker)) File.Delete(marker);
   }
 
@@ -1204,6 +1233,16 @@ namespace AetherfallSetup {
    if (IsInstalled()) { RefreshState(); return; }
    SaveSettingsFromUi();
    string pkg = ResolveInstallPath();
+   // Never unpack an old base over a player's partial/newer installation or DB.
+   // Only this installer's own interrupted extraction can resume in place.
+   if (RepackInstallation.IsPatchPayload(pkg) ||
+       (Directory.Exists(pkg) && Directory.EnumerateFileSystemEntries(pkg).Any() &&
+        !File.Exists(System.IO.Path.Combine(pkg,".aetherfall-extracting")))) {
+    SetBusy(false,"CHOOSE INSTALL FOLDER","Your existing files have been kept",
+     "Choose an empty folder with Change Folder, or select a complete installation with Use Existing Repack. The full base cannot be unpacked over this folder.");
+    SwitchTab("Hub");
+    return;
+   }
    string dlDir = ResolveDownloadDir();
    ReleaseFile rf = (manifest.files != null && manifest.files.Count > 0) ? manifest.files[0] : new ReleaseFile {
     name = BaseArchiveName,
@@ -1222,6 +1261,7 @@ namespace AetherfallSetup {
    }
 
    try {
+    await EnsureInstallToolsAsync(downloadCts.Token);
     string archivePath = FindCompleteLocalArchive();
     if (archivePath == null) {
      MirrorConfig mirrors = await Task.Run(() => LoadMirrors());
@@ -1238,7 +1278,7 @@ namespace AetherfallSetup {
      await VerifyArchiveSha256Async(archivePath, rf.sha256, downloadCts.Token);
      await ExtractArchiveWithProgressAsync(archivePath, pkg, downloadCts.Token);
     }
-    if (!IsInstalled()) throw new InvalidDataException("Extraction ended but the repack's launcher or GameServer files are missing. The archive has been kept; choose Resume to finish extraction.");
+    if (!IsInstalled()) throw new InvalidDataException("Extraction ended but required base files are missing. The archive has been kept; choose Resume to finish extraction. " + RepackInstallation.Problem(pkg));
     settings.InstalledPath = pkg;
     File.WriteAllText(System.IO.Path.Combine(root, "settings.json"),new JavaScriptSerializer().Serialize(settings));
 
@@ -1272,6 +1312,54 @@ namespace AetherfallSetup {
    using (var fs = File.OpenRead(path)) {
     return BitConverter.ToString(sha.ComputeHash(fs)).Replace("-", "").ToLowerInvariant();
    }
+  }
+
+  async Task EnsureInstallToolsAsync(CancellationToken cancel) {
+   if (File.Exists(System.IO.Path.Combine(root,"bin","7za.exe")) &&
+       (settings.Mode != "Torrent" || File.Exists(System.IO.Path.Combine(root,"bin","aria2c.exe")))) return;
+   SetBusy(true,"PREPARING FULL INSTALL","Preparing the complete installer…",
+    "Downloading verified setup tools. Your existing repack files are kept.",true);
+   Action<UpdateProgress> progress = value => window.Dispatcher.BeginInvoke(new Action(() => ApplyUpdaterProgress(value)));
+   UpdateTransfer.ProgressChanged += progress;
+   try {
+    await Task.Run(() => {
+     LatestUpdateManifest latest;
+     using (var web = new WebClient { Encoding=Encoding.UTF8 })
+      latest = new JavaScriptSerializer().Deserialize<LatestUpdateManifest>(web.DownloadString(settings.UpdateUrl));
+     if (latest == null || latest.schema != 1 || String.IsNullOrWhiteSpace(latest.downloaderSha256) ||
+         !Regex.IsMatch(latest.downloaderSha256,@"\A[0-9a-fA-F]{64}\z") || latest.downloaderBytes <= 0 || latest.downloaderBytes > 64L*1024*1024)
+      throw new InvalidDataException("The update channel has no verified complete installer. Download the current Aetherfall-Downloader.zip from the release page, extract it into a separate folder and open Aetherfall Setup.exe.");
+     string cache = System.IO.Path.Combine(ResolveDownloadDir(),"Setup-"+latest.downloaderSha256.ToLowerInvariant()+".zip");
+     Directory.CreateDirectory(System.IO.Path.GetDirectoryName(cache));
+     UpdateTransfer.DownloadResumable(latest.downloaderUrl,cache,latest.downloaderBytes,latest.downloaderSha256,cancel);
+     using (var zip = System.IO.Compression.ZipFile.OpenRead(cache)) {
+      // Copy only pinned installer support. Never import settings, game data or EXEs.
+      foreach (string name in new[]{"bin/7za.exe","bin/aria2c.exe","bin/SHA256.json","release-manifest.json","mirrors.json"}) {
+       cancel.ThrowIfCancellationRequested();
+       var entry = zip.GetEntry(name);
+       if (entry == null) throw new InvalidDataException("The complete installer is missing " + name);
+       string destination = System.IO.Path.Combine(root,name);
+       if (File.Exists(destination)) continue;
+       Directory.CreateDirectory(System.IO.Path.GetDirectoryName(destination));
+       string temporary=destination+".new";
+       using(var input=entry.Open()) using(var output=new FileStream(temporary,FileMode.Create)) input.CopyTo(output);
+       File.Move(temporary,destination);
+      }
+      // Retain redistribution notices alongside the tools, including the torrent.
+      var pinned = new JavaScriptSerializer().Deserialize<ReleaseManifest>(File.ReadAllText(System.IO.Path.Combine(root,"release-manifest.json")));
+      foreach (var entry in zip.Entries.Where(e=>e.FullName.StartsWith("licenses/",StringComparison.Ordinal) || e.FullName==pinned.torrentFile)) {
+       if (entry.FullName.EndsWith("/",StringComparison.Ordinal)) continue;
+       string destination=System.IO.Path.GetFullPath(System.IO.Path.Combine(root,entry.FullName));
+       if (!destination.StartsWith(root+System.IO.Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Invalid installer support path.");
+       if (File.Exists(destination)) continue;
+       Directory.CreateDirectory(System.IO.Path.GetDirectoryName(destination));
+       string temporary=destination+".new";
+       using(var input=entry.Open()) using(var output=new FileStream(temporary,FileMode.Create)) input.CopyTo(output);
+       File.Move(temporary,destination);
+      }
+     }
+    },cancel);
+   } finally { UpdateTransfer.ProgressChanged -= progress; }
   }
 
   async Task<bool> CheckAndApplyLauncherSelfUpdateAsync() {
@@ -1332,7 +1420,7 @@ namespace AetherfallSetup {
       catch { File.Move(tempOld, selfExe); throw; }
       try {
        string pkg = ResolveInstallPath();
-       if (Directory.Exists(pkg)) File.Copy(selfExe, System.IO.Path.Combine(pkg, "Aetherfall Hub.exe"), true);
+       if (HasInstalledPayload(pkg)) File.Copy(selfExe, System.IO.Path.Combine(pkg, "Aetherfall Hub.exe"), true);
       } catch {}
       return true;
      }
@@ -1342,18 +1430,18 @@ namespace AetherfallSetup {
    });
   }
 
-  async Task RunUpdate(string chosenZip) {
-   if(serverControlBusy || modControlBusy)return;
+  async Task<bool> RunUpdate(string chosenZip, string repairList = null) {
+   if(serverControlBusy || modControlBusy)return false;
    SetBusy(true, "CHECKING FOR UPDATES", "Checking launcher & repack updates…", "Contacting GitHub update channel…");
    Text("UpdateTransferDetail").Visibility = Visibility.Collapsed;
    SetProgress(0, "Checking…", "Update Channel");
 
-   if (String.IsNullOrEmpty(chosenZip)) {
+   if (String.IsNullOrEmpty(chosenZip) && repairList == null) {
     bool selfUpdated;
     try { selfUpdated = await CheckAndApplyLauncherSelfUpdateAsync(); }
     catch (Exception error) {
      SetBusy(false, "UPDATE PAUSED", "The launcher must update first", error.Message);
-     return;
+     return false;
     }
     if (selfUpdated) {
      SetProgress(1.0, "100%", "✨ Restarting Launcher");
@@ -1361,34 +1449,37 @@ namespace AetherfallSetup {
      string selfExe = Process.GetCurrentProcess().MainModule.FileName;
      Process.Start(new ProcessStartInfo(selfExe, "--continue-update") { WorkingDirectory = root, UseShellExecute = true });
      window.Close();
-     return;
+     return false;
     }
    }
 
    string pkg = ResolveInstallPath();
-   if (!File.Exists(System.IO.Path.Combine(pkg, "REPACK.json"))) {
-    SetProgress(1.0, "Up to date", "✅ Launcher Ready");
-    SetBusy(false, "LAUNCHER UP TO DATE", "Launcher & mirrors are up to date.", "Click INSTALL or RESUME whenever you are ready to finish installing the repack.");
+   if (!IsInstalled()) {
+    SetProgress(0, "Base required", "Full repack installation");
+    SetBusy(false, "FULL BASE REQUIRED", "Install or select the full repack first",
+     RepackInstallation.IsPatchPayload(root) ? RepackInstallation.Problem(root) : RepackInstallation.Problem(pkg));
     RefreshState(true);
-    return;
+    SwitchTab("Hub");
+    return false;
    }
    // Carry the maintained updater with Setup, including for users on an older repack.
    string updScript = System.IO.Path.Combine(pkg, "Control", "Update-Repack.ps1");
    try {
-    foreach (string name in new[] { "UpdateTransfer.cs", "Update-Repack.ps1" }) {
+    foreach (string name in new[] { "RepackInstallation.cs", "UpdateTransfer.cs", "Update-Repack.ps1" }) {
      using (var source = Assembly.GetExecutingAssembly().GetManifestResourceStream("Aetherfall." + name))
      using (var destination = File.Create(System.IO.Path.Combine(pkg, "Control", name))) source.CopyTo(destination);
     }
    } catch (Exception ex) {
     SetBusy(false, "UPDATE PAUSED", "Could not prepare the updater", ex.Message);
-    return;
+    return false;
    }
 
-   SetBusy(true, "UPDATING REPACK", "Checking installed files…", "Downloading required update chunks and backing up replaced files…");
+   SetBusy(true, repairList != null ? "REPAIRING FILES" : "UPDATING REPACK", "Checking installed files…", "Downloading required update chunks and backing up replaced files…");
    SetProgress(0, "Checking…", "Repack Update");
    try {
     string args = "-PackagePath " + Quote(pkg);
     if (!String.IsNullOrEmpty(chosenZip)) args += " -PatchFile " + Quote(chosenZip);
+    if (repairList != null) args += " -RepairList " + Quote(repairList);
     if (!String.IsNullOrWhiteSpace(settings.UpdateUrl)) args += " -UpdateUrl " + Quote(settings.UpdateUrl);
     string lastLine = "", firstError = "";
     string logPath = System.IO.Path.Combine(pkg, "Control", "Logs", "update-latest.log");
@@ -1403,22 +1494,34 @@ namespace AetherfallSetup {
      }
     }, line => { if (String.IsNullOrWhiteSpace(firstError)) firstError = line; });
     if (code != 0) throw new InvalidOperationException(firstError.Length > 0 ? firstError : (lastLine.Length > 0 ? lastLine : "Update stopped."));
+    if (!IsInstalled()) throw new InvalidDataException(RepackInstallation.Problem(pkg) ?? "The base extraction has not finished.");
     SetProgress(1.0, "100%", "✅ Up to date");
     Text("UpdateTransferDetail").Visibility = Visibility.Collapsed;
     SetBusy(false, "UPDATE COMPLETE", "Repack is up to date", lastLine);
     RefreshState(true);
+    return true;
    } catch (Exception ex) {
     SetBusy(false, "UPDATE PAUSED", "Could not complete update", ex.Message);
     RefreshState(true);
+    return false;
    }
   }
 
   async Task RunServerControl(string action) {
-   if(serverControlBusy || busy || modControlBusy)return;
+   if(serverControlBusy || busy || modControlBusy) {
+    Text("ServerControlFeedback").Text="Another Hub operation is still running. Wait for it to finish, then try again.";
+    return;
+   }
    if(original!=null) { await RunOriginalControl(action);return; }
    string pkg = ResolveInstallPath();
    if (!File.Exists(System.IO.Path.Combine(pkg, "REPACK.json"))) {
     Text("ServerControlFeedback").Text = "Install the repack first.";
+    return;
+   }
+   if (action.StartsWith("Start",StringComparison.Ordinal) && !IsInstalled()) {
+    Text("ServerControlFeedback").Text = RepackInstallation.IsPatchPayload(root) ? RepackInstallation.Problem(root) : RepackInstallation.Problem(pkg);
+    SetBusy(false,"FULL BASE REQUIRED","Install or select the full repack first",Text("ServerControlFeedback").Text);
+    SwitchTab("Hub");
     return;
    }
    serverControlBusy=true;

@@ -105,7 +105,7 @@ public final class PlayerBotTravelFormationCheck {
   }finally{PlayerBotFollowIntent.forget(bot);}
   check(PlayerBotFollowIntent.goal(bot)==null,"Dismissal releases cached owner geometry");
  }
- static void trajectories(){
+ static void trajectories(java.nio.file.Path game)throws Exception{
   for(String shape:PlayerBotFormationLayout.NAMES)for(double leader:new double[]{6,12,30})for(double natural:new double[]{1,4,8})for(int slot=0;slot<5;slot++){
    double angle=0,x=-15,y=0,error=0,steady=0,last=0;int stops=0;
    for(int tick=0;tick<750;tick++){
@@ -123,12 +123,23 @@ public final class PlayerBotTravelFormationCheck {
   }
   check(PlayerBotFormation.speed(1,30,2,true)>=30,"Leader matching has no class-speed ratio ceiling");
   check(PlayerBotFormation.speed(4,12,0,true)==3,"At slot, match leader speed");
-  check(PlayerBotFormation.speed(4,12,100,true)<=4.5,"Catch-up is bounded to 150 percent of leader/native baseline");
+  float maximum=PlayerBotConfig.COMPANION_CATCHUP_MULTIPLIER;
+  try {PlayerBotConfig.COMPANION_CATCHUP_MULTIPLIER=1.5f;
+   check(PlayerBotFormation.speed(4,12,100,true)<=4.5,"Configured catch-up is bounded to 150 percent of leader/native baseline");
+  }finally{PlayerBotConfig.COMPANION_CATCHUP_MULTIPLIER=maximum;}
+  var live=new Properties();
+  try(var input=java.nio.file.Files.newInputStream(game.resolve("config/playerbots/features.properties"))){live.load(input);}
+  String key="gameserver.playerbots.companion.catchup_multiplier";
+  check(live.containsKey(key),"Live companion catch-up multiplier is explicitly configured");
+  try {PlayerBotConfig.COMPANION_CATCHUP_MULTIPLIER=Float.parseFloat(live.getProperty(key));
+   for(double natural:new double[]{1,4,8})for(double leader:new double[]{6,12,30})for(double distance:new double[]{0,2,100})
+    check(PlayerBotFormation.speed(natural,leader,distance,true)*natural<=Math.max(natural,leader)*PlayerBotConfig.COMPANION_CATCHUP_MULTIPLIER+1e-6,"Live configured catch-up multiplier bounds actual speed");
+  }finally{PlayerBotConfig.COMPANION_CATCHUP_MULTIPLIER=maximum;}
   check(PlayerBotFormation.speed(0,12,10,true)==1,"Invalid native speed safe");
  }
  public static void main(String[] args)throws Exception{
   var f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);unsafe=(Unsafe)f.get(null);
-  summons();priorities();intent();trajectories();
+  summons();priorities();intent();trajectories(java.nio.file.Path.of(args[0]));
   System.out.println("OK: "+checks+" production summon, native config, arbitration, direct-intent and 180 formation trajectory checks; gameplay pending user");
  }
 }

@@ -27,7 +27,7 @@ public final class PlayerBotQuestJournal {
     if(template.isDataDriven() && kill.getQuestStep()!=quest.getQuestVarById(0) && !ready)continue;
     int variable=kill.getSequenceNumber()>0 ? kill.getSequenceNumber() : kill.getVar();
     int total=count(quest,variable,kill.getKillCount());
-    String names=kill.getNpcIds().stream().map(DataManager.NPC_DATA::getNpcTemplate).filter(Objects::nonNull).map(n->n.getName()).distinct().collect(java.util.stream.Collectors.joining(" / "));
+    String names=kill.getNpcIds().stream().map(DataManager.NPC_DATA::getNpcTemplate).filter(Objects::nonNull).map(n->PlayerBotGroupNeeds.display(n.getName())).distinct().collect(java.util.stream.Collectors.joining(" / "));
     objectives.add(Map.of("name",names.isBlank() ? "Quest objective" : names,"current",ready ? kill.getKillCount() : total,"required",kill.getKillCount()));
    }
   row.put("objectives",objectives);
@@ -40,18 +40,23 @@ public final class PlayerBotQuestJournal {
   if(!ready)for(var kind:PlayerBotQuestRoutes.Kind.values())if(kind!=PlayerBotQuestRoutes.Kind.REWARD)ids.addAll(PlayerBotQuestRoutes.ids(owner,bot,quest.getQuestId(),kind));
   var conversations=ready ? Set.<Integer>of() : PlayerBotQuestConversations.objectiveIds(owner,bot,quest.getQuestId());ids.addAll(conversations);
   row.put("conversation",!conversations.isEmpty());
+  // Scripted quests name no reward NPC for the bot's own turn-in; the owner still needs directions.
+  Set<Integer> targets=ready && ids.isEmpty() ? QuestEngine.getInstance().getTurnInGuideNpcIds(bot,quest.getQuestId()) : ids;
   List<Map<String,Object>> destinations=new ArrayList<>();
-  for(int id:new TreeSet<>(ids)) {
+  for(int id:new TreeSet<>(targets)) {
    var npc=DataManager.NPC_DATA.getNpcTemplate(id);if(npc==null)continue;
+   String name=PlayerBotGroupNeeds.display(npc.getName());int found=destinations.size();
    // Instance NPC locations must come from the current instance, not static
    // open-world coordinates reused by a different copy of a dungeon.
-   if(bot.isInInstance())owner.getKnownList().forEachNpc(actual->{if(actual.getNpcId()==id && actual.getInstanceId()==owner.getInstanceId())destinations.add(destination(owner,id,npc.getName(),actual.getX(),actual.getY(),actual.getZ()));});
+   if(bot.isInInstance())owner.getKnownList().forEachNpc(actual->{if(actual.getNpcId()==id && actual.getInstanceId()==owner.getInstanceId())destinations.add(destination(owner,id,name,owner.getWorldId(),actual.getX(),actual.getY(),actual.getZ()));});
    else if(DataManager.SPAWNS_DATA!=null)for(var group:DataManager.SPAWNS_DATA.getSpawnsForNpc(bot.getWorldId(),id)) {
     if(group.isTemporarySpawn() || group.getHandlerType()!=null)continue;
-    for(var spawn:group.getSpawnTemplates())if(!spawn.isAerialSpawn())destinations.add(destination(owner,id,npc.getName(),spawn.getX(),spawn.getY(),spawn.getZ()));
+    for(var spawn:group.getSpawnTemplates())if(!spawn.isAerialSpawn())destinations.add(destination(owner,id,name,bot.getWorldId(),spawn.getX(),spawn.getY(),spawn.getZ()));
    }
+   // Turn-ins and objectives are often on another map; the cached spawn catalog names it without scanning the worlds.
+   if(destinations.size()==found)PlayerBotWorldTravel.places(id).stream().limit(5).forEach(p->destinations.add(destination(owner,id,name,p.map(),p.x(),p.y(),p.z())));
   }
-  destinations.sort(Comparator.comparingDouble(d->((Number)d.get("distance")).doubleValue()));
+  destinations.sort(Comparator.comparingDouble(d->d.get("distance") instanceof Number n ? n.doubleValue() : Double.MAX_VALUE));
   row.put("destinations",destinations.stream().limit(5).toList());
   row.put("guidance",ids.isEmpty() ? "This quest needs your guidance or a custom story dialog." : ready ? "Lead me near a listed NPC; I will turn it in and select rewards for my class and equipment build." : !conversations.isEmpty() ? "Lead me near the conversation NPC. I will advance this objective, then report my next step." : template!=null && template.getCollectItems()!=null ? "Lead me near these quest objects or item sources. I will collect the required items through normal interaction and loot." : "These are my current quest objective NPCs.");
   return row;
@@ -62,9 +67,12 @@ public final class PlayerBotQuestJournal {
   do {total+=quest.getQuestVarById(variable++)<<shift;shift+=6;remaining>>=6;}while(remaining>0 && shift<30 && variable<6);
   return Math.min(Math.max(0,total),Math.max(0,required));
  }
- private static Map<String,Object> destination(Player owner,int id,String name,float x,float y,float z) {
-  var map=DataManager.WORLD_MAPS_DATA.getTemplate(owner.getWorldId());
-  return Map.of("npc",id,"name",name,"map",owner.getWorldId(),"mapName",map==null ? "Map "+owner.getWorldId() : map.getName(),"x",x,"y",y,"z",z,"distance",Math.round(PositionUtil.getDistance(owner,x,y,z)));
+ private static Map<String,Object> destination(Player owner,int id,String name,int world,float x,float y,float z) {
+  var map=DataManager.WORLD_MAPS_DATA.getTemplate(world);
+  Map<String,Object> row=new LinkedHashMap<>(Map.of("npc",id,"name",name,"map",world,"mapName",map==null ? "Map "+world : map.getName(),"x",x,"y",y,"z",z));
+  // A distance only means something on the map the owner is standing on.
+  if(world==owner.getWorldId())row.put("distance",Math.round(PositionUtil.getDistance(owner,x,y,z)));
+  return row;
  }
  private PlayerBotQuestJournal() {}
 }

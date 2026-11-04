@@ -19,6 +19,7 @@ public final class PlayerBotWorldProgressCheck {
  static class Actor extends Player {
   Data data;Controller controller;QuestStateList quests;
   Actor(){super(null,null);}
+  @Override public com.aionemu.gameserver.model.account.Account getAccount(){return new com.aionemu.gameserver.model.account.Account(7);}
   @Override public boolean isWorldBot(){return true;}
   @Override public boolean isPlayerBot(){return true;}
   @Override public boolean isOnline(){return false;}
@@ -43,10 +44,12 @@ public final class PlayerBotWorldProgressCheck {
     """));
    DataManager.NPC_DATA=new NpcData();
    var bot=(Actor)unsafe.allocateInstance(Actor.class);bot.data=new Data();bot.data.actor=bot;bot.controller=new Controller();bot.quests=new QuestStateList();
-   var q=new QuestState(900091,QuestStatus.REWARD);bot.quests.addQuest(900091,q);
+   var q=new QuestState(900091,QuestStatus.REWARD);bot.quests.addQuest(900091,q);PlayerBotWorldOutcomes.report();
    check(com.aionemu.gameserver.services.QuestService.finishPlayerBotQuest(new QuestEnv(null,bot,900091),-1,-1),"Historical quest without an NPC completes through the real native reward service");
    check(q.getStatus()==QuestStatus.COMPLETE&&q.getCompleteCount()==1&&bot.data.questExp==17,"Native completion delivers XP and increments saved completion once");
+   check(PlayerBotWorldOutcomes.report().contains("quest turn-ins=1"),"Actual successful native quest reward increments live turn-ins once");
    check(!com.aionemu.gameserver.services.QuestService.finishPlayerBotQuest(new QuestEnv(null,bot,900091),-1,-1)&&bot.data.questExp==17,"Duplicate completion cannot grant XP twice");
+   check(PlayerBotWorldOutcomes.report().contains("quest turn-ins=0"),"Rejected duplicate quest reward does not enter live counters");
    var completed=new PlayerBotQuestCompletionSharing.Completed(900091,3,0,0,1);
    check(PlayerBotQuestCompletionSharing.observe(null,completed.count(),1,PlayerBotQuestCompletionSharing.limit(DataManager.QUEST_DATA.getQuestById(900091))).target()==3,"Repeatable historical rewards catch up to the owner's actual count");
    check(PlayerBotQuestCompletionSharing.needsCompletion(q,3),"Partially caught-up alt remains eligible");

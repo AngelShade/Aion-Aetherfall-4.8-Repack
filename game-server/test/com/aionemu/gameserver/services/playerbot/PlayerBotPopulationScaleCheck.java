@@ -69,7 +69,7 @@ public final class PlayerBotPopulationScaleCheck {
    var reloaded=PlayerBotPopulationTestStorage.schedule(file);reloaded.event(99,new PlayerBotPopulationSchedule.Events(10,20,30,40));
    var next=PlayerBotPopulationTestStorage.schedule(file).load();
    check(next.events().size()==12000 && next.events().get(100).equals(events.get(100)) && next.target()==3000,"Single-event update retains every unrelated saved event");
-   String before=com.alibaba.fastjson2.JSON.toJSONString(store.load());Files.writeString(file,before.replace("\"target\":3000","\"target\":3001"));
+   String before=com.aionemu.commons.utils.Json.write(store.load());Files.writeString(file,before.replace("\"target\":3000","\"target\":3001"));
    String invalid=Files.readString(file);refused(()->PlayerBotPopulationLegacy.schedule(file));
    check(Files.readString(file).equals(invalid),"Invalid persisted target remains visible and is not rewritten");
   }finally{try(var paths=Files.walk(directory)){for(var p:paths.sorted(Comparator.reverseOrder()).toList())Files.delete(p);}}

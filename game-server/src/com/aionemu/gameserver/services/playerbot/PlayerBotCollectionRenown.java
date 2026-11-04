@@ -97,6 +97,18 @@ public final class PlayerBotCollectionRenown {
   var service=PlayerBotService.getInstance();var session=service.find(owner,name);
   if(!service.claimTransfer(session))throw new IllegalArgumentException("This companion is busy; retry when its current action finishes.");
   try{synchronized(session){
+   return claimStipendAdmitted(session);
+  }}finally{service.completeTransfer(session);}
+ }
+ /** Existing actor lease owns automatic claims; the same SQL ledger prevents duplicate daily payouts. */
+ static boolean idleStipend(PlayerBotSession session) {
+  if(!ready || !PlayerBotConfig.COLLECTION_RENOWN_ENABLED || !PlayerBotWarehouse.privateOwner(session) || !PlayerBotGrowth.giveOnly(session.bot()))return false;
+  var totals=ACCOUNTS.get(session.owner().getAccount().getId());
+  if(totals==null || LocalDate.now().equals(totals.stipendDay()) || AetherfallBoonService.collectionStipend(totals.combat(),totals.life(),totals.legend())<=0)return false;
+  claimStipendAdmitted(session);return true;
+ }
+ private static String claimStipendAdmitted(PlayerBotSession session) {
+  var service=PlayerBotService.getInstance();var owner=session.owner();
    if(!service.current(session) || !PlayerBotWarehouse.privateOwner(session) || !PlayerBotGrowth.giveOnly(session.bot()))throw new IllegalArgumentException("Choose one of your active ticket recruits for the collection stipend.");
    String blocker=PlayerBotItemTransfer.blocker(session);if(!blocker.isEmpty())throw new IllegalArgumentException(blocker);
    Player bot=session.bot();long amount,total;Totals next;
@@ -122,7 +134,6 @@ public final class PlayerBotCollectionRenown {
    try{var kinah=bot.getInventory().getKinahItem();kinah.setItemCount(total);kinah.setPersistentState(PersistentState.UPDATED);publish(owner.getAccount().getId(),next);}
    catch(RuntimeException error){PlayerBotTrade.hold(session,error);throw new IllegalStateException("Committed collection stipend needs custody verification.",error);}
    return "Paid "+amount+" Kinah to "+bot.getName()+" from today's collection stipend.";
-  }}finally{service.completeTransfer(session);}
  }
  private PlayerBotCollectionRenown(){}
 }

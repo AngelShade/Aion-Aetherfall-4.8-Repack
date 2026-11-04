@@ -11,6 +11,7 @@ from optional_languages import validate_core as validate_languages, optional_pat
 from player_settings import preserve_rules, KEEP
 from stock_defaults import recover as recover_stock_default
 from chunked_patch import build_chunked
+from client_assets import validate_client_assets
 
 
 def sha256_file(path: Path) -> str:
@@ -32,6 +33,7 @@ def build_patch(package: Path, baseline_index_path: Path, output_dir: Path, patc
     current = json.loads((package / 'FILES.json').read_text(encoding='utf-8-sig'))
     validate_core(package, current['files'])
     validate_languages(package, current['files'])
+    validate_client_assets(package / 'Client', current['files'])
 
     base_map = {e['path'].casefold(): e for e in baseline['files']}
     curr_map = {e['path'].casefold(): e for e in current['files']}

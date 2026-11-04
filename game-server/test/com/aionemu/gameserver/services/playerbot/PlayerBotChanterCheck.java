@@ -60,7 +60,7 @@ public final class PlayerBotChanterCheck {
  static String mantra(int id,int payload,String subtype,String first) {
   return "<skill_template skill_id=\""+id+"\" lvl=\"1\" activation=\"TOGGLE\" duration=\"0\" skillsubtype=\""+subtype+"\" tslot=\"NOSHOW\" stack=\"M_"+id+"\"><properties first_target=\""+first+"\" target_relation=\"FRIEND\" target_type=\"ONLYONE\"/><endconditions><mp value=\"500\"/></endconditions><effects><aura skill_id=\""+payload+"\" distance=\"25\" distance_z=\"10\" effectid=\""+id+"\" e=\"1\"/></effects></skill_template>";
  }
- public static void main(String[] args)throws Exception {
+ public static void main(String[] args)throws Exception {PlayerBotMetadataCheck.defaults();
   var f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);unsafe=(Unsafe)f.get(null);bot=actor(810002);ally=actor(810003);ally.pc=PlayerClass.SORCERER;
   var group=(PlayerBotClericCheck.Group)unsafe.allocateInstance(PlayerBotClericCheck.Group.class);group.members=List.of(bot,ally);bot.group=ally.group=group;
   var xml=new StringBuilder("<skill_data>");for(int i=1;i<=6;i++)xml.append(mantra(991300+i,991310+i,"CHANT","ME"));
@@ -77,7 +77,7 @@ public final class PlayerBotChanterCheck {
    """);
   var context=JAXBContext.newInstance(SkillData.class);data=(SkillData)context.createUnmarshaller().unmarshal(new StringReader(xml.toString()));DataManager.SKILL_DATA=data;DataManager.MATERIAL_DATA=new MaterialData();
   bot.learned=new PlayerSkillList(data.getSkillTemplates().stream().filter(s->s.getSkillId()<=991309 || s.getSkillId()==991320).map(s->new PlayerSkillEntry(s.getSkillId(),1,0,PersistentState.NEW)).toList());
-  session=(PlayerBotSession)unsafe.allocateInstance(PlayerBotSession.class);PlayerBotClericCheck.field(session,PlayerBotSession.class,"bot",bot);PlayerBotClericCheck.field(session,PlayerBotSession.class,"owner",bot);PlayerBotClericCheck.field(session,PlayerBotSession.class,"role",Role.SUPPORT);
+  session=PlayerBotMetadataCheck.sessionDefaults((PlayerBotSession)unsafe.allocateInstance(PlayerBotSession.class));PlayerBotClericCheck.field(session,PlayerBotSession.class,"bot",bot);PlayerBotClericCheck.field(session,PlayerBotSession.class,"owner",bot);PlayerBotClericCheck.field(session,PlayerBotSession.class,"role",Role.SUPPORT);
   PlayerBotClericCheck.field(session,PlayerBotSession.class,"skills",bot.learned.getAllSkills().stream().map(s->entry(s.getSkillId())).toList());
   recipient=PlayerBotSession.class.getDeclaredMethod("recipient",PlayerBotSkills.Entry.class,List.class,com.aionemu.gameserver.model.gameobjects.Npc.class,boolean.class);recipient.setAccessible(true);
   priority=PlayerBotSession.class.getDeclaredMethod("priority",PlayerBotSkills.Entry.class,Creature.class,boolean.class,List.class);priority.setAccessible(true);

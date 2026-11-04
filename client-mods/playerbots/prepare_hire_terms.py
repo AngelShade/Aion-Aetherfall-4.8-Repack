@@ -32,11 +32,41 @@ LABELS = [
     ('STR_AETHERFALL_HIRE_TERM_7', 'The helper keeps its own items and earnings.'),
     ('STR_AETHERFALL_HIRE_BEFORE', 'Before you hire'),
     ('STR_AETHERFALL_HIRE_ENDING', 'When it ends'),
+    ('STR_AETHERFALL_HELP_REQUESTS', 'Help requests'),
 ]
 
 
 def sha(data):
     return hashlib.sha256(data).hexdigest()
+
+
+def menus(payload):
+    """Extend the installed menu owner without replacing unrelated menu changes."""
+    text = payload.decode('utf-8-sig')
+    addition = '''
+function PrivateHelpRequests_Open()
+    -- Game.dll only authenticates exact window addresses, so this opens the normal
+    -- Companions page; the native bridge adds the help section to that navigation.
+    if AetherfallCore then AetherfallCore('helpview') end
+    PrivateCompanions_Open();
+end
+'''
+    if 'function PrivateHelpRequests_Open()' in text:
+        # Replace the first version, which loaded an address Game.dll rejects.
+        start = text.index('function PrivateHelpRequests_Open()')
+        end = text.index('\nend', start) + len('\nend')
+        text = text[:start] + addition.strip() + text[end:]
+    else:
+        anchor = 'function PrivateMenus_Register()'
+        if text.count(anchor) != 1:
+            raise ValueError('Private menu owner changed')
+        text = text.replace(anchor, addition + '\n' + anchor, 1)
+    if 'SLASH_PRIVATEHELPREQUESTS1' not in text:
+        anchor = '    SLASH_PRIVATECOMPANIONS1 = "/companions";'
+        if text.count(anchor) != 1:
+            raise ValueError('Companions menu registration changed')
+        text = text.replace(anchor, anchor + '\n    SlashCmdList["PRIVATEHELPREQUESTS"] = PrivateHelpRequests_Open;\n    SLASH_PRIVATEHELPREQUESTS1 = "/helprequests";', 1)
+    return text.encode('utf-8')
 
 
 def layout(payload):
@@ -47,7 +77,7 @@ def layout(payload):
     if help is None or help.get('type') != 'button':
         raise ValueError('Find Group Help is not a direct native button')
     for n in list(root):
-        if n.get('name') in ('af_hire_details', 'af_hire_terms'):
+        if n.get('name') in ('af_hire_details', 'af_hire_terms', 'af_help_requests'):
             root.remove(n)
     button = copy.deepcopy(help)
     button.set('name', 'af_hire_details')
@@ -60,6 +90,12 @@ def layout(payload):
     # resolved local rectangle after native alignment/move/resize.
     button.set('frame', ','.join(format(v, 'g') for v in (x + w + 4, y, 104, h)))
     root.append(button)
+    requests = copy.deepcopy(button)
+    requests.set('name', 'af_help_requests')
+    requests.set('text', LABELS[10][0])
+    requests.set('tooltip', LABELS[10][0])
+    requests.set('frame', ','.join(format(v, 'g') for v in (x + w + 112, y, 97, h)))
+    root.append(requests)
     panel = E.SubElement(root, 'Widget', type='container', name='af_hire_terms',
                          frame='3,136,394,216', flag='not_visible',
                          h_pos_align='right', v_pos_align='bottom')

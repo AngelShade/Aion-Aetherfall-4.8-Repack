@@ -2,11 +2,44 @@
 
 ## Next update
 
+- Large companion parties keep their line formation close, and companions can equip stat-bearing remodel armor they own or earn.
+- The companion equipment window lets you inspect equipped Stigmas and other items outside the paperdoll.
+- Road Wardens can still offer rescue after you reconnect while dead from a monster attack.
+
+Characters look better than ever up close, with repainted faces and silky, glowing skin.
+
 ### New
+
+- Open Help requests from Find Group to review companions' requests, keep accepted objectives after reconnecting, and track, locate, abandon or collect rewards.
+- Invite a Road Warden for a free escort toward either end of the road, lasting up to 15 minutes.
+- Take a daily Road Bounty from a Warden for XP and Kinah. Every third completed bounty earns a Recruitment Ticket.
+- Nearby Road Wardens answer monster distress, offer safe roadside resurrection and share a protective blessing.
 
 ### Improved
 
+- Road Wardens walk longer roads outside settlements, wear regional company names and titles, and report nearby threats when selected.
+- Road Wardens spread out along roads. Extra Wardens return to ordinary field activity until a patrol place opens.
+- Warden help leaves your loot intact. Earn full XP and bounty credit when your team deals at least a fifth of the combined damage.
+- World companions now hunt monsters that drop the gear they want, and companions after the same item split up.
+- Help requests now use a tidy board you can filter and page through, showing each request's map and level range.
+- The Party quest tracker now shows where to go for every quest, with a button that marks it on your map.
+- Repainted base player faces and bare bodies in much higher resolution, with sharper eyes, silky skin and a soft sheen. Face variations are sharper too.
+
 ### Fixed
+
+- Fixed travelling merchant shops so you receive purchased items and see a reason when a purchase is refused.
+- Fixed companion help requests causing errors when world companions arrive, and reduced pauses during companion decisions, companion trading and Central Market updates.
+- Fixed long server freezes when too many world companions filled the game server's memory.
+- Fixed world companions staying idle without a destination and getting stranded in areas unsuitable for their level.
+- Fixed world companions skipping their equipment goal refresh.
+- Fixed Show location doing nothing on Help requests.
+- Fixed the Party quest tracker showing no turn-in location when the NPC is on another map.
+- Fixed the game server taking minutes to stop after using Find Group invitations, which made the Hub's Stop buttons look stuck.
+- Fixed Central Market errors appearing in the server log when the game server stops.
+
+- Fixed a "load fail" message when you confirm a quest reward again at an NPC offering a follow-up quest.
+- Fixed companions drawing and sheathing their weapon over and over between buffs and heals.
+- Fixed dotted, mesh-like patches on trees, hanging roots, arches and glowing plants, and overly bright lamp glows, in zones with sharper textures.
 
 ## 0.98.11 - New Companions collection, Recruitment Tickets and road merchants (2 November 2026)
 

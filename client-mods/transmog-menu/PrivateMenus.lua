@@ -39,6 +39,13 @@ function PrivateCompanions_Open()
     PrivateWarehouseBrowser:LoadUrlWithWebAuth(PRIVATE_PLAYERBOTS_URL);
 end
 
+function PrivateHelpRequests_Open()
+    -- Game.dll only authenticates exact window addresses, so this opens the normal
+    -- Companions page; the native bridge adds the help section to that navigation.
+    if AetherfallCore then AetherfallCore('helpview') end
+    PrivateCompanions_Open();
+end
+
 function PrivateWardrobe_OnLoad()
     WardrobeNative_OnLoad();
 end
@@ -71,6 +78,8 @@ end
 function PrivateMenus_Register()
     SlashCmdList["PRIVATECOMPANIONS"] = PrivateCompanions_Open;
     SLASH_PRIVATECOMPANIONS1 = "/companions";
+    SlashCmdList["PRIVATEHELPREQUESTS"] = PrivateHelpRequests_Open;
+    SLASH_PRIVATEHELPREQUESTS1 = "/helprequests";
     RegisterMenu("Player Companions", SLASH_PRIVATECOMPANIONS1, "v5_start_menu_relic_up");
     SlashCmdList["PRIVATESEASONPASS"] = PrivateSeasonPass_Open;
     SLASH_PRIVATESEASONPASS1 = "/seasonpass";

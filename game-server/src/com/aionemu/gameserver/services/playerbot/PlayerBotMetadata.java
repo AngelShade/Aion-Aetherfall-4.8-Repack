@@ -31,11 +31,17 @@ public final class PlayerBotMetadata {
    } else if(section.equals("road-duty")) {
     if(!PlayerBotPopulationPolicy.serverAccount(account))throw new IllegalArgumentException("Road careers require a generated global resident");
     PlayerBotRoadDuty.Career.valueOf(map.getOrDefault("career","NONE"));PlayerBotRoadDuty.Rank.valueOf(map.getOrDefault("rank","PEDDLER"));
+    if(!Set.of("true","false").contains(map.getOrDefault("suspended","false")))throw new IllegalArgumentException("Invalid road suspension");
     int point=Integer.parseInt(map.getOrDefault("point","0")),direction=Integer.parseInt(map.getOrDefault("direction","1"));
     if(point<0 || point>1023 || Math.abs(direction)!=1 || Long.parseLong(map.getOrDefault("restockAt","0"))<0)throw new IllegalArgumentException("Invalid road progress");
     if(Integer.parseInt(map.getOrDefault("visitor","0"))<0)throw new IllegalArgumentException("Invalid road visitor");
-    for(String key:List.of("stopUntil","escortUntil","waitUntil"))
+    if(map.getOrDefault("route","").length()>192)throw new IllegalArgumentException("Invalid road route id");
+    // Warden service additions are optional so all pre-beat road-duty rows remain readable.
+    for(String key:List.of("stopUntil","escortUntil","waitUntil","distressAt"))
      if(Long.parseLong(map.getOrDefault(key,"0"))<0)throw new IllegalArgumentException("Invalid road timer");
+    for(String key:List.of("escortWarned","fairWarned"))if(!Set.of("true","false").contains(map.getOrDefault(key,"false")))throw new IllegalArgumentException("Invalid Warden warning flag");
+    if(map.containsKey("escortStartX") || map.containsKey("escortStartY") || map.containsKey("escortStartZ"))
+     for(String key:List.of("escortStartX","escortStartY","escortStartZ"))if(!Float.isFinite(Float.parseFloat(map.get(key))))throw new IllegalArgumentException("Invalid escort origin");
     for(var e:map.entrySet())if(e.getKey().startsWith("stock.")) {
      var origin=e.getValue().split(":");if(Integer.parseInt(e.getKey().substring(6))<=0 || origin.length!=2
       || Integer.parseInt(origin[0])<=0 || Integer.parseInt(origin[1])<=0)throw new IllegalArgumentException("Invalid merchant provenance");
@@ -91,19 +97,24 @@ public final class PlayerBotMetadata {
   }catch(RuntimeException e){throw new IOException("Invalid bot "+section+" metadata for character "+character,e);}
  }
  private static void ids(String text){for(String id:text.split(","))if(!id.isBlank() && Integer.parseInt(id)<=0)throw new IllegalArgumentException("Invalid metadata ID");}
- static synchronized Properties load(int account,int character,String section,Path legacy)throws IOException {
-  Key key=new Key(character,section);Entry e=CACHE.get(key);
-  if(e==null) {
-   try(var c=DatabaseFactory.getConnection()) {
-    var row=PlayerBotMetadataDAO.load(c,account,character,section);
-    Map<String,String> initial;long revision;
-    if(row!=null){initial=row.values();revision=row.revision();validate(account,character,section,initial);}
-    else if(legacy!=null && Files.exists(legacy)) {
-     var p=new Properties();try(var in=Files.newInputStream(legacy)){p.load(in);}initial=values(p);validate(account,character,section,initial);revision=0;
-    } else {initial=Map.of();revision=0;}
-    e=new Entry(account,revision,initial,revision==0?Map.of():initial);CACHE.put(key,e);
-   }catch(SQLException ex){throw new IOException("Cannot load bot metadata from database; recruitment refused rather than defaulting",ex);}
-  }
+ static Properties load(int account,int character,String section,Path legacy)throws IOException {
+  Key key=new Key(character,section);
+  synchronized(PlayerBotMetadata.class){Entry cached=CACHE.get(key);if(cached!=null)return loaded(account,cached);}
+  // SQL and legacy files are read outside the monitor every active bot's reads and saves share.
+  Entry e;
+  try(var c=DatabaseFactory.getConnection()) {
+   var row=PlayerBotMetadataDAO.load(c,account,character,section);
+   Map<String,String> initial;long revision;
+   if(row!=null){initial=row.values();revision=row.revision();validate(account,character,section,initial);}
+   else if(legacy!=null && Files.exists(legacy)) {
+    var p=new Properties();try(var in=Files.newInputStream(legacy)){p.load(in);}initial=values(p);validate(account,character,section,initial);revision=0;
+   } else {initial=Map.of();revision=0;}
+   e=new Entry(account,revision,initial,revision==0?Map.of():initial);
+  }catch(SQLException ex){throw new IOException("Cannot load bot metadata from database; recruitment refused rather than defaulting",ex);}
+  // A concurrent loader or save wins; never replace its queued changes.
+  synchronized(PlayerBotMetadata.class){Entry cached=CACHE.putIfAbsent(key,e);return loaded(account,cached==null?e:cached);}
+ }
+ private static Properties loaded(int account,Entry e)throws IOException {
   if(e.account!=account)throw new IOException("Cached bot metadata owner mismatch");
   return properties(e.current);
  }

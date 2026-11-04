@@ -5,6 +5,9 @@ menu records, so Play would otherwise stop at the Graphics step. With Aion close
 copies the package, runs the launcher's normal merge, moves the Graphics record and its
 package copy to the merged archive, and runs the standing guards. Any failure restores
 every saved file. A receipt with paths and hashes is written to the backup folder.
+For offline verification, --staged-client accepts only a receipt-guarded TEMP copy
+without an Aion executable. It exercises the same merge and compatibility guards;
+normal client installation always requires an accessible closure check.
 """
 import argparse
 from datetime import datetime,timezone
@@ -13,6 +16,7 @@ import json
 from pathlib import Path
 import shutil
 import subprocess
+import tempfile
 
 ENGLISH='L10N/enu/Data/data.pak'
 QUESTS='Data/Quest/Quest.pak'
@@ -23,6 +27,25 @@ STATE='Mods/CustomQuests/installed.json'
 
 def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def staged_client(client):
+    # This explicit verification mode can only write a disposable TEMP copy that
+    # cannot run Aion. Real installations always retain the closure requirement.
+    if not client.is_relative_to(Path(tempfile.gettempdir()).resolve()):
+        raise SystemExit('--staged-client requires a disposable TEMP client copy')
+    marker=client/'.aetherfall-quest-stage.json'
+    if not marker.is_file():
+        raise SystemExit('The staged client receipt is missing')
+    state=json.loads(marker.read_text(encoding='utf-8'))
+    if state.get('kind')!='custom-quest-installer-scratch' or Path(state['originalClient']).resolve()==client:
+        raise SystemExit('Invalid staged client receipt')
+    if any(path.name.lower() in ('aion.exe','aion.bin') for path in client.rglob('*') if path.is_file()):
+        raise SystemExit('A runnable Aion client cannot use --staged-client')
+    for name,expected in state['files'].items():
+        target=(client/name).resolve(strict=True)
+        if not target.is_relative_to(client) or sha(target)!=expected:
+            raise SystemExit('Staged client input changed: '+name)
 
 
 def closed():
@@ -62,15 +85,25 @@ def main():
     p.add_argument('--client',type=Path,required=True)
     p.add_argument('--package',type=Path,required=True)
     p.add_argument('--backup',type=Path,required=True,help='fresh folder outside the client and source')
+    p.add_argument('--replace',action='store_true',help='update this existing package with verified backup and rollback')
+    p.add_argument('--staged-client',action='store_true',help='verify on a receipt-guarded disposable TEMP copy without runnable Aion files; never for a real client')
     a=p.parse_args()
     client,package,backup=a.client.resolve(strict=True),a.package.resolve(strict=True),a.backup.resolve()
-    if backup.exists() or backup.is_relative_to(client):
+    if backup.exists() or backup.is_relative_to(client) or backup.is_relative_to(Path(__file__).resolve().parents[2]):
         raise SystemExit('Use a fresh external backup folder')
     target=client/'Mods/CustomQuests/Quests'/package.name
-    if target.exists():
+    package_root=(client/'Mods/CustomQuests/Quests').resolve()
+    if not package_root.is_relative_to(client) or not target.resolve().is_relative_to(package_root):
+        raise SystemExit('The package target escapes CustomQuests/Quests')
+    replacing=target.is_dir()
+    if target.exists() and not a.replace:
         raise SystemExit('This package is already in the client')
-    closed()
-    saved=(ENGLISH,QUESTS,PACKAGE_COPY,STATE)+RECORDS
+    if a.replace and not replacing:
+        raise SystemExit('--replace requires an existing package directory')
+    if a.staged_client: staged_client(client)
+    else: closed()
+    saved=(ENGLISH,QUESTS,PACKAGE_COPY,STATE)+RECORDS+tuple(path.relative_to(client).as_posix() for path in target.rglob('*') if path.is_file())
+    added=[(target/path.relative_to(package)).relative_to(client).as_posix() for path in package.rglob('*') if path.is_file() and not (target/path.relative_to(package)).exists()]
     before={name:sha(client/name) for name in saved}
     if before[ENGLISH]!=before[PACKAGE_COPY] or graphics(client)[0]:
         raise SystemExit('The Graphics record does not match this client; fix that first')
@@ -83,8 +116,8 @@ def main():
             raise SystemExit('Backup verification failed: '+name)
     checks={}
     try:
-        closed()
-        shutil.copytree(package,target)
+        if not a.staged_client: closed()
+        shutil.copytree(package,target,dirs_exist_ok=replacing)
         checks['merge']=launcher(client,backup,'--custom-quests-sync')
         if checks['merge'][0]:
             raise RuntimeError(checks['merge'][1])
@@ -98,15 +131,23 @@ def main():
         if any(code for code,_ in checks.values()) or 'unchanged' not in checks['unchanged'][1]:
             raise RuntimeError('A guard failed: '+json.dumps(checks))
     except Exception as error:
-        shutil.rmtree(target,ignore_errors=True)
+        if replacing:
+            for name in added:
+                if (client/name).is_file():
+                    (client/name).unlink()
+        else:
+            resolved=target.resolve()
+            if not resolved.is_relative_to(package_root) or resolved==package_root:
+                raise SystemExit('Refusing rollback outside this package directory')
+            shutil.rmtree(resolved,ignore_errors=True)
         for name in saved:
             shutil.copy2(backup/'files'/name,client/name)
         if {name:sha(client/name) for name in saved}!=before:
             raise SystemExit(f'Install failed and restore did not verify; copy {backup/"files"} by hand. {error}')
         raise SystemExit(f'Install failed; every file was restored. {error}')
-    receipt=dict(change='Added custom quest package',package=package.name,installedAt=datetime.now(timezone.utc).isoformat(),client=str(client),
-        before=before,after={name:sha(client/name) for name in saved},newFiles=[str(path.relative_to(client)) for path in target.rglob('*') if path.is_file()],checks=checks,
-        restore='With Aion closed: copy backup/files over the client and delete the new package folder.')
+    receipt=dict(change='Updated custom quest package' if replacing else 'Added custom quest package',package=package.name,installedAt=datetime.now(timezone.utc).isoformat(),client=str(client),stagedClient=a.staged_client,
+        before=before,after={name:sha(client/name) for name in saved},newFiles=added,checks=checks,
+        restore='With Aion closed: copy backup/files over the client; remove only the listed newFiles.' if replacing else 'With Aion closed: copy backup/files over the client and delete the new package folder.')
     (backup/'receipt.json').write_text(json.dumps(receipt,indent=2),encoding='utf-8')
     print(json.dumps(checks,indent=2))
     print('receipt:',backup/'receipt.json')

@@ -40,9 +40,11 @@ public final class PlayerBotHttpService {
 				send(exchange, 200, file.endsWith("js") ? "application/javascript" : file.endsWith("css") ? "text/css" : "text/html", file.endsWith("css") ? WindowTextScale.css(PlayerBotMedia.read(file)) : PlayerBotMedia.read(file)); return;
 			}
 			if (method.equals("GET") && path.equals("/market/companions/help")) {
-				Player helper = MarketplaceService.findPlayer(parse(exchange.getRequestURI().getRawQuery()).getOrDefault("session_id", ""));
+				var helpQuery = parse(exchange.getRequestURI().getRawQuery());
+				Player helper = MarketplaceService.findPlayer(helpQuery.getOrDefault("session_id", ""));
 				if (helper == null || !helper.isOnline() || helper.isPlayerBot()) { send(exchange, 403, "text/plain", ""); return; }
-				send(exchange, 200, "text/plain", PlayerBotHelpObjectives.title(helper)); return;
+				String title = PlayerBotHelpObjectives.title(helper).replace('\n',' ').replace('\r',' ');
+				send(exchange, 200, "text/plain", "journal".equals(helpQuery.get("format")) ? title + "\n" + PlayerBotHelpObjectives.progress(helper) : title); return;
 			}
 			boolean mutation = path.equals("/market/companions/action");
 			if (!mutation && !path.equals("/market/companions/state")) { send(exchange, 404, "text/plain", "Not found"); return; }
@@ -63,6 +65,11 @@ public final class PlayerBotHttpService {
 					if ("recyclequote".equals(values.get("action"))) {
 						responseDetails.put("recycleQuote", PlayerBotRecycling.quote(player, values.getOrDefault("name",""), values.getOrDefault("target","")));
 						notice = "Review the exact recycling rewards before confirming.";
+					} else if ("recycle".equals(values.get("action"))) {
+						if (!"yes".equals(values.get("confirm"))) throw new IllegalArgumentException("Review and confirm the recycling quote first.");
+						var outcome = PlayerBotRecycling.execute(player, values.getOrDefault("name",""), values.getOrDefault("target",""), values.getOrDefault("quote",""));
+						notice = outcome.notice();
+						if (outcome.quote() != null) responseDetails.put("recycleQuote", outcome.quote());
 					} else notice = action(player, values);
 				}
 				var state = snapshot(player,values); state.put("notice", notice);
@@ -101,8 +108,11 @@ public final class PlayerBotHttpService {
 		state.put("tickets", com.aionemu.gameserver.services.playerbot.PlayerBotRecruitment.snapshot(owner));
 		var active=PlayerBotService.getInstance().companions(owner).stream().map(s->{var bot=s.snapshot();bot.put("giveOnly",PlayerBotGrowth.giveOnly(s.bot()));var growth=PlayerBotGrowth.identity(s.bot());if(growth!=null)bot.put("growth",growth);return bot;}).toList();
 		state.put("active",active);
+		state.put("recycleReceivers",PlayerBotRoster.recycleReceivers(owner.getAccount().getId(),owner.getObjectId(),PlayerBotService.getInstance().companions(owner)));
 		state.put("collectionRenown", PlayerBotCollectionRenown.view(owner));
 		state.put("recyclingEnabled", PlayerBotRecycling.enabled());
+		state.put("helpRequest", PlayerBotHelpObjectives.snapshot(owner));
+		state.put("helpPosts", PlayerBotFindGroup.helpRequests(owner));
 		String benefitId = values.getOrDefault("benefitBot", "");
 		for (var session : PlayerBotService.getInstance().companions(owner))
 			if (Integer.toString(session.bot().getObjectId()).equals(benefitId)
@@ -133,6 +143,10 @@ public final class PlayerBotHttpService {
         for(var row:roster)for(var live:active)if(row.get("id").equals(live.get("id"))) {
             row.put("level",live.get("level"));row.put("playerClass",live.get("playerClass"));
             if(live.containsKey("growth"))row.put("growth",live.get("growth"));
+        }
+        for(var row:roster) {
+            boolean ticket=row.get("growth") instanceof Map<?,?> growth && "GACHA".equals(growth.get("origin"));
+            row.put("recruitmentEnabled",PlayerBotCreationPolicy.recruitmentAllowed(Boolean.TRUE.equals(row.get("generated")),ticket));
         }
         state.put("generatedCount",page.generatedCount());state.put("generatedLimit",PlayerBotCreationPolicy.limit());
         state.put("freeGeneratedCount",PlayerBotRoster.freeGeneratedCount(owner.getAccount().getId()));
@@ -165,6 +179,8 @@ public final class PlayerBotHttpService {
 		var service = PlayerBotService.getInstance();
 		String op = values.getOrDefault("action", ""), name = values.getOrDefault("name", "");
 		switch (op) {
+			case "helpaccept" -> { return PlayerBotFindGroup.acceptHelp(owner,Integer.parseInt(values.getOrDefault("bot","0"))); }
+			case "helptrack", "helpabandon", "helpclaim" -> { return PlayerBotHelpObjectives.action(owner,op.substring(4)); }
 			case "team" -> {return PlayerBotAllianceControl.action(owner,values);}
 			case "savebot" -> { return PlayerBotPresets.saveBot(owner,name); }
 			case "saveparty" -> { return PlayerBotPresets.saveParty(owner,values.getOrDefault("presetName","")); }
@@ -174,10 +190,6 @@ public final class PlayerBotHttpService {
 			case "collectionstipend" -> { return PlayerBotCollectionRenown.claimStipend(owner, name); }
 			case "focus" -> { return PlayerBotFocus.select(owner, name, values.getOrDefault("focus", ""), Integer.parseInt(values.getOrDefault("profession", "0"))); }
 			case "passaction" -> { var args = new HashMap<>(values); args.put("action", values.getOrDefault("passAction", "")); return PlayerBotPass.action(owner, name, args, values.get("request")); }
-			case "recycle" -> {
-				if (!"yes".equals(values.get("confirm"))) throw new IllegalArgumentException("Review and confirm the recycling quote first.");
-				return PlayerBotRecycling.execute(owner, name, values.getOrDefault("target", ""), values.getOrDefault("quote", ""));
-			}
 			case "sendalt" -> { return PlayerBotItemTransfer.sendToAlt(owner, values.getOrDefault("alt", ""), Integer.parseInt(values.getOrDefault("item", "0")), Long.parseLong(values.getOrDefault("kinah", "0"))); }
 			case "editparty" -> { return PlayerBotPresets.editParty(owner, values.getOrDefault("preset", ""), values.getOrDefault("presetName", ""), values.getOrDefault("members", "")); }
 			case "deleteparty" -> { String preset=values.getOrDefault("preset",""); if(!preset.matches("[a-f0-9]{32}"))throw new IllegalArgumentException("Choose a party preset."); return PlayerBotPresets.remove(owner,preset); }

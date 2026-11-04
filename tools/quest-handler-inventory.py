@@ -51,8 +51,9 @@ def class_info(data):
 def constructor_id(info, resolve=None):
     """Trace literal integer constructor delegation to the native quest base, without execution.
 
-    Only the straight-line this/int argument prefix and invokespecial constructor calls
-    are accepted. Fields, branches, arithmetic and computed quest IDs remain rejected.
+    Only the straight-line this/int argument prefix, literal int[] varargs and
+    invokespecial constructor calls are accepted. Fields, branches, arithmetic and
+    computed quest IDs remain rejected.
     """
     constructor = next(m for m in info['methods'] if m[1:3] == ('<init>', '()V') and m[0] & 1)
     base = 'com/aionemu/gameserver/questEngine/handlers/AbstractQuestHandler'
@@ -68,6 +69,20 @@ def constructor_id(info, resolve=None):
         offset, values = 1, []
         while offset < len(code) and code[offset] != 0xb7:
             opcode = code[offset]; offset += 1
+            if opcode == 0xbc:  # newarray int, for a literal varargs list
+                assert code[offset] == 10 and values and type(values[-1]) is int and values[-1] >= 0, 'Review non-literal native quest constructor'
+                offset += 1; values.append([None] * values.pop())
+                continue
+            if opcode == 0x59:  # dup of that array, before storing an element
+                assert values and type(values[-1]) is list, 'Review non-literal native quest constructor'
+                values.append(values[-1])
+                continue
+            if opcode == 0x4f:  # iastore
+                assert len(values) >= 3, 'Review non-literal native quest constructor'
+                item, index, array = values.pop(), values.pop(), values.pop()
+                assert type(array) is list and type(index) is int and 0 <= index < len(array) and array[index] is None, 'Review non-literal native quest constructor'
+                array[index] = item
+                continue
             if 0x02 <= opcode <= 0x08: value = opcode - 3
             elif opcode == 0x10:
                 value = struct.unpack('>b', code[offset:offset + 1])[0]; offset += 1
@@ -94,8 +109,13 @@ def constructor_id(info, resolve=None):
         owner = current['pool'][current['pool'][call[1]][1]]
         signature = current['pool'][call[2]]
         name, descriptor = (current['pool'][n] for n in signature[1:])
-        assert name == '<init>' and re.fullmatch(r'\(I+\)V', descriptor)
-        assert len(values) == len(descriptor) - 3
+        assert name == '<init>' and re.fullmatch(r'\((?:I|Z|\[I)+\)V', descriptor)
+        types = re.findall(r'\[I|I|Z', descriptor)
+        assert len(values) == len(types)
+        for kind, value in zip(types, values):
+            if kind == 'Z': assert value in (0, 1), 'Constructor flag must be a literal boolean'
+            elif kind == '[I': assert type(value) is list and None not in value, 'Constructor list must be literal integers'
+            else: assert type(value) is int, 'Constructor argument must be a literal integer'
         assert owner == current['parent'] or owner == current.get('name'), 'Unrelated quest constructor'
         if owner == base or resolve is None:
             assert owner == current['parent'] and descriptor == '(I)V'

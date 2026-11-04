@@ -38,7 +38,7 @@ public class Config {
 		AutoGroupConfig.class, BrokerMarketConfig.class, CentralMarketSimulationConfig.class, CommonsConfig.class, CleaningConfig.class, CraftConfig.class, CustomConfig.class, DropConfig.class, EventsConfig.class,
 		FallDamageConfig.class, GSConfig.class, GeoDataConfig.class, GroupConfig.class, HousingConfig.class, HTMLConfig.class,
 		InstanceConfig.class, LegionConfig.class, LoggingConfig.class, MembershipConfig.class, MobScalingConfig.class, NameConfig.class, PeriodicSaveConfig.class,
-		PlayerBotConfig.class, PlayerBotMerchantConfig.class, PlayerBotPopulationConfig.class, PlayerTransferConfig.class, PricesConfig.class, PunishmentConfig.class, RankingConfig.class, RatesConfig.class, SecurityConfig.class,
+		PlayerBotConfig.class, PlayerBotEconomyConfig.class, PlayerBotMerchantConfig.class, PlayerBotWardenConfig.class, PlayerBotPopulationConfig.class, PlayerTransferConfig.class, PricesConfig.class, PunishmentConfig.class, RankingConfig.class, RatesConfig.class, SecurityConfig.class,
 		ShutdownConfig.class, SiegeConfig.class, ThreadConfig.class, WorldConfig.class, DatabaseConfig.class, NetworkConfig.class, PffConfig.class);
 
 	/**
@@ -143,6 +143,16 @@ public class Config {
 			if (Files.isRegularFile(roadMerchants)) {
 				log.info("Loading default configuration values from: ./config/playerbots/road-merchants.properties");
 				defaults.putAll(PropertiesUtils.load(roadMerchants.toFile(), null));
+			}
+			Path roadWardens = root.resolve("./config/playerbots/road-wardens.properties");
+			if (Files.isRegularFile(roadWardens)) {
+				log.info("Loading default configuration values from: ./config/playerbots/road-wardens.properties");
+				defaults.putAll(PropertiesUtils.load(roadWardens.toFile(), null));
+			}
+			Path economy = root.resolve("./config/playerbots/economy.properties");
+			if (Files.isRegularFile(economy)) {
+				log.info("Loading default configuration values from: ./config/playerbots/economy.properties");
+				defaults.putAll(PropertiesUtils.load(economy.toFile(), null));
 			}
 			log.info("Loading: ./config/mygs.properties");
 			Properties properties = PropertiesUtils.load(root.resolve("./config/mygs.properties").toFile(), defaults);

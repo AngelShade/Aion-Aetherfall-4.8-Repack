@@ -42,7 +42,7 @@ public final class PlayerBotAssassinCheck {
   plan.defaults("native melee",new Action(){public String name(){return "melee";}public boolean isUseful(){return true;}public boolean isPossible(){return true;}public boolean execute(){return true;}},5,State.COMBAT);
   check(plan.tick(engine,64),"Fresh engine resolves real admission or fallback");return engine.getLastAction();
  }
- public static void main(String[] args)throws Exception {
+ public static void main(String[] args)throws Exception {PlayerBotMetadataCheck.defaults();
   var f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);PlayerBotGladiatorCheck.u=(Unsafe)f.get(null);
   bot=PlayerBotGladiatorCheck.actor(840002);target=PlayerBotGladiatorCheck.actor(840003);bot.pc=target.pc=PlayerClass.ASSASSIN;
   enemy=(PlayerBotTemplarCheck.Enemy)PlayerBotGladiatorCheck.u.allocateInstance(PlayerBotTemplarCheck.Enemy.class);enemy.spawned=true;enemy.world=enemy.instance=1;

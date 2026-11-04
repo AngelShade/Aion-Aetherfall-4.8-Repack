@@ -10,6 +10,8 @@ import com.aionemu.gameserver.model.templates.item.*;
 import com.aionemu.gameserver.model.stats.container.StatEnum;
 import com.aionemu.gameserver.restrictions.PlayerRestrictions;
 import com.aionemu.gameserver.services.item.ItemFactory;
+import com.aionemu.gameserver.services.trade.EconomyPrices;
+import com.aionemu.gameserver.model.gameobjects.Persistable.PersistentState;
 import com.aionemu.gameserver.skillengine.SkillEngine;
 import com.aionemu.gameserver.skillengine.effect.*;
 import com.aionemu.gameserver.skillengine.model.*;
@@ -139,8 +141,7 @@ public final class PlayerBotSupplies {
    var t=entry.getValue();long desired=entry.getKey().startsWith("buff:") ? 10 : 20;
    if(bot.getInventory().getItems().stream().anyMatch(i->category(bot,i.getItemTemplate()).equals(entry.getKey()) && i.getItemCount()>=5))continue;
    long existing=bot.getInventory().getItemCountByItemId(t.getTemplateId());long count=Math.min(t.getMaxStackCount(),desired-existing);if(count<=0 || bot.getInventory().isFull())continue;
-   // A native, finite stack. Item skill costs consume it; replenish only the dedicated actor.
-   var item=ItemFactory.newItem(t.getTemplateId(),count);if(item==null)continue;item.setSoulBound(true);PlayerBotSupplyCatalog.record(bot,item);bot.getInventory().onLoadHandler(item);
+   replenish(bot,t,count);
   }
  }
  private static void provisionReagents(Player bot) {
@@ -161,8 +162,43 @@ public final class PlayerBotSupplies {
     || t.getRace()!=com.aionemu.gameserver.model.Race.PC_ALL && t.getRace()!=bot.getRace())continue;
    long existing=bot.getInventory().getItemCountByItemId(t.getTemplateId());if(existing>=5L*cost.getValue())continue;
    long count=Math.min(t.getMaxStackCount(),20L*cost.getValue())-existing;if(count<=0 || bot.getInventory().isFull())continue;
-   var item=ItemFactory.newItem(t.getTemplateId(),count);if(item==null)continue;
-   item.setSoulBound(true);PlayerBotSupplyCatalog.record(bot,item);bot.getInventory().onLoadHandler(item);
+   replenish(bot,t,count);
+  }
+ }
+ static long affordableCount(long unit,long requested,long allowance) {
+  return unit<=0 || requested<=0 || allowance<=0?0:Math.min(requested,allowance/unit);
+ }
+ static void supplyBalance(Item money,long total) {
+  if(money==null || total<0)throw new IllegalArgumentException("Supply payment requires a native funded wallet");
+  money.setItemCount(total); // Keep UPDATE_REQUIRED (or NEW) until the native inventory checkpoint commits.
+ }
+ /** Existing remote supply service, now paid at native replacement retail. Its wallet,
+  * protected stock and spending record join the same normal native checkpoint. */
+ private static void replenish(Player bot,ItemTemplate template,long requested) {
+  var service=PlayerBotService.getInstance();var session=service.currentActor(bot);
+  if(session==null || !service.current(session) || session.closing() || !(session.generated() || session.world()) || bot.getInventory().isFull())return;
+  var care=PlayerBotQuestSync.state(session);String today=java.time.LocalDate.now().toString();
+  long spent=today.equals(care.spentDay)?care.spent:0;
+  long unit=Math.max(1,EconomyPrices.replacement(template));
+  long count=affordableCount(unit,requested,PlayerBotCare.allowance(bot.getInventory().getKinah(),care.reserve,care.dailyBudget,spent));
+  if(count<=0)return;
+  long cost=Math.multiplyExact(unit,count),before=bot.getInventory().getKinah(),oldSpent=care.spent;String oldDay=care.spentDay;
+  var policy=PlayerBotGearPolicy.state(session);var item=ItemFactory.newItem(template.getTemplateId(),count);if(item==null)return;
+  try {
+   item.setSoulBound(true);PlayerBotSupplyCatalog.record(bot,item);
+   care.spent=Math.addExact(spent,cost);care.spentDay=today;care.save();
+   supplyBalance(bot.getInventory().getKinahItem(),before-cost);
+   bot.getInventory().onLoadHandler(item);bot.getInventory().setPersistentState(PersistentState.UPDATE_REQUIRED);
+  }catch(RuntimeException error) {
+   try {
+    if(bot.getInventory().getItemByObjId(item.getObjectId())==item)bot.getInventory().remove(item);
+    var money=bot.getInventory().getKinahItem();if(money!=null)supplyBalance(money,before);
+    care.spent=oldSpent;care.spentDay=oldDay;care.save();policy.generated.remove(item.getObjectId());policy.save();
+    com.aionemu.gameserver.utils.idfactory.IDFactory.getInstance().releaseId(item.getObjectId());
+   }catch(RuntimeException restore) {
+    error.addSuppressed(restore);com.aionemu.gameserver.dao.InventoryDAO.quarantineMarketInventory(bot.getObjectId());session.markClosing();
+   }
+   throw error;
   }
  }
  static double potency(Player bot,ItemTemplate t) {

@@ -97,10 +97,12 @@ class MethodPreservationCheck(unittest.TestCase):
     def test_navigation_and_feature_settings_have_documented_unique_homes(self):
         catalogue = configuration.source_catalogue()
         navigation = configuration.properties(configuration.NAVIGATION_SOURCE.read_text())
-        self.assertEqual(len(navigation), 7)
-        self.assertTrue(all(key.startswith('gameserver.playerbots.navigation.') for key in navigation))
+        declared = set(__import__("re").findall(r'@Property\(key = "([^"]+)"', configuration.JAVA.read_text()))
+        features = configuration.properties(configuration.FEATURE_SOURCE.read_text())
+        self.assertEqual(set(navigation), {key for key in declared if key.startswith(("gameserver.playerbots.navigation.", "gameserver.playerbots.companions.navigation.")) and key not in features})
+        self.assertTrue(all(key.startswith(('gameserver.playerbots.navigation.', 'gameserver.playerbots.companions.navigation.')) for key in navigation))
         self.assertTrue(set(navigation) <= set(catalogue))
-        self.assertEqual(delivery.OWNER_CONFIGURATIONS, {delivery.FEATURE_CONFIGURATION, delivery.NAVIGATION_CONFIGURATION, delivery.PLAYERBOT_CONFIGURATION, delivery.INSTANCE_CONFIGURATION})
+        self.assertEqual(delivery.OWNER_CONFIGURATIONS, {delivery.FEATURE_CONFIGURATION, delivery.NAVIGATION_CONFIGURATION, delivery.PLAYERBOT_CONFIGURATION, delivery.INSTANCE_CONFIGURATION, delivery.PVP_CONFIGURATION, delivery.WARDEN_CONFIGURATION})
 
     def test_seeded_navigation_is_guarded_in_final_configuration_receipt(self):
         existing = {'config/main/playerbots.properties': 'owner choices', delivery.FEATURE_CONFIGURATION: 'owner switches'}
@@ -477,6 +479,31 @@ class QuestConstructorInventoryTests(unittest.TestCase):
             (b'\x2a\x11\x7f\xff\xb7\x00\x01', 32767), (b'\x2a\x12\x07\xb7\x00\x01', 900105),
             (b'\x2a\x13\x00\x07\xb7\x00\x01', 900105)]:
             self.assertEqual(quest_inventory.constructor_id(self.info(code)), expected)
+
+    def briefed(self, code):
+        import struct
+        method = lambda access, descriptor, body: (access, '<init>', descriptor, [('Code', b'\x00\x01\x00\x01' + struct.pack('>I', len(body)) + body)])
+        descriptor = '(IZ[I)V'
+        child = dict(name='native/Child', parent='native/Brief', methods=[method(1, '()V', code)],
+            pool=[None, (10, 2, 4), (7, 3), 'native/Brief', (12, 5, 6), '<init>', descriptor, 900105])
+        # super(questId) from the shared constructor, then the native base.
+        parent = dict(name='native/Brief', parent='com/aionemu/gameserver/questEngine/handlers/AbstractQuestHandler',
+            methods=[method(4, descriptor, b'\x2a\x1b\xb7\x00\x01')],
+            pool=[None, (10, 2, 4), (7, 3), 'com/aionemu/gameserver/questEngine/handlers/AbstractQuestHandler', (12, 5, 6), '<init>', '(I)V'])
+        return quest_inventory.constructor_id(child, lambda owner: parent)
+
+    def test_literal_flag_and_varargs_reach_the_quest_id(self):
+        # super(900105, true, 7, 8): ldc, iconst_1, iconst_2, newarray int, then dup/index/value/iastore twice.
+        code = b'\x2a\x12\x07\x04\x05\xbc\x0a\x59\x03\x10\x07\x4f\x59\x04\x10\x08\x4f\xb7\x00\x01'
+        self.assertEqual(self.briefed(code), 900105)
+
+    def test_unfilled_or_nonliteral_varargs_are_rejected(self):
+        with self.assertRaises(AssertionError):  # second element never stored
+            self.briefed(b'\x2a\x12\x07\x04\x05\xbc\x0a\x59\x03\x10\x07\x4f\xb7\x00\x01')
+        with self.assertRaises(AssertionError):  # flag outside 0/1
+            self.briefed(b'\x2a\x12\x07\x05\x05\xbc\x0a\x59\x03\x10\x07\x4f\x59\x04\x10\x08\x4f\xb7\x00\x01')
+        with self.assertRaises(AssertionError):  # a field in place of a list value
+            self.briefed(b'\x2a\x12\x07\x04\x05\xbc\x0a\x59\x03\xb2\x00\x01\x4f\xb7\x00\x01')
 
     def test_nonliteral_or_wrong_superclass_cannot_claim_availability(self):
         with self.assertRaises(AssertionError): quest_inventory.constructor_id(self.info(b'\x2a\x1b\xb7\x00\x01'))

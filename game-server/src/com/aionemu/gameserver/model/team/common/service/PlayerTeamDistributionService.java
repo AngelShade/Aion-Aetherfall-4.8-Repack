@@ -73,7 +73,9 @@ public class PlayerTeamDistributionService {
 			rewardAp *= instanceApMultiplier;
 
 			com.aionemu.gameserver.services.playerbot.PlayerBotGrowth.learnKill(member,owner);
-			member.getCommonData().addExp(rewardXp, Rates.XP_GROUP_HUNTING, owner.getObjectTemplate().getL10n());
+			if (teamDamageList.isExperienceEligible(member))
+				member.getCommonData().addExp(rewardXp, Rates.XP_GROUP_HUNTING, owner.getObjectTemplate().getL10n());
+			com.aionemu.gameserver.services.playerbot.PlayerBotRoadBounty.killed(member, owner, rewardXp > 0 && teamDamageList.isExperienceEligible(member));
 			member.getCommonData().addDp(rewardDp);
 			if (owner.getAi().ask(AIQuestion.REWARD_AP) && !(filteredStats.mentorCount > 0 && CustomConfig.MENTOR_GROUP_AP)) {
 				rewardAp *= StatFunctions.calculatePvEApGained(member, owner);

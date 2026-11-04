@@ -134,6 +134,11 @@ public final class PlayerBotGrowth {
  }
 
  private static final int[] RANK_COST={1000,3000,6000,10000};
+ static long remainingLearningXp(Profile profile) {
+  if(profile.origin()!=Origin.GACHA || profile.combatRank()==CombatRank.EXCELLENT)return 0;
+  long total=0;for(int n=profile.initialCombatRank().ordinal();n<RANK_COST.length;n++)total+=RANK_COST[n];
+  return Math.max(0,total-profile.earnedLearningXp());
+ }
  /** Learning XP buys rank steps in order from the initial rank; the working costs are per step. */
  public static CombatRank rank(CombatRank initial,long earned) {
   var rank=initial;

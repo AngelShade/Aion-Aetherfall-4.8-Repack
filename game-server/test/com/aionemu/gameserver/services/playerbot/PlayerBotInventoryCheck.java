@@ -2,7 +2,7 @@ package com.aionemu.gameserver.services.playerbot;
 
 import java.lang.reflect.*;
 import java.util.*;
-import com.alibaba.fastjson2.JSON;
+import com.aionemu.commons.utils.Json;
 import com.aionemu.gameserver.model.gameobjects.Item;
 import com.aionemu.gameserver.model.items.ItemSlot;
 import com.aionemu.gameserver.model.templates.item.ItemTemplate;
@@ -38,8 +38,8 @@ public final class PlayerBotInventoryCheck {
    }
   }
   check(ordinary>0 && equipment>0,"Exercise both ordinary items and equipment");
-  var decoded=JSON.parseObject(JSON.toJSONString(Map.of("inventory",inventory)));
-  check(decoded.getJSONArray("inventory").size()==inventory.size(),"JSON response must retain every inventory item");
+  var decoded=Json.read(Json.write(Map.of("inventory",inventory)));
+  check(Json.array(decoded,"inventory").size()==inventory.size(),"JSON response must retain every inventory item");
   try{ItemSlot.getSlotsFor(0);throw new AssertionError("Native slot validation was weakened");}
   catch(IllegalArgumentException expected){check(true,"Native slot validation remains strict");}
   System.out.println("OK: "+checks+" panel inventory checks; "+ordinary+" ordinary items and "+equipment+" equipment rows, including unequipped/multiple-slot gear and JSON serialization");

@@ -122,6 +122,7 @@ public final class PlayerBotPresets {
      boolean temporary=roster.stream().anyMatch(e->e.id()==m.id() && e.ready());
      if(temporary!=m.temporary() || PlayerDAO.getAccountId(m.id())!=owner.getAccount().getId())throw new IllegalArgumentException(m.name()+" no longer belongs to this saved party/account.");
      var current=active.get(m.id());if(current!=null){if(current.closing() || current.bot().getController().isInCombat())throw new IllegalArgumentException(m.name()+" is busy or saving.");names.put(m.id(),current.bot().getName());continue;}
+     if(temporary)PlayerBotRecycling.requireRecruitable(owner.getAccount().getId(),m.id());
      if(World.getInstance().isInWorld(m.id()) || PlayerBotLease.isReserved(m.id()) || PlayerLeaveWorldService.isLeavingWorld(m.id()))throw new IllegalArgumentException(m.name()+" is online or saving. No companions were recruited.");
      var data=AccountService.loadPlayerAccountData(m.id());if(data==null)throw new IllegalArgumentException(m.name()+" no longer exists.");var common=data.getPlayerCommonData();
      boolean banned=data.getCharBanInfo()!=null && data.getCharBanInfo().getEnd()>=System.currentTimeMillis()/1000;

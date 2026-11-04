@@ -80,7 +80,7 @@ public final class PlayerBotLegionInvitationCheck {
    return f.getBoolean(service) || ((Set<Integer>)r.get(service)).contains(2);
   }
  }
- @SuppressWarnings("unchecked") public static void main(String[] args)throws Exception {
+ @SuppressWarnings("unchecked") public static void main(String[] args)throws Exception {PlayerBotMetadataCheck.defaults();
   Field f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);PlayerBotTradeCheck.unsafe=(Unsafe)f.get(null);
   boolean enabled=PlayerBotConfig.ENABLED,worldEnabled=PlayerBotConfig.WORLD_ENABLED,cross=LegionConfig.LEGION_INVITEOTHERFACTION;
   int capacity=LegionConfig.LEGION_LEVEL1_MAX_MEMBERS;

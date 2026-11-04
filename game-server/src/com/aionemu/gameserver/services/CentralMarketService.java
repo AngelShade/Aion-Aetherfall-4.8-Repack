@@ -6,6 +6,9 @@ import java.security.MessageDigest;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
@@ -24,9 +27,9 @@ import com.aionemu.gameserver.model.templates.item.ItemTemplate;
 import com.aionemu.gameserver.model.templates.item.enums.ItemGroup;
 import com.aionemu.gameserver.restrictions.PlayerRestrictions;
 import com.aionemu.gameserver.services.item.*;
+import com.aionemu.gameserver.services.trade.EconomyPrices;
 import com.aionemu.gameserver.services.item.ItemPacketService.ItemDeleteType;
 import com.aionemu.gameserver.services.item.ItemPacketService.ItemUpdateType;
-import com.aionemu.gameserver.utils.ThreadPoolManager;
 import com.aionemu.gameserver.utils.idfactory.IDFactory;
 import com.aionemu.gameserver.world.World;
 import org.slf4j.Logger;
@@ -37,6 +40,13 @@ public final class CentralMarketService {
 	private static final Logger log = LoggerFactory.getLogger(CentralMarketService.class);
 	private static final int MARKET = StorageType.MARKET_WAREHOUSE.getId();
 	private static final ReentrantLock LOCK = new ReentrantLock(true);
+	// JDBC maintenance must never occupy the shared gameplay scheduler. One worker
+	// preserves the existing fixed-rate cadence and non-overlapping transactions.
+	private static final ScheduledExecutorService MAINTENANCE = Executors.newSingleThreadScheduledExecutor(task -> {
+		Thread thread = new Thread(task, "CentralMarket-maintenance");
+		thread.setDaemon(true);
+		return thread;
+	});
 	private static List<ItemTemplate> templates = List.of();
 	private static Map<Integer,String> catalogCategories = Map.of();
 	private static volatile boolean ready;
@@ -65,18 +75,28 @@ public final class CentralMarketService {
 		try (Connection c = DatabaseFactory.getConnection()) {
 			c.setAutoCommit(false);
 			for (ItemTemplate t : templates) catalog(c, t, t.getTemplateId() + ":0:0", 0, 0);
-			if(!CentralMarketSimulationConfig.ENABLED || CentralMarketSimulationConfig.POPULATION<=0) CentralMarketSimulation.disable(c);
+			// Retire obsolete virtual quotes before any matching; never cancel a human's order or escrow.
+			CentralMarketSimulation.disable(c);
+			migrateEconomy(c);
 			CentralMarketSettlement.migrate(c);
 			c.commit();
 		}
 		ready = true;
 		long tick=Math.max(200,Math.min(5000,Math.max(1,CentralMarketSimulationConfig.TICK_SECONDS)*1000L/Math.max(1,(CentralMarketSimulationConfig.CATALOG_BATCH+39)/40)));
-		ThreadPoolManager.getInstance().scheduleAtFixedRate(CentralMarketService::maintain, 1000, tick);
+		MAINTENANCE.scheduleAtFixedRate(CentralMarketService::maintain, 1000, tick, TimeUnit.MILLISECONDS);
 		log.info("Central Market ready: {} tradeable templates, database custody enabled", templates.size());
 	}
 
+	/** Ends maintenance before the database pool closes; a pass already running finishes its transaction. */
+	public static void stop() {
+		MAINTENANCE.shutdown();
+		try {
+			if(!MAINTENANCE.awaitTermination(30,TimeUnit.SECONDS)) log.warn("Central Market maintenance is still finishing a pass at shutdown");
+		} catch(InterruptedException e) { Thread.currentThread().interrupt(); }
+	}
+
 	public static boolean eligible(ItemTemplate t) {
-		if (!visibleInStorage(t) || !CentralMarketHttpService.hasClientItem(t.getTemplateId()) || !t.isTradeable() || t.isKinah() || t.getExtraInventoryId() >= 0 || t.getExpireTime() != 0 || t.getPrice() < 0
+		if (!ItemEligibility.isPlayerItem(t) || !visibleInStorage(t) || !CentralMarketHttpService.hasClientItem(t.getTemplateId()) || !t.isTradeable() || t.isKinah() || t.getExtraInventoryId() >= 0 || t.getExpireTime() != 0 || t.getPrice() < 0
 			|| ((t.isWeapon() || t.isArmor() || t.isStigma()) && t.getLevel() > GSConfig.PLAYER_MAX_LEVEL)) return false;
 		String n = t.getName().toLowerCase(Locale.ROOT);
 		return !n.isBlank() && !n.matches(".*(test|debug|dummy|prototype|placeholder|prop weapon|prop sword).*" ) && !n.matches(".*\\bprop\\s*(sword|dagger|bow|staff|shield|mace).*" ) && !n.endsWith(" form") && !n.contains("npc")
@@ -120,14 +140,30 @@ public final class CentralMarketService {
 	}
 
 	private static void catalog(Connection c, ItemTemplate t, String key, int enchant, int tempering) throws SQLException {
-		long quality = t.getItemQuality() == null ? 0 : t.getItemQuality().getQualityId();
-		long level = Math.max(1, t.getLevel());
-		long seed = Math.max(t.getPrice(), 100 + level * level * (2 + quality));
-		if (t.getItemGroup() == ItemGroup.MANASTONE || t.getItemGroup() == ItemGroup.SPECIAL_MANASTONE) seed = Math.max(seed, 500 + level * level * 8);
-		if (t.getItemGroup() == ItemGroup.ENCHANTMENT) seed = Math.max(seed, 2000 + level * level * 30);
-		seed = Math.min(1_000_000_000_000L, seed * (1L + enchant * enchant + tempering * tempering * 2L));
+		long seed = economySeed(t,enchant,tempering);
 		update(c, "INSERT IGNORE INTO central_market_catalog(variant,item_id,enchant,tempering,base_price,floor_price,ceiling_price,previous_price) VALUES(?,?,?,?,?,?,?,?)",
-			key, t.getTemplateId(), enchant, tempering, seed, Math.max(1, seed / 10), Math.min(CentralMarketRules.MAX_KINAH, seed * 10), seed);
+			key, t.getTemplateId(), enchant, tempering, seed, Math.max(1, seed / 2), Math.min(CentralMarketRules.MAX_KINAH, seed * 2), seed);
+	}
+
+	private static long economySeed(ItemTemplate t,int enchant,int tempering) {
+		return Math.min(1_000_000_000_000L,EconomyPrices.anchor(t)*(1L+(long)enchant*enchant+(long)tempering*tempering*2));
+	}
+
+	/** Existing databases need the same appraisal as new entries, once. No player assets are rewritten. */
+	private static void migrateEconomy(Connection c) throws SQLException {
+		if(row(c,"SELECT version FROM central_market_economy_versions WHERE version=1")!=null)return;
+		try(var statement=c.prepareStatement("UPDATE central_market_catalog SET previous_price=base_price,base_price=?,floor_price=?,ceiling_price=?,updated_at=? WHERE variant=?")) {
+			int count=0;
+			for(var entry:rows(c,"SELECT variant,item_id,enchant,tempering FROM central_market_catalog")) {
+				var template=DataManager.ITEM_DATA.getItemTemplate((int)lng(entry,"item_id"));
+				if(template==null || !eligible(template))continue;
+				long seed=economySeed(template,(int)lng(entry,"enchant"),(int)lng(entry,"tempering"));
+				bind(statement,seed,Math.max(1,seed/2),Math.min(CentralMarketRules.MAX_KINAH,seed*2),System.currentTimeMillis(),str(entry,"variant"));statement.addBatch();
+				if(++count%500==0)statement.executeBatch();
+			}
+			statement.executeBatch();
+		}
+		update(c,"INSERT INTO central_market_economy_versions VALUES(1,?)",System.currentTimeMillis());
 	}
 
 	public static String action(Player p, Map<String,String> a, String requestId) throws Exception {
@@ -135,15 +171,143 @@ public final class CentralMarketService {
 		String preference=CentralMarketPreferences.tryAction(p,a,requestId);if(preference!=null)return preference;
 		Object guard = p.getClientConnection();
 		if (guard == null) throw new IllegalArgumentException("Log in to use Central Market.");
+		return execute(guard,p,a,requestId);
+	}
+
+	/** A market subject: the account for people, and the character itself for bots, so proceeds never reach a human's orders or withdrawals. */
+	static int subject(Player p) { return p.isPlayerBot() ? -p.getObjectId() : p.getAccount().getId(); }
+
+	/** The caller holds the actor's session and has checkpointed it, so database counts match memory. */
+	public static String companionAction(Player bot, Map<String,String> a, String requestId) throws Exception {
+		if (!ready) throw new IllegalStateException("Central Market is unavailable.");
+		if (!bot.isPlayerBot() || !Set.of("transfer","kinah","buy","sell","cancel","collect").contains(a.getOrDefault("action",""))) throw new IllegalArgumentException("Unknown market action.");
+		if (a.containsKey("source") && !Set.of(0L,(long)MARKET).contains(number(a,"source")) || a.containsKey("target") && !Set.of(0L,(long)MARKET).contains(number(a,"target")))
+			throw new IllegalArgumentException("Bots trade from their own inventory.");
+		return execute(bot,bot,a,requestId);
+	}
+
+	public static final class CompanionHeld extends SQLException {
+		public CompanionHeld(Throwable cause) { super("Companion market custody needs verification",cause); }
+	}
+
+	/** The market lock was busy; nothing was changed and the bot retries shortly. */
+	public static final class CompanionBusy extends IllegalArgumentException {
+		public CompanionBusy() { super("Central Market is busy."); }
+	}
+
+	/** Caller holds the companion actor and bot locks. Closure has one durable outcome,
+	 * including returned goods and funds; a crash cannot strand half a withdrawal. */
+	public static void closeCompanionPosition(Player bot) throws SQLException {
+		if (!bot.isPlayerBot() || !Thread.holdsLock(bot)) throw new IllegalArgumentException("Companion custody is required.");
+		LOCK.lock();
+		try (Connection c = DatabaseFactory.getConnection()) {
+			c.setAutoCommit(false);
+			boolean attempted=false,committed=false;
+			try {
+				var pending=InventoryDAO.storeCompanionInventory(c,bot);
+				int account=subject(bot);
+				closeCompanionOrders(c,account);
+				List<Item> goods=new ArrayList<>();
+				for(var stock:rows(c,"SELECT s.item_unique_id,i.item_owner,i.item_location FROM central_market_stock s LEFT JOIN inventory i USING(item_unique_id) WHERE s.account_id=? FOR UPDATE",account)) {
+					if(lng(stock,"item_owner")!=account || lng(stock,"item_location")!=MARKET) throw new SQLException("Companion market stock custody mismatch");
+					goods.add(InventoryDAO.loadTransactionItem(c,(int)lng(stock,"item_unique_id")));
+				}
+				if(goods.size()!=lng(row(c,"SELECT COUNT(*) n FROM inventory WHERE item_owner=? AND item_location=?",account,MARKET),"n"))
+					throw new SQLException("Untracked companion market inventory");
+				loadStones(c,goods);
+				var destinations=planCompanionReturn(bot,goods);
+				for(var entry:destinations.entrySet()) {
+					Storage storage=entry.getKey();var selected=entry.getValue();
+					var plan=planBatch(selected,storage.getItems(),freeSlots(storage),false);
+					for(Item item:plan.counts().keySet()) if(!plan.additions().contains(item)) {
+						var saved=row(c,"SELECT item_count FROM inventory WHERE item_unique_id=? AND item_owner=? AND item_location=? FOR UPDATE",item.getObjectId(),bot.getObjectId(),storage.getStorageType().getId());
+						if(saved==null || lng(saved,"item_count")!=item.getItemCount()) throw new SQLException("Companion return destination changed");
+					}
+					persistBatch(c,selected,plan,MARKET,storage.getStorageType().getId(),account,bot.getObjectId());
+				}
+				long funds=lng(row(c,"SELECT kinah FROM central_market_wallet WHERE account_id=? FOR UPDATE",account),"kinah");
+				Item coin=bot.getInventory().getKinahItem();
+				if(funds>0) {
+					if(coin==null) throw new SQLException("Companion wallet must be checkpointed before market closure");
+					var saved=row(c,"SELECT item_count FROM inventory WHERE item_unique_id=? AND item_owner=? AND item_location=0 FOR UPDATE",coin.getObjectId(),bot.getObjectId());
+					if(saved==null || lng(saved,"item_count")!=bot.getInventory().getKinah()) throw new SQLException("Companion return wallet changed");
+					update(c,"UPDATE inventory SET item_count=? WHERE item_unique_id=?",CentralMarketRules.add(bot.getInventory().getKinah(),funds),coin.getObjectId());
+				}
+				update(c,"UPDATE central_market_wallet SET kinah=0,version=version+1 WHERE account_id=?",account);
+				requireCompanionClosed(c,bot.getObjectId());
+				// Prepare complete private projections before attempting commit. No live objects
+				// are changed until every row, capacity check and wallet update has succeeded.
+				Map<Storage,List<Item>> restored=new LinkedHashMap<>();
+				var storageSet=new LinkedHashSet<>(destinations.keySet());if(funds>0)storageSet.add(bot.getInventory());
+				for(Storage storage:storageSet) {
+					List<Item> items=new ArrayList<>();
+					for(var saved:rows(c,"SELECT item_unique_id FROM inventory WHERE item_owner=? AND item_location=? AND is_equipped=0",bot.getObjectId(),storage.getStorageType().getId()))
+						items.add(InventoryDAO.loadTransactionItem(c,(int)lng(saved,"item_unique_id")));
+					loadStones(c,items);restored.put(storage,items);
+				}
+				attempted=true;c.commit();committed=true;
+				InventoryDAO.companionInventoryCommitted(pending);
+				for(var entry:restored.entrySet())entry.getKey().restoreCommittedItems(entry.getValue());
+			} catch(SQLException|RuntimeException error) {
+				if(!committed)try{c.rollback();}catch(SQLException rollback){error.addSuppressed(rollback);attempted=true;}
+				if(attempted) { InventoryDAO.quarantineMarketInventory(bot.getObjectId());throw new CompanionHeld(error); }
+				InventoryDAO.markCompanionInventoryDirty(bot);throw error;
+			}
+		} finally { LOCK.unlock(); }
+	}
+
+	private static int freeSlots(Storage storage) {
+		return storage.getLimit()-(int)storage.getItems().stream().filter(i->!i.isEquipped() && i.getItemTemplate().getExtraInventoryId()<1).count();
+	}
+	static Map<Storage,List<Item>> planCompanionReturn(Player bot,List<Item> goods) {
+		Map<Storage,List<Item>> destinations=new LinkedHashMap<>();
+		for(Item item:goods) {
+			boolean placed=false;
+			for(int location:new int[]{0,1}) {
+				Storage storage=bot.getStorage(location);
+				if(storage==null || ItemRestrictionService.isItemRestrictedTo(bot,item,storage.getStorageType()))continue;
+				var selected=new ArrayList<>(destinations.getOrDefault(storage,List.of()));selected.add(item);
+				try{planBatch(selected,storage.getItems(),freeSlots(storage),false);}
+				catch(IllegalArgumentException full){continue;}
+				destinations.put(storage,selected);placed=true;break;
+			}
+			if(!placed)throw new IllegalArgumentException("This recruit's Inventory and private Warehouse cannot hold its returning market goods. Make space before recycling. Nothing was recycled or withdrawn.");
+		}
+		return destinations;
+	}
+
+	static void closeCompanionOrders(Connection c,int account) throws SQLException {
+		if(account>=0 || c.getAutoCommit())throw new SQLException("Private companion closure transaction required");
+		update(c,"INSERT IGNORE INTO central_market_wallet(account_id) VALUES(?)",account);
+		row(c,"SELECT account_id FROM central_market_wallet WHERE account_id=? FOR UPDATE",account);
+		for(var order:rows(c,"SELECT id FROM central_market_orders WHERE account_id=? AND state IN ('OPEN','QUEUED') FOR UPDATE",account))cancel(c,account,lng(order,"id"));
+		for(var order:ledger(c,account).orders())if(order.gross()>0 || order.uncollected()>0)CentralMarketSettlement.collect(c,account,order.id(),6500);
+		if(lng(row(c,"SELECT proceeds FROM central_market_wallet WHERE account_id=?",account),"proceeds")!=0)throw new SQLException("Unassigned companion sale proceeds");
+	}
+
+	/** Also checked in the archive transaction, after confirm has closed the market again. */
+	public static void requireCompanionClosed(Connection c,int character) throws SQLException {
+		int account=-character;
+		if(!ledger(c,account).settled() || lng(row(c,"SELECT COALESCE(SUM(proceeds),0) n FROM central_market_wallet WHERE account_id=?",account),"n")!=0
+			|| row(c,"SELECT item_unique_id FROM central_market_stock WHERE account_id=? LIMIT 1",account)!=null
+			|| row(c,"SELECT item_unique_id FROM inventory WHERE item_owner=? AND item_location=? LIMIT 1",account,MARKET)!=null)
+			throw new SQLException("Companion market position is not closed; archive refused");
+	}
+
+	private static String execute(Object guard, Player p, Map<String,String> a, String requestId) throws Exception {
 		synchronized (guard) {
-			LOCK.lock();try {
+			// Bots trade on their decision worker; they retry later instead of queueing behind
+			// maintenance or other traders. People still wait for their own request.
+			if (!p.isPlayerBot()) LOCK.lock();
+			else if (!LOCK.tryLock(50, TimeUnit.MILLISECONDS)) throw new CompanionBusy();
+			try {
 				if (World.getInstance().getPlayer(p.getObjectId()) != p || p.isDead() || p.isTrading() || GameServer.isShuttingDownSoon())
 					throw new IllegalArgumentException("Warehouse is unavailable during trade, death or shutdown.");
-				if(Set.of("transfer","transferBatch","kinah").contains(a.getOrDefault("action",""))) {
+				if(!p.isPlayerBot() && Set.of("transfer","transferBatch","kinah").contains(a.getOrDefault("action",""))) {
 					if (!InventoryDAO.store(p)) throw new SQLException("Inventory save failed");
 					ItemStoneListDAO.save(p);
 				}
-				int account = p.getAccount().getId();
+				int account = subject(p);
 				List<Runnable> committed = new ArrayList<>();
 				List<Integer> allocated = new ArrayList<>();
 				try (Connection c = DatabaseFactory.getConnection()) {
@@ -171,6 +335,7 @@ public final class CentralMarketService {
 						for (Runnable apply : committed) {
 							try { apply.run(); }
 							catch (Exception e) {
+								if(p.isPlayerBot()) { InventoryDAO.quarantineMarketInventory(p.getObjectId());throw new CompanionHeld(e); }
 								log.error("Committed market transfer could not refresh {}. Restoring database contents before disconnect.",p,e);
 								try { for (int location : new int[]{0,1,2}) {
 									int owner=location==2?account:p.getObjectId();
@@ -199,7 +364,7 @@ public final class CentralMarketService {
 		long qty = number(a,"quantity");
 		if (!Set.of(0,1,2,MARKET).contains(source) || !Set.of(0,1,2,MARKET).contains(target) || source == target || qty <= 0)
 			throw new IllegalArgumentException("Select an item, warehouse and quantity.");
-		int account = p.getAccount().getId();
+		int account = subject(p);
 		Storage origin = source == MARKET ? null : p.getStorage(source);
 		Storage destination = target == MARKET ? null : p.getStorage(target);
 		Item item = source == MARKET ? marketItems(account).stream().filter(i -> i.getObjectId() == id).findFirst().orElse(null) : origin.getItemByObjId(id);
@@ -216,7 +381,7 @@ public final class CentralMarketService {
 			throw new IllegalArgumentException("Warehouse is full or this item cannot be stored there.");
 		if (origin != null && ItemRestrictionService.isItemRestrictedFrom(p,item,origin.getStorageType()))
 			throw new IllegalArgumentException("This item cannot leave its warehouse.");
-		if (target == MARKET && volume(c,account) + CentralMarketRules.volume(category(item.getItemTemplate())) * qty > AetherfallBoonService.marketVolume(p))
+		if (target == MARKET && !p.isPlayerBot() && volume(c,account) + CentralMarketRules.volume(category(item.getItemTemplate())) * qty > AetherfallBoonService.marketVolume(p))
 			throw new IllegalArgumentException("Market Warehouse volume limit reached.");
 		if (!item.getItemTemplate().isStackable() && qty != item.getItemCount()) throw new IllegalArgumentException("This item cannot be split.");
 		boolean split = qty < item.getItemCount();
@@ -410,7 +575,7 @@ public final class CentralMarketService {
 	private static String kinah(Connection c, Player p, Map<String,String> a, List<Runnable> committed, List<Integer> allocated) throws SQLException {
 		long amount = number(a,"quantity"); int storageId = (int)number(a,"source");
 		if (amount <= 0 || amount > CentralMarketRules.MAX_KINAH || !Set.of(0,1,2).contains(storageId)) throw new IllegalArgumentException("Enter a valid Kinah amount.");
-		Storage storage = p.getStorage(storageId); int account = p.getAccount().getId();
+		Storage storage = p.getStorage(storageId); int account = subject(p);
 		boolean deposit = "deposit".equals(a.get("direction"));
 		if (!deposit && !"withdraw".equals(a.get("direction"))) throw new IllegalArgumentException("Select deposit or withdraw.");
 		long wallet = lng(row(c,"SELECT kinah FROM central_market_wallet WHERE account_id=?",account),"kinah");
@@ -430,7 +595,7 @@ public final class CentralMarketService {
 
 	private static String order(Connection c, Player p, Map<String,String> a, List<Integer> allocated, List<Runnable> committed) throws Exception {
 		if (!PlayerRestrictions.canTrade(p)) throw new IllegalArgumentException("Trading is unavailable.");
-		int account = p.getAccount().getId(); String side = a.get("action").equals("buy") ? "B" : "S";
+		int account = subject(p); String side = a.get("action").equals("buy") ? "B" : "S";
 		long qty = number(a,"quantity"), price = number(a,"price");
 		String key = a.getOrDefault("variant",""); Item stock = null;
 		if (side.equals("S")) {
@@ -477,8 +642,6 @@ public final class CentralMarketService {
 			} else update(c,"UPDATE central_market_stock SET order_id=? WHERE item_unique_id=?",order,id);
 		}
 		if (available == now) {
-			// Fill resting stock before replacing any simulation quote the player just saw.
-			match(c,key,allocated);
 			CentralMarketSimulation.refresh(c,entry,now);
 			match(c,key,allocated);
 		}
@@ -492,6 +655,12 @@ public final class CentralMarketService {
 
 	private static void match(Connection c, String key, List<Integer> allocated) throws SQLException {
 		Map<String,Object> entry = row(c,"SELECT item_id,floor_price,ceiling_price FROM central_market_catalog WHERE variant=?",key);
+		if(entry==null || !eligible(DataManager.ITEM_DATA.getItemTemplate((int)lng(entry,"item_id"))))return;
+		fill(c,key,entry,allocated);
+	}
+
+	private static void fill(Connection c, String key, Map<String,Object> entry, List<Integer> allocated) throws SQLException {
+		Map<Integer,Integer> owners = new HashMap<>();
 		while (true) {
 			List<Map<String,Object>> sells = rows(c,"SELECT * FROM central_market_orders WHERE variant=? AND side='S' AND state='OPEN' AND remaining>0 ORDER BY price,created_at,id FOR UPDATE",key);
 			List<Map<String,Object>> buys = rows(c,"SELECT * FROM central_market_orders WHERE variant=? AND side='B' AND state='OPEN' AND remaining>0 ORDER BY price DESC,created_at,id FOR UPDATE",key);
@@ -501,7 +670,9 @@ public final class CentralMarketService {
 			}
 			Map<String,Object> sell = null, buy = null;
 			for (Map<String,Object> s : sells) {
-				List<Map<String,Object>> candidates = buys.stream().filter(b -> lng(b,"price") >= lng(s,"price") && lng(b,"account_id") != lng(s,"account_id")).toList();
+				int sellOwner = owner(c,(int)lng(s,"account_id"),owners);
+				List<Map<String,Object>> candidates = new ArrayList<>();
+				for (Map<String,Object> b : buys) if (lng(b,"price") >= lng(s,"price") && owner(c,(int)lng(b,"account_id"),owners) != sellOwner) candidates.add(b);
 				if (candidates.isEmpty()) continue;
 				sell = s; buy = candidates.getFirst();
 				long highest = lng(buy,"price");
@@ -554,6 +725,18 @@ public final class CentralMarketService {
 		}
 	}
 
+	/** A bot and its human owner are one party, so their orders never cross and bot funds cannot reach the owner. World bots are each their own party. */
+	private static int owner(Connection c, int subject, Map<Integer,Integer> owners) throws SQLException {
+		if (subject >= 0) return subject;
+		Integer known = owners.get(subject);
+		if (known != null) return known;
+		Map<String,Object> character = row(c,"SELECT account_id FROM players WHERE id=?",-subject);
+		int account = character == null ? subject : (int)lng(character,"account_id");
+		int owner = com.aionemu.gameserver.services.playerbot.PlayerBotPopulationPolicy.serverAccount(account) ? subject : account;
+		owners.put(subject,owner);
+		return owner;
+	}
+
 	private static String cancel(Connection c, int account, long id) throws SQLException {
 		Map<String,Object> order = row(c,"SELECT * FROM central_market_orders WHERE id=? AND account_id=? FOR UPDATE",id,account);
 		if (order == null || !Set.of("OPEN","QUEUED").contains(str(order,"state"))) throw new IllegalArgumentException("This order has already completed or been cancelled.");
@@ -589,14 +772,17 @@ public final class CentralMarketService {
 
 	private static void maintain() {
 		if(!ready || GameServer.isShuttingDownSoon()) return;
+		long began=System.nanoTime(),lookupNanos=0,lockNanos=0,simulationNanos=0,transactionNanos=0,housekeepingNanos=0;
+		int processed=0;
 		try {
 			long now=System.currentTimeMillis();
 			Set<String> keys=new LinkedHashSet<>();
 			// Read the work list, then return the connection. Holding it across the per-variant
 			// transactions below kept 2 of the pool's connections busy on almost every pass, and
 			// the in-game web windows (Market, Cash Shop, Wardrobe...) queued behind it.
+			long phase=System.nanoTime();
 			try(Connection lookup=DatabaseFactory.getConnection()) {
-				for(var r:rows(lookup,"SELECT DISTINCT variant FROM central_market_orders WHERE account_id>0 AND (state='OPEN' OR (state='QUEUED' AND available_at<=?))",now)) keys.add(str(r,"variant"));
+				for(var r:rows(lookup,"SELECT DISTINCT variant FROM central_market_orders WHERE account_id<>0 AND (state='OPEN' OR (state='QUEUED' AND available_at<=?))",now)) keys.add(str(r,"variant"));
 				if(CentralMarketSimulationConfig.ENABLED && CentralMarketSimulationConfig.POPULATION>0) {
 					for(var r:rows(lookup,"SELECT variant FROM central_market_simulation WHERE next_refresh<=? ORDER BY next_refresh LIMIT 40",now)) keys.add(str(r,"variant"));
 					if(!simulationInitialized && now>=nextFreshScan) {
@@ -612,8 +798,11 @@ public final class CentralMarketService {
 					}
 				}
 			}
+			lookupNanos=System.nanoTime()-phase;
 			for(String key:keys) {
-				LOCK.lock();try {
+				phase=System.nanoTime();
+				LOCK.lock();lockNanos+=System.nanoTime()-phase;phase=System.nanoTime();try {
+				processed++;
 				List<Integer> allocated=new ArrayList<>();
 				try(Connection c=DatabaseFactory.getConnection()) {
 					c.setAutoCommit(false);
@@ -621,29 +810,154 @@ public final class CentralMarketService {
 						update(c,"UPDATE central_market_orders SET state='OPEN' WHERE variant=? AND state='QUEUED' AND available_at<=?",key,now);
 						Map<String,Object> entry=row(c,"SELECT * FROM central_market_catalog WHERE variant=?",key);
 						if(entry==null) continue;
-						boolean real=row(c,"SELECT id FROM central_market_orders WHERE variant=? AND account_id>0 AND state='OPEN' LIMIT 1",key)!=null;
-						if(real) match(c,key,allocated);
-						CentralMarketSimulation.refresh(c,entry,now);
+						boolean real=row(c,"SELECT id FROM central_market_orders WHERE variant=? AND account_id<>0 AND state='OPEN' LIMIT 1",key)!=null;
+						long simulationBegan=System.nanoTime();
+						try {CentralMarketSimulation.refresh(c,entry,now);}
+						finally {simulationNanos+=System.nanoTime()-simulationBegan;}
 						if(real) match(c,key,allocated);
 						if(lng(entry,"updated_at")<now-8*60*60*1000L) {
-							var demand=row(c,"SELECT COALESCE(SUM(IF(side='B',remaining,0)),0) buys,COALESCE(SUM(IF(side='S',remaining,0)),0) sells FROM central_market_orders WHERE variant=? AND state='OPEN'",key);
+							var demand=row(c,"SELECT COALESCE(SUM(IF(side='B',remaining,0)),0) buys,COALESCE(SUM(IF(side='S',remaining,0)),0) sells FROM central_market_orders WHERE variant=? AND account_id<>0 AND state='OPEN'",key);
 							long next=CentralMarketRules.adjust(lng(entry,"base_price"),lng(entry,"floor_price"),lng(entry,"ceiling_price"),lng(demand,"buys"),lng(demand,"sells"));
 							update(c,"UPDATE central_market_catalog SET previous_price=base_price,base_price=?,updated_at=? WHERE variant=?",next,now,key);
 						}
 						c.commit();
 					} catch(Exception e) { c.rollback();for(int id:allocated) IDFactory.getInstance().releaseId(id);throw e; }
 				}
-				} finally { LOCK.unlock(); }
+				} finally { transactionNanos+=System.nanoTime()-phase;LOCK.unlock(); }
 			}
 			if(now>=housekeepingAt) {
+				phase=System.nanoTime();
 				housekeepingAt=now+60_000;
 				try(Connection lookup=DatabaseFactory.getConnection()) {
 					update(lookup,"DELETE FROM central_market_requests WHERE created_at<?",now-7*86400000L);
 					update(lookup,"DELETE FROM central_market_orders WHERE account_id=0 AND state='CANCELLED' AND id NOT IN (SELECT buy_order FROM central_market_trades) AND id NOT IN (SELECT sell_order FROM central_market_trades) LIMIT 1000");
 				}
+				housekeepingNanos=System.nanoTime()-phase;
 			}
 		} catch(Exception e) { log.error("Central Market maintenance failed",e); }
+		finally {
+			long elapsed=System.nanoTime()-began;
+			if(elapsed>5_000_000_000L)log.warn("Central Market maintenance took {}ms for {} variants; work-list SQL {}ms; lock wait {}ms; simulation (including SQL) {}ms; other transactions {}ms; housekeeping SQL {}ms",
+				elapsed/1_000_000,processed,lookupNanos/1_000_000,lockNanos/1_000_000,simulationNanos/1_000_000,(transactionNanos-simulationNanos)/1_000_000,housekeepingNanos/1_000_000);
+		}
 	}
+
+	public record CompanionOrder(long id, String side, int itemId, long price, long quantity, long remaining, String state, long created, long gross, long uncollected) {
+		public boolean live() { return state.equals("OPEN") || state.equals("QUEUED"); }
+	}
+	public record CompanionStock(int object, int itemId, long count) {}
+	public record CompanionTrade(boolean bought, int itemId, long quantity, long price, long when) {}
+	public record CompanionLedger(long kinah, List<CompanionOrder> orders, List<CompanionStock> stock) {
+		public boolean settled() { return kinah==0 && orders.isEmpty() && stock.isEmpty(); }
+	}
+
+	private static int templateId(String variant) { return Integer.parseInt(variant.substring(0,variant.indexOf(':'))); }
+
+	/** Everything that still belongs to this bot inside the market; sold-out, collected orders are absent. */
+	public static CompanionLedger companionLedger(Player bot) throws SQLException {
+		try (Connection c = DatabaseFactory.getConnection()) {
+			return ledger(c,subject(bot));
+		}
+	}
+
+	static CompanionLedger ledger(Connection c, int subject) throws SQLException {
+			Map<String,Object> wallet = row(c,"SELECT kinah FROM central_market_wallet WHERE account_id=?",subject);
+			List<CompanionOrder> orders = new ArrayList<>();
+			for (var r : rows(c,"SELECT o.id,o.variant,o.side,o.price,o.quantity,o.remaining,o.state,o.created_at,COALESCE(z.gross,0) gross,COALESCE(z.collected_quantity,0) collected FROM central_market_orders o LEFT JOIN central_market_settlements z ON z.order_id=o.id WHERE o.account_id=? AND (o.state IN ('OPEN','QUEUED') OR z.gross>0 OR (o.side='B' AND z.order_id IS NOT NULL AND o.quantity-o.remaining>z.collected_quantity)) ORDER BY o.id",subject)) {
+				boolean buy = str(r,"side").equals("B");
+				long uncollected = buy && lng(r,"quantity")>lng(r,"remaining") ? lng(r,"quantity")-lng(r,"remaining")-lng(r,"collected") : 0;
+				orders.add(new CompanionOrder(lng(r,"id"),str(r,"side"),templateId(str(r,"variant")),lng(r,"price"),lng(r,"quantity"),lng(r,"remaining"),str(r,"state"),lng(r,"created_at"),lng(r,"gross"),uncollected));
+			}
+			List<CompanionStock> stock = new ArrayList<>();
+			for (var r : rows(c,"SELECT s.item_unique_id,i.item_id,i.item_count FROM central_market_stock s JOIN inventory i USING(item_unique_id) WHERE s.account_id=? AND s.order_id IS NULL",subject))
+				stock.add(new CompanionStock((int)lng(r,"item_unique_id"),(int)lng(r,"item_id"),lng(r,"item_count")));
+			return new CompanionLedger(wallet==null?0:lng(wallet,"kinah"),orders,stock);
+	}
+
+	public static List<CompanionTrade> companionTrades(Player bot, int limit) throws SQLException {
+		int subject = subject(bot);
+		List<CompanionTrade> trades = new ArrayList<>();
+		try (Connection c = DatabaseFactory.getConnection()) {
+			for (var r : rows(c,"SELECT * FROM central_market_trades WHERE buyer_account=? OR seller_account=? ORDER BY traded_at DESC,id DESC LIMIT "+Math.max(1,Math.min(50,limit)),subject,subject))
+				trades.add(new CompanionTrade(lng(r,"buyer_account")==subject,templateId(str(r,"variant")),lng(r,"quantity"),lng(r,"unit_price"),lng(r,"traded_at")));
+		}
+		return trades;
+	}
+
+	/** Cheapest plain listing from anyone else, or 0 when none rests on the book. */
+	public static long companionAsk(Player bot, int itemId) throws SQLException {
+		return companionQuote(bot,itemId).asks().stream().mapToLong(CompanionPrice::price).min().orElse(0);
+	}
+
+	/** The slow catalogue price, never a single asking price that a seller could set. */
+	public static long companionValue(Item item) throws SQLException {
+		try (Connection c = DatabaseFactory.getConnection()) {
+			Map<String,Object> entry = row(c,"SELECT base_price FROM central_market_catalog WHERE variant=?",variant(item));
+			return entry==null ? 0 : lng(entry,"base_price");
+		}
+	}
+
+	public record CompanionPrice(int owner, long price, long quantity, boolean simulated) {}
+	public record CompanionQuote(long base, long floor, long ceiling, List<CompanionPrice> trades, List<CompanionPrice> asks, List<CompanionPrice> bids) {}
+
+	public static CompanionQuote companionQuote(Player bot, int itemId) throws SQLException {
+		return companionQuote(bot,itemId+":0:0");
+	}
+
+	public static CompanionQuote companionQuote(Player bot, Item item) throws SQLException {
+		var quote=companionQuote(bot,variant(item));
+		if(quote.base()>0)return quote;
+		long seed=economySeed(item.getItemTemplate(),item.getEnchantLevel(),item.getTempering());
+		return new CompanionQuote(seed,Math.max(1,seed/2),Math.min(CentralMarketRules.MAX_KINAH,seed*2),List.of(),List.of(),List.of());
+	}
+
+	private static CompanionQuote companionQuote(Player bot, String key) throws SQLException {
+		try (Connection c = DatabaseFactory.getConnection()) { return companionQuote(c,subject(bot),key,System.currentTimeMillis()); }
+	}
+
+	/** Read bounded index windows before filtering. Flooding one's own orders can hide an
+	 * opportunity, but cannot make another owner or a virtual quote into price evidence. */
+	static CompanionQuote companionQuote(Connection c, int subject, String key, long now) throws SQLException {
+		var entry=row(c,"SELECT base_price,floor_price,ceiling_price FROM central_market_catalog WHERE variant=?",key);
+		if(entry==null)return new CompanionQuote(0,0,0,List.of(),List.of(),List.of());
+		var recent=rows(c,"SELECT buyer_account,seller_account,unit_price,quantity FROM central_market_trades WHERE variant=? AND traded_at>=? ORDER BY traded_at DESC LIMIT "+Math.max(1,com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.MARKET_EVIDENCE_TRADES),key,now-Math.max(1,com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.MARKET_EVIDENCE_DAYS)*86400000L);
+		var book=new HashMap<String,List<Map<String,Object>>>();
+		for(String side:List.of("S","B"))book.put(side,rows(c,"SELECT account_id,price,remaining FROM central_market_orders WHERE variant=? AND side=? AND state='OPEN' ORDER BY price "+(side.equals("S")?"ASC":"DESC")+" LIMIT "+Math.max(1,com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.MARKET_EVIDENCE_ORDERS),key,side));
+		var owners=new HashMap<Integer,Integer>();if(subject<0)owners.put(subject,subject);
+		for(var trade:recent)for(String field:List.of("buyer_account","seller_account")) { int party=(int)lng(trade,field);if(party<0)owners.put(party,party); }
+		for(var orders:book.values())for(var order:orders) { int party=(int)lng(order,"account_id");if(party<0)owners.put(party,party); }
+		if(!owners.isEmpty()) {
+			String ids=owners.keySet().stream().map(id->Long.toString(-(long)id)).collect(Collectors.joining(","));
+			for(var character:rows(c,"SELECT id,account_id FROM players WHERE id IN ("+ids+")")) {
+				int id=(int)lng(character,"id"),account=(int)lng(character,"account_id");
+				owners.put(-id,com.aionemu.gameserver.services.playerbot.PlayerBotPopulationPolicy.serverAccount(account)?-id:account);
+			}
+		}
+		int own=owner(c,subject,owners);
+		var trades=new ArrayList<CompanionPrice>();var asks=new ArrayList<CompanionPrice>();var bids=new ArrayList<CompanionPrice>();
+		var buyers=new HashSet<Integer>();var sellers=new HashSet<Integer>();
+		for(var trade:recent) {
+			int buyer=(int)lng(trade,"buyer_account"),seller=(int)lng(trade,"seller_account");
+			if(buyer==0 || seller==0)continue;
+			int buying=owner(c,buyer,owners),selling=owner(c,seller,owners);
+			if(buying==own || selling==own || buying==selling)continue;
+			if(buyers.contains(buying) || sellers.contains(selling))continue;
+			buyers.add(buying);sellers.add(selling);
+			// Two trades by one pair still supply only one observation per seller.
+			trades.add(new CompanionPrice(selling,lng(trade,"unit_price"),lng(trade,"quantity"),false));
+		}
+		for(String side:List.of("S","B")) {
+			var target=side.equals("S")?asks:bids;
+			for(var order:book.get(side)) {
+				int account=(int)lng(order,"account_id");int party=owner(c,account,owners);
+				if(party==own || lng(order,"remaining")<=0)continue;
+				target.add(new CompanionPrice(party,lng(order,"price"),lng(order,"remaining"),account==0));
+			}
+		}
+		return new CompanionQuote(lng(entry,"base_price"),lng(entry,"floor_price"),lng(entry,"ceiling_price"),List.copyOf(trades),List.copyOf(asks),List.copyOf(bids));
+	}
+
+	public static boolean material(ItemTemplate t) { return category(t).equals("Materials"); }
 
 	private static long volume(Connection c, int account) throws SQLException {
 		long result = 0;

@@ -24,6 +24,7 @@ public final class PlayerBotSchedulerCpuCheck {
   @Override public int getInstanceId(){return 1;}
   @Override public boolean isLooting(){return false;}
   @Override public boolean isDead(){return dead;}
+  @Override public boolean isSpawned(){return false;}
   @Override public boolean isInState(CreatureState state){if(state==CreatureState.RESTING)stateReads++;return false;}
   @Override public PlayerController getController(){return control;}
   @Override public PlayerMoveController getMoveController(){return null;}
@@ -75,7 +76,7 @@ public final class PlayerBotSchedulerCpuCheck {
   try {
    for(int i=1;i<=count;i++){
     var actor=(Actor)unsafe.allocateInstance(Actor.class);actor.id=i;actor.control=new Clock();actors.add(actor);
-    var session=(PlayerBotSession)unsafe.allocateInstance(PlayerBotSession.class);
+    var session=PlayerBotMetadataCheck.sessionDefaults((PlayerBotSession)unsafe.allocateInstance(PlayerBotSession.class));
     field(PlayerBotSession.class,"bot").set(session,actor);field(PlayerBotSession.class,"owner").set(session,actor);
     field(PlayerBotSession.class,"engine").set(session,new PlayerBotEngine());field(PlayerBotSession.class,"idleReaction").setInt(session,10);
     sessions.put(i,session);schedule.complete(i,1000);
@@ -128,7 +129,7 @@ public final class PlayerBotSchedulerCpuCheck {
   clock.now+=1000000;lease.close();budget.cancel(second);before=clock.reads;
   check(!budget.nominated(second)&&clock.reads==before,"cancelled intent takes the same allocation-free absent path");
  }
- public static void main(String[] args)throws Exception {
+ public static void main(String[] args)throws Exception {PlayerBotMetadataCheck.dryWorld();
   // These inert active-bot fixtures have no native human-presence World.
   com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS=false;
   purePass();var f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);var unsafe=(Unsafe)f.get(null);

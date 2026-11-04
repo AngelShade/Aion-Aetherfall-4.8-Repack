@@ -63,6 +63,9 @@ public final class PlayerBotRoster {
 	private static String tier(String field,boolean schema) {return (schema?"FIELD("+trait(field)+",'POOR','ORDINARY','GOOD','GREAT','EXCELLENT') DESC,":"")+"p.name,p.id";}
 	/** Stored traits for the page's generated rows. A bot with no growth row stays a plain Temporary Bot. */
 	private static void traits(Connection c,int account,List<Map<String,Object>> rows)throws SQLException {
+		traits(c,account,rows,false);
+	}
+	private static void traits(Connection c,int account,List<Map<String,Object>> rows,boolean recycling)throws SQLException {
 		var generated=new HashMap<Object,Map<String,Object>>();
 		for(var row:rows)if(Boolean.TRUE.equals(row.get("generated")))generated.put(row.get("id"),row);
 		if(generated.isEmpty())return;
@@ -71,10 +74,33 @@ public final class PlayerBotRoster {
 			s.setInt(1,account);int index=1;for(var id:generated.keySet())s.setInt(++index,(Integer)id);
 			try(var r=s.executeQuery()){while(r.next()){
 				var values=new HashMap<>(Map.of("version","1","account",Integer.toString(account),"character",Integer.toString(r.getInt(1)),"origin",r.getString(2),"rolledAdvancedClass",r.getString(3),"autoEquipRarity",r.getString(4),"initialCombatRank",r.getString(5),"combatRank",r.getString(6),"earnedLearningXp",r.getString(7)));
-				var identity=PlayerBotGrowth.identity(PlayerBotGrowth.decode(values));
+				var profile=PlayerBotGrowth.decode(values);var identity=PlayerBotGrowth.identity(profile);
 				if(identity!=null)generated.get(r.getInt(1)).put("growth",identity);
+				if(recycling)generated.get(r.getInt(1)).put("needed",PlayerBotGrowth.remainingLearningXp(profile));
 			}}
 		}
+	}
+	/** Account-wide receiver identities; no player or inventory loading, independent of collection paging. */
+	public static List<Map<String,Object>> recycleReceivers(int account,int owner,Collection<PlayerBotSession> companions) {
+		if(!available())return List.of();
+		var active=new HashMap<Integer,PlayerBotSession>();for(var session:companions)active.put(session.bot().getObjectId(),session);
+		var rows=new ArrayList<Map<String,Object>>();
+		try(var c=DatabaseFactory.getConnection();var s=c.prepareStatement("SELECT p.id,p.name,p.player_class,p.online FROM players p JOIN playerbot_roster b ON b.player_id=p.id AND b.account_id=p.account_id LEFT JOIN playerbot_removed r ON r.player_id=p.id WHERE p.account_id=? AND p.id<>? AND b.ready=TRUE AND r.player_id IS NULL AND "+trait("origin")+"='GACHA' AND NOT EXISTS (SELECT 1 FROM playerbot_recycles consumed WHERE consumed.source_id=p.id) ORDER BY p.name,p.id")) {
+			s.setInt(1,account);s.setInt(2,owner);try(var r=s.executeQuery()){while(r.next()){
+				int id=r.getInt(1);var session=active.get(id);
+				if(session!=null ? session.closing() : r.getBoolean(4) || PlayerBotLease.isReserved(id))continue;
+				var row=new HashMap<String,Object>();row.put("id",id);row.put("name",r.getString(2));row.put("playerClass",r.getString(3));row.put("generated",true);row.put("active",session!=null);rows.add(row);
+			}}
+			traits(c,account,rows,true);
+			var result=new ArrayList<Map<String,Object>>();
+			for(var row:rows) {
+				var session=active.get(row.get("id"));var growth=(Map<?,?>)row.get("growth");
+				if(session!=null){var profile=PlayerBotGrowth.profile(session.bot());growth=PlayerBotGrowth.identity(profile);row.put("needed",PlayerBotGrowth.remainingLearningXp(profile));}
+				if(growth==null || !"GACHA".equals(growth.get("origin")) || "EXCELLENT".equals(growth.get("rank")) || ((Number)row.get("needed")).longValue()<=0)continue;
+				row.put("rank",growth.get("rank"));row.remove("growth");row.remove("generated");result.add(row);
+			}
+			return List.copyOf(result);
+		}catch(SQLException|java.io.IOException e){throw new IllegalStateException("Cannot read recycling receivers",e);}
 	}
 	private static void parameters(PreparedStatement s,int account,int owner,String query)throws SQLException {s.setInt(1,account);s.setInt(2,owner);s.setString(3,query);s.setString(4,query);}
 	public static int freeGeneratedCount(int account) {

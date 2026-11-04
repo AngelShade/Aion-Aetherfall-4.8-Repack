@@ -234,6 +234,7 @@ public class LegionService {
 	}
 
 	public boolean addToLegion(Legion legion, Player invited, Player inviter) {
+		if(com.aionemu.gameserver.services.playerbot.PlayerBotWardenCompanies.company(legion.getLegionId()))return false;
 		int playerObjId = invited.getObjectId();
 		if (legion.addLegionMember(playerObjId)) {
 			// Bind LegionMember to Player
@@ -501,6 +502,7 @@ public class LegionService {
 	}
 
 	public void openLegionWarehouse(Player player, Npc npc) {
+		if(player.isLegionMember() && com.aionemu.gameserver.services.playerbot.PlayerBotWardenCompanies.company(player.getLegion().getLegionId()))return;
 		if (legionRestrictions.canOpenWarehouse(player, npc)) {
 			LegionWhUpdate(player);
 			PacketSendUtility.sendPacket(player, new SM_LEGION_EDIT(0x04, player.getLegion()));// kinah
@@ -739,6 +741,33 @@ public class LegionService {
 			}
 		}
 	}
+	/** Project a verified native SQL company transfer without retaining the former generated pool cache. */
+	public void publishWardenMembership(Player player,int legionId)throws java.sql.SQLException {
+		if(!com.aionemu.gameserver.services.playerbot.PlayerBotWardenCompanies.company(legionId))throw new java.sql.SQLException("Unregistered Warden company");
+		synchronized(LegionWarehouse.CUSTODY_LOCK) {
+			var committed=LegionMemberDAO.loadLegionMember(player.getObjectId());
+			if(committed==null || committed.getLegion().getLegionId()!=legionId)throw new java.sql.SQLException("Warden SQL membership unavailable");
+			try(var c=com.aionemu.commons.database.DatabaseFactory.getConnection();var s=c.prepareStatement("SELECT level FROM legions WHERE id=?")) {
+				s.setInt(1,legionId);try(var r=s.executeQuery()){if(!r.next())throw new java.sql.SQLException("Warden company disappeared");committed.getLegion().setLegionLevel(r.getInt(1));}
+			}
+			var old=legionMemberById.remove(player.getObjectId());
+			if(old!=null && old.getLegion()!=committed.getLegion())old.getLegion().removeMember(player.getObjectId());
+			player.setLegionMember(null);publishPopulationMembership(player,legionId);
+		}
+	}
+
+	/** Project an already committed reserve release through the native membership owner. */
+	public void publishWardenReserve(Player player)throws java.sql.SQLException {
+		synchronized(LegionWarehouse.CUSTODY_LOCK) {
+			if(LegionMemberDAO.loadLegionMember(player.getObjectId())!=null)throw new java.sql.SQLException("Reserve SQL membership still present");
+			var old=player.getLegionMember();if(old==null)return;
+			if(!com.aionemu.gameserver.services.playerbot.PlayerBotWardenCompanies.company(old.getLegion().getLegionId()))throw new java.sql.SQLException("Reserve projection is not a company");
+			legionMemberById.remove(player.getObjectId());old.getLegion().removeMember(player.getObjectId());
+			player.resetLegionMember();
+			PacketSendUtility.broadcastPacket(player,new SM_LEGION_UPDATE_TITLE(player.getObjectId(),0,"",old.getRank()),true);
+			old.getLegion().removeBonus();
+		}
+	}
 
 	private void projectLegionMember(Legion legion, Player player) {
 
@@ -888,6 +917,7 @@ public class LegionService {
 
 		private boolean canInvitePlayer(Player activePlayer, Player targetPlayer) {
 			Legion legion = activePlayer.getLegion();
+			if(legion!=null && com.aionemu.gameserver.services.playerbot.PlayerBotWardenCompanies.company(legion.getLegionId()))return false;
 			if (targetPlayer == null) {
 				PacketSendUtility.sendPacket(activePlayer, SM_SYSTEM_MESSAGE.STR_GUILD_INVITE_NO_USER_TO_INVITE());
 				return false;

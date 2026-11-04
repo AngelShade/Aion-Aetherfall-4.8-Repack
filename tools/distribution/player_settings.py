@@ -9,6 +9,7 @@ and web media are not listed here: they must follow the shipped files.
 """
 
 KEEP = [
+    'Server/server-address.properties',
     'Client/system.cfg',
     'Client/SystemOptionGraphics.cfg',
     'Client/PlayerBotBar.ini',

@@ -62,10 +62,12 @@ public class LegionDominionService {
 	}
 
 	public boolean join(int legionId, int locId) {
+		if(com.aionemu.gameserver.services.playerbot.PlayerBotWardenCompanies.company(legionId))return false;
 		return legionDominionLocations.get(locId).join(legionId);
 	}
 
 	public void onFinishInstance(Legion legion, int points, long time) {
+		if(legion!=null && com.aionemu.gameserver.services.playerbot.PlayerBotWardenCompanies.company(legion.getLegionId()))return;
 		if (legion != null) {
 			LegionDominionLocation loc = getLegionDominionLoc(legion.getCurrentLegionDominion());
 			if (loc != null) {

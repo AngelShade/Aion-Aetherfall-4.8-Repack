@@ -35,7 +35,7 @@ public final class PlayerBotCombatGearCheck {
   @Override public AbyssRank getAbyssRank(){return rank;}
  }
  static Map<Integer,ItemTemplate> templates(Path xml)throws Exception {
-  var selected=Set.of(110101731,125003945,110000018,110000025);var result=new HashMap<Integer,ItemTemplate>();
+  var selected=Set.of(110101731,125003945,110000018,110000025,110101169);var result=new HashMap<Integer,ItemTemplate>();
   var factory=XMLInputFactory.newFactory();factory.setProperty(XMLInputFactory.SUPPORT_DTD,false);factory.setProperty("javax.xml.stream.isSupportingExternalEntities",false);
   var unmarshaller=JAXBContext.newInstance(ItemTemplate.class).createUnmarshaller();
   try(var stream=Files.newInputStream(xml)){
@@ -64,10 +64,18 @@ public final class PlayerBotCombatGearCheck {
      check(!PlayerBotGenerated.eligible(item,actor),"Common starter selection excludes skin");
     }
     var real=items.get(110000018);check(!PlayerBotCombatGear.skinOnly(real),"Actual stat-bearing costume-group armor remains combat gear");
+    check(real.getActions().getRemodelAction().getExtractType()==2 && com.aionemu.gameserver.services.ItemEligibility.isAppearanceOnly(real),"Shared appearance-family rule still excludes actual stat-bearing type-2 armor");
     check(PlayerBotGearPolicy.eligible(actor,real),"Native class/rank/mastery checks retain actual armor");
+    check(!PlayerBotGenerated.eligible(real,actor),"Owned-gear exception cannot add type-2 armor to common starter generation");
+    check(!PlayerBotGearPolicy.purchasable(actor,real),"Bot vendor and market purchase admission keeps the shared appearance exclusion");
+    var market=PlayerBotMarket.class.getDeclaredMethod("improvement",PlayerBotSession.class,ItemTemplate.class);market.setAccessible(true);
+    var session=(PlayerBotSession)unsafe.allocateInstance(PlayerBotSession.class);field(session,"bot",actor);
+    check((double)market.invoke(null,session,real)==0,"Production bot market purchase scoring rejects stat-bearing type-2 armor before pricing/custody");
+    var road=PlayerBotRoadMerchants.class.getDeclaredMethod("eligible",ItemTemplate.class,PlayerBotRoadDuty.State.class);road.setAccessible(true);
+    check(!(boolean)road.invoke(null,real,null),"Road merchant stock rejects stat-bearing type-2 armor before regional/rank admission");
     DataManager.ITEM_DATA=new ItemData(){@Override public Collection<ItemTemplate> getItemTemplates(){return items.values();}};
     var choice=PlayerBotTemporary.class.getDeclaredMethod("choice",Player.class,Role.class,ItemSlot.class);choice.setAccessible(true);
-    check(choice.invoke(null,actor,Role.RANGED,ItemSlot.TORSO)==real,"Production tier selection chooses combat armor over Chic skin");
+    check(choice.invoke(null,actor,Role.RANGED,ItemSlot.TORSO)==items.get(110101169) && !PlayerBotCatchUpPool.admitted(real),"Production tier selection chooses native ordinary combat armor over skins while preserving the deliberate boss-source exclusion");
     check(choice.invoke(null,actor,Role.RANGED,ItemSlot.HELMET)==null,"Production selection refuses Chic veil even if it is the only head candidate");
    }
    ItemTemplate weapon=new ItemTemplate();field(weapon,"itemGroup",ItemGroup.SWORD);var w=new WeaponStats();field(w,"minDamage",10);field(weapon,"weaponStats",w);

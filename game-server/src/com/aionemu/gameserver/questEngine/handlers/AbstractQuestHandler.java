@@ -85,6 +85,11 @@ public abstract class AbstractQuestHandler {
 		return Collections.unmodifiableSet(actionItems);
 	}
 
+	/** Who a ready quest is handed to, for player directions, when that depends on the player. Never drives a bot's turn-in. */
+	public Set<Integer> getTurnInNpcIds(Player player) {
+		return Set.of();
+	}
+
 	/** Current native stage discovery. Empty means this handler has no declared adapter. */
 	public List<com.aionemu.gameserver.questEngine.model.QuestBotAction> getPlayerBotActions(Player player) {
 		return List.of();
@@ -454,7 +459,12 @@ public abstract class AbstractQuestHandler {
 					if (qs2 != null && qs2.getStatus() == QuestStatus.REWARD) { // TODO make sure that this npc is the end npc
 						env.setQuestId(questId);
 						env.setDialogActionId(DialogAction.USE_OBJECT); // show default dialog (reward selection for next quest)
-						return QuestEngine.getInstance().onDialog(new QuestEnv(npc, player, questId, DialogAction.USE_OBJECT));
+						if (QuestEngine.getInstance().onDialog(new QuestEnv(npc, player, questId, DialogAction.USE_OBJECT)))
+							return true;
+						env.setQuestId(this.questId);
+						env.setDialogActionId(dialogActionId);
+						npcHasActiveQuest = true;
+						break;
 					} else if (!npcHasActiveQuest && qs2 != null && qs2.getStatus() == QuestStatus.START) {
 						boolean isQuestStartNpc = questNpc.getOnQuestStart().contains(questId);
 						if (!isQuestStartNpc || DataManager.QUEST_DATA.getQuestById(questId).isMission() && qs2.getQuestVars().getQuestVars() == 0)
@@ -462,6 +472,7 @@ public abstract class AbstractQuestHandler {
 					}
 				}
 				boolean npcHasNewQuest = false;
+				nextQuest:
 				for (Integer questId : questNpc.getOnQuestStart()) { // all quest IDs that are registered to be started at this npc
 					if (QuestService.checkStartConditions(player, questId, false)) {
 						npcHasNewQuest = true;
@@ -474,7 +485,9 @@ public abstract class AbstractQuestHandler {
 										env.setQuestId(questId);
 										env.setDialogActionId(DialogAction.QUEST_SELECT);
 										env.setDialogContinuationFromPreQuest(true);
-										return QuestEngine.getInstance().onDialog(env); // show start dialog of follow-up quest
+										if (QuestEngine.getInstance().onDialog(env)) // show start dialog of follow-up quest
+											return true;
+										break nextQuest;
 									}
 								}
 							}

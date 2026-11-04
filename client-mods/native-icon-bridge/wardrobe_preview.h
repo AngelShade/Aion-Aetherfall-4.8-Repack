@@ -58,13 +58,15 @@ bool stock_preview_pending=false;
 void(*codex_tick)()=nullptr;
 void(*codex_action)(int,int,float,float,float)=nullptr;
 bool(*codex_browse)(int,int,int)=nullptr;
+bool(*codex_locate)(int,float,float,float)=nullptr;
+void(*help_track)()=nullptr;
 int codex_lookups=0;
 void resolve_codex(){
     if(codex_tick || codex_lookups>=40 || (++codex_lookups%10)!=1)return;
     HMODULE core=GetModuleHandleW(L"AetherfallCore.dll");if(!core)return;
     auto tick=reinterpret_cast<decltype(codex_tick)>(GetProcAddress(core,"AetherfallCodexTick"));
     auto action=reinterpret_cast<decltype(codex_action)>(GetProcAddress(core,"AetherfallCodexAction"));
-    if(tick && action){codex_action=action;codex_tick=tick;codex_browse=reinterpret_cast<decltype(codex_browse)>(GetProcAddress(core,"AetherfallCodexBrowse"));}
+    if(tick && action){codex_action=action;codex_tick=tick;codex_browse=reinterpret_cast<decltype(codex_browse)>(GetProcAddress(core,"AetherfallCodexBrowse"));codex_locate=reinterpret_cast<decltype(codex_locate)>(GetProcAddress(core,"AetherfallCodexLocate"));help_track=reinterpret_cast<decltype(help_track)>(GetProcAddress(core,"AetherfallHelpRequestTrack"));}
 }
 
 uint8_t* game(){return reinterpret_cast<uint8_t*>(GetModuleHandleW(L"Game.dll"));}
@@ -440,6 +442,11 @@ void tick(){
                 const auto& c=command.codex;
                 if(codex_action)codex_action(c[0],c[1],c[2]/100.0f,c[3]/100.0f,c[4]/100.0f);
             }
+            else if(command.control=="help-track"){if(help_track)help_track();}
+            else if(command.control=="help-location"){
+                const auto& c=command.codex;
+                if(codex_locate)codex_locate(c[1],c[2]/100.0f,c[3]/100.0f,c[4]/100.0f);
+            }
             else if(command.control=="codex-browse"){
                 const auto& c=command.codex;
                 const bool opened=codex_browse && codex_browse(c[0],c[1],c[2]);
@@ -477,7 +484,22 @@ void tick(){
 }
 void __cdecl callback(Ptr view,Ptr object,Ptr name,Ptr args){
     std::string method_name=string(name);
+    if(string(object)=="AionObject" && method_name=="HelpRequestTrack"){
+        if(companions_view(view) && array_size(args)==0){
+            std::lock_guard<std::mutex> lock(queue_mutex);auto& state=states[view];if(!state)state=std::make_shared<State>();
+            if(state->active && commands.size()<128){Command command;command.state=state;command.control="help-track";commands.push_back(std::move(command));}
+        }return;
+    }
     if(string(object)=="AionObject" && method_name=="CodexAction"){
+        if(companions_view(view) && array_size(args)==5){
+            Ptr value=value_string(array_element(args,0));std::string action=string(value);if(value)destroy_string(value);
+            if(action!="help-location")return;
+            Command command;command.control="help-location";
+            for(size_t i=1;i<command.codex.size();++i)command.codex[i]=value_integer(array_element(args,i));
+            if(command.codex[1]<=0)return;
+            std::lock_guard<std::mutex> lock(queue_mutex);auto& state=states[view];if(!state)state=std::make_shared<State>();
+            if(state->active && commands.size()<128){command.state=state;commands.push_back(std::move(command));}return;
+        }
         // CodexAction(action, map, x, y, z): coordinates in hundredths, as the page sends them.
         if(codex_view(view) && array_size(args)==5){
             Ptr value=value_string(array_element(args,0));std::string action=string(value);if(value)destroy_string(value);
@@ -625,6 +647,9 @@ void register_methods(Ptr view){
     Ptr codex=from_wide(L"CodexAction",11);
     if(object&&codex)object_callback(view,object,codex);
     if(codex)destroy_string(codex);
+    Ptr help=from_wide(L"HelpRequestTrack",16);
+    if(object&&help)object_callback(view,object,help);
+    if(help)destroy_string(help);
     Ptr session=from_wide(L"JourneySession",14);
     if(object&&session)object_callback(view,object,session);
     if(session)destroy_string(session);

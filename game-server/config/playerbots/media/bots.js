@@ -9,7 +9,7 @@
   var stateRevision = 0, receivedAt = 0, renderedViews = {}, partyRevision = -1;
   var mountedDetail = null, detailCache = {}, detailHistory = [], rosterView = 'characters';
 
-  var itemSelections = {};
+  var itemSelections = {}, helpAbandon = '';
 
   var parts = location.search.substring(1).split('&');
 
@@ -17,6 +17,7 @@
 
     var pair = parts[p].split('=');
 
+    if (pair[0] === 'help_requests') currentView = 'quests';
     if (pair[0] === 'session_id') { try { session = decodeURIComponent((pair[1] || '').replace(/\+/g, ' ')); } catch (ignore) {} }
 
   }
@@ -248,6 +249,12 @@
     if (chosen) renderItem(details,bot,chosen);
     else details.appendChild(node('p','Nothing equipped yet. Equip items from the Inventory section.','empty-state'));
     layout.appendChild(doll); layout.appendChild(details); parent.appendChild(layout);
+    var other = items.filter(function (item) {
+      return !(item.equippedSlots || []).some(function (slot) {
+        return DOLL.some(function (position) { return position[0] === slot; });
+      });
+    });
+    if (other.length) itemGrid(parent,bot,other,'other-equipment','Other equipped items',renderItem);
   }
 
   var ORDERS = [['attack','Attack','Attack your selected target',{action:'attack',name:'all'}],['follow','Follow','Follow you',{action:'order',name:'all',order:'FOLLOW'}],
@@ -308,7 +315,7 @@
 
     if (busy) return;
 
-    captureDrafts(); var focus = captureFocus(), original = values;
+    captureDrafts(); var focus = captureFocus(), original = values, recycleFlow = pendingRecycle, holdNotice = keepNotice; keepNotice = false;
     if (values) { values = {}; for (var key in original) if (Object.prototype.hasOwnProperty.call(original,key)) values[key] = original[key]; }
     busy = true; var serial = ++requestSerial; setBusy();
 
@@ -328,27 +335,34 @@
 
       var result;
 
-      try { result = JSON.parse(xhr.responseText); } catch (ignore) { if (state) state.request = ''; notice('Companions is unavailable. Refresh before trying again.', true); return; }
+      try { result = JSON.parse(xhr.responseText); } catch (ignore) { clearPendingRecruit(); if (state) state.request = ''; notice('Companions is unavailable. Refresh before trying again.', true); return; }
 
-      if (!result || xhr.status !== 200 || result.error) { if (state) state.request = ''; notice(result && result.error || 'Refresh Companions to reconnect.', true); return; }
+      if (!result || xhr.status !== 200 || result.error) {
+        clearPendingRecruit(); if (state) state.request = ''; notice(result && result.error || 'Refresh Companions to reconnect.', true);
+        // A refused action spends its nonce: fetch one fresh state now, under the same message.
+        if (mutation && xhr.status === 400 && state) { keepNotice = true; request(null); }
+        return;
+      }
 
-      if (!result || !Array.isArray(result.active) || !Array.isArray(result.roster) || !Array.isArray(result.quests) || !Array.isArray(result.classes) || !Array.isArray(result.roles) || typeof result.request !== 'string' || !result.request) { if (state) state.request = ''; notice('Companion data is incomplete. Refresh before trying again.',true); return; }
+      if (!result || !Array.isArray(result.active) || !Array.isArray(result.roster) || !Array.isArray(result.quests) || !Array.isArray(result.classes) || !Array.isArray(result.roles) || typeof result.request !== 'string' || !result.request) { clearPendingRecruit(); if (state) state.request = ''; notice('Companion data is incomplete. Refresh before trying again.',true); return; }
 
       if (mutation && values.action === 'spacing') { for (var d = 0; d < result.active.length; d++) if (result.active[d].name === values.name && Number(result.active[d].ownerSpacing) === Number(values.ownerSpacing) && Number(result.active[d].attackSpacing) === Number(values.attackSpacing)) delete spacingDrafts[result.active[d].id]; }
 
       if (mutation && values.action === 'carebudget') { for (var d = 0; d < result.active.length; d++) if (result.active[d].name === values.name && String(result.active[d].reserve) === String(values.reserve) && String(result.active[d].dailyBudget) === String(values.dailyBudget)) delete careDrafts[result.active[d].id]; }
 
       receivedAt = new Date().getTime();
-      if (followup) { state = result; invalidateViews(); request(followup); return; }
+      if (followup && (!recycleFlow || pendingRecycle === recycleFlow)) { state = result; invalidateViews(); request(followup); return; }
       // Refresh is explicit. Keep an unchanged visible panel instead of rebuilding it.
       var fingerprint = viewPrint(result);
-      if (!mutation && state && fingerprint === lastFingerprint) { state = result; invalidateViews(); quietUpdate(); return; }
+      if (!mutation && state && fingerprint === lastFingerprint) { state = result; invalidateViews(); quietUpdate(); advanceRecycling(); return; }
       lastFingerprint = fingerprint;
-      state = result; invalidateViews(); render(); restoreFocus(focus); notice(result.notice || 'Connected as ' + result.owner + '. Refresh when you want updated status.', false);
+      state = result; invalidateViews(); render(); restoreFocus(focus); if (!holdNotice) notice(result.notice || 'Connected as ' + result.owner + '. Refresh when you want updated status.', false);
+      if (mutation && values.action === 'helptrack' && window.AionObject && AionObject.HelpRequestTrack) AionObject.HelpRequestTrack();
+      advanceRecycling();
 
     };
 
-    function interrupted() { if (finish()) { if (state) state.request = ''; notice('Connection interrupted. Refresh to check the result before retrying.', true); } }
+    function interrupted() { if (finish()) { clearPendingRecruit(); if (state) state.request = ''; notice('Connection interrupted. Refresh to check the result before retrying.', true); } }
 
     xhr.onerror = xhr.ontimeout = interrupted;
 
@@ -379,9 +393,9 @@
   }
 
   function act(values) {
-    if (!state || !state.request) { notice('Refresh Companions before submitting another action.', true); return; }
-    // Renew an old nonce only when an action needs it; never poll or replay a submitted mutation.
-    if (new Date().getTime() - receivedAt > 90000) request(null,values); else request(values);
+    if (!state) { clearPendingRecruit(); notice('Refresh Companions before submitting another action.', true); return; }
+    // Renew a spent or old nonce only when an action needs it; never poll or replay a submitted mutation.
+    if (!state.request || new Date().getTime() - receivedAt > 90000) request(null,values); else request(values);
   }
 
   function vitals(parent, text, value, cls) {
@@ -453,7 +467,7 @@
         renderedViews[rosterView] = stateRevision;
       }
     } else if (currentView === 'quests' && (!reuse || renderedViews.quests !== stateRevision)) {
-      renderOverview();
+      renderHelpRequests(); renderOverview();
       var quest = byId('owner-quest'), previous = quest.value; clear(quest);
       for (var q = 0; q < state.quests.length; q++) { var opt = node('option',(state.quests[q].name || 'Quest ' + state.quests[q].id) + ' \u00b7 ' + label(state.quests[q].status)); opt.value = state.quests[q].id; quest.appendChild(opt); }
       if (previous) quest.value = previous;
@@ -475,10 +489,10 @@
     var keys = Object.keys(value).sort(); for (i = 0; i < keys.length; i++) out.push(JSON.stringify(keys[i]) + ':' + canon(value[keys[i]]));
     return '{' + out.join(',') + '}';
   }
-  var VIEW_KEYS = { party: ['active', 'team', 'teamKind', 'recruitRemaining', 'limit', 'enabled', 'ownerBag', 'ownerKinah', 'movable', 'companionMovable', 'collectionRenown', 'benefits', 'recycleQuote', 'recyclingEnabled', 'roles', 'owner'],
-    roster: ['roster', 'rosterTotal', 'rosterPage', 'presets', 'savedBots', 'presetLimit', 'recruitRemaining', 'enabled', 'ownerBag', 'ownerKinah', 'roles'],
-    create: ['classes', 'startingClasses', 'creationJourney', 'generatedCount', 'freeGeneratedCount', 'generatedLimit', 'enabled', 'recruitRemaining', 'tickets'],
-    quests: ['active', 'quests'] };
+  var VIEW_KEYS = { party: ['active', 'team', 'teamKind', 'recruitRemaining', 'limit', 'enabled', 'generatedEnabled', 'ownerBag', 'ownerKinah', 'movable', 'companionMovable', 'collectionRenown', 'benefits', 'recycleQuote', 'recyclingEnabled', 'recycleReceivers', 'roles', 'owner'],
+    roster: ['roster', 'rosterTotal', 'rosterPage', 'presets', 'savedBots', 'presetLimit', 'recruitRemaining', 'enabled', 'generatedEnabled', 'recyclingEnabled', 'recycleReceivers', 'ownerBag', 'ownerKinah', 'roles'],
+    create: ['classes', 'startingClasses', 'creationJourney', 'generatedCount', 'freeGeneratedCount', 'generatedLimit', 'enabled', 'generatedEnabled', 'generatedRandomLooks', 'recruitRemaining', 'tickets'],
+    quests: ['active', 'quests', 'helpRequest', 'helpPosts'] };
   function viewPrint(result) {
     var keys = VIEW_KEYS[currentView] || [], picked = { view: currentView }, i;
     for (i = 0; i < keys.length; i++) picked[keys[i]] = result[keys[i]];
@@ -524,11 +538,11 @@
 
 
 
-    if (!activeBot(selectedBot) && !rosterBot(selectedBot)) selectedBot = state.active.length ? state.active[0].id : null;
+    if (recycleSource && activeBot(recycleSource.id)) recycleSource = null;
+    if (!activeBot(selectedBot) && !rosterBot(selectedBot) && !(recycleSource && String(recycleSource.id) === String(selectedBot))) selectedBot = state.active.length ? state.active[0].id : null;
     if (state.recycleQuote) recycleQuotes[String(state.recycleQuote.sourceId)] = state.recycleQuote;
 
-    if (pendingRecycle) for (var pr = 0; pr < state.active.length; pr++) if (state.active[pr].name === pendingRecycle) { pendingRecycle = null; subTabs.care = 'recycle'; selectedBot = state.active[pr].id; botTab = 'care'; inspecting = true; showView('party'); break; }
-    if (pendingTransfer) for (var pt = 0; pt < state.active.length; pt++) if (state.active[pt].name === pendingTransfer) { pendingTransfer = null; subTabs.equipment = 'transfer'; selectedBot = state.active[pt].id; botTab = 'equipment'; inspecting = true; showView('party'); }
+    if (pendingTransfer) for (var pt = 0; pt < state.active.length; pt++) if (state.active[pt].name === pendingTransfer) { pendingTransfer = null; window.clearTimeout(pendingTransferTimer); subTabs.equipment = 'transfer'; selectedBot = state.active[pt].id; botTab = 'equipment'; inspecting = true; showView('party'); }
     renderCurrentView(false);
     byId('save-party').querySelector('button').disabled = !state.active.length || busy;
 
@@ -688,7 +702,7 @@
 
     var back = localButton(detailPanel, '\u2039 Back to active party', function () { inspecting = false; renderSelection(); }, 'secondary'); back.id = 'bot-back';
 
-    var bot = activeBot(selectedBot), character = rosterBot(selectedBot);
+    var bot = activeBot(selectedBot), character = rosterBot(selectedBot) || (recycleSource && String(recycleSource.id) === String(selectedBot) ? recycleSource : null);
 
     if (bot) renderBot(detailPanel, bot);
 
@@ -698,7 +712,9 @@
 
       var body = node('div', null, 'bot-body'); body.appendChild(node('h3', character.generated ? originLabel(true, false, character.growth) : 'Account character')); body.appendChild(node('p', !character.ready ? 'Creation is pending.' : character.reserved ? 'This character is active or saving and cannot currently be recruited.' : 'This character is offline and in your roster.', 'hint'));
 
-      body.appendChild(node('p', 'Recruit this companion to view their live equipment, quests, orders and care settings.', 'hint')); button(body, 'Recruit companion', { action: 'recruit', name: character.name }, !state.enabled || character.reserved || !character.ready || !(state.recruitRemaining > 0), 'primary'); localButton(body, 'Back to roster', function () { showView('roster'); }, 'secondary'); card.appendChild(body); detailPanel.appendChild(card);
+      if (botTab === 'care' && subTabs.care === 'recycle' && ticketRecruit(character.growth)) renderRecycling(subPanel(body,'recycle','Recycle a ticket recruit'), character);
+      else { body.appendChild(node('p', character.recruitmentEnabled === false ? 'Temporary Bot recruitment is disabled by this server. Your saved companion and progress are kept.' : 'Recruit this companion to view their live equipment, quests, orders and care settings.', 'hint')); button(body, 'Recruit companion', { action: 'recruit', name: character.name }, !state.enabled || character.recruitmentEnabled === false || character.reserved || !character.ready || !(state.recruitRemaining > 0), 'primary'); }
+      localButton(body, 'Back to roster', function () { showView('roster'); }, 'secondary'); card.appendChild(body); detailPanel.appendChild(card);
 
     } else { var empty = node('div', null, 'empty'); empty.appendChild(node('h3', 'Your next adventure starts with a party')); empty.appendChild(node('p', 'Recruit an existing character or create a Temporary Bot. Select them here to manage orders, equipment and quests.')); localButton(empty, 'Browse your roster', function () { showView('roster'); }, 'primary'); detailPanel.appendChild(empty); }
 
@@ -927,11 +943,11 @@
       content.appendChild(node('p','Build: ' + cardBuild(live),'collection-config'));
     } else content.appendChild(node('p','Recruit to inspect live equipment, builds and quests.','collection-config'));
     var actions = node('div',null,'collection-actions'); content.appendChild(actions);
-    var unavailable = !state.enabled || character.reserved || !character.ready || !(state.recruitRemaining > 0);
+    var unavailable = !state.enabled || character.recruitmentEnabled === false || character.reserved || !character.ready || !(state.recruitRemaining > 0);
     if (live) localButton(actions,'Manage companion',function () { openBot(character.id,'overview'); },'primary');
     else {
       var summon = button(actions,character.generated && isSavedBot(character.id) ? 'Summon saved bot' : 'Recruit companion',{action:'recruit',name:character.name},unavailable,'primary');
-      if (unavailable) summon.title = !state.enabled ? 'Companion recruitment is disabled.' : !character.ready ? 'Creation is still pending.' : character.reserved ? 'This character is active or saving.' : 'Your active team has no recruitment slots.';
+      if (unavailable) summon.title = !state.enabled ? 'Companion recruitment is disabled.' : character.recruitmentEnabled === false ? 'Temporary Bot recruitment is disabled by this server.' : !character.ready ? 'Creation is still pending.' : character.reserved ? 'This character is active or saving.' : 'Your active team has no recruitment slots.';
       localButton(actions,'View companion record',function () { openBot(character.id,'overview'); });
       if (character.generated && !live && character.ready) {
         var rename = node('div', null, 'collection-rename'), field = document.createElement('input'), renamed = cardRenames[id] || '';
@@ -957,16 +973,11 @@
     if (live) localButton(extra,'Move items',function () { subTabs.equipment = 'transfer'; openBot(character.id,'equipment'); });
     else if (!character.generated) {
       var move = button(extra,'Move items',{action:'recruit',name:character.name},unavailable);
-      move.title = 'Recruit ' + character.name + ', then open item transfer'; move.onclick = function () { pendingTransfer = character.name; act({action:'recruit',name:character.name}); };
+      move.title = 'Recruit ' + character.name + ', then open item transfer'; move.onclick = function () { if (busy) return; pendingTransfer = character.name; window.clearTimeout(pendingTransferTimer); pendingTransferTimer = window.setTimeout(function () { clearPendingRecruit(); notice('The companion did not arrive. Refresh before trying again.',true); },30000); act({action:'recruit',name:character.name}); };
       localButton(extra,'Mail items',function () { mailTarget = character.name; transferPick.mail = null; renderRoster(); });
     }
     if (ticketRecruit(character.growth)) {
-      if (live) localButton(extra,'Recycle',function () { subTabs.care = 'recycle'; openBot(character.id,'care'); });
-      else if (character.ready) {
-        // Recycling needs the recruit active; a saved one joins first, then its Recycle page opens.
-        var recycle = button(extra,'Recycle',{action:'recruit',name:character.name},unavailable);
-        recycle.title = 'Recruit ' + character.name + ', then open recycling'; recycle.onclick = function () { pendingRecycle = character.name; act({action:'recruit',name:character.name}); };
-      }
+      localButton(extra,'Recycle',function () { openRecycling(live || character); });
     }
     removalControls(extra,character,live); extra.style.display = cardMore[id] ? 'block' : 'none'; actions.appendChild(extra);
     back.appendChild(content);
@@ -1139,7 +1150,9 @@
       if (ticketRecruit(bot.growth)) flags.splice(2,1);
 
       for (var f = 0; f < flags.length; f++) button(settings, flags[f][1] + ': ' + (bot[flags[f][0]] ? 'On' : 'Off'), { action: 'setting', name: bot.name, setting: flags[f][0], enabled: !bot[flags[f][0]] }, bot.closing || (flags[f][0] === 'gear' && !bot.temporary), 'setting-card' + (bot[flags[f][0]] ? ' on' : '')); combat.appendChild(settings);
+      if (bot.temporary || bot.world) combat.appendChild(node('p','Supply refills spend this companion\'s own Kinah at native replacement prices, within its Care reserve and daily spending limit. If funds run short it keeps the supplies it owns.','hint'));
       var automation = subPanel(body,'automation','Quest automation'); automation.className += ' settings control-grid'; var flags = [['questing','Auto quests'],['questCombat','Nearby quest combat'],['partySync','Party completion sync']];
+      if (bot.world) { flags = []; automation.appendChild(node('p', 'World characters manage their own quests and progress automatically.', 'hint')); }
       for (var f = 0; f < flags.length; f++) button(automation,flags[f][1] + ': ' + (bot[flags[f][0]] ? 'On' : 'Off'),{ action:'setting',name:bot.name,setting:flags[f][0],enabled:!bot[flags[f][0]] },bot.closing,'setting-card' + (bot[flags[f][0]] ? ' on' : ''));
       var spacing = subPanel(body,'spacing','Follow and attack spacing'); renderSpacing(spacing,bot);
       if (!bot.rangedSpacing) spacing.appendChild(node('p','Ranged spacing controls apply to ranged companions. This companion uses its native role spacing.','empty-state'));
@@ -1216,9 +1229,10 @@
     } else if (botTab === 'quests') {
       var journal = subPanel(body,'journal','Quest journal'), requests = subPanel(body,'requests','Catch-up requests'); renderQuestions(requests,bot);
 
-      button(journal, 'Nearby quest combat: ' + (bot.questCombat ? 'On' : 'Off'), { action: 'setting', name: bot.name, setting: 'questCombat', enabled: !bot.questCombat }, bot.closing, bot.questCombat ? 'on' : '');
+      if (!bot.world) button(journal, 'Nearby quest combat: ' + (bot.questCombat ? 'On' : 'Off'), { action: 'setting', name: bot.name, setting: 'questCombat', enabled: !bot.questCombat }, bot.closing, bot.questCombat ? 'on' : '');
 
-      journal.appendChild(node('p', 'When On, the party tackles isolated quest targets within 25 m of you. Tanks lead; healers and support keep their roles. Untouched nearby packs are left for you to pull.', 'hint'));
+      if (bot.world) journal.appendChild(node('p', 'This world character manages its own quests. Party orders do not disable its autonomous quest progress.', 'hint'));
+      else journal.appendChild(node('p', 'When On, the party tackles isolated quest targets within 25 m of you. Tanks lead; healers and support keep their roles. Untouched nearby packs are left for you to pull.', 'hint'));
 
       journal.appendChild(node('h3', 'Quest journal (' + bot.quests.length + ')'));
 
@@ -1226,7 +1240,8 @@
 
       if (!bot.quests.length) journal.appendChild(node('p', 'Share an eligible quest or enable nearby quests.', 'empty'));
 
-      for (var q = 0; q < bot.quests.length; q++) { var row = node('div', null, 'quest'); journal.appendChild(row); renderQuest(row, bot.quests[q]); if (bot.quests[q].missionEligible) button(row, 'Assign quest mission', { action: 'mission', name: bot.name, quest: bot.quests[q].id }, bot.closing || bot.dead); }
+      var journalStart = pageControls(journal, bot.id, journalPages, bot.quests.length, 4);
+      for (var q = journalStart; q < Math.min(bot.quests.length, journalStart + 4); q++) { var row = node('div', null, 'quest'); journal.appendChild(row); renderQuest(row, bot.quests[q]); if (!bot.world && bot.quests[q].missionEligible) button(row, 'Assign quest mission', { action: 'mission', name: bot.name, quest: bot.quests[q].id }, bot.closing || bot.dead); }
 
     } else if (botTab === 'care') {
       renderCare(body, bot);
@@ -1256,11 +1271,14 @@
 
   }
 
-  function coordinates(destination) { return destination.name + ' \u00b7 ' + (destination.mapName || 'Map ' + destination.map) + ' \u00b7 X ' + Math.round(destination.x) + ', Y ' + Math.round(destination.y) + ', Z ' + Math.round(destination.z) + ' \u00b7 ' + destination.distance + ' m from you'; }
+  function coordinates(destination) { return destination.name + ' \u00b7 ' + (destination.mapName || 'Map ' + destination.map) + ' \u00b7 X ' + Math.round(destination.x) + ', Y ' + Math.round(destination.y) + ', Z ' + Math.round(destination.z) + (destination.distance == null ? '' : ' \u00b7 ' + destination.distance + ' m from you'); }
+  function questStatus(quest) { return quest.ready ? 'Ready to turn in' : quest.status === 'START' ? 'In progress' : label(quest.status); }
+  function canShowOnMap() { return !!(window.AionObject && AionObject.CodexAction); }
+  function showOnMap(map, x, y, z) { AionObject.CodexAction('help-location', map, Math.round(x * 100), Math.round(y * 100), Math.round(z * 100)); }
 
   function renderQuest(parent, quest) {
 
-    parent.appendChild(node('strong', (quest.name || 'Quest ' + quest.id) + ' \u00b7 ' + (quest.ready ? 'Ready to turn in' : label(quest.status))));
+    parent.appendChild(node('strong', (quest.name || 'Quest ' + quest.id) + ' \u00b7 ' + questStatus(quest)));
 
     parent.appendChild(node('p', quest.guidance || 'Lead this companion to its quest objective.', 'hint'));
 
@@ -1272,12 +1290,78 @@
 
     for (var d = 0; d < destinations.length; d++) parent.appendChild(node('p', coordinates(destinations[d]), 'route'));
 
-    if (!destinations.length) parent.appendChild(node('p', 'No verified NPC location in this map/instance. Follow the native quest journal for the next step.', 'hint'));
+    if (!destinations.length) parent.appendChild(node('p', 'No known NPC location for this step. Follow your quest journal.', 'hint'));
 
   }
 
   // One line per quest, a page at a time. Journals open once per companion, not once per quest.
-  var QUEST_PAGE = 7, questBoard = { page:0, ready:false };
+  var QUEST_PAGE = 7, questBoard = { page:0, ready:false }, helpBoard = { page:0, open:'', canHelp:null };
+  function helpWhere(c) { return c.mapName || 'Unknown map'; }
+  function helpFacts(parent, c) {
+    if (c.botLevel) parent.appendChild(node('p', 'Level ' + c.botLevel + ' ' + label(c.botClass) + ' \u00b7 Gear rarity ' + label(c.rarity), 'hint'));
+    var counts = c.objectives || [];
+    for (var i = 0; i < counts.length; i++) parent.appendChild(node('p', counts[i].name + ': ' + counts[i].current + (counts[i].required < 0 ? '' : ' / ' + counts[i].required), 'route'));
+    parent.appendChild(node('p', helpWhere(c) + ' \u00b7 X ' + Math.round(c.x) + ', Y ' + Math.round(c.y) + ', Z ' + Math.round(c.z), 'hint'));
+  }
+  function helpControls(parent, c) {
+    var controls = node('div', null, 'actions'), locate = localButton(controls, 'Show location', function () { showOnMap(c.map, c.x, c.y, c.z); });
+    locate.disabled = !canShowOnMap(); parent.appendChild(controls); return controls;
+  }
+  function renderHelpRequests() {
+    var parent = byId('help-requests'), mine = state.helpRequest, active = !!(mine && mine.key && mine.status !== 'CLAIMED' && mine.status !== 'ABANDONED'), all = state.helpPosts || [], posts = [], helpable = 0; clear(parent);
+    function redraw() { keepScroll(renderHelpRequests); }
+    for (var i = 0; i < all.length; i++) if (!active || all[i].bot !== mine.bot) { posts.push(all[i]); if (all[i].eligible) helpable++; }
+    var board = node('div', null, 'quest-board help-board'), head = node('div', null, 'quest-board-head'), reward = (mine && mine.reward) || (posts[0] && posts[0].reward) || '';
+    head.appendChild(node('h3', 'Help requests')); board.appendChild(head); parent.appendChild(board);
+    board.appendChild(node('p', 'Accept a world companion\'s request, then join through its group invitation. ' + reward, 'hint'));
+    if (mine && mine.key) {
+      var panel = node('div', null, 'help-mine'), title = node('div', null, 'help-mine-head');
+      title.appendChild(node('strong', mine.botName + ' \u00b7 ' + mine.need)); title.appendChild(node('span', label(mine.status))); panel.appendChild(title);
+      helpFacts(panel, mine);
+      var controls = helpControls(panel, mine);
+      if (active) {
+        button(controls, 'Track', { action:'helptrack' }, !mine.myCharacter || !(window.AionObject && AionObject.HelpRequestTrack));
+        button(controls, 'Collect reward', { action:'helpclaim' }, mine.status !== 'COMPLETE');
+        localButton(controls, 'Abandon request', function () { helpAbandon = mine.key; redraw(); }, 'quiet');
+        if (helpAbandon === mine.key) button(controls, 'Confirm abandon', { action:'helpabandon' }, false);
+        if (!mine.myCharacter) panel.appendChild(node('p', 'Track this request on the character that accepted it.', 'hint'));
+        if (mine.status === 'REVISED' || mine.status === 'CANCELLED' || mine.status === 'RESOLVED') panel.appendChild(node('p', 'This request ended or changed. Credit you already earned stays, but no partial reward is paid. Abandon it before choosing another.', 'hint'));
+      }
+      board.appendChild(panel);
+    }
+    if (!posts.length) { board.appendChild(node('p', 'No world companions need help right now. An accepted request stays saved when its listing ends.', 'hint')); return; }
+    var canHelp = helpBoard.canHelp === null ? helpable > 0 : helpBoard.canHelp && helpable > 0;
+    var filters = node('div', null, 'quest-filters');
+    function filter(text, value) { var choice = localButton(filters, text, function () { helpBoard.canHelp = value; helpBoard.page = 0; redraw(); }, canHelp === value ? 'on' : ''); if (value && !helpable) choice.disabled = true; }
+    filter('All ' + posts.length, false); filter('Can help ' + helpable, true); head.appendChild(filters);
+    var shown = posts.filter(function (c) { return !canHelp || c.eligible; });
+    var pages = Math.max(1, Math.ceil(shown.length / QUEST_PAGE)); helpBoard.page = Math.min(helpBoard.page, pages - 1);
+    var first = helpBoard.page * QUEST_PAGE, table = node('div', null, 'quest-table'), titles = node('div', null, 'quest-line help-line quest-titles');
+    titles.appendChild(node('span', 'Companion')); titles.appendChild(node('span', 'Request')); titles.appendChild(node('span', 'Where')); titles.appendChild(node('span', 'Level')); table.appendChild(titles);
+    shown.slice(first, first + QUEST_PAGE).forEach(function (c) {
+      var key = String(c.bot), open = helpBoard.open === key, line = node('div', null, 'quest-line help-line t' + summonTier(c.rarity) + (c.eligible ? '' : ' locked'));
+      var name = node('strong', c.botName), need = node('span', c.need), levels = node('span', 'Lv ' + c.minLevel + '-' + c.maxLevel + (c.eligible ? '' : ', you are ' + c.level));
+      name.title = 'Gear rarity ' + label(c.rarity); need.title = c.need;
+      line.appendChild(name); line.appendChild(need); line.appendChild(node('span', helpWhere(c))); line.appendChild(levels);
+      localButton(line, open ? 'Hide' : 'Details', function () { helpBoard.open = open ? '' : key; redraw(); }, 'small quest-show');
+      table.appendChild(line);
+      if (!open) return;
+      var more = node('div', null, 'help-detail'); helpFacts(more, c);
+      var actions = helpControls(more, c);
+      button(actions, 'Accept request', { action:'helpaccept', bot:c.bot }, !c.eligible || active, 'primary');
+      if (active) more.appendChild(node('p', 'Finish or abandon your current request first.', 'hint'));
+      table.appendChild(more);
+    });
+    board.appendChild(table);
+    if (pages > 1) {
+      var pager = node('div', null, 'quest-pager');
+      var back = localButton(pager, '\u2039 Previous', function () { helpBoard.page--; redraw(); }); back.disabled = helpBoard.page === 0;
+      pager.appendChild(node('span', (first + 1) + '\u2013' + Math.min(first + QUEST_PAGE, shown.length) + ' of ' + shown.length));
+      var next = localButton(pager, 'Next \u203a', function () { helpBoard.page++; redraw(); }); next.disabled = helpBoard.page >= pages - 1;
+      board.appendChild(pager);
+    }
+  }
+
   function renderOverview() {
     var parent = byId('quest-overview'), groups = {}, order = []; clear(parent);
     if (!state.active.length) { parent.appendChild(node('div', 'Recruit companions to track their quests together.', 'empty')); return; }
@@ -1291,11 +1375,12 @@
       var bot = state.active[b];
       for (var q = 0; q < bot.quests.length; q++) {
         var quest = bot.quests[q], key = String(quest.id);
-        if (!groups[key]) { groups[key] = { quest: quest, total: 0, ready: 0, states: {}, location: '' }; order.push(key); }
-        var group = groups[key], status = quest.ready ? 'Ready to turn in' : label(quest.status);
+        if (!groups[key]) { groups[key] = { quest: quest, total: 0, ready: 0, states: {}, place: null, placeReady: false, bot: bot.id }; order.push(key); }
+        var group = groups[key], status = questStatus(quest);
         group.total++; if (quest.ready) group.ready++;
         group.states[status] = (group.states[status] || 0) + 1;
-        var destinations = quest.destinations || []; if (quest.ready && destinations.length && !group.location) group.location = coordinates(destinations[0]);
+        // A companion ready to turn in decides where the party goes next.
+        var destinations = quest.destinations || []; if (destinations.length && (!group.place || (quest.ready && !group.placeReady))) { group.place = destinations[0]; group.placeReady = quest.ready; group.bot = bot.id; }
       }
     }
     if (!order.length) { body.appendChild(node('p', 'Companion quests will appear here as they are accepted.', 'hint')); return; }
@@ -1308,11 +1393,15 @@
     shown.sort(function (x, y) { return (groups[y].ready > 0) - (groups[x].ready > 0) || String(groups[x].quest.name).localeCompare(String(groups[y].quest.name)); });
     var pages = Math.max(1, Math.ceil(shown.length / QUEST_PAGE)); questBoard.page = Math.min(questBoard.page, pages - 1);
     var first = questBoard.page * QUEST_PAGE, table = node('div', null, 'quest-table'), titles = node('div', null, 'quest-line quest-titles');
-    titles.appendChild(node('span', 'Quest')); titles.appendChild(node('span', 'Progress')); titles.appendChild(node('span', 'Turn in at')); table.appendChild(titles);
+    titles.appendChild(node('span', 'Quest')); titles.appendChild(node('span', 'Progress')); titles.appendChild(node('span', 'Where to go')); table.appendChild(titles);
     shown.slice(first, first + QUEST_PAGE).forEach(function (k) {
       var entry = groups[k], line = node('div', null, 'quest-line' + (entry.ready ? ' ready' : '')), parts = [];
       for (var name in entry.states) if (Object.prototype.hasOwnProperty.call(entry.states, name)) parts.push(name + ' ' + entry.states[name] + '/' + entry.total);
-      line.appendChild(node('strong', entry.quest.name || 'Quest ' + entry.quest.id)); line.appendChild(node('span', parts.join(' \u00b7 '))); line.appendChild(node('span', entry.location || '\u2014'));
+      line.appendChild(node('strong', entry.quest.name || 'Quest ' + entry.quest.id)); line.appendChild(node('span', parts.join(' \u00b7 ')));
+      if (entry.place) {
+        var where = node('span', entry.place.name + ' \u00b7 ' + (entry.place.mapName || 'Map ' + entry.place.map)); where.title = coordinates(entry.place); line.appendChild(where);
+        var show = localButton(line, 'Show', function () { showOnMap(entry.place.map, entry.place.x, entry.place.y, entry.place.z); }, 'small quest-show'); show.disabled = !canShowOnMap();
+      } else localButton(line, 'See quest journal', function () { openBot(entry.bot, 'quests'); }, 'quest-link');
       table.appendChild(line);
     });
     body.appendChild(table);
@@ -1327,7 +1416,7 @@
 
   // Stigma builds (config/playerbots/stigma-builds.properties): the chosen build's Stigmas are equipped first, out of combat.
   // Item transfer: your bag on the left, the companion's on the right; one whole stack or a Kinah amount per move.
-  var transferPick = {}, pendingTransfer = null, pendingRecycle = null, mailTarget = null;
+  var keepNotice = false, transferPick = {}, pendingTransfer = null, pendingTransferTimer = null, pendingRecycle = null, recycleTimer = null, recyclePoll = null, recycleSource = null, mailTarget = null;
   function bagGrid(parent, title, items, key) {
     var box = node('section', null, 'bag'), grid = node('div', null, 'cube-grid');
     box.appendChild(node('h3', title));
@@ -1542,80 +1631,174 @@
     var save = localButton(parent, 'Save activity focus', function () { act({action:'focus',name:bot.name,focus:choice.value,profession:profession.value}); }, 'primary'); save.disabled = busy || bot.closing;
     parent.appendChild(node('p', focus.knownRecipes + ' known native recipes \u00b7 ' + focus.reason, 'hint'));
     parent.appendChild(node('p', 'Instance PvE prioritizes equipment readiness; it does not enter a queue or leave your party. Gathering and crafting use real nearby sources, trainers, materials, tools and this companion\u2019s own budget.', 'hint'));
+    renderMarket(parent, focus.market);
+  }
+  function renderMarket(parent, market) {
+    if (!market || !market.available) return;
+    parent.appendChild(node('h4', 'Central Market'));
+    parent.appendChild(node('p', market.scope, 'hint'));
+    if (market.held > 0) parent.appendChild(node('p', market.held.toLocaleString() + ' Kinah waiting in this companion\u2019s market wallet.', 'hint'));
+    var rows = market.orders.concat(market.trades);
+    if (!rows.length) parent.appendChild(node('p', 'No market activity yet.', 'hint'));
+    for (var i = 0; i < rows.length; i++) parent.appendChild(node('p', rows[i].text, 'market-line'));
   }
   var passConfirmation = {}, recycleQuotes = {}, recycleTargets = {};
+  var benefitPages = {}, missionPages = {}, journalPages = {};
+  function pageControls(parent, key, pages, total, size) {
+    var page = Math.min(pages[key] || 0, Math.max(0, Math.ceil(total / size) - 1)); pages[key] = page;
+    var bar = node("div", null, "pagination"); parent.appendChild(bar);
+    localButton(bar, "Previous", function () { pages[key] = page - 1; renderSelection(); byId('bot-detail').scrollTop = 0; }).disabled = page === 0;
+    bar.appendChild(node("span", " Page " + (page + 1) + " / " + Math.max(1, Math.ceil(total / size)) + " "));
+    localButton(bar, "Next", function () { pages[key] = page + 1; renderSelection(); byId('bot-detail').scrollTop = 0; }).disabled = (page + 1) * size >= total;
+    return page * size;
+  }
   function renderBenefits(parent, bot) {
-    var chronicle = bot.chronicle || {}, collection = state.collectionRenown || {};
-    parent.appendChild(node('h3', 'Chronicle of Atreia'));
-    parent.appendChild(node('p', (chronicle.chapters || 0) + ' / ' + (chronicle.chapterGoal || 5) + ' chapters \u00b7 ' + (chronicle.completedQuests || 0) + ' own completed quests' + (chronicle.pending ? ' \u00b7 awaiting native save' : ''), 'detail'));
-    parent.appendChild(node('p', 'Only this companion\u2019s own committed quest history grants Chronicle benefits.', 'hint'));
+    var frame = parent, chronicle = bot.chronicle || {}, collection = state.collectionRenown || {};
+    var tabs = node('nav', null, 'tabs benefit-tabs'), summary = node('div', null, 'benefit-summary');
+    var missionsPane = node('div', null, 'benefit-missions'), rewardsPane = node('div', null, 'benefit-rewards'), upgradesPane = node('div', null, 'benefit-upgrades');
+    var key = 'benefit-view-' + bot.id, panes = {summary:summary, missions:missionsPane, rewards:rewardsPane, upgrades:upgradesPane};
+    frame.appendChild(tabs); frame.appendChild(summary); frame.appendChild(missionsPane); frame.appendChild(rewardsPane); frame.appendChild(upgradesPane);
+    function choose(view) {
+      selectedDetails[key] = view;
+      for (var id in panes) if (panes.hasOwnProperty(id)) panes[id].style.display = id === view ? 'block' : 'none';
+      var buttons = tabs.querySelectorAll('button');
+      for (var i = 0; i < buttons.length; i++) buttons[i].setAttribute('aria-selected', buttons[i].getAttribute('data-benefit-view') === view ? 'true' : 'false');
+    }
+    var labels = [['summary','Summary'],['missions','Activity missions'],['rewards','Pass rewards']];
+    if (!bot.world && bot.generated) labels.push(['upgrades','Pass upgrades']);
+    for (var i = 0; i < labels.length; i++) (function (id, title) {
+      localButton(tabs, title, function () { choose(id); byId('bot-detail').scrollTop = 0; }).setAttribute('data-benefit-view', id);
+    }(labels[i][0], labels[i][1]));
+    var grid = node('div', null, 'overview-grid benefit-grid'); summary.appendChild(grid);
+    var chapter = overviewTile(grid, 'Chronicle of Atreia');
+    overviewRow(chapter, 'Chapters', (chronicle.chapters || 0) + ' / ' + (chronicle.chapterGoal || 5));
+    overviewRow(chapter, 'Own completed quests', chronicle.completedQuests || 0);
+    chapter.appendChild(node('p', chronicle.pending ? 'Recent quest progress awaits native save.' : 'Earned from this character’s own quest history.', 'hint'));
     if (bot.giveOnly && collection.enabled) {
-      parent.appendChild(node('h3', 'Aetherfall Renown \u00b7 companion collection'));
-      parent.appendChild(node('p', 'Combat ' + collection.combat + ' \u00b7 Life ' + collection.life + ' \u00b7 Legend ' + collection.legend + ' \u00b7 ' + collection.creditedBots + ' credited recruits', 'detail'));
-      parent.appendChild(node('p', 'Historical credit stays after recycling. Existing recruits add their contribution at their next native save. Your human account and normal alts have separate benefits.', 'hint'));
-      button(parent, collection.stipendClaimed ? 'Collection stipend claimed today' : 'Claim ' + collection.stipend + ' Kinah for ' + bot.name, {action:'collectionstipend',name:bot.name}, bot.closing || collection.stipendClaimed || !(collection.stipend > 0), 'primary');
-      parent.appendChild(node('p', 'One stipend per collection each day, paid into the selected recruit\u2019s own inventory.', 'hint'));
+      var renown = overviewTile(grid, 'Collection Renown');
+      overviewRow(renown, 'Combat / Life / Legend', collection.combat + ' / ' + collection.life + ' / ' + collection.legend);
+      overviewRow(renown, 'Credited recruits', collection.creditedBots);
+      button(renown, collection.stipendClaimed ? 'Stipend claimed today' : 'Claim ' + collection.stipend + ' Kinah', {action:'collectionstipend',name:bot.name}, bot.closing || collection.stipendClaimed || !(collection.stipend > 0), 'primary');
+      renown.appendChild(node('p', 'One daily collection stipend. Recruits also claim it automatically while idle.', 'hint'));
     }
-    parent.appendChild(node('h3', 'Daeva Veteran\u2019s Coffer'));
-    parent.appendChild(node('p', 'Generated companions have no enabled Veteran\u2019s Coffer claim. Your normal character\u2019s eligibility is unchanged.', 'hint'));
-    var refresh = localButton(parent, 'Refresh personal Season Pass', function () { request(null); }, 'secondary'); refresh.disabled = busy || bot.closing;
     var data = state.benefits;
-    if (!data || String(data.id) !== String(bot.id)) { parent.appendChild(node('p', 'Select Benefits to load this companion\u2019s own Pass.', 'hint')); return; }
-    if (data.error) { parent.appendChild(node('p', data.error, 'hint')); return; }
-    var pass = data.pass, season = pass.season || {};
-    parent.appendChild(node('h3', 'Season Pass \u00b7 ' + (season.name || 'Current season')));
-    parent.appendChild(node('p', 'Level ' + pass.level + ' \u00b7 ' + pass.xp + ' XP \u00b7 ' + pass.kinah + ' Kinah owned by ' + bot.name, 'detail'));
-    parent.appendChild(node('p', 'Charter of Atreia: ' + (pass.tier >= 1 ? 'personally owned this season' : 'locked') + ' \u00b7 Grace of the Tower: ' + (pass.tier >= 2 ? 'personally owned this season' : 'locked'), 'hint'));
-    if (pass.queuedActivity) parent.appendChild(node('p', pass.queuedActivity + ' real activities await the companion\u2019s next native save.', 'hint'));
-    if (!pass.canManage) parent.appendChild(node('p', 'This independent world character owns its Pass. Borrowing it grants viewing access only.', 'hint'));
-    if (pass.canManage && pass.active) for (var tier = 1; tier <= 2; tier++) (function (tier) {
-      if (pass.tier >= tier) return;
-      var cost = (tier === 1 ? season.premiumKinah : season.advancedKinah) - (pass.tier === 1 ? season.premiumKinah : 0);
-      var title = tier === 1 ? 'Charter of Atreia / Premium' : 'Grace of the Tower / Advanced Premium';
-      if (passConfirmation[bot.id] === tier) {
-        parent.appendChild(node('p', 'Pay ' + cost + ' Kinah from ' + bot.name + '\u2019s inventory for ' + title + ' until season end?', 'detail'));
-        button(parent, 'Confirm purchase \u00b7 ' + cost + ' Kinah', {action:'passaction',passAction:'purchase',name:bot.name,tier:tier}, bot.closing || pass.kinah < cost, 'primary');
-        localButton(parent, 'Cancel purchase', function () { delete passConfirmation[bot.id]; renderSelection(); }, 'secondary');
-      } else localButton(parent, 'Review ' + title + ' \u00b7 ' + cost + ' Kinah', function () { passConfirmation[bot.id] = tier; renderSelection(); }, 'secondary').disabled = busy || bot.closing || pass.kinah < cost;
-    }(tier));
-    var missions = pass.missions || [];
-    parent.appendChild(node('h3', 'Own activity missions'));
-    for (var m = 0; m < missions.length; m++) {
-      var mission = missions[m];
-      parent.appendChild(node('p', mission.name + ': ' + mission.progress + ' / ' + mission.target + (mission.complete ? ' \u00b7 complete' : ' \u00b7 ' + mission.xp + ' XP'), 'route'));
+    if (!data || String(data.id) !== String(bot.id) || data.error) {
+      var loading = overviewTile(grid, 'Personal Season Pass'); loading.appendChild(node('p', data && data.error ? data.error : 'Refresh to load this companion’s Pass.', 'hint'));
+      localButton(loading, 'Refresh Pass', function () { request(null); });
+      choose('summary'); return;
     }
-    parent.appendChild(node('h3', 'Earned Pass rewards'));
+    var pass = data.pass, season = pass.season || {}, personal = overviewTile(grid, season.name || 'Personal Season Pass');
+    overviewRow(personal, 'Level / XP', pass.level + ' / ' + pass.xp);
+    overviewRow(personal, 'Own Kinah', pass.kinah);
+    overviewRow(personal, 'Pass tier', pass.tier >= 2 ? 'Grace of the Tower' : pass.tier >= 1 ? 'Charter of Atreia' : 'Free');
+    if (pass.queuedActivity) personal.appendChild(node('p', pass.queuedActivity + ' activities awaiting native save.', 'hint'));
+    localButton(personal, 'Refresh Pass', function () { request(null); }, 'secondary').disabled = busy || bot.closing;
+    if (pass.canManage && pass.active && pass.tier < 2) {
+      var upgrades = upgradesPane; upgrades.appendChild(node('h3', 'Optional Pass upgrades'));
+      upgrades.appendChild(node('p', 'Paid from ' + bot.name + '’s own Kinah. Purchases require your confirmation.', 'hint'));
+      for (var tier = 1; tier <= 2; tier++) (function (tier) {
+        if (pass.tier >= tier) return;
+        var cost = (tier === 1 ? season.premiumKinah : season.advancedKinah) - (pass.tier === 1 ? season.premiumKinah : 0);
+        var title = tier === 1 ? 'Charter of Atreia / Premium' : 'Grace of the Tower / Advanced Premium';
+        if (passConfirmation[bot.id] === tier) {
+          upgrades.appendChild(node('p', 'Pay ' + cost + ' Kinah from ' + bot.name + ' for ' + title + '?', 'detail'));
+          button(upgrades, 'Confirm purchase · ' + cost + ' Kinah', {action:'passaction',passAction:'purchase',name:bot.name,tier:tier}, bot.closing || pass.kinah < cost, 'primary');
+          localButton(upgrades, 'Cancel purchase', function () { delete passConfirmation[bot.id]; renderSelection(); }, 'secondary');
+        } else localButton(upgrades, 'Review ' + title + ' · ' + cost + ' Kinah', function () { passConfirmation[bot.id] = tier; renderSelection(); }, 'secondary').disabled = busy || bot.closing || pass.kinah < cost;
+      }(tier));
+    }
+    summary.appendChild(node('p', bot.world ? 'This independent world character owns its progress, Pass and items. These pages show its status.' : 'Rewards and boxes are managed automatically while idle, outside party combat. Optional manual claims remain available.', 'benefit-note'));
+    summary.appendChild(node('p', 'Veteran’s Coffer is unavailable for generated companions.', 'benefit-note'));
+    var missions = pass.missions || [], missionStart = pageControls(missionsPane, bot.id, missionPages, missions.length, 5);
+    for (var m = missionStart; m < Math.min(missions.length, missionStart + 5); m++) {
+      var mission = missions[m], missionRow = node('div', null, 'benefit-mission');
+      missionRow.appendChild(node('strong', mission.name));
+      missionRow.appendChild(node('p', mission.progress + ' / ' + mission.target + (mission.complete ? ' · Complete' : ' · ' + mission.xp + ' XP'), 'route')); missionsPane.appendChild(missionRow);
+    }
     var rewards = pass.rewards || [], available = 0;
     for (var r = 0; r < rewards.length; r++) if (rewards[r].available) available++;
-    button(parent, 'Claim ' + available + ' available rewards', {action:'passaction',passAction:'claimAll',name:bot.name}, !available || !pass.canManage || bot.closing, 'primary');
-    parent.appendChild(node('p', 'Rewards belong to ' + bot.name + ' and arrive in this companion\u2019s native mailbox. Open their Mail tab to collect them.', 'hint'));
-    for (var n = 0; n < rewards.length; n++) {
-      var reward = rewards[n], row = node('div', null, 'item');
-      row.appendChild(node('strong', 'Lv. ' + reward.level + ' \u00b7 ' + (reward.track === 0 ? 'Free' : reward.track === 1 ? 'Premium' : 'Advanced') + ' \u00b7 ' + reward.name + ' x' + reward.quantity));
-      row.appendChild(node('p', reward.claimed ? 'Claimed to this companion\u2019s mail' : reward.available ? 'Available' : 'Locked', 'hint'));
+    if (pass.canManage) button(rewardsPane, 'Claim ' + available + ' available rewards', {action:'passaction',passAction:'claimAll',name:bot.name}, !available || bot.closing, 'primary');
+    rewardsPane.appendChild(node('p', 'Available rewards, reward mail and boxes are handled automatically while idle and outside party combat.', 'benefit-note'));
+    var rewardStart = pageControls(rewardsPane, bot.id, benefitPages, rewards.length, 5);
+    for (var n = rewardStart; n < Math.min(rewards.length, rewardStart + 5); n++) {
+      var reward = rewards[n], row = node('div', null, 'item benefit-reward');
+      row.appendChild(node('strong', 'Lv. ' + reward.level + ' · ' + (reward.track === 0 ? 'Free' : reward.track === 1 ? 'Premium' : 'Advanced') + ' · ' + reward.name + ' x' + reward.quantity));
+      row.appendChild(node('span', reward.claimed ? 'Claimed' : reward.available ? 'Available' : 'Locked', 'reward-status'));
       if (reward.available && pass.canManage) button(row, 'Claim reward', {action:'passaction',passAction:'claim',name:bot.name,level:reward.level,track:reward.track}, bot.closing);
-      parent.appendChild(row);
+      rewardsPane.appendChild(row);
     }
+    choose(selectedDetails[key] || 'summary');
+  }
+  var recyclePages = {};
+  function stopRecycling(message) {
+    pendingRecycle = null; window.clearTimeout(recycleTimer); window.clearTimeout(recyclePoll);
+    if (message) { if (state) { invalidateViews(); renderCurrentView(false); } notice(message,true); }
+  }
+  function clearPendingRecruit() {
+    var pending = pendingRecycle || pendingTransfer;
+    pendingTransfer = null; window.clearTimeout(pendingTransferTimer); stopRecycling();
+    if (state && pending) { invalidateViews(); renderCurrentView(false); }
+  }
+  function openRecycling(bot) {
+    if (busy || pendingRecycle) return;
+    recycleSource = bot; subTabs.care = 'recycle'; openBot(bot.id,'care');
+  }
+  function recyclingTargets(bot) {
+    var targets = [], receivers = state.recycleReceivers || [];
+    for (var i = 0; i < receivers.length; i++) if (String(receivers[i].id) !== String(bot.id) && receivers[i].needed > 0 && receivers[i].rank !== 'EXCELLENT') targets.push(receivers[i]);
+    return targets;
+  }
+  function startRecycling(bot, target) {
+    if (busy || pendingRecycle) return;
+    delete recycleQuotes[String(bot.id)]; recycleSource = bot;
+    pendingRecycle = {source:bot,target:target,waiting:null}; advanceRecycling();
+  }
+  function advanceRecycling() {
+    var flow = pendingRecycle; if (!flow || busy) return;
+    if (currentView !== 'party' || String(selectedBot) !== String(flow.source.id) || botTab !== 'care' || subTabs.care !== 'recycle') { stopRecycling(); return; }
+    var source = activeBot(flow.source.id), target = activeBot(flow.target.id);
+    if (source && source.closing || target && target.closing) { stopRecycling('A companion is saving or leaving the party. Refresh before trying again.'); return; }
+    if (flow.waiting && !activeBot(flow.waiting.id)) {
+      window.clearTimeout(recyclePoll); recyclePoll = window.setTimeout(function () { if (pendingRecycle === flow) request(null); },1000); return;
+    }
+    window.clearTimeout(recycleTimer); window.clearTimeout(recyclePoll); flow.waiting = null;
+    if (source && target) {
+      stopRecycling(); recycleTargets[source.id] = target.name; subTabs.care = 'recycle'; openBot(source.id,'care');
+      act({action:'recyclequote',name:source.name,target:target.name}); return;
+    }
+    flow.waiting = !source ? flow.source : flow.target;
+    recycleTimer = window.setTimeout(function () { if (pendingRecycle === flow) stopRecycling('The companion did not arrive. Refresh before trying again.'); },30000);
+    invalidateViews(); renderCurrentView(false);
+    notice('Bringing ' + flow.source.name + ' and ' + flow.target.name + ' into your party. Waiting for ' + flow.waiting.name + '.',false);
+    act({action:'recruit',name:flow.waiting.name});
   }
   function renderRecycling(parent, bot) {
     parent.appendChild(node('p', 'Recycling permanently archives this recruit. Their items and stored Kinah cannot be withdrawn. All three displayed rewards are granted together once.', 'hint'));
     if (!state.recyclingEnabled) { parent.appendChild(node('p', 'Recycling is disabled.', 'hint')); return; }
-    var targets = [];
-    for (var n = 0; n < state.active.length; n++) {
-      var candidate = state.active[n];
-      if (String(candidate.id) !== String(bot.id) && candidate.giveOnly && !candidate.closing && candidate.growth && candidate.growth.needed > 0) targets.push(candidate);
+    if (pendingRecycle && String(pendingRecycle.source.id) === String(bot.id)) {
+      parent.appendChild(node('p', 'Bringing ' + pendingRecycle.source.name + ' and ' + pendingRecycle.target.name + ' into your party. Both must be here before you can review the rewards.', 'detail'));
+      if (pendingRecycle.waiting) parent.appendChild(node('p', 'Waiting for ' + pendingRecycle.waiting.name + '\u2026', 'hint'));
+      localButton(parent,'Cancel',function () { stopRecycling(); invalidateViews(); renderSelection(); },'secondary'); return;
     }
-    if (!targets.length) { parent.appendChild(node('p', 'Recruit another ticket companion that still needs Learning XP.', 'hint')); return; }
-    var title = node('label', 'Receive Learning XP on'), target = node('select'); target.id = 'recycle-target-' + bot.id; title.htmlFor = target.id;
-    for (var i = 0; i < targets.length; i++) { var option = node('option', targets[i].name); option.value = targets[i].name; target.appendChild(option); }
-    if (recycleTargets[bot.id]) target.value = recycleTargets[bot.id];
-    if (!target.value) target.selectedIndex = 0;
-    recycleTargets[bot.id] = target.value;
-    target.onchange = function () { recycleTargets[bot.id] = target.value; delete recycleQuotes[String(bot.id)]; renderSelection(); };
-    parent.appendChild(title); parent.appendChild(target);
-    button(parent, 'Preview exact recycling rewards', {action:'recyclequote',name:bot.name,target:target.value}, bot.closing, 'secondary');
+    var targets = recyclingTargets(bot), target = null;
+    if (!targets.length) { parent.appendChild(node('p', 'Recycling needs another ticket recruit that can still gain Learning XP.', 'hint')); return; }
+    for (var t = 0; t < targets.length; t++) if (targets[t].name === recycleTargets[bot.id]) target = targets[t];
+    if (!target) target = targets[0]; recycleTargets[bot.id] = target.name;
+    parent.appendChild(node('h3', 'Who receives the Learning XP?'));
+    parent.appendChild(node('p', 'Choose another ticket recruit. Both companions will be brought into your party before you review the rewards.', 'hint'));
+    var start = targets.length > 5 ? pageControls(parent,bot.id,recyclePages,targets.length,5) : 0;
+    for (var i = start; i < Math.min(targets.length,start + 5); i++) (function (candidate) {
+      var chosen = candidate.name === target.name;
+      var pick = localButton(parent,candidate.name + ' \u00b7 ' + label(candidate.playerClass) + ' \u00b7 ' + label(candidate.rank) + ' \u00b7 ' + (activeBot(candidate.id) ? 'In your party' : 'Saved'),function () {
+        recycleTargets[bot.id] = candidate.name; delete recycleQuotes[String(bot.id)]; renderSelection();
+      },'recycle-choice' + (chosen ? ' on' : ''));
+      pick.setAttribute('aria-pressed',chosen ? 'true' : 'false');
+    }(targets[i]));
+    parent.appendChild(node('p', target.name + ' can gain ' + target.needed + ' more Learning XP.', 'detail'));
+    var prepare = localButton(parent, activeBot(bot.id) && activeBot(target.id) ? 'Preview exact recycling rewards' : 'Bring both into the party and preview rewards',function () { startRecycling(bot,target); },'secondary');
+    prepare.disabled = busy || bot.closing || (!activeBot(bot.id) && (!bot.ready || bot.reserved));
     var quote = recycleQuotes[String(bot.id)];
-    if (quote && quote.target === target.value) {
+    if (quote && quote.target === target.name && activeBot(bot.id) && activeBot(target.id)) {
       parent.appendChild(node('p', 'Account: +0.33 Ticket credit \u00b7 ' + quote.target + ': +' + quote.learningXp + ' Learning XP \u00b7 Your inventory: +' + quote.kinah + ' Kinah', 'detail'));
       parent.appendChild(node('p', quote.appraisedItems + ' eligible owned items appraised at ' + quote.itemAppraisal + ' Kinah. ' + quote.warning, 'hint'));
       var expired = quote.expiresAt <= new Date().getTime();
@@ -1693,6 +1876,11 @@
   function updateClasses() {
 
     if (!state) return;
+    var model = byId('model'), temporaryDisabled = state.generatedEnabled === false;
+    model.querySelector('option[value="generate"]').disabled = temporaryDisabled;
+    if (temporaryDisabled && model.value === 'generate') model.value = 'create';
+    var temporaryNotice = byId('temporary-recruitment-notice');
+    if (temporaryNotice) temporaryNotice.style.display = temporaryDisabled ? 'block' : 'none';
 
     var accountCharacter = byId('model').value === 'create';
     var journey = state.creationJourney, journeySelect = byId('new-journey'), previousJourney = journeySelect.value;
@@ -1888,6 +2076,7 @@
   },false);
 
   skinChromeIcons();
+  if (currentView !== 'party') showView(currentView);
   if (session) request(null); else notice('Open Companions from Additional Functions while logged in to your character.', true);
 
 }());

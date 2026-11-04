@@ -14,6 +14,8 @@ namespace AetherfallSetup {
  // Normal console CTRL+C invokes HotSpot's shutdown hooks. CTRL+BREAK only
  // dumps threads, and closing a console can cut saving short. Never kill Java.
  internal static class ServerControl {
+  // True only while waiting for Java to finish saving. The Hub may close then: the server still finishes.
+  public static volatile bool WaitingForExit;
   [DllImport("kernel32.dll", SetLastError=true)] static extern bool AttachConsole(uint processId);
   [DllImport("kernel32.dll", SetLastError=true)] static extern bool FreeConsole();
   [DllImport("kernel32.dll", SetLastError=true)] static extern uint GetConsoleProcessList([Out] uint[] ids, uint count);
@@ -166,8 +168,13 @@ namespace AetherfallSetup {
       }
       progress("Stopping "+component+" normally; waiting for saving and shutdown…");
       if(!GenerateConsoleCtrlEvent(0,0))throw new Win32Exception(Marshal.GetLastWin32Error());
-      if(!server.WaitForExit(180000))
-       throw new InvalidOperationException(component+" is still shutting down. No process was forcibly stopped; let saving finish and check its console.");
+      WaitingForExit=true;
+      try {
+       for(int waited=5;!server.WaitForExit(5000);waited+=5) {
+        if(waited>=180)throw new InvalidOperationException(component+" is still shutting down. No process was forcibly stopped; let saving finish and check its console.");
+        progress("Stopping "+component+" normally; still saving after "+waited+" seconds. You can close the Hub; the server will finish.");
+       }
+      } finally { WaitingForExit=false; }
       CompleteConsole(shells,parents,self,component);
      } finally {
       if(attached) { FreeConsole();SetConsoleCtrlHandler(IntPtr.Zero,false); }

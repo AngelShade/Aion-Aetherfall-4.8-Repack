@@ -17,7 +17,7 @@ public final class PlayerBotFailedTravelCheck {
  static class Actor extends PlayerBotTravelAdmissionCheck.Actor {
   KnownList seen;@Override public KnownList getKnownList(){return seen;}
  }
- public static void main(String[] args)throws Exception {
+ public static void main(String[] args)throws Exception {PlayerBotMetadataCheck.dryWorld();
   var f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);var u=(Unsafe)f.get(null);
   var actor=(Actor)u.allocateInstance(Actor.class);actor.id=1999999295;actor.spawned=actor.movable=true;actor.world=197;actor.instance=1;actor.x=actor.y=10;
   actor.move=new PlayerBotRouteContinuationCheck.RouteMove(actor);actor.stats=(PlayerBotRouteContinuationCheck.RouteStats)u.allocateInstance(PlayerBotRouteContinuationCheck.RouteStats.class);

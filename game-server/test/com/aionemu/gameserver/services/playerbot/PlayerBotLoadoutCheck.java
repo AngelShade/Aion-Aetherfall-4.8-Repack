@@ -44,7 +44,7 @@ public final class PlayerBotLoadoutCheck {
   return new PlayerSkillList(entries);
  }
  private static class Companion extends Player {
-  int id;PlayerClass pc;byte level;Race race;Cube cube;Outfit outfit;AbyssRank rank;PlayerSkillList skills;
+  int id;PlayerClass pc;byte level;Race race;Cube cube;Outfit outfit;AbyssRank rank;PlayerSkillList skills;boolean world;com.aionemu.gameserver.model.account.Account account;
   Companion(){super(null,null);}
   @Override public int getObjectId(){return id;}
   @Override public PlayerClass getPlayerClass(){return pc;}
@@ -57,9 +57,11 @@ public final class PlayerBotLoadoutCheck {
   @Override public Equipment getEquipment(){return outfit;}
   @Override public AbyssRank getAbyssRank(){return rank;}
   @Override public PlayerSkillList getSkillList(){return skills;}
+  @Override public boolean isWorldBot(){return world;}
+  @Override public com.aionemu.gameserver.model.account.Account getAccount(){return account;}
  }
  private static ItemTemplate template(int id,ItemGroup group,ItemQuality quality)throws Exception {
-  ItemTemplate t=new ItemTemplate();field(t,"itemId",id);field(t,"itemGroup",group);field(t,"level",60);field(t,"itemQuality",quality);
+  ItemTemplate t=new ItemTemplate();field(t,"itemId",id);field(t,"name","Check item "+id);field(t,"itemGroup",group);field(t,"level",60);field(t,"itemQuality",quality);
   field(t,"useLimits",new ItemUseLimits());field(t,"weaponStats",new WeaponStats());field(t,"maxTuneCount",0);return t;
  }
  private static Item weapon(int object,int id,int damage,ItemQuality quality)throws Exception {
@@ -149,6 +151,41 @@ public final class PlayerBotLoadoutCheck {
    try{check(PlayerBotGearPolicy.rewardChoice(bot,Role.TANK,List.of(new QuestItems(100007,1),new QuestItems(100006,1)))==1,"A recorded goal is chosen as a quest reward");}finally{DataManager.ITEM_DATA=items;}
   }finally{DataManager.SKILL_DATA=skills;map.remove(bot.id);}
  }
+ @SuppressWarnings("unchecked") private static void worldRefresh(Unsafe unsafe)throws Exception {
+  DataManager.getInstance();long start=System.currentTimeMillis();while(!LootCodexService.warm() && System.currentTimeMillis()-start<300000)Thread.sleep(200);
+  check(LootCodexService.warm(),"Native goal source index is ready");
+  var bot=companion(unsafe,PlayerClass.TEMPLAR,20,Race.ELYOS);bot.id=1999999022;bot.world=true;bot.skills=learned();
+  bot.account=(com.aionemu.gameserver.model.account.Account)unsafe.allocateInstance(com.aionemu.gameserver.model.account.Account.class);field(bot.account,"id",7);
+  var session=(PlayerBotSession)unsafe.allocateInstance(PlayerBotSession.class);field(session,"owner",bot);field(session,"bot",bot);field(session,"role",Role.TANK);
+  Field cacheField=PlayerBotMetadata.class.getDeclaredField("CACHE");cacheField.setAccessible(true);var cache=(Map<Object,Object>)cacheField.get(null);
+  cache.put(new PlayerBotMetadata.Key(bot.id,"gear"),new PlayerBotMetadata.Entry(7,0,Map.of(),Map.of()));
+  var saved=Map.of("account","7","character",Integer.toString(bot.id),"goalsFor","world.20");
+  cache.put(new PlayerBotMetadata.Key(bot.id,"loadouts"),new PlayerBotMetadata.Entry(7,1,saved,saved));
+  var state=PlayerBotGearPolicy.state(session);
+  check(state.goalsFor.equals("world.20"),"Real world State constructor loads its native loadouts section");
+  Field runsField=PlayerBotLoadouts.class.getDeclaredField("WORLD_RUNS");runsField.setAccessible(true);var runs=(java.util.concurrent.atomic.AtomicLong)runsField.get(null);
+  Field window=PlayerBotLoadouts.class.getDeclaredField("worldWindow"),budget=PlayerBotLoadouts.class.getDeclaredField("worldBudget");window.setAccessible(true);budget.setAccessible(true);window.setLong(null,0);budget.setInt(null,0);
+  int rate=com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.WORLD_GOALS_PER_SECOND;
+  try {
+   com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.WORLD_GOALS_PER_SECOND=1;
+   long before=runs.get();
+   // Exactly the two competing entry points, in the order used by live Session.tick:
+   // Temporary maintenance first, then the explicit world refresh. No direct refreshGoals call.
+   PlayerBotLoadouts.refresh(session);PlayerBotLoadouts.refreshWorld(session);
+   check(runs.get()==before+1,"The temporary caller cannot consume the interval without measuring a world pass");
+   check(state.nextGoals>System.currentTimeMillis() && !state.goals.isEmpty(),"Normal interval is advanced and actual native-source goals are produced");
+   var actual=new HashMap<>(state.goals);
+   check(PlayerBotMetadata.cached(7,bot.id,"loadouts").containsKey("goal."+actual.keySet().iterator().next()),"World goal save queues against its own loaded native section");
+   window.setLong(null,System.currentTimeMillis());budget.setInt(null,1);
+   state.nextGoals=0;PlayerBotLoadouts.refreshWorld(session);
+   check(runs.get()==before+1 && state.nextGoals==0,"Population budget defers due work without losing its next opportunity");
+   window.setLong(null,0);PlayerBotLoadouts.refreshWorld(session);
+   check(runs.get()==before+2,"Deferred work runs in the next rate window");
+   Field states=PlayerBotGearPolicy.class.getDeclaredField("STATES");states.setAccessible(true);((Map<?,?>)states.get(null)).remove(bot.id);
+   check(PlayerBotGearPolicy.state(session).goals.equals(actual),"Real world reload restores the queued goals");
+   System.out.println(PlayerBotLoadouts.worldStats());
+  }finally{com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.WORLD_GOALS_PER_SECOND=rate;}
+ }
  private static void data(Unsafe unsafe)throws Exception {
   DataManager.getInstance();
   long start=System.currentTimeMillis();while(!LootCodexService.warm() && System.currentTimeMillis()-start<300000)Thread.sleep(200);
@@ -184,6 +221,7 @@ public final class PlayerBotLoadoutCheck {
   try {
    stages();metadata();rules(unsafe);
    if(args.length>0 && args[0].equals("static"))data(unsafe);
+   if(args.length>0 && args[0].equals("world"))worldRefresh(unsafe);
    System.out.println("OK: "+checks+" preset equipment checks; nothing was granted, and no account or database was used");
   }catch(Throwable failure){failure.printStackTrace();System.exit(1);}
   System.exit(0);

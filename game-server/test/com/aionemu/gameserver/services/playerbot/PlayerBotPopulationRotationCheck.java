@@ -56,7 +56,7 @@ public final class PlayerBotPopulationRotationCheck {
                 store.put(pool.append(100+index));
             }
             var persisted=PlayerBotPopulationTestStorage.population(dir.resolve("pool.json")).load();
-            byte[] savedPool=com.alibaba.fastjson2.JSON.toJSONBytes(new TreeMap<>(store.load()));
+            byte[] savedPool=com.aionemu.commons.utils.Json.bytes(new TreeMap<>(store.load()));
             Set<Integer> identities=new HashSet<>();persisted.values().forEach(p->identities.addAll(p.characters()));
             check(identities.size()==80 && persisted.size()==8,"Both faction pools persist all fixture identities across restart");
             Map<Integer,PlayerClass> classes=new HashMap<>();persisted.values().forEach(p->p.characters().forEach(id->classes.put(id,PlayerBotWorldPopulation.planned(p,id))));
@@ -79,7 +79,7 @@ public final class PlayerBotPopulationRotationCheck {
                 check(identities.containsAll(active) && identities.size()==80,"Rotation uses the same saved pool");
             }
             var reread=PlayerBotPopulationTestStorage.population(dir.resolve("pool.json")).load();
-            check(Arrays.equals(savedPool,com.alibaba.fastjson2.JSON.toJSONBytes(new TreeMap<>(store.load()))) && reread.keySet().equals(persisted.keySet())
+            check(Arrays.equals(savedPool,com.aionemu.commons.utils.Json.bytes(new TreeMap<>(store.load()))) && reread.keySet().equals(persisted.keySet())
                 && reread.entrySet().stream().allMatch(e->e.getValue().characters().equals(persisted.get(e.getKey()).characters())),"Rotating activity does not rewrite saved factory records/builds");
             check(classes.entrySet().stream().allMatch(e->reread.values().stream().filter(p->p.characters().contains(e.getKey())).anyMatch(p->PlayerBotWorldPopulation.planned(p,e.getKey())==e.getValue())),"Saved planned classes never rerolled by rotation");
             // Exercise the actual service's failed-entry transition without native world/SQL.

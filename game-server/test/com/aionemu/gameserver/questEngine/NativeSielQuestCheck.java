@@ -58,6 +58,7 @@ public final class NativeSielQuestCheck {
     static final class Contact extends Npc {
         int id;
         Contact() { super(null, null, null); }
+        @Override public com.aionemu.gameserver.ai.NpcAI getAi(){return new com.aionemu.gameserver.ai.NpcAI(this){};}
         @Override public int getObjectId() { return 1999982212; }
         @Override public int getNpcId() { return id; }
         @Override public com.aionemu.gameserver.model.templates.npc.NpcTemplate getObjectTemplate() {

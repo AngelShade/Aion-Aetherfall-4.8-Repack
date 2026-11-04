@@ -184,6 +184,8 @@ public class TeleportService {
 	}
 
 	private static void sendLoc(Player player, int worldId, int instanceId, float x, float y, float z, byte h, TeleportAnimation animation) {
+		if(player.isPlayerBot())com.aionemu.gameserver.services.playerbot.PlayerBotRoadDuty.releaseGait(player);
+		if(!player.isPlayerBot())com.aionemu.gameserver.services.playerbot.PlayerBotWardens.clearWard(player);
 		if(player.isPlayerBot())World.getInstance().createPosition(worldId,x,y,z,h,instanceId); // fail before despawning a headless actor
 		abortPlayerActions(player);
 		// despawn from world and send animation to others (also ends flying)

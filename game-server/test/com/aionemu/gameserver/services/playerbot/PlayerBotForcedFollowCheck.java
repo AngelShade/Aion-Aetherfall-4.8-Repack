@@ -14,10 +14,11 @@ public final class PlayerBotForcedFollowCheck {
   check(!f.regrouped(12000,true,false,false,true), "moving leader retains override even when close");
   check(!f.regrouped(12500,false,true,false,true), "lagging companion retains override");
   check(!f.regrouped(13499,false,false,false,true), "brief movement pause cannot reengage a target");
-  check(!f.regrouped(13500,false,false,true,true), "native combat retains withdrawal after arrival");
+  check(f.regrouped(13500,false,false,true,true), "safe settled withdrawal finishes despite residual native combat timer");
+  f.request(13500);
   check(!f.regrouped(14000,false,false,false,false), "hazard or movement restriction cannot finish regrouping");
-  check(!f.regrouped(14999,false,false,false,true), "quiet interval begins after safe arrival");
-  check(f.regrouped(15000,false,false,false,true), "safe stationary arrival out of combat resumes AI");
+  check(!f.regrouped(15499,false,false,false,true), "renewed withdrawal retains its minimum hold after safe arrival");
+  check(f.regrouped(15500,false,false,false,true), "safe stationary arrival out of combat resumes AI");
   check(!f.active(), "completed withdrawal is transient");
   f.request(20000); f.request(21999);
   check(!f.regrouped(22000,false,false,false,true), "repeated Follow renews explicit hold");

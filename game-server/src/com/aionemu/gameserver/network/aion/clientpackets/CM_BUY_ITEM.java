@@ -19,7 +19,9 @@ import com.aionemu.gameserver.services.DialogService;
 import com.aionemu.gameserver.services.PrivateStoreService;
 import com.aionemu.gameserver.services.RepurchaseService;
 import com.aionemu.gameserver.services.TradeService;
+import com.aionemu.gameserver.services.playerbot.PlayerBotRoadMerchants;
 import com.aionemu.gameserver.utils.audit.AuditLogger;
+import com.aionemu.gameserver.world.World;
 
 /**
  * @author orz, ATracer, Simple, xTz
@@ -27,6 +29,7 @@ import com.aionemu.gameserver.utils.audit.AuditLogger;
 public class CM_BUY_ITEM extends AionClientPacket {
 
 	private int sellerObjId;
+	private int actionId, requestedEntry = -1;
 	private TradeAction tradeAction;
 	private boolean isAudit;
 	private TradeList tradeList;
@@ -40,7 +43,7 @@ public class CM_BUY_ITEM extends AionClientPacket {
 	protected void readImpl() {
 		Player player = getConnection().getActivePlayer();
 		sellerObjId = readD();
-		tradeAction = TradeAction.fromId(readUC());
+		tradeAction = TradeAction.fromId(actionId = readUC());
 		readC(); // unused
 		int amount = readUH(); // total no of items
 
@@ -60,6 +63,7 @@ public class CM_BUY_ITEM extends AionClientPacket {
 		Set<Integer> entryIds = new HashSet<>();
 		for (int i = 0; i < amount; i++) {
 			int entryId = readD(); // see TradeAction.entryType
+			requestedEntry = entryId;
 			long count = readQ();
 
 			// prevent exploit packets
@@ -90,10 +94,24 @@ public class CM_BUY_ITEM extends AionClientPacket {
 	protected void runImpl() {
 		Player player = getConnection().getActivePlayer();
 
-		if (tradeAction == null || isAudit || player == null)
+		if (player == null)
+			return;
+		var sellerObject = player.getKnownList().getObject(sellerObjId);
+		if (sellerObject == null) {
+			Player seller = World.getInstance().getPlayer(sellerObjId);
+			if (seller != null && seller.isPlayerBot()) {
+				PlayerBotRoadMerchants.refuse(seller, player, "entry=" + requestedEntry + " action=" + actionId, "This merchant is no longer nearby. Return to their shop.");
+				return;
+			}
+		}
+		if (sellerObject instanceof Player seller && seller.isPlayerBot() && (tradeAction != TradeAction.PRIVATE_STORE_BUY || isAudit)) {
+			PlayerBotRoadMerchants.refuse(seller, player, "entry=" + requestedEntry + " action=" + actionId, "This shop request is invalid. Browse the merchant's shop again.");
+			return;
+		}
+		if (tradeAction == null || isAudit)
 			return;
 
-		switch (player.getKnownList().getObject(sellerObjId)) {
+		switch (sellerObject) {
 			case Player seller when tradeAction == TradeAction.PRIVATE_STORE_BUY -> PrivateStoreService.sellStoreItem(seller, player, tradeList);
 			case Npc npc -> tradeWithNpc(player, npc);
 			case Pet pet when pet.getMaster() == player && tradeAction == TradeAction.PET_SELL -> {

@@ -42,7 +42,7 @@ public final class CentralMarketRules {
 	}
 
 	public static List<Long> ladder(long base, long floor, long ceiling) {
-		long step = Math.max(1, base / 200); // 0.5% ticks within the published +/-7.5% band
+		long step = Math.max(1, base / 300); // 31 prices within +/-5%; spread stays below the best tax return
 		TreeSet<Long> levels = new TreeSet<>();
 		for (int i = -15; i <= 15; i++) levels.add(Math.max(floor, Math.min(ceiling, base + step * i)));
 		return List.copyOf(levels);
@@ -52,6 +52,17 @@ public final class CentralMarketRules {
 		if (buys == sells) return base;
 		long step = Math.max(1, base / 100);
 		return Math.max(floor, Math.min(ceiling, base + (buys > sells ? step : -step)));
+	}
+
+	/** One willingness-to-pay draw: cheaper asks are reached more often, never per page request. */
+	public static int demandIndex(int levels, int roll, int lowPercent, int highPercent) {
+		if (levels < 1 || roll < 0 || roll >= 10_000) throw new IllegalArgumentException("Invalid demand draw.");
+		int low = Math.clamp(lowPercent, 0, 100), high = Math.clamp(highPercent, 0, low);
+		for (int i = levels - 1; i >= 0; i--) {
+			int chance = levels == 1 ? low * 100 : low * 100 - (low - high) * 100 * i / (levels - 1);
+			if (roll < chance) return i;
+		}
+		return -1;
 	}
 
 	public static long volume(String category) {

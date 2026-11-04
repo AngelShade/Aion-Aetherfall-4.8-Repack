@@ -25,6 +25,7 @@ def payloads(package, schema=None, bootstrap=None):
             raise ValueError('Expected the native repack server-start ownership check')
         start = start.replace('Assert-OwnDatabase\n', "Assert-OwnDatabase\n& (Join-Path $PSScriptRoot 'Initialize-PlayerbotPopulation.ps1')\n", 1)
     result = {
+        'Server/server-address.properties': (SOURCE/'server-address.properties').read_bytes(),
         'Server/database/schema/aetherfall_gs.sql': schema.encode(),
         'Server/database/bootstrap.sql': bootstrap.encode(),
         'Server/database/schema/playerbot_population_initial.sql': seed.encode(),
@@ -32,4 +33,18 @@ def payloads(package, schema=None, bootstrap=None):
         'Control/Start-Servers.ps1': start.encode(),
     }
     result.update(market_payloads(package, schema=schema, bootstrap=bootstrap, start=start))
+    incoming = result['Server/database/schema/aetherfall_gs.sql'].decode('utf-8')
+    bootstrap = result['Server/database/bootstrap.sql'].decode('utf-8')
+    seed = (SOURCE/'playerbot_recruitment_initial.sql').read_text(encoding='utf-8')
+    marker = '-- Initial native ticket tables for a new Aetherfall repack.'
+    if incoming.count(marker) > 1:
+        raise ValueError('Expected one owned ticket block at the end of the GS schema')
+    schema = incoming[:incoming.index(marker)] + seed if marker in incoming else incoming + '\n' + seed
+    if bootstrap.count(incoming) != 1:
+        raise ValueError('Fresh bootstrap must contain exactly one matching GS schema')
+    result.update({
+        'Server/database/schema/aetherfall_gs.sql': schema.encode('utf-8'),
+        'Server/database/bootstrap.sql': bootstrap.replace(incoming, schema, 1).encode('utf-8'),
+        'Server/database/schema/playerbot_recruitment_initial.sql': seed.encode('utf-8'),
+    })
     return result

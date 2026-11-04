@@ -36,7 +36,7 @@ namespace AetherfallSetup {
   void RefreshLanguagePage() {
    if(original!=null)return;
    string client=LanguageClient;
-   bool ready=File.Exists(Path.Combine(client,"Aetherfall Launcher.exe"));
+   bool ready=IsInstalled();
    bool enabled=ready&&!busy&&!serverControlBusy&&!modControlBusy;
    Btn("LanguageZipBtn").IsEnabled=enabled;
    if(!ready) {
@@ -62,10 +62,11 @@ namespace AetherfallSetup {
      detail.Children.Add(new TextBlock { Text=name+(voices?" voices":" text"),Foreground=Brush("#DFE9F0"),FontSize=11,TextWrapping=TextWrapping.Wrap });
      detail.Children.Add(new TextBlock { Text=LanguageSize(pack.bytes),Foreground=Brush("#93ABBC"),FontSize=10,Margin=new Thickness(0,3,0,0) });row.Children.Add(detail);
      FrameworkElement action;
-     if(option.Available)action=new TextBlock { Text="Installed",Foreground=Brush("#8FD8B4"),FontSize=10,VerticalAlignment=VerticalAlignment.Center,Margin=new Thickness(0,0,8,0) };
+     bool update=option.Available&&LanguageDownloads.UpdateAvailable(client,pack);
+     if(option.Available&&!update)action=new TextBlock { Text="Installed",Foreground=Brush("#8FD8B4"),FontSize=10,VerticalAlignment=VerticalAlignment.Center,Margin=new Thickness(0,0,8,0) };
      else {
       bool partial=File.Exists(Path.Combine(client,"Mods","Languages","Cache",pack.sha256+".zip.partial"));
-      var button=new Button { Content=partial?"Resume":"Download",Style=(Style)window.FindResource("LanguageFlat"),Margin=new Thickness(0,3,3,3),VerticalAlignment=VerticalAlignment.Center,IsEnabled=enabled,ToolTip="Download this verified pack from Aetherfall's GitHub releases." };
+      var button=new Button { Content=partial?"Resume":update?"Update":"Download",Style=(Style)window.FindResource("LanguageFlat"),Margin=new Thickness(0,3,3,3),VerticalAlignment=VerticalAlignment.Center,IsEnabled=enabled,ToolTip="Download this verified pack from Aetherfall's GitHub releases." };
       button.Click+=async delegate { await InstallLanguage(pack,null); };action=button;
      }
      Grid.SetColumn(action,1);row.Children.Add(action);list.Children.Add(row);

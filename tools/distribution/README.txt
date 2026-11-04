@@ -27,6 +27,15 @@ HOW TO PLAY
 3. Log in with any username and password to create your account automatically.
 4. When finished playing, close Aion and click "Stop Database" on the Server Control tab.
 
+IF SETUP SAYS THE FULL BASE IS REQUIRED
+- An Aetherfall-Patch folder contains update files only. It cannot run by itself.
+- Click "Use Existing Repack..." and select REPACK.json in your complete installed
+  repack, or click INSTALL to download and install the full base separately.
+- Setup can restore its verified download tools automatically. You can also use
+  "Use Local .7z..." to reuse a complete Aetherfall-0.86.7z you already downloaded.
+- Use "Change Folder..." to choose an empty destination. Existing installations,
+  accounts and databases are kept; Setup will not unpack the old base over them.
+
 HOW TO UPDATE LATER (1 CLICK)
 1. Open "Aetherfall Setup.exe" (or "Aetherfall Hub.exe" inside your repack folder)
    and click "Update Repack".

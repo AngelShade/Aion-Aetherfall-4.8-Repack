@@ -14,13 +14,14 @@ public final class PlayerBotWeaponStanceCheck {
  static void check(boolean value,String reason){count++;if(!value)throw new AssertionError(reason);}
  static final class View implements PlayerBotWeaponStance.View {
   int state=CreatureState.ACTIVE.getId();boolean spawned=true,dead,moving,casting,combat;
-  long skillReadyAt,boostExpiresAt=-1;
+  long skillReadyAt,boostExpiresAt=-1,drawnUntil;
   final List<EmotionType> sent=new ArrayList<>();final List<Integer> sentState=new ArrayList<>();
   public int state(){return state;}public void state(int s){state=s;}
   public boolean spawned(){return spawned;}public boolean dead(){return dead;}public boolean moving(){return moving;}
   public boolean casting(){return casting;}public boolean combat(){return combat;}
   public long skillReadyAt(){return skillReadyAt;}public boolean animationPending(long now){return now<=boostExpiresAt;}
   public void notify(EmotionType e){sent.add(e);sentState.add(state);}
+  public long drawnUntil(){return drawnUntil;}public void drawnUntil(long value){drawnUntil=value;}
  }
  public static void main(String[] args)throws Exception {
   int flag=CreatureState.WEAPON_EQUIPPED.getId();
@@ -35,14 +36,15 @@ public final class PlayerBotWeaponStanceCheck {
    check(!PlayerBotWeaponStance.transition(v,true) && v.sent.size()==1,pc+" repeated actions do not spam draw animations");
    v.casting=true;check(!PlayerBotWeaponStance.transition(v,false) && v.state==33,pc+" support/charged cast keeps weapon in hand");
    v.casting=false;v.combat=true;check(!PlayerBotWeaponStance.transition(v,false) && v.state==33,pc+" combat/aggro prevents neutral reset");
-   v.combat=false;check(PlayerBotWeaponStance.transition(v,false) && v.state==1 && v.sent.get(1)==EmotionType.NEUTRALMODE_IN_STANDING,pc+" quiet idle restores native noncombat interaction state");
+   v.combat=false;check(!PlayerBotWeaponStance.transition(v,false) && v.state==33,pc+" recent draw keeps the weapon out");
+   v.drawnUntil=0;check(PlayerBotWeaponStance.transition(v,false) && v.state==1 && v.sent.get(1)==EmotionType.NEUTRALMODE_IN_STANDING,pc+" quiet idle restores native noncombat interaction state");
    check(!PlayerBotWeaponStance.transition(v,false) && v.sent.size()==2,pc+" repeated idle does not spam put-away");
   }
   for(int bits:new int[]{1,1|64,1|128,1|256,1|2|512,1|64|128|256}) {
    var v=new View();v.state=bits;v.moving=true;
    check(PlayerBotWeaponStance.transition(v,true) && v.state==(bits|flag),"Draw preserves unrelated flight/walk/powershard/treatment bits "+bits);
    check(v.sent.get(0)==EmotionType.ATTACKMODE_IN_MOVE,"Native moving draw rather than standing animation "+bits);
-   check(PlayerBotWeaponStance.transition(v,false) && v.state==bits && v.sent.get(1)==EmotionType.NEUTRALMODE_IN_MOVE,"Moving neutral preserves unrelated bits "+bits);
+   v.drawnUntil=0;check(PlayerBotWeaponStance.transition(v,false) && v.state==bits && v.sent.get(1)==EmotionType.NEUTRALMODE_IN_MOVE,"Moving neutral preserves unrelated bits "+bits);
   }
   var dead=new View();dead.dead=true;check(!PlayerBotWeaponStance.transition(dead,true) && dead.sent.isEmpty(),"No draw for dead actor");
   dead.state|=flag;check(!PlayerBotWeaponStance.transition(dead,false) && dead.state==33,"No neutral action during death");
@@ -67,6 +69,14 @@ public final class PlayerBotWeaponStanceCheck {
   check(PlayerBotWeaponStance.transition(charge,false,5000,5000),"Released charge extension expires normally");
   var requested=new View();requested.skillReadyAt=9000;requested.boostExpiresAt=9000;
   check(PlayerBotWeaponStance.transition(requested,true,1000,9000) && requested.state==33,"Native animation retention cannot suppress an explicit draw transition");
+  var buffing=new View();long hold=PlayerBotWeaponStance.HOLD_MS;
+  check(PlayerBotWeaponStance.transition(buffing,true,1000,0) && buffing.drawnUntil==1000+hold,"Out-of-combat cast draws and starts the hold");
+  check(!PlayerBotWeaponStance.transition(buffing,false,1500,0) && buffing.state==33,"Cast ended, weapon stays out during the hold");
+  check(!PlayerBotWeaponStance.transition(buffing,true,5000,0) && buffing.drawnUntil==5000+hold,"Next buff while drawn extends the hold without a packet");
+  check(!PlayerBotWeaponStance.transition(buffing,false,1000+hold,0),"First hold no longer ends the stance after a later cast");
+  check(!PlayerBotWeaponStance.transition(buffing,false,5000+hold-1,0),"Hold is exclusive until its deadline");
+  check(PlayerBotWeaponStance.transition(buffing,false,5000+hold,0) && buffing.state==1 && buffing.drawnUntil==0,"Quiet after the hold puts the weapon away once");
+  check(buffing.sent.equals(List.of(EmotionType.ATTACKMODE_IN_STANDING,EmotionType.NEUTRALMODE_IN_STANDING)),"Repeated buffs send one draw and one put-away, no flicker");
   var write=SM_EMOTION.class.getDeclaredMethod("writeImpl",AionConnection.class);write.setAccessible(true);
   for(var emotion:List.of(EmotionType.ATTACKMODE_IN_STANDING,EmotionType.ATTACKMODE_IN_MOVE,EmotionType.NEUTRALMODE_IN_STANDING,EmotionType.NEUTRALMODE_IN_MOVE)) {
    int state=emotion==EmotionType.ATTACKMODE_IN_STANDING || emotion==EmotionType.ATTACKMODE_IN_MOVE?33:1;

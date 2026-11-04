@@ -47,6 +47,7 @@ final class PlayerBotNavigation {
 	private final Object localSearchToken = new Object();
 	private final Object approachSearchToken = new Object();
 	private final Object waterSearchToken = new Object();
+	private final Object roadSearchToken = new Object();
 	private Point localOrigin,localGoal,localBest,approachTargetPoint,approachDestination;
 	private java.util.List<PlayerBotHazards.Area> localHazards;
 	private double localScore;
@@ -64,6 +65,11 @@ final class PlayerBotNavigation {
 	private long nextMove;
 	private long nextHeightSearch;
 	private Point publishedGoal,publishedDestination;
+	private Point roadProbeGoal,roadProbeNext;
+	private int roadProbeWorld,roadProbeInstance;
+	private boolean roadProbeDone,roadProbeAccepted;
+	private record RoadWaypoint(Point point,long index) {}
+	private final Deque<RoadWaypoint> roadWaypoints=new ArrayDeque<>();
 	private long walkGeneration=1,routeHeadIndex;
 	private boolean walkRouteOwned;
 	private Point recordingStart,recordingGoal;
@@ -105,10 +111,10 @@ final class PlayerBotNavigation {
 	}
 	boolean waitingForSearchTurn() {
 		if (!bot.isSpawned() || bot.isDead() || bot.isCasting() || !bot.canPerformMove() || bot.isFlying()) {
-			cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);return false;
+			cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);cancelTicket(roadSearchToken);return false;
 		}
-		boolean turn=terrain.nominated(searchToken) || terrain.nominated(heightSearchToken) || terrain.nominated(localSearchToken) || terrain.nominated(approachSearchToken);
-		if (turn && (routeWorld!=bot.getWorldId() || routeInstance!=bot.getInstanceId())) { cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);return false; }
+		boolean turn=terrain.nominated(searchToken) || terrain.nominated(heightSearchToken) || terrain.nominated(localSearchToken) || terrain.nominated(approachSearchToken) || terrain.nominated(roadSearchToken);
+		if (turn && (routeWorld!=bot.getWorldId() || routeInstance!=bot.getInstanceId())) { cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);cancelTicket(roadSearchToken);return false; }
 		return turn;
 	}
 	void hazards(java.util.List<PlayerBotHazards.Area> areas) {
@@ -120,6 +126,7 @@ final class PlayerBotNavigation {
 		}
 	}
 	private void clearRoute() {
+		cancelTicket(roadSearchToken);roadWaypoints.clear();
 		if(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover)mover.cancelWalk(walkGeneration);
 		walkGeneration++;routeHeadIndex=0;walkRouteOwned=false;followTrailTail=null;route.clear();publishedDestination=null;
 		recordingStart=recordingGoal=null;recordingPoints=java.util.List.of();recordingReached.clear();recordingCursor=0;
@@ -137,6 +144,7 @@ final class PlayerBotNavigation {
 		if(walkRouteOwned)while(!route.isEmpty() && routeHeadIndex<=state.reachedIndex()){route.removeFirst();routeHeadIndex++;}
 		publishedDestination=state.active() && state.current()!=null?new Point(state.current().x(),state.current().y(),state.current().z()):null;
 		if(state.blocked()) {
+			roadProbeDone=false;
 			if(PlayerBotConfig.NAVIGATION_MEMORY_FIRST)meshJourney.obstructed(new Point(bot.getX(),bot.getY(),bot.getZ()));
 			cancelTicket(searchToken);clearSearch();lookahead=partialRoute=false;localOrigin=null;clearRoute();nextSearch=0;
 		}
@@ -171,7 +179,7 @@ final class PlayerBotNavigation {
 			&& (retainCurrent() || routeProgressing(now) || waitingForTransport() || localOrigin!=null || pausedAt!=0 && now-pausedAt<3000);
 	}
 	boolean waitingForTerrainWork(){return !terrain.independent() && (terrain.waiting(searchToken) || terrain.waiting(heightSearchToken)
-		|| terrain.waiting(localSearchToken) || terrain.waiting(approachSearchToken));}
+		|| terrain.waiting(localSearchToken) || terrain.waiting(approachSearchToken) || terrain.waiting(roadSearchToken));}
 	boolean waitingForTransport(){return queuedPlatform!=null || bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover && mover.ridingPlatform();}
 	boolean transportCongested(){return transportCongested;}
 	boolean routeProgressing(long now){return planningRoute() && (terrain.waiting(searchToken) || now-searchProgress<30000);}
@@ -245,7 +253,7 @@ final class PlayerBotNavigation {
 		if(routeSearch!=null && routeSearch.pending() && routeSearch.targets(goal) && terrain.waiting(searchToken))return true;
 		if(localOrigin==null || localGoal==null || !localOrigin.equals(new Point(bot.getX(),bot.getY(),bot.getZ()))
 			|| !hazards.equals(localHazards))return false;
-		return localCursor<localLimit && terrain.waiting(localSearchToken) || heightCursor<HEIGHT_DIRECTIONS.length*HEIGHT_REACHES.length && terrain.waiting(heightSearchToken);
+		return localCursor<localLimit && terrain.waiting(localSearchToken) || heightCursor<(localGoal.z()<bot.getZ()-.3f?HEIGHT_DIRECTIONS.length:5)*HEIGHT_REACHES.length && terrain.waiting(heightSearchToken);
 	}
 	boolean escapeHazards() {
 		Point destination = PlayerBotHazards.escape(new Point(bot.getX(), bot.getY(), bot.getZ()), hazards, bot.getHeading());
@@ -492,10 +500,116 @@ final class PlayerBotNavigation {
 	boolean move(float targetX, float targetY, float targetZ) {
 		return move(targetX,targetY,targetZ,false);
 	}
+	/** Road waypoints share the mover's proved corridor. Logical arrival remains
+	 * the caller's floor-aware decision; appending a tail never awards arrival. */
+	boolean road(Point goal,java.util.List<Point> ahead) {
+		if(goal==null)return false;
+		syncWalk();
+		if(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover) {
+			synchronized(mover) {
+				if(!goal.equals(routeGoal) && roadCorridor() && walkRouteOwned && retainCurrent()
+					&& route.stream().anyMatch(point->roadEndpoint(point,goal))
+					&& PlayerBotHazards.safePath(new Point(bot.getX(),bot.getY(),bot.getZ()),publishedDestination,hazards)) {
+					// The successor was already published behind the current edge. Keep
+					// its generation, indices and native target when the road advances.
+					routeGoal=publishedGoal=goal;closestGoalDistance=PositionUtil.getDistance(bot,goal.x(),goal.y(),goal.z());
+					lastProgress=System.currentTimeMillis();progressWaypoint=null;nextSearch=0;
+					meshJourney.close();meshJourney.bind(bot.getWorldId(),goal);
+				}
+			}
+		}
+		boolean moving=move(goal.x(),goal.y(),goal.z(),false,Intent.TRAVEL,true);
+		if(moving && ahead!=null && !ahead.isEmpty())appendRoad(goal,ahead);else cancelTicket(roadSearchToken);
+		return moving;
+	}
+	/** Consumes only this generation's native reached-index acknowledgment. A
+	 * later visit to the same coordinates needs its own later published index. */
+	boolean roadArrived(Point point) {
+		syncWalk();
+		if(routeWorld!=bot.getWorldId() || routeInstance!=bot.getInstanceId()
+			|| !(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover))return false;
+		var state=mover.walkStatus();if(state.generation()!=walkGeneration)return false;
+		for(var waypoint:roadWaypoints)if(waypoint.point().equals(point)) {
+			if(waypoint.index()>state.reachedIndex())return false;
+			roadPassed(point);return true;
+		}
+		return false;
+	}
+	/** Caller has independently accepted this logical waypoint with its
+	 * floor-aware arrival check. Retire its mark even before the final metre. */
+	void roadPassed(Point point) {
+		for(var waypoint:roadWaypoints)if(waypoint.point().equals(point)) {
+			while(roadWaypoints.removeFirst()!=waypoint){}return;
+		}
+	}
+	private boolean roadCorridor() {
+		return routeIntent==Intent.TRAVEL && routeWorld==bot.getWorldId() && routeInstance==bot.getInstanceId()
+			&& !partialRoute && !lookahead && routeSearch==null && !waitingForTransport();
+	}
+	private static boolean roadEndpoint(Point point,Point goal) {
+		return point!=null && Math.hypot(point.x()-goal.x(),point.y()-goal.y())<=.15 && Math.abs(point.z()-goal.z())<=.75;
+	}
+	private int roadTail(Point goal,java.util.List<Point> ahead,com.aionemu.gameserver.controllers.movement.PlayerBotMoveController.WalkStatus state) {
+		if(roadWaypoints.stream().anyMatch(point->point.point().equals(goal)))while(!roadWaypoints.peekFirst().point().equals(goal))roadWaypoints.removeFirst();
+		if(roadWaypoints.isEmpty()) {
+			Point tail=walkRouteOwned?route.peekLast():new Point(state.current().x(),state.current().y(),state.current().z());
+			if(!roadEndpoint(tail,goal) || !walkRouteOwned && !route.isEmpty())return -1;
+			roadWaypoints.addLast(new RoadWaypoint(goal,walkRouteOwned?routeHeadIndex+route.size()-1:state.current().index()));
+		}
+		var marks=roadWaypoints.iterator();if(!marks.next().point().equals(goal))return -1;
+		int offset=0;
+		while(marks.hasNext())if(offset>=Math.min(8,ahead.size()) || !marks.next().point().equals(ahead.get(offset++)))return -1;
+		return offset;
+	}
+	private void appendRoad(Point goal,java.util.List<Point> ahead) {
+		if(!roadCorridor() || !goal.equals(routeGoal)
+			|| !(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover)){cancelTicket(roadSearchToken);return;}
+		synchronized(mover) {
+			syncWalk();
+			var state=mover.walkStatus();
+			if(!roadCorridor() || state.generation()!=walkGeneration || !state.active() || state.blocked() || state.current()==null){cancelTicket(roadSearchToken);return;}
+			int offset=roadTail(goal,ahead,state),limit=Math.min(8,ahead.size());
+			if(offset<0 || offset>=limit){cancelTicket(roadSearchToken);return;}
+			Point tail=walkRouteOwned?route.peekLast():new Point(state.current().x(),state.current().y(),state.current().z());
+			if(roadProbeDone && !roadProbeAccepted && tail.equals(roadProbeGoal) && ahead.get(offset).equals(roadProbeNext)
+				&& roadProbeWorld==bot.getWorldId() && roadProbeInstance==bot.getInstanceId()){cancelTicket(roadSearchToken);return;}
+			try(var lease=terrain.begin(roadSearchToken,terrainPriority(0))) {
+				if(lease==null){terrain.request(roadSearchToken,terrainPriority(0));return;}
+				double span=0;Point previous=goal;
+				for(int i=0;i<offset;i++){Point point=ahead.get(i);span+=PositionUtil.getDistance(previous.x(),previous.y(),previous.z(),point.x(),point.y(),point.z());previous=point;}
+				while(offset<limit && System.nanoTime()<lease.deadlineNanos()) {
+					Point next=ahead.get(offset);if(next==null || next.equals(tail) || !Float.isFinite(next.x()) || !Float.isFinite(next.y()) || !Float.isFinite(next.z()))break;
+					span+=PositionUtil.getDistance(tail.x(),tail.y(),tail.z(),next.x(),next.y(),next.z());
+					if(span>Math.max(12,bot.getGameStats().getMovementSpeedFloat()*2+6) || !PlayerBotHazards.safePath(tail,next,hazards)
+						|| route.size()>=com.aionemu.gameserver.controllers.movement.PlayerBotMoveController.WALK_POINTS)break;
+					if(!tail.equals(roadProbeGoal) || !next.equals(roadProbeNext) || roadProbeWorld!=bot.getWorldId() || roadProbeInstance!=bot.getInstanceId()) {
+						roadProbeGoal=tail;roadProbeNext=next;roadProbeWorld=bot.getWorldId();roadProbeInstance=bot.getInstanceId();roadProbeDone=false;
+					}
+					if(!roadProbeDone) {
+						var end=PlayerBotWater.walk(bot,bot.getWorldId(),bot.getInstanceId(),tail.x(),tail.y(),tail.z(),next.x(),next.y(),next.z());
+						roadProbeAccepted=end!=null && roadEndpoint(new Point(end.x,end.y,end.z),next);roadProbeDone=true;
+					}
+					if(!roadProbeAccepted)break;
+					boolean converted=!walkRouteOwned;long previousHead=routeHeadIndex;
+					if(converted){route.addLast(tail);routeHeadIndex=state.current().index();walkRouteOwned=true;}
+					route.addLast(next);var safety=hazards;
+					if(!mover.publishWalk(walkGeneration,walkPoints(),(from,to)->PlayerBotHazards.safePath(new Point(from.x(),from.y(),from.z()),new Point(to.x(),to.y(),to.z()),safety))) {
+						route.removeLast();if(converted){route.clear();routeHeadIndex=previousHead;walkRouteOwned=false;}break;
+					}
+					roadWaypoints.addLast(new RoadWaypoint(next,routeHeadIndex+route.size()-1));tail=next;offset++;
+				}
+				if(offset<limit && System.nanoTime()>=lease.deadlineNanos())terrain.request(roadSearchToken,terrainPriority(0));else cancelTicket(roadSearchToken);
+			}
+		}
+	}
 	private boolean move(float targetX,float targetY,float targetZ,boolean firingIntent) {
 		return move(targetX,targetY,targetZ,firingIntent,firingIntent?Intent.TRACK:Intent.TRAVEL);
 	}
 	private boolean move(float targetX,float targetY,float targetZ,boolean firingIntent,Intent intent) {
+		return move(targetX,targetY,targetZ,firingIntent,intent,false);
+	}
+	private boolean move(float targetX,float targetY,float targetZ,boolean firingIntent,Intent intent,boolean roadIntent) {
+		if(!roadIntent)cancelTicket(roadSearchToken);
 		routeFailure=false;
 		syncWalk();
 		if(!Float.isFinite(targetX) || !Float.isFinite(targetY) || !Float.isFinite(targetZ)){stop();return false;}
@@ -503,7 +617,7 @@ final class PlayerBotNavigation {
 		// must not own a queue turn that this successor can never consume.
 		if(!firingIntent){cancelTicket(approachSearchToken);approachTarget=null;approachDestination=null;}
 		if(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover && (mover.traversingHeight() || mover.ridingPlatform()))return true;
-		if (bot.isCasting() || !bot.canPerformMove() || bot.isDead()) { cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken); return false; }
+		if (bot.isCasting() || !bot.canPerformMove() || bot.isDead()) { cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);cancelTicket(roadSearchToken); return false; }
 		long now = System.currentTimeMillis();
 		intentUntil=now+3000;
 		if(pausedAt!=0){lastProgress+=Math.max(0,now-pausedAt);pausedAt=0;}
@@ -834,7 +948,7 @@ final class PlayerBotNavigation {
 	/** A short rest/equipment/self-cast pause retains the same journey, not a new destination. */
 	void pause() {
 		if(pausedAt==0)pausedAt=System.currentTimeMillis();
-		cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);
+		cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);cancelTicket(roadSearchToken);
 		localOrigin=null;approachTarget=null;approachDestination=null;
 		// Do not reserve shared query capacity during an arbitrarily long recovery.
 		if(routeSearch!=null && routeSearch.prepared()){clearSearch();lookahead=false;}

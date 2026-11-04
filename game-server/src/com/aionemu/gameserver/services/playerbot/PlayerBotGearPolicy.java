@@ -70,6 +70,7 @@ public final class PlayerBotGearPolicy {
     settings=new Settings(Mode.EARNED,Profile.AUTO,ItemQuality.LEGEND,0,1.1,"AUTO",true,Rolls.UPGRADES);
     try {var p=PlayerBotMetadata.load(session.bot().getAccount().getId(),session.bot().getObjectId(),"gear",path());
      for(String id:p.getProperty("generated","").split(","))if(!id.isBlank())generated.add(Integer.parseInt(id));
+     loadLoadouts(PlayerBotMetadata.load(session.bot().getAccount().getId(),session.bot().getObjectId(),"loadouts",null));
     }catch(Exception e){throw new IllegalStateException("Cannot load world gear provenance",e);}
     return;
    }
@@ -94,21 +95,23 @@ public final class PlayerBotGearPolicy {
    goalsFor=p.getProperty("goalsFor","");
   }
   void saveLoadouts() {
-   Properties p=new Properties();p.setProperty("account",Integer.toString(session.owner().getAccount().getId()));p.setProperty("character",Integer.toString(session.bot().getObjectId()));
+   // A world bot keeps its own record, even when this state was first built while it was borrowed.
+   int account=(session.world()?session.bot():session.owner()).getAccount().getId();
+   Properties p=new Properties();p.setProperty("account",Integer.toString(account));p.setProperty("character",Integer.toString(session.bot().getObjectId()));
    references.forEach((key,r)->p.setProperty("ref."+key,r.object+":"+r.template));goals.forEach((key,goal)->p.setProperty("goal."+key,goal));
    if(!goalsFor.isEmpty())p.setProperty("goalsFor",goalsFor);
-   try {PlayerBotMetadata.save(session.owner().getAccount().getId(),session.bot().getObjectId(),"loadouts",p);}
+   try {PlayerBotMetadata.save(account,session.bot().getObjectId(),"loadouts",p);}
    catch(IOException error){throw new IllegalStateException("Cannot queue companion loadout metadata",error);}
   }
   Path path(){return Path.of("config","playerbots","gear-character-"+session.bot().getObjectId()+".properties");}
   void save() {
-   if(session.world())return;
-   Properties p=new Properties();p.setProperty("account",Integer.toString(session.owner().getAccount().getId()));p.setProperty("character",Integer.toString(session.bot().getObjectId()));
+   int account=session.bot().getAccount().getId();
+   Properties p=new Properties();p.setProperty("account",Integer.toString(account));p.setProperty("character",Integer.toString(session.bot().getObjectId()));
    Settings s=settings;p.setProperty("mode",s.mode.name());p.setProperty("profile",s.profile.name());p.setProperty("quality",s.quality.name());p.setProperty("level",Integer.toString(s.level));
    p.setProperty("build",build);p.setProperty("threshold",Double.toString(s.threshold));p.setProperty("weapon",s.weapon);p.setProperty("vendors",Boolean.toString(s.vendors));p.setProperty("rolls",s.rolls.name());
    p.setProperty("generated",generated.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
    p.setProperty("starterSlots",starterSlots.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
-   try {PlayerBotMetadata.save(session.owner().getAccount().getId(),session.bot().getObjectId(),"gear",p);}
+   try {PlayerBotMetadata.save(account,session.bot().getObjectId(),"gear",p);}
    catch(IOException error){throw new IllegalStateException("Cannot queue companion gear metadata",error);}
   }
  }
@@ -186,6 +189,13 @@ public final class PlayerBotGearPolicy {
  /** Any preset of this bot saves this item, so automatic retirement and extraction leave it alone. */
  static boolean referenced(Player bot,Item item){State s=STATES.get(bot.getObjectId());return s!=null && s.references.values().stream().anyMatch(r->r.object()==item.getObjectId());}
  /** The bot is working toward this item for its chosen preset. */
+ static int goalCount(Player bot){State s=STATES.get(bot.getObjectId());return s==null?0:s.goals.size();}
+ /** Monsters named as the source of this bot's open equipment goals. */
+ static List<Integer> goalDrops(Player bot) {
+  State s=STATES.get(bot.getObjectId());if(s==null)return List.of();var npcs=new ArrayList<Integer>();
+  for(var goal:s.goals.values()){var parts=goal.split(":");if(parts.length==3 && parts[1].equals("npc"))npcs.add(Integer.parseInt(parts[2]));}
+  return npcs;
+ }
  static boolean goal(Player bot,ItemTemplate t){State s=STATES.get(bot.getObjectId());return s!=null && t!=null && s.goals.values().stream().anyMatch(g->g.startsWith(t.getTemplateId()+":"));}
  private static State loadoutOwner(PlayerBotSession session) {
   if(!session.generated())throw new IllegalArgumentException("Saved equipment applies only to Temporary Bots. Your alt's equipment remains yours.");
@@ -255,8 +265,12 @@ public final class PlayerBotGearPolicy {
   };
  }
  static boolean improvement(double score,double current,double ratio){return Double.isFinite(score) && Double.isFinite(current) && Double.isFinite(ratio) && ratio>=1 && score-current>1 && (current<=0 || score+1e-9>=current*ratio);}
+ /** Buying retains the shared appearance-family exclusion; held/earned gear uses eligible. */
+ static boolean purchasable(Player bot,ItemTemplate t) {
+  return !com.aionemu.gameserver.services.ItemEligibility.isAppearanceOnly(t) && eligible(bot,t);
+ }
  static boolean eligible(Player bot,ItemTemplate t) {
-  if(t==null || t.isTestItem() || PlayerBotCombatGear.skinOnly(t) || t.getItemSlot()==0 || ItemSlot.isStigma(t.getItemSlot()) || !(t.isWeapon() || t.isArmor()) || !t.isClassSpecific(bot.getPlayerClass()))return false;
+  if(!PlayerBotCombatGear.usable(t) || t.getItemSlot()==0 || ItemSlot.isStigma(t.getItemSlot()) || !(t.isWeapon() || t.isArmor()) || !t.isClassSpecific(bot.getPlayerClass()))return false;
   int required=t.getRequiredLevel(bot.getPlayerClass()),max=t.getMaxLevelRestrict(bot.getPlayerClass());
   if(required<0 || required>bot.getLevel() || max>0 && bot.getLevel()>max || t.getRace()!=Race.PC_ALL && t.getRace()!=bot.getRace())return false;
   var limits=t.getUseLimits();
@@ -435,7 +449,7 @@ public final class PlayerBotGearPolicy {
    for(var tab:catalog.getTradeTablist()) {
     var goods=DataManager.GOODSLIST_DATA.getGoodsListById(tab.getId());if(goods==null || goods.getItemIdList()==null || goods.getLegionLevel()>(bot.getLegion()==null ? 0 : bot.getLegion().getLegionLevel()))continue;
     for(int id:goods.getItemIdList()) {
-     var t=DataManager.ITEM_DATA.getItemTemplate(id);if(!eligible(bot,t) || !allowedWeapon(t,settings(bot),role) || t.getAcquisition()!=null || bot.getInventory().getItemCountByItemId(id)>0)continue;
+     var t=DataManager.ITEM_DATA.getItemTemplate(id);if(!purchasable(bot,t) || !allowedWeapon(t,settings(bot),role) || t.getAcquisition()!=null || bot.getInventory().getItemCountByItemId(id)>0)continue;
      double gain=goal(bot,t) ? Double.MAX_VALUE/2 : slots(bot,t).stream().mapToDouble(slot->gain(bot,t,score(bot,t,role),slot,role)).max().orElse(0);if(gain<=1)continue;
      TradeList list=new TradeList(npc.getObjectId());list.addItem(id,1);
      if(list.calculateBuyListPrice(bot,catalog.getSellPriceRate()) && list.getRequiredKinah()>0 && list.getRequiredKinah()<=allowed)choices.add(new Purchase(npc,t,list.getRequiredKinah(),gain));

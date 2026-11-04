@@ -58,6 +58,14 @@ public class NpcController extends CreatureController<Npc> {
 
 	private static final Logger log = LoggerFactory.getLogger(NpcController.class);
 	private Set<Integer> seasonPassCredited;
+	private Set<Integer> roadBountyCredited;
+
+	/** Native league distribution can visit the same traveller through several teams. */
+	public synchronized boolean markRoadBountyCredit(int playerId) {
+		if (roadBountyCredited == null)
+			roadBountyCredited = new java.util.HashSet<>();
+		return roadBountyCredited.add(playerId);
+	}
 
 	/** League teams can share the same reward pass; each character counts a death once. */
 	public synchronized boolean markSeasonPassCredit(int playerId) {
@@ -209,6 +217,7 @@ public class NpcController extends CreatureController<Npc> {
 	@Override
 	public void doReward() {
 		synchronized (this) { if (seasonPassCredited != null) seasonPassCredited.clear(); }
+		synchronized (this) { if (roadBountyCredited != null) roadBountyCredited.clear(); }
 		super.doReward();
 		TeamDamageList finalList = getOwner().getAggroList().getFinalDamageList().toTeamDamages();
 		DamageInfo<AionObject> mostDamage = finalList.getMostDamage();
@@ -242,7 +251,9 @@ public class NpcController extends CreatureController<Npc> {
 					EventService.getInstance().onPveKill(player, getOwner());
 					com.aionemu.gameserver.services.SeasonPassService.onNpcKill(player, getOwner());
 					com.aionemu.gameserver.services.playerbot.PlayerBotGrowth.learnKill(player, getOwner());
-					player.getCommonData().addExp(rewardXp, Rates.XP_HUNTING, getOwner().getObjectTemplate().getL10n());
+					if (finalList.isExperienceEligible(player))
+						player.getCommonData().addExp(rewardXp, Rates.XP_HUNTING, getOwner().getObjectTemplate().getL10n());
+					com.aionemu.gameserver.services.playerbot.PlayerBotRoadBounty.killed(player, getOwner(), rewardXp > 0 && finalList.isExperienceEligible(player));
 					player.getCommonData().addDp(rewardDp);
 					if (getOwner().getAi().ask(AIQuestion.REWARD_AP)) {
 						int calculatedAp = StatFunctions.calculatePvEApGained(player, getOwner());

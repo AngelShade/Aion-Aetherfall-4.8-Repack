@@ -9,7 +9,7 @@ import com.aionemu.gameserver.configs.main.PlayerBotConfig;
 import com.aionemu.gameserver.model.Race;
 
 /** Upstream probabilities and admission budgets, independent of native actor creation. */
-final class PlayerBotPopulationPolicy {
+public final class PlayerBotPopulationPolicy {
  static final int MAX_TARGET=3000;
  static final int MAX_ADMISSION_BUDGET=120;
  static final int MAX_RESERVE=MAX_TARGET*4;
@@ -107,7 +107,7 @@ final class PlayerBotPopulationPolicy {
   }
  }
  /** Signed native account columns permit a disjoint headless namespace. LS auto-increment IDs are positive. */
- static boolean serverAccount(int id){return id<=-1000000 && id>=-1000000-2*ACCOUNT_SHARDS+1;}
+ public static boolean serverAccount(int id){return id<=-1000000 && id>=-1000000-2*ACCOUNT_SHARDS+1;}
  static boolean account(int id){return id>0 || serverAccount(id);}
  static int account(Race race,int shard){if(race!=Race.ELYOS && race!=Race.ASMODIANS || shard<0 || shard>=ACCOUNT_SHARDS)throw new IllegalArgumentException("Population account limit");return -1000000-2*shard-(race==Race.ELYOS?0:1);}
  private PlayerBotPopulationPolicy(){}

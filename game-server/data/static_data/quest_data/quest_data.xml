@@ -82621,4 +82621,71 @@
 	</quest>
 	<!-- END AETHERFALL THE UNBROKEN FIELD -->
 	<quest id="14996" name="Help Request" nameId="1801381" minlevel_permitted="1" max_repeat_count="255" cannot_share="true" category="QUEST" />
+	<quest id="14997" name="Daily Road Bounty" nameId="1801383" minlevel_permitted="1" max_repeat_count="255" cannot_share="true" category="QUEST" repeat_cycle="ALL">
+		<rewards exp="9618" gold="9618" />
+		<rewards exp="9618" gold="9618" />
+		<rewards exp="9618" gold="9618" />
+		<rewards exp="9618" gold="9618" />
+		<rewards exp="9572" gold="9572" />
+		<rewards exp="2250" gold="500" />
+		<rewards exp="9648" gold="9648" />
+		<rewards exp="9648" gold="9648" />
+		<rewards exp="9648" gold="9648" />
+		<rewards exp="9650" gold="9647" />
+		<rewards exp="9650" gold="9647" />
+		<rewards exp="9666" gold="9665" />
+		<rewards exp="9667" gold="9665" />
+		<rewards exp="21000" gold="10000" />
+		<rewards exp="21000" gold="10000" />
+		<rewards exp="21000" gold="10000" />
+		<rewards exp="21000" gold="10000" />
+		<rewards exp="21000" gold="10000" />
+		<rewards exp="66900" gold="2750" />
+		<rewards exp="67500" gold="2800" />
+		<rewards exp="75450" gold="3050" />
+		<rewards exp="88425" gold="4900" />
+		<rewards exp="109110" gold="5350" />
+		<rewards exp="126040" gold="6000" />
+		<rewards exp="126080" gold="6750" />
+		<rewards exp="137550" gold="6700" />
+		<rewards exp="163677" gold="6800" />
+		<rewards exp="163677" gold="7000" />
+		<rewards exp="191850" gold="7000" />
+		<rewards exp="203989" gold="7200" />
+		<rewards exp="211944" gold="7100" />
+		<rewards exp="238289" gold="7100" />
+		<rewards exp="238289" gold="7100" />
+		<rewards exp="1047731" gold="8000" />
+		<rewards exp="1047731" gold="8450" />
+		<rewards exp="1047731" gold="8450" />
+		<rewards exp="1156455" gold="8900" />
+		<rewards exp="1156455" gold="8900" />
+		<rewards exp="1156455" gold="8900" />
+		<rewards exp="1265179" gold="9100" />
+		<rewards exp="1323566" gold="12350" />
+		<rewards exp="1676331" gold="20000" />
+		<rewards exp="1676331" gold="22500" />
+		<rewards exp="1970708" gold="15000" />
+		<rewards exp="1970708" gold="15000" />
+		<rewards exp="1970708" gold="17500" />
+		<rewards exp="2271368" gold="15000" />
+		<rewards exp="2814541" gold="16100" />
+		<rewards exp="2705972" gold="14800" />
+		<rewards exp="2705972" gold="13400" />
+		<rewards exp="2705972" gold="20000" />
+		<rewards exp="2762837" gold="20000" />
+		<rewards exp="2705972" gold="21200" />
+		<rewards exp="2814541" gold="21600" />
+		<rewards exp="2762837" gold="23500" />
+		<rewards exp="2814541" gold="31292" />
+		<rewards exp="3183526" gold="57742" />
+		<rewards exp="3552512" gold="93876" />
+		<rewards exp="3552512" gold="62584" />
+		<rewards exp="3552512" gold="62584" />
+		<rewards exp="3552512" gold="62584" />
+		<rewards exp="4825175" gold="225990" />
+		<rewards exp="4825175" gold="225990" />
+		<rewards exp="4825175" gold="225990" />
+		<rewards exp="4825175" gold="225990" />
+	</quest>
 </quests>

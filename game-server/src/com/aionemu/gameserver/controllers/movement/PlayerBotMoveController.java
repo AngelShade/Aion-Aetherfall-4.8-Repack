@@ -262,6 +262,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 			var to=new com.aionemu.gameserver.geoEngine.math.Vector3f(owner.getX()+(float)((targetDestX-owner.getX())*fraction),
 				owner.getY()+(float)((targetDestY-owner.getY())*fraction),owner.getZ()+(float)((targetDestZ-owner.getZ())*fraction));
 			if(!com.aionemu.gameserver.world.geo.GeoService.getInstance().validatePlayerBotHeightSegment(owner.getWorldId(),owner.getInstanceId(),from,to)){abortMove();return;}
+			if(!com.aionemu.gameserver.services.playerbot.PlayerBotRoadDuty.permitRoadStep(owner,to.x,to.y,to.z)){abortMove();return;}
 			super.moveToDestination();
 		}
 		else {groundStep(now,elapsed);return;}
@@ -309,6 +310,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 				com.aionemu.gameserver.services.playerbot.PlayerBotRouteMemory.obstructed(owner.getWorldId(),owner.getX(),owner.getY(),owner.getZ(),x,y);
 				walkBlocked=true;abortMove();return;
 			}
+			if(!com.aionemu.gameserver.services.playerbot.PlayerBotRoadDuty.permitRoadStep(owner,ground.x,ground.y,ground.z)){walkBlocked=true;abortMove();return;}
 			long generation=walkGeneration;boolean owned=walkActive;
 			com.aionemu.gameserver.world.World.getInstance().updatePosition(owner,ground.x,ground.y,ground.z,heading,false);
 			remaining=Math.max(0,remaining-covered/speed);updateLastMove();
@@ -359,6 +361,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		if(ground==null || !Float.isFinite(ground.x) || !Float.isFinite(ground.y) || !Float.isFinite(ground.z)){follow.blocked(now);holdFollow();return;}
 		if(steepDrop(ground)){startSupportedFall();return;}
 		if(Math.hypot(ground.x-owner.getX(),ground.y-owner.getY())<.001){follow.blocked(now);holdFollow();return;}
+		if(!com.aionemu.gameserver.services.playerbot.PlayerBotRoadDuty.permitRoadStep(owner,ground.x,ground.y,ground.z)){follow.blocked(now);holdFollow();return;}
 		com.aionemu.gameserver.world.World.getInstance().updatePosition(owner,ground.x,ground.y,ground.z,heading,false);
 		updateLastMove();owner.getKnownList().update();owner.getController().onMove();
 	}

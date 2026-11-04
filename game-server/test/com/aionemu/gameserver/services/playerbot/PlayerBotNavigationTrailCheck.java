@@ -33,7 +33,8 @@ public final class PlayerBotNavigationTrailCheck {
         check(trail.size()==2,"nonfinite point is never consumed as a proximity match");
         for(float progress:new float[]{0,.25f,1,2.99f}) {
             Point close=new Point(bot.x()+progress,bot.y(),bot.z());trail=new ArrayDeque<>(List.of(old,close,owner));PlayerBotNavigationTrail.consume(trail,bot);
-            check(trail.size()==1 && trail.peekFirst()==owner,"normal visited tolerance advances independently of old head");
+            check(progress<1 ? trail.size()==1 && trail.peekFirst()==owner : trail.size()==3,
+                "one-metre visited tolerance advances only physically reached breadcrumbs independently of old head");
         }
         System.out.println("OK: "+checks+" generic breadcrumb progress checks; actual reported coordinates included");
     }

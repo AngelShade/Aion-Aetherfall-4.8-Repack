@@ -2,7 +2,7 @@ package com.aionemu.gameserver.services.playerbot;
 
 import java.sql.*;
 import java.util.*;
-import com.alibaba.fastjson2.JSON;
+import com.aionemu.commons.utils.Json;
 
 /** Production joined roster query with recording JDBC; no World, native IDs or database. */
 public final class PlayerBotRosterBatchCheck {
@@ -34,7 +34,7 @@ public final class PlayerBotRosterBatchCheck {
   });}
  }
  static Object[] row(int account,int id,boolean ready,Integer archived,String marker){return new Object[]{account,id,"Bot"+id,ready,archived,marker};}
- static String marker(int account,int id){return JSON.toJSONString(Map.of("version",1,"account",account,"id",id,"name","Archived","removedAt",1));}
+ static String marker(int account,int id){return Json.write(Map.of("version",1,"account",account,"id",id,"name","Archived","removedAt",1));}
  static void fails(Jdbc db,Collection<Integer> accounts,String why)throws Exception {
   try{PlayerBotRoster.lists(db.connection(),accounts);throw new AssertionError(why);}catch(SQLException|IllegalArgumentException expected){check(true,why);}
  }

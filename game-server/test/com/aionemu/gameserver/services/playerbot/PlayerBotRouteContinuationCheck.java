@@ -30,10 +30,11 @@ public final class PlayerBotRouteContinuationCheck {
   check(!search.pending(),"bounded search terminates within fixture limit");return search.route();
  }
  static void validate(List<Point> route,Point start,Point goal,PlayerBotPathfinder.Ground ground){check(!route.isEmpty(),"supported route exists");Point previous=start;for(Point p:route){Point actual=ground.step(previous,p.x(),p.y());check(actual!=null && Math.hypot(actual.x()-p.x(),actual.y()-p.y())<.15 && Math.abs(actual.z()-p.z())<.1,"each retained edge has actual native support and body clearance");previous=p;}check(previous.equals(goal),"native goal layer reached");}
- static class Control extends PlayerController {boolean combat;@Override public boolean isInCombat(){return combat;}}
+ static class Control extends PlayerController {boolean combat;@Override public boolean isInCombat(){return combat;}@Override public void onStartMove(){}@Override public void onStopMove(){}}
  static class Actor extends PlayerBotClericCheck.Actor {
   Control control;boolean resting;
   @Override public boolean isWorldBot(){return true;}
+  @Override public int getPlayerBotOwnerId(){return 0;}
   @Override public boolean isInState(CreatureState state){return state==CreatureState.RESTING && resting;}
   @Override public PlayerController getController(){return control;}
  }
@@ -46,10 +47,45 @@ public final class PlayerBotRouteContinuationCheck {
   @Override public float getMovementSpeedFloat(){return 6;}
  }
  static class RouteActor extends Actor {
+  com.aionemu.gameserver.controllers.movement.PlayerBotMoveController corridor;
+  @Override public com.aionemu.gameserver.controllers.movement.PlayerMoveController getMoveController(){return corridor==null?super.getMoveController():corridor;}
+  @Override public byte getHeading(){return 0;}
   float x,y,z;int world=197,instance=1;boolean movable=true,casting,dead;
+  @Override public com.aionemu.gameserver.world.WorldMapInstance getWorldMapInstance(){return PlayerBotMetadataCheck.terrainInstance();}
   @Override public float getX(){return x;}@Override public float getY(){return y;}@Override public float getZ(){return z;}
   @Override public int getWorldId(){return world;}@Override public int getInstanceId(){return instance;}
   @Override public boolean canPerformMove(){return movable;}@Override public boolean isCasting(){return casting;}@Override public boolean isDead(){return dead;}
+ }
+ /** Real corridor publication/status/cancellation, with periodic callbacks captured in this isolated JVM.
+  * No native movement tick, World update, actor registration or game component is run. */
+ static class CapturedTask extends java.util.concurrent.FutureTask<Void> implements java.util.concurrent.ScheduledFuture<Void> {
+  CapturedTask(Runnable action){super(action,null);}
+  public long getDelay(java.util.concurrent.TimeUnit unit){return Long.MAX_VALUE;}
+  public int compareTo(java.util.concurrent.Delayed other){return 0;}
+ }
+ static class CapturedScheduler extends java.util.concurrent.ScheduledThreadPoolExecutor {
+  CapturedScheduler(){super(1);}
+  @Override public java.util.concurrent.ScheduledFuture<?> scheduleAtFixedRate(Runnable action,long initial,long period,java.util.concurrent.TimeUnit unit){return new CapturedTask(action);}
+ }
+ static boolean capturedScheduler;
+ static void nativeMover(RouteActor actor)throws Exception {
+  if(!capturedScheduler){
+   com.aionemu.gameserver.configs.main.ThreadConfig.BASE_THREAD_POOL_SIZE=1;
+   com.aionemu.gameserver.configs.main.ThreadConfig.SCHEDULED_THREAD_POOL_SIZE=1;
+   var threads=com.aionemu.gameserver.utils.ThreadPoolManager.getInstance();threads.shutdown();
+   for(Thread thread:Thread.getAllStackTraces().keySet())if(thread.getName().equals("DeadLockDetector"))thread.interrupt();
+   PlayerBotQuestObjectivesCheck.field(threads,"scheduledPool",new CapturedScheduler());capturedScheduler=true;
+  }
+  actor.control=new Control();
+  PlayerBotQuestObjectivesCheck.field(actor,"knownlist",new com.aionemu.gameserver.world.knownlist.KnownList(actor));
+  actor.corridor=new com.aionemu.gameserver.controllers.movement.PlayerBotMoveController(actor);
+ }
+ static void acknowledge(RouteActor actor)throws Exception {
+  var current=actor.corridor.walkStatus().current();
+  if(current==null)throw new AssertionError("No published native waypoint to acknowledge");
+  actor.x=current.x();actor.y=current.y();actor.z=current.z();
+  var next=actor.corridor.getClass().getDeclaredMethod("nextWalkPoint",long.class);next.setAccessible(true);
+  if(!(boolean)next.invoke(actor.corridor,System.currentTimeMillis()))actor.corridor.abortMove();
  }
  static Object value(Object object,String name)throws Exception{var f=object.getClass().getDeclaredField(name);f.setAccessible(true);return f.get(object);}
  static class PatrolGroup extends com.aionemu.gameserver.spawnengine.WalkerGroup {
@@ -116,7 +152,7 @@ public final class PlayerBotRouteContinuationCheck {
   var f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);var unsafe=(Unsafe)f.get(null);
   var bot=(RouteActor)unsafe.allocateInstance(RouteActor.class);bot.spawned=true;bot.movable=true;bot.world=197;bot.instance=1;bot.x=10;bot.y=10;
   bot.move=new RouteMove(bot);bot.stats=(RouteStats)unsafe.allocateInstance(RouteStats.class);
-  var nav=new PlayerBotNavigation(bot);var token=value(nav,"searchToken");
+  nativeMover(bot);var nav=new PlayerBotNavigation(bot);PlayerBotMetadataCheck.travelIntent(nav);var token=value(nav,"searchToken");
   var quotaField=PlayerBotNavigation.class.getDeclaredField("TERRAIN");quotaField.setAccessible(true);var quota=(PlayerBotNavigationBudget)quotaField.get(null);
   Object seed=new Object();long now=System.currentTimeMillis();quota.request(token,PlayerBotNavigationBudget.Priority.WORLD);
   var search=new PlayerBotRouteSearch(new Point(10,10,0),new Point(15,10,0),160,4096);
@@ -131,7 +167,7 @@ public final class PlayerBotRouteContinuationCheck {
   check(!nav.progressing(now),"unqueued route without probe progress cannot indefinitely mask real stall");
   // Map changes must revoke the old plan before even the nextMove time gate.
   PlayerBotQuestObjectivesCheck.field(nav,"nextMove",now+60000);bot.world=198;
-  check(!nav.move(20,10,0) && !nav.planningRoute(),"map transfer clears old route before native local movement deadline");
+  nav.move(20,10,0);check(value(nav,"routeSearch")!=successor && !quota.waiting(token),"map transfer clears predecessor before admitting a fresh native movement turn");
   bot.world=197;PlayerBotQuestObjectivesCheck.field(nav,"nextMove",0L);nav.stop();
   var geo=com.aionemu.gameserver.world.geo.GeoService.getInstance();var mapsField=geo.getClass().getDeclaredField("geoMaps");mapsField.setAccessible(true);
   @SuppressWarnings("unchecked") var maps=(Map<Integer,GeoMap>)mapsField.get(geo);var previous=maps.put(197,level());
@@ -139,7 +175,7 @@ public final class PlayerBotRouteContinuationCheck {
    @SuppressWarnings("unchecked") var route=(Deque<Point>)value(nav,"route");route.add(new Point(6,10,0));
    PlayerBotQuestObjectivesCheck.field(nav,"routeGoal",new Point(20,10,0));PlayerBotQuestObjectivesCheck.field(nav,"routeWorld",197);PlayerBotQuestObjectivesCheck.field(nav,"routeInstance",1);
    PlayerBotQuestObjectivesCheck.field(nav,"lastProgress",System.currentTimeMillis());
-   check(nav.move(20,10,0) && bot.move.getTargetX2()==6,"actual Navigation follows proved waypoint away from world goal");
+   check(nav.move(20,10,0) && bot.getMoveController().getTargetX2()==6,"actual Navigation follows proved waypoint away from world goal");
    nav.hazards(List.of(new PlayerBotHazards.Area(7,10,0,1,0,0,0,0,3,PlayerBotHazards.Shape.CIRCLE)));
    PlayerBotQuestObjectivesCheck.field(nav,"nextMove",0L);
    check(!nav.move(20,10,0),"new visible hazard revokes previously proved waypoint before consumption");
@@ -148,7 +184,7 @@ public final class PlayerBotRouteContinuationCheck {
    // The mover's native segment revalidation is represented by the exact same production probe.
    var segment=geo.findGroundMovementCollision(197,1,10,10,0,6,10,0);
    check(segment.x>8,"live wall blocks a previously published retained edge");
-   nav.stop();check(!bot.move.isInMove(),"stop clears native movement commitment through isolated mover");
+   nav.stop();check(!bot.getMoveController().isInMove(),"stop clears native movement commitment through isolated mover");
   } finally {nav.stop();if(previous==null)maps.remove(197);else maps.put(197,previous);}
  }
  static void cadence()throws Exception {
@@ -160,9 +196,9 @@ public final class PlayerBotRouteContinuationCheck {
   check(PlayerBotMovementCadence.reaction(3000,true)==200 && PlayerBotMovementCadence.reaction(100,true)==100,"movement shortens idle without slowing controlled following");
   cadence.clear();check(!cadence.active(1002,false,false),"cancellation clears transient handoff");
   var f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);var unsafe=(Unsafe)f.get(null);
-  var bot=(Actor)unsafe.allocateInstance(Actor.class);bot.spawned=true;bot.control=new Control();bot.move=new PlayerBotSorcererCheck.Move(bot);
+  var bot=(Actor)unsafe.allocateInstance(Actor.class);bot.spawned=true;bot.life=(PlayerBotSorcererCheck.Life)unsafe.allocateInstance(PlayerBotSorcererCheck.Life.class);bot.life.hp=bot.life.mp=1000;bot.control=new Control();bot.move=new RouteMove(bot);
   PlayerBotQuestObjectivesCheck.field(bot,"aggroList",new com.aionemu.gameserver.controllers.attack.AggroList(bot));
-  var session=(PlayerBotSession)unsafe.allocateInstance(PlayerBotSession.class);
+  var session=PlayerBotMetadataCheck.sessionDefaults((PlayerBotSession)unsafe.allocateInstance(PlayerBotSession.class));
   PlayerBotQuestObjectivesCheck.field(session,"owner",bot);PlayerBotQuestObjectivesCheck.field(session,"bot",bot);
   PlayerBotQuestObjectivesCheck.field(session,"engine",new PlayerBotEngine());PlayerBotQuestObjectivesCheck.field(session,"idleReaction",20);
   PlayerBotQuestObjectivesCheck.field(session,"movementCadence",new PlayerBotMovementCadence());
@@ -173,7 +209,7 @@ public final class PlayerBotRouteContinuationCheck {
   check(session.reactionDelay()==500,"actual stationary combat reaction preserved");
   bot.control.combat=false;bot.resting=true;check(session.reactionDelay()==10000,"actual rest cadence preserved");
  }
- public static void main(String[] args)throws Exception {
+ public static void main(String[] args)throws Exception {com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_INDEPENDENT=false;com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_MEMORY_FIRST=false;PlayerBotMetadataCheck.dryWorld();
   // These inert active-bot fixtures have no native human-presence World.
   com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS=false;
   cadence();navigation();groupPatrol();

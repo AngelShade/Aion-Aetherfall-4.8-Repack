@@ -3,7 +3,7 @@
 
 # Environment settings allow each host to choose its own memory budget.
 : "${AETHERFALL_GS_MIN_HEAP:=1024m}"
-: "${AETHERFALL_GS_MAX_RAM_PERCENT:=25}"
+: "${AETHERFALL_GS_MAX_RAM_PERCENT:=40}"
 heap_arg="-XX:MaxRAMPercentage=${AETHERFALL_GS_MAX_RAM_PERCENT}"
 if [ -n "${AETHERFALL_GS_MAX_HEAP:-}" ]; then heap_arg="-Xmx${AETHERFALL_GS_MAX_HEAP}"; fi
 # Usage:        ./start.sh [jvmArgs]

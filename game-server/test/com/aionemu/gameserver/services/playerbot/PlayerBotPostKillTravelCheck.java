@@ -56,10 +56,11 @@ public final class PlayerBotPostKillTravelCheck {
  }
  private static boolean admitted(PlayerBotSession session)throws Exception{
   put(state,"noActivitySince",0L);
+  if(session.autonomous() && !session.bot().isDead() && !session.bot().isTrading() && !session.bot().isCasting() && !session.bot().isLooting() && !PlayerBotWorldActivities.travelThreatened(session.bot()))PlayerBotWorldActivities.prepare(session.bot(),null);
   check(!PlayerBotWorldActivities.travel(session,null),"no selected destination never executes native movement or transport");
   var f=state.getClass().getDeclaredField("noActivitySince");f.setAccessible(true);return f.getLong(state)>0;
  }
- public static void main(String[] args)throws Exception{
+ public static void main(String[] args)throws Exception{PlayerBotMetadataCheck.dryWorld();
   var f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);unsafe=(Unsafe)f.get(null);
   var bot=(Actor)unsafe.allocateInstance(Actor.class);bot.id=1999999201;bot.spawned=true;bot.attack=true;
   bot.control=new PlayerBotFieldCombatCheck.Clock();bot.control.last=System.currentTimeMillis();

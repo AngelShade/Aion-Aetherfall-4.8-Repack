@@ -89,7 +89,7 @@ public final class PlayerBotQuestCraftingCheck {
    var work=new Work();var offered=work.getPlayerBotActions(bot);check(offered.size()==2 && offered.stream().allMatch(a->a.dialogAction()==DialogAction.QUEST_ACCEPT_1 && a.page()==DialogPage.ASK_QUEST_ACCEPT_WINDOW.id()),"Both actual native work-order masters declare their precise acceptance action/page");
    var state=new QuestState(5000,QuestStatus.START);bot.quests.addQuest(5000,state);
    check(PlayerBotQuestCrafting.plan(bot,5000).stage()==PlayerBotQuestCrafting.Stage.BLOCKED,"Accepted order with absent unpurchasable native recipe is explicit; no invented design ID zero");
-   bot.recipes.getRecipeList().add(155004001);
+   bot.recipes.addRecipe(155004001,0);
    var missing=PlayerBotQuestCrafting.plan(bot,5000);check(missing.stage()==PlayerBotQuestCrafting.Stage.MATERIALS && missing.missing().equals(Map.of(182290000,1L)),"Missing material is the exact actual native supplied component");
    bot.cube.counts.put(182290000,4L);var craft=PlayerBotQuestCrafting.plan(bot,5000);
    check(craft.stage()==PlayerBotQuestCrafting.Stage.CRAFT && craft.materials().equals(Map.of(182290000,1L)),"Attempt consumes one recipe batch, never all supplied components");
@@ -114,7 +114,7 @@ public final class PlayerBotQuestCraftingCheck {
    check(work.onDialogEvent(new QuestEnv(contact,bot,5000,DialogAction.QUEST_SELECT)),"Native REWARD QUEST_SELECT opens the ordinary end-dialog flow");
    check(bot.cube.counts.get(182290317)==0,"Actual native two-argument custody removal clears finished work products");
    check(state.getStatus()==QuestStatus.REWARD && state.getCompleteCount()==0 && work.page==DialogPage.getRewardPageByIndex(state.getRewardGroup()).id(),"Native REWARD page opening waits for actual reward selection before completion");
-   bot.recipes.getRecipeList().add(155004001);
+   bot.recipes.addRecipe(155004001,0);
    state.setStatus(QuestStatus.START);bot.cube.counts.put(182290317,0L);bot.cube.counts.put(182290000,4L);
    check(PlayerBotQuestCrafting.productPlan(bot,5000,182290317,3).recipeId()==155004001,"Crafted dependency index selects the real learned native product recipe");
    check(PlayerBotQuestCrafting.productPlan(bot,5000,182290317,0).stage()==PlayerBotQuestCrafting.Stage.NONE,"No craft planned after requirement is absent");

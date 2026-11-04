@@ -1,6 +1,8 @@
 package com.aionemu.gameserver.model.templates.item;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.regex.Pattern;
 
 import jakarta.xml.bind.Unmarshaller;
 import jakarta.xml.bind.annotation.*;
@@ -31,6 +33,9 @@ import com.aionemu.gameserver.model.templates.stats.ModifiersTemplate;
 public class ItemTemplate extends VisibleObjectTemplate {
 
 	private static final byte[] DEFAULT_LEVEL_RESTRICTION = new byte[] { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
+	private static final Pattern DEVELOPMENT_NAME = Pattern.compile("(?:^|[^a-z0-9])(?:test|debug|dummy|prototype|placeholder)(?:$|[^a-z0-9])");
+	private static final Pattern NON_PLAYER_NAME = Pattern.compile("(?:^|[^a-z0-9])(?:npc|prop)(?:$|[^a-z0-9])");
+	private static final Pattern NON_PLAYER_CLIENT_NAME = Pattern.compile("(?:^|_)(?:npc|prop)(?:_|$)");
 
 	private int itemId;
 	@XmlElement(name = "modifiers")
@@ -79,10 +84,12 @@ public class ItemTemplate extends VisibleObjectTemplate {
 	private Stigma stigma;
 	@XmlAttribute(name = "name")
 	private String name;
-	// Client development name; only kept as the flag below.
+	// Client development name; only the classification flags survive loading.
 	@XmlAttribute(name = "cName")
 	private String clientName;
 	private boolean testItem;
+	private boolean nonPlayerEquipment;
+	private boolean appearanceItem;
 	@XmlJavaTypeAdapter(SpaceSeparatedBytesAdapter.class)
 	@XmlAttribute(name = "restrict")
 	private byte[] levelRestrictions = DEFAULT_LEVEL_RESTRICTION;
@@ -150,9 +157,14 @@ public class ItemTemplate extends VisibleObjectTemplate {
 	}
 
 	void afterUnmarshal(Unmarshaller u, Object parent) {
+		String displayName = getName().toLowerCase(Locale.ROOT);
+		testItem = DEVELOPMENT_NAME.matcher(displayName).find() || displayName.startsWith("[temp");
+		nonPlayerEquipment = getItemSlot() != 0 && (NON_PLAYER_NAME.matcher(displayName).find() || displayName.contains("login stage"));
 		if (clientName != null) {
-			String c = clientName.toLowerCase();
-			testItem = c.startsWith("test") || c.contains("_test") || c.contains("test_");
+			String c = clientName.toLowerCase(Locale.ROOT);
+			testItem |= c.startsWith("test") || c.contains("_test") || c.contains("test_");
+			nonPlayerEquipment |= getItemSlot() != 0 && NON_PLAYER_CLIENT_NAME.matcher(c).find();
+			appearanceItem = c.contains("changeskin");
 			clientName = null;
 		}
 		if (weaponStats == null)
@@ -320,6 +332,16 @@ public class ItemTemplate extends VisibleObjectTemplate {
 	/** Developer test or prop item (client name test_..., ..._test_...), never part of normal play. */
 	public boolean isTestItem() {
 		return testItem;
+	}
+
+	/** Native NPC/prop equipment, including templates whose translated name looks ordinary. */
+	public boolean isNonPlayerEquipment() {
+		return nonPlayerEquipment;
+	}
+
+	/** Native changeskin family; some early skins still carry nominal weapon stats. */
+	public boolean isAppearanceItem() {
+		return appearanceItem;
 	}
 
 	@Override

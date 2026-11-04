@@ -8,7 +8,7 @@ import java.util.*;
 import javax.sql.DataSource;
 import com.aionemu.commons.database.DatabaseFactory;
 import com.aionemu.gameserver.dao.PlayerBotMetadataDAO;
-import com.alibaba.fastjson2.JSON;
+import com.aionemu.commons.utils.Json;
 import sun.misc.Unsafe;
 import com.aionemu.gameserver.model.account.Account;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
@@ -16,6 +16,41 @@ import com.aionemu.gameserver.model.gameobjects.player.Player;
 /** Production cache/DAO/checkpoint boundaries with recording JDBC, no live database/world/IDs. */
 public final class PlayerBotMetadataCheck {
  static int checks;
+ static void defaults() {
+  com.aionemu.commons.configuration.ConfigurableProcessor.process(new Properties(),
+   com.aionemu.gameserver.configs.main.PlayerBotConfig.class,
+   com.aionemu.gameserver.configs.main.PlayerBotMerchantConfig.class);
+ }
+ static void dryWorld() {
+  var dry=new com.aionemu.gameserver.model.templates.world.WorldMapTemplate(){@Override public int getWaterLevel(){return -1000;}};
+  com.aionemu.gameserver.dataholders.DataManager.WORLD_MAPS_DATA=new com.aionemu.gameserver.dataholders.WorldMapsData(){
+   @Override public com.aionemu.gameserver.model.templates.world.WorldMapTemplate getTemplate(int id){return dry;}
+  };
+ }
+ private static com.aionemu.gameserver.world.WorldMapInstance terrainInstance;
+ static com.aionemu.gameserver.world.WorldMapInstance terrainInstance() {
+  if(terrainInstance!=null)return terrainInstance;
+  try {
+   var access=Unsafe.class.getDeclaredField("theUnsafe");access.setAccessible(true);var unsafe=(Unsafe)access.get(null);
+   var parent=(com.aionemu.gameserver.world.WorldMap)unsafe.allocateInstance(com.aionemu.gameserver.world.WorldMap.class);
+   PlayerBotCastExecutionCheck.set(parent,"worldMapTemplate",new com.aionemu.gameserver.model.templates.world.WorldMapTemplate(){@Override public int getWorldSize(){return 4096;}});
+   terrainInstance=(com.aionemu.gameserver.world.WorldMapInstance)unsafe.allocateInstance(com.aionemu.gameserver.world.WorldMap2DInstance.class);
+   PlayerBotCastExecutionCheck.set(terrainInstance,"parent",parent);
+   return terrainInstance;
+  }catch(Exception e){throw new AssertionError(e);}
+ }
+ static void travelIntent(PlayerBotNavigation navigation)throws Exception {
+  var field=PlayerBotNavigation.class.getDeclaredField("routeIntent");field.setAccessible(true);
+  for(Object value:field.getType().getEnumConstants())if(((Enum<?>)value).name().equals("TRAVEL")){field.set(navigation,value);return;}
+  throw new AssertionError("Missing native travel intent");
+ }
+ static PlayerBotSession sessionDefaults(PlayerBotSession session)throws Exception {
+  PlayerBotCastExecutionCheck.set(session,"pvp",new PlayerBotPvp(session));
+  PlayerBotCastExecutionCheck.set(session,"loot",new PlayerBotLoot());
+  PlayerBotCastExecutionCheck.set(session,"movementCadence",new PlayerBotMovementCadence());
+  return session;
+ }
+
  static class Actor extends Player {
   int id;Account account;Actor(){super(null,null);}
   @Override public int getObjectId(){return id;}
@@ -26,7 +61,7 @@ public final class PlayerBotMetadataCheck {
   var f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);var u=(Unsafe)f.get(null);
   var account=(Account)u.allocateInstance(Account.class);field(account,"id",7);
   var owner=(Actor)u.allocateInstance(Actor.class);owner.account=account;
-  var bot=(Actor)u.allocateInstance(Actor.class);bot.id=2001;
+  var bot=(Actor)u.allocateInstance(Actor.class);bot.id=2001;bot.account=account;
   var session=(PlayerBotSession)u.allocateInstance(PlayerBotSession.class);field(session,"owner",owner);field(session,"bot",bot);
   db.stored=null;db.autoCommit=true;
   PlayerBotMetadata.load(7,2001,"care",directory.resolve("no-care-file"));PlayerBotMetadata.load(7,2001,"gear",directory.resolve("no-gear-file"));int reads=db.queries,writes=db.updates;
@@ -34,7 +69,7 @@ public final class PlayerBotMetadataCheck {
   field(care,"account",7);field(care,"character",2001);field(care,"managed",new HashSet<>(Set.of(40)));field(care,"ownerCompletions",new HashMap<>(Map.of(40,2)));
   field(care,"approved",new HashSet<>(Set.of(20)));field(care,"skipped",new HashSet<>(Set.of(30)));field(care,"spentDay","2026-10-07");
   care.partySync=true;care.reserve=10000;care.dailyBudget=50000;care.spent=123;care.save();
-  var gear=(PlayerBotGearPolicy.State)u.allocateInstance(PlayerBotGearPolicy.State.class);field(gear,"session",session);gear.settings=PlayerBotGearPolicy.DEFAULT;
+  var gear=(PlayerBotGearPolicy.State)u.allocateInstance(PlayerBotGearPolicy.State.class);field(gear,"session",session);field(gear,"build","AUTO");gear.settings=PlayerBotGearPolicy.DEFAULT;
   field(gear,"generated",new HashSet<>(Set.of(16204,27593)));field(gear,"starterSlots",new HashSet<>(Set.of(16L,32L)));gear.save();
   var rows=PlayerBotMetadata.pending(7,2001);check(rows.size()==2,"Actual care/gear State.save both queue checkpoint metadata");
   check(rows.get(0).values().get("together.40").equals("2") && rows.get(0).values().get("spent").equals("123"),"Production quest witness and spending serialized");
@@ -62,6 +97,7 @@ public final class PlayerBotMetadataCheck {
    if(m.getName().equals("getAutoCommit"))return autoCommit;
    if(m.getName().equals("setAutoCommit")){autoCommit=(boolean)a[0];return null;}
    if(m.getName().equals("prepareStatement"))return statement((String)a[0]);
+   if(m.getName().equals("createStatement"))return proxy(Statement.class,(s,sm,sa)->zero(sm.getReturnType()));
    if(Set.of("commit","rollback").contains(m.getName()))throw new AssertionError("DAO/cache must not commit caller transaction");return zero(m.getReturnType());
   });}
   PreparedStatement statement(String query){var params=new HashMap<Integer,Object>();return proxy(PreparedStatement.class,(p,m,a)->{
@@ -73,7 +109,7 @@ public final class PlayerBotMetadataCheck {
      if(rm.getName().equals("next")){boolean next=row && !seen[0];seen[0]=true;return next;}
      if(rm.getName().equals("getInt"))return account;
      if(rm.getName().equals("getLong"))return revision;
-     if(rm.getName().equals("getString"))return JSON.toJSONString(stored);
+     if(rm.getName().equals("getString"))return Json.write(stored);
      return zero(rm.getReturnType());
     });
    }

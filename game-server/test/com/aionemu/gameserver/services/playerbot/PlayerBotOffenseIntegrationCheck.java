@@ -24,7 +24,7 @@ public final class PlayerBotOffenseIntegrationCheck {
  static Unsafe unsafe;
  static SkillData data;
  static PlayerBotSession session;
- static Actor bot,target;
+ static Actor bot;static Target target;
  static Constructor<?> cast;
  static final class Life extends PlayerLifeStats {
   int hp,mp; Life(){super(null);}
@@ -43,6 +43,12 @@ public final class PlayerBotOffenseIntegrationCheck {
  static final class Actor extends Player {
   Life life; Effects effects; PlayerSkillList learned; boolean casting,spawned,disabled; int id;
   Actor(){super(null,null);}
+  @Override public int getWorldId(){return 1;}@Override public int getInstanceId(){return 1;}
+  @Override public float getX(){return 0;}@Override public float getY(){return 0;}@Override public float getZ(){return 0;}
+  @Override public boolean isEnemy(Creature other){return other instanceof Target;}
+  @Override public boolean canSee(com.aionemu.gameserver.model.gameobjects.VisibleObject other){return true;}
+  @Override public com.aionemu.gameserver.world.knownlist.KnownList getKnownList(){return new com.aionemu.gameserver.world.knownlist.KnownList(this){@Override public boolean sees(com.aionemu.gameserver.model.gameobjects.VisibleObject other){return other==target;}};}
+  @Override public com.aionemu.gameserver.controllers.PlayerController getController(){return new com.aionemu.gameserver.controllers.PlayerController();}
   @Override public int getObjectId(){return id;}
   @Override public PlayerLifeStats getLifeStats(){return life;}
   @Override public PlayerEffectController getEffectController(){return effects;}
@@ -54,6 +60,21 @@ public final class PlayerBotOffenseIntegrationCheck {
   @Override public boolean canAttack(){return true;}
   @Override public boolean isSkillDisabled(SkillTemplate skill){return disabled;}
   @Override public ChainSkills getChainSkills(){return new ChainSkills();}
+ }
+ static final class TargetLife extends com.aionemu.gameserver.model.stats.container.NpcLifeStats {
+  int hp;TargetLife(){super(null);}
+  @Override public int getCurrentHp(){return hp;}@Override public int getMaxHp(){return 1000;}
+ }
+ @com.aionemu.gameserver.ai.AIName("offline_offense_fixture")
+ static final class TargetAI extends com.aionemu.gameserver.ai.NpcAI {
+  TargetAI(com.aionemu.gameserver.model.gameobjects.Npc owner){super(owner);}
+ }
+ static final class Target extends PlayerBotQuestObjectivesCheck.Contact {
+  TargetLife life;Effects effects;
+  @Override public com.aionemu.gameserver.ai.NpcAI getAi(){return new TargetAI(this);}
+  @Override public com.aionemu.gameserver.model.stats.container.NpcLifeStats getLifeStats(){return life;}
+  @Override public PlayerEffectController getEffectController(){return effects;}
+  @Override public boolean isDead(){return life.hp==0;}
  }
  static void set(Object value,String name,Object fieldValue)throws Exception {
   Field field=PlayerBotSession.class.getDeclaredField(name);field.setAccessible(true);field.set(value,fieldValue);
@@ -136,7 +157,7 @@ public final class PlayerBotOffenseIntegrationCheck {
   check(!action.isPossible(),"Native MP action must reject insufficient mana");
   check(bot.life.mp==10,"Planning must not pay MP");bot.life.mp=mp;
  }
- public static void main(String[] args)throws Exception {
+ public static void main(String[] args)throws Exception {PlayerBotMetadataCheck.defaults();
   Field access=Unsafe.class.getDeclaredField("theUnsafe");access.setAccessible(true);unsafe=(Unsafe)access.get(null);
   data=(SkillData)JAXBContext.newInstance(SkillData.class).createUnmarshaller().unmarshal(new StringReader("""
    <skill_data>
@@ -155,8 +176,11 @@ public final class PlayerBotOffenseIntegrationCheck {
     <skill_template skill_id="991013" activation="ACTIVE" stack="OTHER_DOT" conflict_id="55" lvl="1" tslot="DEBUFF"><effects><spellatk value="100" e="1" checktime="3000" duration2="15000" effectid="79"/></effects></skill_template>
    </skill_data>
    """));
-  bot=actor(1999998001);target=actor(1999998002);
-  session=(PlayerBotSession)unsafe.allocateInstance(PlayerBotSession.class);set(session,"bot",bot);set(session,"owner",bot);set(session,"role",Role.MELEE);
+  bot=actor(1999998001);target=(Target)unsafe.allocateInstance(Target.class);
+  target.id=1999998002;target.template=213360;target.spawned=true;target.world=target.instance=1;
+  target.life=(TargetLife)unsafe.allocateInstance(TargetLife.class);target.life.hp=1000;target.effects=new Effects(target);
+  PlayerBotCastExecutionCheck.set(target,"aggroList",new com.aionemu.gameserver.controllers.attack.AggroList(target));
+  session=(PlayerBotSession)unsafe.allocateInstance(PlayerBotSession.class);set(session,"bot",bot);set(session,"owner",bot);set(session,"role",Role.MELEE);set(session,"commandedTarget",target.id);set(session,"order",Order.FOLLOW);
   cast=Class.forName(PlayerBotSession.class.getName()+"$CastAction").getDeclaredConstructor(PlayerBotSession.class,PlayerBotSkills.Entry.class,Creature.class,List.class);cast.setAccessible(true);
   var previous=DataManager.SKILL_DATA;
   try {

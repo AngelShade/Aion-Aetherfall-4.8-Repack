@@ -51,6 +51,12 @@ final class PlayerBotGroupNeeds {
      var need=quest(bot,state.getQuestId(),npc);if(need!=null)return need;
     }
   }
+  // A missing saved-equipment goal that drops from a hard monster on this map is a real reason to ask.
+  if(com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.ECONOMY_ENABLED && com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.WORLD_GOALS_HELP_REQUESTS)for(int npc:PlayerBotGearPolicy.goalDrops(bot)) {
+   var target=DataManager.NPC_DATA.getNpcTemplate(npc);
+   if(target!=null && PlayerBotHunting.template(target) && hard(bot,npc) && DataManager.SPAWNS_DATA.getSpawnsForNpc(bot.getWorldId(),npc).stream().anyMatch(g->!g.isTemporarySpawn() && g.getHandlerType()==null))
+    return new Need(0,npc,bot.getWorldId(),0,6,Math.max(1,bot.getLevel()-5),Math.min(65,bot.getLevel()+5),target.getName());
+  }
   // Chore quests and ordinary levelling are solo work: no help request.
   return null;
  }
@@ -298,7 +304,7 @@ final class PlayerBotGroupNeeds {
   String place = map == null ? "my current area" : map.getName();
   String hard = difficulty(need.npc());
   return (need.quest() == 0 ? "I can't beat " + hard + " alone" : "I can't beat " + hard + " alone for " + need.title())
-   + " in " + place + "." + where(bot, need) + " Join me and I'll offer to bring you here; we fight them together.";
+   + " in " + place + "." + where(bot, need) + " Join me and I'll offer to bring you here; we fight them together. Help-contract credit needs your own combat or effective support nearby.";
  }
 
  /** Nearest native spawn of the objective, so the human can lead the party to it. */

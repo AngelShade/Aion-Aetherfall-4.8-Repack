@@ -149,6 +149,7 @@ public class FirstTargetProperty {
 	}
 
 	private static boolean isTargetTeamMember(Skill skill, boolean onlyGroup) {
+		if(skill.getEffector() instanceof Player p && com.aionemu.gameserver.services.playerbot.PlayerBotWardens.supportMember(p,skill.getFirstTarget()))return true;
 		if (skill.getFirstTarget() instanceof Player && skill.getEffector() instanceof Player) {
 			Player effector = (Player) skill.getEffector();
 			TemporaryPlayerTeam<?> team = onlyGroup ? effector.getCurrentGroup() : effector.getCurrentTeam();

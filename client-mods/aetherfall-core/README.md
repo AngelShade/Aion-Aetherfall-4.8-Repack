@@ -5,6 +5,12 @@ Aetherfall Interface. It reads native HUD data and applies the interface's windo
 positions, visibility and tooltip settings. Settings remain in `Mods/AetherfallUI`.
 Existing chat commands run through the native chat input.
 
+## Show location, native 1.3.5
+
+Companions' Show location calls `AetherfallCodexLocate` to open the M map panel on one
+point. `AetherfallCodexBrowse` is the Central Market's hand-off: it needs the market's
+plugin window and hides it, so it stays with the market.
+
 ## Slash lookup off the game thread, native 1.3.2
 
 Game.dll asks Lua's `IsSlashCmd` whether a chat line is a plugin command, on the

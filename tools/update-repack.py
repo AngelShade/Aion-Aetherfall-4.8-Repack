@@ -31,6 +31,8 @@ import sys
 sys.path.insert(0, str(repo / 'tools/distribution'))
 from repack_recovery import texture_release_state, active_recovery_files
 from optional_textures import load as load_hd, standard_assets, standard_manifest, OBSOLETE_TOOLS
+from player_settings import KEEP
+from client_assets import validate_client_assets
 pack, client = args.package.resolve(strict=True), args.client.resolve(strict=True)
 stage, backup = args.stage.resolve(), args.backup.resolve()
 for folder in [stage, backup]:
@@ -106,9 +108,11 @@ def put(relative, reason, source=None, data=None, expected=None, mutable=None):
     if expected is not None and sha != expected:
         raise ValueError('Installed source differs from its receipt: '+str(source))
     old = entries.get(relative.casefold())
+    if mutable is not None and old:
+        old['mutable'] = bool(mutable)
     if old and old['sha256'] == sha and destination.is_file() and destination.stat().st_size == size:
         return
-    if destination.is_file() and destination.stat().st_size == size and digest(destination) == sha:
+    if old and destination.is_file() and destination.stat().st_size == size and digest(destination) == sha:
         # A mutable runtime file may already match the desired source.
         if old:
             old.update(sha256=sha, bytes=size)
@@ -197,6 +201,7 @@ for component in ['game-server', 'login-server', 'chat-server']:
 
 print('Preparing installed client features and portable Mods support.', flush=True)
 native_paths = {entry['path'] for entry in inventory['clientFiles'] if not entry['path'].startswith('Mods/')}
+native_paths.update(record['path'] for record in validate_client_assets(client))
 mods = read(client/'Mods/InstalledMods.json')
 for records in mods['features'].values():
     native_paths.update(record['path'] for record in records if not record['path'].startswith('Mods/'))
@@ -331,7 +336,7 @@ if bootstrap.count(original_schema) != 1:
     raise ValueError('Fresh schema bootstrap differs from its packaged schema')
 from distribution.repack_population import payloads as population_payloads
 for relative, data in population_payloads(pack, schema, bootstrap.replace(original_schema, schema, 1)).items():
-    put(relative, 'Fresh schema and native empty-population bootstrap; existing installations repaired before server startup', data=data)
+    put(relative, 'Fresh schema and native empty-population bootstrap; existing installations repaired before server startup', data=data, mutable=relative in KEEP)
 put('Server/game-server/sql/update.sql', 'Upstream schema migration reference; not executed', source=repo/'game-server/sql/update.sql')
 put('release.json', 'Current product release metadata', data=encoded(version))
 

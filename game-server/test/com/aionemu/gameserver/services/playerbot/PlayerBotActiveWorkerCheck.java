@@ -10,7 +10,7 @@ import com.aionemu.gameserver.model.gameobjects.player.Player;
 public final class PlayerBotActiveWorkerCheck {
  private static int checks;
  private static void check(boolean value,String why){checks++;if(!value)throw new AssertionError(why);}
- @SuppressWarnings("unchecked") public static void main(String[] args)throws Exception {
+ @SuppressWarnings("unchecked") public static void main(String[] args)throws Exception {PlayerBotMetadataCheck.defaults();PlayerBotMetadataCheck.dryWorld();
   // These inert active-bot fixtures have no native human-presence World.
   com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS=false;
   var worker=new PlayerBotBackgroundWork(4);var controlled=new PlayerBotBackgroundWork();

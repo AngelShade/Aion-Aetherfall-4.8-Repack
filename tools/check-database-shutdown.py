@@ -3,6 +3,7 @@ import argparse
 import hashlib
 import json
 import os
+from importlib import import_module
 from pathlib import Path
 import subprocess
 
@@ -40,7 +41,7 @@ def main():
     parser.add_argument('--output', required=True, type=Path)
     args = parser.parse_args()
     output = args.output.resolve()
-    client = (Path.home() / 'Downloads/aion-4.8-na/Aion 4.8 NA').resolve()
+    client = (Path.home() / 'Downloads/Aion Client Development Server 4.8 NA').resolve()
     assert not output.is_relative_to(ROOT) and not output.is_relative_to(client), 'Use an external diagnostic output directory'
     output.mkdir(parents=True, exist_ok=False)
     staged = output / 'stubs'
@@ -65,13 +66,15 @@ def main():
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text('package ' + package + ';\nimport static com.aionemu.gameserver.DatabaseShutdownCheck.event;\npublic class ' + simple + '{' + body + '}\n', encoding='utf-8')
         files.append(path)
-    libraries = sorted((ROOT / 'target-deploy/game-server/libs').glob('*.jar'))
     if args.build:
         build = args.build.resolve()
-        libraries = [p for p in libraries if p.name not in {'game-server-4.8-SNAPSHOT.jar', 'commons-4.8-SNAPSHOT.jar'}]
+        build_meta = import_module('build-manifest')
+        build_meta.verify(build)
+        libraries = build_meta.libraries(build)
         libraries += [build / 'commons/commons-4.8-SNAPSHOT.jar', build / 'game-server/game-server-4.8-SNAPSHOT.jar']
-        inputs = libraries + [FIXTURE, Path(__file__), *files]
+        inputs = libraries + [FIXTURE, Path(__file__), Path(build_meta.__file__), build / 'build-manifest.json', *files]
     else:
+        libraries = sorted((ROOT / 'target-deploy/game-server/libs').glob('*.jar'))
         files += PRODUCTS
         inputs = libraries + [FIXTURE, Path(__file__), *files]
     before = {str(p): sha(p) for p in inputs}
@@ -96,6 +99,7 @@ def main():
     (output / 'checks.txt').write_text(result.stdout + result.stderr, encoding='utf-8')
     assert result.returncode == 0, result.stdout + result.stderr
     assert before == {str(p): sha(p) for p in inputs}, 'Inputs changed during verification'
+    if args.build: build_meta.verify(build)
     conclusion = next(line for line in result.stdout.splitlines() if line.startswith('OK: '))
     (output / 'evidence.json').write_text(json.dumps({'mode': 'normal-builder-artifact' if args.build else 'three-source-classes', 'inputs': before, 'result': conclusion, 'count': int(conclusion.split()[1]), 'reportSha256': sha(output / 'checks.txt'), 'compileSha256': sha(output / 'compile.txt'), 'abiSha256': sha(output / 'abi.json'), 'classes': {str(p.relative_to(compiled)): sha(p) for p in sorted(compiled.rglob('*.class'))}}, indent=2), encoding='utf-8')
     print(conclusion)

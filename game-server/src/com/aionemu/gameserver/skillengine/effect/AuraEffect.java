@@ -58,7 +58,12 @@ public class AuraEffect extends EffectTemplate {
 			if (!p.isPlaying()) { // task check
 				return;
 			}
-			if (p.isInTeam()) {
+			var protectedTravellers=com.aionemu.gameserver.services.playerbot.PlayerBotWardens.supportMembers(p);
+			if(!protectedTravellers.isEmpty()) {
+				int boost=effector.getGameStats().getStat(StatEnum.BOOST_MANTRA_RANGE,100).getCurrent();
+				applyAuraTo(effector);
+				for(Player player:protectedTravellers)if(Math.abs(p.getZ()-player.getZ())<=distanceZ*boost/100f && PositionUtil.isInRange(p,player,distance*boost/100f,false))applyAuraTo(player);
+			} else if (p.isInTeam()) {
 				int rangeBoost = effector.getGameStats().getStat(StatEnum.BOOST_MANTRA_RANGE, 100).getCurrent();
 				float rangeZ = distanceZ * rangeBoost / 100f;
 				float range = distance * rangeBoost / 100f;

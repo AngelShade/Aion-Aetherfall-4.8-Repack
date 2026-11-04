@@ -70,11 +70,25 @@ public final class PlayerBotWorldCheck {
    check(PlayerBotWorldAscension.step(false,4).npc()==203550,"Asmodian stones return to Munin");
    var f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);Unsafe unsafe=(Unsafe)f.get(null);
    Player human=(Player)unsafe.allocateInstance(Player.class);refused(()->human.setWorldBotController(0),"Ordinary player cannot become world bot through control transfer");
+   PlayerBotWorldOutcomes.report();
+   PlayerBotWorldOutcomes.levelChanged(human,1,5);PlayerBotWorldOutcomes.questReward(human);PlayerBotWorldOutcomes.crafted(human);PlayerBotWorldOutcomes.gathered(human);
+   check(PlayerBotWorldOutcomes.report().endsWith("level-ups=0, quest turn-ins=0, crafts=0, gathers=0"),"Normal players and private alts never enter world counters");
    var field=Player.class.getDeclaredField("worldBot");field.setAccessible(true);field.setBoolean(human,true);
    check(human.isPlayerBot() && human.isWorldBot() && human.getPlayerBotOwnerId()==0,"Independent identity remains a bot without owner");
    human.setWorldBotController(123);check(human.getPlayerBotOwnerId()==123,"Invitation changes controller");human.setWorldBotController(0);
    check(human.isWorldBot() && human.getPlayerBotOwnerId()==0,"Release preserves independent identity");
    refused(()->human.setWorldBotController(-1),"Invalid controller rejected");
+   PlayerBotWorldOutcomes.levelChanged(human,17,20);PlayerBotWorldOutcomes.levelChanged(human,20,20);PlayerBotWorldOutcomes.levelChanged(human,20,19);
+   human.setWorldBotController(123);PlayerBotWorldOutcomes.questReward(human);human.setWorldBotController(0);
+   PlayerBotWorldOutcomes.crafted(human);PlayerBotWorldOutcomes.gathered(human);
+   check(PlayerBotWorldOutcomes.report().endsWith("level-ups=3, quest turn-ins=1, crafts=1, gathers=1"),"Only positive earned levels and successful world completions count, including borrowed residents");
+   check(PlayerBotWorldOutcomes.report().endsWith("level-ups=0, quest turn-ins=0, crafts=0, gathers=0"),"Periodic report drains deltas exactly once");
+   PlayerBotWorldActivities.begin(human);
+   check(PlayerBotWorldActivities.why(human).contains("awaiting first admitted"),"Published autonomous session has an explicit first-planning reason");
+   PlayerBotWorldActivities.placementDeferred(human,"human nearby");
+   check(PlayerBotWorldActivities.why(human).equals("placement deferred: human nearby"),"Refused placement retains the real safety reason");
+   PlayerBotWorldActivities.close(human);
+   check(PlayerBotWorldActivities.why(human).contains("planning reset"),"Sleep/placement/handover reset has an explicit diagnostic phase");
    System.out.println("OK: "+checks+" independent world lifecycle, persistence, route and trade checks; no world/DB/IDs");
   }finally{try(var files=Files.list(dir)){for(var file:files.toList())Files.delete(file);}Files.delete(dir);}
  }

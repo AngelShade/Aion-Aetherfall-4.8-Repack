@@ -35,12 +35,12 @@ prices, categories, and descriptions without disconnecting players. Reopen the
 shop or browse to another category to see changes. If a catalog edit is invalid,
 the last valid catalog stays active and the game server logs the error.
 The storefront opens on `Featured`. Its current collections are `featured`,
-`fashion`, `weapon_looks`, `equipment`, `wings`, `companions`, `collectibles`,
+`fashion`, `weapon_looks`, `wings`, `companions`, `collectibles`,
 `convenience`, `essentials`, `upgrades`, and `bundles`; `all` browses these together.
 Every regular current collection has browsable subcategories. Fashion includes
 `fashion_outfits`, `fashion_headwear`, `fashion_dyes`, and `fashion_hair`.
 Weapon looks includes `weapon_melee`, `weapon_ranged`, and `weapon_arcane`;
-Equipment includes `equipment_weapons` and `equipment_armor`; Wings includes
+Combat equipment is obtained through gameplay and the trading market. Wings includes
 `wing_permanent` and `wing_skins`. Pets & mounts includes `pets` and `mounts`;
 Emotes & titles includes `emotes` and `titles`. Convenience includes `storage`,
 `entry_scrolls`, `character_services`, `summoned_npcs`, and `travel`. Adventure supplies includes
@@ -52,10 +52,9 @@ stat families: `manastone_physical`, `manastone_magic`, `manastone_vitality`,
 Bundles & gifts includes `gift_boxes` and `travel_bundles`. Parent collections
 show all their subcategory offers. The sidebar reveals a collection's children
 when browsing it, and its landing page links directly to each child.
-`marketplace_cash.tsv` contains 2,473
-current Kinah offers covering 2,463 distinct item IDs. It includes 314 wing
-offers and 233 convenience offers: 16 storage tickets, 84 instance entry
-scrolls, 77 character service items, and 46 travel items. Adventure supplies
+`marketplace_cash.tsv` contains 2,336 Kinah offers covering 2,326 distinct item IDs.
+Its convenience offers include 16 storage tickets, 84 instance entry
+scrolls, character service items, and 46 travel items. Adventure supplies
 includes 86 meals and drinks, 58 recovery offers, and 122 transformation candy
 offers. The recovery collection includes 20 instant Life, Mana, and Divine
 Serums across level tiers. Convenience includes 10 personal/group summoning
@@ -83,14 +82,39 @@ were kept. Run `python config/ingameshop/expand_upgrade_catalog.py` from the
 families. It checks selected item counts and actions and can be run repeatedly.
 New templates need an icon in the matching original client and its item/texture
 index. Item PNGs are no longer stored in `media/icons/`.
-Imported offers retain their Kinah prices, stack quantities, and level
-requirements; their descriptions identify each item's name, type, and supported
-use action. The historical `marketplace.tsv` and `marketplace_extra.tsv` files
+Imported offers retain their stack quantities and level requirements; the native
+pricing audit below corrects prices and removes ineligible rows. Descriptions
+identify each item's name, type, and supported use action. The historical
+`marketplace.tsv` and `marketplace_extra.tsv` files
 remain only in the source checkout as maintenance inputs; the storefront neither
 loads nor displays them, and they are absent from the deployed server folder.
 Run `python config/ingameshop/expand_cash_catalog.py` from the
 `game-server` directory to import newly added historical IDs into the current
 catalog. It keeps existing current offers unchanged and can be run repeatedly.
+After any catalog generator or historical import, run
+`python config/ingameshop/rebalance_catalog.py` from the `game-server` directory
+to audit the result, then add `--apply` to write it. `--report` accepts an external
+JSON report path. The transformer is idempotent and preserves retained offer
+IDs, quantities, order, unlock levels and descriptions. It removes combat
+equipment collections, native test/NPC equipment, and AP-priced cosmetics,
+including AP wings and appearance weapons. Those AP items retain their native
+acquisition route; the storefront does not invent a Kinah-to-AP exchange.
+Genuine native `changeskin` weapons and explicit remodel-only items remain
+appearance offers, including early skins with nominal low-level attributes.
+
+Retail prices are at least the native item price times the offered quantity,
+and always exceed the maximum supported Kinah vendor/pet resale. Higher existing
+retail prices remain. This preserves native luxury pricing and prevents buying
+a cheap appearance item merely to sell it for hundreds of times the cost.
+Ordinary native vendor rewards and merchant-pet rates are unchanged. The audit
+also considers non-AP specialist purchase lists; AP redemption rates are not
+mistaken for Kinah payouts. Native data remains authoritative: genuine cheap
+cosmetics and starter supplies keep their existing higher retail prices.
+Gift/travel bundles with one guaranteed fixed reward for either faction also
+cost at least the highest native retail value of that faction's contents. This
+uses the native decompose definitions and their local override precedence;
+random GM reward boxes are left unchanged by this narrow bundle appraisal.
+
 Item IDs must exist in
 `data/static_data/items/item_templates.xml`, and the quantity must fit one
 item stack. The shop blocks purchases below the offer's unlock level and
@@ -136,8 +160,8 @@ data, run `python config/ingameshop/build_extra_catalog.py` from the
 IDs into the current catalog. Copy the updated `marketplace_cash.tsv` into the
 deployed `config/ingameshop/` directory to load it. Changes to the underlying static item
 templates still require a game server restart. Purchased items arrive in
-Black Cloud mail. Gear is sold piece by piece; choose the item type your class
-can equip.
+Black Cloud mail. Combat-equipment historical rows are excluded by the pricing
+audit before deployment.
 
 Set `gameserver.marketplace.enable = false` in `config/mygs.properties` to turn
 off the storefront. The bind address and port can also be overridden with

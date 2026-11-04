@@ -55,6 +55,9 @@ CREATE TABLE IF NOT EXISTS central_market_simulation (
  variant VARCHAR(96) NOT NULL PRIMARY KEY, next_refresh BIGINT NOT NULL,
  INDEX refresh_due (next_refresh)
 ) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS central_market_economy_versions (
+ version INT NOT NULL PRIMARY KEY, applied_at BIGINT NOT NULL
+) ENGINE=InnoDB;
 CREATE TABLE IF NOT EXISTS central_market_settlements (
  order_id BIGINT NOT NULL PRIMARY KEY, gross BIGINT NOT NULL DEFAULT 0,
  collected_quantity BIGINT NOT NULL DEFAULT 0,

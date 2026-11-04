@@ -18,12 +18,16 @@ import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.model.items.storage.StorageType;
 import com.aionemu.gameserver.model.templates.item.*;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_FIRST_SHOW_DECOMPOSABLE;
+import com.aionemu.gameserver.network.aion.serverpackets.SM_SECONDARY_SHOW_DECOMPOSABLE;
+import com.aionemu.gameserver.restrictions.PlayerRestrictions;
+import com.aionemu.gameserver.model.items.ItemUseAnimation;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_ITEM_USAGE_ANIMATION;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_SYSTEM_MESSAGE;
 import com.aionemu.gameserver.services.item.ItemPacketService.ItemAddType;
 import com.aionemu.gameserver.services.item.ItemPacketService.ItemUpdateType;
 import com.aionemu.gameserver.services.item.ItemService;
 import com.aionemu.gameserver.services.item.ItemService.ItemUpdatePredicate;
+import com.aionemu.gameserver.services.playerbot.PlayerBotPass;
 import com.aionemu.gameserver.utils.PacketSendUtility;
 import com.aionemu.gameserver.utils.ThreadPoolManager;
 
@@ -52,6 +56,10 @@ public class DecomposeAction extends AbstractItemAction {
 
 	@Override
 	public void act(final Player player, final Item parentItem, final Item targetItem, Object... params) {
+		act(player, parentItem, targetItem, false);
+	}
+
+	private void act(Player player, Item parentItem, Item targetItem, boolean companionReward) {
 		DecomposableItemInfo info = DataManager.DECOMPOSABLE_ITEMS_DATA.getInfoByItemId(parentItem.getItemId());
 		if (info.isSelectable()) {
 			DecomposableSet set = info.getSelectableSet(player);
@@ -85,8 +93,33 @@ public class DecomposeAction extends AbstractItemAction {
 		player.getObserveController().addObserver(observer);
 		player.getController().addTask(TaskId.ITEM_USE, ThreadPoolManager.getInstance().schedule(() -> {
 			player.getObserveController().removeObserver(observer);
-			finishUse(player, parentItem, targetItem, info);
+			if (!companionReward) {
+				finishUse(player, parentItem, targetItem, info);
+			} else if (!PlayerBotPass.finishIdleItem(player, () -> finishUse(player, parentItem, targetItem, info))) {
+				PacketSendUtility.broadcastPacket(player,
+					new SM_ITEM_USAGE_ANIMATION(player.getObjectId(), parentItem.getObjectId(), parentItem.getItemId(), 0, USE_FAIL), true);
+			}
 		}, castingDelay));
+	}
+
+	/** Headless idle use: native applicable choices and the same selection admission as the client. */
+	public static boolean openForCompanion(Player player, Item item) {
+		if (item == null || player.getInventory().getItemByObjId(item.getObjectId()) != item
+			|| !PlayerBotPass.canOpenReward(player) || !PlayerRestrictions.canUseItem(player, item)) return false;
+		var info=DataManager.DECOMPOSABLE_ITEMS_DATA.getInfoByItemId(item.getItemId());
+		if(info==null)return false;
+		if(info.isSelectable()) {
+			var set=info.getSelectableSet(player);if(set==null)return false;
+			var choices=new java.util.ArrayList<Integer>();
+			for(int i=0;i<set.getItems().size();i++) {
+				var template=DataManager.ITEM_DATA.getItemTemplate(set.getItems().get(i).getItemId());
+				if(template!=null && template.isClassSpecific(player.getPlayerClass()) && template.getRequiredLevel(player.getPlayerClass())>=0 && template.getRequiredLevel(player.getPlayerClass())<=player.getLevel())choices.add(i);
+			}
+			if(choices.isEmpty())return false;
+			return select(player,item,choices.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(choices.size())));
+		}
+		var action=new DecomposeAction();if(!action.canAct(player,item,null))return false;
+		action.act(player,item,null,true);return true;
 	}
 
 	private boolean postValidate(Player player, Item parentItem, Item targetItem) {
@@ -157,4 +190,41 @@ public class DecomposeAction extends AbstractItemAction {
 		}
 		return false;
 	}
+	/** Shared native selection for client and admitted headless idle actors. */
+	public static boolean select(Player player,Item item,int index) {
+		if (com.aionemu.gameserver.services.item.BundleUseService.rejectWhileOpening(player, item))
+			return false;
+		DecomposableItemInfo info = DataManager.DECOMPOSABLE_ITEMS_DATA.getInfoByItemId(item.getItemId());
+		// nothing ties the pick to an opened window, so it has to pass the same checks as using the item
+		if (info == null || !info.isSelectable() || !PlayerRestrictions.canUseItem(player, item))
+			return false;
+		DecomposableSet set = info.getSelectableSet(player);
+		if (set == null || index < 0 || index >= set.getItems().size())
+			return false;
+		DecomposedItem selectedItem = set.getItems().get(index);
+		if (player.getInventory().isFull(DataManager.ITEM_DATA.getItemTemplate(selectedItem.getItemId()).getExtraInventoryId())) {
+			refuse(player, item);
+			return false;
+		}
+		PacketSendUtility.broadcastPacketAndReceive(player, new SM_ITEM_USAGE_ANIMATION(player.getObjectId(), item.getObjectId(), item.getItemId()));
+		PacketSendUtility.sendPacket(player, SM_SYSTEM_MESSAGE.STR_USE_ITEM(item.getL10n()));
+		PacketSendUtility.sendPacket(player, SM_SYSTEM_MESSAGE.STR_UNCOMPRESS_COMPRESSED_ITEM_SUCCEEDED(item.getL10n()));
+		if (!player.getInventory().decreaseByObjectId(item.getObjectId(), 1)) {
+			PacketSendUtility.sendPacket(player, new SM_SECONDARY_SHOW_DECOMPOSABLE(item.getObjectId(), SM_SECONDARY_SHOW_DECOMPOSABLE.NOT_GRANTED));
+			return false;
+		}
+		PacketSendUtility.sendPacket(player, new SM_SECONDARY_SHOW_DECOMPOSABLE(item.getObjectId(), SM_SECONDARY_SHOW_DECOMPOSABLE.GRANTED));
+		ItemService.addItem(player, selectedItem.getItemId(), selectedItem.getCount(), true,
+			new ItemUpdatePredicate(ItemAddType.DECOMPOSABLE, ItemUpdateType.INC_ITEM_COLLECT));
+		player.startCooldown(item);
+		return true;
+	}
+
+	private static void refuse(Player player, Item item) {
+		PacketSendUtility.broadcastPacketAndReceive(player,
+			new SM_ITEM_USAGE_ANIMATION(player.getObjectId(), item.getObjectId(), item.getItemId(), 0, ItemUseAnimation.USE_FAIL));
+		PacketSendUtility.sendPacket(player, SM_SYSTEM_MESSAGE.STR_CANT_USE_ITEM(item.getL10n()));
+		PacketSendUtility.sendPacket(player, new SM_SECONDARY_SHOW_DECOMPOSABLE(item.getObjectId(), SM_SECONDARY_SHOW_DECOMPOSABLE.NOT_GRANTED));
+	}
+
 }

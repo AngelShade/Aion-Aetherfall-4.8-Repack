@@ -68,7 +68,7 @@ public final class NativeMasterQualificationCheck {
             check(Objects.equals(recipes.get(row[offset]),row[offset+1]),"Actual item XML craftlearn recipe mapping");
             bot=NativeSielQuestCheck.bot(quest,QuestStatus.START,1);bot.cube.counts.put(row[offset],1L);
             var owned=handler.getPlayerBotActions(bot).getFirst();check(owned.kind()==QuestBotAction.Kind.ITEM&&owned.targetId()==row[offset],"Owned native design is learned instead of requested again");
-            bot.recipes.getRecipeList().add(row[offset+1]);var turnIn=handler.getPlayerBotActions(bot).getFirst();
+            bot.recipes.addRecipe(row[offset+1],0);var turnIn=handler.getPlayerBotActions(bot).getFirst();
             check(turnIn.targetId()==npc&&turnIn.requiredItems().equals(Map.of(product,1L)),"Learned native recipe demands actual crafted product");
             NativeSielQuestCheck.offered(handler,bot,npc,DialogAction.QUEST_SELECT);
             check(bot.quests.getQuestState(quest).getStatus()==QuestStatus.START&&bot.cube.removals==0,"Missing crafted product cannot grant native reward");
@@ -98,7 +98,7 @@ public final class NativeMasterQualificationCheck {
             check(Objects.equals(recipes.get(designs[i]),ids[i]),"Actual construction item recipe mapping");
             bot=NativeSielQuestCheck.bot(quest,QuestStatus.START,1);bot.cube.counts.put(designs[i],1L);
             check(handler.getPlayerBotActions(bot).getFirst().targetId()==designs[i],"Owned construction design gets native learning intent");
-            bot.recipes.getRecipeList().add(ids[i]);var turnIn=handler.getPlayerBotActions(bot).getFirst();var required=new HashMap<Integer,Long>();
+            bot.recipes.addRecipe(ids[i],0);var turnIn=handler.getPlayerBotActions(bot).getFirst();var required=new HashMap<Integer,Long>();
             for(var item:DataManager.QUEST_DATA.getQuestById(quest).getCollectItems().getCollectItem())required.put(item.getItemId(),item.getCount().longValue());
             check(turnIn.requiredItems().equals(required),"Actual native construction collection requirements");
             check(Objects.equals(NativeSielQuestCheck.offered(handler,bot,npc,turnIn.dialogAction()),2716)
@@ -137,7 +137,7 @@ public final class NativeMasterQualificationCheck {
             }
             var bot=NativeSielQuestCheck.bot(quest,QuestStatus.START,step*3+2);bot.cube.counts.put(design+step,1L);
             check(handler.getPlayerBotActions(bot).getFirst().targetId()==design+step,"Owned cooking design gets native item-learning intent");
-            bot.recipes.getRecipeList().add(recipe+step);var action=handler.getPlayerBotActions(bot).getFirst();
+            bot.recipes.addRecipe(recipe+step,0);var action=handler.getPlayerBotActions(bot).getFirst();
             check(action.requiredItems().equals(Map.of(product+step,1L))&&action.dialogAction()==reports[step]
                 &&Objects.equals(NativeSielQuestCheck.offered(handler,bot,npc,DialogAction.QUEST_SELECT),action.page()),"Only the current native cooking product is required");
             NativeSielQuestCheck.offered(handler,bot,npc,action.dialogAction());check(bot.quests.getQuestState(quest).getQuestVarById(0)==step*3+2,"Missing actual cooking product earns no stage credit");

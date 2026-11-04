@@ -55,6 +55,15 @@ public class TargetRangeProperty {
 				if (properties.getTargetMaxCount() == 1 && properties.getFirstTarget() != FirstTargetAttribute.POINT)
 					break;
 				if (skillEffector instanceof Player effector) {
+					var protectedTravellers=com.aionemu.gameserver.services.playerbot.PlayerBotWardens.supportMembers(effector);
+					if(!protectedTravellers.isEmpty()) {
+						effectedList.clear();if(checkCommonRequirements(effector,skillEffector,skillTemplate))effectedList.add(effector);
+						for(Player member:protectedTravellers)if(checkCommonRequirements(member,skillEffector,skillTemplate)
+							&& PositionUtil.isInRange(effector,member,effectiveRange,false) && checkGeo(member,result.getFirstTarget(),skillTemplate)) {
+							effectedList.add(member);if(value==TargetRangeAttribute.PARTY_WITHPET)tryAddSummon(member.getSummon(),result,skillTemplate,effectedList);
+						}
+						break;
+					}
 					TemporaryPlayerTeam<? extends TeamMember<Player>> team;
 					if (value == TargetRangeAttribute.PARTY_WITHPET) {
 						team = effector.getCurrentTeam(); // group or whole alliance

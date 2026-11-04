@@ -2,6 +2,8 @@ package quest.ishalgen;
 
 import static com.aionemu.gameserver.model.DialogAction.USE_OBJECT;
 
+import java.util.Set;
+
 import com.aionemu.gameserver.model.PlayerClass;
 import com.aionemu.gameserver.model.gameobjects.Npc;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
@@ -29,6 +31,19 @@ public class _2132ANewSkill extends AbstractQuestHandler {
 		qe.registerQuestNpc(203530).addOnTalkEvent(questId); // Priest
 		qe.registerQuestNpc(801218).addOnTalkEvent(questId); // Engineer
 		qe.registerQuestNpc(801219).addOnTalkEvent(questId); // Artist
+	}
+
+	@Override
+	public Set<Integer> getTurnInNpcIds(Player player) {
+		return switch (player.getPlayerClass().getStartingClass()) {
+			case WARRIOR -> Set.of(203527);
+			case SCOUT -> Set.of(203528);
+			case MAGE -> Set.of(203529);
+			case PRIEST -> Set.of(203530);
+			case ENGINEER -> Set.of(801218);
+			case ARTIST -> Set.of(801219);
+			default -> Set.of();
+		};
 	}
 
 	@Override

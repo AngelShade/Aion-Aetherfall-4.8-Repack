@@ -22,7 +22,7 @@ def main():
     args = parser.parse_args()
     assert not args.expect_race or args.installed, 'Race reproduction must use the installed native artifact'
     output = args.output.resolve()
-    client = (Path.home() / 'Downloads/aion-4.8-na/Aion 4.8 NA').resolve()
+    client = (Path.home() / 'Downloads/Aion Client Development Server 4.8 NA').resolve()
     assert not output.is_relative_to(ROOT) and not output.is_relative_to(client), 'Use an external diagnostic output directory'
     output.mkdir(parents=True, exist_ok=False)
     compiled = output / 'classes'; compiled.mkdir()
@@ -36,13 +36,17 @@ public class PacketSendUtility {
  public static void broadcastPacket(Player player, AionServerPacket packet, boolean self){if(!self)throw new AssertionError("Native self-broadcast changed");PlayerSkillCancellationCheck.packet(player,packet,true);}
 }
 ''', encoding='utf-8')
-    libraries = sorted((ROOT / 'target-deploy/game-server/libs').glob('*.jar'))
     if args.build:
-        libraries = [p for p in libraries if p.name not in {'game-server-4.8-SNAPSHOT.jar', 'commons-4.8-SNAPSHOT.jar'}]
         build = args.build.resolve()
+        build_meta = importlib.import_module('build-manifest')
+        build_meta.verify(build)
+        libraries = build_meta.libraries(build)
         libraries += [build / 'commons/commons-4.8-SNAPSHOT.jar', build / 'game-server/game-server-4.8-SNAPSHOT.jar']
+    else:
+        libraries = sorted((ROOT / 'target-deploy/game-server/libs').glob('*.jar'))
     sources = [FIXTURE, stub] + ([] if args.build or args.installed else [SOURCE])
     inputs = libraries + sources + [Path(__file__), Path(SHARED.__file__)]
+    if args.build: inputs += [Path(build_meta.__file__), build / 'build-manifest.json']
     before = {str(p): SHARED.sha(p) for p in inputs}
     cp = os.pathsep.join(map(str, libraries))
     argfile = output / 'javac.args'
@@ -63,6 +67,7 @@ public class PacketSendUtility {
     (output / 'checks.txt').write_text(result.stdout + result.stderr, encoding='utf-8')
     assert result.returncode == 0, result.stdout + result.stderr
     assert before == {str(p): SHARED.sha(p) for p in inputs}, 'Verification inputs changed'
+    if args.build: build_meta.verify(build)
     conclusion = next(line for line in result.stdout.splitlines() if line.startswith('OK: '))
     evidence = {'mode': 'normal-builder-artifact' if args.build else 'installed-artifact' if args.installed else 'native-controller-source', 'result': conclusion, 'count': int(conclusion.split()[1]), 'inputs': before, 'checksSha256': SHARED.sha(output / 'checks.txt'), 'compileSha256': SHARED.sha(output / 'compile.txt'), 'abiSha256': SHARED.sha(output / 'abi.json'), 'classes': {str(p.relative_to(compiled)): SHARED.sha(p) for p in sorted(compiled.rglob('*.class'))}}
     (output / 'evidence.json').write_text(json.dumps(evidence, indent=2), encoding='utf-8')

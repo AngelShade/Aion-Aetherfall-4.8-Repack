@@ -34,7 +34,7 @@ public final class PlayerBotUtilityPlanningCheck {
   var m=PlayerBotSession.class.getDeclaredMethod("recipient",PlayerBotSkills.Entry.class,List.class,Npc.class,boolean.class);m.setAccessible(true);
   return (Creature)m.invoke(session,PlayerBotSupportCooperationCheck.entry(id),party,null,combat);
  }
- public static void main(String[] args)throws Exception {
+ public static void main(String[] args)throws Exception {PlayerBotMetadataCheck.defaults();
   var f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);var u=(Unsafe)f.get(null);
   var oldData=DataManager.SKILL_DATA;var oldMaterial=DataManager.MATERIAL_DATA;boolean oldSight=GeoDataConfig.CANSEE_ENABLE;
   var data=(SkillData)JAXBContext.newInstance(SkillData.class).createUnmarshaller().unmarshal(new StringReader("""
@@ -55,12 +55,12 @@ public final class PlayerBotUtilityPlanningCheck {
    check(recipient(session,991801,party,false)==null,"Full mana has no restoration recipient");
    check(probe.calls==0,"Full mana rejects before native geometry; installed055 repeats sight here");
    check(recipient(session,991803,party,false)==null && probe.calls==0,"Living roster rejects resurrection before geometry");
-   ally.life.mp=200;
+   ally.life.mp=100;
    check(recipient(session,991801,party,false)==ally && probe.calls==1,"Useful mana restoration retains one fresh native sight probe");
    probe.clear=false;
    check(recipient(session,991801,party,false)==null && probe.calls==2,"A newly closed obstacle rejects useful assistance");probe.clear=true;
-   ally.life.mp=1000;bot.life.mp=900;PlayerBotRecoveryIntent.start(bot);
-   check(recipient(session,991801,party,false)==bot,"Standing self recovery retains95 percent hysteresis");PlayerBotRecoveryIntent.clear(bot);bot.life.mp=1000;
+   ally.life.mp=1000;bot.life.mp=800;PlayerBotRecoveryIntent.start(bot);
+   check(recipient(session,991801,party,false)==bot,"Standing self recovery retains85 percent hysteresis");PlayerBotRecoveryIntent.clear(bot);bot.life.mp=1000;
    var buff=PlayerBotSupportCooperationCheck.entry(991802);
    bot.effects.observed.add(new Effect(bot,bot,buff.template(),1));ally.effects.observed.add(new Effect(bot,ally,buff.template(),1));
    int before=probe.calls;

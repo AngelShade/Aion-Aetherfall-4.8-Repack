@@ -58,7 +58,7 @@ public final class PlayerBotMail {
  /** Native mail delivery shares the lazy-load lock, so concurrent arrivals cannot disappear from the published mailbox. */
  public static void delivered(Player bot,Letter letter) {synchronized(bot){if(bot.getMailbox()!=null){bot.getMailbox().putLetterToMailbox(letter);bot.getCommonData().setMailboxLetters(bot.getMailbox().size());}}}
  static Request plan(Player bot,Player owner,String action,int object,long money,int letterId) {
-  if(!bot.isPlayerBot() || bot.isWorldBot() || bot.getPlayerBotOwnerId()!=owner.getObjectId() || bot.getAccount().getId()!=owner.getAccount().getId())
+  if(!bot.isPlayerBot() || !(bot==owner && Set.of("take","delete").contains(action)) && (bot.isWorldBot() || bot.getPlayerBotOwnerId()!=owner.getObjectId() || bot.getAccount().getId()!=owner.getAccount().getId()))
    throw new IllegalArgumentException("Mail requires your own companion.");
   if(bot.getMailbox()==null)throw new IllegalArgumentException("Refresh this companion's mailbox first.");
   long wallet=bot.getInventory().getKinah();

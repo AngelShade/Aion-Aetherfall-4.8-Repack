@@ -34,6 +34,7 @@ public final class PlayerBotTemplarCheck {
   @Override public KnownList getKnownList(){return known;}
   @Override public Equipment getEquipment(){return gear;}
   @Override public boolean isPlayerBot(){return false;}
+  @Override public boolean isEnemy(Creature target){return target instanceof Enemy;}
  }
  static class Enemy extends Npc {
   Skill cast;boolean dead,spawned=true;int world=1,instance=1;float x;ItemAttackType type=ItemAttackType.PHYSICAL;
@@ -54,7 +55,8 @@ public final class PlayerBotTemplarCheck {
   a.stats=(PlayerBotClericCheck.Stats)u.allocateInstance(PlayerBotClericCheck.Stats.class);
   a.effects=new PlayerBotSorcererCheck.Effects(a);a.move=new PlayerBotSorcererCheck.Move(a);a.chains=new ChainSkills();a.learned=new PlayerSkillList();
   a.gear=(Gear)u.allocateInstance(Gear.class);a.gear.shield=true;
-  a.known=new KnownList(a){@Override public void forEachNpc(java.util.function.Consumer<Npc> consumer){consumer.accept(enemy);}};
+  a.known=new KnownList(a){@Override public void forEachNpc(java.util.function.Consumer<Npc> consumer){consumer.accept(enemy);}
+   @Override public void forEachObject(java.util.function.Consumer<VisibleObject> consumer){consumer.accept(enemy);}};
   PlayerBotClericCheck.field(a,Creature.class,"aggroList",new AggroList(a));return a;
  }
  static void check(boolean b,String why){checks++;if(!b)throw new AssertionError(why);}
@@ -72,7 +74,7 @@ public final class PlayerBotTemplarCheck {
   check(plan.tick(engine,64),"Engine resolves final native planning gates or fallback");return engine.getLastAction();
  }
  static void observe(Actor target,int id){target.effects.observed.add(new Effect(bot,target,entry(id).template(),1){@Override public long getRemainingTimeMillis(){return 10000;}});}
- public static void main(String[] args)throws Exception {
+ public static void main(String[] args)throws Exception {PlayerBotMetadataCheck.defaults();
   var uf=Unsafe.class.getDeclaredField("theUnsafe");uf.setAccessible(true);u=(Unsafe)uf.get(null);
   enemy=(Enemy)u.allocateInstance(Enemy.class);enemy.spawned=true;enemy.world=enemy.instance=1;enemy.type=ItemAttackType.PHYSICAL;
   bot=actor(820002);ally=actor(820003);peer=actor(820004);ally.pc=PlayerClass.CLERIC;enemy.target(bot);
@@ -93,7 +95,7 @@ public final class PlayerBotTemplarCheck {
    </skill_data>
    """));DataManager.SKILL_DATA=data;DataManager.MATERIAL_DATA=new MaterialData();
   bot.learned=new PlayerSkillList(data.getSkillTemplates().stream().map(s->new PlayerSkillEntry(s.getSkillId(),1,0,Persistable.PersistentState.NEW)).toList());
-  session=(PlayerBotSession)u.allocateInstance(PlayerBotSession.class);PlayerBotClericCheck.field(session,PlayerBotSession.class,"bot",bot);PlayerBotClericCheck.field(session,PlayerBotSession.class,"owner",bot);PlayerBotClericCheck.field(session,PlayerBotSession.class,"role",Role.TANK);
+  session=PlayerBotMetadataCheck.sessionDefaults((PlayerBotSession)u.allocateInstance(PlayerBotSession.class));PlayerBotClericCheck.field(session,PlayerBotSession.class,"bot",bot);PlayerBotClericCheck.field(session,PlayerBotSession.class,"owner",bot);PlayerBotClericCheck.field(session,PlayerBotSession.class,"role",Role.TANK);
   PlayerBotClericCheck.field(session,PlayerBotSession.class,"skills",List.of());
   recipient=PlayerBotSession.class.getDeclaredMethod("recipient",PlayerBotSkills.Entry.class,List.class,Npc.class,boolean.class);recipient.setAccessible(true);
   priority=PlayerBotSession.class.getDeclaredMethod("priority",PlayerBotSkills.Entry.class,Creature.class,boolean.class,List.class);priority.setAccessible(true);

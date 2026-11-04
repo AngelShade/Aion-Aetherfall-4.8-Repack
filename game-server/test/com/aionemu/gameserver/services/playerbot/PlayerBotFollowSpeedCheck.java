@@ -22,7 +22,7 @@ public final class PlayerBotFollowSpeedCheck {
    if(bot.getGameStats().getMovementSpeedFloat()!=13.5f)throw new AssertionError("Server movement does not use the advertised catch-up speed");
    SM_EMOTION packet=new SM_EMOTION(bot,EmotionType.CHANGE_SPEED);Field speed=SM_EMOTION.class.getDeclaredField("speed");speed.setAccessible(true);if(speed.getFloat(packet)!=13.5f)throw new AssertionError("Native client speed packet differs from server travel speed");
    field(bot,"playerBotOwnerId",0);if(bot.getGameStats().getMovementSpeedFloat()!=6)throw new AssertionError("Human speed changed");field(bot,"playerBotOwnerId",123);
-   ((Controller)bot.controller).combat=true;if(bot.getGameStats().getMovementSpeedFloat()!=6)throw new AssertionError("Combat retains catch-up assistance");((Controller)bot.controller).combat=false;
+   ((Controller)bot.controller).combat=true;if(bot.getGameStats().getMovementSpeedFloat()!=13.5f)throw new AssertionError("Residual native combat timer cancels admitted follow assistance");((Controller)bot.controller).combat=false;
    movement.setInMove(false);if(bot.getGameStats().getMovementSpeedFloat()!=6)throw new AssertionError("Stopped bot retains assisted speed");movement.setInMove(true);
    map.put(bot.id,ctor.newInstance(2.25,13.5f,System.currentTimeMillis()-1));if(bot.getGameStats().getMovementSpeedFloat()!=6)throw new AssertionError("Expired following assistance persists");
    System.out.println("OK: 6 native server/client speed-packet equality, human/combat/stop/expiry restoration checks");

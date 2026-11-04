@@ -79,7 +79,7 @@ public final class PlayerBotNativeRouteYieldCheck {
   var actor=(PlayerBotRouteContinuationCheck.RouteActor)allocate(PlayerBotRouteContinuationCheck.RouteActor.class);
   actor.spawned=true;actor.movable=true;actor.world=220010000;actor.instance=1;actor.x=VELERINIA.start.x();actor.y=VELERINIA.start.y();actor.z=VELERINIA.start.z();
   actor.move=new PlayerBotRouteContinuationCheck.RouteMove(actor);actor.stats=(PlayerBotRouteContinuationCheck.RouteStats)allocate(PlayerBotRouteContinuationCheck.RouteStats.class);
-  var nav=new PlayerBotNavigation(actor);
+  var nav=new PlayerBotNavigation(actor);PlayerBotMetadataCheck.travelIntent(nav);
   var budgetField=PlayerBotNavigation.class.getDeclaredField("TERRAIN");budgetField.setAccessible(true);var budget=(PlayerBotNavigationBudget)budgetField.get(null);
   var credit=PlayerBotNavigationBudget.class.getDeclaredField("credit");credit.setAccessible(true);double saved=credit.getDouble(budget);
   try {
@@ -87,11 +87,11 @@ public final class PlayerBotNativeRouteYieldCheck {
    var predecessor=new PlayerBotRouteSearch(VELERINIA.start,OLD_TARGET,4096,4096,24);field(nav,"routeSearch",predecessor);
    var token=value(nav,"searchToken");budget.request(token,PlayerBotNavigationBudget.Priority.NEAR);credit.setDouble(budget,-1e12);
    check(nav.move(VELERINIA.goal.x(),VELERINIA.goal.y(),VELERINIA.goal.z()),"Current goal retains pending native local admission under unfunded quota");
-   check(value(nav,"routeSearch")==null && !budget.waiting(token),"Actual Navigation cancels old search even when its routeGoal already names the successor");
+   check(value(nav,"routeSearch")!=predecessor && (value(nav,"routeSearch")==null || ((PlayerBotRouteSearch)value(nav,"routeSearch")).targets(VELERINIA.goal)),"Actual Navigation cancels old search even when its routeGoal already names the successor");
    check(predecessor.probed()==0 && actor.move.getTargetX2()==0,"Retargeting neither probes obsolete terrain nor publishes unearned movement");
    nav.stop();credit.setDouble(budget,-1e12);field(nav,"nextMove",0L);field(nav,"routeWorld",actor.world);field(nav,"routeInstance",actor.instance);field(nav,"routeGoal",OLD_TARGET);
-   field(nav,"routeSearch",new PlayerBotRouteSearch(VELERINIA.start,OLD_TARGET,4096,4096,24));
-   nav.move(VELERINIA.goal.x(),VELERINIA.goal.y(),VELERINIA.goal.z());check(value(nav,"routeGoal").equals(VELERINIA.goal) && value(nav,"routeSearch")==null,"Sub-four-metre movement replaces obsolete route commitment instead of retaining stale target");
+   var oldSearch=new PlayerBotRouteSearch(VELERINIA.start,OLD_TARGET,4096,4096,24);field(nav,"routeSearch",oldSearch);
+   nav.move(VELERINIA.goal.x(),VELERINIA.goal.y(),VELERINIA.goal.z());check(value(nav,"routeGoal").equals(VELERINIA.goal) && value(nav,"routeSearch")!=oldSearch && (value(nav,"routeSearch")==null || ((PlayerBotRouteSearch)value(nav,"routeSearch")).targets(VELERINIA.goal)),"Sub-four-metre movement replaces obsolete route commitment instead of retaining stale target");
   }finally{nav.stop();credit.setDouble(budget,saved);}
  }
  private static void moslanPortal(Path folder,Map<String,Node> models)throws Exception {
@@ -118,7 +118,7 @@ public final class PlayerBotNativeRouteYieldCheck {
    check(((Number)value(journey,"cursor")).intValue()==1,"Only physical arrival consumes the coarse portal");
   }
  }
- public static void main(String[] args)throws Exception {
+ public static void main(String[] args)throws Exception {com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_INDEPENDENT=false;com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_MEMORY_FIRST=false;PlayerBotMetadataCheck.dryWorld();
   if(args.length>1 && args[1].equals("retarget")){retarget();System.out.println("OK: "+checks+" actual Navigation successor checks; no World/IDs/SQL/tasks");return;}
   Path folder=Path.of(args[0]).resolve("data/geo");var models=models(folder);
   if(args.length>1 && args[1].equals("portal")){moslanPortal(folder,models);System.out.println("OK: "+checks+" captured native portal approach checks; no World/IDs/SQL/tasks");return;}

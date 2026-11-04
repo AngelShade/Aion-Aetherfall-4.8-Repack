@@ -41,3 +41,14 @@ Offline checks should cover the actual client Lua wrappers, native browser sizin
 resize settling, preservation of other menu bytes and compressed members, and the
 signed delivery cohort. Final text sharpness and window behavior are owner in-game
 acceptance, not proof supplied by an isolated renderer or a successful build.
+
+## Recruitment texture delivery
+
+The native recruitment reveal loads the complete texture cohort declared in
+`Mods/PlayerBotBar/assets.json`. Keep this manifest and every declared DDS file
+with the client; an incremental InstalledMods receipt may list only a later clip.
+Prepare the manifest from a complete installed render cohort with
+`python tools/distribution/client_assets.py --client <client> --output <external>/assets.json`.
+Original-to-repack sync and patch preparation validate these dependencies.
+`verify_bar_lua.py --client <client> --pull-only` exercises the installed addon
+through the shipped Lua wrappers and rejects unresolved recruitment textures.

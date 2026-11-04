@@ -65,4 +65,9 @@ public class ResponseRequester {
 	public boolean remove(int messageId) {
 		return activeRequests.remove(messageId) != null;
 	}
+
+	/** Expire only the request that scheduled the timeout, preserving a later invitation. */
+	public boolean remove(int messageId, RequestResponseHandler<? extends Creature> handler) {
+		return activeRequests.remove(messageId, handler);
+	}
 }

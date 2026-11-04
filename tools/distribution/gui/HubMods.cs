@@ -38,7 +38,7 @@ namespace AetherfallSetup {
   void RefreshMods() {
    if(Btn("ModsTab")==null)return;
    Btn("ModsTab").Visibility=original==null?Visibility.Visible:Visibility.Collapsed;
-   bool available=original==null && File.Exists(Path.Combine(ResolveInstallPath(),"REPACK.json"));
+   bool available=original==null && IsInstalled();
    bool ready=available && !busy && !serverControlBusy && !modControlBusy;
    bool component=File.Exists(Path.Combine(HdRoot,"component.json"));
    try {
@@ -76,7 +76,7 @@ namespace AetherfallSetup {
   async Task RunModTool(string script,string arguments,string title) {
    if(original!=null || busy || serverControlBusy || modControlBusy)return;
    string package=ResolveInstallPath(),path=Path.Combine(package,"Control",script);
-   if(!File.Exists(Path.Combine(package,"REPACK.json")) || !File.Exists(path)) { Text("ModsFeedback").Text="Update the selected repack first.";RefreshMods();return; }
+   if(!IsInstalled() || !File.Exists(path)) { Text("ModsFeedback").Text="Install or select the complete repack first.";RefreshMods();return; }
    string[] controls={"PrimaryBtn","UpdateNowBtn","ApplyPatchFileBtn","SelectArchiveBtn","BrowseInstall","StartAllServerBtn","StartDbOnlyBtn","StartGsOnlyBtn","StopAllServerBtn","StopGsBtn","StopLsBtn","StopChatBtn"};
    modControlBusy=true;foreach(string name in controls)Btn(name).IsEnabled=false;RefreshMods();
    Text("ModsFeedback").Text=title;

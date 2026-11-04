@@ -23,7 +23,7 @@ final class PlayerBotGearBaseline {
  private static double[] build(PlayerClass playerClass) {
   var role=PlayerBotRules.roleFor(playerClass);var slots=new HashMap<Long,List<List<Double>>>();var paired=new HashSet<Long>();
   for(var t:DataManager.ITEM_DATA.getItemTemplates()) {
-   if(!t.isWeapon() && !t.isArmor() || t.getItemSlot()==0 || !t.isClassSpecific(playerClass) || t.getLevel()<1 || t.getLevel()>MAX_LEVEL)continue;
+   if(!PlayerBotCombatGear.usable(t) || com.aionemu.gameserver.services.ItemEligibility.isAppearanceOnly(t) || !t.isWeapon() && !t.isArmor() || t.getItemSlot()==0 || !t.isClassSpecific(playerClass) || t.getLevel()<1 || t.getLevel()>MAX_LEVEL)continue;
    if(!Set.of("COMMON","RARE").contains(t.getItemQuality().name()))continue;
    var levels=slots.computeIfAbsent(t.getItemSlot(),s->{var list=new ArrayList<List<Double>>();for(int i=0;i<=MAX_LEVEL;i++)list.add(new ArrayList<>());return list;});
    levels.get(t.getLevel()).add(PlayerBotEquipment.score(t,role,playerClass));

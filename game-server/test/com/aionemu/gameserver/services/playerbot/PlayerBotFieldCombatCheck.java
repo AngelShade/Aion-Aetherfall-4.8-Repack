@@ -55,20 +55,20 @@ public final class PlayerBotFieldCombatCheck {
   plan.defaults("travel",action("travel",true,true),DEFAULT-2,State.NON_COMBAT);
   check(plan.tick(engine,64),"Native strategy arbitration chooses a useful next action");return engine.getLastAction();
  }
- public static void main(String[] args)throws Exception {
+ public static void main(String[] args)throws Exception {PlayerBotMetadataCheck.defaults();PlayerBotMetadataCheck.dryWorld();
   // These inert active-bot fixtures have no native human-presence World.
   com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS=false;
   var f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);unsafe=(Unsafe)f.get(null);
   // Previously these live resource bands permitted neither a fresh pull nor rest.
-  for(double[] resources:new double[][]{{80,100},{100,50},{80,50},{70,60},{85,40}}) {
-   check(!PlayerBotRules.shouldRest(resources[0],resources[1],false,false,false,0),"Reproduce the previous rest/pull dead band");
+  for(double[] resources:new double[][]{{40,100},{100,10},{40,10},{30,60},{45,10}}) {
+   check(PlayerBotRules.shouldRest(resources[0],resources[1],false,false,false,0),"Native rest and field recovery agree below configured resource bands");
    check(PlayerBotFieldCombat.recover(resources[0],resources[1],false,false),"Every blocked field resource band has an active recovery path");
    check(!PlayerBotFieldCombat.ready(resources[0],resources[1],false),"Unsafe fresh pulls remain refused");
    check(!PlayerBotFieldCombat.recover(resources[0],resources[1],false,true),"Actual combat never schedules sitting recovery");
   }
   check(PlayerBotFieldCombat.ready(85,60,false),"Existing entry thresholds retained");
-  check(!PlayerBotFieldCombat.ready(90,80,true),"Ongoing recovery retains its native hysteresis");
-  check(PlayerBotFieldCombat.ready(95,95,true),"Recovered field actor may stand and resume hunting");
+  check(!PlayerBotFieldCombat.ready(80,80,true),"Ongoing recovery retains its native hysteresis");
+  check(PlayerBotFieldCombat.ready(85,85,true),"Recovered field actor may stand and resume hunting");
   for(double[] resources:new double[][]{{0,100},{Double.NaN,100},{100,Double.NaN},{100,-1},{100,Double.POSITIVE_INFINITY}})
    check(!PlayerBotFieldCombat.ready(resources[0],resources[1],false),"Dead/invalid resource snapshots fail closed");
   var bot=(Actor)unsafe.allocateInstance(Actor.class);bot.spawned=true;bot.attack=true;bot.pc=PlayerClass.GLADIATOR;
@@ -78,7 +78,7 @@ public final class PlayerBotFieldCombatCheck {
   PlayerBotQuestObjectivesCheck.field(npc,"aggroList",new AggroList(npc));
   PlayerBotQuestObjectivesCheck.field(npc,"effectController",new EffectController(npc));
   bot.seen=new KnownList(bot){@Override public boolean sees(VisibleObject o){return o==npc;}};
-  var session=(PlayerBotSession)unsafe.allocateInstance(PlayerBotSession.class);
+  var session=PlayerBotMetadataCheck.sessionDefaults((PlayerBotSession)unsafe.allocateInstance(PlayerBotSession.class));
   PlayerBotQuestObjectivesCheck.field(session,"owner",bot);PlayerBotQuestObjectivesCheck.field(session,"bot",bot);
   PlayerBotQuestObjectivesCheck.field(session,"order",Order.FOLLOW);PlayerBotQuestObjectivesCheck.field(session,"engine",new PlayerBotEngine());
   PlayerBotQuestObjectivesCheck.field(session,"questing",true);
@@ -106,7 +106,7 @@ public final class PlayerBotFieldCombatCheck {
    var value=Actor.class.getDeclaredField(blocked);value.setBoolean(bot,true);check(!pull.execute(),"Native field pull respects "+blocked);value.setBoolean(bot,false);
   }
   bot.attack=false;check(!pull.execute(),"Crowd control prevents a fresh pull");bot.attack=true;
-  bot.life.hp=800;check(!pull.execute(),"Changed HP is rechecked at execution");bot.life.hp=1000;
+  bot.life.hp=400;check(!pull.execute(),"Changed HP is rechecked at execution");bot.life.hp=1000;
   npc.dead=true;check(!pull.execute(),"A killed candidate is not recommitted");npc.dead=false;
   npc.flag=true;check(!pull.execute(),"Native territory flags remain scenery");npc.flag=false;
   npc.world=2;check(!pull.execute(),"Cross-map candidates cannot be attacked");npc.world=1;

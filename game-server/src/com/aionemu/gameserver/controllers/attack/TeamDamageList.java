@@ -17,9 +17,11 @@ public class TeamDamageList {
 
 	private final Map<AionObject, DamageInfo<AionObject>> damageByCreatureOrTeam = new HashMap<>();
 	private final Map<TemporaryPlayerTeam<?>, DamageInfo<Player>> mostDamageByTeam = new HashMap<>();
+	private final DamageList damageList;
 
 	@SuppressWarnings("unchecked")
 	TeamDamageList(DamageList damageList) {
+		this.damageList = damageList;
 		for (DamageInfo<? extends Creature> damageInfo : damageList.getCreatureDamages()) {
 			AionObject creatureOrTeam = damageInfo.getAttacker();
 			TemporaryPlayerTeam<?> team = creatureOrTeam instanceof Player player ? player.getCurrentTeam() : null;
@@ -30,6 +32,10 @@ public class TeamDamageList {
 			}
 			damageByCreatureOrTeam.computeIfAbsent(creatureOrTeam, DamageInfo::new).addDamage(damageInfo.getDamage(), damageInfo.getFirstDamageTime());
 		}
+	}
+
+	public boolean isExperienceEligible(AionObject attacker) {
+		return damageList.isExperienceEligible(attacker);
 	}
 
 	public Collection<DamageInfo<AionObject>> getCreatureOrTeamDamages() {

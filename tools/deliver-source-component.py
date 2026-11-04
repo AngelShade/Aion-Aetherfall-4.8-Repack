@@ -15,7 +15,9 @@ NAVIGATION_CONFIGURATION = 'config/playerbots/navigation.properties'
 PVP_CONFIGURATION = 'config/playerbots/pvp.properties'
 PLAYERBOT_CONFIGURATION = 'config/playerbots/playerbots.properties'
 INSTANCE_CONFIGURATION = 'config/main/instance.properties'
-OWNER_CONFIGURATIONS = frozenset({FEATURE_CONFIGURATION, NAVIGATION_CONFIGURATION, PVP_CONFIGURATION, PLAYERBOT_CONFIGURATION, INSTANCE_CONFIGURATION})
+WARDEN_CONFIGURATION = 'config/playerbots/road-wardens.properties'
+WARDEN_BEATS = 'config/playerbots/warden-beats.tsv'
+OWNER_CONFIGURATIONS = frozenset({FEATURE_CONFIGURATION, NAVIGATION_CONFIGURATION, PVP_CONFIGURATION, PLAYERBOT_CONFIGURATION, INSTANCE_CONFIGURATION, WARDEN_CONFIGURATION})
 
 
 def initial_feature_configuration(target):
@@ -59,7 +61,7 @@ def verify_original_resource(target, original):
 
 def allowed_resource(rel):
     return ('..' not in Path(rel).parts and '\\' not in rel
-        and (rel in OWNER_CONFIGURATIONS or rel.startswith('data/') and not rel.startswith('data/geo/')))
+        and (rel in OWNER_CONFIGURATIONS or rel == WARDEN_BEATS or rel.startswith('data/') and not rel.startswith('data/geo/')))
 
 
 def resulting_configurations(existing, files):

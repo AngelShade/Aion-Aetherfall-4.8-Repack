@@ -319,6 +319,8 @@ public class PlayerController extends CreatureController<Player> {
 		}
 
 		QuestEngine.getInstance().onDie(new QuestEnv(null, player, 0));
+		com.aionemu.gameserver.services.playerbot.PlayerBotWardens.died(player,lastAttacker);
+		com.aionemu.gameserver.services.playerbot.PlayerBotRoadDuty.releaseGait(player);
 	}
 
 	private void setRebirthReviveInfo() {

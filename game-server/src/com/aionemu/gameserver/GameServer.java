@@ -164,6 +164,7 @@ public class GameServer {
 
 		RoadService.getInstance();
 		HTMLCache.getInstance();
+		com.aionemu.gameserver.services.playerbot.PlayerBotWardens.initialize();
 		AbyssRankingCache.getInstance();
 		AbyssRankUpdateService.scheduleUpdate();
 		PeriodicInstanceManager.getInstance();

@@ -212,6 +212,14 @@ void action(int command,int map,float x,float y,float z){
     if(command==0)close();
     else if(command==3)state.location=Location{map,x,y,z};
 }
+// One point from any page. Unlike browse it has no market window to hide or hand back to.
+bool show_location(int map,float x,float y,float z){
+    Ptr d=dialog(MAP);if(!d || !bind(d))return false;
+    open(0);clear_browser_marks();
+    state.events.clear();state.events.push_back("open:0");
+    state.location=Location{map,x,y,z};
+    return true;
+}
 // Browser event pump tick (native UI thread). Change-driven: dialog pointers and
 // the map's pan/zoom/layer fields are compared; nothing is searched per tick.
 void tick(){

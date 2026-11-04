@@ -11,8 +11,8 @@ def jar(build):return Path(build)/'game-server/game-server-4.8-SNAPSHOT.jar'
 def media_hashes(build):
  with zipfile.ZipFile(jar(build)) as archive:
   return {name:hashlib.sha256(archive.read('playerbots/media/'+name)).hexdigest() for name in NAMES}
-def validate(build,out):
- out=Path(out);e=json.loads((out/'evidence.json').read_text())
+def validate(build,out,evidence=None):
+ out=Path(out);e=json.loads((out/'evidence.json').read_text()) if evidence is None else evidence
  assert e['version']==1 and e['exitCode']==0,'Native browser verification failed'
  assert e['gameSha256']==sha(jar(build)) and e['buildManifestSha256']==sha(Path(build)/'build-manifest.json'),'Browser evidence belongs to another normal build'
  assert e['gateSha256']==sha(__file__) and e['checkerSha256']==sha(ROOT/'tools/check-playerbot-ui-behavior.py'),'Browser verification tools changed'
@@ -43,8 +43,8 @@ def run(build,out,browser):
  (out/'browser.txt').write_text(result.stdout+result.stderr,encoding='utf-8')
  if result.returncode:raise RuntimeError('Native companion browser verification failed; see '+str(out/'browser.txt'))
  before.update(exitCode=0,reportSha256=sha(out/'report/report.json'),stdoutSha256=sha(out/'browser.txt'))
+ validate(build,out,before)
  (out/'evidence.json').write_text(json.dumps(before,indent=2),encoding='utf-8')
- validate(build,out)
  print('OK: exact normal builder companion media / 43 native browser actions / bound screenshot and renderer evidence')
 def main():
  if not __debug__:raise RuntimeError('Browser validation requires assertions')

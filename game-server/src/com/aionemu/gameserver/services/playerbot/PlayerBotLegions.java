@@ -51,13 +51,13 @@ final class PlayerBotLegions {
   if(now<nextAttempt)return null;nextAttempt=now+1000;
   var ids=new HashSet<Integer>();actors.forEach(s->ids.add(s.bot().getObjectId()));retries.keySet().retainAll(ids);
   var shuffled=new ArrayList<>(actors);Collections.shuffle(shuffled,random);
-  for(var session:shuffled)if(!session.bot().isLegionMember() && retries.getOrDefault(session.bot().getObjectId(),0L)<=now
+  for(var session:shuffled)if(!PlayerBotRoadDuty.wardenCareer(session.bot()) && !session.bot().isLegionMember() && retries.getOrDefault(session.bot().getObjectId(),0L)<=now
    && (projections.containsKey(session.bot().getObjectId()) || available(session.bot().getRace(),now)))return session;
   return null;
  }
  void assign(Player bot)throws SQLException,IOException {
   long now=System.currentTimeMillis();retries.put(bot.getObjectId(),now+30000);
-  if(!PlayerBotPopulationManager.global(bot) || !PlayerBotLease.isReserved(bot.getObjectId()))return;
+  if(!PlayerBotPopulationManager.global(bot) || !PlayerBotLease.isReserved(bot.getObjectId()) || PlayerBotRoadDuty.wardenCareer(bot))return;
   if(bot.isLegionMember()){projections.remove(bot.getObjectId());return;}
   // A legacy load can return no cached member after a transient SQL failure.
   // Recover native membership even when the automatic pool is full/disabled.

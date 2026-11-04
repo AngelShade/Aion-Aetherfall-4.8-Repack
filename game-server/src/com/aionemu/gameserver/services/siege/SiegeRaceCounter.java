@@ -31,6 +31,7 @@ public class SiegeRaceCounter implements Comparable<SiegeRaceCounter> {
 	}
 
 	public void addPoints(Creature creature, int damage) {
+		if(creature.getMaster() instanceof Player p && p.isLegionMember() && com.aionemu.gameserver.services.playerbot.PlayerBotWardenCompanies.company(p.getLegion().getLegionId()))return;
 		addTotalDamage(damage);
 		if (creature instanceof Player player)
 			addPlayerDamage(player, damage);
@@ -41,10 +42,12 @@ public class SiegeRaceCounter implements Comparable<SiegeRaceCounter> {
 	}
 
 	public void addPlayerDamage(Player player, int damage) {
+		if(player.isLegionMember() && com.aionemu.gameserver.services.playerbot.PlayerBotWardenCompanies.company(player.getLegion().getLegionId()))return;
 		addToCounter(player.getObjectId(), damage, playerDamageCounter);
 	}
 
 	public void addAbyssPoints(Player player, int abyssPoints) {
+		if(player.isLegionMember() && com.aionemu.gameserver.services.playerbot.PlayerBotWardenCompanies.company(player.getLegion().getLegionId()))return;
 		addToCounter(player.getObjectId(), abyssPoints, playerAPCounter);
 	}
 

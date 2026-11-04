@@ -8,6 +8,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import com.aionemu.commons.database.DatabaseFactory;
 import com.aionemu.gameserver.GameServer;
 import com.aionemu.gameserver.configs.main.PlayerBotConfig;
+import com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig;
 import com.aionemu.gameserver.dao.InventoryDAO;
 import com.aionemu.gameserver.dao.PlayerBotHiringDAO;
 import com.aionemu.gameserver.dao.PlayerBotHiringDAO.Contract;
@@ -49,7 +50,7 @@ public final class PlayerBotHiring {
  }
  private static PlayerBotSession available(Player owner,Player bot,boolean confirm) {
   var service=PlayerBotService.getInstance();var actor=service.currentActor(bot);
-  if(!PlayerBotConfig.HIRING_ENABLED || !PlayerBotConfig.ENABLED || !PlayerBotConfig.WORLD_ENABLED || GameServer.isShuttingDownSoon())
+  if(!PlayerBotEconomyConfig.HIRING_ENABLED || !PlayerBotConfig.ENABLED || !PlayerBotConfig.WORLD_ENABLED || GameServer.isShuttingDownSoon())
    throw new IllegalArgumentException("World-helper hiring is unavailable.");
   if(owner.isPlayerBot() || !owner.isOnline() || !owner.isSpawned() || owner.getClientConnection()==null || actor==null || !actor.autonomous()
    || owner.getRace()!=bot.getRace() || bot.isDead() || !bot.isSpawned() || bot.isInTeam() || bot.isTrading() || bot.getFlightPath()!=null
@@ -65,16 +66,16 @@ public final class PlayerBotHiring {
   return actor;
  }
  private static int[] percentages() {
-  String[] values=PlayerBotConfig.HIRING_RANK_PERCENT.split(",");
+  String[] values=PlayerBotEconomyConfig.HIRING_RANK_PERCENT.split(",");
   if(values.length!=5)throw new IllegalStateException("World-helper prices need five combat-rank percentages");
   int[] out=new int[5];for(int i=0;i<5;i++){out[i]=Integer.parseInt(values[i].trim());if(out[i]<1 || out[i]>10000)throw new IllegalStateException("Invalid world-helper rank percentage");}
   return out;
  }
  public static long price(int level,int rank) {
-  if(level<1 || level>65 || rank < -1 || rank>4 || PlayerBotConfig.HIRING_MINIMUM_KINAH<1 || PlayerBotConfig.HIRING_LEVEL_KINAH<0)
+  if(level<1 || level>65 || rank < -1 || rank>4 || PlayerBotEconomyConfig.HIRING_MINIMUM_KINAH<1 || PlayerBotEconomyConfig.HIRING_LEVEL_KINAH<0)
    throw new IllegalArgumentException("Invalid world-helper price configuration");
   try {
-   long base=Math.max(PlayerBotConfig.HIRING_MINIMUM_KINAH,Math.multiplyExact((long)level*level,PlayerBotConfig.HIRING_LEVEL_KINAH));
+   long base=Math.max(PlayerBotEconomyConfig.HIRING_MINIMUM_KINAH,Math.multiplyExact((long)level*level,PlayerBotEconomyConfig.HIRING_LEVEL_KINAH));
    return Math.addExact(Math.multiplyExact(base,rank<0?100:percentages()[rank]),99)/100;
   }catch(ArithmeticException error){throw new IllegalStateException("World-helper price overflows native Kinah",error);}
  }
@@ -82,7 +83,7 @@ public final class PlayerBotHiring {
   try {
    var profile=PlayerBotGrowth.profile(bot);int rank=profile.traitsAssigned()?profile.combatRank().ordinal():-1;
    String role=switch(PlayerBotRules.roleFor(bot.getPlayerClass())){case TANK->"tank";case HEALER->"healer";case SUPPORT->"support";default->"DPS";};
-   return price(bot.getLevel(),rank)+" Kinah/"+PlayerBotConfig.HIRING_DURATION_MINUTES+"m Lv"+bot.getLevel()+" "+role+" Hire";
+   return price(bot.getLevel(),rank)+" Kinah/"+PlayerBotEconomyConfig.HIRING_DURATION_MINUTES+"m Lv"+bot.getLevel()+" "+role+" Hire";
   }catch(java.io.IOException error){throw new IllegalStateException("Cannot verify helper combat rank",error);}
  }
  private static Contract quote(Player owner,String name,String id) {
@@ -91,7 +92,7 @@ public final class PlayerBotHiring {
    available(owner,bot,false);
    try {
     var profile=PlayerBotGrowth.profile(bot);int rank=profile.traitsAssigned()?profile.combatRank().ordinal():-1;
-    int minutes=PlayerBotConfig.HIRING_DURATION_MINUTES,seconds=PlayerBotConfig.HIRING_QUOTE_SECONDS;
+    int minutes=PlayerBotEconomyConfig.HIRING_DURATION_MINUTES,seconds=PlayerBotEconomyConfig.HIRING_QUOTE_SECONDS;
     if(minutes<1 || minutes>10080 || seconds<10 || seconds>3600)throw new IllegalStateException("World-helper duration/quote expiry is invalid");
     long now=System.currentTimeMillis();
     var quote=new Contract(id,owner.getAccount().getId(),owner.getObjectId(),bot.getObjectId(),price(bot.getLevel(),rank),

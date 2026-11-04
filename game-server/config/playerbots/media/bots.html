@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Player Companions</title>
-  <link rel="stylesheet" href="/market/companions/media/bots.css?v=playerbots-recruitment-20261101a">
+  <link rel="stylesheet" href="/market/companions/media/bots.css?v=quests-20261104a">
 </head>
 <body>
 <header id="top">
@@ -50,6 +50,7 @@
   <section id="roster-presets" role="tabpanel" aria-labelledby="roster-tab-presets" style="display:none"><p class="hint">Recruit missing members together. Existing companions and human party members stay.</p><div id="saved-parties" class="preset-cards"></div></section>
 </section>
 <section id="view-create" class="main-view scroll" role="tabpanel" aria-labelledby="tab-create" style="display:none">
+  <p id="temporary-recruitment-notice" class="hint" role="status" style="display:none">Temporary Bot recruitment is disabled by this server. Use Recruitment Tickets or an account character instead. Saved companions and their progress are kept.</p>
   <div class="heading"><span class="ornament">&#10010;</span><h2>Create a companion</h2><p>Choose their origin, then a name and class.</p></div>
   <div class="create-layout"><form id="create" class="creation-form framed">
     <div class="field-section"><span class="step-number" aria-hidden="true">1</span><div><h3>Choose their origin</h3><label for="model">Recruitment model</label><select id="model"><option value="generate">Temporary Bot</option><option value="create">Account character</option></select><div id="starting-level"><label for="start-level">Starting level</label><select id="start-level"><option value="matched">My current level &middot; equipment and skills</option></select></div><div id="creation-journey" style="display:none"><label for="new-journey">Choose Your Journey</label><select id="new-journey"></select></div><p class="hint" id="model-hint">Progress is saved as a real character.</p><p class="capacity-note" id="creation-capacity" aria-live="polite"></p></div></div>
@@ -59,7 +60,7 @@
 </section>
 <section id="view-quests" class="main-view scroll" role="tabpanel" aria-labelledby="tab-quests" style="display:none">
   <div class="heading"><span class="ornament">&#9733;</span><h2>Party quest journal</h2><p>Share your quests and follow every companion's progress.</p></div>
-  <div class="share-strip"><label for="owner-quest">Share an active quest</label><div class="share-controls"><select id="owner-quest"></select><button id="share" type="button" class="primary">Share with party</button></div><p class="hint">Each eligible companion accepts and earns its own native rewards.</p></div><div id="quest-overview"></div>
+  <div class="share-strip"><label for="owner-quest">Share an active quest</label><div class="share-controls"><select id="owner-quest"></select><button id="share" type="button" class="primary">Share with party</button></div><p class="hint">Each eligible companion accepts and earns its own native rewards.</p></div><div id="help-requests"></div><div id="quest-overview"></div>
 </section>
 <footer><span class="dot"></span><span id="notice" role="status" aria-live="polite">Connecting to your character&hellip;</span><span class="footer-note">Manual refresh &middot; actions update their result &middot; drafts stay while you edit</span></footer>
 <section id="summon" class="recruit-gate" role="dialog" aria-label="Companion Recruitment" style="display:none">
@@ -82,6 +83,6 @@
     </aside>
   </div>
 </section>
-<script src="/market/companions/media/bots.js?v=playerbots-recruitment-20261101a"></script>
+<script src="/market/companions/media/bots.js?v=20261104-quests1"></script>
 </body>
 </html>

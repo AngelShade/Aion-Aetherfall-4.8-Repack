@@ -18,6 +18,8 @@ final class PlayerBotLegionInvitation {
                        boolean enabled, boolean worldEnabled, boolean available) {
   if(!enabled || !available || session==null || session.bot()!=bot || session.closing() || !bot.isSpawned())
    return "The bot is unavailable or waiting for dismissal/custody verification.";
+  if(PlayerBotRoadDuty.wardenCareer(bot) || invitedLegion!=null && PlayerBotWardenCompanies.company(invitedLegion.getLegionId()))
+   return "Road Wardens serve their regional company.";
   if(inviter==null || inviter.isPlayerBot() || !inviter.isOnline() || !inviter.isSpawned() || inviter.isDead())
    return "A living connected player must send the legion invitation.";
   if(session.world()) {

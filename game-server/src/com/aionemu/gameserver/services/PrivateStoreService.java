@@ -21,6 +21,7 @@ import com.aionemu.gameserver.network.aion.serverpackets.SM_PRIVATE_STORE_NAME;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_SYSTEM_MESSAGE;
 import com.aionemu.gameserver.services.RecallService.CancelReason;
 import com.aionemu.gameserver.services.item.ItemService;
+import com.aionemu.gameserver.services.playerbot.PlayerBotRoadMerchants;
 import com.aionemu.gameserver.skillengine.effect.AbnormalState;
 import com.aionemu.gameserver.utils.PacketSendUtility;
 import com.aionemu.gameserver.utils.audit.AuditLogger;
@@ -137,18 +138,35 @@ public class PrivateStoreService {
 	 * This method will move the item to the new player and move kinah to item owner
 	 */
 	public static void sellStoreItem(Player seller, Player buyer, TradeList tradeList) {
-		if (!seller.isOnline() || !buyer.isOnline() || seller.getRace() != buyer.getRace())
+		// World merchants are headless: isOnline() only tests for a client connection.
+		if ((!seller.isPlayerBot() && !seller.isOnline()) || !buyer.isOnline()) {
+			refuseBotSale(seller, buyer, tradeList, "The shop or your character is no longer available.");
 			return;
+		}
+		if (seller.getRace() != buyer.getRace()) {
+			refuseBotSale(seller, buyer, tradeList, "Buy from a merchant of your own faction.");
+			return;
+		}
 
 		PrivateStore store = seller.getStore();
-		if (store == null)
+		if (store == null) {
+			refuseBotSale(seller, buyer, tradeList, "This shop has closed. Browse it again when the merchant stops.");
 			return;
+		}
 
-		List<TradePSItem> boughtItems = getBoughtItems(seller, store, tradeList);
-		if (boughtItems == null || boughtItems.isEmpty())
+		List<TradePSItem> boughtItems = getBoughtItems(seller, buyer, store, tradeList);
+		if (boughtItems == null)
 			return; // Invalid items found or store was empty
+		if (boughtItems.isEmpty()) {
+			refuseBotSale(seller, buyer, tradeList, "Choose an item from this shop first.");
+			return;
+		}
 
 		if (buyer.getInventory().getFreeSlots() < boughtItems.size()) {
+			if (seller.isPlayerBot()) {
+				refuseBotSale(seller, buyer, tradeList, "Make room in your inventory before buying.");
+				return;
+			}
 			PacketSendUtility.sendPacket(buyer, SM_SYSTEM_MESSAGE.STR_MSG_DICE_INVEN_ERROR());
 			return;
 		}
@@ -158,17 +176,19 @@ public class PrivateStoreService {
 			for (TradePSItem boughtItem : boughtItems)
 				price = Math.addExact(price, Math.multiplyExact(boughtItem.getPrice(), boughtItem.getCount()));
 		} catch (ArithmeticException e) {
+			refuseBotSale(seller, buyer, tradeList, "The purchase price is too large. Choose fewer items.");
 			AuditLogger.log(buyer, "tried to buy items for more than " + Long.MAX_VALUE + " kinah from private store of " + seller);
 			return;
 		}
 
 		if (price < 0) { // Kinah dupe
+			refuseBotSale(seller, buyer, tradeList, "This shop has an invalid price. Browse it again.");
 			AuditLogger.log(buyer, "tried to buy item with negative kinah price from private store");
 			return;
 		}
 
 		if (seller.isPlayerBot()) {
-			com.aionemu.gameserver.services.playerbot.PlayerBotRoadMerchants.sell(seller, buyer, store, boughtItems, price);
+			PlayerBotRoadMerchants.sell(seller, buyer, store, boughtItems, price);
 			return;
 		}
 
@@ -212,7 +232,12 @@ public class PrivateStoreService {
 	 * @param tradeList
 	 *          entries with the seller's store indices, each index at most once
 	 */
-	private static List<TradePSItem> getBoughtItems(Player seller, PrivateStore store, TradeList tradeList) {
+	private static void refuseBotSale(Player seller, Player buyer, TradeList tradeList, String reason) {
+		if (seller.isPlayerBot())
+			PlayerBotRoadMerchants.refuse(seller, buyer, tradeList.getTradeItems().stream().map(item -> "index=" + item.getItemId() + " x" + item.getCount()).toList(), reason);
+	}
+
+	private static List<TradePSItem> getBoughtItems(Player seller, Player buyer, PrivateStore store, TradeList tradeList) {
 		Collection<TradePSItem> storeList = store.getSoldItems().values();
 		// we need index based access since tradeList holds index values (this will work since underlying LinkedHashMap preserves insertion order)
 		TradePSItem[] storeItems = storeList.toArray(new TradePSItem[storeList.size()]);
@@ -220,18 +245,27 @@ public class PrivateStoreService {
 		for (TradeItem tradeItem : tradeList.getTradeItems()) {
 			int index = tradeItem.getItemId(); // itemId is index! blame the one who implemented this
 			if (index < 0 || index >= storeItems.length) {
-				log.warn("[Private Store] Attempt to buy item with invalid index: {}", index);
+				if (seller.isPlayerBot())
+					refuseBotSale(seller, buyer, tradeList, "That shop listing is no longer available. Browse the shop again.");
+				else
+					log.warn("[Private Store] Attempt to buy item with invalid index: {}", index);
 				return null;
 			}
 			TradePSItem storeItem = storeItems[index];
 			long count = tradeItem.getCount();
-			if (count > storeItem.getCount()) {
-				log.warn("[Private Store] Attempt to buy more than for sale: {} vs. {}", count, storeItem.getCount());
+			if (count > storeItem.getCount() || seller.isPlayerBot() && count <= 0) {
+				if (seller.isPlayerBot())
+					PlayerBotRoadMerchants.refuse(seller, buyer, storeItem.getItemObjId(), "Choose an available quantity from this shop.");
+				else
+					log.warn("[Private Store] Attempt to buy more than for sale: {} vs. {}", count, storeItem.getCount());
 				return null;
 			}
 			Item item = seller.getInventory().getItemByObjId(storeItem.getItemObjId());
-			if (item == null || item.getItemCount() < count)
+			if (item == null || item.getItemCount() < count) {
+				if (seller.isPlayerBot())
+					PlayerBotRoadMerchants.refuse(seller, buyer, storeItem.getItemObjId(), "That item is no longer in stock. Browse the shop again.");
 				return null;
+			}
 			boughtItems.add(new TradePSItem(storeItem.getItemObjId(), storeItem.getItemId(), count, storeItem.getPrice()));
 		}
 		return boughtItems;

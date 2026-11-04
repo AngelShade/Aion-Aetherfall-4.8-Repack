@@ -24,11 +24,11 @@ public final class PlayerBotSupplyCatalog {
   return ORDINARY.contains(t.getTemplateId()) && !t.getName().startsWith("[") && !t.getName().toLowerCase(Locale.ROOT).contains("test") && !t.getName().contains("FX Retaining");
  }
  static void record(Player bot,Item item) {
-  var owner=com.aionemu.gameserver.world.World.getInstance().getPlayer(bot.getPlayerBotOwnerId());if(owner==null)return;
-  for(var session:PlayerBotService.getInstance().companions(owner))if(session.bot()==bot && session.generated()) {
+  var session=PlayerBotService.getInstance().currentActor(bot);
+  if(session!=null && (session.generated() || session.world())) {
    var policy=PlayerBotGearPolicy.state(session);policy.generated.add(item.getObjectId());policy.save();
    bot.getInventory().setPersistentState(com.aionemu.gameserver.model.gameobjects.Persistable.PersistentState.UPDATE_REQUIRED);return;
-  }
+  }else throw new IllegalStateException("Supply provenance requires the current dedicated actor");
  }
  private PlayerBotSupplyCatalog() {}
 }

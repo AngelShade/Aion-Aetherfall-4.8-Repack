@@ -44,5 +44,7 @@ def payloads(package, schema=None, bootstrap=None, start=None):
         'Server/database/schema/broker_sellers_initial.sql': seed.encode('utf-8'),
         'Control/Initialize-BrokerSellers.ps1': (SOURCE / 'Initialize-BrokerSellers.ps1').read_bytes(),
         'Control/Start-Servers.ps1': start.encode('utf-8'),
-        'Control/Start-Database.ps1': fresh_database_verification((package / 'Control/Start-Database.ps1').read_text(encoding='utf-8-sig')).encode('utf-8'),
+        'Control/Start-Database.ps1': fresh_database_verification((SOURCE / 'Start-Database.ps1').read_text(encoding='utf-8')).encode('utf-8'),
+        'Control/Database-Common.ps1': (SOURCE / 'Database-Common.ps1').read_bytes(),
+        'Control/Watch-Database.ps1': (SOURCE / 'Watch-Database.ps1').read_bytes(),
     }

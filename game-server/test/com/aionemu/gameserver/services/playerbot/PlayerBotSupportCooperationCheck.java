@@ -23,7 +23,8 @@ public final class PlayerBotSupportCooperationCheck {
  static void check(boolean value,String why){checks++;if(!value)throw new AssertionError(why);}
  static class Actor extends PlayerBotFieldCombatCheck.Actor {
   Race race;boolean playing,pvp,hostile,worldBot;int world,instance;float x;
-  List<Player> nearby;
+  List<Player> nearby;int controllerOwner;
+  @Override public int getPlayerBotOwnerId(){return controllerOwner;}
   @Override public Race getRace(){return race;}
   @Override public int getWorldId(){return world;}
   @Override public int getInstanceId(){return instance;}
@@ -33,7 +34,7 @@ public final class PlayerBotSupportCooperationCheck {
   @Override public boolean isWorldBot(){return worldBot;}
   @Override public boolean isPlayerBot(){return worldBot;}
   @Override public String getName(boolean tag){return "offline-support-"+id;}
-  @Override public boolean isEnemy(Creature c){return hostile || c instanceof Actor a && a.hostile;}
+  @Override public boolean isEnemy(Creature c){return c!=this && (hostile || c instanceof Actor a && a.hostile);}
  }
  static Actor actor(int id)throws Exception {
   var a=(Actor)unsafe.allocateInstance(Actor.class);a.id=id;a.pc=PlayerClass.CLERIC;a.race=Race.ELYOS;
@@ -52,7 +53,7 @@ public final class PlayerBotSupportCooperationCheck {
  }
  static PlayerBotSkills.Entry entry(int id){var s=data.getSkillTemplate(id);return new PlayerBotSkills.Entry(s,1,PlayerBotSkills.classify(s),25);}
  static PlayerBotSession session(Actor bot,Player owner)throws Exception {
-  var s=(PlayerBotSession)unsafe.allocateInstance(PlayerBotSession.class);
+  var s=PlayerBotMetadataCheck.sessionDefaults((PlayerBotSession)unsafe.allocateInstance(PlayerBotSession.class));
   PlayerBotCastExecutionCheck.set(s,"bot",bot);PlayerBotCastExecutionCheck.set(s,"owner",owner);
   PlayerBotCastExecutionCheck.set(s,"engine",new PlayerBotEngine());PlayerBotCastExecutionCheck.set(s,"role",Role.HEALER);
   PlayerBotCastExecutionCheck.set(s,"order",Order.FOLLOW);PlayerBotCastExecutionCheck.set(s,"idleReaction",20);
@@ -66,7 +67,7 @@ public final class PlayerBotSupportCooperationCheck {
   var c=Class.forName(PlayerBotSession.class.getName()+"$CastAction").getDeclaredConstructors()[0];c.setAccessible(true);
   return (Action)c.newInstance(s,entry(id),target,List.of());
  }
- public static void main(String[] args)throws Exception {
+ public static void main(String[] args)throws Exception {PlayerBotMetadataCheck.defaults();PlayerBotMetadataCheck.dryWorld();
   // These inert active-bot fixtures have no native human-presence World.
   com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS=false;
   var field=Unsafe.class.getDeclaredField("theUnsafe");field.setAccessible(true);unsafe=(Unsafe)field.get(null);
@@ -89,7 +90,7 @@ public final class PlayerBotSupportCooperationCheck {
   check(s.party().equals(List.of(bot)),"Autonomous offensive party still self-only");
   check(allies.equals(List.of(bot,human)),"Nearby injured human is in separate public support set");
   check(recipient(s,991601,allies)==human,"Production Session chooses nearby human for legal FRIEND heal");
-  check(PlayerBotHealing.useful(bot,entry(991601),human),"Final heal recheck retains public recipient");
+  check(PlayerBotHealing.useful(bot,entry(991601),human,false),"Final heal recheck retains public recipient");
   check(action(s,991601,human).isUseful(),"Actual CastAction does not reject its selected public heal");
   var service=PlayerBotService.getInstance();var sessionsField=PlayerBotService.class.getDeclaredField("sessions");sessionsField.setAccessible(true);
   @SuppressWarnings("unchecked") var registered=(Map<Integer,PlayerBotSession>)sessionsField.get(service);
@@ -113,9 +114,9 @@ public final class PlayerBotSupportCooperationCheck {
   check(PlayerBotSupport.members(bot).contains(companion),"Native companion party is retained alongside public allies");
   check(recipient(s,991602,PlayerBotSupport.members(bot))==companion,"Party-only heal still chooses actual companion");
   check(PlayerBotHealing.targets(bot,entry(991603),bot,PlayerBotSupport.members(bot)).equals(List.of(bot,companion)),"Actual native group targets exclude nearby outsiders");
-  var controlled=session(bot,companion);
-  check(recipient(controlled,991601,PlayerBotSupport.members(bot))==friendBot,"Controlled companion shares public support planning");
-  bot.group=companion.group=null;
+  bot.controllerOwner=companion.id;var controlled=session(bot,companion);
+  check(recipient(controlled,991601,PlayerBotSupport.members(bot))==companion,"Controlled companion restricts support to its actual native party");
+  bot.controllerOwner=0;bot.group=companion.group=null;
   human.race=Race.ASMODIANS;
   check(!PlayerBotSupport.members(bot).contains(human),"Opposing race is excluded even with neutral synthetic PvP relation");human.race=Race.ELYOS;
   human.hostile=true;check(!PlayerBotSupport.members(bot).contains(human),"Hostile/duel/FFA relation excluded");human.hostile=false;
@@ -133,25 +134,25 @@ public final class PlayerBotSupportCooperationCheck {
   check(!PlayerBotSupport.legalAnchor(bot,entry(991606),human),"Own-pet spell cannot select another player");
   human.dead=true;
   check(recipient(s,991607,PlayerBotSupport.members(bot))==human,"Legal resurrection may select public friendly corpse");human.dead=false;
-  bot.nearby.clear();bot.resting=true;bot.life.hp=900;bot.life.mp=900;
-  check(recipient(s,991601,PlayerBotSupport.members(bot))==bot,"Already resting actor uses self-heal through95% hysteresis");
-  check(PlayerBotHealing.useful(bot,entry(991601),bot),"Self-recovery remains useful at90% HP");
-  check(recipient(s,991604,PlayerBotSupport.members(bot))==bot,"Already resting actor uses available mana restoration through95%");
+  bot.nearby.clear();bot.resting=true;bot.life.hp=800;bot.life.mp=800;
+  check(recipient(s,991601,PlayerBotSupport.members(bot))==bot,"Already resting actor uses self-heal through85% hysteresis");
+  check(PlayerBotHealing.useful(bot,entry(991601),bot,false),"Self-recovery remains useful at80% HP");
+  check(recipient(s,991604,PlayerBotSupport.members(bot))==bot,"Already resting actor uses available mana restoration through85%");
   PlayerBotRecoveryIntent.start(bot);bot.resting=false;
-  check(recipient(s,991601,List.of(bot))==bot && recipient(s,991604,List.of(bot))==bot,"Standing to cast preserves recovery95/95 intent");
-  check(!PlayerBotFieldCombat.ready(90,90,PlayerBotRecoveryIntent.active(bot)),"A recovery spell cannot lower pull readiness to85/60");
+  check(recipient(s,991601,List.of(bot))==bot && recipient(s,991604,List.of(bot))==bot,"Standing to cast preserves recovery85/85 intent");
+  check(!PlayerBotFieldCombat.ready(80,80,PlayerBotRecoveryIntent.active(bot)),"A recovery spell cannot lower pull readiness to85/60");
   PlayerBotRecoveryIntent.update(bot,false,true);
   check(!PlayerBotRecoveryIntent.active(bot),"Leader movement interrupts recovery intent");bot.resting=true;
   var real=action(s,991601,bot);var engine=new PlayerBotEngine();
   check(engine.tick(State.NON_COMBAT,List.of(new Strategy("recovery",List.of(
    new Trigger(()->true,new Action(){public String name(){return "sit";}public boolean isUseful(){return true;}public boolean isPossible(){return true;}public boolean execute(){return true;}},()->HIGH-1),
-   new Trigger(()->true,new Action(){public String name(){return real.name();}public boolean isUseful(){return real.isUseful();}public boolean isPossible(){return real.isPossible();}public boolean execute(){return true;}},()->PlayerBotHealing.priority(bot,entry(991601),bot,List.of(bot)))
+   new Trigger(()->true,new Action(){public String name(){return real.name();}public boolean isUseful(){return real.isUseful();}public boolean isPossible(){return real.isPossible();}public boolean execute(){return true;}},()->PlayerBotHealing.priority(bot,entry(991601),bot,List.of(bot),false))
   ))),List.of(),64),"Actual heal admission and priorities participate in recovery arbitration");
   check(engine.getLastAction().startsWith("cast "),"Useful recovery spell precedes sitting fallback");
-  bot.life.hp=bot.life.mp=950;
-  check(recipient(s,991601,List.of(bot))==null && recipient(s,991604,List.of(bot))==null,"Recovery spells stop at95% and do not spam near-full resources");
+  bot.life.hp=bot.life.mp=850;
+  check(recipient(s,991601,List.of(bot))==null && recipient(s,991604,List.of(bot))==null,"Recovery spells stop at85% and do not spam near-full resources");
   bot.resting=false;bot.life.hp=bot.life.mp=900;
-  check(recipient(s,991601,List.of(bot))==null && recipient(s,991604,List.of(bot))==null,"Ordinary85HP/40MP support thresholds retained outside rest");
+  check(recipient(s,991601,List.of(bot))==null && recipient(s,991604,List.of(bot))==null,"Ordinary45HP/15MP support thresholds retained outside rest");
   bot.resting=true;bot.control.last=System.currentTimeMillis();PlayerBotCastExecutionCheck.set(s,"questTarget",123);
   check(s.reactionDelay()==10000 && !s.activeDecision(),"Resting stale pull/ten-second native timer cannot misclassify active backlog");
   PlayerBotCastExecutionCheck.set(s,"supporting",true);

@@ -279,6 +279,17 @@ uintptr_t __cdecl connected_security_response(Ptr context,Ptr packet){
     }
     return original_security_response(context,packet);
 }
+// Help requests uses Companions' exact authenticated route. Its section is added
+// here, after authentication and before navigation() selects the LAN/WAN origin.
+std::string window_navigation(const std::string& url){
+    constexpr char companions[]="http://127.0.0.1:8091/market/companions?session_id=";
+    if(!url.compare(0,sizeof(companions)-1,companions)){
+        HMODULE core=GetModuleHandleW(L"AetherfallCore.dll");
+        auto take=core?reinterpret_cast<bool(__cdecl*)()>(GetProcAddress(core,"AetherfallTakeHelpView")):nullptr;
+        if(take && take())return aetherfall_web::navigation(url+"&help_requests=1");
+    }
+    return aetherfall_web::navigation(url);
+}
 uintptr_t __cdecl connected_browser_load(Ptr manager,int view,const char* url){
     if(!url)return original_browser_load(manager,view,url);
     constexpr char prefix[]="http://127.0.0.1:8091";const std::string requested=url;
@@ -291,7 +302,7 @@ uintptr_t __cdecl connected_browser_load(Ptr manager,int view,const char* url){
     }
     // This is the existing native navigation queue: authentication and all
     // window owners run unchanged, then the selected endpoint is substituted.
-    auto selected=aetherfall_web::navigation(url);return original_browser_load(manager,view,selected.c_str());
+    auto selected=window_navigation(url);return original_browser_load(manager,view,selected.c_str());
 }
 bool connect_browser(){
     auto base=reinterpret_cast<uint8_t*>(GetModuleHandleW(L"Game.dll"));if(!base)return false;
@@ -335,7 +346,7 @@ void connection_tick(){
         if(std::memcmp(token,pending.token.data(),16)){pending_navigation.erase(pending_navigation.begin()+i);continue;}
         if(!received && now-pending.since<4000){++i;continue;}
         auto ready=std::move(pending);pending_navigation.erase(pending_navigation.begin()+i);
-        auto destination=aetherfall_web::navigation(ready.url);original_browser_load(ready.manager,ready.view,destination.c_str());
+        auto destination=window_navigation(ready.url);original_browser_load(ready.manager,ready.view,destination.c_str());
     }
 }
 #include "wardrobe_preview.h"

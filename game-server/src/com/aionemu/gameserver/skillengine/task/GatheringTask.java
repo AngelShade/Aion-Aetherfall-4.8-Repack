@@ -82,6 +82,7 @@ public class GatheringTask extends AbstractCraftTask {
 		ItemService.addItem(requester, material.getItemId(), Rates.GATHERING_COUNT.calcResult(requester, 1));
 		requester.getPosition().getWorldMapInstance().getInstanceHandler().onGather(requester, (Gatherable) responder);
 		((Gatherable) responder).getController().rewardPlayer(requester);
+		com.aionemu.gameserver.services.playerbot.PlayerBotWorldOutcomes.gathered(requester);
 		return true;
 	}
 

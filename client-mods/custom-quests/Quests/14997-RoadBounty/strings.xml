@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<strings>
+  <string>
+    <id>1801383</id>
+    <name>STR_QUEST_NAME_Q14997</name>
+    <body>Daily Road Bounty</body>
+  </string>
+  <string>
+    <id>1801384</id>
+    <name>STR_AETHERFALL_ROAD_BOUNTY_PROGRESS</name>
+    <body>Defeat 15 XP-eligible monsters on the road where you accepted the bounty.</body>
+  </string>
+</strings>
