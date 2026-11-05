@@ -15,6 +15,8 @@
 - Dungeon parties from Find Group keep filling after you join, and late arrivals wait with the group instead of teleporting to you.
 - Faces catch the light with more natural depth around the eyes, nose and lips.
 - You can now move the Spirit Bar with Move UI, and it no longer hides its Pet Auto-attack button behind your first action bar.
+- Monsters no longer gain Razorlight Veil and other self-buffs from your skills.
+- Exploding monsters no longer hit you with their own self-destruct damage.
 
 Characters look better than ever up close, with repainted faces and silky, glowing skin.
 

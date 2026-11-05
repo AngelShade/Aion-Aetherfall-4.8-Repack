@@ -529,12 +529,12 @@ public class Skill {
 				penaltySkill1.useSkill();
 			}
 		} else {
+			// A penalty skill always lands on its caster: its first_target=TARGET describes the skill's own data, not who it follows up on.
 			SkillTemplate penaltyTemplate = DataManager.SKILL_DATA.getSkillTemplate(penaltySkill);
-			Creature target = (penaltyTemplate != null && penaltyTemplate.getProperties() != null
-				&& penaltyTemplate.getProperties().getFirstTarget() == FirstTargetAttribute.ME) ? effector : firstTarget;
-			if (target != null) {
-				SkillEngine.getInstance().applyEffectDirectly(penaltySkill, effector, target);
-			}
+			Properties penaltyProperties = penaltyTemplate == null ? null : penaltyTemplate.getProperties();
+			boolean selfSource = firstTarget == null || penaltyProperties == null || penaltyProperties.getFirstTarget() == FirstTargetAttribute.ME
+				|| penaltyProperties.getTargetRelation() == TargetRelationAttribute.FRIEND;
+			SkillEngine.getInstance().applyEffectDirectly(penaltySkill, selfSource ? effector : firstTarget, effector);
 		}
 	}
 
