@@ -39,7 +39,8 @@ public class AggroInfo {
 			// before reward distribution must never turn earlier Warden aid into a loot claim.
 			Creature master = attacker.getMaster();
 			if (master instanceof com.aionemu.gameserver.model.gameobjects.player.Player player
-				&& com.aionemu.gameserver.services.playerbot.PlayerBotRoadDuty.publicWarden(player))
+				&& (com.aionemu.gameserver.services.playerbot.PlayerBotRoadDuty.publicWarden(player)
+					|| com.aionemu.gameserver.services.playerbot.PlayerBotBystanders.answering(player)))
 				wardenDamage += damage;
 			else if (this.damage == wardenDamage || time < firstNonWardenDamageTime)
 				firstNonWardenDamageTime = time;

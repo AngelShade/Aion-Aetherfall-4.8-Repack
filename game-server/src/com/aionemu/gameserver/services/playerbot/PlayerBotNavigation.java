@@ -980,6 +980,8 @@ final class PlayerBotNavigation {
 			if(tier==PlayerBotLedgeLeap.Tier.NONE)clearLeapSearch();
 			return false;
 		}
+		// People are watching in a town. A stuck bot there waits for the move to open ground instead of sinking through a floor.
+		if(tier==PlayerBotLedgeLeap.Tier.GHOST && settled(player.getWorldId(),at)){clearLeapSearch();return false;}
 		if(leapBudget.spent(now) && leapsLimited(player)) {
 			// Each leap only takes a lost bot further down. The planner moves it to a fresh camp instead.
 			clearLeapSearch();ledgeStall.clear();goalLost=abandonGoal=true;
@@ -1034,6 +1036,7 @@ final class PlayerBotNavigation {
 	}
 	/** A world bot on its own stops leaping once leaps get it nowhere. Parties and instances keep their own recovery. */
 	private static boolean leapsLimited(Player player){return PlayerBotPopulationManager.global(player) && player.getPlayerGroup()==null && !player.isInAlliance() && !player.isInInstance();}
+	private static boolean settled(int map,Point at){return map==110010000 || map==120010000 || !PlayerBotWardenBeats.field(map,at.x(),at.y(),at.z());}
 	private static boolean movable(Player player){return !PlayerBotRoadDuty.assigned(player) && !PlayerBotFindGroup.committed(player);}
 	private void clearLeapSearch(){cancelTicket(leapSearchToken);leapSearch=null;leapTier=PlayerBotLedgeLeap.Tier.NONE;}
 	private void discardLookahead() { if(lookahead){cancelTicket(searchToken);clearSearch();lookahead=false;} }

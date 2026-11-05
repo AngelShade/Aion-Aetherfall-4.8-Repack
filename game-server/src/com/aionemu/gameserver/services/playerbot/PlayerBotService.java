@@ -564,7 +564,7 @@ public final class PlayerBotService {
   lines.add("World goals: bots with goals="+active.stream().filter(s->PlayerBotGearPolicy.goalCount(s.bot())>0).count()
    +", open goals="+active.stream().mapToInt(s->PlayerBotGearPolicy.goalCount(s.bot())).sum()
    +", with a monster source="+active.stream().filter(s->!PlayerBotGearPolicy.goalDrops(s.bot()).isEmpty()).count()
-   +", hunts started="+PlayerBotWorldActivities.goalHuntsStarted()+", hunting now="+active.stream().filter(s->PlayerBotWorldActivities.goalHuntTravel(s.bot())).count()+", "+PlayerBotWorldActivities.huntStats()
+   +", fights joined to help a player="+PlayerBotBystanders.helps()+", hunts started="+PlayerBotWorldActivities.goalHuntsStarted()+", hunting now="+active.stream().filter(s->PlayerBotWorldActivities.goalHuntTravel(s.bot())).count()+", "+PlayerBotWorldActivities.huntStats()
    +"; "+PlayerBotLoadouts.worldStats()+"; "+PlayerBotMarket.stats()+"; "+PlayerBotProfessions.stats());
   var liveLevels=new TreeMap<Integer,Integer>();
   for(var s:active)if(PlayerBotPopulationManager.global(s.bot()))liveLevels.merge((int)s.bot().getLevel(),1,Integer::sum);

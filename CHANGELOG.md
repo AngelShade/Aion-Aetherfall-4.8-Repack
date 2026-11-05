@@ -2,6 +2,11 @@
 
 ## Next update
 
+- Free bots passing your fight now join in against elite monsters, or when your health is low. The kill and its rewards stay yours.
+- Bots now travel across their map to hunt monsters that drop the gear they want.
+- Bots no longer dive down elevator shafts or sink through town floors when they get stuck.
+- Falling a long way now ends when you hit the floor, instead of partway down.
+- Road Wardens who belong to a player's legion now stay on patrol.
 - Large companion parties keep their line formation close, and companions can equip stat-bearing remodel armor they own or earn.
 - The companion equipment window lets you inspect equipped Stigmas and other items outside the paperdoll.
 - Road Wardens can still offer rescue after you reconnect while dead from a monster attack.

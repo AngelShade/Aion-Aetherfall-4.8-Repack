@@ -117,7 +117,7 @@ final class PlayerBotWorldActivities {
  static boolean committedTravel(Player bot){var s=STATES.get(bot.getObjectId());if(s==null || s.goal==null)return false;var p=s.goal.place();return bot.getWorldId()!=p.map() || PositionUtil.getDistance(bot,p.x(),p.y(),p.z())>6;}
  static boolean questTravel(Player bot){var s=STATES.get(bot.getObjectId());return s!=null && s.goal!=null && (s.goal.quest()!=0 || s.goal.kind()!=PlayerBotQuestRoutes.Kind.HUNT);}
  static boolean grindTravel(Player bot){var s=STATES.get(bot.getObjectId());return s!=null && s.goal!=null && s.goal.quest()==0 && s.goal.kind()==PlayerBotQuestRoutes.Kind.HUNT;}
- static void close(Player bot){var s=STATES.remove(bot.getObjectId());if(s!=null)synchronized(s){goal(s,null);s.closed=true;}}
+ static void close(Player bot){PlayerBotBystanders.forget(bot);var s=STATES.remove(bot.getObjectId());if(s!=null)synchronized(s){goal(s,null);s.closed=true;}}
  /** Report the selected destination, never claim an intended fallback already ran. */
  static Map<String,Object> activity(Player bot) {
   var s=STATES.get(bot.getObjectId());var g=s==null ? null : s.goal;
@@ -247,6 +247,22 @@ final class PlayerBotWorldActivities {
   return PlayerBotHunting.goalTemplate(n) && PlayerBotHunting.goalLevelFits(bot.getLevel(),n.getLevel(),n.getRating())
    && (DataManager.TRIBE_RELATIONS_DATA.isHostileRelation(n.getTribe(),bot.getTribe()) || DataManager.TRIBE_RELATIONS_DATA.isAggressiveRelation(n.getTribe(),bot.getTribe()));
  }
+ /** Bots kept near a player stay on that map, but may cross it for gear they want. Other bots may travel anywhere. */
+ private static Goal goalPlace(Player bot,List<Integer> npcs,State s,long now,PlayerBotWorldTravel.Distances distances) {
+  boolean resident=PlayerBotPlayerPresence.resident(bot);
+  for(boolean local:LOCAL_THEN_ALL) {
+   var goals=new ArrayList<Goal>();
+   for(int npc:npcs)for(var place:local?PlayerBotWorldTravel.near(npc,distances,900):PlayerBotWorldTravel.places(npc)) {
+    double distance=distances.distance(place);
+    if(!Double.isFinite(distance) || distance<0 || !goalPlaceAllowed(resident,bot.getWorldId(),place.map()))continue;
+    var goal=new Goal(0,PlayerBotQuestRoutes.Kind.HUNT,place,distance);
+    if(s.excluded.getOrDefault(key(goal),0L)<=now)goals.add(goal);
+   }
+   var chosen=chooseAvailable(goals);if(chosen!=null)return chosen;
+  }
+  return null;
+ }
+ static boolean goalPlaceAllowed(boolean resident,int botMap,int placeMap){return !resident || botMap==placeMap;}
  /** Now and then a bot with nothing else to finish travels to a monster that drops an item it wants. A hard one becomes a help request there. */
  private static Goal goalHunt(Player bot,State s,long now,PlayerBotWorldTravel.Distances distances) {
   if(!com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.ECONOMY_ENABLED || !com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.WORLD_GOALS_HUNT || now<s.nextGoalHunt)return null;
@@ -255,7 +271,7 @@ final class PlayerBotWorldActivities {
   HUNT_CHECKS.incrementAndGet();
   if(npcs.isEmpty()){HUNT_NO_FIT.incrementAndGet();s.goalHunt=null;s.nextGoalHunt=now+60000;return null;}
   s.nextGoalHunt=now+Math.max(60,com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.WORLD_GOALS_HUNT_INTERVAL_SECONDS)*1000L;
-  var chosen=available(bot,List.of(new Request(0,PlayerBotQuestRoutes.Kind.HUNT,npcs)),s,now,distances,LOCAL_THEN_ALL);
+  var chosen=goalPlace(bot,npcs,s,now,distances);
   // Bots are only awake while a player is on their map, so waiting the full interval after a miss could lose the chance.
   if(chosen==null){HUNT_NO_PLACE.incrementAndGet();s.nextGoalHunt=Math.min(s.nextGoalHunt,now+300000);}
   if(chosen!=null && GOAL_CLAIMS.putIfAbsent(chosen.place().npc(),s) instanceof State other && other!=s)chosen=null;

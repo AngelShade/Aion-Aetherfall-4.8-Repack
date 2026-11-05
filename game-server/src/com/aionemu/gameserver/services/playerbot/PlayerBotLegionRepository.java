@@ -25,6 +25,11 @@ final class PlayerBotLegionRepository {
   final boolean allocationReusable;
   TransactionFailure(Throwable cause,boolean reusable){super("Native generated legion transaction failed; SQL membership remains authoritative",cause);allocationReusable=reusable;}
  }
+ /** This Warden's legion has people in it, so it stays there. Nothing is wrong and a retry cannot change it. */
+ static final class PlayerLegion extends SQLException {
+  private static final long serialVersionUID=1L;
+  PlayerLegion(){super("Warden belongs to a protected legion");}
+ }
  static Assignment commit(Connection c,Request request)throws SQLException {
   boolean commitAttempted=false;
   try{c.setAutoCommit(false);var result=assign(c,request);commitAttempted=true;c.commit();return result;}
@@ -120,7 +125,7 @@ final class PlayerBotLegionRepository {
    try(var s=c.prepareStatement("SELECT map_id,race FROM playerbot_warden_companies WHERE legion_id=?")){s.setInt(1,old);try(var r=s.executeQuery()){if(r.next() && r.getInt(1)==q.map() && r.getString(2).equals(q.race().name()))return new Assignment(old,false,false);}}
    // Only generated-only membership can migrate. A human legion is never commandeered.
    try(var s=c.prepareStatement("SELECT p.account_id,b.account_id,b.ready,x.player_id FROM legion_members m JOIN players p ON p.id=m.player_id LEFT JOIN playerbot_roster b ON b.player_id=p.id LEFT JOIN playerbot_removed x ON x.player_id=p.id WHERE m.legion_id=? FOR UPDATE")) {
-    s.setInt(1,old);try(var r=s.executeQuery()){while(r.next())if(!PlayerBotPopulationPolicy.serverAccount(r.getInt(1)) || r.getInt(1)!=r.getInt(2) || !r.getBoolean(3) || r.getObject(4)!=null)throw new SQLException("Warden belongs to a protected legion");}
+    s.setInt(1,old);try(var r=s.executeQuery()){while(r.next())if(!PlayerBotPopulationPolicy.serverAccount(r.getInt(1)) || r.getInt(1)!=r.getInt(2) || !r.getBoolean(3) || r.getObject(4)!=null)throw new PlayerLegion();}
    }
   }
   int target=0,number=1,count=0;

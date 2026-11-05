@@ -12,6 +12,8 @@ public final class PlayerBotLedgeLeap {
  /** Stall ages: leap along a clear arc, leap through anything but a door, then move to nearby open ground. */
  static final long LEAP_MS=6000,GHOST_MS=12000,RELOCATE_MS=30000;
  static final float MIN_DROP=1;
+ /** No bot dives further than a player could survive. A longer way down waits for the move to open ground. */
+ static final float MAX_DROP=45;
  private static final float ANCHOR_RADIUS=6,ANCHOR_HEIGHT=3;
  private static final long OBSERVATION_GAP_MS=5000;
  private static final int DIRECTIONS=16;
@@ -104,7 +106,7 @@ public final class PlayerBotLedgeLeap {
    // Inside or against rock, the column above the feet only finds the rock's own surface.
    for(float top:tier==Tier.GHOST?new float[]{z+.8f,z-.6f}:new float[]{z+.8f}) {
     var landing=settle(map,instance,tx,ty,top,z-MIN_DROP,minimumZ);
-    if(landing==null)continue;
+    if(landing==null || z-landing.z()>MAX_DROP)continue;
     var plan=plan(x,y,z,landing,speed);
     if(tier==Tier.GHOST?!door(map,instance,x,y,z,landing):!arc(map,instance,plan))continue;
     return new Escape(landing,plan);

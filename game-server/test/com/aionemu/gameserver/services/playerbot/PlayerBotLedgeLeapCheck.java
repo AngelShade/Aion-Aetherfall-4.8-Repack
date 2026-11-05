@@ -89,6 +89,10 @@ public final class PlayerBotLedgeLeapCheck {
   // A knee-high step is not a ledge.
   var step=map(quad(-40,0,-40,40,.5f,.5f),quad(0,40,-40,40,0,0),wall(0,0,.5f));
   check(run(step,-.5f,0,.5f,30,0,PlayerBotLedgeLeap.Tier.LEAP,false,Float.NEGATIVE_INFINITY)==null,"a drop under a metre is left to walking");
+  // A shaft is too long a way down for any leap.
+  var shaft=map(quad(-40,0,-40,40,100,100),quad(0,40,-40,40,0,0),wall(0,0,100));
+  for(var tier:new PlayerBotLedgeLeap.Tier[]{PlayerBotLedgeLeap.Tier.LEAP,PlayerBotLedgeLeap.Tier.GHOST})
+   check(run(shaft,-.5f,0,100,30,0,tier,false,Float.NEGATIVE_INFINITY)==null,"no bot dives down a shaft: "+tier);
   // Water below the safe height is refused, including at the end of a slide.
   check(run(ledge,-.5f,0,30,10,0,PlayerBotLedgeLeap.Tier.LEAP,false,5)==null,"a landing under water is refused");
   check(run(face,-.5f,0,30,40,0,PlayerBotLedgeLeap.Tier.LEAP,false,5)==null,"a slide into water is refused");

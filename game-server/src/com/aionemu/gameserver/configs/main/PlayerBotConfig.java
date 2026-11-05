@@ -9,6 +9,15 @@ public final class PlayerBotConfig {
  // Save long cooldowns for durable enemies, players or emergencies. Native data uses 100 ms units.
  @Property(key = "gameserver.playerbots.skills.long_cooldown_seconds", defaultValue = "180")
  public static int SKILL_LONG_COOLDOWN_SECONDS = 180;
+ // A free world bot passing a human of its faction joins a hard fight. The kill and its rewards stay the human's.
+ @Property(key = "gameserver.playerbots.bystanders.enable", defaultValue = "true")
+ public static boolean BYSTANDERS_ENABLED = true;
+ @Property(key = "gameserver.playerbots.bystanders.range", defaultValue = "30")
+ public static int BYSTANDERS_RANGE = 30;
+ @Property(key = "gameserver.playerbots.bystanders.health_percent", defaultValue = "70")
+ public static int BYSTANDERS_HEALTH_PERCENT = 70;
+ @Property(key = "gameserver.playerbots.bystanders.max_per_player", defaultValue = "2")
+ public static int BYSTANDERS_MAX_PER_PLAYER = 2;
  @Property(key = "gameserver.playerbots.collection.renown.enable", defaultValue = "true")
  public static boolean COLLECTION_RENOWN_ENABLED = true;
  @Property(key = "gameserver.playerbots.collection.renown.rarity_weights", defaultValue = "10,25,50,100,200")

@@ -463,6 +463,7 @@ public final class PlayerBotSession {
 		PlayerBotPartyBehavior.update(this, role, order);
 		if (!autonomous() && !endingWorldControl && !awaitingEntrance && PlayerBotTravel.followTeleport(this)) { PlayerBotArbitration.clear(engine); navigation.stop(); status = "following owner teleport or catching up"; return true; }
 		PlayerBotWardens.observe(bot);
+		PlayerBotBystanders.observe(this);
 		List<Player> party = party().stream()
 			.filter(p -> p.isPlaying() && p.getWorldId() == bot.getWorldId() && p.getInstanceId() == bot.getInstanceId()).toList();
 		List<Player> support = PlayerBotSupport.members(bot,party);
@@ -1340,7 +1341,7 @@ public final class PlayerBotSession {
 		if(!PlayerBotRoadDuty.enemyAllowed(bot,npc))return false;
 		boolean engaged = party.stream().anyMatch(p -> npc.getAggroList().isHating(p)
 			|| p.getSummon() != null && npc.getAggroList().isHating(p.getSummon()));
-		engaged |= PlayerBotRoadDuty.assisting(bot,npc) || PlayerBotTheobomosLab.mechanicEnemy(bot,npc,party) || PlayerBotAdmaStronghold.mechanicEnemy(bot,npc,party)
+		engaged |= PlayerBotBystanders.helping(bot,npc) || PlayerBotRoadDuty.assisting(bot,npc) || PlayerBotTheobomosLab.mechanicEnemy(bot,npc,party) || PlayerBotAdmaStronghold.mechanicEnemy(bot,npc,party)
 			|| PlayerBotDarkPoeta.mechanicEnemy(bot,npc,party);
 		return bot.getKnownList().sees(npc) && PlayerBotRules.canAttack(true, bot.isEnemy(npc), !npc.isDead(), engaged,
 			explicit, !commanded && controlled(npc), !commanded && order == Order.PASSIVE, PositionUtil.getDistance(owner, npc),

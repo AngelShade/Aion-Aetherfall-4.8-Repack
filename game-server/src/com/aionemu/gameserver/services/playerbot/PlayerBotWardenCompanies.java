@@ -31,7 +31,9 @@ public final class PlayerBotWardenCompanies {
   if(stem.length()+suffix.length()>32)stem=stem.substring(0,32-suffix.length()).trim();String result=stem+suffix;
   if(!result.matches("[a-zA-Z ]{2,32}"))throw new IllegalArgumentException("Invalid native company name");return result;
  }
- static boolean matches(Player bot,PlayerBotPatrolRoutes.Route route){return route!=null && bot.isLegionMember() && (route.map()+":"+bot.getRace()).equals(REGIONS.get(bot.getLegion().getLegionId()));}
+ /** Wardens who belong to a player's legion. A human legion is never commandeered, so they serve under its name. */
+ private static final Set<Integer> IN_PLAYER_LEGION=java.util.concurrent.ConcurrentHashMap.newKeySet();
+ static boolean matches(Player bot,PlayerBotPatrolRoutes.Route route){return route!=null && bot.isLegionMember() && (IN_PLAYER_LEGION.contains(bot.getObjectId()) || (route.map()+":"+bot.getRace()).equals(REGIONS.get(bot.getLegion().getLegionId())));}
  static void maintain(PlayerBotRoadDuty.State s) {
   var bot=s.session.bot();if(!PlayerBotWardenConfig.ENABLED || s.career!=PlayerBotRoadDuty.Career.WARDEN)return;
   if(s.route==null) {
@@ -69,7 +71,10 @@ public final class PlayerBotWardenCompanies {
      IDS.add(result.legion());REGIONS.put(result.legion(),route.map()+":"+bot.getRace());
      LegionService.getInstance().publishWardenMembership(bot,result.legion());title(bot);
     }}
-   }catch(SQLException|RuntimeException error){org.slf4j.LoggerFactory.getLogger(PlayerBotWardenCompanies.class).warn("Warden company projection retained for retry: {}",error.toString());}
+   }catch(SQLException|RuntimeException error){
+    if(error.getCause() instanceof PlayerBotLegionRepository.PlayerLegion){IN_PLAYER_LEGION.add(actor);return;}
+    org.slf4j.LoggerFactory.getLogger(PlayerBotWardenCompanies.class).warn("Warden company projection retained for retry: {} (cause: {})",error,error.getCause());
+   }
    finally{if(allocated>0 && release)IDFactory.getInstance().releaseId(allocated);BUSY.remove(actor);}
   });
  }

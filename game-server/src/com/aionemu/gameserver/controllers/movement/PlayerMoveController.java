@@ -107,7 +107,8 @@ public class PlayerMoveController extends PlayableMoveController<Player> {
 		if (!owner.isPlayerBot() && !Float.isNaN(fallStartZ) && newZ < lastZ) {
 			float height = fallStartZ - newZ;
 			float maxHeight = owner.isInsideFlyZone() ? FallDamageConfig.MAXIMUM_DISTANCE_MIDAIR_FLY_ZONE : FallDamageConfig.MAXIMUM_DISTANCE_MIDAIR;
-			if (height > maxHeight && Float.isNaN(GeoService.getInstance().getWalkableZ(owner, newZ, newZ - 2 * maxHeight))) {
+			// Only an endless drop ends in midair. A long fall onto a real floor ends on that floor.
+			if (height > maxHeight && Float.isNaN(GeoService.getInstance().getWalkableZ(owner, newZ, BELOW_WORLD_Z))) {
 				dieFromFall();
 				return;
 			}
@@ -160,8 +161,10 @@ public class PlayerMoveController extends PlayableMoveController<Player> {
 	/**
 	 * @return True if the player is more than 2 m below z 0.
 	 */
+	private static final float BELOW_WORLD_Z = -2;
+
 	private static boolean isBelowWorld(float z) {
-		return z < -2;
+		return z < BELOW_WORLD_Z;
 	}
 
 	private void dieFromFall() {
