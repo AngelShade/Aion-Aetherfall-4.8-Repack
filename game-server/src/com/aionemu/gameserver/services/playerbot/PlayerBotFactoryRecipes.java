@@ -22,7 +22,9 @@ final class PlayerBotFactoryRecipes extends RecipeList {
   if(!PlayerBotPopulationManager.global(bot) || bot.isSpawned() || World.getInstance().isInWorld(bot.getObjectId()) || !PlayerBotLease.isReserved(bot.getObjectId()))
    throw new IllegalStateException("Recipe factory requires exclusive unpublished generated custody");
   if(bot.getRecipeList()==null)throw new IllegalStateException("Native factory recipe load incomplete");
-  bot.setRecipeList(new PlayerBotFactoryRecipes(full?Map.of():bot.getRecipeList().getRecipes()));
+  var kept=new java.util.HashMap<Integer,Integer>(bot.getRecipeList().getRecipes());
+  if(full){if(PlayerBotProfessions.keepRecipes())kept.keySet().removeIf(id->!PlayerBotProfessionCatalog.keepRecipe(id));else kept.clear();}
+  bot.setRecipeList(new PlayerBotFactoryRecipes(kept));
  }
  @Override public synchronized boolean addRecipe(Player player,int recipe,int limit) {
   if(recipe<=0 || limit<0)throw new IllegalArgumentException("Invalid native factory recipe");

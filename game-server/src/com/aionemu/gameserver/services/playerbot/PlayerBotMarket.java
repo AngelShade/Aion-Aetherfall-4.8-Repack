@@ -31,7 +31,7 @@ final class PlayerBotMarket {
  private static final Map<Integer,View> VIEWS=new ConcurrentHashMap<>();
  private static final AtomicLong WINDOW=new AtomicLong();
  private static final AtomicInteger USED=new AtomicInteger();
- private static final AtomicLong VISITS=new AtomicLong(),BOUGHT=new AtomicLong(),LISTED=new AtomicLong();
+ private static final AtomicLong VISITS=new AtomicLong(),BOUGHT=new AtomicLong(),LISTED=new AtomicLong(),POSTED=new AtomicLong();
  private static final long VIEW_MILLIS=30000;
  private static final int RETURN_BASIS_POINTS=6500;
  private PlayerBotMarket() {}
@@ -52,20 +52,22 @@ final class PlayerBotMarket {
   VIEWS.remove(bot.getObjectId());return result;
  }
  /** Runs under the actor decision lease and session lock, like the other idle reward work. */
- static boolean idle(PlayerBotSession session) {
+ static boolean idle(PlayerBotSession session){return idle(session,false);}
+ /** A background visit trades for a dormant bot. Pass rewards still wait until it is awake. */
+ static boolean idle(PlayerBotSession session,boolean background) {
   Player bot=session.bot();long now=System.currentTimeMillis();
-  if(!eligible(session) || now<NEXT.getOrDefault(bot.getObjectId(),0L) || !PlayerBotPass.rewardIdle(session) || !PlayerBotWarehouse.idle(bot))return false;
+  if(!eligible(session) || now<NEXT.getOrDefault(bot.getObjectId(),0L) || !background && !PlayerBotPass.rewardIdle(session) || !PlayerBotWarehouse.idle(bot))return false;
   NEXT.put(bot.getObjectId(),now+Math.max(60,PlayerBotEconomyConfig.MARKET_INTERVAL_SECONDS)*1000L+bot.getObjectId()%60000);
   try {
    PlayerBotGearPolicy.state(session);
    PlayerBotService.getInstance().checkpointForOwnerAction(session);
-   var ledger=CentralMarketService.companionLedger(bot);
+   var ledger=CentralMarketService.companionLedger(bot);PlayerBotProfessions.ledger(bot,ledger);
    boolean settling=settle(session,ledger,now);
    if(settling){NEXT.put(bot.getObjectId(),now+5000);return true;}
    if(WINDING.remove(bot.getObjectId())!=null)return false;
    if(ledger.orders().stream().filter(CompanionOrder::live).count()>=Math.max(0,PlayerBotEconomyConfig.MARKET_OPEN_ORDERS))return false;
    VISITS.incrementAndGet();
-   if(buy(session,ledger)){BOUGHT.incrementAndGet();return true;}
+   if(buy(session,ledger))return true;
    if(sell(session)){LISTED.incrementAndGet();return true;}
    return false;
   }catch(CentralMarketService.CompanionHeld error) {
@@ -83,7 +85,11 @@ final class PlayerBotMarket {
  /** One step per call: collect, cancel what expired, bring goods home, then withdraw Kinah. */
  private static boolean settle(PlayerBotSession session,CompanionLedger ledger,long now)throws Exception {
   Player bot=session.bot();
-  for(var order:ledger.orders())if(order.uncollected()>0 || order.gross()>0){perform(bot,Map.of("action","collect","order",Long.toString(order.id())));return true;}
+  for(var order:ledger.orders())if(order.uncollected()>0 || order.gross()>0) {
+   perform(bot,Map.of("action","collect","order",Long.toString(order.id())));
+   if(order.side().equals("S") && order.gross()>0 && order.price()>0)PlayerBotProfessions.sold(bot,order.itemId(),order.gross()/order.price());
+   return true;
+  }
   long expiry=WINDING.containsKey(bot.getObjectId())?0:Math.max(1,PlayerBotEconomyConfig.MARKET_ORDER_HOURS)*3600000L;
   for(var order:ledger.orders())if(order.live() && now-order.created()>=expiry){perform(bot,Map.of("action","cancel","order",Long.toString(order.id())));return true;}
   for(var stock:ledger.stock()) {
@@ -101,8 +107,10 @@ final class PlayerBotMarket {
    if(!ordered.contains(item) && bot.getInventory().getItemCountByItemId(item)==0 && bot.getEquipment().getEquippedItemsByItemId(item).isEmpty())needs.add(new Need(item,1,true));
    if(needs.size()>=PlayerBotEconomyConfig.MARKET_NEEDS_PER_VISIT)return needs;
   }
-  var craft=PlayerBotFocus.craftingPlan(session);
-  if(craft!=null)for(var entry:new TreeMap<>(craft.missing()).entrySet()) {
+  // A world bot's trade inputs reach the market even outside its awake work turn; that is what makes the market its first stop.
+  var craft=session.autonomous()?null:PlayerBotFocus.craftingPlan(session);
+  var missing=session.autonomous()?PlayerBotProfessions.inputs(bot):craft==null?Map.<Integer,Long>of():craft.missing();
+  for(var entry:new TreeMap<>(missing).entrySet()) {
    if(!ordered.contains(entry.getKey()) && entry.getValue()>0)needs.add(new Need(entry.getKey(),entry.getValue(),false));
    if(needs.size()>=PlayerBotEconomyConfig.MARKET_NEEDS_PER_VISIT)break;
   }
@@ -110,7 +118,7 @@ final class PlayerBotMarket {
  }
  /** Configured reserve is the level-65 reference; native progression needs smaller working balances early on. */
  /** Bot market work since start, for worldstats. */
- static String stats(){return "market visits="+VISITS.get()+", bought="+BOUGHT.get()+", listed="+LISTED.get();}
+ static String stats(){return "market visits="+VISITS.get()+", bought="+BOUGHT.get()+", buy orders="+POSTED.get()+", listed="+LISTED.get();}
  static long reserve(int level,long configured) {
   long l=Math.max(1,Math.min(65,level)),value=Math.max(0,Math.min(CentralMarketRules.MAX_KINAH,configured));
   return Math.max(PlayerBotEconomyConfig.MARKET_RESERVE_MINIMUM,value/4225*l*l+value%4225*l*l/4225);
@@ -136,6 +144,9 @@ final class PlayerBotMarket {
   if(ask>0 && bid>0 && bid<=ask)value=(value*2+ask+bid)/4;
   return Math.clamp(value,Math.max(1,anchor*PlayerBotEconomyConfig.MARKET_FAIR_MINIMUM_PERCENT/100),Math.min(CentralMarketRules.MAX_KINAH,anchor*PlayerBotEconomyConfig.MARKET_FAIR_MAXIMUM_PERCENT/100));
  }
+ /** Highest selectable price a waiting buy order may offer without passing the bot's limit. */
+ static long orderPrice(CompanionQuote quote,long limit){return orderPrice(CentralMarketRules.ladder(quote.base(),quote.floor(),quote.ceiling()),limit);}
+ static long orderPrice(List<Long> ladder,long limit){return ladder.stream().filter(p->p>0 && p<=limit).reduce((a,b)->b).orElse(0L);}
  static long purchasePrice(CompanionQuote quote,long limit) {
   long ask=quote.asks().stream().filter(p->p.quantity()>0).mapToLong(CompanionPrice::price).min().orElse(0);
   if(ask<=0)return 0;
@@ -164,8 +175,13 @@ final class PlayerBotMarket {
    long limit=Math.min(alternative,value+value*PlayerBotEconomyConfig.MARKET_OVERPAY_PERCENT/100);
    if(PlayerBotQuestMaterials.hasSource(bot,need.item()))limit=Math.min(limit,value*PlayerBotEconomyConfig.MARKET_DROP_SOURCE_PERCENT/100);
    long allowance=(long)(budget*Math.min(1,Math.max(0.1,gain*4)));
-   long ask=purchasePrice(quote,Math.min(limit,allowance));if(ask<=0)continue;
-   long available=quote.asks().stream().filter(p->p.price()<=ask).mapToLong(CompanionPrice::quantity).sum();
+   // Trade inputs also stay inside the trade's own daily budget.
+   if(!need.equipment() && session.autonomous())allowance=Math.min(allowance,PlayerBotProfessions.allowance(session,false));
+   long resting=purchasePrice(quote,Math.min(limit,allowance));
+   // Nothing fairly priced is on sale: a world crafter posts a real funded order for gatherers to sell into.
+   boolean post=resting<=0 && !need.equipment() && session.autonomous();
+   long ask=post?orderPrice(quote,Math.min(limit,allowance)):resting;if(ask<=0)continue;
+   long available=post?need.quantity():quote.asks().stream().filter(p->p.price()<=ask).mapToLong(CompanionPrice::quantity).sum();
    long quantity=Math.min(Math.min(need.quantity(),available),Math.min(allowance/ask,CentralMarketRules.maxQuantity(template.isStackable(),template.getMaxStackCount())));if(quantity<=0)continue;
    long cost=CentralMarketRules.total(ask,quantity);
    // Reserve the daily allowance durably before creating escrow. A crash can defer spending,
@@ -176,7 +192,8 @@ final class PlayerBotMarket {
    catch(CentralMarketService.CompanionBusy busy){care.spent-=cost;care.save();throw busy;}
    try{perform(bot,Map.of("action","buy","variant",need.item()+":0:0","quantity",Long.toString(quantity),"price",Long.toString(ask)));}
    finally{NEXT.put(bot.getObjectId(),System.currentTimeMillis()+5000);}
-   return true;
+   if(!need.equipment() && session.autonomous())PlayerBotProfessions.marketSpent(bot,cost);
+   (post?POSTED:BOUGHT).incrementAndGet();return true;
   }
   return false;
  }
@@ -186,6 +203,8 @@ final class PlayerBotMarket {
   if(item.isEquipped() || !item.isTradeable() || item.getExpireTime()!=0 || !CentralMarketService.eligible(t) || PlayerBotGearPolicy.referenced(bot,item)
    || PlayerBotGearPolicy.goal(bot,t) || PlayerBotGearPolicy.generated(bot,item) || PlayerBotRoadMerchants.merchandise(bot,item) || PlayerBotCare.worldQuestItem(bot,t.getTemplateId())
    || PlayerBotQuestMaterials.protectedItem(session,t.getTemplateId()))return 0;
+  // A world bot's trade goods sell by its own style. This replaces the single material reserve for them.
+  long trade=session.autonomous()?PlayerBotProfessions.saleQuantity(bot,item):-1;if(trade>=0)return trade;
   if(PlayerBotCare.disposable(item,false,upgrades.contains(item.getObjectId()),false,t.getRequiredLevel(bot.getPlayerClass())>bot.getLevel()))return item.getItemCount();
   if(!t.isStackable() || !CentralMarketService.material(t))return 0;
   var craft=PlayerBotFocus.craftingPlan(session);
@@ -201,14 +220,14 @@ final class PlayerBotMarket {
    var template=item.getItemTemplate();quantity=Math.min(quantity,CentralMarketRules.maxQuantity(template.isStackable(),template.getMaxStackCount()));
    var quote=CentralMarketService.companionQuote(bot,item);
    long vendor=PricesService.getSellReward(template.getPrice(),PricesService.getVendorSellModifier());
-   long floor=Math.max(EconomyPrices.generatedFloor(template),vendor*10000/RETURN_BASIS_POINTS+1);
+   long floor=Math.max(Math.max(EconomyPrices.generatedFloor(template),vendor*10000/RETURN_BASIS_POINTS+1),PlayerBotProfessions.saleFloor(bot,item.getItemId()));
    long price=salePrice(quote,EconomyPrices.anchor(template),floor);if(price<=0)continue;
    if(CentralMarketRules.collect(CentralMarketRules.total(price,quantity),RETURN_BASIS_POINTS)<vendor*quantity)continue;
    int itemId=item.getItemId();int market=com.aionemu.gameserver.model.items.storage.StorageType.MARKET_WAREHOUSE.getId();
    perform(bot,Map.of("action","transfer","source","0","target",Integer.toString(market),"object",Integer.toString(item.getObjectId()),"quantity",Long.toString(quantity)));
    // A partial stack moved under a new object ID; anything unsold comes home on the next visit.
    var stock=CentralMarketService.companionLedger(bot).stock().stream().filter(s->s.itemId()==itemId).findFirst().orElse(null);
-   if(stock!=null)perform(bot,Map.of("action","sell","object",Integer.toString(stock.object()),"quantity",Long.toString(Math.min(quantity,stock.count())),"price",Long.toString(price)));
+   if(stock!=null){long listed=Math.min(quantity,stock.count());perform(bot,Map.of("action","sell","object",Integer.toString(stock.object()),"quantity",Long.toString(listed),"price",Long.toString(price)));PlayerBotProfessions.offered(bot,itemId,listed);}
    return true;
   }
   return false;

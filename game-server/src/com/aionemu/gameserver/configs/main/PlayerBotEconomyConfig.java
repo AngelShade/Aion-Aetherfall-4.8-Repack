@@ -42,8 +42,8 @@ public final class PlayerBotEconomyConfig {
  public static boolean MARKET_ENABLED = true;
  @Property(key = "gameserver.playerbots.market.interval_seconds", defaultValue = "900")
  public static int MARKET_INTERVAL_SECONDS = 900;
- @Property(key = "gameserver.playerbots.market.operations_per_minute", defaultValue = "60")
- public static int MARKET_OPERATIONS_PER_MINUTE = 60;
+ @Property(key = "gameserver.playerbots.market.operations_per_minute", defaultValue = "120")
+ public static int MARKET_OPERATIONS_PER_MINUTE = 120;
  @Property(key = "gameserver.playerbots.market.open_orders", defaultValue = "3")
  public static int MARKET_OPEN_ORDERS = 3;
  @Property(key = "gameserver.playerbots.market.order_hours", defaultValue = "4")
@@ -104,4 +104,77 @@ public final class PlayerBotEconomyConfig {
  public static int WORLD_GOALS_HUNT_INTERVAL_SECONDS = 1800;
  @Property(key = "gameserver.playerbots.worldgoals.help_requests", defaultValue = "true")
  public static boolean WORLD_GOALS_HELP_REQUESTS = true;
+
+ @Property(key = "gameserver.playerbots.professions.enable", defaultValue = "true")
+ public static boolean PROFESSIONS_ENABLE = true;
+ @Property(key = "gameserver.playerbots.professions.primary_weights", defaultValue = "30002:20,30003:10,40001:15,40002:10,40003:10,40004:10,40007:15,40008:8,40010:2")
+ public static String PROFESSIONS_PRIMARY_WEIGHTS = "30002:20,30003:10,40001:15,40002:10,40003:10,40004:10,40007:15,40008:8,40010:2";
+ @Property(key = "gameserver.playerbots.professions.gatherer_styles", defaultValue = "small_seller:25:200:20:25,regular:40:500:75:50,stockpiler:25:1000:250:100,hoarder:10:2000:750:100")
+ public static String PROFESSIONS_GATHERER_STYLES = "small_seller:25:200:20:25,regular:40:500:75:50,stockpiler:25:1000:250:100,hoarder:10:2000:750:100";
+ @Property(key = "gameserver.playerbots.professions.crafter_styles", defaultValue = "own_gear:30,skill_grinder:25,market_crafter:30,bulk_intermediates:15")
+ public static String PROFESSIONS_CRAFTER_STYLES = "own_gear:30,skill_grinder:25,market_crafter:30,bulk_intermediates:15";
+ @Property(key = "gameserver.playerbots.professions.background_turns_per_second", defaultValue = "8")
+ public static int PROFESSIONS_BACKGROUND_TURNS_PER_SECOND = 8;
+ @Property(key = "gameserver.playerbots.professions.background_interval_seconds", defaultValue = "600")
+ public static int PROFESSIONS_BACKGROUND_INTERVAL_SECONDS = 600;
+ @Property(key = "gameserver.playerbots.professions.gather_seconds", defaultValue = "60")
+ public static int PROFESSIONS_GATHER_SECONDS = 60;
+ @Property(key = "gameserver.playerbots.professions.background_gather_batch", defaultValue = "10")
+ public static int PROFESSIONS_BACKGROUND_GATHER_BATCH = 10;
+ @Property(key = "gameserver.playerbots.professions.background_craft_batch", defaultValue = "3")
+ public static int PROFESSIONS_BACKGROUND_CRAFT_BATCH = 3;
+ @Property(key = "gameserver.playerbots.professions.work_interval_seconds", defaultValue = "900")
+ public static int PROFESSIONS_WORK_INTERVAL_SECONDS = 900;
+ @Property(key = "gameserver.playerbots.professions.work_slice_seconds", defaultValue = "180")
+ public static int PROFESSIONS_WORK_SLICE_SECONDS = 180;
+ @Property(key = "gameserver.playerbots.professions.plan_refresh_seconds", defaultValue = "60")
+ public static int PROFESSIONS_PLAN_REFRESH_SECONDS = 60;
+ @Property(key = "gameserver.playerbots.professions.plans_per_second", defaultValue = "4")
+ public static int PROFESSIONS_PLANS_PER_SECOND = 4;
+ @Property(key = "gameserver.playerbots.professions.recipes_per_plan", defaultValue = "24")
+ public static int PROFESSIONS_RECIPES_PER_PLAN = 24;
+ @Property(key = "gameserver.playerbots.professions.sources_per_plan", defaultValue = "32")
+ public static int PROFESSIONS_SOURCES_PER_PLAN = 32;
+ @Property(key = "gameserver.playerbots.professions.needs_per_plan", defaultValue = "8")
+ public static int PROFESSIONS_NEEDS_PER_PLAN = 8;
+ @Property(key = "gameserver.playerbots.professions.retry_seconds", defaultValue = "300")
+ public static int PROFESSIONS_RETRY_SECONDS = 300;
+ @Property(key = "gameserver.playerbots.professions.failed_attempts", defaultValue = "3")
+ public static int PROFESSIONS_FAILED_ATTEMPTS = 3;
+ @Property(key = "gameserver.playerbots.professions.product_stock_batches", defaultValue = "2")
+ public static int PROFESSIONS_PRODUCT_STOCK_BATCHES = 2;
+ @Property(key = "gameserver.playerbots.professions.crafter_material_limit", defaultValue = "500")
+ public static int PROFESSIONS_CRAFTER_MATERIAL_LIMIT = 500;
+ @Property(key = "gameserver.playerbots.professions.operating_daily_kinah", defaultValue = "500000")
+ public static long PROFESSIONS_OPERATING_DAILY_KINAH = 500000;
+ @Property(key = "gameserver.playerbots.professions.training_daily_kinah", defaultValue = "6500000")
+ public static long PROFESSIONS_TRAINING_DAILY_KINAH = 6500000;
+ @Property(key = "gameserver.playerbots.professions.training_per_day", defaultValue = "1")
+ public static int PROFESSIONS_TRAINING_PER_DAY = 1;
+ @Property(key = "gameserver.playerbots.professions.skill_loss_daily_kinah", defaultValue = "50000")
+ public static long PROFESSIONS_SKILL_LOSS_DAILY_KINAH = 50000;
+ @Property(key = "gameserver.playerbots.professions.practice_attempts_per_hour", defaultValue = "12")
+ public static int PROFESSIONS_PRACTICE_ATTEMPTS_PER_HOUR = 12;
+ @Property(key = "gameserver.playerbots.professions.zero_xp_completions", defaultValue = "2")
+ public static int PROFESSIONS_ZERO_XP_COMPLETIONS = 2;
+ @Property(key = "gameserver.playerbots.professions.minimum_margin_percent", defaultValue = "10")
+ public static int PROFESSIONS_MINIMUM_MARGIN_PERCENT = 10;
+ @Property(key = "gameserver.playerbots.professions.profit_success_percent", defaultValue = "75")
+ public static int PROFESSIONS_PROFIT_SUCCESS_PERCENT = 75;
+ @Property(key = "gameserver.playerbots.professions.sale_daily_units", defaultValue = "500")
+ public static int PROFESSIONS_SALE_DAILY_UNITS = 500;
+ @Property(key = "gameserver.playerbots.professions.sale_gear_daily_units", defaultValue = "1")
+ public static int PROFESSIONS_SALE_GEAR_DAILY_UNITS = 1;
+ @Property(key = "gameserver.playerbots.professions.world_item_units", defaultValue = "2000")
+ public static int PROFESSIONS_WORLD_ITEM_UNITS = 2000;
+ @Property(key = "gameserver.playerbots.professions.market_snapshot_seconds", defaultValue = "300")
+ public static int PROFESSIONS_MARKET_SNAPSHOT_SECONDS = 300;
+ @Property(key = "gameserver.playerbots.professions.market_variants_per_minute", defaultValue = "60")
+ public static int PROFESSIONS_MARKET_VARIANTS_PER_MINUTE = 60;
+ @Property(key = "gameserver.playerbots.professions.market_cache_entries", defaultValue = "256")
+ public static int PROFESSIONS_MARKET_CACHE_ENTRIES = 256;
+ @Property(key = "gameserver.playerbots.professions.market_wait_seconds", defaultValue = "900")
+ public static int PROFESSIONS_MARKET_WAIT_SECONDS = 900;
+ @Property(key = "gameserver.playerbots.professions.census_refresh_seconds", defaultValue = "900")
+ public static int PROFESSIONS_CENSUS_REFRESH_SECONDS = 900;
 }

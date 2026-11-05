@@ -84,16 +84,7 @@ public class GatherableController extends VisibleObjectController<Gatherable> {
 			}
 		}
 
-		int chance = Rnd.nextInt(10000000);
-		int current = 0;
-		Material curMaterial = null;
-		for (Material mat : materials) {
-			current += mat.getRate();
-			if (current >= chance) {
-				curMaterial = mat;
-				break;
-			}
-		}
+		Material curMaterial = selectMaterial(materials);
 
 		synchronized (this) {
 			if (gatheringTask != null) {
@@ -105,6 +96,22 @@ public class GatherableController extends VisibleObjectController<Gatherable> {
 			gatheringTask = new GatheringTask(player, getOwner(), curMaterial, skillLvlDiff);
 			gatheringTask.start();
 		}
+	}
+
+	public static Material selectMaterial(List<Material> materials) {
+		if (materials == null || materials.isEmpty()) return null;
+		int chance = Rnd.nextInt(10000000);
+		int current = 0;
+		Material curMaterial = null;
+		for (Material mat : materials) {
+			current += mat.getRate();
+			if (current >= chance) {
+				curMaterial = mat;
+				break;
+			}
+		}
+
+		return curMaterial;
 	}
 
 	/**
@@ -129,7 +136,7 @@ public class GatherableController extends VisibleObjectController<Gatherable> {
 		return true;
 	}
 
-	private List<Material> getMaterials(Player player, GatherableTemplate template) {
+	public static List<Material> getMaterials(Player player, GatherableTemplate template) {
 		if (template.getRequiredItemId() > 0) {
 			if (template.getCheckType() == 1) {
 				boolean hasRequiredItemEquipped = !player.getEquipment().getEquippedItemsByItemId(template.getRequiredItemId()).isEmpty();
@@ -161,12 +168,17 @@ public class GatherableController extends VisibleObjectController<Gatherable> {
 
 	@SuppressWarnings("lossy-conversions")
 	public void rewardPlayer(Player player) {
+		rewardPlayer(player, getOwner().getObjectTemplate());
+	}
+
+	@SuppressWarnings("lossy-conversions")
+	public static void rewardPlayer(Player player, GatherableTemplate template) {
 		if (player != null) {
 			com.aionemu.gameserver.services.SeasonPassService.record(player, com.aionemu.gameserver.services.SeasonPassRules.Event.GATHER);
-			int skillLvl = getOwner().getObjectTemplate().getSkillLevel();
+			int skillLvl = template.getSkillLevel();
 			int xpReward = (int) ((0.0031 * (skillLvl + 5.3) * (skillLvl + 1592.8) + 60));
 
-			int skillId = getOwner().getObjectTemplate().getHarvestSkill();
+			int skillId = template.getHarvestSkill();
 			int gainedGatherXp = Rates.SKILL_XP_GATHERING.calcResult(player, xpReward);
 			StatEnum boostStat = StatEnum.getModifier(skillId);
 			if (boostStat != null)

@@ -101,6 +101,24 @@ public final class PlayerBotWarehouse {
    || move.item().getEquipmentSlot()!=move.slot() || move.item().isEquipped())
    throw new IllegalStateException("Committed warehouse move could not be projected exactly");
  }
+ /** Big holders keep stock in their own warehouse so full bags don't stall them, and bring a stack back to sell. One stack per call. */
+ static boolean profession(PlayerBotSession session) {
+  Player bot=session.bot();var bank=bot.getStorage(1);if(bank==null || !idle(bot))return false;
+  var stock=new java.util.HashSet<Integer>();
+  try {
+   Move move=null;
+   if(bot.getInventory().getFreeSlots()<PlayerBotProfessionPolicy.BAG_ROOM && !bank.isFull()) {
+    for(Item item:bot.getInventory().getItems())if(bankable(item) && PlayerBotProfessions.keep(item,stock) && !PlayerBotProfessions.protectedItem(bot,item.getItemId()) && !PlayerBotGearPolicy.generated(bot,item)){move=plan(bot,true,item.getObjectId());break;}
+   }else if(bot.getInventory().getFreeSlots()>=PlayerBotProfessionPolicy.BAG_ROOM*2) {
+    for(Item item:bank.getItems())if(bankable(item) && PlayerBotProfessions.keep(item,stock) && bot.getInventory().getItemCountByItemId(item.getItemId())==0){move=plan(bot,false,item.getObjectId());break;}
+   }
+   if(move==null)return false;
+   PlayerBotWarehouseStore.commit(move);return true;
+  }catch(PlayerBotWarehouseStore.Held error) {
+   InventoryDAO.quarantineMarketInventory(bot.getObjectId());session.markClosing();
+   LoggerFactory.getLogger(PlayerBotWarehouse.class).error("Trade warehouse custody held for bot {}",bot.getObjectId(),error);return false;
+  }catch(java.sql.SQLException|IllegalArgumentException retry){return false;}
+ }
  /** Mirrors native exchange lock order; a request moves one stack, never a population batch. */
  public static String move(Player owner,String name,boolean deposit,int object) {
   var service=PlayerBotService.getInstance();

@@ -917,6 +917,10 @@ public final class CentralMarketService {
 
 	/** Read bounded index windows before filtering. Flooding one's own orders can hide an
 	 * opportunity, but cannot make another owner or a virtual quote into price evidence. */
+	/** Bounded subject-neutral evidence; callers still filter their own owner and consumer demand. */
+	public static CompanionQuote productionQuote(int itemId) throws SQLException {
+		try (Connection c = DatabaseFactory.getConnection()) { return companionQuote(c, 0, itemId + ":0:0", System.currentTimeMillis()); }
+	}
 	static CompanionQuote companionQuote(Connection c, int subject, String key, long now) throws SQLException {
 		var entry=row(c,"SELECT base_price,floor_price,ceiling_price FROM central_market_catalog WHERE variant=?",key);
 		if(entry==null)return new CompanionQuote(0,0,0,List.of(),List.of(),List.of());

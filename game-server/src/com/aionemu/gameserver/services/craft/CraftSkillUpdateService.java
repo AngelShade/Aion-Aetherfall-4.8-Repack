@@ -80,6 +80,26 @@ public class CraftSkillUpdateService {
 		return professionByNpc.get(npc.getNpcId());
 	}
 
+	public java.util.Set<Integer> trainers(int skill) {
+		var result = new java.util.HashSet<Integer>();
+		professionByNpc.forEach((id, profession) -> { if (profession.getSkillId() == skill) result.add(id); });
+		return java.util.Set.copyOf(result);
+	}
+	private boolean payAndLearn(Player player, Profession profession, int level, int price) {
+		int current = player.getSkillList().isSkillPresent(profession.getSkillId()) ? player.getSkillList().getSkillLevel(profession.getSkillId()) : 0;
+		if (player.getLevel() < 10 || current != level || !Integer.valueOf(price).equals(profession.getUpgradeCost(level))) return false;
+		if (!player.getInventory().tryDecreaseKinah(price, ItemUpdateType.DEC_KINAH_LEARN)) return false;
+		return player.getSkillList().addSkill(player, profession.getSkillId(), level + 1);
+	}
+	public boolean learnBackground(Player player, int skill) {
+		if (!com.aionemu.gameserver.services.playerbot.PlayerBotProfessions.backgroundAllowed(player)) return false;
+		var profession = Profession.getBySkillId(skill);
+		if (profession == null || trainers(skill).isEmpty()) return false;
+		int level = player.getSkillList().isSkillPresent(skill) ? player.getSkillList().getSkillLevel(skill) : 0;
+		Integer price = profession.getUpgradeCost(level);
+		return price != null && payAndLearn(player, profession, level, price);
+	}
+
 	public void learnSkill(Player player, Npc npc) {
 		if (player.getLevel() < 10)
 			return;
@@ -109,10 +129,7 @@ public class CraftSkillUpdateService {
 
 			@Override
 			public void acceptRequest(Npc requester, Player responder) {
-				if (responder.getInventory().tryDecreaseKinah(price, ItemUpdateType.DEC_KINAH_LEARN)) {
-					PlayerSkillList skillList = responder.getSkillList();
-					skillList.addSkill(responder, skillId, skillLevel + 1);
-				} else {
+				if (!payAndLearn(responder, profession, skillLevel, price)) {
 					PacketSendUtility.sendPacket(responder, SM_SYSTEM_MESSAGE.STR_NOT_ENOUGH_MONEY());
 				}
 			}

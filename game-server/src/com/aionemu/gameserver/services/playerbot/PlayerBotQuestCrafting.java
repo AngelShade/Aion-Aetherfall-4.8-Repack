@@ -185,12 +185,7 @@ public final class PlayerBotQuestCrafting {
  }
  /** Read the existing native trainer registry rather than maintaining a second NPC policy. */
  static Set<Integer> trainers(int skill) {
-  try {
-   CraftSkillUpdateService.getInstance();var field=CraftSkillUpdateService.class.getDeclaredField("professionByNpc");field.setAccessible(true);
-   var out=new TreeSet<Integer>();for(var entry:((Map<?,?>)field.get(null)).entrySet())
-    if(entry.getKey() instanceof Integer id && entry.getValue() instanceof Profession p && p.getSkillId()==skill)out.add(id);
-   return Set.copyOf(out);
-  }catch(ReflectiveOperationException failure){throw new IllegalStateException("Native crafting trainer registry is unavailable",failure);}
+   return CraftSkillUpdateService.getInstance().trainers(skill);
  }
  /** Native finite purchase at the actual authorized merchant, priced from the real trade list. */
  public static boolean buy(Player bot,Npc npc,int item,long count,long allowance) {

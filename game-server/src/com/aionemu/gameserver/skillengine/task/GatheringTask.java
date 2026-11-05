@@ -39,6 +39,18 @@ public class GatheringTask extends AbstractCraftTask {
 		this.interval = 100;
 	}
 
+	/** Same native progress rolls, without a world object, observer, timer or node depletion. */
+	private GatheringTask(Player requester, GatherableTemplate template) {
+		super(requester, null, requester.getSkillList().getSkillLevel(template.getHarvestSkill()) - template.getSkillLevel());
+		this.template = template; this.material = null; this.gathererObserver = null;
+	}
+
+	public static boolean backgroundSuccess(Player player, GatherableTemplate template) {
+		var task = new GatheringTask(player, template);
+		task.analyzeInteraction();
+		return task.currentSuccessValue == fullBarValue;
+	}
+
 	@Override
 	protected void onInteractionAbort() {
 		PacketSendUtility.broadcastPacket(requester, new SM_GATHER_ANIMATION(requester.getObjectId(), responder.getObjectId(), template.getHarvestSkill(), 4));

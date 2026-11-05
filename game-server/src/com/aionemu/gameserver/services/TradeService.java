@@ -67,6 +67,20 @@ public class TradeService {
 		return false;
 	}
 
+	/** A dormant world bot's real purchase from its faction's shop: real price, its own Kinah, no walking. */
+	public static boolean backgroundPurchase(Player player, int npcId, int rate, int itemId, long count, long allowance) {
+		if (!com.aionemu.gameserver.services.playerbot.PlayerBotProfessions.backgroundAllowed(player) || count <= 0 || player.getInventory().isFull())
+			return false;
+		TradeList list = new TradeList(npcId);
+		list.addItem(itemId, count);
+		if (!list.calculateBuyListPrice(player, rate) || list.getRequiredKinah() <= 0 || list.getRequiredKinah() > Math.min(allowance, player.getInventory().getKinah()))
+			return false;
+		if (!player.getInventory().tryDecreaseKinah(list.getRequiredKinah(), ItemUpdateType.DEC_KINAH_BUY))
+			return false;
+		ItemService.addItem(player, itemId, count);
+		return true;
+	}
+
 	public static boolean performBuyFromShop(Npc npc, Player player, TradeList tradeList) {
 		TradeNpcType npcType = tradeListData.getTradeListTemplate(npc.getNpcId()).getTradeNpcType();
 		switch (npcType) {

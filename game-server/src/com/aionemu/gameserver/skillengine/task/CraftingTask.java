@@ -45,6 +45,27 @@ public class CraftingTask extends AbstractCraftTask {
 		}
 	}
 
+	public record BackgroundOutcome(boolean success, int critical, long millis) {}
+	/** Native progress/critical rolls with their normal elapsed time; no client animation or scheduler. */
+	public static BackgroundOutcome backgroundOutcome(Player player, RecipeTemplate recipe) {
+		int difference = player.getSkillList().getSkillLevel(recipe.getSkillId()) - recipe.getSkillpoint();
+		var task = new CraftingTask(player, null, recipe, difference, 0);
+		long elapsed = task.delay; int interval = interval(task.itemTemplate, difference);
+		for (;;) {
+			while (task.currentSuccessValue < fullBarValue && task.currentFailureValue < fullBarValue) {
+				task.analyzeInteraction(); elapsed += interval;
+			}
+			elapsed += interval;
+			if (task.currentFailureValue == fullBarValue) return new BackgroundOutcome(false, task.critCount, elapsed);
+			if (!task.calculateCrit()) return new BackgroundOutcome(true, task.critCount, elapsed);
+			task.currentSuccessValue = task.currentFailureValue = 0;
+		}
+	}
+	public static int interval(ItemTemplate item, int difference) {
+		int cap = switch (item.getItemQuality()) { case UNIQUE, EPIC -> 1500; case MYTHIC -> 1700; default -> 1200; };
+		return Math.max(2500 - difference * 60, cap);
+	}
+
 	@Override
 	protected void onFailureFinish() {
 		PacketSendUtility.sendPacket(requester,

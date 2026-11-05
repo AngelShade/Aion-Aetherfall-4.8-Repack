@@ -37,7 +37,7 @@ final class PlayerBotWarehouseStore {
   }
  }
  static void transfer(Connection c,PlayerBotWarehouse.Move move)throws SQLException {
-  if(c.getAutoCommit() || !move.bot().isPlayerBot() || move.bot().isWorldBot()
+  if(c.getAutoCommit() || !move.bot().isPlayerBot() || move.bot().isWorldBot() && !PlayerBotProfessions.backgroundAllowed(move.bot())
    || !((move.source().getStorageType().getId()==0 && move.destination().getStorageType().getId()==1)
        || (move.source().getStorageType().getId()==1 && move.destination().getStorageType().getId()==0))
    || move.slot()<0 || move.slot()>=PlayerBotWarehouse.slotLimit(move.destination(),move.item()) || move.count()<=0

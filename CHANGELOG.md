@@ -19,6 +19,9 @@ Characters look better than ever up close, with repainted faces and silky, glowi
 
 ### New
 
+- World bots now have real trades. They gather and craft even on maps with no player, using real materials and their own Kinah.
+- Bots trade through the Central Market: gatherers keep it stocked, and crafters post buy orders you can sell into.
+- Bots differ in how they trade. Some sell little and often, while hoarders build up big stocks and sell in large lots.
 - Open Help requests from Find Group to review companions' requests, keep accepted objectives after reconnecting, and track, locate, abandon or collect rewards.
 - Invite a Road Warden for a free escort toward either end of the road, lasting up to 15 minutes.
 - Take a daily Road Bounty from a Warden for XP and Kinah. Every third completed bounty earns a Recruitment Ticket.
@@ -38,7 +41,7 @@ Characters look better than ever up close, with repainted faces and silky, glowi
 
 ### Fixed
 
-- Companions and world bots fill the world properly again after a bot with nowhere to land could hold everyone else up.
+- World bots fill the world properly again. A bot with nowhere to land could hold all the others up.
 - A Map Made of Stone now gives you its random crafting design.
 - Pollution Solution now gives you its crafting materials, and fortress quests pay their bonus medals.
 - You have the intended time to use a chain skill after the previous skill hits.

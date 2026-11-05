@@ -104,6 +104,7 @@ public final class PlayerBotService {
   int id=session.bot().getObjectId();
   // Bind at the final admitted position, before presence can select even a dormant resident.
   PlayerBotRoadDuty.initialize(session);
+  PlayerBotProfessions.initialize(session);
   if(session.autonomous())PlayerBotWorldActivities.begin(session.bot());
   sessions.put(id,session);
   if(session.autonomous())controlledSessions.remove(id);else controlledSessions.put(id,session);
@@ -460,6 +461,7 @@ public final class PlayerBotService {
 	public void startWorldBots() {
 		PlayerBotConfig.validatePvp();
 		PlayerBotPopulationConfig.validate();
+		PlayerBotProfessions.prepare();
 		populationManager.initialize();
 		// Static recipe/material discovery used to run in the first actor's
 		// decision while other actors waited for its catalog monitor. Build once
@@ -563,7 +565,7 @@ public final class PlayerBotService {
    +", open goals="+active.stream().mapToInt(s->PlayerBotGearPolicy.goalCount(s.bot())).sum()
    +", with a monster source="+active.stream().filter(s->!PlayerBotGearPolicy.goalDrops(s.bot()).isEmpty()).count()
    +", hunts started="+PlayerBotWorldActivities.goalHuntsStarted()+", hunting now="+active.stream().filter(s->PlayerBotWorldActivities.goalHuntTravel(s.bot())).count()
-   +"; "+PlayerBotLoadouts.worldStats()+"; "+PlayerBotMarket.stats());
+   +"; "+PlayerBotLoadouts.worldStats()+"; "+PlayerBotMarket.stats()+"; "+PlayerBotProfessions.stats());
   var liveLevels=new TreeMap<Integer,Integer>();
   for(var s:active)if(PlayerBotPopulationManager.global(s.bot()))liveLevels.merge((int)s.bot().getLevel(),1,Integer::sum);
   lines.add("Live global level distribution (native visible levels): "+liveLevels);

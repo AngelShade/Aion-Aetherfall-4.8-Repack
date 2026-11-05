@@ -217,6 +217,12 @@ public final class CentralMarketBotCheck {
 
    listing(c,worldA,key,1000);order(c,worldB,key,"B",1000,1);match(c,key);
    expect(trades(c)==3,"Two world bots on one server account are separate parties");
+   // A crafter with nothing on sale posts a real order, and a gatherer who lists later fills it.
+   long waiting=trades(c);long posted=order(c,worldA,key,"B",950,1);match(c,key);
+   expect(trades(c)==waiting,"A buy order with nothing on sale rests as a waiting buyer");
+   long gathered=listing(c,worldB,key,950);match(c,key);
+   expect(trades(c)==waiting+1,"A gatherer's later listing fills the waiting order");
+   expect(lng(row(c,"SELECT item_owner FROM inventory i JOIN central_market_stock s USING(item_unique_id) WHERE s.order_id=?",posted),"item_owner")==worldA,"The crafter owns what it ordered");
 
    PlayerBotRecruitmentDAO.prepare(c);c.setAutoCommit(false);
    expect(PlayerBotRecruitmentDAO.helped(c,OWNER,"a",3,1)==1,"First request counts");

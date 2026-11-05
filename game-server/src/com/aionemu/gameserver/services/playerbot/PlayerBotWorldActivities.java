@@ -177,7 +177,7 @@ final class PlayerBotWorldActivities {
    || PlayerBotQuestCraftingDriver.protectedItem(session,item.getItemId()))return false;
   Player bot=session.bot();
   boolean upgrade=PlayerBotEquipment.upgrades(bot,session.combatRole()).stream().anyMatch(u->u.item()==item);
-  return PlayerBotCare.disposable(item,PlayerBotGearPolicy.generated(bot,item),upgrade,PlayerBotCare.worldQuestItem(bot,item.getItemId()),
+  return !PlayerBotProfessions.forSale(bot,item.getItemId()) && PlayerBotCare.disposable(item,PlayerBotGearPolicy.generated(bot,item),upgrade,PlayerBotCare.worldQuestItem(bot,item.getItemId()),
    item.getItemTemplate().getRequiredLevel(bot.getPlayerClass())>bot.getLevel());
  }
  private static synchronized Map<Integer,Set<Integer>> starters() {

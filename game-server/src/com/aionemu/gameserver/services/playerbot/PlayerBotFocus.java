@@ -75,6 +75,7 @@ public final class PlayerBotFocus {
  }
  /** Nearby XP-bearing real nodes add one native output goal, never an invented gathering award. */
  static Map<Integer,Long> gatheringGoals(PlayerBotSession session) {
+  if(session.autonomous())return PlayerBotProfessions.gatheringGoals(session);
   if(chosen(session)!=Focus.GATHERING)return Map.of();var s=state(session);var bot=session.bot();long now=System.currentTimeMillis();
   if(now<s.nextGather)return s.gather;s.nextGather=now+5000;s.gather=Map.of();
   if(bot.getInventory().isFull() || bot.isInInstance())return s.gather;
@@ -133,7 +134,7 @@ public final class PlayerBotFocus {
   return Map.of("available",true,"selected",s.focus.name(),"profession",s.profession,"choices",Arrays.stream(Focus.values()).map(f->Map.of("id",f.name(),"name",label(f))).toList(),
    "professions",professions,"knownRecipes",bot.getRecipeList().size(),"reason",s.reason,"market",PlayerBotMarket.snapshot(session),"scope","Optional nearby work while your party is idle. Follow, combat, accepted objectives and paid commitments keep priority; no independent expeditions or queue submission.");
  }
- static void close(PlayerBotSession session){STATES.remove(session.bot().getObjectId());PlayerBotMarket.close(session);}
+ static void close(PlayerBotSession session){STATES.remove(session.bot().getObjectId());PlayerBotMarket.close(session);PlayerBotProfessions.close(session.bot());}
  static void invalidateCraft(Player bot){var s=STATES.get(bot.getObjectId());if(s!=null)s.nextCraft=0;}
  private PlayerBotFocus() {}
 }

@@ -108,6 +108,8 @@ public final class PlayerBotRoadDuty {
   }catch(java.io.IOException error){throw new IllegalStateException("Cannot verify Warden career custody",error);}
  }
  private static boolean borrowed(Player bot){return bot.isWorldBot() && bot.getPlayerBotOwnerId()>0;}
+ /** Holds a road career even while its route is pending or suspended. */
+ static boolean hasCareer(Player bot){var s=state(bot);return s!=null && s.career!=Career.NONE;}
  public static boolean assigned(Player bot){var s=state(bot);return PlayerBotConfig.ROAD_DUTY && s!=null && s.career!=Career.NONE && s.route!=null
   && (s.career!=Career.WARDEN || !PlayerBotWardenConfig.ENABLED || PlayerBotWardenCompanies.matches(bot,s.route));}
  static boolean onDuty(Player bot){var s=state(bot);return assigned(bot) && !s.suspended;}

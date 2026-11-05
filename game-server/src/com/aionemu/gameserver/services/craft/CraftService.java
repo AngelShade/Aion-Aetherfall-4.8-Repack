@@ -127,34 +127,39 @@ public class CraftService {
 		if (recipeTemplate.getDp() != null)
 			player.getCommonData().addDp(-recipeTemplate.getDp());
 
-		int intervalCap = 1200;
-		switch (itemTemplate.getItemQuality()) {
-			case UNIQUE:
-			case EPIC:
-				intervalCap = 1500;
-				break;
-			case MYTHIC:
-				intervalCap = 1700;
-				break;
-		}
 		int skillLvlDiff = player.getSkillList().getSkillLevel(skillId) - recipeTemplate.getSkillpoint();
 		CraftingTask craftingTask = new CraftingTask(player, (StaticObject) target, recipeTemplate, skillLvlDiff, craftType == 1 ? 15 : 0);
 
 		if (!recipeTemplate.isMorph()) {
-			int interval = 2500 - (skillLvlDiff * 60);
-			craftingTask.setInterval(Math.max(interval, intervalCap));
+			craftingTask.setInterval(CraftingTask.interval(itemTemplate, skillLvlDiff));
 		}
 		player.blockQuitting();
 		craftingTask.start();
 	}
 
 	private static boolean checkCraft(Player player, RecipeTemplate recipeTemplate, int skillId, VisibleObject target, int craftType, ComponentsData components) {
+		return checkCraft(player, recipeTemplate, skillId, target, craftType, components, false);
+	}
+
+	public static CraftingTask.BackgroundOutcome backgroundCraft(Player player, RecipeTemplate recipe, Map<Integer, Long> materials) {
+		if (!com.aionemu.gameserver.services.playerbot.PlayerBotProfessions.backgroundAllowed(player) || recipe.isMorph() || recipe.getMaxProductionCount() != null) return null;
+		var components = findComponents(recipe, materials);
+		if (components == null || !checkCraft(player, recipe, recipe.getSkillId(), null, 0, components, true)) return null;
+		player.getRecipeList().decreaseProductionLimit(player, recipe.getId());
+		consumeComponents(player, components);
+		if (recipe.getDp() != null) player.getCommonData().addDp(-recipe.getDp());
+		var result = CraftingTask.backgroundOutcome(player, recipe);
+		if (result.success()) finishCrafting(player, recipe, result.critical(), 0);
+		return result;
+	}
+
+	private static boolean checkCraft(Player player, RecipeTemplate recipeTemplate, int skillId, VisibleObject target, int craftType, ComponentsData components, boolean background) {
 		if (player.getInteractionTask() instanceof CraftingTask craftingTask && craftingTask.isInProgress()) {
 			return false;
 		}
 
 		// morphing dont need static object/npc to use
-		if (!recipeTemplate.isMorph()) {
+		if (!background && !recipeTemplate.isMorph()) {
 			if (!(target instanceof StaticObject)) {
 				AuditLogger.log(player, "tried to craft with incorrect target");
 				return false;

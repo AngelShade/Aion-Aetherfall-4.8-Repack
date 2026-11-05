@@ -205,23 +205,26 @@ public final class PlayerBotTemporary {
   var properties=PlayerBotMetadata.load(player.getAccount().getId(),player.getObjectId(),"gear",null);
   if(full) {
    // Clear native quest states before inventory removal can notify their handlers.
-   for(var quest:player.getQuestStateList().getAllQuestState())player.getQuestStateList().deleteQuest(quest.getQuestId());
+   // Earned trade progress survives a population reset: proficiency, known recipes, qualifications and stock.
+   for(var quest:player.getQuestStateList().getAllQuestState())if(!PlayerBotProfessions.keepRecipes() || quest.getStatus()!=com.aionemu.gameserver.questEngine.model.QuestStatus.COMPLETE || !PlayerBotProfessionCatalog.qualification(quest.getQuestId()))player.getQuestStateList().deleteQuest(quest.getQuestId());
    // Free the cube first so normal unequip can preserve item custody before deletion.
-   for(var item:List.copyOf(player.getInventory().getItems()))if(!item.getItemTemplate().isKinah())player.getInventory().delete(item);
+   var managed=new java.util.HashSet<Integer>();for(String id:properties.getProperty("generated","").split(","))if(!id.isBlank())managed.add(Integer.parseInt(id));
+   int room=Math.max(0,player.getInventory().getLimit()-PlayerBotProfessionPolicy.FACTORY_ROOM);
+   for(var item:List.copyOf(player.getInventory().getItems()))if(!item.getItemTemplate().isKinah()){if(PlayerBotProfessions.keep(item,managed) && room>0)room--;else player.getInventory().delete(item);}
    var equipment=new LinkedHashMap<Integer,Item>();
    player.getEquipment().getEquippedItems().forEach(i->equipment.put(i.getObjectId(),i));
    player.getEquipment().getEquippedItemsAllStigma().forEach(i->equipment.put(i.getObjectId(),i));
    for(var item:equipment.values()) {
     player.getEquipment().unEquipItem(item.getObjectId(),false);
     if(item.isEquipped())throw new IllegalStateException("Population reset could not unequip native item "+item.getObjectId());
-    player.getInventory().delete(item);
+    if(PlayerBotProfessions.keep(item,managed) && room>0)room--;else player.getInventory().delete(item);
    }
    for(String section:List.of("quest-completion","party-rewards","quest-practice")) {
     PlayerBotMetadata.load(player.getAccount().getId(),player.getObjectId(),section,null);
     var cleared=new Properties();cleared.setProperty("account",Integer.toString(player.getAccount().getId()));cleared.setProperty("character",Integer.toString(player.getObjectId()));
     PlayerBotMetadata.save(player.getAccount().getId(),player.getObjectId(),section,cleared);
    }
-   for(var skill:List.copyOf(player.getSkillList().getAllSkills()))SkillLearnService.removeSkill(player,skill.getSkillId());
+   for(var skill:List.copyOf(player.getSkillList().getAllSkills()))if(!PlayerBotProfessions.keepSkill(skill.getSkillId()))SkillLearnService.removeSkill(player,skill.getSkillId());
    player.getEffectController().removeAllEffects(true);
    if(player.getSkillCoolDowns()!=null)player.getSkillCoolDowns().clear();
    player.getItemCoolDowns().clear();player.getCommonData().resetRecoverableExp();player.getCommonData().setDeathCount(0);player.getCommonData().setDp(0);

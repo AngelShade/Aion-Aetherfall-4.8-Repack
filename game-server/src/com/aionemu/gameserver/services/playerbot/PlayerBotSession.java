@@ -87,7 +87,7 @@ public final class PlayerBotSession {
  void endWorldControl() { endingWorldControl=true; }
  boolean dormant(){return worldDormant;}
  boolean activityTransition(){return worldDormant && PlayerBotWorldActivity.allowed(this) || !worldDormant && !PlayerBotWorldActivity.allowed(this);}
- boolean needsDecision(){return !worldDormant || PlayerBotWorldActivity.allowed(this) || settlingCombat() || PlayerBotWater.endangered(bot);}
+ boolean needsDecision(){return !worldDormant || PlayerBotWorldActivity.allowed(this) || settlingCombat() || PlayerBotWater.endangered(bot) || PlayerBotProfessions.dormantDue(this,System.currentTimeMillis());}
  private final int idleReaction=java.util.concurrent.ThreadLocalRandom.current().nextInt(10,31);
  private final PlayerBotMovementCadence movementCadence=new PlayerBotMovementCadence();
  long reactionDelay(){
@@ -159,6 +159,7 @@ public final class PlayerBotSession {
 		state.putAll(PlayerBotOwnedProgression.snapshot(this));
 		state.put("chronicle", com.aionemu.gameserver.services.AetherfallBoonService.botChronicleView(bot));
 		state.put("focus", PlayerBotFocus.snapshot(this));
+		state.put("trade", PlayerBotProfessions.reason(bot));
 		if (world()) state.put("hire", PlayerBotHiring.state(owner, bot));
 		state.putAll(PlayerBotGearPolicy.snapshot(this));
 		state.put("inventoryLimit",bot.getInventory().getLimit());
@@ -395,7 +396,7 @@ public final class PlayerBotSession {
 	private boolean tickActivity() {
 		if (closing) {status="session closing";return true;}
 		if(followProgress!=null && !canRecoverFollow())followProgress.clear();
-		if(!worldActivity())return true;
+		if(!worldActivity()){if(worldDormant)PlayerBotProfessions.dormantTurn(this,System.currentTimeMillis());return true;}
 		if(bot.isSpawned() && !bot.isDead())pets.follow(bot,order!=Order.STAY);
 		PlayerBotArbitration.context(engine, List.of(owner.getWorldId(), owner.getInstanceId(),
 			bot.getWorldId(), bot.getInstanceId(), owner.isSpawned(), bot.isSpawned(), owner.isDead(), bot.isDead(),
@@ -677,7 +678,7 @@ public final class PlayerBotSession {
 			 :incapacitated || !bot.canPerformMove()?"planning paused: movement restricted"
 			 :bot.isFlying()?"planning paused: native flight"
 			 :!PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot))?"planning paused: recovering health or mana":null;
-			if(worldPlanningReason==null)PlayerBotWorldActivities.prepare(bot,navigation);
+			if(worldPlanningReason==null){PlayerBotWorldActivities.prepare(bot,navigation);PlayerBotProfessions.plan(this,now);PlayerBotProfessions.offer(this,now);}
 		}
 		if (autonomous() && worldPlanningReason==null && PlayerBotService.getInstance().placePopulation(this)) { status="entering a level-appropriate population destination"; return true; }
 		if (autonomous() && !loot.pending() && !worldSleepRequested && !materialFlight && enemies.isEmpty() && !supportNeeded && !bot.isCasting() && !incapacitated && PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot)) && PlayerBotWorldAscension.tick(this,navigation)) { status="advancing native Ascension quest"; return true; }
@@ -936,13 +937,15 @@ public final class PlayerBotSession {
 			triggers.add(trigger(new SimpleAction("complete native material flight safely",()->!bot.isCasting() && !bot.isLooting(),
 			 ()->PlayerBotQuestMaterials.tick(this,navigation,continueMaterial) || PlayerBotQuestMaterials.flightPending(this)),HIGH));
 		}
-		if(questActionsAllowed && !combat && !rest && mission==null && questJob==null) {
+		// A trade turn may put off taking a new quest, but never a turn-in. Bots almost always have a next quest, so waiting for none would starve the trade.
+		boolean professionTurn=autonomous() && PlayerBotProfessions.active(bot) && (questJob==null || !questJob.turnIn());
+		if(questActionsAllowed && !combat && !rest && mission==null && (questJob==null || professionTurn)) {
 			var craft=com.aionemu.gameserver.configs.main.PlayerBotConfig.QUEST_CRAFTING ? PlayerBotQuestCraftingDriver.request(this) : null;
 			if(craft!=null && craft.stage()!=PlayerBotQuestCrafting.Stage.WAIT && craft.stage()!=PlayerBotQuestCrafting.Stage.BLOCKED)
 			 triggers.add(trigger(new SimpleAction("native quest crafting: "+craft.reason(),()->!bot.isCasting() && !bot.isLooting(),
 			 ()->{stand();return PlayerBotQuestCraftingDriver.tick(this,navigation,true);}),PlayerBotFocus.priority(this,"craft",DEFAULT+1,craft.quest()>0)));
 			if(com.aionemu.gameserver.configs.main.PlayerBotConfig.QUEST_MATERIALS && !PlayerBotQuestMaterials.needed(this).isEmpty())triggers.add(trigger(new SimpleAction("earn native quest materials",
-			 ()->!bot.isCasting() && !bot.isLooting(),()->{stand();return PlayerBotQuestMaterials.tick(this,navigation,true);}),PlayerBotFocus.priority(this,"gather",DEFAULT+1,PlayerBotHelpObjectives.committed(bot))));
+			 ()->!bot.isCasting() && !bot.isLooting(),()->{stand();return PlayerBotQuestMaterials.tick(this,navigation,true);}),PlayerBotFocus.priority(this,"gather",professionTurn?DEFAULT+4:DEFAULT+1,PlayerBotHelpObjectives.committed(bot))));
 		}
 		if (generated && !borrowed() && !combat && !partyFight && !incapacitated && !rest && order == Order.FOLLOW) triggers.add(PlayerBotCare.trigger(this, navigation));
 		if ((generated || world()) && !borrowed() && autoGear && optionalPreparation && !combat && !partyFight && !incapacitated && !rest && order == Order.FOLLOW) triggers.add(PlayerBotGearPolicy.trigger(this, navigation));
