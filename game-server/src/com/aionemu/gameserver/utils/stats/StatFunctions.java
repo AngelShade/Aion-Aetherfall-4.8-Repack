@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Set;
 
 import com.aionemu.commons.utils.Rnd;
+import com.aionemu.gameserver.configs.main.FallDamageConfig;
 import com.aionemu.gameserver.configs.main.RatesConfig;
 import com.aionemu.gameserver.controllers.attack.AttackResult;
 import com.aionemu.gameserver.controllers.attack.AttackStatus;
@@ -597,7 +598,7 @@ public class StatFunctions {
 	public static int calculateFallDamage(Player player, float height) {
 		if (player.isPlayerBot())
 			return 0;
-		return (int) (player.getLifeStats().getMaxHp() * height * 0.01f + height * 4);
+		return (int) (player.getLifeStats().getMaxHp() * height * (FallDamageConfig.FALL_DAMAGE_PERCENTAGE / 100f) + height * FallDamageConfig.FALL_DAMAGE_FLAT);
 	}
 
 	/**

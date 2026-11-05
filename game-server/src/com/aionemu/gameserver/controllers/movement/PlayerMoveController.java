@@ -1,5 +1,6 @@
 package com.aionemu.gameserver.controllers.movement;
 
+import com.aionemu.gameserver.configs.main.FallDamageConfig;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_ATTACK_STATUS.LOG;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_ATTACK_STATUS.TYPE;
@@ -13,12 +14,6 @@ import com.aionemu.gameserver.world.geo.GeoService;
  * @author ATracer
  */
 public class PlayerMoveController extends PlayableMoveController<Player> {
-
-	/**
-	 * Heights in meters: no damage up to the first, death from the second on. A fall in mid air with no ground near enough below is lethal past
-	 * the third, or the fourth in fly zones.
-	 */
-	private static final float MIN_FALL_DAMAGE_HEIGHT = 10, LETHAL_FALL_HEIGHT = 50, MAX_MIDAIR_FALL_HEIGHT = 50, MAX_MIDAIR_FALL_HEIGHT_IN_FLY_ZONE = 100;
 
 	private float fallStartZ = Float.NaN;
 	private float lastZ = Float.NaN;
@@ -111,7 +106,7 @@ public class PlayerMoveController extends PlayableMoveController<Player> {
 		}
 		if (!owner.isPlayerBot() && !Float.isNaN(fallStartZ) && newZ < lastZ) {
 			float height = fallStartZ - newZ;
-			float maxHeight = owner.isInsideFlyZone() ? MAX_MIDAIR_FALL_HEIGHT_IN_FLY_ZONE : MAX_MIDAIR_FALL_HEIGHT;
+			float maxHeight = owner.isInsideFlyZone() ? FallDamageConfig.MAXIMUM_DISTANCE_MIDAIR_FLY_ZONE : FallDamageConfig.MAXIMUM_DISTANCE_MIDAIR;
 			if (height > maxHeight && Float.isNaN(GeoService.getInstance().getWalkableZ(owner, newZ, newZ - 2 * maxHeight))) {
 				dieFromFall();
 				return;
@@ -131,8 +126,8 @@ public class PlayerMoveController extends PlayableMoveController<Player> {
 		}
 		float height = fallStartZ - newZ;
 		// Headless ledge traversal keeps its existing fall-damage immunity.
-		if (!owner.isPlayerBot() && !owner.isFlying() && height > MIN_FALL_DAMAGE_HEIGHT) {
-			if (height >= LETHAL_FALL_HEIGHT) {
+		if (!owner.isPlayerBot() && !owner.isFlying() && height > FallDamageConfig.MINIMUM_DISTANCE_DAMAGE) {
+			if (height >= FallDamageConfig.MAXIMUM_DISTANCE_DAMAGE) {
 				dieFromFall();
 				return;
 			}

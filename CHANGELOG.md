@@ -40,6 +40,7 @@ Characters look better than ever up close, with repainted faces and silky, glowi
 - You land reliably after flight transports, including Ascension and early campaign flights.
 - You can progress through Empyrean Crucible's revised stages, bosses and bonus rounds with your companions.
 - You take corrected fall damage, return to your bind point immediately after a lethal fall, and avoid fall damage from lifts.
+- Server hosts can still adjust fall damage amounts and heights in the server settings.
 - You can complete escort quests when the follower reaches its destination.
 - You see other players start, stop, glide and move on platforms correctly.
 - You get five full minutes to duel after the countdown, and teleporting ends your duel.
