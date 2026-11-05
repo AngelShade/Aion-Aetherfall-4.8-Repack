@@ -11,7 +11,7 @@ import com.aionemu.gameserver.model.PlayerClass;
 public final class PlayerBotRules {
 	public enum Role { TANK, HEALER, SUPPORT, MELEE, RANGED }
 	public enum Order { FOLLOW, STAY, GUARD, PASSIVE }
-	public enum SkillKind { HEAL, MANA, CLEANSE, RESURRECT, RECOVERY, MODE, SUMMON, PET_ORDER, DEFENSE, BUFF, TAUNT, CONTROL, DAMAGE, UNSUPPORTED }
+	public enum SkillKind { HEAL, MANA, CLEANSE, RESURRECT, RECOVERY, MODE, SUMMON, PET_ORDER, DEFENSE, BUFF, TAUNT, CONTROL, DAMAGE, DEPLOY, MOBILITY, STEALTH, COMBAT_BUFF, UNSUPPORTED }
 
 	public static boolean shouldRest(double health, double mana, boolean resting, boolean combat, boolean ownerMoving, double ownerDistance) {
 		return Double.isFinite(health) && Double.isFinite(mana) && Double.isFinite(ownerDistance)

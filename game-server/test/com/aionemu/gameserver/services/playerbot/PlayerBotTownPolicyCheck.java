@@ -28,7 +28,7 @@ public final class PlayerBotTownPolicyCheck {
   DataManager.SKILL_DATA=data;DataManager.MATERIAL_DATA=new MaterialData();PlayerBotSupportCooperationCheck.data=data;
   try {
    var bot=PlayerBotSupportCooperationCheck.actor(1999999391);var session=PlayerBotSupportCooperationCheck.session(bot,bot);
-   var recipient=PlayerBotSession.class.getDeclaredMethod("recipient",PlayerBotSkills.Entry.class,List.class,Npc.class,boolean.class);recipient.setAccessible(true);
+   var recipient=PlayerBotSession.class.getDeclaredMethod("recipient",PlayerBotSkills.Entry.class,List.class,com.aionemu.gameserver.model.gameobjects.Creature.class,boolean.class);recipient.setAccessible(true);
    var constructor=Class.forName(PlayerBotSession.class.getName()+"$CastAction").getDeclaredConstructor(PlayerBotSession.class,PlayerBotSkills.Entry.class,Creature.class,List.class);constructor.setAccessible(true);
    var enemy=(PlayerBotQuestObjectivesCheck.Contact)unsafeType.getMethod("allocateInstance",Class.class).invoke(unsafe,PlayerBotQuestObjectivesCheck.Contact.class);
    enemy.spawned=true;enemy.world=bot.world;enemy.instance=bot.instance;
@@ -38,6 +38,8 @@ public final class PlayerBotTownPolicyCheck {
     check(recipient.invoke(session,entry,List.of(bot),null,false)==null,"Actual Session rejects the captured idle preparation before expensive admission: "+id);
     var idle=(PlayerBotEngine.Action)constructor.newInstance(session,entry,bot,List.of());
     check(!idle.isUseful(),"Actual final CastAction rejects idle preparation: "+id);
+    // Tactical adapter skills have their own fight rules, covered by PlayerBotSkillAdaptersCheck.
+    if(PlayerBotSkillAdapters.family(entry.template())!=PlayerBotSkillAdapters.Family.NONE || entry.template().hasAnyEffect(com.aionemu.gameserver.skillengine.effect.EffectType.MAGICCOUNTERATK,com.aionemu.gameserver.skillengine.effect.EffectType.HEALCASTORONATTACKED))continue;
     bot.hostile=true;enemy.spawned=true;
     var combat=(PlayerBotEngine.Action)constructor.newInstance(session,entry,bot,List.of(enemy));
     check(combat.isUseful(),"Actual final CastAction retains preparation with a fresh living native enemy: "+id);

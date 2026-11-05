@@ -13,6 +13,8 @@ public class DelayedSkillEffect extends EffectTemplate {
 	@XmlAttribute(name = "skill_id")
 	protected int skillId;
 
+	public int getSkillId() { return skillId; }
+
 	@Override
 	public void applyEffect(final Effect effect) {
 		effect.addToEffectedController();

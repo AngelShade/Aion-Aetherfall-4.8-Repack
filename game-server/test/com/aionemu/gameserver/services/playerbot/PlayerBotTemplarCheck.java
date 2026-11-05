@@ -97,7 +97,7 @@ public final class PlayerBotTemplarCheck {
   bot.learned=new PlayerSkillList(data.getSkillTemplates().stream().map(s->new PlayerSkillEntry(s.getSkillId(),1,0,Persistable.PersistentState.NEW)).toList());
   session=PlayerBotMetadataCheck.sessionDefaults((PlayerBotSession)u.allocateInstance(PlayerBotSession.class));PlayerBotClericCheck.field(session,PlayerBotSession.class,"bot",bot);PlayerBotClericCheck.field(session,PlayerBotSession.class,"owner",bot);PlayerBotClericCheck.field(session,PlayerBotSession.class,"role",Role.TANK);
   PlayerBotClericCheck.field(session,PlayerBotSession.class,"skills",List.of());
-  recipient=PlayerBotSession.class.getDeclaredMethod("recipient",PlayerBotSkills.Entry.class,List.class,Npc.class,boolean.class);recipient.setAccessible(true);
+  recipient=PlayerBotSession.class.getDeclaredMethod("recipient",PlayerBotSkills.Entry.class,List.class,com.aionemu.gameserver.model.gameobjects.Creature.class,boolean.class);recipient.setAccessible(true);
   priority=PlayerBotSession.class.getDeclaredMethod("priority",PlayerBotSkills.Entry.class,Creature.class,boolean.class,List.class);priority.setAccessible(true);
   cast=Class.forName(PlayerBotSession.class.getName()+"$CastAction").getDeclaredConstructors()[0];cast.setAccessible(true);
   check(recipient(991401,true)==bot && score(991401,bot,true)==41,"Physical pressure admits proactive Templar block at full health");

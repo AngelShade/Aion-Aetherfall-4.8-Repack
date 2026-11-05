@@ -60,7 +60,7 @@ public final class PlayerBotSupportCooperationCheck {
   return s;
  }
  static Creature recipient(PlayerBotSession s,int id,List<Player> allies)throws Exception {
-  var method=PlayerBotSession.class.getDeclaredMethod("recipient",PlayerBotSkills.Entry.class,List.class,Npc.class,boolean.class);method.setAccessible(true);
+  var method=PlayerBotSession.class.getDeclaredMethod("recipient",PlayerBotSkills.Entry.class,List.class,com.aionemu.gameserver.model.gameobjects.Creature.class,boolean.class);method.setAccessible(true);
   return (Creature)method.invoke(s,entry(id),allies,null,false);
  }
  static Action action(PlayerBotSession s,int id,Creature target)throws Exception {

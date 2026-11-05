@@ -79,7 +79,7 @@ public final class PlayerBotChanterCheck {
   bot.learned=new PlayerSkillList(data.getSkillTemplates().stream().filter(s->s.getSkillId()<=991309 || s.getSkillId()==991320).map(s->new PlayerSkillEntry(s.getSkillId(),1,0,PersistentState.NEW)).toList());
   session=PlayerBotMetadataCheck.sessionDefaults((PlayerBotSession)unsafe.allocateInstance(PlayerBotSession.class));PlayerBotClericCheck.field(session,PlayerBotSession.class,"bot",bot);PlayerBotClericCheck.field(session,PlayerBotSession.class,"owner",bot);PlayerBotClericCheck.field(session,PlayerBotSession.class,"role",Role.SUPPORT);
   PlayerBotClericCheck.field(session,PlayerBotSession.class,"skills",bot.learned.getAllSkills().stream().map(s->entry(s.getSkillId())).toList());
-  recipient=PlayerBotSession.class.getDeclaredMethod("recipient",PlayerBotSkills.Entry.class,List.class,com.aionemu.gameserver.model.gameobjects.Npc.class,boolean.class);recipient.setAccessible(true);
+  recipient=PlayerBotSession.class.getDeclaredMethod("recipient",PlayerBotSkills.Entry.class,List.class,com.aionemu.gameserver.model.gameobjects.Creature.class,boolean.class);recipient.setAccessible(true);
   priority=PlayerBotSession.class.getDeclaredMethod("priority",PlayerBotSkills.Entry.class,Creature.class,boolean.class,List.class);priority.setAccessible(true);
   cast=Class.forName(PlayerBotSession.class.getName()+"$CastAction").getDeclaredConstructors()[0];cast.setAccessible(true);
   check(entry(991301).kind()==SkillKind.BUFF && entry(991301).template().isToggle(),"Existing classifier already understands native mantra toggles");

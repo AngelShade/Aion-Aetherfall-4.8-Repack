@@ -31,7 +31,7 @@ public final class PlayerBotUtilityPlanningCheck {
   @Override public NpcTemplate getObjectTemplate(){throw new AssertionError("An enemy with no purge/interrupt benefit requested native range/sight admission");}
  }
  static Creature recipient(PlayerBotSession session,int id,List<Player> party,boolean combat)throws Exception {
-  var m=PlayerBotSession.class.getDeclaredMethod("recipient",PlayerBotSkills.Entry.class,List.class,Npc.class,boolean.class);m.setAccessible(true);
+  var m=PlayerBotSession.class.getDeclaredMethod("recipient",PlayerBotSkills.Entry.class,List.class,com.aionemu.gameserver.model.gameobjects.Creature.class,boolean.class);m.setAccessible(true);
   return (Creature)m.invoke(session,PlayerBotSupportCooperationCheck.entry(id),party,null,combat);
  }
  public static void main(String[] args)throws Exception {PlayerBotMetadataCheck.defaults();

@@ -22,6 +22,7 @@ public class BackDashEffect extends DamageEffect {
 
 	@XmlAttribute(name = "distance")
 	private float distance;
+	public float getDistance() { return distance; }
 
 	@Override
 	public void calculate(Effect effect) {

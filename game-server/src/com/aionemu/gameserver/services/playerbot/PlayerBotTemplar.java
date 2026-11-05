@@ -17,6 +17,11 @@ import static com.aionemu.gameserver.services.playerbot.PlayerBotRules.*;
 /** Anticipate native pressure without replacing threat control or existing defenses. */
 final class PlayerBotTemplar {
  static String strategy(PlayerClass pc) { return pc==PlayerClass.TEMPLAR ? "templar protection" : PlayerBotChanter.strategy(pc); }
+ static double adapter(Player bot,Role role,PlayerBotSkills.Entry entry,Creature enemy,double fallback) {
+  if(bot.getPlayerClass()!=PlayerClass.TEMPLAR || !"KN_TURNAGGRESSIVE".equals(entry.template().getGroup()))return Double.NaN;
+  // Reroute Power spends HP and removes 40% physical defense; a tank never trades that protection for damage.
+  return role!=Role.TANK && enemy.getTarget()!=bot && PlayerBotDefense.health(bot)>=75 && PlayerBotDefense.health(enemy)>=50 ? fallback : 0;
+ }
  static boolean managed(Player bot,PlayerBotSkills.Entry e) {
   return bot.getPlayerClass()==PlayerClass.TEMPLAR && !e.template().isPassive() && !e.template().isToggle()
    && (e.kind()==SkillKind.DEFENSE || e.kind()==SkillKind.CLEANSE)

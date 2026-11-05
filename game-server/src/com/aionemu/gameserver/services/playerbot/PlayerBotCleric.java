@@ -13,6 +13,15 @@ import com.aionemu.gameserver.skillengine.model.*;
 /** Bounded Cleric recovery ordering; existing target, reservation and cast gates remain authoritative. */
 final class PlayerBotCleric {
  static boolean applies(PlayerClass pc) { return pc == PlayerClass.CLERIC; }
+ static double adapter(Player bot,PlayerBotRules.Role role,PlayerBotSkills.Entry entry,Creature enemy,double fallback) {
+  if(!applies(bot.getPlayerClass()))return Double.NaN;
+  return switch(PlayerBotSkillAdapters.family(entry.template())) {
+   case TOTEM -> "PR_HEALINGSERVENT".equals(entry.template().getGroup()) && role==PlayerBotRules.Role.HEALER ? fallback+6 : fallback;
+   case SERVANT -> role==PlayerBotRules.Role.HEALER ? fallback-5 : fallback+2;
+   case EXCHANGE -> fallback;
+   default -> Double.NaN;
+  };
+ }
  static String strategy(PlayerClass pc) { return applies(pc) ? "cleric recovery" : PlayerBotSpiritmaster.strategy(pc); }
  record Impact(double amount, long delayMillis, boolean armedProtection, boolean periodic) {}
  record Recovery(double urgency, double fit) {}

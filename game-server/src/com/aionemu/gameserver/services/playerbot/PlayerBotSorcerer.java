@@ -16,6 +16,14 @@ import static com.aionemu.gameserver.services.playerbot.PlayerBotRules.*;
 /** One learned single-target class strategy. Never grants skills or modifies a build. */
 public final class PlayerBotSorcerer {
  static boolean applies(PlayerClass pc){return pc==PlayerClass.SORCERER || pc==PlayerClass.MAGE;}
+ static double adapter(Player bot,Role role,PlayerBotSkills.Entry entry,Creature enemy,double fallback) {
+  if(!applies(bot.getPlayerClass()))return Double.NaN;
+  return switch(PlayerBotSkillAdapters.family(entry.template())) {
+   case AREA -> fallback+1;
+   case EXCHANGE -> fallback;
+   default -> Double.NaN;
+  };
+ }
  static String strategy(PlayerClass pc){return applies(pc)?"sorcerer single target":"class skills";}
  static boolean singleTarget(SkillTemplate skill){return skill.getProperties()!=null
   && skill.getProperties().getTargetType()==com.aionemu.gameserver.skillengine.properties.TargetRangeAttribute.ONLYONE;}

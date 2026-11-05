@@ -28,6 +28,8 @@ public class RandomMoveLocEffect extends EffectTemplate {
 	private float direction;
 	@XmlAttribute(name = "reserved5")
 	private int reserved5;
+	public float getDistance() { return distance; }
+	public float getDirection() { return direction; }
 
 	@Override
 	public void applyEffect(Effect effect) {

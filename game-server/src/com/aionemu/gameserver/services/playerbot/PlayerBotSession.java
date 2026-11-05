@@ -47,12 +47,15 @@ public final class PlayerBotSession {
 	private int looseEnemies, enemyCount;
 	private boolean decisionCombat;
 	private int decisionTarget;
+ private Creature decisionEnemy;
 	private PlayerBotMission mission;
 	private final int formationSlot;
 	private List<PlayerBotSkills.Entry> skills = List.of();
 	private int mistakePercent;
 	private long mistakeChecked;
 	private long nextSkillRefresh, nextAttack, nextDecision;
+ private final Map<String,Long> deployments=new HashMap<>();
+ private long nextDeployment, nextStealth;
 	private volatile Role role;
 	private Order order = Order.FOLLOW;
 	private final PlayerBotForcedFollow forcedFollow = new PlayerBotForcedFollow();
@@ -747,7 +750,7 @@ public final class PlayerBotSession {
 			// Let recovery/support casts finish; interrupt offensive casts to react to a newly visible hazard.
 			var casting = bot.getCastingSkill();
 			var kind = PlayerBotSkills.classify(casting.getSkillTemplate());
-			if (kind == SkillKind.DAMAGE || kind == SkillKind.CONTROL || kind == SkillKind.TAUNT || casting.getSkillTemplate().isCharge()) {
+			if (kind == SkillKind.DAMAGE || kind == SkillKind.CONTROL || kind == SkillKind.TAUNT || kind == SkillKind.DEPLOY || kind == SkillKind.MOBILITY || casting.getSkillTemplate().isCharge()) {
 				cancelCharge(); bot.getController().cancelCurrentSkill(null); nextDecision = 0;
 			}
 		}
@@ -768,7 +771,7 @@ public final class PlayerBotSession {
 			var kind=cast==null?null:PlayerBotSkills.classify(cast.getSkillTemplate());
 			// Preserve useful heals, protection and an ongoing native cleanse. Only
 			// interrupt incompatible offense for a ready, in-range rescue.
-			if(kind==SkillKind.DAMAGE || kind==SkillKind.CONTROL || kind==SkillKind.TAUNT) {
+			if(kind==SkillKind.DAMAGE || kind==SkillKind.CONTROL || kind==SkillKind.TAUNT || kind==SkillKind.DEPLOY) {
 				var rescue=PlayerBotHealing.urgentCleanse(bot,skills,support);
 				if(rescue!=null && bot.getCastingSkill()==cast){cancelCharge();bot.getController().cancelCurrentSkill(null);nextDecision=0;}
 			}
@@ -791,6 +794,7 @@ public final class PlayerBotSession {
 		}
 		if (bot.isCasting() || now < nextDecision) return true;
 		boolean combat = !enemies.isEmpty();
+  decisionEnemy=target;
   PlayerBotRecoveryIntent.update(bot,combat,!autonomous() && owner.getMoveController().isInMove());
 		boolean traveling=PlayerBotFollowIntent.traveling(order,combat,(!autonomous() && owner.getMoveController().isInMove()),!owner.isDead(),incapacitated);
 		boolean rest = autonomous() ? PlayerBotFieldCombat.recover(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot),combat)
@@ -964,7 +968,8 @@ public final class PlayerBotSession {
 			for (PlayerBotSkills.Entry entry : skills) {
 				if(PlayerBotSkills.questTransformation(entry) && !requiredQuestSkills.contains(entry.template().getSkillId()))continue;
 				if (incapacitated && entry.kind() != SkillKind.RECOVERY || bot.isSkillDisabled(entry.template()) || !PlayerBotSkills.chainAvailable(bot, entry)) continue;
-				Creature recipient = recipient(entry, support, target, combat,requiredQuestSkills.contains(entry.template().getSkillId()));
+				if (!adapterAllowed(entry,target)) continue;
+    Creature recipient = recipient(entry, support, target, combat,requiredQuestSkills.contains(entry.template().getSkillId()));
 				if (recipient == null) continue;
 				var beneficiaries = entry.kind()==SkillKind.DAMAGE || entry.kind()==SkillKind.CONTROL || entry.kind()==SkillKind.TAUNT
      || PlayerBotChanter.mantra(entry.template()) ? party : support;
@@ -1258,7 +1263,7 @@ public final class PlayerBotSession {
 	/** PvP shares native cast admission, class rotations, support, pets and movement with PvE. */
 	private boolean pvpCombat(Creature target,List<Player> party,List<Player> support,List<Npc> monsters,long now) {
 		interruptPublicSupport(true);
-		decisionCombat=true;decisionTarget=target.getObjectId();withholdDamage=false;activePull=null;looseEnemies=0;
+		decisionCombat=true;decisionTarget=target.getObjectId();decisionEnemy=target;withholdDamage=false;activePull=null;looseEnemies=0;
 		PlayerBotRecoveryIntent.clear(bot);stand();
 		if(bot.getInteractionTask()!=null && bot.getInteractionTask().isInProgress()
 			|| bot.getController().hasTask(com.aionemu.gameserver.model.TaskId.ACTION_ITEM_NPC))bot.getObserveController().notifyMoveObservers();
@@ -1282,7 +1287,8 @@ public final class PlayerBotSession {
 			SkillKind kind=entry.kind()==SkillKind.PET_ORDER?PlayerBotSkills.classify(actual):entry.kind();
 			boolean offense=kind==SkillKind.DAMAGE || kind==SkillKind.CONTROL || kind==SkillKind.TAUNT;
 			if(kind==SkillKind.TAUNT || offense && controlled(target))continue;
-			Creature recipient=offense?target:recipient(entry,support,null,true);
+			if(!adapterAllowed(entry,target))continue;
+			Creature recipient=offense?target:recipient(entry,support,target,true);
 			if(recipient==null)continue;
 			double value=priority(entry,recipient,true,support);
 			if(kind==SkillKind.CONTROL && PlayerBotPvp.controlUseful(entry,target))value=Math.max(value,INTERRUPT-2);
@@ -1354,10 +1360,14 @@ public final class PlayerBotSession {
 			&& Boolean.TRUE.equals(PlayerBotPartyBehavior.snapshot(this).get("questCombat")) && !owner.isDead() && (autonomous() || !owner.getMoveController().isInMove()) && PositionUtil.isInRange(owner, npc, autonomous() ? 45 : 25);
 	}
 
-	private Creature recipient(PlayerBotSkills.Entry e, List<Player> party, Npc enemy, boolean combat) {
+	private Creature recipient(PlayerBotSkills.Entry e, List<Player> party, Creature enemy, boolean combat) {
 		return recipient(e,party,enemy,combat,false);
 	}
-	private Creature recipient(PlayerBotSkills.Entry e, List<Player> party, Npc enemy, boolean combat,boolean requiredByQuest) {
+	private Creature recipient(PlayerBotSkills.Entry e, List<Player> party, Creature enemy, boolean combat,boolean requiredByQuest) {
+  if(PlayerBotSkillAdapters.managed(e)) {
+   if(!combat || enemy==null || !adapterAllowed(e,enemy))return null;
+   return e.template().getProperties().getFirstTarget()==FirstTargetAttribute.ME ? bot : enemy;
+  }
 		if(e.kind()==SkillKind.BUFF && !PlayerBotAethertech.buffAllowed(bot,role,e.template(),combat,classTravelling(combat)))return null;
 		if(e.kind()==SkillKind.BUFF && !PlayerBotTownPolicy.buffUseful(e.template(),combat,requiredByQuest))return null;
 		if (e.kind() == SkillKind.PET_ORDER) {
@@ -1395,8 +1405,10 @@ public final class PlayerBotSession {
 			if (held != null && PositionUtil.isInRange(owner, held, 25)) return held;
 		}
 		if (e.kind() == SkillKind.DAMAGE || e.kind() == SkillKind.CONTROL) {
-			Creature pursuer = PlayerBotDefense.peelRecipient(bot, role, e, enemy);
-			return pursuer != null ? pursuer : PlayerBotEnemyUtility.recipient(bot, e, enemy);
+			// These helpers only reason about monsters; a player target keeps its direct path.
+			Npc mob = enemy instanceof Npc npc ? npc : null;
+			Creature pursuer = PlayerBotDefense.peelRecipient(bot, role, e, mob);
+			return pursuer != null ? pursuer : PlayerBotEnemyUtility.recipient(bot, e, mob);
 		}
 		if (e.kind() == SkillKind.TAUNT) return enemy;
 		if (PlayerBotHealing.managed(e)) return PlayerBotHealing.recipient(bot, e, party,combat);
@@ -1456,6 +1468,13 @@ public final class PlayerBotSession {
 		return value;
 	}
 	private double basePriority(PlayerBotSkills.Entry e, Creature recipient, boolean combat, List<Player> party) {
+  boolean tacticalSkill=PlayerBotSkillAdapters.managed(e) || e.template().hasAnyEffect(com.aionemu.gameserver.skillengine.effect.EffectType.MAGICCOUNTERATK,com.aionemu.gameserver.skillengine.effect.EffectType.HEALCASTORONATTACKED,com.aionemu.gameserver.skillengine.effect.EffectType.BIND,com.aionemu.gameserver.skillengine.effect.EffectType.BLIND,com.aionemu.gameserver.skillengine.effect.EffectType.CURSE,com.aionemu.gameserver.skillengine.effect.EffectType.SLOW);
+  Creature enemy=tacticalSkill && bot.isEnemy(recipient)?recipient:null;
+  if(PlayerBotSkillAdapters.managed(e) && enemy==null && decisionEnemy!=null)enemy=decisionEnemy;
+  if(enemy!=null) {
+   double tactical=PlayerBotSkillAdapters.priority(bot,role,e,enemy);
+   if(!Double.isNaN(tactical))return withholdDamage?0:tactical;
+  }
 		double chanterSupport = PlayerBotChanter.support(bot,e,recipient,party,combat);
 		if (!Double.isNaN(chanterSupport)) return chanterSupport;
 		double classSupport = PlayerBotSorcerer.support(bot,role,e,recipient,combat);
@@ -1523,6 +1542,46 @@ public final class PlayerBotSession {
 		};
 	}
 
+ private boolean adapterAllowed(PlayerBotSkills.Entry e,Creature enemy) {
+  if(PlayerBotAethertech.chargingActivation(e.template()) && e.kind()==SkillKind.BUFF)return true;
+  if(PlayerBotSkillAdapters.family(e.template())==PlayerBotSkillAdapters.Family.NONE && !e.template().hasAnyEffect(com.aionemu.gameserver.skillengine.effect.EffectType.MAGICCOUNTERATK,com.aionemu.gameserver.skillengine.effect.EffectType.HEALCASTORONATTACKED))return true;
+  boolean duty=PlayerBotSkillAdapters.family(e.template())==PlayerBotSkillAdapters.Family.HIDE && (forcedFollow() || mission!=null || questTarget!=0 || PlayerBotFindGroup.committed(bot)
+   || !autonomous() && order==Order.FOLLOW && (owner.getMoveController().isInMove() || followNeeded()));
+  if(!PlayerBotSkillAdapters.allowed(bot,e,enemy,duty,skills))return false;
+  if(PlayerBotSkillAdapters.managed(e) && withholdDamage)return false;
+  long now=System.currentTimeMillis();
+  if(PlayerBotSkillAdapters.deploy(e.template()) && (now<nextDeployment || now<deployments.getOrDefault(PlayerBotSkillAdapters.key(e.template()),0L)))return false;
+  if(e.kind()==SkillKind.STEALTH && (now<nextStealth || hasBuff(bot,e)))return false;
+  if(e.kind()==SkillKind.COMBAT_BUFF && (hasBuff(bot,e) || !canAddBuff(bot,e)))return false;
+  if(PlayerBotSkillPosition.movement(e.template()) && order!=Order.FOLLOW)return false;
+  return true;
+ }
+ private boolean safeDeployment(PlayerBotSkills.Entry e,Creature enemy,List<? extends Creature> engaged) {
+  if(!PlayerBotSkillAdapters.deploy(e.template()))return true;
+  if(enemy==null || !PlayerBotSkillPosition.deploymentAllowed(bot,e.template(),enemy,navigation))return false;
+  var payloads=PlayerBotSkillAdapters.payloads(e.template());
+  if(payloads.isEmpty())return false;
+  var point=PlayerBotSkillPosition.placement(bot,e.template(),enemy);
+  if(point==null)return false;
+  boolean offensive=PlayerBotSkillAdapters.offensive(e.template());
+  if(!offensive)return true;
+  boolean area=PlayerBotSkillAdapters.family(e.template())!=PlayerBotSkillAdapters.Family.SERVANT
+   || payloads.stream().anyMatch(t->t.getProperties()!=null && t.getProperties().getTargetType()!=TargetRangeAttribute.ONLYONE);
+  if(!area)return enemy instanceof Npc npc ? payloads.stream().allMatch(t->PlayerBotEncounters.allowsSkill(bot,npc,t,0)) : true;
+  if(!areaSkills)return false;
+  float radius=Math.max(5,PlayerBotSkillAdapters.radius(e.template()));
+  if(PositionUtil.getDistance(enemy,point.x(),point.y(),point.z())>radius)return false;
+  boolean[] safe={true};
+  bot.getKnownList().forEachObject(object->{
+   if(!(object instanceof Creature other) || other.isDead() || !bot.isEnemy(other)
+    || !(PositionUtil.isInRange(other,point.x(),point.y(),point.z(),radius) || PositionUtil.isInRange(other,enemy,radius)))return;
+   if(!engaged.contains(other) || controlled(other) || !validEnemy(other,party(),explicitTarget(other))) {safe[0]=false;return;}
+   if(other instanceof Npc npc && (!autonomous() && PlayerBotMarks.ccMarked(owner,npc)
+    || payloads.stream().anyMatch(t->!PlayerBotEncounters.allowsSkill(bot,npc,t,0))))safe[0]=false;
+  });
+  return safe[0];
+ }
+
 	private boolean safeArea(PlayerBotSkills.Entry e, Creature target, List<? extends Creature> engaged) {
 		if (e.template().isCharge()) {
 			var condition = e.template().getSkillChargeCondition();
@@ -1571,6 +1630,7 @@ public final class PlayerBotSession {
 		private final PlayerBotSkills.Entry entry;
 		private final Creature recipient;
 		private final List<? extends Creature> enemies;
+  private Creature fightTarget() { return bot.isEnemy(recipient)?recipient:decisionEnemy!=null && enemies.contains(decisionEnemy) && decisionEnemy.isSpawned() && !decisionEnemy.isDead()?decisionEnemy:enemies.stream().filter(n->n.isSpawned() && !n.isDead() && bot.isEnemy(n)).findFirst().orElse(null); }
 		CastAction(PlayerBotSkills.Entry entry, Creature recipient, List<? extends Creature> enemies) { this.entry = entry; this.recipient = recipient; this.enemies = enemies; }
 		private List<Player> supportSnapshot;
 		private boolean mistaken;
@@ -1578,7 +1638,7 @@ public final class PlayerBotSession {
 		@Override public String name() { return "cast " + entry.template().getName() + " (" + entry.template().getSkillId() + ") -> " + recipient.getName(); }
 		@Override public boolean isUseful() {
 			var actual = PlayerBotSkills.actualTemplate(bot, entry);
-			if (actual == null) return false;
+			if (actual == null || !adapterAllowed(entry,fightTarget())) return false;
 			if (!bot.isEnemy(recipient) && recipient.getMaster() instanceof Player && !PlayerBotSupport.recipientAllowed(bot,recipient)) return false;
 			if (entry.kind()==SkillKind.RESURRECT && !resurrectionAllowed(recipient,!enemies.isEmpty())) return false;
 			if (!autonomous() && recipient instanceof Npc held && !PlayerBotMarks.nativeSkillAllowed(owner,held,actual)) return false;
@@ -1617,7 +1677,9 @@ public final class PlayerBotSession {
 			&& (entry.kind()!=SkillKind.BUFF || PlayerBotAethertech.buffAllowed(bot,role,entry.template(),!enemies.isEmpty(),classTravelling(!enemies.isEmpty())))
 			&& (bot.canAttack() || entry.kind() == SkillKind.RECOVERY || bot.isInState(CreatureState.RESTING))
 			&& PlayerBotCombatPosition.allowSpellApproach(bot,role,entry,recipient,skills)
-			&& PlayerBotSkills.canPlan(bot, entry, recipient, !canFlank(recipient, entry)) && safeArea(entry, recipient, enemies); }
+			&& PlayerBotSkills.canPlan(bot, entry, recipient, !canFlank(recipient, entry)) && safeArea(entry, recipient, enemies)
+   && PlayerBotSkillPosition.movementAllowed(bot,entry.template(),fightTarget(),navigation)
+   && safeDeployment(entry,fightTarget(),enemies); }
 		@Override public List<Action> prerequisites() {
 			if (canFlank(recipient, entry) && !PositionUtil.isBehind(bot, recipient)) return List.of(new FlankAction(recipient));
 			return recipient != bot && (!PositionUtil.isInRange(bot, recipient, entry.range(),false) || !GeoService.getInstance().canSee(bot, recipient))
@@ -1659,6 +1721,8 @@ public final class PlayerBotSession {
 			// Cast admission and movement shutdown share the mover's monitor. A
 			// scheduled step cannot slip between stopping and publishing the cast.
 			synchronized (bot.getMoveController()) {
+    var enemy=fightTarget();
+    if(enemy!=null && PlayerBotSkillAdapters.managed(entry))bot.getPosition().setH(PositionUtil.getHeadingTowards(bot,enemy));
 				if (!isUseful() || !isPossible() || recipient.getWorldId() != bot.getWorldId() || recipient.getInstanceId() != bot.getInstanceId()) return false;
 				if (!PlayerBotSkills.canPlan(bot, entry, recipient)) return false;
 				if (recipient != bot && (!PositionUtil.isInRange(bot, recipient, entry.range(),false) || !GeoService.getInstance().canSee(bot, recipient))) return false;
@@ -1667,12 +1731,20 @@ public final class PlayerBotSession {
 				stand(); bot.setTarget(recipient);
 				Skill skill = SkillEngine.getInstance().getSkillFor(bot, entry.template(), recipient);
 				if (skill == null || !PlayerRestrictions.canUseSkill(bot, skill)) return false;
-				skill.setTargetType(entry.template().getProperties().getFirstTarget() == FirstTargetAttribute.POINT ? 1 : 0,
-					recipient.getX(), recipient.getY(), recipient.getZ());
+				boolean pointCast=entry.template().getProperties().getFirstTarget()==FirstTargetAttribute.POINT;
+    var point=pointCast?PlayerBotSkillPosition.point(bot,entry.template(),enemy==null?recipient:enemy):null;
+    if(pointCast && point==null)return false;
+    skill.setTargetType(pointCast?1:0,pointCast?point.x():recipient.getX(),pointCast?point.y():recipient.getY(),pointCast?point.z():recipient.getZ());
 				// Server motion data determines hit time and cast lock; keep animation checks enabled.
 				PlayerBotWeaponStance.draw(bot);
 				PlayerBotSkillTiming.prepare(bot, skill);
 				if (!skill.useSkill()) return false;
+    long admitted=System.currentTimeMillis();
+    if(PlayerBotSkillAdapters.deploy(entry.template())) {
+     nextDeployment=admitted+Math.max(1000,com.aionemu.gameserver.configs.main.PlayerBotConfig.SKILL_DEPLOY_INTERVAL_MS);
+     deployments.put(PlayerBotSkillAdapters.key(entry.template()),admitted+Math.max(PlayerBotSkillAdapters.lifetime(entry.template()),Math.max(1000,com.aionemu.gameserver.configs.main.PlayerBotConfig.SKILL_DEPLOY_INTERVAL_MS)));
+    }
+    if(entry.kind()==SkillKind.STEALTH)nextStealth=admitted+30000;
 				if (entry.template().isCharge()) return scheduleCharge(skill, entry, recipient);
 				nextDecision = System.currentTimeMillis() + PlayerBotSkillTiming.remainingLock(bot, skill);
 				if (PlayerBotHealing.managed(entry)) PlayerBotHealing.reserve(bot, entry, skill, nextDecision);

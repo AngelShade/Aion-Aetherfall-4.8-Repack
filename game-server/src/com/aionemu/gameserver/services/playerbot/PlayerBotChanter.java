@@ -19,6 +19,11 @@ import static com.aionemu.gameserver.services.playerbot.PlayerBotRules.*;
 /** Fill available native mantra slots without replacing an existing aura or changing a build. */
 final class PlayerBotChanter {
  static boolean applies(PlayerClass pc) { return pc == PlayerClass.CHANTER; }
+ static double adapter(Player bot,Role role,PlayerBotSkills.Entry entry,Creature enemy,double fallback) {
+  if(!applies(bot.getPlayerClass()) || PlayerBotSkillAdapters.family(entry.template())!=PlayerBotSkillAdapters.Family.PROC)return Double.NaN;
+  // Blessing of Wind triggers on normal attacks, so a dedicated healer saves the MP.
+  return role==Role.HEALER ? 0 : fallback+1;
+ }
  static String strategy(PlayerClass pc) { return applies(pc) ? "chanter mantras" : PlayerBotCleric.strategy(pc); }
  static boolean mantra(SkillTemplate skill) {
   var p=skill.getProperties();

@@ -13,6 +13,14 @@ import static com.aionemu.gameserver.services.playerbot.PlayerBotRules.*;
 /** Use a native reactive opportunity without inventing, extending or consuming its event. */
 final class PlayerBotGladiator {
  static String strategy(PlayerClass pc) { return pc==PlayerClass.GLADIATOR ? "gladiator counters" : PlayerBotTemplar.strategy(pc); }
+ static double adapter(Player bot,Role role,PlayerBotSkills.Entry entry,com.aionemu.gameserver.model.gameobjects.Creature enemy,double fallback) {
+  if(bot.getPlayerClass()!=PlayerClass.GLADIATOR)return Double.NaN;
+  return switch(PlayerBotSkillAdapters.family(entry.template())) {
+   case TOTEM -> fallback+1;
+   case MOVEMENT -> fallback+2;
+   default -> Double.NaN;
+  };
+ }
  /** NaN preserves every unrelated class/skill on its installed offensive path. */
  static double counter(Player bot,PlayerBotSkills.Entry entry,double fitness) {
   var skill=entry.template();var p=skill.getProperties();var event=skill.getCounterSkill();

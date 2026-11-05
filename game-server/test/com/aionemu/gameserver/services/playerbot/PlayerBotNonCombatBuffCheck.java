@@ -26,7 +26,7 @@ public final class PlayerBotNonCombatBuffCheck {
    var ctor=Class.forName(PlayerBotSession.class.getName()+"$CastAction").getDeclaredConstructor(PlayerBotSession.class,PlayerBotSkills.Entry.class,Creature.class,List.class);ctor.setAccessible(true);
    var action=(PlayerBotEngine.Action)ctor.newInstance(session,entry,bot,List.of());
    check(!action.isUseful(),"Native Devotion cannot stop idle travel without a living combat enemy; installed055 reproduces unwanted admission");
-   var recipient=PlayerBotSession.class.getDeclaredMethod("recipient",PlayerBotSkills.Entry.class,List.class,Npc.class,boolean.class);recipient.setAccessible(true);
+   var recipient=PlayerBotSession.class.getDeclaredMethod("recipient",PlayerBotSkills.Entry.class,List.class,com.aionemu.gameserver.model.gameobjects.Creature.class,boolean.class);recipient.setAccessible(true);
    check(recipient.invoke(session,entry,List.of(bot),null,false)==null,"Actual noncombat selection skips the same native attack burst before admission");
    var enemy=(PlayerBotQuestObjectivesCheck.Contact)u.allocateInstance(PlayerBotQuestObjectivesCheck.Contact.class);enemy.spawned=true;enemy.world=bot.world;enemy.instance=bot.instance;
    bot.hostile=true;var oldKnown=bot.seen;bot.seen=new com.aionemu.gameserver.world.knownlist.KnownList(bot){@Override public boolean sees(VisibleObject o){return o==enemy;}};

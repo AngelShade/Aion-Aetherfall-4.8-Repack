@@ -3,6 +3,12 @@ package com.aionemu.gameserver.configs.main;
 import com.aionemu.commons.configuration.Property;
 
 public final class PlayerBotConfig {
+ // Tactical deployments share a minimum interval; native cooldowns and lifetimes can only lengthen it.
+ @Property(key = "gameserver.playerbots.skills.deploy_interval_ms", defaultValue = "10000")
+ public static long SKILL_DEPLOY_INTERVAL_MS = 10000;
+ // Save long cooldowns for durable enemies, players or emergencies. Native data uses 100 ms units.
+ @Property(key = "gameserver.playerbots.skills.long_cooldown_seconds", defaultValue = "180")
+ public static int SKILL_LONG_COOLDOWN_SECONDS = 180;
  @Property(key = "gameserver.playerbots.collection.renown.enable", defaultValue = "true")
  public static boolean COLLECTION_RENOWN_ENABLED = true;
  @Property(key = "gameserver.playerbots.collection.renown.rarity_weights", defaultValue = "10,25,50,100,200")

@@ -114,6 +114,7 @@ final class PlayerBotNavigation {
 	boolean takeLost(){boolean value=lost;lost=false;return value;}
 	void clearRouteFailure(){routeFailure=false;}
 	private java.util.List<PlayerBotHazards.Area> hazards = java.util.List.of();
+	boolean safeSkillPath(Point from,Point to) { return !waitingForTransport() && PlayerBotHazards.safePath(from,to,hazards); }
 
 	PlayerBotNavigation(Creature bot) { this(bot,bot.getMaster() instanceof Player player && (!player.isWorldBot() || player.getPlayerBotOwnerId()!=0)); }
 	PlayerBotNavigation(Creature bot,boolean companion) {

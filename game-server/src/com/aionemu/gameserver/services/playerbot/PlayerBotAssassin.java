@@ -12,6 +12,16 @@ import com.aionemu.gameserver.skillengine.properties.*;
 /** Keep ordinary chain fitness within its band so ready rune finishers and defenses win. */
 final class PlayerBotAssassin {
  static String strategy(PlayerClass pc){return pc==PlayerClass.ASSASSIN ? "assassin runes" : PlayerBotGladiator.strategy(pc);}
+ static double adapter(Player bot,PlayerBotRules.Role role,PlayerBotSkills.Entry entry,com.aionemu.gameserver.model.gameobjects.Creature enemy,double fallback) {
+  if(bot.getPlayerClass()!=PlayerClass.ASSASSIN)return Double.NaN;
+  return switch(PlayerBotSkillAdapters.family(entry.template())) {
+   case HIDE,MOVEMENT -> fallback+2;
+   case PROC -> "AS_BACKFOCUS".equals(entry.template().getGroup()) && !com.aionemu.gameserver.utils.PositionUtil.isBehind(bot,enemy) ? 0 : fallback+1;
+   // Eye of Wrath's critical penalty is worthwhile only with time to use its opening hit.
+   case ONETIME -> PlayerBotDefense.health(bot)>=50 && PlayerBotDefense.health(enemy)>=50 ? fallback+3 : 0;
+   default -> Double.NaN;
+  };
+ }
  static double chain(Player bot,PlayerBotSkills.Entry entry,SkillTemplate skill,double fitness){
   var p=skill.getProperties();
   if(bot.getPlayerClass()!=PlayerClass.ASSASSIN || skill.isCharge() || skill.isPassive()

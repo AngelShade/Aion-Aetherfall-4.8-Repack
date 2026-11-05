@@ -1,5 +1,48 @@
 # Class strategy continuation — 4 October 2026
 
+## Native tactical skills � 5 November 2026, source and build only
+
+Not installed. These are Aion-native adapters through `PlayerBotSkills`, the existing
+session action selection and `SkillEngine`; this is not a new upstream parity claim.
+The 44 saved build keys remain. Thirty priority lists restore 25 previously excluded
+stone groups (409 listed entries), with native class, race, level, slots, weapons and
+Vision selection still authoritative. Owned-alt stones and equipment are never rewritten.
+
+| Class | Strategy gained |
+| --- | --- |
+| Gladiator | Whirling Strike closes an admitted gap; Cleaver's stone choice allows Battle Banner for a real pack fight. |
+| Templar | Reroute Power is available to a healthy damage Templar away from direct pressure. Tank roles retain their defense; no Stigma list needed changing. |
+| Assassin | Lethal Venom, Eye of Wrath, Dash and Slash, Shadow Walk and Scoundrel's Bond return where useful; the burst combination also admits Fangdrop Stab. Bond needs a rear opportunity; Eye requires healthy caster and enemy. |
+| Ranger | Marksman gains Focused Shots; Skirmisher gains Slowing Trap; Volley gains Blazing Trap; Trailblazer gains Slowing and Skybound traps. Native Staggering Trap and Night Haze Visions are usable. Focused Shots waits when the enemy is targeting the Ranger. |
+| Sorcerer | Elementalist and Controller gain Ice Sheet, Controller gains Manifest Tornado, Aethermancer gains guarded Exchange Vitality, Spellbreaker gains Curse of Weakness. |
+| Spiritmaster | Afflicter and Spiritcaller gain Cyclone Servant; Hexer gains Withering Gloom. Servants support a real engaged target. Spirit's Empowerment remains excluded because it dismisses the current spirit; Cloaking Word remains excluded because it snares the party. |
+| Cleric | Healer gains Healing Servant, Battle Cleric and Vicar gain Noble Energy, Vicar gains Blinding Light, Purifier gains guarded Reverse Condition. Native Vexing Energy is usable. Healing Servant precedes ordinary offense for a healer; offensive servants remain below recovery. |
+| Chanter | Battle Chanter gains Blessing of Wind; Support and Mender gain Healing Conduit. A dedicated healer saves the normal-attack proc's MP. |
+| Gunner | Gunslinger and Quickdraw gain Autoload on native dual pistols only. Cannon builds keep their cannon-compatible stones and Vision. |
+| Aethertech | Bulwark and Siegeframe gain Leeching Steel under direct pressure below 85% HP; admitted native gap movement retains ground and ledge checks. |
+| Songweaver | Siren gains Staggered Rest through its real delayed linked effect. Native duration and resistance decide whether paralysis lands. |
+
+A deployment needs a useful engaged fight, a valid native position and bounded spacing
+between placements. Traps wait for an enemy approaching their native cast position;
+point skills receive actual ground coordinates. Totems, servants and persistent areas
+are not idle buffs. Native actors and their effects deal damage or heal; planning
+never spawns a substitute actor or applies an effect directly.
+
+Movement uses the native skill effect after geodata, route and ledge admission; it is
+not an arbitrary teleport. Hide remains a conservative stationary tactic only for
+Assassin/Ranger self skills, without follow, Find Group or active quest duties, and
+native combat conditions may refuse it. Self-procs require the relevant normal attack,
+rear attack or incoming pressure. One-use boosts and long cooldowns wait for a real
+fight with enough target health, or a genuine emergency; their costs and penalties
+remain native. Autoload requires an actual resettable cooldown, and HP/MP exchange
+requires a safer resulting health balance.
+
+The data survey and final build evidence are in the top section of
+`project-notes/playerbots-full-implementation-20261030.md`. Offline checks cannot prove
+placement timing, trap triggering, servant AI, delayed effects, dash landing, stealth
+interaction with party duties, proc activation or cooldown economy in a live fight.
+
+
 ## Assassin rune/chain ordering — installed offline 9 October 2026
 
 **PB-PORT-005G** implements the confirmed missing finisher-before-builder

@@ -46,23 +46,25 @@ public final class PlayerBotSkills {
 		if (p.getFirstTarget() == FirstTargetAttribute.TARGET_MYPARTY_NONVISIBLE)
 			return UNSUPPORTED;
 		// Travel, summons and shape changes require dedicated player/session adapters.
-		if (t.hasAnyEffect(RETURN, RETURNPOINT, RECALLINSTANT, TARGETTELEPORT, RANDOMMOVELOC,
-			SUMMONGROUPGATE, SUMMONBINDINGGROUPGATE, SUMMONHOUSEGATE, SUMMONTOTEM, SUMMONTRAP, SHAPECHANGE, PETORDERUNSUMMON))
+		if (t.hasAnyEffect(RETURN, RETURNPOINT, RECALLINSTANT, TARGETTELEPORT,
+			SUMMONGROUPGATE, SUMMONBINDINGGROUPGATE, SUMMONHOUSEGATE, SHAPECHANGE, PETORDERUNSUMMON))
 			return UNSUPPORTED;
+		if (PlayerBotSkillAdapters.family(t) != PlayerBotSkillAdapters.Family.NONE) return PlayerBotSkillAdapters.classify(t);
+		if (t.hasAnyEffect(DELAYEDSKILL)) return PlayerBotSkillAdapters.delayed(t);
 		if (t.hasAnyEffect(com.aionemu.gameserver.skillengine.effect.EffectType.SUMMON))
 			return p.getFirstTarget() == FirstTargetAttribute.ME ? SkillKind.SUMMON : UNSUPPORTED;
 		if (t.hasAnyEffect(PETORDERUSEULTRASKILL)) return PET_ORDER;
 		if (t.hasAnyEffect(RIDEROBOT)) return MODE;
-		if (t.hasEvadeEffect()) return RECOVERY;
+		if (t.hasEvadeEffect() || t.hasAnyEffect(DISPEL, INVULNERABLEWING)) return RECOVERY;
 		boolean hostile = p.getTargetRelation() == TargetRelationAttribute.ENEMY;
 		if (hostile) {
 			if (t.hasAnyEffect(SPELLATTACK, SPELLATTACKINSTANT, SKILLATTACKINSTANT, SKILLATKDRAININSTANT,
-				SPELLATKDRAIN, SPELLATKDRAININSTANT, BLEED, POISON, SIGNET, SIGNETBURST, CARVESIGNET,
+				SPELLATKDRAIN, SPELLATKDRAININSTANT, DELAYEDSPELLATTACKINSTANT, HEALCASTORONATTACKED, BLEED, POISON, SIGNET, SIGNETBURST, CARVESIGNET,
 				STATDOWN, DISPELBUFF, DISPELNPCBUFF, DISPELBUFFCOUNTERATK)) return DAMAGE;
 			// A damage/rune skill may also alter hate (e.g. Assassin Ripclaw Strike).
 			// Only pure threat actions belong to the tank-only taunt category.
 			if (t.hasAnyEffect(HOSTILEUP, PROVOKER)) return TAUNT;
-			return canInterrupt(t) || t.hasAnyEffect(ROOT, SNARE) ? CONTROL : UNSUPPORTED;
+			return canInterrupt(t) || t.hasAnyEffect(ROOT, SNARE, BIND, BLIND, CURSE, SLOW, MAGICCOUNTERATK) ? CONTROL : UNSUPPORTED;
 		}
 		if (t.hasResurrectEffect()) return SkillKind.RESURRECT;
 		if (t.hasAnyEffect(DISPELDEBUFF, DISPELDEBUFFMENTAL, DISPELDEBUFFPHYSICAL)) return CLEANSE;

@@ -25,6 +25,21 @@ import static com.aionemu.gameserver.services.playerbot.PlayerBotRules.*;
  * native cooldowns, costs, chains and range checks stay in the cast gates.
  */
 final class PlayerBotClassRotations {
+ static double adapter(Player bot,Role role,PlayerBotSkills.Entry entry,Creature enemy,double fallback) {
+  var family=PlayerBotSkillAdapters.family(entry.template());
+  return switch(bot.getPlayerClass()) {
+   case RANGER -> switch(family) {
+    case TRAP -> {var build=PlayerBotGearPolicy.stigmaBuild(bot);yield fallback+(build!=null && (build.key().equals("control") || build.key().equals("pack")) ? 3 : 0);}
+    case HIDE -> role==Role.RANGED ? fallback+1 : 0;
+    // Focused Shots lowers physical defense: never prepare it under direct pressure.
+    case ONETIME -> enemy.getTarget()==bot ? 0 : fallback+2;
+    default -> Double.NaN;
+   };
+   case GUNNER -> family==PlayerBotSkillAdapters.Family.RESET ? fallback+2 : Double.NaN;
+   case RIDER -> family==PlayerBotSkillAdapters.Family.PROC ? enemy.getTarget()==bot && PlayerBotDefense.health(bot)<85 ? fallback+2 : 0 : Double.NaN;
+   default -> Double.NaN;
+  };
+ }
  static boolean applies(PlayerClass pc) {
   return pc==PlayerClass.RANGER || pc==PlayerClass.GUNNER || pc==PlayerClass.BARD || pc==PlayerClass.RIDER;
  }

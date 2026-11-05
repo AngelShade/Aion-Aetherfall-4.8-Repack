@@ -30,6 +30,7 @@ Characters look better than ever up close, with repainted faces and silky, glowi
 
 ### Improved
 
+- Bots now use traps, totems, servants, summoned areas, dashes and stealth in real fights, and their Stigma builds include these skills.
 - Game updates and other mods are less likely to stop Aion launching when you use the Vulkan option or cursor fix.
 - Fire Temple, Nochsana, Beshmundir, Empyrean Crucible and 15 more dungeons can now pay Recruitment Tickets and teach your companions when you finish them.
 - Road Wardens walk longer roads outside settlements, wear regional company names and titles, and report nearby threats when selected.

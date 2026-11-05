@@ -27,6 +27,9 @@ public class SummonEffect extends EffectTemplate {
 	@XmlAttribute(name = "time", required = true)
 	protected int time; // in seconds
 
+	public int getNpcId() { return npcId; }
+	public int getTime() { return time; }
+
 	@Override
 	public void applyEffect(Effect effect) {
 		Player effected = (Player) effect.getEffected();

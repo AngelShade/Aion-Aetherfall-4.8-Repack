@@ -16,6 +16,16 @@ import com.aionemu.gameserver.skillengine.model.SkillTemplate;
 
 /** Learned spell priorities; never adds skills, spends resources or changes a build. */
 final class PlayerBotSpiritmaster {
+ static double adapter(Player bot,PlayerBotRules.Role role,PlayerBotSkills.Entry entry,Creature enemy,double fallback) {
+  if(!applies(bot.getPlayerClass()))return Double.NaN;
+  return switch(PlayerBotSkillAdapters.family(entry.template())) {
+   case SERVANT,AREA -> fallback+2;
+   case PROC -> "EL_SOULKING".equals(entry.template().getGroup()) && bot.getSummon()==null ? 0 : fallback+1;
+   // Cloaking Word also snares the party; autonomous combat never makes that choice for allies.
+   case HIDE -> 0;
+   default -> Double.NaN;
+  };
+ }
  // GenericWarlockNonCombatStrategy's no-pet preparation and BuffTrigger's
  // actual aura recipient, adapted to Aion's two-stage spirit orders.
  static boolean idleUseful(Player bot,PlayerBotSkills.Entry entry,Creature recipient,boolean combat) {

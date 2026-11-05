@@ -26,6 +26,9 @@ public class SkillCooltimeResetEffect extends EffectTemplate {
 	@XmlAttribute(name = "last_cd", required = true)
 	protected int lastCd;
 
+	public int getFirstCd() { return firstCd; }
+	public int getLastCd() { return lastCd; }
+
 	@Override
 	public void applyEffect(Effect effect) {
 		Creature effected = effect.getEffected();
