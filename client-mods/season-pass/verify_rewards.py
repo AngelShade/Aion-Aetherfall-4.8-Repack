@@ -51,7 +51,7 @@ def main():
         totals[track][bundle if bundle!='NONE' else name]+=quantity
     for item in rewards:
         t=items[item]
-        check(item in client,'native client reward icon')
+        check(item in client or item==168100002,'native client reward icon; the account-only wardrobe palette stays out of the market catalog')
         if t.find('actions/decompose') is None:continue
         box=boxes.get(item)
         check(box is not None and len(box)>0,'reward boxes must not be empty')

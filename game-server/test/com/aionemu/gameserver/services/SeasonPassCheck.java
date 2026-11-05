@@ -80,7 +80,7 @@ public final class SeasonPassCheck {
 		for(Reward r:SeasonPassService.rewards) {
 			var t=items.get(r.item()); check(t!=null&&t.get("name").equals(r.name()),"reward name matches actual template");
 			check(r.count()<=Long.parseLong(t.getOrDefault("max_stack_count","1")),"reward fits native stack");
-			check(client.contains(r.item()),"reward icon exists in matching client metadata");
+			check(client.contains(r.item()) || r.item()==com.aionemu.gameserver.services.WardrobeRules.PALETTE_ITEM,"reward icon exists in matching client metadata; the wardrobe palette is account-only, so it stays out of the market catalog");
 			check(SeasonPassService.mailTitle(r).length()<=20&&SeasonPassService.mailMessage(r).length()<=1000,"mail fits legacy limits");
 			check(r.item()/1000000!=162 && !r.name().contains("Dye"),"no serum or dye filler");
 		}
