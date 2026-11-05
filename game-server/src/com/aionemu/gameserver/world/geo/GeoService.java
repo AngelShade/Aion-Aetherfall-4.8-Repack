@@ -68,6 +68,13 @@ public class GeoService implements GameEngine {
 	public float getZ(int worldId, float x, float y, float zMax, float zMin, int instanceId) {
 		return geoMaps.get(worldId).getZ(x, y, zMax, zMin, instanceId);
 	}
+	/**
+	 * @return The surface Z at the object's position nearest to zMax, or NaN if missing, below zMin or too steep to stand on.
+	 */
+	public float getWalkableZ(VisibleObject object, float zMax, float zMin) {
+		return geoMaps.get(object.getWorldId()).getZ(object.getX(), object.getY(), zMax, zMin, object.getInstanceId(), true);
+	}
+
 	public boolean isPlayerBotLanding(int worldId,int instanceId,float x,float y,float z) {
 		return com.aionemu.gameserver.services.playerbot.PlayerBotGroundNavigation.landing(geoMaps.get(worldId),instanceId,x,y,z);
 	}

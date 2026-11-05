@@ -162,12 +162,12 @@ public final class PlayerBotStrategyCompositionCheck {
 		var action=(ContinuingAction)PlayerBotStrategyComposition.skill(linked("cast opener",List.of()),bot,opener,target,learned);
 		check(action.continuers().equals(List.of(PlayerBotStrategyComposition.skillKey(successor,target))),"asynchronous native cast schedules exact metadata successor");
 		check(!PlayerBotSkills.chainAvailable(bot,successor),"native chain must actually activate before fresh admission");
-		bot.chains.updateChain("STRIKE_1TH",3000);
+		bot.chains.updateChain("STRIKE_1TH",0);
 		check(!PlayerBotSkills.chainAvailable(bot,successor),"native predecessor activation count respected");
-		bot.chains.updateChain("STRIKE_1TH",3000);
-		int count=bot.chains.getCurrentChainSkill().getUseCount();
+		bot.chains.updateChain("STRIKE_1TH",0);
+		int count=bot.chains.getCurrentChainCount("STRIKE_1TH");
 		check(action.continuers().equals(List.of(PlayerBotStrategyComposition.skillKey(successor,target))),"native eligible learned successor only");
-		check(bot.chains.getCurrentChainSkill().getUseCount()==count,"planning never consumes or resets native chain");
+		check(bot.chains.getCurrentChainCount("STRIKE_1TH")==count,"planning never consumes or resets native chain");
 		check(target.getName().equals(other.getName()) && !PlayerBotStrategyComposition.skillKey(successor,target).equals(PlayerBotStrategyComposition.skillKey(successor,other)),"same names retain distinct native recipient identity");
 		check(PlayerBotStrategyComposition.threat(true).value(action)==0,"native threat hold suppresses expanded class damage");
 		check(PlayerBotStrategyComposition.threat(false).value(action)==1,"normal threat permits class damage");

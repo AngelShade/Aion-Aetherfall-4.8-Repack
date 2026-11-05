@@ -88,13 +88,7 @@ public final class PlayerBotCpuPlanningCheck {
   var credit=quota.getClass().getDeclaredField("credit");credit.setAccessible(true);double oldCredit=credit.getDouble(quota);
   boolean oldSight=com.aionemu.gameserver.configs.main.GeoDataConfig.CANSEE_ENABLE;
   boolean oldPrepared=com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED;
-  int oldFatal=com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_DAMAGE;
-  int oldMidair=com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_MIDAIR;
   try {
-   // Production loads native fall settings before navigation; this cold actor
-   // fixture must do the same before exercising timed height-planning work.
-   com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_DAMAGE=50;
-   com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_MIDAIR=200;
    // This inert197 scene supplies native geometry, not a prepared map catalog.
    com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED=false;
    credit.setDouble(quota,-1e12);check(nav.waterMove(new Point(20,10,0)) && mesh.ground==0,"Multi-candidate evasion cannot bypass exhausted terrain quota");
@@ -158,8 +152,6 @@ public final class PlayerBotCpuPlanningCheck {
    check(totals.isEmpty(),"Late callback cannot reclaim destination after production close");
   }finally{nav.stop();credit.setDouble(quota,oldCredit);com.aionemu.gameserver.configs.main.GeoDataConfig.CANSEE_ENABLE=oldSight;
    com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED=oldPrepared;
-   com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_DAMAGE=oldFatal;
-   com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_MIDAIR=oldMidair;
    if(old==null)maps.remove(197);else maps.put(197,old);}
  }
  public static void main(String[]args)throws Exception{com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_INDEPENDENT=false;com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_MEMORY_FIRST=false;PlayerBotMetadataCheck.dryWorld();if(args.length>0){navigation();return;}fields();visitors();navigation();System.out.println("OK: "+checks+" CPU planning, inherited fresh-field, visitor custody and native terrain checks; no World/IDs/SQL/tasks");}

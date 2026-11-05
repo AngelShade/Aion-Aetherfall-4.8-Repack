@@ -18,7 +18,7 @@ public final class PlayerBotPopulationCheck {
   return new PlayerBotPopulationPolicy.Settings(40,60,12,50,low,high,minChance,maxChance,random,7,sync,false,600,28800,600,28800,1800,7200,3600,18000,25);
  }
  static WorldMapTemplate map(String attributes)throws Exception{
-  return (WorldMapTemplate)JAXBContext.newInstance(WorldMapTemplate.class).createUnmarshaller().unmarshal(new StringReader("<map id='210030000' cName='check' world_size='4096' water_level='16' death_level='0' "+attributes+"/>"));
+  return (WorldMapTemplate)JAXBContext.newInstance(WorldMapTemplate.class).createUnmarshaller().unmarshal(new StringReader("<map id='210030000' cName='check' world_size='4096' water_level='16' "+attributes+"/>"));
  }
  public static void main(String[]args)throws Exception {PlayerBotMetadataCheck.defaults();PlayerBotMetadataCheck.dryWorld();
   var s=settings(1,65,10,10,true,false);var random=new Random(91871);var levels=new HashSet<Integer>();int ones=0,max=0;

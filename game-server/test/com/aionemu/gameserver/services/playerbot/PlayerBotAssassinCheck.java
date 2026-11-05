@@ -68,16 +68,16 @@ public final class PlayerBotAssassinCheck {
   PlayerBotClericCheck.field(session,PlayerBotSession.class,"bot",bot);PlayerBotClericCheck.field(session,PlayerBotSession.class,"owner",bot);PlayerBotClericCheck.field(session,PlayerBotSession.class,"role",Role.MELEE);
   priority=PlayerBotSession.class.getDeclaredMethod("priority",PlayerBotSkills.Entry.class,Creature.class,boolean.class,List.class);priority.setAccessible(true);
   cast=Class.forName(PlayerBotSession.class.getName()+"$CastAction").getDeclaredConstructors()[0];cast.setAccessible(true);
-  learned(true);bot.chains.updateChain("A_1TH",4000);runes(5,10000);
+  learned(true);bot.chains.updateChain("A_1TH",0);runes(5,10000);
   if(args.length>0 && args[0].equals("--baseline")){
    check(action(991703).isUseful() && action(991703).isPossible(),"Installed final gates already admit mature finisher");
    check(score(991703)<score(991704) && choose(991703,991704).equals("skill:991704"),"Installed chain builder displaces mature native rune finisher");
    System.out.println("CONFIRMED: mature rune finisher loses to ordinary chain builder on installed baseline; "+checks+" checks");return;
   }
   check(score(991703)==25 && score(991703)>score(991704),"Existing mature finisher band precedes ordinary chain");
-  int before=bot.chains.getCurrentChainSkill().getUseCount();var beforeRunes=List.copyOf(target.effects.observed);
+  int before=bot.chains.getCurrentChainCount("A_1TH");var beforeRunes=List.copyOf(target.effects.observed);
   check(choose(991703,991704).equals("skill:991703"),"Actual Session and final gates select mature rune finisher");
-  check(before==bot.chains.getCurrentChainSkill().getUseCount() && beforeRunes.equals(target.effects.observed) && bot.life.mp==1000,"Planning spends no native chain/runes/MP");
+  check(before==bot.chains.getCurrentChainCount("A_1TH") && beforeRunes.equals(target.effects.observed) && bot.life.mp==1000,"Planning spends no native chain/runes/MP");
   for(int level:new int[]{4,5,9}){runes(level,10000);check(choose(991703,991704).equals("skill:991703"),"Four-plus native runes precede builder: "+level);}
   for(int level:new int[]{1,2,3}){
    runes(level,10000);check(!action(991703).isUseful() && choose(991703,991704).equals("skill:991704"),"Immature runes preserve building: "+level);

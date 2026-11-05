@@ -34,6 +34,16 @@ Characters look better than ever up close, with repainted faces and silky, glowi
 
 ### Fixed
 
+- You have the intended time to use a chain skill after the previous skill hits.
+- You leave the world as soon as quitting finishes; losing your connection keeps your character in the world for ten seconds.
+- You can finish affected campaign quests without missing conversations or stalled steps.
+- You land reliably after flight transports, including Ascension and early campaign flights.
+- You can progress through Empyrean Crucible's revised stages, bosses and bonus rounds with your companions.
+- You take corrected fall damage, return to your bind point immediately after a lethal fall, and avoid fall damage from lifts.
+- You can complete escort quests when the follower reaches its destination.
+- You see other players start, stop, glide and move on platforms correctly.
+- You get five full minutes to duel after the countdown, and teleporting ends your duel.
+
 - Fixed warehouse deposits stopping before all slots were filled and items disappearing when you dragged them.
 - Fixed Monodia in Henor Village so you can take the quest Desperation from her instead of getting a load error.
 - Fixed travelling merchant shops so you receive purchased items and see a reason when a purchase is refused.

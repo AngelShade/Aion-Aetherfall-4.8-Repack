@@ -15,7 +15,6 @@ import com.aionemu.gameserver.world.World;
  */
 public class CM_MOVE_IN_AIR extends AionClientPacket {
 
-	@SuppressWarnings("unused")
 	private int worldId;
 	private float x, y, z;
 	private byte heading;
@@ -45,7 +44,7 @@ public class CM_MOVE_IN_AIR extends AionClientPacket {
 		Player player = getConnection().getActivePlayer();
 		if (!player.isSpawned())
 			return;
-		if (!player.isInState(CreatureState.FLYING))
+		if (!player.isInState(CreatureState.FLYING) || worldId != player.getPosition().getClientWorldId())
 			return;
 
 		if (player.getFlightPath() != null)

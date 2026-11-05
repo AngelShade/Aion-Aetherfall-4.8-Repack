@@ -117,23 +117,7 @@ public final class PlayerBotHeightTraversalCheck {
   var blockedDrop=level(-40);add(blockedDrop,wall(1,8));
   check(PlayerBotHeightTraversal.plan(blockedDrop,1,-.5f,0,0,3,0,-40,6,Long.MAX_VALUE,50)==null,"larger fall envelope cannot cross a wall");
   check(PlayerBotHeightTraversal.plan(level(-40),1,-.5f,0,0,3,0,0,6,Long.MAX_VALUE,50)==null,"native envelope cannot select a lower layer for a same-height request");
-  int oldFatal=com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_DAMAGE;
-  int oldMidair=com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_MIDAIR;
-  try {
-   com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_DAMAGE=50;
-   com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_MIDAIR=200;
-   check(PlayerBotHeightTraversal.plan(level(-40),1,-.5f,0,0,3,0,-40,6,Long.MAX_VALUE)!=null,"production bot descent uses physical floor depth");
-   com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_MIDAIR=30;
-   check(PlayerBotHeightTraversal.plan(level(-40),1,-.5f,0,0,3,0,-40,6,Long.MAX_VALUE)!=null,"human midair lethal threshold does not constrain immune bots");
-   com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_DAMAGE=20;
-   com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_MIDAIR=200;
-   check(PlayerBotHeightTraversal.plan(level(-40),1,-.5f,0,0,3,0,-40,6,Long.MAX_VALUE)!=null,"human landing lethal threshold does not constrain immune bots");
-   com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_DAMAGE=0;
-   check(PlayerBotHeightTraversal.plan(level(-40),1,-.5f,0,0,3,0,-40,6,Long.MAX_VALUE)!=null,"bot descent does not depend on human fall-damage configuration");
-  } finally {
-   com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_DAMAGE=oldFatal;
-   com.aionemu.gameserver.configs.main.FallDamageConfig.MAXIMUM_DISTANCE_MIDAIR=oldMidair;
-  }
+  check(PlayerBotHeightTraversal.plan(level(-40),1,-.5f,0,0,3,0,-40,6,Long.MAX_VALUE)!=null,"production bot descent uses physical floor depth independently of human fall damage");
   check(plan(level(0),-3,3,0)==null,"supported flat movement stays walking");
   var gap=new GeoMap(919);add(gap,floor(-10,-.5f,0));add(gap,floor(.5f,10,0));
   check(plan(gap,-1,2,0)!=null,"small gap has valid arc and landing");

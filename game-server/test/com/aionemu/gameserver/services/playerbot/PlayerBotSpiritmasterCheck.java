@@ -58,9 +58,9 @@ public final class PlayerBotSpiritmasterCheck {
   target.effects.observed.add(observed(991103,1,1000));check(choose(991101,991103).equals("spell:991103"),"Final native tick window refreshes periodic damage");target.effects.observed.clear();
   target.effects.observed.add(observed(991103,2,1000));check(choose(991101,991103).equals("spell:991101"),"Final native usefulness preserves stronger effects");target.effects.observed.clear();
   bot.life.mp=300;check(choose(991102,991104).equals("spell:991102"),"Unavailable native chain does not steal restorative priority");
-  bot.chains.updateChain("SP_1TH",4000);int uses=bot.chains.getCurrentChainSkill().getUseCount();
+  bot.chains.updateChain("SP_1TH",0);int uses=bot.chains.getCurrentChainCount("SP_1TH");
   check(choose(991102,991103,991104).equals("spell:991104"),"Admitted native follow-up precedes restorative and periodic damage");
-  check(bot.chains.getCurrentChainSkill().getUseCount()==uses,"Planning never consumes native chain");bot.chains.resetChain();
+  check(bot.chains.getCurrentChainCount("SP_1TH")==uses,"Planning never consumes native chain");bot.chains.resetChain();
   bot.life.mp=1000;target.life.hp=200;check(choose(991101,991102,991103).equals("spell:991102"),"Low-health enemy gets direct native drain, not pure DoT setup");target.life.hp=1000;
   bot.life.mp=10;check(choose(991101,991102).equals("weapon"),"Unaffordable restorative attack cannot grant free MP or strand fallback");
   bot.life.mp=1000;bot.disabled=true;check(choose(991101,991102,991103).equals("weapon"),"Disabled/cooldown spells keep native weapon fallback");bot.disabled=false;

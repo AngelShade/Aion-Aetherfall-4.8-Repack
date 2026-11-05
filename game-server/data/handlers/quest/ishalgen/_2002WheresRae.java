@@ -51,7 +51,7 @@ public class _2002WheresRae extends AbstractQuestHandler {
 			case 14 -> java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.object(203538));
 			case 15 -> java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.dialog(203553, SETPRO7, 3057));
 			case 35 -> state.getQuestVars().getQuestVars() == 99 && player.getWorldId() == WorldMapType.ATAXIAR.getId()
-				? java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.flight(205020, QUEST_SELECT, "Original Ataxiar flight timer owns return and quest progress"))
+				? java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.flight(205020, QUEST_SELECT, "Ataxiar flight landing owns return and quest progress"))
 				: java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.event("Ataxiar return requires the original packed native instance marker 99"));
 			default -> java.util.List.of(com.aionemu.gameserver.questEngine.model.QuestBotAction.event("Saved Rae stage has no declared native transition"));
 		};
@@ -64,6 +64,7 @@ public class _2002WheresRae extends AbstractQuestHandler {
 		qe.registerOnLevelChanged(questId);
 		qe.registerQuestNpc(210377).addOnKillEvent(questId);
 		qe.registerQuestNpc(210378).addOnKillEvent(questId);
+		qe.registerOnFlightPathEnd(questId);
 		for (int npc_id : npc_ids)
 			qe.registerQuestNpc(npc_id).addOnTalkEvent(questId);
 		qe.registerOnEnterWorld(questId);
@@ -179,17 +180,11 @@ public class _2002WheresRae extends AbstractQuestHandler {
 							if (qs.getQuestVars().getQuestVars() == 99) {
 								player.setState(CreatureState.FLYING);
 								player.unsetState(CreatureState.ACTIVE);
-								player.setFlightTeleportId(3001);
-								final var scriptedFlight = player.getFlightPath();
-								final int flightWorld = player.getWorldId(), flightInstance = player.getInstanceId();
-								PacketSendUtility.sendPacket(player, new SM_EMOTION(player, EmotionType.START_FLYTELEPORT, 3001, 0));
-								ThreadPoolManager.getInstance().schedule(() -> {
-									if (player.isPlayerBot() && (!player.getController().isHeadlessScriptedFlightCurrent(scriptedFlight, flightWorld, flightInstance)
-										|| qs.getStatus() != QuestStatus.START || qs.getQuestVars().getQuestVars() != 99)) return;
-									changeQuestStep(env, 99, 13);
-									TeleportService.teleportTo(player, 220010000, 940.15f, 2295.64f, 265.7f, (byte) 43);
-									player.getController().finishHeadlessScriptedFlight(scriptedFlight);
-								}, 40000);
+								player.setFlightTeleportId(4001);
+								PacketSendUtility.sendPacket(player, new SM_EMOTION(player, EmotionType.START_FLYTELEPORT, 4001, 0));
+								if (player.isPlayerBot())
+									com.aionemu.gameserver.services.playerbot.PlayerBotHeadlessFlight.begin(player,
+										com.aionemu.gameserver.dataholders.DataManager.FLY_PATH.getPathTemplate(4));
 								return true;
 							}
 							return false;
@@ -222,28 +217,17 @@ public class _2002WheresRae extends AbstractQuestHandler {
 	}
 
 	@Override
+	public boolean onFlightPathEndEvent(QuestEnv env, int teleportId) {
+		if (teleportId != 4001 || !changeQuestStep(env, 99, 13))
+			return false;
+		TeleportService.teleportTo(env.getPlayer(), 220010000, 940.15f, 2295.64f, 265.7f, (byte) 43);
+		return true;
+	}
+
+	@Override
 	public boolean onKillEvent(QuestEnv env) {
-		Player player = env.getPlayer();
-		QuestState qs = player.getQuestStateList().getQuestState(questId);
-		if (qs == null)
-			return false;
-
-		int var = qs.getQuestVarById(0);
-		int targetId = 0;
-		if (env.getVisibleObject() instanceof Npc)
-			targetId = ((Npc) env.getVisibleObject()).getNpcId();
-
-		if (qs.getStatus() != QuestStatus.START)
-			return false;
-		switch (targetId) {
-			case 210377:
-			case 210378:
-				if (var >= 3 && var < 10) {
-					changeQuestStep(env, var, Math.min(10, var + 1));
-					return true;
-				}
-		}
-		return false;
+		int[] npcIds = { 210377, 210378 };
+		return defaultOnKillEvent(env, npcIds, 3, 10);
 	}
 
 	@Override

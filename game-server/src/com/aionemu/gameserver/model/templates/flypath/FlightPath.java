@@ -5,6 +5,7 @@ public class FlightPath {
 	private final Type type;
 	private final int id;
 	private int distance;
+	private final long startTime = System.currentTimeMillis();
 
 	public FlightPath(Type type, int id, int distance) {
 		this.type = type;
@@ -26,6 +27,11 @@ public class FlightPath {
 
 	public void setDistance(int distance) {
 		this.distance = distance;
+	}
+
+	/** @return Milliseconds since the flight started. */
+	public long getElapsedTime() {
+		return System.currentTimeMillis() - startTime;
 	}
 
 	public enum Type {

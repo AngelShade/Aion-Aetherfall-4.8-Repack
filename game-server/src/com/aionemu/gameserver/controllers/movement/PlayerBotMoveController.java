@@ -135,7 +135,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 	public synchronized boolean startPlatform(com.aionemu.gameserver.services.playerbot.PlayerBotPlatformRide.Plan plan){
 		if(platformPlan!=null)return true;
 		if(heightPlan!=null || failed || owner.isDead() || owner.isCasting() || !owner.canPerformMove() || plan==null || !plan.begin(owner))return false;
-		abortMove();platformPlan=plan;completedPlatform=null;lastPlatformState=null;lastPlatformPacket=0;updateLastMove();started.set(true);setInMove(true);
+		abortMove();resetFalling();platformPlan=plan;completedPlatform=null;lastPlatformState=null;lastPlatformPacket=0;updateLastMove();started.set(true);setInMove(true);
 		owner.getController().onStartMove();PlayerMoveTaskManager.getInstance().addPlayer(owner);sendPlatformMove();return true;
 	}
 	public synchronized boolean traversingHeight(){return heightPlan!=null;}
@@ -152,7 +152,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		if(!com.aionemu.gameserver.world.geo.GeoService.getInstance().validatePlayerBotHeightLanding(owner.getWorldId(),owner.getInstanceId(),plan))return false;
 		abortMove();
 		if(plan.leap())failed=false; // A leap is how a mover boxed in by geometry gets out.
-		heightPlan=plan;heightTime=0;interruptedHeight=false;heightWorld=owner.getWorldId();heightInstance=owner.getInstanceId();
+		heightPlan=plan;heightTime=0;restartFalling(plan.z());interruptedHeight=false;heightWorld=owner.getWorldId();heightInstance=owner.getInstanceId();
 		byte jumpHeading=(byte)Math.floorMod((int)Math.round(Math.toDegrees(Math.atan2(plan.endY()-plan.y(),plan.endX()-plan.x()))/3),120);
 		setNewDirection(plan.endX(),plan.endY(),plan.endZ(),jumpHeading);
 		updateLastMove();started.set(true);setInMove(true);setIsJumping(plan.launch()>0);
@@ -423,7 +423,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		setNewDirection(owner.getX(),owner.getY(),owner.getZ(),heading);
 		movementMask=(byte)(MovementMask.POSITION|MovementMask.MANUAL|MovementMask.ABSOLUTE);
 		if(platformPlan.onboard()){
-			movementMask|=MovementMask.VEHICLE;unk1=platformPlan.entityId();unk2=platformPlan.wirePart();
+			movementMask|=MovementMask.VEHICLE;vehicleId=platformPlan.entityId();vehiclePartId=platformPlan.wirePart();
 			if(state==com.aionemu.gameserver.services.playerbot.PlayerBotPlatformRide.State.RIDING)movementMask=MovementMask.VEHICLE;
 			double[] local=platformPlan.local();vehicleX=(float)local[0];vehicleY=(float)local[1];vehicleZ=(float)local[2];
 		}
@@ -444,8 +444,8 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		}
 		boolean changed=PositionUtil.getDistance(owner,step.x(),step.y(),step.z())>.001;
 		if(changed){com.aionemu.gameserver.world.World.getInstance().updatePosition(owner,step.x(),step.y(),step.z(),heading,false);owner.getKnownList().update();owner.getController().onMove();}
-		updateLastMove();sendPlatformMove();
-		if(step.state()==com.aionemu.gameserver.services.playerbot.PlayerBotPlatformRide.State.COMPLETE){platformPlan=null;completedPlatform=plan;unk1=unk2=0;vehicleX=vehicleY=vehicleZ=0;abortMove();}
+		restartFalling(owner.getZ());updateLastMove();sendPlatformMove();
+		if(step.state()==com.aionemu.gameserver.services.playerbot.PlayerBotPlatformRide.State.COMPLETE){platformPlan=null;completedPlatform=plan;vehicleId=vehiclePartId=0;vehicleX=vehicleY=vehicleZ=0;abortMove();}
 	}
 	private void sendHeightMove() {
 		// S_MOVE_NEW has no duration/ballistic payload: ABSOLUTE installs a
@@ -472,7 +472,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		if(!heightPlan.leap() && (interruptedHeight || (!owner.canPerformMove() || owner.isCasting())
 			&& (heightPlan.launch()>0 || heightPlan.endX()!=heightPlan.x() || heightPlan.endY()!=heightPlan.y()))) {
 			var fall=geo.findPlayerBotFall(heightWorld,heightInstance,owner.getX(),owner.getY(),owner.getZ());
-			if(fall!=null){heightPlan=fall;heightTime=0;}
+			if(fall!=null){if(!heightPlan.descending(heightTime))restartFalling(owner.getZ());heightPlan=fall;heightTime=0;}
 			else if(heightTime==0){heightPlan=null;abortMove();return;}
 			interruptedHeight=false;
 		}
@@ -489,11 +489,13 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		}
 		if(!clear || nextTime>=heightPlan.seconds() && !geo.validatePlayerBotHeightLanding(heightWorld,heightInstance,heightPlan)) {
 			var fall=geo.findPlayerBotFall(heightWorld,heightInstance,owner.getX(),owner.getY(),owner.getZ());
-			if(fall!=null){heightPlan=fall;heightTime=0;updateLastMove();return;}
+			if(fall!=null){if(!heightPlan.descending(heightTime))restartFalling(owner.getZ());heightPlan=fall;heightTime=0;updateLastMove();return;}
 			// Dynamic geometry blocks all descent. Leave the physical actor in place and report a real failed mover.
 			heightPlan=null;failed=true;abortMove();return;
 		}
 		var activePlan=heightPlan;
+		if(!activePlan.descending(heightTime) && activePlan.descending(nextTime))
+			restartFalling(activePlan.z()+activePlan.launch()*activePlan.launch()/(2*com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.GRAVITY));
 		if(activePlan.descending(heightTime))updateFalling(owner.getZ());
 		// Native fall damage/observers can synchronously kill, transfer or stop
 		// the actor. Such a callback owns the outcome, not this queued sample.

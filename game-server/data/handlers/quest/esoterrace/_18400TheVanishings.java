@@ -23,7 +23,6 @@ public class _18400TheVanishings extends AbstractQuestHandler {
 		qe.registerQuestNpc(799552).addOnTalkEvent(questId);
 		qe.registerQuestNpc(799584).addOnTalkEvent(questId);
 		qe.registerQuestNpc(799585).addOnTalkEvent(questId);
-		qe.registerQuestNpc(730014).addOnTalkEvent(questId);
 	}
 
 	@Override

@@ -151,6 +151,8 @@ public class Player extends Creature {
 
 	private long prisonEndTimeMillis = 0;
 	private long gatherRestrictionMillis;
+	private long quitCountdownStartMillis;
+	private long quitBlockedUntilMillis;
 	private String captchaWord;
 	private byte[] captchaImage;
 
@@ -370,6 +372,35 @@ public class Player extends Creature {
 		if (durationSeconds < 0)
 			gatherRestrictionMillis = durationSeconds = 0;
 		return durationSeconds;
+	}
+
+	/**
+	 * @return The time when the client started its countdown before quitting the game, 0 if it never did
+	 */
+	public long getQuitCountdownStartMillis() {
+		return quitCountdownStartMillis;
+	}
+
+	public void setQuitCountdownStartMillis(long quitCountdownStartMillis) {
+		this.quitCountdownStartMillis = quitCountdownStartMillis;
+	}
+
+	/**
+	 * Keeps the player from quitting the game for the next 10 seconds, after fighting or starting to craft.
+	 */
+	public void blockQuitting() {
+		quitBlockedUntilMillis = System.currentTimeMillis() + 10000;
+	}
+
+	public void unblockQuitting() {
+		quitBlockedUntilMillis = 0;
+	}
+
+	/**
+	 * @return Milliseconds until the player may quit the game, 0 if they may quit now
+	 */
+	public long getMillisUntilQuittingAllowed() {
+		return Math.max(0, quitBlockedUntilMillis - System.currentTimeMillis());
 	}
 
 	public String getCaptchaWord() {
@@ -850,6 +881,11 @@ public class Player extends Creature {
 
 	public FlightPath getFlightPath() {
 		return flightPath;
+	}
+
+	/** @return The template of the current flight transporter or windstream, or null. */
+	public FlyPathEntry getFlightPathTemplate() {
+		return isUsingFlightTransporterOrWindstream() ? DataManager.FLY_PATH.getPathTemplate(flightPath.getId() / 1000) : null;
 	}
 
 	public void setCurrentFlypath(FlyPathEntry path) {
@@ -1547,11 +1583,8 @@ public class Player extends Creature {
 	@Override
 	public boolean isSkillDisabled(SkillTemplate template) {
 		ChainCondition cond = template.getChainCondition();
-		if (cond != null && cond.getAllowedActivations() > 1) { // exception for multicast
-			int chainCount = getChainSkills().getCurrentChainCount(cond.getCategory());
-			if (chainCount > 0 && chainCount < cond.getAllowedActivations() && !getChainSkills().isChainExpired())
-				return false;
-		}
+		if (cond != null && cond.getAllowedActivations() > 1 && getChainSkills().canRepeat(cond.getCategory(), cond.getAllowedActivations(), cond.getActivationWindow()))
+			return false; // exception for multicast
 		if (super.isSkillDisabled(template)) {
 			PacketSendUtility.sendPacket(this, SM_SYSTEM_MESSAGE.STR_SKILL_NOT_READY());
 			return true;
@@ -1615,6 +1648,7 @@ public class Player extends Creature {
 	public void setPosition(WorldPosition position) {
 		super.setPosition(position);
 		getMoveController().resetLastPositionFromClient(); // if we don't reset it, material collision handlers (such as shields) affect you on teleport
+		getMoveController().resetFalling();
 		getCommonData().setMapId(position.getMapId());
 		getCommonData().setX(position.getX());
 		getCommonData().setY(position.getY());

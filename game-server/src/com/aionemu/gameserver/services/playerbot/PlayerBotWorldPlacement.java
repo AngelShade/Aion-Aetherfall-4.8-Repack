@@ -213,7 +213,7 @@ final class PlayerBotWorldPlacement {
    && PlayerBotCampDistribution.overlaps(x,y,z,p.getX(),p.getY(),p.getZ()));
  }
  static boolean ground(WorldMapTemplate map,float x,float y,float z,float ground) {
-  return Float.isFinite(ground) && Math.abs(ground-z)<=4 && ground>map.getDeathLevel() && ground>=map.getWaterLevel()
+  return Float.isFinite(ground) && Math.abs(ground-z)<=4 && ground>=-2 && ground>=map.getWaterLevel()
    && x>0 && y>0 && x<map.getWorldSize() && y<map.getWorldSize();
  }
  /** Native player-zone preference includes altitude: overlapping halls are distinct areas.

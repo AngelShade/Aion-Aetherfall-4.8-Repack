@@ -89,9 +89,9 @@ public final class PlayerBotSorcererCheck {
   target.effects.observed.clear();target.effects.observed.add(observed(entry(990803).template(),2,1000));check(choose(990801,990803).equals("skill:990801"),"Stronger existing learned effect protected by final usefulness");target.effects.observed.clear();
   check(choose(990801,990803,990804).equals("skill:990804"),"Native magic vulnerability established before DoT and filler");
   target.effects.observed.add(observed(entry(990804).template(),1,9000));check(score(990804)<19,"Vulnerability already present loses upkeep priority");target.effects.observed.clear();
-  check(choose(990801,990805).equals("skill:990801"),"Unavailable native chain cannot be manufactured");bot.chains.updateChain("S_1TH",4000);
-  int before=bot.chains.getCurrentChainSkill().getUseCount();check(choose(990801,990803,990805).equals("skill:990805"),"Admitted proc outranks upkeep and fillers");
-  check(bot.chains.getCurrentChainSkill().getUseCount()==before,"Planning never consumes native chain");bot.chains.resetChain();
+  check(choose(990801,990805).equals("skill:990801"),"Unavailable native chain cannot be manufactured");bot.chains.updateChain("S_1TH",0);
+  int before=bot.chains.getCurrentChainCount("S_1TH");check(choose(990801,990803,990805).equals("skill:990805"),"Admitted proc outranks upkeep and fillers");
+  check(bot.chains.getCurrentChainCount("S_1TH")==before,"Planning never consumes native chain");bot.chains.resetChain();
   bot.life.mp=50;check(choose(990801,990802).equals("skill:990802"),"Unaffordable primary falls back to affordable learned spell");check(bot.life.mp==50,"Native MP planning does not spend resources");
   bot.life.mp=0;check(choose(990801,990802).equals("shoot"),"No affordable spell falls back to weapon attack");bot.life.mp=1000;
   bot.disabled=true;check(choose(990801,990802).equals("shoot"),"Cooldown/disabled spells cannot strand filler fallback");bot.disabled=false;

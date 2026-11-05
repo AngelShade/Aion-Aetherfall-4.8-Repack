@@ -95,9 +95,9 @@ public final class PlayerBotGladiatorCheck {
   bot.life.mp=50;check(choose(991601,991602).equals("skill:991602"),"Native unaffordable counter falls back to cheaper filler");bot.life.mp=1000;
   bot.disabled=true;check(choose(991601,991602).equals("melee"),"Native disabled/cooldown gates remain final");bot.disabled=false;
   check(choose(991602,991605).equals("skill:991602"),"Counter with missing native chain cannot bypass chain prerequisites");
-  bot.chains.updateChain("G_1TH",4000);int count=bot.chains.getCurrentChainSkill().getUseCount();
+  bot.chains.updateChain("G_1TH",0);int count=bot.chains.getCurrentChainCount("G_1TH");
   check(choose(991601,991604).equals("skill:991601"),"Bounded reactive decision precedes ordinary native chain at its existing band");
-  check(bot.chains.getCurrentChainSkill().getUseCount()==count,"Planning does not consume a native chain");bot.chains.resetChain();
+  check(bot.chains.getCurrentChainCount("G_1TH")==count,"Planning does not consume a native chain");bot.chains.resetChain();
   bot.life.hp=400;check(choose(991601,991603).equals("skill:991603"),"Existing drain fitness selects useful learned counter recovery");bot.life.hp=1000;
   target.casting=new Skill(entry(991608).template(),target,bot,1);check(choose(991601,991608).equals("skill:991608"),"Existing interrupt takes precedence over reactive offense");target.casting=null;
   target.life.hp=200;check(choose(991601,991610).equals("skill:991610"),"Critical native heal retains precedence");target.life.hp=1000;
