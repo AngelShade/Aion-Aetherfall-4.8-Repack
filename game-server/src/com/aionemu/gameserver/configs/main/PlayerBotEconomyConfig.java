@@ -50,6 +50,8 @@ public final class PlayerBotEconomyConfig {
  public static int MARKET_ORDER_HOURS = 4;
  @Property(key = "gameserver.playerbots.market.reserve_kinah", defaultValue = "50000")
  public static long MARKET_RESERVE_KINAH = 50000;
+ @Property(key = "gameserver.playerbots.market.world_daily_kinah", defaultValue = "2000000")
+ public static long MARKET_WORLD_DAILY_KINAH = 2000000;
  @Property(key = "gameserver.playerbots.market.budget_percent", defaultValue = "25")
  public static int MARKET_BUDGET_PERCENT = 25;
  @Property(key = "gameserver.playerbots.market.material_reserve", defaultValue = "200")

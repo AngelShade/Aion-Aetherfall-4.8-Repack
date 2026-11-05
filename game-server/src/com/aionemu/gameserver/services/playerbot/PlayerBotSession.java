@@ -334,18 +334,22 @@ public final class PlayerBotSession {
 	boolean worldExcursion() { return pvp.rifts.inProgress(); }
 	Npc riftRally() { return pvp.rifts.rally(); }
 	long riftRallyUntil() { return pvp.rifts.rallyUntil(); }
+	private volatile long settleQuietSince;
 	private boolean settlingCombat(){
 		if(bot.isDead())return false;
 		var pet=bot.getSummon();
-		return bot.getController().isInCombat()
-			// The bot's own aggro list keeps entries after a mob resets; only an
-			// attacker that still hates the bot keeps it awake on an empty map.
-			|| bot.getAggroList().stream().anyMatch(a->a.getHate()>0 && !a.getAttacker().isDead() && a.getAttacker().isSpawned()
+		if(bot.getController().isInCombat()){settleQuietSince=0;return true;}
+		// The bot's own aggro list keeps entries after a mob resets; only an
+		// attacker that still hates the bot keeps it awake on an empty map.
+		boolean hated=bot.getAggroList().stream().anyMatch(a->a.getHate()>0 && !a.getAttacker().isDead() && a.getAttacker().isSpawned()
 			 && a.getAttacker().getWorldId()==bot.getWorldId() && a.getAttacker().getInstanceId()==bot.getInstanceId()
 			 && a.getAttacker().getAggroList().isHating(bot))
 			|| pet!=null && pet.isSpawned() && !pet.isDead() && (pet.getTarget() instanceof Npc enemy && enemy.isSpawned() && !enemy.isDead()
 			 && pet.getMode()==com.aionemu.gameserver.model.summons.SummonMode.ATTACK
 			 || pet.getAggroList().stream().anyMatch(a->a.getHate()>0 && !a.getAttacker().isDead() && a.getAttacker().isSpawned()));
+		if(!hated){settleQuietSince=0;return false;}
+		long now=System.currentTimeMillis();if(settleQuietSince==0)settleQuietSince=now;
+		return PlayerBotWorldActivity.lingering(now,settleQuietSince);
 	}
 
 	/** Stop autonomous admission immediately; native combat, transport and paid work retain completion custody. */

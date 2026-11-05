@@ -106,6 +106,14 @@ public final class PlayerBotPopulationPolicy {
    result.add(available.get(selected).removeFirst());used.merge(selected,1,Integer::sum);
   }
  }
+ /** A death this soon after landing in a camp means the camp was too much for this bot. */
+ static final long QUICK_DEATH_MS=300000;
+ static long deathStreak(long streak,long lastLanding,long now){return lastLanding>0 && now>=lastLanding && now-lastLanding<QUICK_DEATH_MS?streak+1:0;}
+ static boolean returnsToField(long streak){return streak==0;}
+ /** Starter characters have no city of their own, and their native revival already puts them at the starter spawn. */
+ static boolean revivesInCity(int level){return level>=10;}
+ /** Says what a pending rebuild is for, as most of them change no level. */
+ static String rebuildLabel(String reason){return switch(reason){case "revive"->"return to a camp after revival";case "teleport"->"rebuild after relocation";default->"level reset/retry";};}
  /** Signed native account columns permit a disjoint headless namespace. LS auto-increment IDs are positive. */
  public static boolean serverAccount(int id){return id<=-1000000 && id>=-1000000-2*ACCOUNT_SHARDS+1;}
  static boolean account(int id){return id>0 || serverAccount(id);}

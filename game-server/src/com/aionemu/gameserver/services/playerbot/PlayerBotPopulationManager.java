@@ -202,7 +202,7 @@ final class PlayerBotPopulationManager {
      if(excluded(session,bracketIntent) || bracketIntent && !PlayerBotPopulationConfig.BRACKETS
       || reason.equals("reset") && !PlayerBotPopulationConfig.RESET || Set.of("refresh","teleport").contains(reason) && !PlayerBotPopulationConfig.REFRESH) {
       state.number("pendingLevel",0);state.values.setProperty("pendingReason","");state.values.setProperty("pendingField","false");queueMetadata(bot,state);
-     }else if(selected==null && safe(session))selected=new Work(session,(int)state.number("pendingLevel"),Boolean.parseBoolean(state.values.getProperty("pendingFull","true")),"level reset/retry");
+     }else if(selected==null && safe(session))selected=new Work(session,(int)state.number("pendingLevel"),Boolean.parseBoolean(state.values.getProperty("pendingFull","true")),PlayerBotPopulationPolicy.rebuildLabel(reason));
     }
     if(selected!=null || state.number("pendingLevel")>0)continue;
     if(PlayerBotPopulationConfig.BRACKETS && pendingBudget>0 && pending.containsKey(bot.getObjectId())) {
@@ -287,6 +287,7 @@ final class PlayerBotPopulationManager {
  boolean reviveDue(Player bot,long now)throws IOException {
   if(!global(bot))return false;var state=states.get(bot.getObjectId());if(state==null)return false;
   if(state.number("deadUntil")==0 || now>=state.number("deadUntil")) {
+   if(state.number("deadUntil")==0)state.number("deathStreak",PlayerBotPopulationPolicy.deathStreak(state.number("deathStreak"),state.number("lastLanding"),now));
    state.number("deadUntil",now+1000L*Math.max(PlayerBotConfig.POPULATION_PRESENCE_MAX,PlayerBotPopulationConfig.REVIVE_MAX+1L));
    state.number("reviveAt",PlayerBotPopulationPolicy.deadline(now,random,PlayerBotPopulationConfig.REVIVE_MIN,PlayerBotPopulationConfig.REVIVE_MAX));queueMetadata(bot,state);
   }
@@ -295,7 +296,9 @@ final class PlayerBotPopulationManager {
  void revived(Player bot)throws IOException {
   var state=states.get(bot.getObjectId());if(state!=null){
    state.number("deadUntil",0);state.number("reviveAt",0);
-   if(state.number("pendingLevel")==0){state.number("pendingLevel",bot.getLevel());state.values.setProperty("pendingFull","false");state.values.setProperty("pendingField","true");state.values.setProperty("pendingReason","revive");}
+   // A bot the last camp killed right away goes to a city, or stays at the starter spawn, instead of another camp.
+   boolean field=PlayerBotPopulationPolicy.returnsToField(state.number("deathStreak"));
+   if(state.number("pendingLevel")==0 && (field || PlayerBotPopulationPolicy.revivesInCity(bot.getLevel()))){state.number("pendingLevel",bot.getLevel());state.values.setProperty("pendingFull","false");state.values.setProperty("pendingField",Boolean.toString(field));state.values.setProperty("pendingCity",Boolean.toString(!field));state.values.setProperty("pendingReason","revive");}
    queueMetadata(bot,state);
   }
  }
@@ -326,10 +329,11 @@ final class PlayerBotPopulationManager {
   if(bot.isDead()){queueMetadata(bot,state);return false;}
   boolean full=Boolean.parseBoolean(state.values.getProperty("pendingFull","true"));
   var home=PlayerBotPersistence.Home.of(bot);
-  if(full || Boolean.parseBoolean(state.values.getProperty("pendingField","false"))) {
+  boolean city=Boolean.parseBoolean(state.values.getProperty("pendingCity","false"));
+  if(full || city || Boolean.parseBoolean(state.values.getProperty("pendingField","false"))) {
    var selection=Boolean.parseBoolean(state.values.getProperty("pendingField","false"))
     ?PlayerBotWorldPlacement.chooseGrindDestination(bot.getRace(),level,random)
-    :PlayerBotWorldPlacement.chooseReserveDestination(bot.getRace(),level,PlayerBotConfig.POPULATION_CITY_PERCENT,random);
+    :PlayerBotWorldPlacement.chooseReserveDestination(bot.getRace(),level,city?100:PlayerBotConfig.POPULATION_CITY_PERCENT,random);
    var place=selection.location();
    if(place==null) {
     // Every camp for that level is crowded or near a human right now. Enter
@@ -348,7 +352,8 @@ final class PlayerBotPopulationManager {
   bot.getGameStats().updateStatsTemplate();
   PlayerBotTemporary.rebuildWorld(bot,PlayerBotRules.roleFor(level>=10?chosen:chosen.getStartingClass()),full);
   if(!World.getInstance().setPosition(bot,home.map(),1,home.x(),home.y(),home.z(),home.heading()))throw new IllegalStateException("Native population reset position refused");
-  state.number("pendingLevel",0);state.values.setProperty("pendingFull","false");state.values.setProperty("pendingField","false");state.values.setProperty("pendingReason","");state.number("lastLevel",bot.getLevel());
+  if(Boolean.parseBoolean(state.values.getProperty("pendingField","false")))state.number("lastLanding",System.currentTimeMillis());
+  state.number("pendingLevel",0);state.values.setProperty("pendingFull","false");state.values.setProperty("pendingField","false");state.values.setProperty("pendingCity","false");state.values.setProperty("pendingReason","");state.number("lastLevel",bot.getLevel());
   if(full)state.number("levelPlayedMillis",0);
   if(full || reason.equals("refresh") || state.number("randomizeAt")==0)
    state.number("randomizeAt",PlayerBotPopulationPolicy.deadline(System.currentTimeMillis(),random,PlayerBotPopulationConfig.REFRESH_MIN,PlayerBotPopulationConfig.REFRESH_MAX));

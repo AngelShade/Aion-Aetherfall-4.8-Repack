@@ -108,7 +108,7 @@ public final class PlayerBotLedgeLeapCheck {
   for(int seed=0;seed<16;seed++){var e=PlayerBotLedgeLeap.search(ledge,1,-.5f,0,30,Float.NaN,Float.NaN,6,Float.NEGATIVE_INFINITY,PlayerBotLedgeLeap.Tier.LEAP,false,seed).advance(Long.MAX_VALUE);
    check(e!=null,"every member of a crowd finds a way down");spots.add(Math.round(e.landing().x()*2)+","+Math.round(e.landing().y()*2));}
   check(spots.size()>=3,"a crowd lands in different places: "+spots.size());
-  System.out.println("PlayerBotLedgeLeapCheck passed "+checks+" checks");
+  System.out.println("OK: "+checks+" ledge leap checks");
  }
  private PlayerBotLedgeLeapCheck(){}
 }

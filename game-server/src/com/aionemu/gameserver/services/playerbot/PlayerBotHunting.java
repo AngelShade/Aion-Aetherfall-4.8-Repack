@@ -18,6 +18,11 @@ final class PlayerBotHunting {
  }
  static boolean template(NpcTemplate npc){return npc!=null && !training(npc.getTribe()) && npc.getNpcTemplateType()!=com.aionemu.gameserver.model.templates.npc.NpcTemplateType.FLAG
   && npc.getLevel()>0 && npc.getLevel()<=69 && (npc.getRating()==NpcRating.NORMAL || npc.getRating()==NpcRating.JUNK);}
+ /** Gear usually drops from elites, so a goal or a help request may name one. Ordinary grinding still may not. */
+ static boolean goalTemplate(NpcTemplate npc){return template(npc) || npc!=null && !training(npc.getTribe()) && npc.getNpcTemplateType()!=com.aionemu.gameserver.model.templates.npc.NpcTemplateType.FLAG
+  && npc.getLevel()>0 && npc.getLevel()<=69 && npc.getRating()==NpcRating.ELITE;}
+ /** A bot only goes alone after an elite that is not above its own level. A harder one becomes a help request. */
+ static boolean goalLevelFits(int bot,int npc,NpcRating rating){return PlayerBotWorldActivities.levelSuitable(bot,npc) && (rating!=NpcRating.ELITE || npc<=bot);}
  /** Like WoW grind/travel bots, kill suitable mobs met on the way. Only a bot
   * carrying finished quests to their reward NPC or hunting one quest's specific
   * monster keeps walking past other mobs. Previously any quest or conversation

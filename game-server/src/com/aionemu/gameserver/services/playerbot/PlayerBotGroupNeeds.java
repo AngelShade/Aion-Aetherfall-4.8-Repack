@@ -54,7 +54,7 @@ final class PlayerBotGroupNeeds {
   // A missing saved-equipment goal that drops from a hard monster on this map is a real reason to ask.
   if(com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.ECONOMY_ENABLED && com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.WORLD_GOALS_HELP_REQUESTS)for(int npc:PlayerBotGearPolicy.goalDrops(bot)) {
    var target=DataManager.NPC_DATA.getNpcTemplate(npc);
-   if(target!=null && PlayerBotHunting.template(target) && hard(bot,npc) && DataManager.SPAWNS_DATA.getSpawnsForNpc(bot.getWorldId(),npc).stream().anyMatch(g->!g.isTemporarySpawn() && g.getHandlerType()==null))
+   if(target!=null && PlayerBotHunting.goalTemplate(target) && hard(bot,npc) && DataManager.SPAWNS_DATA.getSpawnsForNpc(bot.getWorldId(),npc).stream().anyMatch(g->!g.isTemporarySpawn() && g.getHandlerType()==null))
     return new Need(0,npc,bot.getWorldId(),0,6,Math.max(1,bot.getLevel()-5),Math.min(65,bot.getLevel()+5),target.getName());
   }
   // Chore quests and ordinary levelling are solo work: no help request.

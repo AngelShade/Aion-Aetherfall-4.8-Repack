@@ -33,5 +33,8 @@ final class PlayerBotWorldActivity {
  static boolean allowed(PlayerBotSession session){
   return !PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS || !session.autonomous() || session.worldExcursion() || occupied(session.bot());
  }
+ /** A mob on an empty map may never finish a fight, so hate alone holds a bot awake only this long once blows have stopped. */
+ static final long SETTLE_MS=30000;
+ static boolean lingering(long now,long quietSince){return now-quietSince<SETTLE_MS;}
  private PlayerBotWorldActivity(){}
 }

@@ -54,7 +54,8 @@ final class PlayerBotNavigation {
 	private PlayerBotLedgeLeap.Tier leapTier=PlayerBotLedgeLeap.Tier.NONE;
 	private long nextLeapSearch,lastLeapAt,noClimbUntil;
 	private Point lastLeapGoal;
-	private boolean abandonGoal;
+	private boolean abandonGoal,goalLost,lost;
+	private final PlayerBotLedgeLeap.Budget leapBudget=new PlayerBotLedgeLeap.Budget();
 	private static final long LEAP_RETRY_MS=1000,GOAL_RETRY_MS=60000;
 	private static final java.util.concurrent.atomic.AtomicLong LEAP_LOG=new java.util.concurrent.atomic.AtomicLong();
 	private Point localOrigin,localGoal,localBest,approachTargetPoint,approachDestination;
@@ -109,6 +110,8 @@ final class PlayerBotNavigation {
 	boolean atFollowPosition(){return followArrived;}
 	/** Result of the immediately preceding move call, not a cached geometry verdict. */
 	boolean routeFailed(){return routeFailure;}
+	boolean takeGoalLost(){boolean value=goalLost;goalLost=false;return value;}
+	boolean takeLost(){boolean value=lost;lost=false;return value;}
 	void clearRouteFailure(){routeFailure=false;}
 	private java.util.List<PlayerBotHazards.Area> hazards = java.util.List.of();
 
@@ -976,6 +979,12 @@ final class PlayerBotNavigation {
 			if(tier==PlayerBotLedgeLeap.Tier.NONE)clearLeapSearch();
 			return false;
 		}
+		if(leapBudget.spent(now) && leapsLimited(player)) {
+			// Each leap only takes a lost bot further down. The planner moves it to a fresh camp instead.
+			clearLeapSearch();ledgeStall.clear();goalLost=abandonGoal=true;
+			if(movable(player)){leapBudget.clear();lost=true;}
+			return false;
+		}
 		if(leapSearch==null || leapTier!=tier) {
 			// The search earns a takeoff from this exact spot, so stop drifting away from it.
 			stopMovement();cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);
@@ -1013,6 +1022,7 @@ final class PlayerBotNavigation {
 			noClimbUntil=now+GOAL_RETRY_MS;
 			abandonGoal=lastLeapGoal!=null && now-lastLeapAt<GOAL_RETRY_MS
 				&& PositionUtil.getDistance(lastLeapGoal.x(),lastLeapGoal.y(),lastLeapGoal.z(),goal.x(),goal.y(),goal.z())<=.25;
+			goalLost|=abandonGoal;leapBudget.spend(now);
 			lastLeapGoal=goal;lastLeapAt=now;
 			ledgeStall.clear();
 			cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);cancelTicket(roadSearchToken);
@@ -1021,6 +1031,9 @@ final class PlayerBotNavigation {
 			return true;
 		}finally{if(pending)terrain.request(leapSearchToken,terrainPriority(goalDistance));}
 	}
+	/** A world bot on its own stops leaping once leaps get it nowhere. Parties and instances keep their own recovery. */
+	private static boolean leapsLimited(Player player){return PlayerBotPopulationManager.global(player) && player.getPlayerGroup()==null && !player.isInAlliance() && !player.isInInstance();}
+	private static boolean movable(Player player){return !PlayerBotRoadDuty.assigned(player) && !PlayerBotFindGroup.committed(player);}
 	private void clearLeapSearch(){cancelTicket(leapSearchToken);leapSearch=null;leapTier=PlayerBotLedgeLeap.Tier.NONE;}
 	private void discardLookahead() { if(lookahead){cancelTicket(searchToken);clearSearch();lookahead=false;} }
 	private boolean prepareJump(Player player,com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover,

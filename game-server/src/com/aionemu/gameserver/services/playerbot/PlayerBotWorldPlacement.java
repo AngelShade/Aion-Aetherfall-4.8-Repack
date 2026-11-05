@@ -90,6 +90,9 @@ final class PlayerBotWorldPlacement {
    && (!PlayerBotConfig.POPULATION_FACTION_HOME || PlayerBotTerritory.homeland(map.getMapId())==Race.NONE || PlayerBotTerritory.homeland(map.getMapId())==race)
    && (enabled.isEmpty() || enabled.contains(map.getMapId()));
  }
+ /** How far above its own level a bot may be sent to a camp. Every mob in a camp can aggro at once, and low characters have the least to spare. */
+ static int campMargin(int level){return level<10?1:level<30?2:3;}
+ static int campMinimum(int mob){for(int level=1;level<mob;level++)if(mob<=level+campMargin(level))return level;return Math.max(1,mob);}
  static boolean suitable(Location p,Race race,int level,Set<Integer> enabled) {
   return p.race()==race && level>=p.minimum() && level<=p.maximum() && (enabled.isEmpty() || enabled.contains(p.map()));
  }
@@ -167,7 +170,7 @@ final class PlayerBotWorldPlacement {
      // actual monster, rather than a mixed cell's unrelated min/max bracket.
      var levels=new HashSet<Integer>();
      for(var m:cell)if(levels.add(m.level()))
-      result.add(new Location(race,map.getMapId(),m.x(),m.y(),m.z(),Math.max(1,m.level()-4),Math.min(65,m.level()+10),false,false));
+      result.add(new Location(race,map.getMapId(),m.x(),m.y(),m.z(),campMinimum(m.level()),Math.min(65,m.level()+10),false,false));
     }
    }
    var start=DataManager.PLAYER_INITIAL_DATA.getSpawnLocation(race);

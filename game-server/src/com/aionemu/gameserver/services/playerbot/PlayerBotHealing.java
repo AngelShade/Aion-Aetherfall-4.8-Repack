@@ -54,7 +54,9 @@ final class PlayerBotHealing {
    || !skill.hasAnyEffect(EffectType.HEAL,EffectType.CASEHEAL) || !sameBuff(target,skill);
  }
  static double recoveryLimit(Player bot,Creature target,boolean combat){
-  return target instanceof Player player && player.isPlayerBot() ? PlayerBotRecoveryPolicy.healthLimit(PlayerBotRecoveryIntent.active(player),combat || player!=bot && engaged(player)) : 85;
+  if(!(target instanceof Player player && player.isPlayerBot()))return 85;
+  double limit=PlayerBotRecoveryPolicy.healthLimit(PlayerBotRecoveryIntent.active(player),combat || player!=bot && engaged(player));
+  return combat && player==bot?PlayerBotRecoveryPolicy.selfCombatLimit(roleFor(bot.getPlayerClass()),limit):limit;
  }
  static double manaLimit(Player bot,Player target,boolean combat){
   return target.isPlayerBot() ? PlayerBotRecoveryPolicy.manaLimit(PlayerBotRecoveryIntent.active(target),combat || target!=bot && engaged(target)) : 40;

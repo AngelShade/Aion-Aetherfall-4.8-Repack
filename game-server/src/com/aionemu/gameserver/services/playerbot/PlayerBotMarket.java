@@ -115,6 +115,8 @@ final class PlayerBotMarket {
   long l=Math.max(1,Math.min(65,level)),value=Math.max(0,Math.min(CentralMarketRules.MAX_KINAH,configured));
   return Math.max(PlayerBotEconomyConfig.MARKET_RESERVE_MINIMUM,value/4225*l*l+value%4225*l*l/4225);
  }
+ /** The owner sets a companion's budget. A world bot has no owner, so its budget grows with level to match what gear costs. */
+ static long dailyAllowance(boolean world,int level,long careBudget,long spent){return Math.max(0,(world?reserve(level,PlayerBotEconomyConfig.MARKET_WORLD_DAILY_KINAH):careBudget)-spent);}
  static long budget(long wealth,long reserve,int percent,long allowance) {
   long spare=Math.max(0,wealth-Math.max(0,reserve));int p=Math.max(0,Math.min(100,percent));
   return Math.min(Math.max(0,allowance),spare/100*p+spare%100*p/100);
@@ -149,7 +151,7 @@ final class PlayerBotMarket {
   Player bot=session.bot();var care=PlayerBotQuestSync.state(session);String day=java.time.LocalDate.now().toString();
   if(!care.spentDay.equals(day)){care.spentDay=day;care.spent=0;care.save();}
   long reserved=Math.max(care.reserve,reserve(bot.getLevel(),PlayerBotEconomyConfig.MARKET_RESERVE_KINAH));
-  long budget=budget(bot.getInventory().getKinah(),reserved,PlayerBotEconomyConfig.MARKET_BUDGET_PERCENT,Math.max(0,care.dailyBudget-care.spent));if(budget<=0)return false;
+  long budget=budget(bot.getInventory().getKinah(),reserved,PlayerBotEconomyConfig.MARKET_BUDGET_PERCENT,dailyAllowance(session.autonomous(),bot.getLevel(),care.dailyBudget,care.spent));if(budget<=0)return false;
   for(var need:needs(session,ledger)) {
    var template=DataManager.ITEM_DATA.getItemTemplate(need.item());
    if(template==null || !CentralMarketService.eligible(template)

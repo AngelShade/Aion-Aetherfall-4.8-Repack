@@ -44,6 +44,16 @@ public final class PlayerBotLedgeLeap {
    return now-since;
   }
  }
+ /** Leaps this bot may spend in a window. Past that, more leaps would only take it further from wherever it was going. */
+ static final class Budget {
+  static final int LEAPS=2;
+  static final long WINDOW_MS=300000;
+  private long first;
+  private int used;
+  boolean spent(long now){if(used>0 && now-first>=WINDOW_MS)used=0;return used>=LEAPS;}
+  void spend(long now){if(used==0 || now-first>=WINDOW_MS){first=now;used=0;}used++;}
+  void clear(){used=0;}
+ }
  static Tier tier(long stalled){return stalled>=RELOCATE_MS?Tier.RELOCATE:stalled>=GHOST_MS?Tier.GHOST:stalled>=LEAP_MS?Tier.LEAP:Tier.NONE;}
 
  public record Landing(float x,float y,float z,boolean open) {}

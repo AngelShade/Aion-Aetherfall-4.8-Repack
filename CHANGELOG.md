@@ -5,7 +5,11 @@
 - Large companion parties keep their line formation close, and companions can equip stat-bearing remodel armor they own or earn.
 - The companion equipment window lets you inspect equipped Stigmas and other items outside the paperdoll.
 - Road Wardens can still offer rescue after you reconnect while dead from a monster attack.
-- Bots no longer pile up on rock ledges. A bot that stops getting anywhere now leaps down and carries on.
+- Bots no longer pile up on rock ledges. A stuck bot leaps down, or moves to a new hunting spot if that fails.
+- New bots start out against monsters they can beat, instead of dying and reappearing over and over in starter zones.
+- Bots hunt elite monsters for the gear they want, and ask for help when one is too strong for them.
+- Bots buy gear on the Central Market with budgets that match their level.
+- Bots keep fighting instead of healing themselves too early, and no longer stand around for hours on empty maps.
 - Summon now works while your Find Group party waits at a dungeon, brings everyone who can come, and explains who couldn't.
 - Targeting yourself or a monster no longer blocks Summon.
 - Dungeon parties from Find Group keep filling after you join, and late arrivals wait with the group instead of teleporting to you.

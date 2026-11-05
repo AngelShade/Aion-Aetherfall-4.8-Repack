@@ -5,7 +5,7 @@
 package com.aionemu.gameserver.services.playerbot;
 
 final class PlayerBotRecoveryPolicy {
- static final double LOW_HEALTH=45, LOW_MANA=15, RECOVERED=85;
+ static final double LOW_HEALTH=45, LOW_MANA=15, RECOVERED=85, SELF_IN_COMBAT=60;
  static double healthLimit(boolean recovering,boolean combat) { return combat || recovering ? RECOVERED : LOW_HEALTH; }
  static double manaLimit(boolean recovering,boolean combat) { return combat ? 40 : recovering ? RECOVERED : LOW_MANA; }
  static boolean recover(double health,double mana,boolean recovering,boolean engaged) {
@@ -15,6 +15,8 @@ final class PlayerBotRecoveryPolicy {
  static boolean ready(double health,double mana,boolean recovering) {
   return valid(health,mana) && health>0 && !recover(health,mana,recovering,false);
  }
+ /** Mid-fight, only a healer tops itself up early. Everyone else keeps hitting until a heal is worth the lost casts. */
+ static double selfCombatLimit(PlayerBotRules.Role role,double limit){return role==PlayerBotRules.Role.HEALER?limit:Math.min(limit,SELF_IN_COMBAT);}
  private static boolean valid(double health,double mana) {
   return Double.isFinite(health) && Double.isFinite(mana) && health>=0 && mana>=0;
  }
