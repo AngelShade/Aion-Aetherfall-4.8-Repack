@@ -58,6 +58,9 @@ public class CraftItem extends CraftReward {
 
 	@Override
 	protected boolean matchesQuest(QuestTemplate questTemplate) {
+		// A MATERIAL quest is not a crafting task; the bonus level alone picks its materials.
+		if (questTemplate.getBonus().getType() == BonusType.MATERIAL)
+			return true;
 		if (!super.matchesQuest(questTemplate))
 			return false;
 		if (questTemplate.getCombineSkillPoint() < minLevel)

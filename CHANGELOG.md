@@ -34,6 +34,8 @@ Characters look better than ever up close, with repainted faces and silky, glowi
 
 ### Fixed
 
+- A Map Made of Stone now gives you its random crafting design.
+- Pollution Solution now gives you its crafting materials, and fortress quests pay their bonus medals.
 - You have the intended time to use a chain skill after the previous skill hits.
 - You leave the world as soon as quitting finishes; losing your connection keeps your character in the world for ten seconds.
 - You can finish affected campaign quests without missing conversations or stalled steps.

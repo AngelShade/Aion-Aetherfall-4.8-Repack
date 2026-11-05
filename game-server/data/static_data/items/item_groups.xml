@@ -4563,6 +4563,22 @@
 		<item id="182005206" level="6" count="1" chance="67"/>
 		<item id="186000242" level="6" count="1" chance="33"/>
 	</medals>
+	<fortress_medals bonusType="FORTRESS" chance="100">
+		<item id="182005205" level="40" count="1" chance="59"/>
+		<item id="186000031" level="40" count="2" chance="22"/>
+		<item id="186000030" level="40" count="1" chance="19"/>
+		<item id="182005206" level="50" count="1" chance="67"/>
+		<item id="186000096" level="50" count="1" chance="13.5"/>
+		<item id="186000147" level="50" count="1" chance="10"/>
+		<item id="186000096" level="50" count="2" chance="6.5"/>
+		<item id="186000147" level="50" count="2" chance="3"/>
+		<item id="182005206" level="65" count="1" chance="67"/>
+		<item id="186000243" level="65" count="1" chance="18.4"/>
+		<item id="186000242" level="65" count="1" chance="12.3"/>
+		<item id="186000242" level="65" count="2" chance="1.7"/>
+		<item id="186000242" level="65" count="3" chance="0.5"/>
+		<item id="186000242" level="65" count="4" chance="0.1"/>
+	</fortress_medals>
 	<food bonusType="FOOD" chance="100">
 		<item id="152015001" level="30"/>
 		<item id="152015004" level="40"/>

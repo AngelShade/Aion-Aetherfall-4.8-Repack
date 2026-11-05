@@ -41,6 +41,9 @@ public class CraftRecipe extends CraftReward {
 
 	@Override
 	protected boolean matchesQuest(QuestTemplate questTemplate) {
+		// A RECIPE quest is not a crafting task; the bonus level alone picks its designs.
+		if (questTemplate.getBonus().getType() == BonusType.RECIPE)
+			return true;
 		if (!super.matchesQuest(questTemplate))
 			return false;
 		if (questTemplate.getCombineSkillPoint() < level)

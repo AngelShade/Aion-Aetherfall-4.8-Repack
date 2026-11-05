@@ -73,6 +73,12 @@ public class BonusService {
 				return DataManager.ITEM_GROUPS_DATA.getMedalGroups();
 			case TASK:
 				return DataManager.ITEM_GROUPS_DATA.getCraftGroups();
+			case RECIPE:
+				return DataManager.ITEM_GROUPS_DATA.getRecipeGroups();
+			case MATERIAL:
+				return DataManager.ITEM_GROUPS_DATA.getMaterialGroups();
+			case FORTRESS:
+				return DataManager.ITEM_GROUPS_DATA.getFortressGroups();
 			case MOVIE:
 			case NONE:
 				break;

@@ -73,6 +73,9 @@ public class ItemGroupsData {
 	@XmlElement(name = "gather_rare")
 	private GatherGroup gatherRare;
 
+	@XmlElement(name = "fortress_medals")
+	private MedalGroup fortressMedals;
+
 	@XmlElement(name = "enchants")
 	private EnchantGroup enchants;
 
@@ -143,6 +146,7 @@ public class ItemGroupsData {
 	private List<BonusItemGroup> manastoneGroups;
 	private List<BonusItemGroup> magicalGroups;
 	private List<BonusItemGroup> medalGroups;
+	private List<BonusItemGroup> fortressGroups;
 	private List<BonusItemGroup> foodGroups;
 	private List<BonusItemGroup> medicineGroups;
 	private List<BonusItemGroup> gatherGroups;
@@ -161,6 +165,9 @@ public class ItemGroupsData {
 			throw new IllegalArgumentException("MAGICAL quest reward pool is missing or empty");
 		magicalGroups = Collections.singletonList(magical);
 		medalGroups = Collections.singletonList(medals);
+		if (fortressMedals == null || fortressMedals.getItems().isEmpty())
+			throw new IllegalArgumentException("FORTRESS quest reward pool is missing or empty");
+		fortressGroups = Collections.singletonList(fortressMedals);
 		foodGroups = Collections.singletonList(food);
 		medicineGroups = Arrays.asList(medicineCommon, medicineRare, medicineLegendary);
 		gatherGroups = Arrays.asList(gatherRare, oresRare, oresLegendary, oresUnique, oresEpic);
@@ -182,6 +189,18 @@ public class ItemGroupsData {
 
 	public List<BonusItemGroup> getCraftGroups() {
 		return craftGroups;
+	}
+
+	public List<BonusItemGroup> getRecipeGroups() {
+		return Arrays.asList(craftRecipes);
+	}
+
+	public List<BonusItemGroup> getMaterialGroups() {
+		return Arrays.asList(craftMaterials);
+	}
+
+	public List<BonusItemGroup> getFortressGroups() {
+		return fortressGroups;
 	}
 
 	public List<BonusItemGroup> getManastoneGroups() {
@@ -316,7 +335,7 @@ public class ItemGroupsData {
 			+ medicineRare.getItems().size() + medicineLegendary.getItems().size() + oresRare.getItems().size() + oresLegendary.getItems().size()
 			+ oresUnique.getItems().size() + oresEpic.getItems().size() + gatherRare.getItems().size() + enchants.getItems().size()
 			+ events.getItems().size() + bossRare.getItems().size() + bossLegendary.getItems().size()
-			+ magical.getItems().size();
+			+ magical.getItems().size() + fortressMedals.getItems().size();
 	}
 
 	public int petFoodSize() {
