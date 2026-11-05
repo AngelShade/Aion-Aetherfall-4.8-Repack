@@ -222,7 +222,7 @@ public final class PlayerBotProfessions {
   if(dormant && PlayerBotMarket.idle(session,true))return true;
   if(PlayerBotWarehouse.profession(session))return true;
   if(s.plan!=null && s.plan.stage()==Stage.TRAIN && train(session,s.plan.skillId()))return true;
-  if(s.plan!=null && s.plan.stage()==Stage.LEARN_RECIPE){int design=designItem(s.bot,s.plan.recipeId());if(learnRecipe(s.bot,s.plan.recipeId())){DESIGNS.increment();invalidate(s.bot);learned(session);return true;}
+  if(s.plan!=null && s.plan.stage()==Stage.LEARN_RECIPE){int design=designItem(s.bot,s.plan.recipeId());if(learnRecipe(s.bot,s.plan.recipeId())){DESIGNS.increment();invalidate(s.bot);learned(session);setupDone(s);return true;}
    if(design>0)return shop(session,design,1);return false;}
   if(s.plan!=null && s.plan.stage()==Stage.CRAFT)return craft(session,s.plan,now);
   if(dormant && !s.gather.isEmpty())return gather(session,now);
@@ -233,9 +233,11 @@ public final class PlayerBotProfessions {
  private static void learned(PlayerBotSession session){try{PlayerBotService.getInstance().checkpointForOwnerAction(session);}catch(java.sql.SQLException error){log.warn("World bot {} recipe checkpoint deferred to the next save",session.bot().getObjectId(),error);}}
  static boolean train(PlayerBotSession session,int skill){var s=state(session.bot());int points=PlayerBotProfessionCatalog.points(s.bot,skill);Integer cost=Profession.getBySkillId(skill).getUpgradeCost(points);
   if(cost==null || cost>allowance(session,true) || !PlayerBotProfessionCatalog.trainer(s.bot.getRace(),skill))return false;
-  if(!CraftSkillUpdateService.getInstance().learnBackground(s.bot,skill))return false;paid(session,cost,true);TRAINED.increment();invalidate(s.bot);return true;}
+  if(!CraftSkillUpdateService.getInstance().learnBackground(s.bot,skill))return false;paid(session,cost,true);TRAINED.increment();invalidate(s.bot);setupDone(s);return true;}
+ /** Training, learning and buying only prepare the real work, so the next turn comes soon. Otherwise a new crafter waits about an hour for its first attempt. */
+ private static void setupDone(State s){s.next=Math.min(s.next,System.currentTimeMillis()+PlayerBotEconomyConfig.PROFESSIONS_SETUP_RETRY_SECONDS*1000L);}
  static boolean shop(PlayerBotSession session,int item,long quantity){var s=state(session.bot());if(quantity<=0 || held(s.bot,item)>=limit(s))return false;
-  long before=s.bot.getInventory().getKinah();for(var seller:PlayerBotProfessionCatalog.sellers(s.bot.getRace(),item))if(com.aionemu.gameserver.services.TradeService.backgroundPurchase(s.bot,seller.npc(),seller.rate(),item,quantity,allowance(session,false))){paid(session,before-s.bot.getInventory().getKinah(),false);invalidate(s.bot);return true;}return false;}
+  long before=s.bot.getInventory().getKinah();for(var seller:PlayerBotProfessionCatalog.sellers(s.bot.getRace(),item))if(com.aionemu.gameserver.services.TradeService.backgroundPurchase(s.bot,seller.npc(),seller.rate(),item,quantity,allowance(session,false))){paid(session,before-s.bot.getInventory().getKinah(),false);invalidate(s.bot);setupDone(s);return true;}return false;}
  static boolean legalInputs(Player bot,Map<Integer,Long> materials){for(var e:materials.entrySet()){long eligible=0;for(var item:bot.getInventory().getItemsByItemId(e.getKey()))if(!PlayerBotGearPolicy.generated(bot,item) && !PlayerBotRoadMerchants.merchandise(bot,item) && !PlayerBotCare.worldQuestItem(bot,item.getItemId()))eligible+=item.getItemCount();if(eligible<e.getValue())return false;}return true;}
  static long cost(Map<Integer,Long> materials){long cost=0;for(var e:materials.entrySet()){var t=DataManager.ITEM_DATA.getItemTemplate(e.getKey());if(t==null)return Long.MAX_VALUE;try{cost=Math.addExact(cost,Math.multiplyExact(e.getValue(),Math.max(1,EconomyPrices.replacement(t))));}catch(ArithmeticException overflow){return Long.MAX_VALUE;}}return cost;}
  static boolean craft(PlayerBotSession session,Plan plan,long now){var s=state(session.bot());var recipe=DataManager.RECIPE_DATA.getRecipeTemplateById(plan.recipeId());if(recipe==null)return false;

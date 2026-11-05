@@ -119,6 +119,8 @@ public final class PlayerBotEconomyConfig {
  public static int PROFESSIONS_BACKGROUND_INTERVAL_SECONDS = 600;
  @Property(key = "gameserver.playerbots.professions.gather_seconds", defaultValue = "60")
  public static int PROFESSIONS_GATHER_SECONDS = 60;
+ @Property(key = "gameserver.playerbots.professions.setup_retry_seconds", defaultValue = "60")
+ public static int PROFESSIONS_SETUP_RETRY_SECONDS = 60;
  @Property(key = "gameserver.playerbots.professions.background_gather_batch", defaultValue = "10")
  public static int PROFESSIONS_BACKGROUND_GATHER_BATCH = 10;
  @Property(key = "gameserver.playerbots.professions.background_craft_batch", defaultValue = "3")
@@ -173,8 +175,8 @@ public final class PlayerBotEconomyConfig {
  public static int PROFESSIONS_MARKET_VARIANTS_PER_MINUTE = 60;
  @Property(key = "gameserver.playerbots.professions.market_cache_entries", defaultValue = "256")
  public static int PROFESSIONS_MARKET_CACHE_ENTRIES = 256;
- @Property(key = "gameserver.playerbots.professions.market_wait_seconds", defaultValue = "900")
- public static int PROFESSIONS_MARKET_WAIT_SECONDS = 900;
+ @Property(key = "gameserver.playerbots.professions.market_wait_seconds", defaultValue = "600")
+ public static int PROFESSIONS_MARKET_WAIT_SECONDS = 600;
  @Property(key = "gameserver.playerbots.professions.census_refresh_seconds", defaultValue = "900")
  public static int PROFESSIONS_CENSUS_REFRESH_SECONDS = 900;
 }

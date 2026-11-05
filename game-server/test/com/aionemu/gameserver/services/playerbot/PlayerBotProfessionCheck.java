@@ -113,6 +113,7 @@ public final class PlayerBotProfessionCheck {
   check(market.contains("PlayerBotProfessions.sold(bot,") && !professions.contains("costAfterOffer(s.number(\"cost.\"+item),held(bot,item),quantity)"),"cost stays with goods through a listing");
   check(professions.contains("r.getSkillpoint()<=points"),"a gear goal above the bot's skill cannot hold its plan");
   check(professions.contains("RESTORED.add("),"a reload does not count offers twice");
+  check(professions.split(java.util.regex.Pattern.quote("setupDone(s);")).length==4,"training, learning and buying each bring the next turn forward, so a new crafter starts within minutes");
   System.out.println("OK: "+checks+" world trade rule checks");
  }
  private PlayerBotProfessionCheck(){}
