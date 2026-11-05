@@ -15,10 +15,10 @@ import subprocess
 import sys
 
 HERE = Path(__file__).resolve().parent
-NATIVE_VERSION = '1.3.5'  # Show location opens the map without the market window.
+NATIVE_VERSION = '1.3.6'  # Gear rarity and combat rank for bots on native windows.
 PAK = 'Plugin/RelicCalc/RelicCalc.pak'
 PLUGIN_COHORT = [PAK, PAK + '.sig', 'Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig']
-VERSION = '1.2.92'  # The spirit bar can be moved and no longer hides its auto-attack toggle.
+VERSION = '1.2.93'  # Gear rarity and combat rank labels beside bots on the target and party windows.
 LUA = 'AetherfallCore.lua'
 ADDON = ['AetherfallCore.lua', 'AetherfallLayout.lua', 'AetherfallLazy.lua', 'AetherfallHUD.lua', 'AetherfallOptions.lua',
          'AetherfallHUD.xml']
@@ -184,6 +184,31 @@ def update_options_xml(xml):
                   lambda m: m[1] + b'"' + str(count).encode() + b'"', updated, count=1)
 
 
+def identity_dialog(parent):
+    """Bot rarity and rank labels, drawn over the native target and party windows. Takes no input."""
+    import xml.etree.ElementTree as E
+    d = E.SubElement(parent, 'Dialog', name='AFHIdentity', frame='0,0,3840,2160',
+                     flag='transparent;not_visible;not_movable;not_active')
+    for name, align in [('T', 'center')] + [('P%d' % i, 'left') for i in range(1, 7)]:
+        E.SubElement(d, 'Widget', type='static', name='AFHIdentity' + name, frame='0,0,170,18', font='ui_default',
+                     HAlign=align, flag='not_active;truncate;not_multiline;not_wordwrap')
+    return d
+
+
+def identity_update_xml(payload):
+    """Add only this dialog, like the target overlay; every other installed plugin layout byte stays as it is."""
+    import re
+    import xml.etree.ElementTree as E
+    if b'name="AFHIdentity"' in payload:
+        return payload
+    if payload.count(b'</Screen>') != 1:
+        raise ValueError('Unexpected HUD XML')
+    holder = E.Element('Screen')
+    result = payload.replace(b'</Screen>', E.tostring(identity_dialog(holder), encoding='utf-8') + b'\n</Screen>')
+    count = sum(1 for node in E.fromstring(result).iter() if node.tag in ('Dialog', 'Widget'))
+    return re.sub(rb'widget_cnt="\d+"', f'widget_cnt="{count}"'.encode(), result, count=1)
+
+
 def hud_xml():
     """AetherfallHUD.xml: the dialogs built when the plugin loads."""
     import xml.etree.ElementTree as E
@@ -240,6 +265,7 @@ def main():
     parser.add_argument('--codex-browser-update', action='store_true', help='with --codex-update, build the matching browser handoff bridge without rebuilding unchanged item/UI indexes')
     parser.add_argument('--marketplace-window-update', action='store_true', help='update the installed windowed Marketplace controller while retaining native layouts and bridge')
     parser.add_argument('--help-requests-update', action='store_true', help='extend the installed Companions menu owner for the native LFG Help requests button')
+    parser.add_argument('--companion-identity-update', action='store_true', help='add the bot rarity and rank labels to the installed HUD layout')
     parser.add_argument('--client-mods', type=Path, default=HERE.parent, help='maintained client-mods folder (helpers)')
     args = parser.parse_args()
     if not args.plugin_only and f'CORE_VERSION[]="{NATIVE_VERSION}"' not in (HERE / 'aetherfall_core.cpp').read_text(encoding='utf-8'):
@@ -274,6 +300,8 @@ def main():
         parser.error('--codex-controller-update requires --retain-layout or --plugin-only, without --codex-update')
     if args.codex_browser_update and not args.codex_update:
         parser.error('--codex-browser-update requires --codex-update and its native layout cohort')
+    if args.companion_identity_update and (not args.retain_layout or args.plugin_only):
+        parser.error('--companion-identity-update requires --retain-layout and the matching native build')
     if args.help_requests_update and (not args.retain_layout or not args.update or args.dll_only or args.plugin_only):
         parser.error('--help-requests-update requires --update --retain-layout and the matching native build')
     if args.help_requests_update and any(value for name, value in vars(args).items() if name.endswith('_update') and name != 'help_requests_update'):
@@ -482,6 +510,8 @@ def main():
             if args.target_overlay_update:
                 from target_details import repair_overlay_xml
                 changes['AetherfallHUD.xml'] = repair_overlay_xml(changes.get('AetherfallHUD.xml', xml))
+            if args.companion_identity_update:
+                changes['AetherfallHUD.xml'] = identity_update_xml(changes.get('AetherfallHUD.xml', xml))
             if args.target_foreground_update:
                 from target_details import prepare_foreground
                 prepare_foreground(client, stage, original, extend_archive, read_pak)

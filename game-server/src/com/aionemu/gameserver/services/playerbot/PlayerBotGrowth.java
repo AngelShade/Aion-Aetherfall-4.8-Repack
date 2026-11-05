@@ -269,6 +269,22 @@ public final class PlayerBotGrowth {
    return rank==null?0:rank.mistakePercent();
   } catch(IOException | RuntimeException e) { return 0; }
  }
+ private static String title(Enum<?> value){String name=value.name();return name.charAt(0)+name.substring(1).toLowerCase(java.util.Locale.ROOT);}
+ static String identityLine(String name,GearRarity rarity,CombatRank rank){return name+"|"+title(rarity)+"|"+title(rank);}
+ /** "Great gear, Good rank" for a bot's hire question, or empty if it has no growth record. */
+ static String identityText(Player bot){try{var p=profile(bot);return p.traitsAssigned()?title(p.autoEquipRarity())+" gear, "+title(p.combatRank())+" rank":"";}catch(IOException | RuntimeException none){return "";}}
+ /** Lines of name|rarity|rank for the bots among these comma-separated names. Reads only the live world and each bot's cached profile. */
+ public static String identities(String names) {
+  var out=new StringBuilder();int asked=0;
+  for(String name:names.split(",")) {
+   if(name.isBlank() || name.length()>64 || ++asked>24)continue;
+   var player=com.aionemu.gameserver.world.World.getInstance().getPlayer(name);
+   if(player==null || !player.isPlayerBot())continue;
+   try{var profile=profile(player);if(profile.traitsAssigned())out.append(identityLine(player.getName(),profile.autoEquipRarity(),profile.combatRank())).append('\n');}
+   catch(IOException | RuntimeException noIdentity){/* A bot with no growth record simply shows no label. */}
+  }
+  return out.toString();
+ }
  static GearRarity rarity(Player bot) {
   try { return profile(bot).autoEquipRarity(); } catch(IOException | RuntimeException e) { return null; }
  }

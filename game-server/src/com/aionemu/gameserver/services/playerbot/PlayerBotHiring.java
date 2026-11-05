@@ -109,6 +109,7 @@ public final class PlayerBotHiring {
   return out;
  }
  /** Text before the native "m" of QUESTION, so the box reads "... 2,250 Kinah / 60m". */
+ static String prompt(String name,String identity,long fee,int minutes){return prompt(identity.isEmpty()?name:name+" ("+identity+")",fee,minutes);}
  static String prompt(String name,long fee,int minutes) {
   return String.format(Locale.US,"Hire %s? One payment to the helper. No renewal or refund after joining. Disconnect, dismiss or leave ends it. Failed join costs nothing. %,d Kinah / %d",name,fee,minutes);
  }
@@ -170,7 +171,7 @@ public final class PlayerBotHiring {
     if(!owner.isOnline()){if(responded.compareAndSet(false,true))ASKED.remove(key,id);return;}
     PacketSendUtility.sendMessage(owner,"Your Hire quote expired. Close its window and press Invite again for current terms. No Kinah was charged.");
    },Math.max(1,quote.quoteUntil()-System.currentTimeMillis()));
-   PacketSendUtility.sendPacket(owner,new SM_QUESTION_WINDOW(QUESTION,0,0,prompt(name,quote.fee(),(int)(quote.duration()/60000))));
+   PacketSendUtility.sendPacket(owner,new SM_QUESTION_WINDOW(QUESTION,0,0,prompt(name,PlayerBotGrowth.identityText(bot(name)),quote.fee(),(int)(quote.duration()/60000))));
   }catch(RuntimeException error) {
    if(responded.compareAndSet(false,true) && ASKED.remove(key,id))owner.getResponseRequester().remove(QUESTION);
    throw error;

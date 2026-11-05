@@ -38,6 +38,9 @@ final class PlayerBotWorldActivities {
  /** One bot hunts a monster for an equipment goal at a time, so bots wanting the same item split up. */
  private static final Map<Integer,State> GOAL_CLAIMS=new ConcurrentHashMap<>();
  static long goalHuntsStarted(){return GOAL_HUNTS.get();}
+ private static final java.util.concurrent.atomic.AtomicLong HUNT_CHECKS=new java.util.concurrent.atomic.AtomicLong(),HUNT_NO_FIT=new java.util.concurrent.atomic.AtomicLong(),HUNT_NO_PLACE=new java.util.concurrent.atomic.AtomicLong();
+ /** Why hunts did or did not start, so a live report explains a zero. Only awake bots ever check. */
+ static String huntStats(){return "hunt checks="+HUNT_CHECKS.get()+", no monster it can fight alone="+HUNT_NO_FIT.get()+", no reachable place="+HUNT_NO_PLACE.get();}
  static boolean goalHuntTravel(Player bot){var s=STATES.get(bot.getObjectId());return s!=null && s.goal!=null && s.goal.equals(s.goalHunt);}
  private static final Map<Integer,State> STATES=new ConcurrentHashMap<>();
  private record Destination(int quest,PlayerBotQuestRoutes.Kind kind,int npc) {}
@@ -249,9 +252,12 @@ final class PlayerBotWorldActivities {
   if(!com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.ECONOMY_ENABLED || !com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.WORLD_GOALS_HUNT || now<s.nextGoalHunt)return null;
   var npcs=PlayerBotGearPolicy.goalDrops(bot).stream().filter(npc->goalHuntable(bot,npc)).filter(npc->GOAL_CLAIMS.getOrDefault(npc,s)==s).toList();
   // Goals are refreshed after a bot first decides, so having none yet costs a short wait, not the whole interval.
-  if(npcs.isEmpty()){s.goalHunt=null;s.nextGoalHunt=now+60000;return null;}
+  HUNT_CHECKS.incrementAndGet();
+  if(npcs.isEmpty()){HUNT_NO_FIT.incrementAndGet();s.goalHunt=null;s.nextGoalHunt=now+60000;return null;}
   s.nextGoalHunt=now+Math.max(60,com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.WORLD_GOALS_HUNT_INTERVAL_SECONDS)*1000L;
   var chosen=available(bot,List.of(new Request(0,PlayerBotQuestRoutes.Kind.HUNT,npcs)),s,now,distances,LOCAL_THEN_ALL);
+  // Bots are only awake while a player is on their map, so waiting the full interval after a miss could lose the chance.
+  if(chosen==null){HUNT_NO_PLACE.incrementAndGet();s.nextGoalHunt=Math.min(s.nextGoalHunt,now+300000);}
   if(chosen!=null && GOAL_CLAIMS.putIfAbsent(chosen.place().npc(),s) instanceof State other && other!=s)chosen=null;
   s.goalHunt=chosen;if(chosen!=null)GOAL_HUNTS.incrementAndGet();
   return chosen;

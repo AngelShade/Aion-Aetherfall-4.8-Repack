@@ -49,6 +49,8 @@ function AFCore.NumAuras(unit) if core then return core("auras", unit) end end
 function AFCore.Aura(unit, index) if core then return core("aura", unit, index) end end
 -- object id, name, level, hp, max hp, mp, max mp ("target", "targettarget")
 function AFCore.Unit(unit) if core then return core("unit", unit) end end
+--- A bot's gear rarity and combat rank, or nil for anyone else or until the server has answered.
+function AFCore.Identity(name) if core then return core("identity", name) end end
 function AFCore.PlayerId() if core then return core("playerid") end end
 function AFCore.SkillName(id) if core then return core("skill", id) end end
 -- type, template id, id, count, cooldown value, cooldown max, shown

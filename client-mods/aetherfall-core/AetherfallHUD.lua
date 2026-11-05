@@ -284,6 +284,7 @@ local function hideall()
     if AFCore.ClearBackdrops then AFCore.ClearBackdrops() end
     show('Top', false); show('Chat', false); show('Map', false)
     if w('Target') then show('Target', false) end
+    if w('Identity') then show('Identity', false) end
     for i = 1, POOL do show('T' .. i, false) end
 end
 
@@ -299,10 +300,42 @@ function AFHUD_Apply()
     if H.on then AFHUD_Update() end
 end
 
+-- One label beside each bot on the native target and party windows: its fixed gear rarity,
+-- coloured, and its separate growing combat rank, both always named.
+local RARITY_COLOUR = {Poor = '0.79,0.82,0.85,1.0', Ordinary = '0.50,0.83,0.54,1.0', Good = '0.44,0.72,1.0,1.0',
+    Great = '0.76,0.56,1.0,1.0', Excellent = '1.0,0.74,0.35,1.0'}
+local function identitylabel(id, name, x, y, width, align)
+    local rarity, rank
+    if name and name ~= '' then rarity, rank = AFCore.Identity(name) end
+    if not rarity then settext(id, ''); return false end
+    place(id, x, y, width, 18)
+    settext(id, rarity .. ' gear | ' .. tostring(rank) .. ' rank', RARITY_COLOUR[rarity] or '1.0,1.0,1.0,1.0')
+    return true
+end
+function AFHUD_Identity()
+    if not w('Identity') or not AFCore.Identity then return end
+    local s = scale(); local any = false
+    local tname, tx, ty, twidth, _, tshown = AFCore.Dialog(D.target)
+    local id, unit = AFCore.Unit('target')
+    if tshown and tname == 'target_dialog' and id and id > 0 then
+        any = identitylabel('IdentityT', unit, tx, ty - 18, twidth) or any
+    else settext('IdentityT', '') end
+    for i = 1, 6 do
+        local row = 'ctn_member' .. i
+        local x, y, width, _, visible = AFCore.Rect(D.party, row, 'any')
+        if x and visible then any = identitylabel('IdentityP' .. i, AFCore.Text(D.party, row .. '/title'), x + width + 4, y + 2, 170) or any
+        else settext('IdentityP' .. i, '') end
+    end
+    show('Identity', any)
+    if any then w('Identity'):SetPosForced(0, 0) end
+end
 function AFHUD_Update()
     if not H.on then return end
     if AFUI and AFUI.ready ~= nil and (not AFUI.ready or not AFUI.settled) then return end
     local ok, why = pcall(function() databar(); chatpanel(); minimapinfo(); auratimers(); AFHUD_TargetDetails() end)
+    if not ok then H.error = why end
+    -- Labels stay separate so a problem here can never stop the rest of the HUD updating.
+    ok, why = pcall(AFHUD_Identity)
     if not ok then H.error = why end
 end
 function AFHUD_Invalidate() H.shown = {}; H.text = {} end

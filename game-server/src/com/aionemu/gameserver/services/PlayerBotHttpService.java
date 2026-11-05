@@ -46,6 +46,12 @@ public final class PlayerBotHttpService {
 				String title = PlayerBotHelpObjectives.title(helper).replace('\n',' ').replace('\r',' ');
 				send(exchange, 200, "text/plain", "journal".equals(helpQuery.get("format")) ? title + "\n" + PlayerBotHelpObjectives.progress(helper) : title); return;
 			}
+			if (method.equals("GET") && path.equals("/market/companions/identity")) {
+				var identityQuery = parse(exchange.getRequestURI().getRawQuery());
+				Player viewer = MarketplaceService.findPlayer(identityQuery.getOrDefault("session_id", ""));
+				if (viewer == null || !viewer.isOnline() || viewer.isPlayerBot()) { send(exchange, 403, "text/plain", ""); return; }
+				send(exchange, 200, "text/plain", PlayerBotGrowth.identities(identityQuery.getOrDefault("names", ""))); return;
+			}
 			boolean mutation = path.equals("/market/companions/action");
 			if (!mutation && !path.equals("/market/companions/state")) { send(exchange, 404, "text/plain", "Not found"); return; }
 			if (!(mutation ? method.equals("POST") : method.equals("GET"))) { send(exchange, 405, "text/plain", "Method not allowed"); return; }

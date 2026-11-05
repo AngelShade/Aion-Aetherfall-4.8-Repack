@@ -16,6 +16,13 @@
 #include <future>
 #include <optional>
 #include <winhttp.h>
+#include <atomic>
+#include <map>
+#include <mutex>
+#include <set>
+#include <system_error>
+#include <thread>
+#include <vector>
 #include "../shared/web_endpoint.h"
 #pragma comment(lib, "winhttp.lib")
 #pragma comment(lib, "user32.lib")  // cursor and button state for addon dragging ("cursor")
@@ -35,7 +42,7 @@
 // remain native and unchanged.
 namespace {
 using Ptr=void*;
-constexpr char CORE_VERSION[]="1.3.5";  // Show location opens the map without the market window.
+constexpr char CORE_VERSION[]="1.3.6";  // Show location opens the map without the market window.
 constexpr uintptr_t PREFERRED=0x10000000;  // Game.dll has no relocations.
 unsigned char* image=nullptr;
 unsigned char* game(){return image;}
@@ -789,6 +796,7 @@ bool hook(Ptr d){
 // a policy never changes an object's identity or writes into a retired object.
 #include "loot_codex.h"
 #include "lfg_hire.h"
+#include "companion_identity.h"
 
 void unhook(Ptr d){
     (void)d;
@@ -983,6 +991,7 @@ int dispatch(Ptr L){
         return 4+boolean(L,effectively_shown(d) && effectively_shown(w));
     }
     if(is(cmd,"hireterms"))return boolean(L,hire_terms::poll());
+    if(is(cmd,"identity"))return companion_identity::query(L,text(L,2));
     if(is(cmd,"helpview")){help_view_until=GetTickCount64()+30000;return boolean(L,true);}
     if(is(cmd,"slashes"))return boolean(L,slash_names::publish(text(L,2),text_length(L,2)));
     if(is(cmd,"widget")){

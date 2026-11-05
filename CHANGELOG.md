@@ -22,6 +22,7 @@ Characters look better than ever up close, with repainted faces and silky, glowi
 
 ### New
 
+- See a bot's gear rarity and combat rank beside the target and party windows, and in the Find Group hire question.
 - World bots now have real trades. They gather and craft even on maps with no player, using real materials and their own Kinah.
 - Bots trade through the Central Market: gatherers keep it stocked, and crafters post buy orders you can sell into.
 - Bots differ in how they trade. Some sell little and often, while hoarders build up big stocks and sell in large lots.
