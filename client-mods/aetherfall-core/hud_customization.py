@@ -7,6 +7,7 @@ import re
 import xml.etree.ElementTree as E
 from pathlib import Path
 import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'dxvk'))
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'expanded-warehouse'))
 from codec import binary_xml, encode_binary_xml
@@ -82,6 +83,10 @@ def prepare(client, stage, original, extend_archive, read_pak, *, restore_border
     if state['Applied'] != 'layout':
         raise ValueError('Enable the Full HUD layout before preparing this update')
     manifest = json.loads(original('Mods/AetherfallUI/manifest.json'))
+    from client_ownership import independent, verify as verify_parts
+    independent_graphics = independent(client)
+    if independent_graphics:
+        verify_parts(client)
     graphics = json.loads(original('Mods/GraphicsMenu/installed.json'))
     package = json.loads(original('Mods/GraphicsMenu/package/manifest.json'))
     if graphics.get('restoredAt') or graphics['files'] != package['files']:
@@ -109,18 +114,19 @@ def prepare(client, stage, original, extend_archive, read_pak, *, restore_border
                     stage(blob, gzip.compress(replacement, mtime=0))
         data = extend_archive(source, replacements, {})
         stage(rel, data)
-        record = next((e for e in graphics['files'] if e['path'].lower() == rel.lower()), None)
-        if record:
-            package_rel = 'Mods/GraphicsMenu/package/' + record['path']
-            if sha(source) != record['installed'] or sha(original(package_rel)) != record['installed']:
-                raise ValueError('Active/package Graphics menu hashes differ')
-            stage(package_rel, data)
-            for records in (graphics['files'], package['files']):
-                next(e for e in records if e['path'].lower() == rel.lower())['installed'] = sha(data)
+        if not independent_graphics:
+            record = next((e for e in graphics['files'] if e['path'].lower() == rel.lower()), None)
+            if record:
+                package_rel = 'Mods/GraphicsMenu/package/' + record['path']
+                if sha(source) != record['installed'] or sha(original(package_rel)) != record['installed']:
+                    raise ValueError('Active/package Graphics menu hashes differ')
+                stage(package_rel, data)
+                for records in (graphics['files'], package['files']):
+                    next(e for e in records if e['path'].lower() == rel.lower())['installed'] = sha(data)
         affected.append((rel, data))
         if rel.lower() == 'l10n/enu/data/data.pak':
             locale_replacements = replacements
-    if restore_border:
+    if restore_border and not independent_graphics:
         # Graphics removal must retain these interface layouts too. Preserve the
         # previous recovery folder and create a fresh matching restore cohort.
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'transmog-menu'))
@@ -141,8 +147,10 @@ def prepare(client, stage, original, extend_archive, read_pak, *, restore_border
             stage(new_backup + '/' + rel,baseline)
         graphics['backupRoot'] = str(client / new_backup)
     stage('Mods/AetherfallUI/manifest.json', json.dumps(manifest, indent=2).encode())
-    stage('Mods/GraphicsMenu/installed.json', json.dumps(graphics, indent=2).encode())
-    stage('Mods/GraphicsMenu/package/manifest.json', json.dumps(package, indent=2).encode())
+    if not independent_graphics:
+        stage('Mods/GraphicsMenu/installed.json', json.dumps(graphics, indent=2).encode())
+    if not independent_graphics:
+        stage('Mods/GraphicsMenu/package/manifest.json', json.dumps(package, indent=2).encode())
     inventory = json.loads(original('Mods/InstalledMods.json'))
     for records in inventory['features'].values():
         for entry in records:

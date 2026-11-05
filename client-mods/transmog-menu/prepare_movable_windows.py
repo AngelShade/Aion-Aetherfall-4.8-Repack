@@ -22,7 +22,7 @@ def main():
     out.mkdir(parents=True)
     _,graphics=prepare_incremental(root,out,dll)
     ui=[('Data/ui/game/game.pak',''),('L10N/enu/Data/data.pak','ui/game/')]
-    if graphics:
+    if graphics and graphics.get("ownershipSchema") != 2:
         state_path=out/'Mods/GraphicsMenu/installed.json'
         manifest_path=out/'Mods/GraphicsMenu/package/manifest.json'
         state=json.loads(state_path.read_text());graphics_manifest=json.loads(manifest_path.read_text())
@@ -32,13 +32,13 @@ def main():
         if not source.exists():raise ValueError('Expected English client UI')
         installed=patch_archive(source,prefix)
         destination=out/relative;destination.parent.mkdir(parents=True,exist_ok=True);destination.write_bytes(installed)
-        if graphics:
+        if graphics and graphics.get("ownershipSchema") != 2:
             record=next(e for e in state['files'] if e['path'].lower()==relative.lower())
             backup=baseline/record['path']
             original=patch_archive(backup,prefix);backup.write_bytes(original)
             (out/'Mods/GraphicsMenu/package'/record['path']).write_bytes(installed)
             record.update(original=hashlib.sha256(original).hexdigest(),installed=hashlib.sha256(installed).hexdigest())
-    if graphics:
+    if graphics and graphics.get("ownershipSchema") != 2:
         graphics_manifest['files']=state['files']
         state_path.write_text(json.dumps(state,indent=2));manifest_path.write_text(json.dumps(graphics_manifest,indent=2))
     preserved=['bin64/Game.dll','bin64/CrySystem.dll','bin64/AionIconBridge.dll','bin64/AionIconBridge.index',

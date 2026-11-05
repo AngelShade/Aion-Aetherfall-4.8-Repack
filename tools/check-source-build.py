@@ -78,6 +78,7 @@ TESTS['PlayerBotForcedFollowCheck']=20
 TESTS['PlayerBotWeaponStanceCheck']=193
 TESTS['PlayerBotHeightTraversalCheck']=104
 TESTS['PlayerBotLedgeLeapCheck']=85
+TESTS['PlayerBotEntranceSummonCheck']=35
 TESTS['PlayerBotTargetVisibilityCheck']=1845
 TESTS['PlayerBotQuestSkillCounterCheck']=311
 TESTS['PlayerBotQuestItemOfferCheck']=15
@@ -90,6 +91,11 @@ TESTS['PlayerBotQuestPrerequisitesCheck']=170
 TESTS['PlayerBotNativeQuestItemChainCheck']=168
 TESTS['PlayerBotNativeCraftingTaskCheck']=60
 TESTS['PlayerBotNativeGatheringTaskCheck']=107
+
+TESTS['WarehouseDepositCheck']=627
+
+def check_source(name):
+ return ROOT/'game-server/test/com/aionemu/gameserver'/('services/item' if name=='WarehouseDepositCheck' else 'services/playerbot')/(name+'.java')
 
 QUEST_TESTS={'EltnenLifeStoneDiaryCheck':1881,'KaligaQuestCreditCheck':424,'KaligaEncounterCheck':68,'NativeQuestActionsCheck':4377}
 QUEST_TESTS.update({'NativeSielQuestCheck':866,'NativeDispatchQuestCheck':552,'NativeDaevanionQuestCheck':2341,
@@ -122,7 +128,7 @@ def sha(path):
  with Path(path).open('rb') as stream:return hashlib.file_digest(stream,'sha256').hexdigest()
 
 def fixtures():
- return sorted(set(sorted((ROOT/'game-server/test/com/aionemu/gameserver/services/playerbot').glob('*.java'))+[ROOT/'game-server/test/com/aionemu/gameserver/ShutdownHookCheck.java']+quest_fixtures()+reviewed_native_fixtures()))
+ return sorted(set(sorted((ROOT/'game-server/test/com/aionemu/gameserver/services/playerbot').glob('*.java'))+[check_source('WarehouseDepositCheck'),ROOT/'game-server/test/com/aionemu/gameserver/ShutdownHookCheck.java']+quest_fixtures()+reviewed_native_fixtures()))
 
 def binding(build):
  libs=__import__('importlib').import_module('build-manifest').libraries(build)
@@ -191,7 +197,7 @@ def main():
   if len(a.only)!=len(set(a.only)):p.error('--only names must be unique')
   from importlib import import_module
   import_module('build-manifest').verify(build)
-  selected_sources=[ROOT/'game-server/test/com/aionemu/gameserver/services/playerbot'/(name+'.java') for name in a.only]
+  selected_sources=[check_source(name) for name in a.only]
   before={str(path):sha(path) for path in [Path(__file__),*selected_sources]}
  else:
   before=binding(build)
@@ -228,7 +234,7 @@ def main():
   cwd=ROOT if test in {'PlayerBotWorldProgressCheck','PlayerBotAssassinCheck','PlayerBotGladiatorCheck','PlayerBotTemplarCheck','PlayerBotChanterCheck','PlayerBotClericCheck','PlayerBotSpiritmasterCheck','PlayerBotSorcererCheck',
    'PlayerBotQuestCraftingCheck','PlayerBotQuestPrerequisitesCheck','PlayerBotNativeCraftingTaskCheck','PlayerBotNativeXmlQuestCheck'} else build/'checks'
   args=[str(ROOT/'game-server')] if test in {'PlayerBotRepositoryCheck','PlayerBotPlayerZoneCheck','PlayerBotAuditCoverageCheck','PlayerBotIdleCastingCheck','PlayerBotTravelFormationCheck','PlayerBotCombatGearCheck','PlayerBotTargetVisibilityCheck','PlayerBotStoryRewardIntentCheck','PlayerBotQuestTransformationCheck','PlayerBotQuestItemTargetCheck','PlayerBotNpcPatrolNativeSpawnCheck','PlayerBotNpcPatrolAdmissionCheck','PlayerBotNativeRouteYieldCheck','PlayerBotCapitalAreaCheck','PlayerBotConfigLocationCheck','PlayerBotCampDistributionCheck','PlayerBotNonCombatBuffCheck','PlayerBotTownPolicyCheck'} else []
-  result=subprocess.run(['java','-Xverify:all','-cp',cp,'com.aionemu.gameserver.services.playerbot.'+test,*args],cwd=cwd,capture_output=True,text=True)
+  result=subprocess.run(['java','-Xverify:all','-cp',cp,('com.aionemu.gameserver.services.item.' if test=='WarehouseDepositCheck' else 'com.aionemu.gameserver.services.playerbot.')+test,*args],cwd=cwd,capture_output=True,text=True)
   record(test,count,result)
  if a.only:
   require_success()

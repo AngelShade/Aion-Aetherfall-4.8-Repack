@@ -91,13 +91,15 @@ def main():
     index=(client/'bin64/AionIconBridge.index').read_bytes()
     checks['native_icon_index_matches_items']=index[24:56].hex()==sha(client/'Data/Items/Items.pak') and struct.unpack_from('<Q',index,16)[0]==(client/'Data/Items/Items.pak').stat().st_size
     graphics=read(client/'Mods/GraphicsMenu/installed.json');dxvk=read(client/'Mods/Renderer/installed.json')
-    checks['graphics_package_and_recovery']=graphics['files']==read(client/'Mods/GraphicsMenu/package/manifest.json')['files']
-    for entry in graphics['files']:
-        checks['graphics_package_and_recovery'] &= sha(client/entry['path'])==entry['installed'] and sha(client/'Mods/GraphicsMenu/package'/entry['path'])==entry['installed']
-        if entry['original'] is not None:checks['graphics_package_and_recovery'] &= sha(Path(graphics['backupRoot'])/entry['path'])==entry['original']
-    checks['cursor_tracking_and_recovery']=True
-    for entry in dxvk['nativeCursorPatch']['files']:
-        checks['cursor_tracking_and_recovery'] &= sha(client/entry['path'])==entry['installed'].lower() and sha(Path(entry['backupPath']))==entry['original'].lower()
+    sys.path.insert(0, str(HERE/'dxvk'))
+    from client_ownership import verify as verify_graphics_parts
+    try:
+        verify_graphics_parts(client)
+        checks['graphics_package_and_recovery']=True
+        checks['cursor_tracking_and_recovery']=True
+    except (ValueError, OSError):
+        checks['graphics_package_and_recovery']=False
+        checks['cursor_tracking_and_recovery']=False
     checks['browser_probe_remains_removed']=not (client/'bin64/AionBrowserProbe.dll').exists()
     with read_pak(client/'Plugin/RelicCalc/RelicCalc.pak') as addon:
         if 'PlayerBotBar.lua' in addon.namelist():

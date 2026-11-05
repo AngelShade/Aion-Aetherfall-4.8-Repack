@@ -1,8 +1,8 @@
 """Version-checked 4.8 NA character/account warehouse client changes.
 
 The native list views are kept intact. We enlarge their XML slot vectors and
-replace only the two warehouse initialization bounds and the two active-slot
-counts used when the warehouse screen refreshes.
+repair the warehouse initialization bounds, active-slot counts and shared
+native storage capacity setter.
 """
 
 import copy
@@ -31,6 +31,32 @@ HOOKS = (
     (0x946F8D, bytes.fromhex("4883ff107c9d")),
     (0x9472BB, bytes.fromhex("be03000000")),
 )
+
+# The UI's active cell counts do not change the native storage model. Both
+# SM_WAREHOUSE_INFO and SM_CUBE_UPDATE reach this setter before item admission.
+CAPACITY_SITE = 0x45FA70
+CAPACITY_CAVE = CAVE + 0x48
+CAPACITY_ORIGINAL = bytes.fromhex('4c8bdc4883ec68')
+
+
+def patch_capacity_dll(payload):
+    data = bytearray(payload)
+    # Storage::setCapacity(this, count): +0x34 is native storage type, +0x30
+    # is capacity. Keep all other storages and the original setter side effects.
+    code = bytes.fromhex('837934017507ba68010000eb0b837934027505ba1c020000')
+    code += CAPACITY_ORIGINAL
+    code += _jump(CAPACITY_CAVE + len(code), CAPACITY_SITE + len(CAPACITY_ORIGINAL))
+    hook = _jump(CAPACITY_SITE, CAPACITY_CAVE).ljust(len(CAPACITY_ORIGINAL), b'\x90')
+    if data[CAPACITY_SITE:CAPACITY_SITE+len(hook)] == hook and data[CAPACITY_CAVE:CAPACITY_CAVE+len(code)] == code:
+        return payload
+    if data[CAPACITY_SITE:CAPACITY_SITE+len(hook)] != CAPACITY_ORIGINAL or any(data[CAPACITY_CAVE:CAPACITY_CAVE+len(code)]):
+        raise ValueError('Unknown native warehouse capacity setter/cave')
+    # Refuse unexpanded clients; this is an incremental repair of the owned patch.
+    if data[HOOKS[0][0]:HOOKS[0][0]+1] != b'\xe9' or data[CAVE:CAVE+7] != bytes.fromhex('4881ff68010000'):
+        raise ValueError('Expanded warehouse initialization is required')
+    data[CAPACITY_SITE:CAPACITY_SITE+len(hook)] = hook
+    data[CAPACITY_CAVE:CAPACITY_CAVE+len(code)] = code
+    return bytes(data)
 def patch_collapse_dll(payload):
     from warehouse_controls import patch_dll as patch_controls
     return patch_controls(payload)
@@ -75,7 +101,7 @@ def patch_dll(payload):
         replacement = _jump(site, target).ljust(len(original), b"\x90")
         data[site:site + len(original)] = replacement
     data[CAVE:CAVE + len(code)] = code
-    return bytes(data)
+    return patch_capacity_dll(bytes(data))
 
 
 def patch_layout(root):

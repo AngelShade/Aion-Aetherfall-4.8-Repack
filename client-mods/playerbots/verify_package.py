@@ -14,7 +14,7 @@ def verify(root, staged):
     expected = {'bin64/Game.dll', 'Plugin/RelicCalc/RelicCalc.pak', 'Plugin/RelicCalc/RelicCalc.pak.sig',
                 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig', 'Addon.key'}
     graphics = manifest.get('graphicsCompatibility')
-    state_path = root/'DXVK/graphics-menu/installed.json'
+    state_path = root/'Mods/GraphicsMenu/installed.json'
     if state_path.exists() and not read_json(state_path).get('restoredAt'):
         assert graphics, 'active graphics/cursor recovery must accompany the companion DLL'
     expected |= compatibility_paths(graphics)
@@ -29,8 +29,11 @@ def verify(root, staged):
         assert prepare.sha((root/entry['path']).read_bytes()) == entry['sha256'], 'preserved client changed: '+entry['path']
     assert not (staged/'Pub.key').exists(), 'stock model key must never enter the installation payload'
     assert (staged/'bin64/Game.dll').read_bytes() == prepare.patch((root/'bin64/Game.dll').read_bytes()), 'DLL changes exceed the two verified browser caves'
-    if graphics:
-        state = read_json(staged/'DXVK/graphics-menu/installed.json')
+    if graphics and graphics.get('ownershipSchema') == 2:
+        from graphics_compat import verify_parts
+        verify_parts(root, game=(staged/'bin64/Game.dll').read_bytes())
+    elif graphics:
+        state = read_json(staged/'Mods/GraphicsMenu/installed.json')
         with tempfile.TemporaryDirectory(prefix='companion-graphics-verification-') as temporary:
             check = Path(temporary)
             _, generated = prepare_incremental(root, check, (staged/'bin64/Game.dll').read_bytes(),

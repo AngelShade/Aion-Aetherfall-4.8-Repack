@@ -7,7 +7,15 @@ import runpy
 from prepare import ROOT, read_pak, extend_archive, sha
 
 
+
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'dxvk'))
+from client_ownership import independent, verify as verify_parts
+
 def prepare_graphics(client, stage):
+    if independent(client):
+        verify_parts(client)
+        return
     path = stage / 'manifest.json'
     manifest = json.loads(path.read_text())
     state_path = client / 'Mods/GraphicsMenu/installed.json'

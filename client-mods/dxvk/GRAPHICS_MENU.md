@@ -1,94 +1,113 @@
-# Vulkan option in Aion's Graphics menu
+# Graphics menu and cursor ownership
 
-The normal **64-bit** client now has a prepared native checkbox under
-**Options → Graphics → Screen → Use Vulkan (requires restart)**.
+Use the normal Aetherfall launcher. Under Options > Graphics > Screen, **Use Vulkan
+(requires restart)** saves on Apply/OK; Cancel discards an unapplied change. Exit
+normally and relaunch to change renderer. The status label reports the active
+renderer. High Quality, native graphics improvements and cursor behavior remain
+available with either backend. `DXVK/renderer.ini` remains the native settings path.
 
-Uncheck it, press **Apply** or **OK**, exit Aion normally, and reopen
-**Aion Start.bat**. The launcher selects Windows Direct3D 9. Check it and
-repeat these steps to return to DXVK 3.1.1 / Vulkan. **Cancel** discards an
-unapplied checkbox change. The status line identifies the current renderer
-or explains how to apply the next one. Launching aion.bin directly bypasses
-the renderer selector; use the normal launcher.
+## Launch checks
 
-The terrain textures, native lighting/water changes, High Quality profile,
-and repaired cursor remain with either backend. The private Vulkan ReShade
-effects are active only with Vulkan. They are not installed as a Direct3D 9
-effect wrapper in this implementation.
+`ApplyGraphicsMenu.ps1` installs as `Mods/GraphicsMenu/Install-GraphicsMenu.ps1`.
+`ClientOwnership.ps1` and `ClientOwnership.cs` live in `Mods/Renderer`; they require
+Windows PowerShell/.NET, with PowerShell Core also supported. No player Python or
+extra installation is needed. The C# archive codec follows the maintained launcher
+codec and preserves the raw compressed bytes of other archive members.
 
-## Implementation
+Graphics owns the SHA-256 of `bin64/AionGraphicsMenu.dll`, the two native hooks at
+RVAs `0x6f8650` and `0x6fca60`, its `.agfx` section header and descriptor/payload,
+and its descriptor in the current import table (which another mod can relocate).
+Copied descriptors belonging to other DLLs are outside its byte ownership.
+`ownership.json` stores the trusted bytes and the two complete widget definitions:
+`cb_use_vulkan` and `st_vulkan_status`, direct children of `page_screen` in
+`global_option_dialog.xml` in base game.pak and `ui/game/global_option_dialog.xml`
+in the active English data.pak. Other widgets, members and native bytes are free
+to change. Damaged owned parts still throw and stop the launch script.
 
-- `build_graphics_menu.py` requires the exact currently modified Game.dll
-  SHA256. It adds one import section and two entry hooks to its native
-  graphics dialog. Existing custom menus, inventory/search/browser hooks,
-  and both native cursor instruction patches are retained.
-- Both `Data/ui/game/game.pak` and the English override
-  `L10N/enu/Data/data.pak` gain the checkbox and status label only.
-  Every other archive entry is verified byte-identical: 269 base UI entries
-  and 18,506 English entries. The English archive takes precedence in this
-  client; patching only the base archive leaves the visible menu unchanged.
-- `AionGraphicsMenu.dll` uses the verified native widget methods to load
-  checkbox state, mark the video options dirty, save on Apply/OK, and reset
-  on Cancel. Existing actions delegate to the original callback.
-- `DXVK/renderer.ini` stores `Vulkan=0/1` (next launch) and
-  `ActiveVulkan=0/1` (selected at the most recent normal launch).
-- `SelectRenderer.ps1` validates both DXVK DLL hashes before changing either
-  file, permits additional clients with the current renderer, refuses renderer
-  changes while Aion is running, and parks DLLs as
-  `bin32/d3d9.dxvk-disabled.dll` and `bin64/d3d9.dxvk-disabled.dll` when off.
-  It restores those exact DLLs when on. The client compatibility wrapper
-  supports an optional local DXVK DLL; its documented normal installation
-  works without one: [Beyond Aion version.dll](https://github.com/beyond-aion/aion-version-dll#installation).
-- Cursor/install verification and full DXVK restoration understand the
-  parked DLLs. Cursor tracking is updated when the menu extends Game.dll.
-- `Pub.key`, `Addon.key`, signed plugin archives, and pet/model validation
-  are unchanged.
+CursorFix owns only `9090` at file offsets `0x551c96` in Game.dll and `0x1202d7`
+in XRenderD3D9.dll. Its original pairs are `7818` and `7c0c`. Renderer selection
+continues to validate the complete owned DXVK wrappers and dxvk.conf.
 
-## Deploy and verify
+## Records and restore
+
+Legacy installed records automatically become `ownershipSchema: 2` only after the
+owned checks pass. Each JSON replacement is atomic; interrupted migration can be
+retried. Settings, timestamps and other unrelated metadata survive. A second check
+does not write. Graphics `files` now contains only its own DLL; cursor records
+contain instruction pairs instead of whole-file hashes or image paths. Historical
+Graphics backupRoot is retained for reference and is no longer a dependency.
+
+Graphics restore restores the two prologues, removes just its active import
+(despite later mods moving the table), clears its own descriptor/code payload,
+removes its two widgets and its DLL. The PE section allocation stays reserved so
+later mods' section layout never moves. Other archive members retain their exact
+compressed payloads. Cursor restore changes only its four instruction bytes:
 
 ```powershell
-python .\client-mods\dxvk\build_graphics_menu.py 'CLIENT'
-.\client-mods\dxvk\InstallGraphicsMenu.ps1 -ClientPath 'CLIENT'
+& 'CLIENT/Mods/GraphicsMenu/RestoreGraphicsMenu.ps1' -ClientPath 'CLIENT'
+& 'CLIENT/Mods/CursorFix/Install-CursorFix.ps1' -ClientPath 'CLIENT' -Restore
 ```
 
-If Aion is running, installation is queued. `Aion Start.bat` applies the
-menu before checking the cursor patch and selecting the renderer. Backups
-are stored under `DXVK-backups/graphics-menu-*` and
-`DXVK-backups/menu-launcher-*`. Payload and original/current client checks
-stop installation if a later modification conflicts.
+Both restored states persist through launch. Explicitly enable them again using
+`-Reinstall` on their installed installer (Aion must be closed). A fresh native
+installation appends a section or reuses the verified reserved Graphics section;
+it preserves current imports, resources, renderer choice and other mods. Full
+renderer restore delegates native reversal to these same byte owners.
 
-Passed checks: compiled bridge behavior with native widget ABI fixtures;
-queued install; closed-client guard; repeat application; both architecture
-switches; preserved cursor validation while Vulkan is off; tamper rejection
-before changing other files; exact menu restore with later launcher changes
-preserved; hidden GPU shader draw, exact readback and presentation with
-Windows Direct3D 9 in x64 and x86. DXVK GPU checks passed earlier.
+No new whole Game.dll/PAK package copies or Graphics/cursor recovery images are
+required. Existing recovery folders and old package images are left in place.
+They may contain other recovery material; do not remove them automatically.
 
-The first launch installed the native helper, but the user's screenshot
-confirmed the checkbox was absent. The English override was then corrected,
-installed while Aion was closed, and the normal launcher relaunched Aion.
-The unchanged native helper loaded in responsive process 28040. Both cursor
-instructions remain active. Incremental archive application and exact
-restoration passed with the corrected English package.
-
-**Pending:** visible layout, Apply/OK/Cancel in the real dialog, and an
-actual game restart using each renderer. The bridge fixture and GPU checks
-do not prove those live paths.
-The 32-bit renderer can be selected, but this menu patch targets only the
-64-bit executable used by the normal launcher.
-
-## Restore
-
-Exit Aion normally, then run:
+## Build and validation
 
 ```powershell
-& 'CLIENT\DXVK\graphics-menu\RestoreGraphicsMenu.ps1' -ClientPath 'CLIENT'
+python client-mods/dxvk/build_graphics_menu.py 'CLIENT' 'EXTERNAL_OUTPUT'
+& client-mods/dxvk/InstallGraphicsMenu.ps1 -ClientPath 'CLIENT' -PackagePath 'EXTERNAL_OUTPUT'
+& client-mods/dxvk/verify_graphics_menu.ps1 -ClientPath 'CLIENT' -OutputRoot 'EXTERNAL_FIXTURE'
+& client-mods/dxvk/verify_native_cursor.ps1 -ClientPath 'CLIENT' -OutputRoot 'EXTERNAL_CURSOR_FIXTURE'
+& client-mods/dxvk/verify_localized_menu.ps1 -ClientPath 'CLIENT'
 ```
 
-This restores the exact previous Game.dll and UI archive, retaining the
-working cursor and other earlier modifications. The selector remains in
-the DXVK launcher block, keeping the last selected backend. Full
-`DXVK/Restore.ps1` also restores the menu before uninstalling DXVK and its
-cursor changes.
+The compact builder outputs only the DLL, manifest and ownership definition as
+runtime payloads. Object/library/compiler files stay in the external build output.
+The Graphics test accepts a fresh directory or its own marked scratch fixture,
+never the original client. It exercises real installed script entry points,
+corruption refusals, unrelated edits, old-record migration/no-op, own-part restores,
+fresh install, renderer switches and High Quality. Other maintained checks are
+`verify_install.ps1`, `verify_multi_client.ps1` and `verify_graphics_bridge.py`.
+Live rendering, native clicks and mouse alignment still require the owner in game.
 
-For recovery when the menu is not accessible, close Aion, edit only
-`Vulkan=0` or `Vulkan=1` in `DXVK/renderer.ini`, then use Aion Start.bat.
+Ownership JSON is written as ASCII with Unicode escapes. The shared reader tries
+strict UTF-8 (with or without a BOM), then the Windows ANSI code page for legacy
+bytes. Run `verify_ownership_encoding.ps1` under Windows PowerShell 5.1 with
+`-ClientPath <client> -OutputRoot <fresh-external-directory>`. It uses real launcher
+script invocations in an accented Latin/Hangul scratch folder, checks all three
+legacy encodings, six read-only launches, a moved client, owned-byte tamper refusal
+and portable preparation of escaped paths. It writes `proof.json` externally.
+
+## Compatibility callers and the next repack refresh
+
+`client_ownership.py` is the shared read-only authoring check. The old transmog
+`prepare`/`prepare_incremental` signatures now return a schema-2 compatibility
+record and no extra files; `compatibility_paths` and the PowerShell path helpers
+return empty sets. Browser, speech, reconnect and NPC sync entry points are
+harmless validators. Core HUD/shortcut/target, Codex, account/Stigma, inventory/
+window, login, service, quest and companion authoring paths skip their legacy
+Graphics sync work. Their feature edits and their own transaction receipts remain.
+Legacy branches and old path allowlists remain for old prepared transactions;
+`service-menu-graphics-*` creation branches are unreachable for active ownership
+clients. The launcher's Interface sync loops over Graphics' DLL-only `files` and
+has no matching archive to sync, so no launcher source change/build is needed.
+
+A repack refresh must carry the current original's Graphics installers/restore,
+`ownership.json`, schema-2 state and compact package manifest/DLL; CursorFix's
+installer; Renderer `ClientOwnership.ps1`, `ClientOwnership.cs`, `Restore.ps1`,
+`SelectRenderer.ps1`, `VerifyActive.ps1` and schema-2 renderer state. Carry the
+maintained updater/settings/recovery rules and `Control/Prepare-Client.ps1` too.
+Old records also migrate if retained. Keep the player's renderer.ini and settings.
+Ship current native binaries/archives as usual, once as native files; this slice
+changes none of those three shared files. Exclude their obsolete Graphics package
+copies and the unused Graphics/cursor whole-file baselines from new payloads.
+The existing DXVK wrappers/config, SelectRenderer, High Quality and profile-original
+files still belong in the renderer package. Publication and any repack refresh
+are separate owner-authorized actions.

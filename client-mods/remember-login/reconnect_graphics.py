@@ -9,7 +9,14 @@ import hashlib
 def digest(data):return hashlib.sha256(data).hexdigest()
 def read(path):return json.loads(path.read_text(encoding='utf-8-sig'))
 
+
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'dxvk'))
+from client_ownership import independent, verify as verify_parts
+
 def prepare(root,out,updated,legacy_iat):
+    if independent(root):
+        return updated, verify_parts(root, game=updated)
     state=read(root/'Mods/GraphicsMenu/installed.json')
     manifest=read(root/'Mods/GraphicsMenu/package/manifest.json')
     dx=read(root/'Mods/Renderer/installed.json')

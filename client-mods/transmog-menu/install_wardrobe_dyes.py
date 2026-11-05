@@ -25,6 +25,12 @@ def closed():
 
 
 def graphics_plan(client, files):
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'dxvk'))
+    from client_ownership import independent, verify
+    if independent(client):
+        verify(client)
+        return None
     if not (client / GRAPHICS_STATE).exists():
         return None
     state = json.loads((client / GRAPHICS_STATE).read_text(encoding='utf-8-sig'))

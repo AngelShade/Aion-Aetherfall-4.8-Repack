@@ -1,0 +1,42 @@
+{
+  "schema": 2,
+  "sectionOffset": 808,
+  "sectionHeader": "2e616766780000002203000000b0900100040000008c9001000000000000000000000000200000e0",
+  "dllHash": "aa73afa421425f1079509738075b12107761d4a3f0c75139aa7eb11998bb3d52",
+  "descriptor": "60b2900100000000000000001cb2900178b29001",
+  "ranges": [
+    {
+      "offset": 7308880,
+      "installed": "e93b2c21019090909090",
+      "original": "488bc44881ec88000000"
+    },
+    {
+      "offset": 7326304,
+      "installed": "e97be820019090",
+      "original": "488bc44883ec68"
+    },
+    {
+      "offset": 26250740,
+      "installed": "60b2900100000000000000001cb2900178b29001000000000000000000000000000000000000000041696f6e47726170686963734d656e752e646c6c0000000041696f6e4772617068696373436c69636b00000041696f6e47726170686963734c6f6164000000000000000032b290010000000046b2900100000000000000000000000032b290010000000046b290010000000000000000000000004883ec4848894c242048895424284c894424304c894c2438ff15caffffff488b4c2420488b5424284c8b4424304c8b4c24384883c44885c07401c3488bc44881ec88000000e980d3defe0000000000004883ec4848894c242048895424284c894424304c894c2438ff1582ffffff488b4c2420488b5424284c8b4424304c8b4c24384883c448488bc44883ec68e94517dffe",
+      "original": null
+    }
+  ],
+  "ui": [
+    {
+      "path": "Data/ui/game/game.pak",
+      "entry": "global_option_dialog.xml",
+      "widgets": [
+        "<Widget font=\"v3_option\" frame=\"45,145,390,19\" name=\"cb_use_vulkan\" preset=\"v5_check\" style=\"checkbox\" text=\"Use Vulkan (requires restart)\" text_offset=\"5,0\" type=\"button\" valign=\"middle\" />",
+        "<Widget font=\"v3_option\" frame=\"65,176,350,60\" name=\"st_vulkan_status\" type=\"static\" flag=\"multiline;wordwrap\" valign=\"top\" text=\"Restart Aion to change renderer.\" />"
+      ]
+    },
+    {
+      "path": "L10N/enu/Data/data.pak",
+      "entry": "ui/game/global_option_dialog.xml",
+      "widgets": [
+        "<Widget font=\"v3_option\" frame=\"45,145,390,19\" name=\"cb_use_vulkan\" preset=\"v5_check\" style=\"checkbox\" text=\"Use Vulkan (requires restart)\" text_offset=\"5,0\" type=\"button\" valign=\"middle\" />",
+        "<Widget font=\"v3_option\" frame=\"65,176,350,60\" name=\"st_vulkan_status\" type=\"static\" flag=\"multiline;wordwrap\" valign=\"top\" text=\"Restart Aion to change renderer.\" />"
+      ]
+    }
+  ]
+}

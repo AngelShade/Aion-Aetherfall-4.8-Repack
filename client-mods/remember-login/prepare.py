@@ -1,6 +1,9 @@
 """Stage a native remembered-login checkbox and compose existing recovery guards."""
 import argparse, copy, hashlib, io, json, os, subprocess, sys, zipfile
 from pathlib import Path
+import sys as _ownership_sys
+_ownership_sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if p.name == 'client-mods') / 'dxvk'))
+from client_ownership import independent as _owned_graphics, verify as _verify_graphics
 import xml.etree.ElementTree as ET
 HERE=Path(__file__).resolve().parent
 sys.path.insert(0,str(HERE.parent/'expanded-warehouse'))
@@ -68,18 +71,21 @@ def main():
     new_game,hooks=patch((root/'bin64/Game.dll').read_bytes());stage('bin64/Game.dll',new_game)
     for rel in ['Data/ui/ui.pak','L10N/enu/Data/data.pak']:stage(rel,archive(root/rel,rel))
     stage('bin64/AionRememberLogin.dll',compile_dll(out))
-    graphics=read(root/'Mods/GraphicsMenu/installed.json');manifest=read(root/'Mods/GraphicsMenu/package/manifest.json')
-    if graphics['files']!=manifest['files']:raise ValueError('Graphics recovery metadata differs')
-    for rel in ['bin64/Game.dll','L10N/enu/Data/data.pak']:
-        entry=next(e for e in graphics['files'] if e['path']==rel);baseline=Path(graphics['backupRoot'])/rel
-        if not baseline.resolve().is_relative_to(root/'Mods/Backups/Renderer') or sha(baseline.read_bytes())!=entry['original'] or sha((root/rel).read_bytes())!=entry['installed']:raise ValueError('Graphics recovery guard differs')
-        changed=patch(baseline.read_bytes())[0] if rel.endswith('.dll') else archive(baseline,rel)
-        stage(baseline.relative_to(root),changed);entry.update(original=sha(changed),installed=sha(staged[rel]))
-        stage('Mods/GraphicsMenu/package/'+rel,staged[rel])
-    manifest['files']=graphics['files'];stage('Mods/GraphicsMenu/installed.json',json.dumps(graphics,indent=2).encode());stage('Mods/GraphicsMenu/package/manifest.json',json.dumps(manifest,indent=2).encode())
-    cursor=read(root/'Mods/Renderer/installed.json');entry=next(e for e in cursor['nativeCursorPatch']['files'] if e['path']=='bin64/Game.dll');baseline=Path(entry['backupPath'])
-    if not baseline.resolve().is_relative_to(root/'Mods/Backups/Renderer') or sha(baseline.read_bytes())!=entry['original'] or sha((root/entry['path']).read_bytes())!=entry['installed']:raise ValueError('Cursor recovery guard differs')
-    changed=patch(baseline.read_bytes())[0];stage(baseline.relative_to(root),changed);entry.update(original=sha(changed),installed=sha(staged['bin64/Game.dll']));stage('Mods/Renderer/installed.json',json.dumps(cursor,indent=2).encode())
+    if _owned_graphics(root):
+        _verify_graphics(root, game=staged['bin64/Game.dll'])
+    else:
+        graphics=read(root/'Mods/GraphicsMenu/installed.json');manifest=read(root/'Mods/GraphicsMenu/package/manifest.json')
+        if graphics['files']!=manifest['files']:raise ValueError('Graphics recovery metadata differs')
+        for rel in ['bin64/Game.dll','L10N/enu/Data/data.pak']:
+            entry=next(e for e in graphics['files'] if e['path']==rel);baseline=Path(graphics['backupRoot'])/rel
+            if not baseline.resolve().is_relative_to(root/'Mods/Backups/Renderer') or sha(baseline.read_bytes())!=entry['original'] or sha((root/rel).read_bytes())!=entry['installed']:raise ValueError('Graphics recovery guard differs')
+            changed=patch(baseline.read_bytes())[0] if rel.endswith('.dll') else archive(baseline,rel)
+            stage(baseline.relative_to(root),changed);entry.update(original=sha(changed),installed=sha(staged[rel]))
+            stage('Mods/GraphicsMenu/package/'+rel,staged[rel])
+        manifest['files']=graphics['files'];stage('Mods/GraphicsMenu/installed.json',json.dumps(graphics,indent=2).encode());stage('Mods/GraphicsMenu/package/manifest.json',json.dumps(manifest,indent=2).encode())
+        cursor=read(root/'Mods/Renderer/installed.json');entry=next(e for e in cursor['nativeCursorPatch']['files'] if e['path']=='bin64/Game.dll');baseline=Path(entry['backupPath'])
+        if not baseline.resolve().is_relative_to(root/'Mods/Backups/Renderer') or sha(baseline.read_bytes())!=entry['original'] or sha((root/entry['path']).read_bytes())!=entry['installed']:raise ValueError('Cursor recovery guard differs')
+        changed=patch(baseline.read_bytes())[0];stage(baseline.relative_to(root),changed);entry.update(original=sha(changed),installed=sha(staged['bin64/Game.dll']));stage('Mods/Renderer/installed.json',json.dumps(cursor,indent=2).encode())
     receipt=dict(feature='remember-login',clientRoot=str(root),sourceKey=sha((root/'Pub.key').read_bytes()),hooks=hooks,
         files=[dict(path=rel,original=sha((root/rel).read_bytes()) if (root/rel).is_file() else None,installed=sha(data)) for rel,data in staged.items()],
         preservedFiles=[dict(path=rel,sha256=sha((root/rel).read_bytes())) for rel in PRESERVED])

@@ -25,6 +25,12 @@ def closed():
 
 
 def graphics_plan(client, files):
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'dxvk'))
+    from client_ownership import independent, verify
+    if independent(client):
+        verify(client)
+        return None
     state_path, manifest_path = client / GRAPHICS_STATE, client / GRAPHICS_MANIFEST
     if not state_path.exists():
         return None

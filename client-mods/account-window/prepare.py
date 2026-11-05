@@ -148,30 +148,40 @@ def main():
     _, compatibility = prepare_incremental(client, output, dll)
     if not compatibility:
         raise ValueError('Expected installed native graphics/cursor recovery')
-    state_path = output / 'Mods/GraphicsMenu/installed.json'
-    state = json.loads(state_path.read_text())
-    package_path = output / 'Mods/GraphicsMenu/package/manifest.json'
-    package = json.loads(package_path.read_text())
-    backup = output / 'Mods/Backups/Renderer' / compatibility['backupName']
-
     def stage(relative, data):
         path = output / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
 
-    stage('bin64/Game.dll', dll)
-    for rel in ['Data/ui/game/game.pak', 'L10N/enu/Data/data.pak']:
-        localized = rel.startswith('L10N/')
-        active = profile_archive((client / rel).read_bytes(), localized)
-        baseline = profile_archive((backup / rel).read_bytes(), localized)
-        stage(rel, active)
-        stage('Mods/GraphicsMenu/package/' + rel, active)
-        stage(backup.relative_to(output).as_posix() + '/' + rel, baseline)
-        entry = next(e for e in state['files'] if e['path'] == rel)
-        entry.update(original=sha(baseline), installed=sha(active))
-    package['files'] = copy.deepcopy(state['files'])
-    stage('Mods/GraphicsMenu/installed.json', json.dumps(state, indent=2).encode())
-    stage('Mods/GraphicsMenu/package/manifest.json', json.dumps(package, indent=2).encode())
+    if compatibility.get('ownershipSchema') == 2:
+        stage('bin64/Game.dll', dll)
+        for rel in ['Data/ui/game/game.pak', 'L10N/enu/Data/data.pak']:
+            stage(rel, profile_archive((client / rel).read_bytes(), rel.startswith('L10N/')))
+    else:
+        state_path = output / 'Mods/GraphicsMenu/installed.json'
+        state = json.loads(state_path.read_text())
+        package_path = output / 'Mods/GraphicsMenu/package/manifest.json'
+        package = json.loads(package_path.read_text())
+        backup = output / 'Mods/Backups/Renderer' / compatibility['backupName']
+
+        def stage(relative, data):
+            path = output / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+
+        stage('bin64/Game.dll', dll)
+        for rel in ['Data/ui/game/game.pak', 'L10N/enu/Data/data.pak']:
+            localized = rel.startswith('L10N/')
+            active = profile_archive((client / rel).read_bytes(), localized)
+            baseline = profile_archive((backup / rel).read_bytes(), localized)
+            stage(rel, active)
+            stage('Mods/GraphicsMenu/package/' + rel, active)
+            stage(backup.relative_to(output).as_posix() + '/' + rel, baseline)
+            entry = next(e for e in state['files'] if e['path'] == rel)
+            entry.update(original=sha(baseline), installed=sha(active))
+        package['files'] = copy.deepcopy(state['files'])
+        stage('Mods/GraphicsMenu/installed.json', json.dumps(state, indent=2).encode())
+        stage('Mods/GraphicsMenu/package/manifest.json', json.dumps(package, indent=2).encode())
 
     relic_raw = (client / RELIC).read_bytes()
     relic = rebuild_members(relic_raw, lambda z: {'PrivateMenus.lua': menus(z.read('PrivateMenus.lua'))})

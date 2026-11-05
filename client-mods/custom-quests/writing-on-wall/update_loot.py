@@ -10,6 +10,9 @@ import hashlib
 import importlib.util
 import json
 from pathlib import Path
+import sys as _ownership_sys
+_ownership_sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'dxvk'))
+from client_ownership import independent as _owned_graphics
 import struct
 import subprocess
 import shutil
@@ -89,6 +92,8 @@ def prepare(client, build, output, item_file=None):
     captured, writes = {}, []
 
     def watch(path):
+        if _owned_graphics(client) and path == client / 'Mods/GraphicsMenu/package' / ENGLISH:
+            return
         captured[str(path)] = sha(path) if path.exists() else None
 
     def payload(target, source):
@@ -106,10 +111,11 @@ def prepare(client, build, output, item_file=None):
     graphics = json.loads((client / 'Mods/GraphicsMenu/installed.json').read_text())
     package = json.loads((client / 'Mods/GraphicsMenu/package/manifest.json').read_text())
     assert graphics['files'] == package['files'] and not graphics.get('restoredAt')
-    restore = resources.owned_renderer_backup(client, graphics['backupRoot'])
-    locale = next(e for e in graphics['files'] if e['path'].casefold() == ENGLISH.casefold())
-    assert sha(client / ENGLISH) == sha(client / 'Mods/GraphicsMenu/package' / ENGLISH) == locale['installed']
-    assert sha(restore / ENGLISH) == locale['original']
+    restore = client if _owned_graphics(client) else resources.owned_renderer_backup(client, graphics['backupRoot'])
+    if not _owned_graphics(client):
+        locale = next(e for e in graphics['files'] if e['path'].casefold() == ENGLISH.casefold())
+        assert sha(client / ENGLISH) == sha(client / 'Mods/GraphicsMenu/package' / ENGLISH) == locale['installed']
+        assert sha(restore / ENGLISH) == locale['original']
     for relative in (*resources.ARCHIVES, ITEMS, INDEX, 'Aetherfall Launcher.exe',
                      'Mods/CustomQuests/installed.json', 'Mods/CustomQuests/settings.json',
                      'Mods/GraphicsMenu/installed.json', 'Mods/GraphicsMenu/package/manifest.json',
@@ -226,13 +232,14 @@ def prepare(client, build, output, item_file=None):
                 payload(target, path)
     for relative in (*resources.ARCHIVES, ITEMS, INDEX, 'Mods/CustomQuests/installed.json'):
         payload(client / relative, active / relative)
-    payload(client / 'Mods/GraphicsMenu/package' / ENGLISH, active / ENGLISH)
-    payload(restore / ENGLISH, output / 'restore' / ENGLISH)
-    for relative in ('Mods/GraphicsMenu/installed.json', 'Mods/GraphicsMenu/package/manifest.json'):
-        data = json.loads((client / relative).read_text())
-        entry = next(e for e in data['files'] if e['path'].casefold() == ENGLISH.casefold())
-        entry.update(installed=sha(active / ENGLISH), original=sha(output / 'restore' / ENGLISH))
-        json_payload(relative, data)
+    if not _owned_graphics(client):
+        payload(client / 'Mods/GraphicsMenu/package' / ENGLISH, active / ENGLISH)
+        payload(restore / ENGLISH, output / 'restore' / ENGLISH)
+        for relative in ('Mods/GraphicsMenu/installed.json', 'Mods/GraphicsMenu/package/manifest.json'):
+            data = json.loads((client / relative).read_text())
+            entry = next(e for e in data['files'] if e['path'].casefold() == ENGLISH.casefold())
+            entry.update(installed=sha(active / ENGLISH), original=sha(output / 'restore' / ENGLISH))
+            json_payload(relative, data)
     mods = json.loads((client / 'Mods/InstalledMods.json').read_text())
     by_name = {Path(e['target']).relative_to(client).as_posix().casefold(): e for e in writes if Path(e['target']).is_relative_to(client)}
     for entries in mods['features'].values():

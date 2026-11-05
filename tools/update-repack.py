@@ -228,6 +228,10 @@ for source in sorted(support_files):
     # are not release payloads. Only active renderer recovery is added below.
     if not source.is_file() or any(part.casefold() in {'backups', 'logs', 'cache', '__pycache__'} for part in parts):
         continue
+    if relative.casefold() in {'mods/graphicsmenu/package/bin64/game.dll', 'mods/graphicsmenu/package/data/ui/game/game.pak', 'mods/graphicsmenu/package/l10n/enu/data/data.pak'}:
+        if read(client/'Mods/GraphicsMenu/installed.json').get('ownershipSchema') == 2:
+            remove('Client/'+relative, 'Retire obsolete Graphics copies of shared native files')
+            continue
     if source.suffix.casefold() in {'.log', '.dmp', '.pdb', '.obj', '.lib', '.exp', '.tmp'}:
         continue
     if relative in {'Mods/InstalledMods.json', 'Mods/Launcher/connection.json', 'Mods/Launcher/preferences.json', 'Mods/portable-client.json'}:
@@ -261,8 +265,8 @@ for name in ['GraphicsOverhaul', 'VisualOverhaul']:
                 put('Client/'+relative, 'Installed native graphics asset', source=client/relative)
 graphics = read(client/'Mods/GraphicsMenu/installed.json')
 renderer = read(client/'Mods/Renderer/installed.json')
-recover = [Path(graphics['backupRoot'])/e['path'] for e in graphics['files'] if e.get('original')]
-recover += [Path(e['backupPath']) for e in renderer.get('nativeCursorPatch', {}).get('files', []) if e.get('original')]
+recover = [] if graphics.get('ownershipSchema') == 2 else [Path(graphics['backupRoot'])/e['path'] for e in graphics['files'] if e.get('original')]
+recover += [Path(e['backupPath']) for e in renderer.get('nativeCursorPatch', {}).get('files', []) if e.get('original') and renderer.get('nativeCursorPatch', {}).get('ownershipSchema') != 2]
 for source in recover:
     if not source.resolve().is_relative_to(client/'Mods/Backups'):
         raise ValueError('Renderer recovery is outside the client: '+str(source))

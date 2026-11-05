@@ -9,7 +9,7 @@ import sys
 from detached_inventory import patch_warehouse_item_context, CONTEXT_CAVE, CONTEXT_REGION_SIZE, CONTEXT_LOAD
 from graphics_compat import prepare_incremental, compatibility_paths
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'expanded-warehouse'))
-from warehouse_patch import patch_collapse_dll
+from warehouse_patch import patch_collapse_dll, patch_capacity_dll, CAPACITY_SITE, CAPACITY_CAVE, CAPACITY_ORIGINAL
 from codec import read_pak, binary_xml
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'bundle-opening'))
 import warehouse_controls as controls
@@ -23,7 +23,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--client', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--repair', choices=['item-context', 'collapse'], default='item-context')
+    parser.add_argument('--repair', choices=['item-context', 'collapse', 'capacity'], default='item-context')
     args = parser.parse_args()
     root, output = args.client.resolve(strict=True), args.output.resolve()
     if output.exists() or output.is_relative_to(root) or output.is_relative_to(Path(__file__).resolve().parents[2]):
@@ -43,6 +43,11 @@ def main():
                   (controls.SHOW_SITE, controls.SHOW_SITE+5), (0x948150, 0x94815a)] + [(s,s+33) for s in controls.MAP_SITES]
         feature, inventory_feature = 'warehouse-controls-v1', 'WarehouseControls'
         acceptance = 'Pending owner: both collapsible sections, compact window, expanded-section deposits and last-used reopening; single-click Kinah in Inventory/Warehouse'
+    elif args.repair == 'capacity':
+        updated = patch_capacity_dll(prior)
+        ranges = [(CAPACITY_SITE, CAPACITY_SITE+len(CAPACITY_ORIGINAL)), (CAPACITY_CAVE, CAPACITY_CAVE+64)]
+        feature, inventory_feature = 'warehouse-capacity-v1', 'WarehouseCapacity'
+        acceptance = 'Pending owner: right-click, drag, whole and partial stacks through slots 360/540, reopen/relog and full rejection'
     else:
         updated = patch_warehouse_item_context(prior)
         ranges = [(CONTEXT_LOAD, CONTEXT_LOAD+6), (CONTEXT_CAVE, CONTEXT_CAVE+CONTEXT_REGION_SIZE)]
@@ -67,22 +72,27 @@ def main():
         names={'warehouse_dialog.xml','inventory_dialog.xml','inventory_dialog_new.xml'}
         if any(n.rsplit('/',1)[-1] in names for row in skin['archives'].values() for n in row['entries']):
             raise ValueError('Affected UI is now skin-owned; review its switch payloads')
-        state_path=output/'Mods/GraphicsMenu/installed.json'
-        package_path=output/'Mods/GraphicsMenu/package/manifest.json'
-        state=json.loads(state_path.read_text())
-        package_state=json.loads(package_path.read_text())
-        baseline=output/'Mods/Backups/Renderer'/graphics['backupName']
-        for rel in ['Data/ui/game/game.pak','L10N/enu/Data/data.pak']:
-            active=controls.patch_archive(root/rel,rel.startswith('L10N/'))
-            restored=controls.patch_archive(baseline/rel,rel.startswith('L10N/'))
-            target_ui=output/rel;target_ui.parent.mkdir(parents=True,exist_ok=True);target_ui.write_bytes(active)
-            (output/'Mods/GraphicsMenu/package'/rel).write_bytes(active)
-            (baseline/rel).write_bytes(restored)
-            record=next(r for r in state['files'] if r['path']==rel)
-            record.update(installed=hashlib.sha256(active).hexdigest(),original=hashlib.sha256(restored).hexdigest())
-        package_state['files']=state['files']
-        state_path.write_text(json.dumps(state,indent=2))
-        package_path.write_text(json.dumps(package_state,indent=2))
+        if graphics.get('ownershipSchema') == 2:
+            for rel in ['Data/ui/game/game.pak','L10N/enu/Data/data.pak']:
+                active=controls.patch_archive(root/rel,rel.startswith('L10N/'))
+                target_ui=output/rel;target_ui.parent.mkdir(parents=True,exist_ok=True);target_ui.write_bytes(active)
+        else:
+            state_path=output/'Mods/GraphicsMenu/installed.json'
+            package_path=output/'Mods/GraphicsMenu/package/manifest.json'
+            state=json.loads(state_path.read_text())
+            package_state=json.loads(package_path.read_text())
+            baseline=output/'Mods/Backups/Renderer'/graphics['backupName']
+            for rel in ['Data/ui/game/game.pak','L10N/enu/Data/data.pak']:
+                active=controls.patch_archive(root/rel,rel.startswith('L10N/'))
+                restored=controls.patch_archive(baseline/rel,rel.startswith('L10N/'))
+                target_ui=output/rel;target_ui.parent.mkdir(parents=True,exist_ok=True);target_ui.write_bytes(active)
+                (output/'Mods/GraphicsMenu/package'/rel).write_bytes(active)
+                (baseline/rel).write_bytes(restored)
+                record=next(r for r in state['files'] if r['path']==rel)
+                record.update(installed=hashlib.sha256(active).hexdigest(),original=hashlib.sha256(restored).hexdigest())
+            package_state['files']=state['files']
+            state_path.write_text(json.dumps(state,indent=2))
+            package_path.write_text(json.dumps(package_state,indent=2))
         expected |= {'Data/ui/game/game.pak','L10N/enu/Data/data.pak'}
         catalogue=controls.stage_catalogue(root,output)
         (output/'Pub.key').unlink()  # identical model key verified; never replace it

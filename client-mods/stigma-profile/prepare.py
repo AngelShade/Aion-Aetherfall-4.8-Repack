@@ -106,33 +106,44 @@ def main():
     _, compatibility = prepare_incremental(client, output, dll)
     if not compatibility:
         raise ValueError('Expected installed native graphics/cursor recovery')
-    staged_state = output / 'Mods/GraphicsMenu/installed.json'
-    state = json.loads(staged_state.read_text())
-    package_path = output / 'Mods/GraphicsMenu/package/manifest.json'
-    package = json.loads(package_path.read_text())
-    backup = output / 'Mods/Backups/Renderer' / compatibility['backupName']
-    for image in [dll, (output / 'Mods/GraphicsMenu/package/bin64/Game.dll').read_bytes(),
-                  (backup / 'bin64/Game.dll').read_bytes(),
-                  (backup / 'cursor-base/bin64/Game.dll').read_bytes()]:
-        verify_access(image)
-
     def stage(relative, data):
         path = output / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
 
-    stage('bin64/Game.dll', dll)
-    for rel in ['Data/ui/game/game.pak', 'L10N/enu/Data/data.pak']:
-        active = archive(client / rel, rel.startswith('L10N/'))
-        baseline = archive(backup / rel, rel.startswith('L10N/'))
-        stage(rel, active)
-        stage('Mods/GraphicsMenu/package/' + rel, active)
-        stage(backup.relative_to(output).as_posix() + '/' + rel, baseline)
-        entry = next(e for e in state['files'] if e['path'] == rel)
-        entry.update(original=sha(baseline), installed=sha(active))
-    package['files'] = copy.deepcopy(state['files'])
-    stage('Mods/GraphicsMenu/installed.json', json.dumps(state, indent=2).encode())
-    stage('Mods/GraphicsMenu/package/manifest.json', json.dumps(package, indent=2).encode())
+    if compatibility.get('ownershipSchema') == 2:
+        verify_access(dll)
+        stage('bin64/Game.dll', dll)
+        for rel in ['Data/ui/game/game.pak', 'L10N/enu/Data/data.pak']:
+            stage(rel, archive(client / rel, rel.startswith('L10N/')))
+    else:
+        staged_state = output / 'Mods/GraphicsMenu/installed.json'
+        state = json.loads(staged_state.read_text())
+        package_path = output / 'Mods/GraphicsMenu/package/manifest.json'
+        package = json.loads(package_path.read_text())
+        backup = output / 'Mods/Backups/Renderer' / compatibility['backupName']
+        for image in [dll, (output / 'Mods/GraphicsMenu/package/bin64/Game.dll').read_bytes(),
+                      (backup / 'bin64/Game.dll').read_bytes(),
+                      (backup / 'cursor-base/bin64/Game.dll').read_bytes()]:
+            verify_access(image)
+
+        def stage(relative, data):
+            path = output / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+
+        stage('bin64/Game.dll', dll)
+        for rel in ['Data/ui/game/game.pak', 'L10N/enu/Data/data.pak']:
+            active = archive(client / rel, rel.startswith('L10N/'))
+            baseline = archive(backup / rel, rel.startswith('L10N/'))
+            stage(rel, active)
+            stage('Mods/GraphicsMenu/package/' + rel, active)
+            stage(backup.relative_to(output).as_posix() + '/' + rel, baseline)
+            entry = next(e for e in state['files'] if e['path'] == rel)
+            entry.update(original=sha(baseline), installed=sha(active))
+        package['files'] = copy.deepcopy(state['files'])
+        stage('Mods/GraphicsMenu/installed.json', json.dumps(state, indent=2).encode())
+        stage('Mods/GraphicsMenu/package/manifest.json', json.dumps(package, indent=2).encode())
     stage('Mods/StigmaProfile/mod.json', json.dumps(dict(
         Title='Stigma profile controls', Listed=True,
         Description='Equip and remove Stigmas from Profile. Upgrade opens the native Stigma charging window.',

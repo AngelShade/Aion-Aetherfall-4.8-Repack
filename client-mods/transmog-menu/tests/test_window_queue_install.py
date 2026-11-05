@@ -25,14 +25,18 @@ class Checks(unittest.TestCase):
     def test_reconnect_relocation_failure_restores_native_records(self):
         self.check_rollback('remember-login-reconnect-v3','remember-login-return',4)
 
-    def check_rollback(self,feature,prefix,fail_at):
+    def test_owned_parts_package_rolls_back_without_graphics_copies(self):
+        self.check_rollback('remember-login-return-v2','remember-login-return',2,owned=True)
+
+    def check_rollback(self,feature,prefix,fail_at,owned=False):
         diagnostics=installer.DEV_ROOT/'diagnostics';diagnostics.mkdir(parents=True,exist_ok=True)
         with tempfile.TemporaryDirectory(prefix='queue-install-test-',dir=diagnostics) as temporary:
             dev=Path(temporary).resolve();client=dev/'client';package=dev/'staging/output/package';package.mkdir(parents=True)
-            backup='DXVK-backups/service-menu-graphics-20261007-000000-000000'
-            names=['bin64/Game.dll','DXVK/installed.json','DXVK/graphics-menu/installed.json','DXVK/graphics-menu/package/manifest.json',
-                   'DXVK/graphics-menu/package/bin64/Game.dll','DXVK/graphics-menu/package/Data/ui/game/game.pak',
+            backup='Mods/Backups/Renderer/service-menu-graphics-20261007-000000-000000'
+            names=['bin64/Game.dll','Mods/Renderer/installed.json','Mods/GraphicsMenu/installed.json','Mods/GraphicsMenu/package/manifest.json',
+                   'Mods/GraphicsMenu/package/bin64/Game.dll','Mods/GraphicsMenu/package/Data/ui/game/game.pak',
                    backup+'/bin64/Game.dll',backup+'/Data/ui/game/game.pak',backup+'/cursor-base/bin64/Game.dll']
+            if owned:names=['bin64/Game.dll']
             if feature in ('remember-login-return-v2','remember-login-reconnect-v3'):names.insert(1,'bin64/AionRememberLogin.dll')
             entries=[]
             for i,name in enumerate(names):
@@ -41,7 +45,7 @@ class Checks(unittest.TestCase):
                 if i<6:old.parent.mkdir(parents=True,exist_ok=True);old.write_bytes(b'original');original=installer.sha(old)
                 entries.append(dict(path=name,original=original,staged=installer.sha(dest)))
             m=dict(feature=feature,clientRoot=str(client),files=entries,preservedFiles=[],
-                   graphicsCompatibility=dict(backupName=backup.split('/')[-1],localized=False))
+                   graphicsCompatibility=(dict(ownershipSchema=2,localized=False) if owned else dict(backupName=backup.split('/')[-1],localized=False)))
             (package/'manifest.json').write_text(json.dumps(m))
             replace=installer.replace;calls=0
             def fail_third(path,data):

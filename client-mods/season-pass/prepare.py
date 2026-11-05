@@ -7,6 +7,9 @@ import struct
 import subprocess
 import sys
 from pathlib import Path
+import sys as _ownership_sys
+_ownership_sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if p.name == 'client-mods') / 'dxvk'))
+from client_ownership import independent as _owned_graphics, verify as _verify_graphics
 from urllib.parse import urlsplit
 
 HERE = Path(__file__).resolve().parent
@@ -99,32 +102,35 @@ def main():
     subprocess.run(['java',str(HERE.parent/'transmog-menu/SignClientPackages.java'),str(root),str(out)],check=True)
     (out/'Pub.key').unlink()
     for rel in ['Addon.key','bin32/bin32.pak.sig','Data/func_pet/func_pet.pak.sig',pak+'.sig']:stage(rel,(out/rel).read_bytes())
-    # Compose the current graphics/cursor recovery guards and their exact baselines.
-    graphics=read(root/'Mods/GraphicsMenu/installed.json')
-    manifest=read(root/'Mods/GraphicsMenu/package/manifest.json')
-    if graphics['files']!=manifest['files']: raise ValueError('Graphics recovery metadata differs')
-    entry=next(e for e in graphics['files'] if e['path']=='bin64/Game.dll')
-    if sha((root/entry['path']).read_bytes())!=entry['installed']: raise ValueError('Live Game.dll no longer matches graphics guards')
-    baseline=Path(graphics['backupRoot'])/entry['path']
-    if not baseline.resolve().is_relative_to(root/'Mods/Backups/Renderer') or sha(baseline.read_bytes())!=entry['original']: raise ValueError('Graphics baseline differs')
-    stage(baseline.relative_to(root),patch(baseline.read_bytes(),new_auth,new_browser))
-    entry['original']=sha(staged[baseline.relative_to(root).as_posix()]); entry['installed']=sha(staged['bin64/Game.dll'])
-    locale=next(e for e in graphics['files'] if e['path']=='L10N/enu/Data/data.pak')
-    locale_baseline=Path(graphics['backupRoot'])/locale['path']
-    if not locale_baseline.resolve().is_relative_to(root/'Mods/Backups/Renderer') or sha(locale_baseline.read_bytes())!=locale['original'] or sha((root/locale['path']).read_bytes())!=locale['installed']:raise ValueError('Graphics locale recovery guards differ')
-    stage(locale_baseline.relative_to(root),shortcut.transform(locale_baseline,locale['path'],definitions,texture))
-    locale.update(original=sha(staged[locale_baseline.relative_to(root).as_posix()]),installed=sha(staged[locale['path']]))
-    stage('Mods/GraphicsMenu/package/'+locale['path'],staged[locale['path']])
-    manifest['files']=graphics['files']
-    stage('Mods/GraphicsMenu/installed.json',json.dumps(graphics,indent=2).encode())
-    stage('Mods/GraphicsMenu/package/manifest.json',json.dumps(manifest,indent=2).encode())
-    stage('Mods/GraphicsMenu/package/bin64/Game.dll',staged['bin64/Game.dll'])
-    cursor=read(root/'Mods/Renderer/installed.json'); entry=next(e for e in cursor['nativeCursorPatch']['files'] if e['path']=='bin64/Game.dll')
-    baseline=Path(entry['backupPath'])
-    if not baseline.resolve().is_relative_to(root/'Mods/Backups/Renderer') or sha(baseline.read_bytes())!=entry['original']: raise ValueError('Cursor recovery baseline differs')
-    stage(baseline.relative_to(root),patch(baseline.read_bytes(),new_auth,new_browser))
-    entry['original']=sha(staged[baseline.relative_to(root).as_posix()]); entry['installed']=sha(staged['bin64/Game.dll'])
-    stage('Mods/Renderer/installed.json',json.dumps(cursor,indent=2).encode())
+    if _owned_graphics(root):
+        _verify_graphics(root, game=staged['bin64/Game.dll'])
+    else:
+        # Compose the current graphics/cursor recovery guards and their exact baselines.
+        graphics=read(root/'Mods/GraphicsMenu/installed.json')
+        manifest=read(root/'Mods/GraphicsMenu/package/manifest.json')
+        if graphics['files']!=manifest['files']: raise ValueError('Graphics recovery metadata differs')
+        entry=next(e for e in graphics['files'] if e['path']=='bin64/Game.dll')
+        if sha((root/entry['path']).read_bytes())!=entry['installed']: raise ValueError('Live Game.dll no longer matches graphics guards')
+        baseline=Path(graphics['backupRoot'])/entry['path']
+        if not baseline.resolve().is_relative_to(root/'Mods/Backups/Renderer') or sha(baseline.read_bytes())!=entry['original']: raise ValueError('Graphics baseline differs')
+        stage(baseline.relative_to(root),patch(baseline.read_bytes(),new_auth,new_browser))
+        entry['original']=sha(staged[baseline.relative_to(root).as_posix()]); entry['installed']=sha(staged['bin64/Game.dll'])
+        locale=next(e for e in graphics['files'] if e['path']=='L10N/enu/Data/data.pak')
+        locale_baseline=Path(graphics['backupRoot'])/locale['path']
+        if not locale_baseline.resolve().is_relative_to(root/'Mods/Backups/Renderer') or sha(locale_baseline.read_bytes())!=locale['original'] or sha((root/locale['path']).read_bytes())!=locale['installed']:raise ValueError('Graphics locale recovery guards differ')
+        stage(locale_baseline.relative_to(root),shortcut.transform(locale_baseline,locale['path'],definitions,texture))
+        locale.update(original=sha(staged[locale_baseline.relative_to(root).as_posix()]),installed=sha(staged[locale['path']]))
+        stage('Mods/GraphicsMenu/package/'+locale['path'],staged[locale['path']])
+        manifest['files']=graphics['files']
+        stage('Mods/GraphicsMenu/installed.json',json.dumps(graphics,indent=2).encode())
+        stage('Mods/GraphicsMenu/package/manifest.json',json.dumps(manifest,indent=2).encode())
+        stage('Mods/GraphicsMenu/package/bin64/Game.dll',staged['bin64/Game.dll'])
+        cursor=read(root/'Mods/Renderer/installed.json'); entry=next(e for e in cursor['nativeCursorPatch']['files'] if e['path']=='bin64/Game.dll')
+        baseline=Path(entry['backupPath'])
+        if not baseline.resolve().is_relative_to(root/'Mods/Backups/Renderer') or sha(baseline.read_bytes())!=entry['original']: raise ValueError('Cursor recovery baseline differs')
+        stage(baseline.relative_to(root),patch(baseline.read_bytes(),new_auth,new_browser))
+        entry['original']=sha(staged[baseline.relative_to(root).as_posix()]); entry['installed']=sha(staged['bin64/Game.dll'])
+        stage('Mods/Renderer/installed.json',json.dumps(cursor,indent=2).encode())
     # Earlier Market/Speech rollback receipts remain intact. Their source-hash
     # guards correctly require removing this later pass patch first.
     files=[dict(path=rel,original=sha((root/rel).read_bytes()) if (root/rel).is_file() else None,installed=sha(data)) for rel,data in staged.items()]

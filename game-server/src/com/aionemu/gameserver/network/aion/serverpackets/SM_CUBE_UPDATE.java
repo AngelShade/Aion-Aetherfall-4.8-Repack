@@ -46,8 +46,8 @@ public class SM_CUBE_UPDATE extends AionServerPacket {
 				break;
 			case REGULAR_WAREHOUSE:
 				itemsCount = player.getWarehouse().size();
-				npcExpands = player.getWhNpcExpands();
-				questExpands = player.getWhBonusExpands();
+				// Wire capacity, not earned credits (which remain unchanged in players).
+				npcExpands = (player.getWarehouse().getLimit() - type.getLimit()) / type.getLength();
 				break;
 			case LEGION_WAREHOUSE:
 				itemsCount = player.getLegion().getLegionWarehouse().size();

@@ -61,7 +61,7 @@ try {
             throw 'Installed DXVK checksum failed.'
         }
     }
-    foreach ($name in @('QualityProfile.ps1','Restore.ps1','VerifyActive.ps1','RendererCommon.ps1','SelectRenderer.ps1')) {
+    foreach ($name in @('QualityProfile.ps1','Restore.ps1','VerifyActive.ps1','RendererCommon.ps1','SelectRenderer.ps1','ClientOwnership.ps1','ClientOwnership.cs')) {
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $modRoot $name) -Force
     }
     $block = @'

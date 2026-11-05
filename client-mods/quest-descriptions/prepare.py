@@ -4,6 +4,9 @@ import hashlib
 import importlib.util
 import json
 from pathlib import Path
+import sys as _ownership_sys
+_ownership_sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if p.name == 'client-mods') / 'dxvk'))
+from client_ownership import independent as _owned_graphics, verify as _verify_graphics
 import re
 import sys
 from xml.etree import ElementTree as ET
@@ -81,11 +84,15 @@ def prepare(client, output):
     state = load(client / 'Mods/GraphicsMenu/installed.json')
     package = load(client / 'Mods/GraphicsMenu/package/manifest.json')
     assert not state.get('restoredAt') and state['files'] == package['files']
-    baseline = owned_renderer_backup(client, state['backupRoot'])
-    locale = next(e for e in state['files'] if e['path'].casefold() == RELATIVE.casefold())
-    assert sha((client / RELATIVE).read_bytes()) == locale['installed']
-    assert sha((client / 'Mods/GraphicsMenu/package' / RELATIVE).read_bytes()) == locale['installed']
-    assert sha((baseline / RELATIVE).read_bytes()) == locale['original']
+    independent_graphics = _owned_graphics(client)
+    if independent_graphics:
+        _verify_graphics(client)
+    baseline = client if independent_graphics else owned_renderer_backup(client, state['backupRoot'])
+    if not independent_graphics:
+        locale = next(e for e in state['files'] if e['path'].casefold() == RELATIVE.casefold())
+        assert sha((client / RELATIVE).read_bytes()) == locale['installed']
+        assert sha((client / 'Mods/GraphicsMenu/package' / RELATIVE).read_bytes()) == locale['installed']
+        assert sha((baseline / RELATIVE).read_bytes()) == locale['original']
     with read_pak(client / RELATIVE) as active, read_pak(baseline / RELATIVE) as restore:
         assert active.read(MEMBER) == restore.read(MEMBER), 'Restore has distinct quest text'
     active, active_checks = patch_archive(client / RELATIVE, summary)
@@ -101,12 +108,13 @@ def prepare(client, output):
         records.append(dict(path=relative, original=sha(current.read_bytes()), staged=sha(data)))
 
     stage(RELATIVE, active)
-    stage('Mods/GraphicsMenu/package/' + RELATIVE, active)
-    stage(baseline.relative_to(client).as_posix() + '/' + RELATIVE, restored)
-    for entries in (state['files'], package['files']):
-        next(e for e in entries if e['path'].casefold() == RELATIVE.casefold()).update(installed=sha(active), original=sha(restored))
-    for relative, data in [('Mods/GraphicsMenu/installed.json', state), ('Mods/GraphicsMenu/package/manifest.json', package)]:
-        stage(relative, (json.dumps(data, indent=2)+'\n').encode())
+    if not independent_graphics:
+        stage('Mods/GraphicsMenu/package/' + RELATIVE, active)
+        stage(baseline.relative_to(client).as_posix() + '/' + RELATIVE, restored)
+        for entries in (state['files'], package['files']):
+            next(e for e in entries if e['path'].casefold() == RELATIVE.casefold()).update(installed=sha(active), original=sha(restored))
+        for relative, data in [('Mods/GraphicsMenu/installed.json', state), ('Mods/GraphicsMenu/package/manifest.json', package)]:
+            stage(relative, (json.dumps(data, indent=2)+'\n').encode())
     installed = load(client / 'Mods/InstalledMods.json')
     for entries in installed['features'].values():
         for entry in entries:

@@ -1,6 +1,9 @@
 """Incremental Market HUD shortcut; stage all composed launcher and restore files."""
 import sys,os,json,copy,struct,subprocess,re
 from pathlib import Path
+import sys as _ownership_sys
+_ownership_sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'dxvk'))
+from client_ownership import independent as _owned_graphics, verify as _verify_graphics
 from xml.etree import ElementTree as ET
 from PIL import Image,ImageEnhance
 HERE=Path(__file__).resolve().parent
@@ -63,6 +66,9 @@ def main():
     subprocess.run(f'cmd.exe /d /s /c ""{script}""',check=True);stage('bin64/AionMarketShortcut.dll',dll.read_bytes())
     # Apply the feature to graphics/cursor removal baselines as well.
     def metadata(source_prefix):
+        if _owned_graphics(ROOT):
+            _verify_graphics(ROOT, game=staged.get('bin64/Game.dll'))
+            return
         prefix=(source_prefix+'/') if source_prefix else ''
         srel=prefix+'Mods/GraphicsMenu/installed.json';mrel=prefix+'Mods/GraphicsMenu/package/manifest.json';drel=prefix+'Mods/Renderer/installed.json'
         state=read(ROOT/srel);manifest=read(ROOT/mrel);dxvk=read(ROOT/drel)

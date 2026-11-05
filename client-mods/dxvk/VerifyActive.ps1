@@ -1,7 +1,8 @@
 param([string]$ClientPath = ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))))
 $ErrorActionPreference = 'Stop'
 $clientRoot = (Resolve-Path -LiteralPath $ClientPath).Path
-$state = Get-Content -LiteralPath (Join-Path $clientRoot 'DXVK/installed.json') -Raw | ConvertFrom-Json
+. (Join-Path $clientRoot 'Mods/Renderer/ClientOwnership.ps1')
+$state = Read-OwnershipJson (Join-Path $clientRoot 'Mods/Renderer/installed.json')
 . (Join-Path $PSScriptRoot 'RendererCommon.ps1')
 $enabled = Get-RendererChoice $clientRoot
 foreach ($entry in $state.files) {
@@ -22,7 +23,7 @@ foreach ($process in $processes) {
     })
     if ($wrapper.Count -gt 0) {
         "Loaded DXVK module: $($wrapper[0].FileName)"
-        $log = Get-ChildItem -LiteralPath (Join-Path $clientRoot 'DXVK/logs') -Filter '*_d3d9.log' |
+        $log = Get-ChildItem -LiteralPath (Join-Path $clientRoot 'Mods/Renderer/logs') -Filter '*_d3d9.log' |
             Where-Object { $_.LastWriteTime -ge $process.StartTime } |
             Sort-Object LastWriteTime -Descending | Select-Object -First 1
         if ($log) {

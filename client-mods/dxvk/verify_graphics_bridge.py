@@ -1,13 +1,17 @@
 """Run the compiled menu bridge against a mock native widget ABI."""
+import argparse
 import ctypes as C
 from pathlib import Path
 import shutil
 ROOT=Path(__file__).resolve().parent
 # Use a fixture client layout so the actual compiled bridge resolves its own
 # settings path the same way it will inside bin64, without touching live files.
-fixture=ROOT/'test-workspace'/'menu-bridge';(fixture/'bin64').mkdir(parents=True,exist_ok=True)
+parser=argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--client',type=Path,required=True);parser.add_argument('--output',type=Path,required=True)
+args=parser.parse_args()
+fixture=args.output;(fixture/'bin64').mkdir(parents=True,exist_ok=True)
 (fixture/'DXVK').mkdir(exist_ok=True)
-dll=fixture/'bin64/AionGraphicsMenu.dll';shutil.copyfile(ROOT/'build/graphics-menu/AionGraphicsMenu.dll',dll)
+dll=fixture/'bin64/AionGraphicsMenu.dll';shutil.copyfile(args.client/'bin64/AionGraphicsMenu.dll',dll)
 settings=fixture/'DXVK/renderer.ini';settings.write_text('[Renderer]\nVulkan=1\nActiveVulkan=1\n',encoding='ascii')
 module=C.CDLL(str(dll));p=C.c_void_p
 module.AionGraphicsLoad.argtypes=[p,C.c_int];module.AionGraphicsLoad.restype=None

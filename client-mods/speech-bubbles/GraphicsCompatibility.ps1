@@ -8,6 +8,7 @@ function Test-SpeechClientRunning([string]$ClientRoot) {
 }
 function Get-SpeechGraphicsPaths($Manifest) {
  if(-not $Manifest.graphicsCompatibility){return @()}
+    if ($Manifest.graphicsCompatibility.ownershipSchema -eq 2) { return @() }
  $name=$Manifest.graphicsCompatibility.backupName
  if($name -notmatch '^service-menu-graphics-\d{8}-\d{6}-\d{6}$'){throw 'Unexpected graphics backup name.'}
  $base='Mods/Backups/Renderer/'+$name

@@ -1,8 +1,9 @@
+param([Parameter(Mandatory=$true)][string]$ClientPath,[Parameter(Mandatory=$true)][string]$OutputRoot)
 $ErrorActionPreference = 'Stop'
-$fixture = Join-Path $PSScriptRoot ('test-workspace/multi-client-' + [guid]::NewGuid().ToString('N'))
-New-Item -ItemType Directory -Path (Join-Path $fixture 'DXVK') -Force | Out-Null
-foreach ($name in @('SelectRenderer.ps1','RendererCommon.ps1')) {
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $fixture ('DXVK/' + $name))
+$fixture = $OutputRoot
+New-Item -ItemType Directory -Path (Join-Path $fixture 'Mods/Renderer') -Force | Out-Null
+foreach ($name in @('SelectRenderer.ps1','RendererCommon.ps1','ClientOwnership.ps1','ClientOwnership.cs')) {
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $fixture ('Mods/Renderer/' + $name))
 }
 function Assert([bool]$Condition,[string]$Message) { if (-not $Condition) { throw $Message } }
 function Reject([scriptblock]$Action,[string]$Message) {
@@ -11,18 +12,19 @@ function Reject([scriptblock]$Action,[string]$Message) {
     Assert $failed $Message
 }
 $global:MultiClientRunning = $false
-function Get-Process { param($Name,$ErrorAction) if ($global:MultiClientRunning) { [pscustomobject]@{Name='aion.bin'} } }
+function Get-Process { param($Name,$ErrorAction) if ($global:MultiClientRunning) { [pscustomobject]@{Name='aion.bin';ProcessName='aion.bin'} } }
 $files = @()
 foreach ($path in @('bin32/d3d9.dll','bin64/d3d9.dll','dxvk.conf','bin64/Game.dll','bin64/XRenderD3D9.dll')) {
     $target = Join-Path $fixture $path
     New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
-    [IO.File]::WriteAllText($target,$path)
+    if ($path -in @('bin64/Game.dll','bin64/XRenderD3D9.dll')) { Copy-Item -LiteralPath (Join-Path $ClientPath $path) -Destination $target } else { [IO.File]::WriteAllText($target,$path) }
     $files += @{path=$path;installed=(Get-FileHash -LiteralPath $target).Hash}
 }
-$statePath = Join-Path $fixture 'DXVK/installed.json'
-$state = @{clientRoot=$fixture;files=@($files | Where-Object {$_.path -in @('bin32/d3d9.dll','bin64/d3d9.dll','dxvk.conf')});nativeCursorPatch=@{files=@($files | Where-Object {$_.path -in @('bin64/Game.dll','bin64/XRenderD3D9.dll')})}}
+$statePath = Join-Path $fixture 'Mods/Renderer/installed.json'
+$state = @{clientRoot=$fixture;files=@($files | Where-Object {$_.path -in @('bin32/d3d9.dll','bin64/d3d9.dll','dxvk.conf')});nativeCursorPatch=@{ownershipSchema=2;files=@($files | Where-Object {$_.path -in @('bin64/Game.dll','bin64/XRenderD3D9.dll')})}}
 $state | ConvertTo-Json -Depth 7 | Set-Content -LiteralPath $statePath
-$selector = Join-Path $fixture 'DXVK/SelectRenderer.ps1'
+New-Item -ItemType Directory -Path (Join-Path $fixture 'DXVK') -Force | Out-Null
+$selector = Join-Path $fixture 'Mods/Renderer/SelectRenderer.ps1'
 & $selector -ClientPath $fixture
 $global:MultiClientRunning = $true
 $before = Get-ChildItem -LiteralPath $fixture -Recurse -File | ForEach-Object { "$($_.FullName)|$((Get-FileHash -LiteralPath $_.FullName).Hash)|$($_.LastWriteTimeUtc.Ticks)" }
@@ -30,6 +32,7 @@ $before = Get-ChildItem -LiteralPath $fixture -Recurse -File | ForEach-Object { 
 & (Join-Path $PSScriptRoot 'InstallNativeCursorPatch.ps1') -ClientPath $fixture
 $after = Get-ChildItem -LiteralPath $fixture -Recurse -File | ForEach-Object { "$($_.FullName)|$((Get-FileHash -LiteralPath $_.FullName).Hash)|$($_.LastWriteTimeUtc.Ticks)" }
 Assert (($before -join "`n") -ceq ($after -join "`n")) 'Additional launch rewrote installed renderer/cursor files'
+New-Item -ItemType Directory -Path (Join-Path $fixture 'DXVK') -Force | Out-Null
 $ini = Join-Path $fixture 'DXVK/renderer.ini'
 [IO.File]::WriteAllText($ini,"[Renderer]`r`nVulkan=0`r`nActiveVulkan=1`r`n")
 Reject { & $selector -ClientPath $fixture } 'Running renderer switch was allowed'

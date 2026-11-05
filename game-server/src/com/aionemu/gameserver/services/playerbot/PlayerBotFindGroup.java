@@ -44,12 +44,14 @@ public final class PlayerBotFindGroup {
  }
  private static final Map<Integer,FreeHelp> FREE_HELP=new ConcurrentHashMap<>();
  /** Transient rendezvous in the current native party. No saved membership or timer. */
- private static final class EntranceMeeting {
+ static final class EntranceMeeting {
   final Player bot,human;final ServerWideGroup group;final PlayerBotWorldTravel.Place entrance;final int channel;
   volatile boolean accepted,arrived;
+  // The player pressed Summon: this bot follows them now and enters with the party transfer.
+  volatile boolean summoned;
   EntranceMeeting(Player bot,Player human,ServerWideGroup group,PlayerBotWorldTravel.Place entrance,int channel){this.bot=bot;this.human=human;this.group=group;this.entrance=entrance;this.channel=channel;}
  }
- private static final Map<Integer,EntranceMeeting> MEETINGS=new ConcurrentHashMap<>();
+ static final Map<Integer,EntranceMeeting> MEETINGS=new ConcurrentHashMap<>();
  private static Iterator<EntranceMeeting> meetingCursor=Collections.emptyIterator();
  private static final ArrayBlockingQueue<Runnable> REQUESTS = new ArrayBlockingQueue<>(128);
  private static final ScheduledThreadPoolExecutor SOCIAL = socialExecutor();
@@ -292,6 +294,7 @@ public final class PlayerBotFindGroup {
  private static String variant(Player bot,String first,String second) { return (bot.getObjectId()&2)==0 ? first : second; }
  /** Reserve human space rather than filling every native party with bots. */
  static int botSeats(boolean instance,int capacity) { return Math.max(1,Math.min(instance?5:3,capacity-1)); }
+ static int seatLimit(boolean humanJoined,boolean instance,int capacity) { return humanJoined?Math.min(6,capacity):botSeats(instance,capacity); }
  static boolean roleFits(PlayerBotRules.Role role,long tanks,long healers) {
   return (role!=PlayerBotRules.Role.TANK || tanks==0) && (role!=PlayerBotRules.Role.HEALER || healers==0);
  }
@@ -361,15 +364,17 @@ public final class PlayerBotFindGroup {
    || leader.getBlockList().contains(member.getObjectId()) || member.getBlockList().contains(leader.getObjectId())
    || member.getPlayerSettings().isInDeniedStatus(DeniedStatus.GROUP))return false;
   var team=leader.getPlayerGroup();var members=team==null?List.of(leader):team.getMembers();
-  // Reserve a human seat only while autonomous. Once adopted, count the human's
-  // role and fill the actual run, through its current native leader.
-  int seats=post.controller==null ? botSeats(post.need.instance(),post.need.members()) : Math.min(6,post.need.members());
-  if(post.controller==null && members.stream().anyMatch(p->!p.isWorldBot()) || members.size()>=seats)return false;
+  // Reserve a human seat only while no human has joined. After that, count the
+  // human's role and fill the actual run, through its current native leader.
+  boolean human=members.stream().anyMatch(p->!p.isWorldBot());
+  if(post.controller==null && human && !post.need.instance())return false;
+  int seats=seatLimit(post.controller!=null || human,post.need.instance(),post.need.members());
+  if(members.size()>=seats)return false;
   long tanks=members.stream().filter(p->PlayerBotRules.roleFor(p.getPlayerClass())==PlayerBotRules.Role.TANK).count();
   long healers=members.stream().filter(p->PlayerBotRules.roleFor(p.getPlayerClass())==PlayerBotRules.Role.HEALER).count();
   // A role is a preference, not a lock: a human's party must not wait forever for
   // a class nobody free can fill. Only the human-led party may stop waiting.
-  if(post.controller!=null && System.currentTimeMillis()-post.lastJoin>ROLE_PATIENCE)return true;
+  if((post.controller!=null || human) && System.currentTimeMillis()-post.lastJoin>ROLE_PATIENCE)return true;
   return partyRoleFits(PlayerBotRules.roleFor(member.getPlayerClass()),tanks,healers,members.size(),seats);
  }
 
@@ -394,9 +399,15 @@ public final class PlayerBotFindGroup {
    if(own!=null){withdraw(own);POSTS.remove(bot.getObjectId(),own);}
    offer.joiningUntil=0;offer.lastJoin=System.currentTimeMillis();joined++;
    register(offer);
-   if(offer.controller!=null)arrived(offer.controller,bot);
+   var human=offer.controller!=null?offer.controller:offer.need.instance()?humanIn(offer.bot):null;
+   if(human!=null)arrived(human,bot);
    return true;
   }finally{offer.assembling=false;}
+ }
+
+ private static Player humanIn(Player bot) {
+  for(var member:PlayerBotTeams.members(bot))if(!member.isWorldBot())return member;
+  return null;
  }
 
  private static void retire(Post post) {
@@ -983,8 +994,34 @@ public final class PlayerBotFindGroup {
   say(post,human,"Accept the travel window to meet us at the objective.",true);
  }
 
- /** The central relocation guard also covers manual summons and another companion's group transfer. */
- public static boolean waitingAtEntrance(PlayerBotSession session) { return MEETINGS.containsKey(session.bot().getObjectId()); }
+ /** The central relocation guard stops automatic recall and another companion's group transfer; only an explicit Summon releases it. */
+ public static boolean waitingAtEntrance(PlayerBotSession session) {
+  var meeting=MEETINGS.get(session.bot().getObjectId());
+  return meeting!=null && !meeting.summoned;
+ }
+ static boolean releaseFromEntranceWait(PlayerBotSession session) {
+  var meeting=MEETINGS.get(session.bot().getObjectId());
+  if(meeting==null || meeting.summoned)return false;
+  meeting.summoned=true;return true;
+ }
+ static void restoreEntranceWait(PlayerBotSession session) {
+  var meeting=MEETINGS.get(session.bot().getObjectId());
+  if(meeting!=null)meeting.summoned=false;
+ }
+ /** Bots of a dungeon party hold their meeting until this human reaches the entrance and takes control. */
+ static boolean awaitingHuman(Player human) {
+  return MEETINGS.values().stream().anyMatch(meeting->meeting.human==human && PlayerBotTeams.same(human,meeting.bot));
+ }
+ /** The dungeon run this human's party already agreed on, if a bot joins it late. */
+ static EntranceMeeting partyRun(Player human,Player bot) {
+  for(var meeting:MEETINGS.values())if(meeting.human==human && meeting.bot!=bot && PlayerBotTeams.same(human,meeting.bot))return meeting;
+  return null;
+ }
+ static EntranceMeeting joinRun(EntranceMeeting run,Player bot) {
+  var meeting=new EntranceMeeting(bot,run.human,run.group,run.entrance,run.channel);
+  meeting.accepted=run.accepted;meeting.arrived=run.arrived;
+  return meeting;
+ }
  private static boolean atEntrance(EntranceMeeting meeting) {
   var human=meeting.human;var place=meeting.entrance;
   return human.isOnline() && human.isSpawned() && !human.isDead() && human.getWorldId()==place.map() && human.getInstanceId()==meeting.channel
@@ -1033,6 +1070,7 @@ public final class PlayerBotFindGroup {
   var template=com.aionemu.gameserver.dataholders.DataManager.AUTO_GROUP.getTemplateByInstanceMaskId(meeting.group.getInstanceMaskId());
   if(template==null || human.getWorldId()!=template.getInstanceMapId() || !human.isInInstance())return;
   if(bot.getWorldId()==human.getWorldId() && bot.getInstanceId()==human.getInstanceId()){MEETINGS.remove(bot.getObjectId(),meeting);return;}
+  if(meeting.summoned)return; // Already following its owner: the native party transfer brings it in.
   // Never pull a waiting bot onto the human. It enters through the same native
   // portal admission and team instance selection only after the human entered.
   if(enterInstance(bot,meeting.group) && bot.getWorldId()==human.getWorldId() && bot.getInstanceId()==human.getInstanceId())MEETINGS.remove(bot.getObjectId(),meeting);
@@ -1117,6 +1155,11 @@ public final class PlayerBotFindGroup {
    var meeting=new EntranceMeeting(bot,human,offer,place,channel);
    MEETINGS.put(bot.getObjectId(),meeting);
    REQUESTS.offer(()->offerEntrance(meeting));return;
+  }
+  var run=partyRun(human,bot);
+  if(run!=null) {
+   MEETINGS.putIfAbsent(bot.getObjectId(),joinRun(run,bot));
+   REQUESTS.offer(()->speak(bot,human,line(bot,"joined-run",null,null),true));return;
   }
   REQUESTS.offer(()->speak(bot,human,line(bot,"joined",null,null),true));
   bringToHuman(human,List.of(bot));
@@ -1286,6 +1329,8 @@ public final class PlayerBotFindGroup {
     "Hi! Applied for "+place+". I'm a "+lvl+", hope that helps.");
    case "joined" -> pick("Thanks for the invite! On my way.","Hey all! Heading to you now.","Got it, coming over. Happy to help!",
     "Thanks! Give me a sec to get there.");
+   case "joined-run" -> pick("Count me in! I'll join you when you go in.","Thanks! I'll be ready when you enter the dungeon.",
+    "Happy to help. Head in when you're ready and I'll come along.");
    case "fill" -> pick("Hey, noticed your party has a free spot. "+lvl+" here, I can "+what+" if you want an extra hand.",
     "Hi! Need one more? I'm a "+lvl+" and can "+what+". Invite me anytime.",
     "Looks like you're short a "+what.replace("bring ","")+". "+lvl+" here, glad to join!");

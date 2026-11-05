@@ -107,7 +107,7 @@ def main():
     for relative, prefix in archives:
         if (root / relative).exists():
             stage(relative, patch_archive(root / relative, prefix))
-    if graphics:
+    if graphics and graphics.get("ownershipSchema") != 2:
         # Keep graphics removal/restore baselines at the same inventory capacity.
         records = ['Mods/GraphicsMenu/installed.json', 'Mods/GraphicsMenu/package/manifest.json']
         states = [json.loads((output / relative).read_text()) for relative in records]

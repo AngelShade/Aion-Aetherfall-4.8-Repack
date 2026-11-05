@@ -12,7 +12,14 @@ def sha(b):return hashlib.sha256(b).hexdigest()
 def digest(p):return sha(p.read_bytes())
 def read(p):return json.loads(p.read_text(encoding='utf-8-sig'))
 
+
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'dxvk'))
+from client_ownership import independent, verify as verify_parts
+
 def prepare(root,out,files,patch_dll,patch_ui,receipt=None):
+    if independent(root):
+        return verify_parts(root)
     state_path=root/'Mods/GraphicsMenu/installed.json'
     if not state_path.exists():return None
     state=read(state_path)

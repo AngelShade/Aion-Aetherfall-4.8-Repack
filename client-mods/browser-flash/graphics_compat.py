@@ -7,7 +7,14 @@ from stage import patch,sha
 
 def read(path):return json.loads(path.read_text(encoding='utf-8-sig'))
 
+
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'dxvk'))
+from client_ownership import independent, verify as verify_parts
+
 def prepare(root,out,prior,installed,already_installed=False):
+    if independent(root):
+        return [], verify_parts(root, game=installed)
     state_path=root/'Mods/GraphicsMenu/installed.json'
     if not state_path.exists():return [],None
     state=read(state_path)

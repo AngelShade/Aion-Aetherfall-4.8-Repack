@@ -1,6 +1,9 @@
 """Stage the native Protectors Hall statue with the prepared server timing patch."""
 import argparse,copy,hashlib,json,math,struct,sys,xml.etree.ElementTree as ET
 from pathlib import Path
+import sys as _ownership_sys
+_ownership_sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if p.name == 'client-mods') / 'dxvk'))
+from client_ownership import independent as _owned_graphics, verify as _verify_graphics
 
 HERE=Path(__file__).resolve().parent;ROOT=HERE.parents[1]
 sys.path[:0]=[str(ROOT/'client-mods/expanded-warehouse'),str(ROOT/'client-mods/bundle-opening')]
@@ -133,16 +136,17 @@ def prepare(client,timing,output):
     transforms={ARCHIVES[0]:{'client_npcs_npc.xml':npc},ARCHIVES[1]:{'client_airports.xml':airports,'client_airline.xml':airlines},ARCHIVES[2]:{'client_zonemap_hotspot.xml':hotspot},ARCHIVES[3]:STRING_TRANSFORMS,ARCHIVES[4]:LOCALE_TRANSFORMS}
     for rel,changes in transforms.items():
         payload,proof=archive(client/rel,changes);stage(rel,payload);evidence[rel]=proof
-    # Compose the English labels into the already verified incremental recovery
-    # cohort. Validate every ownership hash before changing any tracking record.
-    rel=ARCHIVES[4];state=json.loads((output/'Mods/GraphicsMenu/installed.json').read_text());package=json.loads((output/'Mods/GraphicsMenu/package/manifest.json').read_text())
-    require(state['files']==package['files'],'Prepared graphics tracking differs')
-    entry=next(e for e in state['files'] if e['path']==rel)
-    baseline=Path(state['backupRoot']).relative_to(client).as_posix()+'/'+rel
-    require(sha((output/baseline).read_bytes())==entry['original'] and sha((output/'Mods/GraphicsMenu/package'/rel).read_bytes())==entry['installed'],'English graphics recovery changed')
-    base_payload,proof=archive(output/baseline,LOCALE_TRANSFORMS);stage(baseline,base_payload)
-    stage('Mods/GraphicsMenu/package/'+rel,(output/rel).read_bytes());entry.update(original=sha(base_payload),installed=sha((output/rel).read_bytes()));package['files']=state['files']
-    stage('Mods/GraphicsMenu/installed.json',json.dumps(state,indent=2).encode());stage('Mods/GraphicsMenu/package/manifest.json',json.dumps(package,indent=2).encode())
+    if not _owned_graphics(client):
+        # Compose the English labels into the already verified incremental recovery
+        # cohort. Validate every ownership hash before changing any tracking record.
+        rel=ARCHIVES[4];state=json.loads((output/'Mods/GraphicsMenu/installed.json').read_text());package=json.loads((output/'Mods/GraphicsMenu/package/manifest.json').read_text())
+        require(state['files']==package['files'],'Prepared graphics tracking differs')
+        entry=next(e for e in state['files'] if e['path']==rel)
+        baseline=Path(state['backupRoot']).relative_to(client).as_posix()+'/'+rel
+        require(sha((output/baseline).read_bytes())==entry['original'] and sha((output/'Mods/GraphicsMenu/package'/rel).read_bytes())==entry['installed'],'English graphics recovery changed')
+        base_payload,proof=archive(output/baseline,LOCALE_TRANSFORMS);stage(baseline,base_payload)
+        stage('Mods/GraphicsMenu/package/'+rel,(output/rel).read_bytes());entry.update(original=sha(base_payload),installed=sha((output/rel).read_bytes()));package['files']=state['files']
+        stage('Mods/GraphicsMenu/installed.json',json.dumps(state,indent=2).encode());stage('Mods/GraphicsMenu/package/manifest.json',json.dumps(package,indent=2).encode())
     files=[]
     for p in sorted(output.rglob('*')):
         if not p.is_file() or p.name=='native-check.json':continue

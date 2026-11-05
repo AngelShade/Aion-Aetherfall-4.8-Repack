@@ -33,10 +33,15 @@ public final class PlayerBotRecovery {
  }
  public static List<PlayerBotSession> selected(Player owner,String name) {
   var service=PlayerBotService.getInstance();if(!name.equalsIgnoreCase("all") && !name.equalsIgnoreCase("selected"))return List.of(service.find(owner,name));
-  if(owner.getTarget()==null)return service.companions(owner);
-  var selected=service.companions(owner).stream().filter(s->s.bot()==owner.getTarget()).findFirst();
-  if(selected.isPresent())return List.of(selected.get());
-  throw new IllegalArgumentException("Select one of your active companions, or clear your target to summon the whole party.");
+  var companions=service.companions(owner);
+  if(companions.isEmpty() && PlayerBotFindGroup.awaitingHuman(owner))
+   throw new IllegalArgumentException("Your party is waiting for you. Its members become your companions when you reach the dungeon entrance.");
+  return targeted(owner.getTarget(),companions);
+ }
+ /** A targeted companion answers alone. Any other target (yourself, a monster, a party member you don't control) must not block the party summon. */
+ static List<PlayerBotSession> targeted(Object target,List<PlayerBotSession> companions) {
+  for(var session:companions)if(session.bot()==target)return List.of(session);
+  return companions;
  }
  static void close(Player owner){if(PlayerBotService.getInstance().companions(owner).stream().allMatch(PlayerBotSession::closing))WAITING.remove(owner.getObjectId());}
  private PlayerBotRecovery() {}

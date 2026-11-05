@@ -96,7 +96,7 @@ public class WarehouseService {
 	}
 
 	public static boolean canExpand(Player player) {
-		if (CustomConfig.EXPANDED_WAREHOUSES) {
+		if (player.getWarehouse().getLimit() >= CustomConfig.EXPANDED_CHARACTER_WAREHOUSE_SLOTS) {
 			PacketSendUtility.sendPacket(player, SM_SYSTEM_MESSAGE.STR_EXTEND_CHAR_WAREHOUSE_CANT_EXTEND_MORE());
 			return false;
 		}
@@ -129,7 +129,7 @@ public class WarehouseService {
 	public static void sendWarehouseInfo(Player player, boolean sendAccountWh) {
 		List<Item> items = player.getStorage(StorageType.REGULAR_WAREHOUSE.getId()).getItems();
 
-		int whSize = player.getWarehouseExpansions();
+		int whSize = (player.getWarehouse().getLimit() - StorageType.REGULAR_WAREHOUSE.getLimit()) / StorageType.REGULAR_WAREHOUSE.getLength();
 		int itemsSize = items.size();
 
 		// regular warehouse

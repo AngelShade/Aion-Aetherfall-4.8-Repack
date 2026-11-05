@@ -27,7 +27,7 @@ public final class Bot extends PlayerCommand {
 			create <name> <starting-class> - Create a normal level-1 character and recruit if eligible.
 			generate <name> <class> - Create a companion at your level in a separate roster, without a character slot.
 			dismiss <name|all> - Save and dismiss companions.
-			summon [name|all] - Revive and summon your selected companion; clear target for the party. Use while alive and out of combat.
+			summon [name|all] - Revive and summon the companion you have targeted, otherwise the whole party. Use while alive and out of combat.
 			follow|stay|guard|passive [name|all] - Change companion orders (default all).
 			Follow interrupts activity and pulls companions to you; regroup out of combat or use Attack to resume.
 			formation circle|box|line|spread - Arrange following companions around you; regroup after combat.

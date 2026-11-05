@@ -5,7 +5,8 @@ $client = (Resolve-Path -LiteralPath $ClientPath).Path
 $package = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 if (-not $client.Equals((Join-Path $package 'Client'),[StringComparison]::OrdinalIgnoreCase)) { throw 'Only this repack client may be prepared.' }
 $statePath = Join-Path $client 'Mods/portable-client.json'
-$state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+. (Join-Path $client 'Mods/Renderer/ClientOwnership.ps1')
+$state = Read-OwnershipJson $statePath
 if ((Get-FileHash -LiteralPath (Join-Path $client 'bin64/Game.dll')).Hash -ne $state.gameDllSha256) { throw 'Client binary changed after packaging. No ownership records were changed.' }
 if ((Get-FileHash -LiteralPath (Join-Path $client 'bin64/aion.bin')).Hash -ne $state.aionBinSha256) { throw 'Client startup binary changed after packaging.' }
 $old = [string]$state.preparedRoot
@@ -16,6 +17,8 @@ function Ensure-HDTextures {
 if ($old.Equals($client,[StringComparison]::OrdinalIgnoreCase)) { Ensure-HDTextures; 'Portable client paths verified.'; return }
 $encodedOld = (ConvertTo-Json -InputObject $old -Compress).Trim('"')
 $encodedNew = (ConvertTo-Json -InputObject $client -Compress).Trim('"')
+$asciiOld = ConvertTo-OwnershipAscii $encodedOld
+$asciiNew = ConvertTo-OwnershipAscii $encodedNew
 $utf8 = New-Object Text.UTF8Encoding($false)
 function Text-Hash([string]$Text) {
     $hasher = [Security.Cryptography.SHA256]::Create()
@@ -26,8 +29,9 @@ $documents = @{}
 foreach ($relative in $state.metadataFiles) {
     $path = [IO.Path]::GetFullPath((Join-Path $client $relative))
     if (-not $path.StartsWith($client.TrimEnd('\')+'\',[StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid portable metadata path.' }
-    $text = [IO.File]::ReadAllText($path)
-    $updated = $text.Replace($encodedOld,$encodedNew).Replace($old.Replace('\','/'),$client.Replace('\','/'))
+    $text = Read-OwnershipJson $path -Raw
+    $updated = ConvertTo-OwnershipAscii ($text.Replace($asciiOld,$asciiNew).Replace($encodedOld,$encodedNew).Replace(
+        (ConvertTo-OwnershipAscii $old.Replace('\','/')),(ConvertTo-OwnershipAscii $client.Replace('\','/'))).Replace($old.Replace('\','/'),$client.Replace('\','/')))
     $null = $updated | ConvertFrom-Json
     $documents[$path] = @{ Before=[IO.File]::ReadAllBytes($path); Text=$updated; Aliases=@((Get-FileHash -LiteralPath $path).Hash.ToLowerInvariant()) }
 }
@@ -67,7 +71,7 @@ try {
     }
     [IO.File]::WriteAllText($iniPath,$ini,$utf8)
     $state.preparedRoot = $client
-    [IO.File]::WriteAllText($statePath,($state | ConvertTo-Json -Depth 32),$utf8)
+    Write-OwnershipJson $statePath $state
 } catch {
     foreach ($path in $written) { [IO.File]::WriteAllBytes($path,$documents[$path].Before) }
     [IO.File]::WriteAllBytes($iniPath,$iniBefore)

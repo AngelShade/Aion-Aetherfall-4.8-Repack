@@ -4,6 +4,9 @@ import copy
 import hashlib
 import json
 from pathlib import Path
+import sys as _ownership_sys
+_ownership_sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if p.name == 'client-mods') / 'dxvk'))
+from client_ownership import independent as _owned_graphics, verify as _verify_graphics
 import re
 import sys
 from xml.etree import ElementTree as ET
@@ -103,7 +106,7 @@ def main():
     package = json.loads((client / 'Mods/GraphicsMenu/package/manifest.json').read_text(encoding='utf-8-sig'))
     if state.get('restoredAt') or state['files'] != package['files']:
         raise ValueError('Active Graphics menu records disagree')
-    baseline = owned_renderer_backup(client, state['backupRoot'])
+    baseline = client if _owned_graphics(client) else owned_renderer_backup(client, state['backupRoot'])
     skin = json.loads((client / 'Mods/AetherfallUI/manifest.json').read_text(encoding='utf-8-sig'))
     skinned = set()
     for name, record in skin['archives'].items():
@@ -124,6 +127,10 @@ def main():
         files.append(dict(path=relative, original=sha(original) if original.exists() else None, installed=sha(target)))
     affected = ['Data/ui/game/game.pak', 'L10N/enu/Data/data.pak']
     for rel in affected:
+        if _owned_graphics(client):
+            _verify_graphics(client)
+            stage(rel, archive(client / rel, rel.startswith('L10N/'), layouts))
+            continue
         record = next(r for r in state['files'] if r['path'] == rel)
         saved = baseline / rel
         if (sha(client / rel) != record['installed'] or sha(saved) != record['original'] or
@@ -135,9 +142,10 @@ def main():
         stage('Mods/GraphicsMenu/package/' + rel, active)
         stage(baseline.relative_to(client).as_posix() + '/' + rel, restore)
         record.update(installed=hashlib.sha256(active).hexdigest(), original=hashlib.sha256(restore).hexdigest())
-    package['files'] = state['files']
-    stage('Mods/GraphicsMenu/installed.json', json.dumps(state, indent=2).encode())
-    stage('Mods/GraphicsMenu/package/manifest.json', json.dumps(package, indent=2).encode())
+    if not _owned_graphics(client):
+        package['files'] = state['files']
+        stage('Mods/GraphicsMenu/installed.json', json.dumps(state, indent=2).encode())
+        stage('Mods/GraphicsMenu/package/manifest.json', json.dumps(package, indent=2).encode())
     inventory = json.loads((client / 'Mods/InstalledMods.json').read_text(encoding='utf-8-sig'))
     for records in inventory['features'].values():
         for record in records:

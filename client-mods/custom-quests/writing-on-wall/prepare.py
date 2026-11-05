@@ -9,6 +9,9 @@ import hashlib
 import importlib.util
 import json
 from pathlib import Path
+import sys as _ownership_sys
+_ownership_sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'dxvk'))
+from client_ownership import independent as _owned_graphics
 import shutil
 import subprocess
 import sys
@@ -142,11 +145,12 @@ def prepare(client, build, output):
         graphics = json.loads((client / 'Mods/GraphicsMenu/installed.json').read_text())
         package = json.loads((client / 'Mods/GraphicsMenu/package/manifest.json').read_text())
         assert graphics['files'] == package['files'] and not graphics.get('restoredAt')
-        restore = owned_renderer_backup(client, graphics['backupRoot'])
-        locale = next(e for e in graphics['files'] if e['path'].casefold() == ARCHIVES[1].casefold())
-        assert sha(client / ARCHIVES[1]) == locale['installed']
-        assert sha(client / 'Mods/GraphicsMenu/package' / ARCHIVES[1]) == locale['installed']
-        assert sha(restore / ARCHIVES[1]) == locale['original']
+        restore = client if _owned_graphics(client) else owned_renderer_backup(client, graphics['backupRoot'])
+        if not _owned_graphics(client):
+            locale = next(e for e in graphics['files'] if e['path'].casefold() == ARCHIVES[1].casefold())
+            assert sha(client / ARCHIVES[1]) == locale['installed']
+            assert sha(client / 'Mods/GraphicsMenu/package' / ARCHIVES[1]) == locale['installed']
+            assert sha(restore / ARCHIVES[1]) == locale['original']
         before = {}
 
         def watch(path):
@@ -245,13 +249,14 @@ def prepare(client, build, output):
     payload('Mods/CustomQuests/installed.json', source=output / 'active/Mods/CustomQuests/installed.json')
     for name in ARCHIVES:
         payload(name, source=output / 'active' / name)
-    payload('Mods/GraphicsMenu/package/' + ARCHIVES[1], source=output / 'active' / ARCHIVES[1])
-    payload(state['graphicsRestore'] + '/' + ARCHIVES[1], source=output / 'restore' / ARCHIVES[1])
-    for relative in ('Mods/GraphicsMenu/installed.json', 'Mods/GraphicsMenu/package/manifest.json'):
-        graphics = json.loads((client / relative).read_text())
-        entry = next(e for e in graphics['files'] if e['path'].casefold() == ARCHIVES[1].casefold())
-        entry.update(installed=sha(output / 'active' / ARCHIVES[1]), original=sha(output / 'restore' / ARCHIVES[1]))
-        payload(relative, data=(json.dumps(graphics, indent=2) + '\n').encode())
+    if not _owned_graphics(client):
+        payload('Mods/GraphicsMenu/package/' + ARCHIVES[1], source=output / 'active' / ARCHIVES[1])
+        payload(state['graphicsRestore'] + '/' + ARCHIVES[1], source=output / 'restore' / ARCHIVES[1])
+        for relative in ('Mods/GraphicsMenu/installed.json', 'Mods/GraphicsMenu/package/manifest.json'):
+            graphics = json.loads((client / relative).read_text())
+            entry = next(e for e in graphics['files'] if e['path'].casefold() == ARCHIVES[1].casefold())
+            entry.update(installed=sha(output / 'active' / ARCHIVES[1]), original=sha(output / 'restore' / ARCHIVES[1]))
+            payload(relative, data=(json.dumps(graphics, indent=2) + '\n').encode())
     mods = json.loads((client / 'Mods/InstalledMods.json').read_text())
     records = {str(Path(e['target'])).casefold(): e for e in writes}
     custom = mods['features']['CustomQuests']

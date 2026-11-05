@@ -1,14 +1,11 @@
-param([Parameter(Mandatory=$true)][string]$ClientPath)
+param([Parameter(Mandatory=$true)][string]$ClientPath,[switch]$VerifyOnly)
 $ErrorActionPreference = 'Stop'
 $clientRoot = (Resolve-Path -LiteralPath $ClientPath).Path
 $rendererPath = Join-Path $clientRoot 'bin64/XRenderD3D9.dll'
-# These read-only offsets were verified in this exact Aion 4.8 NA renderer.
-$state = Get-Content -LiteralPath (Join-Path $clientRoot 'DXVK/installed.json') -Raw | ConvertFrom-Json
-$rendererPatch = $state.nativeCursorPatch.files | Where-Object { $_.path -eq 'bin64/XRenderD3D9.dll' }
-if (-not $rendererPatch -or $rendererPatch.original -ne 'C8DAFE7FDDC5CF364C6BF15C258B6E37FE4F7EDB9D405C605285AF7311205B2A' -or
-    (Get-FileHash -LiteralPath $rendererPath).Hash -ne $rendererPatch.installed) {
-    throw 'Different renderer build; native cursor state inspection stopped.'
-}
+. (Join-Path $clientRoot 'Mods/Renderer/ClientOwnership.ps1')
+[AetherfallOwnership.Parts]::VerifyCursor($clientRoot)
+if ($VerifyOnly) { 'PASS: both owned native cursor instruction pairs are intact.'; return }
+# Read-only live inspection remains opt-in by running without -VerifyOnly.
 $game = Get-Process -Name 'aion.bin' -ErrorAction Stop | Where-Object {
     $_.Path -ieq (Join-Path $clientRoot 'bin64/aion.bin')
 } | Select-Object -First 1

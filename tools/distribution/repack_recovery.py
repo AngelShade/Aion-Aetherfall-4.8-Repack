@@ -44,12 +44,12 @@ def active_recovery_files(package, staged=None):
                 manifest = current(folder / 'packages' / state['packageId'] / 'manifest.json')
                 if manifest.is_file():
                     records = json.loads(manifest.read_text(encoding='utf-8-sig')).get('files', [])
-            if backup:
+            if backup and state.get('ownershipSchema') != 2:
                 for entry in records:
                     if entry.get('original'):
                         include(Path(backup) / entry['path'])
             for entry in state.get('nativeCursorPatch', {}).get('files', []):
-                if entry.get('original') and entry.get('backupPath'):
+                if state.get('nativeCursorPatch', {}).get('ownershipSchema') != 2 and entry.get('original') and entry.get('backupPath'):
                     include(entry['backupPath'])
     return allowed
 

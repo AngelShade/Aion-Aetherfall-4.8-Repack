@@ -142,30 +142,42 @@ def main():
     _, compatibility = prepare_incremental(client, output, dll)
     if not compatibility:
         raise ValueError('Expected native Graphics/cursor recovery')
-    state = json.loads((output / 'Mods/GraphicsMenu/installed.json').read_text())
-    manifest = json.loads((output / 'Mods/GraphicsMenu/package/manifest.json').read_text())
-    baseline = output / 'Mods/Backups/Renderer' / compatibility['backupName']
-    def stage(rel, data):
-        target = output / rel
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(data)
-    stage('bin64/Game.dll', dll)
-    resources = ['Data/ui/game/game.pak', 'L10N/enu/Data/data.pak']
-    changed = ['bin64/Game.dll'] + resources
-    for rel in resources:
-        entry = next(e for e in state['files'] if e['path'] == rel)
-        raw, saved = (client / rel).read_bytes(), (baseline / rel).read_bytes()
-        if (account.sha(raw) != entry['installed'] or account.sha(saved) != entry['original'] or
-                account.sha((client / 'Mods/GraphicsMenu/package' / rel).read_bytes()) != entry['installed']):
-            raise ValueError('Live/package/restore hashes disagree: ' + rel)
-        active, restore = archive(raw, rel.startswith('L10N')), archive(saved, rel.startswith('L10N'))
-        stage(rel, active)
-        stage('Mods/GraphicsMenu/package/' + rel, active)
-        stage(baseline.relative_to(output).as_posix() + '/' + rel, restore)
-        for entries in (state['files'], manifest['files']):
-            next(e for e in entries if e['path'] == rel).update(installed=account.sha(active), original=account.sha(restore))
-    stage('Mods/GraphicsMenu/installed.json', json.dumps(state, indent=2).encode())
-    stage('Mods/GraphicsMenu/package/manifest.json', json.dumps(manifest, indent=2).encode())
+    def stage(relative, data):
+        path = output / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+
+    if compatibility.get('ownershipSchema') == 2:
+        stage('bin64/Game.dll', dll)
+        for rel in ['Data/ui/game/game.pak', 'L10N/enu/Data/data.pak']:
+            stage(rel, archive((client / rel).read_bytes(), rel.startswith('L10N')))
+        resources = ['Data/ui/game/game.pak', 'L10N/enu/Data/data.pak']
+        changed = ['bin64/Game.dll'] + resources
+    else:
+        state = json.loads((output / 'Mods/GraphicsMenu/installed.json').read_text())
+        manifest = json.loads((output / 'Mods/GraphicsMenu/package/manifest.json').read_text())
+        baseline = output / 'Mods/Backups/Renderer' / compatibility['backupName']
+        def stage(rel, data):
+            target = output / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(data)
+        stage('bin64/Game.dll', dll)
+        resources = ['Data/ui/game/game.pak', 'L10N/enu/Data/data.pak']
+        changed = ['bin64/Game.dll'] + resources
+        for rel in resources:
+            entry = next(e for e in state['files'] if e['path'] == rel)
+            raw, saved = (client / rel).read_bytes(), (baseline / rel).read_bytes()
+            if (account.sha(raw) != entry['installed'] or account.sha(saved) != entry['original'] or
+                    account.sha((client / 'Mods/GraphicsMenu/package' / rel).read_bytes()) != entry['installed']):
+                raise ValueError('Live/package/restore hashes disagree: ' + rel)
+            active, restore = archive(raw, rel.startswith('L10N')), archive(saved, rel.startswith('L10N'))
+            stage(rel, active)
+            stage('Mods/GraphicsMenu/package/' + rel, active)
+            stage(baseline.relative_to(output).as_posix() + '/' + rel, restore)
+            for entries in (state['files'], manifest['files']):
+                next(e for e in entries if e['path'] == rel).update(installed=account.sha(active), original=account.sha(restore))
+        stage('Mods/GraphicsMenu/installed.json', json.dumps(state, indent=2).encode())
+        stage('Mods/GraphicsMenu/package/manifest.json', json.dumps(manifest, indent=2).encode())
     inventory = json.loads((client / 'Mods/InstalledMods.json').read_text(encoding='utf-8-sig'))
     for entries in inventory['features'].values():
         for entry in entries:

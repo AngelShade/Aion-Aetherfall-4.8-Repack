@@ -1,7 +1,7 @@
-"""Compose verified native graphics hooks with a freshly built service-menu DLL.
+"""Compatibility entry points for bounded native edits.
 
-Stages graphics package/state records and new restore baselines together. Never
-writes to the client. Unknown live changes still fail the input hash checks.
+Active clients validate Graphics/cursor ownership and stage no duplicate files.
+The legacy composition branches remain for historical transaction descriptions.
 """
 import copy
 from datetime import datetime
@@ -18,6 +18,7 @@ import zipfile
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent / 'dxvk'))
 from build_graphics_menu import patch, SITES
+from client_ownership import independent, verify as verify_parts
 from codec import read_pak, encode_pak, binary_xml, encode_binary_xml
 
 
@@ -73,6 +74,8 @@ def strip_graphics(path, name):
 
 
 def prepare(root, output, dll, repair_backup=None):
+    if independent(root):
+        return dll, verify_parts(root, game=dll)
     state_path = root / 'Mods/GraphicsMenu/installed.json'
     if not state_path.exists():
         return dll, None
@@ -164,7 +167,7 @@ def prepare(root, output, dll, repair_backup=None):
 
 def compatibility_paths(record):
     """Exact payload cohort shared by native companion staging and verification."""
-    if not record:
+    if not record or record.get("ownershipSchema") == 2:
         return set()
     name = record['backupName']
     if not re.fullmatch(r'service-menu-graphics-\d{8}-\d{6}-\d{6}', name):
@@ -186,6 +189,9 @@ def prepare_incremental(root, output, dll, repair_backup=None, *, backup_name=No
     baselines. Thus edits to graphics/cursor hooks cannot silently cross domains.
     A repair accepts only a fully hash-verified known installer receipt.
     """
+    if independent(root):
+        return dll, verify_parts(root, game=dll)
+
     state_path = root / 'Mods/GraphicsMenu/installed.json'
     if not state_path.exists():
         return dll, None

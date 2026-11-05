@@ -4,12 +4,13 @@ if (Get-Process -Name 'aion.bin','aion' -ErrorAction SilentlyContinue) { throw '
 $clientRoot = (Resolve-Path -LiteralPath $ClientPath).Path
 $modRoot = Join-Path $clientRoot 'Mods/Renderer'
 $statePath = Join-Path $modRoot 'installed.json'
-$state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+. (Join-Path $modRoot 'ClientOwnership.ps1')
+$state = Read-OwnershipJson $statePath
 . (Join-Path $PSScriptRoot 'RendererCommon.ps1')
 if ($state.clientRoot -ne $clientRoot -or $state.files.Count -ne 3) { throw 'Unexpected DXVK restore record.' }
-$backup = (Resolve-Path -LiteralPath $state.backupRoot).Path
+$backup = [IO.Path]::GetFullPath($state.backupRoot)
 $expectedRoot = (Join-Path $clientRoot 'Mods/Backups/Renderer').TrimEnd('\') + '\'
-if (-not $backup.StartsWith($expectedRoot,[StringComparison]::OrdinalIgnoreCase)) { throw 'Unexpected DXVK backup path.' }
+if (@($state.files | Where-Object { $null -ne $_.original }).Count -gt 0 -and -not $backup.StartsWith($expectedRoot,[StringComparison]::OrdinalIgnoreCase)) { throw 'Unexpected DXVK backup path.' }
 foreach ($entry in $state.files) {
     if (@('bin32/d3d9.dll','bin64/d3d9.dll','dxvk.conf') -cnotcontains $entry.path) { throw 'Unexpected restore target.' }
     $target = Resolve-RendererFile $clientRoot $entry.path
@@ -18,24 +19,18 @@ foreach ($entry in $state.files) {
         throw 'Original backup hash failed.'
     }
 }
-# Remove the menu first so its backup returns Game.dll to the cursor-patched
-# build before the full renderer uninstall restores the earlier native build.
+# Both native mods restore only their owned parts; no shared Game.dll baseline.
 $menuState = Join-Path $clientRoot 'Mods/GraphicsMenu/installed.json'
-$nativePatches = @($state.nativeCursorPatch.files | Where-Object { $null -ne $_ })
-foreach ($entry in $nativePatches) {
-    if (@('bin64/XRenderD3D9.dll','bin64/Game.dll') -cnotcontains $entry.path) { throw 'Unexpected native cursor restore target.' }
-    $saved = (Resolve-Path -LiteralPath $entry.backupPath).Path
-    if (-not $saved.StartsWith($expectedRoot,[StringComparison]::OrdinalIgnoreCase)) { throw 'Unexpected native cursor backup path.' }
-    if ((Get-FileHash -LiteralPath (Join-Path $clientRoot $entry.path)).Hash -ne $entry.installed) { throw 'Later native client changes detected; restore stopped.' }
-    if ((Get-FileHash -LiteralPath $saved).Hash -ne $entry.original) { throw 'Native cursor backup checksum failed.' }
-}
+if ($state.nativeCursorPatch -and -not $state.nativeCursorPatch.restoredAt) { [AetherfallOwnership.Parts]::VerifyCursor($clientRoot) }
+if ((Test-Path -LiteralPath $menuState) -and -not (Read-OwnershipJson $menuState).restoredAt) { Confirm-GraphicsOwnership $clientRoot }
 if (Test-Path -LiteralPath $menuState) {
     & (Join-Path $clientRoot 'Mods/GraphicsMenu/RestoreGraphicsMenu.ps1') -ClientPath $clientRoot
-    $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+    $state = Read-OwnershipJson $statePath
 }
 & (Join-Path $modRoot 'QualityProfile.ps1') -ClientPath $clientRoot -Restore
-foreach ($entry in $nativePatches) {
-    Copy-Item -LiteralPath $entry.backupPath -Destination (Join-Path $clientRoot $entry.path) -Force
+if ($state.nativeCursorPatch -and -not $state.nativeCursorPatch.restoredAt) {
+    [AetherfallOwnership.Parts]::Cursor($clientRoot,$true)
+    $state.PSObject.Properties.Remove('nativeCursorPatch')
 }
 foreach ($entry in $state.files) {
     $target = Resolve-RendererFile $clientRoot $entry.path
@@ -46,10 +41,12 @@ foreach ($entry in $state.files) {
     }
 }
 $launcherPath = Join-Path $clientRoot 'Aion Start.bat'
-$launcher = [IO.File]::ReadAllText($launcherPath)
-$launcher = [regex]::Replace($launcher,'(?ms)^rem BEGIN DXVK QUALITY\r?\n.*?^rem END DXVK QUALITY\r?\n?','')
-$launcher = [regex]::Replace($launcher,'(?ms)^rem BEGIN RENDERER MENU\r?\n.*?^rem END RENDERER MENU\r?\n?','')
-[IO.File]::WriteAllText($launcherPath,$launcher,[Text.Encoding]::ASCII)
+if (Test-Path -LiteralPath $launcherPath) {
+    $launcher = [IO.File]::ReadAllText($launcherPath)
+    $launcher = [regex]::Replace($launcher,'(?ms)^rem BEGIN DXVK QUALITY\r?\n.*?^rem END DXVK QUALITY\r?\n?','')
+    $launcher = [regex]::Replace($launcher,'(?ms)^rem BEGIN RENDERER MENU\r?\n.*?^rem END RENDERER MENU\r?\n?','')
+    [IO.File]::WriteAllText($launcherPath,$launcher,[Text.Encoding]::ASCII)
+}
 $state | Add-Member -NotePropertyName restoredAt -NotePropertyValue (Get-Date -Format 'o') -Force
-$state | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
+Write-OwnershipJson $statePath $state
 'DXVK and its native cursor patch removed; previous managed graphics settings restored.'

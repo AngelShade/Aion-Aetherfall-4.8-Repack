@@ -11,6 +11,7 @@ import hashlib
 import json
 from pathlib import Path
 import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'dxvk'))
 import xml.etree.ElementTree as E
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'expanded-warehouse'))
@@ -89,6 +90,10 @@ def prepare(client, stage, original, extend_archive, read_pak):
     if state['Applied'] != 'layout':
         raise ValueError('Shortcut geometry requires the enabled full HUD layout')
     manifest = json.loads(original('Mods/AetherfallUI/manifest.json'))
+    from client_ownership import independent, verify as verify_parts
+    independent_graphics = independent(client)
+    if independent_graphics:
+        verify_parts(client)
     graphics = json.loads(original('Mods/GraphicsMenu/installed.json'))
     package = json.loads(original('Mods/GraphicsMenu/package/manifest.json'))
     if graphics.get('restoredAt') or graphics['files'] != package['files']:
@@ -114,34 +119,38 @@ def prepare(client, stage, original, extend_archive, read_pak):
                 blob = 'Mods/AetherfallUI/payloads/' + sha(data) + '.gz'
                 original(blob); stage(blob, gzip.compress(data, mtime=0))
         data = extend_archive(source, entries, {}); stage(relative, data)
-        record = next((e for e in graphics['files'] if e['path'].lower() == relative.lower()), None)
-        if record:
-            package_rel = 'Mods/GraphicsMenu/package/' + record['path']
-            if sha(source) != record['installed'] or sha(original(package_rel)) != record['installed']:
-                raise ValueError('Active Graphics package differs: ' + relative)
-            stage(package_rel, data)
-            for rows in (graphics['files'], package['files']):
-                next(e for e in rows if e['path'].lower() == relative.lower())['installed'] = sha(data)
+        if not independent_graphics:
+            record = next((e for e in graphics['files'] if e['path'].lower() == relative.lower()), None)
+            if record:
+                package_rel = 'Mods/GraphicsMenu/package/' + record['path']
+                if sha(source) != record['installed'] or sha(original(package_rel)) != record['installed']:
+                    raise ValueError('Active Graphics package differs: ' + relative)
+                stage(package_rel, data)
+                for rows in (graphics['files'], package['files']):
+                    next(e for e in rows if e['path'].lower() == relative.lower())['installed'] = sha(data)
     # Preserve the old recovery folder and compose the affected locale members
     # into a fresh matching baseline, using the existing ownership helper.
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'transmog-menu'))
     from graphics_compat import owned_renderer_backup
-    old_backup = owned_renderer_backup(client, graphics['backupRoot'])
-    new_backup = 'Mods/Backups/Renderer/service-menu-graphics-' + datetime.now().strftime('%Y%m%d-%H%M%S-%f')
-    for entry in graphics['files']:
-        if entry.get('original') is None:
-            continue
-        relative = entry['path']; baseline = original((old_backup / relative).relative_to(client).as_posix())
-        if sha(baseline) != entry['original']:
-            raise ValueError('Graphics restore baseline differs: ' + relative)
-        entries = replacements.get(relative)
-        if entries:
-            baseline = extend_archive(baseline, entries, {})
-            for rows in (graphics['files'], package['files']):
-                next(e for e in rows if e['path'].lower() == relative.lower())['original'] = sha(baseline)
-        stage(new_backup + '/' + relative, baseline)
-    graphics['backupRoot'] = str(client / new_backup)
+    if not independent_graphics:
+        old_backup = owned_renderer_backup(client, graphics['backupRoot'])
+        new_backup = 'Mods/Backups/Renderer/service-menu-graphics-' + datetime.now().strftime('%Y%m%d-%H%M%S-%f')
+        for entry in graphics['files']:
+            if entry.get('original') is None:
+                continue
+            relative = entry['path']; baseline = original((old_backup / relative).relative_to(client).as_posix())
+            if sha(baseline) != entry['original']:
+                raise ValueError('Graphics restore baseline differs: ' + relative)
+            entries = replacements.get(relative)
+            if entries:
+                baseline = extend_archive(baseline, entries, {})
+                for rows in (graphics['files'], package['files']):
+                    next(e for e in rows if e['path'].lower() == relative.lower())['original'] = sha(baseline)
+            stage(new_backup + '/' + relative, baseline)
+        graphics['backupRoot'] = str(client / new_backup)
     stage('Mods/AetherfallUI/manifest.json', json.dumps(manifest, indent=2).encode())
-    stage('Mods/GraphicsMenu/installed.json', json.dumps(graphics, indent=2).encode())
-    stage('Mods/GraphicsMenu/package/manifest.json', json.dumps(package, indent=2).encode())
+    if not independent_graphics:
+        stage('Mods/GraphicsMenu/installed.json', json.dumps(graphics, indent=2).encode())
+    if not independent_graphics:
+        stage('Mods/GraphicsMenu/package/manifest.json', json.dumps(package, indent=2).encode())
     return replacements

@@ -43,10 +43,16 @@ public class ItemMoveService {
 		IStorage targetStorage = player.getStorage(destinationStorageType);
 		if (targetStorage == null) {
 			log.error("{} tried to move itemObjId {} to unknown destinationStorageType: {}", player, itemObjId, destinationStorageType);
+			restoreSource(player, item);
 			return;
 		}
 
 		if (sourceStorageType == destinationStorageType) {
+			slot = warehouseSlot(targetStorage, item, slot);
+			if (slot == -2) {
+				refuseMove(player, targetStorage, item);
+				return;
+			}
 			if (item.getEquipmentSlot() != slot)
 				moveInSameStorage(sourceStorage, item, slot);
 			return;
@@ -55,7 +61,7 @@ public class ItemMoveService {
 			|| ItemRestrictionService.isItemRestrictedFrom(player, item, sourceStorage.getStorageType())
 			|| player.isTrading()
 			|| GameServer.isShuttingDownSoon()) {
-			sendItemUnlockPacket(player, item);
+			restoreSource(player, item);
 			if (GameServer.isShuttingDownSoon())
 				PacketSendUtility.sendPacket(player, SM_SYSTEM_MESSAGE.STR_MSG_DISABLE("Shutdown Progress"));
 			return;
@@ -74,15 +80,73 @@ public class ItemMoveService {
 				}
 			}
 		}
-		if (targetStorage.isFull()) {
-			PacketSendUtility.sendPacket(player, targetStorage.getStorageIsFullMessage());
-			sendItemUnlockPacket(player, item);
+		slot = warehouseSlot(targetStorage, item, slot);
+		if (targetStorage.isFull() || slot == -2) {
+			refuseMove(player, targetStorage, item);
 			return;
 		}
-		sourceStorage.remove(item);
-		sendItemDeletePacket(player, sourceStorage.getStorageType(), item, ItemDeleteType.MOVE);
+		long sourceSlot = item.getEquipmentSlot();
+		if (sourceStorage.remove(item) != item) {
+			restoreSource(player, item);
+			return;
+		}
 		item.setEquipmentSlot(slot);
-		targetStorage.add(item);
+		try {
+			// Native UI requires delete before add. A refusal explicitly recreates the source slot.
+			sendItemDeletePacket(player, sourceStorage.getStorageType(), item, ItemDeleteType.MOVE);
+			if (targetStorage.add(item) != null)
+				return;
+		} catch (RuntimeException error) {
+			log.error("Item transfer refused; restoring object {} to {}", itemObjId, sourceStorage.getStorageType(), error);
+		}
+		boolean published = targetStorage.getItemByObjId(itemObjId) == item;
+		if (published) {
+			targetStorage.remove(item);
+		}
+		item.setEquipmentSlot(sourceSlot);
+		item.setItemLocation(sourceStorageType);
+		// Restore custody before attempting any corrective client I/O.
+		sourceStorage.onLoadHandler(item);
+		sourceStorage.setPersistentState(PersistentState.UPDATE_REQUIRED);
+		if (sourceStorage.getItemByObjId(itemObjId) != item)
+			throw new IllegalStateException("Could not restore refused item " + itemObjId);
+		if (published)
+			sendItemDeletePacket(player, targetStorage.getStorageType(), item, ItemDeleteType.MOVE);
+		refuseMove(player, targetStorage, item);
+	}
+
+	/** Resolve real warehouse slots, including the unsigned 0xffff automatic-slot sentinel. */
+	static short warehouseSlot(IStorage storage, Item moving, short requested) {
+		if (storage.getStorageType() != StorageType.REGULAR_WAREHOUSE && storage.getStorageType() != StorageType.ACCOUNT_WAREHOUSE)
+			return requested;
+		if (requested < -1 || requested >= storage.getLimit())
+			return -2;
+		boolean[] occupied = new boolean[storage.getLimit()];
+		for (Item item : storage.getItems()) {
+			long slot = item.getEquipmentSlot();
+			if (item != moving && slot >= 0 && slot < occupied.length)
+				occupied[(int) slot] = true;
+		}
+		if (requested >= 0)
+			return occupied[requested] ? -2 : requested;
+		for (short slot = 0; slot < occupied.length; slot++)
+			if (!occupied[slot])
+				return slot;
+		return -2;
+	}
+
+	static void refuseMove(Player player, IStorage destination, Item item) {
+		PacketSendUtility.sendPacket(player, destination.getStorageIsFullMessage());
+		restoreSource(player, item);
+	}
+
+	static void restoreSource(Player player, Item item) {
+		StorageType source = StorageType.getStorageTypeById(item.getItemLocation());
+		if (source != null) {
+			// ALL_SLOT alone can leave the client's optimistic drag/lock in place.
+			sendItemDeletePacket(player, source, item, ItemDeleteType.MOVE);
+			sendStorageUpdatePacket(player, source, item, ItemAddType.PARTIAL_WITH_SLOT);
+		}
 	}
 
 	private static void moveInSameStorage(IStorage storage, Item item, short slot) {
@@ -102,6 +166,8 @@ public class ItemMoveService {
     private static void switchItemsInStoragesNative(Player player, byte sourceStorageType, int sourceItemObjId, byte replaceStorageType, int replaceItemObjId) {
 		IStorage sourceStorage = player.getStorage(sourceStorageType);
 		IStorage replaceStorage = player.getStorage(replaceStorageType);
+		if (sourceStorage == null || replaceStorage == null)
+			return;
 
 		Item sourceItem = sourceStorage.getItemByObjId(sourceItemObjId);
 		if (sourceItem == null)
@@ -137,7 +203,29 @@ public class ItemMoveService {
 		// correct UI update order is 1)delete items 2) add items
 		sendItemDeletePacket(player, sourceStorage.getStorageType(), sourceItem, ItemDeleteType.MOVE);
 		sendItemDeletePacket(player, replaceStorage.getStorageType(), replaceItem, ItemDeleteType.MOVE);
-		sourceStorage.add(replaceItem);
-		replaceStorage.add(sourceItem);
+		try {
+			if (sourceStorage.add(replaceItem) != null && replaceStorage.add(sourceItem) != null)
+				return;
+		} catch (RuntimeException error) {
+			log.error("Item swap refused; restoring objects {} and {}", sourceItemObjId, replaceItemObjId, error);
+		}
+		// Remove any partial publication before restoring both original identities.
+		if (sourceStorage.getItemByObjId(replaceItemObjId) == replaceItem)
+			sourceStorage.remove(replaceItem);
+		if (replaceStorage.getItemByObjId(sourceItemObjId) == sourceItem)
+			replaceStorage.remove(sourceItem);
+		sourceItem.setEquipmentSlot(sourceSlot);
+		sourceItem.setItemLocation(sourceStorageType);
+		replaceItem.setEquipmentSlot(replaceSlot);
+		replaceItem.setItemLocation(replaceStorageType);
+		// Loading restores membership without running the destination admission that just failed.
+		sourceStorage.onLoadHandler(sourceItem);
+		replaceStorage.onLoadHandler(replaceItem);
+		sourceStorage.setPersistentState(PersistentState.UPDATE_REQUIRED);
+		replaceStorage.setPersistentState(PersistentState.UPDATE_REQUIRED);
+		sendItemDeletePacket(player, sourceStorage.getStorageType(), replaceItem, ItemDeleteType.MOVE);
+		sendItemDeletePacket(player, replaceStorage.getStorageType(), sourceItem, ItemDeleteType.MOVE);
+		refuseMove(player, replaceStorage, sourceItem);
+		restoreSource(player, replaceItem);
 	}
 }

@@ -73,25 +73,19 @@ def ui(source,name='global_option_dialog.xml'):
     for n in z.namelist():assert n==name or z.read(n)==after.read(n)
     return result,len(z.namelist())-1
 def main():
-    client=Path(sys.argv[1]);out=HERE/'build'/'graphics-menu';out.mkdir(parents=True,exist_ok=True)
+    client=Path(sys.argv[1]);out=Path(sys.argv[2]).resolve();out.mkdir(parents=True,exist_ok=True)
     vcvars=Path(os.environ.get('ProgramFiles(x86)',r'C:\Program Files (x86)'))/'Microsoft Visual Studio/2022/BuildTools/VC/Auxiliary/Build/vcvars64.bat'
-    script=HERE/'build'/'compile-menu.cmd'
+    script=out/'compile-menu.cmd'
     script.write_text(f'@echo off\ncall "{vcvars}" >nul\ncl /nologo /std:c++17 /EHsc /O2 /MT /LD /Fo:"{out / "menu.obj"}" "{HERE / "graphics_menu.cpp"}" /link /OUT:"{out / "AionGraphicsMenu.dll"}" /IMPLIB:"{out / "menu.lib"}"\n')
     subprocess.run(f'cmd.exe /d /s /c ""{script}""',check=True)
-    changed={'bin64/Game.dll':patch((client/'bin64/Game.dll').read_bytes())}
-    changed['Data/ui/game/game.pak'],preserved=ui(client/'Data/ui/game/game.pak')
-    files=[]
-    for name,b in changed.items():
-        target=out/name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(b)
-        files.append({'path':name,'original':sha((client/name).read_bytes()),'installed':sha(b)})
-    files.append({'path':'bin64/AionGraphicsMenu.dll','original':None,'installed':sha((out/'AionGraphicsMenu.dll').read_bytes())})
-    localized=client/'L10N/enu/Data/data.pak'
-    if localized.exists():
-        b,preserved_localized=ui(localized,'ui/game/global_option_dialog.xml')
-        target=out/'L10N/enu/Data/data.pak';target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(b)
-        files.append({'path':'L10N/enu/Data/data.pak','original':sha(localized.read_bytes()),'installed':sha(b)})
-    (out/'bin64/AionGraphicsMenu.dll').write_bytes((out/'AionGraphicsMenu.dll').read_bytes())
-    manifest={'architecture':'x64','files':files,'unchangedUiEntries':preserved,'settings':'DXVK/renderer.ini','uiPath':'Options > Graphics > Screen','hooks':[hex(s[0]) for s in SITES]}
-    if localized.exists():manifest['unchangedLocalizedEntries']=preserved_localized
-    (out/'manifest.json').write_text(json.dumps(manifest,indent=2));print(json.dumps(manifest,indent=2))
+    definition=json.loads((HERE/'ownership.json').read_text())
+    payload=(out/'AionGraphicsMenu.dll').read_bytes()
+    definition['dllHash']=sha(payload)
+    target=out/'bin64/AionGraphicsMenu.dll';target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(payload)
+    (out/'ownership.json').write_text(json.dumps(definition,indent=2)+'\n')
+    manifest={'architecture':'x64','ownershipSchema':2,'ownership':'Mods/GraphicsMenu/ownership.json',
+              'files':[{'path':'bin64/AionGraphicsMenu.dll','original':None,'installed':sha(payload)}],
+              'settings':'DXVK/renderer.ini','uiPath':'Options > Graphics > Screen'}
+    (out/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
+    print(json.dumps(manifest,indent=2))
 if __name__=='__main__':main()

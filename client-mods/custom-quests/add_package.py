@@ -68,6 +68,12 @@ def graphics(client):
 
 
 def rebase(client,before,after):
+    # The launch guard owns widgets, not this quest string archive.
+    if (client/'Mods/GraphicsMenu/ownership.json').is_file():
+        code, report = graphics(client)
+        if code:
+            raise RuntimeError(report)
+        return
     # Hashes are plain ASCII in these records, and either case may be stored.
     for name in RECORDS:
         path=client/name

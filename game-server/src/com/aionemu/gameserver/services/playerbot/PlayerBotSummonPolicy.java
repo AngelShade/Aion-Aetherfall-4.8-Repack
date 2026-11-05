@@ -1,5 +1,6 @@
 package com.aionemu.gameserver.services.playerbot;
 
+import java.util.ArrayList;
 import java.util.List;
 import com.aionemu.gameserver.configs.main.PlayerBotConfig;
 import com.aionemu.gameserver.model.TaskId;
@@ -29,11 +30,24 @@ public final class PlayerBotSummonPolicy {
  static void regroup(List<PlayerBotSession> sessions){
   synchronized(PlayerBotService.getInstance()){
    preflight(sessions);
+   var failed=new ArrayList<String>();String reason=null;
+   // One companion that cannot come must not strand the rest of the party.
    for(var session:sessions)synchronized(session){
     preflight(List.of(session));
-    if(!PlayerBotRecall.recall(session))throw new IllegalArgumentException("The companion cannot be summoned yet.");
+    // Summon is the player's explicit choice, so it ends this companion's wait at the dungeon entrance.
+    boolean released=PlayerBotFindGroup.releaseFromEntranceWait(session),moved=false;
+    try{moved=PlayerBotRecall.recall(session);}
+    catch(IllegalArgumentException refused){reason=refused.getMessage();}
+    finally{if(!moved && released)PlayerBotFindGroup.restoreEntranceWait(session);}
+    if(!moved)failed.add(session.bot().getName());
    }
+   if(!failed.isEmpty())throw new IllegalArgumentException(failure(sessions.size(),failed,reason));
   }
+ }
+ static String failure(int total,List<String> failed,String reason) {
+  String names=failed.size()==1?failed.getFirst():String.join(", ",failed.subList(0,failed.size()-1))+" and "+failed.getLast();
+  String why=reason!=null?reason:"There is no safe spot beside you right now. Step onto open ground and try again.";
+  return (failed.size()<total?"Summoned "+(total-failed.size())+" of "+total+" companions. ":"")+names+" could not be summoned. "+why;
  }
  private PlayerBotSummonPolicy(){}
 }

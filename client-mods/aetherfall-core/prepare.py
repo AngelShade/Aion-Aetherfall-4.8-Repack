@@ -390,8 +390,10 @@ def main():
         from shortcut_geometry import prepare as prepare_shortcuts
         prepare_shortcuts(client, stage, original, extend_archive, read_pak)
 
-    if not args.update:
-        # Keep the import in the active package and both restore baselines.
+    sys.path.insert(0, str(mods / 'dxvk'))
+    from client_ownership import independent as graphics_independent
+    if not args.update and not graphics_independent(client):
+        # Legacy composition for clients without ownership support.
         state = json.loads((client / 'Mods/GraphicsMenu/installed.json').read_text(encoding='utf-8-sig'))
         manifest = json.loads((client / 'Mods/GraphicsMenu/package/manifest.json').read_text(encoding='utf-8-sig'))
         if state['files'] != manifest['files']:

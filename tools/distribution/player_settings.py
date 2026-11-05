@@ -12,6 +12,7 @@ KEEP = [
     'Server/server-address.properties',
     'Client/system.cfg',
     'Client/SystemOptionGraphics.cfg',
+    'Client/DXVK/renderer.ini',
     'Client/PlayerBotBar.ini',
     'Client/SpeechBubbles.ini',
     'Client/Mods/AetherfallUI/state.json',

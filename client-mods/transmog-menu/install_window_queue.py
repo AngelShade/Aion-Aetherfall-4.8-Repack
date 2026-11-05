@@ -22,7 +22,7 @@ def replace(path,data):
     temporary.write_bytes(data);os.replace(temporary,path)
 def closed():
     # Fail closed if enumeration fails. A missing Path is not shutdown evidence.
-    command="$ErrorActionPreference='Stop'; try { $p=@(Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object { $_.Name -in @('aion.bin','aion.exe') }); if($p.Count){exit 2} } catch { exit 3 }"
+    command="$ErrorActionPreference='Stop'; try { $p=@(Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object { $_.Name -in @('aion.bin','aion.exe') }) } catch { try { $p=@(Get-Process -ErrorAction Stop | Where-Object { $_.ProcessName -in @('aion.bin','aion') }) } catch { exit 3 } }; if($p.Count){exit 2}"
     result=subprocess.run(['powershell.exe','-NoProfile','-Command',command],capture_output=True,text=True)
     if result.returncode==2:raise ValueError('Fully close every Aion client before native file replacement')
     if result.returncode:raise ValueError('Process inspection failed; installation refused')
@@ -31,26 +31,40 @@ def main():
     p.add_argument('--verify-only',action='store_true');p.add_argument('--restore',type=Path)
     p.add_argument('--client',type=Path,help='Explicit original client for native-session compatibility')
     a=p.parse_args();package=a.package.resolve()
-    if not package.is_relative_to(DEV_ROOT/'staging/output'):raise ValueError('Expected external staged package')
     m=json.loads((package/'manifest.json').read_text());root=Path(m['clientRoot']).resolve()
+    journal_text = m['feature']=='quest-desperation-text-v1'
+    stage_root = DEV_ROOT/('archives/client' if journal_text else 'staging/output')
+    if not package.is_relative_to(stage_root):raise ValueError('Expected external staged package')
     prefixes={'custom-window-queue-v1':'window-queue','remember-login-return-v2':'remember-login-return','remember-login-reconnect-v3':'remember-login-return','marketplace-session-v1':'marketplace-session','native-session-compat-v1':'native-session-compat','warehouse-item-context-v1':'warehouse-item-context','warehouse-collapse-v1':'warehouse-collapse'}
     prefixes['warehouse-controls-v1']='warehouse-controls'
-    explicit_client = m['feature'] in ('native-session-compat-v1','warehouse-item-context-v1','warehouse-collapse-v1','warehouse-controls-v1')
+    prefixes['warehouse-capacity-v1']='warehouse-capacity'
+    prefixes['quest-desperation-text-v1']='journal-text-30500'
+    explicit_client = journal_text or m['feature'] in ('native-session-compat-v1','warehouse-item-context-v1','warehouse-collapse-v1','warehouse-controls-v1','warehouse-capacity-v1')
     expected_client = a.client.resolve() if explicit_client and a.client else CLIENT
     if explicit_client and not a.client:raise ValueError('Specify the original client explicitly')
     if m['feature'] not in prefixes or root!=expected_client:raise ValueError('Wrong feature or installation')
-    name=m['graphicsCompatibility']['backupName']
-    if not re.fullmatch(r'service-menu-graphics-\d{8}-\d{6}-\d{6}',name):raise ValueError('Invalid graphics recovery path')
-    backup='Mods/Backups/Renderer/'+name
-    allowed={'bin64/Game.dll','Mods/Renderer/installed.json','Mods/GraphicsMenu/installed.json','Mods/GraphicsMenu/package/manifest.json',
-             'Mods/GraphicsMenu/package/bin64/Game.dll','Mods/GraphicsMenu/package/Data/ui/game/game.pak',
-             backup+'/bin64/Game.dll',backup+'/Data/ui/game/game.pak',backup+'/cursor-base/bin64/Game.dll'}
-    if m['graphicsCompatibility']['localized']:allowed.update({'Mods/GraphicsMenu/package/L10N/enu/Data/data.pak',backup+'/L10N/enu/Data/data.pak'})
+    independent = m['graphicsCompatibility'].get('ownershipSchema') == 2
+    if independent:
+        allowed={'bin64/Game.dll'}
+    else:
+        name=m['graphicsCompatibility']['backupName']
+        if not re.fullmatch(r'service-menu-graphics-\d{8}-\d{6}-\d{6}',name):raise ValueError('Invalid graphics recovery path')
+        backup='Mods/Backups/Renderer/'+name
+        allowed={'bin64/Game.dll','Mods/Renderer/installed.json','Mods/GraphicsMenu/installed.json','Mods/GraphicsMenu/package/manifest.json',
+                 'Mods/GraphicsMenu/package/bin64/Game.dll','Mods/GraphicsMenu/package/Data/ui/game/game.pak',
+                 backup+'/bin64/Game.dll',backup+'/Data/ui/game/game.pak',backup+'/cursor-base/bin64/Game.dll'}
+        if m['graphicsCompatibility']['localized']:allowed.update({'Mods/GraphicsMenu/package/L10N/enu/Data/data.pak',backup+'/L10N/enu/Data/data.pak'})
     if m['feature'] in ('remember-login-return-v2','remember-login-reconnect-v3'):allowed.add('bin64/AionRememberLogin.dll')
-    if m['feature'] in ('warehouse-item-context-v1','warehouse-collapse-v1','warehouse-controls-v1'):allowed.add('Mods/InstalledMods.json')
+    if m['feature'] in ('warehouse-item-context-v1','warehouse-collapse-v1','warehouse-controls-v1','warehouse-capacity-v1'):allowed.add('Mods/InstalledMods.json')
     if m['feature']=='warehouse-controls-v1':allowed.update({'Data/ui/game/game.pak','L10N/enu/Data/data.pak',
         'Plugin/RelicCalc/RelicCalc.pak','Plugin/RelicCalc/RelicCalc.pak.sig','Addon.key',
         'bin32/bin32.pak.sig','Data/func_pet/func_pet.pak.sig'})
+    if journal_text and independent:
+        allowed={'L10N/enu/Data/data.pak','Mods/InstalledMods.json'}
+    elif journal_text:
+        allowed={'L10N/enu/Data/data.pak','Mods/GraphicsMenu/package/L10N/enu/Data/data.pak',
+        backup+'/L10N/enu/Data/data.pak','Mods/GraphicsMenu/installed.json',
+        'Mods/GraphicsMenu/package/manifest.json','Mods/InstalledMods.json'}
     if len(m['files'])!=len(allowed) or {e['path'] for e in m['files']}!=allowed:raise ValueError('Unexpected transaction scope')
     def preserve():
         for e in m['preservedFiles']:
@@ -95,5 +109,5 @@ def main():
             if e['original'] is None:path.unlink()
             else:replace(path,target(receipt,e['path']).read_bytes())
         raise
-    print('OK: installed',m['feature'],'and synchronized graphics/cursor restore records; receipt:',receipt)
+    print('OK: installed',m['feature'],'with verified native ownership; receipt:',receipt)
 if __name__=='__main__':main()

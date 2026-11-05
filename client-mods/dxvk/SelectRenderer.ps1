@@ -2,7 +2,8 @@ param([Parameter(Mandatory=$true)][string]$ClientPath)
 $ErrorActionPreference = 'Stop'
 $client = (Resolve-Path -LiteralPath $ClientPath).Path
 . (Join-Path $PSScriptRoot 'RendererCommon.ps1')
-$state = Get-Content -LiteralPath (Join-Path $client 'Mods/Renderer/installed.json') -Raw | ConvertFrom-Json
+. (Join-Path $client 'Mods/Renderer/ClientOwnership.ps1')
+$state = Read-OwnershipJson (Join-Path $client 'Mods/Renderer/installed.json')
 if ($state.clientRoot -ne $client -or $state.restoredAt) { throw 'Expected an active DXVK installation.' }
 $enabled = Get-RendererChoice $client
 $changes = @()

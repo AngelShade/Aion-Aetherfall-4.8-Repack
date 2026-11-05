@@ -42,6 +42,9 @@ public class ItemSplitService {
 		}
 		if (player.isTrading()) {
 			PacketSendUtility.sendPacket(player, SM_SYSTEM_MESSAGE.STR_MSG_INVENTORY_SPLIT_DURING_TRADE());
+			IStorage source = player.getStorage(sourceStorageType);
+			if (source != null && source.getItemByObjId(itemObjId) != null)
+				ItemMoveService.restoreSource(player, source.getItemByObjId(itemObjId));
 			return;
 		}
 
@@ -66,7 +69,7 @@ public class ItemSplitService {
 		if (sourceStorageType != destinationStorageType
 			&& (ItemRestrictionService.isItemRestrictedTo(player, sourceItem, destStorage.getStorageType()) || ItemRestrictionService.isItemRestrictedFrom(
 				player, sourceItem, sourceStorage.getStorageType()))) {
-			sendStorageUpdatePacket(player, sourceStorage.getStorageType(), sourceItem);
+			ItemMoveService.restoreSource(player, sourceItem);
 			return;
 		}
 
@@ -77,32 +80,61 @@ public class ItemSplitService {
 		}
 
 		if (targetItem == null) {
-			if (destStorage.isFull()) {
-				PacketSendUtility.sendPacket(player, destStorage.getStorageIsFullMessage());
+			if (splitAmount == sourceItem.getItemCount() && sourceStorageType != destinationStorageType) {
+				ItemMoveService.moveItem(player, itemObjId, sourceStorageType, destinationStorageType, slotNum);
+				return;
+			}
+			slotNum = ItemMoveService.warehouseSlot(destStorage, null, slotNum);
+			if (destStorage.isFull() || slotNum == -2) {
+				ItemMoveService.refuseMove(player, destStorage, sourceItem);
 				return;
 			}
 			long oldItemCount = sourceItem.getItemCount() - splitAmount;
 			if (sourceItem.getItemCount() < splitAmount || oldItemCount == 0) {
+				ItemMoveService.restoreSource(player, sourceItem);
 				return;
 			}
 			if (sourceStorageType != destinationStorageType) {
 				LegionService.getInstance().addWHItemHistory(player, sourceItem.getItemId(), splitAmount, sourceStorage, destStorage);
 			}
-			Item newItem = ItemFactory.newItem(sourceItem.getItemTemplate().getTemplateId(), splitAmount);
-			if (sourceStorageType == destinationStorageType)
+			Item newItem;
+			try {
+				newItem = ItemFactory.newItem(sourceItem.getItemTemplate().getTemplateId(), splitAmount);
+			} catch (RuntimeException error) {
+				log.error("Split allocation refused; retaining source object {}", itemObjId, error);
+				ItemMoveService.refuseMove(player, destStorage, sourceItem);
+				return;
+			}
+			if (newItem == null) {
+				ItemMoveService.refuseMove(player, destStorage, sourceItem);
+				return;
+			}
+			if (sourceStorageType == destinationStorageType || destinationStorageType == 1 || destinationStorageType == 2)
 				newItem.setEquipmentSlot(slotNum);
+			boolean added = false;
+			try {
+				added = destStorage.add(newItem) != null;
+			} catch (RuntimeException error) {
+				log.error("Split deposit refused; retaining source object {}", itemObjId, error);
+			}
+			if (!added) {
+				if (destStorage.getItemByObjId(newItem.getObjectId()) == newItem)
+					destStorage.delete(newItem, ItemPacketService.ItemDeleteType.MOVE);
+				IDFactory.getInstance().releaseId(newItem.getObjectId());
+				ItemMoveService.refuseMove(player, destStorage, sourceItem);
+				return;
+			}
+			// Never debit the source before the destination has accepted the split.
 			sourceStorage.decreaseItemCount(sourceItem, splitAmount, sourceStorageType == destinationStorageType ? ItemUpdateType.DEC_ITEM_SPLIT
 				: ItemUpdateType.DEC_ITEM_SPLIT_MOVE);
 			PacketSendUtility.sendPacket(player, SM_CUBE_UPDATE.cubeSize(sourceStorage.getStorageType(), player));
-			if (destStorage.add(newItem) == null) {
-				// if item was not added - we can release its id
-				IDFactory.getInstance().releaseId(newItem.getObjectId());
-			}
 		} else if (targetItem.getItemId() == sourceItem.getItemId()) {
 			if (sourceStorageType != destinationStorageType) {
 				LegionService.getInstance().addWHItemHistory(player, sourceItem.getItemId(), splitAmount, sourceStorage, destStorage);
 			}
 			mergeStacks(sourceStorage, destStorage, sourceItem, targetItem, splitAmount);
+		} else {
+			ItemMoveService.restoreSource(player, sourceItem);
 		}
 	}
 

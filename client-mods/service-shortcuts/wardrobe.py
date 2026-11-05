@@ -8,6 +8,9 @@ import subprocess
 import sys
 import zipfile
 from pathlib import Path
+import sys as _ownership_sys
+_ownership_sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if p.name == 'client-mods') / 'dxvk'))
+from client_ownership import independent as _owned_graphics, verify as _verify_graphics
 from xml.etree import ElementTree as ET
 
 HERE = Path(__file__).resolve().parent
@@ -128,25 +131,28 @@ def main():
                  'ui/game_hud_s1/start_dialog.xml': hud, 'ui/game_hud_s2/start_dialog.xml': hud}
     stage('L10N/enu/Data/data.pak', archive(client / 'L10N/enu/Data/data.pak', localized))
 
-    graphics = client / 'Mods/GraphicsMenu'
-    state = json.loads((graphics / 'installed.json').read_text(encoding='utf-8-sig'))
-    package = json.loads((graphics / 'package/manifest.json').read_text(encoding='utf-8-sig'))
-    if state['files'] != package['files']:
-        raise ValueError('Graphics recovery metadata differs')
-    locale = next(e for e in state['files'] if e['path'].casefold() == 'l10n/enu/data/data.pak')
-    baseline = (Path(state['backupRoot']) / locale['path']).resolve(strict=True)
-    if not baseline.is_relative_to(client) or sha(baseline.read_bytes()) != locale['original']:
-        raise ValueError('Graphics restore baseline differs')
-    active = next(e for e in records if e['path'] == 'L10N/enu/Data/data.pak')
-    if active['before'] != locale['installed']:
-        raise ValueError('Current locale differs from its recovery record')
-    stage(baseline.relative_to(client).as_posix(), archive(baseline, localized))
-    locale.update(original=records[-1]['after'], installed=active['after'])
-    package['files'] = copy.deepcopy(state['files'])
-    for relative, value in [('installed.json', state), ('package/manifest.json', package)]:
-        stage((graphics / relative).relative_to(client).as_posix(), json.dumps(value, indent=2).encode())
-    stage((graphics / 'package/L10N/enu/Data/data.pak').relative_to(client).as_posix(),
-          (output / 'L10N/enu/Data/data.pak').read_bytes())
+    if _owned_graphics(client):
+        _verify_graphics(client)
+    else:
+        graphics = client / 'Mods/GraphicsMenu'
+        state = json.loads((graphics / 'installed.json').read_text(encoding='utf-8-sig'))
+        package = json.loads((graphics / 'package/manifest.json').read_text(encoding='utf-8-sig'))
+        if state['files'] != package['files']:
+            raise ValueError('Graphics recovery metadata differs')
+        locale = next(e for e in state['files'] if e['path'].casefold() == 'l10n/enu/data/data.pak')
+        baseline = (Path(state['backupRoot']) / locale['path']).resolve(strict=True)
+        if not baseline.is_relative_to(client) or sha(baseline.read_bytes()) != locale['original']:
+            raise ValueError('Graphics restore baseline differs')
+        active = next(e for e in records if e['path'] == 'L10N/enu/Data/data.pak')
+        if active['before'] != locale['installed']:
+            raise ValueError('Current locale differs from its recovery record')
+        stage(baseline.relative_to(client).as_posix(), archive(baseline, localized))
+        locale.update(original=records[-1]['after'], installed=active['after'])
+        package['files'] = copy.deepcopy(state['files'])
+        for relative, value in [('installed.json', state), ('package/manifest.json', package)]:
+            stage((graphics / relative).relative_to(client).as_posix(), json.dumps(value, indent=2).encode())
+        stage((graphics / 'package/L10N/enu/Data/data.pak').relative_to(client).as_posix(),
+              (output / 'L10N/enu/Data/data.pak').read_bytes())
     preserved = ['bin64/Game.dll', 'bin64/crysystem.dll', 'bin64/AionIconBridge.dll',
                  'bin64/AionGraphicsMenu.dll', 'bin64/AionRememberLogin.dll', 'bin64/AionSpeechBubbles.dll',
                  'bin64/XRenderD3D9.dll', 'Plugin/RelicCalc/RelicCalc.pak', 'Addon.key', 'Pub.key',

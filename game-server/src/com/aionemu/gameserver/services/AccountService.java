@@ -95,8 +95,7 @@ public class AccountService {
 
 	public static Storage loadAccountWarehouse(Account account) {
 		Storage wh = new PlayerStorage(null, StorageType.ACCOUNT_WAREHOUSE);
-		if (CustomConfig.EXPANDED_WAREHOUSES)
-			wh.setLimit(CustomConfig.EXPANDED_ACCOUNT_WAREHOUSE_SLOTS);
+		wh.setLimit(CustomConfig.EXPANDED_ACCOUNT_WAREHOUSE_SLOTS);
 		InventoryDAO.loadStorage(account.getId(), wh);
 		ItemStoneListDAO.load(wh.getItems());
 		return wh;

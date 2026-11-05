@@ -1,6 +1,9 @@
 """Stage outlined HUD icons, localized tooltip and embedded Black Cloud Shop."""
 import sys,os,json,copy,struct,subprocess,re
 from pathlib import Path
+import sys as _ownership_sys
+_ownership_sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if p.name == 'client-mods') / 'dxvk'))
+from client_ownership import independent as _owned_graphics, verify as _verify_graphics
 from xml.etree import ElementTree as ET
 from PIL import Image,ImageEnhance
 from hashlib import sha256
@@ -87,6 +90,9 @@ def main():
     subprocess.run(f'cmd.exe /d /s /c ""{script}""',check=True);stage('bin64/AionMarketShortcut.dll',dll.read_bytes())
     # Update only localized resource hashes; the existing native hooks and Game.dll stay byte-identical.
     def metadata(prefix):
+        if _owned_graphics(ROOT):
+            _verify_graphics(ROOT)
+            return
         prefix=prefix+'/' if prefix else '';srel=prefix+'Mods/GraphicsMenu/installed.json';mrel=prefix+'Mods/GraphicsMenu/package/manifest.json'
         state=read(ROOT/srel);manifest=read(ROOT/mrel)
         if state['files']!=manifest['files']:raise ValueError('Graphics state differs')

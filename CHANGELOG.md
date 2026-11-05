@@ -6,6 +6,10 @@
 - The companion equipment window lets you inspect equipped Stigmas and other items outside the paperdoll.
 - Road Wardens can still offer rescue after you reconnect while dead from a monster attack.
 - Bots no longer pile up on rock ledges. A bot that stops getting anywhere now leaps down and carries on.
+- Summon now works while your Find Group party waits at a dungeon, brings everyone who can come, and explains who couldn't.
+- Targeting yourself or a monster no longer blocks Summon.
+- Dungeon parties from Find Group keep filling after you join, and late arrivals wait with the group instead of teleporting to you.
+- Faces catch the light with more natural depth around the eyes, nose and lips.
 
 Characters look better than ever up close, with repainted faces and silky, glowing skin.
 
@@ -18,6 +22,8 @@ Characters look better than ever up close, with repainted faces and silky, glowi
 
 ### Improved
 
+- Game updates and other mods are less likely to stop Aion launching when you use the Vulkan option or cursor fix.
+- Fire Temple, Nochsana, Beshmundir, Empyrean Crucible and 15 more dungeons can now pay Recruitment Tickets and teach your companions when you finish them.
 - Road Wardens walk longer roads outside settlements, wear regional company names and titles, and report nearby threats when selected.
 - Road Wardens spread out along roads. Extra Wardens return to ordinary field activity until a patrol place opens.
 - Warden help leaves your loot intact. Earn full XP and bounty credit when your team deals at least a fifth of the combined damage.
@@ -28,6 +34,8 @@ Characters look better than ever up close, with repainted faces and silky, glowi
 
 ### Fixed
 
+- Fixed warehouse deposits stopping before all slots were filled and items disappearing when you dragged them.
+- Fixed Monodia in Henor Village so you can take the quest Desperation from her instead of getting a load error.
 - Fixed travelling merchant shops so you receive purchased items and see a reason when a purchase is refused.
 - Fixed companion help requests causing errors when world companions arrive, and reduced pauses during companion decisions, companion trading and Central Market updates.
 - Fixed long server freezes when too many world companions filled the game server's memory.

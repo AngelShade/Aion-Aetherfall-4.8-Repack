@@ -13,6 +13,9 @@ import json
 import sys
 import zipfile
 from pathlib import Path
+import sys as _ownership_sys
+_ownership_sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if p.name == 'client-mods') / 'dxvk'))
+from client_ownership import independent as _owned_graphics, verify as _verify_graphics
 from xml.etree import ElementTree as ET
 
 HERE = Path(__file__).resolve().parent
@@ -266,24 +269,27 @@ def main():
     for relative, localized in [("Data/ui/ui.pak", False), ("L10N/enu/Data/data.pak", True)]:
         update(relative, localized)
 
-    # Compose with the existing graphics package and its real restore baseline.
-    state_path = "Mods/GraphicsMenu/installed.json"
-    manifest_path = "Mods/GraphicsMenu/package/manifest.json"
-    state = json.loads((root / state_path).read_text(encoding="utf-8-sig"))
-    manifest = json.loads((root / manifest_path).read_text(encoding="utf-8-sig"))
-    assert state["files"] == manifest["files"]
-    entry = next(e for e in state["files"] if e["path"].lower() == "l10n/enu/data/data.pak")
-    assert sha((root / entry["path"]).read_bytes()) == entry["installed"]
-    baseline = (Path(state["backupRoot"]) / entry["path"]).resolve()
-    assert baseline.is_relative_to(root / "Mods/Backups/Renderer")
-    assert sha(baseline.read_bytes()) == entry["original"]
-    baseline_relative = baseline.relative_to(root).as_posix()
-    update(baseline_relative, True)
-    entry.update(original=sha(staged[baseline_relative]), installed=sha(staged[entry["path"]]))
-    stage("Mods/GraphicsMenu/package/" + entry["path"], staged[entry["path"]])
-    manifest["files"] = copy.deepcopy(state["files"])
-    stage(state_path, (json.dumps(state, indent=2) + "\n").encode())
-    stage(manifest_path, (json.dumps(manifest, indent=2) + "\n").encode())
+    if _owned_graphics(root):
+        _verify_graphics(root)
+    else:
+        # Compose with the existing graphics package and its real restore baseline.
+        state_path = "Mods/GraphicsMenu/installed.json"
+        manifest_path = "Mods/GraphicsMenu/package/manifest.json"
+        state = json.loads((root / state_path).read_text(encoding="utf-8-sig"))
+        manifest = json.loads((root / manifest_path).read_text(encoding="utf-8-sig"))
+        assert state["files"] == manifest["files"]
+        entry = next(e for e in state["files"] if e["path"].lower() == "l10n/enu/data/data.pak")
+        assert sha((root / entry["path"]).read_bytes()) == entry["installed"]
+        baseline = (Path(state["backupRoot"]) / entry["path"]).resolve()
+        assert baseline.is_relative_to(root / "Mods/Backups/Renderer")
+        assert sha(baseline.read_bytes()) == entry["original"]
+        baseline_relative = baseline.relative_to(root).as_posix()
+        update(baseline_relative, True)
+        entry.update(original=sha(staged[baseline_relative]), installed=sha(staged[entry["path"]]))
+        stage("Mods/GraphicsMenu/package/" + entry["path"], staged[entry["path"]])
+        manifest["files"] = copy.deepcopy(state["files"])
+        stage(state_path, (json.dumps(state, indent=2) + "\n").encode())
+        stage(manifest_path, (json.dumps(manifest, indent=2) + "\n").encode())
     receipt = dict(feature="aetherfall-native-lobby-image", localizedLabels=len(LABELS), logo=LOGO, clientRoot=str(root),
         archiveChecks=checks, files=[dict(path=rel,
         before=sha((root / rel).read_bytes()) if (root / rel).is_file() else None, after=sha(data)) for rel, data in staged.items()],

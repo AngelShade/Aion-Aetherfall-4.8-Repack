@@ -11,6 +11,8 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'dxvk'))
 from xml.etree import ElementTree as E
 
 HERE = Path(__file__).resolve().parent
@@ -210,6 +212,10 @@ def prepare(client, stage, original, extend_archive, read_pak):
         raise ValueError('Apply the selected Aetherfall interface before adding the Codex')
     applied = state['Applied']
     manifest = json.loads(original('Mods/AetherfallUI/manifest.json'))
+    from client_ownership import independent, verify as verify_parts
+    independent_graphics = independent(client)
+    if independent_graphics:
+        verify_parts(client)
     graphics = json.loads(original('Mods/GraphicsMenu/installed.json'))
     package = json.loads(original('Mods/GraphicsMenu/package/manifest.json'))
     if graphics.get('restoredAt') or graphics['files'] != package['files']:
@@ -258,37 +264,41 @@ def prepare(client, stage, original, extend_archive, read_pak):
         replacements[rel] = changes
         data = extend_archive(source, changes, {})
         stage(rel, data)
-        record = next((e for e in graphics['files'] if e['path'].lower() == rel.lower()), None)
-        if record:
-            package_rel = 'Mods/GraphicsMenu/package/' + record['path']
-            if sha(source) != record['installed'] or sha(original(package_rel)) != record['installed']:
-                raise ValueError('Active/package Graphics hashes differ: ' + rel)
-            stage(package_rel, data)
-            for rows in (graphics['files'], package['files']):
-                next(e for e in rows if e['path'].lower() == rel.lower())['installed'] = sha(data)
+        if not independent_graphics:
+            record = next((e for e in graphics['files'] if e['path'].lower() == rel.lower()), None)
+            if record:
+                package_rel = 'Mods/GraphicsMenu/package/' + record['path']
+                if sha(source) != record['installed'] or sha(original(package_rel)) != record['installed']:
+                    raise ValueError('Active/package Graphics hashes differ: ' + rel)
+                stage(package_rel, data)
+                for rows in (graphics['files'], package['files']):
+                    next(e for e in rows if e['path'].lower() == rel.lower())['installed'] = sha(data)
     # Keep the previous recovery folder; carry the same members into a fresh
     # baseline so removing Graphics retains the Codex resources.
     sys.path.insert(0, str(HERE.parent / 'transmog-menu'))
     from graphics_compat import owned_renderer_backup
-    old_backup = owned_renderer_backup(client, graphics['backupRoot'])
-    new_backup = 'Mods/Backups/Renderer/service-menu-graphics-' + datetime.now().strftime('%Y%m%d-%H%M%S-%f')
-    for record in graphics['files']:
-        if record.get('original') is None:
-            continue
-        rel = record['path']
-        baseline = original((old_backup / rel).relative_to(client).as_posix())
-        if sha(baseline) != record['original']:
-            raise ValueError('Graphics restore baseline changed: ' + rel)
-        changes = next((c for r, c in replacements.items() if r.lower() == rel.lower()), None)
-        if changes:
-            baseline = extend_archive(baseline, changes, {})
-            for rows in (graphics['files'], package['files']):
-                next(e for e in rows if e['path'].lower() == rel.lower())['original'] = sha(baseline)
-        stage(new_backup + '/' + rel, baseline)
-    graphics['backupRoot'] = str(client / new_backup)
+    if not independent_graphics:
+        old_backup = owned_renderer_backup(client, graphics['backupRoot'])
+        new_backup = 'Mods/Backups/Renderer/service-menu-graphics-' + datetime.now().strftime('%Y%m%d-%H%M%S-%f')
+        for record in graphics['files']:
+            if record.get('original') is None:
+                continue
+            rel = record['path']
+            baseline = original((old_backup / rel).relative_to(client).as_posix())
+            if sha(baseline) != record['original']:
+                raise ValueError('Graphics restore baseline changed: ' + rel)
+            changes = next((c for r, c in replacements.items() if r.lower() == rel.lower()), None)
+            if changes:
+                baseline = extend_archive(baseline, changes, {})
+                for rows in (graphics['files'], package['files']):
+                    next(e for e in rows if e['path'].lower() == rel.lower())['original'] = sha(baseline)
+            stage(new_backup + '/' + rel, baseline)
+        graphics['backupRoot'] = str(client / new_backup)
     stage('Mods/AetherfallUI/manifest.json', json.dumps(manifest, indent=2).encode())
-    stage('Mods/GraphicsMenu/installed.json', json.dumps(graphics, indent=2).encode())
-    stage('Mods/GraphicsMenu/package/manifest.json', json.dumps(package, indent=2).encode())
+    if not independent_graphics:
+        stage('Mods/GraphicsMenu/installed.json', json.dumps(graphics, indent=2).encode())
+    if not independent_graphics:
+        stage('Mods/GraphicsMenu/package/manifest.json', json.dumps(package, indent=2).encode())
     for path, asset in [(TEXTURE, 'loot.dds'), (TARGET_TEXTURE, 'loot-target.dds')]:
         texture = (HERE / 'assets' / asset).read_bytes()
         if original(path) != texture:

@@ -19,10 +19,13 @@ public class _30500Desperation extends AbstractQuestHandler {
 
 	@Override
 	public void register() {
-		qe.registerQuestNpc(205842).addOnQuestStart(questId);
+		qe.registerQuestNpc(205842).addOnQuestStart(questId); // Ancanus
 		qe.registerQuestNpc(205842).addOnTalkEvent(questId);
-		qe.registerQuestNpc(804879).addOnTalkEvent(questId);
-		qe.registerQuestNpc(799670).addOnTalkEvent(questId);
+		qe.registerQuestNpc(804876).addOnQuestStart(questId); // Monodia, who the client marks as this quest's giver
+		qe.registerQuestNpc(804876).addOnTalkEvent(questId);
+		qe.registerQuestNpc(804879).addOnTalkEvent(questId); // Garnon
+		qe.registerQuestNpc(799592).addOnTalkEvent(questId); // Ariana at the Rentus Base entrance
+		qe.registerQuestNpc(799670).addOnTalkEvent(questId); // Ariana after the final battle
 	}
 
 	@Override
@@ -33,7 +36,7 @@ public class _30500Desperation extends AbstractQuestHandler {
 		int targetId = env.getTargetId();
 
 		if (qs == null || qs.isStartable()) {
-			if (targetId == 205842) {
+			if (targetId == 205842 || targetId == 804876) {
 				switch (dialogActionId) {
 					case QUEST_SELECT:
 						return sendQuestDialog(env, 1011);
@@ -54,7 +57,7 @@ public class _30500Desperation extends AbstractQuestHandler {
 				}
 			}
 		} else if (qs.getStatus() == QuestStatus.REWARD) {
-			if (targetId == 799670) {
+			if (targetId == 799592 || targetId == 799670) {
 				return sendQuestEndDialog(env);
 			}
 		}

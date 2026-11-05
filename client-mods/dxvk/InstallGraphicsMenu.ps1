@@ -8,23 +8,24 @@ if (Test-Path -LiteralPath $statePath) {
     return
 }
 $manifest = Get-Content -LiteralPath (Join-Path $PackagePath 'manifest.json') -Raw | ConvertFrom-Json
-foreach ($entry in $manifest.files) {
-    if (@('bin64/Game.dll','Data/ui/game/game.pak','bin64/AionGraphicsMenu.dll','L10N/enu/Data/data.pak') -cnotcontains $entry.path) { throw 'Unexpected menu payload target.' }
-    if ((Get-FileHash -LiteralPath (Join-Path $PackagePath $entry.path)).Hash -ne $entry.installed) { throw 'Menu package checksum failed.' }
-    $target = Join-Path $client $entry.path
-    if ($null -eq $entry.original) {
-        if (Test-Path -LiteralPath $target) { throw 'Menu helper already exists outside this installation.' }
-    } elseif ((Get-FileHash -LiteralPath $target).Hash -ne $entry.original) { throw 'Current client changed since menu package preparation.' }
-}
+if ($manifest.ownershipSchema -ne 2) { throw 'Rebuild the Graphics menu package with the ownership installer.' }
 $launcherPath = Join-Path $client 'Aion Start.bat'
-$launcher = [IO.File]::ReadAllText($launcherPath)
-if ($launcher -notmatch '(?m)^rem BEGIN DXVK QUALITY\r?$') { throw 'DXVK launcher integration missing.' }
+$hasLauncher = Test-Path -LiteralPath $launcherPath
+$launcher = if ($hasLauncher) { [IO.File]::ReadAllText($launcherPath) } else { '' }
+if ($hasLauncher -and $launcher -notmatch '(?m)^rem BEGIN DXVK QUALITY\r?$') { throw 'DXVK launcher integration missing.' }
 if ($launcher -match '(?m)^rem BEGIN RENDERER MENU\r?$') { throw 'Renderer menu already queued. Inspect the existing package first.' }
 $backup = Join-Path $client ('Mods/Backups/Renderer/menu-launcher-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
 New-Item -ItemType Directory -Path $backup -Force | Out-Null
-Copy-Item -LiteralPath $launcherPath -Destination (Join-Path $backup 'Aion Start.bat')
+if ($hasLauncher) { Copy-Item -LiteralPath $launcherPath -Destination (Join-Path $backup 'Aion Start.bat') }
 New-Item -ItemType Directory -Path $root -Force | Out-Null
-Copy-Item -LiteralPath $PackagePath -Destination (Join-Path $root 'package') -Recurse
+$packageRoot = Join-Path $root 'package/bin64'
+New-Item -ItemType Directory -Path $packageRoot -Force | Out-Null
+Copy-Item -LiteralPath (Join-Path $PackagePath 'bin64/AionGraphicsMenu.dll') -Destination $packageRoot
+Copy-Item -LiteralPath (Join-Path $PackagePath 'manifest.json') -Destination (Join-Path $root 'package/manifest.json')
+Copy-Item -LiteralPath (Join-Path $PackagePath 'ownership.json') -Destination $root
+foreach ($helper in @('ClientOwnership.ps1','ClientOwnership.cs')) {
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot $helper) -Destination (Join-Path $client ('Mods/Renderer/' + $helper)) -Force
+}
 foreach ($name in @('ApplyGraphicsMenu.ps1','RestoreGraphicsMenu.ps1')) {
     $installedName = if ($name -eq 'ApplyGraphicsMenu.ps1') { 'Install-GraphicsMenu.ps1' } else { $name }
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $root $installedName) -Force
@@ -43,6 +44,7 @@ if (Test-Path -LiteralPath (Join-Path $client 'Mods/CursorFix')) {
     }
 }
 $ini = Join-Path $client 'DXVK/renderer.ini'
+New-Item -ItemType Directory -Path (Split-Path $ini -Parent) -Force | Out-Null
 if (-not (Test-Path -LiteralPath $ini)) { [IO.File]::WriteAllText($ini,"[Renderer]`r`nVulkan=1`r`nActiveVulkan=1`r`n",[Text.Encoding]::ASCII) }
 $block = @'
 rem BEGIN RENDERER MENU
@@ -68,8 +70,8 @@ $block = ($block -replace '\r?\n',"`r`n") + "`r`n"
 $select = ($select -replace '\r?\n',"`r`n") + "`r`n"
 $launcher = $launcher.Replace("rem BEGIN DXVK QUALITY",$block + 'rem BEGIN DXVK QUALITY')
 $marker = [regex]::Match($launcher,'(?m)^if exist "%~dp0Mods\\CursorFix\\Install-CursorFix\.ps1"').Index
-if ($marker -eq 0) { throw 'Expected the installed native cursor startup block.' }
-$launcher = $launcher.Insert($marker,$select)
+if ($hasLauncher -and $marker -eq 0) { throw 'Expected the installed native cursor startup block.' }
+if ($hasLauncher) { $launcher = $launcher.Insert($marker,$select) }
 # Native environment/art upgrades apply under either backend. Only the private
 # Vulkan effects environment is conditional on this launch's renderer choice.
 $start = $launcher.IndexOf('if defined VK_LAYER_PATH (')
@@ -77,7 +79,7 @@ $end = $launcher.IndexOf('rem END GLOBAL GRAPHICS')
 if ($start -ge 0 -and $end -gt $start) {
     $launcher = $launcher.Insert($end,")`r`n").Insert($start,"if not `"%AION_USE_VULKAN%`"==`"0`" (`r`n")
 }
-[IO.File]::WriteAllText($launcherPath,$launcher,[Text.Encoding]::ASCII)
+if ($hasLauncher) { [IO.File]::WriteAllText($launcherPath,$launcher,[Text.Encoding]::ASCII) }
 @{clientRoot=$client;launcherBackup=$backup;status='Queued for next normal launch'} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $root 'queued.json') -Encoding UTF8
 & (Join-Path $root 'Install-GraphicsMenu.ps1') -ClientPath $client -VerifyOnly
 if (Get-Process -Name 'aion.bin','aion' -ErrorAction SilentlyContinue) { 'Graphics menu queued. Exit Aion normally, then use Aion Start.bat.' }
