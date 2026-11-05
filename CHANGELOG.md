@@ -41,6 +41,7 @@ Characters look better than ever up close, with repainted faces and silky, glowi
 
 ### Fixed
 
+- The Nether Dragon King's Sealed Box from the Season Pass lets you choose your weapon or shield again, as it promises.
 - World bots fill the world properly again. A bot with nowhere to land could hold all the others up.
 - A Map Made of Stone now gives you its random crafting design.
 - Pollution Solution now gives you its crafting materials, and fortress quests pay their bonus medals.

@@ -41078,7 +41078,7 @@
 			<item id="102100919" chance="35"/><!-- Incensed Hyperion's Cipher-Blade -->
 		</set>
 	</decomposable>
-	<decomposable item_id="188052719"><!-- [Event] Dye Bundle -->
+	<decomposable item_id="188052719" selectable="true"><!-- [Event] Dye Bundle -->
 		<set>
 			<item id="169231016" chance="7.5"/><!-- Dye: Punky Pink -->
 			<item id="169231017" chance="7.5"/><!-- Dye: Indian Pink -->
@@ -62765,7 +62765,7 @@
 			<item id="115001712" chance="7.15"/><!-- Legendary Noble Katalium Shield -->
 		</set>
 	</decomposable>
-	<decomposable item_id="188053646"><!-- Nether Dragon King's Sealed Box -->
+	<decomposable item_id="188053646" selectable="true"><!-- Nether Dragon King's Sealed Box -->
 		<set>
 			<item id="100001762" chance="7.15"/><!-- Nether Dragon King's Sword -->
 			<item id="100101356" chance="7.15"/><!-- Nether Dragon King's Mace -->
@@ -69993,7 +69993,7 @@
 			<item id="185000240" chance="50"/><!-- Damaged Key -->
 		</set>
 	</decomposable>
-	<decomposable item_id="188053995"><!-- Emperor Trillirunerk's Feather Box -->
+	<decomposable item_id="188053995" selectable="true"><!-- Emperor Trillirunerk's Feather Box -->
 		<set>
 			<item id="187060166" chance="50"/><!-- Trillirunerk's Ice Flame Feather -->
 			<item id="187060170" chance="50"/><!-- Trillirunerk's Blue Flame Feather -->

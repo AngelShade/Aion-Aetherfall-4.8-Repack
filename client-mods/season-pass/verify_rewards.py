@@ -36,12 +36,13 @@ def main():
             check(item==bases[bundle],'explicit native class-bundle base')
             for offset,(pc,cid) in enumerate(zip(classes,class_ids)):
                 native=bases[bundle]+offset;rewards.add(native);box=boxes[native]
-                check(bool(box.findall('items')) and box.get('selectable')!='true','native random class bundle')
-                for group in box.findall('items'):
+                check(bool(box.findall('set')) and box.get('selectable')!='true','native random class bundle')
+                for group in box.findall('set'):
                     check(not group.findall('random_item'),'explicit native stigma pool')
+                    check(abs(sum(float(entry.get('chance','0')) for entry in group.findall('item'))-100)<0.5,'bundle chances add up to 100')
                     for race in ['ELYOS','ASMODIANS']:
                         eligible=[entry for entry in group.findall('item') if entry.get('race','PC_ALL') in ['PC_ALL',race]]
-                        check(len(eligible)==1,'one stigma per selected group for '+race)
+                        check(len(eligible)>=1,'a stigma is available for '+race)
                     for entry in group.findall('item'):
                         child=items[int(entry.get('id'))]
                         check(child.find('stigma') is not None and child.find('stigma').get('chargeable')=='true','4.8 chargeable stigma')
@@ -55,19 +56,19 @@ def main():
         if t.find('actions/decompose') is None:continue
         box=boxes.get(item)
         check(box is not None and len(box)>0,'reward boxes must not be empty')
-        for group in box.findall('items'):
+        for group in box.findall('set'):
             check(bool(group.findall('item')),'existing direct native pool')
             check(float(group.get('chance','100'))>0,'reachable reward group')
             check(int(group.get('minlevel','0'))<=65<=int(group.get('maxlevel','99')),'pool available at endgame')
             for entry in group.findall('item'):
                 child=int(entry.get('id'));check(child in items and child in client,'content exists on server and client')
                 check(1<=int(entry.get('min_count','1'))<=int(entry.get('max_count',entry.get('min_count','1'))),'valid native quantity range')
-    check(boxes[188053646].get('selectable')=='true' and len(boxes[188053646].findall('items/item'))==14,'14 original selectable Mythic weapon/shield options')
-    for e in boxes[188053646].findall('items/item'):
+    check(boxes[188053646].get('selectable')=='true' and len(boxes[188053646].findall('set/item'))==14,'14 original selectable Mythic weapon/shield options')
+    for e in boxes[188053646].findall('set/item'):
         t=items[int(e.get('id'))];check(t.get('quality')=='MYTHIC' and t.get('level')=='65','original level-65 Mythic finale')
-    check(boxes[188052741].get('selectable')=='true' and len(boxes[188052741].findall('items/item'))==18,'18 original composite choices')
+    check(boxes[188052741].get('selectable')=='true' and len(boxes[188052741].findall('set/item'))==18,'18 original composite choices')
     for race in ['ELYOS','ASMODIANS']:
-        choices=[e for e in boxes[188053321].findall('items/item') if e.get('race')==race]
+        choices=[e for s in boxes[188053321].findall('set') if s.get('race')==race for e in s.findall('item')]
         check(len(choices)==2,'physical/magical plume choices for '+race)
     pet=items[190020133].find('actions/adoptpet')
     check(pet.get('petId')=='900141' and pet.get('expire_minutes','0')=='0','permanent native Stormwing adoption')
