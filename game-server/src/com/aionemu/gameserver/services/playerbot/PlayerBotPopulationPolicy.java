@@ -110,6 +110,10 @@ public final class PlayerBotPopulationPolicy {
  static final long QUICK_DEATH_MS=300000;
  static long deathStreak(long streak,long lastLanding,long now){return lastLanding>0 && now>=lastLanding && now-lastLanding<QUICK_DEATH_MS?streak+1:0;}
  static boolean returnsToField(long streak){return streak==0;}
+ /** How long a bot with nowhere to land waits before the factory may try it again. */
+ static final long LANDING_RETRY_MS=300000;
+ /** A revival only wanted a new spot, so with no camp available the bot just stays put. A level change must still happen later. */
+ static boolean landingDropped(String reason){return "revive".equals(reason);}
  /** Starter characters have no city of their own, and their native revival already puts them at the starter spawn. */
  static boolean revivesInCity(int level){return level>=10;}
  /** Says what a pending rebuild is for, as most of them change no level. */

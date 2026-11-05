@@ -37,6 +37,11 @@ public final class PlayerBotLiveAuditCheck {
   check(!PlayerBotPopulationPolicy.rebuildLabel("teleport").contains("reset"),"a relocation rebuild is not logged as a level reset");
   check(PlayerBotPopulationPolicy.rebuildLabel("reset").equals("level reset/retry"),"a real reset keeps its label");
   check(PlayerBotPopulationPolicy.rebuildLabel("").equals("level reset/retry"),"an old saved intent keeps its label");
+  // Landing: live on 5 November one level 1 bot with no camp was rebuilt every 2 seconds, holding the factory's only job.
+  check(PlayerBotPopulationPolicy.landingDropped("revive"),"a revival with no camp stays where it is instead of retrying");
+  check(!PlayerBotPopulationPolicy.landingDropped("reset"),"a level reset keeps its pending change");
+  check(!PlayerBotPopulationPolicy.landingDropped("teleport") && !PlayerBotPopulationPolicy.landingDropped(""),"other changes keep theirs");
+  check(PlayerBotPopulationPolicy.LANDING_RETRY_MS>=60000,"a held change waits long enough for the factory to serve other bots");
   // Leaps: two per window, then the planner moves the bot to a fresh camp.
   check(PlayerBotWorldActivities.waitingLost(now,now-1),"a lost bot waits for its move");
   check(!PlayerBotWorldActivities.waitingLost(now,now-PlayerBotWorldActivities.LOST_WAIT_MS),"a lost bot cannot wait forever");

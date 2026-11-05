@@ -38,6 +38,7 @@ Characters look better than ever up close, with repainted faces and silky, glowi
 
 ### Fixed
 
+- Companions and world bots fill the world properly again after a bot with nowhere to land could hold everyone else up.
 - A Map Made of Stone now gives you its random crafting design.
 - Pollution Solution now gives you its crafting materials, and fortress quests pay their bonus medals.
 - You have the intended time to use a chain skill after the previous skill hits.

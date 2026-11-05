@@ -202,7 +202,7 @@ final class PlayerBotPopulationManager {
      if(excluded(session,bracketIntent) || bracketIntent && !PlayerBotPopulationConfig.BRACKETS
       || reason.equals("reset") && !PlayerBotPopulationConfig.RESET || Set.of("refresh","teleport").contains(reason) && !PlayerBotPopulationConfig.REFRESH) {
       state.number("pendingLevel",0);state.values.setProperty("pendingReason","");state.values.setProperty("pendingField","false");queueMetadata(bot,state);
-     }else if(selected==null && safe(session))selected=new Work(session,(int)state.number("pendingLevel"),Boolean.parseBoolean(state.values.getProperty("pendingFull","true")),PlayerBotPopulationPolicy.rebuildLabel(reason));
+     }else if(selected==null && safe(session) && now>=landingRetries.getOrDefault(bot.getObjectId(),0L))selected=new Work(session,(int)state.number("pendingLevel"),Boolean.parseBoolean(state.values.getProperty("pendingFull","true")),PlayerBotPopulationPolicy.rebuildLabel(reason));
     }
     if(selected!=null || state.number("pendingLevel")>0)continue;
     if(PlayerBotPopulationConfig.BRACKETS && pendingBudget>0 && pending.containsKey(bot.getObjectId())) {
@@ -236,6 +236,7 @@ final class PlayerBotPopulationManager {
   var legionActor=legions.candidate(actors.stream().filter(this::queueSafe).filter(s->!AutoGroupService.getInstance().isLookingForInstance(s.bot())).toList(),now);
   return legionActor==null?null:new Work(legionActor,0,false,"native generated legion membership",Action.LEGION,0);
  }
+ private final java.util.Map<Integer,Long> landingRetries=new java.util.concurrent.ConcurrentHashMap<>();
  void loaded(Player bot)throws SQLException,IOException {legions.assign(bot);}
  boolean legionAction(PlayerBotSession session)throws SQLException,IOException {
   if(!queueSafe(session) || AutoGroupService.getInstance().isLookingForInstance(session.bot()))return false;
@@ -336,11 +337,14 @@ final class PlayerBotPopulationManager {
     :PlayerBotWorldPlacement.chooseReserveDestination(bot.getRace(),level,city?100:PlayerBotConfig.POPULATION_CITY_PERCENT,random);
    var place=selection.location();
    if(place==null) {
-    // Every camp for that level is crowded or near a human right now. Enter
-    // unchanged at the saved level/position; the pending change stays for a
-    // later login instead of holding the bot offline in a 30 s retry loop.
+    // Every camp for that level is crowded, near a human or missing right now. Enter unchanged at the saved
+    // position. A revival only wanted a new spot, so it simply stays here. Anything else waits before trying again:
+    // the factory runs one job at a time, so an immediate retry would rebuild this bot forever and starve the rest.
     org.slf4j.LoggerFactory.getLogger(PlayerBotPopulationManager.class).info("World bot {} ({}) enters unchanged; native level {} landing deferred: {}",
      bot.getName(),bot.getObjectId(),level,selection.reason());
+    if(PlayerBotPopulationPolicy.landingDropped(reason)) {
+     state.number("pendingLevel",0);state.values.setProperty("pendingFull","false");state.values.setProperty("pendingField","false");state.values.setProperty("pendingCity","false");state.values.setProperty("pendingReason","");queueMetadata(bot,state);
+    }else landingRetries.put(bot.getObjectId(),System.currentTimeMillis()+PlayerBotPopulationPolicy.LANDING_RETRY_MS);
     return false;
    }
    home=new PlayerBotPersistence.Home(place.map(),place.x(),place.y(),place.z(),(byte)0,0);
