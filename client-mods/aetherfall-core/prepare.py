@@ -18,7 +18,7 @@ HERE = Path(__file__).resolve().parent
 NATIVE_VERSION = '1.3.5'  # Show location opens the map without the market window.
 PAK = 'Plugin/RelicCalc/RelicCalc.pak'
 PLUGIN_COHORT = [PAK, PAK + '.sig', 'Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig']
-VERSION = '1.2.91'  # Independent Codex view histories, drafts and map return control.
+VERSION = '1.2.92'  # The spirit bar can be moved and no longer hides its auto-attack toggle.
 LUA = 'AetherfallCore.lua'
 ADDON = ['AetherfallCore.lua', 'AetherfallLayout.lua', 'AetherfallLazy.lua', 'AetherfallHUD.lua', 'AetherfallOptions.lua',
          'AetherfallHUD.xml']

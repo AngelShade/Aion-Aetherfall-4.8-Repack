@@ -14,6 +14,7 @@
 - Targeting yourself or a monster no longer blocks Summon.
 - Dungeon parties from Find Group keep filling after you join, and late arrivals wait with the group instead of teleporting to you.
 - Faces catch the light with more natural depth around the eyes, nose and lips.
+- You can now move the Spirit Bar with Move UI, and it no longer hides its Pet Auto-attack button behind your first action bar.
 
 Characters look better than ever up close, with repainted faces and silky, glowing skin.
 

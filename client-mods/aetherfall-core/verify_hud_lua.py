@@ -292,6 +292,14 @@ def main():
         # Movers: one overlay, a named box per frame, dragged with the mouse the core reports.
         # The notification icons ("Daily quest has arrived") get a mover even while hidden.
         lua.execute('AFUI.db.snapframes = 0')  # snapping to frames has its own check below
+        # The spirit bar is held clear of Action Bar 1 in the classic HUD; the alternate HUD keeps its own spot.
+        lua.execute('DIALOGS[0xd5] = {name = "pet_dialog", x = 403, y = 1001, w = 284 * UISCALE, h = 74 * UISCALE, shown = true}')
+        g.AFUI_OnEvent('ADDON_TIMER')
+        assert lua.eval('PINS[0xd5] ~= nil') and lua.eval('DIALOGS[0xd5].y') != 1001, 'spirit bar not placed'
+        lua.execute('PINS[0xd5] = nil; DIALOGS[0xd5] = {name = "pet_dialog", x = 40, y = 93, w = 273 * UISCALE, h = 65 * UISCALE, shown = true}')
+        g.AFUI_OnEvent('ADDON_TIMER')
+        assert lua.eval('PINS[0xd5] == nil') and lua.eval('DIALOGS[0xd5].x') == 40, 'alternate spirit bar was moved'
+        lua.execute('DIALOGS[0xd5] = nil')
         lua.execute('DIALOGS[0x60] = {name = "help_indicator_dialog", x = 405 * UISCALE, y = 900 * UISCALE, w = 505 * UISCALE, h = 47 * UISCALE, shown = false}')
         g.DoSlashCmd('/moveui')
         for _ in range(4):  # the overlay is built on first use, then unlocked
@@ -301,6 +309,7 @@ def main():
         assert 'Menu' not in movers and 'Minimap' in movers and 'Target' in movers, movers
         assert all(k in movers for k in ('Start', 'Market', 'Shop', 'Pass', 'Flight', 'Broker', 'Interface')), movers
         assert 'Notifications (hidden)' in movers, movers
+        assert 'Spirit Bar' in movers, movers
 
         def mouse(x, y, down, shift=False):
             g.CX, g.CY, g.CDOWN, g.CSHIFT = x, y, down, shift
@@ -315,6 +324,8 @@ def main():
             mouse(bx + 5, by + 5, True)   # press on the box
             mouse(x + 5, y + 5, True)     # drag: the native window follows live
             mouse(x + 5, y + 5, False)    # release
+        drag(movers['Spirit Bar'], 400 * scale, 300 * scale)
+        assert lua.eval('AFUI.positions[AFUI.Get("profile") .. ".213"] ~= nil'), 'Spirit Bar drag not saved 0xd5'
         i = movers['Minimap']
         drag(i, 203 * scale, 301 * scale)
         grid = 8 * scale

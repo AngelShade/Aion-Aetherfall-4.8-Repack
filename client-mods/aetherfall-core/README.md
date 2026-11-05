@@ -5,6 +5,15 @@ Aetherfall Interface. It reads native HUD data and applies the interface's windo
 positions, visibility and tooltip settings. Settings remain in `Mods/AetherfallUI`.
 Existing chat commands run through the native chat input.
 
+## Spirit bar mover, Lua 1.2.92
+
+`pet_dialog` (0xd5) is `not_movable`, so MoveUI never offered it, and the game placed
+it where Action Bar 1 covers its `pet_mode_auto` button. The options window has no
+checkbox for that per-character setting, so the button is the only way to change it.
+MoveUI now lists it as Spirit Bar, and the classic HUD holds it at its layout spot until
+the player saves another. The alternate HUD keeps its own spot and also gets a
+Spirit Commands mover. Build with `prepare.py --update --plugin-only`.
+
 ## Show location, native 1.3.5
 
 Companions' Show location calls `AetherfallCodexLocate` to open the M map panel on one

@@ -278,6 +278,8 @@ end
 local NOTIFICATION_DESIGN = {
     [0x11f] = {950, 845, 166, 137, 'right', 'bottom', 'gm_indicator_dialog'},
     [0x120] = {360, 800, 505, 47, 'left', 'bottom', 'help_indicator_dialog'},
+    -- The classic layout's own spot, which leaves the Pet Auto-attack toggle clear of Action Bar 1.
+    [0xd5] = {112, 766, 284, 74, 'center', 'bottom', 'pet_dialog'},
 }
 local function designRef(id) return (AFUI_DESIGN and AFUI_DESIGN[id]) or NOTIFICATION_DESIGN[id] end
 local function design(id)
@@ -295,7 +297,7 @@ local defaultSpot  -- Reset target for a frame (assigned once the native catalog
 -- target auras): held at their design spot while shown. Others are placed once, so a
 -- window the player drags natively (chat) is not fought.
 local REANCHORED = {}
-for _, name in ipairs({'target', 'target_assist', 'target_delay', 'target_assist_delay', 'skill_delay', 'target_buff', 'help_indicator', 'gm_indicator'}) do
+for _, name in ipairs({'target', 'target_assist', 'target_delay', 'target_assist_delay', 'skill_delay', 'target_buff', 'help_indicator', 'gm_indicator', 'pet'}) do
     if D[name] then REANCHORED[D[name]] = true end
 end
 local HUD_IDS = {}
@@ -481,7 +483,7 @@ local FRAMES = {
     {'chat', 'Chat'}, {'chat_input', 'Chat Input'}, {'exp_bar', 'Experience Bar'}, {'buff_status', 'Buffs'},
     {'debuff_status', 'Debuffs'}, {'target_buff', 'Target Auras'}, {'skill_delay', 'Cast Bar'},
     {'target_delay', 'Target Cast Bar'},
-    {'target_assist_delay', 'Target of Target Cast Bar'},
+    {'target_assist_delay', 'Target of Target Cast Bar'}, {'pet', 'Spirit Bar'},
 }
 -- The builder derives previews from the same active UI catalogue as the core.
 -- Unmapped native types remain resource definitions until actually discovered.
@@ -683,9 +685,11 @@ end
 local OTHER_LABELS = {timer = 'Countdown Timer', quest_indicator = 'Quest Tracker', subzone_name = 'Zone Name', help_indicator = 'Notifications',
                       move_state = 'Movement', gm_indicator = 'GM Indicator', event_shortcut = 'Event Bar',
                       skill_penalty = 'Skill Penalty', tooltip = 'Tooltip', tooltip_skill = 'Skill Tooltip',
-                      general_delay = 'Progress Bar', enchant_delay = 'Enchant Bar', target_assist_delay = 'Target of Target Cast Bar'}
+                      general_delay = 'Progress Bar', enchant_delay = 'Enchant Bar', target_assist_delay = 'Target of Target Cast Bar',
+                      pet_command = 'Spirit Commands'}
 -- Always offered (by layout name, the id is not fixed): the notification icons ("Daily quest has arrived").
-local NAMED_MOVERS = {help_indicator = true, general_delay = true, enchant_delay = true, target_assist_delay = true}
+-- pet_command has a size only in the alternate HUD, where it holds the spirit's commands and toggle.
+local NAMED_MOVERS = {help_indicator = true, general_delay = true, enchant_delay = true, target_assist_delay = true, pet_command = true}
 -- Every HUD frame (shown or hidden) and other open game windows, in a fixed order.
 local function moverCandidates()
     local sw, sh = screen(); local list, seen = {}, {}
@@ -1404,7 +1408,9 @@ local function applyPins()
         local p = d and position(id, d)
         local x, y
         if p then x, y = p[1] * sw, p[2] * sh
-        elseif d and REANCHORED[id] and designRef(id) and d.name == designRef(id)[7] then x, y = design(id) end
+        -- The alternate HUD lays pet_dialog out differently, so only a saved spot applies to it.
+        elseif d and REANCHORED[id] and designRef(id) and d.name == designRef(id)[7]
+            and (id ~= D.pet or math.abs(d.w - designRef(id)[3] * scale()) <= 2) then x, y = design(id) end
         if x and id ~= D.radar and id ~= D.subzone_name and not AFUI.ManagedBar(id, d) then
             -- Keep the current draft held even during a drag. Skipping it let
             -- a late-created/recreated target frame use the game's anchor until

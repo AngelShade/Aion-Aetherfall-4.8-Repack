@@ -16,6 +16,7 @@ AFCore.DIALOG = {
     gm_indicator = 0x11f, -- DlgGMIndicator::GetType (0x753890); daily_quest_button lives here
     timer = 0xf9, -- DlgTimer::GetType; verified native catalogue timer_dialog mapping
     shortcut_sep2 = 0x18,  -- second separated bar (multi-copy dialogs take consecutive ids)
+    pet = 0xd5, -- DlgPet::GetType; spirit status, commands and the Pet Auto-attack toggle
 }
 
 function AFCore.Loaded() return core ~= nil end
