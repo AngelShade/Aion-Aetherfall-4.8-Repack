@@ -12,13 +12,16 @@ public final class PlayerBotHeightTraversal {
   return !autonomous && leaderAlive && movable && !mission && (order==PlayerBotRules.Order.FOLLOW || order==PlayerBotRules.Order.PASSIVE)
    && finite(dx,dy,dz) && Math.abs(dz)>1.75f && Math.hypot(dx,dy)<=40;
  }
- public record Plan(float x,float y,float z,float endX,float endY,float endZ,float seconds,float launch,float delay,float travelSeconds) {
+ public record Plan(float x,float y,float z,float endX,float endY,float endZ,float seconds,float launch,float delay,float travelSeconds,boolean leap) {
+  public Plan(float x,float y,float z,float endX,float endY,float endZ,float seconds,float launch,float delay,float travelSeconds){this(x,y,z,endX,endY,endZ,seconds,launch,delay,travelSeconds,false);}
   public Plan(float x,float y,float z,float endX,float endY,float endZ,float seconds,float launch){this(x,y,z,endX,endY,endZ,seconds,launch,0,seconds);}
   public Plan(float x,float y,float z,float endX,float endY,float endZ,float seconds,float launch,float delay){this(x,y,z,endX,endY,endZ,seconds,launch,delay,seconds-delay);}
   public Vector3f at(double time) {
    double t=Math.max(0,Math.min(seconds,time)),ratio=Math.min(1,Math.max(0,(t-delay)/travelSeconds));
-   return new Vector3f(x+(float)((endX-x)*ratio),y+(float)((endY-y)*ratio),
-    t>=seconds?endZ:z+(float)(launch*t-GRAVITY*t*t/2));
+   float ballistic=z+(float)(launch*t-GRAVITY*t*t/2);
+   // A leap that lands far away slides there rather than dropping below the ground it crosses.
+   if(leap)ballistic=Math.max(ballistic,z+(float)((endZ-z)*t/seconds));
+   return new Vector3f(x+(float)((endX-x)*ratio),y+(float)((endY-y)*ratio),t>=seconds?endZ:ballistic);
   }
   public double horizontalSpeed(){return Math.hypot(endX-x,endY-y)/travelSeconds;}
   public float fallDistance(){return Math.max(0,z+launch*launch/(2*GRAVITY)-endZ);}
@@ -115,6 +118,7 @@ public final class PlayerBotHeightTraversal {
  }
  public static boolean landing(GeoMap map,int instance,Plan plan) {
   if(map==null || plan==null || !plan.valid())return false;
+  if(plan.leap())return true; // PlayerBotLedgeLeap already chose this ground.
   float ground=PlayerBotGroundSupport.floor(map,instance,plan.endX,plan.endY,plan.endZ+.2f,plan.endZ-.3f);
   if(!Float.isFinite(ground) || Math.abs(ground-plan.endZ)>.2)return false;
   if(!PlayerBotGroundNavigation.clearTraversal(map,instance,new Vector3f(plan.endX,plan.endY,plan.endZ+.05f),

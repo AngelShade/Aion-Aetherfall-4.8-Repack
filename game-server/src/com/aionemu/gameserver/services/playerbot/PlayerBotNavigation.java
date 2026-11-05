@@ -48,6 +48,15 @@ final class PlayerBotNavigation {
 	private final Object approachSearchToken = new Object();
 	private final Object waterSearchToken = new Object();
 	private final Object roadSearchToken = new Object();
+	private final Object leapSearchToken = new Object();
+	private final PlayerBotLedgeLeap.Stall ledgeStall=new PlayerBotLedgeLeap.Stall();
+	private PlayerBotLedgeLeap.Search leapSearch;
+	private PlayerBotLedgeLeap.Tier leapTier=PlayerBotLedgeLeap.Tier.NONE;
+	private long nextLeapSearch,lastLeapAt,noClimbUntil;
+	private Point lastLeapGoal;
+	private boolean abandonGoal;
+	private static final long LEAP_RETRY_MS=1000,GOAL_RETRY_MS=60000;
+	private static final java.util.concurrent.atomic.AtomicLong LEAP_LOG=new java.util.concurrent.atomic.AtomicLong();
 	private Point localOrigin,localGoal,localBest,approachTargetPoint,approachDestination;
 	private java.util.List<PlayerBotHazards.Area> localHazards;
 	private double localScore;
@@ -649,6 +658,9 @@ final class PlayerBotNavigation {
 		}
 		double goalDistance = PositionUtil.getDistance(bot, targetX, targetY, targetZ);
 		if (goalDistance < 0.15) { stop(); status="at navigation waypoint"; return false; }
+		// A goal that has already thrown this bot off a ledge twice is not reachable from here.
+		if(abandonGoal){abandonGoal=false;stop();routeFailure=true;status="goal unreachable after leaping clear";return false;}
+		if(ledgeEscape(actualPosition,goal,goalDistance,now))return true;
 		meshJourney.bind(bot.getWorldId(),goal);
 		meshJourney.observe(new Point(bot.getX(),bot.getY(),bot.getZ()));
 		if(bot instanceof Player player && player.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover){
@@ -893,7 +905,7 @@ final class PlayerBotNavigation {
 					var plan=heightSearch.advance(deadline);
 					if(!heightSearch.done())break;
 					heightSearch=null;heightCursor++;
-					if(plan==null || PositionUtil.getDistance(x,y,plan.endZ(),targetX,targetY,targetZ)>=localGoalDistance-.4
+					if(plan==null || now<noClimbUntil && plan.endZ()>bot.getZ()+.3f || PositionUtil.getDistance(x,y,plan.endZ(),targetX,targetY,targetZ)>=localGoalDistance-.4
 						&& !(descending && plan.endZ()<bot.getZ()-1.25f && Math.abs(plan.endZ()-targetZ)<Math.abs(bot.getZ()-targetZ)-1.25f))continue;
 					boolean safe=true;Point previous=new Point(plan.x(),plan.y(),plan.z());
 					for(int sample=1;sample<=32;sample++){var p=plan.at(plan.seconds()*sample/32);Point next=new Point(p.x,p.y,p.z);
@@ -944,7 +956,7 @@ final class PlayerBotNavigation {
 		return true;
 	}
 
-	void stop() { cancelTicket(waterSearchToken); if(bot instanceof Player player)leavePlatformQueue(player);transportCongested=false;cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);localOrigin=null;approachTarget=null;approachDestination=null;clearRoute();clearSearch();meshJourney.close();partialRoute=lookahead=routeFailure=groundRouteUnavailable=false;routeGoal=null;progressWaypoint=null;pausedAt=0;continuationFailures=0;nextContinuation=0;continuationUnavailable=false;stopMovement();status="ready"; }
+	void stop() { clearLeapSearch();cancelTicket(waterSearchToken); if(bot instanceof Player player)leavePlatformQueue(player);transportCongested=false;cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);localOrigin=null;approachTarget=null;approachDestination=null;clearRoute();clearSearch();meshJourney.close();partialRoute=lookahead=routeFailure=groundRouteUnavailable=false;routeGoal=null;progressWaypoint=null;pausedAt=0;continuationFailures=0;nextContinuation=0;continuationUnavailable=false;stopMovement();status="ready"; }
 	/** A short rest/equipment/self-cast pause retains the same journey, not a new destination. */
 	void pause() {
 		if(pausedAt==0)pausedAt=System.currentTimeMillis();
@@ -955,6 +967,61 @@ final class PlayerBotNavigation {
 		meshJourney.pause();
 		stopMovement();status="movement paused for native action";
 	}
+	/** Runs ahead of all planning, so it holds no matter which layer has the bot stuck. */
+	private boolean ledgeEscape(Point at,Point goal,double goalDistance,long now) {
+		if(!(bot instanceof Player player) || !(player.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover))return false;
+		boolean wanted=goalDistance>3 && !waitingForTransport() && !player.isInGlidingState() && !player.isTrading() && !player.isLooting() && PlayerBotWater.safe(player,at.z());
+		var tier=PlayerBotLedgeLeap.tier(ledgeStall.observe(now,player.getWorldId(),player.getInstanceId(),at.x(),at.y(),at.z(),wanted));
+		if(tier==PlayerBotLedgeLeap.Tier.NONE || leapSearch==null && now<nextLeapSearch) {
+			if(tier==PlayerBotLedgeLeap.Tier.NONE)clearLeapSearch();
+			return false;
+		}
+		if(leapSearch==null || leapTier!=tier) {
+			// The search earns a takeoff from this exact spot, so stop drifting away from it.
+			stopMovement();cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);
+			float speed=com.aionemu.gameserver.utils.stats.StatFunctions.adjustStatByMovementModifier(player,
+				com.aionemu.gameserver.model.stats.container.StatEnum.SPEED,player.getGameStats().getMovementSpeedFloat());
+			var template=com.aionemu.gameserver.dataholders.DataManager.WORLD_MAPS_DATA.getTemplate(player.getWorldId());
+			leapTier=tier;
+			leapSearch=GeoService.getInstance().searchPlayerBotLedgeLeap(player.getWorldId(),player.getInstanceId(),at.x(),at.y(),at.z(),goal.x(),goal.y(),speed,
+				PlayerBotWater.minimumZ(player),tier,template!=null && template.isInstance(),player.getObjectId());
+		}
+		boolean pending=false;
+		try(var lease=terrain.begin(leapSearchToken,terrainPriority(goalDistance))) {
+			if(lease==null){status="waiting to plan ledge escape";return true;}
+			var escape=leapSearch.advance(lease.deadlineNanos());
+			if(!leapSearch.done()){pending=true;status="looking for a way off this ledge";return true;}
+			clearLeapSearch();
+			if(escape==null) {
+				nextLeapSearch=now+LEAP_RETRY_MS;
+				// Nowhere open within reach: wait out another full cycle, not a search every second.
+				if(tier==PlayerBotLedgeLeap.Tier.RELOCATE)ledgeStall.rewind(now,PlayerBotLedgeLeap.GHOST_MS);
+				return false;
+			}
+			boolean launched;
+			if(escape.plan()!=null)launched=mover.startHeightTraversal(escape.plan());
+			else {
+				var land=escape.landing();
+				com.aionemu.gameserver.services.teleport.TeleportService.teleportTo(player,player.getWorldId(),player.getInstanceId(),land.x(),land.y(),land.z(),player.getHeading());
+				launched=true;
+			}
+			if(!launched){nextLeapSearch=now+LEAP_RETRY_MS;return false;}
+			if(LEAP_LOG.getAndIncrement()%50==0)
+				org.slf4j.LoggerFactory.getLogger(PlayerBotNavigation.class).info("Playerbot ledge escape #{} ({}): {} left map {} at {} {} {} for {} {} {}",
+					LEAP_LOG.get(),tier,player.getName(),player.getWorldId(),at.x(),at.y(),at.z(),escape.landing().x(),escape.landing().y(),escape.landing().z());
+			// Hopping straight back up the rock would only earn the same leap again.
+			noClimbUntil=now+GOAL_RETRY_MS;
+			abandonGoal=lastLeapGoal!=null && now-lastLeapAt<GOAL_RETRY_MS
+				&& PositionUtil.getDistance(lastLeapGoal.x(),lastLeapGoal.y(),lastLeapGoal.z(),goal.x(),goal.y(),goal.z())<=.25;
+			lastLeapGoal=goal;lastLeapAt=now;
+			ledgeStall.clear();
+			cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);cancelTicket(approachSearchToken);cancelTicket(roadSearchToken);
+			meshJourney.close();clearSearch();clearRoute();lookahead=partialRoute=groundRouteUnavailable=false;localOrigin=null;publishedGoal=null;nextSearch=0;
+			lastProgress=now;status="leaping off a ledge";
+			return true;
+		}finally{if(pending)terrain.request(leapSearchToken,terrainPriority(goalDistance));}
+	}
+	private void clearLeapSearch(){cancelTicket(leapSearchToken);leapSearch=null;leapTier=PlayerBotLedgeLeap.Tier.NONE;}
 	private void discardLookahead() { if(lookahead){cancelTicket(searchToken);clearSearch();lookahead=false;} }
 	private boolean prepareJump(Player player,com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover,
 		PlayerBotRoadNetwork.Jump jump,Point origin,double goalDistance,long now) {

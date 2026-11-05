@@ -146,11 +146,12 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 	}
 	public synchronized boolean startHeightTraversal(com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.Plan plan) {
 		if(heightPlan!=null)return true;
-		if(plan==null || !plan.valid() || failed || !owner.isSpawned() || owner.isDead() || owner.isFlying())return false;
+		if(plan==null || !plan.valid() || failed && !plan.leap() || !owner.isSpawned() || owner.isDead() || owner.isFlying())return false;
 		if(!plan.falling() && (owner.isCasting() || !owner.canPerformMove() || owner.isTrading() || owner.isLooting()))return false;
 		if(PositionUtil.getDistance(owner,plan.x(),plan.y(),plan.z())>.3)return false;
 		if(!com.aionemu.gameserver.world.geo.GeoService.getInstance().validatePlayerBotHeightLanding(owner.getWorldId(),owner.getInstanceId(),plan))return false;
 		abortMove();
+		if(plan.leap())failed=false; // A leap is how a mover boxed in by geometry gets out.
 		heightPlan=plan;heightTime=0;interruptedHeight=false;heightWorld=owner.getWorldId();heightInstance=owner.getInstanceId();
 		byte jumpHeading=(byte)Math.floorMod((int)Math.round(Math.toDegrees(Math.atan2(plan.endY()-plan.y(),plan.endX()-plan.x()))/3),120);
 		setNewDirection(plan.endX(),plan.endY(),plan.endZ(),jumpHeading);
@@ -467,8 +468,9 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		var geo=com.aionemu.gameserver.world.geo.GeoService.getInstance();
 		float currentSpeed=requestedMovementSpeed();
 		if(heightPlan.horizontalSpeed()>currentSpeed+.05)interruptedHeight=true;
-		if(interruptedHeight || (!owner.canPerformMove() || owner.isCasting())
-			&& (heightPlan.launch()>0 || heightPlan.endX()!=heightPlan.x() || heightPlan.endY()!=heightPlan.y())) {
+		// A leap's path crosses rock on purpose: gravity from inside it has no safe floor to fall to.
+		if(!heightPlan.leap() && (interruptedHeight || (!owner.canPerformMove() || owner.isCasting())
+			&& (heightPlan.launch()>0 || heightPlan.endX()!=heightPlan.x() || heightPlan.endY()!=heightPlan.y()))) {
 			var fall=geo.findPlayerBotFall(heightWorld,heightInstance,owner.getX(),owner.getY(),owner.getZ());
 			if(fall!=null){heightPlan=fall;heightTime=0;}
 			else if(heightTime==0){heightPlan=null;abortMove();return;}
@@ -479,7 +481,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		var previous=new com.aionemu.gameserver.geoEngine.math.Vector3f(owner.getX(),owner.getY(),owner.getZ());
 		var next=heightPlan.at(nextTime);
 		boolean clear=true;
-		int samples=Math.max(1,(int)Math.ceil(previous.distance(next)/.2));
+		int samples=heightPlan.leap()?0:Math.max(1,(int)Math.ceil(previous.distance(next)/.2));
 		for(int i=1;i<=samples;i++) {
 			var sample=heightPlan.at(heightTime+(nextTime-heightTime)*i/samples);
 			if(!geo.validatePlayerBotHeightSegment(heightWorld,heightInstance,previous,sample)){clear=false;break;}

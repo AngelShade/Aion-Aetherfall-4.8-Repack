@@ -201,6 +201,10 @@ public class GeoService implements GameEngine {
 	public boolean validatePlayerBotHeightLanding(int worldId,int instance,com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.Plan plan) {
 		return com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.landing(geoMaps.get(worldId),instance,plan);
 	}
+	public com.aionemu.gameserver.services.playerbot.PlayerBotLedgeLeap.Search searchPlayerBotLedgeLeap(int worldId,int instance,float x,float y,float z,float goalX,float goalY,float speed,float minimumZ,
+		com.aionemu.gameserver.services.playerbot.PlayerBotLedgeLeap.Tier tier,boolean sealedMap,int seed) {
+		return com.aionemu.gameserver.services.playerbot.PlayerBotLedgeLeap.search(geoMaps.get(worldId),instance,x,y,z,goalX,goalY,speed,minimumZ,tier,sealedMap,seed);
+	}
 	public com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.Plan findPlayerBotFall(int worldId,int instance,float x,float y,float z) {
 		return com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.fall(geoMaps.get(worldId),instance,x,y,z);
 	}

@@ -77,6 +77,7 @@ TESTS['PlayerBotSupportCooperationCheck']=61
 TESTS['PlayerBotForcedFollowCheck']=20
 TESTS['PlayerBotWeaponStanceCheck']=193
 TESTS['PlayerBotHeightTraversalCheck']=104
+TESTS['PlayerBotLedgeLeapCheck']=85
 TESTS['PlayerBotTargetVisibilityCheck']=1845
 TESTS['PlayerBotQuestSkillCounterCheck']=311
 TESTS['PlayerBotQuestItemOfferCheck']=15

@@ -104,6 +104,16 @@ public final class PlayerBotGroundNavigation {
 		return true;
 	}
 
+	/** A leap may ignore rock, but a closed door or gate still seals what lies behind it. */
+	static boolean closedDoorBetween(GeoMap map, int instance, Vector3f from, Vector3f to) {
+		for (CollisionResult hit : map.getPlayerBotCollisions(from, to.x, to.y, to.z, instance, CollisionIntention.DEFAULT_COLLISIONS.getId(), IgnoreProperties.ANY_RACE)) {
+			Geometry geometry = hit.getGeometry();
+			for (Node parent = geometry == null ? null : geometry.getParent(); parent != null; parent = parent.getParent())
+				if (parent instanceof DespawnableNode door && door.type == DespawnableType.DOOR_STATE1 && door.isActive(instance)) return true;
+		}
+		return false;
+	}
+
 	private static Map<Geometry, DoorPair> doors(GeoMap map) {
 		Map<Integer, DespawnableNode[]> states = new HashMap<>();
 		collect(map, states);

@@ -5,6 +5,7 @@
 - Large companion parties keep their line formation close, and companions can equip stat-bearing remodel armor they own or earn.
 - The companion equipment window lets you inspect equipped Stigmas and other items outside the paperdoll.
 - Road Wardens can still offer rescue after you reconnect while dead from a monster attack.
+- Bots no longer pile up on rock ledges. A bot that stops getting anywhere now leaps down and carries on.
 
 Characters look better than ever up close, with repainted faces and silky, glowing skin.
 
