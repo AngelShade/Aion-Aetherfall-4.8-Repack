@@ -529,13 +529,22 @@ public class Skill {
 				penaltySkill1.useSkill();
 			}
 		} else {
-			SkillTemplate penaltyTemplate = DataManager.SKILL_DATA.getSkillTemplate(penaltySkill);
-			Creature target = (penaltyTemplate != null && penaltyTemplate.getProperties() != null
-				&& penaltyTemplate.getProperties().getFirstTarget() == FirstTargetAttribute.ME) ? effector : firstTarget;
+			Creature target = getPenaltySkillTarget(DataManager.SKILL_DATA.getSkillTemplate(penaltySkill));
 			if (target != null) {
 				SkillEngine.getInstance().applyEffectDirectly(penaltySkill, effector, target);
 			}
 		}
+	}
+
+	private Creature getPenaltySkillTarget(SkillTemplate penaltyTemplate) {
+		Properties properties = penaltyTemplate == null ? null : penaltyTemplate.getProperties();
+		if (properties == null)
+			return firstTarget;
+		if (properties.getFirstTarget() == FirstTargetAttribute.ME)
+			return effector;
+		TargetRelationAttribute relation = properties.getTargetRelation();
+		boolean isForAllies = relation == TargetRelationAttribute.FRIEND || relation == TargetRelationAttribute.MYPARTY;
+		return isForAllies && firstTarget != null && effector.isEnemy(firstTarget) ? effector : firstTarget;
 	}
 
 	/**
