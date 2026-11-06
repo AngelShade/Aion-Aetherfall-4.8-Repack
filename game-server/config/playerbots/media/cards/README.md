@@ -11,6 +11,9 @@ or equipment. Native identity, level, origin, status and actions remain live dat
 - `class-portraits.png`: square four-column, three-row atlas, read left to right:
   Templar, Gladiator, Assassin, Ranger; Sorcerer, Spiritmaster, Cleric, Chanter;
   Gunner, Aethertech, Bard, generic Daeva. Starting classes use their family art.
+- `class-portraits-counterpart.jpg`: same size and cell order, with the other gender of each class.
+  Main atlas cells are male for Templar, Gladiator, Sorcerer, Chanter and Gunner, and female for the rest.
+  `cardPortraitMale` in `bots.js` must match. Both atlases share the generic Daeva cell.
 
 The client loads one shared atlas for the visible page. Card flipping is local
 presentation; it does not recruit, purchase, remove or alter character state.

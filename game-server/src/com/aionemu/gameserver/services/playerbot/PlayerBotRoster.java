@@ -29,11 +29,11 @@ public final class PlayerBotRoster {
 			try(var s=c.prepareStatement("SELECT COUNT(*)"+where)){parameters(s,account,owner,query);try(var r=s.executeQuery()){r.next();total=r.getInt(1);}}
 			try(var s=c.prepareStatement("SELECT COUNT(*)"+base+(generatedSchema?" AND b.player_id IS NOT NULL":" AND FALSE"))){s.setInt(1,account);s.setInt(2,owner);try(var r=s.executeQuery()){r.next();count=r.getInt(1);}}
 			int page=Math.min(requested,Math.max(0,(total-1)/6));var rows=new ArrayList<Map<String,Object>>();
-			try(var s=c.prepareStatement("SELECT p.id,p.name,p.exp,p.player_class,"+(generatedSchema?"b.player_id,b.ready":"NULL,FALSE")+where+" ORDER BY "+order+" LIMIT 6 OFFSET ?")) {
+			try(var s=c.prepareStatement("SELECT p.id,p.name,p.exp,p.player_class,"+(generatedSchema?"b.player_id,b.ready":"NULL,FALSE")+",p.gender"+where+" ORDER BY "+order+" LIMIT 6 OFFSET ?")) {
 				parameters(s,account,owner,query);s.setLong(5,(long)page*6);
 				try(var r=s.executeQuery()){while(r.next()){
 					int id=r.getInt(1);boolean generated=r.getObject(5)!=null;var row=new HashMap<String,Object>();
-					row.put("id",id);row.put("name",r.getString(2));row.put("level",com.aionemu.gameserver.dataholders.DataManager.PLAYER_EXPERIENCE_TABLE.getLevelForExp(r.getLong(3)));row.put("playerClass",r.getString(4));
+					row.put("id",id);row.put("name",r.getString(2));row.put("level",com.aionemu.gameserver.dataholders.DataManager.PLAYER_EXPERIENCE_TABLE.getLevelForExp(r.getLong(3)));row.put("playerClass",r.getString(4));row.put("gender",r.getString(7));
 					row.put("generated",generated);row.put("ready",!generated || r.getBoolean(6));row.put("reserved",PlayerBotLease.isReserved(id));rows.add(row);
 				}}
 			}
@@ -85,11 +85,11 @@ public final class PlayerBotRoster {
 		if(!available())return List.of();
 		var active=new HashMap<Integer,PlayerBotSession>();for(var session:companions)active.put(session.bot().getObjectId(),session);
 		var rows=new ArrayList<Map<String,Object>>();
-		try(var c=DatabaseFactory.getConnection();var s=c.prepareStatement("SELECT p.id,p.name,p.player_class,p.online FROM players p JOIN playerbot_roster b ON b.player_id=p.id AND b.account_id=p.account_id LEFT JOIN playerbot_removed r ON r.player_id=p.id WHERE p.account_id=? AND p.id<>? AND b.ready=TRUE AND r.player_id IS NULL AND "+trait("origin")+"='GACHA' AND NOT EXISTS (SELECT 1 FROM playerbot_recycles consumed WHERE consumed.source_id=p.id) ORDER BY p.name,p.id")) {
+		try(var c=DatabaseFactory.getConnection();var s=c.prepareStatement("SELECT p.id,p.name,p.player_class,p.online,p.gender FROM players p JOIN playerbot_roster b ON b.player_id=p.id AND b.account_id=p.account_id LEFT JOIN playerbot_removed r ON r.player_id=p.id WHERE p.account_id=? AND p.id<>? AND b.ready=TRUE AND r.player_id IS NULL AND "+trait("origin")+"='GACHA' AND NOT EXISTS (SELECT 1 FROM playerbot_recycles consumed WHERE consumed.source_id=p.id) ORDER BY p.name,p.id")) {
 			s.setInt(1,account);s.setInt(2,owner);try(var r=s.executeQuery()){while(r.next()){
 				int id=r.getInt(1);var session=active.get(id);
 				if(session!=null ? session.closing() : r.getBoolean(4) || PlayerBotLease.isReserved(id))continue;
-				var row=new HashMap<String,Object>();row.put("id",id);row.put("name",r.getString(2));row.put("playerClass",r.getString(3));row.put("generated",true);row.put("active",session!=null);rows.add(row);
+				var row=new HashMap<String,Object>();row.put("id",id);row.put("name",r.getString(2));row.put("playerClass",r.getString(3));row.put("gender",r.getString(5));row.put("generated",true);row.put("active",session!=null);rows.add(row);
 			}}
 			traits(c,account,rows,true);
 			var result=new ArrayList<Map<String,Object>>();

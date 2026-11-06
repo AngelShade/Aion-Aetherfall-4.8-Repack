@@ -44,7 +44,7 @@ public final class PlayerBotAllianceControl {
  }
  private static Map<String,Object> group(Player owner,Set<Integer> controlled,int id,int number,List<Player> players){
   var members=players.stream().sorted(Comparator.comparingInt(Player::getObjectId)).map(p->{
-   var row=new LinkedHashMap<String,Object>();row.put("id",p.getObjectId());row.put("name",p.getName());row.put("level",p.getLevel());row.put("playerClass",p.getPlayerClass().name());
+   var row=new LinkedHashMap<String,Object>();row.put("id",p.getObjectId());row.put("name",p.getName());row.put("level",p.getLevel());row.put("playerClass",p.getPlayerClass().name());row.put("gender",p.getGender().name());
    row.put("online",p.isPlaying());row.put("dead",p.isDead());row.put("controlled",controlled.contains(p.getObjectId()));row.put("self",p==owner);
    row.put("leader",p.getCurrentTeam()!=null && p.getCurrentTeam().isLeader(p));row.put("viceCaptain",p.isInAlliance() && p.getPlayerAlliance().isViceCaptain(p));
    row.put("health",p.getLifeStats().getHpPercentage());row.put("mana",p.getLifeStats().getMpPercentage());return row;

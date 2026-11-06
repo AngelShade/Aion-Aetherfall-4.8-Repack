@@ -2,6 +2,7 @@
 
 ## Next update
 
+- Male and female companions now have their own portraits for every class, on recruit results, cards and profiles.
 - Free bots passing your fight now join in against elite monsters, or when your health is low. The kill and its rewards stay yours.
 - Bots now travel across their map to hunt monsters that drop the gear they want.
 - Bots no longer dive down elevator shafts or sink through town floors when they get stuck.

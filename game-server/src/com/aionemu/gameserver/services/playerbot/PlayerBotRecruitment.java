@@ -70,7 +70,7 @@ public final class PlayerBotRecruitment {
      q.setInt(1,completed.character());q.setInt(2,account);
      try(var r=q.executeQuery()){
       if(!r.next())throw new java.sql.SQLException("Completed recruit unavailable");
-      last.put("name",r.getString(1));
+      last.put("name",r.getString(1));last.put("gender",r.getString(3));
       try { PlayerBotRecruitLook.add(owner,completed.character(),r.getString(2),r.getString(3),last); }
       catch(IOException | RuntimeException e) {
        last.remove("model");last.remove("look");last.remove("items");

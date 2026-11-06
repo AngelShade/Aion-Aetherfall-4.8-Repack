@@ -9,7 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class PlayerBotMedia {
  private static final ConcurrentHashMap<String,byte[]> ART_CACHE=new ConcurrentHashMap<>();
  private static final ConcurrentHashMap<String,String> TEXT_CACHE=new ConcurrentHashMap<>();
- private static final Set<String> CARD_ART=Set.of("summon-stage.jpg","castle-background.png","ornate-frame.png","class-portraits.jpg","window-frame.png",
+ private static final Set<String> CARD_ART=Set.of("summon-stage.jpg","castle-background.png","ornate-frame.png","class-portraits.jpg","class-portraits-counterpart.jpg","window-frame.png",
   "skin-button-navy.png","skin-button-gold.png","skin-button-selected.png","skin-field.png","skin-panel.png","skin-icons.png","skin-chevron.png");
  public static boolean cardArt(String name){return CARD_ART.contains(name);}
  public static byte[] readCardArt(String name)throws IOException {

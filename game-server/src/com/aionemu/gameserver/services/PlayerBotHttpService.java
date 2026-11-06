@@ -137,7 +137,7 @@ public final class PlayerBotHttpService {
 		for (var data : owner.getAccount().getPlayerAccDataList()) {
 			var character = data.getPlayerCommonData();
 			if (character.getPlayerObjId() != owner.getObjectId()) roster.add(Map.of("name", character.getName(), "id", character.getPlayerObjId(), "level", character.getLevel(),
-				"playerClass", character.getPlayerClass().name(), "reserved", PlayerBotLease.isReserved(character.getPlayerObjId()), "generated", false, "ready", true));
+				"playerClass", character.getPlayerClass().name(), "gender", character.getGender().name(), "reserved", PlayerBotLease.isReserved(character.getPlayerObjId()), "generated", false, "ready", true));
 		}
 
         state.put("accountCharacters",List.copyOf(roster));

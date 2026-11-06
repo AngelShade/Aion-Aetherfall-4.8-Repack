@@ -55,7 +55,7 @@
     ring.appendChild(emblem); return ring;
   }
   // One shared illustrated setting across the window, selected companion and collection.
-  function headerArt(header, character) { var art = node('img', null, 'bot-art'); art.alt = ''; art.src = '/market/companions/media/cards/castle-background.png?v=2'; art.onerror = function () { this.style.display = 'none'; }; header.appendChild(art); header.appendChild(node('div', null, 'bot-shade')); if (character) header.appendChild(cardPortrait(character.playerClass,'header-class-art')); }
+  function headerArt(header, character) { var art = node('img', null, 'bot-art'); art.alt = ''; art.src = '/market/companions/media/cards/castle-background.png?v=2'; art.onerror = function () { this.style.display = 'none'; }; header.appendChild(art); header.appendChild(node('div', null, 'bot-shade')); if (character) header.appendChild(cardPortrait(character.playerClass,'header-class-art',character.gender)); }
 
   var sectionNames = {
     behavior: [['combat','Combat'],['automation','Quest automation'],['spacing','Spacing'],['focus','Focus']],
@@ -227,7 +227,7 @@
   function renderProfile(parent,bot,items) {
     var layout = node('div',null,'character-profile'), doll = node('div',null,'paperdoll'), portrait = node('div',null,'portrait'), details = node('div',null,'doll-details');
     var choiceKey = bot.id + '|equipped', selected = itemSelections[choiceKey], chosen = null;
-    portrait.appendChild(cardPortrait(bot.playerClass,'profile-class-art'));
+    portrait.appendChild(cardPortrait(bot.playerClass,'profile-class-art',bot.gender));
     portrait.appendChild(crest(bot.playerClass, bot.role)); portrait.appendChild(node('strong',bot.name));
     portrait.appendChild(node('span','Level ' + bot.level + ' ' + label(bot.playerClass),'portrait-class'));
     portrait.appendChild(node('span',label(bot.role) + ' · ' + items.length + ' equipped','portrait-role')); doll.appendChild(portrait);
@@ -551,7 +551,7 @@
   function botSummary(parent,bot) {
       var row = localButton(parent, null, function () { openBot(bot.id); }, 'bot-summary' + (String(selectedBot) === String(bot.id) ? ' selected' : ''));
 
-      row.setAttribute('data-bot-id', bot.id); row.setAttribute('aria-pressed', String(selectedBot) === String(bot.id) ? 'true' : 'false'); row.appendChild(cardPortrait(bot.playerClass,'summary-class-art')); row.appendChild(crest(bot.playerClass, bot.role));
+      row.setAttribute('data-bot-id', bot.id); row.setAttribute('aria-pressed', String(selectedBot) === String(bot.id) ? 'true' : 'false'); row.appendChild(cardPortrait(bot.playerClass,'summary-class-art',bot.gender)); row.appendChild(crest(bot.playerClass, bot.role));
 
       row.appendChild(node('strong', bot.name)); row.appendChild(node('span', 'Lv. ' + bot.level + ' ' + label(bot.playerClass) + ' \u00b7 ' + label(bot.role), 'meta'));
 
@@ -584,7 +584,7 @@
         var member = group.members[m], bot = activeBot(member.id); shown[member.id] = true;
         if (bot) botSummary(panel,bot);
         else {
-          var row = node('div',null,'human-member'); row.appendChild(cardPortrait(member.playerClass,'summary-class-art')); row.appendChild(crest(member.playerClass)); row.appendChild(node('strong',member.name + (member.self ? ' (you)' : '')));
+          var row = node('div',null,'human-member'); row.appendChild(cardPortrait(member.playerClass,'summary-class-art',member.gender)); row.appendChild(crest(member.playerClass)); row.appendChild(node('strong',member.name + (member.self ? ' (you)' : '')));
           row.appendChild(node('span','Lv. ' + member.level + ' ' + label(member.playerClass),'meta'));
           var rank = member.leader ? 'Leader' : member.viceCaptain ? 'Vice-captain' : '';
           row.appendChild(node('span',(rank ? rank + ' \u00b7 ' : '') + (member.dead ? 'Dead' : member.online ? 'Online' : 'Offline'),'summary-status'));
@@ -815,10 +815,18 @@
   var cardPortraits = { TEMPLAR:0, GLADIATOR:1, ASSASSIN:2, RANGER:3, SORCERER:4, SPIRIT_MASTER:5, CLERIC:6, CHANTER:7, GUNNER:8, RIDER:9, BARD:10,
     WARRIOR:1, SCOUT:3, MAGE:4, PRIEST:6, ENGINEER:8, ARTIST:10 };
 
-  function cardPortrait(playerClass, className) {
+  // Who each cell of the main atlas shows. The counterpart atlas has the other gender in the same cell.
+  var cardPortraitMale = [true,true,false,false,true,false,false,true,true,false,false];
+
+  function cardPortraitAtlas(index, gender) {
+    var other = index < cardPortraitMale.length && (gender === 'MALE' || gender === 'FEMALE') && (gender === 'MALE') !== cardPortraitMale[index];
+    return other ? 'class-portraits-counterpart.jpg?v=1' : 'class-portraits.jpg?v=2';
+  }
+
+  function cardPortrait(playerClass, className, gender) {
     var key = String(playerClass || '').toUpperCase(), index = Object.prototype.hasOwnProperty.call(cardPortraits,key) ? cardPortraits[key] : 11;
     var portrait = node('span',null,className), image = node('img');
-    portrait.setAttribute('aria-hidden','true'); image.alt = ''; image.src = CARD_ART + 'class-portraits.jpg?v=2';
+    portrait.setAttribute('aria-hidden','true'); image.alt = ''; image.src = CARD_ART + cardPortraitAtlas(index, gender);
     image.style.left = -(index % 4) * 100 + '%'; image.style.top = -Math.floor(index / 4) * 100 + '%';
     portrait.appendChild(image); return portrait;
   }
@@ -917,7 +925,7 @@
     front.id = 'card-front-' + id; front.setAttribute('aria-controls','card-back-' + id);
     front.setAttribute('aria-label','Turn ' + character.name + "'s card for details and actions");
     front.setAttribute('data-focus-key','card|' + id + '|front'); front.title = 'Illustrated ' + label(character.playerClass || 'Daeva') + ' class artwork';
-    front.appendChild(cardPortrait(character.playerClass,'collection-portrait'));
+    front.appendChild(cardPortrait(character.playerClass,'collection-portrait',character.gender));
     front.appendChild(node('span',null,'collection-shade'));
     var origin = node('span',character.generated && isSavedBot(character.id) ? 'Saved ' + originLabel(true,false,character.growth) : originLabel(character.generated,false,character.growth),'collection-origin' + rarityClass(character.growth)); front.appendChild(origin);
     var identity = node('span',null,'collection-identity'); identity.appendChild(crest(character.playerClass,live ? live.role : null));
@@ -933,7 +941,7 @@
 
     var back = node('div',null,'collection-back'); back.id = 'card-back-' + id;
     var content = node('div',null,'collection-back-content'); content.setAttribute('data-card-scroll',id);
-    var heading = node('div',null,'collection-back-heading'); heading.appendChild(cardPortrait(character.playerClass,'collection-mini'));
+    var heading = node('div',null,'collection-back-heading'); heading.appendChild(cardPortrait(character.playerClass,'collection-mini',character.gender));
     heading.appendChild(node('h3',character.name)); heading.appendChild(node('p',rosterIdentity(character),'collection-class'));
     heading.appendChild(node('span',originLabel(character.generated,false,character.growth),'collection-back-origin')); content.appendChild(heading);
     content.appendChild(node('p',cardStatus(character,live),'collection-back-status'));
@@ -1934,7 +1942,7 @@
       var medal = node('span', label(result.advancedClass).slice(0, 2), 'summon-medal'), who = node('span', null, 'summon-who');
       who.appendChild(node('strong', result.name)); who.appendChild(node('span', label(result.advancedClass)));
       cards.appendChild(medal); cards.appendChild(who);
-      var shown = byId('summon-result-card'); shown.appendChild(cardPortrait(result.advancedClass, 'summon-mini'));
+      var shown = byId('summon-result-card'); shown.appendChild(cardPortrait(result.advancedClass, 'summon-mini', result.gender));
       var plate = node('span', null, 'summon-plate'); plate.appendChild(node('strong', result.name)); plate.appendChild(node('span', label(result.advancedClass))); shown.appendChild(plate);
       summonRoll(rolls, 'Auto-equip', result.gear, summonTier(result.gear)); summonRoll(rolls, 'Combat rank', result.rank, summonTier(result.rank));
       localButton(actions, 'View companion', function () { closeSummon(); byId('tab-roster').onclick(); });
