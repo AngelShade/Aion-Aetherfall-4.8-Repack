@@ -12,6 +12,11 @@
         <xs:element minOccurs="0" name="magical" type="ManastoneGroup"/>
         <xs:element minOccurs="0" name="medals" type="MedalGroup"/>
         <xs:element minOccurs="0" name="fortress_medals" type="MedalGroup"/>
+        <xs:element minOccurs="0" name="goods_supplies" type="MedalGroup"/>
+        <xs:element minOccurs="0" name="island_medals" type="MedalGroup"/>
+        <xs:element minOccurs="0" name="rift_supplies" type="MedalGroup"/>
+        <xs:element minOccurs="0" name="winter_swimsuits" type="MedalGroup"/>
+        <xs:element minOccurs="0" name="boss_medals" type="MedalGroup"/>
         <xs:element minOccurs="0" name="food" type="FoodGroup"/>
         <xs:element minOccurs="0" name="medicine_common" type="MedicineGroup"/>
         <xs:element minOccurs="0" name="medicine_rare" type="MedicineGroup"/>

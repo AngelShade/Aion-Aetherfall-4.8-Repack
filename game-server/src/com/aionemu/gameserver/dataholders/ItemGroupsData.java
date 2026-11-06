@@ -76,6 +76,21 @@ public class ItemGroupsData {
 	@XmlElement(name = "fortress_medals")
 	private MedalGroup fortressMedals;
 
+	@XmlElement(name = "goods_supplies")
+	private MedalGroup goodsSupplies;
+
+	@XmlElement(name = "island_medals")
+	private MedalGroup islandMedals;
+
+	@XmlElement(name = "rift_supplies")
+	private MedalGroup riftSupplies;
+
+	@XmlElement(name = "winter_swimsuits")
+	private MedalGroup winterSwimsuits;
+
+	@XmlElement(name = "boss_medals")
+	private MedalGroup bossMedals;
+
 	@XmlElement(name = "enchants")
 	private EnchantGroup enchants;
 
@@ -153,6 +168,10 @@ public class ItemGroupsData {
 	private List<BonusItemGroup> enchantGroups;
 	private List<BonusItemGroup> eventGroups;
 	private List<BonusItemGroup> bossGroups;
+	private List<BonusItemGroup> goodsGroups;
+	private List<BonusItemGroup> islandGroups;
+	private List<BonusItemGroup> riftGroups;
+	private List<BonusItemGroup> winterGroups;
 
 	private Map<FoodType, Set<Integer>> petFood = new EnumMap<>(FoodType.class);
 
@@ -173,7 +192,12 @@ public class ItemGroupsData {
 		gatherGroups = Arrays.asList(gatherRare, oresRare, oresLegendary, oresUnique, oresEpic);
 		enchantGroups = Collections.singletonList(enchants);
 		eventGroups = Collections.singletonList(events);
-		bossGroups = Arrays.asList(bossRare, bossLegendary);
+		// boss_rare is level 16 gear, which no BOSS quest's bonus level can use.
+		bossGroups = Arrays.asList(required(bossMedals, "BOSS"), bossLegendary);
+		goodsGroups = Collections.singletonList(required(goodsSupplies, "GOODS"));
+		islandGroups = Collections.singletonList(required(islandMedals, "ISLAND"));
+		riftGroups = Collections.singletonList(required(riftSupplies, "RIFT"));
+		winterGroups = Collections.singletonList(required(winterSwimsuits, "WINTER"));
 
 		for (FoodType foodType : FoodType.values()) {
 			List<ItemRaceEntry> food = getPetFood(foodType);
@@ -185,6 +209,28 @@ public class ItemGroupsData {
 				petFoodCount += itemIds.size();
 			food.clear();
 		}
+	}
+
+	private static BonusItemGroup required(BonusItemGroup group, String type) {
+		if (group == null || group.getItems().isEmpty())
+			throw new IllegalArgumentException(type + " quest reward pool is missing or empty");
+		return group;
+	}
+
+	public List<BonusItemGroup> getGoodsGroups() {
+		return goodsGroups;
+	}
+
+	public List<BonusItemGroup> getIslandGroups() {
+		return islandGroups;
+	}
+
+	public List<BonusItemGroup> getRiftGroups() {
+		return riftGroups;
+	}
+
+	public List<BonusItemGroup> getWinterGroups() {
+		return winterGroups;
 	}
 
 	public List<BonusItemGroup> getCraftGroups() {

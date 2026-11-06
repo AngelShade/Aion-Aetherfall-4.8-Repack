@@ -76671,7 +76671,7 @@
 		<rewards>
 			<reward_item item_id="164002050" count="1"/>
 		</rewards>
-		<bonus level="10" type="RIFT"/>
+		<bonus level="20" type="RIFT"/>
 		<start_conditions>
 			<finished quest_id="80136"/>
 		</start_conditions>
@@ -76701,7 +76701,7 @@
 		<rewards>
 			<reward_item item_id="164002051" count="1"/>
 		</rewards>
-		<bonus level="10" type="RIFT"/>
+		<bonus level="30" type="RIFT"/>
 		<start_conditions>
 			<finished quest_id="80138"/>
 		</start_conditions>
@@ -76731,7 +76731,7 @@
 		<rewards>
 			<reward_item item_id="164002052" count="1"/>
 		</rewards>
-		<bonus level="10" type="RIFT"/>
+		<bonus level="40" type="RIFT"/>
 		<start_conditions>
 			<finished quest_id="80140"/>
 		</start_conditions>
@@ -76791,7 +76791,7 @@
 		<rewards>
 			<reward_item item_id="164002053" count="1"/>
 		</rewards>
-		<bonus level="10" type="RIFT"/>
+		<bonus level="20" type="RIFT"/>
 		<start_conditions>
 			<finished quest_id="80144"/>
 		</start_conditions>
@@ -76821,7 +76821,7 @@
 		<rewards>
 			<reward_item item_id="164002054" count="1"/>
 		</rewards>
-		<bonus level="10" type="RIFT"/>
+		<bonus level="30" type="RIFT"/>
 		<start_conditions>
 			<finished quest_id="80146"/>
 		</start_conditions>
@@ -76851,7 +76851,7 @@
 		<rewards>
 			<reward_item item_id="164002055" count="1"/>
 		</rewards>
-		<bonus level="10" type="RIFT"/>
+		<bonus level="40" type="RIFT"/>
 		<start_conditions>
 			<finished quest_id="80148"/>
 		</start_conditions>

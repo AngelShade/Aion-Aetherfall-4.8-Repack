@@ -4579,6 +4579,43 @@
 		<item id="186000242" level="65" count="3" chance="0.5"/>
 		<item id="186000242" level="65" count="4" chance="0.1"/>
 	</fortress_medals>
+	<goods_supplies bonusType="GOODS" chance="100">
+		<item id="162000016" level="50" count="3" chance="30"/>
+		<item id="162000021" level="50" count="3" chance="30"/>
+		<item id="162000045" level="50" count="3" chance="25"/>
+		<item id="162000027" level="50" count="3" chance="10"/>
+		<item id="162000050" level="50" count="1" chance="5"/>
+	</goods_supplies>
+	<island_medals bonusType="ISLAND" chance="100">
+		<item id="182005205" level="40" count="1" chance="80"/>
+		<item id="186000031" level="40" count="1" chance="15"/>
+		<item id="186000030" level="40" count="1" chance="5"/>
+	</island_medals>
+	<rift_supplies bonusType="RIFT" chance="100">
+		<item id="162000041" level="10" count="3" chance="40"/>
+		<item id="162000012" level="10" count="3" chance="30"/>
+		<item id="162000017" level="10" count="3" chance="30"/>
+		<item id="162000042" level="20" count="3" chance="40"/>
+		<item id="162000013" level="20" count="3" chance="30"/>
+		<item id="162000018" level="20" count="3" chance="30"/>
+		<item id="162000043" level="30" count="3" chance="40"/>
+		<item id="162000014" level="30" count="3" chance="30"/>
+		<item id="162000019" level="30" count="3" chance="30"/>
+		<item id="162000044" level="40" count="3" chance="40"/>
+		<item id="162000015" level="40" count="3" chance="30"/>
+		<item id="162000020" level="40" count="3" chance="30"/>
+	</rift_supplies>
+	<winter_swimsuits bonusType="WINTER" chance="100">
+		<item id="110900105" level="10" count="1" chance="100"/>
+	</winter_swimsuits>
+	<boss_medals bonusType="BOSS" chance="98">
+		<item id="186000031" level="40" count="3" chance="65"/>
+		<item id="186000030" level="40" count="1" chance="30"/>
+		<item id="186000030" level="40" count="2" chance="5"/>
+		<item id="186000030" level="50" count="3" chance="65"/>
+		<item id="186000096" level="50" count="1" chance="30"/>
+		<item id="186000096" level="50" count="2" chance="5"/>
+	</boss_medals>
 	<food bonusType="FOOD" chance="100">
 		<item id="152015001" level="30"/>
 		<item id="152015004" level="40"/>
@@ -5158,7 +5195,7 @@
 		<item id="101500006" race="ASMODIANS"/>
 		<item id="101700006" race="ASMODIANS"/>
 	</boss_rare>
-	<boss_legendary bonusType="BOSS">
+	<boss_legendary bonusType="BOSS" chance="2">
 		<item id="110100880" race="ELYOS"/>
 		<item id="110100881" race="ASMODIANS"/>
 		<item id="110100882" race="ELYOS"/>

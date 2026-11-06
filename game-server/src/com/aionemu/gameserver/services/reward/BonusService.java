@@ -12,6 +12,7 @@ import com.aionemu.gameserver.model.Chance;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.model.templates.QuestTemplate;
 import com.aionemu.gameserver.model.templates.itemgroups.BonusItemGroup;
+import com.aionemu.gameserver.model.templates.item.ItemTemplate;
 import com.aionemu.gameserver.model.templates.itemgroups.ItemRaceEntry;
 import com.aionemu.gameserver.model.templates.quest.QuestItems;
 import com.aionemu.gameserver.model.templates.rewards.BonusType;
@@ -44,19 +45,36 @@ public class BonusService {
 			BonusItemGroup group = Chance.selectElement(remainingGroups, true);
 			if (group == null)
 				break;
-			allRewards = group.getItems().stream().filter(i -> i.matches(player.getRace(), questTemplate)).collect(Collectors.toList());
+			allRewards = group.getItems().stream().filter(i -> i.matches(player.getRace(), questTemplate))
+				.filter(i -> usable(player, questTemplate, i)).collect(Collectors.toList());
 			if (!allRewards.isEmpty())
 				break;
 		}
 		return allRewards;
 	}
 
+	/** The rare General armour from a BOSS bonus must fit the player who earned it. */
+	private static boolean usable(Player player, QuestTemplate questTemplate, ItemRaceEntry entry) {
+		if (questTemplate.getBonus().getType() != BonusType.BOSS)
+			return true;
+		ItemTemplate item = DataManager.ITEM_DATA.getItemTemplate(entry.getId());
+		return !item.isArmor() || item.isClassSpecific(player.getPlayerClass());
+	}
+
 	private static List<BonusItemGroup> getBonusGroups(BonusType type) {
 		switch (type) {
 			// case GATHER:
 			// return DataManager.ITEM_GROUPS_DATA.getGatherGroups();
-			// case BOSS:
-			// return DataManager.ITEM_GROUPS_DATA.getBossGroups();
+			case BOSS:
+				return DataManager.ITEM_GROUPS_DATA.getBossGroups();
+			case GOODS:
+				return DataManager.ITEM_GROUPS_DATA.getGoodsGroups();
+			case ISLAND:
+				return DataManager.ITEM_GROUPS_DATA.getIslandGroups();
+			case RIFT:
+				return DataManager.ITEM_GROUPS_DATA.getRiftGroups();
+			case WINTER:
+				return DataManager.ITEM_GROUPS_DATA.getWinterGroups();
 			// case ENCHANT:
 			// return DataManager.ITEM_GROUPS_DATA.getEnchantGroups();
 			case EVENTS:

@@ -2,6 +2,9 @@
 
 ## Next update
 
+- Beshmundir and Gelkmaros repeat quests now pay bonus supplies, and the Warped Rift event pays potions for your level.
+- Rift Stones and alliance General hunts now pay medals, and General hunts have a small chance of armour for your class.
+- The Swimsuit Swap event quest now gives you the swimsuit.
 - Male and female companions now have their own portraits for every class, on recruit results, cards and profiles.
 - Free bots passing your fight now join in against elite monsters, or when your health is low. The kill and its rewards stay yours.
 - Bots now travel across their map to hunt monsters that drop the gear they want.
