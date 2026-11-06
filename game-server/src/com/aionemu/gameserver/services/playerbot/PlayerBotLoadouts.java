@@ -23,15 +23,15 @@ final class PlayerBotLoadouts {
  enum Status {SAVED,HELD,MISSING,GAP,AUTO}
  record Target(ItemTemplate item,List<LootCodexService.Acquisition> sources) {}
  record Row(ItemSlot slot,Item worn,String saved,Status status,Target goal) {}
- private record Key(PlayerClass pc,Race race,Gender gender,Role role,String weapon,boolean dual,String armor,int stage) {}
+ private record Key(PlayerClass pc,Race race,Gender gender,Role role,String weapon,boolean dual,String armor,int stage,PlayerBotStigmaBuilds.Build build) {}
  private static final Map<Key,Map<ItemSlot,Target>> TARGETS=new ConcurrentHashMap<>();
  private static volatile Object loaded;
 
- /** The best verified item a class can reach by the end of a stage, per slot, computed once per class, role and weapon. */
+ /** The best verified item reachable by the end of a stage, cached with its scoring strategy and native restrictions. */
  static Map<ItemSlot,Target> targets(Player bot,Role role) {
   if(loaded!=DataManager.ITEM_DATA){TARGETS.clear();loaded=DataManager.ITEM_DATA;}
   var key=new Key(bot.getPlayerClass(),bot.getRace(),bot.getGender(),role,PlayerBotGearPolicy.settings(bot).weapon(),com.aionemu.gameserver.skillengine.effect.WeaponDualEffect.hasDualWieldEffect(bot),
-   PlayerBotBuildRules.armor(bot.getPlayerClass(),bot.getSkillList()::isSkillPresent),PlayerBotStigmaBuilds.stage(bot.getLevel()));
+   PlayerBotBuildRules.armor(bot.getPlayerClass(),bot.getSkillList()::isSkillPresent),PlayerBotStigmaBuilds.stage(bot.getLevel()),PlayerBotGearPolicy.stigmaBuild(bot));
   return TARGETS.computeIfAbsent(key,k->compute(bot,k));
  }
  private static boolean listed(ItemTemplate t,Key k,int top) {
@@ -51,7 +51,7 @@ final class PlayerBotLoadouts {
   ItemGroup weapon=k.weapon.equals("AUTO") ? PlayerBotTemporary.preferredWeapon(k.pc,k.role) : ItemGroup.valueOf(k.weapon.equals("2H_SWORD") ? "GREATSWORD" : k.weapon);
   for(var t:DataManager.ITEM_DATA.getItemTemplates()) {
    if(!listed(t,k,top))continue;
-   double value=PlayerBotGearPolicy.score(bot,t,k.role);List<LootCodexService.Acquisition> sources=null;
+   double value=PlayerBotGearPolicy.score(bot,t,k.role,k.build);List<LootCodexService.Acquisition> sources=null;
    for(var slot:PlayerBotTemporary.GEAR) {
     Double held=scores.get(slot);
     if(!fits(t,slot,k,weapon) || held!=null && (value<held || value==held && t.getTemplateId()>best.get(slot).item().getTemplateId()))continue;
@@ -88,7 +88,8 @@ final class PlayerBotLoadouts {
     continue;
    }
    var target=targets.get(slot);
-   boolean covered=target==null || holds(bot,target.item()) || worn!=null && PlayerBotGearPolicy.score(bot,worn,role)>=PlayerBotGearPolicy.score(bot,target.item(),role);
+   boolean covered=target==null || holds(bot,target.item()) || PlayerBotGearPolicy.gain(bot,target.item(),PlayerBotGearPolicy.score(bot,target.item(),role),
+    target.item().isTwoHandWeapon() ? ItemSlot.MAIN_OR_SUB.getSlotIdMask() : slot.getSlotIdMask(),role)<=1;
    rows.add(new Row(slot,worn,null,covered ? Status.AUTO : Status.GAP,covered ? null : target));
   }
   return rows;

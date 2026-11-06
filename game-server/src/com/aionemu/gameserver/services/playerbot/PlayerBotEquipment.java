@@ -21,17 +21,30 @@ final class PlayerBotEquipment {
 		return score(item.getItemTemplate(), role, playerClass) + item.getEnchantLevel() * 2;
 	}
 	static double score(com.aionemu.gameserver.model.templates.item.ItemTemplate template, Role role, com.aionemu.gameserver.model.PlayerClass playerClass) {
+		return score(template,role,playerClass,null);
+	}
+	static double score(com.aionemu.gameserver.model.templates.item.ItemTemplate template, Role role, com.aionemu.gameserver.model.PlayerClass playerClass, PlayerBotStigmaBuilds.GearStrategy gear) {
 		var weapon = template.getWeaponStats();
 		double result = template.getLevel() * 0.1;
 		boolean magical = role == Role.HEALER || Set.of(com.aionemu.gameserver.model.PlayerClass.PRIEST,com.aionemu.gameserver.model.PlayerClass.CLERIC,com.aionemu.gameserver.model.PlayerClass.MAGE,com.aionemu.gameserver.model.PlayerClass.SORCERER,com.aionemu.gameserver.model.PlayerClass.SPIRIT_MASTER,com.aionemu.gameserver.model.PlayerClass.ENGINEER,com.aionemu.gameserver.model.PlayerClass.GUNNER,com.aionemu.gameserver.model.PlayerClass.RIDER,com.aionemu.gameserver.model.PlayerClass.ARTIST,com.aionemu.gameserver.model.PlayerClass.BARD).contains(playerClass);
-		if (template.isWeapon()) result += magical ? weapon.getBoostMagicalSkill() * 0.7 + weapon.getMagicalAccuracy() * 0.15
-			: weapon.getMeanDamage() * 3 + weapon.getCritical() * 0.3 + weapon.getPhysicalAccuracy() * 0.15;
+		if (template.isWeapon()) {
+			if(gear==null) result += magical ? weapon.getBoostMagicalSkill() * 0.7 + weapon.getMagicalAccuracy() * 0.15
+				: weapon.getMeanDamage() * 3 + weapon.getCritical() * 0.3 + weapon.getPhysicalAccuracy() * 0.15;
+			else {
+				result += weapon.getBoostMagicalSkill()*gear.weight(StatEnum.BOOST_MAGICAL_SKILL,magical ? 0.7 : 0)+weapon.getMagicalAccuracy()*gear.weight(StatEnum.MAGICAL_ACCURACY,magical ? 0.15 : 0)
+					+weapon.getMeanDamage()*gear.weight(StatEnum.PHYSICAL_ATTACK,magical ? 0 : 3)+weapon.getCritical()*gear.weight(StatEnum.PHYSICAL_CRITICAL,magical ? 0 : 0.3)+weapon.getPhysicalAccuracy()*gear.weight(StatEnum.PHYSICAL_ACCURACY,magical ? 0 : 0.15);
+				result += weapon.getParry()*gear.weight(StatEnum.PARRY,0);
+			}
+		}
 		if (template.getModifiers() != null)
 			for (var modifier : template.getModifiers()) {
 				if (modifier.hasConditions()) continue;
-				result += modifier.getValue() * weight(modifier.getName(), role, magical);
+				result += modifier.getValue() * weight(modifier.getName(), role, magical,gear);
 			}
 		return result;
+	}
+	static double weight(StatEnum stat,Role role,boolean magical,PlayerBotStigmaBuilds.GearStrategy gear) {
+		return gear==null ? weight(stat,role,magical) : gear.weight(stat,weight(stat,role,magical));
 	}
 
 	static double weight(StatEnum stat, Role role, boolean magical) {

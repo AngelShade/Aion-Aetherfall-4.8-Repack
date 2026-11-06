@@ -48,7 +48,7 @@ public final class PlayerBotGearPolicyCheck {
   @Override public PlayerSkillList getSkillList(){return skills;}
  }
  private static ItemTemplate template(int id,ItemGroup group,int level,ItemQuality quality)throws Exception {
-  ItemTemplate t=new ItemTemplate();field(t,"itemId",id);field(t,"itemGroup",group);field(t,"level",level);field(t,"itemQuality",quality);
+  ItemTemplate t=new ItemTemplate();field(t,"itemId",id);field(t,"name","Gear fixture "+id);field(t,"itemGroup",group);field(t,"level",level);field(t,"itemQuality",quality);
   field(t,"useLimits",new ItemUseLimits());field(t,"weaponStats",new WeaponStats());field(t,"maxTuneCount",0);return t;
  }
  private static Item weapon(int object,int id,int damage)throws Exception {
@@ -58,13 +58,16 @@ public final class PlayerBotGearPolicyCheck {
  private static PlayerBotGearPolicy.Settings setting(String mode,String profile,String quality,String level,String ratio,String weapon,String vendor,String rolls) {
   return PlayerBotGearPolicy.parse(mode,profile,quality,level,ratio,weapon,vendor,rolls);
  }
- public static void main(String[] args)throws Exception {
+ @SuppressWarnings("unchecked") public static void main(String[] args)throws Exception {
+  com.aionemu.commons.configuration.ConfigurableProcessor.process(new Properties(),com.aionemu.gameserver.configs.main.PlayerBotConfig.class,com.aionemu.gameserver.configs.main.PlayerBotMerchantConfig.class);
   Field f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);Unsafe unsafe=(Unsafe)f.get(null);
   Companion bot=(Companion)unsafe.allocateInstance(Companion.class);bot.id=1999999001;bot.pc=PlayerClass.TEMPLAR;bot.level=65;bot.cube=new Cube();bot.outfit=new Outfit();bot.skills=new PlayerSkillList();
   bot.rank=(AbyssRank)unsafe.allocateInstance(AbyssRank.class);field(bot.rank,"rank",AbyssRankEnum.GRADE9_SOLDIER);
   var stats=(com.aionemu.gameserver.model.stats.container.PlayerGameStats)unsafe.allocateInstance(com.aionemu.gameserver.model.stats.container.PlayerGameStats.class);bot.setGameStats(stats);
   var skillsBefore=DataManager.SKILL_DATA;var itemsBefore=DataManager.ITEM_DATA;
   Path path=Path.of("config/playerbots/gear-character-1999999001.properties");check(!Files.exists(path),"Fixture must not replace an existing gear file");
+  Field cacheField=PlayerBotMetadata.class.getDeclaredField("CACHE");cacheField.setAccessible(true);var cache=(Map<PlayerBotMetadata.Key,PlayerBotMetadata.Entry>)cacheField.get(null);
+  var metadataKey=new PlayerBotMetadata.Key(bot.id,"gear");cache.put(metadataKey,new PlayerBotMetadata.Entry(1999999001,0,Map.of(),Map.of()));
   try {
    DataManager.SKILL_DATA=new SkillData();
    PlayerBotSession session=(PlayerBotSession)unsafe.allocateInstance(PlayerBotSession.class);field(session,"owner",bot);field(session,"bot",bot);field(session,"role",Role.TANK);
@@ -90,7 +93,8 @@ public final class PlayerBotGearPolicyCheck {
    check(PlayerBotGearPolicy.slots(bot,strong.getItemTemplate()).equals(List.of(1L)),"Native dual wield mastery is required for off-hand weapons");
    field(stats,"skillEfficiency",1f);check(PlayerBotGearPolicy.slots(bot,strong.getItemTemplate()).equals(List.of(1L,2L)),"Native dual wield allows comparison of both hands");field(stats,"skillEfficiency",0f);
    check(PlayerBotGearPolicy.improvement(110,100,1.1),"Exact ten-percent upgrade is accepted despite floating point rounding");
-   check(PlayerBotGearPolicy.roll(bot,strong.getItemTemplate()),"Useful native party loot is rolled for");
+   check(!PlayerBotGearPolicy.roll(bot,strong.getItemTemplate()),"An already-owned upgrade is not rolled for twice");bot.cube.contents.clear();
+   check(PlayerBotGearPolicy.roll(bot,strong.getItemTemplate()),"Useful native party loot is rolled for");bot.cube.contents.add(strong);
    state.settings=setting("EARNED","AUTO","LEGEND","0","1.1","AUTO","false","PASS");check(!PlayerBotGearPolicy.roll(bot,strong.getItemTemplate()),"Per-bot passing preference applies");state.settings=PlayerBotGearPolicy.DEFAULT;
    ItemTemplate wrongRace=template(100003,ItemGroup.PL_TORSO,60,ItemQuality.UNIQUE);field(wrongRace,"race",Race.ASMODIANS);check(!PlayerBotGearPolicy.eligible(bot,wrongRace),"Opposite-faction equipment cannot be selected");
    ItemTemplate high=template(100004,ItemGroup.PL_TORSO,70,ItemQuality.UNIQUE);check(!PlayerBotGearPolicy.generatedTemplate(bot,high,state.settings,65),"Items above chosen level cannot be generated");
@@ -102,7 +106,7 @@ public final class PlayerBotGearPolicyCheck {
    DataManager.SKILL_DATA=new SkillData(){@Override public Set<Integer> getMasterySkills(ItemGroup group){return Set.of(1999999999);}};
    check(!PlayerBotGearPolicy.eligible(bot,strong.getItemTemplate()),"Missing native mastery blocks gear");
    System.out.println("OK: "+checks+" equipment acquisition/profile/native item/persistence checks; no live players, items or Kinah changed");
-  }finally{DataManager.SKILL_DATA=skillsBefore;DataManager.ITEM_DATA=itemsBefore;Files.deleteIfExists(path);}
+  }finally{DataManager.SKILL_DATA=skillsBefore;DataManager.ITEM_DATA=itemsBefore;cache.remove(metadataKey);Files.deleteIfExists(path);}
  }
  private PlayerBotGearPolicyCheck(){}
 }

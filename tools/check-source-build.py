@@ -80,6 +80,9 @@ TESTS['PlayerBotHeightTraversalCheck']=101
 TESTS['PlayerBotLedgeLeapCheck']=89
 TESTS['PlayerBotLiveAuditCheck']=261
 TESTS['QuestBonusPoolsCheck']=208
+TESTS['PlayerBotBuildGearCheck']=5013
+TESTS['PlayerBotLoadoutCheck']=100
+TESTS['PlayerBotGearPolicyCheck']=117
 TESTS['PlayerBotProfessionCheck']=20107
 TESTS['PlayerBotIdentityCheck']=18
 TESTS['PlayerBotBystandersCheck']=14
@@ -239,7 +242,7 @@ def main():
    reports[test]=conclusion
    suites[test]=dict(exitCode=0,count=count,result=conclusion,reportSha256=sha(report))
  for test,count in ((name,TESTS[name]) for name in a.only) if a.only else TESTS.items():
-  cwd=ROOT if test in {'PlayerBotWorldProgressCheck','PlayerBotAssassinCheck','PlayerBotGladiatorCheck','PlayerBotTemplarCheck','PlayerBotChanterCheck','PlayerBotClericCheck','PlayerBotSpiritmasterCheck','PlayerBotSorcererCheck',
+  cwd=ROOT/'game-server' if test in {'PlayerBotBuildGearCheck','PlayerBotLoadoutCheck'} else ROOT if test in {'PlayerBotWorldProgressCheck','PlayerBotAssassinCheck','PlayerBotGladiatorCheck','PlayerBotTemplarCheck','PlayerBotChanterCheck','PlayerBotClericCheck','PlayerBotSpiritmasterCheck','PlayerBotSorcererCheck',
    'PlayerBotQuestCraftingCheck','PlayerBotQuestPrerequisitesCheck','PlayerBotNativeCraftingTaskCheck','PlayerBotNativeXmlQuestCheck'} else build/'checks'
   args=[str(ROOT/'game-server')] if test in {'PlayerBotIdentityCheck','PlayerBotBystandersCheck','PlayerBotPortraitCheck','PlayerBotProfessionCheck','QuestBonusPoolsCheck','PlayerBotRepositoryCheck','PlayerBotPlayerZoneCheck','PlayerBotAuditCoverageCheck','PlayerBotIdleCastingCheck','PlayerBotTravelFormationCheck','PlayerBotCombatGearCheck','PlayerBotTargetVisibilityCheck','PlayerBotStoryRewardIntentCheck','PlayerBotQuestTransformationCheck','PlayerBotQuestItemTargetCheck','PlayerBotNpcPatrolNativeSpawnCheck','PlayerBotNpcPatrolAdmissionCheck','PlayerBotNativeRouteYieldCheck','PlayerBotCapitalAreaCheck','PlayerBotConfigLocationCheck','PlayerBotCampDistributionCheck','PlayerBotNonCombatBuffCheck','PlayerBotTownPolicyCheck','PlayerBotSkillAdaptersCheck'} else []
   result=subprocess.run(['java','-Xverify:all','-cp',cp,('com.aionemu.gameserver.services.item.' if test=='WarehouseDepositCheck' else 'com.aionemu.gameserver.services.playerbot.')+test,*args],cwd=cwd,capture_output=True,text=True)

@@ -2,6 +2,7 @@
 
 ## Next update
 
+- Bots with a chosen Stigma build now seek and wear gear that suits that build.
 - Beshmundir and Gelkmaros repeat quests now pay bonus supplies, and the Warped Rift event pays potions for your level.
 - Rift Stones and alliance General hunts now pay medals, and General hunts have a small chance of armour for your class.
 - The Swimsuit Swap event quest now gives you the swimsuit.

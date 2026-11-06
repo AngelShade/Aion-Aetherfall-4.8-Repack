@@ -264,6 +264,7 @@ public final class PlayerBotGearPolicy {
    case DAMAGE -> switch(bot.getPlayerClass()){case RANGER, MAGE, SORCERER, SPIRIT_MASTER, ENGINEER, GUNNER, ARTIST, BARD -> Role.RANGED;default -> Role.MELEE;};
   };
  }
+ static Role role(Player bot){State s=STATES.get(bot.getObjectId());return role(bot,s==null ? PlayerBotRules.roleFor(bot.getPlayerClass()) : s.session.combatRole());}
  static boolean improvement(double score,double current,double ratio){return Double.isFinite(score) && Double.isFinite(current) && Double.isFinite(ratio) && ratio>=1 && score-current>1 && (current<=0 || score+1e-9>=current*ratio);}
  /** Buying retains the shared appearance-family exclusion; held/earned gear uses eligible. */
  static boolean purchasable(Player bot,ItemTemplate t) {
@@ -302,7 +303,10 @@ public final class PlayerBotGearPolicy {
   return improvement(score,current,settings(bot).threshold) ? score-current : -Double.MAX_VALUE;
  }
  static double score(Player bot,ItemTemplate t,Role role) {
-  double result=PlayerBotEquipment.score(t,role,bot.getPlayerClass());
+  return score(bot,t,role,stigmaBuild(bot));
+ }
+ static double score(Player bot,ItemTemplate t,Role role,PlayerBotStigmaBuilds.Build build) {
+  double result=PlayerBotEquipment.score(t,role,bot.getPlayerClass(),build==null ? null : build.gear());
   // PlayerbotFactory prefers the class's armor type after checking native mastery.
   String group=t.getItemGroup().name();String preferred=switch(bot.getPlayerClass()) {
    case WARRIOR,GLADIATOR,TEMPLAR,RIDER -> "PL_";case PRIEST,CLERIC,CHANTER -> "CH_";
@@ -326,7 +330,8 @@ public final class PlayerBotGearPolicy {
    var fusion=item.getFusionedItemTemplate();if(fusion.getModifiers()!=null)bonuses.addAll(fusion.getModifiers());
    if(item.getFusionedItemBonusStatsId()!=0){var bonus=DataManager.ITEM_RANDOM_BONUSES.getTemplate(StatBonusType.INVENTORY,fusion.getStatBonusSetId(),item.getFusionedItemBonusStatsId());if(bonus!=null && bonus.getModifiers()!=null)bonuses.addAll(bonus.getModifiers());}
   }
-  for(var modifier:bonuses)if(!modifier.hasConditions())result+=modifier.getValue()*PlayerBotEquipment.weight(modifier.getName(),role,magical);
+  var build=stigmaBuild(bot);
+  for(var modifier:bonuses)if(!modifier.hasConditions())result+=modifier.getValue()*PlayerBotEquipment.weight(modifier.getName(),role,magical,build==null ? null : build.gear());
   return result;
  }
  static List<PlayerBotEquipment.Upgrade> upgrades(Player bot,Role requested) {

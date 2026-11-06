@@ -8,13 +8,32 @@ import java.nio.file.Path;
 import java.util.*;
 import com.aionemu.gameserver.dataholders.DataManager;
 import com.aionemu.gameserver.model.PlayerClass;
+import com.aionemu.gameserver.model.stats.container.StatEnum;
 import com.aionemu.gameserver.model.templates.item.ItemTemplate;
 
 /** Selectable Temporary Bot Stigma builds from config/playerbots/stigma-builds.properties (static configuration). */
 public final class PlayerBotStigmaBuilds {
  public static final String AUTO="AUTO";
  /** weapon is the group a build's stones need, or null when any class weapon works. */
- public record Build(String key,String name,String text,List<String> groups,String weapon) {}
+ public record Build(String key,String name,String text,List<String> groups,String weapon,GearStrategy gear) {}
+ /** Absolute weights for the listed stats; everything else keeps the role's normal weight. A build file from before strategies has none and scores like AUTO. */
+ public static final class GearStrategy {
+  private final double[] weights=new double[StatEnum.values().length];
+  private GearStrategy(Map<StatEnum,Double> values){Arrays.fill(weights,Double.NaN);values.forEach((stat,value)->weights[stat.ordinal()]=value);}
+  double weight(StatEnum stat,double fallback){double value=weights[stat.ordinal()];return Double.isNaN(value) ? fallback : value;}
+ }
+ static GearStrategy gear(String id,String text) {
+  var values=new EnumMap<StatEnum,Double>(StatEnum.class);
+  try {
+   if(text==null || text.isBlank())throw new IllegalArgumentException("Missing gear strategy");
+   for(String part:text.split(",",-1)) {
+    String[] pair=part.trim().split(":",-1);if(pair.length!=2)throw new IllegalArgumentException("Use STAT:weight");
+    StatEnum stat=StatEnum.valueOf(pair[0].trim());double value=Double.parseDouble(pair[1].trim());
+    if(!Double.isFinite(value) || value<=0 || values.putIfAbsent(stat,value)!=null)throw new IllegalArgumentException("Invalid or duplicate weight");
+   }
+  }catch(IllegalArgumentException e){throw new IllegalStateException("Invalid Stigma build gear "+id+": "+text,e);}
+  return new GearStrategy(values);
+ }
  /** First level of each preset stage: Ascension at 10, Stigma slots at 20, 30, 40, 45, 50 and 55, then the level cap steps. */
  static final List<Integer> STAGES=List.of(1,10,20,30,40,45,50,55,60,65);
  static int stage(int level){int result=STAGES.getFirst();for(int from:STAGES)if(level>=from)result=from;return result;}
@@ -37,7 +56,7 @@ public final class PlayerBotStigmaBuilds {
      if(!key.matches("[a-z0-9_]{1,24}"))throw new IllegalStateException("Invalid Stigma build key "+id);
      var groups=Arrays.stream(p.getProperty(id+".stigmas").split(",")).map(String::trim).filter(s->!s.isEmpty()).toList();
      String weapon=p.getProperty(id+".weapon");if(weapon!=null && !PlayerBotGearPolicy.WEAPONS.contains(weapon))throw new IllegalStateException("Invalid Stigma build weapon "+id);
-     result.computeIfAbsent(pc,c->new ArrayList<>()).add(new Build(key,p.getProperty(id+".name",key),p.getProperty(id+".text",""),groups,weapon));
+     result.computeIfAbsent(pc,c->new ArrayList<>()).add(new Build(key,p.getProperty(id+".name",key),p.getProperty(id+".text",""),groups,weapon,p.getProperty(id+".gear")==null ? null : gear(id,p.getProperty(id+".gear"))));
     }
    }
    result.replaceAll((pc,list)->List.copyOf(list));

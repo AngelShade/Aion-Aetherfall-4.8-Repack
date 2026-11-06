@@ -11,6 +11,7 @@ import com.aionemu.gameserver.services.playerbot.PlayerBotRules.Role;
 
 final class PlayerBotGear {
  static List<PlayerBotEquipment.Upgrade> upgrades(Player bot,Role role) {
+  if(PlayerBotGearPolicy.stigmaBuild(bot)!=null)return PlayerBotGearPolicy.upgrades(bot,role);
   List<PlayerBotEquipment.Upgrade> choices=new ArrayList<>();
   for(Item item:bot.getInventory().getItems()) {
    var t=item.getItemTemplate();long mask=t.getItemSlot();int level=t.getRequiredLevel(bot.getPlayerClass());
