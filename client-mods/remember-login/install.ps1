@@ -11,7 +11,7 @@ foreach($process in @(Get-Process -Name 'aion.bin','aion' -ErrorAction SilentlyC
 if((Get-FileHash -LiteralPath (Join-Path $client 'Pub.key')).Hash -ne $manifest.sourceKey){throw 'Stock model key changed.'}
 $paths=@{}
 foreach($e in $manifest.files){
- if($e.path -match '(^/|^[A-Za-z]:|(^|/)\.\.(/|$))' -or $paths.ContainsKey($e.path)){throw 'Invalid replacement path.'}
+ if($e.path -cmatch '(^/|^[A-Za-z]:|(^|/)\.\.(/|$))' -or $paths.ContainsKey($e.path)){throw 'Invalid replacement path.'}
  $paths[$e.path]=$true
  $target=[IO.Path]::GetFullPath((Join-Path $client $e.path))
  if(-not $target.StartsWith($client+'\',[StringComparison]::OrdinalIgnoreCase)){throw 'Replacement outside client.'}

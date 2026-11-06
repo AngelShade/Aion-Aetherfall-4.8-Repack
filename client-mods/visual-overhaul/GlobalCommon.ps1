@@ -9,7 +9,7 @@ function Read-GlobalManifest([string]$PackagePath) {
     if ($manifest.schema -ne 1 -or $manifest.packageId -notmatch '^[a-f0-9]{16}$' -or $manifest.files.Count -lt 1) { throw 'Unsupported graphics manifest.' }
     $seen = @{}
     foreach ($entry in $manifest.files) {
-        if ($entry.path -notmatch '^(Levels/[A-Za-z0-9_-]+/[A-Za-z0-9_-]+\.pak|effects/effects_Textures\.pak)$' -or $seen.ContainsKey($entry.path) -or
+        if ($entry.path -cnotmatch '^(Levels/[A-Za-z0-9_-]+/[A-Za-z0-9_-]+\.pak|effects/effects_Textures\.pak)$' -or $seen.ContainsKey($entry.path) -or
             $entry.original -notmatch '^[a-f0-9]{64}$' -or $entry.staged -notmatch '^[a-f0-9]{64}$') { throw 'Unsupported archive path or hash.' }
         $seen[$entry.path] = $true
         if ((Get-FileHash -LiteralPath (Join-Path $PackagePath $entry.path)).Hash -ne $entry.staged) { throw "Package checksum failed: $($entry.path)" }
