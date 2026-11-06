@@ -165,9 +165,11 @@ public final class PlayerBotRouteContinuationCheck {
   check(nav.planningRoute() && value(nav,"routeSearch")==successor,"cancelled predecessor does not own successor intent");
   PlayerBotQuestObjectivesCheck.field(nav,"searchProgress",now-60000);
   check(!nav.progressing(now),"unqueued route without probe progress cannot indefinitely mask real stall");
-  // Map changes must revoke the old plan before even the nextMove time gate.
+  // Map changes must revoke the old plan before even the nextMove time gate. The same call may
+  // then queue a new-map route under the reused token, so check the old ticket, not the queue.
+  quota.request(token,PlayerBotNavigationBudget.Priority.WORLD);var predecessorTicket=((Map<?,?>)value(quota,"waiting")).get(token);
   PlayerBotQuestObjectivesCheck.field(nav,"nextMove",now+60000);bot.world=198;
-  nav.move(20,10,0);check(value(nav,"routeSearch")!=successor && !quota.waiting(token),"map transfer clears predecessor before admitting a fresh native movement turn");
+  nav.move(20,10,0);check(value(nav,"routeSearch")!=successor && (Boolean)value(predecessorTicket,"cancelled") && ((Map<?,?>)value(quota,"waiting")).get(token)!=predecessorTicket,"map transfer clears predecessor search and ticket before admitting a fresh native movement turn");
   bot.world=197;PlayerBotQuestObjectivesCheck.field(nav,"nextMove",0L);nav.stop();
   var geo=com.aionemu.gameserver.world.geo.GeoService.getInstance();var mapsField=geo.getClass().getDeclaredField("geoMaps");mapsField.setAccessible(true);
   @SuppressWarnings("unchecked") var maps=(Map<Integer,GeoMap>)mapsField.get(geo);var previous=maps.put(197,level());
