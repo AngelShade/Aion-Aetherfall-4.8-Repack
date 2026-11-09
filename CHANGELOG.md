@@ -3,6 +3,7 @@
 ## Next update
 
 - Bots walk smoothly again instead of stopping every few steps, and no longer hop back and forth on one spot.
+- Bots keep walking while they work out a long route, instead of standing still first.
 - Companions no longer lag behind and then jump forward when they start following you.
 - Bots that get stuck near you now go and do something else instead of standing idle.
 - Bots near you now say in chat what they are up to, like which quest they are handing in or that they are stuck.

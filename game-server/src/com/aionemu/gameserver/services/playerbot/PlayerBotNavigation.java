@@ -222,7 +222,7 @@ final class PlayerBotNavigation {
 		Point start=supported==null?origin:new Point(supported.x,supported.y,supported.z);
 		cancelTicket(localSearchToken);localOrigin=null;
 		planRoute(start,goal,false,now);
-		if(routeSearch.pending()){status="planning supported ground route";stopMovement();return true;}
+		if(routeSearch.pending()){status="planning supported ground route";holdOrCoast(goal);return true;}
 		status=routeSearch.reason();clearSearch();groundRouteUnavailable=true;nextSearch=now+3000;routeFailure=true;stopMovement();return false;
 	}
 	private Point trackingGoal(Point requested,Intent intent,long now) {
@@ -270,6 +270,48 @@ final class PlayerBotNavigation {
 		if((current!=Intent.TRACK && current!=Intent.TRAVEL) || (requested!=Intent.TRACK && requested!=Intent.TRAVEL))return false;
 		return Math.hypot(requestedGoal.x()-routeGoal.x(),requestedGoal.y()-routeGoal.y())<=SAME_JOURNEY_METRES
 			&& Math.abs(requestedGoal.z()-routeGoal.z())<=2 && botToRouteGoal>SAME_JOURNEY_FINISH_METRES;
+	}
+	/** Owner, 9 Nov: bots halted for every route search, so a walker that handed over its last few metres stopped dead,
+	 * waited for the planner and set off again. A walk already heading for this goal now finishes while the route is
+	 * worked out; a walk the other way, an unsafe one or one that is all but done still stops as before. */
+	static boolean coastWhilePlanning(boolean inMove,double left,double botToGoal,double destinationToGoal,boolean safe) {
+		return inMove && safe && left>COAST_MIN_LEFT && destinationToGoal<botToGoal-COAST_MIN_GAIN;
+	}
+	static final double COAST_MIN_LEFT=.75,COAST_MIN_GAIN=.5,COAST_MOVED_METRES=.5;
+	private void holdOrCoast(Point goal) {
+		if(publishedDestination!=null && publishedWorld==bot.getWorldId() && publishedInstance==bot.getInstanceId()
+			&& coastWhilePlanning(bot.getMoveController().isInMove(),
+				PositionUtil.getDistance(bot,publishedDestination.x(),publishedDestination.y(),publishedDestination.z()),
+				PositionUtil.getDistance(bot,goal.x(),goal.y(),goal.z()),
+				PositionUtil.getDistance(publishedDestination.x(),publishedDestination.y(),publishedDestination.z(),goal.x(),goal.y(),goal.z()),
+				PlayerBotHazards.safePath(new Point(bot.getX(),bot.getY(),bot.getZ()),publishedDestination,hazards))) {
+			status="walking on while planning the route";return;
+		}
+		stopMovement();
+	}
+	/** How many leading corners of a route planned from {@code start} a bot standing at {@code at} has already passed:
+	 * a corner is passed once the bot is as near the next corner as that corner is. The last corner is always kept,
+	 * and nothing is dropped unless the bot really moved while the route was planned. */
+	static int passedCorners(Point start,Point at,java.util.List<Point> corners) {
+		if(start==null || corners.size()<2 || PositionUtil.getDistance(start.x(),start.y(),start.z(),at.x(),at.y(),at.z())<COAST_MOVED_METRES)return 0;
+		int passed=0;
+		while(passed<corners.size()-1) {
+			Point corner=corners.get(passed),next=corners.get(passed+1);
+			if(PositionUtil.getDistance(at.x(),at.y(),at.z(),next.x(),next.y(),next.z())>PositionUtil.getDistance(corner.x(),corner.y(),corner.z(),next.x(),next.y(),next.z()))break;
+			passed++;
+		}
+		return passed;
+	}
+	private void dropPassedCorners(Point planned) {
+		Point at=new Point(bot.getX(),bot.getY(),bot.getZ());
+		int passed=passedCorners(planned,at,new java.util.ArrayList<>(route));
+		// Skipping a corner must not cut through a wall or a hazard the corner went around.
+		while(passed>0) {
+			Point next=new java.util.ArrayList<>(route).get(passed);
+			if(PlayerBotHazards.safePath(at,next,hazards) && !Boolean.TRUE.equals(PlayerBotMeshRoute.lineBlocked(bot.getWorldId(),at,next)))break;
+			passed--;
+		}
+		for(int i=0;i<passed;i++){route.removeFirst();routeHeadIndex++;}
 	}
 	/** A supported jump or drop is for a height change, or a gap straight ahead. Walking already failed here, so a
 	 * hop on the same floor off to the side is only a sidestep that the next turn reverses (the "bouncing" of 9 Nov). */
@@ -821,7 +863,7 @@ final class PlayerBotNavigation {
 			}
 			if(routeSearch.pending()) {
 				terrain.request(searchToken,terrainPriority(goalDistance));
-				if(route.isEmpty()){status="planning supported ground route";stopMovement();return true;}
+				if(route.isEmpty()){status="planning supported ground route";holdOrCoast(goal);return true;}
 			} else {
 				if(worldMovement && lookahead && routeSearch.route().isEmpty() && !route.isEmpty()) {
 					// The future endpoint failed; the mover still owns a safe prefix.
@@ -841,7 +883,9 @@ final class PlayerBotNavigation {
 					if(worldMovement){continuationFailures=0;nextContinuation=0;continuationUnavailable=false;}
 					groundRouteUnavailable=false;
 					if(!routeSearch.route().isEmpty())PlayerBotRouteSearch.succeeded(bot.getWorldId(),routeSearch.start(),routeSearch.finalGoal());
+					boolean fresh=route.isEmpty();Point planned=routeSearch.start();
 					partialRoute=routeSearch.partial();route.addAll(routeSearch.route());status=routeSearch.reason();clearSearch();lookahead=false;
+					if(fresh)dropPassedCorners(planned);
 					nextSearch=partialRoute?0:now+3000;lastProgress=now;
 				}
 			}

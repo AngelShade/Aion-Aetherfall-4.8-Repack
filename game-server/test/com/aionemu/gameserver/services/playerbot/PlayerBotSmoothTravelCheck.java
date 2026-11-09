@@ -16,6 +16,7 @@ public final class PlayerBotSmoothTravelCheck {
   pacing();
   hops();
   handover();
+  coasting();
   lostBots();
   traceBudget();
   journeys();
@@ -84,6 +85,23 @@ public final class PlayerBotSmoothTravelCheck {
   check(PlayerBotNavigation.handoverDue(true,1,10,3,6),"The last corner of a corridor hands over like a short step");
  }
 
+ static void coasting() {
+  check(PlayerBotNavigation.coastWhilePlanning(true,3,40,37,true),"A bot walking toward its goal keeps walking while the route is planned instead of stopping dead");
+  check(!PlayerBotNavigation.coastWhilePlanning(false,3,40,37,true),"A bot that is not moving is not started by planning");
+  check(!PlayerBotNavigation.coastWhilePlanning(true,3,40,43,true),"A walk heading away from the new goal still stops, so the bot never runs the wrong way");
+  check(!PlayerBotNavigation.coastWhilePlanning(true,3,40,39.8,true),"A walk that barely gains on the goal stops as before");
+  check(!PlayerBotNavigation.coastWhilePlanning(true,.5,40,37,true),"A walk that is all but finished stops as before");
+  check(!PlayerBotNavigation.coastWhilePlanning(true,3,40,37,false),"A walk into a fresh hazard always stops");
+  var P=new Object(){PlayerBotNavigation.Point at(float x,float y){return new PlayerBotNavigation.Point(x,y,10);}};
+  var corners=java.util.List.of(P.at(104,100),P.at(108,104),P.at(108,120));
+  check(PlayerBotNavigation.passedCorners(P.at(100,100),P.at(100.2f,100),corners)==0,"A bot that did not move while planning walks the route from its first corner");
+  check(PlayerBotNavigation.passedCorners(P.at(100,100),P.at(102,100),corners)==0,"Halfway to the first corner, that corner is still walked");
+  check(PlayerBotNavigation.passedCorners(P.at(100,100),P.at(105,101),corners)==1,"A corner the bot walked past while planning is dropped, so it does not turn back to it");
+  check(PlayerBotNavigation.passedCorners(P.at(100,100),P.at(108.2f,106),corners)==2,"Two passed corners are both dropped");
+  check(PlayerBotNavigation.passedCorners(P.at(100,100),P.at(109,100),java.util.List.of(P.at(104,100),P.at(108,100)))==1,"The final corner is always kept");
+  check(PlayerBotNavigation.passedCorners(P.at(100,100),P.at(105,101),java.util.List.of(P.at(104,100)))==0,"A one-point route is never trimmed");
+  check(PlayerBotNavigation.passedCorners(null,P.at(105,101),corners)==0,"Without a planning start nothing is dropped");
+ }
  static void starterCamps() {
   check(PlayerBotWorldPlacement.starterMaximum(16)==9,"A Poeta camp for level-6 mobs no longer takes ascended level 10-16 bots");
   check(PlayerBotWorldPlacement.starterMaximum(5)==5,"Low starter camps keep their own limit");
@@ -145,6 +163,11 @@ public final class PlayerBotSmoothTravelCheck {
   check(nav.contains("sameJourney(routeIntent,intent,routeGoal,new Point(targetX,targetY,targetZ),"),"Move requests for the same spot keep one route");
   check(nav.contains("!PlayerBotRoadDuty.permitsGoal(warden,targetX,targetY,targetZ)"),"A warden is never sent off its beat to be stopped step by step (Eliaven, 9 Nov)");
   check(nav.contains("&& !handoverDue(walkRouteOwned,route.size(),"),"A published step is not kept to its very end");
+  check(!nav.contains("status=\"planning supported ground route\";stopMovement();"),"Planning a ground route never stops a bot outright (owner, 9 Nov)");
+  String wait="status=\"planning supported ground route\";holdOrCoast(goal);";
+  check(nav.indexOf(wait)>0 && nav.indexOf(wait,nav.indexOf(wait)+1)>0 && nav.indexOf(wait,nav.indexOf(wait,nav.indexOf(wait)+1)+1)<0,"Both route planning waits let a useful walk finish");
+  check(nav.contains("if(fresh)dropPassedCorners(planned);"),"A route planned while walking skips the corners already passed");
+  check(nav.contains("PlayerBotHazards.safePath(at,next,hazards) && !Boolean.TRUE.equals(PlayerBotMeshRoute.lineBlocked("),"A corner is only skipped when the short cut is clear");
   check(nav.contains("!usefulHop(HEIGHT_DIRECTIONS[heightCursor/HEIGHT_REACHES.length]")||nav.contains("!usefulHop(offset,"),"The height fan rejects flat sideways hops");
   var mover=Files.readString(root.resolve("src/com/aionemu/gameserver/controllers/movement/PlayerBotMoveController.java"));
   int follow=mover.indexOf("private void followStep()");
