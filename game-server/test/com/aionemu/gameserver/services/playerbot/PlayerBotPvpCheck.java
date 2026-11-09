@@ -90,6 +90,12 @@ public final class PlayerBotPvpCheck {
   var pvpService=Files.readString(root.resolve("src/com/aionemu/gameserver/services/PvpService.java"));
   var config=Files.readString(root.resolve("config/playerbots/pvp.properties"));
   check(pvpService.contains("com.aionemu.gameserver.services.playerbot.PlayerBotPvpStats.killed(winner, victim);"),"Kills are counted where the native kill credit is decided");
+  var controller=Files.readString(root.resolve("src/com/aionemu/gameserver/controllers/PlayerController.java"));
+  check(controller.contains("if (getOwner().isPlayerBot() && !com.aionemu.gameserver.configs.main.PlayerBotConfig.PVP_COUNT_LIKE_PLAYERS) return;")
+   && config.contains("gameserver.playerbots.pvp.count_like_players = true"),"A bot death pays normal PvP credit unless count_like_players is off");
+  check(pvpService.contains("killers.removeIf(m -> !present(m) ||") && pvpService.contains("if (!present(member) || member.isDead()")
+   && pvpService.contains("p.isOnline() || com.aionemu.gameserver.configs.main.PlayerBotConfig.PVP_COUNT_LIKE_PLAYERS && p.isPlayerBot() && p.isSpawned()"),
+   "Headless bot killers and party members take kills, kill quests and AP like players");
   check(pvp.contains("(PlayerBotLeanings.pvp(bot) || session.autonomous() && PlayerBotConfig.PVP_BATTLEGROUNDS && PlayerBotPvpSeek.battleground(bot)?100:PlayerBotConfig.PVP_AGGRESSION)") && pvp.contains("PlayerBotPvpStats.engaged(bestAnswer);"),
    "A PVP bot that walked to a fight starts it; engagements are counted");
   check(session.contains("|| PlayerBotPvpPresence.due(this);}") && session.contains("if(worldDormant)PlayerBotPvpPresence.turn(this,System.currentTimeMillis());"),"An invited sleeping bot wakes for its own turn");

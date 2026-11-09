@@ -86,6 +86,9 @@ public final class PlayerBotConfig {
  }
  @Property(key = "gameserver.playerbots.pvp.enable", defaultValue = "true")
  public static boolean PVP_ENABLED = true;
+ /** Bots count as real players for PvP kill credit, as killer or victim: Abyss kills, kill quests, AP/DP/XP and kill rewards. */
+ @Property(key = "gameserver.playerbots.pvp.count_like_players", defaultValue = "true")
+ public static boolean PVP_COUNT_LIKE_PLAYERS = true;
  @Property(key = "gameserver.playerbots.pvp.start_fights_percent", defaultValue = "35")
  public static int PVP_AGGRESSION = 35;
  @Property(key = "gameserver.playerbots.pvp.notice_distance", defaultValue = "24")

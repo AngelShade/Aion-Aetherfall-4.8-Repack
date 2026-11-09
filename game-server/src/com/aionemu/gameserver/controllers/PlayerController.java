@@ -373,7 +373,8 @@ public class PlayerController extends CreatureController<Player> {
 
 	@Override
 	public void doReward() {
-		if (getOwner().isPlayerBot()) return; // PvE companions cannot be farmed for PvP rewards.
+		// With count_like_players off, bots cannot be farmed for PvP rewards.
+		if (getOwner().isPlayerBot() && !com.aionemu.gameserver.configs.main.PlayerBotConfig.PVP_COUNT_LIKE_PLAYERS) return;
 		PvpService.getInstance().doReward(getOwner());
 	}
 

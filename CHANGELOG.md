@@ -2,6 +2,7 @@
 
 ## Next update
 
+- Bots now count as real players in PvP: killing one, or dying to one, gives Abyss kills, kill-quest progress, Abyss Points and XP.
 - Bots walk smoothly again instead of stopping every few steps, and no longer hop back and forth on one spot.
 - Bots keep walking while they work out a long route, instead of standing still first.
 - Companions no longer lag behind and then jump forward when they start following you.

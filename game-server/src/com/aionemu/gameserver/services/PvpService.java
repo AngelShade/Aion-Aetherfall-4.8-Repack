@@ -196,8 +196,13 @@ public class PvpService {
 			killers = new ArrayList<>(Collections.singletonList(winner));
 		else
 			killers = group.getMembers();
-		killers.removeIf(m -> !m.isOnline() || m.getRace() == victim.getRace() || !m.equals(winner) && !PositionUtil.isInRange(m, victim, 50));
+		killers.removeIf(m -> !present(m) || m.getRace() == victim.getRace() || !m.equals(winner) && !PositionUtil.isInRange(m, victim, 50));
 		return killers;
+	}
+
+	/** A headless bot has no client, so isOnline() is false; with count_like_players on it still takes PvP credit. */
+	private static boolean present(Player p) {
+		return p.isOnline() || com.aionemu.gameserver.configs.main.PlayerBotConfig.PVP_COUNT_LIKE_PLAYERS && p.isPlayerBot() && p.isSpawned();
 	}
 
 	private void logKill(Player winner, Player victim, List<Player> assistedGroup) {
@@ -236,7 +241,7 @@ public class PvpService {
 		int maxLevel = 0;
 
 		for (Player member : teamMember) {
-			if (!member.isOnline() || member.isDead() || !PositionUtil.isInRange(member, victim, GroupConfig.GROUP_MAX_DISTANCE))
+			if (!present(member) || member.isDead() || !PositionUtil.isInRange(member, victim, GroupConfig.GROUP_MAX_DISTANCE))
 				continue;
 			players.add(member);
 			if (member.getLevel() > maxLevel)
