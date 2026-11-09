@@ -2,6 +2,8 @@
 
 ## Next update
 
+- Fixed quest items that only drop in one area, like the Dukaki Amulet in Verteron, never dropping. Thanks to baTbjk1903.
+- Fixed the server and the launcher failing to start on Windows set to Turkish. Thanks to baTbjk1903.
 - Russian text is no longer tiny and faint; it now matches the English font's size. Update the Russian pack on the Hub's Languages page.
 - Bots now count as real players in PvP: killing one, or dying to one, gives Abyss kills, kill-quest progress, Abyss Points and XP.
 - Bots walk smoothly again instead of stopping every few steps, and no longer hop back and forth on one spot.
