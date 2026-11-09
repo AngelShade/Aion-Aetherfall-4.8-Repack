@@ -224,33 +224,52 @@ public final class PlayerBotHelpObjectives {
   else if(c.quest>0 && objectivesDone(c.objectives))lines.add("<font color=\"#8ee06a\">All done - completing</font>");
   return String.join("<br>",lines);
  }
- /** The details page, in the native quest summary's own font. No dictionary tokens: the client draws it as written. */
+ /** The details page, built like the client's own quest page (Game.dll 0x84d930 and the STR_HTML_QUEST_* templates):
+  * body colour and margins, the "Level" head, bullet objectives (finished ones greyed), the in-page Locate/Track buttons
+  * right under them where a quest's Locate sits, the summary, then the Basic Reward heading. Collect reward is Q's own
+  * button at the bottom of the journal (AetherfallCore help_journal.h). No dictionary tokens: the client draws it as written. */
  static String page(Contract c,String status,String place,long[] progress,int needed,long amount) {
-  var html=new StringBuilder("<html><body>");
-  html.append(line("Help "+c.botName+": "+shownNeed(c)));
-  html.append(line("Objectives"));
+  var html=new StringBuilder("<html><body text=\"#302405\" topmargin=\"5\" leftmargin=\"15\">");
+  html.append("<p> <font font_xml=\" v3_quest_title\" > ").append(escape(levels(c)+"Help "+c.botName+": "+shownNeed(c))).append("</font> </p>");
+  boolean complete=status.equals("COMPLETE");
+  html.append("<table>");
   boolean any=false;
   for(var n:c.objectives){
    if(!listed(n))continue;any=true;
-   boolean done=n.required()>=0 && n.current()>=n.required();
-   html.append(line("- "+goal(c,n)+" "+n.current()+(n.required()<0?"":"/"+n.required())+(done?" (done)":"")));
+   boolean done=complete || n.required()>=0 && n.current()>=n.required();
+   html.append(step(goal(c,n)+" ("+n.current()+(n.required()<0?"":"/"+n.required())+")",done));
   }
-  if(!any)html.append(line("- "+shownNeed(c)));
-  html.append("<br>");
-  html.append(line("Where: "+(place.isEmpty()?"this map":place)+" near ("+(int)c.x+", "+(int)c.y+"). Show location marks it on the map."));
+  if(!any)html.append(step(shownNeed(c),complete));
+  html.append("</table><p> </p>");
+  html.append("<p>").append(button("af_help_location","Locate",c.map==0)).append(" ").append(button("af_help_track","Track",false)).append("</p><p> </p>");
+  html.append(line("Where: "+(place.isEmpty()?"this map":place)+" near ("+(int)c.x+", "+(int)c.y+")."));
   String state=switch(status){
    case "ACTIVE"->c.quest>0 && objectivesDone(c.objectives)?"All objectives done. Stay in the party; it completes in a few seconds."
     :c.quest>0?"In progress. It completes a few seconds after the last objective, so stay in the party until then."
     :"In progress. It finishes when the target is defeated with you nearby.";
-   case "COMPLETE"->"Complete. Press Collect reward to claim it.";
+   case "COMPLETE"->"Complete. Press Collect reward at the bottom of the quest journal.";
    default->status.toLowerCase(Locale.ROOT)+".";
   };
-  html.append(line("Status: "+state));
-  html.append("<br>");
-  html.append(line("Reward: "+rewardPreview(progress==null?0:progress[0],needed,amount)+(progress==null?"":" (you have "+progress[1]+")")));
+  html.append(line(state));
+  html.append("<p> </p><p><font font_xml=\"v3_quest_subtitle\">Basic Reward</font></p>");
+  html.append(line(rewardPreview(progress==null?0:progress[0],needed,amount)+(progress==null?"":" (you have "+progress[1]+")")));
   html.append(line("Companions who take part earn 50 Learning XP. Help near the objective for it to count."));
-  html.append(line("Track pins this request to the quest tracker."));
   return html.append("</body></html>").toString();
+ }
+ /** The native head's level part: "Level 25 ", "Level 20-25 ", or nothing when the request has no range. */
+ static String levels(Contract c){
+  if(c.minLevel<=0 && c.maxLevel<=0)return "";
+  if(c.maxLevel<=0 || c.maxLevel==c.minLevel)return "Level "+Math.max(c.minLevel,c.maxLevel)+" ";
+  return "Level "+c.minLevel+"-"+c.maxLevel+" ";
+ }
+ /** One objective row, as STR_HTML_QUEST_EACH_STEP_HEAD/TAIL draw it: the working or finished bullet, finished text greyed. */
+ static String step(String text,boolean done){
+  return "<tr><td width=\"30\" valign=\"top\"><button skin=\""+(done?"v5_quest_finished_bullet":"v5_quest_working_bullet")+"\" width=\"28\" height=\"21\"></button></td>"
+   +"<td align=\"left\" valign=\"top\"><font font_xml=\"v3_quest_list\"><p align=\"left\">"+(done?"<font color=\"#6F6F64\">"+escape(text)+"</font>":escape(text))+"</p></font></td></tr>";
+ }
+ /** The native in-page quest button (STR_HTML_QUEST_BUTTON); AetherfallCore answers our hrefs. */
+ static String button(String href,String label,boolean disabled){
+  return "<button href=\""+href+"\" font_xml=\"v3_quest_button\" skin=\"v5_quest_button\" width=\"73\" height=\"26\" disabled=\""+disabled+"\">"+label+"</button>";
  }
  private static String line(String text){return "<p><font font_xml=\"quest_summary\">"+escape(text)+"</font></p>";}
  /** Plain text for the native HTML view: markup characters and its "[%" template tokens never pass through. */

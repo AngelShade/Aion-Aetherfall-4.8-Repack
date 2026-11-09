@@ -91,6 +91,14 @@ def generate(client, output):
         0xcd07b8 + 0x480: struct.pack('<Q', 0x104ae130).hex(),
         0x4ae130: '4883ec4848895c246048897c2468',
         0x852bb0: '488bc44883ec7885d24889581848897820',
+        # Help page in-page buttons (help_journal.h): the summary's event slot, event 0xaf1 and the href at +0x89c.
+        0xcd0e78 + 0x450: struct.pack('<Q', 0x10852d00).hex(),
+        0x852d30: '8bca81e96d070000498bd88bea0f843c04000083e9030f84d303000081e9800300000f849b03000083f901',
+        0x852d61: '498b30488d151dac4700488d8e9c080000',
+        # Q's Collect reward (+0x590) for the selected quest (+0x580), event 0x76c, enabled by flag 2 (0x84bcc0).
+        0xcd07b8 + 0x450: struct.pack('<Q', 0x10849c30).hex(),
+        0x849d69: '498b084885c90f8489010000483b8f9005000075178b9780050000488d0d5578b200',
+        0x84cdae: '498b8c24900500004885c97427493bc07412488b014533c0418d5002ff90d0000000eb10488b014533c0418d5002ff90d8000000',
         **NATIVE_AUXILIARY_MAPS,
     }
     for at, expected in checks.items():

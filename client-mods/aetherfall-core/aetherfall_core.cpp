@@ -43,7 +43,7 @@
 // remain native and unchanged.
 namespace {
 using Ptr=void*;
-constexpr char CORE_VERSION[]="1.3.14";  // Help rows refill their counters when the help card changes.
+constexpr char CORE_VERSION[]="1.3.15";  // Help page laid out like a native quest; Collect reward is Q's own button.
 constexpr uintptr_t PREFERRED=0x10000000;  // Game.dll has no relocations.
 unsigned char* image=nullptr;
 unsigned char* game(){return image;}
@@ -717,7 +717,8 @@ size_t vtable_slots(void** vt){
 }
 int codex_command(Ptr,Ptr);
 int hire_command(Ptr,Ptr);
-int help_journal_command(Ptr,Ptr);
+int help_journal_event(Ptr,int,Ptr);
+int help_journal_quest_event(Ptr,int,Ptr);
 void help_journal_show(Ptr,uint64_t,int);
 void help_journal_visible(Ptr,int);
 void hire_show(Ptr,uint64_t,int);
@@ -738,9 +739,11 @@ bool hook(Ptr d){
         && vt[START_COMMAND/8]==game()+(low==game()+0xccfb88?0x7ef580:0x4ae9d0);
     // DlgPartyMatch: retain its native class identity and all stock commands.
     bool hire=low==game()+0xcd2ee8;
-    // DlgQuestSummary: the help request's journal buttons (help_journal.h); stock commands pass through.
-    bool helpJournal=low==game()+0xcd0e78 && slots>START_COMMAND/8 && vt[START_COMMAND/8]==game()+0x4ae9d0 && vt[0xd0/8]==game()+0x5ac3e0
+    // DlgQuestSummary: the help page's in-page buttons (help_journal.h); stock events pass through.
+    bool helpJournal=low==game()+0xcd0e78 && slots>0x468/8 && vt[0x450/8]==game()+0x852d00 && vt[0xd0/8]==game()+0x5ac3e0
         && vt[0x468/8]==game()+0x852bb0;
+    // DlgQuest (Q): its Collect reward claims a finished help request; stock events pass through.
+    bool questJournal=low==game()+0xcd07b8 && slots>0x450/8 && vt[0x450/8]==game()+0x849c30;
     if(hire && (slots<=START_COMMAND/8 || vt[START_COMMAND/8]!=game()+0x80f7f0
        || vt[0xd0/8]!=game()+0x5ac3e0 || vt[0xd8/8]!=game()+0x5ac4a0)){
         hook_refusal="Find Group native command/visibility slots changed";return false;
@@ -775,8 +778,9 @@ bool hook(Ptr d){
     if(start || separated)add(HIT_TEST,reinterpret_cast<void*>(&start_hit_test));
     if(start)add(START_COMMAND,reinterpret_cast<void*>(&start_command));
     if(codex)add(START_COMMAND,reinterpret_cast<void*>(&codex_command));
-    if(helpJournal){add(START_COMMAND,reinterpret_cast<void*>(&help_journal_command));add(0xd0,reinterpret_cast<void*>(&help_journal_show));
+    if(helpJournal){add(0x450,reinterpret_cast<void*>(&help_journal_event));add(0xd0,reinterpret_cast<void*>(&help_journal_show));
         add(0x468,reinterpret_cast<void*>(&help_journal_visible));}
+    if(questJournal)add(0x450,reinterpret_cast<void*>(&help_journal_quest_event));
     if(hire){
         add(START_COMMAND,reinterpret_cast<void*>(&hire_command));
         add(0xd0,reinterpret_cast<void*>(&hire_show));

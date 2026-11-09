@@ -15,7 +15,7 @@ import subprocess
 import sys
 
 HERE = Path(__file__).resolve().parent
-NATIVE_VERSION = '1.3.14'  # Help rows refill their counters when the help card changes.
+NATIVE_VERSION = '1.3.15'  # Help page laid out like a native quest; Collect reward is Q's own button.
 PAK = 'Plugin/RelicCalc/RelicCalc.pak'
 PLUGIN_COHORT = [PAK, PAK + '.sig', 'Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig']
 VERSION = '1.2.94'  # Bot gear rarity and combat rank inside the native target and party frames.

@@ -17,10 +17,10 @@
 - Help requests pay your Recruitment Ticket progress the moment the bot hands its quest in.
 - Finishing a help request no longer shows "quest failed" next to "Request complete"; the quest now closes as completed.
 - If you leave a bot's Find Group party, the bots stay together and keep at it, and you can rejoin them from Find Group.
-- Your Find Group help request now fills the quest window and tracker, with counters, location, reward, and Show location, Track and Collect buttons.
+- Your Find Group help request now fills the quest window and tracker, with its objectives, location and reward.
 - Quest details now open straight beside the quest journal instead of jumping there.
 - A help request with its objectives done now completes after a relog or with the bot offline; nobody walks the bot to its quest giver.
-- The help request buttons now sit inside the quest details' papyrus.
+- Help request details now look like a normal quest: same title and colours, Locate and Track under the objectives, and Collect reward in the journal.
 - The quest tracker now checks more than 14 quests, and its checked and history tabs show up to 1000 (they stopped at 14 and 7).
 - You can now help up to three bots at once; each request has its own quest, buttons and Help requests entry.
 - Help requests now show their objectives and counts under their title in the quest tracker.

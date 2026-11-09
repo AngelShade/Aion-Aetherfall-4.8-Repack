@@ -37,18 +37,29 @@ public final class PlayerBotHelpJournalCheck {
   check(PlayerBotHelpObjectives.rewardPreview(2,3,1).equals("1 Recruitment Ticket (help 3/3)"),"The help that completes the set names the ticket");
   check(PlayerBotHelpObjectives.rewardPreview(0,0,1).startsWith("Help rewards are switched off"),"Disabled rewards are not promised");
   String page=PlayerBotHelpObjectives.page(c,"ACTIVE","Eltnen",new long[]{0,7},1,1);
-  check(page.startsWith("<html><body>") && page.endsWith("</body></html>"),"A whole page for the native HTML view");
-  check(page.contains("- Alluring Temptress 3/5</font>") && page.contains("- Enticing Temptress 3/3 (done)</font>") && !page.contains("hands in the quest"),"Each objective on its own line, finished ones marked; the hand-in no longer gates the helper");
+  check(page.startsWith("<html><body text=\"#302405\" topmargin=\"5\" leftmargin=\"15\">") && page.endsWith("</body></html>"),"A whole page with the native quest page's body colour and margins");
+  check(page.contains("<font font_xml=\" v3_quest_title\" > ") && page.contains("<font font_xml=\"v3_quest_subtitle\">Basic Reward</font>"),"Native quest title and reward heading");
+  check(page.contains("v5_quest_working_bullet\" width=\"28\" height=\"21\"></button></td><td align=\"left\" valign=\"top\"><font font_xml=\"v3_quest_list\"><p align=\"left\">Alluring Temptress (3/5)</p>")
+   && page.contains("v5_quest_finished_bullet\" width=\"28\" height=\"21\"></button></td><td align=\"left\" valign=\"top\"><font font_xml=\"v3_quest_list\"><p align=\"left\"><font color=\"#6F6F64\">Enticing Temptress (3/3)</font>")
+   && !page.contains("hands in the quest"),"Each objective is a native step row, finished ones greyed; the hand-in no longer gates the helper");
+  int steps=page.indexOf("</table>"),locate=page.indexOf("<button href=\"af_help_location\" font_xml=\"v3_quest_button\" skin=\"v5_quest_button\" width=\"73\" height=\"26\" disabled=\"false\">Locate</button>"),track=page.indexOf("<button href=\"af_help_track\"");
+  check(steps>0 && locate>steps && track>locate && page.indexOf("Basic Reward")>track,"Locate and Track sit right under the objectives, where a native quest's Locate does");
+  check(!page.contains("Collect reward</button>"),"No reward button in the page: Collect reward is the journal's own");
+  var ranged=contract();ranged.minLevel=20;ranged.maxLevel=25;var single=contract();single.minLevel=30;single.maxLevel=30;
+  check(PlayerBotHelpObjectives.levels(ranged).equals("Level 20-25 ") && PlayerBotHelpObjectives.levels(single).equals("Level 30 ") && PlayerBotHelpObjectives.levels(c).isEmpty(),"The head names the level range like a native quest");
   check(!page.contains("Native stage"),"The internal quest stage is never shown");
-  check(page.contains("Where: Eltnen near (1234, 567)"),"The location is named");
-  check(page.contains("Reward: 1 Recruitment Ticket (you have 7)"),"The reward and the current balance are shown");
+  check(page.contains("Where: Eltnen near (1234, 567)."),"The location is named");
+  check(page.contains("1 Recruitment Ticket (you have 7)</font>"),"The reward and the current balance are shown");
   check(page.contains("stay in the party until then"),"While in progress it says how it finishes");
   var odd=contract();odd.botName="Ga<b>rasa";
   check(PlayerBotHelpObjectives.page(odd,"ACTIVE","Eltnen",null,1,1).contains("Ga&lt;b&gt;rasa") && !PlayerBotHelpObjectives.page(odd,"ACTIVE","Eltnen",null,1,1).contains("<b>"),"Names cannot inject markup");
   check(page.contains("[Group] Temptations") && !page.contains("[%"),"Brackets stay readable but never form a native template token");
   check(PlayerBotHelpObjectives.escape("a<b>&[%dic:X]\nz").equals("a&lt;b&gt;&amp;[ %dic:X] z"),"Markup, template tokens and new lines are neutralised");
   String done=PlayerBotHelpObjectives.page(c,"COMPLETE","",null,1,1);
-  check(done.contains("Press Collect reward") && done.contains("Where: this map") && done.contains("Reward: 1 Recruitment Ticket</font>"),"A finished request points at Collect reward; missing map and ledger stay readable");
+  check(done.contains("Press Collect reward at the bottom of the quest journal") && done.contains("Where: this map") && done.contains(">1 Recruitment Ticket</font>")
+   && !done.contains("v5_quest_working_bullet"),"A finished request points at the journal's Collect reward, every step finished; missing map and ledger stay readable");
+  var nowhere=contract();nowhere.map=0;
+  check(PlayerBotHelpObjectives.page(nowhere,"ACTIVE","",null,1,1).contains("height=\"26\" disabled=\"true\">Locate</button>"),"Locate is greyed out when there is no place to mark");
   var all=contract();all.objectives=List.of(new Counter("item:1","Alluring Temptress","ITEM",1,0,5,5),new Counter("turnin","Bot turn-in","TURNIN",0,0,0,1));
   check(PlayerBotHelpObjectives.page(all,"ACTIVE","Eltnen",null,1,1).contains("All objectives done. Stay in the party; it completes in a few seconds."),"The short wait before it completes is explained");
  }

@@ -6,6 +6,10 @@ HTML view, inside the papyrus (y 428; at 455 they sat on the lower roll). They
 start hidden; AetherfallCore help_journal.h shows them only for the help quest and
 answers their clicks. Same PAK codec, Graphics recovery ownership and inventory
 handling as prepare_hire_terms.py; every variant of the layout is transformed.
+
+Owner 9 Nov: AetherfallCore 1.3.15 keeps these three buttons hidden. The help page now
+carries native in-page Locate/Track buttons under its objectives and Collect reward is
+Q's own button, as for a normal quest; the installed layout needs no change for that.
 """
 import argparse
 import hashlib
