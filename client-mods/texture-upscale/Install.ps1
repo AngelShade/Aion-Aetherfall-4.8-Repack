@@ -78,7 +78,7 @@ function Carried-Hash([string]$Path, [string]$Expected, [string]$Actual) {
 }
 $original = 0; $installed = 0; $superseded = 0
 foreach ($entry in $manifest.files) {
-    if ($entry.path -notmatch '^Levels/[A-Za-z0-9_]+/[A-Za-z0-9_]+\.pak$') { throw "Unsupported archive path: $($entry.path)" }
+    if ($entry.path -cnotmatch '^Levels/[A-Za-z0-9_]+/[A-Za-z0-9_]+\.pak$') { throw "Unsupported archive path: $($entry.path)" }
     if ((Hash (Join-Path $package $entry.path)) -ne $entry.staged) { throw "Package checksum failed: $($entry.path)" }
     $hash = Hash (Join-Path $client $entry.path)
     if ($hash -eq $entry.original) { $original++ } elseif ($hash -eq $entry.staged) { $installed++ }

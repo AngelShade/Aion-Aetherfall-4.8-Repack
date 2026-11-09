@@ -2,6 +2,7 @@ package com.aionemu.gameserver.skillengine.effect;
 
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 import jakarta.xml.bind.Unmarshaller;
@@ -179,7 +180,7 @@ public class Effects {
 	}
 
 	private EffectType resolveEffectType(EffectTemplate et) {
-		String effectName = et.getClass().getSimpleName().replace("Effect", "").toUpperCase();
+		String effectName = et.getClass().getSimpleName().replace("Effect", "").toUpperCase(Locale.ROOT);
 		try {
 			return EffectType.valueOf(effectName);
 		} catch (Exception e) {

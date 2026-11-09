@@ -82,11 +82,11 @@ $coreRelease=Read-Json (Join-Path $package 'release.json')
 if ([Version]$coreRelease.Version -lt [Version]$contract.minimumCoreVersion) { throw 'Update the repack before installing these HD textures.' }
 $owned=@{}
 foreach ($entry in $contract.files) {
-    if ($entry.path -notmatch '^Levels/[A-Za-z0-9_]+/[A-Za-z0-9_]+\.pak$' -or $owned.ContainsKey($entry.path)) { throw 'Invalid or duplicate texture archive.' }
+    if ($entry.path -cnotmatch '^Levels/[A-Za-z0-9_]+/[A-Za-z0-9_]+\.pak$' -or $owned.ContainsKey($entry.path)) { throw 'Invalid or duplicate texture archive.' }
     $owned[$entry.path]=$entry
 }
 foreach ($shared in $contract.shared) {
-    if (-not $owned.ContainsKey($shared.path) -or $shared.packagePath -notmatch '^Mods/GraphicsOverhaul/packages/[a-f0-9]{16}/Levels/[A-Za-z0-9_]+/[A-Za-z0-9_]+\.pak$') { throw 'Invalid shared graphics archive.' }
+    if (-not $owned.ContainsKey($shared.path) -or $shared.packagePath -cnotmatch '^Mods/GraphicsOverhaul/packages/[a-f0-9]{16}/Levels/[A-Za-z0-9_]+/[A-Za-z0-9_]+\.pak$') { throw 'Invalid shared graphics archive.' }
 }
 if (($Action -eq 'Ensure' -or $Action -eq 'Verify') -and (-not $state -or -not $state.enabled)) { 'Standard world textures are active.';return }
 if ($Action -eq 'Disable' -and (-not $state -or -not $state.enabled)) { 'Standard textures are already active.';return }

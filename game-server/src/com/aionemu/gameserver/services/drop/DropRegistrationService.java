@@ -34,6 +34,7 @@ import com.aionemu.gameserver.services.event.EventService;
 import com.aionemu.gameserver.spawnengine.SpawnHandlerType;
 import com.aionemu.gameserver.utils.PacketSendUtility;
 import com.aionemu.gameserver.utils.stats.DropRewardEnum;
+import com.aionemu.gameserver.world.MapRegion;
 import com.aionemu.gameserver.world.WorldDropType;
 import com.aionemu.gameserver.world.WorldMapType;
 
@@ -385,8 +386,9 @@ public class DropRegistrationService {
 
 	private boolean checkGlobalRuleZones(GlobalRule rule, Npc npc) {
 		if (rule.getGlobalRuleZones() != null) {
+			MapRegion mapRegion = npc.getPosition().getMapRegion();
 			for (GlobalDropZone gdZone : rule.getGlobalRuleZones().getGlobalDropZones())
-				if (npc.isInsideZone(gdZone.getZone()))
+				if (mapRegion != null && mapRegion.isInsideZone(gdZone.getZone(), npc.getX(), npc.getY(), npc.getZ()))
 					return true;
 			return false;
 		}

@@ -267,7 +267,7 @@ public class GeoWorldLoader {
 			int regionId = getVectorHash(geometry.getWorldBound().getCenter());
 			int index = geometry.getName().lastIndexOf('/');
 			int dotIndex = geometry.getName().lastIndexOf('.');
-			String name = geometry.getName().substring(index + 1, dotIndex).toUpperCase();
+			String name = geometry.getName().substring(index + 1, dotIndex).toUpperCase(Locale.ROOT);
 			if (childNumber > 0)
 				name += "_CHILD" + childNumber;
 			geometry.setName(name + "_" + regionId);
