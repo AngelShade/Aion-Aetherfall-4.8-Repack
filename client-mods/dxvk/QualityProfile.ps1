@@ -68,7 +68,7 @@ function Patch-Config([byte[]]$Bytes, [bool]$Encoded, [Collections.IDictionary]$
     $seen = @{}
     for ($i = 0; $i -lt $parts.Length; $i += 2) {
         $line = Decode-Line $parts[$i] $Encoded
-        if ($line -match '^\s*([A-Za-z0-9_]+)\s*=\s*(.*?)\s*$' -and $Values.Contains($Matches[1])) {
+        if ($line -cmatch '^\s*([A-Za-z0-9_]+)\s*=\s*(.*?)\s*$' -and $Values.Contains($Matches[1])) {
             $key = $Matches[1]
             if ($null -eq $Values[$key]) {
                 $parts[$i] = ''
@@ -104,7 +104,7 @@ foreach ($name in $profiles.Keys) {
         $original = $latin1.GetString([IO.File]::ReadAllBytes($baseline))
         foreach ($line in [regex]::Split($original, '\r\n|\n|\r')) {
             $decoded = Decode-Line $line $encoded
-            if ($decoded -match '^\s*([A-Za-z0-9_]+)\s*=\s*(.*?)\s*$' -and $values.Contains($Matches[1])) {
+            if ($decoded -cmatch '^\s*([A-Za-z0-9_]+)\s*=\s*(.*?)\s*$' -and $values.Contains($Matches[1])) {
                 $values[$Matches[1]] = $Matches[2]
             }
         }

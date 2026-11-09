@@ -29,7 +29,7 @@ public class LegionDominionLocation {
 
 	public LegionDominionLocation(LegionDominionLocationTemplate template) {
 		this.template = template;
-		this.zoneName = template.getZone().toUpperCase() + "_" + template.getWorldId();
+		this.zoneName = template.getZone().toUpperCase(Locale.ROOT) + "_" + template.getWorldId();
 	}
 
 	public int getLocationId() {

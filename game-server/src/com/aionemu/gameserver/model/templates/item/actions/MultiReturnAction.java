@@ -3,6 +3,7 @@ package com.aionemu.gameserver.model.templates.item.actions;
 import static com.aionemu.gameserver.model.items.ItemUseAnimation.*;
 
 import java.util.List;
+import java.util.Locale;
 
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
@@ -71,7 +72,7 @@ public class MultiReturnAction extends AbstractItemAction {
 		PacketSendUtility.sendPacket(player, SM_SYSTEM_MESSAGE.STR_USE_ITEM(item.getL10n()));
 		PacketSendUtility.broadcastPacket(player, new SM_ITEM_USAGE_ANIMATION(player.getObjectId(), item.getObjectId(), item.getItemId(), 0, USE_SUCCESS),
 			true);
-		TeleportService.useTeleportScroll(player, loc.getAlias().toUpperCase(), loc.getWorldid());
+		TeleportService.useTeleportScroll(player, loc.getAlias().toUpperCase(Locale.ROOT), loc.getWorldid());
 	}
 
 	private ReturnLocList getReturnLoc(int index) {
