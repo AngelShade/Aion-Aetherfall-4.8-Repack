@@ -51,6 +51,8 @@ with a nonzero exit status. A selected tile build is explicitly partial.
 
 ## Geometry and limits
 
+Invisible blocker models (`nowalk*`, `walk_obstacle*`) are rasterized as solid unwalkable spans: they block, but their tops never become polygons. A real floor at the same height stays walkable.
+
 Aion Z-up is mapped to Recast Y-up. Terrain uses native two-metre samples, its
 native diagonal and hole sentinel. Placed collision geometry retains scale,
 rotation, translation, separate floors and physical collision classification.

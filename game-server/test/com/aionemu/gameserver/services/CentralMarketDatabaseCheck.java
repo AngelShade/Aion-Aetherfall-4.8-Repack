@@ -8,7 +8,7 @@ import com.aionemu.commons.configs.DatabaseConfig;
 import com.aionemu.commons.database.DatabaseFactory;
 import com.aionemu.gameserver.utils.idfactory.IDFactory;
 
-/** Integration checks in a NEW, empty schema. Never writes player data in the live schema. */
+/** Integration checks restricted to explicit scratch MariaDB schemas on local port 33907. */
 public final class CentralMarketDatabaseCheck {
 	private static String schema;
 	private static int assertions;
@@ -162,7 +162,7 @@ public final class CentralMarketDatabaseCheck {
 			check(value(c,"SELECT remaining n FROM central_market_orders WHERE id=?",buy)==0,"visible virtual stock fills a funded buy in the matching transaction");
 			check(value(c,"SELECT remaining n FROM central_market_orders WHERE id=?",sale)==6,"virtual supply is finite and decrements by the exact purchased amount");
 			check(value(c,"SELECT SUM(i.item_count) n FROM central_market_stock s JOIN inventory i USING(item_unique_id) WHERE s.order_id=?",buy)==4,"virtual purchase creates exact item custody for collection");
-			CentralMarketSettlement.collect(c,2,buy,false);c.commit();
+			CentralMarketSettlement.collect(c,2,buy,6500);c.commit();
 			long wait=order(c,3,key,"B",95,1);match(c,key,new ArrayList<>());c.commit();
 			check(value(c,"SELECT remaining n FROM central_market_orders WHERE id=?",wait)==1,"waiting demand below an available ask is not sale stock");
 			long playerSale=order(c,1,key,"S",90,3);int held=stock(c,1,key,playerSale,3);match(c,key,new ArrayList<>());c.commit();
@@ -180,7 +180,7 @@ public final class CentralMarketDatabaseCheck {
 			check(value(c,"SELECT collected_quantity n FROM central_market_settlements WHERE order_id=?",oldBuy)==2,"legacy delivered purchases migrate as already collected");
 			check(value(c,"SELECT gross n FROM central_market_settlements WHERE order_id=?",oldSale)==75,"migration assigns only outstanding legacy sale proceeds");
 			check(value(c,"SELECT gross n FROM central_market_settlements WHERE order_id=?",playerSale)==275,"migration leaves current uncollected sale proceeds intact");
-			CentralMarketSettlement.collect(c,5,oldSale,true);c.commit();
+			CentralMarketSettlement.collect(c,5,oldSale,8450);c.commit();
 			check(value(c,"SELECT proceeds n FROM central_market_wallet WHERE account_id=5")==0,"legacy remaining proceeds collect once using per-order receipts");
 		} finally { com.aionemu.gameserver.dataholders.DataManager.ITEM_DATA=previous; }
 	}
@@ -195,7 +195,87 @@ public final class CentralMarketDatabaseCheck {
 		exec(c,"INSERT INTO inventory(item_unique_id,item_id,item_count,item_owner,item_location,enchant,tempering,item_color,item_creator,item_skin) VALUES(?,160000001,?,?,125,15,5,11259375,'Custody check',110900001)",id,qty,account);
 		exec(c,"INSERT INTO central_market_stock VALUES(?,?,?,?)",id,account,key,order);return id;
 	}
+	static void seedDeadOrders(Connection c,int count)throws SQLException {
+		try(PreparedStatement s=c.prepareStatement("INSERT INTO central_market_orders(account_id,state) VALUES(0,'CANCELLED')")) {
+			for(int i=1;i<=count;i++) {s.addBatch();if(i%5000==0)s.executeBatch();}
+			s.executeBatch();
+		}
+	}
+	/** Injects failures around real SQL to check committed batches and compaction retry. */
+	static Connection cleanupFailure(Connection c,int failedDelete,boolean optimizeError) {
+		int[] deletes={0};
+		return (Connection)Proxy.newProxyInstance(Connection.class.getClassLoader(),new Class<?>[]{Connection.class},(proxy,method,args)-> {
+			try {
+				Object result=method.invoke(c,args);
+				if(!method.getName().equals("createStatement"))return result;
+				Statement s=(Statement)result;
+				return Proxy.newProxyInstance(Statement.class.getClassLoader(),new Class<?>[]{Statement.class},(statement,operation,parameters)-> {
+					if(parameters!=null && parameters.length>0 && parameters[0] instanceof String sql) {
+						if(sql.startsWith("DELETE FROM central_market_orders") && ++deletes[0]==failedDelete)throw new SQLException("Injected batch failure");
+						if(optimizeError && sql.equals("OPTIMIZE TABLE central_market_orders"))return s.executeQuery("SELECT 'error' Msg_type,'Injected compaction failure' Msg_text");
+					}
+					try{return operation.invoke(s,parameters);}catch(InvocationTargetException e){throw e.getCause();}
+				});
+			} catch(InvocationTargetException e){throw e.getCause();}
+		});
+	}
+	static void startupCleanup(Connection c)throws Exception {
+		check(CentralMarketService.cleanupCancelledSimulation(c)==0,"fresh database skips cleanup before market tables exist");
+		exec(c,"CREATE TABLE central_market_orders(id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,account_id INT NOT NULL,state VARCHAR(16) NOT NULL,INDEX owned(account_id,state)) ENGINE=InnoDB");
+		exec(c,"CREATE TABLE central_market_trades(buy_order BIGINT NOT NULL,sell_order BIGINT NOT NULL) ENGINE=InnoDB");
+		seedDeadOrders(c,20000);
+		exec(c,"INSERT INTO central_market_orders(id,account_id,state) VALUES(30001,17,'CANCELLED'),(30002,-19,'CANCELLED'),(30003,0,'OPEN'),(30004,0,'QUEUED'),(30005,0,'FILLED'),(30006,0,'CANCELLED'),(30007,0,'CANCELLED')");
+		exec(c,"INSERT INTO central_market_trades VALUES(30006,30007)");
+		check(CentralMarketService.cleanupCancelledSimulation(c)==0 && value(c,"SELECT COUNT(*) n FROM central_market_orders")==20007,"exact batch threshold is cheaply skipped");
+		check(value(c,"SELECT COUNT(*) n FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='central_market_cleanup'")==0,"small databases do not acquire cleanup state");
+		seedDeadOrders(c,1);
+		check(CentralMarketService.cleanupCancelledSimulation(c)==20001,"one row beyond threshold is cleared through the final short batch");
+		check(value(c,"SELECT COUNT(*) n FROM central_market_orders")==7 && value(c,"SELECT COUNT(*) n FROM central_market_orders WHERE id BETWEEN 30001 AND 30007")==7 && value(c,"SELECT COUNT(*) n FROM central_market_trades")==1,"cleanup preserves player, negative bot, live simulation and both trade-linked order sides");
+		seedDeadOrders(c,40001);
+		boolean failed=false;
+		try{CentralMarketService.cleanupCancelledSimulation(cleanupFailure(c,2,false));}catch(SQLException e){failed=e.getMessage().equals("Injected batch failure");}
+		check(failed,"a SQL batch failure is surfaced");
+		try(Connection observer=DatabaseFactory.getConnection()) {
+			check(value(observer,"SELECT COUNT(*) n FROM central_market_orders WHERE account_id=0 AND state='CANCELLED' AND id NOT IN (30006,30007)")==20001,"first batch remains committed and visible after the next batch fails");
+			check(value(observer,"SELECT COUNT(*) n FROM central_market_cleanup WHERE id=1")==1,"failure preserves the compaction obligation");
+		}
+		check(CentralMarketService.cleanupCancelledSimulation(c)==20001,"rerun finishes committed multi-batch cleanup");
+		seedDeadOrders(c,20001);
+		failed=false;
+		try{CentralMarketService.cleanupCancelledSimulation(cleanupFailure(c,0,true));}catch(SQLException e){failed=e.getMessage().contains("Injected compaction failure");}
+		check(failed && value(c,"SELECT COUNT(*) n FROM central_market_orders")==7,"OPTIMIZE error result is surfaced after the final committed delete");
+		check(value(c,"SELECT COUNT(*) n FROM central_market_cleanup WHERE id=1")==1,"compaction remains pending after no dead rows remain");
+		check(CentralMarketService.cleanupCancelledSimulation(c)==0 && value(c,"SELECT COUNT(*) n FROM central_market_cleanup")==0,"rerun compacts with zero remaining candidates and clears pending state");
+		exec(c,"ALTER TABLE central_market_orders ENGINE=MyISAM");
+		failed=false;try{CentralMarketService.cleanupCancelledSimulation(c);}catch(SQLException e){failed=e.getMessage().contains("requires InnoDB");}
+		check(failed && value(c,"SELECT COUNT(*) n FROM central_market_orders")==7,"nontransactional existing orders are refused before any deletion");
+		exec(c,"DROP TABLE central_market_cleanup,central_market_trades,central_market_orders");
+	}
 	public static void main(String[] args)throws Exception {
+		if(args.length!=5 || !Set.of("--full","--cleanup-only","--startup-only").contains(args[0]))
+			throw new IllegalArgumentException("Expected --full, --cleanup-only or --startup-only, scratch JDBC URL, user, password, external Temp report directory");
+		String url=args[1],user=args[2],password=args[3];
+		// The deployed driver is mysql-connector-j; either URL form is fine as long as it is the local 33907 scratch schema.
+		if(!url.matches("jdbc:(?:mariadb|mysql)://(?:127\\.0\\.0\\.1|localhost):33907/(?:cm_cleanup_|aion_cm_check_)[a-zA-Z0-9_]+(?:\\?[A-Za-z0-9=&_]+)?"))
+			throw new IllegalArgumentException("Only explicit local port 33907 scratch schemas are allowed");
+		Path report=Path.of(args[4]).toAbsolutePath().normalize();
+		if(!report.startsWith(Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().normalize()))
+			throw new IllegalArgumentException("Report directory must be in external Temp");
+		try(Connection scratch=DriverManager.getConnection(url,user,password)) {
+			check(value(scratch,"SELECT @@port n")==33907,"server confirms scratch port before fixture work");
+		}
+		if(!args[0].equals("--full")) {
+			DatabaseConfig.DATABASE_URL=url;
+			DatabaseConfig.DATABASE_USER=user;DatabaseConfig.DATABASE_PASSWORD=password;DatabaseConfig.DATABASE_CONNECTIONS_MAX=5;DatabaseConfig.DATABASE_TIMEOUT=5000;DatabaseFactory.init();
+			long deleted=0;
+			if(args[0].equals("--startup-only")) {
+				var data=new com.aionemu.gameserver.dataholders.ItemData();set(data,"items",new HashMap<>());
+				com.aionemu.gameserver.dataholders.DataManager.ITEM_DATA=data;
+				try{CentralMarketService.start();}finally{CentralMarketService.stop();}
+			} else try(Connection c=DatabaseFactory.getConnection()){deleted=CentralMarketService.cleanupCancelledSimulation(c);}
+			Files.createDirectories(report);Files.writeString(report.resolve("database-results.txt"),"PASS "+args[0]+" deleted="+deleted+"\n");
+			System.out.println("PASS "+args[0]+" deleted="+deleted);System.exit(0);
+		}
 		try(var in=CentralMarketService.class.getResourceAsStream("CentralMarketService.class")) {
 			for(var entry:java.lang.classfile.ClassFile.of().parse(in.readAllBytes()).constantPool())
 				if(entry instanceof java.lang.classfile.constantpool.Utf8Entry text && text.stringValue().startsWith(" AND (o.state IN ('OPEN','QUEUED') OR EXISTS")) {
@@ -204,13 +284,9 @@ public final class CentralMarketDatabaseCheck {
 		}
 		if(visibility==null)throw new AssertionError("Current-order visibility predicate is missing");
 		check(visibility.startsWith(" AND (o.state IN ('OPEN','QUEUED') OR EXISTS"),"test uses staged production order visibility SQL");
-		Path root=Path.of(args[0]).toAbsolutePath();Properties p=new Properties();
-		try(var in=Files.newInputStream(root.resolve("config/network/database.properties"))){p.load(in);}
-		Path overrides=root.resolve("config/mygs.properties");if(Files.exists(overrides))try(var in=Files.newInputStream(overrides)){p.load(in);}
-		String url=p.getProperty("database.url").replace("${gameserver.timezone}","UTC"), user=p.getProperty("database.user"), password=p.getProperty("database.password");
 		schema="aion_cm_check_"+System.currentTimeMillis();check(schema.matches("aion_cm_check_[0-9]+"),"isolated schema name");
-		try(Connection live=DriverManager.getConnection(url,user,password);Statement s=live.createStatement()){
-			String source=live.getCatalog();check(source!=null&&!source.equals(schema),"live schema is only read");
+		try(Connection scratch=DriverManager.getConnection(url,user,password);Statement s=scratch.createStatement()){
+			String source=scratch.getCatalog();check(source!=null&&!source.equals(schema),"bootstrap scratch schema differs from the new test schema");
 			s.execute("CREATE DATABASE `"+schema+"`");
 			final String testSchema=schema;
 			Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -218,14 +294,15 @@ public final class CentralMarketDatabaseCheck {
 					drop.execute("DROP DATABASE `"+testSchema+"`");
 				} catch(SQLException e) { System.err.println("Could not remove isolated test schema: "+testSchema); }
 			},"market-test-cleanup"));
-			List<String> tables=new ArrayList<>();try(ResultSet r=live.getMetaData().getTables(source,null,"%",new String[]{"TABLE"})){while(r.next())tables.add(r.getString("TABLE_NAME"));}
+			List<String> tables=new ArrayList<>();try(ResultSet r=scratch.getMetaData().getTables(source,null,"%",new String[]{"TABLE"})){while(r.next())tables.add(r.getString("TABLE_NAME"));}
 			for(String table:tables) {check(table.matches("[a-zA-Z0-9_]+"),"safe fixture table");s.execute("CREATE TABLE `"+schema+"`.`"+table+"` LIKE `"+source+"`.`"+table+"`");}
-			DatabaseConfig.DATABASE_URL=url.replace("/"+source,"/"+schema);check(!DatabaseConfig.DATABASE_URL.equals(url),"test pool cannot point to live data");
+			DatabaseConfig.DATABASE_URL=url.replace("/"+source,"/"+schema);check(!DatabaseConfig.DATABASE_URL.equals(url),"test pool uses a new scratch schema");
 		}
 		DatabaseConfig.DATABASE_USER=user;DatabaseConfig.DATABASE_PASSWORD=password;DatabaseConfig.DATABASE_CONNECTIONS_MAX=5;DatabaseConfig.DATABASE_TIMEOUT=5000;DatabaseFactory.init();
 		try(Connection c=DatabaseFactory.getConnection();Statement s=c.createStatement()){
+			startupCleanup(c);
 			for(String sql:Files.readString(Path.of("game-server/config/central-market/schema.sql")).split(";"))if(!sql.isBlank())s.execute(sql);
-			check(value(c,"SELECT COUNT(*) n FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME LIKE 'central_market_%' AND ENGINE='InnoDB'")==12,"all twelve market tables use transactional storage");
+			check(value(c,"SELECT COUNT(*) n FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME LIKE 'central_market_%' AND ENGINE='InnoDB'")==13,"all thirteen market tables use transactional storage");
 			batchTransfers(c);catalogPage(c);browseFilters(c);marketPreferences(c);
 			for(int account=1;account<=8;account++)exec(c,"INSERT INTO central_market_wallet VALUES(?,5000,0,0)",account);
 			catalog(c,"partial",1000);long sale=order(c,1,"partial","S",100,15);int original=stock(c,1,"partial",sale,15);
@@ -240,18 +317,18 @@ public final class CentralMarketDatabaseCheck {
 			check(value(c,"SELECT COUNT(*) n FROM central_market_stock WHERE account_id=2 AND order_id=?",buy)==1,"purchased items remain reserved until this buy order is collected");
 			check(shown(c,buy)&&shown(c,sale),"filled purchases awaiting collection and active partial sales remain in My Orders");
 			long balance=value(c,"SELECT kinah n FROM central_market_wallet WHERE account_id=2");
-			CentralMarketSettlement.collect(c,2,buy,false);c.rollback();
+			CentralMarketSettlement.collect(c,2,buy,6500);c.rollback();
 			check(value(c,"SELECT COUNT(*) n FROM central_market_stock WHERE account_id=2 AND order_id=?",buy)==1,"rolled back collection keeps purchased custody reserved");
-			CentralMarketSettlement.collect(c,2,buy,false);c.commit();
+			CentralMarketSettlement.collect(c,2,buy,6500);c.commit();
 			check(value(c,"SELECT COUNT(*) n FROM central_market_stock WHERE account_id=2 AND order_id IS NULL")==1,"collect releases bought items to usable warehouse stock");
 			check(value(c,"SELECT kinah n FROM central_market_wallet WHERE account_id=2")==balance,"item collection never charges again");
 			check(!shown(c,buy)&&value(c,"SELECT COUNT(*) n FROM central_market_trades WHERE buy_order=?",buy)==1,"collected filled order leaves My Orders while trade history remains");
-			boolean duplicate=false;try{CentralMarketSettlement.collect(c,2,buy,false);}catch(IllegalArgumentException e){duplicate=true;}check(duplicate,"repeated item collection cannot duplicate items");
-			boolean foreign=false;try{CentralMarketSettlement.collect(c,3,sale,false);}catch(IllegalArgumentException e){foreign=true;}check(foreign,"other accounts cannot collect sale proceeds");
-			CentralMarketSettlement.collect(c,1,sale,false);c.commit();
+			boolean duplicate=false;try{CentralMarketSettlement.collect(c,2,buy,6500);}catch(IllegalArgumentException e){duplicate=true;}check(duplicate,"repeated item collection cannot duplicate items");
+			boolean foreign=false;try{CentralMarketSettlement.collect(c,3,sale,6500);}catch(IllegalArgumentException e){foreign=true;}check(foreign,"other accounts cannot collect sale proceeds");
+			CentralMarketSettlement.collect(c,1,sale,6500);c.commit();
 			check(value(c,"SELECT proceeds n FROM central_market_wallet WHERE account_id=1")==0 && value(c,"SELECT kinah n FROM central_market_wallet WHERE account_id=1")==5650,"partial sale collection credits exactly its taxed proceeds");
 			check(shown(c,sale),"active unsold remainder stays in My Orders after proceeds collection");
-			duplicate=false;try{CentralMarketSettlement.collect(c,1,sale,false);}catch(IllegalArgumentException e){duplicate=true;}check(duplicate,"repeated sale collection cannot duplicate Kinah");
+			duplicate=false;try{CentralMarketSettlement.collect(c,1,sale,6500);}catch(IllegalArgumentException e){duplicate=true;}check(duplicate,"repeated sale collection cannot duplicate Kinah");
 			check(value(c,"SELECT COUNT(*) n FROM inventory WHERE item_owner=2 AND enchant=15 AND tempering=5 AND item_color=11259375 AND item_creator='Custody check' AND item_skin=110900001")==1,"split preserves enhancement, tempering, skin, dye and creator");
 			check(value(c,"SELECT COUNT(*) n FROM item_stones s JOIN inventory i USING(item_unique_id) WHERE i.item_owner=2 AND s.item_id=167000001")==1,"split preserves socket records transactionally");
 			CANCEL.invoke(null,c,1,sale);c.commit();check(value(c,"SELECT COUNT(*) n FROM central_market_stock WHERE account_id=1 AND order_id IS NULL")==1,"cancel returns only the unsold remainder");
@@ -269,14 +346,14 @@ public final class CentralMarketDatabaseCheck {
 			check(CentralMarketRules.volume("Weapons")==100 && CentralMarketRules.volume("Accessories")==50 && CentralMarketRules.volume("Materials")==1 && CentralMarketRules.volume("Other")==3,"published warehouse volume categories");
 			check(CentralMarketRules.collect(1000,false)==650&&CentralMarketRules.collect(1000,true)==845,"base and Premium collection returns");
 			check(CentralMarketRules.collect(CentralMarketRules.MAX_KINAH,true)==844999999999999L,"tax rounding remains exact at currency limit");
-			check(CentralMarketRules.ladder(1000,1,10000).getFirst()==925&&CentralMarketRules.ladder(1000,1,10000).getLast()==1075,"price band is plus or minus 7.5 percent");
+			check(CentralMarketRules.ladder(1000,1,10000).getFirst()==955&&CentralMarketRules.ladder(1000,1,10000).getLast()==1045,"price band follows the current fifteen-step ladder");
 			check(CentralMarketRules.adjust(1000,500,1005,10,0)==1005,"demand cannot exceed absolute cap");
 			boolean overflow=false;try{CentralMarketRules.total(Long.MAX_VALUE,2);}catch(IllegalArgumentException e){overflow=true;}check(overflow,"overflow is refused");
 			virtualOrders(c);
 			c.commit();
 		}
 		try(Connection c=DatabaseFactory.getConnection()){check(value(c,"SELECT COUNT(*) n FROM central_market_trades")>0,"committed trades survive a new database connection");}
-		Files.createDirectories(Path.of("game-server/target/central-market-validation"));Files.writeString(Path.of("game-server/target/central-market-validation/database-results.txt"),"PASS: "+assertions+" checks in "+schema+". No live character data copied or changed.\n");
+		Files.createDirectories(report);Files.writeString(report.resolve("database-results.txt"),"PASS: "+assertions+" checks in "+schema+". Scratch database only.\n");
 		System.out.println("PASS: "+assertions+" checks; isolated database "+schema);System.exit(0);
 	}
 }

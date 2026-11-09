@@ -88,6 +88,11 @@ public final class PlayerBotRecruitmentDAO {
   return total;
  }
 
+ /** Distinct finished help requests credited to the account (road bounties count separately). */
+ public static long helps(Connection c,int account)throws SQLException {
+  try(var s=c.prepareStatement("SELECT COUNT(*) FROM playerbot_ticket_help WHERE account_id=? AND request_key NOT LIKE 'road-bounty:%'")){s.setInt(1,account);try(var r=s.executeQuery()){r.next();return r.getLong(1);}}
+ }
+
  /** Hub updates carry no SQL, so an updated server brings its own ticket tables to an existing database. */
  public static void prepare(Connection c)throws SQLException {
   try(var s=c.createStatement()){

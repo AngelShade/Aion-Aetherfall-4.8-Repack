@@ -3,6 +3,7 @@
  * policy activates a complete occupied map/instance and disables activity alone. */
 package com.aionemu.gameserver.services.playerbot;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 import com.aionemu.gameserver.configs.main.PlayerBotConfig;
@@ -20,16 +21,29 @@ final class PlayerBotWorldActivity {
   if(interval<100 || interval>10000)throw new IllegalArgumentException("World-bot presence refresh must be 100..10000 milliseconds");
   var next=new HashSet<Long>();
   var players=World.getInstance().getAllPlayers();PlayerBotPlayerPresence.refresh(players);
-  for(var player:players)
+  boolean tiers=PlayerBotDetailTier.enabled();
+  var humans=new ArrayList<PlayerBotDetailTier.Human>();var bots=new ArrayList<PlayerBotDetailTier.Bot>();var legions=new HashSet<String>();
+  for(var player:players) {
+   if(tiers && player.isWorldBot() && player.isSpawned())
+    bots.add(new PlayerBotDetailTier.Bot(player.getObjectId(),zone(player.getWorldId(),player.getInstanceId()),player.getX(),player.getY(),player.getZ()));
    if(!player.isPlayerBot() && player.isOnline() && player.isSpawned()) {
     next.add(zone(player.getWorldId(),player.getInstanceId()));
+    if(tiers) {
+     var known=new HashSet<Integer>();player.getKnownList().forEachPlayer(p->{if(p.isWorldBot())known.add(p.getObjectId());});
+     humans.add(new PlayerBotDetailTier.Human(zone(player.getWorldId(),player.getInstanceId()),player.getX(),player.getY(),player.getZ(),known));
+     if(player.getLegion()!=null)legions.add(PlayerBotDetailTier.legionZone(player.getLegion().getLegionId(),player.getWorldId(),player.getInstanceId()));
+    }
     if(!PlayerBotPlayerPresence.enabled() && player.getInstanceId()==1 && PlayerBotConfig.PVP_ENABLED && PlayerBotConfig.PVP_RIFTS && PlayerBotConfig.PVP_RIFT_HOME_ACTIVITY) {
      int home=PlayerBotTerritory.counterpart(player.getWorldId());if(home!=0)next.add(zone(home,1));
     }
    }
+  }
   occupied=Set.copyOf(next);nextObservation=now+interval;
+  PlayerBotDetailTier.observe(humans,bots,legions);
  }
  static boolean occupied(Player bot){return occupied.contains(zone(bot.getWorldId(),bot.getInstanceId()));}
+ /** A human is on this map's open-world channel, as the dormancy observer last saw it. */
+ static boolean occupiedMap(int map){return occupied.contains(zone(map,1));}
  static boolean allowed(PlayerBotSession session){
   return !PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS || !session.autonomous() || session.worldExcursion() || occupied(session.bot());
  }

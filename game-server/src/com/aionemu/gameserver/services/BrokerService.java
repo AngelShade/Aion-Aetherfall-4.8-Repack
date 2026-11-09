@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.aionemu.gameserver.configs.main.CustomConfig;
 import com.aionemu.gameserver.configs.main.LoggingConfig;
 import com.aionemu.gameserver.dao.BrokerDAO;
 import com.aionemu.gameserver.dataholders.DataManager;
@@ -61,10 +62,53 @@ public class BrokerService {
 	}
 
 	private BrokerService() {
+		if (!CustomConfig.BROKER_ENABLED)
+			retireGeneratedStock();
 		initBrokerService();
-
 		saveManager = new BrokerPeriodicTaskManager(DELAY_BROKER_SAVE);
-		ThreadPoolManager.getInstance().scheduleAtFixedRate(this::checkExpiredItems, DELAY_BROKER_CHECK, DELAY_BROKER_CHECK);
+		// A retired Broker settles nothing: real listings wait unchanged until the Broker is enabled again.
+		if (CustomConfig.BROKER_ENABLED)
+			ThreadPoolManager.getInstance().scheduleAtFixedRate(this::checkExpiredItems, DELAY_BROKER_CHECK, DELAY_BROKER_CHECK);
+	}
+
+	public static boolean enabled() {
+		return CustomConfig.BROKER_ENABLED;
+	}
+
+	/** Asks the client to open its Central Market window directly; no native Broker window is created. */
+	public static void openCentralMarket(Player player) {
+		PacketSendUtility.sendPacket(player, new com.aionemu.gameserver.network.aion.serverpackets.SM_WEB_COMMAND(
+			com.aionemu.gameserver.network.aion.serverpackets.SM_WEB_COMMAND.OPEN_CENTRAL_MARKET, 0));
+	}
+
+	/**
+	 * Generated Broker stock exists only to fill the native Broker. With it retired, the stock is deleted in one transaction
+	 * instead of expiring later as tens of thousands of single-row saves (the 7 Nov 2026 39-minute save stall).
+	 */
+	private static void retireGeneratedStock() {
+		String sellers = "seller_id BETWEEN " + AuctionHouseSimulator.FIRST_SELLER + " AND " + AuctionHouseSimulator.LAST_SELLER;
+		try (var connection = com.aionemu.commons.database.DatabaseFactory.getConnection()) {
+			connection.setAutoCommit(false);
+			try (var statement = connection.createStatement()) {
+				int stones = statement.executeUpdate("DELETE s FROM item_stones s JOIN broker b ON b.item_pointer = s.item_unique_id WHERE b." + sellers);
+				int items = statement.executeUpdate("DELETE i FROM inventory i JOIN broker b ON b.item_pointer = i.item_unique_id WHERE b." + sellers
+					+ " AND i.item_owner = b.seller_id AND i.item_location = " + StorageType.BROKER.getId());
+				int listings = statement.executeUpdate("DELETE FROM broker WHERE " + sellers);
+				connection.commit();
+				int real = 0;
+				try (var rows = statement.executeQuery("SELECT COUNT(*) FROM broker")) {
+					if (rows.next())
+						real = rows.getInt(1);
+				}
+				log.info("Broker retired (gameserver.broker.enabled = false): removed {} generated listings, {} items, {} stones; {} player listings or sales kept unchanged",
+					listings, items, stones, real);
+			} catch (Exception e) {
+				connection.rollback();
+				throw e;
+			}
+		} catch (Exception e) {
+			LoggerFactory.getLogger(BrokerService.class).error("Generated Broker stock could not be removed; it stays in the database unchanged", e);
+		}
 	}
 
 	private void initBrokerService() {

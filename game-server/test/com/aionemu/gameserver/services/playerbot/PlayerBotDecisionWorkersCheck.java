@@ -13,6 +13,8 @@ public final class PlayerBotDecisionWorkersCheck {
  public static void main(String[] args)throws Exception {
   // These inert active-bot fixtures have no native human-presence World.
   com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS=false;
+  // Nor any human to see them, so distance tiers would mark every fixture bot out of sight.
+  com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_DETAIL_TIERS=false;
   var work=new PlayerBotBackgroundWork(4);var executor=Executors.newFixedThreadPool(5);
   var entered=new CountDownLatch(1);var release=new CountDownLatch(1);
   var remainingEntered=new CountDownLatch(3);var remainingRelease=new CountDownLatch(1);

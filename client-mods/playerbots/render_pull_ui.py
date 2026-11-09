@@ -92,6 +92,54 @@ def label(text, size, font, colour='#f4ead7', centre=True):
     return image
 
 
+def tier_ui(baseline, output):
+    """Reuse the authored metalwork; recolour its purple inlay, never its shape.
+
+    Per-roll stamps are small finite transparent plates. Their centres remain
+    clear so both original value labels stay legible throughout the effect.
+    """
+    output.mkdir(parents=True,exist_ok=True)
+    colours={1:(223,233,240),2:(140,240,168),3:(121,200,255),4:(255,201,107)}
+    records={}
+    def save(name,image):
+        path=output/(name+'.dds');image.save(path,format='DDS',pixel_format='DXT5')
+        records[path.name]=hashlib.sha256(path.read_bytes()).hexdigest()
+    for tier in (2,3,4):
+        for part in ('panel','title'):
+            image=Image.open(baseline/(part+'.dds')).convert('RGBA')
+            rgba=np.asarray(image).copy();rgb=rgba[:,:,:3].astype(float)
+            if part=='panel':
+                # Isolate the violet enamel, preserving neutral silver/gold,
+                # shading, alpha cutout and all the painted ornament.
+                weight=np.clip((rgb[:,:,2]-rgb[:,:,1]*1.06)/40,0,1)*np.clip((rgb[:,:,0]-rgb[:,:,1])/30,0,1)
+            else: weight=np.ones(rgb.shape[:2])
+            target=np.array(colours[tier])*np.max(rgb,axis=2)[:,:,None]/255
+            rgba[:,:,:3]=np.uint8(rgb*(1-weight[:,:,None])+target*weight[:,:,None])
+            save(f'tier{tier}-{part}',Image.fromarray(rgba))
+    for tier,colour in colours.items():
+        for n in range(12):
+            t=n/11;power=math.sin(math.pi*t)**.85
+            image=Image.new('RGBA',(256,128));ink=Image.new('RGBA',image.size);d=ImageDraw.Draw(ink)
+            expand=1-math.exp(-t*9);rx=75+40*expand;ry=16+22*expand
+            alpha=round(225*power)
+            # Broken elliptical seal brackets leave the native text clear.
+            box=(128-rx,64-ry,128+rx,64+ry)
+            d.arc(box,195,345,fill=(*colour,alpha),width=2)
+            d.arc(box,15,165,fill=(*colour,alpha),width=2)
+            d.line((36,95,220,95),fill=(*colour,round(alpha*.7)),width=1)
+            for j in range(3+tier*2):
+                a=j*math.tau/(3+tier*2)+t*.6
+                px=128+math.cos(a)*(rx+6+t*10);py=64+math.sin(a)*(ry+7+t*8)
+                r=1+(tier==4)
+                d.line((px-r*3,py,px+r*3,py),fill=(*colour,alpha),width=1)
+                d.line((px,py-r*3,px,py+r*3),fill=(255,250,230,alpha),width=1)
+            image.alpha_composite(ink.filter(ImageFilter.GaussianBlur(4)))
+            image.alpha_composite(ink.filter(ImageFilter.GaussianBlur(1)))
+            image.alpha_composite(ink)
+            save(f'stamp-tier{tier}-{n:03d}',image)
+    return records
+
+
 def export(atlas, medal_source, client, output, font_root):
     output.mkdir(parents=True, exist_ok=True)
     sources = output.parent / 'art' / 'exported'
@@ -175,10 +223,16 @@ def main():
     parser.add_argument('--medal-source', type=Path)
     parser.add_argument('--client', type=Path)
     parser.add_argument('--panel-in-only', action='store_true')
+    parser.add_argument('--tiers-only', action='store_true')
+    parser.add_argument('--baseline', type=Path, help='Read-only installed AetherfallSummon folder for tier inlay/labels')
     parser.add_argument('--panel-source', type=Path, help='Existing authored panel PNG/DDS for silhouette-matched entrance bloom')
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--font-root', type=Path, default=Path('C:/Windows/Fonts'))
     args = parser.parse_args()
+    if args.tiers_only:
+        if not args.baseline: parser.error('--tiers-only requires --baseline')
+        print('Exported',len(tier_ui(args.baseline,args.output)),'new tier panel/stamp textures')
+        return
     if args.panel_in_only:
         print('Exported',len(panel_entrance(args.output,args.panel_source)),'finite native result entrance frames to',args.output)
         return

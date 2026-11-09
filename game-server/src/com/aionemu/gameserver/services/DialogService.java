@@ -96,8 +96,15 @@ public class DialogService {
 						PacketSendUtility.sendPacket(player, SM_SYSTEM_MESSAGE.STR_BUY_SELL_HE_DOES_NOT_SELL_ITEM(npc.getObjectTemplate().getL10n()));
 					break;
 				}
+				case OPEN_VENDOR: // Broker
+					// A retired Broker never opens its native window: the NPC conversation closes and the Central Market opens.
+					if (!BrokerService.enabled() && npc.getObjectTemplate().supportsAction(dialogActionId)) {
+						PacketSendUtility.sendPacket(player, new SM_DIALOG_WINDOW(npc.getObjectId(), 0));
+						BrokerService.openCentralMarket(player);
+					} else
+						sendDialogWindow(dialogActionId, player, npc);
+					break;
 				case DEPOSIT_CHAR_WAREHOUSE: // warehouse (2.5)
-				case OPEN_VENDOR: // Consign trade?? npc karinerk, koorunerk (2.5)
 				case OPEN_STIGMA_WINDOW: // stigma
 				case CREATE_LEGION: // create legion
 				case OPEN_STIGMA_ENCHANT:

@@ -26,7 +26,7 @@ using Microsoft.Win32;
 using AetherfallUpdate;
 
 [assembly: AssemblyVersion("0.90.0.0")]
-[assembly: AssemblyFileVersion("0.90.1031.1")]
+[assembly: AssemblyFileVersion("0.90.1106.1")]
 
 namespace AetherfallSetup {
  public sealed class SetupSettings {
@@ -1243,12 +1243,25 @@ namespace AetherfallSetup {
     SwitchTab("Hub");
     return;
    }
-   string dlDir = ResolveDownloadDir();
    ReleaseFile rf = (manifest.files != null && manifest.files.Count > 0) ? manifest.files[0] : new ReleaseFile {
     name = BaseArchiveName,
     bytes = BaseArchiveBytes,
     sha256 = BaseArchiveSha256
    };
+   string partialArchive = System.IO.Path.Combine(ResolveDownloadDir(), rf.name);
+   long archiveOnDisk = File.Exists(partialArchive) ? new FileInfo(partialArchive).Length : 0;
+   long missingArchive = FindCompleteLocalArchive() != null ? 0 : Math.Max(0, rf.bytes - archiveOnDisk);
+   SpacePlan space = InstallSpace.Plan(InstallSpace.Read(ResolveDownloadDir()), InstallSpace.Read(pkg), missingArchive, archiveOnDisk > 0, Math.Max(manifest.installedBytes, rf.bytes));
+   if (space.Problem != null) {
+    SetBusy(false, "NOT ENOUGH SPACE", "Choose a drive with more room", space.Problem);
+    SwitchTab("Hub");
+    return;
+   }
+   if (space.MoveDownloads) {
+    settings.DownloadDirectory = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(pkg) ?? pkg, "Downloads");
+    File.WriteAllText(System.IO.Path.Combine(root, "settings.json"), new JavaScriptSerializer().Serialize(settings));
+   }
+   string dlDir = ResolveDownloadDir();
 
    downloadCts = new CancellationTokenSource();
    long partDone, partTotal; double partPct;

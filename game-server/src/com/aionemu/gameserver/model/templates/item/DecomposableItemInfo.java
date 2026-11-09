@@ -46,6 +46,8 @@ public class DecomposableItemInfo {
 		return isSelectable;
 	}
 
+	public boolean isOnlyOne() { return isOnlyOne; }
+
 	public boolean isOverride() {
 		return isOverride;
 	}

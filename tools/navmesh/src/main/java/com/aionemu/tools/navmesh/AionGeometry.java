@@ -159,7 +159,7 @@ public final class AionGeometry {
                     int material = in.readUnsignedByte(), flags = in.readUnsignedByte();
                     Bounds bounds = new Bounds();
                     for (int j = 0; j < vertices.length; j += 3) bounds.point(vertices[j], vertices[j + 2], vertices[j + 1]);
-                    parts.add(new Part(vertices, indices, material, flags, bounds));
+                    parts.add(new Part(vertices, indices, material, flags, bounds, invisibleBlocker(name)));
                 }
                 List<Part> immutable = List.copyOf(parts);
                 for (String alias : name.split("\\|", -1))
@@ -212,7 +212,12 @@ public final class AionGeometry {
             throw new IOException("Materialmap requires compatible native terrain dimensions: " + file.getFileName());
     }
 
-    private record Part(float[] vertices, int[] indices, int material, int flags, Bounds bounds) {}
+    private record Part(float[] vertices, int[] indices, int material, int flags, Bounds bounds, boolean blocker) {}
+    /** Clients draw nothing for these meshes and they carry plain physical flags. They block movement, but their tops are not ground. */
+    static boolean invisibleBlocker(String model) {
+        String lower = model.toLowerCase(java.util.Locale.ROOT);
+        return lower.contains("nowalk") || lower.contains("walk_obstacle");
+    }
     private record PlacedPart(Part part, Transform transform, Bounds bounds) {}
 
     /** Typed state-dependent input is retained for future native instance-aware overlays, never baked as floor. */
@@ -223,6 +228,8 @@ public final class AionGeometry {
     }
 
     public record Triangles(float[] vertices, int[] indices) {}
+    /** Blockers rasterize as solid, unwalkable spans. A real floor sharing their height stays walkable. */
+    public record TileTriangles(Triangles floors, Triangles blockers) {}
 
     private static final class Bounds {
         final float[] min = {Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY};
@@ -318,9 +325,9 @@ public final class AionGeometry {
                 left = new Index(ordered.subList(0, half)); right = new Index(ordered.subList(half, ordered.size())); leaf = null;
             }
         }
-        void append(Buffer output, float x1, float z1, float x2, float z2) {
+        void append(Buffer output, Buffer blockers, float x1, float z1, float x2, float z2) {
             if (!bounds.present() || !bounds.intersects(x1, z1, x2, z2)) return;
-            if (leaf == null) { left.append(output, x1, z1, x2, z2); right.append(output, x1, z1, x2, z2); return; }
+            if (leaf == null) { left.append(output, blockers, x1, z1, x2, z2); right.append(output, blockers, x1, z1, x2, z2); return; }
             float[] triangle = new float[9];
             for (PlacedPart placed : leaf) {
                 if (!placed.bounds.intersects(x1, z1, x2, z2)) continue;
@@ -332,7 +339,7 @@ public final class AionGeometry {
                     }
                     if (Math.max(triangle[0], Math.max(triangle[3], triangle[6])) < x1 || Math.min(triangle[0], Math.min(triangle[3], triangle[6])) > x2
                             || Math.max(triangle[2], Math.max(triangle[5], triangle[8])) < z1 || Math.min(triangle[2], Math.min(triangle[5], triangle[8])) > z2) continue;
-                    output.triangle(triangle, 0, 3, 6);
+                    (part.blocker ? blockers : output).triangle(triangle, 0, 3, 6);
                 }
             }
         }
@@ -371,12 +378,12 @@ public final class AionGeometry {
         public float[] max() { return max.clone(); }
         public String description() { return description; }
         public List<DynamicPlacement> dynamics() { return dynamic; }
-        public Triangles triangles(float minX, float minZ, float maxX, float maxZ) {
+        public TileTriangles triangles(float minX, float minZ, float maxX, float maxZ) {
             if (!Float.isFinite(minX) || !Float.isFinite(minZ) || !Float.isFinite(maxX) || !Float.isFinite(maxZ) || minX > maxX || minZ > maxZ)
                 throw new IllegalArgumentException("Invalid tile/border bounds");
-            Buffer output = new Buffer(); index.append(output, minX, minZ, maxX, maxZ);
+            Buffer output = new Buffer(), blockers = new Buffer(); index.append(output, blockers, minX, minZ, maxX, maxZ);
             if (heightmap != null) heightmap.append(output, minX, minZ, maxX, maxZ);
-            return output.finish();
+            return new TileTriangles(output.finish(), blockers.finish());
         }
     }
 }

@@ -9,25 +9,36 @@ public final class PlayerBotHelpDAO {
  public record Row(String key,int account,int helper,int bot,long revision,String status,String payload) {}
  public static void prepare(Connection c)throws SQLException {
   try(var s=c.createStatement()) {
-   s.executeUpdate("CREATE TABLE IF NOT EXISTS playerbot_help_requests (request_key VARCHAR(128) NOT NULL PRIMARY KEY, account_id INT NOT NULL, helper_id INT NOT NULL, requester_id INT NOT NULL, active_account INT NULL, active_requester INT NULL, revision BIGINT NOT NULL DEFAULT 0, status VARCHAR(16) NOT NULL, payload MEDIUMTEXT NOT NULL, updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3), UNIQUE KEY help_account (active_account), UNIQUE KEY help_requester (active_requester), KEY help_history (account_id,updated_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+   s.executeUpdate("CREATE TABLE IF NOT EXISTS playerbot_help_requests (request_key VARCHAR(128) NOT NULL PRIMARY KEY, account_id INT NOT NULL, helper_id INT NOT NULL, requester_id INT NOT NULL, active_account INT NULL, active_requester INT NULL, revision BIGINT NOT NULL DEFAULT 0, status VARCHAR(16) NOT NULL, payload MEDIUMTEXT NOT NULL, updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3), KEY help_account (active_account), UNIQUE KEY help_requester (active_requester), KEY help_history (account_id,updated_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+   // Several requests per account (owner 8 Nov): an older table kept one active request per account.
+   try(var r=s.executeQuery("SELECT NON_UNIQUE FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='playerbot_help_requests' AND INDEX_NAME='help_account' LIMIT 1")) {
+    if(r!=null && r.next() && r.getInt(1)==0) {
+     r.close();
+     s.executeUpdate("ALTER TABLE playerbot_help_requests DROP INDEX help_account, ADD KEY help_account (active_account)");
+    }
+   }
   }
  }
  private static Row row(ResultSet r)throws SQLException {
   return new Row(r.getString("request_key"),r.getInt("account_id"),r.getInt("helper_id"),r.getInt("requester_id"),r.getLong("revision"),r.getString("status"),r.getString("payload"));
  }
- public static Row current(Connection c,int account)throws SQLException {
-  try(var s=c.prepareStatement("SELECT * FROM playerbot_help_requests WHERE active_account=?")){s.setInt(1,account);try(var r=s.executeQuery()){return r.next()?row(r):null;}}
+ /** Every active request of the account (one per help slot). */
+ public static java.util.List<Row> active(Connection c,int account)throws SQLException {
+  var rows=new java.util.ArrayList<Row>();
+  try(var s=c.prepareStatement("SELECT * FROM playerbot_help_requests WHERE active_account=? ORDER BY request_key")){s.setInt(1,account);try(var r=s.executeQuery()){while(r.next())rows.add(row(r));}}
+  return rows;
  }
  public static Row requester(Connection c,int bot)throws SQLException {
   try(var s=c.prepareStatement("SELECT * FROM playerbot_help_requests WHERE active_requester=?")){s.setInt(1,bot);try(var r=s.executeQuery()){return r.next()?row(r):null;}}
  }
  public static Row latest(Connection c,int account)throws SQLException {
-  var active=current(c,account);if(active!=null)return active;
+  var active=active(c,account);if(!active.isEmpty())return active.getFirst();
   try(var s=c.prepareStatement("SELECT * FROM playerbot_help_requests WHERE account_id=? ORDER BY updated_at DESC,request_key DESC LIMIT 1")){s.setInt(1,account);try(var r=s.executeQuery()){return r.next()?row(r):null;}}
  }
- public static Row accept(Connection c,Row proposed)throws SQLException {
-  var existing=current(c,proposed.account());
-  if(existing!=null){if(existing.key().equals(proposed.key()))return existing;throw new IllegalArgumentException("Your account already has a help request. Review or abandon it first.");}
+ public static Row accept(Connection c,Row proposed,int maxActive)throws SQLException {
+  var existing=active(c,proposed.account());
+  for(var row:existing)if(row.key().equals(proposed.key()))return row;
+  if(existing.size()>=maxActive)throw new IllegalArgumentException("You are already helping "+existing.size()+" companions. Finish or abandon one in Help requests first.");
   try(var s=c.prepareStatement("SELECT * FROM playerbot_help_requests WHERE request_key=?")) {
    s.setString(1,proposed.key());try(var r=s.executeQuery()) {if(r.next())throw new IllegalArgumentException("You have already accepted this bot's need. Its saved credit is retained.");}
   }

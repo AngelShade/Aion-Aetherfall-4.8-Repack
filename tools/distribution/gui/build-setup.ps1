@@ -40,6 +40,7 @@ $arguments = @(
 $arguments += ('/win32icon:' + ([IO.Path]::GetFullPath($IconPath)))
 $arguments += (Join-Path $PSScriptRoot 'SetupApp.cs')
 $arguments += (Join-Path $PSScriptRoot 'RepackInstallation.cs')
+$arguments += (Join-Path $PSScriptRoot 'InstallSpace.cs')
 $arguments += (Join-Path $PSScriptRoot 'ServerControl.cs')
 $arguments += (Join-Path $PSScriptRoot 'OriginalInstallation.cs')
 $arguments += (Join-Path $PSScriptRoot 'HubMods.cs')

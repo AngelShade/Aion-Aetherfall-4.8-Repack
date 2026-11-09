@@ -70,6 +70,8 @@ public final class PlayerBotSupportCooperationCheck {
  public static void main(String[] args)throws Exception {PlayerBotMetadataCheck.defaults();PlayerBotMetadataCheck.dryWorld();
   // These inert active-bot fixtures have no native human-presence World.
   com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS=false;
+  // Nor any human to see them, so distance tiers would mark every fixture bot out of sight.
+  com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_DETAIL_TIERS=false;
   var field=Unsafe.class.getDeclaredField("theUnsafe");field.setAccessible(true);unsafe=(Unsafe)field.get(null);
   data=(SkillData)JAXBContext.newInstance(SkillData.class).createUnmarshaller().unmarshal(new StringReader("""
    <skill_data>

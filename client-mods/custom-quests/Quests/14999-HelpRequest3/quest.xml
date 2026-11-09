@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<quest>
+  <id>14999</id>
+  <name>Q14999</name>
+  <dev_name />
+  <desc>STR_QUEST_NAME_Q14999</desc>
+  <category1>quest</category1>
+  <category2>STR_QUEST_ZONE02</category2>
+  <f_mission>0</f_mission>
+  <max_repeat_count>255</max_repeat_count>
+  <client_level>1</client_level>
+  <minlevel_permitted>1</minlevel_permitted>
+  <maxlevel_permitted>0</maxlevel_permitted>
+  <cannot_share>1</cannot_share>
+  <gender_permitted>all</gender_permitted>
+  <class_permitted>warrior scout mage cleric engineer artist fighter knight assassin ranger wizard elementallist chanter priest gunner bard rider</class_permitted>
+  <race_permitted>pc_light pc_dark</race_permitted>
+</quest>

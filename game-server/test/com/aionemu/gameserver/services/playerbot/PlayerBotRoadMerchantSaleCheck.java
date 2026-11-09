@@ -38,9 +38,9 @@ import com.aionemu.gameserver.world.knownlist.KnownList;
 /** Native restock/open/sell/checkpoint/reload on scratch SQL only. No server, socket or gameplay loop. */
 public final class PlayerBotRoadMerchantSaleCheck {
  private static Unsafe unsafe;
- private static int checks;
+ private static int checks;private static boolean stacks;
  private static final ListAppender<ILoggingEvent> warnings=new ListAppender<>();
- private static final int BOT=5001,BUYER=5002,GOODS=100000001,MONEY=182400001;
+ private static final int BOT=5001,BUYER=5002,GOODS=100000001,MONEY=182400001,SHARDS=169000009;
  private static void check(boolean ok,String why){checks++;if(!ok)throw new AssertionError(why);}
  private static Field field(Class<?> type,String name)throws Exception {var f=type.getDeclaredField(name);f.setAccessible(true);return f;}
  private static void set(Object target,String name,Object value)throws Exception {field(target.getClass(),name).set(target,value);}
@@ -116,7 +116,10 @@ public final class PlayerBotRoadMerchantSaleCheck {
   var goods=new ItemTemplate();set(goods,"itemId",GOODS);set(goods,"name","Regional Stigma");set(goods,"itemQuality",ItemQuality.RARE);set(goods,"useLimits",new ItemUseLimits());
   set(goods,"itemGroup",com.aionemu.gameserver.model.templates.item.enums.ItemGroup.STIGMA);set(goods,"stigma",new Stigma());set(goods,"price",1000);
   var money=new ItemTemplate();set(money,"itemId",MONEY);set(money,"name","Kinah");
-  items.put(GOODS,goods);items.put(MONEY,money);DataManager.ITEM_DATA=data;
+  // A stackable equipment-group item, as merchants carry power shards.
+  var shards=new ItemTemplate();set(shards,"itemId",SHARDS);set(shards,"name","Premium Power Shard");set(shards,"itemQuality",ItemQuality.COMMON);set(shards,"useLimits",new ItemUseLimits());
+  set(shards,"itemGroup",com.aionemu.gameserver.model.templates.item.enums.ItemGroup.POWER_SHARDS);set(shards,"maxStackCount",10000);set(shards,"price",220);
+  items.put(GOODS,goods);items.put(MONEY,money);items.put(SHARDS,shards);DataManager.ITEM_DATA=data;
   // Empty native economy catalogue: no full static world load is needed for a custody check.
   field(EconomyPrices.class,"npcRates").set(null,Map.of());field(EconomyPrices.class,"purchaseRates").set(null,Map.of());
  }
@@ -133,7 +136,8 @@ public final class PlayerBotRoadMerchantSaleCheck {
   var pool=Class.forName(PlayerBotRoadMerchants.class.getName()+"$Pool").getDeclaredConstructors()[0];pool.setAccessible(true);
   var supply=Class.forName(PlayerBotRoadMerchants.class.getName()+"$Supply").getDeclaredConstructors()[0];supply.setAccessible(true);
   Map<Object,Object> pools=get(null,PlayerBotRoadMerchants.class,"POOLS");
-  pools.put(pool.newInstance(1,Race.ELYOS,20,0),supply.newInstance(List.of(new LootCodexService.RegionalGoods(GOODS,210001,1,"")),Set.of(GOODS)));
+  int sold=stacks?SHARDS:GOODS;
+  pools.put(pool.newInstance(1,Race.ELYOS,20,0),supply.newInstance(List.of(new LootCodexService.RegionalGoods(sold,210001,1,"")),Set.of(sold)));
   return state;
  }
  private static void checkpoint(Actor bot)throws Exception {
@@ -225,6 +229,38 @@ public final class PlayerBotRoadMerchantSaleCheck {
   PlayerBotMetadata.release(bot.account.getId(),BOT);var restoredState=merchant(restoredBot);PlayerBotRoadMerchants.open(restoredState);
   check(restoredBot.getStore()==null,"Reloaded road provenance cannot relist sold merchandise");
  }
+ private static long count(Connection c,int id)throws Exception {return scalar(c,"SELECT item_count FROM inventory WHERE item_unique_id="+id);}
+ /** Stackable goods: stocked and listed as one stack, part of it sold as a new item, the rest later, then a reload. */
+ private static void stackSale(Connection c)throws Exception {
+  var bot=actor(BOT,true);var buyer=actor(BUYER,false);var state=merchant(bot);
+  for(var a:List.of(bot,buyer)){var money=new Item(a.bot?90001:90002,DataManager.ITEM_DATA.getItemTemplate(MONEY),a.bot?100:100000000,false,0);a.cube.onLoadHandler(money);check(InventoryDAO.store(money,a),"Scratch wallet stored");}
+  PlayerBotRoadMerchants.maintenance(state);
+  check(bot.cube.getItems().size()==1,"Maintenance stocks one stack");var stack=bot.cube.getItems().iterator().next();int id=stack.getObjectId();
+  check(stack.getItemId()==SHARDS && stack.getItemCount()>=100 && stack.getItemCount()<=1000,"A stackable item is stocked as a stack of 100-1000, not 1: "+stack.getItemCount());
+  // An older single-unit stack is topped up at the next restock, saved or not.
+  checkpoint(bot);stack.setItemCount(1);check(InventoryDAO.store(stack,bot),"Legacy single unit saved");
+  state.values.setProperty("restockAt","1");PlayerBotRoadMerchants.maintenance(state);
+  check(bot.cube.getItems().size()==1 && stack.getItemCount()>=100 && stack.getItemCount()<=1000,"Restock tops a single unit back up to a stack: "+stack.getItemCount());
+  checkpoint(bot);long full=stack.getItemCount();check(count(c,id)==full,"Topped-up stack is saved");
+  PlayerBotRoadMerchants.open(state);var store=bot.getStore();
+  var entry=store.getSoldItems().values().iterator().next();long unit=entry.getPrice();
+  check(entry.getItemObjId()==id && entry.getCount()==full,"The shop lists the whole stack");
+  check(unit>0 && unit<PlayerBotMerchantConfig.PRICE_MINIMUM,"Each unit keeps its own value, not the per-item minimum: "+unit);
+  long buyer0=buyer.cube.getKinah(),seller0=bot.cube.getKinah();
+  buy(bot,buyer,0,7);
+  var bought=buyer.cube.getItemsByItemId(SHARDS);
+  check(bought.size()==1 && bought.get(0).getItemCount()==7 && bought.get(0).getObjectId()!=id,"Part of a stack arrives as a new item of that count");
+  check(bot.cube.getItemByObjId(id).getItemCount()==full-7 && store.getSoldItems().get(id).getCount()==full-7,"The merchant's stack and listing shrink by the amount bought");
+  check(buyer.cube.getKinah()==buyer0-7*unit && bot.cube.getKinah()==seller0+7*unit,"Kinah moves for each unit bought");
+  int split=bought.get(0).getObjectId();
+  check(scalar(c,"SELECT item_owner FROM inventory WHERE item_unique_id="+split)==BUYER && count(c,split)==7 && count(c,id)==full-7,"SQL holds both parts of the stack");
+  buy(bot,buyer,0,full-7);
+  check(buyer.cube.getItemByObjId(id)!=null && bot.cube.getItemByObjId(id)==null && bot.getStore()==null,"The rest of the stack sells whole and the shop closes");
+  check(buyer.cube.getKinah()==buyer0-full*unit && bot.cube.getKinah()==seller0+full*unit,"The whole stack costs its units' total");
+  checkpoint(bot);check(InventoryDAO.store(buyer.getDirtyItemsToUpdate(),BUYER,1,null),"Buyer relog checkpoint succeeds");
+  var restored=actor(BUYER,false);InventoryDAO.loadStorage(BUYER,restored.cube);
+  check(restored.cube.getItemsByItemId(SHARDS).stream().mapToLong(Item::getItemCount).sum()==full,"Reload keeps exactly the units bought");
+ }
  public static void main(String[] args)throws Exception {
   try{run(args);System.exit(0);}catch(Throwable error){error.printStackTrace();System.exit(1);}
  }
@@ -234,7 +270,8 @@ public final class PlayerBotRoadMerchantSaleCheck {
   warnings.start();((Logger)org.slf4j.LoggerFactory.getLogger(PlayerBotRoadMerchants.class)).addAppender(warnings);
   ConfigurableProcessor.process(new Properties(),PlayerBotMerchantConfig.class,PlayerBotConfig.class,com.aionemu.gameserver.configs.network.NetworkConfig.class);
   DatabaseConfig.DATABASE_URL=args[0];DatabaseConfig.DATABASE_USER="root";DatabaseConfig.DATABASE_PASSWORD="";DatabaseConfig.DATABASE_CONNECTIONS_MAX=3;DatabaseConfig.DATABASE_TIMEOUT=5000;
-  DatabaseFactory.init();try(var c=DatabaseFactory.getConnection()){schema(c,Path.of(args[1]));templates();sale(c,Boolean.parseBoolean(args[2]));}finally{DatabaseFactory.shutdown();}
+  stacks=args[2].equals("stack");
+  DatabaseFactory.init();try(var c=DatabaseFactory.getConnection()){schema(c,Path.of(args[1]));templates();if(stacks)stackSale(c);else sale(c,Boolean.parseBoolean(args[2]));}finally{DatabaseFactory.shutdown();}
   System.out.println("OK: "+checks+" native merchant sale checks");
  }
 }

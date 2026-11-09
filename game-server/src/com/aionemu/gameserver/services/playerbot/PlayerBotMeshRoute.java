@@ -266,6 +266,8 @@ final class PlayerBotMeshRoute implements AutoCloseable {
         if(admission==companionAdmission){if(companionRuntime==null)companionRuntime=new Runtime(true);return companionRuntime;}
         if(runtime==null)runtime=new Runtime(false);return runtime;
     }
+    /** Reuse the world navigation loader/cache; relocation owns only cancellable demands. */
+    static PlayerBotNavmeshStore relocationStore(){return runtime(admission()).store;}
     static synchronized void shutdown(){flushLearned();if(runtime!=null)runtime.store.close();if(companionRuntime!=null)companionRuntime.store.close();}
     private final int world;
     private final Point start,goal;

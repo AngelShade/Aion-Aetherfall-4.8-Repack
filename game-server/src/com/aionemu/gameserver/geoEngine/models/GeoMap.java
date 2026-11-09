@@ -144,8 +144,9 @@ public class GeoMap extends Node {
 		Ray ray=new Ray(new Vector3f(x,y,top),new Vector3f(0,0,-1));ray.setLimit(top-bottom);
 		collideWith(ray,results);
 		if(terrain!=null)terrain.collideAtOrigin(ray,results);
-		CollisionResult hit=results.getClosestCollision();
-		return hit==null?Float.NaN:hit.getContactPoint().z;
+		// Invisible blockers stop movement, but the top of one is not ground. Keep looking for a real floor below it.
+		for(CollisionResult hit:results)if(hit.getGeometry()==null || !hit.getGeometry().isWalkBlocker())return hit.getContactPoint().z;
+		return Float.NaN;
 	}
 
 	public Vector3f getClosestCollision(float x, float y, float z, float targetX, float targetY, float targetZ, boolean atNearGroundZ, int instanceId,

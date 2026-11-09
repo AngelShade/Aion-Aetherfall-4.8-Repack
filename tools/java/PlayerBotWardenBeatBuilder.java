@@ -17,9 +17,6 @@ public final class PlayerBotWardenBeatBuilder {
  static List<Camp> camps(int map,Race race) {
   var cached=CAMP_CACHE.get(map+":"+race);if(cached!=null)return cached;
   var camps=new TreeMap<String,Camp>();
-  for(var hub:PlayerBotWorldPlacement.locations())if(hub.map()==map && hub.race()==race && hub.hub()) {
-   var p=new PlayerBotNavigation.Point(hub.x(),hub.y(),hub.z());String label=name(map,p);camps.putIfAbsent(label,new Camp(label,p,0));
-  }
   var residents=new ArrayList<Camp>();var tribe=race==Race.ELYOS?TribeClass.PC:TribeClass.PC_DARK;
   for(var group:DataManager.SPAWNS_DATA.getSpawnsByWorldId(map)) {
    var n=DataManager.NPC_DATA.getNpcTemplate(group.getNpcId());if(n==null || group.isTemporarySpawn() || group.getHandlerType()!=null
@@ -28,6 +25,13 @@ public final class PlayerBotWardenBeatBuilder {
    for(var s:group.getSpawnTemplates())if(!s.isAerialSpawn() && s.getWalkerId()==null) {
     var p=new PlayerBotNavigation.Point(s.getX(),s.getY(),s.getZ());residents.add(new Camp(name(map,p),p,n.getTemplateId()));
    }
+  }
+  // A hub's beat names a native NPC: its nearest friendly resident within 200 m (0 when none; such anchors are skipped).
+  for(var hub:PlayerBotWorldPlacement.locations())if(hub.map()==map && hub.race()==race && hub.hub()) {
+   var p=new PlayerBotNavigation.Point(hub.x(),hub.y(),hub.z());String label=name(map,p);
+   int npc=residents.stream().filter(q->PlayerBotWardenBeats.distance(p,q.point())<=200)
+    .min(Comparator.comparingDouble(q->PlayerBotWardenBeats.distance(p,q.point()))).map(Camp::npc).orElse(0);
+   camps.putIfAbsent(label,new Camp(label,p,npc));
   }
   // A native quest outpost need not have a shop/warehouse. Require a settled
   // cluster, not an isolated friendly monster, before adding its named anchor.
@@ -83,14 +87,16 @@ public final class PlayerBotWardenBeatBuilder {
    .filter(z->!z.getZoneTemplate().getName().matches(".*(LIMITAREA|WEATHER|FLY|NOBIND).*"))
    .max(Comparator.comparingInt(z->z.getZoneTemplate().getPriority())).map(z->z.getZoneTemplate().getName().replaceAll("_[0-9]+$","").replace('_',' ')).orElse("Native service camp");
  }
+ /** Owner 8 Nov: -Dwarden.beats.throughTowns=true lets a beat cross villages; PlayerBotWardenBeats.parse still keeps its ends outside. */
+ static final boolean THROUGH=Boolean.getBoolean("warden.beats.throughTowns");
  static List<PlayerBotNavigation.Point> sample(List<float[]> corners,PlayerBotWardenBeats.Settlements towns) {
   var result=new ArrayList<PlayerBotNavigation.Point>();
   for(int i=1;i<corners.size();i++) {
    var a=point(corners.get(i-1));var b=point(corners.get(i));int steps=Math.max(1,(int)Math.ceil(PlayerBotWardenBeats.distance(a,b)/8));
    for(int j=0;j<steps;j++) {float t=j/(float)steps;var p=new PlayerBotNavigation.Point(a.x()+t*(b.x()-a.x()),a.y()+t*(b.y()-a.y()),a.z()+t*(b.z()-a.z()));
-    if(towns.contains(p))return List.of();result.add(p);}
+    if(!THROUGH && towns.contains(p))return List.of();result.add(p);}
   }
-  if(!corners.isEmpty()) {var last=point(corners.getLast());if(towns.contains(last))return List.of();result.add(last);}return result;
+  if(!corners.isEmpty()) {var last=point(corners.getLast());if(!THROUGH && towns.contains(last))return List.of();result.add(last);}return result;
  }
  static void audit(Path file,Path output,boolean prune)throws Exception {
   var rows=new ArrayList<String>();rows.add("id\tmap\trace\tlevel\tmetres\tpoints\tcapacity70\tfrom\tfromHubDistance\tfromSettlementSetback\tto\ttoHubDistance\ttoSettlementSetback\tminimumPointSetback");
@@ -119,7 +125,10 @@ public final class PlayerBotWardenBeatBuilder {
     double hub=hubs.stream().filter(h->h.name().equals(label)).mapToDouble(h->PlayerBotWardenBeats.distance(p,h.point())).min().orElseThrow();
     values.add(label);values.add(String.format(Locale.ROOT,"%.2f",hub));values.add(String.format(Locale.ROOT,"%.2f",towns.clearance(p)));
    }
-   double clearance=Double.POSITIVE_INFINITY;for(var p:r.points()){if(towns.contains(p))throw new AssertionError("Settlement point "+r.id());clearance=Math.min(clearance,towns.clearance(p));points++;}
+   double clearance=Double.POSITIVE_INFINITY;int inside=0;boolean ends=false;
+   for(int i=0;i<r.points().size();i++){var p=r.points().get(i);if(towns.contains(p)){inside++;ends|=i<PlayerBotWardenBeats.END_POINTS || i>=r.points().size()-PlayerBotWardenBeats.END_POINTS;}else clearance=Math.min(clearance,towns.clearance(p));points++;}
+   if(!PlayerBotWardenBeats.villageAllowed(r.points().size(),inside,ends))throw new AssertionError("Settlement ends or share "+r.id());
+   if(inside>0)System.out.println("Village crossing: "+r.id()+" "+inside+"/"+r.points().size()+" points inside");
    values.add(String.format(Locale.ROOT,"%.2f",clearance));rows.add(String.join("\t",values));
   }
   for(int capital:new int[]{110010000,120010000})if(all.values().stream().anyMatch(b->b.route().map()==capital))throw new AssertionError("Capital beat");
@@ -130,7 +139,7 @@ public final class PlayerBotWardenBeatBuilder {
    String reason=count>0?"native-valid outskirts beats":segments==0?"no native friendly walker road segments":anchors<2?"fewer than two native settled-place anchors":"no validated corridor in bounded native search; inspect generation rejections; not proof the map has no road";
    maps.add(String.join("\t",""+map.getMapId(),map.getName(),race.name(),""+segments,""+anchors,""+count,reason));
   }
-  Files.write(output.resolve("map-audit.tsv"),maps);System.out.println("AUDIT OK: "+all.size()+" beats; "+points+" individual points; no settlement points; zero Sanctum/Pandaemonium beats");
+  Files.write(output.resolve("map-audit.tsv"),maps);System.out.println("AUDIT OK: "+all.size()+" beats; "+points+" individual points; ends outside settlements; zero Sanctum/Pandaemonium beats");
  }
  public static void main(String[] args)throws Exception {
   if(args.length!=3 && !(args.length==4 && Set.of("--relabel","--audit","--prune","--hubs").contains(args[3])))throw new IllegalArgumentException("STATIC_DATA NAVMESH EXTERNAL_OUTPUT [--relabel|--audit|--prune|--hubs]");
@@ -149,9 +158,9 @@ public final class PlayerBotWardenBeatBuilder {
     var rows=new ArrayList<String>();rows.add("map\trace\tname\tx\ty\tz\tcity\tsettlementFootprint");
     var territory=new HashMap<Integer,PlayerBotWardenBeats.Settlements>();
     for(var h:PlayerBotWorldPlacement.locations())if(h.hub())rows.add(String.join("\t",""+h.map(),h.race().name(),name(h.map(),new PlayerBotNavigation.Point(h.x(),h.y(),h.z())),""+h.x(),""+h.y(),""+h.z(),""+h.city(),""+territory.computeIfAbsent(h.map(),PlayerBotWardenBeats.Settlements::new).contains(new PlayerBotNavigation.Point(h.x(),h.y(),h.z()))));
-    Files.write(output.resolve("hubs.tsv"),rows);status=0;return;
+    Files.write(output.resolve("hubs.tsv"),rows);status=0;com.aionemu.gameserver.utils.ThreadPoolManager.getInstance().shutdown();System.exit(0);
    }
-   if(args.length==4 && Set.of("--audit","--prune").contains(args[3])){audit(output.resolve("warden-beats.tsv"),output,args[3].equals("--prune"));status=0;return;}
+   if(args.length==4 && Set.of("--audit","--prune").contains(args[3])){audit(output.resolve("warden-beats.tsv"),output,args[3].equals("--prune"));status=0;com.aionemu.gameserver.utils.ThreadPoolManager.getInstance().shutdown();System.exit(0);}
    if(args.length==4) {
     var updated=new ArrayList<String>();
     for(String row:Files.readAllLines(output.resolve("warden-beats.tsv"))) {
@@ -165,25 +174,29 @@ public final class PlayerBotWardenBeatBuilder {
      if(c[5].equals(c[6])){System.out.println("Rejected same-settlement beat: "+c[0]+" "+c[5]);continue;}
      updated.add(String.join("\t",c));System.out.println(c[0]+" "+c[5]+" -> "+c[6]);
     }
-    Files.write(output.resolve("warden-beats.tsv"),updated);return;
+    Files.write(output.resolve("warden-beats.tsv"),updated);com.aionemu.gameserver.utils.ThreadPoolManager.getInstance().shutdown();System.exit(0);
    }
    var rows=new ArrayList<String>();rows.add("# Warden beats v1: id map race level npc from to metres hostiles xyz; native navmesh and walker derivative");
    var executor=Executors.newSingleThreadExecutor();
    try(var store=new PlayerBotNavmeshStore(Path.of(args[1]),1024L*1024*1024,executor::execute)) {
     var roads=segments();var maps=new TreeSet<Integer>();roads.forEach(r->maps.add(r.map()));
+    // Maps without friendly walker NPCs still have native camps and mesh roads (owner 8 Nov: cover the 4.x zones).
+    if(System.getProperty("warden.beats.map")!=null)for(String id:System.getProperty("warden.beats.map").split(","))maps.add(Integer.parseInt(id.trim()));
     System.out.println("Native friendly walker segments="+roads.size());
     for(int map:maps) {
      if(System.getProperty("warden.beats.map")!=null && Arrays.stream(System.getProperty("warden.beats.map").split(",")).mapToInt(Integer::parseInt).noneMatch(id->id==map))continue;
      var towns=new PlayerBotWardenBeats.Settlements(map);int before=rows.size();
      var local=roads.stream().filter(r->r.map()==map).toList();
-     if(local.isEmpty()){System.out.println("Map "+map+" beats=0 (no hostile road corridor)");continue;}
+     if(local.isEmpty() && camps(map,Race.ELYOS).size()<2 && camps(map,Race.ASMODIANS).size()<2){System.out.println("Map "+map+" beats=0 (no walker road and fewer than two camps)");continue;}
      PlayerBotNavmeshStore.Result access;
      while((access=store.acquire(map)).status()==PlayerBotNavmeshStore.Status.WAITING)Thread.sleep(20);
      if(access.status()!=PlayerBotNavmeshStore.Status.READY){System.out.println("Map "+map+" unavailable: "+access.reason());continue;}
      try(var lease=access.lease()) {
       var mesh=lease.mesh();var query=new NavMeshQuery(mesh);var clearanceQuery=new NavMeshQuery(mesh);var normal=new DefaultQueryFilter();
       for(var race:List.of(Race.ELYOS,Race.ASMODIANS)) {
-       var nativeRoads=local.stream().filter(r->r.race()==race).toList();if(nativeRoads.isEmpty())continue;
+       var nativeRoads=local.stream().filter(r->r.race()==race).toList();
+       if(nativeRoads.isEmpty() && camps(map,race).size()<2)continue;
+       if(nativeRoads.isEmpty())System.out.println("Map "+map+" "+race+": no friendly walkers; routing between "+camps(map,race).size()+" native camps");
        record Anchor(String name,PlayerBotNavigation.Point point,int npc){}
        var anchors=new TreeMap<String,Anchor>();
        for(var hub:camps(map,race)) {
@@ -210,16 +223,17 @@ public final class PlayerBotWardenBeatBuilder {
          var approach=query.findStraightPath(departure.result.getNearestPos(),landing.result.getNearestPos(),link.result,1024,NavMeshQuery.DT_STRAIGHTPATH_ALL_CROSSINGS);
          if(approach.failed() || approach.result.isEmpty() || (approach.result.getLast().getFlags()&NavMeshQuery.DT_STRAIGHTPATH_END)==0
           || PlayerBotWardenBeats.length(approach.result.stream().map(s->point(s.getPos())).toList())>radius*2+100)continue;
-         var nearest=nativeRoads.stream().min(Comparator.comparingDouble(r->r.distance(p.x(),p.y(),p.z()))).orElseThrow();double distance=nearest.distance(p.x(),p.y(),p.z());
+         var nearest=nativeRoads.stream().min(Comparator.comparingDouble(r->r.distance(p.x(),p.y(),p.z()))).orElse(null);double distance=nearest==null?0:nearest.distance(p.x(),p.y(),p.z());
          double candidate=distance+radius*.1;options.add(new Option(p,nearest,candidate));if(candidate<score){score=candidate;outskirts=p;segment=nearest;}
         }
         if(outskirts!=null){near=outskirts;road=segment;}
-        if(near!=null) {
-         anchors.put(label,new Anchor(label,near,road.npc()));var chosen=new ArrayList<PlayerBotNavigation.Point>();chosen.add(near);
+        int anchorNpc=road!=null?road.npc():hub.npc();
+        if(near!=null && anchorNpc!=0) {
+         anchors.put(label,new Anchor(label,near,anchorNpc));var chosen=new ArrayList<PlayerBotNavigation.Point>();chosen.add(near);
          for(var option:options.stream().sorted(Comparator.comparingDouble(Option::score)).toList()) {
           if(chosen.size()>=Integer.getInteger("warden.beats.alternatives",3))break;
           if(chosen.stream().anyMatch(p->PlayerBotWardenBeats.distance(p,option.point())<100))continue;
-          chosen.add(option.point());anchors.put(label+"#"+chosen.size(),new Anchor(label,option.point(),option.road().npc()));
+          chosen.add(option.point());anchors.put(label+"#"+chosen.size(),new Anchor(label,option.point(),option.road()!=null?option.road().npc():anchorNpc));
          }
         }
        }
@@ -232,9 +246,9 @@ public final class PlayerBotWardenBeatBuilder {
             vertex[axis]=tile.data.verts[poly.verts[v]*3+axis];c[axis]+=vertex[axis]/poly.vertCount;
             middle[axis]=(vertex[axis]+tile.data.verts[poly.verts[(v+1)%poly.vertCount]*3+axis])/2;
            }
-           if(towns.contains(point(vertex)) || towns.contains(point(middle)))return false;
+           if(!THROUGH && (towns.contains(point(vertex)) || towns.contains(point(middle))))return false;
           }
-          return !towns.contains(point(c)) && c[1]>DataManager.WORLD_MAPS_DATA.getTemplate(map).getWaterLevel()+.2 && PlayerBotWorldPlacement.factionSide(race,map,c[0],c[2],c[1]);});
+          return (THROUGH || !towns.contains(point(c))) && c[1]>DataManager.WORLD_MAPS_DATA.getTemplate(map).getWaterLevel()+.2 && PlayerBotWorldPlacement.factionSide(race,map,c[0],c[2],c[1]);});
         }
         @Override public float getCost(float[] a,float[] b,long previous,MeshTile pt,Poly pp,long current,MeshTile tile,Poly poly,long next,MeshTile nt,Poly np) {
          float penalty=costs.computeIfAbsent(current,k->{var p=point(a);double road=nativeRoads.stream().mapToDouble(r->r.distance(p.x(),p.y(),p.z())).min().orElse(1000);
@@ -275,7 +289,7 @@ public final class PlayerBotWardenBeatBuilder {
         if(rows.stream().anyMatch(row->row.startsWith(id+"\t")))continue;
         String vectors=String.join(";",points.stream().map(p->String.format(Locale.ROOT,"%.2f,%.2f,%.2f",p.x(),p.y(),p.z())).toList());
         String row=String.join("\t",id,""+map,race.name(),""+level,""+from.npc(),from.name(),to.name(),String.format(Locale.ROOT,"%.2f",length),""+hostiles,vectors);
-        PlayerBotWardenBeats.parse(row,towns);
+        try{PlayerBotWardenBeats.parse(row,towns);}catch(IllegalArgumentException village){rejection.merge("village ends or share",1,Integer::sum);continue;}
         if(length<1500){shortBeats.add(row);continue;}rows.add(row);count++;
         System.out.println(id+" "+Math.round(length)+"m "+from.name()+" -> "+to.name()+" hostiles="+hostiles+" points="+points.size());
        }

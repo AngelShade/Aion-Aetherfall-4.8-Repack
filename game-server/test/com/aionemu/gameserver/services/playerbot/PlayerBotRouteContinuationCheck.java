@@ -214,6 +214,8 @@ public final class PlayerBotRouteContinuationCheck {
  public static void main(String[] args)throws Exception {com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_INDEPENDENT=false;com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_MEMORY_FIRST=false;PlayerBotMetadataCheck.dryWorld();
   // These inert active-bot fixtures have no native human-presence World.
   com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS=false;
+  // Nor any human to see them, so distance tiers would mark every fixture bot out of sight.
+  com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_DETAIL_TIERS=false;
   cadence();navigation();groupPatrol();
   Point start=new Point(20,80,0),goal=new Point(100,80,0);
   var wall=level();add(wall,wall(60,35,60,125));var ground=nativeGround(wall,goal);

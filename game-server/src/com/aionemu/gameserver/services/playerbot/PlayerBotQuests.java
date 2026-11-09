@@ -60,13 +60,20 @@ final class PlayerBotQuests {
 		return interact(owner, bot, job, role, false);
 	}
 	boolean interact(Player owner, Player bot, Job job, PlayerBotRules.Role role, boolean mission) {
+		return interact(owner, bot, job, role, mission, false);
+	}
+	/** A sleeping bot's own turn-in: the same native dialog, reward choice and checks, outside the awake objective planner. */
+	boolean turnInOffscreen(Player bot, Npc npc, int quest, PlayerBotRules.Role role) {
+		return interact(bot, bot, new Job(npc, quest, true), role, false, true);
+	}
+	private boolean interact(Player owner, Player bot, Job job, PlayerBotRules.Role role, boolean mission, boolean offscreen) {
 		if(!PlayerBotQuestFeatures.enabled(job.quest()))return false;
 		Npc npc = job.npc();
 		boolean missionReward = mission && job.turnIn() && QuestEngine.getInstance().getPlayerBotRewardNpcIds(bot, job.quest()).contains(npc.getNpcId())
 			&& !owner.isDead() && !npc.isDead() && npc.isSpawned() && npc.getMaster() == npc && !bot.isEnemy(npc)
 			&& npc.getWorldId() == bot.getWorldId() && npc.getInstanceId() == bot.getInstanceId() && bot.getKnownList().sees(npc)
 			&& PositionUtil.isInRange(owner, npc, PlayerBotMission.range()) && DialogService.isInteractionAllowed(bot, npc);
-		if ((!mission && !PlayerBotQuestObjectives.job(bot,job)) || (!missionReward && !nearby(owner, bot, npc)) || !PositionUtil.isInTalkRange(bot, npc) || !GeoService.getInstance().canSee(bot, npc)) return false;
+		if ((!mission && !offscreen && !PlayerBotQuestObjectives.job(bot,job)) || (!missionReward && !nearby(owner, bot, npc)) || !PositionUtil.isInTalkRange(bot, npc) || !GeoService.getInstance().canSee(bot, npc)) return false;
 		// A handler can open a custom page instead; do not guess subsequent story-dialog actions.
 		try (var dialog = PlayerBotQuestDialog.open(bot.getObjectId(), npc.getObjectId(), job.quest())) {
 			if (!job.turnIn()) {

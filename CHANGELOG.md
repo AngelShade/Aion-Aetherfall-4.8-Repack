@@ -2,10 +2,88 @@
 
 ## Next update
 
+- Bots walk smoothly again instead of stopping every few steps, and no longer hop back and forth on one spot.
+- Companions no longer lag behind and then jump forward when they start following you.
+- Bots that get stuck near you now go and do something else instead of standing idle.
+- Bots near you now say in chat what they are up to, like which quest they are handing in or that they are stuck.
+- Bots walking up to a quest NPC no longer get pulled back and forth on the way.
+- Road Wardens no longer jitter on the spot when a quest points outside their patrol.
+- Inviting a bot that can't join now tells you why, for example that it is on road duty.
+- Bots that have already ascended no longer crowd the starting zones Poeta and Ishalgen.
+- Joining a bot's Find Group help post now tracks it for you: chat guides you and counts your progress.
+- Help requests pay your Recruitment Ticket progress the moment the bot hands its quest in.
+- Finishing a help request no longer shows "quest failed" next to "Request complete"; the quest now closes as completed.
+- If you leave a bot's Find Group party, the bots stay together and keep at it, and you can rejoin them from Find Group.
+- Your Find Group help request now fills the quest window and tracker, with counters, location, reward, and Show location, Track and Collect buttons.
+- Quest details now open straight beside the quest journal instead of jumping there.
+- A help request with its objectives done now completes after a relog or with the bot offline; nobody walks the bot to its quest giver.
+- The help request buttons now sit inside the quest details' papyrus.
+- The quest tracker now checks more than 14 quests, and its checked and history tabs show up to 1000 (they stopped at 14 and 7).
+- You can now help up to three bots at once; each request has its own quest, buttons and Help requests entry.
+- Help requests now show their objectives and counts under their title in the quest tracker.
+- Helping a bot now completes a few seconds after the last objective while in its party; the bot then hands the quest in itself.
+- Some bots are the type to kick you right before they hand in their quest and keep the credit. Choose who you help.
+- Bots who challenge you to a duel now walk up, ask face to face, wait for your answer and fight back properly.
+- Beating a world bot in a duel pays a small Kinah purse and some Abyss Points.
+- PvP bots now fight on the move: instants no longer root them, ranged bots kite melee, and skilled melee circle to your flank.
+- Skilled PvP bots interrupt your casts, save stuns and big skills for the kill, and defend only when in danger. Lower ranks react slower.
+- You get XP and DP again in a party with higher-level helper bots; only the other players' levels count against you now.
+- Help request counters in the quest tracker now update as soon as the quest journal does.
+- Bots keep joining your Find Group party after you take the lead or start a fight, even if the bot that posted it dies.
+- Accepting a Find Group travel window during a fight no longer removes you from the party; finish the fight and say 'tp'.
+- Relogging no longer breaks your Find Group help party: the bots wait five minutes for you and take you back when you return.
+- Relogging during a bot dungeon run, or while its bots wait at the entrance, no longer sends them home; they hold for five minutes.
+- Road Wardens now patrol Cygnea and Enshar too, on long roads between their camps.
+- Road Wardens walk much longer roads in Poeta and Altgard, passing through villages without stopping or fighting there.
+- Enchanted and tempered gear offered on the Central Market can now be bought; those purchases used to fail.
+- Boxes are priced by what they really contain, so cheap boxes no longer hold furniture or rewards worth millions.
+- Food, drinks and potions that held one per slot, such as Fancy Club Beverage, Zest Tea and Fine Bracing Water, now stack to 1,000.
+- The Black Cloud Marketplace no longer sells level enchantment stones, Stigma Shards or GM items; use the Alpha to Epsilon stones.
+- Black Cloud Marketplace: ancient manastones cost a quarter, power shards undercut the merchant, and level 65 mythic wings cost ten times more.
+- The Central Market no longer lists the All Altered State Dispelling Potion, and level 65 mythic gear there costs ten times more.
+- Bootleg weapons and armour on the Central Market are now priced like the gear they copy instead of a few hundred thousand Kinah.
+- The market's own traders no longer stock or buy Black Cloud Marketplace goods; players can still trade them.
+- Crafted gear, furniture and other craft-only goods on the Central Market are now worth at least the materials they take.
+- Items once tied to a merchant who never appears, such as level 60 manastones, now have real Central Market prices you can sell at.
+- Untranslated placeholder items, GM items and the Unused Pet no longer appear in the Central Market, merchant bots or Black Cloud Marketplace.
+- Black Cloud Marketplace scrolls, foods, emotes and pets that town merchants sell now cost at most three times the merchant price.
+- Merchant bots now price rare gear near its Central Market value; purple items used to cost up to 22 times more.
+- Joining a bot's dungeon run now names the dungeon, its bosses and pay, announces each boss kill, and shows your tickets at the end.
+- Group dungeons are now tougher: bosses and elite monsters have more health and hit harder.
+- In the Dredgion, bots now go for the Surkanas worth the most, back you up on yours, and open the hatches.
+- Dredgion bots only take down the captain when it wins for your side, and call out each target in team chat.
+- Bots now play the objectives in Kamar Battlefield, Engulfed Ophidan Bridge, Iron Wall Warfront and Idgel Dome too.
+- There they go for the kills, supplies, capture points and generators worth the most, and only take down the boss when it wins.
+- Bots shopping for gear upgrades no longer slow the server while they choose.
+- In the arenas, bots now use relics, flame throwers and floor shifters and fight the arena monsters for points when no opponent is near.
+- An Agent fight now draws every bot on its map, and sieges, artifacts, outposts, Agent fights and Balaur assaults are reported separately.
+- Enemy bots now fight you on shared maps such as the Abyss, and enemy bots invade your homeland through open rifts.
+- Bots on empty maps now rest at towns and outposts, so far fewer of them die while nobody is around.
+- Companions no longer snap back while catching up to you.
+- World bots now buy gear they can wear on the Central Market with their own Kinah, so their equipment improves over time.
+- Bots out of your sight now think less often, so busy maps run lighter. Bots you can see behave exactly as before.
+- Bots near you now take quests in your area instead of leaving, and bots on quiet maps hand in finished quests while you are away.
+- After a Find Group dungeon's final boss, the bots say goodbye in party chat and play a victory, clap, thank or salute emote.
+- Merchant bots now sell power shards and other stackable goods in stacks, priced per unit, and you can buy as many as you need.
+- A bot's gear quality and combat rank now show inside the target window, and party members' names take their gear colour with rank stars.
+- Bots now enchant weapons and armour with their own stones and Kinah, including world bots on quiet maps.
+- You can buy enchanted and tempered gear on the Central Market, with rarer stock at higher levels.
+- Boxes and bundles now reflect their rewards in market prices, and items found inside boxes have more useful prices.
+- Crafting bots no longer stand still for minutes in towns while waiting to reach a workbench.
+- Bots no longer walk on invisible floors, so they stop appearing to fly in places like Sanctum.
+- Stuck bots now leap far less often.
+- Each world bot now follows its own Stigma build, so bots of one class differ in skills and gear.
+- Crafting bots you see now walk to real trainers and workbenches to do their work.
+- World bots can now pass their expert and master crafting quests at the real cost, even on maps with no players.
 - Bots with a chosen Stigma build now seek and wear gear that suits that build.
 - Beshmundir and Gelkmaros repeat quests now pay bonus supplies, and the Warped Rift event pays potions for your level.
 - Rift Stones and alliance General hunts now pay medals, and General hunts have a small chance of armour for your class.
 - The Swimsuit Swap event quest now gives you the swimsuit.
+- Buying, selling and moving items on the Central Market now respond far faster.
+- Setup now checks free space first, names the short drive, and downloads to your game drive when the Setup drive is full.
+- Ticket recruiting now plays a different animation for better results: emerald for Good, lightning for Great and gold for Excellent, each building longer.
+- Recruit results no longer flash on screen before the summoning animation starts.
+- Companions now finish walking to a quest corpse or object instead of stepping back and forth between it and you.
 - Male and female companions now have their own portraits for every class, on recruit results, cards and profiles.
 - Free bots passing your fight now join in against elite monsters, or when your health is low. The kill and its rewards stay yours.
 - Bots now travel across their map to hunt monsters that drop the gear they want.

@@ -47,7 +47,9 @@ public class PlayerTeamDistributionService {
 			return;
 		}
 
-		long expReward = StatFunctions.calculateExperienceReward(filteredStats.highestLevel, owner);
+		// Helper bots must not push real players out of party rewards (owner 8 Nov): the XP base and the
+		// 10-level rule below use the highest human member when there is one.
+		long expReward = StatFunctions.calculateExperienceReward(filteredStats.rewardLevel(), owner);
 
 		float instanceApMultiplier = owner.getPosition().getWorldMapInstance().getInstanceHandler().getApMultiplier();
 		for (Player member : filteredStats.players) {
@@ -60,8 +62,8 @@ public class PlayerTeamDistributionService {
 			int rewardDp = StatFunctions.calculateDPReward(member, owner);
 			float rewardAp = 1;
 
-			// Players 10 levels below highest member get 0 reward.
-			if (filteredStats.highestLevel - member.getLevel() >= 10) {
+			// Players 10 levels below highest member get 0 reward (humans: the highest human member).
+			if (tooLow(member.isPlayerBot(), member.getLevel(), filteredStats.highestLevel, filteredStats.highestHumanLevel)) {
 				rewardXp = 0;
 				rewardDp = 0;
 			}
@@ -104,15 +106,27 @@ public class PlayerTeamDistributionService {
 		}
 	}
 
+	/** The native 10-level rule; a human is measured against the highest human member, a bot against everyone. */
+	public static boolean tooLow(boolean bot, int level, int highest, int highestHuman) {
+		int top = !bot && highestHuman > 0 ? highestHuman : highest;
+		return top - level >= 10;
+	}
+
 	private static class PlayerTeamRewardStats implements Consumer<Player> {
 
 		final List<Player> players = new ArrayList<>();
 		final boolean disableRangeChecks;
 		int partyLvlSum = 0;
 		int highestLevel = 0;
+		int highestHumanLevel = 0;
 		int mentorCount = 0;
 		boolean hasLivingPlayer = false;
 		Npc owner;
+
+		/** The level party XP is computed for: the highest human member, else the highest member. */
+		int rewardLevel() {
+			return highestHumanLevel > 0 ? highestHumanLevel : highestLevel;
+		}
 
 		public PlayerTeamRewardStats(Npc owner, boolean disableRangeChecks) {
 			this.owner = owner;
@@ -135,6 +149,8 @@ public class PlayerTeamDistributionService {
 					partyLvlSum += member.getLevel();
 					if (member.getLevel() > highestLevel)
 						highestLevel = member.getLevel();
+					if (!member.isPlayerBot() && member.getLevel() > highestHumanLevel)
+						highestHumanLevel = member.getLevel();
 				}
 			}
 		}

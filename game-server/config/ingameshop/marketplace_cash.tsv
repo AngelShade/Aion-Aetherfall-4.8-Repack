@@ -95,21 +95,15 @@
 162000098	5	21000	recovery	60	Restores 1340 MP immediately. Reuse: 1 min. Offer contains 5 Fine Panacea of Mana items.
 162000091	5	15000	recovery	50	Restores 1130 HP immediately. Reuse: 1 min. Offer contains 5 Major Panacea of Life items.
 162000097	5	15000	recovery	50	Restores 1180 MP immediately. Reuse: 1 min. Offer contains 5 Major Panacea of Mana items.
-160003004	5	12000	food_drink	10	Grants +40 maximum MP for 15 min. Reuse: 5 sec. Offer contains 5 Augri Omelette items.
+160003004	5	3000	food_drink	10	Grants +40 maximum MP for 15 min. Reuse: 5 sec. Offer contains 5 Augri Omelette items.
 160003524	5	12000	food_drink	20	Grants +120 maximum MP for 15 min. Reuse: 5 sec. Offer contains 5 Beriti Cheese Omelette items.
 160003529	5	12000	food_drink	20	Grants +6 HP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Beriti Cheese Soup items.
 160003530	5	12000	food_drink	20	Grants +9 MP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Beriti Kirka Juice items.
-141000001	100	75000	upgrade_shards	20	A stack of Stigma Shard for combat or stigma use. This offer includes 100 shards.
-169000009	500	170000	upgrade_shards	50	A stack of Premium Power Shard for combat or stigma use. This offer includes 500 shards.
-169000010	500	275000	upgrade_shards	60	A stack of Superior Power Shard for combat or stigma use. This offer includes 500 shards.
-166000050	5	200000	upgrade_stones	50	Use L50 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000070	5	500000	upgrade_stones	60	Use L70 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000090	5	1000000	upgrade_stones	65	Use L90 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
+169000009	500	82500	upgrade_shards	50	A stack of Premium Power Shard for combat or stigma use. This offer includes 500 shards.
+169000010	500	137500	upgrade_shards	60	A stack of Superior Power Shard for combat or stigma use. This offer includes 500 shards.
 166100005	20	2000000	enchant_supplements	50	Use during an enchantment attempt on Fabled gear. Adds 15.0 percentage points to the server's success calculation, subject to its cap. 20 supplements per offer.
 167000749	10	500000	manastone_physical	60	Socket Manastone: Attack +5 / Crit Strike +8 into a compatible manastone slot to add Attack +5 and Crit Strike +8. Stone level 60; check the target equipment's level and free slots. 10 stones per offer.
 167000705	10	500000	manastone_magic	60	Socket Manastone: Magic Boost +27 / Magical Accuracy +7 into a compatible manastone slot to add Magic Boost +27 and Magical Accuracy +7. Stone level 60; check the target equipment's level and free slots. 10 stones per offer.
-188052083	1	2000000	gift_boxes	1	Open Small GM Gift Box to receive its server-defined contents. The unopened item arrives through Black Cloud mail.
-188052086	1	2000000	gift_boxes	1	Open Big GM Gift Box to receive its server-defined contents. The unopened item arrives through Black Cloud mail.
 188053624	1	200000	travel_bundles	50	Open Unified Return Scroll Bundle to receive its server-defined contents. The unopened item arrives through Black Cloud mail.
 110900083	1	125000	fashion_outfits	1	A outfit piece for the Ribbit Costume look. Use it to remodel compatible equipment; one appearance item is included.
 110900084	1	125000	fashion_outfits	1	A outfit piece for the Wedding Dress/Tuxedo look. Use it to remodel compatible equipment; one appearance item is included.
@@ -125,7 +119,7 @@
 164002023	5	15000	supply_scrolls	1	An Asmodian instant return scroll for Pandaemonium. This offer includes 5 scrolls.
 160000001	10	1000	food_drink	1	Grants +2 HP regeneration for 15 min. Reuse: 5 sec. Offer contains 10 Mercenary's Fruit Juice items.
 160000002	10	1000	food_drink	1	Grants +2 HP regeneration for 15 min. Reuse: 5 sec. Offer contains 10 Raider's Fruit Juice items.
-169000003	500	5000	supply_scrolls	1	Keep Minor Power Shard ready for combat or stigma use. This offer contains 500 shards.
+169000003	500	1500	supply_scrolls	1	Keep Minor Power Shard ready for combat or stigma use. This offer contains 500 shards.
 162000002	20	6000	recovery	10	Restores 37 HP immediately. Then restores 37 HP every 2 sec for 20 sec. Reuse: 30 sec. Offer contains 20 Minor Life Potion items.
 162000007	20	6000	recovery	10	Restores 59 MP immediately. Then restores 59 MP every 2 sec for 20 sec. Reuse: 30 sec. Offer contains 20 Minor Mana Potion items.
 162000041	20	7000	recovery	10	Restores 37 HP and 59 MP immediately. Then restores 37 HP every 2 sec for 20 sec and 59 MP every 2 sec for 20 sec. Reuse: 30 sec. Offer contains 20 Minor Recovery Potion items.
@@ -161,9 +155,8 @@
 164000134	20	75000	supply_scrolls	30	Use Greater Awakening Scroll for its listed travel or combat effect. This offer contains 20 scrolls.
 164002200	1	250000	summoned_npcs	10	Use on the ground to summon a warehouse manager for your character for 5 minutes. One summoning stone is delivered.
 165000001	20	30000	upgrade_tools	1	Extraction Tools supports equipment extraction or enhancement. Check its use action in item details. The offer contains 20 items.
-169000005	500	40000	upgrade_shards	20	Keep Power Shard ready for combat or stigma use. This offer contains 500 shards.
-169000011	500	375000	upgrade_shards	65	Keep Ancient Power Shard ready for combat or stigma use. This offer contains 500 shards.
-166000110	5	2200000	upgrade_stones	65	Use L110 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
+169000005	500	16500	upgrade_shards	20	Keep Power Shard ready for combat or stigma use. This offer contains 500 shards.
+169000011	500	187500	upgrade_shards	65	Keep Ancient Power Shard ready for combat or stigma use. This offer contains 500 shards.
 166100011	20	8000000	enchant_supplements	65	Use during an enchantment attempt on Mythic gear. Adds 15.0 percentage points to the server's success calculation, subject to its cap. 20 supplements per offer.
 167000845	10	400000	manastone_vitality	60	Socket Manastone: HP +95 / MP +47 into a compatible manastone slot to add HP +95 and MP +47. Stone level 60; check the target equipment's level and free slots. 10 stones per offer.
 167000850	10	400000	manastone_vitality	60	Socket Manastone: HP +95 / Crit Strike +8 into a compatible manastone slot to add HP +95 and Crit Strike +8. Stone level 60; check the target equipment's level and free slots. 10 stones per offer.
@@ -238,11 +231,11 @@
 169600045	1	90000	emotes	1	Unlock the Flag O expression or dance for your character. Use the delivered emotion card.
 169600046	1	90000	emotes	1	Unlock the Flag X expression or dance for your character. Use the delivered emotion card.
 169600102	1	90000	emotes	1	Unlock the Floor Sweep expression or dance for your character. Use the delivered emotion card.
-169600021	1	90000	emotes	1	Unlock the Flowers expression or dance for your character. Use the delivered emotion card.
-169600023	1	90000	emotes	1	Unlock the Heart expression or dance for your character. Use the delivered emotion card.
+169600021	1	30000	emotes	1	Unlock the Flowers expression or dance for your character. Use the delivered emotion card.
+169600023	1	30000	emotes	1	Unlock the Heart expression or dance for your character. Use the delivered emotion card.
 169600040	1	90000	emotes	1	Unlock the Hug Me expression or dance for your character. Use the delivered emotion card.
 169600035	1	90000	emotes	1	Unlock the Juggling expression or dance for your character. Use the delivered emotion card.
-169600024	1	90000	emotes	1	Unlock the Kiss expression or dance for your character. Use the delivered emotion card.
+169600024	1	30000	emotes	1	Unlock the Kiss expression or dance for your character. Use the delivered emotion card.
 169600201	1	90000	emotes	1	Unlock the Kowtow expression or dance for your character. Use the delivered emotion card.
 169600037	1	90000	emotes	1	Unlock the Paper Airplane expression or dance for your character. Use the delivered emotion card.
 169600044	1	90000	emotes	1	Unlock the Paper! expression or dance for your character. Use the delivered emotion card.
@@ -257,7 +250,7 @@
 169600042	1	90000	emotes	1	Unlock the Scissors! expression or dance for your character. Use the delivered emotion card.
 169600062	1	90000	emotes	1	Unlock the Serenade expression or dance for your character. Use the delivered emotion card.
 169600101	1	90000	emotes	1	Unlock the Serving an Omelette expression or dance for your character. Use the delivered emotion card.
-169600022	1	90000	emotes	1	Unlock the Shy Proposal expression or dance for your character. Use the delivered emotion card.
+169600022	1	30000	emotes	1	Unlock the Shy Proposal expression or dance for your character. Use the delivered emotion card.
 169600065	1	90000	emotes	1	Unlock the Sing expression or dance for your character. Use the delivered emotion card.
 169600186	1	90000	emotes	1	"Unlock the Sing ""Good Day"" expression or dance for your character. Use the delivered emotion card."
 169600187	1	90000	emotes	1	"Unlock the Sing ""You and I"" expression or dance for your character. Use the delivered emotion card."
@@ -270,30 +263,30 @@
 169600058	1	90000	emotes	1	Unlock the White Flag Up expression or dance for your character. Use the delivered emotion card.
 169600200	1	90000	emotes	1	Unlock the [Motion Card] The Dragon's Taunt expression or dance for your character. Use the delivered emotion card.
 169600218	1	90000	emotes	1	Unlock the [Performance Card] Random Halloween expression or dance for your character. Use the delivered emotion card.
-169600025	1	90000	emotes	1	Unlock the Birthday Celebration expression or dance for your character. Use the delivered emotion card.
+169600025	1	30000	emotes	1	Unlock the Birthday Celebration expression or dance for your character. Use the delivered emotion card.
 169600084	1	90000	emotes	1	Unlock the Groom Pet expression or dance for your character. Use the delivered emotion card.
-169600029	1	90000	emotes	1	Unlock the Hurray expression or dance for your character. Use the delivered emotion card.
-169600034	1	90000	emotes	1	Unlock the Look at the Mirror expression or dance for your character. Use the delivered emotion card.
-169600059	1	90000	emotes	1	Unlock the Play Guitar expression or dance for your character. Use the delivered emotion card.
-169600061	1	90000	emotes	1	Unlock the Play Violin expression or dance for your character. Use the delivered emotion card.
+169600029	1	30000	emotes	1	Unlock the Hurray expression or dance for your character. Use the delivered emotion card.
+169600034	1	30000	emotes	1	Unlock the Look at the Mirror expression or dance for your character. Use the delivered emotion card.
+169600059	1	30000	emotes	1	Unlock the Play Guitar expression or dance for your character. Use the delivered emotion card.
+169600061	1	30000	emotes	1	Unlock the Play Violin expression or dance for your character. Use the delivered emotion card.
 169600083	1	90000	emotes	1	Unlock the Play with Pet expression or dance for your character. Use the delivered emotion card.
-169600027	1	90000	emotes	1	Unlock the Pray expression or dance for your character. Use the delivered emotion card.
-169600032	1	90000	emotes	1	Unlock the Push Up expression or dance for your character. Use the delivered emotion card.
+169600027	1	30000	emotes	1	Unlock the Pray expression or dance for your character. Use the delivered emotion card.
+169600032	1	30000	emotes	1	Unlock the Push Up expression or dance for your character. Use the delivered emotion card.
 169600066	1	90000	emotes	1	Unlock the Snuggle Pet expression or dance for your character. Use the delivered emotion card.
-169600026	1	90000	emotes	1	Unlock the Toast expression or dance for your character. Use the delivered emotion card.
+169600026	1	30000	emotes	1	Unlock the Toast expression or dance for your character. Use the delivered emotion card.
 169600085	1	90000	emotes	1	Unlock the Train Pet expression or dance for your character. Use the delivered emotion card.
-169600028	1	90000	emotes	1	Unlock the Tribute expression or dance for your character. Use the delivered emotion card.
-169600033	1	90000	emotes	1	Unlock the Trust Me expression or dance for your character. Use the delivered emotion card.
+169600028	1	30000	emotes	1	Unlock the Tribute expression or dance for your character. Use the delivered emotion card.
+169600033	1	30000	emotes	1	Unlock the Trust Me expression or dance for your character. Use the delivered emotion card.
 160010410	5	12000	transformation_candy	40	Use Asmodian Female Empyrean Lord Transformation Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010409	5	12000	transformation_candy	40	Use Asmodian Male Empyrean Lord Transformation Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160003526	5	12000	food_drink	20	Grants +15 Evasion for 15 min. Reuse: 5 sec. Offer contains 5 Beriti Ksellid Salad items.
 160003525	5	12000	food_drink	20	Grants +30 Physical Accuracy for 15 min. Reuse: 5 sec. Offer contains 5 Beriti Rabano Curry items.
-160003509	5	12000	food_drink	10	Grants +2 HP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Brax Soup items.
+160003509	5	3000	food_drink	10	Grants +2 HP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Brax Soup items.
 160003523	5	12000	food_drink	20	Grants +120 maximum HP for 15 min. Reuse: 5 sec. Offer contains 5 Broiled Beriti Frillneck items.
-160003503	5	12000	food_drink	10	Grants +40 maximum HP for 15 min. Reuse: 5 sec. Offer contains 5 Broiled Brax items.
-160003013	5	12000	food_drink	20	Grants +80 maximum HP for 15 min. Reuse: 5 sec. Offer contains 5 Broiled Elroco items.
-160003513	5	12000	food_drink	20	Grants +80 maximum HP for 15 min. Reuse: 5 sec. Offer contains 5 Broiled Pluma items.
-160003003	5	12000	food_drink	10	Grants +40 maximum HP for 15 min. Reuse: 5 sec. Offer contains 5 Broiled Qooqoo items.
+160003503	5	3000	food_drink	10	Grants +40 maximum HP for 15 min. Reuse: 5 sec. Offer contains 5 Broiled Brax items.
+160003013	5	6000	food_drink	20	Grants +80 maximum HP for 15 min. Reuse: 5 sec. Offer contains 5 Broiled Elroco items.
+160003513	5	6000	food_drink	20	Grants +80 maximum HP for 15 min. Reuse: 5 sec. Offer contains 5 Broiled Pluma items.
+160003003	5	3000	food_drink	10	Grants +40 maximum HP for 15 min. Reuse: 5 sec. Offer contains 5 Broiled Qooqoo items.
 160010325	5	12000	transformation_candy	40	Use Captain Harlock Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010326	5	12000	transformation_candy	40	Use Captain Harlock Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010274	5	12000	transformation_candy	40	Use Clever Dandi Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
@@ -318,10 +311,10 @@
 160003556	5	12000	food_drink	60	Grants +12 HP regeneration, +18 MP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Fine Rally Serum items.
 160003559	5	12000	food_drink	30	Grants +6 Physical Attack, +30 Magic Boost for 15 min. Reuse: 5 sec. Offer contains 5 Focus Agent items.
 160003527	5	12000	food_drink	20	Grants +15 Magical Accuracy for 15 min. Reuse: 5 sec. Offer contains 5 Fried Beriti Griffon items.
-160003517	5	12000	food_drink	20	Grants +10 Magical Accuracy for 15 min. Reuse: 5 sec. Offer contains 5 Fried Mosbear items.
-160003507	5	12000	food_drink	10	Grants +5 Magical Accuracy for 15 min. Reuse: 5 sec. Offer contains 5 Fried Sparkie items.
-160003007	5	12000	food_drink	10	Grants +5 Magical Accuracy for 15 min. Reuse: 5 sec. Offer contains 5 Fried Sylphen items.
-160003017	5	12000	food_drink	20	Grants +10 Magical Accuracy for 15 min. Reuse: 5 sec. Offer contains 5 Fried Tog items.
+160003517	5	6000	food_drink	20	Grants +10 Magical Accuracy for 15 min. Reuse: 5 sec. Offer contains 5 Fried Mosbear items.
+160003507	5	3000	food_drink	10	Grants +5 Magical Accuracy for 15 min. Reuse: 5 sec. Offer contains 5 Fried Sparkie items.
+160003007	5	3000	food_drink	10	Grants +5 Magical Accuracy for 15 min. Reuse: 5 sec. Offer contains 5 Fried Sylphen items.
+160003017	5	6000	food_drink	20	Grants +10 Magical Accuracy for 15 min. Reuse: 5 sec. Offer contains 5 Fried Tog items.
 160010105	5	12000	transformation_candy	50	Use Fuzzy Polar Bear Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010106	5	12000	transformation_candy	50	Use Fuzzy Polar Bear Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010281	5	12000	transformation_candy	40	Use Gold Inquin Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
@@ -339,7 +332,7 @@
 160005036	5	12000	food_drink	55	Grants +3 Physical Attack, +60 Physical Accuracy, +10 HP regeneration, +15 MP regeneration for 1 hr. Reuse: 5 sec. Offer contains 5 Hero's Sword items.
 160005039	5	12000	food_drink	55	Grants +15 Magic Boost, +60 Magical Accuracy, +10 HP regeneration, +15 MP regeneration for 1 hr. Reuse: 5 sec. Offer contains 5 Hero's Tome items.
 160005037	5	12000	food_drink	55	Grants +15 Magic Boost, +60 Magical Accuracy, +10 HP regeneration, +15 MP regeneration for 1 hr. Reuse: 5 sec. Offer contains 5 Hero's Warhammer items.
-160003514	5	12000	food_drink	20	Grants +80 maximum MP for 15 min. Reuse: 5 sec. Offer contains 5 Horto Omelette items.
+160003514	5	6000	food_drink	20	Grants +80 maximum MP for 15 min. Reuse: 5 sec. Offer contains 5 Horto Omelette items.
 160010178	5	12000	transformation_candy	40	Use Invincible Gold Inquin Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010179	5	12000	transformation_candy	40	Use Invincible Gold Inquin Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010182	5	12000	transformation_candy	40	Use Invincible Green Inquin Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
@@ -352,11 +345,11 @@
 160010181	5	12000	transformation_candy	40	Use Invincible Yellow Inquin Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010329	5	12000	transformation_candy	40	Use Kei Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010330	5	12000	transformation_candy	40	Use Kei Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
-160003505	5	12000	food_drink	10	Grants +10 Physical Accuracy for 15 min. Reuse: 5 sec. Offer contains 5 Kimita Curry items.
+160003505	5	3000	food_drink	10	Grants +10 Physical Accuracy for 15 min. Reuse: 5 sec. Offer contains 5 Kimita Curry items.
 160010103	5	12000	transformation_candy	50	Use Kind Shugo Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010104	5	12000	transformation_candy	50	Use Kind Shugo Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
-160003516	5	12000	food_drink	20	Grants +10 Evasion for 15 min. Reuse: 5 sec. Offer contains 5 Krimer Salad items.
-160003014	5	12000	food_drink	20	Grants +80 maximum MP for 15 min. Reuse: 5 sec. Offer contains 5 Kukuru Omelette items.
+160003516	5	6000	food_drink	20	Grants +10 Evasion for 15 min. Reuse: 5 sec. Offer contains 5 Krimer Salad items.
+160003014	5	6000	food_drink	20	Grants +80 maximum MP for 15 min. Reuse: 5 sec. Offer contains 5 Kukuru Omelette items.
 160003558	5	12000	food_drink	20	Grants +4 Physical Attack, +20 Magic Boost for 15 min. Reuse: 5 sec. Offer contains 5 Lesser Focus Agent items.
 160003552	5	12000	food_drink	20	Grants +4 HP regeneration, +6 MP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Lesser Rally Serum items.
 160003543	5	32000	food_drink	40	Grants +40 Physical Accuracy for 15 min. Reuse: 5 sec. Offer contains 5 Level 40 Accuracy Increase Shop Food items.
@@ -369,19 +362,19 @@
 160003542	5	32000	food_drink	40	Grants +160 maximum MP for 15 min. Reuse: 5 sec. Offer contains 5 Level 40 Maximum MP Increase Shop Food items.
 160003548	5	32000	food_drink	40	Grants +12 MP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Level 40 MP Regeneration Shop Food items.
 160003546	5	32000	food_drink	40	Grants +20 Magic Resist for 15 min. Reuse: 5 sec. Offer contains 5 Level 40 Resist Magic Increase Shop Food items.
-160003006	5	12000	food_drink	10	Grants +5 Evasion for 15 min. Reuse: 5 sec. Offer contains 5 Lini Salad items.
-160003010	5	12000	food_drink	10	Grants +3 MP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Lisheri Juice items.
+160003006	5	3000	food_drink	10	Grants +5 Evasion for 15 min. Reuse: 5 sec. Offer contains 5 Lini Salad items.
+160003010	5	3000	food_drink	10	Grants +3 MP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Lisheri Juice items.
 160003561	5	12000	food_drink	50	Grants +10 Physical Attack, +50 Magic Boost for 15 min. Reuse: 5 sec. Offer contains 5 Major Focus Agent items.
 160003555	5	12000	food_drink	50	Grants +10 HP regeneration, +15 MP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Major Rally Serum items.
-160003005	5	12000	food_drink	10	Grants +10 Physical Accuracy for 15 min. Reuse: 5 sec. Offer contains 5 Maricca Curry items.
+160003005	5	3000	food_drink	10	Grants +10 Physical Accuracy for 15 min. Reuse: 5 sec. Offer contains 5 Maricca Curry items.
 160005001	5	12000	food_drink	20	Grants +80 maximum HP, +80 maximum MP for 30 min. Reuse: 5 sec. Offer contains 5 Meat Dumpling items.
-160003020	5	12000	food_drink	20	Grants +6 MP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Mela Juice items.
-160003016	5	12000	food_drink	20	Grants +10 Evasion for 15 min. Reuse: 5 sec. Offer contains 5 Mela Salad items.
-160003009	5	12000	food_drink	10	Grants +2 HP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Methu Soup items.
+160003020	5	6000	food_drink	20	Grants +6 MP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Mela Juice items.
+160003016	5	6000	food_drink	20	Grants +10 Evasion for 15 min. Reuse: 5 sec. Offer contains 5 Mela Salad items.
+160003009	5	3000	food_drink	10	Grants +2 HP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Methu Soup items.
 160003557	5	12000	food_drink	10	Grants +2 Physical Attack, +10 Magic Boost for 15 min. Reuse: 5 sec. Offer contains 5 Minor Focus Agent items.
 160003551	5	12000	food_drink	10	Grants +2 HP regeneration, +3 MP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Minor Rally Serum items.
-160003519	5	12000	food_drink	20	Grants +4 HP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Mosbear Soup items.
-160003510	5	12000	food_drink	10	Grants +3 MP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Neira Juice items.
+160003519	5	6000	food_drink	20	Grants +4 HP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Mosbear Soup items.
+160003510	5	3000	food_drink	10	Grants +3 MP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Neira Juice items.
 160010307	5	12000	transformation_candy	40	Use Nimble Ailu Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010308	5	12000	transformation_candy	40	Use Nimble Ailu Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010319	5	12000	transformation_candy	40	Use Nimble Iron Cobalt Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
@@ -408,25 +401,25 @@
 160010048	5	12000	transformation_candy	40	Use Polar Bear Form Candy d to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010049	5	12000	transformation_candy	40	Use Polar Bear Form Candy e to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010050	5	12000	transformation_candy	40	Use Polar Bear Form Candy e to change your character's form and receive its listed effect. This offer contains 5 candies.
-160003019	5	12000	food_drink	20	Grants +4 HP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Potcrab Soup items.
-160003506	5	12000	food_drink	10	Grants +5 Evasion for 15 min. Reuse: 5 sec. Offer contains 5 Puchida Salad items.
+160003019	5	6000	food_drink	20	Grants +4 HP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Potcrab Soup items.
+160003506	5	3000	food_drink	10	Grants +5 Evasion for 15 min. Reuse: 5 sec. Offer contains 5 Puchida Salad items.
 160005002	5	12000	food_drink	20	Grants +4 Physical Attack, +20 Magic Boost for 30 min. Reuse: 5 sec. Offer contains 5 Qooqoo Bulgogi items.
 160003553	5	12000	food_drink	30	Grants +6 HP regeneration, +9 MP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Rally Serum items.
-160003520	5	12000	food_drink	20	Grants +6 MP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Raydam Juice items.
+160003520	5	6000	food_drink	20	Grants +6 MP regeneration for 15 min. Reuse: 5 sec. Offer contains 5 Raydam Juice items.
 160010279	5	12000	transformation_candy	40	Use Red Inquin Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010280	5	12000	transformation_candy	40	Use Red Inquin Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
-160003515	5	12000	food_drink	20	Grants +20 Physical Accuracy for 15 min. Reuse: 5 sec. Offer contains 5 Ringa Curry items.
+160003515	5	6000	food_drink	20	Grants +20 Physical Accuracy for 15 min. Reuse: 5 sec. Offer contains 5 Ringa Curry items.
 160003521	5	12000	food_drink	20	Grants +6 Physical Attack for 15 min. Reuse: 5 sec. Offer contains 5 Roast Beriti Tog items.
-160003501	5	12000	food_drink	10	Grants +2 Physical Attack for 15 min. Reuse: 5 sec. Offer contains 5 Roast Brax items.
-160003001	5	12000	food_drink	10	Grants +2 Physical Attack for 15 min. Reuse: 5 sec. Offer contains 5 Roast Porgus items.
-160003511	5	12000	food_drink	20	Grants +4 Physical Attack for 15 min. Reuse: 5 sec. Offer contains 5 Roast Slink items.
-160003011	5	12000	food_drink	20	Grants +4 Physical Attack for 15 min. Reuse: 5 sec. Offer contains 5 Roast Starcrab items.
-160003015	5	12000	food_drink	20	Grants +20 Physical Accuracy for 15 min. Reuse: 5 sec. Offer contains 5 Rubus Curry items.
+160003501	5	3000	food_drink	10	Grants +2 Physical Attack for 15 min. Reuse: 5 sec. Offer contains 5 Roast Brax items.
+160003001	5	3000	food_drink	10	Grants +2 Physical Attack for 15 min. Reuse: 5 sec. Offer contains 5 Roast Porgus items.
+160003511	5	6000	food_drink	20	Grants +4 Physical Attack for 15 min. Reuse: 5 sec. Offer contains 5 Roast Slink items.
+160003011	5	6000	food_drink	20	Grants +4 Physical Attack for 15 min. Reuse: 5 sec. Offer contains 5 Roast Starcrab items.
+160003015	5	6000	food_drink	20	Grants +20 Physical Accuracy for 15 min. Reuse: 5 sec. Offer contains 5 Rubus Curry items.
 160003522	5	12000	food_drink	20	Grants +30 Magic Boost for 15 min. Reuse: 5 sec. Offer contains 5 Savory Beriti Fungen items.
-160003002	5	12000	food_drink	10	Grants +10 Magic Boost for 15 min. Reuse: 5 sec. Offer contains 5 Savory Junia items.
-160003012	5	12000	food_drink	20	Grants +20 Magic Boost for 15 min. Reuse: 5 sec. Offer contains 5 Savory Mela items.
-160003502	5	12000	food_drink	10	Grants +10 Magic Boost for 15 min. Reuse: 5 sec. Offer contains 5 Savory Micory items.
-160003512	5	12000	food_drink	20	Grants +20 Magic Boost for 15 min. Reuse: 5 sec. Offer contains 5 Savory Tikel items.
+160003002	5	3000	food_drink	10	Grants +10 Magic Boost for 15 min. Reuse: 5 sec. Offer contains 5 Savory Junia items.
+160003012	5	6000	food_drink	20	Grants +20 Magic Boost for 15 min. Reuse: 5 sec. Offer contains 5 Savory Mela items.
+160003502	5	3000	food_drink	10	Grants +10 Magic Boost for 15 min. Reuse: 5 sec. Offer contains 5 Savory Micory items.
+160003512	5	6000	food_drink	20	Grants +20 Magic Boost for 15 min. Reuse: 5 sec. Offer contains 5 Savory Tikel items.
 160003534	5	30000	food_drink	50	Grants +50 Magic Boost for 15 min. Also applies Befuddled, lowering Magical Accuracy with a chance of reduced MP regeneration. Reuse: 5 sec. Offer contains 5 Shulack Double Chili items.
 160003535	5	30000	food_drink	50	Grants +200 maximum HP for 15 min. Also applies Full Stomach, lowering Evasion with a chance of reduced MP regeneration. Reuse: 5 sec. Offer contains 5 Shulack Super Duper Dumpling items.
 160003533	5	30000	food_drink	50	Grants +10 Physical Attack for 15 min. Also applies Stomachache, lowering Physical Accuracy with a chance of reduced MP regeneration. Reuse: 5 sec. Offer contains 5 Shulack Whole Tub Honey Pudding items.
@@ -437,10 +430,10 @@
 160010127	5	12000	transformation_candy	40	Use Solorius Tiger Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010128	5	12000	transformation_candy	40	Use Solorius Tiger Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160003528	5	12000	food_drink	20	Grants +15 Magic Resist for 15 min. Reuse: 5 sec. Offer contains 5 Spicy Beriti Porgus items.
-160003508	5	12000	food_drink	10	Grants +5 Magic Resist for 15 min. Reuse: 5 sec. Offer contains 5 Spicy Brax items.
-160003018	5	12000	food_drink	20	Grants +10 Magic Resist for 15 min. Reuse: 5 sec. Offer contains 5 Spicy Potcrab items.
-160003008	5	12000	food_drink	10	Grants +5 Magic Resist for 15 min. Reuse: 5 sec. Offer contains 5 Spicy Slink items.
-160003518	5	12000	food_drink	20	Grants +10 Magic Resist for 15 min. Reuse: 5 sec. Offer contains 5 Spicy Tog items.
+160003508	5	3000	food_drink	10	Grants +5 Magic Resist for 15 min. Reuse: 5 sec. Offer contains 5 Spicy Brax items.
+160003018	5	6000	food_drink	20	Grants +10 Magic Resist for 15 min. Reuse: 5 sec. Offer contains 5 Spicy Potcrab items.
+160003008	5	3000	food_drink	10	Grants +5 Magic Resist for 15 min. Reuse: 5 sec. Offer contains 5 Spicy Slink items.
+160003518	5	6000	food_drink	20	Grants +10 Magic Resist for 15 min. Reuse: 5 sec. Offer contains 5 Spicy Tog items.
 160010273	5	12000	transformation_candy	40	Use Stalwart Dandi Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010275	5	12000	transformation_candy	40	Use Stalwart Dandi Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160003532	5	99000	transformation_candy	40	Transforms your character for 10 min. Skills and flight are unavailable in this form. Reuse: 5 sec. Offer contains 5 Steel Rake Scout Form Candy items.
@@ -471,7 +464,7 @@
 160010068	5	12000	transformation_candy	40	Use Tiger Form Candy D to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010069	5	12000	transformation_candy	40	Use Tiger Form Candy E to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010070	5	12000	transformation_candy	40	Use Tiger Form Candy E to change your character's form and receive its listed effect. This offer contains 5 candies.
-160003504	5	12000	food_drink	10	Grants +40 maximum MP for 15 min. Reuse: 5 sec. Offer contains 5 Umeru Omelette items.
+160003504	5	3000	food_drink	10	Grants +40 maximum MP for 15 min. Reuse: 5 sec. Offer contains 5 Umeru Omelette items.
 160010287	5	12000	transformation_candy	40	Use Violet Inquin Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010288	5	12000	transformation_candy	40	Use Violet Inquin Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010305	5	12000	transformation_candy	40	Use Wise Ailu Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
@@ -486,9 +479,6 @@
 160010324	5	12000	transformation_candy	40	Use Wunderkind Iron Cobalt Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010283	5	12000	transformation_candy	40	Use Yellow Inquin Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
 160010284	5	12000	transformation_candy	40	Use Yellow Inquin Form Candy to change your character's form and receive its listed effect. This offer contains 5 candies.
-110900338	1	2000000	fashion_outfits	1	Use Seraphim GM Costume to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-110900339	1	2000000	fashion_outfits	1	Use Shedim GM Costume to remodel compatible armor and carry its appearance into battle. One item is delivered by Black Cloud mail.
-101300992	1	2000000	weapon_melee	1	Use Shedim GM Weapon to remodel compatible polearm and carry its appearance into battle. One item is delivered by Black Cloud mail.
 169800157	1	200000	fashion_hair	1	A hairstyle ticket for [Hair Change Ticket] 'Nobody' Flip. Check its faction and gender requirements before buying.
 169800458	1	200000	fashion_hair	1	A hairstyle ticket for [Hair Change Ticket] 'Nobody' Flip. Check its faction and gender requirements before buying.
 169800154	1	200000	fashion_hair	1	A hairstyle ticket for [Hair Change Ticket] 'Tell Me' Ponytail. Check its faction and gender requirements before buying.
@@ -812,10 +802,10 @@
 190010001	1	350000	pets	1	Adopt a companion with Potbelly Inquin Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190000031	1	450000	pets	1	Adopt a companion with Pudgy Porgus Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190000055	1	350000	pets	1	Adopt a companion with Purple Ribbit Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000011	1	350000	pets	1	Adopt a companion with Quick Kirca Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000011	1	210000	pets	1	Adopt a companion with Quick Kirca Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020161	1	350000	pets	1	Adopt a companion with Red Bulldozer Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020086	1	350000	pets	1	Adopt a companion with Red Diabol Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190000010	1	350000	pets	1	Adopt a companion with Red Eye Larail Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
+190000010	1	210000	pets	1	Adopt a companion with Red Eye Larail Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190000060	1	350000	pets	1	Adopt a companion with Red Ribbit Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020076	1	350000	pets	1	Adopt a companion with Red Shell Potcrab Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190000059	1	350000	pets	1	Adopt a companion with Ribbitron Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
@@ -875,7 +865,6 @@
 190020027	1	350000	pets	1	Adopt a companion with Tin Narky Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020174	1	350000	pets	1	Adopt a companion with Traveling Kitter Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190000071	1	350000	pets	1	Adopt a companion with Turkish Kitter Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
-190010003	1	350000	pets	1	Adopt a companion with Unused Pet. Use the egg from your inventory after it arrives by Black Cloud mail.
 190000062	1	350000	pets	1	Adopt a companion with Violet Ribbit Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020064	1	350000	pets	1	Adopt a companion with Watchful Ailu Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
 190020081	1	350000	pets	1	Adopt a companion with Waxy Humpback Worg Egg. Use the egg from your inventory after it arrives by Black Cloud mail.
@@ -1101,33 +1090,33 @@
 125040104	1	90000	fashion_headwear	1	Use Trickster's Fungie Hat to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
 125040105	1	90000	fashion_headwear	1	Use Trickster's Sparkie Hat to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
 125040106	1	90000	fashion_headwear	1	Use Trickster's Elroco Hat to remodel compatible headgear and carry its appearance into battle. One item is delivered by Black Cloud mail.
-187060103	1	600000	wing_permanent	65	Equip Prestige Wings in the wing slot for its listed flight attributes and appearance. Check its level requirement before purchase.
+187060103	1	6000000	wing_permanent	65	Equip Prestige Wings in the wing slot for its listed flight attributes and appearance. Check its level requirement before purchase.
 187060136	1	600000	wing_permanent	30	Equip Gilded Steampunk Wings in the wing slot for its listed flight attributes and appearance. Check its level requirement before purchase.
 187060142	1	600000	wing_permanent	30	Equip Precious Steampunk Wings in the wing slot for its listed flight attributes and appearance. Check its level requirement before purchase.
 187060148	1	600000	wing_permanent	30	Equip Silvered Steampunk Wings in the wing slot for its listed flight attributes and appearance. Check its level requirement before purchase.
 187060154	1	600000	wing_permanent	30	Equip Blitzbolt Wings in the wing slot for its listed flight attributes and appearance. Check its level requirement before purchase.
-187060162	1	600000	wing_permanent	65	Equip Wings of Agony in the wing slot for its listed flight attributes and appearance. Check its level requirement before purchase.
-187060166	1	600000	wing_permanent	65	Equip Trillirunerk's Ice Flame Feather in the wing slot for its listed flight attributes and appearance. Check its level requirement before purchase.
-187060170	1	600000	wing_permanent	65	Equip Trillirunerk's Blue Flame Feather in the wing slot for its listed flight attributes and appearance. Check its level requirement before purchase.
-187060176	1	600000	wing_permanent	65	Equip Strengthened Glider in the wing slot for its listed flight attributes and appearance. Check its level requirement before purchase.
-164000085	1	30000	travel	1	Use Sanctum Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
-164000086	1	30000	travel	1	Use Verteron Citadel Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
-164000087	1	30000	travel	1	Use Eltnen Fortress Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
-164000088	1	30000	travel	1	Use New Heiron Gate Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
-164000089	1	30000	travel	1	Use Pandaemonium Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
-164000090	1	30000	travel	1	Use Altgard Fortress Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
-164000091	1	30000	travel	1	Use Morheim Fortress Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
-164000092	1	30000	travel	1	Use Beluslan Fortress Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
-164000093	1	30000	travel	1	Use Observatory Orb of Returning to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
-164000094	1	30000	travel	1	Use Orb of Return to Baltasar Hill Village to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
+187060162	1	6000000	wing_permanent	65	Equip Wings of Agony in the wing slot for its listed flight attributes and appearance. Check its level requirement before purchase.
+187060166	1	6000000	wing_permanent	65	Equip Trillirunerk's Ice Flame Feather in the wing slot for its listed flight attributes and appearance. Check its level requirement before purchase.
+187060170	1	6000000	wing_permanent	65	Equip Trillirunerk's Blue Flame Feather in the wing slot for its listed flight attributes and appearance. Check its level requirement before purchase.
+187060176	1	6000000	wing_permanent	65	Equip Strengthened Glider in the wing slot for its listed flight attributes and appearance. Check its level requirement before purchase.
+164000085	1	3150	travel	1	Use Sanctum Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
+164000086	1	3150	travel	1	Use Verteron Citadel Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
+164000087	1	5250	travel	1	Use Eltnen Fortress Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
+164000088	1	9450	travel	1	Use New Heiron Gate Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
+164000089	1	3150	travel	1	Use Pandaemonium Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
+164000090	1	3150	travel	1	Use Altgard Fortress Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
+164000091	1	5250	travel	1	Use Morheim Fortress Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
+164000092	1	9450	travel	1	Use Beluslan Fortress Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
+164000093	1	24000	travel	1	Use Observatory Orb of Returning to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
+164000094	1	24000	travel	1	Use Orb of Return to Baltasar Hill Village to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
 164000097	1	30000	travel	25	Use Teminon Fortress Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
 164000098	1	30000	travel	25	Use Primum Fortress Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
-164000106	1	30000	travel	50	Use Inggison Illusion Fortress Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
-164000107	1	30000	travel	50	Use Gelkmaros Fortress Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
-164000152	1	30000	travel	1	Use Kaisinel Academy Teleport to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
-164000153	1	30000	travel	1	Use Marchutan Priory Teleport to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
-164000184	1	30000	travel	1	Use Oriel Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
-164000185	1	30000	travel	1	Use Pernon Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
+164000106	1	24570	travel	50	Use Inggison Illusion Fortress Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
+164000107	1	24570	travel	50	Use Gelkmaros Fortress Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
+164000152	1	24000	travel	1	Use Kaisinel Academy Teleport to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
+164000153	1	24000	travel	1	Use Marchutan Priory Teleport to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
+164000184	1	4500	travel	1	Use Oriel Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
+164000185	1	4500	travel	1	Use Pernon Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
 164000250	1	30000	travel	1	Use [Event] Quick-return Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
 164000317	1	49200	travel	1	Use Lumewillow Glade Scout Base Return Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
 164000318	1	49200	travel	1	Use Pinnacle Cataract Outpost Return Scroll to travel to its listed return destination. Check faction, location, and any duration requirements in the item details before buying.
@@ -1301,16 +1290,16 @@
 187000115	1	2687303	wing_permanent	65	Equip Noble Greenkeeper's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000116	1	2687303	wing_permanent	65	Equip Smart Greenkeeper's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000118	1	20154773	wing_skins	65	A wing appearance for the wing slot. Check Silona Lord's Pinions (7 days) for its duration and flight attributes in the item details before buying.
-187000121	1	3224763	wing_permanent	65	Equip Hyperion Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000129	1	3224763	wing_permanent	65	Equip Brazen Bulwark Burster in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000121	1	32247630	wing_permanent	65	Equip Hyperion Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000129	1	32247630	wing_permanent	65	Equip Brazen Bulwark Burster in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000130	1	2687303	wing_permanent	65	Equip Bulwark Burster in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000143	1	3224763	wing_permanent	65	Equip Pure Dynatoum's Radiant Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000143	1	32247630	wing_permanent	65	Equip Pure Dynatoum's Radiant Wing Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000149	1	1450000	wing_permanent	55	Equip Wing Feather of Allure in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000150	1	1450000	wing_permanent	60	Equip Golden Wing Feather of Allure in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000151	1	1450000	wing_permanent	60	Equip Bright Wing Feather of Allure in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000155	1	3224763	wing_permanent	65	Equip Brigade General Vasharti's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000156	1	3224763	wing_permanent	65	Equip Glimmering Wing Feather of Balaur Lord in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187000157	1	3224763	wing_permanent	65	Equip Beritra's Phantom Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000155	1	32247630	wing_permanent	65	Equip Brigade General Vasharti's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000156	1	32247630	wing_permanent	65	Equip Glimmering Wing Feather of Balaur Lord in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187000157	1	32247630	wing_permanent	65	Equip Beritra's Phantom Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000158	1	1450000	wing_permanent	60	Equip Wing Feather of Rentus Recovery Squad in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000159	1	2149842	wing_permanent	65	Equip Courageous Silverine's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187000160	1	2149842	wing_permanent	65	Equip Wise Silverine's Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
@@ -1486,10 +1475,10 @@
 187060152	1	110000	wing_skins	30	A wing appearance for the wing slot. Check Silvered Steampunk Wings (15 days) for its duration and flight attributes in the item details before buying.
 187060153	1	350000	wing_skins	30	A wing appearance for the wing slot. Check Silvered Steampunk Wings (30 days) for its duration and flight attributes in the item details before buying.
 187060156	1	110000	wing_skins	30	A wing appearance for the wing slot. Check Blitzbolt Wings (1 Day) for its duration and flight attributes in the item details before buying.
-187060161	1	1450000	wing_permanent	65	Equip Blitzbolt Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
-187060177	1	1450000	wing_permanent	65	Equip Aether Glider in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187060161	1	14500000	wing_permanent	65	Equip Blitzbolt Wings in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187060177	1	14500000	wing_permanent	65	Equip Aether Glider in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187060179	1	110000	wing_skins	30	A wing appearance for the wing slot. Check Aether Glider (1 day) for its duration and flight attributes in the item details before buying.
-187060181	1	1450000	wing_permanent	65	Equip [Event] Yume's Faerie Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
+187060181	1	14500000	wing_permanent	65	Equip [Event] Yume's Faerie Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 187060182	1	850000	wing_permanent	40	Equip [Event] Yume's Sparkling Feather in your wing slot. Its flight attributes and required character level appear in the item details; one permanent wing item is delivered.
 188600003	1	140000	entry_scrolls	30	Use Sulfur Tree Nest Bonus Entry Scroll to clear the matching instance entry cooldown. It grants another entry only when that instance and its entry rules are available to your character.
 188600004	1	140000	entry_scrolls	30	Use Right Wing Chamber Bonus Entry Scroll to clear the matching instance entry cooldown. It grants another entry only when that instance and its entry rules are available to your character.
@@ -1584,192 +1573,6 @@
 164002198	1	250000	summoned_npcs	1	Use on the ground to summon a general goods merchant for your character for 5 minutes. Asmodian item. One summoning stone is delivered.
 164002199	1	350000	summoned_npcs	1	Use on the ground to summon a general goods merchant for your group for 5 minutes. Asmodian item. One summoning stone is delivered.
 164002201	1	350000	summoned_npcs	1	Use on the ground to summon a warehouse manager for your group for 5 minutes. One summoning stone is delivered.
-166000001	5	1000	upgrade_stones	1	Use L1 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000002	5	1000	upgrade_stones	1	Use L2 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000003	5	1000	upgrade_stones	1	Use L3 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000004	5	1000	upgrade_stones	1	Use L4 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000005	5	1000	upgrade_stones	1	Use L5 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000006	5	1000	upgrade_stones	1	Use L6 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000007	5	1000	upgrade_stones	1	Use L7 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000008	5	1000	upgrade_stones	1	Use L8 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000009	5	1000	upgrade_stones	1	Use L9 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000010	5	1000	upgrade_stones	1	Use L10 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000011	5	1000	upgrade_stones	1	Use L11 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000012	5	5000	upgrade_stones	1	Use L12 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000013	5	5000	upgrade_stones	1	Use L13 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000014	5	5000	upgrade_stones	1	Use L14 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000015	5	5000	upgrade_stones	1	Use L15 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000016	5	5000	upgrade_stones	1	Use L16 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000017	5	10000	upgrade_stones	1	Use L17 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000018	5	10000	upgrade_stones	1	Use L18 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000019	5	10000	upgrade_stones	1	Use L19 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000020	5	15000	upgrade_stones	1	Use L20 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000021	5	15000	upgrade_stones	1	Use L21 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000022	5	15000	upgrade_stones	2	Use L22 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000023	5	20000	upgrade_stones	3	Use L23 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000024	5	20000	upgrade_stones	4	Use L24 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000025	5	25000	upgrade_stones	5	Use L25 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000026	5	30000	upgrade_stones	6	Use L26 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000027	5	30000	upgrade_stones	7	Use L27 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000028	5	35000	upgrade_stones	8	Use L28 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000029	5	40000	upgrade_stones	9	Use L29 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000030	5	45000	upgrade_stones	10	Use L30 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000031	5	50000	upgrade_stones	11	Use L31 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000032	5	50000	upgrade_stones	12	Use L32 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000033	5	55000	upgrade_stones	13	Use L33 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000034	5	65000	upgrade_stones	14	Use L34 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000035	5	70000	upgrade_stones	15	Use L35 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000036	5	75000	upgrade_stones	16	Use L36 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000037	5	80000	upgrade_stones	17	Use L37 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000038	5	90000	upgrade_stones	18	Use L38 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000039	5	95000	upgrade_stones	19	Use L39 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000040	5	100000	upgrade_stones	20	Use L40 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000041	5	110000	upgrade_stones	21	Use L41 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000042	5	120000	upgrade_stones	22	Use L42 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000043	5	125000	upgrade_stones	23	Use L43 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000044	5	135000	upgrade_stones	24	Use L44 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000045	5	145000	upgrade_stones	25	Use L45 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000046	5	155000	upgrade_stones	26	Use L46 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000047	5	165000	upgrade_stones	27	Use L47 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000048	5	175000	upgrade_stones	28	Use L48 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000049	5	190000	upgrade_stones	29	Use L49 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000051	5	210000	upgrade_stones	31	Use L51 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000052	5	225000	upgrade_stones	32	Use L52 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000053	5	240000	upgrade_stones	33	Use L53 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000054	5	250000	upgrade_stones	34	Use L54 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000055	5	265000	upgrade_stones	35	Use L55 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000056	5	280000	upgrade_stones	36	Use L56 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000057	5	295000	upgrade_stones	37	Use L57 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000058	5	310000	upgrade_stones	38	Use L58 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000059	5	330000	upgrade_stones	39	Use L59 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000060	5	345000	upgrade_stones	40	Use L60 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000061	5	365000	upgrade_stones	41	Use L61 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000062	5	380000	upgrade_stones	42	Use L62 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000063	5	400000	upgrade_stones	43	Use L63 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000064	5	420000	upgrade_stones	44	Use L64 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000065	5	440000	upgrade_stones	45	Use L65 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000066	5	460000	upgrade_stones	46	Use L66 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000067	5	480000	upgrade_stones	47	Use L67 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000068	5	505000	upgrade_stones	48	Use L68 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000069	5	525000	upgrade_stones	49	Use L69 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000071	5	575000	upgrade_stones	51	Use L71 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000072	5	595000	upgrade_stones	52	Use L72 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000073	5	620000	upgrade_stones	53	Use L73 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000074	5	650000	upgrade_stones	54	Use L74 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000075	5	675000	upgrade_stones	55	Use L75 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000076	5	700000	upgrade_stones	56	Use L76 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000077	5	730000	upgrade_stones	57	Use L77 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000078	5	760000	upgrade_stones	58	Use L78 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000079	5	790000	upgrade_stones	59	Use L79 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000080	5	820000	upgrade_stones	60	Use L80 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000081	5	850000	upgrade_stones	61	Use L81 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000082	5	880000	upgrade_stones	62	Use L82 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000083	5	915000	upgrade_stones	63	Use L83 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000084	5	950000	upgrade_stones	64	Use L84 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000085	5	985000	upgrade_stones	65	Use L85 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000086	5	1020000	upgrade_stones	65	Use L86 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000087	5	1055000	upgrade_stones	65	Use L87 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000088	5	1090000	upgrade_stones	65	Use L88 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000089	5	1130000	upgrade_stones	65	Use L89 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000091	5	1205000	upgrade_stones	65	Use L91 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000092	5	1245000	upgrade_stones	65	Use L92 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000093	5	1285000	upgrade_stones	65	Use L93 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000094	5	1330000	upgrade_stones	65	Use L94 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000095	5	1370000	upgrade_stones	65	Use L95 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000096	5	1415000	upgrade_stones	65	Use L96 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000097	5	1460000	upgrade_stones	65	Use L97 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000098	5	1505000	upgrade_stones	65	Use L98 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000099	5	1550000	upgrade_stones	65	Use L99 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000100	5	1600000	upgrade_stones	65	Use L100 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000101	5	1650000	upgrade_stones	65	Use L101 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000102	5	1700000	upgrade_stones	65	Use L102 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000103	5	1750000	upgrade_stones	65	Use L103 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000104	5	1800000	upgrade_stones	65	Use L104 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000105	5	1850000	upgrade_stones	65	Use L105 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000106	5	1905000	upgrade_stones	65	Use L106 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000107	5	1960000	upgrade_stones	65	Use L107 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000108	5	2015000	upgrade_stones	65	Use L108 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000109	5	2070000	upgrade_stones	65	Use L109 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000111	5	2190000	upgrade_stones	65	Use L111 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000112	5	2250000	upgrade_stones	65	Use L112 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000113	5	2310000	upgrade_stones	65	Use L113 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000114	5	2370000	upgrade_stones	65	Use L114 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000115	5	2435000	upgrade_stones	65	Use L115 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000116	5	2495000	upgrade_stones	65	Use L116 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000117	5	2565000	upgrade_stones	65	Use L117 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000118	5	2630000	upgrade_stones	65	Use L118 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000119	5	2695000	upgrade_stones	65	Use L119 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000120	5	2765000	upgrade_stones	65	Use L120 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000121	5	2835000	upgrade_stones	65	Use L121 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000122	5	2905000	upgrade_stones	65	Use L122 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000123	5	2975000	upgrade_stones	65	Use L123 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000124	5	3050000	upgrade_stones	65	Use L124 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000125	5	3125000	upgrade_stones	65	Use L125 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000126	5	3200000	upgrade_stones	65	Use L126 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000127	5	3275000	upgrade_stones	65	Use L127 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000128	5	3355000	upgrade_stones	65	Use L128 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000129	5	3435000	upgrade_stones	65	Use L129 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000130	5	3515000	upgrade_stones	65	Use L130 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000131	5	3595000	upgrade_stones	65	Use L131 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000132	5	3680000	upgrade_stones	65	Use L132 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000133	5	3765000	upgrade_stones	65	Use L133 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000134	5	3850000	upgrade_stones	65	Use L134 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000135	5	3935000	upgrade_stones	65	Use L135 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000136	5	4025000	upgrade_stones	65	Use L136 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000137	5	4115000	upgrade_stones	65	Use L137 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000138	5	4205000	upgrade_stones	65	Use L138 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000139	5	4295000	upgrade_stones	65	Use L139 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000140	5	4390000	upgrade_stones	65	Use L140 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000141	5	4485000	upgrade_stones	65	Use L141 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000142	5	4580000	upgrade_stones	65	Use L142 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000143	5	4680000	upgrade_stones	65	Use L143 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000144	5	4780000	upgrade_stones	65	Use L144 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000145	5	4880000	upgrade_stones	65	Use L145 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000146	5	4980000	upgrade_stones	65	Use L146 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000147	5	5080000	upgrade_stones	65	Use L147 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000148	5	5185000	upgrade_stones	65	Use L148 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000149	5	5295000	upgrade_stones	65	Use L149 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000150	5	5400000	upgrade_stones	65	Use L150 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000151	5	5510000	upgrade_stones	65	Use L151 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000152	5	5620000	upgrade_stones	65	Use L152 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000153	5	5730000	upgrade_stones	65	Use L153 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000154	5	5845000	upgrade_stones	65	Use L154 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000155	5	5960000	upgrade_stones	65	Use L155 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000156	5	6075000	upgrade_stones	65	Use L156 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000157	5	6190000	upgrade_stones	65	Use L157 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000158	5	6310000	upgrade_stones	65	Use L158 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000159	5	6430000	upgrade_stones	65	Use L159 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000160	5	6555000	upgrade_stones	65	Use L160 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000161	5	6675000	upgrade_stones	65	Use L161 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000162	5	6800000	upgrade_stones	65	Use L162 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000163	5	6930000	upgrade_stones	65	Use L163 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000164	5	7060000	upgrade_stones	65	Use L164 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000165	5	7185000	upgrade_stones	65	Use L165 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000166	5	7320000	upgrade_stones	65	Use L166 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000167	5	7450000	upgrade_stones	65	Use L167 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000168	5	7585000	upgrade_stones	65	Use L168 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000169	5	7725000	upgrade_stones	65	Use L169 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000170	5	7860000	upgrade_stones	65	Use L170 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000171	5	8000000	upgrade_stones	65	Use L171 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000172	5	8140000	upgrade_stones	65	Use L172 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000173	5	8285000	upgrade_stones	65	Use L173 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000174	5	8430000	upgrade_stones	65	Use L174 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000175	5	8575000	upgrade_stones	65	Use L175 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000176	5	8725000	upgrade_stones	65	Use L176 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000177	5	8870000	upgrade_stones	65	Use L177 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000178	5	9025000	upgrade_stones	65	Use L178 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000179	5	9175000	upgrade_stones	65	Use L179 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000180	5	9330000	upgrade_stones	65	Use L180 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000181	5	9490000	upgrade_stones	65	Use L181 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000182	5	9645000	upgrade_stones	65	Use L182 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000183	5	9805000	upgrade_stones	65	Use L183 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000184	5	9965000	upgrade_stones	65	Use L184 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000185	5	10130000	upgrade_stones	65	Use L185 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000186	5	10295000	upgrade_stones	65	Use L186 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000187	5	10465000	upgrade_stones	65	Use L187 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000188	5	10630000	upgrade_stones	65	Use L188 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000189	5	10800000	upgrade_stones	65	Use L189 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
-166000190	5	10975000	upgrade_stones	65	Use L190 Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
 166000191	5	500000	upgrade_stones	20	Use Alpha Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
 166000192	5	1000000	upgrade_stones	40	Use Beta Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
 166000193	5	1500000	upgrade_stones	55	Use Gamma Enchantment Stone to attempt an enchantment on compatible equipment. Success depends on the target and server rates; it is not guaranteed. 5 stones per offer.
@@ -2275,63 +2078,63 @@
 167010247	10	420000	manastone_defense	60	Socket Manastone: Parry +27 / Crit Strike +10 into a compatible manastone slot to add Parry +27 and Crit Strike +10. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
 167010248	10	420000	manastone_defense	60	Socket Manastone: Parry +27 / Crit Strike +9 into a compatible manastone slot to add Parry +27 and Crit Strike +9. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
 167010249	10	420000	manastone_defense	60	Socket Manastone: Parry +27 / Magical Accuracy +9 into a compatible manastone slot to add Parry +27 and Magical Accuracy +9. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020024	10	420000	manastone_ancient	60	Socket Ancient Manastone: HP +105 into an ancient manastone slot to add HP +105. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020025	10	420000	manastone_ancient	60	Socket Ancient Manastone: MP +120 into an ancient manastone slot to add MP +120. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020026	10	420000	manastone_ancient	60	Socket Ancient Manastone: Accuracy +31 into an ancient manastone slot to add Accuracy +31. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020027	10	420000	manastone_ancient	60	Socket Ancient Manastone: Evasion +21 into an ancient manastone slot to add Evasion +21. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020028	10	420000	manastone_ancient	60	Socket Ancient Manastone: Parry +31 into an ancient manastone slot to add Parry +31. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020029	10	420000	manastone_ancient	60	Socket Ancient Manastone: Block +31 into an ancient manastone slot to add Block +31. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020030	10	420000	manastone_ancient	60	Socket Ancient Manastone: Crit Strike +20 into an ancient manastone slot to add Crit Strike +20. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020031	10	420000	manastone_ancient	60	Socket Ancient Manastone: Strike Resist +21 into an ancient manastone slot to add Strike Resist +21. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020032	10	420000	manastone_ancient	60	Socket Ancient Manastone: Crit Spell +7 into an ancient manastone slot to add Crit Spell +7. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020033	10	420000	manastone_ancient	60	Socket Ancient Manastone: Magical Critical Resistance +8 into an ancient manastone slot to add Magical Critical Resistance +8. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020034	10	420000	manastone_ancient	60	Socket Ancient Manastone: Physical Defense +70 into an ancient manastone slot to add Physical Defense +70. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020035	10	420000	manastone_ancient	60	Socket Ancient Manastone: Resist Magic +19 into an ancient manastone slot to add Resist Magic +19. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020036	10	420000	manastone_ancient	60	Socket Ancient Manastone: Attack +6 into an ancient manastone slot to add Attack +6. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020037	10	420000	manastone_ancient	60	Socket Ancient Manastone: Magical Accuracy +18 into an ancient manastone slot to add Magical Accuracy +18. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020038	10	420000	manastone_ancient	60	Socket Ancient Manastone: Magic Boost +30 into an ancient manastone slot to add Magic Boost +30. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020039	10	420000	manastone_ancient	60	Socket Ancient Manastone: Magic Suppression +40 into an ancient manastone slot to add Magic Suppression +40. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020040	10	420000	manastone_ancient	60	Socket Ancient Manastone: Healing Boost +5 into an ancient manastone slot to add Healing Boost +5. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020041	10	180000	manastone_ancient	60	Socket Ancient Manastone: Accuracy +29 into an ancient manastone slot to add Accuracy +29. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020042	10	180000	manastone_ancient	60	Socket Ancient Manastone: Evasion +19 into an ancient manastone slot to add Evasion +19. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020043	10	180000	manastone_ancient	60	Socket Ancient Manastone: Parry +29 into an ancient manastone slot to add Parry +29. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020044	10	180000	manastone_ancient	60	Socket Ancient Manastone: Block +29 into an ancient manastone slot to add Block +29. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020045	10	180000	manastone_ancient	60	Socket Ancient Manastone: Crit Strike +18 into an ancient manastone slot to add Crit Strike +18. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020046	10	180000	manastone_ancient	60	Socket Ancient Manastone: Physical Critical Resistance +20 into an ancient manastone slot to add Physical Critical Resistance +20. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020047	10	180000	manastone_ancient	60	Socket Ancient Manastone: Crit Spell +6 into an ancient manastone slot to add Crit Spell +6. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020048	10	180000	manastone_ancient	60	Socket Ancient Manastone: Magical Critical Resistance +7 into an ancient manastone slot to add Magical Critical Resistance +7. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020049	10	180000	manastone_ancient	60	Socket Ancient Manastone: Physical Defense +60 into an ancient manastone slot to add Physical Defense +60. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020050	10	180000	manastone_ancient	60	Socket Ancient Manastone: Resist Magic +17 into an ancient manastone slot to add Resist Magic +17. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020051	10	180000	manastone_ancient	60	Socket Ancient Manastone: Attack +5 into an ancient manastone slot to add Attack +5. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020052	10	180000	manastone_ancient	60	Socket Ancient Manastone: Magical Accuracy +16 into an ancient manastone slot to add Magical Accuracy +16. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020053	10	180000	manastone_ancient	60	Socket Ancient Manastone: Magic Boost +28 into an ancient manastone slot to add Magic Boost +28. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020054	10	180000	manastone_ancient	60	Socket Ancient Manastone: Magic Suppression +30 into an ancient manastone slot to add Magic Suppression +30. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020055	10	180000	manastone_ancient	60	Socket Ancient Manastone: Healing Boost +4 into an ancient manastone slot to add Healing Boost +4. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020056	10	750000	manastone_ancient	60	Socket Ancient Manastone: Accuracy +33 into an ancient manastone slot to add Accuracy +33. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020057	10	750000	manastone_ancient	60	Socket Ancient Manastone: Evasion +23 into an ancient manastone slot to add Evasion +23. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020058	10	750000	manastone_ancient	60	Socket Ancient Manastone: Parry +33 into an ancient manastone slot to add Parry +33. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020059	10	750000	manastone_ancient	60	Socket Ancient Manastone: Block +33 into an ancient manastone slot to add Block +33. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020060	10	750000	manastone_ancient	60	Socket Ancient Manastone: Physical Critical Resistance +22 into an ancient manastone slot to add Physical Critical Resistance +22. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020061	10	750000	manastone_ancient	60	Socket Ancient Manastone: Magical Critical Resistance +9 into an ancient manastone slot to add Magical Critical Resistance +9. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020062	10	750000	manastone_ancient	60	Socket Ancient Manastone: Physical Defense +80 into an ancient manastone slot to add Physical Defense +80. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020063	10	750000	manastone_ancient	60	Socket Ancient Manastone: Attack +7 into an ancient manastone slot to add Attack +7. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020064	10	750000	manastone_ancient	60	Socket Ancient Manastone: Magical Accuracy +20 into an ancient manastone slot to add Magical Accuracy +20. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020065	10	750000	manastone_ancient	60	Socket Ancient Manastone: Magic Boost +32 into an ancient manastone slot to add Magic Boost +32. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020066	10	180000	manastone_ancient	60	Socket Ancient Manastone : PvP Defense +3 into an ancient manastone slot to add PvP Defense +3. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020067	10	420000	manastone_ancient	60	Socket Ancient Manastone : PvP Defense +5 into an ancient manastone slot to add PvP Defense +5. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020068	10	180000	manastone_ancient	60	Socket Ancient Manastone : PvP Physical Defense +3 into an ancient manastone slot to add PvP Physical Defense +3. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020069	10	180000	manastone_ancient	60	Socket Ancient Manastone : PvP Magical Defense +3 into an ancient manastone slot to add PvP Magical Defense +3. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020070	10	420000	manastone_ancient	60	Socket Ancient Manastone : PvP Physical Defense +5 into an ancient manastone slot to add PvP Physical Defense +5. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020071	10	420000	manastone_ancient	60	Socket Ancient Manastone : PvP Magical Defense +5 into an ancient manastone slot to add PvP Magical Defense +5. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020072	10	1120000	manastone_ancient	60	Socket Ancient Manastone: Accuracy +35 into an ancient manastone slot to add Accuracy +35. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020073	10	1120000	manastone_ancient	60	Socket Ancient Manastone: Evasion +24 into an ancient manastone slot to add Evasion +24. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020074	10	1120000	manastone_ancient	60	Socket Ancient Manastone: Crit Strike +24 into an ancient manastone slot to add Crit Strike +24. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020075	10	1120000	manastone_ancient	60	Socket Ancient Manastone: Crit Spell +9 into an ancient manastone slot to add Crit Spell +9. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020076	10	1120000	manastone_ancient	60	Socket Ancient Manastone: Spell Resist +11 into an ancient manastone slot to add Spell Resist +11. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020077	10	1120000	manastone_ancient	60	Socket Ancient Manastone: Physical Defense +100 into an ancient manastone slot to add Physical Defense +100. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020078	10	1120000	manastone_ancient	60	Socket Ancient Manastone: Resist Magic +20 into an ancient manastone slot to add Resist Magic +20. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020079	10	1120000	manastone_ancient	60	Socket Ancient Manastone: Attack +8 into an ancient manastone slot to add Attack +8. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020080	10	1120000	manastone_ancient	60	Socket Ancient Manastone: Magical Accuracy +22 into an ancient manastone slot to add Magical Accuracy +22. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020081	10	1120000	manastone_ancient	60	Socket Ancient Manastone: Magic Boost +35 into an ancient manastone slot to add Magic Boost +35. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020082	10	1120000	manastone_ancient	60	Socket Ancient Manastone: Magic Suppression +50 into an ancient manastone slot to add Magic Suppression +50. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
-167020083	10	1120000	manastone_ancient	60	Socket Ancient Manastone: Healing Boost +6 into an ancient manastone slot to add Healing Boost +6. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020024	10	105000	manastone_ancient	60	Socket Ancient Manastone: HP +105 into an ancient manastone slot to add HP +105. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020025	10	105000	manastone_ancient	60	Socket Ancient Manastone: MP +120 into an ancient manastone slot to add MP +120. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020026	10	105000	manastone_ancient	60	Socket Ancient Manastone: Accuracy +31 into an ancient manastone slot to add Accuracy +31. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020027	10	105000	manastone_ancient	60	Socket Ancient Manastone: Evasion +21 into an ancient manastone slot to add Evasion +21. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020028	10	105000	manastone_ancient	60	Socket Ancient Manastone: Parry +31 into an ancient manastone slot to add Parry +31. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020029	10	105000	manastone_ancient	60	Socket Ancient Manastone: Block +31 into an ancient manastone slot to add Block +31. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020030	10	105000	manastone_ancient	60	Socket Ancient Manastone: Crit Strike +20 into an ancient manastone slot to add Crit Strike +20. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020031	10	105000	manastone_ancient	60	Socket Ancient Manastone: Strike Resist +21 into an ancient manastone slot to add Strike Resist +21. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020032	10	105000	manastone_ancient	60	Socket Ancient Manastone: Crit Spell +7 into an ancient manastone slot to add Crit Spell +7. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020033	10	105000	manastone_ancient	60	Socket Ancient Manastone: Magical Critical Resistance +8 into an ancient manastone slot to add Magical Critical Resistance +8. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020034	10	105000	manastone_ancient	60	Socket Ancient Manastone: Physical Defense +70 into an ancient manastone slot to add Physical Defense +70. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020035	10	105000	manastone_ancient	60	Socket Ancient Manastone: Resist Magic +19 into an ancient manastone slot to add Resist Magic +19. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020036	10	105000	manastone_ancient	60	Socket Ancient Manastone: Attack +6 into an ancient manastone slot to add Attack +6. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020037	10	105000	manastone_ancient	60	Socket Ancient Manastone: Magical Accuracy +18 into an ancient manastone slot to add Magical Accuracy +18. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020038	10	105000	manastone_ancient	60	Socket Ancient Manastone: Magic Boost +30 into an ancient manastone slot to add Magic Boost +30. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020039	10	105000	manastone_ancient	60	Socket Ancient Manastone: Magic Suppression +40 into an ancient manastone slot to add Magic Suppression +40. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020040	10	105000	manastone_ancient	60	Socket Ancient Manastone: Healing Boost +5 into an ancient manastone slot to add Healing Boost +5. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020041	10	45000	manastone_ancient	60	Socket Ancient Manastone: Accuracy +29 into an ancient manastone slot to add Accuracy +29. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020042	10	45000	manastone_ancient	60	Socket Ancient Manastone: Evasion +19 into an ancient manastone slot to add Evasion +19. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020043	10	45000	manastone_ancient	60	Socket Ancient Manastone: Parry +29 into an ancient manastone slot to add Parry +29. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020044	10	45000	manastone_ancient	60	Socket Ancient Manastone: Block +29 into an ancient manastone slot to add Block +29. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020045	10	45000	manastone_ancient	60	Socket Ancient Manastone: Crit Strike +18 into an ancient manastone slot to add Crit Strike +18. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020046	10	45000	manastone_ancient	60	Socket Ancient Manastone: Physical Critical Resistance +20 into an ancient manastone slot to add Physical Critical Resistance +20. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020047	10	45000	manastone_ancient	60	Socket Ancient Manastone: Crit Spell +6 into an ancient manastone slot to add Crit Spell +6. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020048	10	45000	manastone_ancient	60	Socket Ancient Manastone: Magical Critical Resistance +7 into an ancient manastone slot to add Magical Critical Resistance +7. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020049	10	45000	manastone_ancient	60	Socket Ancient Manastone: Physical Defense +60 into an ancient manastone slot to add Physical Defense +60. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020050	10	45000	manastone_ancient	60	Socket Ancient Manastone: Resist Magic +17 into an ancient manastone slot to add Resist Magic +17. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020051	10	45000	manastone_ancient	60	Socket Ancient Manastone: Attack +5 into an ancient manastone slot to add Attack +5. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020052	10	45000	manastone_ancient	60	Socket Ancient Manastone: Magical Accuracy +16 into an ancient manastone slot to add Magical Accuracy +16. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020053	10	45000	manastone_ancient	60	Socket Ancient Manastone: Magic Boost +28 into an ancient manastone slot to add Magic Boost +28. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020054	10	45000	manastone_ancient	60	Socket Ancient Manastone: Magic Suppression +30 into an ancient manastone slot to add Magic Suppression +30. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020055	10	45000	manastone_ancient	60	Socket Ancient Manastone: Healing Boost +4 into an ancient manastone slot to add Healing Boost +4. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020056	10	187500	manastone_ancient	60	Socket Ancient Manastone: Accuracy +33 into an ancient manastone slot to add Accuracy +33. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020057	10	187500	manastone_ancient	60	Socket Ancient Manastone: Evasion +23 into an ancient manastone slot to add Evasion +23. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020058	10	187500	manastone_ancient	60	Socket Ancient Manastone: Parry +33 into an ancient manastone slot to add Parry +33. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020059	10	187500	manastone_ancient	60	Socket Ancient Manastone: Block +33 into an ancient manastone slot to add Block +33. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020060	10	187500	manastone_ancient	60	Socket Ancient Manastone: Physical Critical Resistance +22 into an ancient manastone slot to add Physical Critical Resistance +22. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020061	10	187500	manastone_ancient	60	Socket Ancient Manastone: Magical Critical Resistance +9 into an ancient manastone slot to add Magical Critical Resistance +9. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020062	10	187500	manastone_ancient	60	Socket Ancient Manastone: Physical Defense +80 into an ancient manastone slot to add Physical Defense +80. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020063	10	187500	manastone_ancient	60	Socket Ancient Manastone: Attack +7 into an ancient manastone slot to add Attack +7. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020064	10	187500	manastone_ancient	60	Socket Ancient Manastone: Magical Accuracy +20 into an ancient manastone slot to add Magical Accuracy +20. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020065	10	187500	manastone_ancient	60	Socket Ancient Manastone: Magic Boost +32 into an ancient manastone slot to add Magic Boost +32. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020066	10	45000	manastone_ancient	60	Socket Ancient Manastone : PvP Defense +3 into an ancient manastone slot to add PvP Defense +3. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020067	10	105000	manastone_ancient	60	Socket Ancient Manastone : PvP Defense +5 into an ancient manastone slot to add PvP Defense +5. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020068	10	45000	manastone_ancient	60	Socket Ancient Manastone : PvP Physical Defense +3 into an ancient manastone slot to add PvP Physical Defense +3. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020069	10	45000	manastone_ancient	60	Socket Ancient Manastone : PvP Magical Defense +3 into an ancient manastone slot to add PvP Magical Defense +3. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020070	10	105000	manastone_ancient	60	Socket Ancient Manastone : PvP Physical Defense +5 into an ancient manastone slot to add PvP Physical Defense +5. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020071	10	105000	manastone_ancient	60	Socket Ancient Manastone : PvP Magical Defense +5 into an ancient manastone slot to add PvP Magical Defense +5. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020072	10	280000	manastone_ancient	60	Socket Ancient Manastone: Accuracy +35 into an ancient manastone slot to add Accuracy +35. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020073	10	280000	manastone_ancient	60	Socket Ancient Manastone: Evasion +24 into an ancient manastone slot to add Evasion +24. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020074	10	280000	manastone_ancient	60	Socket Ancient Manastone: Crit Strike +24 into an ancient manastone slot to add Crit Strike +24. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020075	10	280000	manastone_ancient	60	Socket Ancient Manastone: Crit Spell +9 into an ancient manastone slot to add Crit Spell +9. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020076	10	280000	manastone_ancient	60	Socket Ancient Manastone: Spell Resist +11 into an ancient manastone slot to add Spell Resist +11. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020077	10	280000	manastone_ancient	60	Socket Ancient Manastone: Physical Defense +100 into an ancient manastone slot to add Physical Defense +100. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020078	10	280000	manastone_ancient	60	Socket Ancient Manastone: Resist Magic +20 into an ancient manastone slot to add Resist Magic +20. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020079	10	280000	manastone_ancient	60	Socket Ancient Manastone: Attack +8 into an ancient manastone slot to add Attack +8. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020080	10	280000	manastone_ancient	60	Socket Ancient Manastone: Magical Accuracy +22 into an ancient manastone slot to add Magical Accuracy +22. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020081	10	280000	manastone_ancient	60	Socket Ancient Manastone: Magic Boost +35 into an ancient manastone slot to add Magic Boost +35. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020082	10	280000	manastone_ancient	60	Socket Ancient Manastone: Magic Suppression +50 into an ancient manastone slot to add Magic Suppression +50. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.
+167020083	10	280000	manastone_ancient	60	Socket Ancient Manastone: Healing Boost +6 into an ancient manastone slot to add Healing Boost +6. Stone level 70; check the target equipment's level and free slots. 10 stones per offer.

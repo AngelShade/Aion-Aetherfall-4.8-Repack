@@ -44,7 +44,20 @@ public final class PlayerBotHttpService {
 				Player helper = MarketplaceService.findPlayer(helpQuery.getOrDefault("session_id", ""));
 				if (helper == null || !helper.isOnline() || helper.isPlayerBot()) { send(exchange, 403, "text/plain", ""); return; }
 				String title = PlayerBotHelpObjectives.title(helper).replace('\n',' ').replace('\r',' ');
-				send(exchange, 200, "text/plain", "journal".equals(helpQuery.get("format")) ? title + "\n" + PlayerBotHelpObjectives.progress(helper) : title); return;
+				String format = helpQuery.getOrDefault("format", "");
+				int slot = slot(helpQuery.get("slot"));
+				send(exchange, 200, "text/plain", "card2".equals(format) ? PlayerBotHelpObjectives.card2(helper, slot) : "card".equals(format) ? PlayerBotHelpObjectives.card(helper, slot) : "journal".equals(format) ? title + "\n" + PlayerBotHelpObjectives.progress(helper) : title); return;
+			}
+			// The native quest journal's Track / Collect reward buttons (AetherfallCore). A browser page
+			// cannot send the custom header without a preflight this server never grants.
+			if (path.equals("/market/companions/help/action")) {
+				if (!method.equals("POST") || !"1".equals(exchange.getRequestHeaders().getFirst("X-Aetherfall-Native"))) { send(exchange, 405, "text/plain", ""); return; }
+				var helpValues = parse(new String(exchange.getRequestBody().readNBytes(1025), StandardCharsets.UTF_8));
+				Player helper = MarketplaceService.findPlayer(helpValues.getOrDefault("session_id", ""));
+				if (helper == null || !helper.isOnline() || helper.isPlayerBot() || !helper.isSpawned()) { send(exchange, 403, "text/plain", ""); return; }
+				String outcome;
+				synchronized (helper) { outcome = PlayerBotHelpObjectives.journal(helper, helpValues.getOrDefault("op", ""), slot(helpValues.get("slot"))); }
+				send(exchange, 200, "text/plain", outcome); return;
 			}
 			if (method.equals("GET") && path.equals("/market/companions/identity")) {
 				var identityQuery = parse(exchange.getRequestURI().getRawQuery());
@@ -95,6 +108,11 @@ public final class PlayerBotHttpService {
 	public static boolean validTicket(Object expectedPlayer, Object player, Object expectedConnection, Object connection, long expires, long now) {
 		return expectedPlayer == player && player != null && expectedConnection == connection && connection != null && expires > now;
 	}
+	/** A help slot from the native client (0-2); anything else is the first slot. */
+	static int slot(String text) {
+		try { int slot = Integer.parseInt(text == null ? "0" : text.trim()); return slot >= 0 && slot < PlayerBotHelpObjectives.HELP_QUESTS.length ? slot : 0; }
+		catch (NumberFormatException e) { return 0; }
+	}
 	public static Map<String, String> parse(String text) {
 		Map<String, String> result = new HashMap<>();
 		if (text == null) return result;
@@ -118,6 +136,8 @@ public final class PlayerBotHttpService {
 		state.put("collectionRenown", PlayerBotCollectionRenown.view(owner));
 		state.put("recyclingEnabled", PlayerBotRecycling.enabled());
 		state.put("helpRequest", PlayerBotHelpObjectives.snapshot(owner));
+		state.put("helpRequests", PlayerBotHelpObjectives.snapshots(owner));
+		state.put("helpMax", PlayerBotHelpObjectives.maxActive());
 		state.put("helpPosts", PlayerBotFindGroup.helpRequests(owner));
 		String benefitId = values.getOrDefault("benefitBot", "");
 		for (var session : PlayerBotService.getInstance().companions(owner))
@@ -186,7 +206,7 @@ public final class PlayerBotHttpService {
 		String op = values.getOrDefault("action", ""), name = values.getOrDefault("name", "");
 		switch (op) {
 			case "helpaccept" -> { return PlayerBotFindGroup.acceptHelp(owner,Integer.parseInt(values.getOrDefault("bot","0"))); }
-			case "helptrack", "helpabandon", "helpclaim" -> { return PlayerBotHelpObjectives.action(owner,op.substring(4)); }
+			case "helptrack", "helpabandon", "helpclaim" -> { return PlayerBotHelpObjectives.action(owner,op.substring(4),values.getOrDefault("key","")); }
 			case "team" -> {return PlayerBotAllianceControl.action(owner,values);}
 			case "savebot" -> { return PlayerBotPresets.saveBot(owner,name); }
 			case "saveparty" -> { return PlayerBotPresets.saveParty(owner,values.getOrDefault("presetName","")); }

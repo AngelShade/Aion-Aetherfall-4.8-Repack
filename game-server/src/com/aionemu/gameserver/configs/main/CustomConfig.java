@@ -64,6 +64,14 @@ public class CustomConfig {
 	public static int BROKER_REGISTRATION_EXPIRATION_DAYS;
 
 	/**
+	 * false retires the native NPC Broker in favour of the Central Market: Broker NPCs open the Central Market window
+	 * (client side), every native Broker request is refused, generated Broker stock is not seeded and is removed at
+	 * startup. Real players' listings and unpaid sales stay untouched in the database.
+	 */
+	@Property(key = "gameserver.broker.enabled", defaultValue = "true")
+	public static boolean BROKER_ENABLED;
+
+	/**
 	 * Factions search mode
 	 */
 	@Property(key = "gameserver.search.factions.mode", defaultValue = "false")

@@ -19,6 +19,13 @@ BLUE = np.array((.55, .78, 1.0))
 GOLD = np.array((1.0, .78, .42))
 VIOLET = np.array((.72, .55, 1.0))
 WHITE = np.array((1.0, 1.0, 1.0))
+# Playback is 20 Hz. The legacy renderer's FPS=24 is intentionally retained:
+# regenerating that cohort is outside a tier update and would change its bytes.
+TIER_TIMING = {2: (44, 33), 3: (56, 36), 4: (70, 38)}
+TIER_COLOUR = {2: np.array((140, 240, 168)) / 255,
+               3: np.array((121, 200, 255)) / 255,
+               4: np.array((255, 201, 107)) / 255}
+SHARED_CHARGE = 18
 
 
 def screen(base, light):
@@ -305,6 +312,178 @@ def render(stage, output, centre, floor, only=None, quality=86):
     return frames
 
 
+def render_tiers(stage, baseline, output, centre=(533, 264), floor=(533, 469)):
+    """Additive authored choreography. Never write or regenerate legacy frames.
+
+    Decode the installed stage plates to retain the painted scene and exact
+    shared lead-in. Only the charge tails and bursts need new opaque frames;
+    the 96 held plates and most of the arrival wash are reused unchanged.
+    """
+    output.mkdir(parents=True, exist_ok=True)
+    scene = Scene(stage, centre, floor)
+    records = {}
+    y, x = np.mgrid[:HEIGHT, :WIDTH].astype(np.float32)
+    floor_radius = np.hypot(x-floor[0], (y-floor[1])/.30)
+
+    def plate(clip, n):
+        return np.asarray(Image.open(baseline/f'{clip}-{n:03d}.dds').convert('RGB')
+                          .resize((WIDTH, HEIGHT), Image.Resampling.LANCZOS), dtype=np.float32)/255
+
+    def save(clip, n, image, opaque=False):
+        target = output/f'{clip}-{n:03d}.dds'
+        image.resize((TEXTURE, TEXTURE) if opaque else (OVERLAY, OVERLAY), Image.Resampling.LANCZOS).save(
+            target, format='DDS', pixel_format='DXT1' if opaque else 'DXT5')
+        records[clip] = n+1
+
+    def opaque(clip, n, base, light):
+        save(clip, n, Image.fromarray(np.uint8(np.clip(screen(base, light), 0, 1)*255)), True)
+
+    def transparent(clip, n, light):
+        # Straight alpha, so native source-over adds soft light without black
+        # fringes. Keep opaque hot cores white and luminous tails coloured.
+        alpha = np.clip(np.max(light, axis=2), 0, 1)
+        rgb = np.clip(light/np.maximum(alpha[..., None], .00001), 0, 1)
+        save(clip, n, Image.fromarray(np.uint8(np.dstack((rgb, alpha))*255)))
+
+    def bloom(mask, colour, power=1):
+        return tint((mask*.85+gaussian_filter(mask, 3)*2.5+gaussian_filter(mask, 13)*2)*power, colour)
+
+    def ring(radius, width, elliptical=False):
+        return np.exp(-(((floor_radius if elliptical else scene.radius)-radius)/width)**2)
+
+    def charge_colour(base, index, colour, strength):
+        # Recover the light from the existing painted plate before shifting
+        # it. Adding colour on top of its white-hot rings alone washes every
+        # tier back to white and makes the rarity tell too hard to read.
+        t=index/38;ease=t*t*(3-2*t);under=scene.base*(1-.62*ease)
+        energy=np.clip((base-under)/np.maximum(1-under,.001),0,1)
+        luminance=np.max(energy,axis=2)
+        coloured=screen(under,tint(luminance,colour*.90+WHITE*.10))
+        area=np.maximum(np.exp(-(scene.radius/355)**4),np.exp(-(floor_radius/295)**4))
+        weight=area[...,None]*strength*.88
+        return base*(1-weight)+coloured*weight
+
+    def lightning(time, power):
+        canvas = Image.new('L', (WIDTH, HEIGHT)); draw = ImageDraw.Draw(canvas)
+        rng = np.random.default_rng(300+int(time*12))
+        for branch in range(5):
+            a = time*.8+branch*math.tau/5
+            points = []
+            for j in range(19):
+                angle = a+j*.095
+                r = 170+32*math.sin(j*.7+time)+rng.uniform(-12, 12)
+                points.append((centre[0]+math.cos(angle)*r, centre[1]+math.sin(angle)*r))
+            draw.line(points, fill=255, width=2)
+            if branch%2 == 0:
+                px, py = points[9]
+                draw.line((px, py, px+22, py-19, px+12, py-40, px+43, py-71), fill=210, width=2)
+        return bloom(np.asarray(canvas,dtype=np.float32)/255, TIER_COLOUR[3]*.65+WHITE*.35, power)
+
+    def streams(time, power, colour, gold=False):
+        canvas = Image.new('L',(WIDTH,HEIGHT)); draw = ImageDraw.Draw(canvas)
+        count = 18 if gold else 9
+        for j in range(count):
+            a = j*math.tau/count+time*.28
+            if gold:
+                # Rays rise from the floor into a cathedral of light.
+                px = floor[0]+math.cos(a)*(105+j%4*24)
+                h = (160+j%5*62)*(.75+.25*math.sin(time*2+j))
+                draw.line((px, floor[1], px+(px-floor[0])*.5, floor[1]-h), fill=125+j%4*30, width=2)
+            else:
+                points = [(centre[0]+math.cos(a+k*.045)*(340-k*7),
+                           centre[1]+math.sin(a+k*.045)*(230-k*4.5)) for k in range(30)]
+                draw.line(points, fill=200, width=2)
+        return bloom(np.asarray(canvas,dtype=np.float32)/255, colour, power)
+
+    def pillar(time, power):
+        width = 35+8*math.sin(time*2)
+        vertical = np.exp(-((x-floor[0])/width)**2)*np.clip((floor[1]-y)/85,0,1)
+        shoulders = np.exp(-((x-floor[0])/115)**2)*np.clip((floor[1]+30-y)/200,0,1)
+        fluting = (.65+.35*np.cos((x-floor[0])*.11+time*1.6)**8)
+        return tint((vertical*.9+shoulders*.28)*fluting*power, TIER_COLOUR[4])
+
+    for tier,(charge,burst) in TIER_TIMING.items():
+        colour = TIER_COLOUR[tier]
+        length = charge-SHARED_CHARGE
+        for n in range(length):
+            t = n/(length-1); build = t*t*(3-2*t); time = n/20
+            base = plate('charge', min(SHARED_CHARGE+n,37))
+            base = charge_colour(base,min(SHARED_CHARGE+n,37),colour,build)
+            mask = scene.place(scene.rings[0][0], 50+time*(45+tier*9), centre, 1, .75+.04*build)
+            light = bloom(mask, colour, build*(.35 if tier==2 else .6))
+            light += streams(time,build*(.5 if tier==2 else .7),colour,tier==4)
+            light += tint(ring(240,18,True)*build*.5,colour)
+            if tier==3: light += lightning(time,build*(.4+.3*math.sin(time*7)**2))
+            if tier==4:
+                light += pillar(time,build*1.65)
+                light += tint(ring(180+35*math.sin(time*2),6,True)*build*.65,colour)
+                light += tint(np.exp(-(scene.radius/240)**2)*build*.35,colour)
+            opaque(f'tier{tier}-charge',n,base,light)
+        print(f'tier {tier}: {length} charge tail frames',flush=True)
+        sparks=Sparks(800 if tier==4 else 620,130+tier)
+        out_sparks(sparks,np.array(centre,dtype=float),700 if tier==4 else 520,1800 if tier==4 else 1450)
+        for n in range(burst):
+            t=n/(burst-1); time=n/20
+            # A short white ignition gives way to distinct coloured geometry.
+            # Render against the original painting rather than adding yet more
+            # light to the legacy burst's already white, clipped centre.
+            base=scene.base*(.38+.30*t)
+            sparks.step(1/20,gravity=70,drag=.94)
+            light=tint(np.ones_like(scene.radius)*math.exp(-time*10)*2.8,WHITE*.82+colour*.18)
+            light+=tint(np.exp(-(scene.radius/(110+170*(1-t)))**2)*(1-t)**2*1.4,colour)
+            light+=tint(np.exp(-(scene.radius/45)**2)*(1-t)*1.3,WHITE)
+            mask=scene.place(scene.rings[0][0],time*(60+tier*8),centre,1,.75+t*.3)
+            light+=bloom(mask,colour,(1-t)*.45)
+            light+=sparks.draw(colour*.8+WHITE*.2,1/20)
+            light+=tint(ring(40+t*(800 if tier==4 else 600),12+20*t)*(1-t)**1.4*1.6,colour)
+            light+=streams(time,(1-t)*(.65 if tier==2 else 1),colour,tier==4)
+            if tier==3:
+                light+=lightning(time,(1-t)**1.5*.9)
+                light+=tint(ring(20+t*1050,9+15*t,True)*(1-t)*1.8,colour)
+            if tier==4:
+                light+=pillar(time,(1-t)**1.3*2.2)
+                light+=tint(np.exp(-(scene.radius/650)**2)*math.exp(-t*8)*1.6,colour*.5+WHITE*.5)
+                light+=tint(ring(max(0,t-.1)*1200,24,True)*(1-t)*1.5,colour)
+            # Blend to the exact held plate at the end, avoiding an abrupt
+            # change of background/halo when the shared hold loop begins.
+            composite=screen(base,light)
+            transition=max(0,(t-.68)/.32);transition=transition*transition*(3-2*transition)
+            composite=composite*(1-transition)+plate('hold',0)*transition
+            opaque(f'tier{tier}-burst',n,composite,np.zeros_like(light))
+        print(f'tier {tier}: {burst} burst frames',flush=True)
+
+        rng=np.random.default_rng(4800+tier)
+        count={2:110,3:160,4:290}[tier]
+        starts=rng.uniform(0,1,count); px=rng.normal(centre[0],200,count)
+        py=rng.uniform(floor[1]-300,floor[1]+30,count); pace=rng.uniform(65,200,count)
+        for n in range(24):
+            time=n/24
+            canvas=Image.new('L',(WIDTH,HEIGHT)); draw=ImageDraw.Draw(canvas)
+            for j in range(count):
+                phase=(time+starts[j])%1; fade=math.sin(phase*math.pi)**2
+                sx=px[j]+math.sin(phase*math.tau+j)*12; sy=py[j]-phase*pace[j]
+                size=1+j%({2:2,3:2,4:3}[tier]); a=round(fade*230)
+                draw.line((sx,sy+size*3,sx,sy),fill=a,width=size)
+            light=bloom(np.asarray(canvas,dtype=np.float32)/255,colour,.95 if tier==4 else .65)
+            # Seamless low halo and floor ring; no opaque field over the model.
+            light+=tint(ring(250+3*math.sin(time*math.tau),5,True)*(.10 if tier<4 else .18),colour)
+            transparent(f'tier{tier}-sparks',n,light)
+
+    wash=np.exp(-(scene.radius/700)**2)
+    for n in range(12):
+        t=n/11
+        transparent('tier4-flash',n,tint(np.clip(wash*2.6,0,1)*(1-t)**1.6,TIER_COLOUR[4]*.18+WHITE*.82))
+    for n in range(8):
+        t=n/7; power=math.sin(t*math.pi)**.8
+        # Two counter-rotating seven-point seals and a sweeping solar corona.
+        seal=scene.place(star_polygon(560,7,3,.83),t*75,centre,1,.62+t*.65)
+        seal+=scene.place(star_polygon(560,7,2,.83),-t*75,centre,1,.62+t*.65)
+        light=bloom(seal,TIER_COLOUR[4],power*.8)
+        light+=tint(ring(140+t*350,5)*power*.9,TIER_COLOUR[4]*.7+WHITE*.3)
+        transparent('tier4-double',n,light)
+    return records
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--stage', type=Path, required=True)
@@ -312,8 +491,20 @@ def main():
     parser.add_argument('--centre', type=int, nargs=2, default=(533, 264))
     parser.add_argument('--floor', type=int, nargs=2, default=(533, 469))
     parser.add_argument('--only', nargs='*')
+    parser.add_argument('--tiers-only', action='store_true', help='Only new tier frames; retain the existing baseline byte for byte')
+    parser.add_argument('--baseline', type=Path, help='Read-only installed AetherfallSummon texture folder')
+    parser.add_argument('--manifest', type=Path, help='Optional render receipt outside the texture delivery folder')
     args = parser.parse_args()
-    print(render(args.stage, args.output, tuple(args.centre), tuple(args.floor), args.only))
+    if args.tiers_only:
+        if not args.baseline: parser.error('--tiers-only requires --baseline')
+        frames=render_tiers(args.stage,args.baseline,args.output,tuple(args.centre),tuple(args.floor))
+        if args.manifest:
+            args.manifest.parent.mkdir(parents=True,exist_ok=True)
+            args.manifest.write_text(json.dumps(dict(fps=20,sharedChargeFrames=SHARED_CHARGE,clips=frames),indent=2)+'\n')
+        print(frames)
+    else:
+        args.output.mkdir(parents=True,exist_ok=True)
+        print(render(args.stage, args.output, tuple(args.centre), tuple(args.floor), args.only))
 
 
 if __name__ == '__main__':

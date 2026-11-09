@@ -181,6 +181,7 @@ public final class PlayerBotGrowth {
   }
  }
  public static void learnKill(Player bot,com.aionemu.gameserver.model.gameobjects.Npc npc) {
+  PlayerBotWorldOutcomes.killed(bot);
   if(!bot.isPlayerBot() || !PlayerBotRunRewards.learningEligible(npc,bot))return;
   learn(bot,switch(npc.getRating()){case HERO,LEGENDARY->50;case ELITE->20;default->5;});
   practice(bot,npc);

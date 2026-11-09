@@ -63,12 +63,21 @@ public class Geometry extends Spatial {
 	 * @param mesh
 	 *          The mesh data for this geometry
 	 */
+	private boolean walkBlocker;
+
 	public Geometry(String name, Mesh mesh) {
 		super(name);
 		if (mesh == null)
 			throw new NullPointerException();
 
 		this.mesh = mesh;
+		String lower = name == null ? "" : name.toLowerCase(java.util.Locale.ROOT);
+		walkBlocker = lower.contains("nowalk") || lower.contains("walk_obstacle");
+	}
+
+	/** An invisible blocker mesh, such as nowalk_obstacle4. Clients draw nothing here, so it blocks but cannot be stood on. */
+	public boolean isWalkBlocker() {
+		return walkBlocker;
 	}
 
 	@Override

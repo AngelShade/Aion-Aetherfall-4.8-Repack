@@ -25,6 +25,18 @@ public final class PlayerBotEntranceSummonCheck {
   require(PlayerBotRecovery.targeted(new Object(),party)==party,"Targeting a monster or object summons the party");
   require(PlayerBotRecovery.targeted(second.bot(),party).equals(List.of(second)),"A targeted companion answers alone");
  }
+ static void runHold() {
+  require(PlayerBotFindGroup.holdsRun(true,true,true,true,false),"A human-led party inside its dungeon stays, even if the poster died or finished its own quest");
+  require(!PlayerBotFindGroup.holdsRun(true,true,true,true,true),"The run's final boss ends the term");
+  require(!PlayerBotFindGroup.holdsRun(true,true,false,true,false),"The human leaving the party ends the term");
+  require(!PlayerBotFindGroup.holdsRun(true,false,true,true,false),"No human leading (or offline): the normal rules apply");
+  require(!PlayerBotFindGroup.holdsRun(true,true,true,false,false),"Outside the dungeon, the normal rules apply");
+  require(!PlayerBotFindGroup.holdsRun(false,true,true,true,false),"Field and quest-help posts keep their objective-based end");
+  var emotes=new java.util.HashSet<Integer>();for(int bot=0;bot<8;bot++)emotes.add(PlayerBotFindGroup.farewellEmote(bot));
+  require(emotes.size()==4 && emotes.contains(com.aionemu.gameserver.model.EmotionId.VICTORY.id()) && emotes.contains(com.aionemu.gameserver.model.EmotionId.THANK.id()),
+   "A cleared party says goodbye with a mix of native victory, clap, thank and salute emotes");
+  require(PlayerBotFindGroup.RUN_FAREWELL_MS>=5000 && PlayerBotFindGroup.RUN_FAREWELL_MS<=30000,"The goodbye lasts seconds, then the bots leave normally");
+ }
  static void messages() {
   String one=PlayerBotSummonPolicy.failure(1,List.of("Terewen"),null);
   require(one.startsWith("Terewen could not be summoned.") && one.contains("safe spot"),"A lone refusal names the companion and the reason: "+one);
@@ -70,6 +82,7 @@ public final class PlayerBotEntranceSummonCheck {
   var group=(Group)unsafe.allocateInstance(Group.class);group.players=List.of(human,waiting,late);human.group=waiting.group=late.group=group;
   var session=session(human,waiting);var lateSession=session(human,late);
   seats();
+  runHold();
   targets(human,session,lateSession);
   messages();
   waits(human,waiting,late,stranger,session,lateSession);

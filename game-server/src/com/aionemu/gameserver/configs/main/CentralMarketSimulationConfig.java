@@ -4,6 +4,12 @@ import com.aionemu.commons.configuration.Property;
 
 /** Economic activity in Central Market, independent of the NPC Broker. */
 public class CentralMarketSimulationConfig {
+	@Property(key="gameserver.central.market.simulation.enhanced_max_enchant", defaultValue="10")
+	public static int ENHANCED_MAX_ENCHANT = 10;
+	@Property(key="gameserver.central.market.simulation.enhanced_max_tempering", defaultValue="5")
+	public static int ENHANCED_MAX_TEMPERING = 5;
+	@Property(key="gameserver.central.market.simulation.enhanced_chance_per_level", defaultValue="100,95,85,60,40,20,8,4,2,1")
+	public static int[] ENHANCED_CHANCE_PER_LEVEL = {100,95,85,60,40,20,8,4,2,1};
 	@Property(key="gameserver.central.market.simulation.enabled", defaultValue="true")
 	public static boolean ENABLED;
 	@Property(key="gameserver.central.market.simulation.population", defaultValue="3000")

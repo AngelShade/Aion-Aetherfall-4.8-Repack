@@ -24,7 +24,8 @@ import com.aionemu.gameserver.services.trade.PricesService;
 
 /** Bots use the real market with their own goods and Kinah. Each visit settles first, then makes one purchase or sale. */
 final class PlayerBotMarket {
- private record Need(int item,long quantity,boolean equipment) {}
+ private record Need(int item,long quantity,boolean equipment,boolean stone,boolean upgrade) {}
+ private record Choice(String variant,CompanionQuote quote,long price,double gain) {}
  private record View(long at,Map<String,Object> value) {}
  private static final Map<Integer,Long> NEXT=new ConcurrentHashMap<>();
  private static final Map<Integer,Boolean> WINDING=new ConcurrentHashMap<>();
@@ -57,7 +58,8 @@ final class PlayerBotMarket {
  static boolean idle(PlayerBotSession session,boolean background) {
   Player bot=session.bot();long now=System.currentTimeMillis();
   if(!eligible(session) || now<NEXT.getOrDefault(bot.getObjectId(),0L) || !background && !PlayerBotPass.rewardIdle(session) || !PlayerBotWarehouse.idle(bot))return false;
-  NEXT.put(bot.getObjectId(),now+Math.max(60,PlayerBotEconomyConfig.MARKET_INTERVAL_SECONDS)*1000L+bot.getObjectId()%60000);
+  // Phase 4: a TRADER-leaning bot visits the market more often.
+  NEXT.put(bot.getObjectId(),now+(long)(Math.max(60,PlayerBotEconomyConfig.MARKET_INTERVAL_SECONDS)*1000L*PlayerBotLeanings.pace(bot,PlayerBotLeanings.Activity.MARKET))+bot.getObjectId()%60000);
   try {
    PlayerBotGearPolicy.state(session);
    PlayerBotService.getInstance().checkpointForOwnerAction(session);
@@ -66,7 +68,7 @@ final class PlayerBotMarket {
    if(settling){NEXT.put(bot.getObjectId(),now+5000);return true;}
    if(WINDING.remove(bot.getObjectId())!=null)return false;
    if(ledger.orders().stream().filter(CompanionOrder::live).count()>=Math.max(0,PlayerBotEconomyConfig.MARKET_OPEN_ORDERS))return false;
-   VISITS.incrementAndGet();
+   VISITS.incrementAndGet();PlayerBotLeanings.did(bot,PlayerBotLeanings.Activity.MARKET);
    if(buy(session,ledger))return true;
    if(sell(session)){LISTED.incrementAndGet();return true;}
    return false;
@@ -87,13 +89,14 @@ final class PlayerBotMarket {
   Player bot=session.bot();
   for(var order:ledger.orders())if(order.uncollected()>0 || order.gross()>0) {
    perform(bot,Map.of("action","collect","order",Long.toString(order.id())));
-   if(order.side().equals("S") && order.gross()>0 && order.price()>0)PlayerBotProfessions.sold(bot,order.itemId(),order.gross()/order.price());
+   if(order.side().equals("S") && order.gross()>0 && order.price()>0){PlayerBotProfessions.sold(bot,order.itemId(),order.gross()/order.price());PlayerBotWorldOutcomes.sold(bot,order.gross()/order.price());}
    return true;
   }
   long expiry=WINDING.containsKey(bot.getObjectId())?0:Math.max(1,PlayerBotEconomyConfig.MARKET_ORDER_HOURS)*3600000L;
   for(var order:ledger.orders())if(order.live() && now-order.created()>=expiry){perform(bot,Map.of("action","cancel","order",Long.toString(order.id())));return true;}
   for(var stock:ledger.stock()) {
-   perform(bot,Map.of("action","transfer","source",Integer.toString(com.aionemu.gameserver.model.items.storage.StorageType.MARKET_WAREHOUSE.getId()),"target","0","object",Integer.toString(stock.object()),"quantity",Long.toString(stock.count())));return true;
+   perform(bot,Map.of("action","transfer","source",Integer.toString(com.aionemu.gameserver.model.items.storage.StorageType.MARKET_WAREHOUSE.getId()),"target","0","object",Integer.toString(stock.object()),"quantity",Long.toString(stock.count())));
+   return true;
   }
   if(ledger.kinah()>0){perform(bot,Map.of("action","kinah","source","0","direction","withdraw","quantity",Long.toString(ledger.kinah())));return true;}
   return false;
@@ -104,21 +107,38 @@ final class PlayerBotMarket {
   for(var order:ledger.orders())if(order.side().equals("B") && (order.live() || order.uncollected()>0))ordered.add(order.itemId());
   for(var goal:new TreeMap<>(PlayerBotGearPolicy.state(session).goals).values()) {
    var parts=goal.split(":");if(parts.length!=3)continue;int item=Integer.parseInt(parts[0]);
-   if(!ordered.contains(item) && bot.getInventory().getItemCountByItemId(item)==0 && bot.getEquipment().getEquippedItemsByItemId(item).isEmpty())needs.add(new Need(item,1,true));
+   if(!ordered.contains(item) && bot.getInventory().getItemCountByItemId(item)==0 && bot.getEquipment().getEquippedItemsByItemId(item).isEmpty())needs.add(new Need(item,1,true,false,false));
+   if(needs.size()>=PlayerBotEconomyConfig.MARKET_NEEDS_PER_VISIT)return needs;
+  }
+  Item target=PlayerBotCare.enhancementTarget(session);
+  if(target!=null && PlayerBotCare.bestStone(bot,target)==null && PlayerBotCare.stoneAllowance(session)>0) {
+   var stone=PlayerBotCare.marketStone(bot,target);
+   if(stone!=null && !ordered.stream().anyMatch(id->{var t=DataManager.ITEM_DATA.getItemTemplate(id);return t!=null && PlayerBotCare.stone(t,target);}))needs.add(new Need(stone.getTemplateId(),1,false,true,false));
    if(needs.size()>=PlayerBotEconomyConfig.MARKET_NEEDS_PER_VISIT)return needs;
   }
   // A world bot's trade inputs reach the market even outside its awake work turn; that is what makes the market its first stop.
   var craft=session.autonomous()?null:PlayerBotFocus.craftingPlan(session);
   var missing=session.autonomous()?PlayerBotProfessions.inputs(bot):craft==null?Map.<Integer,Long>of():craft.missing();
   for(var entry:new TreeMap<>(missing).entrySet()) {
-   if(!ordered.contains(entry.getKey()) && entry.getValue()>0)needs.add(new Need(entry.getKey(),entry.getValue(),false));
+   if(!ordered.contains(entry.getKey()) && entry.getValue()>0)needs.add(new Need(entry.getKey(),entry.getValue(),false,false,false));
    if(needs.size()>=PlayerBotEconomyConfig.MARKET_NEEDS_PER_VISIT)break;
   }
   return needs;
  }
+ /** Phase 3: wearable gear on sale now, after goals, stones and trade inputs, with its own per-visit limit.
+  * Awake and dormant bots share this path, so offscreen purchases happen at the awake rate.
+  * Companions keep the owner's goals and Care budget only. */
+ private static List<Need> upgradeNeeds(PlayerBotSession session,CompanionLedger ledger,List<Need> planned) {
+  if(!PlayerBotMarketUpgrades.enabled() || !session.autonomous())return List.of();
+  var skip=new HashSet<Integer>();for(var need:planned)skip.add(need.item());
+  for(var order:ledger.orders())if(order.side().equals("B") && (order.live() || order.uncollected()>0))skip.add(order.itemId());
+  var result=new ArrayList<Need>();
+  for(int item:PlayerBotMarketUpgrades.picks(session,skip,PlayerBotEconomyConfig.MARKET_UPGRADES_PER_VISIT,System.currentTimeMillis()))result.add(new Need(item,1,true,false,true));
+  return result;
+ }
  /** Configured reserve is the level-65 reference; native progression needs smaller working balances early on. */
  /** Bot market work since start, for worldstats. */
- static String stats(){return "market visits="+VISITS.get()+", bought="+BOUGHT.get()+", buy orders="+POSTED.get()+", listed="+LISTED.get();}
+ static String stats(){return "market visits="+VISITS.get()+", bought="+BOUGHT.get()+", buy orders="+POSTED.get()+", listed="+LISTED.get()+", "+PlayerBotMarketUpgrades.stats();}
  static long reserve(int level,long configured) {
   long l=Math.max(1,Math.min(65,level)),value=Math.max(0,Math.min(CentralMarketRules.MAX_KINAH,configured));
   return Math.max(PlayerBotEconomyConfig.MARKET_RESERVE_MINIMUM,value/4225*l*l+value%4225*l*l/4225);
@@ -153,8 +173,11 @@ final class PlayerBotMarket {
   return CentralMarketRules.ladder(quote.base(),quote.floor(),quote.ceiling()).stream().filter(p->p>=ask && p<=limit).findFirst().orElse(0L);
  }
  private static double improvement(PlayerBotSession session,ItemTemplate template) {
+  return improvement(session,template,0,0);
+ }
+ private static double improvement(PlayerBotSession session,ItemTemplate template,int enchant,int tempering) {
   Player bot=session.bot();if(!PlayerBotGearPolicy.purchasable(bot,template))return 0;
-  var role=PlayerBotGearPolicy.role(bot,session.combatRole());double score=PlayerBotGearPolicy.score(bot,template,role);
+  var role=PlayerBotGearPolicy.role(bot,session.combatRole());double score=PlayerBotGearPolicy.variantScore(bot,template,role,enchant,tempering);
   double gain=PlayerBotGearPolicy.slots(bot,template).stream().mapToDouble(slot->PlayerBotGearPolicy.gain(bot,template,score,slot,role)).max().orElse(0);
   return gain>1?Math.min(1,gain/Math.max(1,score)):0;
  }
@@ -163,21 +186,28 @@ final class PlayerBotMarket {
   if(!care.spentDay.equals(day)){care.spentDay=day;care.spent=0;care.save();}
   long reserved=Math.max(care.reserve,reserve(bot.getLevel(),PlayerBotEconomyConfig.MARKET_RESERVE_KINAH));
   long budget=budget(bot.getInventory().getKinah(),reserved,PlayerBotEconomyConfig.MARKET_BUDGET_PERCENT,dailyAllowance(session.autonomous(),bot.getLevel(),care.dailyBudget,care.spent));if(budget<=0)return false;
-  for(var need:needs(session,ledger)) {
+  var planned=new ArrayList<>(needs(session,ledger));planned.addAll(upgradeNeeds(session,ledger,planned));
+  for(var need:planned) {
+   if(need.upgrade())PlayerBotMarketUpgrades.tried(bot,need.item(),System.currentTimeMillis());
    var template=DataManager.ITEM_DATA.getItemTemplate(need.item());
    if(template==null || !CentralMarketService.eligible(template)
     || !com.aionemu.gameserver.services.ItemEligibility.isPlayerItem(template) || com.aionemu.gameserver.services.ItemEligibility.isAppearanceOnly(template)
     || (template.isWeapon() || template.isArmor()) && !PlayerBotCombatGear.usable(template))continue;
    double gain=need.equipment()?improvement(session,template):1;if(gain<=0)continue;
    if(need.equipment() && PlayerBotQuestCrafting.productPlan(bot,0,need.item(),1).stage()==PlayerBotQuestCrafting.Stage.CRAFT)continue;
-   var quote=CentralMarketService.companionQuote(bot,need.item());long alternative=Math.min(EconomyPrices.replacement(template),EconomyPrices.generatedFloor(template));
+   var quote=CentralMarketService.companionQuote(bot,need.item());String variant=need.item()+":0:0";long alternative=Math.min(EconomyPrices.replacement(template),EconomyPrices.generatedFloor(template));
    long value=fair(quote,alternative);if(value<=0)continue;
    long limit=Math.min(alternative,value+value*PlayerBotEconomyConfig.MARKET_OVERPAY_PERCENT/100);
    if(PlayerBotQuestMaterials.hasSource(bot,need.item()))limit=Math.min(limit,value*PlayerBotEconomyConfig.MARKET_DROP_SOURCE_PERCENT/100);
    long allowance=(long)(budget*Math.min(1,Math.max(0.1,gain*4)));
    // Trade inputs also stay inside the trade's own daily budget.
-   if(!need.equipment() && session.autonomous())allowance=Math.min(allowance,PlayerBotProfessions.allowance(session,false));
+   if(need.stone())allowance=Math.min(allowance,PlayerBotCare.stoneAllowance(session));
+   else if(!need.equipment() && session.autonomous())allowance=Math.min(allowance,PlayerBotProfessions.allowance(session,false));
    long resting=purchasePrice(quote,Math.min(limit,allowance));
+   if(need.equipment()) {
+    Choice enhanced=enhancedChoice(session,template,resting,allowance);
+    if(enhanced!=null){variant=enhanced.variant();quote=enhanced.quote();resting=enhanced.price();}
+   }
    // Nothing fairly priced is on sale: a world crafter posts a real funded order for gatherers to sell into.
    boolean post=resting<=0 && !need.equipment() && session.autonomous();
    long ask=post?orderPrice(quote,Math.min(limit,allowance)):resting;if(ask<=0)continue;
@@ -186,21 +216,49 @@ final class PlayerBotMarket {
    long cost=CentralMarketRules.total(ask,quantity);
    // Reserve the daily allowance durably before creating escrow. A crash can defer spending,
    // but cannot reset the budget and spend that same day's allowance again.
+   if(need.stone())PlayerBotCare.stoneSpent(session,cost);
    care.spent+=cost;care.save();PlayerBotService.getInstance().checkpointForOwnerAction(session);
    // A busy market changed nothing, so the reserved allowance is returned.
    try{perform(bot,Map.of("action","kinah","source","0","direction","deposit","quantity",Long.toString(cost)));}
-   catch(CentralMarketService.CompanionBusy busy){care.spent-=cost;care.save();throw busy;}
-   try{perform(bot,Map.of("action","buy","variant",need.item()+":0:0","quantity",Long.toString(quantity),"price",Long.toString(ask)));}
+   catch(CentralMarketService.CompanionBusy busy){care.spent-=cost;care.save();if(need.stone())PlayerBotCare.stoneSpent(session,-cost);throw busy;}
+   try{perform(bot,Map.of("action","buy","variant",variant,"quantity",Long.toString(quantity),"price",Long.toString(ask)));}
    finally{NEXT.put(bot.getObjectId(),System.currentTimeMillis()+5000);}
-   if(!need.equipment() && session.autonomous())PlayerBotProfessions.marketSpent(bot,cost);
+   if(!need.stone() && !need.equipment() && session.autonomous())PlayerBotProfessions.marketSpent(bot,cost);
+   // Count stones only when bought from a live ask; a posted order may never fill, and goods coming home may be unsold listings.
+   if(need.stone() && !post)PlayerBotCare.bought(quantity);
+   if(need.upgrade())PlayerBotMarketUpgrades.bought(session);
    (post?POSTED:BOUGHT).incrementAndGet();return true;
   }
   return false;
  }
+ static boolean betterEnhanced(double gain,long price,double plainGain,long plainPrice,long productionCost) {
+  return gain>0 && price>0 && plainPrice>0 && price<Math.min(CentralMarketRules.MAX_KINAH,plainPrice+productionCost)
+   && gain/price>plainGain/plainPrice;
+ }
+ private static double gearGain(PlayerBotSession session,ItemTemplate template,int enchant,int tempering) {
+  Player bot=session.bot();if(!PlayerBotGearPolicy.purchasable(bot,template))return 0;
+  var role=PlayerBotGearPolicy.role(bot,session.combatRole());double score=PlayerBotGearPolicy.variantScore(bot,template,role,enchant,tempering);
+  return PlayerBotGearPolicy.slots(bot,template).stream().mapToDouble(slot->PlayerBotGearPolicy.gain(bot,template,score,slot,role)).max().orElse(0);
+ }
+ private static Choice enhancedChoice(PlayerBotSession session,ItemTemplate template,long plainAsk,long allowance)throws SQLException {
+  long replacement=plainAsk>0?plainAsk:Math.min(EconomyPrices.replacement(template),EconomyPrices.generatedFloor(template));Choice best=null;
+  double plainGain=Math.max(0,gearGain(session,template,0,0));
+  int maxE=Math.min(template.getMaxEnchantLevel(),Math.max(0,com.aionemu.gameserver.configs.main.CentralMarketSimulationConfig.ENHANCED_MAX_ENCHANT));
+  int maxT=Math.min(template.getMaxTampering(),Math.max(0,com.aionemu.gameserver.configs.main.CentralMarketSimulationConfig.ENHANCED_MAX_TEMPERING));
+  for(int n=1;n<=maxE+maxT;n++) {
+   int e=n<=maxE?n:0,temp=n<=maxE?0:n-maxE;String key=template.getTemplateId()+":"+e+":"+temp;
+   var q=CentralMarketService.companionQuote(session.bot(),key);long anchor=EconomyPrices.enhanced(template,e,temp),value=fair(q,anchor);
+   long price=purchasePrice(q,Math.min(allowance,Math.min(anchor,value+value*PlayerBotEconomyConfig.MARKET_OVERPAY_PERCENT/100)));
+   double gain=gearGain(session,template,e,temp);Player bot=session.bot();
+   long cost=EconomyPrices.enhancementCost(template,e,temp,com.aionemu.gameserver.model.gameobjects.player.Rates.get(bot,com.aionemu.gameserver.configs.main.RatesConfig.ENCHANTMENT_STONE_BASE_CHANCES),com.aionemu.gameserver.model.gameobjects.player.Rates.get(bot,com.aionemu.gameserver.configs.main.RatesConfig.ENCHANTMENT_STONE_AMPLIFIED_CHANCES),com.aionemu.gameserver.model.gameobjects.player.Rates.get(bot,com.aionemu.gameserver.configs.main.RatesConfig.TEMPERING_CHANCES));
+   if(betterEnhanced(gain,price,plainGain,replacement,cost) && (best==null || gain/price>best.gain()/best.price()))best=new Choice(key,q,price,gain);
+  }
+  return best;
+ }
  /** Equipment follows the care rules for unwanted gear; materials count only above the working reserve. */
  private static long surplus(PlayerBotSession session,Item item,Set<Integer> upgrades) {
   Player bot=session.bot();var t=item.getItemTemplate();
-  if(item.isEquipped() || !item.isTradeable() || item.getExpireTime()!=0 || !CentralMarketService.eligible(t) || PlayerBotGearPolicy.referenced(bot,item)
+  if(item.isEquipped() || PlayerBotQuestSync.state(session).protectedItems.contains(item.getObjectId()) || !item.isTradeable() || item.getExpireTime()!=0 || !CentralMarketService.eligible(t) || PlayerBotGearPolicy.referenced(bot,item)
    || PlayerBotGearPolicy.goal(bot,t) || PlayerBotGearPolicy.generated(bot,item) || PlayerBotRoadMerchants.merchandise(bot,item) || PlayerBotCare.worldQuestItem(bot,t.getTemplateId())
    || PlayerBotQuestMaterials.protectedItem(session,t.getTemplateId()))return 0;
   // A world bot's trade goods sell by its own style. This replaces the single material reserve for them.
@@ -220,8 +278,9 @@ final class PlayerBotMarket {
    var template=item.getItemTemplate();quantity=Math.min(quantity,CentralMarketRules.maxQuantity(template.isStackable(),template.getMaxStackCount()));
    var quote=CentralMarketService.companionQuote(bot,item);
    long vendor=PricesService.getSellReward(template.getPrice(),PricesService.getVendorSellModifier());
-   long floor=Math.max(Math.max(EconomyPrices.generatedFloor(template),vendor*10000/RETURN_BASIS_POINTS+1),PlayerBotProfessions.saleFloor(bot,item.getItemId()));
-   long price=salePrice(quote,EconomyPrices.anchor(template),floor);if(price<=0)continue;
+   long appraisal=EconomyPrices.enhanced(template,item.getEnchantLevel(),item.getTempering());
+   long floor=Math.max(Math.max(item.getEnchantLevel()>0 || item.getTempering()>0?appraisal:EconomyPrices.generatedFloor(template),vendor*10000/RETURN_BASIS_POINTS+1),PlayerBotProfessions.saleFloor(bot,item.getItemId()));
+   long price=salePrice(quote,appraisal,floor);if(price<=0)continue;
    if(CentralMarketRules.collect(CentralMarketRules.total(price,quantity),RETURN_BASIS_POINTS)<vendor*quantity)continue;
    int itemId=item.getItemId();int market=com.aionemu.gameserver.model.items.storage.StorageType.MARKET_WAREHOUSE.getId();
    perform(bot,Map.of("action","transfer","source","0","target",Integer.toString(market),"object",Integer.toString(item.getObjectId()),"quantity",Long.toString(quantity)));

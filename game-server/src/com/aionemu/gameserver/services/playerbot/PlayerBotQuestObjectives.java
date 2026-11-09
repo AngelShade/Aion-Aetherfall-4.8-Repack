@@ -199,13 +199,26 @@ final class PlayerBotQuestObjectives {
    +com.aionemu.gameserver.utils.ChatUtil.quest(d.goal.quest())+" ("+d.goal.kind().name().toLowerCase(Locale.ROOT)+").",
    "route:"+identity(d.goal,d.actor,d.variables),60000);
  }
+ /** A live, admitted objective, whatever is currently moving the bot. */
+ static boolean committed(Player bot) {
+  var d=DECISIONS.get(bot.getObjectId());return d!=null && d.active && d.goal!=null && valid(d);
+ }
+ /** True while the route may walk: the session must not pull the bot back to its
+  * formation slot meanwhile, or each step off the slot is undone on the next tick. */
+ static boolean errand(PlayerBotSession session) {
+  var owner=session.owner();var bot=session.bot();
+  return committed(bot) && walkable(owner,bot);
+ }
+ private static boolean walkable(Player owner,Player bot) {
+  return !owner.getMoveController().isInMove() && !owner.getController().isInCombat() && !bot.getController().isInCombat()
+   && !bot.isFlying() && !owner.isFlying();
+ }
  static Trigger trigger(PlayerBotSession session,PlayerBotNavigation navigation) {
   var d=DECISIONS.get(session.bot().getObjectId());if(d==null || !d.active || d.goal==null)return null;Goal goal=d.goal;
   return new Trigger(()->true,new Action() {
    public String name(){return "quest route "+goal.quest()+" -> "+goal.npc();}
    public boolean isUseful(){return !session.closing() && d.goal==goal && valid(d) && !session.owner().isDead()
-    && !session.owner().getMoveController().isInMove() && !session.owner().getController().isInCombat() && !session.bot().getController().isInCombat()
-    && !session.bot().isFlying() && !session.owner().isFlying();}
+    && walkable(session.owner(),session.bot());}
    public boolean isPossible(){return session.bot().canPerformMove() && !session.bot().isCasting() && !session.bot().isLooting();}
    public boolean execute(){boolean moved=navigation.move(goal.point().x(),goal.point().y(),goal.point().z());if(moved)announce(session.bot());return moved;}
   },()->DEFAULT+1);

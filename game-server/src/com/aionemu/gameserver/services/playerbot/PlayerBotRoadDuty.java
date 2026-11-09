@@ -287,10 +287,23 @@ public final class PlayerBotRoadDuty {
  public static boolean permitRoadStep(Player bot,float x,float y,float z) {
   var s=state(bot);if(!PlayerBotWardenConfig.ENABLED || s==null || s.career!=Career.WARDEN)return true;
   int steps=Math.max(1,(int)Math.ceil(PositionUtil.getDistance(bot,x,y,z)/2));if(steps>16)return false;
+  // Owner 8 Nov: a beat may cross a village; there a warden only walks its own road, never fights or roams.
+  boolean through=s.route!=null && s.route.id().startsWith("beat:") && !bot.getController().isInCombat();
   for(int i=1;i<=steps;i++) {float t=i/(float)steps;
-   if(!PlayerBotWardenBeats.field(bot.getWorldId(),bot.getX()+t*(x-bot.getX()),bot.getY()+t*(y-bot.getY()),bot.getZ()+t*(z-bot.getZ())))return false;
+   float px=bot.getX()+t*(x-bot.getX()),py=bot.getY()+t*(y-bot.getY()),pz=bot.getZ()+t*(z-bot.getZ());
+   if(!PlayerBotWardenBeats.field(bot.getWorldId(),px,py,pz) && !PlayerBotWardenBeats.villageStep(through,s.route==null?Double.POSITIVE_INFINITY:s.route.distance(px,py,pz)))return false;
   }return true;
  }
+ /** Whether a warden may head for this point at all: its field, or its own road where a beat crosses a village.
+  * Owner, 9 Nov: a warden sent to a quest NPC inside a village started, had its first step refused, stopped and
+  * tried again several times a second ("pressing W and S together"). The destination is now refused up front. */
+ public static boolean permitsGoal(Player bot,float x,float y,float z) {
+  var s=state(bot);if(!PlayerBotWardenConfig.ENABLED || s==null || s.career!=Career.WARDEN)return true;
+  boolean through=s.route!=null && s.route.id().startsWith("beat:") && !bot.getController().isInCombat();
+  return PlayerBotWardenBeats.field(bot.getWorldId(),x,y,z)
+   || PlayerBotWardenBeats.villageStep(through,s.route==null?Double.POSITIVE_INFINITY:s.route.distance(x,y,z));
+ }
+
  /** One unseen native placement per recovery turn. A refused placement leaves ordinary activity in charge. */
  private static boolean recover(State s,long now) {
   if(now<s.recoveryAt)return false;s.recoveryAt=now+30000;var bot=s.session.bot();

@@ -33,6 +33,8 @@ public final class PlayerBotQuestSync {
   boolean enchant, salvage, partySync = true, levelTogether = true;
   long reserve = 10000, dailyBudget = 50000, spent;
   String spentDay = "";
+  String enhanceDay = "";
+  long enhanceBudget, enhanceSpent;
   State(PlayerBotSession session) {
    this.session=session;
    account=session.bot().getAccount().getId();character=session.bot().getObjectId();
@@ -42,6 +44,7 @@ public final class PlayerBotQuestSync {
      var p=PlayerBotMetadata.load(account,character,"care",null);
      reserve=Math.max(10000,Long.parseLong(p.getProperty("reserve","10000")));dailyBudget=Math.max(0,Long.parseLong(p.getProperty("dailyBudget","50000")));
      spent=Math.max(0,Long.parseLong(p.getProperty("spent","0")));spentDay=p.getProperty("spentDay","");
+     loadEnhance(p);
     }catch(IOException error){throw new IllegalStateException("Cannot load world bot spending custody",error);}
     return;
    }
@@ -61,6 +64,7 @@ public final class PlayerBotQuestSync {
     levelTogether=Boolean.parseBoolean(p.getProperty("levelTogether","true"));
     reserve=Math.max(10000,Long.parseLong(p.getProperty("reserve","10000")));dailyBudget=Math.max(0,Long.parseLong(p.getProperty("dailyBudget","50000")));
     spent=Math.max(0,Long.parseLong(p.getProperty("spent","0")));spentDay=p.getProperty("spentDay","");
+    loadEnhance(p);
     for(String id:p.getProperty("skipped","").split(","))if(!id.isBlank())skipped.add(Integer.parseInt(id));
     for(String id:p.getProperty("approved","").split(","))if(!id.isBlank())approved.add(Integer.parseInt(id));
     for(String key:p.stringPropertyNames())if(key.startsWith("together.")){int id=Integer.parseInt(key.substring(9));managed.add(id);ownerCompletions.put(id,Integer.parseInt(p.getProperty(key)));}
@@ -68,12 +72,14 @@ public final class PlayerBotQuestSync {
    }catch(Exception error){throw new IllegalStateException("Cannot load companion care settings",error);}
   }
   Path path(){return Path.of("config","playerbots","care-character-"+character+".properties");}
+  void loadEnhance(Properties p){enhanceDay=p.getProperty("enhanceDay","");enhanceBudget=Math.max(0,Long.parseLong(p.getProperty("enhanceBudget","0")));enhanceSpent=Math.max(0,Long.parseLong(p.getProperty("enhanceSpent","0")));}
   void save() {
    Properties p=new Properties();p.setProperty("account",Integer.toString(account));p.setProperty("character",Integer.toString(character));
    p.setProperty("enchant",Boolean.toString(enchant));p.setProperty("salvage",Boolean.toString(salvage));p.setProperty("reserve",Long.toString(reserve));
    p.setProperty("partySync",Boolean.toString(partySync));
    p.setProperty("levelTogether",Boolean.toString(levelTogether));
    p.setProperty("dailyBudget",Long.toString(dailyBudget));p.setProperty("spent",Long.toString(spent));p.setProperty("spentDay",spentDay);
+   p.setProperty("enhanceDay",enhanceDay==null?"":enhanceDay);p.setProperty("enhanceBudget",Long.toString(enhanceBudget));p.setProperty("enhanceSpent",Long.toString(enhanceSpent));
    p.setProperty("skipped",skipped.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
    p.setProperty("approved",approved.stream().sorted().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")));
    for(int id:managed)p.setProperty("together."+id,Integer.toString(ownerCompletions.getOrDefault(id,0)));
@@ -83,7 +89,7 @@ public final class PlayerBotQuestSync {
  }
  private static final Map<Integer,State> STATES=new ConcurrentHashMap<>();
  static State state(PlayerBotSession session){return STATES.computeIfAbsent(session.bot().getObjectId(),id->new State(session));}
- static void close(PlayerBotSession session){STATES.remove(session.bot().getObjectId());PlayerBotQuestActions.close(session.bot());PlayerBotQuestItems.close(session.bot());PlayerBotQuestCraftingDriver.close(session.bot());PlayerBotQuestMaterials.close(session.bot());PlayerBotCare.close(session);PlayerBotTravel.close(session);PlayerBotGearPolicy.close(session);PlayerBotPartyBehavior.close(session);}
+ static void close(PlayerBotSession session){STATES.remove(session.bot().getObjectId());PlayerBotQuestActions.close(session.bot());PlayerBotQuestItems.close(session.bot());PlayerBotQuestCraftingDriver.close(session.bot());PlayerBotQuestMaterials.close(session.bot());PlayerBotCare.close(session);PlayerBotOffscreenTurnIns.closed(session.bot().getObjectId());PlayerBotTravel.close(session);PlayerBotGearPolicy.close(session);PlayerBotPartyBehavior.close(session);}
  static boolean skipped(Player bot,int quest){var s=STATES.get(bot.getObjectId());return s!=null && s.skipped.contains(quest);}
  static boolean returning(PlayerBotSession session) {
   var s=state(session);

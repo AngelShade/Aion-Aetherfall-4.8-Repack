@@ -75,16 +75,26 @@ public final class PlayerBotRoadMerchants {
   return PlayerBotRoadDuty.merchant(bot) && item!=null && !item.isEquipped() && item.getItemLocation()==0
    && s.values.containsKey("stock."+item.getObjectId()) && eligible(item.getItemTemplate(),s);
  }
- static long price(Player bot,Item item,long count) {
-  var s=PlayerBotRoadDuty.state(bot);if(!merchandise(bot,item) || count!=1)throw new IllegalArgumentException("Choose one available merchant item.");
-  // Native per-item value retains slot/crafting differences; rarity is a modest retail premium.
+ /** Stackable goods (power shards and the like) are carried as one stack of this size; everything else as one item. */
+ static long stackSize(ItemTemplate item,Random random) {
+  long limit=item.getMaxStackCount();if(limit<=1)return 1;
+  int low=Math.max(1,Math.min(PlayerBotMerchantConfig.STACK_MIN,PlayerBotMerchantConfig.STACK_MAX)),high=Math.max(low,PlayerBotMerchantConfig.STACK_MAX);
+  return Math.min(limit,low+random.nextInt(high-low+1));
+ }
+ /** Price of one unit; a stack sells at this price for each unit taken. */
+ static long price(Player bot,Item item) {
+  var s=PlayerBotRoadDuty.state(bot);if(!merchandise(bot,item))throw new IllegalArgumentException("Choose an available merchant item.");
+  // The shared appraisal already prices rarity, slot and crafting; the rank percent is the merchant's premium.
+  // Multiplying by quality again put purple gear at 15-22x its Central Market price (economy audit, 9 Nov 2026).
   var template=item.getItemTemplate();
   long quoted=EconomyPrices.cashPrice(template);
-  double base=quoted>0?quoted:EconomyPrices.reference(template)*Math.max(1,qualityMultiplier(template)/10.0);
-  // House goods are all level 1, so quality and their native price set the value.
-  if(houseGoods(item.getItemTemplate()))base=Math.max(item.getItemTemplate().getPrice(),PlayerBotMerchantConfig.PRICE_HOUSE_BASE*qualityMultiplier(item.getItemTemplate()));
+  double base=quoted>0?quoted:EconomyPrices.reference(template);
+  // House goods are all level 1: quality sets a floor, and crafted furniture keeps its material cost.
+  if(houseGoods(item.getItemTemplate()))base=Math.max(Math.max(item.getItemTemplate().getPrice(),EconomyPrices.reference(template)),PlayerBotMerchantConfig.PRICE_HOUSE_BASE*qualityMultiplier(item.getItemTemplate()));
   double value=base*rankPercent(s.rank)/100*PlayerBotMerchantConfig.PRICE_SCALE/100;
-  return Math.max(EconomyPrices.generatedFloor(template),Math.max(PlayerBotMerchantConfig.PRICE_MINIMUM,Math.min((long)value,PlayerBotMerchantConfig.PRICE_MAXIMUM)));
+  // The minimum is per item; a stack's units keep their own (much smaller) value, or a stack would cost thousands of items.
+  long minimum=template.getMaxStackCount()>1?1:PlayerBotMerchantConfig.PRICE_MINIMUM;
+  return Math.max(EconomyPrices.generatedFloor(template),Math.max(minimum,Math.min((long)value,PlayerBotMerchantConfig.PRICE_MAXIMUM)));
  }
  static void maintenance(PlayerBotRoadDuty.State s) {
   long now=System.currentTimeMillis();if(now<s.next || !s.session.autonomous())return;
@@ -98,9 +108,16 @@ public final class PlayerBotRoadMerchants {
   long cycle=restock==0?0:restock/3600000;
   var random=new Random(((long)bot.getObjectId()<<32)^cycle^0x52b9ad4cL);
   var used=new HashSet<Integer>();int count=0;
+  boolean restocking=now>=restock;
   for(String key:List.copyOf(s.values.stringPropertyNames()))if(key.startsWith("stock.")) {
    var item=bot.getInventory().getItemByObjId(Integer.parseInt(key.substring(6)));
-   if(item==null)s.values.remove(key);else{used.add(item.getItemId());count++;}
+   if(item==null){s.values.remove(key);continue;}
+   used.add(item.getItemId());count++;
+   // A restock tops a part-sold (or older single-unit) stack back up to a fresh roll.
+   if(restocking && merchandise(bot,item)) {
+    long full=stackSize(item.getItemTemplate(),new Random(((long)bot.getObjectId()<<32)^cycle^((long)item.getObjectId()<<8)^0x5ac4L));
+    if(item.getItemCount()<full)item.setItemCount(full); // a fresh (unsaved) item stays NEW
+   }
   }
   var remaining=new ArrayList<>(choices);Collections.shuffle(remaining,random);
   // Each rank guarantees a slot from its highest locally obtainable quality when available.
@@ -110,7 +127,7 @@ public final class PlayerBotRoadMerchants {
   for(var goods:remaining) {
    if(count>=capacity || bot.getInventory().isFull() || created>=PlayerBotMerchantConfig.RESTOCK_ITEMS)break;
    if(!used.add(goods.item()))continue;
-   Item item=ItemFactory.newItem(goods.item(),1);if(item==null)throw new IllegalStateException("Regional merchant item template disappeared");
+   Item item=ItemFactory.newItem(goods.item(),stackSize(DataManager.ITEM_DATA.getItemTemplate(goods.item()),random));if(item==null)throw new IllegalStateException("Regional merchant item template disappeared");
    bot.getInventory().onLoadHandler(item);
    s.values.setProperty("stock."+item.getObjectId(),goods.sourceNpc()+":"+goods.sourceMap());count++;created++;
   }
@@ -135,12 +152,12 @@ public final class PlayerBotRoadMerchants {
   if(bot.hasStore() || bot.getMoveController().isInMove() || bot.isFlying() || bot.isDead() || bot.isTrading() || bot.isCasting()
    || bot.isInPlayerMode(PlayerMode.RIDE) || bot.isInState(CreatureState.CHAIR))return;
   var goods=stock(s);if(goods.isEmpty())return;
-  goods.sort(Comparator.comparingLong((Item item)->price(bot,item,1)).reversed());
+  goods.sort(Comparator.comparingLong((Item item)->price(bot,item)).reversed());
   var store=new PrivateStore(bot);
   int listed=Math.clamp(PlayerBotMerchantConfig.SHOP_MAX_LISTED,1,goods.size()),start=s.shopOffset%goods.size();
   for(int i=0;i<listed;i++) {
    var item=goods.get((start+i)%goods.size());
-   store.addItemToSell(item.getObjectId(),new TradePSItem(item.getObjectId(),item.getItemId(),1,price(bot,item,1)));
+   store.addItemToSell(item.getObjectId(),new TradePSItem(item.getObjectId(),item.getItemId(),item.getItemCount(),price(bot,item)));
   }
   s.shopOffset=start+listed;
   PrivateStoreService.openPlayerBotStore(bot,store,sign(s));
@@ -160,11 +177,19 @@ public final class PlayerBotRoadMerchants {
    var goods=new Exchange(seller,buyer);
    for(var entry:bought) {
     var item=seller.getInventory().getItemByObjId(entry.getItemObjId());
-    if(!merchandise(seller,item) || entry.getCount()!=1){refuse(seller,buyer,entry.getItemObjId(),"That merchant item is no longer available. Browse the shop again.");return;}
-    goods.addItem(item.getObjectId(),new ExchangeItem(item.getObjectId(),1,item));
+    long count=entry.getCount();
+    if(!merchandise(seller,item) || count<1 || count>item.getItemCount()){refuse(seller,buyer,entry.getItemObjId(),"That merchant item is no longer available. Browse the shop again.");return;}
+    // Part of a stack leaves as a new item; the custody commit shortens the merchant's stack.
+    Item given=item;
+    if(count<item.getItemCount()){given=ItemFactory.newItem(item.getItemId(),count);if(given==null){refuse(seller,buyer,entry.getItemObjId(),"That merchant item is no longer available. Browse the shop again.");return;}given.setExpireTime(item.getExpireTime());}
+    goods.addItem(item.getObjectId(),new ExchangeItem(item.getObjectId(),count,given));
    }
    if(!PlayerBotWorldTrade.shopSale(seller,buyer,goods,price))return;
-   for(var entry:bought)store.removeItem(entry.getItemObjId());
+   for(var entry:bought) {
+    var listed=store.getTradeItemByObjId(entry.getItemObjId());
+    if(listed!=null)listed.decreaseCount(entry.getCount());
+    if(listed==null || listed.getCount()<=0 || seller.getInventory().getItemByObjId(entry.getItemObjId())==null)store.removeItem(entry.getItemObjId());
+   }
    if(store.getSoldItems().isEmpty())close(seller);
   }
  }

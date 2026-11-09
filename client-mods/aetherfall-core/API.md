@@ -65,6 +65,7 @@ ones (`basic_status`, `target`, `target_assist`, `party`, `radar`, `start`,
 | `AFCore.PruneBackdrops()` | Releases destroyed/replaced backdrop selections. A hidden, still-owned widget retains its selection for the first draw on reopening; active geometry pins remain held. Called before refreshing visible opacity settings. |
 | `AFCore.ClearBackdrops()` | Releases all backdrop selections when the interface is disabled or the character leaves/changes. Native colours were never overwritten, so no colour restoration is needed. |
 | `AFCore.SetShown(id, on)` | shows or hides a native window |
+| `AFCore.WidgetShown(id, widget, on)` | shows or hides one widget of a native window by path (core 1.3.8); false when it does not exist |
 | `AFCore.Scale()` | engine UI scale, screen width, screen height (pixels) |
 | `AFCore.ModPath(name)` | path under `Mods/AetherfallUI/`, whatever the client's working folder |
 | `AFCore.Cursor()` | mouse x, y (screen pixels), left button down, Shift down; nil when the game is not in front. Use it to drag frames inside your own window |

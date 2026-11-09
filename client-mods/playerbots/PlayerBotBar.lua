@@ -59,10 +59,15 @@ local PULL_CHARGE,PULL_BURST,PULL_HOLD=38,33,96
 local PULL_FLASH,PULL_SPARKS=12,24
 local PULL_PANEL_IN=18               -- finite 0.9s native frame entrance, after the burst
 local PULL_REVEAL=3                   -- frame of the burst, while the hall is still white
+local PULL_SHARED=18                  -- identical first .9s; no early rarity tell
+local PULL_TIERS={{charge=PULL_CHARGE,burst=PULL_BURST},{charge=44,burst=33},{charge=56,burst=36},{charge=70,burst=38}}
+local PULL_VALUE={POOR=1,ORDINARY=1,GOOD=2,GREAT=3,EXCELLENT=4}
+local PULL_STAMP=12                   -- finite .6s per roll, after the whole panel settles
 local PULL_XML=[==[<Dialog name="PlayerBotPull" frame="0,0,1280,960" flag="not_visible;not_movable">
 <Widget type="image" name="PlayerBotPullStage" frame="0,0,1280,960" flag="not_active"/>
 <Widget type="image" name="PlayerBotPullModel" frame="0,0,300,450" flag="not_active;not_visible"/>
 <Widget type="image" name="PlayerBotPullSparks" frame="0,0,1280,960" flag="not_active;not_visible"/>
+<Widget type="image" name="PlayerBotPullFlourish" frame="0,0,1280,960" flag="not_active;not_visible"/>
 <Widget type="container" name="PlayerBotPullResult" frame="0,0,430,760" flag="not_active;not_visible">
 <Widget type="image" name="PlayerBotPullPanel" frame="0,0,430,760" flag="not_active;not_visible"/>
 <Widget type="image" name="PlayerBotPullTitle" frame="0,0,350,52" flag="not_active;not_visible"/>
@@ -73,10 +78,12 @@ local PULL_XML=[==[<Dialog name="PlayerBotPull" frame="0,0,1280,960" flag="not_v
 <Widget type="image" name="PlayerBotPullGearIcon" frame="0,0,58,58" flag="not_active;not_visible"/>
 <Widget type="image" name="PlayerBotPullGearLabel" frame="0,0,180,32" flag="not_active;not_visible"/>
 <Widget type="image" name="PlayerBotPullGear" frame="0,0,170,40" flag="not_active;not_visible"/>
+<Widget type="image" name="PlayerBotPullGearStamp" frame="0,0,280,76" flag="not_active;not_visible"/>
 <Widget type="image" name="PlayerBotPullRankRow" frame="0,0,350,76" flag="not_active;not_visible"/>
 <Widget type="image" name="PlayerBotPullRankIcon" frame="0,0,58,58" flag="not_active;not_visible"/>
 <Widget type="image" name="PlayerBotPullRankLabel" frame="0,0,180,32" flag="not_active;not_visible"/>
 <Widget type="image" name="PlayerBotPullRank" frame="0,0,170,40" flag="not_active;not_visible"/>
+<Widget type="image" name="PlayerBotPullRankStamp" frame="0,0,280,76" flag="not_active;not_visible"/>
 <Widget type="image" name="PlayerBotPullDivider" frame="0,0,320,70" flag="not_active;not_visible"/>
 <Widget type="image" name="PlayerBotPullNote" frame="0,0,340,88" flag="not_active;not_visible"/>
 <Widget type="image" name="PlayerBotPullPanelFx" frame="0,0,430,760" flag="not_active;not_visible"/>
@@ -94,6 +101,9 @@ local function pullFrame(clip,index) return string.format('%s-%03d.dds',clip,ind
 function PlayerBotPull_Finish()
     g_AddonName='RelicCalc'
     B.pull=nil;if _G.PlayerBotPull then PlayerBotPull:Hide() end
+    if _G.PlayerBotPullFlourish then
+        for _,part in ipairs({'Sparks','Flourish','PanelFx','GearStamp','RankStamp'}) do pullVisible(part,false) end
+    end
 end
 local function pullLayout()
     local scale=GetUIScale()
@@ -101,6 +111,7 @@ local function pullLayout()
     local unit=height/1080;local left,top=math.min(width*.70,width-500*unit),130*unit
     local function place(part,x,y,w,h) _G['PlayerBotPull'..part]:SetRect(x*unit,y*unit,w*unit,h*unit) end
     PlayerBotPull:SetRect(0,0,width,height);PlayerBotPullStage:SetRect(0,0,width,height);PlayerBotPullSparks:SetRect(0,0,width,height)
+    PlayerBotPullFlourish:SetRect(0,0,width,height)
     -- The owner's 1080p capture puts feet 120px above the view's bottom.
     -- Keep its size, centre x on the arena, and lower that bottom by .03h.
     PlayerBotPullModel:SetRect(width*.505-height*.27,height*.08,height*.54,height*.74)
@@ -112,6 +123,9 @@ local function pullLayout()
         local part,y=row[1],row[2]
         place(part..'Row',40,y,350,80);place(part..'Icon',50,y+11,58,58)
         place(part..'Label',118,y+7,220,32);place(part,118,y+36,230,38)
+        local value=B.pull and B.pull[string.lower(part)] or 'POOR'
+        local strength=({POOR=.64,ORDINARY=.76,GOOD=.9,GREAT=1.05,EXCELLENT=1.2})[value] or .64
+        place(part..'Stamp',233-112*strength,y+55-32*strength,224*strength,64*strength)
     end
     place('Divider',60,500,310,70);place('Note',45,576,340,70);place('ContinueFace',45,654,340,66);place('Continue',45,654,340,66)
     PlayerBotPullSkip:SetRect(width-218*unit,height-68*unit,190*unit,44*unit)
@@ -142,12 +156,14 @@ local function pullStart(argument)
     g_AddonName='RelicCalc'
     local class,gear,rank,name=tostring(argument or ''):match('^(%S+) (%S+) (%S+) (.+)$')
     if not class or not _G.PlayerBotPull then return end
-    B.pull={clip='charge',frame=0,warmup=2,fade=0}
+    local tier=math.max(PULL_VALUE[gear] or 1,PULL_VALUE[rank] or 1)
+    B.pull={clip='charge',frame=0,warmup=2,fade=0,tier=tier,gear=gear,rank=rank,
+        timing=PULL_TIERS[tier],double=gear=='EXCELLENT' and rank=='EXCELLENT'}
     pullLayout();PlayerBotPullName:SetText(name)
     for _,part in ipairs(PULL_PANEL) do pullVisible(part,false) end
     for _,part in ipairs(PULL_RESULTS) do pullVisible(part,false) end
-    for _,part in ipairs({'Result','Model','Sparks','PanelFx','Continue','Skip','SkipFace'}) do pullVisible(part,false) end
-    for part,texture in pairs({Panel='panel',Title='title',Medal='medal-'..class,Class='class-'..class,GearRow='row',RankRow='row',GearIcon='gear-icon',RankIcon='rank-icon',GearLabel='gear-label',RankLabel='rank-label',Gear='value-'..gear,Rank='value-'..rank,Divider='divider',Note='note'}) do pullImage(_G['PlayerBotPull'..part],texture..'.dds') end
+    for _,part in ipairs({'Result','Model','Sparks','Flourish','PanelFx','GearStamp','RankStamp','Continue','Skip','SkipFace'}) do pullVisible(part,false) end
+    for part,texture in pairs({Panel=tier>1 and 'tier'..tier..'-panel' or 'panel',Title=tier>1 and 'tier'..tier..'-title' or 'title',Medal='medal-'..class,Class='class-'..class,GearRow='row',RankRow='row',GearIcon='gear-icon',RankIcon='rank-icon',GearLabel='gear-label',RankLabel='rank-label',Gear='value-'..gear,Rank='value-'..rank,Divider='divider',Note='note'}) do pullImage(_G['PlayerBotPull'..part],texture..'.dds') end
     pullImage(PlayerBotPullSkipFace,'skip-0.dds');pullImage(PlayerBotPullContinueFace,'continue-0.dds')
     -- Populate the hidden layout first, then let native queued image/rect calls
     -- drain before the one complete screen is shown and faded in.
@@ -173,21 +189,33 @@ local function pullTick()
     if P.fade<6 then P.fade=P.fade+1;PlayerBotPull:SetAlpha(P.fade/6,true) end
     P.frame=P.frame+1
     if P.clip=='charge' then
-        if P.frame>=PULL_CHARGE then P.clip='burst';P.frame=0 end
+        if P.frame>=P.timing.charge then P.clip='burst';P.frame=0 end
     elseif P.clip=='burst' then
         if P.frame==PULL_REVEAL then pullVisible('Model',true);pullVisible('Sparks',true);P.reveal=0 end
-        if P.frame>=PULL_BURST then
+        if P.frame>=P.timing.burst then
             P.clip='hold';P.frame=0;P.panelFrame=0
             for _,part in ipairs(PULL_PANEL) do pullVisible(part,true) end
             for _,part in ipairs(PULL_RESULTS) do pullVisible(part,true) end
             PlayerBotPullResult:SetAlpha(0,true);pullVisible('Result',true);pullVisible('PanelFx',true)
         end
     elseif P.frame>=PULL_HOLD then P.frame=0 end
-    pullImage(PlayerBotPullStage,pullFrame(P.clip,P.frame))
+    local clip,index=P.clip,P.frame
+    if P.tier>1 then
+        if clip=='charge' and index>=PULL_SHARED then clip='tier'..P.tier..'-charge';index=index-PULL_SHARED
+        elseif clip=='burst' then clip='tier'..P.tier..'-burst' end
+    end
+    pullImage(PlayerBotPullStage,pullFrame(clip,index))
     if P.reveal then
         -- A wash of light covers the model's arrival, then the embers keep drifting over it.
-        if P.reveal<PULL_FLASH then pullImage(PlayerBotPullSparks,pullFrame('flash',P.reveal))
-        else pullImage(PlayerBotPullSparks,pullFrame('sparks',(P.reveal-PULL_FLASH)%PULL_SPARKS)) end
+        if P.reveal<PULL_FLASH then pullImage(PlayerBotPullSparks,pullFrame(P.tier==4 and 'tier4-flash' or 'flash',P.reveal))
+        else pullImage(PlayerBotPullSparks,pullFrame(P.tier>1 and 'tier'..P.tier..'-sparks' or 'sparks',(P.reveal-PULL_FLASH)%PULL_SPARKS)) end
+        -- A double Excellent earns a brief solar coronation after the white wash.
+        -- Eight shared-size frames, held for two ticks each; never another loop.
+        if P.double and P.reveal>=PULL_FLASH and P.reveal<PULL_FLASH+16 then
+            local n=math.floor((P.reveal-PULL_FLASH)/2)
+            if n==0 and not P.flourishFrame then pullVisible('Flourish',true) end
+            if n~=P.flourishFrame then P.flourishFrame=n;pullImage(PlayerBotPullFlourish,pullFrame('tier4-double',n)) end
+        elseif P.double and P.reveal==PULL_FLASH+16 then pullVisible('Flourish',false) end
         P.reveal=P.reveal+1
     end
     if P.panelFrame then
@@ -197,9 +225,20 @@ local function pullTick()
         pullImage(PlayerBotPullPanelFx,pullFrame('panel-in',P.panelFrame))
         P.panelFrame=P.panelFrame+1
         if P.panelFrame>=PULL_PANEL_IN then
-            P.panelFrame=nil;P.complete=true;pullVisible('PanelFx',false)
+            P.panelFrame=nil;P.complete=true;P.stampFrame=-1;pullVisible('PanelFx',false)
             pullVisible('Continue',true);pullVisible('Skip',false);pullVisible('SkipFace',false)
         end
+    end
+    if P.stampFrame then
+        P.stampFrame=P.stampFrame+1
+        for _,row in ipairs({{'Gear',P.gear,0},{'Rank',P.rank,14}}) do
+            local n=P.stampFrame-row[3]
+            if n>=0 and n<PULL_STAMP then
+                if n==0 then pullVisible(row[1]..'Stamp',true) end
+                pullImage(_G['PlayerBotPull'..row[1]..'Stamp'],pullFrame('stamp-tier'..(PULL_VALUE[row[2]] or 1),n))
+            elseif n==PULL_STAMP then pullVisible(row[1]..'Stamp',false) end
+        end
+        if P.stampFrame>=26 then P.stampFrame=nil end
     end
     pullButtonState(P)
 end

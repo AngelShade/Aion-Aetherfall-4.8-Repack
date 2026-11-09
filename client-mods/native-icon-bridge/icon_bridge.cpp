@@ -1,5 +1,6 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
+#include <atomic>
 #include <windows.h>
 #include <wincodec.h>
 #include <wrl/client.h>
@@ -54,6 +55,12 @@ unsigned char* web_game=nullptr;
 struct WebMetadata { std::string origin,message;std::array<uint8_t,16> token{};int scale=100,flags=0;bool received=false; };
 WebMetadata web_metadata;
 std::mutex web_mutex;
+// AFW1 version 2 window commands from the server. Command 1 opens the Central Market
+// (a retired NPC Broker); Lua takes it on its next tick through AetherfallCore's "takemarket".
+// Command 2 states whether the native Broker is enabled (1) or retired (0); -1 until the
+// server says, which the Broker Swap module treats as retired so nothing is shown and hidden.
+std::atomic<ULONGLONG> market_open_requested{0};
+std::atomic<int> broker_state{-1};
 void log(const char* message);
 bool memory_span(const void* address,size_t bytes){
     if(!address || !bytes)return false;MEMORY_BASIC_INFORMATION info{};
@@ -269,6 +276,13 @@ uintptr_t __cdecl connected_security_response(Ptr context,Ptr packet){
         std::memcpy(&data,object+0x18,8);std::memcpy(&offset,object+0x20,4);
         if(offset>=0 && offset<=8192-29 && data){
             auto body=data+offset;
+            if(memory_span(body,29) && body[0]==0xaf && !std::memcmp(body+1,"AFW1",4) && body[5]==2){
+                // A command never touches the stored connection metadata.
+                if(body[6]==1){market_open_requested.store(GetTickCount64());log("Window command: open Central Market");}
+                else if(body[6]==2 && body[7]<=1){broker_state.store(body[7]);log(body[7]?"Window command: Broker enabled":"Window command: Broker retired");}
+                else log("Window command rejected: unknown command");
+                return 0;
+            }
             if(memory_span(body,29) && body[0]==0xaf){
                 {std::lock_guard<std::mutex> lock(web_mutex);web_metadata.received=false;}
                 size_t size=29+size_t(icons::u16(body+6))+size_t(icons::u16(body+8));
@@ -382,6 +396,12 @@ extern "C" __declspec(dllexport) int __cdecl AionWebConnection(const char* expec
     if(error && error_capacity){size_t n=(std::min)(out.error.size(),error_capacity-1);std::memcpy(error,out.error.data(),n);error[n]=0;}
     if(scale)*scale=out.text_scale;if(flags)*flags=out.flags;return ready?1:0;
 }
+// Hands one pending Central Market request to the caller; a request older than 10 s is dropped.
+extern "C" __declspec(dllexport) int __cdecl AionTakeMarketOpen(){
+    ULONGLONG at=market_open_requested.exchange(0);return at && GetTickCount64()-at<10000 ? 1 : 0;
+}
+// Native Broker state from the server: 1 enabled, 0 retired, -1 not yet received this session.
+extern "C" __declspec(dllexport) int __cdecl AionBrokerState(){return broker_state.load();}
 extern "C" __declspec(dllexport) void __cdecl AionWardrobeTick(){connection_tick();wardrobe::tick();if(wardrobe::ui_thread==GetCurrentThreadId() && !wardrobe::changing)companion_bar::tick();}
 extern "C" __declspec(dllexport) int __cdecl AionIconBridgeAttach(Ptr view,const wchar_t* root){try{if(!view||!root||!setup(root))return 0;attach(view);return 1;}catch(...){return 0;}}
 extern "C" __declspec(dllexport) size_t __cdecl AionIconBridgeDecode(uint32_t item,uint8_t* output,size_t capacity){try{auto bytes=get_icon(item);if(!bytes)return 0;if(output&&capacity>=bytes->size())std::memcpy(output,bytes->data(),bytes->size());return bytes->size();}catch(...){return 0;}}

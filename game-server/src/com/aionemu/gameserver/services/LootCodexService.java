@@ -656,6 +656,10 @@ public final class LootCodexService {
 	}
 
 	/** Static counterpart of DropRegistrationService's rule restrictions. Never rolls loot or creates an NPC. */
+	public static boolean monsterRuleAt(GlobalRule rule, NpcTemplate npc, SpawnTemplate spawn) {
+		return matches(Map.of(npc.getTemplateId(), List.of(spawn)), rule, npc);
+	}
+
 	private static boolean matches(Index data, GlobalRule rule, NpcTemplate npc) {
 		return matches(data.spots, rule, npc);
 	}

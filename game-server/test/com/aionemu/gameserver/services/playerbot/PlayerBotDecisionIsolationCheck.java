@@ -17,6 +17,8 @@ public final class PlayerBotDecisionIsolationCheck {
  public static void main(String[] args)throws Exception {com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_INDEPENDENT=false;com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_MEMORY_FIRST=false;PlayerBotMetadataCheck.dryWorld();
   // These inert active-bot fixtures have no native human-presence World.
   com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS=false;
+  // Nor any human to see them, so distance tiers would mark every fixture bot out of sight.
+  com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_DETAIL_TIERS=false;
   var field=sun.misc.Unsafe.class.getDeclaredField("theUnsafe");field.setAccessible(true);
   var unsafe=(sun.misc.Unsafe)field.get(null);
   var service=(PlayerBotService)unsafe.allocateInstance(PlayerBotService.class);

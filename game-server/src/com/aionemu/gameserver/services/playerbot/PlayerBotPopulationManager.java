@@ -269,7 +269,7 @@ final class PlayerBotPopulationManager {
  private void protectionNow()throws IOException {try{nextProtection=0;protection(System.currentTimeMillis());}catch(SQLException e){throw new IOException("Cannot verify native population protections",e);}}
  void started(Work work){if(pending.remove(work.session().bot().getObjectId())!=null)pendingBudget=Math.max(0,pendingBudget-1);}
  void closed(Player bot){closedId(bot.getObjectId());}
- void closedId(int id){states.remove(id);pending.remove(id);levelChanges.remove(id);legions.closed(id);}
+ void closedId(int id){PlayerBotCampSafety.closed(id);PlayerBotDetailTier.closed(id);PlayerBotUpgradeHunts.forget(id);PlayerBotMarketUpgrades.forget(id);PlayerBotLeanings.closed(id);PlayerBotPvpPresence.closed(id);PlayerBotSieges.forget(id);PlayerBotBases.forget(id);PlayerBotDredgion.forget(id);PlayerBotBattlegroundPlay.forget(id);PlayerBotDuels.forget(id);states.remove(id);pending.remove(id);levelChanges.remove(id);legions.closed(id);}
  void levelChanged(Player bot,int oldLevel,int newLevel) {
   if(global(bot) && bot.isSpawned() && newLevel==oldLevel+1)
    levelChanges.computeIfAbsent(bot.getObjectId(),id->new java.util.concurrent.ConcurrentLinkedQueue<>()).add(new LevelChange(oldLevel,newLevel));
@@ -279,7 +279,13 @@ final class PlayerBotPopulationManager {
    && !humanParty(bot) && !bot.isInInstance() && !AutoGroupService.getInstance().isLookingForInstance(bot);
  }
  void placed(Player bot)throws IOException {
-  if(!global(bot) || !PlayerBotPopulationConfig.REFRESH)return;
+  if(!global(bot))return;
+  if(PlayerBotPopulationConfig.MOVE_IN_PLACE) {
+   // Upstream refreshes a teleported bot while it stays logged in. Level, gear and skills are unchanged by a move,
+   // so the only part of the old same-level rebuild still needed is the consumable refill.
+   PlayerBotSupplies.provision(bot);PlayerBotCampSafety.MOVED_IN_PLACE.incrementAndGet();return;
+  }
+  if(!PlayerBotPopulationConfig.REFRESH)return;
   var state=state(bot,System.currentTimeMillis());
   if(state.number("pendingLevel")==0) {
    state.number("pendingLevel",bot.getLevel());state.values.setProperty("pendingFull","false");state.values.setProperty("pendingField","false");state.values.setProperty("pendingReason","teleport");queueMetadata(bot,state);
@@ -288,14 +294,38 @@ final class PlayerBotPopulationManager {
  boolean reviveDue(Player bot,long now)throws IOException {
   if(!global(bot))return false;var state=states.get(bot.getObjectId());if(state==null)return false;
   if(state.number("deadUntil")==0 || now>=state.number("deadUntil")) {
-   if(state.number("deadUntil")==0)state.number("deathStreak",PlayerBotPopulationPolicy.deathStreak(state.number("deathStreak"),state.number("lastLanding"),now));
+   if(state.number("deadUntil")==0) {
+    state.number("deathStreak",PlayerBotPopulationPolicy.deathStreak(state.number("deathStreak"),state.number("lastLanding"),now));
+    // First sight of this death: the body still lies where the bot died.
+    if(bot.getPosition()!=null) {
+     boolean dormant=!PlayerBotWorldActivity.occupied(bot);
+     PlayerBotCampSafety.recordDeath(bot.getWorldId(),bot.getX(),bot.getY(),bot.getLevel(),dormant,now);
+     PlayerBotCampSafety.died(bot.getObjectId(),dormant);
+    }
+   }
    state.number("deadUntil",now+1000L*Math.max(PlayerBotConfig.POPULATION_PRESENCE_MAX,PlayerBotPopulationConfig.REVIVE_MAX+1L));
    state.number("reviveAt",PlayerBotPopulationPolicy.deadline(now,random,PlayerBotPopulationConfig.REVIVE_MIN,PlayerBotPopulationConfig.REVIVE_MAX));queueMetadata(bot,state);
   }
   return now>=state.number("reviveAt");
  }
+ enum Revival { FIELD, CITY, STAY }
+ /** In-place revival: clear the death timer and say where the old rebuild would have sent the bot, without queueing a reload. */
+ Revival revivedInPlace(Player bot)throws IOException {
+  var state=states.get(bot.getObjectId());if(state==null)return Revival.STAY;
+  state.number("deadUntil",0);state.number("reviveAt",0);queueMetadata(bot,state);
+  if(state.number("pendingLevel")!=0)return Revival.STAY;
+  boolean field=PlayerBotPopulationPolicy.returnsToField(state.number("deathStreak"));
+  return field?Revival.FIELD:PlayerBotPopulationPolicy.revivesInCity(bot.getLevel())?Revival.CITY:Revival.STAY;
+ }
+ /** A field landing restarts the quick-death clock that deathStreak reads. */
+ void landed(Player bot)throws IOException {
+  var state=states.get(bot.getObjectId());if(state==null)return;state.number("lastLanding",System.currentTimeMillis());queueMetadata(bot,state);
+ }
  void revived(Player bot)throws IOException {
-  var state=states.get(bot.getObjectId());if(state!=null){
+  var state=states.get(bot.getObjectId());
+  // Revived by someone else (a player, a scroll): it stays where it stands, as a logged-in upstream bot would.
+  if(state!=null && PlayerBotPopulationConfig.MOVE_IN_PLACE){state.number("deadUntil",0);state.number("reviveAt",0);queueMetadata(bot,state);return;}
+  if(state!=null){
    state.number("deadUntil",0);state.number("reviveAt",0);
    // A bot the last camp killed right away goes to a city, or stays at the starter spawn, instead of another camp.
    boolean field=PlayerBotPopulationPolicy.returnsToField(state.number("deathStreak"));

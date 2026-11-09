@@ -42,6 +42,21 @@ public final class PlayerBotService {
 	private static long decisionCpuTime() {
 		return DECISION_CPU.isCurrentThreadCpuTimeSupported() && DECISION_CPU.isThreadCpuTimeEnabled() ? DECISION_CPU.getCurrentThreadCpuTime() : -1;
 	}
+	/** Blocked and waited milliseconds of this thread so far, or -1 when the JVM cannot tell. */
+	private static long[] decisionWaits() {
+		try {
+			if (!DECISION_CPU.isThreadContentionMonitoringSupported()) return new long[] {-1, -1};
+			if (!DECISION_CPU.isThreadContentionMonitoringEnabled()) DECISION_CPU.setThreadContentionMonitoringEnabled(true);
+			var info = DECISION_CPU.getThreadInfo(Thread.currentThread().threadId());
+			return info == null ? new long[] {-1, -1} : new long[] {info.getBlockedTime(), info.getWaitedTime()};
+		} catch (RuntimeException e) { return new long[] {-1, -1}; }
+	}
+	/** Total collector time; a jump during one decision means a stop-the-world pause, not bot work. */
+	private static long gcMillis() {
+		long total = 0;
+		for (var gc : java.lang.management.ManagementFactory.getGarbageCollectorMXBeans()) total += Math.max(0, gc.getCollectionTime());
+		return total;
+	}
 	private static final PlayerBotService INSTANCE = new PlayerBotService();
 	private final Map<Integer, PlayerBotSession> sessions = new java.util.concurrent.ConcurrentHashMap<>();
 	// Published with sessions; the companion clock never scans the world population.
@@ -105,6 +120,7 @@ public final class PlayerBotService {
   // Bind at the final admitted position, before presence can select even a dormant resident.
   PlayerBotRoadDuty.initialize(session);
   PlayerBotProfessions.initialize(session);
+  PlayerBotLeanings.initialize(session);
   if(session.autonomous())PlayerBotWorldActivities.begin(session.bot());
   sessions.put(id,session);
   if(session.autonomous())controlledSessions.remove(id);else controlledSessions.put(id,session);
@@ -399,7 +415,10 @@ public final class PlayerBotService {
       if(work.action()==PlayerBotPopulationManager.Action.REVIVE) {
        if(!populationManager.reviveAllowed(work.session()) || !populationManager.reviveDue(work.session().bot(),System.currentTimeMillis()))return;
        com.aionemu.gameserver.services.player.PlayerReviveService.bindRevive(work.session().bot());
-       if(!work.session().bot().isDead())populationManager.revived(work.session().bot());
+       if(!work.session().bot().isDead()) {
+        if(PlayerBotPopulationConfig.MOVE_IN_PLACE)reviveInPlace(work.session());
+        else populationManager.revived(work.session().bot());
+       }
        PlayerBotPersistence.save(work.session().bot(),checkpoint(work.session()));return;
       }
       populationManager.stage(work,System.currentTimeMillis());
@@ -413,6 +432,19 @@ public final class PlayerBotService {
     });
    }finally{if(!submitted){focusJobId=0;execution.complete(id);}}
   }catch(Exception e){log.error("Population management pass deferred; native identities and protection data retained",e);}
+ }
+ /** Revival without a reload: native bind revive already happened; teleport the live bot to a camp it can survive. */
+ private void reviveInPlace(PlayerBotSession session)throws java.io.IOException {
+  var bot=session.bot();var kind=populationManager.revivedInPlace(bot);
+  PlayerBotWorldPlacement.Location target=null;String reason;
+  if(kind==PlayerBotPopulationManager.Revival.FIELD){var s=PlayerBotWorldPlacement.chooseGrindDestination(bot.getRace(),bot.getLevel(),populationRandom);target=s.location();reason=s.reason();}
+  else if(kind==PlayerBotPopulationManager.Revival.CITY){var s=PlayerBotWorldPlacement.chooseReserveDestination(bot.getRace(),bot.getLevel(),100,populationRandom);target=s.location();reason=s.reason();}
+  else reason="stays at its bind point";
+  boolean moved=target!=null && PlayerBotWorldPlacement.placeAt(session,target);
+  if(moved && kind==PlayerBotPopulationManager.Revival.FIELD)populationManager.landed(bot);
+  PlayerBotSupplies.provision(bot);PlayerBotCampSafety.REVIVED_IN_PLACE.incrementAndGet();
+  if(moved)log.info("World bot {} ({}) revived in place and teleported to map {} ({}, {}, {}); no reload",bot.getName(),bot.getObjectId(),bot.getWorldId(),Math.round(bot.getX()),Math.round(bot.getY()),Math.round(bot.getZ()));
+  else log.info("World bot {} ({}) revived in place at map {} ({}, {}); {}",bot.getName(),bot.getObjectId(),bot.getWorldId(),Math.round(bot.getX()),Math.round(bot.getY()),target==null?reason:"landing refused");
  }
  PlayerClass plannedPopulationClass(Player bot) {
   if(!PlayerBotPopulationPolicy.serverAccount(bot.getAccount().getId()))return PlayerBotWorldPopulation.playerClass(bot.getObjectId());
@@ -451,6 +483,7 @@ public final class PlayerBotService {
    populationSchedule.event(bot.getObjectId(),new PlayerBotPopulationSchedule.Events(event.presentUntil(),event.offlineUntil(),now+30000,event.placedLevel()));
    if(!PlayerBotWorldPlacement.place(session,stranded?PlayerBotWorldPlacement.Purpose.FIELD_RESCUE:PlayerBotWorldPlacement.Purpose.POPULATION,settings.cityChance(),populationRandom,focusMaps))return false;
    if(stranded)log.info("World bot {} has no reachable eligible activity; moved to a validated field camp with the same saved character/progress",bot.getName());
+   if(focusMove)PlayerBotActivityMetrics.FOCUS_MOVES.increment();
    populationSchedule.event(bot.getObjectId(),new PlayerBotPopulationSchedule.Events(event.presentUntil(),event.offlineUntil(),PlayerBotPopulationPolicy.deadline(now,populationRandom,settings.teleportMin(),settings.teleportMax()),bot.getLevel()));
    populationManager.placed(bot);
    return true;
@@ -565,10 +598,27 @@ public final class PlayerBotService {
    +", open goals="+active.stream().mapToInt(s->PlayerBotGearPolicy.goalCount(s.bot())).sum()
    +", with a monster source="+active.stream().filter(s->!PlayerBotGearPolicy.goalDrops(s.bot()).isEmpty()).count()
    +", fights joined to help a player="+PlayerBotBystanders.helps()+", hunts started="+PlayerBotWorldActivities.goalHuntsStarted()+", hunting now="+active.stream().filter(s->PlayerBotWorldActivities.goalHuntTravel(s.bot())).count()+", "+PlayerBotWorldActivities.huntStats()
-   +"; "+PlayerBotLoadouts.worldStats()+"; "+PlayerBotMarket.stats()+"; "+PlayerBotProfessions.stats());
+   +"; "+PlayerBotLoadouts.worldStats()+"; "+PlayerBotMarket.stats()+"; "+PlayerBotCare.stats()+"; "+PlayerBotProfessions.stats());
   var liveLevels=new TreeMap<Integer,Integer>();
   for(var s:active)if(PlayerBotPopulationManager.global(s.bot()))liveLevels.merge((int)s.bot().getLevel(),1,Integer::sum);
   lines.add("Live global level distribution (native visible levels): "+liveLevels);
+  // Only the periodic report (no viewer) closes the measurement window; UI queries just read it.
+  lines.add(PlayerBotActivityMetrics.report(active,viewer==null));
+  lines.add(PlayerBotCampSafety.stats(System.currentTimeMillis()).substring("Playerbots: ".length()));
+  lines.add("Local work: enabled="+PlayerBotOffscreenTurnIns.enabled()+", "+PlayerBotOffscreenTurnIns.stats()+", presence picks with local work="+PlayerBotPresencePicks.stats());
+  lines.add("Detail tiers: "+PlayerBotDetailTier.stats(active));
+  lines.add("PvP: "+PlayerBotPvpStats.stats()+", "+PlayerBotDuels.stats()+", "+PlayerBotLeanings.stats());
+  lines.add("Leanings: "+PlayerBotLeanings.activity());
+  lines.add("Sieges: "+PlayerBotSieges.stats());
+  lines.add("Bases: "+PlayerBotBases.stats());
+  lines.add("Battleground objectives: "+PlayerBotBattlegroundObjectives.stats());
+  lines.add("Dredgion: "+PlayerBotDredgion.stats());
+  lines.add("Kamar: "+PlayerBotKamar.stats());
+  lines.add("Ophidan Bridge: "+PlayerBotOphidanBridge.stats());
+  lines.add("Iron Wall: "+PlayerBotIronWall.stats());
+  lines.add("Idgel Dome: "+PlayerBotIdgelDome.stats());
+  lines.add("Arenas: "+PlayerBotArenas.stats());
+  lines.add("Find Group runs: "+PlayerBotRunBriefing.stats());
   lines.add("World activity: dormant="+active.stream().filter(PlayerBotSession::dormant).count()
    +"; unoccupied-map dormancy="+PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS+"; companions remain active with their owners.");
   var mesh=PlayerBotMeshRoute.outcomes();
@@ -616,15 +666,25 @@ public final class PlayerBotService {
   nextPlayerPresenceWork=now+2000;
   var demand=PlayerBotPlayerPresence.demand(World.getInstance().getAllPlayers());if(!demand.active())return;
   var candidates=new ArrayList<>(sessions.values());Collections.shuffle(candidates,new Random(populationRandom.nextLong()));
+  // Phase 1.3: score a bounded sample of eligible bots and move the one with the most work in the player's area.
+  var eligible=new ArrayList<PlayerBotSession>();var areas=new HashMap<PlayerBotSession,PlayerBotPopulationFocus.Snapshot>();
   for(var session:candidates) {
+   if(eligible.size()>=PlayerBotPresencePicks.SAMPLE)break;
    var bot=session.bot();int id=bot.getObjectId();
    if(!session.autonomous() || session.closing() || !PlayerBotPlayerPresence.global(bot) || !bot.isSpawned() || PlayerBotRoadDuty.assigned(bot)
     || PlayerBotPlayerPresence.resident(bot) || PlayerBotFindGroup.committed(bot) || session.worldExcursion()
     || !PlayerBotWorldPlacement.idle(session) || PlayerBotWorldAscension.pending(bot)
     || PlayerBotWorldActivities.committedTravel(bot) && PlayerBotWorldActivities.questTravel(bot)
-    || now<nextPlacementAttempt.getOrDefault(id,0L) || focusProtected(session)
-    || !PlayerBotPlayerPresence.demand(World.getInstance().getAllPlayers(),bot.getRace(),bot.getLevel()).active()
-    || !execution.claim(id,"nearby player presence",now))continue;
+    || now<nextPlacementAttempt.getOrDefault(id,0L) || focusProtected(session))continue;
+   var area=PlayerBotPlayerPresence.demand(World.getInstance().getAllPlayers(),bot.getRace(),bot.getLevel());
+   if(!area.active())continue;
+   eligible.add(session);areas.put(session,area);
+  }
+  var scores=new HashMap<PlayerBotSession,Integer>();
+  for(var session:PlayerBotPresencePicks.rank(eligible,s->scores.computeIfAbsent(s,k->PlayerBotPresencePicks.fit(k.bot(),areas.get(k))))) {
+   var bot=session.bot();int id=bot.getObjectId();
+   if(!execution.claim(id,"nearby player presence",now))continue;
+   boolean localWork=scores.getOrDefault(session,0)>0;
    focusJobId=id;boolean submitted=false;
    try {
     submitted=backgroundWork.submit(ThreadPoolManager.getInstance()::executeLongRunning,()->{
@@ -642,6 +702,7 @@ public final class PlayerBotService {
       populationSchedule.event(id,new PlayerBotPopulationSchedule.Events(event.presentUntil(),event.offlineUntil(),
        PlayerBotPopulationPolicy.deadline(attempt,populationRandom,settings.teleportMin(),settings.teleportMax()),bot.getLevel()));
       populationManager.placed(bot);
+      PlayerBotActivityMetrics.PRESENCE_IN.increment();PlayerBotPresencePicks.picked(localWork);
       log.info("Player-area presence reused {} ({}) on map {}; worldwide target/identity retained",bot.getName(),id,bot.getWorldId());
      }}catch(Exception e){log.error("Nearby player presence {} deferred; native identity and progress retained",id,e);}
      finally{focusJobThread=null;focusJobId=0;execution.complete(id);worldWorkCompleted();}
@@ -949,7 +1010,11 @@ public final class PlayerBotService {
 		var bot=previous.bot();
 		synchronized(previous) {
 			PlayerBotHiring.released(bot, "CONTROL_ENDED");
-			PlayerBotTeams.remove(bot);previous.markClosing();bot.setTarget(null);bot.setWorldBotController(0);
+			// Field help: the human left, the bots stay together and keep at the objective (rejoinable via Find Group).
+			boolean keep=PlayerBotFindGroup.keepsParty(bot);
+			if(!keep)PlayerBotTeams.remove(bot);
+			if(previous.owner()!=bot)PlayerBotHelpObjectives.left(previous.owner(),bot);
+			previous.markClosing();bot.setTarget(null);bot.setWorldBotController(0);
 			var next=new PlayerBotSession(bot,bot,previous.lease(),0,false);
 			synchronized(next) {
 				// Never leave a controller-less resident stranded in a private instance.
@@ -1457,6 +1522,9 @@ public final class PlayerBotService {
    nextAiMaintenance=now+500;
    maintenanceWork.submit(ThreadPoolManager.getInstance()::executeLongRunning,()->{
     maintainPlayerPresence(System.currentTimeMillis());
+    // PvP-1: invite sleeping enemy PVP bots toward humans on shared maps and through rifts (own turn executes).
+    PlayerBotPvpPresence.plan(sessions.values(),System.currentTimeMillis());
+    PlayerBotDuels.plan(sessions.values(),System.currentTimeMillis());
     // SQL-backed level census/planning never holds the population monitor.
     maintainPopulationManagement(System.currentTimeMillis());
     synchronized(populationLock) {
@@ -1506,7 +1574,8 @@ public final class PlayerBotService {
   for(var candidate:ready) {
    var session=candidate.value();int id=session.bot().getObjectId();
    if(!execution.claim(id,"decision",System.currentTimeMillis()))continue;
-   long actorBegan=System.nanoTime(),actorCpuBegan=decisionCpuTime(),sessionWait=0;boolean dismiss=false;
+   long actorBegan=System.nanoTime(),actorCpuBegan=decisionCpuTime(),sessionWait=0,tickMs=0,dismissMs=0,gcBegan=gcMillis();boolean dismiss=false;
+   long[] waitsBegan=decisionWaits();
    boolean decided=false;
    try {
     if(shuttingDown || sessions.get(id)!=session || session.closing() || id==focusJobId || candidate.controlled()==session.autonomous())continue;
@@ -1515,11 +1584,17 @@ public final class PlayerBotService {
     long admission=System.currentTimeMillis();
     if(decisions.due(id,session.reactionDelay(),admission)>admission)continue;
     decided=true;
+    if(session.autonomous() && candidate.due()>0)PlayerBotDetailTier.late(admission-candidate.due(),admission);
     // Membership transitions acquire service -> actor; decisions never do the reverse.
     if(session.world()) {
      if (!session.autonomous() && (!session.owner().isOnline() || !PlayerBotTeams.same(session.owner(),session.bot())
       || !PlayerBotHiring.paidControl(session.owner(),session.bot()) && !PlayerBotFindGroup.freeHelpControl(session.owner(),session.bot()))) {
-      session.endWorldControl();
+      // A quick relog: the same character's new login is already back in the party (owner 8 Nov).
+      var back=PlayerBotFindGroup.relogged(session.owner(),session.bot());
+      if(back!=null){synchronized(this){if(!shuttingDown && sessions.get(id)==session)changeWorldController(session,back);}continue;}
+      // A dungeon run waits where it is for its relogging human (owner 8 Nov), fighting back, then ends normally.
+      if(PlayerBotFindGroup.holdsForRelog(session.owner(),session.bot(),admission))session.holdForRelog();
+      else session.endWorldControl();
       if (PlayerBotHiring.shouldRelease(session,admission)) {
        synchronized(this){if(!shuttingDown && sessions.get(id)==session)releaseWorldControl(session);}
        continue;
@@ -1536,6 +1611,7 @@ public final class PlayerBotService {
     synchronized(session) {
      sessionWait=(System.nanoTime()-sessionLockBegan)/1_000_000L;
      if(shuttingDown || sessions.get(id)!=session || session.closing() || id==focusJobId)continue;
+     long tickBegan=System.nanoTime();
      try {
       if(!PlayerBotConfig.ENABLED || session.world() && !PlayerBotConfig.WORLD_ENABLED) {
        if(session.world())session.markClosing();dismiss=true;
@@ -1547,15 +1623,19 @@ public final class PlayerBotService {
        if(session.world())session.markClosing();dismiss=true;
        PacketSendUtility.sendMessage(session.owner(),"Companion "+session.bot().getName()+" stopped after repeated AI errors. Check server logs.");
       }
-     }
+     }finally{tickMs=(System.nanoTime()-tickBegan)/1_000_000L;}
     }
-    if(dismiss)dismiss(session);
+    if(dismiss){long dismissBegan=System.nanoTime();try{dismiss(session);}finally{dismissMs=(System.nanoTime()-dismissBegan)/1_000_000L;}}
    }finally {
     if(decided)decisions.complete(id,System.currentTimeMillis());execution.complete(id);
-    long elapsed=(System.nanoTime()-actorBegan)/1_000_000L;
+    long elapsedNanos=System.nanoTime()-actorBegan,elapsed=elapsedNanos/1_000_000L;
+    if(decided){long cpuNow=decisionCpuTime();PlayerBotActivityMetrics.decision(session.bot(),actorCpuBegan<0 || cpuNow<0?-1:cpuNow-actorCpuBegan,elapsedNanos);}
     if(elapsed>1000){
      long cpuEnd=decisionCpuTime(),cpu=actorCpuBegan<0 || cpuEnd<0?-1:(cpuEnd-actorCpuBegan)/1_000_000L;
-     log.warn("Playerbot {} ({}) decision took {}ms; CPU {}ms; session-lock wait {}ms; activity: {}",session.bot().getName(),id,elapsed,cpu,sessionWait,session.activitySummary());
+     long[] waitsEnd=decisionWaits();long blocked=waitsBegan[0]<0 || waitsEnd[0]<0?-1:waitsEnd[0]-waitsBegan[0],waited=waitsBegan[1]<0 || waitsEnd[1]<0?-1:waitsEnd[1]-waitsBegan[1];
+     // Wall time minus CPU is waiting: monitors (blocked), parks/sleeps/IO futures (waited), GC pauses, or DB/socket IO (the rest).
+     log.warn("Playerbot {} ({}) decision took {}ms; CPU {}ms; session-lock wait {}ms; tick {}ms; dismiss {}ms; blocked {}ms; waited {}ms; GC {}ms; activity: {}",
+      session.bot().getName(),id,elapsed,cpu,sessionWait,tickMs,dismissMs,blocked,waited,gcMillis()-gcBegan,session.activitySummary());
     }
    }
    if(System.nanoTime()-began>=50_000_000L)break;

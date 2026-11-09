@@ -213,7 +213,7 @@ final class PlayerBotRoadNetwork {
     private static int[] groundRegions(PlayerBotNavmeshTopology graph){
         return strongRegions(graph.nodes,graph.offsets,graph.to);
     }
-    private static int[] strongRegions(int n,int[] offsets,int[] targets){
+    static int[] strongRegions(int n,int[] offsets,int[] targets){
         int[] counts=new int[n+1];for(int target:targets)counts[target+1]++;
         for(int i=1;i<=n;i++)counts[i]+=counts[i-1];int[] reverse=new int[targets.length],position=counts.clone();
         for(int from=0;from<n;from++)for(int arc=offsets[from];arc<offsets[from+1];arc++)reverse[position[targets[arc]]++]=from;

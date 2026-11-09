@@ -34,6 +34,8 @@ public class AuctionHouseSimulator {
 	private static final Logger log = LoggerFactory.getLogger(AuctionHouseSimulator.class);
 	private static final int[] ELYOS_SELLERS = { 999901, 999902, 999903 };
 	private static final int[] ASMODIAN_SELLERS = { 999904, 999905, 999906 };
+	/** Every reserved seller ID lies in this range (isSimulatedSeller). */
+	public static final int FIRST_SELLER = 999901, LAST_SELLER = 999906;
 	private final Map<Race, List<ItemTemplate>> catalog = new EnumMap<>(Race.class);
 	private final Map<Race, int[]> sellers = new EnumMap<>(Race.class);
 	private final Map<Race, Integer> nextIndex = new EnumMap<>(Race.class);
@@ -56,6 +58,10 @@ public class AuctionHouseSimulator {
 	public synchronized void init() {
 		if (initialized || !BrokerMarketConfig.ENABLED)
 			return;
+		if (!com.aionemu.gameserver.configs.main.CustomConfig.BROKER_ENABLED) {
+			log.info("Broker market seeding is off: the Broker is retired in favour of the Central Market");
+			return;
+		}
 		initialized = true;
 		sellers.put(Race.ELYOS, availableSellers(ELYOS_SELLERS, Race.ELYOS));
 		sellers.put(Race.ASMODIANS, availableSellers(ASMODIAN_SELLERS, Race.ASMODIANS));

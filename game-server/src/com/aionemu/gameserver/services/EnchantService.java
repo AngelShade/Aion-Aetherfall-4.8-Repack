@@ -99,34 +99,11 @@ public class EnchantService {
 	}
 
 	public static boolean enchantItem(Player player, Item enchantmentStoneItem, Item targetItem, Item supplementItem) {
-		float successChance;
+		float successChance = enchantChance(targetItem.getItemTemplate(), targetItem.getEnchantLevel(), targetItem.isAmplified(),
+			EnchantmentStone.getByItemId(enchantmentStoneItem.getItemId()), Rates.get(player, RatesConfig.ENCHANTMENT_STONE_BASE_CHANCES),
+			Rates.get(player, RatesConfig.ENCHANTMENT_STONE_AMPLIFIED_CHANCES));
 
-		if (targetItem.isAmplified())
-			successChance = Rates.get(player, RatesConfig.ENCHANTMENT_STONE_AMPLIFIED_CHANCES);
-		else {
-			successChance = Rates.get(player, RatesConfig.ENCHANTMENT_STONE_BASE_CHANCES);
-
-			EnchantmentStone enchantmentStone = EnchantmentStone.getByItemId(enchantmentStoneItem.getItemId());
-			int itemLevel = targetItem.getItemTemplate().getLevel();
-			if (itemLevel < EnchantmentStone.ALPHA.getBaseLevel()) // ensure low lvl items don't get too high success chances
-				itemLevel = EnchantmentStone.ALPHA.getBaseLevel();
-			int stoneToItemLevelDiff = enchantmentStone.getBaseLevel() - itemLevel;
-			int stoneToItemQualityDiff = enchantmentStone.getBaseQuality().getQualityId() - targetItem.getItemTemplate().getItemQuality().getQualityId();
-
-			successChance += stoneToItemLevelDiff; // absolutely increase/reduce chance by 1% for every level difference
-			successChance += stoneToItemQualityDiff * 5; // absolutely increase/reduce chance by 5% for each quality difference
-
-			if (targetItem.getEnchantLevel() == 0) // boost enchant chance for +1 by 20%
-				successChance *= 1.2f;
-			else if (targetItem.getEnchantLevel() < 5) // boost enchant chance up to +5 by 10%
-				successChance *= 1.1f;
-			else if (targetItem.getEnchantLevel() >= 10) // reduce enchant chance from +10 by 10%
-				successChance *= 0.9f;
-
-			// Retail Tests: 80% = Success Cap for Enchanting without Supplements
-			if (successChance >= 80)
-				successChance = 80;
-
+		if (!targetItem.isAmplified()) {
 			// Supplement is used
 			if (supplementItem != null) {
 				// Amount of supplement items
@@ -160,6 +137,26 @@ public class EnchantService {
 		}
 
 		return rollWithAdminInfo(player, successChance, "Enchanting");
+	}
+
+	/** Pure native chance before supplements; also used by appraisal and bot stone selection. */
+	public static float enchantChance(ItemTemplate target, int level, boolean amplified, EnchantmentStone stone, float base, float amplifiedChance) {
+		if (amplified) return amplifiedChance;
+		float chance = base;
+		chance += stone.getBaseLevel() - Math.max(target.getLevel(), EnchantmentStone.ALPHA.getBaseLevel());
+		chance += (stone.getBaseQuality().getQualityId() - target.getItemQuality().getQualityId()) * 5;
+		if (level == 0) chance *= 1.2f;
+		else if (level < 5) chance *= 1.1f;
+		else if (level >= 10) chance *= 0.9f;
+		return Math.min(80, chance);
+	}
+
+	public static int enchantFailureLevel(int current, int max, boolean amplified) {
+		return amplified ? max : current > 10 && max > 10 ? 10 : Math.max(0, current - 1);
+	}
+
+	public static int enchantSuccessLevel(int current, int max, boolean amplified, int addition) {
+		return Math.min(amplified ? 255 : max, current + addition);
 	}
 
 	/** Report only the actual completion-time roll, after native supplement consumption. */
@@ -198,21 +195,12 @@ public class EnchantService {
 
 		// Items that are Fabled or Eternal can get up to +15.
 		if (success) {
-			if (!targetItem.isAmplified() && currentEnchant + addLevel > maxEnchant)
-				currentEnchant = maxEnchant;
-			else
-				currentEnchant += addLevel;
+			currentEnchant = enchantSuccessLevel(currentEnchant, maxEnchant, targetItem.isAmplified(), addLevel);
 		} else {
 			// Retail: http://powerwiki.na.aiononline.com/aion/Patch+Notes:+1.9.0.1
 			// When socketing fails at +11~+15, the value falls back to +10.
-			if (targetItem.isAmplified()) {
-				currentEnchant = maxEnchant;
-				targetItem.setAmplified(false);
-			} else if ((currentEnchant > 10 && maxEnchant > 10)) {
-				currentEnchant = 10;
-			} else if (currentEnchant > 0) {
-				currentEnchant -= 1;
-			}
+			currentEnchant = enchantFailureLevel(currentEnchant, maxEnchant, targetItem.isAmplified());
+			if (targetItem.isAmplified()) targetItem.setAmplified(false);
 		}
 
 		if (targetItem.isAmplified())

@@ -78,6 +78,7 @@ public final class PlayerBotQuestObjectivesCheck {
    var df=PlayerBotQuestObjectives.class.getDeclaredField("DECISIONS");df.setAccessible(true);var decisions=(Map<Integer,PlayerBotQuestObjectives.Decision>)df.get(null);
    var hint=decisions.get(leader.id);hint.goal=new Goal(900101,203001,Kind.CONVERSATION,first.point(),false,false,0);hint.actor=0;
    first=PlayerBotQuestRoutes.choose(a,now+50);check(first.visible() && PlayerBotQuestObjectives.matches(leader,Kind.CONVERSATION,900101,far),"Static hint resolves actual visible actor before executing conversation");
+   check(PlayerBotQuestObjectives.committed(leader),"Admitted objective holds the companion on its errand");
    var copied=PlayerBotQuestRoutes.choose(b,now);check(copied.grouped() && copied.point().equals(first.point()),"Follower copies exact active peer destination instead of nearer same-template actor");
    third.quests.addQuest(900101,new QuestState(900101,QuestStatus.START));PlayerBotQuestObjectives.prepare(a,false,false);
    var unchained=PlayerBotQuestRoutes.choose(c,now+100);check(!unchained.grouped() && unchained.point().x()==2,"Copied destinations are not copied again when original peer is paused");
@@ -101,6 +102,7 @@ public final class PlayerBotQuestObjectivesCheck {
    check(!PlayerBotQuestObjectives.matches(follower,Kind.CONVERSATION,900101,near),"Native progression invalidates old objective immediately");
    var advanced=PlayerBotQuestRoutes.choose(b,now+2000);check(advanced.npc()==203002 && !advanced.grouped(),"Next native conversation selected; old-stage peer not copied");
    PlayerBotQuestObjectives.prepare(b,false,false);check(!PlayerBotQuestObjectives.matches(follower,Kind.CONVERSATION,900101,next),"Combat/rest/travel pause disables automatic action");
+   check(!PlayerBotQuestObjectives.committed(follower),"Paused objective releases the companion back to following");
    var resumed=PlayerBotQuestRoutes.choose(b,now+62000);check(resumed.npc()==203002,"Long pause preserves valid destination without stuck-route exclusion");
    PlayerBotQuestObjectives.attempted(follower,false);PlayerBotQuestObjectives.attempted(follower,false);check(PlayerBotQuestObjectives.matches(follower,Kind.CONVERSATION,900101,next),"Two failed native interactions retain retryable objective");
    PlayerBotQuestObjectives.attempted(follower,false);next.x=6;check(PlayerBotQuestRoutes.choose(b,System.currentTimeMillis())==null,"Third failure backs off same actor even after it moves");
@@ -113,6 +115,7 @@ public final class PlayerBotQuestObjectivesCheck {
    check(!PlayerBotQuestObjectives.matches(follower,Kind.CONVERSATION,900101,next),"Intermediate executor cannot consume ready reward destination");
    q2.setStatus(QuestStatus.COMPLETE);check(!PlayerBotQuestObjectives.job(follower,job),"Native completion invalidates pending reward action before replay");
    check(PlayerBotQuestRoutes.choose(b,now+67000)==null,"Completed quest produces no remaining destination");
+   check(!PlayerBotQuestObjectives.committed(follower),"Finished objective returns the companion to following");
    check(PlayerBotQuestObjectives.job(follower,new PlayerBotQuests.Job(near,900102,false)),"Acceptance fallback resumes only after active objective finishes");
    PlayerBotQuestObjectives.prepare(b,false,true);check(PlayerBotQuestObjectives.matches(follower,Kind.CONVERSATION,900101,near),"Explicit mission retains its original executor contract");
    check(PlayerBotQuestRoutes.leash(Kind.HUNT)==25,"Planner hunting leash matches actual native initiation radius");

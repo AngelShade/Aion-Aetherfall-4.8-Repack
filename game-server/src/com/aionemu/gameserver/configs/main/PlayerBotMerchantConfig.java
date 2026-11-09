@@ -34,6 +34,8 @@ public final class PlayerBotMerchantConfig {
  @Property(key="gameserver.playerbots.merchants.stock.per_rank",defaultValue="1") public static int STOCK_PER_RANK;
  @Property(key="gameserver.playerbots.merchants.stock.restock_hours",defaultValue="6") public static int RESTOCK_HOURS;
  @Property(key="gameserver.playerbots.merchants.stock.restock_items",defaultValue="6") public static int RESTOCK_ITEMS;
+ @Property(key="gameserver.playerbots.merchants.stock.stack_min",defaultValue="100") public static int STACK_MIN;
+ @Property(key="gameserver.playerbots.merchants.stock.stack_max",defaultValue="1000") public static int STACK_MAX;
  @Property(key="gameserver.playerbots.merchants.shop.max_listed",defaultValue="10") public static int SHOP_MAX_LISTED;
  @Property(key="gameserver.playerbots.merchants.shop.open_range",defaultValue="8") public static int SHOP_OPEN_RANGE;
  @Property(key="gameserver.playerbots.merchants.shop.close_range",defaultValue="15") public static int SHOP_CLOSE_RANGE;

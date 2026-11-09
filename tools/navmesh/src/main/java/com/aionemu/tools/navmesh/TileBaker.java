@@ -8,13 +8,24 @@ import org.recast4j.recast.geom.SimpleInputGeomProvider;
 /** Pure offline triangle-to-Detour conversion. Never boots the game or mutates geometry. */
 public final class TileBaker {
     private TileBaker() {}
-    public static MeshData build(float[] vertices, int[] triangles, Settings settings,
+    public static MeshData build(AionGeometry.Triangles floors, AionGeometry.Triangles blockers, Settings settings,
                                  float[] mapMin, float[] mapMax, int tileX, int tileY) {
-        var clipped=DomainClip.clip(vertices, triangles, mapMin, mapMax);
+        var clipped=DomainClip.clip(floors.vertices(), floors.indices(), mapMin, mapMax);
         if (clipped.indices().length == 0) return null;
+        var blocking=DomainClip.clip(blockers.vertices(), blockers.indices(), mapMin, mapMax);
         var geometry = new SimpleInputGeomProvider(clipped.vertices(), clipped.indices());
         var config = new RecastBuilderConfig(settings.recast(), mapMin, mapMax, tileX, tileY);
-        var result = new RecastBuilder().build(geometry, config);
+        // RecastBuilder's own voxelizer can only rate triangles by slope, so a blocker's flat top would count as floor.
+        var recast = settings.recast();
+        var telemetry = new Telemetry();
+        var solid = new Heightfield(config.width, config.height, config.bmin, config.bmax, recast.cs, recast.ch, recast.borderSize);
+        int count = clipped.indices().length / 3;
+        RecastRasterization.rasterizeTriangles(solid, clipped.vertices(), clipped.indices(),
+                Recast.markWalkableTriangles(telemetry, recast.walkableSlopeAngle, clipped.vertices(), clipped.indices(), count, recast.walkableAreaMod),
+                count, recast.walkableClimb, telemetry);
+        int blocked = blocking.indices().length / 3;
+        if (blocked > 0) RecastRasterization.rasterizeTriangles(solid, blocking.vertices(), blocking.indices(), new int[blocked], blocked, recast.walkableClimb, telemetry);
+        var result = new RecastBuilder().build(tileX, tileY, geometry, recast, solid, telemetry);
         var poly = result.getMesh();
         var detail = result.getMeshDetail();
         PolygonCleanup.removeDegenerate(poly, detail);

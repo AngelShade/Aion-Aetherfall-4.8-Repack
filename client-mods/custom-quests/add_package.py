@@ -111,7 +111,10 @@ def main():
     saved=(ENGLISH,QUESTS,PACKAGE_COPY,STATE)+RECORDS+tuple(path.relative_to(client).as_posix() for path in target.rglob('*') if path.is_file())
     added=[(target/path.relative_to(package)).relative_to(client).as_posix() for path in package.rglob('*') if path.is_file() and not (target/path.relative_to(package)).exists()]
     before={name:sha(client/name) for name in saved}
-    if before[ENGLISH]!=before[PACKAGE_COPY] or graphics(client)[0]:
+    # Independent Graphics ownership (ownership.json, as rebase() below) keeps no data.pak package copy in step:
+    # only its hooks are verified. The copy must match only on clients without that definition.
+    independent=(client/'Mods/GraphicsMenu/ownership.json').is_file()
+    if (not independent and before[ENGLISH]!=before[PACKAGE_COPY]) or graphics(client)[0]:
         raise SystemExit('The Graphics record does not match this client; fix that first')
     backup.mkdir(parents=True)
     for name in saved:

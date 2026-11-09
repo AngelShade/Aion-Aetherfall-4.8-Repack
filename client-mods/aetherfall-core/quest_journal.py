@@ -66,7 +66,16 @@ def generate(client, output):
         # and F's normal interact action. The old dialog OnInput hook ran too late.
         0x296ee: 'e87d955200',
         0x552c70: '488bc44881ec88000000488958f8488970e8',
-        0x3f616d: '4983f90e7230', 0x3f6394: '4883f90e737d',
+        0x3f616d: '4983f90e7230', 0x3f6394: '4883f90e737d', 0x63bf70: '4883f90e722a',
+        # Tracker row fill: htmltext SetText (call [rax+0x290]) and the quest id still in [rbx] after it.
+        0x85b608: 'ff9090020000', 0x85b619: '448b1b',
+        # Tracker tab limits (0x854d10): checked tab trim branch + stored limit 14, history trim branch + limit 7.
+        0x85526b: '0f8ef7010000', 0x855468: '41c785280500000e000000',
+        # Tracker text queue: vector at +0x670 (begin +0x678, end +0x680) filled by the native insert 0x823e0
+        # (0x85c651) and refilled then emptied by 0x85b230 (0x85b72d); help_quest::requeue uses the same insert.
+        0x85c651: '488b95800600004c8d4c2420488d8d7006000041b801000000e8715d82ff', 0x823e0: '488bc44881ec9800000048c7442458fe',
+        0x85b72d: '4d8b8780060000498b8f78060000',
+        0x855499: '0f8ee9010000', 0x855688: '41c7853805000007000000',
         0x3f7120: '4c8bdc4881ec880400004d85c049896bf0',
         0x3f2db5: 'e806634600', 0xc98f78 + 0x438: struct.pack('<Q', 0x104adce0).hex(),
         0x3fe4d5: '754b', 0x3fe53e: '0f8364030000', 0x400ce2: '7539', 0x400d3e: '4183f8078bc60f92c0',

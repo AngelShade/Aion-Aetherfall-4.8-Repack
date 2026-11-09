@@ -110,6 +110,8 @@ public class PvpService {
 			AbyssService.announceHighRankedDeath(victim);
 			return;
 		}
+		// Measurement only: bot PvP outcomes for the playerbot report. Rewards below are unchanged.
+		com.aionemu.gameserver.services.playerbot.PlayerBotPvpStats.killed(winner, victim);
 
 		List<Player> killers = findMembersToCountKillFor(winner, victim);
 		if (!killers.isEmpty()) {

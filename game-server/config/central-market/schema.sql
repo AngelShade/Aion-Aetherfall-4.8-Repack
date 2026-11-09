@@ -19,8 +19,10 @@ CREATE TABLE IF NOT EXISTS central_market_orders (
  variant VARCHAR(96) NOT NULL, side CHAR(1) NOT NULL, price BIGINT NOT NULL,
  quantity BIGINT NOT NULL, remaining BIGINT NOT NULL, state VARCHAR(16) NOT NULL,
  created_at BIGINT NOT NULL, available_at BIGINT NOT NULL,
- INDEX matching (variant,side,state,price,created_at), INDEX owned (account_id,state)
+ INDEX matching (variant,side,state,price,created_at), INDEX owned (account_id,state),
+ INDEX queued (state,available_at)
 ) ENGINE=InnoDB;
+ALTER TABLE central_market_orders ADD INDEX IF NOT EXISTS queued (state,available_at);
 CREATE TABLE IF NOT EXISTS central_market_stock (
  item_unique_id INT NOT NULL PRIMARY KEY, account_id INT NOT NULL,
  variant VARCHAR(96) NOT NULL, order_id BIGINT NULL,

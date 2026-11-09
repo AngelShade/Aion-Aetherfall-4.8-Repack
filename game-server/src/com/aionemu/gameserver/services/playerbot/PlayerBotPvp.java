@@ -20,6 +20,7 @@ final class PlayerBotPvp {
  private float originX,originY,originZ;
  private long started,quietUntil;
  final PlayerBotRifts rifts=new PlayerBotRifts();
+ final PlayerBotPvpSeek seek=new PlayerBotPvpSeek();
  PlayerBotPvp(PlayerBotSession session){this.session=session;}
  static boolean playerOwned(Creature target){return target!=null && target.getMaster() instanceof Player;}
  static boolean held(Creature target){return target.getEffectController().isAbnormalSet(AbnormalState.SLEEP)
@@ -74,10 +75,12 @@ final class PlayerBotPvp {
    .filter(p->p.getRace()==bot.getRace() && !bot.isEnemy(p))).distinct().toList():party;
   double friendly=power(bot),hostile=0;
   for(var p:nearby)if(bot.isEnemy(p))hostile+=power(p);else if(p.getRace()==bot.getRace())friendly+=power(p);
-  Creature best=null;double score=Double.NEGATIVE_INFINITY;
+  Creature best=null;double score=Double.NEGATIVE_INFINITY;boolean bestAnswer=false;
   for(var target:visible) {
    if(session.autonomous() && !legal(target))continue;
-   boolean explicit=target.getObjectId()==commanded || !session.autonomous() && party.stream().anyMatch(p->
+   // A duel opponent is the one fight a bot has agreed to: always explicit (PvP-6).
+   boolean explicit=target.getObjectId()==commanded || target instanceof Player duelist && com.aionemu.gameserver.services.DuelService.getInstance().isDueling(bot,duelist)
+    || !session.autonomous() && party.stream().anyMatch(p->
     p.getTarget()==target && recent(target,p,now));
    boolean direct=threatens(target,party,now);
    boolean defence=direct || threatens(target,allies,now);
@@ -98,20 +101,23 @@ final class PlayerBotPvp {
      || Math.abs(target.getLevel()-bot.getLevel())>PlayerBotConfig.PVP_LEVEL_DIFFERENCE
      || !PositionUtil.isInRange(bot,target,PlayerBotConfig.PVP_NOTICE_DISTANCE)
      || hostile>friendly*PlayerBotConfig.PVP_STRENGTH_LIMIT
-     || Math.floorMod(bot.getObjectId()*31L+target.getObjectId()*17L,100)>=PlayerBotConfig.PVP_AGGRESSION
+     // A PVP-leaning bot came to fight; everyone else keeps the configured share of stable bot/enemy pairs.
+     || Math.floorMod(bot.getObjectId()*31L+target.getObjectId()*17L,100)>=(PlayerBotLeanings.pvp(bot) || session.autonomous() && PlayerBotConfig.PVP_BATTLEGROUNDS && PlayerBotPvpSeek.battleground(bot)?100:PlayerBotConfig.PVP_AGGRESSION)
      || nearby.stream().filter(p->!bot.isEnemy(p) && p.getTarget()==target).count()>=PlayerBotConfig.PVP_ATTACKERS_PER_TARGET)continue;
    }
-   // New engagement needs actual sight; retained combat can approach a briefly broken sight line.
-   if(!continuing && !GeoService.getInstance().canSee(bot,target))continue;
+   // New engagement needs actual sight; retained combat can approach a briefly broken sight line. An agreed duel
+   // opponent is fought even from behind a wall: the reach action walks round to them (owner play test, 8 Nov).
+   boolean duel=target instanceof Player duelist2 && com.aionemu.gameserver.services.DuelService.getInstance().isDueling(bot,duelist2);
+   if(!continuing && !duel && !GeoService.getInstance().canSee(bot,target))continue;
    double value=(explicit?200:0)+(defence?100:0)+(continuing?18:0)-PositionUtil.getDistance(bot,target)
     +(100-hp(target))*.2;
    var cast=target.getCastingSkill();
    if(cast!=null && cast.getSkillTemplate().hasAnyEffect(EffectType.HEAL,EffectType.HEALINSTANT,EffectType.CASEHEAL,EffectType.RESURRECT))value+=35;
    else if(target instanceof Player p && roleFor(p.getPlayerClass())==Role.HEALER && p.getController().isInCombat())value+=15;
-   if(value>score || value==score && best!=null && target.getObjectId()<best.getObjectId()){score=value;best=target;}
+   if(value>score || value==score && best!=null && target.getObjectId()<best.getObjectId()){score=value;best=target;bestAnswer=explicit || defence;}
   }
   if(best!=current) {
-   if(best!=null){originX=bot.getX();originY=bot.getY();originZ=bot.getZ();started=now;}
+   if(best!=null){originX=bot.getX();originY=bot.getY();originZ=bot.getZ();started=now;PlayerBotPvpStats.engaged(bestAnswer);}
    current=best;
   }
   return best;

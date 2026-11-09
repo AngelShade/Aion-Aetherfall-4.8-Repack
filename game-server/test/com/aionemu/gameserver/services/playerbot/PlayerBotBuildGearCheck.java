@@ -66,6 +66,16 @@ public final class PlayerBotBuildGearCheck {
    check(emphases>=3 && emphases<=4,"Small strategy for "+pc+" "+build.key());
   }
   check(count==44,"All 44 builds load");
+  for(var pc:PlayerClass.values()) {
+   var builds=PlayerBotStigmaBuilds.forClass(pc);if(builds.isEmpty()){check(PlayerBotStigmaBuilds.world(pc,1)==null,pc+" with no builds stays automatic");continue;}
+   var seen=new java.util.HashSet<String>();
+   for(int id=100000;id<101000;id++) {
+    var picked=PlayerBotStigmaBuilds.world(pc,id);check(picked!=null && picked==PlayerBotStigmaBuilds.world(pc,id),pc+" world bot "+id+" keeps its build");
+    check(!picked.key().contains("pvp") && !picked.name().contains("PvP"),pc+" world bot takes no PvP build, got "+picked.key());seen.add(picked.key());
+   }
+   long pve=builds.stream().filter(b->!b.key().contains("pvp") && !b.name().contains("PvP")).count();
+   check(pve>=2 && seen.size()==pve,pc+" world bots spread over all "+pve+" PvE builds, got "+seen);
+  }
   for(String invalid:new String[]{null,"","NOT_A_STAT:5","MAXHP:NaN","MAXHP:Infinity","MAXHP:0","MAXHP:-1","MAXHP:1,MAXHP:2","MAXHP","MAXHP:1,"}) {
    try{PlayerBotStigmaBuilds.gear("CHECK.invalid",invalid);throw new AssertionError("Accepted "+invalid);}
    catch(IllegalStateException expected){check(expected.getMessage().contains("CHECK.invalid"),"Bad strategy fails loudly with its build id");}
@@ -178,6 +188,8 @@ public final class PlayerBotBuildGearCheck {
   var skills=DataManager.SKILL_DATA;var items=DataManager.ITEM_DATA;var index=statik(LootCodexService.class,"index").get(null);
   try {
    DataManager.SKILL_DATA=new SkillData();strategies();automatic(bot,state);goals(bot,state);
+   field(bot,"worldBot",true);check(PlayerBotGearPolicy.stigmaBuild(bot)==PlayerBotStigmaBuilds.world(PlayerClass.TEMPLAR,bot.id) && PlayerBotGearPolicy.stigmaBuild(bot)!=null,"A world bot uses its own build");
+   state.build="tank";check(PlayerBotGearPolicy.stigmaBuild(bot)==PlayerBotStigmaBuilds.world(PlayerClass.TEMPLAR,bot.id),"A world bot ignores a saved companion build");state.build="AUTO";field(bot,"worldBot",false);check(PlayerBotGearPolicy.stigmaBuild(bot)==null,"A Temporary Bot on AUTO stays automatic");
    states.remove(bot.id);exact(PlayerBotGearPolicy.score(bot,template(100030,ItemGroup.SWORD),Role.TANK),6,"Bot without policy retains AUTO score");
    System.out.println("OK: "+checks+" build gear strategy/cache/AUTO/wear checks; no runtime, account or database used");
   }finally{states.remove(bot.id);DataManager.SKILL_DATA=skills;DataManager.ITEM_DATA=items;statik(LootCodexService.class,"index").set(null,index);}

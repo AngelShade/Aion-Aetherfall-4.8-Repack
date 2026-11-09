@@ -132,6 +132,8 @@ public final class PlayerBotSchedulerCpuCheck {
  public static void main(String[] args)throws Exception {PlayerBotMetadataCheck.dryWorld();
   // These inert active-bot fixtures have no native human-presence World.
   com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS=false;
+  // Nor any human to see them, so distance tiers would mark every fixture bot out of sight.
+  com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_DETAIL_TIERS=false;
   purePass();var f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);var unsafe=(Unsafe)f.get(null);
   for(int population:new int[]{250,1000,3000})actualPass(unsafe,population);
   nomination();System.out.println("OK: "+checks+" actual scheduler eligibility, single-pass reaction, lane saturation, deadlines and empty terrain checks; no World/IDs/SQL/native tasks");

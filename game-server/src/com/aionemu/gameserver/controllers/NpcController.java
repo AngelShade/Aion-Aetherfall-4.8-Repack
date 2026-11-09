@@ -153,6 +153,7 @@ public class NpcController extends CreatureController<Npc> {
 	@Override
 	public void onDie(Creature lastAttacker) {
 		Npc owner = getOwner();
+		com.aionemu.gameserver.services.playerbot.PlayerBotRunBriefing.npcDied(owner); // tells, never throws
 		if (owner.getSpawn().hasPool())
 			owner.getSpawn().resetPoolSpot(owner.getInstanceId());
 

@@ -103,6 +103,14 @@ final class PlayerBotWardenBeats {
    return best;
   }
  }
+ /** The first and last points of a beat (where wardens turn and pause) always lie outside settlements. */
+ static final int END_POINTS=3;
+ /** Owner 8 Nov: a beat may pass through a village (at most half its points inside); its ends stay outside. */
+ static boolean villageAllowed(int points,int inside,boolean endsInside) {
+  return !endsInside && inside*2<=points;
+ }
+ /** Inside a settlement a warden step is admitted only on its own road (within 3 m) and out of combat. */
+ static boolean villageStep(boolean patrolling,double fromRoad){return patrolling && fromRoad<=3;}
  static Beat parse(String row,Settlements settlements) {
   var c=row.split("\t",-1);if(c.length!=10 || !c[0].matches("beat:[a-zA-Z0-9:_-]+"))throw new IllegalArgumentException("beat columns/id");
   int map=Integer.parseInt(c[1]),level=Integer.parseInt(c[3]),npc=Integer.parseInt(c[4]),hostiles=Integer.parseInt(c[8]);
@@ -113,8 +121,13 @@ final class PlayerBotWardenBeats {
   for(String vector:c[9].split(";")) {
    var v=vector.split(",");if(v.length!=3)throw new IllegalArgumentException("beat vector");
    var p=new PlayerBotNavigation.Point(Float.parseFloat(v[0]),Float.parseFloat(v[1]),Float.parseFloat(v[2]));
-   if(!Float.isFinite(p.x()) || !Float.isFinite(p.y()) || !Float.isFinite(p.z()) || settlements!=null && settlements.contains(p))throw new IllegalArgumentException("nonfinite/settlement point");
+   if(!Float.isFinite(p.x()) || !Float.isFinite(p.y()) || !Float.isFinite(p.z()))throw new IllegalArgumentException("nonfinite point");
    if(!points.isEmpty() && distance(points.getLast(),p)>20.1)throw new IllegalArgumentException("beat sample gap");points.add(p);
+  }
+  if(settlements!=null) {
+   int inside=0;boolean ends=false;
+   for(int i=0;i<points.size();i++)if(settlements.contains(points.get(i))){inside++;ends|=i<END_POINTS || i>=points.size()-END_POINTS;}
+   if(!villageAllowed(points.size(),inside,ends))throw new IllegalArgumentException("settlement point");
   }
   double length=length(points);
   if(points.size()<4 || points.size()>1024 || length<300 || length>4000 || !Double.isFinite(declared) || Math.abs(length-declared)>2

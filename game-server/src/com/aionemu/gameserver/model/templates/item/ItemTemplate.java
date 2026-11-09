@@ -33,7 +33,11 @@ import com.aionemu.gameserver.model.templates.stats.ModifiersTemplate;
 public class ItemTemplate extends VisibleObjectTemplate {
 
 	private static final byte[] DEFAULT_LEVEL_RESTRICTION = new byte[] { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
-	private static final Pattern DEVELOPMENT_NAME = Pattern.compile("(?:^|[^a-z0-9])(?:test|debug|dummy|prototype|placeholder)(?:$|[^a-z0-9])");
+	private static final Pattern DEVELOPMENT_NAME = Pattern.compile("(?:^|[^a-z0-9])(?:test|debug|dummy|prototype|placeholder|unused)(?:$|[^a-z0-9])");
+	/** GM-only items (GM costumes, weapon and gift boxes); case-sensitive so ordinary words are untouched. */
+	private static final Pattern GM_NAME = Pattern.compile("(?:^|[^A-Za-z])GMs?(?:$|[^A-Za-z])");
+	/** Untranslated string keys such as Herb_06_B or world_wrap_cash_ncwsteam_small_01 are unfinished templates. */
+	private static final Pattern UNTRANSLATED_NAME = Pattern.compile("[A-Za-z0-9]+(?:_[A-Za-z0-9]+)+");
 	private static final Pattern NON_PLAYER_NAME = Pattern.compile("(?:^|[^a-z0-9])(?:npc|prop)(?:$|[^a-z0-9])");
 	private static final Pattern NON_PLAYER_CLIENT_NAME = Pattern.compile("(?:^|_)(?:npc|prop)(?:_|$)");
 
@@ -87,6 +91,9 @@ public class ItemTemplate extends VisibleObjectTemplate {
 	// Client development name; only the classification flags survive loading.
 	@XmlAttribute(name = "cName")
 	private String clientName;
+	/** Gear client names, so Bootleg copies (client name "event_" + the original's) can find their original. */
+	private static final java.util.Map<String, Integer> GEAR_CLIENT_IDS = new java.util.concurrent.ConcurrentHashMap<>();
+	private String bootlegSource;
 	private boolean testItem;
 	private boolean nonPlayerEquipment;
 	private boolean appearanceItem;
@@ -158,13 +165,20 @@ public class ItemTemplate extends VisibleObjectTemplate {
 
 	void afterUnmarshal(Unmarshaller u, Object parent) {
 		String displayName = getName().toLowerCase(Locale.ROOT);
-		testItem = DEVELOPMENT_NAME.matcher(displayName).find() || displayName.startsWith("[temp");
+		testItem = DEVELOPMENT_NAME.matcher(displayName).find() || displayName.startsWith("[temp") || GM_NAME.matcher(getName()).find()
+			|| UNTRANSLATED_NAME.matcher(getName()).matches();
 		nonPlayerEquipment = getItemSlot() != 0 && (NON_PLAYER_NAME.matcher(displayName).find() || displayName.contains("login stage"));
 		if (clientName != null) {
 			String c = clientName.toLowerCase(Locale.ROOT);
 			testItem |= c.startsWith("test") || c.contains("_test") || c.contains("test_");
 			nonPlayerEquipment |= getItemSlot() != 0 && NON_PLAYER_CLIENT_NAME.matcher(c).find();
 			appearanceItem = c.contains("changeskin");
+			if (getItemSlot() != 0) {
+				if (displayName.startsWith("bootleg ") && c.startsWith("event_"))
+					bootlegSource = c.substring(6);
+				else
+					GEAR_CLIENT_IDS.put(c, itemId);
+			}
 			clientName = null;
 		}
 		if (weaponStats == null)
@@ -347,6 +361,12 @@ public class ItemTemplate extends VisibleObjectTemplate {
 	@Override
 	public String getName() {
 		return name == null ? "" : name;
+	}
+
+	/** The gear a Bootleg item copies (same stats, placeholder native price), or null. */
+	public ItemTemplate getBootlegOriginal() {
+		Integer id = bootlegSource == null ? null : GEAR_CLIENT_IDS.get(bootlegSource);
+		return id == null ? null : DataManager.ITEM_DATA.getItemTemplate(id);
 	}
 
 	@Override

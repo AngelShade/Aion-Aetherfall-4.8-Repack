@@ -154,10 +154,15 @@ public class TamperingAction extends AbstractItemAction {
 	}
 
 	private float calculateChance(Player player, Item item) {
-		if (item.getTempering() == 0) // +0 -> +1 is always safe
+		return temperingChance(item.getItemTemplate().getItemGroup(), item.getTempering(), Rates.get(player, RatesConfig.TEMPERING_CHANCES));
+	}
+
+	/** Pure native chance for production-cost appraisal. */
+	public static float temperingChance(ItemGroup group, int level, float base) {
+		if (level == 0) // +0 -> +1 is always safe
 			return 100;
-		if (item.getItemTemplate().getItemGroup() == ItemGroup.PLUME)
-			return Math.max(25, 100 - (item.getTempering() * 10));
-		return Rates.get(player, RatesConfig.TEMPERING_CHANCES);
+		if (group == ItemGroup.PLUME)
+			return Math.max(25, 100 - (level * 10));
+		return base;
 	}
 }

@@ -20,6 +20,9 @@ public final class WebSessionService {
         Account account = connection.getAccount();
         if (account != null) {
             byte[] nativeToken = token(account).getBytes(StandardCharsets.US_ASCII);
+            // The client's Broker Swap module hides Broker controls while the native Broker is retired.
+            connection.sendPacket(new com.aionemu.gameserver.network.aion.serverpackets.SM_WEB_COMMAND(
+                com.aionemu.gameserver.network.aion.serverpackets.SM_WEB_COMMAND.BROKER_STATE, com.aionemu.gameserver.services.BrokerService.enabled() ? 1 : 0));
             connection.sendPacket(new SM_WEB_CONNECTION(nativeToken, WebUiConnection.describe(connection)));
             connection.sendPacket(new SM_SECURITY_TOKEN(nativeToken));
         }

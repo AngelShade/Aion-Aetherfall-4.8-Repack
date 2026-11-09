@@ -20,7 +20,7 @@ public final class PlayerBotBystandersCheck {
   check(Files.readString(src.resolve("controllers/attack/AggroInfo.java")).contains("PlayerBotBystanders.answering(player)"),"a helper's hits leave the kill with the player");
   var session=Files.readString(bot.resolve("PlayerBotSession.java"));
   check(session.contains("PlayerBotBystanders.observe(this)") && session.contains("PlayerBotBystanders.helping(bot,npc)"),"the session looks for fights and treats the answered monster as an enemy");
-  check(Files.readString(bot.resolve("PlayerBotWorldActivities.java")).contains("var chosen=goalPlace(bot,npcs,s,now,distances);"),"gear hunts use their own place rule");
+  var activities=Files.readString(bot.resolve("PlayerBotWorldActivities.java"));check(activities.contains(":goalPlace(bot,npcs,s,now,distances);") && activities.contains("var chosen=goalPlace(bot,npcs,s,now,distances,places::contains);"),"gear hunts, upgrade hunts included, use their own place rule");
   check(Files.readString(bot.resolve("PlayerBotNavigation.java")).contains("tier==PlayerBotLedgeLeap.Tier.GHOST && settled("),"no bot sinks through a town floor");
   check(Files.readString(bot.resolve("PlayerBotWardenCompanies.java")).contains("instanceof PlayerBotLegionRepository.PlayerLegion"),"a Warden in a player's legion is not retried");
   var fall=Files.readString(src.resolve("controllers/movement/PlayerMoveController.java"));

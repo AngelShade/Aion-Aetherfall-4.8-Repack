@@ -51,6 +51,8 @@ function AFCore.Aura(unit, index) if core then return core("aura", unit, index) 
 function AFCore.Unit(unit) if core then return core("unit", unit) end end
 --- A bot's gear rarity and combat rank, or nil for anyone else or until the server has answered.
 function AFCore.Identity(name) if core then return core("identity", name) end end
+--- Show or hide one widget of a native dialog by path (core 1.3.8). False when it does not exist.
+function AFCore.WidgetShown(dialog, widget, on) if core then return core("widgetshown", dialog, widget, on) end end
 function AFCore.PlayerId() if core then return core("playerid") end end
 function AFCore.SkillName(id) if core then return core("skill", id) end end
 -- type, template id, id, count, cooldown value, cooldown max, shown

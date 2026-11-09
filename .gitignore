@@ -24,6 +24,7 @@
 
 # Generated output, editor state and local receipts are never build inputs.
 /tools/distribution/release-workspace.local.json
+/tools/dev-workspace.local.json
 **/target/
 **/node_modules/
 **/.venv/
@@ -201,3 +202,4 @@ AGENTS.md
 /client-mods/game-dll-research
 /tools/distribution/.release-text-backups/
 /client-mods/realistic-skin
+tools/clean_staging.py

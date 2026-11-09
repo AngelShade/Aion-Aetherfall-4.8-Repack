@@ -29,6 +29,8 @@ public class CM_BROKER_SELL_WINDOW extends AionClientPacket {
 
 		if (player.isTrading())
 			return;
+		if (!BrokerService.enabled())
+			return;
 
 		BrokerService.getInstance().showSellWindow(player, itemUniqueId);
 	}

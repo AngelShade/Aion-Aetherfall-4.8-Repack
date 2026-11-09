@@ -69,8 +69,19 @@ public class InstanceScaler implements StatOwner {
 		}
 	}
 
+	/** A dungeon difficulty other than native is set (gameserver.instance.difficulty.*). */
+	public static boolean difficulty() {
+		return INSTANCE_DIFFICULTY_HP != 1 || INSTANCE_DIFFICULTY_DMG != 1;
+	}
+
+	/** The party-size scaling (1 when off) times the always-on dungeon difficulty, kept inside sane bounds. */
+	public static float multiplier(boolean scaling, float scaled, float difficulty) {
+		float d = Float.isFinite(difficulty) ? Math.max(0.1f, Math.min(10f, difficulty)) : 1;
+		return (scaling ? scaled : 1) * d;
+	}
+
 	public static boolean canScale(WorldMapInstance instance) {
-		return INSTANCE_SCALING_ENABLE && instance.getMaxPlayers() > 1 && instance.getParent().isInstanceType() && !INSTANCE_SCALING_EXCLUDED_MAPS.contains(instance.getMapId());
+		return (INSTANCE_SCALING_ENABLE || difficulty()) && instance.getMaxPlayers() > 1 && instance.getParent().isInstanceType() && !INSTANCE_SCALING_EXCLUDED_MAPS.contains(instance.getMapId());
 	}
 
 	private static boolean shouldScale(Npc npc, WorldMapInstance instance) {
@@ -121,8 +132,8 @@ public class InstanceScaler implements StatOwner {
 
 		private List<InstanceScalerStatFunction> createStatFunctions(WorldMapInstance instance, int playerCount) {
 			List<InstanceScalerStatFunction> statFunctions = new ArrayList<>();
-			float hpMulti = calculateMultiplier(instance, INSTANCE_SCALING_HP_FLOOR, INSTANCE_SCALING_HP_SCALE_FACTOR, playerCount);
-			float dmgMulti = calculateMultiplier(instance, INSTANCE_SCALING_DMG_FLOOR, INSTANCE_SCALING_DMG_SCALE_FACTOR, playerCount);
+			float hpMulti = multiplier(INSTANCE_SCALING_ENABLE, calculateMultiplier(instance, INSTANCE_SCALING_HP_FLOOR, INSTANCE_SCALING_HP_SCALE_FACTOR, playerCount), INSTANCE_DIFFICULTY_HP);
+			float dmgMulti = multiplier(INSTANCE_SCALING_ENABLE, calculateMultiplier(instance, INSTANCE_SCALING_DMG_FLOOR, INSTANCE_SCALING_DMG_SCALE_FACTOR, playerCount), INSTANCE_DIFFICULTY_DMG);
 			demand = hpMulti * dmgMulti;
 			if (hpMulti != 1) {
 				statFunctions.add(new InstanceScalerStatFunction(StatEnum.MAXHP, hpMulti));

@@ -166,9 +166,9 @@ public final class Main {
         float size = settings.tileMetres(), border = settings.borderMetres();
         float minX = mapMin[0] + x * size, minZ = mapMin[2] + y * size;
         var triangles = map.triangles(minX - border, minZ - border, minX + size + border, minZ + size + border);
-        var mesh = TileBaker.build(triangles.vertices(), triangles.indices(), settings, mapMin, mapMax, x, y);
+        var mesh = TileBaker.build(triangles.floors(), triangles.blockers(), settings, mapMin, mapMax, x, y);
         Properties p = new Properties();
-        p.setProperty("triangles", "" + triangles.indices().length / 3);
+        p.setProperty("triangles", "" + (triangles.floors().indices().length + triangles.blockers().indices().length) / 3);
         p.setProperty("milliseconds", "" + (System.nanoTime() - start) / 1_000_000);
         if (mesh == null) {
             Files.deleteIfExists(data); p.setProperty("status", "EMPTY");

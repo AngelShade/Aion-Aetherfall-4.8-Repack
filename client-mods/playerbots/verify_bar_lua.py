@@ -1,5 +1,6 @@
 """Exercise the bar through the installed client's real Lua 5.1 widget wrappers."""
 import argparse
+import json
 from pathlib import Path
 import re
 import sys
@@ -9,12 +10,18 @@ sys.path.insert(0,str(HERE.parents[1]/'game-server/target/native-wardrobe-test-d
 from lupa.lua51 import LuaRuntime
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--client',type=Path,required=True);p.add_argument('--pull-only',action='store_true');a=p.parse_args()
+    p=argparse.ArgumentParser();p.add_argument('--client',type=Path,required=True);p.add_argument('--pull-only',action='store_true')
+    p.add_argument('--delivery',type=Path,help='Overlay staged new assets on read-only client; exercise maintained Lua')
+    p.add_argument('--trace-output',type=Path,help='Write actual 20 Hz widget states for offline composited previews')
+    p.add_argument('--json-output',type=Path);a=p.parse_args()
+    source_mode=bool(a.delivery) or not a.pull_only
+    report=dict(scales=4,screens=3,rollPairs=0,cancellations=0,restarts=0,maxPlaybackImageWritesPerTick=0,traces={})
     z=read_pak(a.client/'bin32/bin32.pak')
     with read_pak(a.client/'Plugin/RelicCalc/RelicCalc.pak') as addon:
         installed_bar=addon.read('PlayerBotBar.lua').decode('utf-8-sig')
+        tiered=source_mode or 'PULL_TIERS' in installed_bar  # The installed addon is tier-aware once this build is in.
         installed_xml=addon.read('PlayerBotBar.xml')
-    requested_textures=set()
+    requested_textures=set();image_writes=[]
     for scale in (0.8,1,1.125,1.5):
         lua=LuaRuntime(unpack_returned_tuples=True);g=lua.globals();widgets={};calls=[]
         def native(api,*args):
@@ -36,7 +43,9 @@ def main():
                 texture=str(v[1]).replace('\\','/')
                 if texture.casefold().startswith('textures/ui/aetherfallsummon/'):
                     requested_textures.add(texture)
-                    assert (a.client/texture).is_file(),'Recruitment requested a missing installed texture: '+texture
+                    staged=a.delivery/texture if a.delivery else None
+                    assert (staged and staged.is_file()) or (a.client/texture).is_file(),'Recruitment requested a missing texture: '+texture
+                    image_writes.append((args[1],texture))
                 state.setdefault('images',{})[v[0]]=v[1]
             elif api=='SetWidgetAlpha':state['alpha']=v[0]
         sources={}
@@ -53,14 +62,15 @@ def main():
             if n.text and n.text.strip():t[1]=n.text
             for i,child in enumerate(n,1):t[i]=table(child)
             return t
-        tree=E.fromstring(installed_xml if a.pull_only else (HERE/'PlayerBotBar.xml').read_bytes());g.g_AddonName='RelicCalc'
+        tree=E.fromstring((HERE/'PlayerBotBar.xml').read_bytes() if source_mode else installed_xml);g.g_AddonName='RelicCalc'
         for n in tree:
             w=g.CreateWidget('Dialog',n.get('name'));w.LoadXML(w,table(n))
-        lua.execute(installed_bar if a.pull_only else (HERE/'PlayerBotBar.lua').read_text())
+        lua.execute((HERE/'PlayerBotBar.lua').read_text() if source_mode else installed_bar)
         g.PrivateCompanions_Open=lambda:calls.append(('manage',()))
         match=dict(rect=(100,200,640,400),shown=True)
         cursor=dict(down=False)
         def core_call(command,*args):
+            if command=='hireterms':calls.append(('hireterms',()));return
             parts=(widgets.get('PlayerBotBarMeta',{}).get('text') or '1920|1080|0|1').split('|')
             sw,sh=map(int,parts[:2])
             if command=='scale':return scale,sw,sh
@@ -114,75 +124,164 @@ def main():
             # Persisted icon mode survives addon load and can be restored.
             g.Widget_TriggerScript('PlayerBotBar','OnLoad','');widgets['PlayerBotBarMeta']['text']='1280|960|2|1';g.PlayerBotBar_OnEvent('ADDON_TIMER')
             assert widgets['PlayerBotBarIcon']['visible']==1
-            # Hire details stay collapsed beside Find Group's Help, expand on demand and go with the window.
-            tick=lambda n=1:[g.PlayerBotBar_OnEvent('ADDON_TIMER') for _ in range(n)]
-            tick(120);assert not g.PlayerBotBarState.hireFailed;terms=widgets['PlayerBotHireTerms'];text=widgets['PlayerBotHireTermsText']
-            assert terms['visible']==1 and text['visible']==0,(terms,text)
-            assert widgets['PlayerBotHireTermsToggle']['text']=='Hire details +'
-            tree=E.fromstring(re.search(r'<Dialog name="PlayerBotHireTerms".*?</Dialog>',(HERE/'PlayerBotBar.lua').read_text(),re.S).group(0))
-            assert tree.get('preset') is None,'A skin clips the button'
-            assert abs(terms['rect'][0]-(100+72*scale))<.01 and abs(terms['rect'][1]-(600-30*scale))<.01,'Beside Help on the left, whatever Help reports: '+str(terms['rect'])
-
-            cursor.update(x=100+80*scale,y=600-20*scale,down=True);tick();cursor['down']=False;tick()
-            assert text['visible']==1 and widgets['PlayerBotHireTermsToggle']['text']=='Hire details -','A press on the button opens the terms'
-            trigger('PlayerBotHireTermsToggle');assert text['visible']==1,'OnClick from the same press does not toggle back'
-            tick(9);trigger('PlayerBotHireTermsToggle');assert text['visible']==0
-            cursor.update(x=10,y=10)
-            cursor['down']=True;tick();cursor['down']=False;tick();assert terms['visible']==1,'A click leaves the button shown'
-            tick(9);trigger('PlayerBotHireTermsToggle');assert text['visible']==1;match['shown']=False;tick(5)
-            assert terms['visible']==0 and text['visible']==0,'Closing Find Group hides and collapses the terms'
-            match['shown']=True;match['rect']=(100,800,640,140);tick(5)
-            assert terms['visible']==1 and terms['rect'][1]+24*scale<=960,'The button stays on screen near the bottom edge'
-            widgets['PlayerBotBarTx']['text']='';widgets['PlayerBotBarMeta']['text']='1280|960|0|1';g.PlayerBotBar_OnEvent('ADDON_TIMER')
-            trigger('PlayerBotBarAttack');assert widgets['PlayerBotBarTx']['text']=='attack','Terms never affect orders'
+            # Hire Details now belongs to the existing native Find Group owner.
+            # Test its real Lua handoff, not the deleted duplicate Lua dialog.
+            tick(120)  # Admit the lazily built recruitment dialog through the real timer.
+            before=sum(c[0]=='hireterms' for c in calls);tick(10)
+            assert not g.PlayerBotBarState.hireFailed and sum(c[0]=='hireterms' for c in calls)==before+2
+            assert 'PlayerBotHireTerms' not in widgets
+            widgets['PlayerBotBarTx']['text']='attack'
+        values=('POOR','ORDINARY','GOOD','GREAT','EXCELLENT')
+        quality=dict(POOR=1,ORDINARY=1,GOOD=2,GREAT=3,EXCELLENT=4)
+        timings={1:(38,33),2:(44,33),3:(56,36),4:(70,38)}
+        def start(gear,rank):
+            g.DoSlashCmd('/companionpull GUNNER '+gear+' '+rank+' Gailola')
+            assert g.PlayerBotBarState.pull is not None
+        def image(part):return str(widgets['PlayerBotPull'+part].get('images',{}).get(0,''))
+        def stopped():
+            assert g.PlayerBotBarState.pull is None and widgets['PlayerBotPull']['visible']==0
+            before=len(image_writes);tick(3);assert len(image_writes)==before,'A closed pull must not update textures'
+            if tiered:
+                assert all(widgets['PlayerBotPull'+part]['visible']==0 for part in ('Sparks','Flourish','PanelFx','GearStamp','RankStamp'))
+        def snapshot():
+            parts=('Stage','Model','Sparks','Flourish','Result','Panel','Title','Medal','Name','Class','GearRow','GearIcon','GearLabel','Gear','GearStamp','RankRow','RankIcon','RankLabel','Rank','RankStamp','Divider','Note','PanelFx','ContinueFace','SkipFace')
+            return {part:{key:(value.copy() if isinstance(value,dict) else value) for key,value in widgets.get('PlayerBotPull'+part,{}).items() if key in ('visible','rect','alpha','text','images')}
+                    for part in parts if 'PlayerBotPull'+part in widgets} | {'rootAlpha':widgets['PlayerBotPull'].get('alpha',1)}
+        def play(gear,rank,trace_name=None):
+            tier=max(quality[gear],quality[rank]) if tiered else 1
+            charge,burst=timings[tier];start(gear,rank)
+            if tiered:assert g.PlayerBotBarState.pull.tier==tier
+            assert image('Gear').endswith('value-'+gear+'.dds') and image('Rank').endswith('value-'+rank+'.dds')
+            assert widgets['PlayerBotPullName']['text']=='Gailola' and widgets['PlayerBotPullName']['font']=='credit_team'
+            assert image('Class').endswith('class-GUNNER.dds')
+            assert all(widgets['PlayerBotPull'+part]['visible']==0 for part in ('Result','Model','Panel'))
+            sequence=[];trace=[];stamp_ticks={'Gear':[],'Rank':[]};flourish=[];settled=None;model_tick=None;panel_tick=None
+            # Include every shared held frame and complete stamp/ember loops.
+            for n in range(2+charge+burst+18+110):
+                before=len(image_writes);tick();P=g.PlayerBotBarState.pull
+                written=image_writes[before:]
+                report['maxPlaybackImageWritesPerTick']=max(report['maxPlaybackImageWritesPerTick'],len(written))
+                assert len(written)<=5 and len({part for part,path in written})==len(written),'Only the active frame of each layer; no clip preload'
+                assert P is not None,'Pull failed or timer swallowed an error'
+                sequence.append(Path(image('Stage')).name)
+                if widgets['PlayerBotPullModel']['visible'] and model_tick is None:model_tick=n
+                if widgets['PlayerBotPullResult']['visible'] and panel_tick is None:panel_tick=n
+                if P.complete and settled is None:settled=n
+                if widgets.get('PlayerBotPullFlourish',{}).get('visible'):flourish.append(n)
+                if n<2+charge+burst-1:assert widgets['PlayerBotPullResult']['visible']==0
+                if widgets['PlayerBotPullResult']['visible']:
+                    assert all(widgets['PlayerBotPull'+part]['visible']==1 for part in ('Panel','Title','Medal','Name','Class','Gear','Rank','GearLabel','RankLabel','ContinueFace')),'Panel contents enter together'
+                for part in stamp_ticks:
+                    if widgets.get('PlayerBotPull'+part+'Stamp',{}).get('visible'):
+                        stamp_ticks[part].append(n)
+                        assert P.complete and widgets['PlayerBotPullContinue']['visible']==1
+                        value=gear if part=='Gear' else rank
+                        assert f'stamp-tier{quality[value]}-' in image(part+'Stamp')
+                if trace_name:trace.append(snapshot())
+            expected=['charge-000.dds']*2
+            for n in range(1,charge):
+                expected.append(f'tier{tier}-charge-{n-18:03d}.dds' if tier>1 and n>=18 else f'charge-{n:03d}.dds')
+            expected += [f'tier{tier}-burst-{n:03d}.dds' if tier>1 else f'burst-{n:03d}.dds' for n in range(burst)]
+            assert sequence[:len(expected)]==expected,(tier,sequence[:len(expected)],expected)
+            assert sequence[len(expected)]=='hold-000.dds'
+            assert model_tick==2+charge+2 and panel_tick==2+charge+burst-1
+            assert settled==panel_tick+17 and widgets['PlayerBotPullContinue']['visible']==1
+            assert widgets['PlayerBotPullPanelFx']['visible']==0 and g.PlayerBotBarState.pull.panelFrame is None
+            assert 'PlayerBotPullHeader' not in widgets
+            if tiered:
+                assert len(stamp_ticks['Gear'])==12 and len(stamp_ticks['Rank'])==12
+                assert stamp_ticks['Gear'][0]==settled and stamp_ticks['Rank'][0]==settled+14
+                assert g.PlayerBotBarState.pull.stampFrame is None
+                strength=dict(POOR=.64,ORDINARY=.76,GOOD=.9,GREAT=1.05,EXCELLENT=1.2)
+                actual=widgets['PlayerBotPullGearStamp']['rect'][2]/widgets['PlayerBotPullRankStamp']['rect'][2]
+                assert abs(actual-strength[gear]/strength[rank])<.000001,'Each value has its own stamp size'
+                assert len(flourish)==(16 if gear==rank=='EXCELLENT' else 0),'Exclusive finite double-Excellent flourish'
+                if tier==4:assert (settled+1)*.05<=6.5
+                assert all(widgets['PlayerBotPull'+part]['visible']==0 for part in ('Flourish','GearStamp','RankStamp'))
+            if trace_name:
+                report['traces'][trace_name]=dict(tier=tier,gear=gear,rank=rank,panelSeconds=(panel_tick+1)*.05,settledSeconds=(settled+1)*.05,frames=trace)
+            return settled
         for width,height in ((1280,960),(1920,1080),(3440,1440)):
             widgets['PlayerBotBarMeta']['text']=f'{width}|{height}|0|1';tick()
-            g.DoSlashCmd('/companionpull GUNNER GOOD POOR Gailola');tick(3)
-            assert g.PlayerBotBarState.pull is not None
-            assert widgets['PlayerBotPullName']['text']=='Gailola'
-            assert widgets['PlayerBotPullName']['font']=='credit_team'
-            assert widgets['PlayerBotPullClass']['images'][0].endswith('class-GUNNER.dds')
-            assert widgets['PlayerBotPullGear']['images'][0].endswith('value-GOOD.dds')
-            assert widgets['PlayerBotPullRank']['images'][0].endswith('value-POOR.dds')
-            model=widgets['PlayerBotPullModel']['rect']
-            assert abs((model[0]+model[2]/2)/width-.505)<.0001
-            assert abs((model[1]+model[3]-height*120/1080)/height-.7088888889)<.0001
-            assert widgets['PlayerBotPullPanel']['visible']==0 and widgets['PlayerBotPullModel']['visible']==0
-            tick(40);assert widgets['PlayerBotPullModel']['visible']==1 and widgets['PlayerBotPullPanel']['visible']==0
-            tick(20);assert widgets['PlayerBotPullResult']['visible']==0,'Result group stays hidden through the burst'
-            tick(10);assert widgets['PlayerBotPullResult']['visible']==1 and widgets['PlayerBotPullContinue']['visible']==0,'Whole result enters after burst; Continue waits for settling'
-            assert widgets['PlayerBotPullPanelFx']['images'][0].endswith('.dds')
-            tick(18);assert all(widgets['PlayerBotPull'+part]['visible']==1 for part in ('Result','Panel','Gear','Rank','Continue','ContinueFace')),'One complete result group'
-            assert widgets['PlayerBotPullPanelFx']['visible']==0 and g.PlayerBotBarState.pull.panelFrame is None,'Finite entrance stops'
-            assert 'PlayerBotPullHeader' not in widgets,'No top banner or labels'
-            assert widgets['PlayerBotPullSkip']['visible']==0
-            if a.pull_only:tick(120)  # Resolve every held-stage and spark frame through the installed entry point.
-            gx,gy,gw,gh=widgets['PlayerBotPullResult']['rect']
-            x,y,w,h=widgets['PlayerBotPullContinue']['rect'];x+=gx;y+=gy
-            assert x>=0 and y>=0 and x+w<=width and y+h<=height
-            cursor.update(x=x+w/2,y=y+h/2,down=False);tick()
-            assert widgets['PlayerBotPullContinueFace']['images'][0].endswith('continue-1.dds')
-            cursor['down']=True;tick();assert widgets['PlayerBotPullContinueFace']['images'][0].endswith('continue-2.dds')
-            cursor['down']=False;tick();assert widgets['PlayerBotPullContinueFace']['images'][0].endswith('continue-1.dds')
-            trigger('PlayerBotPullContinue');assert g.PlayerBotBarState.pull is None and widgets['PlayerBotPull']['visible']==0,'OnClick closes; actual native short-click path is covered in native fixture'
-            assert 0 not in widgets['PlayerBotPullContinue'].get('images',{}),'Button substates never own the art'
-            g.DoSlashCmd('/companionpull TEMPLAR EXCELLENT ORDINARY Othername');tick(10);g.DoSlashCmd('/companionpullclose')
-            assert g.PlayerBotBarState.pull is None and widgets['PlayerBotPull']['visible']==0
-            g.DoSlashCmd('/companionpull TEMPLAR EXCELLENT ORDINARY Othername');tick();trigger('PlayerBotPullSkip')
-            assert g.PlayerBotBarState.pull is None
-            g.DoSlashCmd('/companionpull TEMPLAR EXCELLENT ORDINARY Othername')
-            widgets['PlayerBotBarMeta']['text']=f'{width}|{height}|0|0';tick()
-            assert g.PlayerBotBarState.pull is None and widgets['PlayerBotPull']['visible']==0
-        if a.pull_only:
+            for gear,rank in (('POOR','ORDINARY'),('GOOD','POOR'),('POOR','GREAT'),('GOOD','EXCELLENT'),('EXCELLENT','EXCELLENT')):
+                name=('tier'+str(max(quality[gear],quality[rank]))+('-double' if gear==rank=='EXCELLENT' else '')) if scale==1 and width==1920 else None
+                play(gear,rank,name)
+                # Cached native modal bounds and visible native widgets agree;
+                # keep the existing physical-coordinate contract at every scale.
+                P=g.PlayerBotBarState.pull
+                assert tuple(P.skipRect[i] for i in range(1,5))==widgets['PlayerBotPullSkip']['rect']
+                model=widgets['PlayerBotPullModel']['rect']
+                assert abs((model[0]+model[2]/2)/width-.505)<.0001
+                assert abs((model[1]+model[3]-height*120/1080)/height-.7088888889)<.0001
+                gx,gy,gw,gh=widgets['PlayerBotPullResult']['rect']
+                x,y,w,h=widgets['PlayerBotPullContinue']['rect'];x+=gx;y+=gy
+                assert x>=0 and y>=0 and x+w<=width and y+h<=height
+                cursor.update(x=x+w/2,y=y+h/2,down=False);tick();assert image('ContinueFace').endswith('continue-1.dds')
+                cursor['down']=True;tick();assert image('ContinueFace').endswith('continue-2.dds')
+                cursor['down']=False;tick();assert image('ContinueFace').endswith('continue-1.dds')
+                trigger('PlayerBotPullContinue');stopped()
+                assert 0 not in widgets['PlayerBotPullContinue'].get('images',{}),'Inert image owns button decoration'
+                start(gear,rank);tick(3)
+                x,y,w,h=widgets['PlayerBotPullSkip']['rect']
+                cursor.update(x=x+w/2,y=y+h/2,down=False);tick();assert image('SkipFace').endswith('skip-1.dds')
+                cursor['down']=True;tick();assert image('SkipFace').endswith('skip-2.dds')
+                cursor['down']=False;trigger('PlayerBotPullSkip');stopped()
+        if tiered and scale==1:
+            widgets['PlayerBotBarMeta']['text']='1920|1080|0|1';tick()
+            # Every ordered pair, including all mixed results, through slash/timer.
+            for gear in values:
+                for rank in values:
+                    play(gear,rank);g.DoSlashCmd('/companionpullclose');stopped();report['rollPairs']+=1
+            # Each interruption phase of each tier: warmup, shared charge, tier
+            # tail, burst before/after model, wash/flourish, panel-in, stamps,
+            # ready/hold. Native keyboard/mouse dispatch itself needs the game.
+            for gear,rank in (('POOR','ORDINARY'),('GOOD','POOR'),('POOR','GREAT'),('GOOD','EXCELLENT'),('EXCELLENT','EXCELLENT')):
+                tier=max(quality[gear],quality[rank]);charge,burst=timings[tier]
+                phases=(0,2,12,25,charge+3,charge+6,charge+17,charge+burst+5,charge+burst+19,charge+burst+34,charge+burst+55)
+                for phase in phases:
+                    for action in ('Skip','Continue','close','disconnect','world','hidden','restart'):
+                        start(gear,rank);tick(phase)
+                        if action in ('Skip','Continue'):trigger('PlayerBotPull'+action)
+                        elif action=='close':g.DoSlashCmd('/companionpullclose')
+                        elif action=='disconnect':
+                            widgets['PlayerBotBarMeta']['text']='1920|1080|0|0';tick()
+                        elif action=='world':g.PlayerBotBar_OnEvent('PLAYER_ENTERING_WORLD')
+                        elif action=='hidden':
+                            # A native modal hide (e.g. Escape) is observed on the next tick.
+                            tick(2);widgets['PlayerBotPull']['visible']=0;tick()
+                        else:
+                            start('POOR','ORDINARY');P=g.PlayerBotBarState.pull
+                            assert P.tier==1 and P.frame==0 and P.reveal is None and P.panelFrame is None and P.stampFrame is None
+                            assert all(widgets['PlayerBotPull'+part]['visible']==0 for part in ('Result','Model','Sparks','Flourish','GearStamp','RankStamp','Continue'))
+                            assert image('Stage').endswith('charge-000.dds')
+                            tick(3);assert image('Stage').endswith('charge-001.dds')
+                            g.DoSlashCmd('/companionpullclose');report['restarts']+=1
+                        stopped();report['cancellations']+=1
+                        widgets['PlayerBotBarMeta']['text']='1920|1080|0|1';tick()
+        if a.pull_only or source_mode:
             classes=('TEMPLAR','GLADIATOR','ASSASSIN','RANGER','SORCERER','SPIRIT_MASTER','CLERIC','CHANTER','GUNNER','RIDER','BARD')
-            values=('POOR','ORDINARY','GOOD','GREAT','EXCELLENT')
             widgets['PlayerBotBarMeta']['text']='1920|1080|0|1';tick()
             for index,advanced in enumerate(classes):
                 g.DoSlashCmd('/companionpull '+advanced+' '+values[index%5]+' '+values[(index+1)%5]+' Assetcheck')
                 tick(3);g.DoSlashCmd('/companionpullclose')
         assert widgets['PlayerBotBarTx']['text']=='attack','Pull playback never sends gameplay orders'
-    print('OK:',len(requested_textures),'recruitment textures requested by installed Lua resolve in the actual client.')
-    print('OK: shipped AFCore Lua cursor wrapper and resolution normalization, no banner, hidden preparation, finite result group entrance only after burst, stable button faces/OnClick, native names/model geometry/close/disconnect, three screens/four UI scales.')
-    if not a.pull_only:print('OK: real Lua 5.1 widgets; four UI scales; collapsed Hire details beside Find Group Help; title position, draggable icon, expand/hide/restore, six party orders, four formations and three party distances, disconnect and shared timer preservation.')
+    report['requestedTextures']=sorted(requested_textures)
+    report['sourceMode']=source_mode
+    if a.delivery:
+        added={path.relative_to(a.delivery).as_posix().lower() for path in (a.delivery/'Textures/UI/AetherfallSummon').glob('*.dds')}
+        requested={path.lower() for path in requested_textures}
+        assert added<=requested,'Unexercised staged textures: '+str(added-requested)
+        report['newTexturesExercised']=len(added)
+    traces=report.pop('traces')
+    if a.trace_output:
+        a.trace_output.parent.mkdir(parents=True,exist_ok=True)
+        a.trace_output.write_text(json.dumps(dict(fps=20,width=1920,height=1080,model='Native 3D companion omitted; in-game acceptance required',pulls=traces)))
+    if a.json_output:
+        a.json_output.parent.mkdir(parents=True,exist_ok=True)
+        a.json_output.write_text(json.dumps(report,indent=2)+'\n')
+    print('OK:',len(requested_textures),'recruitment textures resolve using real Lua 5.1 and installed widget/Core wrappers.')
+    print('OK: exact clip order, suspense, model timing, simultaneous panel, finite effects, button geometry/faces; three screens/four scales.')
+    if tiered:print('OK:',report['rollPairs'],'ordered roll pairs,',report['cancellations'],'phase interruptions,',report['restarts'],'clean restarts.')
+    if not a.pull_only:print('OK: bar expand/hide/restore, commands/formations/distances, native Hire Details handoff, disconnect and shared timer.')
 
 if __name__=='__main__':main()

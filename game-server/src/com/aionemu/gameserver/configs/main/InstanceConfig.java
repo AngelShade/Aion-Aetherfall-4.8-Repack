@@ -50,6 +50,14 @@ public class InstanceConfig {
 	@Property(key = "gameserver.instance.scaling.excluded_maps", defaultValue = "")
 	public static Set<Integer> INSTANCE_SCALING_EXCLUDED_MAPS;
 
+	/** Always-on difficulty for group dungeons (independent of scaling.enable): elite and stronger enemies get this much HP. */
+	@Property(key = "gameserver.instance.difficulty.hp_multiplier", defaultValue = "1")
+	public static float INSTANCE_DIFFICULTY_HP = 1;
+
+	/** ...and this much attack. 1 = native. */
+	@Property(key = "gameserver.instance.difficulty.damage_multiplier", defaultValue = "1")
+	public static float INSTANCE_DIFFICULTY_DMG = 1;
+
 	/**
 	 * Location of instance *.java handlers
 	 */

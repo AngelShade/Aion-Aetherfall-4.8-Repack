@@ -3,6 +3,8 @@
 namespace quest_journal {
 #include "quest_journal_data.h"
 constexpr int CAPACITY=2048;
+// Rows the tracker's checked and history tabs may hold (natively 14 and 7).
+constexpr int TRACKER_TAB_ROWS=1000;
 extern "C" __declspec(dllexport) volatile uintptr_t AetherfallJournalDiagnostics[4]={0,0,0,0};
 struct Patch { size_t rva;std::vector<unsigned char> before,after; };
 unsigned char* memory=nullptr;
@@ -87,11 +89,21 @@ bool install(){
     for(const auto& site:JOURNAL_SITES)if(std::memcmp(game()+site.rva,site.before,site.size)){AetherfallJournalDiagnostics[0]=2;return false;}
     const unsigned char helper[]={0x4c,0x8b,0xdc,0x48,0x81,0xec,0x88,0x04,0,0,0x4d,0x85,0xc0,0x49,0x89,0x6b,0xf0};
     const unsigned char favorite1[]={0x49,0x83,0xf9,0x0e,0x72,0x30},favorite2[]={0x48,0x83,0xf9,0x0e,0x73,0x7d};
+    // Third gate (play-test 8 Nov): the native command case at 0x63bf10 refused past 14 with the same message.
+    const unsigned char favorite3[]={0x48,0x83,0xf9,0x0e,0x72,0x2a};
+    // Tracker row fill (0x85b230): the htmltext SetText call, with the row's quest id in [rbx] (read again at 0x85b619).
+    const unsigned char rowText[]={0xff,0x90,0x90,0x02,0,0},rowQuest[]={0x44,0x8b,0x1b};
+    // Tracker tab limits (0x854d10): "rows > 14 ? trim" + "limit = 14" for the checked tab, the same with 7 for history.
+    const unsigned char trimChecked[]={0x0f,0x8e,0xf7,0x01,0,0},limitChecked[]={0x41,0xc7,0x85,0x28,0x05,0,0,0x0e,0,0,0},
+                        trimHistory[]={0x0f,0x8e,0xe9,0x01,0,0},limitHistory[]={0x41,0xc7,0x85,0x38,0x05,0,0,0x07,0,0,0};
     const unsigned char added[]={0xe8,0x06,0x63,0x46,0};
     const unsigned char row_added[]={0xe8,0x27,0x2b,0,0};
     uintptr_t frame_original=reinterpret_cast<uintptr_t>(game()+0x4ae130);
     if(std::memcmp(game()+0x3f7120,helper,sizeof helper) || std::memcmp(game()+0x3f616d,favorite1,6)
-       || std::memcmp(game()+0x3f6394,favorite2,6) || std::memcmp(game()+0x3f2db5,added,5)
+       || std::memcmp(game()+0x3f6394,favorite2,6) || std::memcmp(game()+0x63bf70,favorite3,6) || std::memcmp(game()+0x3f2db5,added,5)
+       || std::memcmp(game()+0x85b608,rowText,6) || std::memcmp(game()+0x85b619,rowQuest,3)
+       || std::memcmp(game()+0x85526b,trimChecked,6) || std::memcmp(game()+0x855468,limitChecked,11)
+       || std::memcmp(game()+0x855499,trimHistory,6) || std::memcmp(game()+0x855688,limitHistory,11)
        || std::memcmp(game()+0x8591f4,row_added,5)
        || std::memcmp(game()+JOURNAL_RECT_CHANGED,&frame_original,sizeof frame_original)){
         AetherfallJournalDiagnostics[0]=2;return false;
@@ -133,14 +145,37 @@ bool install(){
     jump(0x3f7120,helper,sizeof helper,relay(0,reinterpret_cast<const void*>(&npc_quests)),false);
     jump(0x3f2db5,added,sizeof added,relay(16,reinterpret_cast<const void*>(&accepted)),true);
     jump(0x8591f4,row_added,sizeof row_added,relay(32,reinterpret_cast<const void*>(&arrival_row)),true);
-    // Widen both native 14-favorite checks without growing an instruction in place.
-    for(int i=0;i<2;++i){
-        auto stub=block+64+i*32;stub[0]=i?0x48:0x49;stub[1]=0x81;stub[2]=0xf9;int limit=CAPACITY;std::memcpy(stub+3,&limit,4);
-        stub[7]=0x0f;stub[8]=i?0x83:0x82;
-        size_t taken=i?0x3f6417:0x3f61a3,fall=i?0x3f639a:0x3f6173;
-        int32_t branch=int32_t(game()+taken-(stub+13));std::memcpy(stub+9,&branch,4);
-        stub[13]=0xe9;branch=int32_t(game()+fall-(stub+18));std::memcpy(stub+14,&branch,4);
-        jump(i?0x3f6394:0x3f616d,i?favorite2:favorite1,6,stub,false);
+    // Widen the three native 14-favorite checks without growing an instruction in place:
+    // cmp reg,CAPACITY; j(b|ae) taken; jmp fall, each in its own 32-byte stub.
+    struct Favorite{size_t at;const unsigned char* old;unsigned char rex,jcc;size_t taken,fall;};
+    const Favorite favorites[]={{0x3f616d,favorite1,0x49,0x82,0x3f61a3,0x3f6173},{0x3f6394,favorite2,0x48,0x83,0x3f6417,0x3f639a},
+                                {0x63bf70,favorite3,0x48,0x82,0x63bfa0,0x63bf76}};
+    for(int i=0;i<3;++i){
+        const auto& f=favorites[i];
+        auto stub=block+64+i*32;stub[0]=f.rex;stub[1]=0x81;stub[2]=0xf9;int limit=CAPACITY;std::memcpy(stub+3,&limit,4);
+        stub[7]=0x0f;stub[8]=f.jcc;
+        int32_t branch=int32_t(game()+f.taken-(stub+13));std::memcpy(stub+9,&branch,4);
+        stub[13]=0xe9;branch=int32_t(game()+f.fall-(stub+18));std::memcpy(stub+14,&branch,4);
+        jump(f.at,f.old,6,stub,false);
+    }
+    // Tracker tabs keep up to TRACKER_TAB_ROWS rows (owner 8 Nov; live probe: 29 checked, the checked tab held only
+    // the last 14). The trim branch jumps straight to the limit store, and the stored limit row creation enforces
+    // (0x85bd20, tracker+0x528 per tab) becomes TRACKER_TAB_ROWS. The temporary-quest box (limit 1) is unchanged.
+    auto skipTrim=[&](size_t rva,const unsigned char* old,size_t target){
+        Patch patch{rva,{old,old+6},std::vector<unsigned char>(6,0x90)};patch.after[0]=0xe9;
+        int32_t delta=int32_t(intptr_t(target)-intptr_t(rva+5));std::memcpy(patch.after.data()+1,&delta,4);patches.push_back(std::move(patch));
+    };
+    auto rowLimit=[&](size_t rva,const unsigned char* old){
+        Patch patch{rva,{old,old+11},{old,old+11}};int value=TRACKER_TAB_ROWS;std::memcpy(patch.after.data()+7,&value,4);patches.push_back(std::move(patch));
+    };
+    skipTrim(0x85526b,trimChecked,0x855468);rowLimit(0x855468,limitChecked);
+    skipTrim(0x855499,trimHistory,0x855688);rowLimit(0x855688,limitHistory);
+    // Help rows show their counters in the tracker (owner 8 Nov): mov r8d,[rbx]; mov rax,help_quest::row_text; jmp rax.
+    // The caller's shadow space and alignment are unchanged; rax and r8 are volatile across the original call.
+    {
+        auto stub=block+192;stub[0]=0x44;stub[1]=0x8b;stub[2]=0x03;stub[3]=0x48;stub[4]=0xb8;
+        auto target=reinterpret_cast<uintptr_t>(&help_quest::row_text);std::memcpy(stub+5,&target,8);stub[13]=0xff;stub[14]=0xe0;
+        jump(0x85b608,rowText,6,stub,true);
     }
     std::memcpy(block+0x10000,game()+0x1372760,266*16);
     std::memcpy(block+0x18000,game()+0x137383c,266*16);
@@ -158,6 +193,6 @@ bool install(){
     memory=block;quest_record_override=reinterpret_cast<QuestRecord*>(block+0x10000);quest_record_capacity=CAPACITY;
     for(const auto& patch:patches)std::memcpy(game()+patch.rva,patch.after.data(),patch.after.size());
     for(auto page:pages){DWORD unused=0;VirtualProtect(reinterpret_cast<void*>(page.first),4096,page.second,&unused);FlushInstructionCache(GetCurrentProcess(),reinterpret_cast<void*>(page.first),4096);}
-    FlushInstructionCache(GetCurrentProcess(),block,128);installed=true;AetherfallJournalDiagnostics[0]=1;AetherfallJournalDiagnostics[2]=patches.size();return true;
+    FlushInstructionCache(GetCurrentProcess(),block,256);installed=true;AetherfallJournalDiagnostics[0]=1;AetherfallJournalDiagnostics[2]=patches.size();return true;
 }
 }

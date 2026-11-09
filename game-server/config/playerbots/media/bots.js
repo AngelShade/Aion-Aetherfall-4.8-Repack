@@ -492,7 +492,7 @@
   var VIEW_KEYS = { party: ['active', 'team', 'teamKind', 'recruitRemaining', 'limit', 'enabled', 'generatedEnabled', 'ownerBag', 'ownerKinah', 'movable', 'companionMovable', 'collectionRenown', 'benefits', 'recycleQuote', 'recyclingEnabled', 'recycleReceivers', 'roles', 'owner'],
     roster: ['roster', 'rosterTotal', 'rosterPage', 'presets', 'savedBots', 'presetLimit', 'recruitRemaining', 'enabled', 'generatedEnabled', 'recyclingEnabled', 'recycleReceivers', 'ownerBag', 'ownerKinah', 'roles'],
     create: ['classes', 'startingClasses', 'creationJourney', 'generatedCount', 'freeGeneratedCount', 'generatedLimit', 'enabled', 'generatedEnabled', 'generatedRandomLooks', 'recruitRemaining', 'tickets'],
-    quests: ['active', 'quests', 'helpRequest', 'helpPosts'] };
+    quests: ['active', 'quests', 'helpRequest', 'helpRequests', 'helpMax', 'helpPosts'] };
   function viewPrint(result) {
     var keys = VIEW_KEYS[currentView] || [], picked = { view: currentView }, i;
     for (i = 0; i < keys.length; i++) picked[keys[i]] = result[keys[i]];
@@ -1316,27 +1316,32 @@
     locate.disabled = !canShowOnMap(); parent.appendChild(controls); return controls;
   }
   function renderHelpRequests() {
-    var parent = byId('help-requests'), mine = state.helpRequest, active = !!(mine && mine.key && mine.status !== 'CLAIMED' && mine.status !== 'ABANDONED'), all = state.helpPosts || [], posts = [], helpable = 0; clear(parent);
+    // Several requests at once (owner 8 Nov): one panel per accepted request, each with its own controls.
+    var parent = byId('help-requests'), mines = state.helpRequests || (state.helpRequest && state.helpRequest.key ? [state.helpRequest] : []), all = state.helpPosts || [], posts = [], helpable = 0, busy = {}, open = [];
+    function live(m) { return !!(m && m.key && m.status !== 'CLAIMED' && m.status !== 'ABANDONED'); }
+    for (var m = 0; m < mines.length; m++) if (live(mines[m])) { open.push(mines[m]); busy[mines[m].bot] = true; }
+    var limit = state.helpMax || 1, full = open.length >= limit; clear(parent);
     function redraw() { keepScroll(renderHelpRequests); }
-    for (var i = 0; i < all.length; i++) if (!active || all[i].bot !== mine.bot) { posts.push(all[i]); if (all[i].eligible) helpable++; }
-    var board = node('div', null, 'quest-board help-board'), head = node('div', null, 'quest-board-head'), reward = (mine && mine.reward) || (posts[0] && posts[0].reward) || '';
-    head.appendChild(node('h3', 'Help requests')); board.appendChild(head); parent.appendChild(board);
-    board.appendChild(node('p', 'Accept a world companion\'s request, then join through its group invitation. ' + reward, 'hint'));
-    if (mine && mine.key) {
-      var panel = node('div', null, 'help-mine'), title = node('div', null, 'help-mine-head');
+    for (var i = 0; i < all.length; i++) if (!busy[all[i].bot]) { posts.push(all[i]); if (all[i].eligible) helpable++; }
+    var board = node('div', null, 'quest-board help-board'), head = node('div', null, 'quest-board-head'), reward = (mines[0] && mines[0].reward) || (posts[0] && posts[0].reward) || '';
+    head.appendChild(node('h3', 'Help requests' + (open.length ? ' (' + open.length + '/' + limit + ')' : ''))); board.appendChild(head); parent.appendChild(board);
+    board.appendChild(node('p', 'Accept a world companion\'s request, then join through its group invitation. You can help up to ' + limit + ' at once. ' + reward, 'hint'));
+    mines.forEach(function (mine) {
+      if (!mine || !mine.key) return;
+      var active = live(mine), panel = node('div', null, 'help-mine'), title = node('div', null, 'help-mine-head');
       title.appendChild(node('strong', mine.botName + ' \u00b7 ' + mine.need)); title.appendChild(node('span', label(mine.status))); panel.appendChild(title);
       helpFacts(panel, mine);
       var controls = helpControls(panel, mine);
       if (active) {
-        button(controls, 'Track', { action:'helptrack' }, !mine.myCharacter || !(window.AionObject && AionObject.HelpRequestTrack));
-        button(controls, 'Collect reward', { action:'helpclaim' }, mine.status !== 'COMPLETE');
+        button(controls, 'Track', { action:'helptrack', key:mine.key }, !mine.myCharacter || !(window.AionObject && AionObject.HelpRequestTrack));
+        button(controls, 'Collect reward', { action:'helpclaim', key:mine.key }, mine.status !== 'COMPLETE');
         localButton(controls, 'Abandon request', function () { helpAbandon = mine.key; redraw(); }, 'quiet');
-        if (helpAbandon === mine.key) button(controls, 'Confirm abandon', { action:'helpabandon' }, false);
+        if (helpAbandon === mine.key) button(controls, 'Confirm abandon', { action:'helpabandon', key:mine.key }, false);
         if (!mine.myCharacter) panel.appendChild(node('p', 'Track this request on the character that accepted it.', 'hint'));
-        if (mine.status === 'REVISED' || mine.status === 'CANCELLED' || mine.status === 'RESOLVED') panel.appendChild(node('p', 'This request ended or changed. Credit you already earned stays, but no partial reward is paid. Abandon it before choosing another.', 'hint'));
+        if (mine.status === 'REVISED' || mine.status === 'CANCELLED' || mine.status === 'RESOLVED') panel.appendChild(node('p', 'This request ended or changed. Credit you already earned stays, but no partial reward is paid.', 'hint'));
       }
       board.appendChild(panel);
-    }
+    });
     if (!posts.length) { board.appendChild(node('p', 'No world companions need help right now. An accepted request stays saved when its listing ends.', 'hint')); return; }
     var canHelp = helpBoard.canHelp === null ? helpable > 0 : helpBoard.canHelp && helpable > 0;
     var filters = node('div', null, 'quest-filters');
@@ -1356,8 +1361,8 @@
       if (!open) return;
       var more = node('div', null, 'help-detail'); helpFacts(more, c);
       var actions = helpControls(more, c);
-      button(actions, 'Accept request', { action:'helpaccept', bot:c.bot }, !c.eligible || active, 'primary');
-      if (active) more.appendChild(node('p', 'Finish or abandon your current request first.', 'hint'));
+      button(actions, 'Accept request', { action:'helpaccept', bot:c.bot }, !c.eligible || full, 'primary');
+      if (full) more.appendChild(node('p', 'You are helping ' + open.length + ' companions already. Finish or abandon one first.', 'hint'));
       table.appendChild(more);
     });
     board.appendChild(table);
@@ -1961,9 +1966,10 @@
   function summonShowResult() { summonClear(); summonPhase('result'); summonPanel(); }
   // The frames and the companion's own 3D model play natively; a browser window cannot animate at this size.
   function nativePull(r) {
-    if (!window.AionObject || !AionObject.CompanionPull) return;
+    if (!window.AionObject || !AionObject.CompanionPull) return false;
     AionObject.CompanionPull([r.advancedClass, r.gear, r.rank, r.name].join(' '));
     if (AionObject.CompanionModel) AionObject.CompanionModel(r.model, r.look, r.items || '');
+    return true;
   }
   function summonWatch(started) {
     // The roll is stored by the server. Show it only once its answer is here, however long the gate has to charge.
@@ -1972,7 +1978,9 @@
     var t = state.tickets, key = summon.waiting; summon.waiting = null;
     if (t && t.last && t.last.request === key) {
       summon.result = t.last; ticketRequest = '';
-      nativePull(t.last); summonShowResult(); return;
+      // The native stage takes a moment to load and fade in. Keep the gate charging behind it so the rolls never show first.
+      if (nativePull(t.last)) summonLater(summonShowResult, 2000); else summonShowResult();
+      return;
     }
     summonClear(); summonPhase('ready'); summonPanel();
     byId('summon-hint').textContent = byId('notice').textContent;

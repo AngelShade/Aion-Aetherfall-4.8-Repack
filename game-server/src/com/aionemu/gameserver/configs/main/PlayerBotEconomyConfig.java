@@ -4,6 +4,14 @@ import com.aionemu.commons.configuration.Property;
 
 /** Bot economy module settings, documented in config/playerbots/economy.properties. */
 public final class PlayerBotEconomyConfig {
+ @Property(key = "gameserver.playerbots.enhance.enabled", defaultValue = "true")
+ public static boolean ENHANCE_ENABLED = true;
+ @Property(key = "gameserver.playerbots.enhance.world", defaultValue = "true")
+ public static boolean ENHANCE_WORLD = true;
+ @Property(key = "gameserver.playerbots.enhance.target_level", defaultValue = "10")
+ public static int ENHANCE_TARGET_LEVEL = 10;
+ @Property(key = "gameserver.playerbots.enhance.budget_percent", defaultValue = "15")
+ public static int ENHANCE_BUDGET_PERCENT = 15;
  @Property(key = "gameserver.playerbots.hiring.enable", defaultValue = "true")
  public static boolean HIRING_ENABLED = true;
  @Property(key = "gameserver.playerbots.hiring.minimum_kinah", defaultValue = "1000")
@@ -92,6 +100,12 @@ public final class PlayerBotEconomyConfig {
  public static int MARKET_NEEDS_PER_VISIT = 3;
  @Property(key = "gameserver.playerbots.market.sales_per_visit", defaultValue = "3")
  public static int MARKET_SALES_PER_VISIT = 3;
+ @Property(key = "gameserver.playerbots.market.upgrades", defaultValue = "true")
+ public static boolean MARKET_UPGRADES = true;
+ @Property(key = "gameserver.playerbots.market.upgrades_per_visit", defaultValue = "2")
+ public static int MARKET_UPGRADES_PER_VISIT = 2;
+ @Property(key = "gameserver.playerbots.market.upgrade_retry_hours", defaultValue = "6")
+ public static int MARKET_UPGRADE_RETRY_HOURS = 6;
  @Property(key = "gameserver.playerbots.worldgoals.enable", defaultValue = "true")
  public static boolean WORLD_GOALS_ENABLED = true;
  @Property(key = "gameserver.playerbots.worldgoals.interval_seconds", defaultValue = "900")
@@ -102,6 +116,9 @@ public final class PlayerBotEconomyConfig {
  public static boolean WORLD_GOALS_HUNT = true;
  @Property(key = "gameserver.playerbots.worldgoals.hunt_interval_seconds", defaultValue = "1800")
  public static int WORLD_GOALS_HUNT_INTERVAL_SECONDS = 1800;
+ /** How long a bot stays on its hunting ground fighting the monster it came for. */
+ @Property(key = "gameserver.playerbots.worldgoals.hunt_stay_seconds", defaultValue = "600")
+ public static int WORLD_GOALS_HUNT_STAY_SECONDS = 600;
  @Property(key = "gameserver.playerbots.worldgoals.help_requests", defaultValue = "true")
  public static boolean WORLD_GOALS_HELP_REQUESTS = true;
 
@@ -129,6 +146,10 @@ public final class PlayerBotEconomyConfig {
  public static int PROFESSIONS_WORK_INTERVAL_SECONDS = 900;
  @Property(key = "gameserver.playerbots.professions.work_slice_seconds", defaultValue = "180")
  public static int PROFESSIONS_WORK_SLICE_SECONDS = 180;
+ @Property(key = "gameserver.playerbots.professions.trip_seconds", defaultValue = "120")
+ public static int PROFESSIONS_TRIP_SECONDS = 120;
+ @Property(key = "gameserver.playerbots.professions.trip_stall_seconds", defaultValue = "30")
+ public static int PROFESSIONS_TRIP_STALL_SECONDS = 30;
  @Property(key = "gameserver.playerbots.professions.plan_refresh_seconds", defaultValue = "60")
  public static int PROFESSIONS_PLAN_REFRESH_SECONDS = 60;
  @Property(key = "gameserver.playerbots.professions.plans_per_second", defaultValue = "4")

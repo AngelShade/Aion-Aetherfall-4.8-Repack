@@ -82688,4 +82688,6 @@
 		<rewards exp="4825175" gold="225990" />
 		<rewards exp="4825175" gold="225990" />
 	</quest>
+	<quest id="14998" name="Help Request" nameId="1801385" minlevel_permitted="1" max_repeat_count="255" cannot_share="true" category="QUEST" />
+	<quest id="14999" name="Help Request" nameId="1801387" minlevel_permitted="1" max_repeat_count="255" cannot_share="true" category="QUEST" />
 </quests>

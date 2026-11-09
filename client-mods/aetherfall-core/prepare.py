@@ -15,10 +15,10 @@ import subprocess
 import sys
 
 HERE = Path(__file__).resolve().parent
-NATIVE_VERSION = '1.3.6'  # Gear rarity and combat rank for bots on native windows.
+NATIVE_VERSION = '1.3.14'  # Help rows refill their counters when the help card changes.
 PAK = 'Plugin/RelicCalc/RelicCalc.pak'
 PLUGIN_COHORT = [PAK, PAK + '.sig', 'Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig']
-VERSION = '1.2.93'  # Gear rarity and combat rank labels beside bots on the target and party windows.
+VERSION = '1.2.94'  # Bot gear rarity and combat rank inside the native target and party frames.
 LUA = 'AetherfallCore.lua'
 ADDON = ['AetherfallCore.lua', 'AetherfallLayout.lua', 'AetherfallLazy.lua', 'AetherfallHUD.lua', 'AetherfallOptions.lua',
          'AetherfallHUD.xml']
@@ -266,6 +266,7 @@ def main():
     parser.add_argument('--marketplace-window-update', action='store_true', help='update the installed windowed Marketplace controller while retaining native layouts and bridge')
     parser.add_argument('--help-requests-update', action='store_true', help='extend the installed Companions menu owner for the native LFG Help requests button')
     parser.add_argument('--companion-identity-update', action='store_true', help='add the bot rarity and rank labels to the installed HUD layout')
+    parser.add_argument('--bot-identity-frames-update', action='store_true', help='move bot rarity and rank into the native target and party frames and remove the loose label window')
     parser.add_argument('--client-mods', type=Path, default=HERE.parent, help='maintained client-mods folder (helpers)')
     args = parser.parse_args()
     if not args.plugin_only and f'CORE_VERSION[]="{NATIVE_VERSION}"' not in (HERE / 'aetherfall_core.cpp').read_text(encoding='utf-8'):
@@ -302,6 +303,8 @@ def main():
         parser.error('--codex-browser-update requires --codex-update and its native layout cohort')
     if args.companion_identity_update and (not args.retain_layout or args.plugin_only):
         parser.error('--companion-identity-update requires --retain-layout and the matching native build')
+    if args.bot_identity_frames_update and (not args.update or not (args.plugin_only or args.retain_layout) or args.companion_identity_update):
+        parser.error('--bot-identity-frames-update requires --update with --plugin-only or --retain-layout (core 1.3.8 is enough)')
     if args.help_requests_update and (not args.retain_layout or not args.update or args.dll_only or args.plugin_only):
         parser.error('--help-requests-update requires --update --retain-layout and the matching native build')
     if args.help_requests_update and any(value for name, value in vars(args).items() if name.endswith('_update') and name != 'help_requests_update'):
@@ -512,6 +515,10 @@ def main():
                 changes['AetherfallHUD.xml'] = repair_overlay_xml(changes.get('AetherfallHUD.xml', xml))
             if args.companion_identity_update:
                 changes['AetherfallHUD.xml'] = identity_update_xml(changes.get('AetherfallHUD.xml', xml))
+            if args.bot_identity_frames_update:
+                import identity_frames
+                changes['AetherfallHUD.xml'] = identity_frames.remove_overlay_xml(changes.get('AetherfallHUD.xml', xml))
+                identity_layouts = identity_frames.prepare(client, stage, original, extend_archive, read_pak)
             if args.target_foreground_update:
                 from target_details import prepare_foreground
                 prepare_foreground(client, stage, original, extend_archive, read_pak)
@@ -605,6 +612,9 @@ def main():
     if args.target_foreground_update:
         customization_inventory['features']['AetherfallTargetReadouts'] = [
             dict(path=rel, installedSha256=sha(data), bytes=len(data)) for rel, data in files.items()]
+    if args.bot_identity_frames_update:
+        customization_inventory['features']['AetherfallBotIdentity'] = [
+            dict(path=rel, installedSha256=sha(data), bytes=len(data)) for rel, data in [*identity_layouts, (PAK, files[PAK])]]
     if args.codex_update:
         customization_inventory['features']['AetherfallCodex'] = [
             dict(path=rel, installedSha256=sha(data), bytes=len(data)) for rel, data in files.items()]

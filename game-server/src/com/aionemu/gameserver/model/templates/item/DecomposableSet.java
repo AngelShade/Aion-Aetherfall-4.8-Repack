@@ -47,9 +47,14 @@ public class DecomposableSet {
 	}
 
 	public boolean isApplicableTo(Player player) {
-		return (race == Race.PC_ALL || race == player.getRace()) && (playerClasses == null || playerClasses.contains(player.getPlayerClass()))
-			&& player.getLevel() >= minLevel && player.getLevel() <= maxLevel;
+		return isApplicable(player.getRace(), player.getPlayerClass(), player.getLevel());
 	}
+
+	public boolean isApplicable(Race playerRace, PlayerClass playerClass, int level) {
+		return (race == Race.PC_ALL || race == playerRace) && (playerClasses == null || playerClasses.contains(playerClass)) && level >= minLevel && level <= maxLevel;
+	}
+
+	public int getMinimumLevel() { return minLevel; }
 
 	public boolean roll() {
 		return Rnd.get(1, 1000) <= Math.round(chance * 10);

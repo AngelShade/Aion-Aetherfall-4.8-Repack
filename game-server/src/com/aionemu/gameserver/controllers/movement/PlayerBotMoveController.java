@@ -7,6 +7,72 @@ import com.aionemu.gameserver.utils.PositionUtil;
 /** Server-driven movement; keeps the normal player's speed, effects and movement packets. */
 public final class PlayerBotMoveController extends PlayerMoveController {
 	private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PlayerBotMoveController.class);
+	// Diagnosis only (navigation.trace_moves): every packet and abort of the named bots, plus one server position a second.
+	private static volatile String traceSource;
+	private static volatile java.util.Set<String> traceNames=java.util.Set.of();
+	private long lastTrace;
+	public static java.util.Set<String> traceNames(String text){
+		var names=new java.util.HashSet<String>();
+		if(text!=null)for(String name:text.split(","))if(!name.isBlank())names.add(name.trim().toLowerCase(java.util.Locale.ROOT));
+		return java.util.Set.copyOf(names);
+	}
+	// A bot caught pacing traces itself for a short while, so the log shows the step that turns it round.
+	private volatile long autoTraceUntil;
+	private static final long AUTO_TRACE_MS=20000,AUTO_TRACE_WINDOW_MS=600000;
+	private static final int AUTO_TRACES_PER_WINDOW=6;
+	private static long autoWindowStart;
+	private static int autoTraces;
+	/** At most a few automatic traces every ten minutes server-wide, so a busy map cannot flood the log. */
+	public static synchronized boolean autoTraceAllowed(long now){
+		if(now-autoWindowStart>=AUTO_TRACE_WINDOW_MS){autoWindowStart=now;autoTraces=0;}
+		if(autoTraces>=AUTO_TRACES_PER_WINDOW)return false;
+		autoTraces++;return true;
+	}
+	public boolean traceAfterPacing(long now){
+		if(!autoTraceAllowed(now))return false;
+		autoTraceUntil=now+AUTO_TRACE_MS;return true;
+	}
+	// A bot a staff player has targeted is traced while targeted (navigation.trace_targeted), so the owner can point
+	// at the bot that misbehaves. The staff targets are gathered at most once a second for the whole server.
+	private static volatile java.util.Set<Integer> staffTargets=java.util.Set.of();
+	private static volatile long staffTargetsAt;
+	static boolean staffTargeted(Player bot){
+		if(!com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_TRACE_TARGETED)return false;
+		long now=System.currentTimeMillis();
+		if(now-staffTargetsAt>=1000){
+			staffTargetsAt=now;var ids=new java.util.HashSet<Integer>();
+			for(Player p:com.aionemu.gameserver.world.World.getInstance().getAllPlayers())
+				if(!p.isPlayerBot() && p.isStaff() && p.getTarget() instanceof Player target && target.isPlayerBot())ids.add(target.getObjectId());
+			staffTargets=java.util.Set.copyOf(ids);
+		}
+		return staffTargets.contains(bot.getObjectId());
+	}
+	/** What the bot's planner says it is doing, refreshed by its session while traced. */
+	private volatile String traceState="";
+	public boolean tracing(){return traced();}
+	/** The bot code that asked for this movement change, for traces only. */
+	private static String caller(int frames){
+		return java.lang.StackWalker.getInstance().walk(s->s.filter(f->!f.getClassName().endsWith("PlayerBotMoveController")).limit(frames)
+			.map(f->f.getClassName().substring(f.getClassName().lastIndexOf('.')+1)+"."+f.getMethodName()+":"+f.getLineNumber())
+			.collect(java.util.stream.Collectors.joining(" < ")));
+	}
+	public void traceState(String state){traceState=state==null?"":state;}
+	private boolean traced(){
+		if(System.currentTimeMillis()<autoTraceUntil || staffTargeted(owner))return true;
+		String text=com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVIGATION_TRACE_MOVES;
+		if(text==null || text.isBlank())return false;
+		if(!text.equals(traceSource)){traceNames=traceNames(text);traceSource=text;}
+		return traceNames.contains(owner.getName().toLowerCase(java.util.Locale.ROOT));
+	}
+	private void trace(String event){
+		if(!traced())return;
+		log.info("Move trace {}: {} at {} {} {} -> {} {} {}, speed {}, inMove={}, walk={} blocked={} | {}",owner.getName(),event,owner.getX(),owner.getY(),owner.getZ(),
+			targetDestX,targetDestY,targetDestZ,owner.getGameStats().getMovementSpeedFloat(),isInMove(),walkActive,walkBlocked,traceState);
+	}
+	@Override
+	protected void setAndSendStartMove(com.aionemu.gameserver.model.gameobjects.Creature creature){trace("start packet");super.setAndSendStartMove(creature);}
+	@Override
+	protected void setAndSendStopMove(com.aionemu.gameserver.model.gameobjects.Creature creature){trace("stop packet");super.setAndSendStopMove(creature);}
 	private volatile boolean failed;
 	private final java.util.ArrayDeque<WalkPoint> walkAhead = new java.util.ArrayDeque<>();
 	public record WalkPoint(long index,float x,float y,float z) {}
@@ -80,7 +146,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 			walkAhead.addLast(point);previous=point;
 		}
 		walkSafe=java.util.Objects.requireNonNull(safe);walkWorld=owner.getWorldId();walkInstance=owner.getInstanceId();walkUntil=System.currentTimeMillis()+3000;
-		if(fresh){walkDirection(first);startMovingToDestination();}
+		if(fresh){walkDirection(first);startMovingToDestination();if(traced())trace("new walk of "+(walkAhead.size()+1)+" points, generation "+generation+" from "+caller(6));}
 		return isInMove();
 	}
 	public synchronized WalkStatus walkStatus() {
@@ -119,6 +185,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		// Prepared corner heights are approximate: walk to the native floor at that
 		// XY, while the published point keeps its identity for corridor refreshes.
 		walkCurrent=next;walkUntil=now+WALK_LEASE_MS;walkDirection(new WalkPoint(next.index(),next.x(),next.y(),ground.z));setAndSendStartMove(owner);
+		if(traced())trace("next corner "+next.index());
 		return true;
 	}
 	private com.aionemu.gameserver.services.playerbot.PlayerBotHeightTraversal.Plan heightPlan;
@@ -251,6 +318,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 			return;
 		}
 		long now=System.currentTimeMillis(),elapsed=Math.max(0,Math.min(1000,now-lastMoveUpdate));
+		if(now-lastTrace>=1000 && traced()){lastTrace=now;trace("server step");}
 		com.aionemu.gameserver.services.playerbot.PlayerBotFollowIntent.refresh(owner);
 		com.aionemu.gameserver.services.playerbot.PlayerBotFollowSpeed.update(owner,targetDestX,targetDestY,targetDestZ);
 		lastMoveUpdate=now-elapsed;
@@ -346,12 +414,14 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		byte direction=(byte)Math.floorMod((int)Math.round(Math.toDegrees(Math.atan2(step.y()-owner.getY(),step.x()-owner.getX()))/3),120);
 		internalWalkDirection=true;
 		try{setNewDirection(step.x(),step.y(),step.z(),direction);}finally{internalWalkDirection=false;}
-		com.aionemu.gameserver.services.playerbot.PlayerBotFollowSpeed.update(owner,step.x(),step.y(),step.z());
+		// Speed is published after the start packet marks the actor moving: before it, the speed packet carried the
+		// natural speed while the server moved at catch-up speed, so clients drew companions lagging, then jumping on.
 		if(!started.get() || !isInMove()) {
 			started.set(true);owner.getController().onStartMove();setAndSendStartMove(owner);followPacket=now;
 		} else if((changed || now-followPacket>=1000) && com.aionemu.gameserver.services.playerbot.PlayerBotFormation.sendUpdate(owner)) {
 			setAndSendStartMove(owner);followPacket=now;
 		}
+		com.aionemu.gameserver.services.playerbot.PlayerBotFollowSpeed.update(owner,step.x(),step.y(),step.z());
 		float speed=requestedMovementSpeed();
 		double distance=Math.hypot(step.x()-owner.getX(),step.y()-owner.getY());
 		if(elapsed<=0 || !Float.isFinite(speed) || speed<=0){updateLastMove();return;}
@@ -380,6 +450,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 
 	@Override
 	public synchronized void abortMove() {
+		if(traced())trace((walkBlocked?"abort (step blocked)":"abort")+" from "+caller(6));
 		follow=null;
 		revokeWalk(walkBlocked);
 		if(platformPlan!=null && platformPlan.onboard() && owner.isSpawned() && !owner.isDead()){

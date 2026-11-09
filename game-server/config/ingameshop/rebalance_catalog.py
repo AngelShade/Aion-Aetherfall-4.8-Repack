@@ -30,7 +30,9 @@ COSMETIC_SECTIONS = WEAPON_LOOKS | {"fashion", "fashion_outfits", "fashion_headw
                                       "fashion_dyes", "wings", "wing_permanent", "wing_skins"}
 # These match ItemTemplate's cached native classification. Boundaries deliberately
 # preserve names such as Proposal and consumables that summon actual NPCs.
-DEVELOPMENT_NAME = re.compile(r"(?:^|[^a-z0-9])(?:test|debug|dummy|prototype|placeholder)(?:$|[^a-z0-9])")
+DEVELOPMENT_NAME = re.compile(r"(?:^|[^a-z0-9])(?:test|debug|dummy|prototype|placeholder|unused)(?:$|[^a-z0-9])")
+GM_NAME = re.compile(r"(?:^|[^A-Za-z])GMs?(?:$|[^A-Za-z])")
+UNTRANSLATED_NAME = re.compile(r"[A-Za-z0-9]+(?:_[A-Za-z0-9]+)+")
 NON_PLAYER_NAME = re.compile(r"(?:^|[^a-z0-9])(?:npc|prop)(?:$|[^a-z0-9])")
 NON_PLAYER_CLIENT_NAME = re.compile(r"(?:^|_)(?:npc|prop)(?:_|$)")
 
@@ -59,7 +61,8 @@ class NativeItem:
         name = self.name.lower()
         client = self.attributes.get("cName", "").lower()
         development = (client.startswith("test") or "_test" in client or "test_" in client
-                       or name.startswith("[temp") or DEVELOPMENT_NAME.search(name))
+                       or name.startswith("[temp") or DEVELOPMENT_NAME.search(name)
+                       or GM_NAME.search(self.name) or UNTRANSLATED_NAME.fullmatch(self.name))
         non_player = self.group in SLOTTED and (NON_PLAYER_CLIENT_NAME.search(client)
                      or NON_PLAYER_NAME.search(name) or "login stage" in name)
         return bool(name.strip()) and not development and not non_player
@@ -178,8 +181,46 @@ def resale_rates(pets: Path, prices: Path, trades: Path, goods: Path) -> tuple[i
     return standard, special
 
 
+# Player feedback (owner, 9 Nov 2026). Level stones: Alpha to Epsilon replace them. Stigma Shards are unused.
+# GM items and the all-ailment potion are GM strength.
+LEVEL_STONE = re.compile(r"L\d+ Enchantment Stone")
+GM_ITEM = re.compile(r"\bGM\b")
+ALL_ALTERED_STATE_POTION = "162000028"
+# Players sell the power shards they drop below the merchant's price.
+POWER_SHARD_MERCHANT_PERCENT = 75
+# Economy audit (9 Nov 2026): Black Cloud delivers anywhere, which is worth a premium over a town merchant, but
+# not 20x (teleport scrolls were 30,000 against the merchant's 1,500; foods 2,400 against 200).
+NPC_CONVENIENCE_PERCENT = 300
+
+
+def live_npc_rates(trades: Path, goods: Path, spawns: list[Path]) -> dict[str, int]:
+    """Cheapest Kinah rate of a merchant that actually spawns, per item (sell_price_rate, percent of native price)."""
+    spawned = set()
+    for folder in spawns:
+        for path in folder.rglob("*.xml") if folder.is_dir() else []:
+            spawned.update(re.findall(r'npc_id="(\d+)"', path.read_text(encoding="utf-8", errors="replace")))
+    tabs = {entry.get("id"): [item.get("id") for item in entry.findall("item")]
+            for entry in ET.parse(goods).getroot().findall("list")}
+    rates = {}
+    for npc in ET.parse(trades).getroot().findall("tradelist_template"):
+        if npc.get("npc_type", "NORMAL") != "NORMAL" or npc.get("npc_id") not in spawned:
+            continue
+        rate = int(npc.get("sell_price_rate", "100"))
+        for tab in npc.findall("tradelist"):
+            for item_id in tabs.get(tab.get("id"), []):
+                rates[item_id] = min(rates.get(item_id, rate), rate)
+    return rates
+
+
+def feedback_removed(item_id: str, item: NativeItem) -> bool:
+    return (item.group == "ENCHANTMENT" and bool(LEVEL_STONE.fullmatch(item.name)) or item.group == "STIGMA_SHARD"
+            or bool(GM_ITEM.search(item.name)) or item_id == ALL_ALTERED_STATE_POTION)
+
+
 def removal_reason(row: list[str], item: NativeItem) -> str | None:
     section = row[3]
+    if feedback_removed(row[0], item):
+        return "player_feedback_removed"
     if section in EQUIPMENT_SECTIONS:
         return "combat_equipment_collection"
     if not item.player_item():
@@ -218,6 +259,8 @@ def main() -> None:
     bundle_floors = {item_id: max(items[child].price * count for child, count in factions.values())
                      for item_id, factions in bundles.items()}
     standard, special = resale_rates(args.pets, args.prices, args.trades, args.goods)
+    data = args.items.parents[1]
+    merchants = live_npc_rates(args.trades, args.goods, [data / "spawns", data / "town_spawns", data / "events"])
     removed, changed, before_loops, after_loops, output = [], [], [], [], []
     remaining = 0
     for line in lines:
@@ -241,8 +284,15 @@ def main() -> None:
         if reason := removal_reason(row, item):
             removed.append({**detail, "reason": reason})
             continue
-        price = max(old_price, item.price * count, resale + 1 if resale > 0 else 0,
-                    bundle_floors.get(item_id, 0) * count)
+        if item.group == "POWER_SHARDS":
+            # Below the merchant, but never below what a merchant pays back.
+            price = max(item.price * POWER_SHARD_MERCHANT_PERCENT // 100 * count, resale + 1, 1)
+        else:
+            price = max(old_price, item.price * count, resale + 1 if resale > 0 else 0,
+                        bundle_floors.get(item_id, 0) * count)
+            if item_id in merchants and item.acquisition.get("type") is None:
+                merchant = item.price * merchants[item_id] // 100 * count
+                price = max(min(price, merchant * NPC_CONVENIENCE_PERCENT // 100), merchant, resale + 1, 1)
         if price > 999_999_999_999_999:
             raise ValueError(f"Item {item_id} exceeds the native market Kinah limit.")
         if price != old_price:
@@ -256,7 +306,7 @@ def main() -> None:
             after_loops.append({**detail, "new_price": price})
         remaining += 1
     after = "".join(output).encode("utf-8")
-    report = {"policy": "native-retail-and-resale-floor-v2", "applied": args.apply,
+    report = {"policy": "native-retail-and-resale-floor-v3", "applied": args.apply,
               "offers_before": len(rows), "offers_after": remaining, "removed_count": len(removed),
               "removed_by_reason": dict(Counter(row["reason"] for row in removed)), "repriced_count": len(changed),
               "maximum_generic_resale_percent": standard, "profitable_vendor_routes_before": len(before_loops),

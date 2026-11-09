@@ -1,5 +1,6 @@
 """Run bounded world-free companion regression entrypoints against only normal builder outputs."""
-import argparse,json,subprocess,hashlib,re,sys
+import argparse,json,subprocess,hashlib,re,sys,os,time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -35,7 +36,7 @@ TESTS['PlayerBotPopulationAdmissionCheck']=39024
 TESTS['PlayerBotExecutionCheck']=39
 TESTS['PlayerBotAuditCoverageCheck']=32
 TESTS['PlayerBotConversationCheck']=18
-TESTS['PlayerBotQuestObjectivesCheck']=35
+TESTS['PlayerBotQuestObjectivesCheck']=38
 TESTS['PlayerBotIdleCastingCheck']=114
 TESTS['PlayerBotChanterCheck']=99
 TESTS['PlayerBotFieldCombatCheck']=59
@@ -80,15 +81,50 @@ TESTS['PlayerBotHeightTraversalCheck']=101
 TESTS['PlayerBotLedgeLeapCheck']=89
 TESTS['PlayerBotLiveAuditCheck']=261
 TESTS['QuestBonusPoolsCheck']=208
-TESTS['PlayerBotBuildGearCheck']=5013
+TESTS['PlayerBotBuildGearCheck']=27033
 TESTS['PlayerBotLoadoutCheck']=100
 TESTS['PlayerBotGearPolicyCheck']=117
+TESTS['PlayerBotGoalHuntCheck']=62
+TESTS['PlayerBotCampSafetyCheck']=68
+TESTS['PlayerBotLocalWorkCheck']=15
+TESTS['PlayerBotDetailTierCheck']=60
+TESTS['PlayerBotSmoothTravelCheck']=61
+TESTS['PlayerBotActivityChatCheck']=400
+TESTS['PlayerBotMarketUpgradesCheck']=33
+TESTS['PlayerBotPvpCheck']=51
+TESTS['PlayerBotHelpTrackingCheck']=20
+TESTS['PlayerBotSleepMotionCheck']=11
+TESTS['PlayerBotLeaningsCheck']=15
+TESTS['PlayerBotDuelsCheck']=32
+TESTS['PlayerBotBattlegroundCheck']=7
+TESTS['PlayerBotSiegesCheck']=12
+TESTS['PlayerBotBasesCheck']=10
+TESTS['PlayerBotBattlegroundObjectivesCheck']=8
+TESTS['PlayerBotRunBriefingCheck']=11
+TESTS['InstanceDifficultyCheck']=7
+TESTS['PlayerBotHelpJournalCheck']=26
+TESTS['PlayerBotHelpKickCheck']=41
+TESTS['PlayerBotDredgionCheck']=47
+TESTS['PlayerBotHelpSlotsCheck']=32
+TESTS['PlayerBotBattlegroundMapsCheck']=122
+TESTS['PlayerBotArenasCheck']=52
+TESTS['PlayerBotPartyRewardsCheck']=12
+TESTS['PlayerBotFindGroupLoopholesCheck']=52
+TESTS['PlayerBotPvpTacticsCheck']=55
+TESTS['PlayerBotWardenVillagesCheck']=17
+TESTS['CentralMarketFeedbackCheck']=373
+TESTS['BrokerRetirementCheck']=52
 TESTS['PlayerBotProfessionCheck']=20107
 TESTS['PlayerBotIdentityCheck']=18
 TESTS['PlayerBotBystandersCheck']=14
 TESTS['PlayerBotPortraitCheck']=9
 TESTS['PlayerBotProfessionTaskCheck']=405
-TESTS['PlayerBotEntranceSummonCheck']=35
+TESTS['PlayerBotInvisibleFloorCheck']=432
+TESTS['PlayerBotRelocationTerrainCheck']=5988
+TESTS['PlayerBotProfessionTravelCheck']=34
+TESTS['PlayerBotProfessionDecisionCheck']=23
+TESTS['PlayerBotProfessionQualificationCheck']=367
+TESTS['PlayerBotEntranceSummonCheck']=43
 TESTS['PlayerBotTargetVisibilityCheck']=1845
 TESTS['PlayerBotQuestSkillCounterCheck']=311
 TESTS['PlayerBotQuestItemOfferCheck']=15
@@ -104,9 +140,14 @@ TESTS['PlayerBotNativeGatheringTaskCheck']=107
 TESTS['PlayerBotSkillAdaptersCheck']=702
 
 TESTS['WarehouseDepositCheck']=627
+TESTS.update({'PlayerBotEnhanceCheck':233,'EconomyAppraisalCheck':46087,'CentralMarketEnhancedCheck':139,'PlayerBotEconomyCheck':26,'PlayerBotMarketPricingCheck':25})
+SERVICE_CHECKS={'EconomyAppraisalCheck','CentralMarketEnhancedCheck','BrokerRetirementCheck','CentralMarketFeedbackCheck'}
+
+def check_package(name):
+ return 'services/item' if name=='WarehouseDepositCheck' else 'services' if name in SERVICE_CHECKS else 'services/playerbot'
 
 def check_source(name):
- return ROOT/'game-server/test/com/aionemu/gameserver'/('services/item' if name=='WarehouseDepositCheck' else 'services/playerbot')/(name+'.java')
+ return ROOT/'game-server/test/com/aionemu/gameserver'/check_package(name)/(name+'.java')
 
 QUEST_TESTS={'EltnenLifeStoneDiaryCheck':1881,'KaligaQuestCreditCheck':424,'KaligaEncounterCheck':68,'NativeQuestActionsCheck':4377}
 QUEST_TESTS.update({'NativeSielQuestCheck':866,'NativeDispatchQuestCheck':552,'NativeDaevanionQuestCheck':2341,
@@ -139,7 +180,7 @@ def sha(path):
  with Path(path).open('rb') as stream:return hashlib.file_digest(stream,'sha256').hexdigest()
 
 def fixtures():
- return sorted(set(sorted((ROOT/'game-server/test/com/aionemu/gameserver/services/playerbot').glob('*.java'))+[check_source('WarehouseDepositCheck'),ROOT/'game-server/test/com/aionemu/gameserver/ShutdownHookCheck.java']+quest_fixtures()+reviewed_native_fixtures()))
+ return sorted(set(sorted((ROOT/'game-server/test/com/aionemu/gameserver/services/playerbot').glob('*.java'))+[check_source(name) for name in SERVICE_CHECKS]+[ROOT/'game-server/test/com/aionemu/gameserver/services/EconomyStaticData.java',check_source('WarehouseDepositCheck'),ROOT/'game-server/test/com/aionemu/gameserver/ShutdownHookCheck.java']+quest_fixtures()+reviewed_native_fixtures()))
 
 def binding(build):
  libs=__import__('importlib').import_module('build-manifest').libraries(build)
@@ -192,9 +233,17 @@ def validate(build,out,evidence=None):
  assert cancellation['classes'] and not any(name.replace('\\','/')=='com/aionemu/gameserver/controllers/PlayerController.class' for name in cancellation['classes']),'Player cancellation fixture must not replace repaired JAR class'
  return evidence
 
+# Measured seconds of the slowest suites (parallel-reruns.json slowestSeconds); only the start order uses them.
+SLOW_FIRST={'PlayerBotRelocationTerrainCheck':131,'EconomyAppraisalCheck':17,'PlayerBotEnhanceCheck':16,'CentralMarketEnhancedCheck':16,
+ 'PlayerBotInvisibleFloorCheck':15,'QuestBonusPoolsCheck':9}
 def main():
  if not __debug__:raise RuntimeError('Regression validation cannot run with Python optimization enabled')
- p=argparse.ArgumentParser(description=__doc__);p.add_argument('--build',type=Path,required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--only',nargs='+',choices=sorted(TESTS));a=p.parse_args()
+ p=argparse.ArgumentParser(description=__doc__);p.add_argument('--build',type=Path,required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--only',nargs='+',choices=sorted(TESTS))
+ # Suites run as separate processes; several at once only saves waiting. Same commands, flags, classpath and
+ # working folders; results are recorded in the original order. --jobs 1 is the original one-by-one run.
+ p.add_argument('--jobs',type=int,default=min(6,max(1,(os.cpu_count() or 2)//2)),help='suite processes at once (1 = sequential)');a=p.parse_args()
+ jobs=max(1,a.jobs);phases={};started=time.monotonic()
+ def phase(name):phases[name]=round(time.monotonic()-started,1)
  build=a.build.resolve();out=a.output.resolve();out.mkdir(parents=True,exist_ok=True)
  # Never leave a previous successful report usable after a failed rerun.
  (out/'evidence.json').unlink(missing_ok=True)
@@ -209,6 +258,7 @@ def main():
   from importlib import import_module
   import_module('build-manifest').verify(build)
   selected_sources=[check_source(name) for name in a.only]
+  if set(a.only)&(SERVICE_CHECKS|{'PlayerBotEnhanceCheck'}):selected_sources.append(ROOT/'game-server/test/com/aionemu/gameserver/services/EconomyStaticData.java')
   before={str(path):sha(path) for path in [Path(__file__),*selected_sources]}
  else:
   before=binding(build)
@@ -224,14 +274,38 @@ def main():
  (build/'checks').mkdir(exist_ok=True)
  # Recompilation cannot run a stale class whose fixture source was removed.
  for compiled in (build/'checks').rglob('*.class'):compiled.unlink()
+ phase('setup (restoration, tooling)')
  argfile=out/'javac.args'
  argfile.write_text('\n'.join('"'+str(p).replace('\\','/')+'"' for p in (selected_sources if a.only else fixtures())))
  compile_result=subprocess.run(['javac','-cp',cp,'-sourcepath',str(ROOT/'game-server/test')+';'+str(ROOT/'game-server/data/handlers'),'-d',str(build/'checks'),'@'+str(argfile)],cwd=ROOT,capture_output=True,text=True)
- (out/'compile.txt').write_text(compile_result.stdout+compile_result.stderr)
+ (out/'compile.txt').write_text(compile_result.stdout+compile_result.stderr);phase('fixture compile')
  if compile_result.returncode:
   failures['compilation']=dict(exitCode=compile_result.returncode,report=str(out/'compile.txt'))
   require_success()
- reports={};suites={}
+ reports={};suites={};reruns={};seconds={}
+ def passed(count,result):
+  return not result.returncode and any(line.startswith('OK: '+str(count)+' ') for line in result.stdout.splitlines())
+ def launch(tasks):
+  """tasks: (test, count, command, cwd). Every suite runs exactly as before; a suite that fails beside others
+  is run again alone, as the sequential runner ran it, and that result counts. Both outcomes are kept in
+  parallel-reruns.json, so a suite that only fails in company is visible, never hidden."""
+  def run(task):
+   began=time.monotonic();result=subprocess.run(task[2],cwd=task[3],capture_output=True,text=True);seconds[task[0]]=round(time.monotonic()-began,1);return result
+  if jobs==1:results=[run(task) for task in tasks]
+  else:
+   # Longest suites start first so the slowest one overlaps the rest (measured 8 Nov: relocation terrain 131 s of
+   # 599 s); results still come back in the original order.
+   order=sorted(range(len(tasks)),key=lambda i:(-SLOW_FIRST.get(tasks[i][0],0),i))
+   with ThreadPoolExecutor(max_workers=jobs) as pool:
+    futures={i:pool.submit(run,tasks[i]) for i in order}
+    results=[futures[i].result() for i in range(len(tasks))]
+  for task,result in zip(tasks,results):
+   test,count=task[0],task[1]
+   if jobs>1 and not passed(count,result):
+    alone=run(task)
+    reruns[test]=dict(parallelExit=result.returncode,parallelPassed=False,aloneExit=alone.returncode,alonePassed=passed(count,alone))
+    result=alone
+   record(test,count,result)
  def record(test,count,result):
   report=out/(test+'.txt')
   report.write_text(result.stdout+result.stderr,encoding='utf-8')
@@ -241,13 +315,20 @@ def main():
   else:
    reports[test]=conclusion
    suites[test]=dict(exitCode=0,count=count,result=conclusion,reportSha256=sha(report))
+ tasks=[]
  for test,count in ((name,TESTS[name]) for name in a.only) if a.only else TESTS.items():
-  cwd=ROOT/'game-server' if test in {'PlayerBotBuildGearCheck','PlayerBotLoadoutCheck'} else ROOT if test in {'PlayerBotWorldProgressCheck','PlayerBotAssassinCheck','PlayerBotGladiatorCheck','PlayerBotTemplarCheck','PlayerBotChanterCheck','PlayerBotClericCheck','PlayerBotSpiritmasterCheck','PlayerBotSorcererCheck',
+  cwd=ROOT/'game-server' if test in {'PlayerBotBuildGearCheck','PlayerBotLoadoutCheck','PlayerBotEnhanceCheck'}|SERVICE_CHECKS else ROOT if test in {'PlayerBotWorldProgressCheck','PlayerBotAssassinCheck','PlayerBotGladiatorCheck','PlayerBotTemplarCheck','PlayerBotChanterCheck','PlayerBotClericCheck','PlayerBotSpiritmasterCheck','PlayerBotSorcererCheck',
    'PlayerBotQuestCraftingCheck','PlayerBotQuestPrerequisitesCheck','PlayerBotNativeCraftingTaskCheck','PlayerBotNativeXmlQuestCheck'} else build/'checks'
-  args=[str(ROOT/'game-server')] if test in {'PlayerBotIdentityCheck','PlayerBotBystandersCheck','PlayerBotPortraitCheck','PlayerBotProfessionCheck','QuestBonusPoolsCheck','PlayerBotRepositoryCheck','PlayerBotPlayerZoneCheck','PlayerBotAuditCoverageCheck','PlayerBotIdleCastingCheck','PlayerBotTravelFormationCheck','PlayerBotCombatGearCheck','PlayerBotTargetVisibilityCheck','PlayerBotStoryRewardIntentCheck','PlayerBotQuestTransformationCheck','PlayerBotQuestItemTargetCheck','PlayerBotNpcPatrolNativeSpawnCheck','PlayerBotNpcPatrolAdmissionCheck','PlayerBotNativeRouteYieldCheck','PlayerBotCapitalAreaCheck','PlayerBotConfigLocationCheck','PlayerBotCampDistributionCheck','PlayerBotNonCombatBuffCheck','PlayerBotTownPolicyCheck','PlayerBotSkillAdaptersCheck'} else []
-  result=subprocess.run(['java','-Xverify:all','-cp',cp,('com.aionemu.gameserver.services.item.' if test=='WarehouseDepositCheck' else 'com.aionemu.gameserver.services.playerbot.')+test,*args],cwd=cwd,capture_output=True,text=True)
-  record(test,count,result)
+  args=[str(ROOT/'game-server')] if test in {'PlayerBotInvisibleFloorCheck','PlayerBotSmoothTravelCheck','PlayerBotActivityChatCheck','PlayerBotRelocationTerrainCheck','PlayerBotProfessionDecisionCheck','PlayerBotProfessionQualificationCheck','PlayerBotIdentityCheck','PlayerBotBystandersCheck','PlayerBotCampSafetyCheck','PlayerBotLocalWorkCheck','PlayerBotDetailTierCheck','PlayerBotMarketUpgradesCheck','PlayerBotPvpCheck','PlayerBotHelpTrackingCheck','PlayerBotSleepMotionCheck','PlayerBotLeaningsCheck','PlayerBotDuelsCheck','PlayerBotBattlegroundCheck','PlayerBotSiegesCheck','PlayerBotBasesCheck','PlayerBotBattlegroundObjectivesCheck','PlayerBotRunBriefingCheck','InstanceDifficultyCheck','PlayerBotHelpJournalCheck','PlayerBotHelpKickCheck','PlayerBotDredgionCheck','PlayerBotHelpSlotsCheck','PlayerBotBattlegroundMapsCheck','PlayerBotArenasCheck','PlayerBotPartyRewardsCheck','PlayerBotFindGroupLoopholesCheck','PlayerBotPvpTacticsCheck','PlayerBotWardenVillagesCheck','PlayerBotPortraitCheck','PlayerBotProfessionCheck','QuestBonusPoolsCheck','PlayerBotRepositoryCheck','PlayerBotPlayerZoneCheck','PlayerBotAuditCoverageCheck','PlayerBotIdleCastingCheck','PlayerBotTravelFormationCheck','PlayerBotCombatGearCheck','PlayerBotTargetVisibilityCheck','PlayerBotStoryRewardIntentCheck','PlayerBotQuestTransformationCheck','PlayerBotQuestItemTargetCheck','PlayerBotNpcPatrolNativeSpawnCheck','PlayerBotNpcPatrolAdmissionCheck','PlayerBotNativeRouteYieldCheck','PlayerBotCapitalAreaCheck','PlayerBotConfigLocationCheck','PlayerBotCampDistributionCheck','PlayerBotNonCombatBuffCheck','PlayerBotTownPolicyCheck','PlayerBotSkillAdaptersCheck'} else []
+  tasks.append((test,count,['java','-Xverify:all','-cp',cp,'com.aionemu.gameserver.'+check_package(test).replace('/','.')+'.'+test,*args],cwd))
+ launch(tasks);phase('suites')
+ def note_reruns():
+  slowest=dict(sorted(seconds.items(),key=lambda item:-item[1])[:15])
+  (out/'parallel-reruns.json').write_text(json.dumps(dict(jobs=jobs,reruns=reruns,phases=phases,slowestSeconds=slowest,suiteSecondsTotal=round(sum(seconds.values()),1)),indent=2))
+  for test,rerun in reruns.items():
+   print(('NOTE: '+test+' failed beside other suites but passed alone' if rerun['alonePassed'] else 'FAIL: '+test+' failed in parallel and alone'),file=sys.stderr)
  if a.only:
+  note_reruns()
   require_success()
   assert before=={path:sha(path) for path in before},'Selected check sources changed during validation'
   import_module('build-manifest').verify(build)
@@ -255,10 +336,13 @@ def main():
   for result in reports.values():print(result)
   print('OK: '+str(len(reports))+' selected artifact-bound suites; full suite not run')
   return
+ tasks=[]
  for test,count in QUEST_TESTS.items():
   args=[str(ROOT/'game-server')] if test=='KaligaEncounterCheck' or test.startswith('Native') else []
-  result=subprocess.run(['java','-Xverify:all','-cp',cp,'com.aionemu.gameserver.questEngine.'+test,*args],cwd=build/'checks',capture_output=True,text=True)
-  record(test,count,result)
+  tasks.append((test,count,['java','-Xverify:all','-cp',cp,'com.aionemu.gameserver.questEngine.'+test,*args],build/'checks'))
+ launch(tasks);phase('quest suites')
+ note_reruns()
+ # These three stay one at a time, after everything else, as before: they start and stop real services.
  result=subprocess.run(['java','-Xverify:all','-cp',cp,'com.aionemu.gameserver.ShutdownHookCheck'],cwd=build/'checks',capture_output=True,text=True)
  record('ShutdownHookCheck',14,result)
  database=subprocess.run([sys.executable,str(ROOT/'tools/check-database-shutdown.py'),'--build',str(build),'--output',str(out/'database-shutdown')],cwd=ROOT,capture_output=True,text=True)

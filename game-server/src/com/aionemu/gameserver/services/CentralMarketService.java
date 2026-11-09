@@ -56,12 +56,16 @@ public final class CentralMarketService {
 	 * every maintenance pass (the main MySQL load). Retry it at most once a minute. */
 	private static long nextFreshScan;
 	private static Set<String> lastFresh=Set.of();
+	private static long nextOpenScan;
 	private static long housekeepingAt;
 	private static final String COPY_COLUMNS = "item_id,item_count,item_color,color_expires,item_creator,expire_time,activation_count,item_owner,is_equipped,is_soul_bound,slot,item_location,enchant,enchant_bonus,item_skin,fusioned_item,optional_socket,optional_fusion_socket,charge,tune_count,rnd_bonus,fusion_rnd_bonus,tempering,pack_count,is_amplified,buff_skill,rnd_plume_bonus,rank_limit_expire_time";
 
 	private CentralMarketService() {}
 
 	public static void start() throws Exception {
+		try (Connection c = DatabaseFactory.getConnection()) {
+			cleanupCancelledSimulation(c);
+		}
 		CentralMarketHttpService.loadIcons();
 		try (Connection c = DatabaseFactory.getConnection(); Statement s = c.createStatement()) {
 			String sql = Files.readString(Path.of("config/central-market/schema.sql"));
@@ -78,6 +82,7 @@ public final class CentralMarketService {
 			// Retire obsolete virtual quotes before any matching; never cancel a human's order or escrow.
 			CentralMarketSimulation.disable(c);
 			migrateEconomy(c);
+			reappraise(c);
 			CentralMarketSettlement.migrate(c);
 			c.commit();
 		}
@@ -85,6 +90,59 @@ public final class CentralMarketService {
 		long tick=Math.max(200,Math.min(5000,Math.max(1,CentralMarketSimulationConfig.TICK_SECONDS)*1000L/Math.max(1,(CentralMarketSimulationConfig.CATALOG_BATCH+39)/40)));
 		MAINTENANCE.scheduleAtFixedRate(CentralMarketService::maintain, 1000, tick, TimeUnit.MILLISECONDS);
 		log.info("Central Market ready: {} tradeable templates, database custody enabled", templates.size());
+	}
+
+	/** Runs before schema/index upgrades, using its own autocommit connection so every batch survives a restart. */
+	static long cleanupCancelledSimulation(Connection c) throws SQLException {
+		if (!c.getAutoCommit()) throw new SQLException("Central Market startup cleanup requires autocommit");
+		Set<String> tables = new HashSet<>();
+		for (var table : rows(c, "SELECT TABLE_NAME name,ENGINE engine FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('central_market_orders','central_market_trades','central_market_cleanup')")) {
+			if (!"InnoDB".equalsIgnoreCase(str(table,"engine"))) throw new SQLException("Central Market requires InnoDB: " + str(table,"name"));
+			tables.add(str(table,"name"));
+		}
+		if (!tables.contains("central_market_orders") || !tables.contains("central_market_trades")) return 0;
+		boolean pending = tables.contains("central_market_cleanup") && row(c,"SELECT id FROM central_market_cleanup WHERE id=1") != null;
+		String dead = "account_id=0 AND state='CANCELLED' AND id NOT IN (SELECT buy_order FROM central_market_trades) AND id NOT IN (SELECT sell_order FROM central_market_trades)";
+		if (!pending && lng(row(c,"SELECT COUNT(*) n FROM (SELECT id FROM central_market_orders WHERE " + dead + " LIMIT 20001) candidates"),"n") <= 20000) return 0;
+		log.info("Central Market startup cleanup beginning, committing up to 20000 obsolete simulation orders per batch");
+		// Keep the compaction obligation durable, including a crash after the final DELETE.
+		update(c,"CREATE TABLE IF NOT EXISTS central_market_cleanup (id TINYINT NOT NULL PRIMARY KEY) ENGINE=InnoDB");
+		update(c,"INSERT IGNORE INTO central_market_cleanup(id) VALUES(1)");
+		long started = System.nanoTime(), reported = started, deleted = 0;
+		try (Statement s = c.createStatement()) {
+			while (true) {
+				if (Thread.currentThread().isInterrupted()) throw new SQLException("Central Market startup cleanup interrupted; committed batches will resume next start");
+				int batch = s.executeUpdate("DELETE FROM central_market_orders WHERE " + dead + " LIMIT 20000");
+				if (batch == 0) break;
+				deleted += batch;
+				long now = System.nanoTime();
+				if (deleted == batch || now - reported >= TimeUnit.SECONDS.toNanos(5)) {
+					log.info("Central Market startup cleanup committed {} orders, {} orders/second", deleted, Math.round(deleted / Math.max(0.001,(now-started)/1_000_000_000.0)));
+					reported = now;
+				}
+			}
+			if (Thread.currentThread().isInterrupted()) throw new SQLException("Central Market startup compaction interrupted; it will resume next start");
+			log.info("Central Market startup cleanup committed {} orders, compacting central_market_orders", deleted);
+			boolean optimized = false;
+			String problem = "no OK status";
+			try (ResultSet result = s.executeQuery("OPTIMIZE TABLE central_market_orders")) {
+				while (result.next()) {
+					String type = result.getString("Msg_type"), message = result.getString("Msg_text");
+					if ("error".equalsIgnoreCase(type)) problem = message;
+					if ("status".equalsIgnoreCase(type) && "OK".equalsIgnoreCase(message)) optimized = true;
+				}
+			} catch (SQLException e) {
+				problem = e.getMessage();
+			}
+			// Compaction only returns disk space; a failure must not keep the market closed. The marker row retries it next start.
+			if (!optimized) {
+				log.warn("Central Market startup compaction did not finish ({}); the market starts anyway and retries it next start", problem);
+				return deleted;
+			}
+		}
+		update(c,"DELETE FROM central_market_cleanup WHERE id=1");
+		log.info("Central Market startup cleanup complete, {} orders committed in {} seconds including compaction", deleted, TimeUnit.NANOSECONDS.toSeconds(System.nanoTime()-started));
+		return deleted;
 	}
 
 	/** Ends maintenance before the database pool closes; a pass already running finishes its transaction. */
@@ -100,7 +158,8 @@ public final class CentralMarketService {
 			|| ((t.isWeapon() || t.isArmor() || t.isStigma()) && t.getLevel() > GSConfig.PLAYER_MAX_LEVEL)) return false;
 		String n = t.getName().toLowerCase(Locale.ROOT);
 		return !n.isBlank() && !n.matches(".*(test|debug|dummy|prototype|placeholder|prop weapon|prop sword).*" ) && !n.matches(".*\\bprop\\s*(sword|dagger|bow|staff|shield|mace).*" ) && !n.endsWith(" form") && !n.contains("npc")
-			&& !n.startsWith("[temp") && (!(t.isWeapon() || t.isArmor()) || t.getPrice() != 5);
+			&& !n.startsWith("[temp") && (!(t.isWeapon() || t.isArmor()) || t.getPrice() != 5)
+			&& !com.aionemu.gameserver.services.trade.MarketPolicy.excluded(t);
 	}
 
 	static boolean visibleInStorage(ItemTemplate t) {
@@ -139,19 +198,19 @@ public final class CentralMarketService {
 		return key;
 	}
 
-	private static void catalog(Connection c, ItemTemplate t, String key, int enchant, int tempering) throws SQLException {
+	static void catalog(Connection c, ItemTemplate t, String key, int enchant, int tempering) throws SQLException {
 		long seed = economySeed(t,enchant,tempering);
 		update(c, "INSERT IGNORE INTO central_market_catalog(variant,item_id,enchant,tempering,base_price,floor_price,ceiling_price,previous_price) VALUES(?,?,?,?,?,?,?,?)",
 			key, t.getTemplateId(), enchant, tempering, seed, Math.max(1, seed / 2), Math.min(CentralMarketRules.MAX_KINAH, seed * 2), seed);
 	}
 
 	private static long economySeed(ItemTemplate t,int enchant,int tempering) {
-		return Math.min(1_000_000_000_000L,EconomyPrices.anchor(t)*(1L+(long)enchant*enchant+(long)tempering*tempering*2));
+		return EconomyPrices.enhanced(t,enchant,tempering);
 	}
 
 	/** Existing databases need the same appraisal as new entries, once. No player assets are rewritten. */
 	private static void migrateEconomy(Connection c) throws SQLException {
-		if(row(c,"SELECT version FROM central_market_economy_versions WHERE version=1")!=null)return;
+		if(row(c,"SELECT version FROM central_market_economy_versions WHERE version=2")!=null)return;
 		try(var statement=c.prepareStatement("UPDATE central_market_catalog SET previous_price=base_price,base_price=?,floor_price=?,ceiling_price=?,updated_at=? WHERE variant=?")) {
 			int count=0;
 			for(var entry:rows(c,"SELECT variant,item_id,enchant,tempering FROM central_market_catalog")) {
@@ -163,7 +222,33 @@ public final class CentralMarketService {
 			}
 			statement.executeBatch();
 		}
-		update(c,"INSERT INTO central_market_economy_versions VALUES(1,?)",System.currentTimeMillis());
+		update(c,"INSERT INTO central_market_economy_versions VALUES(2,?)",System.currentTimeMillis());
+	}
+
+	/**
+	 * Economy v3 (owner feedback, 9 Nov): catalogue prices were set once and never re-appraised, so boxes and other
+	 * items kept values from older appraisals (furniture and cash-wrap boxes at ~100 Kinah holding items worth millions;
+	 * some rows still carried the v1 floor/ceiling). Every eligible row takes today's appraisal, with MarketPolicy factors.
+ * v4 (9 Nov): feedback removals moved to the Black Cloud Marketplace; Bootleg gear priced as its original.
+	 * v5 (9 Nov economy audit): crafted goods at least their material cost; shops whose NPC never spawns no longer cap prices.
+	 * Player orders, escrow and items are untouched; recorded trades remain.
+	 */
+	static final int ECONOMY_VERSION=5;
+	private static void reappraise(Connection c) throws SQLException {
+		if(row(c,"SELECT version FROM central_market_economy_versions WHERE version=?",ECONOMY_VERSION)!=null)return;
+		int count=0;
+		try(var statement=c.prepareStatement("UPDATE central_market_catalog SET previous_price=base_price,base_price=?,floor_price=?,ceiling_price=?,updated_at=? WHERE variant=?")) {
+			for(var entry:rows(c,"SELECT variant,item_id,enchant,tempering FROM central_market_catalog")) {
+				var template=DataManager.ITEM_DATA.getItemTemplate((int)lng(entry,"item_id"));
+				if(template==null || !eligible(template))continue;
+				long seed=economySeed(template,(int)lng(entry,"enchant"),(int)lng(entry,"tempering"));
+				bind(statement,seed,Math.max(1,seed/2),Math.min(CentralMarketRules.MAX_KINAH,seed*2),System.currentTimeMillis(),str(entry,"variant"));statement.addBatch();
+				if(++count%500==0)statement.executeBatch();
+			}
+			statement.executeBatch();
+		}
+		update(c,"INSERT INTO central_market_economy_versions VALUES(?,?)",ECONOMY_VERSION,System.currentTimeMillis());
+		log.info("Central Market economy v{}: {} catalogue rows re-appraised",ECONOMY_VERSION,count);
 	}
 
 	public static String action(Player p, Map<String,String> a, String requestId) throws Exception {
@@ -691,9 +776,14 @@ public final class CentralMarketService {
 				int id;
 				if (seller == 0) {
 					ItemTemplate template=DataManager.ITEM_DATA.getItemTemplate((int)lng(entry,"item_id"));
-					if(template==null || !key.equals(template.getTemplateId()+":0:0")) throw new SQLException("Invalid virtual supply variant");
+					// Generated supply covers the plain item and its generated enchant/tempering variants (owner 9 Nov: the
+					// enchanted asks could never be bought, the old plain-only guard rolled every such purchase back).
+					int[] grade=template==null?null:CentralMarketSimulation.virtualGrade(template,key);
+					if(grade==null) throw new SQLException("Invalid virtual supply variant");
 					id=IDFactory.getInstance().nextId(); allocated.add(id);
 					Item item=new Item(id,template,qty,false,0); item.setItemLocation(MARKET);item.setEquipmentSlot(65535);
+					if(grade[0]>0)item.setEnchantLevel(grade[0]);
+					if(grade[1]>0)item.setTempering(grade[1]);
 					if(!InventoryDAO.insertTransactionMarketItem(c,item,buyer)) throw new SQLException("Virtual purchase could not be persisted");
 					update(c,"INSERT INTO central_market_stock(item_unique_id,account_id,variant,order_id) VALUES(?,?,?,?)",id,buyer,key,buyId);
 				} else {
@@ -782,8 +872,15 @@ public final class CentralMarketService {
 			// the in-game web windows (Market, Cash Shop, Wardrobe...) queued behind it.
 			long phase=System.nanoTime();
 			try(Connection lookup=DatabaseFactory.getConnection()) {
-				for(var r:rows(lookup,"SELECT DISTINCT variant FROM central_market_orders WHERE account_id<>0 AND (state='OPEN' OR (state='QUEUED' AND available_at<=?))",now)) keys.add(str(r,"variant"));
+				for(var r:rows(lookup,"SELECT DISTINCT variant FROM central_market_orders WHERE state='QUEUED' AND available_at<=? AND account_id<>0",now)) keys.add(str(r,"variant"));
+				// Placing an order already matches it. Open orders only need a periodic look for
+				// new quotes; rechecking them on every pass kept the shared lock permanently busy.
+				if(now>=nextOpenScan) {
+					nextOpenScan=now+Math.max(1,CentralMarketSimulationConfig.TICK_SECONDS)*1000L;
+					for(var r:rows(lookup,"SELECT DISTINCT variant FROM central_market_orders WHERE account_id<>0 AND state='OPEN'")) keys.add(str(r,"variant"));
+				}
 				if(CentralMarketSimulationConfig.ENABLED && CentralMarketSimulationConfig.POPULATION>0) {
+					CentralMarketSimulation.requested(lookup,keys);
 					for(var r:rows(lookup,"SELECT variant FROM central_market_simulation WHERE next_refresh<=? ORDER BY next_refresh LIMIT 40",now)) keys.add(str(r,"variant"));
 					if(!simulationInitialized && now>=nextFreshScan) {
 						var fresh=rows(lookup,"SELECT c.variant FROM central_market_catalog c LEFT JOIN central_market_simulation s ON s.variant=c.variant WHERE s.variant IS NULL LIMIT 40");
@@ -830,7 +927,7 @@ public final class CentralMarketService {
 				housekeepingAt=now+60_000;
 				try(Connection lookup=DatabaseFactory.getConnection()) {
 					update(lookup,"DELETE FROM central_market_requests WHERE created_at<?",now-7*86400000L);
-					update(lookup,"DELETE FROM central_market_orders WHERE account_id=0 AND state='CANCELLED' AND id NOT IN (SELECT buy_order FROM central_market_trades) AND id NOT IN (SELECT sell_order FROM central_market_trades) LIMIT 1000");
+					update(lookup,"DELETE FROM central_market_orders WHERE account_id=0 AND state='CANCELLED' AND id NOT IN (SELECT buy_order FROM central_market_trades) AND id NOT IN (SELECT sell_order FROM central_market_trades) LIMIT 10000");
 				}
 				housekeepingNanos=System.nanoTime()-phase;
 			}
@@ -911,7 +1008,9 @@ public final class CentralMarketService {
 		return new CompanionQuote(seed,Math.max(1,seed/2),Math.min(CentralMarketRules.MAX_KINAH,seed*2),List.of(),List.of(),List.of());
 	}
 
-	private static CompanionQuote companionQuote(Player bot, String key) throws SQLException {
+	public static CompanionQuote companionQuote(Player bot, String key) throws SQLException {
+		String[] parts=key.split(":");
+		if(parts.length>=3){var t=DataManager.ITEM_DATA.getItemTemplate(Integer.parseInt(parts[0]));if(t!=null)CentralMarketSimulation.request(t);}
 		try (Connection c = DatabaseFactory.getConnection()) { return companionQuote(c,subject(bot),key,System.currentTimeMillis()); }
 	}
 
@@ -1108,6 +1207,7 @@ public final class CentralMarketService {
 				String[] parts=key.split(":"); ItemTemplate t=DataManager.ITEM_DATA.getItemTemplate(Integer.parseInt(parts[0]));
 				int enchant=Integer.parseInt(parts[1]),temper=Integer.parseInt(parts[2]);
 				if(t!=null && eligible(t) && enchant<=t.getMaxEnchantLevel() && temper<=t.getMaxTampering()) catalog(c,t,key,enchant,temper);
+				if(t!=null && eligible(t))CentralMarketSimulation.request(t);
 			}
 			Map<String,Object> entry=row(c,"SELECT * FROM central_market_catalog WHERE variant=?",key);
 			if(entry!=null){
@@ -1150,8 +1250,7 @@ public final class CentralMarketService {
 		v.put("item_id",t.getTemplateId()); v.put("name",t.getName()); v.put("category",category(t));
 		v.put("group",t.getItemGroup().name()); v.put("level",t.getLevel()); v.put("race",t.getRace().name());
 		v.put("quality",t.getItemQuality()==null?"COMMON":t.getItemQuality().name());
-		v.put("volume",CentralMarketRules.volume(category(t))); v.put("maxQuantity",CentralMarketRules.maxQuantity(t.isStackable(),t.getMaxStackCount()));
-		List<Map<String,Object>> stats=new ArrayList<>();
+		v.put("volume",CentralMarketRules.volume(category(t))); v.put("maxQuantity",CentralMarketRules.maxQuantity(t.isStackable(),t.getMaxStackCount()));		List<Map<String,Object>> stats=new ArrayList<>();
 		if(t.getModifiers()!=null) t.getModifiers().stream().filter(s->s.getName()!=null).forEach(s->stats.add(Map.of("name",MarketplaceService.statName(s.getName().name()),"value",s.getValue())));
 		if(t.isWeapon() && t.getWeaponStats()!=null) { v.put("damage",t.getWeaponStats().getMinDamage()+"–"+t.getWeaponStats().getMaxDamage()); }
 		v.put("stats",stats); v.put("sockets",t.getManastoneSlots()); return v;

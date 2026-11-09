@@ -205,8 +205,11 @@ public class InventoryDAO {
 					throw new SQLException("Companion attempted to save shared inventory");
 			// Check custody before any delete/update. A stale or reused object ID
 			// must never overwrite a different character's persisted item.
+			// Lock rows in one global order so two concurrent companion saves cannot deadlock each other.
+			List<Item> lockOrder = new ArrayList<>(items);
+			lockOrder.sort(java.util.Comparator.comparingInt(Item::getObjectId));
 			try (PreparedStatement custody = connection.prepareStatement("SELECT item_owner,item_id,item_location FROM inventory WHERE item_unique_id=? FOR UPDATE")) {
-				for (Item item : items) {
+				for (Item item : lockOrder) {
 					custody.setInt(1, item.getObjectId());
 					try (ResultSet row = custody.executeQuery()) {
 						if (row.next() && (row.getInt(1) != player.getObjectId() || row.getInt(2) != item.getItemId()

@@ -20,12 +20,14 @@ import com.aionemu.gameserver.skillengine.task.GatheringTask;
 import com.aionemu.gameserver.services.trade.EconomyPrices;
 import static com.aionemu.gameserver.services.playerbot.PlayerBotQuestCrafting.*;
 
-/** One saved world trade; native inventory/skills own every outcome. Never called by sleeping decisions. */
+/** One saved world trade; native inventory/skills own every outcome. */
 public final class PlayerBotProfessions {
  static final class State {
   final Player bot;final Properties values;int primary,cursor,recipe,failures,zeroXp;String style="",reason="Awaiting trade assignment";
   long next,planAt,activeUntil,nextAwake,marketWait,lastGather;volatile boolean admitted;int zeroAt;
   volatile Plan plan;volatile Map<Integer,Long> gather=Map.of(),inputs=Map.of(),escrow=Map.of();
+  boolean awakePending;long pendingSince,stationTick;PlayerBotProfessionTravel.Trip trip;
+  PlayerBotProfessionQualification.Requirement qualification;
   State(Player bot,Properties values){this.bot=bot;this.values=values;primary=Integer.parseInt(values.getProperty("primary","0"));style=values.getProperty("style","");
    next=number("next");nextAwake=number("nextAwake");recipe=(int)number("recipe");marketWait=number("marketWait");}
   long number(String key){return Long.parseLong(values.getProperty(key,"0"));}
@@ -45,8 +47,9 @@ public final class PlayerBotProfessions {
  private static final org.slf4j.Logger log=org.slf4j.LoggerFactory.getLogger(PlayerBotProfessions.class);
  private static final LongAdder TURNS=new LongAdder(),TRAINED=new LongAdder(),DESIGNS=new LongAdder(),ATTEMPTS=new LongAdder(),FAILURES=new LongAdder(),BLOCKED=new LongAdder(),SPENT=new LongAdder();
  private static final LongAdder PLAN_NANOS=new LongAdder();
+ private static final LongAdder WALKED=new LongAdder(),TRIP_FALLBACKS=new LongAdder(),TRIP_STALLS=new LongAdder(),QUALIFIED=new LongAdder();
  /** A bad setting or data set pauses this feature and says why; it never stops the server starting. */
- static void prepare(){if(!enabled())return;try{validateConfig();PlayerBotProfessionCatalog.prepare();prepared=true;}catch(RuntimeException error){prepared=false;log.error("World bot professions are paused",error);}}
+ static void prepare(){if(!enabled())return;try{validateConfig();PlayerBotProfessionCatalog.prepare();PlayerBotProfessionQualification.prepare();PlayerBotProfessionTravel.prepare();prepared=true;}catch(RuntimeException error){prepared=false;log.error("World bot professions are paused",error);}}
  static void validateConfig() {
   WEIGHTS=PlayerBotProfessionPolicy.weights(PlayerBotEconomyConfig.PROFESSIONS_PRIMARY_WEIGHTS);
   GATHER_STYLES=PlayerBotProfessionPolicy.styles(PlayerBotEconomyConfig.PROFESSIONS_GATHERER_STYLES,true);CRAFT_STYLES=PlayerBotProfessionPolicy.styles(PlayerBotEconomyConfig.PROFESSIONS_CRAFTER_STYLES,false);
@@ -58,6 +61,8 @@ public final class PlayerBotProfessions {
    || PlayerBotEconomyConfig.PROFESSIONS_RECIPES_PER_PLAN<1 || PlayerBotEconomyConfig.PROFESSIONS_RECIPES_PER_PLAN>64
    || PlayerBotEconomyConfig.PROFESSIONS_SOURCES_PER_PLAN<1 || PlayerBotEconomyConfig.PROFESSIONS_SOURCES_PER_PLAN>64
    || PlayerBotEconomyConfig.PROFESSIONS_NEEDS_PER_PLAN<1 || PlayerBotEconomyConfig.PROFESSIONS_NEEDS_PER_PLAN>16
+   || PlayerBotEconomyConfig.PROFESSIONS_TRIP_SECONDS<1 || PlayerBotEconomyConfig.PROFESSIONS_TRIP_SECONDS>PlayerBotEconomyConfig.PROFESSIONS_WORK_SLICE_SECONDS
+   || PlayerBotEconomyConfig.PROFESSIONS_TRIP_STALL_SECONDS<1 || PlayerBotEconomyConfig.PROFESSIONS_TRIP_STALL_SECONDS>PlayerBotEconomyConfig.PROFESSIONS_TRIP_SECONDS
    || PlayerBotEconomyConfig.PROFESSIONS_MARKET_CACHE_ENTRIES<1 || PlayerBotEconomyConfig.PROFESSIONS_MARKET_CACHE_ENTRIES>1024
    || PlayerBotEconomyConfig.PROFESSIONS_MARKET_VARIANTS_PER_MINUTE<1 || PlayerBotEconomyConfig.PROFESSIONS_MARKET_VARIANTS_PER_MINUTE>120
    || PlayerBotEconomyConfig.PROFESSIONS_PROFIT_SUCCESS_PERCENT<1 || PlayerBotEconomyConfig.PROFESSIONS_PROFIT_SUCCESS_PERCENT>100)throw new IllegalArgumentException("Invalid bounded profession configuration");
@@ -89,6 +94,7 @@ public final class PlayerBotProfessions {
  static boolean enabled(){return PlayerBotEconomyConfig.ECONOMY_ENABLED && PlayerBotEconomyConfig.PROFESSIONS_ENABLE;}
  static boolean eligible(PlayerBotSession s){return enabled() && prepared && s!=null && s.autonomous() && !s.closing() && !PlayerBotRoadDuty.hasCareer(s.bot()) && s.bot().getLevel()>=10 && !s.bot().isInInstance();}
  static boolean safe(PlayerBotSession s){var b=s.bot();return eligible(s) && PlayerBotWarehouse.idle(b) && b.isSpawned() && !b.isGatherRestricted()
+  && !b.isInTeam()
   && !PlayerBotHelpObjectives.committed(b) && !PlayerBotFindGroup.committed(b) && (b.getInteractionTask()==null || !b.getInteractionTask().isInProgress())
   && !b.getController().isUnderStance() && !b.getController().hasScheduledTask(com.aionemu.gameserver.model.TaskId.ACTION_ITEM_NPC);}
  public static boolean backgroundAllowed(Player bot){return BACKGROUND.get()==bot && bot.isWorldBot();}
@@ -119,12 +125,14 @@ public final class PlayerBotProfessions {
   var care=PlayerBotQuestSync.state(session);String today=java.time.LocalDate.now().toString();if(!today.equals(care.spentDay)){care.spentDay=today;care.spent=0;}care.spent=Math.addExact(care.spent,amount);care.save();s.save();SPENT.add(amount);}
  private static synchronized boolean planSlot(long now){if(planSecond!=now/1000){planSecond=now/1000;plans=0;}return plans++<PlayerBotEconomyConfig.PROFESSIONS_PLANS_PER_SECOND;}
  static void plan(PlayerBotSession session,long now) {
-  var s=state(session.bot());if(s==null || !eligible(session) || now<s.planAt)return;if(s.primary==0){if(s.bot.getLevel()<10)return;assign(s);}if(!planSlot(now))return;long began=System.nanoTime();
-  try{day(s);s.planAt=now+PlayerBotEconomyConfig.PROFESSIONS_PLAN_REFRESH_SECONDS*1000L;s.plan=null;s.gather=Map.of();s.inputs=Map.of();var b=s.bot;s.cursor++;
+  var s=state(session.bot());if(s==null || !eligible(session) || s.awakePending || now<s.planAt)return;if(s.primary==0){if(s.bot.getLevel()<10)return;assign(s);}if(!planSlot(now))return;long began=System.nanoTime();
+  try{day(s);s.planAt=now+PlayerBotEconomyConfig.PROFESSIONS_PLAN_REFRESH_SECONDS*1000L;s.plan=null;s.gather=Map.of();s.inputs=Map.of();s.qualification=null;var b=s.bot;s.cursor++;
    int points=PlayerBotProfessionCatalog.points(b,s.primary);var profession=Profession.getBySkillId(s.primary);
    // Unaffordable training never stops work: that work is how the bot earns the fee.
    Integer fee=profession.getUpgradeCost(points);
    if(fee!=null && fee<=allowance(session,true)){s.plan=new Plan(Stage.TRAIN,0,0,s.primary,0,Map.of(),Map.of(),"Train "+profession);s.reason="Native trainer fee required";return;}
+   s.qualification=PlayerBotProfessionQualification.plan(session);
+   if(s.qualification!=null && qualificationPlan(session,s,now))return;
    if(!profession.isCrafting()){gatherPlan(s,s.primary,Map.of(),true);return;}
    RecipeTemplate selected=null;boolean gear=false;
    if(!s.style.equals("skill_grinder"))for(var goal:PlayerBotGearPolicy.state(session).goals.values()){var parts=goal.split(":");if(parts.length!=3)continue;int item=Integer.parseInt(parts[0]);if(held(b,item)>0 || !b.getEquipment().getEquippedItemsByItemId(item).isEmpty())continue;
@@ -145,7 +153,23 @@ public final class PlayerBotProfessions {
    // The market gets first chance at the inputs. Once the wait is over the bot also fetches them itself.
    if(intent.stage()!=Stage.MATERIALS)s.marketWait=0;
    else {if(s.marketWait==0)s.marketWait=now+PlayerBotEconomyConfig.PROFESSIONS_MARKET_WAIT_SECONDS*1000L;if(PlayerBotProfessionPolicy.fallback(s.marketWait,now))gatherPlan(s,0,missing,false);}
-  }finally{PLAN_NANOS.add(System.nanoTime()-began);if(s.primary!=0)s.save();PlayerBotQuestCraftingDriver.invalidate(s.bot);PlayerBotQuestMaterials.invalidate(s.bot);}
+  }finally{if(s.qualification!=null)s.reason=s.qualification.reason();PLAN_NANOS.add(System.nanoTime()-began);if(s.primary!=0)s.save();PlayerBotQuestCraftingDriver.invalidate(s.bot);PlayerBotQuestMaterials.invalidate(s.bot);}
+ }
+ private static boolean qualificationPlan(PlayerBotSession session,State s,long now){var q=s.qualification;s.reason=q.reason();
+  if(!q.readable())return true;var absent=PlayerBotProfessionQualification.missing(s.bot,q);
+  if(absent.isEmpty())return q.kinah()<=allowance(session,true);
+  s.plan=new Plan(Stage.MATERIALS,q.quest(),0,s.primary,0,q.items(),absent,q.reason());var inputs=new TreeMap<Integer,Long>(absent);
+  int checked=0;for(var e:new TreeMap<>(absent).entrySet()){
+   if(++checked>PlayerBotEconomyConfig.PROFESSIONS_NEEDS_PER_PLAN)break;
+   var candidate=productPlan(s.bot,q.quest(),e.getKey(),q.items().get(e.getKey()));
+   var recipe=candidate.recipeId()==0?null:DataManager.RECIPE_DATA.getRecipeTemplateById(candidate.recipeId());
+   if(recipe!=null && recipe.getMaxProductionCount()==null && Set.of(Stage.CRAFT,Stage.MATERIALS,Stage.LEARN_RECIPE).contains(candidate.stage())){
+    s.plan=candidate;candidate.missing().forEach((id,count)->inputs.merge(id,count,Math::max));break;
+   }
+  }
+  var missing=new TreeMap<Integer,Long>();inputs.forEach((id,count)->{long bank=Math.max(0,held(s.bot,id)-s.bot.getInventory().getItemCountByItemId(id));if(count>bank)missing.put(id,count-bank);});
+  s.inputs=Map.copyOf(missing);if(s.marketWait==0)s.marketWait=now+PlayerBotEconomyConfig.PROFESSIONS_MARKET_WAIT_SECONDS*1000L;
+  if(fallback(s,now))gatherPlan(s,0,missing,false);return true;
  }
  private static int recipeScore(State s,RecipeTemplate recipe,long now){var item=DataManager.ITEM_DATA.getItemTemplate(recipe.getProductId());int score=s.bot.getRecipeList().isRecipePresent(recipe.getId())?0:20;
   if(item!=null && s.style.equals("bulk_intermediates") && com.aionemu.gameserver.services.CentralMarketService.material(item))score-=10;
@@ -163,10 +187,45 @@ public final class PlayerBotProfessions {
   s.reason="No legal node or holding limit reached";
  }
  static boolean active(Player bot){var s=state(bot);return s!=null && s.activeUntil>System.currentTimeMillis();}
- static boolean offer(PlayerBotSession session,long now){var s=state(session.bot());if(s==null || !safe(session) || session.dormant())return false;
-  if(s.activeUntil>now)return true;if(now<s.nextAwake || s.plan==null && s.gather.isEmpty() || PlayerBotWorldActivities.committedTravel(s.bot))return false;
-  s.activeUntil=now+PlayerBotEconomyConfig.PROFESSIONS_WORK_SLICE_SECONDS*1000L;s.nextAwake=now+PlayerBotEconomyConfig.PROFESSIONS_WORK_INTERVAL_SECONDS*1000L;
-  // An awake bot gathers physically. Training and crafting share the one ledgered path, so limits and costs always apply.
+ /** Quest work or a party can hold the trip's action back, and the world planner waits while work is pending. A held trip gives up rather than stall the bot. */
+ static boolean pending(Player bot){var s=state(bot);if(s==null || !s.awakePending)return false;
+  if(System.currentTimeMillis()-s.pendingSince<=(PlayerBotEconomyConfig.PROFESSIONS_TRIP_SECONDS+60)*1000L)return true;
+  s.awakePending=false;s.trip=null;TRIP_FALLBACKS.increment();s.save();return false;}
+ static boolean travelling(Player bot){var s=state(bot);return s!=null && s.awakePending && s.trip!=null;}
+ /** For diagnostics only: no expiry or other side effect. */
+ static boolean stationPending(Player bot){var s=STATES.get(bot.getObjectId());return s!=null && s.awakePending;}
+ /** A pending station visit holds world planning only while its own step keeps running. The step can lose every
+  * turn (a lined-up quest step, a party, a busy NPC), and then the bot stood still for the whole trip limit and lost
+  * the work. Now the work runs where the bot stands, exactly as after a failed trip, and planning resumes. */
+ /** Decisions run about once a second; a station step that has not run within this has lost to higher work. */
+ static final long FIRST_STATION_TICK_MS=5000;
+ static boolean holding(PlayerBotSession session,long now){var s=state(session.bot());if(s==null || !s.awakePending)return false;
+  boolean started=s.stationTick>=s.pendingSince;
+  long quiet=started?now-s.stationTick:now-s.pendingSince,limit=started?PlayerBotEconomyConfig.PROFESSIONS_TRIP_STALL_SECONDS*1000L:FIRST_STATION_TICK_MS;
+  if(quiet<limit && now-s.pendingSince<=(PlayerBotEconomyConfig.PROFESSIONS_TRIP_SECONDS+60)*1000L)return true;
+  s.awakePending=false;s.trip=null;TRIP_STALLS.increment();
+  if(safe(session) && !session.dormant()){
+   try{backgroundContext(s.bot,()->work(session,s,now,false));}
+   catch(RuntimeException error){if(ERRORS.getAndIncrement()%100==0)log.warn("World bot {} trade turn failed; goods stay where they are",s.bot.getObjectId(),error);}
+  }
+  s.save();return false;}
+ static boolean offer(PlayerBotSession session,PlayerBotNavigation navigation,long now){var s=state(session.bot());if(s==null || !safe(session) || session.dormant())return false;
+  if(s.awakePending || s.activeUntil>now)return true;if(now<s.nextAwake || s.plan==null && s.gather.isEmpty() || PlayerBotWorldActivities.committedTravel(s.bot))return false;
+  boolean station=s.plan!=null && (s.plan.stage()==Stage.TRAIN || s.plan.stage()==Stage.CRAFT);if(station && !planSlot(now))return false;
+  // Phase 4: a TRADE-leaning bot gets its awake trade turn more often.
+  s.activeUntil=now+PlayerBotEconomyConfig.PROFESSIONS_WORK_SLICE_SECONDS*1000L;s.nextAwake=now+(long)(PlayerBotEconomyConfig.PROFESSIONS_WORK_INTERVAL_SECONDS*1000L*PlayerBotLeanings.pace(s.bot,PlayerBotLeanings.Activity.TRADE));
+  PlayerBotLeanings.did(s.bot,PlayerBotLeanings.Activity.TRADE);
+  s.awakePending=true;s.pendingSince=now;s.trip=station?PlayerBotProfessionTravel.begin(session,navigation,s.plan,now):null;s.save();return true;}
+ static boolean awakeTick(PlayerBotSession session,PlayerBotNavigation navigation,long now){var s=state(session.bot());
+  if(s==null || !s.awakePending || !safe(session) || session.dormant() || PlayerBotWorldActivities.committedTravel(s.bot))return false;
+  s.stationTick=now;
+  if(s.plan!=null && (s.plan.stage()==Stage.TRAIN || s.plan.stage()==Stage.CRAFT)){
+   var result=PlayerBotProfessionTravel.step(session,navigation,s.trip,true,now);
+   if(result.result()==PlayerBotProfessionTravel.Result.CANCELLED){s.awakePending=false;s.trip=null;s.activeUntil=0;s.save();return false;}
+   if(result.result()==PlayerBotProfessionTravel.Result.MOVING)return true;
+   if(result.result()==PlayerBotProfessionTravel.Result.FALLBACK)TRIP_FALLBACKS.increment();else if(result.walked())WALKED.increment();
+  }
+  s.awakePending=false;s.trip=null;
   try{backgroundContext(s.bot,()->work(session,s,now,false));}
   catch(RuntimeException error){if(ERRORS.getAndIncrement()%100==0)log.warn("World bot {} trade turn failed; goods stay where they are",s.bot.getObjectId(),error);}
   s.save();return true;}
@@ -175,7 +234,7 @@ public final class PlayerBotProfessions {
  static boolean consumer(int actor,int item){var s=STATES.get(actor);if(s==null)return false;return s.inputs.getOrDefault(item,0L)>0 || PlayerBotGearPolicy.goal(s.bot,DataManager.ITEM_DATA.getItemTemplate(item));}
  static void ledger(Player bot,com.aionemu.gameserver.services.CentralMarketService.CompanionLedger ledger){var s=state(bot);if(s==null)return;var stock=new HashMap<Integer,Long>();
   for(var item:ledger.stock())stock.merge(item.itemId(),item.count(),Math::addExact);for(var order:ledger.orders()){long held=order.uncollected()+(order.side().equals("S") && order.live()?order.remaining():0);if(held>0)stock.merge(order.itemId(),held,Math::addExact);}s.escrow=Map.copyOf(stock);}
- static boolean protectedItem(Player bot,int item){var s=state(bot);return s!=null && s.primary!=0 && (s.plan!=null && (s.plan.materials().containsKey(item) || s.plan.missing().containsKey(item)) || s.gather.containsKey(item));}
+ static boolean protectedItem(Player bot,int item){var s=state(bot);return s!=null && s.primary!=0 && (s.qualification!=null && s.qualification.items().containsKey(item) || s.plan!=null && (s.plan.materials().containsKey(item) || s.plan.missing().containsKey(item)) || s.gather.containsKey(item));}
  static long saleQuantity(Player bot,Item item){var s=state(bot);if(s==null || s.primary==0)return -1;day(s);int id=item.getItemId();
   if(protectedItem(bot,id) || s.inputs.containsKey(id))return 0;boolean material=com.aionemu.gameserver.services.CentralMarketService.material(item.getItemTemplate());
   if(!material && !PlayerBotProfessionCatalog.craftItem(id))return -1;
@@ -207,7 +266,9 @@ public final class PlayerBotProfessions {
  /** Called from a dormant bot's decision under its actor lease and session lock. Normal periodic checkpoints save the results atomically. */
  static void dormantTurn(PlayerBotSession session,long now) {
   var s=state(session.bot());if(s==null || !s.admitted)return;s.admitted=false;
-  s.next=now+PlayerBotEconomyConfig.PROFESSIONS_BACKGROUND_INTERVAL_SECONDS*1000L+Math.floorMod(s.bot.getObjectId(),60000);
+  s.awakePending=false;s.trip=null;s.activeUntil=0;
+  // Offscreen trade turns follow the same leaning, so a sleeping bot keeps the pace it has awake.
+  s.next=now+(long)(PlayerBotEconomyConfig.PROFESSIONS_BACKGROUND_INTERVAL_SECONDS*1000L*PlayerBotLeanings.pace(s.bot,PlayerBotLeanings.Activity.TRADE))+Math.floorMod(s.bot.getObjectId(),60000);
   try{backgroundTurn(session,now);}
   catch(RuntimeException error){if(ERRORS.getAndIncrement()%100==0)log.warn("World bot {} background trade turn failed; goods stay where they are",s.bot.getObjectId(),error);}
   finally{if(s.primary!=0)s.save();}
@@ -219,6 +280,9 @@ public final class PlayerBotProfessions {
  }
  private static boolean work(PlayerBotSession session,State s,long now,boolean dormant) {
   if(s.primary==0)return false;TURNS.increment();
+  if(dormant && s.qualification!=null && PlayerBotProfessionQualification.finish(session,s.qualification)){
+   if(s.qualification.reward()>0)QUALIFIED.increment();invalidate(s.bot);s.next=Math.min(s.next,now+PlayerBotEconomyConfig.PROFESSIONS_SETUP_RETRY_SECONDS*1000L);return true;
+  }
   if(dormant && PlayerBotMarket.idle(session,true))return true;
   if(PlayerBotWarehouse.profession(session))return true;
   if(s.plan!=null && s.plan.stage()==Stage.TRAIN && train(session,s.plan.skillId()))return true;
@@ -227,7 +291,7 @@ public final class PlayerBotProfessions {
   if(s.plan!=null && s.plan.stage()==Stage.CRAFT)return craft(session,s.plan,now);
   if(dormant && !s.gather.isEmpty())return gather(session,now);
   if(s.plan!=null && s.plan.stage()==Stage.MATERIALS && fallback(s,now))for(var e:s.inputs.entrySet())if(shop(session,e.getKey(),e.getValue()))return true;
-  if(dormant){s.reason="Waiting for native materials, funds, qualification or storage";BLOCKED.increment();}return false;
+  if(dormant){s.reason=s.qualification==null?"Waiting for native materials, funds, qualification or storage":s.qualification.reason();BLOCKED.increment();}return false;
  }
  /** Learning a recipe commits at once through the native list, so save the used design straight away or a crash could give it back. */
  private static void learned(PlayerBotSession session){try{PlayerBotService.getInstance().checkpointForOwnerAction(session);}catch(java.sql.SQLException error){log.warn("World bot {} recipe checkpoint deferred to the next save",session.bot().getObjectId(),error);}}
@@ -242,7 +306,7 @@ public final class PlayerBotProfessions {
  static long cost(Map<Integer,Long> materials){long cost=0;for(var e:materials.entrySet()){var t=DataManager.ITEM_DATA.getItemTemplate(e.getKey());if(t==null)return Long.MAX_VALUE;try{cost=Math.addExact(cost,Math.multiplyExact(e.getValue(),Math.max(1,EconomyPrices.replacement(t))));}catch(ArithmeticException overflow){return Long.MAX_VALUE;}}return cost;}
  static boolean craft(PlayerBotSession session,Plan plan,long now){var s=state(session.bot());var recipe=DataManager.RECIPE_DATA.getRecipeTemplateById(plan.recipeId());if(recipe==null)return false;
   long hour=now/3600000;if(s.number("attemptHour")!=hour){s.number("attemptHour",hour);s.number("attempts",0);}long cost=cost(plan.materials());
-  boolean useful=PlayerBotGearPolicy.goal(s.bot,DataManager.ITEM_DATA.getItemTemplate(recipe.getProductId()));
+  boolean useful=s.qualification!=null && plan.questId()==s.qualification.quest() || PlayerBotGearPolicy.goal(s.bot,DataManager.ITEM_DATA.getItemTemplate(recipe.getProductId()));
   var quote=PlayerBotProfessionMarket.quote(recipe.getProductId(),now);long demand=PlayerBotProfessionMarket.demand(quote,s.bot.getObjectId(),s.bot.getAccount().getId(),recipe.getProductId());
   boolean sale=demand>=recipe.getQuantity() && quote!=null && PlayerBotProfessionPolicy.profit(cost,quote.bids().stream().filter(p->!p.simulated()).mapToLong(p->p.price()*recipe.getQuantity()).max().orElse(0),PlayerBotEconomyConfig.PROFESSIONS_PROFIT_SUCCESS_PERCENT,PlayerBotEconomyConfig.PROFESSIONS_MINIMUM_MARGIN_PERCENT)
    && PlayerBotProfessionMarket.claim(s.bot.getObjectId(),recipe.getProductId(),recipe.getQuantity(),demand,now);
@@ -279,6 +343,6 @@ public final class PlayerBotProfessions {
    if(worked)invalidate(b);return worked;
   }return false;
  }
- static String stats(){return "professions: "+PlayerBotWorldOutcomes.background()+", turns="+TURNS.sum()+", trained="+TRAINED.sum()+", designs="+DESIGNS.sum()+", attempts="+ATTEMPTS.sum()+", failed="+FAILURES.sum()+", blocked="+BLOCKED.sum()+", spent="+SPENT.sum()+", planning ms="+PLAN_NANOS.sum()/1000000;}
+ static String stats(){return "professions: "+PlayerBotWorldOutcomes.background()+", turns="+TURNS.sum()+", trained="+TRAINED.sum()+", designs="+DESIGNS.sum()+", attempts="+ATTEMPTS.sum()+", failed="+FAILURES.sum()+", blocked="+BLOCKED.sum()+", spent="+SPENT.sum()+", trips walked="+WALKED.sum()+", trip fallbacks="+TRIP_FALLBACKS.sum()+", trip stalls released="+TRIP_STALLS.sum()+", qualifications finished="+QUALIFIED.sum()+", planning ms="+PLAN_NANOS.sum()/1000000;}
  private PlayerBotProfessions(){}
 }

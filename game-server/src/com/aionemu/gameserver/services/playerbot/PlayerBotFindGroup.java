@@ -37,8 +37,35 @@ public final class PlayerBotFindGroup {
  private static final Pattern LEAVE = Pattern.compile("^(?:bye|goodbye|leave|cancel|no thanks|never mind|nevermind)[.! ]*$");
  private static final Pattern NEGATIVE = Pattern.compile("\\b(no|not|don't|dont|never|can't|cant|cannot)\\b");
  private static final Map<Integer, Post> POSTS = new ConcurrentHashMap<>();
+ private static final java.util.concurrent.atomic.AtomicLong GOAL_HELP_OPENED=new java.util.concurrent.atomic.AtomicLong();
+ static long goalHelpRequestsOpened(){return GOAL_HELP_OPENED.get();}
+ private static final Set<Integer> PENDING_GOAL_HELP=ConcurrentHashMap.newKeySet();
+ /** Nominate only; the existing bounded social worker owns native posts and invitation custody. */
+ static void requestGoalHelp(Player bot) {
+  int id=bot.getObjectId();
+  if(!enabled() || !PENDING_GOAL_HELP.add(id))return;
+  if(!REQUESTS.offer(()->{try{publishGoalHelp(bot);}finally{PENDING_GOAL_HELP.remove(id);}}))PENDING_GOAL_HELP.remove(id);
+ }
+ static boolean goalHelpRoom(boolean existing,boolean helperOffer,long recruits,int limit) {
+  return (!existing || helperOffer) && recruits<Math.clamp(limit,1,30);
+ }
+ private static void publishGoalHelp(Player bot) {
+  if(!enabled() || !free(bot))return;
+  var need=PlayerBotGroupNeeds.gear(bot);if(need==null)return;
+  var old=POSTS.get(bot.getObjectId());
+  long recruits=POSTS.values().stream().filter(p->p.entry!=null && p.tab==Tab.RECRUIT && p.bot.getRace()==bot.getRace()).count();
+  if(!goalHelpRoom(old!=null,old!=null && old.tab==Tab.APPLY,recruits,PlayerBotConfig.FIND_GROUP_POSTS_PER_TAB))return;
+  // A real need may replace this free bot's helper offer; preserve existing recruitment and instance runs.
+  if(old!=null){withdraw(old);POSTS.remove(bot.getObjectId(),old);}
+  var post=new Post(bot,Tab.RECRUIT,need);POSTS.put(bot.getObjectId(),post);register(post);
+  if(post.entry==null)POSTS.remove(bot.getObjectId(),post);
+ }
  private static final class FreeHelp {
   final Post post;final Player human;volatile boolean ended;
+  /** After the final boss the party stays together this long: a goodbye, an emote, then a normal leave. */
+  volatile long graceUntil;
+  /** When a dungeon run's bots first found their human offline (relog hold). */
+  volatile long offlineSince;
   final Set<Integer> members=ConcurrentHashMap.newKeySet();
   FreeHelp(Post post,Player human){this.post=post;this.human=human;}
  }
@@ -49,6 +76,8 @@ public final class PlayerBotFindGroup {
   volatile boolean accepted,arrived;
   // The player pressed Summon: this bot follows them now and enters with the party transfer.
   volatile boolean summoned;
+  /** When the waiting human went offline (relog). */
+  volatile long offlineSince;
   EntranceMeeting(Player bot,Player human,ServerWideGroup group,PlayerBotWorldTravel.Place entrance,int channel){this.bot=bot;this.human=human;this.group=group;this.entrance=entrance;this.channel=channel;}
  }
  static final Map<Integer,EntranceMeeting> MEETINGS=new ConcurrentHashMap<>();
@@ -81,7 +110,7 @@ public final class PlayerBotFindGroup {
   volatile FindGroupEntry entry;
   volatile Player controller;
   volatile long joiningUntil;
-  boolean greeted, finished, prepared;
+  boolean greeted, finished, prepared,goalHelpCounted;
   long refreshedAt;
   volatile boolean started;
   long lastReply, lastAnnouncement;
@@ -89,6 +118,9 @@ public final class PlayerBotFindGroup {
   // Teleport offer to a human who joined from far away: offers made, current offer, second-chance window.
   volatile int tpOffers,tpSerial;
   volatile long tpGraceUntil;
+  // The human who led this field party relogged: their character id and since when the party waits for them.
+  volatile int away;
+  volatile long awaySince;
   Post(Player bot, Tab tab, PlayerBotGroupNeeds.Need need) { this(bot,tab,need,null); }
   Post(Player bot, Tab tab, PlayerBotGroupNeeds.Need need,PlayerBotWorldTravel.Place gathering) { this.bot=bot; this.tab=tab; this.need=need; this.gathering=gathering; }
  }
@@ -104,6 +136,7 @@ public final class PlayerBotFindGroup {
   stopped=true;
   synchronized (PlayerBotFindGroup.class) { if (task != null) task.cancel(false); }
   REQUESTS.clear();
+  PENDING_GOAL_HELP.clear();
   SOCIAL.shutdown();
   MEETINGS.clear();
   boolean interrupted=false;
@@ -126,8 +159,31 @@ public final class PlayerBotFindGroup {
   var team=post.bot.getPlayerGroup();
   return post.tab!=Tab.APPLY && !post.expired && !post.finished && team!=null && !team.isFull() && team.size()<post.need.members()
    && (post.controller==null ? team.isLeader(post.bot) : post.controller.isOnline() && PlayerBotTeams.same(post.bot,post.controller)
-    && (team.isLeader(post.bot) || team.isLeader(post.controller)));
+    && leadsFor(team.getLeaderObject(),post));
  }
+ /** The party leader admits recruits for this post: its poster, its human, or a companion the human gave the lead. */
+ private static boolean leadsFor(Player leader,Post post) {
+  if(leader==null)return false;
+  if(leader==post.bot || leader==post.controller)return true;
+  var actor=leader.isWorldBot()?PlayerBotService.getInstance().currentActor(leader):null;
+  return actor!=null && actor.owner()==post.controller;
+ }
+ /** An autonomous poster forms its party between its own fights. A human-led party keeps recruiting through its fights
+  * and deaths (owner 8 Nov: once the lead passed to the human and a fight began, no more bots came; a player's aggro
+  * list only clears at full HP). Only the native inviter, the party leader, has to be alive. */
+ private static boolean posterReady(Post post,Player leader) {
+  if(post.controller==null)return socialIdle(leader);
+  var team=leader.getPlayerGroup();var inviter=team==null?leader:team.getLeaderObject();
+  return inviterReady(inviter!=null && inviter.isSpawned(),inviter!=null && inviter.isDead());
+ }
+ static boolean inviterReady(boolean spawned,boolean dead){return spawned && !dead;}
+ /** A human-led party outlasts its poster's death or loading screen: the poster revives with the party it posted. */
+ private static boolean heldByHuman(Post post) {
+  var session=PlayerBotService.getInstance().currentActor(post.bot);var human=post.controller;
+  return heldThrough(session!=null && session.world(),human!=null && human.isOnline(),human!=null && PlayerBotTeams.same(post.bot,human))
+   || session!=null && session.world() && post.awaySince>0;
+ }
+ static boolean heldThrough(boolean actorInWorld,boolean humanOnline,boolean sameParty){return actorInWorld && humanOnline && sameParty;}
 
  private static void pulse() {
   try {
@@ -288,7 +344,10 @@ public final class PlayerBotFindGroup {
    case INSTANCE -> new ServerWideGroup(bot,need.mask(),need.members(),message);
   };
   if (!FindGroupService.getInstance().registerBotEntry(post.entry) || !(free(bot) || forming(post))) { withdraw(post); }
-  else published++;
+  else {
+   published++;
+   if(post.need.gear() && !post.goalHelpCounted){post.goalHelpCounted=true;GOAL_HELP_OPENED.incrementAndGet();}
+  }
  }
 
  private static String variant(Player bot,String first,String second) { return (bot.getObjectId()&2)==0 ? first : second; }
@@ -356,7 +415,7 @@ public final class PlayerBotFindGroup {
  static boolean canJoin(Player leader,Player member) {
   var post=POSTS.get(leader.getObjectId());var own=POSTS.get(member.getObjectId());
   if(!enabled() || post==null || post.expired || post.tab==Tab.APPLY
-   || leader==member || !free(member) || !(free(leader) || forming(post)) || !socialIdle(leader) || !socialIdle(member)
+   || leader==member || !free(member) || !(free(leader) || forming(post)) || !posterReady(post,leader) || !socialIdle(member)
    || leader.getRace()!=member.getRace() || post.controller==null && (leader.getWorldId()!=member.getWorldId() || leader.getInstanceId()!=member.getInstanceId()
     || PositionUtil.getDistance(leader,member)>(post.need.instance()?900:250))
    || !post.need.instance() && leader.getWorldId()!=post.need.map() || !PlayerBotGroupNeeds.unfinished(leader,post.need)
@@ -426,9 +485,14 @@ public final class PlayerBotFindGroup {
 
  private static void maintain(Post post) {
   if (POSTS.get(post.bot.getObjectId())!=post) return;
-  if (!enabled() || !resident(post.bot) || post.expired) { retire(post); return; }
+  if (!enabled() || post.expired || !resident(post.bot) && !runUnderway(post) && !heldByHuman(post)) { retire(post); return; }
   if (post.controller != null) {
-   if (!PlayerBotTeams.same(post.controller,post.bot) || !post.controller.isOnline()) { withdraw(post); POSTS.remove(post.bot.getObjectId(),post); return; }
+   if (!PlayerBotTeams.same(post.controller,post.bot) || !post.controller.isOnline()) {
+    withdraw(post);
+    // Disconnected, still a member: the release (waitsFor) or the relog (relogged) takes the post from here.
+    if(!post.controller.isOnline() && member(post,post.controller.getObjectId()))return;
+    POSTS.remove(post.bot.getObjectId(),post); return;
+   }
    if (!post.greeted) {
     post.greeted=true;
     say(post,post.controller,PlayerBotGroupNeeds.helping(post.need)
@@ -452,6 +516,12 @@ public final class PlayerBotFindGroup {
    return;
   }
   if(post.assembling)return;
+  if(post.awaySince>0) {
+   // Reserved for the relogging human: no listing; after the wait the bots leave the party and the post ends.
+   withdraw(post);
+   if(relogWaitOver(post.awaySince,System.currentTimeMillis()) && leaveParty(post)){post.away=0;post.awaySince=0;retire(post);}
+   return;
+  }
   if(MEETINGS.containsKey(post.bot.getObjectId())){refresh(post);return;}
   if (post.bot.isInTeam() && System.currentTimeMillis()<post.joiningUntil) return;
   refresh(post);
@@ -581,6 +651,20 @@ public final class PlayerBotFindGroup {
   }
   var post=POSTS.get(bot.getObjectId());
   if (post==null) return;
+  // The human left a field help party that stays together: keep the listing open so they can rejoin, and the
+  // reattached contract can still be completed with them.
+  if (controller==bot) {
+   var previous=post.controller;
+   if (previous!=null && waitsFor(post,previous)) {
+    post.away=previous.getObjectId();post.awaySince=System.currentTimeMillis();post.controller=null;withdraw(post);
+    LoggerFactory.getLogger(PlayerBotFindGroup.class).info("Find Group party of {} waits for {} to relog",bot.getName(),previous.getName());
+    // Already back on a new login (the bots let go late): take them back now, the login hook has run.
+    for(var m:PlayerBotTeams.members(bot))if(m!=previous && m.getObjectId()==previous.getObjectId() && m.isOnline())
+     SOCIAL.schedule(()->REQUESTS.offer(()->rejoin(post,m,0)),1,TimeUnit.SECONDS);
+    return;
+   }
+  }
+  if (controller==bot && reopens(post)) { post.controller=null; return; }
   if (post.tab==Tab.APPLY || controller==bot || !PlayerBotTeams.same(bot,controller)) withdraw(post);
   if (controller==bot) { POSTS.remove(bot.getObjectId(),post); return; }
   post.controller=controller;
@@ -593,11 +677,21 @@ public final class PlayerBotFindGroup {
   if (!inviter.isWorldBot() || invited.isPlayerBot() || !PlayerBotTeams.same(inviter,invited)) return;
   var post=POSTS.get(inviter.getObjectId());
   if (post==null) return;
+  if(PlayerBotHelpKick.kicked(inviter.getObjectId(),invited.getObjectId())){PlayerGroupService.removePlayer(invited);return;}
   if(post.tab==Tab.APPLY || PlayerBotGroupNeeds.helping(post.need)) {
    // An offering helper cannot obtain unpaid control by inviting the human instead.
    PlayerGroupService.removePlayer(invited);PlayerBotHiring.offer(invited,inviter);return;
   }
   if (!enabled() || !PlayerBotGroupNeeds.unfinished(inviter,post.need) || !PlayerBotGroupNeeds.applicant(invited,post.need)) { PlayerGroupService.removePlayer(invited); return; }
+  // A dungeon run says what it is, who stands at the end and what it can pay (owner play test, 8 Nov).
+  if(post.need.instance())PlayerBotRunBriefing.joined(inviter,invited,post.need);
+  // Applying to a field help post is consent to its objective: accept the tracked contract now (journal, chat stages,
+  // reward) instead of asking for a second step in Help requests. A refusal (e.g. another active request) says why.
+  if(!post.need.instance() && (post.need.quest()>0 || post.need.npc()>0)) {
+   try{PlayerBotHelpObjectives.accept(inviter,invited,post.need);}
+   catch(IllegalArgumentException|IllegalStateException refused){com.aionemu.gameserver.utils.PacketSendUtility.sendMessage(invited,"[Help] Not tracked: "+refused.getMessage());}
+  }
+  // Shows the tracked request, or points to Help requests when it could not be accepted automatically.
   PlayerBotHelpObjectives.joined(inviter,invited);
   var previous=FREE_HELP.get(inviter.getObjectId());
   if(post.controller==null && (previous==null || previous.ended || previous.post!=post || !previous.human.isOnline() || !PlayerBotTeams.same(previous.human,inviter))) {
@@ -617,9 +711,23 @@ public final class PlayerBotFindGroup {
   PlayerBotHiring.offer(invited,inviter);return true;
  }
 
+ /**
+  * A dungeon party the human leads is committed to the run once inside it: the
+  * poster dying or finishing its own quest objective mid-run no longer ends the
+  * party's term. The run's final boss (completeRun) or the human leaving does.
+  */
+ static boolean holdsRun(boolean dungeonPost,boolean humanLeads,boolean sameParty,boolean insideRun,boolean finished) {
+  return dungeonPost && humanLeads && sameParty && insideRun && !finished;
+ }
+ private static boolean runUnderway(Post post) {
+  var bot=post.bot;var human=post.controller;
+  return holdsRun(post.need.instance(),human!=null && human.isOnline(),PlayerBotTeams.same(bot,human),
+   bot.isSpawned() && bot.isInInstance() && bot.getWorldId()==post.need.map(),post.finished);
+ }
  private static boolean requestOpen(Post post) {
   if(post.tab==Tab.APPLY)return true;
   if(post.finished || post.expired)return false;
+  if(runUnderway(post))return true;
   if(post.need.quest()>0) {
    var state=post.bot.getQuestStateList().getQuestState(post.need.quest());
    return state!=null && (state.getStatus()==com.aionemu.gameserver.questEngine.model.QuestStatus.START
@@ -628,6 +736,109 @@ public final class PlayerBotFindGroup {
   return true; // Concrete target/run completion closes the scope through the native completion adapters below.
  }
  /** Exact reciprocal request scope, bounded by this six-person native party and its actual completion. */
+ /** A bot freed from field help stays with the other bots of its party, which carries on with the objective and
+  * can be rejoined through Find Group. Instance runs and paid hires keep their own ending. */
+ static boolean reopens(Post post) {
+  return post.tab==Tab.RECRUIT && post.entry!=null && !post.expired && !post.finished && !post.need.instance()
+   && post.bot.getCurrentTeam()!=null && PlayerBotTeams.members(post.bot).stream().noneMatch(m->!m.isPlayerBot() && m.isOnline());
+ }
+ static boolean keepsParty(Player bot) {
+  var scope=FREE_HELP.get(bot.getObjectId());
+  if(scope==null || scope.post.need.instance() || bot.isInInstance() || bot.getCurrentTeam()==null)return false;
+  var members=PlayerBotTeams.members(bot);int human=scope.human.getObjectId();
+  return keeps(members.stream().anyMatch(m->!m.isPlayerBot() && m.isOnline() && m.getObjectId()!=human),
+   // Owner 8 Nov: only an OFFLINE helper (a relog) is waited for. Once the help ended with them online, the bots
+   // leave their party (keeping them made a ghost party once world population rebuilt those bots).
+   !scope.human.isOnline() && members.stream().anyMatch(m->m.getObjectId()==human),
+   members.stream().anyMatch(m->!m.isPlayerBot()),members.stream().anyMatch(m->m!=bot && m.isWorldBot()));
+ }
+ /** Bots stay together after control ends: for their relogging human (even one bot), or, with no human left, to carry on. */
+ static boolean keeps(boolean otherHumanOnline,boolean humanRelogging,boolean anyHuman,boolean otherBot) {
+  if(otherHumanOnline)return false;
+  if(humanRelogging)return true;
+  return !anyHuman && otherBot;
+ }
+ static final long RELOG_WAIT_MS=300_000;
+ private static boolean memberOf(Player bot,int character){return PlayerBotTeams.members(bot).stream().anyMatch(m->m.getObjectId()==character);}
+ /** The same character's new, online login in this bot's party, if it relogged. */
+ private static Player newLogin(Player bot,Player old) {
+  for(var m:PlayerBotTeams.members(bot))if(m!=old && m.getObjectId()==old.getObjectId() && m.isOnline() && !m.isPlayerBot())return m;
+  return null;
+ }
+ /** A dungeon run's bots keep their place while their human relogs: no release for RELOG_WAIT_MS (they keep fighting
+  * back in the native settling mode), then the normal ending. The quick-relog handoff gives them to the new login. */
+ static boolean holdsForRelog(Player owner,Player bot,long now) {
+  if(owner==null || owner.isPlayerBot() || owner.isOnline())return false;
+  var scope=FREE_HELP.get(bot.getObjectId());
+  if(scope==null || scope.ended || scope.human!=owner)return false;
+  if(scope.offlineSince==0)scope.offlineSince=now;
+  return holdsRelog(scope.post.need.instance(),bot.isInInstance(),scope.post.finished || scope.post.expired,memberOf(bot,owner.getObjectId()),scope.offlineSince,now);
+ }
+ static boolean holdsRelog(boolean dungeon,boolean inside,boolean over,boolean stillMember,long since,long now) {
+  return dungeon && inside && !over && stillMember && !relogWaitOver(since,now);
+ }
+ static boolean relogWaitOver(long since,long now){return since>0 && now-since>RELOG_WAIT_MS;}
+ private static boolean member(Post post,int character) {
+  return PlayerBotTeams.members(post.bot).stream().anyMatch(m->m.getObjectId()==character);
+ }
+ /** A field help party keeps its disconnected leader's place: still a member, no other human online. */
+ private static boolean waitsFor(Post post,Player human) {
+  return waits(post.tab==Tab.RECRUIT && !post.need.instance() && !post.bot.isInInstance(),post.expired || post.finished,human.isOnline(),
+   post.bot.getCurrentTeam()!=null && member(post,human.getObjectId()),
+   PlayerBotTeams.members(post.bot).stream().anyMatch(m->!m.isPlayerBot() && m.isOnline() && m.getObjectId()!=human.getObjectId()));
+ }
+ static boolean waits(boolean fieldParty,boolean over,boolean online,boolean stillMember,boolean otherHuman) {
+  return fieldParty && !over && !online && stillMember && !otherHuman;
+ }
+ private static boolean leaveParty(Post post) {
+  for(var member:PlayerBotTeams.members(post.bot))if(member.isWorldBot() && member!=post.bot && !PlayerBotService.getInstance().leaveFindGroup(member))return false;
+  return !post.bot.isInTeam() || PlayerBotService.getInstance().leaveFindGroup(post.bot);
+ }
+ /** Quick relog, before the bots let go: the same character's new login takes over its help scope (decision lane). */
+ static Player relogged(Player owner,Player bot) {
+  if(owner==null || owner.isPlayerBot() || owner.isOnline())return null;
+  Player back=null;
+  for(var m:PlayerBotTeams.members(bot))if(m!=owner && m.getObjectId()==owner.getObjectId() && m.isOnline() && !m.isPlayerBot())back=m;
+  if(back==null)return null;
+  var scope=FREE_HELP.get(bot.getObjectId());
+  if(scope==null || scope.ended || scope.human.getObjectId()!=back.getObjectId())return null;
+  if(scope.human==back)return back;
+  var fresh=new FreeHelp(scope.post,back);fresh.graceUntil=scope.graceUntil;fresh.members.addAll(scope.members);
+  for(int id:scope.members)FREE_HELP.replace(id,scope,fresh);
+  scope.ended=true;
+  final Player human=back;
+  SOCIAL.schedule(()->REQUESTS.offer(()->welcomeBack(fresh.post,human,true)),1,TimeUnit.SECONDS);
+  return back;
+ }
+ /** Slow relog: the bots let go and waited; the returning human gets them back like a fresh application. */
+ public static void reconnected(Player human) {
+  if(!enabled() || human.isPlayerBot())return;
+  for(var post:POSTS.values())if(post.away==human.getObjectId())
+   SOCIAL.schedule(()->REQUESTS.offer(()->rejoin(post,human,0)),5,TimeUnit.SECONDS);
+ }
+ private static void rejoin(Post post,Player human,int attempt) {
+  if(POSTS.get(post.bot.getObjectId())!=post || post.away!=human.getObjectId() || post.expired || !human.isOnline())return;
+  if(!human.isSpawned()) {
+   if(attempt<24)SOCIAL.schedule(()->REQUESTS.offer(()->rejoin(post,human,attempt+1)),5,TimeUnit.SECONDS);
+   return;
+  }
+  post.away=0;post.awaySince=0;
+  if(!PlayerBotTeams.same(human,post.bot) || post.finished)return;
+  var previous=FREE_HELP.get(post.bot.getObjectId());
+  if(previous!=null){previous.ended=true;for(int id:previous.members)FREE_HELP.remove(id,previous);}
+  var scope=new FreeHelp(post,human);
+  for(var member:PlayerBotTeams.members(post.bot))if(member.isWorldBot()){scope.members.add(member.getObjectId());FREE_HELP.put(member.getObjectId(),scope);}
+  post.tpOffers=0;post.greeted=true;
+  welcomeBack(post,human,false); // adopt gives the lead back
+  offerTeleport(post,human);
+ }
+ private static void welcomeBack(Post post,Player human,boolean lead) {
+  if(!human.isOnline() || !PlayerBotTeams.same(human,post.bot))return;
+  var team=human.getPlayerGroup();
+  if(lead && team!=null && !team.isLeader(human) && team.getLeaderObject().isPlayerBot())PlayerGroupService.changeLeader(human);
+  say(post,human,"Welcome back, "+human.getName()+"! We kept your spot.",true);
+  PlayerBotHelpObjectives.joined(post.bot,human);
+ }
  static boolean freeHelpControl(Player human,Player bot) {
   if(human==null || human.isPlayerBot() || !human.isOnline() || !PlayerBotTeams.same(human,bot))return false;
   var scope=FREE_HELP.get(bot.getObjectId());
@@ -638,6 +849,7 @@ public final class PlayerBotFindGroup {
    }
    if(scope!=null){scope.members.add(bot.getObjectId());FREE_HELP.putIfAbsent(bot.getObjectId(),scope);}
   }
+  if(scope!=null && scope.human==human && System.currentTimeMillis()<scope.graceUntil && PlayerBotTeams.same(scope.post.bot,human))return true;
   return scope!=null && scope.human==human && !scope.ended && requestOpen(scope.post)
    && (scope.post.controller==null || scope.post.controller==human) && PlayerBotTeams.same(scope.post.bot,human);
  }
@@ -650,14 +862,57 @@ public final class PlayerBotFindGroup {
   var scope=FREE_HELP.get(bot.getObjectId());
   return scope!=null && !scope.ended && scope.post.bot==bot ? scope.post.need.quest() : 0;
  }
+ /** The requesting bot handed its quest in with the helper in the party: keep free-help control (and so the party)
+  * for the farewell window, so the thanks and the reward land before the bots go their way. */
+ static void handedIn(Player requester) {
+  var scope=FREE_HELP.get(requester.getObjectId());
+  if(scope!=null && scope.post.bot==requester)scope.graceUntil=System.currentTimeMillis()+RUN_FAREWELL_MS;
+ }
+ /** PlayerBotHelpKick: the requesting bot drops its helper just before the hand-in. If it leads, the native kick
+  * ("kicked by"); otherwise it leaves alone and hands in solo. Last-moment checks on the social lane. */
+ static void ninja(Player bot,Player human,long delayMs,String line) {
+  var scope=FREE_HELP.get(bot.getObjectId());
+  if(scope==null || scope.post.bot!=bot || scope.human!=human)return;
+  SOCIAL.schedule(()->REQUESTS.offer(()->{
+   var group=bot.getPlayerGroup();
+   if(group==null || !human.isOnline() || !bot.isSpawned() || bot.isDead() || !PlayerBotTeams.same(bot,human)
+    || !PlayerBotHelpObjectives.awaitingHandIn(bot,human))return;
+   PlayerBotHelpKick.remember(bot.getObjectId(),human.getObjectId(),System.currentTimeMillis());
+   say(scope.post,human,line,true);
+   if(group.isLeader(bot))PlayerGroupService.banPlayer(human,bot);
+   else PlayerGroupService.removePlayer(bot);
+  }),delayMs,TimeUnit.MILLISECONDS);
+ }
  /** Native help target death / requesting bot turn-in, never acceptance or a UI counter. */
  public static void helpCompleted(Player requester) {
   var scope=FREE_HELP.get(requester.getObjectId());if(scope!=null && scope.post.bot==requester){scope.ended=true;scope.post.finished=true;}
  }
  /** Existing verified completeRun() adapters close only the exact joined native run. */
  public static void runCompleted(int map,int instance) {
+  var finished=Collections.newSetFromMap(new IdentityHashMap<FreeHelp,Boolean>());
   for(var scope:FREE_HELP.values())if(!scope.ended && scope.post.need.instance() && scope.post.need.map()==map
-   && scope.post.bot.getWorldId()==map && scope.post.bot.getInstanceId()==instance){scope.ended=true;scope.post.finished=true;}
+   && scope.post.bot.getWorldId()==map && scope.post.bot.getInstanceId()==instance){
+   scope.graceUntil=System.currentTimeMillis()+RUN_FAREWELL_MS;scope.ended=true;scope.post.finished=true;finished.add(scope);
+  }
+  for(var scope:finished)REQUESTS.offer(()->farewell(scope));
+ }
+ static final long RUN_FAREWELL_MS=12_000;
+ /** Native emotes a pickup group uses after a clear: victory, clap, thank, salute. */
+ static final int[] FAREWELL_EMOTES={com.aionemu.gameserver.model.EmotionId.VICTORY.id(),com.aionemu.gameserver.model.EmotionId.CLAP.id(),
+  com.aionemu.gameserver.model.EmotionId.THANK.id(),com.aionemu.gameserver.model.EmotionId.SALUTE.id()};
+ static int farewellEmote(int bot){return FAREWELL_EMOTES[Math.floorMod(bot,FAREWELL_EMOTES.length)];}
+ /** Real players say goodbye before they drop group: one party line from the poster, an emote from every bot. */
+ private static void farewell(FreeHelp scope) {
+  var human=scope.human;if(!human.isOnline() || !PlayerBotTeams.same(scope.post.bot,human))return;
+  say(scope.post,human,variant(scope.post.bot,"Good run, everyone! Thanks for the group.","gg! Thanks for leading, that was a clean run."),true);
+  int delay=0;
+  for(var member:PlayerBotTeams.members(human)) {
+   if(!member.isWorldBot() || member.isDead() || !member.isSpawned())continue;
+   int emote=farewellEmote(member.getObjectId());delay+=700;
+   SOCIAL.schedule(()->{if(member.isSpawned() && !member.isDead() && PlayerBotTeams.same(member,human))
+    com.aionemu.gameserver.utils.PacketSendUtility.broadcastToSightedPlayers(member,new com.aionemu.gameserver.network.aion.serverpackets.SM_EMOTION(
+     member,com.aionemu.gameserver.model.EmotionType.EMOTE,emote,member.getX(),member.getY(),member.getZ(),member.getHeading(),human.getObjectId()),true);},delay,TimeUnit.MILLISECONDS);
+  }
  }
 
  /** Hand the whole bot party to the human as companions; null when the leader cannot be adopted. */
@@ -880,6 +1135,7 @@ public final class PlayerBotFindGroup {
  private static void invite(Post post,Player player) {
   if(post.tab==Tab.APPLY || PlayerBotGroupNeeds.helping(post.need)){PlayerBotHiring.offer(player,post.bot);return;}
   if (!enabled() || POSTS.get(post.bot.getObjectId())!=post || !canTalk(post.bot,player) || !(free(post.bot) || forming(post))) return;
+  if (PlayerBotHelpKick.kicked(post.bot.getObjectId(),player.getObjectId())) { say(post,player,"Nah, I'm good. Find another group :P",false); return; }
   if (player.isInTeam()) { say(post,player,"You're already in a party. Your leader can invite me if there's room.",false); return; }
   if(post.bot.getPlayerGroup()!=null && post.bot.getPlayerGroup().size()>=post.need.members()) { say(post,player,"We've filled the available places for this run. Thanks for asking!",false);return; }
   if (!PlayerBotGroupNeeds.unfinished(post.bot,post.need)) { say(post,player,"I've just finished that objective. Thanks for offering!",false); withdraw(post); return; }
@@ -975,7 +1231,7 @@ public final class PlayerBotFindGroup {
    @Override public void acceptRequest(com.aionemu.gameserver.model.gameobjects.Creature requester,Player responder) {
     REQUESTS.offer(()->{
      if(post.tpSerial!=serial || post.expired || !PlayerBotTeams.same(responder,bot))return;
-     if(responder.isDead() || responder.getController().isInCombat()){PlayerGroupService.removePlayer(responder);return;}
+     if(responder.isDead() || responder.getController().isInCombat()){busy(post,responder,serial);return;}
      com.aionemu.gameserver.services.teleport.TeleportService.teleportTo(responder,bot.getWorldId(),bot.getInstanceId(),x,y,z);
      // Physical arrival is checked on the social lane before control publication.
      SOCIAL.schedule(()->REQUESTS.offer(()->{
@@ -1050,6 +1306,19 @@ public final class PlayerBotFindGroup {
   if(MEETINGS.get(meeting.bot.getObjectId())!=meeting)return;
   var human=meeting.human;var bot=meeting.bot;
   // The bots wait for as long as the human stays in the party; leaving is how a player cancels.
+  // A relog is not leaving (owner 8 Nov): the wait moves to the new login, or waits for it.
+  if(!human.isOnline() && memberOf(bot,human.getObjectId())) {
+   var back=newLogin(bot,human);
+   if(back!=null) {
+    var moved=new EntranceMeeting(bot,back,meeting.group,meeting.entrance,meeting.channel);
+    moved.accepted=meeting.accepted;moved.arrived=meeting.arrived;moved.summoned=meeting.summoned;
+    if(MEETINGS.replace(bot.getObjectId(),meeting,moved))REQUESTS.offer(()->whisper(bot,back,"Welcome back! We are still waiting at the "+meeting.group.getMessage()+" entrance."));
+    return;
+   }
+   long now=System.currentTimeMillis();
+   if(meeting.offlineSince==0)meeting.offlineSince=now;
+   if(!relogWaitOver(meeting.offlineSince,now))return;
+  }
   if(!human.isOnline() || !PlayerBotTeams.same(human,bot)) {
    LoggerFactory.getLogger(PlayerBotFindGroup.class).info("Find Group entrance wait ended for {}: human {}",bot.getName(),human.isOnline()?"left the party":"went offline");
    if(MEETINGS.remove(bot.getObjectId(),meeting) && PlayerBotTeams.same(human,bot)) {
@@ -1105,20 +1374,30 @@ public final class PlayerBotFindGroup {
   * again (summoning-stone style second chance). A second decline, or silence,
   * leaves the party and the bots keep their post up for others.
   */
+ /** Accepting the travel window during a fight or while dead keeps the seat: the offer waits for 'tp' after the fight
+  * and is not counted as a refusal (it used to remove the human from the party). */
+ private static void busy(Post post,Player human,int serial) {
+  if (post.controller!=null || post.tpSerial!=serial || !PlayerBotTeams.same(human,post.bot)) return;
+  post.tpOffers=Math.max(0,post.tpOffers-1);
+  grace(post,human,serial,"You're in a fight right now. Finish it, then say 'tp' in party chat within 2 minutes and I'll send the travel window again.");
+ }
  private static void declined(Post post,Player human,int serial) {
   if (post.controller!=null || post.tpSerial!=serial || !PlayerBotTeams.same(human,post.bot)) return;
   if (post.tpOffers<2) {
-   post.tpGraceUntil=System.currentTimeMillis()+120_000;
-   say(post,human,"No problem. Changed your mind? Say 'tp' in party chat within 2 minutes and I'll offer the teleport again.",true);
-   SOCIAL.schedule(()->REQUESTS.offer(()->{
-    if (post.controller!=null || post.tpSerial!=serial || !PlayerBotTeams.same(human,post.bot)) return;
-    say(post,human,"We'll keep looking for others. Join again anytime!",false);
-    PlayerGroupService.removePlayer(human);
-   }),120,TimeUnit.SECONDS);
+   grace(post,human,serial,"No problem. Changed your mind? Say 'tp' in party chat within 2 minutes and I'll offer the teleport again.");
    return;
   }
   say(post,human,"No problem! We'll keep looking for others.",false);
   PlayerGroupService.removePlayer(human);
+ }
+ private static void grace(Post post,Player human,int serial,String line) {
+  post.tpGraceUntil=System.currentTimeMillis()+120_000;
+  say(post,human,line,true);
+  SOCIAL.schedule(()->REQUESTS.offer(()->{
+   if (post.controller!=null || post.tpSerial!=serial || !PlayerBotTeams.same(human,post.bot)) return;
+   say(post,human,"We'll keep looking for others. Join again anytime!",false);
+   PlayerGroupService.removePlayer(human);
+  }),120,TimeUnit.SECONDS);
  }
 
  // ---- Bringing bots to the human, and answering human Find Group posts ----

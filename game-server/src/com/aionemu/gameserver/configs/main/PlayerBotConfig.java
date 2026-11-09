@@ -73,6 +73,16 @@ public final class PlayerBotConfig {
    || POPULATION_UNSEEN_DISTANCE<150 || POPULATION_UNSEEN_DISTANCE>1000 || !Float.isFinite(POPULATION_ENEMY_CAMP_DISTANCE)
    || POPULATION_ENEMY_CAMP_DISTANCE<0 || POPULATION_ENEMY_CAMP_DISTANCE>1000)
    throw new IllegalArgumentException("Playerbots pvp.properties: use rest_minutes 1..1440, visit_minutes 1..120, search_distance 5..3000, travel_seconds 10..900, unseen_spawn_distance 150..1000, enemy_camp_distance 0..1000.");
+  if(PVP_BASE_TRIP_MINUTES<1 || PVP_BASE_TRIP_MINUTES>1440)
+   throw new IllegalArgumentException("Playerbots pvp.properties: use bases.trip_minutes 1..1440.");
+  if(PVP_DUEL_REWARD_KINAH_PER_LEVEL<0 || PVP_DUEL_REWARD_KINAH_PER_LEVEL>100000 || PVP_DUEL_REWARD_AP<0 || PVP_DUEL_REWARD_AP>30000 || PVP_DUEL_REWARDS_PER_DAY<0 || PVP_DUEL_REWARDS_PER_DAY>1000)
+   throw new IllegalArgumentException("Playerbots pvp.properties: use duels.reward_kinah_per_level 0..100000, duels.reward_ap 0..30000, duels.rewards_per_day 0..1000.");
+  if(PVP_DUEL_ACCEPT<0 || PVP_DUEL_ACCEPT>100 || PVP_DUEL_CHALLENGE_MINUTES<0 || PVP_DUEL_CHALLENGE_MINUTES>1440)
+   throw new IllegalArgumentException("Playerbots pvp.properties: use duels.accept_percent 0..100 and duels.challenge_minutes 0..1440.");
+  if(PVP_LEANING_FOCUS_PERCENT<10 || PVP_LEANING_FOCUS_PERCENT>100 || PVP_LEANING_MIN_LEVEL<1 || PVP_LEANING_MIN_LEVEL>65 || PVP_SHARED_ENEMIES<0 || PVP_SHARED_ENEMIES>30 || PVP_SHARED_LEVEL_RANGE<0 || PVP_SHARED_LEVEL_RANGE>20
+   || !Float.isFinite(PVP_SEEK_DISTANCE) || PVP_SEEK_DISTANCE<50 || PVP_SEEK_DISTANCE>3000 || PVP_RIFT_INVADERS<0 || PVP_RIFT_INVADERS>24 || PVP_VICTORY_EMOTE<0 || PVP_VICTORY_EMOTE>100)
+   throw new IllegalArgumentException("Playerbots pvp.properties: use leaning_focus_percent 10..100, leaning_min_level 1..65, shared_enemies_per_human 0..30, shared_level_range 0..20, seek_distance 50..3000, rifts.invaders_per_rift 0..24, victory_emote_percent 0..100.");
+  com.aionemu.gameserver.services.playerbot.PlayerBotLeanings.weights(PVP_LEANING_WEIGHTS);
  }
  @Property(key = "gameserver.playerbots.pvp.enable", defaultValue = "true")
  public static boolean PVP_ENABLED = true;
@@ -106,6 +116,65 @@ public final class PlayerBotConfig {
  public static int PVP_RIFT_TRAVEL_SECONDS = 180;
  @Property(key = "gameserver.playerbots.pvp.rifts.keep_home_map_awake", defaultValue = "true")
  public static boolean PVP_RIFT_HOME_ACTIVITY = true;
+ @Property(key = "gameserver.playerbots.pvp.leaning_weights", defaultValue = "QUESTER:35,HUNTER:20,TRADE:15,TRADER:10,PVP:20")
+ public static String PVP_LEANING_WEIGHTS = "QUESTER:35,HUNTER:20,TRADE:15,TRADER:10,PVP:20";
+ @Property(key = "gameserver.playerbots.pvp.leaning_min_level", defaultValue = "20")
+ public static int PVP_LEANING_MIN_LEVEL = 20;
+ @Property(key = "gameserver.playerbots.pvp.leaning_focus_percent", defaultValue = "40")
+ public static int PVP_LEANING_FOCUS_PERCENT = 40;
+ @Property(key = "gameserver.playerbots.pvp.shared_enemies_per_human", defaultValue = "6")
+ public static int PVP_SHARED_ENEMIES = 6;
+ @Property(key = "gameserver.playerbots.pvp.shared_level_range", defaultValue = "5")
+ public static int PVP_SHARED_LEVEL_RANGE = 5;
+ @Property(key = "gameserver.playerbots.pvp.seek_distance", defaultValue = "1000")
+ public static float PVP_SEEK_DISTANCE = 1000;
+ @Property(key = "gameserver.playerbots.pvp.rifts.invaders_per_rift", defaultValue = "4")
+ public static int PVP_RIFT_INVADERS = 4;
+ @Property(key = "gameserver.playerbots.pvp.victory_emote_percent", defaultValue = "40")
+ public static int PVP_VICTORY_EMOTE = 40;
+ @Property(key = "gameserver.playerbots.pvp.duels.enable", defaultValue = "true")
+ public static boolean PVP_DUELS = true;
+ @Property(key = "gameserver.playerbots.pvp.duels.accept_percent", defaultValue = "70")
+ public static int PVP_DUEL_ACCEPT = 70;
+ @Property(key = "gameserver.playerbots.pvp.duels.challenge_minutes", defaultValue = "30")
+ public static int PVP_DUEL_CHALLENGE_MINUTES = 30;
+ @Property(key = "gameserver.playerbots.pvp.duels.reward_kinah_per_level", defaultValue = "150")
+ public static int PVP_DUEL_REWARD_KINAH_PER_LEVEL = 150;
+ @Property(key = "gameserver.playerbots.pvp.duels.reward_ap", defaultValue = "25")
+ public static int PVP_DUEL_REWARD_AP = 25;
+ @Property(key = "gameserver.playerbots.pvp.duels.rewards_per_day", defaultValue = "10")
+ public static int PVP_DUEL_REWARDS_PER_DAY = 10;
+ @Property(key = "gameserver.playerbots.pvp.battlegrounds.enable", defaultValue = "true")
+ public static boolean PVP_BATTLEGROUNDS = true;
+ @Property(key = "gameserver.playerbots.pvp.battlegrounds.objectives", defaultValue = "true")
+ public static boolean PVP_BATTLEGROUND_OBJECTIVES = true;
+ /** PvP-3a: inside a Dredgion, non-PvP bots play its Surkanas, hatches, officers and (when it wins) the captain. */
+ @Property(key = "gameserver.playerbots.pvp.battlegrounds.dredgion", defaultValue = "true")
+ public static boolean PVP_DREDGION = true;
+ /** PvP-3: Kamar Battlefield objective play (its own hook). */
+ @Property(key = "gameserver.playerbots.pvp.battlegrounds.kamar", defaultValue = "true")
+ public static boolean PVP_KAMAR = true;
+ /** PvP-3: Engulfed Ophidan Bridge objective play (its own hook). */
+ @Property(key = "gameserver.playerbots.pvp.battlegrounds.ophidan", defaultValue = "true")
+ public static boolean PVP_OPHIDAN = true;
+ /** PvP-3: Iron Wall Warfront objective play (its own hook). */
+ @Property(key = "gameserver.playerbots.pvp.battlegrounds.iron_wall", defaultValue = "true")
+ public static boolean PVP_IRON_WALL = true;
+ /** PvP-3: Idgel Dome objective play (its own hook). */
+ @Property(key = "gameserver.playerbots.pvp.battlegrounds.idgel", defaultValue = "true")
+ public static boolean PVP_IDGEL = true;
+ /** PvP-4: arena point objects and monsters (its own hook). */
+ @Property(key = "gameserver.playerbots.pvp.battlegrounds.arenas", defaultValue = "true")
+ public static boolean PVP_ARENAS = true;
+ /** PvP-5: a running Agent fight draws every bot on its map, not only PvP-leaning ones. */
+ @Property(key = "gameserver.playerbots.pvp.sieges.agent_all_bots", defaultValue = "true")
+ public static boolean PVP_SIEGE_AGENT_ALL = true;
+ @Property(key = "gameserver.playerbots.pvp.sieges.enable", defaultValue = "true")
+ public static boolean PVP_SIEGES = true;
+ @Property(key = "gameserver.playerbots.pvp.bases.enable", defaultValue = "true")
+ public static boolean PVP_BASES = true;
+ @Property(key = "gameserver.playerbots.pvp.bases.trip_minutes", defaultValue = "30")
+ public static int PVP_BASE_TRIP_MINUTES = 30;
  @Property(key = "gameserver.playerbots.population.faction_home_spawns", defaultValue = "true")
  public static boolean POPULATION_FACTION_HOME = true;
  @Property(key = "gameserver.playerbots.population.unseen_spawn_distance", defaultValue = "200")
@@ -116,6 +185,17 @@ public final class PlayerBotConfig {
  public static boolean FIND_GROUP_ENABLED = true;
  @Property(key = "gameserver.playerbots.social.findgroup.posts_per_tab", defaultValue = "12")
  public static int FIND_GROUP_POSTS_PER_TAB = 12;
+ @Property(key = "gameserver.playerbots.social.findgroup.run_briefing", defaultValue = "true")
+ public static boolean FIND_GROUP_RUN_BRIEFING = true;
+ /** Help requests one account may have at once (1..3, one native wrapper quest each). */
+ @Property(key = "gameserver.playerbots.social.findgroup.help_max_active", defaultValue = "3")
+ public static int HELP_MAX_ACTIVE = 3;
+ /** Share of world bots (percent, lifelong per character) that are the type to drop a helper before the hand-in. */
+ @Property(key = "gameserver.playerbots.social.findgroup.help_kick_scoundrel_percent", defaultValue = "15")
+ public static int HELP_KICK_SCOUNDREL_PERCENT = 15;
+ /** Chance (percent) that such a bot actually does it when its quest objectives fill. 0 = never. */
+ @Property(key = "gameserver.playerbots.social.findgroup.help_kick_percent", defaultValue = "40")
+ public static int HELP_KICK_PERCENT = 40;
  /** Dungeon (Instance Groups tab) posts per faction at the same time. */
  @Property(key = "gameserver.playerbots.social.findgroup.instance_posts", defaultValue = "20")
  public static int FIND_GROUP_INSTANCE_POSTS = 20;
@@ -133,6 +213,18 @@ public final class PlayerBotConfig {
  public static long COMPANION_STUCK_RECALL_MS = 5000;
  @Property(key = "gameserver.playerbots.social.legion_invites", defaultValue = "true")
  public static boolean CHAT_LEGION_INVITES = true;
+ /** Let nearby players hear short updates about what companions and world bots are doing. */
+ @Property(key = "gameserver.playerbots.chat.activity.enable", defaultValue = "true")
+ public static boolean ACTIVITY_CHAT_ENABLED = true;
+ /** Minimum seconds between a bot's activity updates. */
+ @Property(key = "gameserver.playerbots.chat.activity.cooldown_seconds", defaultValue = "90")
+ public static int ACTIVITY_CHAT_COOLDOWN_SECONDS = 90;
+ /** Seconds before a bot can mention the same ongoing activity again. */
+ @Property(key = "gameserver.playerbots.chat.activity.reminder_seconds", defaultValue = "180")
+ public static int ACTIVITY_CHAT_REMINDER_SECONDS = 180;
+ /** Maximum activity updates each player hears from all bots in any sixty seconds. */
+ @Property(key = "gameserver.playerbots.chat.activity.human_cap_per_minute", defaultValue = "4")
+ public static int ACTIVITY_CHAT_HUMAN_CAP_PER_MINUTE = 4;
  @Property(key = "gameserver.playerbots.navigation.platform.queue_limit", defaultValue = "8")
  public static int PLATFORM_QUEUE_LIMIT = 8;
  @Property(key = "gameserver.playerbots.navigation.platform.passengers", defaultValue = "4")
@@ -193,6 +285,11 @@ public final class PlayerBotConfig {
  /** Prepared/recorded paths are proposals; the native mover validates actual steps. */
  @Property(key = "gameserver.playerbots.navigation.memory_first", defaultValue = "true")
  public static boolean NAVIGATION_MEMORY_FIRST = true;
+ @Property(key = "gameserver.playerbots.navigation.trace_moves", defaultValue = "")
+ public static String NAVIGATION_TRACE_MOVES = "";
+ /** Diagnosis only: trace the bot a staff player has targeted. */
+ @Property(key = "gameserver.playerbots.navigation.trace_targeted", defaultValue = "false")
+ public static boolean NAVIGATION_TRACE_TARGETED = false;
  /** Compatibility allowance when independent planning is disabled. */
  @Property(key = "gameserver.playerbots.navigation.budget_ms_per_second", defaultValue = "500")
  public static int TERRAIN_BUDGET_MS = 500;
@@ -232,6 +329,28 @@ public final class PlayerBotConfig {
 	public static boolean WORLD_ONLY_OCCUPIED_MAPS = true;
 	@Property(key = "gameserver.playerbots.world.presence_refresh_ms", defaultValue = "1000")
 	public static int WORLD_PRESENCE_REFRESH_MS = 1000;
+	@Property(key = "gameserver.playerbots.world.detail_tiers", defaultValue = "true")
+	public static boolean WORLD_DETAIL_TIERS = true;
+	@Property(key = "gameserver.playerbots.world.detail.visible_radius", defaultValue = "200")
+	public static int WORLD_DETAIL_VISIBLE_RADIUS = 200;
+	@Property(key = "gameserver.playerbots.world.detail.visible_leave_radius", defaultValue = "250")
+	public static int WORLD_DETAIL_VISIBLE_LEAVE_RADIUS = 250;
+	@Property(key = "gameserver.playerbots.world.detail.visible_per_human", defaultValue = "30")
+	public static int WORLD_DETAIL_VISIBLE_PER_HUMAN = 30;
+	@Property(key = "gameserver.playerbots.world.detail.near_reaction_multiplier", defaultValue = "3")
+	public static int WORLD_DETAIL_NEAR_MULTIPLIER = 3;
+	@Property(key = "gameserver.playerbots.world.detail.near_moving_ms", defaultValue = "600")
+	public static int WORLD_DETAIL_NEAR_MOVING_MS = 600;
+	@Property(key = "gameserver.playerbots.world.detail.rotation_percent", defaultValue = "10")
+	public static int WORLD_DETAIL_ROTATION_PERCENT = 10;
+	@Property(key = "gameserver.playerbots.world.detail.rotation_seconds", defaultValue = "30")
+	public static int WORLD_DETAIL_ROTATION_SECONDS = 30;
+	@Property(key = "gameserver.playerbots.world.detail.smartscale_floor_ms", defaultValue = "50")
+	public static int WORLD_DETAIL_SMARTSCALE_FLOOR_MS = 50;
+	@Property(key = "gameserver.playerbots.world.detail.smartscale_ceiling_ms", defaultValue = "200")
+	public static int WORLD_DETAIL_SMARTSCALE_CEILING_MS = 200;
+	@Property(key = "gameserver.playerbots.world.detail.legion_force", defaultValue = "true")
+	public static boolean WORLD_DETAIL_LEGION_FORCE = true;
 	@Property(key = "gameserver.playerbots.world.rpg.enable", defaultValue = "true")
 	public static boolean WORLD_RPG_ENABLED = true;
 	@Property(key = "gameserver.playerbots.world.rpg_pause_ms", defaultValue = "10000")

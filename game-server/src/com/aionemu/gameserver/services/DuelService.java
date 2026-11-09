@@ -88,6 +88,7 @@ public class DuelService {
 			@Override
 			public void denyRequest(Player requester, Player responder) {
 				rejectDuelRequest(requester, responder);
+				com.aionemu.gameserver.services.playerbot.PlayerBotDuels.declined(requester, responder);
 			}
 
 			@Override
@@ -113,6 +114,9 @@ public class DuelService {
 				new SM_QUESTION_WINDOW(SM_QUESTION_WINDOW.STR_DUEL_DO_YOU_ACCEPT_REQUEST, 0, 0, requester.getName()));
 			PacketSendUtility.sendPacket(targetPlayer, SM_SYSTEM_MESSAGE.STR_DUEL_REQUESTED(requester.getName()));
 			confirmDuelWith(requester, targetPlayer);
+			// A bot answers the same native question after a moment (playerbot duels).
+			if (targetPlayer.isPlayerBot())
+				com.aionemu.gameserver.services.playerbot.PlayerBotDuels.requested(requester, targetPlayer);
 		} else {
 			PacketSendUtility.sendPacket(requester, SM_SYSTEM_MESSAGE.STR_DUEL_CANT_REQUEST_WHEN_HE_IS_ASKED_QUESTION(targetPlayer.getName()));
 		}
@@ -226,6 +230,7 @@ public class DuelService {
 		if (winner != null)
 			onDuelEnd(DuelResult.DUEL_WON, winner, loser.getObjectId()); // Chain of Suffering must be ended before calling removeDuel
 		removeDuel(loser);
+		com.aionemu.gameserver.services.playerbot.PlayerBotDuels.ended(winner, loser);
 	}
 
 	private void endDebuffsByOpponent(Player player, int opponentId) {

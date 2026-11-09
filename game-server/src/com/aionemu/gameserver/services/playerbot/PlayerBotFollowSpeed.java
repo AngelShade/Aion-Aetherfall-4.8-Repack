@@ -17,8 +17,10 @@ public final class PlayerBotFollowSpeed {
  public static void update(Player player,float x,float y,float z){
   if(!player.isPlayerBot())return;
   double ratio=PlayerBotFormation.speedMultiplier(player,x,y,z);float natural=player.getGameStats().getMovementSpeed().getCurrent()/1000f,desired=(float)(natural*ratio);var old=VALUES.get(player.getObjectId());
-  VALUES.put(player.getObjectId(),new Value(ratio,old==null ? desired : old.advertised(),System.currentTimeMillis()+600));
   if(old==null || Math.abs(desired-old.advertised())>.15f){VALUES.put(player.getObjectId(),new Value(ratio,desired,System.currentTimeMillis()+600));PacketSendUtility.broadcastToSightedPlayers(player,new SM_EMOTION(player,EmotionType.CHANGE_SPEED),true);}
+  // Below the resend threshold the server keeps moving at the speed the client was last told, so they never drift
+  // apart (moving at the new ratio here made companions run ahead of, or behind, where clients drew them).
+  else VALUES.put(player.getObjectId(),new Value(natural>0?old.advertised()/natural:ratio,old.advertised(),System.currentTimeMillis()+600));
  }
  public static void close(Player player){if(VALUES.remove(player.getObjectId())!=null)PacketSendUtility.broadcastToSightedPlayers(player,new SM_EMOTION(player,EmotionType.CHANGE_SPEED),true);}
  private PlayerBotFollowSpeed(){}

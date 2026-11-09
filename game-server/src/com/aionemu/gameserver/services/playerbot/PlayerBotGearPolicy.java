@@ -141,8 +141,8 @@ public final class PlayerBotGearPolicy {
    PlayerBotQuestSync.notice(session.bot(),"Equipment policy: "+selected.mode+", "+selected.profile+", "+selected.weapon+". Generated gear is limited to "+selected.quality+" and level "+targetLevel(session,selected)+"; gameplay loot is retained.","gear-policy",0);
   }
  }
- /** The Stigma build chosen for this Temporary Bot, or null for automatic Stigmas (also when its class has no such build). */
- static PlayerBotStigmaBuilds.Build stigmaBuild(Player bot){State s=STATES.get(bot.getObjectId());return s==null || s.build.equals(PlayerBotStigmaBuilds.AUTO) ? null : PlayerBotStigmaBuilds.find(bot.getPlayerClass(),s.build);}
+ /** The Stigma build of this bot: a world bot's own, or the one chosen for a Temporary Bot. Null for automatic Stigmas (also when its class has no such build). */
+ static PlayerBotStigmaBuilds.Build stigmaBuild(Player bot){if(bot.isWorldBot())return PlayerBotStigmaBuilds.world(bot.getPlayerClass(),bot.getObjectId());State s=STATES.get(bot.getObjectId());return s==null || s.build.equals(PlayerBotStigmaBuilds.AUTO) ? null : PlayerBotStigmaBuilds.find(bot.getPlayerClass(),s.build);}
  public static String configureBuild(PlayerBotSession session,String key) {
   if(!session.generated())throw new IllegalArgumentException("Stigma builds apply only to Temporary Bots. Your alt's Stigmas remain yours.");
   var build=PlayerBotStigmaBuilds.find(session.bot().getPlayerClass(),key);
@@ -190,11 +190,12 @@ public final class PlayerBotGearPolicy {
  static boolean referenced(Player bot,Item item){State s=STATES.get(bot.getObjectId());return s!=null && s.references.values().stream().anyMatch(r->r.object()==item.getObjectId());}
  /** The bot is working toward this item for its chosen preset. */
  static int goalCount(Player bot){State s=STATES.get(bot.getObjectId());return s==null?0:s.goals.size();}
- /** Monsters named as the source of this bot's open equipment goals. */
+ /** Every monster source of the open goal items, including goals saved with a recipe/quest first. */
  static List<Integer> goalDrops(Player bot) {
-  State s=STATES.get(bot.getObjectId());if(s==null)return List.of();var npcs=new ArrayList<Integer>();
-  for(var goal:s.goals.values()){var parts=goal.split(":");if(parts.length==3 && parts[1].equals("npc"))npcs.add(Integer.parseInt(parts[2]));}
-  return npcs;
+  return goalSources(bot).values().stream().flatMap(Collection::stream).distinct().toList();
+ }
+ static Map<Integer,List<Integer>> goalSources(Player bot) {
+  State s=STATES.get(bot.getObjectId());return s==null?Map.of():PlayerBotGoalHunts.sources(s.goals.values(),bot.getRace());
  }
  static boolean goal(Player bot,ItemTemplate t){State s=STATES.get(bot.getObjectId());return s!=null && t!=null && s.goals.values().stream().anyMatch(g->g.startsWith(t.getTemplateId()+":"));}
  private static State loadoutOwner(PlayerBotSession session) {
@@ -317,7 +318,7 @@ public final class PlayerBotGearPolicy {
   return result;
  }
  static double score(Player bot,Item item,Role role) {
-  double result=score(bot,item.getItemTemplate(),role)+item.getEnchantLevel()*2;
+  double result=variantScore(bot,item.getItemTemplate(),role,item.getEnchantLevel(),item.getTempering());
   boolean magical=switch(bot.getPlayerClass()){case PRIEST,CLERIC,MAGE,SORCERER,SPIRIT_MASTER,ENGINEER,GUNNER,RIDER,ARTIST,BARD -> true;default -> false;};
   List<com.aionemu.gameserver.model.stats.calc.functions.StatFunction> bonuses=new ArrayList<>();
   if(item.getBonusStatsId()!=0) {
@@ -332,6 +333,21 @@ public final class PlayerBotGearPolicy {
   }
   var build=stigmaBuild(bot);
   for(var modifier:bonuses)if(!modifier.hasConditions())result+=modifier.getValue()*PlayerBotEquipment.weight(modifier.getName(),role,magical,build==null ? null : build.gear());
+  return result;
+ }
+ static double variantScore(Player bot,ItemTemplate t,Role role,int enchant,int tempering) {
+  double result=score(bot,t,role)+enchant*2;
+  if(tempering<=0)return result;
+  boolean magical=switch(bot.getPlayerClass()){case PRIEST,CLERIC,MAGE,SORCERER,SPIRIT_MASTER,ENGINEER,GUNNER,RIDER,ARTIST,BARD -> true;default -> false;};
+  var build=stigmaBuild(bot);var strategy=build==null?null:build.gear();
+  if(t.getItemGroup()==ItemGroup.PLUME) {
+   var attack="TSHIRT_PHYSICAL".equals(t.getTemperingName())?com.aionemu.gameserver.model.stats.container.StatEnum.PHYSICAL_ATTACK:com.aionemu.gameserver.model.stats.container.StatEnum.BOOST_MAGICAL_SKILL;
+   int boost=attack==com.aionemu.gameserver.model.stats.container.StatEnum.PHYSICAL_ATTACK?com.aionemu.gameserver.model.stats.container.PlumStatEnum.PLUM_PHISICAL_ATTACK.getBoostValue():com.aionemu.gameserver.model.stats.container.PlumStatEnum.PLUM_BOOST_MAGICAL_SKILL.getBoostValue();
+   result+=tempering*(boost*PlayerBotEquipment.weight(attack,role,magical,strategy)+com.aionemu.gameserver.model.stats.container.PlumStatEnum.PLUM_HP.getBoostValue()*PlayerBotEquipment.weight(com.aionemu.gameserver.model.stats.container.StatEnum.MAXHP,role,magical,strategy));
+  } else if(DataManager.TEMPERING_DATA!=null) {
+   var levels=DataManager.TEMPERING_DATA.getTemplates(t);var stats=levels==null?null:levels.get(tempering);
+   if(stats!=null)for(var stat:stats)result+=stat.getValue()*PlayerBotEquipment.weight(stat.getStat(),role,magical,strategy);
+  }
   return result;
  }
  static List<PlayerBotEquipment.Upgrade> upgrades(Player bot,Role requested) {

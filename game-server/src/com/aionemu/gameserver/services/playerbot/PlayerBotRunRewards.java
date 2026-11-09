@@ -76,19 +76,24 @@ public final class PlayerBotRunRewards {
  }
  /** Called only by a verified native ending. Missing first-pull evidence never becomes fabricated presence at death. */
  public static void completed(WorldMapInstance instance,Npc boss) {
-  var run=RUNS.get(instance);if(run==null)return;
+  var run=RUNS.get(instance);
+  if(run==null){for(var p:instance.getPlayersInside())PlayerBotRunBriefing.unrewarded(p,"Its fights were not tracked from the first pull, so it pays no Recruitment Ticket.");return;}
   var eligible=run.eligible(boss.getObjectId());
   double challenge=PlayerBotChallenge.challenge(run.strength(boss.getLevel()),instance.getMaxPlayers(),InstanceScaler.demand(instance));
   int highest=run.highestLevel();
   if(PlayerBotChallenge.practice(highest,boss.getLevel(),challenge,InstanceScaler.demand(instance)))for(var player:instance.getPlayersInside())if(eligible.contains(player.getObjectId()))PlayerBotGrowth.learn(player,200);
-  if(PlayerBotConfig.TICKETS_ENABLED)pay(instance,PlayerBotChallenge.tickets(challenge),p->eligible.contains(p.getObjectId()));
+  if(PlayerBotConfig.TICKETS_ENABLED)pay(instance,PlayerBotChallenge.tickets(challenge),p->eligible.contains(p.getObjectId()),"Run");
+  for(var p:instance.getPlayersInside())if(!eligible.contains(p.getObjectId()))PlayerBotRunBriefing.unrewarded(p,"You were not in its fights, so it pays you no Recruitment Ticket.");
   RUNS.remove(instance);
  }
- public static void won(WorldMapInstance instance,Predicate<Player> winners){if(PlayerBotConfig.TICKETS_ENABLED)pay(instance,PlayerBotConfig.TICKET_PVP_WIN,winners);}
- private static void pay(WorldMapInstance instance,int tickets,Predicate<Player> eligible) {
-  if(tickets<=0)return;var accounts=new HashSet<Integer>();
+ public static void won(WorldMapInstance instance,Predicate<Player> winners){if(PlayerBotConfig.TICKETS_ENABLED)pay(instance,PlayerBotConfig.TICKET_PVP_WIN,winners,"Battle");}
+ /** Pays the native ending and tells each paid player what they earned (or, after a briefed run, why nothing). */
+ private static void pay(WorldMapInstance instance,int tickets,Predicate<Player> eligible,String label) {
+  var accounts=new HashSet<Integer>();
   for(var player:instance.getPlayersInside())if(!player.isPlayerBot() && eligible.test(player)) {
-   int account=player.getAccount().getId();if(accounts.add(account))PlayerBotTickets.award(account,receiptKey(instance.getRunId(),account),tickets);
+   int account=player.getAccount().getId();
+   if(tickets>0 && accounts.add(account))PlayerBotTickets.award(account,receiptKey(instance.getRunId(),account),tickets);
+   PlayerBotRunBriefing.rewarded(player,Math.max(0,tickets),label);
   }
  }
  public static String receiptKey(String run,int account){return "run:"+run+":"+account;}

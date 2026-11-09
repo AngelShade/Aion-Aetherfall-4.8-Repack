@@ -80,7 +80,7 @@ final class PlayerBotProfessionCatalog {
  static List<Seller> sellers(Race race,int item){return SELLERS.getOrDefault(new Shop(race,item),List.of());}
  static List<RecipeTemplate> products(int item){return PRODUCTS.getOrDefault(item,List.of());}
  static boolean keepRecipe(int recipe){var r=DataManager.RECIPE_DATA.getRecipeTemplateById(recipe);return r!=null && !r.isMorph() && r.getMaxProductionCount()==null && !WORK_ORDERS.contains(recipe);}
- static boolean qualification(int quest){return QUALIFICATIONS.contains(quest);}
+ static boolean qualification(int quest){return QUALIFICATIONS.contains(quest) || PlayerBotProfessionQualification.qualification(quest);}
  static boolean craftItem(int item){return CRAFT_ITEMS.contains(item);}
  static boolean supplied(int item){return SUPPLIED.contains(item);}
  static boolean trainer(Race race,int skill){return PlayerBotQuestCrafting.trainers(skill).stream().anyMatch(n->PlayerBotWorldTravel.places(n).stream().anyMatch(p->race==Race.ELYOS?(p.map()==110010000 || p.map()==700010000):(p.map()==120010000 || p.map()==710010000)));}

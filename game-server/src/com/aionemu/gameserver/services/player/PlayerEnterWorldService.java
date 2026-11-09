@@ -323,6 +323,9 @@ public final class PlayerEnterWorldService {
 		PunishmentService.updatePrisonStatus(player);
 
 		PlayerGroupService.onPlayerLogin(player);
+		// A Find Group field party that waited for this relog takes the player back (social lane, after spawn).
+		try { com.aionemu.gameserver.services.playerbot.PlayerBotFindGroup.reconnected(player); }
+		catch (RuntimeException e) { log.warn("Find Group relog handoff skipped for {}", player.getName(), e); }
 		PetService.getInstance().onPlayerLogin(player);
 
 		// ----------------------------- Retail sequence -----------------------------

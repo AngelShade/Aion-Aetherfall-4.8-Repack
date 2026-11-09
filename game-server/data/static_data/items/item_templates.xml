@@ -826505,25 +826505,25 @@
 		</actions>
 		<uselimits usedelay="5000" usedelayid="24"/>
 	</item_template>
-	<item_template id="160002399" name="Expert Spicy Banquet Food" level="60" cName="food_menuisier_fighter_60a" mask="4165" quality="UNIQUE" price="500" desc="794822" activate_target="STANDALONE" activate_count="1">
+	<item_template id="160002399" name="Expert Spicy Banquet Food" level="60" cName="food_menuisier_fighter_60a" mask="12356" max_stack_count="1000" quality="UNIQUE" price="500" desc="794822" activate_target="STANDALONE" activate_count="1">
 		<actions>
 			<skilluse level="5" skillid="10392"/>
 		</actions>
 		<uselimits usedelay="5000" usedelayid="22"/>
 	</item_template>
-	<item_template id="160002400" name="Expert Sweet Banquet Food" level="60" cName="food_menuisier_wizard_60a" mask="4165" quality="UNIQUE" price="500" desc="794823" activate_target="STANDALONE" activate_count="1">
+	<item_template id="160002400" name="Expert Sweet Banquet Food" level="60" cName="food_menuisier_wizard_60a" mask="12356" max_stack_count="1000" quality="UNIQUE" price="500" desc="794823" activate_target="STANDALONE" activate_count="1">
 		<actions>
 			<skilluse level="5" skillid="10393"/>
 		</actions>
 		<uselimits usedelay="5000" usedelayid="22"/>
 	</item_template>
-	<item_template id="160002401" name="Master Spicy Banquet Food" level="60" cName="food_menuisier_master_60a" mask="4165" quality="EPIC" price="1500" restrict="50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50" desc="794824" activate_target="STANDALONE" activate_count="1">
+	<item_template id="160002401" name="Master Spicy Banquet Food" level="60" cName="food_menuisier_master_60a" mask="12356" max_stack_count="1000" quality="EPIC" price="1500" restrict="50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50" desc="794824" activate_target="STANDALONE" activate_count="1">
 		<actions>
 			<skilluse level="6" skillid="10394"/>
 		</actions>
 		<uselimits usedelay="5000" usedelayid="22"/>
 	</item_template>
-	<item_template id="160002402" name="Master Sweet Banquet Food" level="60" cName="food_menuisier_masterb_60a" mask="4165" quality="EPIC" price="1500" restrict="50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50" desc="795241" activate_target="STANDALONE" activate_count="1">
+	<item_template id="160002402" name="Master Sweet Banquet Food" level="60" cName="food_menuisier_masterb_60a" mask="12356" max_stack_count="1000" quality="EPIC" price="1500" restrict="50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50" desc="795241" activate_target="STANDALONE" activate_count="1">
 		<actions>
 			<skilluse level="6" skillid="10399"/>
 		</actions>
@@ -826577,25 +826577,25 @@
 		</actions>
 		<uselimits usedelay="5000" usedelayid="22"/>
 	</item_template>
-	<item_template id="160002412" name="Expert Noble Spicy Banquet Food" level="60" cName="food_menuisier_U2_50a" mask="4165" quality="UNIQUE" price="500" desc="801535" activate_target="STANDALONE" activate_count="1">
+	<item_template id="160002412" name="Expert Noble Spicy Banquet Food" level="60" cName="food_menuisier_U2_50a" mask="12356" max_stack_count="1000" quality="UNIQUE" price="500" desc="801535" activate_target="STANDALONE" activate_count="1">
 		<actions>
 			<skilluse level="5" skillid="10542"/>
 		</actions>
 		<uselimits usedelay="5000" usedelayid="22"/>
 	</item_template>
-	<item_template id="160002413" name="Expert Noble Sweet Banquet Food" level="60" cName="food_menuisier_U2_50b" mask="4165" quality="UNIQUE" price="500" desc="801536" activate_target="STANDALONE" activate_count="1">
+	<item_template id="160002413" name="Expert Noble Sweet Banquet Food" level="60" cName="food_menuisier_U2_50b" mask="12356" max_stack_count="1000" quality="UNIQUE" price="500" desc="801536" activate_target="STANDALONE" activate_count="1">
 		<actions>
 			<skilluse level="5" skillid="10543"/>
 		</actions>
 		<uselimits usedelay="5000" usedelayid="22"/>
 	</item_template>
-	<item_template id="160002414" name="Master Elite Spicy Banquet Food" level="60" cName="food_menuisier_E2_60a" mask="4165" quality="EPIC" price="1500" restrict="50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50" desc="801537" activate_target="STANDALONE" activate_count="1">
+	<item_template id="160002414" name="Master Elite Spicy Banquet Food" level="60" cName="food_menuisier_E2_60a" mask="12356" max_stack_count="1000" quality="EPIC" price="1500" restrict="50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50" desc="801537" activate_target="STANDALONE" activate_count="1">
 		<actions>
 			<skilluse level="6" skillid="10544"/>
 		</actions>
 		<uselimits usedelay="5000" usedelayid="22"/>
 	</item_template>
-	<item_template id="160002415" name="Master Elite Sweet Banquet Food" level="60" cName="food_menuisier_E2_60b" mask="4165" quality="EPIC" price="1500" restrict="50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50" desc="801538" activate_target="STANDALONE" activate_count="1">
+	<item_template id="160002415" name="Master Elite Sweet Banquet Food" level="60" cName="food_menuisier_E2_60b" mask="12356" max_stack_count="1000" quality="EPIC" price="1500" restrict="50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50" desc="801538" activate_target="STANDALONE" activate_count="1">
 		<actions>
 			<skilluse level="6" skillid="10545"/>
 		</actions>
@@ -828114,13 +828114,13 @@
 		</actions>
 		<uselimits usedelay="5000" usedelayid="22"/>
 	</item_template>
-	<item_template id="160005048" name="Sweet Solorius Cocktail" level="10" cName="world_cash_table_food_xmas" mask="4167" quality="UNIQUE" price="5" desc="799654" activate_target="STANDALONE" activate_count="1">
+	<item_template id="160005048" name="Sweet Solorius Cocktail" level="10" cName="world_cash_table_food_xmas" mask="12358" max_stack_count="1000" quality="UNIQUE" price="5" desc="799654" activate_target="STANDALONE" activate_count="1">
 		<actions>
 			<skilluse level="6" skillid="10503"/>
 		</actions>
 		<uselimits usedelay="30000" usedelayid="22"/>
 	</item_template>
-	<item_template id="160005049" name="Tasty Harvest Revel Cookie" level="10" cName="world_cash_table_food_hlwn" mask="4167" quality="UNIQUE" price="5" desc="799656" activate_target="STANDALONE" activate_count="1">
+	<item_template id="160005049" name="Tasty Harvest Revel Cookie" level="10" cName="world_cash_table_food_hlwn" mask="12358" max_stack_count="1000" quality="UNIQUE" price="5" desc="799656" activate_target="STANDALONE" activate_count="1">
 		<actions>
 			<skilluse level="6" skillid="10504"/>
 		</actions>
@@ -828132,7 +828132,7 @@
 		</actions>
 		<uselimits usedelay="1800000" usedelayid="23"/>
 	</item_template>
-	<item_template id="160005051" name="Zest Tea" level="10" cName="world_cash_table_food_orient" mask="4165" quality="UNIQUE" price="5" restrict="10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10" desc="800989" activate_target="STANDALONE" activate_count="1">
+	<item_template id="160005051" name="Zest Tea" level="10" cName="world_cash_table_food_orient" mask="12356" max_stack_count="1000" quality="UNIQUE" price="5" restrict="10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10" desc="800989" activate_target="STANDALONE" activate_count="1">
 		<actions>
 			<skilluse level="1" skillid="10492"/>
 		</actions>
@@ -828168,19 +828168,19 @@
 		</actions>
 		<uselimits usedelay="5000" usedelayid="21"/>
 	</item_template>
-	<item_template id="160005057" name="Exciting Camp Picnic" level="60" cName="world_food_camping_physical_60a" mask="4161" quality="EPIC" price="5" restrict="10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10" desc="846734" activate_target="STANDALONE" activate_count="1">
+	<item_template id="160005057" name="Exciting Camp Picnic" level="60" cName="world_food_camping_physical_60a" mask="12352" max_stack_count="1000" quality="EPIC" price="5" restrict="10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10" desc="846734" activate_target="STANDALONE" activate_count="1">
 		<actions>
 			<skilluse level="6" skillid="10992"/>
 		</actions>
 		<uselimits usedelay="5000" usedelayid="22"/>
 	</item_template>
-	<item_template id="160005058" name="Pleasant Camp Picnic" level="60" cName="world_food_camping_magical_60a" mask="4161" quality="EPIC" price="5" restrict="10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10" desc="846735" activate_target="STANDALONE" activate_count="1">
+	<item_template id="160005058" name="Pleasant Camp Picnic" level="60" cName="world_food_camping_magical_60a" mask="12352" max_stack_count="1000" quality="EPIC" price="5" restrict="10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10" desc="846735" activate_target="STANDALONE" activate_count="1">
 		<actions>
 			<skilluse level="6" skillid="10993"/>
 		</actions>
 		<uselimits usedelay="5000" usedelayid="22"/>
 	</item_template>
-	<item_template id="160005059" name="Fancy Club Beverage" level="60" cName="world_cash_table_food_nclub" mask="4161" quality="EPIC" price="5" restrict="10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10" desc="847590" activate_target="STANDALONE" activate_count="1">
+	<item_template id="160005059" name="Fancy Club Beverage" level="60" cName="world_cash_table_food_nclub" mask="12352" max_stack_count="1000" quality="EPIC" price="5" restrict="10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10 10" desc="847590" activate_target="STANDALONE" activate_count="1">
 		<actions>
 			<skilluse level="6" skillid="11000"/>
 		</actions>
@@ -828308,7 +828308,7 @@
 		</actions>
 		<uselimits usedelay="1800000" usedelayid="23"/>
 	</item_template>
-	<item_template id="160009017" name="Vinna Juice" level="10" cName="event_food_drink_01" mask="4161" quality="COMMON" price="5" desc="753702" activate_target="STANDALONE" activate_count="1">
+	<item_template id="160009017" name="Vinna Juice" level="10" cName="event_food_drink_01" mask="12352" max_stack_count="1000" quality="COMMON" price="5" desc="753702" activate_target="STANDALONE" activate_count="1">
 		<actions>
 			<skilluse level="6" skillid="10325"/>
 		</actions>
@@ -829597,7 +829597,7 @@
 		</actions>
 		<uselimits usedelay="3600000" usedelayid="24"/>
 	</item_template>
-	<item_template id="160010238" name="Crucible Hero's Draft" level="60" cName="item_vip_pvp_quest_50reward" mask="4160" quality="RARE" price="5" restrict="60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60" desc="800553" activate_target="STANDALONE" activate_count="1">
+	<item_template id="160010238" name="Crucible Hero's Draft" level="60" cName="item_vip_pvp_quest_50reward" mask="12352" max_stack_count="1000" quality="RARE" price="5" restrict="60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60" desc="800553" activate_target="STANDALONE" activate_count="1">
 		<actions>
 			<skilluse level="7" skillid="10531"/>
 		</actions>
@@ -831537,7 +831537,7 @@
 		</actions>
 		<uselimits usedelay="30000" usedelayid="12"/>
 	</item_template>
-	<item_template id="162000131" name="Fine Bracing Water" level="70" cName="potion_invincible_70a" mask="4222" quality="UNIQUE" price="131953" restrict="60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60" desc="812736" activate_target="STANDALONE" activate_count="1">
+	<item_template id="162000131" name="Fine Bracing Water" level="70" cName="potion_invincible_70a" mask="12414" max_stack_count="1000" quality="UNIQUE" price="131953" restrict="60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60 60" desc="812736" activate_target="STANDALONE" activate_count="1">
 		<actions>
 			<skilluse level="2" skillid="10667"/>
 		</actions>

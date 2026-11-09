@@ -15,7 +15,8 @@ import com.aionemu.gameserver.utils.PositionUtil;
 
 /** Read-only reasons to group. Native quests, entrances and earned XP supply the need. */
 final class PlayerBotGroupNeeds {
- record Need(int quest, int npc, int map, int mask, int members, int minLevel, int maxLevel, String title) {
+ record Need(int quest, int npc, int map, int mask, int members, int minLevel, int maxLevel, String title, boolean gear) {
+  Need(int quest,int npc,int map,int mask,int members,int minLevel,int maxLevel,String title){this(quest,npc,map,mask,members,minLevel,maxLevel,title,false);}
   boolean instance() { return mask != 0; }
  }
  record InstancePlan(Need need,PlayerBotWorldTravel.Place entrance) {}
@@ -52,13 +53,28 @@ final class PlayerBotGroupNeeds {
     }
   }
   // A missing saved-equipment goal that drops from a hard monster on this map is a real reason to ask.
-  if(com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.ECONOMY_ENABLED && com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.WORLD_GOALS_HELP_REQUESTS)for(int npc:PlayerBotGearPolicy.goalDrops(bot)) {
-   var target=DataManager.NPC_DATA.getNpcTemplate(npc);
-   if(target!=null && PlayerBotHunting.goalTemplate(target) && hard(bot,npc) && DataManager.SPAWNS_DATA.getSpawnsForNpc(bot.getWorldId(),npc).stream().anyMatch(g->!g.isTemporarySpawn() && g.getHandlerType()==null))
-    return new Need(0,npc,bot.getWorldId(),0,6,Math.max(1,bot.getLevel()-5),Math.min(65,bot.getLevel()+5),target.getName());
-  }
+  var gear=gear(bot);if(gear!=null)return gear;
   // Chore quests and ordinary levelling are solo work: no help request.
   return null;
+ }
+
+ static final int HELP_LEVEL_REACH=10;
+ /** Field LFG requests are local: players accept the existing durable contract and lead the party to its target. */
+ static Need gear(Player bot) {
+  if(bot.isInInstance() || !com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.ECONOMY_ENABLED
+   || !com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.WORLD_GOALS_HELP_REQUESTS)return null;
+  PlayerBotWorldTravel.Place closest=null;double best=Double.POSITIVE_INFINITY;
+  for(int npc:PlayerBotGoalHunts.candidates(bot).help()) {
+   var target=DataManager.NPC_DATA.getNpcTemplate(npc);
+   // A party of the bot's level range (up to +5) can take a monster up to about ten levels above the bot, not more.
+   if(target==null || !hard(bot,npc) || target.getLevel()>bot.getLevel()+HELP_LEVEL_REACH)continue;
+   for(var place:PlayerBotWorldTravel.places(npc))if(place.map()==bot.getWorldId()) {
+    double distance=PositionUtil.getDistance(bot,place.x(),place.y(),place.z());
+    if(distance<best){best=distance;closest=place;}
+   }
+  }
+  if(closest==null)return null;
+  return new Need(0,closest.npc(),closest.map(),0,6,Math.max(1,bot.getLevel()-5),Math.min(65,bot.getLevel()+5),DataManager.NPC_DATA.getNpcTemplate(closest.npc()).getName(),true);
  }
 
  /** Worth asking for help: an elite/hero/legendary monster, or one clearly above the bot's level. */
@@ -262,6 +278,7 @@ final class PlayerBotGroupNeeds {
 
  static boolean unfinished(Player bot, Need need) {
   if (helping(need)) return true;
+  if (need.gear()) return bot.getWorldId()==need.map() && PlayerBotGoalHunts.candidates(bot).help().contains(need.npc());
   if (need.quest() > 0) {
    var state = bot.getQuestStateList().getQuestState(need.quest());
    return state != null && state.getStatus() == QuestStatus.START && !PlayerBotQuestMetadata.ready(bot, need.quest());

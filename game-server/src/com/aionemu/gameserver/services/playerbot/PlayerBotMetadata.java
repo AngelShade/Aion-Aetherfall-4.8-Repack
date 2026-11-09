@@ -24,12 +24,14 @@ public final class PlayerBotMetadata {
  public static boolean validAccount(int account){return PlayerBotPopulationPolicy.account(account);}
  public static void validate(int account,int character,String section,Map<String,String> map)throws IOException {
   try {
-   if(!validAccount(account) || character<=0 || !Set.of("profession","care","gear","preferences","behavior","formation","spacing","party-rewards","quest-completion","looks","pvp","population","growth","quest-practice","road-duty","loadouts","focus").contains(section))throw new IllegalArgumentException("Invalid section/owner");
+   if(!validAccount(account) || character<=0 || !Set.of("profession","care","gear","preferences","behavior","formation","spacing","party-rewards","quest-completion","looks","pvp","population","growth","quest-practice","road-duty","loadouts","focus","leaning").contains(section))throw new IllegalArgumentException("Invalid section/owner");
    if(Integer.parseInt(map.get("account"))!=account || Integer.parseInt(map.get("character"))!=character)throw new IllegalArgumentException("Owner mismatch");
    if(section.equals("profession")) {
     PlayerBotProfessions.validate(map);
    } else if(section.equals("focus")) {
     PlayerBotFocus.validate(map);
+   } else if(section.equals("leaning")) {
+    PlayerBotLeanings.validate(map);
    } else if(section.equals("road-duty")) {
     if(!PlayerBotPopulationPolicy.serverAccount(account))throw new IllegalArgumentException("Road careers require a generated global resident");
     PlayerBotRoadDuty.Career.valueOf(map.getOrDefault("career","NONE"));PlayerBotRoadDuty.Rank.valueOf(map.getOrDefault("rank","PEDDLER"));
@@ -124,6 +126,7 @@ public final class PlayerBotMetadata {
   var map=values(p);validate(account,character,section,map);Entry e=CACHE.get(new Key(character,section));
   if(e==null || e.account!=account)throw new IOException("Bot metadata was not loaded for this owner");
   if(section.equals("profession"))try{PlayerBotProfessions.validateUpdate(e.current,map);}catch(RuntimeException error){throw new IOException("Invalid bot profession update for character "+character,error);}
+  if(section.equals("leaning"))try{PlayerBotLeanings.validateUpdate(e.current,map);}catch(RuntimeException error){throw new IOException("Cannot replace an immutable bot leaning for character "+character,error);}
   if(section.equals("growth"))try{PlayerBotGrowth.validateUpdate(e.current,map);}
   catch(RuntimeException ex){throw new IOException("Cannot replace immutable bot growth traits",ex);}
   e.current=map; // equality with committed handles repeated identical saves; no file or SQL here.

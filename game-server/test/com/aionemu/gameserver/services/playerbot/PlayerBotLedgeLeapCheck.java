@@ -28,7 +28,7 @@ public final class PlayerBotLedgeLeapCheck {
  static void add(GeoMap map,Mesh mesh){var g=new Geometry("fixture",mesh);g.setTransform(new Matrix3f(),new Vector3f(),new Vector3f(1,1,1));g.updateModelBound();map.attachChild(g);map.updateModelBound();}
  static GeoMap map(Mesh...meshes){var map=new GeoMap(919);for(var m:meshes)add(map,m);return map;}
  static PlayerBotLedgeLeap.Escape run(GeoMap map,float x,float y,float z,float goalX,float goalY,PlayerBotLedgeLeap.Tier tier,boolean sealed,float minimumZ) {
-  var search=PlayerBotLedgeLeap.search(map,1,x,y,z,goalX,goalY,6,minimumZ,tier,sealed,7);
+  var search=PlayerBotLedgeLeap.search(map,1,x,y,z,goalX,goalY,6,minimumZ,tier,sealed,7,null);
   var escape=search.advance(Long.MAX_VALUE);
   check(search.done(),"an unbounded lease finishes the search");
   return escape;

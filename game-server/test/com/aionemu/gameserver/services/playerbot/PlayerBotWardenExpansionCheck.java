@@ -61,8 +61,10 @@ public final class PlayerBotWardenExpansionCheck {
  }
  private static void catalogue(Path work)throws Exception {
   var beats=PlayerBotWardenBeats.load(Path.of("game-server/config/playerbots/warden-beats.tsv"),m->null);
-  check(beats.size()==33,"Frozen catalogue retains thirty-three structurally valid beats");
-  check(beats.values().stream().map(b->b.route().map()).distinct().count()==12,"Frozen catalogue retains twelve maps");
+  check(beats.size()==48,"Catalogue holds 48 beats (8 Nov: + Cygnea 3, Enshar 1; Poeta and Altgard rebuilt through villages)");
+  check(beats.values().stream().map(b->b.route().map()).distinct().count()==14,"Catalogue covers fourteen maps");
+  check(beats.values().stream().filter(b->b.route().map()==210070000 && b.route().race()==com.aionemu.gameserver.model.Race.ELYOS).count()==3
+   && beats.values().stream().filter(b->b.route().map()==220080000 && b.route().race()==com.aionemu.gameserver.model.Race.ASMODIANS).count()==1,"The walker-less 4.x zones Cygnea and Enshar have Warden beats");
   check(beats.values().stream().noneMatch(b->b.route().map()==110010000 || b.route().map()==120010000),"Both capital maps produce zero catalogue beats");
   var spaces=PlayerBotWardenBeats.roadSpaces(beats);var lines=new ArrayList<String>();lines.add("beat\tlength\tcapacity\tspace\tsharedLength\tsharedCapacity");
   for(var b:new TreeMap<>(beats).values()) {

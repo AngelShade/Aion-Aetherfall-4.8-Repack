@@ -13,6 +13,8 @@ public final class PlayerBotActiveWorkerCheck {
  @SuppressWarnings("unchecked") public static void main(String[] args)throws Exception {PlayerBotMetadataCheck.defaults();PlayerBotMetadataCheck.dryWorld();
   // These inert active-bot fixtures have no native human-presence World.
   com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS=false;
+  // Nor any human to see them, so distance tiers would mark every fixture bot out of sight.
+  com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_DETAIL_TIERS=false;
   var worker=new PlayerBotBackgroundWork(4);var controlled=new PlayerBotBackgroundWork();
   var pool=Executors.newFixedThreadPool(5);var entered=new CountDownLatch(4);var release=new CountDownLatch(1);
   var completed=new AtomicInteger();var drainDone=new AtomicBoolean();Thread drain=null;

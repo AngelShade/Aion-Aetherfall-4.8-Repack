@@ -41,6 +41,7 @@ public final class PlayerBotStigmaBuilds {
  private static final Path FILE=Path.of("config","playerbots","stigma-builds.properties");
  private static volatile Map<PlayerClass,List<Build>> builds;
  private static volatile Map<String,String> names;
+ private static volatile Map<PlayerClass,List<Build>> worldBuilds;
 
  private static Map<PlayerClass,List<Build>> builds() {
   var loaded=builds;if(loaded!=null)return loaded;
@@ -64,6 +65,17 @@ public final class PlayerBotStigmaBuilds {
   }
  }
  public static List<Build> forClass(PlayerClass pc){return builds().getOrDefault(pc,List.of());}
+ /** A world bot's own build, the same on every server start and rebuild. World bots mostly fight monsters, so PvP builds are left out. */
+ static Build world(PlayerClass pc,int character) {
+  var map=worldBuilds;
+  if(map==null){
+   var built=new EnumMap<PlayerClass,List<Build>>(PlayerClass.class);
+   for(var pair:builds().entrySet())built.put(pair.getKey(),pair.getValue().stream().filter(b->!b.key().contains("pvp") && !b.name().contains("PvP")).toList());
+   worldBuilds=map=built;
+  }
+  var choices=map.getOrDefault(pc,List.of());
+  return choices.isEmpty() ? null : choices.get(Math.floorMod((character*0x9E3779B1)>>>16,choices.size()));
+ }
  public static Build find(PlayerClass pc,String key){for(var b:forClass(pc))if(b.key().equals(key))return b;return null;}
  /** Display name of a Stigma skill group: the name of its first normal (non-test) chargeable Stigma stone. */
  public static String groupName(String group) {

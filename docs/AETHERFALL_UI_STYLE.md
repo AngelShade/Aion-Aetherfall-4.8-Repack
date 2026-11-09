@@ -61,8 +61,12 @@ Use bounded texture sizes/frame counts, reuse static plates, change only the
 active frame, and stop finite effects when complete or when the screen closes.
 Move/fade a composed native panel as a group; its contents enter together.
 Do not stretch ornamental art or add branding bars to the recruitment reveal.
-Decoration colours do not imply a combined companion quality: Auto-equip and
-Combat rank are separate recorded results.
+Recruitment VFX now scale with the higher recorded Auto-equip/Combat rank roll:
+baseline (Poor/Ordinary), emerald Good `#8cf0a8`, azure Great `#79c8ff`, gold
+Excellent `#ffc96b`. This is a presentation tier, not a merged companion stat.
+Keep the first 18 charge frames identical, delay the tell, and retain separately
+labeled rolls. After the whole panel settles, stamp Gear then Rank using each
+roll's own colour/strength. Double Excellent adds one finite solar flourish.
 
 ## Companions window
 

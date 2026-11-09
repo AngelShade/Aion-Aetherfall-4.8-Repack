@@ -78,10 +78,22 @@ final class PlayerBotRifts {
   var rift=(RVController)portal.getController();
   navigation.stop();
   // Native controller rechecks the portal, level, race, range and capacity at entry.
-  boolean crossed=rift.enterPlayerBot(bot);portal=null;
-  if(crossed){visitUntil=now+PlayerBotConfig.PVP_RIFT_VISIT_MINUTES*60000L;saved.setProperty("visitUntil",""+visitUntil);rest(bot,now);}
-  return crossed;
+  // A failed entry (e.g. the rift not yet in a just-arrived bot's known list) retries until the travel timeout above.
+  int exit=rift.getSlave()==null?0:rift.getSlave().getObjectId();
+  boolean crossed=rift.enterPlayerBot(bot);if(crossed){portal=null;PlayerBotPvpStats.arrived(bot,exit,now);}
+  if(crossed){visitUntil=now+PlayerBotConfig.PVP_RIFT_VISIT_MINUTES*60000L;saved.setProperty("visitUntil",""+visitUntil);rest(bot,now);PlayerBotPvpStats.RIFT_CROSSED.incrementAndGet();}
+  // Still holding the rift: wait beside it rather than starting other work this tick.
+  return crossed || portal!=null;
  }
+ /** PvP-1: a bot staged beside an open rift on its own empty homeland is handed that rift.
+  * The normal walk above and the native enterPlayerBot (level, race, entries, range, sight) still decide. */
+ boolean invite(Player bot,Npc rift,long now) {
+  if(!enabled() || portal!=null || !eligible(bot,rift))return false;
+  load(bot,now);if(visitUntil>now)return false;
+  portal=rift;walkStarted=now;rallyUntil=now+PlayerBotConfig.PVP_RIFT_TRAVEL_SECONDS*1000L;rallyPortal=rift;return true;
+ }
+ /** On a rift visit in the enemy's lands. */
+ boolean visiting(long now){return enabled() && visitUntil>now;}
  Npc rally(){return rallyPortal;}
  long rallyUntil(){return rallyUntil;}
  private static boolean eligible(Player bot,Npc portal){return portal!=null && portal.isSpawned() && !portal.isDead()

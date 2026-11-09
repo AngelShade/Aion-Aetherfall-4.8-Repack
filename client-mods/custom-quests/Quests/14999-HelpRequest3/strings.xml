@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<strings>
+  <string>
+    <id>1801387</id>
+    <name>STR_QUEST_NAME_Q14999</name>
+    <body>Help Request</body>
+  </string>
+  <string>
+    <id>1801388</id>
+    <name>STR_AETHERFALL_HELP_PROGRESS_3</name>
+    <body>Join the requesting companion through Find Group. Confirmed objectives appear here.</body>
+  </string>
+</strings>

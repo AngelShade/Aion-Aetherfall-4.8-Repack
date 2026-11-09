@@ -52,15 +52,16 @@ stat families: `manastone_physical`, `manastone_magic`, `manastone_vitality`,
 Bundles & gifts includes `gift_boxes` and `travel_bundles`. Parent collections
 show all their subcategory offers. The sidebar reveals a collection's children
 when browsing it, and its landing page links directly to each child.
-`marketplace_cash.tsv` contains 2,336 Kinah offers covering 2,326 distinct item IDs.
+`marketplace_cash.tsv` contains 2,140 Kinah offers.
 Its convenience offers include 16 storage tickets, 84 instance entry
 scrolls, character service items, and 46 travel items. Adventure supplies
 includes 86 meals and drinks, 58 recovery offers, and 122 transformation candy
 offers. The recovery collection includes 20 instant Life, Mana, and Divine
 Serums across level tiers. Convenience includes 10 personal/group summoning
 stones for trade brokers, general goods merchants, and warehouse managers.
-The summoned NPC lasts five minutes. Gear upgrades includes 196 enchantment
-stones, 12 enchanting supplements, eight socketing aids, and 534 manastones
+The summoned NPC lasts five minutes. Gear upgrades includes 6 enchantment
+stones (Alpha to Epsilon and Omega; level stones, Stigma Shards and GM items were removed
+on player feedback, 9 Nov 2026, and `rebalance_catalog.py` keeps them out), 12 enchanting supplements, eight socketing aids, and 534 manastones
 across five stat families. The same item can appear in Featured and a regular
 collection; each listing is an offer for the same server item. The catalog has item-specific descriptions based on each
 template's name, type, and supported use action. Its detail page also shows

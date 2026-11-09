@@ -93,6 +93,10 @@ final class PlayerBotWorldPlacement {
  /** How far above its own level a bot may be sent to a camp. Every mob in a camp can aggro at once, and low characters have the least to spare. */
  static int campMargin(int level){return level<10?1:level<30?2:3;}
  static int campMinimum(int mob){for(int level=1;level<mob;level++)if(mob<=level+campMargin(level))return level;return Math.max(1,mob);}
+ /** Poeta and Ishalgen are for characters before Ascension. Camps there allowed a mob's level +10, so ascended level 10-19
+ * bots were placed and pulled beside new players (owner, 9 Nov). The starting map now stops at level 9. */
+ static final int ASCENSION_LEVEL=10;
+ static int starterMaximum(int maximum){return Math.min(ASCENSION_LEVEL-1,maximum);}
  static boolean suitable(Location p,Race race,int level,Set<Integer> enabled) {
   return p.race()==race && level>=p.minimum() && level<=p.maximum() && (enabled.isEmpty() || enabled.contains(p.map()));
  }
@@ -180,7 +184,7 @@ final class PlayerBotWorldPlacement {
    result.add(new Location(race,start.getMapId(),start.getX(),start.getY(),start.getZ(),1,5,false,true));
   }
   cache=result.stream().map(p->{int start=DataManager.PLAYER_INITIAL_DATA.getSpawnLocation(p.race()).getMapId();
-   return p.map()==start?p:new Location(p.race(),p.map(),p.x(),p.y(),p.z(),Math.max(10,p.minimum()),Math.max(10,p.maximum()),p.city(),p.hub());}).distinct().toList();
+   return p.map()==start?new Location(p.race(),p.map(),p.x(),p.y(),p.z(),p.minimum(),starterMaximum(p.maximum()),p.city(),p.hub()):new Location(p.race(),p.map(),p.x(),p.y(),p.z(),Math.max(10,p.minimum()),Math.max(10,p.maximum()),p.city(),p.hub());}).distinct().toList();
   var anchors=new HashMap<Integer,Location>();
   for(var p:cache)if(!anchors.containsKey(p.map()) || p.hub() && !anchors.get(p.map()).hub())anchors.put(p.map(),p);
   mapAnchors=Map.copyOf(anchors);return cache;
@@ -323,7 +327,7 @@ final class PlayerBotWorldPlacement {
   synchronized(scan){
   var membership=Set.copyOf(preferred);
   if(!scan.candidates.equals(membership)){scan.reset();scan.candidates=membership;}
-  int checked=0;long deadline=System.nanoTime()+20_000_000;
+  int checked=0;long deadline=System.nanoTime()+20_000_000;long now=System.currentTimeMillis();
   for(var p:preferred) {
    if(scan.tested.contains(p))continue;
    if(checked>=128 || System.nanoTime()>=deadline)break;
@@ -334,6 +338,13 @@ final class PlayerBotWorldPlacement {
    var worldMap=World.getInstance().getWorldMap(p.map());
    if(worldMap==null || worldMap.getMainWorldMapInstance().getRegion(p.x(),p.y(),z)==null)continue;
    if(occupiedLanding(p.map(),p.x(),p.y(),z))continue;
+   if(PlayerBotCampSafety.avoided(p.map(),p.x(),p.y(),level,now))continue;
+   if(PlayerBotCampSafety.dangerous(p.map(),p.x(),p.y(),z,race,level)) {
+    // A grind camp is a monster spawn point: land outside the pack's aggro range and let the bot pull.
+    var standoff=PlayerBotCampSafety.standoff(p.map(),p.x(),p.y(),z,race,level,landingGround(map,p,race,distribution,nearbyPresence?landingFocus:null),now);
+    if(standoff==null){PlayerBotCampSafety.DANGER_SKIPS.incrementAndGet();continue;}
+    scan.reset();return new Selection(new Location(p.race(),p.map(),standoff.x(),standoff.y(),standoff.z(),p.minimum(),p.maximum(),p.city(),p.hub()),"validated native camp standoff",checked,false);
+   }
    scan.reset();return new Selection(new Location(p.race(),p.map(),p.x(),p.y(),z,p.minimum(),p.maximum(),p.city(),p.hub()),"validated native camp",checked,false);
   }
   if(scan.tested.size()<membership.size())return new Selection(null,"native camp scan deferred at its work budget; next admission continues",checked,false);
@@ -353,7 +364,8 @@ final class PlayerBotWorldPlacement {
       && ground(map,point.x(),point.y(),p.z(),point.z()) && factionSide(race,p.map(),point.x(),point.y(),point.z()) && !nearHuman(p.map(),point.x(),point.y(),point.z())
       && distribution.clear(p.map(),point.x(),point.y(),point.z())
       && worldMap!=null && worldMap.getMainWorldMapInstance().getRegion(point.x(),point.y(),point.z())!=null
-      && GeoService.getInstance().isPlayerBotLanding(p.map(),1,point.x(),point.y(),point.z()) && !occupiedLanding(p.map(),point.x(),point.y(),point.z());
+      && GeoService.getInstance().isPlayerBotLanding(p.map(),1,point.x(),point.y(),point.z()) && !occupiedLanding(p.map(),point.x(),point.y(),point.z())
+      && !PlayerBotCampSafety.unsafe(p.map(),point.x(),point.y(),point.z(),race,level,now);
     }
    },scan.step,()->{if(probes[0]>=128 || System.nanoTime()>=deadline)return true;probes[0]++;return false;});
    if(point!=null){scan.reset();return new Selection(new Location(p.race(),p.map(),point.x(),point.y(),point.z(),p.minimum(),p.maximum(),p.city(),p.hub()),"validated nearby native camp",probes[0],false);}
@@ -363,6 +375,65 @@ final class PlayerBotWorldPlacement {
   boolean exhausted=scan.anchor>=scan.nearby.size();if(exhausted)scan.reset();
   return new Selection(null,exhausted?"current native camps rejected by ground, visibility or occupancy guards":"nearby native camp scan deferred at its work budget; next admission continues",probes[0],exhausted);
   }
+ }
+ /** The same native landing guards the nearby probe applies, for standoff points around a camp anchor. */
+ static PlayerBotCampSafety.Ground landingGround(WorldMapTemplate map,Location p,Race race,PlayerBotCampDistribution distribution,PlayerBotPopulationFocus.Snapshot focus) {
+  return new PlayerBotCampSafety.Ground(){
+   public float height(float x,float y,float sourceZ){return GeoService.getInstance().getZ(p.map(),x,y,sourceZ+6,sourceZ-8,1);}
+   public boolean valid(float x,float y,float z){
+    var worldMap=World.getInstance().getWorldMap(p.map());
+    return (focus==null || focus.nearby(p.map(),x,y,z)) && ground(map,x,y,z,z) && factionSide(race,p.map(),x,y,z) && !nearHuman(p.map(),x,y,z)
+     && (distribution==null || distribution.clear(p.map(),x,y,z)) && worldMap!=null && worldMap.getMainWorldMapInstance().getRegion(x,y,z)!=null
+     && GeoService.getInstance().isPlayerBotLanding(p.map(),1,x,y,z) && !occupiedLanding(p.map(),x,y,z);
+   }
+  };
+ }
+ /** Nearest landing on the bot's own map that strong aggressive monsters cannot reach, for a bot about to sleep or just revived. */
+ static Location nearestSafe(Player bot,int level) {
+  var map=DataManager.WORLD_MAPS_DATA.getTemplate(bot.getWorldId());if(map==null)return null;
+  long now=System.currentTimeMillis();long deadline=System.nanoTime()+20_000_000;
+  var own=locations().stream().filter(p->p.map()==bot.getWorldId() && suitable(p,bot.getRace(),level,Set.of()))
+   .sorted(Comparator.comparingDouble(p->PositionUtil.getDistance(bot,p.x(),p.y(),p.z()))).limit(24).toList();
+  for(var p:own) {
+   if(System.nanoTime()>=deadline)break;
+   float z=GeoService.getInstance().getZ(p.map(),p.x(),p.y(),p.z()+2,p.z()-4,1);
+   var guard=landingGround(map,p,bot.getRace(),null,null);
+   if(Float.isFinite(z) && guard.valid(p.x(),p.y(),z) && !PlayerBotCampSafety.unsafe(p.map(),p.x(),p.y(),z,bot.getRace(),level,now))
+    return new Location(p.race(),p.map(),p.x(),p.y(),z,p.minimum(),p.maximum(),p.city(),p.hub());
+   var standoff=PlayerBotCampSafety.standoff(p.map(),p.x(),p.y(),Float.isFinite(z)?z:p.z(),bot.getRace(),level,guard,now);
+   if(standoff!=null)return new Location(p.race(),p.map(),standoff.x(),standoff.y(),standoff.z(),p.minimum(),p.maximum(),p.city(),p.hub());
+  }
+  return null;
+ }
+ /** Own-faction service points per map (vendor, warehouse, teleporter camps); the camp list is an immutable startup cache. */
+ private static final Map<String,List<Location>> HUBS=new java.util.concurrent.ConcurrentHashMap<>();
+ static final float HUB_PARK_RADIUS=15;
+ private static final float[] HUB_RINGS={0,4,8};
+ static List<Location> hubs(Race race,int map){
+  return HUBS.computeIfAbsent(race+":"+map,k->locations().stream().filter(p->p.map()==map && p.race()==race && p.hub()).toList());
+ }
+ /** Standing at (or beside) a service point of its own faction, where a sleeping bot is safe. */
+ static boolean atHub(Player bot){
+  for(var p:hubs(bot.getRace(),bot.getWorldId()))if(PositionUtil.getDistance(bot,p.x(),p.y(),p.z())<=HUB_PARK_RADIUS)return true;
+  return false;
+ }
+ /** Nearest free spot at an own-faction service point: the hub itself, then rings of 4 and 8 m, each with the
+  * same native landing guard as a camp landing. Null when the 12 nearest hubs have no free ground. */
+ static Location nearestHub(Player bot) {
+  var map=DataManager.WORLD_MAPS_DATA.getTemplate(bot.getWorldId());if(map==null)return null;
+  var near=hubs(bot.getRace(),bot.getWorldId()).stream().sorted(Comparator.comparingDouble(p->PositionUtil.getDistance(bot,p.x(),p.y(),p.z()))).limit(12).toList();
+  long deadline=System.nanoTime()+20_000_000;
+  for(var p:near) {
+   var guard=landingGround(map,p,bot.getRace(),null,null);
+   for(float ring:HUB_RINGS)for(int step=0;step<(ring==0?1:8);step++) {
+    if(System.nanoTime()>=deadline)return null;
+    float x=p.x()+(float)(Math.cos(step*Math.PI/4)*ring),y=p.y()+(float)(Math.sin(step*Math.PI/4)*ring);
+    float z=GeoService.getInstance().getZ(p.map(),x,y,p.z()+2,p.z()-4,1);
+    if(Float.isFinite(z) && Math.abs(z-p.z())<=1.5f && guard.valid(x,y,z) && !occupiedLanding(p.map(),x,y,z))
+     return new Location(p.race(),p.map(),x,y,z,p.minimum(),p.maximum(),p.city(),true);
+   }
+  }
+  return null;
  }
  static boolean current(Location p){
   var map=DataManager.WORLD_MAPS_DATA.getTemplate(p.map());var world=World.getInstance().getWorldMap(p.map());

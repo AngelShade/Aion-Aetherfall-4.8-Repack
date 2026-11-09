@@ -23,12 +23,18 @@ public final class RemoteBrokerService {
 	public static void open(Player player) {
 		if (!player.isOnline() || player.isTrading())
 			return;
+		if (!BrokerService.enabled()) {
+			BrokerService.openCentralMarket(player);
+			return;
+		}
 		SESSIONS.put(player, System.nanoTime());
 		PacketSendUtility.sendPacket(player, new SM_DIALOG_WINDOW(player.getObjectId(), DialogPage.VENDOR.id()));
 	}
 
 	public static boolean canAccess(Player player, int brokerObjectId) {
 		if (player == null || !player.isOnline())
+			return false;
+		if (!BrokerService.enabled())
 			return false;
 		if (player.isTargetingNpcWithFunction(brokerObjectId, DialogAction.OPEN_VENDOR))
 			return true;

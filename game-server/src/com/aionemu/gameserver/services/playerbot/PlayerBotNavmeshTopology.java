@@ -11,11 +11,15 @@ import org.recast4j.detour.*;
 /** Compact, directed tile-component connectivity derived offline from actual Detour links.
  * It selects a journey; live tiled Detour and native movement still prove its steps. */
 final class PlayerBotNavmeshTopology {
+    private static final int MIN_GROUND_POLYGONS=64;
     private static final int MAGIC=0x50425431, VERSION=1;
     private static final int MAX_TILES=1_000_000, MAX_POLYS=20_000_000, MAX_EDGES=5_000_000;
     final int nx,ny,nodes;
     final int[] tiles,components,offsets,to;
     private final int[] nodeTiles;
+    // Derived once on the loader, never by a terrain-planner candidate. Only native
+    // walking arcs count: speculative jumps and lifts cannot make a slab usable.
+    private final int[] groundRegions,groundPolygons;
     final float[] portals; // source XYZ then destination XYZ, in Recast coordinates
     private PlayerBotAnimatedLinks animated;
     private PlayerBotRoadNetwork roads;
@@ -66,8 +70,19 @@ final class PlayerBotNavmeshTopology {
                 require(b>=0 && Math.abs(a%nx-b%nx)<=1 && Math.abs(a/nx-b/nx)<=1,"nonadjacent topology arc");
             }
         }
+        groundRegions=PlayerBotRoadNetwork.strongRegions(nodes,offsets,to);
+        groundPolygons=new int[nodes];
+        for(int component:components)if(component>=0)groundPolygons[groundRegions[component]]++;
     }
-    long bytes(){return 256L+routeCacheLimit+4L*(tiles.length+components.length+offsets.length+to.length+portals.length+nodeTiles.length)+(roads==null?0:roads.bytes());}
+    int groundRegion(int component){return component<0?-1:groundRegions[component];}
+    boolean usableGround(int component){
+        if(component<0)return false;
+        int region=groundRegions[component];
+        // Count the whole mutually walkable floor, not just this tile. Hubs and
+        // seam links alone prove nothing: even the 46-polygon Sanctum slab has them.
+        return groundPolygons[region]>=MIN_GROUND_POLYGONS;
+    }
+    long bytes(){return 256L+routeCacheLimit+4L*(tiles.length+components.length+offsets.length+to.length+portals.length+nodeTiles.length+groundRegions.length+groundPolygons.length)+(roads==null?0:roads.bytes());}
     int component(NavMesh mesh,long ref){
         var result=mesh.getTileAndPolyByRef(ref);if(result.failed())return -1;
         var tile=result.result.first.data;int x=tile.header.x,y=tile.header.y,p=result.result.second.index;

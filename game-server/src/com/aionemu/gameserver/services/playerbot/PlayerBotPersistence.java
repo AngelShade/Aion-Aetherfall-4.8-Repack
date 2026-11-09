@@ -86,6 +86,38 @@ final class PlayerBotPersistence {
 		var chronicle = com.aionemu.gameserver.services.AetherfallBoonService.prepareBotChronicleCheckpoint(bot);
 		var collection = PlayerBotCollectionRenown.prepare(bot);
 		var passProgress = com.aionemu.gameserver.services.SeasonPassService.pendingCompanionProgress(bot);
+		// A batch that lost a lock race (deadlock or lock wait) was rolled back whole and its items are
+		// dirty again, so one prompt retry of the same checkpoint is safe and saves a periodic interval.
+		for (int attempt = 1;; attempt++) {
+			try {
+				saveCheckpoint(bot, home, chronicle, collection, passProgress);
+				if (attempt > 1) SAVE_RETRIES_RECOVERED.incrementAndGet();
+				return;
+			} catch (SQLException e) {
+				if (attempt >= 2 || !lockRace(e)) throw e;
+				SAVE_RETRIES.incrementAndGet();
+				try { Thread.sleep(50 + java.util.concurrent.ThreadLocalRandom.current().nextInt(150)); }
+				catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); throw e; }
+			}
+		}
+	}
+
+	static final java.util.concurrent.atomic.AtomicLong SAVE_RETRIES = new java.util.concurrent.atomic.AtomicLong(), SAVE_RETRIES_RECOVERED = new java.util.concurrent.atomic.AtomicLong();
+
+	/** Legacy batch helpers log the driver error and return false, so the companion failure message is the signal. */
+	static boolean lockRace(Throwable e) {
+		for (Throwable t = e; t != null; t = t.getCause()) {
+			if (t instanceof java.sql.SQLTransactionRollbackException || t instanceof SQLException sql && ("40001".equals(sql.getSQLState()) || sql.getErrorCode() == 1213 || sql.getErrorCode() == 1205))
+				return true;
+			if ("Companion inventory transaction failed".equals(t.getMessage())) return true;
+		}
+		return false;
+	}
+
+	private static void saveCheckpoint(Player bot, Home home, com.aionemu.gameserver.services.AetherfallBoonService.BotChronicleCheckpoint chronicleCheckpoint, PlayerBotCollectionRenown.Checkpoint collectionCheckpoint, com.aionemu.gameserver.services.SeasonPassService.CompanionProgress passCheckpoint) throws SQLException {
+		var chronicle = chronicleCheckpoint;
+		var collection = collectionCheckpoint;
+		var passProgress = passCheckpoint;
 		// Several legacy DAOs catch their SQL errors and return success. For companions, every
 		// progress-table write must throw on failure so dismissal cannot release an unsaved character.
 		try (Connection connection = DatabaseFactory.getConnection()) {

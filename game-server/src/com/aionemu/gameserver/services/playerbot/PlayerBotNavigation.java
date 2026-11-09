@@ -13,7 +13,7 @@ import com.aionemu.gameserver.configs.main.PlayerBotConfig;
 /** Prepared ground corridors and owner breadcrumbs; native geometry proves every movement edge. */
 final class PlayerBotNavigation {
 	record Point(float x, float y, float z) {}
-	private enum Intent { TRAVEL, TRACK, FOLLOW, FOLLOW_TRAIL, EVADE }
+	enum Intent { TRAVEL, TRACK, FOLLOW, FOLLOW_TRAIL, EVADE }
 	private final Creature bot;
 	private final boolean worldMovement;
 	private final Deque<Point> trail = new ArrayDeque<>();
@@ -57,7 +57,9 @@ final class PlayerBotNavigation {
 	private boolean abandonGoal,goalLost,lost;
 	private final PlayerBotLedgeLeap.Budget leapBudget=new PlayerBotLedgeLeap.Budget();
 	private static final long LEAP_RETRY_MS=1000,GOAL_RETRY_MS=60000;
-	private static final java.util.concurrent.atomic.AtomicLong LEAP_LOG=new java.util.concurrent.atomic.AtomicLong();
+	private static final java.util.concurrent.atomic.AtomicLong LEAP_LOG=new java.util.concurrent.atomic.AtomicLong(),NO_LANDING_LOG=new java.util.concurrent.atomic.AtomicLong(),PACING_LOG=new java.util.concurrent.atomic.AtomicLong();
+	static long pacingEvents(){return PACING_LOG.get();}
+	private final PlayerBotMotionWatch motionWatch=new PlayerBotMotionWatch();
 	private Point localOrigin,localGoal,localBest,approachTargetPoint,approachDestination;
 	private java.util.List<PlayerBotHazards.Area> localHazards;
 	private double localScore;
@@ -246,7 +248,34 @@ final class PlayerBotNavigation {
 			&& PositionUtil.getDistance(publishedGoal.x(),publishedGoal.y(),publishedGoal.z(),goal.x(),goal.y(),goal.z())<.25
 			&& (retainCurrent() || PositionUtil.getDistance(bot,publishedDestination.x(),publishedDestination.y(),publishedDestination.z())>.75)
 			&& now-lastProgress<4000
+			&& !handoverDue(walkRouteOwned,route.size(),PositionUtil.getDistance(publishedDestination.x(),publishedDestination.y(),publishedDestination.z(),goal.x(),goal.y(),goal.z()),
+				Math.hypot(publishedDestination.x()-bot.getX(),publishedDestination.y()-bot.getY()),bot.getGameStats().getMovementSpeedFloat())
 			&& PlayerBotHazards.safePath(new Point(bot.getX(),bot.getY(),bot.getZ()),publishedDestination,hazards);
+	}
+	/** Owner, 9 Nov: a walk was published 6-12 m at a time and the mover stopped at the end of each piece, so bots
+	 * stopped and started every few metres and clients drew them snapping back. Plan the next piece while a few
+	 * metres of this one remain; only the real destination, or a corridor with more corners ahead, is walked out. */
+	static boolean handoverDue(boolean routeOwned,int routeSize,double destinationToGoal,double left,float speed) {
+		if(routeOwned && routeSize>1)return false;
+		if(destinationToGoal<.75)return false;
+		return left<handoverMetres(speed);
+	}
+	static double handoverMetres(float speed){return Math.max(1.5,Math.min(4,speed*.6));}
+	static final double SAME_JOURNEY_METRES=6,SAME_JOURNEY_FINISH_METRES=3;
+	/** A walk or chase to within a few metres of the spot this bot is already heading for keeps that journey; only the
+	 * last few metres follow the newest request exactly. Lifts, follows, roads and evasion keep their own handling. */
+	static boolean sameJourney(Intent current,Intent requested,Point routeGoal,Point requestedGoal,double botToRouteGoal) {
+		// Only a chase and a walk mixing: chases keep trackingGoal, and one walk changing its goal is a real new goal.
+		if(current==null || routeGoal==null || requestedGoal==null || current==requested)return false;
+		if((current!=Intent.TRACK && current!=Intent.TRAVEL) || (requested!=Intent.TRACK && requested!=Intent.TRAVEL))return false;
+		return Math.hypot(requestedGoal.x()-routeGoal.x(),requestedGoal.y()-routeGoal.y())<=SAME_JOURNEY_METRES
+			&& Math.abs(requestedGoal.z()-routeGoal.z())<=2 && botToRouteGoal>SAME_JOURNEY_FINISH_METRES;
+	}
+	/** A supported jump or drop is for a height change, or a gap straight ahead. Walking already failed here, so a
+	 * hop on the same floor off to the side is only a sidestep that the next turn reverses (the "bouncing" of 9 Nov). */
+	static boolean usefulHop(int offset,float startZ,float endZ,double before,double after) {
+		if(Math.abs(endZ-startZ)>.75f)return true;
+		return Math.abs(offset)<=30 && before-after>=1;
 	}
 	private void prefetchAhead(Point goal,long now) {
 		if(!partialRoute || route.isEmpty() || routeSearch!=null)return;
@@ -622,6 +651,14 @@ final class PlayerBotNavigation {
 		return move(targetX,targetY,targetZ,firingIntent,intent,false);
 	}
 	private boolean move(float targetX,float targetY,float targetZ,boolean firingIntent,Intent intent,boolean roadIntent) {
+		// Two actions heading for the same spot (a quest step walking to an NPC, world travel to that NPC's place)
+		// took turns and each reset the route, pulling the bot back several times a second (owner, 9 Nov).
+		if(!roadIntent && routeGoal!=null && routeWorld==bot.getWorldId() && routeInstance==bot.getInstanceId() && Float.isFinite(targetX)
+			&& sameJourney(routeIntent,intent,routeGoal,new Point(targetX,targetY,targetZ),PositionUtil.getDistance(bot,routeGoal.x(),routeGoal.y(),routeGoal.z())))
+			return moveTo(routeGoal.x(),routeGoal.y(),routeGoal.z(),firingIntent,routeIntent,false);
+		return moveTo(targetX,targetY,targetZ,firingIntent,intent,roadIntent);
+	}
+	private boolean moveTo(float targetX,float targetY,float targetZ,boolean firingIntent,Intent intent,boolean roadIntent) {
 		if(!roadIntent)cancelTicket(roadSearchToken);
 		routeFailure=false;
 		syncWalk();
@@ -646,6 +683,10 @@ final class PlayerBotNavigation {
 		}
 		Point goal = trackingGoal(new Point(targetX,targetY,targetZ),intent,now);
 		targetX=goal.x();targetY=goal.y();targetZ=goal.z();
+		if(com.aionemu.gameserver.configs.main.PlayerBotWardenConfig.ENABLED && bot instanceof Player warden && !PlayerBotRoadDuty.permitsGoal(warden,targetX,targetY,targetZ)) {
+			cancelTicket(searchToken);cancelTicket(heightSearchToken);cancelTicket(localSearchToken);stopMovement();
+			routeFailure=true;status="destination is off the warden's beat";return false;
+		}
 		// An early advisory callback owns no new movement turn. Preserve only the
 		// same fresh, registered planning intent; an orphan search is not an action.
 		if (now < nextMove && routeIntent==intent && routeGoal!=null
@@ -665,6 +706,19 @@ final class PlayerBotNavigation {
 		// A goal that has already thrown this bot off a ledge twice is not reachable from here.
 		if(abandonGoal){abandonGoal=false;stop();routeFailure=true;status="goal unreachable after leaping clear";return false;}
 		if(ledgeEscape(actualPosition,goal,goalDistance,now))return true;
+		// Pacing on one spot (owner, 9 Nov): give this destination up so the planner picks another, and log what
+		// the bot was doing so the cause can be found from the log.
+		if(intent!=Intent.TRAVEL)motionWatch.clear();
+		else if(motionWatch.observe(now,bot.getWorldId(),bot.getX(),bot.getY(),goalDistance)) {
+			String was=status;
+			if(PACING_LOG.getAndIncrement()%20==0)org.slf4j.LoggerFactory.getLogger(PlayerBotNavigation.class).info(
+				"Playerbot pacing #{}: {} on map {} at {} {} {} paced on one spot {} m from its goal while '{}'; trying another goal",
+				PACING_LOG.get(),bot.getName(),bot.getWorldId(),(int)bot.getX(),(int)bot.getY(),(int)bot.getZ(),(int)goalDistance,was);
+			if(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover && mover.traceAfterPacing(now))
+				org.slf4j.LoggerFactory.getLogger(PlayerBotNavigation.class).info("Playerbot pacing: tracing {} moves for 20 s ({} {} {}, goal {} {} {})",
+					bot.getName(),(int)bot.getX(),(int)bot.getY(),(int)bot.getZ(),(int)goal.x(),(int)goal.y(),(int)goal.z());
+			stop();routeFailure=true;status="stuck pacing; trying another goal";return false;
+		}
 		meshJourney.bind(bot.getWorldId(),goal);
 		meshJourney.observe(new Point(bot.getX(),bot.getY(),bot.getZ()));
 		if(bot instanceof Player player && player.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover){
@@ -909,7 +963,9 @@ final class PlayerBotNavigation {
 					var plan=heightSearch.advance(deadline);
 					if(!heightSearch.done())break;
 					heightSearch=null;heightCursor++;
-					if(plan==null || now<noClimbUntil && plan.endZ()>bot.getZ()+.3f || PositionUtil.getDistance(x,y,plan.endZ(),targetX,targetY,targetZ)>=localGoalDistance-.4
+					if(plan==null || now<noClimbUntil && plan.endZ()>bot.getZ()+.3f
+						|| !usefulHop(offset,bot.getZ(),plan.endZ(),localGoalDistance,PositionUtil.getDistance(x,y,plan.endZ(),targetX,targetY,targetZ))
+						|| PositionUtil.getDistance(x,y,plan.endZ(),targetX,targetY,targetZ)>=localGoalDistance-.4
 						&& !(descending && plan.endZ()<bot.getZ()-1.25f && Math.abs(plan.endZ()-targetZ)<Math.abs(bot.getZ()-targetZ)-1.25f))continue;
 					boolean safe=true;Point previous=new Point(plan.x(),plan.y(),plan.z());
 					for(int sample=1;sample<=32;sample++){var p=plan.at(plan.seconds()*sample/32);Point next=new Point(p.x,p.y,p.z);
@@ -985,7 +1041,8 @@ final class PlayerBotNavigation {
 		if(leapBudget.spent(now) && leapsLimited(player)) {
 			// Each leap only takes a lost bot further down. The planner moves it to a fresh camp instead.
 			clearLeapSearch();ledgeStall.clear();goalLost=abandonGoal=true;
-			if(movable(player)){leapBudget.clear();lost=true;}
+			// The spent budget stands until its window ends, so a bot that cannot be moved yet does not start leaping again.
+			if(movable(player))lost=true;
 			return false;
 		}
 		if(leapSearch==null || leapTier!=tier) {
@@ -994,7 +1051,7 @@ final class PlayerBotNavigation {
 			float speed=com.aionemu.gameserver.utils.stats.StatFunctions.adjustStatByMovementModifier(player,
 				com.aionemu.gameserver.model.stats.container.StatEnum.SPEED,player.getGameStats().getMovementSpeedFloat());
 			var template=com.aionemu.gameserver.dataholders.DataManager.WORLD_MAPS_DATA.getTemplate(player.getWorldId());
-			leapTier=tier;
+			clearLeapSearch();leapTier=tier;
 			leapSearch=GeoService.getInstance().searchPlayerBotLedgeLeap(player.getWorldId(),player.getInstanceId(),at.x(),at.y(),at.z(),goal.x(),goal.y(),speed,
 				PlayerBotWater.minimumZ(player),tier,template!=null && template.isInstance(),player.getObjectId());
 		}
@@ -1006,6 +1063,15 @@ final class PlayerBotNavigation {
 			clearLeapSearch();
 			if(escape==null) {
 				nextLeapSearch=now+LEAP_RETRY_MS;
+				// A bot in a pit has only ground above it, and the move to open ground never goes up.
+				// Like a spent leap budget, the planner moves it to a fresh camp instead of retrying forever.
+				if(tier==PlayerBotLedgeLeap.Tier.RELOCATE && leapsLimited(player) && movable(player)) {
+					ledgeStall.clear();goalLost=abandonGoal=true;lost=true;
+					if(NO_LANDING_LOG.getAndIncrement()%50==0)
+						org.slf4j.LoggerFactory.getLogger(PlayerBotNavigation.class).info("Playerbot ledge escape found no ground #{}: {} on map {} at {} {} {} goes to a field camp",
+							NO_LANDING_LOG.get(),player.getName(),player.getWorldId(),at.x(),at.y(),at.z());
+					return false;
+				}
 				// Nowhere open within reach: wait out another full cycle, not a search every second.
 				if(tier==PlayerBotLedgeLeap.Tier.RELOCATE)ledgeStall.rewind(now,PlayerBotLedgeLeap.GHOST_MS);
 				return false;
@@ -1038,7 +1104,7 @@ final class PlayerBotNavigation {
 	private static boolean leapsLimited(Player player){return PlayerBotPopulationManager.global(player) && player.getPlayerGroup()==null && !player.isInAlliance() && !player.isInInstance();}
 	private static boolean settled(int map,Point at){return map==110010000 || map==120010000 || !PlayerBotWardenBeats.field(map,at.x(),at.y(),at.z());}
 	private static boolean movable(Player player){return !PlayerBotRoadDuty.assigned(player) && !PlayerBotFindGroup.committed(player);}
-	private void clearLeapSearch(){cancelTicket(leapSearchToken);leapSearch=null;leapTier=PlayerBotLedgeLeap.Tier.NONE;}
+	private void clearLeapSearch(){cancelTicket(leapSearchToken);if(leapSearch!=null)leapSearch.close();leapSearch=null;leapTier=PlayerBotLedgeLeap.Tier.NONE;}
 	private void discardLookahead() { if(lookahead){cancelTicket(searchToken);clearSearch();lookahead=false;} }
 	private boolean prepareJump(Player player,com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover,
 		PlayerBotRoadNetwork.Jump jump,Point origin,double goalDistance,long now) {

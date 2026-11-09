@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Screen widget_cnt="0">
+  <Dialog name="BrokerSwapTimer" frame="0,0,1,1" preset="v5_dialog" flag="not_visible">
+    <Scripts>
+      <OnLoad>BrokerSwap_OnLoad();</OnLoad>
+      <OnEvent>BrokerSwap_OnEvent(event);</OnEvent>
+    </Scripts>
+  </Dialog>
+</Screen>

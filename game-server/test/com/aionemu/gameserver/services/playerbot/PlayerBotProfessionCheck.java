@@ -86,11 +86,12 @@ public final class PlayerBotProfessionCheck {
   PlayerBotProfessions.validateUpdate(row(30002,"hoarder"),row(30002,"hoarder"));checks++;
   refused(()->PlayerBotProfessions.validateUpdate(row(30002,"hoarder"),row(30003,"hoarder")),"a saved trade cannot change");
   refused(()->PlayerBotProfessions.validateUpdate(row(30002,"hoarder"),row(30002,"regular")),"a saved style cannot change");
-  // Source contract: sleeping bots never navigate, and the old starvation and tether gates stay fixed.
+  // Sleeping work stays independent of movement; awake work shares the same ledger.
   var services=Path.of(args[0],"src/com/aionemu/gameserver/services/playerbot");
   for(String file:List.of("PlayerBotProfessions.java","PlayerBotProfessionPolicy.java","PlayerBotProfessionCatalog.java","PlayerBotProfessionMarket.java")) {
    var text=Files.readString(services.resolve(file));
-   check(!text.contains("navigation") && !text.contains("PlayerBotNavigation") && !text.contains("PlayerBotWorldTravel.Decision"),file+" never moves a bot");
+   if(file.equals("PlayerBotProfessions.java"))text=text.substring(text.indexOf("static void dormantTurn("),text.indexOf("private static boolean work("));
+   check(!text.contains("navigation") && !text.contains("PlayerBotNavigation") && !text.contains("PlayerBotWorldTravel.Decision"),file+" keeps dormant work independent of travel");
   }
   var session=Files.readString(services.resolve("PlayerBotSession.java"));var market=Files.readString(services.resolve("PlayerBotMarket.java"));
   check(session.contains("if(!worldActivity()){if(worldDormant)PlayerBotProfessions.dormantTurn(this,"),"dormant decisions reach the bounded worker");

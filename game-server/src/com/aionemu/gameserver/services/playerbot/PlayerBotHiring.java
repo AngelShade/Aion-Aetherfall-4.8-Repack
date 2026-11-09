@@ -48,14 +48,27 @@ public final class PlayerBotHiring {
   if(bot==null || !bot.isWorldBot())throw new IllegalArgumentException("Choose an available world helper of your faction.");
   return bot;
  }
+ /** Owner, 9 Nov: one catch-all sentence ("road residents and committed groups keep their current work") did not say
+  * why a bot refused. Each reason now gets its own plain answer; null means the bot can be hired. */
+ static String unavailableReason(boolean ownerUnavailable,boolean otherFaction,boolean botUnavailable,boolean grouped,boolean busy,
+  boolean roadDuty,boolean findGroup,String name) {
+  if(ownerUnavailable)return "You can't hire a helper right now.";
+  if(otherFaction)return "You can only hire helpers of your own faction.";
+  if(botUnavailable)return name+" can't be hired right now.";
+  if(roadDuty)return name+" is on duty guarding or trading on the road and won't leave it to join you.";
+  if(findGroup)return name+" has already promised to help another group.";
+  if(grouped)return name+" is already in a group.";
+  if(busy)return name+" is busy right now. Try again in a moment.";
+  return null;
+ }
  private static PlayerBotSession available(Player owner,Player bot,boolean confirm) {
   var service=PlayerBotService.getInstance();var actor=service.currentActor(bot);
   if(!PlayerBotEconomyConfig.HIRING_ENABLED || !PlayerBotConfig.ENABLED || !PlayerBotConfig.WORLD_ENABLED || GameServer.isShuttingDownSoon())
    throw new IllegalArgumentException("World-helper hiring is unavailable.");
-  if(owner.isPlayerBot() || !owner.isOnline() || !owner.isSpawned() || owner.getClientConnection()==null || actor==null || !actor.autonomous()
-   || owner.getRace()!=bot.getRace() || bot.isDead() || !bot.isSpawned() || bot.isInTeam() || bot.isTrading() || bot.getFlightPath()!=null
-   || PlayerBotRoadDuty.assigned(bot) || PlayerBotFindGroup.committed(bot))
-   throw new IllegalArgumentException("Choose a free living helper of your faction. Road residents and committed groups keep their current work.");
+  String busy=unavailableReason(owner.isPlayerBot() || !owner.isOnline() || !owner.isSpawned() || owner.getClientConnection()==null,
+   owner.getRace()!=bot.getRace(),actor==null || !actor.autonomous() || bot.isDead() || !bot.isSpawned(),bot.isInTeam(),
+   bot.isTrading() || bot.getFlightPath()!=null,PlayerBotRoadDuty.assigned(bot),PlayerBotFindGroup.committed(bot),bot.getName());
+  if(busy!=null)throw new IllegalArgumentException(busy);
   if(confirm && !PlayerBotWarehouse.idle(owner))
    throw new IllegalArgumentException("Hire while you are alive, on the ground and outside combat, casting, trade, looting and item use.");
   // Helpers are nearly always busy and join fights already under way; only their inventory must hold still.
@@ -270,7 +283,7 @@ public final class PlayerBotHiring {
   if(!session.world() || session.autonomous())return false;
   var term=ACTIVE.get(session.bot().getObjectId());
   boolean ended=term!=null ? term.owner()!=session.owner().getObjectId() || term.ends()<=now || !session.owner().isOnline() || !PlayerBotTeams.same(session.owner(),session.bot())
-   : !PlayerBotFindGroup.freeHelpControl(session.owner(),session.bot());
+   : !PlayerBotFindGroup.freeHelpControl(session.owner(),session.bot()) && !PlayerBotFindGroup.holdsForRelog(session.owner(),session.bot(),now);
   var bot=session.bot();
   boolean safe=!bot.isCasting() && !bot.isLooting() && !bot.isTrading() && !bot.isFlying() && bot.getFlightPath()==null
    && !bot.getController().isInCombat() && !bot.getController().hasScheduledTask(TaskId.ITEM_USE)

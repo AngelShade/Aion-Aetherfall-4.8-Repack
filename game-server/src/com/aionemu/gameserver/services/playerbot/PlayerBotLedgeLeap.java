@@ -1,5 +1,9 @@
 package com.aionemu.gameserver.services.playerbot;
 
+import org.recast4j.detour.DefaultQueryFilter;
+import org.recast4j.detour.NavMesh;
+import org.recast4j.detour.NavMeshQuery;
+
 import com.aionemu.gameserver.geoEngine.math.Vector3f;
 import com.aionemu.gameserver.geoEngine.models.GeoMap;
 
@@ -63,7 +67,7 @@ public final class PlayerBotLedgeLeap {
  public record Escape(Landing landing,PlayerBotHeightTraversal.Plan plan) {}
 
  /** Retains its place across terrain slices, as a stuck crowd must not stall the planning thread. */
- public static final class Search {
+ public static final class Search implements AutoCloseable {
   private final GeoMap map;
   private final int instance;
   private final float x,y,z,speed,minimumZ;
@@ -72,9 +76,19 @@ public final class PlayerBotLedgeLeap {
   private final double start;
   private final int total;
   private int cursor;
+  private final PlayerBotNavmeshStore store;
+  private PlayerBotNavmeshStore.Request topologyRequest,meshRequest;
+  private PlayerBotNavmeshStore.Lease meshLease;
+  private PlayerBotNavmeshTopology graph;
+  private NavMesh mesh;
+  private NavMeshQuery query;
+  private int originRegion=-1,originIsland=-1;
+  private boolean prepared,columnPending;
+  private float columnTop=Float.NaN;
   private Escape best;
   private boolean done;
-  private Search(GeoMap map,int instance,float x,float y,float z,float goalX,float goalY,float speed,float minimumZ,Tier tier,boolean sealedMap,int seed) {
+  private Search(GeoMap map,int instance,float x,float y,float z,float goalX,float goalY,float speed,float minimumZ,Tier tier,boolean sealedMap,int seed,PlayerBotNavmeshStore store) {
+   this.store=tier==Tier.RELOCATE && !sealedMap?store:null;
    this.map=map;this.instance=instance;this.x=x;this.y=y;this.z=z;this.speed=speed;this.minimumZ=minimumZ;this.tier=tier;this.sealedMap=sealedMap;
    // Goalward first. The seed spreads a crowd over different landings so it does not pile up again below.
    double toward=Float.isFinite(goalX) && Float.isFinite(goalY) && Math.hypot(goalX-x,goalY-y)>.5?Math.atan2(goalY-y,goalX-x):Math.floorMod(seed,DIRECTIONS)*2*Math.PI/DIRECTIONS;
@@ -86,13 +100,17 @@ public final class PlayerBotLedgeLeap {
   public boolean done(){return done;}
   public Escape result(){return best;}
   public Escape advance(long deadline) {
+   if(done)return best;
+   if(System.nanoTime()>=deadline || !prepare(deadline))return null;
    while(!done && cursor<total && System.nanoTime()<deadline) {
-    int index=cursor++;
-    Escape found=tier==Tier.RELOCATE?ring(index):leap(index);
+    int index=cursor;
+    Escape found=tier==Tier.RELOCATE?ring(index,deadline):leap(index);
+    if(tier!=Tier.RELOCATE || !columnPending)cursor++;
     if(found!=null && (best==null || found.landing().open() && !best.landing().open()))best=found;
     if(best!=null && best.landing().open())done=true;
    }
    if(cursor>=total)done=true;
+   if(done)close();
    return done?best:null;
   }
   /** Sweep near-to-far on each side in turn, alternating left and right of the goal. */
@@ -113,17 +131,84 @@ public final class PlayerBotLedgeLeap {
    }
    return null;
   }
-  private Escape ring(int index) {
+  /** Polling never reads files or waits for the loader. The request pins immutable
+   * topology/tiles; this search alone owns the mutable Detour query. */
+  private boolean prepare(long deadline) {
+   if(prepared)return true;
+   if(store==null){prepared=true;return true;}
+   if(topologyRequest==null)topologyRequest=store.requestTopology(map.getMapId());
+   var topology=topologyRequest.poll();
+   if(topology.status()==PlayerBotNavmeshStore.Status.WAITING)return false;
+   if(topology.status()==PlayerBotNavmeshStore.Status.UNAVAILABLE){geometryOnly();return true;}
+   graph=topology.lease().topology();
+   if(System.nanoTime()>=deadline)return false;
+   // Reuse a resident window if its apron covers all ring points and polygon
+   // extents. Otherwise request one bounded window asynchronously for this search.
+   if(meshLease==null && meshRequest==null)meshLease=store.resident(map.getMapId(),x-65,y-65,x+65,y+65);
+   if(meshLease==null) {
+    if(meshRequest==null)meshRequest=store.request(map.getMapId(),x,y,2);
+    var access=meshRequest.poll();
+    if(access.status()==PlayerBotNavmeshStore.Status.WAITING)return false;
+    if(access.status()==PlayerBotNavmeshStore.Status.UNAVAILABLE){geometryOnly();return true;}
+    meshLease=access.lease();
+   }
+   if(System.nanoTime()>=deadline)return false;
+   mesh=meshLease.mesh();query=new NavMeshQuery(mesh);
+   int component=component(x,y,z);
+   if(graph.usableGround(component))originRegion=graph.groundRegion(component);
+   else if(component>=0)originIsland=graph.groundRegion(component);
+   prepared=true;return true;
+  }
+  private void geometryOnly(){release();graph=null;prepared=true;}
+  private int component(float x,float y,float z) {
+   var nearest=query.findNearestPoly(new float[]{x,z,y},new float[]{1,.75f,1},new DefaultQueryFilter());
+   if(nearest.failed() || nearest.result.getNearestRef()==0)return -1;
+   float[] at=nearest.result.getNearestPos();
+   // Detour includes walkableClimb in nearest-poly scoring; enforce the actual floor.
+   if(Math.abs(at[1]-z)>.75f || Math.hypot(at[0]-x,at[2]-y)>1)return -1;
+   return graph.component(mesh,nearest.result.getNearestRef());
+  }
+  private Escape ring(int index,long deadline) {
    float[] rings=rings();
    double radians=angle(index%DIRECTIONS);float radius=rings[index/DIRECTIONS];
    float tx=x+(float)Math.cos(radians)*radius,ty=y+(float)Math.sin(radians)*radius;
-   float floor=PlayerBotGroundSupport.floor(map,instance,tx,ty,z+24,z-200);
-   if(!Float.isFinite(floor) || floor<minimumZ || !PlayerBotGroundNavigation.landing(map,instance,tx,ty,floor))return null;
-   return new Escape(new Landing(tx,ty,floor,true),null);
+   float bottom=Math.max(minimumZ,z+3-MAX_DROP);
+   if(!Float.isFinite(columnTop))columnTop=z+3;
+   columnPending=true;
+   while(columnTop>=bottom) {
+    if(System.nanoTime()>=deadline)return null;
+    float floor=PlayerBotGroundSupport.floor(map,instance,tx,ty,columnTop,bottom);
+    if(!Float.isFinite(floor) || floor<bottom)break;
+    columnTop=floor-.5f;
+    int component=graph==null?-1:component(tx,ty,floor);
+    boolean usable=graph!=null && graph.usableGround(component);
+    boolean open=PlayerBotGroundNavigation.landing(map,instance,tx,ty,floor);
+    if(open && (graph==null || usable && (originRegion<0 || originRegion==graph.groundRegion(component)))) {
+     columnPending=false;columnTop=Float.NaN;
+     return new Escape(new Landing(tx,ty,floor,true),null);
+    }
+    // Bypass only blocked parts of the small island carrying this stranded bot.
+    // An open isolated platform can be a real roof; even connected ground can run
+    // under a street. Missing polygons never prove a slab. Try another XY there.
+    if(graph==null || component<0 || usable || open || originIsland!=graph.groundRegion(component))break;
+   }
+   columnPending=false;columnTop=Float.NaN;return null;
+  }
+  @Override public void close(){release();done=true;}
+  private void release() {
+   query=null;mesh=null;
+   if(meshRequest!=null){meshRequest.close();meshRequest=null;}
+   if(meshLease!=null){meshLease.close();meshLease=null;}
+   if(topologyRequest!=null){topologyRequest.close();topologyRequest=null;}
   }
  }
  public static Search search(GeoMap map,int instance,float x,float y,float z,float goalX,float goalY,float speed,float minimumZ,Tier tier,boolean sealedMap,int seed) {
-  return new Search(map,instance,x,y,z,goalX,goalY,speed,minimumZ,tier,sealedMap,seed);
+  var store=tier==Tier.RELOCATE && !sealedMap && map!=null && com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_ENABLED
+   ?PlayerBotMeshRoute.relocationStore():null;
+  return search(map,instance,x,y,z,goalX,goalY,speed,minimumZ,tier,sealedMap,seed,store);
+ }
+ static Search search(GeoMap map,int instance,float x,float y,float z,float goalX,float goalY,float speed,float minimumZ,Tier tier,boolean sealedMap,int seed,PlayerBotNavmeshStore store) {
+  return new Search(map,instance,x,y,z,goalX,goalY,speed,minimumZ,tier,sealedMap,seed,store);
  }
 
  /** The ground a body dropped into this column ends up on, sliding off anything too steep to stand on. */

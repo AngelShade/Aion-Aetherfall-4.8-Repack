@@ -23,32 +23,37 @@ final class PlayerBotLoadouts {
  enum Status {SAVED,HELD,MISSING,GAP,AUTO}
  record Target(ItemTemplate item,List<LootCodexService.Acquisition> sources) {}
  record Row(ItemSlot slot,Item worn,String saved,Status status,Target goal) {}
- private record Key(PlayerClass pc,Race race,Gender gender,Role role,String weapon,boolean dual,String armor,int stage,PlayerBotStigmaBuilds.Build build) {}
+ record Key(PlayerClass pc,Race race,Gender gender,Role role,String weapon,boolean dual,String armor,int stage,PlayerBotStigmaBuilds.Build build) {}
  private static final Map<Key,Map<ItemSlot,Target>> TARGETS=new ConcurrentHashMap<>();
  private static volatile Object loaded;
 
  /** The best verified item reachable by the end of a stage, cached with its scoring strategy and native restrictions. */
  static Map<ItemSlot,Target> targets(Player bot,Role role) {
   if(loaded!=DataManager.ITEM_DATA){TARGETS.clear();loaded=DataManager.ITEM_DATA;}
-  var key=new Key(bot.getPlayerClass(),bot.getRace(),bot.getGender(),role,PlayerBotGearPolicy.settings(bot).weapon(),com.aionemu.gameserver.skillengine.effect.WeaponDualEffect.hasDualWieldEffect(bot),
-   PlayerBotBuildRules.armor(bot.getPlayerClass(),bot.getSkillList()::isSkillPresent),PlayerBotStigmaBuilds.stage(bot.getLevel()),PlayerBotGearPolicy.stigmaBuild(bot));
-  return TARGETS.computeIfAbsent(key,k->compute(bot,k));
+  return TARGETS.computeIfAbsent(key(bot,role),k->compute(bot,k));
  }
- private static boolean listed(ItemTemplate t,Key k,int top) {
+ static Key key(Player bot,Role role) {
+  return new Key(bot.getPlayerClass(),bot.getRace(),bot.getGender(),role,PlayerBotGearPolicy.settings(bot).weapon(),com.aionemu.gameserver.skillengine.effect.WeaponDualEffect.hasDualWieldEffect(bot),
+   PlayerBotBuildRules.armor(bot.getPlayerClass(),bot.getSkillList()::isSkillPresent),PlayerBotStigmaBuilds.stage(bot.getLevel()),PlayerBotGearPolicy.stigmaBuild(bot));
+ }
+ static boolean listed(ItemTemplate t,Key k,int top) {
   if(!PlayerBotCombatGear.usable(t) || com.aionemu.gameserver.services.ItemEligibility.isAppearanceOnly(t) || !(t.isWeapon() || t.isArmor()) || t.getItemSlot()==0 || ItemSlot.isStigma(t.getItemSlot()) || !t.isClassSpecific(k.pc))return false;
   int required=t.getRequiredLevel(k.pc),max=t.getMaxLevelRestrict(k.pc);var limits=t.getUseLimits();
   return required>=0 && required<=top && t.getLevel()<=top && (max==0 || max>=k.stage) && (t.getRace()==Race.PC_ALL || t.getRace()==k.race) && (limits.getGenderPermitted()==null || limits.getGenderPermitted()==k.gender)
    && t.getExpireTime()==0 && !t.hasWorldRestrictions() && limits.getMinRank()==1 && limits.getGuildLevelPermitted()==0 && t.getItemGroup()!=ItemGroup.WING && t.getItemGroup()!=ItemGroup.PLUME
    && (!t.getItemGroup().name().matches("(PL|CH|LT|RB)_(TORSO|GLOVE|SHOULDER|PANTS|SHOES)") || t.getItemGroup().name().startsWith(k.armor));
  }
- private static boolean fits(ItemTemplate t,ItemSlot slot,Key k,ItemGroup weapon) {
+ static boolean fits(ItemTemplate t,ItemSlot slot,Key k,ItemGroup weapon) {
   if(slot==ItemSlot.MAIN_HAND)return t.isWeapon() && t.getItemGroup()==weapon;
   if(slot==ItemSlot.SUB_HAND)return PlayerBotTemporary.offHandShield(k.pc,k.role) ? t.getItemGroup()==ItemGroup.SHIELD : k.dual && t.isOneHandWeapon() && t.getItemGroup()==weapon;
   return !t.isWeapon() && t.getItemGroup()!=ItemGroup.SHIELD && (t.getItemSlot() & slot.getSlotIdMask())!=0 && (Long.bitCount(t.getItemSlot())==1 || t.getItemGroup()==ItemGroup.EARRING || t.getItemGroup()==ItemGroup.RING);
  }
+ static ItemGroup weapon(Key k) {
+  return k.weapon.equals("AUTO") ? PlayerBotTemporary.preferredWeapon(k.pc,k.role) : ItemGroup.valueOf(k.weapon.equals("2H_SWORD") ? "GREATSWORD" : k.weapon);
+ }
  private static Map<ItemSlot,Target> compute(Player bot,Key k) {
   int top=PlayerBotStigmaBuilds.stageEnd(k.stage);var best=new EnumMap<ItemSlot,Target>(ItemSlot.class);var scores=new EnumMap<ItemSlot,Double>(ItemSlot.class);
-  ItemGroup weapon=k.weapon.equals("AUTO") ? PlayerBotTemporary.preferredWeapon(k.pc,k.role) : ItemGroup.valueOf(k.weapon.equals("2H_SWORD") ? "GREATSWORD" : k.weapon);
+  ItemGroup weapon=weapon(k);
   for(var t:DataManager.ITEM_DATA.getItemTemplates()) {
    if(!listed(t,k,top))continue;
    double value=PlayerBotGearPolicy.score(bot,t,k.role,k.build);List<LootCodexService.Acquisition> sources=null;
@@ -124,9 +129,10 @@ final class PlayerBotLoadouts {
  }
  private static void refreshGoals(PlayerBotSession session) {
   var s=PlayerBotGearPolicy.state(session);long now=System.currentTimeMillis();if(session.closing() || now<s.nextGoals)return;
-  Player bot=session.bot();var build=PlayerBotGearPolicy.stigmaBuild(bot);var next=new TreeMap<String,String>();String owner="";
-  // World bots have no chosen build, but they still want the best gear of their stage. There are hundreds, so they look less often.
+  Player bot=session.bot();var next=new TreeMap<String,String>();String owner="";
+  // There are hundreds of world bots, so they look less often. A borrowed one sets no goals.
   boolean world=session.autonomous() && com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.ECONOMY_ENABLED && com.aionemu.gameserver.configs.main.PlayerBotEconomyConfig.WORLD_GOALS_ENABLED;
+  var build=bot.isWorldBot() && !world ? null : PlayerBotGearPolicy.stigmaBuild(bot);
   if(build!=null || world) {
    if(!LootCodexService.warm()){s.nextGoals=now+5000;return;}
    owner=(build!=null?build.key():"world")+"."+PlayerBotStigmaBuilds.stage(bot.getLevel());
@@ -138,7 +144,7 @@ final class PlayerBotLoadouts {
   if(next.equals(new TreeMap<>(s.goals)) && owner.equals(s.goalsFor))return;
   boolean added=!s.goals.keySet().containsAll(next.keySet());
   s.goals.clear();s.goals.putAll(next);s.goalsFor=owner;s.saveLoadouts();
-  if(added && build!=null)PlayerBotQuestSync.notice(bot,"My "+build.name()+" equipment for levels "+PlayerBotStigmaBuilds.stage(bot.getLevel())+"–"+PlayerBotStigmaBuilds.stageEnd(PlayerBotStigmaBuilds.stage(bot.getLevel()))+" has "+next.size()+" open goals. I am wearing my best legal gear meanwhile.","gear-goal",300000);
+  if(added && build!=null && !bot.isWorldBot())PlayerBotQuestSync.notice(bot,"My "+build.name()+" equipment for levels "+PlayerBotStigmaBuilds.stage(bot.getLevel())+"–"+PlayerBotStigmaBuilds.stageEnd(PlayerBotStigmaBuilds.stage(bot.getLevel()))+" has "+next.size()+" open goals. I am wearing my best legal gear meanwhile.","gear-goal",300000);
  }
  private static String label(ItemSlot slot) {
   return switch(slot){case MAIN_HAND->"Main hand";case SUB_HAND->"Off hand";case TORSO->"Chest";case SHOULDER->"Shoulders";case GLOVES->"Gloves";case PANTS->"Legs";case BOOTS->"Boots";case HELMET->"Head";

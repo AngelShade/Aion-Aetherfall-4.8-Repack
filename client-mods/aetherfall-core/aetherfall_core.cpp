@@ -14,6 +14,7 @@
 #include <deque>
 #include <vector>
 #include <future>
+#include <sstream>
 #include <optional>
 #include <winhttp.h>
 #include <atomic>
@@ -42,7 +43,7 @@
 // remain native and unchanged.
 namespace {
 using Ptr=void*;
-constexpr char CORE_VERSION[]="1.3.6";  // Show location opens the map without the market window.
+constexpr char CORE_VERSION[]="1.3.14";  // Help rows refill their counters when the help card changes.
 constexpr uintptr_t PREFERRED=0x10000000;  // Game.dll has no relocations.
 unsigned char* image=nullptr;
 unsigned char* game(){return image;}
@@ -412,9 +413,12 @@ Rect placed(const Pin& given,Rect p){
 }
 void codex_frame_changed(Ptr);
 void hire_frame_changed(Ptr);
+bool help_journal_adjust(Ptr self,Rect& r);
 uintptr_t pinned_set_rect(Ptr self,const Rect* r){
     Table* t=own_table(self);
     auto original=reinterpret_cast<SetRectFn>(t->original[SET_RECT/8]);
+    // Quest details opening beside Q (help_journal.h): the corrected rectangle replaces the incoming one.
+    Rect opening{};if(r){opening=*r;if(help_journal_adjust(self,opening))r=&opening;}
     for(int i=0;r && i<pin_count;++i){
         if(pins[i].target!=self || !pin_live(pins[i]))continue;
         ++pins[i].calls;
@@ -713,6 +717,9 @@ size_t vtable_slots(void** vt){
 }
 int codex_command(Ptr,Ptr);
 int hire_command(Ptr,Ptr);
+int help_journal_command(Ptr,Ptr);
+void help_journal_show(Ptr,uint64_t,int);
+void help_journal_visible(Ptr,int);
 void hire_show(Ptr,uint64_t,int);
 void hire_hide(Ptr,uint64_t,int);
 bool hook(Ptr d){
@@ -731,6 +738,9 @@ bool hook(Ptr d){
         && vt[START_COMMAND/8]==game()+(low==game()+0xccfb88?0x7ef580:0x4ae9d0);
     // DlgPartyMatch: retain its native class identity and all stock commands.
     bool hire=low==game()+0xcd2ee8;
+    // DlgQuestSummary: the help request's journal buttons (help_journal.h); stock commands pass through.
+    bool helpJournal=low==game()+0xcd0e78 && slots>START_COMMAND/8 && vt[START_COMMAND/8]==game()+0x4ae9d0 && vt[0xd0/8]==game()+0x5ac3e0
+        && vt[0x468/8]==game()+0x852bb0;
     if(hire && (slots<=START_COMMAND/8 || vt[START_COMMAND/8]!=game()+0x80f7f0
        || vt[0xd0/8]!=game()+0x5ac3e0 || vt[0xd8/8]!=game()+0x5ac4a0)){
         hook_refusal="Find Group native command/visibility slots changed";return false;
@@ -765,6 +775,8 @@ bool hook(Ptr d){
     if(start || separated)add(HIT_TEST,reinterpret_cast<void*>(&start_hit_test));
     if(start)add(START_COMMAND,reinterpret_cast<void*>(&start_command));
     if(codex)add(START_COMMAND,reinterpret_cast<void*>(&codex_command));
+    if(helpJournal){add(START_COMMAND,reinterpret_cast<void*>(&help_journal_command));add(0xd0,reinterpret_cast<void*>(&help_journal_show));
+        add(0x468,reinterpret_cast<void*>(&help_journal_visible));}
     if(hire){
         add(START_COMMAND,reinterpret_cast<void*>(&hire_command));
         add(0xd0,reinterpret_cast<void*>(&hire_show));
@@ -796,6 +808,7 @@ bool hook(Ptr d){
 // a policy never changes an object's identity or writes into a retired object.
 #include "loot_codex.h"
 #include "lfg_hire.h"
+#include "help_journal.h"
 #include "companion_identity.h"
 
 void unhook(Ptr d){
@@ -1189,6 +1202,28 @@ int dispatch(Ptr L){
         boolean(L,true);push(L,double(p->calls));push(L,double(p->retargets));
         return 3+boolean(L,p->target && shown(p->target));
     }
+    // A Central Market request the server sent instead of the native Broker window
+    // (AFW1 version 2, held by the icon bridge). True once per request.
+    if(is(cmd,"takemarket")){
+        HMODULE bridge=GetModuleHandleW(L"AionIconBridge.dll");
+        auto take=bridge?reinterpret_cast<int(__cdecl*)()>(GetProcAddress(bridge,"AionTakeMarketOpen")):nullptr;
+        return boolean(L,take && take()!=0);
+    }
+    // Native Broker state the server sent (AFW1 version 2, held by the icon bridge):
+    // 1 enabled, 0 retired, -1 not received yet or no bridge.
+    if(is(cmd,"brokerstate")){
+        HMODULE bridge=GetModuleHandleW(L"AionIconBridge.dll");
+        auto state=bridge?reinterpret_cast<int(__cdecl*)()>(GetProcAddress(bridge,"AionBrokerState")):nullptr;
+        return push(L,double(state?state():-1));
+    }
+    // Show or hide one widget of a native dialog by path, through the same flag setters
+    // "setshown" uses for whole dialogs. Returns false when the widget does not exist.
+    if(is(cmd,"widgetshown")){
+        Ptr w=widget(int(number(L,2,0)),text(L,3),0);Value* v=arg(L,4);if(!w || !v)return boolean(L,false);
+        bool on=v->tt==1?v->v.b!=0:v->tt==3?v->v.n!=0:false;
+        if(shown(w)!=on)method<void(*)(Ptr,int,int)>(w,on?0xd0:0xd8)(w,1,0);
+        return boolean(L,true);
+    }
     if(is(cmd,"setshown")){
         Ptr d=dialog(int(number(L,2,0)));Value* v=arg(L,3);if(!d || !v)return boolean(L,false);
         bool on=v->tt==1?v->v.b!=0:v->tt==3?v->v.n!=0:false;
@@ -1307,12 +1342,14 @@ extern "C" __declspec(dllexport) int AetherfallCoreStatus(){return int(Aetherfal
 extern "C" __declspec(dllexport) void AetherfallCodexTick(){
     if(!image)return;
     if(help_quest::poll())if(Ptr tracker=dialog(0xba))native<void(*)(Ptr,int)>(0x856bf0)(tracker,1);
+    help_journal::tick();
     codex::tick();
 }
 extern "C" __declspec(dllexport) void AetherfallHelpRequestTrack(){
-    if(!image || !active_quest(help_quest::QUEST))return;
-    native<int(*)(Ptr,int,int)>(0x3f6120)(game()+0x13715e0,help_quest::QUEST,1);
-    if(Ptr tracker=dialog(0xba))native<void(*)(Ptr,int)>(0x856bf0)(tracker,1);
+    if(!image)return;
+    bool any=false;
+    for(int quest:help_quest::QUESTS)if(active_quest(quest)){native<int(*)(Ptr,int,int)>(0x3f6120)(game()+0x13715e0,quest,1);any=true;}
+    if(any)if(Ptr tracker=dialog(0xba))native<void(*)(Ptr,int)>(0x856bf0)(tracker,1);
 }
 extern "C" __declspec(dllexport) void AetherfallCodexAction(int command,int map,float x,float y,float z){
     if(image)codex::action(command,map,x,y,z);

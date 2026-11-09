@@ -17,6 +17,18 @@ public final class PlayerBotPopulationConfig {
  @Property(key="gameserver.playerbots.management.native_queues.enable",defaultValue="true") public static boolean NATIVE_QUEUES;
  @Property(key="gameserver.playerbots.management.revive.min_seconds",defaultValue="60") public static int REVIVE_MIN;
  @Property(key="gameserver.playerbots.management.revive.max_seconds",defaultValue="300") public static int REVIVE_MAX;
+ /** Revive and relocate the live character instead of saving, unloading and loading it again (upstream keeps bots logged in). */
+ @Property(key="gameserver.playerbots.management.move_in_place",defaultValue="true") public static boolean MOVE_IN_PLACE;
+ /** A sleeping bot with a finished quest moves unseen to its reward NPC and turns it in through the native dialog. */
+ @Property(key="gameserver.playerbots.management.offscreen_turn_ins",defaultValue="true") public static boolean OFFSCREEN_TURN_INS;
+ /** Land and park world bots outside the aggro range of strong aggressive monsters, and skip camps where bots keep dying. */
+ @Property(key="gameserver.playerbots.management.camp_safety.enable",defaultValue="true") public static boolean CAMP_SAFETY;
+ @Property(key="gameserver.playerbots.management.camp_safety.margin",defaultValue="10") public static int CAMP_SAFETY_MARGIN;
+ @Property(key="gameserver.playerbots.management.camp_safety.level_below",defaultValue="6") public static int CAMP_SAFETY_LEVEL_BELOW;
+ @Property(key="gameserver.playerbots.management.camp_safety.park_in_hubs",defaultValue="true") public static boolean CAMP_SAFETY_PARK_IN_HUBS;
+ @Property(key="gameserver.playerbots.management.camp_deaths.limit",defaultValue="2") public static int CAMP_DEATH_LIMIT;
+ @Property(key="gameserver.playerbots.management.camp_deaths.window_seconds",defaultValue="3600") public static int CAMP_DEATH_WINDOW;
+ @Property(key="gameserver.playerbots.management.camp_deaths.avoid_seconds",defaultValue="86400") public static int CAMP_DEATH_AVOID;
  @Property(key="gameserver.playerbots.management.disabled_without_players",defaultValue="false") public static boolean REQUIRE_PLAYERS;
  @Property(key="gameserver.playerbots.management.player_login_delay_seconds",defaultValue="30") public static int LOGIN_DELAY;
  @Property(key="gameserver.playerbots.management.player_logout_delay_seconds",defaultValue="300") public static int LOGOUT_DELAY;
@@ -46,6 +58,8 @@ public final class PlayerBotPopulationConfig {
  @Property(key="gameserver.playerbots.management.reset.protect_legions",defaultValue="false") public static boolean RESET_LEGIONS;
  @Property(key="gameserver.playerbots.management.reset.exclude_names",defaultValue="") public static String RESET_EXCLUDE;
  public static void validate() {
+  if(CAMP_SAFETY_MARGIN<0 || CAMP_SAFETY_MARGIN>100 || CAMP_SAFETY_LEVEL_BELOW<0 || CAMP_SAFETY_LEVEL_BELOW>20 || CAMP_DEATH_LIMIT<0 || CAMP_DEATH_LIMIT>100
+   || CAMP_DEATH_WINDOW<60 || CAMP_DEATH_AVOID<60)throw new IllegalArgumentException("Invalid camp safety bounds");
   if(BOT_LEGION_COUNT<0 || BOT_LEGION_COUNT>100 || BOT_LEGION_SIZE<1 || BOT_LEGION_SIZE>240)throw new IllegalArgumentException("Invalid generated legion population bounds");
   if(REFRESH_MIN<1 || REFRESH_MAX<REFRESH_MIN || REVIVE_MIN<3 || REVIVE_MAX<REVIVE_MIN || BRACKET_CHECK<1 || PENDING_CHECK<1 || PROCESS_LIMIT<0 || PROCESS_LIMIT>120
    || LOGIN_DELAY<0 || LOGOUT_DELAY<0 || !Double.isFinite(PLAYER_WEIGHT) || PLAYER_WEIGHT<0
