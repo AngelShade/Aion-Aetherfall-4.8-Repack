@@ -2,6 +2,7 @@
 
 ## Next update
 
+- Russian text is no longer tiny and faint; it now matches the English font's size. Update the Russian pack on the Hub's Languages page.
 - Bots now count as real players in PvP: killing one, or dying to one, gives Abyss kills, kill-quest progress, Abyss Points and XP.
 - Bots walk smoothly again instead of stopping every few steps, and no longer hop back and forth on one spot.
 - Bots keep walking while they work out a long route, instead of standing still first.

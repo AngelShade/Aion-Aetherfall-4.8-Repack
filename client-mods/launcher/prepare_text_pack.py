@@ -122,6 +122,34 @@ def sha(path):
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
+FONT_ASSETS = Path(__file__).resolve().parent / 'assets' / 'fonts'
+# The runtime keeps the English logical sizes, which are tuned for Vera. Donor faces
+# with a smaller x-height (Russian Calibri/Myriad) then draw small, thin and faint.
+# Per native face: the face to use instead (a bundled asset or a donor face).
+NATIVE_FACE_OVERRIDES = {
+    'rus': {'Vera': ('DejaVuSans', 'DejaVu Sans'), 'VeraSmall': ('DejaVuSans', 'DejaVu Sans'),
+            'HanSrf': ('RomicCyr', 'RomicCyr')},
+}
+
+
+def apply_face_overrides(code, current_fonts, font_map):
+    """Rewrite font_map faces per NATIVE_FACE_OVERRIDES using each style's English face."""
+    overrides = NATIVE_FACE_OVERRIDES.get(code, {})
+    native = {style.get('name'): style.find('font').get('name') for style in current_fonts.findall('fontshader')
+              if style.find('font') is not None}
+    for entry in font_map.findall('fontshader'):
+        wanted = overrides.get(native.get(entry.get('name')))
+        if wanted is not None:
+            font = entry.find('font')
+            font.set('name', wanted[0])
+            font.set('editor_name', wanted[1])
+
+
+def bundled_face(face):
+    path = FONT_ASSETS / (face.lower() + '.ttf')
+    return path.read_bytes() if path.is_file() else None
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--client', type=Path, required=True)
@@ -210,11 +238,17 @@ def main():
                 continue
             entry = ET.SubElement(font_map, 'fontshader', {'name': style.get('name')})
             ET.SubElement(entry, 'font', {key: font.get(key) for key in ['name', 'editor_name'] if font.get(key) is not None})
-            required.add(font.get('name').lower())
+        apply_face_overrides(args.code, current_fonts, font_map)
+        required = {entry.find('font').get('name').lower() for entry in font_map.findall('fontshader')}
         source_ttf = {Path(key).stem.lower(): key for key in names if key.startswith('fonts/') and key.endswith('.ttf')}
         current_ttf = {Path(name).stem.lower(): name for name in english.namelist() if name.startswith('fonts/') and name.endswith('.ttf')}
         reused = []
         for face in sorted(required):
+            bundled = bundled_face(face)
+            if bundled is not None:
+                payload['fonts/' + face + '.ttf'] = bundled
+                report['fonts'] += 1
+                continue
             key = source_ttf.get(face)
             if face in current_ttf and (key is None or donor.read(names[key]) == english.read(current_ttf[face])):
                 reused.append(face)

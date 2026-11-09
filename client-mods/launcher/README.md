@@ -121,6 +121,11 @@ native dialogues, font faces and font definitions. It excludes foreign server
 branding, URLs, regional settings, layouts and custom override archives. String
 format-token mismatches retain English. The runtime merges font faces into current
 styles, preserving sizes, colours, custom definitions and native glyph policy.
+Because the English sizes are tuned for Vera, `NATIVE_FACE_OVERRIDES` swaps donor
+faces that draw smaller: Russian uses the bundled DejaVu Sans (Vera's metrics plus
+Cyrillic, `assets/fonts`, free licence beside it) instead of Calibri/Myriad, and
+RomicCyr for the Handserif titles. `refont_text_pack.py` applies the same rule to an
+already prepared pack without the donor archive; text members stay byte-identical.
 
 Existing downloaded ZIPs can also be installed when their exact version is retained
 in the trusted catalog's `previousVersions`. The library lists current packs only.
