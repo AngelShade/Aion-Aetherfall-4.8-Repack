@@ -1,5 +1,5 @@
 -- Registered feature adapters keep the editor independent of frame types.
-local M=AF:NewModule('NativeFrames',{needs={'Placement','Shortcuts','Tooltip','Minimap','HUD','TargetDetails','Lifecycle'},defaults={}})
+local M=AF:NewModule('NativeFrames',{scope='profile',needs={'Placement','Shortcuts','Tooltip','Minimap','HUD','TargetDetails','Lifecycle'},defaults={}})
 local S={}
 local N=AF.Native
 local D=AFCore and AFCore.DIALOG or {}
@@ -185,6 +185,9 @@ function M:Category(mv)
     return (AF:Call('Placement','IsHud',mv.id) or AF:Call('Placement','IsReanchored',mv.id)) and 'HUD' or 'Windows'
 end
 function M:Settings(mv)
+    for i, name in ipairs({'shortcut','shortcut_ctrl','shortcut_alt','shortcut_extra','shortcut_sep','shortcut_sep2'}) do
+        if mv.id == D[name] then return 'Bar' .. i end
+    end
     local own=({[D.target_assist or -1]='Unit Frames',[D.party or -1]='Unit Frames',[D.chat or -1]='Chat',[D.chat_input or -1]='Chat',[D.exp_bar or -1]='General',[D.start or -1]='Shortcuts'})[mv.id]
     return own or (self:Category(mv)=='Action bars' and 'Action Bars') or (mv.id==D.radar and 'Minimap') or 'Movers'
 end

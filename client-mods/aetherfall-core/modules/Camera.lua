@@ -2,7 +2,7 @@ local labels={camfov={'Native'},camdist={'Native'}}
 for v=60,170,5 do labels.camfov[#labels.camfov+1]=tostring(v)..' deg' end
 for v=5,50 do labels.camdist[#labels.camdist+1]=tostring(v) end
 -- Extracted from the 1.2.94 interface; client calls retain their original order.
-local M=AF:NewModule('Camera',{needs={},defaults={camfov={1,'choice',labels.camfov},camdist={1,'choice',labels.camdist}},tags={camfov='camera',camdist='camera'}})
+local M=AF:NewModule('Camera',{scope='profile',needs={},defaults={camfov={1,'choice',labels.camfov},camdist={1,'choice',labels.camdist}},tags={camfov='camera',camdist='camera'}})
 local S={}
 local N=AF.Native
 local D=AFCore and AFCore.DIALOG or {}
@@ -44,8 +44,6 @@ function M:FormatOption(spec)
     return choices[spec.k][get(spec.k)]
 end
 function M:Diagnostics() return AF.Copy(S) end
-AF.Config:Register(M,{{name='Camera',order=9,status='Status',hint='Applies now. Scroll to zoom out. Native restores your original value.',rows={
- {order=1,label='Field of view',k='camfov',kind='choice',format='FormatOption'},
- {order=2,label='Maximum zoom distance',k='camdist',kind='choice',format='FormatOption'}}}})
+
 M:Listen('ApplyCamera',M.Apply)
 function M:Owns(key) return CAMERA[key]~=nil end

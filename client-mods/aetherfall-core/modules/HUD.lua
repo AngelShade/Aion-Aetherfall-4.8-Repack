@@ -1,43 +1,36 @@
 -- Data texts and passive HUD overlays. Feature state belongs to this module.
 local DATA = {'zone', 'coords', 'time', 'xp', 'kinah', 'fps', 'group', 'legion', 'level', 'hp', 'off'}
-local M = AF:NewModule('HUD', {
+local knownSources = {}
+for _, name in ipairs(DATA) do knownSources[name] = true end
+for _, entry in ipairs(AF.DataTexts:Entries()) do
+    if not knownSources[entry.name] then DATA[#DATA + 1] = entry.name end
+end
+local M = AF:NewModule('HUD',{scope='profile',
     needs = {'Lifecycle', 'Opacity', 'TargetDetails', 'Identity'},
     defaults = {
+        dlsep1={'','string',16}, dlsep2={'','string',16}, dlsep3={'','string',16},
+        dcsep1={'','string',16}, dcsep2={'','string',16}, dcsep3={'','string',16},
+        drsep1={'','string',16}, drsep2={'','string',16}, drsep3={'','string',16},
+        dataPosition = {1, 'choice', {'Top', 'Bottom'}}, dataHeight = {18, 'int', 14, 32, 1},
+        dataWidth = {0, 'int', 0, 3840, 10}, separator = {'    ', 'string', 16},
+        coordDecimals = {0, 'int', 0, 3, 1}, abbreviate = {0, 'toggle'},
+        clockMode = {1, 'choice', {'Native', '12 hour', '24 hour'}}, clockSeconds = {0, 'toggle'},
+        statusFormat = {'[level]    [hp]    [xp]', 'string', 256},
+        mapFormat = {'[coords]', 'string', 256}, mapPosition = {1, 'choice', {'Below', 'Above'}},
+        statusWidth = {361, 'int', 160, 1000, 10}, statusHeight = {18, 'int', 14, 32, 1},
+        statusX = {8, 'int', 0, 1280, 1}, statusBottom = {25, 'int', 0, 720, 1},
+        customAccent = {'#8fe3ec', 'color'},
         databar = {1, 'toggle'}, chatline = {1, 'toggle'}, minimapinfo = {1, 'toggle'},
         timers = {1, 'toggle'}, targettimers = {1, 'toggle'}, warn = {10, 'int', 0, 60, 1},
         font = {1, 'choice', {'Default', 'Option', 'Value', 'Title', 'Large title', 'Window', 'Name', 'Button'}},
-        theme = {1, 'choice', {'Aether', 'Gold', 'Ice', 'Ember', 'Jade'}},
+        theme = {1, 'choice', {'Aether', 'Gold', 'Ice', 'Ember', 'Jade', 'Custom'}},
         dl1 = {'zone', 'enum', DATA}, dl2 = {'coords', 'enum', DATA}, dl3 = {'time', 'enum', DATA},
         dc1 = {'xp', 'enum', DATA}, dc2 = {'kinah', 'enum', DATA}, dc3 = {'off', 'enum', DATA},
         dr1 = {'fps', 'enum', DATA}, dr2 = {'group', 'enum', DATA}, dr3 = {'legion', 'enum', DATA},
     },
 })
-local DATA_LABEL = {zone = 'Zone', coords = 'Coordinates', time = 'Time', xp = 'Experience', kinah = 'Kinah', fps = 'FPS',
-                    group = 'Group', legion = 'Legion', level = 'Level', hp = 'Health', off = 'Off'}
-AF.Config:Register(M, {
-    {name = 'General', order = 1, hint = 'Opacity fades window and HUD frame backgrounds; text stays visible.', rows = {
-        {label = 'Data text font', order = 1, k = 'font', kind = 'choice'},
-        {label = 'Colour theme', order = 2, k = 'theme', kind = 'choice'},
-    }},
-    {name = 'Chat', order = 4, hint = 'Chat background opacity is independent; text stays solid.', rows = {
-        {label = 'Status line', order = 1, k = 'chatline', kind = 'toggle'},
-    }},
-    {name = 'Data Texts', order = 5, rows = {
-        {label = 'Top bar', order = 1, k = 'databar', kind = 'toggle'},
-        {label = 'Left 1', order = 2, k = 'dl1', kind = 'data', labels = DATA_LABEL},
-        {label = 'Left 2', order = 3, k = 'dl2', kind = 'data', labels = DATA_LABEL},
-        {label = 'Left 3', order = 4, k = 'dl3', kind = 'data', labels = DATA_LABEL},
-        {label = 'Centre 1', order = 5, k = 'dc1', kind = 'data', labels = DATA_LABEL},
-        {label = 'Centre 2', order = 6, k = 'dc2', kind = 'data', labels = DATA_LABEL},
-        {label = 'Centre 3', order = 7, k = 'dc3', kind = 'data', labels = DATA_LABEL},
-        {label = 'Right 1', order = 8, k = 'dr1', kind = 'data', labels = DATA_LABEL},
-        {label = 'Right 2', order = 9, k = 'dr2', kind = 'data', labels = DATA_LABEL},
-        {label = 'Right 3', order = 10, k = 'dr3', kind = 'data', labels = DATA_LABEL},
-    }},
-    {name = 'Minimap', order = 7, hint = 'Move the map and its zoom, clock and zone name with /moveui.', rows = {
-        {label = 'Coordinates', order = 1, k = 'minimapinfo', kind = 'toggle'},
-    }},
-})
+
+
 local H = {ticks = 0, on = false, labels = {}, text = {}, shown = {}}
 local D = AFCore and AFCore.DIALOG or {}
 local POOL = 0 -- Native buff times avoid consuming additional plugin windows.
@@ -52,11 +45,29 @@ local FONTS = {'ui_default', 'v3_option', 'v3_value', 'ui_static_title', 'v3_opt
 local call, n, scale = AF.Native.Call, AF.Native.Number, AF.Native.Scale
 local function opt(k) return M.db[k] end
 local function w(id) return AF.Native.Widget('H', id) end
-local function colours() return THEME[opt('theme')] or THEME[1] end
+local function colours()
+    if opt('theme') == 6 then
+        local hex = opt('customAccent')
+        local r, g, b = hex:match('^#(%x%x)(%x%x)(%x%x)$')
+        local accent = string.format('%.3f,%.3f,%.3f,1', tonumber(r,16)/255, tonumber(g,16)/255, tonumber(b,16)/255)
+        return {THEME[1][1], accent, accent}
+    end
+    return THEME[opt('theme')] or THEME[1]
+end
+local function context()
+    return {coordDecimals=opt('coordDecimals'), abbreviate=opt('abbreviate'),
+            clockMode=opt('clockMode'), clockSeconds=opt('clockSeconds')}
+end
+local function source(name) return AF.DataTexts:Text(name, context()) end
 
 function M:Accent() return colours()[3] end
 function M:IsOn() return H.on end
 function M:HasMinimapInfo() return opt('minimapinfo') == 1 end
+function M:Setting(key) return M.db[key] end
+-- Picking a custom accent is choosing the Custom theme.
+function M:OnSetting(key)
+    if key == 'customAccent' and opt('theme') ~= 6 then AF.DB:Set(M, 'theme', 6) end
+end
 function M:Appearance() return opt('font'), opt('theme') end
 function M:Diagnostics() return AF.Copy(H) end
 
@@ -82,73 +93,46 @@ function M:Active()
     return type(s) == 'string' and s:find('"Applied"%s*:%s*"layout"') ~= nil
 end
 
-local function thousands(v)
-    local s = string.format('%d', math.floor(v + .5))
-    while true do local k; s, k = s:gsub('^(-?%d+)(%d%d%d)', '%1,%2'); if k == 0 then return s end end
-end
-local function experience()
-    local cur, max, rec, rep, repmax = AFCore.Exp()
-    cur, max = n(cur), n(max)
-    if not cur or not max or max <= 0 then return nil end
-    local s = string.format('XP %.1f%%', 100 * cur / max)
-    if n(rec) and rec > 0 then s = s .. string.format('  (recoverable %.1f%%)', 100 * rec / max) end
-    if n(rep) and n(repmax) and repmax > 0 and rep > 0 then s = s .. string.format('  repose %d%%', math.floor(100 * rep / repmax + .5)) end
-    return s
-end
-local SOURCES = {
-    zone = function() local z = call('GetZoneText'); return z and tostring(z) end,
-    coords = function()
-        local x, y = call('GetPlayerMapPosition', 'player')
-        if n(x) and n(y) then return string.format('%d, %d', math.floor(x + .5), math.floor(y + .5)) end
-    end,
-    time = function() local t = call('GetTime'); return t and tostring(t) end,
-    xp = experience,
-    kinah = function() local m = n(AFCore.Money()); return m and (thousands(m) .. ' Kinah') end,
-    fps = function() local f = n(AFCore.FPS()); return f and string.format('%d fps', math.floor(f + .5)) end,
-    group = function() local g = n(call('GetNumPartyMembers')); return g and g > 0 and ('Group ' .. g) or nil end,
-    legion = function() local l = n(call('GetNumLegionMembers')); return l and l > 0 and ('Legion ' .. l) or nil end,
-    level = function() local l = n(call('UnitLevel', 'player')); return l and ('Level ' .. l) end,
-    hp = function()
-        local hp, max = n(call('UnitHP', 'player')), n(call('UnitHPMax', 'player'))
-        return hp and max and max > 0 and string.format('HP %s / %s', thousands(hp), thousands(max)) or nil
-    end,
-}
 local function compose(prefix)
-    local out = {}
+    local out, separator, trailing = {}, nil, nil
     for i = 1, 3 do
-        local src = SOURCES[opt(prefix .. i)]
-        local ok, s = pcall(function() return src and src() end)
+        local ok, s = pcall(source, opt(prefix .. i))
         -- Stock time strings include line breaks; data texts occupy one row.
         if ok and s then
             s = tostring(s):gsub('[\r\n\t]+', ' '):gsub('^%s+', ''):gsub('%s+$', '')
-            if s ~= '' then out[#out + 1] = s end
+            if s ~= '' then
+                if separator then out[#out + 1] = separator end
+                out[#out + 1] = s
+                local custom = opt(prefix .. 'sep' .. i)
+                separator = custom ~= '' and custom or opt('separator')
+                trailing = custom ~= '' and custom or nil
+            end
         end
     end
-    return table.concat(out, '    ')
+    if trailing then out[#out + 1] = trailing end
+    return table.concat(out)
 end
 
 local function databar()
     if opt('databar') ~= 1 then show('Top', false) return end
-    local s = scale(); local sw = (n(select(2, AFCore.Scale())) or 1280 * s)
-    place('Top', 0, 0, sw, 18 * s)
-    local width = sw / s
+    local s = scale(); local _, sw, sh = AFCore.Scale(); sw = n(sw) or 1280 * s; sh = n(sh) or 960 * s
+    local height = opt('dataHeight')
+    local width = opt('dataWidth') == 0 and sw / s or math.min(sw / s, math.max(120, opt('dataWidth')))
+    place('Top', (sw - width * s) / 2, opt('dataPosition') == 2 and sh - height * s or 0, width * s, height * s)
     local column = width / 3
-    place('TopLeft', 8 * s, 0, (column - 16) * s, 18 * s)
-    place('TopCenter', (column + 8) * s, 0, (column - 16) * s, 18 * s)
-    place('TopRight', (2 * column + 8) * s, 0, (column - 16) * s, 18 * s)
+    place('TopLeft', 8 * s, 0, (column - 16) * s, height * s)
+    place('TopCenter', (column + 8) * s, 0, (column - 16) * s, height * s)
+    place('TopRight', (2 * column + 8) * s, 0, (column - 16) * s, height * s)
     local c = colours()
     settext('TopLeft', compose('dl'), c[1]); settext('TopCenter', compose('dc'), c[2]); settext('TopRight', compose('dr'), c[1])
     show('Top', true)
 end
 
-local STATUS_X, STATUS_FROM_BOTTOM, STATUS_W, STATUS_H = 8, 960 - 935, 361, 18
 local function chatpanel()
     if opt('chatline') ~= 1 then show('Chat', false) return end
     local s = scale(); local _, _, sh = AFCore.Scale(); sh = n(sh) or 960 * s
-    place('Chat', STATUS_X * s, sh - STATUS_FROM_BOTTOM * s, STATUS_W * s, STATUS_H * s)
-    local parts = {}
-    for _, k in ipairs({'level', 'hp', 'xp'}) do local v = SOURCES[k](); if v then parts[#parts + 1] = v end end
-    settext('ChatText', table.concat(parts, '    '), colours()[1])
+    place('Chat', opt('statusX') * s, sh - opt('statusBottom') * s, opt('statusWidth') * s, opt('statusHeight') * s)
+    settext('ChatText', AF.Tags:Format(opt('statusFormat'), context()), colours()[1])
     show('Chat', true)
 end
 
@@ -156,11 +140,9 @@ local function minimapinfo()
     local x, y, wd, ht, visible = AFCore.Rect(D.radar or 0x0e, 'af_minimap_border', 'any')
     if opt('minimapinfo') ~= 1 or not (n(x) and visible) then show('Map', false) return end
     local s = scale()
-    local labelY = y + ht + s
+    local labelY = opt('mapPosition') == 2 and y - 17 * s or y + ht + s
     place('Map', x, labelY, wd, 16 * s)
-    local parts = {}
-    for _, k in ipairs({'coords'}) do local v = SOURCES[k](); if v then parts[#parts + 1] = v end end
-    settext('MapText', table.concat(parts, '  '), colours()[3])
+    settext('MapText', AF.Tags:Format(opt('mapFormat'), context()), colours()[3])
     show('Map', true)
     w('Map'):SetPosForced(x / s, labelY / s)
 end
@@ -175,6 +157,7 @@ end
 
 function M:Apply()
     local font = FONTS[opt('font')] or 'ui_default'
+    AF.Skin.SetAccent(colours()[3])
     for _, id in ipairs({'TopLeft', 'TopCenter', 'TopRight', 'ChatText', 'MapText'}) do
         pcall(function() w(id):SetFont(font) end)
         H.text[id .. '#'] = nil

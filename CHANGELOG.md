@@ -2,6 +2,11 @@
 
 ## Next update
 
+- New Aetherfall Interface options window: categories, tabs, sliders, dropdowns, check boxes, a colour picker and search, in a flat dark style.
+- Interface profiles: create, rename, copy and delete named profiles, share them across your characters, and export or import them as a code.
+- Each of the six action bars now has its own page; bars 5 and 6 can be switched on and off separately.
+- More interface settings: data panel position and size, clock and number formats, target readouts, per-bar opacity, and more HUD parts you can hide.
+- Ticket recruits now have their own face, body, height and gender, instead of copying the character that recruited them.
 - Improved the Aetherfall Interface under the hood so new interface options can be added safely. Your settings and layout are unchanged.
 - Fixed quest items that only drop in one area, like the Dukaki Amulet in Verteron, never dropping. Thanks to baTbjk1903.
 - Fixed the server and the launcher failing to start on Windows set to Turkish. Thanks to baTbjk1903.

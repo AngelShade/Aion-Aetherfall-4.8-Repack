@@ -1,5 +1,5 @@
 -- Native interface policy; no state is shared with other modules.
-local M=AF:NewModule('WorldMap',{needs={'Lifecycle'},defaults={mapx={-1,'number',-1,1,0},mapy={-1,'number',-1,1,0}}})
+local M=AF:NewModule('WorldMap',{scope='profile',needs={'Lifecycle'},defaults={mapx={-1,'number',-1,1,0},mapy={-1,'number',-1,1,0}}})
 local S={}
 local N=AF.Native
 local D=AFCore and AFCore.DIALOG or {}
@@ -19,6 +19,7 @@ function M:Hold()
     end
     S.mapShown = d.shown
 end
+function M:OnSetting() S.mapShown=false end
 function M:Id() return S.mapId end
 function M:Remember(x,y) AF.DB:Set(M,'mapx',x,true); AF.DB:Set(M,'mapy',y,true) end
 function M:QueueVisible()

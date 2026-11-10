@@ -1,5 +1,24 @@
 -- Feature-local settings and native placement.
-local M=AF:NewModule('Opacity',{needs={'Placement','Tooltip','Lifecycle'},defaults={windowsalpha={90,'number',0,100,10},chatalpha={90,'number',0,100,10},barsalpha={90,'number',0,100,10},opacitydirect={1,'toggle'}},tags={opacitydirect='share-skip'},fresh={opacitydirect=1},migrate=function(settings) if settings.opacitydirect==1 then settings.alpha=nil; return false end;local master=settings.alpha or 90; for key in pairs({windowsalpha=true,chatalpha=true,barsalpha=true}) do settings[key]=master*(settings[key] or 100)/100 end; settings.alpha,settings.opacitydirect=nil,1; return true end})
+local M = AF:NewModule('Opacity', {
+    scope = 'profile', needs = {'Placement', 'Tooltip', 'Lifecycle', 'ActionBars'},
+    defaults = {
+        playeralpha = {-1, 'int', -1, 100, 1}, targetalpha = {-1, 'int', -1, 100, 1},
+        assistalpha = {-1, 'int', -1, 100, 1}, partyalpha = {-1, 'int', -1, 100, 1},
+        dataalpha = {-1, 'int', -1, 100, 1}, windowsalpha = {90, 'number', 0, 100, 10},
+        chatalpha = {90, 'number', 0, 100, 10}, barsalpha = {90, 'number', 0, 100, 10},
+        opacitydirect = {1, 'toggle'},
+    },
+    tags = {opacitydirect = 'share-skip'}, fresh = {opacitydirect = 1},
+    migrate = function(settings)
+        if settings.opacitydirect == 1 then settings.alpha = nil; return false end
+        local master = settings.alpha or 90
+        for key in pairs({windowsalpha=true, chatalpha=true, barsalpha=true}) do
+            settings[key] = master * (settings[key] or 100) / 100
+        end
+        settings.alpha, settings.opacitydirect = nil, 1
+        return true
+    end,
+})
 local S={}
 local N=AF.Native
 local D=AFCore and AFCore.DIALOG or {}
@@ -76,10 +95,13 @@ function M:Apply()
         -- later draws; visibility remains entirely native.
         if d then
             local alpha,bar
-            if id == D.chat then alpha = backgroundAlpha('chatalpha')
+            local frameKey = ({[D.basic_status or -1]='playeralpha',[D.target or -1]='targetalpha',
+                [D.target_assist or -1]='assistalpha',[D.party or -1]='partyalpha'})[id]
+            if frameKey and get(frameKey) >= 0 then alpha = get(frameKey) / 100
+            elseif id == D.chat then alpha = backgroundAlpha('chatalpha')
             elseif id == D.shortcut or id == D.shortcut_ctrl or id == D.shortcut_alt or id == D.shortcut_extra
                 or ((id == D.shortcut_sep or id == D.shortcut_sep2) and d.name == 'quickbar_dialog_sep') then
-                alpha,bar = backgroundAlpha('barsalpha'),true
+                alpha,bar = AF:Call('ActionBars','BackgroundAlpha',id,backgroundAlpha('barsalpha')),true
             elseif nativeMovable(d) and not AF:Call('Placement','IsHud',id) and not AF:Call('Tooltip','Kind',d) then alpha = backgroundAlpha('windowsalpha')
             elseif AF:Call('Placement','IsHud',id) and id ~= D.chat_input and id ~= D.start and id ~= D.radar
                 and id ~= D.shortcut and id ~= D.shortcut_ctrl and id ~= D.shortcut_alt and id ~= D.shortcut_extra
@@ -115,13 +137,15 @@ function M:Apply()
         local d=dialog(id)
         local group=d and PLUGIN_OPACITY[d.name]
         if d and group~=nil then
-            local alpha = backgroundAlpha(group or nil)
+            local alpha = d.name == 'AFHTop' and get('dataalpha') >= 0 and get('dataalpha') / 100 or backgroundAlpha(group or nil)
             local done,signature=prepared(id,d,alpha)
             if not done then
-                apply(id,alpha)
                 if d.name == 'AFUIOptions' then
-                    apply(id,alpha,'AFUISide')
-                    apply(id,alpha,'AFUIPanel')
+                    apply(id,alpha,'AFUIOptionsBackdrop')
+                    apply(id,alpha,'AFUIOptionsSidebar')
+                    apply(id,alpha,'AFUIOptionsContent')
+                else
+                    apply(id,alpha)
                 end
                 S.opacityDone[id]=not refused and signature or nil
             end
@@ -134,7 +158,5 @@ function M:BackgroundAlpha(group) return backgroundAlpha(group) end
 function M:Reset() S.opacityDone={} end
 function M:Diagnostics() return AF.Copy(S) end
 M:Listen('BackdropsCleared',M.Reset)
-AF.Config:Register(M,{{name='General',order=1,hint='Opacity fades window and HUD frame backgrounds; text stays visible.',rows={{order=3,label='Window and HUD opacity',kind='number',k='windowsalpha',unit='%'}}},
- {name='Action Bars',order=3,rows={{order=7,label='Background opacity',kind='number',k='barsalpha',unit='%'}}},
- {name='Chat',order=4,hint='Chat background opacity is independent; text stays solid.',rows={{order=2,label='Background opacity',kind='number',k='chatalpha',unit='%'}}}})
-function M:Owns(key) return key=='windowsalpha' or key=='chatalpha' or key=='barsalpha' end
+
+function M:Owns(key) return key=='windowsalpha' or key=='chatalpha' or key=='barsalpha' or key=='dataalpha' or key=='playeralpha' or key=='targetalpha' or key=='assistalpha' or key=='partyalpha' end

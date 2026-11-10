@@ -37,6 +37,27 @@ refactor that changes call order or file byte order fails the comparison.
 Only synthetic character identities and in-memory files are used. No live player
 save, game process, binary, PAK, installation, or native build is changed.
 
+The original golden files stay immutable during the options/profile extension.
+Current runs use the actual generated lazy resources. Preserved scenarios reserve
+the original synthetic plugin slots by dialog name so unrelated native ids remain
+comparable. The separate `tests/options.py` run uses ordinary allocation order,
+including the options dialog's delayed allocation.
+
+`policy.py` lists the reviewed presentation differences by widget-name prefix:
+the old/new options widgets, and the editor's Skin setters only. Editor geometry,
+visibility, labels and input remain compared. The options dialog's native backdrop
+records resolve through its original fixture slot to the same `AFUIOptions` name.
+No whole scenario, native game mutation, input, file read or saved byte is excluded.
+The raw output still contains every call before that comparison policy is applied.
+
+Old click inputs are translated by `legacy_actions.py` into real owning
+`AF.DB:Set` writes in the same order. The retired bar selector is test input state;
+the old combined separated-bar toggle and tooltip offsets write both new settings.
+Intermediate native effects stay visible. Profile actions use their owning module.
+`audit.py` inventories all remaining API-count/native-effect differences and
+validates every saved envelope/checksum; an audit report explicitly does not approve
+those differences or turn a failing golden comparison into a passing one.
+
 Current output defaults to the system temporary folder. To inspect a difference:
 
 ```powershell
@@ -56,6 +77,14 @@ gameplay remain owner acceptance.
 Lua. Use it only after reviewing a harness/input change. A current modular build
 loads `load_order.json` in order. No frozen monolith is installed or packaged.
 
+The new options/profile renderer has a separate `options-golden.jsonl.gz`, created
+only with `tests/options.py --record-reference --output <fresh-external-file>` after
+review. Its assertions exercise first-use construction, deferred factories, every
+shipped page/tab, all control kinds, cursor and RGB dragging, native combo selection,
+steps, input validation, search, deep links, window positioning, named profiles,
+scope/account/character/module copying, all six bars, AFUI1 migrations, AFUI2 sharing,
+invalid imports and bounded storage refusal. It never overwrites the monolith goldens.
+
 Known intentionally unreachable paths: HUD aura timer labels are compiled out by
 `POOL = 0`; their source remains covered by the unreached-line report. Native
 API/refusal/failure paths not induced by these deterministic scenarios, `/afcore`
@@ -64,3 +93,29 @@ not claimed as verified. The original generated XML omits optional AFHTarget and
 TargetDPFill widgets and builds options/movers eagerly, so optional target-overlay
 and deferred lazy-builder bodies are also unreached. Exact reasons and ranges are
 in `fixtures/coverage-exclusions.json`. All broad feature sections are exercised.
+
+
+## Scoped options migration review
+
+The original monolith goldens stay unchanged. `fixtures/migrations-smoke.json.gz`
+and `fixtures/migrations.json.gz` retain exact input-boundary differences for the
+scoped DB, lazy options and instance migration. Each entry includes the original
+input, both ordered block hashes, every specific call-count delta and a reviewed
+reason. The comparison additionally requires identical cumulative native and
+non-presentation widget state at every original boundary. An unreviewed ledger
+or any changed block fails. No entire scenario is excluded.
+
+`run.py` records hashes before executing the trace and rejects any source change
+during the run. A completed trace can be reused for the aggregate checks only
+when maintained source, trace harness, raw-content and client-framework hashes
+still match. This avoids repeating an unchanged five-minute scenario run.
+
+```powershell
+python client-mods/aetherfall-core/tests/run.py --client $env:AION_CLIENT --reuse-trace $env:AFUI_VERIFIED_TRACE
+```
+
+The default aggregate command still records and compares a fresh full trace.
+`options-golden.jsonl.gz` is a separate, assertion-reviewed reference for new
+controls and profiles. It includes compact scale-two geometry, shipped profile
+controls, native resource format writes, old master-opacity conversion, corrupt
+newer-pair fallback and failed-save retry.

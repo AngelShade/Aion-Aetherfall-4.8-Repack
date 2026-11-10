@@ -27,7 +27,9 @@ def dialog(movers=56):
         if kind == 'static':
             attrs['flag'] += ';truncate;not_multiline;not_wordwrap'
         if kind == 'button':
-            attrs.update(style='pushbutton', preset=preset or 'v5_button')
+            attrs['style'] = 'pushbutton'
+            if preset:
+                attrs['preset'] = preset
         elif preset:
             attrs['preset'] = preset
         if text:
@@ -44,15 +46,19 @@ def dialog(movers=56):
         widget('image', 'Guide' + name, '0,0,1,1')
     for i in range(1, movers + 1):
         widget('button', f'Move{i}', '0,0,120,30')
+    # Border lines of the boxes, placed by AF.Skin beside each box (controls hold no children).
+    for i in range(1, movers + 1):
+        for edge in ('Top', 'Bottom', 'Left', 'Right'):
+            widget('image', f'Move{i}Edge{edge}', '0,0,1,1')
     # Passive captions and tethers preserve even the smallest native hit boxes.
     for i in range(1, movers + 1):
         widget('image', f'MoveLeader{i}', '0,0,1,1')
-        widget('static', f'MoveLabel{i}', '0,0,120,20', preset='v5_staticbox')
+        widget('static', f'MoveLabel{i}', '0,0,120,20')
     for i in range(1, 5):
         widget('image', f'Selection{i}', '0,0,1,1')
 
     # The panel is positioned as a set of queued child-widget operations by Lua.
-    widget('image', 'EditorPanel', '0,0,380,278', preset='v5_staticbox')
+    widget('image', 'EditorPanel', '0,0,380,278')
     widget('static', 'EditorTitle', '10,4,158,22', 'MOVE UI  |  drag header')
     widget('button', 'EditorSave', '174,3,116,24', 'Save / Lock', 'Save')
     widget('button', 'EditorCancel', '296,3,74,24', 'Cancel', 'Cancel')

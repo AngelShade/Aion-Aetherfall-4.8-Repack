@@ -1,5 +1,5 @@
 -- Registered feature adapters keep the editor independent of frame types.
-local M=AF:NewModule('Shortcuts',{needs={'Placement','HUD'},defaults={menusize={34,'int',24,48,2},menucols={7,'int',1,14,1},menugap={4,'int',0,16,2}}})
+local M=AF:NewModule('Shortcuts',{scope='profile',needs={'Placement','HUD'},defaults={menusize={34,'int',24,48,2},menucols={7,'int',1,14,1},menugap={4,'int',0,16,2}}})
 local S={}
 local N=AF.Native
 local D=AFCore and AFCore.DIALOG or {}
@@ -221,8 +221,3 @@ function M:Diagnostics() return AF.Copy(S) end
 M:Listen('PinsReleased',function() S.menuGaps=nil end)
 M:Listen('RecoverNativeWindows',function() S.menuGaps=nil end)
 AF.Movers:Register('shortcuts',{owner='Shortcuts',order=40,first=MENU_ID+1,last=MENU_GROUP,candidates='Candidates',bounds='Bounds',clamp='Clamp',move='Move',reset='Reset',category='Menus',tab='Shortcuts',group=MENU_GROUP})
-AF.Config:Register(M,{{name='Shortcuts',order=8,hint='Size, rows and spacing rebuild the grid. Move Shortcuts (all) as a group.',rows={
- {order=2,label='Shortcut size',kind='number',k='menusize',unit=' px',format='FormatOption'},
- {order=3,label='Shortcuts per row',kind='number',k='menucols',format='FormatOption'},
- {order=4,label='Shortcut spacing',kind='number',k='menugap',unit=' px',format='FormatOption'},
- {order=5,label='Align shortcuts',kind='action',action='alignmenu',text='Align'}}}})

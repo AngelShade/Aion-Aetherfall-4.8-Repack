@@ -1,5 +1,5 @@
 -- Native interface policy; no state is shared with other modules.
-local M=AF:NewModule('Placement',{needs={'Lifecycle','WorldMap'},defaults={}})
+local M=AF:NewModule('Placement',{scope='profile',needs={'Lifecycle','WorldMap'},defaults={}})
 local S={}
 local N=AF.Native
 local D=AFCore and AFCore.DIALOG or {}
@@ -132,6 +132,16 @@ function M:Enforce()
     followOwners()
 end
 
+local function nativeDragHit(id, d, x, y)
+    if not d or d.name == '' or not d.shown or x < d.x or y < d.y or x >= d.x+d.w or y >= d.y+d.h then return false end
+    if id == D.chat and d.name == 'chat_dialog' then
+        -- The chat is a held HUD frame, but it has its own native move handle.
+        local gx, gy, gw, gh, shown = AFCore.Rect(id, 'move_trigger', 'image')
+        return shown and gx and x >= gx and y >= gy and x < gx+gw and y < gy+gh
+    end
+    return nativeMovable(d) and not owned(id,d)
+end
+
 -- Save native title dragging only after a foreground mouse press inside the
 -- window. Engine layout/focus changes are never user-position edits.
 function M:NativeDragTick()
@@ -141,7 +151,7 @@ function M:NativeDragTick()
         S.nativeDrags={}
         for id=1,PLUGIN_FIRST-1 do
             local d=dialog(id)
-            if d and d.name ~= '' and d.shown and nativeMovable(d) and not owned(id,d) and cx>=d.x and cy>=d.y and cx<d.x+d.w and cy<d.y+d.h then
+            if nativeDragHit(id,d,cx,cy) then
                 S.nativeDrags[id]={token=identity(d),x=d.x,y=d.y,w=d.w,h=d.h,cx=cx,cy=cy,savedX=d.x,savedY=d.y}
             end
         end
@@ -162,6 +172,7 @@ function M:NativeDragTick()
             local changed=math.abs(d.x-prev.savedX)>1 or math.abs(d.y-prev.savedY)>1
             if moved and follows and changed and math.abs(d.w-prev.w)<.5 and math.abs(d.h-prev.h)<.5 then
                 remember(id,d,d.x,d.y,sw,sh)
+                if owned(id,d) then AF:Send('MarkPinsDirty') end
                 if id==AF:Call('WorldMap','Id') then AF:Call('WorldMap','Remember',d.x/sw,d.y/sh) end
                 prev.savedX,prev.savedY=d.x,d.y
             end

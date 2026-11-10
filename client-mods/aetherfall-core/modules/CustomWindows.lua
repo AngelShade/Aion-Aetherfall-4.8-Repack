@@ -1,5 +1,5 @@
 -- Fullscreen browser sizing and per-character movable custom window positions.
-local M = AF:NewModule('CustomWindows', {needs = {'Lifecycle'}})
+local M = AF:NewModule('CustomWindows',{scope='profile',needs = {'Lifecycle'}})
 local fitted, webSize, custom = {}, {}, {}
 local screen, scale, dialog = AF.Native.Screen, AF.Native.Scale, AF.Native.Dialog
 local PLUGIN_FIRST = 0x20e
@@ -113,3 +113,28 @@ end)
 M:Phase('fit-windows', function(self)
     if AF:Call('Lifecycle', 'IsSettled') then self:Fit() end
 end)
+
+-- Explicit plugin windows use the same normalized custom-window positions.
+-- They call these only when opened, dragged or repositioned.
+function M:Restore(name, width, height)
+    local sw, sh = screen()
+    local uiScale = scale()
+    local saved = AF.DB:GetWindow(name)
+    local x = saved and saved[1] * sw or (sw - width * uiScale) / 2
+    local y = saved and saved[2] * sh or (sh - height * uiScale) / 2
+    return math.max(0, math.min(sw - width * uiScale, x)) / uiScale,
+           math.max(0, math.min(sh - height * uiScale, y)) / uiScale
+end
+function M:SavePosition(name, x, y)
+    local sw, sh = screen()
+    local uiScale = scale()
+    AF.DB:SetWindow(name, {math.max(0, math.min(1, x * uiScale / sw)),
+                           math.max(0, math.min(1, y * uiScale / sh))})
+    AF.DB:Dirty()
+end
+function M:Center(name, width, height)
+    AF.DB:SetWindow(name, nil)
+    local x, y = self:Restore(name, width, height)
+    self:SavePosition(name, x, y)
+    return x, y
+end

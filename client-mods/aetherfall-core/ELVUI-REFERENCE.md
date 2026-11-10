@@ -49,10 +49,10 @@ copied: WoW's API does not exist in Aion, so every module is written against
 
 Counts are literal settings in `Defaults/Profile.lua` before `CopyTable` expands templates.
 
-## What changes in our contract because of this
+## Implemented contract extensions
 
-To fold into `ARCHITECTURE.md` when the module split lands (same file is being
-edited by that work now):
+The six extension points are described in `ARCHITECTURE.md`. The current
+implementation and source-only verification handoff are in `ELVUI-IMPLEMENTATION.md`.
 
 1. Three setting scopes (profile, character, account) in DB, declared per key.
 2. Schema templates and instances, so repeated things are defined once.

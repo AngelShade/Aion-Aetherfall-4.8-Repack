@@ -1,5 +1,25 @@
 -- Extracted from the 1.2.94 interface; client calls retain their original order.
-local M=AF:NewModule('Tooltip',{needs={},defaults={ttshow={1,'toggle'},ttanchor={2,'choice',{'Mover','Cursor','Native'}},ttui={3,'choice',{'Native','Mover','Cursor'}},ttgrow={1,'choice',{'Bottom right','Bottom left','Top right','Top left'}},ttx={0,'int',-64,64,8},tty={0,'int',-64,64,8},ttclamp={1,'toggle'},tipcursor={1,'toggle'}},tags={tipcursor='share-skip'},fresh={tipcursor=1},migrate=function(settings) if settings.tipcursor==1 then return false end; if settings.ttanchor==1 then settings.ttanchor=2 end; settings.tipcursor=1; return true end})
+local M = AF:NewModule('Tooltip', {
+    scope = 'profile', defaults = {
+        ttshow = {1, 'toggle'}, ttanchor = {2, 'choice', {'Mover', 'Cursor', 'Native'}},
+        ttui = {3, 'choice', {'Native', 'Mover', 'Cursor'}},
+        ttgrow = {1, 'choice', {'Bottom right', 'Bottom left', 'Top right', 'Top left'}},
+        ttx = {0, 'int', -64, 64, 8}, tty = {0, 'int', -64, 64, 8},
+        ttuix = {0, 'int', -64, 64, 8}, ttuiy = {0, 'int', -64, 64, 8},
+        tipwidth = {240, 'int', 120, 480, 10}, tipheight = {100, 'int', 40, 240, 10},
+        ttclamp = {1, 'toggle'}, tipcursor = {1, 'toggle'},
+    },
+    tags = {tipcursor = 'share-skip'}, fresh = {tipcursor = 1},
+    migrate = function(settings)
+        local changed = false
+        if settings.ttuix == nil and settings.ttx ~= nil then settings.ttuix = settings.ttx; changed = true end
+        if settings.ttuiy == nil and settings.tty ~= nil then settings.ttuiy = settings.tty; changed = true end
+        if settings.tipcursor == 1 then return changed end
+        if settings.ttanchor == 1 then settings.ttanchor = 2 end
+        settings.tipcursor = 1
+        return true
+    end,
+})
 local S={}
 local N=AF.Native
 local D=AFCore and AFCore.DIALOG or {}
@@ -17,7 +37,7 @@ local function tooltipKind(d)
     if name:match('^tooltip_proto') then return 'context' end
 end
 local function isTooltip(d) return tooltipKind(d) ~= nil end
-local function tooltipBox() local s = scale(); return 240 * s, 100 * s end
+local function tooltipBox() local s = scale(); return get('tipwidth') * s, get('tipheight') * s end
 local function tooltipAnchor(which)
     local sw, sh = screen(); local bw, bh = tooltipBox()
     local p = AF.Movers:Get(which or TOOLTIP)
@@ -31,7 +51,7 @@ function M:Hold()
         local choice = kind == 'ui' and ({'native', 'mover', 'cursor'})[get('ttui')] or ({'mover', 'cursor', 'native'})[get('ttanchor')]
         if get('ttshow') == 0 then return 5, 0, 0 end
         if choice == 'native' then return nil end
-        if choice == 'cursor' then return 4, get('ttx') * scale(), get('tty') * scale() end
+        if choice == 'cursor' then return 4, get(kind == 'ui' and 'ttuix' or 'ttx') * scale(), get(kind == 'ui' and 'ttuiy' or 'tty') * scale() end
         local ax, ay = tooltipAnchor(kind == 'ui' and TOOLTIP_UI or TOOLTIP); local bw, bh = tooltipBox()
         local m = GROW_MODE[get('ttgrow')] or 3
         return m, m % 2 == 1 and ax + bw or ax, m >= 2 and ay + bh or ay
@@ -80,12 +100,3 @@ end
 function M:Diagnostics() return AF.Copy(S) end
 M:Listen('ResetLayoutCaches',function() S.checked={} end)
 AF.Movers:Register('tooltip',{owner='Tooltip',order=20,candidates='Candidates',first=TOOLTIP,last=TOOLTIP_UI,category='HUD',tab='Tooltip',move='Move',reset='Reset'})
-AF.Config:Register(M,{{name='Tooltip',order=6,hint='Mover: a box in /moveui. Cursor: beside the mouse. Native: game spot.',rows={
- {order=1,label='Tooltips',kind='toggle',k='ttshow'},
- {order=2,label='World (NPCs, players)',kind='choice',k='ttanchor'},
- {order=3,label='UI (buttons, items)',kind='choice',k='ttui'},
- {order=4,label='Grow from (Mover)',kind='choice',k='ttgrow'},
- {order=5,label='Cursor offset X',kind='number',k='ttx',unit=' px'},
- {order=6,label='Cursor offset Y',kind='number',k='tty',unit=' px'},
- {order=7,label='Keep on screen',kind='toggle',k='ttclamp'},
- {order=8,label='Tooltip mover',kind='action',action='unlock',text='Unlock',state='editor'}}}})

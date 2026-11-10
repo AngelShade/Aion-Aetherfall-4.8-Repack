@@ -1,5 +1,5 @@
 -- Character, focus and viewport state. Timer phases are semantic, not load order.
-local M=AF:NewModule('Lifecycle',{needs={},defaults={}})
+local M=AF:NewModule('Lifecycle',{scope='profile',needs={},defaults={}})
 local S={ready=false,ticks=0}
 local N=AF.Native
 local D=AFCore and AFCore.DIALOG or {}

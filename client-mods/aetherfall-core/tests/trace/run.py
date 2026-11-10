@@ -6,9 +6,12 @@ import json
 from pathlib import Path
 import tempfile
 from collections import Counter
-from runtime import FIXTURES, HERE, Runtime, Recorder
+from itertools import zip_longest
+from runtime import FIXTURES, HERE, SOURCE, Runtime, Recorder
 from runtime import frozen
 from coverage import report
+from policy import records, self_test as policy_self_test
+from boundaries import compare_reviewed
 
 
 def scenarios(t, smoke=False):
@@ -21,6 +24,9 @@ def scenarios(t, smoke=False):
     t.slash('/afui')
     assert t.g.AFUI.ready and t.g.AFUI.settled
     if smoke:return
+    if not t.reference:
+        from legacy_actions import LegacyActions
+        t.legacy_actions=LegacyActions(t)
     t.mark('target-details-self-bot-human-absent-party-identity')
     original=t.units['target']
     t.units['target']=(7001,'TraceCharacter',65,31000,42000,5000,8000)
@@ -73,19 +79,19 @@ def scenarios(t, smoke=False):
     t.click('Tab11')
     for row in range(2,8): t.click(f'Row{row}Value')
     t.click('Row8Value')
-    code=t.widgets['AFUICode']['text']
+    code=t.code()
     t.click('Row9Value')
-    t.g.AFUICode.SetText(t.g.AFUICode,'');t.click('Row9Value')
+    t.code('');t.click('Row9Value')
     def share(body):
         total=0
         for char in body.encode(): total=(total*31+char)%65521
         return f'AFUI1!{len(body)}!{body}!{total:04x}'
     malformed=['','garbage','AFUI1!','AFUI1!4!x=1!0000',share('unknown=1'),share('font=999'),share('p11=4,5'),share('font=1;p11=0.1,0.2,target_dialog')]
     for value in malformed:
-        t.g.AFUICode.SetText(t.g.AFUICode,value);t.click('Row9Value')
-    t.g.AFUICode.SetText(t.g.AFUICode,code);t.click('Row9Value')
+        t.code(value);t.click('Row9Value')
+    t.code(code);t.click('Row9Value')
     saved_export=t.files.pop('afui-export.cfg',None)
-    t.g.AFUICode.SetText(t.g.AFUICode,'');t.click('Row9Value')
+    t.code('');t.click('Row9Value')
     if saved_export is not None:t.files['afui-export.cfg']=saved_export
     t.mark('tooltip-mover-policy-modes')
     t.click('Tab6')
@@ -210,14 +216,25 @@ def scenarios(t, smoke=False):
 
 
 def compare(expected, actual):
-    with gzip.open(expected,'rt',encoding='utf-8') as left,gzip.open(actual,'rt',encoding='utf-8') as right:
-        for line in range(1,10**9):
-            a,b=left.readline(),right.readline()
-            if a!=b:
-                print(f'First difference at record {line}:')
-                print('REFERENCE:',a.rstrip()[:3000]);print('CURRENT:  ',b.rstrip()[:3000])
-                return False
-            if not a: return True
+    policy_self_test()
+    excluded_before, excluded_after = Counter(), Counter()
+    for line, (a,b) in enumerate(zip_longest(records(expected,excluded_before),records(actual,excluded_after)),1):
+        if a!=b:
+            print(f'First non-presentation difference at retained record {line}:')
+            print('REFERENCE:',json.dumps(a,ensure_ascii=False)[:3000]);print('CURRENT:  ',json.dumps(b,ensure_ascii=False)[:3000])
+            ledger = FIXTURES / ('migrations-smoke.json.gz' if 'smoke' in expected.name else 'migrations.json.gz')
+            return compare_reviewed(expected, actual, ledger)
+    print('Reviewed presentation differences:',dict(excluded_before),'->',dict(excluded_after))
+    return True
+
+
+def source_hashes():
+    paths = [SOURCE / name for name in json.loads((SOURCE / 'load_order.json').read_text())
+             if (SOURCE / name).is_file()]
+    paths += [SOURCE / name for name in ('load_order.json', 'prepare.py', 'mover_editor.py', 'options_skin.py', 'lua_package.py')]
+    paths += list((SOURCE / 'layout').glob('*.py'))
+    paths += [HERE / name for name in ('run.py', 'runtime.py', 'legacy_actions.py', 'policy.py', 'boundaries.py')]
+    return {path.relative_to(SOURCE).as_posix():hashlib.sha256(path.read_bytes()).hexdigest() for path in paths}
 
 
 def main():
@@ -226,18 +243,42 @@ def main():
     parser.add_argument('--record-reference',action='store_true')
     parser.add_argument('--output',type=Path)
     parser.add_argument('--smoke',action='store_true',help='short cold-load/world/options trace for refactor iteration')
+    parser.add_argument('--compare-existing',type=Path,help='verify an existing trace with matching source and framework hashes')
     args=parser.parse_args()
     expected=FIXTURES/('golden-smoke.jsonl.gz' if args.smoke else 'golden.jsonl.gz')
     output=args.output or (expected.with_name(expected.name+'.pending') if args.record_reference else Path(tempfile.gettempdir())/'aetherfall-current-trace.jsonl.gz')
     if not args.record_reference and output.resolve()==expected.resolve():
         parser.error('Current source output must not overwrite its reference')
+    initial_hashes = source_hashes()
+    if args.compare_existing:
+        result=json.loads(args.compare_existing.with_suffix('.summary.json').read_text())
+        assert result.get('currentSourceSha256')==initial_hashes, 'Existing trace was not recorded from these exact sources'
+        assert not result.get('sourceChangedDuringRun'), 'Source changed while recording the existing trace'
+        from runtime import read_pak
+        with read_pak(args.client / 'bin32/bin32.pak') as archive:
+            observed={Path(name).stem:hashlib.sha256(archive.read(name)).hexdigest()
+                      for name in archive.namelist() if name.endswith('.lua') and Path(name).stem in result['frameworkSha256']}
+        assert observed==result['frameworkSha256'], 'Client framework changed since the recorded trace'
+        import gzip
+        sha=hashlib.sha256()
+        with gzip.open(args.compare_existing,'rb') as stream:
+            for raw in stream: sha.update(raw)
+        assert sha.hexdigest()==result['sha256'], 'Existing trace content hash changed'
+        if not compare(expected,args.compare_existing): raise SystemExit(1)
+        assert source_hashes()==initial_hashes, 'Source changed while comparing the existing trace'
+        print('PASS: verified unchanged source trace',args.compare_existing)
+        return
     r=Recorder(output)
-    t=Runtime(args.client,r,reference=args.record_reference)
+    t=Runtime(args.client,r,reference=args.record_reference,
+              current_resources=not args.record_reference,stable_plugin_slots=True)
     if not args.record_reference:
         provenance=json.loads(expected.with_suffix('.summary.json').read_text())
-        assert provenance['frameworkSha256']==t.framework_hashes,'Client framework differs from the reference environment'
+        assert all(t.framework_hashes.get(name)==sha for name,sha in provenance['frameworkSha256'].items()), 'Client framework differs from the reference environment'
     scenarios(t, args.smoke)
     result=r.close()
+    if not args.record_reference:
+        result['currentSourceSha256']=initial_hashes
+        result['sourceChangedDuringRun']=source_hashes()!=initial_hashes
     result['frameworkSha256']=t.framework_hashes
     result['coverage']=t.coverage()
     result['idleMinuteCalls']=getattr(t,'idle_counts',{})
@@ -249,8 +290,9 @@ def main():
         output.replace(expected);output=expected
     output.with_suffix('.summary.json').write_text(json.dumps(result,indent=2)+'\n')
     print(f"{result['records']} records; sha256 {result['sha256']}; {output.stat().st_size} compressed bytes")
+    if result.get('sourceChangedDuringRun'): raise SystemExit('Source changed during this trace; record a fresh output')
     if not args.record_reference and not compare(expected,output): raise SystemExit(1)
-    print('PASS: frozen reference recorded' if args.record_reference else 'PASS: exact ordered trace identical')
+    print('PASS: frozen reference recorded' if args.record_reference else 'PASS: ordered non-presentation trace identical')
 
 
 if __name__=='__main__': main()

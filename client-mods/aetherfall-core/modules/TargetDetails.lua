@@ -1,5 +1,9 @@
 -- Resource labels belong to native target frames; only passive DP uses a plugin.
-local M = AF:NewModule('TargetDetails')
+local M = AF:NewModule('TargetDetails', {scope='profile', defaults={
+    healthFormat={'[current]/[max]','string',128}, manaFormat={'[current]/[max]','string',128},
+    dpFormat={'[current]/[max]','string',128}, assistFormat={'[current]/[max]','string',128},
+    targetAbbreviate={0,'toggle'},
+}})
 local S = {text = {}, shown = {}}
 local D = AFCore and AFCore.DIALOG or {}
 local n, scale = AF.Native.Number, AF.Native.Scale
@@ -13,22 +17,20 @@ local function settext(id, s)
     s = tostring(s or '')
     if S.text[id] ~= s then w(id):SetText(s); S.text[id] = s end
 end
-local function thousands(v)
-    local s = string.format('%d', math.floor(v + .5))
-    while true do local k; s, k = s:gsub('^(-?%d+)(%d%d%d)', '%1,%2'); if k == 0 then return s end end
-end
-local function resourceValue(cur, max)
-    cur, max = n(cur), n(max)
-    return cur and max and max > 0 and (thousands(cur) .. '/' .. thousands(max)) or ''
+local function resourceValue(cur, maximum, format)
+    cur, maximum = n(cur), n(maximum)
+    return cur and maximum and maximum > 0 and AF.Tags:Format(format or M.db.healthFormat,
+        {current=cur, maximum=maximum, abbreviate=M.db.targetAbbreviate}) or ''
 end
 local TARGET_PANELS = {'container1', 'container2', 'container3', 'container4', 'container7'}
 
+function M:Available() return w('Target') ~= nil and AFCore.SetText ~= nil end
 function M:Update()
     if not w('Target') or not AFCore.SetText then return end
     local assistName, _, _, _, _, assistShown = AFCore.Dialog(D.target_assist)
     local assistId, _, _, assistHP, assistMax = AFCore.Unit('targettarget')
     local assistActive = assistShown and assistName == 'target_assist_dialog' and assistId and assistId > 0
-    AFCore.SetText(D.target_assist, 'container/af_resource_hp', assistActive and resourceValue(assistHP, assistMax) or '')
+    AFCore.SetText(D.target_assist, 'container/af_resource_hp', assistActive and resourceValue(assistHP, assistMax, M.db.assistFormat) or '')
     settext('TargetHP', '')
     settext('TargetMP', '')
     settext('TargetDP', '')
@@ -48,12 +50,12 @@ function M:Update()
     if AFCore.PlayerId and id == AFCore.PlayerId() then dp, dpmax = AFCore.Gauge(D.basic_status, 'dp_gauge_text') end
     dp, dpmax = n(dp), n(dpmax)
     local available = dp and dpmax and dpmax > 0
-    local hpText, mpText = resourceValue(hp, hpmax), resourceValue(mp, mpmax)
+    local hpText, mpText = resourceValue(hp, hpmax), resourceValue(mp, mpmax, M.db.manaFormat)
     for _, panel in ipairs(TARGET_PANELS) do
         AFCore.SetText(D.target, panel .. '/af_resource_hp', hpText)
     end
     AFCore.SetText(D.target, 'container7/af_resource_mp', mpText)
-    AFCore.SetText(D.target, 'container7/af_resource_dp', available and resourceValue(dp, dpmax) or '')
+    AFCore.SetText(D.target, 'container7/af_resource_dp', available and resourceValue(dp, dpmax, M.db.dpFormat) or '')
     if available and dp > 0 then
         w('TargetDPFill'):SetRect(6, 55, 239 * math.max(0, math.min(1, dp / dpmax)), 13)
         w('TargetDPFill'):Show()

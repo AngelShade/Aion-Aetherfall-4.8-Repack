@@ -1,5 +1,6 @@
 """Token-aware checks for the interface's module ownership and dependency rules."""
 import argparse
+import ast
 from dataclasses import dataclass
 from pathlib import Path
 import re
@@ -158,6 +159,31 @@ def inspect(path, api, module_names):
         for dependency in needs:
             if dependency not in module_names:
                 errors.append((1, f'missing declared dependency {dependency}'))
+    elif path.parent.name in ('options', 'datatexts', 'tags'):
+        # Data providers are Core clients too, but have no feature table to
+        # reach into. Dependency-bearing methods belong in the owning module.
+        owner = '@' + path.parent.name
+        for i, token in enumerate(ts):
+            if token.value in ('CreateWidget', 'LoadXMLWidget', 'AddNewWidget'):
+                fail(token, 'declarative providers may not construct widgets')
+            if sequence(ts, i, ['AF', ':', 'NewModule']):
+                fail(token, 'providers may not register feature modules')
+            if token.value in ('Every', 'After', 'Phase', 'On') and i and ts[i - 1].value == ':':
+                fail(token, 'providers may not create event/timer subscriptions')
+        if path.parent.name == 'options':
+            registrations = [i for i in range(len(ts) - 4)
+                             if sequence(ts, i, ['AF', '.', 'Config', ':'])
+                             and ts[i + 4].value in ('Register', 'RegisterLazy')]
+            if not registrations:
+                errors.append((1, 'option file must register a lazy Config provider'))
+            for i in registrations:
+                end = matching(ts, i + 5)
+                if ts[i + 6].kind == 'string':
+                    owner = ts[i + 6].value
+                    if owner not in module_names:
+                        fail(ts[i + 6], 'option provider owner is not a feature module')
+                if not any(token.value == 'function' for token in ts[i + 6:end]):
+                    fail(ts[i], 'option tree must be a deferred factory')
     core_aliases, module_aliases, bridge_aliases = {'AF': ''}, {}, {'AFCore'}
     is_db = path.parent.name == 'core' and path.name == 'DB.lua'
     for i, token in enumerate(ts):
@@ -233,6 +259,60 @@ def inspect(path, api, module_names):
     return errors
 
 
+def inspect_layout(path):
+    """Keep geometry generators valid and styling in the shared Skin service."""
+    text = path.read_text(encoding='utf-8-sig')
+    errors = []
+    if len(text.splitlines()) > 600:
+        errors.append((1, f'{len(text.splitlines())} lines exceeds the 600-line limit'))
+    tree = ast.parse(text, filename=str(path))
+    style = {'color', 'colour', 'texture', 'image', 'alpha', 'skin'}
+    fallbacks = {'font': {'ui_combo', 'ui_default'},
+                 'preset': {'v5_dialog', 'v5_button', 'v5_editbox', 'v5_staticbox', 'v5_staticbox3',
+                            'v5_hud_pet_command_s1'}}  # the mover overlay's base: a self-painted window that takes input
+    allowed = {'static', 'image', 'button', 'editbox', 'combobox', 'spin',
+               'container', 'scrollable', 'htmlview'}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == 'widget':
+            if node.args and isinstance(node.args[0], ast.Constant):
+                if str(node.args[0].value).lower() not in allowed:
+                    errors.append((node.lineno, 'unproven plugin widget type ' + str(node.args[0].value)))
+        if isinstance(node, ast.Dict):
+            for key, value in zip(node.keys, node.values):
+                if not isinstance(key, ast.Constant) or not isinstance(key.value, str):
+                    continue
+                if key.value.lower() in style:
+                    errors.append((key.lineno, 'layout styling belongs in AF.Skin: ' + key.value))
+                if key.value.lower() in fallbacks and isinstance(value, ast.Constant):
+                    if value.value not in fallbacks[key.value.lower()]:
+                        errors.append((value.lineno, 'unreviewed native style fallback ' + str(value.value)))
+                if key.value == 'type' and isinstance(value, ast.Constant) and isinstance(value.value, str):
+                    if value.value.lower() not in allowed:
+                        errors.append((value.lineno, 'unproven plugin widget type ' + value.value))
+        if isinstance(node, ast.keyword) and node.arg and node.arg.lower() in style:
+            errors.append((node.lineno, 'layout styling belongs in AF.Skin: ' + node.arg))
+        if isinstance(node, ast.keyword) and node.arg in fallbacks and isinstance(node.value, ast.Constant):
+            if node.value.value not in fallbacks[node.arg]:
+                errors.append((node.lineno, 'unreviewed native style fallback ' + str(node.value.value)))
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == 'set':
+            if node.args and isinstance(node.args[0], ast.Constant) and node.args[0].value in style:
+                errors.append((node.lineno, 'layout styling belongs in AF.Skin: ' + node.args[0].value))
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Subscript) and isinstance(target.slice, ast.Constant):
+                    key = target.slice.value
+                    if key in style:
+                        errors.append((node.lineno, 'layout styling belongs in AF.Skin: ' + key))
+                    if key in fallbacks:
+                        values = [node.value]
+                        if isinstance(node.value, ast.IfExp):
+                            values = [node.value.body, node.value.orelse]
+                        for value in values:
+                            if isinstance(value, ast.Constant) and value.value not in fallbacks[key]:
+                                errors.append((value.lineno, 'unreviewed native style fallback ' + str(value.value)))
+    return errors
+
+
 def lint(root=SOURCE):
     core = sorted((root / 'core').glob('*.lua'))
     modules = sorted((root / 'modules').glob('*.lua'))
@@ -246,12 +326,20 @@ def lint(root=SOURCE):
             names.add(owner)
         except ValueError as error:
             errors.append((path, 1, str(error)))
-    for path in core + modules:
+    providers = [path for directory in ('options', 'datatexts', 'tags')
+                 for path in sorted((root / directory).glob('*.lua'))]
+    layouts = sorted((root / 'layout').glob('*.py'))
+    for path in core + modules + providers:
         try:
             errors.extend((path, line, message) for line, message in inspect(path, api, names))
         except ValueError as error:
             errors.append((path, 1, str(error)))
-    return core + modules, errors
+    for path in layouts:
+        try:
+            errors.extend((path, line, message) for line, message in inspect_layout(path))
+        except SyntaxError as error:
+            errors.append((path, error.lineno or 1, str(error)))
+    return core + modules + providers + layouts, errors
 
 
 def self_test():
@@ -287,6 +375,22 @@ def self_test():
         for body in invalid:
             path.write_text(header + body, encoding='utf-8')
             assert inspect(path, api, {'Self', 'Dependency'}), body
+        options = root / 'options/Self.lua'
+        options.parent.mkdir()
+        options.write_text("AF.Config:Register('Self',function() return {} end)", encoding='utf-8')
+        provider_api = dict(api, Config={'Register', 'RegisterLazy'})
+        api[''].add('Config')
+        assert not inspect(options, provider_api, {'Self'})
+        for body in ("AF.Config:Register('Self',{})", "CreateWidget('Static','Option')",
+                     "AF:NewModule('Extra')", "local M={}; M:Every(1,function() end)"):
+            options.write_text(body, encoding='utf-8')
+            assert inspect(options, provider_api, {'Self'}), body
+        layout = root / 'geometry.py'
+        layout.write_text("node={'type':'spin','frame':'0,0,40,20'}", encoding='utf-8')
+        assert not inspect_layout(layout)
+        for body in ("node={'type':'gauge'}", "node={'font':'fixed'}", "node.set('color','red')"):
+            layout.write_text(body, encoding='utf-8')
+            assert inspect_layout(layout), body
 
 
 def main():
@@ -301,7 +405,7 @@ def main():
         raise SystemExit('No Core/module files found')
     if errors:
         raise SystemExit(1)
-    print(f'PASS: dependency/ownership lint ({len(files)} Core/module files, 600-line cap)')
+    print(f'PASS: dependency/ownership lint ({len(files)} Core/module/provider/layout files, 600-line cap)')
 
 
 if __name__ == '__main__':

@@ -21,7 +21,7 @@ HERE = Path(__file__).resolve().parent
 NATIVE_VERSION = '1.3.16'  # Plugin widget call queue bound raised from 4,000 to 1,048,576.
 PAK = 'Plugin/RelicCalc/RelicCalc.pak'
 PLUGIN_COHORT = [PAK, PAK + '.sig', 'Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig']
-VERSION = '1.2.95'  # Modular interface Core, feature modules and legacy compatibility forwards.
+VERSION = '1.3.6'  # Compact ElvUI-style Profiles page; the client's corner button moved off the options window.
 LUA = 'AetherfallCore.lua'
 # Native HUD dialog type ids for the design layout (Game.dll dialog table).
 DESIGN_IDS = {'basic_status_dialog': 0x0a, 'quickbar_dialog': 0x10, 'quickbar_dialog_ctrl': 0x12, 'quickbar_dialog_alt': 0x13,
@@ -127,35 +127,18 @@ def screens():
     scripts = E.SubElement(top, 'Scripts')
     # The data bar also carries the options/movers events (their dialogs are built on demand).
     E.SubElement(scripts, 'OnLoad').text = 'AFHUD_OnLoad(); AFUI_OnLoad();'
-    E.SubElement(scripts, 'OnEvent').text = 'AFHUD_Dispatch(event);'
+    E.SubElement(scripts, 'OnEvent').text = 'AFHUD_Dispatch(event, ...);'
     label(dialog('AFHChat', '0,0,380,18', 'v5_hud_quickbar_s1'), 'AFHChatText', '6,0,368,18')
     label(dialog('AFHMap', '0,0,180,16'), 'AFHMapText', '0,0,180,16', 'center')
     for i in range(1, POOL + 1):
         label(dialog(f'AFHT{i}', '0,0,40,12'), f'AFHT{i}Text', '0,0,40,12', 'center')
 
-    # Options window (/afui), ElvUI-style: category sidebar, a panel with the category title and a
-    # divider, 10 rows of label | control (value button with - / + or < / > beside it), a one-line
-    # hint and Close. Built with the plugin like every plugin window whose buttons work. Child
-    # frames start below the 32 px title, so the content area is 640 x 428.
-    opts = dialog('AFUIOptions', '320,250,640,460', 'v5_dialog', 'close;title;not_visible', text='Aetherfall Interface',
-                  title_height='32', title_offset='12,6', close_preset='v5_close', close_offset='6,6')
-    image(opts, 'AFUISide', '6,2,144,388', 'v5_staticbox')
-    image(opts, 'AFUIPanel', '156,2,478,388', 'v5_staticbox')
-    for i in range(1, 12):
-        button(opts, f'AFUITab{i}', f'12,{8 + (i - 1) * 34},132,30', click=f"AFUI.Click('Tab{i}');", preset='v5_tabbutton')
-    label(opts, 'AFUIHeader', '170,10,450,22', font='window')
-    image(opts, 'AFUIRuler', '170,34,450,2', 'v5_ruler')
-    for i in range(1, 11):
-        y = 44 + (i - 1) * 34
-        label(opts, f'AFUIRow{i}Label', f'170,{y},270,28')
-        button(opts, f'AFUIRow{i}Less', f'456,{y},26,28', '<', f"AFUI.Click('Row{i}Less');")
-        button(opts, f'AFUIRow{i}Value', f'486,{y},110,28', click=f"AFUI.Click('Row{i}Value');")
-        button(opts, f'AFUIRow{i}More', f'600,{y},26,28', '>', f"AFUI.Click('Row{i}More');")
-    # Profiles tab: the import/export code box in the tenth row (Lua shows it on that tab only).
-    E.SubElement(opts, 'Widget', type='editbox', name='AFUICode', frame='170,350,456,28', font='ui_default',
-                 preset='v5_editbox', flag='not_visible')
-    label(opts, 'AFUIStatus', '12,396,540,24')
-    button(opts, 'AFUIClose', '566,396,68,24', 'Close', "AFUI.Click('Close');")
+    # The options dialog is created with the plugin, like every plugin window whose buttons
+    # work. A dialog created after startup (1.3.0 built it on the first /afui) is drawn but
+    # gets no plugin dialog slot, so the client never routes clicks or keys to it. Only its
+    # option trees stay lazy.
+    from layout.options_window import dialog as options_dialog
+    root.append(options_dialog(VERSION))
 
     # Keep the editor generator shared with retained-layout updates.
     from mover_editor import dialog as mover_dialog
@@ -169,16 +152,27 @@ def screens():
 
 
 def update_options_xml(xml):
-    """Replace only the installed /afui options dialog; keep all other installed dialog bytes."""
+    """Install the current /afui options dialog; keep every other installed dialog byte."""
     import re
     import xml.etree.ElementTree as E
+    parsed = E.fromstring(xml)
+    count = sum(1 for node in parsed.iter('Dialog') if node.get('name') == 'AFUIOptions')
+    pattern = rb'<Dialog\s+[^>]*name=["\']AFUIOptions["\'][^>]*?(?:/\s*>|>.*?</Dialog>)'
+    matches = re.findall(pattern, xml, re.S)
+    if count != len(matches):
+        raise ValueError('Unexpected installed AFUIOptions dialog encoding')
+    if count > 1:
+        raise ValueError('Duplicate installed AFUIOptions dialog')
     fresh = next(d for d in screens()[0] if d.get('name') == 'AFUIOptions')
     fresh.tail = None
     replacement = E.tostring(fresh, encoding='utf-8')
-    pattern = rb'<Dialog\s+[^>]*name=["\']AFUIOptions["\'][^>]*>.*?</Dialog>'
-    if len(re.findall(pattern, xml, re.S)) != 1:
-        raise ValueError('Expected exactly one installed AFUIOptions dialog')
-    updated = re.sub(pattern, lambda _: replacement, xml, count=1, flags=re.S)
+    if matches:
+        updated = re.sub(pattern, lambda _: replacement, xml, count=1, flags=re.S)
+    else:
+        # Below the mover overlay in draw order, as it always was; else last.
+        movers = re.search(rb'<Dialog\s+[^>]*name=["\']AFUIMovers["\']', xml)
+        at = movers.start() if movers else xml.rindex(b'</Screen>')
+        updated = xml[:at] + replacement + b'\n' + xml[at:]
     count = sum(1 for n in E.fromstring(updated).iter() if n.tag in ('Dialog', 'Widget'))
     return re.sub(rb'(<Screen\b[^>]*\bwidget_cnt=)["\']\d+["\']',
                   lambda m: m[1] + b'"' + str(count).encode() + b'"', updated, count=1)
@@ -231,7 +225,7 @@ def lazy_lua():
         assert ']==]' not in text
         rows.append(f"    {{'{d.get('name')}', [==[{text}]==]}},")
     return ('-- Generated by prepare.py: options window and movers, built on first use (see AetherfallOptions.lua).\n'
-            'AFUI_LAZY = {\n' + '\n'.join(rows) + '\n}\n').encode('utf-8')
+            "AFUI_LAZY = {version='" + VERSION + "',\n" + '\n'.join(rows) + '\n}\n').encode('utf-8')
 
 
 def sha(data):
@@ -363,6 +357,10 @@ def main():
         from mover_editor import LINE_PATH, line_texture
         if original(LINE_PATH) != line_texture():
             stage(LINE_PATH, line_texture())
+        from options_skin import assets as options_assets
+        for relative, payload in options_assets().items():
+            if original(relative) != payload:
+                stage(relative, payload)
 
     if args.dll_only or args.update:
         if b'AetherfallCore.dll\0' not in (client / 'bin64/Game.dll').read_bytes():
@@ -499,18 +497,25 @@ def main():
             # controller's verified event script so nested native events cannot
             # swallow its timer between the two Lua controllers.
             xml = old.read('AetherfallHUD.xml')
+            if not args.options_window_update and b'name="AFUIOptionsBackdrop"' not in xml:
+                raise ValueError('This Lua version requires --options-window-update to install its options dialog')
             if b'name="AFUIEditorPanel"' not in xml and not args.mover_editor_update:
                 raise ValueError('This Lua version requires --mover-editor-update for the installed older MoveUI layout')
             previous = b'AFHUD_OnEvent(event); AFUI_OnEvent(event);'
             if xml.count(previous) == 1:
                 changes['AetherfallHUD.xml'] = xml.replace(previous, b'AFHUD_Dispatch(event);')
-            elif b'AFHUD_Dispatch(event);' not in xml:
+            elif b'AFHUD_Dispatch(event);' not in xml and b'AFHUD_Dispatch(event, ...);' not in xml:
                 raise ValueError('Unexpected Aetherfall HUD event dispatcher')
             if args.mover_editor_update:
                 from mover_editor import update_xml
                 changes['AetherfallHUD.xml'] = update_xml(changes.get('AetherfallHUD.xml', xml))
             if args.options_window_update:
                 changes['AetherfallHUD.xml'] = update_options_xml(changes.get('AetherfallHUD.xml', xml))
+                changes['AetherfallLazy.lua'] = lazy_lua()
+            current_xml = changes.get('AetherfallHUD.xml', xml)
+            forwarded = current_xml.replace(b'AFHUD_Dispatch(event);', b'AFHUD_Dispatch(event, ...);')
+            if forwarded != current_xml:
+                changes['AetherfallHUD.xml'] = forwarded
             if args.hud_repair_update:
                 import target_details
                 changes['AetherfallHUD.xml'] = target_details.update_xml(changes.get('AetherfallHUD.xml', xml))
@@ -556,7 +561,7 @@ def main():
         # The companion controller does not change the UI catalogue. Retain the
         # installed generated registry when this is the only changed member.
         bar_only = (args.companion_bar_update and set(changes) <= {'PlayerBotBar.lua'}) or (args.help_requests_update and set(changes) <= {'PrivateMenus.lua'})
-        if args.ui_registry_update or ('AetherfallRegistry.lua' in old.namelist() and not bar_only):
+        if args.ui_registry_update or ('AetherfallRegistry.lua' in old.namelist() and not bar_only and not args.options_window_update):
             from ui_registry import generate
             changes['AetherfallRegistry.lua'] = generate(client, output, changes)
         toc = reconcile_toc(toc, lua_members, registry=REGISTRY in changes)
@@ -690,6 +695,8 @@ def write_manifest(output, client, info, files, before, extra_sources=None, vers
     if lua_manifest is not None:
         record['luaLoadOrder'] = lua_manifest
         record['sourceHashes']['load_order.json'] = sha((HERE / 'load_order.json').read_bytes())
+        for path in sorted((HERE / 'layout').glob('*.py')):
+            record['sourceHashes'][path.relative_to(HERE).as_posix()] = sha(path.read_bytes())
         for entry in lua_manifest:
             if entry['source'] not in GENERATED:
                 record['sourceHashes'][entry['source']] = sha((HERE / entry['source']).read_bytes())

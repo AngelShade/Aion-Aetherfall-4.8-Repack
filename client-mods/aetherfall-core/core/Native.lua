@@ -28,7 +28,10 @@ function N.PlayerIdentity()
     return tostring(N.Call('GetServerName') or '')..':'..name
 end
 function N:SetResources(design,menu,lazy) resources={design=design,menu=menu,lazy=lazy} end
-function N:Resource(name) return resources[name] end
+function N:Resource(name)
+    if name == 'version' then return resources.lazy and resources.lazy.version end
+    return resources[name]
+end
 function N.Panel(name)
     for id=0x20e,0x221 do
         local d=N.Dialog(id)

@@ -60,7 +60,7 @@ function M:OnSetting(key, value) ... end
 function M:OnProfile() ... end         -- whole profile replaced: re-apply everything
 ```
 
-Planned modules from the existing code: Lifecycle (world entry, focus, screen
+Implemented modules include Lifecycle (world entry, focus, screen
 size, suspend), Placement (design positions and holds), Visibility (hide and
 restore native windows), ActionBars, Tooltip, Minimap, Shortcuts (start menu),
 Opacity (backdrops), CustomWindows, Camera, DataTexts, TargetDetails, Identity,
@@ -110,8 +110,9 @@ relying on which file loaded first.
 `native-drag`, `custom-windows`, `requests`, `editor`, `holds`, `fit-windows`,
 `watch`, `discover`, `visible-settings`, `remember-shown`, `save`.
 
-Client events reach modules through `AF.Events:Client(event)`; `Lifecycle`
-handles each event before `HUD` (priorities 0 and 10).
+Client events reach modules through `AF.Events:Client(event, ...)`. Compat and
+generated event scripts forward widget arguments unchanged. `Lifecycle` handles
+each event before `HUD` (priorities 0 and 10).
 
 ## Files and build
 
@@ -119,9 +120,12 @@ Source lives in folders; the plugin archive is flat, so the build flattens names
 
 ```
 client-mods/aetherfall-core/
-  core/      Engine.lua Events.lua DB.lua Native.lua Movers.lua Config.lua Skin.lua
+  core/      Engine, Events, DB and codecs, Native, Movers, Config, Skin, Widgets, DataTexts, Tags
   modules/   <Name>.lua            one per module
   compat/    Compat.lua
+  options/   <Module>.lua            deferred factories, no widget construction
+  datatexts/ <Name>.lua              one passive registered source per file
+  tags/      <Name>.lua              one registered text tag per file
   layout/    Python generators for the plugin XML (one per window)
   tests/     trace harness, per-module tests, dependency lint
   load_order.json                  the single list of Lua files, in load order
@@ -155,24 +159,92 @@ order. No other place lists the Lua files.
 
 Nothing else is edited.
 
-## Planned extensions (from `ELVUI-REFERENCE.md`)
+## Implemented extension points
 
-Not part of the module split. The split must not make any of these harder; each
-lands as its own change with its own trace scenarios.
+### Scoped settings and named profiles
 
-1. **Three setting scopes.** Every key is declared `profile` (look and layout,
-   switchable and shareable), `character` (per character, mostly which modules
-   are on) or `account` (shared by all characters). Today all keys are effectively
-   `profile` inside a per-character file.
-2. **Templates.** A repeated thing (action bar 1 to 6, each unit frame) is one
-   schema template instantiated by name; modules receive the instance's `db`.
-   No hand-copied per-instance keys such as `abrow1..abrow4`.
-3. **Lazy option trees.** Option trees live in `options/<Module>.lua` as functions
-   evaluated on the first `/afui`. The options dialog itself is built on first
-   use, never in the plugin's one-pass load (measured 3,723 of 4,000 queued calls
-   on 10 Nov 2026, so the load has no room for a larger window).
-4. **Service registries.** Data texts, cooldown text, status bars and text tags
-   are Core-level registries; each entry is its own small file.
-5. **Movers carry a category and the id of their options page.**
-6. **One styling layer.** Colours, borders, fonts and textures are applied only
-   through `AF.Skin` templates, pixel-exact at any UI scale.
+Every module declares a default `scope` of `profile`, `character` or `account`.
+A schema rule may override it with `rule.scope`. Profile settings switch with a
+named layout. Fixed character and account rules retain their declared scope.
+`AF.DB:SetModuleScope(owner, scope)` lets a player retain an otherwise profile
+scoped group with the character or share it through the account bucket.
+
+DB alone reads and writes the alternating `ui-<sha1>.{0,1}.cfg` character pair,
+`afui-account.{0,1}.cfg` account pair and bounded `afui-characters.cfg` index.
+AFUI2 records are data with a sequence, checksum and terminator. The bridge limit
+is 32 KiB per file. Invalid files fall back to the other valid slot or defaults.
+Profile operations validate and check capacity before committing their in-memory
+changes. The six original profiles retain their names and legacy migrations.
+The profile cap is 24, with capacity also constrained by the byte limit.
+
+`core/DB.lua` owns schema validation and read-only views. `DBStorage.lua` owns
+bounded disk records. `DBProfiles.lua` owns named profile operations.
+`ProfileCodec.lua` owns AFUI1 compatibility and AFUI2 sharing. These files share
+DB-private state. Feature modules never access that state. New file formats and
+settings never become executable Lua.
+
+### Schema templates
+
+`AF.DB:RegisterTemplate(name, schema)` declares repeated settings once. A module
+uses `instances = {bar1 = {template='ActionBar', defaults={...}, legacy={...}}}`.
+An instance may select supported fields with `only`. `M.db.bar1.rows` is a
+read-only instance view. `AF.DB:Set('ActionBars', 'bar1.rows', value)` validates
+and dispatches to its owner. Legacy aliases retain old saved values. There is no
+shared mutable template instance. Bars 5 and 6 select enable and opacity fields
+while their native geometry remains unchanged.
+
+### Lazy options and widget toolkit
+
+`options/<Module>.lua` registers a factory with
+`AF.Config:Register('Module', function() return pages end)`. Factories run when
+first requested by `/afui`. The initial plugin XML contains no options dialog.
+The first queued request builds the single options dialog from the first entry
+of `AFUI_LAZY`, then waits two ticks before showing it. The five-dialog budget
+includes this lazy dialog.
+
+Pages declare category, optional parent, tabs, captioned groups and options.
+Config normalizes and merges contributions by page and tab. The renderer owns
+navigation, search, pagination and title dragging. `AF.Widgets` owns pooled
+control rendering and interaction. Neither layer knows feature settings.
+Options use `key`, or protected owner `get` and `set` callbacks, and support
+`disabled`, `hidden`, `order`, `desc`, `width` and destructive confirmation.
+Cross-module owner calls remain protected through Engine.
+
+The option kinds are toggle, range, select, color, execute, input, header and
+description. Real combobox values are zero-based. Step buttons and Apply buttons
+provide the native event fallback. Window position uses CustomWindows and the
+existing DB custom-window store. No second position database exists.
+
+### Services and tags
+
+`AF.DataTexts:Register(name, {label=..., text=function(context) ... end})`
+registers a passive source. Each of the ten original sources lives in its own
+`datatexts/` file. HUD subscribes by evaluating only its configured slots.
+The registry creates no widgets, timers or module dependencies.
+
+`AF.Tags:Register(name, formatter)` and `AF.Tags:Format(format, context)` provide
+plain-text `[tag]` interpolation. Registered data sources are available as tags.
+Resource labels use `[current]`, `[max]` and `[percent]`. Unknown tags remain
+visible. Text formats are bounded strings and are never executed. Cooldown and
+status-bar registries remain future work until a real consumer and verified
+engine surface exist.
+
+### Mover metadata and skin
+
+Movers carry a category and options page through `page`, the legacy `tab` alias
+or their owner's `settings` callback. Setup opens that page. Native action-bar
+movers link directly to Bar1 through Bar6.
+
+`AF.Skin` owns palette tokens, textures and Panel, Button, Check, Field and text
+helpers. It applies images protectively so input survives missing art. Borders use line images and scale conversion, with a one-native-UI-unit
+minimum because the native setter truncates fractional dimensions. `options_skin.assets()`
+generates loose DDS assets under `Textures/UI/AetherfallOptions`. Both the
+options window and mover editor use this styling layer. HUD content and native
+resource artwork retain their feature-owned formatting.
+
+### Runtime work
+
+The options window performs no native work while closed. While open, only an
+active title or range drag polls the cursor. Search and controls are event or
+button driven. The existing shared timer and lifecycle phase order remain the
+sole scheduler.

@@ -83,16 +83,16 @@ AFHUD_Invalidate = call('HUD', 'Invalidate')
 
 -- Keep the event in a function argument: native widget calls can synchronously
 -- dispatch another event and replace the XML script's global `event`.
-function AFHUD_Dispatch(event)
+function AFHUD_Dispatch(event, ...)
     if AFCodex then
-        local ok, why = pcall(AFCodex.OnEvent, event)
+        local ok, why = pcall(AFCodex.OnEvent, event, ...)
         if not ok then
             local message = tostring(why)
             if hud.codexError ~= message then DisplayChatMessage(0, 'Codex: ' .. message, .91, .63, .56) end
             hud.codexError = message
         else hud.codexError = nil end
     end
-    AF.Events:Client(event)
+    AF.Events:Client(event, ...)
 end
 function AFUI_OnEvent(event) AF:Call('Lifecycle', 'OnEvent', event) end
 function AFHUD_OnEvent(event) AF:Call('HUD', 'OnEvent', event) end

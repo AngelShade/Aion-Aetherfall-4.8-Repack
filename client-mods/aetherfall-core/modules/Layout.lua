@@ -1,5 +1,5 @@
 -- The original hold -> enforce -> opacity order is an explicit coordinator.
-local M=AF:NewModule('Layout',{needs={'Lifecycle','Placement','Tooltip','Shortcuts','ActionBars','Minimap','TargetPanels','WorldMap','Opacity','Visibility','Camera','HUD'},defaults={}})
+local M=AF:NewModule('Layout',{scope='profile',needs={'Lifecycle','Placement','Tooltip','Shortcuts','ActionBars','Minimap','TargetPanels','WorldMap','Opacity','Visibility','Camera','HUD'},defaults={}})
 local S={pins={}}
 local N=AF.Native
 local D=AFCore and AFCore.DIALOG or {}

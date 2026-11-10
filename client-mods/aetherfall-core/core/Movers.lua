@@ -6,6 +6,7 @@ function R:Register(id,spec)
     assert(not registrations[id], 'duplicate mover registration: '..tostring(id))
     assert(spec.owner,'mover must name its owner')
     registrations[id]=AF.Copy(spec)
+    registrations[id].page=spec.page or spec.tab
     if spec.candidates then
         providers[#providers+1]={id=id,order=assert(spec.order,'candidate provider needs explicit order')}
         table.sort(providers,function(a,b) return a.order<b.order end)
@@ -42,7 +43,7 @@ function R:Category(mv)
 end
 function R:SettingsTab(mv)
     local s=specFor(mv.id)
-    return s and (s.tab or (s.settings and AF:Call(s.owner,s.settings,mv))) or 'Movers'
+    return s and (s.page or s.tab or (s.settings and AF:Call(s.owner,s.settings,mv))) or 'Movers'
 end
 function R:Key(id) return AF.DB:ProfileName()..'.'..id end
 function R:Get(id,d)

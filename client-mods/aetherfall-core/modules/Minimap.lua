@@ -1,5 +1,5 @@
 -- Feature-local settings and native placement.
-local M=AF:NewModule('Minimap',{needs={'Placement','HUD'},defaults={mapsize={180,'int',120,320,10}}})
+local M=AF:NewModule('Minimap',{scope='profile',needs={'Placement','HUD'},defaults={mapsize={180,'int',120,320,10}}})
 local S={}
 local N=AF.Native
 local D=AFCore and AFCore.DIALOG or {}
@@ -105,6 +105,3 @@ function M:Move(mv,x,y,sw,sh) AF.Movers:Remember(mv.id,nil,x,y,sw,sh);AF:Send('H
 function M:Reset() AF:Send('HoldLayout') end
 function M:OnAction() self:Align() end
 AF.Movers:Register('minimap',{owner='Minimap',order=50,first=MAP_ZOOM,last=MAP_VENDOR,candidates='Candidates',move='Move',reset='Reset',category='HUD',tab='Minimap'})
-AF.Config:Register(M,{{name='Minimap',order=7,hint='Move the map and its zoom, clock and zone name with /moveui.',rows={
- {order=2,label='Minimap size',kind='number',k='mapsize',unit=' px'},
- {order=3,label='Align map controls',kind='action',action='alignmap',text='Align'}}}})

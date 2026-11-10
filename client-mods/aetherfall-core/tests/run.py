@@ -15,6 +15,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--client', type=Path, required=True)
     parser.add_argument('--output', type=Path, help='fresh external directory for traces and check logs')
+    parser.add_argument('--reuse-trace', type=Path, help='compare a completed trace only when its recorded source hashes match')
     args = parser.parse_args()
     client = args.client.resolve(strict=True)
     if args.output:
@@ -32,11 +33,14 @@ def main():
                "sys.path.insert(0,os.path.dirname(f)); runpy.run_path(f,run_name='__main__')")
     checks = [
         ('trace', HERE / 'trace/run.py', ['--client', str(client), '--output', str(output / 'current-trace.jsonl.gz')]),
+        ('options', HERE / 'options.py', ['--client', str(client), '--output', str(output / 'options-trace.jsonl.gz')]),
         ('isolated', HERE / 'isolated.py', ['--client', str(client)]),
         ('lint', HERE / 'lint.py', []),
         ('load-budget', SOURCE / 'measure_calls.py', ['--client', str(client)]),
         ('packaging', HERE / 'packaging.py', []),
     ]
+    if args.reuse_trace:
+        checks[0][2].extend(['--compare-existing', str(args.reuse_trace.resolve(strict=True))])
     failed = []
     for name, script, arguments in checks:
         print(f'Running {name}...', flush=True)
@@ -50,13 +54,16 @@ def main():
             failed.append(name)
         elif name == 'load-budget':
             total = re.search(r'total at load: (\d+)', text)
-            if not total or int(total[1]) > 4000:
+            # The options dialog must be created with the plugin to receive input, which takes the
+            # one-pass load past the client's stock 4,000-call bound. AetherfallCore 1.3.16 raises
+            # that bound to 1,048,576; this ceiling only catches runaway growth.
+            if not total or int(total[1]) > 30000:
                 failed.append(name)
-                print('FAIL: missing queued-call count or more than 4000 pending calls')
+                print('FAIL: missing queued-call count or more than 30,000 calls in the one-pass load')
     print('Check output:', output)
     if failed:
         raise SystemExit('FAILED: ' + ', '.join(failed))
-    print('PASS: trace, isolation, dependency lint, load budget and packaging')
+    print('PASS: preserved trace, options/profiles, isolation, dependency lint, load budget and packaging')
 
 
 if __name__ == '__main__':

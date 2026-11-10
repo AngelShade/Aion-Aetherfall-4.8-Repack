@@ -1,27 +1,16 @@
 -- Draws editor snapshots. The controller retains all mover interaction state.
 local M = AF:NewModule('EditorRender', {
+    scope = 'profile',
     needs = {},
     defaults = {
         snap = {1, 'toggle'}, grid = {8, 'int', 2, 32, 2}, showgrid = {1, 'toggle'},
         guidesize = {64, 'int', 16, 128, 16}, snapframes = {1, 'toggle'},
+        gridOpacity = {38, 'int', 0, 100, 1}, moverLabels = {1, 'toggle'},
+        snapDistance = {6, 'int', 1, 24, 1},
     },
 })
-AF.Config:Register(M, {{
-    name = 'Movers', order = 10,
-    hint = 'MoveUI has Save / Lock, Cancel, frame selection and exact position controls.',
-    rows = {
-        {label = 'Movers', order = 1, kind = 'action', action = 'unlock', text = 'Unlock', state = 'editor'},
-        {label = 'Show grid', order = 2, k = 'showgrid', kind = 'toggle'},
-        {label = 'Guide spacing', order = 3, k = 'guidesize', kind = 'number', unit = ' px'},
-        {label = 'Snap to grid', order = 4, k = 'snap', kind = 'toggle'},
-        {label = 'Snap to frames', order = 5, k = 'snapframes', kind = 'toggle'},
-        {label = 'Snap step', order = 6, k = 'grid', kind = 'number', unit = ' px'},
-        {label = 'All positions', order = 7, kind = 'action', action = 'resetall', text = 'Reset'},
-    },
-}})
 local MOVERS = 56
 local scale, screen = AF.Native.Scale, AF.Native.Screen
-local ICE, GOLD, AETHER = AF.Skin.Ice, AF.Skin.Gold, AF.Skin.Aether
 local guideReady
 local function w(id) return AF.Native.Widget('UI', id) end
 local function boxSize(mv) return mv.w, mv.h end
@@ -49,7 +38,11 @@ end
 
 local function placeBox(view, i)
     local mv = view.movers[i]; local s = scale(); local bw, bh = boxSize(mv)
-    if mv.slot then w('Move' .. mv.slot):SetRect(mv.x / s, mv.y / s, bw / s, bh / s) end
+    if mv.slot then
+        w('Move' .. mv.slot):SetRect(mv.x / s, mv.y / s, bw / s, bh / s)
+        AF.Skin.Remember(w('Move' .. mv.slot), mv.x / s, mv.y / s, bw / s, bh / s)
+        AF.Skin.Border(w('Move' .. mv.slot), nil, nil, view.selected == i and 'Aether' or 'Gold')
+    end
     if mv.tag then
         local sw, sh = screen(); local t = mv.tag
         local x = math.max(0, math.min(sw - t[3], mv.x + t[1]))
@@ -88,7 +81,8 @@ end
 local function guide(name, x, y, wd, ht, alpha)
     local widget = w(name); if not widget then return end
     guideReady = guideReady or {}
-    if not guideReady[name] then widget:SetUIImage(0, 'Textures/UI/AetherfallMovers/line'); widget:SetAlpha(alpha); guideReady[name] = true end
+    if not guideReady[name] then AF.Skin.LineImage(widget); widget:SetAlpha(alpha); guideReady[name] = alpha
+    elseif guideReady[name] ~= alpha then widget:SetAlpha(alpha); guideReady[name] = alpha end
     -- SetWidgetRect opcode 6 truncates to integers before applying UI scale.
     -- A one-physical-pixel line divided by scale > 1 otherwise becomes zero.
     local s = scale(); widget:SetRect(x / s, y / s, math.max(1, math.ceil(wd / s)), math.max(1, math.ceil(ht / s))); widget:Show()
@@ -106,13 +100,13 @@ local function editorGrid(view)
             local pos = math.floor(i * step + .5)
             if M.db.showgrid == 1 and pos < axis[3] then
                 guide('Grid' .. axis[1] .. i, axis[1] == 'X' and pos or 0, axis[1] == 'Y' and pos or 0,
-                      axis[1] == 'X' and 1 or sw, axis[1] == 'Y' and 1 or sh, .38)
+                      axis[1] == 'X' and 1 or sw, axis[1] == 'Y' and 1 or sh, M.db.gridOpacity/100)
             else w('Grid' .. axis[1] .. i):Hide() end
         end
     end
     if M.db.showgrid == 1 then
-        guide('GuideCenterX', math.floor(sw / 2), 0, 2, sh, .65)
-        guide('GuideCenterY', 0, math.floor(sh / 2), sw, 2, .65)
+        guide('GuideCenterX', math.floor(sw / 2), 0, 2, sh, math.min(1,.65*M.db.gridOpacity/38))
+        guide('GuideCenterY', 0, math.floor(sh / 2), sw, 2, math.min(1,.65*M.db.gridOpacity/38))
     else w('GuideCenterX'):Hide(); w('GuideCenterY'):Hide() end
 end
 
@@ -145,14 +139,15 @@ local function editorBoxes(view)
         local i = eligible[first+slot-1]
         if i then
             local mv=view.movers[i]; mv.slot=slot; mv.tag=nil; placeBox(view, i)
-            w('Move'..slot):SetText(mv.label)
+            w('Move'..slot):SetText(M.db.moverLabels==1 and mv.label or '')
             local tw, th = (#mv.label*8+16)*s, 20*s
-            if w('MoveLabel'..slot) and (mv.h < th or mv.w < tw) then
+            if M.db.moverLabels==1 and w('MoveLabel'..slot) and (mv.h < th or mv.w < tw) then
                 w('Move'..slot):SetText(''); tags[#tags+1] = {i,math.min(tw,sw),th}
             else occupied[#occupied+1] = {mv.x+(mv.w-tw)/2,mv.y+(mv.h-th)/2,tw,th} end
             w('Move'..slot):SetTooltip(mv.label .. (mv.virtual and ' (not opened)' or '') .. ' - select for position arrows')
-            w('Move'..slot):SetAlpha(view.selected==i and 1 or .65); w('Move'..slot):Show()
-        else w('Move'..slot):Hide() end
+            AF.Skin.Mover(w('Move'..slot),view.selected==i)
+            w('Move'..slot):SetAlpha(view.selected==i and .9 or .55); w('Move'..slot):Show()
+        else w('Move'..slot):Hide(); AF.Skin.HideEdges(w('Move'..slot)) end
     end
     for _, entry in ipairs(tags) do
         local i, tw, th = unpack(entry); local mv = view.movers[i]; local chosen
@@ -173,11 +168,23 @@ local function editorBoxes(view)
         chosen = chosen or {math.max(0,math.min(sw-tw,mv.x)),math.max(0,math.min(sh-th,mv.y-th)),tw,th,'Y'}
         occupied[#occupied+1]=chosen
         mv.tag={chosen[1]-mv.x,chosen[2]-mv.y,tw,th,chosen[5]}
-        local label=w('MoveLabel'..mv.slot); label:SetText(mv.label); label:SetAttr('textColor',ICE); label:Show()
+        local label=w('MoveLabel'..mv.slot); label:SetText(mv.label); AF.Skin.Panel(label,tw/s,th/s); AF.Skin.Text(label,'Ice'); label:Show()
         guide('MoveLeader'..mv.slot,0,0,1,1,.65); placeBox(view, i)
     end
 end
 
+local function skinEditor()
+    AF.Skin.Image(w('EditorPanel'),0,'editor-panel')
+    for name,rect in pairs(EDITOR_PARTS) do
+        if name~='EditorPanel' then
+            if name=='EditorX' or name=='EditorY' then AF.Skin.Field(w(name),rect[3],rect[4])
+            elseif name:match('^Editor') and not ({EditorTitle=true,EditorProfile=true,EditorXLabel=true,EditorYLabel=true,EditorStatus=true,EditorHelp=true})[name]
+                or name:match('^Nudge') and not ({NudgeName=true,NudgeXY=true})[name] then
+                AF.Skin.Button(w(name),rect[3],rect[4])
+            end
+        end
+    end
+end
 local function placeEditor(view)
     if not w('EditorPanel') then return end
     local sw, sh = screen(); local s = scale()
@@ -185,11 +192,11 @@ local function placeEditor(view)
     local y = math.max(0, math.min(sh / s - 278, view.editorY or 24))
     view.editorX, view.editorY = x, y
     for name, r in pairs(EDITOR_PARTS) do w(name):SetRect(x + r[1], y + r[2], r[3], r[4]); w(name):Show() end
-    w('EditorTitle'):SetAttr('textColor', GOLD); w('EditorSave'):SetAttr('textColor', GOLD)
+    AF.Skin.Text(w('EditorTitle'),'Gold'); AF.Skin.Text(w('EditorSave'),'Gold')
     w('EditorTitle'):SetText('MOVE UI | drag header')
     w('EditorXLabel'):SetText('X'); w('EditorYLabel'):SetText('Y')
     w('EditorHelp'):SetText('Drag a box. Arrows: 1 px; Shift: 10 px.')
-    w('NudgeName'):SetAttr('textColor', AETHER)
+    AF.Skin.Text(w('NudgeName'),'Aether')
 end
 
 local function showNudge(view)
@@ -211,7 +218,7 @@ local function hideNudge(view)
     for i = 1, 4 do if w('Selection' .. i) then w('Selection' .. i):Hide() end end
 end
 local function layout(view)
-    placeEditor(view); editorGrid(view); editorBoxes(view); showNudge(view)
+    skinEditor(); placeEditor(view); editorGrid(view); editorBoxes(view); showNudge(view)
     w('EditorProfile'):SetText('Profile: ' .. AF.DB:ProfileName())
     w('EditorStep'):SetText('Snap step: ' .. M.db.grid .. ' px')
     w('EditorStep'):SetTooltip('Snap step in UI pixels: click +2, Shift+click -2 (2 to 32). The visible grid has its own spacing.')

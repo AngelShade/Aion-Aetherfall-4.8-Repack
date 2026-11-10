@@ -1,5 +1,5 @@
 -- Feature-local settings and native placement.
-local M=AF:NewModule('TargetPanels',{needs={'Placement'},defaults={}})
+local M=AF:NewModule('TargetPanels',{scope='profile',needs={'Placement'},defaults={}})
 local S={}
 local N=AF.Native
 local D=AFCore and AFCore.DIALOG or {}

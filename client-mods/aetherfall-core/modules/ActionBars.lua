@@ -1,12 +1,36 @@
 -- Feature-local settings and native placement.
-local M=AF:NewModule('ActionBars',{needs={'Placement'},defaults={abbar={1,'choice',{'Bar 1','Bar 2','Bar 3','Bar 4'}},abrow1={12,'int',1,12,1},absize1={40,'int',28,56,2},abrow2={12,'int',1,12,1},absize2={40,'int',28,56,2},abrow3={12,'int',1,12,1},absize3={40,'int',28,56,2},abrow4={6,'int',1,12,1},absize4={40,'int',28,56,2}}})
+AF.DB:RegisterTemplate('ActionBar', {
+    enabled = {1, 'toggle'}, rows = {12, 'int', 1, 12, 1},
+    size = {40, 'int', 28, 56, 2}, opacity = {-1, 'int', -1, 100, 1},
+})
+local instances = {}
+local legacyEnabled = {[3] = 'altbar', [4] = 'extrabar', [5] = 'sepbar'}
+for i = 1, 6 do
+    local legacy = {}
+    if i <= 4 then legacy['abrow' .. i] = 'rows'; legacy['absize' .. i] = 'size' end
+    if legacyEnabled[i] then legacy[legacyEnabled[i]] = 'enabled' end
+    instances['bar' .. i] = {template = 'ActionBar', legacy = legacy,
+                            defaults = {rows = i == 4 and 6 or 12},
+                            only = i >= 5 and {enabled=true, opacity=true} or nil}
+end
+local M = AF:NewModule('ActionBars', {
+    scope = 'profile', needs = {'Placement', 'Visibility'}, instances = instances,
+    migrate = function(settings)
+        -- The legacy separated-bars switch represented both native instances.
+        if settings.sepbar ~= nil and settings['bar6.enabled'] == nil then
+            settings['bar6.enabled'] = settings.sepbar
+            return true
+        end
+        return false
+    end,
+})
 local S={}
 local N=AF.Native
 local D=AFCore and AFCore.DIALOG or {}
 local call,n,scale,screen=N.Call,N.Number,N.Scale,N.Screen
 local dialog,nativeMovable,identity=N.Dialog,N.Movable,N.Identity
 local featureLayout,featureWidget=N.Layout,N.LayoutWidget
-local function get(key) return M.db[key] end
+local function bar(i) return M.db['bar' .. i] end
 local function key(id) return AF.Movers:Key(id) end
 local function position(id,d) return AF.Movers:Get(id,d) end
 local function design(id) return AF:Call('Placement','Design',id) end
@@ -37,7 +61,7 @@ function M:Metrics(i)
     for k=1,12 do local node=featureWidget(layout,'shortcut'..k);if not node or node.parent~=container.path then return end;slots[k]=node.path end
     local s = n((AFCore.Scale())) or 1
     local sw, sh = screen()
-    local requested, size = get('abrow' .. i), get('absize' .. i)
+    local requested, size = bar(i).rows, bar(i).size
     local pitch, gap = (size + 2) * s, 2 * s
     local padw, padh = i == 1 and 52 * s or 0, i == 1 and 8 * s or 0
     local maxcols = math.max(1, math.min(12, math.floor((sw - padw + gap) / pitch)))
@@ -82,18 +106,32 @@ function M:Hold(pinned)
             AF:Send('MoverGeometry',id,x,y,w0,h0,0,0,true)
             if S.barFit[i] ~= m.per then
                 S.barFit[i] = m.per
-                AF:Send('RefreshOptions','Action Bars','abbar',i)
+                AF:Send('RefreshOptions','Bar' .. i)
             end
         end
     end
 end
-function M:FormatOption(spec)
-    local i=get('abbar');local requested=get(spec.base..i)
-    local m=spec.base=='abrow' and self:Metrics(i)
-    return tostring(requested)..(spec.unit or '')..(m and m.per~=requested and (' ('..m.per..' fit)') or '')
+function M:IsEnabled(index) return bar(index).enabled end
+function M:BackgroundAlpha(id, fallback)
+    local names = {'shortcut', 'shortcut_ctrl', 'shortcut_alt', 'shortcut_extra', 'shortcut_sep', 'shortcut_sep2'}
+    for i, name in ipairs(names) do
+        if id == D[name] then
+            local value = bar(i).opacity
+            return value < 0 and fallback or value / 100
+        end
+    end
+    return fallback
+end
+function M:Arrange(index)
+    local names = {'shortcut', 'shortcut_ctrl', 'shortcut_alt', 'shortcut_extra', 'shortcut_sep', 'shortcut_sep2'}
+    local id = D[names[index]]
+    AF:Send('UnlockEditor', nil, id and {id} or nil)
+end
+for i, name in ipairs({'shortcut', 'shortcut_ctrl', 'shortcut_alt', 'shortcut_extra', 'shortcut_sep', 'shortcut_sep2'}) do
+    local index = i
+    AF:Call('Visibility', 'Register', 'bar' .. index, {
+        names = {name}, enabled = function() return bar(index).enabled end,
+        always = index <= 4, optional = index <= 2, layout = index >= 5 and 'quickbar_dialog_sep' or nil,
+    })
 end
 function M:Diagnostics() return AF.Copy(S) end
-AF.Config:Register(M,{{name='Action Bars',order=3,hint='Rows and size apply to the bar to arrange; opacity to all six bars.',rows={
- {order=4,label='Bar to arrange',kind='choice',k='abbar'},
- {order=5,label='Buttons per row',kind='barnumber',base='abrow',selector='abbar',format='FormatOption'},
- {order=6,label='Button size',kind='barnumber',base='absize',selector='abbar',unit=' px',format='FormatOption'}}}})

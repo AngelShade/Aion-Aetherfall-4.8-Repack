@@ -4,14 +4,18 @@ import io
 import json
 from pathlib import Path
 import sys
+import struct
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 import zipfile
 
 HERE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(HERE))
 from lua_package import (GENERATED, HUD_XML, REGISTRY, load_order, lua_payloads,
                          reconcile_toc, remove_members, retired_members)
+import prepare
+import options_skin
 
 spec = importlib.util.spec_from_file_location('packaging_archive_helper', HERE.parent / 'quest-red-journal/prepare.py')
 archive_helper = importlib.util.module_from_spec(spec)
@@ -132,6 +136,75 @@ class Packaging(unittest.TestCase):
         source = self.encrypted_archive({'Keep.lua': b'-- keep'}, 1)
         with self.assertRaises(ValueError):
             remove_members(source, {'missing.lua'}, archive_helper.parts)
+
+    def test_options_layout_migration_is_idempotent_and_lossless(self):
+        before = (b'<Screen widget_cnt="6">\n<!-- owner spacing -->\n'
+                  b'<Dialog name="OwnerWindow" frame="1,2,3,4"><Widget type="static" name="Keep" text="A &amp; B"/></Dialog>\n'
+                  b'<Dialog name="AFUIOptions" frame="0,0,1,1"><Widget type="static" name="Old"/></Dialog>\n'
+                  b'<Dialog name="AFUIMovers" frame="0,0,10,10"/>\n</Screen>')
+        expected_owner = before.split(b'<Dialog name="OwnerWindow"')[1].split(b'</Dialog>')[0]
+        result = prepare.update_options_xml(before)
+        self.assertEqual(result.count(b'name="AFUIOptions"'), 1)
+        self.assertNotIn(b'name="Old"', result)
+        self.assertLess(result.index(b'name="AFUIOptions"'), result.index(b'name="AFUIMovers"'))
+        self.assertIn(expected_owner, result)
+        self.assertIn(b'<Dialog name="AFUIMovers" frame="0,0,10,10"/>', result)
+        self.assertIn(b'<!-- owner spacing -->', result)
+        self.assertEqual(prepare.update_options_xml(result), result)
+        root = ET.fromstring(result)
+        self.assertEqual(int(root.attrib['widget_cnt']), sum(1 for n in root.iter() if n.tag in ('Dialog', 'Widget')))
+        absent = before.replace(b'<Dialog name="AFUIOptions" frame="0,0,1,1"><Widget type="static" name="Old"/></Dialog>\n', b'')
+        installed = prepare.update_options_xml(absent)
+        self.assertLess(installed.index(b'name="AFUIOptions"'), installed.index(b'name="AFUIMovers"'))
+        with self.assertRaises(ValueError):
+            prepare.update_options_xml(before.replace(b'</Screen>', b'<Dialog name="AFUIOptions"/></Screen>'))
+        eager, lazy = ET.fromstring(prepare.hud_xml()), ET.fromstring(prepare.lazy_xml())
+        # A dialog created after startup is drawn but never receives input in this client.
+        self.assertIn('AFUIOptions', [node.attrib['name'] for node in eager])
+        self.assertIn('AFUIMovers', [node.attrib['name'] for node in eager])
+        self.assertEqual([node.attrib['name'] for node in lazy], [])
+        self.assertNotIn(b"{'AFUIOptions',", prepare.lazy_lua())
+        members = [member for _, member in load_order(HERE)]
+        self.assertEqual(members.count('AetherfallLazy.lua'), 1)
+        self.assertLess(members.index('AetherfallLazy.lua'), members.index('modules_OptionsWindow.lua'))
+
+    def test_options_xml_uses_only_proven_plugin_vocabulary(self):
+        root = next(d for d in ET.fromstring(prepare.hud_xml()) if d.attrib['name'] == 'AFUIOptions')
+        widget_attrs = {'type','style','name','frame','preset','flag','text','font','tooltip','HAlign'}
+        dialog_attrs = {'name','frame','text','preset','flag','title_height','title_offset',
+                        'close_preset','close_offset','shadow_offset'}
+        kinds = {'static','image','button','editbox','combobox','spin','container','scrollable','htmlview'}
+        names = set()
+        for node in root.iter():
+            if node.tag == 'Widget':
+                self.assertTrue(set(node.attrib) <= widget_attrs, node.attrib)
+                self.assertIn(node.attrib['type'], kinds)
+                self.assertTrue(node.attrib['name'].startswith('AFUIOptions'))
+                self.assertNotIn(node.attrib['name'], names)
+                names.add(node.attrib['name'])
+            elif node.tag == 'Dialog':
+                self.assertTrue(set(node.attrib) <= dialog_attrs, node.attrib)
+            else:
+                self.assertIn(node.tag, {'Screen','Scripts','OnLoad','OnClick','OnEvent'})
+        self.assertGreater(len(names), 100)
+
+    def test_skin_textures_are_valid_palette_dds_and_include_control_states(self):
+        assets = options_skin.assets()
+        prefix = options_skin.PREFIX + '/'
+        for suffix in ('button','button-over','button-down','button-selected','button-disabled',
+                       'check-on','check-off','fill-deep','fill-aether','line','line-aether','thumb'):
+            self.assertIn(prefix + suffix + '.dds', assets)
+        for name, payload in assets.items():
+            self.assertTrue(name.startswith(prefix) and name.endswith('.dds'))
+            self.assertEqual(payload[:4], b'DDS ')
+            header = struct.unpack('<31I', payload[4:128])
+            height, width = header[2], header[3]
+            self.assertGreater(width, 0); self.assertGreater(height, 0)
+            self.assertEqual(len(payload), 128 + width * height * 4)
+        deep = assets[prefix + 'fill-deep.dds']
+        r, g, b = options_skin.rgb('deep')
+        self.assertEqual(deep[128:132], bytes((b, g, r, 255)))
+        self.assertNotEqual(assets[prefix + 'check-on.dds'], assets[prefix + 'check-off.dds'])
 
 
 if __name__ == '__main__':

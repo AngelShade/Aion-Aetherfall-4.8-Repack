@@ -73,3 +73,31 @@ def stage(output, assets):
         path = Path(output) / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
+
+
+def assets():
+    """Loose DDS resources used by AF.Skin; borders are composed of 1 px lines."""
+    colours = {
+        'fill-abyss': 'abyss', 'fill-deep': 'deep', 'fill-raised': 'raised',
+        'fill-aether': 'aether', 'fill-aether-deep': 'aether_deep', 'fill-gold': 'gold', 'fill-white': '#ffffff',
+        'button': 'surface', 'button-over': 'raised', 'button-down': 'deep',
+        'button-selected': 'raised', 'button-disabled': 'deep',
+    }
+    result = {f'{PREFIX}/{name}.dds': fill(colour) for name, colour in colours.items()}
+    for name, colour in (('line', 'line_hi'), ('line-gold', 'gold'), ('line-aether', 'aether')):
+        c = rgb(colour)
+        result[f'{PREFIX}/{name}.dds'] = dds(1, 1, lambda x, y, c=c: c + (255,))
+    result[f'{PREFIX}/check-on.dds'] = check(18, True)
+    result[f'{PREFIX}/check-off.dds'] = check(18, False)
+    result[f'{PREFIX}/thumb.dds'] = bordered(10, 20, 'aether_deep', 'aether')
+    result[f'{PREFIX}/arrow.dds'] = arrow()
+    result[f'{PREFIX}/editor-panel.dds'] = bordered(380, 278, 'deep', 'line_hi')
+    # Fixed-size editor chrome has baked borders and creates no extra widgets.
+    widths = (24, 44, 52, 58, 60, 62, 74, 76, 80, 82, 86, 88, 98, 100, 116, 136, 158)
+    for width in widths:
+        for name, colour in (('button','surface'), ('button-over','raised'),
+                             ('button-down','deep'), ('button-selected','raised'),
+                             ('button-disabled','deep'), ('field','abyss')):
+            edge = 'aether' if name == 'button-selected' else 'line_hi'
+            result[f'{PREFIX}/{name}-{width}x24.dds'] = bordered(width, 24, colour, edge)
+    return result

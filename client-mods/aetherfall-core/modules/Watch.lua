@@ -1,6 +1,6 @@
 -- /afcore watch: every game window that opens for 15 seconds, with its class
 -- (to tell tooltips apart). Costs nothing unless a watch was started.
-local M = AF:NewModule('Watch', {needs = {'Lifecycle'}})
+local M = AF:NewModule('Watch',{scope='profile',needs = {'Lifecycle'}})
 local S = {}
 local PLUGIN_FIRST = 0x20e
 function M:Start(deadline) S.deadline, S.seen = deadline, {} end

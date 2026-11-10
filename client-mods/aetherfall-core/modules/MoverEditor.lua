@@ -1,5 +1,5 @@
 -- Interaction controller. Geometry and rendering belong to registered adapters.
-local M=AF:NewModule('MoverEditor',{needs={'Lifecycle','EditorRender'},defaults={}})
+local M=AF:NewModule('MoverEditor',{scope='profile',needs={'Lifecycle','EditorRender'},defaults={}})
 local S={movers={},unlocked=false}
 local N=AF.Native
 local n,scale,screen=N.Number,N.Scale,N.Screen
@@ -20,7 +20,9 @@ local function render(method,...)
         if S.movers[i] then S.movers[i].slot,S.movers[i].tag,S.movers[i].editorHidden=row.slot,row.tag,row.editorHidden end
     end
 end
-local function placeBox(i) render('PlaceBox',i) end
+local function placeBox(i)
+    AF:Call('EditorRender','PlaceBox',{movers={[i]=S.movers[i]},selected=S.selected},i)
+end
 local function hideNudge() render('HideNudge') end
 local function placeEditor() render('PlaceEditor') end
 local function editorBoxes() render('Boxes') end
@@ -30,7 +32,13 @@ local function editorStatus(text)
     S.editorStatus=text
     if w('EditorStatus') then w('EditorStatus'):SetText(text or 'Save before travel. Cancel restores your layout.') end
 end
-function M:ShowNudge() render('ShowNudge') end
+function M:ShowNudge()
+    local selected=S.selected
+    AF:Call('EditorRender','ShowNudge',{
+        movers=selected and {[selected]=S.movers[selected]} or {},
+        selected=selected,editorOrigin=S.editorOrigin,
+    })
+end
 function M:EditorLayout() render('Layout') end
 function M:BlocksSettings()
     if S.edit then editorStatus('Save / Lock or Cancel before opening settings.'); return true end
@@ -45,7 +53,7 @@ local function layoutMovers()
         S.movers[#S.movers+1]=row
         if place then placeBox(#S.movers) end
     end,sw,sh)
-    for i=#S.movers+1,MOVERS do w('Move'..i):Hide() end
+    for i=#S.movers+1,MOVERS do w('Move'..i):Hide(); AF.Skin.HideEdges(w('Move'..i)) end
     S.selected=nil
     for i,mv in ipairs(S.movers) do if mv.id==selectedId then S.selected=i end end
     if S.edit then M:CaptureEditFrames() end
@@ -54,7 +62,7 @@ local function layoutMovers()
 end
 local function snapToFrames(i, tx, ty)
     if get('snapframes') ~= 1 then return tx, ty end
-    local mv = S.movers[i]; local bw, bh = boxSize(mv); local near = 6 * scale()
+    local mv = S.movers[i]; local bw, bh = boxSize(mv); local near = get('snapDistance') * scale()
     local bx, by = math.huge, math.huge
     for j, o in ipairs(S.movers) do
         local sameMenu=AF.Movers:SnapRelated(mv.id,o.id)
@@ -182,6 +190,30 @@ function M:Nudge(dir)
     local dy = dir == 'Up' and -step or dir == 'Down' and step or 0
     moveMover(i, mv.x + dx, mv.y + dy)
 end
+local function hitMover(cx,cy,reset)
+    local sw,sh
+    if not reset then sw,sh=screen() end
+    local best,area
+    for i=#S.movers,1,-1 do
+        local mv=S.movers[i]
+        if mv.slot and not mv.editorHidden then
+            local tag=mv.tag
+            if tag and not reset then
+                local x=math.max(0,math.min(sw-tag[3],mv.x+tag[1]))
+                local y=math.max(0,math.min(sh-tag[4],mv.y+tag[2]))
+                if cx>=x and cx<x+tag[3] and cy>=y and cy<y+tag[4] then return i end
+            end
+            if cx>=mv.x and cx<mv.x+mv.w and cy>=mv.y and cy<mv.y+mv.h then
+                -- Shift resets only the topmost box. A caption can cross a
+                -- different frame and must never reset that caption's owner.
+                if reset then return i end
+                local size=mv.w*mv.h
+                if not area or size<area then best,area=i,size end
+            end
+        end
+    end
+    return best
+end
 -- Each tick while unlocked: start, follow or end a drag from the core's mouse reading.
 local function dragMovers()
     local cx, cy, down, shift = AFCore.Cursor()
@@ -197,26 +229,25 @@ local function dragMovers()
         if x < 170 and y < 28 then S.panelDrag = {dx=x,dy=y} end
     end
     local drag = S.drag
-    if down and not drag and not S.wasDown and not onNudge(cx, cy) then
-        for i = #S.movers, 1, -1 do  -- topmost box first
-            local mv = S.movers[i]; local bw, bh = boxSize(mv)
-            if mv.slot and not mv.editorHidden and cx >= mv.x and cx <= mv.x + bw and cy >= mv.y and cy <= mv.y + bh then
-                S.selected = i
-                if shift then M:ResetMover(i) else S.drag = {i = i, dx = cx - mv.x, dy = cy - mv.y} end
-                M:ShowNudge()
-                editorBoxes()
-                break
-            end
+    if down and not S.wasDown and not onNudge(cx, cy) then
+        local i=hitMover(cx,cy,shift)
+        if i then
+            local mv=S.movers[i]
+            local changed=S.selected~=i
+            S.selected=i
+            if shift then M:ResetMover(i)
+            else S.drag={i=i,x=cx,y=cy,dx=cx-mv.x,dy=cy-mv.y} end
+            if changed then editorBoxes() end
+            M:ShowNudge()
         end
-    elseif down and drag then
-        local tx, ty = snapToFrames(drag.i, snap(cx - drag.dx), snap(cy - drag.dy))
-        moveMover(drag.i, tx, ty)
-    elseif not down then
-        if drag then
+    elseif drag then
+        -- A selection click must leave its position alone, even off the snap grid.
+        if drag.moved or math.abs(cx-drag.x)>=4 or math.abs(cy-drag.y)>=4 then
+            drag.moved=true
             local tx, ty = snapToFrames(drag.i, snap(cx - drag.dx), snap(cy - drag.dy))
             moveMover(drag.i, tx, ty)
         end
-        S.drag = nil
+        if not down then S.drag=nil end
     end
     S.wasDown = down and true or false
 end

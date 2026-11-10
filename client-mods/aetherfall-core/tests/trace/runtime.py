@@ -47,8 +47,12 @@ class Recorder:
 
 
 class Runtime:
-    def __init__(self, client, recorder, reference=False, scale=1, framework_only=False):
+    def __init__(self, client, recorder, reference=False, scale=1, framework_only=False,
+                 current_resources=False, stable_plugin_slots=False):
         self.r = recorder
+        self.reference = reference
+        self.legacy_actions = None
+        self.stable_plugin_slots = stable_plugin_slots
         self.lua = LuaRuntime(unpack_returned_tuples=True)
         self.g = self.lua.globals()
         self.scale, self.sw, self.sh = scale, 1280 * scale, 960 * scale
@@ -92,7 +96,8 @@ class Runtime:
         wrap = self.lua.eval('function(fn) return function(...) return fn(...) end end')
         for name in ('GetUIScale','UnitName','GetServerName','GetZoneText','GetPlayerMapPosition','GetTime','UnitLevel','UnitHP','UnitHPMax','GetNumPartyMembers','GetNumLegionMembers','RegisterMenu','WardrobeNative_ResumeTimer','PlayerBotBar_ApplyVisibility'):
             self.g[name] = wrap(self.g[name])
-        for name in ('Widget', 'Container', 'Button', 'Static', 'StaticImage', 'EditBox', 'MessageWidget', 'SlashCmd'):
+        for name in ('Widget', 'Container', 'Button', 'Static', 'StaticImage', 'EditBox',
+                     'ComboBox', 'Spin', 'Scrollable', 'MessageWidget', 'SlashCmd'):
             self.lua.execute(sources[name], name='@framework/' + name + '.lua')
             self.g.package.loaded[name] = True
             self.framework_hashes[name] = raw_hashes[name]
@@ -118,10 +123,15 @@ class Runtime:
         self.load('AetherfallRegistry.lua', frozen('AetherfallRegistry.lua'))
         self.seed_dialogs()
         self.seed_custom()
-        for node in ET.fromstring(frozen('AetherfallHUD.xml')):
+        xml, lazy = frozen('AetherfallHUD.xml'), frozen('AetherfallLazy.lua')
+        if current_resources:
+            sys.path.insert(0, str(SOURCE))
+            import prepare
+            xml, lazy = prepare.hud_xml(), prepare.lazy_lua()
+        for node in ET.fromstring(xml):
             self.g.LoadXMLWidget(self.table(node))
         self.load('AetherfallLayout.lua', frozen('AetherfallLayout.lua'))
-        self.load('AetherfallLazy.lua', frozen('AetherfallLazy.lua'))
+        self.load('AetherfallLazy.lua', lazy)
         # Every public AFCore call is recorded in addition to the raw bridge.
         # Table results stay inside Lua; raw bridge result tuples are recorded.
         self.g.TRACE_AF = lambda name, *args: self.r.write('AFCore', name, args)
@@ -144,6 +154,23 @@ class Runtime:
                     if Path(name).name in ('AetherfallCore.lua', 'AetherfallRegistry.lua', 'AetherfallLayout.lua', 'AetherfallLazy.lua'):
                         continue
                     self.load(name, (SOURCE / name).read_bytes())
+                    if current_resources and name == 'core/Config.lua':
+                        # A transparent test-only counter proves shipped factory
+                        # bodies remain unevaluated until the first request.
+                        self.lua.execute('''
+                            TRACE_OPTIONS_FACTORY_EVAL=0
+                            local register=AF.Config.Register
+                            function AF.Config:Register(owner,source)
+                                if type(source)=='function' then
+                                    local factory=source
+                                    source=function(...)
+                                        TRACE_OPTIONS_FACTORY_EVAL=TRACE_OPTIONS_FACTORY_EVAL+1
+                                        return factory(...)
+                                    end
+                                end
+                                return register(self,owner,source)
+                            end
+                        ''')
             else:
                 for name in ['AetherfallHUD.lua', 'AetherfallOptions.lua']:
                     self.load(name, (SOURCE / name).read_bytes())
@@ -189,13 +216,27 @@ class Runtime:
             state['rect'][:2] = [v * self.scale for v in values[:2]]
         elif api == 'SetWidgetSize': state['rect'][2:] = [v * self.scale for v in values[:2]]
         elif api == 'SetWidgetAttr': state['attr'][values[0]] = values[1]
-        elif api in ('GetWidgetValue','GetWidgetVScrollValue','GetWidgetTextWidth'): result = 0
+        elif api == 'SetWidgetValue': state['value'] = values[0]
+        elif api == 'GetWidgetValue': result = state.get('value', 0)
+        elif api == 'SetWidgetVScrollValue': state['scroll'] = values[0]
+        elif api == 'GetWidgetVScrollValue': result = state.get('scroll', 0)
+        elif api == 'AddWidgetItem': state.setdefault('items', []).append(values)
+        elif api == 'ClearWidgetItem': state['items'] = []
+        elif api == 'GetWidgetTextWidth': result = 0
         self.r.write('widget', api, args, result if isinstance(result, tuple) else (result,))
         return result
 
     def plugin_dialog(self, name):
         if any(d['name'] == name for d in self.dialogs.values()): return
-        ident = next(i for i in range(0x20e,0x222) if i not in self.dialogs)
+        original_order = ('PrivateCompanions','PrivateAccount','PrivateCashShop',
+                          'PrivateWarehouse','PrivateJourney','PrivateWardrobe',
+                          'AFHTop','AFHChat','AFHMap','AFUIOptions','AFUIMovers')
+        if self.stable_plugin_slots and name in original_order:
+            ident = 0x20e + original_order.index(name)
+            assert ident not in self.dialogs, 'fixture slot collision: ' + name
+        else:
+            reserved = {0x20e+i for i in range(len(original_order))} if self.stable_plugin_slots else set()
+            ident = next(i for i in range(0x20e,0x222) if i not in self.dialogs and i not in reserved)
         self.dialogs[ident] = dict(name=name,x=0,y=0,w=640,h=460,shown=False,flags=8,instance=100000+ident,cls=4096+ident,nodes={})
 
     def seed_custom(self):
@@ -384,10 +425,32 @@ class Runtime:
         self.r.write('input','slash',(text,)); self.g.DoSlashCmd(text); self.ticks(5)
 
     def click(self, what):
-        self.r.write('input','click',(what,)); self.g.AFUI.Click(what)
+        self.r.write('input','click',(what,))
+        if self.legacy_actions is not None:
+            return self.legacy_actions.click(what)
+        self.g.AFUI.Click(what)
 
     def editor(self, what):
         self.r.write('input','editor',(what,)); self.g.AFUI.Editor(what)
+
+    def option_click(self, what):
+        self.r.write('input','option-click',(what,))
+        return self.g.AF.Call(self.g.AF,'OptionsWindow','Click',what)
+
+    def option_event(self, event, widget, *args):
+        self.r.write('input','option-event',(event,widget,*args))
+        # Through the dialog's own OnEvent script, exactly as the client delivers it.
+        return self.g.Widget_TriggerScript('AFUIOptions','OnEvent',event,widget,*args)
+
+    def code(self, value=None):
+        if self.legacy_actions is None:
+            if value is None:
+                return self.widgets['AFUICode']['text']
+            self.g.AFUICode.SetText(self.g.AFUICode, value)
+        else:
+            method = 'GetCode' if value is None else 'SetCode'
+            args = () if value is None else (value,)
+            return self.g.AF.Call(self.g.AF, 'OptionsWindow', method, *args)
 
     def pointer(self, x, y, down=False, shift=False):
         self.mouse=[x,y,down,shift]; self.r.write('input','pointer',tuple(self.mouse)); self.ticks(1)
