@@ -1,0 +1,434 @@
+[
+  {
+    "tab": 1,
+    "name": "General",
+    "rows": [
+      {
+        "row": 1,
+        "label": "Data text font",
+        "k": "font",
+        "kind": "choice"
+      },
+      {
+        "row": 2,
+        "label": "Colour theme",
+        "k": "theme",
+        "kind": "choice"
+      },
+      {
+        "row": 3,
+        "label": "Window and HUD opacity",
+        "kind": "number",
+        "k": "windowsalpha"
+      },
+      {
+        "row": 4,
+        "label": "Companion bar",
+        "k": "botbar",
+        "kind": "toggle"
+      },
+      {
+        "row": 5,
+        "label": "XP bar",
+        "k": "xpbar",
+        "kind": "toggle"
+      }
+    ]
+  },
+  {
+    "tab": 2,
+    "name": "Unit Frames",
+    "rows": [
+      {
+        "row": 1,
+        "label": "Target of target",
+        "k": "tot",
+        "kind": "toggle"
+      },
+      {
+        "row": 2,
+        "label": "Party frames",
+        "k": "party",
+        "kind": "toggle"
+      }
+    ]
+  },
+  {
+    "tab": 3,
+    "name": "Action Bars",
+    "rows": [
+      {
+        "row": 1,
+        "label": "Bar 3",
+        "k": "altbar",
+        "kind": "toggle"
+      },
+      {
+        "row": 2,
+        "label": "Bar 4",
+        "k": "extrabar",
+        "kind": "toggle"
+      },
+      {
+        "row": 3,
+        "label": "Bars 5 and 6",
+        "k": "sepbar",
+        "kind": "toggle"
+      },
+      {
+        "row": 4,
+        "label": "Bar to arrange",
+        "k": "abbar",
+        "kind": "choice"
+      },
+      {
+        "row": 5,
+        "label": "Buttons per row",
+        "base": "abrow",
+        "kind": "barnumber"
+      },
+      {
+        "row": 6,
+        "label": "Button size",
+        "base": "absize",
+        "kind": "barnumber"
+      },
+      {
+        "row": 7,
+        "label": "Background opacity",
+        "kind": "number",
+        "k": "barsalpha"
+      }
+    ]
+  },
+  {
+    "tab": 4,
+    "name": "Chat",
+    "rows": [
+      {
+        "row": 1,
+        "label": "Status line",
+        "k": "chatline",
+        "kind": "toggle"
+      },
+      {
+        "row": 2,
+        "label": "Background opacity",
+        "kind": "number",
+        "k": "chatalpha"
+      }
+    ]
+  },
+  {
+    "tab": 5,
+    "name": "Data Texts",
+    "rows": [
+      {
+        "row": 1,
+        "label": "Top bar",
+        "k": "databar",
+        "kind": "toggle"
+      },
+      {
+        "row": 2,
+        "label": "Left 1",
+        "k": "dl1",
+        "kind": "data"
+      },
+      {
+        "row": 3,
+        "label": "Left 2",
+        "k": "dl2",
+        "kind": "data"
+      },
+      {
+        "row": 4,
+        "label": "Left 3",
+        "k": "dl3",
+        "kind": "data"
+      },
+      {
+        "row": 5,
+        "label": "Centre 1",
+        "k": "dc1",
+        "kind": "data"
+      },
+      {
+        "row": 6,
+        "label": "Centre 2",
+        "k": "dc2",
+        "kind": "data"
+      },
+      {
+        "row": 7,
+        "label": "Centre 3",
+        "k": "dc3",
+        "kind": "data"
+      },
+      {
+        "row": 8,
+        "label": "Right 1",
+        "k": "dr1",
+        "kind": "data"
+      },
+      {
+        "row": 9,
+        "label": "Right 2",
+        "k": "dr2",
+        "kind": "data"
+      },
+      {
+        "row": 10,
+        "label": "Right 3",
+        "k": "dr3",
+        "kind": "data"
+      }
+    ]
+  },
+  {
+    "tab": 6,
+    "name": "Tooltip",
+    "rows": [
+      {
+        "row": 1,
+        "label": "Tooltips",
+        "k": "ttshow",
+        "kind": "toggle"
+      },
+      {
+        "row": 2,
+        "label": "World (NPCs, players)",
+        "k": "ttanchor",
+        "kind": "choice"
+      },
+      {
+        "row": 3,
+        "label": "UI (buttons, items)",
+        "k": "ttui",
+        "kind": "choice"
+      },
+      {
+        "row": 4,
+        "label": "Grow from (Mover)",
+        "k": "ttgrow",
+        "kind": "choice"
+      },
+      {
+        "row": 5,
+        "label": "Cursor offset X",
+        "kind": "number",
+        "k": "ttx"
+      },
+      {
+        "row": 6,
+        "label": "Cursor offset Y",
+        "kind": "number",
+        "k": "tty"
+      },
+      {
+        "row": 7,
+        "label": "Keep on screen",
+        "k": "ttclamp",
+        "kind": "toggle"
+      },
+      {
+        "row": 8,
+        "label": "Tooltip mover",
+        "kind": "action",
+        "action": "unlock",
+        "arg": "tooltip"
+      }
+    ]
+  },
+  {
+    "tab": 7,
+    "name": "Minimap",
+    "rows": [
+      {
+        "row": 1,
+        "label": "Coordinates",
+        "k": "minimapinfo",
+        "kind": "toggle"
+      },
+      {
+        "row": 2,
+        "label": "Minimap size",
+        "kind": "number",
+        "k": "mapsize"
+      },
+      {
+        "row": 3,
+        "label": "Align map controls",
+        "kind": "action",
+        "action": "alignmap"
+      }
+    ]
+  },
+  {
+    "tab": 8,
+    "name": "Shortcuts",
+    "rows": [
+      {
+        "row": 1,
+        "label": "Shortcut menu",
+        "k": "startmenu",
+        "kind": "toggle"
+      },
+      {
+        "row": 2,
+        "label": "Shortcut size",
+        "kind": "number",
+        "k": "menusize"
+      },
+      {
+        "row": 3,
+        "label": "Shortcuts per row",
+        "kind": "number",
+        "k": "menucols"
+      },
+      {
+        "row": 4,
+        "label": "Shortcut spacing",
+        "kind": "number",
+        "k": "menugap"
+      },
+      {
+        "row": 5,
+        "label": "Align shortcuts",
+        "kind": "action",
+        "action": "alignmenu"
+      }
+    ]
+  },
+  {
+    "tab": 9,
+    "name": "Camera",
+    "rows": [
+      {
+        "row": 1,
+        "label": "Field of view",
+        "k": "camfov",
+        "kind": "choice"
+      },
+      {
+        "row": 2,
+        "label": "Maximum zoom distance",
+        "k": "camdist",
+        "kind": "choice"
+      }
+    ]
+  },
+  {
+    "tab": 10,
+    "name": "Movers",
+    "rows": [
+      {
+        "row": 1,
+        "label": "Movers",
+        "kind": "action",
+        "action": "unlock"
+      },
+      {
+        "row": 2,
+        "label": "Show grid",
+        "k": "showgrid",
+        "kind": "toggle"
+      },
+      {
+        "row": 3,
+        "label": "Guide spacing",
+        "kind": "number",
+        "k": "guidesize"
+      },
+      {
+        "row": 4,
+        "label": "Snap to grid",
+        "k": "snap",
+        "kind": "toggle"
+      },
+      {
+        "row": 5,
+        "label": "Snap to frames",
+        "k": "snapframes",
+        "kind": "toggle"
+      },
+      {
+        "row": 6,
+        "label": "Snap step",
+        "kind": "number",
+        "k": "grid"
+      },
+      {
+        "row": 7,
+        "label": "All positions",
+        "kind": "action",
+        "action": "resetall"
+      }
+    ]
+  },
+  {
+    "tab": 11,
+    "name": "Profiles",
+    "rows": [
+      {
+        "row": 1,
+        "label": "Profile",
+        "kind": "profile"
+      },
+      {
+        "row": 2,
+        "label": "DPS preset",
+        "kind": "action",
+        "action": "preset",
+        "arg": "DPS"
+      },
+      {
+        "row": 3,
+        "label": "Healer preset",
+        "kind": "action",
+        "action": "preset",
+        "arg": "Healer"
+      },
+      {
+        "row": 4,
+        "label": "Minimal preset",
+        "kind": "action",
+        "action": "preset",
+        "arg": "Minimal"
+      },
+      {
+        "row": 5,
+        "label": "Save as User1",
+        "kind": "action",
+        "action": "store",
+        "arg": "User1"
+      },
+      {
+        "row": 6,
+        "label": "Save as User2",
+        "kind": "action",
+        "action": "store",
+        "arg": "User2"
+      },
+      {
+        "row": 7,
+        "label": "Save as User3",
+        "kind": "action",
+        "action": "store",
+        "arg": "User3"
+      },
+      {
+        "row": 8,
+        "label": "Export code",
+        "kind": "action",
+        "action": "export"
+      },
+      {
+        "row": 9,
+        "label": "Import code",
+        "kind": "action",
+        "action": "import"
+      }
+    ]
+  }
+]

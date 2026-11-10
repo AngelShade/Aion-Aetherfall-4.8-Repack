@@ -1003,7 +1003,7 @@ external dependency folder.
 
 ```
 python client-mods/aetherfall-core/prepare.py --client <original client> --output <fresh external stage>
-python client-mods/aetherfall-core/verify_hud_lua.py --client <original client>   (run from a scratch folder)
+python client-mods/aetherfall-core/tests/run.py --client <original client>   (trace, isolation, lint, load budget, packaging)
 python client-mods/aetherfall-core/install.py --stage <stage> --client <original client> --backup <fresh external backup>
 ```
 

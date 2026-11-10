@@ -1,0 +1,12 @@
+{
+  "AetherfallOptions.lua": "e33b987a585420c97d69f5d65a43e50022bba3db93def469a51e8747ae9cbcae",
+  "AetherfallHUD.lua": "3bb603e898b4ec76fd2ba04e22d8dc53edf2490445c40aa58de7979ab96124d4",
+  "AetherfallCore.lua": "279630fb8ed3ace4871b7244e8e4f3107a1894e7876bc1531b0f23bd3d40fd96",
+  "prepare.py": "c4dbb0cb95f91c2ea7b32cba5d31994d02d4dad4283660c6e7d878dde5c6ff64",
+  "mover_editor.py": "837a894ba6d068cda78b233c5457eb064aacf4bf799b3106f5eacc5762a2860e",
+  "options_skin.py": "45e8322d5583838911be801a70e7d854f7d31e6821ebdf3b60f8cebf28aac0eb",
+  "AetherfallLayout.lua": "a2598b09413b4c54624461aa1d8eb55490de5e8546ea8c0fa396c379e38bc808",
+  "AetherfallLazy.lua": "275fc32f1e15f464ae9c8c1ea05db10809f4d0fe142c8905914d8b16eb4a4570",
+  "AetherfallHUD.xml": "ca1d5a8b1b4764299412e83105b647b33ddc0c60e0319030bd497778819ca38e",
+  "AetherfallRegistry.lua": "6f3d222a385b84f90765d77cc9866ea0313782fdc01ef5b960658d153346f7b0"
+}

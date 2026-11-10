@@ -1,0 +1,14 @@
+{
+  "AetherfallHUD.lua": [
+    {"first": 70, "last": 122, "reason": "Optional AFHTarget/TargetDPFill widgets are absent from the unmodified generated HUD XML. The feature guard runs; no extra plugin window is invented."},
+    {"first": 123, "last": 128, "reason": "Aura clock formatting is used only by the disabled timer label pool."},
+    {"first": 221, "last": 281, "reason": "POOL is zero in the unmodified monolith, so native aura label creation is intentionally disabled."},
+    {"first": 402, "last": 407, "reason": "AFCodex is an independent addon and is not loaded for this interface-only trace."},
+    {"first": 411, "last": 416, "reason": "Unexpected control-handler errors are not intentionally injected into the successful reference."}
+  ],
+  "AetherfallOptions.lua": [
+    {"first": 1798, "last": 1813, "reason": "Optional /afcore watch diagnostics are outside normal interface UI scenarios."},
+    {"first": 2470, "last": 2491, "reason": "The unmodified generated HUD XML builds Options and Movers eagerly; its generated AFUI_LAZY list is empty."},
+    {"reason": "All feature sections are reached. Residual lines include native failure/refusal recovery, alternative absent/recreated resource paths, layout variants not installed in this client, and diagnostic-only APIs. Exact unreached executable lines remain listed in the summary."}
+  ]
+}

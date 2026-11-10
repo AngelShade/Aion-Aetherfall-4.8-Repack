@@ -43,7 +43,7 @@
 // remain native and unchanged.
 namespace {
 using Ptr=void*;
-constexpr char CORE_VERSION[]="1.3.15";  // Help page laid out like a native quest; Collect reward is Q's own button.
+constexpr char CORE_VERSION[]="1.3.16";  // Plugin widget call queue bound raised from 4,000 to 1,048,576.
 constexpr uintptr_t PREFERRED=0x10000000;  // Game.dll has no relocations.
 unsigned char* image=nullptr;
 unsigned char* game(){return image;}
@@ -1302,6 +1302,26 @@ int AetherfallCore(Ptr L){return dispatch(L);}
 // pointers, so a short-lived thread waits until the row holds its relocated
 // value (long before the UI creates its Lua states), then renames it. Any other
 // byte pattern keeps waiting; nothing is written unless the row matches exactly.
+// The client drops plugin widget calls once more than 4000 are queued ("Too many
+// calls from addon"): `cmp r11,0xfa0; jbe` at 0x629070 in front of a growable
+// queue. Every plugin window shares that one-pass budget, so raise the bound.
+// Only the immediate changes, and only when the exact instruction is present.
+constexpr uintptr_t ADDON_QUEUE_CHECK=0x629070;
+constexpr uint32_t ADDON_QUEUE_LIMIT=0x100000;
+bool install_addon_queue_limit(unsigned char* g){
+    static const unsigned char expected[]={0x49,0x81,0xfb,0xa0,0x0f,0x00,0x00,0x76,0x2c};
+    unsigned char* site=g+ADDON_QUEUE_CHECK;
+    if(!readable(site,sizeof expected))return false;
+    uint32_t current=0;std::memcpy(&current,site+3,sizeof current);
+    if(current==ADDON_QUEUE_LIMIT && !std::memcmp(site,expected,3) && !std::memcmp(site+7,expected+7,2))return true;
+    if(std::memcmp(site,expected,sizeof expected))return false;
+    DWORD old=0;
+    if(!VirtualProtect(site+3,sizeof current,PAGE_EXECUTE_READWRITE,&old))return false;
+    std::memcpy(site+3,&ADDON_QUEUE_LIMIT,sizeof ADDON_QUEUE_LIMIT);
+    DWORD unused=0;VirtualProtect(site+3,sizeof current,old,&unused);
+    FlushInstructionCache(GetCurrentProcess(),site,sizeof expected);
+    return true;
+}
 struct Reg { const char* name; Ptr fn; };
 // Read-only diagnostics for external inspection: state 0 waiting, 1 registered,
 // 2 timed out; image base seen; polls; last observed function pointer.
@@ -1321,6 +1341,7 @@ bool try_install(){
     install_slash_lookup();
     quest_dialog::install();
     quest_journal::install();
+    install_addon_queue_limit(g);
     DWORD old=0;
     if(!VirtualProtect(duplicate,sizeof(Reg),PAGE_EXECUTE_READWRITE,&old))return false;
     duplicate->fn=reinterpret_cast<Ptr>(&AetherfallCore);duplicate->name="AetherfallCore";

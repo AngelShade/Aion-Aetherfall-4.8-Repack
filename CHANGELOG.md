@@ -2,6 +2,7 @@
 
 ## Next update
 
+- Improved the Aetherfall Interface under the hood so new interface options can be added safely. Your settings and layout are unchanged.
 - Fixed quest items that only drop in one area, like the Dukaki Amulet in Verteron, never dropping. Thanks to baTbjk1903.
 - Fixed the server and the launcher failing to start on Windows set to Turkish. Thanks to baTbjk1903.
 - Russian text is no longer tiny and faint; it now matches the English font's size. Update the Russian pack on the Hub's Languages page.

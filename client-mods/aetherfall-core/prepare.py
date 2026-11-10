@@ -14,15 +14,15 @@ from pathlib import Path
 import subprocess
 import sys
 
+from lua_package import (GENERATED, HUD_XML, REGISTRY, load_order, lua_payloads,
+                         reconcile_toc, remove_members, retired_members)
+
 HERE = Path(__file__).resolve().parent
-NATIVE_VERSION = '1.3.15'  # Help page laid out like a native quest; Collect reward is Q's own button.
+NATIVE_VERSION = '1.3.16'  # Plugin widget call queue bound raised from 4,000 to 1,048,576.
 PAK = 'Plugin/RelicCalc/RelicCalc.pak'
 PLUGIN_COHORT = [PAK, PAK + '.sig', 'Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig']
-VERSION = '1.2.94'  # Bot gear rarity and combat rank inside the native target and party frames.
+VERSION = '1.2.95'  # Modular interface Core, feature modules and legacy compatibility forwards.
 LUA = 'AetherfallCore.lua'
-ADDON = ['AetherfallCore.lua', 'AetherfallLayout.lua', 'AetherfallLazy.lua', 'AetherfallHUD.lua', 'AetherfallOptions.lua',
-         'AetherfallHUD.xml']
-GENERATED = ('AetherfallLayout.lua', 'AetherfallLazy.lua')
 # Native HUD dialog type ids for the design layout (Game.dll dialog table).
 DESIGN_IDS = {'basic_status_dialog': 0x0a, 'quickbar_dialog': 0x10, 'quickbar_dialog_ctrl': 0x12, 'quickbar_dialog_alt': 0x13,
               'exp_bar_dialog': 0x14, 'radar_dialog': 0x0e, 'start_dialog': 0x11, 'target_dialog': 0x0b,
@@ -245,7 +245,7 @@ def main():
     parser.add_argument('--update', action='store_true', help='bridge and plugin only, for a client whose Game.dll already imports the bridge')
     parser.add_argument('--dll-only', action='store_true', help='rebuild only bin64/AetherfallCore.dll for a client that already imports it')
     parser.add_argument('--plugin-only', action='store_true', help='build only the maintained Lua and its signed plugin cohort; retain installed generated layout and native bridge')
-    parser.add_argument('--retain-layout', action='store_true', help='with --update, build bridge/Lua while retaining installed generated layouts and load order')
+    parser.add_argument('--retain-layout', action='store_true', help='with --update, build bridge/Lua while retaining installed generated layouts')
     parser.add_argument('--shared-timer-update', action='store_true', help='with retained layout, include the maintained RelicCalc shared timer owner (WardrobeNative.lua)')
     parser.add_argument('--mover-editor-update', action='store_true', help='replace only the installed MoveUI dialog and stage its grid-line texture')
     parser.add_argument('--options-window-update', action='store_true', help='replace only the installed /afui options dialog (geometry, code box)')
@@ -467,9 +467,9 @@ def main():
 
     # Plugin: add the bridge and HUD data layer to the installed RelicCalc archive, keeping
     # every other compressed member byte-identical, then sign with the normal signer.
-    addon = {name: (HERE / name).read_bytes() for name in ADDON if name.endswith('.lua') and name not in GENERATED}
-    if args.help_requests_update:
-        addon = {}  # Keep all installed HUD/options/controller Lua byte-identical.
+    order = load_order(HERE)
+    lua_members = [member for _, member in order]
+    addon = lua_payloads(HERE, order)
     if args.shared_timer_update:
         addon['WardrobeNative.lua'] = (mods / 'transmog-menu/WardrobeNative.lua').read_bytes()
     if args.hud_repair_update or args.companion_bar_update:
@@ -481,14 +481,20 @@ def main():
     for rel in PLUGIN_COHORT:
         original(rel)
     with read_pak(client / PAK) as old:
+        toc = old.read('RelicCalc.toc').decode('utf-8-sig').replace('\r', '').splitlines()
+        removals = retired_members(old.namelist())
         changes = dict(addon)
         if args.plugin_only or args.retain_layout:
-            # This mode updates installed code only. Generated layouts and their
-            # load order are authoritative for the current native interface.
-            toc = old.read('RelicCalc.toc').decode('utf-8-sig').replace('\r', '').splitlines()
-            if any(name not in old.namelist() or name not in toc for name in addon):
-                raise ValueError('Plugin-only update requires the existing Aetherfall Lua modules')
-            changes = {name: data for name, data in changes.items() if old.read(name) != data}
+            # Generated layouts remain authoritative; the maintained manifest
+            # owns code and load order, including migration from the monolith.
+            if any(name not in old.namelist() or name not in toc for name in GENERATED):
+                raise ValueError('Retained-layout update requires the installed generated Lua layouts')
+            auxiliary = set(addon) - set(lua_members)
+            if any(name not in old.namelist() or name not in toc for name in auxiliary):
+                raise ValueError('Retained-layout update requires its installed auxiliary Lua controllers')
+            changes.update(lua_payloads(HERE, order, installed=old))
+            changes = {name: data for name, data in changes.items()
+                       if name not in old.namelist() or old.read(name) != data}
             # Retain all installed geometry and widgets. Only replace this
             # controller's verified event script so nested native events cannot
             # swallow its timer between the two Lua controllers.
@@ -528,8 +534,7 @@ def main():
                 spec.loader.exec_module(codex_layout)
                 codex_layout.prepare(client, stage, original, extend_archive, read_pak)
                 changes['CodexNative.lua'] = (mods / 'loot-codex/CodexNative.lua').read_bytes()
-                if 'CodexNative.lua' not in toc: toc.insert(toc.index('AetherfallHUD.lua'), 'CodexNative.lua')
-                changes['RelicCalc.toc'] = ('\r\n'.join(toc) + '\r\n').encode('utf-8')
+                if 'CodexNative.lua' not in toc: toc.insert(toc.index(HUD_XML), 'CodexNative.lua')
             if args.codex_controller_update:
                 if 'CodexNative.lua' not in toc or 'CodexNative.lua' not in old.namelist():
                     raise ValueError('Codex controller update requires the installed native Codex layout')
@@ -538,10 +543,6 @@ def main():
                 import hud_customization
                 changes['AetherfallHUD.xml'] = hud_customization.plugin_xml(changes.get('AetherfallHUD.xml', xml))
                 customization_inventory = hud_customization.prepare(client, stage, original, extend_archive, read_pak, restore_border=args.minimap_border_update)
-        else:
-            toc = old.read('RelicCalc.toc').decode('utf-8-sig').replace('\r', '').splitlines()
-            toc = [n for n in toc if n not in addon] + ADDON
-            changes['RelicCalc.toc'] = ('\r\n'.join(toc) + '\r\n').encode('utf-8')
         if args.marketplace_window_update:
             spec = importlib.util.spec_from_file_location('marketplace_prepare', mods / 'market-shortcut/prepare_window.py')
             market = importlib.util.module_from_spec(spec)
@@ -558,10 +559,8 @@ def main():
         if args.ui_registry_update or ('AetherfallRegistry.lua' in old.namelist() and not bar_only):
             from ui_registry import generate
             changes['AetherfallRegistry.lua'] = generate(client, output, changes)
-            toc = changes.get('RelicCalc.toc', old.read('RelicCalc.toc')).decode('utf-8-sig').replace('\r', '').splitlines()
-            toc = [name for name in toc if name != 'AetherfallRegistry.lua']
-            toc.insert(toc.index('AetherfallCore.lua') + 1, 'AetherfallRegistry.lua')
-            changes['RelicCalc.toc'] = ('\r\n'.join(toc) + '\r\n').encode('utf-8')
+        toc = reconcile_toc(toc, lua_members, registry=REGISTRY in changes)
+        changes['RelicCalc.toc'] = ('\r\n'.join(toc) + '\r\n').encode('utf-8')
         # Retained-layout transformations can return identical XML. Keep its
         # original compressed bytes too, including newer MoveUI layouts.
         changes = {n: d for n, d in changes.items() if n not in old.namelist() or old.read(n) != d}
@@ -569,16 +568,20 @@ def main():
         additions = {n: d for n, d in changes.items() if n not in old.namelist()}
         source = (client / PAK).read_bytes()
         payload = extend_archive(source, replacements, additions)
+        payload = remove_members(payload, removals, parts)
         (output / PAK).parent.mkdir(parents=True, exist_ok=True)
         (output / PAK).write_bytes(payload)
         with read_pak(output / PAK) as new:
             assert new.testzip() is None
+            assert not retired_members(new.namelist())
             for name, data in changes.items():
                 assert new.read(name) == data
             old_parts, new_parts = parts(source)[0], parts(payload)[0]
             for name in old.namelist():
-                if name not in changes:
+                if name not in changes and name not in removals:
                     assert old_parts[name][0] == new_parts[name][0], name
+            lua_manifest = [dict(source=source_name, member=member, sha256=sha(new.read(member)))
+                            for source_name, member in order]
     pub = sha((client / 'Pub.key').read_bytes())
     subprocess.run(['java', str(mods / 'transmog-menu/SignClientPackages.java'), str(client), str(output)], check=True)
     if sha((output / 'Pub.key').read_bytes()) != pub:
@@ -646,10 +649,10 @@ def main():
     if args.marketplace_window_update:
         for name in ('prepare_window.py', 'MarketplaceWindow.lua'):
             extra_sources['../market-shortcut/' + name] = sha((mods / 'market-shortcut' / name).read_bytes())
-    write_manifest(output, client, info, files, before, extra_sources)
+    write_manifest(output, client, info, files, before, extra_sources, lua_manifest=lua_manifest)
 
 
-def write_manifest(output, client, info, files, before, extra_sources=None, version=VERSION):
+def write_manifest(output, client, info, files, before, extra_sources=None, version=VERSION, lua_manifest=None):
     if 'bin64/AetherfallCore.dll' in files:
         from quest_targets import refresh_inventory as refresh_quest_inventory
         relative = 'Mods/InstalledMods.json'
@@ -684,6 +687,12 @@ def write_manifest(output, client, info, files, before, extra_sources=None, vers
             record['questTargets'] = json.loads(data.read_text(encoding='utf-8'))
             record['inputGuards'].update(record['questTargets']['inputs'])
     record['sourceHashes'].update(extra_sources or {})
+    if lua_manifest is not None:
+        record['luaLoadOrder'] = lua_manifest
+        record['sourceHashes']['load_order.json'] = sha((HERE / 'load_order.json').read_bytes())
+        for entry in lua_manifest:
+            if entry['source'] not in GENERATED:
+                record['sourceHashes'][entry['source']] = sha((HERE / entry['source']).read_bytes())
     record['sourceHashes']['../shared/web_endpoint.h'] = sha((HERE.parent / 'shared/web_endpoint.h').read_bytes())
     browser_inputs = output / 'codex-browser-inputs.json'
     if browser_inputs.exists():
