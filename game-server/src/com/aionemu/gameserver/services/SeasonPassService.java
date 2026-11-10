@@ -407,6 +407,8 @@ public final class SeasonPassService {
 			List<Item> companionInventory=List.of(); List<PlayerBotMetadata.Pending> companionMetadata=List.of();
 			Item coin=p.getInventory().getKinahItem(); long balance=p.getInventory().getKinah(); Upgrade plan=null;
 			long mailboxAfter=0;
+			// Save before the transaction's first read: a save after it can make MariaDB reject the Kinah update (error 1020).
+			if (action.equals("purchase") && !companion && !InventoryDAO.store(p)) throw new SQLException("Inventory save failed.");
 			try (Connection c=DatabaseFactory.getConnection()) {
 				c.setAutoCommit(false);
 				try {
@@ -420,7 +422,7 @@ public final class SeasonPassService {
 							companionInventory=InventoryDAO.storeCompanionInventory(c,p);
 							companionMetadata=PlayerBotMetadata.pending(p.getAccount().getId(),p.getObjectId());
 							PlayerBotMetadata.store(c,companionMetadata);
-						} else if (!InventoryDAO.store(p)) throw new SQLException("Inventory save failed.");
+						}
 						int tier=Integer.parseInt(args.getOrDefault("tier","0"));
 						plan=purchase(c,p.getObjectId(),tier,coin.getObjectId(),balance,Instant.now());
 						result=(tier==1?"Premium":"Advanced Premium")+" unlocked. Paid "+plan.cost()+" Kinah. Earlier earned rewards are now claimable.";
