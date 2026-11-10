@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import com.aionemu.gameserver.dao.InventoryDAO;
+import com.aionemu.gameserver.dao.PlayerAppearanceDAO;
 import com.aionemu.gameserver.model.Gender;
 import com.aionemu.gameserver.model.Race;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
@@ -24,11 +25,12 @@ final class PlayerBotRecruitLook {
  static void add(Player owner,int character,String race,String gender,Map<String,Object> last)throws IOException {
   int account=owner.getAccount().getId();
   var shown=LATEST.get(account);
-  if(shown==null || shown.character()!=character)LATEST.put(account,shown=load(owner,character,Race.valueOf(race),Gender.valueOf(gender)));
+  if(shown==null || shown.character()!=character)LATEST.put(account,shown=load(character,Race.valueOf(race),Gender.valueOf(gender)));
   last.put("model",shown.model());last.put("look",shown.look());last.put("items",shown.gear());
  }
- private static Shown load(Player owner,int character,Race race,Gender gender)throws IOException {
-  var appearance=PlayerBotCompanionLooks.settled(owner,gender,character);
+ private static Shown load(int character,Race race,Gender gender)throws IOException {
+  var appearance=PlayerAppearanceDAO.load(character);
+  if (!(appearance.getHeightScale() > 0)) throw new IOException("No saved appearance for ticket recruit " + character);
   String gear=InventoryDAO.loadVisibleEquipment(character).stream()
    .filter(item->item.itemId()<102100000 || item.itemId()>=102200000) // A key would switch the view to the robot.
    .limit(16).map(item->item.color()==null?Integer.toString(item.itemId()):String.format(Locale.ROOT,"%d:%06x",item.itemId(),item.color()&0xFFFFFF))

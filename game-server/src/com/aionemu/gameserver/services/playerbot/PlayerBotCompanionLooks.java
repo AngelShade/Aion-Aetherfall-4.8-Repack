@@ -26,8 +26,8 @@ final class PlayerBotCompanionLooks {
         matchHeight(owner,bot);
     }
 
-    /** The saved look, rolled on first need: a pull shows the same face the first hire will use. */
-    static PlayerAppearance settled(Player owner, Gender gender, int character) throws java.io.IOException {
+    /** Resolve the legacy Temporary Bot appearance once. */
+    private static PlayerAppearance settled(Player owner, Gender gender, int character) throws java.io.IOException {
         if (!PlayerBotConfig.GENERATED_RANDOM_LOOKS) return PlayerAppearanceDAO.load(character);
         int account=owner.getAccount().getId();
         var settings=PlayerBotMetadata.load(account,character,"looks",java.nio.file.Path.of("config/playerbots/looks-character-"+character+".properties"));
@@ -40,7 +40,7 @@ final class PlayerBotCompanionLooks {
     }
 
     static void tick(PlayerBotSession session) {
-        if (!PlayerBotConfig.GENERATED_RANDOM_LOOKS || session.world()) return;
+        if (!PlayerBotConfig.GENERATED_RANDOM_LOOKS || session.world() || !session.generated() || session.recruit()) return;
         matchHeight(session.owner(),session.bot());
     }
 

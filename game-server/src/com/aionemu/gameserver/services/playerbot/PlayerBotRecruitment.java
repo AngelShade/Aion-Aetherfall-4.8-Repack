@@ -33,7 +33,7 @@ public final class PlayerBotRecruitment {
   if(operation.completed())return operation;
   ACTIVE.set(operation);
   // A blank name is drawn from the reserved identity, so a retried roll gets the same one.
-  String chosen=name==null || name.isBlank()?PlayerBotNames.available(operation.character(),owner.getGender()):name;
+  String chosen=name==null || name.isBlank()?PlayerBotNames.available(operation.character(),PlayerBotTicketLooks.gender(operation.character())):name;
   try { PlayerBotGenerationOptions.generate(owner,chosen,level<10?advanced.getStartingClass():advanced,start); }
   finally { ACTIVE.remove(); }
   return operation;

@@ -1261,12 +1261,12 @@ public final class PlayerBotService {
 			catch (java.sql.SQLException e) { throw new IllegalArgumentException("Companion data could not be loaded completely. Check server logs before recruiting it.", e); }
 			if (generated && !bot.getPlayerClass().isStartingClass()) bot.getCommonData().setDaeva(true);
 			if (bot.isInPrison()) throw new IllegalArgumentException("Leave prison before recruiting this character.");
-			PlayerBotCompanionLooks.recruited(owner,bot);
 			PlayerBotPersistence.Home home = PlayerBotPersistence.Home.of(bot);
 			bot.setPlayerBotOwner(owner.getObjectId());
 			bot.setCubeLimit(); bot.setWarehouseLimit();
 			if(generated)try{PlayerBotGrowth.profile(bot);}catch(java.io.IOException e){throw new IllegalStateException("Cannot load companion growth",e);}
 			session = new PlayerBotSession(owner, bot, lease, companions(owner).size(), generated);
+			if (session.generated() && !session.recruit()) PlayerBotCompanionLooks.recruited(owner, bot);
 			// Register Temporary Bot management before native Stigma reconstruction.
 			// Owned alts return immediately from this path and retain normal login rules.
 			PlayerBotTemporary.tick(session,Boolean.TRUE.equals(session.snapshot().get("gear")));
@@ -1413,9 +1413,12 @@ public final class PlayerBotService {
 			if(!earned)PlayerBotRoster.reserve(owner.getAccount().getId(), id);
 			else PlayerBotCreationMetadata.discard(id);
 			PlayerCommonData common = new PlayerCommonData(id);
-			common.setName(name); common.setRace(owner.getRace()); common.setGender(owner.getGender());
+			common.setName(name); common.setRace(owner.getRace());
+			common.setGender(earned ? PlayerBotTicketLooks.gender(id) : owner.getGender());
 			common.setPlayerClass(playerClass); common.setDaeva(!playerClass.isStartingClass()); common.setLevel(startingLevel);
-			var data = new PlayerAccountData(common, PlayerBotCompanionLooks.create(owner,common.getGender(),id));
+			var appearance = earned ? PlayerBotTicketLooks.create(common.getRace(), common.getGender(), id)
+				: PlayerBotCompanionLooks.create(owner, common.getGender(), id);
+			var data = new PlayerAccountData(common, appearance);
 			Account isolated = new Account(owner.getAccount().getId());
 			isolated.setName(owner.getAccount().getName()); isolated.setMembership(owner.getAccount().getMembership());
 			isolated.setCreationDate(owner.getAccount().getCreationDate()); isolated.addPlayerAccountData(data);
