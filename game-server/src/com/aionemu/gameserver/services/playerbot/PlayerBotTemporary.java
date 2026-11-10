@@ -128,7 +128,8 @@ public final class PlayerBotTemporary {
    // Actual role value includes enchantments, sockets and fusion; item color cannot override it.
    if(valid && current.stream().mapToDouble(i->PlayerBotGearPolicy.score(player,i,role)).sum()>=PlayerBotGearPolicy.score(player,selected,role))continue;
    if(player.getInventory().isFull())return;
-   Item item=player.getInventory().getItems().stream().filter(i->i.getItemId()==selected.getTemplateId() && i.isIdentified()).findFirst().orElse(null);
+   // equipItem would only ask to bind an unbound soul-bound copy and return null.
+   Item item=player.getInventory().getItems().stream().filter(i->i.getItemId()==selected.getTemplateId() && i.isIdentified() && (i.isSoulBound() || !selected.isSoulBound())).findFirst().orElse(null);
    if(item==null){item=ItemFactory.newItem(selected.getTemplateId(),1);if(item==null)throw new IllegalStateException("Missing Temporary gear template: "+selected.getTemplateId());
     // Factory-created items use the same identification rolls as ItemActionService.
     if(!item.isIdentified()){item.setOptionalSockets(com.aionemu.commons.utils.Rnd.get(0,selected.getOptionSlotBonus()));item.setBonusStats(com.aionemu.gameserver.model.templates.item.actions.TuningAction.getRandomStatBonusIdFor(item),true);item.setEnchantBonus(com.aionemu.commons.utils.Rnd.get(0,selected.getMaxEnchantBonus()));item.setTuneCount(item.getTuneCount()+1);}
