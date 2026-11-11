@@ -15,11 +15,12 @@ AF.Config:Register('Opacity', function()
             {name='Backdrops',order=2,options={{kind='range',key='dataalpha',label='Background opacity',unit='%',desc='-1 inherits the window and HUD opacity.'}}},
         }}}},
         {id='Unit Frames',name='Unit Frames',category='Unit Frames',order=2,tabs={{id='Backdrops',name='Backdrops',order=2,groups={
-            {name='Frame backdrops',options={
+            {name='Native fallback backdrops',options={
                 {kind='range',key='playeralpha',label='Player',unit='%',order=1,desc='-1 inherits the window and HUD opacity.'},
                 {kind='range',key='targetalpha',label='Target',unit='%',order=2,desc='-1 inherits the window and HUD opacity.'},
                 {kind='range',key='assistalpha',label='Target of target',unit='%',order=3,desc='-1 inherits the window and HUD opacity.'},
                 {kind='range',key='partyalpha',label='Party',unit='%',order=4,desc='-1 inherits the window and HUD opacity.'},
+                {kind='description',label='These settings style native frames when custom unit frames are disabled. Custom backdrops are configured on each unit page.',width='full',order=5},
             }},
         }}}},
     }

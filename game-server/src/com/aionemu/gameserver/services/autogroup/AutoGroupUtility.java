@@ -9,6 +9,7 @@ import com.aionemu.gameserver.network.aion.serverpackets.SM_AUTO_GROUP;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_SYSTEM_MESSAGE;
 import com.aionemu.gameserver.services.AutoGroupService;
 import com.aionemu.gameserver.services.instance.PvPArenaService;
+import com.aionemu.gameserver.services.playerbot.PlayerBotPopulationPolicy;
 import com.aionemu.gameserver.utils.PacketSendUtility;
 import com.aionemu.gameserver.world.World;
 
@@ -100,6 +101,12 @@ public class AutoGroupUtility {
 	}
 
 	public static boolean hasCoolDown(Player player, int worldId) {
-		return player.getPortalCooldownList().isPortalUseDisabled(worldId);
+		return !serverOwnedBot(player) && player.getPortalCooldownList().isPortalUseDisabled(worldId);
+	}
+
+	/** Dedicated server residents fill native matches without consuming player entries. */
+	public static boolean serverOwnedBot(Player player) {
+		return player.isWorldBot() && player.getClientConnection() == null
+			&& PlayerBotPopulationPolicy.serverAccount(player.getAccount().getId());
 	}
 }

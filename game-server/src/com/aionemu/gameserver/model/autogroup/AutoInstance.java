@@ -13,6 +13,7 @@ import com.aionemu.gameserver.model.gameobjects.Item;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.model.instance.InstanceProgressionType;
 import com.aionemu.gameserver.model.instance.instancescore.InstanceScore;
+import com.aionemu.gameserver.services.autogroup.AutoGroupUtility;
 import com.aionemu.gameserver.world.WorldMapInstance;
 
 /**
@@ -66,6 +67,8 @@ public abstract class AutoInstance implements AutoInstanceHandler {
 
 	@Override
 	public void onPressEnter(Player player) {
+		if (AutoGroupUtility.serverOwnedBot(player))
+			return;
 		long instanceCoolTime = DataManager.INSTANCE_COOLTIME_DATA.calculateInstanceEntranceCooltime(player, instance.getMapId());
 		if (instanceCoolTime > 0)
 			player.getPortalCooldownList().addPortalCooldown(instance.getMapId(), instanceCoolTime);

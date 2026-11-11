@@ -21,7 +21,7 @@ HERE = Path(__file__).resolve().parent
 NATIVE_VERSION = '1.3.16'  # Plugin widget call queue bound raised from 4,000 to 1,048,576.
 PAK = 'Plugin/RelicCalc/RelicCalc.pak'
 PLUGIN_COHORT = [PAK, PAK + '.sig', 'Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig']
-VERSION = '1.3.6'  # Compact ElvUI-style Profiles page; the client's corner button moved off the options window.
+VERSION = '1.4.6'  # Instance entry pop-ups kept on screen; unit-frame party parking and bot label scope from 1.4.5.
 LUA = 'AetherfallCore.lua'
 # Native HUD dialog type ids for the design layout (Game.dll dialog table).
 DESIGN_IDS = {'basic_status_dialog': 0x0a, 'quickbar_dialog': 0x10, 'quickbar_dialog_ctrl': 0x12, 'quickbar_dialog_alt': 0x13,
@@ -40,7 +40,7 @@ POOL = 0     # aura timer labels: none (see BUDGET)
 MOVERS = 56  # mover boxes: child widgets of one overlay window (frames, tooltip, start-menu buttons)
 # All plugins together get 20 dialog slots (Game.dll 0x635093: ids 0x20e..0x221; a dialog that
 # finds no free slot is deleted and its calls do nothing). RelicCalc's own windows use 7.
-BUDGET = 5   # data bar, status line, minimap label, options, movers overlay: 8 slots stay free for other addons
+BUDGET = 6   # generated startup dialogs; a retained AFHTarget overlay uses one further slot
 
 
 def layout_lua(client, mods):
@@ -78,9 +78,9 @@ def layout_lua(client, mods):
 def screens():
     """Plugin dialogs: (built at load, built on first use). All start hidden.
 
-    The HUD data layer loads with the plugin. The options window and movers are built
-    on first use from the addon timer (AetherfallLazy.lua): dialogs late in the
-    plugin's one-pass load lost their own setup (rect 0, Show ignored) in game.
+    The HUD data layer, options shell, movers and passive unit-frame canvas load
+    with the plugin. Option trees remain deferred. Dialogs created after startup
+    never received plugin input in game, so no shell is constructed on first use.
 
     Uses only the XML vocabulary of the plugin layouts that load in this client
     (PlayerBotBar, Wardrobe, RelicCalc): dialog name/frame/text/preset/flag/title_*/
@@ -143,6 +143,8 @@ def screens():
     # Keep the editor generator shared with retained-layout updates.
     from mover_editor import dialog as mover_dialog
     root.append(mover_dialog(MOVERS))
+    from layout.unitframes import dialog as unitframes_dialog
+    root.append(unitframes_dialog())
     count = sum(1 for r in (root, lazy) for d in r if d.tag == 'Dialog')
     assert count <= BUDGET, f'{count} plugin dialogs exceed the {BUDGET} Aetherfall may use'
     for r in (root, lazy):
@@ -176,6 +178,21 @@ def update_options_xml(xml):
     count = sum(1 for n in E.fromstring(updated).iter() if n.tag in ('Dialog', 'Widget'))
     return re.sub(rb'(<Screen\b[^>]*\bwidget_cnt=)["\']\d+["\']',
                   lambda m: m[1] + b'"' + str(count).encode() + b'"', updated, count=1)
+
+
+def update_retained_ui_xml(payload, *, options=False, movers=False):
+    """Update requested editor shells and reconcile the passive startup canvas.
+
+    Each generator changes only its own dialog and Screen.widget_cnt. This is
+    also used for ordinary --update --plugin-only retained-layout migrations.
+    """
+    if movers:
+        from mover_editor import update_xml
+        payload = update_xml(payload)
+    if options:
+        payload = update_options_xml(payload)
+    from layout.unitframes import update_xml
+    return update_xml(payload)
 
 
 def identity_dialog(parent):
@@ -361,6 +378,10 @@ def main():
         for relative, payload in options_assets().items():
             if original(relative) != payload:
                 stage(relative, payload)
+        from layout.unitframes import assets as unitframes_assets
+        for relative, payload in unitframes_assets().items():
+            if original(relative) != payload:
+                stage(relative, payload)
 
     if args.dll_only or args.update:
         if b'AetherfallCore.dll\0' not in (client / 'bin64/Game.dll').read_bytes():
@@ -506,11 +527,10 @@ def main():
                 changes['AetherfallHUD.xml'] = xml.replace(previous, b'AFHUD_Dispatch(event);')
             elif b'AFHUD_Dispatch(event);' not in xml and b'AFHUD_Dispatch(event, ...);' not in xml:
                 raise ValueError('Unexpected Aetherfall HUD event dispatcher')
-            if args.mover_editor_update:
-                from mover_editor import update_xml
-                changes['AetherfallHUD.xml'] = update_xml(changes.get('AetherfallHUD.xml', xml))
+            changes['AetherfallHUD.xml'] = update_retained_ui_xml(
+                changes.get('AetherfallHUD.xml', xml), options=args.options_window_update,
+                movers=args.mover_editor_update)
             if args.options_window_update:
-                changes['AetherfallHUD.xml'] = update_options_xml(changes.get('AetherfallHUD.xml', xml))
                 changes['AetherfallLazy.lua'] = lazy_lua()
             current_xml = changes.get('AetherfallHUD.xml', xml)
             forwarded = current_xml.replace(b'AFHUD_Dispatch(event);', b'AFHUD_Dispatch(event, ...);')

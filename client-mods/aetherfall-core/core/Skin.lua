@@ -32,8 +32,16 @@ local colours, stateColours = setmetatable({}, {__mode='k'}), setmetatable({}, {
 function S.Text(object, token)
     if not object then return end
     local colour = S[token] or token or S.Ice
+    local r, g, b = colour:match('^#(%x%x)(%x%x)(%x%x)$')
+    if r then colour = string.format('%.4f,%.4f,%.4f,1', tonumber(r,16)/255, tonumber(g,16)/255, tonumber(b,16)/255) end
     if colours[object] == colour then return end
     call(object, 'SetAttr', 'textColor', colour); colours[object] = colour
+end
+local fonts = setmetatable({}, {__mode='k'})
+function S.Font(object, name)
+    if not object or fonts[object] == name then return end
+    local ok = call(object, 'SetFont', name)
+    if ok then fonts[object] = name end
 end
 local rects, lines = setmetatable({}, {__mode='k'}), setmetatable({}, {__mode='k'})
 local function edges(object)
@@ -79,6 +87,11 @@ function S.SetText(object, text)
     if texts[object] == text then return end
     object:SetText(text); texts[object] = text
 end
+-- Width of a text in the object's current font (interface units), or nil if unmeasured.
+function S.TextWidth(object, text)
+    local ok, width = call(object, 'GetTextWidth', tostring(text or ''))
+    return ok and tonumber(width) or nil
+end
 local enabled = setmetatable({}, {__mode='k'})
 function S.Enable(object, on)
     if not object or type(object.Enable) ~= 'function' then return end
@@ -115,7 +128,11 @@ function S.Border(object, width, height, token)
         local state = cache[line] or {}; cache[line] = state
         local key = table.concat(placed[edge], ',')
         if state.rect ~= key then call(line, 'SetRect', unpack(placed[edge])); state.rect = key end
-        S.Image(line, 0, token == 'Gold' and 'line-gold' or token == 'Aether' and 'line-aether' or 'line')
+        if type(token) == 'string' and token:match('^#%x%x%x%x%x%x$') then
+            S.ImageColor(line, token, 1)
+        else
+            S.Image(line, 0, token == 'Gold' and 'line-gold' or token == 'Aether' and 'line-aether' or 'line')
+        end
         if state.shown ~= true then call(line, 'Show'); state.shown = true end
     end
 end
@@ -176,8 +193,27 @@ function S.Color(object, rgb)
     S.Text(object, tostring(r) .. ',' .. tostring(g) .. ',' .. tostring(b) .. ',1')
 end
 
+-- StaticImage has no verified RGB setter in the client framework. Select a
+-- generated opaque RGB444 tile, then use Widget:SetAlpha for translucency.
+-- This keeps custom colours on the same proven image path as other chrome;
+-- each channel rounds to the nearest 17/255 (at most 8/255 error).
+local imageAlphas = setmetatable({}, {__mode='k'})
+function S.ImageColor(object, hex, alpha)
+    if not object then return end
+    local r, g, b = tostring(hex or ''):match('^#(%x%x)(%x%x)(%x%x)$')
+    if not r then return end
+    local function nibble(value) return math.floor(tonumber(value, 16) / 17 + .5) end
+    S.Image(object, 0, string.format('Textures/UI/AetherfallUnitFrames/solid-%x%x%x.dds',
+        nibble(r), nibble(g), nibble(b)))
+    alpha = math.max(0, math.min(1, tonumber(alpha) or 1))
+    if imageAlphas[object] ~= alpha then
+        local ok = call(object, 'SetAlpha', alpha, false)
+        if ok then imageAlphas[object] = alpha end
+    end
+end
+
 -- Both AF.Skin:Button(widget, selected) and sized dot calls are public.
-for _, name in ipairs({'Pixel','Image','Text','Place','Remember','HideEdges','Show','SetText','Enable','Forget','Hide','Border','Panel','Mover','Button','Check','Field','Track','Fill','LineImage','Thumb','Color'}) do
+for _, name in ipairs({'Pixel','Image','Text','Font','Place','Remember','HideEdges','Show','SetText','Enable','Forget','Hide','Border','Panel','Mover','Button','Check','Field','Track','Fill','LineImage','Thumb','Color','ImageColor'}) do
     local method = S[name]
     S[name] = function(first, ...)
         if first == S then return method(...) end

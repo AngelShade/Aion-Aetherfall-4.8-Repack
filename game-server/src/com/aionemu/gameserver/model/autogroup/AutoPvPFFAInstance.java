@@ -4,6 +4,7 @@ import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.model.instance.instancescore.PvPArenaScore;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_AUTO_GROUP;
 import com.aionemu.gameserver.services.AutoGroupService;
+import com.aionemu.gameserver.services.autogroup.AutoGroupUtility;
 import com.aionemu.gameserver.utils.PacketSendUtility;
 import com.aionemu.gameserver.world.WorldMapInstance;
 
@@ -36,7 +37,7 @@ public class AutoPvPFFAInstance extends AutoInstance {
 
 	@Override
 	public void onPressEnter(Player player) {
-		if (agt.isPvPFFAArena() || agt.isPvPSoloArena() || agt.isGloryArena()) {
+		if ((agt.isPvPFFAArena() || agt.isPvPSoloArena() || agt.isGloryArena()) && !AutoGroupUtility.serverOwnedBot(player)) {
 			long size = 1;
 			int itemId = 186000135;
 			if (agt.isGloryArena()) {

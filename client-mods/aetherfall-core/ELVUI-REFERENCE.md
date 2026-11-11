@@ -51,6 +51,18 @@ Counts are literal settings in `Defaults/Profile.lua` before `CopyTable` expands
 
 ## Implemented contract extensions
 
+The 1.4.0 unit-frame slice was compared with ElvUI revision
+`06c6957cccd4aed5f0cfffa99e1ddb5698790e8e`:
+[profile defaults](https://github.com/tukui-org/ElvUI/blob/06c6957cccd4aed5f0cfffa99e1ddb5698790e8e/ElvUI/Game/Shared/Defaults/Profile.lua),
+[Health](https://github.com/tukui-org/ElvUI/blob/06c6957cccd4aed5f0cfffa99e1ddb5698790e8e/ElvUI/Game/Shared/Modules/UnitFrames/Elements/Health.lua),
+and [Power](https://github.com/tukui-org/ElvUI/blob/06c6957cccd4aed5f0cfffa99e1ddb5698790e8e/ElvUI/Game/Shared/Modules/UnitFrames/Elements/Power.lua).
+The reference separates construction/configuration, tagged text, bar backgrounds,
+colours and shared unit templates. Aetherfall implements these concepts over
+pooled plugin images/statics and native Aion geometry; it does not copy WoW code,
+oUF, secure buttons or the donor's separate power movers. Native Aion frames
+retain targeting and menus. See `UNITFRAMES.md` for the supported data and
+rendering limits and the exact native visual ownership table.
+
 The six extension points are described in `ARCHITECTURE.md`. The current
 implementation and source-only verification handoff are in `ELVUI-IMPLEMENTATION.md`.
 

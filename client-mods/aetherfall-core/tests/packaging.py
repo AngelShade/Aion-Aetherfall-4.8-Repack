@@ -16,6 +16,7 @@ from lua_package import (GENERATED, HUD_XML, REGISTRY, load_order, lua_payloads,
                          reconcile_toc, remove_members, retired_members)
 import prepare
 import options_skin
+from layout import unitframes
 
 spec = importlib.util.spec_from_file_location('packaging_archive_helper', HERE.parent / 'quest-red-journal/prepare.py')
 archive_helper = importlib.util.module_from_spec(spec)
@@ -205,6 +206,106 @@ class Packaging(unittest.TestCase):
         r, g, b = options_skin.rgb('deep')
         self.assertEqual(deep[128:132], bytes((b, g, r, 255)))
         self.assertNotEqual(assets[prefix + 'check-on.dds'], assets[prefix + 'check-off.dds'])
+
+    def test_unitframes_startup_pool_is_passive_flat_and_bounded(self):
+        eager, lazy = ET.fromstring(prepare.hud_xml()), ET.fromstring(prepare.lazy_xml())
+        dialogs = [node for node in eager if node.get('name') == 'AFHFrames']
+        self.assertEqual(len(dialogs), 1)
+        self.assertFalse(any(node.get('name') == 'AFHFrames' for node in lazy))
+        root = dialogs[0]
+        # The attributes of the 1.2.94 bot label window, which drew over native frames in game.
+        self.assertEqual(root.attrib, dict(name='AFHFrames', frame='0,0,3840,2160',
+                         flag='transparent;not_visible;not_movable;not_active'))
+        names = {node.get('name') for node in root}
+        self.assertEqual(len(root), 9 * 38)
+        self.assertEqual(len(names), len(root))
+        frames = ('Player', 'Target', 'TargetTarget') + tuple(f'Party{i}' for i in range(1, 7))
+        parts = {'Backdrop', 'HealthBG', 'HealthFill', 'PowerBG', 'PowerFill', 'DPBG', 'DPFill',
+                 'HealthTextLeft', 'HealthTextCentre', 'HealthTextRight',
+                 'PowerTextLeft', 'PowerTextCentre', 'PowerTextRight', 'Level', 'Identity', 'State', 'DPTextCentre',
+                 'Star1', 'Star2', 'Star3', 'Star4', 'Star5'}
+        parts.update(part + 'Edge' + edge for part in ('Backdrop', 'HealthBG', 'PowerBG', 'DPBG')
+                     for edge in ('Top', 'Bottom', 'Left', 'Right'))
+        self.assertEqual(names, {'AFHF' + frame + part for frame in frames for part in parts})
+        for node in root:
+            self.assertEqual(node.tag, 'Widget')
+            self.assertEqual(len(node), 0, 'all controls must be direct dialog children')
+            self.assertIn(node.get('type'), ('image', 'static'))
+            self.assertTrue({'not_active', 'not_visible'} <= set(node.get('flag').split(';')))
+            self.assertEqual(node.get('frame'), '0,0,1,1')
+        self.assertEqual(prepare.BUDGET, 6)
+        self.assertEqual(len(eager), prepare.BUDGET)
+
+    def test_unitframes_retained_migrations_are_idempotent_and_preserve_other_dialog_bytes(self):
+        owner = (b'<Dialog name="OwnerWindow" frame="1,2,3,4">\n '
+                 b'<Widget type="static" name="Keep" text="A &amp; B"/>\n</Dialog>')
+        target = b'<Dialog name="AFHTarget" frame="5,6,7,8"><Widget type="static" name="NativeReadout"/></Dialog>'
+        before = (b'<Screen widget_cnt="9">\n<!-- owner spacing -->\n' + owner + b'\n' + target + b'\n'
+                  b'<Dialog name="AFUIOptions" frame="0,0,1,1"><Widget type="static" name="OldOptions"/></Dialog>\n'
+                  b'<Dialog name="AFUIMovers" frame="0,0,1,1"><Widget type="image" name="AFUIEditorPanel"/></Dialog>\n</Screen>')
+        for options in (False, True):
+            for movers in (False, True):
+                with self.subTest(options=options, movers=movers):
+                    result = prepare.update_retained_ui_xml(before, options=options, movers=movers)
+                    self.assertIn(owner, result)
+                    self.assertIn(target, result)
+                    self.assertIn(b'<!-- owner spacing -->', result)
+                    self.assertEqual(result.count(b'name="AFHFrames"'), 1)
+                    self.assertEqual(prepare.update_retained_ui_xml(result, options=options, movers=movers), result)
+                    root = ET.fromstring(result)
+                    self.assertEqual(int(root.get('widget_cnt')),
+                                     sum(1 for node in root.iter() if node.tag in ('Dialog', 'Widget')))
+                    if not options:
+                        self.assertIn(b'<Dialog name="AFUIOptions" frame="0,0,1,1"><Widget type="static" name="OldOptions"/></Dialog>', result)
+                    if not movers:
+                        self.assertIn(b'<Dialog name="AFUIMovers" frame="0,0,1,1"><Widget type="image" name="AFUIEditorPanel"/></Dialog>', result)
+        stale = before.replace(b'</Screen>', b'<Dialog name="AFHFrames"><Widget name="OldFrame"/></Dialog></Screen>')
+        repaired = unitframes.update_xml(stale)
+        self.assertNotIn(b'OldFrame', repaired)
+        self.assertIn(owner, repaired)
+        self.assertEqual(unitframes.update_xml(repaired), repaired)
+        for malformed in (stale.replace(b'</Screen>', b'<Dialog name="AFHFrames"/></Screen>'),
+                          before.replace(b' widget_cnt="9"', b'')):
+            with self.assertRaises(ValueError):
+                unitframes.update_xml(malformed)
+
+    def test_unitframes_palette_matches_runtime_rgb444_names_and_channels(self):
+        assets = unitframes.assets()
+        stars = {f'{unitframes.PREFIX}/star-{state}.dds' for state in ('on', 'off')}
+        self.assertTrue(stars <= set(assets))
+        for name in stars:
+            self.assertEqual(struct.unpack('<31I', assets.pop(name)[4:128])[2:4], (32, 32))
+        self.assertEqual(len(assets), 4096)
+        self.assertEqual(sum(map(len, assets.values())), 4096 * (128 + 4 * 4 * 4))
+        for value in range(4096):
+            payload = assets[f'{unitframes.PREFIX}/solid-{value:03x}.dds']
+            self.assertEqual(payload[:4], b'DDS ')
+            header = struct.unpack('<31I', payload[4:128])
+            self.assertEqual((header[2], header[3]), (4, 4))
+            self.assertEqual(payload[128:], bytes(((value & 15) * 17, ((value >> 4) & 15) * 17,
+                                                  (value >> 8) * 17, 255)) * 16)
+
+    def test_unitframes_archive_migration_keeps_unrelated_compressed_members(self):
+        xml = (b'<Screen widget_cnt="4"><Dialog name="AFHTop"><Widget name="Owner"/></Dialog>'
+               b'<Dialog name="AFHTarget"><Widget name="NativeReadout"/></Dialog></Screen>')
+        for version in (1, 2):
+            with self.subTest(version=version):
+                entries = {HUD_XML: xml, 'PrivateMenus.xml': b'<Screen/>',
+                           'WardrobeNative.lua': b'-- installed shared timer',
+                           'OwnerTexture.dds': bytes(range(256)) * 7}
+                source = self.encrypted_archive(entries, version)
+                changed = prepare.update_retained_ui_xml(xml)
+                payload = archive_helper.extend_archive(source, {HUD_XML: changed}, {})
+                before = archive_helper.parts(source)[0]
+                after, _, end, actual_version = archive_helper.parts(payload)
+                self.assertEqual(actual_version, version)
+                self.assertTrue(end.endswith(b'preserved synthetic archive comment'))
+                for name in entries.keys() - {HUD_XML}:
+                    self.assertEqual(before[name][0], after[name][0], name)
+                with self.open_archive(payload) as new:
+                    self.assertIsNone(new.testzip())
+                    self.assertEqual(new.read(HUD_XML), changed)
+                    self.assertEqual(prepare.update_retained_ui_xml(new.read(HUD_XML)), changed)
 
 
 if __name__ == '__main__':

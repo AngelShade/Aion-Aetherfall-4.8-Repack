@@ -43,6 +43,13 @@ final class PlayerBotPopulationManager {
  private long nextQueueCensus,nextQueueAdmission;private volatile List<AutoGroupService.PopulationQueue> queues=List.of();
  private record QueueAttempt(int character,int mask) {}
  private final Map<QueueAttempt,Long> queueRetries=new HashMap<>();
+ private record QueueReservation(int mask,Race race,long until) {}
+ // In-flight factory work reserves a seat; its durable intent remains in native population metadata.
+ private final Map<Integer,QueueReservation> queueReservations=new java.util.concurrent.ConcurrentHashMap<>();
+ private volatile String queuePool="[]";
+ private final java.util.concurrent.atomic.AtomicLong queueJoined=new java.util.concurrent.atomic.AtomicLong(),queueRejected=new java.util.concurrent.atomic.AtomicLong();
+ boolean queueReserved(int character){var reservation=queueReservations.get(character);return reservation!=null && PlayerBotPopulationConfig.NATIVE_QUEUES && reservation.until()>System.currentTimeMillis();}
+ boolean queueReloadPending(Set<Integer> active){return queueReservations.keySet().stream().anyMatch(id->!active.contains(id) && queueReserved(id));}
 
  static boolean global(Player bot) {
   return bot!=null && bot.isWorldBot() && PlayerBotPopulationPolicy.serverAccount(bot.getAccount().getId());
@@ -166,6 +173,8 @@ final class PlayerBotPopulationManager {
    int mask=AutoGroupService.getInstance().populationQueuedMask(session.bot());
    if(mask>0)return new Work(session,0,false,"native population queues disabled",Action.QUEUE_LEAVE,mask);
   }
+  // Human queues must progress before optional bracket/reset/refresh work can consume the worker.
+  var queueWork=queueWork(actors,now);if(queueWork!=null)return queueWork;
   if(PlayerBotPopulationConfig.BRACKETS && now>=nextCensus){nextCensus=now+1000L*PlayerBotPopulationConfig.BRACKET_CHECK;census(actors);}
   if(now>=nextPending){nextPending=now+1000L*PlayerBotPopulationConfig.PENDING_CHECK;pendingBudget=PlayerBotPopulationConfig.PROCESS_LIMIT==0?120:PlayerBotPopulationConfig.PROCESS_LIMIT;}
   int cold=0;Work selected=null;
@@ -175,6 +184,7 @@ final class PlayerBotPopulationManager {
    synchronized(session) {
     if(session.closing() || !PlayerBotService.getInstance().current(session))continue;
     var state=state(bot,now);
+    if(queueReservations.containsKey(bot.getObjectId()) && state.number("pendingLevel")==0)continue;
     bot.getCommonData().setNoExp(PlayerBotPopulationConfig.FIXED_LEVELS);
     int last=(int)state.number("lastLevel"),current=bot.getLevel();boolean natural=current==last+1;
     if(last!=current){state.number("lastLevel",current);state.number("levelPlayedMillis",0);}
@@ -197,12 +207,15 @@ final class PlayerBotPopulationManager {
     if(reviveAllowed(session) && reviveDue(bot,now) && selected==null)selected=new Work(session,0,false,"scheduled revival");
     if(!bot.isDead() && state.number("deadUntil")!=0)revived(bot);
     if(state.number("pendingLevel")>0) {
-     boolean bracketIntent=state.values.getProperty("pendingReason","").equals("bracket");
+     boolean bracketIntent=Set.of("bracket","queue").contains(state.values.getProperty("pendingReason",""));
      String reason=state.values.getProperty("pendingReason","");
-     if(excluded(session,bracketIntent) || bracketIntent && !PlayerBotPopulationConfig.BRACKETS
+     if(excluded(session,bracketIntent) || reason.equals("bracket") && !PlayerBotPopulationConfig.BRACKETS
+      || reason.equals("queue") && !queueNeeded((int)state.number("pendingMask"),bot.getRace())
       || reason.equals("reset") && !PlayerBotPopulationConfig.RESET || Set.of("refresh","teleport").contains(reason) && !PlayerBotPopulationConfig.REFRESH) {
-      state.number("pendingLevel",0);state.values.setProperty("pendingReason","");state.values.setProperty("pendingField","false");queueMetadata(bot,state);
-     }else if(selected==null && safe(session) && now>=landingRetries.getOrDefault(bot.getObjectId(),0L))selected=new Work(session,(int)state.number("pendingLevel"),Boolean.parseBoolean(state.values.getProperty("pendingFull","true")),PlayerBotPopulationPolicy.rebuildLabel(reason));
+      state.number("pendingLevel",0);state.number("pendingMask",0);state.values.setProperty("pendingReason","");state.values.setProperty("pendingField","false");queueReservations.remove(bot.getObjectId());queueMetadata(bot,state);
+     }else if(selected==null && safe(session) && (!reason.equals("queue") || queueSafe(session) && PlayerBotWorldActivities.idle(bot))
+      && now>=landingRetries.getOrDefault(bot.getObjectId(),0L))selected=new Work(session,(int)state.number("pendingLevel"),Boolean.parseBoolean(state.values.getProperty("pendingFull","true")),
+       reason.equals("queue")?"native queue level range":PlayerBotPopulationPolicy.rebuildLabel(reason),Action.REBUILD,reason.equals("queue")?(int)state.number("pendingMask"):0);
     }
     if(selected!=null || state.number("pendingLevel")>0)continue;
     if(PlayerBotPopulationConfig.BRACKETS && pendingBudget>0 && pending.containsKey(bot.getObjectId())) {
@@ -220,21 +233,66 @@ final class PlayerBotPopulationManager {
    }
   }
   if(selected!=null)return selected;
-  if(PlayerBotPopulationConfig.NATIVE_QUEUES && now>=nextQueueAdmission) {
-   nextQueueAdmission=now+1000;
-   queueRetries.entrySet().removeIf(entry->entry.getValue()<=now || !ids.contains(entry.getKey().character()));
-   for(var queue:queues)if(queue.humanDemand())for(var session:actors) {
-    var bot=session.bot();if(!queueSafe(session) || AutoGroupService.getInstance().isLookingForInstance(bot)
-     || bot.getLevel()<queue.minimumLevel() || bot.getLevel()>queue.maximumLevel()
-     || queueRetries.containsKey(new QueueAttempt(bot.getObjectId(),queue.maskId())))continue;
-    int occupants=bot.getRace()==Race.ELYOS?queue.elyosPlayers()+queue.elyosBots():queue.asmodianPlayers()+queue.asmodianBots();
-    int capacity=com.aionemu.gameserver.dataholders.DataManager.INSTANCE_COOLTIME_DATA.getMaxMemberCount(queue.mapId(),bot.getRace());
-    capacity=(queue.elyosPlayers()+queue.asmodianPlayers()>0?capacity:0)+(bot.getRace()==Race.ELYOS?queue.elyosOpenSeats():queue.asmodianOpenSeats());
-    if(capacity>0 && occupants<capacity)return new Work(session,0,false,"native queue population demand",Action.QUEUE_JOIN,queue.maskId());
-   }
-  }
   var legionActor=legions.candidate(actors.stream().filter(this::queueSafe).filter(s->!AutoGroupService.getInstance().isLookingForInstance(s.bot())).toList(),now);
   return legionActor==null?null:new Work(legionActor,0,false,"native generated legion membership",Action.LEGION,0);
+ }
+ private static int queueNeed(AutoGroupService.PopulationQueue queue,Race race) {
+  int occupants=race==Race.ELYOS?queue.elyosPlayers()+queue.elyosBots():queue.asmodianPlayers()+queue.asmodianBots();
+  int capacity=queue.elyosPlayers()+queue.asmodianPlayers()>0
+   ?com.aionemu.gameserver.dataholders.DataManager.INSTANCE_COOLTIME_DATA.getMaxMemberCount(queue.mapId(),race):0;
+  capacity+=race==Race.ELYOS?queue.elyosOpenSeats():queue.asmodianOpenSeats();
+  return Math.max(0,capacity-occupants);
+ }
+ private boolean queueNeeded(int mask,Race race) {
+  return PlayerBotPopulationConfig.NATIVE_QUEUES && queueOpen(mask) && AutoGroupService.getInstance().populationQueues().stream()
+   .anyMatch(queue->queue.maskId()==mask && queue.humanDemand() && queueNeed(queue,race)>0);
+ }
+ private static boolean queueOpen(int mask) {
+  var type=com.aionemu.gameserver.model.autogroup.AutoGroupType.getAGTByMaskId(mask);
+  return type!=null && (!type.isPeriodicInstance() || com.aionemu.gameserver.services.instance.PeriodicInstanceManager.getInstance().isRegistrationOpen(mask));
+ }
+ private Work queueWork(List<PlayerBotSession> actors,long now) {
+  queueReservations.entrySet().removeIf(entry->entry.getValue().until()<=now || !PlayerBotPopulationConfig.NATIVE_QUEUES
+   || !queueOpen(entry.getValue().mask()) || queues.stream().noneMatch(queue->queue.maskId()==entry.getValue().mask() && queue.humanDemand()));
+  if(!PlayerBotPopulationConfig.NATIVE_QUEUES || now<nextQueueAdmission)return null;
+  nextQueueAdmission=now+1000;
+  queueRetries.entrySet().removeIf(entry->entry.getValue()<=now);
+  var service=AutoGroupService.getInstance();var settings=PlayerBotPopulationPolicy.settings();
+  var present=new HashMap<Integer,PlayerBotSession>();actors.forEach(session->present.put(session.bot().getObjectId(),session));
+  var diagnostics=new ArrayList<String>();Work selected=null;
+  for(var queue:queues)if(queue.humanDemand() && queueOpen(queue.maskId())) {
+   int[] needed={queueNeed(queue,Race.ELYOS),queueNeed(queue,Race.ASMODIANS)};
+   if(needed[0]==0 && needed[1]==0)continue;
+   int[][] counts=new int[2][7];var candidates=new ArrayList<PlayerBotPopulationQueues.Candidate>();PlayerBotSession reservedReady=null;
+   for(var entry:queueReservations.entrySet())if(entry.getValue().mask()==queue.maskId()) {
+    // Reserve through reload and transient casts; do not rebuild another actor for this same seat.
+    needed[entry.getValue().race()==Race.ELYOS?0:1]--;
+   }
+   for(var session:actors) {
+    var bot=session.bot();int side=bot.getRace()==Race.ELYOS?0:1;var count=counts[side];count[0]++;
+    boolean range=bot.getLevel()>=queue.minimumLevel() && bot.getLevel()<=queue.maximumLevel();if(range)count[1]++;
+    boolean safe=queueSafe(session),queued=service.isLookingForInstance(bot),retry=queueRetries.containsKey(new QueueAttempt(bot.getObjectId(),queue.maskId()));
+    if(!safe)count[2]++;else if(queued)count[3]++;else if(retry)count[4]++;else if(range)count[5]++;
+    var state=states.get(bot.getObjectId());
+    boolean rebuildable=needed[side]>0 && !range && safe && !queued && !retry && !excluded(session,true) && !excluded(session,false)
+     && state!=null && state.number("pendingLevel")==0 && !pending.containsKey(bot.getObjectId())
+     && !queueReservations.containsKey(bot.getObjectId()) && safe(session) && PlayerBotWorldActivities.idle(bot)
+     && now>=landingRetries.getOrDefault(bot.getObjectId(),0L);
+    if(rebuildable)count[6]++;
+    var reservation=queueReservations.get(bot.getObjectId());
+    if(reservation!=null && reservation.mask()==queue.maskId() && safe && !queued && !retry && range
+     && queueNeed(queue,bot.getRace())>0 && reservedReady==null)reservedReady=session;
+    candidates.add(new PlayerBotPopulationQueues.Candidate(bot.getObjectId(),side==0,bot.getLevel(),safe && !queued && !retry
+     && reservation==null,rebuildable));
+   }
+   diagnostics.add(queue.maskId()+":E"+Arrays.toString(counts[0])+"/A"+Arrays.toString(counts[1]));
+   if(selected!=null)continue;
+   if(reservedReady!=null){selected=new Work(reservedReady,0,false,"native queue population demand",Action.QUEUE_JOIN,queue.maskId());continue;}
+   var admission=PlayerBotPopulationQueues.plan(candidates,Math.max(queue.minimumLevel(),settings.minLevel()),Math.min(queue.maximumLevel(),settings.maxLevel()),needed[0],needed[1]);
+   if(admission!=null)selected=new Work(present.get(admission.character()),admission.level(),admission.level()>0,
+    admission.level()==0?"native queue population demand":"native queue level range",admission.level()==0?Action.QUEUE_JOIN:Action.REBUILD,queue.maskId());
+  }
+  queuePool=diagnostics.toString();return selected;
  }
  private final java.util.Map<Integer,Long> landingRetries=new java.util.concurrent.ConcurrentHashMap<>();
  void loaded(Player bot)throws SQLException,IOException {legions.assign(bot);}
@@ -253,18 +311,25 @@ final class PlayerBotPopulationManager {
   } else {
    // Ticket, cooldown or changed match eligibility must not starve other actors.
    queueRetries.put(new QueueAttempt(bot.getObjectId(),work.mask()),System.currentTimeMillis()+30000);
-   if(!service.joinPopulationQueue(bot,work.mask()))return false;
+   if(!service.joinPopulationQueue(bot,work.mask())){queueRejected.incrementAndGet();nextQueueCensus=0;return false;}
+   queueJoined.incrementAndGet();queueReservations.remove(bot.getObjectId());
   }
   nextQueueCensus=0;return true;
  }
  /** Called under the current actor's monitor after native execution admission. */
- void stage(Work work,long now)throws IOException {
+ boolean stage(Work work,long now)throws IOException {
   protectionNow();
   var bot=work.session().bot();var state=state(bot,now);
-  boolean bracket=work.reason().startsWith("level bracket") || state.values.getProperty("pendingReason","").equals("bracket");
+  boolean queue=work.mask()>0 && work.action()==Action.REBUILD;
+  boolean bracket=queue || work.reason().startsWith("level bracket") || Set.of("bracket","queue").contains(state.values.getProperty("pendingReason",""));
   if(excluded(work.session(),bracket) || !safe(work.session()))throw new IllegalStateException("Population rebuild became protected");
-  if(state.number("pendingLevel")==0)state.values.setProperty("pendingReason",bracket?"bracket":work.reason().startsWith("periodic")?"refresh":"reset");
-  state.number("pendingLevel",work.level());state.values.setProperty("pendingFull",Boolean.toString(work.full()));queueMetadata(bot,state);
+  if(queue && (excluded(work.session(),false) || !queueSafe(work.session()) || !PlayerBotWorldActivities.idle(bot) || !queueNeeded(work.mask(),bot.getRace())
+   || state.number("pendingLevel")>0 && (!state.values.getProperty("pendingReason","").equals("queue")
+    || state.number("pendingMask")!=work.mask() || state.number("pendingLevel")!=work.level())))return false;
+  if(state.number("pendingLevel")==0)state.values.setProperty("pendingReason",queue?"queue":bracket?"bracket":work.reason().startsWith("periodic")?"refresh":"reset");
+  if(queue){state.number("pendingMask",work.mask());queueReservations.put(bot.getObjectId(),new QueueReservation(work.mask(),bot.getRace(),now+120000));}
+  else state.number("pendingMask",0);
+  state.number("pendingLevel",work.level());state.values.setProperty("pendingFull",Boolean.toString(work.full()));queueMetadata(bot,state);return true;
  }
  private void protectionNow()throws IOException {try{nextProtection=0;protection(System.currentTimeMillis());}catch(SQLException e){throw new IOException("Cannot verify native population protections",e);}}
  void started(Work work){if(pending.remove(work.session().bot().getObjectId())!=null)pendingBudget=Math.max(0,pendingBudget-1);}
@@ -350,21 +415,24 @@ final class PlayerBotPopulationManager {
   if(level==0)return false;
   // SQL friendships/legion membership and live configuration can change after
   // intent staging. Resolve exclusions again on the fresh unpublished character.
-  protectionNow();String reason=state.values.getProperty("pendingReason","reset");boolean bracket=reason.equals("bracket");
-  boolean cancelled=bracket && !PlayerBotPopulationConfig.BRACKETS || reason.equals("reset") && !PlayerBotPopulationConfig.RESET
+  protectionNow();String reason=state.values.getProperty("pendingReason","reset");boolean bracket=Set.of("bracket","queue").contains(reason);
+  boolean cancelled=reason.equals("bracket") && !PlayerBotPopulationConfig.BRACKETS || reason.equals("reset") && !PlayerBotPopulationConfig.RESET
+   || reason.equals("queue") && (!queueNeeded((int)state.number("pendingMask"),bot.getRace()) || named(PlayerBotPopulationConfig.RESET_EXCLUDE,bot)
+    || PlayerBotPopulationConfig.RESET_LEGIONS && realLegion(bot))
    || Set.of("refresh","teleport").contains(reason) && !PlayerBotPopulationConfig.REFRESH
    || !reason.equals("revive") && (named(bracket?PlayerBotPopulationConfig.BRACKET_EXCLUDE:PlayerBotPopulationConfig.RESET_EXCLUDE,bot)
     || (bracket?PlayerBotPopulationConfig.LEGIONS:PlayerBotPopulationConfig.RESET_LEGIONS) && realLegion(bot)
     || bracket && PlayerBotPopulationConfig.FRIENDS && friends.contains(bot.getObjectId()));
-  if(cancelled){state.number("pendingLevel",0);state.values.setProperty("pendingReason","");state.values.setProperty("pendingField","false");queueMetadata(bot,state);return false;}
+  if(cancelled){state.number("pendingLevel",0);state.number("pendingMask",0);state.values.setProperty("pendingReason","");state.values.setProperty("pendingField","false");queueReservations.remove(bot.getObjectId());queueMetadata(bot,state);return false;}
   if(bot.isDead()){queueMetadata(bot,state);return false;}
+  if(reason.equals("queue"))queueReservations.put(bot.getObjectId(),new QueueReservation((int)state.number("pendingMask"),bot.getRace(),System.currentTimeMillis()+120000));
   boolean full=Boolean.parseBoolean(state.values.getProperty("pendingFull","true"));
   var home=PlayerBotPersistence.Home.of(bot);
   boolean city=Boolean.parseBoolean(state.values.getProperty("pendingCity","false"));
   if(full || city || Boolean.parseBoolean(state.values.getProperty("pendingField","false"))) {
    var selection=Boolean.parseBoolean(state.values.getProperty("pendingField","false"))
     ?PlayerBotWorldPlacement.chooseGrindDestination(bot.getRace(),level,random)
-    :PlayerBotWorldPlacement.chooseReserveDestination(bot.getRace(),level,city?100:PlayerBotConfig.POPULATION_CITY_PERCENT,random);
+    :PlayerBotWorldPlacement.chooseReserveDestination(bot.getRace(),level,city || reason.equals("queue")?100:PlayerBotConfig.POPULATION_CITY_PERCENT,random);
    var place=selection.location();
    if(place==null) {
     // Every camp for that level is crowded, near a human or missing right now. Enter unchanged at the saved
@@ -387,7 +455,7 @@ final class PlayerBotPopulationManager {
   PlayerBotTemporary.rebuildWorld(bot,PlayerBotRules.roleFor(level>=10?chosen:chosen.getStartingClass()),full);
   if(!World.getInstance().setPosition(bot,home.map(),1,home.x(),home.y(),home.z(),home.heading()))throw new IllegalStateException("Native population reset position refused");
   if(Boolean.parseBoolean(state.values.getProperty("pendingField","false")))state.number("lastLanding",System.currentTimeMillis());
-  state.number("pendingLevel",0);state.values.setProperty("pendingFull","false");state.values.setProperty("pendingField","false");state.values.setProperty("pendingCity","false");state.values.setProperty("pendingReason","");state.number("lastLevel",bot.getLevel());
+  state.number("pendingLevel",0);state.number("pendingMask",0);state.values.setProperty("pendingFull","false");state.values.setProperty("pendingField","false");state.values.setProperty("pendingCity","false");state.values.setProperty("pendingReason","");state.number("lastLevel",bot.getLevel());
   if(full)state.number("levelPlayedMillis",0);
   if(full || reason.equals("refresh") || state.number("randomizeAt")==0)
    state.number("randomizeAt",PlayerBotPopulationPolicy.deadline(System.currentTimeMillis(),random,PlayerBotPopulationConfig.REFRESH_MIN,PlayerBotPopulationConfig.REFRESH_MAX));
@@ -401,5 +469,6 @@ final class PlayerBotPopulationManager {
   loginAllowedAt=0;if(emptySince==0)emptySince=now;return false;
  }
  boolean logoutForNoPlayers(long now){return PlayerBotPopulationConfig.REQUIRE_PLAYERS && emptySince>0 && now-Math.max(lastHuman,emptySince)>=1000L*PlayerBotPopulationConfig.LOGOUT_DELAY;}
- String summary(){return "Population management: brackets="+PlayerBotPopulationConfig.BRACKETS+", pending bracket resets="+pending.size()+", level resets="+PlayerBotPopulationConfig.RESET+", factory refresh="+PlayerBotPopulationConfig.REFRESH+", upstream placement="+PlayerBotPopulationConfig.UPSTREAM_PLACEMENT+"; "+legions.summary()+"; native queue census="+queues;}
+ String summary(){return "Population management: brackets="+PlayerBotPopulationConfig.BRACKETS+", pending bracket resets="+pending.size()+", level resets="+PlayerBotPopulationConfig.RESET+", factory refresh="+PlayerBotPopulationConfig.REFRESH+", upstream placement="+PlayerBotPopulationConfig.UPSTREAM_PLACEMENT+"; "+legions.summary()+"; native queue census="+queues
+  +"; queue pool [total,in-range,unsafe,queued,retry,ready,relevel]="+queuePool+", joined/rejected="+queueJoined.get()+"/"+queueRejected.get();}
 }

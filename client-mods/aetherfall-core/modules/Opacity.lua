@@ -20,8 +20,13 @@ local M = AF:NewModule('Opacity', {
     end,
 })
 local S={}
+local replacing = {}
 local N=AF.Native
 local D=AFCore and AFCore.DIALOG or {}
+-- Only the player replacement selects a dialog backdrop. Other unit-frame
+-- artwork is hidden locally with WidgetShown, so normal opacity remains valid
+-- for any party rows which are absent or cannot safely be replaced.
+local FRAME_UNITS = {[D.basic_status or -1]='player'}
 local call,n,scale,screen=N.Call,N.Number,N.Scale,N.Screen
 local dialog,nativeMovable,identity=N.Dialog,N.Movable,N.Identity
 local featureLayout,featureWidget=N.Layout,N.LayoutWidget
@@ -93,7 +98,8 @@ function M:Apply()
         -- Native 1.2.68 retains a still-owned selection across hide/show. Prepare
         -- existing hidden dialogs too, so the first draw has the same policy as
         -- later draws; visibility remains entirely native.
-        if d then
+        local unit = FRAME_UNITS[id]
+        if d and not replacing[unit] then
             local alpha,bar
             local frameKey = ({[D.basic_status or -1]='playeralpha',[D.target or -1]='targetalpha',
                 [D.target_assist or -1]='assistalpha',[D.party or -1]='partyalpha'})[id]
@@ -158,5 +164,13 @@ function M:BackgroundAlpha(group) return backgroundAlpha(group) end
 function M:Reset() S.opacityDone={} end
 function M:Diagnostics() return AF.Copy(S) end
 M:Listen('BackdropsCleared',M.Reset)
+M:Listen('UnitFramesChanged', function(self, unit, on)
+    if unit ~= 'player' then return end
+    replacing[unit] = on or nil
+    self:Reset()
+    -- UnitFrames releases only its own selections. Reapply the native opacity
+    -- owner's current setting after release, including an already-hidden frame.
+    if not on and AF:Call('Lifecycle','IsHudOn') then self:Apply() end
+end)
 
 function M:Owns(key) return key=='windowsalpha' or key=='chatalpha' or key=='barsalpha' or key=='dataalpha' or key=='playeralpha' or key=='targetalpha' or key=='assistalpha' or key=='partyalpha' end

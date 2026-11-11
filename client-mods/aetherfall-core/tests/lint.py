@@ -143,7 +143,7 @@ def core_api(files):
     return api
 
 
-def inspect(path, api, module_names):
+def inspect(path, api, module_names, element_owner=None, element_needs=()):
     text = path.read_text(encoding='utf-8-sig')
     ts = tokens(text)
     errors = []
@@ -154,7 +154,20 @@ def inspect(path, api, module_names):
     if len(text.splitlines()) > 600:
         errors.append((1, f'{len(text.splitlines())} lines exceeds the 600-line limit'))
     owner, needs = None, set()
-    if path.parent.name == 'modules':
+    if element_owner:
+        owner, needs = element_owner, set(element_needs)
+        registered = False
+        for i, token in enumerate(ts):
+            if sequence(ts, i, ['AF', ':', 'NewModule']):
+                fail(token, 'element providers may not register a feature module')
+            if (sequence(ts, i, ['AF', ':', 'Call', '(']) and i + 6 < len(ts)
+                    and ts[i + 4].kind == 'string' and ts[i + 4].value == owner
+                    and ts[i + 5].value == ',' and ts[i + 6].kind == 'string'
+                    and ts[i + 6].value in ('RegisterElement', 'RegisterNative')):
+                registered = True
+        if not registered:
+            errors.append((1, 'UnitFrames provider must register with its owning module'))
+    elif path.parent.name == 'modules':
         owner, needs = module_spec(ts)
         for dependency in needs:
             if dependency not in module_names:
@@ -317,21 +330,31 @@ def lint(root=SOURCE):
     core = sorted((root / 'core').glob('*.lua'))
     modules = sorted((root / 'modules').glob('*.lua'))
     api = core_api(core)
-    names, errors = set(), []
+    names, errors, specs = set(), [], {}
     for path in modules:
         try:
-            owner, _ = module_spec(tokens(path.read_text(encoding='utf-8-sig')))
+            owner, needs = module_spec(tokens(path.read_text(encoding='utf-8-sig')))
             if owner in names:
                 errors.append((path, 1, 'duplicate module ' + owner))
             names.add(owner)
+            specs[owner] = needs
         except ValueError as error:
             errors.append((path, 1, str(error)))
     providers = [path for directory in ('options', 'datatexts', 'tags')
                  for path in sorted((root / directory).glob('*.lua'))]
+    elements = sorted((root / 'modules/unitframes').glob('*.lua'))
     layouts = sorted((root / 'layout').glob('*.py'))
     for path in core + modules + providers:
         try:
             errors.extend((path, line, message) for line, message in inspect(path, api, names))
+        except ValueError as error:
+            errors.append((path, 1, str(error)))
+    for path in elements:
+        if 'UnitFrames' not in names:
+            errors.append((path, 1, 'UnitFrames provider has no owning module'))
+        try:
+            errors.extend((path, line, message) for line, message in
+                          inspect(path, api, names, 'UnitFrames', specs.get('UnitFrames', ())))
         except ValueError as error:
             errors.append((path, 1, str(error)))
     for path in layouts:
@@ -339,7 +362,7 @@ def lint(root=SOURCE):
             errors.extend((path, line, message) for line, message in inspect_layout(path))
         except SyntaxError as error:
             errors.append((path, error.lineno or 1, str(error)))
-    return core + modules + providers + layouts, errors
+    return core + modules + elements + providers + layouts, errors
 
 
 def self_test():
@@ -375,6 +398,18 @@ def self_test():
         for body in invalid:
             path.write_text(header + body, encoding='utf-8')
             assert inspect(path, api, {'Self', 'Dependency'}), body
+        element = root / 'modules/unitframes/Health.lua'
+        element.parent.mkdir()
+        registration = "AF:Call('UnitFrames','RegisterElement','Health',{})\n"
+        element.write_text(registration, encoding='utf-8')
+        assert not inspect(element, api, {'UnitFrames', 'Dependency'}, 'UnitFrames', {'Dependency'})
+        for body in ("AF:NewModule('Extra')", "AF:Call('Missing','Run')", 'return Dependency.db',
+                     "AFCore.SaveFile('state.cfg','private')", 'local DB=AF.DB; return DB.secret',
+                     'AFUI.Click(\'Value\')'):
+            element.write_text(registration + body, encoding='utf-8')
+            assert inspect(element, api, {'UnitFrames', 'Dependency'}, 'UnitFrames', {'Dependency'}), body
+        element.write_text('local unused={}', encoding='utf-8')
+        assert inspect(element, api, {'UnitFrames'}, 'UnitFrames')
         options = root / 'options/Self.lua'
         options.parent.mkdir()
         options.write_text("AF.Config:Register('Self',function() return {} end)", encoding='utf-8')

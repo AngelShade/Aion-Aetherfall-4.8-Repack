@@ -61,10 +61,23 @@ function DB:SnapshotParse(snapshot, legacy)
     if not modern then self:Migrate(settings) end
     return settings
 end
+-- A stored profile keeps only what differs from the defaults: restoring always starts from
+-- the defaults (plus the profile's built-in layout), so this is equivalent and keeps a
+-- character's profiles inside the 32 KiB file. Keys a built-in layout sets are always kept,
+-- since a snapshot may be stored under a profile whose layout differs.
+local function layoutKey(key)
+    for _, preset in pairs(I.presets or {}) do
+        for name in pairs(preset) do if DB:Canonical(name) == key then return true end end
+    end
+    return false
+end
 function DB:SnapshotEncode(settings)
     local parts = {}
     for _, key in ipairs(I.wire) do
-        if settings[key] ~= nil then parts[#parts + 1] = I.escape(key) .. ':' .. I.escape(settings[key]) end
+        local value = settings[key]
+        if value ~= nil and (value ~= I.defaults[key] or layoutKey(key)) then
+            parts[#parts + 1] = I.escape(key) .. ':' .. I.escape(value)
+        end
     end
     return 'S2;' .. table.concat(parts, ';')
 end

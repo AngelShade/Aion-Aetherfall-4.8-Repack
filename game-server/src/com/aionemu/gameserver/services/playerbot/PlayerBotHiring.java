@@ -282,8 +282,9 @@ public final class PlayerBotHiring {
  public static boolean shouldRelease(PlayerBotSession session,long now) {
   if(!session.world() || session.autonomous())return false;
   var term=ACTIVE.get(session.bot().getObjectId());
-  boolean ended=term!=null ? term.owner()!=session.owner().getObjectId() || term.ends()<=now || !session.owner().isOnline() || !PlayerBotTeams.same(session.owner(),session.bot())
-   : !PlayerBotFindGroup.freeHelpControl(session.owner(),session.bot()) && !PlayerBotFindGroup.holdsForRelog(session.owner(),session.bot(),now);
+  boolean queueEntry=com.aionemu.gameserver.services.AutoGroupService.getInstance().companionEntryPending(session.owner(),session.bot());
+  boolean ended=term!=null ? term.owner()!=session.owner().getObjectId() || term.ends()<=now || !session.owner().isOnline() || !PlayerBotTeams.same(session.owner(),session.bot()) && !queueEntry
+   : !queueEntry && !PlayerBotFindGroup.freeHelpControl(session.owner(),session.bot()) && !PlayerBotFindGroup.holdsForRelog(session.owner(),session.bot(),now);
   var bot=session.bot();
   boolean safe=!bot.isCasting() && !bot.isLooting() && !bot.isTrading() && !bot.isFlying() && bot.getFlightPath()==null
    && !bot.getController().isInCombat() && !bot.getController().hasScheduledTask(TaskId.ITEM_USE)

@@ -188,7 +188,9 @@ function M:Settings(mv)
     for i, name in ipairs({'shortcut','shortcut_ctrl','shortcut_alt','shortcut_extra','shortcut_sep','shortcut_sep2'}) do
         if mv.id == D[name] then return 'Bar' .. i end
     end
-    local own=({[D.target_assist or -1]='Unit Frames',[D.party or -1]='Unit Frames',[D.chat or -1]='Chat',[D.chat_input or -1]='Chat',[D.exp_bar or -1]='General',[D.start or -1]='Shortcuts'})[mv.id]
+    local own=({[D.basic_status or -1]='UnitFramePlayer',[D.target or -1]='UnitFrameTarget',
+        [D.target_assist or -1]='UnitFrameTargetoftarget',[D.party or -1]='UnitFrameParty',
+        [D.chat or -1]='Chat',[D.chat_input or -1]='Chat',[D.exp_bar or -1]='General',[D.start or -1]='Shortcuts'})[mv.id]
     return own or (self:Category(mv)=='Action bars' and 'Action Bars') or (mv.id==D.radar and 'Minimap') or 'Movers'
 end
 function M:Move(mv,tx,ty,sw,sh)

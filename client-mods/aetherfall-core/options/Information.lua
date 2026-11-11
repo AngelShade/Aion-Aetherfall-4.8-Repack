@@ -14,7 +14,7 @@ AF.Config:Register('Lifecycle', function()
             }},
         }},
         {id='Capabilities',name='Capabilities',order=2,groups={{name='Native dependencies',options={
-            {kind='description',label='Unit-frame replacement requires verified gauge construction, unit event subscriptions and secure native targeting.',width='full',order=1},
+            {kind='description',label='Unit frames use a passive overlay; native frames retain targeting and menus. Unknown native layouts keep their original visuals.',width='full',order=1},
             {kind='description',label='Nameplates require an engine draw and world-unit bridge. Cooldown overlays require verified slot geometry and text ownership.',width='full',order=2},
             {kind='description',label='Aura rows require verified icon rendering and native expiration data. Bags and chat styling require native inventory and chat integration.',width='full',order=3},
         }}}},

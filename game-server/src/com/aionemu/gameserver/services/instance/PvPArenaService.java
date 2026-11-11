@@ -7,6 +7,7 @@ import com.aionemu.gameserver.model.autogroup.AutoGroupType;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.model.items.storage.Storage;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_SYSTEM_MESSAGE;
+import com.aionemu.gameserver.services.autogroup.AutoGroupUtility;
 import com.aionemu.gameserver.utils.PacketSendUtility;
 import com.aionemu.gameserver.utils.time.ServerTime;
 
@@ -29,6 +30,8 @@ public class PvPArenaService {
 	}
 
 	public static boolean checkItem(Player player, AutoGroupType agt) {
+		if (AutoGroupUtility.serverOwnedBot(player))
+			return true;
 		Storage inventory = player.getInventory();
 		if (agt.isPvPFFAArena() || agt.isPvPSoloArena()) {
 			return inventory.getItemCountByItemId(186000135) > 0;

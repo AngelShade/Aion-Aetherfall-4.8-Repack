@@ -10,6 +10,7 @@ import com.aionemu.gameserver.model.team.group.PlayerGroup;
 import com.aionemu.gameserver.model.team.group.PlayerGroupService;
 import com.aionemu.gameserver.network.aion.serverpackets.SM_AUTO_GROUP;
 import com.aionemu.gameserver.services.AutoGroupService;
+import com.aionemu.gameserver.services.autogroup.AutoGroupUtility;
 import com.aionemu.gameserver.utils.PacketSendUtility;
 import com.aionemu.gameserver.world.WorldMapInstance;
 
@@ -46,7 +47,7 @@ public class AutoHarmonyInstance extends AutoInstance {
 
 	@Override
 	public void onPressEnter(Player player) {
-		if (agt.isHarmonyArena()) {
+		if (agt.isHarmonyArena() && !AutoGroupUtility.serverOwnedBot(player)) {
 			if (!removeItem(player, 186000184, 1)) {
 				registeredAGPlayers.remove(player.getObjectId());
 				PacketSendUtility.sendPacket(player, new SM_AUTO_GROUP(agt.getTemplate().getMaskId(), 5));

@@ -459,6 +459,9 @@ public final class PlayerBotSession {
 	}
 	private boolean tickActivity() {
 		if (closing) {status="session closing";return true;}
+		if(com.aionemu.gameserver.services.AutoGroupService.getInstance().enterCompanionWithOwner(owner,bot)) {
+			navigation.stop();pets.stop(bot);status="following accepted battleground entry";return true;
+		}
 		if(followProgress!=null && !canRecoverFollow())followProgress.clear();
 		if(!worldActivity()){if(worldDormant)PlayerBotProfessions.dormantTurn(this,System.currentTimeMillis());if(worldDormant)PlayerBotCare.background(this,System.currentTimeMillis());if(worldDormant)PlayerBotOffscreenTurnIns.turn(this,System.currentTimeMillis());if(worldDormant)PlayerBotPvpPresence.turn(this,System.currentTimeMillis());return true;}
 		if(bot.isSpawned() && !bot.isDead())pets.follow(bot,order!=Order.STAY);

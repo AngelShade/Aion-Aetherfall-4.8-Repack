@@ -4,6 +4,7 @@ local D = AFCore and AFCore.DIALOG or {}
 local RARITIES = {'Poor', 'Ordinary', 'Good', 'Great', 'Excellent'}
 local TIER = {Poor = 1, Ordinary = 2, Good = 3, Great = 4, Excellent = 5}
 local hiddenNames = {}
+local replacing = {}
 local function stars(rank)
     local n = TIER[rank]
     if not n then return '' end
@@ -27,31 +28,70 @@ local function nativeName(path, on)
     if AFCore.WidgetShown(D.party, path, on) then hiddenNames[path] = not on or nil end
 end
 
+-- UnitFrames consumes the same native identity data without reaching into this
+-- module's state or duplicating the rarity/rank interpretation.
+-- Rank as plain text: the star glyphs did not show in game.
+local function rankText(rank) local n = TIER[rank]; return n and (n .. '/5') or '' end
+function M:Lookup(name)
+    local rarity, rank = lookup(name)
+    return rarity, rank, TIER[rank] and ('Rank ' .. rankText(rank)) or ''
+end
+-- The unit-frame toggles also govern the stock target and party labels.
+local function parts(group)
+    local ok, gear, rank = pcall(AF.Call, AF, 'UnitFrames', 'IdentityParts', group)
+    if not ok or gear == nil then return true, true end
+    return gear, rank
+end
+
+M:Listen('UnitFramesChanged', function(_, unit, on)
+    if unit == 'party' then return end
+    replacing[unit] = on or nil
+    local index = tostring(unit):match('^party([1-6])$')
+    if on and index then
+        local row = 'ctn_member' .. index
+        fill(D.party, row .. '/af_identity_name_', nil, '')
+        AFCore.SetText(D.party, row .. '/af_identity_rank', '')
+        -- Release our old bot-name substitution before the replacement owner
+        -- snapshots local visibility. Its later restoration must not inherit it.
+        nativeName(row .. '/title', true)
+    end
+end)
+
 function M:Update()
     if not AFCore.Identity or not AFCore.SetText then return end
     local tname, _, _, _, _, tshown = AFCore.Dialog(D.target)
     local id, unit = AFCore.Unit('target')
     local rarity, rank
     if tshown and tname == 'target_dialog' and id and id > 0 and not (AFCore.PlayerId and id == AFCore.PlayerId()) then rarity, rank = lookup(unit) end
-    fill(D.target, 'container7/af_identity_gear_', rarity, rarity and ('◆ ' .. rarity .. ' gear') or '')
-    AFCore.SetText(D.target, 'container7/af_identity_rank', rarity and ('Rank ' .. stars(rank)) or '')
+    if not replacing.target then
+        local tg, tr = parts('target')
+        fill(D.target, 'container7/af_identity_gear_', tg and rarity or nil, (tg and rarity) and ('Equip: ' .. rarity) or '')
+        AFCore.SetText(D.target, 'container7/af_identity_rank', (tr and rarity) and ('Rank ' .. rankText(rank)) or '')
+    end
+    local pg, pr = parts('party')
     for i = 1, 6 do
+        if not replacing['party' .. i] then
         local row = 'ctn_member' .. i
         local name = AFCore.Text(D.party, row .. '/title')
         local r, k = lookup(name)
-        local placed = fill(D.party, row .. '/af_identity_name_', r, r and name or '')
-        AFCore.SetText(D.party, row .. '/af_identity_rank', r and stars(k) or '')
-        nativeName(row .. '/title', not (r and placed))
+        local placed = fill(D.party, row .. '/af_identity_name_', pg and r or nil, (pg and r) and name or '')
+        AFCore.SetText(D.party, row .. '/af_identity_rank', (pr and r) and rankText(k) or '')
+        nativeName(row .. '/title', not (pg and r and placed))
+        end
     end
 end
 function M:Off()
     if not AFCore.SetText then return end
-    fill(D.target, 'container7/af_identity_gear_', nil, '')
-    AFCore.SetText(D.target, 'container7/af_identity_rank', '')
+    if not replacing.target then
+        fill(D.target, 'container7/af_identity_gear_', nil, '')
+        AFCore.SetText(D.target, 'container7/af_identity_rank', '')
+    end
     for i = 1, 6 do
+        if not replacing['party' .. i] then
         local row = 'ctn_member' .. i
         fill(D.party, row .. '/af_identity_name_', nil, '')
         AFCore.SetText(D.party, row .. '/af_identity_rank', '')
         nativeName(row .. '/title', true)
+        end
     end
 end

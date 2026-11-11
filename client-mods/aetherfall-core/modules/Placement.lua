@@ -239,8 +239,31 @@ end
 function M:Diagnostics() return AF.Copy(S) end
 M:Listen('PinsChanged',function(_,pins) S.pins=AF.Copy(pins) end)
 M:Listen('ResetLayoutCaches',function(_,full) S.designed,S.observed={},{};if full then S.designSize=nil end end)
-M:Listen('CharacterChanged',function() S.defaults,S.designed,S.restoredWindows,S.designSize={},{},{},nil end)
+M:Listen('CharacterChanged',function() S.defaults,S.designed,S.restoredWindows,S.designSize,S.popups={},{},{},nil,nil end)
 M:Listen('EditorLocked',M.RecordLocked)
 M:Listen('ResetObservations',function() S.observed={} end)
 M:Listen('ResetAllPositions',M.ResetAll)
 M:Phase('native-drag',M.NativeDragTick)
+-- Stock pop-ups the game can open past the screen edge (the instance entry prompt was seen off
+-- the right edge at UI scale 1.125). Found once by layout name; centred whenever shown outside.
+local POPUPS={indun_enter_dialog=true,indun_wait_dialog=true,party_match_instance_offer_dialog=true,party_match_instance_standby_dialog=true}
+S.popupTick,S.popupScan=0,0
+local function findPopups()
+    local found={}
+    for id=1,PLUGIN_FIRST-1 do local d=dialog(id);if d and POPUPS[d.name] then found[#found+1]=id end end
+    return found
+end
+local function keepPopupsOnScreen()
+    S.popupTick=S.popupTick+1
+    if S.popupTick%10~=0 or not AF:Call('Lifecycle','IsReady') then return end
+    -- Rescan every 30 s until all are found: a dialog may only exist once the game first builds it.
+    if not S.popups or (#S.popups<4 and S.popupTick>=S.popupScan) then S.popups,S.popupScan=findPopups(),S.popupTick+600 end
+    local sw,sh=screen()
+    for _,id in ipairs(S.popups) do
+        local d=dialog(id)
+        if d and d.shown and d.w>0 and (d.x<0 or d.y<0 or d.x+d.w>sw or d.y+d.h>sh) then
+            AFCore.Move(id,math.floor((sw-d.w)/2),math.floor(math.max(0,(sh-d.h)/3)))
+        end
+    end
+end
+M:Phase('fit-windows',keepPopupsOnScreen)

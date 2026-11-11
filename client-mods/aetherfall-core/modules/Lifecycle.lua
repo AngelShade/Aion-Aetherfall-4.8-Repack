@@ -79,6 +79,7 @@ function M:OnEvent(event,...)
         if focused and worldShown and S.suspended then S.suspended=nil;recoverLayout(false,true) end
         if focused then S.worldShown=worldShown and true or false end
         local zone=N.Call('GetZoneText')
+        if zone=='' then zone=nil end  -- read between areas; not a zone change
         if focused and zone and S.zone and zone~=S.zone then recoverLayout(false,true) end
         S.zone=zone or S.zone
         S.settled=focused and sw>=800 and sh>=600 and S.ticks-(S.sizeSince or 0)>=20

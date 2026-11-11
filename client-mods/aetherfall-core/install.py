@@ -89,7 +89,7 @@ def main():
         if copied[f['path']] != f['installed']:
             raise SystemExit(f"copy verification failed: {f['path']}; restore from {backup / 'files'}")
     results = checks(client, backup)
-    receipt = dict(change='AetherfallCore Lua bridge and HUD data layer', installedAt=datetime.now(timezone.utc).isoformat(),
+    receipt = dict(change=manifest.get('change', 'AetherfallCore Lua bridge and HUD data layer'), installedAt=datetime.now(timezone.utc).isoformat(),
                    client=str(client), stage=str(stage), files=manifest['files'], copied=copied,
                    newFiles=[f['path'] for f in manifest['files'] if f['original'] is None], checks=results,
                    restore='With Aion closed: copy backup/files over the client and delete the newFiles.')

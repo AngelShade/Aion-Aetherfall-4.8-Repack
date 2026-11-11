@@ -80,7 +80,10 @@ parent containers, so locally shown content under a hidden bar/container is fals
 
 The client gives every plugin together 20 windows (`<Dialog>`s). A window created when all
 20 are taken is deleted by the client; its Lua object stays but nothing you do to it shows.
-The stock RelicCalc plugin uses 7 and Aetherfall Interface 5, so 8 are left for addons.
+The Interface startup generator uses six dialogs, including the passive `AFHFrames`
+unit-frame canvas. Retained installations also keep their existing `AFHTarget`
+readout dialog. The owner's collection uses 17 of 20 slots after this addition
+(RelicCalc 7, PlayerBotBar, BrokerSwapTimer, Interface 7).
 Put many frames inside one window as child widgets (bars, labels, buttons) instead of one
 window per frame, and drag them yourself with `AFCore.Cursor()`, as Aetherfall's movers do.
 `/afcore` lists the slots in use ("plugin window slots: N/20").

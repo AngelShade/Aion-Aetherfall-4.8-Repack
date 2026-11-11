@@ -27,8 +27,9 @@ public class LootGroupRules {
 	private int nrRoundRobin;
 	private final Deque<DropItem> itemsToBeDistributed = new ConcurrentLinkedDeque<>();
 
+	/** New groups and alliances start with leader loot (owner's choice); the leader can change it in game. */
 	public LootGroupRules() {
-		lootRule = LootRuleType.ROUNDROBIN;
+		lootRule = LootRuleType.LEADER;
 		commonItemAbove = 0;
 		superiorItemAbove = 2;
 		heroicItemAbove = 2;

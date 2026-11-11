@@ -34,6 +34,7 @@ def main():
     checks = [
         ('trace', HERE / 'trace/run.py', ['--client', str(client), '--output', str(output / 'current-trace.jsonl.gz')]),
         ('options', HERE / 'options.py', ['--client', str(client), '--output', str(output / 'options-trace.jsonl.gz')]),
+        ('unitframes', HERE / 'unitframes.py', ['--client', str(client), '--output', str(output / 'unitframes-trace.jsonl.gz')]),
         ('isolated', HERE / 'isolated.py', ['--client', str(client)]),
         ('lint', HERE / 'lint.py', []),
         ('load-budget', SOURCE / 'measure_calls.py', ['--client', str(client)]),
@@ -63,7 +64,7 @@ def main():
     print('Check output:', output)
     if failed:
         raise SystemExit('FAILED: ' + ', '.join(failed))
-    print('PASS: preserved trace, options/profiles, isolation, dependency lint, load budget and packaging')
+    print('PASS: preserved trace, options/profiles, unit frames, isolation, dependency lint, load budget and packaging')
 
 
 if __name__ == '__main__':

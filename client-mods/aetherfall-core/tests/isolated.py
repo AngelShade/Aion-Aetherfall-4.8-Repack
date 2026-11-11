@@ -100,13 +100,15 @@ def core_contract(client, core):
     ''')
 
 
-def exercise(client, owner, specs, module_order, core):
+def exercise(client, owner, specs, module_order, core, elements):
     included = closure(owner, specs)
     runtime, recorder = fresh(client, core)
     for name in module_order:
         if name in included:
             source = specs[name][0]
             runtime.load(source, (SOURCE / source).read_bytes())
+            for source in elements.get(name, ()):
+                runtime.load(source, (SOURCE / source).read_bytes())
     runtime.character = 'IsolatedCharacter'
     runtime.lua.execute('''
         AF:Start()
@@ -142,14 +144,20 @@ def main():
     args = parser.parse_args()
     order = load_order(SOURCE)
     core = [source for source, _ in order if source.startswith('core/')]
-    specs, module_order = {}, []
+    specs, module_order, elements = {}, [], {}
     for source, _ in order:
-        if source.startswith('modules/'):
+        if Path(source).parent.as_posix() == 'modules':
             owner, needs = module_spec(tokens((SOURCE / source).read_text(encoding='utf-8-sig')))
             if owner in specs:
                 raise SystemExit('Duplicate module: ' + owner)
             specs[owner] = source, needs
             module_order.append(owner)
+        elif Path(source).parent.as_posix() == 'modules/unitframes':
+            elements.setdefault('UnitFrames', []).append(source)
+        elif source.startswith('modules/'):
+            raise SystemExit('Undeclared module provider: ' + source)
+    if elements and 'UnitFrames' not in specs:
+        raise SystemExit('UnitFrames elements have no owning module')
     if not specs or not core:
         raise SystemExit('The manifest must contain Core and feature modules')
     failures = []
@@ -161,7 +169,7 @@ def main():
         print('FAIL: Core:', error)
     for owner in module_order:
         try:
-            count, calls = exercise(args.client, owner, specs, module_order, core)
+            count, calls = exercise(args.client, owner, specs, module_order, core, elements)
             print(f'PASS: {owner} with {count - 1} declared dependencies ({calls} recorded boundary calls)')
         except Exception as error:
             failures.append(owner)

@@ -28,6 +28,10 @@ public class AutoGroupService {
 	private final Map<WorldMapInstance, AutoInstance> autoInstances = new ConcurrentHashMap<>();
 	private final Map<Integer, List<LookingForParty>> lookingParties = new ConcurrentHashMap<>();
 	private final Set<Integer> penalties = ConcurrentHashMap.newKeySet();
+	private final Map<Integer, CompanionEntry> companionEntries = new ConcurrentHashMap<>();
+
+	private record CompanionEntry(Player owner, Player bot, AutoInstance instance, long expiresAt) {
+	}
 
 	private AutoGroupService() {
 	}
@@ -165,8 +169,18 @@ public class AutoGroupService {
 
 	public void pressEnter(Player player, int instanceMaskId) {
 		AutoInstance instance = getAutoInstance(player, instanceMaskId);
-		if (instance == null)
+		if (instance == null || instance.getInstance() == player.getWorldMapInstance())
 			return;
+
+		// Keep only the accepting human's already registered companions. Native
+		// entry removes the old team before the human finishes loading the map.
+		if (!player.isPlayerBot() && player.isInTeam()) {
+			long expiresAt = System.currentTimeMillis() + 120000;
+			for (Player member : player.getCurrentTeam().getMembers())
+				if (member.isPlayerBot() && member.getPlayerBotOwnerId() == player.getObjectId()
+					&& instance.getRegisteredAGPlayers().containsKey(member.getObjectId()))
+					companionEntries.put(member.getObjectId(), new CompanionEntry(player, member, instance, expiresAt));
+		}
 
 		if (player.isInGroup())
 			PlayerGroupService.removePlayer(player);
@@ -175,6 +189,50 @@ public class AutoGroupService {
 
 		instance.onPressEnter(player);
 		PacketSendUtility.sendPacket(player, new SM_AUTO_GROUP(instanceMaskId, 5));
+	}
+
+	/** Retain companion custody only across an accepted, matched native entry. */
+	public boolean companionEntryPending(Player owner, Player bot) {
+		CompanionEntry entry = companionEntries.get(bot.getObjectId());
+		if (entry == null || entry.owner() != owner || entry.bot() != bot)
+			return false;
+		if (bot.getWorldMapInstance() == entry.instance().getInstance()) {
+			companionEntries.remove(bot.getObjectId(), entry);
+			return false;
+		}
+		if (System.currentTimeMillis() >= entry.expiresAt() || !owner.isOnline()
+			|| bot.getPlayerBotOwnerId() != owner.getObjectId()
+			|| !entry.instance().getRegisteredAGPlayers().containsKey(owner.getObjectId())
+			|| !entry.instance().getRegisteredAGPlayers().containsKey(bot.getObjectId())) {
+			if (companionEntries.remove(bot.getObjectId(), entry))
+				cancelEnter(bot, entry.instance().getAutoGroupType().getTemplate().getMaskId());
+			return false;
+		}
+		return true;
+	}
+
+	/** Called by the companion's existing actor worker, after its human has loaded. */
+	public boolean enterCompanionWithOwner(Player owner, Player bot) {
+		if (!companionEntryPending(owner, bot))
+			return false;
+		CompanionEntry entry = companionEntries.get(bot.getObjectId());
+		if (entry != null && owner.isSpawned() && owner.getWorldMapInstance() == entry.instance().getInstance()
+			&& owner.isInTeam() && entry.instance().getInstance().isRegistered(owner.getObjectId())
+			&& entry.instance().getInstance().isRegistered(owner.getCurrentTeamId())) {
+			pressEnter(bot, entry.instance().getAutoGroupType().getTemplate().getMaskId());
+			if (bot.getWorldMapInstance() == entry.instance().getInstance()
+				|| !entry.instance().getRegisteredAGPlayers().containsKey(bot.getObjectId()))
+				companionEntries.remove(bot.getObjectId(), entry);
+		}
+		return true;
+	}
+
+	/** Ending the original controller also ends its outstanding matched handoff. */
+	public void cancelCompanionEntry(Player owner, Player bot) {
+		CompanionEntry entry = companionEntries.get(bot.getObjectId());
+		if (entry != null && entry.owner() == owner && entry.bot() == bot
+			&& companionEntries.remove(bot.getObjectId(), entry))
+			cancelEnter(bot, entry.instance().getAutoGroupType().getTemplate().getMaskId());
 	}
 
 	public void onEnterInstance(Player player) {
@@ -187,6 +245,7 @@ public class AutoGroupService {
 	}
 
 	public void cancelEnter(Player player, int instanceMaskId) {
+		companionEntries.remove(player.getObjectId());
 		AutoInstance autoInstance = getAutoInstance(player, instanceMaskId);
 		if (autoInstance != null) {
 			int objectId = player.getObjectId();
@@ -226,9 +285,13 @@ public class AutoGroupService {
 
 	public void onLogout(Player player) {
 		int objectId = player.getObjectId();
+		companionEntries.remove(objectId);
+		for (CompanionEntry entry : companionEntries.values())
+			if (entry.owner() == player && companionEntries.remove(entry.bot().getObjectId(), entry))
+				cancelEnter(entry.bot(), entry.instance().getAutoGroupType().getTemplate().getMaskId());
 		// A generated actor can leave before pressing Enter. Its current map is
 		// still outdoors, so the normal current-instance lookup cannot find it.
-		if (generatedPopulationBot(player))
+		if (player.isPlayerBot())
 			for (var pending : autoInstances.values())
 				if (pending.getInstance() != player.getWorldMapInstance() && pending.getRegisteredAGPlayers().containsKey(objectId))
 					cancelEnter(player, pending.getAutoGroupType().getTemplate().getMaskId());
@@ -340,6 +403,7 @@ public class AutoGroupService {
 		WorldMapInstance instance = autoInstance.getInstance();
 		if (autoInstance.getRegisteredAGPlayers().isEmpty() && instance.getPlayersInside().stream().noneMatch(Player::isOnline)) {
 			autoInstances.remove(instance);
+			companionEntries.values().removeIf(entry -> entry.instance() == autoInstance);
 			InstanceService.destroyInstance(instance);
 			return true;
 		}

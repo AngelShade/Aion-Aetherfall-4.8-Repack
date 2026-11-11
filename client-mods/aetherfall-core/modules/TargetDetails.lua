@@ -5,6 +5,7 @@ local M = AF:NewModule('TargetDetails', {scope='profile', defaults={
     targetAbbreviate={0,'toggle'},
 }})
 local S = {text = {}, shown = {}}
+local replacing = {}
 local D = AFCore and AFCore.DIALOG or {}
 local n, scale = AF.Native.Number, AF.Native.Scale
 local function w(id) return AF.Native.Widget('H', id) end
@@ -24,13 +25,16 @@ local function resourceValue(cur, maximum, format)
 end
 local TARGET_PANELS = {'container1', 'container2', 'container3', 'container4', 'container7'}
 
-function M:Available() return w('Target') ~= nil and AFCore.SetText ~= nil end
+function M:Available(unit) return w('Target') ~= nil and AFCore.SetText ~= nil and not replacing[unit or 'target'] end
 function M:Update()
     if not w('Target') or not AFCore.SetText then return end
     local assistName, _, _, _, _, assistShown = AFCore.Dialog(D.target_assist)
     local assistId, _, _, assistHP, assistMax = AFCore.Unit('targettarget')
     local assistActive = assistShown and assistName == 'target_assist_dialog' and assistId and assistId > 0
-    AFCore.SetText(D.target_assist, 'container/af_resource_hp', assistActive and resourceValue(assistHP, assistMax, M.db.assistFormat) or '')
+    if not replacing.targettarget then
+        AFCore.SetText(D.target_assist, 'container/af_resource_hp', assistActive and resourceValue(assistHP, assistMax, M.db.assistFormat) or '')
+    end
+    if replacing.target then show('Target', false); return end
     settext('TargetHP', '')
     settext('TargetMP', '')
     settext('TargetDP', '')
@@ -63,6 +67,10 @@ function M:Update()
 end
 
 function M:Hide() if w('Target') then show('Target', false) end end
+M:Listen('UnitFramesChanged', function(self, unit, on)
+    replacing[unit] = on or nil
+    if unit == 'target' and on then self:Hide() end
+end)
 function M:Invalidate() S.shown = {}; S.text = {} end
 function M:OnLoad()
     if w('Target') then

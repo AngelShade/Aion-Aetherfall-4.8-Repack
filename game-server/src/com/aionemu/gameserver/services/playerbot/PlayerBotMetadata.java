@@ -62,7 +62,9 @@ public final class PlayerBotMetadata {
     for(String key:List.of("lastLevel","pendingLevel"))if(Integer.parseInt(map.getOrDefault(key,"0"))>65)throw new IllegalArgumentException("Invalid population level");
     if(!Set.of("true","false").contains(map.getOrDefault("pendingFull","false")))throw new IllegalArgumentException("Invalid population factory mode");
     if(!Set.of("true","false").contains(map.getOrDefault("pendingField","false"))
-     || !Set.of("","bracket","reset","refresh","revive","teleport").contains(map.getOrDefault("pendingReason","")))throw new IllegalArgumentException("Invalid population factory intent");
+     || !Set.of("","bracket","reset","refresh","revive","teleport","queue").contains(map.getOrDefault("pendingReason","")))throw new IllegalArgumentException("Invalid population factory intent");
+    int queueMask=Integer.parseInt(map.getOrDefault("pendingMask","0"));
+    if(queueMask<0 || map.getOrDefault("pendingReason","").equals("queue") && queueMask==0)throw new IllegalArgumentException("Invalid population queue intent");
    } else if(section.equals("pvp")) {
     for(String key:List.of("nextRift","visitUntil"))if(Long.parseLong(map.getOrDefault(key,"0"))<0)throw new IllegalArgumentException("Invalid PvP timer");
    } else if(section.equals("looks")) {
