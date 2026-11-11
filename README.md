@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚔️ Aion 4.8 Playerbots — Aetherfall Repack (v0.98.11)
+# ⚔️ Aion 4.8 Playerbots — Aetherfall Repack (v0.98.12)
 
 ### **Full Solo & Co-Op Private Server Repack • Autonomous AI Companions • 1-Click Setup & Play**
 
@@ -18,18 +18,18 @@
 ---
 
 <!-- whats-new:start -->
-## ✨ What's new in 0.98.11
+## ✨ What's new in 0.98.12
 
-Build your Companions collection, watch each new recruit's reveal, and choose who joins your party. Road Wardens, regional merchants and new Journey chapters give you more to discover as you play.
+Customize your unit frames and six action bars with shareable profiles. Follow bot help requests in your quest journal and update the optional Russian and HD texture packs from the Hub.
 
-- **Companions collection:** browse illustrated companion cards, filter and sort your collection, and open an Overview to see each companion's details.
-- **Recruitment Tickets:** spend tickets shared across your account to recruit companions. Your results stay in your collection until you invite them into your party.
-- **Earn Recruitment Tickets:** complete challenging instances or win PvP matches to earn tickets for your account.
-- **50 starter tickets:** your account receives them once when you first open the ticket wallet, including through Companions. Existing accounts receive them too.
-- **Recruitment reveal:** see your new companion's appearance in an animated reveal. Use Continue or Skip to move through the results.
-- **Companion recycling:** recycle a Ticket Recruit for Ticket credit, Learning XP for another chosen Ticket Recruit, and Kinah. Review the rewards before confirming.
+- See a bot's gear rarity and combat rank beside the target and party windows, and in the Find Group hire question.
+- World bots now have real trades. They gather and craft even on maps with no player, using real materials and their own Kinah.
+- Bots trade through the Central Market: gatherers keep it stocked, and crafters post buy orders you can sell into.
+- Bots differ in how they trade. Some sell little and often, while hoarders build up big stocks and sell in large lots.
+- Open Help requests from Find Group to review companions' requests, keep accepted objectives after reconnecting, and track, locate, abandon or collect rewards.
+- Invite a Road Warden for a free escort toward either end of the road, lasting up to 15 minutes.
 
-**[See everything in 0.98.11](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.11)** • [All updates](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases)
+**[See everything in 0.98.12](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.12)** • [All updates](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases)
 
 ---
 <!-- whats-new:end -->
