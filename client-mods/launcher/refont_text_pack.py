@@ -1,7 +1,7 @@
-"""Apply prepare_text_pack's native face overrides to an already prepared text pack.
+"""Refresh typography in an already prepared text pack under external build output.
 
-Strings and dialogues stay byte-identical; only the font map and the font files the
-map needs change. Writes a fresh pack under external build output.
+The Russian pack uses the native HTML body fragments with their required spacing.
+Translated dialogue and visible string text are preserved.
 """
 import argparse
 import io
@@ -13,7 +13,23 @@ from xml.etree import ElementTree as ET
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from prepare_text_pack import NATIVE_FACE_OVERRIDES, apply_face_overrides, bundled_face, codec, sha
+from prepare_text_pack import (BODY_ATTRIBUTES, NATIVE_FACE_OVERRIDES, UI_STRINGS,
+                               apply_face_overrides, bundled_face, codec, sha)
+
+
+def restore_body_attributes(raw, native):
+    rows = codec.binary_xml(raw)
+    native_rows = {row.findtext('name'): row for row in codec.binary_xml(native)
+                   if row.findtext('name') in BODY_ATTRIBUTES}
+    if set(native_rows) != BODY_ATTRIBUTES:
+        raise ValueError('Missing native parchment body attributes')
+    for row in rows:
+        original = native_rows.get(row.findtext('name'))
+        if original is not None:
+            if row.findtext('id') != original.findtext('id'):
+                raise ValueError('Native parchment body ID changed')
+            row.find('body').text = original.findtext('body')
+    return bytes(codec.encode_binary_xml(rows))
 
 
 def main():
@@ -31,9 +47,12 @@ def main():
         raise FileExistsError('Use a fresh pack output')
     with codec.read_pak(client / 'L10N/enu/data/data.pak') as english:
         current_fonts = codec.binary_xml(english.read('fonts/fontshader.xml'))
+        native_ui = english.read(UI_STRINGS) if args.code == 'rus' else None
     with codec.read_pak(pack) as source:
         members = [(info, source.read(info.filename)) for info in source.infolist()]
     data = {info.filename: raw for info, raw in members}
+    if native_ui is not None:
+        data[UI_STRINGS] = restore_body_attributes(data[UI_STRINGS], native_ui)
     font_map = codec.binary_xml(data['fonts/fontshader.xml'])
     before = sorted({e.find('font').get('name') for e in font_map.findall('fontshader')})
     apply_face_overrides(args.code, current_fonts, font_map)
@@ -52,6 +71,8 @@ def main():
                 continue
             if name == 'fonts/fontshader.xml':
                 raw = bytes(codec.encode_binary_xml(font_map))
+            elif name == UI_STRINGS:
+                raw = data[UI_STRINGS]
             out.writestr(info, raw)
         for name, raw in fonts.items():
             info = zipfile.ZipInfo(name, (2026, 10, 30, 0, 0, 0))

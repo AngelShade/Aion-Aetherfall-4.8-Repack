@@ -123,6 +123,8 @@ def sha(path):
 
 
 FONT_ASSETS = Path(__file__).resolve().parent / 'assets' / 'fonts'
+UI_STRINGS = 'strings/client_strings_ui.xml'
+BODY_ATTRIBUTES = {'STR_HTML_DIALOG_BODY_ATTRIBUTE', 'STR_HTML_QUEST_BODY_ATTRIBUTE'}
 # The runtime keeps the English logical sizes, which are tuned for Vera. Donor faces
 # with a smaller x-height (Russian Calibri/Myriad) then draw small, thin and faint.
 # Per native face: the face to use instead (a bundled asset or a donor face).
@@ -188,7 +190,13 @@ def main():
                         translated.setdefault(key.lower(), row)
                 result = ET.Element(current.tag, current.attrib)
                 for row in current:
-                    native = translated.get((row.findtext('name') or '').lower())
+                    key = row.findtext('name') or ''
+                    if args.code == 'rus' and name == UI_STRINGS and key in BODY_ATTRIBUTES:
+                        # Native code inserts these fragments immediately after "<body".
+                        result.append(copy.deepcopy(row))
+                        report['fallback'] += 1
+                        continue
+                    native = translated.get(key.lower())
                     body = row.findtext('body')
                     if native is None or native.findtext('id') != row.findtext('id') or body is None or native.find('body') is None:
                         report['fallback'] += 1

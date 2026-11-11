@@ -7,9 +7,16 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+from runpy import run_path
 import struct
+import sys
+import zipfile
 
 FEATURES = {'PlayerBotPull': ('Mods/PlayerBotBar/assets.json', 'Textures/ui/AetherfallSummon')}
+CLIENT_MODS = Path(__file__).resolve().parents[2] / 'client-mods'
+# The launcher reads every input, including empty monster guidance CSVs.
+QUEST_INPUTS = ('quest.json', 'quest.xml', 'registration.xml', 'strings.xml',
+                'dialog.html', 'quest_script_monster.csv')
 
 
 def read(path):
@@ -64,6 +71,27 @@ def asset_records(client):
             seen.add(key)
             records.append(dict(record, path=path))
         records.append(dict(path=relative, bytes=manifest.stat().st_size, sha256=sha(manifest)))
+    plugin = client / 'Plugin/RelicCalc/RelicCalc.pak'
+    if plugin.is_file():
+        read_pak = (zipfile.ZipFile if zipfile.is_zipfile(plugin)
+                    else run_path(str(CLIENT_MODS / 'expanded-warehouse/codec.py'))['read_pak'])
+        with read_pak(plugin) as archive:
+            skin = 'core_Skin.lua'
+            members = set(archive.namelist())
+            uses_options_assets = skin in members and b'Textures/UI/AetherfallOptions/' in archive.read(skin)
+        if uses_options_assets:
+            assets = run_path(str(CLIENT_MODS / 'aetherfall-core/options_skin.py'))['assets']()
+            records.extend(dict(path=path, bytes=len(data), sha256=hashlib.sha256(data).hexdigest())
+                           for path, data in assets.items())
+        if 'modules_UnitFrames.lua' in members:
+            core = CLIENT_MODS / 'aetherfall-core'
+            sys.path.insert(0, str(core))
+            try:
+                assets = run_path(str(core / 'layout/unitframes.py'))['assets']()
+            finally:
+                sys.path.pop(0)
+            records.extend(dict(path=path, bytes=len(data), sha256=hashlib.sha256(data).hexdigest())
+                           for path, data in assets.items())
     return records
 
 
@@ -83,6 +111,17 @@ def validate_client_assets(client, entries=None):
             entry = indexed.get(relative.casefold())
             if entry is None or any(entry[field] != record[field] for field in ('sha256', 'bytes')):
                 raise ValueError('Native feature asset is absent from the cumulative inventory: ' + relative)
+    quests = client / 'Mods/CustomQuests/Quests'
+    for manifest in sorted(quests.rglob('quest.json')):
+        for name in QUEST_INPUTS:
+            path = manifest.with_name(name)
+            relative = path.relative_to(client).as_posix()
+            if not path.is_file():
+                raise ValueError('Custom quest input is missing: ' + relative)
+            if indexed is not None:
+                entry = indexed.get(relative.casefold())
+                if entry is None or entry['bytes'] != path.stat().st_size or entry['sha256'] != sha(path):
+                    raise ValueError('Custom quest input is absent or differs in the cumulative inventory: ' + relative)
     return records
 
 

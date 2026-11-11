@@ -22,7 +22,7 @@ namespace AetherfallSetup {
      var pack=ReadModJson<HdComponent>(Path.Combine(HdRoot,"component.json"));Uri uri;
      if(!Uri.TryCreate(pack.downloadUrl,UriKind.Absolute,out uri) || uri.Scheme!="https" || !String.IsNullOrEmpty(uri.UserInfo))throw new InvalidOperationException("This repack has no valid HD download link. Update the repack first.");
      Process.Start(new ProcessStartInfo(uri.AbsoluteUri){UseShellExecute=true});
-     Text("ModsFeedback").Text="Download the HD ZIP on that page, then choose Install ZIP here.";
+     Text("ModsFeedback").Text="Download the HD pack from the browser. If it comes as a RAR, extract the ZIP. Then choose Install ZIP here.";
     } catch(Exception ex) { Text("ModsFeedback").Text=ex.Message; }
    };
    Btn("HdInstallBtn").Click+=async delegate { await ChangeHd(true,true); };

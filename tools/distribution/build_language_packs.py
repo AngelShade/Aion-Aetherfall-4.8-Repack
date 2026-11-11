@@ -32,11 +32,13 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--catalog', type=Path, required=True)
     parser.add_argument('--version', required=True, help='Version for changed pack content; unchanged packs retain their existing identity')
+    parser.add_argument('--release-version', help='Hosting release when the pack revision differs from the core version')
     parser.add_argument('--previous-assets', type=Path, help='Verified prior ZIP folder when preparing a fresh release output')
     parser.add_argument('--reuse-verified', action='store_true', help='Retained for compatibility; existing catalog assets are always verified before reuse')
     args = parser.parse_args()
-    if not re.fullmatch(r'\d+\.\d+\.\d+', args.version):
-        raise ValueError('Use a three-part language pack version')
+    release_version = args.release_version or args.version
+    if any(not re.fullmatch(r'\d+\.\d+\.\d+', version) for version in (args.version, release_version)):
+        raise ValueError('Use three-part language pack and release versions')
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
     previous = json.loads(args.catalog.read_text(encoding='utf-8-sig')) if args.catalog.is_file() else dict(schema=1, packs=[])
@@ -91,7 +93,7 @@ def main():
             with zipfile.ZipFile(path) as archive:
                 if archive.testzip() is not None:
                     raise ValueError('Optional ZIP failed CRC validation')
-            header.update(file=name, url='https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v'+args.version+'/'+name,
+            header.update(file=name, url='https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v'+release_version+'/'+name,
                           bytes=path.stat().st_size, sha256=sha(path))
         catalog['packs'].append(header)
         print(json.dumps({key: header[key] for key in ['id', 'file', 'bytes', 'sha256']}), flush=True)

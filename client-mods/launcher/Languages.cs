@@ -12,6 +12,7 @@ namespace Aetherfall {
  public sealed class LanguageStamp { public long Length, Ticks; public string Hash; }
  public sealed class LanguageState {
   public int Version=2; public string Text, Voice;
+  public int RussianQuestDialogueRevision;
   public int Strings, DialoguePages, FallbackStrings, FallbackPages;
   public List<string> SkippedDialogues=new List<string>();
   public Dictionary<string,LanguageStamp> Inputs=new Dictionary<string,LanguageStamp>();
@@ -28,6 +29,10 @@ namespace Aetherfall {
   // changes the selected text/voice labels, country, server or English archives.
   public const string Folder="Mods/Languages", Locale="fra";
   const string Active="L10N/fra", LegacyActive="L10N/afl", English="L10N/enu/data/data.pak";
+  const int RussianQuestDialogueRevision=1;
+  const string RussianQuestDialogueFont="af_rus_quest_dialogue";
+  static readonly Regex QuestDialoguePath=new Regex(@"(?:^|/)quest_q[0-9]+\.html$",RegexOptions.IgnoreCase|RegexOptions.CultureInvariant);
+  static readonly Regex DialogueParagraph=new Regex(@"(?is)(<p\b[^>]*>)([^<]*[^\s<][^<]*)(</p\s*>)");
   static readonly UTF8Encoding Utf8=new UTF8Encoding(false,true);
   static readonly JavaScriptSerializer Json=new JavaScriptSerializer { MaxJsonLength=64*1024*1024 };
   static string PathAt(string root,string relative) { return Path.Combine(root,relative.Replace('/',Path.DirectorySeparatorChar)); }
@@ -95,6 +100,7 @@ namespace Aetherfall {
   }
   static bool Current(string root,LanguageState state,List<string> inputs,string packs) {
    if(state==null||state.Version!=2||state.Inputs.Count!=inputs.Count)return false;
+   if(state.Text=="rus"&&state.RussianQuestDialogueRevision!=RussianQuestDialogueRevision)return false;
    foreach(string relative in inputs) { LanguageStamp stamp;if(!state.Inputs.TryGetValue(relative,out stamp)||!Same(stamp,Stamp(Source(root,packs,relative))))return false; }
    foreach(var item in state.Outputs)if(!File.Exists(PathAt(root,item.Key))||!Same(item.Value,Stamp(PathAt(root,item.Key))))return false;
    return true;
@@ -112,6 +118,9 @@ namespace Aetherfall {
    XElement tree=QuestBinaryXml.Decode(current);var rows=Rows(QuestBinaryXml.Decode(translation));
    foreach(XElement row in tree.Elements()) {
     XElement native;string name=(string)row.Element("name"), body=(string)row.Element("body");
+    // The native renderer inserts these fragments immediately after "<body".
+    // Keep the original leading space and attributes when composing Russian.
+    if(state.Text=="rus"&&(name=="STR_HTML_DIALOG_BODY_ATTRIBUTE"||name=="STR_HTML_QUEST_BODY_ATTRIBUTE")) { state.FallbackStrings++;continue; }
     // IDs and formatting metadata remain the NA client's. Keep custom keys and web destinations.
     if(name==null||!rows.TryGetValue(name,out native)||(string)native.Element("id")!=(string)row.Element("id")||row.Element("body")==null||native.Element("body")==null||Regex.IsMatch(body??"",@"(?i)https?://|\[%web:|\[%shoplink")) { state.FallbackStrings++;continue; }
     row.Element("body").ReplaceNodes(native.Element("body").Nodes().Select(Clone));state.Strings++;
@@ -119,7 +128,7 @@ namespace Aetherfall {
    return QuestBinaryXml.Encode(tree);
   }
   static XNode Clone(XNode node) { XElement element=node as XElement;if(element!=null)return new XElement(element);XText text=node as XText;if(text!=null)return new XText(text.Value);return new XComment(((XComment)node).Value); }
-  static byte[] FontFaces(byte[] current,byte[] translation,HashSet<string> nativeFaces) {
+  static byte[] FontFaces(byte[] current,byte[] translation,HashSet<string> nativeFaces,bool russian) {
    XElement tree=QuestBinaryXml.Decode(current),other=QuestBinaryXml.Decode(translation);
    var styles=other.Elements("fontshader").Where(x=>x.Attribute("name")!=null).GroupBy(x=>(string)x.Attribute("name")).ToDictionary(x=>x.Key,x=>x.First());
    XElement fallback;styles.TryGetValue("default",out fallback);
@@ -127,6 +136,14 @@ namespace Aetherfall {
     XElement wanted;if(!styles.TryGetValue((string)style.Attribute("name")??"",out wanted))wanted=fallback;
     XElement font=wanted==null?null:wanted.Element("font");if(font==null)continue;
     foreach(XElement native in style.Elements("font"))if(nativeFaces.Contains((string)native.Attribute("name")??""))foreach(string key in new[]{"name","editor_name"})if(font.Attribute(key)!=null)native.SetAttributeValue(key,(string)font.Attribute(key));
+   }
+   if(russian) {
+    XElement style=new XElement(tree.Elements("fontshader").Single(x=>(string)x.Attribute("name")=="quest_summary"));
+    style.SetAttributeValue("name",RussianQuestDialogueFont);
+    XElement font=style.Element("font");
+    font.SetAttributeValue("logical_size","-15");
+    font.SetAttributeValue("color","48,36,5,255");
+    tree.Add(style);
    }
    return QuestBinaryXml.Encode(tree);
   }
@@ -141,6 +158,7 @@ namespace Aetherfall {
     // Keep its bytes as authored; translate only named pages' visible content and Act labels.
     Regex pages=new Regex(@"(?is)(<HtmlPage\b[^>]*>)(.*?)(</HtmlPage>)"),contents=new Regex(@"(?is)(<Contents\b[^>]*>)(.*?)(</Contents>)"),acts=new Regex(@"(?is)(<Act\b[^>]*>)(.*?)(</Act>)");
     var translatedPages=new Dictionary<string,string>();
+    bool russianQuest=state.Text=="rus"&&QuestDialoguePath.IsMatch(name);
     foreach(Match page in pages.Matches(native)){string id=Attribute(page.Groups[1].Value,"name");if(id!=null&&!translatedPages.ContainsKey(id))translatedPages.Add(id,page.Groups[2].Value);}
     string result=pages.Replace(original,page=>{
      string id=Attribute(page.Groups[1].Value,"name"), other;
@@ -148,7 +166,13 @@ namespace Aetherfall {
      string body=contents.Replace(page.Groups[2].Value,content=>{
       Match translated=contents.Match(other);
       if(!translated.Success||Commands(content.Groups[2].Value)!=Commands(translated.Groups[2].Value)){state.FallbackPages++;return content.Value;}
-      state.DialoguePages++;return content.Groups[1].Value+translated.Groups[2].Value+content.Groups[3].Value;
+      state.DialoguePages++;
+      string prose=translated.Groups[2].Value;
+      // Journal and tracker descriptions share these files with the NPC window.
+      if(russianQuest&&id!="quest_summary"&&!id.EndsWith("_quest_desc",StringComparison.Ordinal)) {
+       prose=DialogueParagraph.Replace(prose,p=>p.Groups[1].Value+"<font font_xml=\""+RussianQuestDialogueFont+"\">"+p.Groups[2].Value+"</font>"+p.Groups[3].Value);
+      }
+      return content.Groups[1].Value+prose+content.Groups[3].Value;
      });
      body=acts.Replace(body,act=>{
       string href=Attribute(act.Groups[1].Value,"href");if(href==null)return act.Value;
@@ -173,7 +197,7 @@ namespace Aetherfall {
      string translated;if(!names.TryGetValue(name.ToLowerInvariant(),out translated))continue;
      if(name.StartsWith("strings/",StringComparison.OrdinalIgnoreCase)&&name.EndsWith(".xml",StringComparison.OrdinalIgnoreCase))changes[name]=Strings(english.Read(name),source.Read(translated),state);
      else if(name.StartsWith("dialogs/",StringComparison.OrdinalIgnoreCase)&&name.EndsWith(".html",StringComparison.OrdinalIgnoreCase))changes[name]=Dialogue(english.Read(name),source.Read(translated),name,state);
-     else if(name=="fonts/fontshader.xml")changes[name]=FontFaces(english.Read(name),source.Read(translated),new HashSet<string>(english.Names.Where(x=>x.StartsWith("fonts/",StringComparison.OrdinalIgnoreCase)&&x.EndsWith(".ttf",StringComparison.OrdinalIgnoreCase)).Select(Path.GetFileNameWithoutExtension),StringComparer.OrdinalIgnoreCase));
+     else if(name=="fonts/fontshader.xml")changes[name]=FontFaces(english.Read(name),source.Read(translated),new HashSet<string>(english.Names.Where(x=>x.StartsWith("fonts/",StringComparison.OrdinalIgnoreCase)&&x.EndsWith(".ttf",StringComparison.OrdinalIgnoreCase)).Select(Path.GetFileNameWithoutExtension),StringComparer.OrdinalIgnoreCase),text=="rus");
     }
     foreach(string name in source.Names.Where(x=>x.StartsWith("fonts/",StringComparison.OrdinalIgnoreCase)&&x.EndsWith(".ttf",StringComparison.OrdinalIgnoreCase)))changes[name]=source.Read(name);
    } else {
@@ -226,6 +250,7 @@ namespace Aetherfall {
    if(Directory.Exists(PathAt(work,Active)))throw new IOException("Use a fresh language output folder.");
    try {
    LanguageState state=new LanguageState { Text=text,Voice=voice };
+   if(text=="rus")state.RussianQuestDialogueRevision=RussianQuestDialogueRevision;
    foreach(string relative in inputs)state.Inputs.Add(relative,Stamp(Source(root,packs,relative)));
    QuestPak english=new QuestPak(File.ReadAllBytes(PathAt(root,English)));var replacements=Translations(root,text,english,state,packs);
    Write(work,Active+"/data/data.pak",replacements.Count==0?File.ReadAllBytes(PathAt(root,English)):english.Build(replacements),state);

@@ -124,8 +124,14 @@ styles, preserving sizes, colours, custom definitions and native glyph policy.
 Because the English sizes are tuned for Vera, `NATIVE_FACE_OVERRIDES` swaps donor
 faces that draw smaller: Russian uses the bundled DejaVu Sans (Vera's metrics plus
 Cyrillic, `assets/fonts`, free licence beside it) instead of Calibri/Myriad, and
-RomicCyr for the Handserif titles. `refont_text_pack.py` applies the same rule to an
-already prepared pack without the donor archive; text members stay byte-identical.
+RomicCyr for the Handserif titles. `refont_text_pack.py` refreshes the font faces and
+restores the native Russian HTML body attributes in an already prepared pack.
+The translated dialogue and visible strings are preserved.
+When composing Russian, the launcher keeps the native HTML body attributes,
+including the leading space the renderer requires. Plain paragraphs in translated
+NPC quest dialogue use a 15-pixel logical size and dark parchment text. Existing
+inline markup and quest journal descriptions keep their authored styles. The
+launcher refreshes older generated Russian locales on the next Play.
 
 Existing downloaded ZIPs can also be installed when their exact version is retained
 in the trusted catalog's `previousVersions`. The library lists current packs only.

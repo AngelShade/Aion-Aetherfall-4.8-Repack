@@ -2,15 +2,34 @@
 
 ## Next update
 
+### New
+
+### Improved
+
+### Fixed
+
+## 0.98.12 - Custom unit frames, interface profiles and Find Group help (11 November 2026)
+
+Customize your unit frames and six action bars with shareable profiles. Follow bot help requests in your quest journal and update the optional Russian and HD texture packs from the Hub.
+
+- New unit frames for you, your target, its target and your party offer flat bars, class colours, custom text, DP numbers and bot rank stars.
+- The Interface shortcut has a new outlined cog icon.
 - New Aetherfall Interface options window: categories, tabs, sliders, dropdowns, check boxes, a colour picker and search, in a flat dark style.
 - Interface profiles: create, rename, copy and delete named profiles, share them across your characters, and export or import them as a code.
+- Saved interface profiles take up less space, so you can keep more profiles before reaching the storage limit.
+- New groups and alliances default to Leader loot.
+- Companions follow at their normal speed by default, with extra catch-up acceleration disabled.
+- Instance entry and waiting windows, including Dredgion's, stay on screen.
+- Dredgion and other battleground queues can fill both sides with bots. Your companions join you when you use Group Entry.
+- Temporary Bots leave unbound gear and merchant stock alone, and wait for room in their cube before swapping to a two-handed weapon.
+- Season Pass purchases save your inventory and return the same purchase result if you retry.
 - Each of the six action bars now has its own page; bars 5 and 6 can be switched on and off separately.
 - More interface settings: data panel position and size, clock and number formats, target readouts, per-bar opacity, and more HUD parts you can hide.
 - Ticket recruits now have their own face, body, height and gender, instead of copying the character that recruited them.
-- Improved the Aetherfall Interface under the hood so new interface options can be added safely. Your settings and layout are unchanged.
 - Fixed quest items that only drop in one area, like the Dukaki Amulet in Verteron, never dropping. Thanks to baTbjk1903.
 - Fixed the server and the launcher failing to start on Windows set to Turkish. Thanks to baTbjk1903.
-- Russian text is no longer tiny and faint; it now matches the English font's size. Update the Russian pack on the Hub's Languages page.
+- Fixed the Hub pausing at Play because Road Bounty and two Find Group help quests were missing required files.
+- Russian NPC quest dialogue uses larger, dark brown text on parchment. Apply the core update, then update Russian text from the Hub's Languages page.
 - Bots now count as real players in PvP: killing one, or dying to one, gives Abyss kills, kill-quest progress, Abyss Points and XP.
 - Bots walk smoothly again instead of stopping every few steps, and no longer hop back and forth on one spot.
 - Bots keep walking while they work out a long route, instead of standing still first.
@@ -117,8 +136,6 @@
 - Monsters no longer gain Razorlight Veil and other self-buffs from your skills.
 - Exploding monsters no longer hit you with their own self-destruct damage.
 
-Characters look better than ever up close, with repainted faces and silky, glowing skin.
-
 ### New
 
 - See a bot's gear rarity and combat rank beside the target and party windows, and in the Find Group hire question.
@@ -174,7 +191,7 @@ Characters look better than ever up close, with repainted faces and silky, glowi
 
 - Fixed a "load fail" message when you confirm a quest reward again at an NPC offering a follow-up quest.
 - Fixed companions drawing and sheathing their weapon over and over between buffs and heals.
-- Fixed dotted, mesh-like patches on trees, hanging roots, arches and glowing plants, and overly bright lamp glows, in zones with sharper textures.
+- Updated optional HD world textures correct dotted patterns and harsh lamp glow. Install the ZIP inside the RAR from the Hub.
 
 ## 0.98.11 - New Companions collection, Recruitment Tickets and road merchants (2 November 2026)
 

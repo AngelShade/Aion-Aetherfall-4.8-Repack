@@ -26,7 +26,7 @@ using Microsoft.Win32;
 using AetherfallUpdate;
 
 [assembly: AssemblyVersion("0.90.0.0")]
-[assembly: AssemblyFileVersion("0.90.1106.1")]
+[assembly: AssemblyFileVersion("0.90.1111.1")]
 
 namespace AetherfallSetup {
  public sealed class SetupSettings {

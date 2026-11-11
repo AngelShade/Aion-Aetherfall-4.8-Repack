@@ -84,6 +84,7 @@ if args.startup_bridge:
     payloads['bin64/aion.bin'] = stage / 'bin64/aion.bin'
     payloads['Mods/Launcher/startup-bridge.json'] = stage / 'startup-bridge.json'
 language_state = None
+retained_language_outputs = {}
 if args.languages:
     if not args.launcher_only:
         raise ValueError('Use --launcher-only with the language cohort')
@@ -111,6 +112,14 @@ if args.languages:
         if sha(source) != stamp['Hash']:
             raise ValueError('Prepared language hash changed: ' + relative)
         payloads[relative] = source
+        target = client / relative
+        if target.is_file():
+            installed = target.stat()
+            if sha(target) == stamp['Hash']:
+                # The installer retains equal files and their timestamps. Record
+                # those timestamps so Play accepts the locale as current.
+                stamp['Ticks'] = installed.st_mtime_ns // 100 + 621355968000000000
+                retained_language_outputs[target] = installed.st_size, installed.st_mtime_ns
     payloads['Mods/Languages/state.json'] = state_source
     for source in (stage / 'Mods/Languages/Packs').rglob('*'):
         if source.is_file():
@@ -119,6 +128,7 @@ if not args.art_only and not args.launcher_only:
     payloads['Mods/release.json'] = stage / 'Mods/release.json'
 writes = {client / relative: source if args.languages else source.read_bytes() for relative, source in payloads.items()}
 if args.languages:
+    writes[client / 'Mods/Languages/state.json'] = js(language_state)
     preferences_path = client / 'Mods/Launcher/preferences.json'
     current_preferences = json.loads(preferences_path.read_text(encoding='utf-8-sig'))
     current_preferences.update(TextLanguage=language_state['Text'], VoiceLanguage=language_state['Voice'])
@@ -214,7 +224,7 @@ if args.languages:
     # Language packs and other unchanged payloads retain their existing bytes and
     # timestamps; deliver only changed outputs and their refreshed metadata.
     writes = {path: data for path, data in writes.items()
-              if not path.exists() or sha(path) != data_sha(data)}
+              if path not in retained_language_outputs and (not path.exists() or sha(path) != data_sha(data))}
 
 
 def language_closed():
@@ -268,6 +278,10 @@ try:
             raise ValueError('Copied-file mismatch: ' + str(path))
     if any(sha(client / relative) != digest for relative, digest in preserved.items()):
         raise ValueError('Existing game/startup file changed during installation')
+    for path, expected in retained_language_outputs.items():
+        status = path.stat()
+        if (status.st_size, status.st_mtime_ns) != expected:
+            raise ValueError('Retained language output changed during installation: ' + str(path))
     for path, data in removed.items():
         if path.read_bytes() != data:
             raise ValueError('Legacy launcher changed during installation')
