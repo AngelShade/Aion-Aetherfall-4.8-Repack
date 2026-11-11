@@ -93,6 +93,8 @@ public final class PlayerBotService {
  private long nextWorldReport;
  private List<String> lastWorldReport=List.of();
  private final Map<Integer,Long> nextWorldAdmission=new java.util.concurrent.ConcurrentHashMap<>();
+ // Residents refused by a road field guard (a Warden without a free beat), with consecutive refusals.
+ private final Map<Integer,Integer> fieldHolds=new java.util.concurrent.ConcurrentHashMap<>();
  private volatile int requestedWorldTarget,effectiveWorldTarget;
  private volatile int createdWorldCharacters,loadedWorldCharacters;
  private volatile boolean automaticPopulationReady,automaticAdmissionsInitialized;
@@ -335,13 +337,13 @@ public final class PlayerBotService {
   log.info("World-bot factory ready; saved characters retained; automatic admission intents rebuilt for target {}",effectiveWorldTarget);
  }
  int automaticPendingAdmissions(){return automaticPendingAdmissions(System.currentTimeMillis());}
- // A resident held for a later field retry (a Warden waiting for a safe beat) is
- // not drainable now. Counting it kept every later batch closed while timed
- // rotation removed bots, so the live population drained far below its target.
- // It still occupies its admission slot through the resident count.
+ // A resident held for a field retry (a Warden waiting for a free beat) is not a
+ // login batch to drain. Counting it, even only while its retry was due, kept
+ // later batches closed while timed rotation removed bots, so the population
+ // stalled far below its target. It still occupies its slot via the resident count.
  int automaticPendingAdmissions(long now){return residents==null?0:(int)residents.values().stream()
   .filter(r->PlayerBotPopulationPolicy.serverAccount(r.account()) && !sessions.containsKey(r.character()) && !retiringWorldBots.contains(r.character())
-   && nextWorldAdmission.getOrDefault(r.character(),0L)<=now).count();}
+   && !fieldHolds.containsKey(r.character()) && nextWorldAdmission.getOrDefault(r.character(),0L)<=now).count();}
  void releaseSurplusPendingAdmissions(int target)throws java.io.IOException {
   int active=(int)sessions.values().stream().filter(s->s.world() && PlayerBotPopulationPolicy.serverAccount(s.bot().getAccount().getId())).count();
   int remaining=Math.max(0,target-active);var retained=new TreeMap<>(residents);
@@ -553,7 +555,7 @@ public final class PlayerBotService {
 		}catch(java.io.IOException e){throw new IllegalStateException("World residence could not be updated",e);}
 	}
 	private void removeResidence(int id)throws java.io.IOException {synchronized(populationLock) {
-		var updated=new java.util.TreeMap<>(residents);updated.remove(id);worldRoster.save(updated);residents=updated;retiringWorldBots.remove(id);expiryRetirements.remove(id);retireQueue.remove(id);}
+		var updated=new java.util.TreeMap<>(residents);updated.remove(id);worldRoster.save(updated);residents=updated;retiringWorldBots.remove(id);expiryRetirements.remove(id);retireQueue.remove(id);fieldHolds.remove(id);}
 	}
 	public List<String> worldBots() {
 		return sessions.values().stream().filter(PlayerBotSession::world).map(s->s.bot().getName()+" Lv"+s.bot().getLevel()+" map "+s.bot().getWorldId()+" "+(s.closing()?"saving":s.autonomous()?"independent": "party: "+s.owner().getName())).sorted().toList();
@@ -853,7 +855,11 @@ public final class PlayerBotService {
   nextWorldAdmission.put(r.character(),Math.addExact(now,30000));
   // Road admission guards retain the native resident for the next due cycle.
   // A missing beat is an active field reserve, not a population retirement.
-  if(fieldRetry)return;
+  // Each refused retry loads the whole character, so repeated refusals back
+  // off: 30 s, 60 s, 120 s, 240 s, then every 300 s.
+  if(fieldRetry){int refusals=fieldHolds.merge(r.character(),1,Integer::sum);
+   nextWorldAdmission.put(r.character(),Math.addExact(now,Math.min(300000L,30000L<<Math.min(refusals-1,4))));return;}
+  fieldHolds.remove(r.character());
   removeResidence(r.character());nextServerPopulation=0;}
  }
 

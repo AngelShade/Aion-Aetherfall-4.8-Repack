@@ -40,9 +40,11 @@ public final class PlayerBotPopulationLifecycleServiceCheck {
    check(retries.get(id)==40000,"Field guard retries thirty seconds after completion");
    check(PlayerBotPopulationPolicy.nextLoad(List.of(id),Set.of(),Set.of(),retries,39999)==null,"Field retry respects its deadline");
    check(PlayerBotPopulationPolicy.nextLoad(List.of(id),Set.of(),Set.of(),retries,40000)==id,"Field retry becomes a candidate on the next due cycle");
-   check(manager.automaticPendingAdmissions(39999)==0,"A Warden waiting for its field retry does not hold the next admission batch closed");
-   check(manager.automaticPendingAdmissions(40000)==1,"A due field retry drains as an ordinary pending admission");
+   check(manager.automaticPendingAdmissions(39999)==0 && manager.automaticPendingAdmissions(40000)==0,"A Warden held for a field beat never holds the next admission batch closed, even when its retry is due");
+   manager.failedWorldAdmission(warden,40000,true);
+   check(retries.get(id)==100000,"Repeated field refusals back off instead of reloading the character every thirty seconds");
    manager.failedWorldAdmission(warden,20000);
+   check(((Map<?,?>)field("fieldHolds").get(manager)).isEmpty(),"Leaving residence clears the field hold");
    check(!store.residents().containsKey(id),"Other Warden load failures retain native slot-release behavior");
   }finally{store.residents(saved);store.fail=failed;field("residents").set(manager,snapshot);PlayerBotConfig.ROAD_DUTY=road;com.aionemu.gameserver.configs.main.PlayerBotWardenConfig.ENABLED=enabled;}
  }
