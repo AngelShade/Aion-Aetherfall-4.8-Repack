@@ -371,6 +371,12 @@ public final class SeasonPassService {
 	static void receipt(Connection c,int player,String request,String action,String result) throws SQLException {
 		update(c,"INSERT INTO season_pass_requests VALUES(?,?,?,?,?,?)",request,season.id(),player,action,result,System.currentTimeMillis());
 	}
+	private static String priorResult(Connection c,int player,String request,String action) throws SQLException {
+		var prior=row(c,"SELECT result,action FROM season_pass_requests WHERE request_id=? AND player_id=? AND season_id=?",request,player,season.id());
+		if(prior==null)return null;
+		if(!action.equals(str(prior,"action")))throw new IllegalArgumentException("Refresh before making another selection.");
+		return str(prior,"result");
+	}
 	static void claimRow(Connection c,int player,Reward r,int mail,Instant now) throws SQLException {
 		var p=progress(c,player);
 		boolean claimed=row(c,"SELECT 1 FROM season_pass_claims WHERE season_id=? AND player_id=? AND reward_level=? AND track=?",season.id(),player,r.level(),r.track())!=null;
@@ -403,6 +409,17 @@ public final class SeasonPassService {
 				throw new IllegalArgumentException("Finish trading or reconnect before using the pass.");
 			String action=args.getOrDefault("action","");
 			if (!Set.of("purchase","claim","claimAll").contains(action)) throw new IllegalArgumentException("Unknown season pass action.");
+			boolean purchase=action.equals("purchase");
+			if(purchase && !companion) {
+				// A committed retry should still succeed without saving inventory again.
+				try(Connection c=DatabaseFactory.getConnection()) {
+					String prior=priorResult(c,p.getObjectId(),request,action);
+					if(prior!=null)return prior;
+				}
+				if(p.getInventory().getKinahItem()==null)throw new IllegalArgumentException("Not enough Kinah in Inventory.");
+				// This save uses its own connection. Finish it before opening the purchase transaction.
+				if(!InventoryDAO.store(p))throw new SQLException("Inventory save failed.");
+			}
 			List<Integer> allocated=new ArrayList<>(); List<Letter> mail=new ArrayList<>(); boolean committed=false;
 			List<Item> companionInventory=List.of(); List<PlayerBotMetadata.Pending> companionMetadata=List.of();
 			Item coin=p.getInventory().getKinahItem(); long balance=p.getInventory().getKinah(); Upgrade plan=null;
@@ -411,16 +428,16 @@ public final class SeasonPassService {
 				c.setAutoCommit(false);
 				try {
 					var state=progress(c,p.getObjectId());
-					var prior=row(c,"SELECT result,action FROM season_pass_requests WHERE request_id=? AND player_id=? AND season_id=?",request,p.getObjectId(),season.id());
-					if (prior!=null) { if (!action.equals(str(prior,"action"))) throw new IllegalArgumentException("Refresh before making another selection."); return str(prior,"result"); }
+					String prior=priorResult(c,p.getObjectId(),request,action);
+					if(prior!=null)return prior;
 					String result;
-					if (action.equals("purchase")) {
+					if (purchase) {
 						if (coin==null) throw new IllegalArgumentException("Not enough Kinah in Inventory.");
 						if(companion) {
 							companionInventory=InventoryDAO.storeCompanionInventory(c,p);
 							companionMetadata=PlayerBotMetadata.pending(p.getAccount().getId(),p.getObjectId());
 							PlayerBotMetadata.store(c,companionMetadata);
-						} else if (!InventoryDAO.store(p)) throw new SQLException("Inventory save failed.");
+						}
 						int tier=Integer.parseInt(args.getOrDefault("tier","0"));
 						plan=purchase(c,p.getObjectId(),tier,coin.getObjectId(),balance,Instant.now());
 						result=(tier==1?"Premium":"Advanced Premium")+" unlocked. Paid "+plan.cost()+" Kinah. Earlier earned rewards are now claimable.";

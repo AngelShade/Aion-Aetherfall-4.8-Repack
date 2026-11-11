@@ -127,8 +127,13 @@ public final class PlayerBotTemporary {
    boolean valid=!current.isEmpty() && current.stream().allMatch(i->PlayerBotGearPolicy.eligible(player,i.getItemTemplate()) && (!i.getItemTemplate().isWeapon() || PlayerBotBuildRules.weaponAllowed(i.getItemTemplate().getItemGroup(),player.getPlayerClass(),role) && (needed==null || i.getItemTemplate().getItemGroup().name().equals(needed))));
    // Actual role value includes enchantments, sockets and fusion; item color cannot override it.
    if(valid && current.stream().mapToDouble(i->PlayerBotGearPolicy.score(player,i,role)).sum()>=PlayerBotGearPolicy.score(player,selected,role))continue;
-   if(player.getInventory().isFull())return;
-   Item item=player.getInventory().getItems().stream().filter(i->i.getItemId()==selected.getTemplateId() && i.isIdentified()).findFirst().orElse(null);
+   var inventory=player.getInventory();int free=inventory.getFreeSlots();
+   if(free<=0)return;
+   // The synchronous rebuild cannot answer native binding prompts or take merchant stock.
+   Item item=inventory.getItems().stream().filter(i->i.getItemId()==selected.getTemplateId() && i.isIdentified()
+    && (i.isSoulBound() || !selected.isSoulBound()) && !PlayerBotRoadMerchants.merchandise(player,i)).findFirst().orElse(null);
+   // Inserting a new two-handed weapon in the last free slot makes native equip reject a two-item swap.
+   if(item==null && free==1 && selected.isTwoHandWeapon() && current.size()>1)continue;
    if(item==null){item=ItemFactory.newItem(selected.getTemplateId(),1);if(item==null)throw new IllegalStateException("Missing Temporary gear template: "+selected.getTemplateId());
     // Factory-created items use the same identification rolls as ItemActionService.
     if(!item.isIdentified()){item.setOptionalSockets(com.aionemu.commons.utils.Rnd.get(0,selected.getOptionSlotBonus()));item.setBonusStats(com.aionemu.gameserver.model.templates.item.actions.TuningAction.getRandomStatBonusIdFor(item),true);item.setEnchantBonus(com.aionemu.commons.utils.Rnd.get(0,selected.getMaxEnchantBonus()));item.setTuneCount(item.getTuneCount()+1);}

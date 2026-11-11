@@ -7,7 +7,7 @@ import java.sql.*;
 import java.time.*;
 import java.util.*;
 import javax.xml.stream.*;
-import com.alibaba.fastjson2.JSON;
+import com.aionemu.commons.utils.Json;
 
 /** Deterministic rules/catalog checks; optional real MariaDB checks in a new, empty schema only. */
 public final class SeasonPassCheck {
@@ -43,7 +43,7 @@ public final class SeasonPassCheck {
 		Instant dst=Instant.parse("2026-10-24T21:00:00Z");
 		check(Duration.between(dst,reset(daily,s,dst)).toHours()==25,"DST autumn day spans 25 hours");
 		check(reset(weekly,s,s.ends().minusSeconds(1)).equals(s.ends()),"mission resets cannot extend the season");
-		check(JSON.parseObject(JSON.toJSONString(s)).getIntValue("levels")==30,"record serializes for browser");
+		check(Json.integer(Json.read(Json.write(s)),"levels")==30,"record serializes for browser");
 		refused(()->SeasonPassHttpService.parse("x".repeat(8193)),"oversize HTTP input refused");
 		check(SeasonPassHttpService.parse("session_id=a%2Bb&action=claim").get("session_id").equals("a+b"),"session URL decoding");
 		catalog();
