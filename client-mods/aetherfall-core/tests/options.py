@@ -3,6 +3,7 @@ import argparse
 import gzip
 import hashlib
 import json
+import re
 from itertools import zip_longest
 from pathlib import Path
 import sys
@@ -457,13 +458,25 @@ def main():
             raise SystemExit('Missing reviewed options golden; run explicit --record-reference after review')
         with gzip.open(expected, 'rb') as left, gzip.open(output, 'rb') as right:
             for index, (before, after) in enumerate(zip_longest(left, right), 1):
-                if before != after:
+                if unversioned(before) != unversioned(after):
                     print('First options difference at record', index)
                     print('REFERENCE:', before)
                     print('CURRENT:', after)
                     raise SystemExit(1)
         print(f"PASS: options/profile contracts and {result['records']} ordered records")
     print('Options trace:', output)
+
+
+# The release number shows in the window header and on the Information page; a version bump
+# alone must not invalidate the reviewed reference. Only those three texts are normalised.
+_VERSION_LABEL = re.compile(rb'("AFUIOptionsVersion",)"\d+\.\d+\.\d+"')
+_VERSION_TEXT = re.compile(rb'(Aetherfall Interface (?:version )?)\d+\.\d+\.\d+')
+
+
+def unversioned(line):
+    if line is None:
+        return None
+    return _VERSION_TEXT.sub(rb'\1<version>', _VERSION_LABEL.sub(rb'\1"<version>"', line))
 
 
 if __name__ == '__main__':
