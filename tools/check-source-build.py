@@ -16,6 +16,7 @@ TESTS['PlayerBotPopulationRepositoryCheck']=78
 TESTS['PlayerBotPopulationPipelineCheck']=21
 TESTS['PlayerBotPopulationLifecycleCheck']=176
 TESTS['PlayerBotPopulationLifecycleServiceCheck']=52
+TESTS['PlayerBotParallelLoginCheck']=25
 TESTS['PlayerBotSchedulerCpuCheck']=68
 TESTS['PlayerBotWorldProgressCheck']=55
 TESTS['PlayerBotCpuPlanningCheck']=43

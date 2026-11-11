@@ -9,6 +9,7 @@ The world fills up with many more bots, spread across the zones you play in.
 ### Improved
 
 - The world now holds up to 3000 bots, and up to 120 of them gather in the area around you.
+- After a server restart, bots fill the world in a few minutes instead of most of an hour.
 
 ### Fixed
 

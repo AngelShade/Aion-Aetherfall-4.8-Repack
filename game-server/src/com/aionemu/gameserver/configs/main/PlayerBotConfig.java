@@ -368,6 +368,9 @@ public final class PlayerBotConfig {
 	public static int POPULATION_MAX;
 	@Property(key = "gameserver.playerbots.population.per_interval", defaultValue = "120")
 	public static int POPULATION_PER_INTERVAL;
+	/** Parallel world-bot login workers (RandomPlayerbotMgr batch login with async DB loads). 0 = one per CPU core. */
+	@Property(key = "gameserver.playerbots.population.login_workers", defaultValue = "0")
+	public static int POPULATION_LOGIN_WORKERS;
 	/** Pinned RandomBotUpdateInterval; startup and shortage use the faster manager cadence. */
 	@Property(key = "gameserver.playerbots.population.update_interval_seconds", defaultValue = "20")
 	public static int POPULATION_UPDATE_INTERVAL_SECONDS = 20;

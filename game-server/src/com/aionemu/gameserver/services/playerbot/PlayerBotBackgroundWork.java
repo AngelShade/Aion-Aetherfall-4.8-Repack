@@ -9,7 +9,7 @@ final class PlayerBotBackgroundWork {
  private final int capacity;private int running;private volatile boolean closed;
  private final java.util.Set<CompletableFuture<Void>> pending=new java.util.HashSet<>();
  PlayerBotBackgroundWork(){this(1);}
- PlayerBotBackgroundWork(int capacity){if(capacity<1 || capacity>4)throw new IllegalArgumentException("Invalid native worker capacity");this.capacity=capacity;}
+ PlayerBotBackgroundWork(int capacity){if(capacity<1 || capacity>256)throw new IllegalArgumentException("Invalid native worker capacity");this.capacity=capacity;}
  boolean submit(Executor executor,Runnable job) {
   CompletableFuture<Void> done;var finished=new AtomicBoolean();
   synchronized(this) {
