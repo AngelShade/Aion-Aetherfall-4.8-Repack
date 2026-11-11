@@ -12,7 +12,7 @@ TESTS={'PlayerBotMetadataCheck':35,'PlayerBotRepositoryCheck':24,'PlayerBotPopul
 
 TESTS.update({'PlayerBotRosterBatchCheck':25, 'PlayerBotCheckpointCreationCheck':22, 'PlayerBotRaidCheck':1221})
 TESTS['PlayerBotPopulationScaleCheck']=64
-TESTS['PlayerBotPopulationRepositoryCheck']=69
+TESTS['PlayerBotPopulationRepositoryCheck']=78
 TESTS['PlayerBotPopulationPipelineCheck']=21
 TESTS['PlayerBotPopulationLifecycleCheck']=176
 TESTS['PlayerBotPopulationLifecycleServiceCheck']=49

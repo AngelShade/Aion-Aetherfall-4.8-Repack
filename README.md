@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/latest/download/Aetherfall-Downloader.zip"><img src="https://img.shields.io/badge/Download-Current_Aetherfall_Setup_Hub-2563eb?style=for-the-badge&logo=windows" alt="Download Aetherfall Setup Hub"></a>
-  <a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.11"><img src="https://img.shields.io/badge/Latest_Release-v0.98.11-eab308?style=for-the-badge" alt="Latest Release v0.98.11"></a>
+  <a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.12"><img src="https://img.shields.io/badge/Latest_Release-v0.98.12-eab308?style=for-the-badge" alt="Latest Release v0.98.12"></a>
   <a href="https://mega.nz/file/hJt0hYTC#fr0RDjsLl4CriZ5dw8MljBhrlP6nD4oYkaErD2iW-vQ"><img src="https://img.shields.io/badge/MEGA_Mirror-Base_Repack_0.86_(36.35_GB)-d9272e?style=for-the-badge" alt="MEGA Mirror"></a>
   <a href="https://drive.google.com/file/d/1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2/view?usp=sharing"><img src="https://img.shields.io/badge/Google_Drive-Base_Repack_0.86_(36.35_GB)-16a34a?style=for-the-badge&logo=googledrive" alt="Google Drive Mirror"></a>
   <a href="https://discord.gg/DAnAjx3tY2"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
@@ -16,7 +16,7 @@
 
 Aetherfall lets you build a party from your own alternate characters or temporary companions. Take them through quests and dungeons, manage their equipment and combat behavior, and keep your alts caught up with your main. Independent playerbots also quest, fight and visit towns around the world.
 
-**Latest release: [0.98.11](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.11), released 2 November 2026.** Build your Companions collection, watch each new recruit's reveal, and choose who joins your party. Road Wardens, regional merchants and new Journey chapters give you more to discover as you play.
+**Latest release: [0.98.12](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.12), released 11 November 2026.** Customize your unit frames and six action bars with shareable profiles. Follow bot help requests in your quest journal and update the optional Russian and HD texture packs from the Hub.
 
 The repack includes the game client, servers, Java and MariaDB in one Windows folder. Use the [downloader](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/latest/download/Aetherfall-Downloader.zip) to install it, then follow the steps below.
 

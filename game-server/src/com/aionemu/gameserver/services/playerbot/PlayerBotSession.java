@@ -266,9 +266,15 @@ public final class PlayerBotSession {
 		if (closing || bot.isDead() || bot.isCasting() || bot.getAggroList().stream().findAny().isPresent()) throw new IllegalArgumentException("Equip while the companion is alive and out of combat.");
 		var item = bot.getInventory().getItemByObjId(itemId);
 		if (item == null) throw new IllegalArgumentException("That object is not in the companion's cube. Use .bot inventory <name>.");
-		if (item.getItemTemplate().isSoulBound() && !item.isSoulBound()) throw new IllegalArgumentException("Log in to the character to bind this item first.");
+		// The owner asked for this item: bind-on-equip binds directly, as the native 5 s cast
+		// cannot run on a companion (see PlayerBotGearPolicy.equip).
+		boolean binding = item.getItemTemplate().isSoulBound() && !item.isSoulBound();
 		navigation.stop();
-		if (bot.getEquipment().equipItem(itemId, slot.getSlotIdMask()) == null) throw new IllegalArgumentException("That item cannot be equipped in that slot under normal character rules.");
+		if (binding) { item.setSoulBound(true); com.aionemu.gameserver.services.item.ItemPacketService.updateItemAfterInfoChange(bot, item); }
+		if (bot.getEquipment().equipItem(itemId, slot.getSlotIdMask()) == null) {
+			if (binding) { item.setSoulBound(false); com.aionemu.gameserver.services.item.ItemPacketService.updateItemAfterInfoChange(bot, item); }
+			throw new IllegalArgumentException("That item cannot be equipped in that slot under normal character rules.");
+		}
 		PlayerBotGearPolicy.manualEquip(this, item);
 		nextSkillRefresh = 0;
 	}

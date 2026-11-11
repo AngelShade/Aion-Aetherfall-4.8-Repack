@@ -1,0 +1,20 @@
+{
+  "0.98.12": [
+    {
+      "file": "aetherfall/releases/0.98.12/find-group.png",
+      "alt": "Find Group quest assistance in Atreia"
+    },
+    {
+      "file": "aetherfall/releases/0.98.12/dredgion.png",
+      "alt": "A party enters Dredgion"
+    },
+    {
+      "file": "aetherfall/releases/0.98.12/ticket-recruitment.png",
+      "alt": "A new ticket recruit appears"
+    },
+    {
+      "file": "aetherfall/releases/0.98.12/road-wardens.png",
+      "alt": "Road Wardens patrol a village road"
+    }
+  ]
+}

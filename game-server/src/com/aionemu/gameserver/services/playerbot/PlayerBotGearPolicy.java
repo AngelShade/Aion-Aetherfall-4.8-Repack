@@ -22,7 +22,6 @@ import com.aionemu.gameserver.model.templates.item.*;
 import com.aionemu.gameserver.model.templates.item.enums.*;
 import com.aionemu.gameserver.model.templates.tradelist.TradeNpcType;
 import com.aionemu.gameserver.model.trade.TradeList;
-import com.aionemu.gameserver.network.aion.serverpackets.SM_QUESTION_WINDOW;
 import com.aionemu.gameserver.services.DialogService;
 import com.aionemu.gameserver.services.TradeService;
 import com.aionemu.gameserver.services.item.ItemService;
@@ -365,10 +364,14 @@ public final class PlayerBotGearPolicy {
   Player bot=session.bot();Item item=upgrade.item();
   if(PlayerBotRoadMerchants.merchandise(bot,item) || bot.getController().isInCombat() || session.owner().getController().isInCombat() || !eligible(bot,item.getItemTemplate()))return false;
   if(!item.isIdentified()){bot.getObserveController().notifyItemuseObservers(item);ItemActionService.identifyItem(bot,item);return true;}
+  // Native bind-on-equip needs a sheathed weapon, a standing pose and a still 5 s cast, and a
+  // following or resting companion failed one of them almost every time (recruited alts never
+  // equipped bind-on-equip gear). Bots commit the same result directly: bound, then equipped.
+  boolean binding=item.getItemTemplate().isSoulBound() && !item.isSoulBound();
+  if(binding){item.setSoulBound(true);com.aionemu.gameserver.services.item.ItemPacketService.updateItemAfterInfoChange(bot,item);}
   boolean equipped=bot.getEquipment().equipItem(item.getObjectId(),upgrade.slot())!=null;
-  if(!equipped && item.getItemTemplate().isSoulBound() && !item.isSoulBound())
-   equipped=bot.getResponseRequester().respond(SM_QUESTION_WINDOW.STR_SOUL_BOUND_ITEM_DO_YOU_WANT_SOUL_BOUND,1);
-  if(equipped)PlayerBotQuestSync.notice(bot,(item.isEquipped() ? "I equipped " : "I am binding ")+ChatUtil.item(item.getItemId())+" for my "+settings(bot).profile+" equipment profile.","gear:"+item.getObjectId(),5000);
+  if(!equipped && binding){item.setSoulBound(false);com.aionemu.gameserver.services.item.ItemPacketService.updateItemAfterInfoChange(bot,item);}
+  if(equipped)PlayerBotQuestSync.notice(bot,(binding ? "I bound and equipped " : "I equipped ")+ChatUtil.item(item.getItemId())+" for my "+settings(bot).profile+" equipment profile.","gear:"+item.getObjectId(),5000);
   return equipped;
  }
  static int rewardChoice(Player bot,Role requested,List<com.aionemu.gameserver.model.templates.quest.QuestItems> choices) {

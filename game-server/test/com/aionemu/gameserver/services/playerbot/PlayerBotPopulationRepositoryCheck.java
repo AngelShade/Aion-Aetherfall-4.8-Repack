@@ -41,6 +41,8 @@ public final class PlayerBotPopulationRepositoryCheck {
    return PlayerBotMetadataCheck.zero(m.getReturnType());
   });}
   List<List<Object>> query(String sql,Map<Integer,Object> p){
+   if(sql.contains("account_id BETWEEN")){int low=(Integer)p.get(1),high=(Integer)p.get(2);boolean players=sql.contains("FROM players");
+    return owners.entrySet().stream().anyMatch(e->e.getValue()>=low && e.getValue()<=high && !(players && missingPlayers.contains(e.getKey())))?List.of(List.of(1)):List.of();}
    if(sql.contains("FROM playerbot_roster")){Integer account=owners.get(p.get(1));return account==null?List.of():List.of(List.of(account,!pending.contains(p.get(1))));}
    if(sql.contains("FROM players")){Integer account=owners.get(p.get(1));return account==null || missingPlayers.contains(p.get(1))?List.of():List.of(List.of(account));}
    String table=sql.split("FROM ")[1].split(" ")[0];var rows=tables.get(table);if(rows==null)throw new AssertionError(sql);
@@ -87,7 +89,18 @@ public final class PlayerBotPopulationRepositoryCheck {
   db.failCommit=true;refused(()->repository.event(91,new PlayerBotPopulationSchedule.Events(5,6,7,8)),"Commit failure refuses cache publication");db.failCommit=false;check(repository.schedule().equals(before),"Failed commit keeps previous timers");
   db.uncertainCommit=true;refused(()->repository.event(91,new PlayerBotPopulationSchedule.Events(5,6,7,8)),"Lost commit acknowledgement is visible");check(repository.schedule().events().get(91).placedLevel()==8,"Unknown commit acknowledgement reloads actual durable outcome");
   db.tables.get("playerbot_population_state").getFirst().set(4,999L);refused(()->repository.event(91,next),"External revision refuses stale cache write");repository.event(91,next);check(repository.schedule().events().get(91).equals(next),"Fresh reload permits safe retry");
-  var empty=new Jdbc();refused(()->new PlayerBotPopulationRepository(empty::open).schedule(),"Missing schema/import state is never an empty population");
+  var none=Files.createTempDirectory(Path.of("."),"population-fresh-");
+  try {
+   var fresh=new Jdbc();fresh.owners.put(500,7);var created=new PlayerBotPopulationRepository(fresh::open,none);
+   check(created.schedule().equals(new PlayerBotPopulationSchedule.State(1,0,0,Map.of())) && created.residents().isEmpty() && created.pools(true).isEmpty(),"Missing state on a fresh database starts an empty native population");
+   var row=fresh.tables.get("playerbot_population_state");check(row.size()==1 && PlayerBotPopulationRepository.FRESH_DIGEST.equals(row.getFirst().get(5)) && ((Number)row.getFirst().get(4)).longValue()==0,"Fresh state uses the repack digest and revision zero");
+   fresh.writes.clear();new PlayerBotPopulationRepository(fresh::open,none).schedule();check(fresh.writes.isEmpty(),"Existing state is never written again");
+   var bots=new Jdbc();bots.owners.put(91,-1000000);bots.missingPlayers.add(91);
+   try{new PlayerBotPopulationRepository(bots::open,none).schedule();throw new AssertionError("World-bot roster refuses fresh state");}
+   catch(java.io.IOException e){checks++;check(e.getMessage().contains("playerbot_roster holds world-bot characters") && bots.writes.isEmpty(),"Refusal names the bot data and writes nothing");}
+   var partial0=new Jdbc();partial0.tables.get("playerbot_population_events").add(new ArrayList<>(List.of(91,0L,0L,0L,0)));refused(()->new PlayerBotPopulationRepository(partial0::open,none).schedule(),"Partial population rows refuse fresh state");check(partial0.writes.isEmpty(),"Partial refusal writes nothing");
+   Files.writeString(none.resolve("world-bots.properties"),"");var legacy=new Jdbc();refused(()->new PlayerBotPopulationRepository(legacy::open,none).schedule(),"Old population files refuse fresh state");check(legacy.writes.isEmpty(),"Legacy refusal writes nothing");
+  }finally{try(var paths=Files.walk(none)){for(var path:paths.sorted(Comparator.reverseOrder()).toList())Files.delete(path);}}
   var repeat=new Jdbc();seed(repeat);repeat.writes.clear();var repeatConnection=repeat.open();repeatConnection.setAutoCommit(false);PlayerBotPopulationRepository.importSnapshot(repeatConnection,snapshot(),DIGEST);check(repeat.writes.isEmpty(),"Exact existing import is idempotent without overwrite");
   refused(()->PlayerBotPopulationRepository.importSnapshot(repeatConnection,snapshot(),"b".repeat(64)),"Changed legacy file digest refuses reimport");
   repeat.tables.get("playerbot_population_events").getFirst().set(4,43);refused(()->PlayerBotPopulationRepository.importSnapshot(repeatConnection,snapshot(),DIGEST),"Differing native repository refuses overwrite");

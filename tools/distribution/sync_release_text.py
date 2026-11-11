@@ -23,6 +23,7 @@ HOMEPAGE_BULLETS = 6
 CONTENT = Path('website/config/aetherfall_content.php')
 BASELINES = Path('website/resources/content/aetherfall-v5.json')
 INFO = Path('website/resources/views/pages/info.blade.php')
+ARTWORK = Path('tools/distribution/release-artwork.json')
 GROUPS = ('New', 'Improved', 'Fixed', 'For server hosts')
 # Developer terms forbidden by the player-note rules. Game terms such as Stigma builds stay valid.
 BANNED = re.compile(
@@ -190,7 +191,7 @@ def inline(text):
     return re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
 
 
-def article_body(section):
+def article_body(section, gallery=()):
     output, in_list = [], False
     for block in re.split(r'\n\s*\n|(?m:^)(?=### |[-*] )', section.body):
         block = block.strip()
@@ -209,6 +210,12 @@ def article_body(section):
             output.append('<h2>' + inline(block[4:]) + '</h2>')
         else:
             output.append('<p>' + inline(' '.join(block.splitlines())) + '</p>')
+            if len(output) == 1 and gallery:
+                output.append('<h2>Preview artwork</h2>')
+                for image in gallery:
+                    path = html.escape(image['file'], quote=True)
+                    alt = html.escape(image['alt'], quote=True)
+                    output.append(f'<figure><img src="/images/{path}" alt="{alt}"><figcaption>{alt}</figcaption></figure>')
     if in_list:
         output.append('</ul>')
     output.append('<p>' + UPDATE_LINE + '</p>')
@@ -236,7 +243,7 @@ def generated_files(root, version, metadata=None):
         raise ValueError('\n'.join(problems))
     section = release_section(text, version)
     title, released = section.details
-    version, intro = section.version, ' '.join(section.intro.split())
+    version = section.version
     first_paragraph = ' '.join(section.intro.split('\n\n')[0].split())
     published_on = f'{released.day} {released:%B %Y}'
     slug = 'aetherfall-' + version.replace('.', '-')
@@ -260,10 +267,18 @@ def generated_files(root, version, metadata=None):
                ('release', 'version'): version, ('release', 'published_on'): published_on,
                ('release', 'url'): url}
     insertions = []
+    artwork_file = root / ARTWORK
+    artwork = json.loads(read(artwork_file)).get(version, []) if artwork_file.is_file() else []
+    for image in artwork:
+        relative = Path(image['file'])
+        if (relative.parent.as_posix() != f'aetherfall/releases/{version}' or
+                not image['alt'].strip() or not (root / 'website/public/images' / relative).is_file()):
+            raise ValueError(f'Invalid website release artwork: {relative}')
     desired_article = dict(slug=slug, title=f'Aetherfall {version}: {title}', category='Update',
                            published_at=f'{released.isoformat()} 00:00:00', is_featured=True,
-                           excerpt=first_paragraph, cover='aetherfall/screenshots/companions.jpg',
-                           body=article_body(section))
+                           excerpt=first_paragraph,
+                           cover=artwork[0]['file'] if artwork else 'aetherfall/screenshots/companions.jpg',
+                           body=article_body(section, artwork[1:]))
     matches = [i for i, item in enumerate(data['articles']) if item['slug'] == slug]
     if len(matches) > 1:
         raise ValueError('Duplicate website news slug: ' + slug)
@@ -309,7 +324,7 @@ def generated_files(root, version, metadata=None):
     website = content.replace(changes, insertions)
     info = read(root / INFO)
     info, count = re.subn(r'<p>[^\n]*</p>(?=\s*</div>\s*<div class="info-release-actions">)',
-                          lambda _: '<p>' + inline(intro) + '</p>', info)
+                          lambda _: '<p>' + inline(first_paragraph) + '</p>', info)
     if count != 1:
         raise ValueError('Website info page must have one release blurb')
     info, count = re.subn(r"route\('news.show', 'aetherfall-[\d-]+'\)(?= }}\">WHAT'S NEW)",

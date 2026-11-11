@@ -31,23 +31,56 @@ final class PlayerBotPopulationRepository implements PlayerBotPopulationStorage 
    for(int id:schedule.events().keySet())if(!identities.containsKey(id) || !PlayerBotPopulationPolicy.serverAccount(identities.get(id)))throw new IllegalArgumentException("Event lacks its server population identity");
   }
  }
+ private static final org.slf4j.Logger log=org.slf4j.LoggerFactory.getLogger(PlayerBotPopulationRepository.class);
+ /** PlayerBotPopulationMigration digest of its four absent legacy files (repack playerbot_population_initial.sql). */
+ static final String FRESH_DIGEST="ce010d7da5cf425bb206e2912423e8d0d688911b422e138a07b408d5925c8bc1";
  private final Connections connections;
+ private final java.nio.file.Path legacy;
  private volatile Snapshot cached;
  private long revision;
  PlayerBotPopulationRepository(){this(DatabaseFactory::getConnection);}
- PlayerBotPopulationRepository(Connections connections){this.connections=Objects.requireNonNull(connections);}
+ PlayerBotPopulationRepository(Connections connections){this(connections,java.nio.file.Path.of("config","playerbots"));}
+ PlayerBotPopulationRepository(Connections connections,java.nio.file.Path legacy){this.connections=Objects.requireNonNull(connections);this.legacy=Objects.requireNonNull(legacy);}
  private Snapshot load() throws IOException {
   if(cached!=null)return cached;
+  // A database whose fresh schema missed the state row is initialized here, however
+  // the server was started. Anything that may hold bot data is refused and named.
+  Exception setup=null;
+  try{initializeFresh();}catch(SQLException|IOException|RuntimeException e){setup=e;}
   try(var c=connections.open()) {
    c.setReadOnly(true);c.setAutoCommit(false);
    // Read state and all tables in one repeatable-read snapshot.
    c.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
    long nextRevision=revision(c,false);var next=read(c);c.commit();revision=nextRevision;cached=next;return next;
-  }catch(SQLException|RuntimeException e){throw new IOException("Cannot load native population repository; no empty-pool fallback",e);}
+  }catch(SQLException|RuntimeException e){
+   var failure=new IOException("Cannot load native population repository; no empty-pool fallback"+(setup==null?"":"; "+setup.getMessage()),e);
+   if(setup!=null)failure.addSuppressed(setup);throw failure;
+  }
+ }
+ /** Same rules as the repack's Initialize-PlayerbotPopulation.ps1; Temporary Bots and account alts are not world-bot data. */
+ private void initializeFresh() throws SQLException,IOException {
+  try(var c=connections.open()) {
+   c.setAutoCommit(false);
+   try {
+    if(imported(c)){c.rollback();return;}
+    for(String file:PlayerBotPopulationLegacy.FILES)if(java.nio.file.Files.exists(legacy.resolve(file)))
+     throw new SQLException("World-bot population is missing and old file "+legacy.resolve(file)+" needs the offline import (tools/migrate-playerbot-population.py); nothing was changed");
+    for(String table:List.of("playerbot_population_accounts","playerbot_population_members","playerbot_world_residents","playerbot_population_events"))
+     try(var s=c.prepareStatement("SELECT 1 FROM "+table+" LIMIT 1");var r=s.executeQuery()){if(r.next())throw new SQLException("World-bot population state is missing but "+table+" holds rows; existing bot data was kept");}
+    int low=-1000000-2*PlayerBotPopulationPolicy.ACCOUNT_SHARDS+1,high=-1000000;
+    for(String table:List.of("playerbot_roster","players"))
+     try(var s=c.prepareStatement("SELECT 1 FROM "+table+" WHERE account_id BETWEEN ? AND ? LIMIT 1")) {
+      s.setInt(1,low);s.setInt(2,high);try(var r=s.executeQuery()){if(r.next())throw new SQLException("World-bot population state is missing but "+table+" holds world-bot characters; existing bot data was kept");}
+     }
+    importSnapshot(c,new Snapshot(Map.of(),Map.of(),Map.of(),new PlayerBotPopulationSchedule.State(1,0,0,Map.of())),FRESH_DIGEST);
+    c.commit();
+    log.info("Created the missing empty world-bot population state; world bots start normally");
+   }catch(SQLException|RuntimeException e){try{c.rollback();}catch(SQLException rollback){e.addSuppressed(rollback);}throw e;}
+  }
  }
  static long revision(Connection c,boolean lock) throws SQLException {
   try(var s=c.prepareStatement("SELECT revision,import_digest FROM playerbot_population_state WHERE id=1"+(lock?" FOR UPDATE":""));var r=s.executeQuery()) {
-   if(!r.next() || r.getLong(1)<0 || r.getString(2)==null || !r.getString(2).matches("[0-9a-f]{64}"))throw new SQLException("Population import is not committed; run tools/migrate-playerbot-population.py offline");
+   if(!r.next() || r.getLong(1)<0 || r.getString(2)==null || !r.getString(2).matches("[0-9a-f]{64}"))throw new SQLException("World-bot population state is missing or invalid; existing bot data was kept");
    return r.getLong(1);
   }
  }

@@ -135,10 +135,15 @@ try {
             if($LASTEXITCODE -ne 0){throw 'Website settings initialization failed.'}
         }
         $contentMarker=Join-Path $localRoot 'aetherfall-content-v5.json'
-        if(!(Test-Path -LiteralPath $contentMarker)){
+        $contentHash=Get-WebsiteArchiveHash (Join-Path $applicationRoot 'config/aetherfall_content.php')
+        $contentState=if(Test-Path -LiteralPath $contentMarker){
+            Get-Content -LiteralPath $contentMarker -Raw | ConvertFrom-Json
+        }
+        if($contentState.contentSha256 -ne $contentHash){
             & $php @arguments portable.php aetherfall:website-content --no-interaction
             if($LASTEXITCODE -ne 0){throw 'The Aetherfall website content could not be prepared.'}
-            [IO.File]::WriteAllText($contentMarker,('{"installedAt":"'+[DateTime]::UtcNow.ToString('o')+'"}'))
+            $contentState=@{contentSha256=$contentHash;installedAt=[DateTime]::UtcNow.ToString('o')}
+            [IO.File]::WriteAllText($contentMarker,($contentState | ConvertTo-Json -Compress))
         }
         if($Action -eq 'Admin'){
             & $php @arguments portable.php aetherfall:website-admin

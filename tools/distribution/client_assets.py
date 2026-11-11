@@ -92,6 +92,13 @@ def asset_records(client):
                 sys.path.pop(0)
             records.extend(dict(path=path, bytes=len(data), sha256=hashlib.sha256(data).hexdigest())
                            for path, data in assets.items())
+    companion_art = 'bin64/AionUiArt.index'
+    if (client / companion_art).is_file() or any(
+            row['path'].casefold() == companion_art.casefold()
+            for rows in inventory.get('features', {}).values() for row in rows):
+        build = run_path(str(CLIENT_MODS / 'native-icon-bridge/prepare_ui_art.py'))['build']
+        data, _ = build(client)
+        records.append(dict(path=companion_art, bytes=len(data), sha256=hashlib.sha256(data).hexdigest()))
     return records
 
 

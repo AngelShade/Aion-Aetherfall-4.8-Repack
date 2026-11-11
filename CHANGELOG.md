@@ -14,6 +14,7 @@ Customize your unit frames and six action bars with shareable profiles. Follow b
 
 - New unit frames for you, your target, its target and your party offer flat bars, class colours, custom text, DP numbers and bot rank stars.
 - The Interface shortcut has a new outlined cog icon.
+- The Companions window has matching button, tab and class artwork after the Interface update.
 - New Aetherfall Interface options window: categories, tabs, sliders, dropdowns, check boxes, a colour picker and search, in a flat dark style.
 - Interface profiles: create, rename, copy and delete named profiles, share them across your characters, and export or import them as a code.
 - Saved interface profiles take up less space, so you can keep more profiles before reaching the storage limit.
@@ -21,6 +22,8 @@ Customize your unit frames and six action bars with shareable profiles. Follow b
 - Companions follow at their normal speed by default, with extra catch-up acceleration disabled.
 - Instance entry and waiting windows, including Dredgion's, stay on screen.
 - Dredgion and other battleground queues can fill both sides with bots. Your companions join you when you use Group Entry.
+- An empty world-bot database can recover a missing starting record. If existing bot data blocks recovery, the server log identifies it.
+- Recruited alts and companions now equip bind-on-equip gear you give them, binding it as they put it on.
 - Temporary Bots leave unbound gear and merchant stock alone, and wait for room in their cube before swapping to a two-handed weapon.
 - Season Pass purchases save your inventory and return the same purchase result if you retry.
 - Each of the six action bars now has its own page; bars 5 and 6 can be switched on and off separately.
