@@ -334,8 +334,14 @@ public final class PlayerBotService {
   automaticAdmissionsInitialized=true;
   log.info("World-bot factory ready; saved characters retained; automatic admission intents rebuilt for target {}",effectiveWorldTarget);
  }
- int automaticPendingAdmissions(){return residents==null?0:(int)residents.values().stream()
-  .filter(r->PlayerBotPopulationPolicy.serverAccount(r.account()) && !sessions.containsKey(r.character()) && !retiringWorldBots.contains(r.character())).count();}
+ int automaticPendingAdmissions(){return automaticPendingAdmissions(System.currentTimeMillis());}
+ // A resident held for a later field retry (a Warden waiting for a safe beat) is
+ // not drainable now. Counting it kept every later batch closed while timed
+ // rotation removed bots, so the live population drained far below its target.
+ // It still occupies its admission slot through the resident count.
+ int automaticPendingAdmissions(long now){return residents==null?0:(int)residents.values().stream()
+  .filter(r->PlayerBotPopulationPolicy.serverAccount(r.account()) && !sessions.containsKey(r.character()) && !retiringWorldBots.contains(r.character())
+   && nextWorldAdmission.getOrDefault(r.character(),0L)<=now).count();}
  void releaseSurplusPendingAdmissions(int target)throws java.io.IOException {
   int active=(int)sessions.values().stream().filter(s->s.world() && PlayerBotPopulationPolicy.serverAccount(s.bot().getAccount().getId())).count();
   int remaining=Math.max(0,target-active);var retained=new TreeMap<>(residents);

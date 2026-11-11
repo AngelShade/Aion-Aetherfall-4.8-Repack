@@ -2,11 +2,17 @@
 
 ## Next update
 
+The world fills up with many more bots, spread across the zones you play in.
+
 ### New
 
 ### Improved
 
+- The world now holds up to 3000 bots, and up to 120 of them gather in the area around you.
+
 ### Fixed
+
+- Fixed the world slowly emptying of bots after the first wave logged in.
 
 ## 0.98.12 - Custom unit frames, interface profiles and Find Group help (11 November 2026)
 
