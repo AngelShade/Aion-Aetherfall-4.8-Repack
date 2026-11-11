@@ -1,5 +1,18 @@
 # Companion and Journey HUD artwork
 
+## Interface shortcut
+
+The original `assets/interface-outlined.png` was made with built-in image generation.
+The atlas builder uses the same outlined, transparent normal, hover and pressed
+states as the other shortcuts. Build the Interface artwork with
+`../aetherfall-core/prepare_shortcut_icon.py`.
+
+Prompt
+
+> Create one standalone production raster HUD shortcut icon for the Aetherfall Interface settings in an Aion 4.8 fantasy MMORPG. Subject: a compact round six-tooth silver and gold settings gear, with a single large faceted pale-cyan four-point Aetherfall star set into the center as a jewel. The teeth should look like simple chunky medieval metalwork, with a clear gear silhouette and a thin warm-gold bevel around polished silver facets. Match the project's hand-painted inventory shortcut style: brushed bright silver, saturated warm gold trim, cyan crystal accents, directional upper-left highlights, deep navy recesses, dimensional bevels, and a continuous near-black silhouette contour. Strong readable silhouette designed for an approximately 32 by 32 pixel in-game button; the central four-point cyan star should be large enough to read at that size. Render directly facing forward, no tilt, centered, compact and square, with modest transparent margin on every side. Keep outer near-black contour thick enough to survive downscaling and interior design simple. True transparent background with preserved alpha. No square tile, no backing plate outside the cog, no text, no letters, no particles, no separate floating stars, no cast shadow outside the outline, no screenshot. Only one finished icon.
+
+## Companion and Journey shortcuts
+
 Built-in imagegen originals,13October2026. Style reference only:
 `../market-shortcut/assets/scales-outlined.png`. The source PNGs are copied
 unchanged from the generated-images directory; no generated asset is referenced

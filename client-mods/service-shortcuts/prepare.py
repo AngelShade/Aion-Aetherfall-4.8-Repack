@@ -17,16 +17,17 @@ ICONS=[('companion_menu','Player Companions','/companions',-40,990100003,'compan
 TEXTURE='companion_journey_shortcuts.dds'
 def sha(data):return hashlib.sha256(data).hexdigest()
 def read(path):return json.loads(path.read_text(encoding='utf-8-sig'))
-def artwork(out):
+def artwork(out, icons=ICONS, texture=TEXTURE, alpha_threshold=0):
  atlas=Image.new('RGBA',(128,128));defs=[]
- for row,(name,label,command,dx,string_id,asset) in enumerate(ICONS):
+ for row,(name,label,command,dx,string_id,asset) in enumerate(icons):
   image=Image.open(HERE/'assets'/asset).convert('RGBA')
   if image.getchannel('A').getextrema()!=(0,255):raise ValueError('Artwork requires genuine transparency')
-  image=image.crop(image.getbbox());image.thumbnail((32,30),Image.Resampling.LANCZOS)
+  alpha=image.getchannel('A').point(lambda value: 255 if value>alpha_threshold else 0)
+  image=image.crop(alpha.getbbox());image.thumbnail((32,30),Image.Resampling.LANCZOS)
   for index,(state,brightness) in enumerate([('up',1),('over',1.28),('down',.72)]):
    icon=ImageEnhance.Brightness(image).enhance(brightness)
    atlas.alpha_composite(icon,(index*40+(34-icon.width)//2,row*40+(32-icon.height)//2))
-   defs.append(ET.Element('Skin',name=name+'_'+state,src_image=f'{index*40},{row*40},34,32',texture='Textures/UI/companion_journey_shortcuts'))
+   defs.append(ET.Element('Skin',name=name+'_'+state,src_image=f'{index*40},{row*40},34,32',texture='Textures/UI/'+Path(texture).stem))
   preset=ET.Element('Preset',name=name+'_button',type='button')
   for state in ('up','over','down'):ET.SubElement(preset,'SkinRef',main_state='0',name=name+'_'+state,sub_state=state)
   defs.append(preset)
