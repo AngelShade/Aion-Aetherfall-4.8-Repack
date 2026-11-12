@@ -77,6 +77,6 @@ public final class PlayerBotPopulationQueueCheck {
    check(e>=0 && a>=0,"Larger native capacity never overfills either faction");large.remove(selected);
   }
   check(e==0 && a==0 && large.size()==2 && plan(large,e,a)==null,"Full larger-capacity match leaves surplus actors in the world");
-  System.out.println("PlayerBotPopulationQueueCheck: "+checks+" checks passed");
+  System.out.println("OK: "+checks+" population queue checks");
  }
 }

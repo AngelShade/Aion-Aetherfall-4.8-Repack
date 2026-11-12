@@ -79,6 +79,8 @@ final class PlayerBotBattlegroundPlay {
   return yes;
  }
  private static long key(int a,int b){return ((long)a<<32)|(b&0xffffffffL);}
+ /** Every set-aside goes through here, so the table stays bounded whichever branch filled it. */
+ private static void skip(int bot,Npc npc,long until){if(SKIP.size()>20000)SKIP.clear();SKIP.put(key(bot,npc.getObjectId()),until);}
  private static Npc pick(Field f,Player bot,long now) {
   Npc best=null;double top=0;
   for(var npc:bot.getPosition().getWorldMapInstance().getNpcs()) {
@@ -118,21 +120,21 @@ final class PlayerBotBattlegroundPlay {
   if(use(f,npc.getNpcId())) {
    if(PositionUtil.isInTalkRange(bot,npc) && com.aionemu.gameserver.world.geo.GeoService.getInstance().canSee(bot,npc)) {
     navigation.stop();stats.arrived.incrementAndGet();
-    if(!DialogService.isInteractionAllowed(bot,npc)){SKIP.put(key(id,npc.getObjectId()),now+UNREACHABLE_MS);GOALS.remove(id);return false;}
+    if(!DialogService.isInteractionAllowed(bot,npc)){skip(id,npc,now+UNREACHABLE_MS);GOALS.remove(id);return false;}
     // Asked a moment ago and still not using it (someone else is, or the game refused): try something else for a while.
     Long asked=ASKED.get(key(id,npc.getObjectId()));
-    if(asked!=null && now-asked<USE_START_MS+REPICK_MS){if(now-asked>=USE_START_MS){SKIP.put(key(id,npc.getObjectId()),now+USE_RETRY_MS);ASKED.remove(key(id,npc.getObjectId()));GOALS.remove(id);return false;}return true;}
+    if(asked!=null && now-asked<USE_START_MS+REPICK_MS){if(now-asked>=USE_START_MS){skip(id,npc,now+USE_RETRY_MS);ASKED.remove(key(id,npc.getObjectId()));GOALS.remove(id);return false;}return true;}
     ASKED.put(key(id,npc.getObjectId()),now);if(ASKED.size()>20000)ASKED.clear();
     bot.setTarget(npc);npc.getController().onDialogRequest(bot);stats.uses.incrementAndGet();
     return true;
    }
   } else if(PositionUtil.isInRange(bot,npc,ARRIVED)) {
    stats.arrived.incrementAndGet();navigation.stop();
-   if(!bot.isEnemy(npc)){SKIP.put(key(id,npc.getObjectId()),now+UNREACHABLE_MS);GOALS.remove(id);return false;}
+   if(!bot.isEnemy(npc)){skip(id,npc,now+UNREACHABLE_MS);GOALS.remove(id);return false;}
    bot.setTarget(npc);return false;
   }
   if(!navigation.approach(npc,use(f,npc.getNpcId())?1.5f:3) && navigation.routeFailed()) {
-   SKIP.put(key(id,npc.getObjectId()),now+UNREACHABLE_MS);if(SKIP.size()>20000)SKIP.clear();
+   skip(id,npc,now+UNREACHABLE_MS);
    GOALS.remove(id);stats.unreachable.incrementAndGet();return false;
   }
   return true;

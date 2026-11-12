@@ -23,12 +23,14 @@ final class PlayerBotSteelRake {
  static int feeder(boolean hunger,boolean thirst){return hunger?701386:thirst?701387:0;}
  static boolean shielded(String ai,boolean captain,boolean armor,boolean master){return "brasseyegrogget".equals(ai)&&captain || "gunnerkoakoa".equals(ai)&&armor || "tamer_anikiki".equals(ai)&&master;}
  static boolean attackable(Npc npc){return !PlayerBotSteelRakeCaptainTactics.scenery(npc.getNpcId())&&!shielded(npc.getAi().getName(),npc.getEffectController().hasAbnormalEffect(18191),npc.getEffectController().hasAbnormalEffect(18552),npc.getEffectController().hasAbnormalEffect(18189));}
+ /** The hazard scan asks this of every NPC a bot knows, on every map; one still without its AI is simply no emitter. */
  static Integer emitter(Npc npc){
-  if("bomb".equals(npc.getAi().getName())){
+  var brain=npc.getAi();String name=brain==null?null:brain.getName();
+  if("bomb".equals(name)){
    var ai=com.aionemu.gameserver.dataholders.DataManager.AI_DATA.getAiTemplate(npc.getNpcId());
    if(ai!=null && ai.getBombs()!=null && ai.getBombs().getBombTemplate()!=null)return ai.getBombs().getBombTemplate().getSkillId();
   }
-  if("walkingtalkingbomb".equals(npc.getAi().getName()))return 19416;
+  if("walkingtalkingbomb".equals(name))return 19416;
   return null;
  }
  static boolean channeling(Player bot){

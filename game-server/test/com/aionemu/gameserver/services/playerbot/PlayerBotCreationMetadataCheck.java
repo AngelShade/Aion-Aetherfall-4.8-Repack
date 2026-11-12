@@ -24,7 +24,10 @@ public final class PlayerBotCreationMetadataCheck {
   try{
    PlayerBotCreationMetadata.queue(bot,props);check(db.queries==0&&db.updates==0,"Pre-player-row creation queues without database access");
    check(deferred.size()==1,"Creation snapshot retained before native player insertion");
-   try{PlayerBotCreationMetadata.queue(bot,props);throw new AssertionError("Duplicate creation accepted");}catch(IOException expected){check(deferred.size()==1,"Duplicate creation cannot overwrite protected IDs");}
+   // A retry after a failed hand-over stages the same values again and is accepted; only different values are refused.
+   PlayerBotCreationMetadata.queue(bot,props);check(deferred.size()==1,"An identical retry changes nothing");
+   var other=new Properties();other.putAll(props);other.setProperty("generated","111,333");
+   try{PlayerBotCreationMetadata.queue(bot,other);throw new AssertionError("Different duplicate creation accepted");}catch(IOException expected){check(deferred.size()==1,"A different duplicate cannot overwrite protected IDs");}
    db.failLoad=true;try{PlayerBotCreationMetadata.prepare(bot);throw new AssertionError("Unavailable checkpoint accepted");}catch(IOException expected){check(deferred.size()==1,"Database failure retains deferred snapshot");}db.failLoad=false;
    PlayerBotCreationMetadata.prepare(bot);var pending=PlayerBotMetadata.pending(7,13001);
    check(deferred.isEmpty()&&pending.size()==1,"Native cache takes ownership at first checkpoint");

@@ -20,7 +20,7 @@ public final class PlayerBotBattlegroundObjectivesCheck {
   var service=Files.readString(src.resolve("PlayerBotService.java"));var config=Files.readString(root.resolve("config/playerbots/pvp.properties"));
   check(hook.contains("if(!enabled() || !PlayerBotPvpSeek.battleground(bot))return false;"),"Bots without a position leave before any instance check");
   check(hook.contains("PlayerBotConfig.PVP_BATTLEGROUNDS && PlayerBotConfig.PVP_BATTLEGROUND_OBJECTIVES"),"Needs battlegrounds on, and has its own switch on top");
-  check(session.contains("engaged |= autonomous() && PlayerBotBattlegroundObjectives.mechanicEnemy(bot,npc,party);"),"Its own statement in the combat code, for world bots only");
+  check(session.contains("engaged |= autonomous() && !dredgionStrategy && PlayerBotBattlegroundObjectives.mechanicEnemy(bot,npc,party);"),"Its own statement in the combat code, for world bots only; aboard a Dredgion the ship's own plan picks the targets");
   check(service.contains("lines.add(\"Battleground objectives: \"+PlayerBotBattlegroundObjectives.stats());") && config.contains("gameserver.playerbots.pvp.battlegrounds.objectives = "),"Its own report line and switch");
   System.out.println("OK: "+checks+" battleground objective checks; no World/SQL/tasks");
  }

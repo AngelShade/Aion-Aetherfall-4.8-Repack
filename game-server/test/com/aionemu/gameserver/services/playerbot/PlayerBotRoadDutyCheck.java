@@ -175,7 +175,7 @@ public final class PlayerBotRoadDutyCheck {
   // RoadDuty's existing rank table loads eagerly; only its nonzero weight is needed by these pure checks.
   PlayerBotMerchantConfig.CHANCE_PEDDLER=1;
   advance();progress();careers();migration();routes();merchants();guards();
-  System.out.println("Road duty checks passed: "+checks);
+  System.out.println("OK: "+checks+" road duty checks");
  }
  private PlayerBotRoadDutyCheck(){}
 }

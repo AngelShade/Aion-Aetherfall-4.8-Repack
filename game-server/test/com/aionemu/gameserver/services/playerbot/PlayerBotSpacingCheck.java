@@ -18,12 +18,15 @@ public final class PlayerBotSpacingCheck {
   var owner=PlayerBotPositionCheck.actor(1999999200,PlayerClass.SORCERER);
   var bot=(Named)PlayerBotPositionCheck.u.allocateInstance(Named.class);bot.id=1999999201;bot.pc=PlayerClass.RANGER;bot.account=owner.account;bot.stats=owner.stats;
   var session=PlayerBotPositionCheck.session(owner,bot,Role.RANGED);
-  var path=PlayerBotSpacing.path(bot.id);check(!Files.exists(path),"Private fixture path absent");
+  var path=PlayerBotSpacing.path(bot.id);check(!Files.exists(path),"No legacy file to import");
+  // Spacing and formation are rows of playerbot_metadata; the fixture keeps them in memory.
+  var table=PlayerBotMemoryMetadata.install().selfOwned().owner(bot.id,owner.account.getId());
+  for(int shared:new int[]{1999999202,1999999204,1999999203,1999999206})table.owner(shared,owner.account.getId());
   try {
    check(PlayerBotSpacing.values(bot).follow()==4&&PlayerBotSpacing.values(bot).attack()==10,"Compact default owner/target spacing");
    for(float bad:new float[]{Float.NaN,Float.POSITIVE_INFINITY,-1,1,13})rejected(()->PlayerBotSpacing.validate(bad,10),"Reject owner spacing");
    for(float bad:new float[]{Float.NaN,Float.NEGATIVE_INFINITY,-1,3,19})rejected(()->PlayerBotSpacing.validate(4,bad),"Reject attack spacing");
-   PlayerBotSpacing.configure(session,3,12);check(Files.exists(path),"Explicit save persists spacing");
+   PlayerBotSpacing.configure(session,3,12);check(!PlayerBotMetadata.pending(owner.account.getId(),bot.id).isEmpty() && !Files.exists(path),"Explicit save queues spacing for the checkpoint and writes no file");
    PlayerBotSpacing.close(bot);check(PlayerBotSpacing.values(bot).follow()==3&&PlayerBotSpacing.values(bot).attack()==12,"Reload exact account-owned settings");
    check(PlayerBotSpacing.attack(bot,23.5f)==12,"User distance overrides longer native spells");
    check(PlayerBotSpacing.attack(bot,7)==7,"Native range remains authoritative");
@@ -41,7 +44,8 @@ public final class PlayerBotSpacingCheck {
    check(Math.abs(Math.hypot(point.x(),point.y())-3)<.001,"Owner spacing radius preserves formation bearing");
    check(Math.abs(point.x()/point.y()-.75)<.001,"Formation direction preserved");
    var tank=PlayerBotPositionCheck.actor(1999999202,PlayerClass.TEMPLAR);tank.account=owner.account;
-   check(PlayerBotSpacing.formation(owner,tank,geometry)==geometry,"Tank front geometry unchanged");PlayerBotSpacing.close(tank);
+   var front=PlayerBotSpacing.formation(owner,tank,geometry);
+   check(Math.abs(Math.hypot(front.x(),front.y())-4)<.001 && Math.abs(front.x()/front.y()-.75)<.001,"Tank slot keeps its bearing at its own follow spacing");PlayerBotSpacing.close(tank);
    check(!Files.exists(PlayerBotFormationLayout.path(owner.id)),"Private formation fixture path absent");
    var outer=PlayerBotPositionCheck.actor(1999999204,PlayerClass.RANGER);outer.account=owner.account;
    var middle=PlayerBotPositionCheck.actor(1999999203,PlayerClass.CLERIC);middle.account=owner.account;
@@ -64,7 +68,7 @@ public final class PlayerBotSpacingCheck {
    var foreign=PlayerBotPositionCheck.actor(1999999203,PlayerClass.RANGER);
    var invalid=PlayerBotPositionCheck.session(owner,foreign,Role.RANGED);rejected(()->PlayerBotSpacing.configure(invalid,4,10),"Foreign account cannot save");
    bot.account=foreign.account;try{PlayerBotSpacing.values(bot);throw new AssertionError("Cached owner mismatch accepted");}catch(IllegalStateException expected){checks++;}finally{bot.account=owner.account;}
-  }finally{PlayerBotSpacing.close(bot);Files.deleteIfExists(path);}
+  }finally{PlayerBotSpacing.close(bot);table.close();}
   System.out.println("OK: "+checks+" compact spacing, range cap, owner identity, persistence, formation and finite-retreat checks; no world/DB/ID writes.");
  }
 }

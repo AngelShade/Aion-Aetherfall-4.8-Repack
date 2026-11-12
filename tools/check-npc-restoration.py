@@ -14,7 +14,8 @@ import stage_companion_update as shared
 # since the pre-patrol baseline are committed in b233e8bc45, 725851b0a9,
 # and upstream 7840be30d9/ca2155e6dc (imported by 6a36f85611).
 # Pin every method in all five classes, including their compatibility methods.
-BASELINE=shared.DEV_ROOT/'staging/target/npc-preservation-baseline-20261104/game-server/game-server-4.8-SNAPSHOT.jar'
+# Kept under archives: staging is throwaway build output and its cleanup removed the first copy.
+BASELINE=shared.DEV_ROOT/'archives/server/baselines/npc-preservation-20261104/game-server/game-server-4.8-SNAPSHOT.jar'
 BASELINE_SHA='6144b2a2681999e9c4bca187412421078c61a72f656d2053295cb0a0f9fbdad0'
 CLASSES=['controllers/movement/NpcMoveController','spawnengine/ClusteredNpc','spawnengine/WalkerGroup','ai/manager/WalkManager','world/geo/GeoService']
 

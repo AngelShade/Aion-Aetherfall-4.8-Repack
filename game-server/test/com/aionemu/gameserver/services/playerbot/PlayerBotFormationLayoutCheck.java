@@ -27,16 +27,19 @@ public final class PlayerBotFormationLayoutCheck {
             }
         check(PlayerBotFormationLayout.parse("BOX").equals("box"),"Case-insensitive selection");
         try { PlayerBotFormationLayout.parse("dismiss"); throw new AssertionError("Unknown selection accepted"); } catch (IllegalArgumentException expected) { checks++; }
-        int account=2000000001, owner=2000000001; Path fixture=PlayerBotFormationLayout.path(owner);
-        check(!Files.exists(fixture),"Fixture must be empty");
-        try {
+        // Formation choices live in the playerbot_metadata table; the old per-character file is only a legacy import.
+        int account=2000000001, owner=2000000001; Path legacy=PlayerBotFormationLayout.path(owner);
+        check(!Files.exists(legacy),"No legacy file to import");
+        try (var table=PlayerBotMemoryMetadata.install().owner(owner,account)) {
             check(PlayerBotFormationLayout.selected(account,owner).equals("circle"),"Default is centered Circle");
+            check(table.rows.isEmpty(),"Reading the default writes nothing");
             check(PlayerBotFormationLayout.configure(account,owner,"spread").equals("spread"),"Select wide ring");
-            Properties p=new Properties();try(var in=Files.newInputStream(fixture)){p.load(in);}
-            check(p.getProperty("account").equals(Integer.toString(account)) && p.getProperty("formation").equals("spread"),"Owner and formation persisted");
+            var row=table.row(owner,"formation");
+            check(row!=null && row.account()==account && row.revision()==1 && row.settings().contains("\"formation\":\"spread\"") && table.commits==1,"Owner and formation committed to the settings table");
+            check(PlayerBotFormationLayout.configure(account,owner,"line").equals("line") && table.row(owner,"formation").revision()==2,"A later choice replaces the same row");
             try {PlayerBotFormationLayout.selected(account+1,owner);throw new AssertionError("Foreign owner settings accepted");}catch(IllegalStateException expected){checks++;}
-        } finally {Files.deleteIfExists(fixture);}
-        check(!Files.exists(fixture),"Exact fixture settings cleanup");
+        }
+        check(!Files.exists(legacy),"No settings file is written any more");
         System.out.println("OK: "+checks+" centered layout, spacing, owner translation, heading, altitude, validation and isolated persistence checks.");
     }
 }

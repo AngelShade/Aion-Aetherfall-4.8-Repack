@@ -13,10 +13,15 @@ import com.aionemu.gameserver.skillengine.model.Effect;
 
 public final class PlayerBotTankCheck {
  static int checks;static void check(boolean b,String why){checks++;if(!b)throw new AssertionError(why);}
- static class Bot extends Player {int id;Bot(){super(null,null);}@Override public int getObjectId(){return id;}}
- static class Mob extends Npc {AggroList hate;NpcController controller;Mob(){super(null,null,null);}@Override public NpcController getController(){return controller;}}
+ // The aggro list also reports each hit to the instance-run bookkeeping (PlayerBotRunRewards), which first compares
+ // map instances. These actors have no world position, so the fixture answers that question itself: the players stand
+ // in an instance the mob is not in, and the bookkeeping leaves the hate under test alone.
+ static com.aionemu.gameserver.world.WorldMapInstance elsewhere;
+ static class Bot extends Player {int id;Bot(){super(null,null);}@Override public int getObjectId(){return id;}@Override public com.aionemu.gameserver.world.WorldMapInstance getWorldMapInstance(){return elsewhere;}}
+ static class Mob extends Npc {AggroList hate;NpcController controller;Mob(){super(null,null,null);}@Override public NpcController getController(){return controller;}@Override public com.aionemu.gameserver.world.WorldMapInstance getWorldMapInstance(){return null;}}
  public static void main(String[] args)throws Exception {
   Field f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);var u=(Unsafe)f.get(null);Bot tank=(Bot)u.allocateInstance(Bot.class),dps=(Bot)u.allocateInstance(Bot.class);tank.id=1;dps.id=2;
+  elsewhere=(com.aionemu.gameserver.world.WorldMapInstance)u.allocateInstance(com.aionemu.gameserver.world.WorldMap3DInstance.class);
   Mob mob=(Mob)u.allocateInstance(Mob.class);mob.controller=new NpcController(){@Override public void onAddHate(Creature attacker,boolean first){}};mob.hate=new AggroList(mob){@Override protected boolean isAware(Creature c){return true;}};
   Field aggro=Creature.class.getDeclaredField("aggroList");aggro.setAccessible(true);aggro.set(mob,mob.hate);
   var data=(SkillData)JAXBContext.newInstance(SkillData.class).createUnmarshaller().unmarshal(new StringReader("<skill_data><skill_template skill_id='900200' name='Native positive enmity' activation='ACTIVE' skilltype='PHYSICAL' skillsubtype='DEBUFF'><properties first_target='TARGET' target_relation='ENEMY' target_type='ONLYONE'/><effects><hostileup value='1000' delta='10' hoptype='SKILLLV' hopa='2' hopb='100'/></effects></skill_template><skill_template skill_id='900201' name='Threat reduction' activation='ACTIVE' skilltype='MAGICAL' skillsubtype='DEBUFF'><properties first_target='TARGET' target_relation='ENEMY' target_type='ONLYONE'/><effects><hostileup value='-1000'/></effects></skill_template></skill_data>"));

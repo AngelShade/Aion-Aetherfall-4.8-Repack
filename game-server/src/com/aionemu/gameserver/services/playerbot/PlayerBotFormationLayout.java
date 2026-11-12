@@ -38,7 +38,6 @@ public final class PlayerBotFormationLayout {
         selected(account, owner);
         Properties p = new Properties(); p.setProperty("account", Integer.toString(account));
         p.setProperty("character", Integer.toString(owner)); p.setProperty("formation", formation);
-        Path file = path(owner);
         try {
             PlayerBotMetadataConfiguration.save(account,owner,"formation",p);
         } catch (IOException e) { throw new IllegalStateException("Cannot save companion formation", e); }

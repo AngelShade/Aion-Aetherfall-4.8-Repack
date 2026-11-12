@@ -79,11 +79,17 @@ public final class PlayerBotPositionCheck {
   var support=actor(1999999102,PlayerClass.BARD);var healer=actor(1999999103,PlayerClass.CLERIC);
   var service=PlayerBotService.getInstance();var sf=PlayerBotService.class.getDeclaredField("sessions");sf.setAccessible(true);var sessions=(Map<Integer,PlayerBotSession>)sf.get(service);check(sessions.isEmpty(),"World-free service fixture must be empty");
   var cs=session(owner,caster,Role.RANGED);for(var s:List.of(cs,session(owner,tank,Role.TANK),session(owner,support,Role.SUPPORT),session(owner,healer,Role.HEALER)))sessions.put(s.bot().getObjectId(),s);
+  // Formation and spacing settings are rows of playerbot_metadata; the fixture keeps them in memory.
+  var table=PlayerBotMemoryMetadata.install().selfOwned();
   boolean previous=GeoDataConfig.CANSEE_ENABLE;GeoDataConfig.CANSEE_ENABLE=false;
   try {
    for(String shape:PlayerBotFormationLayout.NAMES){PlayerBotFormationLayout.configure(owner.id,owner.id,shape);
-    for(byte heading:new byte[]{0,30,60,90}){owner.heading=heading;var p=PlayerBotFormationLayout.destination(owner,tank,heading*Math.PI/60);
-     check((p.x()-owner.x)*Math.cos(heading*Math.PI/60)+(p.y()-owner.y)*Math.sin(heading*Math.PI/60)>3.39,"Highest-ID tank stays in front in "+shape+" heading="+heading);}
+    for(byte heading:new byte[]{0,30,60,90}){owner.heading=heading;double facing=heading*Math.PI/60;
+     // Box keeps its square shape and Line scales its wings, so the forward distance differs by shape; the rule
+     // that holds for all of them is that the tank's slot is ahead of the owner and of every other companion.
+     java.util.function.ToDoubleFunction<Actor> ahead=member->{var p=PlayerBotFormationLayout.destination(owner,member,facing);return (p.x()-owner.x)*Math.cos(facing)+(p.y()-owner.y)*Math.sin(facing);};
+     double front=ahead.applyAsDouble(tank);
+     check(front>1.5 && front>=ahead.applyAsDouble(caster)-.001 && front>=ahead.applyAsDouble(support)-.001 && front>=ahead.applyAsDouble(healer)-.001,"Highest-ID tank stays in front in "+shape+" heading="+heading+" ("+front+")");}
    }
    owner.heading=0;PlayerBotFormation.destination(owner,tank,0);var st=PlayerBotFormation.class.getDeclaredField("STATES");st.setAccessible(true);var state=((Map<?,?>)st.get(null)).get(tank.id);set(state,"time",System.currentTimeMillis()-1000);owner.heading=30;PlayerBotFormation.destination(owner,tank,0);var angle=state.getClass().getDeclaredField("angle");angle.setAccessible(true);check(Math.abs(angle.getDouble(state)-Math.PI/2)<.01,"Stationary owner turning updates real formation heading");
    var target=(Enemy)u.allocateInstance(Enemy.class);target.x=20;target.template=new NpcTemplate();set(target.template,"boundRadius",new BoundRadius(1,1,1));
@@ -97,7 +103,7 @@ public final class PlayerBotPositionCheck {
    var p=PlayerBotCombatPosition.point(caster,target,23.5f);check(p.x()>caster.x && p.x()<target.x-20,"Production approach waypoint stops at spell range with native body bounds");
    var friend=actor(1999999104,PlayerClass.CLERIC);friend.x=35;check(PlayerBotCombatPosition.allowSpellApproach(caster,Role.RANGED,heal,friend,skills),"Friendly emergency support can still approach its recipient");
    var aerial=PlayerBotCombatPosition.point(0,0,0,0,0,40,25,(byte)0,true);check(Math.abs(aerial.z()-15)<.001,"Flight waypoint preserves three-dimensional spell range");
-  }finally{GeoDataConfig.CANSEE_ENABLE=previous;sessions.clear();PlayerBotFormation.close(tank);Files.deleteIfExists(PlayerBotFormationLayout.path(owner.id));}
+  }finally{GeoDataConfig.CANSEE_ENABLE=previous;sessions.clear();PlayerBotFormation.close(tank);table.close();}
   System.out.println("OK: "+checks+" production formation, stationary turning, ranged class/build, native bounds and final cast-prerequisite checks. No native world/DB/ID writes; geodata/client acceptance pending.");
  }
 }

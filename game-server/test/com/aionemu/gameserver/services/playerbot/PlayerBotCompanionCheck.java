@@ -53,7 +53,9 @@ public final class PlayerBotCompanionCheck {
    check(!PlayerBotCare.disposable(item,false,true,false,false),"Upgrades protected");
    check(!PlayerBotCare.disposable(item,false,false,true,false),"Quest items protected");
    check(!PlayerBotCare.disposable(item,false,false,false,true),"Future-level gear protected");
-   item.setEnchantLevel(1);check(!PlayerBotCare.disposable(item,false,false,false,false),"Enhanced gear protected");
+   // Enhanced spare gear may be listed on the Central Market, so enhancement alone no longer decides what is spare;
+   // extraction (PlayerBotCare.unused) and vendor sale (PlayerBotWorldActivities) keep their own unenhanced guard.
+   item.setEnchantLevel(1);check(PlayerBotCare.disposable(item,false,false,false,false)==expendable,"Enhancement alone does not change what is spare");
   }
   QuestState quest=new QuestState(1,QuestStatus.START);quest.setQuestVarById(1,6);quest.setQuestVarById(2,1);
   check(PlayerBotQuestJournal.count(quest,1,100)==70,"Native six-bit multi-variable quest counter decoded");
@@ -61,11 +63,16 @@ public final class PlayerBotCompanionCheck {
   check(PlayerBotQuestMetadata.startPage(4) && PlayerBotQuestMetadata.startPage(1011) && PlayerBotQuestMetadata.startPage(4762),"Native generic acceptance pages supported");
   check(!PlayerBotQuestMetadata.startPage(1001) && !PlayerBotQuestMetadata.startPage(5),"Story/reward page is not acceptance");
   Path directory=Files.createTempDirectory("companion-settings-check-");
-  var preferences=new PlayerBotPreferences(directory);var defaults=preferences.load(1,2,PlayerBotRules.Role.HEALER);
-  check(defaults.gear() && defaults.questing() && !defaults.area() && !defaults.loot(),"Requested gear/quest defaults without AoE or loot changes");
-  var manual=new PlayerBotPreferences.Values(PlayerBotRules.Role.TANK,false,true,false,false,false);preferences.save(1,2,manual);
-  check(preferences.load(1,2,PlayerBotRules.Role.HEALER).equals(manual),"Existing player's manual choices preserved");
-  for(Path path:Files.list(directory).toList())Files.delete(path);Files.delete(directory);
+  // Preferences are a playerbot_metadata section saved with the companion's checkpoint; the folder is only the place
+  // an old settings file would be imported from.
+  try(var table=PlayerBotMemoryMetadata.install().owner(2,1)) {
+   var preferences=new PlayerBotPreferences(directory);var defaults=preferences.load(1,2,PlayerBotRules.Role.HEALER);
+   check(defaults.gear() && defaults.questing() && !defaults.area() && !defaults.loot(),"Requested gear/quest defaults without AoE or loot changes");
+   var manual=new PlayerBotPreferences.Values(PlayerBotRules.Role.TANK,false,true,false,false,false);preferences.save(1,2,manual);
+   check(preferences.load(1,2,PlayerBotRules.Role.HEALER).equals(manual),"Existing player's manual choices preserved");
+   check(PlayerBotMetadata.pending(1,2).size()==1 && table.rows.isEmpty(),"Choices wait for the companion's checkpoint and write nothing on their own");
+   try(var files=Files.list(directory)){check(files.findAny().isEmpty(),"No settings file is written any more");}
+  }finally{Files.delete(directory);}
   System.out.println("OK: "+checks+" companion regressions: flight, same-map teleport, quest completion ownership/repeats, gear protection, spending and settings");
  }
 }

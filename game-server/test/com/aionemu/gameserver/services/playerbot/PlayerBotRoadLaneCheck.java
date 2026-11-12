@@ -27,7 +27,7 @@ public final class PlayerBotRoadLaneCheck {
   }
   check(lanes.size()==22,"every lane is used, found "+lanes.size());
   check(left>400 && left<600,"both sides are used, left "+left);
-  System.out.println("Road lane checks passed: "+checks);
+  System.out.println("OK: "+checks+" road lane checks");
  }
  private PlayerBotRoadLaneCheck(){}
 }

@@ -102,9 +102,14 @@ public final class BrokerRetirementCheck {
 
 		var config = Files.readString(Path.of("config/main/custom.properties"));
 		check(config.contains("gameserver.broker.enabled = false"), "Aetherfall retires the Broker in its shipped configuration");
-		var options = Files.readString(Path.of("../client-mods/aetherfall-core/AetherfallOptions.lua"));
+		// The interface is split into modules: no Lua file of it may hold the swap, wherever it lives.
+		var options = new StringBuilder();
+		try (var files = Files.walk(Path.of("../client-mods/aetherfall-core"))) {
+			for (var file : files.filter(f -> f.toString().endsWith(".lua")).sorted().toList())
+				options.append(Files.readString(file)).append((char) 10);
+		}
 		var coreLua = Files.readString(Path.of("../client-mods/aetherfall-core/AetherfallCore.lua"));
-		check(!options.contains("BrokerToMarket") && !options.contains("takemarket"), "The HUD Lua holds no Broker swap code");
+		check(options.length() > 0 && options.indexOf("BrokerToMarket") < 0 && options.indexOf("takemarket") < 0, "The interface Lua holds no Broker swap code");
 		check(!coreLua.contains("takemarket") && !coreLua.contains("brokerstate"), "The core Lua API is unchanged; the module calls the bridge itself");
 		var module = Files.readString(Path.of("../client-mods/broker-swap/BrokerSwap.lua"));
 		check(module.contains("tonumber((core('brokerstate')))") && module.contains("if state == nil then return end"), "The module stays inert on a core without the command");

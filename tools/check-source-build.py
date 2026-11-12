@@ -163,6 +163,21 @@ TESTS['PlayerBotQuestObjectCommitmentCheck']=71
 TESTS['PlayerBotQuestTransformationCheck']=80
 TESTS['PlayerBotQuestItemTargetCheck']=50
 TESTS['PlayerBotWardenDeathCheck']=18
+# Suites that were compiled with the rest but never run here (found 12 Nov 2026). Registered once each passed
+# against the normal build; the ones still unregistered need a scratch database or a fixture rewrite.
+TESTS.update({'PlayerBotAppearanceCheck':16,'PlayerBotCombatQuestCheck':24,'PlayerBotCompanionCheck':1386,'PlayerBotCreationMetadataCheck':11,
+ 'PlayerBotFormationLayoutCheck':1202,'PlayerBotGearSettingsCheck':35,'PlayerBotGenerationCheck':5,'PlayerBotHeapGuardCheck':14,
+ 'PlayerBotInventoryCheck':303,'PlayerBotMetadataPreferencesCheck':31,'PlayerBotPanelCheck':15,'PlayerBotPlanningCheck':47,
+ 'PlayerBotPopulationQueueCheck':123,'PlayerBotRecruitmentCheck':10,'PlayerBotRevivalCheck':10,'PlayerBotRoadDutyCheck':125,
+ 'PlayerBotRoadLaneCheck':2006,'PlayerBotRoadNavigationCheck':16,'PlayerBotSettingsFilesCheck':15,'PlayerBotSteelRakeCaptainTacticsCheck':16,
+ 'PlayerBotSteelRakeCheck':28,'PlayerBotTankCheck':8,'PlayerBotTankPositionCheck':22,'PlayerBotTargetStrategiesCheck':19,
+ 'PlayerBotTargetValuesCheck':18,'PlayerBotTemporaryCheck':200,'PlayerBotDefenseCheck':34,'PlayerBotEncounterCheck':35,
+ 'PlayerBotEnemyUtilityCheck':26,'PlayerBotHealingCheck':30,'PlayerBotOffenseCheck':978,'PlayerBotSkillsCheck':868,
+ 'PlayerBotHelpObjectiveCheck':54,'PlayerBotQuestLearningCheck':24,'PlayerBotVisionCheck':3740,'PlayerBotSuppliesCatalogCheck':45,
+ 'PlayerBotWardenExpansionCheck':377})
+# Where the suites above read their files from.
+GAME_SERVER_CWD={'PlayerBotHelpObjectiveCheck','PlayerBotQuestLearningCheck','PlayerBotVisionCheck'}
+ROOT_CWD={'PlayerBotDefenseCheck','PlayerBotEncounterCheck','PlayerBotEnemyUtilityCheck','PlayerBotHealingCheck','PlayerBotOffenseCheck','PlayerBotSkillsCheck','PlayerBotWardenExpansionCheck'}
 QUEST_TESTS['NativeKillObjectFamilyCheck']=490
 
 def reviewed_native_fixtures():
@@ -318,10 +333,14 @@ def main():
    suites[test]=dict(exitCode=0,count=count,result=conclusion,reportSha256=sha(report))
  tasks=[]
  for test,count in ((name,TESTS[name]) for name in a.only) if a.only else TESTS.items():
-  cwd=ROOT/'game-server' if test in {'PlayerBotBuildGearCheck','PlayerBotLoadoutCheck','PlayerBotEnhanceCheck'}|SERVICE_CHECKS else ROOT if test in {'PlayerBotWorldProgressCheck','PlayerBotAssassinCheck','PlayerBotGladiatorCheck','PlayerBotTemplarCheck','PlayerBotChanterCheck','PlayerBotClericCheck','PlayerBotSpiritmasterCheck','PlayerBotSorcererCheck',
+  cwd=ROOT/'game-server' if test in {'PlayerBotBuildGearCheck','PlayerBotLoadoutCheck','PlayerBotEnhanceCheck'}|SERVICE_CHECKS|GAME_SERVER_CWD else ROOT if test in ROOT_CWD|{'PlayerBotWorldProgressCheck','PlayerBotAssassinCheck','PlayerBotGladiatorCheck','PlayerBotTemplarCheck','PlayerBotChanterCheck','PlayerBotClericCheck','PlayerBotSpiritmasterCheck','PlayerBotSorcererCheck',
    'PlayerBotQuestCraftingCheck','PlayerBotQuestPrerequisitesCheck','PlayerBotNativeCraftingTaskCheck','PlayerBotNativeXmlQuestCheck'} else build/'checks'
   args=[str(ROOT/'game-server')] if test in {'PlayerBotInvisibleFloorCheck','PlayerBotSmoothTravelCheck','PlayerBotActivityChatCheck','PlayerBotRelocationTerrainCheck','PlayerBotProfessionDecisionCheck','PlayerBotProfessionQualificationCheck','PlayerBotIdentityCheck','PlayerBotBystandersCheck','PlayerBotCampSafetyCheck','PlayerBotLocalWorkCheck','PlayerBotDetailTierCheck','PlayerBotMarketUpgradesCheck','PlayerBotPvpCheck','PlayerBotHelpTrackingCheck','PlayerBotSleepMotionCheck','PlayerBotLeaningsCheck','PlayerBotDuelsCheck','PlayerBotBattlegroundCheck','PlayerBotSiegesCheck','PlayerBotBasesCheck','PlayerBotBattlegroundObjectivesCheck','PlayerBotRunBriefingCheck','InstanceDifficultyCheck','PlayerBotHelpJournalCheck','PlayerBotHelpKickCheck','PlayerBotDredgionCheck','PlayerBotHelpSlotsCheck','PlayerBotBattlegroundMapsCheck','PlayerBotArenasCheck','PlayerBotPartyRewardsCheck','PlayerBotFindGroupLoopholesCheck','PlayerBotPvpTacticsCheck','PlayerBotWardenVillagesCheck','PlayerBotPortraitCheck','PlayerBotProfessionCheck','QuestBonusPoolsCheck','PlayerBotRepositoryCheck','PlayerBotPlayerZoneCheck','PlayerBotAuditCoverageCheck','PlayerBotIdleCastingCheck','PlayerBotTravelFormationCheck','PlayerBotCombatGearCheck','PlayerBotTargetVisibilityCheck','PlayerBotStoryRewardIntentCheck','PlayerBotQuestTransformationCheck','PlayerBotQuestItemTargetCheck','PlayerBotNpcPatrolNativeSpawnCheck','PlayerBotNpcPatrolAdmissionCheck','PlayerBotNativeRouteYieldCheck','PlayerBotCapitalAreaCheck','PlayerBotConfigLocationCheck','PlayerBotCampDistributionCheck','PlayerBotNonCombatBuffCheck','PlayerBotTownPolicyCheck','PlayerBotSkillAdaptersCheck'} else []
-  tasks.append((test,count,['java','-Xverify:all','-cp',cp,'com.aionemu.gameserver.'+check_package(test).replace('/','.')+'.'+test,*args],cwd))
+  # The supplies catalogue reads static data; the Warden expansion suite checks with Java assertions and works in its own folder.
+  if test=='PlayerBotSuppliesCatalogCheck':args=[str(ROOT/'game-server/data/static_data')]
+  if test=='PlayerBotWardenExpansionCheck':args=[str(out/'warden-expansion-work')]
+  flags=['-ea'] if test=='PlayerBotWardenExpansionCheck' else []
+  tasks.append((test,count,['java','-Xverify:all',*flags,'-cp',cp,'com.aionemu.gameserver.'+check_package(test).replace('/','.')+'.'+test,*args],cwd))
  launch(tasks);phase('suites')
  def note_reruns():
   slowest=dict(sorted(seconds.items(),key=lambda item:-item[1])[:15])

@@ -21,6 +21,6 @@ public final class PlayerBotHeapGuardCheck {
   expect(PlayerBotHeapGuard.percent(2747L<<20,3924L<<20)==70,"The reporter's 3.9 GB heap pauses at about 2.7 GB");
   expect(PlayerBotHeapGuard.percent(1,0)==0 && PlayerBotHeapGuard.percent(-1,100)==0,"An unknown heap never pauses admissions");
   expect(PlayerBotHeapGuard.percent(200,100)==100,"Usage above the maximum is clamped");
-  System.out.println("PlayerBotHeapGuardCheck passed "+checks+" checks");
+  System.out.println("OK: "+checks+" heap guard checks");
  }
 }
