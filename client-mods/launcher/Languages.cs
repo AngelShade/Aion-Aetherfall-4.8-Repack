@@ -13,6 +13,7 @@ namespace Aetherfall {
  public sealed class LanguageState {
   public int Version=2; public string Text, Voice;
   public int RussianQuestDialogueRevision;
+  public int ChineseDialogueRevision;
   public int Strings, DialoguePages, FallbackStrings, FallbackPages;
   public List<string> SkippedDialogues=new List<string>();
   public Dictionary<string,LanguageStamp> Inputs=new Dictionary<string,LanguageStamp>();
@@ -30,9 +31,12 @@ namespace Aetherfall {
   public const string Folder="Mods/Languages", Locale="fra";
   const string Active="L10N/fra", LegacyActive="L10N/afl", English="L10N/enu/data/data.pak";
   const int RussianQuestDialogueRevision=1;
+  const int ChineseDialogueRevision=1;
   const string RussianQuestDialogueFont="af_rus_quest_dialogue";
   static readonly Regex QuestDialoguePath=new Regex(@"(?:^|/)quest_q[0-9]+\.html$",RegexOptions.IgnoreCase|RegexOptions.CultureInvariant);
   static readonly Regex DialogueParagraph=new Regex(@"(?is)(<p\b[^>]*>)([^<]*[^\s<][^<]*)(</p\s*>)");
+  static readonly Regex DialogueMarkup=new Regex(@"<(?:[^<>""']|""[^""]*""|'[^']*')*>");
+  static readonly Regex DialogueFormats=new Regex(@"\[%[^\]]+\]|%(?:[A-Za-z_]*\d+|[A-Za-z_]+)|%%|\\[nrt]");
   static readonly UTF8Encoding Utf8=new UTF8Encoding(false,true);
   static readonly JavaScriptSerializer Json=new JavaScriptSerializer { MaxJsonLength=64*1024*1024 };
   static string PathAt(string root,string relative) { return Path.Combine(root,relative.Replace('/',Path.DirectorySeparatorChar)); }
@@ -101,6 +105,7 @@ namespace Aetherfall {
   static bool Current(string root,LanguageState state,List<string> inputs,string packs) {
    if(state==null||state.Version!=2||state.Inputs.Count!=inputs.Count)return false;
    if(state.Text=="rus"&&state.RussianQuestDialogueRevision!=RussianQuestDialogueRevision)return false;
+   if(state.Text=="chs"&&state.ChineseDialogueRevision!=ChineseDialogueRevision)return false;
    foreach(string relative in inputs) { LanguageStamp stamp;if(!state.Inputs.TryGetValue(relative,out stamp)||!Same(stamp,Stamp(Source(root,packs,relative))))return false; }
    foreach(var item in state.Outputs)if(!File.Exists(PathAt(root,item.Key))||!Same(item.Value,Stamp(PathAt(root,item.Key))))return false;
    return true;
@@ -151,6 +156,12 @@ namespace Aetherfall {
   static string Commands(string text) {
    return String.Join("\n",Regex.Matches(text,"(?is)\\b(href|action|cmd|command|event)\\s*=\\s*([\"'])(.*?)\\2").Cast<Match>().Select(x=>x.Groups[1].Value.ToLowerInvariant()+"="+x.Groups[3].Value).OrderBy(x=>x,StringComparer.Ordinal));
   }
+  static bool SameDialogueMarkup(string original,string translated) {
+   return DialogueMarkup.Matches(original).Cast<Match>().Select(x=>x.Value)
+    .SequenceEqual(DialogueMarkup.Matches(translated).Cast<Match>().Select(x=>x.Value),StringComparer.Ordinal)
+    && DialogueFormats.Matches(original).Cast<Match>().Select(x=>x.Value).OrderBy(x=>x,StringComparer.Ordinal)
+    .SequenceEqual(DialogueFormats.Matches(translated).Cast<Match>().Select(x=>x.Value).OrderBy(x=>x,StringComparer.Ordinal),StringComparer.Ordinal);
+  }
   static byte[] Dialogue(byte[] current,byte[] translation,string name,LanguageState state) {
    try {
     string original=CustomQuests.DecodeHtml(current,name), native=CustomQuests.DecodeHtml(translation,name);
@@ -163,6 +174,11 @@ namespace Aetherfall {
     string result=pages.Replace(original,page=>{
      string id=Attribute(page.Groups[1].Value,"name"), other;
      if(id==null||!translatedPages.TryGetValue(id,out other)){state.FallbackPages++;return page.Value;}
+     // Matching markup also admits labels with no href, such as quest lists and NPC shop buttons.
+     if(state.Text=="chs"&&SameDialogueMarkup(page.Groups[2].Value,other)) {
+      if(contents.IsMatch(other))state.DialoguePages++;
+      return page.Groups[1].Value+other+page.Groups[3].Value;
+     }
      string body=contents.Replace(page.Groups[2].Value,content=>{
       Match translated=contents.Match(other);
       if(!translated.Success||Commands(content.Groups[2].Value)!=Commands(translated.Groups[2].Value)){state.FallbackPages++;return content.Value;}
@@ -251,6 +267,7 @@ namespace Aetherfall {
    try {
    LanguageState state=new LanguageState { Text=text,Voice=voice };
    if(text=="rus")state.RussianQuestDialogueRevision=RussianQuestDialogueRevision;
+   if(text=="chs")state.ChineseDialogueRevision=ChineseDialogueRevision;
    foreach(string relative in inputs)state.Inputs.Add(relative,Stamp(Source(root,packs,relative)));
    QuestPak english=new QuestPak(File.ReadAllBytes(PathAt(root,English)));var replacements=Translations(root,text,english,state,packs);
    Write(work,Active+"/data/data.pak",replacements.Count==0?File.ReadAllBytes(PathAt(root,English)):english.Build(replacements),state);

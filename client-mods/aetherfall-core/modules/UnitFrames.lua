@@ -68,8 +68,8 @@ local function announce(frame,on)
     local partyAfter=M:IsReplacing('party')
     if partyBefore~=partyAfter then AF:Send('UnitFramesChanged','party',partyAfter) end
 end
-local function hide(frame)
-    for _,object in pairs(frame.widgets or {}) do K.Hide(object) end
+local function hide(frame, verify)
+    for _,object in pairs(frame.widgets) do K.Hide(object, verify) end
     for _,name in ipairs(S.order) do
         local fn=S.elements[name].Disable
         if fn then fn(frame) end
@@ -114,7 +114,17 @@ local function release(frame)
         end
     end
     frame.capture,frame.nativeIdentity,frame.nativeDirty,frame.valueSignature,frame.rectIndex=nil,nil,nil,nil,nil
-    hide(frame);announce(frame,false)
+    hide(frame)
+    if frame.unit=='target' or frame.unit=='targettarget' then
+        -- Plugin visibility writes are queued. Check the real widgets after the
+        -- queue has had a turn, while the player and party keep the canvas open.
+        if frame.hideCheck then AF.Events:Cancel(frame.hideCheck) end
+        frame.hideCheck=M:After(2,function()
+            frame.hideCheck=nil
+            if not frame.owned then hide(frame,true) end
+        end)
+    end
+    announce(frame,false)
 end
 local function inspect(frame,d)
     if not d or d.name~=frame.native.layout or not d.instance or not AFCore.Widget or not AFCore.WidgetShown or not AFCore.Backdrop then return end
@@ -279,6 +289,7 @@ function M:Refresh()
     end
     local settled=AF:Call('Lifecycle','IsSettled')
     local any=false
+    local targetShown,targetValue
     for _,frame in ipairs(S.frames) do
         frame.settings=M.db[frame.group]
         local d=N.Dialog(frame.id)
@@ -298,7 +309,15 @@ function M:Refresh()
             else x,y,width,height,shown=d.x,d.y,d.w,d.h,d.shown end
         end
         local available=S.hudOn and frame.settings.enabled==1 and shown and N.Number(width) and N.Number(height) and width>0 and height>0
+        if frame.unit=='targettarget' and available then
+            local id=targetShown and N.Number(targetValue and targetValue.id or AFCore.Unit('target'))
+            available=id and id>0
+        end
         local value=available and values(frame) or nil
+        if frame.unit=='target' then
+            targetShown=d and d.shown and d.name==frame.native.layout
+            targetValue=value
+        end
         -- A native frame that could not be taken over is retried when the game rebuilds it,
         -- or every five seconds, not on every refresh.
         local tick=AF:Call('Lifecycle','Ticks') or 0

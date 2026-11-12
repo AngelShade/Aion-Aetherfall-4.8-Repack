@@ -68,12 +68,12 @@ end
 -- For a control whose own placement and visibility stay with its module (the mover boxes):
 -- tell the skin where it is, and hide only its border lines.
 function S.Remember(object, x, y, width, height) if object then rects[object] = {x, y, width, height} end end
-function S.HideEdges(object)
+function S.HideEdges(object, verify)
     local found = object and edges(object)
     if found then
         for _, line in pairs(found) do
             local state = cache[line] or {}; cache[line] = state
-            if state.shown ~= false then line:Hide(); state.shown = false end
+            if state.shown ~= false or (verify and line:IsVisible() == 1) then line:Hide(); state.shown = false end
         end
     end
 end
@@ -101,16 +101,10 @@ function S.Enable(object, on)
 end
 -- An edit box changes under the player's hands, so its text is never assumed.
 function S.Forget(object) if object then texts[object] = nil end end
-function S.Hide(object)
+function S.Hide(object, verify)
     if not object then return end
-    if shown[object] ~= false then object:Hide(); shown[object] = false end
-    local found = edges(object)
-    if found then
-        for _, line in pairs(found) do
-            local state = cache[line] or {}; cache[line] = state
-            if state.shown ~= false then line:Hide(); state.shown = false end
-        end
-    end
+    if shown[object] ~= false or (verify and object:IsVisible() == 1) then object:Hide(); shown[object] = false end
+    S.HideEdges(object, verify)
 end
 function S.Border(object, width, height, token)
     local found, rect = edges(object), rects[object]

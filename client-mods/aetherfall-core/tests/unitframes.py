@@ -35,6 +35,7 @@ class UnitFrameRuntime(Runtime):
     def __init__(self, client, recorder, **kwargs):
         self.frame_units = {}
         self.native_types = {}
+        self.drop_target_hides = False
         self.dp = (1200, 4000)
         super().__init__(client, recorder, current_resources=True, **kwargs)
         # Use the stock function's real public shape. Lua wrappers retain Lua
@@ -61,6 +62,10 @@ class UnitFrameRuntime(Runtime):
         return row[field] if row else None
 
     def widget(self, api, *args):
+        if (self.drop_target_hides and api == 'SetWidgetVisible' and args[2] == 0
+                and str(args[1]).startswith('AFHFTarget')):
+            self.r.write('widget-dropped', api, args)
+            return None
         result = super().widget(api, *args)
         if len(args) > 1 and api != 'AddNewWidget':
             state, values = self.widgets[str(args[1])], args[2:]
@@ -394,6 +399,28 @@ def scenarios(t):
     t.event('USER_CHANGED_TARGET'); t.ticks(5)
     assert not visible(t, 'target') and not visible(t, 'targettarget')
     t.frame_units.update(target=target, targettarget=assist)
+    t.event('USER_CHANGED_TARGET'); t.ticks(5)
+    assert visible(t, 'target') and visible(t, 'targettarget')
+
+    t.mark('unitframes-clear-with-unapplied-widget-hides')
+    t.frame_units.pop('target')
+    t.frame_units.pop('targettarget')
+    t.drop_target_hides = True
+    t.event('USER_CHANGED_TARGET')
+    t.drop_target_hides = False
+    t.ticks(5)
+    assert not any(state['visible'] for name, state in t.widgets.items()
+                   if name.startswith('AFHFTarget')), 'target artwork survived a cleared selection'
+    assert visible(t, 'player') and visible(t, 'party1')
+    t.frame_units.update(target=target, targettarget=assist)
+    t.event('USER_CHANGED_TARGET'); t.ticks(5)
+    assert visible(t, 'target') and visible(t, 'targettarget')
+
+    t.mark('unitframes-stale-assist-record-without-a-primary-selection')
+    t.frame_units.pop('target')
+    t.event('USER_CHANGED_TARGET'); t.ticks(5)
+    assert not visible(t, 'target') and not visible(t, 'targettarget')
+    t.frame_units['target'] = target
     t.event('USER_CHANGED_TARGET'); t.ticks(5)
     assert visible(t, 'target') and visible(t, 'targettarget')
 

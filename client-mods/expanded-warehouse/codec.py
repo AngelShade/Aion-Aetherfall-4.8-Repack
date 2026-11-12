@@ -80,10 +80,10 @@ def binary_xml(payload):
             return ""
         start = index * 2
         end = string_data.find(b"\x00\x00", start)
+        while end != -1 and end % 2:
+            end = string_data.find(b"\x00\x00", end + 1)
         if end < 0:
             raise ValueError("Unterminated string")
-        if (end - start) & 1:
-            end += 1
         return string_data[start:end].decode("utf-16le")
 
     def node(pos):

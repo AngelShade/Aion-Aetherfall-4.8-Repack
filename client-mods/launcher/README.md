@@ -121,6 +121,14 @@ native dialogues, font faces and font definitions. It excludes foreign server
 branding, URLs, regional settings, layouts and custom override archives. String
 format-token mismatches retain English. The runtime merges font faces into current
 styles, preserving sizes, colours, custom definitions and native glyph policy.
+
+The Aetherfall Simplified Chinese text sources live in `chs/`. After preparing a
+base `chs` text pack, run `localize_chinese_pack.py --client <original-client>
+--source <prepared-chinese-data.pak> --output <fresh-external-directory>` to add
+the custom strings and quest dialogue. The overlay checks each translation
+against the current English source, preserves dialogue controls and keeps the
+other compressed PAK entries intact. The launcher composes the resulting pack
+when Simplified Chinese is selected for the next Play.
 Because the English sizes are tuned for Vera, `NATIVE_FACE_OVERRIDES` swaps donor
 faces that draw smaller: Russian uses the bundled DejaVu Sans (Vera's metrics plus
 Cyrillic, `assets/fonts`, free licence beside it) instead of Calibri/Myriad, and

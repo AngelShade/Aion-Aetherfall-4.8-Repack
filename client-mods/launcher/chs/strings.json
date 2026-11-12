@@ -1,0 +1,541 @@
+{
+  "strings/client_strings_bm.xml": {
+    "STR_F2P_PACK_PACK_1": {
+      "english": "Shugo Trade Charter",
+      "chinese": "术古贸易特许状",
+      "id": "1752001"
+    },
+    "STR_F2P_PACK_PACK_1_DESC": {
+      "english": "<font color=\"#a6d9ff\">Shugo Trade Charter</font><br><br>Requirement: Season Pass Premium, purchased with Kinah.<br>Duration: Until the season ends.<br><br>Benefits<br>+30% XP from hunting, groups, quests, gathering and crafting.<br>+30% gathering and crafting skill XP.<br>Central Market: receive 84.5% of each sale instead of 65%.<br>Wardrobe: unlock appearances without a ticket.",
+      "chinese": "<font color=\"#a6d9ff\">术古贸易特许状</font><br><br>获取条件：使用基纳购买赛季通行证高级版。<br>有效期：截至本赛季结束。<br><br>增益效果<br>狩猎、组队、任务、采集和制作获得的经验值 +30%。<br>采集和制作技能经验值 +30%。<br>中央市场：每笔成交可获得售价的 84.5%，原为 65%。<br>衣柜：无需解锁券即可解锁外观。",
+      "id": "1752013"
+    },
+    "STR_F2P_PACK_PACK_2": {
+      "english": "Grace of the Tower",
+      "chinese": "高塔恩泽",
+      "id": "1752002"
+    },
+    "STR_F2P_PACK_PACK_2_DESC": {
+      "english": "<font color=\"#a6d9ff\">Grace of the Tower</font><br><br>Requirement: Season Pass Advanced Premium.<br>Duration: Until the season ends.<br><br>Benefits<br>+20% item drops.<br>Energy of Repose: full refill after 24 hours offline instead of 48.<br>Central Market warehouse: +2,000 VT capacity.",
+      "chinese": "<font color=\"#a6d9ff\">高塔恩泽</font><br><br>获取条件：获得赛季通行证进阶高级版。<br>有效期：截至本赛季结束。<br><br>增益效果<br>物品掉落率 +20%。<br>休息之气息：离线回满所需时间由 48 小时缩短至 24 小时。<br>中央市场仓库容量 +2,000 VT。",
+      "id": "1752014"
+    },
+    "STR_F2P_PACK_PACK_3": {
+      "english": "Aetherfall Renown",
+      "chinese": "Aetherfall 声望",
+      "id": "1752003"
+    },
+    "STR_F2P_PACK_PACK_3_DESC": {
+      "english": "<font color=\"#a6d9ff\">Aetherfall Renown</font><br><br>Account Fame is shared by your characters. Open Account Window to see your current points and reward steps.<br><br>Earning Fame<br>Combat: character levels from level 10. Levels 55+ count double; level 65 counts five times.<br>Life: gathering and crafting skills from 100; one Fame per five skill points.<br>Legend: one Fame per ten completed quests, plus five per title.<br><br>Daily Kinah mail<br>100 Kinah per Fame point, with separate daily limits:<br>Combat: 500,000 Kinah. Life: 250,000. Legend: 250,000.<br><br>Combat Fame rewards: bonus Abyss Points<br>200 Fame: +10%. 500: +20%. 1,000: +30%.<br>2,000 Fame: +40%. 3,000: +50%.<br><br>Life Fame rewards: crafting / gathering skill XP<br>50 Fame: +50% / +0%.<br>100 Fame: +100% / +100%.<br>200 Fame: +200% / +100%.<br>400 Fame: +300% / +200%.<br>800 Fame: +500% / +200%.<br><br>Legend Fame rewards: Energy of Repose XP bonus<br>50 Fame: 50%. 100: 60%. 200: 70%.<br>300 Fame: 80%. 400: 100%.<br><br>Total Fame rewards<br>1,000 Fame: Central Market sales return 5% more.<br>2,500 Fame: +10% item drops.",
+      "chinese": "<font color=\"#a6d9ff\">Aetherfall 声望</font><br><br>账号下的角色共享名望。打开账号面板，可查看当前点数和各档奖励。<br><br>如何获得名望<br>战斗：从角色 10 级开始计算。55 级起按双倍计算，65 级按五倍计算。<br>生活：采集和制作技能从 100 点开始计算，每 5 点技能点获得 1 点名望。<br>传奇：每完成 10 个任务获得 1 点名望，每获得一个称号额外获得 5 点。<br><br>每日基纳邮件<br>每点名望发放 100 基纳，各类名望的每日上限分别为：<br>战斗 500,000 基纳，生活 250,000 基纳，传奇 250,000 基纳。<br><br>战斗名望奖励：额外欧比斯点数<br>200 点：+10%。500 点：+20%。1,000 点：+30%。<br>2,000 点：+40%。3,000 点：+50%。<br><br>生活名望奖励：制作／采集技能经验值<br>50 点：+50%／+0%。<br>100 点：+100%／+100%。<br>200 点：+200%／+100%。<br>400 点：+300%／+200%。<br>800 点：+500%／+200%。<br><br>传奇名望奖励：休息之气息经验值加成<br>50 点：50%。100 点：60%。200 点：70%。<br>300 点：80%。400 点：100%。<br><br>总名望奖励<br>1,000 点：中央市场成交所得增加 5%。<br>2,500 点：物品掉落率 +10%。",
+      "id": "1752015"
+    },
+    "STR_F2P_PACK_PACK_4": {
+      "english": "Chronicle of Atreia",
+      "chinese": "亚特雷亚编年史",
+      "id": "1752004"
+    },
+    "STR_F2P_PACK_PACK_4_DESC": {
+      "english": "<font color=\"#a6d9ff\">Chronicle of Atreia</font><br><br>Permanent account bonuses earned through story and quest progress on any character.<br><br>Chapters<br>Complete the Ascension ceremony.<br>Enter the Abyss.<br>Complete The Unfinished Entry.<br>Complete 300 quests.<br>Complete 800 quests.<br><br>Benefits for each chapter<br>+3% maximum HP and MP.<br>+2% physical attack.<br>+20 magic boost.<br>+3% physical defence.<br>+10 magic resist.",
+      "chinese": "<font color=\"#a6d9ff\">亚特雷亚编年史</font><br><br>账号下任一角色推进剧情和任务，均可获得永久账号增益。<br><br>章节<br>完成守护者仪式。<br>进入欧比斯。<br>完成《未完的记录》。<br>完成 300 个任务。<br>完成 800 个任务。<br><br>每章奖励<br>最大生命力和精神力 +3%。<br>物理攻击力 +2%。<br>魔法增幅力 +20。<br>物理防御力 +3%。<br>魔法抵抗 +10。",
+      "id": "1752016"
+    },
+    "STR_F2P_PACK_PACK_5": {
+      "english": "Daeva Veteran's Coffer",
+      "chinese": "资深守护者宝箱",
+      "id": "1752005"
+    },
+    "STR_F2P_PACK_PACK_5_DESC": {
+      "english": "<font color=\"#a6d9ff\">Daeva Veteran's Coffer</font><br><br>Requirement: A level 65 Daeva on your account.<br><br>Receive a coffer by mail for every month of account age.<br>Rewards include expansion tickets, enchantment stones, crafting charms, mounts and more.<br>The timer shows when the next coffer is due.",
+      "chinese": "<font color=\"#a6d9ff\">资深守护者宝箱</font><br><br>获取条件：账号下有一名 65 级守护者。<br><br>账号每满一个月，便会通过邮件收到一个宝箱。<br>奖励包括扩展券、强化石、制作护符、坐骑等。<br>计时器显示下一个宝箱的发放时间。",
+      "id": "1752017"
+    },
+    "STR_F2P_ACCOUNT_FULLSUBSCRIPTION": {
+      "english": "Aetherfall Daeva",
+      "chinese": "Aetherfall 守护者",
+      "id": "1753001"
+    },
+    "STR_F2P_ACCOUNT_TRIAL": {
+      "english": "Aetherfall Daeva",
+      "chinese": "Aetherfall 守护者",
+      "id": "1753002"
+    },
+    "STR_F2P_ACCOUNT_FREE": {
+      "english": "Aetherfall Daeva",
+      "chinese": "Aetherfall 守护者",
+      "id": "1753003"
+    },
+    "STR_F2P_ACCOUNT_BRONZE": {
+      "english": "Aetherfall Daeva",
+      "chinese": "Aetherfall 守护者",
+      "id": "1753004"
+    },
+    "STR_F2P_ACCOUNT_SILVER": {
+      "english": "Aetherfall Daeva",
+      "chinese": "Aetherfall 守护者",
+      "id": "1753005"
+    }
+  },
+  "strings/client_strings_dic_people.xml": {
+    "STR_DIC_N_Spatalos": {
+      "id": "1040650",
+      "english": "Spatalos;The Brigade General of [%dic:STR_DIC_FLA09]. He lost his wife and son in the Krall War, and has become correspondingly ruthless in his pursuit of victory.",
+      "chinese": "斯帕塔洛斯;[%dic:STR_DIC_FLA09]的军团长。他的妻儿在克拉尔战争中丧生，此后他为求胜利变得愈发冷酷。"
+    },
+    "STR_DIC_N_Gano": {
+      "id": "1040676",
+      "english": "Gano;He gathers herbs near [%dic:STR_DIC_FLA24]. He used to live in [%dic:STR_DIC_FLA27] but moved to [%dic:STR_DIC_FLA10] after he became homesickness. He likes children, and often takes care of Perinens' kids, Serin and Polor.",
+      "chinese": "加诺;他在[%dic:STR_DIC_FLA24]附近采集药草。原先住在[%dic:STR_DIC_FLA27]，后来因为想家搬到了[%dic:STR_DIC_FLA10]。他喜欢孩子，经常照看佩里内斯家的塞林和波洛。"
+    },
+    "STR_DIC_N_Gogohas": {
+      "id": "1040705",
+      "english": "Geolus;An Ecologist at the [%dic:STR_DIC_FLA15] in Verteron. He is researching the contamination of the forest, along with his assistant [%dic:STR_DIC_LA160].",
+      "chinese": "古古哈斯;在贝尔特伦的[%dic:STR_DIC_FLA15]工作的生态学家，正与助手[%dic:STR_DIC_LA160]一同调查森林受污染的原因。"
+    }
+  },
+  "strings/client_strings_etc.xml": {
+    "STR_AETHERFALL_PROTECTORS_HALL": {
+      "english": "Protectors Hall",
+      "chinese": "守护者殿堂",
+      "id": "990180002"
+    }
+  },
+  "strings/client_strings_item.xml": {
+    "STR_WARDROBE_APPEARANCE_UNLOCK": {
+      "english": "Appearance Unlock",
+      "chinese": "外观解锁券",
+      "id": "9901001"
+    },
+    "STR_WARDROBE_APPEARANCE_UNLOCK_DESC": {
+      "english": "Unlocks one equipment appearance for your account in Wardrobe. Keeps the equipment. Unlocked skins can be applied without another material.",
+      "chinese": "在衣柜中为整个账号解锁一款装备外观，原装备会保留。应用已解锁的外观无需额外材料。",
+      "id": "9901002"
+    },
+    "STR_WARDROBE_AETHER_PALETTE": {
+      "english": "Aether Palette",
+      "chinese": "奥德调色盘",
+      "id": "9901003"
+    },
+    "STR_WARDROBE_AETHER_PALETTE_DESC": {
+      "english": "Opens every dye color in the Wardrobe palette for your whole account. Open Wardrobe, choose Dyes, then Unlock Palette. Palette dyes are free and unlimited.",
+      "chinese": "为整个账号解锁衣柜调色盘中的全部染色颜色。打开衣柜，选择“染色”，再点击“解锁调色盘”。调色盘中的颜色可免费染色，次数不限。",
+      "id": "9901004"
+    },
+    "STR_QUEST_14983A": {
+      "english": "Copied Seal Impression",
+      "chinese": "拓印的印章蜡模",
+      "id": "9901498"
+    },
+    "STR_QUEST_14983A_DESC": {
+      "english": "A crude wax impression recovered from the stolen Tolbas goods. A nick in its rim may reveal how the false escort orders were made. Bring it to Santenius in Tolbas Village.",
+      "chinese": "从托尔巴斯的失窃物品中找回的粗糙蜡模。边缘的一处缺口或许能揭示假护送令的来历。请把它交给托尔巴斯村的山特尼乌斯。",
+      "id": "9901499"
+    },
+    "STR_QUEST_14987A": {
+      "english": "Residue-Coated Swamp Root",
+      "chinese": "沾有残渣的沼泽根须",
+      "id": "9901500"
+    },
+    "STR_QUEST_14987A_DESC": {
+      "english": "A damaged swamp root coated with loose, pale grit. Bring this sample to Lepios so he can distinguish the cargo residue from the swamp's existing contamination.",
+      "chinese": "一截受损的沼泽根须，表面附有松散的浅色砂砾。请将样本交给莱费奥斯，以便辨别货物残渣与沼泽原有的污染。",
+      "id": "9901501"
+    },
+    "STR_QUEST_14988A": {
+      "english": "Roadside Grit Sample",
+      "chinese": "路边砂砾样本",
+      "id": "9901502"
+    },
+    "STR_QUEST_14988A_DESC": {
+      "english": "Loose pale grit recovered beside an intact Mysterious Stone. Show it to Meliodas and bring it to Ibion at Pilgrims Respite.",
+      "chinese": "在一块完好的神秘石旁采集的松散浅色砂砾。先给梅里奥达斯看看，再带给巡礼者休息处的伊比温。",
+      "id": "9901503"
+    },
+    "STR_QUEST_14990A": {
+      "english": "Marked Supply Packet",
+      "chinese": "带标记的补给包",
+      "id": "9901504"
+    },
+    "STR_QUEST_14990A_DESC": {
+      "english": "A cargo packet bearing three cut marks, repacked among Krall supplies. Bring it to Meteina as evidence of the transfer point.",
+      "chinese": "一包带有三道刻痕的货物，被重新包好后混在克拉尔的补给中。请把它交给梅泰娜，作为货物在此交接的证据。",
+      "id": "9901505"
+    },
+    "STR_QUEST_14992A": {
+      "english": "Timed Shipment Packet",
+      "chinese": "定时交付的货包",
+      "id": "9901506"
+    },
+    "STR_QUEST_14992A_DESC": {
+      "english": "A dust-stiffened packet carrying cargo marks and watch-change delivery instructions. Bring it to Une on Cantas Coast.",
+      "chinese": "包裹被积尘结得发硬，上面有货物标记和要求在换岗时交货的指示。请将它带给坎塔斯海岸的乌内。",
+      "id": "9901507"
+    }
+  },
+  "strings/client_strings_npc.xml": {
+    "STR_AETHERFALL_PROTECTORS_HALL_STATUE": {
+      "english": "Protectors Hall Teleport Statue",
+      "chinese": "守护者殿堂传送雕像",
+      "id": "990180001"
+    },
+    "STR_LDF5b_Dv8_Exchange_Cera": {
+      "english": "Inharet",
+      "chinese": "因哈雷特",
+      "id": "373113"
+    },
+    "STR_LDF5b_Lv8_Exchange_Cera": {
+      "english": "Bekasis",
+      "chinese": "贝卡希斯",
+      "id": "373114"
+    }
+  },
+  "strings/client_strings_quest.xml": {
+    "STR_QUEST_NAME_Q3999": {
+      "id": "1801364",
+      "english": "The Unfinished Entry",
+      "chinese": "未完的记录"
+    },
+    "STR_QUEST_NAME_Q14980": {
+      "id": "1801365",
+      "english": "The Letter Left Open",
+      "chinese": "未封口的信"
+    },
+    "STR_QUEST_NAME_Q14981": {
+      "id": "1801366",
+      "english": "Weight Beneath the Sacks",
+      "chinese": "麻袋下的重物"
+    },
+    "STR_QUEST_NAME_Q14982": {
+      "id": "1801367",
+      "english": "Between the Knife Marks",
+      "chinese": "刀痕之间"
+    },
+    "STR_QUEST_NAME_Q14983": {
+      "id": "1801368",
+      "english": "An Honest Seal",
+      "chinese": "真假印章"
+    },
+    "STR_QUEST_NAME_Q14984": {
+      "id": "1801369",
+      "english": "The Ore Road",
+      "chinese": "运矿之路"
+    },
+    "STR_QUEST_NAME_Q14985": {
+      "id": "1801370",
+      "english": "The False Alarm",
+      "chinese": "假警报"
+    },
+    "STR_QUEST_NAME_Q14986": {
+      "id": "1801371",
+      "english": "People Behind the Diversion",
+      "chinese": "被牵连的百姓"
+    },
+    "STR_QUEST_NAME_Q14987": {
+      "id": "1801372",
+      "english": "What the Water Carries",
+      "chinese": "水流带来的线索"
+    },
+    "STR_QUEST_NAME_Q14988": {
+      "id": "1801373",
+      "english": "A Stone Out of Place",
+      "chinese": "异样的石头"
+    },
+    "STR_QUEST_NAME_Q14989": {
+      "id": "1801374",
+      "english": "The Pilgrims' Road",
+      "chinese": "巡礼者之路"
+    },
+    "STR_QUEST_NAME_Q14990": {
+      "id": "1801375",
+      "english": "Behind the Tursin Lines",
+      "chinese": "深入图尔辛防线"
+    },
+    "STR_QUEST_NAME_Q14991": {
+      "id": "1801376",
+      "english": "The Cold Furnace",
+      "chinese": "冷却的熔炉"
+    },
+    "STR_QUEST_NAME_Q14992": {
+      "id": "1801377",
+      "english": "Cargo Without a Consignee",
+      "chinese": "无人认领的货物"
+    },
+    "STR_QUEST_NAME_Q14993": {
+      "id": "1801378",
+      "english": "The Captain's Last Order",
+      "chinese": "船长的最后一道命令"
+    },
+    "STR_QUEST_NAME_Q14994": {
+      "id": "1801379",
+      "english": "Before the Watch Changes",
+      "chinese": "换岗之前"
+    },
+    "STR_QUEST_NAME_Q14995": {
+      "id": "1801380",
+      "english": "The Unbroken Field",
+      "chinese": "结界犹在"
+    },
+    "STR_QUEST_NAME_Q14996": {
+      "id": "1801381",
+      "english": "Help Request",
+      "chinese": "求助请求"
+    },
+    "STR_AETHERFALL_HELP_PROGRESS": {
+      "id": "1801382",
+      "english": "Join the requesting companion through Find Group. Confirmed objectives appear here.",
+      "chinese": "通过「寻找队伍」加入发出求助的伙伴。确认后的目标会显示在这里。"
+    },
+    "STR_QUEST_NAME_Q14997": {
+      "id": "1801383",
+      "english": "Daily Road Bounty",
+      "chinese": "每日沿途悬赏"
+    },
+    "STR_AETHERFALL_ROAD_BOUNTY_PROGRESS": {
+      "id": "1801384",
+      "english": "Defeat 15 XP-eligible monsters on the road where you accepted the bounty.",
+      "chinese": "在接取悬赏的路线沿途，击败 15 只可提供经验值的怪物。"
+    },
+    "STR_QUEST_NAME_Q14998": {
+      "id": "1801385",
+      "english": "Help Request",
+      "chinese": "求助请求"
+    },
+    "STR_AETHERFALL_HELP_PROGRESS_2": {
+      "id": "1801386",
+      "english": "Join the requesting companion through Find Group. Confirmed objectives appear here.",
+      "chinese": "通过「寻找队伍」加入发出求助的伙伴。确认后的目标会显示在这里。"
+    },
+    "STR_QUEST_NAME_Q14999": {
+      "id": "1801387",
+      "english": "Help Request",
+      "chinese": "求助请求"
+    },
+    "STR_AETHERFALL_HELP_PROGRESS_3": {
+      "id": "1801388",
+      "english": "Join the requesting companion through Find Group. Confirmed objectives appear here.",
+      "chinese": "通过「寻找队伍」加入发出求助的伙伴。确认后的目标会显示在这里。"
+    }
+  },
+  "strings/client_strings_ui.xml": {
+    "STR_PRIVATE_CENTRAL_MARKET_HUD": {
+      "id": "990100001",
+      "english": "Central Market",
+      "chinese": "中央市场"
+    },
+    "STR_PRIVATE_SEASON_PASS_HUD": {
+      "id": "990100002",
+      "english": "Aetherfall Season Pass",
+      "chinese": "Aetherfall 赛季通行证"
+    },
+    "STR_PRIVATE_REMEMBER_LOGIN": {
+      "id": "990100010",
+      "english": "Remember Account & Password",
+      "chinese": "记住账号和密码"
+    },
+    "STR_PRIVATE_COMPANION_MENU_HUD": {
+      "id": "990100003",
+      "english": "Player Companions",
+      "chinese": "冒险伙伴"
+    },
+    "STR_PRIVATE_JOURNEY_MENU_HUD": {
+      "id": "990100004",
+      "english": "Choose Your Journey",
+      "chinese": "选择你的旅程"
+    },
+    "STR_PRIVATE_AETHERFALL_PANEL_TITLE": {
+      "id": "990100101",
+      "english": "AION AETHERFALL",
+      "chinese": "永恒之塔 · Aetherfall"
+    },
+    "STR_PRIVATE_AETHERFALL_PANEL_SUBTITLE": {
+      "id": "990100102",
+      "english": "TWO PEOPLES. ONE ATREIA.",
+      "chinese": "天魔两族，同在亚特雷亚"
+    },
+    "STR_PRIVATE_AETHERFALL_PANEL_INVITATION": {
+      "id": "990100103",
+      "english": "YOUR ADVENTURE STARTS HERE",
+      "chinese": "冒险从这里开始"
+    },
+    "STR_PRIVATE_AETHERFALL_HEADING_0": {
+      "id": "990100104",
+      "english": "COMPANIONS",
+      "chinese": "冒险伙伴"
+    },
+    "STR_PRIVATE_AETHERFALL_BODY_0": {
+      "id": "990100105",
+      "english": "Build your party. Recruit companions and choose how they fight beside you.",
+      "chinese": "招募伙伴，组建队伍，并为他们安排战斗分工。"
+    },
+    "STR_PRIVATE_AETHERFALL_HEADING_1": {
+      "id": "990100106",
+      "english": "CHOOSE YOUR JOURNEY",
+      "chinese": "选择你的旅程"
+    },
+    "STR_PRIVATE_AETHERFALL_BODY_1": {
+      "id": "990100107",
+      "english": "Discover Poeta or Ishalgen, follow their stories, and explore the world beyond.",
+      "chinese": "从普埃塔或伊斯夏尔肯出发，沿着各自的故事探索更广阔的世界。"
+    },
+    "STR_PRIVATE_AETHERFALL_HEADING_2": {
+      "id": "990100108",
+      "english": "DUNGEONS & DISCOVERY",
+      "chinese": "副本与探索"
+    },
+    "STR_PRIVATE_AETHERFALL_BODY_2": {
+      "id": "990100109",
+      "english": "Gather your allies, face challenging encounters, and discover the mysteries of Atreia.",
+      "chinese": "召集伙伴，挑战强敌，揭开亚特雷亚的秘密。"
+    },
+    "STR_PRIVATE_AETHERFALL_PANEL_FOOTER": {
+      "id": "990100110",
+      "english": "Spread your wings, Daeva.",
+      "chinese": "守护者，展翅启程吧。"
+    },
+    "STR_PRIVATE_WARDROBE_HUD": {
+      "id": "990100005",
+      "english": "Wardrobe",
+      "chinese": "衣柜"
+    },
+    "STR_AETHERFALL_LOOT_GREED": {
+      "id": "990100020",
+      "english": "Greed",
+      "chinese": "贪婪"
+    },
+    "STR_AETHERFALL_LOOT_NEED_HELP": {
+      "id": "990100021",
+      "english": "Need: roll for an item your character can use. Need rolls take priority over Greed.",
+      "chinese": "需求：为当前角色能使用的物品掷骰。选择需求的玩家优先获得物品。"
+    },
+    "STR_AETHERFALL_LOOT_GREED_HELP": {
+      "id": "990100022",
+      "english": "Greed: roll if nobody needs this item.",
+      "chinese": "贪婪：无人选择需求时，参与掷骰。"
+    },
+    "STR_AETHERFALL_LOOT_PASS_HELP": {
+      "id": "990100023",
+      "english": "Pass: leave this item for the other eligible players.",
+      "chinese": "放弃：将物品留给其他有拾取资格的玩家。"
+    },
+    "STR_AETHERFALL_STIGMA_PROFILE_UPGRADE": {
+      "id": "990100040",
+      "english": "Upgrade",
+      "chinese": "强化"
+    },
+    "STR_AETHERFALL_STIGMA_PROFILE_UPGRADE_HELP": {
+      "id": "990100041",
+      "english": "Open Stigma Upgrade",
+      "chinese": "打开烙印强化界面"
+    },
+    "STR_AETHERFALL_ACCOUNT_WINDOW": {
+      "id": "990100060",
+      "english": "Account Window",
+      "chinese": "账号面板"
+    },
+    "STR_AETHERFALL_ACCOUNT_WINDOW_HELP": {
+      "id": "990100061",
+      "english": "Open your Aetherfall Account: boons, renown and characters",
+      "chinese": "查看 Aetherfall 账号的增益、名望和角色。"
+    },
+    "STR_AETHERFALL_ACCOUNT_DETAILS": {
+      "id": "990100062",
+      "english": "Select an account boon to read its details.",
+      "chinese": "选择一项账号增益查看详情。"
+    },
+    "STR_AETHERFALL_ACCOUNT_ACTIVE_BOONS": {
+      "id": "990100063",
+      "english": "Active boons",
+      "chinese": "生效中的增益"
+    },
+    "STR_AETHERFALL_ACCOUNT_BOON_DETAILS": {
+      "id": "990100064",
+      "english": "Boon details",
+      "chinese": "增益详情"
+    },
+    "STR_AETHERFALL_CODEX": {
+      "id": "990100200",
+      "english": "Codex",
+      "chinese": "图鉴"
+    },
+    "STR_AETHERFALL_CODEX_MAP_HELP": {
+      "id": "990100201",
+      "english": "Codex: search items and creatures beside the map; select a spawn area to show it on the map",
+      "chinese": "在地图旁的图鉴中搜索物品或怪物。选择一处出没区域即可在地图上标出。"
+    },
+    "STR_AETHERFALL_CODEX_TARGET_HELP": {
+      "id": "990100202",
+      "english": "Codex: this creature's loot and spawn areas",
+      "chinese": "在图鉴中查看该怪物的掉落物和出没区域。"
+    },
+    "STR_AETHERFALL_HIRE_DETAILS": {
+      "id": "990100300",
+      "english": "Hire details",
+      "chinese": "雇佣详情"
+    },
+    "STR_AETHERFALL_HIRE_TERM_1": {
+      "id": "990100301",
+      "english": "Invite or Apply shows the price and term before Yes.",
+      "chinese": "点击「邀请」或「申请」后，先查看费用和雇佣时长，再确认。"
+    },
+    "STR_AETHERFALL_HIRE_TERM_2": {
+      "id": "990100302",
+      "english": "One payment in Kinah to this helper.",
+      "chinese": "以基纳一次性向这位帮手支付雇佣费。"
+    },
+    "STR_AETHERFALL_HIRE_TERM_3": {
+      "id": "990100303",
+      "english": "The term starts on joining and does not renew.",
+      "chinese": "帮手加入队伍时开始计时，到期后不会自动续约。"
+    },
+    "STR_AETHERFALL_HIRE_TERM_4": {
+      "id": "990100304",
+      "english": "Disconnecting, dismissal or leaving the party ends it.",
+      "chinese": "断线、解雇或离队都会结束雇佣。"
+    },
+    "STR_AETHERFALL_HIRE_TERM_5": {
+      "id": "990100305",
+      "english": "There is no refund after the helper joins.",
+      "chinese": "帮手加入队伍后，雇佣费不予退还。"
+    },
+    "STR_AETHERFALL_HIRE_TERM_6": {
+      "id": "990100306",
+      "english": "Choosing No, expiry or a failed join costs nothing.",
+      "chinese": "取消、邀请超时或加入失败均不扣费。"
+    },
+    "STR_AETHERFALL_HIRE_TERM_7": {
+      "id": "990100307",
+      "english": "The helper keeps its own items and earnings.",
+      "chinese": "帮手保留自己的物品和收益。"
+    },
+    "STR_AETHERFALL_HIRE_BEFORE": {
+      "id": "990100308",
+      "english": "Before you hire",
+      "chinese": "雇佣前"
+    },
+    "STR_AETHERFALL_HIRE_ENDING": {
+      "id": "990100309",
+      "english": "When it ends",
+      "chinese": "雇佣结束"
+    },
+    "STR_AETHERFALL_HELP_REQUESTS": {
+      "id": "990100310",
+      "english": "Help requests",
+      "chinese": "求助请求"
+    },
+    "STR_AETHERFALL_HELP_JOURNAL_LOCATION": {
+      "id": "990100400",
+      "english": "Show location",
+      "chinese": "显示位置"
+    },
+    "STR_AETHERFALL_HELP_JOURNAL_TRACK": {
+      "id": "990100401",
+      "english": "Track",
+      "chinese": "追踪"
+    },
+    "STR_AETHERFALL_HELP_JOURNAL_CLAIM": {
+      "id": "990100402",
+      "english": "Collect reward",
+      "chinese": "领取奖励"
+    }
+  }
+}
