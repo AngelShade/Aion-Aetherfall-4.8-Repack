@@ -36,6 +36,9 @@ final class PlayerBotPvp {
    && bot.isEnemy(target) && bot.canSee(target) && bot.getKnownList().sees(target)
    && !(target.getMaster() instanceof Player p && p.isUsingFlightTransporterOrWindstream());
  }
+ private boolean dredgion(Player bot) {
+  return PlayerBotDredgion.enabled() && PlayerBotDredgion.aboard(bot);
+ }
  private static boolean recent(Creature ally,Creature enemy,long now) {
   return ally.getAggroList().stream().anyMatch(a->a.getHate()>0 && now-a.getLastInteractionTime()<12000
    && (a.getAttacker()==enemy || a.getAttacker().getMaster()==enemy.getMaster()));
@@ -51,6 +54,7 @@ final class PlayerBotPvp {
   if(order==Order.PASSIVE || !legal(target))return false;
   if(held(target) && !explicit)return false;
   Player bot=session.bot();
+  if(dredgion(bot) && PlayerBotMarks.nativeCcMarked(bot,target))return false;
   if(!PositionUtil.isInRange(session.autonomous()?bot:session.owner(),target,session.autonomous()?PlayerBotConfig.PVP_CHASE_DISTANCE:45))return false;
   if(!session.autonomous() && order==Order.GUARD && !PositionUtil.isInRange(bot,target,20))return false;
   if(target==current && PositionUtil.getDistance(target,originX,originY,originZ)>PlayerBotConfig.PVP_CHASE_DISTANCE)return false;
@@ -67,6 +71,9 @@ final class PlayerBotPvp {
   var visibleCandidates=objects.stream().filter(this::legal).filter(c->PositionUtil.isInRange(bot,c,PlayerBotConfig.PVP_CHASE_DISTANCE));
   var visible=session.autonomous()?nearest(bot,visibleCandidates,32):visibleCandidates
    .sorted(Comparator.comparingDouble(c->PositionUtil.getDistance(bot,c))).limit(32).toList();
+  boolean dredgion=dredgion(bot);
+  var focus=dredgion && order==Order.FOLLOW
+   ?PlayerBotDredgionParty.pvpFocus(bot,visible,now,session.autonomous()):null;
   var nearbyCandidates=bot.getKnownList().streamPlayers().filter(p->p.isSpawned() && !p.isDead() && bot.canSee(p)
    && p.getWorldId()==bot.getWorldId() && p.getInstanceId()==bot.getInstanceId() && PositionUtil.isInRange(bot,p,40));
   var nearby=session.autonomous()?nearest(bot,nearbyCandidates,48):nearbyCandidates
@@ -78,25 +85,28 @@ final class PlayerBotPvp {
   Creature best=null;double score=Double.NEGATIVE_INFINITY;boolean bestAnswer=false;
   for(var target:visible) {
    if(session.autonomous() && !legal(target))continue;
+   if(dredgion && PlayerBotMarks.nativeCcMarked(bot,target))continue;
    // A duel opponent is the one fight a bot has agreed to: always explicit (PvP-6).
    boolean explicit=target.getObjectId()==commanded || target instanceof Player duelist && com.aionemu.gameserver.services.DuelService.getInstance().isDueling(bot,duelist)
     || !session.autonomous() && party.stream().anyMatch(p->
     p.getTarget()==target && recent(target,p,now));
    boolean direct=threatens(target,party,now);
    boolean defence=direct || threatens(target,allies,now);
+   boolean partyFocus=focus!=null && focus.target()==target;
+   boolean humanAssist=partyFocus && focus.human() && (session.autonomous() || session.owner().getTarget()==target || defence);
    if(!session.autonomous() && !PositionUtil.isInRange(session.owner(),target,order==Order.GUARD?20:45))continue;
    if(held(target) && !explicit)continue;
    boolean continuing=target==current;
    // Answer attacks on self/party immediately, but nearby bystanders must still
    // judge numbers and avoid piling onto an already crowded target.
-   if(!explicit && !direct && !continuing && (hp(bot)<70 || hostile>friendly*PlayerBotConfig.PVP_STRENGTH_LIMIT
+   if(!explicit && !humanAssist && !direct && !continuing && (hp(bot)<70 || hostile>friendly*PlayerBotConfig.PVP_STRENGTH_LIMIT
     || nearby.stream().filter(p->!bot.isEnemy(p) && p.getTarget()==target).count()>=PlayerBotConfig.PVP_ATTACKERS_PER_TARGET))continue;
    if(continuing && (PositionUtil.getDistance(target,originX,originY,originZ)>PlayerBotConfig.PVP_CHASE_DISTANCE
     || now-started>PlayerBotConfig.PVP_CHASE_SECONDS*1000L && !PositionUtil.isInRange(bot,target,PlayerBotConfig.PVP_NOTICE_DISTANCE))) {
     quietUntil=now+15000;clear();continuing=false;
     if(!defence || !PositionUtil.isInRange(bot,target,PlayerBotConfig.PVP_NOTICE_DISTANCE))continue;
    }
-   if(!explicit && !defence && !continuing) {
+   if(!explicit && !humanAssist && !defence && !continuing) {
     if(!session.autonomous() && !PlayerBotFocus.pvp(session) || !mayStart || now<quietUntil || hp(bot)<70 || mp(bot)<30
      || Math.abs(target.getLevel()-bot.getLevel())>PlayerBotConfig.PVP_LEVEL_DIFFERENCE
      || !PositionUtil.isInRange(bot,target,PlayerBotConfig.PVP_NOTICE_DISTANCE)
@@ -109,12 +119,12 @@ final class PlayerBotPvp {
    // opponent is fought even from behind a wall: the reach action walks round to them (owner play test, 8 Nov).
    boolean duel=target instanceof Player duelist2 && com.aionemu.gameserver.services.DuelService.getInstance().isDueling(bot,duelist2);
    if(!continuing && !duel && !GeoService.getInstance().canSee(bot,target))continue;
-   double value=(explicit?200:0)+(defence?100:0)+(continuing?18:0)-PositionUtil.getDistance(bot,target)
+   double value=(explicit?200:0)+(defence?100:0)+(continuing?18:0)+(humanAssist?180:partyFocus?60:0)-PositionUtil.getDistance(bot,target)
     +(100-hp(target))*.2;
    var cast=target.getCastingSkill();
    if(cast!=null && cast.getSkillTemplate().hasAnyEffect(EffectType.HEAL,EffectType.HEALINSTANT,EffectType.CASEHEAL,EffectType.RESURRECT))value+=35;
    else if(target instanceof Player p && roleFor(p.getPlayerClass())==Role.HEALER && p.getController().isInCombat())value+=15;
-   if(value>score || value==score && best!=null && target.getObjectId()<best.getObjectId()){score=value;best=target;bestAnswer=explicit || defence;}
+   if(value>score || value==score && best!=null && target.getObjectId()<best.getObjectId()){score=value;best=target;bestAnswer=explicit || humanAssist || defence;}
   }
   if(best!=current) {
    if(best!=null){originX=bot.getX();originY=bot.getY();originZ=bot.getZ();started=now;PlayerBotPvpStats.engaged(bestAnswer);}

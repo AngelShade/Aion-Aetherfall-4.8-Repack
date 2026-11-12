@@ -3,7 +3,9 @@ package instance.dredgion;
 import static com.aionemu.gameserver.network.aion.serverpackets.SM_SYSTEM_MESSAGE.STR_REBIRTH_MASSAGE_ME;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -21,6 +23,7 @@ import com.aionemu.gameserver.model.gameobjects.player.Rates;
 import com.aionemu.gameserver.model.instance.DredgionRoom;
 import com.aionemu.gameserver.model.instance.InstanceProgressionType;
 import com.aionemu.gameserver.model.instance.instancescore.InstanceScore;
+import com.aionemu.gameserver.model.instance.instancescore.DredgionInstanceScore;
 import com.aionemu.gameserver.model.instance.instancescore.PvpInstanceScore;
 import com.aionemu.gameserver.model.instance.playerreward.PvpInstancePlayerReward;
 import com.aionemu.gameserver.network.aion.instanceinfo.DredgionScoreWriter;
@@ -36,6 +39,8 @@ import com.aionemu.gameserver.utils.PacketSendUtility;
 import com.aionemu.gameserver.utils.PositionUtil;
 import com.aionemu.gameserver.utils.ThreadPoolManager;
 import com.aionemu.gameserver.world.WorldMapInstance;
+import com.aionemu.gameserver.world.geo.GeoService;
+import com.aionemu.gameserver.geoEngine.math.Vector3f;
 
 /**
  * @author xTz
@@ -47,9 +52,11 @@ public class DredgionInstance extends GeneralInstanceHandler {
 	protected AtomicBoolean isInstanceStarted = new AtomicBoolean();
 	protected PvpInstanceScore<PvpInstancePlayerReward> instanceScore;
 	private final static int MAX_PLAYERS_PER_FACTION = 6;
-	private final int raceStartPosition = Rnd.nextInt(2);
+	private static final float[] BOT_START_COLUMNS = {0, -3, 3};
+	private static final float[] BOT_START_ROWS = {-2, 2};
+	private final Map<Integer, Vector3f> botStartReservations = new HashMap<>();
+	private final Race starboardRace = Rnd.nextInt(2) == 0 ? Race.ELYOS : Race.ASMODIANS;
 	private Future<?> instanceTask;
-	private long instanceTime;
 	private float losingGroupMultiplier = 1;
 	private boolean isInstanceDestroyed;
 
@@ -77,13 +84,14 @@ public class DredgionInstance extends GeneralInstanceHandler {
 	}
 
 	protected void startInstanceTask() {
-		instanceTime = System.currentTimeMillis();
+		dredgionScore().startClock(System.currentTimeMillis());
 		ThreadPoolManager.getInstance().schedule(() -> {
 			openFirstDoors();
 			instanceScore.setInstanceProgressionType(InstanceProgressionType.START_PROGRESS);
 			sendPacket();
-		}, 120000);
-		instanceTask = ThreadPoolManager.getInstance().schedule(() -> stopInstance(instanceScore.getRaceWithHighestPoints()), 2520000);
+		}, DredgionInstanceScore.PREPARATION_MS);
+		instanceTask = ThreadPoolManager.getInstance().schedule(() -> stopInstance(instanceScore.getRaceWithHighestPoints()),
+			DredgionInstanceScore.PREPARATION_MS + DredgionInstanceScore.MATCH_MS);
 	}
 
 	@Override
@@ -99,7 +107,7 @@ public class DredgionInstance extends GeneralInstanceHandler {
 	}
 
 	protected void initializeInstance(int winnerAp, int loserAp, int drawAp) {
-		instanceScore = new PvpInstanceScore<>(winnerAp, loserAp, drawAp);
+		instanceScore = new DredgionInstanceScore(winnerAp, loserAp, drawAp, starboardRace);
 		instanceScore.setInstanceProgressionType(InstanceProgressionType.PREPARING);
 		for (int i = 1; i < 15; i++) {
 			dredgionRooms.add(new DredgionRoom(i));
@@ -273,17 +281,12 @@ public class DredgionInstance extends GeneralInstanceHandler {
 
 	private void sendPacket() {
 		PacketSendUtility.broadcastToMap(instance,
-			new SM_INSTANCE_SCORE(instance.getMapId(), new DredgionScoreWriter(instanceScore, instance.getPlayersInside(), dredgionRooms), getTime()));
+			new SM_INSTANCE_SCORE(instance.getMapId(), new DredgionScoreWriter(instanceScore, instance.getPlayersInside(), dredgionRooms),
+				dredgionScore().timeRemaining(System.currentTimeMillis())));
 	}
 
-	private int getTime() {
-		long result = System.currentTimeMillis() - instanceTime;
-		if (result < 120000) {
-			return (int) (120000 - result);
-		} else if (result < 2520000) {
-			return (int) (2400000 - (result - 120000));
-		}
-		return 0;
+	private DredgionInstanceScore dredgionScore() {
+		return (DredgionInstanceScore) instanceScore;
 	}
 
 	protected void sp(final int npcId, final float x, final float y, final float z, final byte h, final int time) {
@@ -335,10 +338,45 @@ public class DredgionInstance extends GeneralInstanceHandler {
 
 	@Override
 	public void portToStartPosition(Player player) {
-		if (player.getRace() == Race.ELYOS && raceStartPosition == 0 || player.getRace() == Race.ASMODIANS && raceStartPosition != 0) {
-			TeleportService.teleportTo(player, instance.getMapId(), instance.getInstanceId(), 570.468f, 166.897f, 432.28986f);
-		} else {
-			TeleportService.teleportTo(player, instance.getMapId(), instance.getInstanceId(), 400.741f, 166.713f, 432.290f);
+		boolean starboard = player.getRace() == starboardRace;
+		float x = starboard ? 570.468f : 400.741f;
+		float y = starboard ? 166.897f : 166.713f;
+		float z = starboard ? 432.28986f : 432.290f;
+		if (!player.isPlayerBot()) {
+			TeleportService.teleportTo(player, instance, x, y, z);
+			return;
+		}
+		var point = reserveBotStart(player, x, y, z);
+		try {
+			player.getMoveController().abortMove();
+			TeleportService.teleportTo(player, instance, point.x, point.y, point.z);
+		} finally {
+			synchronized (botStartReservations) {
+				botStartReservations.remove(player.getObjectId(), point);
+			}
+		}
+	}
+
+	private Vector3f reserveBotStart(Player bot, float x, float y, float z) {
+		var geo = GeoService.getInstance();
+		synchronized (botStartReservations) {
+			var players = instance.getPlayersInside();
+			for (float row : BOT_START_ROWS) {
+				for (float column : BOT_START_COLUMNS) {
+					float slotX = x + column, slotY = y + row;
+					if (botStartReservations.values().stream().anyMatch(p -> Math.hypot(p.x - slotX, p.y - slotY) < 1.4)
+						|| players.stream().anyMatch(p -> p != bot && p.isSpawned() && Math.abs(p.getZ() - z) < 1.5f
+							&& Math.hypot(p.getX() - slotX, p.getY() - slotY) < 1.4))
+						continue;
+					var point = geo.findGroundMovementCollision(mapId, instance.getInstanceId(), x, y, z, slotX, slotY, z);
+					if (Math.hypot(point.x - slotX, point.y - slotY) < .1 && Math.abs(point.z - z) < .3f
+						&& geo.isPlayerBotLanding(mapId, instance.getInstanceId(), point.x, point.y, point.z)) {
+						botStartReservations.put(bot.getObjectId(), point);
+						return point;
+					}
+				}
+			}
+			return new Vector3f(x, y, z);
 		}
 	}
 }

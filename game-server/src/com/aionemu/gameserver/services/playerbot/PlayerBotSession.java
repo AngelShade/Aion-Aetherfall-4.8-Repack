@@ -89,6 +89,7 @@ public final class PlayerBotSession {
  private volatile boolean supporting;
  private volatile boolean worldDormant;
  private boolean worldSleepRequested;
+ private boolean wasInDredgion;
  private boolean endingWorldControl;
  void endWorldControl() { endingWorldControl=true; }
  /** Dungeon run, owner relogging (PlayerBotFindGroup.holdsForRelog): stay active where it is, no follow, recall or transfer. */
@@ -174,8 +175,14 @@ public final class PlayerBotSession {
 	boolean autonomous() { return world() && owner == bot; }
 	/** A world resident on loan to a party: it does that job, and personal companion routines stay off. */
 	boolean borrowed() { return world() && owner != bot; }
-	List<Player> party() { return autonomous() && PlayerBotRoadDuty.publicWarden(bot) && com.aionemu.gameserver.configs.main.PlayerBotWardenConfig.ENABLED
-		? PlayerBotWardens.party(bot) : autonomous() && !PlayerBotFindGroup.cooperative(bot) ? List.of(bot) : PlayerBotTeams.members(owner); }
+	List<Player> party() {
+		if (autonomous() && PlayerBotDredgion.enabled() && PlayerBotDredgion.aboard(bot)) {
+			var members = PlayerBotTeams.members(bot);
+			return members.isEmpty() ? List.of(bot) : members;
+		}
+		return autonomous() && PlayerBotRoadDuty.publicWarden(bot) && com.aionemu.gameserver.configs.main.PlayerBotWardenConfig.ENABLED
+			? PlayerBotWardens.party(bot) : autonomous() && !PlayerBotFindGroup.cooperative(bot) ? List.of(bot) : PlayerBotTeams.members(owner);
+	}
 	public void requirePrivateCompanion() { if(world())throw new IllegalArgumentException("World bots keep their own progress and equipment; party orders do not transfer ownership."); }
 	public Player bot() { return bot; }
 	public Player owner() { return owner; }
@@ -468,6 +475,22 @@ public final class PlayerBotSession {
 		if(com.aionemu.gameserver.services.AutoGroupService.getInstance().enterCompanionWithOwner(owner,bot)) {
 			navigation.stop();pets.stop(bot);status="following accepted battleground entry";return true;
 		}
+		boolean dredgion = PlayerBotDredgion.aboard(bot);
+		boolean dredgionStrategy = dredgion && PlayerBotDredgion.enabled();
+		if (!dredgion && wasInDredgion) PlayerBotDredgion.forget(bot.getObjectId());
+		wasInDredgion = dredgion;
+		if (dredgion && !bot.isDead() && !PlayerBotDredgion.started(bot)) {
+			if (autonomous()) PlayerBotDredgion.forget(bot.getObjectId());
+			PlayerBotArbitration.clear(engine);
+			navigation.stop();
+			pets.stop(bot);
+			status = "waiting for Dredgion combat";
+			return true;
+		}
+		if (dredgion && bot.getController().hasScheduledTask(com.aionemu.gameserver.model.TaskId.ACTION_ITEM_NPC)) {
+			status = "using a Dredgion portal";
+			return true;
+		}
 		if(followProgress!=null && !canRecoverFollow())followProgress.clear();
 		if(!worldActivity()){if(worldDormant)PlayerBotProfessions.dormantTurn(this,System.currentTimeMillis());if(worldDormant)PlayerBotCare.background(this,System.currentTimeMillis());if(worldDormant)PlayerBotOffscreenTurnIns.turn(this,System.currentTimeMillis());if(worldDormant)PlayerBotPvpPresence.turn(this,System.currentTimeMillis());return true;}
 		if(bot.isSpawned() && !bot.isDead())pets.follow(bot,order!=Order.STAY);
@@ -520,7 +543,7 @@ public final class PlayerBotSession {
 		}
 		waterEscape.safe(bot,navigation);
 		PlayerBotWeaponStance.idle(bot,nextDecision);
-		if (autonomous() && !worldSleepRequested && !awaitingEntrance) PlayerBotWorldActivities.maintenance(this);
+		if (autonomous() && !worldSleepRequested && !awaitingEntrance && !dredgion) PlayerBotWorldActivities.maintenance(this);
 		if (!autonomous()) PlayerBotRecovery.tick(this);
 		if (!PlayerBotRevival.ready(bot)) {
 			if (bot.isDead()) {PlayerBotRecoveryIntent.clear(bot);loot.clear();}
@@ -531,6 +554,10 @@ public final class PlayerBotSession {
 			return true;
 		}
 		PlayerBotPartyBehavior.update(this, role, order);
+		if (dredgion && !autonomous() && !detached() && !awaitingEntrance && (order==Order.FOLLOW || order==Order.PASSIVE)
+			&& PlayerBotTravel.followDredgionPortal(this,navigation)) {
+			PlayerBotArbitration.clear(engine);status="following owner through the Dredgion portal";return true;
+		}
 		if (!autonomous() && !detached() && !awaitingEntrance && PlayerBotTravel.followTeleport(this)) { PlayerBotArbitration.clear(engine); navigation.stop(); status = "following owner teleport or catching up"; return true; }
 		PlayerBotWardens.observe(bot);
 		PlayerBotBystanders.observe(this);
@@ -564,7 +591,9 @@ public final class PlayerBotSession {
 		// explicit attack), never to Aion's ten-second post-hit combat timer, which
 		// left companions standing after every fight while the owner walked away.
 		List<Npc> enemies = new ArrayList<>();
-		if (!autonomous() && bot.getCastingSkill() != null) {
+		long now = System.currentTimeMillis();
+		if (dredgionStrategy && autonomous()) PlayerBotDredgion.prepare(bot, now);
+		if ((!autonomous() || dredgionStrategy) && bot.getCastingSkill() != null) {
 			var cast = bot.getCastingSkill();
 			if (cast != null && cast.getFirstTarget() instanceof Npc held && !PlayerBotMarks.nativeSkillAllowed(owner, held, cast.getSkillTemplate())) {
 				cancelCharge(); bot.getController().cancelCurrentSkill(null); nextDecision = 0;
@@ -592,7 +621,6 @@ public final class PlayerBotSession {
 			}
 		}
 		boolean incapacitated = !bot.canAttack() && !bot.isInState(CreatureState.RESTING);
-		long now = System.currentTimeMillis();
   if(autoLoot && order!=Order.PASSIVE)loot.refresh(owner,bot,now);else loot.clear();
 		PlayerBotCompanionLooks.tick(this);
 		if (forcedFollow() && withdrawToOwner(now)) return true;
@@ -616,7 +644,7 @@ public final class PlayerBotSession {
 			return true;
 		}
 		if (!world()) PlayerBotPartyCompletion.tick(this);
-		boolean questEnabled=!worldSleepRequested && !awaitingEntrance && !PlayerBotRoadDuty.onDuty(bot) && questing && com.aionemu.gameserver.configs.main.PlayerBotConfig.QUESTS_ENABLED
+		boolean questEnabled=!worldSleepRequested && !awaitingEntrance && !dredgion && !PlayerBotRoadDuty.onDuty(bot) && questing && com.aionemu.gameserver.configs.main.PlayerBotConfig.QUESTS_ENABLED
 			&& (!borrowed() || PlayerBotFindGroup.questRequest(bot));
 		PlayerBotQuestSync.tick(this, questEnabled);
 		if(!borrowed())PlayerBotCare.observe(this);
@@ -630,6 +658,7 @@ public final class PlayerBotSession {
 		pvp.rifts.observe(this,now);
 		boolean wasPvp=pvp.active();
 		Creature opponent=pvp.choose(party,order,commandedTarget,!worldSleepRequested && enemies.isEmpty()
+			&& (!dredgionStrategy || !autonomous() || !PlayerBotDredgion.bypassingContest(bot,now))
 			&& (autonomous() || !PlayerBotFocus.pvp(this) || order==Order.FOLLOW && !owner.getMoveController().isInMove()
 			 && mission==null && !bot.isInInstance() && !PlayerBotHelpObjectives.committed(bot))
 			&& !bot.getController().isInCombat() && !bot.isTrading() && !bot.isLooting()
@@ -724,13 +753,22 @@ public final class PlayerBotSession {
 			&& PlayerBotDuels.approach(this,navigation,now)) {
 			PlayerBotArbitration.clear(engine);status=PlayerBotDuels.asking(bot)?"waiting for a duel answer":"walking over to ask for a duel";return true;
 		}
-		// PvP-3a: inside a Dredgion, non-PvP bots walk to the map's objectives before the player hunt below.
-		if(autonomous() && !PlayerBotRoadDuty.assigned(bot) && !loot.pending() && !worldSleepRequested && order==Order.FOLLOW && enemies.isEmpty() && !supportNeeded && !incapacitated
+		// Live opponents have already had priority. Idle Dredgion bots advance the ship's objectives.
+		if(dredgionStrategy && autonomous() && !loot.pending() && !worldSleepRequested && order==Order.FOLLOW && enemies.isEmpty() && !supportNeeded && !incapacitated
 			&& !materialFlight && !bot.getController().hasTask(com.aionemu.gameserver.model.TaskId.ITEM_USE)
 			&& !bot.getController().hasTask(com.aionemu.gameserver.model.TaskId.ACTION_ITEM_NPC)
-			&& PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot))
-			&& PlayerBotDredgion.travel(this,navigation,now)) {
-			PlayerBotArbitration.clear(engine);status="heading for a Dredgion objective";return true;
+			&& PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot))) {
+			Player guide = PlayerBotDredgion.hasHumanObjective(bot) ? null : PlayerBotDredgionParty.guide(bot);
+			if (guide != null && PlayerBotTravel.followDredgionPortal(guide,bot,navigation)) {
+				PlayerBotArbitration.clear(engine);status="following the Dredgion party through a portal";return true;
+			}
+			if (guide != null && PlayerBotDredgionParty.walkingWith(bot,guide)
+				&& (navigation.approach(guide, 8) || !navigation.routeFailed() && PositionUtil.isInRange(bot, guide, 8))) {
+				PlayerBotArbitration.clear(engine);status="moving with the Dredgion party";return true;
+			}
+			if (PlayerBotDredgion.travel(this,navigation,now)) {
+				PlayerBotArbitration.clear(engine);status="heading for a Dredgion objective";return true;
+			}
 		}
 		// PvP-3: the other battlegrounds, one travel step each (an action-item use in progress keeps its own task).
 		if(autonomous() && !PlayerBotRoadDuty.assigned(bot) && !loot.pending() && !worldSleepRequested && order==Order.FOLLOW && enemies.isEmpty() && !supportNeeded && !incapacitated
@@ -765,7 +803,7 @@ public final class PlayerBotSession {
 			PlayerBotArbitration.clear(engine);status="heading for an arena objective";return true;
 		}
 		// PvP-1: PVP-leaning bots on shared maps and rift visitors walk toward enemies; the guards match the rift trip.
-		if(autonomous() && !PlayerBotRoadDuty.assigned(bot) && !loot.pending() && !worldSleepRequested && order==Order.FOLLOW && enemies.isEmpty() && !supportNeeded && !incapacitated
+		if(!dredgionStrategy && autonomous() && !PlayerBotRoadDuty.assigned(bot) && !loot.pending() && !worldSleepRequested && order==Order.FOLLOW && enemies.isEmpty() && !supportNeeded && !incapacitated
 			&& !materialFlight && !bot.getController().hasTask(com.aionemu.gameserver.model.TaskId.ITEM_USE)
 			&& !bot.getController().hasTask(com.aionemu.gameserver.model.TaskId.ACTION_ITEM_NPC)
 			&& (!PlayerBotFindGroup.committed(bot) || bot.isInInstance())
@@ -819,7 +857,7 @@ public final class PlayerBotSession {
 		// Intent must not depend on the low-priority travel action winning arbitration.
 		// Keep native completion/combat custody, but run the existing paced planner even
 		// when local quests, buffs or an available grind target win the next action.
-		if(autonomous()) {
+		if(autonomous() && !dredgion) {
 			worldPlanningObserved=true;
 			worldPlanningReason=worldSleepRequested?"planning paused: settling before map dormancy"
 			 :PlayerBotRoadDuty.onDuty(bot)?PlayerBotRoadDuty.planningReason(bot)
@@ -837,11 +875,11 @@ public final class PlayerBotSession {
 			 :!PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot))?"planning paused: recovering health or mana":null;
 			if(worldPlanningReason==null){if(!PlayerBotProfessions.holding(this,now))PlayerBotWorldActivities.prepare(bot,navigation);PlayerBotProfessions.plan(this,now);PlayerBotProfessions.offer(this,navigation,now);}
 		}
-		if (autonomous() && worldPlanningReason==null && PlayerBotService.getInstance().placePopulation(this)) { status="entering a level-appropriate population destination"; return true; }
-		if (autonomous() && !loot.pending() && !worldSleepRequested && !materialFlight && enemies.isEmpty() && !supportNeeded && !bot.isCasting() && !incapacitated && PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot)) && PlayerBotWorldAscension.tick(this,navigation)) { status="advancing native Ascension quest"; return true; }
+		if (autonomous() && !dredgion && worldPlanningReason==null && PlayerBotService.getInstance().placePopulation(this)) { status="entering a level-appropriate population destination"; return true; }
+		if (autonomous() && !dredgion && !loot.pending() && !worldSleepRequested && !materialFlight && enemies.isEmpty() && !supportNeeded && !bot.isCasting() && !incapacitated && PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot)) && PlayerBotWorldAscension.tick(this,navigation)) { status="advancing native Ascension quest"; return true; }
 		// NPC interaction keeps native combat restrictions. Choosing the next
 		// field fight does not wait for that ten-second post-attack timer.
-		boolean fieldPullAllowed = !supportNeeded && fieldPullAllowed();
+		boolean fieldPullAllowed = !dredgion && !supportNeeded && fieldPullAllowed();
 		PlayerBotQuestObjectives.prepare(this,questActionsAllowed && enemies.isEmpty() && !(!autonomous() && owner.getMoveController().isInMove()),mission!=null);
 		if (PlayerBotQuestItems.finish(owner,bot,questEnabled && !(autonomous() && loot.pending()) && order==Order.FOLLOW && !incapacitated && !bot.isCasting())) { status="advancing an owned item quest"; return true; }
 		if (enemies.isEmpty() && PlayerBotQuestActions.tickObjects(this,navigation,questActionsAllowed)) { status="using a native quest trigger"; return true; }
@@ -1398,7 +1436,8 @@ public final class PlayerBotSession {
 
 	private Npc chooseTarget(List<Npc> enemies, List<Player> party) {
 		// Native Zzz is protected even as the last enemy, before encounter-specific selection.
-		if (!autonomous()) enemies=enemies.stream().filter(n->!PlayerBotMarks.nativeCcMarked(owner,n)).toList();
+		boolean dredgionStrategy=PlayerBotDredgion.enabled() && PlayerBotDredgion.aboard(bot);
+		if (!autonomous() || dredgionStrategy) enemies=enemies.stream().filter(n->!PlayerBotMarks.nativeCcMarked(owner,n)).toList();
   if(commandedTarget==0){Npc add=PlayerBotSteelRake.adds(enemies);if(add!=null)return add;}
 		Npc lab=PlayerBotTheobomosLab.target(bot,role,commandedTarget,enemies);if(lab!=null)return lab;
         Npc adma=PlayerBotAdmaStronghold.target(bot,role,commandedTarget,enemies);if(adma!=null)return adma;
@@ -1411,6 +1450,10 @@ public final class PlayerBotSession {
 		if (!autonomous() && commandedTarget==0) {
 			int commandMark=focus;
 			if (enemies.stream().noneMatch(n->n.getObjectId()==commandMark)) focus=PlayerBotMarks.nativeFocus(owner,enemies);
+		}
+		if (dredgionStrategy && commandedTarget==0 && autonomous()) {
+			Npc objective=PlayerBotDredgion.objectiveFocus(bot,enemies);
+			if (objective!=null) focus=objective.getObjectId();
 		}
 		Npc darkPoeta = PlayerBotDarkPoeta.target(bot, role, focus, enemies);
 		if (darkPoeta != null) return darkPoeta;
@@ -1552,6 +1595,8 @@ public final class PlayerBotSession {
 		if (!PlayerBotTargetEligibility.visible(bot,npc) || npc.isFlag() || PlayerBotSteelRakeCaptainTactics.scenery(npc.getNpcId())
 			|| npc.getWorldId()==310110000 && npc.getNpcId()==280973 || PlayerBotAdmaStronghold.scenery(npc)) return false;
 		if(!PlayerBotRoadDuty.enemyAllowed(bot,npc))return false;
+		boolean dredgionStrategy=autonomous() && PlayerBotDredgion.enabled() && PlayerBotDredgion.aboard(bot);
+		if(dredgionStrategy && (!PlayerBotDredgion.captainAttackAllowed(bot,npc) || PlayerBotMarks.nativeCcMarked(bot,npc)))return false;
 		boolean engaged = party.stream().anyMatch(p -> npc.getAggroList().isHating(p)
 			|| p.getSummon() != null && npc.getAggroList().isHating(p.getSummon()));
 		engaged |= PlayerBotBystanders.helping(bot,npc) || PlayerBotRoadDuty.assisting(bot,npc) || PlayerBotTheobomosLab.mechanicEnemy(bot,npc,party) || PlayerBotAdmaStronghold.mechanicEnemy(bot,npc,party)
@@ -1560,7 +1605,7 @@ public final class PlayerBotSession {
 		// World bots only; companions keep fighting what their owner fights.
 		engaged |= autonomous() && PlayerBotSieges.mechanicEnemy(bot,npc,party);
 		engaged |= autonomous() && PlayerBotBases.mechanicEnemy(bot,npc,party);
-		engaged |= autonomous() && PlayerBotBattlegroundObjectives.mechanicEnemy(bot,npc,party);
+		engaged |= autonomous() && !dredgionStrategy && PlayerBotBattlegroundObjectives.mechanicEnemy(bot,npc,party);
 		engaged |= autonomous() && PlayerBotDredgion.mechanicEnemy(bot,npc,party);
 		engaged |= autonomous() && PlayerBotKamar.mechanicEnemy(bot,npc,party);
 		engaged |= autonomous() && PlayerBotOphidanBridge.mechanicEnemy(bot,npc,party);

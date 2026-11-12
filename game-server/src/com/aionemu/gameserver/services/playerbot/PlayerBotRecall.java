@@ -57,6 +57,8 @@ public final class PlayerBotRecall {
   try{return transition.getAsBoolean();}finally{if(previous==null)CURRENT.remove();else CURRENT.set(previous);}
  }
  static boolean recall(PlayerBotSession s) {
+  if(PlayerBotDredgion.aboard(s.bot()) && !PlayerBotTransfers.different(s.owner(),s.bot()))
+   throw new IllegalArgumentException("Companions follow on foot or through ship portals during Dredgion.");
   return scoped(s,()->{
    Player bot=s.bot();
    if(bot.isDead())PlayerBotRecovery.revive(s);
@@ -76,6 +78,7 @@ public final class PlayerBotRecall {
  static boolean automatic(PlayerBotSession s) {
   if(!eligible(s) || s.bot().isDead())return false;
   Player owner=s.owner(),bot=s.bot();
+  if(PlayerBotDredgion.aboard(bot) && !PlayerBotTransfers.different(owner,bot))return false;
   if(!needed(PositionUtil.getDistance(owner,bot),PlayerBotTransfers.different(owner,bot)) && !RETRY.containsKey(bot.getObjectId()))return false;
   long now=System.currentTimeMillis();if(now<RETRY.getOrDefault(bot.getObjectId(),0L))return true;
   try {

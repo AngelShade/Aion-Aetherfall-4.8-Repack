@@ -33,6 +33,7 @@ public final class PlayerBotTransfers {
  }
  public static boolean relocate(PlayerBotSession session) {
   Player owner=session.owner(),bot=session.bot();boolean transfer=different(owner,bot);
+  if(!transfer && PlayerBotDredgion.aboard(bot))return false;
   if(session.closing() || !owner.isOnline() || !owner.isSpawned() || owner.getWorldMapInstance()==null || (!transfer && !PlayerBotRecall.recalling(session) && !PlayerBotPartyBehavior.canRelocate(session)))return false;
   var point=PlayerBotFormation.arrival(owner,bot);
   if(point==null || owner.getWorldMapInstance().getRegion(point.x(),point.y(),point.z())==null)return false;

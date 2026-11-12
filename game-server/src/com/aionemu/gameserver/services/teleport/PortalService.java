@@ -123,6 +123,7 @@ public class PortalService {
 			}
 			if (mapId == player.getWorldId()) { // teleport within this instance
 				TeleportService.teleportTo(player, mapId, player.getInstanceId(), loc.getX(), loc.getY(), loc.getZ(), loc.getH());
+				com.aionemu.gameserver.services.playerbot.PlayerBotTravel.observeDredgionPortal(player, npc);
 				return;
 			}
 		}

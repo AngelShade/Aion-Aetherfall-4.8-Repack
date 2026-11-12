@@ -7,17 +7,25 @@ import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.function.Predicate;
+import java.util.concurrent.ConcurrentHashMap;
 
+import com.aionemu.gameserver.configs.main.PlayerBotConfig;
+import com.aionemu.gameserver.controllers.attack.AggroInfo;
+import com.aionemu.gameserver.controllers.attack.AggroList;
 import com.aionemu.gameserver.dataholders.DataManager;
 import com.aionemu.gameserver.dataholders.AutoGroupData;
 import com.aionemu.gameserver.model.PlayerClass;
 import com.aionemu.gameserver.model.Race;
 import com.aionemu.gameserver.model.account.Account;
 import com.aionemu.gameserver.model.autogroup.*;
+import com.aionemu.gameserver.model.gameobjects.Creature;
+import com.aionemu.gameserver.model.gameobjects.Npc;
+import com.aionemu.gameserver.model.gameobjects.VisibleObject;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.model.items.storage.PlayerStorage;
 import com.aionemu.gameserver.model.items.storage.StorageType;
 import com.aionemu.gameserver.model.team.group.PlayerGroup;
+import com.aionemu.gameserver.model.team.group.PlayerGroupMember;
 import com.aionemu.gameserver.services.AutoGroupService;
 import com.aionemu.gameserver.services.autogroup.AutoGroupUtility;
 import com.aionemu.gameserver.services.instance.PvPArenaService;
@@ -48,6 +56,7 @@ public final class PlayerBotBattlegroundCheck {
   check(session.contains("&& (!PlayerBotFindGroup.committed(bot) || bot.isInInstance())"),"Bots that joined through Find Group still fight inside the instance");
   check(stats.contains("in battlegrounds and arenas \"+BATTLEGROUND_SEEKS.get()") && config.contains("gameserver.playerbots.pvp.battlegrounds.enable = "),"Reported and documented");
   nativeCompanionEntry(root);
+  mixedDredgionSignals();
   var autoGroup=Files.readString(root.resolve("src/com/aionemu/gameserver/services/AutoGroupService.java"));
   var service=Files.readString(src.resolve("PlayerBotService.java"));
   var hiring=Files.readString(src.resolve("PlayerBotHiring.java"));
@@ -75,6 +84,8 @@ public final class PlayerBotBattlegroundCheck {
   @Override public boolean isWorldBot(){return world;}
   @Override public boolean isOnline(){return online;}
   @Override public boolean isSpawned(){return spawned;}
+  @Override public boolean isDead(){return false;}
+  @Override public boolean isEnemy(Creature target){return target instanceof Npc;}
   @Override public boolean isInGroup(){return group!=null;}
   @Override public PlayerGroup getPlayerGroup(){return group;}
   @Override public boolean isInAlliance(){return false;}
@@ -89,10 +100,13 @@ public final class PlayerBotBattlegroundCheck {
 
  private static final class Group extends PlayerGroup {
   List<Player> players;
+  Map<Integer,Integer> brands=Map.of();
   Group(){super(null,null,1);}
   @Override public int getObjectId(){return 8000;}
   @Override public List<Player> getMembers(){return players;}
   @Override public List<Player> filterMembers(Predicate<Player> filter){return players.stream().filter(filter).toList();}
+  @Override public int getBrandTargetId(int brand){return brands==null?0:brands.getOrDefault(brand,0);}
+  void initialLeader(Player player){setLeader(new PlayerGroupMember(player));}
  }
 
  private static final class Cube extends PlayerStorage {
@@ -102,13 +116,87 @@ public final class PlayerBotBattlegroundCheck {
 
  private static final class Scene extends WorldMapInstance {
   Set<Integer> registered;
+  Map<Integer,VisibleObject> objects;
   Scene(){super(null,1,12,null);}
   @Override public int getMapId(){return 300440000;}
   @Override public boolean isRegistered(int id){return registered.contains(id);}
+  @Override public VisibleObject getObject(int id){return objects==null?null:objects.get(id);}
   @Override protected void initMapRegions(){}
   @Override public com.aionemu.gameserver.world.MapRegion getRegion(float x,float y,float z){return null;}
   @Override public boolean isPersonal(){return false;}
   @Override public int getOwnerId(){return 0;}
+ }
+
+ private static final class Objective extends Npc {
+  int id;
+  Objective(){super(null,null,null);}
+  @Override public int getObjectId(){return id;}
+  @Override public boolean isSpawned(){return true;}
+  @Override public boolean isDead(){return false;}
+ }
+
+ private static void setField(Class<?> type,Object object,String name,Object value)throws Exception {
+  var field=type.getDeclaredField(name);field.setAccessible(true);field.set(object,value);
+ }
+
+ private static Actor partyMember(Unsafe unsafe,Group group,Scene scene,int id,boolean bot)throws Exception {
+  var member=(Actor)unsafe.allocateInstance(Actor.class);
+  member.id=id;member.owner=bot?id:0;member.online=!bot;member.spawned=true;member.group=group;member.scene=scene;
+  return member;
+ }
+
+ @SuppressWarnings("unchecked")
+ private static void attack(Actor member,Objective objective)throws Exception {
+  setField(VisibleObject.class,member,"target",objective);
+  var aggro=objective.getAggroList();
+  var entries=AggroList.class.getDeclaredField("aggroList");entries.setAccessible(true);
+  var constructor=AggroInfo.class.getDeclaredConstructor(Creature.class);constructor.setAccessible(true);
+  var hit=constructor.newInstance(member);
+  setField(AggroInfo.class,hit,"damage",1);
+  hit.addHate(1);
+  ((ConcurrentHashMap<Integer,AggroInfo>)entries.get(aggro)).put(member.id,hit);
+ }
+
+ private static void mixedDredgionSignals()throws Exception {
+  var unsafeField=Unsafe.class.getDeclaredField("theUnsafe");unsafeField.setAccessible(true);
+  var unsafe=(Unsafe)unsafeField.get(null);
+  var scene=(Scene)unsafe.allocateInstance(Scene.class);
+  var otherScene=(Scene)unsafe.allocateInstance(Scene.class);
+  var group=(Group)unsafe.allocateInstance(Group.class);
+  var bot=partyMember(unsafe,group,scene,801,true);
+  var leader=partyMember(unsafe,group,scene,802,false);
+  var ally=partyMember(unsafe,group,scene,803,false);
+  var secondAlly=partyMember(unsafe,group,scene,804,false);
+  group.initialLeader(bot);
+  var a=(Objective)unsafe.allocateInstance(Objective.class);a.id=810;
+  var b=(Objective)unsafe.allocateInstance(Objective.class);b.id=811;
+  setField(Creature.class,a,"aggroList",new AggroList(a));
+  setField(Creature.class,b,"aggroList",new AggroList(b));
+  scene.objects=Map.of(a.id,a,b.id,b);
+  boolean nativeMarks=PlayerBotConfig.NATIVE_MARKS;
+  PlayerBotConfig.NATIVE_MARKS=true;
+  try {
+   group.players=List.of(bot);
+   check(PlayerBotDredgionParty.humanObjective(bot,n->true)==null,"An all-bot Dredgion team supplies no human objective signal");
+   group.players=List.of(bot,ally);
+   setField(VisibleObject.class,ally,"target",b);
+   check(PlayerBotDredgionParty.humanObjective(bot,n->true)==null,"Selecting a Surkana without engaging it does not order an attack");
+   attack(ally,b);
+   check(PlayerBotDredgionParty.humanObjective(bot,n->true)==b,"A single human supplies a real combat objective even with a bot leader");
+   group.players=List.of(bot,leader,ally,secondAlly);
+   attack(leader,a);attack(secondAlly,b);
+   check(PlayerBotDredgionParty.humanObjective(bot,n->true)==b,"Several humans assist the same objective when the bot holds the leader badge");
+   group.changeLeader(new PlayerGroupMember(leader));
+   check(PlayerBotDredgionParty.humanObjective(bot,n->true)==a,"An engaged human leader takes priority over other active humans");
+   group.brands=Map.of(0,b.id);
+   check(PlayerBotDredgionParty.humanObjective(bot,n->true)==b,"Native numbered marks supersede individual target choices");
+   group.brands=Map.of(0,b.id,14,b.id);
+   check(PlayerBotDredgionParty.humanObjective(bot,n->true)==a,"A native sleep mark is protected from mixed-party focus");
+   leader.scene=otherScene;
+   check(PlayerBotDredgionParty.humanObjective(bot,n->true)==null,"Human calls from another match do not direct this party");
+  } finally {
+   PlayerBotConfig.NATIVE_MARKS=nativeMarks;
+  }
  }
 
  private static final class Match extends AutoInstance {

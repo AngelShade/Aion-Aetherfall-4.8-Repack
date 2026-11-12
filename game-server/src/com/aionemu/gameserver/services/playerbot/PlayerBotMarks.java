@@ -8,7 +8,9 @@ package com.aionemu.gameserver.services.playerbot;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.IntPredicate;
 import com.aionemu.gameserver.configs.main.PlayerBotConfig;
+import com.aionemu.gameserver.model.gameobjects.Creature;
 import com.aionemu.gameserver.model.gameobjects.Npc;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.skillengine.effect.AbnormalState;
@@ -44,8 +46,21 @@ public final class PlayerBotMarks {
  private static final int SLEEP_BRAND=14;
 
  static boolean nativeCcMarked(Player member,Npc npc) {
+  return nativeCcMarked(member,(Creature)npc);
+ }
+ static boolean nativeCcMarked(Player member,Creature target) {
   var team=PlayerBotConfig.NATIVE_MARKS ? member.getCurrentTeam() : null;
-  return team!=null && alive(npc) && team.getBrandTargetId(SLEEP_BRAND)==npc.getObjectId();
+  return team!=null && target!=null && target.isSpawned() && !target.isDead()
+   && team.getBrandTargetId(SLEEP_BRAND)==target.getObjectId();
+ }
+ static int nativeAttackMark(Player member,IntPredicate eligible) {
+  var team=PlayerBotConfig.NATIVE_MARKS ? member.getCurrentTeam() : null;
+  if(team==null)return 0;
+  for(int brand:ATTACK_BRANDS) {
+   int id=team.getBrandTargetId(brand);
+   if(id!=0 && eligible.test(id))return id;
+  }
+  return 0;
  }
  /** Only native long control may target the protected NPC; no damage, taunt or pet order. */
  static boolean nativeSkillAllowed(Player member,Npc npc,SkillTemplate skill) {
@@ -54,10 +69,8 @@ public final class PlayerBotMarks {
  /** Native marks never add an enemy to combat: choose only from already admitted targets. */
  static int nativeFocus(Player member,List<Npc> enemies) {
   var team=PlayerBotConfig.NATIVE_MARKS ? member.getCurrentTeam() : null;if(team==null)return 0;
-  for(int brand:ATTACK_BRANDS) {
-   int id=team.getBrandTargetId(brand);
-   if(enemies.stream().anyMatch(n->n.getObjectId()==id && !nativeCcMarked(member,n)))return id;
-  }
+  int marked=nativeAttackMark(member,id->enemies.stream().anyMatch(n->n.getObjectId()==id && !nativeCcMarked(member,n)));
+  if(marked!=0)return marked;
   var target=team.getLeaderObject().getTarget();
   return enemies.stream().anyMatch(n->n==target && !nativeCcMarked(member,n)) ? target.getObjectId() : 0;
  }

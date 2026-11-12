@@ -1074,6 +1074,11 @@ final class PlayerBotNavigation {
 	/** Runs ahead of all planning, so it holds no matter which layer has the bot stuck. */
 	private boolean ledgeEscape(Point at,Point goal,double goalDistance,long now) {
 		if(!(bot instanceof Player player) || !(player.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover))return false;
+		if (PlayerBotDredgion.aboard(player)) {
+			clearLeapSearch();
+			ledgeStall.clear();
+			return false;
+		}
 		boolean wanted=goalDistance>3 && !waitingForTransport() && !player.isInGlidingState() && !player.isTrading() && !player.isLooting() && PlayerBotWater.safe(player,at.z());
 		var tier=PlayerBotLedgeLeap.tier(ledgeStall.observe(now,player.getWorldId(),player.getInstanceId(),at.x(),at.y(),at.z(),wanted));
 		if(tier==PlayerBotLedgeLeap.Tier.NONE || leapSearch==null && now<nextLeapSearch) {

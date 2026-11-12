@@ -8,6 +8,7 @@ import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.model.team.TeamType;
 import com.aionemu.gameserver.model.team.TemporaryPlayerTeam;
 import com.aionemu.gameserver.model.team.alliance.PlayerAllianceService;
+import com.aionemu.gameserver.model.team.group.PlayerGroup;
 import com.aionemu.gameserver.model.team.group.PlayerGroupService;
 
 /**
@@ -57,6 +58,8 @@ public class AutoPvpInstance extends AutoInstance {
 		int objectId = player.getObjectId();
 		if (!instance.isRegistered(objectId))
 			instance.register(objectId);
+		if (!player.isPlayerBot())
+			preferHumanLeader(player.getPlayerGroup());
 	}
 
 	@Override
@@ -68,10 +71,25 @@ public class AutoPvpInstance extends AutoInstance {
 	@Override
 	public void onLeaveInstance(Player player) {
 		super.unregister(player);
-		if (player.isInGroup())
+		if (player.isInGroup()) {
+			PlayerGroup group = player.getPlayerGroup();
 			PlayerGroupService.removePlayer(player);
-		else if (player.isInAlliance())
+			if (!player.isPlayerBot())
+				preferHumanLeader(group);
+		} else if (player.isInAlliance())
 			PlayerAllianceService.removePlayer(player);
+	}
+
+	private void preferHumanLeader(PlayerGroup group) {
+		if (group == null || agt != AutoGroupType.BARANATH_DREDGION && agt != AutoGroupType.CHANTRA_DREDGION && agt != AutoGroupType.TERATH_DREDGION)
+			return;
+		group.executeLocked(() -> {
+			if (group.getLeader() == null || !group.getLeaderObject().isPlayerBot())
+				return;
+			group.getOnlineMembers().stream()
+				.filter(member -> !member.isPlayerBot() && member.getWorldMapInstance() == instance)
+				.findFirst().ifPresent(PlayerGroupService::changeLeader);
+		});
 	}
 
 	private int getMaxPlayers(Race race) {
