@@ -51,12 +51,15 @@ public final class PlayerBotSpacingCheck {
    var middle=PlayerBotPositionCheck.actor(1999999203,PlayerClass.CLERIC);middle.account=owner.account;
    var last=PlayerBotPositionCheck.actor(1999999206,PlayerClass.BARD);last.account=owner.account;
    for(var member:List.of(session,PlayerBotPositionCheck.session(owner,tank,Role.TANK),PlayerBotPositionCheck.session(owner,middle,Role.HEALER),PlayerBotPositionCheck.session(owner,outer,Role.RANGED),PlayerBotPositionCheck.session(owner,last,Role.SUPPORT)))sessions.put(member.bot().getObjectId(),member);
+   PlayerBotPositionCheck.party(owner,bot,tank,middle,outer,last);
    try{
     PlayerBotFormationLayout.configure(owner.account.getId(),owner.id,"line");
     var innerPoint=PlayerBotFormationLayout.destination(owner,bot,0);var outerPoint=PlayerBotFormationLayout.destination(owner,outer,0);
-    check(Math.abs(innerPoint.y()+1.5)<.001,"Inner Line slot scales within owner's spread");
-    check(Math.abs(outerPoint.y()+4)<.001,"Outer Line slot keeps full owner spread");
-    check(Math.abs(innerPoint.y()-outerPoint.y())>2,"Same-side Line companions retain separate slots");
+    // Line is swept back in rows: the two ranged companions take the first row's two wings, behind the tank. A slot
+    // halfway out along the line stands at half its companion's own spacing (3 and the default 4 here).
+    check(Math.abs(Math.hypot(innerPoint.x(),innerPoint.y())-1.5)<.01 && innerPoint.x()<0 && innerPoint.y()<0,"First-row Line wing scales within the line at its companion's spacing: "+innerPoint);
+    check(Math.abs(Math.hypot(outerPoint.x(),outerPoint.y())-2)<.01 && outerPoint.x()<0 && outerPoint.y()>0,"The other first-row wing keeps its own spacing on the opposite side: "+outerPoint);
+    check(Math.hypot(innerPoint.x()-outerPoint.x(),innerPoint.y()-outerPoint.y())>2,"Line companions retain separate slots");
    }finally{sessions.clear();Files.deleteIfExists(PlayerBotFormationLayout.path(owner.id));PlayerBotSpacing.close(outer);PlayerBotSpacing.close(middle);PlayerBotSpacing.close(last);}
    var target=(PlayerBotPositionCheck.Enemy)PlayerBotPositionCheck.u.allocateInstance(PlayerBotPositionCheck.Enemy.class);target.template=new NpcTemplate();PlayerBotPositionCheck.set(target.template,"boundRadius",new BoundRadius(1,1,1));target.x=1;
    PlayerBotSpacing.observe(bot,target,10000);check(PlayerBotSpacing.canRetreat(bot,target,12),"One emergency retreat available");

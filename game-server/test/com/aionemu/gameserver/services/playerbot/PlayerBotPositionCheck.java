@@ -50,8 +50,17 @@ public final class PlayerBotPositionCheck {
   @Override public float getX(){return x;} @Override public float getY(){return y;} @Override public float getZ(){return z;}
   @Override public int getWorldId(){return 1;} @Override public int getInstanceId(){return 1;}
   @Override public NpcTemplate getObjectTemplate(){return template;}
+  // A reach step now asks whether its target is alive before treating it as hostile; this one always is.
+  @Override public boolean isDead(){return false;}
  }
  static Actor actor(int id,PlayerClass pc)throws Exception{var p=(Actor)u.allocateInstance(Actor.class);p.id=id;p.pc=pc;p.account=new Account(id);p.stats=(Stats)u.allocateInstance(Stats.class);set(p,"moveController",new PlayerBotMoveController(p));return p;}
+ /** Formation slots are shared out among the owner's native party, so the fixture puts its actors in a real one. */
+ static final class Party extends com.aionemu.gameserver.model.team.group.PlayerGroup {
+  Party(Actor leader){super(new com.aionemu.gameserver.model.team.group.PlayerGroupMember(leader),com.aionemu.gameserver.model.team.TeamType.GROUP,1999999000);}
+  // Seated directly: the native join also recomputes level ranges from character data these actors do not carry.
+  void seat(Actor member){members.put(member.getObjectId(),new com.aionemu.gameserver.model.team.group.PlayerGroupMember(member));member.setPlayerGroup(this);}
+ }
+ static void party(Actor leader,Actor... others){var group=new Party(leader);group.seat(leader);for(var other:others)group.seat(other);}
  static PlayerBotSession session(Actor owner,Actor bot,Role role)throws Exception{var s=(PlayerBotSession)u.allocateInstance(PlayerBotSession.class);set(s,"owner",owner);set(s,"bot",bot);set(s,"role",role);set(s,"order",Order.FOLLOW);return s;}
  public static void main(String[] ignored)throws Exception {
   var access=Unsafe.class.getDeclaredField("theUnsafe");access.setAccessible(true);u=(Unsafe)access.get(null);
@@ -81,6 +90,7 @@ public final class PlayerBotPositionCheck {
   var cs=session(owner,caster,Role.RANGED);for(var s:List.of(cs,session(owner,tank,Role.TANK),session(owner,support,Role.SUPPORT),session(owner,healer,Role.HEALER)))sessions.put(s.bot().getObjectId(),s);
   // Formation and spacing settings are rows of playerbot_metadata; the fixture keeps them in memory.
   var table=PlayerBotMemoryMetadata.install().selfOwned();
+  party(owner,caster,tank,support,healer);
   boolean previous=GeoDataConfig.CANSEE_ENABLE;GeoDataConfig.CANSEE_ENABLE=false;
   try {
    for(String shape:PlayerBotFormationLayout.NAMES){PlayerBotFormationLayout.configure(owner.id,owner.id,shape);

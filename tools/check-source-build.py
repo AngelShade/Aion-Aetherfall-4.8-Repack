@@ -164,7 +164,7 @@ TESTS['PlayerBotQuestTransformationCheck']=80
 TESTS['PlayerBotQuestItemTargetCheck']=50
 TESTS['PlayerBotWardenDeathCheck']=18
 # Suites that were compiled with the rest but never run here (found 12 Nov 2026). Registered once each passed
-# against the normal build; the ones still unregistered need a scratch database or a fixture rewrite.
+# against the normal build; the two still unregistered (RoadMerchantSale, WardenSql) need a scratch database.
 TESTS.update({'PlayerBotAppearanceCheck':16,'PlayerBotCombatQuestCheck':24,'PlayerBotCompanionCheck':1386,'PlayerBotCreationMetadataCheck':11,
  'PlayerBotFormationLayoutCheck':1202,'PlayerBotGearSettingsCheck':35,'PlayerBotGenerationCheck':5,'PlayerBotHeapGuardCheck':14,
  'PlayerBotInventoryCheck':303,'PlayerBotMetadataPreferencesCheck':31,'PlayerBotPanelCheck':15,'PlayerBotPlanningCheck':47,
@@ -174,10 +174,11 @@ TESTS.update({'PlayerBotAppearanceCheck':16,'PlayerBotCombatQuestCheck':24,'Play
  'PlayerBotTargetValuesCheck':18,'PlayerBotTemporaryCheck':200,'PlayerBotDefenseCheck':34,'PlayerBotEncounterCheck':35,
  'PlayerBotEnemyUtilityCheck':26,'PlayerBotHealingCheck':30,'PlayerBotOffenseCheck':978,'PlayerBotSkillsCheck':868,
  'PlayerBotHelpObjectiveCheck':54,'PlayerBotQuestLearningCheck':24,'PlayerBotVisionCheck':3740,'PlayerBotSuppliesCatalogCheck':45,
- 'PlayerBotWardenExpansionCheck':377})
+ 'PlayerBotWardenExpansionCheck':377,'PlayerBotPositionCheck':38,'PlayerBotSpacingCheck':35,'PlayerBotPartyBehaviorCheck':52,
+ 'PlayerBotQuestSyncCheck':12,'PlayerBotPresetsCheck':24,'PlayerBotRosterRemovalCheck':16})
 # Where the suites above read their files from.
 GAME_SERVER_CWD={'PlayerBotHelpObjectiveCheck','PlayerBotQuestLearningCheck','PlayerBotVisionCheck'}
-ROOT_CWD={'PlayerBotDefenseCheck','PlayerBotEncounterCheck','PlayerBotEnemyUtilityCheck','PlayerBotHealingCheck','PlayerBotOffenseCheck','PlayerBotSkillsCheck','PlayerBotWardenExpansionCheck'}
+ROOT_CWD={'PlayerBotDefenseCheck','PlayerBotEncounterCheck','PlayerBotEnemyUtilityCheck','PlayerBotHealingCheck','PlayerBotOffenseCheck','PlayerBotSkillsCheck','PlayerBotWardenExpansionCheck','PlayerBotPartyBehaviorCheck'}
 QUEST_TESTS['NativeKillObjectFamilyCheck']=490
 
 def reviewed_native_fixtures():

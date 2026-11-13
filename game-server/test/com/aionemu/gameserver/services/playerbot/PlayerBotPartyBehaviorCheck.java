@@ -38,6 +38,8 @@ public final class PlayerBotPartyBehaviorCheck {
   PlayerBotSession session=(PlayerBotSession)unsafe.allocateInstance(PlayerBotSession.class);field(session,"owner",bot);field(session,"bot",bot);
   Path behavior=Path.of("config/playerbots/behavior-character-1999999010.properties"),reward=PlayerBotPartyCompletion.path(bot);
   check(!Files.exists(behavior) && !Files.exists(reward),"Fixtures never replace real companion preferences");
+  // Behaviour and reward-NPC settings are playerbot_metadata sections now; the paths above are only legacy imports.
+  var table=PlayerBotMemoryMetadata.install().selfOwned();
   var originalQuests=DataManager.QUEST_DATA;var originalXml=DataManager.XML_QUESTS;var originalItems=DataManager.ITEM_DATA;var originalNpcs=DataManager.NPC_DATA;
   try {
    for(Order order:Order.values()) {
@@ -88,6 +90,6 @@ public final class PlayerBotPartyBehaviorCheck {
    PlayerBotPartyCompletion.close(bot);check(PlayerBotPartyCompletion.rewardNpcIds(bot,1136).equals(Set.of(203100)),"Verified turn-in NPC persists across dismissal/restart");
    q.setStatus(QuestStatus.COMPLETE);PlayerBotPartyCompletion.close(bot);check(PlayerBotPartyCompletion.rewardNpcIds(bot,1136).isEmpty(),"Completed reward witness cannot authorize repeat reward");
    System.out.println("OK: "+checks+" party catch-up, role/pull/toggle, actual Decorative Weapons objective/journal/native consumption and completion-witness checks; no live players or database");
-  }finally{DataManager.QUEST_DATA=originalQuests;DataManager.XML_QUESTS=originalXml;DataManager.ITEM_DATA=originalItems;DataManager.NPC_DATA=originalNpcs;PlayerBotPartyBehavior.close(session);Files.deleteIfExists(behavior);Files.deleteIfExists(reward);}
+  }finally{DataManager.QUEST_DATA=originalQuests;DataManager.XML_QUESTS=originalXml;DataManager.ITEM_DATA=originalItems;DataManager.NPC_DATA=originalNpcs;PlayerBotPartyBehavior.close(session);table.close();check(!Files.exists(behavior) && !Files.exists(reward),"No settings file is written any more");}
  }
 }

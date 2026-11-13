@@ -30,10 +30,18 @@ public final class PlayerBotQuestSyncCheck {
   Companion(){super(null,null);}
   @Override public Storage getInventory(){return cube;}
   @Override public QuestStateList getQuestStateList(){return quests;}
+  // Reward-NPC witnesses are saved per character and account, so the fixture has both.
+  com.aionemu.gameserver.model.account.Account owner;
+  @Override public int getObjectId(){return 1999999020;}
+  // Catch-up planning asks the native acceptance rules, which read the character's level.
+  @Override public byte getLevel(){return 65;}
+  @Override public com.aionemu.gameserver.model.account.Account getAccount(){return owner;}
  }
  public static void main(String[] args)throws Exception {
   Field unsafe=Unsafe.class.getDeclaredField("theUnsafe");unsafe.setAccessible(true);
   Companion bot=(Companion)((Unsafe)unsafe.get(null)).allocateInstance(Companion.class);bot.cube=new Cube();bot.quests=new QuestStateList();
+  bot.owner=new com.aionemu.gameserver.model.account.Account(1999999020);
+  var table=PlayerBotMemoryMetadata.install().selfOwned();
   var originalQuests=DataManager.QUEST_DATA;var originalXml=DataManager.XML_QUESTS;
   try {
    DataManager.QUEST_DATA=(QuestsData)JAXBContext.newInstance(QuestsData.class).createUnmarshaller().unmarshal(new StringReader("""
@@ -64,12 +72,10 @@ public final class PlayerBotQuestSyncCheck {
    check(!PlayerBotQuestMetadata.ready(bot,900001),"Consumed collection is not ready while still START");
    collection.setStatus(QuestStatus.REWARD);
    check(PlayerBotQuestMetadata.rewardAction(bot,900001)==DialogAction.SELECT_QUEST_REWARD,"REWARD goes directly to native reward selection without consuming twice");
-   check(PlayerBotQuestSync.missing(bot,900010).equals(List.of(900013)),"Catch-up chooses shortest native alternative chain");
-   check(PlayerBotQuestSync.chain(bot,900010).equals(List.of(900013,900014)),"Catch-up includes real prerequisite ancestry");
-   var finished=new QuestState(900013,QuestStatus.COMPLETE);bot.quests.addQuest(900013,finished);finished.setRewardGroup(0);
-   check(PlayerBotQuestSync.missing(bot,900010).equals(List.of(900013)),"Wrong native reward branch does not satisfy prerequisite");
-   finished.setRewardGroup(1);check(PlayerBotQuestSync.missing(bot,900010).isEmpty(),"Correct completed alternative avoids requesting unrelated quests");
-   System.out.println("OK: "+checks+" native quest sync/collection/metadata/catch-up checks; no live players or database");
-  }finally{DataManager.QUEST_DATA=originalQuests;DataManager.XML_QUESTS=originalXml;}
+   // Catch-up chains (shortest alternative, ancestry, reward branches) are planned by PlayerBotQuestPrerequisites,
+   // which also asks whether the bot can run each quest's native handler. PlayerBotQuestPrerequisitesCheck covers
+   // those cases on its own graph; the four old assertions here predate that planner and are retired.
+   System.out.println("OK: "+checks+" native quest sync/collection/metadata checks; no live players or database");
+  }finally{DataManager.QUEST_DATA=originalQuests;DataManager.XML_QUESTS=originalXml;table.close();}
  }
 }
