@@ -9,7 +9,8 @@ import com.aionemu.gameserver.model.team.alliance.PlayerAllianceService;
 /** Native party/alliance identity, never inventory ownership or an invented parallel team. */
 final class PlayerBotTeams {
  static boolean same(Player a,Player b){return a!=null && b!=null && a.getCurrentTeam()!=null && a.getCurrentTeam()==b.getCurrentTeam();}
- static List<Player> members(Player p){return p.getCurrentTeam()==null?List.of():List.copyOf(p.getCurrentTeam().getMembers());}
+ /** One read of the team: a party that disbands in between is simply empty, not an error. */
+ static List<Player> members(Player p){var team=p.getCurrentTeam();return team==null?List.of():List.copyOf(team.getMembers());}
  static boolean allowed(TeamType type){return type==TeamType.GROUP || type==TeamType.ALLIANCE;}
  static boolean allowed(TemporaryPlayerTeam<?> team){
   if(team instanceof com.aionemu.gameserver.model.team.group.PlayerGroup group)return allowed(group.getTeamType());

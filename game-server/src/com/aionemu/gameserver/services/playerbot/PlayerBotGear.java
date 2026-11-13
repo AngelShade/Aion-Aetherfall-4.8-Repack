@@ -9,6 +9,8 @@ import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.model.items.ItemSlot;
 import com.aionemu.gameserver.services.playerbot.PlayerBotRules.Role;
 
+/** Not called by production code: PlayerBotGearPolicy and PlayerBotEquipment choose what a bot wears.
+ * PlayerBotBuildGearCheck still compares this entry point with the other two. */
 final class PlayerBotGear {
  static List<PlayerBotEquipment.Upgrade> upgrades(Player bot,Role role) {
   if(PlayerBotGearPolicy.stigmaBuild(bot)!=null)return PlayerBotGearPolicy.upgrades(bot,role);

@@ -4,7 +4,9 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayDeque;
 import java.util.WeakHashMap;
 
-/** Fair bounded search turns; the scheduler promptly polls the nominated actor. */
+/** Fair bounded search turns; the scheduler promptly polls the nominated actor.
+ * Not used by production code: PlayerBotNavigationBudget shares out route work now. Its own suite and
+ * PlayerBotNavigationHandoffCheck still exercise it. */
 final class PlayerBotNavigationSearch {
  private static final class Request {
   final WeakReference<Object> token;

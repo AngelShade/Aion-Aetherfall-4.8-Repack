@@ -36,6 +36,8 @@ public final class PlayerBotFindGroup {
  private static final Pattern HELP = Pattern.compile("\\b(help|how|where|what|quest|objective|details|status|need|role|tank|heal(?:er|ing)?|dps)\\b");
  private static final Pattern LEAVE = Pattern.compile("^(?:bye|goodbye|leave|cancel|no thanks|never mind|nevermind)[.! ]*$");
  private static final Pattern NEGATIVE = Pattern.compile("\\b(no|not|don't|dont|never|can't|cant|cannot)\\b");
+ /** Legion talk is not for the Find Group bots; every chat line a player sends is tested against this. */
+ private static final Pattern LEGION_TALK = Pattern.compile("(?i)\\b(legion|guild)\\b");
  private static final Map<Integer, Post> POSTS = new ConcurrentHashMap<>();
  private static final java.util.concurrent.atomic.AtomicLong GOAL_HELP_OPENED=new java.util.concurrent.atomic.AtomicLong();
  static long goalHelpRequestsOpened(){return GOAL_HELP_OPENED.get();}
@@ -384,7 +386,9 @@ public final class PlayerBotFindGroup {
    // Companion formation/follow is keyed to a human owner's roster: for a bot
    // leader every member resolved to the same front slot and inherited the
    // companion catch-up speed. Keep members in a loose column behind the leader.
-   int index=Math.max(1,leader.getPlayerGroup().getMembers().indexOf(bot));
+   // The party can disband between the lookup above and here.
+   var column=leader.getPlayerGroup();
+   int index=column==null?1:Math.max(1,column.getMembers().indexOf(bot));
    double heading=leader.getHeading()*Math.PI/60,back=-(2.5+1.5*((index-1)/2)),side=(index%2==0?-1:1)*1.8;
    float x=leader.getX()+(float)(Math.cos(heading)*back-Math.sin(heading)*side),y=leader.getY()+(float)(Math.sin(heading)*back+Math.cos(heading)*side);
    if(PositionUtil.getDistance(bot,leader)>6 || Math.hypot(bot.getX()-x,bot.getY()-y)>3)navigation.move(x,y,leader.getZ());
@@ -1033,7 +1037,7 @@ public final class PlayerBotFindGroup {
 
  public static void heard(Player sender,ChatType type,String message,Player receiver) {
   if (!enabled() || sender==null || sender.isPlayerBot() || message==null || message.length()>512) return;
-  if (Pattern.compile("(?i)\\b(legion|guild)\\b").matcher(message).find()) return;
+  if (LEGION_TALK.matcher(message).find()) return;
   Post post=null;
   if (type==ChatType.WHISPER && receiver!=null) post=POSTS.get(receiver.getObjectId());
   else if (type==ChatType.GROUP || type==ChatType.GROUP_LEADER) {
@@ -1151,7 +1155,7 @@ public final class PlayerBotFindGroup {
  private static void say(Post post,Player player,String message,boolean party) {
   if (!canTalk(post.bot,player)) return;
   if (party && PlayerBotTeams.same(post.bot,player)) {
-   for (var member : post.bot.getCurrentTeam().getMembers()) if (canTalk(post.bot,member))
+   for (var member : PlayerBotTeams.members(post.bot)) if (canTalk(post.bot,member))
     com.aionemu.gameserver.utils.PacketSendUtility.sendPacket(member,new SM_MESSAGE(post.bot,message,ChatType.GROUP));
   } else if (!player.isInCustomState(CustomPlayerState.NO_WHISPERS_MODE)) com.aionemu.gameserver.utils.PacketSendUtility.sendPacket(player,new SM_MESSAGE(post.bot,message,ChatType.WHISPER));
  }
@@ -1160,7 +1164,7 @@ public final class PlayerBotFindGroup {
  private static void speak(Player bot,Player human,String message,boolean party) {
   if (!canTalk(bot,human)) return;
   if (party && PlayerBotTeams.same(bot,human)) {
-   for (var member : bot.getCurrentTeam().getMembers()) if (canTalk(bot,member))
+   for (var member : PlayerBotTeams.members(bot)) if (canTalk(bot,member))
     com.aionemu.gameserver.utils.PacketSendUtility.sendPacket(member,new SM_MESSAGE(bot,message,ChatType.GROUP));
   } else whisper(bot,human,message);
  }
@@ -1539,8 +1543,6 @@ public final class PlayerBotFindGroup {
     var bot=session.bot();
     if(bot.getRace()!=human.getRace() || !session.autonomous() || !canOffer(bot)
      || Math.abs(APPLIED.getOrDefault(prefix+bot.getObjectId(),0L))>now)continue;
-    var role=PlayerBotRules.roleFor(bot.getPlayerClass());
-
     if(!free(bot) || !PlayerBotGroupNeeds.joinable(bot,need))continue;
     if(bot.getBlockList().contains(human.getObjectId()) || human.getBlockList().contains(bot.getObjectId()))continue;
     double distance=rolePriority(bot,needTank?0:1,needHealer?0:1)*10_000_000D+(bot.getWorldId()==human.getWorldId() ? PositionUtil.getDistance(bot,human) : 1_000_000+bot.getObjectId()%1000);
@@ -1578,8 +1580,6 @@ public final class PlayerBotFindGroup {
   for(var session:actors) {
    var bot=session.bot();
    if(bot.getRace()!=human.getRace() || !session.autonomous() || !canOffer(bot))continue;
-   var role=PlayerBotRules.roleFor(bot.getPlayerClass());
-
    if(instanceNeed==null && Math.abs(bot.getLevel()-level)>5 || !free(bot))continue;
    if(instanceNeed!=null ? !PlayerBotGroupNeeds.joinable(bot,instanceNeed) : Math.abs(bot.getLevel()-level)>5)continue;
    if(bot.getBlockList().contains(human.getObjectId()) || human.getBlockList().contains(bot.getObjectId()))continue;
@@ -1647,14 +1647,13 @@ public final class PlayerBotFindGroup {
    if(OFFERED.getOrDefault(key,0L)>now)continue;
    OFFERED.put(key,now+300_000);
    var team=leader.getPlayerGroup();
+   if(team==null)continue; // disbanded since the scan above
    long tanks=team.getMembers().stream().filter(p->PlayerBotRules.roleFor(p.getPlayerClass())==PlayerBotRules.Role.TANK).count();
    long healers=team.getMembers().stream().filter(p->PlayerBotRules.roleFor(p.getPlayerClass())==PlayerBotRules.Role.HEALER).count();
    int level=leader.getLevel();Player best=null;double bestDistance=Double.POSITIVE_INFINITY;
    for(var session:actors) {
     var bot=session.bot();
     if(bot.getRace()!=leader.getRace() || !session.autonomous() || !canOffer(bot) || Math.abs(bot.getLevel()-level)>5)continue;
-    var role=PlayerBotRules.roleFor(bot.getPlayerClass());
-
     if(!free(bot) || bot.getBlockList().contains(leader.getObjectId()) || leader.getBlockList().contains(bot.getObjectId()))continue;
     double distance=rolePriority(bot,tanks,healers)*10_000_000D+(bot.getWorldId()==leader.getWorldId() ? PositionUtil.getDistance(bot,leader) : 1_000_000+bot.getObjectId()%1000);
     if(distance<bestDistance){bestDistance=distance;best=bot;}

@@ -5,7 +5,9 @@ import com.aionemu.gameserver.model.gameobjects.Creature;
 import com.aionemu.gameserver.skillengine.effect.SignetBurstEffect;
 import com.aionemu.gameserver.skillengine.model.SkillTemplate;
 
-/** Class mechanics are evaluated without running native damage calculations or consuming effects. */
+/** Class mechanics are evaluated without running native damage calculations or consuming effects.
+ * Not called by the decision code any more (the Assassin strategy decides rune bursts itself); only
+ * PlayerBotEngineCheck still exercises it, and several delivery checks pin that suite's count. */
 final class PlayerBotClassCombat {
 	static boolean useful(PlayerClass pc, SkillTemplate skill, Creature target) {
 		if (pc == PlayerClass.ASSASSIN && skill.getEffects() != null)
