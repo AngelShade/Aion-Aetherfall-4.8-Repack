@@ -59,12 +59,14 @@ function C:Register(owner, trees)
 end
 local function evaluate()
     if pages then return end
-    pages, legacyTrees = {}, {}
-    local byId, byLegacy = {}, {}
+    -- Built aside and published at the end: an error part-way leaves no half-built cache.
+    local built, legacy, byId, byLegacy = {}, {}, {}, {}
     for _, provider in ipairs(providers) do
         if not provider.evaluated then
-            provider.trees = type(provider.source) == 'function' and invoke(provider.owner, provider.source) or provider.source
-            provider.evaluated = true
+            -- A factory that failed, or whose module is switched off, offers nothing this time;
+            -- it is asked again when the registry is next rebuilt (C:Register).
+            local trees = invoke(provider.owner, provider.source)
+            provider.trees, provider.evaluated = type(trees) == 'table' and trees or nil, type(trees) == 'table'
         end
         local source = provider.trees
         for i, tree in ipairs(source or {}) do
@@ -82,13 +84,13 @@ local function evaluate()
                 sort(existing.tabs)
                 if page.desc ~= '' then existing.desc = page.desc end
             else
-                byId[page.id], pages[#pages + 1] = page, page
+                byId[page.id], built[#built + 1] = page, page
             end
             if tree.rows then
                 local old = byLegacy[tree.name]
                 if not old then
                     old = {tree.name, {}, tree.hint, order=tree.order}
-                    byLegacy[tree.name], legacyTrees[#legacyTrees + 1] = old, old
+                    byLegacy[tree.name], legacy[#legacy + 1] = old, old
                 end
                 if tree.hint then old[3] = tree.hint end
                 if tree.code then old.code = true end
@@ -101,7 +103,8 @@ local function evaluate()
             end
         end
     end
-    sort(pages); sort(legacyTrees)
+    sort(built); sort(legacy)
+    pages, legacyTrees = built, legacy
 end
 function C:Pages() evaluate(); return AF.Copy(pages) end
 function C:Trees() evaluate(); return AF.Copy(legacyTrees) end
