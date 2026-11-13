@@ -188,13 +188,17 @@ local function values(frame)
     if frame.group~='party' and value.unavailable then return end
     value.state=value.unavailable and 'Unavailable' or value.dead and 'Dead' or ''
     -- Bot identity changes rarely: look it up when the name changes, then every five seconds.
-    local tick=AF:Call('Lifecycle','Ticks') or 0
-    local known=S.identities[value.name]
-    if not known or tick-known.tick>=100 then
-        known={tick=tick};known.rarity,known.rank,known.stars=AF:Call('Identity','Lookup',value.name)
-        S.identities[value.name]=known
+    -- Only frames that declare the bot-label settings (target, party) carry it: the player and
+    -- target-of-target have no showBot, and reading it raised "does not own" in every refresh.
+    if instances[frame.group].only.showBot then
+        local tick=AF:Call('Lifecycle','Ticks') or 0
+        local known=S.identities[value.name]
+        if not known or tick-known.tick>=100 then
+            known={tick=tick};known.rarity,known.rank,known.stars=AF:Call('Identity','Lookup',value.name)
+            S.identities[value.name]=known
+        end
+        value.rarity,value.rank,value.rankStars=known.rarity,known.rank,known.stars
     end
-    value.rarity,value.rank,value.rankStars=known.rarity,known.rank,known.stars
     value.bot=value.rarity and 'Bot' or ''
     if unit=='player' then value.dp,value.dpmax=AFCore.Gauge(D.basic_status,'dp_gauge_text') end
     return value
@@ -350,8 +354,9 @@ local function stop()
     if S.timer then AF.Events:Cancel(S.timer);S.timer=nil end
     if S.pending then AF.Events:Cancel(S.pending);S.pending=nil end
     S.lastRefreshTick=nil
-    for _,frame in ipairs(S.frames) do release(frame) end
+    -- The canvas goes first: a release that fails here must not leave the drawing on screen.
     K.Hide(N.Widget('H','Frames'))
+    for _,frame in ipairs(S.frames) do release(frame) end
 end
 local function timedRefresh()
     local tick=AF:Call('Lifecycle','Ticks')
