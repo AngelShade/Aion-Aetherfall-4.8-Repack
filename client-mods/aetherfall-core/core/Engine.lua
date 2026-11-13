@@ -1,6 +1,6 @@
 -- Lua 5.1. The registry and implementation objects never leave this closure.
 AF = {}
-local modules, order, started = {}, {}, false
+local modules, order, started, errors = {}, {}, false, {}
 local unpack = unpack
 local FAILURES = 3
 local function pack(...) return {n=select('#', ...), ...} end
@@ -26,6 +26,12 @@ function AF:NewModule(name, spec)
 end
 function AF:IsFailed(name) return modules[name] and modules[name].failed or false end
 function AF:Error(name) return modules[name] and modules[name].error end
+-- Chat scrolls away: the session's errors are also kept in Mods/AetherfallUI/afui-errors.cfg.
+local function record(self, line)
+    errors[#errors+1]=line:sub(1,300)
+    if #errors>40 then table.remove(errors,1) end
+    if self.DB and self.DB.Write then pcall(self.DB.Write,self.DB,'afui-errors.cfg',table.concat(errors,'\n')..'\n') end
+end
 function AF:Call(name, method, ...)
     local entry=assert(modules[name], 'unknown module: '..tostring(name))
     if entry.failed then return end
@@ -43,9 +49,11 @@ function AF:Call(name, method, ...)
             entry.reported=message
             g_AddonName='RelicCalc'
             DisplayChatMessage(0,'Aetherfall '..name..': '..message,.91,.63,.56)
+            record(self,name..': '..message)
         end
         if entry.failures>=FAILURES then
             entry.failed=true
+            record(self,name..' switched off after '..FAILURES..' errors in a row')
             if self.Events then self.Events:Remove(name) end
             -- ARCHITECTURE.md: OnDisable also runs when the module was switched off. Nothing
             -- reaches it again, so this is its one chance to take down what it drew.
