@@ -47,6 +47,10 @@ function AF:Call(name, method, ...)
         if entry.failures>=FAILURES then
             entry.failed=true
             if self.Events then self.Events:Remove(name) end
+            -- ARCHITECTURE.md: OnDisable also runs when the module was switched off. Nothing
+            -- reaches it again, so this is its one chance to take down what it drew.
+            g_AddonName='RelicCalc'
+            if type(m.OnDisable)=='function' then pcall(m.OnDisable,m) end
         end
         return
     end

@@ -354,8 +354,9 @@ local function stop()
     if S.timer then AF.Events:Cancel(S.timer);S.timer=nil end
     if S.pending then AF.Events:Cancel(S.pending);S.pending=nil end
     S.lastRefreshTick=nil
-    for _,frame in ipairs(S.frames) do release(frame) end
+    -- The canvas goes first: a release that fails here must not leave the drawing on screen.
     K.Hide(N.Widget('H','Frames'))
+    for _,frame in ipairs(S.frames) do release(frame) end
 end
 local function timedRefresh()
     local tick=AF:Call('Lifecycle','Ticks')
