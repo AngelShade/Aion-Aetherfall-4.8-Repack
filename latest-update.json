@@ -1,28 +1,28 @@
 {
   "schema": 1,
   "product": "Aion Aetherfall Repack",
-  "version": "0.98.12",
-  "patchFile": "Aetherfall-Patch-0.98.12.json",
-  "patchBytes": 3049293,
-  "patchSha256": "32545e422caa16780a32e080b11e549475ff360d6a6368bbdcdf86ba8911d6a9",
-  "patchUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.12/Aetherfall-Patch-0.98.12.json",
+  "version": "0.98.13",
+  "patchFile": "Aetherfall-Patch-0.98.13.json",
+  "patchBytes": 3059585,
+  "patchSha256": "e040bb263cf801ed782a4315b32085074e356bc6b3756bf8f5805c132268fdfb",
+  "patchUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.13/Aetherfall-Patch-0.98.13.json",
   "patchFormat": "chunked-v1",
-  "downloadBytes": 2881740416,
-  "assetCount": 271,
-  "filesChanged": 6044,
+  "downloadBytes": 2882480393,
+  "assetCount": 276,
+  "filesChanged": 6062,
   "filesRemoved": 807,
-  "setupExeUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.12/Aetherfall-Setup.exe",
+  "setupExeUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.13/Aetherfall-Setup.exe",
   "setupExeBytes": 5716480,
   "setupExeSha256": "9d255f9da97db6325482773ff33988e5c5ab86b8c2507f653873fe4757b59ebc",
   "setupVersion": "0.90.1111.1",
   "languageAssets": [
     {
-      "file": "Aetherfall-Language-rus-text-0.98.13.zip",
-      "bytes": 86485521,
-      "sha256": "b4028f79540dd55ccc927e2d1514874aaa891ac63b9daa7f8f19d71b8d844d07"
+      "file": "Aetherfall-Language-chs-text-0.98.13.zip",
+      "bytes": 70585487,
+      "sha256": "08f954c6deb1d48283f173bfcb55cb5ac398f9efa18db410e2641f98596f09e1"
     }
   ],
-  "downloaderUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.12/Aetherfall-Downloader.zip",
-  "downloaderBytes": 8689090,
-  "downloaderSha256": "3bf32c1c154dc397c7149fd8813758876649717143df9edfdfddf1ae7c1cc719"
+  "downloaderUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.13/Aetherfall-Downloader.zip",
+  "downloaderBytes": 8689964,
+  "downloaderSha256": "9db4422d54336880a34386ab12d109f0faffd395fb63cc0799693fc87bb264fa"
 }
