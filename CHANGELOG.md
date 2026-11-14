@@ -2,18 +2,49 @@
 
 ## Next update
 
-The world fills up with many more bots, spread across the zones you play in.
-
 ### New
 
 ### Improved
 
-- The world now holds up to 3000 bots, and up to 120 of them gather in the area around you.
-- After a server restart, bots fill the world in a few minutes instead of most of an hour.
+### Fixed
+
+## 0.98.13 - Live portraits, faster bot startup and expanded Simplified Chinese text (14 November 2026)
+
+Live portraits, faster bot startup and expanded Simplified Chinese text.
+
+### New
+
+- The optional Simplified Chinese text pack adds translations for Companions, Journey, Central Market, Wardrobe and other custom windows.
+- After updating the repack, update Simplified Chinese text from the Hub's Languages page.
+- Set the width and height of the player, target, target of target and party frames, and adjust the individual bars.
+- The player, target and party portraits have a separate background opacity setting.
+
+### Improved
+
+- Bots on the custom unit frames now show a painted gear crest beside their gear label, one for each quality from Poor to Excellent.
+- Custom unit frames support live 3D portraits for your character, your selected target and party bots.
+- Your portrait shows your character's face, hair and visible gear.
+- Up to 120 world bots can be allocated around a player.
+- Bots can start filling the world faster after a server restart.
 
 ### Fixed
 
 - Fixed the world slowly emptying of bots after the first wave logged in.
+- Fixed stale target frames after clearing a target and frozen unit frames when a companion became your target's target.
+- Fixed party selection outlines and buffs staying behind when you move the custom party frame.
+- Backdrop opacity no longer dims the 3D portrait. Each portrait shows its own character.
+- Your own row in the party frame uses the custom frame again when your name is long.
+- Your own party row shows your character's 3D portrait when portraits are enabled.
+- Fixed companions being dismissed after a wipe when there was no safe spot beside you; they now wait and regroup once you move.
+- Fixed the server freezing in repeated pauses when companions regrouped while a saved party was being applied.
+- Fixed Dredgion bots giving up on a route because a door had been closed in an earlier match.
+- Fixed companions dying in a Dredgion being dismissed; they now revive at the ship's own revive point.
+- Fixed Road Warden companies sometimes failing to form.
+- Road Wardens with assignments no longer use settlement parking when returning to the field around Splendora and Kishar.
+- Fixed Aturam Sky Fortress never counting as a finished run: defeating Popuchin now ends the run for your bot helpers and its run rewards.
+- Fixed Right Wing Chamber and Sulfur Tree Nest never counting as finished: opening the golden treasure box now ends the run for your bot helpers.
+- Fixed a bot stalling at a profession trainer when the trainer refused to teach it a new gathering or crafting skill.
+- Gulkalla now opens the final report for “You Gotta Stop Umkata” when you speak to him with the last objective complete.
 
 ## 0.98.12 - Custom unit frames, interface profiles and Find Group help (11 November 2026)
 
