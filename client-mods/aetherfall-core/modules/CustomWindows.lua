@@ -6,6 +6,20 @@ local PLUGIN_FIRST = 0x20e
 
 local FIT = {{'PrivateWarehouse', 'PrivateWarehouseBrowser', 25}, {'PrivateCashShop', 'PrivateCashShopBrowser', 25},
              {'PrivateJourney', 'PrivateJourneyBrowser', 0}, {'PrivateWardrobe', nil, 25}}
+local CUSTOM_WINDOWS = {PrivateCompanions = 'PrivateCompanions_Open', PrivateAccount = 'PrivateAccount_Open',
+                        PrivateCashShop = 'PrivateCashShop_Open'}
+local CUSTOM_TITLES = {PrivateCompanions = 'Player Companions', PrivateAccount = 'Aetherfall Account',
+                       PrivateCashShop = 'Black Cloud Marketplace', PrivateJourney = 'Choose Your Journey',
+                       PrivateWardrobe = 'Wardrobe'}
+local function localizeTitle(name)
+    local source = CUSTOM_TITLES[name]
+    if not source or not AFCore.Translate then return end
+    local title = AFCore.Translate(source)
+    if title == source then return end
+    g_AddonName = 'RelicCalc'
+    local win = _G[name]
+    if win and win:IsVisible() == 1 then win:SetText(title) end
+end
 local function ownsWindowSize(f)
     return f[1] == 'PrivateCashShop' and type(PrivateCashShop_Fit) == 'function'
 end
@@ -20,6 +34,7 @@ local function fitWindows()
             if fitted[f[1]] ~= want then
                 win:SetRect(0, 0, W, H)
                 if win.SetCloseOffset then pcall(win.SetCloseOffset, win, 4, 1) end
+                pcall(localizeTitle, f[1])
                 local content = f[2] and _G[f[2]]
                 if content then content:SetRect(0, 0, W, H - f[3]) end
                 fitted[f[1]] = want
@@ -40,9 +55,6 @@ local function fitContent(f)
     local size = string.format('%.0fx%.0f', W, H)
     if webSize[f[2]] ~= size then content:DestroyWebView(); content:CreateWebView(); webSize[f[2]] = size end
 end
-
-local CUSTOM_WINDOWS = {PrivateCompanions = 'PrivateCompanions_Open', PrivateAccount = 'PrivateAccount_Open',
-                        PrivateCashShop = 'PrivateCashShop_Open'}
 local CUSTOM_HOLD = 20  -- ticks
 local function customDialog(name)
     local c = custom[name]; local d = c.id and dialog(c.id)
@@ -102,7 +114,10 @@ function M:BeforeOpen(index)
     fitted = {}
     pcall(fitContent, FIT[index])
 end
-function M:Opened(name) pcall(customOpened, name) end
+function M:Opened(name)
+    pcall(localizeTitle, name)
+    pcall(customOpened, name)
+end
 function M:Fit() fitWindows() end
 function M:Tick() customWindowsTick() end
 

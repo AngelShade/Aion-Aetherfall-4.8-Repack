@@ -50,6 +50,7 @@
   "modules/unitframes/DP.lua",
   "modules/unitframes/Name.lua",
   "modules/unitframes/Indicators.lua",
+  "modules/unitframes/Portrait.lua",
   "modules/TargetDetails.lua",
   "modules/HUD.lua",
   "modules/Visibility.lua",

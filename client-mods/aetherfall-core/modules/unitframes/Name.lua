@@ -25,11 +25,20 @@ local function update(frame)
             local text=texts[slot]
             if text~='' then
                 -- A label shorter than the font clips the letters; centre a full line on the bar.
-                local h=math.max(r[4],14)
+                local px=frame.appearance.fontPx or 0
+                local h=math.max(r[4],14,px>13 and px+3 or 0)
                 K.Place(object,r[1]+3+position*width,r[2]+(r[4]-h)/2,width,h);K.SetText(object,text);K.Show(object)
                 position=position+1
             else K.SetText(object,'');K.Hide(object) end
         end
     end
 end
-AF:Call('UnitFrames','RegisterElement','Name',{Configure=configure,Update=update})
+-- Dirty input: the formatted strings themselves, so a user format with a live tag such as [time] still repaints.
+local SLOTS={'healthLeft','healthCentre','healthRight','powerLeft','powerCentre','powerRight'}
+local function texts(frame)
+    local out,s={},frame.settings
+    for _,key in ipairs(SLOTS) do out[#out+1]=AF.Tags:Format(s[key],frame.values) end
+    if frame.unit=='player' then out[#out+1]=AF.Tags:Format(s.dpText or '',frame.values) end
+    return table.concat(out,'\31')
+end
+AF:Call('UnitFrames','RegisterElement','Name',{Configure=configure,Update=update,Key=texts})

@@ -30,7 +30,8 @@ local function snap(value) return AF:Call('EditorRender','Snap',value) end
 local function editorCategory(mv) return AF.Movers:Category(mv) end
 local function editorStatus(text)
     S.editorStatus=text
-    if w('EditorStatus') then w('EditorStatus'):SetText(text or 'Save before travel. Cancel restores your layout.') end
+    local caption = text or 'Save before travel. Cancel restores your layout.'
+    if w('EditorStatus') then w('EditorStatus'):SetText(AFTranslate and AFTranslate(caption) or caption) end
 end
 function M:ShowNudge()
     local selected=S.selected

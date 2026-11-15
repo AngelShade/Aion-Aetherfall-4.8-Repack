@@ -1,5 +1,5 @@
 -- The original hold -> enforce -> opacity order is an explicit coordinator.
-local M=AF:NewModule('Layout',{scope='profile',needs={'Lifecycle','Placement','Tooltip','Shortcuts','ActionBars','Minimap','TargetPanels','WorldMap','Opacity','Visibility','Camera','HUD'},defaults={}})
+local M=AF:NewModule('Layout',{scope='profile',needs={'Lifecycle','Placement','Tooltip','Shortcuts','ActionBars','Minimap','TargetPanels','WorldMap','Opacity','Visibility','Camera','HUD','UnitFrames'},defaults={}})
 local S={pins={}}
 local N=AF.Native
 local D=AFCore and AFCore.DIALOG or {}
@@ -32,7 +32,8 @@ local function applyPins()
         elseif d and place('IsReanchored',id) and place('DesignRef',id) and d.name==place('DesignRef',id)[7]
             and (id~=D.pet or math.abs(d.w-place('DesignRef',id)[3]*scale())<=2) then x,y=place('Design',id) end
         if x and id~=D.radar and id~=D.subzone_name and not AF:Call('ActionBars','Managed',id,d) then
-            if AFCore.Pin(id,x,y) then
+            local w,h=AF:Call('UnitFrames','DialogSize',id,d)
+            if AFCore.Pin(id,x,y,0,false,w,h) then
                 pinned[id]=true
                 if d.shown and (math.abs(d.x-x)>1 or math.abs(d.y-y)>1) then AFCore.Move(id,x,y) end
             end
@@ -43,6 +44,7 @@ local function applyPins()
     AF:Call('ActionBars','Hold',pinned)
     AF:Call('Minimap','Hold',pinned)
     AF:Call('TargetPanels','Hold',pinned)
+    AF:Call('UnitFrames','Hold',pinned)
     AF:Call('Shortcuts','HoldPopup')
     for k,v in pairs(S.pins) do
         if not pinned[k] then

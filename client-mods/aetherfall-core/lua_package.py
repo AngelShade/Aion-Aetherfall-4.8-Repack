@@ -41,11 +41,16 @@ def load_order(root):
     return result
 
 
-def lua_payloads(root, order, installed=None):
-    """Retain generated geometry on updates; every maintained module ships together."""
+def lua_payloads(root, order, installed=None, retain=()):
+    """Ship maintained modules, with explicit installed-source retention for isolated deliveries."""
+    retain = set(retain)
+    if retain and (installed is None or retain - {source for source, _ in order} or retain & GENERATED):
+        raise ValueError('Retained Lua must name installed, nongenerated manifest sources')
     result = {}
     for source, member in order:
-        if source in GENERATED:
+        if source in retain:
+            result[member] = installed.read(member)
+        elif source in GENERATED:
             if installed is not None:
                 result[member] = installed.read(member)
         else:

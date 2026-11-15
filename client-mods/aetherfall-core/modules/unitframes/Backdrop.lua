@@ -1,4 +1,5 @@
 local K=AF.Skin
+-- frame.body (UnitFrames rectangles): the player's frame beside its portrait; otherwise the whole frame.
 local function update(frame)
     local r=frame.body or frame.rect
     K.Place(frame.widgets.Backdrop,unpack(r))

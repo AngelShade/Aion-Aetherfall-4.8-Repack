@@ -13,7 +13,8 @@ local function update(frame)
     -- The stock DP number is hidden with the native bar, so the frame writes its own.
     local text=AF.Tags:Format(s.dpText or '',v)
     if text~='' and r[4]>=11 then
-        K.Place(label,r[1]+3,r[2],math.max(1,r[3]-6),r[4]);K.Font(label,frame.appearance.font)
+        local px=frame.appearance.fontPx or 0;local h=math.max(r[4],px>13 and px+3 or 0)
+        K.Place(label,r[1]+3,r[2]+(r[4]-h)/2,math.max(1,r[3]-6),h);K.Font(label,frame.appearance.font)
         K.Text(label,frame.appearance.text);K.SetText(label,text);K.Show(label)
     else K.Hide(label) end
 end

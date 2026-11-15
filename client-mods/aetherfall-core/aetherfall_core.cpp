@@ -2,6 +2,7 @@
 #define NOMINMAX
 #include <windows.h>
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstddef>
@@ -25,6 +26,7 @@
 #include <thread>
 #include <vector>
 #include "../shared/web_endpoint.h"
+#include "../shared/mod_text_catalog.h"
 #pragma comment(lib, "winhttp.lib")
 #pragma comment(lib, "user32.lib")  // cursor and button state for addon dragging ("cursor")
 
@@ -43,7 +45,7 @@
 // remain native and unchanged.
 namespace {
 using Ptr=void*;
-constexpr char CORE_VERSION[]="1.3.16";  // Plugin widget call queue bound raised from 4,000 to 1,048,576.
+constexpr char CORE_VERSION[]="1.3.27";  // Target portraits only for player bodies (the game frames no others).
 constexpr uintptr_t PREFERRED=0x10000000;  // Game.dll has no relocations.
 unsigned char* image=nullptr;
 unsigned char* game(){return image;}
@@ -99,6 +101,7 @@ int push(Ptr L,const wchar_t* w,size_t limit=256){
     char utf8[1024];int n=WideCharToMultiByte(CP_UTF8,0,w,int(wcsnlen(w,limit)),utf8,sizeof utf8,nullptr,nullptr);
     return n>0?push(L,utf8,size_t(n)):push(L,"",0);
 }
+
 
 bool readable(const void* p,size_t n){
     MEMORY_BASIC_INFORMATION m{};
@@ -177,6 +180,11 @@ long long kinah(){
 // dialog's own recursive find(name, widget type) (vtable +0x338).
 struct Rect { double x,y,w,h; };
 constexpr int ITEMVIEW=0x2011,STATIC=0x2022,GAUGE=0x200e;
+// UI3DView ("3dview" in layouts; constructor 0x486360, 0x920 bytes): build a body from a look, clear it.
+constexpr int VIEW3D=0x2000;
+constexpr size_t VIEW3D_BYTES=0x920,VIEW3D_MODEL=0x487dd0,VIEW3D_CLEAR=0x488650;
+#include "target_portrait.h"
+#include "unit_class.h"
 Ptr dialog(int id){return id>0 && id<=int(DIALOG_LIMIT)?global<Ptr>(DIALOGS+size_t(id)*8):nullptr;}
 bool shown(Ptr w){return w && (method<int(*)(Ptr)>(w,0xb8)(w)&1);}
 // The local shown flag does not include hidden parent containers/dialogs.
@@ -279,6 +287,8 @@ Ptr widget(int id,const char* name,int type){
     return resolve_widget(d,name,type);
 }
 
+#include "render_slots.h"
+#include "portrait_view.h"
 #include "quest_dialog.h"
 #include "help_quest.h"
 #include "quest_journal.h"
@@ -298,6 +308,9 @@ constexpr size_t SET_RECT=0x1a8, VTABLE_SLOTS=1024;  // the dialog vtables have 
 constexpr size_t START_VTABLE=0xcea9e8, HIT_TEST=0x418, START_COMMAND=0x490;
 constexpr int BUTTON=0x2001,CONTAINER=0x2008,FLYGAUGE=0x200d;  // widget types (vtable +0x10)
 using SetRectFn=uintptr_t(*)(Ptr,const Rect*);
+constexpr int PARTY_DIALOG=0x21;
+constexpr size_t PARTY_VTABLE=0xcd2848, PARTY_RECT_CHANGED=0x480, PARTY_NATIVE_LAYOUT=0x807710;
+void party_rect_changed(Ptr self,const Rect* previous);
 // Pin modes: 0 top-left at x,y; 1 top-right, 2 bottom-left, 3 bottom-right corner at x,y
 // (tooltips grow away from an anchor whatever their size); 4 beside the mouse, x,y added (the
 // tooltip's cursor anchor; it flips to the other side at the screen edge); 5 kept off screen.
@@ -309,7 +322,11 @@ struct Pin { int id; char widget[48]; int type; Ptr target; Ptr owner; double x,
              int wmode,umode; double ux,uy; void** native_class; void** owner_class; };
 bool pin_live(const Pin& p);
 struct Table { void** native; void** original; void* copy[VTABLE_SLOTS+1]; int next; bool ready; size_t slots; };
-Pin pins[192];int pin_count=0;
+// 192 filled up in game (1.4.15): resized unit frames, party rows, portraits and the layout together
+// passed it, and the newest pin (the target portrait) was refused without a word, so it was built,
+// refused and rebuilt in a loop. Lookups scan only the pins in use, so the capacity costs only memory.
+constexpr int PIN_LIMIT=1024;
+Pin pins[PIN_LIMIT];int pin_count=0;
 struct Refusal { int id; char widget[48]; const char* why; };
 Refusal refusals[32];int refusal_next=0;
 void refuse(int id,const char* name,const char* why){
@@ -384,6 +401,9 @@ Rect placed(const Pin& given,Rect p){
         if(ui){pin.x=pin.ux;pin.y=pin.uy;}
     }
     if(pin.w>0 && pin.h>0){p.w=pin.w;p.h=pin.h;}
+    // Size-only pins preserve the native LOCAL x/y, including nested selection widgets.
+    // Converting that position through the owner origin would move the widget on each SetRect.
+    if(pin.mode==7)return p;
     double width=global<double>(UI_WIDTH),height=global<double>(UI_HEIGHT);
     if(pin.mode==4){
         double gap=16*global<double>(UI_SCALE),cx,cy;cursor_ui(cx,cy);
@@ -392,7 +412,6 @@ Rect placed(const Pin& given,Rect p){
         if(height>0 && p.y+p.h>height)p.y=cy-gap-p.h-pin.y;
     }
     else if(pin.mode==5){p.x=-20000;p.y=-20000;}
-    else if(pin.mode==7){}  // size only: the game, the player or a move keeps the position
     else{p.x=pin.mode&1?pin.x-p.w:pin.x;p.y=pin.mode&2?pin.y-p.h:pin.y;}
     // Minimise/focus transitions expose temporary viewport dimensions. They
     // must not drag a held bar to that temporary bottom/right edge.
@@ -749,6 +768,8 @@ bool hook(Ptr d){
         hook_refusal="Find Group native command/visibility slots changed";return false;
     }
     bool separated=low==game()+0xccee98 || low==game()+0xccf518;
+    bool party=low==game()+PARTY_VTABLE && slots>PARTY_RECT_CHANGED/8
+        && vt[PARTY_RECT_CHANGED/8]==game()+PARTY_NATIVE_LAYOUT;
     size_t adjust=anchor_adjust(low);
     if(table_count==TABLE_LIMIT){hook_refusal="too many window classes held";return false;}
     if(slots<=SET_RECT/8 || (start && slots<=START_COMMAND/8)){hook_refusal="class table too short";return false;}
@@ -775,6 +796,7 @@ bool hook(Ptr d){
         add(DRAW_SKIN_BYTES_ABSOLUTE,reinterpret_cast<void*>(&backdrop_draw_bytes_absolute));
     }
     if(adjust)add(ADJUST_RECT,reinterpret_cast<void*>(&pinned_aura_adjust));
+    if(party)add(PARTY_RECT_CHANGED,reinterpret_cast<void*>(&party_rect_changed));
     if(start || separated)add(HIT_TEST,reinterpret_cast<void*>(&start_hit_test));
     if(start)add(START_COMMAND,reinterpret_cast<void*>(&start_command));
     if(codex)add(START_COMMAND,reinterpret_cast<void*>(&codex_command));
@@ -829,6 +851,64 @@ Ptr child(Ptr parent,int n){
         if(i==n)return *reinterpret_cast<Ptr*>(node+0x10);
     }
     return nullptr;
+}
+// DlgParty's post-SetRect delegate places its six native aura windows. The
+// selection is already a native child. Move the passive overlay container here
+// as well, so the next paint uses the same party origin for all three.
+struct PartyOverlay { int canvasId,childIndex; Ptr canvas; Ptr rows; };
+PartyOverlay party_overlay{};
+void place_party_overlay(Ptr party){
+    const auto& overlay=party_overlay;
+    if(dialog(overlay.canvasId)!=overlay.canvas || child(overlay.canvas,overlay.childIndex)!=overlay.rows)return;
+    const Rect r=local_rect(overlay.rows,screen_rect(party));
+    if(std::memcmp(&field<Rect>(overlay.rows,0x50),&r,sizeof r))
+        method<void(*)(Ptr,const Rect*)>(overlay.rows,SET_RECT)(overlay.rows,&r);
+}
+void party_rect_changed(Ptr self,const Rect* previous){
+    using Changed=void(*)(Ptr,const Rect*);
+    reinterpret_cast<Changed>(own_table(self)->original[PARTY_RECT_CHANGED/8])(self,previous);
+    if(!party_overlay.canvas || !previous || dialog(PARTY_DIALOG)!=self)return;
+    if(std::memcmp(&field<Rect>(self,0x50),previous,sizeof(Rect)))place_party_overlay(self);
+}
+bool set_party_overlay(bool on,bool refresh=false){
+    if(on && refresh){
+        Ptr party=dialog(PARTY_DIALOG);
+        Table* table=party?own_table(party):nullptr;
+        if(!party || !table || !table->ready ||
+           table->original[PARTY_RECT_CHANGED/8]!=game()+PARTY_NATIVE_LAYOUT ||
+           !party_overlay.canvas || dialog(party_overlay.canvasId)!=party_overlay.canvas ||
+           child(party_overlay.canvas,party_overlay.childIndex)!=party_overlay.rows)return false;
+        // Native 0x807710 always reads the six actual row rectangles and places their auras,
+        // even when previous==current. Run once after a changed row-size batch, never per tick.
+        // Use the saved original delegate, not a synthetic SetRect or a second layout owner.
+        Rect previous=field<Rect>(party,0x50);
+        reinterpret_cast<void(*)(Ptr,const Rect*)>(table->original[PARTY_RECT_CHANGED/8])(party,&previous);
+        place_party_overlay(party);
+        return true;
+    }
+    party_overlay={};
+    if(!on)return true;
+    Ptr party=dialog(PARTY_DIALOG);
+    if(!party || *static_cast<void***>(party)!=reinterpret_cast<void**>(game()+PARTY_VTABLE))return false;
+    auto table=own_table(party);
+    void* current=table && table->ready?table->original[PARTY_RECT_CHANGED/8]:
+        (*static_cast<void***>(party))[PARTY_RECT_CHANGED/8];
+    if(current!=game()+PARTY_NATIVE_LAYOUT)return false;
+    for(int id=0x20e;id<=int(PLUGIN_LAST);++id){
+        Ptr canvas=dialog(id);
+        const char* name=canvas?method<const char*(*)(Ptr)>(canvas,0xa8)(canvas):nullptr;
+        if(!name || std::strcmp(name,"AFHFrames"))continue;
+        Ptr rows=widget(id,"AFHFParty",CONTAINER);
+        if(!rows || !hook(party))return false;
+        for(int index=1;Ptr node=child(canvas,index);++index){
+            if(node!=rows)continue;
+            party_overlay={id,index,canvas,rows};
+            place_party_overlay(party);
+            return true;
+        }
+        return false;
+    }
+    return false;
 }
 // Widget by name, or "#n" (the dialog's n-th child: unnamed containers such as an action bar's),
 // or "#n/name" (a named widget inside that child).
@@ -947,6 +1027,11 @@ int dispatch(Ptr L){
         char version[64];std::snprintf(version,sizeof version,"AetherfallCore %s",CORE_VERSION);
         push(L,1.0);return 1+push(L,version);  // protocol version, installed build
     }
+    if(is(cmd,"modtext")){
+        // The launcher passes the composed, owned catalog to this process only (shared reader).
+        static const auto data=mod_text::read_catalog();
+        return data.empty()?nil(L):push(L,data.data(),data.size());
+    }
     if(is(cmd,"money")){long long k=kinah();return k<0?nil(L):push(L,double(k));}
     if(is(cmd,"camerasetting") || is(cmd,"setcamerasetting")){
         auto setting=camera_setting(text(L,2));
@@ -991,6 +1076,21 @@ int dispatch(Ptr L){
         Ptr p=global<Ptr>(PLAYER);
         return p && readable(p,0x34)?push(L,double(field<int>(p,0x30))):nil(L);
     }
+    if(is(cmd,"unitclass")){
+        // unitclass('player'|'target'|'targettarget') or unitclass('party', name): class ID 0..16 and its
+        // native STR_CLASS_NAME_* text; nil for NPCs, objects and unknown members (unit_class.h).
+        const char* unit=text(L,2);int c=unit_class::NONE;
+        if(unit && !std::strcmp(unit,"party"))c=unit_class::of_member(text(L,3));
+        else if(unit && !std::strcmp(unit,"player")){
+            Ptr p=global<Ptr>(PLAYER);
+            // PLAYER is a plain record (0x2e60 bytes, built by 0x4413f0) with no class table: 1.3.22 called
+            // +0x248 on it, which ran an unrelated function. Resolve the player's own object ID (+0x30, as
+            // "playerid") through the same verified entity route as a target.
+            if(p && readable(p,0x34))c=unit_class::of_object(field<int>(p,0x30));
+        }else if(unit_record(unit))c=unit_class::of_object(field<int>(record,0));
+        if(c<0 || c>=unit_class::NONE)return nil(L);
+        push(L,double(c));return 1+push(L,localized(unit_class::name_id(c)));
+    }
     if(is(cmd,"unit")){
         if(!unit_record(text(L,2)))return nil(L);
         push(L,double(field<int>(record,0)));push(L,reinterpret_cast<const wchar_t*>(record+4),64);
@@ -1009,6 +1109,36 @@ int dispatch(Ptr L){
     }
     if(is(cmd,"hireterms"))return boolean(L,hire_terms::poll());
     if(is(cmd,"identity"))return companion_identity::query(L,text(L,2));
+    if(is(cmd,"portrait")){
+        // A numeric source is the expected current target object ID, never a template ID or name.
+        // String sources retain the existing cached companion look for party portraits.
+        bool numeric=arg(L,4) && arg(L,4)->tt==3;
+        const char* name=text(L,4);
+        bool create=numeric || (name && *name);
+        Ptr host=widget(int(number(L,2,0)),text(L,3),portrait_view::HOST_TYPE);
+        int error=0;Ptr view=portrait_view::get(host,create,error);
+        if(!view){
+            if(!create && !error)return boolean(L,true);
+            boolean(L,false);return 1+push(L,double(error));
+        }
+        if(numeric){
+            double id=number(L,4);
+            // -1 is the player's own body (core 1.3.23), any other number the selected object's ID.
+            // Second result on failure: target_portrait::Result, or 9 for an invalid ID (frame report only).
+            int why=id==-1 ? target_portrait::show_self(view)
+                : std::isfinite(id) && id>0 && id<=2147483647 && id==std::floor(id)
+                ? target_portrait::show(view,int(id)) : 9;
+            if(why==target_portrait::READY)return boolean(L,true);
+            native<void(*)(Ptr)>(VIEW3D_CLEAR)(view);
+            boolean(L,false);
+            return 1+push(L,double(why));
+        }
+        if(!name || !*name){native<void(*)(Ptr)>(VIEW3D_CLEAR)(view);return boolean(L,true);}
+        int model=0;std::array<uint8_t,0x60> body;
+        if(!companion_identity::look(name,model,body))return boolean(L,false);
+        native<void(*)(Ptr,int,float,const uint8_t*)>(VIEW3D_MODEL)(view,model,1.0f,body.data());
+        return boolean(L,true);
+    }
     if(is(cmd,"helpview")){help_view_until=GetTickCount64()+30000;return boolean(L,true);}
     if(is(cmd,"slashes"))return boolean(L,slash_names::publish(text(L,2),text_length(L,2)));
     if(is(cmd,"widget")){
@@ -1077,6 +1207,10 @@ int dispatch(Ptr L){
         if(std::memcmp(&field<Rect>(d,0x50),&r,sizeof r))method<void(*)(Ptr,const Rect*)>(d,0x1a8)(d,&r);
         return boolean(L,true);
     }
+    if(is(cmd,"partyframes")){
+        Value* on=arg(L,2);Value* refresh=arg(L,3);
+        return boolean(L,on && on->tt==1 && set_party_overlay(on->v.b!=0,refresh && refresh->tt==1 && refresh->v.b!=0));
+    }
     if(is(cmd,"backdrop")){
         double a=number(L,3,-1);
         if(!std::isfinite(a) || a<0 || a>1)return boolean(L,false);
@@ -1105,7 +1239,7 @@ int dispatch(Ptr L){
         if(!target || !std::isfinite(x->v.n) || !std::isfinite(y->v.n) || std::fabs(x->v.n)>16384 || std::fabs(y->v.n)>16384
            || !std::isfinite(w) || !std::isfinite(h) || w>16384 || h>16384)return boolean(L,false);
         if(!p){
-            if(pin_count==int(sizeof pins/sizeof pins[0]))return boolean(L,false);
+            if(pin_count==PIN_LIMIT){refuse(id,name,"pin table full");return boolean(L,false);}
             p=&pins[pin_count++];*p=Pin{};p->id=id;std::memcpy(p->widget,name,std::strlen(name)+1);
         }
         // A target the game recreated replaces the old (deleted) one, which is never touched again.
@@ -1113,7 +1247,7 @@ int dispatch(Ptr L){
         int mode=int(number(L,5,0));Value* clamp=arg(L,6);
         p->type=type;p->target=target;p->owner=dialog(id);p->x=x->v.n;p->y=y->v.n;p->w=w;p->h=h;
         p->native_class=*static_cast<void***>(target);p->owner_class=*static_cast<void***>(p->owner);
-        p->mode=(mode>=0 && mode<=5) || (mode==7 && !*name)?mode:0;p->clamp=clamp && clamp->tt==1 && clamp->v.b;  // 7: dialog size only
+        p->mode=(mode>=0 && mode<=5) || mode==7?mode:0;p->clamp=clamp && clamp->tt==1 && clamp->v.b;  // 7: native local position, size only
         if(!hook(target)){refuse(id,name,hook_refusal);unpin(int(p-pins));return boolean(L,false);}
         accept(id,name);
         // Applied at once (also each tick, so a cursor-anchored tooltip follows the mouse).
@@ -1146,7 +1280,7 @@ int dispatch(Ptr L){
         }
         Pin* p=find_pin(id,"");
         if(!p){
-            if(pin_count==int(sizeof pins/sizeof pins[0]))return boolean(L,false);
+            if(pin_count==PIN_LIMIT){refuse(id,"","pin table full");return boolean(L,false);}
             p=&pins[pin_count++];*p=Pin{};p->id=id;
         }
         if(p->target && p->target!=d)++p->retargets;

@@ -1,5 +1,5 @@
 -- Registered feature adapters keep the editor independent of frame types.
-local M=AF:NewModule('NativeFrames',{scope='profile',needs={'Placement','Shortcuts','Tooltip','Minimap','HUD','TargetDetails','Lifecycle'},defaults={}})
+local M=AF:NewModule('NativeFrames',{scope='profile',needs={'Placement','Shortcuts','Tooltip','Minimap','HUD','TargetDetails','Lifecycle','UnitFrames'},defaults={}})
 local S={}
 local N=AF.Native
 local D=AFCore and AFCore.DIALOG or {}
@@ -160,7 +160,12 @@ local function frameRect(id, d)
         local p = position(id, d)
         if p then x, y = p[1] * sw, p[2] * sh else local dx, dy = design(id); if dx then x, y = dx, dy end end
     end
-    local ox, oy, wd, ht = auraBounds(id, d)
+    -- Unit frames drawn by AFUI: the box is the drawn frame, so a resized frame keeps its size in MoveUI.
+    local ox, oy, wd, ht
+    if id == D.basic_status or id == D.target or id == D.target_assist or id == D.party then
+        ox, oy, wd, ht = AF:Call('UnitFrames', 'MoverBounds', id, d)
+    end
+    if not ox then ox, oy, wd, ht = auraBounds(id, d) end
     if not ox then ox, oy, wd, ht = notificationBounds(id, d) end
     if not ox then ox, oy, wd, ht = targetBounds(id,d)end
     if ox then return x + ox, y + oy, wd, ht, ox, oy end

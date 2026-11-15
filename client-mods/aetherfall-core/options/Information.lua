@@ -1,10 +1,11 @@
 AF.Config:Register('Lifecycle', function()
+    local L = AFCore.Translate or function(text) return text end
     local _, bridge = AFCore.Version()
     local version = AF.Native:Resource('version') or '1.3.0'
-    return {{id='Information',name='Information / About',category='Information',order=12,desc='Aetherfall Interface version ' .. version,tabs={
+    return {{id='Information',name='Information / About',category='Information',order=12,desc=string.format(L('Aetherfall Interface version %s'),version),tabs={
         {id='About',name='About',order=1,groups={
             {name='Aetherfall Interface',order=1,options={
-                {kind='header',label='Aetherfall Interface ' .. version,width='full',order=1},
+                {kind='header',label=string.format(L('Aetherfall Interface %s'),version),width='full',order=1},
                 {kind='description',label=bridge or 'Native bridge unavailable',width='full',order=2},
                 {kind='description',label='Options and profiles are modular. /afui opens settings. /moveui opens the anchor editor.',width='full',order=3},
             }},

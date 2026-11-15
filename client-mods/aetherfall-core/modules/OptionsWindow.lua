@@ -1,6 +1,7 @@
 -- A generic on-demand options browser. Feature knowledge belongs to providers.
 local M = AF:NewModule('OptionsWindow', {needs={'Lifecycle','MoverEditor','CustomWindows'}})
 local N, C, Skin = AF.Native, AF.Config, AF.Skin
+local L = AFCore.Translate or function(text) return text end
 local S = {page=nil,tab='General',offset=1,categoryOffset=1,tabOffset=1,built={},expanded={},query=''}
 local function w(id) return N.Widget('UI','Options'..id) end
 local function life(method,...) return AF:Call('Lifecycle',method,...) end
@@ -9,7 +10,7 @@ local MAX_CELLS, MAX_CATEGORIES, MAX_TABS = 16,14,8
 local function paint(id,x,y,width,height,text,style,selected)
     local widget=w(id); if not widget then return end
     Skin.Place(widget,x,y,width,height)
-    if text~=nil then Skin.SetText(widget,text) end
+    if text~=nil then Skin.SetText(widget,style=='field' and text or L(text)) end
     Skin.Show(widget)
     if style=='button' then Skin.Button(widget,width,height,selected)
     elseif style=='field' then Skin.Field(widget,width,height)
@@ -49,7 +50,7 @@ local function chrome(page,tab)
     Skin.Hide(w('Title'))
     S.title={10,4,width-20,S.compact and 23 or 34}
     paint('TitleDrag',S.title[1],S.title[2],S.title[3],S.title[4],'Aetherfall Interface   |   Drag to move','button')
-    paint('Version',width-154,S.compact and 5 or 11,140,20,'Version: ' .. (S.version or ''), 'Aether')
+    paint('Version',width-154,S.compact and 5 or 11,140,20,string.format(L('Version: %s'),S.version or ''), 'Aether')
     local actions={{'Anchors','Toggle anchors',120},{'ResetAnchors',S.resetConfirm and 'Confirm reset' or 'Reset anchors',120},{'Reposition','Reposition window',140},{'Install','Install',72}}
     local x=14
     for _, action in ipairs(actions) do
@@ -72,7 +73,7 @@ local function chrome(page,tab)
     if S.pageCount>1 then
         paint('Previous',side+24,navY,28,24,'<','button')
         paint('Next',side+58,navY,28,24,'>','button')
-        paint('Page',side+94,navY+2,160,20,'Page '..S.offset..' / '..S.pageCount,'Mist')
+        paint('Page',side+94,navY+2,160,20,string.format(L('Page %d / %d'),S.offset,S.pageCount),'Mist')
     else
         Skin.Hide(w('Previous')); Skin.Hide(w('Next')); Skin.Hide(w('Page'))
     end
@@ -92,10 +93,10 @@ local function categoryRows(pages)
             -- A category with one page opens it directly; only real groups expand.
             rows[#rows+1]={page=group.pages[1].id,label=group.name}
         else
-        rows[#rows+1]={category=group.name,label=(S.expanded[group.name] and '- ' or '+ ')..group.name}
+        rows[#rows+1]={category=group.name,label=(S.expanded[group.name] and '- ' or '+ ')..L(group.name)}
         if S.expanded[group.name] then
             for _,page in ipairs(group.pages) do
-                rows[#rows+1]={page=page.id,label=(page.parent and '    ' or '  ')..page.name}
+                rows[#rows+1]={page=page.id,label=(page.parent and '    ' or '  ')..L(page.name)}
             end
         end
         end
@@ -185,7 +186,7 @@ function M:Refresh()
             local target=result
             options[#options+1]={id='SearchResult'..i,label=result.path,desc=result.desc,kind='execute',text='Open page',owner=self.name,width='full',execute=function() M:Select(target.page,target.tab,target.option); M:Search('') end}
         end
-        activeTab={groups={{name='Search results ('..#options..')',options=options}}}
+        activeTab={groups={{name=string.format(L('Search results (%d)'),#options),options=options}}}
     end
     local sheets=chunks(activeTab)
     S.pageCount=#sheets; S.offset=math.max(1,math.min(S.offset,#sheets))

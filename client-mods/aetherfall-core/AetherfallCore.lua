@@ -21,6 +21,25 @@ AFCore.DIALOG = {
 
 function AFCore.Loaded() return core ~= nil end
 
+local modText
+local function unescapeText(value)
+    return (value:gsub('%%(%x%x)', function(byte) return string.char(tonumber(byte, 16)) end))
+end
+function AFCore.Translate(value)
+    if type(value) ~= 'string' or value == '' then return value end
+    if not modText then
+        modText = {}
+        local data = core and core('modtext')
+        if type(data) == 'string' and data:sub(1, 8) == 'AFTEXT1\n' then
+            for key, translated in data:sub(9):gmatch('([^\t\n]+)\t([^\t\n]+)\n') do
+                modText[unescapeText(key)] = unescapeText(translated)
+            end
+        end
+    end
+    return modText[value] or value
+end
+AFTranslate = AFCore.Translate
+
 -- Mods/AetherfallUI resolved against the client's working folder (client root or bin64).
 local modBase
 function AFCore.ModPath(name)
@@ -51,6 +70,14 @@ function AFCore.Aura(unit, index) if core then return core("aura", unit, index) 
 function AFCore.Unit(unit) if core then return core("unit", unit) end end
 --- A bot's gear rarity and combat rank, or nil for anyone else or until the server has answered.
 function AFCore.Identity(name) if core then return core("identity", name) end end
+--- Core 1.3.22: widget is a supported addon Container. A native-owned Model child supplies the portrait
+--- camera/viewport. Numeric source is the selected object ID, or -1 for the player's own body (core 1.3.23);
+--- a bot name retains the cached party look.
+--- Nil clears without allocating. Failure returns false plus a bounded reason code.
+function AFCore.Portrait(dialog, widget, source) if core then return core("portrait", dialog, widget, source) end end
+--- Class ID (0..16) and native class name: unit 'player', 'target', 'targettarget', or 'party' with the
+--- member's name. Nil for NPCs, objects and unknown members (core 1.3.22).
+function AFCore.UnitClass(unit, name) if core then return core("unitclass", unit, name) end end
 --- Show or hide one widget of a native dialog by path (core 1.3.8). False when it does not exist.
 function AFCore.WidgetShown(dialog, widget, on) if core then return core("widgetshown", dialog, widget, on) end end
 function AFCore.PlayerId() if core then return core("playerid") end end
@@ -136,6 +163,9 @@ function AFCore.Dialog(dialog) if core then return core("dialog", dialog) end en
 function AFCore.PopupOwner(dialog) if core then return core("popupowner", dialog) end end
 -- interface placement of a native dialog (pixels); returns true when applied
 function AFCore.Move(dialog, x, y, width, height) if core then return core("move", dialog, x, y, width, height) end end
+-- Align the AFUI party container with the native party dialog on native moves.
+-- refresh=true also runs the native aura layout once after a changed row-geometry batch.
+function AFCore.PartyFrames(on, refresh) if core then return core('partyframes', on, refresh) end end
 -- Fade native skins, preserving item icons, text and gauge foregrounds.
 function AFCore.Backdrop(dialog, alpha, widget, kind, recursive) if core then return core("backdrop", dialog, alpha, widget, kind, recursive) end end
 function AFCore.PruneBackdrops() if core then return core("backdropprune") end end
@@ -146,7 +176,8 @@ end
 --- keep a native dialog's spot (pixels) when the game re-places it itself (the target re-centres
 --- on every target change, tooltips follow the mouse). mode: 0 top-left at x,y (default);
 --- 1 top-right, 2 bottom-left, 3 bottom-right corner at x,y; 4 x,y added to the game's spot;
---- 5 kept off screen. clamp: keep it inside the screen. width/height above 0 replace the game's size.
+--- 5 kept off screen; 7 size only, retaining the native local position (also for widgets).
+--- clamp: keep it inside the screen. width/height above 0 replace the game's size.
 --- widget, kind ("button", "container", "flygauge"): pin that widget of the dialog instead (its spot
 --- relative to the dialog). Applied at once. AFCore.Pin(dialog[, nil x 6, widget]) releases it, AFCore.Pin() all.
 function AFCore.Pin(dialog, x, y, mode, clamp, width, height, widget, kind)

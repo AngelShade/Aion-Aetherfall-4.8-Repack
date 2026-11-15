@@ -104,6 +104,15 @@ class Packaging(unittest.TestCase):
                     source = self.encrypted_archive(entries, version)
                     with self.open_archive(source) as old:
                         changes = lua_payloads(self.root, order, installed=old if retained else None)
+                        if retained:
+                            isolated = lua_payloads(self.root, order, installed=old, retain=['AetherfallCore.lua'])
+                            self.assertEqual(isolated['AetherfallCore.lua'], entries['AetherfallCore.lua'])
+                            self.assertEqual(isolated['core_Engine.lua'], (self.root / 'core/Engine.lua').read_bytes())
+                            for invalid in (['missing.lua'], ['AetherfallLayout.lua']):
+                                with self.assertRaises(ValueError):
+                                    lua_payloads(self.root, order, installed=old, retain=invalid)
+                            with self.assertRaises(ValueError):
+                                lua_payloads(self.root, order, retain=['AetherfallCore.lua'])
                         if not retained:
                             for name in GENERATED:
                                 changes[name] = ('-- freshly generated ' + name).encode()
@@ -207,7 +216,7 @@ class Packaging(unittest.TestCase):
         self.assertEqual(deep[128:132], bytes((b, g, r, 255)))
         self.assertNotEqual(assets[prefix + 'check-on.dds'], assets[prefix + 'check-off.dds'])
 
-    def test_unitframes_startup_pool_is_passive_flat_and_bounded(self):
+    def test_unitframes_startup_pool_groups_passive_party_rows(self):
         eager, lazy = ET.fromstring(prepare.hud_xml()), ET.fromstring(prepare.lazy_xml())
         dialogs = [node for node in eager if node.get('name') == 'AFHFrames']
         self.assertEqual(len(dialogs), 1)
@@ -216,18 +225,38 @@ class Packaging(unittest.TestCase):
         # The attributes of the 1.2.94 bot label window, which drew over native frames in game.
         self.assertEqual(root.attrib, dict(name='AFHFrames', frame='0,0,3840,2160',
                          flag='transparent;not_visible;not_movable;not_active'))
-        names = {node.get('name') for node in root}
-        self.assertEqual(len(root), 9 * 38)
-        self.assertEqual(len(names), len(root))
+        party = root.find("Widget[@name='AFHFParty']")
+        self.assertEqual(party.attrib, dict(type='container', name='AFHFParty', frame='0,0,230,318',
+                                          flag='transparent;not_active'))
+        # 42 pooled parts per frame, one native-model host per player/target/party frame, and the party container.
+        self.assertEqual(len(root), 3 * 42 + 2 + 1)
+        self.assertEqual(len(party), 6 * 43)
         frames = ('Player', 'Target', 'TargetTarget') + tuple(f'Party{i}' for i in range(1, 7))
         parts = {'Backdrop', 'HealthBG', 'HealthFill', 'PowerBG', 'PowerFill', 'DPBG', 'DPFill',
                  'HealthTextLeft', 'HealthTextCentre', 'HealthTextRight',
                  'PowerTextLeft', 'PowerTextCentre', 'PowerTextRight', 'Level', 'Identity', 'State', 'DPTextCentre',
-                 'Star1', 'Star2', 'Star3', 'Star4', 'Star5'}
+                 'Star1', 'Star2', 'Star3', 'Star4', 'Star5', 'Crest', 'PortraitBG', 'PortraitBorder', 'ClassIcon'}
         parts.update(part + 'Edge' + edge for part in ('Backdrop', 'HealthBG', 'PowerBG', 'DPBG')
                      for edge in ('Top', 'Bottom', 'Left', 'Right'))
-        self.assertEqual(names, {'AFHF' + frame + part for frame in frames for part in parts})
-        for node in root:
+        self.assertFalse([node for node in root.iter('Widget') if node.get('type') == '3dview'])
+        views = [node for node in root.iter('Widget') if node.get('name', '').endswith('Portrait')]
+        self.assertEqual(sorted(node.get('name') for node in views),
+                         [f'AFHFParty{i}Portrait' for i in range(1, 7)] + ['AFHFPlayerPortrait', 'AFHFTargetPortrait'])
+        for view in views:
+            # Supported addon host; native Core owns the camera/model child.
+            self.assertEqual(view.attrib, dict(type='container', name=view.get('name'),
+                                               frame='0,0,1,1', flag='transparent;not_active;not_visible'))
+            owner = party if view.get('name').startswith('AFHFParty') else root
+            order = [node.get('name') for node in owner]
+            stem = view.get('name')[:-len('Portrait')]
+            self.assertLess(order.index(stem + 'DPFill'), order.index(view.get('name')))
+            self.assertLess(order.index(stem + 'PortraitBG'), order.index(view.get('name')), 'the model draws over its background')
+            self.assertLess(order.index(view.get('name')), order.index(stem + 'PortraitBorder'), 'the border draws over the model')
+            owner.remove(view)
+        loose = [node for node in root if node is not party]
+        self.assertEqual({node.get('name') for node in loose}, {'AFHF' + frame + part for frame in frames[:3] for part in parts})
+        self.assertEqual({node.get('name') for node in party}, {'AFHF' + frame + part for frame in frames[3:] for part in parts})
+        for node in [*loose, *party]:
             self.assertEqual(node.tag, 'Widget')
             self.assertEqual(len(node), 0, 'all controls must be direct dialog children')
             self.assertIn(node.get('type'), ('image', 'static'))
@@ -275,6 +304,27 @@ class Packaging(unittest.TestCase):
         self.assertTrue(stars <= set(assets))
         for name in stars:
             self.assertEqual(struct.unpack('<31I', assets.pop(name)[4:128])[2:4], (32, 32))
+        crests = {f'{unitframes.PREFIX}/crest-{rarity}.dds' for rarity in ('poor', 'ordinary', 'good', 'great', 'excellent')}
+        self.assertTrue(crests <= set(assets))
+        for name in crests:
+            payload = assets.pop(name)
+            self.assertEqual(struct.unpack('<31I', payload[4:128])[2:4], (32, 64))
+            alpha = payload[128 + 3::4]
+            self.assertEqual(len(alpha), 64 * 32)
+            self.assertEqual(max(alpha), 255, 'a crest must be opaque somewhere')
+            edge = [alpha[x] for x in range(64)] + [alpha[31 * 64 + x] for x in range(64)]
+            edge += [alpha[y * 64] for y in range(32)] + [alpha[y * 64 + 63] for y in range(32)]
+            self.assertEqual(max(edge), 0, 'a crest must keep a clear outer texel')
+        borders = {f'{unitframes.PREFIX}/border-{name}.dds' for name in ('poor', 'ordinary', 'good', 'great', 'excellent', 'player')}
+        self.assertTrue(borders <= set(assets))
+        for name in borders:
+            payload = assets.pop(name)
+            self.assertEqual(struct.unpack('<31I', payload[4:128])[2:4], (128, 128))
+            alpha = payload[128 + 3::4]
+            # One shared opening (40..215 of 256, halved here): the portrait shows through it in every border.
+            opening = [alpha[y * 128 + x] for y in range(24, 104) for x in range(24, 104)]
+            self.assertEqual(max(opening), 0, 'the portrait opening must be clear: ' + name)
+            self.assertEqual(min(alpha[64 * 128 + x] for x in (15, 112)), 255, 'the band must be solid: ' + name)
         self.assertEqual(len(assets), 4096)
         self.assertEqual(sum(map(len, assets.values())), 4096 * (128 + 4 * 4 * 4))
         for value in range(4096):

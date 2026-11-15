@@ -6,6 +6,12 @@ PREFIX = 'Textures/UI/AetherfallUnitFrames'
 FRAMES = ('Player', 'Target', 'TargetTarget') + tuple(f'Party{i}' for i in range(1, 7))
 IMAGES = ('Backdrop', 'HealthBG', 'HealthFill', 'PowerBG', 'PowerFill', 'DPBG', 'DPFill')
 STARS = tuple(f'Star{i}' for i in range(1, 6))  # bot rank; the game fonts have no star glyph
+# bot gear quality crest before the gear label; painted border over a portrait; the native class emblem
+CREST = ('Crest', 'PortraitBorder', 'ClassIcon')
+# Supported addon container hosts: Core creates the native Model child and portrait camera.
+# Proportional native child alignment follows host geometry; these passive hosts take no input.
+# The player's host shows its own body (Core 1.3.23); its stock view remains the fallback.
+VIEWS = ('Player', 'Target') + tuple(f'Party{i}' for i in range(1, 7))
 BORDERED = ('Backdrop', 'HealthBG', 'PowerBG', 'DPBG')
 EDGES = ('Top', 'Bottom', 'Left', 'Right')
 TEXT = tuple(resource + 'Text' + align for resource in ('Health', 'Power')
@@ -25,6 +31,8 @@ def assets():
         result[f'{PREFIX}/solid-{value:03x}.dds'] = dds(4, 4, lambda x, y, c=colour: c)
     from layout.rank_stars import assets as rank_stars  # earned and empty rank stars
     result.update(rank_stars(PREFIX))
+    from layout.identity_crests import assets as identity_crests  # one painted crest per gear quality
+    result.update(identity_crests(PREFIX))
     return result
 
 
@@ -34,19 +42,33 @@ def dialog():
     # frames in game; 1.4.0 added the pet-command preset and nothing on it showed.
     root = E.Element('Dialog', name='AFHFrames', frame='0,0,3840,2160',
                      flag='transparent;not_visible;not_movable;not_active')
+    party = E.SubElement(root, 'Widget', type='container', name='AFHFParty',
+                         frame='0,0,230,318', flag='transparent;not_active')
     for frame in FRAMES:
         prefix = 'AFHF' + frame
-        for part in IMAGES + STARS:
-            E.SubElement(root, 'Widget', type='image', name=prefix + part,
+        parent = party if frame.startswith('Party') else root
+        for part in IMAGES:
+            E.SubElement(parent, 'Widget', type='image', name=prefix + part,
+                         frame='0,0,1,1', flag='not_active;not_visible')
+        # Native Model children render inside these hosts, over the portrait background and below
+        # the painted portrait border (declaration order is drawing order). UnitFrames binds every
+        # part on every frame, so the background exists even where there is no host.
+        E.SubElement(parent, 'Widget', type='image', name=prefix + 'PortraitBG',
+                     frame='0,0,1,1', flag='not_active;not_visible')
+        if frame in VIEWS:
+            E.SubElement(parent, 'Widget', type='container', name=prefix + 'Portrait',
+                         frame='0,0,1,1', flag='transparent;not_active;not_visible')
+        for part in STARS + CREST:
+            E.SubElement(parent, 'Widget', type='image', name=prefix + part,
                          frame='0,0,1,1', flag='not_active;not_visible')
         # AF.Skin.Border resolves these siblings by the owning image's name.
         for part in BORDERED:
             for edge in EDGES:
-                E.SubElement(root, 'Widget', type='image', name=prefix + part + 'Edge' + edge,
+                E.SubElement(parent, 'Widget', type='image', name=prefix + part + 'Edge' + edge,
                              frame='0,0,1,1', flag='not_active;not_visible')
         for part in TEXT:
             align = 'center' if part.endswith('Centre') else 'right' if part.endswith('Right') else 'left'
-            E.SubElement(root, 'Widget', type='static', name=prefix + part,
+            E.SubElement(parent, 'Widget', type='static', name=prefix + part,
                          frame='0,0,1,1', font='ui_default', HAlign=align,
                          flag='not_active;not_visible;truncate;not_multiline;not_wordwrap')
     return root

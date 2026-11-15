@@ -13,6 +13,7 @@ local MOVERS = 56
 local scale, screen = AF.Native.Scale, AF.Native.Screen
 local guideReady
 local function w(id) return AF.Native.Widget('UI', id) end
+local function L(text) return AFTranslate and AFTranslate(text) or text end
 local function boxSize(mv) return mv.w, mv.h end
 
 function M:Setting(key) return self.db[key] end
@@ -76,7 +77,7 @@ local FILTERS = {'All frames', 'HUD', 'Action bars', 'Menus', 'Windows'}
 
 local function editorStatus(view, text)
     view.editorStatus = text
-    if w('EditorStatus') then w('EditorStatus'):SetText(text or 'Save before travel. Cancel restores your layout.') end
+    if w('EditorStatus') then w('EditorStatus'):SetText(L(text or 'Save before travel. Cancel restores your layout.')) end
 end
 local function guide(name, x, y, wd, ht, alpha)
     local widget = w(name); if not widget then return end
@@ -139,12 +140,16 @@ local function editorBoxes(view)
         local i = eligible[first+slot-1]
         if i then
             local mv=view.movers[i]; mv.slot=slot; mv.tag=nil; placeBox(view, i)
-            w('Move'..slot):SetText(M.db.moverLabels==1 and mv.label or '')
-            local tw, th = (#mv.label*8+16)*s, 20*s
+            local caption = L(mv.label)
+            w('Move'..slot):SetText(M.db.moverLabels==1 and caption or '')
+            local width = #caption * 8
+            if caption ~= mv.label then width = AF.Skin.TextWidth(w('Move'..slot), caption) or width end
+            local tw, th = (width+16)*s, 20*s
             if M.db.moverLabels==1 and w('MoveLabel'..slot) and (mv.h < th or mv.w < tw) then
                 w('Move'..slot):SetText(''); tags[#tags+1] = {i,math.min(tw,sw),th}
             else occupied[#occupied+1] = {mv.x+(mv.w-tw)/2,mv.y+(mv.h-th)/2,tw,th} end
-            w('Move'..slot):SetTooltip(mv.label .. (mv.virtual and ' (not opened)' or '') .. ' - select for position arrows')
+            w('Move'..slot):SetTooltip(string.format(L(mv.virtual and '%s (not opened) - select for position arrows'
+                or '%s - select for position arrows'), caption))
             AF.Skin.Mover(w('Move'..slot),view.selected==i)
             w('Move'..slot):SetAlpha(view.selected==i and .9 or .55); w('Move'..slot):Show()
         else w('Move'..slot):Hide(); AF.Skin.HideEdges(w('Move'..slot)) end
@@ -168,7 +173,7 @@ local function editorBoxes(view)
         chosen = chosen or {math.max(0,math.min(sw-tw,mv.x)),math.max(0,math.min(sh-th,mv.y-th)),tw,th,'Y'}
         occupied[#occupied+1]=chosen
         mv.tag={chosen[1]-mv.x,chosen[2]-mv.y,tw,th,chosen[5]}
-        local label=w('MoveLabel'..mv.slot); label:SetText(mv.label); AF.Skin.Panel(label,tw/s,th/s); AF.Skin.Text(label,'Ice'); label:Show()
+        local label=w('MoveLabel'..mv.slot); label:SetText(L(mv.label)); AF.Skin.Panel(label,tw/s,th/s); AF.Skin.Text(label,'Ice'); label:Show()
         guide('MoveLeader'..mv.slot,0,0,1,1,.65); placeBox(view, i)
     end
 end
@@ -193,21 +198,28 @@ local function placeEditor(view)
     view.editorX, view.editorY = x, y
     for name, r in pairs(EDITOR_PARTS) do w(name):SetRect(x + r[1], y + r[2], r[3], r[4]); w(name):Show() end
     AF.Skin.Text(w('EditorTitle'),'Gold'); AF.Skin.Text(w('EditorSave'),'Gold')
-    w('EditorTitle'):SetText('MOVE UI | drag header')
+    w('EditorTitle'):SetText(L('MOVE UI | drag header'))
+    for name, caption in pairs({EditorSave='Save / Lock', EditorCancel='Cancel', EditorHide='Hide box',
+        EditorRestore='Show all boxes', EditorResetAll='Reset all', EditorSettings='Setup', EditorApply='Apply',
+        EditorCenterH='Center X', EditorCenterV='Center Y', NudgeReset='Reset frame'}) do
+        local translated = L(caption)
+        if translated ~= caption then AF.Skin.SetText(w(name), translated) end
+    end
     w('EditorXLabel'):SetText('X'); w('EditorYLabel'):SetText('Y')
-    w('EditorHelp'):SetText('Drag a box. Arrows: 1 px; Shift: 10 px.')
+    w('EditorHelp'):SetText(L('Drag a box. Arrows: 1 px; Shift: 10 px.'))
     AF.Skin.Text(w('NudgeName'),'Aether')
 end
 
 local function showNudge(view)
     local mv = view.selected and view.movers[view.selected]
     if not w('EditorPanel') then return end
-    w('NudgeName'):SetText(mv and tostring(mv.label) or 'Select a frame')
+    w('NudgeName'):SetText(mv and L(tostring(mv.label)) or L('Select a frame'))
     local o = ORIGINS[view.editorOrigin or 1]; local sw, sh = screen()
-    w('EditorOrigin'):SetText('From: ' .. o[1])
+    w('EditorOrigin'):SetText(string.format(L('From: %s'), L(o[1])))
     w('EditorX'):SetText(mv and tostring(math.floor(mv.x + mv.w * o[2] - sw * o[2] + .5)) or '')
     w('EditorY'):SetText(mv and tostring(math.floor(mv.y + mv.h * o[3] - sh * o[3] + .5)) or '')
-    w('NudgeXY'):SetText(mv and string.format('Position %d, %d   |   Size %d x %d px', mv.x, mv.y, mv.w, mv.h) or 'Select a box, or use the frame selector above.')
+    w('NudgeXY'):SetText(mv and string.format(L('Position %d, %d   |   Size %d x %d px'), mv.x, mv.y, mv.w, mv.h)
+        or L('Select a box, or use the frame selector above.'))
     for i = 1, 4 do w('Selection' .. i):Hide() end
     if mv and not mv.editorHidden then
         guide('Selection1', mv.x, mv.y, mv.w, 2, 1); guide('Selection2', mv.x, mv.y + mv.h - 2, mv.w, 2, 1)
@@ -219,19 +231,19 @@ local function hideNudge(view)
 end
 local function layout(view)
     skinEditor(); placeEditor(view); editorGrid(view); editorBoxes(view); showNudge(view)
-    w('EditorProfile'):SetText('Profile: ' .. AF.DB:ProfileName())
-    w('EditorStep'):SetText('Snap step: ' .. M.db.grid .. ' px')
-    w('EditorStep'):SetTooltip('Snap step in UI pixels: click +2, Shift+click -2 (2 to 32). The visible grid has its own spacing.')
+    w('EditorProfile'):SetText(string.format(L('Profile: %s'), AF.DB:ProfileName()))
+    w('EditorStep'):SetText(string.format(L('Snap step: %d px'), M.db.grid))
+    w('EditorStep'):SetTooltip(L('Snap step in UI pixels: click +2, Shift+click -2 (2 to 32). The visible grid has its own spacing.'))
     for name, setting in pairs({Grid='showgrid', Snap='snap', Sticky='snapframes'}) do
-        w('Editor' .. name):SetText(name .. ': ' .. (M.db[setting] == 1 and 'On' or 'Off'))
+        w('Editor' .. name):SetText(string.format(L('%s: %s'), L(name), L(M.db[setting] == 1 and 'On' or 'Off')))
     end
-    w('EditorSpacing'):SetText(string.format('%d px', view.guideStep / scale()))
-    w('EditorSpacing'):SetTooltip('Visible grid spacing in UI pixels. The center lines mark the screen center.')
-    w('EditorSnap'):SetTooltip('Snap dragged boxes to the ' .. M.db.grid .. ' UI-pixel grid. Change the step in Movers settings.')
-    w('EditorSticky'):SetTooltip('Snap to other frames\' edges and centers.')
-    w('EditorFilter'):SetText(FILTERS[view.editorFilter or 1])
-    w('EditorOrigin'):SetTooltip('Coordinate reference only. X/Y are physical pixel offsets from this point of the screen to the same point of the box.')
-    w('EditorSettings'):SetTooltip('Save / Lock, then open the selected frame\'s settings.')
+    w('EditorSpacing'):SetText(string.format(L('%d px'), view.guideStep / scale()))
+    w('EditorSpacing'):SetTooltip(L('Visible grid spacing in UI pixels. The center lines mark the screen center.'))
+    w('EditorSnap'):SetTooltip(string.format(L('Snap dragged boxes to the %d UI-pixel grid. Change the step in Movers settings.'), M.db.grid))
+    w('EditorSticky'):SetTooltip(L('Snap to other frames\' edges and centers.'))
+    w('EditorFilter'):SetText(L(FILTERS[view.editorFilter or 1]))
+    w('EditorOrigin'):SetTooltip(L('Coordinate reference only. X/Y are physical pixel offsets from this point of the screen to the same point of the box.'))
+    w('EditorSettings'):SetTooltip(L('Save / Lock, then open the selected frame\'s settings.'))
     editorStatus(view, view.editorStatus)
 end
 

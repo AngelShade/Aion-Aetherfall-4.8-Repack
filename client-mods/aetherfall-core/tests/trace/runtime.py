@@ -53,6 +53,8 @@ class Runtime:
         self.reference = reference
         self.legacy_actions = None
         self.stable_plugin_slots = stable_plugin_slots
+        self.current_resources = current_resources
+        self.widget_queue = []
         self.lua = LuaRuntime(unpack_returned_tuples=True)
         self.g = self.lua.globals()
         self.scale, self.sw, self.sh = scale, 1280 * scale, 960 * scale
@@ -119,7 +121,8 @@ class Runtime:
                 local t=TRACE_COVERAGE[source] or {}; TRACE_COVERAGE[source]=t; t[line]=(t[line] or 0)+1
             end
         end,'l')''')
-        self.load('AetherfallCore.lua', frozen('AetherfallCore.lua'))
+        self.load('AetherfallCore.lua', (SOURCE / 'AetherfallCore.lua').read_bytes()
+                  if current_resources else frozen('AetherfallCore.lua'))
         self.load('AetherfallRegistry.lua', frozen('AetherfallRegistry.lua'))
         self.seed_dialogs()
         self.seed_custom()
@@ -130,6 +133,7 @@ class Runtime:
             xml, lazy = prepare.hud_xml(), prepare.lazy_lua()
         for node in ET.fromstring(xml):
             self.g.LoadXMLWidget(self.table(node))
+        self.drain_widgets()
         self.load('AetherfallLayout.lua', frozen('AetherfallLayout.lua'))
         self.load('AetherfallLazy.lua', lazy)
         # Every public AFCore call is recorded in addition to the raw bridge.
@@ -196,6 +200,8 @@ class Runtime:
         name = str(args[2]) if api == 'AddNewWidget' and len(args)>2 else str(args[1]) if len(args)>1 else ''
         state = self.widgets.setdefault(name, {'text':'', 'visible':1, 'rect':[0,0,1,1], 'attr':{}})
         values = args[2:]
+        if self.current_resources and api in ('AddNewWidget', 'AddWidgetChildWidget', 'SetWidgetFlag'):
+            self.widget_queue.append((api, args))
         if api == 'AddNewWidget':
             # All top-level plugin dialogs receive deterministic session slots.
             if len(args) > 2 and args[1] in ('Dialog', 'dialog'):
@@ -225,6 +231,28 @@ class Runtime:
         elif api == 'GetWidgetTextWidth': result = 0
         self.r.write('widget', api, args, result if isinstance(result, tuple) else (result,))
         return result
+
+    def drain_widgets(self):
+        """Ordered synthetic native queue; real framework owns wrapper/attachment calls."""
+        for api, args in self.widget_queue:
+            if api == 'AddNewWidget':
+                kind, name = str(args[1]), str(args[2])
+                # Mirror the native addon allowlist, not the more general XML factory.
+                accepted = kind.lower() in {
+                    'dialog', 'container', 'button', 'tabbutton', 'tab', 'tabsheet', 'tabpage',
+                    'checkbutton', 'radiobutton', 'htmlview', 'combobox', 'editbox', 'gauge',
+                    'static', 'image', 'listbox', 'listviewex', 'scrollable', 'colorselect',
+                    'spin', 'browser', 'messagewidget'}
+                self.widgets[name]['nativeCreated'] = accepted
+                self.widgets[name]['nativeKind'] = kind.lower() if accepted else None
+            elif api == 'AddWidgetChildWidget':
+                parent, child = str(args[1]), str(args[2])
+                assert self.widgets[parent].get('nativeCreated'), ('missing native parent', parent)
+                assert self.widgets[child].get('nativeCreated'), ('missing native child', child)
+                self.widgets[child]['parent'] = parent
+            else:
+                self.widgets[str(args[1])]['flags'] = set(str(args[2]).split(';'))
+        self.widget_queue.clear()
 
     def plugin_dialog(self, name):
         if any(d['name'] == name for d in self.dialogs.values()): return
@@ -312,6 +340,8 @@ class Runtime:
         return dialog['x']+x,dialog['y']+y,w,h,visible
 
     def bridge(self, command, *a):
+        if self.current_resources:
+            self.drain_widgets()
         result = self._bridge(command,*a)
         values = result if isinstance(result,tuple) else (result,)
         self.r.write('bridge', command, a, values)
@@ -335,6 +365,12 @@ class Runtime:
         if command == 'exp': return 643,1000,20,120,1000
         if command == 'fps': return 59.6
         if command == 'playerid': return 7001
+        # Core returns nil for an unresolved class; frames then keep the stock UnitClass name.
+        if command == 'unitclass': return None
+        # No installed translation pack: AFCore.Translate keeps the English text.
+        if command == 'modtext': return None
+        # Party overlay attachment needs the hooked native party class, absent here; frames follow by placement.
+        if command == 'partyframes': return False
         if command == 'unit': return self.units.get(a[0])
         if command == 'identity': return self.identities.get(a[0])
         if command == 'auras': return len(self.auras[a[0]]) if self.auras.get(a[0]) is not None else None
@@ -385,14 +421,18 @@ class Runtime:
             if path:
                 actual,node=self.node(d,path)
                 if not node: return False
+                if self.current_resources and mode == 7:
+                    # Size-only preserves native local selection position, including parent offsets.
+                    x,y,*_ = self.rect(d, actual)
+                    x,y = x-d['x'],y-d['y']
                 self.widget_pins[d['instance'],actual]=(x,y,w or node['rect'][2],h or node['rect'][3])
             else:
                 if w and w>0: d['w'],d['h']=w,h
                 if mode==5: x,y=-20000,-20000
-                elif mode!=4:
+                elif mode not in ((4,7) if self.current_resources else (4,)):
                     x=x-d['w'] if mode in (1,3) else x; y=y-d['h'] if mode in (2,3) else y
                 if clamp: x,y=max(0,min(self.sw-d['w'],x)),max(0,min(self.sh-d['h'],y))
-                if mode!=4: d['x'],d['y']=x,y
+                if mode not in ((4,7) if self.current_resources else (4,)): d['x'],d['y']=x,y
             return True
         if command == 'pininfo': return (a[0],a[1] if len(a)>1 else None) in self.pins,0,0,bool(d and d['shown'])
         if command == 'tippin': self.tooltip=a; return True

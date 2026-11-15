@@ -1,5 +1,6 @@
 -- Unit-frame tags consume the caller's verified snapshot, never a second unit lookup.
 local function number(value) return AF.Tags:Number(value,true) end
+local function L(value) return AFTranslate and AFTranslate(value) or value end
 for _,resource in ipairs({'hp','mp'}) do
     local key=resource
     local function valid(context) return AF.Native.Number(context[key]),AF.Native.Number(context[key..'max']) end
@@ -34,8 +35,10 @@ AF.Tags:Register('name:short',function(context)
     return #starts>limit and (name:sub(1,starts[math.max(1,limit-2)]-1)..'...') or name
 end)
 AF.Tags:Register('class',function(context) return context.class or '' end)
-AF.Tags:Register('state',function(context) return context.state or '' end)
+AF.Tags:Register('state',function(context) return L(context.state or '') end)
 AF.Tags:Register('bot',function(context) return context.bot or '' end)
-AF.Tags:Register('bot:rarity',function(context) return context.rarity or '' end)
-AF.Tags:Register('bot:equip',function(context) return context.rarity and ('Equip: '..context.rarity) or '' end)
+AF.Tags:Register('bot:rarity',function(context) return L(context.rarity or '') end)
+AF.Tags:Register('bot:equip',function(context)
+    return context.rarity and string.format(L('Equip: %s'), L(context.rarity)) or ''
+end)
 AF.Tags:Register('bot:rank',function(context) return context.rankStars or '' end)

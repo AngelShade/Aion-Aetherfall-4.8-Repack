@@ -5,6 +5,7 @@ local PRESET = {
     Minimal = {databar=0, chatline=0, minimapinfo=0, targettimers=0, altbar=0, extrabar=0, sepbar=0, ['bar6.enabled']=0, xpbar=0},
 }
 local D = AFCore and AFCore.DIALOG or {}
+local L = AFCore and AFCore.Translate or function(text) return text end
 local SHARE_FILE = 'afui-export.cfg'
 local M = AF:NewModule('Profiles', {
     needs={'OptionsWindow'}, scope='character',
@@ -79,7 +80,7 @@ function M:Choices(field)
 end
 function M:Choose(name)
     local ok, why = AF.DB:ProfileSelect(name, PRESET[name])
-    return result(ok, why, 'Selected profile ' .. tostring(name) .. '.')
+    return result(ok, why, string.format(L('Selected profile %s.'),tostring(name)))
 end
 function M:SelectProfile(direction)
     local profiles, index = AF.DB:ProfileList(), 1
@@ -88,41 +89,41 @@ function M:SelectProfile(direction)
 end
 function M:Create()
     local ok, why = AF.DB:ProfileCreate(state.name)
-    return result(ok, why, 'Created profile ' .. state.name .. '.')
+    return result(ok, why, string.format(L('Created profile %s.'),state.name))
 end
 function M:Rename()
     local ok, why = AF.DB:ProfileRename(self.db.profile, state.rename)
-    return result(ok, why, 'Renamed profile to ' .. state.rename .. '.')
+    return result(ok, why, string.format(L('Renamed profile to %s.'),state.rename))
 end
 function M:Delete()
     local name = self:Get('deleteTarget')
     local ok, why = AF.DB:ProfileDelete(name)
     if ok then state.deleteTarget = '' end
-    return result(ok, why, 'Deleted profile ' .. name .. '.')
+    return result(ok, why, string.format(L('Deleted profile %s.'),name))
 end
 function M:CopyModule()
     local ok, why = AF.DB:ProfileCopyModule(self:Get('source'), self:Get('module'), self.db.profile)
-    return result(ok, why, 'Copied module settings from ' .. self:Get('source') .. '.')
+    return result(ok, why, string.format(L('Copied module settings from %s.'),self:Get('source')))
 end
 function M:CopyProfile()
     local ok, why = AF.DB:ProfileCopy(self:Get('source'), self.db.profile)
-    return result(ok, why, 'Copied profile ' .. self:Get('source') .. ' into ' .. self.db.profile .. '.')
+    return result(ok, why, string.format(L('Copied profile %s into %s.'),self:Get('source'),self.db.profile))
 end
 function M:SaveAccount()
     local ok, why = AF.DB:ProfileSaveAccount(self.db.profile)
     if ok then ok = AF.DB:Save(); why = AF.DB:Error() end
-    return result(ok, why, 'Saved ' .. self.db.profile .. ' to the account.')
+    return result(ok, why, string.format(L('Saved %s to the account.'),self.db.profile))
 end
 function M:UseAccount()
     local ok, why = AF.DB:ProfileUseAccount(self:Get('account'))
-    return result(ok, why, 'Applied the account profile to ' .. self.db.profile .. '.', true)
+    return result(ok, why, string.format(L('Applied the account profile to %s.'),self.db.profile), true)
 end
 function M:CopyCharacter()
     local name = state.characterProfile ~= '' and state.characterProfile or nil
     local file = state.character
     if file == '' then local entries = AF.DB:ProfileCharacters(); file = entries[1] and entries[1].file end
     local ok, why = AF.DB:ProfileCopyCharacter(file, name)
-    return result(ok, why, 'Copied the character profile into ' .. self.db.profile .. '.')
+    return result(ok, why, string.format(L('Copied the character profile into %s.'),self.db.profile))
 end
 function M:Export()
     local code, why = AF.DB:ProfileExport(state.sharing)
@@ -130,7 +131,8 @@ function M:Export()
     state.code = code
     AF:Call('OptionsWindow', 'SetCode', code); AF:Send('OptionsCode', code)
     local saved = AF.DB:Write(SHARE_FILE, code .. '\n')
-    state.note = 'Code in the box. Select it and copy.' .. (saved and ' Also saved to Mods/AetherfallUI/' .. SHARE_FILE .. '.' or '')
+    state.note = saved and string.format(L('Code in the box. Select it and copy. Also saved to Mods/AetherfallUI/%s.'),SHARE_FILE)
+        or L('Code in the box. Select it and copy.')
     return {note=state.note}
 end
 function M:Import()
@@ -139,7 +141,9 @@ function M:Import()
     if fromFile then code = AF.DB:Read(SHARE_FILE) or '' end
     local ok, why = AF.DB:ProfileImport(code)
     if ok then ok = AF.DB:Save(); why = AF.DB:Error() end
-    return result(ok, why, 'Imported into profile ' .. self.db.profile .. (fromFile and ' from ' .. SHARE_FILE or '') .. '.', true)
+    local message = fromFile and string.format(L('Imported into profile %s from %s.'),self.db.profile,SHARE_FILE)
+        or string.format(L('Imported into profile %s.'),self.db.profile)
+    return result(ok, why, message, true)
 end
 function M:Preset(name)
     if not PRESET[name] then return result(nil, 'Choose an installation layout.') end
@@ -157,7 +161,7 @@ function M:Preset(name)
         end
         AF.DB:ProfileRemember(); return true
     end)
-    return result(ok, why, 'Applied ' .. name .. ' layout.')
+    return result(ok, why, string.format(L('Applied %s layout.'),L(name)))
 end
 function M:Install(name) return self:Preset(name or 'DPS') end
 function M:ResetCurrent()
@@ -177,7 +181,7 @@ function M:OnAction(action, argument)
             AF.DB:SetStored(argument, AF.DB:ProfileSnapshot()); AF.DB:ProfileValue('profile', argument); return true
         end)
         if ok then ok = AF.DB:Save(); why = AF.DB:Error() end
-        return result(ok, why, 'Saved profile ' .. tostring(argument) .. '.')
+        return result(ok, why, string.format(L('Saved profile %s.'),tostring(argument)))
     end
 end
 

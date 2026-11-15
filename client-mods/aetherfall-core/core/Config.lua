@@ -1,6 +1,7 @@
 -- Declarative options, evaluated on demand. No feature settings or widgets live here.
 local C = {}
 AF.Config = C
+local L = AFCore and AFCore.Translate or function(text) return text end
 local providers, pages, legacyTrees = {}, nil, nil
 local function ownerName(owner) return type(owner) == 'table' and owner.name or owner end
 local function sort(items)
@@ -129,7 +130,7 @@ function C:Set(option, value)
         return result
     end
     local ok, result = pcall(AF.DB.Set, AF.DB, option.owner, self:Key(option), value)
-    if not ok then return {note='This value is not valid for ' .. option.label .. '.'} end
+    if not ok then return {note=string.format(L('This value is not valid for %s.'),L(option.label))} end
     return result
 end
 function C:Hidden(option) return not not invoke(option.owner, option.hidden or false) end
@@ -206,20 +207,21 @@ function C:Status(page)
     if page.owner and page.status then return AF:Call(page.owner, page.status) end
 end
 local function contains(value, query) return tostring(value or ''):lower():find(query, 1, true) ~= nil end
+local function containsLabel(value, query) return contains(value, query) or contains(L(value or ''), query) end
 function C:Search(text)
     evaluate()
     local query, results = tostring(text or ''):lower(), {}
     if query == '' then return results end
     for _, page in ipairs(pages) do
         for _, tab in ipairs(page.tabs) do
-            local path = page.category .. ' / ' .. page.name .. ' / ' .. tab.name
-            local matched = contains(page.id, query) or contains(page.name, query) or contains(page.category, query) or contains(page.desc, query) or contains(tab.id, query) or contains(tab.name, query)
+            local path = L(page.category) .. ' / ' .. L(page.name) .. ' / ' .. L(tab.name)
+            local matched = contains(page.id, query) or containsLabel(page.name, query) or containsLabel(page.category, query) or containsLabel(page.desc, query) or contains(tab.id, query) or containsLabel(tab.name, query)
             local count = #results
             for _, group in ipairs(tab.groups or {}) do
-                local groupMatch = contains(group.name, query) or contains(group.desc, query)
+                local groupMatch = containsLabel(group.name, query) or containsLabel(group.desc, query)
                 for _, option in ipairs(group.options or {}) do
-                    if not self:Hidden(option) and (groupMatch or contains(option.id, query) or contains(option.label, query) or contains(option.desc, query)) then
-                        results[#results + 1] = {page=page.id, tab=tab.id, option=option.id, path=path .. ' / ' .. option.label, desc=option.desc or page.desc}
+                    if not self:Hidden(option) and (groupMatch or contains(option.id, query) or containsLabel(option.label, query) or containsLabel(option.desc, query)) then
+                        results[#results + 1] = {page=page.id, tab=tab.id, option=option.id, path=path .. ' / ' .. L(option.label), desc=option.desc or page.desc}
                     end
                 end
             end

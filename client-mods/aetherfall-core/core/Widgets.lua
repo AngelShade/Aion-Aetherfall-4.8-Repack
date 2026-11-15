@@ -2,6 +2,7 @@
 local W = {}
 AF.Widgets = W
 local C, Skin = AF.Config, AF.Skin
+local L = AFCore and AFCore.Translate or function(text) return text end
 local PARTS = {'Label','Desc','MinMax','Check','Value','Less','More','Track','Fill','Thumb','Edit','Apply','Arrow','Color','Hex','HexApply','Red','RedLess','RedMore','Green','GreenLess','GreenMore','Blue','BlueLess','BlueMore','RedTrack','RedFill','RedThumb','GreenTrack','GreenFill','GreenThumb','BlueTrack','BlueFill','BlueThumb'}
 local DROP_ROWS, ROW_HEIGHT = 8, 26
 local function native(object, method, ...)
@@ -45,7 +46,7 @@ function W:Render(index, option, x, y, width)
     local cell = {option=option,x=x,y=y,width=width,disabled=disabled}
     self.cells[index] = cell
     local used = {}
-    local function part(name, px, py, pw, ph, text, style)
+    local function part(name, px, py, pw, ph, text, style, literal)
         local widget=self:Part(index,name); if not widget then return end
         used[name]=true
         Skin.Place(widget,px,py,pw,ph)
@@ -56,7 +57,7 @@ function W:Render(index, option, x, y, width)
                 if cell.fields == nil then cell.fields = {} end
                 if self.fieldText == nil then self.fieldText = {} end
                 if self.fieldText[index..name] ~= key then widget:SetText(tostring(text)); self.fieldText[index..name] = key end
-            else Skin.SetText(widget,text) end
+            else Skin.SetText(widget,literal and text or L(text)) end
         end
         Skin.Show(widget)
         if style == 'button' then Skin.Button(widget,pw,ph,false,disabled)
@@ -64,7 +65,7 @@ function W:Render(index, option, x, y, width)
         elseif style ~= 'plain' then Skin.Text(widget,disabled and 'Disabled' or style or 'Ice') end
         if style == 'button' or style == 'field' then Skin.Enable(widget,not disabled) end
         if self.tips == nil then self.tips = {} end
-        local tip = option.desc or ''
+        local tip = L(option.desc or '')
         if self.tips[index..name] ~= tip then native(widget,'SetTooltip',tip); self.tips[index..name] = tip end
         return widget
     end
@@ -80,7 +81,7 @@ function W:Render(index, option, x, y, width)
         part('Desc',x+26,y+2,width-26,20,option.label,disabled and 'Disabled' or 'Ice')
     elseif option.kind == 'execute' then
         local text = option.text and option.text ~= 'Run' and option.text or option.label
-        part('Value',x,option.inline and y+22 or y,width,24,self.confirmation == option.id and 'Confirm: '..text or text,'button')
+        part('Value',x,option.inline and y+22 or y,width,24,self.confirmation == option.id and string.format(L('Confirm: %s'),L(text)) or text,'button')
     else
         part('Label',x,y,width,20,option.label)
         local top = y+22
@@ -91,7 +92,8 @@ function W:Render(index, option, x, y, width)
             part('Apply',x+width-54,top,54,24,'Apply','button')
         elseif option.kind == 'select' then
             local choices = C:Choices(option)
-            part('Value',x,top,width,24,choices[C:Index(option)] or 'Choose…','button')
+            local label=choices[C:Index(option)]
+            part('Value',x,top,width,24,label or 'Choose…','button',label~=nil and option.literalChoices)
             Skin.Image(part('Arrow',x+width-17,top+6,12,12,nil,'plain'),0,'arrow')
         elseif option.kind == 'range' then
             local low, high, step=C:Bounds(option)
@@ -121,7 +123,7 @@ function W:Render(index, option, x, y, width)
                 for channel,name in ipairs({'Red','Green','Blue'}) do
                     local cy=top+(self.compact and (channel-1)*26 or 28+(channel-1)*42)
                     local labelWidth=self.compact and 64 or width
-                    part(name,x,cy,labelWidth,18,name .. ': ' .. math.floor(channels[channel]*255+.5))
+                    part(name,x,cy,labelWidth,18,string.format(L('%s: %d'),L(name),math.floor(channels[channel]*255+.5)))
                     local inset=self.compact and 96 or 28
                     local trackWidth=math.max(20,width-inset-28)
                     local buttonY=cy+(self.compact and 0 or 16)
@@ -163,7 +165,7 @@ function W:RenderDrop(windowHeight)
     local function show(name,px,py,pw,ph,label,selected)
         local control=self.lookup(name)
         Skin.Place(control,px,py,pw,ph)
-        if label then Skin.SetText(control,label) end
+        if label then Skin.SetText(control,cell.option.literalChoices and label or L(label)) end
         Skin.Show(control)
         if name~='DropPage' then Skin.Button(control,pw,ph,selected) end
     end
@@ -241,7 +243,9 @@ function W:Click(index, part)
         if option.kind=='input' then return C:Set(option,text or '') end
         local value=tonumber((tostring(text or ''):match('%-?%d+%.?%d*')))  -- the box shows the unit after the number
         local low,high,step=C:Bounds(option)
-        if not value or value~=value or value<low or value>high then return {note=string.format('Enter a number from %s to %s.',low,high)} end
+        if not value or value~=value or value<low or value>high then
+            return {note=string.format(L('Enter a number from %s to %s.'),low,high)}
+        end
         value=clamp(low+math.floor((value-low)/step+.5)*step,low,high)
         return C:Set(option,value)
     elseif part=='Track' and option.kind=='range' then

@@ -17,7 +17,10 @@ OPTIONS_PREFIXES = (
 EDITOR_PREFIXES = ('AFUIEditor', 'AFUINudge', 'AFUIMove', 'AFUIGrid', 'AFUIGuide', 'AFUISelection')
 # New passive plugin artwork, never a native game dialog/widget. Native
 # WidgetShown/Backdrop calls remain in the strict cumulative-state comparison.
-UNITFRAME_WIDGET = re.compile(r'^AFHF(?:Player|TargetTarget|Target|Party[1-6])(?:Backdrop|Health|Power|DP|Level|Identity|State|Star[1-5])')
+# The AFHFrames canvas also holds the party row container, portrait hosts and their
+# background/border, the gear crest and the class emblem (all declared by layout/unitframes.py).
+UNITFRAME_WIDGET = re.compile(r'^AFHF(?:Party$|(?:Player|TargetTarget|Target|Party[1-6])'
+                              r'(?:Backdrop|Health|Power|DP|Level|Identity|State|Star[1-5]|Crest|ClassIcon|Portrait))')
 # The outline of a mover box: four line images beside the box, new with the flat skin.
 MOVER_BORDER = re.compile(r'^AFUIMove\d+Edge(Top|Bottom|Left|Right)$')
 SKIN_SETTERS = frozenset((
@@ -101,6 +104,10 @@ def self_test():
     assert excluded(widget('AFHFrames', 'SetWidgetRect'))
     assert excluded(widget('AFHFParty6HealthFill', 'SetWidgetUIImage'))
     assert excluded(widget('AFHFTargetStar5', 'SetWidgetUIImage'))
+    for name in ('AFHFParty', 'AFHFPlayerPortrait', 'AFHFPlayerPortraitBG', 'AFHFParty3PortraitBorder',
+                 'AFHFTargetCrest', 'AFHFTargetTargetClassIcon'):
+        assert excluded(widget(name, 'AddNewWidget')), name
+    assert excluded(widget('AFHFPartyX', 'SetWidgetRect')) is None
     assert excluded(['s', 'bridge', 'settext', [11, 'container7/af_identity_rank', 'Rank 3/5'], [True]])
     assert not excluded(['s', 'bridge', 'settext', [11, 'container7/name', 'Stock'], [True]])
     assert not excluded(['s', 'bridge', 'widgetshown', [33, 'ctn_member1/af_identity_rank', False], [True]])

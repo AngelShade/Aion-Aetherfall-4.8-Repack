@@ -54,9 +54,14 @@ local function colours()
     end
     return THEME[opt('theme')] or THEME[1]
 end
+-- One formatting context is reused while its four settings are unchanged.
+local ctx
 local function context()
-    return {coordDecimals=opt('coordDecimals'), abbreviate=opt('abbreviate'),
-            clockMode=opt('clockMode'), clockSeconds=opt('clockSeconds')}
+    local a, b, c, d = opt('coordDecimals'), opt('abbreviate'), opt('clockMode'), opt('clockSeconds')
+    if not ctx or ctx.coordDecimals ~= a or ctx.abbreviate ~= b or ctx.clockMode ~= c or ctx.clockSeconds ~= d then
+        ctx = {coordDecimals=a, abbreviate=b, clockMode=c, clockSeconds=d}
+    end
+    return ctx
 end
 local function source(name) return AF.DataTexts:Text(name, context()) end
 
@@ -169,11 +174,13 @@ end
 function M:Update()
     if not H.on then return end
     if not AF:Call('Lifecycle', 'IsReady') or not AF:Call('Lifecycle', 'IsSettled') then return end
+    AF.DataTexts:BeginCycle(context())
     local ok, why = pcall(function()
         databar(); chatpanel(); minimapinfo()
         -- The original aura pool is zero: native icons already show their timers.
         AF:Call('TargetDetails', 'Update')
     end)
+    AF.DataTexts:EndCycle()
     if not ok then H.error = why end
     AF:Call('Identity', 'Update')
 end

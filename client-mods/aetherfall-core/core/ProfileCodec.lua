@@ -1,5 +1,6 @@
 -- Shareable data-only profiles. Every entry is validated before any mutation.
 local DB, I = AF.DB, AF.DB._internal
+local L = AFCore and AFCore.Translate or function(text) return text end
 local function shareSetting(key)
     return DB:Owner(key) ~= nil and DB:Tag(key) ~= 'profile' and DB:Tag(key) ~= 'share-skip'
 end
@@ -63,9 +64,9 @@ local function parseLegacy(body)
             if not tonumber(value) then return nil, 'Bad retired selector in the code.' end
         else
             local canonical = DB:Canonical(key == 'alpha' and 'windowsalpha' or key)
-            if not canonical or not shareSetting(canonical) then return nil, 'Unknown setting ' .. key .. ' (made by a newer version?).' end
+            if not canonical or not shareSetting(canonical) then return nil, string.format(L('Unknown setting %s (made by a newer version?).'), key) end
             local parsed = DB:Validate(canonical, value)
-            if parsed == nil then return nil, 'Bad value for ' .. key .. ' in the code.' end
+            if parsed == nil then return nil, string.format(L('Bad value for %s in the code.'), key) end
             result.settings[key == 'alpha' and 'alpha' or canonical] = {value=parsed, scope=settingScope(canonical)}
         end
     end
@@ -97,7 +98,7 @@ local function parseModern(body)
             result.scopes[row[2]] = row[3]
         elseif row[1] == 's' and #row == 4 then
             local canonical = DB:Canonical(row[3])
-            if not canonical or not shareSetting(canonical) then return nil, 'Unknown setting ' .. row[3] .. ' (made by a newer version?).' end
+            if not canonical or not shareSetting(canonical) then return nil, string.format(L('Unknown setting %s (made by a newer version?).'), row[3]) end
             if seen['s' .. canonical] then return nil, 'Repeated setting in the code.' end
             seen['s' .. canonical] = true
             if row[2] ~= 'profile' and row[2] ~= 'character' and row[2] ~= 'account' then return nil, 'Bad setting scope in the code.' end
@@ -105,10 +106,10 @@ local function parseModern(body)
             local fixedScope = I.rules[canonical].scope
             if not fixedScope and I.schemas[owner[1]].scope ~= 'profile' then fixedScope = I.schemas[owner[1]].scope end
             if fixedScope and row[2] ~= fixedScope then
-                return nil, 'Setting scope differs from the schema for ' .. canonical .. '.'
+                return nil, string.format(L('Setting scope differs from the schema for %s.'), canonical)
             end
             local parsed = DB:Validate(canonical, row[4])
-            if parsed == nil then return nil, 'Bad value for ' .. canonical .. ' in the code.' end
+            if parsed == nil then return nil, string.format(L('Bad value for %s in the code.'), canonical) end
             result.settings[canonical] = {scope=row[2], value=parsed}
         elseif row[1] == 'p' and #row == 5 and row[2]:match('^%d+$') and tonumber(row[2]) <= 65535 then
             if seen['p' .. row[2]] then return nil, 'Repeated frame position in the code.' end

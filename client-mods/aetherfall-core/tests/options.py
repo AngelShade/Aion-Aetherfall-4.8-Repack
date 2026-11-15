@@ -240,6 +240,48 @@ def scenarios(t):
     t.lua.execute("AF.DB:Set('HUD','dlsep3',' |'); AF:Call('HUD','Apply')")
     assert t.widgets['AFHTopLeft']['text'].endswith(' |'), 'last-slot separator had no visible effect'
     t.lua.execute("AF.DB:Set('HUD','dlsep3',''); AF:Call('HUD','Apply')")
+    # Pure-Lua check (no native calls, no marks) so the recorded golden trace is untouched.
+    t.lua.execute('''
+        local calls, fail, value = 0, false, 1
+        AF.DataTexts:Register('probe_once', {label='Probe', text=function(c)
+            calls = calls + 1
+            if fail then error('probe failure') end
+            return value and ('v' .. value) or nil
+        end})
+        local ctx = {}
+        AF.DataTexts:BeginCycle(ctx)
+        assert(AF.DataTexts:Text('probe_once', ctx) == 'v1' and AF.DataTexts:Text('probe_once', ctx) == 'v1')
+        assert(calls == 1, 'source sampled twice in one cycle: ' .. calls)
+        assert(AF.DataTexts:Text('probe_once', {}) == 'v1' and calls == 2, 'foreign context must bypass the memo')
+        AF.DataTexts:EndCycle()
+        value = 2
+        assert(AF.DataTexts:Text('probe_once', ctx) == 'v2' and calls == 3, 'value change not reflected immediately')
+        AF.DataTexts:BeginCycle(ctx); value = nil
+        assert(AF.DataTexts:Text('probe_once', ctx) == nil); AF.DataTexts:EndCycle()
+        value = 3; AF.DataTexts:BeginCycle(ctx)
+        assert(AF.DataTexts:Text('probe_once', ctx) == 'v3', 'nil -> value transition missed'); AF.DataTexts:EndCycle()
+        fail = true; AF.DataTexts:BeginCycle(ctx)
+        assert(AF.DataTexts:Text('probe_once', ctx) == nil, 'failing source leaked a value'); AF.DataTexts:EndCycle()
+        fail = false
+        assert(AF.DataTexts:Text('probe_once', ctx) == 'v3', 'error left a stale cache')
+        -- TargetDetails memo: live tags are re-formatted with unchanged values; pure ones are not.
+        local T = AF.Tags
+        local formats, tick = 0, 0
+        T:Register('probe_live', function() tick = tick + 1; return 't' .. tick end)
+        local real = T.Format
+        T.Format = function(self, ...) formats = formats + 1; return real(self, ...) end
+        local function pure(f) return AF:Call('TargetDetails', 'IsPureFormat', f) end
+        local function res(c, m, f) return AF:Call('TargetDetails', 'ResourceText', c, m, f) end
+        assert(pure('[current]/[max] [percent]') and not pure('[current] [time]')
+               and not pure('[current] [probe_live]') and not pure('[current] [nosuchtag]'))
+        local a, b = res(500, 1000, '[current] [probe_live]'), res(500, 1000, '[current] [probe_live]')
+        assert(a == '500 t1' and b == '500 t2' and formats == 2, 'live tag frozen by resource memo: ' .. tostring(a) .. ' / ' .. tostring(b))
+        formats = 0
+        local c, d = res(500, 1000, '[current]/[max]'), res(500, 1000, '[current]/[max]')
+        assert(c == '500/1,000' and d == c and formats == 1, 'pure format was not memoized: ' .. tostring(c) .. ' ' .. formats)
+        assert(res(501, 1000, '[current]/[max]') == '501/1,000' and formats == 2, 'value change not reflected')
+        T.Format = real
+    ''')
     t.mark('profiles-actions-through-shipped-controls')
     call(t, 'Select', 'Profiles', 'Profile', 'newProfileName')
     set_text(t, 'newProfileName', 'Edit', 'UI profile')

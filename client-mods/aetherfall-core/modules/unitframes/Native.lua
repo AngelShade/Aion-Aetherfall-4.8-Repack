@@ -6,12 +6,18 @@ local function add(list,path,kind,optional) list[#list+1]={path=path,kind=kind,o
 local player={dialog='basic_status',layout='basic_status_dialog',backdrop='',visuals={}}
 for _,path in ipairs({'hp_gauge','hp_gauge_bg','mp_gauge','mp_gauge_bg','dp_gauge_1','dp_gauge_2','dp_gauge_3','dp_gauge_text'}) do add(player.visuals,path,GAUGE) end
 add(player.visuals,'level',STATIC);add(player.visuals,'dp_level',IMAGE)
+-- The game shows the DP gauge of the current DP level (and its level icon) again on its own DP updates;
+-- hidden alone, the stock bar blinked under the portrait. Parked off screen like the party pieces.
+player.offscreen={'dp_gauge_1','dp_gauge_2','dp_gauge_3','dp_gauge_text','dp_level'}
 -- The frame's art is the one shown container; the native dialog box can be larger (it was in game).
-local target={dialog='target',layout='target_dialog',rects={},visuals={}}
+local target={dialog='target',layout='target_dialog',rects={},visuals={},offscreen={}}
 for i=1,7 do
     local prefix='container'..i..'/'
     target.rects[i]='container'..i
     add(target.visuals,prefix..'bg',IMAGE)
+    -- Custom class icons share the header; park stock emblems the native target updates re-show.
+    add(target.visuals,prefix..'emblem',IMAGE,true)
+    target.offscreen[#target.offscreen+1]=prefix..'emblem'
     add(target.visuals,prefix..'name',STATIC)
     if i<=4 or i==7 then
         add(target.visuals,prefix..'level',STATIC)
@@ -24,15 +30,24 @@ for _,path in ipairs({'mp_gauge','mp_gauge_bg'}) do add(target.visuals,'containe
 for _,path in ipairs({'af_resource_mp','af_resource_dp','af_identity_rank'}) do add(target.visuals,'container7/'..path,STATIC,true) end
 for _,rarity in ipairs({'poor','ordinary','good','great','excellent'}) do add(target.visuals,'container7/af_identity_gear_'..rarity,STATIC,true) end
 local assist={dialog='target_assist',layout='target_assist_dialog',rect='container',visuals={}}
+assist.offscreen={'container/emblem'}
+add(assist.visuals,'container/emblem',IMAGE,true)
 add(assist.visuals,'container/bg',IMAGE)
 for _,path in ipairs({'level','name'}) do add(assist.visuals,'container/'..path,STATIC) end
 for _,path in ipairs({'hp_gauge','hp_gauge_bg'}) do add(assist.visuals,'container/'..path,GAUGE) end
 add(assist.visuals,'container/af_resource_hp',STATIC,true)
 local definitions={player=player,target=target,targettarget=assist}
+-- A party row's title is the member's name; the game shortens long ones in the row ("»Admin«Bab..."), so a
+-- title ending in an ellipsis must be the start of the name. Anything else leaves the row native.
+local function matches(title,name)
+    if title==name then return true elseif type(title)~='string' or type(name)~='string' then return false end
+    local stem=title:match('^(.-)%.%.%.$') or title:match('^(.-)\226\128\166$')
+    return stem~=nil and #stem>=3 and name:sub(1,#stem)==stem
+end
 for i=1,6 do
     local prefix='ctn_member'..i
     -- headerReserve: the stock flight gauge (144-162) and our level text stay clear on the right.
-    local row={dialog='party',layout='party_dialog',rect=prefix,title=prefix..'/title',headerReserve=56,visuals={}}
+    local row={dialog='party',layout='party_dialog',rect=prefix,title=prefix..'/title',headerReserve=56,visuals={},matches=matches}
     -- #1 is the voice-chat container and its live button; #2 is only artwork.
     add(row.visuals,prefix..'/#2',STATIC)
     add(row.visuals,prefix..'/emblem',IMAGE) -- class icon; the health bar carries the class colour

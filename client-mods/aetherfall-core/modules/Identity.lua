@@ -5,6 +5,7 @@ local RARITIES = {'Poor', 'Ordinary', 'Good', 'Great', 'Excellent'}
 local TIER = {Poor = 1, Ordinary = 2, Good = 3, Great = 4, Excellent = 5}
 local hiddenNames = {}
 local replacing = {}
+local function L(text) return AFTranslate and AFTranslate(text) or text end
 local function stars(rank)
     local n = TIER[rank]
     if not n then return '' end
@@ -34,7 +35,7 @@ end
 local function rankText(rank) local n = TIER[rank]; return n and (n .. '/5') or '' end
 function M:Lookup(name)
     local rarity, rank = lookup(name)
-    return rarity, rank, TIER[rank] and ('Rank ' .. rankText(rank)) or ''
+    return rarity, rank, TIER[rank] and string.format(L('Rank %s'), rankText(rank)) or ''
 end
 -- The unit-frame toggles also govern the stock target and party labels.
 local function parts(group)
@@ -65,8 +66,8 @@ function M:Update()
     if tshown and tname == 'target_dialog' and id and id > 0 and not (AFCore.PlayerId and id == AFCore.PlayerId()) then rarity, rank = lookup(unit) end
     if not replacing.target then
         local tg, tr = parts('target')
-        fill(D.target, 'container7/af_identity_gear_', tg and rarity or nil, (tg and rarity) and ('Equip: ' .. rarity) or '')
-        AFCore.SetText(D.target, 'container7/af_identity_rank', (tr and rarity) and ('Rank ' .. rankText(rank)) or '')
+        fill(D.target, 'container7/af_identity_gear_', tg and rarity or nil, (tg and rarity) and string.format(L('Equip: %s'), L(rarity)) or '')
+        AFCore.SetText(D.target, 'container7/af_identity_rank', (tr and rarity) and string.format(L('Rank %s'), rankText(rank)) or '')
     end
     local pg, pr = parts('party')
     for i = 1, 6 do

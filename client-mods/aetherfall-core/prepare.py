@@ -11,6 +11,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 
@@ -18,10 +19,10 @@ from lua_package import (GENERATED, HUD_XML, REGISTRY, load_order, lua_payloads,
                          reconcile_toc, remove_members, retired_members)
 
 HERE = Path(__file__).resolve().parent
-NATIVE_VERSION = '1.3.16'  # Plugin widget call queue bound raised from 4,000 to 1,048,576.
+NATIVE_VERSION = '1.3.27'  # Target portraits only for player bodies (the game frames no others).
 PAK = 'Plugin/RelicCalc/RelicCalc.pak'
 PLUGIN_COHORT = [PAK, PAK + '.sig', 'Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig']
-VERSION = '1.4.6'  # Instance entry pop-ups kept on screen; unit-frame party parking and bot label scope from 1.4.5.
+VERSION = '1.4.18'  # Text size choices (real client sizes, legacy ids read as sizes); Pin table 1024 (target portrait loop); no portrait for unframed creatures; header layout offsets; loot chest clear of the header.
 LUA = 'AetherfallCore.lua'
 # Native HUD dialog type ids for the design layout (Game.dll dialog table).
 DESIGN_IDS = {'basic_status_dialog': 0x0a, 'quickbar_dialog': 0x10, 'quickbar_dialog_ctrl': 0x12, 'quickbar_dialog_alt': 0x13,
@@ -249,6 +250,28 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
+def localize_private_menus(data, source):
+    helper = re.search(rb'(?m)^local function privateMenuText\(text\)\r?\n.*?^end\r?\n'
+                       rb'^local function registerPrivateMenu\(label, command, icon\)\r?\n.*?^end\r?\n',
+                       source, re.S)
+    if not helper:
+        raise ValueError('Missing maintained PrivateMenus translation helpers')
+    for label in (b'Central Market', b'Aetherfall Season Pass', b'Player Companions'):
+        old = b'PrivateWarehouse:SetText("' + label + b'")'
+        new = b'PrivateWarehouse:SetText(privateMenuText("' + label + b'"))'
+        if data.count(old) + data.count(new) != 1:
+            raise ValueError(f'Unexpected PrivateMenus title baseline: {label.decode()}')
+        data = data.replace(old, new)
+    data, calls = re.subn(rb'(?m)^([ \t]*)RegisterMenu\(', rb'\1registerPrivateMenu(', data)
+    if b'local function privateMenuText(' not in data:
+        if calls != 6:
+            raise ValueError(f'Unexpected PrivateMenus registration count: {calls}')
+        line_end = b'\r\n' if b'\r\n' in data else b'\n'
+        bom = b'\xef\xbb\xbf' if data.startswith(b'\xef\xbb\xbf') else b''
+        data = bom + helper.group().replace(b'\r\n', b'\n').replace(b'\n', line_end) + data[len(bom):]
+    return data
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--client', type=Path, required=True)
@@ -257,7 +280,10 @@ def main():
     parser.add_argument('--dll-only', action='store_true', help='rebuild only bin64/AetherfallCore.dll for a client that already imports it')
     parser.add_argument('--plugin-only', action='store_true', help='build only the maintained Lua and its signed plugin cohort; retain installed generated layout and native bridge')
     parser.add_argument('--retain-layout', action='store_true', help='with --update, build bridge/Lua while retaining installed generated layouts')
+    parser.add_argument('--retain-installed-lua', action='append', default=[], metavar='SOURCE',
+                        help='with retained layouts, keep an explicitly named installed Lua source instead of bundling unrelated work; repeatable')
     parser.add_argument('--shared-timer-update', action='store_true', help='with retained layout, include the maintained RelicCalc shared timer owner (WardrobeNative.lua)')
+    parser.add_argument('--mod-text-update', action='store_true', help='update installed Wardrobe, Codex, companion bar and private menu presentation while retaining layouts')
     parser.add_argument('--mover-editor-update', action='store_true', help='replace only the installed MoveUI dialog and stage its grid-line texture')
     parser.add_argument('--options-window-update', action='store_true', help='replace only the installed /afui options dialog (geometry, code box)')
     parser.add_argument('--ui-registry-update', action='store_true', help='install the generated native/resource UI catalogue; future updates refresh it automatically')
@@ -288,6 +314,10 @@ def main():
         parser.error('--marketplace-window-update requires --plugin-only or --retain-layout')
     if args.retain_layout and (not args.update or args.dll_only):
         parser.error('--retain-layout requires --update and cannot be combined with --dll-only')
+    if args.retain_installed_lua and not (args.plugin_only or args.retain_layout):
+        parser.error('--retain-installed-lua requires --plugin-only or --retain-layout')
+    if args.mod_text_update and not (args.plugin_only or args.retain_layout):
+        parser.error('--mod-text-update requires --plugin-only or --retain-layout')
     if args.shared_timer_update and not (args.plugin_only or args.retain_layout):
         parser.error('--shared-timer-update requires --plugin-only or --retain-layout')
     if args.options_window_update and not (args.plugin_only or args.retain_layout):
@@ -409,7 +439,8 @@ def main():
 
     if not args.plugin_only:
         # Native bridge, normal MSVC build of the maintained source.
-        native_inputs = [*HERE.glob('*.h'), HERE / 'aetherfall_core.cpp', HERE.parent / 'shared/web_endpoint.h']
+        native_inputs = [*HERE.glob('*.h'), HERE / 'aetherfall_core.cpp', HERE.parent / 'shared/web_endpoint.h',
+                         HERE.parent / 'shared/mod_text_catalog.h']
         native_hashes = {p: sha(p.read_bytes()) for p in native_inputs}
         from camera_settings import verify as verify_camera_settings
         verify_camera_settings(client)
@@ -489,9 +520,9 @@ def main():
     order = load_order(HERE)
     lua_members = [member for _, member in order]
     addon = lua_payloads(HERE, order)
-    if args.shared_timer_update:
+    if args.shared_timer_update or args.mod_text_update:
         addon['WardrobeNative.lua'] = (mods / 'transmog-menu/WardrobeNative.lua').read_bytes()
-    if args.hud_repair_update or args.companion_bar_update:
+    if args.hud_repair_update or args.companion_bar_update or args.mod_text_update:
         addon['PlayerBotBar.lua'] = (mods / 'playerbots/PlayerBotBar.lua').read_bytes()
     if not (args.plugin_only or args.retain_layout):
         addon['AetherfallLayout.lua'] = layout_lua(client, mods)
@@ -511,7 +542,7 @@ def main():
             auxiliary = set(addon) - set(lua_members)
             if any(name not in old.namelist() or name not in toc for name in auxiliary):
                 raise ValueError('Retained-layout update requires its installed auxiliary Lua controllers')
-            changes.update(lua_payloads(HERE, order, installed=old))
+            changes.update(lua_payloads(HERE, order, installed=old, retain=args.retain_installed_lua))
             changes = {name: data for name, data in changes.items()
                        if name not in old.namelist() or old.read(name) != data}
             # Retain all installed geometry and widgets. Only replace this
@@ -532,6 +563,12 @@ def main():
                 movers=args.mover_editor_update)
             if args.options_window_update:
                 changes['AetherfallLazy.lua'] = lazy_lua()
+            else:
+                lazy = old.read('AetherfallLazy.lua')
+                version = f"AFUI_LAZY = {{version='{VERSION}',".encode()
+                changes['AetherfallLazy.lua'], count = re.subn(rb"(?m)^AFUI_LAZY = \{version='[^'\r\n]+',", version, lazy)
+                if count != 1:
+                    raise ValueError('Unexpected installed AFUI layout version')
             current_xml = changes.get('AetherfallHUD.xml', xml)
             forwarded = current_xml.replace(b'AFHUD_Dispatch(event);', b'AFHUD_Dispatch(event, ...);')
             if forwarded != current_xml:
@@ -560,7 +597,7 @@ def main():
                 codex_layout.prepare(client, stage, original, extend_archive, read_pak)
                 changes['CodexNative.lua'] = (mods / 'loot-codex/CodexNative.lua').read_bytes()
                 if 'CodexNative.lua' not in toc: toc.insert(toc.index(HUD_XML), 'CodexNative.lua')
-            if args.codex_controller_update:
+            if args.codex_controller_update or (args.mod_text_update and not args.codex_update):
                 if 'CodexNative.lua' not in toc or 'CodexNative.lua' not in old.namelist():
                     raise ValueError('Codex controller update requires the installed native Codex layout')
                 changes['CodexNative.lua'] = (mods / 'loot-codex/CodexNative.lua').read_bytes()
@@ -578,6 +615,9 @@ def main():
             help_requests = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(help_requests)
             changes['PrivateMenus.lua'] = help_requests.menus(changes.get('PrivateMenus.lua', old.read('PrivateMenus.lua')))
+        if args.mod_text_update:
+            changes['PrivateMenus.lua'] = localize_private_menus(changes.get('PrivateMenus.lua', old.read('PrivateMenus.lua')),
+                                                              (mods / 'transmog-menu/PrivateMenus.lua').read_bytes())
         # The companion controller does not change the UI catalogue. Retain the
         # installed generated registry when this is the only changed member.
         bar_only = (args.companion_bar_update and set(changes) <= {'PlayerBotBar.lua'}) or (args.help_requests_update and set(changes) <= {'PrivateMenus.lua'})
@@ -665,19 +705,25 @@ def main():
                     entry.update(installedSha256=bridge['inputGuards'][rel], bytes=(client / rel).stat().st_size)
     stage('Mods/InstalledMods.json', json.dumps(customization_inventory, indent=2).encode())
 
-    extra_sources = {'../transmog-menu/WardrobeNative.lua': sha(addon['WardrobeNative.lua'])} if args.shared_timer_update else {}
-    if args.hud_repair_update or args.companion_bar_update:
+    extra_sources = {}
+    if args.shared_timer_update or args.mod_text_update:
+        extra_sources['../transmog-menu/WardrobeNative.lua'] = sha(addon['WardrobeNative.lua'])
+    if args.mod_text_update:
+        extra_sources['../transmog-menu/PrivateMenus.lua'] = sha((mods / 'transmog-menu/PrivateMenus.lua').read_bytes())
+    if args.hud_repair_update or args.companion_bar_update or args.mod_text_update:
         extra_sources['../playerbots/PlayerBotBar.lua'] = sha(addon['PlayerBotBar.lua'])
-    if args.codex_update or args.codex_controller_update:
+    if args.codex_update or args.codex_controller_update or args.mod_text_update:
         extra_sources['../loot-codex/layout.py'] = sha((mods / 'loot-codex/layout.py').read_bytes())
         extra_sources['../loot-codex/CodexNative.lua'] = sha((mods / 'loot-codex/CodexNative.lua').read_bytes())
     if args.marketplace_window_update:
         for name in ('prepare_window.py', 'MarketplaceWindow.lua'):
             extra_sources['../market-shortcut/' + name] = sha((mods / 'market-shortcut' / name).read_bytes())
-    write_manifest(output, client, info, files, before, extra_sources, lua_manifest=lua_manifest)
+    write_manifest(output, client, info, files, before, extra_sources, lua_manifest=lua_manifest,
+                   retained_installed_lua=args.retain_installed_lua)
 
 
-def write_manifest(output, client, info, files, before, extra_sources=None, version=VERSION, lua_manifest=None):
+def write_manifest(output, client, info, files, before, extra_sources=None, version=VERSION, lua_manifest=None,
+                   retained_installed_lua=()):
     if 'bin64/AetherfallCore.dll' in files:
         from quest_targets import refresh_inventory as refresh_quest_inventory
         relative = 'Mods/InstalledMods.json'
@@ -714,6 +760,9 @@ def write_manifest(output, client, info, files, before, extra_sources=None, vers
     record['sourceHashes'].update(extra_sources or {})
     if lua_manifest is not None:
         record['luaLoadOrder'] = lua_manifest
+        if retained_installed_lua:
+            record['retainedInstalledLua'] = {entry['source']: entry['sha256'] for entry in lua_manifest
+                                              if entry['source'] in retained_installed_lua}
         record['sourceHashes']['load_order.json'] = sha((HERE / 'load_order.json').read_bytes())
         for path in sorted((HERE / 'layout').glob('*.py')):
             record['sourceHashes'][path.relative_to(HERE).as_posix()] = sha(path.read_bytes())
@@ -721,6 +770,7 @@ def write_manifest(output, client, info, files, before, extra_sources=None, vers
             if entry['source'] not in GENERATED:
                 record['sourceHashes'][entry['source']] = sha((HERE / entry['source']).read_bytes())
     record['sourceHashes']['../shared/web_endpoint.h'] = sha((HERE.parent / 'shared/web_endpoint.h').read_bytes())
+    record['sourceHashes']['../shared/mod_text_catalog.h'] = sha((HERE.parent / 'shared/mod_text_catalog.h').read_bytes())
     browser_inputs = output / 'codex-browser-inputs.json'
     if browser_inputs.exists():
         record['inputGuards'].update(json.loads(browser_inputs.read_text())['inputGuards'])

@@ -98,6 +98,50 @@ def core_contract(client, core):
         assert(badTicks==0,'failed module retained a timer')
         assert(public:Count()==1,'another module stopped after its neighbour failed')
     ''')
+    runtime, _ = fresh(client, core)
+    runtime.lua.execute('''
+        local E=AF.Events
+        local A,B,C=AF:NewModule('EvA'),AF:NewModule('EvB'),AF:NewModule('EvC')
+        local log={}
+        local function mark(s) return function(_,...) log[#log+1]=s; return ... end end
+        local function take() local r=table.concat(log,','); log={}; return r end
+        -- equal priority keeps registration order; lower priority runs first; duplicates run twice
+        A:Listen('ord',mark('a1')); B:Listen('ord',mark('b')); A:Listen('ord',mark('a2'))
+        C:Listen('ord',mark('c-early'),-1); B:Listen('ord',mark('b'))
+        E:Send('ord'); assert(take()=='c-early,a1,b,a2,b','ordering: '..table.concat(log,','))
+        -- additions during dispatch wait for the next dispatch; removals still run in this one
+        local added=false
+        A:Listen('mut',function() log[#log+1]='a'
+            if not added then added=true; B:Listen('mut',mark('late')) end end)
+        C:Listen('mut',mark('c'))
+        E:Send('mut'); assert(take()=='a,c','added subscriber ran in the same dispatch')
+        E:Send('mut'); assert(take()=='a,c,late','added subscriber missed the next dispatch')
+        C:Listen('rm',function() log[#log+1]='first'; E:Remove('EvB') end,-1)
+        B:Listen('rm',mark('removed'))
+        E:Send('rm'); assert(take()=='first,removed','removed subscriber skipped in the running dispatch')
+        E:Send('rm'); assert(take()=='first','removed subscriber ran in the next dispatch')
+        -- nested dispatch sees registrations already made; outer snapshot is kept
+        local depth=0
+        A:Listen('outer',function()
+            log[#log+1]='o1'
+            B:Listen('inner',mark('i-new'))
+            if depth==0 then depth=1; E:Send('inner') end
+        end)
+        C:Listen('outer',mark('o2'))
+        A:Listen('inner',mark('i-old'),-1)
+        E:Send('outer'); assert(take()=='o1,i-old,i-new,o2','nested dispatch: '..table.concat(log,','))
+        -- arguments are forwarded; client events get the event name first
+        local got
+        A:On('ARGS',function(_,...) got=table.concat({...},'|') end)
+        E:Client('ARGS',1,2); assert(got=='ARGS|1|2','client args: '..tostring(got))
+        local ph
+        A:Phase('save',function(_,x) ph=x end); E:RunPhase('save',7); assert(ph==7)
+        -- one failing subscriber does not stop its neighbours
+        local fail=AF:NewModule('EvFail'); local ran=0
+        fail:Listen('boom',function() error('boom probe') end,-1)
+        A:Listen('boom',function() ran=ran+1 end)
+        E:Send('boom'); assert(ran==1,'failure stopped later subscribers')
+    ''')
 
 
 def exercise(client, owner, specs, module_order, core, elements):

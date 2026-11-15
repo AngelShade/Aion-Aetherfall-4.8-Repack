@@ -7,7 +7,8 @@ AF.Config:Register('Profiles', function()
     local function choices(field) return function() return AF:Call('Profiles', 'Choices', field) end end
     local function action(method, argument) return function() return AF:Call('Profiles', method, argument) end end
     local function select(id, label, field, desc)
-        return {id=id, label=label, kind='select', get=get(field), set=set(field), choices=choices(field), desc=desc}
+        local literalChoices = field ~= 'module' and field ~= 'scopeModule'
+        return {id=id, label=label, kind='select', get=get(field), set=set(field), choices=choices(field), desc=desc, literalChoices=literalChoices}
     end
     -- A button on the control row of its neighbours, so it lines up with a dropdown or box.
     local function button(id, label, method, confirm, argument, desc, width)
@@ -47,7 +48,7 @@ AF.Config:Register('Profiles', function()
             }},
             {name='Copy from another character', options={
                 {id='sourceCharacter', label='Character', kind='select', get=get('character'), set=set('character'),
-                    choices=choices('character'), desc='A character that has used the interface on this computer.'},
+                    choices=choices('character'), desc='A character that has used the interface on this computer.', literalChoices=true},
                 entry('characterProfileName', 'Their profile', 'characterProfile', nil, 'Leave empty to use the profile that character has active.'),
                 button('copyCharacterProfile', 'Copy into current', 'CopyCharacter', true, nil, 'Replace the current profile with that character\'s layout.'),
             }},

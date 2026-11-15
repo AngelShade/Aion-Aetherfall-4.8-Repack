@@ -29,19 +29,29 @@ function S.Image(object, state, name)
     return not not ok
 end
 local colours, stateColours = setmetatable({}, {__mode='k'}), setmetatable({}, {__mode='k'})
+local shown, texts = setmetatable({}, {__mode='k'}), setmetatable({}, {__mode='k'})
+-- A text widget keeps drawing its current line with the old font or colour until it is given text
+-- again, so a change re-sends the text it already shows (once per change, never on unchanged calls).
+local function redraw(object)
+    local text = texts[object]
+    if text ~= nil then call(object, 'SetText', text) end
+end
 function S.Text(object, token)
     if not object then return end
     local colour = S[token] or token or S.Ice
     local r, g, b = colour:match('^#(%x%x)(%x%x)(%x%x)$')
     if r then colour = string.format('%.4f,%.4f,%.4f,1', tonumber(r,16)/255, tonumber(g,16)/255, tonumber(b,16)/255) end
     if colours[object] == colour then return end
+    local first = colours[object] == nil
     call(object, 'SetAttr', 'textColor', colour); colours[object] = colour
+    if not first then redraw(object) end
 end
 local fonts = setmetatable({}, {__mode='k'})
 function S.Font(object, name)
     if not object or fonts[object] == name then return end
+    local first = fonts[object] == nil
     local ok = call(object, 'SetFont', name)
-    if ok then fonts[object] = name end
+    if ok then fonts[object] = name; if not first then redraw(object) end end
 end
 local rects, lines = setmetatable({}, {__mode='k'}), setmetatable({}, {__mode='k'})
 local function edges(object)
@@ -57,7 +67,6 @@ local function edges(object)
 end
 -- Controls are placed through the skin: border lines are separate widgets beside
 -- the control, so they must move, show and hide with it.
-local shown, texts = setmetatable({}, {__mode='k'}), setmetatable({}, {__mode='k'})
 function S.Place(object, x, y, width, height)
     if not object then return end
     local rect = rects[object]

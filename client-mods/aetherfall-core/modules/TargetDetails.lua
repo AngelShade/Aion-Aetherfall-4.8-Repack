@@ -18,10 +18,38 @@ local function settext(id, s)
     s = tostring(s or '')
     if S.text[id] ~= s then w(id):SetText(s); S.text[id] = s end
 end
-local function resourceValue(cur, maximum, format)
+-- Only tags that are pure functions of current/maximum/abbreviate (this context has
+-- no name or level) may be memoized. Any other or unknown tag reads live state and is
+-- formatted every update. Classified once per format string.
+local PURE = {current = true, max = true, percent = true}
+local pure, formatted = {}, {}
+local function isPure(format)
+    local known = pure[format]
+    if known == nil then
+        known = type(format) == 'string'
+        if known then
+            for name in format:sub(1, 512):gmatch('%[([%w:_-]+)%]') do
+                if not PURE[name] then known = false break end
+            end
+        end
+        pure[format] = known
+    end
+    return known
+end
+local resourceValue
+function M:IsPureFormat(format) return isPure(format) end
+function M:ResourceText(...) return resourceValue(...) end
+function resourceValue(cur, maximum, format)
     cur, maximum = n(cur), n(maximum)
-    return cur and maximum and maximum > 0 and AF.Tags:Format(format or M.db.healthFormat,
-        {current=cur, maximum=maximum, abbreviate=M.db.targetAbbreviate}) or ''
+    if not (cur and maximum and maximum > 0) then return '' end
+    format = format or M.db.healthFormat
+    local abbreviate = M.db.targetAbbreviate
+    local memo = isPure(format)
+    local hit = memo and formatted[format]
+    if hit and hit.cur == cur and hit.max == maximum and hit.abbreviate == abbreviate then return hit.text end
+    local text = AF.Tags:Format(format, {current=cur, maximum=maximum, abbreviate=abbreviate}) or ''
+    if memo then formatted[format] = {cur=cur, max=maximum, abbreviate=abbreviate, text=text} end
+    return text
 end
 local TARGET_PANELS = {'container1', 'container2', 'container3', 'container4', 'container7'}
 
