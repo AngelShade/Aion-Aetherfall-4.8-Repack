@@ -5,6 +5,7 @@
 #include <cwchar>
 #include <map>
 #include <string>
+#include "../shared/mod_text_catalog.h"
 
 // Read-only native diagnostics; no message text, account data, or file logging.
 extern "C" __declspec(dllexport) volatile DWORD AionSpeechDiagnostics[13]={5,0,0,0,0,0,0,0,0,0,0,0,0};
@@ -154,13 +155,13 @@ extern "C" __declspec(dllexport) void AionSpeechMenuBuild(Ptr parent) {
     using Add=Ptr(*)(Ptr,int,const char*,const wchar_t*,const float*,const wchar_t*,int,int,int,int,const wchar_t*);
     auto add=reinterpret_cast<Add>(game+0x534ea0);
     const float color[]={1,1,1,1};
-    Ptr submenu=add(parent,2,"speech_bubble",L"Chat Bubble",color,nullptr,1,0,2,1,nullptr);
+    Ptr submenu=add(parent,2,"speech_bubble",mod_text::label(L"Chat Bubble"),color,nullptr,1,0,2,1,nullptr);
     if (!submenu) return;
     for (int i=0;i<5;i++) {
         // Native Font Size/Emotes path accepts wide captions directly.
         // Native item type 3 creates a checkbox. The renderer reads +1a0 and
         // calls the checkbox's SetChecked method (536a29..536ab8).
-        Ptr item=add(submenu,3,commands[i],labels[i],color,nullptr,ownStyle!=i,0,2,1,nullptr);
+        Ptr item=add(submenu,3,commands[i],mod_text::label(labels[i]),color,nullptr,ownStyle!=i,0,2,1,nullptr);
         if (item) *reinterpret_cast<int*>(static_cast<unsigned char*>(item)+0x1a0)=ownStyle==i;
     }
 }

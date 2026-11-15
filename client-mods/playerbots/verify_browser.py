@@ -100,6 +100,10 @@ def main():
 
             if path == '/market/companions': self.send((MEDIA/'bots.html').read_bytes(), 'text/html; charset=utf-8')
 
+            elif path == '/market/media/af-i18n.js':
+
+                self.send((MEDIA.parent.parent/'central-market/media/af-i18n.js').read_bytes(), 'application/javascript; charset=utf-8')
+
             elif path in ['/market/companions/media/bots.js', '/market/companions/media/bots.css']:
 
                 self.send((MEDIA/path.rsplit('/', 1)[1]).read_bytes(), 'application/javascript' if path.endswith('.js') else 'text/css')

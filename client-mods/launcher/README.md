@@ -116,8 +116,9 @@ or stopped. Updating the core preserves installed packs, cache and selections.
 Only installed packs can be selected. Missing catalogued components are disabled
 in the dropdown until installed; voice-only languages do not invent text options. Imported text must match native string keys
 and IDs; its gameplay resources never replace the installed modded layouts.
-`prepare_text_pack.py` emits only admitted translated string rows, compatible-path
-native dialogues, font faces and font definitions. It excludes foreign server
+`prepare_text_pack.py` emits admitted translated string rows, compatible-path
+native dialogues, font definitions, fonts and optional Aetherfall translation
+catalogs. It excludes foreign server
 branding, URLs, regional settings, layouts and custom override archives. String
 format-token mismatches retain English. The runtime merges font faces into current
 styles, preserving sizes, colours, custom definitions and native glyph policy.
@@ -129,6 +130,22 @@ the custom strings and quest dialogue. The overlay checks each translation
 against the current English source, preserves dialogue controls and keeps the
 other compressed PAK entries intact. The launcher composes the resulting pack
 when Simplified Chinese is selected for the next Play.
+Use `--client-only` when preparing native client updates with the existing
+embedded-window catalog from the source PAK.
+
+For another language, put its catalogs under the corresponding language code
+beside `chs/`. The text pack builder adds them to that language's `data.pak`.
+`mod-text.json` maps the exact English Lua captions and format strings to their
+translations. Preserve format placeholders in order and translate at the display
+site with `AFTranslate` so control identifiers and saved values stay stable.
+`web-text.json` holds the embedded windows' catalog. `login-notice.json` contains
+the translated notice HTML and the SHA-256 of the exact English contents it
+translates. Keep the notice markup and placeholders intact.
+
+On Play, the launcher extracts the selected pack's optional runtime catalogs into
+the generated native locale and passes their paths to that Aion process. Mod
+windows use their English captions when a pack or a catalog entry is missing.
+
 Because the English sizes are tuned for Vera, `NATIVE_FACE_OVERRIDES` swaps donor
 faces that draw smaller: Russian uses the bundled DejaVu Sans (Vera's metrics plus
 Cyrillic, `assets/fonts`, free licence beside it) instead of Calibri/Myriad, and

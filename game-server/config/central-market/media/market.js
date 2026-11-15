@@ -1,5 +1,27 @@
 (function () {
   'use strict';
+  var tr = window.AetherfallWeb.text, fmt = window.AetherfallWeb.format;
+
+  function marketNotice(text) {
+    var m = /^Transferred (\d+) item stacks?\.$/.exec(text);
+    if (m) return fmt(text.slice(-7) === 'stacks.' ? 'Transferred {count} item stacks.' : 'Transferred {count} item stack.', {count:m[1]});
+    m = /^Transferred (\d+) (.+)\.$/.exec(text);
+    if (m) return fmt('Transferred {count} {item}.', {count:m[1], item:m[2]});
+    m = /^(Deposited|Withdrew) (\d+) Kinah\.$/.exec(text);
+    if (m) return fmt(m[1] === 'Deposited' ? 'Deposited {count} Kinah.' : 'Withdrew {count} Kinah.', {count:m[2]});
+    m = /^Collected (\d+) (items into Market Warehouse\. Transfer them to Inventory when ready\.|Kinah after market tax into Market Warehouse\.)$/.exec(text);
+    if (m) return fmt(m[2].charAt(0) === 'i' ? 'Collected {count} items into Market Warehouse. Transfer them to Inventory when ready.' : 'Collected {count} Kinah after market tax into Market Warehouse.', {count:m[1]});
+    m = /^(Bought|Sold) (\d+) \/ (\d+) items\. (Collect (?:items|Kinah) beside this order in My Orders\. )?(Sale queued for 15 minutes\.|Order complete\.|(\d+) items remain on order\.)$/.exec(text);
+    if (m) {
+      var fill = fmt(m[1] === 'Bought' ? 'Bought {filled} / {total} items.' : 'Sold {filled} / {total} items.', {filled:m[2], total:m[3]});
+      return fill + ' ' + (m[4] ? tr(m[4].slice(0, -1)) + ' ' : '') + (m[6] ? fmt('{count} items remain on order.', {count:m[6]}) : tr(m[5]));
+    }
+    m = /^Order quantity must be between 1 and (\d+)\.$/.exec(text);
+    if (m) return fmt('Order quantity must be between 1 and {count}.', {count:m[1]});
+    m = /^(.+) (cannot be transferred to this warehouse\.|cannot enter Market Warehouse\.) No items were transferred\.$/.exec(text);
+    if (m) return fmt(m[2] === 'cannot be transferred to this warehouse.' ? '{item} cannot be transferred to this warehouse. No items were transferred.' : '{item} cannot enter Market Warehouse. No items were transferred.', {item:m[1]});
+    return tr(text);
+  }
   var state = null, storage = 125, view = 'market', selectedObject = 0, selectedPrice = 0, busy = false, loading = false, modalAction = null, searchTimer, warehouseQuery = '';
   var activeRead = null, readVersion = 0, refreshPending = false, storagePanes = {}, activePane = null, rendered = {}, storageIcons = null, batchIcons = null;
   var selectMode = false, selectedObjects = {}, expandedCategory = '';
@@ -10,7 +32,7 @@
   // seen inside the game, where the client's own browser pump can behave differently from tests.
   var diag = { on: false, last: Date.now(), gap: 0, req: 0, ok: 0, err: 0, tab: '', tabStart: 0, tabLast: 0, tabIcons: 0, xhr: [] };
   function diagIcon(failed) { if (failed) { diag.err++; this.style.visibility = 'hidden'; } else diag.ok++; if (diag.tabStart) { diag.tabIcons++; diag.tabLast = Date.now() - diag.tabStart; } }
-  function diagShow() { var hint = document.querySelector('.keyboard-hint'); if (hint) hint.innerHTML = diag.on ? html('Diag · longest stall ' + diag.gap + ' ms · ' + (diag.tab ? diag.tab + ': ' + diag.tabIcons + ' icons, last at ' + diag.tabLast + ' ms · ' : '') + 'icons ' + diag.ok + '/' + diag.req + ' loaded, ' + diag.err + ' failed · ' + diag.xhr.join(' · ')) : 'Enter to search · Esc to close item details'; }
+  function diagShow() { var hint = document.querySelector('.keyboard-hint'); if (hint) hint.innerHTML = diag.on ? html('Diag · longest stall ' + diag.gap + ' ms · ' + (diag.tab ? diag.tab + ': ' + diag.tabIcons + ' icons, last at ' + diag.tabLast + ' ms · ' : '') + 'icons ' + diag.ok + '/' + diag.req + ' loaded, ' + diag.err + ' failed · ' + diag.xhr.join(' · ')) : label('Enter to search · Esc to close item details'); }
   setInterval(function () { var now = Date.now(); diag.gap = Math.max(diag.gap, now - diag.last - 50); diag.last = now; if (diag.on) diagShow(); }, 50);
   var query = { q: '', category: 'All Items', sub: 'All', filter: 'changed', page: 1, variant: '', sort: 'change', minLevel: '', maxLevel: '', minPrice: '', maxPrice: '', quality: 'all', slot: 'All', orderPage: 1, historyPage: 1, orderFilter: 'all', historyFilter: 'all' };
   var session = (location.search.match(/[?&](?:session_id|token)=([^&]*)/) || [null, ''])[1];
@@ -26,6 +48,8 @@
     else if (view === 'notifications') renderNotifications();
   }
   function html(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+  function label(text) { return html(tr(text)); }
+  function amount(n) { return fmt('{count} Kinah', {count:money(n)}); }
   function money(n) { return String(n == null ? 0 : Math.floor(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
   function netProceeds(gross) { var rate=state.returnPercent===84.5?845:650; return Math.floor(gross/1000)*rate+Math.floor((gross%1000)*rate/1000); }
   function volume(n) { return money(Math.floor(n / 10)) + (n % 10 ? '.' + n % 10 : ''); }
@@ -61,11 +85,11 @@
     }
     storageIcons = feedIcons(pending, function () { return activePane === cached.pane; });
   }
-  function name(i) { return (i.enchant ? '+' + i.enchant + ' ' : '') + i.name + (i.tempering ? ' · Tempering +' + i.tempering : ''); }
-  function stackLabel(n) { return n + ' item stack' + (n === 1 ? '' : 's'); }
+  function name(i, display) { return (i.enchant ? '+' + i.enchant + ' ' : '') + i.name + (i.tempering ? ' · ' + (display ? fmt('Tempering +{level}', {level:i.tempering}) : 'Tempering +' + i.tempering) : ''); }
+  function stackLabel(n) { return fmt(n === 1 ? '{count} item stack' : '{count} item stacks', {count:n}); }
   function fields(extra) { var a = {}, k; for (k in query) if (query.hasOwnProperty(k)) a[k] = query[k]; a.session_id = decodeURIComponent(session); for (k in extra) if (extra.hasOwnProperty(k)) a[k] = extra[k]; return a; }
   function encode(a) { var out = [], k; for (k in a) if (a.hasOwnProperty(k)) out.push(encodeURIComponent(k) + '=' + encodeURIComponent(a[k])); return out.join('&'); }
-  function status(text, error) { byId('status').innerHTML = html(text); byId('connection-dot').className = 'connection-dot' + (error ? ' error' : ''); }
+  function status(text, error) { byId('status').textContent = marketNotice(text); byId('connection-dot').className = 'connection-dot' + (error ? ' error' : ''); }
   function request(method, url, data, done) {
     var x = new XMLHttpRequest(), delivered = false;
     x.open(method, url, true); if (method === 'POST') x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
@@ -103,7 +127,7 @@
         state = r; query.page = r.page; lastPrint = print;
         if (!unchanged) keepScroll(render);
       }
-      status('Warehouse updated · ' + date(r.serverTime));
+      status(fmt('Warehouse updated · {date}', {date:date(r.serverTime)}));
       if (done && requestedVariant === query.variant) done();
     });
   }
@@ -137,11 +161,11 @@
     if (busy || !state) return;
     cancelRead(); busy = true; byId('dialog-confirm').disabled = true;
     var body = fields(a); body.request = state.request;
-    status('Processing ' + (a.action === 'transfer' ? 'item transfer' : a.action) + '…');
+    status(fmt('Processing {action}…', {action:tr(a.action === 'transfer' ? 'item transfer' : a.action)}));
     request('POST', '/market/action', body, function (ok, r) {
       busy = false; byId('dialog-confirm').disabled = false;
       if (byId('always-max')) byId('always-max').disabled = false;
-      if (!ok) { if(keepDialog){byId('dialog-confirm').disabled=true;if(byId('always-max')){byId('always-max').checked=!!state.alwaysMax;byId('always-max').disabled=true;}} byId('dialog-error').innerHTML = html(r.error); status(r.error, true); fetchState(false,function(){if(keepDialog){byId('dialog-confirm').disabled=false;if(byId('always-max')){byId('always-max').checked=!!state.alwaysMax;byId('always-max').disabled=false;}}status(r.error,true);}); return; }
+      if (!ok) { if(keepDialog){byId('dialog-confirm').disabled=true;if(byId('always-max')){byId('always-max').checked=!!state.alwaysMax;byId('always-max').disabled=true;}} byId('dialog-error').textContent = marketNotice(r.error); status(r.error, true); fetchState(false,function(){if(keepDialog){byId('dialog-confirm').disabled=false;if(byId('always-max')){byId('always-max').checked=!!state.alwaysMax;byId('always-max').disabled=false;}}status(r.error,true);}); return; }
       state = r; if (a.action === 'transferBatch') selectedObjects = {}; if(!keepDialog)closeDialog();else if(byId('always-max'))byId('always-max').checked=!!state.alwaysMax; render(); status(r.notice || 'Warehouse updated.');
       if (refreshPending) { refreshPending = false; refresh(); }
     });
@@ -150,11 +174,11 @@
   function selectedItem() { var s = currentStorage(), i; if (!s) return null; for (i = 0; i < s.items.length; i++) if (s.items[i].object === selectedObject) return s.items[i]; return null; }
   function render(activityOnly) {
     byId('codex-link').style.display = state.codex ? '' : 'none';
-    byId('character').innerHTML = html(state.player) + ' · Account Market Warehouse' + (state.simulatedTraders ? ' · ' + money(state.simulatedTraders) + ' simulated traders' : '');
-    byId('balance').innerHTML = money(state.balance) + ' Kinah'; byId('reserved').innerHTML = 'Reserved ' + money(state.reservedKinah) + ' Kinah';
+    byId('character').innerHTML = html(fmt('{character} · Account Market Warehouse', {character:state.player}) + (state.simulatedTraders ? ' · ' + fmt('{count} simulated traders', {count:money(state.simulatedTraders)}) : ''));
+    byId('balance').innerHTML = html(amount(state.balance)); byId('reserved').innerHTML = html(fmt('Reserved {amount}', {amount:amount(state.reservedKinah)}));
     byId('volume').innerHTML = volume(state.volume) + ' / ' + volume(state.volumeLimit) + ' VT';
     byId('volume-fill').style.width = Math.min(100, state.volume * 100 / state.volumeLimit) + '%';
-    byId('return-rate').innerHTML = state.returnPercent + '% return'; byId('proceeds').innerHTML = money(state.netProceeds) + ' Kinah';
+    byId('return-rate').innerHTML = html(fmt('{rate}% return', {rate:state.returnPercent})); byId('proceeds').innerHTML = html(amount(state.netProceeds));
     var active = 0, i; for (i = 0; i < state.orders.length; i++) if (state.orders[i].state === 'OPEN' || state.orders[i].state === 'QUEUED') active++;
     byId('order-count').innerHTML = state.activeOrders || ''; byId('order-count').style.display = state.activeOrders ? 'inline-block' : 'none';
     byId('notification-count').innerHTML = state.notifications.length || ''; byId('notification-count').style.display = state.notifications.length ? 'inline-block' : 'none';
@@ -163,8 +187,8 @@
   byId('storage-grid').onscroll = function () { if (storagePanes[storage]) { storagePanes[storage].scroll = this.scrollTop; loadStorageIcons(storagePanes[storage]); } };
   function renderStorage() {
     var s = currentStorage(), text = '', i, item, visible = 0, grid = byId('storage-grid');
-    byId('capacity').innerHTML = s.id === 125 ? s.items.length + ' stacks' : s.items.length + ' / ' + s.limit;
-    var wallet = kinahStorage(); byId('source-kinah').innerHTML = wallet.name + ' <b>' + money(wallet.kinah) + '</b>';
+    byId('capacity').innerHTML = s.id === 125 ? html(fmt('{count} stacks', {count:s.items.length})) : s.items.length + ' / ' + s.limit;
+    var wallet = kinahStorage(); byId('source-kinah').innerHTML = label(wallet.name) + ' <b>' + money(wallet.kinah) + '</b>';
     byId('deposit-kinah').disabled = wallet.id === 125; byId('withdraw-kinah').disabled = wallet.id === 125;
     var cached = storagePanes[s.id], key, markup = cached && cached.source === s && cached.query === warehouseQuery ? cached.markup : JSON.stringify(s) + warehouseQuery;
     if (!cached) { cached = storagePanes[s.id] = {pane: document.createElement('div'), markup: '', scroll: 0}; cached.pane.className = 'storage-pane'; grid.appendChild(cached.pane); }
@@ -174,12 +198,12 @@
     if (markup === cached.markup) { grid.scrollTop = cached.scroll; renderStorageSelection(); loadStorageIcons(cached); return; } cached.markup = markup;
     for (i = 0; i < s.items.length; i++) {
       item = s.items[i]; if (item.reserved || name(item).toLowerCase().indexOf(warehouseQuery.toLowerCase()) < 0) continue; visible++;
-      text += '<div tabindex="0" role="button" aria-label="' + html(name(item) + ', quantity ' + item.quantity) + '" draggable="true" class="slot' + (item.object === selectedObject ? ' selected' : '') + '" data-object="' + item.object + '">' + image(item, true) + '<span class="selection-check"></span>' + (item.enchant ? '<span class="enchant">+' + item.enchant + '</span>' : '') + '<span class="quantity">' + (item.quantity > 1 ? money(item.quantity) : '') + '</span></div>';
+      text += '<div tabindex="0" role="button" aria-label="' + html(fmt('{item}, quantity {count}', {item:name(item, true), count:item.quantity})) + '" draggable="true" class="slot' + (item.object === selectedObject ? ' selected' : '') + '" data-object="' + item.object + '">' + image(item, true) + '<span class="selection-check"></span>' + (item.enchant ? '<span class="enchant">+' + item.enchant + '</span>' : '') + '<span class="quantity">' + (item.quantity > 1 ? money(item.quantity) : '') + '</span></div>';
     }
     // Expanded warehouses have up to 540 slots; capacity shows the limit, so only pad a few
     // rows of empty slots instead of building hundreds of placeholder nodes per tab.
     if (!warehouseQuery) for (i = visible; i < Math.max(30, Math.min(s.limit || visible + 6, visible + 36)); i++) text += '<div class="slot empty"></div>';
-    if (!visible && warehouseQuery) text = '<p class="empty-list">No items found.</p>';
+    if (!visible && warehouseQuery) text = '<p class="empty-list">'+label('No items found.')+'</p>';
     activePane.innerHTML = text; cached.images = activePane.querySelectorAll('img[data-src]'); cached.nextIcon = 0; grid.scrollTop = cached.scroll;
     loadStorageIcons(cached);
     renderStorageSelection();
@@ -196,9 +220,9 @@
     var valid = {}; for (j = 0; j < batch.length; j++) valid[batch[j].object] = true; selectedObjects = valid;
     byId('storage-grid').className = 'storage-grid' + (selectMode ? ' selection-mode' : '') + (batchActions ? ' batch-actions' : '');
     byId('storage-item').className = 'storage-item' + (batchActions ? ' batch-actions' : '');
-    byId('select-items').className = selectMode ? 'active' : ''; byId('select-items').innerHTML = selectMode ? 'Done' : 'Select Items'; byId('select-items').setAttribute('aria-pressed', String(selectMode));
+    byId('select-items').className = selectMode ? 'active' : ''; byId('select-items').innerHTML = label(selectMode ? 'Done' : 'Select Items'); byId('select-items').setAttribute('aria-pressed', String(selectMode));
     byId('select-all').disabled = !selectMode; byId('clear-selection').disabled = !batch.length;
-    byId('selection-count').innerHTML = selectMode ? batch.length + ' selected' : '';
+    byId('selection-count').innerHTML = selectMode ? html(fmt('{count} selected', {count:batch.length})) : '';
     for (j = 0; j < slots.length; j++) {
       var selected = +slots[j].getAttribute('data-object') === selectedObject;
       var checked = !!selectedObjects[+slots[j].getAttribute('data-object')];
@@ -206,9 +230,9 @@
       if (slots[j].className !== slotClass) slots[j].className = slotClass;
       if (slots[j].getAttribute('aria-pressed') !== pressed) slots[j].setAttribute('aria-pressed', pressed);
     }
-    var s = currentStorage(), item = selectedItem(), text = '<span>Select an item to transfer or register a sale.</span>';
-    if (item) text = '<strong class="quality-' + html(item.quality) + '">' + html(name(item)) + '</strong>' + (item.reserved ? '<small>Reserved for a sale listing. Cancel it in My Orders.</small>' : '<button id="transfer-item">Transfer</button>' + (s.id === 125 ? '<button id="sell-item" class="primary">Register Sale</button>' : canEnterMarket([item]) ? '<button id="market-deposit">Market Warehouse</button>' : ''));
-    if (selectMode) text = batch.length ? '<strong>' + stackLabel(batch.length) + ' selected</strong><button id="transfer-selected">Transfer Selected</button><small>Full stacks</small>' + (canEnterMarket(batch) ? '<button id="transfer-market-selected" class="primary">Transfer Market Warehouse</button>' : '<small class="market-selection-hint">' + (s.id===125 ? 'Choose a destination with Transfer Selected.' : 'Every selected item must be eligible and fit in Market Warehouse.') + '</small>') : '<span>Select items, then choose Transfer Selected.<br>Ctrl + click also selects items.</span>';
+    var s = currentStorage(), item = selectedItem(), text = '<span>'+label('Select an item to transfer or register a sale.')+'</span>';
+    if (item) text = '<strong class="quality-' + html(item.quality) + '">' + html(name(item, true)) + '</strong>' + (item.reserved ? '<small>'+label('Reserved for a sale listing. Cancel it in My Orders.')+'</small>' : '<button id="transfer-item">'+label('Transfer')+'</button>' + (s.id === 125 ? '<button id="sell-item" class="primary">'+label('Register Sale')+'</button>' : canEnterMarket([item]) ? '<button id="market-deposit">'+label('Market Warehouse')+'</button>' : ''));
+    if (selectMode) text = batch.length ? '<strong>' + html(fmt('{stacks} selected', {stacks:stackLabel(batch.length)})) + '</strong><button id="transfer-selected">'+label('Transfer Selected')+'</button><small>'+label('Full stacks')+'</small>' + (canEnterMarket(batch) ? '<button id="transfer-market-selected" class="primary">'+label('Transfer Market Warehouse')+'</button>' : '<small class="market-selection-hint">' + label(s.id===125 ? 'Choose a destination with Transfer Selected.' : 'Every selected item must be eligible and fit in Market Warehouse.') + '</small>') : '<span>' + label('Select items, then choose Transfer Selected.') + '<br>' + label('Ctrl + click also selects items.') + '</span>';
     if (!setMarkup('storage-item', text, text + '|' + storage + '|' + JSON.stringify(item))) return;
     if (byId('transfer-item')) byId('transfer-item').onclick = function () { transfer(item); };
     if (byId('sell-item')) byId('sell-item').onclick = function () { chooseVariant(item.variant, function () { sell(item); }); };
@@ -230,11 +254,11 @@
     byId('filter').value = query.filter; byId('sort').value = query.sort;
   }
   function renderCategories() {
-    var tree = state.categoryTree || [], cats = '<button data-overview="true" class="' + (query.filter === 'changed' ? 'active' : '') + '">↕ Price Changes</button><button data-category="All Items" data-sub="All" class="' + (query.category === 'All Items' && query.filter !== 'changed' ? 'active' : '') + '">All Items</button>', i, j, c, t;
+    var tree = state.categoryTree || [], cats = '<button data-overview="true" class="' + (query.filter === 'changed' ? 'active' : '') + '">'+label('↕ Price Changes')+'</button><button data-category="All Items" data-sub="All" class="' + (query.category === 'All Items' && query.filter !== 'changed' ? 'active' : '') + '">'+label('All Items')+'</button>', i, j, c, t;
     for(i=0;i<tree.length;i++) {
-      c=tree[i]; cats += '<button data-category="' + html(c.name) + '" data-sub="All" aria-expanded="' + (expandedCategory === c.name) + '" class="category-parent' + (query.category === c.name ? ' active' : '') + '"><span>' + (expandedCategory === c.name ? '▾ ' : '▸ ') + html(c.name) + '</span><small>' + money(c.count) + '</small></button>';
+      c=tree[i]; cats += '<button data-category="' + html(c.name) + '" data-sub="All" aria-expanded="' + (expandedCategory === c.name) + '" class="category-parent' + (query.category === c.name ? ' active' : '') + '"><span>' + (expandedCategory === c.name ? '▾ ' : '▸ ') + label(c.name) + '</span><small>' + money(c.count) + '</small></button>';
       if(expandedCategory === c.name) for(j=0;j<c.types.length;j++) {
-        t=c.types[j]; cats += '<button data-category="' + html(c.name) + '" data-sub="' + html(t.name) + '" class="category-child' + (query.sub === t.name ? ' active' : '') + '"><span>' + html(t.name) + '</span><small>' + money(t.count) + '</small></button>';
+        t=c.types[j]; cats += '<button data-category="' + html(c.name) + '" data-sub="' + html(t.name) + '" class="category-child' + (query.sub === t.name ? ' active' : '') + '"><span>' + label(t.name) + '</span><small>' + money(t.count) + '</small></button>';
       }
     }
     if(!setMarkup('categories',cats)) return;
@@ -247,14 +271,14 @@
   }
   function renderCatalog() {
     var list = '', i, item, price, change, percent;
-    renderCategories(); byId('results').innerHTML = money(state.total) + ' items';
+    renderCategories(); byId('results').innerHTML = html(fmt('{count} items', {count:money(state.total)}));
     byId('filter').value=query.filter;byId('sort').value=query.sort;
-    byId('catalog-context').innerHTML=query.filter === 'changed' ? '<strong>Price Changes</strong> · Last price update within 24 hours · Ranked by ' + (query.sort === 'change' ? 'largest change %' : html(byId('sort').options[byId('sort').selectedIndex].text)) : html(query.category + (query.sub !== 'All' ? ' › ' + query.sub : '')) + ' · Base prices for unenchanted items';
+    byId('catalog-context').innerHTML=query.filter === 'changed' ? '<strong>' + label('Price Changes') + '</strong> · ' + html(fmt('Last price update within 24 hours · Ranked by {sort}', {sort:query.sort === 'change' ? tr('largest change %') : byId('sort').options[byId('sort').selectedIndex].text})) : label(query.category) + (query.sub !== 'All' ? ' › ' + label(query.sub) : '') + ' · ' + label('Base prices for unenchanted items');
     for (i = 0; i < state.catalog.length; i++) {
       item = state.catalog[i]; price = item.base_price || 0; change = price - (item.previous_price || price); percent = item.previous_price > 0 ? Math.abs(change * 100 / item.previous_price).toFixed(2) : '0.00';
-      list += '<div tabindex="0" role="button" class="product' + (query.variant.split(':')[0] === String(item.item_id) ? ' selected' : '') + '" data-item="' + item.item_id + '">' + image(item) + '<span class="item-name quality-' + html(item.quality) + '">' + html(item.name) + '</span><small>' + html(item.type || gameTerm(item.group)) + ' · Lv. ' + item.level + '</small><span class="stock" title="Listed quantity / cumulative quantity traded across all variants">' + money(item.stock) + '<small>' + money(item.traded || 0) + ' traded</small></span><span class="price">' + money(price) + (change ? '<small class="trend ' + (change > 0 ? 'up' : 'down') + '" title="Previous base price: ' + money(item.previous_price) + ' Kinah. Compared with the last market price adjustment.">' + (change > 0 ? '↑' : '↓') + ' ' + money(Math.abs(change)) + ' (' + percent + '%)</small>' : '') + '</span>' + (isFavorite(item.item_id) ? '<span class="favorite-star">★</span>' : '') + '</div>';
+      list += '<div tabindex="0" role="button" class="product' + (query.variant.split(':')[0] === String(item.item_id) ? ' selected' : '') + '" data-item="' + item.item_id + '">' + image(item) + '<span class="item-name quality-' + html(item.quality) + '">' + html(item.name) + '</span><small>' + label(item.type || gameTerm(item.group)) + ' · ' + html(fmt('Lv. {level}', {level:item.level})) + '</small><span class="stock" title="'+label('Listed quantity / cumulative quantity traded across all variants')+'">' + money(item.stock) + '<small>' + html(fmt('{count} traded', {count:money(item.traded || 0)})) + '</small></span><span class="price">' + money(price) + (change ? '<small class="trend ' + (change > 0 ? 'up' : 'down') + '" title="' + html(fmt('Previous base price: {amount}. Compared with the last market price adjustment.', {amount:amount(item.previous_price)})) + '">' + (change > 0 ? '↑' : '↓') + ' ' + money(Math.abs(change)) + ' (' + percent + '%)</small>' : '') + '</span>' + (isFavorite(item.item_id) ? '<span class="favorite-star">★</span>' : '') + '</div>';
     }
-    var catalogChanged = setMarkup('catalog-list', list || '<p class="empty-list">' + (query.filter === 'changed' ? 'No matching base prices changed in the last 24 hours. Choose All Items to browse the market.' : 'No items match these filters. Adjust the ranges or select Reset.') + '</p>');
+    var catalogChanged = setMarkup('catalog-list', list || '<p class="empty-list">' + label(query.filter === 'changed' ? 'No matching base prices changed in the last 24 hours. Choose All Items to browse the market.' : 'No items match these filters. Adjust the ranges or select Reset.') + '</p>');
     byId('page').innerHTML = state.page + ' / ' + Math.max(1, Math.ceil(state.total / 24)); byId('previous').disabled = state.page <= 1; byId('next').disabled = state.page * 24 >= state.total;
     if (!catalogChanged) { markCatalogSelection(); return; }
     var products = byId('catalog-list').querySelectorAll('[data-item]');
@@ -271,7 +295,7 @@
     byId('detail').style.display = d && view === 'market' ? '' : 'none';
     document.querySelector('main').className = d && view === 'market' ? 'has-detail' : '';
     if (view !== 'market') return;
-    if (!d) { setMarkup('detail', '<div class="empty-detail"><span class="market-emblem">◇</span><h2>Select an item</h2><p>Check prices, buy orders and sale listings.</p></div>'); return; }
+    if (!d) { setMarkup('detail', '<div class="empty-detail"><span class="market-emblem">◇</span><h2>'+label('Select an item')+'</h2><p>'+label('Check prices, buy orders and sale listings.')+'</p></div>'); return; }
     if (!selectedPrice || d.levels.indexOf(selectedPrice) < 0) {
       selectedPrice = d.base_price;
       var lowest = 0;
@@ -280,17 +304,17 @@
     }
     var detailKey = JSON.stringify(d) + '|' + selectedPrice + '|' + isFavorite(d.item_id) + '|' + query.variant + '|' + document.documentElement.clientWidth + 'x' + document.documentElement.clientHeight;
     if (rendered.detail === detailKey) return;
-    for (i = 0; i < d.variants.length; i++) { var v = d.variants[i]; variants += '<option value="' + html(v.variant) + '">' + '+' + v.enchant + (v.tempering ? ' · Tempering +' + v.tempering : '') + (v.variant.split(':').length > 3 ? ' · Modified item ' + (i + 1) : '') + '</option>'; }
-    text = '<div class="detail-head">' + image(d) + '<h2 class="quality-' + html(d.quality) + '">' + html(d.name) + '</h2><select id="variant-select" aria-label="Item enchantment and attributes">' + variants + '</select><button class="favorite" id="favorite" title="' + (isFavorite(d.item_id) ? 'Remove from Favorites' : 'Add to Favorites') + '">' + (isFavorite(d.item_id) ? '★' : '☆') + '</button><button id="close-detail" class="close-detail" title="Close item details">×</button></div><div class="detail-main"><div class="price-book"><div class="book-heading"><span>Available to buy</span><b>Waiting buyers</b><strong>Price · Kinah</strong></div><div class="book-levels">';
+    for (i = 0; i < d.variants.length; i++) { var v = d.variants[i]; variants += '<option value="' + html(v.variant) + '">' + '+' + v.enchant + (v.tempering ? ' · ' + html(fmt('Tempering +{level}', {level:v.tempering})) : '') + (v.variant.split(':').length > 3 ? ' · ' + html(fmt('Modified item {index}', {index:i + 1})) : '') + '</option>'; }
+    text = '<div class="detail-head">' + image(d) + '<h2 class="quality-' + html(d.quality) + '">' + html(d.name) + '</h2><select id="variant-select" aria-label="'+label('Item enchantment and attributes')+'">' + variants + '</select><button class="favorite" id="favorite" title="' + label(isFavorite(d.item_id) ? 'Remove from Favorites' : 'Add to Favorites') + '">' + (isFavorite(d.item_id) ? '★' : '☆') + '</button><button id="close-detail" class="close-detail" title="'+label('Close item details')+'">×</button></div><div class="detail-main"><div class="price-book"><div class="book-heading"><span>'+label('Available to buy')+'</span><b>'+label('Waiting buyers')+'</b><strong>'+label('Price · Kinah')+'</strong></div><div class="book-levels">';
     var displayLevels = d.levels.slice(0);
     for(i = 0; i < d.book.length; i++) if(displayLevels.indexOf(d.book[i].price) < 0) displayLevels.push(d.book[i].price);
     displayLevels.sort(function(a,b){return a-b;});
     for (i = displayLevels.length - 1; i >= 0; i--) {
       level = displayLevels[i]; sellCount = 0; buyCount = 0;
       for (var j = 0; j < d.book.length; j++) { book = d.book[j]; if (book.price === level) { if (book.side === 'S') sellCount += bookQuantity(book); else buyCount += bookQuantity(book); } }
-      text += '<div' + (d.levels.indexOf(level) >= 0 ? ' tabindex="0" role="button" data-price="' + level + '"' : ' title="Existing orders outside the current price band"') + ' class="book-row' + (level === selectedPrice ? ' chosen' : '') + '"><span class="sell-count">' + (sellCount ? money(sellCount) : '—') + '</span><span class="buy-count">' + (buyCount ? money(buyCount) : '—') + '</span><span class="price-value">' + money(level) + '</span></div>';
+      text += '<div' + (d.levels.indexOf(level) >= 0 ? ' tabindex="0" role="button" data-price="' + level + '"' : ' title="' + label('Existing orders outside the current price band') + '"') + ' class="book-row' + (level === selectedPrice ? ' chosen' : '') + '"><span class="sell-count">' + (sellCount ? money(sellCount) : '—') + '</span><span class="buy-count">' + (buyCount ? money(buyCount) : '—') + '</span><span class="price-value">' + money(level) + '</span></div>';
     }
-    text += '</div></div><div class="buy-controls"><div class="summary">Base price <strong>' + money(d.base_price) + ' Kinah</strong> · ' + money(d.traded) + ' traded</div><div class="summary">Warehouse volume <strong>' + d.volume / 10 + ' VT</strong> each</div><div id="purchase-availability" class="availability"></div><button class="primary" id="buy-item">Buy / Place Order</button><button id="preview">Item Preview</button><button id="item-stats">Item Details</button><div class="chart"><span class="chart-label">30-day price history · ' + (d.queue.length ? 'Registration queue: ' + money(d.queue[0].quantity) + ' items' : 'Completed trades') + '</span><canvas id="price-chart" width="320" height="65"></canvas></div></div></div>';
+    text += '</div></div><div class="buy-controls"><div class="summary">'+label('Base price')+' <strong>' + html(amount(d.base_price)) + '</strong> · ' + html(fmt('{count} traded', {count:money(d.traded)})) + '</div><div class="summary">'+label('Warehouse volume')+' <strong>' + d.volume / 10 + ' VT</strong> '+label('each')+'</div><div id="purchase-availability" class="availability"></div><button class="primary" id="buy-item">'+label('Buy / Place Order')+'</button><button id="preview">'+label('Item Preview')+'</button><button id="item-stats">'+label('Item Details')+'</button><div class="chart"><span class="chart-label">' + label('30-day price history') + ' · ' + (d.queue.length ? html(fmt('Registration queue: {count} items', {count:money(d.queue[0].quantity)})) : label('Completed trades')) + '</span><canvas id="price-chart" width="320" height="65"></canvas></div></div></div>';
     if (!setMarkup('detail', text, detailKey)) return;
     byId('variant-select').value = query.variant;
     byId('variant-select').onchange = function () { chooseVariant(this.value); };
@@ -312,23 +336,23 @@
   }
   function updateAvailability() {
     var available=stockAt(selectedPrice), el=byId('purchase-availability');
-    if(el) el.innerHTML=available ? money(available)+' available at this price or lower · Buy now' : 'No sale stock at this price · Place a preorder';
-    if(byId('buy-item')) byId('buy-item').innerHTML=available ? 'Buy Now' : 'Place Buy Order';
+    if(el) el.textContent=available ? fmt('{count} available at this price or lower · Buy now', {count:money(available)}) : tr('No sale stock at this price · Place a preorder');
+    if(byId('buy-item')) byId('buy-item').textContent=tr(available ? 'Buy Now' : 'Place Buy Order');
   }
   function drawChart(points) {
     var canvas = byId('price-chart');
     canvas.width = canvas.clientWidth || 320; canvas.height = canvas.clientHeight || 65;
     var c = canvas.getContext('2d'), w = canvas.width, h = canvas.height, i, min, max;
     c.clearRect(0, 0, w, h); c.font = '10px Tahoma';
-    if (!points.length) { c.fillStyle = '#93abbc'; c.textAlign = 'center'; c.fillText('No completed trades yet', w / 2, h / 2); return; }
+    if (!points.length) { c.fillStyle = '#93abbc'; c.textAlign = 'center'; c.fillText(tr('No completed trades yet'), w / 2, h / 2); return; }
     min = max = points[0].price; for (i = 1; i < points.length; i++) { min = Math.min(min, points[i].price); max = Math.max(max, points[i].price); }
     for (i = 0; i < 3; i++) { c.strokeStyle = '#1f3447'; c.beginPath(); c.moveTo(0, 8 + i * (h - 25) / 2); c.lineTo(w, 8 + i * (h - 25) / 2); c.stroke(); }
     c.strokeStyle = '#8fe3ec'; c.lineWidth = 1.5; c.beginPath();
     for (i = 0; i < points.length; i++) { var x = 5 + i * (w - 10) / Math.max(1, points.length - 1), y = max === min ? (h - 17) / 2 : 8 + (max - points[i].price) * (h - 25) / (max - min); if (!i) c.moveTo(x, y); else c.lineTo(x, y); }
     c.stroke(); c.fillStyle = '#93abbc'; c.textAlign = 'left'; c.fillText(money(min) + ' – ' + money(max), 5, h - 2);
-    canvas.onmousemove = function (e) { var r = canvas.getBoundingClientRect(), index = Math.min(points.length - 1, Math.max(0, Math.round((e.clientX - r.left) * (points.length - 1) / r.width))), p = points[index]; canvas.title = new Date(p.day * 86400000).toLocaleDateString() + ' · ' + money(p.price) + ' Kinah · ' + money(p.volume) + ' traded'; };
+    canvas.onmousemove = function (e) { var r = canvas.getBoundingClientRect(), index = Math.min(points.length - 1, Math.max(0, Math.round((e.clientX - r.left) * (points.length - 1) / r.width))), p = points[index]; canvas.title = fmt('{date} · {amount} · {count} traded', {date:new Date(p.day * 86400000).toLocaleDateString(), amount:amount(p.price), count:money(p.volume)}); };
   }
-  function itemHeader(i) { return '<div class="confirm-item">' + image(i) + html(name(i)) + '<small>' + html(gameTerm(i.group || '')) + '</small></div>'; }
+  function itemHeader(i) { return '<div class="confirm-item">' + image(i) + html(name(i, true)) + '<small>' + label(gameTerm(i.group || '')) + '</small></div>'; }
   function positionDialog() {
     if (byId('dialog-shade').style.display !== 'block') return;
     var dialog = byId('dialog'), width = document.documentElement.clientWidth, height = document.documentElement.clientHeight;
@@ -337,7 +361,7 @@
     dialog.style.left = Math.max(16, Math.round((width - dialog.offsetWidth) / 2)) + 'px';
     dialog.style.top = Math.max(16, Math.round((height - dialog.offsetHeight) / 2)) + 'px';
   }
-  function openDialog(title, body, action, button) { byId('dialog-cancel').innerHTML = action ? 'Cancel' : 'Close'; byId('dialog-title').innerHTML = html(title); byId('dialog-body').innerHTML = body; byId('dialog-error').innerHTML = ''; byId('dialog-confirm').innerHTML = button || 'Confirm'; byId('dialog-confirm').disabled = false; byId('dialog-confirm').style.display = action ? '' : 'none'; modalAction = action; byId('dialog-shade').style.display = 'block'; positionDialog(); var input = byId('dialog-body').querySelector('input'); if (input) { input.focus(); input.select(); } }
+  function openDialog(title, body, action, button) { byId('dialog-cancel').textContent = tr(action ? 'Cancel' : 'Close'); byId('dialog-title').textContent = tr(title); byId('dialog-body').innerHTML = body; byId('dialog-error').innerHTML = ''; byId('dialog-confirm').textContent = tr(button || 'Confirm'); byId('dialog-confirm').disabled = false; byId('dialog-confirm').style.display = action ? '' : 'none'; modalAction = action; byId('dialog-shade').style.display = 'block'; positionDialog(); var input = byId('dialog-body').querySelector('input'); if (input) { input.focus(); input.select(); } }
   function closeDialog() { if (busy) return; if (batchIcons) batchIcons.off = true; byId('dialog-shade').style.display = 'none'; modalAction = null; }
   function loadBatchIcons() {
     if(batchIcons)batchIcons.off=true;var list=byId('dialog-body').querySelector('.batch-items');if(!list)return;
@@ -346,72 +370,74 @@
     batchIcons=feedIcons(pending,function(){return byId('dialog-shade').style.display==='block'&&!!list.parentNode;});
   }
   function quantity(max, preference) {
-    var extra = preference ? '<label class="always-max-frame" title="Default to maximum quantity when opening a transfer or sale. Saved for this account."><input id="always-max" type="checkbox"' + (state.alwaysMax ? ' checked' : '') + '><span class="check-mark" aria-hidden="true"></span><span>Always Max</span></label>' : '';
+    var extra = preference ? '<label class="always-max-frame" title="'+label('Default to maximum quantity when opening a transfer or sale. Saved for this account.')+'"><input id="always-max" type="checkbox"' + (state.alwaysMax ? ' checked' : '') + '><span class="check-mark" aria-hidden="true"></span><span>'+label('Always Max')+'</span></label>' : '';
     return window.AionQuantity.markup(max, preference && state.alwaysMax ? max : 1, extra, money);
   }
-  function quantityValue(max) { var value = window.AionQuantity.value(byId('quantity'), max); if (!value) byId('dialog-error').innerHTML = 'Quantity must be between 1 and ' + money(max) + '.'; return value; }
+  function quantityValue(max) { var value = window.AionQuantity.value(byId('quantity'), max); if (!value) byId('dialog-error').textContent = fmt('Quantity must be between 1 and {count}.', {count:money(max)}); return value; }
   function bindMax(max) {
+    byId('dialog-body').querySelector('label[for="quantity"]').textContent = fmt('Quantity · maximum {count}', {count:money(max)});
+    byId('max-quantity').textContent = tr('Max');
     window.AionQuantity.bindMax(byId('quantity'), byId('max-quantity'), max);
     if(byId('always-max'))byId('always-max').onchange=function(){if(busy){this.checked=!!state.alwaysMax;return;}if(this.checked)byId('max-quantity').onclick();this.disabled=true;act({action:'preference',alwaysMax:this.checked?'1':'0'},true);};
   }
   function transfer(i, target) {
     if (i.reserved) return;
     var options = '', j, s;
-    for (j = 0; j < state.storages.length; j++) { s = state.storages[j]; if (s.id !== i.source && (s.id !== 125 || i.marketTransferable && +i.volume<=state.volumeLimit-state.volume)) options += '<option value="' + s.id + '">' + html(s.name) + '</option>'; }
-    openDialog('Transfer Item', itemHeader(i) + quantity(i.quantity,true) + '<label for="target">Destination</label><select id="target">' + options + '</select>', function () { var q = quantityValue(i.quantity); if (q) act({ action: 'transfer', source: i.source, target: byId('target').value, object: i.object, quantity: q }); }, 'Transfer');
+    for (j = 0; j < state.storages.length; j++) { s = state.storages[j]; if (s.id !== i.source && (s.id !== 125 || i.marketTransferable && +i.volume<=state.volumeLimit-state.volume)) options += '<option value="' + s.id + '">' + label(s.name) + '</option>'; }
+    openDialog('Transfer Item', itemHeader(i) + quantity(i.quantity,true) + '<label for="target">'+label('Destination')+'</label><select id="target">' + options + '</select>', function () { var q = quantityValue(i.quantity); if (q) act({ action: 'transfer', source: i.source, target: byId('target').value, object: i.object, quantity: q }); }, 'Transfer');
     if (target != null) byId('target').value = String(target); bindMax(i.quantity);
   }
   function transferSelected(target) {
     var items = selectedItems(), options = '', rows = '', entries = [], allTradeable, j, s, source = storage;
     if (busy || !items.length) return;
     allTradeable=canEnterMarket(items);
-    for (j = 0; j < items.length; j++) { entries.push(items[j].object + ':' + items[j].quantity); rows += '<div class="batch-row">' + image(items[j],true) + '<strong class="quality-' + html(items[j].quality) + '">' + html(name(items[j])) + '</strong><small>× ' + money(items[j].quantity) + '</small></div>'; }
-    for (j = 0; j < state.storages.length; j++) { s = state.storages[j]; if (s.id !== source && (s.id !== 125 || allTradeable)) options += '<option value="' + s.id + '">' + html(s.name) + '</option>'; }
-    openDialog('Transfer Selected Items', '<p class="batch-summary">' + stackLabel(items.length) + ' from ' + html(currentStorage().name) + ' · Full stacks</p><div class="batch-items">' + rows + '</div><label for="target">Destination</label><select id="target">' + options + '</select><p class="batch-summary" style="margin-top:12px">All selected items transfer together. Storage restrictions and capacity apply.</p>', function () { act({action:'transferBatch', source:source, target:byId('target').value, items:entries.join(',')}); }, 'Transfer All');
+    for (j = 0; j < items.length; j++) { entries.push(items[j].object + ':' + items[j].quantity); rows += '<div class="batch-row">' + image(items[j],true) + '<strong class="quality-' + html(items[j].quality) + '">' + html(name(items[j], true)) + '</strong><small>× ' + money(items[j].quantity) + '</small></div>'; }
+    for (j = 0; j < state.storages.length; j++) { s = state.storages[j]; if (s.id !== source && (s.id !== 125 || allTradeable)) options += '<option value="' + s.id + '">' + label(s.name) + '</option>'; }
+    openDialog('Transfer Selected Items', '<p class="batch-summary">' + html(fmt('{stacks} from {storage} · Full stacks', {stacks:stackLabel(items.length), storage:tr(currentStorage().name)})) + '</p><div class="batch-items">' + rows + '</div><label for="target">'+label('Destination')+'</label><select id="target">' + options + '</select><p class="batch-summary" style="margin-top:12px">'+label('All selected items transfer together. Storage restrictions and capacity apply.')+'</p>', function () { act({action:'transferBatch', source:source, target:byId('target').value, items:entries.join(',')}); }, 'Transfer All');
     byId('dialog-body').querySelector('.batch-items').onscroll=loadBatchIcons;loadBatchIcons();
-    if (target != null) { byId('target').value = String(target); if (byId('target').value !== String(target)) { byId('dialog-error').innerHTML = 'A selected item cannot enter this warehouse.'; byId('dialog-confirm').disabled = true; byId('target').onchange = function () { byId('dialog-error').innerHTML = ''; byId('dialog-confirm').disabled = !this.value; }; } }
+    if (target != null) { byId('target').value = String(target); if (byId('target').value !== String(target)) { byId('dialog-error').textContent = tr('A selected item cannot enter this warehouse.'); byId('dialog-confirm').disabled = true; byId('target').onchange = function () { byId('dialog-error').innerHTML = ''; byId('dialog-confirm').disabled = !this.value; }; } }
   }
   function demandAt(price) { var d=state.selected,count=0,i; if(d) for(i=0;i<d.book.length;i++) if(d.book[i].side==='B' && d.book[i].price>=price) count+=bookQuantity(d.book[i]); return count; }
-  function priceOptions(d,sale) { var out = '', i, count; for (i = 0; i < d.levels.length; i++) { count=sale ? demandAt(d.levels[i]) : stockAt(d.levels[i]); out += '<option value="' + d.levels[i] + '">' + money(d.levels[i]) + ' Kinah' + (count ? ' · ' + money(count) + (sale ? ' waiting buyers' : ' available to buy') : sale ? ' · List for sale' : ' · Preorder') + '</option>'; } return out; }
+  function priceOptions(d,sale) { var out = '', i, count; for (i = 0; i < d.levels.length; i++) { count=sale ? demandAt(d.levels[i]) : stockAt(d.levels[i]); out += '<option value="' + d.levels[i] + '">' + html(amount(d.levels[i])) + ' · ' + html(count ? fmt(sale ? '{count} waiting buyers' : '{count} available to buy', {count:money(count)}) : tr(sale ? 'List for sale' : 'Preorder')) + '</option>'; } return out; }
   function buy() {
     var d = state.selected; if (!d || d.variant !== query.variant) return; var max = d.maxQuantity;
-    openDialog('Buy / Place Order', itemHeader(d) + '<label for="unit-price">Unit price</label><select id="unit-price">' + priceOptions(d) + '</select>' + quantity(max) + '<div class="cost">Reserved Kinah<strong id="total-cost"></strong></div><p style="font-size:14px;color:#b9cbd5;margin-top:9px">Stock fills immediately at this price or lower. Collect purchased items beside the order in My Orders. Any remainder waits as a preorder.</p>', function () { var q = quantityValue(max), price = +byId('unit-price').value; if (!q) return; if (q * price > state.balance) { byId('dialog-error').innerHTML = 'Not enough Kinah in Market Warehouse.'; return; } act({ action: 'buy', variant: query.variant, quantity: q, price: price }); }, 'Buy / Place Order');
+    openDialog('Buy / Place Order', itemHeader(d) + '<label for="unit-price">'+label('Unit price')+'</label><select id="unit-price">' + priceOptions(d) + '</select>' + quantity(max) + '<div class="cost">'+label('Reserved Kinah')+'<strong id="total-cost"></strong></div><p style="font-size:14px;color:#b9cbd5;margin-top:9px">'+label('Stock fills immediately at this price or lower. Collect purchased items beside the order in My Orders. Any remainder waits as a preorder.')+'</p>', function () { var q = quantityValue(max), price = +byId('unit-price').value; if (!q) return; if (q * price > state.balance) { byId('dialog-error').textContent = tr('Not enough Kinah in Market Warehouse.'); return; } act({ action: 'buy', variant: query.variant, quantity: q, price: price }); }, 'Buy / Place Order');
     byId('unit-price').value = selectedPrice; bindMax(max); bindCost(false);
   }
   function sell(i) {
     var d = state.selected, max = Math.min(i.quantity, d.maxQuantity);
     var highest=0,j; for(j=0;j<d.book.length;j++) if(d.book[j].side==='B' && bookQuantity(d.book[j])>0 && d.levels.indexOf(d.book[j].price)>=0) highest=Math.max(highest,d.book[j].price); if(highest) selectedPrice=highest;
-    openDialog('Register Sale', itemHeader(i) + '<label for="unit-price">Unit price</label><select id="unit-price">' + priceOptions(d,true) + '</select>' + quantity(max,true) + '<div class="cost">Proceeds after tax<strong id="total-cost"></strong></div><p style="font-size:14px;color:#b9cbd5;margin-top:9px">Waiting buyers fill immediately at this price or higher. Unsold items stay listed. Collect Kinah beside the order in My Orders. High-value listings enter a 15-minute registration queue.</p>', function () { var q = quantityValue(max); if (q) act({ action: 'sell', object: i.object, variant: i.variant, quantity: q, price: byId('unit-price').value }); }, 'Register Sale');
+    openDialog('Register Sale', itemHeader(i) + '<label for="unit-price">'+label('Unit price')+'</label><select id="unit-price">' + priceOptions(d,true) + '</select>' + quantity(max,true) + '<div class="cost">'+label('Proceeds after tax')+'<strong id="total-cost"></strong></div><p style="font-size:14px;color:#b9cbd5;margin-top:9px">'+label('Waiting buyers fill immediately at this price or higher. Unsold items stay listed. Collect Kinah beside the order in My Orders. High-value listings enter a 15-minute registration queue.')+'</p>', function () { var q = quantityValue(max); if (q) act({ action: 'sell', object: i.object, variant: i.variant, quantity: q, price: byId('unit-price').value }); }, 'Register Sale');
     byId('unit-price').value = selectedPrice; bindMax(max); bindCost(true);
   }
-  function bindCost(sale) { function calculate() { var price = +byId('unit-price').value, qty = +byId('quantity').value, total = price * qty, rate = state.returnPercent === 84.5 ? 845 : 650; if(sale) total = Math.floor(total / 1000) * rate + Math.floor((total % 1000) * rate / 1000); byId('total-cost').innerHTML = money(total) + ' Kinah'; var available=sale ? demandAt(price) : stockAt(price), immediate=Math.min(available, Math.max(0,qty)); byId('dialog-confirm').innerHTML = sale ? price>=20000000000 ? 'Queue Sale' : immediate>=qty ? 'Sell Now' : immediate ? 'Sell + List Rest' : 'List for Sale' : immediate>=qty ? 'Buy Now' : immediate ? 'Buy + Preorder Rest' : 'Place Buy Order'; } byId('quantity').oninput = calculate; byId('unit-price').onchange = calculate; calculate(); }
+  function bindCost(sale) { function calculate() { var price = +byId('unit-price').value, qty = +byId('quantity').value, total = price * qty, rate = state.returnPercent === 84.5 ? 845 : 650; if(sale) total = Math.floor(total / 1000) * rate + Math.floor((total % 1000) * rate / 1000); byId('total-cost').textContent = amount(total); var available=sale ? demandAt(price) : stockAt(price), immediate=Math.min(available, Math.max(0,qty)); byId('dialog-confirm').textContent = tr(sale ? price>=20000000000 ? 'Queue Sale' : immediate>=qty ? 'Sell Now' : immediate ? 'Sell + List Rest' : 'List for Sale' : immediate>=qty ? 'Buy Now' : immediate ? 'Buy + Preorder Rest' : 'Place Buy Order'); } byId('quantity').oninput = calculate; byId('unit-price').onchange = calculate; calculate(); }
   function details(i) {
-    var text = itemHeader(i) + '<p style="margin-top:12px">Lv. ' + i.level + ' · ' + html(gameTerm(i.race)) + ' · ' + i.volume / 10 + ' VT</p>', j, k;
-    if (i.damage) text += '<p>Weapon damage ' + html(i.damage) + '</p>'; if (i.sockets) text += '<p>Manastone sockets ' + i.sockets + '</p>';
-    for (j = 0; j < i.stats.length; j++) text += '<p>' + html(i.stats[j].name) + ' ' + html(i.stats[j].value) + '</p>';
-    for (k in (i.attributes || {})) if (i.attributes.hasOwnProperty(k)) text += '<p>' + html(k) + ': ' + html(i.attributes[k]) + '</p>';
-    openDialog('Item Details', text, null); byId('dialog-cancel').innerHTML = 'Close';
+    var text = itemHeader(i) + '<p style="margin-top:12px">' + html(fmt('Lv. {level}', {level:i.level})) + ' · ' + label(gameTerm(i.race)) + ' · ' + i.volume / 10 + ' VT</p>', j, k;
+    if (i.damage) text += '<p>' + html(fmt('Weapon damage {damage}', {damage:i.damage})) + '</p>'; if (i.sockets) text += '<p>' + html(fmt('Manastone sockets {count}', {count:i.sockets})) + '</p>';
+    for (j = 0; j < i.stats.length; j++) text += '<p>' + label(i.stats[j].name) + ' ' + html(i.stats[j].value) + '</p>';
+    for (k in (i.attributes || {})) if (i.attributes.hasOwnProperty(k)) text += '<p>' + label(k) + ': ' + html(i.attributes[k]) + '</p>';
+    openDialog('Item Details', text, null); byId('dialog-cancel').textContent = tr('Close');
   }
   function renderOrders() {
     var filter = byId('order-filter').value, text = '', i, o;
     for (i = 0; i < state.orders.length; i++) {
       o = state.orders[i]; if (o.state !== 'OPEN' && o.state !== 'QUEUED' && !(o.collectQuantity > 0 || o.collectGross > 0)) continue;
       if (filter === 'B' || filter === 'S') { if (o.side !== filter) continue; } else if (filter === 'open' && o.state !== 'OPEN' && o.state !== 'QUEUED') continue;
-      text += '<div class="table-row order-row">' + image(o) + '<strong>' + html(orderName(o)) + '</strong><span class="state ' + o.state + '">' + (o.side === 'B' ? 'Buy order' : 'Sale listing') + ' · ' + stateName(o.state) + '</span><small>' + money(o.remaining) + ' remaining / ' + money(o.quantity) + ' · ' + money(o.price) + ' Kinah each' + (o.state === 'QUEUED' ? ' · Registers ' + date(o.available_at) : ' · ' + date(o.created_at)) + '</small>' + '<div class="order-actions">' + (o.collectQuantity > 0 || o.collectGross > 0 ? '<button class="primary" data-collect="' + o.id + '">' + (o.side === 'B' ? 'Collect Items (' + money(o.collectQuantity) + ')' : 'Collect Kinah') + '</button>' : '<span>' + (o.state === 'FILLED' ? 'Collected' : o.state === 'CANCELLED' ? 'Nothing to collect' : 'Awaiting trades') + '</span>') + (o.state === 'OPEN' || o.state === 'QUEUED' ? '<button data-cancel="' + o.id + '">Cancel</button>' : '') + '</div>' + (o.collectGross > 0 ? '<small class="claim-info">' + money(netProceeds(o.collectGross)) + ' Kinah ready after tax</small>' : '') + '</div>';
+      text += '<div class="table-row order-row">' + image(o) + '<strong>' + html(orderName(o)) + '</strong><span class="state ' + o.state + '">' + label(o.side === 'B' ? 'Buy order' : 'Sale listing') + ' · ' + label(stateName(o.state)) + '</span><small>' + html(fmt('{remaining} remaining / {total} · {amount} each', {remaining:money(o.remaining), total:money(o.quantity), amount:amount(o.price)})) + (o.state === 'QUEUED' ? ' · ' + html(fmt('Registers {date}', {date:date(o.available_at)})) : ' · ' + date(o.created_at)) + '</small>' + '<div class="order-actions">' + (o.collectQuantity > 0 || o.collectGross > 0 ? '<button class="primary" data-collect="' + o.id + '">' + html(o.side === 'B' ? fmt('Collect Items ({count})', {count:money(o.collectQuantity)}) : tr('Collect Kinah')) + '</button>' : '<span>' + label(o.state === 'FILLED' ? 'Collected' : o.state === 'CANCELLED' ? 'Nothing to collect' : 'Awaiting trades') + '</span>') + (o.state === 'OPEN' || o.state === 'QUEUED' ? '<button data-cancel="' + o.id + '">'+label('Cancel')+'</button>' : '') + '</div>' + (o.collectGross > 0 ? '<small class="claim-info">' + html(fmt('{amount} ready after tax', {amount:amount(netProceeds(o.collectGross))})) + '</small>' : '') + '</div>';
     }
-    var changed = setMarkup('orders-list', text || '<p class="empty-list">No orders to display.</p>');
+    var changed = setMarkup('orders-list', text || '<p class="empty-list">'+label('No orders to display.')+'</p>');
     pagination('order-pagination','orderPage',state.orderPage,state.orderTotal);
     if (!changed) return;
     var claims=byId('orders-list').querySelectorAll('[data-collect]');
     for(i=0;i<claims.length;i++) claims[i].onclick=function(){act({action:'collect',order:this.getAttribute('data-collect')});};
     var buttons = byId('orders-list').querySelectorAll('[data-cancel]');
-    for (i = 0; i < buttons.length; i++) buttons[i].onclick = function () { var id = +this.getAttribute('data-cancel'); openDialog('Cancel Order', '<p>Remaining items or reserved Kinah return to Market Warehouse.</p>', function () { act({ action: 'cancel', order: id }); }, 'Cancel Order'); };
+    for (i = 0; i < buttons.length; i++) buttons[i].onclick = function () { var id = +this.getAttribute('data-cancel'); openDialog('Cancel Order', '<p>'+label('Remaining items or reserved Kinah return to Market Warehouse.')+'</p>', function () { act({ action: 'cancel', order: id }); }, 'Cancel Order'); };
   }
   function renderHistory() {
     var filter = byId('history-filter').value, text = '', i, t;
-    if (filter === 'collections') { for (i = 0; i < state.collections.length; i++) { t = state.collections[i]; text += '<div class="table-row"><strong>Collected ' + money(t.net) + ' Kinah</strong><small>Sale proceeds ' + money(t.gross) + ' · Market tax ' + money(t.gross - t.net) + '</small><small>' + date(t.collected_at) + '</small></div>'; } }
-    else { for (i = 0; i < state.history.length; i++) { t = state.history[i]; if (filter !== 'all' && t.direction !== filter) continue; text += '<div class="table-row">' + image(t) + '<strong>' + html(orderName(t)) + '</strong><span class="state">' + t.direction + ' · ' + money(t.quantity) + '</span><small>' + money(t.unit_price) + ' Kinah each · ' + money(t.unit_price * t.quantity) + ' Kinah total · ' + date(t.traded_at) + '</small></div>'; } }
-    setMarkup('history-list', text || '<p class="empty-list">No completed trades to display.</p>');
+    if (filter === 'collections') { for (i = 0; i < state.collections.length; i++) { t = state.collections[i]; text += '<div class="table-row"><strong>' + html(fmt('Collected {amount}', {amount:amount(t.net)})) + '</strong><small>' + html(fmt('Sale proceeds {gross} · Market tax {tax}', {gross:money(t.gross), tax:money(t.gross - t.net)})) + '</small><small>' + date(t.collected_at) + '</small></div>'; } }
+    else { for (i = 0; i < state.history.length; i++) { t = state.history[i]; if (filter !== 'all' && t.direction !== filter) continue; text += '<div class="table-row">' + image(t) + '<strong>' + html(orderName(t)) + '</strong><span class="state">' + label(t.direction) + ' · ' + money(t.quantity) + '</span><small>' + html(fmt('{unit} each · {total} total · {date}', {unit:amount(t.unit_price), total:amount(t.unit_price * t.quantity), date:date(t.traded_at)})) + '</small></div>'; } }
+    setMarkup('history-list', text || '<p class="empty-list">'+label('No completed trades to display.')+'</p>');
     pagination('history-pagination','historyPage',state.historyPage,state.historyTotal);
   }
   function pagination(id, key, page, total) {
@@ -424,15 +450,15 @@
     var text='',i,o;
     for(i=0;i<state.notifications.length;i++) {
       o=state.notifications[i];
-      text+='<div class="table-row">'+image(o)+'<strong>'+html(orderName(o))+'</strong><span class="state">'+(o.direction ? o.direction+' · '+money(o.remaining)+' items' : 'Registration queue · '+money(o.remaining)+' items')+'</span><small>'+money(o.price)+' Kinah each · '+(o.direction ? date(o.available_at) : 'Registers '+date(o.available_at))+'</small><button '+(o.direction ? 'data-order-notification="'+o.order_id+'"' : 'data-notification="'+html(o.variant)+'"')+'>'+(o.direction ? 'My Orders' : 'View Item')+'</button></div>';
+      text+='<div class="table-row">'+image(o)+'<strong>'+html(orderName(o))+'</strong><span class="state">'+(o.direction ? label(o.direction)+' · '+html(fmt('{count} items',{count:money(o.remaining)})) : html(fmt('Registration queue · {count} items',{count:money(o.remaining)})))+'</span><small>'+html(fmt('{amount} each · {date}', {amount:amount(o.price), date:o.direction ? date(o.available_at) : fmt('Registers {date}', {date:date(o.available_at)})}))+'</small><button '+(o.direction ? 'data-order-notification="'+o.order_id+'"' : 'data-notification="'+html(o.variant)+'"')+'>'+label(o.direction ? 'My Orders' : 'View Item')+'</button></div>';
     }
-    if (!setMarkup('notifications-list',text||'<p class="empty-list">Purchase and sale notifications appear here when an order fills. High-value listings appear while awaiting registration.</p>')) return;
+    if (!setMarkup('notifications-list',text||'<p class="empty-list">'+label('Purchase and sale notifications appear here when an order fills. High-value listings appear while awaiting registration.')+'</p>')) return;
     var buttons=byId('notifications-list').querySelectorAll('[data-notification]');
     for(i=0;i<buttons.length;i++) buttons[i].onclick=function(){document.querySelector('[data-view="market"]').onclick();chooseVariant(this.getAttribute('data-notification'));};
     buttons=byId('notifications-list').querySelectorAll('[data-order-notification]');
     for(i=0;i<buttons.length;i++) buttons[i].onclick=function(){query.orderFilter='all';query.orderPage=1;byId('order-filter').value='all';document.querySelector('[data-view="orders"]').onclick();fetchState(false,null,'activity');};
   }
-  function orderName(o) { return (o.enchant ? '+' + o.enchant + ' ' : '') + (o.name || ('Item ' + o.item_id)) + (o.tempering ? ' · Tempering +' + o.tempering : ''); }
+  function orderName(o) { return (o.enchant ? '+' + o.enchant + ' ' : '') + (o.name || fmt('Item {id}', {id:o.item_id})) + (o.tempering ? ' · ' + fmt('Tempering +{level}', {level:o.tempering}) : ''); }
   function stateName(s) { return { OPEN: 'Active', FILLED: 'Completed', CANCELLED: 'Cancelled', QUEUED: 'Registration queue' }[s] || s; }
   function gameTerm(s) { var terms = { PC_ALL: 'All factions', GUN: 'Pistol', CANNON: 'Aethercannon', KEYBLADE: 'Aether Key', TAMPERING: 'Tempering Solution', ENCHANTMENT: 'Enchantment Stone', RB: 'Cloth', LT: 'Leather', CH: 'Chain', PL: 'Plate', CL: 'Costume', HEAD: 'Headwear', TORSO: 'Chest Armor', PANTS: 'Leg Armor', SHOES: 'Foot Armor', GLOVE: 'Gloves', SHOULDER: 'Shoulders', MULTISLOT: 'Costume' }; if(terms[s]) return terms[s]; var parts = String(s).split('_'), i; for (i = 0; i < parts.length; i++) parts[i] = terms[parts[i]] || parts[i].charAt(0) + parts[i].substring(1).toLowerCase(); return parts.join(' '); }
   var tabs = document.querySelectorAll('[data-storage]'), i;
@@ -454,7 +480,7 @@
   byId('search').onkeydown = function (e) { if (e.keyCode === 13) { clearTimeout(searchTimer); query.q = this.value; browseAll(); query.page = 1; refreshCatalog(); } };
   byId('clear-search').onclick = function () { byId('search').value = ''; query.q = ''; query.page = 1; refreshCatalog(); byId('search').focus(); };
   byId('save-search').onclick=function(){var term=byId('search').value.replace(/^\s+|\s+$/g,'');if(!term){status('Enter an item name to save.',true);return;}act({action:'saveSearch',term:term});};
-  byId('saved-searches').onclick=function(){var text='',i;for(i=0;i<state.savedSearches.length;i++)text+='<div class="saved-row"><button data-search="'+i+'">'+html(state.savedSearches[i].term)+'</button><button data-remove="'+i+'" title="Remove search">×</button></div>';openDialog('Saved Searches',text||'<p>No saved searches. Enter an item name, then select ★.</p>',null);var buttons=byId('dialog-body').querySelectorAll('[data-search]');for(i=0;i<buttons.length;i++)buttons[i].onclick=function(){query.q=state.savedSearches[+this.getAttribute('data-search')].term;query.category='All Items';query.sub='All';query.page=1;browseAll();byId('search').value=query.q;closeDialog();refreshCatalog();};buttons=byId('dialog-body').querySelectorAll('[data-remove]');for(i=0;i<buttons.length;i++)buttons[i].onclick=function(){act({action:'saveSearch',mode:'remove',term:state.savedSearches[+this.getAttribute('data-remove')].term});};};
+  byId('saved-searches').onclick=function(){var text='',i;for(i=0;i<state.savedSearches.length;i++)text+='<div class="saved-row"><button data-search="'+i+'">'+html(state.savedSearches[i].term)+'</button><button data-remove="'+i+'" title="'+label('Remove search')+'">×</button></div>';openDialog('Saved Searches',text||'<p>'+label('No saved searches. Enter an item name, then select ★.')+'</p>',null);var buttons=byId('dialog-body').querySelectorAll('[data-search]');for(i=0;i<buttons.length;i++)buttons[i].onclick=function(){query.q=state.savedSearches[+this.getAttribute('data-search')].term;query.category='All Items';query.sub='All';query.page=1;browseAll();byId('search').value=query.q;closeDialog();refreshCatalog();};buttons=byId('dialog-body').querySelectorAll('[data-remove]');for(i=0;i<buttons.length;i++)buttons[i].onclick=function(){act({action:'saveSearch',mode:'remove',term:state.savedSearches[+this.getAttribute('data-remove')].term});};};
   byId('filter').onchange = function () { query.filter = this.value; if(query.filter === 'changed') query.sort='change';query.page = 1; refreshCatalog(); };
   byId('item-filters').onsubmit = function (e) {
     e.preventDefault(); var ids=['min-level','max-level','min-price','max-price'], keys=['minLevel','maxLevel','minPrice','maxPrice'], j, value;
@@ -467,11 +493,11 @@
   byId('previous').onclick = function () { query.page = Math.max(1, query.page - 1); refreshCatalog(); };
   byId('next').onclick = function () { query.page++; refreshCatalog(); };
   byId('order-filter').onchange = function () { query.orderFilter = this.value; query.orderPage = 1; fetchState(false,null,'activity'); }; byId('history-filter').onchange = function () { query.historyFilter = this.value; query.historyPage = 1; fetchState(false,null,'activity'); }; byId('sort').onchange = function () { query.sort = this.value; query.page = 1; refreshCatalog(); };
-  byId('refresh').onclick = refresh; byId('dialog-close').onclick = closeDialog; byId('dialog-cancel').onclick = function () { closeDialog(); this.innerHTML = 'Cancel'; };
+  byId('refresh').onclick = refresh; byId('dialog-close').onclick = closeDialog; byId('dialog-cancel').onclick = function () { closeDialog(); this.textContent = tr('Cancel'); };
   byId('dialog-confirm').onclick = function () { if (modalAction && !busy) modalAction(); };
   // Kinah moves between a character storage and the Market Warehouse wallet; on the Market tab that is the Inventory.
   function kinahStorage() { var s = currentStorage(), i; if (s.id !== 125) return s; for (i = 0; i < state.storages.length; i++) if (state.storages[i].id === 0) return state.storages[i]; return s; }
-  function transferKinah(direction) { var s = kinahStorage(), value = byId('kinah-amount').value; if (!/^\d+$/.test(value) || +value < 1) { status('Enter a Kinah amount.', true); return; } openDialog(direction === 'deposit' ? 'Deposit Kinah' : 'Withdraw Kinah', '<div class="cost">Kinah<strong>' + money(+value) + '</strong></div><p style="margin-top:12px">' + html(s.name) + (direction === 'deposit' ? ' → Market Warehouse' : ' ← Market Warehouse') + '</p>', function () { act({ action: 'kinah', direction: direction, source: s.id, quantity: value }); }, direction === 'deposit' ? 'Deposit' : 'Withdraw'); }
+  function transferKinah(direction) { var s = kinahStorage(), value = byId('kinah-amount').value; if (!/^\d+$/.test(value) || +value < 1) { status('Enter a Kinah amount.', true); return; } openDialog(direction === 'deposit' ? 'Deposit Kinah' : 'Withdraw Kinah', '<div class="cost">'+label('Kinah')+'<strong>' + money(+value) + '</strong></div><p style="margin-top:12px">' + label(s.name) + ' ' + label(direction === 'deposit' ? '→ Market Warehouse' : '← Market Warehouse') + '</p>', function () { act({ action: 'kinah', direction: direction, source: s.id, quantity: value }); }, direction === 'deposit' ? 'Deposit' : 'Withdraw'); }
   document.getElementsByTagName('footer')[0].onclick = function () { diag.on = !diag.on; diag.gap = 0; diagShow(); };
   byId('deposit-kinah').onclick = function () { transferKinah('deposit'); }; byId('withdraw-kinah').onclick = function () { transferKinah('withdraw'); };
   document.onkeydown = function (e) { if (e.keyCode === 27) { if (byId('dialog-shade').style.display === 'block') closeDialog(); else if (query.variant) { cancelRead(); query.variant = ''; state.selected = null; renderDetail(); markCatalogSelection(); } } };

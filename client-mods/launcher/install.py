@@ -18,6 +18,7 @@ parser.add_argument('--login-module', action='store_true', help='Include the reb
 parser.add_argument('--startup-bridge', action='store_true', help='Include the matched native splash entry bridge')
 parser.add_argument('--languages', action='store_true', help='Install prepared text/voice resources and select the prepared pair')
 parser.add_argument('--languages-stage', type=Path, help='Separate external output from --language-sync')
+parser.add_argument('--chinese-pack-stage', type=Path, help='Install a verified Chinese pack overlay for the next Play')
 parser.add_argument('--check-only', action='store_true', help='Validate the exact delivery without writing files')
 args = parser.parse_args()
 stage, client, backup = args.stage.resolve(strict=True), args.client.resolve(strict=True), args.backup.resolve()
@@ -29,6 +30,8 @@ if (client.parent / 'Control/Prepare-Client.ps1').is_file():
     raise ValueError('Prepare repack portability integration before installing into a repack')
 root = Path(__file__).resolve().parents[2]
 inventory_path = root / 'docs/INSTALLED_MODS.json'
+if args.chinese_pack_stage and (not args.launcher_only or args.languages):
+    parser.error('Use --chinese-pack-stage with --launcher-only to keep the current language selection')
 
 
 def sha(path):
@@ -63,7 +66,7 @@ if args.launcher_only:
         raise ValueError('Launcher-only delivery cannot include artwork or native binary changes')
     payloads = {relative: source for relative, source in payloads.items()
                 if relative in {'Aetherfall Launcher.exe', 'Mods/Launcher/README.md'}}
-if not args.art_only:
+if not args.art_only and not args.chinese_pack_stage:
     payloads['Mods/MultiClient/mod.json'] = Path(__file__).with_name('multiclient') / 'mod.json'
     payloads['Mods/MultiClient/README.txt'] = Path(__file__).with_name('multiclient') / 'README.txt'
 if args.art_only:
@@ -85,6 +88,24 @@ if args.startup_bridge:
     payloads['Mods/Launcher/startup-bridge.json'] = stage / 'startup-bridge.json'
 language_state = None
 retained_language_outputs = {}
+pack_inputs = {}
+if args.chinese_pack_stage:
+    pack_stage = args.chinese_pack_stage.resolve(strict=True)
+    if pack_stage.is_relative_to(client) or pack_stage.is_relative_to(root):
+        raise ValueError('Use an external Chinese pack build')
+    coverage = json.loads((pack_stage / 'coverage.json').read_text(encoding='utf-8'))
+    relative = 'Mods/Languages/Packs/chs/data/data.pak'
+    source = pack_stage / relative
+    if sha(source) != coverage['outputSha256']:
+        raise ValueError('Staged Chinese pack differs from the verified output')
+    pack_inputs = {relative: coverage['baseChineseSha256'], 'L10N/enu/data/data.pak': coverage['englishSha256']}
+    if any(sha(client / path) != digest for path, digest in pack_inputs.items()):
+        raise ValueError('An original language input changed since the Chinese pack was built')
+    build = json.loads((stage / 'launcher-build.json').read_text(encoding='utf-8-sig'))
+    if (sha(payloads['Aetherfall Launcher.exe']) != build['launcherSha256']
+            or any(sha(root / name) != digest for name, digest in build['inputs'].items())):
+        raise ValueError('Launcher build or its source changed')
+    payloads[relative] = source
 if args.languages:
     if not args.launcher_only:
         raise ValueError('Use --launcher-only with the language cohort')
@@ -126,7 +147,8 @@ if args.languages:
             payloads[source.relative_to(stage).as_posix()] = source
 if not args.art_only and not args.launcher_only:
     payloads['Mods/release.json'] = stage / 'Mods/release.json'
-writes = {client / relative: source if args.languages else source.read_bytes() for relative, source in payloads.items()}
+writes = {client / relative: source if args.languages or args.chinese_pack_stage else source.read_bytes()
+          for relative, source in payloads.items()}
 if args.languages:
     writes[client / 'Mods/Languages/state.json'] = js(language_state)
     preferences_path = client / 'Mods/Launcher/preferences.json'
@@ -137,7 +159,7 @@ if args.languages:
     if not settings_path.exists():
         writes[settings_path] = js(dict(BackupRoot=str(backup.parent / 'language-switches')))
     writes[client / 'Mods/Languages/mod.json'] = js(json.loads(Path(__file__).with_name('mod-descriptions.json').read_text(encoding='utf-8'))['Languages'])
-if not args.art_only:
+if not args.art_only and not args.chinese_pack_stage:
     catalog = json.loads(Path(__file__).with_name('mod-descriptions.json').read_text(encoding='utf-8'))
     for folder in sorted((client / 'Mods').iterdir()):
         if not folder.is_dir() or folder.is_symlink() or folder.name == 'Backups':
@@ -151,7 +173,7 @@ if not args.art_only:
 removed = {}
 connection = client / 'Mods/Launcher/connection.json'
 legacy = client / 'Aion Start.bat'
-if not args.art_only:
+if not args.art_only and not args.chinese_pack_stage:
     if connection.exists():
         settings = json.loads(connection.read_text(encoding='utf-8-sig'))
     else:
@@ -171,7 +193,7 @@ if not args.art_only:
     writes[connection] = connection.read_bytes() if args.languages and connection.exists() else js(settings)
     payloads['Mods/Launcher/connection.json'] = connection
 preferences = client / 'Mods/Launcher/preferences.json'
-if not preferences.exists():
+if not preferences.exists() and not args.chinese_pack_stage:
     writes[preferences] = js(dict(Animations=True, CloseAfter=False))
 mods_path = client / 'Mods/InstalledMods.json'
 mods = json.loads(mods_path.read_text())
@@ -189,7 +211,7 @@ for relative in payloads:
     records[relative] = dict(path=relative, installedSha256=data_sha(writes[client / relative]),
                             bytes=data_size(writes[client / relative]))
 mods['features']['Launcher'] = list(launcher_records.values())
-if args.languages:
+if args.languages or args.chinese_pack_stage:
     mods['features']['Languages'] = list(language_records.values())
 for records in mods['features'].values():
     if isinstance(records, list):
@@ -225,10 +247,15 @@ if args.languages:
     # timestamps; deliver only changed outputs and their refreshed metadata.
     writes = {path: data for path, data in writes.items()
               if path not in retained_language_outputs and (not path.exists() or sha(path) != data_sha(data))}
+if args.chinese_pack_stage:
+    preserved.update({name: sha(client / name) for name in
+                      ['L10N/enu/data/data.pak', 'Mods/Languages/catalog.json',
+                       'Mods/Languages/state.json', 'Mods/Launcher/preferences.json'] if (client / name).is_file()})
+    writes = {path: data for path, data in writes.items() if not path.exists() or sha(path) != data_sha(data)}
 
 
 def language_closed():
-    if not args.languages:
+    if not args.languages and not args.chinese_pack_stage:
         return
     command = "$ErrorActionPreference='Stop'; try { $p=@(Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object { $_.Name -in @('aion.bin','aion.exe','Aetherfall Launcher.exe') }); if($p.Count){exit 2} } catch { exit 3 }"
     result = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', command], capture_output=True)
@@ -261,6 +288,8 @@ for i, (path, data) in enumerate(writes.items()):
 written = []
 try:
     language_closed()
+    if any(sha(client / name) != digest for name, digest in pack_inputs.items()):
+        raise ValueError('An original language input changed before the copy')
     for record in records:
         path = Path(record['path'])
         if (sha(path) if path.exists() else None) != record['before']:
@@ -308,6 +337,8 @@ if args.languages:
         fallbackStrings=language_state['FallbackStrings'], fallbackPages=language_state['FallbackPages'],
         skippedDialogues=language_state['SkippedDialogues'], clientAndLauncherClosureVerified=True,
         languageStage=str(language_stage), nativeLocale='fra', gameplayAcceptance='Pending owner next Play')
+if args.chinese_pack_stage:
+    receipt['chinesePack'] = dict(stage=str(pack_stage), coverage=coverage, clientAndLauncherClosureVerified=True)
 if args.startup_bridge:
     receipt['startupGateSourceSha256'] = sha(root / 'client-mods/remember-login/startup_gate.h')
     receipt['startupBridge'] = bridge

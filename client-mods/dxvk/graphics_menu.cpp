@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <cstring>
 #include <string>
+#include "../shared/mod_text_catalog.h"
 
 // Verified Aion 4.8 NA x64 widget ABI. Installed by a hash-checked disk patch.
 namespace {
@@ -13,7 +14,7 @@ template<class T>T method(Ptr object,size_t offset){return reinterpret_cast<T>((
 std::wstring settings(){wchar_t path[32768];DWORD n=GetModuleFileNameW(module,path,32768);if(!n||n>=32768)return {};return (std::filesystem::path(path).parent_path().parent_path()/L"DXVK/renderer.ini").wstring();}
 bool read(const wchar_t* key){auto path=settings();return !path.empty()&&GetPrivateProfileIntW(L"Renderer",key,1,path.c_str())!=0;}
 Ptr find(Ptr dialog,const char* name){return dialog?method<Ptr(*)(Ptr,const char*)>(dialog,0x340)(dialog,name):nullptr;}
-void text(Ptr widget,const wchar_t* value){if(widget)method<void(*)(Ptr,const wchar_t*)>(widget,0x290)(widget,value);}
+void text(Ptr widget,const wchar_t* value){if(widget)method<void(*)(Ptr,const wchar_t*)>(widget,0x290)(widget,mod_text::label(value));}
 int checked(Ptr widget){return widget?method<int(*)(Ptr)>(widget,0x5a8)(widget):0;}
 void check(Ptr widget,int value){if(widget)method<void(*)(Ptr,int)>(widget,0x598)(widget,value);}
 void status(Ptr dialog,bool saved=false){

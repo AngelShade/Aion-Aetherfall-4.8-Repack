@@ -136,7 +136,7 @@ public final class BrokerRetirementCheck {
 		check(bridge.contains("std::atomic<int> broker_state{-1};") && bridge.contains("else if(body[6]==2 && body[7]<=1){broker_state.store(body[7]);")
 			&& bridge.contains("int __cdecl AionBrokerState(){return broker_state.load();}"), "The bridge keeps the server's Broker state and starts unknown");
 		var menus = Files.readString(Path.of("../client-mods/transmog-menu/PrivateMenus.lua"));
-		check(menus.contains("PrivateWarehouse:SetText(\"Central Market\");"), "The window the Broker NPC opens is titled Central Market");
+		check(menus.contains("PrivateWarehouse:SetText(privateMenuText(\"Central Market\"));"), "The Broker NPC opens the localized Central Market window");
 		System.out.println("OK: " + checks + " broker retirement config/gate/stock removal/Broker Swap module checks; no World/SQL");
 	}
 }

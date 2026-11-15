@@ -2,6 +2,44 @@
 
   'use strict';
 
+  var tr = window.AetherfallWeb.text, fmt = window.AetherfallWeb.format;
+
+  function companionNotice(text, action) {
+    if (!text) return text;
+    var m;
+    if (action === 'companiontransfer') {
+      m = /^Moved (.+) x(\d+) from (\S+) to (\S+)\.$/.exec(text);
+      if (m) return fmt('Moved {item} x{count} from {source} to {target}.', {item:m[1], count:m[2], source:m[3], target:m[4]});
+    }
+    if (action === 'collectionstipend') {
+      m = /^Paid (\d+) Kinah to (\S+) from today's collection stipend\.$/.exec(text);
+      if (m) return fmt("Paid {amount} Kinah to {name} from today's collection stipend.", {amount:m[1], name:m[2]});
+    }
+    if (action === 'transfer') {
+      m = /^(Gave|Took) (.+) (?:to|from) (\S+)\.$/.exec(text);
+      if (m) return fmt(m[1] === 'Gave' ? 'Gave {item} to {name}.' : 'Took {item} from {name}.', {item:m[2], name:m[3]});
+    }
+    if (action === 'sendalt') {
+      m = /^Sent by express mail to (\S+)'s mailbox\.$/.exec(text);
+      if (m) return fmt("Sent by express mail to {name}'s mailbox.", {name:m[1]});
+    }
+    if (action === 'saveparty' || action === 'editparty') {
+      m = /^Saved party(?: preset)? (.+) \((\d+) companions\)\.$/.exec(text);
+      if (m) return fmt('Saved party preset {name} ({count} companions).', {name:m[1], count:m[2]});
+      m = /^Saved party (.+) updated \((\d+) companions\)\.$/.exec(text);
+      if (m) return fmt('Saved party {name} updated ({count} companions).', {name:m[1], count:m[2]});
+    }
+    if (action === 'loadparty') {
+      m = /^Party preset (.+) summoned\. (\d+) companions are online; owned-alt builds were kept\.$/.exec(text);
+      if (m) return fmt('Party preset {name} summoned. {count} companions are online; owned-alt builds were kept.', {name:m[1], count:m[2]});
+    }
+    if (action === 'passaction') {
+      m = /^Claimed (\d+) (?:reward|rewards) for (\S+)\. Collect them through the companion's Mail tab at a mailbox\.$/.exec(text);
+      if (m) return fmt("Claimed {count} rewards for {name}. Collect them through the companion's Mail tab at a mailbox.", {count:m[1], name:m[2]});
+    }
+    return tr(text);
+  }
+
   var state = null, busy = false, selectedDetails = {}, session = '', requestSerial = 0, spacingDrafts = {};
 
   var currentView = 'party', selectedBot = null, botTab = 'overview', rosterPage = 0, pageSize = 6, inspecting = false, careDrafts = {}, removalConfirmation = null, subTabs = {}, fieldDrafts = {}, teamDraft = {}, teamConfirmation = null;
@@ -24,13 +62,88 @@
 
   function byId(id) { return document.getElementById(id); }
 
-  function node(tag, text, className) { var el = document.createElement(tag); if (text != null) el.textContent = text; if (className) el.className = className; return el; }
+  function botText(text) {
+    if (typeof text !== 'string' || !text) return text;
+    var direct = tr(text), m;
+    if (direct !== text || tr('Party') === 'Party') return direct;
+    m = /^(.+): (On|Off)$/.exec(text); if (m) return fmt('{label}: {state}', {label: tr(m[1]), state: tr(m[2])});
+    m = /^Level (\d+) ([^·]+)$/.exec(text); if (m) return fmt('Level {level} {cls}', {level: m[1], cls: tr(m[2].replace(/\s+$/, ''))});
+    m = /^Level (\d+) ([^·]+) \u00b7 Gear rarity (.+)$/.exec(text); if (m) return fmt('Level {level} {cls} \u00b7 Gear rarity {rarity}', {level: m[1], cls: tr(m[2]), rarity: tr(m[3])});
+    m = /^Level (\d+) ([^·]+) \u00b7 (.+)$/.exec(text); if (m) return fmt('Level {level} {cls} \u00b7 {origin}', {level: m[1], cls: tr(m[2]), origin: tr(m[3])});
+    m = /^Lv\. (\d+) ([^·]+) \u00b7 (.+)$/.exec(text); if (m) return fmt('Lv. {level} {cls} \u00b7 {role}', {level: m[1], cls: tr(m[2]), role: tr(m[3])});
+    m = /^Lv\. (\d+) ([^·]+)$/.exec(text); if (m) return fmt('Lv. {level} {cls}', {level: m[1], cls: tr(m[2].replace(/\s+$/, ''))});
+    m = /^(.+) \u00b7 (\d+) equipped$/.exec(text); if (m) return fmt('{role} \u00b7 {count} equipped', {role: tr(m[1]), count: m[2]});
+    m = /^(\d+) \/ (\d+) items$/.exec(text); if (m) return fmt('{carried} / {limit} items', {carried: m[1], limit: m[2]});
+    m = /^(\d+) items$/.exec(text); if (m) return fmt('{count} items', {count: m[1]});
+    m = /^(\d+) \/ (\d+) Kinah$/.exec(text); if (m) return fmt('{spent} / {budget} Kinah', {spent: m[1], budget: m[2]});
+    m = /^(\d+) Kinah$/.exec(text); if (m) return fmt('{amount} Kinah', {amount: m[1]});
+    m = /^Gear rarity: (.+) \(permanent\) \u00b7 Combat rank: (.+)$/.exec(text); if (m) return fmt('Gear rarity: {rarity} (permanent) \u00b7 Combat rank: {rank}', {rarity: tr(m[1]), rank: botText(m[2])});
+    m = /^(.+) \((\d+) \/ (\d+) Learning XP\)$/.exec(text); if (m) return fmt('{rank} ({learning} / {needed} Learning XP)', {rank: tr(m[1]), learning: m[2], needed: m[3]});
+    m = /^(.+) \(fully trained\)$/.exec(text); if (m) return fmt('{rank} (fully trained)', {rank: tr(m[1])});
+    m = /^(\d+)% mistake chance \u00b7 (\d+) this session$/.exec(text); if (m) return fmt('{chance}% mistake chance \u00b7 {count} this session', {chance: m[1], count: m[2]});
+    m = /^Gear rarity (.+)$/.exec(text); if (m) return fmt('Gear rarity {rarity}', {rarity: tr(m[1])});
+    m = /^Combat rank (.+)$/.exec(text); if (m) return fmt('Combat rank {rank}', {rank: tr(m[1])});
+    m = /^: permanent, equips up to (.+) gear\.$/.exec(text); if (m) return fmt(': permanent, equips up to {gear} gear.', {gear: tr(m[1])});
+    m = /^: (\d+)% mistakes, (\d+) \/ (\d+) Learning XP\.$/.exec(text); if (m) return fmt(': {chance}% mistakes, {learning} / {needed} Learning XP.', {chance: m[1], learning: m[2], needed: m[3]});
+    m = /^: (\d+)% mistakes, fully trained\.$/.exec(text); if (m) return fmt(': {chance}% mistakes, fully trained.', {chance: m[1]});
+    m = /^Save (.+)$/.exec(text); if (m) return fmt('Save {origin}', {origin: tr(m[1])});
+    m = /^Saved (.+)$/.exec(text); if (m) return fmt('Saved {origin}', {origin: tr(m[1])});
+    m = /^Build: (.+)$/.exec(text); if (m) return fmt('Build: {build}', {build: tr(m[1])});
+    m = /^(Health|Mana|XP) (\d+)%$/.exec(text); if (m) return fmt(m[1] + ' {value}%', {value: m[2]});
+    m = /^Health (\d+)% \u00b7 Mana (\d+)%$/.exec(text); if (m) return fmt('Health {hp}% \u00b7 Mana {mp}%', {hp: m[1], mp: m[2]});
+    m = /^Inventory \((\d+) \/ (\d+)\)$/.exec(text); if (m) return fmt('Inventory ({count} / {limit})', {count: m[1], limit: m[2]});
+    m = /^Inventory \((\d+)\)$/.exec(text); if (m) return fmt('Inventory ({count})', {count: m[1]});
+    m = /^Private warehouse \((\d+) \/ (\d+)\)$/.exec(text); if (m) return fmt('Private warehouse ({count} / {limit})', {count: m[1], limit: m[2]});
+    m = /^Legion storage: (.+) \((\d+) \/ (\d+)\)$/.exec(text); if (m) return fmt('Legion storage: {name} ({count} / {limit})', {name: tr(m[1]), count: m[2], limit: m[3]});
+    m = /^Mailbox \((\d+)\)$/.exec(text); if (m) return fmt('Mailbox ({count})', {count: m[1]});
+    m = /^Send to (.+)$/.exec(text); if (m) return fmt('Send to {owner}', {owner: m[1]});
+    m = /^Request mail to (.+)$/.exec(text); if (m) return fmt('Request mail to {owner}', {owner: m[1]});
+    m = /^Quest journal \((\d+)\)$/.exec(text); if (m) return fmt('Quest journal ({count})', {count: m[1]});
+    m = /^Quest (\d+) \u00b7 (.+)$/.exec(text); if (m) return fmt('Quest {id} \u00b7 {status}', {id: m[1], status: tr(m[2])});
+    m = /^(.+) \u00b7 Catch-up request$/.exec(text); if (m) return fmt('{name} \u00b7 Catch-up request', {name: m[1]});
+    m = /^Still needed: (.+)$/.exec(text); if (m) return fmt('Still needed: {list}', {list: m[1]});
+    m = /^ Page (\d+) \/ (\d+) $/.exec(text); if (m) return ' ' + fmt('Page {page} / {total}', {page: m[1], total: m[2]}) + ' ';
+    m = /^(.+)\u2019s bag$/.exec(text); if (m) return fmt('{name}\u2019s bag', {name: m[1]});
+    m = /^(.+)\u2019s transferable items$/.exec(text); if (m) return fmt('{name}\u2019s transferable items', {name: m[1]});
+    m = /^Kinah \(you have (\d+)\)$/.exec(text); if (m) return fmt('Kinah (you have {amount})', {amount: m[1]});
+    m = /^Mail items to (.+)$/.exec(text); if (m) return fmt('Mail items to {name}', {name: m[1]});
+    m = /^Bought today: (\d+) Kinah\. Also keeps at least 25% of its current balance\.$/.exec(text); if (m) return fmt('Bought today: {amount} Kinah. Also keeps at least 25% of its current balance.', {amount: m[1]});
+    m = /^Current generated level ceiling: (\d+)\. Uses normal class, mastery, faction and equipment rules\. Shop purchases share the Care reserve and daily budget; Kinah bids are always passed\. Generated items are protected from automatic extraction\.$/.exec(text); if (m) return fmt('Current generated level ceiling: {level}. Uses normal class, mastery, faction and equipment rules. Shop purchases share the Care reserve and daily budget; Kinah bids are always passed. Generated items are protected from automatic extraction.', {level: m[1]});
+    m = /^Play through (.+) \u00b7 level 1$/.exec(text); if (m) return fmt('Play through {starter} \u00b7 level 1', {starter: tr(m[1])});
+    m = /^Skip (.+) \u00b7 level (\d+)$/.exec(text); if (m) return fmt('Skip {starter} \u00b7 level {level}', {starter: tr(m[1]), level: m[2]});
+    m = /^All (\d+)$/.exec(text); if (m) return fmt('All {count}', {count: m[1]});
+    m = /^Ready to turn in (\d+)$/.exec(text); if (m) return fmt('Ready to turn in {count}', {count: m[1]});
+    m = /^Claim (\d+) available rewards$/.exec(text); if (m) return fmt('Claim {count} available rewards', {count: m[1]});
+    m = /^Claim (\d+) Kinah$/.exec(text); if (m) return fmt('Claim {amount} Kinah', {amount: m[1]});
+    m = /^Confirm permanent recycling of (.+)$/.exec(text); if (m) return fmt('Confirm permanent recycling of {name}', {name: m[1]});
+    m = /^(.+) can gain (\d+) more Learning XP\.$/.exec(text); if (m) return fmt('{name} can gain {needed} more Learning XP.', {name: m[1], needed: m[2]});
+    m = /^Group (\d+)$/.exec(text); if (m) return fmt('Group {number}', {number: m[1]});
+    m = /^(Party|Alliance|Solo) management$/.exec(text); if (m) return fmt('{kind} management', {kind: tr(m[1])});
+    m = /^(\d+) \/ (\d+) native members\. (.+)$/.exec(text); if (m) return fmt('{count} / {capacity} native members. {note}', {count: m[1], capacity: m[2], note: tr(m[3])});
+    m = /^Leave (.+)\u2026$/.exec(text); if (m) return fmt('Leave {kind}\u2026', {kind: tr(m[1].charAt(0).toUpperCase() + m[1].slice(1))});
+    m = /^Remove (.+) from this team\?$/.exec(text); if (m) return fmt('Remove {name} from this team?', {name: m[1]});
+    m = /^Remove (.+) from your roster and saved parties\? They will be dismissed; archived progress is kept\.$/.exec(text); if (m) return fmt('Remove {name} from your roster and saved parties? They will be dismissed; archived progress is kept.', {name: m[1]});
+    m = /^(\d+) \/ (\d+) saved parties$/.exec(text); if (m) return fmt('{count} / {limit} saved parties', {count: m[1], limit: m[2]});
+    m = /^(Hide|Show) (\d+) automatic slots$/.exec(text); if (m) return fmt(m[1] + ' {count} automatic slots', {count: m[2]});
+    m = /^(.+) \u00b7 Item level (\d+)$/.exec(text); if (m) return fmt('{quality} \u00b7 Item level {level}', {quality: tr(m[1]), level: m[2]});
+    m = /^Enchant \+(\d+) \u00b7 Tempering \+(\d+)$/.exec(text); if (m) return fmt('Enchant +{enchant} \u00b7 Tempering +{tempering}', {enchant: m[1], tempering: m[2]});
+    m = /^Fused with (.+)$/.exec(text); if (m) return fmt('Fused with {name}', {name: m[1]});
+    m = /^Godstone: (.+)$/.exec(text); if (m) return fmt('Godstone: {name}', {name: m[1]});
+    m = /^COMPANION \/ (.+)$/.exec(text); if (m) return fmt('COMPANION / {role}', {role: m[1]});
+    m = /^Give a whole tradeable stack or Kinah to (.+) outside combat\. Ticket recruits keep what you give them\.$/.exec(text); if (m) return fmt('Give a whole tradeable stack or Kinah to {name} outside combat. Ticket recruits keep what you give them.', {name: m[1]});
+    m = /^Move a whole tradeable stack or Kinah between you and (.+), anywhere outside combat\. Equipped, soul-bound and quest items stay where they are\.$/.exec(text); if (m) return fmt('Move a whole tradeable stack or Kinah between you and {name}, anywhere outside combat. Equipped, soul-bound and quest items stay where they are.', {name: m[1]});
+    return direct;
+  }
 
-  function label(value) { if (value === 'RIDER') return 'Aethertech'; return String(value || '').toLowerCase().replace(/_/g, ' ').replace(/\b[a-z]/g, function (c) { return c.toUpperCase(); }); }
+  function node(tag, text, className) { var el = document.createElement(tag); if (text != null) el.textContent = typeof text === 'string' ? botText(text) : text; if (className) el.className = className; return el; }
+
+  function label(value) {
+    return tr(value === 'RIDER' ? 'Aethertech' : String(value || '').toLowerCase().replace(/_/g, ' ').replace(/\b[a-z]/g, function (c) { return c.toUpperCase(); }));
+  }
 
   function ticketRecruit(growth) { return !!growth && growth.origin === 'GACHA'; }
 
-  function originLabel(temporary, world, growth) { return world ? 'World Bot' : ticketRecruit(growth) ? 'Ticket Recruit' : temporary ? 'Temporary Bot' : 'Account Alt'; }
+  function originLabel(temporary, world, growth) { return tr(world ? 'World Bot' : ticketRecruit(growth) ? 'Ticket Recruit' : temporary ? 'Temporary Bot' : 'Account Alt'); }
 
   function rarityClass(growth) { return growth ? ' rarity-' + growth.rarity.toLowerCase() : ''; }
 
@@ -42,7 +155,7 @@
 
   function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); }
 
-  function notice(text, error) { byId('notice').textContent = text; byId('notice').className = error ? 'error' : ''; document.querySelector('footer').className = error ? 'error' : ''; }
+  function notice(text, error) { byId('notice').textContent = tr(text); byId('notice').className = error ? 'error' : ''; document.querySelector('footer').className = error ? 'error' : ''; }
   // Class medallion: class initials in a ring coloured by combat role (no role: a plain ring for human members).
   // Client UI art served in memory by the native icon bridge (native-icon-bridge/prepare_ui_art.py); nothing is extracted.
   var ART = '/market/companions/media/art/';
@@ -58,10 +171,10 @@
   function headerArt(header, character) { var art = node('img', null, 'bot-art'); art.alt = ''; art.src = '/market/companions/media/cards/castle-background.png?v=2'; art.onerror = function () { this.style.display = 'none'; }; header.appendChild(art); header.appendChild(node('div', null, 'bot-shade')); if (character) header.appendChild(cardPortrait(character.playerClass,'header-class-art',character.gender)); }
 
   var sectionNames = {
-    behavior: [['combat','Combat'],['automation','Quest automation'],['spacing','Spacing'],['focus','Focus']],
-    equipment: [['profile','Character'],['inventory','Inventory'],['transfer','Transfer items'],['build','Stigma build'],['saved','Saved gear'],['policy','Equipment rules'],['warehouse','Private warehouse'],['legion','Legion storage']],
-    mail: [['inbox','Inbox'],['send','Send']], quests: [['journal','Journal'],['requests','Requests']],
-    care: [['maintenance','Maintenance'],['budget','Spending budget'],['benefits','Benefits'],['recycle','Recycle']]
+    behavior: [['combat',tr('Combat')],['automation',tr('Quest automation')],['spacing',tr('Spacing')],['focus',tr('Focus')]],
+    equipment: [['profile',tr('Character')],['inventory',tr('Inventory')],['transfer',tr('Transfer items')],['build',tr('Stigma build')],['saved',tr('Saved gear')],['policy',tr('Equipment rules')],['warehouse',tr('Private warehouse')],['legion',tr('Legion storage')]],
+    mail: [['inbox',tr('Inbox')],['send',tr('Send')]], quests: [['journal',tr('Journal')],['requests',tr('Requests')]],
+    care: [['maintenance',tr('Maintenance')],['budget',tr('Spending budget')],['benefits',tr('Benefits')],['recycle',tr('Recycle')]]
   };
 
   function captureDrafts() {
@@ -147,7 +260,7 @@
       while (parent !== body && parent.className.indexOf('control-panel') === -1) parent = parent.parentNode;
       var key = 'help-' + botTab + '-' + (parent.id || 'main'), group = groups[key];
       if (!group) {
-        group = { section: node('section',null,'section-help'), toggle: node('button','Details and rules','disclosure-toggle'), text: node('div') };
+        group = { section: node('section',null,'section-help'), toggle: node('button',tr('Details and rules'),'disclosure-toggle'), text: node('div') };
         group.toggle.type = 'button'; group.toggle.setAttribute('data-local-control','true');
         group.toggle.setAttribute('aria-expanded',selectedDetails[key] ? 'true' : 'false'); group.text.style.display = selectedDetails[key] ? 'block' : 'none';
         group.section.appendChild(group.toggle); group.section.appendChild(group.text); parent.appendChild(group.section); groups[key] = group;
@@ -176,7 +289,7 @@
   function itemHeading(parent,item) {
     var heading = node('div',null,'item-title'); heading.appendChild(itemIcon(item));
     heading.appendChild(node('span',item.name + ' \u00d7' + item.count)); parent.appendChild(heading);
-    if (item.equipped) parent.appendChild(node('span','Equipped','status-pill'));
+    if (item.equipped) parent.appendChild(node('span',tr('Equipped'),'status-pill'));
     if (item.quality) parent.appendChild(node('p',label(item.quality) + ' \u00b7 Item level ' + item.itemLevel,'item-meta'));
     if (item.enchant || item.tempering) parent.appendChild(node('p','Enchant +' + (item.enchant || 0) + ' \u00b7 Tempering +' + (item.tempering || 0),'item-meta'));
     if (item.fusionItemId) parent.appendChild(node('p','Fused with ' + (item.fusionName || 'an unavailable item'),'item-meta'));
@@ -215,7 +328,7 @@
       grid.appendChild(cell);
       if (String(item.id) === String(selected)) renderer(details,bot,item);
     }(items[i]));
-    if (!items.length) grid.appendChild(node('p','Empty','empty-cube'));
+    if (!items.length) grid.appendChild(node('p',tr('Empty'),'empty-cube'));
     box.appendChild(grid); box.appendChild(details); parent.appendChild(box); return box;
   }
 
@@ -247,21 +360,21 @@
     }(DOLL[n][0], DOLL[n][1], DOLL[n][2], DOLL[n][3]));
     if (!chosen && items.length) { chosen = items[0]; itemSelections[choiceKey] = chosen.id; var first = doll.querySelector('[data-item-id="' + chosen.id + '"]'); if (first) first.parentNode.className += ' selected'; }
     if (chosen) renderItem(details,bot,chosen);
-    else details.appendChild(node('p','Nothing equipped yet. Equip items from the Inventory section.','empty-state'));
+    else details.appendChild(node('p',tr('Nothing equipped yet. Equip items from the Inventory section.'),'empty-state'));
     layout.appendChild(doll); layout.appendChild(details); parent.appendChild(layout);
     var other = items.filter(function (item) {
       return !(item.equippedSlots || []).some(function (slot) {
         return DOLL.some(function (position) { return position[0] === slot; });
       });
     });
-    if (other.length) itemGrid(parent,bot,other,'other-equipment','Other equipped items',renderItem);
+    if (other.length) itemGrid(parent,bot,other,'other-equipment',tr('Other equipped items'),renderItem);
   }
 
-  var ORDERS = [['attack','Attack','Attack your selected target',{action:'attack',name:'all'}],['follow','Follow','Follow you',{action:'order',name:'all',order:'FOLLOW'}],
-    ['stay','Stay','Hold position',{action:'order',name:'all',order:'STAY'}],['guard','Guard','Guard this position',{action:'order',name:'all',order:'GUARD'}],
-    ['passive','Passive','Stop attacking and follow without casting',{action:'order',name:'all',order:'PASSIVE'}],['summon','Summon','Summon every companion to you (out of combat)',{action:'summon',name:'all'}],
-    ['pull','Pull','The tank pulls your selected target back to the party',{action:'pull'}],['mark-kill','Kill','Mark your selected target to kill first',{action:'mark',mark:'kill'}],
-    ['mark-cc','Crowd control','Mark your selected target for sleep, paralysis or fear; nobody hits it',{action:'mark',mark:'cc'}],['mark-clear','Clear marks','Remove kill and crowd-control marks',{action:'mark',mark:'clear'}]];
+  var ORDERS = [['attack',tr('Attack'),tr('Attack your selected target'),{action:'attack',name:'all'}],['follow',tr('Follow'),tr('Follow you'),{action:'order',name:'all',order:'FOLLOW'}],
+    ['stay',tr('Stay'),tr('Hold position'),{action:'order',name:'all',order:'STAY'}],['guard',tr('Guard'),tr('Guard this position'),{action:'order',name:'all',order:'GUARD'}],
+    ['passive',tr('Passive'),tr('Stop attacking and follow without casting'),{action:'order',name:'all',order:'PASSIVE'}],['summon',tr('Summon'),tr('Summon every companion to you (out of combat)'),{action:'summon',name:'all'}],
+    ['pull',tr('Pull'),tr('The tank pulls your selected target back to the party'),{action:'pull'}],['mark-kill',tr('Kill'),tr('Mark your selected target to kill first'),{action:'mark',mark:'kill'}],
+    ['mark-cc',tr('Crowd control'),tr('Mark your selected target for sleep, paralysis or fear; nobody hits it'),{action:'mark',mark:'cc'}],['mark-clear',tr('Clear marks'),tr('Remove kill and crowd-control marks'),{action:'mark',mark:'clear'}]];
   var GLYPHS = {attack:'⚔',follow:'➤',stay:'✋',guard:'⛨',passive:'☮',summon:'✧',pull:'⛓','mark-kill':'◎','mark-cc':'☾','mark-clear':'✖'};
   function renderOrders() {
     var parent = byId('party-orders'); if (!parent || !state) return; clear(parent);
@@ -335,16 +448,16 @@
 
       var result;
 
-      try { result = JSON.parse(xhr.responseText); } catch (ignore) { clearPendingRecruit(); if (state) state.request = ''; notice('Companions is unavailable. Refresh before trying again.', true); return; }
+      try { result = JSON.parse(xhr.responseText); } catch (ignore) { clearPendingRecruit(); if (state) state.request = ''; notice(tr('Companions is unavailable. Refresh before trying again.'), true); return; }
 
       if (!result || xhr.status !== 200 || result.error) {
-        clearPendingRecruit(); if (state) state.request = ''; notice(result && result.error || 'Refresh Companions to reconnect.', true);
+        clearPendingRecruit(); if (state) state.request = ''; notice(companionNotice(result && result.error, values && values.action) || tr('Refresh Companions to reconnect.'), true);
         // A refused action spends its nonce: fetch one fresh state now, under the same message.
         if (mutation && xhr.status === 400 && state) { keepNotice = true; request(null); }
         return;
       }
 
-      if (!result || !Array.isArray(result.active) || !Array.isArray(result.roster) || !Array.isArray(result.quests) || !Array.isArray(result.classes) || !Array.isArray(result.roles) || typeof result.request !== 'string' || !result.request) { clearPendingRecruit(); if (state) state.request = ''; notice('Companion data is incomplete. Refresh before trying again.',true); return; }
+      if (!result || !Array.isArray(result.active) || !Array.isArray(result.roster) || !Array.isArray(result.quests) || !Array.isArray(result.classes) || !Array.isArray(result.roles) || typeof result.request !== 'string' || !result.request) { clearPendingRecruit(); if (state) state.request = ''; notice(tr('Companion data is incomplete. Refresh before trying again.'),true); return; }
 
       if (mutation && values.action === 'spacing') { for (var d = 0; d < result.active.length; d++) if (result.active[d].name === values.name && Number(result.active[d].ownerSpacing) === Number(values.ownerSpacing) && Number(result.active[d].attackSpacing) === Number(values.attackSpacing)) delete spacingDrafts[result.active[d].id]; }
 
@@ -356,13 +469,13 @@
       var fingerprint = viewPrint(result);
       if (!mutation && state && fingerprint === lastFingerprint) { state = result; invalidateViews(); quietUpdate(); advanceRecycling(); return; }
       lastFingerprint = fingerprint;
-      state = result; invalidateViews(); render(); restoreFocus(focus); if (!holdNotice) notice(result.notice || 'Connected as ' + result.owner + '. Refresh when you want updated status.', false);
+      state = result; invalidateViews(); render(); restoreFocus(focus); if (!holdNotice) notice(companionNotice(result.notice, values && values.action) || fmt('Connected as {name}. Refresh when you want updated status.', {name: result.owner}), false);
       if (mutation && values.action === 'helptrack' && window.AionObject && AionObject.HelpRequestTrack) AionObject.HelpRequestTrack();
       advanceRecycling();
 
     };
 
-    function interrupted() { if (finish()) { clearPendingRecruit(); if (state) state.request = ''; notice('Connection interrupted. Refresh to check the result before retrying.', true); } }
+    function interrupted() { if (finish()) { clearPendingRecruit(); if (state) state.request = ''; notice(tr('Connection interrupted. Refresh to check the result before retrying.'), true); } }
 
     xhr.onerror = xhr.ontimeout = interrupted;
 
@@ -393,7 +506,7 @@
   }
 
   function act(values) {
-    if (!state) { clearPendingRecruit(); notice('Refresh Companions before submitting another action.', true); return; }
+    if (!state) { clearPendingRecruit(); notice(tr('Refresh Companions before submitting another action.'), true); return; }
     // Renew a spent or old nonce only when an action needs it; never poll or replay a submitted mutation.
     if (!state.request || new Date().getTime() - receivedAt > 90000) request(null,values); else request(values);
   }
@@ -522,7 +635,7 @@
 
     captureDrafts(); metrics();
     byId('count').textContent = state.active.length + ' / ' + state.limit;
-    byId('team-label').textContent = state.teamKind || 'Party';
+    byId('team-label').textContent = tr(state.teamKind || 'Party');
 
     byId('roster-count').textContent = state.rosterTotal == null ? state.roster.length : state.rosterTotal;
 
@@ -533,7 +646,7 @@
     for (var i = 0; i < state.active.length; i++) pending += (state.active[i].questions || []).length;
 
     byId('question-count').textContent = pending ? String(pending) : '';
-    byId('question-count').title = pending + ' quest requests';
+    byId('question-count').title = fmt('{count} quest requests', {count: pending});
     byId('question-count').setAttribute('aria-label',pending + ' quest requests');
 
 
@@ -557,7 +670,7 @@
 
       originBadge(row, bot.generated || bot.temporary, bot.world, bot.growth);
 
-      row.appendChild(node('span', bot.closing ? 'Saving and dismissing\u2026' : bot.dead ? 'Waiting for resurrection' : label(bot.order) + ' \u00b7 ' + label(bot.status), 'summary-status'));
+      row.appendChild(node('span', bot.closing ? tr('Saving and dismissing\u2026') : bot.dead ? tr('Waiting for resurrection') : label(bot.order) + ' \u00b7 ' + label(bot.status), 'summary-status'));
 
       var bars = node('span', null, 'mini-bars');
 
@@ -578,7 +691,7 @@
     for (var g = 0; g < groups.length; g++) {
       var group = groups[g], panel = node('section',null,'team-group'), heading = node('div',null,'team-group-heading');
       panel.setAttribute('data-group-id',group.id);
-      heading.appendChild(node('strong',team.kind === 'Alliance' ? 'Group ' + group.number : 'Party'));
+      heading.appendChild(node('strong',team.kind === 'Alliance' ? 'Group ' + group.number : tr('Party')));
       heading.appendChild(node('span',group.members.length + ' / ' + group.capacity,'status-pill')); panel.appendChild(heading);
       for (var m = 0; m < group.members.length; m++) {
         var member = group.members[m], bot = activeBot(member.id); shown[member.id] = true;
@@ -592,7 +705,7 @@
           panel.appendChild(row);
         }
       }
-      if (!group.members.length) panel.appendChild(node('p','No members in this group.','empty-state'));
+      if (!group.members.length) panel.appendChild(node('p',tr('No members in this group.'),'empty-state'));
       parent.appendChild(panel);
     }
     for (var i = 0; i < state.active.length; i++) if (!shown[state.active[i].id]) botSummary(parent,state.active[i]);
@@ -600,7 +713,7 @@
 
   function renderTeamControls() {
     var parent = byId('team-controls'), team = state.team; if (!parent) return; clear(parent);
-    if (!team) { parent.appendChild(node('p','Refresh to load native team controls.','hint')); return; }
+    if (!team) { parent.appendChild(node('p',tr('Refresh to load native team controls.'),'hint')); return; }
     var members = teamMembers(), groups = team.groups || [], manager = !!team.canManage;
     if (String(teamDraft.team) !== String(team.id)) { teamDraft = {team:team.id}; teamConfirmation = null; }
     parent.appendChild(node('h3',team.kind + ' management','section-toolbar'));
@@ -612,46 +725,46 @@
     action('Start ready check','ready',null,!manager || team.ready && team.ready.active);
     action('Cancel ready check','cancelready',null,!manager || !(team.ready && team.ready.active));
     if (team.ready && team.ready.states && team.ready.states.length) {
-      parent.appendChild(node('p',team.ready.active ? 'Ready check: waiting for ' + team.ready.waiting + ' members.' : 'Ready check results','status-pill'));
+      parent.appendChild(node('p',team.ready.active ? 'Ready check: waiting for ' + team.ready.waiting + ' members.' : tr('Ready check results'),'status-pill'));
       var readyStates = team.ready.states || [];
       for (var r = 0; r < readyStates.length; r++) for (var m = 0; m < members.length; m++) if (String(members[m].id) === String(readyStates[r].id)) parent.appendChild(node('span',members[m].name + ': ' + label(readyStates[r].status),'ready-state'));
     }
-    var invitation = node('div',null,'team-invite control-grid'), inviteLabel = node('label','Invite a player'), invite = node('input');
+    var invitation = node('div',null,'team-invite control-grid'), inviteLabel = node('label',tr('Invite a player')), invite = node('input');
     invite.id = 'team-invite-name'; invite.type = 'text'; invite.maxLength = 24; invite.value = teamDraft.invite || ''; inviteLabel.htmlFor = invite.id; inviteLabel.appendChild(invite); invitation.appendChild(inviteLabel);
     invite.oninput = invite.onchange = function () { teamDraft.invite = invite.value; };
-    var inviteButton = button(invitation,'Send native invitation',values('invite'),!manager && team.kind !== 'Solo');
-    inviteButton.onclick = function () { if (!invite.value.replace(/^\s+|\s+$/g,'')) { notice('Enter a player name to invite.',true); return; } act(values('invite',{name:invite.value})); }; parent.appendChild(invitation);
+    var inviteButton = button(invitation,tr('Send native invitation'),values('invite'),!manager && team.kind !== 'Solo');
+    inviteButton.onclick = function () { if (!invite.value.replace(/^\s+|\s+$/g,'')) { notice(tr('Enter a player name to invite.'),true); return; } act(values('invite',{name:invite.value})); }; parent.appendChild(invitation);
     if (members.length) {
-      var management = node('div',null,'team-members control-panel'), memberLabel = node('label','Team member'), memberChoice = node('select'); memberChoice.id = 'team-member'; memberLabel.htmlFor = memberChoice.id; memberLabel.appendChild(memberChoice); management.appendChild(memberLabel);
+      var management = node('div',null,'team-members control-panel'), memberLabel = node('label',tr('Team member')), memberChoice = node('select'); memberChoice.id = 'team-member'; memberLabel.htmlFor = memberChoice.id; memberLabel.appendChild(memberChoice); management.appendChild(memberLabel);
       for (var m = 0; m < members.length; m++) { var option = node('option',members[m].name + (members[m].self ? ' (you)' : '')); option.value = members[m].id; memberChoice.appendChild(option); }
       if (teamDraft.member) memberChoice.value = teamDraft.member; if (memberChoice.selectedIndex < 0) memberChoice.selectedIndex = 0;
       teamDraft.member = memberChoice.value; memberChoice.onchange = function () { teamDraft.member = memberChoice.value; teamConfirmation = null; renderTeamControls(); byId('team-member').focus(); };
       var member = null; for (var m = 0; m < members.length; m++) if (String(members[m].id) === memberChoice.value) member = members[m];
       function manage(text,operation,extra,disabled) { var value = extra || {}; value.member = memberChoice.value; return button(management,text,values(operation,value),disabled); }
       if (team.kind === 'Alliance') {
-        var groupLabel = node('label','Destination group'), groupChoice = node('select'); groupChoice.id = 'team-group'; groupLabel.htmlFor = groupChoice.id; groupLabel.appendChild(groupChoice); management.appendChild(groupLabel);
+        var groupLabel = node('label',tr('Destination group')), groupChoice = node('select'); groupChoice.id = 'team-group'; groupLabel.htmlFor = groupChoice.id; groupLabel.appendChild(groupChoice); management.appendChild(groupLabel);
         for (var g = 0; g < groups.length; g++) { var option = node('option','Group ' + groups[g].number + ' (' + groups[g].members.length + '/' + groups[g].capacity + ')'); option.value = groups[g].id; groupChoice.appendChild(option); }
         if (teamDraft.group) groupChoice.value = teamDraft.group; if (groupChoice.selectedIndex < 0) groupChoice.selectedIndex = 0; groupChoice.onchange = function () { teamDraft.group = groupChoice.value; updateMove(); };
         var move = manage('Move to group','move',null,!manager);
         function updateMove() { var destination = null, already = false; for (var g = 0; g < groups.length; g++) if (String(groups[g].id) === groupChoice.value) { destination = groups[g]; for (var m = 0; m < groups[g].members.length; m++) if (String(groups[g].members[m].id) === memberChoice.value) already = true; } move.disabled = busy || !manager || !destination || already || destination.members.length >= destination.capacity; } updateMove();
         move.onclick = function () { act(values('move',{member:memberChoice.value,group:groupChoice.value})); };
-        var secondLabel = node('label','Swap with'), secondChoice = node('select'); secondChoice.id = 'team-second'; secondLabel.htmlFor = secondChoice.id; secondLabel.appendChild(secondChoice); management.appendChild(secondLabel);
+        var secondLabel = node('label',tr('Swap with')), secondChoice = node('select'); secondChoice.id = 'team-second'; secondLabel.htmlFor = secondChoice.id; secondLabel.appendChild(secondChoice); management.appendChild(secondLabel);
         for (var m = 0; m < members.length; m++) if (String(members[m].id) !== memberChoice.value) { var option = node('option',members[m].name); option.value = members[m].id; secondChoice.appendChild(option); }
         if (teamDraft.second) secondChoice.value = teamDraft.second; if (secondChoice.selectedIndex < 0 && secondChoice.options.length) secondChoice.selectedIndex = 0; secondChoice.onchange = function () { teamDraft.second = secondChoice.value; };
         var swap = manage('Swap group positions','swap',null,!manager || !secondChoice.options.length); swap.onclick = function () { act(values('swap',{member:memberChoice.value,second:secondChoice.value})); };
       }
       manage('Make leader','leader',null,!team.canLead || !member || member.leader);
       if (team.kind === 'Alliance') manage(member && member.viceCaptain ? 'Remove vice-captain' : 'Make vice-captain','vice',{enabled:!(member && member.viceCaptain)},!team.canLead || !member || member.leader);
-      localButton(management,'Remove member…',function () { teamConfirmation = {operation:'kick',team:team.id,member:memberChoice.value,name:member && member.name}; renderTeamControls(); },'danger').disabled = !team.canLead || !member || member.self || member.leader;
+      localButton(management,tr('Remove member…'),function () { teamConfirmation = {operation:'kick',team:team.id,member:memberChoice.value,name:member && member.name}; renderTeamControls(); },'danger').disabled = !team.canLead || !member || member.self || member.leader;
       parent.appendChild(management);
     }
     if (team.kind !== 'Solo') localButton(parent,'Leave ' + team.kind.toLowerCase() + '…',function () { teamConfirmation = {operation:'leave',team:team.id}; renderTeamControls(); },'danger');
     if (teamConfirmation && teamConfirmation.operation === 'kick') { var validMember = false; for (var cm = 0; cm < members.length; cm++) if (String(members[cm].id) === String(teamConfirmation.member) && !members[cm].self && !members[cm].leader) validMember = true; if (!validMember || !team.canLead) teamConfirmation = null; }
     if (teamConfirmation && String(teamConfirmation.team) === String(team.id)) {
       var confirm = node('div',null,'team-confirmation control-panel'); confirm.setAttribute('role','alert');
-      confirm.appendChild(node('strong',teamConfirmation.operation === 'kick' ? 'Remove ' + teamConfirmation.name + ' from this team?' : 'Leave this native team?'));
-      button(confirm,'Confirm',values(teamConfirmation.operation,{member:teamConfirmation.member || '',confirm:'yes'}),teamConfirmation.operation === 'kick' && !team.canLead,'danger');
-      localButton(confirm,'Cancel',function () { teamConfirmation = null; renderTeamControls(); },'secondary'); parent.appendChild(confirm);
+      confirm.appendChild(node('strong',teamConfirmation.operation === 'kick' ? 'Remove ' + teamConfirmation.name + ' from this team?' : tr('Leave this native team?')));
+      button(confirm,tr('Confirm'),values(teamConfirmation.operation,{member:teamConfirmation.member || '',confirm:'yes'}),teamConfirmation.operation === 'kick' && !team.canLead,'danger');
+      localButton(confirm,tr('Cancel'),function () { teamConfirmation = null; renderTeamControls(); },'secondary'); parent.appendChild(confirm);
     }
     setBusy();
   }
@@ -664,7 +777,7 @@
 
     if (partyRevision !== stateRevision) {
       clear(parent);
-      if (!state.active.length) parent.appendChild(node('p','No active companions yet. Recruit from your roster to build a party.','hint'));
+      if (!state.active.length) parent.appendChild(node('p',tr('No active companions yet. Recruit from your roster to build a party.'),'hint'));
       renderTeamGroups(parent); renderTeamControls(); partyRevision = stateRevision;
     } else {
       var summaries = parent.querySelectorAll('.bot-summary');
@@ -700,7 +813,7 @@
     }
     mountedDetail = key;
 
-    var back = localButton(detailPanel, '\u2039 Back to active party', function () { inspecting = false; renderSelection(); }, 'secondary'); back.id = 'bot-back';
+    var back = localButton(detailPanel, tr('\u2039 Back to active party'), function () { inspecting = false; renderSelection(); }, 'secondary'); back.id = 'bot-back';
 
     var bot = activeBot(selectedBot), character = rosterBot(selectedBot) || (recycleSource && String(recycleSource.id) === String(selectedBot) ? recycleSource : null);
 
@@ -708,15 +821,15 @@
 
     else if (character) {
 
-      var card = node('article', null, 'bot'), head = node('div', null, 'bot-header'), headTop = node('div', null, 'bot-top'), headId = node('div'); headerArt(head,character); head.appendChild(crest(character.playerClass, character.generated ? 'support' : null)); headId.appendChild(node('p', 'ROSTER COMPANION', 'eyebrow')); headId.appendChild(node('h3', character.name)); headId.appendChild(node('p', rosterIdentity(character), 'badge')); headTop.appendChild(headId); head.appendChild(headTop); card.appendChild(head);
+      var card = node('article', null, 'bot'), head = node('div', null, 'bot-header'), headTop = node('div', null, 'bot-top'), headId = node('div'); headerArt(head,character); head.appendChild(crest(character.playerClass, character.generated ? 'support' : null)); headId.appendChild(node('p', tr('ROSTER COMPANION'), 'eyebrow')); headId.appendChild(node('h3', character.name)); headId.appendChild(node('p', rosterIdentity(character), 'badge')); headTop.appendChild(headId); head.appendChild(headTop); card.appendChild(head);
 
-      var body = node('div', null, 'bot-body'); body.appendChild(node('h3', character.generated ? originLabel(true, false, character.growth) : 'Account character')); body.appendChild(node('p', !character.ready ? 'Creation is pending.' : character.reserved ? 'This character is active or saving and cannot currently be recruited.' : 'This character is offline and in your roster.', 'hint'));
+      var body = node('div', null, 'bot-body'); body.appendChild(node('h3', character.generated ? originLabel(true, false, character.growth) : tr('Account character'))); body.appendChild(node('p', !character.ready ? tr('Creation is pending.') : character.reserved ? tr('This character is active or saving and cannot currently be recruited.') : tr('This character is offline and in your roster.'), 'hint'));
 
-      if (botTab === 'care' && subTabs.care === 'recycle' && ticketRecruit(character.growth)) renderRecycling(subPanel(body,'recycle','Recycle a ticket recruit'), character);
-      else { body.appendChild(node('p', character.recruitmentEnabled === false ? 'Temporary Bot recruitment is disabled by this server. Your saved companion and progress are kept.' : 'Recruit this companion to view their live equipment, quests, orders and care settings.', 'hint')); button(body, 'Recruit companion', { action: 'recruit', name: character.name }, !state.enabled || character.recruitmentEnabled === false || character.reserved || !character.ready || !(state.recruitRemaining > 0), 'primary'); }
-      localButton(body, 'Back to roster', function () { showView('roster'); }, 'secondary'); card.appendChild(body); detailPanel.appendChild(card);
+      if (botTab === 'care' && subTabs.care === 'recycle' && ticketRecruit(character.growth)) renderRecycling(subPanel(body,'recycle',tr('Recycle a ticket recruit')), character);
+      else { body.appendChild(node('p', character.recruitmentEnabled === false ? tr('Temporary Bot recruitment is disabled by this server. Your saved companion and progress are kept.') : tr('Recruit this companion to view their live equipment, quests, orders and care settings.'), 'hint')); button(body, tr('Recruit companion'), { action: 'recruit', name: character.name }, !state.enabled || character.recruitmentEnabled === false || character.reserved || !character.ready || !(state.recruitRemaining > 0), 'primary'); }
+      localButton(body, tr('Back to roster'), function () { showView('roster'); }, 'secondary'); card.appendChild(body); detailPanel.appendChild(card);
 
-    } else { var empty = node('div', null, 'empty'); empty.appendChild(node('h3', 'Your next adventure starts with a party')); empty.appendChild(node('p', 'Recruit an existing character or create a Temporary Bot. Select them here to manage orders, equipment and quests.')); localButton(empty, 'Browse your roster', function () { showView('roster'); }, 'primary'); detailPanel.appendChild(empty); }
+    } else { var empty = node('div', null, 'empty'); empty.appendChild(node('h3', tr('Your next adventure starts with a party'))); empty.appendChild(node('p', tr('Recruit an existing character or create a Temporary Bot. Select them here to manage orders, equipment and quests.'))); localButton(empty, tr('Browse your roster'), function () { showView('roster'); }, 'primary'); detailPanel.appendChild(empty); }
 
     byId('bot-detail').scrollTop = detailScroll; restoreFocus(savedFocus);
 
@@ -730,10 +843,10 @@
     if (!character.generated) return;
     if (String(removalConfirmation) === String(character.id)) {
       parent.appendChild(node('p', 'Remove ' + character.name + ' from your roster and saved parties? They will be dismissed; archived progress is kept.', 'hint'));
-      button(parent, 'Confirm removal', { action: 'removebot', id: character.id, confirm: 'yes' }, live ? live.closing : character.reserved, 'secondary');
-      var cancel = localButton(parent, 'Cancel', function () { removalConfirmation = null; render(); }, 'secondary'); cancel.setAttribute('data-action', 'cancel-removebot');
+      button(parent, tr('Confirm removal'), { action: 'removebot', id: character.id, confirm: 'yes' }, live ? live.closing : character.reserved, 'secondary');
+      var cancel = localButton(parent, tr('Cancel'), function () { removalConfirmation = null; render(); }, 'secondary'); cancel.setAttribute('data-action', 'cancel-removebot');
     } else {
-      var remove = localButton(parent, 'Remove from roster', function () { removalConfirmation = character.id; render(); }, 'secondary');
+      var remove = localButton(parent, tr('Remove from roster'), function () { removalConfirmation = character.id; render(); }, 'secondary');
       remove.setAttribute('data-action', 'confirm-removebot'); remove.disabled = busy || (live ? live.closing : character.reserved);
     }
   }
@@ -757,28 +870,28 @@
   function renderPresets() {
     var parent = byId('saved-parties'), presets = state.presets || []; clear(parent);
     var head = node('div', null, 'preset-summary'); head.appendChild(node('span', presets.length + ' / ' + (state.presetLimit || 20) + ' saved parties', 'status-pill'));
-    head.appendChild(node('span', 'Save your current party from the Party tab. Edit a saved party to rename it, change roles and orders, or add and remove members.', 'hint'));
+    head.appendChild(node('span', tr('Save your current party from the Party tab. Edit a saved party to rename it, change roles and orders, or add and remove members.'), 'hint'));
     parent.appendChild(head);
-    if (!presets.length) { parent.appendChild(node('p', 'No saved parties yet. You can mix player-owned alts and Temporary Bots.', 'empty')); return; }
+    if (!presets.length) { parent.appendChild(node('p', tr('No saved parties yet. You can mix player-owned alts and Temporary Bots.'), 'empty')); return; }
     if (presetEdit) { var still = false; for (var k = 0; k < presets.length; k++) if (presets[k].id === presetEdit.id) still = true; if (!still) presetEdit = null; }
     for (var i = 0; i < presets.length; i++) (function (preset) {
       var editing = presetEdit && presetEdit.id === preset.id, members = editing ? presetEdit.members : preset.members;
       var card = node('article', null, 'preset-card' + (editing ? ' editing' : '')); card.setAttribute('data-preset-id', preset.id);
       var top = node('div', null, 'preset-head'), temporary = 0;
       for (var t = 0; t < members.length; t++) if (members[t].temporary) temporary++;
-      if (editing) { var title = node('input'); title.id = 'preset-edit-name'; title.maxLength = 40; title.value = presetEdit.name; title.setAttribute('aria-label', 'Saved party name'); title.oninput = function () { presetEdit.name = title.value; }; top.appendChild(title); }
+      if (editing) { var title = node('input'); title.id = 'preset-edit-name'; title.maxLength = 40; title.value = presetEdit.name; title.setAttribute('aria-label', tr('Saved party name')); title.oninput = function () { presetEdit.name = title.value; }; top.appendChild(title); }
       else top.appendChild(node('h4', preset.name));
       var alts = members.length - temporary;
       top.appendChild(node('span', (members.length > 5 ? 'Alliance' : 'Party') + ' · ' + members.length + ' companions · ' + temporary + (temporary === 1 ? ' Temporary Bot' : ' Temporary Bots') + ' · ' + alts + (alts === 1 ? ' Account Alt' : ' Account Alts'), 'preset-meta'));
       var actions = node('div', null, 'preset-actions');
       if (editing) {
-        var save = button(actions, 'Save changes', {}, !members.length, 'primary small');
+        var save = button(actions, tr('Save changes'), {}, !members.length, 'primary small');
         save.onclick = function () { var spec = []; for (var m = 0; m < presetEdit.members.length; m++) spec.push(presetEdit.members[m].id + ':' + presetEdit.members[m].role + ':' + presetEdit.members[m].order); act({ action: 'editparty', preset: preset.id, presetName: presetEdit.name, members: spec.join(',') }); presetEdit = null; };
-        localButton(actions, 'Cancel', function () { presetEdit = null; renderPresets(); }, 'quiet small');
+        localButton(actions, tr('Cancel'), function () { presetEdit = null; renderPresets(); }, 'quiet small');
       } else {
-        button(actions, 'Summon', { action: 'loadparty', preset: preset.id }, !state.enabled, 'primary small');
-        localButton(actions, 'Edit', function () { var copy = []; for (var m = 0; m < preset.members.length; m++) copy.push({ id: preset.members[m].id, name: preset.members[m].name, temporary: preset.members[m].temporary, role: preset.members[m].role, order: preset.members[m].order }); presetEdit = { id: preset.id, name: preset.name, members: copy }; renderPresets(); }, 'small');
-        button(actions, 'Remove', { action: 'deleteparty', preset: preset.id }, false, 'danger small');
+        button(actions, tr('Summon'), { action: 'loadparty', preset: preset.id }, !state.enabled, 'primary small');
+        localButton(actions, tr('Edit'), function () { var copy = []; for (var m = 0; m < preset.members.length; m++) copy.push({ id: preset.members[m].id, name: preset.members[m].name, temporary: preset.members[m].temporary, role: preset.members[m].role, order: preset.members[m].order }); presetEdit = { id: preset.id, name: preset.name, members: copy }; renderPresets(); }, 'small');
+        button(actions, tr('Remove'), { action: 'deleteparty', preset: preset.id }, false, 'danger small');
       }
       top.appendChild(actions); card.appendChild(top);
       for (var g = 0; g * 6 < Math.max(members.length, 1); g++) {
@@ -789,20 +902,20 @@
       }
       if (editing && members.length < 23) {
         var add = node('div', null, 'preset-add'), choice = node('select'), taken = {};
-        var choiceLabel = node('label', 'Choose a companion to add'); choice.id = 'preset-add-choice'; choiceLabel.htmlFor = choice.id; add.appendChild(choiceLabel);
+        var choiceLabel = node('label', tr('Choose a companion to add')); choice.id = 'preset-add-choice'; choiceLabel.htmlFor = choice.id; add.appendChild(choiceLabel);
         // Render inside the page: popup menus can extend beyond the native browser surface.
-        var searchLabel = node('label', 'Search the collection'); searchLabel.htmlFor = 'preset-roster-search'; add.appendChild(searchLabel);
+        var searchLabel = node('label', tr('Search the collection')); searchLabel.htmlFor = 'preset-roster-search'; add.appendChild(searchLabel);
         var search = node('input'); search.id = 'preset-roster-search'; search.type = 'search'; search.value = byId('roster-search').value;
         search.oninput = function () { byId('roster-search').value = search.value; rosterPage = 0; queueRosterSearch(); }; add.appendChild(search);
-        var previousPage = localButton(add, 'Previous companions', function () { if (rosterPage > 0) { rosterPage--; request(null); } }, 'small'); previousPage.disabled = rosterPage === 0;
-        var nextPage = localButton(add, 'Next companions', function () { rosterPage++; request(null); }, 'small'); nextPage.disabled = (rosterPage + 1) * pageSize >= state.rosterTotal;
+        var previousPage = localButton(add, tr('Previous companions'), function () { if (rosterPage > 0) { rosterPage--; request(null); } }, 'small'); previousPage.disabled = rosterPage === 0;
+        var nextPage = localButton(add, tr('Next companions'), function () { rosterPage++; request(null); }, 'small'); nextPage.disabled = (rosterPage + 1) * pageSize >= state.rosterTotal;
         choice.size = 6;
         for (var a = 0; a < members.length; a++) taken[members[a].id] = true;
         for (var r = 0; r < state.roster.length; r++) { var c = state.roster[r]; if (taken[c.id] || (c.generated && !c.ready)) continue; var opt = node('option', '[' + originLabel(c.generated, false, c.growth) + '] ' + c.name + (c.level != null ? ' · Lv. ' + c.level : '') + (c.playerClass ? ' ' + label(c.playerClass) : '')); opt.value = c.id; choice.appendChild(opt); }
         if (choice.options.length) choice.selectedIndex = 0;
         else choice.disabled = true;
-        choice.setAttribute('aria-label', 'Companion to add'); add.appendChild(choice);
-        localButton(add, '+ Add to party', function () { var c = rosterEntry(choice.value); if (!c) return; presetEdit.members.push({ id: c.id, name: c.name, temporary: !!c.generated, role: state.roles[0], order: 'FOLLOW' }); renderPresets(); }, 'small').disabled = !choice.options.length;
+        choice.setAttribute('aria-label', tr('Companion to add')); add.appendChild(choice);
+        localButton(add, tr('+ Add to party'), function () { var c = rosterEntry(choice.value); if (!c) return; presetEdit.members.push({ id: c.id, name: c.name, temporary: !!c.generated, role: state.roles[0], order: 'FOLLOW' }); renderPresets(); }, 'small').disabled = !choice.options.length;
         card.appendChild(add);
       }
       parent.appendChild(card);
@@ -885,7 +998,7 @@
     for (var i = 0; i < names.length; i++) {
       var glyph = byId('tab-' + names[i][0]).querySelector('.glyph'); clear(glyph); glyph.appendChild(paintedIcon(names[i][1]));
     }
-    var refresh = byId('refresh'); refresh.textContent = 'Refresh'; refresh.insertBefore(paintedIcon('refresh','refresh-icon'),refresh.firstChild);
+    var refresh = byId('refresh'); refresh.textContent = tr('Refresh'); refresh.insertBefore(paintedIcon('refresh','refresh-icon'),refresh.firstChild);
   }
   // Keep the real select/label/change handler; only the generated chevron is overlaid.
   function skinSelects(parent) {
@@ -898,17 +1011,19 @@
   }
 
   function cardActionKind(control) {
-    var text = control.textContent;
-    if (/^(Recruit|Summon|Manage)/.test(text)) return 'summon';
-    if (/Equipment/.test(text)) return 'equipment';
-    if (/Behavior/.test(text)) return 'focus';
-    if (/Quests/.test(text)) return 'progress';
-    if (/Care/.test(text)) return 'coins';
-    if (/actions$/.test(text)) return 'more';
-    if (/^Save/.test(text)) return 'save';
-    if (/^Move/.test(text)) return 'transfer';
-    if (/^Mail/.test(text)) return 'mail';
-    if (/remov|Remove/.test(text)) return 'retire';
+    var key = '';
+    try { key = decodeURIComponent(control.getAttribute('data-focus-key') || ''); } catch (ignore) {}
+    var text = key + ' ' + control.textContent;
+    if (/Recruit|Summon|Manage|招募|召唤|管理/.test(text)) return 'summon';
+    if (/Equipment|装备/.test(text)) return 'equipment';
+    if (/Behavior|行为/.test(text)) return 'focus';
+    if (/Quests|任务/.test(text)) return 'progress';
+    if (/Care|维护/.test(text)) return 'coins';
+    if (/actions$|更多操作|收起操作/.test(text)) return 'more';
+    if (/Save|保存/.test(text)) return 'save';
+    if (/Move|转移/.test(text)) return 'transfer';
+    if (/Mail|邮寄/.test(text)) return 'mail';
+    if (/remov|Remove|移除/.test(text)) return 'retire';
     return 'profile';
   }
 
@@ -937,7 +1052,7 @@
     if (ticketRecruit(character.growth)) { cardTier(metrics,'Gear rarity',character.growth.rarity); cardTier(metrics,'Combat rank',character.growth.rank); }
     identity.appendChild(metrics);
     var stateLine = node('span',cardStatus(character,live),'collection-status' + (!live && character.ready && !character.reserved ? ' available' : ''));
-    identity.appendChild(stateLine); identity.appendChild(node('span','Click to flip \u203a','collection-flip-hint')); front.appendChild(identity);
+    identity.appendChild(stateLine); identity.appendChild(node('span',tr('Click to flip \u203a'),'collection-flip-hint')); front.appendChild(identity);
 
     var back = node('div',null,'collection-back'); back.id = 'card-back-' + id;
     var content = node('div',null,'collection-back-content'); content.setAttribute('data-card-scroll',id);
@@ -949,47 +1064,47 @@
     if (live) {
       content.appendChild(node('p',label(live.role) + ' \u00b7 ' + label(live.order),'collection-config'));
       content.appendChild(node('p','Build: ' + cardBuild(live),'collection-config'));
-    } else content.appendChild(node('p','Recruit to inspect live equipment, builds and quests.','collection-config'));
+    } else content.appendChild(node('p',tr('Recruit to inspect live equipment, builds and quests.'),'collection-config'));
     var actions = node('div',null,'collection-actions'); content.appendChild(actions);
     var unavailable = !state.enabled || character.recruitmentEnabled === false || character.reserved || !character.ready || !(state.recruitRemaining > 0);
-    if (live) localButton(actions,'Manage companion',function () { openBot(character.id,'overview'); },'primary');
+    if (live) localButton(actions,tr('Manage companion'),function () { openBot(character.id,'overview'); },'primary');
     else {
-      var summon = button(actions,character.generated && isSavedBot(character.id) ? 'Summon saved bot' : 'Recruit companion',{action:'recruit',name:character.name},unavailable,'primary');
-      if (unavailable) summon.title = !state.enabled ? 'Companion recruitment is disabled.' : character.recruitmentEnabled === false ? 'Temporary Bot recruitment is disabled by this server.' : !character.ready ? 'Creation is still pending.' : character.reserved ? 'This character is active or saving.' : 'Your active team has no recruitment slots.';
-      localButton(actions,'View companion record',function () { openBot(character.id,'overview'); });
+      var summon = button(actions,character.generated && isSavedBot(character.id) ? tr('Summon saved bot') : tr('Recruit companion'),{action:'recruit',name:character.name},unavailable,'primary');
+      if (unavailable) summon.title = !state.enabled ? tr('Companion recruitment is disabled.') : character.recruitmentEnabled === false ? tr('Temporary Bot recruitment is disabled by this server.') : !character.ready ? tr('Creation is still pending.') : character.reserved ? tr('This character is active or saving.') : tr('Your active team has no recruitment slots.');
+      localButton(actions,tr('View companion record'),function () { openBot(character.id,'overview'); });
       if (character.generated && !live && character.ready) {
         var rename = node('div', null, 'collection-rename'), field = document.createElement('input'), renamed = cardRenames[id] || '';
-        field.type = 'text'; field.maxLength = 16; field.placeholder = 'New name'; field.value = renamed; field.setAttribute('aria-label', 'New name for ' + character.name);
+        field.type = 'text'; field.maxLength = 16; field.placeholder = tr('New name'); field.value = renamed; field.setAttribute('aria-label', 'New name for ' + character.name);
         field.oninput = function () { cardRenames[id] = field.value; };
         rename.appendChild(field);
-        localButton(rename, 'Rename', function () { var wanted = field.value; delete cardRenames[id]; act({ action:'renamebot', name:character.name, newName:wanted }); });
+        localButton(rename, tr('Rename'), function () { var wanted = field.value; delete cardRenames[id]; act({ action:'renamebot', name:character.name, newName:wanted }); });
         actions.appendChild(rename);
       }
     }
     if (live) {
-      localButton(actions,'Equipment & builds',function () { subTabs.equipment = 'profile'; openBot(character.id,'equipment'); });
-      localButton(actions,'Behavior & role',function () { openBot(character.id,'behavior'); });
-      localButton(actions,'Quests & progress',function () { openBot(character.id,'quests'); });
-      localButton(actions,'Care & spending',function () { openBot(character.id,'care'); });
+      localButton(actions,tr('Equipment & builds'),function () { subTabs.equipment = 'profile'; openBot(character.id,'equipment'); });
+      localButton(actions,tr('Behavior & role'),function () { openBot(character.id,'behavior'); });
+      localButton(actions,tr('Quests & progress'),function () { openBot(character.id,'quests'); });
+      localButton(actions,tr('Care & spending'),function () { openBot(character.id,'care'); });
     }
     var extra = node('div',null,'collection-more'); extra.id = 'card-more-' + id;
-    var more = localButton(actions,cardMore[id] ? 'Fewer actions' : 'More actions',function () {
+    var more = localButton(actions,cardMore[id] ? tr('Fewer actions') : tr('More actions'),function () {
       cardMore[id] = !cardMore[id]; extra.style.display = cardMore[id] ? 'block' : 'none';
-      more.textContent = cardMore[id] ? 'Fewer actions' : 'More actions'; cardActionIcon(more,'more'); more.setAttribute('aria-expanded',cardMore[id] ? 'true' : 'false');
+      more.textContent = cardMore[id] ? tr('Fewer actions') : tr('More actions'); cardActionIcon(more,'more'); more.setAttribute('aria-expanded',cardMore[id] ? 'true' : 'false');
     },'quiet'); more.setAttribute('aria-controls',extra.id); more.setAttribute('aria-expanded',cardMore[id] ? 'true' : 'false');
-    if (character.generated && character.ready) button(extra,isSavedBot(character.id) ? 'Save progress' : 'Save bot',{action:'savebot',name:character.name},live && live.closing,'secondary');
-    if (live) localButton(extra,'Move items',function () { subTabs.equipment = 'transfer'; openBot(character.id,'equipment'); });
+    if (character.generated && character.ready) button(extra,isSavedBot(character.id) ? tr('Save progress') : tr('Save bot'),{action:'savebot',name:character.name},live && live.closing,'secondary');
+    if (live) localButton(extra,tr('Move items'),function () { subTabs.equipment = 'transfer'; openBot(character.id,'equipment'); });
     else if (!character.generated) {
-      var move = button(extra,'Move items',{action:'recruit',name:character.name},unavailable);
-      move.title = 'Recruit ' + character.name + ', then open item transfer'; move.onclick = function () { if (busy) return; pendingTransfer = character.name; window.clearTimeout(pendingTransferTimer); pendingTransferTimer = window.setTimeout(function () { clearPendingRecruit(); notice('The companion did not arrive. Refresh before trying again.',true); },30000); act({action:'recruit',name:character.name}); };
-      localButton(extra,'Mail items',function () { mailTarget = character.name; transferPick.mail = null; renderRoster(); });
+      var move = button(extra,tr('Move items'),{action:'recruit',name:character.name},unavailable);
+      move.title = 'Recruit ' + character.name + ', then open item transfer'; move.onclick = function () { if (busy) return; pendingTransfer = character.name; window.clearTimeout(pendingTransferTimer); pendingTransferTimer = window.setTimeout(function () { clearPendingRecruit(); notice(tr('The companion did not arrive. Refresh before trying again.'),true); },30000); act({action:'recruit',name:character.name}); };
+      localButton(extra,tr('Mail items'),function () { mailTarget = character.name; transferPick.mail = null; renderRoster(); });
     }
     if (ticketRecruit(character.growth)) {
-      localButton(extra,'Recycle',function () { openRecycling(live || character); });
+      localButton(extra,tr('Recycle'),function () { openRecycling(live || character); });
     }
     removalControls(extra,character,live); extra.style.display = cardMore[id] ? 'block' : 'none'; actions.appendChild(extra);
     back.appendChild(content);
-    back.appendChild(node('span','\u2039 Click to flip','collection-flip-back')); back.tabIndex = -1;
+    back.appendChild(node('span',tr('\u2039 Click to flip'),'collection-flip-back')); back.tabIndex = -1;
     turn.appendChild(back);
     var frame = node('img',null,'collection-frame'); frame.src = CARD_ART + 'ornate-frame.png?v=2'; frame.alt = ''; frame.setAttribute('aria-hidden','true'); turn.appendChild(frame);
     shell.appendChild(turn); card.appendChild(shell); parent.appendChild(card);
@@ -1041,10 +1156,10 @@
     var total = state.rosterTotal == null ? rows.length : state.rosterTotal;
     rosterPage = state.rosterPage || 0;
     var pages = Math.max(1, Math.ceil(total / pageSize)), start = 0, end = rows.length;
-    byId('roster-results').textContent = total ? 'Showing ' + (rosterPage * pageSize + 1) + '\u2013' + (rosterPage * pageSize + end) + ' of ' + total + ' companions' : 'No companions match your search.';
-    byId('roster-page').textContent = 'Page ' + (rosterPage + 1) + ' of ' + pages; byId('roster-prev').disabled = rosterPage === 0; byId('roster-next').disabled = rosterPage >= pages - 1;
+    byId('roster-results').textContent = total ? fmt('Showing {first}–{last} of {total} companions', {first: rosterPage * pageSize + 1, last: rosterPage * pageSize + end, total: total}) : tr('No companions match your search.');
+    byId('roster-page').textContent = fmt('Page {page} of {total}', {page: rosterPage + 1, total: pages}); byId('roster-prev').disabled = rosterPage === 0; byId('roster-next').disabled = rosterPage >= pages - 1;
     var mailPanel = byId('mail-alt-panel'); clear(mailPanel); if (mailTarget) renderMailAlt(mailPanel);
-    if (!rows.length) parent.appendChild(node('div', state.roster.length ? 'Try another name, class or filter.' : 'Your roster is empty. Create a companion to get started.', 'empty'));
+    if (!rows.length) parent.appendChild(node('div', state.roster.length ? tr('Try another name, class or filter.') : tr('Your roster is empty. Create a companion to get started.'), 'empty'));
 
     var classSelect = byId('roster-class');
     if (classSelect && classSelect.options.length === 1) {
@@ -1064,7 +1179,7 @@
   function renderSpacing(parent, bot) {
     if (!bot.rangedSpacing) return;
     var group = node('div', null, 'spacing-controls'), draft = spacingDrafts[bot.id];
-    group.appendChild(node('h3', 'Ranged spacing'));
+    group.appendChild(node('h3', tr('Ranged spacing')));
     function distance(id, text, value, min, max) {
       var row = node('label', text), input = node('input'); input.id = id; input.type = 'number'; input.min = min; input.max = max; input.step = '0.5'; input.value = value; input.disabled = bot.closing || busy; row.htmlFor = id; row.appendChild(input); group.appendChild(row); return input;
     }
@@ -1072,16 +1187,16 @@
     var attack = distance('spacing-attack', 'Distance from enemy while attacking (4–18 m)', draft ? draft.attack : bot.attackSpacing, 4, 18);
     follow.oninput = attack.oninput = function () { spacingDrafts[bot.id] = { follow: follow.value, attack: attack.value }; };
     follow.onchange = follow.oninput; attack.onchange = attack.oninput;
-    var save = button(group, 'Save ranged spacing', { action: 'spacing' }, bot.closing);
-    save.onclick = function () { var f = Number(follow.value), a = Number(attack.value); if (!isFinite(f) || f < 2 || f > 12 || !isFinite(a) || a < 4 || a > 18) { notice('Choose owner spacing 2–12 m and attack spacing 4–18 m.', true); return; } act({ action: 'spacing', name: bot.name, ownerSpacing: f, attackSpacing: a }); };
-    group.appendChild(node('p', 'Follow spread sets the formation radius; inner Line slots stay closer. Attack distance is capped by usable skill range. A close enemy allows one short retreat, then the companion stands and fights. Combat hazards still take priority.', 'hint')); parent.appendChild(group);
+    var save = button(group, tr('Save ranged spacing'), { action: 'spacing' }, bot.closing);
+    save.onclick = function () { var f = Number(follow.value), a = Number(attack.value); if (!isFinite(f) || f < 2 || f > 12 || !isFinite(a) || a < 4 || a > 18) { notice(tr('Choose owner spacing 2–12 m and attack spacing 4–18 m.'), true); return; } act({ action: 'spacing', name: bot.name, ownerSpacing: f, attackSpacing: a }); };
+    group.appendChild(node('p', tr('Follow spread sets the formation radius; inner Line slots stay closer. Attack distance is capped by usable skill range. A close enemy allows one short retreat, then the companion stands and fights. Combat hazards still take priority.'), 'hint')); parent.appendChild(group);
     draftField(follow,bot,'spacing-owner'); draftField(attack,bot,'spacing-attack');
   }
 
   // Overview: one framed tile for each area, each leading to the tab that manages it.
   function overviewTile(grid, title, target, section) {
     var tile = node('section', null, 'overview-tile'), head = node('div', null, 'overview-head'); head.appendChild(node('h4', title));
-    if (target) localButton(head, 'Open \u203a', function () { captureDrafts(); if (section) subTabs[target] = section; botTab = target; renderSelection(true); }, 'overview-open');
+    if (target) localButton(head, tr('Open \u203a'), function () { captureDrafts(); if (section) subTabs[target] = section; botTab = target; renderSelection(true); }, 'overview-open');
     tile.appendChild(head); grid.appendChild(tile); return tile;
   }
   function overviewRow(tile, title, value) {
@@ -1116,7 +1231,7 @@
 
     var card = node('article', null, 'bot'), header = node('div', null, 'bot-header'), top = node('div', null, 'bot-top'), identity = node('div'); card.setAttribute('data-bot-id', bot.id); headerArt(header,bot); header.appendChild(crest(bot.playerClass, bot.role));
 
-    identity.appendChild(node('p', 'COMPANION / ' + label(bot.role).toUpperCase(), 'eyebrow')); identity.appendChild(node('h3', bot.name)); identity.appendChild(node('p', 'Level ' + bot.level + ' ' + label(bot.playerClass) + ' · ' + originLabel(bot.generated || bot.temporary, bot.world, bot.growth), 'badge')); if (bot.growth) { identity.appendChild(node('p', 'Gear rarity: ' + label(bot.growth.rarity) + ' (permanent) · Combat rank: ' + rankLine(bot.growth), 'badge' + rarityClass(bot.growth))); identity.appendChild(node('p', mistakeLine(bot), 'badge')); } top.appendChild(identity); top.appendChild(node('div', bot.closing ? 'Saving\u2026' : bot.dead ? 'Awaiting resurrection' : label(bot.order), 'bot-state')); header.appendChild(top);
+    identity.appendChild(node('p', 'COMPANION / ' + label(bot.role).toUpperCase(), 'eyebrow')); identity.appendChild(node('h3', bot.name)); identity.appendChild(node('p', 'Level ' + bot.level + ' ' + label(bot.playerClass) + ' · ' + originLabel(bot.generated || bot.temporary, bot.world, bot.growth), 'badge')); if (bot.growth) { identity.appendChild(node('p', 'Gear rarity: ' + label(bot.growth.rarity) + ' (permanent) · Combat rank: ' + rankLine(bot.growth), 'badge' + rarityClass(bot.growth))); identity.appendChild(node('p', mistakeLine(bot), 'badge')); } top.appendChild(identity); top.appendChild(node('div', bot.closing ? tr('Saving\u2026') : bot.dead ? tr('Awaiting resurrection') : label(bot.order), 'bot-state')); header.appendChild(top);
 
     var health = node('div', null, 'vitals'); vitals(health, 'Health', bot.health, 'health'); vitals(health, 'Mana', bot.mana, 'mana'); if (bot.xp != null) vitals(health, 'XP', bot.xp, 'xp'); header.appendChild(health); card.appendChild(header);
 
@@ -1132,132 +1247,132 @@
       overviewBoard(body,bot);
 
       if (bot.ownedProgression) {
-        var together = node('div', null, 'role-row'); together.appendChild(node('h3', 'Level together'));
-        together.appendChild(node('p', 'While alive, nearby, and in your team, this alt catches up to your level and XP progress after combat. Higher levels are kept. Equipment remains earned. A starting class still needs your advanced-class choice.', 'hint'));
-        button(together, bot.levelTogether ? 'Disable level matching' : 'Enable level matching', { action: 'leveltogether', name: bot.name, enabled: !bot.levelTogether }, bot.closing); body.appendChild(together);
+        var together = node('div', null, 'role-row'); together.appendChild(node('h3', tr('Level together')));
+        together.appendChild(node('p', tr('While alive, nearby, and in your team, this alt catches up to your level and XP progress after combat. Higher levels are kept. Equipment remains earned. A starting class still needs your advanced-class choice.'), 'hint'));
+        button(together, bot.levelTogether ? tr('Disable level matching') : tr('Enable level matching'), { action: 'leveltogether', name: bot.name, enabled: !bot.levelTogether }, bot.closing); body.appendChild(together);
       }
       if (bot.ascensionChoices && bot.ascensionChoices.length) {
-        var ascend = node('div', null, 'role-row'); ascend.appendChild(node('h3', 'Choose advanced class'));
-        ascend.appendChild(node('p', 'This is a permanent class choice for your account character. Equipment and earned progress are preserved. Available from level 9.', 'hint'));
-        var advanced = select(ascend, bot.ascensionChoices, bot.ascensionChoices[0]); advanced.id = 'owned-advanced-class'; advanced.setAttribute('aria-label', 'Advanced class');
-        var ascendButton = localButton(ascend, 'Confirm advanced class', function () { act({ action: 'ascend', name: bot.name, playerClass: advanced.value }); }, 'primary');
+        var ascend = node('div', null, 'role-row'); ascend.appendChild(node('h3', tr('Choose advanced class')));
+        ascend.appendChild(node('p', tr('This is a permanent class choice for your account character. Equipment and earned progress are preserved. Available from level 9.'), 'hint'));
+        var advanced = select(ascend, bot.ascensionChoices, bot.ascensionChoices[0]); advanced.id = 'owned-advanced-class'; advanced.setAttribute('aria-label', tr('Advanced class'));
+        var ascendButton = localButton(ascend, tr('Confirm advanced class'), function () { act({ action: 'ascend', name: bot.name, playerClass: advanced.value }); }, 'primary');
         ascendButton.disabled = bot.closing || busy || !bot.ascensionReady; body.appendChild(ascend);
       }
 
-      if (bot.mission) { var mission = node('div', null, 'mission'); mission.appendChild(node('p', 'Quest ' + bot.mission + ' \u00b7 ' + label(bot.missionStatus), 'route')); button(mission, 'Cancel quest mission', { action: 'mission', name: bot.name, quest: 0 }, bot.closing); body.appendChild(mission); }
+      if (bot.mission) { var mission = node('div', null, 'mission'); mission.appendChild(node('p', 'Quest ' + bot.mission + ' \u00b7 ' + label(bot.missionStatus), 'route')); button(mission, tr('Cancel quest mission'), { action: 'mission', name: bot.name, quest: 0 }, bot.closing); body.appendChild(mission); }
 
 
 
-      var roleRow = node('div', null, 'role-row'), roleLabel = node('label', 'Combat role'); roleLabel.htmlFor = 'bot-role'; roleRow.appendChild(roleLabel); var role = select(roleRow, state.roles, bot.role); role.id = 'bot-role'; role.disabled = bot.closing; role.onchange = function () { act({ action: 'role', name: bot.name, role: role.value }); }; body.appendChild(roleRow);
+      var roleRow = node('div', null, 'role-row'), roleLabel = node('label', tr('Combat role')); roleLabel.htmlFor = 'bot-role'; roleRow.appendChild(roleLabel); var role = select(roleRow, state.roles, bot.role); role.id = 'bot-role'; role.disabled = bot.closing; role.onchange = function () { act({ action: 'role', name: bot.name, role: role.value }); }; body.appendChild(roleRow);
 
       renderQuestions(body, bot);
 
     } else if (botTab === 'behavior') {
-      var combat = subPanel(body,'combat','Combat behavior');
+      var combat = subPanel(body,'combat',tr('Combat behavior'));
       var settings = node('div', null, 'settings control-grid'), flags = [['area','Area attacks'],['supplies','Recovery and build supplies'],['gear','Auto equipment'],['loot','Auto loot']];
       if (ticketRecruit(bot.growth)) flags.splice(2,1);
 
       for (var f = 0; f < flags.length; f++) button(settings, flags[f][1] + ': ' + (bot[flags[f][0]] ? 'On' : 'Off'), { action: 'setting', name: bot.name, setting: flags[f][0], enabled: !bot[flags[f][0]] }, bot.closing || (flags[f][0] === 'gear' && !bot.temporary), 'setting-card' + (bot[flags[f][0]] ? ' on' : '')); combat.appendChild(settings);
-      if (bot.temporary || bot.world) combat.appendChild(node('p','Supply refills spend this companion\'s own Kinah at native replacement prices, within its Care reserve and daily spending limit. If funds run short it keeps the supplies it owns.','hint'));
-      var automation = subPanel(body,'automation','Quest automation'); automation.className += ' settings control-grid'; var flags = [['questing','Auto quests'],['questCombat','Nearby quest combat'],['partySync','Party completion sync']];
-      if (bot.world) { flags = []; automation.appendChild(node('p', 'World characters manage their own quests and progress automatically.', 'hint')); }
+      if (bot.temporary || bot.world) combat.appendChild(node('p',tr('Supply refills spend this companion\'s own Kinah at native replacement prices, within its Care reserve and daily spending limit. If funds run short it keeps the supplies it owns.'),'hint'));
+      var automation = subPanel(body,'automation',tr('Quest automation')); automation.className += ' settings control-grid'; var flags = [['questing','Auto quests'],['questCombat','Nearby quest combat'],['partySync','Party completion sync']];
+      if (bot.world) { flags = []; automation.appendChild(node('p', tr('World characters manage their own quests and progress automatically.'), 'hint')); }
       for (var f = 0; f < flags.length; f++) button(automation,flags[f][1] + ': ' + (bot[flags[f][0]] ? 'On' : 'Off'),{ action:'setting',name:bot.name,setting:flags[f][0],enabled:!bot[flags[f][0]] },bot.closing,'setting-card' + (bot[flags[f][0]] ? ' on' : ''));
-      var spacing = subPanel(body,'spacing','Follow and attack spacing'); renderSpacing(spacing,bot);
-      if (!bot.rangedSpacing) spacing.appendChild(node('p','Ranged spacing controls apply to ranged companions. This companion uses its native role spacing.','empty-state'));
-      if (bot.focus && bot.focus.available) renderFocus(subPanel(body,'focus','Optional activity focus'), bot);
+      var spacing = subPanel(body,'spacing',tr('Follow and attack spacing')); renderSpacing(spacing,bot);
+      if (!bot.rangedSpacing) spacing.appendChild(node('p',tr('Ranged spacing controls apply to ranged companions. This companion uses its native role spacing.'),'empty-state'));
+      if (bot.focus && bot.focus.available) renderFocus(subPanel(body,'focus',tr('Optional activity focus')), bot);
 
     } else if (botTab === 'equipment') {
 
-      if (bot.temporary && (bot.stigmaBuilds || []).length) renderStigmaBuilds(subPanel(body,'build','Stigma build'), bot);
-      if (bot.loadout) renderLoadout(subPanel(body,'saved','Saved gear'), bot);
-      if (!ticketRecruit(bot.growth)) renderGearPolicy(subPanel(body,'policy','Equipment rules'), bot);
+      if (bot.temporary && (bot.stigmaBuilds || []).length) renderStigmaBuilds(subPanel(body,'build',tr('Stigma build')), bot);
+      if (bot.loadout) renderLoadout(subPanel(body,'saved',tr('Saved gear')), bot);
+      if (!ticketRecruit(bot.growth)) renderGearPolicy(subPanel(body,'policy',tr('Equipment rules')), bot);
       var equipped = [], carried = [];
       for (var i = 0; i < bot.inventory.length; i++) (bot.inventory[i].equipped ? equipped : carried).push(bot.inventory[i]);
-      var profile = subPanel(body,'profile','Character equipment'); renderProfile(profile,bot,equipped);
-      var inventory = subPanel(body,'inventory','Inventory');
-      inventory.appendChild(node('p','Items belong to this companion. Hover for native item details; select a slot for available actions.','hint'));
+      var profile = subPanel(body,'profile',tr('Character equipment')); renderProfile(profile,bot,equipped);
+      var inventory = subPanel(body,'inventory',tr('Inventory'));
+      inventory.appendChild(node('p',tr('Items belong to this companion. Hover for native item details; select a slot for available actions.'),'hint'));
       itemGrid(inventory,bot,carried,'inventory','Inventory (' + carried.length + (bot.inventoryLimit != null ? ' / ' + bot.inventoryLimit : '') + ')',renderItem);
-      renderTransfer(subPanel(body,'transfer','Transfer items'),bot);
+      renderTransfer(subPanel(body,'transfer',tr('Transfer items')),bot);
 
-      var warehousePanel = subPanel(body,'warehouse','Private warehouse'), legionPanel = subPanel(body,'legion','Legion storage');
-      if (bot.world) { warehousePanel.appendChild(node('p','Independent bots retain ownership of their private warehouse.','empty-state')); legionPanel.appendChild(node('p','Inviting an independent bot does not grant access to its stored possessions.','empty-state')); }
+      var warehousePanel = subPanel(body,'warehouse',tr('Private warehouse')), legionPanel = subPanel(body,'legion',tr('Legion storage'));
+      if (bot.world) { warehousePanel.appendChild(node('p',tr('Independent bots retain ownership of their private warehouse.'),'empty-state')); legionPanel.appendChild(node('p',tr('Inviting an independent bot does not grant access to its stored possessions.'),'empty-state')); }
       if (!bot.world) {
         var warehouse = bot.warehouse || [];
         warehousePanel.appendChild(node('h3', 'Private warehouse (' + warehouse.length + ' / ' + (bot.warehouseLimit || 0) + ')'));
-        warehousePanel.appendChild(node('p', bot.warehouseReason || 'Deposit or withdraw a whole stack while you and your companion are beside the same warehouse keeper. Items stay owned by this companion.', 'hint availability-note'));
-        if (!warehouse.length) warehousePanel.appendChild(node('p', 'The companion\u2019s private warehouse is empty.', 'empty'));
-        itemGrid(warehousePanel,bot,warehouse,'warehouse','Stored items',renderWarehouseItem);
+        warehousePanel.appendChild(node('p', bot.warehouseReason || tr('Deposit or withdraw a whole stack while you and your companion are beside the same warehouse keeper. Items stay owned by this companion.'), 'hint availability-note'));
+        if (!warehouse.length) warehousePanel.appendChild(node('p', tr('The companion\u2019s private warehouse is empty.'), 'empty'));
+        itemGrid(warehousePanel,bot,warehouse,'warehouse',tr('Stored items'),renderWarehouseItem);
         var deposits = bot.inventory || [], bankable = [], legionable = [];
         for (var d = 0; d < deposits.length; d++) { if (deposits[d].bankable) bankable.push(deposits[d]); if (deposits[d].legionStorable) legionable.push(deposits[d]); }
-        itemGrid(warehousePanel,bot,bankable,'bankdeposit','Inventory available to deposit',function(parent,bot,item) { var row = node('div',null,'item'); itemHeading(row,item); button(row,'Deposit whole stack',{action:'bankdeposit',name:bot.name,item:item.id},bot.closing || !bot.warehouseAvailable); parent.appendChild(row); });
+        itemGrid(warehousePanel,bot,bankable,'bankdeposit',tr('Inventory available to deposit'),function(parent,bot,item) { var row = node('div',null,'item'); itemHeading(row,item); button(row,tr('Deposit whole stack'),{action:'bankdeposit',name:bot.name,item:item.id},bot.closing || !bot.warehouseAvailable); parent.appendChild(row); });
         var shared = bot.legionStorage || [];
         legionPanel.appendChild(node('h3', 'Legion storage: ' + (bot.legionStorageName || 'No access') + ' (' + shared.length + ' / ' + (bot.legionStorageLimit || 0) + ')'));
-        legionPanel.appendChild(node('p', bot.legionStorageReason || 'Deposit a whole stack beside the legion keeper. Deposited items belong to the legion and can be withdrawn by members with native withdrawal rights.', 'hint availability-note'));
-        if (!shared.length) legionPanel.appendChild(node('p', 'No legion items to display.', 'empty'));
-        itemGrid(legionPanel,bot,shared,'legion','Legion items',function(parent,bot,item) { var row = node('div',null,'item'); itemHeading(row,item); row.appendChild(node('p','Legion-owned item. Use the native legion warehouse for withdrawals.','hint')); parent.appendChild(row); });
-        itemGrid(legionPanel,bot,legionable,'legiondeposit','Inventory available to deposit',function(parent,bot,item) { var row = node('div',null,'item'); itemHeading(row,item); button(row,'Deposit whole stack to legion',{action:'legiondeposit',name:bot.name,item:item.id},bot.closing || !bot.legionStorageAvailable); parent.appendChild(row); });
+        legionPanel.appendChild(node('p', bot.legionStorageReason || tr('Deposit a whole stack beside the legion keeper. Deposited items belong to the legion and can be withdrawn by members with native withdrawal rights.'), 'hint availability-note'));
+        if (!shared.length) legionPanel.appendChild(node('p', tr('No legion items to display.'), 'empty'));
+        itemGrid(legionPanel,bot,shared,'legion',tr('Legion items'),function(parent,bot,item) { var row = node('div',null,'item'); itemHeading(row,item); row.appendChild(node('p',tr('Legion-owned item. Use the native legion warehouse for withdrawals.'),'hint')); parent.appendChild(row); });
+        itemGrid(legionPanel,bot,legionable,'legiondeposit',tr('Inventory available to deposit'),function(parent,bot,item) { var row = node('div',null,'item'); itemHeading(row,item); button(row,tr('Deposit whole stack to legion'),{action:'legiondeposit',name:bot.name,item:item.id},bot.closing || !bot.legionStorageAvailable); parent.appendChild(row); });
 
       }
 
     } else if (botTab === 'mail') {
-      if (bot.world) { body.appendChild(node('p', 'World bots retain their private mailbox. Inviting one does not grant access to its mail or money.', 'hint')); }
+      if (bot.world) { body.appendChild(node('p', tr('World bots retain their private mailbox. Inviting one does not grant access to its mail or money.'), 'hint')); }
       else {
-        var inbox = subPanel(body,'inbox','Inbox'), send = subPanel(body,'send','Send to ' + state.owner);
+        var inbox = subPanel(body,'inbox',tr('Inbox')), send = subPanel(body,'send','Send to ' + state.owner);
         var mails = bot.mail || [], locked = bot.closing || !bot.mailAvailable;
         inbox.appendChild(node('h3', 'Mailbox (' + (bot.mailCount || 0) + ')'));
-        inbox.appendChild(node('p', bot.mailReason || 'Use a regular mailbox with your companion. Collected items and Kinah go into its own cube. Requested outgoing mail goes to you and charges native postage.', 'hint availability-note'));
-        button(inbox, 'Refresh mailbox', { action: 'maillist', name: bot.name }, locked);
-        if (!bot.mailLoaded) inbox.appendChild(node('p', 'Refresh beside a mailbox to load this companion’s letters.', 'empty'));
-        else if (!mails.length) inbox.appendChild(node('p', 'The companion’s mailbox is empty.', 'empty'));
+        inbox.appendChild(node('p', bot.mailReason || tr('Use a regular mailbox with your companion. Collected items and Kinah go into its own cube. Requested outgoing mail goes to you and charges native postage.'), 'hint availability-note'));
+        button(inbox, tr('Refresh mailbox'), { action: 'maillist', name: bot.name }, locked);
+        if (!bot.mailLoaded) inbox.appendChild(node('p', tr('Refresh beside a mailbox to load this companion’s letters.'), 'empty'));
+        else if (!mails.length) inbox.appendChild(node('p', tr('The companion’s mailbox is empty.'), 'empty'));
         for (var m = 0; m < mails.length; m++) {
           var letter = mails[m], mailRow = node('div', null, 'item');
           mailRow.appendChild(node('div', letter.title + ' · From ' + letter.sender + (letter.unread ? ' · Unread' : '')));
           mailRow.appendChild(node('p', letter.message, 'detail'));
           if (letter.hasAttachments) mailRow.appendChild(node('p', (letter.item || '') + (letter.kinah ? ' ' + letter.kinah + ' Kinah' : ''), 'detail'));
-          button(mailRow, 'Read', { action: 'mailread', name: bot.name, object: letter.id }, locked);
-          button(mailRow, 'Collect attachments', { action: 'mailtake', name: bot.name, object: letter.id }, locked || !letter.hasAttachments);
-          button(mailRow, 'Delete empty letter', { action: 'maildelete', name: bot.name, object: letter.id }, locked || letter.hasAttachments);
+          button(mailRow, tr('Read'), { action: 'mailread', name: bot.name, object: letter.id }, locked);
+          button(mailRow, tr('Collect attachments'), { action: 'mailtake', name: bot.name, object: letter.id }, locked || !letter.hasAttachments);
+          button(mailRow, tr('Delete empty letter'), { action: 'maildelete', name: bot.name, object: letter.id }, locked || letter.hasAttachments);
           inbox.appendChild(mailRow);
         }
         send.appendChild(node('h3', 'Request mail to ' + state.owner));
-        send.appendChild(node('p', bot.mailSendEnabled ? 'Choose one whole tradeable, unpacked stack, or a Kinah amount. Native postage is paid by this companion. Equipped items and private world-bot possessions cannot be requested.' : 'Companion sending is disabled by server configuration; mailbox collection remains available.', 'hint'));
+        send.appendChild(node('p', bot.mailSendEnabled ? tr('Choose one whole tradeable, unpacked stack, or a Kinah amount. Native postage is paid by this companion. Equipped items and private world-bot possessions cannot be requested.') : tr('Companion sending is disabled by server configuration; mailbox collection remains available.'), 'hint'));
         var outgoing = (bot.inventory || []).filter(function (item) { return item.mailable; });
         for (var o = 0; o < outgoing.length; o++) {
           var outgoingRow = node('div', null, 'item'); outgoingRow.appendChild(node('div', outgoing[o].name + ' ×' + outgoing[o].count));
-          button(outgoingRow, 'Mail whole stack to me', { action: 'mailsenditem', name: bot.name, object: outgoing[o].id }, locked || !bot.mailSendEnabled);send.appendChild(outgoingRow);
+          button(outgoingRow, tr('Mail whole stack to me'), { action: 'mailsenditem', name: bot.name, object: outgoing[o].id }, locked || !bot.mailSendEnabled);send.appendChild(outgoingRow);
         }
-        var moneyLabel = node('label', 'Kinah to request'), money = node('input');money.type = 'text';money.inputMode = 'numeric';money.setAttribute('aria-label','Kinah to request');money.value = '';draftField(money,bot,'mail-kinah');moneyLabel.appendChild(money);send.appendChild(moneyLabel);
-        var moneyButton = button(send,'Mail Kinah to me',{},locked || !bot.mailSendEnabled);
+        var moneyLabel = node('label', tr('Kinah to request')), money = node('input');money.type = 'text';money.inputMode = 'numeric';money.setAttribute('aria-label',tr('Kinah to request'));money.value = '';draftField(money,bot,'mail-kinah');moneyLabel.appendChild(money);send.appendChild(moneyLabel);
+        var moneyButton = button(send,tr('Mail Kinah to me'),{},locked || !bot.mailSendEnabled);
         moneyButton.setAttribute('data-action','mailsendkinah');moneyButton.onclick = function () {
-          if (!/^[1-9][0-9]{0,18}$/.test(money.value) || money.value.length === 19 && money.value > '9223372036854775807') { notice('Enter a positive whole Kinah amount within the native currency limit.', true);return; }
+          if (!/^[1-9][0-9]{0,18}$/.test(money.value) || money.value.length === 19 && money.value > '9223372036854775807') { notice(tr('Enter a positive whole Kinah amount within the native currency limit.'), true);return; }
           act({ action:'mailsendkinah',name:bot.name,kinah:money.value });
         };
       }
 
     } else if (botTab === 'quests') {
-      var journal = subPanel(body,'journal','Quest journal'), requests = subPanel(body,'requests','Catch-up requests'); renderQuestions(requests,bot);
+      var journal = subPanel(body,'journal',tr('Quest journal')), requests = subPanel(body,'requests',tr('Catch-up requests')); renderQuestions(requests,bot);
 
       if (!bot.world) button(journal, 'Nearby quest combat: ' + (bot.questCombat ? 'On' : 'Off'), { action: 'setting', name: bot.name, setting: 'questCombat', enabled: !bot.questCombat }, bot.closing, bot.questCombat ? 'on' : '');
 
-      if (bot.world) journal.appendChild(node('p', 'This world character manages its own quests. Party orders do not disable its autonomous quest progress.', 'hint'));
-      else journal.appendChild(node('p', 'When On, the party tackles isolated quest targets within 25 m of you. Tanks lead; healers and support keep their roles. Untouched nearby packs are left for you to pull.', 'hint'));
+      if (bot.world) journal.appendChild(node('p', tr('This world character manages its own quests. Party orders do not disable its autonomous quest progress.'), 'hint'));
+      else journal.appendChild(node('p', tr('When On, the party tackles isolated quest targets within 25 m of you. Tanks lead; healers and support keep their roles. Untouched nearby packs are left for you to pull.'), 'hint'));
 
       journal.appendChild(node('h3', 'Quest journal (' + bot.quests.length + ')'));
 
-      if (bot.mission) { var missionRow = node('div', null, 'mission'); missionRow.appendChild(node('p', 'Quest ' + bot.mission + ' \u00b7 ' + label(bot.missionStatus))); button(missionRow, 'Cancel quest mission', { action: 'mission', name: bot.name, quest: 0 }, bot.closing); journal.appendChild(missionRow); }
+      if (bot.mission) { var missionRow = node('div', null, 'mission'); missionRow.appendChild(node('p', 'Quest ' + bot.mission + ' \u00b7 ' + label(bot.missionStatus))); button(missionRow, tr('Cancel quest mission'), { action: 'mission', name: bot.name, quest: 0 }, bot.closing); journal.appendChild(missionRow); }
 
-      if (!bot.quests.length) journal.appendChild(node('p', 'Share an eligible quest or enable nearby quests.', 'empty'));
+      if (!bot.quests.length) journal.appendChild(node('p', tr('Share an eligible quest or enable nearby quests.'), 'empty'));
 
       var journalStart = pageControls(journal, bot.id, journalPages, bot.quests.length, 4);
-      for (var q = journalStart; q < Math.min(bot.quests.length, journalStart + 4); q++) { var row = node('div', null, 'quest'); journal.appendChild(row); renderQuest(row, bot.quests[q]); if (!bot.world && bot.quests[q].missionEligible) button(row, 'Assign quest mission', { action: 'mission', name: bot.name, quest: bot.quests[q].id }, bot.closing || bot.dead); }
+      for (var q = journalStart; q < Math.min(bot.quests.length, journalStart + 4); q++) { var row = node('div', null, 'quest'); journal.appendChild(row); renderQuest(row, bot.quests[q]); if (!bot.world && bot.quests[q].missionEligible) button(row, tr('Assign quest mission'), { action: 'mission', name: bot.name, quest: bot.quests[q].id }, bot.closing || bot.dead); }
 
     } else if (botTab === 'care') {
       renderCare(body, bot);
-      if (bot.generated || bot.world) renderBenefits(subPanel(body,'benefits','Benefits earned by this companion'), bot);
-      if (bot.giveOnly) renderRecycling(subPanel(body,'recycle','Recycle a ticket recruit'), bot);
+      if (bot.generated || bot.world) renderBenefits(subPanel(body,'benefits',tr('Benefits earned by this companion')), bot);
+      if (bot.giveOnly) renderRecycling(subPanel(body,'recycle',tr('Recycle a ticket recruit')), bot);
     }
 
-    else { body.appendChild(node('h3', 'Recent activity')); if (!bot.announcements || !bot.announcements.length) body.appendChild(node('p', 'Companion announcements will appear here.', 'empty')); else for (var msg = bot.announcements.length - 1; msg >= 0; msg--) body.appendChild(node('p', bot.announcements[msg], 'activity-row')); }
+    else { body.appendChild(node('h3', tr('Recent activity'))); if (!bot.announcements || !bot.announcements.length) body.appendChild(node('p', tr('Companion announcements will appear here.'), 'empty')); else for (var msg = bot.announcements.length - 1; msg >= 0; msg--) body.appendChild(node('p', bot.announcements[msg], 'activity-row')); }
 
     parent.appendChild(card); renderSubTabs(body,bot); compactHelp(body); setBusy();
 
@@ -1273,7 +1388,7 @@
 
       if (question.prerequisites.length) { var missing = []; for (var m = 0; m < question.prerequisites.length; m++) missing.push(question.prerequisites[m].name); prompt.appendChild(node('p', 'Still needed: ' + missing.join(', '), 'hint')); }
 
-      button(prompt, 'Yes, I will help', { action: 'answer', name: bot.name, quest: question.quest, answer: 'yes' }, bot.closing); button(prompt, 'No, cancel this quest', { action: 'answer', name: bot.name, quest: question.quest, answer: 'no' }, bot.closing); parent.appendChild(prompt);
+      button(prompt, tr('Yes, I will help'), { action: 'answer', name: bot.name, quest: question.quest, answer: 'yes' }, bot.closing); button(prompt, tr('No, cancel this quest'), { action: 'answer', name: bot.name, quest: question.quest, answer: 'no' }, bot.closing); parent.appendChild(prompt);
 
     }
 
@@ -1288,7 +1403,7 @@
 
     parent.appendChild(node('strong', (quest.name || 'Quest ' + quest.id) + ' \u00b7 ' + questStatus(quest)));
 
-    parent.appendChild(node('p', quest.guidance || 'Lead this companion to its quest objective.', 'hint'));
+    parent.appendChild(node('p', quest.guidance || tr('Lead this companion to its quest objective.'), 'hint'));
 
     var objectives = quest.objectives || [];
 
@@ -1298,7 +1413,7 @@
 
     for (var d = 0; d < destinations.length; d++) parent.appendChild(node('p', coordinates(destinations[d]), 'route'));
 
-    if (!destinations.length) parent.appendChild(node('p', 'No known NPC location for this step. Follow your quest journal.', 'hint'));
+    if (!destinations.length) parent.appendChild(node('p', tr('No known NPC location for this step. Follow your quest journal.'), 'hint'));
 
   }
 
@@ -1312,7 +1427,7 @@
     parent.appendChild(node('p', helpWhere(c) + ' \u00b7 X ' + Math.round(c.x) + ', Y ' + Math.round(c.y) + ', Z ' + Math.round(c.z), 'hint'));
   }
   function helpControls(parent, c) {
-    var controls = node('div', null, 'actions'), locate = localButton(controls, 'Show location', function () { showOnMap(c.map, c.x, c.y, c.z); });
+    var controls = node('div', null, 'actions'), locate = localButton(controls, tr('Show location'), function () { showOnMap(c.map, c.x, c.y, c.z); });
     locate.disabled = !canShowOnMap(); parent.appendChild(controls); return controls;
   }
   function renderHelpRequests() {
@@ -1324,8 +1439,8 @@
     function redraw() { keepScroll(renderHelpRequests); }
     for (var i = 0; i < all.length; i++) if (!busy[all[i].bot]) { posts.push(all[i]); if (all[i].eligible) helpable++; }
     var board = node('div', null, 'quest-board help-board'), head = node('div', null, 'quest-board-head'), reward = (mines[0] && mines[0].reward) || (posts[0] && posts[0].reward) || '';
-    head.appendChild(node('h3', 'Help requests' + (open.length ? ' (' + open.length + '/' + limit + ')' : ''))); board.appendChild(head); parent.appendChild(board);
-    board.appendChild(node('p', 'Accept a world companion\'s request, then join through its group invitation. You can help up to ' + limit + ' at once. ' + reward, 'hint'));
+    head.appendChild(node('h3', tr('Help requests') + (open.length ? ' (' + open.length + '/' + limit + ')' : ''))); board.appendChild(head); parent.appendChild(board);
+    board.appendChild(node('p', fmt("Accept a world companion's request, then join through its group invitation. You can help up to {limit} at once. {reward}", {limit: limit, reward: reward}), 'hint'));
     mines.forEach(function (mine) {
       if (!mine || !mine.key) return;
       var active = live(mine), panel = node('div', null, 'help-mine'), title = node('div', null, 'help-mine-head');
@@ -1333,57 +1448,57 @@
       helpFacts(panel, mine);
       var controls = helpControls(panel, mine);
       if (active) {
-        button(controls, 'Track', { action:'helptrack', key:mine.key }, !mine.myCharacter || !(window.AionObject && AionObject.HelpRequestTrack));
-        button(controls, 'Collect reward', { action:'helpclaim', key:mine.key }, mine.status !== 'COMPLETE');
-        localButton(controls, 'Abandon request', function () { helpAbandon = mine.key; redraw(); }, 'quiet');
-        if (helpAbandon === mine.key) button(controls, 'Confirm abandon', { action:'helpabandon', key:mine.key }, false);
-        if (!mine.myCharacter) panel.appendChild(node('p', 'Track this request on the character that accepted it.', 'hint'));
-        if (mine.status === 'REVISED' || mine.status === 'CANCELLED' || mine.status === 'RESOLVED') panel.appendChild(node('p', 'This request ended or changed. Credit you already earned stays, but no partial reward is paid.', 'hint'));
+        button(controls, tr('Track'), { action:'helptrack', key:mine.key }, !mine.myCharacter || !(window.AionObject && AionObject.HelpRequestTrack));
+        button(controls, tr('Collect reward'), { action:'helpclaim', key:mine.key }, mine.status !== 'COMPLETE');
+        localButton(controls, tr('Abandon request'), function () { helpAbandon = mine.key; redraw(); }, 'quiet');
+        if (helpAbandon === mine.key) button(controls, tr('Confirm abandon'), { action:'helpabandon', key:mine.key }, false);
+        if (!mine.myCharacter) panel.appendChild(node('p', tr('Track this request on the character that accepted it.'), 'hint'));
+        if (mine.status === 'REVISED' || mine.status === 'CANCELLED' || mine.status === 'RESOLVED') panel.appendChild(node('p', tr('This request ended or changed. Credit you already earned stays, but no partial reward is paid.'), 'hint'));
       }
       board.appendChild(panel);
     });
-    if (!posts.length) { board.appendChild(node('p', 'No world companions need help right now. An accepted request stays saved when its listing ends.', 'hint')); return; }
+    if (!posts.length) { board.appendChild(node('p', tr('No world companions need help right now. An accepted request stays saved when its listing ends.'), 'hint')); return; }
     var canHelp = helpBoard.canHelp === null ? helpable > 0 : helpBoard.canHelp && helpable > 0;
     var filters = node('div', null, 'quest-filters');
     function filter(text, value) { var choice = localButton(filters, text, function () { helpBoard.canHelp = value; helpBoard.page = 0; redraw(); }, canHelp === value ? 'on' : ''); if (value && !helpable) choice.disabled = true; }
-    filter('All ' + posts.length, false); filter('Can help ' + helpable, true); head.appendChild(filters);
+    filter(fmt('All {count}', {count: posts.length}), false); filter(fmt('Can help {count}', {count: helpable}), true); head.appendChild(filters);
     var shown = posts.filter(function (c) { return !canHelp || c.eligible; });
     var pages = Math.max(1, Math.ceil(shown.length / QUEST_PAGE)); helpBoard.page = Math.min(helpBoard.page, pages - 1);
     var first = helpBoard.page * QUEST_PAGE, table = node('div', null, 'quest-table'), titles = node('div', null, 'quest-line help-line quest-titles');
-    titles.appendChild(node('span', 'Companion')); titles.appendChild(node('span', 'Request')); titles.appendChild(node('span', 'Where')); titles.appendChild(node('span', 'Level')); table.appendChild(titles);
+    titles.appendChild(node('span', tr('Companion'))); titles.appendChild(node('span', tr('Request'))); titles.appendChild(node('span', tr('Where'))); titles.appendChild(node('span', tr('Level'))); table.appendChild(titles);
     shown.slice(first, first + QUEST_PAGE).forEach(function (c) {
       var key = String(c.bot), open = helpBoard.open === key, line = node('div', null, 'quest-line help-line t' + summonTier(c.rarity) + (c.eligible ? '' : ' locked'));
       var name = node('strong', c.botName), need = node('span', c.need), levels = node('span', 'Lv ' + c.minLevel + '-' + c.maxLevel + (c.eligible ? '' : ', you are ' + c.level));
       name.title = 'Gear rarity ' + label(c.rarity); need.title = c.need;
       line.appendChild(name); line.appendChild(need); line.appendChild(node('span', helpWhere(c))); line.appendChild(levels);
-      localButton(line, open ? 'Hide' : 'Details', function () { helpBoard.open = open ? '' : key; redraw(); }, 'small quest-show');
+      localButton(line, open ? tr('Hide') : tr('Details'), function () { helpBoard.open = open ? '' : key; redraw(); }, 'small quest-show');
       table.appendChild(line);
       if (!open) return;
       var more = node('div', null, 'help-detail'); helpFacts(more, c);
       var actions = helpControls(more, c);
-      button(actions, 'Accept request', { action:'helpaccept', bot:c.bot }, !c.eligible || full, 'primary');
+      button(actions, tr('Accept request'), { action:'helpaccept', bot:c.bot }, !c.eligible || full, 'primary');
       if (full) more.appendChild(node('p', 'You are helping ' + open.length + ' companions already. Finish or abandon one first.', 'hint'));
       table.appendChild(more);
     });
     board.appendChild(table);
     if (pages > 1) {
       var pager = node('div', null, 'quest-pager');
-      var back = localButton(pager, '\u2039 Previous', function () { helpBoard.page--; redraw(); }); back.disabled = helpBoard.page === 0;
+      var back = localButton(pager, tr('\u2039 Previous'), function () { helpBoard.page--; redraw(); }); back.disabled = helpBoard.page === 0;
       pager.appendChild(node('span', (first + 1) + '\u2013' + Math.min(first + QUEST_PAGE, shown.length) + ' of ' + shown.length));
-      var next = localButton(pager, 'Next \u203a', function () { helpBoard.page++; redraw(); }); next.disabled = helpBoard.page >= pages - 1;
+      var next = localButton(pager, tr('Next \u203a'), function () { helpBoard.page++; redraw(); }); next.disabled = helpBoard.page >= pages - 1;
       board.appendChild(pager);
     }
   }
 
   function renderOverview() {
     var parent = byId('quest-overview'), groups = {}, order = []; clear(parent);
-    if (!state.active.length) { parent.appendChild(node('div', 'Recruit companions to track their quests together.', 'empty')); return; }
+    if (!state.active.length) { parent.appendChild(node('div', tr('Recruit companions to track their quests together.'), 'empty')); return; }
     var body = node('div', null, 'quest-board'); parent.appendChild(body);
-    var head = node('div', null, 'quest-board-head'); head.appendChild(node('h3', 'Party quest tracker')); body.appendChild(head);
-    var journals = node('div', null, 'quest-journals'); journals.appendChild(node('span', 'Open journal'));
+    var head = node('div', null, 'quest-board-head'); head.appendChild(node('h3', tr('Party quest tracker'))); body.appendChild(head);
+    var journals = node('div', null, 'quest-journals'); journals.appendChild(node('span', tr('Open journal')));
     for (var j = 0; j < state.active.length; j++) (function (bot) { localButton(journals, bot.name, function () { openBot(bot.id, 'quests'); }, 'quest-member'); }(state.active[j]));
     body.appendChild(journals);
-    for (var a = 0; a < state.active.length; a++) if ((state.active[a].questions || []).length) { var requestRow = node('div', null, 'catch-up'), asking = state.active[a]; requestRow.appendChild(node('strong', asking.name + ' \u00b7 ' + asking.questions.length + ' catch-up request(s)')); (function (id) { localButton(requestRow, 'Review requests', function () { openBot(id, 'quests'); }); }(asking.id)); body.appendChild(requestRow); }
+    for (var a = 0; a < state.active.length; a++) if ((state.active[a].questions || []).length) { var requestRow = node('div', null, 'catch-up'), asking = state.active[a]; requestRow.appendChild(node('strong', asking.name + ' \u00b7 ' + asking.questions.length + ' catch-up request(s)')); (function (id) { localButton(requestRow, tr('Review requests'), function () { openBot(id, 'quests'); }); }(asking.id)); body.appendChild(requestRow); }
     for (var b = 0; b < state.active.length; b++) {
       var bot = state.active[b];
       for (var q = 0; q < bot.quests.length; q++) {
@@ -1396,7 +1511,7 @@
         var destinations = quest.destinations || []; if (destinations.length && (!group.place || (quest.ready && !group.placeReady))) { group.place = destinations[0]; group.placeReady = quest.ready; group.bot = bot.id; }
       }
     }
-    if (!order.length) { body.appendChild(node('p', 'Companion quests will appear here as they are accepted.', 'hint')); return; }
+    if (!order.length) { body.appendChild(node('p', tr('Companion quests will appear here as they are accepted.'), 'hint')); return; }
     var readyCount = order.filter(function (k) { return groups[k].ready > 0; }).length;
     if (!readyCount) questBoard.ready = false;
     var filters = node('div', null, 'quest-filters');
@@ -1406,23 +1521,23 @@
     shown.sort(function (x, y) { return (groups[y].ready > 0) - (groups[x].ready > 0) || String(groups[x].quest.name).localeCompare(String(groups[y].quest.name)); });
     var pages = Math.max(1, Math.ceil(shown.length / QUEST_PAGE)); questBoard.page = Math.min(questBoard.page, pages - 1);
     var first = questBoard.page * QUEST_PAGE, table = node('div', null, 'quest-table'), titles = node('div', null, 'quest-line quest-titles');
-    titles.appendChild(node('span', 'Quest')); titles.appendChild(node('span', 'Progress')); titles.appendChild(node('span', 'Where to go')); table.appendChild(titles);
+    titles.appendChild(node('span', tr('Quest'))); titles.appendChild(node('span', tr('Progress'))); titles.appendChild(node('span', tr('Where to go'))); table.appendChild(titles);
     shown.slice(first, first + QUEST_PAGE).forEach(function (k) {
       var entry = groups[k], line = node('div', null, 'quest-line' + (entry.ready ? ' ready' : '')), parts = [];
       for (var name in entry.states) if (Object.prototype.hasOwnProperty.call(entry.states, name)) parts.push(name + ' ' + entry.states[name] + '/' + entry.total);
       line.appendChild(node('strong', entry.quest.name || 'Quest ' + entry.quest.id)); line.appendChild(node('span', parts.join(' \u00b7 ')));
       if (entry.place) {
         var where = node('span', entry.place.name + ' \u00b7 ' + (entry.place.mapName || 'Map ' + entry.place.map)); where.title = coordinates(entry.place); line.appendChild(where);
-        var show = localButton(line, 'Show', function () { showOnMap(entry.place.map, entry.place.x, entry.place.y, entry.place.z); }, 'small quest-show'); show.disabled = !canShowOnMap();
-      } else localButton(line, 'See quest journal', function () { openBot(entry.bot, 'quests'); }, 'quest-link');
+        var show = localButton(line, tr('Show'), function () { showOnMap(entry.place.map, entry.place.x, entry.place.y, entry.place.z); }, 'small quest-show'); show.disabled = !canShowOnMap();
+      } else localButton(line, tr('See quest journal'), function () { openBot(entry.bot, 'quests'); }, 'quest-link');
       table.appendChild(line);
     });
     body.appendChild(table);
     if (pages > 1) {
       var pager = node('div', null, 'quest-pager');
-      var back = localButton(pager, '\u2039 Previous', function () { questBoard.page--; renderOverview(); }); back.disabled = questBoard.page === 0;
+      var back = localButton(pager, tr('\u2039 Previous'), function () { questBoard.page--; renderOverview(); }); back.disabled = questBoard.page === 0;
       pager.appendChild(node('span', (first + 1) + '\u2013' + Math.min(first + QUEST_PAGE, shown.length) + ' of ' + shown.length));
-      var next = localButton(pager, 'Next \u203a', function () { questBoard.page++; renderOverview(); }); next.disabled = questBoard.page >= pages - 1;
+      var next = localButton(pager, tr('Next \u203a'), function () { questBoard.page++; renderOverview(); }); next.disabled = questBoard.page >= pages - 1;
       body.appendChild(pager);
     }
   }
@@ -1441,10 +1556,10 @@
       tile.onclick = function () { transferPick[key] = String(transferPick[key]) === String(item.id) ? null : item.id; keepScroll(function () { renderSelection(); renderRoster(); }); };
       cell.appendChild(tile); grid.appendChild(cell);
     }(items[i]));
-    if (!items.length) grid.appendChild(node('p', 'Nothing tradeable here.', 'empty-cube'));
+    if (!items.length) grid.appendChild(node('p', tr('Nothing tradeable here.'), 'empty-cube'));
     box.appendChild(grid);
     var picked = null; for (var n = 0; n < items.length; n++) if (String(items[n].id) === String(transferPick[key])) picked = items[n];
-    box.appendChild(node('p', picked ? picked.name + ' ×' + picked.count : 'Select a stack to move it.', 'bag-pick'));
+    box.appendChild(node('p', picked ? picked.name + ' ×' + picked.count : tr('Select a stack to move it.'), 'bag-pick'));
     parent.appendChild(box); return picked;
   }
   function kinahField(parent, id, text) {
@@ -1453,24 +1568,24 @@
   }
   function wholeKinah(input) { return /^[1-9][0-9]{0,18}$/.test(input.value) ? input.value : null; }
   function renderTransfer(parent, bot) {
-    if (bot.world) { parent.appendChild(node('p', 'Invited world bots keep their own items.', 'empty-state')); return; }
+    if (bot.world) { parent.appendChild(node('p', tr('Invited world bots keep their own items.'), 'empty-state')); return; }
     var ids = (state.movable || {})[bot.name] || [], theirs = [], ownKey = 'own', botKey = 'bot' + bot.id;
     for (var i = 0; i < (bot.inventory || []).length; i++) if (ids.indexOf(bot.inventory[i].id) !== -1) theirs.push(bot.inventory[i]);
     parent.appendChild(node('p', bot.giveOnly ? 'Give a whole tradeable stack or Kinah to ' + bot.name + ' outside combat. Ticket recruits keep what you give them.' : 'Move a whole tradeable stack or Kinah between you and ' + bot.name + ', anywhere outside combat. Equipped, soul-bound and quest items stay where they are.', 'hint'));
     var layout = node('div', null, 'transfer'), mine = bagGrid(layout, 'Your bag', state.ownerBag || [], ownKey);
     var middle = node('div', null, 'transfer-arrows');
-    var give = button(middle, 'Give →', { action: 'transfer', name: bot.name, direction: 'give', item: mine ? mine.id : 0 }, !mine || bot.closing, 'primary');
+    var give = button(middle, tr('Give →'), { action: 'transfer', name: bot.name, direction: 'give', item: mine ? mine.id : 0 }, !mine || bot.closing, 'primary');
     layout.appendChild(middle);
     var picked = bagGrid(layout, bot.name + '’s bag', theirs, botKey);
-    var take = button(middle, '← Take', { action: 'transfer', name: bot.name, direction: 'take', item: picked ? picked.id : 0 }, !picked || bot.closing || bot.giveOnly, 'primary');
+    var take = button(middle, tr('← Take'), { action: 'transfer', name: bot.name, direction: 'take', item: picked ? picked.id : 0 }, !picked || bot.closing || bot.giveOnly, 'primary');
     give.onclick = function () { transferPick[ownKey] = null; act({ action: 'transfer', name: bot.name, direction: 'give', item: mine.id }); };
     take.onclick = function () { transferPick[botKey] = null; act({ action: 'transfer', name: bot.name, direction: 'take', item: picked.id }); };
     parent.appendChild(layout);
-    if (bot.giveOnly) parent.appendChild(node('p', 'Ticket companions keep their items and Kinah. Giving is permanent.', 'hint'));
+    if (bot.giveOnly) parent.appendChild(node('p', tr('Ticket companions keep their items and Kinah. Giving is permanent.'), 'hint'));
     var money = node('div', null, 'transfer-kinah'), amount = kinahField(money, 'transfer-kinah-' + bot.id, 'Kinah (you have ' + (state.ownerKinah || 0) + ')');
-    var giveK = button(money, 'Give Kinah →', {}, bot.closing), takeK = button(money, '← Take Kinah', {}, bot.closing || bot.giveOnly);
-    giveK.onclick = function () { var k = wholeKinah(amount); if (!k) { notice('Enter a whole Kinah amount.', true); return; } act({ action: 'transfer', name: bot.name, direction: 'give', kinah: k }); };
-    takeK.onclick = function () { var k = wholeKinah(amount); if (!k) { notice('Enter a whole Kinah amount.', true); return; } act({ action: 'transfer', name: bot.name, direction: 'take', kinah: k }); };
+    var giveK = button(money, tr('Give Kinah →'), {}, bot.closing), takeK = button(money, tr('← Take Kinah'), {}, bot.closing || bot.giveOnly);
+    giveK.onclick = function () { var k = wholeKinah(amount); if (!k) { notice(tr('Enter a whole Kinah amount.'), true); return; } act({ action: 'transfer', name: bot.name, direction: 'give', kinah: k }); };
+    takeK.onclick = function () { var k = wholeKinah(amount); if (!k) { notice(tr('Enter a whole Kinah amount.'), true); return; } act({ action: 'transfer', name: bot.name, direction: 'take', kinah: k }); };
     draftField(amount, bot, 'transfer-kinah'); parent.appendChild(money);
     if (bot.giveOnly) renderCompanionTransfer(parent, bot);
   }
@@ -1478,21 +1593,21 @@
     var allowed = (state.companionMovable || {})[bot.name];
     if (!allowed) return;
     var panel = node('section', null, 'control-panel'), items = [], targets = [];
-    panel.appendChild(node('h3', 'Give to another ticket recruit'));
-    panel.appendChild(node('p', 'Move one eligible whole stack between your active ticket recruits. Equipped, bound, saved-loadout and protected quest or crafting items stay with their current companion.', 'hint'));
+    panel.appendChild(node('h3', tr('Give to another ticket recruit')));
+    panel.appendChild(node('p', tr('Move one eligible whole stack between your active ticket recruits. Equipped, bound, saved-loadout and protected quest or crafting items stay with their current companion.'), 'hint'));
     for (var i = 0; i < (bot.inventory || []).length; i++) if (allowed.indexOf(bot.inventory[i].id) !== -1) items.push(bot.inventory[i]);
     for (var n = 0; n < state.active.length; n++) {
       var candidate = state.active[n];
       if (candidate.id !== bot.id && !candidate.closing && Object.prototype.hasOwnProperty.call(state.companionMovable || {}, candidate.name)) targets.push(candidate.name);
     }
     var picked = bagGrid(panel, bot.name + '\u2019s transferable items', items, 'collection' + bot.id);
-    if (!targets.length) panel.appendChild(node('p', 'Recruit another ticket companion from this account to receive items.', 'hint'));
+    if (!targets.length) panel.appendChild(node('p', tr('Recruit another ticket companion from this account to receive items.'), 'hint'));
     else {
-      var targetLabel = node('label', 'Receiving ticket recruit'); panel.appendChild(targetLabel);
+      var targetLabel = node('label', tr('Receiving ticket recruit')); panel.appendChild(targetLabel);
       var target = select(panel, targets, targets[0]);
       target.id = 'companion-transfer-target-' + bot.id; targetLabel.htmlFor = target.id;
       draftField(target, bot, 'companion-transfer-target');
-      var send = localButton(panel, 'Give selected stack', function () {
+      var send = localButton(panel, tr('Give selected stack'), function () {
         if (!picked) return;
         transferPick['collection' + bot.id] = null;
         act({action:'companiontransfer',name:bot.name,target:target.value,item:picked.id});
@@ -1504,14 +1619,14 @@
   function renderMailAlt(parent) {
     var panel = node('section', null, 'mail-alt'), head = node('div', null, 'preset-head');
     head.appendChild(node('h4', 'Mail items to ' + mailTarget));
-    head.appendChild(node('span', 'Express mail: arrives in their mailbox at once; normal postage applies', 'preset-meta'));
-    var actions = node('div', null, 'preset-actions'); localButton(actions, 'Close', function () { mailTarget = null; renderRoster(); }, 'quiet small'); head.appendChild(actions);
+    head.appendChild(node('span', tr('Express mail: arrives in their mailbox at once; normal postage applies'), 'preset-meta'));
+    var actions = node('div', null, 'preset-actions'); localButton(actions, tr('Close'), function () { mailTarget = null; renderRoster(); }, 'quiet small'); head.appendChild(actions);
     panel.appendChild(head);
     var picked = bagGrid(panel, 'Your bag', state.ownerBag || [], 'mail');
-    var send = button(panel, 'Mail this stack', {}, !picked, 'primary');
+    var send = button(panel, tr('Mail this stack'), {}, !picked, 'primary');
     send.onclick = function () { transferPick.mail = null; act({ action: 'sendalt', alt: mailTarget, item: picked.id }); };
     var money = node('div', null, 'transfer-kinah'), amount = kinahField(money, 'mail-alt-kinah', 'Kinah (you have ' + (state.ownerKinah || 0) + ')');
-    var sendK = button(money, 'Mail Kinah', {}, false); sendK.onclick = function () { var k = wholeKinah(amount); if (!k) { notice('Enter a whole Kinah amount.', true); return; } act({ action: 'sendalt', alt: mailTarget, kinah: k }); };
+    var sendK = button(money, tr('Mail Kinah'), {}, false); sendK.onclick = function () { var k = wholeKinah(amount); if (!k) { notice(tr('Enter a whole Kinah amount.'), true); return; } act({ action: 'sendalt', alt: mailTarget, kinah: k }); };
     panel.appendChild(money); parent.appendChild(panel);
   }
 
@@ -1519,12 +1634,12 @@
   function renderStigmaBuilds(parent, bot) {
     var builds = bot.stigmaBuilds || []; if (!bot.temporary || !builds.length) return;
     var box = node('section', null, 'stigma-builds');
-    box.appendChild(node('p', 'Your companion swaps to the chosen build the next time it is out of combat.', 'hint'));
+    box.appendChild(node('p', tr('Your companion swaps to the chosen build the next time it is out of combat.'), 'hint'));
     // Automatic is a default, not a build to compare: one line above the choices.
     var automatic = node('div', null, 'build-auto' + ((bot.stigmaBuild || 'AUTO') === 'AUTO' ? ' active' : ''));
-    automatic.appendChild(node('strong', 'Automatic')); automatic.appendChild(node('span', 'Chooses Stigmas for the companion’s combat role.'));
-    if ((bot.stigmaBuild || 'AUTO') === 'AUTO') automatic.appendChild(node('em', 'In use', 'status-pill'));
-    else button(automatic, 'Use automatic', { action: 'stigmabuild', name: bot.name, build: 'AUTO' }, bot.closing, 'small');
+    automatic.appendChild(node('strong', tr('Automatic'))); automatic.appendChild(node('span', tr('Chooses Stigmas for the companion’s combat role.')));
+    if ((bot.stigmaBuild || 'AUTO') === 'AUTO') automatic.appendChild(node('em', tr('In use'), 'status-pill'));
+    else button(automatic, tr('Use automatic'), { action: 'stigmabuild', name: bot.name, build: 'AUTO' }, bot.closing, 'small');
     box.appendChild(automatic);
     var choices = builds;
     for (var i = 0; i < choices.length; i++) (function (build) {
@@ -1537,8 +1652,8 @@
         var toggle = localButton(buttons, (stoneOpen[build.key] ? 'Hide' : 'Show') + ' stones', function () { stoneOpen[build.key] = !stoneOpen[build.key]; stones.style.display = stoneOpen[build.key] ? 'block' : 'none'; toggle.textContent = (stoneOpen[build.key] ? 'Hide' : 'Show') + ' stones'; }, 'build-toggle small');
       }
       if (build.savedStages) card.appendChild(node('p', 'Saved equipment: ' + build.savedStages + (build.savedStages === 1 ? ' level range' : ' level ranges'), 'hint'));
-      if (active) buttons.appendChild(node('span', 'In use', 'status-pill'));
-      else button(buttons, 'Use this build', { action: 'stigmabuild', name: bot.name, build: build.key }, bot.closing, 'primary small');
+      if (active) buttons.appendChild(node('span', tr('In use'), 'status-pill'));
+      else button(buttons, tr('Use this build'), { action: 'stigmabuild', name: bot.name, build: build.key }, bot.closing, 'primary small');
       card.appendChild(buttons); box.appendChild(card);
     }(choices[i]));
     parent.appendChild(box);
@@ -1557,8 +1672,8 @@
     var plan = bot.loadout; if (!plan) return;
     var box = node('section', null, 'loadout-plan'); box.appendChild(node('h3', plan.build + ' equipment, levels ' + plan.from + '–' + plan.to));
     box.appendChild(node('p', (ticketRecruit(bot.growth) ? 'Equipment is automatic, up to ' + label(bot.growth.rarity) + ' gear rarity. ' : '') + 'Saved items are worn instead of automatic picks. Click a row for its goal and source.', 'hint'));
-    if (!bot.gear) box.appendChild(node('p', 'Auto equipment is Off, so saved items are not put on until you turn it On.', 'hint'));
-    if (!plan.ready) box.appendChild(node('p', 'Item sources are still loading. Gaps appear shortly.', 'hint'));
+    if (!bot.gear) box.appendChild(node('p', tr('Auto equipment is Off, so saved items are not put on until you turn it On.'), 'hint'));
+    if (!plan.ready) box.appendChild(node('p', tr('Item sources are still loading. Gaps appear shortly.'), 'hint'));
     var stages = node('div', null, 'loadout-stages'), current = 0, i;
     for (i = 0; i < plan.stages.length; i++) {
       var stage = plan.stages[i]; if (stage.current) current = stage.saved;
@@ -1566,8 +1681,8 @@
     }
     box.appendChild(stages);
     var actions = node('div', null, 'loadout-actions'); box.appendChild(actions);
-    button(actions, 'Save worn gear for this level range', { action: 'loadoutsave', name: bot.name }, bot.closing, 'primary small');
-    if (current) button(actions, 'Clear saved gear for this level range', { action: 'loadoutclear', name: bot.name }, bot.closing, 'quiet small');
+    button(actions, tr('Save worn gear for this level range'), { action: 'loadoutsave', name: bot.name }, bot.closing, 'primary small');
+    if (current) button(actions, tr('Clear saved gear for this level range'), { action: 'loadoutclear', name: bot.name }, bot.closing, 'quiet small');
     var automatic = [];
     for (i = 0; i < plan.rows.length; i++) (function (index) {
       var row = plan.rows[index], line = node('div', null, 'loadout-row ' + row.status.toLowerCase()), text = loadoutNote(row);
@@ -1595,7 +1710,7 @@
 
     var body = node('div', null, 'gear-policy'); parent.appendChild(body);
 
-    if (!bot.temporary) { body.appendChild(node('p', bot.world ? 'Independent bot: equipment comes from its own earned loot, quests and native shops. Private ownership and progression stay with this bot.' : 'Player-owned alt: automatic equipment, build and Stigma management are disabled. Your existing setup is preserved; you can equip items manually below.', 'hint')); return; }
+    if (!bot.temporary) { body.appendChild(node('p', bot.world ? tr('Independent bot: equipment comes from its own earned loot, quests and native shops. Private ownership and progression stay with this bot.') : tr('Player-owned alt: automatic equipment, build and Stigma management are disabled. Your existing setup is preserved; you can equip items manually below.'), 'hint')); return; }
 
     body.appendChild(node('p', (bot.build || 'Temporary Bot') + '. Automatic native skills and Stigmas follow your role and level. Catch-up gear is checked every level, up to its permanent gear rarity. Only replaced system-generated gear is retired, and never an item saved in a build; earned equipment stays in your inventory.', 'hint'));
 
@@ -1607,7 +1722,7 @@
 
     choice('mode', 'How equipment is gained', ['EARNED', 'STARTER', 'GENERATED'], bot.gearMode || 'EARNED');
 
-    body.appendChild(node('p', 'Earned: loot, quest rewards and optional real shops. Starter: generates gear for empty slots once, then progresses through the game. Generated: adds useful level-appropriate upgrades automatically. Existing equipment is kept. Auto equipment must be On.', 'hint'));
+    body.appendChild(node('p', tr('Earned: loot, quest rewards and optional real shops. Starter: generates gear for empty slots once, then progresses through the game. Generated: adds useful level-appropriate upgrades automatically. Existing equipment is kept. Auto equipment must be On.'), 'hint'));
 
     choice('profile', 'Equipment priority (independent of combat role)', ['AUTO', 'TANK', 'HEALER', 'DAMAGE', 'SUPPORT'], bot.gearProfile || 'AUTO');
 
@@ -1627,32 +1742,32 @@
 
     body.appendChild(node('p', 'Current generated level ceiling: ' + (bot.gearTargetLevel || bot.level) + '. Uses normal class, mastery, faction and equipment rules. Shop purchases share the Care reserve and daily budget; Kinah bids are always passed. Generated items are protected from automatic extraction.', 'hint'));
 
-    var save = button(body, 'Save equipment choices', {action:'gearpolicy',name:bot.name}, bot.closing); save.onclick = function () { var request = { action: 'gearpolicy', name: bot.name }; for (var key in fields) if (fields.hasOwnProperty(key)) request[key] = fields[key].value; act(request); };
+    var save = button(body, tr('Save equipment choices'), {action:'gearpolicy',name:bot.name}, bot.closing); save.onclick = function () { var request = { action: 'gearpolicy', name: bot.name }; for (var key in fields) if (fields.hasOwnProperty(key)) request[key] = fields[key].value; act(request); };
 
   }
 
   function renderFocus(parent, bot) {
     var focus = bot.focus;
     parent.appendChild(node('p', focus.scope, 'hint'));
-    var focusLabel = node('label', 'Activity priority'), choice = node('select'); choice.id = 'focus-' + bot.id; focusLabel.htmlFor = choice.id;
+    var focusLabel = node('label', tr('Activity priority')), choice = node('select'); choice.id = 'focus-' + bot.id; focusLabel.htmlFor = choice.id;
     for (var i = 0; i < focus.choices.length; i++) { var option = node('option', focus.choices[i].name); option.value = focus.choices[i].id; choice.appendChild(option); }
     choice.value = focus.selected; parent.appendChild(focusLabel); parent.appendChild(choice); draftField(choice, bot, 'focus-choice');
-    var professionLabel = node('label', 'Profession'), profession = node('select'); profession.id = 'focus-profession-' + bot.id; professionLabel.htmlFor = profession.id;
-    var automatic = node('option', 'Best currently learned profession'); automatic.value = '0'; profession.appendChild(automatic);
+    var professionLabel = node('label', tr('Profession')), profession = node('select'); profession.id = 'focus-profession-' + bot.id; professionLabel.htmlFor = profession.id;
+    var automatic = node('option', tr('Best currently learned profession')); automatic.value = '0'; profession.appendChild(automatic);
     for (var n = 0; n < focus.professions.length; n++) { var p = focus.professions[n], opt = node('option', label(p.name) + ' \u00b7 ' + p.level); opt.value = p.id; profession.appendChild(opt); }
     profession.value = String(focus.profession); parent.appendChild(professionLabel); parent.appendChild(profession); draftField(profession, bot, 'focus-profession');
-    var save = localButton(parent, 'Save activity focus', function () { act({action:'focus',name:bot.name,focus:choice.value,profession:profession.value}); }, 'primary'); save.disabled = busy || bot.closing;
+    var save = localButton(parent, tr('Save activity focus'), function () { act({action:'focus',name:bot.name,focus:choice.value,profession:profession.value}); }, 'primary'); save.disabled = busy || bot.closing;
     parent.appendChild(node('p', focus.knownRecipes + ' known native recipes \u00b7 ' + focus.reason, 'hint'));
-    parent.appendChild(node('p', 'Instance PvE prioritizes equipment readiness; it does not enter a queue or leave your party. Gathering and crafting use real nearby sources, trainers, materials, tools and this companion\u2019s own budget.', 'hint'));
+    parent.appendChild(node('p', tr('Instance PvE prioritizes equipment readiness; it does not enter a queue or leave your party. Gathering and crafting use real nearby sources, trainers, materials, tools and this companion\u2019s own budget.'), 'hint'));
     renderMarket(parent, focus.market);
   }
   function renderMarket(parent, market) {
     if (!market || !market.available) return;
-    parent.appendChild(node('h4', 'Central Market'));
+    parent.appendChild(node('h4', tr('Central Market')));
     parent.appendChild(node('p', market.scope, 'hint'));
     if (market.held > 0) parent.appendChild(node('p', market.held.toLocaleString() + ' Kinah waiting in this companion\u2019s market wallet.', 'hint'));
     var rows = market.orders.concat(market.trades);
-    if (!rows.length) parent.appendChild(node('p', 'No market activity yet.', 'hint'));
+    if (!rows.length) parent.appendChild(node('p', tr('No market activity yet.'), 'hint'));
     for (var i = 0; i < rows.length; i++) parent.appendChild(node('p', rows[i].text, 'market-line'));
   }
   var passConfirmation = {}, recycleQuotes = {}, recycleTargets = {};
@@ -1660,9 +1775,9 @@
   function pageControls(parent, key, pages, total, size) {
     var page = Math.min(pages[key] || 0, Math.max(0, Math.ceil(total / size) - 1)); pages[key] = page;
     var bar = node("div", null, "pagination"); parent.appendChild(bar);
-    localButton(bar, "Previous", function () { pages[key] = page - 1; renderSelection(); byId('bot-detail').scrollTop = 0; }).disabled = page === 0;
+    localButton(bar, tr("Previous"), function () { pages[key] = page - 1; renderSelection(); byId('bot-detail').scrollTop = 0; }).disabled = page === 0;
     bar.appendChild(node("span", " Page " + (page + 1) + " / " + Math.max(1, Math.ceil(total / size)) + " "));
-    localButton(bar, "Next", function () { pages[key] = page + 1; renderSelection(); byId('bot-detail').scrollTop = 0; }).disabled = (page + 1) * size >= total;
+    localButton(bar, tr("Next"), function () { pages[key] = page + 1; renderSelection(); byId('bot-detail').scrollTop = 0; }).disabled = (page + 1) * size >= total;
     return page * size;
   }
   function renderBenefits(parent, bot) {
@@ -1686,18 +1801,18 @@
     var chapter = overviewTile(grid, 'Chronicle of Atreia');
     overviewRow(chapter, 'Chapters', (chronicle.chapters || 0) + ' / ' + (chronicle.chapterGoal || 5));
     overviewRow(chapter, 'Own completed quests', chronicle.completedQuests || 0);
-    chapter.appendChild(node('p', chronicle.pending ? 'Recent quest progress awaits native save.' : 'Earned from this character’s own quest history.', 'hint'));
+    chapter.appendChild(node('p', chronicle.pending ? tr('Recent quest progress awaits native save.') : tr('Earned from this character’s own quest history.'), 'hint'));
     if (bot.giveOnly && collection.enabled) {
       var renown = overviewTile(grid, 'Collection Renown');
       overviewRow(renown, 'Combat / Life / Legend', collection.combat + ' / ' + collection.life + ' / ' + collection.legend);
       overviewRow(renown, 'Credited recruits', collection.creditedBots);
-      button(renown, collection.stipendClaimed ? 'Stipend claimed today' : 'Claim ' + collection.stipend + ' Kinah', {action:'collectionstipend',name:bot.name}, bot.closing || collection.stipendClaimed || !(collection.stipend > 0), 'primary');
-      renown.appendChild(node('p', 'One daily collection stipend. Recruits also claim it automatically while idle.', 'hint'));
+      button(renown, collection.stipendClaimed ? tr('Stipend claimed today') : 'Claim ' + collection.stipend + ' Kinah', {action:'collectionstipend',name:bot.name}, bot.closing || collection.stipendClaimed || !(collection.stipend > 0), 'primary');
+      renown.appendChild(node('p', tr('One daily collection stipend. Recruits also claim it automatically while idle.'), 'hint'));
     }
     var data = state.benefits;
     if (!data || String(data.id) !== String(bot.id) || data.error) {
-      var loading = overviewTile(grid, 'Personal Season Pass'); loading.appendChild(node('p', data && data.error ? data.error : 'Refresh to load this companion’s Pass.', 'hint'));
-      localButton(loading, 'Refresh Pass', function () { request(null); });
+      var loading = overviewTile(grid, 'Personal Season Pass'); loading.appendChild(node('p', data && data.error ? tr(data.error) : tr('Refresh to load this companion’s Pass.'), 'hint'));
+      localButton(loading, tr('Refresh Pass'), function () { request(null); });
       choose('summary'); return;
     }
     var pass = data.pass, season = pass.season || {}, personal = overviewTile(grid, season.name || 'Personal Season Pass');
@@ -1705,9 +1820,9 @@
     overviewRow(personal, 'Own Kinah', pass.kinah);
     overviewRow(personal, 'Pass tier', pass.tier >= 2 ? 'Grace of the Tower' : pass.tier >= 1 ? 'Charter of Atreia' : 'Free');
     if (pass.queuedActivity) personal.appendChild(node('p', pass.queuedActivity + ' activities awaiting native save.', 'hint'));
-    localButton(personal, 'Refresh Pass', function () { request(null); }, 'secondary').disabled = busy || bot.closing;
+    localButton(personal, tr('Refresh Pass'), function () { request(null); }, 'secondary').disabled = busy || bot.closing;
     if (pass.canManage && pass.active && pass.tier < 2) {
-      var upgrades = upgradesPane; upgrades.appendChild(node('h3', 'Optional Pass upgrades'));
+      var upgrades = upgradesPane; upgrades.appendChild(node('h3', tr('Optional Pass upgrades')));
       upgrades.appendChild(node('p', 'Paid from ' + bot.name + '’s own Kinah. Purchases require your confirmation.', 'hint'));
       for (var tier = 1; tier <= 2; tier++) (function (tier) {
         if (pass.tier >= tier) return;
@@ -1716,12 +1831,12 @@
         if (passConfirmation[bot.id] === tier) {
           upgrades.appendChild(node('p', 'Pay ' + cost + ' Kinah from ' + bot.name + ' for ' + title + '?', 'detail'));
           button(upgrades, 'Confirm purchase · ' + cost + ' Kinah', {action:'passaction',passAction:'purchase',name:bot.name,tier:tier}, bot.closing || pass.kinah < cost, 'primary');
-          localButton(upgrades, 'Cancel purchase', function () { delete passConfirmation[bot.id]; renderSelection(); }, 'secondary');
+          localButton(upgrades, tr('Cancel purchase'), function () { delete passConfirmation[bot.id]; renderSelection(); }, 'secondary');
         } else localButton(upgrades, 'Review ' + title + ' · ' + cost + ' Kinah', function () { passConfirmation[bot.id] = tier; renderSelection(); }, 'secondary').disabled = busy || bot.closing || pass.kinah < cost;
       }(tier));
     }
-    summary.appendChild(node('p', bot.world ? 'This independent world character owns its progress, Pass and items. These pages show its status.' : 'Rewards and boxes are managed automatically while idle, outside party combat. Optional manual claims remain available.', 'benefit-note'));
-    summary.appendChild(node('p', 'Veteran’s Coffer is unavailable for generated companions.', 'benefit-note'));
+    summary.appendChild(node('p', bot.world ? tr('This independent world character owns its progress, Pass and items. These pages show its status.') : tr('Rewards and boxes are managed automatically while idle, outside party combat. Optional manual claims remain available.'), 'benefit-note'));
+    summary.appendChild(node('p', tr('Veteran’s Coffer is unavailable for generated companions.'), 'benefit-note'));
     var missions = pass.missions || [], missionStart = pageControls(missionsPane, bot.id, missionPages, missions.length, 5);
     for (var m = missionStart; m < Math.min(missions.length, missionStart + 5); m++) {
       var mission = missions[m], missionRow = node('div', null, 'benefit-mission');
@@ -1731,13 +1846,13 @@
     var rewards = pass.rewards || [], available = 0;
     for (var r = 0; r < rewards.length; r++) if (rewards[r].available) available++;
     if (pass.canManage) button(rewardsPane, 'Claim ' + available + ' available rewards', {action:'passaction',passAction:'claimAll',name:bot.name}, !available || bot.closing, 'primary');
-    rewardsPane.appendChild(node('p', 'Available rewards, reward mail and boxes are handled automatically while idle and outside party combat.', 'benefit-note'));
+    rewardsPane.appendChild(node('p', tr('Available rewards, reward mail and boxes are handled automatically while idle and outside party combat.'), 'benefit-note'));
     var rewardStart = pageControls(rewardsPane, bot.id, benefitPages, rewards.length, 5);
     for (var n = rewardStart; n < Math.min(rewards.length, rewardStart + 5); n++) {
       var reward = rewards[n], row = node('div', null, 'item benefit-reward');
       row.appendChild(node('strong', 'Lv. ' + reward.level + ' · ' + (reward.track === 0 ? 'Free' : reward.track === 1 ? 'Premium' : 'Advanced') + ' · ' + reward.name + ' x' + reward.quantity));
-      row.appendChild(node('span', reward.claimed ? 'Claimed' : reward.available ? 'Available' : 'Locked', 'reward-status'));
-      if (reward.available && pass.canManage) button(row, 'Claim reward', {action:'passaction',passAction:'claim',name:bot.name,level:reward.level,track:reward.track}, bot.closing);
+      row.appendChild(node('span', reward.claimed ? tr('Claimed') : reward.available ? tr('Available') : tr('Locked'), 'reward-status'));
+      if (reward.available && pass.canManage) button(row, tr('Claim reward'), {action:'passaction',passAction:'claim',name:bot.name,level:reward.level,track:reward.track}, bot.closing);
       rewardsPane.appendChild(row);
     }
     choose(selectedDetails[key] || 'summary');
@@ -1782,23 +1897,23 @@
     flow.waiting = !source ? flow.source : flow.target;
     recycleTimer = window.setTimeout(function () { if (pendingRecycle === flow) stopRecycling('The companion did not arrive. Refresh before trying again.'); },30000);
     invalidateViews(); renderCurrentView(false);
-    notice('Bringing ' + flow.source.name + ' and ' + flow.target.name + ' into your party. Waiting for ' + flow.waiting.name + '.',false);
+    notice(fmt('Bringing {source} and {target} into your party. Waiting for {waiting}.', {source:flow.source.name, target:flow.target.name, waiting:flow.waiting.name}), false);
     act({action:'recruit',name:flow.waiting.name});
   }
   function renderRecycling(parent, bot) {
-    parent.appendChild(node('p', 'Recycling permanently archives this recruit. Their items and stored Kinah cannot be withdrawn. All three displayed rewards are granted together once.', 'hint'));
-    if (!state.recyclingEnabled) { parent.appendChild(node('p', 'Recycling is disabled.', 'hint')); return; }
+    parent.appendChild(node('p', tr('Recycling permanently archives this recruit. Their items and stored Kinah cannot be withdrawn. All three displayed rewards are granted together once.'), 'hint'));
+    if (!state.recyclingEnabled) { parent.appendChild(node('p', tr('Recycling is disabled.'), 'hint')); return; }
     if (pendingRecycle && String(pendingRecycle.source.id) === String(bot.id)) {
       parent.appendChild(node('p', 'Bringing ' + pendingRecycle.source.name + ' and ' + pendingRecycle.target.name + ' into your party. Both must be here before you can review the rewards.', 'detail'));
       if (pendingRecycle.waiting) parent.appendChild(node('p', 'Waiting for ' + pendingRecycle.waiting.name + '\u2026', 'hint'));
-      localButton(parent,'Cancel',function () { stopRecycling(); invalidateViews(); renderSelection(); },'secondary'); return;
+      localButton(parent,tr('Cancel'),function () { stopRecycling(); invalidateViews(); renderSelection(); },'secondary'); return;
     }
     var targets = recyclingTargets(bot), target = null;
-    if (!targets.length) { parent.appendChild(node('p', 'Recycling needs another ticket recruit that can still gain Learning XP.', 'hint')); return; }
+    if (!targets.length) { parent.appendChild(node('p', tr('Recycling needs another ticket recruit that can still gain Learning XP.'), 'hint')); return; }
     for (var t = 0; t < targets.length; t++) if (targets[t].name === recycleTargets[bot.id]) target = targets[t];
     if (!target) target = targets[0]; recycleTargets[bot.id] = target.name;
-    parent.appendChild(node('h3', 'Who receives the Learning XP?'));
-    parent.appendChild(node('p', 'Choose another ticket recruit. Both companions will be brought into your party before you review the rewards.', 'hint'));
+    parent.appendChild(node('h3', tr('Who receives the Learning XP?')));
+    parent.appendChild(node('p', tr('Choose another ticket recruit. Both companions will be brought into your party before you review the rewards.'), 'hint'));
     var start = targets.length > 5 ? pageControls(parent,bot.id,recyclePages,targets.length,5) : 0;
     for (var i = start; i < Math.min(targets.length,start + 5); i++) (function (candidate) {
       var chosen = candidate.name === target.name;
@@ -1808,21 +1923,21 @@
       pick.setAttribute('aria-pressed',chosen ? 'true' : 'false');
     }(targets[i]));
     parent.appendChild(node('p', target.name + ' can gain ' + target.needed + ' more Learning XP.', 'detail'));
-    var prepare = localButton(parent, activeBot(bot.id) && activeBot(target.id) ? 'Preview exact recycling rewards' : 'Bring both into the party and preview rewards',function () { startRecycling(bot,target); },'secondary');
+    var prepare = localButton(parent, activeBot(bot.id) && activeBot(target.id) ? tr('Preview exact recycling rewards') : tr('Bring both into the party and preview rewards'),function () { startRecycling(bot,target); },'secondary');
     prepare.disabled = busy || bot.closing || (!activeBot(bot.id) && (!bot.ready || bot.reserved));
     var quote = recycleQuotes[String(bot.id)];
     if (quote && quote.target === target.name && activeBot(bot.id) && activeBot(target.id)) {
       parent.appendChild(node('p', 'Account: +0.33 Ticket credit \u00b7 ' + quote.target + ': +' + quote.learningXp + ' Learning XP \u00b7 Your inventory: +' + quote.kinah + ' Kinah', 'detail'));
       parent.appendChild(node('p', quote.appraisedItems + ' eligible owned items appraised at ' + quote.itemAppraisal + ' Kinah. ' + quote.warning, 'hint'));
       var expired = quote.expiresAt <= new Date().getTime();
-      button(parent, expired ? 'Quote expired \u00b7 preview again' : 'Confirm permanent recycling of ' + bot.name, {action:'recycle',name:bot.name,target:quote.target,quote:quote.key,confirm:'yes'}, bot.closing || expired, 'danger');
+      button(parent, expired ? tr('Quote expired \u00b7 preview again') : 'Confirm permanent recycling of ' + bot.name, {action:'recycle',name:bot.name,target:quote.target,quote:quote.key,confirm:'yes'}, bot.closing || expired, 'danger');
     }
   }
   function renderCare(parent, bot) {
 
-    var body = subPanel(parent,'maintenance','Equipment care'); body.className += ' care-fields'; body.appendChild(node('h3', 'Equipment care'));
+    var body = subPanel(parent,'maintenance',tr('Equipment care')); body.className += ' care-fields'; body.appendChild(node('h3', tr('Equipment care')));
 
-    if (!bot.temporary) { body.appendChild(node('p', bot.world ? 'Independent bots retain their own care settings and funds.' : 'Automatic enchanting and extraction apply only to Temporary Bots. Your alt retains its existing items.', 'hint')); return; }
+    if (!bot.temporary) { body.appendChild(node('p', bot.world ? tr('Independent bots retain their own care settings and funds.') : tr('Automatic enchanting and extraction apply only to Temporary Bots. Your alt retains its existing items.'), 'hint')); return; }
 
     var draft = careDrafts[bot.id];
 
@@ -1830,18 +1945,18 @@
 
     button(body, 'Extract unused loot: ' + (bot.salvage ? 'On' : 'Off'), { action: 'setting', name: bot.name, setting: 'salvage', enabled: !bot.salvage }, bot.closing, bot.salvage ? 'on' : '');
 
-    body.appendChild(node('p', 'Uses this companion\u2019s own stones, tools and Kinah. Visits nearby real shops when needed. Enchants ordinary equipped armour toward +5 using native success/failure rules. Extracts expendable new loot; protects existing possessions, upgrades, quest items and valuable gear.', 'hint'));
+    body.appendChild(node('p', tr('Uses this companion\u2019s own stones, tools and Kinah. Visits nearby real shops when needed. Enchants ordinary equipped armour toward +5 using native success/failure rules. Extracts expendable new loot; protects existing possessions, upgrades, quest items and valuable gear.'), 'hint'));
 
-    body = subPanel(parent,'budget','Spending limits');
-    var reserveLabel = node('label', 'Minimum Kinah reserve (at least 10,000)'), reserve = node('input'); reserve.id = 'care-reserve'; reserve.type = 'text'; reserve.value = draft ? draft.reserve : (bot.reserve == null ? '10000' : bot.reserve); reserve.disabled = bot.closing; reserveLabel.appendChild(reserve); body.appendChild(reserveLabel);
+    body = subPanel(parent,'budget',tr('Spending limits'));
+    var reserveLabel = node('label', tr('Minimum Kinah reserve (at least 10,000)')), reserve = node('input'); reserve.id = 'care-reserve'; reserve.type = 'text'; reserve.value = draft ? draft.reserve : (bot.reserve == null ? '10000' : bot.reserve); reserve.disabled = bot.closing; reserveLabel.appendChild(reserve); body.appendChild(reserveLabel);
 
-    var budgetLabel = node('label', 'Daily purchase budget (0 disables purchases)'), budget = node('input'); budget.id = 'care-budget'; budget.type = 'text'; budget.value = draft ? draft.dailyBudget : (bot.dailyBudget == null ? '50000' : bot.dailyBudget); budget.disabled = bot.closing; budgetLabel.appendChild(budget); body.appendChild(budgetLabel);
+    var budgetLabel = node('label', tr('Daily purchase budget (0 disables purchases)')), budget = node('input'); budget.id = 'care-budget'; budget.type = 'text'; budget.value = draft ? draft.dailyBudget : (bot.dailyBudget == null ? '50000' : bot.dailyBudget); budget.disabled = bot.closing; budgetLabel.appendChild(budget); body.appendChild(budgetLabel);
 
     reserve.oninput = budget.oninput = function () { careDrafts[bot.id] = { reserve: reserve.value, dailyBudget: budget.value }; };
 
     reserve.onchange = reserve.oninput; budget.onchange = budget.oninput;
 
-    var save = button(body, 'Save spending limits', { action: 'carebudget' }, bot.closing); save.onclick = function () { act({ action: 'carebudget', name: bot.name, reserve: reserve.value, dailyBudget: budget.value }); };
+    var save = button(body, tr('Save spending limits'), { action: 'carebudget' }, bot.closing); save.onclick = function () { act({ action: 'carebudget', name: bot.name, reserve: reserve.value, dailyBudget: budget.value }); };
 
     draftField(reserve,bot,'care-reserve'); draftField(budget,bot,'care-budget');
     body.appendChild(node('p', 'Bought today: ' + (bot.spent || 0) + ' Kinah. Also keeps at least 25% of its current balance.', 'hint'));
@@ -1854,27 +1969,27 @@
 
     if (item.equipped && item.appearanceSet) {
       row.appendChild(node('p', 'Appearance: ' + item.skinName + ' (combat stats kept)', 'hint'));
-      button(row, 'Restore original look', { action: 'resetappearance', name: bot.name, target: item.id }, bot.closing);
+      button(row, tr('Restore original look'), { action: 'resetappearance', name: bot.name, target: item.id }, bot.closing);
     }
     if (item.appearanceTargets && item.appearanceTargets.length) {
       var looks = node('select'); looks.setAttribute('aria-label', 'Combat equipment to transmog with ' + item.name);
       for (var t = 0; t < item.appearanceTargets.length; t++) { var option = node('option', item.appearanceTargets[t].name); option.value = item.appearanceTargets[t].id; looks.appendChild(option); }
       draftField(looks,bot,'look-' + item.id); row.appendChild(looks);
-      var transmog = button(row, 'Use as transmog', {}, bot.closing);
+      var transmog = button(row, tr('Use as transmog'), {}, bot.closing);
       transmog.onclick = function () { act({ action: 'appearance', name: bot.name, item: item.id, target: looks.value }); };
-      row.appendChild(node('p', 'Keeps combat stats and this appearance item. The look follows this slot through gear upgrades.', 'hint'));
+      row.appendChild(node('p', tr('Keeps combat stats and this appearance item. The look follows this slot through gear upgrades.'), 'hint'));
     }
 
     if (!item.equipped && item.slots.length) {
 
-      var slot = draftField(select(row, item.slots),bot,'slot-' + item.id), equip = button(row, 'Equip', { action: 'equip', name: bot.name, item: item.id, slot: slot.value }, bot.closing);
+      var slot = draftField(select(row, item.slots),bot,'slot-' + item.id), equip = button(row, tr('Equip'), { action: 'equip', name: bot.name, item: item.id, slot: slot.value }, bot.closing);
 
       equip.onclick = function () { act({ action: 'equip', name: bot.name, item: item.id, slot: slot.value }); };
 
     }
 
-    if (!bot.world && item.legionStorable) button(row, 'Deposit to legion', { action: 'legiondeposit', name: bot.name, item: item.id }, bot.closing || !bot.legionStorageAvailable);
-    if (!bot.world && item.bankable) button(row, 'Deposit', { action: 'bankdeposit', name: bot.name, item: item.id }, bot.closing || !bot.warehouseAvailable);
+    if (!bot.world && item.legionStorable) button(row, tr('Deposit to legion'), { action: 'legiondeposit', name: bot.name, item: item.id }, bot.closing || !bot.legionStorageAvailable);
+    if (!bot.world && item.bankable) button(row, tr('Deposit'), { action: 'bankdeposit', name: bot.name, item: item.id }, bot.closing || !bot.warehouseAvailable);
 
     parent.appendChild(row);
 
@@ -1882,7 +1997,7 @@
 
   function renderWarehouseItem(parent, bot, item) {
     var row = node('div', null, 'item'); row.setAttribute('data-item-id',item.id); itemHeading(row,item);
-    button(row, 'Withdraw', { action: 'bankwithdraw', name: bot.name, item: item.id }, bot.closing || !bot.warehouseAvailable);
+    button(row, tr('Withdraw'), { action: 'bankwithdraw', name: bot.name, item: item.id }, bot.closing || !bot.warehouseAvailable);
     parent.appendChild(row);
   }
 
@@ -1915,9 +2030,9 @@
     byId('creation-journey').style.display = accountCharacter ? 'block' : 'none';
 
     byId('model-hint').textContent = accountCharacter ? (skipJourney ?
-      'Choose Your Journey: starts at level ' + journey.skipLevel + ' in ' + journey.capital + ' with your selected advanced class. Skipped quest rewards arrive in its mailbox. Complete the capital ceremony normally. Uses a normal character slot.' :
-      'Begins at level 1 in ' + journey.starter + '. Uses a normal character slot; quests, class advancement and rewards follow normal progression.') :
-      'Temporary Bot: matches your level, receives class and role gear, native skills and Stigmas. ' + (state.generatedRandomLooks ? 'Randomized looks keep your height. ' : '') + 'Automatically follows map and dungeon transitions. Dismissal keeps its private roster entry for later.';
+      fmt('Choose Your Journey: starts at level {level} in {capital} with your selected advanced class. Skipped quest rewards arrive in its mailbox. Complete the capital ceremony normally. Uses a normal character slot.', {level: journey.skipLevel, capital: tr(journey.capital)}) :
+      fmt('Begins at level 1 in {starter}. Uses a normal character slot; quests, class advancement and rewards follow normal progression.', {starter: tr(journey.starter)})) :
+      fmt('Temporary Bot: matches your level, receives class and role gear, native skills and Stigmas. {random}Automatically follows map and dungeon transitions. Dismissal keeps its private roster entry for later.', {random: state.generatedRandomLooks ? tr('Randomized looks keep your height. ') : ''});
 
   }
 
@@ -1938,28 +2053,28 @@
     var t = state && state.tickets, actions = byId('summon-actions'), cards = byId('summon-card'), rolls = byId('summon-rolls'), hint = byId('summon-hint'), result = summon.result;
     clear(actions); clear(cards); clear(rolls); clear(byId('summon-result-card')); hint.textContent = '';
     byId('summon-balance').textContent = t ? t.tickets : '';
-    byId('summon-credit').textContent = t && t.credit ? 'Recycle credit: ' + (t.credit / 100).toFixed(2) : '';
+    byId('summon-credit').textContent = t && t.credit ? fmt('Recycle credit: {credit}', {credit: (t.credit / 100).toFixed(2)}) : '';
     byId('summon-start-matched').className = summon.start === 'matched' ? 'on' : ''; byId('summon-start-level1').className = summon.start === 'level1' ? 'on' : '';
     var go = byId('summon-go'), pending = !!(t && t.unfinished), broke = !t || (!pending && t.tickets < t.cost);
-    go.textContent = pending ? 'Reveal your paid recruit' : 'Recruit \u00b7 ' + (t ? t.cost : 1) + ' Ticket'; go.disabled = broke || summon.phase !== 'ready' && summon.phase !== 'result';
+    go.textContent = pending ? tr('Reveal your paid recruit') : fmt('Recruit · {cost} Ticket', {cost: t ? t.cost : 1}); go.disabled = broke || summon.phase !== 'ready' && summon.phase !== 'result';
     if (summon.phase === 'result' && result) {
-      byId('summon-panel-title').textContent = 'Companion recruited';
+      byId('summon-panel-title').textContent = tr('Companion recruited');
       var medal = node('span', label(result.advancedClass).slice(0, 2), 'summon-medal'), who = node('span', null, 'summon-who');
       who.appendChild(node('strong', result.name)); who.appendChild(node('span', label(result.advancedClass)));
       cards.appendChild(medal); cards.appendChild(who);
       var shown = byId('summon-result-card'); shown.appendChild(cardPortrait(result.advancedClass, 'summon-mini', result.gender));
       var plate = node('span', null, 'summon-plate'); plate.appendChild(node('strong', result.name)); plate.appendChild(node('span', label(result.advancedClass))); shown.appendChild(plate);
-      summonRoll(rolls, 'Auto-equip', result.gear, summonTier(result.gear)); summonRoll(rolls, 'Combat rank', result.rank, summonTier(result.rank));
-      localButton(actions, 'View companion', function () { closeSummon(); byId('tab-roster').onclick(); });
-      go.textContent = 'Recruit again \u00b7 ' + t.cost + ' Ticket';
-      if (broke) hint.textContent = 'You have no Tickets left.';
+      summonRoll(rolls, tr('Auto-equip'), result.gear, summonTier(result.gear)); summonRoll(rolls, tr('Combat rank'), result.rank, summonTier(result.rank));
+      localButton(actions, tr('View companion'), function () { closeSummon(); byId('tab-roster').onclick(); });
+      go.textContent = fmt('Recruit again · {cost} Ticket', {cost: t.cost});
+      if (broke) hint.textContent = tr('You have no Tickets left.');
     } else {
-      byId('summon-panel-title').textContent = 'Recruit a companion';
-      hint.textContent = pending ? 'Your Ticket is already spent. Revealing it costs nothing more.' : broke ? 'You need a Recruitment Ticket to recruit.' : 'Each of the ' + (t ? t.classCount : 11) + ' classes is equally likely. A name is chosen for you, and you can rename them later from their card.';
+      byId('summon-panel-title').textContent = tr('Recruit a companion');
+      hint.textContent = pending ? tr('Your Ticket is already spent. Revealing it costs nothing more.') : broke ? tr('You need a Recruitment Ticket to recruit.') : fmt('Each of the {count} classes is equally likely. A name is chosen for you, and you can rename them later from their card.', {count: t ? t.classCount : 11});
     }
     var odds = byId('summon-odds'); clear(odds); odds.style.display = summon.odds ? 'block' : 'none';
     if (summon.odds && t) {
-      odds.appendChild(node('p', 'Auto-equip and Combat rank are drawn separately, each with these chances:', 'hint'));
+      odds.appendChild(node('p', tr('Auto-equip and Combat rank are drawn separately, each with these chances:'), 'hint'));
       for (var tier in t.odds) if (Object.prototype.hasOwnProperty.call(t.odds, tier)) odds.appendChild(node('span', label(tier) + ' ' + t.odds[tier].toFixed(2) + '%'));
     }
   }
@@ -2015,8 +2130,7 @@
     var temporary = byId('model').value === 'generate', freeCount = state.freeGeneratedCount == null ? state.generatedCount : state.freeGeneratedCount;
     byId('create').querySelector('button').disabled = !state.enabled || (temporary ?
       !state.generatedEnabled || freeCount >= state.generatedLimit : !(state.recruitRemaining > 0));
-    byId('creation-capacity').textContent = temporary ? 'Free-generation companions: ' + freeCount + ' / ' + state.generatedLimit +
-      ' created. Full teams keep new bots in your roster for later recruitment.' : '';
+    byId('creation-capacity').textContent = temporary ? fmt('Free-generation companions: {count} / {limit} created. Full teams keep new bots in your roster for later recruitment.', {count: freeCount, limit: state.generatedLimit}) : '';
   }
 
   var mainTabs = document.querySelectorAll('#main-tabs button[data-view]');
@@ -2046,7 +2160,7 @@
   byId('create').onsubmit = function (event) { event.preventDefault(); act({ action: byId('model').value, name: byId('new-name').value, playerClass: byId('new-class').value, start: byId('model').value === 'create' ? byId('new-journey').value : byId('start-level').value }); };
 
   byId('share').onclick = function () { act({action:'share',name:'all',quest:byId('owner-quest').value}); };
-  function updateShare() { if (!state) return; byId('share').disabled = busy || !state.quests.length || !state.active.length; byId('share').textContent = 'Share with party'; }
+  function updateShare() { if (!state) return; byId('share').disabled = busy || !state.quests.length || !state.active.length; byId('share').textContent = tr('Share with party'); }
 
   function rosterSection(view) {
     rosterView = view;
@@ -2093,6 +2207,6 @@
 
   skinChromeIcons();
   if (currentView !== 'party') showView(currentView);
-  if (session) request(null); else notice('Open Companions from Additional Functions while logged in to your character.', true);
+  if (session) request(null); else notice(tr('Open Companions from Additional Functions while logged in to your character.'), true);
 
 }());

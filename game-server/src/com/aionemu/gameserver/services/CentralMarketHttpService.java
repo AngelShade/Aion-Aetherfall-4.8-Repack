@@ -43,7 +43,7 @@ public final class CentralMarketHttpService {
 			if (method.equals("GET") && path.startsWith("/market/media/")) {
 				String file=path.substring("/market/media/".length());
 				// Item image URLs are fulfilled inside the patched client from Items.pak.
-				if(!file.matches("market\\.(css|js)|quantity\\.js")){send(x,404,"text/plain","Native client icon bridge required");return;}
+				if(!file.matches("market\\.(css|js)|(?:quantity|af-i18n)\\.js")){send(x,404,"text/plain","Native client icon bridge required");return;}
 				Path asset=MEDIA.resolve(file); if(!Files.isRegularFile(asset)){send(x,404,"text/plain","Not found");return;}
 				byte[] data=Files.readAllBytes(asset);if(file.endsWith(".css"))data=WindowTextScale.css(data);x.getResponseHeaders().set("Content-Type",file.endsWith(".js")?"application/javascript; charset=utf-8":"text/css; charset=utf-8");
 				x.sendResponseHeaders(200,data.length);x.getResponseBody().write(data);return;

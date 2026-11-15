@@ -353,6 +353,7 @@ namespace Aetherfall {
     if(closeRequested) { busy=false; window.Close(); return; }
     gameArgs=Languages.Arguments(gameArgs,language.Locale);File.AppendAllText(logPath,"\r\n"+language.Summary+"\r\nNative locale: "+language.Locale+"\r\n");
     ProcessStartInfo start=new ProcessStartInfo(ClientPath("bin64/aion.bin"),gameArgs) { WorkingDirectory=root,UseShellExecute=false,CreateNoWindow=true,WindowStyle=ProcessWindowStyle.Hidden };
+    Languages.SetModTextEnvironment(start,root,language);
     start.EnvironmentVariables["DXVK_CONFIG_FILE"]=ClientPath("dxvk.conf");
     string rendererLogs=ClientPath("Mods/Renderer/logs"); Directory.CreateDirectory(rendererLogs); start.EnvironmentVariables["DXVK_LOG_PATH"]=rendererLogs;
     if(ReadVulkan()) {

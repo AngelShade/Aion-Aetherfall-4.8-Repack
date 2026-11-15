@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstdio>
 #include "remember_lifecycle.h"
+#include "../shared/mod_text_catalog.h"
 #ifndef REMEMBER_TEST
 #include <tlhelp32.h>
 #include <cstdlib>
@@ -58,7 +59,7 @@ Ptr find(Ptr dialog,const char* name){return dialog?method<Ptr(*)(Ptr,const char
 void text(Ptr widget,const wchar_t* value){if(widget)method<void(*)(Ptr,const wchar_t*)>(widget,0x290)(widget,value);}
 void check(Ptr box,int value){if(box)method<void(*)(Ptr,int)>(box,0x598)(box,value);}
 bool checked(Ptr box){return box&&method<int(*)(Ptr)>(box,0x5a8)(box)!=0;}
-void status(Ptr dialog,const wchar_t* value){text(find(dialog,"remember_login_status"),value);}
+void status(Ptr dialog,const wchar_t* value){text(find(dialog,"remember_login_status"),mod_text::label(value));}
 // Separate each client installation; never read unrelated Windows credentials.
 bool target(wchar_t (&out)[96]){
     wchar_t path[32768];DWORD n=GetModuleFileNameW(module,path,32768);

@@ -444,7 +444,7 @@ public final class MarketplaceService {
 		body.append("</nav></div></header>");
 		body.append("<div class='shop-layout'><aside class='sidebar'><div class='sidebar-top'>");
 		body.append("<div class='sidebar-kicker'>YOUR CHARACTER</div><div class='character-name'>")
-			.append(escape(player.getName())).append(" <small>LV ").append(player.getLevel()).append("</small></div>")
+			.append("<span data-af-raw>").append(escape(player.getName())).append("</span> <small>LV ").append(player.getLevel()).append("</small></div>")
 			.append("<div class='character-class'>").append(className(player.getPlayerClass())).append("</div>")
 			.append("<div class='wallet-label'>AVAILABLE BALANCE</div><div class='wallet-number'>")
 			.append(String.format("%,d", balance)).append("</div><div class='wallet-unit'>KINAH</div></div>")
@@ -599,7 +599,7 @@ public final class MarketplaceService {
 			body.append("<div class='receipt-item'><div class='receipt-icon'>")
 				.append(nativeIcon(offer.itemId(), offer.count(), 64)).append("</div>")
 				.append("<div class='receipt-item-copy'><span>ITEM</span><strong>")
-				.append(escape(offer.name())).append("</strong><small>Quantity ").append(offer.count())
+				.append("<span data-af-raw>").append(escape(offer.name())).append("</span></strong><small>Quantity ").append(offer.count())
 				.append(" · ").append(escape(offer.section().title)).append("</small></div></div>");
 		}
 		if (status == PurchaseStatus.SUCCESS) {
@@ -608,7 +608,7 @@ public final class MarketplaceService {
 				.append("<div><span>Current balance</span><strong>").append(String.format("%,d", balance))
 				.append(" Kinah</strong></div></div>")
 				.append("<div class='receipt-delivery'><span aria-hidden='true'>✉</span><div><strong>BLACK CLOUD MAIL DELIVERY</strong><p>")
-				.append(escape(offer.name())).append(" was sent to ").append(escape(player.getName()))
+				.append("<span data-af-raw>").append(escape(offer.name())).append("</span> was sent to <span data-af-raw>").append(escape(player.getName())).append("</span>")
 				.append(". Open your in-game mail to collect it.</p></div></div>");
 		} else if (status == PurchaseStatus.FAILED) {
 			body.append("<div class='receipt-guidance'><strong>No purchase was completed.</strong><p>")
@@ -649,7 +649,7 @@ public final class MarketplaceService {
 			.append("<div class='product-content'><div class='product-overline'>")
 			.append(escape(offer.section().title)).append(" <span>·</span> ")
 			.append(escape(offer.quality().name().replace('_', ' '))).append("</div><h3>")
-			.append(escape(offer.name())).append("</h3><p>").append(escape(offer.description())).append("</p>")
+			.append("<span data-af-raw>").append(escape(offer.name())).append("</span></h3><p data-af-raw>").append(escape(offer.description())).append("</p>")
 			.append("<div class='item-chips'><span>LV ").append(offer.unlockLevel()).append("+</span>");
 		if (offer.race() != Race.PC_ALL) body.append("<span>").append(offer.race() == Race.ELYOS ? "ELYOS" : "ASMODIAN").append("</span>");
 		if (offer.gender() != null) body.append("<span>").append(offer.gender()).append("</span>");
@@ -666,7 +666,7 @@ public final class MarketplaceService {
 			.append("<a class='product-button' href='").append(escape(detailUrl)).append("'>View item <span>→</span></a></div>")
 			.append("<button class='info-trigger' type='button' aria-label='Quick details for ")
 			.append(escape(offer.name())).append("'>i</button><div class='mini-tooltip' role='tooltip'><span>QUICK LOOK</span><strong>")
-			.append(escape(offer.name())).append("</strong><p>").append(escape(offer.description())).append("</p><small>")
+			.append("<span data-af-raw>").append(escape(offer.name())).append("</span></strong><p data-af-raw>").append(escape(offer.description())).append("</p><small>")
 			.append(availability.isEmpty() ? (equipment.isEmpty() ? "Meets requirements" : escape(equipment)) : escape(availability)).append("</small></div></article>");
 	}
 
@@ -682,14 +682,14 @@ public final class MarketplaceService {
 			body.append("<div class='review-page'><h2>Review purchase</h2>")
 				.append("<p>Confirm the item, your Kinah total, and where the delivery will go.</p><div class='review-item'>")
 				.append(nativeIcon(offer.itemId(), offer.count(), 64))
-				.append("<div><strong>").append(escape(offer.name())).append("</strong><span>Quantity ")
+				.append("<div><strong data-af-raw>").append(escape(offer.name())).append("</strong><span>Quantity ")
 				.append(offer.count()).append(" · ").append(escape(offer.section().title)).append("</span></div></div>")
 				.append("<div class='review-line'><span>Total price</span><strong id='review-price'>").append(String.format("%,d", offer.price()))
 				.append(" Kinah</strong></div><div class='review-line'><span>Your balance</span><strong>")
 				.append(String.format("%,d", balance)).append(" Kinah</strong></div>")
 				.append("<div class='review-line total'><span>Balance after purchase</span><strong id='review-balance-after'>")
 				.append(String.format("%,d", Math.max(0, balance - offer.price()))).append(" Kinah</strong></div>")
-				.append("<div class='delivery-note'>✉ &nbsp; Delivered to <strong>").append(escape(player.getName()))
+				.append("<div class='delivery-note'>✉ &nbsp; Delivered to <strong data-af-raw>").append(escape(player.getName()))
 				.append("</strong> through Black Cloud mail after payment.</div>");
 			if (availability.isEmpty()) {
 				byte[] bytes = new byte[18];
@@ -723,7 +723,7 @@ public final class MarketplaceService {
 			.append("</div><div class='detail-copy'>")
 			.append("<div class='eyebrow'>").append(escape(offer.section().title)).append(" · ")
 			.append(escape(offer.quality().name().replace('_', ' '))).append("</div><h2>")
-			.append(escape(offer.name())).append("</h2><p class='detail-description'>")
+			.append("<span data-af-raw>").append(escape(offer.name())).append("</span></h2><p class='detail-description' data-af-raw>")
 			.append(escape(offer.description())).append("</p><div class='detail-promise'><span>◆</span><div><strong>Delivery</strong>")
 			.append("<p>").append(offer.count()).append(offer.count() == 1 ? " item" : " items")
 			.append(" in Black Cloud mail for your character.</p></div></div><div class='detail-price'>")
@@ -803,7 +803,7 @@ public final class MarketplaceService {
 			boolean listed = catalog.byId().containsKey(purchase.itemId());
 			body.append("<tr><td>").append(nativeIcon(purchase.itemId(), purchase.quantity(), 36)).append("<div>");
 			if (listed) body.append("<a href='").append(escape(shopUrl(sessionId, Section.ALL, "", 1) + "&view=history&item=" + purchase.itemId())).append("'>");
-			body.append(escape(purchase.name()));
+			body.append("<span data-af-raw>").append(escape(purchase.name())).append("</span>");
 			if (listed) body.append("</a>");
 			body.append("<small>Sent to Black Cloud mail</small></div></td><td>×").append(purchase.quantity()).append("</td><td class='history-price'>")
 				.append(String.format("%,d", purchase.price())).append("</td><td class='history-date'>")
@@ -872,7 +872,7 @@ public final class MarketplaceService {
 		ItemTemplate item = DataManager.ITEM_DATA.getItemTemplate(offer.itemId());
 		StringBuilder tip = new StringBuilder("<div class='tip-overline'>ITEM DETAILS <span>")
 			.append(escape(offer.quality().name().replace('_', ' '))).append("</span></div><div class='tip-name'>")
-			.append(escape(offer.name())).append("</div><div class='tip-facts'>");
+			.append("<span data-af-raw>").append(escape(offer.name())).append("</span></div><div class='tip-facts'>");
 		if (item.getItemGroup() == ItemGroup.NONE)
 			appendTipFact(tip, "Category", offer.section().title);
 		else
@@ -926,7 +926,7 @@ public final class MarketplaceService {
 		}
 		appendTipFact(tip, "Quantity", String.format("%,d", offer.count()));
 		appendTipFact(tip, "Price", String.format("%,d Kinah", offer.price()));
-		tip.append("</div><div class='tip-description'>").append(escape(offer.description())).append("</div>");
+		tip.append("</div><div class='tip-description' data-af-raw>").append(escape(offer.description())).append("</div>");
 		return tip.toString();
 	}
 
@@ -987,7 +987,8 @@ public final class MarketplaceService {
 	private static String page(String body) {
 		return "<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>"
 			+ "<title>Black Cloud Marketplace</title><link rel='stylesheet' href='/shop/media/marketplace.css?v=companions-2'>"
-			+ "<script src='/shop/media/quantity.js?v=1' defer></script><script src='/shop/media/marketplace.js?v=3' defer></script>"
+			+ "<script src='/market/media/af-i18n.js?v=1' defer></script><script src='/shop/media/quantity.js?v=1' defer></script>"
+			+ "<script src='/shop/media/marketplace.js?v=4' defer></script>"
 			+ "</head><body>" + body + "</body></html>";
 	}
 

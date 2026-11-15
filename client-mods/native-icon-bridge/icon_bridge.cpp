@@ -225,6 +225,41 @@ Ptr browser_response(const std::vector<uint8_t>& bytes,const char* type){
     std::wstring name(type,type+std::strlen(type));Ptr mime=from_wide(name.c_str(),name.size());if(!mime)return nullptr;
     Ptr response=response_create(bytes.size(),bytes.data(),mime);destroy_string(mime);return response;
 }
+constexpr char web_text_route[]="/market/media/af-i18n.js";
+std::shared_ptr<std::vector<uint8_t>> web_text_script(){
+    static const auto bytes=[]() -> std::shared_ptr<std::vector<uint8_t>> {
+        wchar_t path[32768]{};
+        DWORD length=GetEnvironmentVariableW(L"AETHERFALL_WEB_TEXT",path,DWORD(std::size(path)));
+        if(!length || length>=std::size(path))return {};
+        std::filesystem::path source(path);
+        std::error_code error;
+        if(!source.is_absolute() || !std::filesystem::is_regular_file(source,error))return {};
+        auto size=std::filesystem::file_size(source,error);
+        if(error || !size || size>4*1024*1024)return {};
+        std::ifstream input(source,std::ios::binary);
+        std::string data(size_t(size),'\0');
+        if(!input.read(data.data(),std::streamsize(data.size())))return {};
+        auto dictionary=aetherfall_web::wide(data);
+        if(dictionary.empty())return {};
+        const char* type=nullptr;
+        auto helper=window_shell(web_text_route,100,type);
+        if(!helper)return {};
+        // Encode the pack bytes as a JS string. Even a malformed pack is data
+        // for JSON.parse, never browser source code.
+        constexpr char digits[]="0123456789abcdef";
+        std::string script="window.AetherfallWebText=\"";
+        script.reserve(script.size()+6*dictionary.size()+4+helper->size());
+        for(wchar_t unit:dictionary){
+            script+="\\u";
+            for(int shift:{12,8,4,0})script+=digits[(unsigned(unit)>>shift)&15];
+        }
+        script+="\";\n";
+        auto result=std::make_shared<std::vector<uint8_t>>(script.begin(),script.end());
+        result->insert(result->end(),helper->begin(),helper->end());
+        return result;
+    }();
+    return bytes;
+}
 Ptr __cdecl on_resource(Ptr view,Ptr request){
     try{
         std::array<char,1024> address{};Ptr value=request_url(request);size_t count=value?to_utf8(value,address.data(),address.size()):address.size();if(value)destroy_string(value);
@@ -233,6 +268,10 @@ Ptr __cdecl on_resource(Ptr view,Ptr request){
             auto endpoint=aetherfall_web::selected(session.empty()?nullptr:session.c_str());
             auto query=path.find('?');std::string bare=path.substr(0,query);bool shop_fetch=bare=="/shop" && path.find("af_fetch=1")!=std::string::npos;
             const char* type=nullptr;
+            if(bare==web_text_route && endpoint.valid && aetherfall_web::route(url,web_text_route)){
+                auto bytes=web_text_script();
+                if(bytes){auto response=browser_response(*bytes,"application/javascript");if(response)return response;}
+            }
             // The server remains the owner of all current window pages. Local
             // shells exist only to show the established connection message
             // when metadata is unavailable; never replace a working page.

@@ -16,6 +16,7 @@ import re
 import sys
 import zipfile
 from xml.etree import ElementTree as ET
+from mod_text import catalog_members
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'expanded-warehouse'))
@@ -271,6 +272,9 @@ def main():
         payload['fonts/fontshader.xml'] = bytes(codec.encode_binary_xml(font_map))
     if report['strings'] < 100000 or report['dialogues'] < 10000:
         raise ValueError('Donor coverage is insufficient: ' + json.dumps(report))
+    mod_text, mod_counts = catalog_members(Path(__file__).with_name(args.code))
+    payload.update(mod_text)
+    report['modText'] = mod_counts
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as pak:
         for name, data in payload.items():

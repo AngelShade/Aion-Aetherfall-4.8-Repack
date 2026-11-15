@@ -1,4 +1,10 @@
 -- Browser methods come from the client's bundled Widget.lua.
+local function privateMenuText(text)
+    return AFTranslate and AFTranslate(text) or text
+end
+local function registerPrivateMenu(label, command, icon)
+    return RegisterMenu(privateMenuText(label), command, icon)
+end
 function PrivateCashShop_OnLoad()
     PrivateCashShopBrowser:CreateWebView();
     PrivateCashShop:Hide();
@@ -6,6 +12,7 @@ end
 
 function PrivateCashShop_Open()
     PrivateCashShop:Show();
+    PrivateCashShop:SetText(privateMenuText("Black Cloud Marketplace"));
     PrivateCashShop:SetRect(0, 0, 1280, 960);
     PrivateCashShopBrowser:LoadUrlWithWebAuth(PRIVATE_CASH_SHOP_URL);
 end
@@ -17,7 +24,7 @@ end
 
 function PrivateWarehouse_Open()
     PrivateWarehouse:Show();
-    PrivateWarehouse:SetText("Central Market");
+    PrivateWarehouse:SetText(privateMenuText("Central Market"));
     -- Queue a native layout pass after Show. The market-specific resize hook
     -- replaces this XML seed with the current viewport and sizes its browser.
     PrivateWarehouse:SetRect(0, 0, 1280, 960);
@@ -27,14 +34,14 @@ end
 function PrivateSeasonPass_Open()
     -- Reuse the already verified, viewport-sized native browser dialog.
     PrivateWarehouse:Show();
-    PrivateWarehouse:SetText("Aetherfall Season Pass");
+    PrivateWarehouse:SetText(privateMenuText("Aetherfall Season Pass"));
     PrivateWarehouse:SetRect(0, 0, 1280, 960);
     PrivateWarehouseBrowser:LoadUrlWithWebAuth(PRIVATE_SEASON_PASS_URL);
 end
 
 function PrivateCompanions_Open()
     PrivateWarehouse:Show();
-    PrivateWarehouse:SetText("Player Companions");
+    PrivateWarehouse:SetText(privateMenuText("Player Companions"));
     PrivateWarehouse:SetRect(0, 0, 1280, 960);
     PrivateWarehouseBrowser:LoadUrlWithWebAuth(PRIVATE_PLAYERBOTS_URL);
 end
@@ -71,6 +78,7 @@ end
 
 function PrivateJourney_Open()
     PrivateJourney:Show();
+    PrivateJourney:SetText(privateMenuText("Choose Your Journey"));
     PrivateJourney:SetRect(0, 0, 1280, 960);
     PrivateJourneyBrowser:LoadUrlWithWebAuth(PRIVATE_JOURNEY_URL);
 end
@@ -80,15 +88,15 @@ function PrivateMenus_Register()
     SLASH_PRIVATECOMPANIONS1 = "/companions";
     SlashCmdList["PRIVATEHELPREQUESTS"] = PrivateHelpRequests_Open;
     SLASH_PRIVATEHELPREQUESTS1 = "/helprequests";
-    RegisterMenu("Player Companions", SLASH_PRIVATECOMPANIONS1, "v5_start_menu_relic_up");
+    registerPrivateMenu("Player Companions", SLASH_PRIVATECOMPANIONS1, "v5_start_menu_relic_up");
     SlashCmdList["PRIVATESEASONPASS"] = PrivateSeasonPass_Open;
     SLASH_PRIVATESEASONPASS1 = "/seasonpass";
     -- The incremental pass package supplies its own ticket skin/registration.
     -- The general menu builder can also target clients without that resource.
-    RegisterMenu("Aetherfall Season Pass", SLASH_PRIVATESEASONPASS1, PRIVATE_SEASON_PASS_ICON or "v5_start_menu_relic_up");
+    registerPrivateMenu("Aetherfall Season Pass", SLASH_PRIVATESEASONPASS1, PRIVATE_SEASON_PASS_ICON or "v5_start_menu_relic_up");
     SlashCmdList["PRIVATEJOURNEY"] = PrivateJourney_Open;
     SLASH_PRIVATEJOURNEY1 = "/journey";
-    RegisterMenu("Choose Your Journey", SLASH_PRIVATEJOURNEY1, "v5_start_menu_relic_up");
+    registerPrivateMenu("Choose Your Journey", SLASH_PRIVATEJOURNEY1, "v5_start_menu_relic_up");
     SlashCmdList["PRIVATECASHSHOP"] = PrivateCashShop_Open;
     SLASH_PRIVATECASHSHOP1 = "/privatecashshop";
     SlashCmdList["PRIVATEWAREHOUSE"] = PrivateWarehouse_Open;
@@ -97,11 +105,11 @@ function PrivateMenus_Register()
     SLASH_PRIVATEWARDROBE1 = "/wardrobe";
     for _, entry in ipairs(PRIVATE_SERVER_MENUS) do
         if entry.command == "transmog" then
-            RegisterMenu(entry.label, SLASH_PRIVATEWARDROBE1, entry.icon);
+            registerPrivateMenu(entry.label, SLASH_PRIVATEWARDROBE1, entry.icon);
         elseif entry.command == "warehouse" then
-            RegisterMenu(entry.label, SLASH_PRIVATEWAREHOUSE1, entry.icon);
+            registerPrivateMenu(entry.label, SLASH_PRIVATEWAREHOUSE1, entry.icon);
         else
-            RegisterMenu(entry.label, "/say ." .. entry.command, entry.icon);
+            registerPrivateMenu(entry.label, "/say ." .. entry.command, entry.icon);
         end
     end
     -- The native HUD Shop shortcut opens PRIVATECASHSHOP directly.

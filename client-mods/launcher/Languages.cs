@@ -14,6 +14,7 @@ namespace Aetherfall {
   public int Version=2; public string Text, Voice;
   public int RussianQuestDialogueRevision;
   public int ChineseDialogueRevision;
+  public int ModTextRevision;
   public int Strings, DialoguePages, FallbackStrings, FallbackPages;
   public List<string> SkippedDialogues=new List<string>();
   public Dictionary<string,LanguageStamp> Inputs=new Dictionary<string,LanguageStamp>();
@@ -23,7 +24,7 @@ namespace Aetherfall {
 
  // Compose a separate native locale from the CURRENT modded English resources.
  // Original archives, ownership/recovery images, connection and country settings stay intact.
- public static class Languages {
+ public static partial class Languages {
   // NA country 1 admits ENU, DEU and FRA only. The native executable rejects
   // invented names (and KOR for this country), silently falling back to ENU.
   // Reserve the otherwise absent FRA slot for composed resources; this never
@@ -32,6 +33,9 @@ namespace Aetherfall {
   const string Active="L10N/fra", LegacyActive="L10N/afl", English="L10N/enu/data/data.pak";
   const int RussianQuestDialogueRevision=1;
   const int ChineseDialogueRevision=1;
+  const int ModTextRevision=1;
+  const string ModTextMember="aetherfall/mod-text.tsv", WebTextMember="aetherfall/web-text.json";
+  const int MaxModTextBytes=1024*1024;
   const string RussianQuestDialogueFont="af_rus_quest_dialogue";
   static readonly Regex QuestDialoguePath=new Regex(@"(?:^|/)quest_q[0-9]+\.html$",RegexOptions.IgnoreCase|RegexOptions.CultureInvariant);
   static readonly Regex DialogueParagraph=new Regex(@"(?is)(<p\b[^>]*>)([^<]*[^\s<][^<]*)(</p\s*>)");
@@ -94,7 +98,11 @@ namespace Aetherfall {
    if(text=="kor") {
     files.AddRange(new string[]{"Data/Strings/Strings.pak","Data/fonts/fonts.pak","Data/ui/ui.pak"});
     files.AddRange(Files(root,"Data/Dialogs").Where(x=>x.EndsWith(".pak",StringComparison.OrdinalIgnoreCase)));
-   } else if(text!="enu")files.Add(Pack(root,text,"data/data.pak",packs));
+   }
+   if(text!="enu") {
+    string textPack=Pack(root,text,"data/data.pak",packs);
+    if(text!="kor"||File.Exists(Source(root,packs,textPack)))files.Add(textPack);
+   }
    files.AddRange(Files(root,Pack(root,voice,"sounds",packs),packs).Where(x=>x.EndsWith(".pak",StringComparison.OrdinalIgnoreCase)));
    // Video audio is baked into the movie; use the selected voice pack's videos when supplied.
    string movies=Pack(root,voice,"data/cutscene/movie",packs);
@@ -104,6 +112,7 @@ namespace Aetherfall {
   }
   static bool Current(string root,LanguageState state,List<string> inputs,string packs) {
    if(state==null||state.Version!=2||state.Inputs.Count!=inputs.Count)return false;
+   if(state.ModTextRevision!=ModTextRevision)return false;
    if(state.Text=="rus"&&state.RussianQuestDialogueRevision!=RussianQuestDialogueRevision)return false;
    if(state.Text=="chs"&&state.ChineseDialogueRevision!=ChineseDialogueRevision)return false;
    foreach(string relative in inputs) { LanguageStamp stamp;if(!state.Inputs.TryGetValue(relative,out stamp)||!Same(stamp,Stamp(Source(root,packs,relative))))return false; }
@@ -203,11 +212,11 @@ namespace Aetherfall {
     state.FallbackPages++;state.SkippedDialogues.Add(name+": "+error.Message);return current;
    }
   }
-  static Dictionary<string,byte[]> Translations(string root,string text,QuestPak english,LanguageState state,string packs) {
+  static Dictionary<string,byte[]> Translations(string root,string text,QuestPak english,LanguageState state,QuestPak textPack) {
    var changes=new Dictionary<string,byte[]>();
    if(text=="enu")return changes;
    if(text!="kor") {
-    QuestPak source=new QuestPak(File.ReadAllBytes(Source(root,packs,Pack(root,text,"data/data.pak",packs))));
+    QuestPak source=textPack;
     var names=source.Names.ToDictionary(x=>x.ToLowerInvariant(),x=>x);
     foreach(string name in english.Names) {
      string translated;if(!names.TryGetValue(name.ToLowerInvariant(),out translated))continue;
@@ -236,12 +245,44 @@ namespace Aetherfall {
     foreach(string font in new string[]{"fontshader.xml","graphicchar.xml"})changes["fonts/"+font]=fonts.Read(font);
     changes["ui/ui_font.xml"]=ui.Read("ui_font.xml");
    }
+   if(textPack!=null&&textPack.Contains(LoginNoticeMember)&&english.Contains(LoginNoticeLayout)) {
+    if(textPack.Locate(LoginNoticeMember).Size>MaxLoginNoticeBytes)throw new InvalidDataException("Login notice translation is too large.");
+    byte[] notice=LocalizeLoginNotice(english.Read(LoginNoticeLayout),textPack.Read(LoginNoticeMember));
+    if(notice!=null)changes[LoginNoticeLayout]=notice;
+   }
    if(state.Strings<1000)throw new InvalidDataException("This text pack does not match the installed client's native string keys and IDs.");
    return changes;
   }
   static void Write(string root,string relative,byte[] bytes,LanguageState state) {
    string path=PathAt(root,relative);Directory.CreateDirectory(Path.GetDirectoryName(path));File.WriteAllBytes(path,bytes);
    LanguageStamp stamp=Stamp(path);stamp.Hash=CustomQuests.Hash(bytes);state.Outputs.Add(relative,stamp);
+  }
+  static string RuntimeTextPath(string member) { return Active+"/data/"+member; }
+  static void WriteRuntimeText(string work,QuestPak source,LanguageState state) {
+   if(source==null)return;
+   foreach(string member in new[]{ModTextMember,WebTextMember}) {
+    if(!source.Contains(member))continue;
+    if(source.Locate(member).Size>MaxModTextBytes)throw new InvalidDataException("Mod text catalog is too large: "+member);
+    byte[] data=source.Read(member);
+    string contents=Utf8.GetString(data);
+    if(member==ModTextMember&&!contents.StartsWith("AFTEXT1\n",StringComparison.Ordinal))
+     throw new InvalidDataException("Unsupported native mod text catalog.");
+    if(member==WebTextMember) {
+     var rows=Json.Deserialize<Dictionary<string,string>>(contents);
+     if(rows==null||rows.Count==0||rows.Any(row=>String.IsNullOrWhiteSpace(row.Key)||String.IsNullOrWhiteSpace(row.Value)))
+      throw new InvalidDataException("Invalid web mod text catalog.");
+    }
+    Write(work,RuntimeTextPath(member),data,state);
+   }
+  }
+  public static void SetModTextEnvironment(ProcessStartInfo start,string root,LanguageResult result) {
+   LanguageState state=result.State;
+   start.EnvironmentVariables["AETHERFALL_TEXT_LANGUAGE"]=state==null?"enu":state.Text;
+   foreach(var file in new[]{new { Name="AETHERFALL_MOD_TEXT",Member=ModTextMember },new { Name="AETHERFALL_WEB_TEXT",Member=WebTextMember }}) {
+    string relative=RuntimeTextPath(file.Member);
+    start.EnvironmentVariables.Remove(file.Name);
+    if(state!=null&&state.Outputs.ContainsKey(relative))start.EnvironmentVariables[file.Name]=PathAt(root,relative);
+   }
   }
   public static LanguageResult Prepare(string root,string text,string voice,string output=null,string packs=null) {
    root=Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar);
@@ -265,12 +306,15 @@ namespace Aetherfall {
    if(output!=null&&(work.Equals(root,StringComparison.OrdinalIgnoreCase)||work.StartsWith(root+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)))throw new IOException("Language preparation needs an external output folder.");
    if(Directory.Exists(PathAt(work,Active)))throw new IOException("Use a fresh language output folder.");
    try {
-   LanguageState state=new LanguageState { Text=text,Voice=voice };
+   LanguageState state=new LanguageState { Text=text,Voice=voice,ModTextRevision=ModTextRevision };
    if(text=="rus")state.RussianQuestDialogueRevision=RussianQuestDialogueRevision;
    if(text=="chs")state.ChineseDialogueRevision=ChineseDialogueRevision;
    foreach(string relative in inputs)state.Inputs.Add(relative,Stamp(Source(root,packs,relative)));
-   QuestPak english=new QuestPak(File.ReadAllBytes(PathAt(root,English)));var replacements=Translations(root,text,english,state,packs);
+   string textPackPath=text=="enu"?null:Source(root,packs,Pack(root,text,"data/data.pak",packs));
+   QuestPak textPack=textPackPath!=null&&File.Exists(textPackPath)?new QuestPak(File.ReadAllBytes(textPackPath)):null;
+   QuestPak english=new QuestPak(File.ReadAllBytes(PathAt(root,English)));var replacements=Translations(root,text,english,state,textPack);
    Write(work,Active+"/data/data.pak",replacements.Count==0?File.ReadAllBytes(PathAt(root,English)):english.Build(replacements),state);
+   WriteRuntimeText(work,textPack,state);
    Write(work,Active+"/fra.pak",File.ReadAllBytes(PathAt(root,"L10N/enu/enu.pak")),state);
    Write(work,Active+"/textures/textures.pak",File.ReadAllBytes(PathAt(root,"L10N/enu/textures/textures.pak")),state);
    string soundPrefix=Pack(root,voice,"sounds",packs)+"/";
@@ -280,7 +324,7 @@ namespace Aetherfall {
    foreach(string relative in inputs)if(!Same(state.Inputs[relative],Stamp(Source(root,packs,relative))))throw new IOException("Language source changed during preparation: "+relative);
    Directory.CreateDirectory(Path.GetDirectoryName(PathAt(work,Folder+"/state.json")));File.WriteAllText(PathAt(work,Folder+"/state.json"),Json.Serialize(state),Utf8);
    if(output==null) { if(foreign)Preserve(root);Install(root,work,old,state); }
-   return new LanguageResult { Locale=Locale,Summary="Prepared "+text+" text / "+voice+" voices; translated "+state.Strings+" strings and "+state.DialoguePages+" dialogue pages. Custom/unmatched text stays English. Movies use the supplied voice pack when available, otherwise the original English videos.",State=state };
+   return new LanguageResult { Locale=Locale,Summary="Prepared "+text+" text / "+voice+" voices; translated "+state.Strings+" native strings and "+state.DialoguePages+" dialogue pages. Available mod catalogs use the selected text pack. Movies use the supplied voice pack when available, otherwise the original English videos.",State=state };
    } finally { if(output==null)LanguageDownloads.Discard(work); }
   }
   static void Copy(string work,string relative,string source,LanguageState state) {

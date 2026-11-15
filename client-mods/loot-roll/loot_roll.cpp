@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include "../shared/mod_text_catalog.h"
 
 // Aion 4.8 NA x64 native dlg_loot_roll. Called only on the native UI thread.
 // Item icons/tooltips, countdown, packet writer and bid handling stay native.
@@ -47,7 +48,8 @@ extern "C" __declspec(dllexport) void AionLootLayout(Ptr dialog){
     int slot=field<int>(dialog,0x340)-0x123;if(slot<0 || slot>=5)return;
     Ptr item=entry(slot);bool rolling=item && field<int>(item,0x6e0)==2;
     Ptr greed=find(dialog,"greed");
-    text(find(dialog,"roll"),rolling?L"Need":L"Bid");text(find(dialog,"abandon"),L"Pass");
+    static const auto need=mod_text::label(L"Need"),bid=mod_text::label(L"Bid"),pass=mod_text::label(L"Pass",L"Loot Roll: Pass");
+    text(find(dialog,"roll"),rolling?need:bid);text(find(dialog,"abandon"),pass);
     if(!item)return;
     Vote& vote=votes[slot];
     bool newItem=!same(vote,item);
@@ -55,7 +57,10 @@ extern "C" __declspec(dllexport) void AionLootLayout(Ptr dialog){
     visible(greed,rolling && !vote.sent);
     visible(find(dialog,"roll"),!rolling || !vote.sent);visible(find(dialog,"abandon"),!rolling || !vote.sent);
     Ptr choice=find(dialog,"your_choice",0x2022);visible(choice,rolling && vote.sent);
-    if(vote.sent)text(choice,vote.choice==1?L"Your choice: Need":vote.choice==2?L"Your choice: Greed":L"Your choice: Pass");
+    if(vote.sent){
+        static const auto votedNeed=mod_text::label(L"Your choice: Need"),votedGreed=mod_text::label(L"Your choice: Greed"),votedPass=mod_text::label(L"Your choice: Pass");
+        text(choice,vote.choice==1?votedNeed:vote.choice==2?votedGreed:votedPass);
+    }
     double scale=*reinterpret_cast<double*>(g+0x1378ec8),width=*reinterpret_cast<double*>(g+0x1378ea8),height=*reinterpret_cast<double*>(g+0x1378eb0);
     if(!std::isfinite(scale) || scale<=0 || scale>4 || !std::isfinite(width) || !std::isfinite(height) || width<=0 || height<=0)return;
     Ptr peers[5]{}, records[5]{}; int count=0;

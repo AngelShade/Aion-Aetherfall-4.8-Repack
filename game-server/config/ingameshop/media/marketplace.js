@@ -2,13 +2,14 @@
 (function () {
   'use strict';
   var request = null, serial = 0, writing = false, timer = null;
+  var tr = window.AetherfallWeb.text, fmt = window.AetherfallWeb.format;
   function message(text, error) {
     var main = document.querySelector('.main-content');
     if (!main) return;
     var node = main.querySelector('.shop-status');
     if (!node) { node = document.createElement('div'); main.insertBefore(node, main.firstChild); }
     node.className = 'shop-status' + (error ? ' is-error' : '');
-    node.setAttribute('role', 'status'); node.textContent = text;
+    node.setAttribute('role', 'status'); node.textContent = tr(text);
   }
   function busy(value) {
     var shell = document.querySelector('.shell');
@@ -25,7 +26,7 @@
     if (!validQuantity(form)) return false;
     var button = form.querySelector('button[type="submit"]');
     if (!button || button.disabled) return false;
-    button.disabled = true; button.textContent = 'Purchasing...';
+    button.disabled = true; button.textContent = tr('Purchasing...');
     return true;
   };
   function money(value) { return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
@@ -34,21 +35,23 @@
     if (!box) return true;
     var max = +box.getAttribute('data-max'), input = box.querySelector('[name="quantity"]');
     if (window.AionQuantity.value(input, max)) return true;
-    message('Quantity must be between 1 and ' + money(max) + '.', true); input.focus(); return false;
+    message(fmt('Quantity must be between 1 and {max}.', {max: money(max)}), true); input.focus(); return false;
   }
   function initQuantity() {
     var box = document.querySelector('.shop-quantity'); if (!box) return;
     var input = box.querySelector('[name="quantity"]'), max = +box.getAttribute('data-max');
-    if (+box.getAttribute('data-count') > 1) box.querySelector('label').textContent = 'Packs · maximum ' + money(max);
+    if (+box.getAttribute('data-count') > 1) box.querySelector('label').textContent = fmt('Packs · maximum {max}', {max: money(max)});
     window.AionQuantity.bindMax(input, box.querySelector('#max-quantity'), max);
     input.oninput = function () {
       var value = window.AionQuantity.value(input, max), price = +box.getAttribute('data-price'), count = +box.getAttribute('data-count');
-      box.querySelector('.quantity-summary').textContent = value ? money(value * count) + ' items total' + (count > 1 ? ' (' + money(value) + ' packs of ' + money(count) + ')' : '') : 'Enter 1–' + money(max) + '.';
+      box.querySelector('.quantity-summary').textContent = value ? (count > 1
+        ? fmt('{total} items total ({packs} packs of {count})', {total: money(value * count), packs: money(value), count: money(count)})
+        : fmt('{total} items total', {total: money(value * count)})) : fmt('Enter 1–{max}.', {max: money(max)});
       var total = document.getElementById('review-price'), after = document.getElementById('review-balance-after');
-      if (total) total.textContent = value ? money(value * price) + ' Kinah' : '—';
-      if (after) after.textContent = value ? money(+box.getAttribute('data-balance') - value * price) + ' Kinah' : '—';
+      if (total) total.textContent = value ? fmt('{amount} Kinah', {amount: money(value * price)}) : '—';
+      if (after) after.textContent = value ? fmt('{amount} Kinah', {amount: money(+box.getAttribute('data-balance') - value * price)}) : '—';
       var confirm = box.parentNode.querySelector('button[type="submit"]');
-      confirm.textContent = value ? 'Confirm & pay ' + money(value * price) + ' Kinah →' : 'Enter a valid quantity';
+      confirm.textContent = value ? fmt('Confirm & pay {amount} Kinah →', {amount: money(value * price)}) : tr('Enter a valid quantity');
       confirm.disabled = !value;
     };
     input.oninput();
@@ -93,6 +96,7 @@
       var markup = document.createElement('div'), html = xhr.responseText;
       var start = html.indexOf('<body>'), end = html.lastIndexOf('</body>');
       markup.innerHTML = start >= 0 && end > start ? html.substring(start + 6, end) : html;
+      window.AetherfallWeb.shell(markup);
       var nextMain = markup.querySelector('.main-content');
       if (!nextMain) { failure(); return; }
       var selectors = ['.main-content', '.side-nav', '.sidebar-top', '.shop-tabs'], i, from, to;

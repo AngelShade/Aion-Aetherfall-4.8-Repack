@@ -51,6 +51,8 @@ def main():
                     # Register after the AionObject stub and before Journey loads.
                     html = html.replace('</head>', '<script>window.sessionRequests=0;window.AionObject.JourneySession=function(){if(++sessionRequests>=3)setTimeout(function(){JourneySessionReady("'+bootstrap_session+'");},20);};</script></head>')
                 self.send(html, 'text/html; charset=utf-8')
+            elif path == '/market/media/af-i18n.js':
+                self.send((media.parent.parent / 'central-market/media/af-i18n.js').read_bytes(), 'application/javascript')
             elif path.startswith('/journey/media/'):
                 file = media / path.rsplit('/', 1)[1]
                 self.send(file.read_bytes(), {'.css':'text/css', '.js':'application/javascript', '.jpg':'image/jpeg', '.png':'image/png'}[file.suffix])

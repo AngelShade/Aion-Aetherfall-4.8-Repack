@@ -11,6 +11,7 @@ import sys
 
 sys.dont_write_bytecode = True
 from prepare_text_pack import codec, crypt_html, sha, tokens
+from mod_text import catalog_members
 
 
 HERE = Path(__file__).resolve().parent
@@ -120,18 +121,21 @@ def translated_dialogue(english, chinese, entry, name):
     return chinese
 
 
-def prepare(client, source, output):
+def prepare(client, source, output, *, client_only=False):
     require(not output.exists() and all(not output.is_relative_to(root) for root in (ROOT, client)),
             'Use a fresh external output directory')
     english_hash, chinese_hash = sha(client / ENGLISH), sha(source)
     strings = load(HERE / 'chs/strings.json')
     dialogues = load(HERE / 'chs/dialogues.json')
+    mod_text, mod_counts = catalog_members(HERE / 'chs', include_web=not client_only)
     replacements = {}
     additions = {}
     changed_strings = sum(len(entries) for entries in strings.values())
     changed_pages = 0
     with codec.read_pak(client / ENGLISH) as english, codec.read_pak(source) as chinese:
         existing = set(chinese.namelist())
+        for name, payload in mod_text.items():
+            (replacements if name in existing else additions)[name] = payload
         for name, entries in strings.items():
             replacements[name] = translated_strings(english.read(name), chinese.read(name), entries, name)
         for name, entry in dialogues.items():
@@ -140,6 +144,7 @@ def prepare(client, source, output):
             translated = translated_dialogue(current, old, entry, name)
             (replacements if name in existing else additions)[name] = encode_dialogue(translated, name)
             changed_pages += len(entry['pages']) if 'pages' in entry else len(named_pages(translated))
+        replacements = {name: data for name, data in replacements.items() if chinese.read(name) != data}
 
     original = source.read_bytes()
     packed = NATIVE['extend_archive'](original, replacements, additions)
@@ -164,7 +169,7 @@ def prepare(client, source, output):
     report = dict(englishSha256=english_hash, baseChineseSha256=chinese_hash,
                   outputSha256=sha(target), outputBytes=target.stat().st_size,
                   strings=changed_strings, dialogueFiles=len(dialogues), dialoguePages=changed_pages,
-                  preservedCompressedMembers=len(preserved))
+                  modText=mod_counts, preservedCompressedMembers=len(preserved), clientOnly=client_only)
     (output / 'coverage.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
     print(json.dumps(report))
 
@@ -174,10 +179,11 @@ def main():
     parser.add_argument('--client', type=Path, required=True)
     parser.add_argument('--source', type=Path, help='Existing managed Chinese data.pak (defaults to installed pack)')
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--client-only', action='store_true', help='Keep the source PAK’s embedded-window catalog')
     args = parser.parse_args()
     client = args.client.resolve(strict=True)
     source = (args.source or client / PACK).resolve(strict=True)
-    prepare(client, source, args.output.resolve())
+    prepare(client, source, args.output.resolve(), client_only=args.client_only)
 
 
 if __name__ == '__main__':

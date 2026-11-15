@@ -71,6 +71,8 @@ def main():
                 html=(MEDIA/'pass.html').read_bytes()
                 if args.profile:html=html.replace(b'<script src=',b'<script>window.__profileIntervals=[];window.setInterval=function(fn,ms){window.__profileIntervals.push({fn:fn,ms:ms});return window.__profileIntervals.length;};</script><script src=',1)
                 self.send(html,'text/html; charset=utf-8')
+            elif path=='/market/media/af-i18n.js':
+                self.send((MEDIA.parent.parent/'central-market/media/af-i18n.js').read_bytes(),'application/javascript')
             elif path.startswith('/market/pass/media/'):
                 f=MEDIA/path.rsplit('/',1)[1]
                 optimized=MEDIA/'optimized'/f.name
