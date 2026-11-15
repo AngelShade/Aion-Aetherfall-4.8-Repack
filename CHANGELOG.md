@@ -10,7 +10,9 @@
 
 ## 0.98.13 - Live portraits, faster bot startup and expanded Simplified Chinese text (14 November 2026)
 
-Live portraits, faster bot startup and expanded Simplified Chinese text.
+Live portraits, faster bot startup and expanded Simplified Chinese text. The Interface refresh adds frame controls and reduces HUD overhead that can affect FPS.
+
+Already on 0.98.13? Follow the Interface repair steps in the GitHub release notes. Earlier versions can use **Update Repack** in the Hub.
 
 ### New
 
@@ -21,9 +23,13 @@ Live portraits, faster bot startup and expanded Simplified Chinese text.
 
 ### Improved
 
-- Customize the text colour and size separately for your player, target, target of target and party frames.
-- Adjust header offsets for each frame, including the class icon, level, gear label and target loot chest.
-- The HUD and unit frames redraw less often when their values stay the same.
+- Set shared text colours or choose a custom colour for each player, target, target of target and party frame. Colours apply immediately.
+- Choose from seven text presets (9–16 px), including Standard (no shadow). Larger text gets taller rows.
+- Use a shared text size across your unit frames or choose a separate size for each frame.
+- Move the class icon, level and dead or unavailable text in each frame’s Header tab.
+- Move the gear label and rank stars together on target and party frames, and adjust the loot chest on the target frame.
+- **FPS and HUD performance.** Unit frames skip redraws when their display stays the same, and HUD and target readouts reuse values.
+- Extra 3D portrait surfaces are created when a portrait needs them, reducing work when the client starts.
 - Bots on the custom unit frames now show a painted gear crest beside their gear label, one for each quality from Poor to Excellent.
 - Custom unit frames support live 3D portraits for your character, your selected target and party bots.
 - Your portrait shows your character's face, hair and visible gear.
@@ -33,6 +39,9 @@ Live portraits, faster bot startup and expanded Simplified Chinese text.
 ### Fixed
 
 - Fixed the target portrait space repeatedly opening and closing.
+- Creatures without a supported 3D portrait keep full-width target bars, without an empty portrait slot.
+- Party bots keep their identity and portraits through brief gaps in party updates.
+- The target header starts after the Codex loot chest so the chest has room beside the text.
 - MoveUI selection boxes follow the visible size of your custom unit frames.
 - Fixed the world slowly emptying of bots after the first wave logged in.
 - Fixed stale target frames after clearing a target and frozen unit frames when a companion became your target's target.
