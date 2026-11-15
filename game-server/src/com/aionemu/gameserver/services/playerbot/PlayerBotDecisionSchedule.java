@@ -7,6 +7,7 @@ import java.util.*;
 
 /** Per-character reaction deadlines. A batch yield must not delay every remaining bot. */
 final class PlayerBotDecisionSchedule {
+ static final long OVERFLOW_DELAY_MS=2000;
  record Ready<T>(T value,int id,long due,boolean controlled) {}
  /** One scheduler observation; a full lane owns no readiness objects or sort work. */
  static final class Pass<T,L> {
@@ -18,6 +19,9 @@ final class PlayerBotDecisionSchedule {
   private int oldestId;
   private long oldestDue=Long.MAX_VALUE;
   private boolean oldestControlled;
+  private T overflowActor;
+  private int overflowId;
+  private long overflowDue=Long.MAX_VALUE;
   private boolean finished;
   Pass(boolean saturated){this.saturated=saturated;}
   void observe(T actor,int id,long due,boolean controlled,boolean active,L lane,int available,long now,boolean reportLag) {
@@ -31,6 +35,11 @@ final class PlayerBotDecisionSchedule {
     if(oldestActor==null || due<oldestDue || due==oldestDue && (controlled && !oldestControlled || controlled==oldestControlled && id<oldestId)){
      oldestActor=actor;oldestId=id;oldestDue=due;oldestControlled=controlled;
     }
+   }
+  }
+  void observeOverflow(T actor,int id,long due,long now) {
+   if(due>0 && now-due>=OVERFLOW_DELAY_MS && (due<overflowDue || due==overflowDue && id<overflowId)) {
+    overflowActor=actor;overflowId=id;overflowDue=due;
    }
   }
   void finish() {
@@ -57,6 +66,7 @@ final class PlayerBotDecisionSchedule {
   boolean saturated(){return saturated;}
   int lateCount(){return lateCount;}
   Ready<T> oldest(){return lateCount==0?null:new Ready<>(oldestActor,oldestId,oldestDue,oldestControlled);}
+  Ready<T> overflow(){return overflowActor==null?null:new Ready<>(overflowActor,overflowId,overflowDue,false);}
  }
  /** Capture mutable actor state once. TimSort comparisons must never read combat timers. */
  static <T> List<Ready<T>> ready(Collection<T> actors,java.util.function.ToIntFunction<T> id,

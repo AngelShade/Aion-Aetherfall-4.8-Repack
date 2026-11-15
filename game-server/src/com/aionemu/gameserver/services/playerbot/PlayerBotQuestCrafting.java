@@ -171,7 +171,7 @@ public final class PlayerBotQuestCrafting {
   if(cost==null || cost>bot.getInventory().getKinah() || bot.getLevel()<10)return false;
   // Clear this bot's prior profession confirmation, then accept only the newly requested operation.
   bot.getResponseRequester().remove(SM_QUESTION_WINDOW.STR_CRAFT_ADDSKILL_CONFIRM);service.learnSkill(bot,npc);
-  bot.getResponseRequester().respond(SM_QUESTION_WINDOW.STR_CRAFT_ADDSKILL_CONFIRM,1);return bot.getSkillList().getSkillLevel(skill)>level;
+  bot.getResponseRequester().respond(SM_QUESTION_WINDOW.STR_CRAFT_ADDSKILL_CONFIRM,1);return bot.getSkillList().isSkillPresent(skill) && bot.getSkillList().getSkillLevel(skill)>level;
  }
  public static boolean learnRecipe(Player bot,int recipe) {
   if(!idle(bot))return false;

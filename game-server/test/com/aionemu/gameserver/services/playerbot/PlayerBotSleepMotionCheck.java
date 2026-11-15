@@ -30,8 +30,13 @@ public final class PlayerBotSleepMotionCheck {
   var population=Files.readString(root.resolve("config/playerbots/population-management.properties"));
   check(session.contains("(hubs?!PlayerBotWorldPlacement.atHub(bot):PlayerBotCampSafety.dangerNow(bot))") && session.contains("var safe=hubs?PlayerBotWorldPlacement.nearestHub(bot):null;boolean hub=safe!=null;")
    && session.contains("if(safe==null)safe=PlayerBotWorldPlacement.nearestSafe(bot,bot.getLevel());"),"A sleeper moves to an own service point, falling back to the nearest safe camp");
-  check(session.contains("&& !PlayerBotRoadDuty.assigned(bot) && !PlayerBotOffscreenTurnIns.talking(bot.getObjectId(),System.currentTimeMillis());") && offscreen.contains("static boolean talking(int bot,long now)"),
-   "Road careers keep their routes and a bot about to hand a quest in is not moved away");
+  check(session.contains("&& !PlayerBotRoadDuty.wardenCareer(bot) && !PlayerBotRoadDuty.assigned(bot)")
+   && session.contains("&& !PlayerBotOffscreenTurnIns.talking(bot.getObjectId(),System.currentTimeMillis());") && offscreen.contains("static boolean talking(int bot,long now)"),
+   "Active and reserve Wardens keep out of hub parking, assigned merchants keep their routes, and pending turn-ins retain custody");
+  check(placement.contains("boolean fieldOnly=PlayerBotRoadDuty.wardenCareer(bot);")
+   && placement.contains("landingGround(map,p,bot.getRace(),null,null,fieldOnly);")
+   && placement.contains("if(fieldOnly && !PlayerBotWardenBeats.field(p.map(),x,y,z))return false;"),
+   "A Warden seeking safety uses the field rule for both direct and standoff landings");
   check(session.contains("!PlayerBotWorldPlacement.nearHuman(safe.map(),safe.x(),safe.y(),safe.z())") && session.contains("if(hub)PlayerBotCampSafety.HUB_PARKS.incrementAndGet();"),
    "Moves stay unseen and only real moves are counted");
   check(placement.contains("static Location nearestHub(Player bot)") && placement.contains("guard.valid(x,y,z) && !occupiedLanding(p.map(),x,y,z)") && placement.contains("p.race()==race && p.hub()"),

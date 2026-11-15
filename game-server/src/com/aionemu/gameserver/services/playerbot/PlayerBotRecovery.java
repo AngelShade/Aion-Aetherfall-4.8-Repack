@@ -9,6 +9,9 @@ import com.aionemu.gameserver.skillengine.SkillEngine;
 /** Recover owned active companions after a wipe or an explicit out-of-combat Summon. */
 public final class PlayerBotRecovery {
  private static final Set<Integer> WAITING=ConcurrentHashMap.newKeySet();
+ /** When each owner was last told why the automatic regroup is waiting; one notice per this long. */
+ private static final java.util.Map<Integer,Long> REFUSED_AT=new ConcurrentHashMap<>();
+ static final long REFUSAL_NOTICE_MS=30_000;
  static boolean ready(PlayerBotSession s) {
   return PlayerBotRecall.eligible(s) && !s.owner().getController().isInCombat();
  }
@@ -22,14 +25,40 @@ public final class PlayerBotRecovery {
    if(t!=null && t.isPassive() && !bot.getEffectController().hasAbnormalEffect(t.getSkillId()))SkillEngine.getInstance().applyEffectDirectly(t,learned.getSkillLevel(),bot,bot);
   }
  }
- static void tick(PlayerBotSession s) {
-  if(s.owner().isDead()){WAITING.add(s.owner().getObjectId());return;}
-  if(!s.bot().isDead())return;
-  var party=PlayerBotService.getInstance().companions(s.owner());
-  if(!WAITING.contains(s.owner().getObjectId()) && (party.isEmpty() || party.stream().anyMatch(member->!member.bot().isDead())))return;
-  if(party.stream().anyMatch(member->!ready(member)))return;
-  PlayerBotSummonPolicy.regroup(party);WAITING.remove(s.owner().getObjectId());
-  com.aionemu.gameserver.utils.PacketSendUtility.sendMessage(s.owner(),"Your companions have revived and regrouped after the wipe. They are recovering and preparing their builds.");
+ /** Actor-local observation at the normal recovery point in the decision. */
+ static boolean needsRegroup(PlayerBotSession session) {
+  Player owner=session.owner();
+  if(PlayerBotDredgion.aboard(session.bot())){
+   WAITING.remove(owner.getObjectId());
+   return false;
+  }
+  if(owner.isDead()){
+   WAITING.add(owner.getObjectId());
+   return false;
+  }
+  return session.bot().isDead();
+ }
+ /** Party work starts after the decision has released its session monitor. */
+ static void regroup(PlayerBotService service,PlayerBotSession trigger) {
+  Player owner=trigger.owner();
+  synchronized(service){
+   if(!service.current(trigger) || trigger.autonomous() || !trigger.bot().isDead() || owner.isDead())return;
+   var party=service.companions(owner);
+   if(party.isEmpty() || !WAITING.contains(owner.getObjectId()) && party.stream().anyMatch(member->!member.bot().isDead()))return;
+   if(party.stream().anyMatch(member->!service.current(member) || PlayerBotDredgion.aboard(member.bot()) || !ready(member)))return;
+   // A refused summon (no safe spot beside the owner yet) is a normal answer, not an AI error: three of those in a
+   // row used to dismiss the companion. The wipe stays pending and the next decision asks again.
+   try{PlayerBotSummonPolicy.regroup(party);}
+   catch(IllegalArgumentException refused){
+    long now=System.currentTimeMillis();
+    Long told=REFUSED_AT.put(owner.getObjectId(),now);
+    if(told!=null && now-told<REFUSAL_NOTICE_MS)REFUSED_AT.put(owner.getObjectId(),told);
+    else com.aionemu.gameserver.utils.PacketSendUtility.sendMessage(owner,"Your companions cannot regroup yet. "+refused.getMessage());
+    return;
+   }
+   WAITING.remove(owner.getObjectId());REFUSED_AT.remove(owner.getObjectId());
+  }
+  com.aionemu.gameserver.utils.PacketSendUtility.sendMessage(owner,"Your companions have revived and regrouped after the wipe. They are recovering and preparing their builds.");
  }
  public static List<PlayerBotSession> selected(Player owner,String name) {
   var service=PlayerBotService.getInstance();if(!name.equalsIgnoreCase("all") && !name.equalsIgnoreCase("selected"))return List.of(service.find(owner,name));
@@ -43,6 +72,6 @@ public final class PlayerBotRecovery {
   for(var session:companions)if(session.bot()==target)return List.of(session);
   return companions;
  }
- static void close(Player owner){if(PlayerBotService.getInstance().companions(owner).stream().allMatch(PlayerBotSession::closing))WAITING.remove(owner.getObjectId());}
+ static void close(Player owner){if(PlayerBotService.getInstance().companions(owner).stream().allMatch(PlayerBotSession::closing)){WAITING.remove(owner.getObjectId());REFUSED_AT.remove(owner.getObjectId());}}
  private PlayerBotRecovery() {}
 }

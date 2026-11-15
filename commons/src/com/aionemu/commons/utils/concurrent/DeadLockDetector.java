@@ -41,35 +41,25 @@ public class DeadLockDetector implements Runnable {
 		if (ids == null)
 			return false;
 		ThreadInfo[] tis = tmx.getThreadInfo(ids, true, true);
-		Long skippableThreadId = null;
-		String info = "Deadlock found:\n";
+		StringBuilder info = new StringBuilder("Deadlock found:\n");
+		// A reported waiter can lead into a cycle without being part of it. Use the
+		// snapshot's direct lock edges so reporting never has to walk that cycle.
 		for (ThreadInfo ti : tis) {
-			if (ti.getLockedSynchronizers().length == 0 && ti.getLockedMonitors().length == 0)
-				continue; // this thread is deadlocked but its not guilty
-			if (skippableThreadId != null && skippableThreadId == ti.getThreadId()) {
-				skippableThreadId = null; // don't log the same relations twice
-				continue;
-			}
-
-			info += createShortLockInfo(ti);
-			ThreadInfo dl = ti;
-			while ((dl = tmx.getThreadInfo(new long[]{dl.getLockOwnerId()}, true, true)[0]).getThreadId() != ti.getThreadId()) {
-				info += createShortLockInfo(dl);
-				if (skippableThreadId == null)
-					skippableThreadId = dl.getThreadId();
-			}
+			if (ti != null && ti.getLockInfo() != null)
+				info.append(createShortLockInfo(ti));
 		}
 
-		info += "\nDeadlocked threads:\n";
+		info.append("\nDeadlocked threads and blocked waiters:\n");
 		for (ThreadInfo ti : tis)
-			info += toStringUnlimited(ti);
-		info += "\nRemaining threads:\n";
+			if (ti != null)
+				info.append(toStringUnlimited(ti));
+		info.append("\nRemaining threads:\n");
 		Set<Long> ignoredIds = Arrays.stream(ids).boxed().collect(Collectors.toSet());
 		for (ThreadInfo ti : tmx.dumpAllThreads(true, true)) {
 			if (!ignoredIds.contains(ti.getThreadId()))
-				info += toStringUnlimited(ti);
+				info.append(toStringUnlimited(ti));
 		}
-		LoggerFactory.getLogger(DeadLockDetector.class).error(info);
+		LoggerFactory.getLogger(DeadLockDetector.class).error(info.toString());
 		return true;
 	}
 

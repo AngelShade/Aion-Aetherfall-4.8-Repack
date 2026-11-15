@@ -2,6 +2,7 @@ package com.aionemu.gameserver.services.playerbot;
 
 import java.lang.reflect.*;
 import java.util.*;
+import java.util.concurrent.*;
 import java.util.function.LongSupplier;
 import com.aionemu.gameserver.controllers.PlayerController;
 import com.aionemu.gameserver.controllers.movement.PlayerMoveController;
@@ -16,13 +17,20 @@ public final class PlayerBotSchedulerCpuCheck {
  private static Field field(Class<?> type,String name)throws Exception{var f=type.getDeclaredField(name);f.setAccessible(true);return f;}
  private static final class Clock extends PlayerController {@Override public long getLastCombatTime(){return 0;}}
  private static final class Actor extends Player {
-  int id,stateReads;Clock control;boolean dead;
+  int id,stateReads;Clock control;boolean dead,looting;
+  CountDownLatch overflowEntered,overflowRelease;
   Actor(){super(null,null);}
-  @Override public int getObjectId(){return id;}
+  @Override public int getObjectId(){
+   if(overflowEntered!=null && Thread.currentThread().getName().startsWith("WorldBotDecisionOverflow-")) {
+    overflowEntered.countDown();
+    try{overflowRelease.await();}catch(InterruptedException e){throw new AssertionError(e);}
+   }
+   return id;
+  }
   @Override public boolean isWorldBot(){return true;}
   @Override public int getWorldId(){return 197;}
   @Override public int getInstanceId(){return 1;}
-  @Override public boolean isLooting(){return false;}
+  @Override public boolean isLooting(){return looting;}
   @Override public boolean isDead(){return dead;}
   @Override public boolean isSpawned(){return false;}
   @Override public boolean isInState(CreatureState state){if(state==CreatureState.RESTING)stateReads++;return false;}
@@ -57,6 +65,14 @@ public final class PlayerBotSchedulerCpuCheck {
   mixed.observe(50,50,1000,true,true,"controlled",1,10000,true);mixed.finish();
   check(new ArrayList<>(mixed.ready().keySet()).equals(List.of("controlled","active")),"controlled dispatch retains original global priority across lanes");
   check(mixed.oldest().id()==50,"backlog oldest tie retains original controlled-first ordering");
+  var overflow=new PlayerBotDecisionSchedule.Pass<Integer,String>(true);
+  overflow.observeOverflow(1,1,0,10000);
+  overflow.observeOverflow(2,2,8001,10000);
+  check(overflow.overflow()==null,"Only a started reaction at least two seconds overdue qualifies");
+  overflow.observeOverflow(3,3,8000,10000);
+  overflow.observeOverflow(5,5,7900,10000);
+  overflow.observeOverflow(4,4,7900,10000);
+  check(overflow.overflow().id()==4,"Overflow selects the oldest eligible actor with a stable identity tie-break");
  }
  @SuppressWarnings("unchecked") private static void actualPass(Unsafe unsafe,int count)throws Exception {
   // Presence is already observed for this isolated scheduler pass; do not initialize the native World.
@@ -68,7 +84,7 @@ public final class PlayerBotSchedulerCpuCheck {
   var schedule=(PlayerBotDecisionSchedule)field(PlayerBotService.class,"decisions").get(service);
   var execution=(PlayerBotExecution)field(PlayerBotService.class,"execution").get(service);
   var held=new ArrayList<Runnable>();var lanes=new ArrayList<PlayerBotBackgroundWork>();
-  for(String name:List.of("controlledWork","activeWorldWork","autonomousWork")){
+  for(String name:List.of("controlledWork","activeWorldWork","autonomousWork","worldOverflowWork")){
    var lane=(PlayerBotBackgroundWork)field(PlayerBotService.class,name).get(service);lanes.add(lane);
    while(lane.available()>0)check(lane.submit(held::add,()->{}),"isolated queued work owns its actual bounded lane");
   }
@@ -118,6 +134,46 @@ public final class PlayerBotSchedulerCpuCheck {
    }finally{com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS=occupiedOnly;}
   }finally{presence.setLong(null,previousObservation);execution.complete(3);lanes.forEach(PlayerBotBackgroundWork::close);held.forEach(Runnable::run);for(var lane:lanes)lane.awaitCompletion();}
  }
+ @SuppressWarnings("unchecked") private static void overflowPass(Unsafe unsafe)throws Exception {
+  var presence=field(PlayerBotWorldActivity.class,"nextObservation");long previous=presence.getLong(null);presence.setLong(null,Long.MAX_VALUE);
+  var constructor=PlayerBotService.class.getDeclaredConstructor();constructor.setAccessible(true);var service=constructor.newInstance();
+  field(PlayerBotService.class,"nextAiMaintenance").setLong(service,Long.MAX_VALUE);
+  field(PlayerBotService.class,"nextDecisionLagReport").setLong(service,Long.MAX_VALUE);
+  var sessions=(Map<Integer,PlayerBotSession>)field(PlayerBotService.class,"sessions").get(service);
+  var schedule=(PlayerBotDecisionSchedule)field(PlayerBotService.class,"decisions").get(service);
+  var worker=(ExecutorService)field(PlayerBotService.class,"worldOverflowWorker").get(service);
+  var overflow=(PlayerBotBackgroundWork)field(PlayerBotService.class,"worldOverflowWork").get(service);
+  var held=new ArrayList<Runnable>();
+  var lanes=new ArrayList<PlayerBotBackgroundWork>();
+  for(String name:List.of("activeWorldWork","autonomousWork")){
+   var lane=(PlayerBotBackgroundWork)field(PlayerBotService.class,name).get(service);lanes.add(lane);
+   while(lane.available()>0)lane.submit(held::add,()->{});
+  }
+  long now=System.currentTimeMillis();
+  var actors=new ArrayList<Actor>();
+  try {
+   for(int id=1;id<=3;id++){
+    var actor=(Actor)unsafe.allocateInstance(Actor.class);actor.id=id;actor.control=new Clock();actor.looting=id!=1;
+    actor.overflowEntered=new CountDownLatch(1);actor.overflowRelease=new CountDownLatch(1);actors.add(actor);
+    var session=PlayerBotMetadataCheck.sessionDefaults((PlayerBotSession)unsafe.allocateInstance(PlayerBotSession.class));
+    field(PlayerBotSession.class,"bot").set(session,actor);field(PlayerBotSession.class,"owner").set(session,actor);
+    field(PlayerBotSession.class,"engine").set(session,new PlayerBotEngine());field(PlayerBotSession.class,"idleReaction").setInt(session,10);
+    sessions.put(id,session);schedule.complete(id,now-11000+id*1000);
+   }
+   var tick=PlayerBotService.class.getDeclaredMethod("tickPass",long.class);tick.setAccessible(true);
+   tick.invoke(service,now);
+   check(actors.get(1).overflowEntered.await(3,TimeUnit.SECONDS),"Oldest active actor enters the separate real worker while both regular lanes are held");
+   tick.invoke(service,now+25);
+   check(overflow.running()==1 && actors.get(0).overflowEntered.getCount()==1 && actors.get(2).overflowEntered.getCount()==1,
+    "A busy overflow worker accepts no second turn and an idle actor cannot claim it");
+   field(PlayerBotSession.class,"closing").setBoolean(sessions.get(2),true);
+  }finally{
+   for(var session:sessions.values())field(PlayerBotSession.class,"closing").setBoolean(session,true);
+   overflow.close();actors.forEach(a->a.overflowRelease.countDown());overflow.awaitCompletion();worker.shutdown();
+   lanes.forEach(PlayerBotBackgroundWork::close);held.forEach(Runnable::run);presence.setLong(null,previous);
+   check(worker.awaitTermination(3,TimeUnit.SECONDS),"The overflow worker drains without running inert gameplay");
+  }
+ }
  private static void nomination() {
   var clock=new BudgetClock();var budget=new PlayerBotNavigationBudget(clock,500,3,2);int initial=clock.reads;
   for(int i=0;i<3000;i++)if(budget.nominated(new Object()))throw new AssertionError("Absent intent was nominated");
@@ -136,6 +192,7 @@ public final class PlayerBotSchedulerCpuCheck {
   com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_DETAIL_TIERS=false;
   purePass();var f=Unsafe.class.getDeclaredField("theUnsafe");f.setAccessible(true);var unsafe=(Unsafe)f.get(null);
   for(int population:new int[]{250,1000,3000})actualPass(unsafe,population);
+  overflowPass(unsafe);
   nomination();System.out.println("OK: "+checks+" actual scheduler eligibility, single-pass reaction, lane saturation, deadlines and empty terrain checks; no World/IDs/SQL/native tasks");
  }
  private PlayerBotSchedulerCpuCheck(){}

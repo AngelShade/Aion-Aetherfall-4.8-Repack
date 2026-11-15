@@ -63,7 +63,7 @@ public final class PlayerBotHttpService {
 				var identityQuery = parse(exchange.getRequestURI().getRawQuery());
 				Player viewer = MarketplaceService.findPlayer(identityQuery.getOrDefault("session_id", ""));
 				if (viewer == null || !viewer.isOnline() || viewer.isPlayerBot()) { send(exchange, 403, "text/plain", ""); return; }
-				send(exchange, 200, "text/plain", PlayerBotGrowth.identities(identityQuery.getOrDefault("names", ""))); return;
+				send(exchange, 200, "text/plain", PlayerBotGrowth.identities(identityQuery.getOrDefault("names", ""), "1".equals(identityQuery.get("look")))); return;
 			}
 			boolean mutation = path.equals("/market/companions/action");
 			if (!mutation && !path.equals("/market/companions/state")) { send(exchange, 404, "text/plain", "Not found"); return; }

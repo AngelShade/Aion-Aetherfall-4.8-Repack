@@ -78,6 +78,9 @@ final class PlayerBotMeshRoute implements AutoCloseable {
     private static final java.util.concurrent.ConcurrentLinkedQueue<String> LEARNED_PENDING=new java.util.concurrent.ConcurrentLinkedQueue<>();
     private static final java.util.concurrent.atomic.AtomicInteger LEARNED_COUNT=new java.util.concurrent.atomic.AtomicInteger();
     private static volatile boolean learnedLoaded;
+    // Dredgion doors and shields belong to the current instance. Prove prepared
+    // corridors against that instance before publishing them to the mover.
+    static boolean usesSharedNavigationMemory(int world){return PlayerBotDredgion.ship(world)==null;}
     private static long learnedCell(int world,float x,float y){return ((long)world<<40)^(((long)Math.floor(x/4)&0xFFFFF)<<20)^((long)Math.floor(y/4)&0xFFFFF);}
     private static synchronized void loadLearned(){
         if(learnedLoaded)return;learnedLoaded=true;
@@ -96,11 +99,11 @@ final class PlayerBotMeshRoute implements AutoCloseable {
         return false;
     }
     static void rememberObstruction(int world,float x,float y,float z){
-        if(world<=0 || !Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z))return;
+        if(world<=0 || !usesSharedNavigationMemory(world) || !Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z))return;
         loadLearned();remember(world,x,y,z,true);
     }
     static boolean learnedObstruction(int world,Point from,Point to){
-        if(!PlayerBotConfig.NAVMESH_LEARN_BLOCKS)return false;
+        if(!PlayerBotConfig.NAVMESH_LEARN_BLOCKS || !usesSharedNavigationMemory(world))return false;
         loadLearned();double length=distance(from,to);int samples=(int)Math.min(64,Math.max(1,Math.ceil(length/2)));
         for(int i=1;i<=samples;i++){float t=(float)i/samples;
             float x=from.x()+(to.x()-from.x())*t,y=from.y()+(to.y()-from.y())*t;
@@ -120,7 +123,7 @@ final class PlayerBotMeshRoute implements AutoCloseable {
         return false;
     }
     private static void remember(int world,float x,float y,float z,boolean persist){
-        if(!PlayerBotConfig.NAVMESH_LEARN_BLOCKS || LEARNED_COUNT.get()>=200_000 || dedupe(world,x,y,z))return;
+        if(!PlayerBotConfig.NAVMESH_LEARN_BLOCKS || !usesSharedNavigationMemory(world) || LEARNED_COUNT.get()>=200_000 || dedupe(world,x,y,z))return;
         var spot=new float[]{x,y,z};
         LEARNED.computeIfAbsent(learnedCell(world,x,y),k->new java.util.concurrent.CopyOnWriteArrayList<>()).add(spot);
         var order=LEARNED_ORDER.computeIfAbsent(world,k->new ArrayList<>());synchronized(order){order.add(spot);}
@@ -368,7 +371,7 @@ final class PlayerBotMeshRoute implements AutoCloseable {
             try {used=advanceGraph(allowance,expired,used,journeyNeeded);}
             finally {admission.end(this);}
         }
-        if(PlayerBotConfig.NAVIGATION_MEMORY_FIRST && !candidates.isEmpty()){
+        if(PlayerBotConfig.NAVIGATION_MEMORY_FIRST && usesSharedNavigationMemory(world) && !candidates.isEmpty()){
             publishFromMemory(allowance,expired);return;
         }
         while(!candidates.isEmpty() && !done && used<allowance && !expired.getAsBoolean()){
@@ -536,7 +539,7 @@ final class PlayerBotMeshRoute implements AutoCloseable {
         if(!proved.isEmpty() && provedDistance>=.6){
             route=List.copyOf(proved);partial=true;done=true;
             if(bakedCorridor)journey.provedCorridor(start,proofOrigin,bakedStart,cursor);else journey.provedSegment(start,proofOrigin,target);
-            if(PlayerBotConfig.NAVIGATION_MEMORY_FIRST){reason="prepared memory prefix before recorded obstruction";count("memory route prefix: "+why);}
+            if(PlayerBotConfig.NAVIGATION_MEMORY_FIRST && usesSharedNavigationMemory(world)){reason="prepared memory prefix before recorded obstruction";count("memory route prefix: "+why);}
             else {reason="native-proved prepared prefix before obstruction";count("partly passed: "+why);recordArea("partly",why);}
             candidates=List.of();releaseGraph();return;
         }

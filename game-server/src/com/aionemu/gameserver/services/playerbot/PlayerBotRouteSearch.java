@@ -93,18 +93,22 @@ final class PlayerBotRouteSearch {
  private static final java.util.concurrent.ConcurrentHashMap<Key,Failure> MESH_BLOCKED=new java.util.concurrent.ConcurrentHashMap<>();
  private int world;
  private static boolean meshBlockedHere(int world,Point s,Point g){
+  if(!PlayerBotMeshRoute.usesSharedNavigationMemory(world))return false;
   var f=MESH_BLOCKED.get(key(world,s,g));return f!=null && f.count()>=2 && f.until()>System.currentTimeMillis();
  }
  private static void meshBlocked(int world,Point s,Point g){
+  if(!PlayerBotMeshRoute.usesSharedNavigationMemory(world))return;
   if(MESH_BLOCKED.size()>50_000)MESH_BLOCKED.clear();
   long now=System.currentTimeMillis();
   MESH_BLOCKED.merge(key(world,s,g),new Failure(1,now+300_000),(a,b)->new Failure(a.until()>now?a.count()+1:1,b.until()));
  }
  private static Key key(int world,Point s,Point g){return new Key(world,(int)Math.floor(s.x()/6),(int)Math.floor(s.y()/6),(int)Math.floor(g.x()/12),(int)Math.floor(g.y()/12));}
  static boolean recentlyUnreachable(int world,Point s,Point g){
+  if(!PlayerBotMeshRoute.usesSharedNavigationMemory(world))return false;
   var f=UNREACHABLE.get(key(world,s,g));return f!=null && f.count()>=2 && f.until()>System.currentTimeMillis();
  }
  static void failed(int world,Point s,Point g){
+  if(!PlayerBotMeshRoute.usesSharedNavigationMemory(world))return;
   if(UNREACHABLE.size()>50_000)UNREACHABLE.clear();
   long now=System.currentTimeMillis();
   UNREACHABLE.merge(key(world,s,g),new Failure(1,now+300_000),(a,b)->new Failure(a.until()>now?a.count()+1:1,b.until()));

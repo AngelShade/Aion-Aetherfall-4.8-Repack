@@ -14,10 +14,10 @@ public final class PlayerBotRouteMemory {
  private static final Store MEMORY=new Store(Path.of("data","navmesh","learned-routes.csv"));
  private PlayerBotRouteMemory(){}
  static void remember(int world,Point start,Point goal,List<Point> reached){
-  if(PlayerBotConfig.NAVIGATION_MEMORY_FIRST)MEMORY.remember(world,start,goal,reached);
+  if(PlayerBotConfig.NAVIGATION_MEMORY_FIRST && PlayerBotMeshRoute.usesSharedNavigationMemory(world))MEMORY.remember(world,start,goal,reached);
  }
  static List<Point> lookup(int world,Point start,Point goal){
-  if(!PlayerBotConfig.NAVIGATION_MEMORY_FIRST)return List.of();
+  if(!PlayerBotConfig.NAVIGATION_MEMORY_FIRST || !PlayerBotMeshRoute.usesSharedNavigationMemory(world))return List.of();
   List<Point> path=MEMORY.lookup(world,start,goal);
   Point from=start;
   for(Point to:path){

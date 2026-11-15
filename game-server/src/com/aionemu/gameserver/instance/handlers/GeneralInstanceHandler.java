@@ -60,6 +60,17 @@ public class GeneralInstanceHandler implements InstanceHandler {
 		}
 	}
 
+	/**
+	 * Same, for a timed treasure room whose one scripted prize was opened. There is no final fight to rate, so the run ends
+	 * for hired helpers and pays no Recruitment Ticket.
+	 */
+	protected final void completeRun() {
+		if (runCompleted.compareAndSet(false, true)) {
+			PlayerBotRunRewards.opened(instance);
+			com.aionemu.gameserver.services.playerbot.PlayerBotFindGroup.runCompleted(instance.getMapId(), instance.getInstanceId());
+		}
+	}
+
 	@Override
 	public void onInstanceCreate() {
 	}

@@ -449,7 +449,8 @@ public final class PlayerBotSession {
 		// nearest safe camp. Respawns on a grind camp killed sleepers 134 times an hour on 8 Nov. Road careers keep their routes;
 		// a bot that just moved beside a reward NPC to hand a quest in stays for the talk.
 		boolean hubs=autonomous() && com.aionemu.gameserver.configs.main.PlayerBotPopulationConfig.CAMP_SAFETY_PARK_IN_HUBS && PlayerBotCampSafety.enabled()
-			&& !PlayerBotRoadDuty.assigned(bot) && !PlayerBotOffscreenTurnIns.talking(bot.getObjectId(),System.currentTimeMillis());
+			&& !PlayerBotRoadDuty.wardenCareer(bot) && !PlayerBotRoadDuty.assigned(bot)
+			&& !PlayerBotOffscreenTurnIns.talking(bot.getObjectId(),System.currentTimeMillis());
 		if(autonomous() && !bot.isDead() && !bot.isInInstance() && (attacked || PlayerBotCampSafety.dormantCheckDue(bot,System.currentTimeMillis())
 			&& (hubs?!PlayerBotWorldPlacement.atHub(bot):PlayerBotCampSafety.dangerNow(bot)))) {
 			var safe=hubs?PlayerBotWorldPlacement.nearestHub(bot):null;boolean hub=safe!=null;
@@ -462,21 +463,42 @@ public final class PlayerBotSession {
 		worldDormant=true;status="dormant: no human player on this map/instance";
 		return false;
 	}
-	synchronized boolean tick() {
+	enum TickResult { CONTINUE, DISMISS, REGROUP }
+
+	synchronized TickResult tick() {
 		worldPlanningObserved=false;
 		PlayerBotRoadDuty.beginTick(bot);
 		if(autonomous())PlayerBotDetailTier.decided(detail());
-		try {return tickActivity();}
-		finally {PlayerBotRoadDuty.finishTick(this);if(autonomous() && !worldPlanningObserved)worldPlanningReason="planning paused: "+status;PlayerBotActivityChat.observe(this,System.currentTimeMillis());
-			if(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController traced && traced.tracing())traced.traceState(diagnosticState());}
+		TickResult result=null;
+		try {
+			result=tickActivity();
+			return result;
+		} finally {
+			if(result!=TickResult.REGROUP)finishTick();
+		}
 	}
-	private boolean tickActivity() {
-		if (closing) {status="session closing";return true;}
+
+	synchronized boolean finishRegroupDecision(boolean resume) {
+		try {
+			return !resume || tickAfterRecovery(PlayerBotDredgion.aboard(bot), PlayerBotFindGroup.waitingAtEntrance(this));
+		} finally {
+			finishTick();
+		}
+	}
+
+	private void finishTick() {
+		PlayerBotRoadDuty.finishTick(this);
+		if(autonomous() && !worldPlanningObserved)worldPlanningReason="planning paused: "+status;
+		PlayerBotActivityChat.observe(this,System.currentTimeMillis());
+		if(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController traced && traced.tracing())traced.traceState(diagnosticState());
+	}
+
+	private TickResult tickActivity() {
+		if (closing) {status="session closing";return TickResult.CONTINUE;}
 		if(com.aionemu.gameserver.services.AutoGroupService.getInstance().enterCompanionWithOwner(owner,bot)) {
-			navigation.stop();pets.stop(bot);status="following accepted battleground entry";return true;
+			navigation.stop();pets.stop(bot);status="following accepted battleground entry";return TickResult.CONTINUE;
 		}
 		boolean dredgion = PlayerBotDredgion.aboard(bot);
-		boolean dredgionStrategy = dredgion && PlayerBotDredgion.enabled();
 		if (!dredgion && wasInDredgion) PlayerBotDredgion.forget(bot.getObjectId());
 		wasInDredgion = dredgion;
 		if (dredgion && !bot.isDead() && !PlayerBotDredgion.started(bot)) {
@@ -485,66 +507,71 @@ public final class PlayerBotSession {
 			navigation.stop();
 			pets.stop(bot);
 			status = "waiting for Dredgion combat";
-			return true;
+			return TickResult.CONTINUE;
 		}
 		if (dredgion && bot.getController().hasScheduledTask(com.aionemu.gameserver.model.TaskId.ACTION_ITEM_NPC)) {
 			status = "using a Dredgion portal";
-			return true;
+			return TickResult.CONTINUE;
 		}
 		if(followProgress!=null && !canRecoverFollow())followProgress.clear();
-		if(!worldActivity()){if(worldDormant)PlayerBotProfessions.dormantTurn(this,System.currentTimeMillis());if(worldDormant)PlayerBotCare.background(this,System.currentTimeMillis());if(worldDormant)PlayerBotOffscreenTurnIns.turn(this,System.currentTimeMillis());if(worldDormant)PlayerBotPvpPresence.turn(this,System.currentTimeMillis());return true;}
+		if(!worldActivity()){if(worldDormant)PlayerBotProfessions.dormantTurn(this,System.currentTimeMillis());if(worldDormant)PlayerBotCare.background(this,System.currentTimeMillis());if(worldDormant)PlayerBotOffscreenTurnIns.turn(this,System.currentTimeMillis());if(worldDormant)PlayerBotPvpPresence.turn(this,System.currentTimeMillis());return TickResult.CONTINUE;}
 		if(bot.isSpawned() && !bot.isDead())pets.follow(bot,order!=Order.STAY);
 		PlayerBotArbitration.context(engine, List.of(owner.getWorldId(), owner.getInstanceId(),
 			bot.getWorldId(), bot.getInstanceId(), owner.isSpawned(), bot.isSpawned(), owner.isDead(), bot.isDead(),
 			owner.isFlying(), bot.isFlying(), role, order, commandedTarget, mission == null ? 0 : mission.quest,
 			PlayerBotWardens.responseTarget(bot),
 			PlayerBotTeams.members(owner).stream().map(Player::getObjectId).sorted().toList()));
-		if (!autonomous() && !detached() && !owner.isOnline()) return false;
+		if (!autonomous() && !detached() && !owner.isOnline()) return TickResult.DISMISS;
 		boolean awaitingEntrance=PlayerBotFindGroup.waitingAtEntrance(this);
 		if(awaitingEntrance && !bot.isDead() && !settlingCombat() && !bot.isCasting() && !bot.isTrading() && !bot.isLooting()
 			&& bot.getFlightPath()==null && (bot.getInteractionTask()==null || !bot.getInteractionTask().isInProgress())) {
-			PlayerBotArbitration.clear(engine);navigation.stop();pets.stop(bot);status="waiting for human at the dungeon entrance";return true;
+			PlayerBotArbitration.clear(engine);navigation.stop();pets.stop(bot);status="waiting for human at the dungeon entrance";return TickResult.CONTINUE;
 		}
-		if (PlayerBotHeadlessFlight.tick(bot)) { status="following native flight transport"; return true; }
-		if (bot.isUsingFlightTransporterOrWindstream()) { status="waiting for native scripted flight arrival"; return true; }
+		if (PlayerBotHeadlessFlight.tick(bot)) { status="following native flight transport"; return TickResult.CONTINUE; }
+		if (bot.isUsingFlightTransporterOrWindstream()) { status="waiting for native scripted flight arrival"; return TickResult.CONTINUE; }
 		if(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController platformMover && platformMover.ridingPlatform()) {
 			if(!autonomous() && mission==null && (order==Order.FOLLOW || order==Order.PASSIVE)
 				&& (forcedFollow() || order==Order.PASSIVE || !partyEngaged())
 				&& navigation.resumeCompanionFollow(owner,formationSlot)) {
-				status="returning directly to owner";return true;
+				status="returning directly to owner";return TickResult.CONTINUE;
 			}
-			status="travelling on moving platform";return true;
+			status="travelling on moving platform";return TickResult.CONTINUE;
 		}
 		if (!autonomous() && bot.isSpawned() && owner.isSpawned()
 			&& (forcedFollow() || order==Order.PASSIVE || !partyEngaged()))
 			PlayerBotFlight.synchronize(owner, bot, order);
 		if(bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController heightMover && heightMover.traversingHeight()) {
-			status="completing verified jump or descent";return true;
+			status="completing verified jump or descent";return TickResult.CONTINUE;
 		}
 		// Distance recovery outranks trading, casting, quests and stale movement.
-		if (!autonomous() && !detached() && !awaitingEntrance && PlayerBotRecall.automatic(this)) { status="recalling to owner and resuming follow"; return true; }
-		if (PlayerBotTrade.tick(this)) { PlayerBotArbitration.clear(engine); navigation.stop(); pets.stop(bot); status="trading with owner"; return true; }
-		if (!autonomous() && !detached() && !awaitingEntrance && PlayerBotTransfers.follow(this)) { PlayerBotArbitration.clear(engine); navigation.stop(); pets.stop(bot); status="following the complete party map transfer"; return true; }
+		if (!autonomous() && !detached() && !awaitingEntrance && PlayerBotRecall.automatic(this)) { status="recalling to owner and resuming follow"; return TickResult.CONTINUE; }
+		if (PlayerBotTrade.tick(this)) { PlayerBotArbitration.clear(engine); navigation.stop(); pets.stop(bot); status="trading with owner"; return TickResult.CONTINUE; }
+		if (!autonomous() && !detached() && !awaitingEntrance && PlayerBotTransfers.follow(this)) { PlayerBotArbitration.clear(engine); navigation.stop(); pets.stop(bot); status="following the complete party map transfer"; return TickResult.CONTINUE; }
 		if (bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController move && move.hasFailed()) {
-			status = "movement failed: dismissing"; return false;
+			status = "movement failed: dismissing"; return TickResult.DISMISS;
 		}
 		if (!bot.isSpawned() || bot.getPosition().getMapRegion() == null || !autonomous() && !detached() && (!owner.isOnline()
-			|| !PlayerBotTeams.same(owner,bot))) {status="waiting for valid world position or controller";return false;}
+			|| !PlayerBotTeams.same(owner,bot))) {status="waiting for valid world position or controller";return TickResult.DISMISS;}
 		if (!owner.isSpawned() && !detached()) {
 			if (ownerTransferStarted == 0) ownerTransferStarted = System.currentTimeMillis();
 			status = "waiting for owner map transfer"; navigation.stop(); pets.stop(bot);
-			return System.currentTimeMillis() - ownerTransferStarted < 30000;
+			return System.currentTimeMillis() - ownerTransferStarted < 30000 ? TickResult.CONTINUE : TickResult.DISMISS;
 		}
 		ownerTransferStarted = 0;
 		if(PlayerBotWater.endangered(bot)) {
 			PlayerBotArbitration.clear(engine);PlayerBotRecoveryIntent.clear(bot);cancelCharge();
 			if(bot.isCasting())bot.getController().cancelCurrentSkill(null);
-			stand();waterEscape.escape(bot,navigation);status="escaping deep water";return true;
+			stand();waterEscape.escape(bot,navigation);status="escaping deep water";return TickResult.CONTINUE;
 		}
 		waterEscape.safe(bot,navigation);
 		PlayerBotWeaponStance.idle(bot,nextDecision);
 		if (autonomous() && !worldSleepRequested && !awaitingEntrance && !dredgion) PlayerBotWorldActivities.maintenance(this);
-		if (!autonomous()) PlayerBotRecovery.tick(this);
+		if (!autonomous() && PlayerBotRecovery.needsRegroup(this)) return TickResult.REGROUP;
+		return tickAfterRecovery(dredgion, awaitingEntrance) ? TickResult.CONTINUE : TickResult.DISMISS;
+	}
+
+	private boolean tickAfterRecovery(boolean dredgion, boolean awaitingEntrance) {
+		boolean dredgionStrategy = dredgion && PlayerBotDredgion.enabled();
 		if (!PlayerBotRevival.ready(bot)) {
 			if (bot.isDead()) {PlayerBotRecoveryIntent.clear(bot);loot.clear();}
 			cancelCharge(); restorePassives = true;
@@ -781,19 +808,19 @@ public final class PlayerBotSession {
 			&& !materialFlight && !bot.getController().hasTask(com.aionemu.gameserver.model.TaskId.ITEM_USE)
 			&& PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot))
 			&& PlayerBotOphidanBridge.travel(this,navigation,now)) {
-			PlayerBotArbitration.clear(engine);status="heading for a Ophidan Bridge objective";return true;
+			PlayerBotArbitration.clear(engine);status="heading for an Ophidan Bridge objective";return true;
 		}
 		if(autonomous() && !PlayerBotRoadDuty.assigned(bot) && !loot.pending() && !worldSleepRequested && order==Order.FOLLOW && enemies.isEmpty() && !supportNeeded && !incapacitated
 			&& !materialFlight && !bot.getController().hasTask(com.aionemu.gameserver.model.TaskId.ITEM_USE)
 			&& PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot))
 			&& PlayerBotIronWall.travel(this,navigation,now)) {
-			PlayerBotArbitration.clear(engine);status="heading for a Iron Wall objective";return true;
+			PlayerBotArbitration.clear(engine);status="heading for an Iron Wall objective";return true;
 		}
 		if(autonomous() && !PlayerBotRoadDuty.assigned(bot) && !loot.pending() && !worldSleepRequested && order==Order.FOLLOW && enemies.isEmpty() && !supportNeeded && !incapacitated
 			&& !materialFlight && !bot.getController().hasTask(com.aionemu.gameserver.model.TaskId.ITEM_USE)
 			&& PlayerBotFieldCombat.ready(hp(bot),mp(bot),PlayerBotRecoveryIntent.active(bot))
 			&& PlayerBotIdgelDome.travel(this,navigation,now)) {
-			PlayerBotArbitration.clear(engine);status="heading for a Idgel Dome objective";return true;
+			PlayerBotArbitration.clear(engine);status="heading for an Idgel Dome objective";return true;
 		}
 		// PvP-4: arenas, their own travel step.
 		if(autonomous() && !PlayerBotRoadDuty.assigned(bot) && !loot.pending() && !worldSleepRequested && order==Order.FOLLOW && enemies.isEmpty() && !supportNeeded && !incapacitated
@@ -940,9 +967,10 @@ public final class PlayerBotSession {
 		}
 		if ((escapeHazard || spread != null) && bot.isCasting()) {
 			// Let recovery/support casts finish; interrupt offensive casts to react to a newly visible hazard.
+			// The native cast can end between isCasting() and this read.
 			var casting = bot.getCastingSkill();
-			var kind = PlayerBotSkills.classify(casting.getSkillTemplate());
-			if (kind == SkillKind.DAMAGE || kind == SkillKind.CONTROL || kind == SkillKind.TAUNT || kind == SkillKind.DEPLOY || kind == SkillKind.MOBILITY || casting.getSkillTemplate().isCharge()) {
+			var kind = casting == null ? null : PlayerBotSkills.classify(casting.getSkillTemplate());
+			if (casting != null && (kind == SkillKind.DAMAGE || kind == SkillKind.CONTROL || kind == SkillKind.TAUNT || kind == SkillKind.DEPLOY || kind == SkillKind.MOBILITY || casting.getSkillTemplate().isCharge())) {
 				cancelCharge(); bot.getController().cancelCurrentSkill(null); nextDecision = 0;
 			}
 		}
@@ -2138,16 +2166,6 @@ public final class PlayerBotSession {
 			bot.unsetState(CreatureState.RESTING);
 			PacketSendUtility.broadcastPacketAndReceive(bot, new SM_EMOTION(bot, EmotionType.STAND));
 		}
-	}
-	private double healFitness(PlayerBotSkills.Entry entry, Creature target) {
-		// Snapshot the existing heal formula without initialization, chance rolls, observers or effects.
-		var effect = new com.aionemu.gameserver.skillengine.model.Effect(bot, target, entry.template(), entry.level());
-		double heal = 0;
-		for (var template : entry.template().getEffects().getEffects())
-			if (template instanceof com.aionemu.gameserver.skillengine.effect.HealInstantEffect instant)
-				heal += Math.max(0, instant.calculateSnapshotHealValue(effect, com.aionemu.gameserver.skillengine.model.HealType.HP));
-		return PlayerBotTactics.healFit(target.getLifeStats().getMaxHp() - target.getLifeStats().getCurrentHp(), heal,
-			entry.template().getDuration(), hp(target) < 30);
 	}
 	private static double hp(Creature p) { return 100.0 * p.getLifeStats().getCurrentHp() / Math.max(1, p.getLifeStats().getMaxHp()); }
 	private static double mp(Creature p) { return 100.0 * p.getLifeStats().getCurrentMp() / Math.max(1, p.getLifeStats().getMaxMp()); }

@@ -33,6 +33,9 @@ public final class PlayerBotFlight {
   return Transition.NONE;
  }
  static void synchronize(Player owner, Player bot, Order order) {
+  // Ship movement follows deck paths and native portals. A glide launched at
+  // the owner's lip can start on the wrong side of it for a formation slot.
+  if (PlayerBotDredgion.aboard(bot)) return;
   if (bot.isDead() || !bot.canPerformMove() || bot.isTrading() || bot.isLooting() || owner.isUsingFlightTransporterOrWindstream()
    || owner.getWorldId()!=bot.getWorldId() || owner.getInstanceId()!=bot.getInstanceId()
    || bot.getMoveController() instanceof com.aionemu.gameserver.controllers.movement.PlayerBotMoveController mover && mover.ridingPlatform()) return;

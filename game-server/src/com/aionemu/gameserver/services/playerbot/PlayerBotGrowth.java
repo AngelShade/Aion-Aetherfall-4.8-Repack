@@ -275,16 +275,26 @@ public final class PlayerBotGrowth {
  /** "Great gear, Good rank" for a bot's hire question, or empty if it has no growth record. */
  static String identityText(Player bot){try{var p=profile(bot);return p.traitsAssigned()?title(p.autoEquipRarity())+" gear, "+title(p.combatRank())+" rank":"";}catch(IOException | RuntimeException none){return "";}}
  /** Lines of name|rarity|rank for the bots among these comma-separated names. Reads only the live world and each bot's cached profile. */
- public static String identities(String names) {
+ public static String identities(String names) {return identities(names,false);}
+ /** With look, each line also carries |model|look: the model id and the 66 appearance bytes a native 3D portrait is built from. */
+ public static String identities(String names,boolean look) {
   var out=new StringBuilder();int asked=0;
   for(String name:names.split(",")) {
    if(name.isBlank() || name.length()>64 || ++asked>24)continue;
    var player=com.aionemu.gameserver.world.World.getInstance().getPlayer(name);
    if(player==null || !player.isPlayerBot())continue;
-   try{var profile=profile(player);if(profile.traitsAssigned())out.append(identityLine(player.getName(),profile.autoEquipRarity(),profile.combatRank())).append('\n');}
+   try{var profile=profile(player);if(profile.traitsAssigned())out.append(identityLine(player.getName(),profile.autoEquipRarity(),profile.combatRank())).append(look?portraitFields(player):"").append('\n');}
    catch(IOException | RuntimeException noIdentity){/* A bot with no growth record simply shows no label. */}
   }
   return out.toString();
+ }
+ /** "|model|look" for a bot whose appearance is loaded, else empty: a line without them simply draws no portrait. */
+ static String portraitFields(Player bot) {
+  var appearance=bot.getPlayerAppearance();
+  if(appearance==null || !(appearance.getHeightScale()>0) || bot.getRace()==null || bot.getGender()==null)return "";
+  int model=100000+bot.getRace().getRaceId()*2+bot.getGender().getGenderId();
+  if(model<100000 || model>100003)return "";
+  return "|"+model+"|"+java.util.HexFormat.of().formatHex(PlayerBotRecruitLook.record(appearance));
  }
  static GearRarity rarity(Player bot) {
   try { return profile(bot).autoEquipRarity(); } catch(IOException | RuntimeException e) { return null; }

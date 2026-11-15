@@ -341,7 +341,7 @@ final class PlayerBotWorldPlacement {
    if(PlayerBotCampSafety.avoided(p.map(),p.x(),p.y(),level,now))continue;
    if(PlayerBotCampSafety.dangerous(p.map(),p.x(),p.y(),z,race,level)) {
     // A grind camp is a monster spawn point: land outside the pack's aggro range and let the bot pull.
-    var standoff=PlayerBotCampSafety.standoff(p.map(),p.x(),p.y(),z,race,level,landingGround(map,p,race,distribution,nearbyPresence?landingFocus:null),now);
+    var standoff=PlayerBotCampSafety.standoff(p.map(),p.x(),p.y(),z,race,level,landingGround(map,p,race,distribution,nearbyPresence?landingFocus:null,false),now);
     if(standoff==null){PlayerBotCampSafety.DANGER_SKIPS.incrementAndGet();continue;}
     scan.reset();return new Selection(new Location(p.race(),p.map(),standoff.x(),standoff.y(),standoff.z(),p.minimum(),p.maximum(),p.city(),p.hub()),"validated native camp standoff",checked,false);
    }
@@ -377,10 +377,11 @@ final class PlayerBotWorldPlacement {
   }
  }
  /** The same native landing guards the nearby probe applies, for standoff points around a camp anchor. */
- static PlayerBotCampSafety.Ground landingGround(WorldMapTemplate map,Location p,Race race,PlayerBotCampDistribution distribution,PlayerBotPopulationFocus.Snapshot focus) {
+ private static PlayerBotCampSafety.Ground landingGround(WorldMapTemplate map,Location p,Race race,PlayerBotCampDistribution distribution,PlayerBotPopulationFocus.Snapshot focus,boolean fieldOnly) {
   return new PlayerBotCampSafety.Ground(){
    public float height(float x,float y,float sourceZ){return GeoService.getInstance().getZ(p.map(),x,y,sourceZ+6,sourceZ-8,1);}
    public boolean valid(float x,float y,float z){
+    if(fieldOnly && !PlayerBotWardenBeats.field(p.map(),x,y,z))return false;
     var worldMap=World.getInstance().getWorldMap(p.map());
     return (focus==null || focus.nearby(p.map(),x,y,z)) && ground(map,x,y,z,z) && factionSide(race,p.map(),x,y,z) && !nearHuman(p.map(),x,y,z)
      && (distribution==null || distribution.clear(p.map(),x,y,z)) && worldMap!=null && worldMap.getMainWorldMapInstance().getRegion(x,y,z)!=null
@@ -392,12 +393,14 @@ final class PlayerBotWorldPlacement {
  static Location nearestSafe(Player bot,int level) {
   var map=DataManager.WORLD_MAPS_DATA.getTemplate(bot.getWorldId());if(map==null)return null;
   long now=System.currentTimeMillis();long deadline=System.nanoTime()+20_000_000;
+  boolean fieldOnly=PlayerBotRoadDuty.wardenCareer(bot);
   var own=locations().stream().filter(p->p.map()==bot.getWorldId() && suitable(p,bot.getRace(),level,Set.of()))
+   .filter(p->!fieldOnly || !p.hub() && !p.city() && PlayerBotWardenBeats.field(p.map(),p.x(),p.y(),p.z()))
    .sorted(Comparator.comparingDouble(p->PositionUtil.getDistance(bot,p.x(),p.y(),p.z()))).limit(24).toList();
   for(var p:own) {
    if(System.nanoTime()>=deadline)break;
    float z=GeoService.getInstance().getZ(p.map(),p.x(),p.y(),p.z()+2,p.z()-4,1);
-   var guard=landingGround(map,p,bot.getRace(),null,null);
+   var guard=landingGround(map,p,bot.getRace(),null,null,fieldOnly);
    if(Float.isFinite(z) && guard.valid(p.x(),p.y(),z) && !PlayerBotCampSafety.unsafe(p.map(),p.x(),p.y(),z,bot.getRace(),level,now))
     return new Location(p.race(),p.map(),p.x(),p.y(),z,p.minimum(),p.maximum(),p.city(),p.hub());
    var standoff=PlayerBotCampSafety.standoff(p.map(),p.x(),p.y(),Float.isFinite(z)?z:p.z(),bot.getRace(),level,guard,now);
@@ -424,7 +427,7 @@ final class PlayerBotWorldPlacement {
   var near=hubs(bot.getRace(),bot.getWorldId()).stream().sorted(Comparator.comparingDouble(p->PositionUtil.getDistance(bot,p.x(),p.y(),p.z()))).limit(12).toList();
   long deadline=System.nanoTime()+20_000_000;
   for(var p:near) {
-   var guard=landingGround(map,p,bot.getRace(),null,null);
+   var guard=landingGround(map,p,bot.getRace(),null,null,false);
    for(float ring:HUB_RINGS)for(int step=0;step<(ring==0?1:8);step++) {
     if(System.nanoTime()>=deadline)return null;
     float x=p.x()+(float)(Math.cos(step*Math.PI/4)*ring),y=p.y()+(float)(Math.sin(step*Math.PI/4)*ring);

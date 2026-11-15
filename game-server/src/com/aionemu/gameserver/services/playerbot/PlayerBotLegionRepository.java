@@ -11,6 +11,8 @@ import com.aionemu.gameserver.model.team.legion.LegionRank;
 
 /** No shadow roster: native membership and leadership are authoritative, including offline members. */
 final class PlayerBotLegionRepository {
+ private static final int RECORD_CHANGED = 1020; // MariaDB ER_CHECKREAD
+
  record Guild(int id,String name,Race race,int level,int members,boolean protectedMembers,boolean disbanding) {
   boolean eligible(Race requested,int maximum){return race==requested && !protectedMembers && !disbanding && members>0 && members<Math.min(maximum,capacity(level));}
  }
@@ -39,7 +41,11 @@ final class PlayerBotLegionRepository {
   }
  }
  static int membership(Connection c,int character)throws SQLException {
-  try(var s=c.prepareStatement("SELECT legion_id FROM legion_members WHERE player_id=?")){s.setInt(1,character);try(var r=s.executeQuery()){return r.next()?r.getInt(1):0;}}
+  return membership(c,character,false);
+ }
+ private static int membership(Connection c,int character,boolean lock)throws SQLException {
+  String query="SELECT legion_id FROM legion_members WHERE player_id=?";
+  try(var s=c.prepareStatement(lock?query+" FOR UPDATE":query)){s.setInt(1,character);try(var r=s.executeQuery()){return r.next()?r.getInt(1):0;}}
  }
  static int capacity(int level){return switch(level){case 1->LegionConfig.LEGION_LEVEL1_MAX_MEMBERS;case 2->LegionConfig.LEGION_LEVEL2_MAX_MEMBERS;
   case 3->LegionConfig.LEGION_LEVEL3_MAX_MEMBERS;case 4->LegionConfig.LEGION_LEVEL4_MAX_MEMBERS;case 5->LegionConfig.LEGION_LEVEL5_MAX_MEMBERS;
@@ -111,6 +117,16 @@ final class PlayerBotLegionRepository {
   for(int level=1;level<=8;level++)if(capacity(level)>=count)return level;throw new IllegalArgumentException("Company exceeds native legion capacity");
  }
  static Assignment commitCompany(Connection c,CompanyRequest request)throws SQLException {
+  try {
+   return attemptCompany(c,request);
+  } catch(TransactionFailure failure) {
+   // Start with a fresh snapshot after a confirmed rollback, before any commit was attempted.
+   if (!failure.allocationReusable || !(failure.getCause() instanceof SQLException sql) || sql.getErrorCode()!=RECORD_CHANGED)
+    throw failure;
+   return attemptCompany(c,request);
+  }
+ }
+ private static Assignment attemptCompany(Connection c,CompanyRequest request)throws TransactionFailure {
   boolean attempted=false;
   try{c.setAutoCommit(false);var result=company(c,request);attempted=true;c.commit();return result;}
   catch(SQLException|RuntimeException error){boolean reusable=false;try{c.rollback();reusable=!attempted;}catch(SQLException rollback){error.addSuppressed(rollback);}throw new TransactionFailure(error,reusable);}
@@ -120,9 +136,10 @@ final class PlayerBotLegionRepository {
   try(var s=c.prepareStatement("SELECT p.account_id,p.race,b.account_id,b.ready,x.player_id FROM players p JOIN playerbot_roster b ON b.player_id=p.id LEFT JOIN playerbot_removed x ON x.player_id=p.id WHERE p.id=? FOR UPDATE")) {
    s.setInt(1,q.character());try(var r=s.executeQuery()){if(!r.next() || r.getInt(1)!=q.account() || r.getInt(3)!=q.account() || !r.getBoolean(4) || r.getObject(5)!=null || !q.race().name().equals(r.getString(2)))throw new SQLException("Warden native custody changed");}
   }
-  int old=membership(c,q.character());
+  // Keep custody reads locking so an earlier consistent read cannot make a later lock fail with ER_CHECKREAD.
+  int old=membership(c,q.character(),true);
   if(old>0) {
-   try(var s=c.prepareStatement("SELECT map_id,race FROM playerbot_warden_companies WHERE legion_id=?")){s.setInt(1,old);try(var r=s.executeQuery()){if(r.next() && r.getInt(1)==q.map() && r.getString(2).equals(q.race().name()))return new Assignment(old,false,false);}}
+   try(var s=c.prepareStatement("SELECT map_id,race FROM playerbot_warden_companies WHERE legion_id=? FOR UPDATE")){s.setInt(1,old);try(var r=s.executeQuery()){if(r.next() && r.getInt(1)==q.map() && r.getString(2).equals(q.race().name()))return new Assignment(old,false,false);}}
    // Only generated-only membership can migrate. A human legion is never commandeered.
    try(var s=c.prepareStatement("SELECT p.account_id,b.account_id,b.ready,x.player_id FROM legion_members m JOIN players p ON p.id=m.player_id LEFT JOIN playerbot_roster b ON b.player_id=p.id LEFT JOIN playerbot_removed x ON x.player_id=p.id WHERE m.legion_id=? FOR UPDATE")) {
     s.setInt(1,old);try(var r=s.executeQuery()){while(r.next())if(!PlayerBotPopulationPolicy.serverAccount(r.getInt(1)) || r.getInt(1)!=r.getInt(2) || !r.getBoolean(3) || r.getObject(4)!=null)throw new PlayerLegion();}
@@ -159,7 +176,7 @@ final class PlayerBotLegionRepository {
    try(var s=c.prepareStatement("SELECT p.account_id,b.account_id,b.ready,x.player_id FROM players p JOIN playerbot_roster b ON b.player_id=p.id LEFT JOIN playerbot_removed x ON x.player_id=p.id WHERE p.id=? FOR UPDATE")) {
     s.setInt(1,actor);try(var r=s.executeQuery()){if(!r.next() || !PlayerBotPopulationPolicy.serverAccount(account) || r.getInt(1)!=account || r.getInt(2)!=account || !r.getBoolean(3) || r.getObject(4)!=null)throw new SQLException("Reserve native custody changed");}
    }
-   int old=membership(c,actor);if(old==0){c.commit();return;}if(old!=expected)throw new SQLException("Reserve company changed");
+   int old=membership(c,actor,true);if(old==0){c.commit();return;}if(old!=expected)throw new SQLException("Reserve company changed");
    try(var s=c.prepareStatement("SELECT legion_id FROM playerbot_warden_companies WHERE legion_id=? AND company_no>0 FOR UPDATE")) {
     s.setInt(1,old);try(var r=s.executeQuery()){if(!r.next())throw new SQLException("Reserve membership is not a company");}
    }

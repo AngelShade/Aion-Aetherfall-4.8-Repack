@@ -12,6 +12,7 @@ public final class PlayerBotIdentityCheck {
   check(PlayerBotGrowth.identityLine("Bo",PlayerBotGrowth.GearRarity.POOR,PlayerBotGrowth.CombatRank.EXCELLENT).equals("Bo|Poor|Excellent"),"great rank does not recolour poor gear");
   check(PlayerBotGrowth.identities("").isEmpty(),"no names, no answer");
   check(PlayerBotGrowth.identities(",, ,").isEmpty(),"blank names are ignored");
+  check(PlayerBotGrowth.identities("",true).isEmpty(),"asking for looks changes nothing when no bot is named");
   check(PlayerBotHiring.prompt("Renata","Great gear, Good rank",2250,60).startsWith("Hire Renata (Great gear, Good rank)? "),"the hire question names both values");
   check(PlayerBotHiring.prompt("Renata","",2250,60).startsWith("Hire Renata? "),"a bot with no record reads as before");
   check(PlayerBotHiring.prompt("Renata","Great gear, Good rank",2250,60).endsWith("Kinah / 60"),"the question still ends before the native minutes");
@@ -23,7 +24,7 @@ public final class PlayerBotIdentityCheck {
    String name=rarity.name().charAt(0)+rarity.name().substring(1).toLowerCase(java.util.Locale.ROOT);
    check(frames.contains("'"+name.toLowerCase(java.util.Locale.ROOT)+"': '") && labels.contains(name+" = "),"the native frames have a coloured label and the Identity module a tier for "+name);
   }
-  check(labels.contains("('Equip: ' .. rarity)") && labels.contains("('Rank ' .. rankText(rank))"),"the target frame names both values");
+  check(labels.contains("string.format(L('Equip: %s'), L(rarity))") && labels.contains("string.format(L('Rank %s'), rankText(rank))"),"the target frame localizes both labels and preserves the rank value");
   check(hud.contains("AF:Call('Identity', 'Update')") && engine.contains("local result=pack(pcall(f,m,...))"),"labels refresh with the HUD, not per frame, and cannot stop the rest of it");
   var http=Files.readString(root.resolve("src/com/aionemu/gameserver/services/PlayerBotHttpService.java"));
   int identity=http.indexOf("/market/companions/identity");

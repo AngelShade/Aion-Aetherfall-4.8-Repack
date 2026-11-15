@@ -67,8 +67,8 @@ public class _24114YouGottaStopUmkata extends AbstractQuestHandler {
 				if (action == SETPRO1 && var == 3)
 					return defaultCloseDialog(env, 3, 4);
 			} else if (var == 5) {
-				if (action == QUEST_SELECT)
-					return sendQuestDialog(env, 1352);
+				if (action == USE_OBJECT || action == QUEST_SELECT)
+					return sendQuestDialog(env, SELECT2);
 				if (action == SELECT_QUEST_REWARD && changeQuestStep(env, 5, 5, true))
 					return sendQuestDialog(env, 5);
 			}

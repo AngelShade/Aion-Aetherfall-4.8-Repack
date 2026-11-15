@@ -31,6 +31,8 @@ public final class PlayerBotRevival {
    if (now - state.death < DEATH_DELAY) return false;
    if (bot.getResStatus()) PlayerReviveService.skillRevive(bot);
    else if (bot.canUseRebirthRevive()) PlayerReviveService.rebirthRevive(bot);
+   else if (bot.isSpawned() && PlayerBotDredgion.aboard(bot) && PlayerBotDredgion.started(bot)
+     && bot.getWorldMapInstance().getInstanceHandler().allowInstanceRevive()) PlayerReviveService.instanceRevive(bot);
    if (!bot.isDead()) state.recovery = now;
    return false;
   }

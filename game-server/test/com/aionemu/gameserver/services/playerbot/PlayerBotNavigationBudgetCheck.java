@@ -125,6 +125,30 @@ public final class PlayerBotNavigationBudgetCheck {
    PlayerBotMeshRoute.rememberObstruction(42,20,10,0);
    check(PlayerBotMeshRoute.learnedObstruction(42,start,goal),"a native failure is shared with other routes before another collision attempt");
    check(!PlayerBotMeshRoute.learnedObstruction(42,new PlayerBotNavigation.Point(20,10,0),start),"recording a failed spot never traps a bot that needs to leave it");
+   for(var ship:PlayerBotDredgion.SHIPS){
+    int world=ship.map();
+    PlayerBotMeshRoute.rememberObstruction(world,20,10,0);
+    check(!PlayerBotMeshRoute.learnedObstruction(world,start,goal),"One match's gate cannot veto another ship's prepared route");
+    PlayerBotRouteSearch.failed(world,start,goal);
+    PlayerBotRouteSearch.failed(world,start,goal);
+    check(!PlayerBotRouteSearch.recentlyUnreachable(world,start,goal),"A blocked door cannot put another Dredgion bot on the map-wide retry timer");
+    try(var shipRoute=new PlayerBotMeshRoute(world,start,goal,24)){
+     candidates.set(shipRoute,List.of(start,goal));
+     complete.setBoolean(shipRoute,true);
+     shipRoute.advance((from,x,y)->from,128,()->false);
+     check(shipRoute.fallback() && shipRoute.route().isEmpty(),"Dredgion requires a native-proved corridor when the gate is closed");
+    }
+    try(var shipRoute=new PlayerBotMeshRoute(world,start,goal,24)){
+     candidates.set(shipRoute,List.of(start,goal));
+     complete.setBoolean(shipRoute,true);
+     shipRoute.advance((from,x,y)->new PlayerBotNavigation.Point(x,y,0),128,()->false);
+     check(!shipRoute.pending() && shipRoute.route().getLast().equals(goal),"The same corridor advances as soon as its gate is open");
+    }
+   }
+   PlayerBotRouteSearch.failed(42,start,goal);
+   PlayerBotRouteSearch.failed(42,start,goal);
+   check(PlayerBotRouteSearch.recentlyUnreachable(42,start,goal),"Static map routes retain shared retry protection");
+   PlayerBotRouteSearch.succeeded(42,start,goal);
    com.aionemu.gameserver.configs.main.PlayerBotConfig.NAVMESH_LEARN_BLOCKS=false;
    var directory=java.nio.file.Files.createTempDirectory("playerbot-route-memory-");var file=directory.resolve("routes.csv");
    var store=new PlayerBotRouteMemory.Store(file);

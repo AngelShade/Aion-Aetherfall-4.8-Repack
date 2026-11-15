@@ -8,7 +8,7 @@ TESTS={'PlayerBotMetadataCheck':35,'PlayerBotRepositoryCheck':24,'PlayerBotPopul
  'PlayerBotRecallCheck':334,'PlayerBotTravelFormationCheck':707,'PlayerBotCastExecutionCheck':72,
  'PlayerBotTradeCheck':56,'PlayerBotEngineCheck':99,'PlayerBotStrategyCompositionCheck':49,
  'PlayerBotOffenseIntegrationCheck':44,'PlayerBotFollowSpeedCheck':6,'PlayerBotNavigationTrailCheck':17,
- 'PlayerBotGroundNavigationCheck':70,'PlayerBotCollisionPerformanceCheck':448,'PlayerBotFormationCheck':314,'PlayerBotWorldPerformanceCheck':2994,'PlayerBotShutdownCheck':17,'PlayerBotWorldRepairCheck':24,'PlayerBotSharedRepairCheck':142,'PlayerBotPopulationPipelineCheck':13,'PlayerBotPopulationRotationCheck':537,'PlayerBotPlayerZoneCheck':144}
+ 'PlayerBotGroundNavigationCheck':70,'PlayerBotCollisionPerformanceCheck':448,'PlayerBotFormationCheck':314,'PlayerBotWorldPerformanceCheck':2994,'PlayerBotShutdownCheck':20,'PlayerBotWorldRepairCheck':24,'PlayerBotSharedRepairCheck':142,'PlayerBotPopulationPipelineCheck':13,'PlayerBotPopulationRotationCheck':537,'PlayerBotPlayerZoneCheck':144}
 
 TESTS.update({'PlayerBotRosterBatchCheck':25, 'PlayerBotCheckpointCreationCheck':22, 'PlayerBotRaidCheck':1221})
 TESTS['PlayerBotPopulationScaleCheck']=64
@@ -17,7 +17,7 @@ TESTS['PlayerBotPopulationPipelineCheck']=21
 TESTS['PlayerBotPopulationLifecycleCheck']=176
 TESTS['PlayerBotPopulationLifecycleServiceCheck']=52
 TESTS['PlayerBotParallelLoginCheck']=25
-TESTS['PlayerBotSchedulerCpuCheck']=68
+TESTS['PlayerBotSchedulerCpuCheck']=76
 TESTS['PlayerBotWorldProgressCheck']=55
 TESTS['PlayerBotCpuPlanningCheck']=43
 TESTS['PlayerBotTravelAdmissionCheck']=24
@@ -53,7 +53,7 @@ TESTS['PlayerBotNpcPatrolCheck']=13
 TESTS['PlayerBotRouteCadenceCheck']=70
 TESTS['PlayerBotRouteContinuationCheck']=238
 TESTS['PlayerBotNavigationHandoffCheck']=23
-TESTS['PlayerBotNavigationBudgetCheck']=12817
+TESTS['PlayerBotNavigationBudgetCheck']=12830
 TESTS['PlayerBotNavigationConfigCheck']=28
 TESTS['PlayerBotConfigLocationCheck']=10
 TESTS['PlayerBotPartialRouteCheck']=187
@@ -94,7 +94,7 @@ TESTS['PlayerBotActivityChatCheck']=400
 TESTS['PlayerBotMarketUpgradesCheck']=33
 TESTS['PlayerBotPvpCheck']=53
 TESTS['PlayerBotHelpTrackingCheck']=20
-TESTS['PlayerBotSleepMotionCheck']=11
+TESTS['PlayerBotSleepMotionCheck']=12
 TESTS['PlayerBotLeaningsCheck']=15
 TESTS['PlayerBotDuelsCheck']=32
 TESTS['PlayerBotBattlegroundCheck']=33
@@ -116,7 +116,7 @@ TESTS['PlayerBotWardenVillagesCheck']=17
 TESTS['CentralMarketFeedbackCheck']=373
 TESTS['BrokerRetirementCheck']=52
 TESTS['PlayerBotProfessionCheck']=20107
-TESTS['PlayerBotIdentityCheck']=18
+TESTS['PlayerBotIdentityCheck']=19
 TESTS['PlayerBotBystandersCheck']=14
 TESTS['PlayerBotPortraitCheck']=9
 TESTS['PlayerBotProfessionTaskCheck']=405
@@ -168,7 +168,7 @@ TESTS['PlayerBotWardenDeathCheck']=18
 TESTS.update({'PlayerBotAppearanceCheck':16,'PlayerBotCombatQuestCheck':24,'PlayerBotCompanionCheck':1386,'PlayerBotCreationMetadataCheck':11,
  'PlayerBotFormationLayoutCheck':1202,'PlayerBotGearSettingsCheck':35,'PlayerBotGenerationCheck':5,'PlayerBotHeapGuardCheck':14,
  'PlayerBotInventoryCheck':303,'PlayerBotMetadataPreferencesCheck':31,'PlayerBotPanelCheck':15,'PlayerBotPlanningCheck':47,
- 'PlayerBotPopulationQueueCheck':123,'PlayerBotRecruitmentCheck':10,'PlayerBotRevivalCheck':10,'PlayerBotRoadDutyCheck':125,
+ 'PlayerBotPopulationQueueCheck':123,'PlayerBotRecruitmentCheck':10,'PlayerBotRevivalCheck':16,'PlayerBotRoadDutyCheck':125,
  'PlayerBotRoadLaneCheck':2006,'PlayerBotRoadNavigationCheck':16,'PlayerBotSettingsFilesCheck':15,'PlayerBotSteelRakeCaptainTacticsCheck':16,
  'PlayerBotSteelRakeCheck':28,'PlayerBotTankCheck':8,'PlayerBotTankPositionCheck':22,'PlayerBotTargetStrategiesCheck':19,
  'PlayerBotTargetValuesCheck':18,'PlayerBotTemporaryCheck':200,'PlayerBotDefenseCheck':34,'PlayerBotEncounterCheck':35,

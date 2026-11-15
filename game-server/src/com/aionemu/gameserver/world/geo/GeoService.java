@@ -125,6 +125,38 @@ public class GeoService implements GameEngine {
 		return geoMaps.get(object.getWorldId()).canSee(x, y, objectSeeCheckZ, targetX, targetY, targetSeeCheckZ, object.getInstanceId(), ignoreProperties);
 	}
 
+	/** Apply native target sight from a proposed position of the same observer. A method of its own: the native
+	 * canSee above must keep its original instructions (tools/check-npc-restoration.py), so the two are kept alike by hand. */
+	public boolean canSeeFrom(VisibleObject object, float x, float y, float z, VisibleObject target) {
+		if (!GeoDataConfig.CANSEE_ENABLE)
+			return true;
+		float objectSeeCheckZ = z + getSeeCheckOffset(object);
+		float targetSeeCheckZ = target.getZ() + getSeeCheckOffset(target);
+		float targetX = target.getX();
+		float targetY = target.getY();
+		float originX = x, originY = y;
+		if (object instanceof Npc npc && npc.getAi().ask(AIQuestion.CONSIDER_BOUNDS_IN_CAN_SEE_CHECK_WHEN_ATTACKING)) {
+			double rad = Math.toRadians(PositionUtil.calculateAngleFrom(x, y, targetX, targetY));
+			x += (float) (Math.cos(rad) * object.getObjectTemplate().getBoundRadius().getMaxOfFrontAndSide());
+			y += (float) (Math.sin(rad) * object.getObjectTemplate().getBoundRadius().getMaxOfFrontAndSide());
+		}
+		if (target instanceof Npc npc && npc.getAi().ask(AIQuestion.CONSIDER_BOUNDS_IN_CAN_SEE_CHECK_WHEN_ATTACKED)) {
+			double rad = Math.toRadians(PositionUtil.calculateAngleFrom(targetX, targetY, originX, originY));
+			targetX += (float) (Math.cos(rad) * target.getObjectTemplate().getBoundRadius().getMaxOfFrontAndSide());
+			targetY += (float) (Math.sin(rad) * target.getObjectTemplate().getBoundRadius().getMaxOfFrontAndSide());
+		}
+		Race race = null;
+		int staticId = -1;
+		if (target.getSpawn() != null) {
+			staticId = target.getSpawn().getStaticId();
+		}
+		if (object instanceof Creature creature) {
+			race = creature.getRace();
+		}
+		IgnoreProperties ignoreProperties = IgnoreProperties.of(race, staticId);
+		return geoMaps.get(object.getWorldId()).canSee(x, y, objectSeeCheckZ, targetX, targetY, targetSeeCheckZ, object.getInstanceId(), ignoreProperties);
+	}
+
 	public boolean canSee(VisibleObject object, float targetX, float targetY, float targetZ, IgnoreProperties ignoreProperties) {
 		float zOffset = getSeeCheckOffset(object);
 		return geoMaps.get(object.getWorldId()).canSee(object.getX(), object.getY(), object.getZ() + zOffset, targetX, targetY, targetZ + zOffset,

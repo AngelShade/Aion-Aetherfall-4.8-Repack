@@ -26,26 +26,35 @@ public final class PlayerBotShutdownCheck {
   var service=(PlayerBotService)unsafe.allocateInstance(PlayerBotService.class);
   var worker=new PlayerBotBackgroundWork();set(service,"backgroundWork",worker);set(service,"sessions",new ConcurrentHashMap<>());
   for(String lane:java.util.List.of("controlledWork","activeWorldWork","autonomousWork","maintenanceWork","checkpointWork","companionCheckpointWork","teamWork","loginWork"))set(service,lane,new PlayerBotBackgroundWork());
+  var overflowWork=new PlayerBotBackgroundWork();
+  var overflowWorker=new ThreadPoolExecutor(0,1,30,TimeUnit.SECONDS,new LinkedBlockingQueue<>(1));
+  set(service,"worldOverflowWork",overflowWork);set(service,"worldOverflowWorker",overflowWorker);
   var companionClock=Executors.newSingleThreadScheduledExecutor();var companionWorker=Executors.newSingleThreadExecutor();
   set(service,"companionClock",companionClock);set(service,"companionWorker",companionWorker);
   var entered=new CountDownLatch(1);var release=new CountDownLatch(1);var finished=new CountDownLatch(1);
   var acquiredMonitor=new AtomicBoolean();var pool=Executors.newSingleThreadExecutor();
+  var overflowEntered=new CountDownLatch(1);var overflowRelease=new CountDownLatch(1);
   var shutdown=new Thread(()->{try{service.shutdown();}finally{finished.countDown();}},"offline-shutdown-check");
   try {
    check(worker.submit(pool,()->{entered.countDown();try{release.await();}catch(InterruptedException e){throw new AssertionError(e);}
     synchronized(service){acquiredMonitor.set(true);}}),"Running native work admitted");
-   check(entered.await(3,TimeUnit.SECONDS),"Background work starts");shutdown.start();
+   check(entered.await(3,TimeUnit.SECONDS),"Background work starts");
+   check(overflowWork.submit(overflowWorker,()->{overflowEntered.countDown();try{overflowRelease.await();}catch(InterruptedException e){throw new AssertionError(e);}})
+    && overflowEntered.await(3,TimeUnit.SECONDS),"Overflow worker starts before shutdown");
+   shutdown.start();
    long until=System.nanoTime()+TimeUnit.SECONDS.toNanos(3);while(!stopping(service) && System.nanoTime()<until)Thread.sleep(1);
    check(stopping(service),"Shutdown closes admission before waiting");
    check(!worker.submit(pool,()->{throw new AssertionError("New work during shutdown");}),"No new work during shutdown");
    check(!finished.await(150,TimeUnit.MILLISECONDS),"Shutdown waits for running native cleanup");
    shutdown.interrupt();check(!finished.await(150,TimeUnit.MILLISECONDS),"Interrupt cannot discard pending native work");
-   release.countDown();check(finished.await(3,TimeUnit.SECONDS),"Shutdown completes after native work finishes");
+   release.countDown();check(!finished.await(150,TimeUnit.MILLISECONDS),"Shutdown also drains an active overflow decision");
+   overflowRelease.countDown();check(finished.await(3,TimeUnit.SECONDS),"Shutdown completes after native work finishes");
    check(acquiredMonitor.get(),"Drain does not hold service monitor needed by native completion");
    check(!worker.busy(),"No native worker remains at shutdown completion");
    check(shutdown.isInterrupted(),"Shutdown preserves interruption after safe cleanup");
    check(companionClock.isShutdown() && companionWorker.isShutdown(),"Shutdown closes the independent companion clock and decision executor");
-  } finally {release.countDown();shutdown.join(3000);pool.shutdown();check(pool.awaitTermination(3,TimeUnit.SECONDS),"Offline executor terminates");}
+   check(overflowWorker.isShutdown(),"Shutdown closes the independent overflow executor");
+  } finally {release.countDown();overflowRelease.countDown();shutdown.join(3000);overflowWorker.shutdown();pool.shutdown();check(pool.awaitTermination(3,TimeUnit.SECONDS),"Offline executor terminates");}
   System.out.println("OK: "+checks+" shutdown coordination checks; no World/DB/native IDs/casts");
  }
 }

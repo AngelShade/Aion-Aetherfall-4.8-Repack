@@ -3,6 +3,9 @@ package com.aionemu.gameserver.services.playerbot;
 import java.sql.Timestamp;
 import java.util.*;
 import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -81,6 +84,9 @@ public final class PlayerBotService {
  private volatile java.util.concurrent.ExecutorService loginExecutor;
  private final PlayerBotBackgroundWork controlledWork=new PlayerBotBackgroundWork(),autonomousWork=new PlayerBotBackgroundWork(),maintenanceWork=new PlayerBotBackgroundWork(),checkpointWork=new PlayerBotBackgroundWork();
  private final PlayerBotBackgroundWork activeWorldWork=new PlayerBotBackgroundWork(4);
+ private final PlayerBotBackgroundWork worldOverflowWork=new PlayerBotBackgroundWork();
+ private final ThreadPoolExecutor worldOverflowWorker=new ThreadPoolExecutor(0,1,30,TimeUnit.SECONDS,
+  new LinkedBlockingQueue<>(1),new com.aionemu.commons.utils.concurrent.PriorityThreadFactory("WorldBotDecisionOverflow",Thread.NORM_PRIORITY));
  private final PlayerBotBackgroundWork companionCheckpointWork=new PlayerBotBackgroundWork();
  private final PlayerBotCheckpointSchedule companionCheckpoints=new PlayerBotCheckpointSchedule();
  private long nextCompanionLagReport;
@@ -770,12 +776,14 @@ public final class PlayerBotService {
     && counts.getOrDefault(b.getWorldId(),0)<=playerFocus.mapTarget(b.getWorldId(),distribution)) && now>=nextPlacementAttempt.getOrDefault(b.getObjectId(),0L)
     && demand.active() && !PlayerBotWorldAscension.pending(b) && PlayerBotWorldPlacement.focusCompatible(b.getRace(),b.getLevel(),demand)) {
     focusJobId=b.getObjectId();
-    backgroundWork.submit(ThreadPoolManager.getInstance()::executeLongRunning,()->{
+    // A refused job must not leave the bot marked as being moved: its decisions skip while the mark stands.
+    if(!backgroundWork.submit(ThreadPoolManager.getInstance()::executeLongRunning,()->{
      focusJobThread=Thread.currentThread();
      try{synchronized(s){if(!shuttingDown && sessions.get(b.getObjectId())==s && !focusProtected(s))placePopulation(s,true);}}
      catch(Exception e){log.error("Player-area relocation failed for {}; native character retained",b.getName(),e);}
      finally{focusJobThread=null;focusJobId=0;worldWorkCompleted();}
-    });return;
+    }))focusJobId=0;
+    return;
    }
   }
   // Save unobserved excess/off-map actors offline. Never retire player-controlled/manual actors.
@@ -787,7 +795,7 @@ public final class PlayerBotService {
     && !populationManager.queueReserved(r.character()) && !playerFocus.contains(r.map()) && !loginsInFlight.contains(r.character()))
    .findFirst().orElse(null):residents.get(retire.bot().getObjectId());
   if(pending==null)return;int id=pending.character();focusJobId=id;
-  backgroundWork.submit(ThreadPoolManager.getInstance()::executeLongRunning,()->{
+  if(!backgroundWork.submit(ThreadPoolManager.getInstance()::executeLongRunning,()->{
    focusJobThread=Thread.currentThread();
    try {
     synchronized(retire==null?populationLock:retire) {
@@ -809,7 +817,7 @@ public final class PlayerBotService {
     if(retire==null)removeResidence(id);else dismiss(retire);
    }catch(Exception e){log.error("Player-area retirement {} held pending a successful native save",id,e);}
    finally{focusJobThread=null;focusJobId=0;worldWorkCompleted();}
-  });
+  }))focusJobId=0;
  }
 	private void validateResidence(PlayerBotWorldRoster.Resident r) {
 		var map=World.getInstance().getWorldMap(r.map());
@@ -1612,6 +1620,7 @@ public final class PlayerBotService {
   reservations.values().removeIf(r->r.until()<now);
   if(now>=nextScheduleCleanup){nextScheduleCleanup=now+1000;decisions.retain(sessions.keySet());}
   int activeSlots=activeWorldWork.available(),idleSlots=autonomousWork.available();
+  boolean overflow=activeSlots==0 && worldOverflowWork.available()>0;
   var pass=new PlayerBotDecisionSchedule.Pass<PlayerBotSession,PlayerBotBackgroundWork>(activeSlots==0 || idleSlots==0);
   boolean reportLag=now>=nextDecisionLagReport;
   for(var session:sessions.values()) {
@@ -1624,18 +1633,22 @@ public final class PlayerBotService {
    boolean active=reaction<=500 || session.bot().isLooting();
    var lane=active?activeWorldWork:autonomousWork;
    int slots=active?activeSlots:idleSlots;
-   pass.observe(session,id,decisions.due(id,reaction,now),false,active,lane,slots,now,reportLag);
+   long due=decisions.due(id,reaction,now);
+   pass.observe(session,id,due,false,active,lane,slots,now,reportLag);
+   if(active && overflow)pass.observeOverflow(session,id,due,now);
   }
   pass.finish();
   // An idle route/SQL operation must not own the lane of every fighting bot.
   // World decisions cannot use the companion worker; actor exclusion protects transitions.
   for(var lane:pass.ready().entrySet())for(var batch:PlayerBotDecisionSchedule.batches(lane.getValue(),lane.getKey().available()))
    lane.getKey().submit(ThreadPoolManager.getInstance()::executeLongRunning,()->decide(batch));
+  var overdue=pass.overflow();
+  if(overdue!=null)worldOverflowWork.submit(worldOverflowWorker,()->decide(List.of(overdue)));
   if(reportLag){
    if(pass.lateCount()>0){
     var oldest=pass.oldest();
-    log.warn("World playerbot decision backlog: {} active actors overdue >=5s; oldest {} ({}) overdue {}ms; active-world/idle lanes at capacity {}/{}; active-world workers {}/4; activity: {}",
-     pass.lateCount(),oldest.value().bot().getName(),oldest.id(),now-oldest.due(),activeWorldWork.busy(),autonomousWork.busy(),activeWorldWork.running(),oldest.value().activitySummary());
+    log.warn("World playerbot decision backlog: {} active actors overdue >=5s; oldest {} ({}) overdue {}ms; active-world/idle lanes at capacity {}/{}; active-world workers {}/4; overflow worker busy {}; activity: {}",
+     pass.lateCount(),oldest.value().bot().getName(),oldest.id(),now-oldest.due(),activeSlots==0,idleSlots==0,activeWorldWork.running(),worldOverflowWork.busy(),oldest.value().activitySummary());
     nextDecisionLagReport=now+30000;
    }
   }
@@ -1686,22 +1699,47 @@ public final class PlayerBotService {
      }
     }
     long sessionLockBegan=System.nanoTime();
-    synchronized(session) {
-     sessionWait=(System.nanoTime()-sessionLockBegan)/1_000_000L;
-     if(shuttingDown || sessions.get(id)!=session || session.closing() || id==focusJobId)continue;
-     long tickBegan=System.nanoTime();
-     try {
+    long tickBegan=0;
+    try {
+     boolean regroup=false;
+     synchronized(session) {
+      sessionWait=(System.nanoTime()-sessionLockBegan)/1_000_000L;
+      if(!current(session) || id==focusJobId)continue;
+      tickBegan=System.nanoTime();
       if(!PlayerBotConfig.ENABLED || session.world() && !PlayerBotConfig.WORLD_ENABLED) {
        if(session.world())session.markClosing();dismiss=true;
-      }else if(!session.tick())dismiss=true;
-      session.resetFailures();
-     }catch(Exception e) {
-      log.error("Playerbot tick failed for {}",session.bot().getName(),e);
-      if(session.failed()>=3) {
+      }else{
+       var result=session.tick();
+       dismiss=result==PlayerBotSession.TickResult.DISMISS;
+       regroup=result==PlayerBotSession.TickResult.REGROUP;
+      }
+      if(!regroup)session.resetFailures();
+     }
+     if(regroup){
+      // Wipe recovery acquires service -> sessions, just like presets and explicit Summon.
+      boolean completed=false;
+      try {
+       PlayerBotRecovery.regroup(this,session);
+       completed=true;
+      }finally{
+       synchronized(session) {
+        if(current(session) && id!=focusJobId){
+         dismiss=!session.finishRegroupDecision(completed);
+         if(completed)session.resetFailures();
+        }
+       }
+      }
+     }
+    }catch(Exception e) {
+     log.error("Playerbot tick failed for {}",session.bot().getName(),e);
+     synchronized(session) {
+      if(current(session) && session.failed()>=3) {
        if(session.world())session.markClosing();dismiss=true;
        PacketSendUtility.sendMessage(session.owner(),"Companion "+session.bot().getName()+" stopped after repeated AI errors. Check server logs.");
       }
-     }finally{tickMs=(System.nanoTime()-tickBegan)/1_000_000L;}
+     }
+    }finally{
+     if(tickBegan!=0)tickMs=(System.nanoTime()-tickBegan)/1_000_000L;
     }
     if(dismiss){long dismissBegan=System.nanoTime();try{dismiss(session);}finally{dismissMs=(System.nanoTime()-dismissBegan)/1_000_000L;}}
    }finally {
@@ -1919,7 +1957,7 @@ public final class PlayerBotService {
 
 	public void shutdown() {
 		synchronized(this) {
-			shuttingDown = true; backgroundWork.close();loginWork.close();controlledWork.close();activeWorldWork.close();autonomousWork.close();maintenanceWork.close();checkpointWork.close();companionCheckpointWork.close();teamWork.close();
+			shuttingDown = true; backgroundWork.close();loginWork.close();controlledWork.close();activeWorldWork.close();worldOverflowWork.close();autonomousWork.close();maintenanceWork.close();checkpointWork.close();companionCheckpointWork.close();teamWork.close();
 			if (task != null) task.cancel(false);
 			if (saveTask != null) saveTask.cancel(false);
 			if (companionTask != null) companionTask.cancel(false);
@@ -1933,9 +1971,10 @@ public final class PlayerBotService {
 		boolean interrupted = false;
 		if (backgroundWork.busy() || loginWork.running() > 0) log.info("Waiting for pending playerbot creation/load cleanup before shutdown");
 		for (;;) {
-			try { controlledWork.awaitCompletion();activeWorldWork.awaitCompletion();autonomousWork.awaitCompletion();maintenanceWork.awaitCompletion();checkpointWork.awaitCompletion();companionCheckpointWork.awaitCompletion();backgroundWork.awaitCompletion();loginWork.awaitCompletion();teamWork.awaitCompletion(); break; }
+			try { controlledWork.awaitCompletion();activeWorldWork.awaitCompletion();worldOverflowWork.awaitCompletion();autonomousWork.awaitCompletion();maintenanceWork.awaitCompletion();checkpointWork.awaitCompletion();companionCheckpointWork.awaitCompletion();backgroundWork.awaitCompletion();loginWork.awaitCompletion();teamWork.awaitCompletion(); break; }
 			catch (InterruptedException e) { interrupted = true; }
 		}
+		worldOverflowWorker.shutdown();
 		if (loginExecutor != null) loginExecutor.shutdown(); // Drained above; queued logins were discarded by close().
 		int count = sessions.size();
   focusJobId=0;focusJobThread=null; // A queued focus callback may have been cancelled by close(); draining is complete.

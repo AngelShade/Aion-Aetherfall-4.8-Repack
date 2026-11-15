@@ -533,7 +533,7 @@ final class PlayerBotQuestMaterials {
   if(distance<=4 || now-state.progress>30000){state.excluded.put(destination,now+60000);state.destination=null;return false;}
   return data.aerial().contains(destination)?aerialMove(session,destination,navigation,decision):decision.move(destination,navigation);
  }
- static void close(Player bot){ACTORS.remove(bot.getObjectId());}
+ static void close(Player bot){ACTORS.remove(bot.getObjectId());HUNT_CACHE.remove(bot.getObjectId());}
  static void invalidate(Player bot){var actor=ACTORS.get(bot.getObjectId());if(actor!=null){actor.scan=0;actor.nextSearch=0;}}
  private PlayerBotQuestMaterials() {}
 }

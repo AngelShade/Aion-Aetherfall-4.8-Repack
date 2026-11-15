@@ -86,6 +86,11 @@ public final class PlayerBotRunRewards {
   for(var p:instance.getPlayersInside())if(!eligible.contains(p.getObjectId()))PlayerBotRunBriefing.unrewarded(p,"You were not in its fights, so it pays you no Recruitment Ticket.");
   RUNS.remove(instance);
  }
+ /** A treasure room's prize was opened: nothing was fought, so nothing is rated or paid; briefed players are told why. */
+ public static void opened(WorldMapInstance instance) {
+  for(var p:instance.getPlayersInside())PlayerBotRunBriefing.unrewarded(p,"This treasure room has no final fight, so it pays no Recruitment Ticket.");
+  RUNS.remove(instance);
+ }
  public static void won(WorldMapInstance instance,Predicate<Player> winners){if(PlayerBotConfig.TICKETS_ENABLED)pay(instance,PlayerBotConfig.TICKET_PVP_WIN,winners,"Battle");}
  /** Pays the native ending and tells each paid player what they earned (or, after a briefed run, why nothing). */
  private static void pay(WorldMapInstance instance,int tickets,Predicate<Player> eligible,String label) {

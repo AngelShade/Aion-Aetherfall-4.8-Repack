@@ -69,7 +69,7 @@ public final class PlayerBotFindGroupLoopholesCheck {
    "!PlayerBotFindGroup.freeHelpControl(session.owner(),session.bot()) && !PlayerBotFindGroup.holdsForRelog(session.owner(),session.bot(),now);"),"A held run is not released, at logout or later");
   var session=Files.readString(root.resolve("src/com/aionemu/gameserver/services/playerbot/PlayerBotSession.java"));
   check(session.contains("if(!endingWorldControl && PlayerBotWorldActivity.allowed(this)"),"A holding bot stays awake and fights back");
-  check(session.contains("if (!autonomous() && !detached() && !owner.isOnline()) return false;") && session.split("if \\(detached\\(\\)\\) return false;",-1).length==3,"A holding bot neither leaves control nor follows the offline owner");
+  check(session.contains("if (!autonomous() && !detached() && !owner.isOnline()) return TickResult.DISMISS;") && session.split("if \\(detached\\(\\)\\) return false;",-1).length==3,"A holding bot neither leaves control nor follows the offline owner");
   check(s.contains("if(!human.isOnline() && memberOf(bot,human.getObjectId())) {"),"The entrance wait survives a relog");
   check(s.contains("if(MEETINGS.replace(bot.getObjectId(),meeting,moved))"),"And moves to the new login");
   var enter=Files.readString(root.resolve("src/com/aionemu/gameserver/services/player/PlayerEnterWorldService.java"));

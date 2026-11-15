@@ -3,8 +3,10 @@ package com.aionemu.gameserver.services.playerbot;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
+import com.aionemu.gameserver.geoEngine.collision.IgnoreProperties;
 import com.aionemu.gameserver.geoEngine.math.Vector3f;
 import com.aionemu.gameserver.model.gameobjects.Creature;
+import com.aionemu.gameserver.model.gameobjects.Npc;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.utils.PositionUtil;
 import com.aionemu.gameserver.world.geo.GeoService;
@@ -506,11 +508,15 @@ final class PlayerBotNavigation {
 		}
 		var point = PlayerBotCombatPosition.point(bot,target,range);
 		if (!visible || !bot.isFlying()) {
-			if (range<8) return move(target.getX(),target.getY(),target.getZ(),false,Intent.TRACK);
+			boolean solidObjective=target instanceof Npc npc && npc.getSpawn()!=null && npc.hasStatic()
+				&& PlayerBotDredgion.value(PlayerBotDredgion.ship(bot.getWorldId()),npc.getNpcId(),true)>0;
+			if (range<8 && !solidObjective) return move(target.getX(),target.getY(),target.getZ(),false,Intent.TRACK);
 			Point targetPoint=new Point(target.getX(),target.getY(),target.getZ());
 			long now=System.currentTimeMillis();
+			int candidates=bot.isFlying()?5:20;
 			if(approachTarget!=target || approachRange!=range || approachTargetPoint==null
 				|| PositionUtil.getDistance(approachTargetPoint.x(),approachTargetPoint.y(),approachTargetPoint.z(),targetPoint.x(),targetPoint.y(),targetPoint.z())>.5
+				|| solidObjective && approachDestination==null && approachCursor>=candidates && now-approachSelected>=4000
 				|| approachDestination!=null && now-approachSelected>=4000 && !progressing(now) && !bot.getMoveController().isInMove()
 					&& !planningRoute() && !waitingForTerrainWork()) {
 				cancelTicket(approachSearchToken);approachTarget=target;approachTargetPoint=targetPoint;approachRange=range;approachCursor=0;approachDestination=null;
@@ -528,11 +534,12 @@ final class PlayerBotNavigation {
 			if(approachCursor==0 && !bot.isFlying()) {
 				Vector3f direct=PlayerBotWater.walk(bot,bot.getWorldId(),bot.getInstanceId(),bot.getX(),bot.getY(),bot.getZ(),point.x(),point.y(),point.z());
 				if(direct!=null && Float.isFinite(direct.z) && Math.hypot(direct.x-point.x(),direct.y-point.y())<.3
-					&& GeoService.getInstance().canSee(target,direct.x,direct.y,direct.z,com.aionemu.gameserver.geoEngine.collision.IgnoreProperties.ANY_RACE)) {
+					&& firingSight(target,direct,range,solidObjective)) {
 					cancelTicket(approachSearchToken);approachDestination=new Point(direct.x,direct.y,direct.z);approachSelected=now;
 					return move(approachDestination.x(),approachDestination.y(),approachDestination.z(),true);
 				}
 			}
+			if(solidObjective && approachCursor>=candidates){routeFailure=true;return false;}
 			try(var lease=terrain.begin(approachSearchToken,terrainPriority(PositionUtil.getDistance(bot,target)))) {
 			 if(lease==null){status="waiting to plan firing position";return true;}
 			 double[] factors=bot.isFlying()?new double[]{1}:new double[]{1,.85,.7,.55};
@@ -548,19 +555,34 @@ final class PlayerBotNavigation {
 				// A range shell is an XY preference, not a floor at the caster's Z.
 				// If a direct walk cannot reach it, prove its support from the target's
 				// own native floor; the retained path then finds the detour from us.
-				if(!bot.isFlying() && (ground==null || !Float.isFinite(ground.z) || Math.hypot(ground.x-x,ground.y-y)>=.3))
-					ground=PlayerBotWater.walk(bot,bot.getWorldId(),bot.getInstanceId(),target.getX(),target.getY(),target.getZ(),x,y,target.getZ());
+				if(!bot.isFlying() && (ground==null || !Float.isFinite(ground.z) || Math.hypot(ground.x-x,ground.y-y)>=.3)) {
+					if(solidObjective) {
+						// The NPC center can sit inside its own collision mesh.
+						var geo=GeoService.getInstance();
+						float z=geo.getZ(bot.getWorldId(),x,y,target.getZ(),bot.getInstanceId());
+						ground=PlayerBotWater.safe(bot,z) && geo.isPlayerBotLanding(bot.getWorldId(),bot.getInstanceId(),x,y,z)?new Vector3f(x,y,z):null;
+					}else ground=PlayerBotWater.walk(bot,bot.getWorldId(),bot.getInstanceId(),target.getX(),target.getY(),target.getZ(),x,y,target.getZ());
+				}
 				if (ground!=null && Float.isFinite(ground.z) && Math.hypot(ground.x-x,ground.y-y)<.3
-					&& GeoService.getInstance().canSee(target,ground.x,ground.y,ground.z,com.aionemu.gameserver.geoEngine.collision.IgnoreProperties.ANY_RACE)) {approachDestination=new Point(ground.x,ground.y,ground.z);break;}
+					&& firingSight(target,ground,range,solidObjective)) {approachDestination=new Point(ground.x,ground.y,ground.z);break;}
 			 }
 
 			}
-			if(approachDestination==null && approachCursor<(bot.isFlying()?5:20)){terrain.request(approachSearchToken,terrainPriority(PositionUtil.getDistance(bot,target)));status="planning firing position";return true;}
-			cancelTicket(approachSearchToken);if(approachDestination==null)approachDestination=bot.isFlying()?point:new Point(target.getX(),target.getY(),target.getZ());approachSelected=now;
+			if(approachDestination==null && approachCursor<candidates){terrain.request(approachSearchToken,terrainPriority(PositionUtil.getDistance(bot,target)));status="planning firing position";return true;}
+			cancelTicket(approachSearchToken);approachSelected=now;
+			if(approachDestination==null && solidObjective){stopMovement();routeFailure=true;status="no reachable firing position for Dredgion objective";return false;}
+			if(approachDestination==null)approachDestination=bot.isFlying()?point:targetPoint;
 			return move(approachDestination.x(),approachDestination.y(),approachDestination.z(),true);
 		}
 		cancelTicket(approachSearchToken);approachTarget=null;approachDestination=null;
 		return move(point.x(),point.y(),point.z(),false,Intent.TRACK);
+	}
+
+	private boolean firingSight(Creature target,Vector3f point,float range,boolean solidObjective) {
+		var geo=GeoService.getInstance();
+		if(!solidObjective)return geo.canSee(target,point.x,point.y,point.z,IgnoreProperties.ANY_RACE);
+		float reach=range+bot.getObjectTemplate().getBoundRadius().getMaxOfFrontAndSide()+target.getObjectTemplate().getBoundRadius().getMaxOfFrontAndSide();
+		return PositionUtil.isInRange(target,point.x,point.y,point.z,reach) && geo.canSeeFrom(bot,point.x,point.y,point.z,target);
 	}
 
 	boolean retreat(Creature target) {

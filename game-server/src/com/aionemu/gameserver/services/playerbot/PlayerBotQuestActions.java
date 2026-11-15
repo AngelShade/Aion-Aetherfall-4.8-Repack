@@ -85,7 +85,10 @@ final class PlayerBotQuestActions {
       for(var continuation:action.continuation()) {
        if(state.getStatus()!=status || state.getQuestVars().getQuestVars()!=variables)break;
        if(!dialog.offered(continuation.page()) || npc.getWorldId()!=bot.getWorldId() || npc.getInstanceId()!=bot.getInstanceId()
-        || !PositionUtil.isInTalkRange(bot,npc) || !GeoService.getInstance().canSee(bot,npc) || !DialogService.isInteractionAllowed(bot,npc))return false;
+        || !PositionUtil.isInTalkRange(bot,npc) || !GeoService.getInstance().canSee(bot,npc) || !DialogService.isInteractionAllowed(bot,npc)) {
+        // Like the first page above: without a retry stamp the same dialog was reopened on every decision.
+        retry.put(key,now+5000);PlayerBotQuestObjectives.attempted(bot,false);return false;
+       }
        dialog.clearPage();npc.getController().onDialogSelect(continuation.action(),continuation.page(),bot,quest,0);
       }
      }

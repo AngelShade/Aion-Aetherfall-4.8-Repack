@@ -56,6 +56,19 @@ public final class PlayerBotWardenSqlCheck {
   PlayerBotLegionRepository.releaseCompany(c,request(100,210040000,9004,"Heiron Road Wardens",2).account(),100,"Scratch100",9004);
   check(scalar(c,"SELECT COUNT(*) FROM legion_members WHERE legion_id=9004 AND player_id=101 AND `rank`='BRIGADE_GENERAL'")==1,"Reserve leader release promotes retained native company member");
  }
+ private static void companySnapshotConflict(Connection c,Connection writer)throws SQLException {
+  c.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+  execute(c,"SET SESSION innodb_snapshot_isolation=ON");
+  c.setAutoCommit(false);
+  check(scalar(c,"SELECT id FROM players WHERE id=102")==102,"Read the Warden before a concurrent character save");
+  execute(writer,"UPDATE players SET x=x+1 WHERE id=102");
+
+  var result=PlayerBotLegionRepository.commitCompany(c,request(102,210030000,9010,"Scratch Road Wardens",2));
+  check(result.created() && result.changed() && result.legion()==9010,"A rolled-back stale snapshot retries with fresh custody reads");
+  check(scalar(c,"SELECT COUNT(*) FROM legion_members WHERE legion_id=9010 AND player_id=102")==1,"Retry commits membership once");
+  check(scalar(c,"SELECT COUNT(*) FROM legion_history WHERE legion_id=9010")==2,"Retry commits only the create and join history");
+  c.commit();
+ }
  private static void travellers(Connection c)throws Exception {
   c.setAutoCommit(false);
   check(PlayerBotWardenDAO.escort(c,1,100,1000,900000,600000)==0,"Escort start reserves SQL traveller slot");c.commit();
@@ -96,7 +109,9 @@ public final class PlayerBotWardenSqlCheck {
     execute(c,"INSERT INTO players (id,name,account_id,account_name,x,y,z,heading,world_id,gender,race,player_class) VALUES ("+id+",'Scratch"+id+"',"+account+",'scratch',0,0,0,0,210020000,'MALE','"+race+"','TEMPLAR')");
     if(id>=100)execute(c,"INSERT INTO playerbot_roster (player_id,account_id,ready) VALUES ("+id+","+account+",TRUE)");
    }
-   companies(c);travellers(c);tickets(c);
+   companies(c);
+   try(var writer=DriverManager.getConnection(args[0],properties)){companySnapshotConflict(c,writer);}
+   travellers(c);tickets(c);
   }
   System.out.println("OK: "+checks+" real isolated MariaDB Warden transaction checks");
  }

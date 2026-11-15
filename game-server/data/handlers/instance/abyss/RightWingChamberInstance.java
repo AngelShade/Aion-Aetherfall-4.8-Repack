@@ -8,6 +8,7 @@ import com.aionemu.gameserver.instance.handlers.GeneralInstanceHandler;
 import com.aionemu.gameserver.instance.handlers.InstanceID;
 import com.aionemu.gameserver.model.Race;
 import com.aionemu.gameserver.model.flyring.FlyRing;
+import com.aionemu.gameserver.model.gameobjects.Npc;
 import com.aionemu.gameserver.model.gameobjects.player.Player;
 import com.aionemu.gameserver.model.geometry.Point3D;
 import com.aionemu.gameserver.model.templates.flyring.FlyRingTemplate;
@@ -45,6 +46,14 @@ public class RightWingChamberInstance extends GeneralInstanceHandler {
 			}
 		}
 		return false;
+	}
+
+	/** The golden treasure box is this timed room's one scripted prize; opening it (ChestAI kills it) ends the run. */
+	@Override
+	public void onDie(Npc npc) {
+		if (npc.getNpcId() == 701482 || npc.getNpcId() == 701487)
+			completeRun();
+		super.onDie(npc);
 	}
 
 	@Override
