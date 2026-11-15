@@ -19,8 +19,9 @@ this backend. It does not replace models or textures with new artwork.
 | Deferred surface creation | Enabled | Aion compatibility recommendation |
 | Sampler type specialization | Enabled | Aion shader compatibility recommendation |
 | Exclusive fullscreen | Disabled in DXVK | Retain reliable borderless switching and cursor behavior |
+| Hidden frame cap | `g_maxfps = 500` | Game.dll otherwise caps at 60 FPS even with vertical sync off; the menu's Vertical Sync and Fixed FPS options are the only limits |
 
-MSAA, vertical sync and FPS controls keep their existing defaults/game choices.
+MSAA and vertical sync keep their existing defaults/game choices.
 The obsolete `d3d9.cachedDynamicBuffers` setting is absent in this DXVK release
 and is intentionally omitted.
 

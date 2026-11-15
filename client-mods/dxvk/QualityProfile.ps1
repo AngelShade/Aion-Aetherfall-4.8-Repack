@@ -24,6 +24,9 @@ $profiles = [ordered]@{
         'r_mrt_sharpen' = '"0.12"'
         # Used with the version-checked native cursor patch on this client.
         'r_3dvision_cursor' = '"1"'
+        # Game.dll silently caps frames at 60 even with VSync off. Lift it to the engine's
+        # top documented value so only the menu's Vertical Sync and Fixed FPS options limit frames.
+        'g_maxfps' = '"500"'
     }
     'SystemOptionGraphics.cfg' = [ordered]@{
         'USE_MG' = '"1"'
@@ -127,4 +130,4 @@ try {
     throw
 }
 if ($Restore) { 'Previous managed graphics settings restored; other settings retained.' }
-else { 'Global High Quality profile applied: shadow level 4, native AO, subtle sharpening and UI cursor rendering.' }
+else { 'Global High Quality profile applied: shadow level 4, native AO, subtle sharpening, UI cursor rendering and no hidden 60 FPS cap.' }

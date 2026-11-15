@@ -37,6 +37,7 @@ Assert ($nativeAfter.Contains((Encode 's_MasterVolume = "0.13"'))) 'Volume chang
 Assert ($nativeAfter.Contains((Encode 'r_mrt_ssao = "1"'))) 'AO was not enabled'
 Assert ($nativeAfter.Contains((Encode 'r_mrt_sharpen = "0.12"'))) 'Sharpening value incorrect'
 Assert ($nativeAfter.Contains((Encode 'r_3dvision_cursor = "1"'))) 'UI cursor rendering was not enabled'
+Assert ($nativeAfter.Contains((Encode 'g_maxfps = "500"'))) 'Hidden 60 FPS cap was not lifted'
 Assert ($nativeAfter.Contains((Encode 'g_cfg_video_MRT_SHADOW = "4"'))) 'Shadow setting incorrect'
 & (Join-Path $clientRoot 'Mods/Renderer/QualityProfile.ps1') -ClientPath $clientRoot
 Assert ($nativeAfter -ceq $latin1.GetString([IO.File]::ReadAllBytes((Join-Path $clientRoot 'system.cfg')))) 'Quality profile is not idempotent'
