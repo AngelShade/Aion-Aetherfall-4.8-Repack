@@ -11,8 +11,13 @@ inside Aion; `/wardrobe` opens the same window.
 3. Open Wardrobe, choose **Ready to unlock**, and select its appearance.
 4. Choose **Unlock Appearance** and confirm. This consumes **one Appearance
    Unlock**. The equipment stays with you.
+   To unlock everything at once, choose **Unlock All Ready (N)** and confirm.
+   It unlocks every appearance whose item you hold (not the whole catalogue),
+   one Appearance Unlock each. With fewer tickets than ready appearances, the
+   first ones by name are unlocked. A Shugo Trade Charter makes both free.
 5. Select equipment on the right and choose **Try On** on an appearance in the
-   left collection. Add appearances to several equipment items, then choose
+   left collection, or double-click the appearance. Double-click also tries on a
+   dye or a saved outfit. Add appearances to several equipment items, then choose
    **Apply Changes** and confirm. Applying unlocked skins costs no item or Kinah.
 
 Unlocks belong to the account and remain available after the source equipment

@@ -2,11 +2,19 @@
 
 ## Next update
 
+Wardrobe gets one-step unlocking and double-click try-on.
+
 ### New
+
+- Wardrobe's **Unlock All Ready** button unlocks every appearance whose item you hold: one Appearance Unlock each, or free with a Shugo Trade Charter.
 
 ### Improved
 
+- Double-click an appearance, dye or saved outfit in Wardrobe to try it on in the preview.
+
 ### Fixed
+
+- With a Shugo Trade Charter, Wardrobe's Unlock Appearance button now works even when you have no Appearance Unlocks.
 
 ## 0.98.13 - Live portraits, faster bot startup and expanded Simplified Chinese text (14 November 2026)
 

@@ -38,6 +38,7 @@ def native(api,*args):
     elif api=='SetWidgetPreset':data['preset']=values[0]
     elif api=='SetWidgetAttr':data.setdefault('attributes',{})[values[0]]=values[1]
     elif api=='SetWidgetAlpha':data['alpha']=values[0]
+    elif api=='SetWidgetTooltip':data['tooltip']=values[0]
 for source in stock.glob('*.lua'):
     for api in re.findall(r'\b(\w+)\(g_AddonName\b',source.read_text(encoding='utf-8',errors='replace')):
         g[api]=lambda *args,api=api:native(api,*args)
@@ -74,7 +75,7 @@ for node in tree.iter('Widget'):
 
 g.Widget_TriggerScript('PrivateWardrobe','OnLoad','')
 g.WardrobeNative_Open()
-state=dict(character='Babe',unlocked=2,total=3,tickets=2,page=1,pages=1,target=0,results=3,notice='',request='fixture',
+state=dict(character='Babe',unlocked=2,total=3,tickets=2,ready=1,page=1,pages=1,target=0,results=3,notice='',request='fixture',
     equipment=[dict(object=10,item=100000096,skin=100000096,name='Sword',equipped=True,slot=1,type='Sword',group='SWORD',slots=1,tooltip='item=100000096&count=1'),
         dict(object=11,item=125000001,skin=125000001,name='Helmet',equipped=True,slot=4,type='Headwear',group='HEAD',slots=4,color=-1,dyeable=True),
         dict(object=12,item=187000001,skin=187000001,name='Wings',equipped=True,slot=32768,type='Wings',group='WING',slots=32768)],
@@ -181,4 +182,67 @@ assert g.WardrobeJSON.decode('{"value":"\\uD83D\\uDE00"}').value==chr(0x1f600)
 g.PrivateWardrobe.Hide(g.PrivateWardrobe);g.WardrobeNative_OnEvent('ADDON_TIMER')
 assert not g.WardrobeNative.opened and not g.WardrobeNative.pending
 assert 'SlotIcon1:100000096' in widgets['WardrobeNativeIcons']['text']
-print('PASS: registered native OnClick scripts, bounded icon assignments, cursor hover metadata; actual client Widget.lua with Lua 5.1, unique native widgets, five resolutions, headwear/wings/multiple drafts, locked-skin gating, apply/unlock requests, modal errors, saved outfits, native tooltip requests, JSON bounds, close lifecycle')
+# Double-click tries a card on: a second OnClick on the same card, or the native double-click event.
+chat=[]
+def drafts():return len(list(g.WardrobeNative.drafts.keys()))
+g.DisplayChatMessage=lambda kind,message,*rgb:chat.append(message)
+g.WardrobeNative_Open();respond(state)
+assert widgets['WardrobeUnlockAll']['visible'] and widgets['WardrobeUnlockAll']['enabled']
+assert widgets['WardrobeUnlockAll']['text']=='Unlock All Ready (1)',widgets['WardrobeUnlockAll']['text']
+assert 'Double-click an appearance to try it on.' in widgets['WardrobeDetails']['text']
+row=widgets['WardrobeUnlockAll']['rect'];tryon=widgets['WardrobeTryOn']['rect'];restore=widgets['WardrobeRestore']['rect']
+assert tryon[0]+tryon[2]<=widgets['WardrobeUnlock']['rect'][0]<row[0] and row[0]+row[2]<=restore[0],'Collection action row overlaps'
+click('WardrobeRow1');assert drafts()==0
+click('WardrobeRow1');assert g.WardrobeNative.drafts[11].skin==125000002
+assert '125000002' in widgets['WardrobeNativePreview']['text']
+click('WardrobeRow1');click('WardrobeRow1')
+assert drafts()==1,'one gesture stages once'
+click('WardrobeReset');g.WardrobeNative.clock+=1
+click('WardrobeRow3');g.WardrobeNative.query.target=0
+g.WardrobeNative_OnEvent('GAME_UI_LBUTTON_DBLCLICK','WardrobeIcon3')
+assert g.WardrobeNative.drafts[12].skin==187000002
+click('WardrobeRow3');assert drafts()==1,'click after the native event does not stage again'
+click('WardrobeReset');g.WardrobeNative.clock+=1
+g.WardrobeNative_OnEvent('GAME_UI_LBUTTON_DBLCLICK','WardrobeRow1');assert drafts()==0,'event without its first click ignored'
+click('WardrobeRow1');g.WardrobeNative.clock+=1;click('WardrobeRow1');assert drafts()==0,'slow clicks only select'
+click('WardrobeOutfits');click('WardrobeRow1');click('WardrobeRow1')
+assert g.WardrobeNative.drafts[11].skin==125000002 and g.WardrobeNative.drafts[12].skin==187000002
+assert not widgets['WardrobeUnlockAll']['visible']
+click('WardrobeReset');click('WardrobeCollection');g.WardrobeNative.clock+=1
+# Unlock All Ready: confirmation states the cost, then one unlockAll request.
+click('WardrobeUnlockAll')
+assert 'Consumes 1 Appearance Unlock.' in widgets['WardrobeConfirmText']['text'] and widgets['WardrobeNativeControl']['text']=='input|0'
+click('WardrobeConfirmAccept');assert 'action=unlockAll' in widgets['WardrobeNativeTx']['text']
+respond(dict(state,ready=0,unlocked=3,notice='Unlocked 3 appearances. Equipment kept.'))
+assert widgets['WardrobeStatus']['text']=='Unlocked 3 appearances. Equipment kept.' and chat==['Wardrobe: Unlocked 3 appearances. Equipment kept.']
+assert not widgets['WardrobeUnlockAll']['enabled'] and widgets['WardrobeUnlockAll']['text']=='Unlock All Ready'
+g.WardrobeNative.cache=runtime.table();click('WardrobeRefresh');respond(dict(state,ready=5,tickets=2))
+click('WardrobeUnlockAll');assert 'Unlock 2 of 5 ready appearances' in widgets['WardrobeConfirmText']['text'];click('WardrobeConfirmCancel')
+g.WardrobeNative.cache=runtime.table();click('WardrobeRefresh');respond(dict(state,ready=4,tickets=0,freeUnlock=False))
+assert not widgets['WardrobeUnlockAll']['enabled']
+g.WardrobeNative.cache=runtime.table();click('WardrobeRefresh');respond(dict(state,ready=4,tickets=0,freeUnlock=True))
+assert widgets['WardrobeUnlockAll']['enabled']
+click('WardrobeUnlockAll');assert 'Free with your Shugo Trade Charter.' in widgets['WardrobeConfirmText']['text'];click('WardrobeConfirmCancel')
+g.WardrobeNative.query.target=0;click('WardrobeRow2');assert widgets['WardrobeUnlock']['enabled'],'charter unlocks without tickets'
+ui_scale=1;g.WardrobeNative_Layout(1024,768)
+assert widgets['WardrobeUnlockAll']['text']=='Unlock All (4)'
+g.PrivateWardrobe.Hide(g.PrivateWardrobe);g.WardrobeNative_OnEvent('ADDON_TIMER')
+chs=json.loads((ROOT/'client-mods/launcher/chs/mod-text.json').read_text(encoding='utf-8'))
+g.AFTranslate=lambda value:chs.get(str(value),value)
+g.Widget_TriggerScript('PrivateWardrobe','OnLoad','')
+assert widgets['PrivateWardrobe']['text']=='外观衣柜' and widgets['WardrobeConfirm']['text']=='外观衣柜'
+assert widgets['WardrobeRefresh']['text']=='刷新' and widgets['WardrobeCollection']['text']=='外观收藏'
+assert widgets['WardrobeOutfits']['text']=='已保存套装' and widgets['WardrobeDyes']['text']=='染色剂'
+assert widgets['WardrobeCategory1']['text']=='全部' and widgets['WardrobeCategory2']['text']=='武器'
+assert widgets['WardrobeSlot1']['tooltip']=='主手' and widgets['WardrobeSlot2048']['tooltip']=='肩甲'
+assert widgets['WardrobeFilter']['items']==['已解锁','可解锁','所有外观','未解锁']
+g.WardrobeNative_Open()
+g.WardrobeNative.pending.action='applyChanges'
+respond(dict(state,notice='Applied 2 appearance changes.'))
+assert widgets['WardrobeStatus']['text']=='已应用 2 项外观更改。'
+assert widgets['WardrobeCharacter']['text']=='Babe | 已装备外观'
+g.WardrobeNative.pending=None;g.WardrobeNative.busy=False;g.WardrobeNative_Fetch(runtime.table(action='unlockAll'))
+respond(dict(state,notice='Unlocked 3 of 5 ready appearances. Get more Appearance Unlock items for the rest.'))
+assert widgets['WardrobeStatus']['text']=='已解锁 3 个外观（共 5 个可解锁）。获取更多外观解锁券以解锁其余外观。'
+assert widgets['WardrobeUnlockAll']['text'].startswith('一键解锁')
+print('PASS: registered native OnClick scripts, bounded icon assignments, cursor hover metadata; actual client Widget.lua with Lua 5.1, unique native widgets, five resolutions, headwear/wings/multiple drafts, locked-skin gating, apply/unlock requests, modal errors, saved outfits, native tooltip requests, JSON bounds, close lifecycle, Simplified Chinese localization, double-click try-on (OnClick pair and native event, deduplicated), Unlock All Ready costs/charter/partial and its chat record')

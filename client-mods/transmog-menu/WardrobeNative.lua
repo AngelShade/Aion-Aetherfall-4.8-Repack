@@ -6,7 +6,9 @@ local filters={'unlocked','owned','all','locked'}
 local slots={{1,0,0},{2,1,0},{4,0,1},{2048,1,1},{8,0,2},{16,1,2},{4096,0,3},{32768,1,3},{32,0,4}}
 local weapons={SWORD=true,GREATSWORD=true,DAGGER=true,MACE=true,ORB=true,SPELLBOOK=true,POLEARM=true,STAFF=true,BOW=true,HARP=true,GUN=true,CANNON=true,KEYBLADE=true}
 local function widget(name) return _G['Wardrobe'..name] end
-local function text(name,value) widget(name):SetText(tostring(value or '')) end
+local function L(value) return AFTranslate and AFTranslate(value) or value end
+local function write(name,value) widget(name):SetText(tostring(value or '')) end
+local function text(name,value) write(name,L(value or '')) end
 local function show(name,value) if value then widget(name):Show() else widget(name):Hide() end end
 local function enable(name,value) widget(name):Enable(value and not W.busy or false) end
 -- SetWidgetRect applies the client's UI scale. Layout uses physical pixels,
@@ -21,9 +23,64 @@ local function url(s) return tostring(s):gsub('[^%w%-_%.~]',function(c) return s
 -- The client's GetTime returns formatted calendar text, not elapsed seconds.
 -- Use this addon's timer for debounce and short-lived browsing caches.
 local function now() return W.clock or 0 end
+local DOUBLE_CLICK=.5
+-- Shugo Trade Charter makes every unlock free, so tickets are not required.
+local function canUnlock(state) return state.freeUnlock or (state.tickets or 0)>0 end
 local function status(message)
     text('Status',message)
     if not W.state then text('Empty',message);show('Empty',true) end
+end
+-- Match only known Wardrobe responses. Captures are displayed verbatim so
+-- equipment, dye and outfit names cannot be mistaken for translation keys.
+local noticeFormats={
+    unlock={
+        {'^Unlocked (.+) with your Shugo Trade Charter%. Equipment kept%.$','Unlocked %s with your Shugo Trade Charter. Equipment kept.'},
+        {'^Unlocked (.+)%. Equipment kept%.$','Unlocked %s. Equipment kept.'},
+    },
+    registerDye={
+        {'^Registered (.+) to your account palette%.$','Registered %s to your account palette.'},
+        {'^(.+) is already in your palette%. The dye was kept%.$','%s is already in your palette. The dye was kept.'},
+    },
+    unlockAll={
+        {'^Unlocked (%d+) of (%d+) ready appearances%. Get more Appearance Unlock items for the rest%.$','Unlocked %s of %s ready appearances. Get more Appearance Unlock items for the rest.'},
+        {'^Unlocked (%d+) appearances with your Shugo Trade Charter%. Equipment kept%.$','Unlocked %s appearances with your Shugo Trade Charter. Equipment kept.'},
+        {'^Unlocked (%d+) appearances%. Equipment kept%.$','Unlocked %s appearances. Equipment kept.'},
+        {'^Unlocked (.+) with your Shugo Trade Charter%. Equipment kept%.$','Unlocked %s with your Shugo Trade Charter. Equipment kept.'},
+        {'^Unlocked (.+)%. Equipment kept%.$','Unlocked %s. Equipment kept.'},
+    },
+    apply={{'^Applied (.+)%.$','Applied %s.'}},
+    applyChanges={{'^Applied (%d+) appearance changes%.$','Applied %s appearance changes.'}},
+    saveOutfit={
+        {'^Saved outfit (.+)%. Dyes not registered to your palette were not saved%.$','Saved outfit %s. Dyes not registered to your palette were not saved.'},
+        {'^Saved outfit (.+)%.$','Saved outfit %s.'},
+    },
+    applyOutfit={{'^Applied outfit (.+)%.$','Applied outfit %s.'}},
+}
+local errorFormats={
+    {'^(.+): no longer available%. Refresh Wardrobe%.$','%s: no longer available. Refresh Wardrobe.'},
+    {'^(.+): saved equipment differs%. Log in again%.$','%s: saved equipment differs. Log in again.'},
+}
+local actionErrorFormats={
+    applyChanges={
+        {'^(.+): dye changed%. Refresh Wardrobe%.$','%s: dye changed. Refresh Wardrobe.'},
+        {'^(.+): appearance changed%. Refresh Wardrobe%.$','%s: appearance changed. Refresh Wardrobe.'},
+        {'^(.+) cannot be dyed with this appearance%.$','%s cannot be dyed with this appearance.'},
+    },
+    saveOutfit={{'^Unlock (.+) before saving this outfit%.$','Unlock %s before saving this outfit.'}},
+}
+local function formatResponse(message,formats)
+    for _,entry in ipairs(formats or {}) do
+        local captures={message:match(entry[1])}
+        if captures[1] then return string.format(L(entry[2]),unpack(captures)) end
+    end
+end
+local function serverResponse(message,action,failed)
+    local translated=L(message)
+    if translated~=message then return translated end
+    if failed then
+        return formatResponse(message,actionErrorFormats[action]) or formatResponse(message,errorFormats) or message
+    end
+    return formatResponse(message,noticeFormats[action]) or message
 end
 local function form(t) local fields={};for k,v in pairs(t) do fields[#fields+1]=url(k)..'='..url(v) end;return table.concat(fields,'&') end
 local function target() if W.state then for _,i in ipairs(W.state.equipment) do if i.object==W.query.target then return i end end end end
@@ -48,7 +105,7 @@ end
 -- Palette colors are RGB numbers; -1 means no dye.
 local function hex(color) return color and color>=0 and string.format('%06x',color) or nil end
 local function dyeName(color)
-    if color==-1 then return 'No dye' end
+    if color==-1 then return L('No dye') end
     local dye=W.dyes and W.dyes[color];return dye and dye.name or '#'..(hex(color) or '')
 end
 local function locked(d) return d.unlocked==false or d.dyeLocked end
@@ -67,7 +124,7 @@ local function preview()
     if W.previewWing then items[#items+1]=tostring(W.previewWing);wings=true end
     W.previewSequence=W.previewSequence+1
     widget('NativePreview'):SetText(W.previewSequence..'|'..table.concat(items,',')..'|'..(wings and '1' or '0'))
-    text('Draft',count==0 and 'Current equipment' or count..' appearance changes'..(lockedCount>0 and ' | '..lockedCount..' locked' or ''))
+    text('Draft',count==0 and 'Current equipment' or string.format(L('%d appearance changes'),count)..(lockedCount>0 and ' | '..string.format(L('%d locked'),lockedCount) or ''))
     enable('Apply',count>0 and lockedCount==0);show('RemoveLocked',lockedCount>0)
 end
 local function control(name,value) widget('NativeControl'):SetText(name..'|'..tostring(value or 0)) end
@@ -122,10 +179,14 @@ function WardrobeNative_Layout(width,height)
     rect('ConfirmText',14,30,432,142);rect('ConfirmError',14,178,432,32)
     rect('OutfitName',18,139,422,28);rect('UnlockSource',18,140,422,28)
     rect('ConfirmCancel',234,237,95,30);rect('ConfirmAccept',337,237,105,30)
-    if W.state then preview() end
+    -- Render re-places the view-specific action row (four buttons in Collection and Dyes).
+    if W.state then WardrobeNative_Render();preview() end
 end
 local function receive(result,action)
-    if result.error then status(result.error);text('ConfirmError',result.error);return end
+    if result.error then
+        local message=serverResponse(result.error,action,true)
+        status(message);write('ConfirmError',message);return
+    end
     W.state=result;W.query.page=result.page;W.query.target=result.target
     W.dyes={};for _,dye in ipairs(result.dyes or {}) do W.dyes[dye.color]=dye end
     if action then W.cache={} end
@@ -140,7 +201,11 @@ local function receive(result,action)
         end
         WardrobeNative_CloseConfirm()
     end
-    WardrobeNative_Render();status(result.notice~='' and result.notice or 'Wardrobe ready.')
+    WardrobeNative_Render()
+    status(result.notice and result.notice~='' and serverResponse(result.notice,action,false) or 'Wardrobe ready.')
+    if action=='unlockAll' and result.notice and result.notice~='' and DisplayChatMessage then
+        DisplayChatMessage(0,string.format(L('Wardrobe: %s'),serverResponse(result.notice,action,false)),.65,.85,1)
+    end
     if action or not W.started then W.started=true;preview() end
 end
 function WardrobeNative_Fetch(extra)
@@ -173,10 +238,10 @@ end
 function WardrobeNative_Render()
     if not W.state then return end
     local state=W.state;local t=target();W.rowData={};W.slotData={};W.hoverData={};W.iconRequests={}
-    text('Character',state.character..' | Equipped appearances')
-    text('Counts',state.unlocked..' / '..state.total..' appearances | '..state.tickets..' Appearance Unlock | '
-        ..(state.palette and 'Full palette' or (state.dyesUnlocked or 0)..' / '..(state.dyesTotal or 0)..' dyes'))
-    text('Target',t and t.name or 'Select equipment')
+    write('Character',string.format(L('%s | Equipped appearances'),state.character))
+    write('Counts',string.format(L('%d / %d appearances | %d Appearance Unlock | %s'),state.unlocked,state.total,state.tickets,
+        state.palette and L('Full palette') or string.format(L('%d / %d dyes'),state.dyesUnlocked or 0,state.dyesTotal or 0)))
+    write('Target',t and t.name or L('Select equipment'))
     local nativeWorn={}
     if GetPlayerEquip then local ok,data=pcall(GetPlayerEquip);if ok and type(data)=='string' then for slot,item in data:gmatch('(%d+):(%d+)') do nativeWorn[2^tonumber(slot)]=tonumber(item) end end end
     for _,s in ipairs(slots) do
@@ -185,7 +250,7 @@ function WardrobeNative_Render()
         W.slotData[mask]=found
         W.hoverData[mask]=found or nativeWorn[mask] and {item=nativeWorn[mask]}
         local d=found and W.drafts[found.object];icon('SlotIcon'..mask,d and (d.skin~=0 and d.skin or found.item) or found and found.skin or nativeWorn[mask])
-        widget('Slot'..mask):SetTooltip(found and '' or 'No appearance equipment in this slot')
+        widget('Slot'..mask):SetTooltip(found and '' or L('No appearance equipment in this slot'))
         show('SlotSelected'..mask,found and found.object==W.query.target)
         enable('Slot'..mask,W.hoverData[mask]~=nil)
     end
@@ -207,7 +272,7 @@ function WardrobeNative_Render()
         show('Selected'..i,false)
         if row then WardrobeTheme_Button(widget('Row'..i),selected,false,true) end
         if row then
-            icon('Icon'..i,row.skin or row.item);text('Name'..i,row.name)
+            icon('Icon'..i,row.skin or row.item);write('Name'..i,row.name)
             text('State'..i,W.view=='collection' and (row.unlocked and 'Unlocked' or #row.sources>0 and 'Ready to unlock' or 'Locked') or W.view=='inventory' and row.type
                 or W.view=='dyes' and (row.unlocked and 'In palette' or #row.sources>0 and 'Ready to register' or 'Not registered') or 'Saved Outfit')
             widget('Row'..i):SetTooltip('')
@@ -215,25 +280,31 @@ function WardrobeNative_Render()
     end
     rect('Rows',0,0,W.width-W.left-70,math.ceil(math.min(36,#rows)/W.columns)*66)
     text('Page',page..' / '..pages);enable('Previous',page>1);enable('Next',page<pages);W.pages=pages
-    text('Results',W.view=='collection' and state.results..' appearances' or #rows..(W.view=='inventory' and ' equipment items' or W.view=='dyes' and ' palette dyes' or ' saved outfits'))
+    write('Results',string.format(L(W.view=='collection' and '%d appearances' or W.view=='inventory' and '%d equipment items' or W.view=='dyes' and '%d palette dyes' or '%d saved outfits'),W.view=='collection' and state.results or #rows))
     for i in ipairs(categories) do show('Category'..i,W.view=='collection') end
     for i,name in ipairs(categories) do WardrobeTheme_Button(widget('Category'..i),name==W.query.category,false) end
     for name,view in pairs({Collection='collection',Outfits='outfits',Inventory='inventory',Dyes='dyes'}) do WardrobeTheme_Button(widget(name),view==W.view,false) end
     show('Filter',W.view=='collection');show('ClearTarget',W.view=='collection' and t~=nil)
     local skin=W.skins[W.query.skin];local outfit=W.selectedOutfit
-    local description=skin and '<font color="#a6d9ff">'..esc(skin.name)..'</font><br>'..esc(skin.category)..' | '..esc(skin.type)..'<br>'..(skin.unlocked and 'Unlocked' or 'Locked appearance') or 'Select equipment, then choose an appearance.'
-    if W.view=='inventory' and t then description=esc(t.name)..'<br>'..esc(t.type)..'<br>Select Collection to choose a skin.' end
-    if W.view=='outfits' then description=outfit and esc(outfit.name)..'<br>Try on this outfit, then Apply Changes.' or 'Save your equipped appearances as an outfit.' end
+    local description=(skin and '<font color="#a6d9ff">'..esc(skin.name)..'</font><br>'..esc(L(skin.category))..' | '..esc(L(skin.type))..'<br>'..L(skin.unlocked and 'Unlocked' or 'Locked appearance')
+        or L('Select equipment, then choose an appearance.'))..'<br>'..L('Double-click an appearance to try it on.')
+    if W.view=='inventory' and t then description=esc(t.name)..'<br>'..esc(L(t.type))..'<br>'..L('Select Collection to choose a skin.') end
+    if W.view=='outfits' then description=outfit and esc(outfit.name)..'<br>'..L('Try on this outfit, then Apply Changes.') or L('Save your equipped appearances as an outfit.') end
     local dye=W.view=='dyes' and W.dyes[W.selectedDye]
     if W.view=='dyes' then
-        local worn=t and (t.color>=0 and dyeName(t.color) or 'No dye') or nil
+        local worn=t and (t.color>=0 and dyeName(t.color) or L('No dye')) or nil
         description=(dye and '<font color="#'..dye.hex..'">&#9608;&#9608;&#9608;&#9608;&#9608;&#9608;</font> <font color="#a6d9ff">'..esc(dye.name)..'</font><br>'
-            ..(dye.unlocked and 'In your account palette. Dyeing is free.' or #dye.sources>0 and 'Register a dye from your Inventory to keep this color.' or 'Not registered. You can still try it on.')
-            or 'Select a color, then Try On.')..'<br>'..(t and esc(t.name)..' | '..esc(worn)..(t.dyeable and '' or ' | Cannot be dyed') or 'Select equipment, or use Try On All.')
+            ..L(dye.unlocked and 'In your account palette. Dyeing is free.' or #dye.sources>0 and 'Register a dye from your Inventory to keep this color.' or 'Not registered. You can still try it on.')
+            or L('Select a color, then Try On.'))..'<br>'..(t and esc(t.name)..' | '..esc(worn)..(t.dyeable and '' or ' | '..L('Cannot be dyed')) or L('Select equipment, or use Try On All.'))
     end
     text('Details',description)
     text('Unlock',W.view=='dyes' and 'Register Dye' or 'Unlock Appearance');text('Restore',W.view=='dyes' and 'Remove Dye' or 'Restore Appearance')
+    local ready=state.ready or 0
+    -- Narrow windows keep the count but drop the second word.
+    local readyLabel=(W.width-W.left-62)/4/(W.scale or 1)<170 and 'Unlock All (%d)' or 'Unlock All Ready (%d)'
+    if ready>0 then write('UnlockAll',string.format(L(readyLabel),ready)) else text('UnlockAll','Unlock All Ready') end
     show('TryOn',W.view~='inventory');show('Unlock',W.view=='collection' or W.view=='dyes');show('Restore',W.view~='outfits')
+    show('UnlockAll',W.view=='collection')
     show('SaveOutfit',W.view=='outfits');show('DeleteOutfit',W.view=='outfits');show('DyeAll',W.view=='dyes')
     show('Palette',W.view=='dyes' and not state.palette and (state.paletteItems or 0)>0)
     if W.view=='dyes' then
@@ -244,6 +315,9 @@ function WardrobeNative_Render()
         rect('SaveOutfit',rx+10,W.bottom-81,(right-26)/3,29)
         rect('DeleteOutfit',rx+10+(right-20)/3,W.bottom-81,(right-26)/3,29)
         rect('TryOn',rx+10+2*(right-20)/3,W.bottom-81,(right-26)/3,29)
+    elseif W.view=='collection' then
+        local rx,right=W.left+18,W.width-W.left-30
+        for i,n in ipairs({'TryOn','Unlock','UnlockAll','Restore'}) do rect(n,rx+10+(i-1)*(right-20)/4,W.bottom-81,(right-32)/4,29) end
     else
         local rx,right=W.left+18,W.width-W.left-30
         for i,n in ipairs({'TryOn','Unlock','Restore'}) do rect(n,rx+10+(i-1)*(right-20)/3,W.bottom-81,(right-26)/3,29) end
@@ -251,7 +325,8 @@ function WardrobeNative_Render()
     enable('TryOn',W.view=='outfits' and outfit~=nil or W.view=='collection' and skin~=nil or dye and t~=nil and t.dyeable)
     enable('DyeAll',dye);enable('Palette',true)
     if W.view=='dyes' then enable('Unlock',dye and not dye.unlocked and #dye.sources>0);enable('Restore',t and (t.color>=0 or W.drafts[t.object] and W.drafts[t.object].color))
-    else enable('Unlock',skin~=nil and not skin.unlocked and #skin.sources>0 and state.tickets>0);enable('Restore',t and t.skin~=t.item) end
+    else enable('Unlock',skin~=nil and not skin.unlocked and #skin.sources>0 and canUnlock(state));enable('Restore',t and t.skin~=t.item) end
+    enable('UnlockAll',ready>0 and canUnlock(state))
     enable('DeleteOutfit',outfit~=nil);enable('SaveOutfit',true)
     widget('NativeIcons'):SetText(table.concat(W.iconRequests,','))
 end
@@ -260,7 +335,7 @@ function WardrobeNative_CloseConfirm()
 end
 local function confirm(title,body,action)
     if W.busy then return end
-    W.confirm=action;text('ConfirmText','<font color="#a6d9ff">'..esc(title)..'</font><br><br>'..body);text('ConfirmError','')
+    W.confirm=action;write('ConfirmText','<font color="#a6d9ff">'..esc(L(title))..'</font><br><br>'..L(body));text('ConfirmError','')
     show('OutfitName',false);show('UnlockSource',false);enable('ConfirmAccept',true);WardrobeConfirm:Show();control('input',0)
 end
 -- A draft holds a skin change, a dye change, or both. Dropping both removes it.
@@ -286,6 +361,21 @@ local function draftName(item,d)
     if d.color then parts[#parts+1]=dyeName(d.color) end
     return item.name..' | '..table.concat(parts,' | ')
 end
+-- Double-clicking a card tries it on. The native GAME_UI_LBUTTON_DBLCLICK event
+-- and a second OnClick on the same card can both report one gesture; act once.
+local function clickedTwice(row)
+    local last=W.lastRowClick
+    return last~=nil and last.row==row and last.view==W.view and now()-last.at<=DOUBLE_CLICK
+end
+function WardrobeNative_TryOnRow(row)
+    local item=W.rowData and W.rowData[row]
+    if not item or W.view=='inventory' or W.busy or W.confirm then return end
+    local done=W.lastTryOn
+    if done and done.row==row and done.view==W.view and now()-done.at<=DOUBLE_CLICK then return end
+    W.lastTryOn={row=row,view=W.view,at=now()};W.lastRowClick=nil
+    if W.view=='collection' then W.query.skin=item.item elseif W.view=='dyes' then W.selectedDye=item.color else W.selectedOutfit=item end
+    WardrobeNative_Click('WardrobeTryOn')
+end
 function WardrobeNative_Click(name)
     g_AddonName='RelicCalc'
     if name=='WardrobeConfirmCancel' then WardrobeNative_CloseConfirm();return end
@@ -303,6 +393,8 @@ function WardrobeNative_Click(name)
     local row=tonumber(name:match('^WardrobeRow(%d+)$'))
     if row and W.rowData[row] then
         local item=W.rowData[row]
+        if clickedTwice(row) then return WardrobeNative_TryOnRow(row) end
+        W.lastRowClick={row=row,view=W.view,at=now()}
         if W.view=='collection' then W.query.skin=item.item
         elseif W.view=='inventory' then W.query.target=item.object;W.query.page=1;W.view='collection';WardrobeNative_Fetch();return
         elseif W.view=='dyes' then W.selectedDye=item.color
@@ -345,11 +437,11 @@ function WardrobeNative_Click(name)
         end
         if name=='WardrobeRestore' and t then draft(t,nil,-1);preview();WardrobeNative_Render();return end
         if name=='WardrobeUnlock' and dye and not dye.unlocked and #dye.sources>0 then
-            confirm('Register Dye','Register '..esc(dye.name)..' to your account palette?<br>Consumes 1 dye. Every character on your account can then use this color freely.',function()
+            confirm('Register Dye',string.format(L('Register %s to your account palette?<br>Consumes 1 dye. Every character on your account can then use this color freely.'),esc(dye.name)),function()
                 local i=math.floor(widget('UnlockSource'):GetValue())+1;local source=dye.sources[i]
                 if source then WardrobeNative_Fetch({action='registerDye',source=source.object}) end
             end)
-            widget('UnlockSource'):ClearItem();for _,source in ipairs(dye.sources) do widget('UnlockSource'):AddItem(source.name..' | '..source.count..' in Inventory') end
+            widget('UnlockSource'):ClearItem();for _,source in ipairs(dye.sources) do widget('UnlockSource'):AddItem(string.format(L('%s | %d in Inventory'),source.name,source.count)) end
             widget('UnlockSource'):SetValue(0);show('UnlockSource',true);return
         end
         if name=='WardrobePalette' then
@@ -380,14 +472,31 @@ function WardrobeNative_Click(name)
         end
         preview();WardrobeNative_Render();return
     end
-    if name=='WardrobeRestore' and t then draft(t,{item=t.item,name='Original appearance',unlocked=true});preview();WardrobeNative_Render();return end
+    if name=='WardrobeRestore' and t then draft(t,{item=t.item,name=L('Original appearance'),unlocked=true});preview();WardrobeNative_Render();return end
     if name=='WardrobeUnlock' and skin and not skin.unlocked and #skin.sources>0 then
-        confirm('Unlock Appearance','Unlock '..esc(skin.name)..' for your account?<br>Consumes 1 Appearance Unlock. Your equipment is kept.',function()
+        confirm('Unlock Appearance',string.format(L(W.state.freeUnlock and 'Unlock %s for your account?<br>Free with your Shugo Trade Charter. Your equipment is kept.'
+            or 'Unlock %s for your account?<br>Consumes 1 Appearance Unlock. Your equipment is kept.'),esc(skin.name)),function()
             local i=math.floor(widget('UnlockSource'):GetValue())+1;local source=skin.sources[i]
             if source then WardrobeNative_Fetch({action='unlock',source=source.object,skin=skin.item}) end
         end)
-        widget('UnlockSource'):ClearItem();for _,source in ipairs(skin.sources) do widget('UnlockSource'):AddItem(source.name..(source.equipped and ' | Equipped' or ' | Inventory')) end
+        widget('UnlockSource'):ClearItem();for _,source in ipairs(skin.sources) do widget('UnlockSource'):AddItem(source.name..' | '..L(source.equipped and 'Equipped' or 'Inventory')) end
         widget('UnlockSource'):SetValue(0);show('UnlockSource',true);return
+    end
+    if name=='WardrobeUnlockAll' and W.view=='collection' then
+        local ready,tickets=W.state.ready or 0,W.state.tickets or 0
+        if ready==0 then status('No appearances are ready to unlock.');return end
+        if not canUnlock(W.state) then status('You need one Appearance Unlock item.');return end
+        local body
+        if W.state.freeUnlock then
+            body=ready==1 and L('Unlock 1 ready appearance for your account?<br>Free with your Shugo Trade Charter. Your equipment is kept.')
+                or string.format(L('Unlock all %d ready appearances for your account?<br>Free with your Shugo Trade Charter. Your equipment is kept.'),ready)
+        elseif tickets>=ready then
+            body=ready==1 and L('Unlock 1 ready appearance for your account?<br>Consumes 1 Appearance Unlock. Your equipment is kept.')
+                or string.format(L('Unlock all %d ready appearances for your account?<br>Consumes %d Appearance Unlocks. Your equipment is kept.'),ready,ready)
+        else
+            body=string.format(L('Unlock %d of %d ready appearances for your account?<br>Your Appearance Unlocks cover %d of them, first by name. Your equipment is kept.'),tickets,ready,tickets)
+        end
+        confirm('Unlock All Ready',body,function() WardrobeNative_Fetch({action='unlockAll'}) end);return
     end
     if name=='WardrobeApply' then
         local changes,names={},{}
@@ -401,7 +510,7 @@ function WardrobeNative_Click(name)
             changes[#changes+1]='{'..table.concat(fields,',')..'}';names[#names+1]=esc(item and draftName(item,d) or d.name or '')
         end
         if #changes==0 then return end
-        confirm('Apply Changes',table.concat(names,'<br>')..'<br><br>Apply these appearances? Equipment stats are kept. Palette dyes are free.',function() WardrobeNative_Fetch({action='applyChanges',changes='['..table.concat(changes,',')..']'}) end);return
+        confirm('Apply Changes',table.concat(names,'<br>')..'<br><br>'..L('Apply these appearances? Equipment stats are kept. Palette dyes are free.'),function() WardrobeNative_Fetch({action='applyChanges',changes='['..table.concat(changes,',')..']'}) end);return
     end
     if name=='WardrobeSaveOutfit' then
         confirm('Save Current Outfit','Save your equipped appearances and dyes. Remodeled skins must be unlocked; dyes outside your palette are not saved.',function()
@@ -411,7 +520,7 @@ function WardrobeNative_Click(name)
             WardrobeNative_Fetch({action='saveOutfit',name=outfit})
         end);widget('OutfitName'):SetText('');show('OutfitName',true);widget('OutfitName'):SetFocus();return
     end
-    if name=='WardrobeDeleteOutfit' and W.selectedOutfit then local o=W.selectedOutfit;confirm('Delete Outfit','Delete '..esc(o.name)..'? Unlocked appearances are kept.',function() WardrobeNative_Fetch({action='deleteOutfit',name=o.name});W.selectedOutfit=nil end) end
+    if name=='WardrobeDeleteOutfit' and W.selectedOutfit then local o=W.selectedOutfit;confirm('Delete Outfit',string.format(L('Delete %s? Unlocked appearances are kept.'),esc(o.name)),function() WardrobeNative_Fetch({action='deleteOutfit',name=o.name});W.selectedOutfit=nil end) end
 end
 local function hoverItem(name)
     local mask=tonumber(tostring(name):match('^WardrobeSlot(%d+)$'))
@@ -425,6 +534,11 @@ local function wardrobeEvent(event,...)
     g_AddonName='RelicCalc';local name=select(1,...)
     if event=='GAME_UI_COMBOBOX_SEL' and name=='WardrobeFilter' then W.lastFilter=widget('Filter'):GetValue();W.query.filter=filters[math.floor(W.lastFilter)+1] or 'unlocked';W.query.page=1;WardrobeNative_Fetch()
     elseif event=='GAME_UI_EDITBOX_CHANGED' and name=='WardrobeSearch' then W.searchAt=now()+.25
+    elseif event=='GAME_UI_LBUTTON_DBLCLICK' then
+        local source=tostring(name or '')
+        local row=tonumber(source:match('^WardrobeRow(%d+)$') or source:match('^WardrobeIcon(%d+)$') or source:match('^WardrobeName(%d+)$') or source:match('^WardrobeState(%d+)$'))
+        -- Only the card the first click selected, so a click that switched views cannot try on another card.
+        if row and clickedTwice(row) and PrivateWardrobe:IsVisible()==1 then WardrobeNative_TryOnRow(row) end
     elseif event=='GAME_UI_CANCEL_KEY_PRESSED' then if WardrobeConfirm:IsVisible()==1 then WardrobeNative_CloseConfirm() else PrivateWardrobe:Hide() end
     elseif event=='ADDON_TIMER' then
         W.clock=now()+.05
@@ -473,28 +587,62 @@ function WardrobeNative_OnEvent(event,...)
     local ok,why=pcall(wardrobeEvent,event,...)
     if not ok then
         local message=tostring(why)
-        if message~=W.timerError then DisplayChatMessage(0,'Wardrobe update: '..message,.91,.63,.56) end
+        if message~=W.timerError then DisplayChatMessage(0,string.format(L('Wardrobe update: %s'),message),.91,.63,.56) end
         W.timerError=message
     else W.timerError=nil end
 end
+local STATIC_LABELS={
+    Target='Select equipment',Draft='Current equipment',Status='Loading Wardrobe...',
+    MouseHint='Drag: rotate | Right-drag: move | Wheel: zoom',Empty='No matching appearances',
+    Refresh='Refresh',Collection='Collection',Outfits='Saved Outfits',Inventory='Inventory',Dyes='Dyes',
+    Clear='Clear',Previous='Previous',Next='Next',TryOn='Try On',DyeAll='Try On All',
+    Palette='Unlock Palette',Unlock='Unlock Appearance',UnlockAll='Unlock All Ready',Restore='Restore Appearance',
+    Reset='Reset Preview',RemoveLocked='Remove Locked Skins',Apply='Apply Changes',
+    SaveOutfit='Save Current Outfit',DeleteOutfit='Delete Outfit',ClearTarget='All Equipment Types',
+    Left='Left',Right='Right',Zoom='Zoom',Helmet='Helmet',Combat='Combat',Wings='Wings',
+    ConfirmCancel='Cancel',ConfirmAccept='Confirm',
+}
+local SLOT_TOOLTIPS={
+    [1]='Main Hand',[2]='Off Hand',[4]='Headwear',[2048]='Shoulder Armor',[8]='Chest Armor',
+    [16]='Gloves',[4096]='Leg Armor',[32768]='Wings',[32]='Boots',
+}
+local function localizeWardrobeLabels()
+    local title=L('Wardrobe')
+    if title~='Wardrobe' then PrivateWardrobe:SetText(title);WardrobeConfirm:SetText(title) end
+    for name,source in pairs(STATIC_LABELS) do
+        local caption=L(source)
+        if caption~=source then write(name,caption) end
+    end
+    for i,source in ipairs(categories) do
+        local caption=L(source)
+        if caption~=source then write('Category'..i,caption) end
+    end
+    for mask,source in pairs(SLOT_TOOLTIPS) do
+        local tip=L(source)
+        if tip~=source then widget('Slot'..mask):SetTooltip(tip) end
+    end
+end
 function WardrobeNative_OnLoad()
     g_AddonName='RelicCalc'
-    for _,e in ipairs({'GAME_UI_COMBOBOX_SEL','GAME_UI_EDITBOX_CHANGED','GAME_UI_CANCEL_KEY_PRESSED','ADDON_TIMER','PLAYER_ENTERING_WORLD'}) do PrivateWardrobe:RegisterEvent(e) end
+    for _,e in ipairs({'GAME_UI_COMBOBOX_SEL','GAME_UI_EDITBOX_CHANGED','GAME_UI_LBUTTON_DBLCLICK','GAME_UI_CANCEL_KEY_PRESSED','ADDON_TIMER','PLAYER_ENTERING_WORLD'}) do PrivateWardrobe:RegisterEvent(e) end
     for _,name in ipairs({'NativeTx','NativeRx','NativeMeta','NativePreview','NativeControl','NativeHover','NativeIcons'}) do widget(name):SetMaxLength(1048576) end
     for index=1,7 do widget('NativeRx'..index):SetMaxLength(1023) end
     widget('Search'):SetMaxLength(60);widget('OutfitName'):SetMaxLength(32)
-    for _,label in ipairs({'Unlocked','Ready to Unlock','All Appearances','Locked'}) do widget('Filter'):AddItem(label) end
+    widget('Filter'):ClearItem();for _,label in ipairs({'Unlocked','Ready to Unlock','All Appearances','Locked'}) do widget('Filter'):AddItem(L(label)) end
     widget('Filter'):SetValue(0);W.lastFilter=0;W.lastSearch='';PrivateWardrobe:RegisterHandleCancelKey();PrivateWardrobe:Hide();WardrobeConfirm:Hide();WardrobeNative_ResumeTimer()
     WardrobeNative_Layout(1280,960)
     WardrobeTheme_Apply()
     for i=1,36 do for _,name in ipairs({'Row','Icon','Selected','Name','State'}) do show(name..i,false) end end
     for _,s in ipairs(slots) do show('SlotIcon'..s[1],false);show('SlotSelected'..s[1],false);enable('Slot'..s[1],false) end
-    for _,name in ipairs({'TryOn','Unlock','Restore','SaveOutfit','DeleteOutfit','RemoveLocked','DyeAll','Palette'}) do show(name,false) end
+    for _,name in ipairs({'TryOn','Unlock','UnlockAll','Restore','SaveOutfit','DeleteOutfit','RemoveLocked','DyeAll','Palette'}) do show(name,false) end
     enable('Apply',false)
+    localizeWardrobeLabels()
     status('Loading appearances...')
 end
 function WardrobeNative_Open()
-    g_AddonName='RelicCalc';W.opened=true;W.started=false;W.busy=false;W.pending=nil;W.cache={};W.drafts={};W.previewWing=nil;W.hoverQuery=nil
+    g_AddonName='RelicCalc';W.opened=true;W.started=false;W.busy=false;W.pending=nil;W.cache={};W.drafts={};W.previewWing=nil;W.hoverQuery=nil;W.lastRowClick=nil;W.lastTryOn=nil
+    local title=L('Wardrobe')
+    if title~='Wardrobe' then PrivateWardrobe:SetText(title);WardrobeConfirm:SetText(title) end
     widget('NativeTx'):SetText('');widget('NativeRx'):SetText('');widget('NativePreview'):SetText('');widget('NativeControl'):SetText('');widget('NativeHover'):SetText('clear')
     for index=1,7 do widget('NativeRx'..index):SetText('') end
     PrivateWardrobe:Show();WardrobeNative_Fetch()

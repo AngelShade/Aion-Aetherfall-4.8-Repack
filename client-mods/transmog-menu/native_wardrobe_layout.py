@@ -47,7 +47,7 @@ def build():
     widget('editbox','WardrobePreviewBounds',flags='not_visible')
     for name,label in [('Refresh','Refresh'),('Collection','Collection'),('Outfits','Saved Outfits'),('Inventory','Inventory'),
       ('Dyes','Dyes'),('Clear','Clear'),('Previous','Previous'),('Next','Next'),('TryOn','Try On'),('DyeAll','Try On All'),
-      ('Palette','Unlock Palette'),('Unlock','Unlock Appearance'),
+      ('Palette','Unlock Palette'),('Unlock','Unlock Appearance'),('UnlockAll','Unlock All Ready'),
       ('Restore','Restore Appearance'),('Reset','Reset Preview'),('RemoveLocked','Remove Locked Skins'),('Apply','Apply Changes'),
       ('SaveOutfit','Save Current Outfit'),('DeleteOutfit','Delete Outfit'),('ClearTarget','All Equipment Types'),
       ('Left','Left'),('Right','Right'),('Zoom','Zoom'),('Helmet','Helmet'),('Combat','Combat'),('Wings','Wings')]:

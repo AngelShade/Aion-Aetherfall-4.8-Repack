@@ -47,7 +47,7 @@ public final class WardrobeDatabaseCheck {
 				try (Connection c = DriverManager.getConnection(url.replace("/"+source,"/"+schema),user,password); Statement ddl = c.createStatement()) {
 					check(schema.equals(c.getCatalog()),"test connection isolated");
 					for (String sql : Files.readString(Path.of("game-server/config/wardrobe/schema.sql")).split(";")) if (!sql.isBlank()) ddl.execute(sql);
-					check(value(c,"SELECT COUNT(*) n FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME LIKE 'wardrobe_%' AND ENGINE='InnoDB'")==4,"four transactional wardrobe tables");
+					check(value(c,"SELECT COUNT(*) n FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME LIKE 'wardrobe_%' AND ENGINE='InnoDB'")==7,"seven transactional wardrobe tables");
 					c.setAutoCommit(false);
 					ticket(c,1001,101,2); ticket(c,1002,101,1); c.commit();
 					var inventoryRow = WardrobeService.row(c,"SELECT is_equipped,item_count,item_id,item_skin FROM inventory WHERE item_unique_id=1001 FOR UPDATE");
@@ -70,6 +70,16 @@ public final class WardrobeDatabaseCheck {
 					check(!WardrobeService.unlocked(c,11).contains(100000098),"stale ticket count cannot unlock a skin");
 					WardrobeService.commitUnlock(c,11,100000099,101,1002,1); c.commit();
 					check(value(c,"SELECT COUNT(*) n FROM inventory WHERE item_unique_id=1002")==0,"last ticket removes its row");
+					// Unlock All Ready pays several appearances from one stack inside one transaction.
+					ticket(c,1003,101,3); c.commit();
+					for (int used=0; used<3; used++) WardrobeService.commitUnlock(c,13,100000101+used,101,1003,3-used);
+					c.commit();
+					check(value(c,"SELECT COUNT(*) n FROM inventory WHERE item_unique_id=1003")==0
+						&& WardrobeService.unlocked(c,13).equals(Set.of(100000101,100000102,100000103)),"one stack pays for a bulk unlock");
+					ticket(c,1004,101,2); c.commit();
+					WardrobeService.commitUnlock(c,14,100000101,101,1004,2);
+					refused(c,14,100000102,101,1004,2);
+					check(value(c,"SELECT item_count n FROM inventory WHERE item_unique_id=1004")==2 && WardrobeService.unlocked(c,14).isEmpty(),"failed bulk unlock rolls back every unlock and ticket");
 					WardrobeService.update(c,"INSERT INTO wardrobe_outfits VALUES(11,'Outfit','{\"8\":100000096}',1)"); c.commit();
 					check(value(c,"SELECT COUNT(*) n FROM wardrobe_outfits WHERE account_id=12")==0,"outfits are account private");
 					WardrobeService.update(c,"UPDATE wardrobe_outfits SET skins_json='{}' WHERE account_id=11"); c.rollback();

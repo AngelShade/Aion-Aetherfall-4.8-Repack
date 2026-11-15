@@ -608,6 +608,33 @@ files were hash-verified, and graphics launcher verification passed. Backup:
 `TransmogMenu-backups/signed-20261002-084528-448`. In-game color and opacity
 rendering still need visual confirmation.
 
+### Native Wardrobe double-click try-on and Unlock All Ready
+
+Double-clicking a Collection, Dyes or Saved Outfits card runs Try On for it. The
+controller listens for the client's `GAME_UI_LBUTTON_DBLCLICK` addon event and
+also treats a second `OnClick` on the same card within 0.5 timer seconds as a
+double-click; one gesture stages once. A double-click only acts on the card the
+first click selected, so an Inventory click that switches to Collection cannot
+try on a different card.
+
+Collection's action row has a fourth button, **Unlock All Ready (N)**, between
+Unlock Appearance and Restore Appearance. `N` is the server's `ready` count:
+appearances whose item the player holds (Inventory or equipped) that the account
+has not unlocked, for the character's race and gender. It confirms the exact cost
+and sends one `unlockAll` action. The server locks every source and ticket row,
+spends one Appearance Unlock per appearance (any number of stacks), or none with
+the Shugo Trade Charter, and commits all of them in one transaction. With fewer
+tickets than ready appearances, the first ones by name are unlocked. The result
+appears in the status line and in chat. Narrow windows shorten the label to
+**Unlock All (N)**. Single Unlock Appearance is now also enabled by the Charter
+without tickets, matching the server.
+
+`prepare_wardrobe_layout.py` now stages `Wardrobe.xml` and `WardrobeTheme.lua`
+with `WardrobeNative.lua` (only members that differ), for `InstallWardrobeLayout.ps1`.
+
+The bulk-unlock button stays disabled until the GameServer supports `unlockAll`.
+Double-click preview works independently of bulk unlock.
+
 ### Independent native window movement
 
 Profile, Inventory, Private Warehouse and the quest journal enable native title-bar

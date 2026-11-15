@@ -175,6 +175,8 @@ public final class WardrobeService {
 					.filter(t -> WardrobeRules.permitted(t,p.getRace(),p.getGender())).count());
 				state.put("total",allowed.size());
 				state.put("tickets",p.getInventory().getItemCountByItemId(WardrobeRules.UNLOCK_ITEM));
+				state.put("ready",sources.keySet().stream().filter(id -> !unlocked.contains(id)).map(byId::get)
+					.filter(t -> WardrobeRules.permitted(t,p.getRace(),p.getGender())).count());
 				state.put("freeUnlock",AetherfallBoonService.has(p,AetherfallBoonService.Boon.SHUGO_TRADE_CHARTER));
 				state.put("ticketItem",WardrobeRules.UNLOCK_ITEM); state.put("categories",List.of("All","Weapons","Armor","Costumes","Headwear","Shields","Wings"));
 				state.put("equipment",equipment.stream().map(WardrobeService::itemView).toList());
@@ -258,6 +260,7 @@ public final class WardrobeService {
 					if (receipt != null) return receipt.get("result").toString();
 					String result = switch (args.getOrDefault("action","")) {
 						case "unlock" -> unlock(c,p,args,committed);
+						case "unlockAll" -> unlockAll(c,p,committed);
 						case "registerDye" -> registerDye(c,p,args,committed);
 						case "unlockPalette" -> unlockPalette(c,p,committed);
 						case "apply" -> apply(c,p,args,committed);
@@ -324,9 +327,65 @@ public final class WardrobeService {
 		return "Unlocked " + skin.getName() + ". Equipment kept.";
 	}
 
+	/** One source item per locked appearance the player holds, in catalog order (name, then id). */
+	static List<Item> readySources(Player p,Set<Integer> owned) {
+		Map<Integer,Item> first = new LinkedHashMap<>();
+		for (Item i : equipment(p)) {
+			ItemTemplate skin = byId.get(i.getItemSkinTemplate().getTemplateId());
+			if (skin != null && !owned.contains(skin.getTemplateId()) && WardrobeRules.permitted(skin,p.getRace(),p.getGender()))
+				first.putIfAbsent(skin.getTemplateId(),i);
+		}
+		return first.values().stream().sorted(Comparator.comparing((Item i) -> i.getItemSkinTemplate().getName())
+			.thenComparingInt(i -> i.getItemSkinTemplate().getTemplateId())).toList();
+	}
+
+	/**
+	 * Unlocks every appearance that is ready (its item is held and the account lacks it) in one transaction.
+	 * Each unlock spends one Appearance Unlock unless the Shugo Trade Charter makes them free; with fewer
+	 * tickets than ready appearances, the first ones in catalog order are unlocked.
+	 */
+	private static String unlockAll(Connection c,Player p,List<Runnable> committed) throws SQLException {
+		int account = p.getAccount().getId();
+		List<Item> ready = readySources(p,unlocked(c,account));
+		if (ready.isEmpty()) return "No appearances are ready to unlock.";
+		if (AetherfallBoonService.has(p,AetherfallBoonService.Boon.SHUGO_TRADE_CHARTER)) { // Shugo Trade Charter: unlocks cost no ticket
+			for (Item source : ready) {
+				lockItem(c,p,source);
+				if (update(c,"INSERT IGNORE INTO wardrobe_skins VALUES(?,?,?,?)",account,source.getItemSkinTemplate().getTemplateId(),System.currentTimeMillis(),p.getObjectId()) != 1)
+					throw new IllegalArgumentException("Appearance already unlocked.");
+			}
+			return ready.size() == 1 ? "Unlocked " + ready.get(0).getItemSkinTemplate().getName() + " with your Shugo Trade Charter. Equipment kept."
+				: "Unlocked " + ready.size() + " appearances with your Shugo Trade Charter. Equipment kept.";
+		}
+		List<Item> tickets = p.getInventory().getItemsByItemId(WardrobeRules.UNLOCK_ITEM).stream().filter(i -> i.getItemCount() > 0).toList();
+		long budget = tickets.stream().mapToLong(Item::getItemCount).sum();
+		if (budget < 1) throw new IllegalArgumentException("You need one Appearance Unlock item.");
+		List<Item> chosen = ready.subList(0,(int)Math.min(budget,ready.size()));
+		for (Item source : chosen) lockItem(c,p,source);
+		int next = 0;
+		for (Item ticket : tickets) {
+			if (next == chosen.size()) break;
+			lockItem(c,p,ticket);
+			long count = ticket.getItemCount(); int used = 0;
+			while (next < chosen.size() && used < count) {
+				commitUnlock(c,account,chosen.get(next++).getItemSkinTemplate().getTemplateId(),p.getObjectId(),ticket.getObjectId(),count-used);
+				used++;
+			}
+			useMany(p,ticket,used,committed);
+		}
+		if (chosen.size() < ready.size())
+			return "Unlocked " + chosen.size() + " of " + ready.size() + " ready appearances. Get more Appearance Unlock items for the rest.";
+		return chosen.size() == 1 ? "Unlocked " + chosen.get(0).getItemSkinTemplate().getName() + ". Equipment kept."
+			: "Unlocked " + chosen.size() + " appearances. Equipment kept.";
+	}
+
 	/** Applies the committed removal of one consumed item to the live inventory. */
-	private static void useOne(Player p,Item used,List<Runnable> committed) {
-		long remaining = used.getItemCount()-1;
+	private static void useOne(Player p,Item used,List<Runnable> committed) { useMany(p,used,1,committed); }
+
+	/** Applies the committed removal of {@code count} units of one stack to the live inventory. */
+	private static void useMany(Player p,Item used,int count,List<Runnable> committed) {
+		if (count < 1) return;
+		long remaining = used.getItemCount()-count;
 		committed.add(() -> {
 			used.setItemCount(remaining); used.setPersistentState(PersistentState.UPDATED);
 			if (remaining == 0) {
