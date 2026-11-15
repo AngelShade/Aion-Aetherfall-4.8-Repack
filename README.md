@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚔️ Aion 4.8 Playerbots — Aetherfall Repack (v0.98.13)
+# ⚔️ Aion 4.8 Playerbots — Aetherfall Repack (v0.98.14)
 
 ### **Full Solo & Co-Op Private Server Repack • Autonomous AI Companions • 1-Click Setup & Play**
 
@@ -18,16 +18,13 @@
 ---
 
 <!-- whats-new:start -->
-## ✨ What's new in 0.98.13
+## ✨ What's new in 0.98.14
 
-Live portraits, faster bot startup and expanded Simplified Chinese text.
+Wardrobe gets one-step unlocking and double-click try-on. The High Quality graphics profile also stops capping you at 60 FPS.
 
-- The optional Simplified Chinese text pack adds translations for Companions, Journey, Central Market, Wardrobe and other custom windows.
-- After updating the repack, update Simplified Chinese text from the Hub's Languages page.
-- Set the width and height of the player, target, target of target and party frames, and adjust the individual bars.
-- The player, target and party portraits have a separate background opacity setting.
+- Wardrobe's **Unlock All Ready** button unlocks every appearance whose item you hold: one Appearance Unlock each, or free with a Shugo Trade Charter.
 
-**[See everything in 0.98.13](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.13)** • [All updates](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases)
+**[See everything in 0.98.14](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.14)** • [All updates](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases)
 
 ---
 <!-- whats-new:end -->
