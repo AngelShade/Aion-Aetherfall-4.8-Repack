@@ -2,12 +2,12 @@
   "schema": 1,
   "product": "Aion Aetherfall Repack",
   "version": "0.98.13",
-  "patchFile": "Aetherfall-Patch-0.98.13.json",
+  "patchFile": "Aetherfall-Patch-0.98.13-Interface-1.4.18.json",
   "patchBytes": 3059585,
-  "patchSha256": "e040bb263cf801ed782a4315b32085074e356bc6b3756bf8f5805c132268fdfb",
-  "patchUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.13/Aetherfall-Patch-0.98.13.json",
+  "patchSha256": "b4abca565338fdd663fadf9492d3b1198cfc9da65f59a0843cabb242795f205c",
+  "patchUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.13/Aetherfall-Patch-0.98.13-Interface-1.4.18.json",
   "patchFormat": "chunked-v1",
-  "downloadBytes": 2882480393,
+  "downloadBytes": 2882486716,
   "assetCount": 276,
   "filesChanged": 6062,
   "filesRemoved": 807,
@@ -22,7 +22,7 @@
       "sha256": "08f954c6deb1d48283f173bfcb55cb5ac398f9efa18db410e2641f98596f09e1"
     }
   ],
-  "downloaderUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.13/Aetherfall-Downloader.zip",
-  "downloaderBytes": 8689964,
-  "downloaderSha256": "9db4422d54336880a34386ab12d109f0faffd395fb63cc0799693fc87bb264fa"
+  "downloaderUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.13/Aetherfall-Downloader-0.98.13-Interface-1.4.18.zip",
+  "downloaderBytes": 8690102,
+  "downloaderSha256": "391dec549b03bc8413cba1dae258b1ba59cf99de5a78bb6f8ae1cd39c84bc076"
 }
