@@ -14,13 +14,33 @@ if(Test-Path -LiteralPath (Join-Path $hdRoot 'installed.json')) {
         foreach($shared in $component.shared){$verifiedHd['Client/'+$shared.packagePath]=$true}
     }
 }
+# Files the launcher rewrites itself (interface theme variants, companion artwork index) match the exact
+# SHA-256 it recorded after its own write; anything else that differs is still a failure.
+$generated=@{}
+$record=Join-Path $root 'Client/Mods/Launcher/generated-files.json'
+if(Test-Path -LiteralPath $record) {
+    try {
+        $files=(Get-Content -LiteralPath $record -Raw | ConvertFrom-Json).files
+        foreach($item in $files.PSObject.Properties){ if($item.Value -match '^[0-9a-fA-F]{64}$'){ $generated['Client/'+($item.Name.Replace('\','/'))]=$item.Value } }
+    } catch { $generated=@{} }
+}
 $count = 0
 foreach ($entry in $manifest.files) {
     if ($entry.mutable) { continue }
     $path = [IO.Path]::GetFullPath((Join-Path $root $entry.path))
     if (-not $path.StartsWith($root.TrimEnd('\')+'\',[StringComparison]::OrdinalIgnoreCase)) { throw 'Invalid manifest path.' }
-    if (-not $verifiedHd.ContainsKey($entry.path) -and
-        (-not (Test-Path -LiteralPath $path) -or (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ne $entry.sha256)) { throw "FAIL: $($entry.path)" }
+    if (-not $verifiedHd.ContainsKey($entry.path)) {
+        $ok=$false
+        if (Test-Path -LiteralPath $path) {
+            $actual=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
+            $ok=($actual -eq $entry.sha256) -or ($generated.ContainsKey($entry.path) -and $actual -eq $generated[$entry.path])
+        } elseif ($entry.path -in @('Client/bin32/d3d9.dll','Client/bin64/d3d9.dll')) {
+            # System Direct3D 9 selected: SelectRenderer.ps1 keeps the DXVK DLL as d3d9.dxvk-disabled.dll.
+            $disabled=$path.Substring(0,$path.Length-'d3d9.dll'.Length)+'d3d9.dxvk-disabled.dll'
+            $ok=(Test-Path -LiteralPath $disabled) -and ((Get-FileHash -LiteralPath $disabled -Algorithm SHA256).Hash -eq $entry.sha256)
+        }
+        if (-not $ok) { throw "FAIL: $($entry.path)" }
+    }
     $count++
     if ($count % 5000 -eq 0) { Write-Host "Verified $count immutable files..." }
 }

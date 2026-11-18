@@ -48,13 +48,13 @@ public class ItemMoveService {
 		}
 
 		if (sourceStorageType == destinationStorageType) {
-			slot = warehouseSlot(targetStorage, item, slot);
+			slot = sameStorageSlot(targetStorage, item, slot);
 			if (slot == -2) {
 				refuseMove(player, targetStorage, item);
 				return;
 			}
 			if (item.getEquipmentSlot() != slot)
-				moveInSameStorage(sourceStorage, item, slot);
+				moveWithinStorage(sourceStorage, item, slot);
 			return;
 		}
 		if (ItemRestrictionService.isItemRestrictedTo(player, item, targetStorage.getStorageType())
@@ -133,6 +133,37 @@ public class ItemMoveService {
 			if (!occupied[slot])
 				return slot;
 		return -2;
+	}
+
+	/**
+	 * Slot for a move inside one storage. Native Auto Arrange sends a run of moves whose targets can still hold an item it
+	 * moves next, so an occupied target is accepted (see {@link #moveWithinStorage}); refusing it made the client retry
+	 * forever ("There is no space in the warehouse." flood, frozen client). Only slots outside the warehouse are refused.
+	 */
+	static short sameStorageSlot(IStorage storage, Item moving, short requested) {
+		if (storage.getStorageType() != StorageType.REGULAR_WAREHOUSE && storage.getStorageType() != StorageType.ACCOUNT_WAREHOUSE)
+			return requested;
+		if (requested == -1)
+			return warehouseSlot(storage, moving, requested);
+		return requested < -1 || requested >= storage.getLimit() ? -2 : requested;
+	}
+
+	/** Moves inside a warehouse swap with the target's occupant so saved slots stay unique even if a sort stops midway. */
+	static void moveWithinStorage(IStorage storage, Item item, short slot) {
+		Item occupant = null;
+		if (storage.getStorageType() == StorageType.REGULAR_WAREHOUSE || storage.getStorageType() == StorageType.ACCOUNT_WAREHOUSE)
+			for (Item other : storage.getItems())
+				if (other != item && other.getEquipmentSlot() == slot) {
+					occupant = other;
+					break;
+				}
+		long previous = item.getEquipmentSlot();
+		moveInSameStorage(storage, item, slot);
+		if (occupant == null)
+			return;
+		short vacated = previous >= 0 && previous < storage.getLimit() ? (short) previous : warehouseSlot(storage, occupant, (short) -1);
+		if (vacated >= 0)
+			moveInSameStorage(storage, occupant, vacated);
 	}
 
 	static void refuseMove(Player player, IStorage destination, Item item) {

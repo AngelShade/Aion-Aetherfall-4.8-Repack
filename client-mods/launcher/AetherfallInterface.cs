@@ -174,7 +174,13 @@ namespace Aetherfall {
    if(theme!=null){if(!Themes(manifest).Any(x=>x.id==theme))throw new ArgumentException("Unknown interface theme: "+theme);state.Theme=theme;}
    string desired=state.Desired, wantedTheme=desired=="layout"?Theme(manifest,state.Theme):null, label=desired+(wantedTheme==null?"":" "+wantedTheme);
    List<string> paths=manifest.archives.Keys.Concat(manifest.files.Keys).ToList();
-   if(state.Applied==desired&&AppliedTheme(manifest,state)==wantedTheme&&Stamped(root,state,paths)&&SameStamp(state.Graphics,GraphicsStamp(root))){if(requested!=null||theme!=null)SaveState(root,state);return "Aetherfall Interface unchanged ("+label+").";}
+   if(state.Applied==desired&&AppliedTheme(manifest,state)==wantedTheme&&Stamped(root,state,paths)&&SameStamp(state.Graphics,GraphicsStamp(root))){
+    if(requested!=null||theme!=null)SaveState(root,state);
+    // Files are exactly as this launcher last wrote them (length and time stamps match): record their hashes
+    // once for installs that switched before generated-file records existed, so Verify accepts them.
+    if(!Running()&&GeneratedFiles.Missing(root,paths))GeneratedFiles.Record(root,paths);
+    return "Aetherfall Interface unchanged ("+label+").";
+   }
    if(Running()){SaveState(root,state);return "Aion is running; Aetherfall Interface stays as installed until every client is closed.";}
 
    Dictionary<string,byte[]> writes=new Dictionary<string,byte[]>();int entries=0;
@@ -207,6 +213,7 @@ namespace Aetherfall {
      Replace(Path.Combine(root,write.Key),write.Value);done.Add(write.Key);
     }
    } catch { foreach(string relative in done)Replace(Path.Combine(root,relative),before[relative]);throw; }
+   if(done.Count>0)GeneratedFiles.Record(root,done);
    string graphics=SyncGraphicsMenu(root,manifest);
    state.Applied=desired;state.AppliedTheme=wantedTheme;state.Stamps=new Dictionary<string,InterfaceStamp>();
    foreach(string relative in paths)state.Stamps[relative]=Stamp(Path.Combine(root,relative));

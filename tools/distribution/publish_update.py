@@ -92,6 +92,12 @@ EXCLUDED_PREFIXES = (
     'server/loginserver/log/',
     'server/chatserver/log/',
     'server/gameserver/cache/',
+    # The portable layout uses hyphenated component folders.
+    'server/game-server/log/',
+    'server/login-server/log/',
+    'server/chat-server/log/',
+    'server/game-server/cache/',
+    'control/backups/',
     'control/logs/',
     'control/pids/',
     'control/updatebackups/',

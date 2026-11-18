@@ -25,6 +25,16 @@ namespace Aetherfall {
   static readonly UTF8Encoding Utf8=new UTF8Encoding(false,true);
   static readonly JavaScriptSerializer Json=new JavaScriptSerializer { MaxJsonLength=16*1024*1024 };
   const string QuestArchive="Data/Quest/Quest.pak", EnglishArchive="L10N/ENU/data/data.pak";
+  // Backups live outside the client. An empty or relative setting resolves next to the client folder
+  // (portable: <install>/Control/Backups/CustomQuests). A configured folder on a drive that does not exist on
+  // this PC (a moved install, or a path shipped from another machine) falls back to that default.
+  static string BackupRootFor(string root,string configured) {
+   string portable=Path.GetFullPath(Path.Combine(root,"..","Control","Backups","CustomQuests"));
+   if(String.IsNullOrWhiteSpace(configured))return portable;
+   string full=Path.GetFullPath(Path.IsPathRooted(configured)?configured:Path.Combine(root,"..",configured));
+   string volume=Path.GetPathRoot(full);
+   return String.IsNullOrEmpty(volume)||!Directory.Exists(volume)?portable:full;
+  }
   public static string Hash(byte[] bytes) { using(SHA256 sha=SHA256.Create()) return BitConverter.ToString(sha.ComputeHash(bytes)).Replace("-","").ToLowerInvariant(); }
   static string Fingerprint(XElement node) { return Hash(Utf8.GetBytes(node.ToString(SaveOptions.DisableFormatting))); }
   static XElement Xml(string text) {
@@ -132,7 +142,7 @@ namespace Aetherfall {
    if(adopt&&writes.Count>0)throw new InvalidDataException("Adoption must not replace native quest archives.");
    Dictionary<string,byte[]> before=new Dictionary<string,byte[]>();foreach(string relative in writes.Keys)before.Add(relative,File.ReadAllBytes(Path.Combine(root,relative)));
    if(writes.Count>0) {
-    Closed();QuestSettings settings=Json.Deserialize<QuestSettings>(Read(Path.Combine(folder,"settings.json")));string backupRoot=Path.GetFullPath(settings.BackupRoot);
+    Closed();QuestSettings settings=Json.Deserialize<QuestSettings>(Read(Path.Combine(folder,"settings.json")));string backupRoot=BackupRootFor(root,settings.BackupRoot);
     if(backupRoot.StartsWith(root+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)||backupRoot==root)throw new InvalidDataException("Custom quest backups must be outside the client.");
     string backup=Path.Combine(backupRoot,DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fffffff"));Directory.CreateDirectory(backup);
     foreach(string relative in writes.Keys) { string saved=Path.Combine(backup,relative);Directory.CreateDirectory(Path.GetDirectoryName(saved));File.WriteAllBytes(saved,before[relative]); }

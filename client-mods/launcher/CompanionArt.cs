@@ -12,6 +12,40 @@ namespace Aetherfall {
   public string[] archives; public Dictionary<string,object[]> sprites;
  }
 
+ // Files the launcher itself rewrites (interface state/theme variants, the companion artwork index).
+ // The Hub's Verify accepts such a file when it matches the shipped hash or the exact SHA-256 recorded
+ // here after the launcher's own successful write, so a theme switch is not reported as damage while a
+ // genuinely damaged file still is. Paths are client-relative with forward slashes.
+ public static class GeneratedFiles {
+  public const string RecordPath="Mods/Launcher/generated-files.json";
+  public static void Record(string root,IEnumerable<string> relativePaths) {
+   string path=Path.Combine(root,RecordPath);var files=new Dictionary<string,object>(StringComparer.OrdinalIgnoreCase);
+   if(File.Exists(path)) {
+    try {
+     var old=new JavaScriptSerializer().Deserialize<Dictionary<string,object>>(File.ReadAllText(path,Encoding.UTF8));object listed;
+     if(old!=null&&old.TryGetValue("files",out listed)&&listed is Dictionary<string,object>)foreach(var item in (Dictionary<string,object>)listed)files[item.Key]=item.Value;
+    } catch(Exception) { files.Clear(); }
+   }
+   foreach(string relative in relativePaths) {
+    string normalized=relative.Replace('\\','/');string full=Path.Combine(root,normalized);
+    if(File.Exists(full))files[normalized]=CustomQuests.Hash(File.ReadAllBytes(full));else files.Remove(normalized);
+   }
+   Directory.CreateDirectory(Path.GetDirectoryName(path));
+   string temp=path+".new";File.WriteAllText(temp,new JavaScriptSerializer().Serialize(new Dictionary<string,object>{{"version",1},{"files",files}}),new UTF8Encoding(false));
+   if(File.Exists(path))File.Replace(temp,path,null);else File.Move(temp,path);
+  }
+  // True when any of the paths has no recorded hash yet (installs that switched before records existed).
+  public static bool Missing(string root,IEnumerable<string> relativePaths) {
+   string path=Path.Combine(root,RecordPath);if(!File.Exists(path))return true;
+   try {
+    var old=new JavaScriptSerializer().Deserialize<Dictionary<string,object>>(File.ReadAllText(path,Encoding.UTF8));object listed;
+    if(old==null||!old.TryGetValue("files",out listed)||!(listed is Dictionary<string,object>))return true;
+    var files=new Dictionary<string,object>((Dictionary<string,object>)listed,StringComparer.OrdinalIgnoreCase);
+    return relativePaths.Any(p=>!files.ContainsKey(p.Replace('\\','/')));
+   } catch(Exception) { return true; }
+  }
+ }
+
  // Derived metadata follows its two source archives. The bridge's exact archive
  // fingerprints, decompression CRCs and sprite bounds remain mandatory.
  public static class CompanionArt {
@@ -79,7 +113,11 @@ namespace Aetherfall {
   public static string Refresh(string root) {
    if(!Installed(root))return "Companion artwork index is not installed.";
    byte[] before=File.ReadAllBytes(Path.Combine(root,IndexPath)),expected=Build(root,null);
-   if(before.SequenceEqual(expected))return "Companion artwork verified ("+BitConverter.ToUInt32(expected,8)+" sprites).";
+   if(before.SequenceEqual(expected)) {
+    // Equal to what the current archives produce: legitimate even if it differs from the shipped copy.
+    if(GeneratedFiles.Missing(root,new[]{IndexPath}))GeneratedFiles.Record(root,new[]{IndexPath});
+    return "Companion artwork verified ("+BitConverter.ToUInt32(expected,8)+" sprites).";
+   }
    string path=Path.Combine(root,IndexPath),temp=path+".new";
    try {
     File.WriteAllBytes(temp,expected);
@@ -87,6 +125,7 @@ namespace Aetherfall {
      throw new IOException("Companion artwork index changed during preparation.");
     File.Replace(temp,path,null);
    } finally { if(File.Exists(temp))File.Delete(temp); }
+   GeneratedFiles.Record(root,new[]{IndexPath});
    return "Companion artwork index refreshed for the current client archives.";
   }
  }

@@ -135,6 +135,7 @@
     return direct;
   }
 
+  function catchUpCount(count) { return fmt(count === 1 ? '{count} catch-up request' : '{count} catch-up requests', {count: count}); }
   function node(tag, text, className) { var el = document.createElement(tag); if (text != null) el.textContent = typeof text === 'string' ? botText(text) : text; if (className) el.className = className; return el; }
 
   function label(value) {
@@ -233,7 +234,7 @@
   function renderSubTabs(body, bot) {
     var names = sectionNames[botTab]; if (!names || !body.querySelector('[data-section]')) return;
     var selected = subTabs[botTab] || names[0][0], tabs = node('nav', null, 'tabs subtabs');
-    tabs.id = 'bot-subtabs'; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', label(botTab) + ' sections');
+    tabs.id = 'bot-subtabs'; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', fmt('{section} sections', {section: label(botTab)}));
     if (!byId('bot-section-' + selected)) selected = names[0][0];
     body.insertBefore(tabs, body.firstChild);
     for (var i = 0; i < names.length; i++) (function (key, title) {
@@ -297,15 +298,15 @@
     var bonusSets = [['bonusModifiers','Random bonuses'],['fusionModifiers','Fused bonuses']];
     for (var bs = 0; bs < bonusSets.length; bs++) {
       var mods = item[bonusSets[bs][0]] || [], lines = [];
-      for (var m = 0; m < mods.length; m++) { var stat = mods[m], prefix = stat.operation === 'subtract' ? '-' : stat.operation === 'set' ? 'Set to ' : stat.operation === 'absolute' ? 'Absolute ' : '+';
+      for (var m = 0; m < mods.length; m++) { var stat = mods[m], prefix = stat.operation === 'subtract' ? '-' : stat.operation === 'set' ? tr('Set to') + ' ' : stat.operation === 'absolute' ? tr('Absolute') + ' ' : '+';
         var statNames = {MAXHP:'Maximum HP',MAXMP:'Maximum MP',BOOST_MAGICAL_SKILL:'Magic boost',BOOST_CASTING_TIME:'Casting speed',BOOST_HATE:'Enmity boost'};
-        lines.push((statNames[stat.name] || label(stat.name)) + ' ' + prefix + stat.value + (stat.operation === 'rate' ? '%' : '') + (stat.conditional ? ' (conditional)' : ''));
+        lines.push((statNames[stat.name] ? tr(statNames[stat.name]) : label(stat.name)) + ' ' + prefix + stat.value + (stat.operation === 'rate' ? '%' : '') + (stat.conditional ? ' ' + tr('(conditional)') : ''));
       }
-      if (lines.length) parent.appendChild(node('p',bonusSets[bs][1] + ': ' + lines.join(', '),'item-meta'));
-      else if (item[bs === 0 ? 'bonusStatsId' : 'fusionBonusStatsId']) parent.appendChild(node('p',bonusSets[bs][1] + ': details unavailable','item-meta'));
+      if (lines.length) parent.appendChild(node('p',tr(bonusSets[bs][1]) + ': ' + lines.join(', '),'item-meta'));
+      else if (item[bs === 0 ? 'bonusStatsId' : 'fusionBonusStatsId']) parent.appendChild(node('p',fmt('{label}: details unavailable', {label: tr(bonusSets[bs][1])}),'item-meta'));
     }
     var stoneSets = [['manastones','Manastones'],['fusionStones','Fused manastones']];
-    for (var s = 0; s < stoneSets.length; s++) { var stones = item[stoneSets[s][0]] || []; if (stones.length) { var names = []; for (var n = 0; n < stones.length; n++) names.push(stones[n].name + ' (slot ' + (Number(stones[n].slot) + 1) + ')'); parent.appendChild(node('p',stoneSets[s][1] + ': ' + names.join(', '),'item-meta')); } }
+    for (var s = 0; s < stoneSets.length; s++) { var stones = item[stoneSets[s][0]] || []; if (stones.length) { var names = []; for (var n = 0; n < stones.length; n++) names.push(fmt('{name} (slot {slot})', {name: stones[n].name, slot: Number(stones[n].slot) + 1})); parent.appendChild(node('p',tr(stoneSets[s][1]) + ': ' + names.join(', '),'item-meta')); } }
 
   }
 
@@ -314,7 +315,7 @@
     var choiceKey = bot.id + '|' + key, selected = itemSelections[choiceKey], exists = false;
     for (var i = 0; i < items.length; i++) if (String(items[i].id) === String(selected)) exists = true;
     if (!exists) selected = items.length ? items[0].id : null; itemSelections[choiceKey] = selected;
-    box.appendChild(node('h3',title)); grid.setAttribute('aria-label',title); grid.setAttribute('data-grid',key);
+    box.appendChild(node('h3',title)); grid.setAttribute('aria-label',botText(title)); grid.setAttribute('data-grid',key);
     for (var i = 0; i < items.length; i++) (function(item) {
       var tile = node('button',null,'cube-slot' + (String(item.id) === String(selected) ? ' selected' : ''));
       if (nativeItemLink(item)) tile.title = nativeItemLink(item);
@@ -582,7 +583,7 @@
     } else if (currentView === 'quests' && (!reuse || renderedViews.quests !== stateRevision)) {
       renderHelpRequests(); renderOverview();
       var quest = byId('owner-quest'), previous = quest.value; clear(quest);
-      for (var q = 0; q < state.quests.length; q++) { var opt = node('option',(state.quests[q].name || 'Quest ' + state.quests[q].id) + ' \u00b7 ' + label(state.quests[q].status)); opt.value = state.quests[q].id; quest.appendChild(opt); }
+      for (var q = 0; q < state.quests.length; q++) { var opt = node('option',questName(state.quests[q]) + ' \u00b7 ' + label(state.quests[q].status)); opt.value = state.quests[q].id; quest.appendChild(opt); }
       if (previous) quest.value = previous;
       if (quest.selectedIndex < 0 && quest.options.length) quest.selectedIndex = 0;
       updateShare(); renderedViews.quests = stateRevision;
@@ -647,7 +648,7 @@
 
     byId('question-count').textContent = pending ? String(pending) : '';
     byId('question-count').title = fmt('{count} quest requests', {count: pending});
-    byId('question-count').setAttribute('aria-label',pending + ' quest requests');
+    byId('question-count').setAttribute('aria-label',fmt('{count} quest requests', {count: pending}));
 
 
 
@@ -676,7 +677,7 @@
 
       for (var v = 0; v < 2; v++) { var track = node('span', null, 'mini-track'), fill = node('span', null, 'mini-fill' + (v ? ' mana' : '')); fill.style.width = Math.max(0, Math.min(100, Number(v ? bot.mana : bot.health) || 0)) + '%'; track.appendChild(fill); bars.appendChild(track); } row.appendChild(bars);
 
-      if ((bot.questions || []).length) row.appendChild(node('span', bot.questions.length + ' catch-up request' + (bot.questions.length === 1 ? '' : 's'), 'needs-attention'));
+      if ((bot.questions || []).length) row.appendChild(node('span', catchUpCount(bot.questions.length), 'needs-attention'));
 
   }
 
@@ -1035,11 +1036,11 @@
   function renderCollectionCard(parent, character) {
     var id = String(character.id), live = activeBot(character.id), flipped = !!cardFaces[id];
     var card = node('article',null,'collection-card'), shell = node('div',null,'collection-shell'), turn = node('div',null,'collection-turn');
-    card.setAttribute('data-bot-id',id); card.setAttribute('aria-label',character.name + ', ' + rosterIdentity(character));
+    card.setAttribute('data-bot-id',id); card.setAttribute('aria-label',character.name + ', ' + botText(rosterIdentity(character)));
     var front = localButton(turn,null,function () { flip(true); },'collection-front');
     front.id = 'card-front-' + id; front.setAttribute('aria-controls','card-back-' + id);
-    front.setAttribute('aria-label','Turn ' + character.name + "'s card for details and actions");
-    front.setAttribute('data-focus-key','card|' + id + '|front'); front.title = 'Illustrated ' + label(character.playerClass || 'Daeva') + ' class artwork';
+    front.setAttribute('aria-label',fmt("Turn {name}'s card for details and actions", {name: character.name}));
+    front.setAttribute('data-focus-key','card|' + id + '|front'); front.title = fmt('Illustrated {cls} class artwork', {cls: label(character.playerClass || 'Daeva')});
     front.appendChild(cardPortrait(character.playerClass,'collection-portrait',character.gender));
     front.appendChild(node('span',null,'collection-shade'));
     var origin = node('span',character.generated && isSavedBot(character.id) ? 'Saved ' + originLabel(true,false,character.growth) : originLabel(character.generated,false,character.growth),'collection-origin' + rarityClass(character.growth)); front.appendChild(origin);
@@ -1096,7 +1097,7 @@
     if (live) localButton(extra,tr('Move items'),function () { subTabs.equipment = 'transfer'; openBot(character.id,'equipment'); });
     else if (!character.generated) {
       var move = button(extra,tr('Move items'),{action:'recruit',name:character.name},unavailable);
-      move.title = 'Recruit ' + character.name + ', then open item transfer'; move.onclick = function () { if (busy) return; pendingTransfer = character.name; window.clearTimeout(pendingTransferTimer); pendingTransferTimer = window.setTimeout(function () { clearPendingRecruit(); notice(tr('The companion did not arrive. Refresh before trying again.'),true); },30000); act({action:'recruit',name:character.name}); };
+      move.title = fmt('Recruit {name}, then open item transfer', {name: character.name}); move.onclick = function () { if (busy) return; pendingTransfer = character.name; window.clearTimeout(pendingTransferTimer); pendingTransferTimer = window.setTimeout(function () { clearPendingRecruit(); notice(tr('The companion did not arrive. Refresh before trying again.'),true); },30000); act({action:'recruit',name:character.name}); };
       localButton(extra,tr('Mail items'),function () { mailTarget = character.name; transferPick.mail = null; renderRoster(); });
     }
     if (ticketRecruit(character.growth)) {
@@ -1236,7 +1237,7 @@
     var health = node('div', null, 'vitals'); vitals(health, 'Health', bot.health, 'health'); vitals(health, 'Mana', bot.mana, 'mana'); if (bot.xp != null) vitals(health, 'XP', bot.xp, 'xp'); header.appendChild(health); card.appendChild(header);
 
     if (bot.generated || bot.temporary) button(header, 'Save ' + originLabel(true, false, bot.growth), { action: 'savebot', name: bot.name }, bot.closing, 'secondary');
-    var tabs = node('nav', null, 'tabs bot-tabs'), names = [['overview','Overview'],['behavior','Behavior'],['equipment','Equipment'],['mail','Mail'],['quests','Quests'],['care','Care'],['activity','Activity']]; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', bot.name + ' details');
+    var tabs = node('nav', null, 'tabs bot-tabs'), names = [['overview','Overview'],['behavior','Behavior'],['equipment','Equipment'],['mail','Mail'],['quests','Quests'],['care','Care'],['activity','Activity']]; tabs.setAttribute('role', 'tablist'); tabs.setAttribute('aria-label', fmt('{name} details', {name: bot.name}));
 
     for (var t = 0; t < names.length; t++) (function (name, title) { var tab = localButton(tabs, title, function () { captureDrafts(); botTab = name; renderSelection(true); var selected = byId('bot-tab-' + name); if (selected) selected.focus(); }, botTab === name ? 'selected' : ''); tab.id = 'bot-tab-' + name; tab.setAttribute('role','tab'); tab.setAttribute('aria-controls','bot-content'); tab.setAttribute('aria-selected',botTab === name ? 'true' : 'false'); tab.tabIndex = botTab === name ? 0 : -1; }(names[t][0], names[t][1])); card.appendChild(tabs);
 
@@ -1394,14 +1395,17 @@
 
   }
 
-  function coordinates(destination) { return destination.name + ' \u00b7 ' + (destination.mapName || 'Map ' + destination.map) + ' \u00b7 X ' + Math.round(destination.x) + ', Y ' + Math.round(destination.y) + ', Z ' + Math.round(destination.z) + (destination.distance == null ? '' : ' \u00b7 ' + destination.distance + ' m from you'); }
-  function questStatus(quest) { return quest.ready ? 'Ready to turn in' : quest.status === 'START' ? 'In progress' : label(quest.status); }
+  function mapName(place) { return place.mapName || fmt('Map {map}', {map: place.map}); }
+  function questName(quest) { return quest.name || fmt('Quest {id}', {id: quest.id}); }
+  function coordinates(destination) { return destination.name + ' \u00b7 ' + mapName(destination) + ' \u00b7 X ' + Math.round(destination.x) + ', Y ' + Math.round(destination.y) + ', Z ' + Math.round(destination.z) + (destination.distance == null ? '' : ' \u00b7 ' + fmt('{distance} m from you', {distance: destination.distance})); }
+  // Display text only; quest readiness is decided from quest.ready, never from this label.
+  function questStatus(quest) { return quest.ready ? tr('Ready to turn in') : quest.status === 'START' ? tr('In progress') : label(quest.status); }
   function canShowOnMap() { return !!(window.AionObject && AionObject.CodexAction); }
   function showOnMap(map, x, y, z) { AionObject.CodexAction('help-location', map, Math.round(x * 100), Math.round(y * 100), Math.round(z * 100)); }
 
   function renderQuest(parent, quest) {
 
-    parent.appendChild(node('strong', (quest.name || 'Quest ' + quest.id) + ' \u00b7 ' + questStatus(quest)));
+    parent.appendChild(node('strong', questName(quest) + ' \u00b7 ' + questStatus(quest)));
 
     parent.appendChild(node('p', quest.guidance || tr('Lead this companion to its quest objective.'), 'hint'));
 
@@ -1498,7 +1502,7 @@
     var journals = node('div', null, 'quest-journals'); journals.appendChild(node('span', tr('Open journal')));
     for (var j = 0; j < state.active.length; j++) (function (bot) { localButton(journals, bot.name, function () { openBot(bot.id, 'quests'); }, 'quest-member'); }(state.active[j]));
     body.appendChild(journals);
-    for (var a = 0; a < state.active.length; a++) if ((state.active[a].questions || []).length) { var requestRow = node('div', null, 'catch-up'), asking = state.active[a]; requestRow.appendChild(node('strong', asking.name + ' \u00b7 ' + asking.questions.length + ' catch-up request(s)')); (function (id) { localButton(requestRow, tr('Review requests'), function () { openBot(id, 'quests'); }); }(asking.id)); body.appendChild(requestRow); }
+    for (var a = 0; a < state.active.length; a++) if ((state.active[a].questions || []).length) { var requestRow = node('div', null, 'catch-up'), asking = state.active[a]; requestRow.appendChild(node('strong', asking.name + ' \u00b7 ' + catchUpCount(asking.questions.length))); (function (id) { localButton(requestRow, tr('Review requests'), function () { openBot(id, 'quests'); }); }(asking.id)); body.appendChild(requestRow); }
     for (var b = 0; b < state.active.length; b++) {
       var bot = state.active[b];
       for (var q = 0; q < bot.quests.length; q++) {
@@ -1525,9 +1529,9 @@
     shown.slice(first, first + QUEST_PAGE).forEach(function (k) {
       var entry = groups[k], line = node('div', null, 'quest-line' + (entry.ready ? ' ready' : '')), parts = [];
       for (var name in entry.states) if (Object.prototype.hasOwnProperty.call(entry.states, name)) parts.push(name + ' ' + entry.states[name] + '/' + entry.total);
-      line.appendChild(node('strong', entry.quest.name || 'Quest ' + entry.quest.id)); line.appendChild(node('span', parts.join(' \u00b7 ')));
+      line.appendChild(node('strong', questName(entry.quest))); line.appendChild(node('span', parts.join(' \u00b7 ')));
       if (entry.place) {
-        var where = node('span', entry.place.name + ' \u00b7 ' + (entry.place.mapName || 'Map ' + entry.place.map)); where.title = coordinates(entry.place); line.appendChild(where);
+        var where = node('span', entry.place.name + ' \u00b7 ' + mapName(entry.place)); where.title = coordinates(entry.place); line.appendChild(where);
         var show = localButton(line, tr('Show'), function () { showOnMap(entry.place.map, entry.place.x, entry.place.y, entry.place.z); }, 'small quest-show'); show.disabled = !canShowOnMap();
       } else localButton(line, tr('See quest journal'), function () { openBot(entry.bot, 'quests'); }, 'quest-link');
       table.appendChild(line);

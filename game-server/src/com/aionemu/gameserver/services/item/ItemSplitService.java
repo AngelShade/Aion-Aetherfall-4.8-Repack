@@ -80,7 +80,9 @@ public class ItemSplitService {
 		}
 
 		if (targetItem == null) {
-			if (splitAmount == sourceItem.getItemCount() && sourceStorageType != destinationStorageType) {
+			// A whole stack is a move, also inside one storage (native arrange can send it as a split); splitting
+			// it would leave an empty source and was refused.
+			if (splitAmount == sourceItem.getItemCount()) {
 				ItemMoveService.moveItem(player, itemObjId, sourceStorageType, destinationStorageType, slotNum);
 				return;
 			}

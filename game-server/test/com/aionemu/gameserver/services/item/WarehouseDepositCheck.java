@@ -205,6 +205,33 @@ public final class WarehouseDepositCheck {
     check(packet.read(),"Actual CM_REPLACE_ITEM read");packet.run();retained(a,source,1,4);
     check(bank.getItemByObjId(replace.getObjectId())==replace && replace.getItemLocation()==dest && replace.getEquipmentSlot()==72,"Refused swap restores destination identity/slot too");
    }
+   // Native Auto Arrange reorders a warehouse with same-storage CM_MOVE_ITEM onto slots still held by the next item.
+   // Refusing those (5 Nov) flooded "There is no space in the warehouse." and froze the client.
+   for(int dest:new int[]{1,2}) {
+    var a=actor(6,selector);var bank=(Bank)a.getStorage(dest);int limit=bank.getLimit();
+    var items=new ArrayList<Item>();for(int n=0;n<6;n++){var it=item(n%2==0?100000001:164000001,n%2==0?1:5,dest,n);load(bank,it);items.add(it);}
+    packets(a).clear();
+    for(int k=0;k<6;k++)move(a,items.get(k),dest,(short)(5-k));
+    for(int k=0;k<6;k++)check(items.get(k).getEquipmentSlot()==5-k && bank.getItemByObjId(items.get(k).getObjectId())==items.get(k),"Arrange puts every item on its requested slot");
+    check(packets(a).stream().noneMatch(p->p instanceof SM_SYSTEM_MESSAGE),"Arrange onto occupied slots is never refused");
+    // A client that assumes overlap (rotation 0->1, 1->2, 2->0) converges to the same layout.
+    move(a,items.get(0),dest,(short)1);move(a,items.get(1),dest,(short)2);move(a,items.get(2),dest,(short)0);
+    check(items.get(0).getEquipmentSlot()==1 && items.get(1).getEquipmentSlot()==2 && items.get(2).getEquipmentSlot()==0,"Overlap-style rotation reaches the client's layout");
+    check(items.stream().map(Item::getEquipmentSlot).distinct().count()==items.size(),"Saved warehouse slots stay unique after every arrange step");
+    // An interrupted sort leaves unique slots too.
+    move(a,items.get(3),dest,(short)4);
+    check(items.stream().map(Item::getEquipmentSlot).distinct().count()==items.size(),"Interrupted arrange keeps unique slots");
+    // Layout now: 2@0, 0@1, 1@2, 5@3, 3@4, 4@5. An automatic move takes the lowest slot no other item holds (its own, 3).
+    move(a,items.get(5),dest,(short)-1);check(items.get(5).getEquipmentSlot()==3,"Automatic slot inside a warehouse takes the lowest slot no other item holds");
+    packets(a).clear();long before=items.get(4).getEquipmentSlot();move(a,items.get(4),dest,(short)limit);
+    check(items.get(4).getEquipmentSlot()==before && packets(a).stream().anyMatch(p->p instanceof SM_SYSTEM_MESSAGE),"Slot outside the warehouse is still refused");
+    // A whole stack sent as a same-warehouse split is a move too: onto an occupied slot it swaps, onto a free slot it moves.
+    var stack=items.get(1);long held=stack.getItemCount();var occupant=items.get(3);long stackSlot=stack.getEquipmentSlot(),occupiedSlot=occupant.getEquipmentSlot();
+    packets(a).clear();split(a,stack,dest,held,(short)occupiedSlot);
+    check(stack.getEquipmentSlot()==occupiedSlot && occupant.getEquipmentSlot()==stackSlot && stack.getItemCount()==held && bank.getItems().size()==6,"Whole-stack same-warehouse split swaps losslessly");
+    check(packets(a).stream().noneMatch(p->p instanceof SM_SYSTEM_MESSAGE),"Whole-stack same-warehouse split is not refused");
+    split(a,stack,dest,held,(short)40);check(stack.getEquipmentSlot()==40 && stack.getItemCount()==held,"Whole-stack same-warehouse split onto a free slot moves");
+   }
    for(int expansions:new int[]{0,6,11})for(int dest:new int[]{1,2}){
     var a=actor(expansions,selector);var i=item(164000001,23,0,4);load(a.cube,i);split(a,i,dest,7,(short)72);
     check(i.getItemCount()==16 && a.getStorage(dest).getItems().getFirst().getItemCount()==7,"Successful partial drag preserves total quantity");

@@ -49,9 +49,27 @@ namespace AetherfallSetup {
    foreach(var shared in Rows(component,"shared")) { string hash;if(hashes.TryGetValue("Client/"+shared["path"],out hash))hashes["Client/"+shared["packagePath"]]=hash; }
    return hashes;
   }
+  // Files the launcher rewrites itself (interface theme variants, companion artwork index) are accepted when they
+  // match the exact hash the launcher recorded after its own write (client-mods/launcher GeneratedFiles).
+  static Dictionary<string,string> GeneratedHashes(string package) {
+   var hashes=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
+   string record=At(package,"Client/Mods/Launcher/generated-files.json");
+   if(!File.Exists(record))return hashes;
+   try {
+    object files;var value=Read(record);
+    if(value.TryGetValue("files",out files)&&files is Dictionary<string,object>)
+     foreach(var item in (Dictionary<string,object>)files) { var hash=item.Value as string;if(hash!=null&&Regex.IsMatch(hash,"^[0-9a-fA-F]{64}$"))hashes["Client/"+item.Key.Replace('\\','/')]=hash; }
+   } catch(Exception) { hashes.Clear(); }
+   return hashes;
+  }
+  // Choosing system Direct3D 9 renames the DXVK d3d9.dll to d3d9.dxvk-disabled.dll (Mods/Renderer/SelectRenderer.ps1).
+  static string DisabledRenderer(string package,string relative) {
+   return relative.Equals("Client/bin32/d3d9.dll",StringComparison.OrdinalIgnoreCase)||relative.Equals("Client/bin64/d3d9.dll",StringComparison.OrdinalIgnoreCase)
+    ?At(package,relative.Substring(0,relative.Length-"d3d9.dll".Length)+"d3d9.dxvk-disabled.dll"):null;
+  }
   // only limits the check to those paths, for confirming a repair.
   public static RepackVerificationResult Run(string package,ICollection<string> only,Action<long,long> progress,CancellationToken cancel) {
-   var result=new RepackVerificationResult();var hd=HdHashes(package);
+   var result=new RepackVerificationResult();var hd=HdHashes(package);var generated=GeneratedHashes(package);
    var entries=Rows(Read(At(package,"FILES.json")),"files").Where(x=>{ object mutable;return !(x.TryGetValue("mutable",out mutable)&&mutable is bool&&(bool)mutable)&&!OwnFiles.Contains((string)x["path"]); }).ToList();
    if(only!=null) { var wanted=new HashSet<string>(only,StringComparer.OrdinalIgnoreCase);entries=entries.Where(x=>wanted.Contains((string)x["path"])).ToList(); }
    long total=entries.Sum(x=>Convert.ToInt64(x["bytes"])),done=0;
@@ -60,10 +78,24 @@ namespace AetherfallSetup {
     string relative=(string)entry["path"],path=At(package,relative),expected;long bytes=Convert.ToInt64(entry["bytes"]);
     bool textured=hd.TryGetValue(relative,out expected);if(!textured)expected=(string)entry["sha256"];
     result.Checked++;
-    if(!File.Exists(path)) { result.Missing.Add(relative);if(textured)result.HdTextures.Add(relative);done+=bytes;continue; }
-    long start=done;bool same=textured||new FileInfo(path).Length==bytes;
+    string alternative;generated.TryGetValue(relative,out alternative);
+    if(!File.Exists(path)) {
+     string disabled=DisabledRenderer(package,relative);
+     if(disabled!=null&&File.Exists(disabled)&&new FileInfo(disabled).Length==bytes) {
+      long before=done;bool kept;
+      try { kept=String.Equals(Hash(disabled,count=>{done+=count;progress(done,total);},cancel),expected,StringComparison.OrdinalIgnoreCase); }
+      catch(IOException) { kept=false; } catch(UnauthorizedAccessException) { kept=false; }
+      done=before+bytes;progress(done,total);
+      if(kept)continue;
+     }
+     result.Missing.Add(relative);if(textured)result.HdTextures.Add(relative);done+=bytes;continue;
+    }
+    long start=done;bool same=textured||alternative!=null||new FileInfo(path).Length==bytes;
     if(same) {
-     try { same=String.Equals(Hash(path,count=>{done+=count;progress(done,total);},cancel),expected,StringComparison.OrdinalIgnoreCase); }
+     try {
+      string actual=Hash(path,count=>{done+=count;progress(done,total);},cancel);
+      same=String.Equals(actual,expected,StringComparison.OrdinalIgnoreCase)||alternative!=null&&String.Equals(actual,alternative,StringComparison.OrdinalIgnoreCase);
+     }
      catch(IOException) { same=false; } catch(UnauthorizedAccessException) { same=false; }
     }
     done=start+bytes;progress(done,total);

@@ -210,6 +210,8 @@ function Stage-ChunkedPatch($Patch, [string]$Stage, [string]$ManifestDirectory) 
         $assembled = [Int64]0
         $fileNumber = 0
         Write-UpdateProgress 'assemble' 'bytes' 0 $assembleBytes 0 $plans.Count '' $true
+        $openArchives = @{}
+        $archiveOrder = [Collections.Generic.Queue[string]]::new()
         foreach ($plan in $plans) {
             $file = $plan.file
             $rel = [string]$file.path
@@ -229,9 +231,20 @@ function Stage-ChunkedPatch($Patch, [string]$Stage, [string]$ManifestDirectory) 
                         $inputFile.Position = $offset
                         $stream = $inputFile
                     } else {
-                        $archive = [IO.Compression.ZipFile]::OpenRead($ready[[string]$part.asset])
+                        $assetName = [string]$part.asset
+                        if (-not $openArchives.ContainsKey($assetName)) {
+                            # The patch builder interleaves 16 small-file buckets.
+                            if ($archiveOrder.Count -ge 32) {
+                                $oldAsset = $archiveOrder.Dequeue()
+                                $openArchives[$oldAsset].Dispose()
+                                $openArchives.Remove($oldAsset)
+                            }
+                            $openArchives[$assetName] = [IO.Compression.ZipFile]::OpenRead($ready[$assetName])
+                            $archiveOrder.Enqueue($assetName)
+                        }
+                        $archive = $openArchives[$assetName]
                         $entry = $archive.GetEntry([string]$part.sha256)
-                        if (-not $entry -or $entry.Length -ne $buffer.Length) { $archive.Dispose(); throw ('Missing or invalid update chunk: ' + $rel) }
+                        if (-not $entry -or $entry.Length -ne $buffer.Length) { throw ('Missing or invalid update chunk: ' + $rel) }
                         $stream = $entry.Open()
                     }
                     try {
@@ -242,7 +255,7 @@ function Stage-ChunkedPatch($Patch, [string]$Stage, [string]$ManifestDirectory) 
                             $read += $n
                         }
                     } finally {
-                        if (-not $plan.localParts[$partNumber]) { $stream.Dispose(); $archive.Dispose() }
+                        if (-not $plan.localParts[$partNumber]) { $stream.Dispose() }
                     }
                     $hash = [BitConverter]::ToString($sha.ComputeHash($buffer)).Replace('-', '').ToLowerInvariant()
                     if ($hash -ne [string]$part.sha256) { throw ('Update chunk checksum mismatch: ' + $rel) }
@@ -258,7 +271,12 @@ function Stage-ChunkedPatch($Patch, [string]$Stage, [string]$ManifestDirectory) 
             }
         }
         Write-UpdateProgress 'assemble' 'bytes' $assembleBytes $assembleBytes $plans.Count $plans.Count '' $true
-    } finally { $sha.Dispose() }
+    } finally {
+        if ($openArchives) {
+            foreach ($archive in $openArchives.Values) { $archive.Dispose() }
+        }
+        $sha.Dispose()
+    }
     Write-Output ('Update download: ' + $downloaded + ' bytes; reused ' + $reused + ' complete installed files. Verified chunks are cached for retries.')
 }
 
@@ -425,11 +443,11 @@ try {
     }
     $indexPath = Join-Path $package 'FILES.json'
     $installedIndex = if ($preserve.Count -gt 0 -and (Test-Path -LiteralPath $indexPath)) { [IO.File]::ReadAllText($indexPath) } else { '' }
-    $kept = @()
+    $kept = [Collections.Generic.List[string]]::new()
 
     New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
-    $written = @()
-    $removedList = @()
+    $written = [Collections.Generic.List[string]]::new()
+    $removedList = [Collections.Generic.List[string]]::new()
 
     try {
         # Commit installed-version metadata after all payload files.
@@ -449,10 +467,10 @@ try {
                         $bk = Join-Path $backupDir $rel
                         New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($bk)) -Force | Out-Null
                         [AetherfallUpdate.UpdateTransfer]::Copy($dest, $bk, 'backup', 0, (Get-Item -LiteralPath $dest).Length, $installNumber, $installFiles.Count, $rel)
-                        $written += $rel
+                        $written.Add($rel)
                         [void](Merge-Properties $dest (Join-Path $stageDir ('payload/' + $rel)))
                     }
-                    $kept += $rel
+                    $kept.Add($rel)
                     $installedBytes += [Int64]$file.bytes
                     Write-UpdateProgress 'install' 'bytes' $installedBytes $verifyBytes $installNumber $installFiles.Count $rel
                     continue
@@ -464,7 +482,7 @@ try {
                 [AetherfallUpdate.UpdateTransfer]::Copy($dest, $bk, 'backup', 0, (Get-Item -LiteralPath $dest).Length, $installNumber, $installFiles.Count, $rel)
             }
             New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($dest)) -Force | Out-Null
-            $written += $rel
+            $written.Add($rel)
             if (($rel -ieq 'Client/Aetherfall Launcher.exe' -or $rel -ieq 'Aetherfall Hub.exe') -and (Test-Path -LiteralPath $dest)) {
                 $oldExe = $dest + '.old'
                 if (Test-Path -LiteralPath $oldExe) { Remove-Item -LiteralPath $oldExe -Force -ErrorAction SilentlyContinue }
@@ -488,7 +506,7 @@ try {
                     New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($bk)) -Force | Out-Null
                     Copy-Item -LiteralPath $dest -Destination $bk -Force
                     Remove-Item -LiteralPath $dest -Force
-                    $removedList += $rel
+                    $removedList.Add($rel)
                 }
                 $removeNumber++
                 Write-UpdateProgress 'remove' 'files' $removeNumber $removeCount $removeNumber $removeCount $rel
@@ -496,7 +514,7 @@ try {
             Write-UpdateProgress 'remove' 'files' $removeCount $removeCount $removeCount $removeCount '' $true
         }
     } catch {
-        foreach ($rel in ($written + $removedList)) {
+        foreach ($rel in ($written.ToArray() + $removedList.ToArray())) {
             $dest = Join-Path $package $rel
             $bk = Join-Path $backupDir $rel
             if (Test-Path -LiteralPath $bk) {

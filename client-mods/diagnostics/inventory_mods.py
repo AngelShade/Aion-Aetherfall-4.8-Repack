@@ -129,9 +129,19 @@ def main():
         if receipt['feature']=='remember-login-reconnect-v3':
             from patch_binary import layout as reset_layout,offset as reset_offset
             restore=receipt['graphicsCompatibility']['resetRestoreHooks']
-            cursor_record=next(e for e in dxvk['nativeCursorPatch']['files'] if e['path']=='bin64/Game.dll')
-            images=[(game,record),((Path(graphics['backupRoot'])/'bin64/Game.dll').read_bytes(),restore['graphics']),
-                    (Path(cursor_record['backupPath']).read_bytes(),restore['cursor'])]
+            cursor_patch=dxvk['nativeCursorPatch'];cursor_record=next(e for e in cursor_patch['files'] if e['path']=='bin64/Game.dll')
+            if cursor_patch.get('ownershipSchema')==2 and graphics.get('ownershipSchema')==2:
+                # Ownership schema 2 restores in place (dxvk/GRAPHICS_MENU.md): Graphics reverts only its own
+                # prologues/import and CursorFix only its instruction bytes, so the reset hook must survive in the
+                # live Game.dll and in that file with the cursor bytes reverted. No whole-file restore image exists.
+                site=cursor_record['offset']  # a file offset (GRAPHICS_MENU.md: 0x551c96 in Game.dll)
+                original,replacement=bytes.fromhex(cursor_record['originalBytes']),bytes.fromhex(cursor_record['replacement'])
+                assert game[site:site+len(replacement)]==replacement,'CursorFix bytes are not applied in Game.dll'
+                reverted=bytearray(game);reverted[site:site+len(original)]=original
+                images=[(game,record),(bytes(reverted),record)]
+            else:
+                images=[(game,record),((Path(graphics['backupRoot'])/'bin64/Game.dll').read_bytes(),restore['graphics']),
+                        (Path(cursor_record['backupPath']).read_bytes(),restore['cursor'])]
             checks['remember_login_reset_storage_safe']=True
             for data,hook in images:
                 sections=reset_layout(data)[-1];section=next(s for s in sections if s[0].rstrip(b'\0')==b'.rreturn')

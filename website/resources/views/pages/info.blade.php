@@ -27,10 +27,10 @@
             <div>
                 <span class="eyebrow">Latest published release · {{ config('aetherfall_content.release.published_on') }}</span>
                 <h3>Aetherpack {{ config('aetherfall_content.release.version') }}</h3>
-                <p>Live portraits, faster bot startup and expanded Simplified Chinese text. The Interface refresh adds frame controls and reduces HUD overhead that can affect FPS.</p>
+                <p>Wardrobe gets one-step unlocking and double-click try-on. The High Quality graphics profile also stops capping you at 60 FPS.</p>
             </div>
             <div class="info-release-actions">
-                @if ($aionFeatures['news'] ?? false)<a class="btn" href="{{ route('news.show', 'aetherfall-0-98-13') }}">WHAT'S NEW <span aria-hidden="true">↗</span></a>@endif
+                @if ($aionFeatures['news'] ?? false)<a class="btn" href="{{ route('news.show', 'aetherfall-0-98-14') }}">WHAT'S NEW <span aria-hidden="true">↗</span></a>@endif
                 <a class="info-text-link" href="{{ config('aetherfall_content.release.url') }}" target="_blank" rel="noopener noreferrer">Official release notes ↗</a>
             </div>
         </div>

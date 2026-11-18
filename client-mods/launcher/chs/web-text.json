@@ -1975,5 +1975,19 @@
   "Godstone: {name}": "神石：{name}",
   "COMPANION / {role}": "同伴 / {role}",
   "Give a whole tradeable stack or Kinah to {name} outside combat. Ticket recruits keep what you give them.": "在非战斗状态下向 {name} 赠送整组可交易物品或基纳。招募券同伴会永久保留获赠财物。",
-  "Move a whole tradeable stack or Kinah between you and {name}, anywhere outside combat. Equipped, soul-bound and quest items stay where they are.": "在非战斗状态下与 {name} 随时互转整组可交易物品或基纳。已穿戴、灵魂绑定和任务物品留在原处。"
+  "Move a whole tradeable stack or Kinah between you and {name}, anywhere outside combat. Equipped, soul-bound and quest items stay where they are.": "在非战斗状态下与 {name} 随时互转整组可交易物品或基纳。已穿戴、灵魂绑定和任务物品留在原处。",
+  "{count} catch-up request": "{count} 个追赶协助请求",
+  "{count} catch-up requests": "{count} 个追赶协助请求",
+  "{section} sections": "{section}分区",
+  "{name} details": "{name} 详情",
+  "Turn {name}'s card for details and actions": "翻转 {name} 的卡片，查看详情和操作",
+  "Illustrated {cls} class artwork": "{cls}职业插画",
+  "Recruit {name}, then open item transfer": "招募 {name}，然后转移物品",
+  "Set to": "设为",
+  "Absolute": "固定",
+  "{label}: details unavailable": "{label}：详情不可用",
+  "{name} (slot {slot})": "{name}（第 {slot} 槽）",
+  "Map {map}": "地图 {map}",
+  "{distance} m from you": "距你 {distance} 米",
+  "Quest {id}": "任务 {id}"
 }

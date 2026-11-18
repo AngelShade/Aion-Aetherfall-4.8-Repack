@@ -525,13 +525,18 @@ class NativeBrowserReleaseTests(unittest.TestCase):
         with zipfile.ZipFile(gate.jar(build),'w') as archive:
             for name in gate.NAMES:
                 data=('normal builder '+name).encode();archive.writestr('playerbots/media/'+name,data);(out/'media'/name).write_bytes(data);(source/'game-server/config/playerbots/media'/name).write_bytes(data)
+        for name,(artifact,member,shared) in gate.SHARED.items():
+            data=('normal distribution '+name).encode()
+            with zipfile.ZipFile(build/artifact,'w') as archive:archive.writestr(member,data)
+            (out/'media'/name).write_bytes(data);(source/shared).parent.mkdir(parents=True,exist_ok=True);(source/shared).write_bytes(data)
+        text=source/gate.WEB_TEXT;text.parent.mkdir(parents=True);text.write_text('{"Your team": "fixture"}')
         for name in gate.RENDERER:(browser/name).write_bytes(('native renderer '+name).encode())
         media=gate.media_hashes(build)
-        inputs={str(checker.resolve()):gate.sha(checker)}|{str(out/'media'/name):digest for name,digest in media.items()}|{str(browser/name):gate.sha(browser/name) for name in gate.RENDERER}
+        inputs={str(checker.resolve()):gate.sha(checker)}|{str(out/'media'/name):digest for name,digest in media.items()}|{str(text.resolve()):gate.sha(text)}|{str(browser/name):gate.sha(browser/name) for name in gate.RENDERER}
         (out/'report/visual.png').write_bytes(b'native render image')
         (out/'report/report.json').write_text(json.dumps(dict(version=1,passed=True,authenticatedActions=43,inputs=inputs,screenshots={'visual.png':gate.sha(out/'report/visual.png')})))
         (out/'browser.txt').write_text('OK: native Aion WebKit verified')
-        evidence=dict(version=1,exitCode=0,gameSha256=gate.sha(gate.jar(build)),buildManifestSha256=gate.sha(build/'build-manifest.json'),gateSha256=gate.sha(gate.__file__),checkerSha256=gate.sha(checker),media=media,testedMedia=str(out/'media'),browserBin=str(browser),reportSha256=gate.sha(out/'report/report.json'),stdoutSha256=gate.sha(out/'browser.txt'))
+        evidence=dict(version=1,webTextSha256=gate.sha(text),artifacts=gate.artifacts(build),exitCode=0,gameSha256=gate.sha(gate.jar(build)),buildManifestSha256=gate.sha(build/'build-manifest.json'),gateSha256=gate.sha(gate.__file__),checkerSha256=gate.sha(checker),media=media,testedMedia=str(out/'media'),browserBin=str(browser),reportSha256=gate.sha(out/'report/report.json'),stdoutSha256=gate.sha(out/'browser.txt'))
         (out/'evidence.json').write_text(json.dumps(evidence))
         return gate,source,build,out,evidence
 
@@ -540,7 +545,8 @@ class NativeBrowserReleaseTests(unittest.TestCase):
             gate,source,build,out,e=self.fixture(Path(folder))
             with patch.object(gate,'ROOT',source):
                 gate.validate(build,out)
-                for path in [gate.jar(build),source/'game-server/config/playerbots/media/bots.js',Path(e['browserBin'])/'Awesomium.dll',source/'tools/check-playerbot-ui-behavior.py']:
+                shared=[source/item[2] for item in gate.SHARED.values()]+[build/item[0] for item in gate.SHARED.values()]
+                for path in [gate.jar(build),source/'game-server/config/playerbots/media/bots.js',*shared,source/gate.WEB_TEXT,Path(e['browserBin'])/'Awesomium.dll',source/'tools/check-playerbot-ui-behavior.py']:
                     original=path.read_bytes();path.write_bytes(b'changed input')
                     with self.assertRaises(AssertionError):gate.validate(build,out)
                     path.write_bytes(original)

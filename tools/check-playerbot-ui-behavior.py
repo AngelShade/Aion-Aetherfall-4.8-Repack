@@ -32,6 +32,9 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 
 MEDIA = ROOT / 'game-server/config/playerbots/media'
+# Shared window translation helper; the release gate copies the builder's bytes into --media.
+I18N_SOURCE = ROOT / 'game-server/config/central-market/media/af-i18n.js'
+WEB_TEXT = ROOT / 'client-mods/launcher/chs/web-text.json'
 
 
 
@@ -86,10 +89,14 @@ def main():
     for old in out.glob('companions-*.png'):old.unlink()
     def digest(path):
         with path.open('rb') as stream:return hashlib.file_digest(stream,'sha256').hexdigest()
-    bound=[Path(__file__).resolve(),*[MEDIA/name for name in ['bots.html','bots.css','bots.js']],*[args.browser_bin.resolve()/name for name in ['Awesomium.dll','AwesomiumProcess.exe','icudt42.dll']]]
+    i18n=MEDIA/'af-i18n.js' if (MEDIA/'af-i18n.js').is_file() else I18N_SOURCE
+    bound=[Path(__file__).resolve(),*[MEDIA/name for name in ['bots.html','bots.css','bots.js']],i18n,WEB_TEXT,*[args.browser_bin.resolve()/name for name in ['Awesomium.dll','AwesomiumProcess.exe','icudt42.dll']]]
     inputs={str(path):digest(path) for path in bound}
 
     state, posts, errors, sequence = fixture(), [], [], [0]; failed_response=[None]; requested=[]
+    # The client answers the helper route itself while a language pack is active,
+    # prefixing the pack as one JSON string (native-icon-bridge web_text_script).
+    web_pack=[None]
 
     def snapshot(values):
         # PlayerBotHttpService / PlayerBotRoster.page returns six server-filtered identities.
@@ -139,6 +146,11 @@ def main():
             elif path in ['/market/companions/media/bots.js', '/market/companions/media/bots.css']:
 
                 self.send((MEDIA/path.rsplit('/', 1)[1]).read_bytes(), 'application/javascript' if path.endswith('.js') else 'text/css')
+
+            elif path == '/market/media/af-i18n.js':
+                helper=i18n.read_bytes()
+                if web_pack[0] is not None: helper=('window.AetherfallWebText='+json.dumps(web_pack[0])+';\n').encode()+helper
+                self.send(helper,'application/javascript')
 
             elif path == '/market/companions/state':
                 mode=failed_response[0]
@@ -404,6 +416,20 @@ def main():
         assert js(spacingView,'document.documentElement.scrollWidth <= window.innerWidth')=='true'
         shot(spacingView,'companions-spacing-390.png',390,844,False)
         destroy(spacingView);views.remove(spacingView)
+
+        # Simplified Chinese pack: the shell and rendered player data use the pack's wording.
+        chs=json.loads(WEB_TEXT.read_text(encoding='utf-8'));web_pack[0]=json.dumps(chs,ensure_ascii=False)
+        chsView=create(1280,900,False);views.append(chsView)
+        string=make(spacingUrl,len(spacingUrl));load(chsView,string,empty,empty,empty);free(string)
+        wait(chsView,"document.querySelectorAll('#active .bot-summary').length",'1')
+        wait(chsView,"document.getElementById('notice').textContent",chs['Connected as {name}. Refresh when you want updated status.'].replace('{name}','FixturePlayer'))
+        for source in ('Your team','Companion Collection'):
+            found=js(chsView,'(function(){var t=document.body.textContent;return (t.indexOf('+json.dumps(chs[source])+')>=0)+","+(t.indexOf('+json.dumps(source)+')>=0);}())')
+            assert found=='true,false',('Untranslated Companions shell text',source,found)
+        assert js(chsView,'typeof window.AetherfallWebText')=='undefined','Pack data must not stay global'
+        assert js(chsView,"document.querySelector('#active .needs-attention').textContent")==chs['{count} catch-up requests'].replace('{count}','2'),'Catch-up count must use the pack wording'
+        shot(chsView,'companions-chs-1280.png',1280,900)
+        destroy(chsView);views.remove(chsView);web_pack[0]=None
 
         for width,height in [(1280,900),(1024,768),(900,700),(390,844)]:
 

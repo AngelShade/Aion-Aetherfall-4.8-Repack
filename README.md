@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/latest/download/Aetherfall-Downloader.zip"><img src="https://img.shields.io/badge/Download-Current_Aetherfall_Setup_Hub-2563eb?style=for-the-badge&logo=windows" alt="Download Aetherfall Setup Hub"></a>
-  <a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.13"><img src="https://img.shields.io/badge/Latest_Release-v0.98.13-eab308?style=for-the-badge" alt="Latest Release v0.98.13"></a>
+  <a href="https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.14"><img src="https://img.shields.io/badge/Latest_Release-v0.98.14-eab308?style=for-the-badge" alt="Latest Release v0.98.14"></a>
   <a href="https://mega.nz/file/hJt0hYTC#fr0RDjsLl4CriZ5dw8MljBhrlP6nD4oYkaErD2iW-vQ"><img src="https://img.shields.io/badge/MEGA_Mirror-Base_Repack_0.86_(36.35_GB)-d9272e?style=for-the-badge" alt="MEGA Mirror"></a>
   <a href="https://drive.google.com/file/d/1kzr5xNIezRPlFHVDQrV1P6B7nNScS_R2/view?usp=sharing"><img src="https://img.shields.io/badge/Google_Drive-Base_Repack_0.86_(36.35_GB)-16a34a?style=for-the-badge&logo=googledrive" alt="Google Drive Mirror"></a>
   <a href="https://discord.gg/DAnAjx3tY2"><img src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
@@ -16,7 +16,7 @@
 
 Aetherfall lets you build a party from your own alternate characters or temporary companions. Take them through quests and dungeons, manage their equipment and combat behavior, and keep your alts caught up with your main. Independent playerbots also quest, fight and visit towns around the world.
 
-**Latest release: [0.98.13](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.13), released 14 November 2026.** Live portraits, faster bot startup and expanded Simplified Chinese text. The Interface refresh adds frame controls and reduces HUD overhead that can affect FPS.
+**Latest release: [0.98.14](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.14), released 15 November 2026.** Wardrobe gets one-step unlocking and double-click try-on. The High Quality graphics profile also stops capping you at 60 FPS.
 
 The repack includes the game client, servers, Java and MariaDB in one Windows folder. Use the [downloader](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/latest/download/Aetherfall-Downloader.zip) to install it, then follow the steps below.
 
