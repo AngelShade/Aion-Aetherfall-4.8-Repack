@@ -77,6 +77,16 @@ public final class PlayerBotWeaponStanceCheck {
   check(!PlayerBotWeaponStance.transition(buffing,false,5000+hold-1,0),"Hold is exclusive until its deadline");
   check(PlayerBotWeaponStance.transition(buffing,false,5000+hold,0) && buffing.state==1 && buffing.drawnUntil==0,"Quiet after the hold puts the weapon away once");
   check(buffing.sent.equals(List.of(EmotionType.ATTACKMODE_IN_STANDING,EmotionType.NEUTRALMODE_IN_STANDING)),"Repeated buffs send one draw and one put-away, no flicker");
+  // A merchant opening its shop needs the native neutral stance at once, not after the between-casts hold.
+  var shop=new View();
+  check(PlayerBotWeaponStance.transition(shop,true) && shop.drawnUntil>System.currentTimeMillis(),"Shop: weapon drawn and held");
+  shop.casting=true;check(!PlayerBotWeaponStance.putAway(shop) && shop.state==33 && shop.drawnUntil>0,"Shop: a cast in progress keeps the weapon and its hold");
+  shop.casting=false;shop.combat=true;check(!PlayerBotWeaponStance.putAway(shop) && shop.state==33,"Shop: combat or aggro keeps the weapon");
+  shop.combat=false;check(PlayerBotWeaponStance.putAway(shop) && shop.state==1 && shop.drawnUntil==0,"Shop: quiet merchant puts the weapon away during the hold");
+  check(shop.sent.equals(List.of(EmotionType.ATTACKMODE_IN_STANDING,EmotionType.NEUTRALMODE_IN_STANDING)),"Shop: one native put-away packet");
+  check(!PlayerBotWeaponStance.putAway(shop) && shop.sent.size()==2,"Shop: already neutral sends nothing");
+  var shopPending=new View();shopPending.state=33;shopPending.skillReadyAt=System.currentTimeMillis()+60000;
+  check(!PlayerBotWeaponStance.putAway(shopPending) && shopPending.state==33,"Shop: a pending native action still keeps the weapon");
   var write=SM_EMOTION.class.getDeclaredMethod("writeImpl",AionConnection.class);write.setAccessible(true);
   for(var emotion:List.of(EmotionType.ATTACKMODE_IN_STANDING,EmotionType.ATTACKMODE_IN_MOVE,EmotionType.NEUTRALMODE_IN_STANDING,EmotionType.NEUTRALMODE_IN_MOVE)) {
    int state=emotion==EmotionType.ATTACKMODE_IN_STANDING || emotion==EmotionType.ATTACKMODE_IN_MOVE?33:1;

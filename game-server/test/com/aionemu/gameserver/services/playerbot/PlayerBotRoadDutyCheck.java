@@ -150,6 +150,14 @@ public final class PlayerBotRoadDutyCheck {
   check(PlayerBotRoadDuty.emptiest(List.of(current,reachable),current,40,Map.of(),r->r==reachable)==reachable,"an unreachable current road is not retained on an occupancy tie");
   check(PlayerBotRoadDuty.emptiest(List.of(current,blocked),current,40,Map.of(),r->false)==null,"merchants remain unassigned when every candidate is unreachable");
  }
+ private static void shopStops() {
+  long until=600000;
+  check(!PlayerBotRoadDuty.keepSelling(1000,0,true,true),"a travelling merchant has no shop stop, even when a traveller selects it");
+  check(PlayerBotRoadDuty.keepSelling(1000,until,true,false),"the shop stays open for the whole stop with nobody near, like a player's shop");
+  check(!PlayerBotRoadDuty.keepSelling(until,until,true,false),"the stop ends on time when nobody is near");
+  check(PlayerBotRoadDuty.keepSelling(until+60000,until,true,true),"a merchant does not pack up while a traveller is browsing or has it selected");
+  check(!PlayerBotRoadDuty.keepSelling(1000,until,false,true),"selling out ends the stop at once");
+ }
  private static void guards() {
   var points=List.of(new PlayerBotNavigation.Point(0,0,5),new PlayerBotNavigation.Point(100,0,5),new PlayerBotNavigation.Point(200,0,5),new PlayerBotNavigation.Point(300,0,5));
   var road=new PlayerBotPatrolRoutes.Route("road",1,Race.ELYOS,10,1,"road",points,PlayerBotPatrolRoutes.index(points),false);
@@ -174,7 +182,7 @@ public final class PlayerBotRoadDutyCheck {
  public static void main(String[] args)throws Exception {
   // RoadDuty's existing rank table loads eagerly; only its nonzero weight is needed by these pure checks.
   PlayerBotMerchantConfig.CHANCE_PEDDLER=1;
-  advance();progress();careers();migration();routes();merchants();guards();
+  advance();progress();careers();migration();routes();merchants();shopStops();guards();
   System.out.println("OK: "+checks+" road duty checks");
  }
  private PlayerBotRoadDutyCheck(){}

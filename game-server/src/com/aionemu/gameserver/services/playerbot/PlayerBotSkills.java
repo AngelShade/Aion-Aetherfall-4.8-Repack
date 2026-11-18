@@ -151,6 +151,8 @@ public final class PlayerBotSkills {
 		return canPlan(bot, entry, target, true);
 	}
 	static boolean canPlan(Player bot, Entry entry, com.aionemu.gameserver.model.gameobjects.Creature target, boolean checkPosition) {
+		// A native private shop takes no actions; a merchant serving a traveller would otherwise mount its mech or draw its weapon again.
+		if (PlayerBotRoadMerchants.serving(bot)) return false;
 		if (questTransformation(entry) && (target != bot || !questTransformationEligible(bot, entry.template())
 			|| bot.isSkillDisabled(entry.template()))) return false;
 		var skill = com.aionemu.gameserver.skillengine.SkillEngine.getInstance().getSkillFor(bot, entry.template(), target);

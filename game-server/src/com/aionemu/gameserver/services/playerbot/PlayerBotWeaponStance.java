@@ -30,6 +30,9 @@ final class PlayerBotWeaponStance {
  static boolean draw(Player bot) { return transition(view(bot),true); }
  static boolean idle(Player bot,long actionReadyAt) { return transition(view(bot),false,System.currentTimeMillis(),actionReadyAt); }
  static boolean transition(View bot,boolean draw) { return transition(bot,draw,System.currentTimeMillis(),0); }
+ /** A private shop needs the native neutral stance at once; the between-casts hold does not apply. Casts, combat and animations still do. */
+ static boolean putAway(Player bot) { return putAway(view(bot)); }
+ static boolean putAway(View bot) { if(bot.casting() || bot.combat())return false;bot.drawnUntil(0);return transition(bot,false); }
  static boolean transition(View bot,boolean draw,long now,long actionReadyAt) {
   if(!bot.spawned() || bot.dead())return false;
   // Every reason to hold the weapon extends the hold, even when it is already out.

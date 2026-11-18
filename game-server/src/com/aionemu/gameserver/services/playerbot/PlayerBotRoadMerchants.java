@@ -20,6 +20,9 @@ import com.aionemu.gameserver.services.ItemEligibility;
 import com.aionemu.gameserver.services.trade.EconomyPrices;
 import com.aionemu.gameserver.services.PrivateStoreService;
 import com.aionemu.gameserver.services.item.ItemFactory;
+import com.aionemu.gameserver.skillengine.effect.AbnormalState;
+import com.aionemu.gameserver.skillengine.effect.EffectType;
+import com.aionemu.gameserver.skillengine.model.SkillSubType;
 import com.aionemu.gameserver.utils.PacketSendUtility;
 import com.aionemu.gameserver.utils.PositionUtil;
 import com.aionemu.gameserver.world.WorldMapType;
@@ -145,12 +148,14 @@ public final class PlayerBotRoadMerchants {
  }
  static boolean stocked(PlayerBotRoadDuty.State s){return !stock(s).isEmpty();}
  private static String sign(PlayerBotRoadDuty.State s){var name=s.rank.name();return name.charAt(0)+name.substring(1).toLowerCase(Locale.ROOT)+(housing(s.route.map())?" - house goods":" - regional goods");}
- /** Native personal shop while a traveller attends this merchant. The client refuses to show a shop over its
-  * native item limit, so each opening lists the next stretch of stock, rarest first. */
+ /** Native personal shop for the merchant's current road stop (PlayerBotRoadDuty.selling). The client refuses to show a shop
+  * over its native item limit, so each opening lists the next stretch of stock, rarest first. */
  static void open(PlayerBotRoadDuty.State s) {
   var bot=s.session.bot();
-  if(bot.hasStore() || bot.getMoveController().isInMove() || bot.isFlying() || bot.isDead() || bot.isTrading() || bot.isCasting()
-   || bot.isInPlayerMode(PlayerMode.RIDE) || bot.isInState(CreatureState.CHAIR))return;
+  SERVING.put(bot.getObjectId(),System.currentTimeMillis());
+  if(bot.hasStore()){if(!shopStance(bot))close(bot);return;}
+  if(bot.getMoveController().isInMove() || bot.isFlying() || bot.isDead() || bot.isTrading() || bot.isCasting()
+   || bot.isInPlayerMode(PlayerMode.RIDE) || bot.isInState(CreatureState.CHAIR) || !settle(bot))return;
   var goods=stock(s);if(goods.isEmpty())return;
   goods.sort(Comparator.comparingLong((Item item)->price(bot,item)).reversed());
   var store=new PrivateStore(bot);
@@ -163,6 +168,31 @@ public final class PlayerBotRoadMerchants {
   PrivateStoreService.openPlayerBotStore(bot,store,sign(s));
  }
  static void close(Player bot){if(bot.hasStore())PrivateStoreService.closePrivateStore(bot);}
+ /** Out of combat, a merchant with its shop open or a traveller in front of it keeps still: no skills, no mech, no drawn weapon. */
+ static boolean serving(Player bot) {
+  if(!bot.hasStore()) {
+   // Road duty calls open() on every tick a traveller attends this merchant; an older mark belongs to a merchant that left duty.
+   Long since=SERVING.get(bot.getObjectId());
+   if(since==null)return false;
+   if(System.currentTimeMillis()-since>SERVING_MS){SERVING.remove(bot.getObjectId(),since);return false;}
+  }
+  var controller=bot.getController();return controller==null || !controller.isInCombat();
+ }
+ private static final long SERVING_MS=3000;
+ /** Merchant object id -> last road-duty tick that found a traveller in front of it. */
+ private static final Map<Integer,Long> SERVING=new ConcurrentHashMap<>();
+ /** The native shop rules a player meets in PrivateStoreService.canOpenPrivateStore: not in a mech, weapon put away, not hidden.
+  * A shop opened in a mech or with the weapon drawn is one the client will not open for the buyer. */
+ private static boolean shopStance(Player bot) {
+  return !bot.isInRobotMode() && !bot.isInAttackMode() && !bot.getEffectController().isAbnormalSet(AbnormalState.HIDE);
+ }
+ private static boolean settle(Player bot) {
+  // Native buff cancellation owns the mech's dismount and its dependent effects, as in rest and recover.
+  if(bot.isInRobotMode())for(var effect:bot.getEffectController().getAbnormalEffects())
+   if(effect.getSkillSubType()!=SkillSubType.DEBUFF && effect.getSkillTemplate().hasAnyEffect(EffectType.RIDEROBOT))effect.endEffect();
+  if(bot.isInAttackMode())PlayerBotWeaponStance.putAway(bot);
+  return shopStance(bot);
+ }
  /** Native shop purchase through the world-trade custody commit; merchandise is never a plain inventory hand-off. */
  public static void sell(Player seller,Player buyer,PrivateStore store,List<TradePSItem> bought,long price) {
   var items=bought.stream().map(TradePSItem::getItemObjId).toList();

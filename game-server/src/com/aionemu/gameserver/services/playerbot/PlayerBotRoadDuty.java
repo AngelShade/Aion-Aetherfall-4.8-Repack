@@ -27,6 +27,8 @@ public final class PlayerBotRoadDuty {
  static final class State {
   final PlayerBotSession session;final Properties values;final Career career;final Rank rank;PlayerBotPatrolRoutes.Route route;
   int point,direction=1,visitor,shopOffset,checkedMap,checkedLevel;long next,stopUntil,escortUntil,attendCheck,spacingCheck,recoveryAt,assignAt;boolean attended,suspended;Lane lane;
+  /** End of the merchant's current shop stop; 0 while it travels. Other merchants read it for spacing. */
+  volatile long shopUntil;
   PlayerBotPatrolRoutes.Route pending;boolean patrolled;
   final ArrayDeque<Lane> ahead=new ArrayDeque<>();
   final Progress progress=new Progress();
@@ -117,6 +119,7 @@ public final class PlayerBotRoadDuty {
    var s=state(bot);if(s==null || !onDuty(bot))return "road assignment awaiting recovery";
    long now=System.currentTimeMillis();
    if(bot.hasStore())return "merchant serving at assigned road stop";
+   if(s.shopUntil!=0)return "merchant setting up shop at road stop";
    if(s.visitor!=0 && now<s.stopUntil)return now<s.escortUntil?"road duty: assisting visitor":"road duty: visitor stop";
    if(s.attended)return "road duty: waiting for nearby customer";
    if(now<s.next)return "road duty: timed waypoint or spacing pause";
@@ -221,6 +224,8 @@ public final class PlayerBotRoadDuty {
   if(s.pending!=null && pending(s,System.currentTimeMillis())){PlayerBotWardenCompanies.maintain(s);return true;}
   PlayerBotWardenCompanies.maintain(s);
   if(s.route==null && s.career!=Career.NONE && recheck(s.checkedMap,s.checkedLevel,bot.getWorldId(),bot.getLevel(),System.currentTimeMillis(),s.assignAt)){assign(s);s.save();}
+  // An open shop makes the actor unable to act (Creature.canAttack), so travel() does not run while it sells. The stop ends here.
+  if(bot.hasStore() && s.career==Career.MERCHANT && !selling(s,System.currentTimeMillis()))PlayerBotRoadMerchants.close(bot);
   if(s.suspended && recover(s,System.currentTimeMillis()))return true;
   if(merchant(bot))PlayerBotRoadMerchants.maintenance(s);
   return false;
@@ -353,9 +358,19 @@ public final class PlayerBotRoadDuty {
   }
   if(now<s.spacingCheck || s.career!=Career.MERCHANT)return false;
   s.spacingCheck=now+2000;var bot=s.session.bot();
-  for(var other:STATES.values())if(other!=s && other.career==Career.MERCHANT && other.session.bot().getObjectId()<bot.getObjectId()
+  // A merchant stopped at its shop is not travelling; passing it is fine.
+  for(var other:STATES.values())if(other!=s && other.career==Career.MERCHANT && other.shopUntil==0 && other.session.bot().getObjectId()<bot.getObjectId()
    && other.session.bot().getWorldId()==bot.getWorldId() && other.session.bot().getInstanceId()==bot.getInstanceId()
    && other.session.bot().isSpawned() && PositionUtil.isInRange(bot,other.session.bot(),MERCHANT_SPACING))return true;
+  return false;
+ }
+ private static final int SHOP_SPACING=10;
+ /** Another merchant already has its shop at this spot: two shops on one spot overlap and are hard to click. */
+ private static boolean shopNearby(State s) {
+  var bot=s.session.bot();
+  for(var other:STATES.values())if(other!=s && other.career==Career.MERCHANT && other.shopUntil!=0
+   && other.session.bot().getWorldId()==bot.getWorldId() && other.session.bot().getInstanceId()==bot.getInstanceId()
+   && other.session.bot().isSpawned() && PositionUtil.isInRange(bot,other.session.bot(),SHOP_SPACING))return true;
   return false;
  }
  static boolean withinRoad(Player actor,float radius) {
@@ -381,14 +396,29 @@ public final class PlayerBotRoadDuty {
   var s=state(bot);return !onDuty(bot) || borrowed(bot) || enemy.getAggroList().isHating(bot)
    || s.route.map()==enemy.getWorldId() && s.route.distance(enemy.getX(),enemy.getY(),enemy.getZ())<=100;
  }
- /** A real traveller of this faction has selected this resident, or is at a merchant with goods. */
+ /** A real traveller of this faction has selected this resident, or stands at a merchant's open shop. Walking past a
+  * travelling merchant does not make it spring a shop: like a player, it sells only where it has set up. */
  private static boolean attended(State s,long now) {
   if(now<s.attendCheck)return s.attended;
-  s.attendCheck=now+750;var bot=s.session.bot();boolean stocked=s.career==Career.MERCHANT && PlayerBotRoadMerchants.stocked(s);
-  int near=bot.hasStore()?PlayerBotMerchantConfig.SHOP_CLOSE_RANGE:PlayerBotMerchantConfig.SHOP_OPEN_RANGE;boolean[] found={false};
+  s.attendCheck=now+750;var bot=s.session.bot();boolean open=s.career==Career.MERCHANT && bot.hasStore();boolean[] found={false};
   bot.getKnownList().forEachPlayer(p->{if(found[0] || p.isPlayerBot() || p.isDead() || !p.isSpawned() || p.getRace()!=bot.getRace() || p.getInstanceId()!=bot.getInstanceId())return;
-   found[0]=p.getTarget()==bot && PositionUtil.isInRange(p,bot,TARGET_PAUSE_RANGE) || stocked && PositionUtil.isInRange(p,bot,near);});
+   found[0]=p.getTarget()==bot && PositionUtil.isInRange(p,bot,TARGET_PAUSE_RANGE) || open && PositionUtil.isInRange(p,bot,PlayerBotMerchantConfig.SHOP_CLOSE_RANGE);});
   return s.attended=found[0];
+ }
+ /** A shop stop works like a player's private shop: the merchant stays put with its shop open for the whole stop and does not
+  * pack up while a traveller is browsing or has it selected. Running out of goods ends the stop. */
+ static boolean keepSelling(long now,long until,boolean stocked,boolean attended){return until!=0 && stocked && (now<until || attended);}
+ private static boolean selling(State s,long now) {
+  if(s.career!=Career.MERCHANT || s.shopUntil==0)return false;
+  // An open shop is stocked: the sale that empties it closes it.
+  boolean stocked=s.session.bot().hasStore() || PlayerBotRoadMerchants.stocked(s);
+  if(keepSelling(now,s.shopUntil,stocked,attended(s,now)))return true;
+  s.shopUntil=0;return false;
+ }
+ /** The merchant sets up its shop where it stands: at a road end, or where a traveller stopped it by selecting it. */
+ private static boolean setUp(State s,long now) {
+  if(s.career!=Career.MERCHANT || !PlayerBotRoadMerchants.stocked(s))return false;
+  s.shopUntil=now+Math.max(1,PlayerBotMerchantConfig.SHOP_STOP_MINUTES)*60000L;return true;
  }
  static boolean travel(PlayerBotSession session,PlayerBotNavigation navigation) {
   var bot=session.bot();var s=state(bot);if(!session.autonomous() || !onDuty(bot))return false;
@@ -408,7 +438,8 @@ public final class PlayerBotRoadDuty {
    s.patrolled=walkDecision(true,bot.getController().isInCombat(),false,false,s.suspended,!bot.isDead(),session.autonomous(),s.route.distance(bot));
    gait(bot,s.patrolled && PlayerBotWardenConfig.WALK);
   }
-  if(attended(s,now)){s.progress.reset();navigation.stop();if(s.career==Career.MERCHANT)PlayerBotRoadMerchants.open(s);return true;}
+  if(selling(s,now)){s.progress.reset();navigation.stop();PlayerBotRoadMerchants.open(s);return true;}
+  if(attended(s,now)){s.progress.reset();navigation.stop();if(setUp(s,now))PlayerBotRoadMerchants.open(s);return true;}
   PlayerBotRoadMerchants.close(bot);
   if(now<s.next){s.progress.reset();return true;}
   if(crowded(s,now)){navigation.stop();s.next=now+5000;s.progress.reset();return true;}
@@ -431,6 +462,8 @@ public final class PlayerBotRoadDuty {
    var step=advance(s.point,s.direction,s.route.points().size());s.point=step.point();s.direction=step.direction();
    s.lane=step.pause()?null:s.ahead.pollFirst();
    if(step.pause())s.ahead.clear();
+   // A merchant with goods sets up its shop at each road end, before any traveller arrives, unless another shop is already there.
+   if(step.pause() && !shopNearby(s) && setUp(s,now)){navigation.stop();s.progress.reset();s.save();PlayerBotRoadMerchants.open(s);return true;}
    if(step.pause()){navigation.stop();s.next=now+(s.career==Career.WARDEN && PlayerBotWardenConfig.ENABLED
     ?1000L*(PlayerBotWardenConfig.STOP_MIN+Math.floorMod(bot.getObjectId(),Math.max(1,PlayerBotWardenConfig.STOP_MAX-PlayerBotWardenConfig.STOP_MIN+1)))
     :1500+Math.floorMod(bot.getObjectId(),2500));s.progress.reset();s.save();return true;}
