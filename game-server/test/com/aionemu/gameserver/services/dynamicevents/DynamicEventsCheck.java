@@ -26,6 +26,7 @@ public final class DynamicEventsCheck {
 		journal();
 		journalWiring(root);
 		guildWars(root);
+		assistant(root);
 		System.out.println("OK: " + checks + " dynamic event checks; no World/SQL/tasks");
 	}
 
@@ -255,8 +256,11 @@ public final class DynamicEventsCheck {
 		check(strings.contains("<id>1801389</id>") && strings.contains("STR_QUEST_NAME_Q14979") && strings.contains("<id>1801390</id>"), "The client package names the same strings");
 		check(Files.readString(client.resolve("custom-quests/Quests/14979-DynamicEvent/quest.json")).contains("\"Id\": 14979"), "The client package is quest 14979");
 		check(Files.readString(client.resolve("custom-quests/Quests/14979-DynamicEvent/dialog.html")).contains("[%dic:STR_AETHERFALL_EVENT_PROGRESS]"), "The journal page reads the event's progress string");
-		check(Files.readString(client.resolve("aetherfall-core/aetherfall_core.cpp")).contains("CORE_VERSION[]=\"1.3.30\"")
-			&& Files.readString(client.resolve("aetherfall-core/prepare.py")).contains("NATIVE_VERSION = '1.3.30'"), "Core and its builder agree on 1.3.30");
+		var core = Files.readString(client.resolve("aetherfall-core/aetherfall_core.cpp"));
+		int versionAt = core.indexOf("CORE_VERSION[]=\"") + "CORE_VERSION[]=\"".length();
+		String coreVersion = core.substring(versionAt, core.indexOf('"', versionAt));
+		check(coreVersion.startsWith("1.3.") && Integer.parseInt(coreVersion.substring(4)) >= 30
+			&& Files.readString(client.resolve("aetherfall-core/prepare.py")).contains("NATIVE_VERSION = '" + coreVersion + "'"), "Core and its builder agree, at 1.3.30 or later");
 		check(Files.readString(root.resolve("config/administration/commands.properties")).contains("dynevent = 9"), "The GM shortcut has its access level");
 		var gm = Files.readString(root.resolve("data/handlers/admincommands/DynEvent.java"));
 		check(gm.contains("PlayerBotDynamicEvents.force(player,") && gm.contains("DynamicEventService.stop(player)") && gm.contains("DynamicEventService.status()"), "The GM shortcut starts, stops and lists");
@@ -328,6 +332,57 @@ public final class DynamicEventsCheck {
 			"reward_level_gap", "chest_kinah_per_level", "chest_tickets", "bonus_chest_tickets", "occupation_minutes", "occupation_holders", "shop_minutes"))
 			check(props.contains("gameserver.dynamicevents." + key + " = "), "Setting documented: " + key);
 		check(!props.contains("abandon_seconds") && !props.contains("boss_xp_permille"), "Retired settings are gone");
+	}
+
+	static void assistant(Path root) throws Exception {
+		var chain = EventCatalogue.parse("{\"id\":\"t\",\"title\":\"Test\",\"first\":\"a\",\"stages\":[{\"id\":\"a\",\"type\":\"KILL\",\"rating\":\"NORMAL\",\"title\":\"T\","
+			+ "\"objective\":\"O\",\"protect\":true,\"success\":\"b\",\"say\":{\"start\":[\"notice|Go\"]}},{\"id\":\"b\",\"type\":\"BOSS\",\"rating\":\"BOSS\",\"title\":\"B\",\"objective\":\"O\",\"success\":\"c\","
+			+ "\"phases\":[50],\"say\":{\"start\":[\"notice|Go\"],\"phase\":[\"boss|x\"]}},{\"id\":\"c\",\"type\":\"ESCORT\",\"rating\":\"NORMAL\",\"title\":\"C\",\"objective\":\"O\",\"success\":\"d\","
+			+ "\"say\":{\"start\":[\"notice|Go\"]}},{\"id\":\"d\",\"type\":\"KILL\",\"rating\":\"NORMAL\",\"title\":\"D\",\"objective\":\"O\",\"say\":{\"start\":[\"notice|Go\"]}}]}");
+		var anchor = new DynamicEvent.Anchor(1, 1, com.aionemu.gameserver.model.Race.ELYOS, 20, 7, "W", "beat:x", "R", new DynamicEvent.Spot(0, 0, 0), List.of());
+		var pool = new EventSpawns.Pool(List.of(), List.of(), null, new DynamicEvent.Spot(100, 0, 0), List.of(), "Raider");
+		var e = new DynamicEvent(1, chain, anchor, pool, 0);
+		e.stage = chain.stage("a");
+		e.required = 8;
+		e.defeated = 2;
+		check(EventJournal.icon(e).equals("defend") && EventJournal.progress(e, 100) == 250, "A protect KILL shows the shield icon and kills done");
+		e.stage = chain.stage("d");
+		check(EventJournal.icon(e).equals("kill"), "A plain KILL shows crossed swords");
+		e.stage = chain.stage("c");
+		e.spot = new DynamicEvent.Spot(25, 0, 0);
+		check(EventJournal.icon(e).equals("escort") && EventJournal.progress(e, 100) == 250, "An escort shows the distance walked");
+		e.stage = chain.stage("b");
+		check(EventJournal.icon(e).equals("boss") && EventJournal.progress(e, 40) == 600, "A leader fight shows the health taken");
+		e.shielded = true;
+		e.phaseTotal = 4;
+		e.phaseAdds.addAll(List.of(1, 2, 3));
+		check(EventJournal.progress(e, 40) == 250, "While shielded it shows the reinforcements defeated");
+		e.outcome = "Event complete: Test";
+		check(EventJournal.icon(e).equals("chest") && EventJournal.progress(e, 40) == 1000, "An ended event shows the chest, full");
+		check(EventJournal.medal(e, 99).equals("-"), "No contribution, no medal");
+		var src = root.resolve("src/com/aionemu/gameserver");
+		var http = Files.readString(src.resolve("services/PlayerBotHttpService.java"));
+		check(http.contains("path.equals(\"/market/companions/events/assistant\")") && http.contains("EventJournal.assistant(viewer)"),
+			"The assistant's data is served under the Companions context (/market/events would reach the Central Market)");
+		var journal = Files.readString(src.resolve("services/dynamicevents/EventJournal.java"));
+		for (String key : List.of("active", "chain", "group", "stage", "objective", "count", "progress", "seconds", "medal", "icon", "shield", "outcome", "map", "x", "y", "z"))
+			check(journal.contains("lines.put(\"" + key + "\""), "Assistant field " + key);
+		var client = root.resolve("../client-mods/aetherfall-core");
+		var header = Files.readString(client.resolve("event_assistant.h"));
+		check(header.contains("/market/companions/events/assistant?session_id=") && header.contains("constexpr int QUEST=14979;"), "Core asks the same route, only while quest 14979 is active");
+		for (String key : List.of("active", "chain", "stage", "objective", "count", "medal", "icon", "outcome", "group", "progress", "seconds", "shield", "map"))
+			check(header.contains("k==\"" + key + "\""), "Core reads field " + key);
+		check(Files.readString(client.resolve("aetherfall_core.cpp")).contains("if(is(cmd,\"event\"))return event_assistant::query(L);"), "AFCore.Event reaches the cache");
+		check(Files.readString(client.resolve("AetherfallCore.lua")).contains("function AFCore.Event() if core then return core(\"event\") end end"), "The Lua wrapper exists");
+		var module = Files.readString(client.resolve("modules/EventAssistant.lua"));
+		check(module.contains("offsetX={0,'int',-1600,1600}") && module.contains("offsetY={0,'int',-1000,1000}") && !module.contains("AF.Movers:Register")
+			&& !module.contains("K.Hide(canvas)"), "The assistant moves by its offsets (no editor box) and never hides the shared canvas");
+		check(Files.readString(client.resolve("load_order.json")).contains("\"modules/EventAssistant.lua\"") && Files.readString(client.resolve("load_order.json")).contains("\"options/EventAssistant.lua\""),
+			"The module and its options load");
+		var prepare = Files.readString(client.resolve("prepare.py"));
+		check(prepare.contains("root.append(event_assistant_widgets(unitframes_dialog()))") && prepare.contains("return event_assistant_update_xml(update_xml(payload))")
+			&& prepare.contains("event_assistant_assets().items()") && !Files.readString(client.resolve("layout/unitframes.py")).contains("event_assistant"),
+			"The pieces join the passive canvas through prepare.py (startup, retained updates, textures); the unit-frame layout stays its own");
 	}
 
 	static void wiring(Path root) throws Exception {

@@ -39,6 +39,13 @@ public final class PlayerBotHttpService {
 				String file = path.endsWith("bots.js") ? "bots.js" : path.endsWith("bots.css") ? "bots.css" : "bots.html";
 				send(exchange, 200, file.endsWith("js") ? "application/javascript" : file.endsWith("css") ? "text/css" : "text/html", file.endsWith("css") ? WindowTextScale.css(PlayerBotMedia.read(file)) : PlayerBotMedia.read(file)); return;
 			}
+			// The world event HUD (AetherfallCore event_assistant.h): the player's current event as key=value lines.
+			if (method.equals("GET") && path.equals("/market/companions/events/assistant")) {
+				var eventQuery = parse(exchange.getRequestURI().getRawQuery());
+				Player viewer = MarketplaceService.findPlayer(eventQuery.getOrDefault("session_id", ""));
+				if (viewer == null || !viewer.isOnline() || viewer.isPlayerBot()) { send(exchange, 403, "text/plain", ""); return; }
+				send(exchange, 200, "text/plain", com.aionemu.gameserver.services.dynamicevents.EventJournal.assistant(viewer)); return;
+			}
 			if (method.equals("GET") && path.equals("/market/companions/help")) {
 				var helpQuery = parse(exchange.getRequestURI().getRawQuery());
 				Player helper = MarketplaceService.findPlayer(helpQuery.getOrDefault("session_id", ""));

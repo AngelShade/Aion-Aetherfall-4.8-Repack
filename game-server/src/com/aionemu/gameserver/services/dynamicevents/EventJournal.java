@@ -162,6 +162,82 @@ public final class EventJournal {
 		return "ok";
 	}
 
+	// ----- the Event Assistant (AetherfallCore event_assistant.h, Lua EventAssistant) -----
+
+	/** The icon key of what the current part asks for. */
+	static String icon(DynamicEvent e) {
+		if (e.outcome != null)
+			return "chest";
+		return switch (e.stage.kind()) {
+			case ESCORT -> "escort";
+			case BOSS -> "boss";
+			case KILL -> e.hold != null ? "retake" : e.stage.protect ? "defend" : "kill";
+		};
+	}
+
+	/** Progress of the current part in per mille: kills done, distance walked, or the leader's health taken (its shield reinforcements while shielded). */
+	static int progress(DynamicEvent e, int leaderHpPercent) {
+		if (e.outcome != null)
+			return 1000;
+		return switch (e.stage.kind()) {
+			case KILL -> (int) Math.clamp(e.defeated * 1000L / Math.max(1, e.required), 0, 1000);
+			case ESCORT -> {
+				var camp = e.pool.camp();
+				double total = Math.max(1, e.anchor.start().distance(camp.x(), camp.y(), camp.z()));
+				yield (int) Math.clamp(Math.round((1 - distance(e) / total) * 1000), 0, 1000);
+			}
+			case BOSS -> e.shielded ? (int) Math.clamp((e.phaseTotal - e.phaseAdds.size()) * 1000L / Math.max(1, e.phaseTotal), 0, 1000)
+				: (int) Math.clamp((100 - leaderHpPercent) * 10L, 0, 1000);
+		};
+	}
+
+	/** The player's tier so far, as the Assistant's medal: G, S, B or - (none yet). */
+	static String medal(DynamicEvent e, int playerId) {
+		var mine = e.contributions.get(playerId);
+		double top = e.contributions.values().stream().mapToDouble(c -> c.chain).max().orElse(0);
+		var tier = mine == null ? EventRewards.Tier.NONE
+			: EventRewards.tier(mine.chain, top, com.aionemu.gameserver.configs.main.DynamicEventConfig.GOLD_SHARE, com.aionemu.gameserver.configs.main.DynamicEventConfig.SILVER_SHARE);
+		return tier == EventRewards.Tier.NONE ? "-" : tier.name().substring(0, 1);
+	}
+
+	/**
+	 * The Assistant's data for the player's event, one "key=value" per line (values never hold a line break), or "active=0".
+	 * Keys: active, chain, group, stage, objective, count, progress (per mille), seconds, medal, icon, shield, outcome, map, x, y, z.
+	 */
+	public static String assistant(Player p) {
+		DynamicEvent e = SHOWN.get(p.getObjectId());
+		if (e == null)
+			return "active=0\n";
+		synchronized (e) {
+			if (e.stage == null)
+				return "active=0\n";
+			long now = System.currentTimeMillis();
+			int hp = 100;
+			if (e.stage.kind() == EventChain.Type.BOSS && World.getInstance().findVisibleObject(e.boss) instanceof com.aionemu.gameserver.model.gameobjects.Npc boss)
+				hp = boss.getLifeStats().getHpPercentage();
+			var lines = new LinkedHashMap<String, Object>();
+			lines.put("active", 1);
+			lines.put("chain", e.chain.title);
+			lines.put("group", EventTracker.group(e) ? 1 : 0);
+			lines.put("stage", EventNarration.render(e, e.stage.title));
+			lines.put("objective", e.outcome != null ? e.outcome : EventNarration.render(e, e.stage.objective));
+			lines.put("count", e.outcome != null ? "" : count(e).trim());
+			lines.put("progress", progress(e, hp));
+			lines.put("seconds", e.outcome != null ? 0 : Math.max(0, (e.stageEnds - now) / 1000));
+			lines.put("medal", medal(e, p.getObjectId()));
+			lines.put("icon", icon(e));
+			lines.put("shield", e.shielded ? 1 : 0);
+			lines.put("outcome", e.outcome == null ? "" : e.outcome);
+			lines.put("map", e.anchor.map());
+			lines.put("x", e.spot.x());
+			lines.put("y", e.spot.y());
+			lines.put("z", e.spot.z());
+			var out = new StringBuilder();
+			lines.forEach((k, v) -> out.append(k).append('=').append(String.valueOf(v).replace('\n', ' ').replace('\r', ' ')).append('\n'));
+			return out.toString();
+		}
+	}
+
 	// ----- the card -----
 
 	/** Changes only when what the player reads changes: the timer counts in whole minutes. */
