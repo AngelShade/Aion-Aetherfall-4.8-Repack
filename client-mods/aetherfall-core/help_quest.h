@@ -1,9 +1,10 @@
-// Names the reusable help quests, one per help slot (owner 8 Nov: several requests at once):
-// 14996, 14998 and 14999. Each wrapper's native title and progress rows point at text from
-// that slot's server card, fetched as the quest is added and whenever its record changes.
+// Names the reusable card quests, one per slot: help requests 14996, 14998 and 14999 (owner 8 Nov:
+// several requests at once), then the world event 14979 (Core 1.3.30; the server's EventJournal.SLOT 3).
+// Each wrapper's native title and progress rows point at text from that slot's server card, fetched as
+// the quest is added and whenever its record changes.
 namespace help_quest {
-constexpr int SLOTS=3;
-constexpr int QUESTS[SLOTS]={14996,14998,14999},TITLES[SLOTS]={1801381,1801385,1801387},PROGRESSES[SLOTS]={1801382,1801386,1801388};
+constexpr int SLOTS=4;
+constexpr int QUESTS[SLOTS]={14996,14998,14999,14979},TITLES[SLOTS]={1801381,1801385,1801387,1801389},PROGRESSES[SLOTS]={1801382,1801386,1801388,1801390};
 constexpr int QUEST=QUESTS[0];
 // [0] quests added, [1] cards applied, [2] last refusal (1 rows/format, 2 conversion)
 extern "C" __declspec(dllexport) volatile uintptr_t AetherfallHelpDiagnostics[3]={0,0,0};

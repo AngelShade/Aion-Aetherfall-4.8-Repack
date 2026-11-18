@@ -5,6 +5,17 @@ Aetherfall Interface. It reads native HUD data and applies the interface's windo
 positions, visibility and tooltip settings. Settings remain in `Mods/AetherfallUI`.
 Existing chat commands run through the native chat input.
 
+## World event journal slot, native 1.3.30 (18 November 2026)
+
+A world event (server module `services/dynamicevents`, `config/dynamic-events/README.md`)
+shows in the quest journal and tracker like an accepted help request. `help_quest.h` gains a
+fourth slot: custom quest 14979 (`client-mods/custom-quests/Quests/14979-DynamicEvent`) with
+title string 1801389 and progress string 1801390. Its card comes from the same endpoint with
+`slot=3`, which the server routes to `EventJournal.card` before the help slots; the in-page
+Locate and Track buttons post `slot=3` to `EventJournal.action`. Collect reward stays off:
+event cards report `ACTIVE` or `ENDED`, never `COMPLETE`, because event rewards are paid by the
+server as they are earned. The three help slots are unchanged. Build with `prepare.py --dll-only`.
+
 ## Stigma skill tooltips, native 1.3.29 (17 November 2026)
 
 Hovering a stigma opens the item tooltip in `0x1ec` plus one `DlgTooltipSkill`

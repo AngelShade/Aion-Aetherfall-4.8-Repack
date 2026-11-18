@@ -45,7 +45,7 @@
 // remain native and unchanged.
 namespace {
 using Ptr=void*;
-constexpr char CORE_VERSION[]="1.3.29";  // Stigma skill tooltips join the item tooltip's comparison columns.
+constexpr char CORE_VERSION[]="1.3.30";  // A fourth card slot shows the world event (quest 14979) in the journal and tracker.
 constexpr uintptr_t PREFERRED=0x10000000;  // Game.dll has no relocations.
 unsigned char* image=nullptr;
 unsigned char* game(){return image;}

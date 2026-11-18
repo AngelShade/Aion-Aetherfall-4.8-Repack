@@ -34,6 +34,10 @@ source folder is rejected; restoring its folder keeps progress safe.
 Help Request (14996) is the journal and tracker entry of an accepted bot help request.
 The server starts and removes it; Aetherfall Core sets its title.
 
+World Event (14979) is the journal and tracker entry of a world event a Road Warden
+started near you. The server starts and removes it; Aetherfall Core 1.3.30 or later
+sets its title and objectives.
+
 A new quest changes data.pak, which the Graphics menu locks by hash. Add one with
 add_package.py, or Play stops at the Graphics step.
 

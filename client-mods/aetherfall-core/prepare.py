@@ -19,7 +19,7 @@ from lua_package import (GENERATED, HUD_XML, REGISTRY, load_order, lua_payloads,
                          reconcile_toc, remove_members, retired_members)
 
 HERE = Path(__file__).resolve().parent
-NATIVE_VERSION = '1.3.29'  # Stigma skill tooltips join the item tooltip's comparison columns.
+NATIVE_VERSION = '1.3.30'  # A fourth card slot shows the world event (quest 14979) in the journal and tracker.
 PAK = 'Plugin/RelicCalc/RelicCalc.pak'
 PLUGIN_COHORT = [PAK, PAK + '.sig', 'Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig']
 VERSION = '1.4.19'  # Unit frames measure stock sizes after a re-login (Core 1.3.28 pinrestore), so frame size settings no longer stack.

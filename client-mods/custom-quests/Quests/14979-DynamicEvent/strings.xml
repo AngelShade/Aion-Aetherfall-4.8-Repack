@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<strings>
+  <string>
+    <id>1801389</id>
+    <name>STR_QUEST_NAME_Q14979</name>
+    <body>World Event</body>
+  </string>
+  <string>
+    <id>1801390</id>
+    <name>STR_AETHERFALL_EVENT_PROGRESS</name>
+    <body>Take part in the event around you. Its objectives appear here.</body>
+  </string>
+</strings>
