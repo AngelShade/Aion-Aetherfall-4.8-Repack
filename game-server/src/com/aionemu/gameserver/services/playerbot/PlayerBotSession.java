@@ -1260,6 +1260,9 @@ public final class PlayerBotSession {
 		if (autonomous() && PlayerBotRoadDuty.onDuty(bot) && !combat && !rest && !incapacitated && order == Order.FOLLOW) {
 			strategyPlan.defaults("road duty",new SimpleAction("patrol assigned road",()->true,()->PlayerBotRoadDuty.travel(this,navigation)),DEFAULT+2,State.NON_COMBAT);
 		}
+		if (autonomous() && !combat && !rest && !incapacitated && PlayerBotDynamicEvents.answering(bot)) {
+			strategyPlan.defaults("dynamic event",new SimpleAction("answer a call for help",()->true,()->PlayerBotDynamicEvents.travel(this,navigation)),DEFAULT+3,State.NON_COMBAT);
+		}
 		if (autonomous() && worldPlanningReason==null && !combat && !rest) {
 			strategyPlan.defaults("world economy", new SimpleAction("sell surplus gear", () -> true, () -> PlayerBotWorldActivities.sell(this,navigation)), DEFAULT, State.NON_COMBAT);
 			strategyPlan.defaults("world travel", new SimpleAction(PlayerBotWorldActivities.rpgTravel(bot)?"visit nearby service NPC":"travel to quest destination", () -> true, () -> PlayerBotWorldActivities.travel(this,navigation)), DEFAULT - 2, State.NON_COMBAT);
@@ -1624,14 +1627,14 @@ public final class PlayerBotSession {
 	private boolean validEnemy(Npc npc, List<Player> party, boolean explicit, boolean commanded) {
 		// Territory flags are client control objects and their native AI rejects all damage.
 		// Their opposing race/quest metadata must never turn them into a combat target.
-		if (!PlayerBotTargetEligibility.visible(bot,npc) || npc.isFlag() || PlayerBotSteelRakeCaptainTactics.scenery(npc.getNpcId())
+		if (!PlayerBotTargetEligibility.visible(bot,npc) || npc.isFlag() || npc.isInvulnerable() || PlayerBotSteelRakeCaptainTactics.scenery(npc.getNpcId())
 			|| npc.getWorldId()==310110000 && npc.getNpcId()==280973 || PlayerBotAdmaStronghold.scenery(npc)) return false;
 		if(!PlayerBotRoadDuty.enemyAllowed(bot,npc))return false;
 		boolean dredgionStrategy=autonomous() && PlayerBotDredgion.enabled() && PlayerBotDredgion.aboard(bot);
 		if(dredgionStrategy && (!PlayerBotDredgion.captainAttackAllowed(bot,npc) || PlayerBotMarks.nativeCcMarked(bot,npc)))return false;
 		boolean engaged = party.stream().anyMatch(p -> npc.getAggroList().isHating(p)
 			|| p.getSummon() != null && npc.getAggroList().isHating(p.getSummon()));
-		engaged |= PlayerBotBystanders.helping(bot,npc) || PlayerBotRoadDuty.assisting(bot,npc) || PlayerBotTheobomosLab.mechanicEnemy(bot,npc,party) || PlayerBotAdmaStronghold.mechanicEnemy(bot,npc,party)
+		engaged |= PlayerBotBystanders.helping(bot,npc) || PlayerBotDynamicEvents.engaged(bot,npc) || PlayerBotRoadDuty.assisting(bot,npc) || PlayerBotTheobomosLab.mechanicEnemy(bot,npc,party) || PlayerBotAdmaStronghold.mechanicEnemy(bot,npc,party)
 			|| PlayerBotDarkPoeta.mechanicEnemy(bot,npc,party);
 		// PvP objectives: one hook per mode, each with its own switch, so changing one never moves another.
 		// World bots only; companions keep fighting what their owner fights.

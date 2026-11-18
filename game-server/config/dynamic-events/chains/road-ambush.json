@@ -1,0 +1,213 @@
+{
+  "id": "road-ambush",
+  "title": "Ambush on the Road",
+  "minLevel": 10,
+  "maxLevel": 65,
+  "weight": 3,
+  "occupyOnFailure": true,
+  "schedule": {
+    "everyMinutes": 120,
+    "atMinute": 45
+  },
+  "first": "ambush",
+  "stages": [
+    {
+      "id": "ambush",
+      "type": "KILL",
+      "title": "Ambush at the Waystone",
+      "objective": "Defeat the raiders and keep {warden} alive",
+      "rating": "NORMAL",
+      "count": 6,
+      "perParticipant": 50,
+      "wave": 3,
+      "seconds": 240,
+      "protect": true,
+      "success": "trail",
+      "failure": "road-lost",
+      "say": {
+        "start": [
+          "notice|{warden} is under attack on {road}!",
+          "warden|To me! {enemy} on the road, and more coming out of the brush. I can't hold them alone!",
+          "bots|Hold on, {warden}! I'm coming!"
+        ],
+        "progress": [
+          "warden|Keep them off me! Watch the flanks!",
+          "warden|They're wavering. One more push!",
+          "warden|Almost there. Don't let a single one through!"
+        ],
+        "success": [
+          "warden|That's the last of them. Look at these tracks... they came from {place}.",
+          "warden|They didn't stumble on this road. Someone sent them. Follow me, and stay close."
+        ],
+        "failure": [
+          "notice|{warden} has fallen. The raiders hold {road}.",
+          "boss|The road is ours. Leave the body where the Daevas can see it."
+        ]
+      }
+    },
+    {
+      "id": "road-lost",
+      "type": "KILL",
+      "title": "Retake the Road",
+      "objective": "Drive the raiders off {road}",
+      "rating": "NORMAL",
+      "count": 8,
+      "perParticipant": 50,
+      "wave": 4,
+      "seconds": 300,
+      "setback": true,
+      "success": "camp",
+      "failure": "fail",
+      "say": {
+        "start": [
+          "notice|The raiders hold {road}. Take it back!",
+          "bots|They got the Warden. We make them pay for that!"
+        ],
+        "progress": [
+          "bots|Push them back to the treeline!",
+          "bots|Their line is breaking!"
+        ],
+        "success": [
+          "notice|The road is clear. Their trail leads {place}.",
+          "bots|No Warden to guide us. We find that camp ourselves."
+        ],
+        "failure": [
+          "notice|The raiders keep {road}. Travellers will have to find another way."
+        ]
+      }
+    },
+    {
+      "id": "trail",
+      "type": "ESCORT",
+      "title": "Follow the Warden",
+      "objective": "Escort {warden} to the raider camp {place}",
+      "rating": "NORMAL",
+      "count": 2,
+      "wave": 3,
+      "seconds": 300,
+      "protect": true,
+      "success": "camp",
+      "failure": "camp-alerted",
+      "say": {
+        "start": [
+          "warden|Quietly now. The camp should be {place}.",
+          "notice|Escort {warden} to the raider camp."
+        ],
+        "progress": [
+          "warden|Ambush! Back to back!",
+          "warden|More of them. They know we're coming."
+        ],
+        "success": [
+          "warden|There. Their camp. Those are no common thugs at the fires.",
+          "notice|You have found the raider camp."
+        ],
+        "failure": [
+          "notice|The escort failed. Horns sound from the raider camp {place}.",
+          "boss|Daevas on the road! To arms, all of you!"
+        ]
+      }
+    },
+    {
+      "id": "camp",
+      "type": "KILL",
+      "title": "Break the Raider Camp",
+      "objective": "Defeat the camp's lieutenants",
+      "rating": "ELITE",
+      "count": 2,
+      "perParticipant": 34,
+      "wave": 2,
+      "seconds": 360,
+      "group": true,
+      "success": "warlord",
+      "failure": "fail",
+      "say": {
+        "start": [
+          "notice|Break the raider camp!",
+          "warden|Take down their lieutenants. Without them the rest will scatter."
+        ],
+        "progress": [
+          "warden|One down! Keep at it!",
+          "boss|You think you can walk into my camp? I'll come for you myself."
+        ],
+        "success": [
+          "warden|Their lieutenants are down. Listen... something big is coming.",
+          "boss|Enough! I will finish this with my own hands!"
+        ],
+        "failure": [
+          "notice|The camp holds. The raiders will return to the road.",
+          "warden|Fall back! We regroup and come back stronger."
+        ]
+      }
+    },
+    {
+      "id": "camp-alerted",
+      "type": "KILL",
+      "title": "The Camp Is Ready",
+      "objective": "Defeat the alerted lieutenants",
+      "rating": "ELITE",
+      "count": 3,
+      "perParticipant": 34,
+      "wave": 2,
+      "seconds": 420,
+      "group": true,
+      "setback": true,
+      "success": "warlord",
+      "failure": "fail",
+      "say": {
+        "start": [
+          "notice|The camp was warned. Its lieutenants are waiting.",
+          "bots|They saw us coming. Shields up!"
+        ],
+        "progress": [
+          "bots|One of their officers is down!",
+          "boss|Keep them busy. I'm almost ready."
+        ],
+        "success": [
+          "notice|The lieutenants have fallen.",
+          "boss|Useless, all of you! I will do it myself!"
+        ],
+        "failure": [
+          "notice|The camp holds. The raiders will return to the road."
+        ]
+      }
+    },
+    {
+      "id": "warlord",
+      "type": "BOSS",
+      "title": "{boss} Takes the Field",
+      "objective": "Defeat {boss}",
+      "rating": "BOSS",
+      "count": 2,
+      "wave": 2,
+      "seconds": 600,
+      "phases": [
+        75,
+        50,
+        25
+      ],
+      "success": "end",
+      "failure": "fail",
+      "say": {
+        "start": [
+          "notice|{boss} has entered the battle!",
+          "boss|You broke my camp. Now I break you.",
+          "warden|That's their warlord! Everyone, together!"
+        ],
+        "phase": [
+          "boss|Is that all? Guards, to me!",
+          "boss|You bleed me? Then bleed with me! Come, my blades!",
+          "boss|I will not fall to road wardens and wanderers! To me, all of you!"
+        ],
+        "success": [
+          "notice|{boss} has been defeated! {road} is safe again.",
+          "warden|It's over. The road is ours. Every traveller here owes you, and so do I.",
+          "bots|Victory!"
+        ],
+        "failure": [
+          "notice|{boss} withdraws into the wilds.",
+          "boss|Another day, Daevas. The road will be mine."
+        ]
+      }
+    }
+  ]
+}

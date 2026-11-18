@@ -154,6 +154,7 @@ public class NpcController extends CreatureController<Npc> {
 	public void onDie(Creature lastAttacker) {
 		Npc owner = getOwner();
 		com.aionemu.gameserver.services.playerbot.PlayerBotRunBriefing.npcDied(owner); // tells, never throws
+		com.aionemu.gameserver.services.dynamicevents.DynamicEventService.npcDied(owner); // credits event contribution, never throws
 		if (owner.getSpawn().hasPool())
 			owner.getSpawn().resetPoolSpot(owner.getInstanceId());
 
@@ -228,9 +229,11 @@ public class NpcController extends CreatureController<Npc> {
 
 		InstanceHandler instanceHandler = getOwner().getPosition().getWorldMapInstance().getInstanceHandler();
 		float apMultiplier = instanceHandler.getApMultiplier();
+		// A world event's monster pays every attacker the whole kill (Guild Wars 2: no kill stealing).
+		boolean fullCredit = com.aionemu.gameserver.services.dynamicevents.DynamicEventService.fullCredit(getOwner());
 		for (DamageInfo<AionObject> info : finalList.getCreatureOrTeamDamages()) {
 			AionObject attacker = info.getAttacker();
-			float percentage = info.getDamage() / (float) finalList.getTotalDamage();
+			float percentage = fullCredit ? 1f : info.getDamage() / (float) finalList.getTotalDamage();
 			if (attacker instanceof TemporaryPlayerTeam<?> tmpPlayerTeam) {
 				PlayerTeamDistributionService.doReward(tmpPlayerTeam, percentage, getOwner(), winner, finalList);
 			} else if (attacker instanceof Player player) {

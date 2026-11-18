@@ -90,6 +90,8 @@ public final class PlayerBotRoadDuty {
   return career==Career.WARDEN && PlayerBotWardenConfig.ENABLED?PlayerBotWardenBeats.route(id):PlayerBotPatrolRoutes.all().get(id);
  }
  static State state(Player bot){return bot==null?null:STATES.get(bot.getObjectId());}
+ /** Every road resident, for the dynamic-event schedule's Warden choice (PlayerBotDynamicEvents.scheduled); read only. */
+ static Collection<State> all(){return Collections.unmodifiableCollection(STATES.values());}
  /** Loader-only native metadata read, before ordinary player-focus admission chooses a city camp. */
  static boolean savedWardenCareer(int account,int character)throws java.io.IOException {
   if(!PlayerBotConfig.ROAD_DUTY || !PlayerBotWardenConfig.ENABLED || !PlayerBotPopulationPolicy.serverAccount(account))return false;
@@ -423,6 +425,7 @@ public final class PlayerBotRoadDuty {
  static boolean travel(PlayerBotSession session,PlayerBotNavigation navigation) {
   var bot=session.bot();var s=state(bot);if(!session.autonomous() || !onDuty(bot))return false;
   long now=System.currentTimeMillis();
+  if(s.career==Career.WARDEN && PlayerBotDynamicEvents.wardenTravel(s,navigation))return true;
   if(s.career==Career.WARDEN && PlayerBotWardenConfig.ENABLED && PlayerBotWardens.travel(s,navigation,now))return true;
   if(s.visitor!=0 && now<s.stopUntil) {
    var visitor=World.getInstance().getPlayer(s.visitor);
@@ -452,6 +455,7 @@ public final class PlayerBotRoadDuty {
    var point=s.route.points().get(s.point);
    PlayerBotWorldTravel.move(bot,new PlayerBotWorldTravel.Place(s.route.map(),s.route.npc(),point.x(),point.y(),point.z()),navigation);return true;
   }
+  if(s.career==Career.MERCHANT && PlayerBotDynamicEvents.avoid(s,navigation,now))return true;
   // Cache each lane once. A bounded lookahead retains dense walker samples in the mover's corridor.
   for(int passed=0;passed<8;passed++) {
    if(s.lane==null)s.lane=lane(bot,s.route,s.point,s.direction,bot.getInstanceId());

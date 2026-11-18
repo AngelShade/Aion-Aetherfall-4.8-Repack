@@ -1,0 +1,73 @@
+{
+  "id": "road-reclaim",
+  "title": "Retake the Road",
+  "minLevel": 10,
+  "maxLevel": 65,
+  "weight": 1,
+  "trigger": "occupied",
+  "first": "drive-out",
+  "stages": [
+    {
+      "id": "drive-out",
+      "type": "KILL",
+      "title": "Raiders Hold {road}",
+      "objective": "Drive the raiders off {road}",
+      "rating": "NORMAL",
+      "count": 7,
+      "perParticipant": 50,
+      "wave": 3,
+      "seconds": 300,
+      "success": "hold-fast",
+      "failure": "fail",
+      "say": {
+        "start": [
+          "notice|{enemy} hold {road}. Drive them out!",
+          "warden|They took my road. Help me take it back and I'll walk it again.",
+          "bots|There they are. Let's clear them out!"
+        ],
+        "progress": [
+          "warden|They're giving ground!",
+          "bots|Keep pushing!"
+        ],
+        "success": [
+          "warden|That's the guards down. Their friends won't be far behind."
+        ],
+        "failure": [
+          "notice|The raiders keep {road}."
+        ]
+      }
+    },
+    {
+      "id": "hold-fast",
+      "type": "KILL",
+      "title": "The Counterattack",
+      "objective": "Hold {road} against the counterattack",
+      "rating": "NORMAL",
+      "count": 6,
+      "perParticipant": 50,
+      "wave": 3,
+      "seconds": 240,
+      "success": "end",
+      "failure": "fail",
+      "say": {
+        "start": [
+          "notice|The raiders strike back! Hold {road}!",
+          "warden|Here they come again. Stand with me!"
+        ],
+        "progress": [
+          "warden|Hold the line!",
+          "bots|They can't break us!"
+        ],
+        "success": [
+          "notice|{road} is free again.",
+          "warden|The road is ours. I'll walk my beat again. Thank you, all of you.",
+          "bots|Victory!"
+        ],
+        "failure": [
+          "notice|The raiders retake {road}.",
+          "warden|Fall back! We'll come back for it."
+        ]
+      }
+    }
+  ]
+}

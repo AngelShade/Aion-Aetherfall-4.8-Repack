@@ -43,6 +43,8 @@ public final class PlayerBotHttpService {
 				var helpQuery = parse(exchange.getRequestURI().getRawQuery());
 				Player helper = MarketplaceService.findPlayer(helpQuery.getOrDefault("session_id", ""));
 				if (helper == null || !helper.isOnline() || helper.isPlayerBot()) { send(exchange, 403, "text/plain", ""); return; }
+				// The world-event slot follows the help slots in the native client (help_quest.h); its card comes from the event module.
+				if (String.valueOf(com.aionemu.gameserver.services.dynamicevents.EventJournal.SLOT).equals(helpQuery.get("slot"))) { send(exchange, 200, "text/plain", com.aionemu.gameserver.services.dynamicevents.EventJournal.card(helper)); return; }
 				String title = PlayerBotHelpObjectives.title(helper).replace('\n',' ').replace('\r',' ');
 				String format = helpQuery.getOrDefault("format", "");
 				int slot = slot(helpQuery.get("slot"));
@@ -55,6 +57,7 @@ public final class PlayerBotHttpService {
 				var helpValues = parse(new String(exchange.getRequestBody().readNBytes(1025), StandardCharsets.UTF_8));
 				Player helper = MarketplaceService.findPlayer(helpValues.getOrDefault("session_id", ""));
 				if (helper == null || !helper.isOnline() || helper.isPlayerBot() || !helper.isSpawned()) { send(exchange, 403, "text/plain", ""); return; }
+				if (String.valueOf(com.aionemu.gameserver.services.dynamicevents.EventJournal.SLOT).equals(helpValues.get("slot"))) { send(exchange, 200, "text/plain", com.aionemu.gameserver.services.dynamicevents.EventJournal.action(helper, helpValues.getOrDefault("op", ""))); return; }
 				String outcome;
 				synchronized (helper) { outcome = PlayerBotHelpObjectives.journal(helper, helpValues.getOrDefault("op", ""), slot(helpValues.get("slot"))); }
 				send(exchange, 200, "text/plain", outcome); return;

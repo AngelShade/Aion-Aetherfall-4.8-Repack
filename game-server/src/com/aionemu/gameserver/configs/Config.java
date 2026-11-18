@@ -38,7 +38,7 @@ public class Config {
 		AutoGroupConfig.class, BrokerMarketConfig.class, CentralMarketSimulationConfig.class, CommonsConfig.class, CleaningConfig.class, CraftConfig.class, CustomConfig.class, DropConfig.class, EventsConfig.class,
 		FallDamageConfig.class, GSConfig.class, GeoDataConfig.class, GroupConfig.class, HousingConfig.class, HTMLConfig.class,
 		InstanceConfig.class, LegionConfig.class, LoggingConfig.class, MembershipConfig.class, MobScalingConfig.class, NameConfig.class, PeriodicSaveConfig.class,
-		PlayerBotConfig.class, PlayerBotEconomyConfig.class, PlayerBotMerchantConfig.class, PlayerBotWardenConfig.class, PlayerBotPopulationConfig.class, PlayerTransferConfig.class, PricesConfig.class, PunishmentConfig.class, RankingConfig.class, RatesConfig.class, SecurityConfig.class,
+		PlayerBotConfig.class, PlayerBotEconomyConfig.class, PlayerBotMerchantConfig.class, PlayerBotWardenConfig.class, PlayerBotPopulationConfig.class, DynamicEventConfig.class, PlayerTransferConfig.class, PricesConfig.class, PunishmentConfig.class, RankingConfig.class, RatesConfig.class, SecurityConfig.class,
 		ShutdownConfig.class, SiegeConfig.class, ThreadConfig.class, WorldConfig.class, DatabaseConfig.class, NetworkConfig.class, PffConfig.class);
 
 	/**
@@ -133,6 +133,11 @@ public class Config {
 			if (Files.isRegularFile(pvp)) {
 				log.info("Loading default configuration values from: ./config/playerbots/pvp.properties");
 				defaults.putAll(PropertiesUtils.load(pvp.toFile(), null));
+			}
+			Path dynamicEvents = root.resolve("./config/dynamic-events/dynamic-events.properties");
+			if (Files.isRegularFile(dynamicEvents)) {
+				log.info("Loading default configuration values from: ./config/dynamic-events/dynamic-events.properties");
+				defaults.putAll(PropertiesUtils.load(dynamicEvents.toFile(), null));
 			}
 			Path populationManagement = root.resolve("./config/playerbots/population-management.properties");
 			if (Files.isRegularFile(populationManagement)) {

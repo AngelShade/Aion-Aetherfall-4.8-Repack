@@ -261,6 +261,12 @@ public class Npc extends Creature {
 	/**
 	 * Sets a constant type and broadcasts it, if the npc is spawned. Set to null, to disable it.
 	 */
+	/** An NPC shown as invulnerable to the client (overrideNpcType) also takes no damage on the server, so server-side attackers match what players see. */
+	@Override
+	public boolean isInvulnerable() {
+		return overriddenType == CreatureType.INVULNERABLE;
+	}
+
 	public void overrideNpcType(CreatureType newType) {
 		overriddenType = newType;
 		if (isSpawned()) {

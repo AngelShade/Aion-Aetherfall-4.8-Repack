@@ -91,6 +91,7 @@ public final class PlayerBotWardens {
   for(var human:known.stream().limit(16).toList()) {
    if(!PlayerBotWardenBeats.field(human.getWorldId(),human.getX(),human.getY(),human.getZ()))continue;
    ward(bot,human);
+   PlayerBotDynamicEvents.wardenSees(state,human,now);
    if(human.getTarget()==bot && PositionUtil.isInRange(bot,human,PlayerBotWardenConfig.INVITE_RANGE))report(state,human,now);
    if(fighting)continue;
    if(human.isDead() && !human.getResStatus() && now>=RESCUE_WAIT.getOrDefault(human.getObjectId(),0L) && PositionUtil.isInRange(bot,human,PlayerBotWardenConfig.RESCUE_RANGE) && DEATHS.getOrDefault(human.getObjectId(),0L)>0 && state.visitor==0 && aid.corpse==0)aid.corpse=human.getObjectId();

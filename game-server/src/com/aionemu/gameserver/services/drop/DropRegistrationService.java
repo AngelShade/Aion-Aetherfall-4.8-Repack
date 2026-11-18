@@ -108,6 +108,32 @@ public class DropRegistrationService {
 		DropService.getInstance().scheduleFreeForAll(npcObjId);
 	}
 
+	/**
+	 * What one player alone would get from this NPC, by the same calculation as registerDrop (custom drops, global rules and
+	 * active event rules), without registering a pile or loot rights. World events give it to each helper beside the native
+	 * winner (personal loot, services/dynamicevents).
+	 */
+	public Set<DropItem> personalDrop(Npc npc, Player player) {
+		Set<DropItem> items = new HashSet<>();
+		List<Player> members = List.of(player);
+		int index = 1;
+		DropModifiers dropModifiers = createDropModifiers(npc, player, player.getLevel());
+		NpcDrop npcDrop = DataManager.CUSTOM_NPC_DROP.getNpcDrop(npc.getNpcId());
+		if (npcDrop != null)
+			index = npcDrop.dropCalculator(items, index, dropModifiers, members);
+		if (!npc.getAi().getName().equals("quest_use_item")) {
+			boolean hasGlobalNpcExclusions = hasGlobalNpcExclusions(npc);
+			boolean isAllowedDefaultGlobalDropNpc = isAllowedDefaultGlobalDropNpc(npc, dropModifiers.isDropNpcChest());
+			if (!hasGlobalNpcExclusions && npc.getWorldDropType() != WorldDropType.NONE)
+				index = addGlobalDrops(index, dropModifiers, player, npc, isAllowedDefaultGlobalDropNpc, DataManager.GLOBAL_DROP_DATA.getAllRules(), items, members,
+					player.getObjectId());
+			if (!hasGlobalNpcExclusions || dropModifiers.isDropNpcChest())
+				addGlobalDrops(index, dropModifiers, player, npc, isAllowedDefaultGlobalDropNpc, EventService.getInstance().getActiveEventDropRules(), items, members,
+					player.getObjectId());
+		}
+		return items;
+	}
+
 	public DropModifiers createDropModifiers(Npc npc, Player player, int highestLevel) {
 		DropModifiers dropModifiers = new DropModifiers();
 		String dropType = npc.getGroupDrop().name().toLowerCase();

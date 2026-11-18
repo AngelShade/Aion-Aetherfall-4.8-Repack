@@ -123,6 +123,7 @@ TESTS['PlayerBotProfessionTaskCheck']=405
 TESTS['PlayerBotInvisibleFloorCheck']=432
 TESTS['PlayerBotRelocationTerrainCheck']=5988
 TESTS['PlayerBotWholeRouteCheck']=33
+TESTS['DynamicEventsCheck']=180
 TESTS['PlayerBotProfessionTravelCheck']=34
 TESTS['PlayerBotProfessionDecisionCheck']=23
 TESTS['PlayerBotProfessionQualificationCheck']=367
@@ -146,7 +147,7 @@ TESTS.update({'PlayerBotEnhanceCheck':233,'EconomyAppraisalCheck':46087,'Central
 SERVICE_CHECKS={'EconomyAppraisalCheck','CentralMarketEnhancedCheck','BrokerRetirementCheck','CentralMarketFeedbackCheck'}
 
 def check_package(name):
- return 'services/item' if name=='WarehouseDepositCheck' else 'services' if name in SERVICE_CHECKS else 'services/playerbot'
+ return 'services/dynamicevents' if name=='DynamicEventsCheck' else 'services/item' if name=='WarehouseDepositCheck' else 'services' if name in SERVICE_CHECKS else 'services/playerbot'
 
 def check_source(name):
  return ROOT/'game-server/test/com/aionemu/gameserver'/check_package(name)/(name+'.java')
@@ -198,7 +199,7 @@ def sha(path):
  with Path(path).open('rb') as stream:return hashlib.file_digest(stream,'sha256').hexdigest()
 
 def fixtures():
- return sorted(set(sorted((ROOT/'game-server/test/com/aionemu/gameserver/services/playerbot').glob('*.java'))+[check_source(name) for name in SERVICE_CHECKS]+[ROOT/'game-server/test/com/aionemu/gameserver/services/EconomyStaticData.java',check_source('WarehouseDepositCheck'),ROOT/'game-server/test/com/aionemu/gameserver/ShutdownHookCheck.java']+quest_fixtures()+reviewed_native_fixtures()))
+ return sorted(set(sorted((ROOT/'game-server/test/com/aionemu/gameserver/services/playerbot').glob('*.java'))+[check_source(name) for name in SERVICE_CHECKS]+[ROOT/'game-server/test/com/aionemu/gameserver/services/EconomyStaticData.java',check_source('WarehouseDepositCheck'),check_source('DynamicEventsCheck'),ROOT/'game-server/test/com/aionemu/gameserver/ShutdownHookCheck.java']+quest_fixtures()+reviewed_native_fixtures()))
 
 def binding(build):
  libs=__import__('importlib').import_module('build-manifest').libraries(build)
@@ -337,7 +338,7 @@ def main():
  for test,count in ((name,TESTS[name]) for name in a.only) if a.only else TESTS.items():
   cwd=ROOT/'game-server' if test in {'PlayerBotBuildGearCheck','PlayerBotLoadoutCheck','PlayerBotEnhanceCheck'}|SERVICE_CHECKS|GAME_SERVER_CWD else ROOT if test in ROOT_CWD|{'PlayerBotWorldProgressCheck','PlayerBotAssassinCheck','PlayerBotGladiatorCheck','PlayerBotTemplarCheck','PlayerBotChanterCheck','PlayerBotClericCheck','PlayerBotSpiritmasterCheck','PlayerBotSorcererCheck',
    'PlayerBotQuestCraftingCheck','PlayerBotQuestPrerequisitesCheck','PlayerBotNativeCraftingTaskCheck','PlayerBotNativeXmlQuestCheck'} else build/'checks'
-  args=[str(ROOT/'game-server')] if test in {'PlayerBotInvisibleFloorCheck','PlayerBotSmoothTravelCheck','PlayerBotActivityChatCheck','PlayerBotRelocationTerrainCheck','PlayerBotWholeRouteCheck','PlayerBotProfessionDecisionCheck','PlayerBotProfessionQualificationCheck','PlayerBotIdentityCheck','PlayerBotBystandersCheck','PlayerBotCampSafetyCheck','PlayerBotLocalWorkCheck','PlayerBotDetailTierCheck','PlayerBotMarketUpgradesCheck','PlayerBotPvpCheck','PlayerBotHelpTrackingCheck','PlayerBotSleepMotionCheck','PlayerBotLeaningsCheck','PlayerBotDuelsCheck','PlayerBotBattlegroundCheck','PlayerBotSiegesCheck','PlayerBotBasesCheck','PlayerBotBattlegroundObjectivesCheck','PlayerBotRunBriefingCheck','InstanceDifficultyCheck','PlayerBotHelpJournalCheck','PlayerBotHelpKickCheck','PlayerBotDredgionCheck','PlayerBotHelpSlotsCheck','PlayerBotBattlegroundMapsCheck','PlayerBotArenasCheck','PlayerBotPartyRewardsCheck','PlayerBotFindGroupLoopholesCheck','PlayerBotPvpTacticsCheck','PlayerBotWardenVillagesCheck','PlayerBotPortraitCheck','PlayerBotProfessionCheck','QuestBonusPoolsCheck','PlayerBotRepositoryCheck','PlayerBotPlayerZoneCheck','PlayerBotAuditCoverageCheck','PlayerBotIdleCastingCheck','PlayerBotTravelFormationCheck','PlayerBotCombatGearCheck','PlayerBotTargetVisibilityCheck','PlayerBotStoryRewardIntentCheck','PlayerBotQuestTransformationCheck','PlayerBotQuestItemTargetCheck','PlayerBotNpcPatrolNativeSpawnCheck','PlayerBotNpcPatrolAdmissionCheck','PlayerBotNativeRouteYieldCheck','PlayerBotCapitalAreaCheck','PlayerBotConfigLocationCheck','PlayerBotCampDistributionCheck','PlayerBotNonCombatBuffCheck','PlayerBotTownPolicyCheck','PlayerBotSkillAdaptersCheck'} else []
+  args=[str(ROOT/'game-server')] if test in {'PlayerBotInvisibleFloorCheck','PlayerBotSmoothTravelCheck','PlayerBotActivityChatCheck','PlayerBotRelocationTerrainCheck','PlayerBotWholeRouteCheck','DynamicEventsCheck','PlayerBotProfessionDecisionCheck','PlayerBotProfessionQualificationCheck','PlayerBotIdentityCheck','PlayerBotBystandersCheck','PlayerBotCampSafetyCheck','PlayerBotLocalWorkCheck','PlayerBotDetailTierCheck','PlayerBotMarketUpgradesCheck','PlayerBotPvpCheck','PlayerBotHelpTrackingCheck','PlayerBotSleepMotionCheck','PlayerBotLeaningsCheck','PlayerBotDuelsCheck','PlayerBotBattlegroundCheck','PlayerBotSiegesCheck','PlayerBotBasesCheck','PlayerBotBattlegroundObjectivesCheck','PlayerBotRunBriefingCheck','InstanceDifficultyCheck','PlayerBotHelpJournalCheck','PlayerBotHelpKickCheck','PlayerBotDredgionCheck','PlayerBotHelpSlotsCheck','PlayerBotBattlegroundMapsCheck','PlayerBotArenasCheck','PlayerBotPartyRewardsCheck','PlayerBotFindGroupLoopholesCheck','PlayerBotPvpTacticsCheck','PlayerBotWardenVillagesCheck','PlayerBotPortraitCheck','PlayerBotProfessionCheck','QuestBonusPoolsCheck','PlayerBotRepositoryCheck','PlayerBotPlayerZoneCheck','PlayerBotAuditCoverageCheck','PlayerBotIdleCastingCheck','PlayerBotTravelFormationCheck','PlayerBotCombatGearCheck','PlayerBotTargetVisibilityCheck','PlayerBotStoryRewardIntentCheck','PlayerBotQuestTransformationCheck','PlayerBotQuestItemTargetCheck','PlayerBotNpcPatrolNativeSpawnCheck','PlayerBotNpcPatrolAdmissionCheck','PlayerBotNativeRouteYieldCheck','PlayerBotCapitalAreaCheck','PlayerBotConfigLocationCheck','PlayerBotCampDistributionCheck','PlayerBotNonCombatBuffCheck','PlayerBotTownPolicyCheck','PlayerBotSkillAdaptersCheck'} else []
   # The supplies catalogue reads static data; the Warden expansion suite checks with Java assertions and works in its own folder.
   if test=='PlayerBotSuppliesCatalogCheck':args=[str(ROOT/'game-server/data/static_data')]
   if test=='PlayerBotWardenExpansionCheck':args=[str(out/'warden-expansion-work')]

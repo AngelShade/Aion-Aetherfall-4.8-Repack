@@ -1,0 +1,104 @@
+{
+  "id": "supply-raid",
+  "title": "The Burning Supply Line",
+  "minLevel": 10,
+  "maxLevel": 65,
+  "weight": 2,
+  "occupyOnFailure": true,
+  "first": "raid",
+  "stages": [
+    {
+      "id": "raid",
+      "type": "KILL",
+      "title": "Raid on the Supply Line",
+      "objective": "Defeat the raiders attacking {warden}",
+      "rating": "NORMAL",
+      "count": 5,
+      "perParticipant": 50,
+      "wave": 3,
+      "seconds": 180,
+      "protect": true,
+      "success": "captain",
+      "failure": "looted",
+      "say": {
+        "start": [
+          "notice|Raiders are attacking the supply line on {road}!",
+          "warden|The supply carts! {enemy} are setting them alight. Help me drive them off!",
+          "bots|Supplies under attack? Not on my watch!"
+        ],
+        "progress": [
+          "warden|Save what you can. Fight what you can't!",
+          "warden|They're running out of fighters!"
+        ],
+        "success": [
+          "warden|The carts are safe. But this wasn't random. Their captain is still out there, {place}."
+        ],
+        "failure": [
+          "notice|The raiders have taken the supplies and are fleeing {place}!"
+        ]
+      }
+    },
+    {
+      "id": "looted",
+      "type": "KILL",
+      "title": "Catch the Looters",
+      "objective": "Defeat the fleeing looters",
+      "rating": "NORMAL",
+      "count": 6,
+      "perParticipant": 50,
+      "wave": 3,
+      "seconds": 240,
+      "setback": true,
+      "success": "captain",
+      "failure": "fail",
+      "say": {
+        "start": [
+          "notice|Catch the looters before they reach their captain!",
+          "bots|After them! They can't run far with all that weight."
+        ],
+        "progress": [
+          "bots|Got one! There go the others!"
+        ],
+        "success": [
+          "notice|The looters are down. Their captain comes to see why the supplies never arrived."
+        ],
+        "failure": [
+          "notice|The looters escaped with the supplies."
+        ]
+      }
+    },
+    {
+      "id": "captain",
+      "type": "BOSS",
+      "title": "The Raid Captain",
+      "objective": "Defeat {boss}",
+      "rating": "BOSS",
+      "count": 2,
+      "wave": 2,
+      "seconds": 420,
+      "phases": [
+        60,
+        30
+      ],
+      "success": "end",
+      "failure": "fail",
+      "say": {
+        "start": [
+          "notice|{boss} leads the raiders in person!",
+          "boss|Who dares stand between me and my plunder?"
+        ],
+        "phase": [
+          "boss|To me! Cut them down!",
+          "boss|You'll pay for every crate with your blood!"
+        ],
+        "success": [
+          "notice|{boss} has been defeated! The supply line is safe.",
+          "warden|The carts will roll again tonight. Well fought."
+        ],
+        "failure": [
+          "notice|{boss} escapes with the plunder."
+        ]
+      }
+    }
+  ]
+}

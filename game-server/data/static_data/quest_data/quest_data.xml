@@ -82488,6 +82488,7 @@
 		<bonus level="5" type="MEDAL"/>
 	</quest>
 	<!-- BEGIN AETHERFALL THE UNBROKEN FIELD -->
+	<quest id="14979" name="World Event" nameId="1801389" minlevel_permitted="1" max_repeat_count="255" cannot_share="true" category="QUEST" />
 	<quest id="14980" name="The Letter Left Open" nameId="1801365" quest_zone="Verteron" minlevel_permitted="12" max_repeat_count="1" cannot_share="true" race_permitted="ELYOS" category="QUEST">
 		<rewards gold="3910" exp="17850" />
 		<start_conditions>
