@@ -232,6 +232,10 @@ end
 local function geometry(id,d,group)
     if not d or not d.instance then return end;local token,g=N.Identity(d),S.geometry[id]
     if g and g.token==token then return g end
+    -- The interface's Lua restarts on a re-login while this dialog lives on, still at the size the last
+    -- session gave it. Measured as it is, every re-login multiplied the frame by its percentage again.
+    local restored=AFCore.PinRestore and N.Number(AFCore.PinRestore(id))
+    if restored and restored>0 then d=N.Dialog(id);if not d or N.Identity(d)~=token then return end end
     local s=N.Scale();g={token=token,group=group,w=d.w/s,h=d.h/s,nodes={},paths={}}
     local function capture(path)
         local x,y,w,h=AFCore.Rect(id,path,'any')

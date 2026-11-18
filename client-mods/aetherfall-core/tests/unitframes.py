@@ -6,6 +6,7 @@ continues to own every original native-state boundary.
 """
 import argparse
 from contextlib import contextmanager
+import copy
 import hashlib
 import json
 import os
@@ -706,7 +707,75 @@ def classes_and_size(t):
     healthy(t)
 
 
-def scenarios(t):
+RESIZED = (('player.frameWidth', 107), ('player.frameHeight', 115), ('target.frameWidth', 107),
+           ('target.frameHeight', 115), ('party.frameWidth', 99), ('party.frameHeight', 117))
+
+
+def clone_native(source, target):
+    """What a re-login keeps: native dialogs, the bridge's pins and stock rects, saved files and the world."""
+    for ident, dialog in source.dialogs.items():
+        if ident < 0x20e:
+            target.dialogs[ident] = copy.deepcopy(dialog)
+    target.pins = {key: value for key, value in source.pins.items() if key[0] < 0x20e}
+    target.widget_pins = {key: value for key, value in source.widget_pins.items() if key[0] < 100000}
+    target.stock_pins = {key for key in source.stock_pins if key[0] < 100000}
+    target.stock_size = {key: value for key, value in source.stock_size.items() if key < 100000}
+    target.files, target.labels = dict(source.files), dict(source.labels)
+    target.frame_units, target.character = dict(source.frame_units), source.character
+
+
+def frame_sizes(t):
+    party, target = (t.dialogs[int(t.g.AFCore.DIALOG[name])] for name in ('party', 'target'))
+    sizes = {unit: tuple(t.widgets[PREFIXES[unit] + 'Backdrop']['rect'][2:4])
+             for unit in ('player', 'target', 'targettarget', 'party1', 'party4')}
+    row = t.rect(party, 'ctn_member4')
+    sizes['row'] = (row[0] - party['x'], row[1] - party['y'], row[2], row[3])
+    sizes['dialogs'] = (party['w'], party['h'], target['w'], target['h'])
+    return sizes
+
+
+def interface_restart(t, restart):
+    """A re-login restarts the interface's Lua; the dialogs keep the sizes the last session gave them."""
+    t.mark('unitframes-interface-restart-measures-stock-frame-sizes')
+    options = Options(t)
+    for key, value in RESIZED:
+        options.set(key, value)
+    t.click_widget('AFUIOptionsClose'); t.ticks(8)
+    assert all(visible(t, unit) for unit in UNITS)
+    expected = frame_sizes(t)
+    t.lua.execute('AF.DB:Save()')
+
+    def relogged(fixed):
+        again = restart()
+        clone_native(t, again)
+        if not fixed:
+            again.lua.execute('AFCore.PinRestore=nil')  # a core before 1.3.28
+        again.event('PLAYER_ENTERING_WORLD'); again.ticks(45)
+        again.event('USER_CHANGED_TARGET'); again.event('PARTY_MEMBERS_CHANGED'); again.ticks(10)
+        assert all(visible(again, unit) for unit in UNITS)
+        for key, value in RESIZED:
+            assert again.g.AF.DB.Get(again.g.AF.DB, 'UnitFrames', key) == value, key
+        healthy(again)
+        sizes = frame_sizes(again)
+        again.r.close()
+        return sizes
+
+    # Without the restore the fixture must show the reported fault, or this scenario proves nothing.
+    stacked = relogged(False)
+    assert abs(stacked['target'][0] - expected['target'][0] * 1.07) < 1, (expected['target'], stacked['target'])
+    assert abs(stacked['target'][1] - expected['target'][1] * 1.15) < 1, (expected['target'], stacked['target'])
+    assert abs(stacked['party4'][1] - expected['party4'][1] * 1.17) < 1, (expected['party4'], stacked['party4'])
+    actual = relogged(True)
+    for name, values in expected.items():
+        assert all(abs(a - b) < .01 for a, b in zip(actual[name], values)), (name, values, actual[name])
+    options = Options(t)
+    for key, _ in RESIZED:
+        options.set(key, 100)
+    t.click_widget('AFUIOptionsClose'); t.ticks(5)
+    healthy(t)
+
+
+def scenarios(t, restart=None):
     t.mark('unitframes-cold-disconnected-and-player-only-login')
     t.lua.execute("""
         local db=AF.DB
@@ -780,6 +849,8 @@ def scenarios(t):
 
     target_portraits(t)
     classes_and_size(t)
+    if restart:
+        interface_restart(t, restart)
 
     t.mark('unitframes-target-and-targettarget-change-and-clear')
     t.frame_units['target'] = sample(7110, 'ChangedTarget', health=300)
@@ -1134,8 +1205,13 @@ def main():
         parser.error('The focused trace output must be a fresh file')
     recorder = FocusedRecorder(output)
     runtime = UnitFrameRuntime(client, recorder)
+    relogs = []
+
+    def restart():
+        relogs.append(output.with_name(f'unitframes-relog{len(relogs) + 1}.jsonl.gz'))
+        return UnitFrameRuntime(client, FocusedRecorder(relogs[-1]))
     try:
-        exercised = scenarios(runtime)
+        exercised = scenarios(runtime, restart)
     finally:
         result = recorder.close()
     result['frameworkSha256'] = runtime.framework_hashes

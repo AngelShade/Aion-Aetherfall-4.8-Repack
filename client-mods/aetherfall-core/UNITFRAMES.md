@@ -286,6 +286,34 @@ stock. A title ending in `...` or `…` now matches when its stem (3+ bytes)
 starts the member's name. Different or too-short stems still leave the row
 native. The frame report lists title and name for any party row left native.
 
+### Sizes stacking over re-logins (Lua 1.4.19 / Core 1.3.28)
+
+Owner report, 16 November 2026: after a few re-logins without closing the client, the
+target and party frames were far larger than their settings. The frame reports of that
+session (client up since 08:35, six logins) show a target of 251 × 1.07⁴ by 72 × 1.15⁴
+units at 107%/115%, and party rows of 46 × 1.17⁴ at 117%: the percentage applied four
+times. The saved settings were intact.
+
+- **Cause:** the plugin's Lua starts again on a re-login (the once-per-session frame
+  reports were rewritten at the last login), while the native dialogs and the bridge
+  live on. `geometry()` then took its "immutable baseline" from containers and rows
+  that still had the previous session's size, and resized them again.
+- **Core:** the bridge keeps the local rect an object had before its first size or
+  off-screen pin (`remember_stock`), beyond the pin, with the UI scale it was read at.
+  `pinrestore(id)` (`AFCore.PinRestore`) gives the dialog back that size and its widgets
+  that size and spot, widgets first. Those widget pins are dropped; the dialog's pin
+  keeps its spot and stops sizing. Deleted or recreated objects are only forgotten.
+- **Lua:** `geometry()` calls it once before measuring a dialog instance it has no
+  baseline for. It also returns stock widgets an earlier session had parked off screen,
+  so `park()` no longer records −20000 as their place.
+- **Checks:** the trace bridge models the stock rects. `tests/unitframes.py` restarts
+  the interface on the same native state (`interface_restart`): without the restore it
+  must show the stacked sizes, with it the frames, a party row and both dialogs must
+  equal the first session. The native code itself is not exercised offline.
+- **Not changed:** native widgets an earlier session hid stay hidden until the new
+  session takes the frame over or the game shows them again. Other modules' pins from
+  an earlier session stay until that module pins again.
+
 ### Classes and sizing
 
 `[class]`, class colour and **Show class icon** use native character class IDs

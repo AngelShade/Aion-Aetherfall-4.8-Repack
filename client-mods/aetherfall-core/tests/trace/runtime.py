@@ -68,6 +68,8 @@ class Runtime:
         self.slots={}
         self.files = {'state.json': '{"Desired":"layout","Applied":"layout"}', 'manifest.json': '{}'}
         self.dialogs, self.widgets, self.pins, self.widget_pins, self.backdrops, self.labels = {}, {}, {}, {}, {}, {}
+        # Core 1.3.28 stock rects: widgets under a size or off-screen pin, and a dialog's size before its first size pin.
+        self.stock_pins, self.stock_size = set(), {}
         self.framework_hashes = {}
         archive = read_pak(client / 'bin32/bin32.pak')
         sources = {}
@@ -426,14 +428,32 @@ class Runtime:
                     x,y,*_ = self.rect(d, actual)
                     x,y = x-d['x'],y-d['y']
                 self.widget_pins[d['instance'],actual]=(x,y,w or node['rect'][2],h or node['rect'][3])
+                if (w and w>0 and h and h>0) or mode==5: self.stock_pins.add((d['instance'],actual))
             else:
-                if w and w>0: d['w'],d['h']=w,h
+                if w and w>0:
+                    self.stock_size.setdefault(d['instance'],(d['w'],d['h']))
+                    d['w'],d['h']=w,h
                 if mode==5: x,y=-20000,-20000
                 elif mode not in ((4,7) if self.current_resources else (4,)):
                     x=x-d['w'] if mode in (1,3) else x; y=y-d['h'] if mode in (2,3) else y
                 if clamp: x,y=max(0,min(self.sw-d['w'],x)),max(0,min(self.sh-d['h'],y))
                 if mode not in ((4,7) if self.current_resources else (4,)): d['x'],d['y']=x,y
             return True
+        if command == 'pinrestore':
+            # Stock size back for the dialog and its size/off-screen pinned widgets. Those widget pins are
+            # dropped; the dialog's pin keeps its spot and stops sizing. Returns how many rects changed.
+            if not d: return 0
+            changed=0
+            for key in sorted(k for k in self.stock_pins if k[0]==d['instance']):
+                self.stock_pins.discard(key)
+                if self.widget_pins.pop(key,None) is not None: changed+=1
+                for pin in [p for p in self.pins if p[0]==a[0] and p[1] and self.node(d,p[1])[0]==key[1]]: self.pins.pop(pin)
+            size=self.stock_size.pop(d['instance'],None)
+            if size and size!=(d['w'],d['h']):
+                d['w'],d['h']=size; changed+=1
+                pin=self.pins.get((a[0],None))
+                if pin: self.pins[a[0],None]=(*pin[:5],0,0,*pin[7:])
+            return changed
         if command == 'pininfo': return (a[0],a[1] if len(a)>1 else None) in self.pins,0,0,bool(d and d['shown'])
         if command == 'tippin': self.tooltip=a; return True
         if command == 'backdrop': self.backdrops[tuple(a[:1]+a[2:4])]=a[1]; return d is not None

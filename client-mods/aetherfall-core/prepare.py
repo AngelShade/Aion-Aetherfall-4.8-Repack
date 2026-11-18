@@ -19,10 +19,10 @@ from lua_package import (GENERATED, HUD_XML, REGISTRY, load_order, lua_payloads,
                          reconcile_toc, remove_members, retired_members)
 
 HERE = Path(__file__).resolve().parent
-NATIVE_VERSION = '1.3.27'  # Target portraits only for player bodies (the game frames no others).
+NATIVE_VERSION = '1.3.29'  # Stigma skill tooltips join the item tooltip's comparison columns.
 PAK = 'Plugin/RelicCalc/RelicCalc.pak'
 PLUGIN_COHORT = [PAK, PAK + '.sig', 'Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig']
-VERSION = '1.4.18'  # Text size choices (real client sizes, legacy ids read as sizes); Pin table 1024 (target portrait loop); no portrait for unframed creatures; header layout offsets; loot chest clear of the header.
+VERSION = '1.4.19'  # Unit frames measure stock sizes after a re-login (Core 1.3.28 pinrestore), so frame size settings no longer stack.
 LUA = 'AetherfallCore.lua'
 # Native HUD dialog type ids for the design layout (Game.dll dialog table).
 DESIGN_IDS = {'basic_status_dialog': 0x0a, 'quickbar_dialog': 0x10, 'quickbar_dialog_ctrl': 0x12, 'quickbar_dialog_alt': 0x13,

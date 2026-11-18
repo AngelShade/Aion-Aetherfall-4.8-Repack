@@ -45,7 +45,7 @@
 // remain native and unchanged.
 namespace {
 using Ptr=void*;
-constexpr char CORE_VERSION[]="1.3.27";  // Target portraits only for player bodies (the game frames no others).
+constexpr char CORE_VERSION[]="1.3.29";  // Stigma skill tooltips join the item tooltip's comparison columns.
 constexpr uintptr_t PREFERRED=0x10000000;  // Game.dll has no relocations.
 unsigned char* image=nullptr;
 unsigned char* game(){return image;}
@@ -478,6 +478,18 @@ bool tooltip_group_busy=false;
 bool item_tooltip(const TooltipClass* cls){
     return cls && (cls->vtable==0xd0e508 || cls->vtable==0xd0ebe8 || cls->vtable==0xd0f2c8);
 }
+// An item that grants skills (a stigma) opens one DlgTooltipSkill per skill in 0x1ed+ (0x8e4ee2 via
+// 0x929580), and the native layout 0x8ee150 sets every filled 0x1ed/0x1ee beside the item like an
+// equipped comparison. Placed on their own they all took the cursor spot and covered each other.
+bool skill_tooltip(const TooltipClass* cls){return cls && cls->vtable==0xd0f9a8;}
+bool item_column(int id,const TooltipClass* cls){
+    return item_tooltip(cls) || (id!=0x1ec && skill_tooltip(cls));
+}
+bool in_item_group(Ptr self,const TooltipClass* cls){
+    if(item_tooltip(cls))return true;
+    return skill_tooltip(cls) && (self==dialog(0x1ed) || self==dialog(0x1ee))
+        && item_tooltip(tooltip_class(dialog(0x1ec)));
+}
 bool map_hover(){
     // DlgNewMap occupies native slot 0xe5 (map code 0x7d23aa etc.).
     // Require its verified class and real hit region; other windows using the
@@ -544,7 +556,7 @@ bool place_item_comparison(Ptr self,const Rect& requested,uintptr_t& result){
     int count=0,selected=-1;
     for(int id=0x1ec;id<=0x1ee;++id){
         Ptr d=dialog(id);const auto cls=tooltip_class(d);
-        if(!item_tooltip(cls)){if(id==0x1ec)return false;continue;}
+        if(!item_column(id,cls)){if(id==0x1ec)return false;continue;}
         Rect r=d==self?requested:field<Rect>(d,0x50);
         if(!std::isfinite(r.w) || !std::isfinite(r.h) || r.w<=0 || r.h<=0){if(id==0x1ec)return false;continue;}
         if(d==self)selected=count;
@@ -593,7 +605,7 @@ uintptr_t tooltip_set_rect(Ptr self,const Rect* requested){
     auto original=tooltip_hooks[cls-TOOLTIP_CLASSES].original;
     if(!tooltip_enabled || !requested || tooltip_group_busy)return original(self,requested);
     uintptr_t group_result=0;
-    if(item_tooltip(cls) && place_item_comparison(self,*requested,group_result)){
+    if(in_item_group(self,cls) && place_item_comparison(self,*requested,group_result)){
         ++tooltip_calls;return group_result;
     }
     if(place_map_tooltips(self,*requested,group_result)){
@@ -932,6 +944,49 @@ bool pin_live(const Pin& p){
 void unpin(int index){
     pins[index]=pins[--pin_count];
 }
+// Stock rects. A size or off-screen pin leaves a native rect that nothing puts back by itself, and the
+// interface's Lua restarts on a re-login while the dialogs and this bridge live on. Seen in game: each
+// re-login measured frames an earlier session had left resized, so a 107% target was 1.07^4 after three.
+// The local rect an object had before its first such pin is kept here, beyond the pin, with the UI scale
+// it was read at. pinrestore(id) puts those back, so a new session measures the game's own sizes.
+struct Stock { Pin key; Rect rect; double scale; bool spot; };
+Stock stocks[PIN_LIMIT];int stock_count=0;
+void remember_stock(const Pin& p){
+    if(!(p.w>0 && p.h>0) && p.mode!=5)return;
+    double s=global<double>(UI_SCALE);if(!(s>0))return;
+    bool spot=p.widget[0] && p.mode!=7;  // this pin also moves the widget
+    Stock* e=nullptr;
+    for(int i=0;i<stock_count && !e;++i)if(stocks[i].key.id==p.id && !std::strcmp(stocks[i].key.widget,p.widget))e=&stocks[i];
+    if(e && e->key.target==p.target && e->key.native_class==p.native_class && e->key.owner==p.owner){
+        e->key=p;e->spot=e->spot || spot;return;  // the same object: its first rect stays
+    }
+    if(!e){if(stock_count==PIN_LIMIT)return;e=&stocks[stock_count++];}
+    *e=Stock{p,field<Rect>(p.target,0x50),s,spot};
+}
+// Widgets first, then the dialog, as the interface restores them itself. A widget's size or off-screen
+// pin is dropped; the dialog's pin keeps its spot and stops sizing. Objects the game has since deleted
+// or recreated are only forgotten. Returns how many rects changed.
+int restore_stock(int id){
+    double s=global<double>(UI_SCALE);int restored=0;
+    for(int pass=0;pass<2;++pass)for(int i=0;i<stock_count;++i){
+        if(stocks[i].key.id!=id || (stocks[i].key.widget[0]==0)!=(pass==1))continue;
+        Stock entry=stocks[i];stocks[i].key.id=0;
+        if(!(s>0) || !pin_live(entry.key))continue;
+        if(Pin* p=find_pin(id,entry.key.widget))if(p->target==entry.key.target){
+            if(entry.key.widget[0])unpin(int(p-pins));else p->w=p->h=0;
+        }
+        Rect now=field<Rect>(entry.key.target,0x50),want=entry.rect;
+        if(entry.scale!=s){double f=s/entry.scale;want.x*=f;want.y*=f;want.w*=f;want.h*=f;}
+        if(!entry.spot){want.x=now.x;want.y=now.y;}
+        if(std::memcmp(&now,&want,sizeof want)){
+            method<void(*)(Ptr,const Rect*)>(entry.key.target,SET_RECT)(entry.key.target,&want);++restored;
+        }
+    }
+    int kept=0;
+    for(int i=0;i<stock_count;++i)if(stocks[i].key.id)stocks[kept++]=stocks[i];
+    stock_count=kept;
+    return restored;
+}
 int kind_type(const char* kind){
     if(!kind || is_kind(kind,"itemview"))return ITEMVIEW;
     if(is_kind(kind,"any"))return 0;  // "#n": the child itself
@@ -1250,6 +1305,7 @@ int dispatch(Ptr L){
         p->mode=(mode>=0 && mode<=5) || mode==7?mode:0;p->clamp=clamp && clamp->tt==1 && clamp->v.b;  // 7: native local position, size only
         if(!hook(target)){refuse(id,name,hook_refusal);unpin(int(p-pins));return boolean(L,false);}
         accept(id,name);
+        remember_stock(*p);  // before the first size or off-screen pin changes the rect
         // Applied at once (also each tick, so a cursor-anchored tooltip follows the mouse).
         Rect current=field<Rect>(target,0x50),want=placed(*p,current);
         if(std::memcmp(&current,&want,sizeof want))method<void(*)(Ptr,const Rect*)>(target,SET_RECT)(target,&current);
@@ -1325,6 +1381,12 @@ int dispatch(Ptr L){
         if(got<=0)return boolean(L,false);
         line[got]=0;
         return boolean(L,chat_submit(line));
+    }
+    if(is(cmd,"pinrestore")){
+        // pinrestore(id): the dialog and its widgets get back the size (widgets: and the spot) they had
+        // before the first size or off-screen pin on them (restore_stock). Returns how many rects changed.
+        int id=int(number(L,2,0));
+        return push(L,double(id>0 && id<=int(DIALOG_LIMIT)?restore_stock(id):0));
     }
     if(is(cmd,"pininfo")){
         // pininfo(id[, widget]): pinned, SetRect calls caught, times the game recreated it, shown.

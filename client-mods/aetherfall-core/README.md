@@ -5,6 +5,18 @@ Aetherfall Interface. It reads native HUD data and applies the interface's windo
 positions, visibility and tooltip settings. Settings remain in `Mods/AetherfallUI`.
 Existing chat commands run through the native chat input.
 
+## Stigma skill tooltips, native 1.3.29 (17 November 2026)
+
+Hovering a stigma opens the item tooltip in `0x1ec` plus one `DlgTooltipSkill`
+(RVA `0xd0f9a8`) per granted skill in `0x1ed`/`0x1ee` (Game.dll `0x8e4ee2` through
+the creator `0x929580`). The native layout `0x8ee150` sets every filled `0x1ed`/`0x1ee`
+beside the item, like an equipped comparison. The tooltip hook grouped only item
+classes, so with Cursor or Mover placement each skill tooltip took the same spot as
+the item and covered it (owner screenshot, 16 November). Skill tooltips in those two
+slots now join the item group whenever `0x1ec` holds an item tooltip; a skill tooltip
+in `0x1ec` (hotbar hover) keeps the single-tooltip path. Native and Hidden policies are
+unchanged. Build with `prepare.py --dll-only`.
+
 ## Spirit bar mover, Lua 1.2.92
 
 `pet_dialog` (0xd5) is `not_movable`, so MoveUI never offered it, and the game placed

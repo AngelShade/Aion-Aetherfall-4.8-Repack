@@ -199,6 +199,11 @@ function AFCore.Gaps(dialog, on) if core then return core("gaps", dialog, on and
 function AFCore.Command(text) if core then return core("command", text) end end
 --- a pin's state: pinned, SetRect calls it caught, times the game recreated the window, shown
 function AFCore.PinInfo(dialog, widget) if core then return core("pininfo", dialog, widget) end end
+--- Core 1.3.28: the dialog and its widgets get back the size (widgets: and the spot) they had before the
+--- first size or off-screen pin on them, also one left by an earlier interface session (the Lua restarts
+--- on a re-login, the dialogs do not). Those widget pins are dropped; the dialog's pin keeps its spot.
+--- Returns how many rects changed; nil on an older core.
+function AFCore.PinRestore(dialog) if core then return core("pinrestore", dialog) end end
 function AFCore.SetShown(dialog, on) if core then return core("setshown", dialog, on and true or false) end end
 function AFCore.Shown(dialog) if core then return core("shown", dialog) end end
 -- The client's Lua io has no write: store one bounded settings file (name.cfg, at most
