@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚔️ Aion 4.8 Playerbots — Aetherfall Repack (v0.98.14)
+# ⚔️ Aion 4.8 Playerbots — Aetherfall Repack (v0.98.15)
 
 ### **Full Solo & Co-Op Private Server Repack • Autonomous AI Companions • 1-Click Setup & Play**
 
@@ -18,13 +18,18 @@
 ---
 
 <!-- whats-new:start -->
-## ✨ What's new in 0.98.14
+## ✨ What's new in 0.98.15
 
-Wardrobe gets one-step unlocking and double-click try-on. The High Quality graphics profile also stops capping you at 60 FPS.
+Stigma slots show from character creation, and Road Wardens can call you into world events.
 
-- Wardrobe's **Unlock All Ready** button unlocks every appearance whose item you hold: one Appearance Unlock each, or free with a Shugo Trade Charter.
+- Road Wardens may call for help and start a world event: beat an ambush, follow the Warden to the raiders' camp and defeat their leader.
+- If the Warden falls or the camp is warned, the event takes another turn. Rewards follow how much you helped, from Bronze to Gold.
+- Lose an event and the raiders hold that road: its Warden falls back and merchants avoid it until you retake it.
+- Event leaders shield themselves at each phase until their reinforcements fall. Their chest opens once a day, with a bonus chest once per account.
+- Everyone who fights an event's monsters gets full XP and their own loot. Each part pays by contribution, and half if it fails.
+- The Ambush on the Road also starts every two hours at :45 near players out on the roads. Events show in your quest journal.
 
-**[See everything in 0.98.14](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.14)** • [All updates](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases)
+**[See everything in 0.98.15](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.15)** • [All updates](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases)
 
 ---
 <!-- whats-new:end -->
