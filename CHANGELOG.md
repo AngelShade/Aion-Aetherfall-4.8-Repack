@@ -2,13 +2,28 @@
 
 ## Next update
 
-Bots find their way past stairs and doorways again, and spread out around the NPCs they visit.
-
 ### New
 
 ### Improved
 
-- Travelling merchant bots work like a player's shop: they set up at each end of their road and stand there with the shop open for a while, instead of opening it only when you walk up. Select a merchant on the road and it stops and sets up for you.
+### Fixed
+
+## 0.98.15 - Stigma slots show from character creation, and Road Wardens can call you into world events (18 November 2026)
+
+Stigma slots show from character creation, and Road Wardens can call you into world events.
+
+### New
+
+- Road Wardens may call for help and start a world event: beat an ambush, follow the Warden to the raiders' camp and defeat their leader.
+- If the Warden falls or the camp is warned, the event takes another turn. Rewards follow how much you helped, from Bronze to Gold.
+- Lose an event and the raiders hold that road: its Warden falls back and merchants avoid it until you retake it.
+- Event leaders shield themselves at each phase until their reinforcements fall. Their chest opens once a day, with a bonus chest once per account.
+- Everyone who fights an event's monsters gets full XP and their own loot. Each part pays by contribution, and half if it fails.
+- The Ambush on the Road also starts every two hours at :45 near players out on the roads. Events show in your quest journal.
+
+### Improved
+
+- Travelling merchant bots set up shop at each end of their road and stay a while. Select one and it stops for you.
 - With optional whole-route travel enabled, bots keep their path through brief stops and finish near NPCs on isolated patches of ground.
 
 ### Fixed
@@ -23,6 +38,7 @@ Bots find their way past stairs and doorways again, and spread out around the NP
 - Bots no longer stay stuck at spots where the ground cannot be crossed; they remember the spot and walk around it.
 - Bots no longer kill the small harmless critters in towns and along roads for experience.
 - Bots in towns no longer stack on one spot at teleport statues, vendors or warehouses; each takes its own place and then moves on.
+- The Stigma page shows all six slots from character creation. Unavailable slots stay visible and disabled.
 - Resized target and party frames keep the size you set after you log in again without closing the game.
 - Hovering a stigma shows its skill details beside the stigma's tooltip instead of hidden underneath it.
 - Aethertech merchant bots leave their mech and put their weapon away before opening their shop, so you can browse it.
