@@ -19,10 +19,10 @@ from lua_package import (GENERATED, HUD_XML, REGISTRY, load_order, lua_payloads,
                          reconcile_toc, remove_members, retired_members)
 
 HERE = Path(__file__).resolve().parent
-NATIVE_VERSION = '1.3.30'  # A fourth card slot shows the world event (quest 14979) in the journal and tracker.
+NATIVE_VERSION = '1.3.31'  # AFCore.Event: the World Event assistant's data (event_assistant.h).
 PAK = 'Plugin/RelicCalc/RelicCalc.pak'
 PLUGIN_COHORT = [PAK, PAK + '.sig', 'Addon.key', 'bin32/bin32.pak.sig', 'Data/func_pet/func_pet.pak.sig']
-VERSION = '1.4.19'  # Unit frames measure stock sizes after a re-login (Core 1.3.28 pinrestore), so frame size settings no longer stack.
+VERSION = '1.4.20'  # The World Event assistant (EventAssistant module on the unit-frame canvas, Core 1.3.31 AFCore.Event).
 LUA = 'AetherfallCore.lua'
 # Native HUD dialog type ids for the design layout (Game.dll dialog table).
 DESIGN_IDS = {'basic_status_dialog': 0x0a, 'quickbar_dialog': 0x10, 'quickbar_dialog_ctrl': 0x12, 'quickbar_dialog_alt': 0x13,
@@ -145,7 +145,9 @@ def screens():
     from mover_editor import dialog as mover_dialog
     root.append(mover_dialog(MOVERS))
     from layout.unitframes import dialog as unitframes_dialog
-    root.append(unitframes_dialog())
+    from layout.event_assistant import widgets as event_assistant_widgets
+    # The World Event assistant's passive pieces share the unit-frame canvas: no dialog slot is free.
+    root.append(event_assistant_widgets(unitframes_dialog()))
     count = sum(1 for r in (root, lazy) for d in r if d.tag == 'Dialog')
     assert count <= BUDGET, f'{count} plugin dialogs exceed the {BUDGET} Aetherfall may use'
     for r in (root, lazy):
@@ -193,7 +195,8 @@ def update_retained_ui_xml(payload, *, options=False, movers=False):
     if options:
         payload = update_options_xml(payload)
     from layout.unitframes import update_xml
-    return update_xml(payload)
+    from layout.event_assistant import update_xml as event_assistant_update_xml
+    return event_assistant_update_xml(update_xml(payload))
 
 
 def identity_dialog(parent):
@@ -410,6 +413,10 @@ def main():
                 stage(relative, payload)
         from layout.unitframes import assets as unitframes_assets
         for relative, payload in unitframes_assets().items():
+            if original(relative) != payload:
+                stage(relative, payload)
+        from layout.event_assistant import assets as event_assistant_assets
+        for relative, payload in event_assistant_assets().items():
             if original(relative) != payload:
                 stage(relative, payload)
 

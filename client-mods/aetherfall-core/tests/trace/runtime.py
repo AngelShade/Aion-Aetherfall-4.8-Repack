@@ -64,6 +64,8 @@ class Runtime:
         self.camera, self.camera_original = {'fov': 90, 'distance': 28}, {'fov': 90, 'distance': 28}
         self.units={'target':(7002,'TraceBot',65,31000,42000,5000,8000), 'targettarget':(7003,'TraceBot',65,21000,42000,3000,8000)}
         self.identities={'TraceBot':('Excellent','Great')}
+        # AFCore.Event (Core 1.3.31): no world event unless a scenario sets one (the 16 values event_assistant.h returns).
+        self.eventInfo=None
         self.auras={unit:[(1001,'TraceAura',1,0,8.4,None,8400,7001,2), (1002,'UntimedAura',1,0,None,None,None,7001,0)] for unit in ('player','target','targettarget')}
         self.slots={}
         self.files = {'state.json': '{"Desired":"layout","Applied":"layout"}', 'manifest.json': '{}'}
@@ -375,6 +377,7 @@ class Runtime:
         if command == 'partyframes': return False
         if command == 'unit': return self.units.get(a[0])
         if command == 'identity': return self.identities.get(a[0])
+        if command == 'event': return self.eventInfo if self.eventInfo else False
         if command == 'auras': return len(self.auras[a[0]]) if self.auras.get(a[0]) is not None else None
         if command == 'aura':
             rows=self.auras.get(a[0]) or []

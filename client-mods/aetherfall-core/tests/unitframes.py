@@ -34,7 +34,7 @@ class FocusedRecorder(Recorder):
 
     def write(self, kind, name, args=(), result=()):
         reads = {'dialog', 'rect', 'widget', 'text', 'shown', 'unit', 'unitclass', 'playerid',
-                 'gauge', 'scale', 'screen', 'slots', 'identity', 'readfile', 'pininfo',
+                 'gauge', 'scale', 'screen', 'slots', 'identity', 'event', 'readfile', 'pininfo',
                  'Dialog', 'Rect', 'Widget', 'Text', 'Shown', 'Unit', 'UnitClass', 'PlayerID',
                  'Gauge', 'Scale', 'Screen', 'ReadFile', 'PinInfo'}
         if ((kind in ('bridge', 'AFCore') and name in reads)
@@ -825,6 +825,30 @@ def scenarios(t, restart=None):
     t.event('PLAYER_ENTERING_WORLD'); t.ticks(45)
     assert visible(t, 'player'), 'player frame is absent after login'
     assert all(not visible(t, unit) for unit in UNITS if unit != 'player')
+    healthy(t)
+
+    t.mark('event-assistant-shows-and-hides-the-world-event')
+    # The World Event assistant (EventAssistant) shares this canvas: it draws only while AFCore.Event reports one.
+    assert not t.widgets['AFHFEventPanel']['visible']
+    t.eventInfo = (True, 'Ambush on the Road', 'Ambush at the Waystone', 'Defeat the raiders', '3/6', 0.5, 161, 'G', 'defend',
+                   False, False, '', 210020000, 1.0, 2.0, 3.0)
+    t.ticks(10)
+    for part in ('Panel', 'BarBack', 'BarFill', 'Icon', 'Medal', 'Title', 'Stage', 'Objective', 'Count', 'Timer'):
+        assert t.widgets['AFHFEvent' + part]['visible'], part + ' hidden during an event'
+    assert not t.widgets['AFHFEventGroup']['visible'], 'no group label for a normal part'
+    assert t.widgets['AFHFEventTitle']['text'] == 'Ambush on the Road'
+    assert t.widgets['AFHFEventObjective']['text'] == 'Defeat the raiders' and t.widgets['AFHFEventCount']['text'] == '3/6'
+    assert t.widgets['AFHFEventTimer']['text'] == '2:41 left'
+    back, fill = t.widgets['AFHFEventBarBack']['rect'], t.widgets['AFHFEventBarFill']['rect']
+    assert abs(fill[2] / back[2] - 0.5) < 0.01, 'the bar shows half the progress'
+    t.eventInfo = (True, 'Ambush on the Road', 'Warlord', 'Defeat the warlord', '', 0.25, 400, 'S', 'boss',
+                   True, True, '', 210020000, 1.0, 2.0, 3.0)
+    t.ticks(10)
+    assert t.widgets['AFHFEventGroup']['visible'] and 'Shielded' in t.widgets['AFHFEventGroup']['text'], 'the leader shield is announced'
+    t.eventInfo = None
+    t.ticks(10)
+    for part in ('Panel', 'BarFill', 'Title', 'Medal', 'Timer'):
+        assert not t.widgets['AFHFEvent' + part]['visible'], part + ' stays after the event'
     healthy(t)
 
     t.mark('unitframes-target-targettarget-and-all-six-party-slots')

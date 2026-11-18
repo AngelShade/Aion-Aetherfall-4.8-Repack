@@ -70,6 +70,9 @@ function AFCore.Aura(unit, index) if core then return core("aura", unit, index) 
 function AFCore.Unit(unit) if core then return core("unit", unit) end end
 --- A bot's gear rarity and combat rank, or nil for anyone else or until the server has answered.
 function AFCore.Identity(name) if core then return core("identity", name) end end
+--- Core 1.3.31: the World Event around the player (nil/false when none): active, chain, stage, objective, count,
+--- progress (0-1), seconds left, medal (G/S/B/-), icon key, group, shield, outcome, map, x, y, z.
+function AFCore.Event() if core then return core("event") end end
 --- Core 1.3.22: widget is a supported addon Container. A native-owned Model child supplies the portrait
 --- camera/viewport. Numeric source is the selected object ID, or -1 for the player's own body (core 1.3.23);
 --- a bot name retains the cached party look.

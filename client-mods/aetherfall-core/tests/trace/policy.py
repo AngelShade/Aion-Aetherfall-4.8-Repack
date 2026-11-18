@@ -21,6 +21,9 @@ EDITOR_PREFIXES = ('AFUIEditor', 'AFUINudge', 'AFUIMove', 'AFUIGrid', 'AFUIGuide
 # background/border, the gear crest and the class emblem (all declared by layout/unitframes.py).
 UNITFRAME_WIDGET = re.compile(r'^AFHF(?:Party$|(?:Player|TargetTarget|Target|Party[1-6])'
                               r'(?:Backdrop|Health|Power|DP|Level|Identity|State|Star[1-5]|Crest|ClassIcon|Portrait))')
+# The World Event assistant (Lua 1.4.20 EventAssistant): its passive panel, bar, icon, medal and labels on the same
+# canvas (layout/event_assistant.py). New plugin artwork; it never touches a native dialog or saved byte.
+EVENT_WIDGET = re.compile(r'^AFHFEvent(?:Panel|BarBack|BarFill|Icon|Medal|Title|Group|Stage|Objective|Count|Timer)$')
 # The outline of a mover box: four line images beside the box, new with the flat skin.
 MOVER_BORDER = re.compile(r'^AFUIMove\d+Edge(Top|Bottom|Left|Right)$')
 SKIN_SETTERS = frozenset((
@@ -60,6 +63,8 @@ def excluded(record):
         return None
     if name == 'AFHFrames' or UNITFRAME_WIDGET.match(name):
         return 'unit-frame plugin presentation'
+    if EVENT_WIDGET.match(name):
+        return 'world event assistant presentation'
     if name.startswith(OPTIONS_PREFIXES):
         return 'options widget presentation'
     if MOVER_BORDER.match(name):
@@ -108,6 +113,10 @@ def self_test():
                  'AFHFTargetCrest', 'AFHFTargetTargetClassIcon'):
         assert excluded(widget(name, 'AddNewWidget')), name
     assert excluded(widget('AFHFPartyX', 'SetWidgetRect')) is None
+    for name in ('AFHFEventPanel', 'AFHFEventBarFill', 'AFHFEventMedal', 'AFHFEventTimer'):
+        assert excluded(widget(name, 'AddNewWidget')) == 'world event assistant presentation', name
+        assert excluded(widget(name, 'SetWidgetRect')) == 'world event assistant presentation', name
+    assert excluded(widget('AFHFEventPanelX', 'SetWidgetRect')) is None
     assert excluded(['s', 'bridge', 'settext', [11, 'container7/af_identity_rank', 'Rank 3/5'], [True]])
     assert not excluded(['s', 'bridge', 'settext', [11, 'container7/name', 'Stock'], [True]])
     assert not excluded(['s', 'bridge', 'widgetshown', [33, 'ctn_member1/af_identity_rank', False], [True]])

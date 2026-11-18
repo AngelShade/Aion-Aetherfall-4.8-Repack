@@ -5,6 +5,20 @@ Aetherfall Interface. It reads native HUD data and applies the interface's windo
 positions, visibility and tooltip settings. Settings remain in `Mods/AetherfallUI`.
 Existing chat commands run through the native chat input.
 
+## World Event assistant, Lua 1.4.20 / native 1.3.31 (18 November 2026)
+
+Guild Wars 2's event tracker for the server's world events (`services/dynamicevents`). While a world
+event is around the player, a panel at the top right shows its icon, title, `[Group Event]` or the
+leader's shield, the current part, the objective with its count, a progress bar, the time left and the
+player's medal so far (Gold, Silver or Bronze). Native `event_assistant.h` asks
+`/market/companions/events/assistant` once a second, and only while the World Event quest 14979 is in
+the journal; the UI thread only reads its cache (`AFCore.Event`). The plugin's dialog slots are spent,
+so the pieces (`layout/event_assistant.py`) are passive children of the unit-frame canvas `AFHFrames`;
+the `EventAssistant` module owns them and never hides the canvas. General > World Events switches it and
+moves it by offsets from its automatic place (top right, below the minimap); a MoveUI box is not used, because
+the editor's boxes are strictly compared interface state. The art in `art/event-assistant` was made with Codex in the Aetherfall
+style and baked to DDS by `python layout/event_assistant.py`.
+
 ## World event journal slot, native 1.3.30 (18 November 2026)
 
 A world event (server module `services/dynamicevents`, `config/dynamic-events/README.md`)

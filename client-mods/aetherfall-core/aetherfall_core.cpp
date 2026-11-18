@@ -45,7 +45,7 @@
 // remain native and unchanged.
 namespace {
 using Ptr=void*;
-constexpr char CORE_VERSION[]="1.3.30";  // A fourth card slot shows the world event (quest 14979) in the journal and tracker.
+constexpr char CORE_VERSION[]="1.3.31";  // AFCore.Event: the World Event assistant's data (event_assistant.h).
 constexpr uintptr_t PREFERRED=0x10000000;  // Game.dll has no relocations.
 unsigned char* image=nullptr;
 unsigned char* game(){return image;}
@@ -848,6 +848,7 @@ bool hook(Ptr d){
 #include "lfg_hire.h"
 #include "help_journal.h"
 #include "companion_identity.h"
+#include "event_assistant.h"
 
 void unhook(Ptr d){
     (void)d;
@@ -1164,6 +1165,7 @@ int dispatch(Ptr L){
     }
     if(is(cmd,"hireterms"))return boolean(L,hire_terms::poll());
     if(is(cmd,"identity"))return companion_identity::query(L,text(L,2));
+    if(is(cmd,"event"))return event_assistant::query(L);
     if(is(cmd,"portrait")){
         // A numeric source is the expected current target object ID, never a template ID or name.
         // String sources retain the existing cached companion look for party portraits.
@@ -1564,6 +1566,7 @@ extern "C" __declspec(dllexport) void AetherfallCodexTick(){
     if(!image)return;
     if(help_quest::poll())if(Ptr tracker=dialog(0xba))native<void(*)(Ptr,int)>(0x856bf0)(tracker,1);
     help_journal::tick();
+    event_assistant::tick();
     codex::tick();
 }
 extern "C" __declspec(dllexport) void AetherfallHelpRequestTrack(){

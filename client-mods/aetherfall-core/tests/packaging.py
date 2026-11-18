@@ -228,8 +228,11 @@ class Packaging(unittest.TestCase):
         party = root.find("Widget[@name='AFHFParty']")
         self.assertEqual(party.attrib, dict(type='container', name='AFHFParty', frame='0,0,230,318',
                                           flag='transparent;not_active'))
-        # 42 pooled parts per frame, one native-model host per player/target/party frame, and the party container.
-        self.assertEqual(len(root), 3 * 42 + 2 + 1)
+        # 42 pooled parts per frame, one native-model host per player/target/party frame, the party container,
+        # and the World Event assistant's 11 passive pieces (layout/event_assistant.py).
+        self.assertEqual(len(root), 3 * 42 + 2 + 1 + 11)
+        self.assertEqual([n.get('name') for n in root][-11:], ['AFHFEvent' + p for p in ('Panel', 'BarBack', 'BarFill', 'Icon', 'Medal', 'Title',
+                         'Group', 'Stage', 'Objective', 'Count', 'Timer')])
         self.assertEqual(len(party), 6 * 43)
         frames = ('Player', 'Target', 'TargetTarget') + tuple(f'Party{i}' for i in range(1, 7))
         parts = {'Backdrop', 'HealthBG', 'HealthFill', 'PowerBG', 'PowerFill', 'DPBG', 'DPFill',
@@ -253,7 +256,12 @@ class Packaging(unittest.TestCase):
             self.assertLess(order.index(stem + 'PortraitBG'), order.index(view.get('name')), 'the model draws over its background')
             self.assertLess(order.index(view.get('name')), order.index(stem + 'PortraitBorder'), 'the border draws over the model')
             owner.remove(view)
-        loose = [node for node in root if node is not party]
+        # The World Event assistant's pieces share the canvas; they are passive and take no input.
+        events = [node for node in root if node.get('name', '').startswith('AFHFEvent')]
+        self.assertEqual(len(events), 11)
+        for node in events:
+            self.assertIn('not_active', node.get('flag')); self.assertIn('not_visible', node.get('flag'))
+        loose = [node for node in root if node is not party and node not in events]
         self.assertEqual({node.get('name') for node in loose}, {'AFHF' + frame + part for frame in frames[:3] for part in parts})
         self.assertEqual({node.get('name') for node in party}, {'AFHF' + frame + part for frame in frames[3:] for part in parts})
         for node in [*loose, *party]:

@@ -72,6 +72,7 @@
   "modules/OptionsWindow.lua",
   "modules/Profiles.lua",
   "modules/Watch.lua",
+  "modules/EventAssistant.lua",
   "options/ActionBars.lua",
   "options/Camera.lua",
   "options/Companions.lua",
@@ -87,5 +88,6 @@
   "options/EditorRender.lua",
   "options/Information.lua",
   "options/WorldMap.lua",
+  "options/EventAssistant.lua",
   "compat/Compat.lua"
 ]
