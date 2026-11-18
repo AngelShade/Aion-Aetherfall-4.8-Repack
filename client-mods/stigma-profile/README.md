@@ -9,7 +9,9 @@ these UI fields is treated as an unresolved string key and displayed as ???.
 
 Class, level, unlocked slots, Kinah costs, materials, upgrade chances and failure
 results still use the existing client/server rules. This does not grant items,
-unlock slots or change upgrade success rates. The maintained server already
+unlock slots or change upgrade success rates. Profile shows all six slot places
+from the first opening. Locked slots use their native border with the locked
+item-view state and stay disabled until the usual client requirements are met. The maintained server already
 accepts these native equip/remove and charging requests without an NPC.
 
 `prepare.py --client <original-client> --output <fresh-external-folder>` prepares
@@ -27,6 +29,13 @@ rejects changes outside those three instructions. Later click bridges, imports
 and other native mods remain byte-for-byte intact; no older image is restored.
 The button routes only its exact name to
 native local dialog 431, without fabricating an NPC or a server interaction.
+
+For an original client that already has Stigma Profile, add `--locked-visuals`
+to the preparation command. The guarded update preserves the native eligibility
+test and changes only its unavailable-slot branch. The base and English preload
+libraries give all three Stigma presets a `slot_close` skin using their existing
+78 by 78 borders. The launcher picks up the updated English library when it
+rebuilds a composed language.
 
 The small native bridges occupy verified unused bytes at 0x144daa0 and
 0x144db30, after the existing browser bridge and before its preview bridge.

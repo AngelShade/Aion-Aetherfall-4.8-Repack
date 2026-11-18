@@ -1,8 +1,10 @@
 """Install only a prepared original-client Stigma package, with backup and rollback."""
 import argparse
 from datetime import datetime
+import gzip
 import hashlib
 import json
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -31,6 +33,20 @@ def main():
         raise ValueError('Use a fresh external backup directory')
     allowed = {'bin64/Game.dll', 'Data/ui/game/game.pak', 'L10N/enu/Data/data.pak',
                'Mods/StigmaProfile/mod.json', 'Mods/StigmaProfile/README.md', 'Mods/InstalledMods.json'}
+    mode = manifest.get('mode', 'access')
+    if mode == 'locked-visuals':
+        allowed.remove('Data/ui/game/game.pak')
+        allowed.add('Data/ui/ui.pak')
+        interface_payloads = manifest['lockedVisuals'].get('interfacePayloads')
+        if interface_payloads is not None:
+            allowed.add('Mods/AetherfallUI/manifest.json')
+            for rel in interface_payloads:
+                match = re.fullmatch(r'Mods/AetherfallUI/payloads/([0-9a-f]{64})\.gz', rel)
+                if not match or hashlib.sha256(gzip.decompress((prepared / rel).read_bytes())).hexdigest() != match[1]:
+                    raise ValueError('Invalid staged Interface payload: ' + rel)
+            allowed.update(interface_payloads)
+    elif mode != 'access':
+        raise ValueError('Unknown Stigma package mode')
     allowed.update(compatibility_paths(manifest['graphicsCompatibility']))
     if {e['path'] for e in manifest['files']} != allowed or len(allowed) != len(manifest['files']):
         raise ValueError('Unexpected Stigma package file list')
@@ -88,7 +104,7 @@ def main():
                 shutil.copy2(backup / entry['path'], path)
         raise
     receipt = dict(feature='stigma-profile', clientRoot=str(client), installedAt=datetime.now().astimezone().isoformat(),
-                   backup=str(backup), files=manifest['files'], preservedFiles=manifest['preservedFiles'],
+                   mode=mode, backup=str(backup), files=manifest['files'], preservedFiles=manifest['preservedFiles'],
                    originalClientClosureVerified=True, serverChanged=False, repackChanged=False,
                    installerSha256=sha(Path(__file__)), gameplayAcceptance=manifest['gameplayAcceptance'])
     (backup / 'receipt.json').write_text(json.dumps(receipt, indent=2), encoding='utf-8')
