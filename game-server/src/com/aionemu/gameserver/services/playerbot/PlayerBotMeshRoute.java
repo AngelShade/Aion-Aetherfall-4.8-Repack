@@ -372,7 +372,7 @@ final class PlayerBotMeshRoute implements AutoCloseable {
             finally {admission.end(this);}
         }
         if(PlayerBotConfig.NAVIGATION_MEMORY_FIRST && usesSharedNavigationMemory(world) && !candidates.isEmpty()){
-            publishFromMemory(allowance,expired);return;
+            publishFromMemory(ground,allowance,expired);return;
         }
         while(!candidates.isEmpty() && !done && used<allowance && !expired.getAsBoolean()){
             if(cursor>=candidates.size()){finish();break;}
@@ -497,7 +497,7 @@ final class PlayerBotMeshRoute implements AutoCloseable {
     /** Use the in-memory corridor as a proposal instead of walking it with
      * expensive native collision probes before the actor walks it again.
      * No quest/transport arrival is granted; only the native mover earns that. */
-    private void publishFromMemory(int allowance,BooleanSupplier expired){
+    private void publishFromMemory(PlayerBotPathfinder.Ground ground,int allowance,BooleanSupplier expired){
         int used=0;
         while(cursor<candidates.size() && used++<allowance && !expired.getAsBoolean()){
             Point next=candidates.get(cursor);double length=distance(proofOrigin,next);
@@ -506,7 +506,7 @@ final class PlayerBotMeshRoute implements AutoCloseable {
             if(remaining<=.05)break;
             float t=(float)Math.min(1,remaining/Math.max(.001,length));
             Point end=new Point(proofOrigin.x()+(next.x()-proofOrigin.x())*t,proofOrigin.y()+(next.y()-proofOrigin.y())*t,proofOrigin.z()+(next.z()-proofOrigin.z())*t);
-            if(learnedObstruction(world,proofOrigin,end)){
+            if(learnedObstruction(world,proofOrigin,end) && !walksPast(ground,proofOrigin,end)){
                 // Publish the earned prefix before obstruction invalidates its
                 // itinerary. A callback after that reset has no corridor to credit.
                 useNative("prepared corridor crosses a recorded obstruction");journey.obstructed(proofOrigin);return;
@@ -523,6 +523,24 @@ final class PlayerBotMeshRoute implements AutoCloseable {
         route=List.copyOf(proved);partial=!graphComplete || cursor<candidates.size() || distance(proofOrigin,goal)>.6;
         if(bakedCorridor)journey.provedCorridor(start,proofOrigin,bakedStart,cursor);else journey.provedSegment(start,proofOrigin,target);
         done=true;reason="prepared route from shared map memory";releaseGraph();count("prepared route from RAM");
+    }
+    /** A learned spot on a corridor is a reason to check, not a verdict. Spots are recorded wherever a step was blocked,
+     * including by bots pressing into the walls beside Sanctum's stairs and doorways, and refusing every corridor
+     * within 2.5 m of one turned those stairs into walls: the bots then walked straight into the wall toward the
+     * teleporter, or in and back out (owner, 15 Nov; offline, four Sanctum routes refused this way all walked through).
+     * The same native walk the mover uses decides, in 12 m strides; only a walk that really stops refuses. */
+    private boolean walksPast(PlayerBotPathfinder.Ground ground,Point from,Point to){
+        Point at=from;
+        for(int strides=0;strides<32;strides++){
+            double xy=Math.hypot(to.x()-at.x(),to.y()-at.y());
+            if(xy<=.15){boolean passed=Math.abs(at.z()-to.z())<=2;count(passed?"note: learned spot on corridor cleared by native walk":"note: learned spot on corridor confirmed by native walk");return passed;}
+            float t=(float)Math.min(1,12/xy);
+            float x=at.x()+(to.x()-at.x())*t,y=at.y()+(to.y()-at.y())*t;
+            Point actual=ground.step(at,x,y);work++;
+            if(actual==null || !finite(actual) || Math.hypot(actual.x()-x,actual.y()-y)>.15)break;
+            at=actual;
+        }
+        count("note: learned spot on corridor confirmed by native walk");return false;
     }
     private boolean requestJourney(){
         if(coarseRequired || journey.ready())return false;

@@ -175,6 +175,15 @@ final class PlayerBotNavmeshStore implements AutoCloseable {
         kick();return request;
     }
 
+    /** Runtime whole-trip demand uses the same authenticated cache and cancellable
+     * admission as tile windows. Loading and verification stay on the loader. */
+    Request requestFull(int map){
+        if(map<1)throw new IllegalArgumentException("Invalid full navigation map");
+        Request request;
+        synchronized(this){request=new Request(new Window(map,0,0,0),++sequence);register(request);}
+        kick();return request;
+    }
+
     private void register(Request request){
         if(request.cancelled || request.entry!=null || closed || catalogFailure!=null)return;
         Entry entry=entries.get(request.window);

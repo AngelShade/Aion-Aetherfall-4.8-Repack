@@ -30,7 +30,8 @@ def world_activity_defaults(before, maintained, wanted=None):
     """Append only missing, explained keys; preserve existing owner bytes and values."""
     keys = import_module('navmesh-release').owner_keys(before)
     if wanted is None: wanted = {'gameserver.playerbots.world.only_occupied_maps', 'gameserver.playerbots.world.presence_refresh_ms',
-        'gameserver.playerbots.world.rpg.enable', 'gameserver.playerbots.world.rpg_pause_ms'}
+        'gameserver.playerbots.world.rpg.enable', 'gameserver.playerbots.world.rpg_pause_ms',
+        'gameserver.playerbots.world.rpg_visitors_per_npc', 'gameserver.playerbots.world.rpg_revisit_ms'}
     blocks = []
     found = set()
     for block in re.split(rb'\r?\n\r?\n', maintained):

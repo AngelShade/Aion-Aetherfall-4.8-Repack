@@ -233,6 +233,12 @@ public class GeoService implements GameEngine {
 		GeoMap map=geoMaps.get(worldId);
 		return map==null?Float.NaN:map.getPlayerBotGroundZ(x,y,z+.2f,z-.2f,instance);
 	}
+
+	/** Physical support within the whole-route planner's projection window. */
+	public float playerBotStaticFloor(int worldId,int instance,float x,float y,float top,float bottom) {
+		GeoMap map=geoMaps.get(worldId);
+		return map==null?Float.NaN:map.getPlayerBotGroundZ(x,y,top,bottom,instance);
+	}
 	public boolean playerBotClearBodyRay(int worldId,int instance,Vector3f from,Vector3f to){
 		GeoMap map=geoMaps.get(worldId);
 		return map!=null && com.aionemu.gameserver.services.playerbot.PlayerBotGroundNavigation.clearTraversal(map,instance,from,to);

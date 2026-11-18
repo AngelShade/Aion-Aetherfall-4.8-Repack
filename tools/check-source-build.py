@@ -24,7 +24,7 @@ TESTS['PlayerBotTravelAdmissionCheck']=24
 TESTS['PlayerBotTerrainThroughputCheck']=24
 TESTS['PlayerBotWarehouseCheck']=117
 TESTS['PlayerBotMailCheck']=87
-TESTS['PlayerBotFieldActivityCheck']=543
+TESTS['PlayerBotFieldActivityCheck']=551
 TESTS['PlayerBotLegionStorageCheck']=98
 TESTS['PlayerBotLegionInvitationCheck']=157
 TESTS['PlayerBotNamesCheck']=46
@@ -53,8 +53,8 @@ TESTS['PlayerBotNpcPatrolCheck']=13
 TESTS['PlayerBotRouteCadenceCheck']=70
 TESTS['PlayerBotRouteContinuationCheck']=238
 TESTS['PlayerBotNavigationHandoffCheck']=23
-TESTS['PlayerBotNavigationBudgetCheck']=12830
-TESTS['PlayerBotNavigationConfigCheck']=28
+TESTS['PlayerBotNavigationBudgetCheck']=12832
+TESTS['PlayerBotNavigationConfigCheck']=32
 TESTS['PlayerBotConfigLocationCheck']=10
 TESTS['PlayerBotPartialRouteCheck']=187
 TESTS['PlayerBotEarlyRoutePrefetchCheck']=12
@@ -65,7 +65,7 @@ TESTS['PlayerBotHealingPlanningCheck']=126
 TESTS['PlayerBotUtilityPlanningCheck']=38
 TESTS['PlayerBotNonCombatBuffCheck']=47
 TESTS['PlayerBotDecisionNavigationCheck']=14
-TESTS['PlayerBotNativeRouteYieldCheck']=106
+TESTS['PlayerBotNativeRouteYieldCheck']=103
 TESTS['PlayerBotCapitalAreaCheck']=116
 TESTS['PlayerBotCampDistributionCheck']=3020
 TESTS['PlayerBotNavigationPendingCheck']=25
@@ -77,7 +77,7 @@ TESTS['PlayerBotCustodyCheck']=94
 TESTS['PlayerBotItemViewCheck']=29
 TESTS['PlayerBotSupportCooperationCheck']=61
 TESTS['PlayerBotForcedFollowCheck']=20
-TESTS['PlayerBotWeaponStanceCheck']=193
+TESTS['PlayerBotWeaponStanceCheck']=200
 TESTS['PlayerBotHeightTraversalCheck']=101
 TESTS['PlayerBotLedgeLeapCheck']=89
 TESTS['PlayerBotLiveAuditCheck']=261
@@ -122,6 +122,7 @@ TESTS['PlayerBotPortraitCheck']=9
 TESTS['PlayerBotProfessionTaskCheck']=405
 TESTS['PlayerBotInvisibleFloorCheck']=432
 TESTS['PlayerBotRelocationTerrainCheck']=5988
+TESTS['PlayerBotWholeRouteCheck']=33
 TESTS['PlayerBotProfessionTravelCheck']=34
 TESTS['PlayerBotProfessionDecisionCheck']=23
 TESTS['PlayerBotProfessionQualificationCheck']=367
@@ -140,7 +141,7 @@ TESTS['PlayerBotNativeCraftingTaskCheck']=60
 TESTS['PlayerBotNativeGatheringTaskCheck']=107
 TESTS['PlayerBotSkillAdaptersCheck']=702
 
-TESTS['WarehouseDepositCheck']=627
+TESTS['WarehouseDepositCheck']=685
 TESTS.update({'PlayerBotEnhanceCheck':233,'EconomyAppraisalCheck':46087,'CentralMarketEnhancedCheck':139,'PlayerBotEconomyCheck':26,'PlayerBotMarketPricingCheck':25})
 SERVICE_CHECKS={'EconomyAppraisalCheck','CentralMarketEnhancedCheck','BrokerRetirementCheck','CentralMarketFeedbackCheck'}
 
@@ -168,8 +169,8 @@ TESTS['PlayerBotWardenDeathCheck']=18
 TESTS.update({'PlayerBotAppearanceCheck':16,'PlayerBotCombatQuestCheck':24,'PlayerBotCompanionCheck':1386,'PlayerBotCreationMetadataCheck':11,
  'PlayerBotFormationLayoutCheck':1202,'PlayerBotGearSettingsCheck':35,'PlayerBotGenerationCheck':5,'PlayerBotHeapGuardCheck':14,
  'PlayerBotInventoryCheck':303,'PlayerBotMetadataPreferencesCheck':31,'PlayerBotPanelCheck':15,'PlayerBotPlanningCheck':47,
- 'PlayerBotPopulationQueueCheck':123,'PlayerBotRecruitmentCheck':10,'PlayerBotRevivalCheck':16,'PlayerBotRoadDutyCheck':125,
- 'PlayerBotRoadLaneCheck':2006,'PlayerBotRoadNavigationCheck':16,'PlayerBotSettingsFilesCheck':15,'PlayerBotSteelRakeCaptainTacticsCheck':16,
+ 'PlayerBotPopulationQueueCheck':123,'PlayerBotRecruitmentCheck':10,'PlayerBotRevivalCheck':16,'PlayerBotRoadDutyCheck':130,
+ 'PlayerBotRoadLaneCheck':2006,'PlayerBotRoadNavigationCheck':14,'PlayerBotSettingsFilesCheck':15,'PlayerBotSteelRakeCaptainTacticsCheck':16,
  'PlayerBotSteelRakeCheck':28,'PlayerBotTankCheck':8,'PlayerBotTankPositionCheck':22,'PlayerBotTargetStrategiesCheck':19,
  'PlayerBotTargetValuesCheck':18,'PlayerBotTemporaryCheck':200,'PlayerBotDefenseCheck':34,'PlayerBotEncounterCheck':35,
  'PlayerBotEnemyUtilityCheck':26,'PlayerBotHealingCheck':30,'PlayerBotOffenseCheck':978,'PlayerBotSkillsCheck':868,
@@ -336,7 +337,7 @@ def main():
  for test,count in ((name,TESTS[name]) for name in a.only) if a.only else TESTS.items():
   cwd=ROOT/'game-server' if test in {'PlayerBotBuildGearCheck','PlayerBotLoadoutCheck','PlayerBotEnhanceCheck'}|SERVICE_CHECKS|GAME_SERVER_CWD else ROOT if test in ROOT_CWD|{'PlayerBotWorldProgressCheck','PlayerBotAssassinCheck','PlayerBotGladiatorCheck','PlayerBotTemplarCheck','PlayerBotChanterCheck','PlayerBotClericCheck','PlayerBotSpiritmasterCheck','PlayerBotSorcererCheck',
    'PlayerBotQuestCraftingCheck','PlayerBotQuestPrerequisitesCheck','PlayerBotNativeCraftingTaskCheck','PlayerBotNativeXmlQuestCheck'} else build/'checks'
-  args=[str(ROOT/'game-server')] if test in {'PlayerBotInvisibleFloorCheck','PlayerBotSmoothTravelCheck','PlayerBotActivityChatCheck','PlayerBotRelocationTerrainCheck','PlayerBotProfessionDecisionCheck','PlayerBotProfessionQualificationCheck','PlayerBotIdentityCheck','PlayerBotBystandersCheck','PlayerBotCampSafetyCheck','PlayerBotLocalWorkCheck','PlayerBotDetailTierCheck','PlayerBotMarketUpgradesCheck','PlayerBotPvpCheck','PlayerBotHelpTrackingCheck','PlayerBotSleepMotionCheck','PlayerBotLeaningsCheck','PlayerBotDuelsCheck','PlayerBotBattlegroundCheck','PlayerBotSiegesCheck','PlayerBotBasesCheck','PlayerBotBattlegroundObjectivesCheck','PlayerBotRunBriefingCheck','InstanceDifficultyCheck','PlayerBotHelpJournalCheck','PlayerBotHelpKickCheck','PlayerBotDredgionCheck','PlayerBotHelpSlotsCheck','PlayerBotBattlegroundMapsCheck','PlayerBotArenasCheck','PlayerBotPartyRewardsCheck','PlayerBotFindGroupLoopholesCheck','PlayerBotPvpTacticsCheck','PlayerBotWardenVillagesCheck','PlayerBotPortraitCheck','PlayerBotProfessionCheck','QuestBonusPoolsCheck','PlayerBotRepositoryCheck','PlayerBotPlayerZoneCheck','PlayerBotAuditCoverageCheck','PlayerBotIdleCastingCheck','PlayerBotTravelFormationCheck','PlayerBotCombatGearCheck','PlayerBotTargetVisibilityCheck','PlayerBotStoryRewardIntentCheck','PlayerBotQuestTransformationCheck','PlayerBotQuestItemTargetCheck','PlayerBotNpcPatrolNativeSpawnCheck','PlayerBotNpcPatrolAdmissionCheck','PlayerBotNativeRouteYieldCheck','PlayerBotCapitalAreaCheck','PlayerBotConfigLocationCheck','PlayerBotCampDistributionCheck','PlayerBotNonCombatBuffCheck','PlayerBotTownPolicyCheck','PlayerBotSkillAdaptersCheck'} else []
+  args=[str(ROOT/'game-server')] if test in {'PlayerBotInvisibleFloorCheck','PlayerBotSmoothTravelCheck','PlayerBotActivityChatCheck','PlayerBotRelocationTerrainCheck','PlayerBotWholeRouteCheck','PlayerBotProfessionDecisionCheck','PlayerBotProfessionQualificationCheck','PlayerBotIdentityCheck','PlayerBotBystandersCheck','PlayerBotCampSafetyCheck','PlayerBotLocalWorkCheck','PlayerBotDetailTierCheck','PlayerBotMarketUpgradesCheck','PlayerBotPvpCheck','PlayerBotHelpTrackingCheck','PlayerBotSleepMotionCheck','PlayerBotLeaningsCheck','PlayerBotDuelsCheck','PlayerBotBattlegroundCheck','PlayerBotSiegesCheck','PlayerBotBasesCheck','PlayerBotBattlegroundObjectivesCheck','PlayerBotRunBriefingCheck','InstanceDifficultyCheck','PlayerBotHelpJournalCheck','PlayerBotHelpKickCheck','PlayerBotDredgionCheck','PlayerBotHelpSlotsCheck','PlayerBotBattlegroundMapsCheck','PlayerBotArenasCheck','PlayerBotPartyRewardsCheck','PlayerBotFindGroupLoopholesCheck','PlayerBotPvpTacticsCheck','PlayerBotWardenVillagesCheck','PlayerBotPortraitCheck','PlayerBotProfessionCheck','QuestBonusPoolsCheck','PlayerBotRepositoryCheck','PlayerBotPlayerZoneCheck','PlayerBotAuditCoverageCheck','PlayerBotIdleCastingCheck','PlayerBotTravelFormationCheck','PlayerBotCombatGearCheck','PlayerBotTargetVisibilityCheck','PlayerBotStoryRewardIntentCheck','PlayerBotQuestTransformationCheck','PlayerBotQuestItemTargetCheck','PlayerBotNpcPatrolNativeSpawnCheck','PlayerBotNpcPatrolAdmissionCheck','PlayerBotNativeRouteYieldCheck','PlayerBotCapitalAreaCheck','PlayerBotConfigLocationCheck','PlayerBotCampDistributionCheck','PlayerBotNonCombatBuffCheck','PlayerBotTownPolicyCheck','PlayerBotSkillAdaptersCheck'} else []
   # The supplies catalogue reads static data; the Warden expansion suite checks with Java assertions and works in its own folder.
   if test=='PlayerBotSuppliesCatalogCheck':args=[str(ROOT/'game-server/data/static_data')]
   if test=='PlayerBotWardenExpansionCheck':args=[str(out/'warden-expansion-work')]

@@ -31,6 +31,8 @@ final class PlayerBotWorldActivities {
   final PlayerBotTravelClock travelClock=new PlayerBotTravelClock(),vendorClock=new PlayerBotTravelClock();
   volatile Goal goal; boolean closed; final Map<String,Long> excluded=new HashMap<>();
   Goal rpg;long rpgUntil;boolean rpgArea,failedTravel,unsuitableMap;
+  /** Where the visited service NPC stands; the rpg goal's own place is the visitor's spot beside it. */
+  volatile PlayerBotWorldTravel.Place rpgNpc;
   volatile String why="awaiting first admitted planning decision";
   long nextGoalHunt,lostSince,huntUntil;Goal goalHunt;
  }
@@ -95,14 +97,14 @@ final class PlayerBotWorldActivities {
    && (!pointExclusive(g) || points.getOrDefault(location(g),0)==0)).toList());}
  }
  private static final Visitors VISITORS=new Visitors();
- private static void goal(State s,Goal next){synchronized(s){if(s.closed)return;VISITORS.replace(s.goal,next);if(!Objects.equals(s.goal,next)){s.travelClock.reset();s.why=next==null?"destination released: awaiting selection":"selected "+next.kind()+(next.quest()==0?"":" quest")+(next==s.rpg?" service visit":"");}if(s.goalHunt!=null && !Objects.equals(next,s.goalHunt)){GOAL_CLAIMS.remove(s.goalHunt.place().npc(),s);s.goalHunt=null;s.huntUntil=0;}if(next!=s.rpg){s.rpg=null;s.rpgUntil=0;}s.goal=next;}}
+ private static void goal(State s,Goal next){synchronized(s){if(s.closed)return;VISITORS.replace(s.goal,next);if(!Objects.equals(s.goal,next)){s.travelClock.reset();s.why=next==null?"destination released: awaiting selection":"selected "+next.kind()+(next.quest()==0?"":" quest")+(next==s.rpg?" service visit":"");}if(s.goalHunt!=null && !Objects.equals(next,s.goalHunt)){GOAL_CLAIMS.remove(s.goalHunt.place().npc(),s);s.goalHunt=null;s.huntUntil=0;}if(next!=s.rpg){s.rpg=null;s.rpgUntil=0;s.rpgNpc=null;}s.goal=next;}}
  private static Map<Integer,Set<Integer>> starters;
  private static final Map<Integer,List<Map.Entry<Integer,Set<Integer>>>> STARTERS_BY_LEVEL=new HashMap<>();
  private static final Map<String,List<Integer>> GRIND=new HashMap<>();
  private static List<Integer> vendors;
  private static synchronized List<Integer> grindTemplates(Player bot){
   return GRIND.computeIfAbsent(bot.getRace()+":"+bot.getLevel(),key->DataManager.NPC_DATA.getNpcData().stream().filter(n->levelSuitable(bot.getLevel(),n.getLevel())
-   && PlayerBotHunting.template(n)
+   && PlayerBotHunting.template(n) && !PlayerBotHunting.critter(n)
    && (DataManager.TRIBE_RELATIONS_DATA.isHostileRelation(n.getTribe(),bot.getTribe()) || DataManager.TRIBE_RELATIONS_DATA.isAggressiveRelation(n.getTribe(),bot.getTribe())))
    .map(n->n.getTemplateId()).toList());
  }
@@ -196,7 +198,7 @@ final class PlayerBotWorldActivities {
   List<Npc> choices=new ArrayList<>();
   bot.getKnownList().forEachNpc(n->{if(PlayerBotTargetEligibility.visible(bot,n) && !n.isDead() && n.isSpawned() && n.getMaster()==n && !n.isFlag() && bot.isEnemy(n)
    && n.getWorldId()==bot.getWorldId() && n.getInstanceId()==bot.getInstanceId() && levelSuitable(bot.getLevel(),n.getLevel())
-   && (PlayerBotHunting.template(n.getObjectTemplate()) || goalPrey(bot,n)) && PlayerBotHunting.opportunistic(state(bot).goal,n.getNpcId())
+   && (PlayerBotHunting.template(n.getObjectTemplate()) && !PlayerBotHunting.critter(n.getObjectTemplate()) || goalPrey(bot,n)) && PlayerBotHunting.opportunistic(state(bot).goal,n.getNpcId())
    && n.getAggroList().stream().findAny().isEmpty() && PositionUtil.isInRange(bot,n,25) && GeoService.getInstance().canSee(bot,n))choices.add(n);});
   return choices.stream().min(Comparator.comparingDouble(n->PositionUtil.getDistance(bot,n))).orElse(null);
  }
@@ -413,7 +415,8 @@ final class PlayerBotWorldActivities {
    || DataManager.TELEPORTER_DATA.getTeleporterTemplateByNpcId(npc.getNpcId())!=null;
  }
  private static Goal rpg(Player bot,State s,long now) {
-  var choices=new ArrayList<Goal>();s.rpgArea=false;
+  var choices=new ArrayList<Goal>();var hosts=new HashMap<Goal,Npc>();s.rpgArea=false;
+  var claims=rpgClaims(bot,s);int visitors=Math.max(1,com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_RPG_VISITORS_PER_NPC);
   bot.getKnownList().forEachNpc(n->{
    if(!serviceNpc(bot,n))return;
    double distance=PositionUtil.getDistance(bot,n);if(distance>100)return;
@@ -421,17 +424,87 @@ final class PlayerBotWorldActivities {
    if(!com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_RPG_ENABLED)return;
    var p=new PlayerBotWorldTravel.Place(n.getWorldId(),n.getNpcId(),n.getX(),n.getY(),n.getZ());
    var candidate=new Goal(0,PlayerBotQuestRoutes.Kind.CONVERSATION,p,distance);
-   if(s.excluded.getOrDefault(key(candidate),0L)<=now)choices.add(candidate);
+   if(s.excluded.getOrDefault(key(candidate),0L)<=now && s.excluded.getOrDefault(rpgKey(p),0L)<=now
+    && rpgVisitors(claims,p)<visitors){choices.add(candidate);hosts.put(candidate,n);}
   });
-  Goal next=chooseAvailable(choices);s.rpg=next;s.rpgUntil=0;return next;
+  s.rpg=null;s.rpgNpc=null;s.rpgUntil=0;
+  // An NPC with no free spot beside it is full; try the next choice, a few at most per scan.
+  for(int tries=0;tries<4 && !choices.isEmpty();tries++) {
+   Goal pick=chooseAvailable(choices);if(pick==null)break;
+   var spot=rpgSpot(bot,hosts.get(pick),claims,s,now);
+   if(spot==null){choices.remove(pick);continue;}
+   Goal next=new Goal(0,PlayerBotQuestRoutes.Kind.CONVERSATION,spot,PositionUtil.getDistance(bot,spot.x(),spot.y(),spot.z()));
+   s.rpg=next;s.rpgNpc=pick.place();return next;
+  }
+  return null;
  }
- private static boolean rpgArrived(Player bot,Goal target) {
-  boolean[] arrived={false};bot.getKnownList().forEachNpc(n->{
-   if(n.getNpcId()==target.place().npc() && serviceNpc(bot,n)
-    && PositionUtil.getDistance(n,target.place().x(),target.place().y(),target.place().z())<6
+ /** A service visitor stands on its own spot on a ring around the NPC, inside native talk range, not on the NPC's
+  * spawn point where every visitor used to pile up (owner, 15 Nov: two crowds on the Sanctum teleport statue).
+  * Pinned MovementAction::MoveNear offsets its target by GetFollowAngle(), which is 0 for every ungrouped bot, so
+  * upstream stacks them as well. Spots facing the NPC come first; each must be clear of standing players and of
+  * spots other visitors hold, on native ground within 1 m of the NPC's floor and in native sight of the NPC. */
+ record RpgClaim(PlayerBotWorldTravel.Place npc,PlayerBotWorldTravel.Place spot) {}
+ static final int RPG_SLOTS=8;
+ /** Visitors keep at least this far apart, centre to centre, in metres. */
+ static final float RPG_SPACING=1.6f;
+ /** Within this many metres of its spot a visitor has arrived; further out it arrives once its walk stops in talk range. */
+ static final float RPG_ARRIVAL=1.5f;
+ /** The ring sits just inside native talk range (talk distance + 1 + both bound radii), between 1.5 and 4 m. */
+ static float rpgRing(float talkReach){return Math.max(1.5f,Math.min(4f,talkReach-.7f));}
+ /** Ring angle in radians from the NPC's facing: front first, then alternately left and right, back last. */
+ static double rpgAngle(int slot){int side=(slot+1)/2;return slot==0?0:(slot%2==1?1:-1)*side*Math.PI/4;}
+ static boolean rpgClear(float x,float y,float z,List<float[]> taken){
+  for(float[] p:taken)if(Math.hypot(p[0]-x,p[1]-y)<RPG_SPACING && Math.abs(p[2]-z)<2)return false;
+  return true;
+ }
+ /** Other bots' current service visits near this bot: the NPC each is visiting and the spot it holds. */
+ private static List<RpgClaim> rpgClaims(Player bot,State self){
+  var claims=new ArrayList<RpgClaim>();
+  for(var o:STATES.values()){
+   var npc=o.rpgNpc;var g=o.goal;
+   if(o==self || npc==null || g==null || npc.map()!=bot.getWorldId() || PositionUtil.getDistance(bot,npc.x(),npc.y(),npc.z())>130)continue;
+   claims.add(new RpgClaim(npc,g.place()));
+  }
+  return claims;
+ }
+ static int rpgVisitors(List<RpgClaim> claims,PlayerBotWorldTravel.Place npc){
+  int count=0;
+  for(var c:claims)if(c.npc().npc()==npc.npc() && Math.hypot(c.npc().x()-npc.x(),c.npc().y()-npc.y())<1)count++;
+  return count;
+ }
+ /** Cooldown key for one service NPC spawn, whichever spot beside it the visit used. */
+ static String rpgKey(PlayerBotWorldTravel.Place npc){return "rpg:"+npc.map()+":"+npc.npc()+":"+Math.round(npc.x())+":"+Math.round(npc.y());}
+ private static PlayerBotWorldTravel.Place rpgSpot(Player bot,Npc npc,List<RpgClaim> claims,State s,long now) {
+  if(npc==null)return null;
+  var geo=GeoService.getInstance();var template=npc.getObjectTemplate();
+  float ring=rpgRing(template.getTalkDistance()+1+template.getBoundRadius().getMaxOfFrontAndSide()+bot.getObjectTemplate().getBoundRadius().getMaxOfFrontAndSide());
+  var taken=new ArrayList<float[]>();
+  for(var c:claims)taken.add(new float[]{c.spot().x(),c.spot().y(),c.spot().z()});
+  bot.getKnownList().forEachPlayer(p->{if(p!=bot && p.isSpawned() && PositionUtil.getDistance(p,npc)<ring+RPG_SPACING+1)taken.add(new float[]{p.getX(),p.getY(),p.getZ()});});
+  double facing=Math.toRadians(PositionUtil.convertHeadingToAngle(npc.getHeading()));
+  for(int slot=0;slot<RPG_SLOTS;slot++) {
+   double angle=facing+rpgAngle(slot);
+   float x=npc.getX()+(float)(Math.cos(angle)*ring),y=npc.getY()+(float)(Math.sin(angle)*ring);
+   float z=geo.getZ(npc.getWorldId(),x,y,npc.getZ()+2,npc.getZ()-3,npc.getInstanceId());
+   if(!Float.isFinite(z) || Math.abs(z-npc.getZ())>1 || !rpgClear(x,y,z,taken))continue;
+   var spot=new PlayerBotWorldTravel.Place(npc.getWorldId(),npc.getNpcId(),x,y,z);
+   // A spot this bot just used, or could not reach, stays skipped for its own cooldown.
+   if(s.excluded.getOrDefault(key(new Goal(0,PlayerBotQuestRoutes.Kind.CONVERSATION,spot,0)),0L)>now)continue;
+   if(geo.isPlayerBotLanding(npc.getWorldId(),npc.getInstanceId(),x,y,z) && geo.canSeeFrom(bot,x,y,z,npc))return spot;
+  }
+  return null;
+ }
+ /** The visited NPC once the visitor is in talk range and has reached its spot, or stopped walking near it; otherwise null. */
+ private static Npc rpgHost(Player bot,State s,PlayerBotNavigation navigation,long now) {
+  var spot=s.goal.place();var target=s.rpgNpc!=null?s.rpgNpc:spot;
+   if(PlayerBotWorldTravel.distance(bot,spot)>RPG_ARRIVAL && navigation.progressing(now)
+    && !navigation.atWholeRouteEnd(new PlayerBotNavigation.Point(spot.x(),spot.y(),spot.z())))return null;
+  Npc[] host={null};bot.getKnownList().forEachNpc(n->{
+   if(host[0]==null && n.getNpcId()==target.npc() && serviceNpc(bot,n)
+    && PositionUtil.getDistance(n,target.x(),target.y(),target.z())<6
     && PositionUtil.isInTalkRange(bot,n) && DialogService.isInteractionAllowed(bot,n)
-    && GeoService.getInstance().canSee(bot,n))arrived[0]=true;
-  });return arrived[0];
+    && GeoService.getInstance().canSee(bot,n))host[0]=n;
+  });return host[0];
  }
  static void prepare(Player bot,PlayerBotNavigation navigation) {
   State s=state(bot);long now=System.currentTimeMillis();s.excluded.entrySet().removeIf(e->e.getValue()<=now);
@@ -443,14 +516,22 @@ final class PlayerBotWorldActivities {
   // needs no repeated geometry ray or transport-graph construction each tick.
   if(s.rpg!=null && s.goal==s.rpg && s.rpgUntil>0) {
     if(rpgPause(now,s.rpgUntil) && bot.getWorldId()==s.goal.place().map()
-     && PositionUtil.getDistance(bot,s.goal.place().x(),s.goal.place().y(),s.goal.place().z())<=6){s.why="service visit: finite arrival pause";return;}
+      && (PositionUtil.getDistance(bot,s.goal.place().x(),s.goal.place().y(),s.goal.place().z())<=6
+       || navigation.atWholeRouteEnd(new PlayerBotNavigation.Point(s.goal.place().x(),s.goal.place().y(),s.goal.place().z())))){s.why="service visit: finite arrival pause";return;}
+   // The visited NPC rests for the revisit time, so the visitor moves on to another NPC instead of standing here
+   // and returning to the same one 30 s later.
+   var visited=s.rpgNpc;if(visited!=null)s.excluded.put(rpgKey(visited),now+Math.max(30000L,com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_RPG_REVISIT_MS));
    s.excluded.put(key(s.goal),now+30000);goal(s,null);s.nextScan=0;navigation.stop();return;
   }
   if(s.goal!=null && s.goal.quest()!=0 && !PlayerBotQuestRoutes.ids(bot,bot,s.goal.quest(),s.goal.kind()).contains(s.goal.place().npc())){goal(s,null);s.nextScan=0;}
-  if(s.goal!=null && PlayerBotWorldTravel.distance(bot,s.goal.place())<=6 && (s.goal!=s.rpg || rpgArrived(bot,s.goal))){
+   var point=s.goal==null?null:new PlayerBotNavigation.Point(s.goal.place().x(),s.goal.place().y(),s.goal.place().z());
+   boolean routeEnd=point!=null && bot.getWorldId()==s.goal.place().map() && navigation.atWholeRouteEnd(point);
+   Npc host=null;
+   if(s.goal!=null && (PlayerBotWorldTravel.distance(bot,s.goal.place())<=6 || routeEnd) && (s.goal!=s.rpg || (host=rpgHost(bot,s,navigation,now))!=null)){
    if(s.goal==s.rpg) {
     int delay=com.aionemu.gameserver.configs.main.PlayerBotConfig.WORLD_RPG_PAUSE_MS;
     if(delay<1000 || delay>60000)throw new IllegalArgumentException("World RPG pause must be 1000..60000 milliseconds");
+    bot.getPosition().setH(PositionUtil.getHeadingTowards(bot,host));
     s.rpgUntil=now+delay;s.noActivitySince=0;s.failedTravel=false;s.why="service visit: finite arrival pause";navigation.stop();return;
    }
    // Hand movement back to the native quest/combat/loot actions before entering
@@ -460,13 +541,14 @@ final class PlayerBotWorldActivities {
    if(startHuntStay(s,now)){navigation.stop();return;}
    s.excluded.put(key(s.goal),now+30000);goal(s,null);s.nextScan=0;navigation.stop();return;
   }
-  if(s.goal!=null) {
+   if(routeEnd && s.goal==s.rpg)navigation.failWholeRouteInteraction(point);
+   if(s.goal!=null) {
    double distance=PlayerBotWorldTravel.distance(bot,s.goal.place());
    if(distance<s.best-2){if(Double.isFinite(s.best)){s.noActivitySince=0;s.failedTravel=false;}s.best=distance;s.lastProgress=now;s.travelClock.reset();}
    if(navigation.transportCongested()){s.excluded.put(key(s.goal),now+45000);goal(s,null);s.nextScan=0;navigation.stop();return;}
    boolean waiting=navigation.waitingForTerrainWork() || navigation.waitingForTransport();
    if(!waiting && navigation.progressing(now)){s.lastProgress=now;s.noActivitySince=0;s.failedTravel=false;s.travelClock.reset();}
-   if(s.travelClock.stalled(now,s.lastProgress,waiting)){s.failedTravel=true;s.excluded.put(key(s.goal),now+120000);goal(s,null);s.nextScan=0;navigation.stop();}
+   if(s.travelClock.stalled(now,s.lastProgress,waiting)){s.failedTravel=true;s.excluded.put(key(s.goal),now+120000);if(s.goal==s.rpg && s.rpgNpc!=null)s.excluded.put(rpgKey(s.rpgNpc),now+120000);goal(s,null);s.nextScan=0;navigation.stop();}
   }
    if(s.goal==null && now>=s.nextScan && !lostHold(now,s.lostSince,s.lostSince>0 && PlayerBotWorldPlacement.nearHuman(bot.getWorldId(),bot.getX(),bot.getY(),bot.getZ()))){s.nextScan=now+5000;goal(s,choose(bot,s,now));s.best=Double.POSITIVE_INFINITY;s.lastProgress=now;
     if(s.goal==null)s.why=s.unsuitableMap?"no reachable quest or XP target: map has no level-appropriate camp; awaiting field placement"
@@ -503,6 +585,12 @@ final class PlayerBotWorldActivities {
    Goal selected=s.goal;if(selected==null)return false;
   if(selected==s.rpg && rpgPause(System.currentTimeMillis(),s.rpgUntil)){s.why="rpg pause";return true;}
   boolean moved=PlayerBotWorldTravel.move(bot,selected.place(),navigation);
+   // The mover can acknowledge the last corner after prepare's arrival check.
+   // A service visit still needs native talk range and sight at that endpoint.
+   if(!moved && selected==s.rpg){
+    var place=selected.place();var point=new PlayerBotNavigation.Point(place.x(),place.y(),place.z());
+    if(navigation.atWholeRouteEnd(point) && rpgHost(bot,s,navigation,System.currentTimeMillis())==null)navigation.failWholeRouteInteraction(point);
+   }
   s.why=(moved?"travelling to ":"travel refused to ")+selected.kind()+(selected.quest()==0?"":" quest")+(bot.getWorldId()==selected.place().map()?"":" other map");
   // TravelTarget cooldown purpose: a completed bounded search with no earned
   // route is an unavailable destination, not fresh progress for another retry.
@@ -512,6 +600,8 @@ final class PlayerBotWorldActivities {
    long failedAt=System.currentTimeMillis();
    if(navigation.takeGoalLost())rememberLostGoal(bot,s,key(selected),failedAt+LOST_GOAL_MS);
    else s.excluded.put(key(selected),failedAt+120000);
+   // An unreachable visitor spot rests its whole service NPC, as the NPC itself rested before visitors had spots.
+   if(selected==s.rpg && s.rpgNpc!=null)s.excluded.put(rpgKey(s.rpgNpc),s.excluded.getOrDefault(key(selected),failedAt+120000));
    boolean lost=navigation.takeLost();if(lost)s.lostSince=failedAt;
    goal(s,null);s.nextScan=0;navigation.stop();
    // Set after the release, which writes its own "awaiting selection" text over any earlier reason.

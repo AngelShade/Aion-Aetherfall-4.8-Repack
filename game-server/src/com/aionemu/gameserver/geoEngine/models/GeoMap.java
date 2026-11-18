@@ -138,9 +138,17 @@ public class GeoMap extends Node {
 
 	/** One native floor traversal for headless walking, including physical transparent support. */
 	public float getPlayerBotGroundZ(float x,float y,float top,float bottom,int instance) {
+		return playerBotGroundZ(x,y,top,bottom,instance,true);
+	}
+	/** The same floor search without the 45 degree limit: the surface of a rock edge or terrain crease that is too
+	 * steep to stand on. Only for stepping over such a bump when real ground follows straight after it. */
+	public float getPlayerBotSteepGroundZ(float x,float y,float top,float bottom,int instance) {
+		return playerBotGroundZ(x,y,top,bottom,instance,false);
+	}
+	private float playerBotGroundZ(float x,float y,float top,float bottom,int instance,boolean standable) {
 		CollisionResults results=new CollisionResults((byte)(CollisionIntention.PHYSICAL.getId() | CollisionIntention.PHYSICAL_SEE_THROUGH.getId()),instance,IgnoreProperties.ANY_RACE);
 		results.boundSegment(x,y,top,x,y,bottom);
-		results.setInvalidateSlopingSurface(true);
+		results.setInvalidateSlopingSurface(standable);
 		Ray ray=new Ray(new Vector3f(x,y,top),new Vector3f(0,0,-1));ray.setLimit(top-bottom);
 		collideWith(ray,results);
 		if(terrain!=null)terrain.collideAtOrigin(ray,results);

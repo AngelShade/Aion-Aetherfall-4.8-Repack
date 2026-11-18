@@ -12,8 +12,8 @@ import com.aionemu.gameserver.configs.main.PlayerBotConfig;
 public final class PlayerBotNavigationConfigCheck {
  private static int checks;
  private static final String PREFIX="gameserver.playerbots.navigation.";
- private static final String[] KEYS={"budget_ms_per_second","slice_ms","max_workers","segment_metres"};
- private static final String[] FIELDS={"TERRAIN_BUDGET_MS","TERRAIN_SLICE_MS","TERRAIN_WORKERS","TERRAIN_SEGMENT_METRES"};
+ private static final String[] KEYS={"budget_ms_per_second","slice_ms","max_workers","segment_metres","whole_route"};
+ private static final String[] FIELDS={"TERRAIN_BUDGET_MS","TERRAIN_SLICE_MS","TERRAIN_WORKERS","TERRAIN_SEGMENT_METRES","NAVIGATION_WHOLE_ROUTE"};
  private static void check(boolean ok,String why){if(!ok)throw new AssertionError(why);checks++;}
  private static Properties load(Path root)throws Exception{var m=Config.class.getDeclaredMethod("loadProperties",Path.class);m.setAccessible(true);return (Properties)m.invoke(null,root);}
  private static void values(int budget,int slice,int workers,float segment,String why){
@@ -29,16 +29,19 @@ public final class PlayerBotNavigationConfigCheck {
    Files.writeString(root.resolve("config/playerbots/playerbots.properties"),"");
    check(ConfigurableProcessor.process(load(root),PlayerBotConfig.class).isEmpty(),"optional navigation file may be absent without unknown properties");
    values(500,3,2,24,"compiled native defaults");
+   check(!PlayerBotConfig.NAVIGATION_WHOLE_ROUTE,"whole-route travel is disabled by the compiled default");
    Files.writeString(root.resolve("config/playerbots/not-server.properties"),PREFIX+"budget_ms_per_second=999\n");
    Files.writeString(root.resolve("config/playerbots/world-population-events.json"),"{\"budget_ms_per_second\":999}\n");
    check(ConfigurableProcessor.process(load(root),PlayerBotConfig.class).isEmpty(),"private metadata and other files are not server configuration");values(500,3,2,24,"named-file-only loading");
    Files.writeString(root.resolve("config/playerbots/playerbots.properties"),PREFIX+"budget_ms_per_second=777\n");
    Files.writeString(root.resolve("config/playerbots/features.properties"),"gameserver.playerbots.quests.custom=false\n");
-   Files.writeString(root.resolve("config/playerbots/navigation.properties"),PREFIX+"budget_ms_per_second=350\n"+PREFIX+"slice_ms=2\n"+PREFIX+"max_workers=3\n"+PREFIX+"segment_metres=32\n");
-   check(ConfigurableProcessor.process(load(root),PlayerBotConfig.class).isEmpty(),"four navigation keys are registered in the actual native parser");values(350,2,3,32,"named navigation settings override main");
+   Files.writeString(root.resolve("config/playerbots/navigation.properties"),PREFIX+"budget_ms_per_second=350\n"+PREFIX+"slice_ms=2\n"+PREFIX+"max_workers=3\n"+PREFIX+"segment_metres=32\n"+PREFIX+"whole_route=true\n");
+   check(ConfigurableProcessor.process(load(root),PlayerBotConfig.class).isEmpty(),"navigation keys are registered in the actual native parser");values(350,2,3,32,"named navigation settings override main");
+   check(PlayerBotConfig.NAVIGATION_WHOLE_ROUTE,"named navigation file enables whole-route travel through the native parser");
    check(!PlayerBotConfig.QUEST_CUSTOM,"existing feature-file owner choice remains effective");
-   Files.writeString(root.resolve("config/mygs.properties"),PREFIX+"budget_ms_per_second=450\n"+PREFIX+"segment_metres=48\n");
+   Files.writeString(root.resolve("config/mygs.properties"),PREFIX+"budget_ms_per_second=450\n"+PREFIX+"segment_metres=48\n"+PREFIX+"whole_route=false\n");
    check(ConfigurableProcessor.process(load(root),PlayerBotConfig.class).isEmpty(),"final mygs override remains registered");values(450,2,3,48,"mygs final native override");
+   check(!PlayerBotConfig.NAVIGATION_WHOLE_ROUTE,"final mygs override can disable whole-route travel");
    check(!PlayerBotConfig.QUEST_CUSTOM,"navigation and mygs loading preserve existing independent quest switches");
    for(int i=0;i<KEYS.length;i++){
     var annotation=PlayerBotConfig.class.getField(FIELDS[i]).getAnnotation(Property.class);

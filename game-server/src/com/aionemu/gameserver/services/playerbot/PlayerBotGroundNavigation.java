@@ -15,6 +15,22 @@ public final class PlayerBotGroundNavigation {
 	private record DoorPair(DespawnableNode closed, DespawnableNode opened) {}
 	private static final Map<GeoMap, Map<Geometry, DoorPair>> DOORS = new ConcurrentHashMap<>();
 	private static final float STEP = 0.35f;
+	/** Ground under a walking step. A sample that lands on a surface too steep to stand on (a rock edge, a crease
+	 * in the terrain) used to count as "no floor" and stopped the walk, although the walking map and a player both
+	 * cross it: measured 16 Nov 2026, 56 of 62 such stops on Poeta, Morheim and Verteron routes were this. The
+	 * steep sample now counts when real standable ground follows within 0.7 m straight ahead, so a bump is stepped
+	 * over and a cliff or a long steep slope still stops the walk. */
+	static float support(GeoMap map,int instance,float x,float y,float top,float bottom,float dx,float dy) {
+		float floor=PlayerBotGroundSupport.floor(map,instance,x,y,top,bottom);
+		if(Float.isFinite(floor) || dx==0 && dy==0)return floor;
+		float steep=map.getPlayerBotSteepGroundZ(x,y,top,bottom,instance);
+		if(!Float.isFinite(steep))return Float.NaN;
+		for(float ahead:new float[]{STEP,2*STEP}) {
+			float next=PlayerBotGroundSupport.floor(map,instance,x+dx*ahead,y+dy*ahead,steep+0.6f+ahead,steep-0.85f-ahead);
+			if(Float.isFinite(next) && Math.abs(next-steep)<=ahead+0.3f)return steep;
+		}
+		return Float.NaN;
+	}
 
 	public static Vector3f walk(GeoMap map, int instance, float x, float y, float z, float targetX, float targetY) {
 		return walk(map, instance, x, y, z, targetX, targetY, z);
@@ -31,7 +47,8 @@ public final class PlayerBotGroundNavigation {
 		double distance = Math.hypot(targetX - x, targetY - y);
 		// Native GeoMap movement accepts support down to z-1.5 at the origin.
 		// Recruitment/transfer copies a client position before headless gravity runs.
-		float floor = PlayerBotGroundSupport.floor(map, instance, x, y, z + 0.6f, z - 1.5f);
+		float aheadX = distance < 0.001 ? 0 : (float)((targetX - x) / distance), aheadY = distance < 0.001 ? 0 : (float)((targetY - y) / distance);
+		float floor = support(map, instance, x, y, z + 0.6f, z - 1.5f, aheadX, aheadY);
 		if (!Float.isFinite(floor) && targetZ < z - 1.25f) {
 			// A headless actor can inherit an elevated spawn/transfer position without
 			// receiving client gravity updates. Use the movement intent's altitude to
@@ -63,7 +80,7 @@ public final class PlayerBotGroundNavigation {
 		for (int i = 1; i <= steps; i++) {
 			float travelled = (float)Math.min(distance, i * STEP);
 			float nextX = x + dx * travelled, nextY = y + dy * travelled;
-			float ground = PlayerBotGroundSupport.floor(map, instance, nextX, nextY, current.z + 0.6f, current.z - 0.85f);
+			float ground = support(map, instance, nextX, nextY, current.z + 0.6f, current.z - 0.85f, dx, dy);
 			float horizontal = (float)Math.hypot(nextX - current.x, nextY - current.y);
 			if (!Float.isFinite(ground) || ground < minimumZ || ground - current.z > horizontal + 0.15f || current.z - ground > horizontal + 0.3f) break;
 			Vector3f next = new Vector3f(nextX, nextY, ground);

@@ -18,6 +18,9 @@ final class PlayerBotHunting {
  }
  static boolean template(NpcTemplate npc){return npc!=null && !training(npc.getTribe()) && npc.getNpcTemplateType()!=com.aionemu.gameserver.model.templates.npc.NpcTemplateType.FLAG
   && npc.getLevel()>0 && npc.getLevel()<=69 && (npc.getRating()==NpcRating.NORMAL || npc.getRating()==NpcRating.JUNK);}
+ /** Town and roadside critters (small methu, porgus, qooqoo) are junk-rated. Bots never pick them to grind on;
+  * a quest that names one, or one that attacks first, is still fought through the quest and defence rules. */
+ static boolean critter(NpcTemplate npc){return npc!=null && npc.getRating()==NpcRating.JUNK;}
  /** Gear usually drops from elites, so a goal or a help request may name one. Ordinary grinding still may not. */
  static boolean goalTemplate(NpcTemplate npc){return template(npc) || npc!=null && !training(npc.getTribe()) && npc.getNpcTemplateType()!=com.aionemu.gameserver.model.templates.npc.NpcTemplateType.FLAG
   && npc.getLevel()>0 && npc.getLevel()<=69 && npc.getRating()==NpcRating.ELITE;}

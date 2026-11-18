@@ -37,6 +37,24 @@ public final class PlayerBotFieldActivityCheck {
   check(PlayerBotWorldActivities.rpgPause(1000,11000),"An admitted NPC arrival owns a finite ten-second visit");
   check(!PlayerBotWorldActivities.rpgPause(11000,11000),"Visit expires exactly at its deadline");
   check(!PlayerBotWorldActivities.rpgPause(1000,0),"No arrival deadline awards a stay before native arrival");
+  // Service visitors stand on their own spots around the NPC (15 Nov: crowds on the Sanctum teleport statue).
+  check(PlayerBotWorldActivities.rpgAngle(0)==0 && PlayerBotWorldActivities.rpgAngle(7)==Math.PI,"Visitors fill the NPC's front first and its back last");
+  check(PlayerBotWorldActivities.rpgAngle(1)>0 && PlayerBotWorldActivities.rpgAngle(1)==-PlayerBotWorldActivities.rpgAngle(2),"Spots alternate left and right of the front");
+  var angles=new HashSet<Long>();for(int slot=0;slot<PlayerBotWorldActivities.RPG_SLOTS;slot++)angles.add(Math.round(Math.toDegrees(PlayerBotWorldActivities.rpgAngle(slot))+360)%360);
+  check(angles.size()==PlayerBotWorldActivities.RPG_SLOTS,"Every ring spot has its own direction");
+  boolean inReach=true;for(float reach=2.2f;reach<=10;reach+=.1f){float ring=PlayerBotWorldActivities.rpgRing(reach);inReach&=ring>=1.5f && ring<=4 && Math.sqrt(ring*ring+1)<reach-.1;}
+  check(inReach,"A spot up to 1 m above or below the NPC stays inside native talk range");
+  var taken=List.of(new float[]{100,100,20});
+  check(!PlayerBotWorldActivities.rpgClear(101,100,20,taken),"A spot 1 m from a standing visitor is taken");
+  check(PlayerBotWorldActivities.rpgClear(102,100,20,taken) && PlayerBotWorldActivities.rpgClear(101,100,24,taken),"Spots 2 m away, or on another floor, stay free");
+  var statue=new PlayerBotWorldTravel.Place(110010000,804574,1390,1512,573);
+  var twin=new PlayerBotWorldTravel.Place(110010000,804574,1400,1512,573);
+  var claims=List.of(new PlayerBotWorldActivities.RpgClaim(statue,new PlayerBotWorldTravel.Place(110010000,804574,1393,1512,573)),
+   new PlayerBotWorldActivities.RpgClaim(statue,new PlayerBotWorldTravel.Place(110010000,804574,1387,1512,573)),
+   new PlayerBotWorldActivities.RpgClaim(twin,new PlayerBotWorldTravel.Place(110010000,804574,1403,1512,573)));
+  check(PlayerBotWorldActivities.rpgVisitors(claims,statue)==2 && PlayerBotWorldActivities.rpgVisitors(claims,twin)==1,"Visitors are counted per NPC spawn");
+  check(PlayerBotWorldActivities.rpgKey(statue).equals(PlayerBotWorldActivities.rpgKey(new PlayerBotWorldTravel.Place(110010000,804574,1390.3f,1511.8f,573)))
+   && !PlayerBotWorldActivities.rpgKey(statue).equals(PlayerBotWorldActivities.rpgKey(twin)),"The revisit rest covers the NPC, not one spot beside it");
   int capacity=PlayerBotPopulationRotation.poolCapacity(2500,2500,true,2,23);
   check(capacity==5014,"5000 reserve rounds once to 23-character account capacity");
   for(int registered:List.of(0,2358,2500,capacity-1,capacity,capacity+1,capacity+23)) {

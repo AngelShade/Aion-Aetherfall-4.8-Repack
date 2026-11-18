@@ -42,9 +42,12 @@ final class PlayerBotQuestCraftingDriver {
  }
  private static String key(Need need){return need.quest()+":"+need.stage()+":"+need.plan().recipeId()+":"+need.item();}
  private static boolean excluded(Player bot,Need need){return EXCLUDED.getOrDefault(bot.getObjectId(),Map.of()).getOrDefault(key(need),0L)>System.currentTimeMillis();}
- private static void exclude(Player bot,Need need){long now=System.currentTimeMillis();var exclusions=EXCLUDED.computeIfAbsent(bot.getObjectId(),id->new ConcurrentHashMap<>());
+ private static void exclude(Player bot,Need need){exclude(bot,need,30000);}
+ /** A need whose place the walker reported as unreachable rests two minutes, not thirty seconds. */
+ private static void excludeAfterMove(Player bot,Need need,PlayerBotNavigation navigation){exclude(bot,need,navigation.routeFailed()?120000:30000);}
+ private static void exclude(Player bot,Need need,long ms){long now=System.currentTimeMillis();var exclusions=EXCLUDED.computeIfAbsent(bot.getObjectId(),id->new ConcurrentHashMap<>());
   exclusions.entrySet().removeIf(e->e.getValue()<=now);if(exclusions.size()>=32)exclusions.entrySet().stream().min(Map.Entry.comparingByValue()).ifPresent(e->exclusions.remove(e.getKey(),e.getValue()));
-  exclusions.put(key(need),now+30000);
+  exclusions.put(key(need),now+ms);
  }
  private static void observe(Player bot) {
   var observation=OBSERVED.get(bot.getObjectId());if(observation==null || observation.task().isInProgress())return;
@@ -216,7 +219,7 @@ final class PlayerBotQuestCraftingDriver {
     && (wanted.quest()!=0 || PositionUtil.isInRange(session.owner(),tool,25)))tools.add(tool);});
    var tool=tools.stream().min(Comparator.comparingDouble(t->PositionUtil.getDistance(bot,t))).orElse(null);
    if(tool!=null) {
-    if(!PositionUtil.isInRange(bot,tool,4,false) || !GeoService.getInstance().canSee(bot,tool)){boolean moved=navigation.move(tool.getX(),tool.getY(),tool.getZ());if(!moved)exclude(bot,wanted);return moved;}
+    if(!PositionUtil.isInRange(bot,tool,4,false) || !GeoService.getInstance().canSee(bot,tool)){boolean moved=navigation.move(tool.getX(),tool.getY(),tool.getZ());if(!moved)excludeAfterMove(bot,wanted,navigation);return moved;}
     navigation.stop();if(!current(session,wanted))return false;var template=DataManager.QUEST_DATA.getQuestById(wanted.quest());var products=new TreeMap<Integer,Long>();
     if(template!=null && template.getCollectItems()!=null)for(var item:template.getCollectItems().getCollectItem())products.put(item.getItemId(),bot.getInventory().getItemCountByItemId(item.getItemId()));
     var before=new TreeMap<Integer,Long>();wanted.plan().materials().keySet().forEach(id->before.put(id,bot.getInventory().getItemCountByItemId(id)));
@@ -253,7 +256,7 @@ final class PlayerBotQuestCraftingDriver {
    if(distance+1<route.best())route=new Route(route.need(),route.destination(),now,distance);ROUTES.put(bot.getObjectId(),route);
    if(distance<=4 || now-route.progress()>30000){exclude(bot,wanted);ROUTES.remove(bot.getObjectId());return false;}
   }
-  boolean moved=destination!=null && decision.move(destination,navigation);if(!moved)exclude(bot,wanted);return moved;
+  boolean moved=destination!=null && decision.move(destination,navigation);if(!moved){if(destination!=null)excludeAfterMove(bot,wanted,navigation);else exclude(bot,wanted);}return moved;
  }
  private static boolean current(PlayerBotSession session,Need need){invalidate(session.bot());if(need.quest()==0)PlayerBotFocus.invalidateCraft(session.bot());return admitted(need) && requests(session).contains(need);}
  /** A map sleep releases travel intent without losing observation of an already paid craft. */

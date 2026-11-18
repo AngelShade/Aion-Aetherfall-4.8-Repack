@@ -85,7 +85,12 @@ public final class PlayerBotRoadNavigationCheck {
   try {
    var mover=(com.aionemu.gameserver.controllers.movement.PlayerBotMoveController)bot.actualMove;
    var current=mover.walkStatus().current();
-   for(int turn=0;turn<20 && ((Deque<?>)value(nav,"route")).size()<6;turn++){f.setDouble(budget,1e9);check(nav.road(goal,ahead),"Road tail retains an admitted current edge while its bounded proof resumes");}
+   boolean retained=true;
+   for(int turn=0;turn<20 && retained && ((Deque<?>)value(nav,"route")).size()<6;turn++){
+    f.setDouble(budget,1e9);
+    retained=nav.road(goal,ahead);
+   }
+   check(retained,"Road tail retains an admitted current edge while its bounded proof resumes");
    @SuppressWarnings("unchecked") var route=(Deque<Point>)value(nav,"route");
    check(route.size()==6 && route.getLast().equals(ahead.getLast()),"Dense road lanes retain their individual corner points in the native corridor");
    check(mover.walkStatus().generation()==41 && mover.walkStatus().current().equals(current),"Appending roads never cancels or replaces the native current edge");

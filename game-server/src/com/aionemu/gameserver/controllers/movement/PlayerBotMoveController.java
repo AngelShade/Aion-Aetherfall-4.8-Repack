@@ -87,6 +87,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 	private static final float WALK_METRES=48;
 	private static final long WALK_LEASE_MS=3000;
 	private boolean walkActive,walkBlocked,internalWalkDirection;
+	private boolean walkLearnsObstructions=true;
 	private int walkWorld,walkInstance;
 	/** One steering sample for a persistent follow source. */
 	public record FollowStep(float x,float y,float z) {}
@@ -116,6 +117,11 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 	 * tail without replacing the active edge or acknowledging physical progress. */
 	public synchronized boolean publishWalk(long generation,java.util.List<WalkPoint> points,
 		java.util.function.BiPredicate<WalkPoint,WalkPoint> safe) {
+		return publishWalk(generation,points,safe,true);
+	}
+	/** Whole-trip routes retry native failures without teaching legacy route memory. */
+	public synchronized boolean publishWalk(long generation,java.util.List<WalkPoint> points,
+		java.util.function.BiPredicate<WalkPoint,WalkPoint> safe,boolean learnObstructions) {
 		if(generation<walkGeneration || points.isEmpty() || failed || !owner.isSpawned() || owner.isDead()
 			|| owner.isFlying() || owner.isCasting() || owner.isTrading() || owner.isLooting() || !owner.canPerformMove()
 			|| heightPlan!=null || platformPlan!=null)return false;
@@ -135,7 +141,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		}
 		var first=points.get(cursor);
 		if(fresh) {
-			walkGeneration=generation;walkReached=first.index()-1;walkCurrent=first;walkActive=true;walkBlocked=false;
+			walkGeneration=generation;walkReached=first.index()-1;walkCurrent=first;walkActive=true;walkBlocked=false;walkLearnsObstructions=learnObstructions;
 			com.aionemu.gameserver.services.playerbot.PlayerBotFollowIntent.clear(owner);
 		}
 		walkAhead.clear();
@@ -162,6 +168,13 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 	private void revokeWalk(boolean blocked) {
 		walkAhead.clear();walkCurrent=null;walkSafe=null;walkUntil=0;walkActive=false;walkBlocked=blocked;
 	}
+	/** Marks the current walk as blocked and records where and why, so blocked places can be collected from a live log. */
+	private void blockedStep(String why,float x,float y,float z,com.aionemu.gameserver.geoEngine.math.Vector3f ground) {
+		walkBlocked=true;
+		if(!walkActive)return;
+		log.info("Playerbot blocked step: {} map {} at {} {} {} -> {} {} {} ({}; floor found {}; {})",owner.getName(),owner.getWorldId(),owner.getX(),owner.getY(),owner.getZ(),x,y,z,why,
+			ground==null?"none":ground.x+" "+ground.y+" "+ground.z,walkLearnsObstructions?"local route":"whole route");
+	}
 	private void walkDirection(WalkPoint point) {
 		byte direction=(byte)Math.floorMod((int)Math.round(Math.toDegrees(Math.atan2(point.y()-owner.getY(),point.x()-owner.getX()))/3),120);
 		internalWalkDirection=true;
@@ -174,13 +187,13 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 		if(walkAhead.isEmpty()){walkCurrent=null;walkActive=false;return false;}
 		var next=walkAhead.peekFirst();
 		var from=new WalkPoint(-1,owner.getX(),owner.getY(),owner.getZ());
-		if(walkSafe==null || !walkSafe.test(from,next)){walkBlocked=true;return false;}
+		if(walkSafe==null || !walkSafe.test(from,next)){blockedStep(walkSafe==null?"no hazard check for the next corner":"hazard check refused the next corner",next.x(),next.y(),next.z(),null);return false;}
 		// Recheck the whole handoff edge for fresh walls/doors. The ordinary
 		// ground loop still checks the actual floor step on every movement tick.
 		var ground=com.aionemu.gameserver.services.playerbot.PlayerBotWater.walk(owner,owner.getWorldId(),owner.getInstanceId(),
 			owner.getX(),owner.getY(),owner.getZ(),next.x(),next.y(),next.z());
 		if(ground==null || !Float.isFinite(ground.x) || !Float.isFinite(ground.y) || !Float.isFinite(ground.z)
-			|| Math.hypot(ground.x-next.x(),ground.y-next.y())>.15 || Math.abs(ground.z-next.z())>2){walkBlocked=true;return false;}
+			|| Math.hypot(ground.x-next.x(),ground.y-next.y())>.15 || Math.abs(ground.z-next.z())>2){blockedStep("game floor does not reach the next corner",next.x(),next.y(),next.z(),ground);return false;}
 		walkAhead.removeFirst();
 		// Prepared corner heights are approximate: walk to the native floor at that
 		// XY, while the published point keeps its identity for corridor refreshes.
@@ -350,13 +363,13 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 			if(walkActive && (now>walkUntil || owner.getWorldId()!=walkWorld || owner.getInstanceId()!=walkInstance)) {abortMove();return;}
 			double distance=Math.hypot(targetDestX-owner.getX(),targetDestY-owner.getY());
 			if(walkActive && (walkSafe==null || !walkSafe.test(new WalkPoint(-1,owner.getX(),owner.getY(),owner.getZ()),walkCurrent))) {
-				walkBlocked=true;abortMove();return;
+				blockedStep(walkSafe==null?"no hazard check for the current corner":"hazard check refused the current corner",targetDestX,targetDestY,targetDestZ,null);abortMove();return;
 			}
 			if(distance<.01) {
 				var ground=com.aionemu.gameserver.services.playerbot.PlayerBotWater.walk(owner,
 					owner.getWorldId(),owner.getInstanceId(),owner.getX(),owner.getY(),owner.getZ(),owner.getX(),owner.getY(),targetDestZ);
 				if(ground!=null && Float.isFinite(ground.z) && ground.z<owner.getZ()-1.25f){startSupportedFall();return;}
-				if(ground==null || !Float.isFinite(ground.z) || Math.abs(ground.z-targetDestZ)>.75) {walkBlocked=true;abortMove();return;}
+				if(ground==null || !Float.isFinite(ground.z) || Math.abs(ground.z-targetDestZ)>.75) {blockedStep("floor height at the corner differs from the route",targetDestX,targetDestY,targetDestZ,ground);abortMove();return;}
 				if(com.aionemu.gameserver.services.playerbot.PlayerBotFollowIntent.active(owner)){updateLastMove();return;}
 				if(!nextWalkPoint(now)){abortMove();return;}
 				continue;
@@ -364,22 +377,25 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 			if(remaining<=0){updateLastMove();return;}
 			float speed=requestedMovementSpeed();
 			if(!Float.isFinite(speed) || speed<=0){updateLastMove();return;}
+			// Whole-route corners can leave less than a millimetre of this tick.
+			// Discard that residual time before float rounding creates a false blocked step.
+			if(walkActive && !walkLearnsObstructions && speed*remaining<.001){updateLastMove();return;}
 			double fraction=Math.min(1,speed*remaining/distance);
 			float x=owner.getX()+(float)((targetDestX-owner.getX())*fraction);
 			float y=owner.getY()+(float)((targetDestY-owner.getY())*fraction);
 			var ground=com.aionemu.gameserver.services.playerbot.PlayerBotWater.walk(owner,
 				owner.getWorldId(),owner.getInstanceId(),owner.getX(),owner.getY(),owner.getZ(),x,y,targetDestZ);
 			if(ground==null || !Float.isFinite(ground.x) || !Float.isFinite(ground.y) || !Float.isFinite(ground.z)){
-				com.aionemu.gameserver.services.playerbot.PlayerBotRouteMemory.obstructed(owner.getWorldId(),owner.getX(),owner.getY(),owner.getZ(),x,y);
-				walkBlocked=true;abortMove();return;
+				if(!walkActive || walkLearnsObstructions)com.aionemu.gameserver.services.playerbot.PlayerBotRouteMemory.obstructed(owner.getWorldId(),owner.getX(),owner.getY(),owner.getZ(),x,y);
+				blockedStep("game finds no floor for the step",x,y,targetDestZ,ground);abortMove();return;
 			}
 			if(steepDrop(ground)){startSupportedFall();return;}
 			double covered=Math.hypot(ground.x-owner.getX(),ground.y-owner.getY());
 			if(covered<.001){
-				com.aionemu.gameserver.services.playerbot.PlayerBotRouteMemory.obstructed(owner.getWorldId(),owner.getX(),owner.getY(),owner.getZ(),x,y);
-				walkBlocked=true;abortMove();return;
+				if(!walkActive || walkLearnsObstructions)com.aionemu.gameserver.services.playerbot.PlayerBotRouteMemory.obstructed(owner.getWorldId(),owner.getX(),owner.getY(),owner.getZ(),x,y);
+				blockedStep("step made no progress",x,y,targetDestZ,ground);abortMove();return;
 			}
-			if(!com.aionemu.gameserver.services.playerbot.PlayerBotRoadDuty.permitRoadStep(owner,ground.x,ground.y,ground.z)){walkBlocked=true;abortMove();return;}
+			if(!com.aionemu.gameserver.services.playerbot.PlayerBotRoadDuty.permitRoadStep(owner,ground.x,ground.y,ground.z)){blockedStep("road duty refused the step",ground.x,ground.y,ground.z,null);abortMove();return;}
 			long generation=walkGeneration;boolean owned=walkActive;
 			com.aionemu.gameserver.world.World.getInstance().updatePosition(owner,ground.x,ground.y,ground.z,heading,false);
 			remaining=Math.max(0,remaining-covered/speed);updateLastMove();
@@ -388,7 +404,7 @@ public final class PlayerBotMoveController extends PlayerMoveController {
 			// A native observer may change casting, movement or the command itself.
 			if(owner.isCasting() || !isInMove() || !started.get() || generation!=walkGeneration || owned && !walkActive)return;
 			if(fraction<1 || Math.hypot(targetDestX-owner.getX(),targetDestY-owner.getY())>=.01)return;
-			if(Math.abs(targetDestZ-owner.getZ())>2){walkBlocked=true;abortMove();return;}
+			if(Math.abs(targetDestZ-owner.getZ())>2){blockedStep("reached the corner at a different height",targetDestX,targetDestY,targetDestZ,null);abortMove();return;}
 			if(com.aionemu.gameserver.services.playerbot.PlayerBotFollowIntent.active(owner))return;
 			if(!nextWalkPoint(now)){abortMove();return;}
 		}

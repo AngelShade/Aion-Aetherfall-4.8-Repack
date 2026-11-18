@@ -648,6 +648,7 @@ public final class PlayerBotService {
   lines.add("Find Group runs: "+PlayerBotRunBriefing.stats());
   lines.add("World activity: dormant="+active.stream().filter(PlayerBotSession::dormant).count()
    +"; unoccupied-map dormancy="+PlayerBotConfig.WORLD_ONLY_OCCUPIED_MAPS+"; companions remain active with their owners.");
+  if(PlayerBotConfig.NAVIGATION_WHOLE_ROUTE)lines.add(PlayerBotWholeRoute.summary());
   var mesh=PlayerBotMeshRoute.outcomes();
   if(!mesh.isEmpty())lines.add("Navmesh corridor checks since last report: "+mesh);
   PlayerBotMeshRoute.flushAreas(java.nio.file.Path.of("log","navmesh_areas-"+NAVMESH_REPORT_RUN+".csv"));

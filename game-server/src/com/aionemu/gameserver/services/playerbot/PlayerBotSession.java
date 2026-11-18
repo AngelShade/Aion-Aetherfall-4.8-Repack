@@ -59,6 +59,10 @@ public final class PlayerBotSession {
 	private long nextSkillRefresh, nextAttack, nextDecision;
  private final Map<String,Long> deployments=new HashMap<>();
  private long nextDeployment, nextStealth;
+ private static final long CAST_RETRY_MS=1500;
+ private final Map<Integer,Long> castRetry=new HashMap<>();
+ /** Null-tolerant: offline checks build sessions without running field initialisers. */
+ private boolean castHeld(int skill){var held=castRetry;return held!=null && held.getOrDefault(skill,0L)>System.currentTimeMillis();}
 	private volatile Role role;
 	private Order order = Order.FOLLOW;
 	private final PlayerBotForcedFollow forcedFollow = new PlayerBotForcedFollow();
@@ -1976,7 +1980,7 @@ public final class PlayerBotSession {
 				&& (entry.kind() != SkillKind.BUFF && entry.kind() != SkillKind.PET_ORDER || !hasBuff(recipient, entry))
 				&& (PlayerBotHealing.managed(entry) || !PlayerBotService.getInstance().isReserved(bot, recipient, entry.kind()));
 		}
-		@Override public boolean isPossible() { return !bot.isSkillDisabled(entry.template()) && PlayerBotSkills.chainAvailable(bot, entry)
+		@Override public boolean isPossible() { return !bot.isSkillDisabled(entry.template()) && !castHeld(entry.template().getSkillId()) &&PlayerBotSkills.chainAvailable(bot, entry)
 			&& (entry.kind()!=SkillKind.BUFF || PlayerBotAethertech.buffAllowed(bot,role,entry.template(),!enemies.isEmpty(),classTravelling(!enemies.isEmpty())))
 			&& (bot.canAttack() || entry.kind() == SkillKind.RECOVERY || bot.isInState(CreatureState.RESTING))
 			&& PlayerBotCombatPosition.allowSpellApproach(bot,role,entry,recipient,skills)
@@ -2022,7 +2026,16 @@ public final class PlayerBotSession {
 			}
 			return null;
 		}
+		/** A cast that stopped the bot's walk and then did not happen is not tried again for a moment. Without this
+		 * a skill the engine keeps refusing stopped the walk on every decision (live log 15 Nov 2026: one bot, 67
+		 * stops in 20 s, each followed by a fresh walk), which looked like stuttering on the spot. */
 		private boolean cast() {
+			boolean walking=bot.getMoveController().isInMove();
+			boolean done=castNow();
+			if(!done && walking && castRetry!=null && !bot.getMoveController().isInMove())castRetry.put(entry.template().getSkillId(),System.currentTimeMillis()+CAST_RETRY_MS);
+			return done;
+		}
+		private boolean castNow() {
 			// Cast admission and movement shutdown share the mover's monitor. A
 			// scheduled step cannot slip between stopping and publishing the cast.
 			synchronized (bot.getMoveController()) {

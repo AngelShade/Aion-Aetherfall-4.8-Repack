@@ -498,7 +498,9 @@ final class PlayerBotQuestMaterials {
   if(gather!=null) {
    if(!PositionUtil.isInRange(bot,gather,3,false) || !GeoService.getInstance().canSee(bot,gather)) {
     boolean moved=gather.getSpawn().isAerialSpawn()?aerialMove(session,new PlayerBotWorldTravel.Place(gather.getWorldId(),gather.getObjectTemplate().getTemplateId(),gather.getX(),gather.getY(),gather.getZ()),navigation)
-     :navigation.move(gather.getX(),gather.getY(),gather.getZ());if(!moved)state.localRetries.put(gather.getObjectId(),now+5000);return moved;
+     :navigation.move(gather.getX(),gather.getY(),gather.getZ());
+    // A node with no walkable route stays out of the choice for two minutes instead of being asked for again every five seconds.
+    if(!moved)state.localRetries.put(gather.getObjectId(),now+(navigation.routeFailed()?120000:5000));return moved;
    }
    navigation.stop();if(bot.getMoveController().isInMove())return true;
    // Re-read the current node metadata and missing inventory immediately before native admission.
@@ -531,7 +533,10 @@ final class PlayerBotQuestMaterials {
   if(!destination.equals(state.destination)){state.destination=destination;state.progress=now;state.best=distance;}
   if(distance+1<state.best){state.best=distance;state.progress=now;}
   if(distance<=4 || now-state.progress>30000){state.excluded.put(destination,now+60000);state.destination=null;return false;}
-  return data.aerial().contains(destination)?aerialMove(session,destination,navigation,decision):decision.move(destination,navigation);
+  boolean moved=data.aerial().contains(destination)?aerialMove(session,destination,navigation,decision):decision.move(destination,navigation);
+  // A place the walker reported as unreachable leaves the choice at once, instead of being asked for every tick until the 30 s stall rule.
+  if(!moved && navigation.routeFailed()){state.excluded.put(destination,now+120000);state.destination=null;}
+  return moved;
  }
  static void close(Player bot){ACTORS.remove(bot.getObjectId());HUNT_CACHE.remove(bot.getObjectId());}
  static void invalidate(Player bot){var actor=ACTORS.get(bot.getObjectId());if(actor!=null){actor.scan=0;actor.nextSearch=0;}}

@@ -372,8 +372,20 @@ final class PlayerBotWorldTravel {
    && n.getInstanceId()==bot.getInstanceId() && PositionUtil.getDistance(n,edge.source().x(),edge.source().y(),edge.source().z())<=8
    && (nearby[0]==null || PositionUtil.getDistance(bot,n)<PositionUtil.getDistance(bot,nearby[0])))nearby[0]=n;});
   var teleporter=nearby[0];
-  if(teleporter==null)return navigation.move(edge.source().x(),edge.source().y(),edge.source().z());
-  if(!PositionUtil.isInTalkRange(bot,teleporter))return navigation.approach(teleporter,2);
+  if(teleporter==null){
+   var source=edge.source();var point=new PlayerBotNavigation.Point(source.x(),source.y(),source.z());
+   boolean moved=navigation.move(point.x(),point.y(),point.z());
+   // Reaching a mesh endpoint does not make a missing native transporter usable.
+   if(!moved && navigation.atWholeRouteEnd(point))navigation.failWholeRouteInteraction(point);
+   return moved;
+  }
+  if(!PositionUtil.isInTalkRange(bot,teleporter)){
+   var point=new PlayerBotNavigation.Point(edge.source().x(),edge.source().y(),edge.source().z());
+   if(navigation.atWholeRouteEnd(point)){navigation.failWholeRouteInteraction(point);return false;}
+   boolean moved=navigation.approach(teleporter,2);
+   if(!moved && navigation.atWholeRouteEnd(point))navigation.failWholeRouteInteraction(point);
+   return moved;
+  }
   navigation.stop();
   var template=TeleportService.validateTeleporterAndGetTemplate(bot,teleporter);
   var l=template==null?null:template.getTeleLocIdData().getTelelocations().stream().filter(t->t.getLocId()==edge.location() && (t.getType()==TeleportType.REGULAR || t.getType()==TeleportType.FLIGHT)).findFirst().orElse(null);

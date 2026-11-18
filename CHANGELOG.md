@@ -2,7 +2,35 @@
 
 ## Next update
 
-Wardrobe gets one-step unlocking and double-click try-on.
+Bots find their way past stairs and doorways again, and spread out around the NPCs they visit.
+
+### New
+
+### Improved
+
+- Travelling merchant bots work like a player's shop: they set up at each end of their road and stand there with the shop open for a while, instead of opening it only when you walk up. Select a merchant on the road and it stops and sets up for you.
+- With optional whole-route travel enabled, bots keep their path through brief stops and finish near NPCs on isolated patches of ground.
+
+### Fixed
+
+- Bots no longer walk into walls or go back and forth near stairs and doorways, such as on the way to Sanctum's teleporters.
+- Bots no longer stop at small rocks and creases in the ground on open maps.
+- Bots no longer stutter on the spot when a skill they try to use keeps failing.
+- Bots no longer stand still switching between two destinations when one of them cannot be reached.
+- Bots finish the trip they started before heading somewhere else, instead of changing their mind on the way.
+- Bots following a party leader walk along with the group smoothly instead of starting and stopping at every step.
+- Bots give up sooner on gathering spots, crafting stations and NPCs they cannot walk to, and pick another one.
+- Bots no longer stay stuck at spots where the ground cannot be crossed; they remember the spot and walk around it.
+- Bots no longer kill the small harmless critters in towns and along roads for experience.
+- Bots in towns no longer stack on one spot at teleport statues, vendors or warehouses; each takes its own place and then moves on.
+- Resized target and party frames keep the size you set after you log in again without closing the game.
+- Hovering a stigma shows its skill details beside the stigma's tooltip instead of hidden underneath it.
+- Aethertech merchant bots leave their mech and put their weapon away before opening their shop, so you can browse it.
+- Merchant bots no longer stay at the first spot someone walked up to them forever; they move on after their stop.
+
+## 0.98.14 - Wardrobe gets one-step unlocking and double-click try-on (15 November 2026)
+
+Wardrobe gets one-step unlocking and double-click try-on. The High Quality graphics profile also stops capping you at 60 FPS.
 
 ### New
 
@@ -11,10 +39,17 @@ Wardrobe gets one-step unlocking and double-click try-on.
 ### Improved
 
 - Double-click an appearance, dye or saved outfit in Wardrobe to try it on in the preview.
+- The High Quality graphics profile removes the game's hidden 60 FPS cap. Only Vertical Sync and Fixed FPS limit your frame rate.
+- The Map Codex lists more creatures that appear only during encounters, quests or events.
+- With the optional Simplified Chinese text pack, the Companions window translates catch-up requests, quest status, item bonuses and map directions.
 
 ### Fixed
 
+- The Hub spends less time assembling and installing updates with many small files.
 - With a Shugo Trade Charter, Wardrobe's Unlock Appearance button now works even when you have no Appearance Unlocks.
+- Auto Arrange in your character and account warehouses sorts items again instead of freezing the game with “There is no space in the warehouse.”
+- Verify Files no longer reports files that Aion or the launcher change on purpose, such as interface themes, companion art or choosing DX9, as damaged.
+- The launcher updates custom quests on every PC again instead of failing on a backup folder that only existed on our machine.
 
 ## 0.98.13 - Live portraits, faster bot startup and expanded Simplified Chinese text (14 November 2026)
 

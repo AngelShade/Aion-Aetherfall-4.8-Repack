@@ -285,6 +285,9 @@ public final class PlayerBotConfig {
  /** Each actor plans from shared map memory without population-wide terrain/query admission. */
  @Property(key = "gameserver.playerbots.navigation.independent", defaultValue = "true")
  public static boolean NAVIGATION_INDEPENDENT = true;
+/** Optional whole-trip ground corridors for independent world-bot travel. */
+@Property(key = "gameserver.playerbots.navigation.whole_route", defaultValue = "false")
+public static boolean NAVIGATION_WHOLE_ROUTE = false;
  /** Prepared/recorded paths are proposals; the native mover validates actual steps. */
  @Property(key = "gameserver.playerbots.navigation.memory_first", defaultValue = "true")
  public static boolean NAVIGATION_MEMORY_FIRST = true;
@@ -358,6 +361,10 @@ public final class PlayerBotConfig {
 	public static boolean WORLD_RPG_ENABLED = true;
 	@Property(key = "gameserver.playerbots.world.rpg_pause_ms", defaultValue = "10000")
 	public static int WORLD_RPG_PAUSE_MS = 10000;
+	@Property(key = "gameserver.playerbots.world.rpg_visitors_per_npc", defaultValue = "3")
+	public static int WORLD_RPG_VISITORS_PER_NPC = 3;
+	@Property(key = "gameserver.playerbots.world.rpg_revisit_ms", defaultValue = "180000")
+	public static int WORLD_RPG_REVISIT_MS = 180000;
 	@Property(key = "gameserver.playerbots.world.max_active", defaultValue = "3000")
 	public static int WORLD_MAX_ACTIVE;
 	@Property(key = "gameserver.playerbots.population.enable", defaultValue = "true")

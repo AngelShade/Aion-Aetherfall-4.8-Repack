@@ -125,6 +125,17 @@ public final class PlayerBotNavigationBudgetCheck {
    PlayerBotMeshRoute.rememberObstruction(42,20,10,0);
    check(PlayerBotMeshRoute.learnedObstruction(42,start,goal),"a native failure is shared with other routes before another collision attempt");
    check(!PlayerBotMeshRoute.learnedObstruction(42,new PlayerBotNavigation.Point(20,10,0),start),"recording a failed spot never traps a bot that needs to leave it");
+   // Sanctum (15 Nov): spots recorded beside stairs refused corridors the native walk can take.
+   try(var crossing=new PlayerBotMeshRoute(42,start,goal,24)){
+    candidates.set(crossing,List.of(start,goal));complete.setBoolean(crossing,true);
+    crossing.advance((from,x,y)->new PlayerBotNavigation.Point(x,y,0),128,()->false);
+    check(!crossing.pending() && !crossing.fallback() && crossing.route().getLast().equals(goal),"a learned spot the native walk passes no longer turns a walkable corridor into a wall");
+   }
+   try(var walled=new PlayerBotMeshRoute(42,start,goal,24)){
+    candidates.set(walled,List.of(start,goal));complete.setBoolean(walled,true);
+    walled.advance((from,x,y)->new PlayerBotNavigation.Point(Math.min(x,19),y,0),128,()->false);
+    check(walled.fallback() && walled.route().isEmpty(),"a learned spot the native walk confirms still refuses the corridor");
+   }
    for(var ship:PlayerBotDredgion.SHIPS){
     int world=ship.map();
     PlayerBotMeshRoute.rememberObstruction(world,20,10,0);
