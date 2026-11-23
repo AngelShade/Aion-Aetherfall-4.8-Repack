@@ -1,22 +1,28 @@
 {
   "schema": 1,
   "product": "Aion Aetherfall Repack",
-  "version": "0.98.15",
-  "patchFile": "Aetherfall-Patch-0.98.15.json",
-  "patchBytes": 149426340,
-  "patchSha256": "6625b2c1ea4b0b8f2f6fa97393913b072e6e233c3980dcd67ade415daebf66a7",
-  "patchUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.15/Aetherfall-Patch-0.98.15.json",
+  "version": "0.98.16",
+  "patchFile": "Aetherfall-Patch-0.98.16.json",
+  "patchBytes": 149601563,
+  "patchSha256": "eacd8edee3c1459ddb97c8c424e5a7de13746ad1bde85108d708e96610437b5a",
+  "patchUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.16/Aetherfall-Patch-0.98.16.json",
   "patchFormat": "chunked-v1",
-  "downloadBytes": 3781711060,
-  "assetCount": 377,
-  "filesChanged": 195448,
+  "downloadBytes": 4479713374,
+  "assetCount": 476,
+  "filesChanged": 195705,
   "filesRemoved": 190071,
-  "setupExeUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.15/Aetherfall-Setup.exe",
+  "setupExeUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.16/Aetherfall-Setup.exe",
   "setupExeBytes": 5718528,
   "setupExeSha256": "ea34da9c2e4bed612a36fb64f56d0b786e374c2e67543e3ec5137ae9f8d0ffcf",
   "setupVersion": "0.90.1116.1",
-  "languageAssets": [],
-  "downloaderUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.15/Aetherfall-Downloader.zip",
-  "downloaderBytes": 8692686,
-  "downloaderSha256": "78126bab84c9125a4e0c5d62f0ef5e55d04c2b65247f7dc01a69138a3baeab41"
+  "languageAssets": [
+    {
+      "file": "Aetherfall-Language-chs-text-0.98.16.zip",
+      "bytes": 70594084,
+      "sha256": "5e4c63c683326b19b6cd7b4fd558bbe60e5b17fbba0f89f7295a765c4e284d7e"
+    }
+  ],
+  "downloaderUrl": "https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/download/v0.98.16/Aetherfall-Downloader.zip",
+  "downloaderBytes": 8694590,
+  "downloaderSha256": "015b16f84513fb8dec0a2596e7b10f98f729761724fd29355701516105b38639"
 }
