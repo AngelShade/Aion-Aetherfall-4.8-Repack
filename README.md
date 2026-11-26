@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚔️ Aion 4.8 Playerbots — Aetherfall Repack (v0.98.16)
+# ⚔️ Aion 4.8 Playerbots — Aetherfall Repack (v0.98.17)
 
 ### **Full Solo & Co-Op Private Server Repack • Autonomous AI Companions • 1-Click Setup & Play**
 
@@ -18,18 +18,15 @@
 ---
 
 <!-- whats-new:start -->
-## ✨ What's new in 0.98.16
+## ✨ What's new in 0.98.17
 
-Road Wardens have new calls for help, from rescuing captives to rallying a whole zone against a World Boss. You can also switch Full HUD to the new Aion 2 interface look at any time.
+World Event boss battles, companion inventory use and post-pass loot rolls, classic Codex shortcut, graphics and GPU improvements, Chanter mantra swapping, and bug fixes.
 
-- Six new road events send you to free prisoners, defend an outpost, break a siege or gather supplies under attack.
-- Across twelve Warden maps, battles along the roads can build into simultaneous assaults and draw a World Boss to a local landmark.
-- Open the World Map to find active road events and World Bosses, even before you reach the fighting.
-- The World Event Assistant shows the current objective and your contribution. You can position its display in MoveUI.
-- The Codex has a World Events page where you can check on zones and see how recent battles ended.
-- Spend Warden's Marks on satchels, supplies and cosmetics at a Warden Quartermaster. Look for one after a victory or in your capital.
+- Companions now have an After Pass loot roll option in Equipment rules that waits for players before rolling on class items.
+- Use consumables such as XP amulets, scrolls, potions, and titles directly from a companion or alt's bag in the Companions window.
+- A Codex button now appears on the classic interface shortcut bar next to Wardrobe.
 
-**[See everything in 0.98.16](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.16)** • [All updates](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases)
+**[See everything in 0.98.17](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases/tag/v0.98.17)** • [All updates](https://github.com/AngelShade/Aion-Aetherfall-4.8-Repack/releases)
 
 ---
 <!-- whats-new:end -->
